@@ -3019,6 +3019,7 @@
       },
       "stateUnchanged": "Nothing changed.",
       "checksSetup": "Cast",
+      "checksAvVideo": "This world sends video nobody watches: set the A/V mode to audio only.",
       "seasonChecks": "Pre-season checks",
       "nextFloorHeld": "{mode} - {who} holds it.",
       "whoIsAlive": "Students",
@@ -3413,7 +3414,29 @@
         "count": {
           "one": "You hear {n} person in your channel",
           "other": "You hear {n} people in your channel"
-        }
+        },
+        "alone": "Nobody else is in your channel.",
+        "muteAll": "Mute everybody for you",
+        "volume": "Volume: {name}",
+        "muteFor": "Mute {name} for you",
+        "unmuteFor": "Hear {name} again",
+        "hidden": "Hidden earlier in the camera dock: you do not hear them.",
+        "unhide": "Show and listen",
+        "gmBlock": "Block {name}'s microphone for everyone",
+        "gmUnblock": "Unblock {name}'s microphone",
+        "gmHeld": "You cannot block this microphone now.",
+        "gmSecretDead": "This death is still a secret: a block would give it away."
+      },
+      "panel": {
+        "legend": "Voice",
+        "mic": "Microphone",
+        "micNote": "Allow the browser to use your microphone, then open this window again to choose one.",
+        "output": "Sound output",
+        "mode": "Microphone mode",
+        "modeAlways": "Always on",
+        "modePtt": "Push to talk",
+        "pttKey": "Push-to-talk key: {key}",
+        "pttChange": "Change the key"
       },
       "liveKitSecret": "LiveKit AVClient is set to a self-hosted server, and its API secret is kept in a world setting, which reaches every player's browser. Anyone holding it can connect to any voice room. This module cannot move another module's setting; a server that issues its own access tokens, such as the Tavern, keeps the secret off every browser."
     },

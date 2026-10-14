@@ -757,8 +757,8 @@ export async function openSeasonSetup({ draft = null } = {}) {
  * answered where the button was.
  */
 async function runPreSessionChecks() {
-    const [{ diagnoseCharacters }, { auditAnonymity }, { diagnoseScenes }] = await Promise.all([
-        import("./diagnostics.mjs"), import("./anonymity.mjs"), import("./fog.mjs")
+    const [{ diagnoseCharacters }, { auditAnonymity }, { diagnoseScenes }, { videoUnwatched }] = await Promise.all([
+        import("./diagnostics.mjs"), import("./anonymity.mjs"), import("./fog.mjs"), import("./voice-tile.mjs")
     ]);
 
     const setup = diagnoseCharacters({ toChat: false });
@@ -767,6 +767,10 @@ async function runPreSessionChecks() {
     // black screen for players on v14 and says nothing about why, so it belongs
     // on the list of things checked before anybody sits down.
     const scenes = diagnoseScenes();
+    // E78 C5 (the owner's Q11, the A9 design's `avVideo`): a world in audio-and-video mode sends every camera while
+    // the voice tile stands in for the dock, which shows none of them. A row only when that is so.
+    const video = videoUnwatched() ? `<h3>${game.i18n.localize("DRPG.Voice.panel.legend")}</h3>
+            <p class="drpg-check-report">${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Panel.checksAvVideo"))}</p>` : "";
 
     await DialogV2.wait({
         classes: ["drpg-panel", "drpg-wide"],
@@ -776,6 +780,7 @@ async function runPreSessionChecks() {
             <pre class="drpg-check-report">${foundry.utils.escapeHTML(setup)}</pre>
             <h3>${game.i18n.localize("DRPG.Fog.checksScenes")}</h3>
             <pre class="drpg-check-report">${foundry.utils.escapeHTML(scenes)}</pre>
+            ${video}
             <h3>${game.i18n.localize("DRPG.Anonymity.audit.title")}</h3>
             ${anon.body ?? ""}
         </div>`),

@@ -8993,6 +8993,14 @@ const REGRESSIONS = [
          * that asks `micHold`, where the plan named it `paintMic`) and the viewer's own mute (CLIENT). The plan's third
          * C4 row, MIC in `toggleOwnMic`, has no road: `toggleOwnMic` calls no `toggleAudio` (the design's P6), so MIC
          * stays without a row and any call of it is a road this table does not judge.
+         * E78 C5 moved the last seven planned roads in and added three (twenty-four rows): the list's names and portraits
+         * (WHO, and SRC keyed `paintList#url`, the census's name for the plan's `paintList#src`), the volume (CLIENT and ELEM
+         * in `setPeerVolume`), the GM's block (HOLD in `paintList` and `toggleBlock`, BLOCK in `toggleBlock`), and three
+         * CLIENT roads the plan had not named: Foundry's "mute all" (`toggleMuteAll`), the unhide of a user hidden in the
+         * dock (`unhidePeer`) and the gear's Voice section (`writeVoiceSetting`). The plan's "ELEM applyPeerMutes#muted"
+         * has no road: 'Mute for me' is the volume set to 0, because avclient-livekit writes an element's `muted` from
+         * `muteAll` at every attach (the design's reading, external). Measured 14.10.2026: the parse-only census at a
+         * scratch commit of C5's scripts/ read 31 pairs against these 24 keys, none either side.
          * It reads names and text, not data flow, as the parse-only census does: a name handed to a helper the kinds
          * do not list is judged at the call, and which participant avclient-livekit maps to which user is no reading
          * of this module's source at all (only a table settles it: the owner's T1). One place where it reads more than the census: a template's
@@ -9020,12 +9028,23 @@ const REGRESSIONS = [
             ["SPEAK voice-tile.mjs#attachRoom -> which", "the own Room's `activeSpeakersChanged` only, never `settings.activity`; every listener leaves the old Room before the new one is attached, and an event of a Room the watch no longer follows changes nothing (R535, R540)"],
             ["WHO voice-tile.mjs#paintSpeaker#voiceIdentity -> *", "the name as `textContent`; the portrait only through `safeRoomImage` (vault.mjs, the room tile's check) and `cssString` into the art layer's `url()`; a refused path draws no portrait (R542 names the actor, R536 the paint)"],
             ["SRC voice-tile.mjs#paintSpeaker#url -> src", "the path `safeRoomImage` gave, inside a CSS string `cssString` escapes; never a URL from a packet"],
-            ["STORE settings.mjs#voicePeerMutes#self -> volume", "this browser's own 'Mute for me'; a client setting, so it moves only this browser's sound; registered by C3, read and written by nothing until E78 C5's list (R538)"],
-            ["STORE settings.mjs#voicePeerMutes#console -> volume", "nothing reads it until E78 C5, which clamps on read: ids that are users, volumes 0..1; anything else is no mute (R538)"],
-            ["STORE settings.mjs#voicePeerMutes#stale -> volume", "nothing reads it until E78 C5, which skips an id that is not a user on read and drops it on the next write (R538)"],
+            ["STORE settings.mjs#voicePeerMutes#self -> volume", "this browser's own 'Mute for me', a client setting read and written only by the list (E78 C5): a mute is the volume set to 0 with the volume before kept here, so it moves only this browser's sound (R538)"],
+            ["STORE settings.mjs#voicePeerMutes#console -> volume", "`peerMutes` clamps on read: an object only, ids that are users of this world, volumes that are numbers clamped to 0..1; anything else is no mute, and a mute counts only while the volume is 0 (R538)"],
+            ["STORE settings.mjs#voicePeerMutes#stale -> volume", "`peerMutes` skips an id that is not a user of this world on read, and the next write is of the read record, so it drops it (R538)"],
             // ---- E78 C4: the microphone button (voice-tile.mjs)
             ["HOLD voice-tile.mjs#micState#micHold -> mic", "the viewer's own facts only: `micHold` reads the room the primary GM sent this browser, its own A/V state and its own characters, never GmStore (R537's spy and source reading); grey only for its `held`"],
             ["CLIENT voice-tile.mjs#toggleOwnMic -> *", "writes `users.<self>.muted` (`game.user.id`) and nothing else, on the viewer's own click or key, only in the states the viewer may change; as Foundry's own dock does (R537, R544)"],
+            // ---- E78 C5: the list 'Who you hear' (voice-tile.mjs) and the gear's Voice section (voice-panel.mjs)
+            ["WHO voice-tile.mjs#paintList#voiceIdentity -> *", "as paintSpeaker: the name as `textContent` and in labels set as attributes, the portrait only through `safeRoomImage` and `cssString`; rows only for remote participants of the own Room mapped to a user of this world (R542, R538)"],
+            ["SRC voice-tile.mjs#paintList#url -> src", "the path `safeRoomImage` gave, inside a CSS string `cssString` escapes, set only when it changes; never a URL from a packet"],
+            ["CLIENT voice-tile.mjs#setPeerVolume -> *", "writes this browser's `users.<id>.volume` only for a remote participant of the own Room, a number clamped to 0..1 (R538)"],
+            ["ELEM voice-tile.mjs#setPeerVolume#volume -> volume", "only that participant's own `<audio>` elements in this document, the same clamped value, never `muted` (R538)"],
+            ["CLIENT voice-tile.mjs#toggleMuteAll -> *", "this browser's `muteAll`, flipped on the viewer's click, as the dock's own button writes it (R538)"],
+            ["CLIENT voice-tile.mjs#unhidePeer -> *", "`users.<id>.blocked` false only, for a remote participant of the own Room, on the viewer's click (R538)"],
+            ["CLIENT voice-panel.mjs#writeVoiceSetting -> *", "an allowlist of `audioSrc`, `audioSink` and `voice.mode` (always or ptt), strings only, this browser's own A/V client settings; nothing of the camera or the server (R542)"],
+            ["HOLD voice-tile.mjs#paintList#moduleHoldsMic -> block", "the block is built only for a GM's list and disabled with its line where `moduleHoldsMic` holds; a secret death's line says only that a block would give it away (R539)"],
+            ["HOLD voice-tile.mjs#toggleBlock#moduleHoldsMic -> block", "asked again at the click on the GM's client from the world's facts, not the button's state; held, nothing is written (R539)"],
+            ["BLOCK voice-tile.mjs#toggleBlock -> block", "returns first unless `game.user.isGM`; another user of this world; writes `permissions.BROADCAST_AUDIO` as Foundry's dock does, no socket, no packet; whether Foundry's server refuses it from a player is not measured here (a live check; R539)"],
             ["WORLD settings.mjs#voiceTile#gm -> dock", "world scope, the GM's switch, on by default; off brings the dock back; the dock is hidden by a body class and `display: none`, never removed - its `<audio>` carries the sound (R541)"]
         ];
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
@@ -9143,7 +9162,9 @@ const REGRESSIONS = [
         // would have been the first failure, which the A2 verdict does not count as the harm (14.10.2026).
         ok(count("HOLD") > 0 && count("CLIENT") > 0,
             `the census read ${count("HOLD")} HOLD and ${count("CLIENT")} CLIENT - the microphone's hold (micState) and its one client write (toggleOwnMic) have no road`);
-        must(["WHO", "SOCKET", "PEER", "SPEAK", "SRC", "STORE", "WORLD", "HOLD", "CLIENT"].every(kind => count(kind) > 0),
+        // E78 C5's own: the GM's block (BLOCK in toggleBlock), 0 at C4's runtime - an assertion, for the same reason.
+        ok(count("BLOCK") > 0, `the census read ${count("BLOCK")} BLOCK - the GM's block of a microphone (toggleBlock) has no road`);
+        must(["WHO", "SOCKET", "PEER", "SPEAK", "SRC", "STORE", "WORLD", "HOLD", "CLIENT", "BLOCK"].every(kind => count(kind) > 0),
             `the census read ${KINDS.map(kind => `${count(kind)} ${kind}`).join(", ")} - a kind it reads none of would measure nothing`);
         const verdict = judge(found, VOICE_TILE_CENSUS);
         log(`R534: the census read ${found.length} road(s) (${KINDS.map(kind => `${count(kind)} ${kind}`).join(", ")}) `

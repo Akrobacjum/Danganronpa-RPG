@@ -564,6 +564,17 @@ body.drpg-theme-stained-glass .drpg-voice-count {
     color: var(--drpg-sg-ink);
 }
 body.drpg-theme-stained-glass :is(.drpg-voice-mic-ptt, .drpg-voice-tile-note) { font-family: var(--drpg-font-chrome); }
+/* The list 'Who you hear' (E78 C5): the tile's dark glass and the chrome font, the rim at the game state's
+   colour as the buttons'. */
+body.drpg-theme-stained-glass .drpg-voice-list {
+    color-scheme: dark;
+    color: var(--drpg-sg-bone);
+    border: 2px solid color-mix(in srgb, var(--drpg-glass-accent) 60%, transparent);
+    background: rgb(29, 26, 33);
+    font-family: var(--drpg-font-chrome);
+}
+body.drpg-theme-stained-glass .drpg-voice-row.is-speaking .drpg-voice-row-dot { background: var(--drpg-glass-accent); }
+body.drpg-theme-stained-glass .drpg-voice-panel :is(.drpg-voice-panel-row > span:first-child, .drpg-voice-panel-mode-label) { flex: 0 0 15ch; }
 
 /* ---- motion: the pulse is a canvas, everything else stands still ------------- */
 @media (prefers-reduced-motion: reduce) {

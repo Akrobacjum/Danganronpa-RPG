@@ -11813,10 +11813,324 @@ const INVARIANTS = [
             + "the click calls onMic | the key: registered as toggleMute with no default key, for players; onDown, unavailable, available; in init]");
     }],
 
-    ["R542 - a voice surface names and pictures a person as the dock does: `voiceIdentity` gives `displayNameFor`'s name and that same character's portrait, else the account's avatar, for every account of this world, an assigned character, a GM without a Monokuma and an account without a character, and never a token's art", async () => {
+    ["R538 - the list 'Who you hear' sets a volume and 'Mute for me' only in this browser and only for a participant of the own Room: its rows are the own Room's remote participants by name; the slider moves the element at once and writes `users.<id>.volume` 200 ms after it stops; 'Mute for me' is the volume 0 with the volume before kept in `voicePeerMutes`, still muted after a new Room and for a new watch (F5); a record a console wrote is clamped on read; 'mute all' and the unhide write this browser's own keys; Escape closes the list and goes no further, and Tab stays inside", async () => {
+        /*
+         * E78 C5, 14.10.2026; the A9 design's R391 (A9-4; the E78 plan's D2 gave it this number), the owner's Q0 (the
+         * volume and the mute of each person stay on the tile, behind the speaker button). The harm: a slider or a mute
+         * that reaches somebody outside the viewer's own channel, a mute that is lost when avclient-livekit builds a new
+         * Room or after F5, and an Escape that closes the list and opens Foundry's menu behind it. Three accounts of this
+         * world other than the one running the suite stand in the tile's bench (`voiceTileRig`): two in a stand-in Room,
+         * one outside it. Foundry's A/V client settings and the 'Mute for me' record are objects of the suite's that record
+         * every write (`settings`, `mutes`), so nothing of this browser's or the world's is written (tier 1). The bench's
+         * tile is put in the document for the focus to be measured (jsdom moves no focus to a detached element) and taken
+         * out at the end, with the list.
+         *   - the speaker button opens the list and closes it again; the focus goes to its first control;
+         *   - the rows: the Room's two, in the order of their names (`voiceIdentity`), never the third or the viewer;
+         *   - `setPeerVolume`: the element and `users.<id>.volume` for a participant of the Room, a number clamped to 0..1;
+         *     nothing for the third, the viewer or a string; the element left alone where proximity-voice-chat sets it;
+         *   - the slider: the element at its value at once, no write before 200 ms, one write at 200 ms;
+         *   - 'Mute for me' on one at 0.4: the volume 0 and the record `{ id: 0.4 }`; after a new Room and for a new watch
+         *     over the same settings (what F5 reads) the row still says muted; unmuted, 0.4 back and the record empty; a
+         *     muted volume of 0 comes back at 1; a volume moved since the mute is no mute, and moving it drops the record;
+         *   - `peerMutes` on a console's records: a volume over 1, one below 0, a string, an id that is no user, an array;
+         *   - "mute all": this browser's `muteAll` flipped; a participant hidden in the dock (`users.<id>.blocked`): the
+         *     row's slider and mute hidden, the line and the button to show them, which writes `blocked` false;
+         *   - a participant who left the Room: no row, and every writer refuses them;
+         *   - Escape on a row's control: the list hidden, the key's default prevented and stopped (a listener on the window
+         *     never hears it, where Foundry's menu would), the focus back on the speaker; Tab on the last control goes to
+         *     the first and Shift+Tab back.
+         * Red before C5: voice-tile.mjs had no list (the first assertion, by `ok`).
+         */
+        needs(world.atLeast("playerAccounts", 3), "three accounts besides the GM's: two in the channel and one outside it");
+        const V = await import("./voice-tile.mjs");
+        const NAMES = ["paintList", "openVoiceList", "closeVoiceList", "setPeerVolume", "moveVolume", "toggleMuteFor", "toggleMuteAll",
+            "unhidePeer", "peerMutes", "volumeOfSlider"];
+        ok(NAMES.every(name => typeof V[name] === "function"),
+            "voice-tile.mjs has no list 'Who you hear' - nobody can turn one voice down or mute it for themselves");
+        if (!NAMES.every(name => typeof V[name] === "function")) return;
+        const { voiceIdentity } = await import("./camera-view.mjs");
+        const [b, d, c] = game.users.filter(user => user.id !== game.user.id && !user.isGM).slice(0, 3);
+        const nameOf = user => voiceIdentity(user)?.name ?? user.name;
+        must(new Set([b, d, c].map(nameOf)).size === 3, `the three accounts are named ${[b, d, c].map(nameOf).join(", ")} - one name for two would measure nothing`);
+        const tag = text => String(text).replaceAll(b.id, "B").replaceAll(d.id, "D").replaceAll(c.id, "C").replaceAll(game.user.id, "ME");
+        const store = { muteAll: false, users: {} }, writes = [];
+        const settings = {
+            client: store,
+            get: (scope, key) => (scope === "client" ? foundry.utils.getProperty(store, key) : undefined),
+            set: async (scope, key, value) => {
+                writes.push(tag(`${scope}.${key}=${value}`));
+                foundry.utils.setProperty(store, key, value);
+            },
+            getUser: () => ({ canBroadcastAudio: true })
+        };
+        let record = {}, near = false;
+        const mutes = { read: () => record, write: async value => { record = value; } };
+        const options = { settings: () => settings, mutes, proximity: () => near, gm: () => false, muteAll: () => store.muteAll === true };
+        const tick = () => new Promise(resolve => setTimeout(resolve, 0));
+        const rig = voiceTileRig(V, [b, d, c], options);
+        const fresh = voiceTileRig(V, [b, d, c], options);
+        const vol = user => rig.audio[user.id].el.volume;
+        const take = () => writes.splice(0).join(",");
+        const room = rig.makeRoom([b.id, d.id]);
+        V.attachRoom(rig.clientOf(room), rig.watch);
+        const speaker = rig.tile.querySelector(".drpg-voice-speaker");
+        const seen = [];
+        document.body.append(rig.tile);
+        try {
+            speaker.click();
+            const list = rig.watch.list;
+            const rowOf = user => list?.querySelector(`.drpg-voice-row[data-user-id="${user.id}"]`);
+            const muteOf = user => rowOf(user)?.querySelector(".drpg-voice-row-mute");
+            must(list && !list.hidden, "the speaker button opened no list - nothing below would be measured");
+            seen.push([document.activeElement === list.querySelector(".drpg-voice-list-muteall"),
+                [...list.querySelectorAll(".drpg-voice-row")].map(row => tag(row.dataset.userId))]);
+            speaker.click();
+            seen.push([list.hidden, speaker.getAttribute("aria-expanded")]);
+            speaker.click();
+
+            seen.push([await V.setPeerVolume(rig.watch, b.id, 0.4), await V.setPeerVolume(rig.watch, c.id, 0.4),
+                await V.setPeerVolume(rig.watch, game.user.id, 0.4), await V.setPeerVolume(rig.watch, b.id, "loud"),
+                await V.setPeerVolume(rig.watch, d.id, 1.7), take(), vol(b), vol(c), vol(d)]);
+            near = true;
+            seen.push([await V.setPeerVolume(rig.watch, d.id, 0.3), take(), vol(d)]);
+            near = false;
+            await V.setPeerVolume(rig.watch, d.id, 1);
+            take();
+
+            const slider = rowOf(d).querySelector(".drpg-voice-row-volume");
+            slider.value = "0.25";
+            slider.dispatchEvent(new Event("input"));
+            const atOnce = [vol(d) === V.volumeOfSlider(slider.value), writes.length];
+            rig.advance(199);
+            await tick();
+            const early = writes.length;
+            rig.advance(1);
+            await tick();
+            seen.push([atOnce, early, take() === tag(`client.users.${d.id}.volume=${V.volumeOfSlider(slider.value)}`)]);
+
+            muteOf(b).click();
+            await tick();
+            const label = user => muteOf(user).getAttribute("aria-label");
+            seen.push([take(), tag(JSON.stringify(record)), vol(b), muteOf(b).getAttribute("aria-pressed"),
+                label(b) === game.i18n.format("DRPG.Voice.list.unmuteFor", { name: nameOf(b) })]);
+            V.attachRoom(rig.clientOf(rig.makeRoom([b.id, d.id])), rig.watch);
+            V.paintList(rig.watch);
+            const again = muteOf(b).getAttribute("aria-pressed");
+            V.attachRoom(fresh.clientOf(fresh.makeRoom([b.id, d.id])), fresh.watch);
+            V.openVoiceList(fresh.watch);
+            const reloaded = fresh.watch.list.querySelector(`.drpg-voice-row[data-user-id="${b.id}"] .drpg-voice-row-mute`)?.getAttribute("aria-pressed");
+            V.closeVoiceList(fresh.watch, { focus: false });
+            seen.push([again, reloaded]);
+            muteOf(b).click();
+            await tick();
+            seen.push([take(), tag(JSON.stringify(record)), vol(b), muteOf(b).getAttribute("aria-pressed")]);
+
+            store.users[d.id].volume = 0;
+            record = { [d.id]: 0 };
+            seen.push([await V.toggleMuteFor(rig.watch, d.id), take(), tag(JSON.stringify(record))]);
+            record = { [b.id]: 0.5 };
+            V.paintList(rig.watch);
+            seen.push([muteOf(b).getAttribute("aria-pressed"), await V.moveVolume(rig.watch, b.id, 0.6), take(), tag(JSON.stringify(record))]);
+
+            seen.push(tag(JSON.stringify([V.peerMutes({ [b.id]: 7, [d.id]: "loud", [c.id]: -1, R538NOBODY000000: 0.5 }, id => Boolean(game.users.get(id))),
+                V.peerMutes([0.5], () => true), V.peerMutes("x", () => true), V.peerMutes(null, () => true)])));
+
+            list.querySelector(".drpg-voice-list-muteall").click();
+            await tick();
+            seen.push([take(), list.querySelector(".drpg-voice-list-muteall").getAttribute("aria-pressed")]);
+            store.users[d.id].blocked = true;
+            V.paintList(rig.watch);
+            const shown = () => [".drpg-voice-row-volume", ".drpg-voice-row-mute", ".drpg-voice-row-hidden", ".drpg-voice-row-unhide"]
+                .map(sel => !rowOf(d).querySelector(sel).hidden);
+            const hiddenView = shown();
+            rowOf(d).querySelector(".drpg-voice-row-unhide").click();
+            await tick();
+            seen.push([hiddenView, take(), shown()]);
+
+            rig.leave(rig.watch.room, d.id);
+            V.paintList(rig.watch);
+            seen.push([[...list.querySelectorAll(".drpg-voice-row")].map(row => tag(row.dataset.userId)),
+                await V.setPeerVolume(rig.watch, d.id, 0.5), await V.moveVolume(rig.watch, d.id, 0.5), await V.toggleMuteFor(rig.watch, d.id),
+                await V.unhidePeer(rig.watch, d.id), await V.toggleMuteFor(rig.watch, c.id), take()]);
+
+            let heard = 0;
+            const listener = () => { heard += 1; };
+            window.addEventListener("keydown", listener);
+            try {
+                muteOf(b).focus();
+                const escape = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+                muteOf(b).dispatchEvent(escape);
+                seen.push([list.hidden, escape.defaultPrevented, heard, speaker.getAttribute("aria-expanded"), document.activeElement === speaker]);
+                V.openVoiceList(rig.watch);
+                const stops = [...list.querySelectorAll("button, input")].filter(el => !el.disabled && !el.closest("[hidden]"));
+                stops.at(-1).focus();
+                stops.at(-1).dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true }));
+                const forward = document.activeElement === stops[0];
+                stops[0].dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", shiftKey: true, bubbles: true, cancelable: true }));
+                seen.push([stops.length > 2, forward, document.activeElement === stops.at(-1)]);
+            } finally {
+                window.removeEventListener("keydown", listener);
+            }
+        } finally {
+            for (const bench of [rig, fresh]) {
+                V.closeVoiceList(bench.watch, { focus: false });
+                bench.watch.list?.remove();
+                V.detachRoom(bench.watch);
+            }
+            rig.tile.remove();
+        }
+
+        const sorted = [b, d].sort((x, y) => String(nameOf(x)).localeCompare(String(nameOf(y)))).map(user => tag(user.id));
+        equal(JSON.stringify(seen), JSON.stringify([
+            [true, sorted], [true, "false"],
+            [true, false, false, false, true, "client.users.B.volume=0.4,client.users.D.volume=1", 0.4, 1, 1],
+            [true, "client.users.D.volume=0.3", 1],
+            [[true, 0], 0, true],
+            ["client.users.B.volume=0", "{\"B\":0.4}", 0, "true", true],
+            ["true", "true"],
+            ["client.users.B.volume=0.4", "{}", 0.4, "false"],
+            [true, "client.users.D.volume=1", "{}"],
+            ["false", true, "client.users.B.volume=0.6", "{}"],
+            "[{\"B\":1,\"C\":0},{},{},{}]",
+            ["client.muteAll=true", "true"],
+            [[false, false, true, true], "client.users.D.blocked=false", [true, true, false, false]],
+            [["B"], false, false, false, false, false, ""],
+            [true, true, 0, "false", true],
+            [true, true, true]]),
+        "[the speaker opens the list, the focus on its first control, the rows by name; it closes again | setPeerVolume: B at 0.4, C outside the "
+            + "Room, the viewer, a string, D at 1.7; the writes; the elements | under proximity: the write, the element left alone | the slider: the "
+            + "element at once and no write; none at 199 ms; one at 200 | 'Mute for me' on B: the write, the record, the element, pressed, the label | "
+            + "still muted after a new Room and for a new watch | unmuted | a mute of a volume 0 comes back at 1 | a volume moved since is no mute, "
+            + "and moving it drops the record | a console's records clamped | mute all | a participant hidden in the dock, shown again | D gone: the "
+            + "rows, and every writer refuses D and C | Escape: hidden, prevented, unheard by the window, collapsed, the focus on the speaker | Tab "
+            + "wraps forward and back]");
+    }],
+    ["R539 - the GM's block in the list is Foundry's block and never undoes the module's: the button is built only in a GM's list; its click writes the user's `permissions.BROADCAST_AUDIO` flipped from what Foundry answers now and nothing else; where `moduleHoldsMic` holds the microphone or a death is kept secret the button is disabled with its line and `toggleBlock` writes nothing; it refuses a player's client, the GM's own account and a user who is not of this world", async () => {
+        /*
+         * E78 C5, 14.10.2026; the A9 design's R392 (A9-5; the E78 plan's D2 gave it this number), the owner's Q4 (the
+         * GM's block is never offered on a microphone the module holds, nor for a death kept secret) and Q15 (a GM's
+         * block is its own state). The harm: a player who is shown a control over somebody else's microphone, a GM's
+         * click that lifts the module's own hold or tells the table, by a disabled button with a reason, that a death
+         * is kept secret - and a write the GM did not ask for. Two accounts of this world other than the one running the
+         * suite stand in the tile's bench (`voiceTileRig`), both in a stand-in Room; Foundry's A/V settings are an object
+         * of the suite's (`canBroadcastAudio` per id). The write is spied on: `update` set as an own property of the two
+         * users and of this GM's account, and put back after, so no document is written (tier 1).
+         *   - the GM's list (`gm` true) with `holds` handed in: both rows have the block; the held one disabled, described
+         *     by the secret death's line; a blocked user's button pressed, struck and named "Unblock";
+         *   - a player's list (`gm` false): no block and no line in any row;
+         *   - `toggleBlock` with the facts handed in: the free user blocked, then unblocked; the held user - by a secret
+         *     death and by another hold - refused with its line; the GM's own account, a user who is not of this world and
+         *     nobody refused; the hold asked through `moduleHoldsMic` itself (a secret death handed in) refused too;
+         *   - the click in the GM's list goes through `toggleBlock` with the world's own facts: one write, the one
+         *     `moduleHoldsMic` and Foundry's `canBroadcastAudio` call for, or none where the world holds that user;
+         *     a click on the disabled button writes nothing;
+         *   - in the source, comments stripped: `toggleBlock`'s first statement returns unless this client is a GM's - the
+         *     check a player's console meets; whether Foundry's server would refuse that write is a live check, not
+         *     measured here.
+         * Red before C5: voice-tile.mjs had no `toggleBlock` (the first assertion, by `ok`).
+         */
+        needs(world.atLeast("playerAccounts", 2), "two accounts besides the GM's, both in the channel");
+        must(game.user.isGM, "the block is a GM's: its write is measured on a GM's client, where the suite runs");
+        const V = await import("./voice-tile.mjs");
+        ok(typeof V.toggleBlock === "function" && typeof V.paintList === "function",
+            "voice-tile.mjs has no GM's block in the list - the GM has no way to block a microphone with the dock out of sight");
+        if (typeof V.toggleBlock !== "function" || typeof V.paintList !== "function") return;
+        const { moduleHoldsMic } = await import("./voice.mjs");
+        const { voiceIdentity } = await import("./camera-view.mjs");
+        const [b, d] = game.users.filter(user => user.id !== game.user.id && !user.isGM).slice(0, 2);
+        const nameOf = user => voiceIdentity(user)?.name ?? user.name;
+        const tag = text => String(text).replaceAll(b.id, "B").replaceAll(d.id, "D").replaceAll(game.user.id, "ME");
+        const allowed = {};
+        const settings = { client: { users: {} }, get: () => undefined, set: async () => {}, getUser: id => ({ canBroadcastAudio: allowed[id] ?? true }) };
+        const holds = user => (user?.id === d.id ? { reason: "secretDead", held: true } : null);
+        const lines = Object.fromEntries(["gmSecretDead", "gmHeld"].map(key => [game.i18n.localize(`DRPG.Voice.list.${key}`), key]));
+        const keyOf = text => lines[text] ?? `?${text}`;
+
+        const gmRig = voiceTileRig(V, [b, d], { settings: () => settings, gm: () => true });
+        const playerRig = voiceTileRig(V, [b, d], { settings: () => settings, gm: () => false });
+        const updates = [], spied = [b, d, game.user], own = spied.map(user => Object.getOwnPropertyDescriptor(user, "update"));
+        for (const user of spied) user.update = async data => { updates.push(tag(`${user.id}:${JSON.stringify(data)}`)); return user; };
+        const seen = [];
+        try {
+            for (const rig of [gmRig, playerRig]) {
+                V.attachRoom(rig.clientOf(rig.makeRoom([b.id, d.id])), rig.watch);
+                V.openVoiceList(rig.watch);
+            }
+            const rowOf = (rig, user) => rig.watch.list.querySelector(`.drpg-voice-row[data-user-id="${user.id}"]`);
+            const blockRead = user => {
+                const row = rowOf(gmRig, user), block = row.querySelector(".drpg-voice-row-block"), why = row.querySelector(".drpg-voice-row-held");
+                return [Boolean(block), block?.disabled, block?.getAttribute("aria-pressed"), block?.classList.contains("is-gm-blocked"),
+                    block?.dataset.tooltipText === game.i18n.format(block?.getAttribute("aria-pressed") === "true" ? "DRPG.Voice.list.gmUnblock"
+                        : "DRPG.Voice.list.gmBlock", { name: nameOf(user) }),
+                    why?.hidden === false ? keyOf(why.textContent) : null, block?.getAttribute("aria-describedby") === (why?.id ?? "?")];
+            };
+            V.paintList(gmRig.watch, { holds });
+            seen.push([blockRead(b), blockRead(d)]);
+            allowed[b.id] = false;
+            V.paintList(gmRig.watch, { holds });
+            seen.push(blockRead(b));
+            delete allowed[b.id];
+            V.paintList(playerRig.watch, { holds });
+            seen.push(playerRig.watch.list.querySelectorAll(".drpg-voice-row").length === 2
+                && !playerRig.watch.list.querySelector(".drpg-voice-row-block, .drpg-voice-row-held"));
+
+            const notices = [];
+            const notify = text => notices.push(keyOf(text));
+            const block = async (user, how = holds) => V.toggleBlock(user, { holds: how, settings, notify });
+            const secret = { id: "R539SECRET000000", name: "R539 Secret", type: "character", img: null, getFlag: () => null };
+            const viaModule = user => moduleHoldsMic(user, { actors: [secret], eclipse: false, trial: false, dead: () => true });
+            const outsider = { id: "R539NOBODY000000", update: async data => { updates.push(`R539NOBODY:${JSON.stringify(data)}`); } };
+            const answers = [await block(b)];
+            allowed[b.id] = false;
+            answers.push(await block(b));
+            delete allowed[b.id];
+            answers.push(await block(d), await block(d, () => ({ reason: "eclipse", held: true })), await block(b, viaModule),
+                await block(game.user, () => null), await block(outsider, () => null), await block(null, () => null));
+            seen.push([answers, updates.splice(0), notices]);
+
+            // The click, with the world's own facts: what moduleHoldsMic and Foundry's A/V settings answer for B now.
+            const worldHold = moduleHoldsMic(b);
+            const worldAllowed = game.webrtc?.settings?.getUser?.(b.id)?.canBroadcastAudio ?? true;
+            V.paintList(gmRig.watch, { holds });
+            const free = rowOf(gmRig, b).querySelector(".drpg-voice-row-block"), held = rowOf(gmRig, d).querySelector(".drpg-voice-row-block");
+            const disabled = held.disabled;
+            held.click();
+            free.click();
+            await new Promise(resolve => setTimeout(resolve, 0));
+            seen.push([disabled, updates.splice(0).join(",") === (worldHold?.held ? "" : `B:${JSON.stringify({ "permissions.BROADCAST_AUDIO": !worldAllowed })}`)]);
+        } finally {
+            spied.forEach((user, i) => {
+                if (own[i]) Object.defineProperty(user, "update", own[i]);
+                else delete user.update;
+            });
+            for (const rig of [gmRig, playerRig]) {
+                V.closeVoiceList(rig.watch, { focus: false });
+                rig.watch.list?.remove();
+                V.detachRoom(rig.watch);
+            }
+        }
+
+        const sources = await moduleSources();
+        must(sources.get("voice-tile.mjs")?.length, "voice-tile.mjs is not among the module's sources - this would measure nothing");
+        const gate = /^export async function toggleBlock\([^]*?\) \{\s*if \(!game\.user\?\.isGM\) return false;/
+            .test(fnSource(stripComments(sources.get("voice-tile.mjs")), "toggleBlock"));
+        equal(JSON.stringify([...seen, gate]), JSON.stringify([
+            [[true, false, "false", false, true, null, false], [true, true, "false", false, true, "gmSecretDead", true]],
+            [true, false, "true", true, true, null, false],
+            true,
+            [[true, true, false, false, false, false, false, false],
+                ["B:{\"permissions.BROADCAST_AUDIO\":false}", "B:{\"permissions.BROADCAST_AUDIO\":true}"], ["gmSecretDead", "gmHeld", "gmSecretDead"]],
+            [true, true],
+            true]),
+        "[the GM's list: per row the block, disabled, pressed, struck, its name, the line shown, described by it - B free, D's death kept secret | "
+            + "B blocked: pressed, struck, \"Unblock\" | a player's list: two rows, no block, no line | toggleBlock: B blocked, B unblocked, D (a secret "
+            + "death), D (another hold), B through moduleHoldsMic's secret death, the GM's own account, a user not of this world, nobody; the writes; "
+            + "the lines | the click: D's disabled button, B's through the world's facts | toggleBlock returns first unless this client is a GM's]");
+    }],
+    ["R542 - a voice surface names and pictures a person as the dock does: `voiceIdentity` gives `displayNameFor`'s name and that same character's portrait, else the account's avatar, for every account of this world, an assigned character, a GM without a Monokuma and an account without a character, and never a token's art; the gear's Voice section offers only the microphone, the output, the mode and the key, and writes only those; the pre-season checks say when a world sends video nobody watches", async () => {
         /*
          * E78 C2, 13.10.2026; the A9 design's R395 (T7; the E78 plan's D2 gave it this number), its identity clauses -
-         * E78 C5 adds the gear's Voice fieldset. The voice tile (C3) and the list (C6) draw a name and a portrait on every
+         * E78 C5 adds the gear's Voice fieldset (below). The voice tile (C3) and the list (C5) draw a name and a portrait on every
          * player's screen; both must be the person the dock's nameplate already names, and the portrait never another's.
          * Every account of this world is asked against a copy of camera-view.mjs `displayNameFor` as it stood until E78
          * C2 (an explicit `user.character`, then a GM's Monokuma or pool label, then a player's first owned character or
@@ -11869,6 +12183,64 @@ const INVARIANTS = [
         "[the accounts of this world whose voice name or portrait is not the dock's; an assigned character with a portrait; one without; a GM with no "
             + "Monokuma; an account with no character, against the copy; no user; a token or texture read for the portrait; displayNameFor and "
             + "voiceIdentity through voiceActorFor]");
+
+        /* E78 C5: the gear's Voice section (voice-panel.mjs; the owner's Q8 and Q11) and the pre-season row. The section
+           is built from facts the suite hands in - an AVClient whose device lists are the suite's, an A/V settings object
+           that records writes, a key's name - and never appended, so nothing is written:
+             - with named devices: the controls are named `voice:audioSrc`, `voice:audioSink` and `voice:mode` and nothing
+               else (no camera, nothing of the server's), the stored device and mode chosen, the key's line; a change of
+               each writes that one key into this browser's client settings, as Foundry's A/V window does;
+             - before the browser has named its microphones (one device with no id) and with no output to choose: the
+               line that says what to do instead of the microphone's list, and no output row;
+             - `writeVoiceSetting` refuses any other key, a mode avclient-livekit does not have, and a value that is not
+               a string;
+             - `videoUnwatched`: true only in audio-and-video mode while the tile stands in for the dock; and
+               `runPreSessionChecks` asks it (season-setup.mjs, read in the source).
+           Red before C5: there was no voice-panel.mjs (by `ok`). */
+        const P = await import("./voice-panel.mjs").catch(() => null);
+        const T = await import("./voice-tile.mjs");
+        ok(P && typeof T.videoUnwatched === "function", "there is no gear's Voice section (voice-panel.mjs) or pre-season row - the player has no "
+            + "place to choose a microphone with the dock out of sight");
+        if (!P || typeof T.videoUnwatched !== "function") return;
+        const panelWrites = [];
+        const avSettings = stored => ({ client: stored, set: async (scope, key, value) => { panelWrites.push(`${scope}.${key}=${value}`); } });
+        const named = await P.voiceFieldset({
+            client: { getAudioSources: async () => ({ R542MIC1: "R542 Mic One", R542MIC2: "R542 Mic Two" }), getAudioSinks: async () => ({ R542OUT1: "R542 Speakers" }) },
+            settings: avSettings({ audioSrc: "R542MIC2", audioSink: "R542OUT1", voice: { mode: "ptt" } }), key: "R542KEY"
+        });
+        const controls = [...new Set([...named.querySelectorAll("[name]")].map(el => el.name))];
+        const chosen = [named.querySelector("[name='voice:audioSrc']")?.value, named.querySelector("[name='voice:audioSink']")?.value,
+            named.querySelector("[name='voice:mode']:checked")?.value,
+            named.querySelector(".drpg-voice-panel-key")?.textContent.includes(game.i18n.format("DRPG.Voice.panel.pttKey", { key: "R542KEY" }))];
+        const mic = named.querySelector("[name='voice:audioSrc']");
+        mic.value = "R542MIC1";
+        mic.dispatchEvent(new Event("change", { bubbles: true }));
+        const always = named.querySelector("[name='voice:mode'][value='always']");
+        always.checked = true;
+        always.dispatchEvent(new Event("change", { bubbles: true }));
+        await new Promise(resolve => setTimeout(resolve, 0));
+        const changed = panelWrites.splice(0);
+        const unnamedSet = await P.voiceFieldset({ client: { getAudioSources: async () => ({ "": "" }), getAudioSinks: async () => ({}) },
+            settings: avSettings({}), key: null });
+        const unnamedRead = [Boolean(unnamedSet.querySelector(".drpg-voice-panel-mic-note")), [...new Set([...unnamedSet.querySelectorAll("[name]")].map(el => el.name))],
+            unnamedSet.querySelector("[name='voice:mode']:checked")?.value];
+        const refusals = [await P.writeVoiceSetting("muteAll", "true", avSettings({})), await P.writeVoiceSetting("videoSrc", "R542CAM", avSettings({})),
+            await P.writeVoiceSetting(`users.${game.user.id}.volume`, "0", avSettings({})), await P.writeVoiceSetting("voice.mode", "activity", avSettings({})),
+            await P.writeVoiceSetting("audioSrc", 7, avSettings({})), await P.writeVoiceSetting("audioSink", "R542OUT2", avSettings({})), panelWrites.splice(0)];
+        const { AUDIO = 1, VIDEO = 2, AUDIO_VIDEO = 3 } = foundry.av?.AVSettings?.AV_MODES ?? {};
+        const video = [[AUDIO_VIDEO, true, true], [AUDIO, true, true], [VIDEO, true, true], [AUDIO_VIDEO, false, true], [AUDIO_VIDEO, true, false]]
+            .map(([mode, available, on]) => T.videoUnwatched({ mode, available, on }));
+        must(sources.get("season-setup.mjs")?.length, "season-setup.mjs is not among the module's sources - this would measure nothing");
+        const asks = /\bvideoUnwatched\(\)/.test(fnSource(stripComments(sources.get("season-setup.mjs")), "runPreSessionChecks"));
+        equal(JSON.stringify([controls, chosen, changed, unnamedRead, refusals, video, asks]), JSON.stringify([
+            ["voice:audioSrc", "voice:audioSink", "voice:mode"], ["R542MIC2", "R542OUT1", "ptt", true],
+            ["client.audioSrc=R542MIC1", "client.voice.mode=always"], [true, ["voice:mode"], "always"],
+            [false, false, false, false, false, true, ["client.audioSink=R542OUT2"]],
+            [true, false, false, false, false], true]),
+        "[the Voice section's controls; the stored microphone, output and mode chosen and the key's line; a change of the microphone and of the mode "
+            + "writes | before the browser names its microphones and with no output: the line, the controls, the mode | writeVoiceSetting: muteAll, a "
+            + "camera, another's volume, a mode avclient-livekit has not, a number - refused; an output - written | videoUnwatched: audio and video "
+            + "with the tile; audio; video; no voice; the tile off | runPreSessionChecks asks videoUnwatched]");
     }],
     ["R535 - the voice tile shows only who this player hears in their own channel: a speaker of the own LiveKit Room after 250 ms, never one Foundry's table-wide signal or another Room names, never one muted, paused, silent or without a live track here, '+1' for a second, the channel's count, and nobody at once when the speaker leaves, the Room changes or the connection goes", async () => {
         /*
@@ -12254,7 +12626,9 @@ const LITERAL_KEYS = [
     // season-setup.mjs `wipeSeason` writes the report of a reset that did not finish `DRPG.Season.reportCard.<line>` (E11 C9).
     ...["failed", "done", "kept"].map(line => `DRPG.Season.reportCard.${line}`),
     // voice-tile.mjs names the microphone's line `DRPG.Voice.held.<reason>` (E78 C4): `micHold`'s five reasons.
-    ...["eclipse", "eclipseHeard", "gmBlock", "external", "offline"].map(reason => `DRPG.Voice.held.${reason}`)
+    ...["eclipse", "eclipseHeard", "gmBlock", "external", "offline"].map(reason => `DRPG.Voice.held.${reason}`),
+    // voice-panel.mjs names the gear's Voice section's lines `DRPG.Voice.panel.<name>` (E78 C5): all but the key's, which is literal.
+    ...["legend", "mic", "micNote", "output", "mode", "modeAlways", "modePtt", "pttChange"].map(name => `DRPG.Voice.panel.${name}`)
 ];
 
 /*
@@ -12436,9 +12810,11 @@ function cornerReading(roster, views) {
  * audio.user-microphone-audio`), each playing a live, enabled track at volume 1 until a test changes it, and LiveKit
  * Rooms as plain emitters whose participants stand for `users` (the mapping, `getParticipantFVTTUser`, is a
  * stand-in: identity = user id). Nothing is appended to the document and nothing of Foundry's A/V is read or
- * written; `fade` and `userOf` go to `voiceWatch` when given, so without them the module's own run.
+ * written; `fade` and `userOf` go to `voiceWatch` when given, so without them the module's own run. The list's tests
+ * (R538, R539; E78 C5) hand in the rest of `voiceWatch`'s options - Foundry's A/V settings and the 'Mute for me' record
+ * as objects of their own, proximity, whether the viewer is a GM, "mute all" - and they override the bench's.
  */
-function voiceTileRig(V, users, { fade, userOf } = {}) {
+function voiceTileRig(V, users, { fade, userOf, ...watchOptions } = {}) {
     let now = 0, ids = 0, muteAll = false;
     const timers = new Map();
     const clock = {
@@ -12500,7 +12876,8 @@ function voiceTileRig(V, users, { fade, userOf } = {}) {
         };
     };
     const tile = V.buildVoiceTile();
-    const watch = V.voiceWatch(tile, { clock, dock: () => dock, muteAll: () => muteAll, ...(fade ? { fade } : {}), ...(userOf ? { userOf } : {}) });
+    const watch = V.voiceWatch(tile, { clock, dock: () => dock, muteAll: () => muteAll, ...(fade ? { fade } : {}), ...(userOf ? { userOf } : {}),
+        ...watchOptions });
     return {
         tile, watch, audio, advance, makeRoom,
         clientOf: room => ({ liveKitRoom: room, getParticipantFVTTUser: participant => game.users.get(participant?.identity) }),

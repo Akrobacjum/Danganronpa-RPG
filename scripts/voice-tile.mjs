@@ -50,16 +50,44 @@
  * (cameras.mjs:509-518 as the design read it, external), and the design reads avclient-livekit as moving the
  * microphone on that write itself, in push-to-talk too (LiveKitAVClient.ts:797-808, external; a LIVE-E78 row). The
  * module never calls `toggleAudio` (R544). The speaker button shows how many people share this browser's Room and
- * is struck while Foundry's "mute all" is on; the list it opens is E78 C5's.
+ * is struck while Foundry's "mute all" is on, and opens the list.
  *
- * The tile sends no socket and no packet, writes no document and no world setting, and never touches an element's
- * volume or mute: it reads them; the one setting it writes is the viewer's own `muted`, on the viewer's own click or
- * key. Where it stands is an interim rule in danganronpa.css until E78 C6 cuts it a pane of the curtain.
+ * THE LIST 'Who you hear' (E78 C5, 14.10.2026; the design's step 7, the owner's Q0 and Q4). The speaker button opens
+ * `#drpg-voice-list`, a dialog beside the tile (not a pane: it cuts nothing of the curtain), one row per remote
+ * participant of this browser's Room (`participantUser`, as the tile), sorted by the name `voiceIdentity` gives, with
+ * the portrait through `safeRoomImage` and `cssString` as the tile's, a speaking dot, a volume slider and 'Mute for
+ * me'; at the top Foundry's "mute all" of this browser. Every write is this browser's own client settings, as the
+ * dock's own controls write them (the design's reading of cameras.mjs, external):
+ *   - the volume is `users.<id>.volume` (`setPeerVolume`, the one writer of it), only for a participant of the
+ *     watch's own Room, clamped to 0..1; the `<audio>` element's `volume` is set with it, at once while the slider
+ *     moves and saved 200 ms after it stops (the design's debounce), and not at all while proximity-voice-chat is
+ *     active, which computes the element's volume itself from the setting (the design's reading, external);
+ *   - 'Mute for me' is that volume at 0, with the volume before it kept in the module's `voicePeerMutes` (settings.mjs,
+ *     C3) - not the element's `muted`, which avclient-livekit rewrites from `muteAll` on every attach (LiveKitClient.ts
+ *     :274-280 as the design read it, external; the harness's shim does the same, and scenario 75's C measures a
+ *     re-attach keeping the 0). A participant is muted for me while the record names them AND their volume is 0;
+ *     the record is read clamped (ids that are users of this world, numbers 0..1) and written whole, so an id
+ *     that is not a user any more goes on the next write. Moving the slider of a muted participant unmutes them at
+ *     the new volume; unmuting puts back the volume before (1 when that was 0);
+ *   - a participant hidden earlier in the dock (`users.<id>.blocked`, which the dock's own button writes) gets a line
+ *     and a 'Show and listen' button that writes it false, instead of a slider that would move nothing.
+ * For a GM only, each row has the block of that microphone for everybody, Foundry's own write
+ * (`permissions.BROADCAST_AUDIO` on the user, `toggleBlock`): drawn only while `game.user.isGM`, disabled with the
+ * reason where `moduleHoldsMic` (voice.mjs) answers a hold - today a death the GMs keep secret, which a block, a
+ * write on a user document every browser receives, would give away - and judged again by `toggleBlock` at the
+ * click on the GM's own client from the world's facts, never from the button. Whether Foundry's server would refuse
+ * that write from a player is not measured here (a live check, not a numbered row); the player has no button to send it with.
+ * Escape, heard on the list in the capture phase and stopped there so Foundry's menu does not open, and a pointer
+ * outside it close the list and give the focus back to the speaker button; Tab stays inside it.
+ *
+ * The tile and the list send no socket and no packet, write no world setting and no document but the GM's block,
+ * and set an element's volume only in `setPeerVolume`. Where the tile stands is an interim rule in danganronpa.css
+ * until E78 C6 cuts it a pane of the curtain.
  */
 
 import { MODULE_ID } from "./config.mjs";
-import { micHold } from "./voice.mjs";
-import { SETTINGS, getSetting } from "./settings.mjs";
+import { micHold, moduleHoldsMic } from "./voice.mjs";
+import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
 import { avclientActive } from "./voice-client.mjs";
 import { voiceIdentity, measureCameraDock } from "./camera-view.mjs";
 import { safeRoomImage } from "./vault.mjs";
@@ -96,6 +124,34 @@ const realClock = {
 /** The watch of the tile on the screen; `null` while there is none. */
 let live = null;
 
+/** Each tile's watch, so a tile's speaker button opens its own list (the suite builds tiles of its own). */
+const watches = new WeakMap();
+
+/** The list's id on the screen's tile. */
+const LIST_ID = "drpg-voice-list";
+
+/** The volume slider's step, as the dock's (0..1). */
+const VOLUME_STEP = 0.05;
+
+/** How long a moving slider waits before its volume is written: one write per pause, not one per step (the design's). */
+const VOLUME_SAVE_MS = 200;
+
+/** This browser's 'Mute for me' record (`voicePeerMutes`), read and written whole; the suite hands in its own. */
+const PEER_MUTES = {
+    read: () => getSetting(SETTINGS.voicePeerMutes),
+    write: value => setSetting(SETTINGS.voicePeerMutes, value)
+};
+
+/** Foundry's A/V modes (external; the numbers as a fallback where the namespace is missing). */
+function avModes() {
+    return foundry.av?.AVSettings?.AV_MODES ?? { DISABLED: 0, AUDIO: 1, VIDEO: 2, AUDIO_VIDEO: 3 };
+}
+
+/** The world's A/V mode, as Foundry's AVMaster holds it. */
+function avMode() {
+    return game.webrtc?.mode ?? game.webrtc?.settings?.world?.mode ?? avModes().DISABLED;
+}
+
 /**
  * Whether this world can carry the tile: its A/V mode sends sound (not DISABLED, not VIDEO alone - the owner's
  * table is audio-only, Q11) and the A/V client is avclient-livekit's (`avclientActive`).
@@ -103,9 +159,20 @@ let live = null;
  * @returns {boolean}
  */
 export function voiceAvailable() {
-    const MODES = foundry.av?.AVSettings?.AV_MODES ?? { DISABLED: 0, VIDEO: 2 };
-    const mode = game.webrtc?.mode ?? game.webrtc?.settings?.world?.mode ?? MODES.DISABLED;
+    const MODES = avModes(), mode = avMode();
     return mode !== MODES.DISABLED && mode !== MODES.VIDEO && avclientActive();
+}
+
+/**
+ * Whether this world sends video nobody watches (the owner's Q11, the pre-season row): its A/V mode is audio and
+ * video while the tile stands in for the dock, so every camera is sent and none is on a screen. With the tile off
+ * the dock shows the cameras, and that is the GM's choice.
+ *
+ * @param {object} [facts]  handed in by R542; left out, each is read here
+ * @returns {boolean}
+ */
+export function videoUnwatched({ mode = avMode(), available = voiceAvailable(), on = getSetting(SETTINGS.voiceTile) !== false } = {}) {
+    return mode === avModes().AUDIO_VIDEO && dockHiddenFor(available, on);
 }
 
 /**
@@ -153,13 +220,15 @@ export function ensureVoiceTile() {
  * A tile's markup, built with `createElement` and `textContent` alone; loose, so the suite can paint one of its
  * own (R535, R536, R537, R540). The two buttons stand in the tile's corner, over the portrait (Q17), and stay when
  * nobody speaks (Q7); the note under them carries the microphone's line - the reason it is held, or a line of
- * information - and is shown only while that line is true. The speaker button opens nothing until E78 C5.
+ * information - and is shown only while that line is true. The speaker button opens the tile's list (E78 C5).
  *
  * @param {object} [options]
  * @param {() => unknown} [options.onMic]  what a click of the microphone does: `toggleOwnMic`; the suite's spy
+ * @param {(tile: HTMLElement) => unknown} [options.onSpeaker]  what a click of the speaker does: the list of the
+ *   tile's own watch, opened or closed
  * @returns {HTMLElement}
  */
-export function buildVoiceTile({ onMic = () => toggleOwnMic() } = {}) {
+export function buildVoiceTile({ onMic = () => toggleOwnMic(), onSpeaker = tile => toggleVoiceList(watches.get(tile)) } = {}) {
     const tile = document.createElement("section");
     const n = ++tiles;
     tile.className = "drpg-voice-tile";
@@ -198,6 +267,15 @@ export function buildVoiceTile({ onMic = () => toggleOwnMic() } = {}) {
     heard.id = `drpg-voice-count-${n}`;
     heard.hidden = true;
     speaker.append(count, heard);
+    speaker.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        try {
+            onSpeaker(tile);
+        } catch (err) {
+            error("Could not open the list of who you hear", err);
+        }
+    });
     const note = textNode("p", "drpg-voice-tile-note", "");
     note.id = `drpg-voice-note-${n}`;
     note.hidden = true;
@@ -248,19 +326,30 @@ function glyph(name) {
  *   world's user; the suite gives a user a portrait of its own without touching a document (R536)
  * @param {(watch: object) => void} [options.controls]  what repaints the buttons after each step: `paintControls`
  *   on the screen's tile; nothing on the suite's, whose buttons R537 paints by hand
+ * @param {() => object} [options.settings]  where the list reads and writes this browser's A/V client settings:
+ *   Foundry's `game.webrtc.settings`; the suite's records the writes (R538)
+ * @param {{read: Function, write: Function}} [options.mutes]  the 'Mute for me' record: `voicePeerMutes`
+ * @param {() => boolean} [options.proximity]  whether proximity-voice-chat sets the elements' volumes itself
+ * @param {() => boolean} [options.gm]  whether the list draws the GM's block: `game.user.isGM`; the suite draws a
+ *   player's list with false (R539). The block's write asks `game.user.isGM` itself (`toggleBlock`).
  */
 export function voiceWatch(tile, { clock = realClock, dock = () => document,
     muteAll = () => game.webrtc?.settings?.client?.muteAll === true, fade = () => (reducedMotion() ? 0 : TURN()),
-    userOf = id => game.users.get(id), controls = null } = {}) {
-    return {
-        tile, clock, dock, muteAll, fade, userOf, controls,
+    userOf = id => game.users.get(id), controls = null, settings = () => game.webrtc?.settings, mutes = PEER_MUTES,
+    proximity = () => game.modules?.get?.("proximity-voice-chat")?.active === true, gm = () => game.user?.isGM === true } = {}) {
+    const watch = {
+        tile, clock, dock, muteAll, fade, userOf, controls, settings, mutes, proximity, gm,
         client: null, room: null, detach: null,
         /** The Room's speakers this browser can map, loudest first, as user ids; and when each began. */
         speakers: [], since: new Map(),
         /** Who is drawn, and whether they are speaking, held after their speech, or fading. */
         shown: null, phase: "silent",
-        timers: { stick: null, hold: null, fade: null }
+        timers: { stick: null, hold: null, fade: null },
+        /** The list (built at its first opening), its outside-pointer listener, and each slider's pending save. */
+        list: null, away: null, saves: new Map()
     };
+    if (tile) watches.set(tile, watch);
+    return watch;
 }
 
 /**
@@ -590,7 +679,7 @@ export async function toggleOwnMic({ mic = micState(), settings = game.webrtc?.s
 }
 
 /** The core push-to-talk key as Foundry's controls name it, or `null` when none is bound (external; guarded). */
-function pushToTalkKey(keybindings = game.keybindings) {
+export function pushToTalkKey(keybindings = game.keybindings) {
     try {
         const binding = keybindings?.get?.("core", "pushToTalk")?.[0];
         if (!binding?.key) return null;
@@ -677,15 +766,443 @@ export function paintSpeakerButton(tile, { count, muteAll }) {
     return true;
 }
 
-/** Both buttons of the watch's tile, from this browser's facts now. */
+/** Both buttons of the watch's tile, and its list while it is open, from this browser's facts now. */
 export function paintControls(watch = live) {
     if (!watch?.tile) return;
     try {
         paintMic(watch.tile, micState());
         paintSpeakerButton(watch.tile, { count: channelCount(watch), muteAll: watch.muteAll() });
+        if (watch.list && !watch.list.hidden) paintList(watch);
     } catch (err) {
         error("Could not draw the voice tile's buttons", err);
     }
+}
+
+/** A volume of 0..1, or `null` for anything that is not a number (a console writes these settings raw). */
+function volumeOf(value) {
+    return typeof value === "number" && Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : null;
+}
+
+/** The volume this browser plays `userId` at: their `users.<id>.volume`, clamped; 1 where none is stored, as Foundry's default. */
+function peerVolume(settings, userId) {
+    return volumeOf(settings?.get?.("client", `users.${userId}.volume`)) ?? 1;
+}
+
+/**
+ * The 'Mute for me' record as it may be trusted: `{ userId: the volume before the mute }` for ids that are users of
+ * this world and volumes that are numbers, clamped to 0..1; anything else - a console's value, a user who is gone,
+ * a record that is not an object - is no mute.
+ *
+ * @param {unknown} [raw]  the stored `voicePeerMutes`
+ * @param {(id: string) => boolean} [isUser]
+ * @returns {Record<string, number>}
+ */
+export function peerMutes(raw = PEER_MUTES.read(), isUser = id => Boolean(game.users?.get(id))) {
+    const mutes = {};
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return mutes;
+    for (const [id, before] of Object.entries(raw)) {
+        const volume = volumeOf(before);
+        if (volume !== null && isUser(id)) mutes[id] = volume;
+    }
+    return mutes;
+}
+
+/** Whether `userId` is muted for me: the record names them and their volume is 0 (a volume moved since is no mute). */
+function mutedFor(mutes, settings, userId) {
+    return Object.hasOwn(mutes, userId) && peerVolume(settings, userId) === 0;
+}
+
+/**
+ * The slider's position for a volume, and the volume for a position: Foundry's own mapping, as the dock's slider
+ * (`AudioHelper.volumeToInput` and `inputToVolume`, the design's reading of LiveKitClient.ts:1053, external), or
+ * the value itself where Foundry has no such helper.
+ *
+ * @param {number} volume
+ * @returns {number}
+ */
+export function sliderOfVolume(volume) {
+    const value = volumeOf(volume) ?? 1, helper = foundry.audio?.AudioHelper;
+    return volumeOf(typeof helper?.volumeToInput === "function" ? helper.volumeToInput(value) : value) ?? value;
+}
+
+/**
+ * @param {string|number} input  a slider's value
+ * @returns {number|null}
+ */
+export function volumeOfSlider(input) {
+    const value = volumeOf(Number(input)), helper = foundry.audio?.AudioHelper;
+    if (value === null) return null;
+    return volumeOf(typeof helper?.inputToVolume === "function" ? helper.inputToVolume(value) : value);
+}
+
+/** `userId`'s `<audio>` elements in the watch's dock. */
+function audioOf(watch, userId) {
+    return [...(watch.dock()?.querySelectorAll?.(AUDIO) ?? [])].filter(el => el.closest(".camera-view")?.dataset.user === userId);
+}
+
+/**
+ * The one writer of a remote user's volume in this browser: only for a participant of the watch's own Room, clamped
+ * to 0..1, into their `<audio>` element at once (unless proximity-voice-chat sets it) and, with `save`, into this
+ * browser's `users.<id>.volume`, which avclient-livekit reads at every attach (external) - a new Room and F5 keep it.
+ *
+ * @param {object} watch
+ * @param {string} userId
+ * @param {number} volume
+ * @param {object} [options]
+ * @param {boolean} [options.save]  false while the slider moves: the element only
+ * @returns {Promise<boolean>} whether it set anything
+ */
+export async function setPeerVolume(watch, userId, volume, { save = true } = {}) {
+    const value = volumeOf(volume);
+    if (!watch || value === null || !inRoom(watch, userId)) return false;
+    if (!watch.proximity()) for (const audio of audioOf(watch, userId)) audio.volume = value;
+    if (!save) return true;
+    const settings = watch.settings();
+    if (typeof settings?.set !== "function") return false;
+    await settings.set("client", `users.${userId}.volume`, value);
+    return true;
+}
+
+/**
+ * The slider let go (or paused): the new volume, and a participant muted for me heard again at it.
+ *
+ * @returns {Promise<boolean>}
+ */
+export async function moveVolume(watch, userId, volume) {
+    if (!watch || volumeOf(volume) === null || !inRoom(watch, userId)) return false;
+    const mutes = peerMutes(watch.mutes.read());
+    if (Object.hasOwn(mutes, userId)) {
+        delete mutes[userId];
+        await watch.mutes.write(mutes);
+    }
+    return setPeerVolume(watch, userId, volume);
+}
+
+/**
+ * 'Mute for me', and back: the volume before kept in the record and the volume set to 0; unmuted, the volume
+ * before put back (1 when it was 0) and the record forgets them. Only for a participant of the watch's own Room.
+ *
+ * @returns {Promise<boolean>}
+ */
+export async function toggleMuteFor(watch, userId) {
+    if (!watch || !inRoom(watch, userId)) return false;
+    const settings = watch.settings(), mutes = peerMutes(watch.mutes.read());
+    if (mutedFor(mutes, settings, userId)) {
+        const before = mutes[userId] > 0 ? mutes[userId] : 1;
+        delete mutes[userId];
+        await watch.mutes.write(mutes);
+        return setPeerVolume(watch, userId, before);
+    }
+    const now = peerVolume(settings, userId);
+    mutes[userId] = now > 0 ? now : 1;
+    await watch.mutes.write(mutes);
+    return setPeerVolume(watch, userId, 0);
+}
+
+/** Foundry's "mute all" of this browser (`muteAll`), flipped - the dock's own button's write. */
+export async function toggleMuteAll(watch = live) {
+    const settings = watch?.settings();
+    if (typeof settings?.set !== "function") return false;
+    await settings.set("client", "muteAll", !watch.muteAll());
+    return true;
+}
+
+/** A participant hidden earlier in the dock (`users.<id>.blocked`), shown and heard again; only one of the own Room. */
+export async function unhidePeer(watch, userId) {
+    const settings = watch?.settings();
+    if (!watch || !inRoom(watch, userId) || typeof settings?.set !== "function") return false;
+    await settings.set("client", `users.${userId}.blocked`, false);
+    return true;
+}
+
+/** The line a GM reads where the module holds a microphone: a secret death named as one, anything else plainly. */
+function heldLine(hold) {
+    return game.i18n.localize(hold?.reason === "secretDead" ? "DRPG.Voice.list.gmSecretDead" : "DRPG.Voice.list.gmHeld");
+}
+
+/**
+ * The GM's block of `user`'s microphone for everybody, or its lifting: Foundry's own write, the user document's
+ * `permissions.BROADCAST_AUDIO` flipped from what Foundry answers now (`canBroadcastAudio`, the dock's own reading).
+ * Only on a GM's client, only for a user of this world, and never where `moduleHoldsMic` holds the microphone - asked
+ * here, at the click, from the world's facts, whatever the button said; refused, it writes nothing and says why.
+ *
+ * @param {User} user
+ * @param {object} [options]  handed in by R539
+ * @param {(user: User) => object|null} [options.holds]
+ * @param {object} [options.settings]  Foundry's `game.webrtc.settings`
+ * @param {(text: string) => void} [options.notify]
+ * @returns {Promise<boolean>} whether it wrote
+ */
+export async function toggleBlock(user, { holds = target => moduleHoldsMic(target), settings = game.webrtc?.settings,
+    notify = text => ui.notifications?.warn(text) } = {}) {
+    if (!game.user?.isGM) return false;
+    if (!user?.id || user.id === game.user.id || game.users.get(user.id) !== user) return false;
+    const hold = holds(user);
+    if (hold?.held) {
+        notify(heldLine(hold));
+        return false;
+    }
+    const allowed = settings?.getUser?.(user.id)?.canBroadcastAudio ?? true;
+    await user.update({ "permissions.BROADCAST_AUDIO": !allowed });
+    return true;
+}
+
+/** Run a change the list asked for, then draw the list again; a failure is logged, never thrown into a listener. */
+function listAct(watch, fn) {
+    Promise.resolve().then(fn).then(() => paintList(watch)).catch(err => error("Could not change what you hear", err));
+}
+
+/** A button of a row: a pixel glyph and a label, 44 px to touch (the design's). */
+function rowButton(className, name) {
+    const button = textNode("button", className, "");
+    button.type = "button";
+    button.append(glyph(name));
+    return button;
+}
+
+/** One row's elements and their listeners, for `userId`; `paintList` fills them. */
+function listRow(watch, userId) {
+    const row = textNode("li", "drpg-voice-row", "");
+    row.dataset.userId = userId;
+    const art = textNode("span", "drpg-voice-row-art", "");
+    art.setAttribute("aria-hidden", "true");
+    const dot = textNode("span", "drpg-voice-row-dot", "");
+    dot.setAttribute("aria-hidden", "true");
+    const slider = document.createElement("input");
+    Object.assign(slider, { type: "range", className: "drpg-voice-row-volume", min: "0", max: "1", step: String(VOLUME_STEP) });
+    slider.addEventListener("input", () => {
+        const volume = volumeOfSlider(slider.value);
+        setPeerVolume(watch, userId, volume, { save: false }).catch(err => error("Could not change a volume", err));
+        const pending = watch.saves.get(userId);
+        if (pending !== undefined) watch.clock.clearTimeout(pending);
+        watch.saves.set(userId, watch.clock.setTimeout(() => {
+            watch.saves.delete(userId);
+            listAct(watch, () => moveVolume(watch, userId, volume));
+        }, VOLUME_SAVE_MS));
+    });
+    slider.addEventListener("change", () => {
+        const pending = watch.saves.get(userId);
+        if (pending !== undefined) watch.clock.clearTimeout(pending);
+        watch.saves.delete(userId);
+        listAct(watch, () => moveVolume(watch, userId, volumeOfSlider(slider.value)));
+    });
+    const mute = rowButton("drpg-voice-row-mute", "sound");
+    mute.addEventListener("click", () => listAct(watch, () => toggleMuteFor(watch, userId)));
+    const hidden = textNode("span", "drpg-voice-row-hidden", game.i18n.localize("DRPG.Voice.list.hidden"));
+    const unhide = textNode("button", "drpg-voice-row-unhide", game.i18n.localize("DRPG.Voice.list.unhide"));
+    unhide.type = "button";
+    unhide.addEventListener("click", () => listAct(watch, () => unhidePeer(watch, userId)));
+    hidden.hidden = unhide.hidden = true;
+    row.append(art, textNode("span", "drpg-voice-row-name", ""), dot, slider, mute, hidden, unhide);
+    return row;
+}
+
+/** The GM's block button of a row, and the line that says why it is held. Built only for a GM's list. */
+function blockParts(watch, userId) {
+    const button = rowButton("drpg-voice-row-block", "lock");
+    button.addEventListener("click", () => listAct(watch, () => toggleBlock(game.users.get(userId))));
+    const why = textNode("span", "drpg-voice-row-held", "");
+    why.id = `drpg-voice-held-${++tiles}`;
+    why.hidden = true;
+    return [button, why];
+}
+
+/** The portrait path each row's art layer shows, so a paint writes it only when it changes. */
+const paintedArt = new WeakMap();
+
+/** Write an attribute, a text or a flag only where it differs from what is drawn (the tile's rule: R536 counts it). */
+function putAttr(el, name, value) {
+    if (value === null) el.removeAttribute(name);
+    else if (el.getAttribute(name) !== value) el.setAttribute(name, value);
+}
+function putText(el, text) {
+    if (el.textContent !== text) el.textContent = text;
+}
+function putHidden(el, hidden) {
+    if (el.hidden !== hidden) el.hidden = hidden;
+}
+
+/**
+ * Draw the list of the watch: a row per remote participant of its Room, in the order of their names, each row kept
+ * from one paint to the next (a focused slider keeps its focus and its value); the top's "mute all"; the line for
+ * nobody. For a GM each row has the block, disabled with its reason where `holds` answers a hold.
+ *
+ * @param {object} [watch]
+ * @param {object} [options]
+ * @param {(user: User) => object|null} [options.holds]  `moduleHoldsMic`; R539 hands in its own
+ * @returns {number} the rows drawn
+ */
+export function paintList(watch = live, { holds = user => moduleHoldsMic(user) } = {}) {
+    const list = watch?.list, body = list?.querySelector(".drpg-voice-list-rows");
+    if (!body) return 0;
+    const settings = watch.settings(), mutes = peerMutes(watch.mutes.read()), gm = watch.gm() === true, room = watch.room;
+    const ids = room?.state === "connected"
+        ? [...new Set([...(room.remoteParticipants?.values?.() ?? [])].map(p => participantUser(watch.client, p, room)?.id).filter(Boolean))] : [];
+    const people = ids.map(id => ({ id, user: watch.userOf(id) })).filter(p => p.user)
+        .map(p => ({ ...p, who: voiceIdentity(p.user) ?? { name: p.user.name ?? "", img: null } }))
+        .sort((a, b) => String(a.who.name).localeCompare(String(b.who.name)));
+
+    putAttr(list.querySelector(".drpg-voice-list-muteall"), "aria-pressed", String(watch.muteAll() === true));
+    putHidden(list.querySelector(".drpg-voice-list-alone"), people.length > 0);
+    const rows = new Map([...body.children].map(row => [row.dataset.userId, row]));
+    for (const [id, row] of rows) if (!ids.includes(id)) row.remove();
+    people.forEach(({ id, user, who }, at) => {
+        const row = rows.get(id) ?? listRow(watch, id);
+        if (body.children[at] !== row) body.insertBefore(row, body.children[at] ?? null);
+        const name = String(who.name ?? "");
+        putText(row.querySelector(".drpg-voice-row-name"), name);
+        const image = who.img ? safeRoomImage(who.img) : null;
+        const art = row.querySelector(".drpg-voice-row-art");
+        if (paintedArt.get(art) !== image) {
+            paintedArt.set(art, image);
+            if (image) art.style.setProperty("background-image", `url("${cssString(image)}")`);
+            else art.style.removeProperty("background-image");
+        }
+        row.classList.toggle("is-speaking", watch.speakers.includes(id));
+
+        const hidden = settings?.get?.("client", `users.${id}.blocked`) === true, muted = mutedFor(mutes, settings, id);
+        const slider = row.querySelector(".drpg-voice-row-volume"), mute = row.querySelector(".drpg-voice-row-mute");
+        putAttr(slider, "aria-label", game.i18n.format("DRPG.Voice.list.volume", { name }));
+        if (slider.ownerDocument.activeElement !== slider && !watch.saves.has(id)) {
+            const position = String(sliderOfVolume(peerVolume(settings, id)));
+            if (slider.value !== position) slider.value = position;
+        }
+        const label = game.i18n.format(muted ? "DRPG.Voice.list.unmuteFor" : "DRPG.Voice.list.muteFor", { name });
+        putAttr(mute, "aria-label", label);
+        if (mute.dataset.tooltipText !== label) mute.dataset.tooltipText = label;
+        putAttr(mute, "aria-pressed", String(muted));
+        mute.classList.toggle("is-muted", muted);
+        for (const el of [slider, mute]) putHidden(el, hidden);
+        for (const el of row.querySelectorAll(".drpg-voice-row-hidden, .drpg-voice-row-unhide")) putHidden(el, !hidden);
+
+        let block = row.querySelector(".drpg-voice-row-block"), why = row.querySelector(".drpg-voice-row-held");
+        if (!gm) {
+            block?.remove();
+            why?.remove();
+            return;
+        }
+        if (!block) {
+            [block, why] = blockParts(watch, id);
+            row.append(block, why);
+        }
+        const blocked = (settings?.getUser?.(id)?.canBroadcastAudio ?? true) === false;
+        const hold = holds(user);
+        const tip = game.i18n.format(blocked ? "DRPG.Voice.list.gmUnblock" : "DRPG.Voice.list.gmBlock", { name });
+        putAttr(block, "aria-label", tip);
+        if (block.dataset.tooltipText !== tip) block.dataset.tooltipText = tip;
+        putAttr(block, "aria-pressed", String(blocked));
+        block.classList.toggle("is-gm-blocked", blocked);
+        if (block.disabled !== Boolean(hold?.held)) block.disabled = Boolean(hold?.held);
+        putText(why, hold?.held ? heldLine(hold) : "");
+        putHidden(why, !hold?.held);
+        putAttr(block, "aria-describedby", hold?.held ? why.id : null);
+    });
+    return people.length;
+}
+
+/** The list's controls a keyboard can reach, in order. */
+function listStops(list) {
+    return [...list.querySelectorAll("button, input")].filter(el => !el.disabled && !el.closest("[hidden]"));
+}
+
+/**
+ * The list's element for a watch, built once: a dialog labelled by its title, "mute all" at the top, the line for
+ * nobody, the rows. Its keys are heard in the capture phase, before anything inside or behind it.
+ */
+function buildVoiceList(watch) {
+    const list = textNode("section", "drpg-voice-list", "");
+    list.id = watch.tile?.id === TILE_ID ? LIST_ID : `${LIST_ID}-${++tiles}`;
+    list.hidden = true;
+    list.setAttribute("role", "dialog");
+    const title = textNode("h2", "drpg-voice-list-title", game.i18n.localize("DRPG.Voice.list.open"));
+    title.id = `${list.id}-title`;
+    list.setAttribute("aria-labelledby", title.id);
+    const muteAll = textNode("button", "drpg-voice-list-muteall", game.i18n.localize("DRPG.Voice.list.muteAll"));
+    muteAll.type = "button";
+    muteAll.setAttribute("aria-pressed", "false");
+    muteAll.addEventListener("click", () => listAct(watch, () => toggleMuteAll(watch)));
+    const alone = textNode("p", "drpg-voice-list-alone", game.i18n.localize("DRPG.Voice.list.alone"));
+    alone.hidden = true;
+    list.append(title, muteAll, alone, textNode("ul", "drpg-voice-list-rows", ""));
+    list.addEventListener("keydown", event => onListKey(watch, event), true);
+    return list;
+}
+
+/** Escape closes the list and goes no further (Foundry's menu would open on it); Tab and Shift+Tab stay inside. */
+function onListKey(watch, event) {
+    if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        closeVoiceList(watch);
+        return;
+    }
+    if (event.key !== "Tab") return;
+    const stops = listStops(watch.list), at = watch.list.ownerDocument.activeElement;
+    if (!stops.length) return;
+    const to = event.shiftKey ? (at === stops[0] ? stops.at(-1) : null) : (at === stops.at(-1) ? stops[0] : null);
+    if (!to) return;
+    event.preventDefault();
+    to.focus();
+}
+
+/** Beside the tile, on its left (the tile stands at the right wall), its top at the tile's top, 8 px inside the screen. */
+function placeVoiceList(watch) {
+    const list = watch.list, tile = watch.tile.getBoundingClientRect(), box = list.getBoundingClientRect(), gap = 8;
+    const x = Math.max(gap, Math.min(tile.left - box.width - gap, window.innerWidth - box.width - gap));
+    const y = Math.max(gap, Math.min(tile.top, window.innerHeight - box.height - gap));
+    list.style.left = `${Math.round(x)}px`;
+    list.style.top = `${Math.round(y)}px`;
+}
+
+/**
+ * Open the watch's list: drawn, placed, the speaker button `aria-expanded`, the focus on its first control, and a
+ * pointer anywhere else closes it. It cuts nothing of the curtain and fires no `drpgGlassCut`.
+ *
+ * @param {object} [watch]
+ * @returns {HTMLElement|null}
+ */
+export function openVoiceList(watch = live) {
+    const speaker = watch?.tile?.querySelector(".drpg-voice-speaker");
+    if (!speaker) return null;
+    watch.list ??= buildVoiceList(watch);
+    const list = watch.list;
+    if (!list.isConnected) document.body.append(list);
+    paintList(watch);
+    list.hidden = false;
+    speaker.setAttribute("aria-expanded", "true");
+    speaker.setAttribute("aria-controls", list.id);
+    placeVoiceList(watch);
+    watch.away ??= event => {
+        if (!list.contains(event.target) && !speaker.contains(event.target)) closeVoiceList(watch);
+    };
+    document.addEventListener("pointerdown", watch.away, true);
+    listStops(list)[0]?.focus();
+    return list;
+}
+
+/**
+ * Close the watch's list and give the focus back to its speaker button.
+ *
+ * @param {object} [watch]
+ * @param {object} [options]
+ * @param {boolean} [options.focus]  false when the tile goes
+ * @returns {boolean} whether it was open
+ */
+export function closeVoiceList(watch = live, { focus = true } = {}) {
+    const list = watch?.list;
+    if (!list || list.hidden) return false;
+    list.hidden = true;
+    if (watch.away) document.removeEventListener("pointerdown", watch.away, true);
+    const speaker = watch.tile?.querySelector(".drpg-voice-speaker");
+    speaker?.setAttribute("aria-expanded", "false");
+    if (focus) speaker?.focus();
+    return true;
+}
+
+/** The speaker button's click: the list opened, or closed when it is open. */
+export function toggleVoiceList(watch = live) {
+    if (watch?.list && !watch.list.hidden) return closeVoiceList(watch);
+    return Boolean(openVoiceList(watch));
 }
 
 /**
@@ -754,8 +1271,10 @@ export function refreshVoiceTile(client = liveKitClient()) {
     }
 }
 
-/** No tile: the Room left, the timers stopped and the element gone. */
+/** No tile: the list closed and gone, the Room left, the timers stopped and the element gone. */
 function dropVoiceTile() {
+    closeVoiceList(live, { focus: false });
+    live?.list?.remove();
     detachRoom(live);
     live = null;
     document.getElementById(TILE_ID)?.remove();
@@ -764,14 +1283,19 @@ function dropVoiceTile() {
 /**
  * The tile's triggers (module.mjs `ready`). The hook's argument is avclient-livekit's client; the field on
  * `game.webrtc.client` is read first, as voice-client.mjs reads it, and the argument only when that is absent. The
- * viewer's own user changing (a GM's block is a permission on it) repaints the buttons; a client setting - a mute,
- * the voice mode - comes through `rtcSettingsChanged`.
+ * viewer's own user changing (a GM's block is a permission on it) repaints the buttons, anybody else's an open list
+ * (the GM's block on them); a client setting - a mute, a volume, the voice mode - comes through
+ * `rtcSettingsChanged`, which also tells the sound launcher about "mute all" (sfx.mjs, the design's F5).
  */
 export function registerVoiceTile() {
     Hooks.on("liveKitClientInitialized", client => refreshVoiceTile(liveKitClient() ?? client ?? null));
-    Hooks.on("rtcSettingsChanged", () => refreshVoiceTile());
+    Hooks.on("rtcSettingsChanged", () => {
+        refreshVoiceTile();
+        import("./sfx.mjs").then(m => m.refreshSoundLauncher()).catch(err => error("Could not draw the sound launcher", err));
+    });
     Hooks.on("updateUser", user => {
         if (user?.id === game.user?.id) paintControls();
+        else if (live?.list && !live.list.hidden) paintList(live);
     });
     refreshVoiceTile();
 }

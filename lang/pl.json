@@ -3154,6 +3154,7 @@
       },
       "stateUnchanged": "Nic się nie zmieniło.",
       "checksSetup": "Obsada",
+      "checksAvVideo": "Ten świat wysyła wideo, którego nikt nie ogląda: ustaw tryb A/V na sam dźwięk.",
       "seasonChecks": "Kontrola przed sezonem",
       "nextFloorHeld": "{mode} - głos ma {who}.",
       "whoIsAlive": "Uczniowie",
@@ -3565,7 +3566,29 @@
           "few": "Słyszysz w kanale: {n}",
           "many": "Słyszysz w kanale: {n}",
           "other": "Słyszysz w kanale: {n}"
-        }
+        },
+        "alone": "Poza tobą nikogo nie ma w kanale.",
+        "muteAll": "Wycisz wszystkich u siebie",
+        "volume": "Głośność: {name}",
+        "muteFor": "Wycisz u siebie: {name}",
+        "unmuteFor": "Znów słuchaj: {name}",
+        "hidden": "Ukryta wcześniej w doku kamer: nie słyszysz tej osoby.",
+        "unhide": "Pokaż i słuchaj",
+        "gmBlock": "Zablokuj mikrofon: {name} (u wszystkich)",
+        "gmUnblock": "Odblokuj mikrofon: {name}",
+        "gmHeld": "Tego mikrofonu nie możesz teraz zablokować.",
+        "gmSecretDead": "Ta śmierć jest jeszcze tajemnicą: blokada by ją zdradziła."
+      },
+      "panel": {
+        "legend": "Głos",
+        "mic": "Mikrofon",
+        "micNote": "Pozwól przeglądarce używać mikrofonu, potem otwórz to okno ponownie, aby go wybrać.",
+        "output": "Wyjście dźwięku",
+        "mode": "Tryb mikrofonu",
+        "modeAlways": "Zawsze włączony",
+        "modePtt": "Naciśnij, aby mówić",
+        "pttKey": "Klawisz mówienia: {key}",
+        "pttChange": "Zmień klawisz"
       },
       "liveKitSecret": "LiveKit AVClient jest ustawiony na własny serwer, a jego sekret API leży w ustawieniu świata, które trafia do przeglądarki każdego gracza. Kto go ma, może połączyć się z każdym pokojem głosowym. Ten moduł nie przeniesie ustawienia innego modułu; serwer, który sam wydaje tokeny dostępu, na przykład Tavern, trzyma sekret z dala od przeglądarek."
     },

@@ -185,7 +185,28 @@ function wireLook(root) {
 }
 
 /**
- * Open the Look dialog: volumes and look, one window, raised if already open.
+ * The third fieldset, Voice (E78 C5; voice-panel.mjs): the microphone, the output, the mode and the key, after the
+ * look. Only where this world has voice to set (`voiceAvailable()`, voice-tile.mjs) - elsewhere the file is not even
+ * loaded - and added once the window is drawn, because the device lists are asked of the browser and arrive later.
+ *
+ * @param {HTMLElement} root  the window's element
+ * @returns {Promise<boolean>} whether the section was added
+ */
+async function wireVoice(root) {
+    const { voiceAvailable } = await import("./voice-tile.mjs");
+    if (!voiceAvailable()) return false;
+    const { voiceFieldset } = await import("./voice-panel.mjs");
+    const form = root?.querySelector("form");
+    if (!form || form.querySelector("fieldset.drpg-voice-panel")) return false;
+    const fieldset = await voiceFieldset();
+    if (!form.isConnected || form.querySelector("fieldset.drpg-voice-panel")) return false;
+    form.append(fieldset);
+    return true;
+}
+
+/**
+ * Open the Look dialog: volumes, look and - where this world has voice - the Voice section, one window, raised if
+ * already open.
  */
 export async function openLookDialog() {
     if (alreadyOpen("drpg-window-look")) return null;
@@ -197,7 +218,11 @@ export async function openLookDialog() {
         position: { width: 560 },
         content: dialogContent(`<form>${soundSlidersHtml()}${lookFieldset()}</form>`),
         buttons: [{ action: "close", label: game.i18n.localize("DRPG.Panel.close") }],
-        render: (event, dialog) => { wireSoundPanel(dialog.element); wireLook(dialog.element); },
+        render: (event, dialog) => {
+            wireSoundPanel(dialog.element);
+            wireLook(dialog.element);
+            wireVoice(dialog.element).catch(err => error("Could not draw the voice settings", err));
+        },
         rejectClose: false
     });
 }
