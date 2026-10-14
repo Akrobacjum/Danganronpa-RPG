@@ -169,9 +169,10 @@ function onRenderCameraViews(app, element) {
 /**
  * The name this person should be shown under.
  *
- * An explicit `user.character` is a statement and always wins. Failing that a
- * GM is named by their Monokuma - the actor whose Despair pool points at them,
- * the same relationship voice.mjs uses to decide which room they follow - and
+ * An explicit `user.character` wins when the user owns it (`voiceActorFor`).
+ * Failing that a GM is named by their Monokuma - the actor whose Despair pool
+ * points at them, the same relationship voice.mjs uses to decide which room
+ * they follow - and
  * then by their pool label, which is what the Despair widget already shows.
  */
 function displayNameFor(user) {
@@ -184,8 +185,8 @@ function displayNameFor(user) {
  * `displayNameFor`'s - both go through `voiceActorFor`, so the dock's nameplate
  * and the voice tile cannot name two different characters for one account -
  * and the portrait is that same actor's `img`, else the account's own
- * `avatar`, else `null`. Never a token's art, and never a character this
- * account was not already named by: the portrait cannot be another's (R542).
+ * `avatar`, else `null`. Never a token's art, and never a character a player
+ * does not own: the portrait cannot be another's (R542, E78 fix r1-G2).
  * Read by the voice tile (E78 C3) and the list (C6) as text and a checked path.
  * `faces` is both candidates in that order, empty ones left out (E78 fix h76-HF1, round 1's sec SEC-R1-4):
  * the tile draws the first its check accepts, so a character still on Foundry's default `.svg`, which the
@@ -201,12 +202,23 @@ export function voiceIdentity(user) {
  * The character a person is named by, or `null`: `user.character`, then a GM's
  * Monokuma, then a player's first owned character.
  *
+ * A player's `user.character` counts only when that player owns the actor
+ * (Foundry's `testUserPermission(user, "OWNER")`, the ownership test D2's layer
+ * one judges with; a GM's always counts). E78 fix r1-G2, 14.10.2026, round 1's
+ * SEC-R1-2: the reviewer set p2's `character` to p3's student in p1's memory and
+ * p1's voice tile drew that student's name and portrait while p2 spoke - the
+ * dock's name plate had read the field the same way since before E78. Whether
+ * Foundry's server lets a player write their own `character` to an actor they do
+ * not own is not measured here (no Foundry source in this checkout, and its site
+ * is not reachable from this machine); the check holds either way (R542).
+ *
  * The ownership search is for PLAYERS only: `testUserPermission(gm, "OWNER")`
  * is true for every actor in the world, so running it for a GM returns
  * whichever character happens to be first in the collection.
  */
 function voiceActorFor(user) {
-    if (user.character?.name) return user.character;
+    const assigned = user.character;
+    if (assigned?.name && (user.isGM || assigned.testUserPermission?.(user, "OWNER") === true)) return assigned;
 
     if (user.isGM) {
         return game.actors.find(a =>

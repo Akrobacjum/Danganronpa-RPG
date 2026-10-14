@@ -141,6 +141,11 @@ export function installLiveKit({ roster = {} } = {}) {
         }
         return el;
     };
+    /* Foundry's CameraViews as far as the voice tile reads it (E78 fix r1-G2, 14.10.2026): its `element` is the dock,
+       `#camera-views`, the root avclient-livekit looks in for a user's `<audio>` (LiveKitClient.ts
+       `getUserAudioElement`, external). The harness had no `ui.webrtc`; nothing else of CameraViews is modelled. */
+    ui.webrtc ??= {};
+    Object.defineProperty(ui.webrtc, "element", { configurable: true, get: dock });
 
     const viewOf = userId => [...dock().querySelectorAll(".camera-view[data-user]")].find(v => v.dataset.user === userId) ?? null;
 

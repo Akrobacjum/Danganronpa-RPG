@@ -124,6 +124,9 @@ export const HOLD_MS = 1500;
 /** A remote user's sound in the dock, as avclient-livekit 0.6.8 draws it (external; see the header). */
 const AUDIO = ".camera-view[data-user] audio.user-microphone-audio";
 
+/** A camera popout, as the hidden-dock rule (danganronpa.css) names it; Foundry v14's real id is not measured (R541). */
+const POPOUT = '.application[id^="camera-view-"]';
+
 /** The microphone's states a click or the key may change: the viewer's own choice. The rest only say why not. */
 const MIC_FREE = ["on", "ptt", "muted"];
 
@@ -174,11 +177,13 @@ function avMode() {
  * Whether this world can carry the tile: its A/V mode sends sound (not DISABLED, not VIDEO alone - the owner's
  * table is audio-only, Q11) and the A/V client is avclient-livekit's (`avclientActive`).
  *
+ * @param {object} [facts]  handed in by R541 (E78 fix r1-G2, round 1's cor F3: no test had read either clause, so a
+ *   mutant that dropped one passed); left out, each is read here
  * @returns {boolean}
  */
-export function voiceAvailable() {
-    const MODES = avModes(), mode = avMode();
-    return mode !== MODES.DISABLED && mode !== MODES.VIDEO && avclientActive();
+export function voiceAvailable({ mode = avMode(), livekit = avclientActive() } = {}) {
+    const MODES = avModes();
+    return mode !== MODES.DISABLED && mode !== MODES.VIDEO && livekit;
 }
 
 /**
@@ -350,7 +355,7 @@ function glyph(name) {
  * @param {HTMLElement} tile
  * @param {object} [options]
  * @param {{now: Function, setTimeout: Function, clearTimeout: Function}} [options.clock]
- * @param {() => ParentNode} [options.dock]     where the users' `<audio>` elements are looked for
+ * @param {() => ParentNode} [options.dock]     where the users' `<audio>` elements are looked for: `foundryDock`
  * @param {() => boolean} [options.muteAll]     Foundry's "mute all" of this browser
  * @param {() => number} [options.fade]         the fade's length in ms; 0 under reduced motion
  * @param {(id: string) => User} [options.userOf] whose name and portrait a speaker's id is drawn with: the
@@ -364,7 +369,7 @@ function glyph(name) {
  * @param {() => boolean} [options.gm]  whether the list draws the GM's block: `game.user.isGM`; the suite draws a
  *   player's list with false (R539). The block's write asks `game.user.isGM` itself (`toggleBlock`).
  */
-export function voiceWatch(tile, { clock = realClock, dock = () => document,
+export function voiceWatch(tile, { clock = realClock, dock = foundryDock,
     muteAll = () => game.webrtc?.settings?.client?.muteAll === true, fade = () => (reducedMotion() ? 0 : TURN()),
     userOf = id => game.users.get(id), controls = null, settings = () => game.webrtc?.settings, mutes = PEER_MUTES,
     proximity = () => game.modules?.get?.("proximity-voice-chat")?.active === true, gm = () => game.user?.isGM === true } = {}) {
@@ -491,6 +496,22 @@ function resetSpeech(watch) {
     watch.since.clear();
     for (const slot of Object.keys(watch.timers)) cancel(watch, slot);
     clearSpeaker(watch);
+}
+
+/**
+ * Where this browser plays the voices: Foundry's dock (`ui.webrtc.element`, the one root avclient-livekit 0.6.8 looks
+ * in for a user's `<audio>`, LiveKitClient.ts `getUserAudioElement`, external) and the camera popouts Foundry has
+ * open, found among its own applications (`foundry.applications.instances`) - never the whole document. E78 fix
+ * r1-G2, 14.10.2026, round 1's SEC-R1-5: the default was `document`, and a paused element of the dock's shape put in
+ * front of the dock in p1's page made p2's speech show nobody on p1's tile (the reviewer's reading; R535 plants one,
+ * inside a popout-shaped wrapper, which this skips too). `audible` and `audioOf` read it alike.
+ *
+ * @returns {{querySelectorAll: (selector: string) => Element[]}}
+ */
+function foundryDock() {
+    const popouts = [...(foundry.applications?.instances?.values?.() ?? [])].map(app => app?.element).filter(el => el?.matches?.(POPOUT));
+    const roots = [ui.webrtc?.element, ...popouts];
+    return { querySelectorAll: selector => roots.flatMap(root => [...(root?.querySelectorAll?.(selector) ?? [])]) };
 }
 
 /** Whether this browser hears `userId`: their element in the dock plays a live track, and nothing mutes it here. */
@@ -630,7 +651,8 @@ function paintSpeaker(watch, more = 0, gone = null) {
         fading: Boolean(who) && watch.phase === "fading",
         name: who?.name ?? "",
         image,
-        more: who ? more : 0
+        more: who ? more : 0,
+        face: Boolean(who)
     };
     const last = painted.get(tile) ?? {};
     const changed = Object.keys(next).filter(key => last[key] !== next[key]);
@@ -638,12 +660,15 @@ function paintSpeaker(watch, more = 0, gone = null) {
     painted.set(tile, next);
 
     const art = arts.get(tile) ?? null;
-    if (changed.includes("state")) {
-        tile.dataset.state = next.state;
-        face.hidden = !who;
-        if (art) art.hidden = !who;
+    if (changed.includes("state")) tile.dataset.state = next.state;
+    /* The face follows the speaker, not the state (E78 fix r1-G2, 14.10.2026, round 1's cor F2): written only on a
+       change of state, a speaker kept through "reconnecting" (offline) and then cleared by the Room's loss left an
+       empty face under "Speaking" and no "nobody" line until the next connect - the reviewer's probe 97; R535. */
+    if (changed.includes("face")) {
+        face.hidden = !next.face;
+        if (art) art.hidden = !next.face;
         const nobody = tile.querySelector(".drpg-voice-tile-nobody");
-        if (nobody) nobody.hidden = Boolean(who);
+        if (nobody) nobody.hidden = next.face;
     }
     if (changed.includes("inChannel")) tile.dataset.inChannel = next.inChannel;
     if (changed.includes("fading")) {

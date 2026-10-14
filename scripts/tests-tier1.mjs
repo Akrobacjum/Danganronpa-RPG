@@ -11300,7 +11300,7 @@ const INVARIANTS = [
         const settings = { client: { muteAll: false, users: {} }, get: () => undefined, set: async () => {}, getUser: () => ({ canBroadcastAudio: true }) };
         const LIST = { settings: () => settings, mutes: { read: () => ({}), write: async () => {} }, proximity: () => false, gm: () => false, muteAll: () => false };
         const voice = (img, avatar) => {
-            const userOf = id => (id === b.id ? { id, name: "R546 account", isGM: false, avatar, character: { name: "R546 Speaker", img } } : null);
+            const userOf = id => (id === b.id ? { id, name: "R546 account", isGM: false, avatar, character: { name: "R546 Speaker", img, testUserPermission: () => true } } : null);
             const rig = voiceTileRig(VT, [b], { fade: () => 840, userOf, ...LIST });
             const room = rig.makeRoom([b.id]);
             VT.attachRoom(rig.clientOf(room), rig.watch);
@@ -12469,7 +12469,7 @@ const INVARIANTS = [
             + "death), D (another hold), B through moduleHoldsMic's secret death, the GM's own account, a user not of this world, nobody; the writes; "
             + "the lines | the click: D's disabled button, B's through the world's facts | toggleBlock returns first unless this client is a GM's]");
     }],
-    ["R542 - a voice surface names and pictures a person as the dock does: `voiceIdentity` gives `displayNameFor`'s name and that same character's portrait, else the account's avatar, for every account of this world, an assigned character, a GM without a Monokuma and an account without a character, and never a token's art; the gear's Voice section offers only the microphone, the output, the mode and the key, and writes only those; the pre-season checks say when a world sends video nobody watches", async () => {
+    ["R542 - a voice surface names and pictures a person as the dock does: `voiceIdentity` gives `displayNameFor`'s name and that same character's portrait, else the account's avatar, for every account of this world, an assigned character (a player's only when they own it, a GM's always), a GM without a Monokuma and an account without a character, and never a token's art; the gear's Voice section offers only the microphone, the output, the mode and the key, and writes only those; the pre-season checks say when a world sends video nobody watches", async () => {
         /*
          * E78 C2, 13.10.2026; the A9 design's R395 (T7; the E78 plan's D2 gave it this number), its identity clauses -
          * E78 C5 adds the gear's Voice fieldset (below). The voice tile (C3) and the list (C5) draw a name and a portrait on every
@@ -12485,6 +12485,13 @@ const INVARIANTS = [
          * Red before C2: camera-view.mjs exported no `voiceIdentity`. E78 fix h76-HF1 (14.10.2026) adds `faces`, the
          * character's picture and the avatar in that order with empty ones left out - the voice tile draws the
          * first its check accepts (R546) - to the copy and to the three plain accounts' readings.
+         * E78 fix r1-G2 (14.10.2026), round 1's SEC-R1-2: a player's `user.character` names them only when they own
+         * that actor (the reviewer set p2's to p3's student in p1's memory and p1's tile drew that student's name and
+         * portrait while p2 spoke). The copy asks the same ownership (`testUserPermission(user, "OWNER")`, a GM's
+         * always counts), the plain characters answer it as their owner's, and two accounts are added: a player
+         * whose character is one they only observe - named as with no character, by their own (a real player's id
+         * when one owns a character, so the fallback finds it) and never by the observed one - and a GM whose
+         * character answers no, named by it all the same. Red at 90a9ebc: the observer was named "R542 Theirs".
          */
         const C = await import("./camera-view.mjs");
         ok(typeof C.voiceIdentity === "function", "camera-view.mjs has no `voiceIdentity` - the voice tile has no name or portrait to ask for");
@@ -12493,7 +12500,7 @@ const INVARIANTS = [
         const { poolLabel } = await import("./despair.mjs");
         const reference = user => {
             let actor = null, name;
-            if (user.character?.name) {
+            if (user.character?.name && (user.isGM || user.character.testUserPermission?.(user, "OWNER") === true)) {
                 actor = user.character;
                 name = user.character.name;
             } else if (user.isGM) {
@@ -12507,10 +12514,15 @@ const INVARIANTS = [
         };
         const token = { texture: { src: "r542-token.webp" } };
         const assigned = { id: "R542ASSIGNED0000", name: "r542-account", isGM: false, avatar: "r542-avatar.webp",
-            character: { name: "R542 Assigned", img: "r542-portrait.webp", type: "character", prototypeToken: token } };
+            character: { name: "R542 Assigned", img: "r542-portrait.webp", type: "character", prototypeToken: token, testUserPermission: () => true } };
         const bare = { ...assigned, id: "R542BARE00000000", character: { ...assigned.character, img: "" } };
         const lonelyGm = { id: "R542GM0000000000", name: "R542 GM", isGM: true, avatar: null, character: null };
         const nobody = { id: "R542NOBODY000000", name: "R542 Nobody", isGM: false, avatar: "r542-nobody.webp", character: null };
+        const ownerId = game.users.find(user => !user.isGM && game.actors.some(a => a.type === "character" && a.testUserPermission(user, "OWNER")))?.id;
+        const observer = { id: ownerId ?? "R542OBSERVER0000", name: "R542 Observer", isGM: false, avatar: "r542-observer.webp",
+            character: { name: "R542 Theirs", img: "r542-theirs.webp", type: "character", testUserPermission: (user, level) => level !== "OWNER" } };
+        const gmPick = { id: "R542GMPICK000000", name: "R542 GM Pick", isGM: true, avatar: null,
+            character: { name: "R542 Picked", img: "r542-picked.webp", type: "character", testUserPermission: () => false } };
 
         const sources = await moduleSources();
         must(sources.get("camera-view.mjs")?.length, "camera-view.mjs is not among the module's sources - this would measure nothing");
@@ -12521,13 +12533,16 @@ const INVARIANTS = [
             C.voiceIdentity(assigned), C.voiceIdentity(bare), C.voiceIdentity(lonelyGm),
             JSON.stringify(C.voiceIdentity(nobody)) === JSON.stringify(reference(nobody)), C.voiceIdentity(null),
             /token|texture/i.test(identity + actorOf),
-            /voiceActorFor\(user\)/.test(fnSource(camera, "displayNameFor")), /voiceActorFor\(user\)/.test(identity)]),
+            /voiceActorFor\(user\)/.test(fnSource(camera, "displayNameFor")), /voiceActorFor\(user\)/.test(identity),
+            JSON.stringify(C.voiceIdentity(observer)) === JSON.stringify(reference({ ...observer, character: null })), C.voiceIdentity(observer)?.name,
+            C.voiceIdentity(gmPick)]),
         JSON.stringify([[], { name: "R542 Assigned", img: "r542-portrait.webp", faces: ["r542-portrait.webp", "r542-avatar.webp"] },
             { name: "R542 Assigned", img: "r542-avatar.webp", faces: ["r542-avatar.webp"] },
-            { name: "R542 GM", img: null, faces: [] }, true, null, false, true, true]),
+            { name: "R542 GM", img: null, faces: [] }, true, null, false, true, true,
+            true, reference({ ...observer, character: null }).name, { name: "R542 Picked", img: "r542-picked.webp", faces: ["r542-picked.webp"] }]),
         "[the accounts of this world whose voice name or portrait is not the dock's; an assigned character with a portrait; one without; a GM with no "
             + "Monokuma; an account with no character, against the copy; no user; a token or texture read for the portrait; displayNameFor and "
-            + "voiceIdentity through voiceActorFor]");
+            + "voiceIdentity through voiceActorFor; a player whose character they only observe, as with none, and their name; a GM's character that answers no]");
 
         /* E78 C5: the gear's Voice section (voice-panel.mjs; the owner's Q8 and Q11) and the pre-season row. The section
            is built from facts the suite hands in - an AVClient whose device lists are the suite's, an A/V settings object
@@ -12587,7 +12602,7 @@ const INVARIANTS = [
             + "camera, another's volume, a mode avclient-livekit has not, a number - refused; an output - written | videoUnwatched: audio and video "
             + "with the tile; audio; video; no voice; the tile off | runPreSessionChecks asks videoUnwatched]");
     }],
-    ["R535 - the voice tile shows only who this player hears in their own channel: a speaker of the own LiveKit Room after 250 ms, never one Foundry's table-wide signal or another Room names, never one muted, paused, silent or without a live track here, '+1' for a second, the channel's count, and nobody at once when the speaker leaves, the Room changes or the connection goes", async () => {
+    ["R535 - the voice tile shows only who this player hears in their own channel: a speaker of the own LiveKit Room after 250 ms, never one Foundry's table-wide signal or another Room names, never one muted, paused, silent or without a live track here, '+1' for a second, the channel's count, and nobody at once when the speaker leaves, the Room changes or the connection goes, a lost reconnect included; and only the dock's own elements and Foundry's camera popouts say who is heard", async () => {
         /*
          * E78 C3, 13.10.2026; the A9 design's R388 (T1; the E78 plan's D2 gave it this number). The harm: a portrait and
          * a name on this player's screen of somebody they cannot hear - a player in another room (Foundry's
@@ -12603,6 +12618,14 @@ const INVARIANTS = [
          * once; the connection lost - offline. Then each way this browser does not hear the first, on a bench of its
          * own: volume 0, muted, paused, the track ended, the track disabled, Foundry's "mute all", no element -
          * nobody each time.
+         * E78 fix r1-G2 (14.10.2026), two more benches. Round 1's cor F2: speaking, then "reconnecting" (the speaker
+         * kept, the state offline), then the Room lost - the face hidden and "nobody" shown; red at 90a9ebc, as the
+         * reviewer's probe 97 read it: an empty face under "Speaking". Round 1's SEC-R1-5: with the module's own
+         * `dock` (`foundryDock`), the first speaker's live element in a stand-in of Foundry's dock (`ui.webrtc`,
+         * swapped in and back without an await between) and the second's in a stand-in camera popout registered
+         * among `foundry.applications.instances`, and a paused element of each in front of both, in a wrapper shaped
+         * like a popout that Foundry does not hold - both speakers heard; red at 90a9ebc (the whole document, the
+         * first element in it: nobody, as the reviewer read it).
          * Red before C3: there was no voice-tile.mjs (the first assertion).
          */
         needs(world.atLeast("playerAccounts", 3), "three accounts besides the GM's: two in the channel and one outside it");
@@ -12673,12 +12696,69 @@ const INVARIANTS = [
             bench.advance(300);
             return `${what}: ${bench.read().name || "nobody"}`;
         });
-        equal(JSON.stringify([seen, shownWhenUnheard]), JSON.stringify([
+
+        const lost = voiceTileRig(V, [b]);
+        const flaky = lost.makeRoom([b.id]);
+        V.attachRoom(lost.clientOf(flaky), lost.watch);
+        lost.speak(flaky, [b.id]);
+        lost.advance(300);
+        const drawn = bench => [bench.read().name, bench.read().state, bench.read().face, !bench.tile.querySelector(".drpg-voice-tile-nobody").hidden];
+        flaky.state = "reconnecting";
+        flaky.emit("connectionStateChanged", "reconnecting");
+        const reconnect = [drawn(lost)];
+        flaky.state = "disconnected";
+        flaky.emit("disconnected");
+        reconnect.push(drawn(lost));
+
+        const instances = foundry.applications?.instances;
+        must(instances instanceof Map, "foundry.applications.instances is not a Map - there is nowhere to register a stand-in camera popout");
+        const planted = voiceTileRig(V, [b, d], { dock: undefined });
+        const standIn = planted.audio[b.id].el.closest(".camera-view").parentElement;
+        const popout = Object.assign(document.createElement("div"), { className: "application", id: "camera-view-R535POPOUT00000" });
+        popout.append(planted.audio[d.id].el.closest(".camera-view"));
+        const decoy = Object.assign(document.createElement("div"), { className: "application", id: "camera-view-R535DECOY000000" });
+        for (const user of [b, d]) {
+            const view = document.createElement("div");
+            view.className = "camera-view";
+            view.dataset.user = user.id;
+            const el = document.createElement("audio");
+            el.className = "user-microphone-audio";
+            Object.defineProperty(el, "paused", { configurable: true, value: true });
+            view.append(el);
+            decoy.append(view);
+        }
+        const app = { id: popout.id, element: popout };
+        const hadWebrtc = Object.hasOwn(ui, "webrtc"), webrtc = ui.webrtc;
+        const heard = [];
+        try {
+            document.body.prepend(decoy);
+            document.body.append(standIn, popout);
+            ui.webrtc = { element: standIn };
+            instances.set(app.id, app);
+            const own = planted.makeRoom([b.id, d.id]);
+            V.attachRoom(planted.clientOf(own), planted.watch);
+            planted.speak(own, [b.id]);
+            planted.advance(300);
+            heard.push(planted.read().name);
+            planted.leave(own, b.id);
+            planted.speak(own, [d.id]);
+            planted.advance(300);
+            heard.push(planted.read().name);
+        } finally {
+            instances.delete(app.id);
+            if (hadWebrtc) ui.webrtc = webrtc;
+            else delete ui.webrtc;
+            for (const el of [decoy, standIn, popout]) el.remove();
+        }
+        equal(JSON.stringify([seen, shownWhenUnheard, reconnect, heard]), JSON.stringify([
             ["", [nameOf(b), "speaking", "2"], [nameOf(b), ""], "+1", [nameOf(d), "", "1"], ["", false, "0"], ["", false], ["", "offline", "0"]],
-            Object.keys(unheard).map(what => `${what}: nobody`)]),
+            Object.keys(unheard).map(what => `${what}: nobody`),
+            [[nameOf(b), "offline", true, false], ["", "offline", false, true]],
+            [nameOf(b), nameOf(d)]]),
         "[nobody at 249 ms, then the speaker with the state and the channel's count (the positive control); with Foundry's signal and another Room "
             + "naming a third; '+' with a second speaker; the first leaves; the second leaves; a new Room; the connection lost] and [each way this "
-            + "browser does not hear the speaker]");
+            + "browser does not hear the speaker] and [reconnecting: name, state, face, 'nobody'; then lost] and [heard from Foundry's dock and "
+            + "a camera popout with a paused element of each in front of them]");
     }],
 
     ["R536 - the voice tile's speaker fades after silence and never flickers: shown for 1499 ms after the Room stops listing them, fading from 1500 ms, gone with no portrait and no name by 1500 ms + the fade + 50 ms; five seconds of speech with pauses under the hold write nothing; a new speaker interrupts the fade; the same speaker back stops it without a new portrait; under reduced motion gone at once after the same hold; a portrait the room tile's check refuses is not drawn", async () => {
@@ -12708,7 +12788,7 @@ const INVARIANTS = [
         if (!V) return;
         const [b, d] = game.users.filter(user => user.id !== game.user.id && !user.isGM).slice(0, 2);
         const portrait = { [b.id]: "r536-first.webp", [d.id]: "r536-second.webp" };
-        const userOf = id => (portrait[id] ? { id, name: `R536 ${id}`, isGM: false, avatar: null, character: { name: `R536 ${id}`, img: portrait[id] } } : null);
+        const userOf = id => (portrait[id] ? { id, name: `R536 ${id}`, isGM: false, avatar: null, character: { name: `R536 ${id}`, img: portrait[id], testUserPermission: () => true } } : null);
         const look = bench => {
             const now = bench.read();
             return [now.art.includes(portrait[b.id]) ? "first" : now.art.includes(portrait[d.id]) ? "second" : now.art || "none",
@@ -12780,7 +12860,7 @@ const INVARIANTS = [
             document.body.classList.toggle("drpg-reduced-motion", hadReduced);
         }
         const refused = ["javascript:alert(1)//r536.webp", "https://elsewhere.invalid/r536.webp", "r536\") x(.webp"].map(img => {
-            const bench = voiceTileRig(V, [b], { fade: () => 840, userOf: id => (id === b.id ? { id, name: nameB, isGM: false, avatar: null, character: { name: nameB, img } } : null) });
+            const bench = voiceTileRig(V, [b], { fade: () => 840, userOf: id => (id === b.id ? { id, name: nameB, isGM: false, avatar: null, character: { name: nameB, img, testUserPermission: () => true } } : null) });
             const own = bench.makeRoom([b.id]);
             V.attachRoom(bench.clientOf(own), bench.watch);
             bench.speak(own, [b.id]);
@@ -12911,7 +12991,7 @@ const INVARIANTS = [
             + "unmapped participant gone: the number, and the list]");
     }],
 
-    ["R541 - the camera dock is out of sight and its sound stays: with `drpg-dock-hidden` on the body `#camera-views` and a camera popout compute `display: none` while they and their `<audio>` stay in the document; the dock is hidden only while the tile is available and `voiceTile` is on, a world setting of the GM's, on by default; off brings it back", async () => {
+    ["R541 - the camera dock is out of sight and its sound stays: with `drpg-dock-hidden` on the body `#camera-views` and a camera popout compute `display: none` while they and their `<audio>` stay in the document; the dock is hidden only while the tile is available - an audio world with avclient-livekit - and `voiceTile` is on, a world setting of the GM's, on by default; off brings it back", async () => {
         /*
          * E78 C3, 13.10.2026; the A9 design's R394 (T6; the E78 plan's D2 gave it this number), the owner's Q9: the dock
          * stays the carrier of the sound and is never seen. avclient-livekit plays every remote user through an
@@ -12926,6 +13006,14 @@ const INVARIANTS = [
          * `dockHiddenFor` over the four cases, the `voiceTile` registration (scope, shown in the settings, default)
          * and the `voicePeerMutes` one (C5's, registered here), and in the source `refreshVoiceTile` deciding with
          * `getSetting(SETTINGS.voiceTile)`.
+         * The popout's id is the suite's own choice, so it meets the selector by construction: Foundry v14's real
+         * camera-popout id is not measured here (its site is not reachable from this machine; E78 fix r1-G2, the
+         * goal review's R541 note). LIVE-E78-01 reads it at a table; the hidden-dock rule and the voice tile's
+         * `foundryDock` both rest on it.
+         * E78 fix r1-G2, round 1's cor F3: `voiceAvailable` over the world's A/V mode with avclient-livekit active
+         * (DISABLED, AUDIO, VIDEO, AUDIO_VIDEO) and AUDIO with it inactive, each with what `dockHiddenFor` makes of
+         * it with the tile on, and in the source its two facts read from `avMode()` and `avclientActive()` and
+         * `refreshVoiceTile` asking it. Red at 90a9ebc: `voiceAvailable` took no facts, so each world read alike.
          * Red before C3: there was no voice-tile.mjs (the first assertion).
          */
         const V = await import("./voice-tile.mjs").catch(() => null);
@@ -12971,14 +13059,23 @@ const INVARIANTS = [
             const row = game.settings.settings.get(`${MODULE_ID}.${key}`);
             return [row?.scope, row?.config, JSON.stringify(row?.default), row?.type === Boolean || row?.type === Object];
         };
+        const { DISABLED = 0, AUDIO = 1, VIDEO = 2, AUDIO_VIDEO = 3 } = foundry.av?.AVSettings?.AV_MODES ?? {};
+        const worlds = [[DISABLED, true], [AUDIO, true], [VIDEO, true], [AUDIO_VIDEO, true], [AUDIO, false]].map(([mode, livekit]) => {
+            const available = V.voiceAvailable({ mode, livekit });
+            return [available, V.dockHiddenFor(available, true)];
+        });
+        const facts = /function voiceAvailable\(\s*\{\s*mode\s*=\s*avMode\(\),\s*livekit\s*=\s*avclientActive\(\)\s*\}\s*=\s*\{\}\s*\)/.test(source)
+            && /\bavailable\s*=\s*voiceAvailable\(\)/.test(fnSource(source, "refreshVoiceTile"));
         equal(JSON.stringify([seen, [[true, true], [true, false], [false, true], [false, false]].map(([a, b]) => V.dockHiddenFor(a, b)),
             setting(SETTINGS.voiceTile), setting(SETTINGS.voicePeerMutes),
             /applyDockHidden\(\s*dockHiddenFor\(\s*available,\s*on\s*\)\s*\)/.test(fnSource(source, "refreshVoiceTile"))
-                && /getSetting\(\s*SETTINGS\.voiceTile\s*\)/.test(fnSource(source, "refreshVoiceTile"))]),
+                && /getSetting\(\s*SETTINGS\.voiceTile\s*\)/.test(fnSource(source, "refreshVoiceTile")), worlds, facts]),
         JSON.stringify([[[false, false], [true, "none", "none", true, true, true, true], [false, false]], [true, false, false, false],
-            ["world", true, "true", true], ["client", false, "{}", true], true]),
+            ["world", true, "true", true], ["client", false, "{}", true], true,
+            [[false, false], [true, true], [false, false], [true, true], [false, false]], true]),
         "[the dock and a popout without the class; with it: the class, their display, the dock, the popout and their <audio> in the document; without "
-            + "it again], dockHiddenFor over (available, on), the voiceTile and voicePeerMutes registrations, refreshVoiceTile deciding with the setting");
+            + "it again], dockHiddenFor over (available, on), the voiceTile and voicePeerMutes registrations, refreshVoiceTile deciding with the setting, "
+            + "[voiceAvailable and the dock hidden: DISABLED, AUDIO, VIDEO, AUDIO_VIDEO with avclient-livekit, AUDIO without], its facts read and asked");
     }],
 ];
 
@@ -13217,7 +13314,8 @@ function cornerReading(roster, views) {
  * stand-in: identity = user id). Nothing is appended to the document and nothing of Foundry's A/V is read or
  * written; `fade` and `userOf` go to `voiceWatch` when given, so without them the module's own run. The list's tests
  * (R538, R539; E78 C5) hand in the rest of `voiceWatch`'s options - Foundry's A/V settings and the 'Mute for me' record
- * as objects of their own, proximity, whether the viewer is a GM, "mute all" - and they override the bench's.
+ * as objects of their own, proximity, whether the viewer is a GM, "mute all" - and they override the bench's;
+ * `dock: undefined` leaves the module's own `foundryDock` in place (R535's planted bench, E78 fix r1-G2).
  */
 function voiceTileRig(V, users, { fade, userOf, ...watchOptions } = {}) {
     let now = 0, ids = 0, muteAll = false;

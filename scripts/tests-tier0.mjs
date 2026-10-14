@@ -9024,7 +9024,7 @@ const REGRESSIONS = [
          */
         const VOICE_TILE_CENSUS = [
             // ---- the dock's name plate (camera-view.mjs)
-            ["WHO camera-view.mjs#relabel#displayNameFor -> text", "the name is set as `textContent` and its tooltip escaped with `foundry.utils.escapeHTML` (Foundry draws a `data-tooltip` as markup); the actor is the user's own - `user.character`, a Monokuma the GM pools, or an owned character (`displayNameFor`); E78 C2's `voiceIdentity` names the same actor"],
+            ["WHO camera-view.mjs#relabel#displayNameFor -> text", "the name is set as `textContent` and its tooltip escaped with `foundry.utils.escapeHTML` (Foundry draws a `data-tooltip` as markup); the actor is the user's own - `user.character` when the user owns it (a GM's always; E78 fix r1-G2, R542), a Monokuma the GM pools, or an owned character (`displayNameFor`); E78 C2's `voiceIdentity` names the same actor"],
             // ---- the room this client stands in (voice-client.mjs)
             ["SOCKET voice-client.mjs#onVoiceSocket -> room", "only the primary GM's packet is applied (`senderId !== primaryGmId()` returns; the sender is Foundry's second argument, not a packet field), and only one addressed to this user; E78 C2's `desiredRoom` reads the value and writes none"],
             ["SOCKET voice-client.mjs#applyBreakout -> room", "called from `applyAndReport` (the primary GM's packet) and `applyLocally` (voice.mjs `assignUserToRoom` on the GM's own client); the value is the room the GM's reconcile chose"],
@@ -9044,7 +9044,7 @@ const REGRESSIONS = [
             ["WHO voice-tile.mjs#paintList#voiceIdentity -> *", "as paintSpeaker: the name as `textContent` and in labels set as attributes, the portrait only through `voicePortrait` (`safeRoomImage`, R546) and `cssString`; rows only for remote participants of the own Room mapped to a user of this world (R542, R538)"],
             ["SRC voice-tile.mjs#paintList#url -> src", "the path `safeRoomImage` gave, inside a CSS string `cssString` escapes, set only when it changes; never a URL from a packet"],
             ["CLIENT voice-tile.mjs#setPeerVolume -> *", "writes this browser's `users.<id>.volume` only for a remote participant of the own Room, a number clamped to 0..1 (R538)"],
-            ["ELEM voice-tile.mjs#setPeerVolume#volume -> volume", "only that participant's own `<audio>` elements in this document, the same clamped value, never `muted` (R538)"],
+            ["ELEM voice-tile.mjs#setPeerVolume#volume -> volume", "only that participant's own `<audio>` elements in Foundry's dock and its camera popouts (`foundryDock`, E78 fix r1-G2; R535), the same clamped value, never `muted` (R538)"],
             ["CLIENT voice-tile.mjs#toggleMuteAll -> *", "this browser's `muteAll`, flipped on the viewer's click, as the dock's own button writes it (R538)"],
             ["CLIENT voice-tile.mjs#unhidePeer -> *", "`users.<id>.blocked` false only, for a remote participant of the own Room, on the viewer's click (R538)"],
             ["CLIENT voice-panel.mjs#writeVoiceSetting -> *", "an allowlist of `audioSrc`, `audioSink` and `voice.mode` (always or ptt), strings only, this browser's own A/V client settings; nothing of the camera or the server (R542)"],
