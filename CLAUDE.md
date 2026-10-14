@@ -981,6 +981,7 @@ Next free: R572. Reserved and unused: R121 for A4 (E22); R122 for A1 (E23); R123
 | R550 | 1 | E78 | who is listening is on the voice tile without a click: the speaker button's number counts every remote participant of the own Room, silent or speaking, mapped to a user of this world or not, and follows each connect and disconnect whichever order the Room tells it in; the list says nobody else is there only when nobody is |
 | R551 | 1 | E78 | the voice tile on a short desk keeps its buttons and its name: the cut never settles it under 42 px, and under 114 px (91 before E78 fix r2-H3 stood its buttons one over the other) it is cut compact - a GM's 181x42 at 1366x560 and 181x55 at 1366x600, where the floor left 15 and 55, a player's 181x93 compact at 1366x600, 194x281 full at 1920x1080 |
 | R552 | 0 | E78 | every pixel glyph the voice tile and its list draw is a sprite pixel-icons.css states, so none of their buttons is a blank square: the microphone, the sound and the lock |
+| R553 | 0 | E79 | a passage road has a census row, and every row judges a road |
 | R570 | 1 | 1.2.78 | the bridge's waiter waits on this browser's own timers: built with no clock, a request is sent, answered and timed out, and its clock arms and clears |
 | R571 | 0 | 1.2.78 | no file of the module takes a window's timer or fetch as a value: each is called where it is named, so a browser never runs it on another object |
 

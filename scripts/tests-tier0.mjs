@@ -9245,6 +9245,204 @@ const REGRESSIONS = [
             "a voice-tile road without a census row, or a row whose road is gone: give the new one a verdict (what judges it, or the E78 commit that will) and strike the gone one");
     }],
 
+    ["R553 - a passage road has a census row, and every row judges a road", async () => {
+        /*
+         * E79 C0, 14.10.2026; R534's twin for the secret passages (census-1c.md of the E79 plan, METHOD change 1; the
+         * plan's D2 gave it this number). E79 keeps a secret passage in the GMs' store and in copies addressed to whoever
+         * may use it, cuts its wall out of the mover's own move backend and has the primary GM judge every landed move
+         * against the walls of the token's own scene. The harms: a passage, its access list or its geometry in a browser
+         * that may not know it; a move through a wall standing because a client said so (an update's option, a forged
+         * copy, a skipped veto); a lawful move sent back; and a second judge or a second road of a refusal. This test keeps
+         * the list of the roads to those: a new one fails until it has a row and a verdict, a row whose road is gone fails
+         * until it is struck. The plan's PLANNED rows are not here: each commit of E79 that writes a road moves its row in
+         * with it.
+         * A row is a pair, "<kind> <file>#<declaration>[#<field>] -> <sink>", keyed as the parse-only census of the E79 plan
+         * keys its verdicts (S/e79-design/census.mjs and census-verdicts.mjs, kept outside the repository), so the two can
+         * be compared key by key; a row ending "-> *" judges every sink of its source. One key is one road however many
+         * places of it a declaration holds. The sinks: judge (the primary GM's verdict on a move it has seen land), veto
+         * (the mover's own client refusing a move before it is sent), exempt (whether a move is let past a check), write
+         * (a GM's write of a token's position), record (the GMs' passage records), copy (what reaches a player's browser
+         * about a passage), screen (what a player's client cuts, draws or lists from what it holds), mode (whether the wall
+         * rule only notes a move or also sends the token back). Eight kinds, read live in the module's files with comments
+         * blanked, each place keyed by the top-level declaration it stands in (a top-level `Hooks.on("<event>", ...)` by its
+         * event): HOOK - every `Hooks.on` or `Hooks.once` of updateToken and createToken (judge), preUpdateToken (veto),
+         * updateWall and deleteWall (record), its field "<event>/<handler's name, or inline>"; OPT - every read of an
+         * update's option a client sets: `x[REVERT]`, `x[SENT_BACK]` (a computed key of an object literal is a write, not
+         * a read), a member `.teleport` or `.movementAction`, and the string "displace" (exempt); ACT - the strings
+         * "token.sendBack" (write), "move.sentBack" and "passage.rows" (screen), "passage.request" (copy) and
+         * "passage.share" (record and copy); IGN - a member or a key `ignoreWalls` (write); WALLS - a member `.walls` in
+         * movement-audit.mjs (judge), passages.mjs and passages-gm.mjs (screen); SCENE - `canvas.scene` or `canvas.edges`
+         * in movement-audit.mjs (judge), which has no row and fails by design: the audit reads the token's own scene;
+         * STORE - a `defineGmStore(` (record) or `defineGmCopy(` (copy) whose spec's `name` starts with "passage"; SET -
+         * `SETTINGS.minePassages`'s three sources (the primary GM's push, a console's value, a stale copy; screen) and
+         * `SETTINGS.moveAudit`'s one (the GM's choice; mode), once each key exists.
+         * At C0 the module has 21 roads, census-1c.md's 21 pairs at 32fd204 (15 HOOK, 5 OPT, 1 ACT), none of E79's own:
+         * the hooks that read a moved token, the options a revert and the GM's fallback gather carry, and the bridge's
+         * send-back. A verdict ending "(E79 C<n>)" names the commit that changes the road.
+         * It reads names and text, not a syntax tree, as R534 does. Two places where it keys otherwise than the parse-only
+         * census: a road inside a named inner function or a method (the census keys it by that name, this reader by the
+         * top-level declaration), and a top-level declaration of several names (the census joins them, this reader takes
+         * the first); neither stands among the 21. What neither reads: an option taken by destructuring
+         * (`const { teleport } = options`) or by a quoted key (`options["teleport"]`), and a name handed to a helper -
+         * the audit's own test measures the audit's results (E79 C4).
+         * Measured 14.10.2026 on C0's working tree (db6c51d and these files): this reader, run in Node on every
+         * scripts/*.mjs outside the suite's own files (a probe kept with the plan, outside the repository), found the 21
+         * roads against the 21 rows, none either side - the same 21 keys as the parse-only census at the same tree,
+         * compared key by key; and each of five mutants of C0 (a row dropped, a stale key, the reader blind to the
+         * scene on screen, an option read with no row, a second updateToken hook) red by an assertion.
+         * The reader is run first on a fixture: one road of each kind, a road in a comment and one in a string, a
+         * computed key that is a write, an array after `return`, a top-level hook, a store of another name and the two
+         * settings; then the judge on a planted table with a road without a row, a "-> *" row and a stale key.
+         */
+        const PASSAGE_CENSUS = [
+            // ---- the hooks that read a moved token
+            ["HOOK movement.mjs#registerMovement#updateToken/noteGmPosition -> judge", "on the primary GM only (`judgingHere`); the start is the GM's last sighting (`gmSeen`), never a packet; `judgeArrival` puts nothing back. The wall rule is a call here, before `gmSeen` moves - one judge, no second hook (E79 C4)"],
+            ["HOOK movement.mjs#registerMovement#preUpdateToken/onPreUpdateToken -> veto", "advisory: the mover's own client refuses a move with `crossingVerdict`, and a console steps past it - which is why the primary GM judges the landed move (E79 C3 adds the passage the route went through)"],
+            ["HOOK movement.mjs#registerMovement#updateToken/onUpdateToken -> judge", "this file's own: the mover's client charges and announces the move it made (`judgeMove`); E79 adds no road through it"],
+            ["HOOK movement.mjs#registerMovement#createToken/inline -> judge", "this file's own: `noteGmCreated`, the GM's first sighting of a token; E79 adds no road through it"],
+            ["HOOK fog.mjs#registerFog#updateToken/onUpdateToken -> judge", "this file's own: this browser's discovery and outline; E79 adds no road through it (the gap's redraw hangs on its own event, not on this hook)"],
+            ["HOOK fog.mjs#registerFog#createToken/inline -> judge", "this file's own: this browser's discovery mirror; E79 adds no road through it"],
+            ["HOOK murder-rules.mjs#registerMurder#updateToken/inline -> judge", "this file's own; E79 adds no road through it"],
+            ["HOOK projects-map.mjs#registerProjectsMap#updateToken/inline -> judge", "this file's own; E79 adds no road through it"],
+            ["HOOK remnant-ring.mjs#registerRemnantRings#updateToken/inline -> judge", "this file's own; E79 adds no road through it"],
+            ["HOOK trial-scene.mjs#registerTrialScene#updateToken/watchCast -> judge", "this file's own: the courtroom's cast, where no passage stands; E79 adds no road through it"],
+            ["HOOK trial-scene.mjs#registerTrialScene#createToken/watchCastCreated -> judge", "this file's own; E79 adds no road through it"],
+            ["HOOK visibility.mjs#registerVisibility#updateToken/inline -> judge", "this file's own; E79 adds no road through it"],
+            ["HOOK visibility.mjs#registerVisibility#createToken/inline -> judge", "this file's own; E79 adds no road through it"],
+            ["HOOK voice.mjs#registerVoice#updateToken/inline -> judge", "this file's own: the voice room follows the room; E79 adds no road through it"],
+            ["HOOK voice.mjs#registerVoice#createToken/inline -> judge", "this file's own; E79 adds no road through it"],
+            // ---- the update's options a client sets
+            ["OPT movement.mjs#noteGmPosition#REVERT -> exempt", "a claim, judged: handed to `judgeArrival` as `revert`, which takes it only where `sendBackRefusal` does; the wall rule takes the same rule, never the option alone (E79 C4)"],
+            ["OPT movement.mjs#noteGmPosition#SENT_BACK -> exempt", "a claim, judged as REVERT is: it marks a move the GM sent back itself (E79 C4)"],
+            ["OPT movement.mjs#onPreUpdateToken#REVERT -> exempt", "advisory: the mover's own client lets its own revert past its own veto; nothing on the GM reads the client's veto"],
+            ["OPT movement.mjs#judgeMove#REVERT -> exempt", "this file's own: the mover's client charges nothing for its own revert; no judge takes it as an exemption"],
+            ["OPT call-world.mjs#fallbackGather#displace -> exempt", "a GM's own write (`updateEmbeddedDocuments` with REVERT, `teleport` and `displace`): a GM's move is let through because a GM made it (the hook's user), not because of these options"],
+            // ---- the packets
+            ["ACT gm-bridge.mjs#ACTION_SENDBACK#token.sendBack -> write", "the bridge row judges the sender's ownership and the place (`guardSendbackPlace`); `handleSendback` writes REVERT and SENT_BACK on the GM, and a lawful send-back is never stopped by a wall (E79 C4)"]
+        ];
+        const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
+        const HOOK_SINKS = { updateToken: ["judge"], createToken: ["judge"], preUpdateToken: ["veto"], updateWall: ["record"], deleteWall: ["record"] };
+        const ACT_SINKS = { "token.sendBack": ["write"], "move.sentBack": ["screen"], "passage.request": ["copy"], "passage.share": ["record", "copy"], "passage.rows": ["screen"] };
+        const SET_SOURCES = { minePassages: [["primary", "console", "stale"], "screen"], moveAudit: [["gm"], "mode"] };
+        const AUDIT_FILES = /^(?:movement-audit|passages|passages-gm)\.mjs$/;
+        const KEYWORDS = new Set(["return", "typeof", "in", "of", "case", "else", "do", "yield", "await", "void", "delete", "new", "throw", "instanceof"]);
+        const censusOf = (sources, settings) => {
+            const found = [];
+            const add = (kind, file, decl, field, sinks) => {
+                const base = `${kind} ${file}#${decl}${field ? `#${field}` : ""}`;
+                for (const sink of sinks) if (!found.includes(`${base} -> ${sink}`)) found.push(`${base} -> ${sink}`);
+            };
+            for (const [file, raw] of sources) {
+                if (!file.endsWith(".mjs")) continue;
+                const code = blankComments(raw), blank = blankLiterals(code);
+                const tops = [...blank.matchAll(TOP)].map(m => ({ at: m.index, name: m[1] ?? m[2] ?? m[4] ?? null }));
+                const declAt = at => {
+                    const top = tops.findLast(t => t.at <= at);
+                    if (top?.name) return top.name;
+                    const hook = top && code.slice(top.at, top.at + 200).match(/^Hooks\.(?:on|once)\(\s*["']([\w.]+)["']/);
+                    return hook ? `Hooks.on(${hook[1]})` : "(top level)";
+                };
+                // A string of the code: found in `code` (comments blank), kept only where blankLiterals blanked its quote.
+                const strings = re => [...code.matchAll(re)].filter(m => blank[m.index] === " ");
+                for (const m of blank.matchAll(/(?<![\w$.])Hooks\s*\.\s*(?:on|once)\s*\(/g)) {
+                    const { args } = callArgs(blank, m.index + m[0].length - 1);
+                    const event = args[0] && code.slice(args[0].start, args[0].end).trim().match(/^(["'])([\w.]+)\1$/)?.[2];
+                    if (!Object.hasOwn(HOOK_SINKS, event ?? "")) continue;
+                    const handler = args[1] ? code.slice(args[1].start, args[1].end).trim() : "";
+                    add("HOOK", file, declAt(m.index), `${event}/${/^[\w$]+$/.test(handler) ? handler : "inline"}`, HOOK_SINKS[event]);
+                }
+                for (const m of blank.matchAll(/([\w$]+|[)\]])\s*(?:\?\.\s*)?\[\s*(REVERT|SENT_BACK)\s*\]/g)) {
+                    if (!KEYWORDS.has(m[1])) add("OPT", file, declAt(m.index), m[2], ["exempt"]);
+                }
+                for (const m of blank.matchAll(/(?<!\.)\.\s*(teleport|movementAction)(?![\w$])/g)) add("OPT", file, declAt(m.index), m[1], ["exempt"]);
+                for (const m of strings(/(["'])displace\1/g)) add("OPT", file, declAt(m.index), "displace", ["exempt"]);
+                for (const m of strings(/(["'])(token\.sendBack|move\.sentBack|passage\.request|passage\.share|passage\.rows)\1/g)) {
+                    add("ACT", file, declAt(m.index), m[2], ACT_SINKS[m[2]]);
+                }
+                for (const m of blank.matchAll(/(?<!\.)\.\s*ignoreWalls(?![\w$])|(?<![\w$.?]\s*)ignoreWalls\s*:(?!:)|[{,]\s*ignoreWalls\s*[,}]/g)) {
+                    add("IGN", file, declAt(m.index), null, ["write"]);
+                }
+                if (AUDIT_FILES.test(file)) {
+                    const sink = file === "movement-audit.mjs" ? "judge" : "screen";
+                    for (const m of blank.matchAll(/(?<!\.)\.\s*walls(?![\w$])/g)) add("WALLS", file, declAt(m.index), null, [sink]);
+                }
+                if (file === "movement-audit.mjs") {
+                    for (const m of blank.matchAll(/(?<![\w$.])canvas\s*\??\.\s*(scene|edges)(?![\w$])/g)) add("SCENE", file, declAt(m.index), m[1], ["judge"]);
+                }
+                for (const m of blank.matchAll(/(?<![\w$.])(defineGmStore|defineGmCopy)\s*\(/g)) {
+                    if (/\bfunction\s*\*?\s*$/.test(blank.slice(Math.max(0, m.index - 24), m.index))) continue;
+                    const spec = callArgs(blank, m.index + m[0].length - 1).args[0];
+                    const text = spec ? code.slice(spec.start, spec.end).trim() : "";
+                    const name = text.startsWith("{") ? text.match(/(?<![\w$])name\s*:\s*(["'])([^"'\n]*)\1/)?.[2] : null;
+                    if (name && /^passage/i.test(name)) add("STORE", file, declAt(m.index), name, [m[1] === "defineGmCopy" ? "copy" : "record"]);
+                }
+            }
+            for (const [key, [sources, sink]] of Object.entries(SET_SOURCES)) {
+                if (Object.hasOwn(settings ?? {}, key)) for (const source of sources) add("SET", "settings.mjs", key, source, [sink]);
+            }
+            return found;
+        };
+        const judge = (found, table) => {
+            const rows = new Set(table.map(([key]) => key)), used = new Set(), unclassified = [];
+            for (const key of found) {
+                const star = key.replace(/ -> \w+$/, " -> *");
+                if (rows.has(key)) used.add(key);
+                else if (rows.has(star)) used.add(star);
+                else unclassified.push(key);
+            }
+            return { unclassified, stale: [...rows].filter(key => !used.has(key)) };
+        };
+        const KINDS = ["HOOK", "OPT", "ACT", "IGN", "WALLS", "SCENE", "STORE", "SET"];
+        const planted = censusOf([
+            ["movement.mjs", "export function registerMovement() {\n    Hooks.on(\"updateToken\", noteGmPosition);\n"
+                + "    Hooks.once(\"createToken\", (token, options, userId) => noteGmCreated(token, userId));\n    Hooks.on(\"renderChatMessage\", noteGmPosition);\n}\n"
+                + "function noteGmPosition(tokenDoc, changes, options) {\n    // options?.[SENT_BACK] in a comment is no road\n    const said = \"options?.[SENT_BACK]\";\n"
+                + "    const opts = { [REVERT]: true };\n    return [REVERT].length + (options?.[REVERT] ? 1 : 0) + (options[SENT_BACK] ? 1 : 0);\n}\n"],
+            ["call-world.mjs", "async function fallbackGather(scene, updates) {\n"
+                + "    await scene.updateEmbeddedDocuments(\"Token\", updates, { teleport: true, movementAction: \"displace\" });\n"
+                + "    return updates.filter(u => u.teleport || u?.movementAction);\n}\n"],
+            ["gm-bridge.mjs", "const ACTION_SENDBACK = \"token.sendBack\";\n// \"move.sentBack\" in a comment is no road\n"
+                + "function handleSendback(payload) {\n    return sendBack(payload, { ignoreWalls: true });\n}\n"],
+            ["movement-audit.mjs", "export function auditMove(tokenDoc) {\n    const walls = tokenDoc.parent.walls;\n    return canvas.scene?.id ?? canvas?.edges;\n}\n"],
+            ["passages.mjs", "export function requestPassages() {\n    game.socket.emit(\"module.danganronpa-rpg\", { action: 'passage.request' });\n}\n"
+                + "export function clipPassages(scene, wanted) {\n    return wanted.ignoreWalls ? [] : scene?.walls;\n}\n"],
+            ["passages-gm.mjs", "Hooks.on(\"updateWall\", onWallChanged);\nconst ACTION_PASSAGE_SHARE = \"passage.share\";\n"],
+            ["gm-stores.mjs", "export const passageMapStore = defineGmStore({\n    name: \"passageMap\", key: SETTINGS.passageMap\n});\n"
+                + "export const passageCopy = defineGmCopy({ name: \"passages\", key: SETTINGS.minePassages });\n"
+                + "export const doorCopy = defineGmCopy({ name: \"door\", key: SETTINGS.mineDoor });\n"]
+        ], { minePassages: "minePassages", moveAudit: "moveAudit" });
+        equal(JSON.stringify(planted), JSON.stringify([
+            "HOOK movement.mjs#registerMovement#updateToken/noteGmPosition -> judge", "HOOK movement.mjs#registerMovement#createToken/inline -> judge",
+            "OPT movement.mjs#noteGmPosition#REVERT -> exempt", "OPT movement.mjs#noteGmPosition#SENT_BACK -> exempt",
+            "OPT call-world.mjs#fallbackGather#teleport -> exempt", "OPT call-world.mjs#fallbackGather#movementAction -> exempt",
+            "OPT call-world.mjs#fallbackGather#displace -> exempt",
+            "ACT gm-bridge.mjs#ACTION_SENDBACK#token.sendBack -> write", "IGN gm-bridge.mjs#handleSendback -> write",
+            "WALLS movement-audit.mjs#auditMove -> judge", "SCENE movement-audit.mjs#auditMove#scene -> judge", "SCENE movement-audit.mjs#auditMove#edges -> judge",
+            "ACT passages.mjs#requestPassages#passage.request -> copy", "IGN passages.mjs#clipPassages -> write", "WALLS passages.mjs#clipPassages -> screen",
+            "HOOK passages-gm.mjs#Hooks.on(updateWall)#updateWall/onWallChanged -> record",
+            "ACT passages-gm.mjs#ACTION_PASSAGE_SHARE#passage.share -> record", "ACT passages-gm.mjs#ACTION_PASSAGE_SHARE#passage.share -> copy",
+            "STORE gm-stores.mjs#passageMapStore#passageMap -> record", "STORE gm-stores.mjs#passageCopy#passages -> copy",
+            "SET settings.mjs#minePassages#primary -> screen", "SET settings.mjs#minePassages#console -> screen", "SET settings.mjs#minePassages#stale -> screen",
+            "SET settings.mjs#moveAudit#gm -> mode"]),
+            "the census reader does not read the planted fixture as planted - the live census below would measure the wrong roads");
+        equal(JSON.stringify(judge(planted.slice(16, 19), [["ACT passages-gm.mjs#ACTION_PASSAGE_SHARE#passage.share -> *", ""], ["HOOK passages-gm.mjs#gone -> record", ""]])),
+            JSON.stringify({ unclassified: ["STORE gm-stores.mjs#passageMapStore#passageMap -> record"], stale: ["HOOK passages-gm.mjs#gone -> record"] }),
+            "the census judge does not tell a planted road without a row, a source's \"-> *\" row from its sinks, or a row without its road");
+
+        const found = censusOf(await otherSources(), SETTINGS);
+        const count = kind => found.filter(key => key.startsWith(`${kind} `)).length;
+        // The kinds the module has a road of before any E79 code (census-1c.md at 32fd204): an assertion, so that a reader
+        // gone blind to them fails here and not as a silent "nothing without a row".
+        ok(count("HOOK") > 0 && count("OPT") > 0 && count("ACT") > 0,
+            `the census read ${count("HOOK")} HOOK, ${count("OPT")} OPT and ${count("ACT")} ACT - the hooks that read a moved token, the options of a revert and the bridge's send-back have no road`);
+        const verdict = judge(found, PASSAGE_CENSUS);
+        log(`R553: the census read ${found.length} road(s) (${KINDS.map(kind => `${count(kind)} ${kind}`).join(", ")}) `
+            + `against ${PASSAGE_CENSUS.length} row(s); ${verdict.unclassified.length} without a row, ${verdict.stale.length} row(s) without a road`);
+        equal(JSON.stringify(verdict), JSON.stringify({ unclassified: [], stale: [] }),
+            "a passage or movement road without a census row, or a row whose road is gone: give the new one a verdict (what judges it, or the E79 commit that will) and strike the gone one");
+    }],
+
+
     ["R544 - nothing reads the table-wide speaking signal or moves a microphone on its own: no file of scripts/ reads `settings.activity` or names `setUserIsSpeaking`, `toggleAudio(` is called and a client `muted` key written only in `toggleOwnMic`, and there only the viewer's own, `micHold` and `moduleHoldsMic` are declared once each, exported, in voice.mjs, and an account's characters are ranked only in `voiceRowFor`, which `voiceTargets` asks", async () => {
         /*
          * E78 C2, 13.10.2026; the A9 design's R397 (T9; the E78 plan's D2 gave it this number), S16-10: "the module
