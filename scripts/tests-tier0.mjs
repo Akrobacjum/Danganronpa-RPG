@@ -8117,7 +8117,8 @@ const REGRESSIONS = [
             ["SHEET chapter.mjs#witnessesOf", "judged held where its caller passes `held` (`checkBodyFound`: `flagsHeldNow`; the default `held = actor => actor` reads the document); since E12 C12 `checkBodyFound` passes the standing through `roomOf` (`lawfulRoomOf`), the read still one synchronous step (H3, H17); since E12 fix r2-H3 one token a student counts"],
             ["SHEET movement.mjs#isCorpse", "out of scope: `isDeadForGm` (the GM's record) and the Monocub flag on the document (movement.mjs:264-265), on the mover's browser; E12 changes neither"],
             ["SHEET movement.mjs#crossingVerdict", "a claim on the mover's browser, judged again on the primary: exported since E12 C9 with the floor of each end (the stairs rule, `crossingRefused`); since E12 C12 `judgeArrival` asks it of the student as the GMs hold it (`flagsHeldNow`, `itemsHeldNow`, one synchronous step), with the mover it judges and no price (`pay: false`) [1b.2] MARKED"],
-            ["SHEET movement.mjs#restrictedFrom", "the restriction flags and the bedroom keys of the student it is handed: the document on the mover's browser, as the GMs hold it from `judgeArrival` since E12 C12, which hands in the mover (a GM or not, the Mastermind or not) rather than this browser's user [1b.2]"],
+            ["SHEET movement.mjs#restrictedFrom", "the restriction flags and the bedroom keys of the student it is handed: the document on the mover's browser, as the GMs hold it from `judgeArrival` since E12 C12, which hands in the mover (a GM or not, the Mastermind or not) rather than this browser's user; since E79 C3 `via: \"passage\"` skips the bedroom key alone, never a GM's lock, a seal, the chain or the courtroom (R558) [1b.2]"],
+            ["SHEET movement.mjs#passageOpenFor", "out of scope as a judgement: on the viewer's own browser, whether its outline draws a secret passage as a gap (fog-doorways.mjs `doorwayEdges`, never on a GM's) - the passages its own copy names and `restrictedFrom` with `via: \"passage\"` on the document; it moves nothing, and the step itself is the veto's and the primary's (E79 C3, R557)"],
             ["SHEET movement.mjs#judgeArrival", "judged on the primary: every arrival of a student's token by a non-GM, from the last lawful room the primary recorded - after a change of primary, where `gmSeen` saw the token; a drop, from that student's newest standing on the scene, else from nowhere (E12 fix r2-H3) - by `crossingVerdict` with no price; the student read held (`flagsHeldNow`, `itemsHeldNow`) in one synchronous step; a REVERT is honoured only where `sendBackRefusal` passes it; GMs told once per turn to unlawful; nothing put back (Q3 a); scenario 66 I and two tier-2 tests [1b.2] MARKED"],
             ["SHEET movement.mjs#countsAsPresent", "out of scope as a reader: the Monokuma flag and `isDeadForGm` of tokens in a room; its callers count the located scene's token documents (`othersInNamedRoom`, since E12 C3; `occupantsOf` for Listen and a Monocub's dice, since E12 fix r1-G4)"],
             ["SHEET murder-rules.mjs#registerMurder", "judged where it acts: the `updateToken` hook runs on the primary; `isDeadForGm` is the GM's record; since E12 C12 `maybeThirdParty` counts a token only in its lawful room (`lawfulRoomOf`)"],
@@ -9309,7 +9310,7 @@ const REGRESSIONS = [
         const PASSAGE_CENSUS = [
             // ---- the hooks that read a moved token
             ["HOOK movement.mjs#registerMovement#updateToken/noteGmPosition -> judge", "on the primary GM only (`judgingHere`); the start is the GM's last sighting (`gmSeen`), never a packet; `judgeArrival` puts nothing back. The wall rule is a call here, before `gmSeen` moves - one judge, no second hook (E79 C4)"],
-            ["HOOK movement.mjs#registerMovement#preUpdateToken/onPreUpdateToken -> veto", "advisory: the mover's own client refuses a move with `crossingVerdict`, and a console steps past it - which is why the primary GM judges the landed move (E79 C3 adds the passage the route went through)"],
+            ["HOOK movement.mjs#registerMovement#preUpdateToken/onPreUpdateToken -> veto", "advisory: the mover's own client refuses a move with `crossingVerdict`, and a console steps past it - which is why the primary GM judges the landed move; since E79 C3 the route's passage (`crossingVia`) is handed in as `via`, and a passage the character knows joins its two rooms (`passesThrough`, R558)"],
             ["HOOK movement.mjs#registerMovement#updateToken/onUpdateToken -> judge", "this file's own: the mover's client charges and announces the move it made (`judgeMove`); E79 adds no road through it"],
             ["HOOK movement.mjs#registerMovement#createToken/inline -> judge", "this file's own: `noteGmCreated`, the GM's first sighting of a token; E79 adds no road through it"],
             ["HOOK fog.mjs#registerFog#updateToken/onUpdateToken -> judge", "this file's own: this browser's discovery and outline; E79 adds no road through it (the gap's redraw hangs on its own event, not on this hook)"],
@@ -9470,7 +9471,7 @@ const REGRESSIONS = [
             "a passage or movement road without a census row, or a row whose road is gone: give the new one a verdict (what judges it, or the E79 commit that will) and strike the gone one");
     }],
 
-    ["R560 - the passages' source rules: no wall is written a secret door or created, every passage packet names the list of its recipients, no flag holds a passage and no file but the records names a passage's geometry, passages.mjs imports only its leaf's files, and room-tile.mjs does not import the passages", async () => {
+    ["R560 - the passages' source rules: no wall is written a secret door or created, every passage packet names the list of its recipients, no flag holds a passage and no file but the records names a passage's geometry, passages.mjs imports only its leaf's files, room-tile.mjs does not import the passages, and the frame's passage verdict and the outline's redraw are each declared once, exported, in their file", async () => {
         /*
          * E79 C1, 14.10.2026; the E79 plan's A10-9, its first clauses (C4, C6 and C7 add theirs). A secret passage is
          * the GMs' and its knowers' (decisions D2 and D38): world data reaches every browser, so a passage written into
@@ -9486,16 +9487,28 @@ const REGRESSIONS = [
          * before the emit (R201 holds every emit to its recipients), a flag written through `update` with a computed
          * key, and a passage's numbers under other names - scenario 76's probe looks for the 1234.5 marker on every
          * surface instead. The reader is run first on planted source, one fault of each rule and a clean twin.
+         *
+         * E79 C3, 14.10.2026 (A10-9's "one" clauses, risk e): the minimal forms a later stage takes over rather than
+         * writes again are each declared once in the module, exported, in the file named - `passageOpenFor` in
+         * movement.mjs (E51's door predicate takes it) and `redrawOutline` in fog.mjs (E51's outline refresher). Read
+         * as a `function`, `const`, `let` or `var` of that name outside comments and strings; a second under another
+         * name is not read.
          */
         const LEAF = new Set(["rooms.mjs", "gm-stores.mjs", "gm-store.mjs", "settings.mjs", "utils.mjs", "config.mjs"]);
         const RECORDS = new Set(["gm-stores.mjs", "passages.mjs", "passages-gm.mjs"]);
         const IMPORTS = /\bimport\s*(?:[\w$\s{},*]+?\s*from\s*)?(["'])\.\/([\w.-]+\.mjs)\1|\bimport\s*\(\s*(["'])\.\/([\w.-]+\.mjs)\3\s*\)/g;
+        const ONE = { passageOpenFor: "movement.mjs", redrawOutline: "fog.mjs" };
         const rulesOf = sources => {
             const broken = [];
+            const declared = Object.fromEntries(Object.keys(ONE).map(name => [name, []]));
             for (const [file, raw] of sources) {
                 if (!file.endsWith(".mjs")) continue;
                 const code = blankComments(raw), blank = blankLiterals(code);
                 const at = (rule, i) => broken.push(`${rule} ${file}:${lineAt(code, i)}`);
+                for (const name of Object.keys(ONE)) {
+                    const DECL = new RegExp(String.raw`(?<![\w$.])(export\s+)?(?:async\s+)?(?:function\s*\*?\s*|(?:const|let|var)\s+)${name}(?![\w$])`, "g");
+                    for (const m of blank.matchAll(DECL)) declared[name].push(`${file}:${lineAt(code, m.index)}${m[1] ? "" : "(not exported)"}`);
+                }
                 for (const m of blank.matchAll(/(?<![\w$.])door\s*:\s*(?:2(?![\w.])|CONST\s*\.\s*WALL_DOOR_TYPES\s*\.\s*SECRET\b)/g)) at("secretDoor", m.index);
                 for (const m of code.matchAll(/\bcreateEmbeddedDocuments\s*\(\s*(["'])Wall\1/g)) if (blank[m.index] !== " ") at("wallCreated", m.index);
                 for (const m of blank.matchAll(/\bsocket\s*\??\.\s*emit\s*\(/g)) {
@@ -9516,6 +9529,9 @@ const REGRESSIONS = [
                     if (file === "room-tile.mjs" && /^passages(?:-gm)?\.mjs$/.test(target)) at(`tile:${target}`, m.index);
                 }
             }
+            for (const [name, found] of Object.entries(declared)) {
+                if (found.length !== 1 || !found[0].startsWith(`${ONE[name]}:`) || found[0].endsWith("(not exported)")) broken.push(`one:${name} ${found.join(",") || "none"}`);
+            }
             return broken;
         };
         const planted = rulesOf([
@@ -9531,20 +9547,23 @@ const REGRESSIONS = [
             ["passages.mjs", "import { MODULE_ID } from \"./config.mjs\";\nimport { canCross } from \"./movement.mjs\";\n"
                 + "const later = () => import(\"./rooms.mjs\");\nconst said = 'import(\"./fog.mjs\")';\n"],
             ["room-tile.mjs", "import { roomFacts } from \"./rooms.mjs\";\nimport { knownPassages } from \"./passages.mjs\";\n"],
-            ["passages-gm.mjs", "const row = { passageSeg: { x1: 1 }, passageWallId: \"w\" };\n"]
+            ["passages-gm.mjs", "const row = { passageSeg: { x1: 1 }, passageWallId: \"w\" };\n"],
+            ["movement.mjs", "export function passageOpenFor(actor) {\n    return Boolean(actor);\n}\n"],
+            ["fog.mjs", "// export function redrawOutline() in a comment declares nothing\nfunction redrawOutline() {\n    return false;\n}\n"],
+            ["fog-reveal.mjs", "const said = 'export function passageOpenFor()';\nexport const redrawOutline = () => null;\n"]
         ]);
         equal(JSON.stringify(planted), JSON.stringify(["secretDoor walls.mjs:4", "secretDoor walls.mjs:5", "wallCreated walls.mjs:4",
             "unaddressed send.mjs:3", "unaddressed send.mjs:4", "flag flags.mjs:3", "geometry flags.mjs:3", "leaf:movement.mjs passages.mjs:2",
-            "tile:passages.mjs room-tile.mjs:2"]),
+            "tile:passages.mjs room-tile.mjs:2", "one:redrawOutline fog.mjs:2(not exported),fog-reveal.mjs:2"]),
         "the source rules do not read the planted fixture as planted - the module would be read wrong too");
 
         const sources = await otherSources();
         const names = new Set(sources.map(([file]) => file));
-        ok(["passages.mjs", "passages-gm.mjs", "room-tile.mjs", "gm-stores.mjs"].every(f => names.has(f)),
+        ok(["passages.mjs", "passages-gm.mjs", "room-tile.mjs", "gm-stores.mjs", "movement.mjs", "fog.mjs"].every(f => names.has(f)),
             "a file these rules read is not among the module's sources - the rules would read nothing of it");
         const broken = rulesOf(sources);
         log(`R560: ${sources.length} module file(s) read; ${broken.length} broken rule(s)`);
-        equal(JSON.stringify(broken), "[]", "a wall written as a secret door or created, an un-addressed passage packet, a passage in a flag or a file outside the records, or an import the leaf or the room tile must not have");
+        equal(JSON.stringify(broken), "[]", "a wall written as a secret door or created, an un-addressed passage packet, a passage in a flag or a file outside the records, an import the leaf or the room tile must not have, or a second (or unexported) passageOpenFor or redrawOutline");
     }],
 
 

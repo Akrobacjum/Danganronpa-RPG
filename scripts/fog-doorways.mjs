@@ -24,13 +24,17 @@
  * of them before and re-exports none, so the module's API is the one it was.
  * Nothing here imports any of the three back (R161 would see the cycle). Below it
  * are utils.mjs (`debug`), fog-geometry.mjs and the rooms.mjs leaf (`roomPieces`,
- * E12 C2b). `ADRIFT_WARN_RUN` is read only by
+ * E12 C2b) - and, since E79 C3 (14.10.2026), the passages.mjs leaf (`openSegmentsFor`,
+ * `cutSegment`) and movement.mjs (`passageOpenFor`), for the secret passages a viewer's
+ * character may take; neither reaches a fog file back (R161). `ADRIFT_WARN_RUN` is read only by
  * fog-diagnostics.mjs's `adriftCheck`; it stays among the doorway constants it
  * was written beside.
  */
 
 import { debug } from "./utils.mjs";
 import { roomPieces, onLevel } from "./rooms.mjs";
+import { openSegmentsFor, cutSegment } from "./passages.mjs";
+import { passageOpenFor } from "./movement.mjs";
 import {
     regionShapes, polylineLength, inPolygons, resamplePolyline, smoothPolyline, trimPolyline, innerStretches
 } from "./fog-geometry.mjs";
@@ -430,12 +434,19 @@ function wallAlongEdgeUnguarded(mx, my, ex, ey, walls, near, trend = null) {
  * Fails CLOSED. A doorway that is really a wall is a lie the player would walk
  * into; a wall that is really a doorway costs them nothing but a moment's
  * doubt, and they can simply try it.
+ *
+ * `passages` (E79 C3, 14.10.2026): the stretches of wall a viewer's character may pass, handed to
+ * the backend as `drpgPassages` with the floor they are on, so the cut a move of that character gets
+ * (passages.mjs `clipPassages`) is the cut this ray gets. Without them the call is the one it was.
  */
-export function nothingInTheWay(from, to) {
+export function nothingInTheWay(from, to, { level = null, passages = null } = {}) {
     const backend = CONFIG?.Canvas?.polygonBackends?.move;
     if (!backend?.testCollision) return true;
     try {
-        return !backend.testCollision(from, to, { type: "move", mode: "any" });
+        const config = passages?.length
+            ? { type: "move", mode: "any", drpgPassages: passages, ...(level !== null && level !== undefined ? { level } : {}) }
+            : { type: "move", mode: "any" };
+        return !backend.testCollision(from, to, config);
     } catch (err) {
         debug("Fog: could not test a doorway for walls", err);
         return false;
@@ -497,8 +508,15 @@ export function neighbourBeyond(mx, my, nx, ny, others, reach) {
  * stands on every floor, as every wall did before. Not measured here: a doorway is opened or shut only
  * where a room lies beyond, and the harness's polygons contain no point; scenario 66 X1 reads the
  * same filter in the map check (fog-diagnostics.mjs `checkRegions`, `adriftCheck`).
+ *
+ * A SECRET PASSAGE IS A GAP FOR WHOEVER MAY TAKE IT (E79 C3, 14.10.2026; the E79 plan's P7-0, the
+ * owner's Q9). `actor` is the character the outline is drawn for. On a player's browser the
+ * passages it may take out of this room now (`viewerPassages`) are cut out of the walls this reads
+ * and handed to the collision test, so its outline opens where the veto would let it through and
+ * nowhere else. No actor, a character that knows no passage here, or a GM's browser: the walls and
+ * the test as they were, so the outline is the map's (R557 compares the two).
  */
-export function doorwayEdges(region, level = null) {
+export function doorwayEdges(region, level = null, { actor = null } = {}) {
     try {
         const scene = region?.parent ?? canvas?.scene;
         if (!scene) return [];
@@ -524,7 +542,9 @@ export function doorwayEdges(region, level = null) {
 
         // Read once. A scene with several hundred walls is asked about at every
         // sample of every edge, and `scene.walls` is a collection, not an array.
-        const walls = Array.from(scene.walls ?? []).filter(wall => onLevel(wall, level));
+        const passages = viewerPassages(actor, region, scene, level);
+        const walls = passageWalls(Array.from(scene.walls ?? []).filter(wall => onLevel(wall, level)), passages);
+        const ray = passages.length ? { level, passages } : undefined;
 
         const edges = [];
         for (let ring = 0; ring < own.length; ring++) {
@@ -627,7 +647,8 @@ export function doorwayEdges(region, level = null) {
                                 // passable - which is what reads door state.
                                 && nothingInTheWay(
                                     { x: mx - nx * back, y: my - ny * back },
-                                    { x: mx + nx * reach, y: my + ny * reach }
+                                    { x: mx + nx * reach, y: my + ny * reach },
+                                    ray
                                 );
                         }
 
@@ -652,6 +673,41 @@ export function doorwayEdges(region, level = null) {
         debug("Fog: could not work out where the doorways are", err);
         return [];
     }
+}
+
+/**
+ * The passages `[{ id, wallId, x1, y1, x2, y2 }]` this character may take out of `region` on this
+ * floor now: those it knows (passages.mjs `openSegmentsFor`, this browser's copy) that
+ * movement.mjs `passageOpenFor` - the veto's own rules - leaves open. None on a GM's browser and
+ * none for no character (`doorwayEdges`). `gm` and `known` are the suite's (R557): a player's
+ * browser and rows of its own in the copy's shape.
+ */
+export function viewerPassages(actor, region, scene, level = null, { gm = Boolean(game.user?.isGM), known } = {}) {
+    if (!actor || gm || !scene?.id) return [];
+    return openSegmentsFor(actor, scene.id, level, { known })
+        .filter(passage => passage.wallId && passageOpenFor(actor, passage, scene, { from: region?.name ?? null, level, known }));
+}
+
+/**
+ * `walls` with the passages `open` cut out of them: a wall a passage names (its `wallId`) becomes
+ * what passages.mjs `cutSegment` leaves of it, each piece `{ c, move, door, ds }` - the four fields
+ * `wallAlongEdge` reads - and every other wall stays the document it was. Pure; the same array when
+ * nothing is open (R557).
+ */
+export function passageWalls(walls, open) {
+    if (!open?.length) return walls;
+    const cut = [];
+    for (const wall of walls) {
+        const mine = open.filter(seg => seg.wallId === wall?.id);
+        const c = wall?.c;
+        const pieces = mine.length && c?.length >= 4 ? cutSegment({ x1: c[0], y1: c[1], x2: c[2], y2: c[3] }, mine) : null;
+        if (!pieces) {
+            cut.push(wall);
+            continue;
+        }
+        for (const piece of pieces) cut.push({ c: [piece.x1, piece.y1, piece.x2, piece.y2], move: wall.move, door: wall.door, ds: wall.ds });
+    }
+    return cut;
 }
 
 /** The middle of the longest stretch of an edge outside its inner ones, as a fraction of the edge. */

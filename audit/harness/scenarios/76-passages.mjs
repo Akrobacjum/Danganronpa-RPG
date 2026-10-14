@@ -32,7 +32,16 @@
  *   move backend is the module's, and none was told the passages cannot open; on p1 Aiko's token passes her
  *   passage and is stopped beside it, while sight and a move with no token are stopped in it; every other token -
  *   another character's on p1, p2 and the GM's, Aiko's own on p2, Chie's on p3 - is stopped in it, and on the GM's
- *   browser Aiko's passes as on p1. C (C3): the gap and the veto.
+ *   browser Aiko's passes as on p1.
+ * C (C3): the gap and the veto. The GM draws a Kitchen under the Cafeteria whose own list names the Gym alone (so the
+ *   two are not neighbours by the map), a wall the whole length of their border and a passage in it, granted to Aiko,
+ *   and puts Aiko's token in the Cafeteria. The Cafeteria's outline (fog-doorways.mjs `doorwayEdges`, with the
+ *   harness's polygons given a real inside test for the one call: they contain no point otherwise) opens the passage
+ *   for Aiko on p1 and nowhere else, and is the outline with no character for Botan on p2, Chie on p3 and Aiko on the
+ *   GM's browser. p1 moves Aiko through: it lands, and the primary GM's judge finds it lawful and tells nobody; p2
+ *   moves Botan the same way and is refused with the sentence the map gives (`crossingRefused`). Then, on p1, the
+ *   veto with the passage named (`via`) is asked into the Kitchen under a GM's lock (the gap closes as well), a seal,
+ *   the chain and another's bedroom: refused, refused, refused, let through - and the bedroom without `via` refused.
  * D (C4): the GM's audit. E (C5): Close, Open and revoke. F (C6): the GM's overlay. G (C7): a show.
  *
  * What the harness cannot settle - a real canvas's move backend, the ruler and the keyboard, a GM on
@@ -173,6 +182,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, dump, socketTr
 
     await phaseA({ gm, p1, p2, p3, check, phase, settle, dump, socketTraffic, IDS, repoUrl, baseline });
     await phaseB({ gm, p1, p2, p3, check, phase, IDS, repoUrl });
+    await phaseC({ gm, p1, p2, p3, check, phase, settle, IDS, repoUrl });
 }
 
 const PHASE_A = "A: the GM creates a passage and grants Aiko - p1's copy holds that row alone, p2 and p3 nothing of it, p3's world as found";
@@ -285,4 +295,146 @@ async function phaseB({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
     const gmAiko = await crossing(gm, aiko);
     check("B: on the GM's browser, which reads the GMs' records, Aiko's token passes her passage and is stopped beside it, as on p1",
         J(gmAiko) === J({ ...whole, through: false }), J(gmAiko));
+}
+
+const PHASE_C = "C: the gap and the veto - Aiko's outline opens her passage and her token goes through it; Botan's is refused with today's sentence";
+
+/* The Cafeteria's open stretches on one browser, `[x1, y1, x2, y2]` rounded, for `actorId`'s character or none. The
+   harness's `PIXI.Polygon#contains` answers false for every point, so no doorway opens headless (E12 C2b); for this one
+   synchronous call it is given an even-odd inside test, and put back after. */
+const outline = (client, repoUrl, sceneId, actorId = null) => client.eval(`
+    const D = await import("${repoUrl}/scripts/fog-doorways.mjs");
+    const region = game.scenes.get(${J(sceneId)}).regions.find(r => r.name === "Cafeteria");
+    const actor = ${actorId ? `game.actors.get(${J(actorId)})` : "null"};
+    const proto = PIXI.Polygon.prototype, was = proto.contains;
+    proto.contains = function (x, y) {
+        const p = this.points;
+        let inside = false;
+        for (let i = 0, j = p.length - 2; i < p.length; j = i, i += 2) {
+            if ((p[i + 1] > y) !== (p[j + 1] > y) && x < ((p[j] - p[i]) * (y - p[i + 1])) / (p[j + 1] - p[i + 1]) + p[i]) inside = !inside;
+        }
+        return inside;
+    };
+    try {
+        return D.doorwayEdges(region, null, actor ? { actor } : {}).flatMap(e => e.open.map(([a, b]) =>
+            [e.ax + e.dx * a, e.ay + e.dy * a, e.ax + e.dx * b, e.ay + e.dy * b].map(Math.round)));
+    } finally {
+        proto.contains = was;
+    }`);
+
+async function phaseC({ gm, p1, p2, p3, check, phase, settle, IDS, repoUrl }) {
+    phase(PHASE_C, { flow: "secret-passages" });
+    const MOD = "danganronpa-rpg", PLACE = { teleport: true, movementAction: "displace", animate: false };
+    /* The Kitchen under the Cafeteria (1200-2000 x 800-1100); its list names the Gym, so the pair is decided by the lists and
+       the Cafeteria does not reach it by the map. The wall runs their whole border at y 800; the passage is 1234.5-1334.5. */
+    const set = await gm.eval(`
+        const scene = game.scenes.get(${J(IDS.scene)});
+        const [kitchen] = await scene.createEmbeddedDocuments("Region", [{ name: "Kitchen", behaviors: [],
+            shapes: [{ type: "rectangle", x: 1200, y: 800, width: 800, height: 300 }],
+            flags: { "${MOD}": { room: true, drpgNeighbours: "Gym" } } }]);
+        const [wall] = await scene.createEmbeddedDocuments("Wall", [{ c: [1200, 800, 2000, 800] }]);
+        const id = await game.drpg.passages.create({ sceneId: scene.id, wallId: wall.id, seg: { x1: 1234.5, y1: 800, x2: 1334.5, y2: 800 } });
+        const granted = await game.drpg.passages.grant(id, ${J(IDS.aiko)});
+        const aiko = game.actors.get(${J(IDS.aiko)}), t = scene.tokens.get("TOKAIKO000000000");
+        globalThis.__s76c = { kitchen: kitchen.id, wall: wall.id, id, at: { x: t.x, y: t.y }, actions: game.drpg.actionsLeft(aiko),
+            free: aiko.getFlag("${MOD}", "freeMoveUsed") ?? null, sealed: game.settings.get("${MOD}", "sealedRooms"),
+            restrictions: game.settings.get("${MOD}", "restrictions") };
+        await t.update({ x: 1240, y: 600 }, ${J(PLACE)});
+        if (game.drpg.actionsLeft(aiko) < 2) await game.drpg.setActions(aiko, 2);
+        const M = await import("${repoUrl}/scripts/movement.mjs");
+        return { kitchen: Boolean(kitchen), wall: Boolean(wall), id, granted, room: M.roomOfToken(t), neighbours: M.neighbouringRooms(scene, "Cafeteria") };`,
+    { timeout: 30000 });
+    await settle(1000);
+    check("C: the GM draws the Kitchen, the wall and the passage, grants it to Aiko and puts her token in the Cafeteria - and the map does not join the Cafeteria to the Kitchen",
+        set.kitchen && set.wall && typeof set.id === "string" && set.granted === true && set.room === "Cafeteria" && !set.neighbours.includes("Kitchen"),
+        J(set));
+
+    const bare = await outline(p1, repoUrl, IDS.scene);
+    const mine = await outline(p1, repoUrl, IDS.scene, IDS.aiko);
+    const gap = mine.filter(g => !bare.some(b => J(b) === J(g)));
+    const inPassage = gap.length === 1 && gap[0][1] === 800 && gap[0][3] === 800
+        && Math.min(gap[0][0], gap[0][2]) >= 1225 && Math.max(gap[0][0], gap[0][2]) <= 1345;
+    check("C: on p1 the Cafeteria's outline for Aiko opens one gap, on her passage, and is otherwise the outline with no character",
+        inPassage && mine.length === bare.length + 1, J({ bare, mine, gap }));
+    const others = { p2Botan: await outline(p2, repoUrl, IDS.scene, IDS.botan), p2None: await outline(p2, repoUrl, IDS.scene),
+        p3Chie: await outline(p3, repoUrl, IDS.scene, IDS.chie), p3None: await outline(p3, repoUrl, IDS.scene),
+        gmAiko: await outline(gm, repoUrl, IDS.scene, IDS.aiko), gmNone: await outline(gm, repoUrl, IDS.scene) };
+    check("C: everywhere else the outline is the one with no character - Botan's on p2, Chie's on p3, Aiko's on the GM's browser - and none of them opens the passage",
+        Object.values(others).every(o => J(o) === J(bare)), J({ bare, others }));
+
+    /* The moves themselves, each from the player's own browser: Aiko through her passage, Botan the same way. */
+    const moved = await p1.eval(`
+        const t = canvas.scene.tokens.get("TOKAIKO000000000"), first = globalThis.__notifications.length;
+        await t.update({ x: 1240, y: 850 });
+        return { told: globalThis.__notifications.slice(first).map(n => n.msg) };`, { timeout: 30000 });
+    await settle(1500);
+    const judged = await gm.eval(`
+        const M = await import("${repoUrl}/scripts/movement.mjs"), { contentOf } = await import("${repoUrl}/scripts/secret.mjs");
+        const t = game.scenes.get(${J(IDS.scene)}).tokens.get("TOKAIKO000000000");
+        const s = M.standingOf?.(t);
+        return { at: [t.x, t.y], room: M.roomOfToken(t), lawful: s?.lawful ?? null,
+            told: game.messages.filter(m => String(contentOf(m) ?? "").includes('data-drpg-unlawful="TOKAIKO000000000"')).length };`);
+    check("C: p1 moves Aiko through her passage into the Kitchen - nothing refuses it on p1, and the primary GM finds the arrival lawful and tells nobody",
+        moved.told.length === 0 && J(judged.at) === J([1240, 850]) && judged.room === "Kitchen" && judged.lawful === true && judged.told === 0,
+        J({ moved, judged }));
+    const refused = await p2.eval(`
+        const M = await import("${repoUrl}/scripts/movement.mjs");
+        const t = canvas.scene.tokens.get("TOKBOTAN00000000"), first = globalThis.__notifications.length;
+        await t.update({ x: 1240, y: 850 });
+        return { told: globalThis.__notifications.slice(first).map(n => n.msg), map: M.crossingRefused(canvas.scene, "Cafeteria", "Kitchen", null) };`,
+    { timeout: 30000 });
+    await settle(800);
+    const botan = await gm.eval(`const t = game.scenes.get(${J(IDS.scene)}).tokens.get("TOKBOTAN00000000"); return [t.x, t.y];`);
+    check("C: p2 moves Botan the same way and is refused with the sentence the map gives, and his token stays where it was",
+        typeof refused.map === "string" && J(refused.told) === J([refused.map]) && J(botan) === J([1300, 300]), J({ refused, botan }));
+
+    /* The veto with the passage named, on p1, against each rule `via` must not skip - and the one it does. */
+    const verdict = via => `M.crossingVerdict(game.actors.get(${J(IDS.aiko)}), "Cafeteria", "Kitchen", canvas.scene, null, { pay: false, via: ${J(via)} })`;
+    const ask = async (write, undo, extra = "") => {
+        await gm.eval(`const scene = game.scenes.get(${J(IDS.scene)}), kitchen = scene.regions.get(globalThis.__s76c.kitchen); ${write} return true;`);
+        await settle(600);
+        const read = await p1.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
+            return { through: ${verdict("passage")}, plain: ${verdict(null)}${extra} };`);
+        await gm.eval(`const scene = game.scenes.get(${J(IDS.scene)}), kitchen = scene.regions.get(globalThis.__s76c.kitchen); ${undo} return true;`);
+        await settle(600);
+        return read;
+    };
+    const texts = await p1.eval(`return { locked: game.i18n.localize("DRPG.Move.locked"), sealed: game.i18n.format("DRPG.Calls.sealedBlocked", { room: "Kitchen" }),
+        chained: game.i18n.localize("DRPG.Calls.chainedBlocked"), key: game.i18n.format("DRPG.Vault.keyMissing", { room: "Kitchen" }) };`);
+    const locked = await ask(`await kitchen.setFlag("${MOD}", "drpgLocked", true);`, `await kitchen.unsetFlag("${MOD}", "drpgLocked");`);
+    const lockedFrame = await (async () => {
+        await gm.eval(`await game.scenes.get(${J(IDS.scene)}).regions.get(globalThis.__s76c.kitchen).setFlag("${MOD}", "drpgLocked", true); return true;`);
+        await settle(600);
+        const read = await outline(p1, repoUrl, IDS.scene, IDS.aiko);
+        await gm.eval(`await game.scenes.get(${J(IDS.scene)}).regions.get(globalThis.__s76c.kitchen).unsetFlag("${MOD}", "drpgLocked"); return true;`);
+        await settle(600);
+        return read;
+    })();
+    const sealed = await ask(`await game.settings.set("${MOD}", "sealedRooms", [...(globalThis.__s76c.sealed ?? []), "Kitchen"]);`,
+        `await game.settings.set("${MOD}", "sealedRooms", globalThis.__s76c.sealed ?? []);`);
+    const chained = await ask(`await game.settings.set("${MOD}", "restrictions", { ...(globalThis.__s76c.restrictions ?? {}), ${J(IDS.aiko)}: { chained: true } });`,
+        `await game.settings.set("${MOD}", "restrictions", globalThis.__s76c.restrictions ?? {});`);
+    const owned = await ask(`await kitchen.setFlag("${MOD}", "drpgVaultOwner", ${J(IDS.botan)});`, `await kitchen.unsetFlag("${MOD}", "drpgVaultOwner");`);
+    check("C: through the passage, on p1, a GM's lock, a seal and the chain still refuse the Kitchen, as they do without it - and under the lock the outline opens nothing",
+        locked.through === texts.locked && locked.plain === texts.locked && sealed.through === texts.sealed && sealed.plain === texts.sealed
+            && chained.through === texts.chained && chained.plain === texts.chained && J(lockedFrame) === J(bare),
+        J({ texts, locked, sealed, chained, lockedFrame }));
+    check("C: Botan's bedroom is open to Aiko through her passage and shut without it - the key is the one rule the passage skips",
+        owned.through === true && owned.plain === texts.key, J({ owned, key: texts.key }));
+
+    /* Put back: Aiko's token, actions and free Move; the passage, the wall and the Kitchen. */
+    const back = await gm.eval(`
+        const scene = game.scenes.get(${J(IDS.scene)}), was = globalThis.__s76c, aiko = game.actors.get(${J(IDS.aiko)});
+        await scene.tokens.get("TOKAIKO000000000").update(was.at, ${J(PLACE)});
+        await game.drpg.setActions(aiko, was.actions);
+        if (was.free === null) await aiko.unsetFlag("${MOD}", "freeMoveUsed"); else await aiko.setFlag("${MOD}", "freeMoveUsed", was.free);
+        const gone = await game.drpg.passages.delete(was.id);
+        await scene.deleteEmbeddedDocuments("Wall", [was.wall]);
+        await scene.deleteEmbeddedDocuments("Region", [was.kitchen]);
+        delete globalThis.__s76c;
+        return { gone, kitchen: scene.regions.some(r => r.name === "Kitchen"), sealed: game.settings.get("${MOD}", "sealedRooms"),
+            chained: Boolean(game.settings.get("${MOD}", "restrictions")?.[${J(IDS.aiko)}]?.chained) };`, { timeout: 30000 });
+    await settle(600);
+    check("C: put back - the passage deleted, the Kitchen and its wall gone, no seal or chain left on the Kitchen or Aiko",
+        back.gone !== false && back.kitchen === false && !(back.sealed ?? []).includes("Kitchen") && back.chained === false, J(back));
 }

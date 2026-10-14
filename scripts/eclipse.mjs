@@ -23,7 +23,7 @@ import { SETTINGS, isEclipse, incomingTimeOfDay, eclipseId, eclipseMovesUsed, is
 // know that.
 export { isEclipse, incomingTimeOfDay, eclipseId };
 import { getClock, setClock, timeOfDayLabel } from "./clock.mjs";
-import { roomOfActor, placesOf, allRooms, crossingRefused } from "./movement.mjs";
+import { roomOfActor, placesOf, allRooms, crossingRefused, passesThrough } from "./movement.mjs";
 import { announce, whisperToOwner, whisperToOwnerOnly, whisperToGms, dialogContent, log, error, plural, cardHead, esc, isPrimaryGm,
     primaryGmId, ownerIdsOf } from "./utils.mjs";
 import { overflowCrossings } from "./overflow.mjs";
@@ -924,7 +924,10 @@ export async function judgeEclipseCrossing(actor, from, to, scene = null, floors
         // review EARLY-C9-1): the veto's own rule, movement.mjs `crossingRefused`, on the scene the
         // token crossed on and the floor of each end (`settleRoute` hands both in, E12 C2a). Its
         // sentence names only rooms the viewer has been in, the destination included (E06 C11).
-        const refused = crossingRefused(scene, from, to, floors);
+        // A secret passage the character knows joins its two rooms as a door would (E79 C3,
+        // 14.10.2026; movement.mjs `passesThrough`, on the floor the crossing starts on): the step
+        // through it is one crossing, counted once by `recordMove` below like any other.
+        const refused = passesThrough(actor, from, to, scene, floors) ? false : crossingRefused(scene, from, to, floors);
         if (refused) {
             ui.notifications.warn(refused);
             return false;

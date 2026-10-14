@@ -51,6 +51,11 @@
  * fog-geometry.mjs, doorway detection or glow into fog-doorways.mjs, the reveal's
  * or the outline's drawing into fog-reveal.mjs, and a check of the map into
  * fog-diagnostics.mjs.
+ *
+ * `redrawOutline` (E79 C3, 14.10.2026) draws the standing outline again when this browser's secret
+ * passages change, so a gap opens or closes without a step and without the entering sound. It is
+ * the minimal form the E79 plan's A10-9 names: E51's outline refresher takes it over, and R560
+ * holds that it is written once.
  */
 
 import { MODULE_ID, FLAGS } from "./config.mjs";
@@ -346,6 +351,10 @@ export function registerFog() {
      * they happened to walk somewhere.
      */
     Hooks.on("drpgEclipseChanged", () => repaintFog());
+
+    // The passages this browser knows changed (settings.mjs, the copy's onChange): the standing
+    // outline is drawn again with the gaps its character may take now (E79 C3).
+    Hooks.on("drpgPassagesChanged", () => { try { redrawOutline(); } catch (err) { debug("Fog: could not redraw the outline", err); } });
 
     /*
      * THE SEAM COLOUR IS A DOM FACT, SO IT IS WATCHED IN THE DOM.
@@ -3672,7 +3681,7 @@ async function reactToMove(tokenDoc) {
             if (changedRoom) {
                 repaintFog();
                 if (entered?.isNew) playDiscoveryAnimation(entered.room, tokenDoc);
-                else if (entered) announceRoom(entered.room);
+                else if (entered) announceRoom(entered.room, tokenDoc.actor);
             }
         }
     } catch (err) {
@@ -3713,7 +3722,7 @@ function revealStartingRooms() {
         // saying "you are in this one", and it has to be there from the moment
         // the scene appears rather than waiting for a step.
         if (entered.isNew) playDiscoveryAnimation(entered.room, token.document);
-        else announceRoom(entered.room);
+        else announceRoom(entered.room, token.document.actor);
     }
 }
 
@@ -3765,9 +3774,10 @@ function roomEnteredByMe(tokenDoc) {
 
 /**
  * The outline and the name, without the reveal - what walking back into a room
- * you already know looks like.
+ * you already know looks like. `actor` is the character that walked in: its
+ * secret passages open in the outline (E79 C3; fog-doorways.mjs `doorwayEdges`).
  */
-function announceRoom(room) {
+function announceRoom(room, actor = null) {
     // BEFORE THE EARLY RETURNS. Crossing into a room you already know is the
     // event; whether this client can draw the outline for it is a separate
     // question, and a scene without a usable region should not also go silent.
@@ -3782,7 +3792,22 @@ function announceRoom(room) {
     if (!region) return;
 
     const dims = canvas.dimensions;
-    flashOutline(fx, region, dims?.rect ?? { x: 0, y: 0 }, level);
+    flashOutline(fx, region, dims?.rect ?? { x: 0, y: 0 }, level, { actor });
+}
+
+/**
+ * The outline standing now, drawn again from what it was drawn from - its room's shape, floor and
+ * character - with no sound and no reveal: what a change of the secret passages this browser knows
+ * looks like (E79 C3, 14.10.2026; the E79 plan's P7-0). `room`, when named, redraws only that
+ * room's outline. Answers whether it drew. The minimal form A10-9 names: E51's outline refresher
+ * takes it over rather than writing a second (R560).
+ */
+export function redrawOutline(room = null) {
+    const standing = roomOutline;
+    if (!standing || standing.group?.destroyed || !standing.fx || standing.fx.destroyed || !standing.region) return false;
+    if (room !== null && standing.room !== room) return false;
+    flashOutline(standing.fx, standing.region, standing.rect, standing.level, { actor: standing.actor ?? null });
+    return true;
 }
 
 /**
@@ -3840,7 +3865,7 @@ function playDiscoveryAnimation(room, tokenDoc) {
     // No measurable shape, no renderer, or a viewer who has asked for no
     // motion: the room is already clear underneath, so just name it.
     if (!bounds || !renderer || motionOff()) {
-        flashOutline(fx, region, rect, level);
+        flashOutline(fx, region, rect, level, { actor: tokenDoc?.actor ?? null });
         return;
     }
 
@@ -3904,7 +3929,7 @@ function playDiscoveryAnimation(room, tokenDoc) {
 
     const L = buildRevealLayers(fx, { region, bounds, rect, glass, ink, bone, lineWidth, width, height, resolution, stains });
     if (!L) {
-        flashOutline(fx, region, rect, level);
+        flashOutline(fx, region, rect, level, { actor: tokenDoc?.actor ?? null });
         return;
     }
     const { fogScratch, lineScratch, fogTex, lineTex, fogSprite, lineSprite, lineLayer } = L;
@@ -3938,7 +3963,7 @@ function playDiscoveryAnimation(room, tokenDoc) {
 
     // The outline and the name run WITH the lines, not after them: one gesture
     // in one colour rather than three things taking turns.
-    flashOutline(fx, region, rect, level);
+    flashOutline(fx, region, rect, level, { actor: tokenDoc?.actor ?? null });
 
     const state = { t: 0 };
     const done = () => destroyRevealLayers(L, stains);

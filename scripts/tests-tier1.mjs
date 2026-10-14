@@ -13570,6 +13570,149 @@ const INVARIANTS = [
             "the move backend here is not the module's: no token passes a passage on this browser (PATCHES, passages.mjs)");
         ok(!CONFIG.Canvas?.polygonBackends?.sight?.[MARK], "the sight backend carries the passages' mark: every eye would see through a passage");
     }],
+    ["R557 - the frame opens a secret passage only for whoever may take it: a character that knows it on a player's browser, never one that does not, a GM's browser or no character, and not into a room a GM locked; the cut walls leave the gap and nothing else; no character and a GM draw today's outline; the outline is redrawn on a change of the passages by one listener, with no sound", async () => {
+        /*
+         * E79 C3, 14.10.2026; the E79 plan's A10-4 (P7-0, the owner's Q9: the gap is the veto's own predicate, per
+         * viewer). The harms: a gap drawn in the outline of a character that does not know the passage (the secret, on
+         * screen), a gap into a room a GM locked (a way out the veto then refuses), a GM's outline or a no-character one
+         * changed by the passages, and a change of the passages that plays the entering sound or is redrawn by two
+         * listeners. Read on a scene of plain objects (a Lab over a Vault, a passage in the wall between them) and rows
+         * of the suite's own in the copy's shape (`known`), with fog-doorways.mjs `viewerPassages` asked as a player's
+         * browser (`gm: false`); nothing of this world is read but the module's own listener table and its source. What
+         * the outline then looks like is a look at a table (the E79 plan's 5.2, AUDIT 9.2 at the release): the harness's polygons contain no point, so `doorwayEdges` opens no
+         * doorway headless (E12 C2b) and its two outlines are compared as measured, not as drawn; scenario 76 C reads the
+         * same comparison on the players' browsers.
+         */
+        const D = await import("./fog-doorways.mjs");
+        const M = await import("./movement.mjs");
+        const F = await import("./fog.mjs");
+        const R = await import("./rooms.mjs");
+        const J = v => JSON.stringify(v);
+        const region = (name, x, y, w, h, flags = {}) => ({ id: `R557R${name}`, name: `R557 ${name}`, levels: new Set(), behaviors: [],
+            bounds: { x, y, width: w, height: h }, shapes: [{ type: "rectangle", x, y, width: w, height: h }],
+            testPoint: p => p.x >= x && p.x <= x + w && p.y >= y && p.y <= y + h,
+            getFlag: (scope, key) => (scope !== MODULE_ID ? undefined : key === R.ROOM_FLAG ? true : flags[key]) });
+        const sceneWith = (vault = {}) => {
+            const scene = { id: "R557S", name: "R557 scene", grid: { size: 100 }, levels: [], walls: [] };
+            const lab = region("Lab", 0, 0, 400, 400), rooms = [lab, region("Vault", 0, 400, 400, 200, vault)];
+            for (const r of rooms) r.parent = scene;
+            scene.regions = new Set(rooms);
+            scene.walls = [{ id: "R557W", c: [0, 400, 400, 400], move: 20, door: 0, ds: 0 }];
+            return { scene, lab };
+        };
+        const A = { id: "R557A", name: "R557 A", items: [], getFlag: () => undefined };
+        const B = { id: "R557B", name: "R557 B", items: [], getFlag: () => undefined };
+        const known = { R557P: { sceneId: "R557S", level: null, passageWallId: "R557W", passageSeg: { x1: 100, y1: 400, x2: 200, y2: 400 }, actorIds: ["R557A"] } };
+        const ids = list => list.map(p => p.id);
+        const { scene, lab } = sceneWith();
+        const locked = sceneWith({ [M.ROOM_FLAGS.locked]: true });
+        equal(J([ids(D.viewerPassages(A, lab, scene, null, { gm: false, known })), ids(D.viewerPassages(B, lab, scene, null, { gm: false, known })),
+            ids(D.viewerPassages(A, lab, scene, null, { gm: true, known })), ids(D.viewerPassages(null, lab, scene, null, { gm: false, known })),
+            ids(D.viewerPassages(A, locked.lab, locked.scene, null, { gm: false, known })), ids(D.viewerPassages(A, lab, scene, null, { gm: false, known: {} }))]),
+        J([["R557P"], [], [], [], [], []]),
+        "[the knower, another character, a GM's browser, no character, the Vault locked by a GM, no row] - the passages the frame would open");
+        const passage = { id: "R557P", wallId: "R557W", x1: 100, y1: 400, x2: 200, y2: 400 };
+        equal(J([M.passageOpenFor(A, passage, scene, { from: "R557 Lab", known }), M.passageOpenFor(B, passage, scene, { from: "R557 Lab", known }),
+            M.passageOpenFor(A, passage, locked.scene, { from: "R557 Lab", known }), M.passageOpenFor(A, { ...passage, id: "R557Q" }, scene, { from: "R557 Lab", known })]),
+        J([true, false, false, false]), "[known and open, not known, into a locked room, another passage's id] - passageOpenFor");
+
+        // The walls the outline reads: the passage's stretch is taken out of its own wall, and only there.
+        const other = { id: "R557X", c: [0, 0, 400, 0], move: 20, door: 0, ds: 0 };
+        const walls = [scene.walls[0], other];
+        const cut = D.passageWalls(walls, [passage]);
+        equal(J([D.passageWalls(walls, []) === walls, cut.length, cut.map(w => w.c), cut[2] === other, cut[0].move]),
+            J([true, 3, [[0, 400, 100, 400], [200, 400, 400, 400], [0, 0, 400, 0]], true, 20]),
+            "[nothing open is the same walls, three walls, where they run, the other wall the same, the cut keeps its fields]");
+        const near = 60;
+        equal(J([D.wallAlongEdge(150, 400, 1, 0, cut, near), D.wallAlongEdge(50, 400, 1, 0, cut, near), D.wallAlongEdge(300, 400, 1, 0, cut, near),
+            D.wallAlongEdge(150, 400, 1, 0, walls, near)]),
+        J([false, true, true, true]), "[in the passage, beside it on each side, the uncut wall] - a wall along the border");
+
+        // No character and a GM's browser (this one) read the outline as it was.
+        must(game.user.isGM, "the suite runs on a GM's browser - the GM's clause would measure a player's");
+        const before = J(D.doorwayEdges(lab, null));
+        ok(J(D.doorwayEdges(lab, null)).length > 2, "doorwayEdges measured no edge of the Lab - the comparison would compare nothing");
+        equal(J([J(D.doorwayEdges(lab, null, { actor: A })) === before, J(D.doorwayEdges(lab, null, {})) === before]), J([true, true]),
+            "[a GM drawing for the knower, no character] - an outline the passages changed");
+
+        // The redraw: one listener, no sound, nothing drawn for a room that is not outlined.
+        const listeners = (Hooks.events?.drpgPassagesChanged ?? []).filter(entry => /redrawOutline/.test(String(entry.fn)));
+        const fog = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/fog.mjs`).then(r => r.text()));
+        const redraw = fnSource(fog, "redrawOutline");
+        equal(J([listeners.length, /\bplaySfx\s*\(/.test(redraw), /flashOutline\s*\(/.test(redraw), F.redrawOutline("R557 no such room")]),
+            J([1, false, true, false]), "[listeners of a passage change that redraw, a sound in the redraw, it draws the outline, a room not outlined]");
+    }],
+    ["R558 - the veto lets a character through a secret passage it knows and nobody else: the two rooms are joined for it on one floor, today's refusal for anyone else; `via` opens another's bedroom and never a GM's lock, a seal, the chain or the courtroom; the Eclipse asks the same; a step through costs one crossing; Listen and the body's reach do not follow passages", async () => {
+        /*
+         * E79 C3, 14.10.2026; the E79 plan's A10-5 (P5-0, the owner's Q1, Q9 and Q10). The harms: a character with
+         * access refused at the wall (red at the parent: `crossingRefused` knew no passage, so the knower got today's
+         * "not connected" for the room beyond), a passage opening a room for a character that does not know it, a claimed
+         * `via` with no passage behind it, `via` skipping a GM's lock or anything but the bedroom key, the Eclipse's own
+         * judge left asking the map alone, and Listen or the body's reach widened by a secret. Read on a scene of plain
+         * objects (a Lab whose list names the Hall, a Vault under the Lab beyond a passage) and rows of the suite's own in
+         * the copy's shape (`known`), for plain characters with a mover that is neither a GM nor the Mastermind; nothing
+         * of this world is read but its seals and restrictions under names no world holds, and the module's source. The
+         * seal and the chain are world settings tier 1 does not write: scenario 76 C sets each and reads the veto, and
+         * drives the move itself. The Eclipse is not driven (its start is a write); its judge is read off the source.
+         */
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const { ROOM_OWNER_FLAG } = await import("./config.mjs");
+        const J = v => JSON.stringify(v);
+        const region = (name, x, y, w, h, flags = {}) => ({ id: `R558R${name}`, name: `R558 ${name}`, levels: new Set(), behaviors: [],
+            bounds: { x, y, width: w, height: h }, shapes: [{ type: "rectangle", x, y, width: w, height: h }],
+            testPoint: p => p.x >= x && p.x <= x + w && p.y >= y && p.y <= y + h,
+            getFlag: (scope, key) => (scope !== MODULE_ID ? undefined : key === R.ROOM_FLAG ? true : flags[key]) });
+        const sceneWith = (vault = {}) => ({ id: "R558S", name: "R558 scene", grid: { size: 100 }, levels: [],
+            regions: new Set([region("Lab", 0, 0, 400, 400, { [M.ROOM_FLAGS.neighbours]: "R558 Hall" }), region("Hall", 500, 0, 400, 400),
+                region("Vault", 0, 400, 400, 200, vault)]) });
+        const scene = sceneWith();
+        const A = { id: "R558A", name: "R558 A", items: [], getFlag: () => undefined };
+        const B = { id: "R558B", name: "R558 B", items: [], getFlag: () => undefined };
+        const known = { R558P: { sceneId: "R558S", level: null, passageWallId: "R558W", passageSeg: { x1: 100, y1: 400, x2: 200, y2: 400 }, actorIds: ["R558A"] } };
+        const mover = { gm: false, mastermind: false };
+        const LAB = "R558 Lab", HALL = "R558 Hall", VAULT = "R558 Vault";
+        equal(J([M.passesThrough(A, LAB, VAULT, scene, null, { known }), M.passesThrough(A, VAULT, LAB, scene, null, { known }),
+            M.passesThrough(B, LAB, VAULT, scene, null, { known }), M.passesThrough(A, LAB, HALL, scene, null, { known }),
+            M.passesThrough(A, LAB, VAULT, scene, { from: "R558L1", to: "R558L2" }, { known }),
+            M.passesThrough(B, LAB, VAULT, scene, null, { mover: { mastermind: true }, known }),
+            M.reachableFrom(A, LAB, scene, { known }), M.reachableFrom(B, LAB, scene, { known }), M.reachableFrom(A, HALL, scene, { known })]),
+        J([true, true, false, false, false, true, [VAULT], [], []]),
+        "[the knower down, and back up, another character, a door the passage is not, across floors, the Mastermind on a GM's browser, the knower's rooms beyond the Lab, another's, the Hall's]");
+        ok(typeof M.crossingRefused(scene, LAB, VAULT) === "string" && M.crossingRefused(scene, LAB, HALL) === false,
+            "the map itself does not join the Lab to the Vault, or does not join it to the Hall - the passage would be measured against nothing");
+
+        const at = (vault, actor, via) => M.crossingVerdict(actor, LAB, VAULT, sceneWith(vault), null, { mover, pay: false, via, known });
+        const lockedText = game.i18n.localize("DRPG.Move.locked");
+        const keyText = game.i18n.format("DRPG.Vault.keyMissing", { room: VAULT });
+        const bedroom = { [ROOM_OWNER_FLAG]: "R558OWNER" };
+        equal(J([at({ [M.ROOM_FLAGS.locked]: true }, A, "passage") === lockedText, at(bedroom, A, null) === keyText,
+            at(bedroom, A, "passage") === keyText, at(bedroom, B, "passage") === keyText]),
+        J([true, true, false, true]),
+        "[a GM's lock through the passage, another's bedroom by the map, through the passage, a claimed passage the character does not know] - refused");
+
+        // `via` is read in one line of `restrictedFrom`, the bedroom's; the courtroom is asked after it, apart.
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/movement.mjs`).then(r => r.text()));
+        const restricted = fnSource(src, "restrictedFrom");
+        const viaLines = restricted.split("\n").filter(line => /\bvia\b/.test(line));
+        const verdict = fnSource(src, "crossingVerdict");
+        equal(J([viaLines.length, /bedroomShut\(/.test(viaLines[1] ?? ""), /isLocked|isSealed|isChained/.test(viaLines.join("\n")),
+            (verdict.match(/passage \? false : crossingRefused\(scene, from, to, floors\)/g) ?? []).length,
+            verdict.split("\n").filter(line => /classTrial/.test(line)).some(line => /\bvia\b|passage/.test(line))]),
+        J([2, true, false, 2, false]),
+        "[lines of restrictedFrom naming via (its signature and one rule), the bedroom's, a lock, seal or chain under via, both of the verdict's connected-rooms rules asking the passage, the courtroom under via]");
+        const eclipse = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/eclipse.mjs`).then(r => r.text()));
+        const judge = fnSource(eclipse, "judgeEclipseCrossing");
+        ok(/passesThrough\(actor, from, to, scene, floors\) \? false : crossingRefused\(scene, from, to, floors\)/.test(judge)
+            && (judge.match(/\brecordMove\(/g) ?? []).length === 1,
+        "the Eclipse's own judge does not ask the passage before the map, or counts a crossing other than once");
+
+        // The price is a door's, and what a room hears and where a body is found stay the map's.
+        equal(J([M.crossingCost({ room: LAB }, { room: VAULT }), M.neighbouringRooms(scene, LAB)]), J([1, [HALL]]),
+            "[a step through the passage's price, the Lab's neighbours for Listen and the body]");
+        const neighbours = fnSource(src, "neighbourAnswer") + fnSource(src, "neighbouringRooms");
+        ok(!/passesThrough|reachableFrom|openSegmentsFor|knownPassages/.test(neighbours), "the neighbours Listen and the body read ask the secret passages");
+    }],
 ];
 
 /**

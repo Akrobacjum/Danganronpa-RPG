@@ -12,6 +12,13 @@
  *
  * Rooms are Scene Regions. A scene with no regions charges nothing, which keeps
  * a half-built map from eating everyone's actions.
+ *
+ * A secret passage a character knows (E79, passages.mjs) is one more way out of
+ * the room on either side of it, for that character alone: `passesThrough`,
+ * `reachableFrom` and `passageOpenFor` below. `passageOpenFor` is the minimal
+ * form of the doorway glow's predicate, for passages only; E51 generalises it to
+ * every door and takes this one over rather than writing a second (the E79
+ * plan's A10-9, R560's "one" clause).
  */
 
 import { MODULE_ID, ECLIPSE_MOVES, ECLIPSE_FREE_PLACEMENT, FLAGS,
@@ -36,6 +43,9 @@ import { whisperToOwner, whisperToGms, isPrimaryGm, log, debug, error, esc, card
 import { ROOM_FLAG, playerRegionIds, roomPieces, roomRegions, roomFlag, roomNames, isPlaceScene, homeScene, placeScenes,
     isMoveChange, levelOf, onLevel, passageBehaviour, regionPatches } from "./rooms.mjs";
 import { playSfx } from "./sfx.mjs";
+// The secret passages this browser may know (E79 C3), static for the veto's sake as the imports
+// above. passages.mjs is a leaf that never reads this file back (R560 holds its imports).
+import { openSegmentsFor, crossingVia } from "./passages.mjs";
 
 /**
  * Region flags this file owns. Named like `VAULT_FLAGS`/`REST_FLAGS` in
@@ -675,8 +685,11 @@ export function judgeArrival(tokenDoc, userId = null, { revert = false, sentBack
         const flags = judgeReaders ? judgeReaders.flagsHeldNow(actor) : actor;
         const items = judgeReaders ? judgeReaders.itemsHeldNow(actor) : Array.from(actor.items ?? []);
         const student = { id: actor.id, name: actor.name, type: actor.type, getFlag: (scope, key) => flags.getFlag(scope, key), items };
-        const verdict = arrivalVerdict(student, was?.last ?? null, tokenDoc,
-            { gm: false, mastermind: Boolean(judgeReaders?.isMastermind(actor)) });
+        const mastermind = Boolean(judgeReaders?.isMastermind(actor));
+        // Through a secret passage (E79 C3): the straight line from where the primary last saw the token to
+        // where it stands, on the floor of the room it came from, against the GMs' records.
+        const via = was ? crossingVia(centresOf(tokenDoc, was, tokenDoc), actor, tokenDoc.parent?.id, was.last?.level ?? null, { mastermind }) : null;
+        const verdict = arrivalVerdict(student, was?.last ?? null, tokenDoc, { gm: false, mastermind }, via);
         now = verdict === true ? standingHere(tokenDoc)
             : standingHere(tokenDoc, { lawful: false, last: was?.last ?? null, told: was?.lawful === false && was.told, reason: verdict });
     }
@@ -700,7 +713,7 @@ export function judgeArrival(tokenDoc, userId = null, { revert = false, sentBack
  * and a body is a body (`isCorpse`, which the veto asks before them). Pure but for the settings
  * those rules read.
  */
-function arrivalVerdict(student, last, tokenDoc, mover) {
+function arrivalVerdict(student, last, tokenDoc, mover, via = null) {
     if (isCorpse(student)) return game.i18n.localize("DRPG.Move.dead");
     // Nobody stands in the trial hall (rooms.mjs, E13 C1), so no move there is a crossing. Asked
     // here and not left to `roomOfToken`: the last room the judge holds may predate the link.
@@ -710,7 +723,7 @@ function arrivalVerdict(student, last, tokenDoc, mover) {
     const from = last?.room ?? null;
     const to = roomOfToken(tokenDoc);
     if (from === to) return true;                      // the same room, a stairwell's floors too
-    return crossingVerdict(student, from, to, tokenDoc.parent, { from: last?.level ?? null, to: levelOf(tokenDoc) }, { mover, pay: false });
+    return crossingVerdict(student, from, to, tokenDoc.parent, { from: last?.level ?? null, to: levelOf(tokenDoc) }, { mover, pay: false, via });
 }
 
 /** The GMs' notice, once per turn to unlawful; and the GM's console. */
@@ -817,7 +830,12 @@ function onPreUpdateToken(tokenDoc, changes, options) {
         if (from === to) return;                       // same room: always free, a stairwell's floors too
         if (!from && !to) return;                      // no regions here
 
-        const allowed = crossingVerdict(actor, from, to, tokenDoc.parent, { from: here, to: there });
+        // Whether the step goes through a secret passage this character knows (E79 C3): the token's centre now
+        // and where it is going, as one straight line. A route of several waypoints is read on that line,
+        // which can miss a passage the waypoints went through; then the bedroom beyond is shut, as a door's.
+        const via = crossingVia(centresOf(tokenDoc, tokenDoc, { x: changes.x ?? tokenDoc.x, y: changes.y ?? tokenDoc.y }),
+            actor, tokenDoc.parent?.id, here);
+        const allowed = crossingVerdict(actor, from, to, tokenDoc.parent, { from: here, to: there }, { via });
         if (allowed === true) return;
 
         ui.notifications.warn(allowed);
@@ -873,9 +891,18 @@ function isCorpse(actor) {
  * asks every rule but the price - the Eclipse's count of crossings and the economy below the
  * movement setting. What a crossing costs is the charge's, on whichever browser pays it.
  *
+ * A SECRET PASSAGE IS A WAY OUT FOR WHOEVER KNOWS IT (E79 C3, 14.10.2026; the E79 plan's P5-0). Where
+ * the character knows a passage between `from` and `to` on one floor (`passesThrough`), the two rooms
+ * are connected for it, in daily life and in an Eclipse alike - and nothing else changes: the lock,
+ * the seal, the chain, the courtroom, the Eclipse's count and the price are asked as for a door.
+ * `via` is "passage" when the caller read the step going through a passage this character knows
+ * (passages.mjs `crossingVia`: the veto from the token's route, the witness judge from where it last
+ * stood), and only then is a bedroom beyond open without its key (`restrictedFrom`). `known` is the
+ * suite's (R558): rows of its own in the copy's shape.
+ *
  * @returns {true|string} true, or the reason it is refused.
  */
-export function crossingVerdict(actor, from, to, scene, floors = null, { mover = null, pay = true } = {}) {
+export function crossingVerdict(actor, from, to, scene, floors = null, { mover = null, pay = true, via = null, known } = {}) {
     // Monokumas are not bound by any of this.
     if (actor.getFlag(MODULE_ID, FLAGS.monokuma)) return true;
 
@@ -891,7 +918,8 @@ export function crossingVerdict(actor, from, to, scene, floors = null, { mover =
 
     // Despair Calls that physically stop you. Checked before the action economy
     // because they are absolute: no amount of actions buys past a locked door.
-    const blocked = restrictedFrom(actor, to, scene, mover);
+    const passage = passesThrough(actor, from, to, scene, floors, { mover, known });
+    const blocked = restrictedFrom(actor, to, scene, mover, { via: passage && via === "passage" ? "passage" : null });
     if (blocked) return blocked;
 
     const clock = game.settings.get(MODULE_ID, SETTINGS.clock);
@@ -953,7 +981,7 @@ export function crossingVerdict(actor, from, to, scene, floors = null, { mover =
                into the Attic above it cost one crossing, and the witness judge, which asks here with
                `pay: false`, called it lawful. One rule for both roads now; tier 2 "a change of floor
                between rooms only a player's stairs link is refused ..." reads it in an Eclipse. */
-            const refused = crossingRefused(scene, from, to, floors);
+            const refused = passage ? false : crossingRefused(scene, from, to, floors);
             if (refused) return refused;
         }
         return true;
@@ -967,7 +995,7 @@ export function crossingVerdict(actor, from, to, scene, floors = null, { mover =
     // they are in." Only the Eclipse used to check this, so during an ordinary
     // time of day a token could be dragged clean across the map for one Move -
     // which makes Listen, room visibility and any alibi meaningless.
-    const notConnected = crossingRefused(scene, from, to, floors);
+    const notConnected = passage ? false : crossingRefused(scene, from, to, floors);
     if (notConnected) return notConnected;
     if (!pay) return true;
 
@@ -1166,9 +1194,14 @@ function lockedInIncident(actor) {
  * `mover` is the one `crossingVerdict` was handed (E12 C12): the primary judging a player's
  * arrival is a GM, and asks of the player whether they are the Mastermind and are a GM.
  *
+ * `via: "passage"` (E79 C3; the E79 plan's P7-0) is a step through a secret passage the character
+ * knows, and it skips one rule only: the key to somebody's bedroom, since a passage into a bedroom
+ * is the way in without one. A GM's lock, a seal and the chain stand, and so does the courtroom,
+ * which `crossingVerdict` asks below this.
+ *
  * @returns {false|string} false when the move is allowed, otherwise the reason.
  */
-function restrictedFrom(actor, to, scene, mover = null) {
+function restrictedFrom(actor, to, scene, mover = null, { via = null } = {}) {
     try {
         if (isChained(actor)) return game.i18n.localize("DRPG.Calls.chainedBlocked");
         if (to && !(mover ? mover.mastermind : iAmTheMastermind())) {
@@ -1178,7 +1211,7 @@ function restrictedFrom(actor, to, scene, mover = null) {
             // key they were given - see the note on keys in vault.mjs. A GM
             // moving a token is not standing in the fiction and is never
             // stopped by a door.
-            if (!(mover ? mover.gm : game.user.isGM) && bedroomShut(actor, scene, to)) {
+            if (via !== "passage" && !(mover ? mover.gm : game.user.isGM) && bedroomShut(actor, scene, to)) {
                 return game.i18n.format("DRPG.Vault.keyMissing", { room: to });
             }
         }
@@ -1225,6 +1258,87 @@ function bedroomShut(actor, scene, to) {
     if (!owner || owner === actor?.id) return false;
     return !Array.from(actor?.items ?? [])
         .some(item => item.getFlag(MODULE_ID, BEDROOM_KEY_FLAG) === to);
+}
+
+/* ------------------------------------------------------------------------------------------------------------
+ * THE SECRET PASSAGES, AS THE VERDICT READS THEM (E79 C3, 14.10.2026; the E79 plan's P5-0 and P7-0).
+ *
+ * A passage is a stretch of a wall (passages.mjs); which rooms it joins is read off the map, not off the
+ * GMs' record of it - a player's copy names no room, and a room renamed since the passage was made is
+ * still the room on each side. From the stretch's middle the hit test (`piecesAt`) is asked outward on
+ * each side, at the fractions of a square `neighbourBeyond` steps out at for a doorway (fog-doorways.mjs:
+ * that file reads this one, so the four numbers are written here again rather than imported), on the
+ * floor asked. A side where no room is found joins nothing.
+ * ------------------------------------------------------------------------------------------------------------ */
+const PASSAGE_SIDES = [0.35, 0.6, 0.85, 1];
+
+/** The room on each side of a passage's stretch `{ x1, y1, x2, y2 }` on `level`, `[a, b]`, null where none. */
+function passageRooms(scene, passage, level = null) {
+    const dx = passage.x2 - passage.x1, dy = passage.y2 - passage.y1, length = Math.hypot(dx, dy);
+    if (!(length > 0)) return [null, null];
+    const grid = scene?.grid?.size ?? 100;
+    const mx = (passage.x1 + passage.x2) / 2, my = (passage.y1 + passage.y2) / 2;
+    const nx = -dy / length, ny = dx / length;
+    return [1, -1].map(side => {
+        for (const fraction of PASSAGE_SIDES) {
+            const x = mx + side * nx * grid * fraction, y = my + side * ny * grid * fraction;
+            const room = piecesAt(scene, x, y, 0, level).map(region => region.name).sort()[0];
+            if (room) return room;
+        }
+        return null;
+    });
+}
+
+/**
+ * The rooms this character reaches from `room` through the secret passages it knows on this scene and
+ * floor, sorted: none for a character that knows none, which is nearly every crossing. On a GM's
+ * browser the GMs' records name the knowers, and `mover.mastermind` passes every passage (the owner's
+ * Q7). `known` is the suite's (R558).
+ */
+export function reachableFrom(actor, room, scene, { level = null, mover = null, known } = {}) {
+    if (!room || !scene?.id) return [];
+    const far = new Set();
+    for (const passage of openSegmentsFor(actor, scene.id, level, { mastermind: Boolean(mover?.mastermind), known })) {
+        const sides = passageRooms(scene, passage, level);
+        if (!sides.includes(room)) continue;
+        for (const other of sides) if (other && other !== room) far.add(other);
+    }
+    return [...far].sort();
+}
+
+/**
+ * Whether a passage this character knows joins `from` to `to` on one floor - a crossing the connected-rooms
+ * rule then lets through (`crossingVerdict`, eclipse.mjs `judgeEclipseCrossing`). A change of floor is the
+ * stairs' (`crossingRefused`), never a passage's.
+ */
+export function passesThrough(actor, from, to, scene, floors = null, { mover = null, known } = {}) {
+    if (!from || !to || from === to) return false;
+    if (floors && levelKey(floors.from) !== levelKey(floors.to)) return false;
+    return reachableFrom(actor, from, scene, { level: floors?.from ?? null, mover, known }).includes(to);
+}
+
+/**
+ * Whether this passage, `{ id, x1, y1, x2, y2 }`, is a way out for this character now (the E79 plan's
+ * P7-0, the owner's Q9): it knows the passage, and the rules that stop a step through it - a GM's lock, a
+ * seal, the chain (`restrictedFrom` with `via: "passage"`) - stop none into the room beyond `from`, or into
+ * either room when `from` is neither. The doorway glow draws a gap only where this is true (fog-doorways.mjs
+ * `doorwayEdges`), so the frame says what the veto would answer. E51 generalises it to every door and takes
+ * it over (the E79 plan's A10-9); R560 holds that it is written once. `known` is the suite's (R557).
+ */
+export function passageOpenFor(actor, passage, scene, { from = null, level = null, mover = null, known } = {}) {
+    if (!passage?.id || !scene?.id) return false;
+    const knows = openSegmentsFor(actor, scene.id, level, { mastermind: Boolean(mover?.mastermind), known })
+        .some(seg => seg.id === passage.id);
+    if (!knows) return false;
+    const beyond = passageRooms(scene, passage, level).filter(room => room && room !== from);
+    return beyond.length > 0 && beyond.every(room => !restrictedFrom(actor, room, scene, mover, { via: "passage" }));
+}
+
+/** A token's centre at each spot `{ x, y }` (its top-left corner), measured with its own scene's grid as `regionsAt` measures it. */
+function centresOf(tokenDoc, ...spots) {
+    const size = tokenDoc?.parent?.grid?.size ?? canvas?.grid?.size ?? 100;
+    const w = ((tokenDoc?.width ?? 1) * size) / 2, h = ((tokenDoc?.height ?? 1) * size) / 2;
+    return spots.map(spot => ({ x: Number(spot?.x) + w, y: Number(spot?.y) + h }));
 }
 
 /**
