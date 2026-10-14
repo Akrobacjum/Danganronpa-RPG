@@ -38,7 +38,7 @@
  * E78) - is the design's reading of 0.6.8 on 11.10 and was not re-read here. Each read is guarded: no client, no
  * Room or a Room without `on` is the 'offline' state, which draws nobody. The harness's LiveKit shim
  * (audit/harness/lib/livekit.mjs) is what scenario 75 drives; real speaking detection, a hidden dock's sound after
- * F5 and `display: none !important` against Foundry's own rules are the owner's T1 and LIVE-E78 rows.
+ * F5 and `display: none !important` against Foundry's own rules are the owner's T1 (LIVE-E78-10) and LIVE-E78-01.
  *
  * THE TWO BUTTONS (E78 C4, 13.10.2026; the design's steps 6 and 7, the owner's Q0, Q1, Q6 and Q15). The microphone
  * (`micState`, `paintMic`) is grey and struck through only when the MODULE holds it - `micHold`'s `held`, from this
@@ -48,7 +48,7 @@
  * the three states the player cannot change writes nothing and says why, and otherwise writes the viewer's own
  * `users.<self>.muted` client setting and nothing else - Foundry's own dock button does that write and no more
  * (cameras.mjs:509-518 as the design read it, external), and the design reads avclient-livekit as moving the
- * microphone on that write itself, in push-to-talk too (LiveKitAVClient.ts:797-808, external; a LIVE-E78 row). The
+ * microphone on that write itself, in push-to-talk too (LiveKitAVClient.ts:797-808, external; LIVE-E78-02). The
  * module never calls `toggleAudio` (R544). The speaker button shows how many people share this browser's Room and
  * is struck while Foundry's "mute all" is on, and opens the list.
  *
@@ -76,7 +76,7 @@
  * reason where `moduleHoldsMic` (voice.mjs) answers a hold - today a death the GMs keep secret, which a block, a
  * write on a user document every browser receives, would give away - and judged again by `toggleBlock` at the
  * click on the GM's own client from the world's facts, never from the button. Whether Foundry's server would refuse
- * that write from a player is not measured here (a live check, not a numbered row); the player has no button to send it with.
+ * that write from a player is not measured here (LIVE-E78-06); the player has no button to send it with.
  * Escape, heard on the list in the capture phase and stopped there so Foundry's menu does not open, and a pointer
  * outside it close the list and give the focus back to the speaker button; Tab stays inside it.
  *

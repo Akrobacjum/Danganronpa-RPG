@@ -9044,7 +9044,7 @@ const REGRESSIONS = [
             ["CLIENT voice-panel.mjs#writeVoiceSetting -> *", "an allowlist of `audioSrc`, `audioSink` and `voice.mode` (always or ptt), strings only, this browser's own A/V client settings; nothing of the camera or the server (R542)"],
             ["HOLD voice-tile.mjs#paintList#moduleHoldsMic -> block", "the block is built only for a GM's list and disabled with its line where `moduleHoldsMic` holds; a secret death's line says only that a block would give it away (R539)"],
             ["HOLD voice-tile.mjs#toggleBlock#moduleHoldsMic -> block", "asked again at the click on the GM's client from the world's facts, not the button's state; held, nothing is written (R539)"],
-            ["BLOCK voice-tile.mjs#toggleBlock -> block", "returns first unless `game.user.isGM`; another user of this world; writes `permissions.BROADCAST_AUDIO` as Foundry's dock does, no socket, no packet; whether Foundry's server refuses it from a player is not measured here (a live check; R539)"],
+            ["BLOCK voice-tile.mjs#toggleBlock -> block", "returns first unless `game.user.isGM`; another user of this world; writes `permissions.BROADCAST_AUDIO` as Foundry's dock does, no socket, no packet; whether Foundry's server refuses it from a player is not measured here (LIVE-E78-06; R539)"],
             ["WORLD settings.mjs#voiceTile#gm -> dock", "world scope, the GM's switch, on by default; off brings the dock back; the dock is hidden by a body class and `display: none`, never removed - its `<audio>` carries the sound (R541)"]
         ];
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;

@@ -12360,7 +12360,7 @@ const INVARIANTS = [
          *     `moduleHoldsMic` and Foundry's `canBroadcastAudio` call for, or none where the world holds that user;
          *     a click on the disabled button writes nothing;
          *   - in the source, comments stripped: `toggleBlock`'s first statement returns unless this client is a GM's - the
-         *     check a player's console meets; whether Foundry's server would refuse that write is a live check, not
+         *     check a player's console meets; whether Foundry's server would refuse that write is LIVE-E78-06, not
          *     measured here.
          * Red before C5: voice-tile.mjs had no `toggleBlock` (the first assertion, by `ok`).
          */

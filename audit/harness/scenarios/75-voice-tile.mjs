@@ -52,9 +52,14 @@
  *   road `ensureVoiceTile` takes, not the body). The desk's half - the box at the right wall, the portrait on its
  *   pane, `voice-left` open, no drpgGlassCut for a speaker, a name, the fade or the list - needs a curtain that
  *   cuts: R543 at a table and the glass sweep's `drpgVoiceCheck` in Chromium; R545 cuts the shape headless.
+ * E (C7): a known leak, A9-K3 in known-leaks.json, until E19. p2's character, standing in the Cafeteria's room,
+ *   killed in secret (`killCharacter`, revived quietly after): `voiceTargets` sends p2 to the main room at once,
+ *   and p1, there with the roster's next Room, hears p2 in the list 'Who you hear' and its count. The check asks
+ *   for what E19 will make true - the room kept, nobody in the main room hearing p2 - and stays an expected red
+ *   while it measured the kill, the room before, the secret and p1's open list in the main room.
  *
  * What the shim cannot settle - real audio, how late LiveKit says who speaks, the dock hidden at a
- * table, audio after F5 - is LIVE-E78 rows and the owner's T1 (lib/livekit.mjs's header).
+ * table, audio after F5 - is LIVE-E78-01, LIVE-E78-02 and the owner's T1, LIVE-E78-10 (lib/livekit.mjs's header).
  */
 export const layers = ["ci"];
 /* Measured alone on 13.10.2026 (C1's phase 0, three green runs): the checks took 12-14 ms and the
@@ -63,7 +68,8 @@ export const layers = ["ci"];
    cluster's 12 checks in 4.4-4.5 s, 8.3-8.6 s of wall time with the boot - the bound stands. With phase C (C5, three green runs on
    14.10.2026, under the harness lock): 18 checks in 6.7-6.9 s, 10.7 s of wall time in the one run that was timed - it stands still.
    With phase D (C6, two green runs on 14.10.2026, under the harness lock):
-   20 checks in 7.3-7.4 s, 11.5-12.1 s of wall time - it stands. */
+   20 checks in 7.3-7.4 s, 11.5-12.1 s of wall time - it stands. With phase E (C7, two green runs on 14.10.2026, under the harness lock):
+   21 checks, 1 of them the expected red, in 8.4-8.6 s - it stands. */
 export const timeoutMs = 60000;
 
 const J = value => JSON.stringify(value);
@@ -527,4 +533,64 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
     const gone = await again(false), back = await again(true);
     check("D: the GM's voiceTile off takes the tile out of p1's row; on builds it in the row again, not on the body",
         gone.tile === null && gone.room === "drpg-tile-row" && J(back) === J(want), J({ gone, back }));
+
+    phase("E: a known leak until E19 - a character killed in secret leaves the room they stood in for the main room at once, where p1 hears them in the list 'Who you hear' and its count");
+    // The primary GM's own reading of where p2's voice goes, before and after a secret death (`voiceTargets`, the one
+    // the reconcile sends); the death is put back quietly at the end, as in C.
+    const victim = await gm.eval(`
+        const C = await import("${repoUrl}/scripts/chapter.mjs");
+        const { voiceTargets } = await import("${repoUrl}/scripts/voice.mjs");
+        const { isDeadForGm, isDeceased } = await import("${repoUrl}/scripts/settings.mjs");
+        const p2 = game.users.get("${IDS.p2}");
+        const actor = p2.character ?? game.actors.find(x => x.type === "character" && x.testUserPermission(p2, "OWNER")) ?? null;
+        const targets = async () => {
+            const { byUser } = await voiceTargets();
+            const row = byUser.get(p2.id);
+            return { p2: row ? { target: row.target ?? null, why: row.why } : null,
+                main: [...byUser].filter(([, r]) => (r.target ?? null) === null).map(([id]) => id).sort() };
+        };
+        const out = { actor: Boolean(actor), before: await targets() };
+        if (!actor) return out;
+        await C.killCharacter(actor, { secret: true, keepBullets: true });
+        out.secret = isDeadForGm(actor) && !isDeceased(actor);
+        out.after = await targets();
+        return out;`, { timeout: 15000 });
+    let heard = null;
+    try {
+        // p1 stands in the main room (the primary GM's packet, as in B), and the main room holds whom the GM's reading
+        // sends there: p2 is in p1's Room only if the module put p2 in the main room.
+        const main = [...new Set([...(victim.after?.main ?? []), IDS.p1])];
+        await p1.eval(`__liveKit.setRoster({ [__liveKit.MAIN_ROOM]: ${J(main)} }); return true;`);
+        await gm.eval(`game.socket.emit("module.danganronpa-rpg", { action: "voice.assign", target: "${IDS.p1}", room: null }); return true;`);
+        heard = await p1.eval(`${micJs}
+            if (globalThis.__liveKit?.installed !== true) return { installed: false };
+            const list = () => document.getElementById("drpg-voice-list");
+            const button = document.querySelector("#drpg-voice-tile .drpg-voice-speaker");
+            await sleep(300);
+            const serial = __liveKit.read().serial;
+            await game.webrtc.connect();
+            await until(() => __liveKit.read().serial !== serial && __liveKit.read().name === __liveKit.MAIN_ROOM);
+            const out = { installed: true, room: __liveKit.read().name === __liveKit.MAIN_ROOM };
+            try {
+                button?.click();
+                out.open = await until(() => list()?.hidden === false);
+                out.rows = [...(list()?.querySelectorAll(".drpg-voice-row") ?? [])].map(row => row.dataset.userId).sort();
+                out.count = speaker()?.count ?? null;
+            } finally {
+                if (list()?.hidden === false) button?.click();
+            }
+            return out;`, { timeout: 15000 });
+    } finally {
+        await gm.eval(`
+            const C = await import("${repoUrl}/scripts/chapter.mjs");
+            const p2 = game.users.get("${IDS.p2}");
+            const actor = p2.character ?? game.actors.find(x => x.type === "character" && x.testUserPermission(p2, "OWNER")) ?? null;
+            if (actor) await C.reviveCharacter(actor, { quiet: true });
+            return true;`, { timeout: 15000 });
+    }
+    const stoodInRoom = victim.before?.p2?.target !== null && victim.before?.p2?.target !== undefined;
+    check("E: a character killed in secret keeps the voice room they stood in, and nobody in the main room hears them in the list 'Who you hear' or its count",
+        J(victim.after?.p2?.target) === J(victim.before?.p2?.target) && heard?.rows?.includes(IDS.p2) === false && heard?.count === String(heard?.rows?.length || ""),
+        J({ victim, heard }),
+        { knownLeak: "A9-K3", measured: victim.actor === true && stoodInRoom && victim.secret === true && heard?.room === true && heard?.open === true });
 }

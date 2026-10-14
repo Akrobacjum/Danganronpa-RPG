@@ -33,7 +33,7 @@
  *
  * WHAT IT CANNOT SETTLE (the plan's 2.2; D26 = 3): real audio, how late LiveKit says somebody is
  * speaking, Foundry's own rules against a hidden dock at a table, audio from a hidden dock after F5,
- * and avclient-livekit's private API after 0.6.8 - LIVE-E78 rows and the owner's T1. Where the real
+ * and avclient-livekit's private API after 0.6.8 - LIVE-E78-01, LIVE-E78-07 and the owner's T1 (LIVE-E78-10). Where the real
  * behaviour is not known the shim lets a call through rather than refusing it: `toggleAudio` is
  * recorded and does nothing else, and the audio element plays as soon as it is attached (autoplay at
  * a table is T1's second item).

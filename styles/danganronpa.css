@@ -605,7 +605,11 @@
    because a custom property's var() is resolved where it is declared: from :root these
    would have missed the Stained Glass row (declared on `body.drpg-theme-stained-glass`)
    and the camera dock's lift (camera-view.mjs writes `--drpg-av-lift` inline on `body`),
-   and resolved them with the Legacy row and no lift. Measured in Chromium on the grid
+   and resolved them with the Legacy row and no lift. Since E78 (1.2.77) the dock is out of
+   sight while the voice tile stands in for it, and `applyDockHidden` measures it again as it
+   hides it - a dock with `display: none` has no height, so the lift is then 0 (read in the
+   code: camera-view.mjs `measureCameraDock`, not measured at a table); the lift is a dock's
+   again only with the GM's `voiceTile` off or no LiveKit. Measured in Chromium on the grid
    mockup's page with these sheets (12.10): moved to :root, the Stained Glass gaps came out
    12.77 px instead of 6, and with a 300 px lift the roster's foot stayed 292 px under the
    chat's top, over the buttons it opens from. Headless the harness resolves an inherited
@@ -641,8 +645,10 @@ body {
        handbooks on a row of their own (`--drpg-launch-u-bottom`, above) and left these two
        as they were, so on a GM's screen the corner now stands taller than this height: by
        the tokens' sum the upper row's top is 2 x 47.88 + 44 = 139.76 px over the edge under
-       Stained Glass (not read on a screen). E78 takes them over, and with them the question
-       whether the foot counts that row. */
+       Stained Glass (not read on a screen). The A7 design gave them to E78, and with them the
+       question whether the foot counts that row; E78 (1.2.77) left both as they were - its voice
+       tile is a pane of the curtain or a row of the stack, not a thing on this foot - so the
+       question is still open. */
     --drpg-launch-h: calc(var(--drpg-launch-m-bottom) + var(--drpg-launcher));
     --drpg-stack-foot: calc(var(--drpg-edge) + var(--drpg-launch-h) + 8px + var(--drpg-av-lift, 0px));
     /* THE GM'S ROSTER OVER THE UPPER ROW (E77 fix r2-H3, 13.10.2026; the round-2 question Q6). On the
@@ -652,7 +658,8 @@ body {
        of each answered `elementFromPoint` with the roster. Its foot is 8 px over the upper row's top
        instead, the camera dock's lift with it: none covered at those sizes and at 640x360, where
        its top stands 8 px inside the screen in both themes. The stack's foot above stays as it was
-       (E78's question). Only a GM opens the roster, and every GM's corner has the row. */
+       (the A7 design's question for E78, still open after it: above). Only a GM opens the
+       roster, and every GM's corner has the row. */
     --drpg-roster-foot: calc(var(--drpg-edge) + var(--drpg-launch-u-bottom) + var(--drpg-launcher-small) + 8px + var(--drpg-av-lift, 0px));
 }
 
@@ -6362,7 +6369,9 @@ body.drpg-pixel-font .drpg-popup-title {
    see scripts/camera-view.mjs, which also swaps the displayed name for the
    character's. Deliberately only colour and accent here, not layout: this is
    core markup this module does not own, and restructuring it is a much
-   easier thing to get wrong than tinting it.
+   easier thing to get wrong than tinting it. Since E78 (1.2.77) the dock is out of sight
+   while the voice tile stands in for it (THE DOCK OUT OF SIGHT, below), so this tint is seen
+   only with the GM's `voiceTile` off or where the tile is not available.
    ========================================================================== */
 
 .drpg-camera-dock {
@@ -6404,8 +6413,8 @@ body.drpg-pixel-font .drpg-camera-dock .camera-view .name {
    out compute `display: none` and stay in the document: avclient-livekit plays everybody's sound
    through the `<audio>` elements inside them, so removing them would silence the table (R541 reads
    both, and that the elements stay). `!important` because Foundry's own rules show the dock; whether
-   this wins over them at a table, and whether a hidden dock still plays after F5, are the owner's T1
-   and LIVE-E78 rows, not measured here. The GM's `voiceTile` off drops the class. */
+   this wins over them at a table, and whether a hidden dock still plays after F5, are LIVE-E78-01
+   and the owner's T1 (LIVE-E78-10), not measured here. The GM's `voiceTile` off drops the class. */
 body.drpg-dock-hidden #camera-views,
 body.drpg-dock-hidden .application[id^="camera-view-"] {
     display: none !important;

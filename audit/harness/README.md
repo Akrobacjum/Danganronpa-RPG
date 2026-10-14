@@ -384,7 +384,8 @@ makes a critical certain, no rally die), and every roll at a table.
   `<audio>` per remote user whose volume and mute every attach writes from the
   client settings. Its names are the A9 design's reading of avclient-livekit
   0.6.8 (not re-read here); real audio, how late a speaker is named, the hidden
-  dock at a table and audio after F5 are LIVE-E78 rows and the owner's T1.
+  dock at a table and audio after F5 are LIVE-E78-01, LIVE-E78-02 and the
+  owner's T1 (LIVE-E78-10).
 - **Versions** (E30, `lib/versions.mjs`). Foundry and Daggerheart are the
   versions `module.json` says the module is verified on; the companion modules
   it requires or recommends take theirs from an installed Foundry when
