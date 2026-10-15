@@ -151,7 +151,7 @@ export function crossingVia(route, actor, sceneId, level = null, { mastermind = 
  * Foundry asks one class whether a token's move meets a wall: `CONFIG.Canvas.polygonBackends.move`, a
  * ClockwiseSweepPolygon whose `_identifyEdges()` gathers the walls a move or a collision test reads - the
  * drag, the ruler, the keyboard and `testCollision` alike, as the design read Foundry 14.365 on 11.10.2026
- * (clockwise-sweep.mjs:228-288, edges/edge.mjs:23; not readable here; a live row is owed to the stage's AUDIT 9.2). At `setup` this module
+ * (clockwise-sweep.mjs:228-288, edges/edge.mjs:23; not readable here; at a table: LIVE-E79-01). At `setup` this module
  * puts a subclass in its place, `PassageMovePolygon`, whose `_identifyEdges()` asks Foundry's first and then
  * replaces the edge of a passage's wall with the pieces of it on either side of the passage - for a move
  * polygon only, and only where the moving token's own character knows the passage. Sight, light and sound
@@ -341,7 +341,10 @@ function cleanCopy(passages, stamps) {
 }
 
 /* The GM whose world this browser was last told has loaded (gm-bridge.mjs `drpgPrimaryReady`): counted as
-   connected when the primary is worked out, since its answer can come before this browser sees it connect. */
+   connected when the primary is worked out, since its answer can come before this browser sees it connect, and
+   forgotten when it leaves (since E79 C8, 1.2.79). Kept after it left, it named a GM that was gone: 65 X (15.10.2026)
+   measured every player refusing the primary's copy as "not sent by the primary GM" once a GM that sorts first had
+   loaded and left in phase U, until the player reloaded. */
 let arriving = null;
 
 /**
@@ -390,6 +393,9 @@ export function registerPassages() {
         Hooks.on("drpgPrimaryReady", primary => {
             arriving = primary ?? null;
             requestPassages(primaryGmId({ arriving }));
+        });
+        Hooks.on("userConnected", (user, connected) => {
+            if (!connected && user?.id === arriving) arriving = null;
         });
     });
 }

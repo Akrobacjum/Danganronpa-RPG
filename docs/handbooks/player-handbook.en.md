@@ -128,6 +128,8 @@ You are turned back by:
 
 Your GM may turn off the price of crossings; then which rooms connect, the stairs included, is theirs to judge outside an Eclipse.
 
+**Secret passages.** Some walls hide a secret passage. When your character knows one, your token goes through that stretch of wall as through a door, and the step is a crossing like any other; to everybody else it is a wall. A passage takes you into somebody else's bedroom without a key; a locked door, a sealed room, being Chained and a Class Trial still turn you back. Your sheet lists the passages you know under **Known passages**: a name shows its passage on the map, and **the way is shut** beside it means it does not open for you from where you stand. **Show the passage** shows it to another student in the same room, who can walk through it from then on: it costs no action, a GM has to be connected, and the GMs are told. A GM may also give you a passage, and some you know from the season's start; a season's reset leaves you only those. Everybody sees your token go through, as they see any token move.
+
 ### What you can see
 
 - The room you are in is in full colour. Rooms you have already visited show through a veil. The rest of the school is fogged until you walk into it - a room is discovered by entering it, once, per character. During an Eclipse even the room you stand in is only veiled.

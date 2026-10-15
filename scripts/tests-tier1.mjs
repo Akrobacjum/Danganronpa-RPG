@@ -13250,7 +13250,7 @@ const INVARIANTS = [
             + "it again], dockHiddenFor over (available, on), the voiceTile and voicePeerMutes registrations, refreshVoiceTile deciding with the setting, "
             + "[voiceAvailable and the dock hidden: DISABLED, AUDIO, VIDEO, AUDIO_VIDEO with avclient-livekit, AUDIO without], its facts read and asked");
     }],
-    ["R554 - the passages' records: a row holds the map's fields with its shape and a stretch on its wall, two GMs' cells are merged cell by cell, a browser keeps a cell's first `how` and each GM's grant is added to `by`, the log keeps its newest 200, and the reset's passages group cuts who knows them and never the map", async () => {
+    ["R554 - the passages' records: a row holds the map's fields with its shape and a stretch on its wall, two GMs' cells are merged cell by cell, a browser keeps a cell's first `how` and each GM's grant is added to `by`, the log keeps its newest 200, and the reset's passages group cuts who knows them and never the map, and gives each passage's start access back with every knower's copy stamped again", async () => {
         /*
          * E79 C1, 14.10.2026; the E79 plan's A10-1 (its reset half is C8's). A secret passage is the GMs' alone:
          * three GM stores (gm-stores.mjs `passageMapStore`, `passageAccessStore`, `passageLogStore`) written by
@@ -13339,6 +13339,31 @@ const INVARIANTS = [
         equal(J([Object.keys(A.log.entries()).length, rows.length, rows[0]?.what, rows[0]?.actorId === s2, rows.some(r => r.actorId === s1)]),
             J([P.PASSAGE_LOG_ROWS, 200, "grant", true, false]),
             "[rows held, rows listed, the newest row's kind, its student, any of s1's two left] - the log does not keep exactly its newest 200");
+
+        /*
+         * The reset half (E79 C8, 15.10.2026; the plan's A10-1, step 17). The season's reset of the "passages" group on the
+         * primary (GM A): the map stays, who knows each passage goes but its start access, which comes back as a cell
+         * `how: "start"` for each student of this world the row names (a second row names s2 and an id that is nobody's,
+         * and is closed), and the log starts empty; every character whose copy changed - s1, s2 and the Mastermind - reads a
+         * newest stamp past the one before (the clear's watermark), or a copy the reset's cut emptied would refuse the one
+         * sent after it. Red on C1's
+         * step (C7's tree, 15.10.2026, run alone) at the first assertion, `[true,[],null,null,0]`: every cell went, the
+         * start ones with them (the stamps' assertion after it was not reached).
+         */
+        const id2 = "R554SCENE.r554p2", ghost = "R554NOBODY000000";
+        await A.map.patch(id2, { ...built.row, passageSeg: { x1: 350, y1: 400, x2: 450, y2: 400 }, state: "closed", startAccess: [s2, ghost] });
+        await A.mastermind.patch(G.RECORD, { actorId: "R554MM" });
+        const mapBefore = G.stableJson(A.map.entries());
+        const touchedBefore = Object.fromEntries([s1, s2, "R554MM"].map(a => [a, A.access.newest(`touch/${a}`)]));
+        t += 10;
+        equal(await P.passagesAfterReset({ stores: A }), 0, "a reset on the suite's own stores sent a copy to somebody");
+        const after = A.access.entries();
+        equal(J([G.stableJson(A.map.entries()) === mapBefore, Object.keys(after).filter(k => !k.startsWith("touch/")).sort(),
+            after[cell1]?.how, after[`${id2}/${s2}`]?.how, Object.keys(A.log.entries()).length]),
+        J([true, [cell1, `${id2}/${s2}`].sort(), "start", "start", 0]),
+        "[the map unchanged, the cells left, s1's and s2's `how`, the log's rows] - the reset took a passage or its start access, kept a granted or shown cell, named nobody's id or left the log");
+        equal(J([s1, s2, "R554MM"].map(a => A.access.newest(`touch/${a}`) > touchedBefore[a])), J([true, true, true]),
+            "[s1's, s2's and the Mastermind's newest stamp past the one before the reset] - a copy the cut emptied would not take the one sent after it");
     }],
 
     ["R555 - a player's copy of the passages: only open passages a character the player owns knows, its knowers only theirs and no name or room, a stamp per owned character; the Mastermind's owner every open one, a Monokuma's nothing; a revoke, a Close, a Delete and a Mastermind change drop the row and are taken; the push is addressed to each player alone; a copy is taken only from the primary GM", async () => {
@@ -13458,7 +13483,7 @@ const INVARIANTS = [
          * it, a half-cut polygon after a throw, and a backend wrapped twice. Run on polygons, edges and copies of the
          * suite's own (`known`, in the copy's shape), and on a backend table of its own: nothing of this world is read
          * but the live backend's PATCHES row and Foundry's sight backend. What a real Foundry's sweep does with the cut
-         * edges is a live row owed to the stage's AUDIT 9.2; scenario 76 B drives the harness's backend through `testCollision`.
+         * edges is LIVE-E79-01; scenario 76 B drives the harness's backend through `testCollision`.
          */
         const L = await import("./passages.mjs");
         const { PATCHES } = await import("./patches.mjs");
@@ -13579,7 +13604,7 @@ const INVARIANTS = [
          * listeners. Read on a scene of plain objects (a Lab over a Vault, a passage in the wall between them) and rows
          * of the suite's own in the copy's shape (`known`), with fog-doorways.mjs `viewerPassages` asked as a player's
          * browser (`gm: false`); nothing of this world is read but the module's own listener table and its source. What
-         * the outline then looks like is a look at a table (the E79 plan's 5.2, AUDIT 9.2 at the release): the harness's polygons contain no point, so `doorwayEdges` opens no
+         * the outline then looks like is a look at a table (LIVE-E79-05): the harness's polygons contain no point, so `doorwayEdges` opens no
          * doorway headless (E12 C2b) and its two outlines are compared as measured, not as drawn; scenario 76 C reads the
          * same comparison on the players' browsers.
          */

@@ -24,7 +24,7 @@
  * Since C7 a player shows a passage their character knows to a student beside them (`sharePassage`,
  * judged by `shareRefusal` on the primary GM, asked as gm-bridge.mjs `passage.share`).
  *
- * What it does not do yet: the reset's start access (C8).
+ * The season's reset gives back each passage's start access (`passagesAfterReset`, since C8).
  */
 
 import { MODULE_ID } from "./config.mjs";
@@ -147,15 +147,34 @@ export async function retellPassages() {
 /**
  * The season reset's "passages" step (season-setup.mjs `wipeSeason`), on the primary GM: who
  * knows each passage and the log go - the group's cut, written first, takes them on every GM and
- * every player's copy, and this clears what this browser holds - and the copies are told again.
- * The passages stay. Giving back each one's start access is C8's.
+ * every player's copy, and this clears what this browser holds - then each passage's start access
+ * comes back (a cell `how: "start"`, for each student of this world its row names), and the copies
+ * of everybody who knew a passage, was given one back or is the Mastermind are told again. The
+ * passages stay; the reset writes no log row, so the log starts the season empty.
+ *
+ * Since E79 C8 (1.2.79). The start cells are written here, after the clear, and not in the group's
+ * `onCut`: the cut is applied when the clock's cuts are written, before this step, so a cell written
+ * there would be cleared by this step's own `clear()`, while one written after it is stamped past the
+ * cut's watermark and reaches the other GMs by the exchange. No `touch` row is written: the clear's
+ * watermark is every key's newest decision (gm-store.mjs `newest`), so each knower's copy is stamped
+ * past the cut by it, and a player's copy the cut emptied takes the new one. Measured 15.10.2026: a
+ * `touch` of every knower and of the Mastermind here, in C8's first draft, changed nothing of R554 or
+ * 65-season X. The suite's own stores tell nobody: only the module's send the copies.
  */
 export async function passagesAfterReset({ stores = PASSAGE_STORES } = {}) {
     for (const store of [stores.access, stores.log]) {
         if (isPrimaryGm()) await store.clear();
         else await store.dropMany(Object.keys(store.entries()));
     }
-    return retellPassages();
+    const at = serverNow(), who = game.user?.id ?? null, cells = {};
+    for (const [id, row] of Object.entries(stores.map.entries())) {
+        for (const actorId of Array.isArray(row?.startAccess) ? row.startAccess : []) {
+            if (!studentOf(actorId)) continue;
+            cells[`${id}/${actorId}`] = { how: "start", at, by: { [who]: at } };
+        }
+    }
+    if (Object.keys(cells).length) await stores.access.patchMany(cells, { fillOnly: true });
+    return stores === PASSAGE_STORES ? retellPassages() : 0;
 }
 
 /* ----------------------------------------------------------------------------------------- *

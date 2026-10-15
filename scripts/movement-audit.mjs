@@ -16,8 +16,8 @@
  *
  * Its own geometry repeats Foundry's rule for a wall as far as the plan names it (risk K1-K3):
  * a wall that does not restrict movement, an open door, a one-way wall seen from its open side,
- * and the floors; Foundry's own source was not read for it, and a live row is owed to the stage's
- * AUDIT 9.2 (the audit in "log" mode at a table, with a GM on another scene and with floors). E17
+ * and the floors; Foundry's own source was not read for it, and the audit in "log" mode at a table,
+ * with a GM on another scene and with floors, is LIVE-E79-02. E17
  * extends `auditMove` (and decides the default) rather than writing a second audit.
  */
 

@@ -1450,7 +1450,8 @@ async function wipeSeason(plan) {
             await clearMastermind();
         },
         // Who knows each secret passage and the GMs' log of them (E79 C1): the cut written first takes both on
-        // every GM and every player's copy, and this tells the players their copies again. The passages stay.
+        // every GM and every player's copy; this gives each passage's start access back (E79 C8) and tells the
+        // players their copies again. The passages stay.
         passages: () => import("./passages-gm.mjs").then(m => m.passagesAfterReset()),
 
         deaths: async () => {

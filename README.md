@@ -279,9 +279,12 @@ what is in their hands, and hides their traits, Hope and the rest of their
 inventory. Where the traces lie, the GM's plan for the key clues and, until the
 lights come up, a murder declared during the Eclipse are all world data. A
 token the GM hides is hidden from view only: Foundry sends every token, with its
-name and position, to every browser. <!-- leak:foundry-hidden-tokens --> It is
-a curtain, not a wall, and it works at a table that does not go looking behind
-it.
+name and position, to every browser. <!-- leak:foundry-hidden-tokens --> A
+secret passage, and who knows it, stay with the GMs and the students who know
+it, but every browser sees a token cross the wall where one runs
+<!-- leak:foundry-passage-crossing --> and sees a room whose only way in is a
+secret passage. <!-- leak:foundry-passage-only-room --> It is a curtain, not a
+wall, and it works at a table that does not go looking behind it.
 
 **Several GMs.** The primary GM's browser writes the shared world state. The
 other GMs' changes are sent to it, and any GM can answer a card.

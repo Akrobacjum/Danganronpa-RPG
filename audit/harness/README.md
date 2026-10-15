@@ -387,6 +387,17 @@ makes a critical certain, no rally die), and every roll at a table.
   0.6.8 (not re-read here); real audio, how late a speaker is named, the hidden
   dock at a table and audio after F5 are LIVE-E78-01, LIVE-E78-02 and the
   owner's T1 (LIVE-E78-10).
+- **Secret passages** (E79, 1.2.79). Foundry's move backend is `lib/shim.mjs`'s
+  `CONFIG.Canvas.polygonBackends`, written from the design's reading of
+  Foundry 14.365, not copied from it: whether v14 cuts a passage's wall for a
+  drag, the ruler, the keyboard and an update from code is LIVE-E79-01, and
+  the GMs' audit at a table, with a GM on another scene and with floors, is
+  LIVE-E79-02 (`sendBack` mode only after it, LIVE-E79-07). Two floors with
+  Isometric Perspective, a show between two players, the gap, the overlay and
+  the list as drawn, and the GMs' two-click pick are LIVE-E79-03 to -06. What
+  a player with a console always sees of a passage is two Foundry limits in
+  `known-leaks.json`, read in 65-season X: a token crossing its wall, and a
+  room whose only way in is one.
 - **Versions** (E30, `lib/versions.mjs`). Foundry and Daggerheart are the
   versions `module.json` says the module is verified on; the companion modules
   it requires or recommends take theirs from an installed Foundry when

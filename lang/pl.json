@@ -4042,7 +4042,7 @@
         "stashesFound": "Skrytki, które każdy uczeń już znalazł, a każda ukryta skrytka znów otwarta",
         "projects": "Projekty, naprawy i ich Countdowny",
         "mastermind": "Mastermind",
-        "passages": "Kto zna które tajne przejście (same przejścia zostają)",
+        "passages": "Kto zna które tajne przejście (przejścia zostają, a kto znał je na start sezonu, zna je znowu)",
         "seals": "Wciąż obowiązujące Despair Calls i każdy Call uzbrojony na rzut",
         "motive": "Motive",
         "rules": "Stałe zasady Monokumy",

@@ -128,6 +128,8 @@ Zawraca cię:
 
 GM może wyłączyć cenę przejść; wtedy to, które pokoje się łączą, razem ze schodami, ocenia sam poza Eclipse.
 
+**Tajne przejścia.** Niektóre ściany kryją tajne przejście. Gdy twoja postać je zna, twój token przechodzi przez ten odcinek ściany jak przez drzwi, a krok to przejście jak każde inne; dla wszystkich innych to ściana. Tajne przejście prowadzi do cudzej sypialni bez klucza; zamknięte drzwi, zapieczętowany pokój, Chained i Class Trial nadal cię zawracają. Karta postaci wypisuje znane ci przejścia pod **Znane tajne przejścia**: nazwa pokazuje przejście na mapie, a **droga zamknięta** obok niej znaczy, że z miejsca, w którym stoisz, się nie otwiera. **Pokaż tajne przejście** pokazuje je innemu uczniowi w tym samym pokoju, który od tej chwili też może nim przechodzić: nie kosztuje akcji, musi być połączony GM, a GM-owie się o tym dowiedzą. GM może też dać ci tajne przejście, a niektóre znasz od startu sezonu; reset sezonu zostawia ci tylko te. Wszyscy widzą, jak twój token przechodzi, tak jak widzą każdy ruch tokenu.
+
 ### Co widzisz
 
 - Pokój, w którym jesteś, jest w pełnym kolorze. Pokoje, w których już byłeś, prześwitują zza zasłony. Reszta szkoły tonie we mgle, dopóki do niej nie wejdziesz - pokój odkrywa się wejściem, raz, per postać. Podczas Eclipse nawet pokój, w którym stoisz, jest tylko za zasłoną.

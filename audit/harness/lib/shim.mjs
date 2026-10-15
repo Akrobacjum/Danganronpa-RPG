@@ -942,7 +942,7 @@ export function buildDocumentClasses(ctx) {
  * FOUNDRY'S MOVE BACKEND, AS FAR AS A WALL TEST GOES (E79 C2, 14.10.2026). Until C2 the harness had
  * no `CONFIG.Canvas.polygonBackends`, so fog-doorways.mjs `nothingInTheWay` answered "clear" for
  * every ray and passages.mjs found no class to extend. Written from the shape the design read in
- * Foundry 14.365 on 11.10.2026 (clockwise-sweep.mjs:228-288, edges/edge.mjs:23; a live row is owed to the stage's AUDIT 9.2), not
+ * Foundry 14.365 on 11.10.2026 (clockwise-sweep.mjs:228-288, edges/edge.mjs:23; at a table: LIVE-E79-01), not
  * copied from its source: `testCollision(origin, dest, { mode, ...config })` rounds both ends to
  * whole pixels, builds an instance, `initialize`s it and asks `_testCollision`, which gathers the
  * edges with `_identifyEdges()` into `this.edges`, a Set of `Edge`s whose id is their wall's.

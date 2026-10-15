@@ -2036,8 +2036,7 @@ async function chargeForCrossing(actor, from, to, tokenDoc = null, previous = nu
  * `constrainOptions.ignoreWalls` keeps a wall between the two from stopping it - one road for
  * every refusal, the GMs' audit's (movement-audit.mjs) included, which plays no sound on the GM's
  * browser (`sound`) and tells the mover once the write has landed (`landed`, with whether it wrote).
- * Whether v14 honours the option on an update is not read here; a live row is owed to the
- * stage's AUDIT 9.2.
+ * Whether v14 honours the option on an update is not read here: LIVE-E79-02.
  */
 async function sendBack(tokenDoc, previous, room, { sound = true, landed = null } = {}) {
     if (!tokenDoc || !previous) return;

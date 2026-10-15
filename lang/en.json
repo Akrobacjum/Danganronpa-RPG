@@ -3835,7 +3835,7 @@
         "stashesFound": "The stashes each student has already found, and every hidden stash open again",
         "projects": "Projects, repairs and their countdowns",
         "mastermind": "The Mastermind",
-        "passages": "Who knows each secret passage (the passages themselves stay)",
+        "passages": "Who knows each secret passage (the passages stay, and whoever knew one at season start knows it again)",
         "seals": "Despair Calls still in force, and every Call armed for a roll",
         "motive": "The motive",
         "rules": "Monokuma's standing rules",

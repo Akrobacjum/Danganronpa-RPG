@@ -80,8 +80,7 @@
  *   A stair link is R559's alone: the harness world has no floors on this scene.
  *
  * What the harness cannot settle - a real canvas's move backend, the ruler and the keyboard, a GM on
- * another scene at a real table - is the stage's LIVE rows, which AUDIT 9.2 gets with C8 (the check that
- * reads their ids waits for them).
+ * another scene at a real table - is LIVE-E79-01 to LIVE-E79-07 (AUDIT 9.2, since C8).
  */
 import { worldScan } from "../lib/canary.mjs";
 
@@ -309,7 +308,7 @@ const PHASE_B = "B: the client's cut - the move backend lets Aiko's token throug
 /* Phase A's wall runs 1100-1400 at y 400 and its passage 1234.5-1300.5 (the marker): a step down across the
    passage's middle, one across the wall beside it, the same through the passage for sight, and for a move with no
    token - each asked of `CONFIG.Canvas.polygonBackends` on one client with one seeded token, as Foundry asks it
-   for a token's move (`source.object`, the placeable; the design's reading of 14.365, a live row is owed to the stage's AUDIT 9.2). True is "a
+   for a token's move (`source.object`, the placeable; the design's reading of 14.365; at a table: LIVE-E79-01). True is "a
    wall is in the way". */
 const crossing = (client, tokenId) => client.eval(`
     const backends = CONFIG.Canvas.polygonBackends, object = canvas.tokens.get(${J(tokenId)}) ?? null;

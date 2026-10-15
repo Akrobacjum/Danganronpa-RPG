@@ -4032,9 +4032,8 @@ body.drpg-reduced-motion .application.sheet.actor .character-header-sheet .name-
 }
 
 /* The Passages tab (E79 C5; passages-tab.mjs), as the plan's D31 mockup drew it: its four columns one
-   width a kind, as the others' are (choices of the mockup, not readings; the tab at a desk is a row owed to AUDIT
-   9.2 at the release), a chip per student that is the module's `.drpg-room-chip`, the way each learnt the passage
-   dimmed after the name, the students '+' offers hidden until it is pressed, and the state's lines
+   width a kind, as the others' are (choices of the mockup, not readings; the tab at a desk is LIVE-E79-06),
+   a chip per student that is the module's `.drpg-room-chip`, the way each learnt the passage dimmed after the name, the students '+' offers hidden until it is pressed, and the state's lines
    wrapping inside their column as a room's name does below. */
 .drpg-room-setup-table .drpg-col-knows { width: calc(360px * var(--drpg-legacy-scale, 1)); }
 .drpg-room-setup-table .drpg-col-knows-start { width: calc(220px * var(--drpg-legacy-scale, 1)); }
