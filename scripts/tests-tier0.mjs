@@ -384,9 +384,9 @@ const REGRESSIONS = [
             "voice-client.mjs": "room membership, keyed by the sender",
             // E31 review: it passed on text elsewhere in the file (the runner, the guards); this is its own reason.
             "bridge-guards.mjs": "the answers to this client's own requests: taken only from a GM, for its own pending id; acts on no actor",
-            // E79 C1 (1.2.78): `payload.userId` is the copy's address, compared with this user's own id; R555 holds the rule (`passageRowsRefusal`).
+            // E79 C1 (1.2.79): `payload.userId` is the copy's address, compared with this user's own id; R555 holds the rule (`passageRowsRefusal`).
             "passages.mjs": "a player's copy of the secret passages: taken only from the primary GM, addressed to this user, and cut to the characters it stamps; acts on no actor",
-            // E79 C4 (1.2.78): `payload.userId` is the address, `sceneId` and `tokenId` only name the room the line says; `sentBackRefusal` holds the rule.
+            // E79 C4 (1.2.79): `payload.userId` is the address, `sceneId` and `tokenId` only name the room the line says; `sentBackRefusal` holds the rule.
             "movement-audit.mjs": "the GMs' word that a token of this user's was put back from a wall: taken only from the primary GM, addressed to this user, with a code it knows; plays a sound and shows a line, and acts on no actor"
             // E10 C2 (1.2.71): vote.mjs is off the list. A ballot reaches the GMs on the bridge (`vote.cast`), and
             // the one packet its listener still takes, a GM's ballot, names no id.
@@ -9300,6 +9300,18 @@ const REGRESSIONS = [
          * (WALLS). E79 C5 adds 2: the primary GM's watch on a passage's wall, moved and deleted (HOOK). E79 C6 adds 1:
          * the walls a GM's pick on the board snaps to and a broken passage is picked again on (WALLS). E79 C7 adds 1: a
          * player's show of a passage, the bridge's packet judged on the primary GM (ACT).
+         * E79 fix r1-G4 adds 12 (15.10.2026, review r1 SEC S4: the reader knew five events, so a new handler on one that
+         * retells a player's copy or writes the access list was held to nothing). Two events of the stage's own, read in
+         * every file: drpgRouteSettled (record: the primary's revoke of a student who left the room, and the room tile's
+         * repaint) and drpgPassagesChanged (screen: the outline and the 'Known passages' page). And in the passage
+         * family's own files (FAMILY) every hook but the registration's (`ready`, `init`, `setup`) and every
+         * `onGmStoresAudible` call, each with its event's sink from FAMILY_SINKS - an event that table does not name
+         * reads "unsorted", which no row names, so a new event there fails until it is sorted and given a row.
+         * updateActor, deleteActor, clientSettingChanged and userConnected are read in the family alone: 14, 2, 14 and
+         * 11 files of scripts/ listen to them (counted 15.10.2026), and outside the family none of those handlers reads
+         * a passage's row (read in the code that day: sheet.mjs, the one of them that imports the family, forgets a
+         * Tamper and repaints a resource there). The parse-only census does not read these 12; the two are compared on
+         * the rest.
          * It reads names and text, not a syntax tree, as R534 does. Two places where it keys otherwise than the parse-only
          * census: a road inside a named inner function or a method (the census keys it by that name, this reader by the
          * top-level declaration), and a top-level declaration of several names (the census joins them, this reader takes
@@ -9313,7 +9325,8 @@ const REGRESSIONS = [
          * scene on screen, an option read with no row, a second updateToken hook) red by an assertion.
          * The reader is run first on a fixture: one road of each kind, a road in a comment and one in a string, a
          * computed key that is a write, an array after `return`, a top-level hook, a store of another name and the two
-         * settings; then the judge on a planted table with a road without a row, a "-> *" row and a stale key.
+         * settings, and (E79 fix r1-G4) a family file's hooks - one of an event FAMILY_SINKS does not sort - and a file
+         * outside the family whose updateActor and `onGmStoresAudible` are not read; then the judge on a planted table with a road without a row, a "-> *" row and a stale key.
          */
         const PASSAGE_CENSUS = [
             // ---- the hooks that read a moved token
@@ -9370,10 +9383,28 @@ const REGRESSIONS = [
             ["ACT gm-bridge.mjs#ACTION_PASSAGE_SHARE#passage.share -> *", "judged on the primary GM: `knownSender` and `owns(\"actorId\")`, then passages-gm.mjs `shareRefusal` - the phase, the giver alive, in no incident and no Monocub, the giver's own cell of a secret passage (a closed, unknown or made-up one refused alike), both in one room, scene and floor now, the one shown it alive; `sharePassage` writes the records and pushes the copies (R562; 76 G)"],
             // ---- the Passages tab's watch on a passage's wall (E79 C5)
             ["HOOK passages-gm.mjs#registerPassagesGm#updateWall/onWallMoved -> record", "the primary GM only (`isPrimaryGm`), and only when the change carries `c`: a passage whose stretch is no longer on its wall's segment is marked broken in the GMs' records and drops out of every copy; the wall is never written (R561; 76 E)"],
-            ["HOOK passages-gm.mjs#registerPassagesGm#deleteWall/onWallDeleted -> record", "the primary GM only: every passage of the deleted wall is marked broken in the GMs' records and drops out of every copy (R561; 76 E)"]
+            ["HOOK passages-gm.mjs#registerPassagesGm#deleteWall/onWallDeleted -> record", "the primary GM only: every passage of the deleted wall is marked broken in the GMs' records and drops out of every copy (R561; 76 E)"],
+            // ---- the routes, the copies' retelling and what a copy redraws (E79 fix r1-G4, SEC S4)
+            ["HOOK passages-gm.mjs#registerPassagesGm#drpgRouteSettled/onRouteSettled -> record", "the primary GM only (`isPrimaryGm`): a student whose route settles outside the passage's rooms on the map loses a cell held 'Revoke when they leave the room' (`revokeLeavers`, R561; 76 E)"],
+            ["HOOK room-tile.mjs#registerRoomTile#drpgRouteSettled/inline -> record", "this file's own: the room tile repaints for the viewer's own token and writes no record; E79 adds no road through it"],
+            ["HOOK passages-gm.mjs#registerPassagesGm#clientSettingChanged/inline -> copy", "a GM's browser only (the `ready` hook returns on a player's): a change of the map, the access list or the Mastermind retells every player's copy from the GMs' records (`retellSoon`), quiet while tier 2 holds the stores (`gmStoresQuiet`); and the map's redraws the GMs' overlay"],
+            ["HOOK passages-gm.mjs#registerPassagesGm#updateActor/inline -> copy", "a GM's browser only: a change of an actor's ownership retells the copies from the GMs' records (read in the code)"],
+            ["HOOK passages-gm.mjs#registerPassagesGm#deleteActor/inline -> copy", "a GM's browser only: a deleted actor retells the copies from the GMs' records (read in the code)"],
+            ["HOOK passages-gm.mjs#registerPassagesGm#userConnected/inline -> copy", "a GM's browser only: a user coming or going retells the copies, since the Mastermind's door names its first connected owner (E79 fix r1-G2, SEC S2)"],
+            ["HOOK passages-gm.mjs#registerPassagesGm#gmStoresAudible/inline -> copy", "a GM's browser only: when tier 2 lets the stores speak again the copies are retold from the records (`onGmStoresAudible`, R184's rule)"],
+            ["HOOK passages.mjs#registerPassages#drpgPrimaryReady/inline -> copy", "a player's browser only: the copy is asked again of a primary GM whose world has loaded, and only that GM's answer is taken (`onPassageRows`, R555)"],
+            ["HOOK passages.mjs#registerPassages#userConnected/inline -> copy", "a player's browser only: an arriving primary GM that leaves is forgotten; it names whom a copy is taken from and nothing more"],
+            ["HOOK gm-overlay.mjs#registerGmOverlay#canvasReady/inline -> screen", "every browser asks, only a GM's draws: `gmOverlay` asks for a GM before it makes a layer (R560)"],
+            ["HOOK fog.mjs#registerFog#drpgPassagesChanged/inline -> screen", "this browser's outline redrawn from its own copy when the copy changes, with no sound (`redrawOutline`, R557)"],
+            ["HOOK sheet.mjs#registerSheetTweaks#drpgPassagesChanged/redrawPassageSheets -> screen", "the 'Known passages' page drawn again from this browser's own copy (R562)"]
         ];
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
-        const HOOK_SINKS = { updateToken: ["judge"], createToken: ["judge"], preUpdateToken: ["veto"], updateWall: ["record"], deleteWall: ["record"] };
+        const HOOK_SINKS = { updateToken: ["judge"], createToken: ["judge"], preUpdateToken: ["veto"], updateWall: ["record"], deleteWall: ["record"],
+            drpgRouteSettled: ["record"], drpgPassagesChanged: ["screen"] };
+        const FAMILY = /^(?:passages|passages-gm|passages-tab|gm-overlay|movement-audit)\.mjs$/;
+        const FAMILY_SINKS = { clientSettingChanged: ["copy"], updateActor: ["copy"], deleteActor: ["copy"], userConnected: ["copy"],
+            drpgPrimaryReady: ["copy"], gmStoresAudible: ["copy"], canvasReady: ["screen"] };
+        const REGISTRATION = new Set(["ready", "init", "setup"]);
         const ACT_SINKS = { "token.sendBack": ["write"], "move.sentBack": ["screen"], "passage.request": ["copy"], "passage.share": ["record", "copy"], "passage.rows": ["screen"] };
         const SET_SOURCES = { minePassages: [["primary", "console", "stale"], "screen"], moveAudit: [["gm"], "mode"] };
         const AUDIT_FILES = /^(?:movement-audit|passages|passages-gm)\.mjs$/;
@@ -9399,9 +9430,19 @@ const REGRESSIONS = [
                 for (const m of blank.matchAll(/(?<![\w$.])Hooks\s*\.\s*(?:on|once)\s*\(/g)) {
                     const { args } = callArgs(blank, m.index + m[0].length - 1);
                     const event = args[0] && code.slice(args[0].start, args[0].end).trim().match(/^(["'])([\w.]+)\1$/)?.[2];
-                    if (!Object.hasOwn(HOOK_SINKS, event ?? "")) continue;
+                    const sinks = Object.hasOwn(HOOK_SINKS, event ?? "") ? HOOK_SINKS[event]
+                        : FAMILY.test(file) && !REGISTRATION.has(event) ? (Object.hasOwn(FAMILY_SINKS, event ?? "") ? FAMILY_SINKS[event] : ["unsorted"]) : null;
+                    if (!sinks) continue;
                     const handler = args[1] ? code.slice(args[1].start, args[1].end).trim() : "";
-                    add("HOOK", file, declAt(m.index), `${event}/${/^[\w$]+$/.test(handler) ? handler : "inline"}`, HOOK_SINKS[event]);
+                    add("HOOK", file, declAt(m.index), `${event ?? "computed"}/${/^[\w$]+$/.test(handler) ? handler : "inline"}`, sinks);
+                }
+                if (FAMILY.test(file)) {
+                    for (const m of blank.matchAll(/(?<![\w$.])onGmStoresAudible\s*\(/g)) {
+                        if (/\bfunction\s*\*?\s*$/.test(blank.slice(Math.max(0, m.index - 24), m.index))) continue;
+                        const arg = callArgs(blank, m.index + m[0].length - 1).args[0];
+                        const handler = arg ? code.slice(arg.start, arg.end).trim() : "";
+                        add("HOOK", file, declAt(m.index), `gmStoresAudible/${/^[\w$]+$/.test(handler) ? handler : "inline"}`, FAMILY_SINKS.gmStoresAudible);
+                    }
                 }
                 for (const m of blank.matchAll(/([\w$]+|[)\]])\s*(?:\?\.\s*)?\[\s*(REVERT|SENT_BACK)\s*\]/g)) {
                     if (!KEYWORDS.has(m[1])) add("OPT", file, declAt(m.index), m[2], ["exempt"]);
@@ -9462,7 +9503,11 @@ const REGRESSIONS = [
             ["passages-gm.mjs", "Hooks.on(\"updateWall\", onWallChanged);\nconst ACTION_PASSAGE_SHARE = \"passage.share\";\n"],
             ["gm-stores.mjs", "export const passageMapStore = defineGmStore({\n    name: \"passageMap\", key: SETTINGS.passageMap\n});\n"
                 + "export const passageCopy = defineGmCopy({ name: \"passages\", key: SETTINGS.minePassages });\n"
-                + "export const doorCopy = defineGmCopy({ name: \"door\", key: SETTINGS.mineDoor });\n"]
+                + "export const doorCopy = defineGmCopy({ name: \"door\", key: SETTINGS.mineDoor });\n"],
+            ["passages-tab.mjs", "export function registerPassagesTab() {\n    Hooks.once(\"ready\", () => {\n        Hooks.on(\"updateActor\", retell);\n"
+                + "        Hooks.on(\"drpgSomethingNew\", () => retell());\n        onGmStoresAudible(() => retell());\n    });\n}\n"],
+            ["sheet-audit.mjs", "export function registerSheetAudit() {\n    Hooks.on(\"updateActor\", audit);\n    onGmStoresAudible(audit);\n"
+                + "    Hooks.on(\"drpgRouteSettled\", paint);\n}\n"]
         ], { minePassages: "minePassages", moveAudit: "moveAudit" });
         equal(JSON.stringify(planted), JSON.stringify([
             "HOOK movement.mjs#registerMovement#updateToken/noteGmPosition -> judge", "HOOK movement.mjs#registerMovement#createToken/inline -> judge",
@@ -9475,6 +9520,8 @@ const REGRESSIONS = [
             "HOOK passages-gm.mjs#Hooks.on(updateWall)#updateWall/onWallChanged -> record",
             "ACT passages-gm.mjs#ACTION_PASSAGE_SHARE#passage.share -> record", "ACT passages-gm.mjs#ACTION_PASSAGE_SHARE#passage.share -> copy",
             "STORE gm-stores.mjs#passageMapStore#passageMap -> record", "STORE gm-stores.mjs#passageCopy#passages -> copy",
+            "HOOK passages-tab.mjs#registerPassagesTab#updateActor/retell -> copy", "HOOK passages-tab.mjs#registerPassagesTab#drpgSomethingNew/inline -> unsorted",
+            "HOOK passages-tab.mjs#registerPassagesTab#gmStoresAudible/inline -> copy", "HOOK sheet-audit.mjs#registerSheetAudit#drpgRouteSettled/paint -> record",
             "SET settings.mjs#minePassages#primary -> screen", "SET settings.mjs#minePassages#console -> screen", "SET settings.mjs#minePassages#stale -> screen",
             "SET settings.mjs#moveAudit#gm -> mode"]),
             "the census reader does not read the planted fixture as planted - the live census below would measure the wrong roads");

@@ -1,5 +1,5 @@
 /**
- * Danganronpa RPG - the GMs' audit of a player's move through a wall (E79 C4, 1.2.78).
+ * Danganronpa RPG - the GMs' audit of a player's move through a wall (E79 C4, 1.2.79).
  * ---------------------------------------------------------------------------
  * A player's browser stops its own token at a wall: Foundry's move backend, cut where the
  * character knows a secret passage (passages.mjs, C2). A console steps past that browser, so the

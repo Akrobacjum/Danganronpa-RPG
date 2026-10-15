@@ -163,7 +163,7 @@ export const mastermindStore = defineGmStore({
 });
 
 /**
- * THE SECRET PASSAGES (E79 C1, 1.2.78; the E79 plan's 1b.1, decisions D2 and D38). A secret
+ * THE SECRET PASSAGES (E79 C1, 1.2.79; the E79 plan's 1b.1, decisions D2 and D38). A secret
  * passage is a stretch of a wall that a character who knows it may pass, and everything about
  * it is the GMs': where it is (`passageMapStore`), who knows it (`passageAccessStore`), what was
  * done with it (`passageLogStore`), and each player's copy of the open passages their own

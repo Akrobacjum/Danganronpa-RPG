@@ -13738,6 +13738,13 @@ const INVARIANTS = [
          * of this world is read but its seals and restrictions under names no world holds, and the module's source. The
          * seal and the chain are world settings tier 1 does not write: scenario 76 C sets each and reads the veto, and
          * drives the move itself. The Eclipse is not driven (its start is a write); its judge is read off the source.
+         * E79 fix r1-G4, 15.10.2026 (review r1 cor F4: a judge that asked with the wrong floors still passed a source
+         * regex): eclipse.mjs `judgeEclipseCrossing` is called as `crossingVerdict` is, with a running Eclipse's clock,
+         * the suite's rows (`known`) and a recorder for its warning and its count in place of the notice and the GM's
+         * count. At e19dcce this test passed with `floors = null;` planted before the judge's question (e79run
+         * scratch/r1g4-old.log): the knower crossed floors through the passage and the regex still matched. What it
+         * does not read: which rows the judge takes when it is handed none (the GMs' records on a GM, the copy on a
+         * player).
          */
         const M = await import("./movement.mjs");
         const R = await import("./rooms.mjs");
@@ -13787,9 +13794,23 @@ const INVARIANTS = [
         "[lines of restrictedFrom naming via (its signature and one rule), the bedroom's, a lock, seal or chain under via, both of the verdict's connected-rooms rules asking the passage, the courtroom under via]");
         const eclipse = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/eclipse.mjs`).then(r => r.text()));
         const judge = fnSource(eclipse, "judgeEclipseCrossing");
-        ok(/passesThrough\(actor, from, to, scene, floors\) \? false : crossingRefused\(scene, from, to, floors\)/.test(judge)
-            && (judge.match(/\brecordMove\(/g) ?? []).length === 1,
-        "the Eclipse's own judge does not ask the passage before the map, or counts a crossing other than once");
+        ok(/passesThrough\(actor, from, to, scene, floors, \{ known \}\) \? false : crossingRefused\(scene, from, to, floors\)/.test(judge)
+            && (judge.match(/\brecord\(/g) ?? []).length === 1 && /record = recordMove\b/.test(judge),
+        "the Eclipse's own judge does not ask the passage before the map in one place, or counts a crossing other than once");
+        // The Eclipse's verdicts, with a running Eclipse that is no free placement (the morning's, `eclipseAllowance`).
+        const E = await import("./eclipse.mjs");
+        const dark = { ...getClock(), eclipse: true, timeOfDay: "morning" };
+        const eclipseAt = async (actor, to, floors = null) => {
+            const said = [], counted = [];
+            const passed = await E.judgeEclipseCrossing(actor, LAB, to, scene, floors, { clock: dark, known,
+                warn: text => said.push(text), record: (who, into) => { counted.push([who.id, into]); return true; } });
+            return [passed, said, counted];
+        };
+        const UP = { from: "R558L1", to: "R558L2" };
+        equal(J([E.eclipseAllowance(dark) !== null, await eclipseAt(A, VAULT), await eclipseAt(B, VAULT), await eclipseAt(A, VAULT, UP), await eclipseAt(A, HALL)]),
+            J([true, [true, [], [["R558A", VAULT]]], [false, [M.crossingRefused(scene, LAB, VAULT)], []],
+                [false, [M.crossingRefused(scene, LAB, VAULT, UP)], []], [true, [], [["R558A", HALL]]]]),
+            "[a counted Eclipse, the knower through the passage, another character, the knower across floors, the map's own door] - the Eclipse's judge, its warning and its count");
 
         // The price is a door's, and what a room hears and where a body is found stay the map's.
         equal(J([M.crossingCost({ room: LAB }, { room: VAULT }), M.neighbouringRooms(scene, LAB)]), J([1, [HALL]]),

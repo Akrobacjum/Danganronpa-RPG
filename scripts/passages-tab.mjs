@@ -1,5 +1,5 @@
 /**
- * Danganronpa RPG - the Passages tab of Room Setup (E79 C5, 1.2.78).
+ * Danganronpa RPG - the Passages tab of Room Setup (E79 C5, 1.2.79).
  * ---------------------------------------------------------------------------
  * The GMs' table of the secret passages on the scene Room Setup was opened on, after the Doors
  * tab (vault.mjs `ROOM_SETUP_TABS`), drawn as the D31 mockup drew it (the E79 plan's 2.4): a row

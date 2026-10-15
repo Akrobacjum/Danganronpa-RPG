@@ -74,7 +74,7 @@ export const SETTINGS = {
     gmDeaths: "gmDeaths",
     mineDeaths: "mineDeaths",
     /**
-     * THE SECRET PASSAGES (E79 C1, 1.2.78): three GM stores (gm-stores.mjs) - where each
+     * THE SECRET PASSAGES (E79 C1, 1.2.79): three GM stores (gm-stores.mjs) - where each
      * passage is and its state (`passageMapStore`), who knows each one (`passageAccessStore`)
      * and what was done with them (`passageLogStore`) - and nothing in world data: a wall,
      * a region, a scene or a world setting reaches every browser. This user's own copy is

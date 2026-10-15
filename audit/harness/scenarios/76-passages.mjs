@@ -1,5 +1,5 @@
 /**
- * The secret passages (E79, 1.2.78; the E79 plan's 2.2): who may know a passage, on four clients.
+ * The secret passages (E79, 1.2.79; the E79 plan's 2.2): who may know a passage, on four clients.
  *
  * A secret passage lives in the GMs' store and in the copies addressed to whoever may use it, and
  * nowhere else - not on a Wall, a Region or the Scene, not in a setting, not on the wire to anybody

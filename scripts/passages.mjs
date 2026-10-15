@@ -1,5 +1,5 @@
 /**
- * Danganronpa RPG - the secret passages, as this browser may know them (E79, 1.2.78).
+ * Danganronpa RPG - the secret passages, as this browser may know them (E79, 1.2.79).
  * ---------------------------------------------------------------------------
  * A secret passage is a stretch of a wall that a character who knows it may pass. Where it
  * is and who knows it are the GMs' (gm-stores.mjs `passageMapStore`, `passageAccessStore`);

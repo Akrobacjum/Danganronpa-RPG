@@ -1,5 +1,5 @@
 /**
- * Danganronpa RPG - the secret passages, as the GMs keep them (E79, 1.2.78).
+ * Danganronpa RPG - the secret passages, as the GMs keep them (E79, 1.2.79).
  * ---------------------------------------------------------------------------
  * The GMs' records of the passages (gm-stores.mjs `passageMapStore`, `passageAccessStore`,
  * `passageLogStore`), what a GM does to them from the console (`game.drpg.passages`, api.mjs),
