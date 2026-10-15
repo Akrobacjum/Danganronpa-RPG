@@ -566,6 +566,32 @@
         "revokeLeave": "Odbierz po wyjściu z pokoju",
         "deleteTitle": "Usuń tajne przejście",
         "deleteAsk": "Usunąć tajne przejście {passage}? Każdy uczeń, który je zna, zapomina je."
+      },
+      "pick": {
+        "new": "+ Nowe przejście",
+        "newHint": "Dwa kliknięcia na ścianie między dwoma pokojami tego piętra.",
+        "title": "Nowe tajne przejście",
+        "retitle": "Wskaż tajne przejście jeszcze raz",
+        "step": "Kliknięcie {n} z 2",
+        "first": "Kliknij, gdzie zaczyna się tajne przejście, na ścianie między dwoma pokojami. Esc anuluje.",
+        "second": "Kliknij, gdzie kończy się tajne przejście, na tej samej ścianie. Esc anuluje.",
+        "cancel": "Anuluj",
+        "repick": "Wskaż ponownie",
+        "made": "Tajne przejście {passage} gotowe. Daj je uczniowi w zakładce Przejścia.",
+        "moved": "Tajne przejście {passage} znów jest na swojej ścianie.",
+        "why": {
+          "noWall": "Tu nie ma ściany. Kliknij na ścianie między dwoma pokojami.",
+          "door": "To są drzwi. Tajne przejście idzie w zwykłej ścianie.",
+          "noMove": "Ta ściana nikogo nie zatrzymuje, więc tajne przejście nic by w niej nie zmieniło.",
+          "notBetween": "Ta ściana nie stoi między dwoma różnymi pokojami.",
+          "levels": "Pokój po drugiej stronie jest na innym piętrze.",
+          "taken": "Na tym odcinku ściany jest już inne tajne przejście.",
+          "otherWall": "Koniec musi być na tej samej ścianie co początek.",
+          "otherRooms": "Koniec musi łączyć te same dwa pokoje co początek.",
+          "short": "Oba końce są za blisko siebie. Kliknij dalej wzdłuż ściany.",
+          "trial": "Sala rozpraw nie ma pokoi, więc nie ma też tajnych przejść.",
+          "board": "Ta mapa nie jest wyświetlona na tym ekranie. Otwórz scenę i spróbuj jeszcze raz."
+        }
       }
     },
     "Room": {

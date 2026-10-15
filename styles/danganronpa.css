@@ -56,6 +56,12 @@
     --drpg-blood-deep-rgb: 142, 18, 71;
     --drpg-blood-glow: rgba(var(--drpg-blood-rgb), 0.45);
     --drpg-remnant: #7a1440;           /* the Remnant ring - stage 6 rules on it */
+    /* The GMs' overlay on the board (E79 C6, gm-overlay.mjs): a secret passage's stretch in the
+       blood's pink, a closed one grey, a broken one red. Literal values, read by PIXI through
+       getComputedStyle, and one value in both themes: the map under them is the same. */
+    --drpg-passage-secret: #ff3d8b;
+    --drpg-passage-closed: #9a9a9a;
+    --drpg-passage-broken: #e5484d;
 
     /* --- gold: HOPE, and nothing else ------------------------------------
        The palette has always said "gold belongs to Hope". It could not be true
@@ -4060,6 +4066,13 @@ body.drpg-reduced-motion .application.sheet.actor .character-header-sheet .name-
 .drpg-passage-state[data-state="broken"] { color: var(--drpg-red); }
 .drpg-passage-state:is([data-state="pending"], [data-state="shared"]) { color: var(--drpg-dim); font-size: 0.9em; }
 .drpg-passage-actions { display: inline-flex; gap: 4px; flex-wrap: nowrap; }
+/* 'New passage' over the table, its line beside it, and the pick's window (E79 C6) with its one
+   button at the right, as the mockup drew them; a refused click's line in red. */
+.drpg-passage-bar { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; }
+.drpg-passage-bar .notes { margin: 0; }
+.drpg-passage-pick .form-footer { justify-content: flex-end; }
+.drpg-passage-pick .form-footer button { flex: none; }
+.drpg-passage-pick-why { color: var(--drpg-red); }
 
 /* A room's name wraps inside its 220 px rather than running under the next
    column: the dialog-table rule keeps every cell on one line, and a fixed

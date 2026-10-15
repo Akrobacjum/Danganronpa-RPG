@@ -18,15 +18,17 @@
  * Nothing here names a passage's wall or stretch (R560: the records' files alone do); Show asks
  * passages-gm.mjs for the stretch's middle. The table is redrawn whole after each button and when
  * the records change on another GM's browser (`keepFresh` on the three stores), so the tab holds
- * no field of its own to lose. New passages (the pick on the board) are C6's; E44 and E46 take the
- * tab's table with the other Room Setup tables when they rebuild them.
+ * no field of its own to lose. 'New passage' over the table, and 'Pick again' on a broken row,
+ * start the pick on the board (passages-gm.mjs `startPassagePick`, E79 C6): Room Setup is minimized
+ * for the two clicks and the table redrawn after them. E44 and E46 take the tab's table with the
+ * other Room Setup tables when they rebuild them.
  */
 
 import { error } from "./utils.mjs";
 import { keepFresh } from "./live.mjs";
 import {
     PASSAGE_STORES, listPassages, grantPassage, revokePassage, revokeWhenLeaving, setStartAccess,
-    closePassage, openPassage, deletePassage, isMastermindActor, undeliveredOf, passageMiddle
+    closePassage, openPassage, deletePassage, isMastermindActor, undeliveredOf, passageMiddle, startPassagePick
 } from "./passages-gm.mjs";
 
 const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
@@ -105,7 +107,9 @@ function rowHtml(passage, { stores, students, actors, users, told }) {
         <td><span class="drpg-passage-chips">${startCell}</span></td>
         <td class="drpg-passage-state-cell"><span class="drpg-passage-state" data-state="${state}">${esc(t(stateWord))}</span>${notes.join("")}</td>
         <td class="act"><span class="drpg-passage-actions">
-            <button type="button" class="drpg-mini-button" data-drpg-passage-act="show">${esc(t("DRPG.Passage.tab.show"))}</button>
+            <button type="button" class="drpg-mini-button" data-drpg-passage-act="show">${esc(t("DRPG.Passage.tab.show"))}</button>${
+                state === "broken" ? `
+            <button type="button" class="drpg-mini-button" data-drpg-passage-act="repick">${esc(t("DRPG.Passage.pick.repick"))}</button>` : ""}
             <button type="button" class="drpg-mini-button" data-drpg-passage-act="${toggle}"${state === "broken" ? " disabled" : ""}>${esc(t(toggle === "open" ? "DRPG.Passage.tab.open" : "DRPG.Passage.tab.close"))}</button>
             <button type="button" class="drpg-mini-button" data-drpg-passage-act="delete">${esc(t("DRPG.Passage.tab.delete"))}</button>
         </span></td>
@@ -132,7 +136,9 @@ export function passagesTabBody(scene, { stores = PASSAGE_STORES, students = [],
 /** The Passages panel's inside, for Room Setup (vault.mjs `roomSetupContent`): nothing on a player's browser. */
 export function passagesTabHtml(scene, options = {}) {
     if (!game.user?.isGM) return "";
-    return `<p>${esc(t("DRPG.Passage.tab.intro"))}</p><div data-drpg-passages>${passagesTabBody(scene, options)}</div>`;
+    return `<p>${esc(t("DRPG.Passage.tab.intro"))}</p><div class="drpg-passage-bar"><button type="button" class="drpg-mini-button"
+        data-drpg-passage-new>${esc(t("DRPG.Passage.pick.new"))}</button><span class="notes">${esc(t("DRPG.Passage.pick.newHint"))}</span></div>
+        <div data-drpg-passages>${passagesTabBody(scene, options)}</div>`;
 }
 
 /* ------------------------------------------------------------------------------------------- *
@@ -184,12 +190,13 @@ async function showPassage(passageId) {
 
 /**
  * Wire the tab inside Room Setup's element `root`, for `scene`. Each button's work runs after the
- * one before it (a second click waits, so two writes never interleave) and redraws the box. With
+ * one before it (a second click waits, so two writes never interleave) and redraws the box; 'New
+ * passage' and 'Pick again' wait for the pick (`pick`, the suite's to replace). With
  * `dialog`, the box follows the records while the window is open. Answers `{ draw, settled }`:
  * `settled()` is the promise of the last button's work, which the suite and scenario 76 wait on.
  */
 export function wirePassagesTab(root, scene, { dialog = null, stores = PASSAGE_STORES, students = [], ask = askRevoke,
-    confirm = confirmDelete, roomOf = studentRoomOn, show = showPassage } = {}) {
+    confirm = confirmDelete, roomOf = studentRoomOn, show = showPassage, pick = startPassagePick } = {}) {
     const box = root?.querySelector?.("[data-drpg-passages]");
     if (!box || !game.user?.isGM) return null;
     const draw = () => { box.innerHTML = passagesTabBody(scene, { stores, students }); };
@@ -206,6 +213,7 @@ export function wirePassagesTab(root, scene, { dialog = null, stores = PASSAGE_S
             case "close": return closePassage(passageId, { stores });
             case "open": return openPassage(passageId, { stores });
             case "show": return show(passageId);
+            case "repick": return pick(scene, { dialog, passageId, stores });
             case "delete": return (await confirm({ title })) ? deletePassage(passageId, { stores }) : false;
             case "revoke": {
                 const cell = passage.access?.[actorId];
@@ -236,6 +244,12 @@ export function wirePassagesTab(root, scene, { dialog = null, stores = PASSAGE_S
         const actorId = button.dataset.drpgActor ?? null;
         busy = busy.then(() => work(act, passageId, actorId))
             .catch(err => error("A button of the Passages tab failed", err))
+            .then(draw);
+    });
+    root.querySelector("[data-drpg-passage-new]")?.addEventListener("click", event => {
+        event.preventDefault();
+        busy = busy.then(() => pick(scene, { dialog, stores }))
+            .catch(err => error("The pick of a new secret passage failed", err))
             .then(draw);
     });
     if (dialog) keepFresh(dialog, { run: draw, watch: { stores: [stores.map, stores.access, stores.mastermind], hooks: ["userConnected"] } });

@@ -511,6 +511,11 @@ export const CAMERA_READERS = Object.freeze({
     "fog.mjs#floorSwitcher": "draw",
     /* The Passages tab's Show (E79 C5): this GM's camera to a passage, viewing its scene first; it moves this canvas and decides nothing. */
     "passages-tab.mjs#showPassage": "draw",
+    /* The pick of a new secret passage (E79 C6): it views the scene Room Setup was opened on and takes
+       the floor on screen, the one the GM's two clicks land on; it writes on that scene alone. */
+    "passages-gm.mjs#startPassagePick": "draw",
+    /* The GMs' overlay's passages (E79 C6): the stretches of the scene and floor this GM sees. */
+    "passages-gm.mjs#drawPassagesLayer": "draw",
     /* A player's own view switched once after a load (E13 C3, Q-E13-1 c): it moves this browser's
        canvas and decides nothing - the plan named it a window row, but no GM window reads it. */
     "trial-scene.mjs#selfRepair": "draw",

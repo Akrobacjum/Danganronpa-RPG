@@ -60,7 +60,14 @@
  *   stretch marks the passage broken on the primary GM - the tab says so with Close held, p1's copy is empty - and the
  *   wall put back leaves it broken; Delete asks, then removes the row. The window closes and phase A's wall goes with
  *   it; p3's world is read against itself at the phase's start, which parts from phase 0's by three settings phases C
- *   and D put back as values (the phase's comment). F (C6): the GM's overlay. G (C7): a show.
+ *   and D put back as values (the phase's comment).
+ * F (C6): the pick and the GMs' overlay. The GM draws phase C's Kitchen and its wall again, opens Room Setup on the
+ *   Passages tab and presses 'New passage'; the board is the stage's own listeners, which the pick adds and the
+ *   scenario calls with a point of the scene. A click 60 px off the wall is refused in the pick's window; two on the
+ *   wall make the passage on the stretch between them (snapped onto the wall, the rooms named), the window and the
+ *   listeners go, and the GMs' overlay - one container on the GM's `canvas.interface` - draws it; Close draws it again
+ *   as closed, a delete takes it off. No player's browser has the overlay, asked to draw or not. Put back, p3's world
+ *   is as the phase found it, and no player reads the marker in more places than before. G (C7): a show.
  *   The `refused` sound the mover plays is not read: the harness maps no sound file, so `playSfx` plays nothing.
  *   A stair link is R559's alone: the harness world has no floors on this scene.
  *
@@ -216,6 +223,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, dump, socketTr
     await phaseC({ gm, p1, p2, p3, check, phase, settle, IDS, repoUrl });
     await phaseD({ gm, p1, p2, p3, check, phase, settle, socketTraffic, opLog, IDS, repoUrl });
     await phaseE({ gm, p1, check, phase, settle, dump, socketTraffic, IDS, repoUrl, baseline });
+    await phaseF({ gm, p1, p2, p3, check, phase, settle, dump, IDS, repoUrl });
 }
 
 const PHASE_A = "A: the GM creates a passage and grants Aiko - p1's copy holds that row alone, p2 and p3 nothing of it, p3's world as found";
@@ -749,4 +757,118 @@ async function phaseE({ gm, p1, check, phase, settle, dump, socketTraffic, IDS, 
         J({ deleted, diff: printDiff(foundBare, worldPrint(after)), fromBaseline: printDiff(baseline, worldPrint(after)), hits: worldScan(after) }));
     check("E: every copy the GM sent in this phase names one player, and Aiko's player was sent hers",
         rows.length > 0 && stray.length === 0 && rows.some(t => J(t.to) === J([IDS.p1])), J(rows.map(t => ({ to: t.to, from: t.from }))));
+}
+
+const PHASE_F = "F: the pick and the GMs' overlay - a passage made with two clicks from the GM's Room Setup, drawn on the GM's board alone";
+
+/* Phase F's own gm.eval prelude: a wait, the pick's window, a click or a pointer on the board through the stage's
+   listeners the pick added (`__s76f.hands`), and the overlay's layers on the GM's canvas. */
+const PICK = `const until = async (test, ms = 6000) => { const end = Date.now() + ms; let v; while (!(v = await test()) && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return v; };
+    const f = globalThis.__s76f;
+    const prompt = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.element?.querySelector?.("[data-drpg-pick-step]")) ?? null;
+    const line = sel => { const n = prompt()?.element?.querySelector(sel); return n && !n.hidden ? n.textContent : null; };
+    const at = (x, y) => ({ button: 0, getLocalPosition: () => ({ x, y }) });
+    const overlays = () => canvas.interface.children.filter(c => c.name === "drpgGmOverlay");
+    const layer = name => overlays()[0]?.children.find(c => c.name === name) ?? null;
+    const drawn = () => (layer("passages")?.children ?? []).map(g => [g.name, g.drpgState]);`;
+
+/* What a player's browser holds of the GMs' overlay: containers by its name, and what the overlay's own functions answer there. */
+const overlayOn = (client, repoUrl) => client.eval(`const O = await import("${repoUrl}/scripts/gm-overlay.mjs");
+    O.redrawGmOverlay();
+    return { named: canvas.interface.children.filter(c => c.name === "drpgGmOverlay").length, overlay: O.gmOverlay(), layer: O.overlayLayer("passages") };`);
+
+async function phaseF({ gm, p1, p2, p3, check, phase, settle, dump, IDS, repoUrl }) {
+    phase(PHASE_F, { flow: "secret-passages" });
+    const MOD = "danganronpa-rpg";
+    const start = await dump("p3");
+    const found = worldPrint(start);
+    const marks = async () => Object.fromEntries(await Promise.all(["p1", "p2", "p3"].map(async c => [c, total(probe(await dump(c)))])));
+    const marksBefore = await marks();
+    /* Phase C's Kitchen under the Cafeteria and its wall at y 800 again; Room Setup on its Passages tab; the stage's
+       listeners recorded, so that a click is the pick's own handler called with a point of the scene. */
+    const opened = await gm.eval(`
+        const until = async (test, ms = 8000) => { const end = Date.now() + ms; let v; while (!(v = await test()) && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return v; };
+        const scene = game.scenes.get(${J(IDS.scene)});
+        const [kitchen] = await scene.createEmbeddedDocuments("Region", [{ name: "Kitchen", behaviors: [],
+            shapes: [{ type: "rectangle", x: 1200, y: 800, width: 800, height: 300 }], flags: { "${MOD}": { room: true, drpgNeighbours: "Gym" } } }]);
+        const [wall] = await scene.createEmbeddedDocuments("Wall", [{ c: [1200, 800, 2000, 800] }]);
+        const hands = {}, stage = canvas.stage;
+        stage.on = (event, fn) => { hands[event] = fn; return stage; };
+        stage.off = (event, fn) => { if (hands[event] === fn) delete hands[event]; return stage; };
+        const V = await import("${repoUrl}/scripts/vault.mjs");
+        const was = globalThis.__dialogWindows; globalThis.__dialogWindows = true;
+        const pending = V.openRoomSetupDialog({ tab: "passages" });
+        const app = await until(() => [...foundry.applications.instances.values()].find(a => a.rendered && a.element?.querySelector?.("[data-drpg-passage-new]")));
+        globalThis.__s76f = { kitchen: kitchen?.id, wall: wall?.id, hands, app, el: app?.element ?? null, pending, was };
+        const button = app?.element?.querySelector("[data-drpg-passage-new]");
+        button?.click();
+        await until(() => hands.pointerdown && document.querySelector("[data-drpg-pick-step]"));
+        return { kitchen: Boolean(kitchen), wall: Boolean(wall), button: button?.textContent ?? null, board: Object.keys(hands).sort() };`, { timeout: 30000 });
+    const texts = await gm.eval(`return { step2: game.i18n.format("DRPG.Passage.pick.step", { n: 2 }), noWall: game.i18n.localize("DRPG.Passage.pick.why.noWall"),
+        button: game.i18n.localize("DRPG.Passage.pick.new"), made: game.i18n.format("DRPG.Passage.pick.made", { passage: "Cafeteria - Kitchen" }) };`);
+    const picked = await gm.eval(`${PICK}
+        const noted = globalThis.__notifications.length;
+        f.hands.pointerdown?.(at(1234.5, 860));
+        const missed = line("[data-drpg-pick-why]");
+        f.hands.pointerdown?.(at(1234.5, 803));
+        const second = { step: line("[data-drpg-pick-step]"), where: line("[data-drpg-pick-where]"), why: line("[data-drpg-pick-why]"),
+            tucked: f.el?.style.visibility ?? null };
+        f.hands.pointermove?.(at(1334.5, 797));
+        const preview = (layer("pick")?.children ?? []).flatMap(g => g._calls ?? []).filter(([k]) => k === "drawCircle").map(([, a]) => a.slice(0, 3));
+        f.hands.pointerdown?.(at(1334.5, 797));
+        const G = await import("${repoUrl}/scripts/passages-gm.mjs");
+        const made = await until(() => G.listPassages().find(p => p.sceneId === ${J(IDS.scene)} && p.passageWallId === f.wall));
+        await until(() => !prompt() && !f.hands.pointerdown);
+        await until(() => f.el?.querySelector('[data-drpg-passage="' + made?.id + '"]'));
+        f.id = made?.id ?? null;
+        return { missed, second, preview, back: f.el?.style.visibility ?? null, id: made?.id ?? null, seg: made?.passageSeg ?? null, rooms: made?.rooms ?? null, state: made?.state ?? null,
+            prompt: Boolean(prompt()), board: Object.keys(f.hands), row: Boolean(f.el?.querySelector('[data-drpg-passage="' + made?.id + '"]')),
+            told: globalThis.__notifications.slice(noted).map(n => n.msg), overlays: overlays().length, drawn: drawn(), pick: layer("pick")?.children.length ?? null };`, { timeout: 30000 });
+    check("F: 'New passage' in the GM's Room Setup, a click off the wall refused in the pick's window, then two clicks on the Kitchen's wall - the passage is made on the stretch between them, Room Setup hidden meanwhile and back after, the window and the board's listeners gone, and the GMs' overlay draws it",
+        opened.kitchen && opened.wall && opened.button === texts.button && J(opened.board) === J(["pointerdown", "pointermove"])
+            && picked.missed === texts.noWall && J(picked.second) === J({ step: texts.step2, where: "Cafeteria - Kitchen", why: null, tucked: "hidden" }) && picked.back === ""
+            && J(picked.preview) === J([[1234.5, 800, 9], [1334.5, 800, 12]])
+            && J(picked.seg) === J({ x1: 1234.5, y1: 800, x2: 1334.5, y2: 800 }) && J(picked.rooms) === J(["Cafeteria", "Kitchen"]) && picked.state === "secret"
+            && !picked.prompt && J(picked.board) === "[]" && picked.row && picked.told.includes(texts.made)
+            && picked.overlays === 1 && J(picked.drawn) === J([[picked.id, "secret"]]) && picked.pick === 0,
+        J({ opened, picked, texts }));
+
+    /* Close from the tab: the overlay is drawn again from the GMs' record, the passage grey; Delete takes it off. */
+    const redrawn = await gm.eval(`${PICK}
+        const J = v => JSON.stringify(v);
+        f.el?.querySelector('[data-drpg-passage="' + f.id + '"] [data-drpg-passage-act="close"]')?.click();
+        await until(() => J(drawn()) === J([[f.id, "closed"]]));
+        const closed = drawn();
+        const O = await import("${repoUrl}/scripts/gm-overlay.mjs");
+        O.redrawGmOverlay(); O.redrawGmOverlay();
+        const once = overlays().length;
+        await game.drpg.passages.delete(f.id);
+        await until(() => drawn().length === 0);
+        return { closed, once, after: drawn() };`, { timeout: 30000 });
+    await settle(600);
+    check("F: Close in the tab draws the passage again as closed on the GM's overlay, asked twice more the overlay is still one, and a deleted passage leaves it",
+        J(redrawn.closed) === J([[picked.id, "closed"]]) && redrawn.once === 1 && J(redrawn.after) === "[]", J(redrawn));
+
+    /* The players: no overlay on any of them, whatever is asked of it. */
+    const players = { p1: await overlayOn(p1, repoUrl), p2: await overlayOn(p2, repoUrl), p3: await overlayOn(p3, repoUrl) };
+    check("F: no player's browser holds the GMs' overlay - none by its name, and its own functions answer nothing there, even asked to draw",
+        Object.values(players).every(p => p.named === 0 && p.overlay === null && p.layer === null), J(players));
+
+    /* Put back: the window, the stage's listeners, the wall and the Kitchen. */
+    const back = await gm.eval(`
+        const f = globalThis.__s76f, scene = game.scenes.get(${J(IDS.scene)});
+        await f.app?.close?.();
+        const closed = await Promise.race([f.pending.then(() => true), new Promise(r => setTimeout(() => r(false), 8000))]);
+        globalThis.__dialogWindows = f.was;
+        delete canvas.stage.on; delete canvas.stage.off;
+        if (scene.walls.get(f.wall)) await scene.deleteEmbeddedDocuments("Wall", [f.wall]);
+        if (scene.regions.get(f.kitchen)) await scene.deleteEmbeddedDocuments("Region", [f.kitchen]);
+        delete globalThis.__s76f;
+        return { closed, kitchen: scene.regions.some(r => r.name === "Kitchen"), wall: Boolean(scene.walls.get(f.wall ?? "")) };`, { timeout: 30000 });
+    await settle(600);
+    const after = await dump("p3");
+    const marksAfter = await marks();
+    check("F: put back - the window closed, the Kitchen and its wall gone, p3's world as this phase found it, and no player reads the marker in more places than before the pick",
+        back.closed && !back.kitchen && !back.wall && worldPrint(after) === found && worldScan(after).length === 0 && J(marksAfter) === J(marksBefore),
+        J({ back, diff: printDiff(found, worldPrint(after)), hits: worldScan(after), marksBefore, marksAfter }));
 }

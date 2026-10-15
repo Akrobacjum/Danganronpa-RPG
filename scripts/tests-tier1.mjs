@@ -13827,7 +13827,7 @@ const INVARIANTS = [
         J([true, true, true, false]),
         "[sendBack ignores walls, handleSendback ignores walls, the audit's start is the GM's sighting before it moves, the audit reads teleport, movementAction or displace]");
     }],
-    ["R561 - the Passages tab: Room Setup's tab after Doors lists the scene's passages; a student is given one in two clicks, '+' and the name; Close keeps who knows it while the copy, the client's cut and the GMs' audit read it as a wall, and Open gives it back; the cross revokes at once a student who is not in the passage's rooms and otherwise asks 'Revoke now' or 'Revoke when they leave the room', which the primary revokes when the student's route settles outside it; the season's start is its own column; a wall moved off the stretch or deleted marks the passage broken and one moved along its line does not, on the primary GM alone; Show pans to the stretch, Delete forgets it and who knew it after a yes; and a knower no player was sent it yet is named", async () => {
+    ["R561 - the Passages tab: Room Setup's tab after Doors lists the scene's passages; a student is given one in two clicks, '+' and the name; Close keeps who knows it while the copy, the client's cut and the GMs' audit read it as a wall, and Open gives it back; the cross revokes at once a student who is not in the passage's rooms and otherwise asks 'Revoke now' or 'Revoke when they leave the room', which the primary revokes when the student's route settles outside it; the season's start is its own column; a wall moved off the stretch or deleted marks the passage broken and one moved along its line does not, on the primary GM alone; Show pans to the stretch, Delete forgets it and who knew it after a yes; a knower no player was sent it yet is named; and a new passage is two clicks on one wall between two rooms of one floor, each snapped to the wall and refused off it, on a door, on a wall that stops nobody, on a taken stretch, to another floor's room or on one room's wall, a broken one picked again from its row with its knowers kept, five clicks from 'New passage' to a student who knows it", async () => {
         /*
          * E79 C5, 15.10.2026; the E79 plan's A10-16 (D1's grant in two clicks, D2: grant, close, open and revoke)
          * and K11 (a wall edited after the passage was made). The harms: a Close that forgets who knew the passage,
@@ -13838,6 +13838,15 @@ const INVARIANTS = [
          * access name a student this world holds) and a detached panel drawn and wired by passages-tab.mjs itself:
          * its clicks write to the suite's stores only. The real window, the real records and three players' copies
          * are scenario 76's phase E. Red before C5: there was no tab, no `wallChanged` and no `revokeWhenLeaving`.
+         *
+         * E79 C6, 15.10.2026; the plan's D5 (two clicks, no handles) and P8-0's refusals. The harms: a passage on a door,
+         * on a wall that stops nobody, across one room, to a room of another floor or over another passage; a click
+         * that lands off the wall written as a stretch the wall does not hold; a broken passage that cannot be put back
+         * without losing who knew it. The pure snap (`snapToWall`, `stretchBetween`) on walls and rooms of the suite's
+         * own; then the pick itself through the tab's 'New passage' and 'Pick again', on a scene object of the suite's
+         * (two rooms and one wall; `createPassage` and `repickPassage` take the document in hand) with a board and a
+         * window that record what the pick asks of them, writing to the suite's stores only. The pointer on a real
+         * canvas, and the overlay, are scenario 76's phase F. Red before C6: there was no pick.
          */
         needs(world.atLeast("livingStudents", 2), "two students to give a passage to and take it back from");
         const G = await import("./gm-store.mjs");
@@ -14004,6 +14013,86 @@ const INVARIANTS = [
             Boolean(inRow(P1, "td"))]),
         J([[P1], { sceneId: scene.id, level: null, x: 1353.5, y: 400 }, true, false, [], false]),
         "[shown, the middle of a stretch, kept after a no, kept after a yes, its cells, its row drawn]");
+
+        // The pick (E79 C6): each click snapped to the nearest wall in reach, and every refusal its own code.
+        const flat = (x, y, w, h) => [[x, y, x + w, y, x + w, y + h, x, y + h]];
+        const rooms = [{ name: "R561 Hall", polygons: flat(1200, 200, 800, 600), here: true }, { name: "R561 Kitchen", polygons: flat(1200, 800, 800, 300), here: true },
+            { name: "R561 Upstairs", polygons: flat(2000, 200, 600, 600), here: false }];
+        const walls = [{ id: "W1", c: [1200, 800, 2000, 800] }, { id: "WD", c: [2000, 300, 2000, 500], door: 1 }, { id: "WN", c: [2100, 900, 2300, 900], move: 0 },
+            { id: "WX", c: [2000, 600, 2000, 780] }, { id: "WO", c: [1200, 1100, 2000, 1100] }];
+        const snap = (x, y, o) => P.snapToWall({ x, y }, walls, rooms, o);
+        const taken = [{ wallId: "W1", x1: 1300, y1: 800, x2: 1400, y2: 800 }];
+        const first = snap(1234.5, 803), second = snap(1600, 797);
+        equal(J([first, [snap(1234.5, 860), snap(2003, 400), snap(2200, 902), snap(1997, 700), snap(1500, 1098), snap(1350, 802, { taken }),
+            snap(1997, 700, { only: "W1" })].map(r => r.refused)]),
+        J([{ wallId: "W1", x: 1234.5, y: 800, rooms: ["R561 Hall", "R561 Kitchen"] }, ["noWall", "door", "noMove", "levels", "notBetween", "taken", "otherWall"]]),
+        "[a click 3 px off the wall between two rooms, snapped; a click 60 px off, on a door, on a wall that stops nobody, on a wall to another floor's room, on an outer wall, on a taken stretch, near another wall than the first click's]");
+        const stretch = (b, o) => P.stretchBetween(first, b, o);
+        equal(J([stretch(second), stretch(second, { taken: [{ wallId: "W1", x1: 1700, y1: 800, x2: 1800, y2: 800 }] }).refused, stretch(second, { taken }).refused,
+            stretch({ ...second, wallId: "WO" }).refused, stretch({ ...second, rooms: ["R561 Hall", "R561 Upstairs"] }).refused, stretch(snap(1238.5, 800)).refused]),
+        J([{ wallId: "W1", seg: { x1: 1234.5, y1: 800, x2: 1600, y2: 800 }, rooms: ["R561 Hall", "R561 Kitchen"] }, undefined, "taken", "otherWall", "otherRooms", "short"]),
+        "[two ends on the wall, with a stretch beside them taken, over a taken one, on another wall, between other rooms, 4 px apart]");
+        const console1 = wall1 => P.passageRowFor({ id: "R561S" }, { id: "R561W", c: [0, 0, 100, 0], ...wall1 }, { seg: { x1: 10, y1: 0, x2: 50, y2: 0 } });
+        equal(J([console1({ door: 1 }).refused, console1({ move: 0 }).refused, console1({}).row?.passageWallId]),
+            J(["that wall is a door.", "that wall does not block movement.", "R561W"]),
+            "[the console's road (`game.drpg.passages.create`) on a door, on a wall that stops nobody, on a plain wall] - it must refuse what the pick refuses");
+
+        // From the tab: 'New passage', two clicks on the board and the passage is made; '+' and the name give it - five clicks.
+        // A scene of the suite's own (two rooms, one wall), a board and a window that record what the pick asks of them.
+        const region = (id, name, x, y, width, height) => ({ id, name, behaviors: [], getFlag: () => true, shapes: [{ x, y, width, height }] });
+        const site = { id: "R561PICK", name: "R561 pick", grid: { size: 100 }, levels: [], view: async () => true,
+            regions: [region("R561R1", "R561 Hall", 1200, 200, 800, 600), region("R561R2", "R561 Kitchen", 1200, 800, 800, 300)],
+            walls: Object.assign([{ id: "R561W", c: [1200, 800, 2000, 800] }], { get(id) { return this.find(w => w.id === id); } }) };
+        let board = null;
+        const said = [];
+        const pickWith = (scene2, options) => P.startPassagePick(scene2, { ...options, preview: () => {}, notify: (kind, text) => said.push(kind),
+            board: handlers => { board = handlers; return () => { board = null; }; },
+            prompt: () => ({ step: (n, r) => said.push(`step ${n}: ${r.join(" - ")}`), refuse: code => said.push(code), close: () => said.push("closed") }),
+            dialog: { options: { window: { minimizable: true } }, minimize: () => said.push("minimized"), maximize: () => said.push("back") } });
+        const root2 = document.createElement("div");
+        root2.innerHTML = T.passagesTabHtml(site, { stores, students: [A, B] });
+        const pickTab = T.wirePassagesTab(root2, site, { stores, students: [A, B], pick: pickWith });
+        const onBoard = async () => { for (let i = 0; i < 100 && !board; i++) await new Promise(r => setTimeout(r, 5)); return board; };
+        const ofSite = () => Object.keys(stores.map.entries()).filter(k => k.startsWith(`${site.id}.`));
+        let clicks = 0;
+        const tap = async (node, settle = true) => { if (!node) return false; clicks++; node.click(); if (settle) await pickTab.settled(); return true; };
+        await tap(root2.querySelector("[data-drpg-passage-new]"), false);
+        await (await onBoard())?.click({ x: 1234.5, y: 803 }); clicks++;
+        await board?.click({ x: 1334.5, y: 797 }); clicks++;
+        await pickTab.settled();
+        const [made] = ofSite();
+        const inRow2 = (id, sel) => root2.querySelector(`[data-drpg-passage="${id}"] ${sel}`);
+        await tap(inRow2(made, '[data-drpg-menu="grant"]'), false);
+        await tap(inRow2(made, `[data-drpg-passage-act="grant"][data-drpg-actor="${A.id}"]`));
+        const madeRow = stores.map.get(made);
+        equal(J([ofSite().length, madeRow?.passageWallId, madeRow?.passageSeg, madeRow?.rooms, madeRow?.state, madeRow?.level, cell(made, A)?.how, clicks, said.splice(0)]),
+            J([1, "R561W", { x1: 1234.5, y1: 800, x2: 1334.5, y2: 800 }, ["R561 Hall", "R561 Kitchen"], "secret", null, "gm", 5,
+                ["minimized", "step 2: R561 Hall - R561 Kitchen", "info", "closed", "back"]]),
+            "[passages made, the wall, the stretch, the rooms, the state, the floor, the grant's way, the clicks from 'New passage' to a student who knows it, what the pick asked of the window and the GM]");
+
+        // Cancelled, nothing is written; a broken passage is picked again from its row, a refused click asked again, its knowers kept.
+        await tap(root2.querySelector("[data-drpg-passage-new]"), false);
+        await (await onBoard())?.click({ x: 1500, y: 802 });
+        board?.cancel();
+        await pickTab.settled();
+        const cancelled2 = [ofSite().length, said.splice(0)];
+        await P.wallChanged({ id: "R561W", parent: site, c: [1200, 900, 2000, 900] }, { stores });
+        pickTab.draw();
+        const offered = [stores.map.get(made)?.state, Boolean(inRow2(made, '[data-drpg-passage-act="repick"]'))];
+        await tap(inRow2(made, '[data-drpg-passage-act="repick"]'), false);
+        await (await onBoard())?.click({ x: 1234.5, y: 860 });
+        await board?.click({ x: 1234.5, y: 803 });
+        await board?.click({ x: 1238.5, y: 801 });
+        await board?.click({ x: 1734.5, y: 799 });
+        await pickTab.settled();
+        const repicked = stores.map.get(made);
+        equal(J([cancelled2, offered, [repicked?.state, repicked?.passageSeg, Boolean(cell(made, A)), ofSite().length, said.splice(0)],
+            await P.repickPassage(made, { wallId: "R561W", seg: { x1: 1200, y1: 800, x2: 1300, y2: 800 } }, { stores, scene: site }),
+            Boolean(inRow2(made, '[data-drpg-passage-act="repick"]'))]),
+        J([[1, ["minimized", "step 2: R561 Hall - R561 Kitchen", "closed", "back"]], ["broken", true],
+            ["secret", { x1: 1234.5, y1: 800, x2: 1734.5, y2: 800 }, true, 1, ["minimized", "noWall", "step 2: R561 Hall - R561 Kitchen", "short", "info", "closed", "back"]],
+            false, false]),
+        "[cancelled: passages, what the pick asked; the broken row's state and its 'Pick again'; picked again: the state, the stretch, A's cell, passages, what the pick asked (a click off the wall, two ends 4 px apart refused); a repick of one not broken; its 'Pick again' after]");
 
         // Only the primary acts on a wall's change, and only on its segment; the routes the same.
         const gm = await fetch(`/modules/${MODULE_ID}/scripts/passages-gm.mjs`).then(r => r.text()).then(stripComments);

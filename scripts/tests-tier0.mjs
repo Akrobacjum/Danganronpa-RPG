@@ -8322,6 +8322,7 @@ const REGRESSIONS = [
             ["HOOK fog.mjs#deleteToken#arrow1", "out of scope: recomputes this client's own draw on a token write; E13's reveal and hide, and since E81 DZ6 the stage's one delete, trigger it on every client, as any GM's write does [1b.1 a hall token's hidden]"],
             ["HOOK foundry-windows.mjs#canvasReady#keepTokensLayer", "out of scope: asks this client's own Tokens layer back after a new canvas, at most once a second and never while it is active (E77 C5); a player's layer decides no rule"],
             ["HOOK glass.mjs#canvasReady#schedule", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
+            ["HOOK gm-overlay.mjs#canvasReady#arrow1", "out of scope: draws the GMs' overlay on this client only, and only a GM's browser makes it (E79 C6, R560); the scene a client views decides no rule [1b.1 which scene a client views]"],
             ["HOOK handbooks.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK hud.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK messenger-app.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
@@ -9293,7 +9294,8 @@ const REGRESSIONS = [
          * send-back. A verdict ending "(E79 C<n>)" names the commit that changes the road. E79 C1 adds 12: the three
          * records and the copy (STORE), the copy's three sources (SET), the ask and the copy on both ends (ACT) and the
          * wall a GM's new passage is held to (WALLS). E79 C2 adds 1: the move polygon's walls a token's own passages cut
-         * (WALLS). E79 C5 adds 2: the primary GM's watch on a passage's wall, moved and deleted (HOOK).
+         * (WALLS). E79 C5 adds 2: the primary GM's watch on a passage's wall, moved and deleted (HOOK). E79 C6 adds 1:
+         * the walls a GM's pick on the board snaps to and a broken passage is picked again on (WALLS).
          * It reads names and text, not a syntax tree, as R534 does. Two places where it keys otherwise than the parse-only
          * census: a road inside a named inner function or a method (the census keys it by that name, this reader by the
          * top-level declaration), and a top-level declaration of several names (the census joins them, this reader takes
@@ -9358,6 +9360,8 @@ const REGRESSIONS = [
             ["WALLS passages-gm.mjs#createPassage -> screen", "a GM's console only (`game.user.isGM` first): the wall a new passage is cut from is read to hold the stretch to it; nothing is written to the wall and nothing of it reaches a player but through the copy"],
             // ---- the way through (E79 C2)
             ["WALLS passages.mjs#clipPassages -> screen", "this browser's move polygon only (`type` \"move\"; sight, light and sound stay whole), cut where the moving token's own character knows a passage on its scene and floor, by the wall's id; fails closed (R556; 76 B). CLAIM: a console's own copy cuts only its own walls; the GMs' audit (movement-audit.mjs) judges the landed move"],
+            // ---- the pick on the board (E79 C6)
+            ["WALLS passages-gm.mjs#sceneWalls -> screen", "a GM's pick only (`startPassagePick` and `repickPassage` ask `game.user.isGM` first): the walls of the scene Room Setup was opened on, read to snap a click to one and to hold the stretch to it through `passageRowFor`; nothing is written to a wall and nothing of it reaches a player but through the copy (R561; 76 F)"],
             // ---- the Passages tab's watch on a passage's wall (E79 C5)
             ["HOOK passages-gm.mjs#registerPassagesGm#updateWall/onWallMoved -> record", "the primary GM only (`isPrimaryGm`), and only when the change carries `c`: a passage whose stretch is no longer on its wall's segment is marked broken in the GMs' records and drops out of every copy; the wall is never written (R561; 76 E)"],
             ["HOOK passages-gm.mjs#registerPassagesGm#deleteWall/onWallDeleted -> record", "the primary GM only: every passage of the deleted wall is marked broken in the GMs' records and drops out of every copy (R561; 76 E)"]
@@ -9485,7 +9489,7 @@ const REGRESSIONS = [
             "a passage or movement road without a census row, or a row whose road is gone: give the new one a verdict (what judges it, or the E79 commit that will) and strike the gone one");
     }],
 
-    ["R560 - the passages' source rules: no wall is written a secret door or created, every passage packet names the list of its recipients, no flag holds a passage and no file but the records names a passage's geometry, passages.mjs imports only its leaf's files, room-tile.mjs does not import the passages, the frame's passage verdict, the outline's redraw and the GMs' wall audit are each declared once, exported, in their file, the audit called from one place, the primary GM's sighting of a move, and reading no scene on screen", async () => {
+    ["R560 - the passages' source rules: no wall is written a secret door or created, every passage packet names the list of its recipients, no flag holds a passage and no file but the records names a passage's geometry, passages.mjs imports only its leaf's files, room-tile.mjs does not import the passages, the frame's passage verdict, the outline's redraw and the GMs' wall audit are each declared once, exported, in their file, the audit called from one place, the primary GM's sighting of a move, and reading no scene on screen; and the GMs' overlay is made in one place, gm-overlay.mjs's exported `gmOverlay`, only after it asked for a GM, every layer of it through that, and its name is read nowhere else", async () => {
         /*
          * E79 C1, 14.10.2026; the E79 plan's A10-9, its first clauses (C4, C6 and C7 add theirs). A secret passage is
          * the GMs' and its knowers' (decisions D2 and D38): world data reaches every browser, so a passage written into
@@ -9513,11 +9517,20 @@ const REGRESSIONS = [
          * primary GM's sighting of a landed move, before `gmSeen` moves - read as a call of that name outside comments
          * and strings in the top-level declaration that holds it; and movement-audit.mjs names neither `canvas.scene`
          * nor `canvas.edges` (its walls are the token's own scene's). A call through another name is not read.
+         *
+         * E79 C6, 15.10.2026 (A10-9's overlay clause; the plan's F3): the GMs' overlay draws every secret passage of the
+         * scene on screen, so a copy of it on a player's browser would be the whole map of them. `gmOverlay` is declared
+         * once, exported, in gm-overlay.mjs (E60 adds its layer 'traces' there); in that file a `new PIXI.Container`
+         * stands in `gmOverlay` only after `if (!game.user?.isGM) return null` and in any other declaration only after
+         * a call of `gmOverlay()` (a layer is the overlay's child, never the canvas's); and the overlay's name,
+         * "drpgGmOverlay", is written as a string in no other module file. A container made under another class's name
+         * is not read; scenario 76 F counts the overlay on each of the four browsers.
          */
         const LEAF = new Set(["rooms.mjs", "gm-stores.mjs", "gm-store.mjs", "settings.mjs", "utils.mjs", "config.mjs"]);
         const RECORDS = new Set(["gm-stores.mjs", "passages.mjs", "passages-gm.mjs"]);
         const IMPORTS = /\bimport\s*(?:[\w$\s{},*]+?\s*from\s*)?(["'])\.\/([\w.-]+\.mjs)\1|\bimport\s*\(\s*(["'])\.\/([\w.-]+\.mjs)\3\s*\)/g;
-        const ONE = { passageOpenFor: "movement.mjs", redrawOutline: "fog.mjs", auditMove: "movement-audit.mjs" };
+        const ONE = { passageOpenFor: "movement.mjs", redrawOutline: "fog.mjs", auditMove: "movement-audit.mjs", gmOverlay: "gm-overlay.mjs" };
+        const OVERLAY_GATE = /!\s*game\s*\.\s*user\s*\??\.\s*isGM\s*\)\s*return\s+null\b/;
         const AUDIT_CALLER = "movement.mjs#noteGmPosition";
         // A statement at column 0 and the name it declares, as R553's census reads a top-level declaration.
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(?:const|let|var)\s+([\w$]+))?/gm;
@@ -9545,7 +9558,15 @@ const REGRESSIONS = [
                     if (args.length && /passage/i.test(code.slice(m.index, close))) at("flag", m.index);
                 }
                 if (!RECORDS.has(file)) for (const m of code.matchAll(/\b(?:passageSeg|passageWallId)\b/g)) at("geometry", m.index);
+                if (file !== "gm-overlay.mjs") for (const m of code.matchAll(/(["'`])drpgGmOverlay\1/g)) at("overlayName", m.index);
                 const tops = [...blank.matchAll(TOP)].map(m => ({ at: m.index, name: m[1] ?? m[2] ?? m[3] ?? "(top level)" }));
+                if (file === "gm-overlay.mjs") for (const m of blank.matchAll(/\bnew\s+PIXI\s*\.\s*Container\b/g)) {
+                    const top = tops.findLast(t => t.at <= m.index);
+                    const before = blank.slice(top?.at ?? 0, m.index);
+                    if (top?.name === "gmOverlay" ? !OVERLAY_GATE.test(before) : !/(?<![\w$.])gmOverlay\s*\(\s*\)/.test(before)) {
+                        at(top?.name === "gmOverlay" ? "overlayGate" : "overlayLayer", m.index);
+                    }
+                }
                 for (const m of blank.matchAll(/(?<![\w$.])auditMove\s*\(/g)) {
                     if (/\bfunction\s*\*?\s*$/.test(blank.slice(Math.max(0, m.index - 24), m.index))) continue;
                     auditCalls.push(`${file}#${tops.findLast(t => t.at <= m.index)?.name ?? "(top level)"}`);
@@ -9581,23 +9602,29 @@ const REGRESSIONS = [
             ["movement.mjs", "export function passageOpenFor(actor) {\n    return Boolean(actor);\n}\n"
                 + "function noteGmPosition(t) {\n    // auditMove(t) in a comment calls nothing\n    auditMove(t, {}, {}, null, null, {});\n}\n"
                 + "function other(t) {\n    return auditMove(t);\n}\n"],
-            ["fog.mjs", "// export function redrawOutline() in a comment declares nothing\nfunction redrawOutline() {\n    return false;\n}\n"],
+            ["fog.mjs", "// export function redrawOutline() in a comment declares nothing\nfunction redrawOutline() {\n    return false;\n}\n"
+                + "const box = canvas.interface.getChildByName(\"drpgGmOverlay\"); // \"drpgGmOverlay\" in a comment names nothing\n"],
             ["fog-reveal.mjs", "const said = 'export function passageOpenFor()';\nexport const redrawOutline = () => null;\n"],
-            ["movement-audit.mjs", "export function auditMove(tokenDoc) {\n    const walls = canvas.scene?.walls;\n    return walls ?? canvas?.edges ?? tokenDoc.parent.walls;\n}\n"]
+            ["movement-audit.mjs", "export function auditMove(tokenDoc) {\n    const walls = canvas.scene?.walls;\n    return walls ?? canvas?.edges ?? tokenDoc.parent.walls;\n}\n"],
+            ["gm-overlay.mjs", "export const OVERLAY_NAME = \"drpgGmOverlay\";\nexport function gmOverlay() {\n    const box = new PIXI.Container();\n"
+                + "    if (!game.user?.isGM) return null;\n    return box;\n}\nexport function overlayLayer(name) {\n    const layer = new PIXI.Container();\n"
+                + "    return gmOverlay()?.addChild(layer);\n}\nexport function layerOk(name) {\n    const box = gmOverlay();\n"
+                + "    return box && box.addChild(new PIXI.Container());\n}\nfunction inner() {\n    if (!game.user?.isGM) return null;\n    return new PIXI.Container();\n}\n"]
         ]);
         equal(JSON.stringify(planted), JSON.stringify(["secretDoor walls.mjs:4", "secretDoor walls.mjs:5", "wallCreated walls.mjs:4",
             "unaddressed send.mjs:3", "unaddressed send.mjs:4", "flag flags.mjs:3", "geometry flags.mjs:3", "leaf:movement.mjs passages.mjs:2",
-            "tile:passages.mjs room-tile.mjs:2", "scene movement-audit.mjs:2", "scene movement-audit.mjs:3", "one:redrawOutline fog.mjs:2(not exported),fog-reveal.mjs:2",
+            "tile:passages.mjs room-tile.mjs:2", "overlayName fog.mjs:5", "scene movement-audit.mjs:2", "scene movement-audit.mjs:3",
+            "overlayGate gm-overlay.mjs:3", "overlayLayer gm-overlay.mjs:8", "overlayLayer gm-overlay.mjs:17", "one:redrawOutline fog.mjs:2(not exported),fog-reveal.mjs:2",
             "call:auditMove movement.mjs#noteGmPosition,movement.mjs#other"]),
         "the source rules do not read the planted fixture as planted - the module would be read wrong too");
 
         const sources = await otherSources();
         const names = new Set(sources.map(([file]) => file));
-        ok(["passages.mjs", "passages-gm.mjs", "room-tile.mjs", "gm-stores.mjs", "movement.mjs", "fog.mjs", "movement-audit.mjs"].every(f => names.has(f)),
+        ok(["passages.mjs", "passages-gm.mjs", "room-tile.mjs", "gm-stores.mjs", "movement.mjs", "fog.mjs", "movement-audit.mjs", "gm-overlay.mjs"].every(f => names.has(f)),
             "a file these rules read is not among the module's sources - the rules would read nothing of it");
         const broken = rulesOf(sources);
         log(`R560: ${sources.length} module file(s) read; ${broken.length} broken rule(s)`);
-        equal(JSON.stringify(broken), "[]", "a wall written as a secret door or created, an un-addressed passage packet, a passage in a flag or a file outside the records, an import the leaf or the room tile must not have, a second (or unexported) passageOpenFor, redrawOutline or auditMove, the audit called from anywhere but noteGmPosition or more than once, or the audit reading the scene on screen");
+        equal(JSON.stringify(broken), "[]", "a wall written as a secret door or created, an un-addressed passage packet, a passage in a flag or a file outside the records, an import the leaf or the room tile must not have, a second (or unexported) passageOpenFor, redrawOutline, auditMove or gmOverlay, the audit called from anywhere but noteGmPosition or more than once, the audit reading the scene on screen, the GMs' overlay or a layer of it made without asking for a GM, or the overlay's name read outside gm-overlay.mjs");
     }],
 
 

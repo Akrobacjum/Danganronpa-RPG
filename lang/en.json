@@ -585,6 +585,32 @@
         "revokeLeave": "Revoke when they leave the room",
         "deleteTitle": "Delete the secret passage",
         "deleteAsk": "Delete the secret passage {passage}? Every student who knows it forgets it."
+      },
+      "pick": {
+        "new": "+ New passage",
+        "newHint": "Two clicks on a wall between two rooms of this floor.",
+        "title": "New secret passage",
+        "retitle": "Pick the secret passage again",
+        "step": "Click {n} of 2",
+        "first": "Click where the secret passage begins, on a wall between two rooms. Esc cancels.",
+        "second": "Click where the secret passage ends, on the same wall. Esc cancels.",
+        "cancel": "Cancel",
+        "repick": "Pick again",
+        "made": "Secret passage {passage} made. Give it to a student in the Passages tab.",
+        "moved": "Secret passage {passage} is on its wall again.",
+        "why": {
+          "noWall": "No wall there. Click on a wall between two rooms.",
+          "door": "That is a door. A secret passage goes on a plain wall.",
+          "noMove": "That wall stops nobody, so a secret passage there would change nothing.",
+          "notBetween": "That wall does not stand between two different rooms.",
+          "levels": "The room on the other side is on another floor.",
+          "taken": "Another secret passage is already on that stretch of wall.",
+          "otherWall": "The end must be on the same wall as the start.",
+          "otherRooms": "The end must join the same two rooms as the start.",
+          "short": "The two ends are too close together. Click further along the wall.",
+          "trial": "The trial hall has no rooms, so it has no secret passages.",
+          "board": "The map is not shown on this screen. Open the scene and try again."
+        }
       }
     },
     "Room": {
