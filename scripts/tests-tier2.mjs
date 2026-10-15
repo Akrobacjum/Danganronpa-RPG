@@ -38003,6 +38003,37 @@ const SCENARIOS = [
                 gone: (report, id) => !S.eclipseMoveStore.has(id),
                 back: id => S.eclipseMoveStore.get(id)?.used === 1 && S.eclipseMoveStore.get(id)?.eclipse === "SUITE backed-up Eclipse"
             },
+            // A secret passage, who knows it and its log, through their stores (E79 C1; E79 fix r1-G2, K1-a: the three
+            // were backed up with no fixture here, and this test failed at k1 naming them). The passage is open and known
+            // to the holder, on a wall that is not drawn: a retell after the restore would carry it to the holder's owner,
+            // which the count below reads (tier 2 holds the stores, so nothing is sent).
+            passageMap: {
+                seed: async () => {
+                    const key = `${scene.id}.SUITEK1APASSAGE`;
+                    await S.passageMapStore.patch(key, { sceneId: scene.id, level: null, shape: "wall", passageWallId: "SUITEK1AWALL",
+                        passageSeg: { x1: 0, y1: 0, x2: 10, y2: 0 }, rooms: [], state: "secret", startAccess: false });
+                    return key;
+                },
+                gone: (report, key) => !S.passageMapStore.has(key),
+                back: key => S.passageMapStore.get(key)?.passageWallId === "SUITEK1AWALL" && S.passageMapStore.get(key)?.state === "secret"
+            },
+            passageAccess: {
+                seed: async () => {
+                    const key = `${scene.id}.SUITEK1APASSAGE/${holder.id}`;
+                    await S.passageAccessStore.patch(key, { how: "gm", at: 1, by: { [game.user.id]: 1 } });
+                    return key;
+                },
+                gone: (report, key) => !S.passageAccessStore.has(key),
+                back: key => S.passageAccessStore.get(key)?.how === "gm" && S.passageAccessStore.get(key)?.by?.[game.user.id] === 1
+            },
+            passageLog: {
+                seed: async () => {
+                    await S.passageLogStore.patch("SUITEK1ALOG", { at: 1, what: "create", passageId: "SUITEK1APASSAGE", actorId: holder.id, by: game.user.id });
+                    return "SUITEK1ALOG";
+                },
+                gone: (report, key) => !S.passageLogStore.has(key),
+                back: key => S.passageLogStore.get(key)?.what === "create" && S.passageLogStore.get(key)?.passageId === "SUITEK1APASSAGE"
+            },
             // A clean-up's Cleaning Tool, through its store (E32+E07 C12): chapter 99, which no discovery here reads.
             usedTools: {
                 seed: async () => {
@@ -38185,9 +38216,23 @@ const SCENARIOS = [
             equal(stableJson(stored()), stableJson(onDisk), "forgetting wrote the emptied sections to this browser's storage, where a tab closed now would leave them");
             const report = await S.gmStoreHealth();
             for (const store of stores) ok(FIXTURES[store.name].gone(report, keys[store.name]), `${store.name}: after the store was emptied the report does not say so, or its row still reads`);
-            const result = await S.restoreCase(saved, { recheck: false });
+            // The passages' two stores retell the players after a restore (`afterRestore`); while tier 2 holds the
+            // stores that retell sends nothing (R184; E79 fix r1-G2, K1-a): the packets the restore emits are counted.
+            // It reads something only where the holder's owner is connected, as p1 is in the harness.
+            const emit = game.socket.emit, retold = [];
+            game.socket.emit = function (event, packet, ...rest) {
+                if (packet?.action === "passage.rows") retold.push(packet.userId);
+                return emit.call(this, event, packet, ...rest);
+            };
+            let result;
+            try {
+                result = await S.restoreCase(saved, { recheck: false });
+            } finally {
+                game.socket.emit = emit;
+            }
             ok(result && !result.refused, `the restore refused its own backup: ${stableJson(result)}`);
             for (const store of stores) ok(FIXTURES[store.name].back(keys[store.name]), `${store.name}: its row did not come back from the file`);
+            equal(stableJson(retold), stableJson([]), "the restore sent a player their passages while tier 2 holds the stores");
         } finally {
             foundry.utils.saveDataToFile = saveDataToFile;
             await putNoteFlagsBack(noteFlags);

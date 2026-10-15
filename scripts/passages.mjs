@@ -18,7 +18,7 @@
  * judges the walls from the GMs' records, not from any copy.
  */
 
-import { MODULE_ID } from "./config.mjs";
+import { MODULE_ID, FLAGS } from "./config.mjs";
 import { primaryGmId, warn, error } from "./utils.mjs";
 import { passageCopy, passageMapStore, passageAccessStore } from "./gm-stores.mjs";
 import { levelOf } from "./rooms.mjs";
@@ -45,15 +45,29 @@ function onLevelOf(row, level) {
 }
 
 /**
+ * Whether a row's scene is gone: looked up in `scenes` when one is handed (the suite's, R555), else in
+ * this world's for the module's own records; an engine of the suite's own is of no world, and reads none.
+ */
+export function sceneGone(row, { map = passageMapStore, scenes } = {}) {
+    const where = scenes ?? (map === passageMapStore ? game.scenes : null);
+    return Boolean(where) && !where.has(row?.sceneId);
+}
+
+/**
  * The open passages of the GMs' records, `{ passageId: { sceneId, shape, level, passageWallId,
  * passageSeg, actorIds } }`, each with every character that knows it: what a GM's browser reads
  * where a player's reads its copy, and what passages-gm.mjs cuts each copy from. `stores` is the
- * suite's (R554, R555): two handles of an engine of its own.
+ * suite's (R554, R555): two handles of an engine of its own, and `scenes` beside them when it asks.
+ *
+ * A row whose scene was deleted is left out (`sceneGone`; the round-1 review's cor F6, 15.10.2026):
+ * nothing watches a scene's deletion, so its rows stayed secret, were sent to their knowers for ever
+ * and came back live with a Restore. Read here, on the reading side, a restored row needs nothing
+ * more; the GMs still list it (passages-gm.mjs `listPassages`, marked `sceneGone`) and may delete it.
  */
-export function secretRowsFrom({ map = passageMapStore, access = passageAccessStore } = {}) {
+export function secretRowsFrom({ map = passageMapStore, access = passageAccessStore, scenes } = {}) {
     const rows = {};
     for (const [id, row] of Object.entries(map.entries())) {
-        if (row?.state !== "secret" || !segmentOf(id, row)) continue;
+        if (row?.state !== "secret" || !segmentOf(id, row) || sceneGone(row, { map, scenes })) continue;
         rows[id] = { sceneId: row.sceneId, shape: row.shape, level: row.level ?? null, passageWallId: row.passageWallId ?? null,
             passageSeg: { ...row.passageSeg }, actorIds: [] };
     }
@@ -218,8 +232,16 @@ export function cutSegment(wall, open, tolerance = PASSAGE_TOLERANCE) {
  * Mastermind as each one's knower (passages-gm.mjs `passageCopyFor`). On a GM's browser the GMs'
  * records name each knower, and the Mastermind passes only what it was granted: the Mastermind is
  * passages-gm.mjs's to tell (`isMastermindActor`), which this leaf does not import.
+ *
+ * A Monokuma's token passes every open passage on a GM's browser (`gm`, the suite's to hand; R556):
+ * the goal lets Monokuma use every one and the GMs' audit lets its moves stand (movement-audit.mjs),
+ * but until the round-1 review's G5 (15.10.2026) no browser cut one for it. A Monokuma is the GMs'
+ * (despair.mjs `monokumas`), so no player's copy names it and a player's browser opens nothing for
+ * it. The flag is read as monokuma.mjs `isMonokuma` reads it, from this leaf's own config.mjs: the
+ * leaf imports no more (R560). Whether Foundry 14 holds a GM's own drag to the walls at all is not
+ * measured here (foundryvtt.com cannot be read from this machine): LIVE-E79-08.
  */
-export function passageSegmentsFor(config, { known } = {}) {
+export function passageSegmentsFor(config, { known, gm = game.user?.isGM } = {}) {
     if (Array.isArray(config?.drpgPassages)) {
         return config.drpgPassages.map(seg => segmentOf(seg?.id ?? null, { passageWallId: seg?.wallId, passageSeg: seg }))
             .filter(seg => seg?.wallId);
@@ -228,7 +250,8 @@ export function passageSegmentsFor(config, { known } = {}) {
     const actor = tokenDoc?.actor ?? null, sceneId = tokenDoc?.parent?.id ?? null;
     if (!actor || !sceneId) return [];
     const level = config.level ?? levelOf(tokenDoc);
-    return openSegmentsFor(actor, sceneId, level, known === undefined ? {} : { known });
+    const monokuma = Boolean(gm) && Boolean(actor.getFlag?.(MODULE_ID, FLAGS.monokuma));
+    return openSegmentsFor(actor, sceneId, level, { mastermind: monokuma, ...(known === undefined ? {} : { known }) });
 }
 
 /* The first cut that threw is logged, once a load: the next moves fail closed in silence. */
@@ -240,14 +263,14 @@ let cutFailed = false;
  * with the same fields, `<wallId>#p1`, `#p2`, ..., and none of the old edge's intersections. Every
  * other polygon - sight, light, sound - and every other wall is left as Foundry built it. The new
  * edges are all made before any old one is taken out, so a throw leaves the polygon whole. Answers
- * how many walls were cut. `known` is the suite's (R556).
+ * how many walls were cut. `known` and `gm` are the suite's (R556).
  */
-export function clipPassages(polygon, { known } = {}) {
+export function clipPassages(polygon, { known, gm } = {}) {
     const config = polygon?.config, edges = polygon?.edges;
     if (config?.type !== "move" || typeof edges?.delete !== "function" || typeof edges?.add !== "function") return 0;
     try {
         const byWall = new Map();
-        for (const seg of passageSegmentsFor(config, { known })) byWall.set(seg.wallId, [...(byWall.get(seg.wallId) ?? []), seg]);
+        for (const seg of passageSegmentsFor(config, { known, ...(gm === undefined ? {} : { gm }) })) byWall.set(seg.wallId, [...(byWall.get(seg.wallId) ?? []), seg]);
         if (!byWall.size) return 0;
         const swaps = [];
         for (const edge of edges) {
@@ -322,17 +345,19 @@ export function engineOffNotice({ cut = movementCut, user = game.user } = {}) {
 /**
  * A packet's copy, kept to what a copy may hold: rows of this world's scenes with a whole segment,
  * the shape "wall" (a tunnel is E80's), and only characters the packet's stamps name - each of
- * this world - so a row naming nobody of this user is left out.
+ * this world - so a row naming nobody of this user is left out. The part "" is kept: it is the
+ * stamp of a copy for a user who owns no student (passages-gm.mjs `passageCopyFor`), and no row
+ * can name it.
  */
 function cleanCopy(passages, stamps) {
     const value = {}, own = {};
     for (const [actorId, s] of Object.entries(isPlain(stamps) ? stamps : {})) {
-        if (game.actors?.has(actorId)) own[actorId] = Number(s) || 0;
+        if (actorId === "" || game.actors?.has(actorId)) own[actorId] = Number(s) || 0;
     }
     for (const [id, row] of Object.entries(isPlain(passages) ? passages : {})) {
         const seg = segmentOf(id, row);
         if (!seg || row.shape !== "wall" || typeof row.sceneId !== "string" || !game.scenes?.has(row.sceneId)) continue;
-        const actorIds = Array.isArray(row.actorIds) ? [...new Set(row.actorIds.filter(a => typeof a === "string" && Object.hasOwn(own, a)))] : [];
+        const actorIds = Array.isArray(row.actorIds) ? [...new Set(row.actorIds.filter(a => typeof a === "string" && a && Object.hasOwn(own, a)))] : [];
         if (!actorIds.length) continue;
         value[id] = { sceneId: row.sceneId, shape: "wall", level: typeof row.level === "string" ? row.level : null,
             passageWallId: seg.wallId, passageSeg: { x1: seg.x1, y1: seg.y1, x2: seg.x2, y2: seg.y2 }, actorIds };

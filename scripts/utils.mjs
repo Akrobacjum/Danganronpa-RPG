@@ -330,10 +330,15 @@ export function placeRoomOptions({ room = null, sceneId = null } = {}) {
         rooms.map(r => option(scene, r)).join("")}</optgroup>`).join("");
 }
 
-export function ownerOf(actor) {
+/**
+ * The one player an actor is told to: its first owner who is connected, else its first owner. `users`
+ * is the suite's to hand (R555, since E79 fix r1-G2: a passage's copy asks it, as the Mastermind's door
+ * does).
+ */
+export function ownerOf(actor, users = game.users) {
     if (!actor) return null;
-    return game.users.find(u => !u.isGM && u.active && actor.testUserPermission(u, "OWNER"))
-        ?? game.users.find(u => !u.isGM && actor.testUserPermission(u, "OWNER"))
+    return users.find(u => !u.isGM && u.active && actor.testUserPermission(u, "OWNER"))
+        ?? users.find(u => !u.isGM && actor.testUserPermission(u, "OWNER"))
         ?? null;
 }
 

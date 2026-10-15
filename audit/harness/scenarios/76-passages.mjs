@@ -80,7 +80,7 @@
  *   A stair link is R559's alone: the harness world has no floors on this scene.
  *
  * What the harness cannot settle - a real canvas's move backend, the ruler and the keyboard, a GM on
- * another scene at a real table - is LIVE-E79-01 to LIVE-E79-07 (AUDIT 9.2, since C8).
+ * another scene at a real table - is LIVE-E79-01 to LIVE-E79-08 (AUDIT 9.2, since C8).
  */
 import { worldScan } from "../lib/canary.mjs";
 
@@ -697,6 +697,27 @@ async function phaseD({ gm, p1, p2, p3, check, phase, settle, socketTraffic, opL
     await settle(600);
     check("D: put back - the switch as found, Botan where phase C left him, the passage and both walls gone",
         back.gone !== false && back.mode === set.found && back.walls === 0 && J(back.at) === J([1300, 300]), J(back));
+
+    /* SEC S3 (E79 fix r1-G2): p1 loses its only student, Aiko, who knows phase A's passage. Until the fix the copy the
+       primary sent p1 had no stamp at all, which a player's browser refuses, so p1 went on holding Aiko's passage; now
+       the copy is empty, stamped above the reset's cut, and sent to p1 alone. Aiko's ownership is put back as it was found,
+       and p1's copy holds the passage again. */
+    const lost = await (async () => {
+        const before = Object.keys(await known(p1, repoUrl) ?? {});
+        const found = await gm.eval(`return foundry.utils.deepClone(game.actors.get(${J(IDS.aiko)}).ownership);`);
+        const mark = socketTraffic.length;
+        await gm.eval(`await game.actors.get(${J(IDS.aiko)}).update({ ownership: { ${J(IDS.p1)}: 0 } }); return true;`);
+        await settle(1500);
+        const after = await known(p1, repoUrl);
+        const sent = socketTraffic.slice(mark).filter(t => t.action === "passage.rows").map(t => t.to);
+        await gm.eval(`await game.actors.get(${J(IDS.aiko)}).update({ ownership: ${J(found)} }); return true;`);
+        await settle(1500);
+        const ownership = await gm.eval(`return game.actors.get(${J(IDS.aiko)}).ownership;`);
+        return { before, after, sent, back: Object.keys(await known(p1, repoUrl) ?? {}), same: J(ownership) === J(found) };
+    })();
+    check("D: a player who no longer owns any student holds no passage - p1's copy empties, sent to p1 alone, and comes back with Aiko's ownership as found",
+        lost.before.length === 1 && lost.after !== null && typeof lost.after === "object" && Object.keys(lost.after).length === 0
+            && lost.sent.length >= 1 && lost.sent.every(to => J(to) === J([IDS.p1])) && J(lost.back) === J(lost.before) && lost.same, J(lost));
 }
 
 const PHASE_E = "E: the Passages tab - Close, Open, a revoke, a grant, the wall moved and Delete, each from the GM's Room Setup, and what p1, p2 and p3 are sent";

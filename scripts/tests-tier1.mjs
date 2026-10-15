@@ -13366,7 +13366,7 @@ const INVARIANTS = [
             "[s1's, s2's and the Mastermind's newest stamp past the one before the reset] - a copy the cut emptied would not take the one sent after it");
     }],
 
-    ["R555 - a player's copy of the passages: only open passages a character the player owns knows, its knowers only theirs and no name or room, a stamp per owned character; the Mastermind's owner every open one, a Monokuma's nothing; a revoke, a Close, a Delete and a Mastermind change drop the row and are taken; the push is addressed to each player alone; a copy is taken only from the primary GM", async () => {
+    ["R555 - a player's copy of the passages: only open passages a character the player owns knows, its knowers only theirs and no name or room, a stamp per owned character; the Mastermind's owner every open one, a Monokuma's nothing; a revoke, a Close, a Delete and a Mastermind change drop the row and are taken; the push is addressed to each player alone; a copy is taken only from the primary GM; the Mastermind's other owners nothing of it; an owner of no student an empty copy that is taken; a write that keeps the Mastermind sends nothing and a new one the two owners it changes; a deleted scene's passage in no copy and marked in the list", async () => {
         /*
          * E79 C1, 14.10.2026; the E79 plan's A10-2 and D9. What a player's browser learns of a passage is its copy
          * (gm-stores.mjs `passageCopy`), cut for that user by `passageCopyFor` and sent by `pushPassageCopies`. The
@@ -13376,6 +13376,12 @@ const INVARIANTS = [
          * an engine of the suite's own, with characters and users of its own: nothing of this world is read or written
          * but this browser's own user. The weighing is `offersCombine`'s own (`passageCopy`'s combine): each copy
          * after a change is held against the one before it.
+         *
+         * E79 fix r1-G2 (15.10.2026), the round-1 review's harms: a second owner of the Mastermind's student, told
+         * "not the Mastermind" by the door, was sent every open passage naming the Mastermind (SEC S2); a player left
+         * owning no student was answered `stamps: {}`, which the copy refuses, and kept the last one (SEC S3); any write
+         * of the Mastermind's record sent every player a copy (goal F4); and a passage on a deleted scene stayed in its
+         * knowers' copies (cor F6).
          */
         const G = await import("./gm-store.mjs");
         const S = await import("./gm-stores.mjs");
@@ -13397,7 +13403,7 @@ const INVARIANTS = [
         const users = [user("R555GM", { gm: true }), user("R555U1"), user("R555U2"), user("R555U3"), user("R555U4"), user("R555U5", { active: false })];
         const actor = (id, owner, { monokuma = false } = {}) => ({ id, type: "character",
             getFlag: (scope, key) => (monokuma && scope === MODULE_ID && key === FLAGS.monokuma ? true : undefined),
-            testUserPermission: (u, level) => level === "OWNER" && (u?.isGM || u?.id === owner) });
+            testUserPermission: (u, level) => level === "OWNER" && (u?.isGM || [owner].flat().includes(u?.id)) });
         const actors = [actor("R555A1", "R555U1"), actor("R555A2", "R555U2"), actor("R555MK", "R555U3", { monokuma: true }), actor("R555MM", "R555U4")];
         const [, U1, U2, U3, U4] = users;
         const row = n => ({ sceneId: "R555SCENE", level: null, shape: "wall", passageWallId: `R555WALL${n}`,
@@ -13407,7 +13413,8 @@ const INVARIANTS = [
         const cells = { [`${P1}/R555A1`]: 1, [`${P1}/R555A2`]: 1, [`${P1}/R555MK`]: 1, [`${P2}/R555A2`]: 1, [`${P3}/R555A1`]: 1, [`${P4}/R555A1`]: 1, [`${P3}/R555A2`]: 1 };
         await stores.access.patchMany(Object.fromEntries(Object.keys(cells).map(k => [k, { how: "gm", at: 1, by: { R555GM: 1 } }])));
         await stores.access.patchMany(Object.fromEntries(["R555A1", "R555A2", "R555MK"].map(a => [`touch/${a}`, { at: 1 }])));
-        const copy = u => P.passageCopyFor(u, { stores, actors });
+        const copy = u => P.passageCopyFor(u, { stores, actors, users });
+        const touchDoor = (options = {}) => (typeof P.touchDoorChange === "function" ? P.touchDoorChange({ stores, actors, users, ...options }) : Promise.resolve([]));
         const ids = c => Object.keys(c.value).sort();
         const taken = (held, next) => S.offersCombine(held, next) !== null;
 
@@ -13418,12 +13425,23 @@ const INVARIANTS = [
         equal(J([ids(c2), c2.value[P1]?.actorIds, c2.value[P2]?.actorIds, J(c2).includes("R555 Kitchen")]), J([[P1, P2], ["R555A2"], ["R555A2"], false]),
             "[p2's passages, their knowers, a room's name in the copy]");
         const plain4 = copy(U4);
-        equal(J([copy(U3), plain4]), J([{ value: {}, stamps: {} }, { value: {}, stamps: { R555MM: 0 } }]),
-            "a Monokuma's owner or a student's who knows nothing and is not the Mastermind holds a passage");
+        const none = copy(U3);
+        equal(J([none, plain4, G.copyStamps(none.stamps)]), J([{ value: {}, stamps: { "": 1 } }, { value: {}, stamps: { R555MM: 0 } }, { "": 1 }]),
+            "[a Monokuma's owner, a student's who knows nothing and is not the Mastermind, the first one's stamps as a copy reads them] - a passage held, or a copy of no student that cannot be taken (SEC S3)");
         await stores.mastermind.patch(G.RECORD, { actorId: "R555MM" });
+        await touchDoor();
         const c4 = copy(U4);
         equal(J([ids(c4), c4.value[P1]?.actorIds, c4.value[P2]?.actorIds, taken(plain4, c4)]),
             J([[P1, P2], ["R555MM"], ["R555MM"], true]), "[the Mastermind's owner's passages, their knowers, the copy taken] - not every open passage");
+
+        // SEC S2: the Mastermind's student has a second owner. The door names one (`ownerOf`, the connected one first); the other
+        // is sent nothing of the Mastermind, not even its id, and becomes the door's owner when the first is away.
+        const U6 = user("R555U6"), coUsers = [...users, U6], coActors = [...actors.filter(a => a.id !== "R555MM"), actor("R555MM", ["R555U4", "R555U6"])];
+        const coCopy = (u, people = coUsers) => P.passageCopyFor(u, { stores, actors: coActors, users: people });
+        const door4 = coCopy(U4), second = coCopy(U6), away = coCopy(U6, coUsers.map(u => (u.id === "R555U4" ? { ...u, active: false } : u)));
+        equal(J([ids(door4), J(second.value), Object.keys(second.stamps), J(second).includes("R555MM"), ids(away), away.value[P1]?.actorIds]),
+            J([[P1, P2], "{}", [""], false, [P1, P2], ["R555MM"]]),
+            "[the door's owner's passages, the second owner's copy, its stamps, the Mastermind named in it, the second owner's passages with the first away, their knowers]");
 
         // The push: each player who is here, addressed to them alone; an unchanged copy is not sent twice unless asked for.
         const sent = [], told = new Map();
@@ -13436,6 +13454,23 @@ const INVARIANTS = [
             || J(s.options?.recipients) !== J([s.packet.userId]));
         equal(J(unaddressed.map(s => s.packet.userId)), "[]", "a copy went out without its recipients naming its user alone");
         equal(J(sent[0].packet.passages), J(c1.value), "the copy pushed to p1 is not p1's copy");
+
+        // Goal F4: a write of the Mastermind's record that keeps who it is sends nobody a copy; a new Mastermind sends exactly the owners of
+        // the student who was and of the student who is - and so does the way back.
+        const pushed = async () => {
+            await touchDoor();
+            const mark = sent.length;
+            push();
+            return sent.slice(mark).map(s => s.packet.userId).sort();
+        };
+        await stores.mastermind.patch(G.RECORD, { actorId: "R555MM" });
+        const kept = await pushed();
+        await stores.mastermind.patch(G.RECORD, { actorId: "R555A2" });
+        const moved = await pushed();
+        await stores.mastermind.patch(G.RECORD, { actorId: "R555MM" });
+        const back = await pushed();
+        equal(J([kept, moved, back]), J([[], ["R555U2", "R555U4"], ["R555U2", "R555U4"]]),
+            "[sent after a write that keeps the Mastermind, after it moved to p2's student, after it moved back]");
 
         // Each change drops the row from the copies it was in, and each new copy is taken over the one before.
         const before = { 1: copy(U1), 2: copy(U2), 4: copy(U4) };
@@ -13455,8 +13490,21 @@ const INVARIANTS = [
         equal(J([ids(d2), taken(o2, d2), ids(d4), taken(o4, d4), Object.keys(stores.access.entries()).filter(k => k.startsWith(`${P1}/`))]),
             J([[P2], true, [P2], true, []]), "[p2's after the Delete, taken, the Mastermind's, taken, the deleted passage's cells]");
         await stores.mastermind.patch(G.RECORD, { actorId: null });
+        await touchDoor();
         const m4 = copy(U4);
         equal(J([ids(m4), taken(d4, m4)]), J([[], true]), "the Mastermind's former owner still holds the passages, or the copy that drops them is refused");
+
+        // SEC S3: p2 comes to own no student - their copy is empty, stamped, and taken over the one that named their student.
+        const held2 = copy(U2), orphan = P.passageCopyFor(U2, { stores, actors: actors.filter(a => a.id !== "R555A2"), users });
+        equal(J([ids(held2), orphan, taken(held2, orphan)]), J([[P2], { value: {}, stamps: { "": 1 } }, true]),
+            "[p2's passages, p2's copy once they own no student, that copy taken] - a player who owns nothing keeps what they held");
+
+        // cor F6: P2's scene is deleted - P2 leaves its knower's copy and the cut, and the GMs' list keeps it, marked, for a Delete.
+        const gone = { ...stores, scenes: new Set(["R555OTHER"]) };
+        const listed = P.listPassages({ stores: gone }).find(p => p.id === P2);
+        equal(J([Object.keys(P.passageCopyFor(U2, { stores: gone, actors, users }).value), Object.keys(L.secretRowsFrom(gone)), listed?.sceneGone ?? null,
+            P.listPassages({ stores }).find(p => p.id === P2)?.sceneGone ?? null]), J([[], [], true, null]),
+            "[p2's passages, the GMs' open rows, the list's mark, the mark while the scene stands] once P2's scene is gone");
 
         // The receiver's rule: addressed to this user, and sent by the primary GM.
         const me = { id: "R555U1", isGM: false };
@@ -13474,7 +13522,7 @@ const INVARIANTS = [
             through(1234, 350, 1234, 450), through(1232, 350, 1232, 450)]), J([true, false, true, false, true, false]),
         "[across, along, 0.5 px short, 2 px short, 0.5 px past its end, 2.5 px past it]");
     }],
-    ["R556 - a token's move passes only the passages its own character knows: the move polygon's edge of a passage's wall, found by the wall's id, is cut around the stretch on the token's scene and floor, a sliver dropped and a stretch off the wall's line ignored; sight, light and sound, another character, another scene, another floor, no token and another wall on the same line stay whole; a throw leaves the walls whole; the move backend is extended once, and a GM is told when it could not be", async () => {
+    ["R556 - a token's move passes only the passages its own character knows: the move polygon's edge of a passage's wall, found by the wall's id, is cut around the stretch on the token's scene and floor, a sliver dropped and a stretch off the wall's line ignored; a Monokuma's token on a GM's browser passes every open one; sight, light and sound, another character, another scene, another floor, no token and another wall on the same line stay whole; a throw leaves the walls whole; the move backend is extended once, and a GM is told when it could not be", async () => {
         /*
          * E79 C2, 14.10.2026; the E79 plan's A10-3. passages.mjs puts `PassageMovePolygon` in the place of Foundry's move
          * backend at `setup`; its `_identifyEdges()` asks Foundry's and then `clipPassages`. The harms: a wall a token
@@ -13522,8 +13570,9 @@ const INVARIANTS = [
             R556PA: { sceneId: "R556S", level: null, passageWallId: "R556W1", passageSeg: S1, actorIds: ["R556A"] },
             R556PB: { sceneId: "R556S", level: "R556L2", passageWallId: "R556W3", passageSeg: { x1: 500, y1: 100, x2: 550, y2: 100 }, actorIds: ["R556A"] }
         };
-        const polygon = ({ type = "move", actor = "R556A", scene = "R556S", tokenLevel = "R556L1", level, source = true, drpgPassages, E = Edge } = {}) => ({
-            config: { type, ...(source ? { source: { object: { document: { actor: actor && { id: actor }, parent: { id: scene }, level: tokenLevel } } } } : {}),
+        const polygon = ({ type = "move", actor = "R556A", monokuma = false, scene = "R556S", tokenLevel = "R556L1", level, source = true, drpgPassages, E = Edge } = {}) => ({
+            config: { type, ...(source ? { source: { object: { document: { actor: actor && { id: actor,
+                getFlag: (scope, key) => (monokuma && scope === MODULE_ID && key === FLAGS.monokuma ? true : undefined) }, parent: { id: scene }, level: tokenLevel } } } } : {}),
                 ...(level === undefined ? {} : { level }), ...(drpgPassages ? { drpgPassages } : {}) },
             edges: new Set([edgeOf("R556W1", W, E), edgeOf("R556W2", W, E), edgeOf("R556W3", { x1: 400, y1: 100, x2: 700, y2: 100 }, E)])
         });
@@ -13547,6 +13596,16 @@ const INVARIANTS = [
             tally({ source: false }), tally({ actor: null }), tally({ type: "sight" }), tally({ type: "light" }), tally({ type: "sound" })]),
         J([[2, 4], [2, 4], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0]]),
         "[the move's own floor L2, a token on no floor, another character of the player, another scene, no token, a token with no character, sight, light, sound] - [walls cut, pieces]");
+        // E79 fix r1-G2 (the round-1 review's goal G5, 15.10.2026): a Monokuma's token passes every open passage on a GM's browser, which reads
+        // the GMs' records; a student's that knows none passes none there; on a player's browser, whose copy never names a Monokuma, nothing opens.
+        const onBrowser = (options, gm) => {
+            const p = polygon(options), n = L.clipPassages(p, { known, gm });
+            return [n, [...p.edges].filter(e => e.id.includes("#")).length];
+        };
+        equal(J([onBrowser({ actor: "R556MK", monokuma: true }, true), onBrowser({ actor: "R556MK", monokuma: true, tokenLevel: "R556L2" }, true),
+            onBrowser({ actor: "R556B" }, true), onBrowser({ actor: "R556MK", monokuma: true }, false)]),
+        J([[1, 2], [2, 4], [0, 0], [0, 0]]),
+        "[a Monokuma's token on a GM's browser on floor L1, on L2, a student's that knows none there, a Monokuma's on a player's browser] - [walls cut, pieces]");
         const asked = run({ source: false, drpgPassages: [{ id: "R556PX", wallId: "R556W2", ...S1 }] });
         equal(J([asked.n, asked.ids]), J([1, ["R556W1", "R556W2#p1", "R556W2#p2", "R556W3"]]),
             "the frame's own stretches (`drpgPassages`) do not cut their wall alone");

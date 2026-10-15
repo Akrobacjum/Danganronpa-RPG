@@ -394,7 +394,8 @@ makes a critical certain, no rally die), and every roll at a table.
   the GMs' audit at a table, with a GM on another scene and with floors, is
   LIVE-E79-02 (`sendBack` mode only after it, LIVE-E79-07). Two floors with
   Isometric Perspective, a show between two players, the gap, the overlay and
-  the list as drawn, and the GMs' two-click pick are LIVE-E79-03 to -06. What
+  the list as drawn, and the GMs' two-click pick are LIVE-E79-03 to -06, and
+  a Monokuma's token, or a GM's own drag, through a passage is LIVE-E79-08. What
   a player with a console always sees of a passage is two Foundry limits in
   `known-leaks.json`, read in 65-season X: a token crossing its wall, and a
   room whose only way in is one.
