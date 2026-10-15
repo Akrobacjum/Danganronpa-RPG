@@ -10,14 +10,16 @@
  * Delete. Every button writes at once through passages-gm.mjs, as `game.drpg.passages` does, and
  * nothing waits for Apply: the window's Apply and Cancel read none of this tab.
  *
- * The cross asks first only when the student stands in one of the passage's rooms on its scene:
- * 'Revoke now' or 'Revoke when they leave the room' (passages-gm.mjs `revokeWhenLeaving`); a
+ * The cross asks first only when the student stands in one of the passage's rooms on its scene -
+ * the rooms on the map either side of its stretch (passages-gm.mjs `passageRoomsOnMap`), not the
+ * names the row shows: 'Revoke now' or 'Revoke when they leave the room' (`revokeWhenLeaving`); a
  * student anywhere else forgets it at once. The Mastermind knows every passage (the owner's Q7)
  * and is listed nowhere here.
  *
  * Nothing here names a passage's wall or stretch (R560: the records' files alone do); Show asks
  * passages-gm.mjs for the stretch's middle. The table is redrawn whole after each button and when
- * the records change on another GM's browser (`keepFresh` on the three stores), so the tab holds
+ * the records change on another GM's browser (`keepFresh` on the three stores) or a player is sent
+ * their copy (`drpgPassagesTold`, which the "not yet delivered" line reads), so the tab holds
  * no field of its own to lose. 'New passage' over the table, and 'Pick again' on a broken row,
  * start the pick on the board (passages-gm.mjs `startPassagePick`, E79 C6): Room Setup is minimized
  * for the two clicks and the table redrawn after them. E44 and E46 take the tab's table with the
@@ -28,7 +30,7 @@ import { error } from "./utils.mjs";
 import { keepFresh } from "./live.mjs";
 import {
     PASSAGE_STORES, listPassages, grantPassage, revokePassage, revokeWhenLeaving, setStartAccess,
-    closePassage, openPassage, deletePassage, isMastermindActor, undeliveredOf, passageMiddle, startPassagePick
+    closePassage, openPassage, deletePassage, isMastermindActor, undeliveredOf, passageMiddle, startPassagePick, passageRoomsOnMap
 } from "./passages-gm.mjs";
 
 const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
@@ -192,14 +194,15 @@ async function showPassage(passageId) {
  * Wire the tab inside Room Setup's element `root`, for `scene`. Each button's work runs after the
  * one before it (a second click waits, so two writes never interleave) and redraws the box; 'New
  * passage' and 'Pick again' wait for the pick (`pick`, the suite's to replace). With
- * `dialog`, the box follows the records while the window is open. Answers `{ draw, settled }`:
- * `settled()` is the promise of the last button's work, which the suite and scenario 76 wait on.
+ * `dialog`, the box follows the records while the window is open. `actors`, `users` and `told` are
+ * the suite's, for the body (R561). Answers `{ draw, settled }`: `settled()` is the promise of the
+ * last button's work, which the suite and scenario 76 wait on.
  */
 export function wirePassagesTab(root, scene, { dialog = null, stores = PASSAGE_STORES, students = [], ask = askRevoke,
-    confirm = confirmDelete, roomOf = studentRoomOn, show = showPassage, pick = startPassagePick } = {}) {
+    confirm = confirmDelete, roomOf = studentRoomOn, show = showPassage, pick = startPassagePick, actors, users, told } = {}) {
     const box = root?.querySelector?.("[data-drpg-passages]");
     if (!box || !game.user?.isGM) return null;
-    const draw = () => { box.innerHTML = passagesTabBody(scene, { stores, students }); };
+    const draw = () => { box.innerHTML = passagesTabBody(scene, { stores, students, actors, users, told }); };
     let busy = Promise.resolve();
 
     const work = async (act, passageId, actorId) => {
@@ -219,7 +222,7 @@ export function wirePassagesTab(root, scene, { dialog = null, stores = PASSAGE_S
                 const cell = passage.access?.[actorId];
                 if (!cell) return false;
                 const room = typeof cell.leave === "string" ? null : await roomOf(actorId, passage.sceneId);
-                if (!room || !(passage.rooms ?? []).includes(room)) return revokePassage(passageId, actorId, { stores });
+                if (!room || !(await passageRoomsOnMap(passageId, { stores, scene })).includes(room)) return revokePassage(passageId, actorId, { stores });
                 const choice = await ask({ name: nameOf(actorId, game.actors), room, title });
                 if (choice === "now") return revokePassage(passageId, actorId, { stores });
                 if (choice === "leave") return revokeWhenLeaving(passageId, actorId, room, { stores });
@@ -252,6 +255,6 @@ export function wirePassagesTab(root, scene, { dialog = null, stores = PASSAGE_S
             .catch(err => error("The pick of a new secret passage failed", err))
             .then(draw);
     });
-    if (dialog) keepFresh(dialog, { run: draw, watch: { stores: [stores.map, stores.access, stores.mastermind], hooks: ["userConnected"] } });
+    if (dialog) keepFresh(dialog, { run: draw, watch: { stores: [stores.map, stores.access, stores.mastermind], hooks: ["userConnected", "drpgPassagesTold"] } });
     return { draw, settled: () => busy };
 }

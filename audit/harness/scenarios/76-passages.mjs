@@ -55,8 +55,10 @@
  *   writes a document or throws.
  * E (C5): the Passages tab, pressed as a GM presses it, in Room Setup drawn as a window (`__dialogWindows`) on phase A's
  *   passage. Close empties p1's copy and keeps Aiko in Who knows; Open gives the row back; Aiko's cross takes her off
- *   at once (phase A's passage names no rooms, so the tab asks nothing; the question is R561's) and p3's world is as
- *   the phase found it; '+' and her name grant her again in two clicks; the wall moved off the
+ *   at once (she stands in Dorm A, and the map puts the Cafeteria on both sides of the passage) and p3's world is as
+ *   the phase found it; stood in the Cafeteria and given it back, her cross asks, and 'Revoke when they leave the room'
+ *   holds while p1 moves her inside the room and takes the passage once p1 moves her out of it (fix r1-G3: cor F1, SEC
+ *   S5); '+' and her name grant her again in two clicks, and the tab names nobody not yet sent it; the wall moved off the
  *   stretch marks the passage broken on the primary GM - the tab says so with Close held, p1's copy is empty - and the
  *   wall put back leaves it broken; Delete asks, then removes the row. The window closes and phase A's wall goes with
  *   it; p3's world is read against itself at the phase's start, which parts from phase 0's by three settings phases C
@@ -768,9 +770,9 @@ async function phaseE({ gm, p1, check, phase, settle, dump, socketTraffic, IDS, 
             && reopened.state === "secret" && J(reopened.knows) === J([IDS.aiko]) && Object.keys(copyOpen).includes(opened.id),
         J({ closed, copyClosed, reopened, copyOpen }));
 
-    /* The revoke: Aiko's cross. Phase A made the passage from the console with no rooms, so wherever her token stands it is
-       in none of them and the cross revokes at once, unasked; "now" is queued all the same, and an answer left over is
-       that road (the question itself is R561's). */
+    /* The revoke: Aiko's cross. Phase D put her back in Dorm A, and the rooms the cross asks about are the map's either
+       side of the passage's stretch - the Cafeteria on both (passages-gm.mjs `passageRoomsOnMap`, E79 fix r1-G3) - so the
+       cross revokes at once, unasked; "now" is queued all the same, and an answer left over is that road. */
     const revoked = await gm.eval(`${TAB} let asked = null;
         globalThis.__dialogAnswers.push(config => { asked = config.window?.title ?? "?"; return "now"; });
         press('[data-drpg-passage-act="revoke"][data-drpg-actor="${IDS.aiko}"]');
@@ -780,20 +782,80 @@ async function phaseE({ gm, p1, check, phase, settle, dump, socketTraffic, IDS, 
     await settle(600);
     const copyRevoked = await known(p1, repoUrl);
     const d3 = await dump("p3");
-    check("E: Aiko's cross, unasked on a passage of no rooms, takes her off Who knows and empties p1's copy; after Close, Open and the revoke p3's world is as this phase found it, and the world-secrets scan finds nothing",
+    check("E: Aiko's cross, unasked while she stands outside the passage's rooms, takes her off Who knows and empties p1's copy; after Close, Open and the revoke p3's world is as this phase found it, and the world-secrets scan finds nothing",
         revoked.asked === null && J(revoked.knows) === "[]" && J(copyRevoked) === "{}" && worldPrint(d3) === found && worldScan(d3).length === 0,
         J({ revoked, copyRevoked, diff: printDiff(found, worldPrint(d3)), hits: worldScan(d3) }));
+
+    /* Review r1, cor F1 and SEC S5 (E79 fix r1-G3, 15.10.2026). Beside the passage the cross asks, and 'Revoke when they
+       leave the room' holds until a route of hers settles outside the room. The GM stands Aiko in the Cafeteria and gives
+       her the passage back from the console: phase A's console made it naming no room, and until the fix the tab asked
+       only about the names a row holds, so her cross revoked it at once, unasked. "leave" is answered; p1 moves her by a
+       legal route inside the Cafeteria (the cell stays, p1's copy holds the row), then out of it into no room (the cell
+       is gone on the GM, p1's copy is empty: the primary's `revokeLeavers` on her settled route). Her place, actions and
+       free Move are put back as the step found them. */
+    const leaving = await gm.eval(`${TAB}
+        const t = game.scenes.get(${J(IDS.scene)}).tokens.get("TOKAIKO000000000"), a = t.actor;
+        s.aiko = { at: { x: t.x, y: t.y }, actions: game.drpg.actionsLeft(a), free: a.getFlag("danganronpa-rpg", "freeMoveUsed") ?? null };
+        await t.update({ x: 1600, y: 300 }, { teleport: true, movementAction: "displace", animate: false });
+        const G = await import("${repoUrl}/scripts/passages-gm.mjs"), M = await import("${repoUrl}/scripts/movement.mjs");
+        const cellOf = () => G.listPassages().find(p => p.id === s.id)?.access?.[${J(IDS.aiko)}] ?? null;
+        const granted = await game.drpg.passages.grant(s.id, ${J(IDS.aiko)});
+        await until(() => chips(2).length === 1);
+        let asked = null;
+        globalThis.__dialogAnswers.push(config => { asked = config.window?.title ?? "?"; return "leave"; });
+        press('[data-drpg-passage-act="revoke"][data-drpg-actor="${IDS.aiko}"]');
+        await until(() => typeof cellOf()?.leave === "string" || !cellOf());
+        await until(() => row()?.querySelector('[data-drpg-passage-leave]'), 2000);
+        const left = globalThis.__dialogAnswers.length; globalThis.__dialogAnswers.length = 0;
+        return { granted, asked, left, leave: cellOf()?.leave ?? null, room: M.roomOfToken(t) ?? null,
+            chip: Boolean(row()?.querySelector('[data-drpg-passage-leave]')) };`, { timeout: 30000 });
+    await settle(600);
+    const copyLeaving = Object.keys(await known(p1, repoUrl) ?? {});
+    const stepTo = (x, y) => p1.eval(`await canvas.scene.tokens.get("TOKAIKO000000000").update({ x: ${x}, y: ${y} }); return true;`, { timeout: 30000 });
+    const aikoNow = async () => ({ ...(await gm.eval(`const G = await import("${repoUrl}/scripts/passages-gm.mjs"), M = await import("${repoUrl}/scripts/movement.mjs");
+        const t = game.scenes.get(${J(IDS.scene)}).tokens.get("TOKAIKO000000000");
+        return { at: [t.x, t.y], room: M.roomOfToken(t) ?? null, cell: G.listPassages().find(p => p.id === ${J(opened.id)})?.access?.[${J(IDS.aiko)}] ?? null };`)),
+        copy: await known(p1, repoUrl) });
+    await stepTo(1700, 300);
+    await settle(1500);
+    const inside = await aikoNow();
+    await stepTo(2100, 300);
+    await settle(1500);
+    /* The GM's cell is gone within the 1500 ms; p1's copy follows it, the packet to p1 alone. How long after is not
+       fixed: one reading of 15.10.2026 put it 4.5 s after the step, a run of 76 alone the same day 500 ms past the
+       1500 (`waited`, in the check's details). So it is waited for, up to 8 s, rather than with a longer fixed wait. */
+    let outside = await aikoNow(), waited = 0;
+    for (; waited < 8000 && !(outside.cell === null && J(outside.copy) === "{}"); waited += 500) {
+        await settle(500);
+        outside = await aikoNow();
+    }
+    await gm.eval(`const s = globalThis.__s76e, t = game.scenes.get(${J(IDS.scene)}).tokens.get("TOKAIKO000000000"), a = t.actor;
+        await t.update(s.aiko.at, { teleport: true, movementAction: "displace", animate: false });
+        await game.drpg.setActions(a, s.aiko.actions);
+        if (s.aiko.free === null) await a.unsetFlag("danganronpa-rpg", "freeMoveUsed"); else await a.setFlag("danganronpa-rpg", "freeMoveUsed", s.aiko.free);
+        return true;`, { timeout: 30000 });
+    await settle(600);
+    check("E: stood in the Cafeteria, which the map puts on both sides of the passage, Aiko's cross asks; 'Revoke when they leave the room' keeps it while p1 moves her inside the room, and takes it - on the GM and in p1's copy - once p1 moves her out",
+        leaving.granted === true && typeof leaving.asked === "string" && leaving.left === 0 && leaving.leave === "Cafeteria" && leaving.room === "Cafeteria"
+            && leaving.chip && copyLeaving.includes(opened.id)
+            && J(inside.at) === J([1700, 300]) && inside.room === "Cafeteria" && inside.cell?.leave === "Cafeteria" && Object.keys(inside.copy ?? {}).includes(opened.id)
+            && J(outside.at) === J([2100, 300]) && outside.room === null && outside.cell === null && J(outside.copy) === "{}",
+        J({ leaving, copyLeaving, inside, outside, waited }));
 
     /* The grant: '+' and then Aiko's name, two clicks. */
     const granted = await gm.eval(`${TAB} const add = press('[data-drpg-passage-act="menu"][data-drpg-menu="grant"]');
         const shown = row()?.querySelector('[data-drpg-menu-of="grant"]')?.hidden === false;
         press('[data-drpg-menu-of="grant"] [data-drpg-passage-act="grant"][data-drpg-actor="${IDS.aiko}"]');
         await until(() => chips(2).length === 1);
-        return { add, shown, knows: chips(2) };`, { timeout: 15000 });
+        /* The primary's own grant sends p1 the copy before the tab draws (passages-gm.mjs \`tellAfter\`): no "not yet
+           delivered" line, then or a redraw later (cor F2's stale line came from a push later than the redraw). */
+        await new Promise(r => setTimeout(r, 600));
+        return { add, shown, knows: chips(2), pending: row()?.querySelector('[data-state="pending"]')?.textContent ?? null };`, { timeout: 15000 });
     await settle(600);
     const copyGranted = await known(p1, repoUrl);
-    check("E: '+' and Aiko's name grant her the passage again - two clicks - and p1's copy holds the row",
-        granted.add && granted.shown && J(granted.knows) === J([IDS.aiko]) && Object.keys(copyGranted).includes(opened.id), J({ granted, copyGranted }));
+    check("E: '+' and Aiko's name grant her the passage again - two clicks - p1's copy holds the row, and the tab names nobody not yet sent it",
+        granted.add && granted.shown && J(granted.knows) === J([IDS.aiko]) && Object.keys(copyGranted).includes(opened.id) && granted.pending === null,
+        J({ granted, copyGranted }));
 
     /* The wall moved off the stretch: the primary GM marks the passage broken, p1's copy drops it, the tab says so and offers
        no Open; the wall put back where it was leaves it broken (a GM picks the stretch again, C6). */

@@ -160,6 +160,12 @@ export function pushPassageCopies(userIds = null, { force = false, stores = PASS
             error("Could not send a player their secret passages", err);
         }
     }
+    /* Client-local, on the sending GM's browser: the Passages tab's "not yet delivered" line reads `told`, and the tab
+       redraws 120 ms after a change of the records (TIMING.coalesceMs) - before a push that comes later, as a retell
+       does at 250 ms (`retellSoon`), and as the answer to a player's ask when they connect does. Until review round 1
+       (cor F2, 15.10.2026) nothing redrew it after such a push, and the line stayed on a student whose player held
+       the passage; the tab now watches this as well (passages-tab.mjs `wirePassagesTab`, R561). */
+    if (sent) Hooks.callAll("drpgPassagesTold", { sent });
     return sent;
 }
 
@@ -439,6 +445,48 @@ export async function revokeLeavers(tokenDoc, { stores = PASSAGE_STORES, roomOf 
         if (await revokePassage(passageId, actorId, { stores })) gone.push(passageId);
     }
     return gone;
+}
+
+/**
+ * The rooms a passage joins on the map, each once: the veto's own reading (movement.mjs `passageRooms`,
+ * the stretch's two sides on the passage's floor), on the passage's scene - `scene` is the suite's (R561).
+ * What the Passages tab's cross asks about. A row's `rooms` is what the tab shows, no more: the console
+ * leaves it empty, and until review round 1 (cor F1, 15.10.2026) the cross asked only when the student's
+ * room was one of those names, so a passage made from the console, and one whose room a GM had
+ * renamed since, revoked at once a student standing beside it. [] where the map
+ * names no room, on another scene, or on a browser that is not a GM's.
+ */
+export async function passageRoomsOnMap(passageId, { stores = PASSAGE_STORES, scene = null } = {}) {
+    const row = game.user?.isGM ? stores.map.get(passageId) : null;
+    const on = scene ?? game.scenes?.get(row?.sceneId);
+    if (!row?.passageSeg || !on || on.id !== row.sceneId) return [];
+    const { passageRooms } = await import("./movement.mjs");
+    return [...new Set(passageRooms(on, row.passageSeg, row.level ?? null).filter(Boolean))];
+}
+
+/**
+ * On the primary, once a GM's rename of the room `from` on the scene `sceneId` to `to` is carried
+ * (fog.mjs `carryRename`): each passage of that scene shows the new name (`rooms`), and a student who
+ * keeps a passage until leaving the room (`leave`) keeps it until leaving the renamed room. Until review
+ * round 1 (cor F1; the goal reviewer's note on 'Revoke when they leave', 15.10.2026) neither was carried,
+ * and `revokeLeavers`, which compares names, revoked the passage at the student's next route inside the
+ * room. Answers how many rows and cells it carried.
+ */
+export async function carryPassageRooms(sceneId, from, to, { stores = PASSAGE_STORES } = {}) {
+    if (!game.user?.isGM || !sceneId || !from || !to || from === to) return 0;
+    await Promise.all([stores.map.whenHydrated?.(), stores.access.whenHydrated?.()]);
+    const here = new Set(), rows = {}, cells = {};
+    for (const [id, row] of Object.entries(stores.map.entries())) {
+        if (row?.sceneId !== sceneId) continue;
+        here.add(id);
+        if (Array.isArray(row.rooms) && row.rooms.includes(from)) rows[id] = { rooms: row.rooms.map(room => (room === from ? to : room)) };
+    }
+    for (const [key, cell] of Object.entries(stores.access.entries())) {
+        if (!key.startsWith("touch/") && cell?.leave === from && here.has(key.slice(0, key.lastIndexOf("/")))) cells[key] = { leave: to };
+    }
+    if (Object.keys(rows).length) await stores.map.patchMany(rows);
+    if (Object.keys(cells).length) await stores.access.patchMany(cells);
+    return Object.keys(rows).length + Object.keys(cells).length;
 }
 
 /**

@@ -14017,7 +14017,10 @@ const INVARIANTS = [
         const stores = { map: def(S.passageMapStore, "Map"), access: def(S.passageAccessStore, "Access"), log: def(S.passageLogStore, "Log"),
             mastermind: eng.define({ name: "r561mm", key: "r561mm", kind: "record", fields: ["actorId"], sync: false, backup: false }) };
         const [A, B] = studentActors();
-        const scene = { id: "R561SCENE" };
+        // Two rooms of the suite's own on either side of the walls' line (y 400), which the cross reads (review r1, cor F1).
+        const box = (id, name, x, y, width, height) => ({ id, name, behaviors: [], getFlag: () => true, shapes: [{ x, y, width, height }] });
+        const scene = { id: "R561SCENE", grid: { size: 100 }, levels: [],
+            regions: [box("R561RH", "R561 Hall", 1200, 200, 800, 200), box("R561RK", "R561 Kitchen", 1200, 400, 800, 400)] };
         const row = (wall, x, state = "secret") => ({ sceneId: scene.id, level: null, shape: "wall", passageWallId: wall,
             passageSeg: { x1: x, y1: 400, x2: x + 66, y2: 400 }, rooms: ["R561 Kitchen", "R561 Hall"], state, startAccess: [] });
         const [P1, P2, P3] = [1, 2, 3].map(n => `${scene.id}.r561p${n}`);
@@ -14101,6 +14104,42 @@ const INVARIANTS = [
             J([["R561 Hall", true, true], [], [], true, [P2], false, "gm"]),
             "['when they leave': the room kept, the copy still holds it, the chip says so; still in the Hall, on another scene, kept; out of the Hall, the cell, P1 untouched]");
 
+        /* Review r1, cor F1 (15.10.2026): the rooms the cross asks about are the map's, either side of the stretch, not the
+           names a row shows - the console's road leaves them empty, and a GM's rename left the old one. Until the fix the
+           tab asked only when the student's room was one of those names, so both rows below revoked A at once, standing in
+           the Hall beside them. A student in no room of theirs is revoked unasked (the control). Then a rename carried into
+           the records: the names a row shows, and a pending 'when they leave', which a route in the renamed room revoked. */
+        const [P4, P5] = [4, 5].map(n => `${scene.id}.r561p${n}`);
+        await stores.map.patchMany({ [P4]: { ...row("R561WALL3", 1500), rooms: [] }, [P5]: { ...row("R561WALL3", 1700), rooms: ["R561 Old Hall", "R561 Kitchen"] } });
+        for (const id of [P4, P5]) await P.grantPassage(id, A.id, { stores });
+        tab.draw();
+        answer = null;
+        const askedAt = asked.length;
+        where.set(A.id, "R561 Hall");
+        for (const id of [P4, P5]) await press(id, `[data-drpg-passage-act="revoke"][data-drpg-actor="${A.id}"]`);
+        const beside = [asked.length - askedAt, asked.slice(askedAt).map(q => q.room), Boolean(cell(P4, A)), Boolean(cell(P5, A))];
+        where.set(A.id, "R561 Dorm");
+        for (const id of [P4, P5]) await press(id, `[data-drpg-passage-act="revoke"][data-drpg-actor="${A.id}"]`);
+        const apart = [asked.length - askedAt, Boolean(cell(P4, A)), Boolean(cell(P5, A))];
+        const onMap = typeof P.passageRoomsOnMap === "function" ? (await P.passageRoomsOnMap(P4, { stores, scene })).sort() : null;
+        equal(J([beside, apart, onMap]), J([[2, ["R561 Hall", "R561 Hall"], true, true], [2, false, false], ["R561 Hall", "R561 Kitchen"]]),
+            "[in the Hall beside a passage of no rooms and one whose names are stale: asked, the room, both kept; in the Dorm: not asked, both revoked; the rooms the map gives]");
+
+        await P.grantPassage(P5, A.id, { stores });
+        await P.revokeWhenLeaving(P5, A.id, "R561 Hall", { stores });
+        // The carry waits for the stores' hydration, as a GM's rename does on a browser that has just loaded: the suite's
+        // engine is opened here, alone, as a lone GM's is (until now nothing in this test waited on it).
+        await eng.open();
+        const carried = typeof P.carryPassageRooms === "function"
+            ? [await P.carryPassageRooms(scene.id, "R561 Kitchen", "R561 Scullery", { stores }), await P.carryPassageRooms(scene.id, "R561 Hall", "R561 Great Hall", { stores })] : null;
+        const stillIn = await P.revokeLeavers(tokenIn(scene.id), { stores, roomOf: () => "R561 Great Hall" });
+        const fog = stripComments(new Map(await otherSources()).get("fog.mjs") ?? "");
+        equal(J([carried, stores.map.get(P5)?.rooms, cell(P5, A)?.leave, stillIn, Boolean(cell(P5, A)), stores.map.get(P3)?.rooms,
+            /\bcarryPassageRooms\(scene\.id, from, to\)/.test(fnSource(fog, "carryRename"))]),
+        J([[3, 3], ["R561 Old Hall", "R561 Scullery"], "R561 Great Hall", [], true, ["R561 Kitchen", "R561 Hall"], true]),
+        "[the rows and cells each rename carried, P5's names, A's room to leave, a route in the renamed room revokes nothing, the cell, another scene's row, fog.mjs carryRename's call]");
+        for (const id of [P4, P5]) await P.deletePassage(id, { stores });
+
         // The season's start is its own column: who knows it now does not change.
         inRow(P1, '[data-drpg-menu="start"]')?.click();
         await press(P1, `[data-drpg-passage-act="start-on"][data-drpg-actor="${B.id}"]`);
@@ -14130,6 +14169,40 @@ const INVARIANTS = [
             body.includes('data-state="pending"'), body.includes('data-state="shared"')]),
         J([[A.id], [], null, true, false]),
         "[before A's player was sent it, after, on a GM that is not the primary, the tab's pending line, a shared line for a student one player owns]");
+
+        /* Review r1, cor F2 (15.10.2026): a push redraws the open tab. On a real window's element (keepFresh stops once it is
+           detached), A's player connected and sent their copy, B's never connected: before the push the line names both;
+           after it, within one redraw, B alone. Until the fix nothing redrew the tab after a push that came later than the
+           records' own redraw (a retell, the answer to a player connecting), and the line kept A. A push that sends nothing
+           says nothing. */
+        const { TIMING } = await import("./config.mjs");
+        const U2 = { id: "R561U2", isGM: false, active: false, name: "R561 second" };
+        const owns = { [A.id]: U.id, [B.id]: U2.id };
+        // Read by id and walked by value, as game.actors is (passageCopyFor walks it, undeliveredOf reads it by id).
+        const actors2 = new Map([A, B].map(a => [a.id, { ...fake(a), testUserPermission: (user, level) => level === "OWNER" && (user?.isGM || user?.id === owns[a.id]) }]));
+        actors2[Symbol.iterator] = function () { return this.values(); };
+        const told2 = new Map(), heard = [];
+        const app = { element: document.createElement("div") };
+        app.element.innerHTML = T.passagesTabHtml(scene, { stores, students: [A, B] });
+        document.body.append(app.element);
+        const hookId = Hooks.on("drpgPassagesTold", payload => heard.push(payload?.sent ?? null));
+        let lines;
+        try {
+            const live = T.wirePassagesTab(app.element, scene, { dialog: app, stores, students: [A, B], actors: actors2, users: [U, U2, people[1]], told: told2 });
+            live.draw();
+            const line = () => app.element.querySelector(`[data-drpg-passage="${P1}"] [data-state="pending"]`)?.textContent ?? "";
+            const named = () => [A, B].map(a => line().includes(a.name));
+            const before = named();
+            const pushed = [P.pushPassageCopies(null, { stores, actors: actors2, users: [U, U2], socket: { emit: () => {} }, told: told2 })];
+            await wait(TIMING.coalesceMs * 3);
+            pushed.push(P.pushPassageCopies(null, { stores, actors: actors2, users: [U, U2], socket: { emit: () => {} }, told: told2 }));
+            lines = [before, pushed, named(), heard];
+        } finally {
+            Hooks.off("drpgPassagesTold", hookId);
+            app.element.remove();
+        }
+        equal(J(lines), J([[true, true], [1, 0], [false, true], [1]]),
+            "[the pending line before the push names A and B, what each push sent, the line after it, the hook heard]");
 
         // The wall: along its line nothing changes; moved off the stretch or deleted, the passage breaks, its knowers kept.
         const wall = c => ({ id: "R561WALL1", parent: scene, c });

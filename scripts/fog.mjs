@@ -690,12 +690,14 @@ async function carryRename(scene, from, to, pieces) {
             if (rooms.includes(from)) cells[cellKey(scene.id, actorId)] = { [from]: false, [to]: true };
         }
         await writeCells(cells);
+        // The GMs' records of the secret passages on this scene, which name rooms too (E79 fix r1-G3, passages-gm.mjs `carryPassageRooms`).
+        const passages = await (await import("./passages-gm.mjs")).carryPassageRooms(scene.id, from, to);
         await dropRenameRecords(scene, from, to);
         repaintRoomScene(scene);
         const moved = { ...sheets, cells: Object.keys(cells).length, ...world };
         log(`"${from}" on "${scene.name}" was renamed "${to}": ${moved.keys} key(s), ${moved.items} stashed item(s), `
             + `${moved.found} found note(s), ${moved.cells} discovery row(s), ${moved.projects} project(s), ${moved.plants} plant(s), `
-            + `${moved.lists} Neighbours list(s), ${moved.lair} lair, ${moved.gather} assembly, ${moved.sealed} seal and ${moved.bodies} body record(s) carried.`);
+            + `${moved.lists} Neighbours list(s), ${moved.lair} lair, ${moved.gather} assembly, ${moved.sealed} seal, ${moved.bodies} body record(s) and ${passages} secret passage record(s) carried.`);
         if (Object.values(moved).some(Boolean)) {
             await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Rooms.renamed", { from, to, scene: scene.name, ...moved }))}</p>`);
         }
