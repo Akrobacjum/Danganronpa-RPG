@@ -533,7 +533,9 @@ async function phaseD({ gm, p1, p2, p3, check, phase, settle, socketTraffic, opL
         const t = game.scenes.get(${J(IDS.scene)}).tokens.get(${J(BOTAN)});
         const cards = game.messages.filter(m => String(contentOf(m) ?? "").includes('data-drpg-wall="${BOTAN}"'));
         return { at: [t.x, t.y], cards: cards.map(m => [...(m.whisper ?? [])].sort()),
-            rows: U.sessionFailures().filter(e => e.message.startsWith("A player's move took a token through a wall")).map(e => [e.message, e.count]) };`);
+            rows: U.sessionFailures().filter(e => e.message.startsWith("A player's move took a token through a wall")).map(e => [e.message, e.count]),
+            book: (game.drpg.passages.audit?.()?.rows ?? []).filter(r => r.token === ${J(BOTAN)})
+                .reduce((n, r) => ({ times: n.times + r.times, quiet: n.quiet + r.quiet }), { times: 0, quiet: 0 }) };`);
     const onP2 = () => p2.eval(`
         const { contentOf } = await import("${repoUrl}/scripts/secret.mjs");
         return { told: globalThis.__notifications.map(n => n.msg), wire: globalThis.__s76dWire.map(p => p.code),
@@ -548,18 +550,22 @@ async function phaseD({ gm, p1, p2, p3, check, phase, settle, socketTraffic, opL
         const g1 = await onGm(), q1 = await onP2();
         return { vetoOff, at: g1.at, packets: socketTraffic.slice(mark).filter(t => t.action === "move.sentBack").map(t => ({ from: t.from, to: t.to })),
             codes: q1.wire.slice(q0.wire.length), told: q1.told.slice(q0.told.length), p2cards: q1.cards - q0.cards,
-            whispers: g1.cards.slice(g0.cards.length), rows: grown(g0.rows, g1.rows) };
+            whispers: g1.cards.slice(g0.cards.length), rows: grown(g0.rows, g1.rows),
+            counted: g1.book.times - g0.book.times, quiet: g1.book.quiet - g0.book.quiet };
     };
     const cannotReach = await p2.eval(`return game.i18n.format("DRPG.Move.cannotReach", { from: "Cafeteria" });`);
-    const sentBack = r => r.vetoOff && J(r.at) === J(HOME) && J(r.packets) === J([{ from: "gm", to: [IDS.p2] }]) && J(r.codes) === J(["wall"])
-        && J(r.told) === J([cannotReach]) && r.p2cards === 0 && J(r.whispers) === J([[IDS.gm]]) && r.rows.length === 1 && r.rows[0].mode === "sendBack"
+    /* The GMs are whispered once per token and mover in 30 s (review r1, cor F3): a put-back after the first is
+       counted on the audit's row (`quiet`) instead - either is the one result here, and the burst is checked apart. */
+    const heard = r => (J(r.whispers) === J([[IDS.gm]]) && !(r.quiet > 0)) || (r.whispers.length === 0 && r.quiet === 1);
+    const sentBack = (r, home = HOME) => r.vetoOff && J(r.at) === J(home) && J(r.packets) === J([{ from: "gm", to: [IDS.p2] }]) && J(r.codes) === J(["wall"])
+        && J(r.told) === J([cannotReach]) && r.p2cards === 0 && heard(r) && r.rows.length === 1 && r.rows[0].mode === "sendBack"
         && r.rows[0].user === IDS.p2 && r.rows[0].token === BOTAN;
     const stood = (r, at) => J(r.at) === J(at) && r.packets.length === 0 && r.codes.length === 0 && r.told.length === 0 && r.whispers.length === 0 && r.rows.length === 0;
     const putBack = () => gm.eval(`await game.scenes.get(${J(IDS.scene)}).tokens.get(${J(BOTAN)}).update({ x: ${HOME[0]}, y: ${HOME[1]} }, ${J(PLACE)}); return true;`);
 
     const plain = await attempt(ACROSS);
     const held = await attempt([1250, 600]);
-    const blind = r => J({ ...r, rows: r.rows.map(x => ({ ...x, wall: null, passage: null })) });
+    const blind = r => J({ ...r, whispers: null, quiet: null, rows: r.rows.map(x => ({ ...x, wall: null, passage: null })) });
     check("D: p2, its veto off, moves Botan through the ordinary wall and through the passage's wall: each time he is put back where the GM saw him, p2 alone is sent the code 'wall' and reads the veto's sentence, the GMs alone are whispered",
         sentBack(plain) && sentBack(held), J({ plain, held, cannotReach }));
     check("D: the two are one result - only the Debug log row's wall and `passage` differ, the passage named on its wall's row and nothing on the other",
@@ -571,7 +577,7 @@ async function phaseD({ gm, p1, p2, p3, check, phase, settle, socketTraffic, opL
     const teleport = await attempt(ACROSS, { teleport: true });
     const displace = await attempt(ACROSS, { movementAction: "displace" });
     check("D: a REVERT the GM never wrote, Foundry's teleport and a displace through the ordinary wall are each put back the same way - among them a REVERT to the spot the audit had just put Botan back from",
-        [revert, teleport, displace].every(sentBack), J({ revert, teleport, displace }));
+        [revert, teleport, displace].every(r => sentBack(r)), J({ revert, teleport, displace }));
 
     const elsewhere = await (async () => {
         await gm.eval(`globalThis.__s76dView = canvas.scene; canvas.scene = game.scenes.get(${J(IDS.annex)}); return true;`);
@@ -580,6 +586,30 @@ async function phaseD({ gm, p1, p2, p3, check, phase, settle, socketTraffic, opL
     })();
     check("D: with the GM looking at the Annex the same move is put back the same way",
         elsewhere.on === IDS.annex && sentBack(elsewhere.r) && blind(elsewhere.r) === blind(plain), J(elsewhere));
+
+    /* Review r1, SEC S1: the spot a put-back leaves is in no GM's record of the token, so the owner's send-back
+       through the bridge (`token.sendBack`, judged by `guardSendbackPlace` on that record) cannot take Botan there. */
+    const ops0 = opLog.length;
+    const asked = await p2.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        const r = await B.requestSendBack(${J(IDS.scene)}, ${J(BOTAN)}, { x: ${ACROSS[0]}, y: ${ACROSS[1]} });
+        return { ok: r.ok, refused: r.refused ?? null, reason: r.reason ?? null };`, { timeout: 30000 });
+    await settle(1500);
+    const askedAt = (await onGm()).at, askedWrites = opLog.slice(ops0).filter(o => o.coll === "Token" || o.embeddedName === "Token").map(o => `${o.who} ${o.action}`);
+    if (J(askedAt) !== J(HOME)) { await putBack(); await settle(800); }
+    check("D: p2 asks the GM through the bridge to send Botan back to the spot the audit has just put him back from: refused as a spot he did not stand on a moment ago, Botan where the GM saw him and no token written",
+        asked.ok === false && asked.refused === true && asked.reason === "notWhereItStood" && J(askedAt) === J(HOME) && askedWrites.length === 0,
+        J({ asked, askedAt, askedWrites }));
+
+    /* Review r1, goal F1: a route that stops on a wall's line and goes on across it in a second move crosses the wall.
+       Botan at 1450,400 has his centre on the ordinary wall's line (x 1500, y 400-800); from there to 1550,400 he is on
+       its far side. Each move alone ends on the line or leaves it, and only the two together go through. */
+    const ONLINE = [1450, 400];
+    const onStand = await attempt(ONLINE);
+    const onBack = await attempt(ACROSS);
+    await putBack();
+    await settle(800);
+    check("D: Botan stops on the ordinary wall's line, which stands, and goes on to its far side in a second move: put back onto the line, as through the wall",
+        stood(onStand, ONLINE) && sentBack(onBack, ONLINE) && onBack.rows[0].wall === set.plain, J({ onStand, onBack }));
 
     /* What stands: a GM's own move across, a REVERT p2 writes back to where the GM saw Botan a moment ago, Aiko through her passage. */
     await gm.eval(`await game.scenes.get(${J(IDS.scene)}).tokens.get(${J(BOTAN)}).update({ x: ${ACROSS[0]}, y: ${ACROSS[1]} }); return true;`);
@@ -602,6 +632,26 @@ async function phaseD({ gm, p1, p2, p3, check, phase, settle, socketTraffic, opL
         J(logged.at) === J(ACROSS) && logged.packets.length === 0 && logged.codes.length === 0 && logged.whispers.length === 0
             && logged.rows.length === 1 && logged.rows[0].mode === "log" && logged.rows[0].wall === set.plain,
         J(logged));
+
+    const onStandLog = await attempt(ONLINE);
+    const onLogged = await attempt(ACROSS);
+    await putBack();
+    await settle(800);
+    check("D: in 'log' mode the same two moves stand, and the second has its row in the Debug log, with nothing sent or whispered",
+        stood(onStandLog, ONLINE) && J(onLogged.at) === J(ACROSS) && onLogged.packets.length === 0 && onLogged.whispers.length === 0
+            && onLogged.rows.length === 1 && onLogged.rows[0].mode === "log" && onLogged.rows[0].wall === set.plain,
+        J({ onStandLog, onLogged }));
+
+    /* Review r1, goal F6 and cor F3: the audit keeps a row of every crossing it judged (`game.drpg.passages.audit()`),
+       and the GMs are whispered once per token and mover in 30 s - held followed plain within seconds. */
+    const crossed = { plain, held, revert, teleport, displace, elsewhere: elsewhere.r, onBack, logged, onLogged };
+    const audit = await gm.eval(`const a = game.drpg.passages.audit?.() ?? null;
+        return a && { dropped: a.dropped, rows: a.rows.filter(r => r.token === ${J(BOTAN)}).map(r => [r.verdict, r.mode, r.times, r.quiet]) };`);
+    check("D: the audit counts each crossing once on its rows, and the GMs are whispered of the first put-back, not of the next one seconds later",
+        Object.values(crossed).every(r => r.counted === 1) && [onStand, onStandLog, lawful].every(r => r.counted === 0)
+            && plain.whispers.length === 1 && held.whispers.length === 0 && held.quiet === 1
+            && typeof audit?.dropped === "number" && audit.rows.some(([verdict]) => verdict === "sent back") && audit.rows.some(([verdict]) => verdict === "noted"),
+        J({ counted: Object.fromEntries(Object.entries(crossed).map(([k, r]) => [k, [r.counted, r.whispers.length, r.quiet]])), audit }));
 
     /* The fuzz substitute (31-fuzz is E43's): a send-back p2 forges for p3, one from the primary with a code nobody knows,
        and an ask of junk types - no document written, nothing thrown, each refusal a reason in the refuser's log. */

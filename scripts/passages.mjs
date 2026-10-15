@@ -347,6 +347,11 @@ function cleanCopy(passages, stamps) {
    loaded and left in phase U, until the player reloaded. */
 let arriving = null;
 
+/** That GM, for the other word only the primary GM sends this browser (movement-audit.mjs `sentBackRefusal`, since E79 fix r1-G1). */
+export function arrivingPrimary() {
+    return arriving;
+}
+
 /**
  * Why a packet of passages is not this browser's to take, or null when it is: it must be addressed
  * to this user and sent by a GM (`replyForMe`'s rule, bridge-guards.mjs) that is the primary GM - so

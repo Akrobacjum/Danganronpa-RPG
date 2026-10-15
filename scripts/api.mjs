@@ -249,6 +249,7 @@ import {
     log
 } from "./utils.mjs";
 import { createPassage, grantPassage, revokePassage, closePassage, openPassage, deletePassage, listPassages, passageLog } from "./passages-gm.mjs";
+import { auditRows } from "./movement-audit.mjs";
 
 /*
  * A SHORTHAND WITH NO SCENE SAYS SO (E12 fix r1-G2, 11.10.2026; review round 1 EARLY-C6-4). Since
@@ -1455,7 +1456,8 @@ export const DrpgApi = {
     /** A GM's, from the console until the GMs' tab (C5): a passage on a wall, who knows it, Close and Open, and the
      *  log. `create({ sceneId, wallId, seg, rooms, level, startAccess })` answers the id; the rest answer whether it
      *  was done, and a refusal says why in the console. Kept by the GMs alone and sent to a player only as the
-     *  passages their own characters know. */
+     *  passages their own characters know. `audit()` (E79 fix r1-G1, 1.2.79) answers the rows of the moves through a
+     *  wall the audit judged on this browser since it loaded - the primary GM's (movement-audit.mjs `auditRows`). */
     passages: {
         create: params => createPassage(params),
         grant: (passageId, actorId) => grantPassage(passageId, actorId),
@@ -1464,7 +1466,8 @@ export const DrpgApi = {
         open: passageId => openPassage(passageId),
         delete: passageId => deletePassage(passageId),
         list: () => listPassages(),
-        log: () => passageLog()
+        log: () => passageLog(),
+        audit: () => auditRows()
     },
 
     settings: {

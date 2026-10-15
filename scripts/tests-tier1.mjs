@@ -13738,7 +13738,7 @@ const INVARIANTS = [
         const neighbours = fnSource(src, "neighbourAnswer") + fnSource(src, "neighbouringRooms");
         ok(!/passesThrough|reachableFrom|openSegmentsFor|knownPassages/.test(neighbours), "the neighbours Listen and the body read ask the secret passages");
     }],
-    ["R559 - one wall rule on the primary GM: a move through an ordinary wall and through a passage's wall is judged alike, the knower and the Mastermind pass the passage, doors, one-way walls, floors and the start are the GM's, a forged revert, teleport and displace are judged like any move, a send-back the GM accepts, the stairs, a GM and a Monokuma the GMs hold pass; \"log\" writes a row and moves nothing, \"sendBack\" puts the token back and tells its mover alone, from the primary GM", async () => {
+    ["R559 - one wall rule on the primary GM: a move through an ordinary wall and through a passage's wall is judged alike, the knower and the Mastermind pass the passage, doors, one-way walls, floors and the start are the GM's, a forged revert, teleport and displace are judged like any move, a send-back the GM accepts, the stairs, a GM and a Monokuma the GMs hold pass; \"log\" writes a row and moves nothing, \"sendBack\" puts the token back and tells its mover alone, from the primary GM; a route through a point on a wall's line crosses it, the spot a put-back leaves is in no GM's record of the token, and the audit keeps a counted row of every crossing with one whisper per token and mover in 30 s", async () => {
         /*
          * E79 C4, 14.10.2026; the E79 plan's A10-6 (V1, V8, D7, RISK-b, AM-1). The harms: a console's move through a
          * wall left standing (red at the parent: no audit, and this file's import of movement-audit.mjs throws), a passage
@@ -13750,6 +13750,12 @@ const INVARIANTS = [
          * the test hands in (`warn`, `sendBack`, `socket`, `whisper`), so nothing is written, sent or logged. Foundry's
          * own reading of a one-way wall (`orient2dFast` < 0 LEFT) is the plan's, not read in v14's source; scenario 76 D
          * drives the audit through the harness on four clients.
+         * E79 fix r1-G1, 15.10.2026 (review r1: SEC S1, S6, goal F1, F2, F3, F6, cor F3), each red at e6e3349: a route
+         * through a point exactly on a wall's line, in one move's waypoints or in two moves, judged clear; the spot the
+         * audit put a token back from kept in the GMs' record, where a REVERT 61 s after the audit and 30 s after the
+         * landing - and the bridge's send-back, 76 D - took it as a place the token stood; a whisper for every put-back
+         * of a burst; and no record of the crossings but the Debug log's first 60 rows. The audit's book (`book`) is
+         * the suite's own here, fresh for each call unless the case shares one.
          */
         const A = await import("./movement-audit.mjs");
         const M = await import("./movement.mjs");
@@ -13775,13 +13781,15 @@ const INVARIANTS = [
         const tok = (x, y, { actor = SA, level, movement, on = scene } = {}) => ({ id: "R559T", name: "R559 token", x, y, width: 1, height: 1,
             elevation: 0, level, parent: on, actor, movement });
         const at = (x, y, level) => ({ x, y, elevation: 0, level });
-        const audit = (token, was, { options = {}, user = "R559U", mode = "log", held = a => a, stairs = [], history = [], mastermind = false, marks = new Map() } = {}) => {
+        const fresh = () => ({ rows: [], told: new Map(), lines: new Map(), dropped: 0 });
+        const audit = (token, was, { options = {}, user = "R559U", mode = "log", held = a => a, stairs = [], history = [], mastermind = false, book = fresh(),
+            now = Date.now(), refusal = M.sendBackRefusal } = {}) => {
             const acts = [];
             const out = A.auditMove(token, { x: token.x, y: token.y }, options, user, was, {
-                REVERT: M.REVERT, SENT_BACK: M.SENT_BACK, sendBackRefusal: M.sendBackRefusal, roomAt: M.roomAt, stairLinks: () => stairs,
-                history, held, users, known, mode, mastermind: () => mastermind, putBackFrom: marks,
+                REVERT: M.REVERT, SENT_BACK: M.SENT_BACK, sendBackRefusal: refusal, roomAt: M.roomAt, stairLinks: () => stairs,
+                history, held, users, known, mode, mastermind: () => mastermind, book, now,
                 warn: (text, row) => acts.push(["warn", row.wall, row.passage, row.mode]),
-                sendBack: (doc, spot, how) => { acts.push(["sendBack", spot.x, spot.y, how.sound]); how.landed(true); },
+                sendBack: (doc, spot, how) => { acts.push(["sendBack", spot.x, spot.y, how.sound, how.audited]); how.landed(true); },
                 socket: { emit: (event, packet, opts) => acts.push(["emit", event, packet, opts]) },
                 whisper: html => { acts.push(["whisper", html.includes('data-drpg-wall="R559T"')]); return Promise.resolve(); }
             });
@@ -13821,15 +13829,62 @@ const INVARIANTS = [
         const plain = audit(...across), plainSent = audit(...across, { mode: "sendBack" });
         const hidden = audit(tok(100, 700, { actor: SB }), at(100, 100), { mode: "sendBack" });
         equal(J([plain.acts, plainSent.acts, hidden.acts]), J([[["warn", "R559W1", null, "log"]],
-            [["warn", "R559W1", null, "sendBack"], ["sendBack", 100, 100, false], EMIT(), ["whisper", true]],
-            [["warn", "R559W2", "R559P", "sendBack"], ["sendBack", 100, 100, false], EMIT(), ["whisper", true]]]),
+            [["warn", "R559W1", null, "sendBack"], ["sendBack", 100, 100, false, true], EMIT(), ["whisper", true]],
+            [["warn", "R559W2", "R559P", "sendBack"], ["sendBack", 100, 100, false, true], EMIT(), ["whisper", true]]]),
         "[\"log\" mode, \"sendBack\" mode through an ordinary wall, through a passage's wall] - the row, the put-back to the GM's sighting with no sound on the GM, the mover told alone, the GMs warned");
-        // A REVERT back to the spot the audit put the token back from: the GMs saw it there, through the wall, and that is no lawful stand.
-        const marks = new Map();
-        audit(...across, { mode: "sendBack", marks });
-        equal(J([said(tok(1700, 100), at(100, 100), { options: { [M.REVERT]: true }, history: back, marks }),
-            said(tok(1700, 100), at(100, 100), { options: { [M.REVERT]: true }, history: back, marks: new Map() })]),
-        J(["crossed R559W1", "exempt"]), "[a REVERT to the spot the audit put the token back from, the same with no put-back]");
+        // A REVERT back to the spot the audit put the token back from (SEC S1, goal F2, F3): the GMs saw it there, through the
+        // wall, and the put-back's landing cuts it from their record (`sightingsAfter`) - read 61 s after the audit and 30 s
+        // after the landing, where C4's marks had lapsed and the record's entry had not; with an ordinary sighting as the
+        // control, and a second move written before the put-back landed (it stood on the far side too). A tree without
+        // `sightingsAfter` kept every sighting, the spot included: that rule stands in for it there.
+        const sightingsAfter = M.sightingsAfter ?? ((ring, was, at) => [...ring, { ...was, at }]);
+        const t0 = Date.now(), HOME = { ...at(100, 100), level: undefined }, FAR = { ...at(1700, 100), level: undefined }, FARTHER = { ...at(1800, 100), level: undefined };
+        const first = sightingsAfter([], HOME, t0);
+        const putBack = sightingsAfter(first, FAR, t0 + 31_000, HOME), ordinary = sightingsAfter(first, FAR, t0 + 31_000);
+        const raced = sightingsAfter(sightingsAfter(first, FAR, t0 + 1), FARTHER, t0 + 31_000, HOME);
+        const later = (spot, o) => M.sendBackRefusal(spot, { ...o, now: t0 + 61_000 });
+        const revertTo = (x, history) => said(tok(x, 100), at(100, 100), { options: { [M.REVERT]: true }, history, refusal: later });
+        equal(J([revertTo(1700, putBack), revertTo(1700, ordinary), revertTo(1700, raced), revertTo(1800, raced),
+            M.sendBackRefusal(FAR, { history: putBack, now: t0 + 61_000 }) === null, M.sendBackRefusal(FAR, { history: ordinary, now: t0 + 61_000 }) === null,
+            putBack.length, sightingsAfter([], FAR, t0, HOME).length]),
+        J(["crossed R559W1", "exempt", "crossed R559W1", "crossed R559W1", false, true, 1, 0]),
+        "[a REVERT to the spot the audit put the token back from, the same after an ordinary sighting, after a second move before the put-back landed, to that move's spot; the bridge's send-back judge on the spot (the put-back's record, an ordinary one); the put-back's record's length, a put-back to a spot never seen]");
+
+        // A route through a point exactly on a wall's line (goal F1): in one move's waypoints, over two moves, and the
+        // controls - one that touches the line and comes back, one along the line past the wall's end, the knower in
+        // her passage's stretch on the line, and a second move with nothing handed on.
+        const via = (x, y, waypoints, actor = SA) => tok(x, y, { actor, movement: { passed: { waypoints } } });
+        const shared = fresh(), onLine = at(1450, 100);
+        const twoMoves = [said(tok(1450, 100), at(100, 100), { book: shared }), said(tok(1700, 100), onLine, { book: shared })];
+        const touch = fresh();
+        const touchBack = [said(tok(1450, 100), at(100, 100), { book: touch }), said(tok(1300, 100), onLine, { book: touch })];
+        const kept = fresh();
+        said(tok(1450, 100), at(100, 100), { book: kept });
+        const sentTwice = [audit(tok(1700, 100), onLine, { book: kept, mode: "sendBack" }).said, said(tok(1700, 100), onLine, { book: kept })];
+        equal(J([said(via(1700, 100, [onLine]), at(100, 100)), said(via(1300, 100, [onLine]), at(100, 100)), ...twoMoves, ...touchBack,
+            said(tok(1700, 100), onLine), said(via(1400, 600, [at(1400, 450)]), at(1400, 300)),
+            said(via(150, 700, [at(150, 450)]), at(100, 100)), said(via(150, 700, [at(150, 450)], SB), at(100, 100)), ...sentTwice]),
+        J(["crossed R559W1", "clear", "clear", "crossed R559W1", "clear", "clear", "clear", "clear", "clear", "crossed R559W2/R559P",
+            "crossed R559W1", "crossed R559W1"]),
+        "[a waypoint on the line then past it, then back, two moves onto the line and past it, onto it and back, the second move with nothing handed on, along the line past the wall's end, the knower in her passage's stretch, another there, put back onto the line and past it again, and once more]");
+
+        // The audit's rows (goal F6) and the whispers of a burst (cor F3): sixty-one crossings a minute apart are sixty-one
+        // rows, the newest thousand kept and the rest counted; ten in ten seconds are one row with times 10 and one whisper,
+        // and the next after thirty seconds whispers again.
+        const ledger = fresh();
+        for (let i = 0; i < 61; i++) audit(...across, { book: ledger, now: t0 + i * 60_000 });
+        const sixtyOne = [ledger.rows.length, ledger.rows.every(r => r.times === 1 && r.wall === "R559W1" && r.user === "R559U" && r.token === "R559T"
+            && r.mode === "log" && r.verdict === "noted"), ledger.dropped];
+        for (let i = 61; i < 1001; i++) audit(...across, { book: ledger, now: t0 + i * 60_000 });
+        const burst = fresh(), whispers = [];
+        for (let i = 0; i < 10; i++) whispers.push(...audit(...across, { book: burst, mode: "sendBack", now: t0 + i * 1000 }).acts.filter(act => act[0] === "whisper"));
+        const afterBurst = [whispers.length, burst.rows.map(r => [r.times, r.quiet, r.verdict])];
+        const next = audit(...across, { book: burst, mode: "sendBack", now: t0 + 9000 + 30_001 }).acts.filter(act => act[0] === "whisper").length;
+        const other = audit(...across, { book: burst, mode: "sendBack", user: "R559V", now: t0 + 9000 + 30_002 }).acts.filter(act => act[0] === "whisper").length;
+        const api = game.drpg?.passages?.audit?.();
+        equal(J([...sixtyOne, ledger.rows.length, ledger.dropped, ...afterBurst, next, other, burst.rows.length, Array.isArray(api?.rows), typeof api?.dropped]),
+            J([61, true, 0, 1000, 1, 1, [[10, 9, "sent back"]], 1, 1, 3, true, "number"]),
+            "[61 crossings' rows, each naming the token, mover, wall, mode and verdict once, none let go; after 1001, kept and let go; a burst of ten's whispers and its row's times, quiet and verdict; the next after 30 s, another mover's; the rows then; game.drpg.passages.audit()'s rows and count]");
 
         // The mover takes the word only from the primary GM, addressed to it, with a code it knows.
         const me = { id: "R559U", isGM: false };
@@ -13848,9 +13903,12 @@ const INVARIANTS = [
         const seen = fnSource(movement, "noteGmPosition");
         equal(J([/constrainOptions: \{ ignoreWalls: true \}/.test(fnSource(movement, "sendBack")), /constrainOptions: \{ ignoreWalls: true \}/.test(fnSource(bridge, "handleSendback")),
             /auditMove\(tokenDoc, changes, options, userId, gmSeen\.get\(tokenDoc\.id\),/.test(seen) && seen.search(/auditMove\(/) < seen.search(/gmSeen\.set\(/),
-            /\.teleport|movementAction|displace/.test(own)]),
-        J([true, true, true, false]),
-        "[sendBack ignores walls, handleSendback ignores walls, the audit's start is the GM's sighting before it moves, the audit reads teleport, movementAction or displace]");
+            /\.teleport|movementAction|displace/.test(own),
+            /options\?\.\[WALL_PUT_BACK\] && game\.users\?\.get\(userId\)\?\.isGM/.test(seen) && /sightingsAfter\(gmHistory\.get\(tokenDoc\.id\) \?\? \[\], was, Date\.now\(\), putBackTo\)/.test(seen)
+                && /\[WALL_PUT_BACK\]: true/.test(fnSource(movement, "sendBack")),
+            /export function sentBackRefusal\([^)]*primary = primaryGmId\(\{ arriving: arrivingPrimary\(\) \}\)/.test(own)]),
+        J([true, true, true, false, true, true]),
+        "[sendBack ignores walls, handleSendback ignores walls, the audit's start is the GM's sighting before it moves, the audit reads teleport, movementAction or displace, every GM's record takes the put-back's mark from a GM's write alone, the mover takes the word from the primary counting a GM that has just loaded (SEC S6) - read in the source; the suite's world has one GM]");
     }],
     ["R561 - the Passages tab: Room Setup's tab after Doors lists the scene's passages; a student is given one in two clicks, '+' and the name; Close keeps who knows it while the copy, the client's cut and the GMs' audit read it as a wall, and Open gives it back; the cross revokes at once a student who is not in the passage's rooms and otherwise asks 'Revoke now' or 'Revoke when they leave the room', which the primary revokes when the student's route settles outside it; the season's start is its own column; a wall moved off the stretch or deleted marks the passage broken and one moved along its line does not, on the primary GM alone; Show pans to the stretch, Delete forgets it and who knew it after a yes; a knower no player was sent it yet is named; and a new passage is two clicks on one wall between two rooms of one floor, each snapped to the wall and refused off it, on a door, on a wall that stops nobody, on a taken stretch, to another floor's room or on one room's wall, a broken one picked again from its row with its knowers kept, five clicks from 'New passage' to a student who knows it", async () => {
         /*

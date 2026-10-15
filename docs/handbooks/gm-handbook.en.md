@@ -479,7 +479,7 @@ What the module knows of Levels is its reading of v14, measured on the test harn
 - **Showing.** A student who knows a passage can show it to another student standing in the same room, without asking you and for no action (Player Handbook, chapter 3). You are told on a card, and `game.drpg.passages.log()` keeps it with every grant, revoke, Close and Open, the newest first (its last 200). A secret the students show each other spreads faster than one you give.
 - **The Mastermind knows every secret passage**, and is not listed.
 - **Every room needs an ordinary entrance.** Every browser holds the rooms and the tokens, so a room no door reaches gives its passage away: a token standing in it came through one. Every browser also sees a token cross the wall where a passage runs (README, Privacy).
-- **A player's token moved through a wall** (module settings): what happens when a player's token is moved through a wall its character could not pass, a passage it does not know included - a line in the Debug log (the default), or the token sent back where it stood, its player told and the GMs warned.
+- **A player's token moved through a wall** (module settings): what happens when a player's token is moved through a wall its character could not pass, a passage it does not know included - a line in the Debug log (the default), or the token sent back where it stood, its player told and the GMs warned (once in half a minute for the same token and player). `game.drpg.passages.audit()` in the primary GM's console lists these moves since that browser loaded, the newest 1000 rows, the same move again within half a minute counted on one row.
 
 ---
 

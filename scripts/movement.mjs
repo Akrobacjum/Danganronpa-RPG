@@ -442,8 +442,8 @@ function noteGmPosition(tokenDoc, changes, options, userId) {
     }
     const was = gmSeen.get(tokenDoc.id);
     if (was) {
-        const ring = [...(gmHistory.get(tokenDoc.id) ?? []), { ...was, at: Date.now() }];
-        gmHistory.set(tokenDoc.id, ring.slice(-GM_HISTORY_KEPT));
+        const putBackTo = options?.[WALL_PUT_BACK] && game.users?.get(userId)?.isGM ? positionOf(tokenDoc) : null;
+        gmHistory.set(tokenDoc.id, sightingsAfter(gmHistory.get(tokenDoc.id) ?? [], was, Date.now(), putBackTo));
     }
     gmSeen.set(tokenDoc.id, positionOf(tokenDoc));
 }
@@ -473,6 +473,30 @@ export function noteGmCreated(tokenDoc, userId) {
  */
 export function forgetToken(tokenId) {
     for (const kept of [lastRoom, lastPosition, gmSeen, gmHistory, standings, standingHistory, pathRooms]) kept.delete(tokenId);
+}
+
+/**
+ * The GMs' record of a token (`gmHistory`) once it is seen to leave `was` at `at`: the spot added, the
+ * newest `GM_HISTORY_KEPT` kept. The audit's put-back of a move through a wall (`putBackTo`, where it
+ * stands the token again) adds nothing and cuts the record back to the newest sighting of that spot.
+ *
+ * WHY THE RECORD, NOT A MARK (E79 fix r1-G1, 1.2.79; review r1, SEC S1 and goal F2, F3). The spot
+ * the audit put a token back from entered this record when the put-back landed - the GM had seen the
+ * token there - and every reader of the record took it as a place the token stood a moment ago: the
+ * bridge's `token.sendBack` (`guardSendbackPlace`, its spots and the centres of `roomsVisited`), the
+ * audit's own REVERT and `judgeArrival`'s. C4 kept marks of those spots on the auditing browser, read by
+ * the audit's REVERT alone, for 60 s from the audit while the record's entry lived 60 s from the landing:
+ * 76 D measured the owner's send-back through the bridge to the spot written, walls ignored, and exempt
+ * as a GM's move. Cut from the record, the spot is no reader's, with no clock to outlive and no second
+ * store; and every GM cuts it, since the put-back's write carries `WALL_PUT_BACK` to every browser, so a
+ * GM that becomes the primary within the minute holds the same record. Cut back to the spot it is put
+ * back to, not only the one it leaves: a second move written before the put-back landed stood on the
+ * far side as well. A GM's write alone cuts; a player's option of that name is ignored.
+ */
+export function sightingsAfter(ring, was, at, putBackTo = null) {
+    if (!putBackTo) return [...ring, { ...was, at }].slice(-GM_HISTORY_KEPT);
+    const left = ring.findLastIndex(spot => samePlace(spot, putBackTo));
+    return left < 0 ? [...ring] : ring.slice(0, left + 1);
 }
 
 /** The places this token was moved from lately, as the primary GM saw them. */
@@ -649,6 +673,9 @@ let judgeReaders = null;
 
 /** Marks the bridge's send-back (gm-bridge.mjs `handleSendback`): a player's revert that a GM writes. */
 export const SENT_BACK = "drpgSentBack";
+
+/** Marks the GMs' audit's put-back of a move through a wall (movement-audit.mjs), for every GM's record (`sightingsAfter`). */
+const WALL_PUT_BACK = "drpgWallPutBack";
 
 function samePlace(a, b) {
     return a.x === b.x && a.y === b.y && (a.level ?? null) === (b.level ?? null);
@@ -2038,7 +2065,7 @@ async function chargeForCrossing(actor, from, to, tokenDoc = null, previous = nu
  * browser (`sound`) and tells the mover once the write has landed (`landed`, with whether it wrote).
  * Whether v14 honours the option on an update is not read here: LIVE-E79-02.
  */
-async function sendBack(tokenDoc, previous, room, { sound = true, landed = null } = {}) {
+async function sendBack(tokenDoc, previous, room, { sound = true, landed = null, audited = false } = {}) {
     if (!tokenDoc || !previous) return;
     // Announced when the REVERT lands, on every browser (`onUpdateToken`, E77 C2), not by the refusal.
     putBack.add(tokenDoc.id);
@@ -2054,7 +2081,7 @@ async function sendBack(tokenDoc, previous, room, { sound = true, landed = null 
             // and y alone stays upstairs.
             await tokenDoc.update(
                 previous.level !== undefined ? { x: previous.x, y: previous.y, level: previous.level } : { x: previous.x, y: previous.y },
-                { animate: false, [REVERT]: true, constrainOptions: { ignoreWalls: true } }
+                { animate: false, [REVERT]: true, ...(audited ? { [WALL_PUT_BACK]: true } : {}), constrainOptions: { ignoreWalls: true } }
             );
             wrote = true;
         } catch (err) {
