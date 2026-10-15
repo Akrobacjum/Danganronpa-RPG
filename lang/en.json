@@ -586,6 +586,24 @@
         "deleteTitle": "Delete the secret passage",
         "deleteAsk": "Delete the secret passage {passage}? Every student who knows it forgets it."
       },
+      "list": {
+        "title": "Known passages",
+        "where": "Show it on the map",
+        "shut": "the way is shut"
+      },
+      "show": {
+        "button": "Show the passage",
+        "title": "Show the passage - {passage}",
+        "intro": "Who do you show the secret passage to? You are in the {room}.",
+        "note": "They can walk through it from now on, as you can. Costs no action; the GMs are told."
+      },
+      "card": {
+        "shown": "{giver} shows you a secret passage: {from} - {to}.",
+        "done": "You show {target} the secret passage."
+      },
+      "gm": {
+        "shown": "{giver} showed {target} the secret passage {from} - {to}."
+      },
       "pick": {
         "new": "+ New passage",
         "newHint": "Two clicks on a wall between two rooms of this floor.",
@@ -2781,6 +2799,7 @@
         "analyze.resolve": "Analyze",
         "handover.bullet": "Share a Truth Bullet",
         "handover.item": "Hand over an item",
+        "passage.share": "Show a secret passage",
         "vault.steal": "Stash",
         "action.steal": "Palm",
         "vault.findStash": "Find a stash",
@@ -2884,7 +2903,9 @@
         "notEligible": "You hold no ballot in this vote.",
         "sameTwice": "Your ballot names somebody twice.",
         "wrongCount": "Your ballot does not name as many people as the vote asks for.",
-        "sheetPutBack": "The GM's client put that change to your sheet back: nothing it knows of covers it."
+        "sheetPutBack": "The GM's client put that change to your sheet back: nothing it knows of covers it.",
+        "notKnown": "You do not know that secret passage.",
+        "recipientDead": "The one you chose is dead. Nothing was shown."
       },
       "criticalHint": "Critical - this player is owed a substantial hint.",
       "send": "Send to GM",

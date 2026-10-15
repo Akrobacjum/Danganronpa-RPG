@@ -21,13 +21,15 @@
  * GMs' overlay (gm-overlay.mjs) draws every passage of the scene and floor on screen on a GM's
  * browser alone (`drawPassagesLayer`), and the pick's stretch as it is made.
  *
- * What it does not do yet: a player showing a passage to another (C7) and the reset's start
- * access (C8).
+ * Since C7 a player shows a passage their character knows to a student beside them (`sharePassage`,
+ * judged by `shareRefusal` on the primary GM, asked as gm-bridge.mjs `passage.share`).
+ *
+ * What it does not do yet: the reset's start access (C8).
  */
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { isPrimaryGm, serverNow, warn, error } from "./utils.mjs";
+import { isPrimaryGm, serverNow, whisperToOwner, warn, error } from "./utils.mjs";
 import { passageMapStore, passageAccessStore, passageLogStore, mastermindStore, mastermindUndecided } from "./gm-stores.mjs";
 import { RECORD, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible } from "./gm-store.mjs";
 import { senderOf } from "./bridge-guards.mjs";
@@ -449,6 +451,126 @@ export function passageLog({ stores = PASSAGE_STORES } = {}) {
     if (!game.user?.isGM) return [];
     const rows = stores.log.entries();
     return logOrder(stores).map(k => ({ ...rows[k] }));
+}
+
+/* ----------------------------------------------------------------------------------------- *
+ * SHOWING A PASSAGE (E79 C7, 15.10.2026; the E79 plan's P10-0, the owner's Q2 of 11.10). A player
+ * shows a passage their character knows to a student standing beside them - 'Show the passage' on
+ * the sheet's 'Known passages' (sheet.mjs), asked of the primary GM as `passage.share`
+ * (gm-bridge.mjs). The bridge holds who sent it and that the sender owns the giver; the rest is
+ * judged here from the GMs' records and the world as it stands now, since the packet's three ids
+ * are claims. The answer to a lawful show is the same whoever the recipient is - one who knew the
+ * passage already and the Mastermind included - so a show tells the giver nothing about who knew.
+ * ----------------------------------------------------------------------------------------- */
+
+/** A floor as `locateActor` hands it - an id or a Level document - as one comparable id. */
+const floorKey = level => level?.id ?? level ?? null;
+
+/**
+ * What a show reads of the world, on this browser now: the suite hands a world of its own (R562).
+ * `place` is `locateActor`'s `{ scene, room, level }`; `sides` the rooms a passage joins on the map
+ * (movement.mjs `passageRooms`); `knownRooms` the rooms this character has found on that scene, from
+ * the discovery ledger and the room it stands in.
+ */
+async function liveShareWorld() {
+    const [{ isEclipse, isDeadForGm, isDeceased, incidentParticipants, discoveryLedger }, { inClassTrial }, { isMonocub },
+        { locateActor, passageRooms }] = await Promise.all([import("./settings.mjs"), import("./trial.mjs"), import("./monocub.mjs"), import("./movement.mjs")]);
+    return {
+        actor: id => game.actors?.get(id) ?? null,
+        locked: () => isEclipse() || inClassTrial(),
+        inIncident: actor => incidentParticipants().includes(actor.id),
+        monocub: actor => isMonocub(actor),
+        monokuma: actor => isMonokuma(actor),
+        dead: actor => isDeadForGm(actor),
+        published: actor => isDeceased(actor),
+        place: actor => locateActor(actor),
+        sides: (row, seg) => passageRooms(game.scenes?.get(row.sceneId), seg, row.level ?? null),
+        knownRooms: (actor, sceneId) => {
+            const known = new Set(discoveryLedger()[sceneId]?.[actor.id] ?? []);
+            const here = locateActor(actor, { sceneId });
+            if (here?.scene?.id === sceneId && here.room) known.add(here.room);
+            return known;
+        }
+    };
+}
+
+/**
+ * Why this show is not carried out, as an English reason of the bridge's closed list
+ * (bridge-guards.mjs `REASON_PATTERNS`), or null - asked in the order of the plan's P10-0: the phase,
+ * the giver (alive, in no incident, no Monocub - D39 leaves a Monocub Move and Meddle), the passage
+ * (secret, and known to the giver or the giver the Mastermind), then the one shown it (a student who
+ * is not the giver and no Monokuma, in the giver's room on the same scene and floor, alive). A passage
+ * that does not exist, one that is closed or broken, and one the giver does not know get one answer,
+ * so the reason says nothing of which. A death nobody has found is `cannotNow`, never named. Pure but
+ * for `world` and `stores`.
+ */
+export function shareRefusal({ actorId, targetId, passageId } = {}, world, stores = PASSAGE_STORES) {
+    if (world.locked()) return "that action is locked";
+    const giver = world.actor(actorId);
+    if (!giver) return "no such character";
+    if (world.dead(giver) || world.inIncident(giver)) return "that cannot be done now";
+    if (world.monocub(giver)) return "that action is not open to that character now";
+    const row = typeof passageId === "string" ? stores.map.get(passageId) : null;
+    const knows = row?.state === "secret"
+        && (Boolean(stores.access.get(`${passageId}/${giver.id}`)) || isMastermindActor(giver, { mastermind: stores.mastermind }));
+    if (!knows) return "the character does not know that passage";
+    const target = world.actor(targetId);
+    if (!target || target.id === giver.id || target.type !== "character" || world.monokuma(target)) return "no such character";
+    const here = world.place(giver), there = world.place(target);
+    if (!here?.room) return "the character has no token on a scene";
+    if (!there?.room || there.scene?.id !== here.scene?.id || floorKey(there.level) !== floorKey(here.level) || there.room !== here.room) {
+        return "the character is not in that room";
+    }
+    if (world.dead(target) && world.published(target)) return "the character shown it is dead";
+    if (world.dead(target)) return "that cannot be done now";
+    return null;
+}
+
+/**
+ * The two rooms a passage joins, as `actor` may name them: each room on the map (`world.sides`), else
+ * the name the GM gave it, and a room this character has not found "Unexplored room n" as Listen says
+ * it (action-rolls.mjs `listenLabels`); `null` for `known` names every room (a GM, the Mastermind).
+ */
+function roomsAsKnown(row, world, known) {
+    const seg = row.passageSeg ?? {};
+    const sides = world.sides(row, { x1: seg.x1, y1: seg.y1, x2: seg.x2, y2: seg.y2 }) ?? [];
+    const names = [0, 1].map(i => sides[i] ?? row.rooms?.[i] ?? null);
+    let unexplored = 0;
+    const said = names.map(room => !room ? "-" : !known || known.has(room) ? room
+        : game.i18n.format("DRPG.Listen.unknownRoom", { n: ++unexplored }));
+    return { from: said[0], to: said[1] };
+}
+
+/**
+ * The primary GM carries out a show (`passage.share`): answers `{ refused }` with `shareRefusal`'s
+ * reason, or `{ shown: true }` once written. The one shown it learns the passage - a cell `shown`,
+ * the giver's actor id in `by`, fill-only so a cell that was there keeps its first `how` - their
+ * owners' copies are sent, a log row "show" names them, and three are told: the one shown it, a card
+ * to their owners and the GMs that names the two rooms as they may know them, with the sound
+ * `passageFound` (R562); the giver, a card that names nobody's rooms; the GMs, a notice on this
+ * browser and the log. `world`, `whisper` and `notify` are the suite's (R562).
+ */
+export async function sharePassage({ actorId, targetId, passageId } = {}, { stores = PASSAGE_STORES, world = null, whisper = whisperToOwner,
+    notify = text => ui.notifications.info(text) } = {}) {
+    const facts = world ?? await liveShareWorld();
+    const why = shareRefusal({ actorId, targetId, passageId }, facts, stores);
+    if (why) return { refused: why };
+    const giver = facts.actor(actorId), target = facts.actor(targetId);
+    const row = stores.map.get(passageId);
+    const at = serverNow();
+    await stores.access.patch(`${passageId}/${target.id}`, { how: "shown", at, by: { [giver.id]: at } }, { fillOnly: true });
+    await touch([target.id], stores);
+    await logRow("show", passageId, target.id, stores);
+    tellAfter(stores);
+    const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
+    const mastermind = isMastermindActor(target, { mastermind: stores.mastermind });
+    const theirs = roomsAsKnown(row, facts, mastermind ? null : facts.knownRooms(target, row.sceneId));
+    await whisper(target, `<p>${game.i18n.format("DRPG.Passage.card.shown", { giver: esc(giver.name), from: esc(theirs.from), to: esc(theirs.to) })}</p>`,
+        { flags: { [MODULE_ID]: { sfx: "passageFound" } } });
+    await whisper(giver, `<p>${game.i18n.format("DRPG.Passage.card.done", { target: esc(target.name) })}</p>`);
+    const all = roomsAsKnown(row, facts, null);
+    notify(game.i18n.format("DRPG.Passage.gm.shown", { giver: giver.name, target: target.name, from: all.from, to: all.to }));
+    return { shown: true };
 }
 
 /* ----------------------------------------------------------------------------------------- *

@@ -567,6 +567,24 @@
         "deleteTitle": "Usuń tajne przejście",
         "deleteAsk": "Usunąć tajne przejście {passage}? Każdy uczeń, który je zna, zapomina je."
       },
+      "list": {
+        "title": "Znane tajne przejścia",
+        "where": "Pokaż na mapie",
+        "shut": "droga zamknięta"
+      },
+      "show": {
+        "button": "Pokaż tajne przejście",
+        "title": "Pokaż tajne przejście - {passage}",
+        "intro": "Komu pokazujesz tajne przejście? Jesteś w: {room}.",
+        "note": "Od teraz ta osoba może przez nie przechodzić, tak jak ty. Nie kosztuje akcji; GM-owie się o tym dowiedzą."
+      },
+      "card": {
+        "shown": "{giver} pokazuje ci tajne przejście: {from} - {to}.",
+        "done": "Pokazujesz postaci {target} tajne przejście."
+      },
+      "gm": {
+        "shown": "{giver} pokazuje postaci {target} tajne przejście {from} - {to}."
+      },
       "pick": {
         "new": "+ Nowe przejście",
         "newHint": "Dwa kliknięcia na ścianie między dwoma pokojami tego piętra.",
@@ -2895,6 +2913,7 @@
         "analyze.resolve": "Analyze",
         "handover.bullet": "Przekazanie Truth Bulleta",
         "handover.item": "Przekazanie przedmiotu",
+        "passage.share": "Pokazanie tajnego przejścia",
         "vault.steal": "Skrytka",
         "action.steal": "Palm",
         "vault.findStash": "Szukanie skrytki",
@@ -3000,7 +3019,9 @@
         "notEligible": "Nie masz głosu w tym głosowaniu.",
         "sameTwice": "Twoja karta do głosowania wskazuje kogoś dwa razy.",
         "wrongCount": "Twoja karta do głosowania nie wskazuje tylu osób, ilu wymaga głosowanie.",
-        "sheetPutBack": "Klient GM-a cofnął tę zmianę na twojej karcie: nic, o czym wie, jej nie pokrywa."
+        "sheetPutBack": "Klient GM-a cofnął tę zmianę na twojej karcie: nic, o czym wie, jej nie pokrywa.",
+        "notKnown": "Nie znasz tego tajnego przejścia.",
+        "recipientDead": "Wybrana osoba nie żyje. Nic nie zostało pokazane."
       },
       "criticalHint": "Krytyk - temu graczowi należy się solidna podpowiedź.",
       "send": "Wyślij do GM-a",
@@ -5127,6 +5148,10 @@
         "refused": {
           "label": "Przejście odrzucone",
           "hint": "Ściana, zamknięte drzwi albo zapieczętowany pokój zawracają kogoś. Słyszy ten, kto próbował - jedyny błąd, który gracz popełnia regularnie."
+        },
+        "passageFound": {
+          "label": "Pokazano tajne przejście",
+          "hint": "Inny uczeń pokazuje komuś tajne przejście. Słyszy ten, komu je pokazano."
         },
         "actionSpent": {
           "label": "Wydano akcję",

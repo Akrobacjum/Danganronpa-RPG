@@ -14108,6 +14108,154 @@ const INVARIANTS = [
         ok(/passagesTab\.passagesTabHtml\(scene, \{ students \}\)/.test(opener) && /passagesTab\.wirePassagesTab\(root, scene, \{ dialog, students \}\)/.test(opener),
             "Room Setup does not draw and wire the Passages tab for the scene it was opened on");
     }],
+    ["R562 - showing a secret passage: the 'Known passages' list names each passage the character knows by its rooms as the viewer may name them and says where the way is shut; a show is judged on the primary GM - the phase, the giver alive, in no incident and no Monocub, a secret passage it knows (a closed, unknown or made-up one refused alike), the one shown it a student beside it on its scene and floor, alive (a death nobody has found is not named) - writes 'shown', a log row and the stamp, and tells the one shown it the two rooms as they may know them with the sound, the giver with no room, and the GMs; the packet carries three ids and with no GM nothing is sent", async () => {
+        /*
+         * E79 C7, 15.10.2026; the E79 plan's A10-17 (P9-0, P10-0). A show teaches a passage to somebody the GMs did not
+         * choose, so what can go wrong is who learns it and what they are told: a passage shown by a character that
+         * does not know it, or to one in another room, on another floor, dead or a Monokuma; a refusal that tells a
+         * closed or unknown passage from one that does not exist (each would be the passage told to the asker); a card
+         * that names the rooms to the giver's owner or to anybody but the one shown it and the GMs; a cell that loses
+         * the way the one shown it first learnt it. Run on an engine of the suite's own (R555's), with characters and a
+         * world of its own: nothing of this world is read or written but this browser's own user, the names in its
+         * language file and its clock. `sharePassage` is driven with the world, the whisper and the notice injected;
+         * the list's reader `knownPassageRows` with the copy, the map and the veto injected.
+         */
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const P = await import("./passages-gm.mjs");
+        const SH = await import("./sheet.mjs");
+        const { reasonOf, createWaiter, knownSender } = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const J = v => JSON.stringify(v);
+        equal(J([typeof P.sharePassage, typeof P.shareRefusal, typeof SH.knownPassageRows, Object.hasOwn(BRIDGE_ACTIONS, "passage.share")]),
+            J(["function", "function", "function", true]), "[the show, its rule, the list's reader, the bridge's row] - a player has no way to show a passage");
+        let t = 9_000_000;
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R562GM", isGM: () => true, isPrimary: () => true, worldId: () => "R562WORLD",
+            activeGmIds: () => [], primaryGmId: () => "R562GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => ++t,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const def = (h, name) => eng.define({ ...h.spec, name: `r562${name}`, key: `r562${name}`, afterRestore: undefined, exists: undefined });
+        const stores = { map: def(S.passageMapStore, "Map"), access: def(S.passageAccessStore, "Access"), log: def(S.passageLogStore, "Log"),
+            mastermind: eng.define({ name: "r562mm", key: "r562mm", kind: "record", fields: ["actorId"], sync: false, backup: false }) };
+        const CAF = "R562 Cafeteria", KIT = "R562 Kitchen";
+        const row = (n, state = "secret") => ({ sceneId: "R562SCENE", level: null, shape: "wall", passageWallId: `R562WALL${n}`,
+            passageSeg: { x1: 1234.5, y1: 100 * n, x2: 1300.5, y2: 100 * n }, rooms: [CAF, KIT], state, startAccess: [] });
+        const [P1, P2, P3, P4] = [1, 2, 3, 4].map(n => `R562SCENE.r562p${n}`);
+        await stores.map.patchMany({ [P1]: row(1), [P2]: row(2, "closed"), [P3]: row(3), [P4]: row(4, "broken") });
+        await stores.access.patchMany({ [`${P1}/R562A1`]: { how: "gm", at: 1, by: { R562GM: 1 } }, [`${P2}/R562A1`]: { how: "gm", at: 1, by: { R562GM: 1 } },
+            [`${P4}/R562A1`]: { how: "gm", at: 1, by: { R562GM: 1 } }, [`${P1}/R562C`]: { how: "gm", at: 1, by: { R562GM: 1 } } });
+        await stores.mastermind.patch(G.RECORD, { actorId: "R562MM" });
+        const cast = new Map(["R562A1", "R562B", "R562C", "R562D", "R562MM", "R562MK", "R562CUB", "R562NPC"].map(id => [id,
+            { id, name: id === "R562A1" ? "R562 <b>Aiko</b>" : id, type: id === "R562NPC" ? "adversary" : "character" }]));
+        const scene = { id: "R562SCENE" }, otherScene = { id: "R562OTHER" };
+        const spot = { R562A1: { scene, room: CAF, level: null }, R562B: { scene, room: CAF, level: null }, R562C: { scene, room: CAF, level: null },
+            R562D: { scene, room: KIT, level: null }, R562MM: { scene, room: CAF, level: null }, R562MK: { scene, room: CAF, level: null },
+            R562CUB: { scene, room: CAF, level: null }, R562NPC: { scene, room: CAF, level: null } };
+        const world = (over = {}) => ({
+            actor: id => cast.get(id) ?? null, locked: () => false, inIncident: () => false, monocub: a => a.id === "R562CUB",
+            monokuma: a => a.id === "R562MK", dead: () => false, published: () => false, place: a => spot[a.id] ?? null,
+            sides: (r, seg) => (seg?.x1 === 1234.5 ? [CAF, KIT] : []), knownRooms: () => new Set([CAF]), ...over });
+        const show = async (actorId, targetId, passageId, over = {}) => {
+            const cards = [], notes = [];
+            const out = await P.sharePassage({ actorId, targetId, passageId }, { stores, world: world(over),
+                whisper: async (to, content, extra) => cards.push({ to: to.id, content, sfx: extra?.flags?.[MODULE_ID]?.sfx ?? null }), notify: text => notes.push(text) });
+            return { out, cards, notes, code: out.refused ? reasonOf(out.refused) : null };
+        };
+        const logRows = () => Object.values(stores.log.entries()).map(r => `${r.what} ${r.passageId === P1 ? "P1" : r.passageId} ${r.actorId}`);
+
+        // The lawful show: Aiko shows Botan the passage both stand beside.
+        const lawful = await show("R562A1", "R562B", P1);
+        const cell = stores.access.get(`${P1}/R562B`);
+        const unexplored = game.i18n.format("DRPG.Listen.unknownRoom", { n: 1 });
+        equal(J([lawful.out, cell?.how, Object.keys(cell?.by ?? {}), Boolean(stores.access.get("touch/R562B")), logRows()]),
+            J([{ shown: true }, "shown", ["R562A1"], true, ["show P1 R562B"]]),
+            "[the answer, the cell's how, who showed it, the one shown it stamped, the log] - the show was not written as a show");
+        equal(J(lawful.cards.map(c => [c.to, c.sfx])), J([["R562B", "passageFound"], ["R562A1", null]]),
+            "[each card's character and sound] - the one shown it and then the giver, the sound only for the one shown it");
+        ok(lawful.cards[0].content.includes(CAF) && lawful.cards[0].content.includes(unexplored) && !lawful.cards[0].content.includes(KIT)
+            && lawful.cards[0].content.includes("R562 &lt;b&gt;Aiko&lt;/b&gt;"),
+        `the one shown it is not told the room they know, "${unexplored}" for the one they do not, and the giver's name as text: ${lawful.cards[0].content}`);
+        ok(![CAF, KIT, unexplored, "1234.5", P1].some(word => lawful.cards[1].content.includes(word)) && lawful.cards[1].content.includes("R562B"),
+            `the giver's card names a room, the passage or its stretch, or not the one shown it: ${lawful.cards[1].content}`);
+        ok(lawful.notes.length === 1 && lawful.notes[0].includes(CAF) && lawful.notes[0].includes(KIT) && lawful.notes[0].includes("R562B"),
+            `the GMs are not told who was shown which passage: ${J(lawful.notes)}`);
+
+        // A student who knew it already, and the Mastermind: the same card and sound; the first how kept.
+        const again = await show("R562A1", "R562C", P1), mm = await show("R562A1", "R562MM", P1);
+        equal(J([again.code, stores.access.get(`${P1}/R562C`)?.how, again.cards.map(c => [c.to, c.sfx]), mm.code, mm.cards.map(c => [c.to, c.sfx]),
+            mm.cards[0]?.content.includes(KIT)]),
+        J([null, "gm", [["R562C", "passageFound"], ["R562A1", null]], null, [["R562MM", "passageFound"], ["R562A1", null]], true]),
+        "[a knower shown it, its first how, its cards, the Mastermind shown it, their cards, the Mastermind's card naming both rooms]");
+
+        // Every refusal, its code, and nothing written or told.
+        const cellsBefore = J(stores.access.entries()), logBefore = J(logRows());
+        const dead = id => a => a.id === id;
+        const cases = [
+            ["the Eclipse or the trial", ["R562A1", "R562B", P1, { locked: () => true }], "actionLocked"],
+            ["a giver that is not here", ["R562NONE", "R562B", P1], "missing"],
+            ["a dead giver", ["R562A1", "R562B", P1, { dead: dead("R562A1") }], "cannotNow"],
+            ["a giver in an incident", ["R562A1", "R562B", P1, { inIncident: a => a.id === "R562A1" }], "cannotNow"],
+            ["a Monocub giver", ["R562CUB", "R562B", P1], "actionDenied"],
+            ["a closed passage", ["R562A1", "R562B", P2], "notKnown"],
+            ["a broken passage", ["R562A1", "R562B", P4], "notKnown"],
+            ["a passage the giver does not know", ["R562A1", "R562B", P3], "notKnown"],
+            ["a passage that is not there", ["R562A1", "R562B", "R562SCENE.nothing"], "notKnown"],
+            ["no passage", ["R562A1", "R562B", null], "notKnown"],
+            ["the giver to itself", ["R562A1", "R562A1", P1], "missing"],
+            ["a Monokuma", ["R562A1", "R562MK", P1], "missing"],
+            ["not a student", ["R562A1", "R562NPC", P1], "missing"],
+            ["another room", ["R562A1", "R562D", P1], "notThere"],
+            ["another scene", ["R562A1", "R562B", P1, { place: a => (a.id === "R562B" ? { scene: otherScene, room: CAF, level: null } : spot[a.id]) }], "notThere"],
+            ["another floor", ["R562A1", "R562B", P1, { place: a => ({ ...spot[a.id], level: a.id === "R562B" ? "R562UP" : null }) }], "notThere"],
+            ["a giver with no token", ["R562A1", "R562B", P1, { place: a => (a.id === "R562A1" ? null : spot[a.id]) }], "notThere"],
+            ["a death the table knows", ["R562A1", "R562B", P1, { dead: dead("R562B"), published: dead("R562B") }], "recipientDead"],
+            ["a death nobody has found", ["R562A1", "R562B", P1, { dead: dead("R562B") }], "cannotNow"]
+        ];
+        const got = [];
+        for (const [what, [a, b, p, over]] of cases) {
+            const r = await show(a, b, p, over);
+            got.push(`${what}: ${r.code}${r.cards.length || r.notes.length ? " (told)" : ""}`);
+        }
+        equal(J(got), J(cases.map(([what, , code]) => `${what}: ${code}`)), "a show refused with another reason, or something told of a refused one");
+        equal(J([J(stores.access.entries()) === cellsBefore, J(logRows()) === logBefore]), J([true, true]), "[the cells, the log] changed by a refused show");
+        const mmShows = await show("R562MM", "R562D", P3, { place: a => ({ ...spot[a.id], room: KIT }) });
+        equal(J([mmShows.code, stores.access.get(`${P3}/R562D`)?.how]), J([null, "shown"]), "the Mastermind could not show a passage nobody gave them");
+
+        // The bridge's row: two guards, the sender first, then the giver's owner, and three ids through the whitelist.
+        const decl = BRIDGE_ACTIONS["passage.share"];
+        equal(J([decl?.guards?.[0] === knownSender, decl?.guards?.[1]?.factory, decl?.guards?.[1]?.covers, decl?.answer,
+            decl?.sanitize?.({ actorId: "R562A1", targetId: "R562B", passageId: P1, passageSeg: { x1: 1 }, rooms: [CAF], how: "gm", userId: "R562U" })]),
+        J([true, "owns", ["actorId"], "ack", { actorId: "R562A1", targetId: "R562B", passageId: P1 }]),
+        "[the first guard, the second's kind, the field it judges, the answer, what the run is handed] - a field beyond the three ids reached the run");
+
+        // With no GM the ask goes nowhere and says so.
+        const sent = [], said = [];
+        const waiter = createWaiter({ emit: (packet, to) => sent.push({ packet, to }), gmIds: () => [], me: () => ({ id: "R562U", isGM: false, isPrimary: false }),
+            notify: (action, reason) => said.push(`${action} ${reason}`), fromGm: () => false, report: () => {} });
+        const alone = await waiter.request("passage.share", { actorId: "R562A1", targetId: "R562B", passageId: P1 }, { settle: "ack", ackMs: 40, timeoutMs: 200 });
+        equal(J([alone, sent.length, said]), J([{ ok: false, reason: "noGm" }, 0, ["passage.share noGm"]]), "[the answer, packets sent, said] with no GM");
+
+        // The list: the rooms as the viewer may name them, the way shut where the veto says so, only its own passages.
+        const known = { [P1]: { sceneId: "R562SCENE", level: null, shape: "wall", passageWallId: "R562WALL1", passageSeg: row(1).passageSeg, actorIds: ["R562A1"] },
+            [P3]: { sceneId: "R562SCENE", level: null, shape: "wall", passageWallId: "R562WALL3", passageSeg: row(3).passageSeg, actorIds: ["R562A1"] },
+            [P2]: { sceneId: "R562SCENE", level: null, shape: "wall", passageWallId: "R562WALL2", passageSeg: row(2).passageSeg, actorIds: ["R562B"] },
+            "R562GONE.p": { sceneId: "R562GONE", level: null, shape: "wall", passageWallId: "R562WALLG", passageSeg: row(1).passageSeg, actorIds: ["R562A1"] } };
+        const asked = [];
+        const list = (actor, mastermind = false) => SH.knownPassageRows(actor, { known, mastermind, sceneOf: id => (id === "R562SCENE" ? scene : null),
+            sides: (s, p) => (p.id === P3 ? [KIT, CAF] : [CAF, KIT]), knownRooms: () => new Set([CAF]),
+            opens: (a, p, s, o) => { asked.push([p.id === P1 ? "P1" : p.id === P3 ? "P3" : "P2", o.from, o.mover]); return p.id !== P3; },
+            place: a => spot[a.id] });
+        const rows = list(cast.get("R562A1"));
+        equal(J([rows.map(r => [r.label, r.shut]), asked]),
+            J([[[`${CAF} - ${unexplored}`, false], [`${unexplored} - ${CAF}`, true]], [["P1", CAF, null], ["P3", CAF, null]]]),
+            "[each row's rooms and whether the way is shut, the veto asked from the character's room with no mover] - another's passage, a scene that is gone, a room the character has not found named, or the veto asked otherwise");
+        asked.length = 0;
+        equal(J([list(cast.get("R562MM"), true).length, asked.map(a => a[2])]), J([3, [{ mastermind: true }, { mastermind: true }, { mastermind: true }]]),
+            "[the Mastermind's rows, the veto asked for the Mastermind] - the Mastermind does not list every passage of a scene this world holds");
+    }],
     ["R563 - the GM's fog ignores the Mastermind's discoveries: ledgerRooms leaves out the current Mastermind's row, written before they were chosen or not, and an ordinary student's entry still changes it; on the Mastermind's own browser every room of the scene reads discovered and the current room is only the one under their own token", async () => {
         /*
          * The owner's amend folded into E79 C5 (14.10.2026). The Mastermind's browser has the whole map discovered,

@@ -96,6 +96,26 @@ export function openSegmentsFor(actor, sceneId, level = null, { mastermind = fal
 }
 
 /**
+ * Every secret passage this character knows, on every scene, `[{ id, sceneId, level, x1, y1, x2, y2 }]`: the
+ * sheet's 'Known passages' (E79 C7, sheet.mjs `knownPassageRows`). The rows that name it, or every row for the
+ * Mastermind (`mastermind`, as `openSegmentsFor` takes it). The stretch is handed out so the list can ask which
+ * rooms a passage joins, whether it is open and where to pan; the wall's id is not, and neither is anything
+ * else of the row (R560: only the records' files name a passage's geometry). `known` is the suite's (R562).
+ */
+export function passagesKnownBy(actor, { mastermind = false, known = knownPassages() } = {}) {
+    const actorId = typeof actor === "string" ? actor : actor?.id;
+    if (!actorId) return [];
+    const out = [];
+    for (const [id, row] of Object.entries(isPlain(known) ? known : {})) {
+        if (typeof row?.sceneId !== "string") continue;
+        if (!mastermind && !(Array.isArray(row.actorIds) && row.actorIds.includes(actorId))) continue;
+        const seg = segmentOf(id, row);
+        if (seg) out.push({ id, sceneId: row.sceneId, level: row.level ?? null, x1: seg.x1, y1: seg.y1, x2: seg.x2, y2: seg.y2 });
+    }
+    return out;
+}
+
+/**
  * Whether one step of a route, from `a` to `b`, goes through a segment: the two lines cross with
  * the crossing on the step and on the segment, each stretched by `tolerance` pixels at both ends.
  * A step along the segment's own line never crosses it. Pure.

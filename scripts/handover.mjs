@@ -32,8 +32,16 @@ const DialogV2 = foundry.applications.api.DialogV2;
  * PLAYER SIDE - WHO IS STANDING HERE
  * ========================================================================== */
 
-/** Ask who to hand this to. `null` when there is nobody, or the player backs out. */
-async function askRecipient(actor, item, { copying }) {
+/**
+ * Ask who in this character's room to hand something to: `null` when the lights are out, there is
+ * nobody, or the player backs out, else the picked character's id. The people offered are
+ * `othersInRoom`'s - the living, no Monokuma, no hidden token. One window for every handover:
+ * the two below, and since E79 C7 a secret passage shown from the sheet (sheet.mjs
+ * `showPassageDialog`), whose words it is handed - `intro` is given the room's name, escaped -
+ * and which lists the people in a list box (`listBox`, the mockup's choice of 14.10.2026) where a
+ * handover keeps its drop-down.
+ */
+export async function askWhoIsHere(actor, { title, intro, note, okLabel, listBox = false }) {
     const { isEclipse } = await import("./eclipse.mjs");
     if (isEclipse()) {
         ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.actionsLocked"));
@@ -50,30 +58,22 @@ async function askRecipient(actor, item, { copying }) {
     }
 
     const options = here
-        .map(a => `<option value="${a.id}">${foundry.utils.escapeHTML(a.name)}</option>`).join("");
+        .map((a, i) => `<option value="${a.id}"${i ? "" : " selected"}>${foundry.utils.escapeHTML(a.name)}</option>`).join("");
+    const size = listBox ? ` size="${Math.min(Math.max(here.length, 2), 6)}"` : "";
 
     const picked = await DialogV2.wait({
-        window: {
-            title: copying
-                ? game.i18n.format("DRPG.Handover.shareTitle", { name: item.name })
-                : game.i18n.format("DRPG.Handover.giveTitle", { name: item.name })
-        },
+        window: { title },
         classes: ["drpg-panel"],
         content: dialogContent(`<form>
-            <p>${game.i18n.format(copying ? "DRPG.Handover.shareIntro" : "DRPG.Handover.giveIntro", {
-                name: foundry.utils.escapeHTML(item.name),
-                room: foundry.utils.escapeHTML(roomOfActor(actor) ?? "-")
-            })}</p>
+            <p>${intro(foundry.utils.escapeHTML(roomOfActor(actor) ?? "-"))}</p>
             <label>${game.i18n.localize("DRPG.Handover.who")}
-                <select name="target">${options}</select></label>
-            <p class="notes">${game.i18n.localize(
-                copying ? "DRPG.Handover.shareNote" : "DRPG.Handover.giveNote"
-            )}</p>
+                <select name="target"${size}>${options}</select></label>
+            <p class="notes">${note}</p>
         </form>`),
         buttons: [
             {
                 action: "ok",
-                label: game.i18n.localize(copying ? "DRPG.Handover.share" : "DRPG.Handover.give"),
+                label: okLabel,
                 default: true,
                 callback: (e, b, d) => d.element.querySelector("[name=target]").value
             },
@@ -84,6 +84,21 @@ async function askRecipient(actor, item, { copying }) {
 
     if (!picked || picked === "cancel") return null;
     return picked;
+}
+
+/** Ask who to hand this to. `null` when there is nobody, or the player backs out. */
+function askRecipient(actor, item, { copying }) {
+    return askWhoIsHere(actor, {
+        title: copying
+            ? game.i18n.format("DRPG.Handover.shareTitle", { name: item.name })
+            : game.i18n.format("DRPG.Handover.giveTitle", { name: item.name }),
+        intro: room => game.i18n.format(copying ? "DRPG.Handover.shareIntro" : "DRPG.Handover.giveIntro", {
+            name: foundry.utils.escapeHTML(item.name),
+            room
+        }),
+        note: game.i18n.localize(copying ? "DRPG.Handover.shareNote" : "DRPG.Handover.giveNote"),
+        okLabel: game.i18n.localize(copying ? "DRPG.Handover.share" : "DRPG.Handover.give")
+    });
 }
 
 /** Copy one of my Truth Bullets to somebody in this room. Costs nothing. */

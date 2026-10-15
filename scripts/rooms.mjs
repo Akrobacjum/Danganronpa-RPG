@@ -516,6 +516,9 @@ export const CAMERA_READERS = Object.freeze({
     "passages-gm.mjs#startPassagePick": "draw",
     /* The GMs' overlay's passages (E79 C6): the stretches of the scene and floor this GM sees. */
     "passages-gm.mjs#drawPassagesLayer": "draw",
+    /* The sheet's 'Known passages' (E79 C7): a click takes this browser's camera to a passage the
+       character knows, viewing its scene first; it moves this canvas and decides nothing. */
+    "sheet.mjs#panToPassage": "draw",
     /* A player's own view switched once after a load (E13 C3, Q-E13-1 c): it moves this browser's
        canvas and decides nothing - the plan named it a window row, but no GM window reads it. */
     "trial-scene.mjs#selfRepair": "draw",

@@ -23,7 +23,7 @@ import {
     guardArmCallGrants, guardArmLiving, guardArmNotHeld, guardArmBuyer, guardArmOtherCharacter, guardArmHopeCallAllowed,
     guardArmBuyerHope, guardArmGmYes, noteCallYes, guardDespairDelta, guardDespairPool, guardTraitRuling, guardRollAuthor, guardCallProgress, guardProjectFrozen,
     guardProjectRoom, guardSabotageRoom, guardCardSpeaker, guardCardReaders, table, tokenActorOf, remnantSourceOf, knownSender, owns, ownsActorAt, gmOnly,
-    playersOnly, canSeeProject, inRange, as, pick, judge, replyForMe, bridgeRequest, resendOnGmReady
+    playersOnly, canSeeProject, inRange, as, pick, judge, replyForMe, bridgeRequest, resendOnGmReady, sayNotDone, reasonOf
 } from "./bridge-guards.mjs";
 // R148 and anything else that asked gm-bridge.mjs for it keep finding it here (E31).
 export { removalRefusal } from "./bridge-guards.mjs";
@@ -81,6 +81,8 @@ const ACTION_ADVANCEMENT_ASK = "advancement.ask";
 const ACTION_ADVANCEMENT_OFFERS = "advancement.offers";
 const ACTION_SHARE_BULLET = "handover.bullet";
 const ACTION_GIVE_ITEM = "handover.item";
+/** player -> GM: my character shows a secret passage it knows to a student beside it (E79 C7) - see passages-gm.mjs `sharePassage`. */
+const ACTION_PASSAGE_SHARE = "passage.share";
 const ACTION_VAULT_STEAL = "vault.steal";
 const ACTION_STEAL = "action.steal";
 const ACTION_FIND_STASH = "vault.findStash";
@@ -556,6 +558,14 @@ async function handleShareBulletOrGiveItem(payload, sender, ctx) {
     // through the bridge, with its reason (E04's fix round 10); every other refusal of a
     // handover is the giver's whisper, as it was.
     const out = ctx.action === ACTION_SHARE_BULLET ? await shareBullet(args) : await giveItem(args);
+    if (out?.refused) return { refused: out.refused };
+}
+
+    // Showing a secret passage (E79 C7): the recipient learns it in the GMs' records, which only the
+    // primary writes. Every check past the sender's ownership of the giver is `shareRefusal`'s.
+async function handlePassageShare(payload) {
+    const { sharePassage } = await import("./passages-gm.mjs");
+    const out = await sharePassage({ actorId: payload.actorId, targetId: payload.targetId, passageId: payload.passageId });
     if (out?.refused) return { refused: out.refused };
 }
 
@@ -1623,6 +1633,17 @@ export const BRIDGE_ACTIONS = table({
     },
     [ACTION_SHARE_BULLET]: handover("DRPG.Bridge.what.handover.bullet"),
     [ACTION_GIVE_ITEM]: handover("DRPG.Bridge.what.handover.item"),
+    [ACTION_PASSAGE_SHARE]: {
+        label: "DRPG.Bridge.what.passage.share",
+        guards: [knownSender, owns("actorId", "sender does not own the character showing it")],
+        sanitize: pick({ actorId: as.id, targetId: as.id, passageId: as.id }),
+        run: handlePassageShare,
+        answer: "ack",
+        claims: {
+            targetId: "passages-gm.mjs shareRefusal: a student who is not the giver and no Monokuma, in the giver's room on its scene and floor, alive",
+            passageId: "passages-gm.mjs shareRefusal: a secret passage the giver knows in the GMs' records (or the giver the Mastermind), else the one notKnown"
+        }
+    },
     [ACTION_PLANT]: {
         label: "DRPG.Bridge.what.action.plant",
         guards: [knownSender, owns("plannerId", "sender does not own the character planting")],
@@ -2345,6 +2366,20 @@ export function requestCardPost(card) {
 export function requestBodyLoot({ takerId, bodyId, itemId }) {
     return ask(ACTION_LOOT, { takerId, bodyId, itemId }, {
         local: () => import("./handover.mjs").then(m => m.lootBody({ takerId, bodyId, itemId }))
+    });
+}
+
+/**
+ * Show a secret passage my character knows to a student beside it (E79 C7; sheet.mjs, 'Show the passage').
+ * The primary GM judges and writes it; a GM's own browser does it here, and says a refusal as the bridge
+ * would have said it to a player.
+ */
+export function requestPassageShare({ actorId, targetId, passageId }) {
+    return ask(ACTION_PASSAGE_SHARE, { actorId, targetId, passageId }, {
+        local: () => import("./passages-gm.mjs").then(m => m.sharePassage({ actorId, targetId, passageId })).then(out => {
+            if (out?.refused) sayNotDone(ACTION_PASSAGE_SHARE, reasonOf(out.refused));
+            return Boolean(out?.shown);
+        })
     });
 }
 

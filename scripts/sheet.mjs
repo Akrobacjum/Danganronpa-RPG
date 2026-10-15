@@ -56,7 +56,13 @@ import { isCleaner, tamperQuote, witnessesTo } from "./cleanup.mjs";
 // The price a tile is about to charge, quoted from the same table the charge
 // reads (T-1). Synchronous by design - this file calls it from a render path.
 import { quotePrice, priceLabel, stripeKindFor } from "./price.mjs";
-import { roomOfActor, neighbouringRooms, othersInRoom, locateActor, sceneOfActor } from "./movement.mjs";
+import { roomOfActor, neighbouringRooms, othersInRoom, locateActor, sceneOfActor, passageRooms, passageOpenFor,
+    roomsKnownToMe } from "./movement.mjs";
+// The sheet's 'Known passages' (E79 C7): this browser's passages, the Mastermind as the GMs hold it, and the
+// rooms named as Listen names them - a room this viewer has not found is "Unexplored room n".
+import { passagesKnownBy } from "./passages.mjs";
+import { isMastermindActor } from "./passages-gm.mjs";
+import { listenLabels } from "./action-rolls.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 // `sabotageTargetsIn` used to be imported here for the tile that no longer
 // exists; the question is asked in action-rolls.mjs now, where the menu is.
@@ -80,6 +86,8 @@ export function registerSheetTweaks() {
     // ApplicationV2 fires a render hook per class in the inheritance chain,
     // so the concrete Daggerheart sheet class name is the precise target.
     Hooks.on("renderCharacterSheet", onRenderCharacterSheet);
+    // The sheet's 'Known passages' follows this browser's copy of the passages (E79 C7).
+    Hooks.on("drpgPassagesChanged", redrawPassageSheets);
     // The tile-fit observer dies with its sheet (UI-14): ApplicationV2 builds
     // a new root on every open, so an observer left on the old root watched a
     // detached element for the rest of the session, one per open/close.
@@ -795,6 +803,7 @@ function onRenderCharacterSheet(app, element, context, options) {
             tidySidebar(element);
             paintResourceBars(app, element);
             injectEquippedTools(app, element);
+            injectKnownPassages(app, element);
             injectSafeword(app, element);
             tidyBiography(app, element);
             groupInventory(app, element);
@@ -1990,6 +1999,118 @@ function injectEquippedTools(app, element) {
         empty.className = "drpg-equipped-empty";
         empty.textContent = game.i18n.localize("DRPG.Items.noneReadied");
         list.append(empty);
+    }
+}
+
+/*
+ * KNOWN PASSAGES (E79 C7, 15.10.2026; the E79 plan's P9-0 and P10-0, the mockup of 14.10). The secret
+ * passages this character knows, under its Experience, on its owners' sheets: each named by the two
+ * rooms it joins as this viewer may name them, 'the way is shut' where the veto would turn the
+ * character back now (movement.mjs `passageOpenFor`, the frame's own question), a click on the name
+ * taking this browser's camera there, and 'Show the passage' to a student in the same room. Read from
+ * this browser's copy (passages.mjs `passagesKnownBy`) - a GM's browser reads the GMs' records - and
+ * drawn again when the copy changes (`drpgPassagesChanged`). The page holds the rooms' names and the
+ * two words; the passage's id and its stretch stay in this function's closures (R562, scenario 76 G).
+ */
+
+/**
+ * The list's rows, `[{ passage, label, shut }]` sorted by `label`: `passage` the stretch
+ * (`passagesKnownBy`'s row), `label` "Room - Room" as `listenLabels` names them for this viewer, `shut`
+ * whether the passage does not open for the character from where it stands. A passage on a scene this
+ * world no longer holds is left out. `deps` are the suite's (R562).
+ */
+export function knownPassageRows(actor, { known, mastermind = false, sceneOf = id => game.scenes?.get(id) ?? null,
+    sides = passageRooms, knownRooms = roomsKnownToMe, opens = passageOpenFor, place = locateActor } = {}) {
+    const given = known === undefined ? {} : { known };
+    const here = place(actor);
+    const rows = [];
+    for (const passage of passagesKnownBy(actor, { mastermind, ...given })) {
+        const scene = sceneOf(passage.sceneId);
+        if (!scene) continue;
+        const rooms = sides(scene, passage, passage.level) ?? [];
+        const names = listenLabels(rooms.filter(Boolean), knownRooms(scene));
+        const label = [rooms[0], rooms[1]].map(room => (room ? names.get(room) : "-")).join(" - ");
+        const from = here?.scene?.id === scene.id ? here.room : null;
+        // The frame's own question, asked as the frame asks it (fog-doorways.mjs): no mover but on a GM's
+        // browser for the Mastermind, whom only the GMs' record names there.
+        const shut = !opens(actor, passage, scene, { from, level: passage.level, mover: mastermind ? { mastermind: true } : null, ...given });
+        rows.push({ passage, label, shut });
+    }
+    return rows.sort((a, b) => a.label.localeCompare(b.label));
+}
+
+/** This browser's camera to a passage's middle, on its scene - viewed first when another is on screen. */
+async function panToPassage(passage) {
+    const scene = game.scenes?.get(passage.sceneId);
+    if (!scene) return false;
+    if (canvas?.scene?.id !== scene.id) await scene.view();
+    await canvas?.animatePan?.({ x: (passage.x1 + passage.x2) / 2, y: (passage.y1 + passage.y2) / 2 });
+    return true;
+}
+
+/** 'Show the passage': who in the room to show it to (handover.mjs `askWhoIsHere`), then the primary GM's judgement. */
+async function showPassageDialog(actor, row) {
+    const { askWhoIsHere } = await import("./handover.mjs");
+    const targetId = await askWhoIsHere(actor, {
+        title: game.i18n.format("DRPG.Passage.show.title", { passage: row.label }),
+        intro: room => game.i18n.format("DRPG.Passage.show.intro", { room }),
+        note: game.i18n.localize("DRPG.Passage.show.note"),
+        okLabel: game.i18n.localize("DRPG.Passage.show.button"),
+        listBox: true
+    });
+    if (!targetId) return;
+    const { requestPassageShare } = await import("./gm-bridge.mjs");
+    const res = await requestPassageShare({ actorId: actor.id, targetId, passageId: row.passage.id });
+    if (!res.ok) debug("A secret passage was not shown", res.reason);
+}
+
+/** The list, after the Experience, on an owner's sheet of a student that knows a passage; none for a Monokuma. */
+function injectKnownPassages(app, element) {
+    const actor = app.document;
+    const root = element instanceof HTMLElement ? element : element?.[0];
+    const host = root?.querySelector(".character-sidebar-sheet .shortcut-items-section");
+    if (!host) return;
+    host.querySelector(".drpg-passages-section")?.remove();
+    if (isMonokuma(actor) || !actor?.isOwner) return;
+    const rows = knownPassageRows(actor, { mastermind: game.user.isGM && isMastermindActor(actor) });
+    if (!rows.length) return;
+
+    const t = key => foundry.utils.escapeHTML(game.i18n.localize(key));
+    const section = document.createElement("div");
+    section.className = "drpg-passages-section";
+    section.innerHTML = `<div class="title"><side-line-div class="invert"></side-line-div><h3>${t("DRPG.Passage.list.title")}</h3>`
+        + `<side-line-div></side-line-div></div><ul class="drpg-passage-list"></ul>`;
+    const list = section.querySelector("ul");
+    for (const row of rows) {
+        const li = document.createElement("li");
+        li.className = `drpg-passage-row${row.shut ? " is-shut" : ""}`;
+        li.innerHTML = `<a class="drpg-passage-where" role="button" tabindex="0" title="${t("DRPG.Passage.list.where")}">${
+            foundry.utils.escapeHTML(row.label)}</a>${row.shut ? `<span class="drpg-passage-shut">${t("DRPG.Passage.list.shut")}</span>` : ""}`
+            + `<button type="button" class="drpg-mini-button drpg-passage-show">${t("DRPG.Passage.show.button")}</button>`;
+        const where = li.querySelector(".drpg-passage-where");
+        const pan = event => {
+            event.preventDefault();
+            event.stopPropagation();
+            panToPassage(row.passage).catch(err => debug("Could not show a secret passage on the map", err));
+        };
+        where.addEventListener("click", pan);
+        where.addEventListener("keydown", event => { if (event.key === "Enter" || event.key === " ") pan(event); });
+        li.querySelector(".drpg-passage-show").addEventListener("click", event => {
+            event.preventDefault();
+            event.stopPropagation();
+            showPassageDialog(actor, row).catch(err => error("Could not show a secret passage", err));
+        });
+        list.append(li);
+    }
+    const experience = host.querySelector(".experience-section");
+    if (experience) experience.after(section);
+    else host.append(section);
+}
+
+/** This browser's copy of the passages changed: the open sheets of its own students are drawn again. */
+function redrawPassageSheets() {
+    for (const actor of game.actors ?? []) {
+        if (actor.type === "character" && actor.isOwner && actor.sheet?.rendered) actor.sheet.render(false);
     }
 }
 

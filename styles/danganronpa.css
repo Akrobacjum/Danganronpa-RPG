@@ -4073,6 +4073,14 @@ body.drpg-reduced-motion .application.sheet.actor .character-header-sheet .name-
 .drpg-passage-pick .form-footer { justify-content: flex-end; }
 .drpg-passage-pick .form-footer button { flex: none; }
 .drpg-passage-pick-why { color: var(--drpg-red); }
+/* The sheet's 'Known passages' (E79 C7; sheet.mjs `injectKnownPassages`), as the mockup drew it under the
+   Experience: one row a passage, its two rooms a link that pans the map, 'the way is shut' in the palette's
+   dim ink - never by opacity (R308's rule) - and its button under them. */
+.drpg-passage-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.drpg-passage-row { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+.drpg-passage-where { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; min-width: 0; }
+.drpg-passage-shut { font-style: italic; font-size: 0.9em; color: var(--drpg-dim); }
+.drpg-passage-show { white-space: nowrap; }
 
 /* A room's name wraps inside its 220 px rather than running under the next
    column: the dialog-table rule keeps every cell on one line, and a fixed

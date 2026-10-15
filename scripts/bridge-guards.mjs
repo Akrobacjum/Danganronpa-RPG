@@ -159,7 +159,7 @@ export const REASONS = Object.freeze([
     "notWhereItStood", "alreadyDone", "nothingToUndo", "deathStands", "cannotNow", "cannotFrame", "notThere",
     "answerKeyMissing", "keysNotOpen", "rollUnknown", "rollNotYours", "rollOtherAction", "rollUsed", "rollStale",
     "rollMissed", "projectFrozen", "rollReplaced", "notPaid", "rollThrown", "callNotPaid", "callNotApproved", "itemNotDecided",
-    "notEligible", "sameTwice", "wrongCount", "relay", "sheetPutBack", "failed",
+    "notEligible", "sameTwice", "wrongCount", "notKnown", "recipientDead", "relay", "sheetPutBack", "failed",
     "refused", "noGm", "noAnswer"
 ]);
 
@@ -351,7 +351,11 @@ export const REASON_PATTERNS = Object.freeze([
     ["notEligible", /^the sender holds no ballot in this vote$/],
     ["sameTwice", /^the ballot names somebody twice$/],
     ["wrongCount", /^the ballot names \d+, the vote asks for \d+$/],
-    ["missing", /^the ballot names somebody who is not on it$/]
+    ["missing", /^the ballot names somebody who is not on it$/],
+    // E79 C7: a show of a secret passage, judged by the primary GM (gm-bridge.mjs `passage.share`, passages-gm.mjs
+    // `shareRefusal`). One reason for a passage that does not exist, is closed or the giver does not know (R562).
+    ["notKnown", /^the character does not know that passage$/],
+    ["recipientDead", /^the character shown it is dead$/]
 ].map(([code, pattern]) => Object.freeze([code, pattern])));
 
 /** The code of the closed list an English reason stands for: the first pattern that takes it, else `refused`. */

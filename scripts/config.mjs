@@ -4296,6 +4296,11 @@ export const SFX_EVENTS = {
         category: "world",
         vary: true
     },
+    passageFound: {
+        label: "Secret passage shown",
+        hint: "Another student shows somebody a secret passage. Heard by the one shown it.",
+        category: "world"
+    },
     actionSpent: {
         label: "Action spent",
         hint: "Heard by the player who spent it.",

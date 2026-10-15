@@ -244,9 +244,10 @@ export const FLOWS = Object.freeze([
     // E79 C1 (14.10.2026): the GMs' records of the secret passages and each player's addressed copy. 76's phase A
     // creates one, grants it, reads p1's copy and p2's and p3's surfaces, forges a copy and sends a junk ask; the
     // move through it (C2-C4), Close and Open (C5) and showing it (C7) are the later phases'. E79 C4: the GMs' audit's
-    // word to a player whose token it put back from a wall (movement-audit.mjs `onSentBack`), 76's phase D.
+    // word to a player whose token it put back from a wall (movement-audit.mjs `onSentBack`), 76's phase D. E79 C7
+    // (15.10.2026): a player shows a passage their character knows to a student beside it (`passage.share`), 76's phase G.
     { id: "secret-passages", what: "A secret passage: the GMs' records, and each player's copy of the ones their own characters know, sent to them alone",
-        entry: { sockets: ["passages.mjs", "passages-gm.mjs", "movement-audit.mjs"] }, scenarios: ["76-passages"], status: "partial", stage: "E79" },
+        entry: { sockets: ["passages.mjs", "passages-gm.mjs", "movement-audit.mjs"], bridge: ["passage.share"] }, scenarios: ["76-passages"], status: "partial", stage: "E79" },
     { id: "sheet-audit", what: "A player's own write on their student: judged on the primary GM, put back, flagged or listed - at the write, or at the primary's ready for one made with no GM watching",
         entry: { calls: ["sheet-audit.mjs#judgeWrite", "sheet-audit.mjs#compareAtReady"], bridge: ["audit.decide"] },
         scenarios: ["30-security", "40-flow", "61-gmstore-case", "20-crit-hope", "10-murder", "15-held", "83-roll-integrity"], status: "covered", stage: "1.2.68" },

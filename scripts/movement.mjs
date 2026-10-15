@@ -1283,8 +1283,12 @@ function bedroomShut(actor, scene, to) {
  * ------------------------------------------------------------------------------------------------------------ */
 const PASSAGE_SIDES = [0.35, 0.6, 0.85, 1];
 
-/** The room on each side of a passage's stretch `{ x1, y1, x2, y2 }` on `level`, `[a, b]`, null where none. */
-function passageRooms(scene, passage, level = null) {
+/**
+ * The room on each side of a passage's stretch `{ x1, y1, x2, y2 }` on `level`, `[a, b]`, null where none.
+ * Exported since E79 C7 (15.10.2026): the sheet's 'Known passages' names a passage by these two rooms, and
+ * the show's cards on the primary GM (passages-gm.mjs `sharePassage`) do the same.
+ */
+export function passageRooms(scene, passage, level = null) {
     const dx = passage.x2 - passage.x1, dy = passage.y2 - passage.y1, length = Math.hypot(dx, dy);
     if (!(length > 0)) return [null, null];
     const grid = scene?.grid?.size ?? 100;
