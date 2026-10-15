@@ -42,7 +42,19 @@
  *   moves Botan the same way and is refused with the sentence the map gives (`crossingRefused`). Then, on p1, the
  *   veto with the passage named (`via`) is asked into the Kitchen under a GM's lock (the gap closes as well), a seal,
  *   the chain and another's bedroom: refused, refused, refused, let through - and the bedroom without `via` refused.
- * D (C4): the GM's audit. E (C5): Close, Open and revoke. F (C6): the GM's overlay. G (C7): a show.
+ * D (C4): the GM's audit (movement-audit.mjs), with the world switch on `sendBack`. Inside the Cafeteria, so that no room
+ *   is crossed and the room rules have nothing to say, the GM draws an ordinary wall and a wall with a passage granted
+ *   to Aiko. p2, with its own veto taken off, moves Botan through each: both are put back where the GM last saw him,
+ *   p2 alone is sent `move.sentBack` and reads the veto's sentence for the room he stands in, the GMs alone are
+ *   whispered, and the Debug log rows differ in their `passage` field only. A REVERT the GM never wrote, Foundry's
+ *   teleport and a displace are put back the same way, and so is a move while the GM looks at the Annex. A GM's own
+ *   move through the wall stands, a REVERT p2 writes back to where Botan stood a moment ago stands, and Aiko through
+ *   her own passage stands. In `log` mode the move stands and the GM's Debug log has the row. The fuzz substitute:
+ *   `move.sentBack` forged by p2 for p3, and one from the primary with a code nobody knows, are refused on the
+ *   player's browser with a reason in its log; a `passage.request` of junk types is answered to p2 alone; none of it
+ *   writes a document or throws. E (C5): Close, Open and revoke. F (C6): the GM's overlay. G (C7): a show.
+ *   The `refused` sound the mover plays is not read: the harness maps no sound file, so `playSfx` plays nothing.
+ *   A stair link is R559's alone: the harness world has no floors on this scene.
  *
  * What the harness cannot settle - a real canvas's move backend, the ruler and the keyboard, a GM on
  * another scene at a real table - is the stage's LIVE rows, which AUDIT 9.2 gets with C8 (the check that
@@ -53,8 +65,10 @@ import { worldScan } from "../lib/canary.mjs";
 export const layers = ["ci"];
 /* Measured alone on 14.10.2026 (C0's phase 0, two green runs under the harness lock): 5 checks in 0.85-0.87 s by
    the cluster's own line, 5.6-5.9 s of wall time with the boot. 60 s is 73's and 75's bound for a scenario of four clients
-   and a few evals; a phase that adds minutes raises it with a reading of its own. */
-export const timeoutMs = 60000;
+   and a few evals; a phase that adds minutes raises it with a reading of its own. With phase D (C4, 14.10.2026, one run
+   under the harness lock): 33 checks in 32.5 s by the cluster's line, each of D's moves waited 1-1.5 s - so 120 s,
+   for the boot and for a2.sh's three lanes, which this reading did not run in. */
+export const timeoutMs = 120000;
 
 const J = value => JSON.stringify(value);
 
@@ -103,7 +117,7 @@ const worldPrint = (dump, { without = null } = {}) => J({
     settings: Object.fromEntries(Object.entries(dump?.settings?.world ?? {}).filter(([key]) => key.startsWith("danganronpa-rpg.")))
 });
 
-export async function run({ gm, p1, p2, p3, check, phase, settle, dump, socketTraffic, IDS, repoUrl }) {
+export async function run({ gm, p1, p2, p3, check, phase, settle, dump, socketTraffic, opLog, IDS, repoUrl }) {
     phase(PHASE0);
     /* The GM's load migration is waited for before anything is read (E79 C1, 14.10.2026). Its writes - the unstamped
        harness world opens the students' sheets - reach p3 as world changes. In a2.sh's first queue (three lanes) one
@@ -183,6 +197,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, dump, socketTr
     await phaseA({ gm, p1, p2, p3, check, phase, settle, dump, socketTraffic, IDS, repoUrl, baseline });
     await phaseB({ gm, p1, p2, p3, check, phase, IDS, repoUrl });
     await phaseC({ gm, p1, p2, p3, check, phase, settle, IDS, repoUrl });
+    await phaseD({ gm, p1, p2, p3, check, phase, settle, socketTraffic, opLog, IDS, repoUrl });
 }
 
 const PHASE_A = "A: the GM creates a passage and grants Aiko - p1's copy holds that row alone, p2 and p3 nothing of it, p3's world as found";
@@ -437,4 +452,165 @@ async function phaseC({ gm, p1, p2, p3, check, phase, settle, IDS, repoUrl }) {
     await settle(600);
     check("C: put back - the passage deleted, the Kitchen and its wall gone, no seal or chain left on the Kitchen or Aiko",
         back.gone !== false && back.kitchen === false && !(back.sealed ?? []).includes("Kitchen") && back.chained === false, J(back));
+}
+
+const PHASE_D = "D: the GM's audit - a move through an ordinary wall and through a passage's wall is put back alike, a forged REVERT, teleport and displace as well; a GM's move, a lawful REVERT and the knower stand; 'log' moves nothing";
+
+async function phaseD({ gm, p1, p2, p3, check, phase, settle, socketTraffic, opLog, IDS, repoUrl }) {
+    phase(PHASE_D, { flow: "secret-passages" });
+    const MOD = "danganronpa-rpg", PLACE = { teleport: true, movementAction: "displace", animate: false };
+    const BOTAN = "TOKBOTAN00000000", HOME = [1250, 400], ACROSS = [1550, 400];
+    /* Inside the Cafeteria (1200-2000 x 200-800), below phase A's wall (y 400, x 1100-1400), so that no room is crossed:
+       an ordinary wall at x 1500, and a wall at y 600 whose passage (1234.5-1400.5) is Aiko's. Botan stands at 1250,400
+       (his centre 1300,450): right to 1550,400 crosses the ordinary wall, down to 1250,600 the passage's. */
+    const set = await gm.eval(`
+        /* Registered only from C4: a tree without the audit lets the phase run and fail on its checks, not on this read. */
+        const AUDIT = game.settings.settings.has("${MOD}.moveAudit");
+        const scene = game.scenes.get(${J(IDS.scene)});
+        const [plain, held] = await scene.createEmbeddedDocuments("Wall", [{ c: [1500, 400, 1500, 800] }, { c: [1200, 600, 1450, 600] }]);
+        const id = await game.drpg.passages.create({ sceneId: scene.id, wallId: held.id, seg: { x1: 1234.5, y1: 600, x2: 1400.5, y2: 600 } });
+        const granted = await game.drpg.passages.grant(id, ${J(IDS.aiko)});
+        const botan = scene.tokens.get(${J(BOTAN)}), aiko = scene.tokens.get("TOKAIKO000000000");
+        const keep = a => ({ actions: game.drpg.actionsLeft(a), free: a.getFlag("${MOD}", "freeMoveUsed") ?? null });
+        globalThis.__s76d = { plain: plain.id, held: held.id, id, mode: AUDIT ? game.settings.get("${MOD}", "moveAudit") : null,
+            botan: { x: botan.x, y: botan.y }, aiko: { x: aiko.x, y: aiko.y },
+            kept: { [${J(IDS.botan)}]: keep(botan.actor), [${J(IDS.aiko)}]: keep(aiko.actor) } };
+        await botan.update({ x: ${HOME[0]}, y: ${HOME[1]} }, ${J(PLACE)});
+        await aiko.update({ x: 1270, y: 650 }, ${J(PLACE)});
+        if (AUDIT) await game.settings.set("${MOD}", "moveAudit", "sendBack");
+        const M = await import("${repoUrl}/scripts/movement.mjs");
+        return { plain: plain.id, held: held.id, id, granted, found: globalThis.__s76d.mode, rooms: [M.roomOfToken(botan), M.roomOfToken(aiko)], mode: AUDIT ? game.settings.get("${MOD}", "moveAudit") : null };`,
+    { timeout: 30000 });
+    await settle(1000);
+    check("D: the GM draws an ordinary wall and a passage's wall inside the Cafeteria, grants the passage to Aiko, stands Botan and Aiko there and turns the audit to 'sendBack'",
+        typeof set.id === "string" && set.granted === true && J(set.rooms) === J(["Cafeteria", "Cafeteria"]) && set.mode === "sendBack", J(set));
+
+    /* p2 hears its own packets for this phase; the veto (movement.mjs `onPreUpdateToken`) is taken off p2's hook list for
+       each move and put back at its place, as a console's client would not run it. */
+    await p2.eval(`globalThis.__s76dWire = []; game.socket.on("module.${MOD}", p => { if (p?.action === "move.sentBack") globalThis.__s76dWire?.push(p); }); return true;`);
+    const forge = (to, options = {}, client = p2, token = BOTAN) => client.eval(`
+        const list = Hooks._hooks.get("preUpdateToken") ?? [], at = list.findIndex(e => e.fn.name === "onPreUpdateToken");
+        const [veto] = at >= 0 ? list.splice(at, 1) : [];
+        try { await canvas.scene.tokens.get(${J(token)}).update({ x: ${to[0]}, y: ${to[1]} }, ${J(options)}); }
+        finally { if (veto) list.splice(at, 0, veto); }
+        return Boolean(veto);`, { timeout: 30000 });
+    const onGm = () => gm.eval(`
+        const { contentOf } = await import("${repoUrl}/scripts/secret.mjs"), U = await import("${repoUrl}/scripts/utils.mjs");
+        const t = game.scenes.get(${J(IDS.scene)}).tokens.get(${J(BOTAN)});
+        const cards = game.messages.filter(m => String(contentOf(m) ?? "").includes('data-drpg-wall="${BOTAN}"'));
+        return { at: [t.x, t.y], cards: cards.map(m => [...(m.whisper ?? [])].sort()),
+            rows: U.sessionFailures().filter(e => e.message.startsWith("A player's move took a token through a wall")).map(e => [e.message, e.count]) };`);
+    const onP2 = () => p2.eval(`
+        const { contentOf } = await import("${repoUrl}/scripts/secret.mjs");
+        return { told: globalThis.__notifications.map(n => n.msg), wire: globalThis.__s76dWire.map(p => p.code),
+            cards: game.messages.filter(m => (String(m.content ?? "") + String(contentOf(m) ?? "")).includes("data-drpg-wall")).length };`);
+    /* The rows a step added: the Debug log keeps one row per message with a count, so a row is new or counted again. */
+    const grown = (was, now) => now.filter(([msg, n]) => n > (was.find(([m]) => m === msg)?.[1] ?? 0))
+        .map(([msg]) => ({ mode: msg.includes("(sent back)") ? "sendBack" : "log", ...JSON.parse(msg.slice(msg.indexOf("{"))) }));
+    const attempt = async (to, options = {}, { client = p2, token = BOTAN } = {}) => {
+        const mark = socketTraffic.length, g0 = await onGm(), q0 = await onP2();
+        const vetoOff = await forge(to, options, client, token);
+        await settle(1500);
+        const g1 = await onGm(), q1 = await onP2();
+        return { vetoOff, at: g1.at, packets: socketTraffic.slice(mark).filter(t => t.action === "move.sentBack").map(t => ({ from: t.from, to: t.to })),
+            codes: q1.wire.slice(q0.wire.length), told: q1.told.slice(q0.told.length), p2cards: q1.cards - q0.cards,
+            whispers: g1.cards.slice(g0.cards.length), rows: grown(g0.rows, g1.rows) };
+    };
+    const cannotReach = await p2.eval(`return game.i18n.format("DRPG.Move.cannotReach", { from: "Cafeteria" });`);
+    const sentBack = r => r.vetoOff && J(r.at) === J(HOME) && J(r.packets) === J([{ from: "gm", to: [IDS.p2] }]) && J(r.codes) === J(["wall"])
+        && J(r.told) === J([cannotReach]) && r.p2cards === 0 && J(r.whispers) === J([[IDS.gm]]) && r.rows.length === 1 && r.rows[0].mode === "sendBack"
+        && r.rows[0].user === IDS.p2 && r.rows[0].token === BOTAN;
+    const stood = (r, at) => J(r.at) === J(at) && r.packets.length === 0 && r.codes.length === 0 && r.told.length === 0 && r.whispers.length === 0 && r.rows.length === 0;
+    const putBack = () => gm.eval(`await game.scenes.get(${J(IDS.scene)}).tokens.get(${J(BOTAN)}).update({ x: ${HOME[0]}, y: ${HOME[1]} }, ${J(PLACE)}); return true;`);
+
+    const plain = await attempt(ACROSS);
+    const held = await attempt([1250, 600]);
+    const blind = r => J({ ...r, rows: r.rows.map(x => ({ ...x, wall: null, passage: null })) });
+    check("D: p2, its veto off, moves Botan through the ordinary wall and through the passage's wall: each time he is put back where the GM saw him, p2 alone is sent the code 'wall' and reads the veto's sentence, the GMs alone are whispered",
+        sentBack(plain) && sentBack(held), J({ plain, held, cannotReach }));
+    check("D: the two are one result - only the Debug log row's wall and `passage` differ, the passage named on its wall's row and nothing on the other",
+        blind(plain) === blind(held) && plain.rows[0].wall === set.plain && plain.rows[0].passage === null
+            && held.rows[0].wall === set.held && held.rows[0].passage === set.id,
+        J({ plain: plain.rows, held: held.rows }));
+
+    const revert = await attempt(ACROSS, { drpgRevert: true });
+    const teleport = await attempt(ACROSS, { teleport: true });
+    const displace = await attempt(ACROSS, { movementAction: "displace" });
+    check("D: a REVERT the GM never wrote, Foundry's teleport and a displace through the ordinary wall are each put back the same way - among them a REVERT to the spot the audit had just put Botan back from",
+        [revert, teleport, displace].every(sentBack), J({ revert, teleport, displace }));
+
+    const elsewhere = await (async () => {
+        await gm.eval(`globalThis.__s76dView = canvas.scene; canvas.scene = game.scenes.get(${J(IDS.annex)}); return true;`);
+        try { return { r: await attempt(ACROSS), on: await gm.eval(`return canvas.scene?.id;`) }; }
+        finally { await gm.eval(`canvas.scene = globalThis.__s76dView; delete globalThis.__s76dView; return true;`); }
+    })();
+    check("D: with the GM looking at the Annex the same move is put back the same way",
+        elsewhere.on === IDS.annex && sentBack(elsewhere.r) && blind(elsewhere.r) === blind(plain), J(elsewhere));
+
+    /* What stands: a GM's own move across, a REVERT p2 writes back to where the GM saw Botan a moment ago, Aiko through her passage. */
+    await gm.eval(`await game.scenes.get(${J(IDS.scene)}).tokens.get(${J(BOTAN)}).update({ x: ${ACROSS[0]}, y: ${ACROSS[1]} }); return true;`);
+    await settle(1000);
+    const gmMove = await onGm();
+    const lawful = await attempt(HOME, { drpgRevert: true });
+    const knower = await attempt([1270, 450], {}, { client: p1, token: "TOKAIKO000000000" });
+    const aikoAt = await gm.eval(`const t = game.scenes.get(${J(IDS.scene)}).tokens.get("TOKAIKO000000000"); return [t.x, t.y];`);
+    check("D: a GM's own move through the wall stands, a REVERT p2 writes back to where the GM saw Botan a moment ago stands, and p1 moves Aiko through her own passage - nothing put back, sent, whispered or logged",
+        J(gmMove.at) === J(ACROSS) && stood(lawful, HOME) && knower.packets.length === 0 && knower.whispers.length === 0 && knower.rows.length === 0
+            && J(aikoAt) === J([1270, 450]),
+        J({ gmMove: gmMove.at, lawful, knower, aikoAt }));
+
+    await gm.eval(`if (game.settings.settings.has("${MOD}.moveAudit")) await game.settings.set("${MOD}", "moveAudit", "log"); return true;`);
+    await settle(400);
+    const logged = await attempt(ACROSS);
+    await putBack();
+    await settle(800);
+    check("D: in 'log' mode the move stands and the GM's Debug log has the row, with nothing sent or whispered",
+        J(logged.at) === J(ACROSS) && logged.packets.length === 0 && logged.codes.length === 0 && logged.whispers.length === 0
+            && logged.rows.length === 1 && logged.rows[0].mode === "log" && logged.rows[0].wall === set.plain,
+        J(logged));
+
+    /* The fuzz substitute (31-fuzz is E43's): a send-back p2 forges for p3, one from the primary with a code nobody knows,
+       and an ask of junk types - no document written, nothing thrown, each refusal a reason in the refuser's log. */
+    const errs = () => Promise.all([gm, p1, p2, p3].map(c => c.eval(`return (globalThis.__errors ?? []).length;`)));
+    const refusals = c => c.eval(`const U = await import("${repoUrl}/scripts/utils.mjs");
+        return U.sessionFailures().filter(e => e.message.startsWith("A token's send-back was not taken")).map(e => [e.message, e.count]);`);
+    const added = (was, now) => now.filter(([msg, n]) => n > (was.find(([m]) => m === msg)?.[1] ?? 0)).map(([msg]) => msg);
+    const e0 = await errs(), ops = opLog.length, r3 = await refusals(p3), r2 = await refusals(p2), n3 = await p3.eval(`return globalThis.__notifications.length;`);
+    const mark = socketTraffic.length;
+    await p2.eval(`game.socket.emit("module.${MOD}", { action: "move.sentBack", userId: ${J(IDS.p3)}, sceneId: ${J(IDS.scene)}, tokenId: "TOKCHIE000000000", code: "wall" },
+        { recipients: [${J(IDS.p3)}] }); return true;`);
+    await gm.eval(`game.socket.emit("module.${MOD}", { action: "move.sentBack", userId: ${J(IDS.p2)}, sceneId: ${J(IDS.scene)}, tokenId: ${J(BOTAN)}, code: "teleport" },
+        { recipients: [${J(IDS.p2)}] }); return true;`);
+    await p2.eval(`game.socket.emit("module.${MOD}", { action: "passage.request", userId: 7, actorId: { x: 1 }, passageId: [1, 2], passages: "x", sceneId: null },
+        { recipients: [${J(IDS.gm)}] }); return true;`);
+    await settle(800);
+    const fuzz = { errors: [e0, await errs()], writes: opLog.slice(ops).map(o => `${o.who} ${o.action} ${o.coll}`),
+        p3: added(r3, await refusals(p3)), p2: added(r2, await refusals(p2)),
+        told3: (await p3.eval(`return globalThis.__notifications.length;`)) - n3,
+        answers: socketTraffic.slice(mark).filter(t => t.action === "passage.rows").map(t => t.to) };
+    check("D: the fuzz - a send-back p2 forges for p3 and one from the primary with an unknown code are refused with their reason, an ask of junk types is answered to p2 alone, and nothing is written or thrown",
+        J(fuzz.errors[0]) === J(fuzz.errors[1]) && fuzz.writes.length === 0 && J(fuzz.p3) === J(["A token's send-back was not taken: not sent by a GM"])
+            && J(fuzz.p2) === J(["A token's send-back was not taken: an unknown code"]) && fuzz.told3 === 0 && J(fuzz.answers) === J([[IDS.p2]]),
+        J(fuzz));
+
+    /* Put back: the switch, the tokens, their actions and free Move, the passage and both walls. */
+    const back = await gm.eval(`
+        const scene = game.scenes.get(${J(IDS.scene)}), was = globalThis.__s76d;
+        if (was.mode !== null) await game.settings.set("${MOD}", "moveAudit", was.mode);
+        await scene.tokens.get(${J(BOTAN)}).update(was.botan, ${J(PLACE)});
+        await scene.tokens.get("TOKAIKO000000000").update(was.aiko, ${J(PLACE)});
+        for (const [actorId, k] of Object.entries(was.kept)) {
+            const a = game.actors.get(actorId);
+            await game.drpg.setActions(a, k.actions);
+            if (k.free === null) await a.unsetFlag("${MOD}", "freeMoveUsed"); else await a.setFlag("${MOD}", "freeMoveUsed", k.free);
+        }
+        const gone = await game.drpg.passages.delete(was.id);
+        await scene.deleteEmbeddedDocuments("Wall", [was.plain, was.held]);
+        delete globalThis.__s76d;
+        return { gone, mode: was.mode === null ? null : game.settings.get("${MOD}", "moveAudit"), walls: scene.walls.filter(w => [was.plain, was.held].includes(w.id)).length,
+            at: [scene.tokens.get(${J(BOTAN)}).x, scene.tokens.get(${J(BOTAN)}).y] };`, { timeout: 30000 });
+    await p2.eval(`delete globalThis.__s76dWire; return true;`);
+    await settle(600);
+    check("D: put back - the switch as found, Botan where phase C left him, the passage and both walls gone",
+        back.gone !== false && back.mode === set.found && back.walls === 0 && J(back.at) === J([1300, 300]), J(back));
 }

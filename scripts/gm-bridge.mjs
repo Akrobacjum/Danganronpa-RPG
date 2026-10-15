@@ -1262,7 +1262,9 @@ async function handleSendback(payload, sender, ctx, prepared) {
     if (asked.level !== undefined) to.level = asked.level;
     // Marked as the bridge's (E12 C12): the witness judge reads a send-back as the player's own
     // revert, though this GM writes it - honoured only back to where the judge left the token.
-    await token.update(to, { animate: false, [prepared.REVERT]: true, [prepared.SENT_BACK]: !sender.isGM });
+    // Walls ignored (E79 C4): the place is one the token stood on a moment ago (`guardSendbackPlace`),
+    // and a wall between the two must not stop the way back (movement.mjs `sendBack`'s note).
+    await token.update(to, { animate: false, [prepared.REVERT]: true, [prepared.SENT_BACK]: !sender.isGM, constrainOptions: { ignoreWalls: true } });
 }
 
 async function handleLoot(payload, sender, ctx) {

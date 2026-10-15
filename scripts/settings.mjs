@@ -815,6 +815,12 @@ export const SETTINGS = {
      */
     minePassages: "minePassages",
     /**
+     * What the primary GM does with a player's token moved through a wall its character could not
+     * pass (E79 C4, movement-audit.mjs): "log", a row in the Debug log (the default, the plan's AM-1),
+     * or "sendBack", the token put back where it stood, its player told and the GMs warned.
+     */
+    moveAudit: "moveAudit",
+    /**
      * Rooms, not sight lines, decide what a player can see.
      *
      * Turning this on makes the module's own region fog the ONLY thing hiding
@@ -1588,6 +1594,21 @@ export function registerSettings() {
        (1): one switch as the emergency way back at the table). On by default; off, foundry-windows.mjs builds nothing
        on a GM's page and Foundry's two rails stay where Foundry puts them (THE WORLD SWITCH there). A reload, because
        the windows are built once at ready and hold Foundry's own nodes. A player's page is the same either way. */
+    /* The GMs' audit of a move through a wall (E79 C4; the plan's 5.3 and AM-1): a world switch, a GM's,
+       "log" until a table has shown that "sendBack" puts nobody back wrongly (E17 decides the default). */
+    game.settings.register(MODULE_ID, SETTINGS.moveAudit, {
+        name: "DRPG.Settings.moveAudit.name",
+        hint: "DRPG.Settings.moveAudit.hint",
+        scope: "world",
+        config: true,
+        type: String,
+        choices: {
+            log: "DRPG.Settings.moveAudit.log",
+            sendBack: "DRPG.Settings.moveAudit.sendBack"
+        },
+        default: "log"
+    });
+
     game.settings.register(MODULE_ID, SETTINGS.foundryToolWindows, {
         name: "DRPG.Settings.foundryToolWindows.name",
         hint: "DRPG.Settings.foundryToolWindows.hint",

@@ -46,6 +46,9 @@ import { playSfx } from "./sfx.mjs";
 // The secret passages this browser may know (E79 C3), static for the veto's sake as the imports
 // above. passages.mjs is a leaf that never reads this file back (R560 holds its imports).
 import { openSegmentsFor, crossingVia } from "./passages.mjs";
+// The GMs' audit of a move through a wall (E79 C4), called from `noteGmPosition` with this file's
+// readers handed in; movement-audit.mjs never imports this file statically (R161).
+import { auditMove, registerMoveAudit } from "./movement-audit.mjs";
 
 /**
  * Region flags this file owns. Named like `VAULT_FLAGS`/`REST_FLAGS` in
@@ -205,6 +208,7 @@ export function registerMovement() {
     Hooks.on("updateToken", noteGmPosition);
     Hooks.on("createToken", (token, options, userId) => noteGmCreated(token, userId));
     Hooks.once("ready", primeGmPositions);
+    registerMoveAudit();
     // The witness judge's readers (E12 C12; `judgeArrival`), by a dynamic import: sheet-audit.mjs and
     // mastermind.mjs each reach this file back through their own static imports (R161).
     Promise.all([import("./sheet-audit.mjs"), import("./mastermind.mjs")])
@@ -428,6 +432,13 @@ function noteGmPosition(tokenDoc, changes, options, userId) {
         } catch (err) {
             error(`Could not judge where "${tokenDoc.name}" arrived`, err);
         }
+        // The wall rule (E79 C4), from the same start: the GM's last sighting. It changes no standing
+        // `judgeArrival` keeps (the plan's D7) and catches its own throw.
+        auditMove(tokenDoc, changes, options, userId, gmSeen.get(tokenDoc.id), {
+            REVERT, SENT_BACK, sendBackRefusal, stairLinks, roomAt, history: recentPositions(tokenDoc.id),
+            held: judgeReaders?.flagsHeldNow ?? null,
+            sendBack: (doc, spot, how) => sendBack(doc, spot, roomAt(spot.x, spot.y, doc, spot.level ?? levelOf(doc)), how)
+        });
     }
     const was = gmSeen.get(tokenDoc.id);
     if (was) {
@@ -2016,24 +2027,33 @@ async function chargeForCrossing(actor, from, to, tokenDoc = null, previous = nu
  * updating a document while its own update hook is still running is what made
  * the earlier attempt silently do nothing. The move is also marked so our own
  * hook ignores it and does not charge for the way back.
+ *
+ * Walls ignored (E79 C4): the way back is where the token stood a moment ago, and Foundry's
+ * `constrainOptions.ignoreWalls` keeps a wall between the two from stopping it - one road for
+ * every refusal, the GMs' audit's (movement-audit.mjs) included, which plays no sound on the GM's
+ * browser (`sound`) and tells the mover once the write has landed (`landed`, with whether it wrote).
+ * Whether v14 honours the option on an update is not read here; a live row is owed to the
+ * stage's AUDIT 9.2.
  */
-async function sendBack(tokenDoc, previous, room) {
+async function sendBack(tokenDoc, previous, room, { sound = true, landed = null } = {}) {
     if (!tokenDoc || !previous) return;
     // Announced when the REVERT lands, on every browser (`onUpdateToken`, E77 C2), not by the refusal.
     putBack.add(tokenDoc.id);
 
     // The only "error" a player makes regularly, and until now the only signal
     // was the token sliding back. Local, on the client that tried it.
-    playSfx("refused");
+    if (sound) playSfx("refused");
 
     const apply = async () => {
+        let wrote = false;
         try {
             // Its floor too, when it had one (`spotOf`, E12 C9): a refused climb put back by x
             // and y alone stays upstairs.
             await tokenDoc.update(
                 previous.level !== undefined ? { x: previous.x, y: previous.y, level: previous.level } : { x: previous.x, y: previous.y },
-                { animate: false, [REVERT]: true }
+                { animate: false, [REVERT]: true, constrainOptions: { ignoreWalls: true } }
             );
+            wrote = true;
         } catch (err) {
             /*
              * A player may not own the token; ask the GM to do it.
@@ -2054,6 +2074,7 @@ async function sendBack(tokenDoc, previous, room) {
         }
         lastRoom.set(tokenDoc.id, room);
         lastPosition.set(tokenDoc.id, previous);
+        landed?.(wrote);
     };
 
     setTimeout(apply, 0);

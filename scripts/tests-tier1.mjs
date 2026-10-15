@@ -13713,6 +13713,120 @@ const INVARIANTS = [
         const neighbours = fnSource(src, "neighbourAnswer") + fnSource(src, "neighbouringRooms");
         ok(!/passesThrough|reachableFrom|openSegmentsFor|knownPassages/.test(neighbours), "the neighbours Listen and the body read ask the secret passages");
     }],
+    ["R559 - one wall rule on the primary GM: a move through an ordinary wall and through a passage's wall is judged alike, the knower and the Mastermind pass the passage, doors, one-way walls, floors and the start are the GM's, a forged revert, teleport and displace are judged like any move, a send-back the GM accepts, the stairs, a GM and a Monokuma the GMs hold pass; \"log\" writes a row and moves nothing, \"sendBack\" puts the token back and tells its mover alone, from the primary GM", async () => {
+        /*
+         * E79 C4, 14.10.2026; the E79 plan's A10-6 (V1, V8, D7, RISK-b, AM-1). The harms: a console's move through a
+         * wall left standing (red at the parent: no audit, and this file's import of movement-audit.mjs throws), a passage
+         * wall judged otherwise than an ordinary one, a start, an exemption or the walls read from what the update or the
+         * screen says, and "log" mode moving a token. Read on a scene of plain objects that is never the one on screen
+         * (`tokenDoc.parent`): seven walls - an ordinary one, a passage's (a stretch of it known to A), an open door, a
+         * closed one, a one-way wall, one that does not restrict movement, one upstairs only - and rooms for the scene to
+         * be a place; the passages are rows of the suite's own in the copy's shape (`known`). Every act is a recorder
+         * the test hands in (`warn`, `sendBack`, `socket`, `whisper`), so nothing is written, sent or logged. Foundry's
+         * own reading of a one-way wall (`orient2dFast` < 0 LEFT) is the plan's, not read in v14's source; scenario 76 D
+         * drives the audit through the harness on four clients.
+         */
+        const A = await import("./movement-audit.mjs");
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const J = v => JSON.stringify(v);
+        const region = (name, x, y, w, h) => ({ id: `R559R${name}`, name: `R559 ${name}`, levels: new Set(), behaviors: [],
+            bounds: { x, y, width: w, height: h }, shapes: [{ type: "rectangle", x, y, width: w, height: h }],
+            testPoint: p => p.x >= x && p.x <= x + w && p.y >= y && p.y <= y + h,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === R.ROOM_FLAG ? true : undefined) });
+        const W = (id, c, more = {}) => ({ id, c, move: 20, door: 0, ds: 0, dir: 0, levels: new Set(), ...more });
+        const walls = [W("R559W1", [1500, 0, 1500, 1000]), W("R559W2", [0, 500, 1400, 500]),
+            W("R559W3", [600, 1200, 600, 1600], { door: 1, ds: 1 }), W("R559W5", [800, 1200, 800, 1600], { door: 1, ds: 0 }),
+            W("R559W4", [1000, 1200, 1000, 1600], { dir: 1 }), W("R559W6", [1200, 1200, 1200, 1600], { move: 0 }),
+            W("R559W8", [1300, 1700, 1300, 2000], { levels: new Set(["R559L2"]) })];
+        const scene = { id: "R559S", name: "R559 scene", grid: { size: 100 }, dimensions: { width: 3000, height: 2000 }, levels: [], walls,
+            regions: new Set([region("Lab", 0, 0, 1400, 480), region("Vault", 0, 520, 1400, 480), region("Hall", 1600, 0, 800, 1000)]) };
+        const bare = { ...scene, id: "R559N", regions: new Set() };
+        const student = (id, flags = {}) => ({ id, name: id, type: "character", items: [], getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined) });
+        const SA = student("R559A"), SB = student("R559B"), MK = student("R559M", { [FLAGS.monokuma]: true });
+        const NPC = { ...student("R559C"), type: "adversary" };
+        const known = { R559P: { sceneId: "R559S", level: null, passageWallId: "R559W2", passageSeg: { x1: 100, y1: 500, x2: 300, y2: 500 }, actorIds: ["R559A"] } };
+        const users = new Map([["R559U", { id: "R559U", isGM: false }], ["R559G", { id: "R559G", isGM: true }]]);
+        const tok = (x, y, { actor = SA, level, movement, on = scene } = {}) => ({ id: "R559T", name: "R559 token", x, y, width: 1, height: 1,
+            elevation: 0, level, parent: on, actor, movement });
+        const at = (x, y, level) => ({ x, y, elevation: 0, level });
+        const audit = (token, was, { options = {}, user = "R559U", mode = "log", held = a => a, stairs = [], history = [], mastermind = false, marks = new Map() } = {}) => {
+            const acts = [];
+            const out = A.auditMove(token, { x: token.x, y: token.y }, options, user, was, {
+                REVERT: M.REVERT, SENT_BACK: M.SENT_BACK, sendBackRefusal: M.sendBackRefusal, roomAt: M.roomAt, stairLinks: () => stairs,
+                history, held, users, known, mode, mastermind: () => mastermind, putBackFrom: marks,
+                warn: (text, row) => acts.push(["warn", row.wall, row.passage, row.mode]),
+                sendBack: (doc, spot, how) => { acts.push(["sendBack", spot.x, spot.y, how.sound]); how.landed(true); },
+                socket: { emit: (event, packet, opts) => acts.push(["emit", event, packet, opts]) },
+                whisper: html => { acts.push(["whisper", html.includes('data-drpg-wall="R559T"')]); return Promise.resolve(); }
+            });
+            return { said: out.verdict === "crossed" ? `crossed ${out.wall}${out.passage ? `/${out.passage}` : ""}` : out.verdict, acts };
+        };
+        const said = (...args) => audit(...args).said;
+
+        // The walls, from the GM's last sighting (`was`) to where the token stands.
+        equal(J([said(tok(1700, 100), at(100, 100)), said(tok(100, 700), at(100, 100)), said(tok(100, 700, { actor: SB }), at(100, 100)),
+            said(tok(100, 700, { actor: SB }), at(100, 100), { mastermind: true }), said(tok(500, 700), at(500, 100)),
+            said(tok(500, 700, { movement: { passed: { waypoints: [at(500, 100), at(150, 100), at(150, 700)] } } }), at(500, 100)),
+            said(tok(500, 700, { actor: SB, movement: { passed: { waypoints: [at(500, 100), at(150, 100), at(150, 700)] } } }), at(500, 100)),
+            said(tok(1700, 100, { movement: { origin: at(1600, 100), passed: { waypoints: [] } } }), at(100, 100)),
+            said(tok(650, 1300), at(100, 1300)), said(tok(850, 1300), at(650, 1300)), said(tok(1050, 1300), at(850, 1300)),
+            said(tok(850, 1300), at(1050, 1300)), said(tok(1200, 1300), at(1100, 1300)),
+            said(tok(1350, 1750, { level: "R559L1" }), at(1150, 1750, "R559L1")), said(tok(1350, 1750, { level: "R559L2" }), at(1150, 1750, "R559L2"))]),
+        J(["crossed R559W1", "clear", "crossed R559W2/R559P", "clear", "crossed R559W2", "clear", "crossed R559W2/R559P", "crossed R559W1",
+            "clear", "crossed R559W5", "clear", "crossed R559W4", "clear", "clear", "crossed R559W8"]),
+        "[an ordinary wall, the passage's knower through it, another character, the Mastermind, the knower beside the passage, the knower's bend through it by the waypoints, another's, a start the update names, an open door, a closed one, a one-way wall from its open side, from the other, a wall that does not restrict movement, a wall upstairs from downstairs, from upstairs]");
+
+        // The exemptions, on the move through the ordinary wall: each the GM's own reading, none the update's options.
+        const back = [{ x: 1700, y: 100, elevation: 0, level: undefined, at: Date.now() }];
+        const notHeld = () => ({ getFlag: () => undefined });
+        const across = [tok(1700, 100), at(100, 100)];
+        equal(J([said(...across, { user: "R559G" }), said(...across, { options: { [M.REVERT]: true } }), said(...across, { options: { [M.SENT_BACK]: true } }),
+            said(...across, { options: { teleport: true, movementAction: "displace" } }), said(...across, { options: { [M.REVERT]: true }, history: back }),
+            said(tok(1700, 100, { level: "R559L2" }), at(100, 100, "R559L1"), { stairs: [["R559 Hall", "R559 Lab"]] }),
+            said(tok(1700, 100, { level: "R559L2" }), at(100, 100, "R559L1")),
+            said(tok(1700, 100, { actor: MK }), at(100, 100)), said(tok(1700, 100, { actor: MK }), at(100, 100), { held: notHeld }),
+            said(tok(1700, 100, { actor: NPC }), at(100, 100)), said(tok(1700, 100, { on: bare }), at(100, 100)), said(tok(1700, 100), null)]),
+        J(["exempt", "crossed R559W1", "crossed R559W1", "crossed R559W1", "exempt", "exempt", "crossed R559W1", "exempt", "crossed R559W1",
+            "skip", "skip", "skip"]),
+        "[a GM's move, a forged REVERT, a forged SENT_BACK, teleport and displace, a REVERT to where the GM saw it a moment ago, the stairs, a change of floor with no stairs, a Monokuma the GMs hold, a Monokuma flag the GMs do not hold, a token that is no student, a scene with no rooms, a token never seen]");
+
+        // What each mode does, and the same for the mover whichever wall it was.
+        const EMIT = () => ["emit", `module.${MODULE_ID}`, { action: "move.sentBack", userId: "R559U", sceneId: "R559S", tokenId: "R559T", code: "wall" }, { recipients: ["R559U"] }];
+        const plain = audit(...across), plainSent = audit(...across, { mode: "sendBack" });
+        const hidden = audit(tok(100, 700, { actor: SB }), at(100, 100), { mode: "sendBack" });
+        equal(J([plain.acts, plainSent.acts, hidden.acts]), J([[["warn", "R559W1", null, "log"]],
+            [["warn", "R559W1", null, "sendBack"], ["sendBack", 100, 100, false], EMIT(), ["whisper", true]],
+            [["warn", "R559W2", "R559P", "sendBack"], ["sendBack", 100, 100, false], EMIT(), ["whisper", true]]]),
+        "[\"log\" mode, \"sendBack\" mode through an ordinary wall, through a passage's wall] - the row, the put-back to the GM's sighting with no sound on the GM, the mover told alone, the GMs warned");
+        // A REVERT back to the spot the audit put the token back from: the GMs saw it there, through the wall, and that is no lawful stand.
+        const marks = new Map();
+        audit(...across, { mode: "sendBack", marks });
+        equal(J([said(tok(1700, 100), at(100, 100), { options: { [M.REVERT]: true }, history: back, marks }),
+            said(tok(1700, 100), at(100, 100), { options: { [M.REVERT]: true }, history: back, marks: new Map() })]),
+        J(["crossed R559W1", "exempt"]), "[a REVERT to the spot the audit put the token back from, the same with no put-back]");
+
+        // The mover takes the word only from the primary GM, addressed to it, with a code it knows.
+        const me = { id: "R559U", isGM: false };
+        const people = new Map([...users, ["R559H", { id: "R559H", isGM: true }], ["R559V", { id: "R559V", isGM: false }]]);
+        const word = (packet, sender, who = me) => A.sentBackRefusal({ action: "move.sentBack", userId: "R559U", code: "wall", ...packet }, sender, { me: who, users: people, primary: "R559G" }) === null;
+        equal(J([word({}, "R559G"), word({ userId: "R559V" }, "R559G"), word({}, "R559V"), word({}, "R559H"), word({ code: "x" }, "R559G"), word({}, "R559G", { id: "R559U", isGM: true })]),
+            J([true, false, false, false, false, false]),
+            "[from the primary GM, addressed to another player, from a player, from another GM, an unknown code, on a GM's browser] - taken");
+
+        // The world switch, and the one road back with walls ignored.
+        const setting = game.settings.settings.get(`${MODULE_ID}.moveAudit`);
+        equal(J([setting?.scope, setting?.config, setting?.default, Object.keys(setting?.choices ?? {})]), J(["world", true, "log", ["log", "sendBack"]]),
+            "[the setting's scope, shown in the settings, its default, its choices]");
+        const src = file => fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => r.text()).then(stripComments);
+        const [movement, bridge, own] = await Promise.all([src("movement.mjs"), src("gm-bridge.mjs"), src("movement-audit.mjs")]);
+        const seen = fnSource(movement, "noteGmPosition");
+        equal(J([/constrainOptions: \{ ignoreWalls: true \}/.test(fnSource(movement, "sendBack")), /constrainOptions: \{ ignoreWalls: true \}/.test(fnSource(bridge, "handleSendback")),
+            /auditMove\(tokenDoc, changes, options, userId, gmSeen\.get\(tokenDoc\.id\),/.test(seen) && seen.search(/auditMove\(/) < seen.search(/gmSeen\.set\(/),
+            /\.teleport|movementAction|displace/.test(own)]),
+        J([true, true, true, false]),
+        "[sendBack ignores walls, handleSendback ignores walls, the audit's start is the GM's sighting before it moves, the audit reads teleport, movementAction or displace]");
+    }],
 ];
 
 /**

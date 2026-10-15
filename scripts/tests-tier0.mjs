@@ -385,7 +385,9 @@ const REGRESSIONS = [
             // E31 review: it passed on text elsewhere in the file (the runner, the guards); this is its own reason.
             "bridge-guards.mjs": "the answers to this client's own requests: taken only from a GM, for its own pending id; acts on no actor",
             // E79 C1 (1.2.78): `payload.userId` is the copy's address, compared with this user's own id; R555 holds the rule (`passageRowsRefusal`).
-            "passages.mjs": "a player's copy of the secret passages: taken only from the primary GM, addressed to this user, and cut to the characters it stamps; acts on no actor"
+            "passages.mjs": "a player's copy of the secret passages: taken only from the primary GM, addressed to this user, and cut to the characters it stamps; acts on no actor",
+            // E79 C4 (1.2.78): `payload.userId` is the address, `sceneId` and `tokenId` only name the room the line says; `sentBackRefusal` holds the rule.
+            "movement-audit.mjs": "the GMs' word that a token of this user's was put back from a wall: taken only from the primary GM, addressed to this user, with a code it knows; plays a sound and shows a line, and acts on no actor"
             // E10 C2 (1.2.71): vote.mjs is off the list. A ballot reaches the GMs on the bridge (`vote.cast`), and
             // the one packet its listener still takes, a GM's ballot, names no id.
         };
@@ -9309,7 +9311,7 @@ const REGRESSIONS = [
          */
         const PASSAGE_CENSUS = [
             // ---- the hooks that read a moved token
-            ["HOOK movement.mjs#registerMovement#updateToken/noteGmPosition -> judge", "on the primary GM only (`judgingHere`); the start is the GM's last sighting (`gmSeen`), never a packet; `judgeArrival` puts nothing back. The wall rule is a call here, before `gmSeen` moves - one judge, no second hook (E79 C4)"],
+            ["HOOK movement.mjs#registerMovement#updateToken/noteGmPosition -> judge", "on the primary GM only (`judgingHere`); the start is the GM's last sighting (`gmSeen`), never a packet; `judgeArrival` puts nothing back. The wall rule (movement-audit.mjs `auditMove`, E79 C4) is a call here, before `gmSeen` moves - one call site, no second hook (R559, R560)"],
             ["HOOK movement.mjs#registerMovement#preUpdateToken/onPreUpdateToken -> veto", "advisory: the mover's own client refuses a move with `crossingVerdict`, and a console steps past it - which is why the primary GM judges the landed move; since E79 C3 the route's passage (`crossingVia`) is handed in as `via`, and a passage the character knows joins its two rooms (`passesThrough`, R558)"],
             ["HOOK movement.mjs#registerMovement#updateToken/onUpdateToken -> judge", "this file's own: the mover's client charges and announces the move it made (`judgeMove`); E79 adds no road through it"],
             ["HOOK movement.mjs#registerMovement#createToken/inline -> judge", "this file's own: `noteGmCreated`, the GM's first sighting of a token; E79 adds no road through it"],
@@ -9325,20 +9327,29 @@ const REGRESSIONS = [
             ["HOOK voice.mjs#registerVoice#updateToken/inline -> judge", "this file's own: the voice room follows the room; E79 adds no road through it"],
             ["HOOK voice.mjs#registerVoice#createToken/inline -> judge", "this file's own; E79 adds no road through it"],
             // ---- the update's options a client sets
-            ["OPT movement.mjs#noteGmPosition#REVERT -> exempt", "a claim, judged: handed to `judgeArrival` as `revert`, which takes it only where `sendBackRefusal` does; the wall rule takes the same rule, never the option alone (E79 C4)"],
-            ["OPT movement.mjs#noteGmPosition#SENT_BACK -> exempt", "a claim, judged as REVERT is: it marks a move the GM sent back itself (E79 C4)"],
+            ["OPT movement.mjs#noteGmPosition#REVERT -> exempt", "a claim, judged: handed to `judgeArrival` as `revert`, which takes it only where `sendBackRefusal` does; the wall rule reads the option itself (below), by the same rule"],
+            ["OPT movement.mjs#noteGmPosition#SENT_BACK -> exempt", "a claim, judged as REVERT is: it marks a move the GM sent back itself"],
             ["OPT movement.mjs#onPreUpdateToken#REVERT -> exempt", "advisory: the mover's own client lets its own revert past its own veto; nothing on the GM reads the client's veto"],
             ["OPT movement.mjs#judgeMove#REVERT -> exempt", "this file's own: the mover's client charges nothing for its own revert; no judge takes it as an exemption"],
             ["OPT call-world.mjs#fallbackGather#displace -> exempt", "a GM's own write (`updateEmbeddedDocuments` with REVERT, `teleport` and `displace`): a GM's move is let through because a GM made it (the hook's user), not because of these options"],
             // ---- the packets
-            ["ACT gm-bridge.mjs#ACTION_SENDBACK#token.sendBack -> write", "the bridge row judges the sender's ownership and the place (`guardSendbackPlace`); `handleSendback` writes REVERT and SENT_BACK on the GM, and a lawful send-back is never stopped by a wall (E79 C4)"],
+            ["ACT gm-bridge.mjs#ACTION_SENDBACK#token.sendBack -> write", "the bridge row judges the sender's ownership and the place (`guardSendbackPlace`); `handleSendback` writes REVERT and SENT_BACK on the GM, with walls ignored (the IGN row below)"],
+            // ---- the GMs' audit of a move through a wall (E79 C4)
+            ["WALLS movement-audit.mjs#firstWallCrossed -> judge", "the token's own scene's walls (`tokenDoc.parent.walls`) on the floor it set out from, never the scene on screen (a SCENE row is unclassified by design); a passage's wall cut where the character may pass, from the GMs' records (R559; 76 D)"],
+            ["OPT movement-audit.mjs#auditMove#REVERT -> exempt", "a claim, judged: exempt only where `sendBackRefusal` accepts the spot against the GMs' record of the token; a GM's move is exempt by the hook's user, and Foundry's teleport and displace are never read (R559; 76 D)"],
+            ["OPT movement-audit.mjs#auditMove#SENT_BACK -> exempt", "a claim, judged as REVERT is (R559; 76 D)"],
+            ["IGN movement.mjs#sendBack -> write", "the one road of a refusal's put-back, the audit's included: back to where the token stood, so a wall between the two does not stop it (R559)"],
+            ["IGN gm-bridge.mjs#handleSendback -> write", "the lawful send-back, written on the GM after `guardSendbackPlace` (R559; 76 D)"],
+            ["ACT movement-audit.mjs#auditMove#move.sentBack -> screen", "the primary GM's word to the mover alone (`recipients`), a code and the token's ids, no geometry; sent once the put-back has landed (R559, R560; 76 D)"],
+            ["ACT movement-audit.mjs#onSentBack#move.sentBack -> screen", "CLAIM: refused unless addressed to this user by the primary GM with a known code (`sentBackRefusal`); plays the refusal's sound and shows the veto's line (R559; 76 D)"],
+            ["SET settings.mjs#moveAudit#gm -> mode", "a world setting, GM only, \"log\" by default (the plan's AM-1): a row in the Debug log, or \"sendBack\" (R559; 76 D)"],
             // ---- the GMs' records of the passages and each player's copy (E79 C1)
             ["STORE gm-stores.mjs#passageMapStore#passageMap -> record", "GM only: written by passages-gm.mjs on a GM's browser, refused by the engine on a player's; no reset group (a cut never wipes the map, R177 says why); `exists` refuses a row whose scene is gone (R554)"],
             ["STORE gm-stores.mjs#passageAccessStore#passageAccess -> record", "GM only; cells `passageId/actorId` with `how` and `at` kept from the first grant and `by` a split field each GM adds to, `touch/actorId` stamps, the reset's \"passages\" group; two GMs' cells merged cell by cell (R554)"],
             ["STORE gm-stores.mjs#passageLogStore#passageLog -> record", "GM only; the newest 200 rows (`PASSAGE_LOG_ROWS`); the reset's \"passages\" group (R554)"],
             ["STORE gm-stores.mjs#passageCopy#passages -> copy", "the addressed copy: only rows `secret` a character this user owns knows (the Mastermind's owner: every one), `actorIds` only the user's own, a Monokuma nothing; sent with `recipients` (R555, R560)"],
             ["SET settings.mjs#minePassages#primary -> screen", "taken only from the primary GM and addressed to this user (`onPassageRows`, `replyForMe`'s rule and the primary's), cut to this world's scenes and the characters the packet stamps (R555; 76 A)"],
-            ["SET settings.mjs#minePassages#console -> screen", "CLAIM: a console's own copy changes only what that browser cuts, draws and lists; the GMs' audit (E79 C4) judges every landed move on the walls from the GMs' records, never from a copy"],
+            ["SET settings.mjs#minePassages#console -> screen", "CLAIM: a console's own copy changes only what that browser cuts, draws and lists; the GMs' audit (movement-audit.mjs) judges every landed move on the walls from the GMs' records, never from a copy"],
             ["SET settings.mjs#minePassages#stale -> screen", "replaced on `ready` and `drpgPrimaryReady` by the primary's answer to `passage.request`, and on every change by its push (R555)"],
             ["ACT passages.mjs#requestPassages#passage.request -> copy", "the player's ask carries no field the GM reads: it is answered about Foundry's sender"],
             ["ACT passages-gm.mjs#onPassageRequest#passage.request -> copy", "judged on the primary GM with `senderOf` (a GM's ask is not answered); the answer is that user's copy alone, built from the records once the other GMs' are in (R555; 76 A)"],
@@ -9346,7 +9357,7 @@ const REGRESSIONS = [
             ["ACT passages.mjs#onPassageRows#passage.rows -> screen", "CLAIM: refused unless addressed to this user and sent by the primary GM; 76 A forges one from p2 and p3 refuses it (R555)"],
             ["WALLS passages-gm.mjs#createPassage -> screen", "a GM's console only (`game.user.isGM` first): the wall a new passage is cut from is read to hold the stretch to it; nothing is written to the wall and nothing of it reaches a player but through the copy"],
             // ---- the way through (E79 C2)
-            ["WALLS passages.mjs#clipPassages -> screen", "this browser's move polygon only (`type` \"move\"; sight, light and sound stay whole), cut where the moving token's own character knows a passage on its scene and floor, by the wall's id; fails closed (R556; 76 B). CLAIM: a console's own copy cuts only its own walls; the GMs' audit judges the landed move (E79 C4)"]
+            ["WALLS passages.mjs#clipPassages -> screen", "this browser's move polygon only (`type` \"move\"; sight, light and sound stay whole), cut where the moving token's own character knows a passage on its scene and floor, by the wall's id; fails closed (R556; 76 B). CLAIM: a console's own copy cuts only its own walls; the GMs' audit (movement-audit.mjs) judges the landed move"]
         ];
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
         const HOOK_SINKS = { updateToken: ["judge"], createToken: ["judge"], preUpdateToken: ["veto"], updateWall: ["record"], deleteWall: ["record"] };
@@ -9471,7 +9482,7 @@ const REGRESSIONS = [
             "a passage or movement road without a census row, or a row whose road is gone: give the new one a verdict (what judges it, or the E79 commit that will) and strike the gone one");
     }],
 
-    ["R560 - the passages' source rules: no wall is written a secret door or created, every passage packet names the list of its recipients, no flag holds a passage and no file but the records names a passage's geometry, passages.mjs imports only its leaf's files, room-tile.mjs does not import the passages, and the frame's passage verdict and the outline's redraw are each declared once, exported, in their file", async () => {
+    ["R560 - the passages' source rules: no wall is written a secret door or created, every passage packet names the list of its recipients, no flag holds a passage and no file but the records names a passage's geometry, passages.mjs imports only its leaf's files, room-tile.mjs does not import the passages, the frame's passage verdict, the outline's redraw and the GMs' wall audit are each declared once, exported, in their file, the audit called from one place, the primary GM's sighting of a move, and reading no scene on screen", async () => {
         /*
          * E79 C1, 14.10.2026; the E79 plan's A10-9, its first clauses (C4, C6 and C7 add theirs). A secret passage is
          * the GMs' and its knowers' (decisions D2 and D38): world data reaches every browser, so a passage written into
@@ -9493,13 +9504,22 @@ const REGRESSIONS = [
          * movement.mjs (E51's door predicate takes it) and `redrawOutline` in fog.mjs (E51's outline refresher). Read
          * as a `function`, `const`, `let` or `var` of that name outside comments and strings; a second under another
          * name is not read.
+         *
+         * E79 C4, 14.10.2026 (A10-9's audit clauses, risk d): `auditMove` is declared once, exported, in
+         * movement-audit.mjs (E17 extends it), and called from exactly one place - movement.mjs `noteGmPosition`, the
+         * primary GM's sighting of a landed move, before `gmSeen` moves - read as a call of that name outside comments
+         * and strings in the top-level declaration that holds it; and movement-audit.mjs names neither `canvas.scene`
+         * nor `canvas.edges` (its walls are the token's own scene's). A call through another name is not read.
          */
         const LEAF = new Set(["rooms.mjs", "gm-stores.mjs", "gm-store.mjs", "settings.mjs", "utils.mjs", "config.mjs"]);
         const RECORDS = new Set(["gm-stores.mjs", "passages.mjs", "passages-gm.mjs"]);
         const IMPORTS = /\bimport\s*(?:[\w$\s{},*]+?\s*from\s*)?(["'])\.\/([\w.-]+\.mjs)\1|\bimport\s*\(\s*(["'])\.\/([\w.-]+\.mjs)\3\s*\)/g;
-        const ONE = { passageOpenFor: "movement.mjs", redrawOutline: "fog.mjs" };
+        const ONE = { passageOpenFor: "movement.mjs", redrawOutline: "fog.mjs", auditMove: "movement-audit.mjs" };
+        const AUDIT_CALLER = "movement.mjs#noteGmPosition";
+        // A statement at column 0 and the name it declares, as R553's census reads a top-level declaration.
+        const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(?:const|let|var)\s+([\w$]+))?/gm;
         const rulesOf = sources => {
-            const broken = [];
+            const broken = [], auditCalls = [];
             const declared = Object.fromEntries(Object.keys(ONE).map(name => [name, []]));
             for (const [file, raw] of sources) {
                 if (!file.endsWith(".mjs")) continue;
@@ -9522,6 +9542,12 @@ const REGRESSIONS = [
                     if (args.length && /passage/i.test(code.slice(m.index, close))) at("flag", m.index);
                 }
                 if (!RECORDS.has(file)) for (const m of code.matchAll(/\b(?:passageSeg|passageWallId)\b/g)) at("geometry", m.index);
+                const tops = [...blank.matchAll(TOP)].map(m => ({ at: m.index, name: m[1] ?? m[2] ?? m[3] ?? "(top level)" }));
+                for (const m of blank.matchAll(/(?<![\w$.])auditMove\s*\(/g)) {
+                    if (/\bfunction\s*\*?\s*$/.test(blank.slice(Math.max(0, m.index - 24), m.index))) continue;
+                    auditCalls.push(`${file}#${tops.findLast(t => t.at <= m.index)?.name ?? "(top level)"}`);
+                }
+                if (file === "movement-audit.mjs") for (const m of blank.matchAll(/(?<![\w$.])canvas\s*\??\.\s*(?:scene|edges)(?![\w$])/g)) at("scene", m.index);
                 for (const m of code.matchAll(IMPORTS)) {
                     if (blank[m.index] === " ") continue;
                     const target = m[2] ?? m[4];
@@ -9532,6 +9558,7 @@ const REGRESSIONS = [
             for (const [name, found] of Object.entries(declared)) {
                 if (found.length !== 1 || !found[0].startsWith(`${ONE[name]}:`) || found[0].endsWith("(not exported)")) broken.push(`one:${name} ${found.join(",") || "none"}`);
             }
+            if (auditCalls.length !== 1 || auditCalls[0] !== AUDIT_CALLER) broken.push(`call:auditMove ${auditCalls.join(",") || "none"}`);
             return broken;
         };
         const planted = rulesOf([
@@ -9548,22 +9575,26 @@ const REGRESSIONS = [
                 + "const later = () => import(\"./rooms.mjs\");\nconst said = 'import(\"./fog.mjs\")';\n"],
             ["room-tile.mjs", "import { roomFacts } from \"./rooms.mjs\";\nimport { knownPassages } from \"./passages.mjs\";\n"],
             ["passages-gm.mjs", "const row = { passageSeg: { x1: 1 }, passageWallId: \"w\" };\n"],
-            ["movement.mjs", "export function passageOpenFor(actor) {\n    return Boolean(actor);\n}\n"],
+            ["movement.mjs", "export function passageOpenFor(actor) {\n    return Boolean(actor);\n}\n"
+                + "function noteGmPosition(t) {\n    // auditMove(t) in a comment calls nothing\n    auditMove(t, {}, {}, null, null, {});\n}\n"
+                + "function other(t) {\n    return auditMove(t);\n}\n"],
             ["fog.mjs", "// export function redrawOutline() in a comment declares nothing\nfunction redrawOutline() {\n    return false;\n}\n"],
-            ["fog-reveal.mjs", "const said = 'export function passageOpenFor()';\nexport const redrawOutline = () => null;\n"]
+            ["fog-reveal.mjs", "const said = 'export function passageOpenFor()';\nexport const redrawOutline = () => null;\n"],
+            ["movement-audit.mjs", "export function auditMove(tokenDoc) {\n    const walls = canvas.scene?.walls;\n    return walls ?? canvas?.edges ?? tokenDoc.parent.walls;\n}\n"]
         ]);
         equal(JSON.stringify(planted), JSON.stringify(["secretDoor walls.mjs:4", "secretDoor walls.mjs:5", "wallCreated walls.mjs:4",
             "unaddressed send.mjs:3", "unaddressed send.mjs:4", "flag flags.mjs:3", "geometry flags.mjs:3", "leaf:movement.mjs passages.mjs:2",
-            "tile:passages.mjs room-tile.mjs:2", "one:redrawOutline fog.mjs:2(not exported),fog-reveal.mjs:2"]),
+            "tile:passages.mjs room-tile.mjs:2", "scene movement-audit.mjs:2", "scene movement-audit.mjs:3", "one:redrawOutline fog.mjs:2(not exported),fog-reveal.mjs:2",
+            "call:auditMove movement.mjs#noteGmPosition,movement.mjs#other"]),
         "the source rules do not read the planted fixture as planted - the module would be read wrong too");
 
         const sources = await otherSources();
         const names = new Set(sources.map(([file]) => file));
-        ok(["passages.mjs", "passages-gm.mjs", "room-tile.mjs", "gm-stores.mjs", "movement.mjs", "fog.mjs"].every(f => names.has(f)),
+        ok(["passages.mjs", "passages-gm.mjs", "room-tile.mjs", "gm-stores.mjs", "movement.mjs", "fog.mjs", "movement-audit.mjs"].every(f => names.has(f)),
             "a file these rules read is not among the module's sources - the rules would read nothing of it");
         const broken = rulesOf(sources);
         log(`R560: ${sources.length} module file(s) read; ${broken.length} broken rule(s)`);
-        equal(JSON.stringify(broken), "[]", "a wall written as a secret door or created, an un-addressed passage packet, a passage in a flag or a file outside the records, an import the leaf or the room tile must not have, or a second (or unexported) passageOpenFor or redrawOutline");
+        equal(JSON.stringify(broken), "[]", "a wall written as a secret door or created, an un-addressed passage packet, a passage in a flag or a file outside the records, an import the leaf or the room tile must not have, a second (or unexported) passageOpenFor, redrawOutline or auditMove, the audit called from anywhere but noteGmPosition or more than once, or the audit reading the scene on screen");
     }],
 
 

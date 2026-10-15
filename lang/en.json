@@ -288,6 +288,12 @@
         "name": "Language",
         "hint": "This client only. The language of this module's own windows, cards and sheet. The game's proper names - Truth Bullets, Remnants, Despair - stay in English in every language. Takes effect after a reload."
       },
+      "moveAudit": {
+        "name": "A player's token moved through a wall",
+        "hint": "What happens when a player's token is moved through a wall its character could not pass: a line in the Debug log, or the token put back where it stood, its player told and the GMs warned.",
+        "log": "Note it in the Debug log",
+        "sendBack": "Send the token back"
+      },
       "foundryToolWindows": {
         "name": "The module's windows for Foundry's sidebar and scene controls",
         "hint": "On: a GM's Foundry sidebar and scene controls stand in two windows of the module's, Foundry tools and Map tools, opened from the button above the handbooks. Off: they stay where Foundry puts them, and that button is not drawn. A player's screen is the same either way. Takes effect after a reload."
@@ -2476,6 +2482,7 @@
     "Movement": {
       "unlawfulArrival": "{name} reached {room} by a crossing the rules refuse. Until they stand somewhere they could have walked to from {from}, they are no witness to a body and no third party to a murder. Nothing was put back: a GM's move makes the spot they stand on lawful.",
       "outsideRooms": "outside the rooms",
+      "wallCrossed": "{name}'s token was moved through a wall on {scene} and was sent back where it stood.",
       "droppedFromNowhere": "A player placed a token of {name} in {room} on {scene}, where {name} had stood nowhere before. It was judged as an arrival from outside the rooms, so no rule about which rooms connect applied, and it counts as a witness there. Move the token if it should not be there."
     },
     "Move": {
