@@ -2434,10 +2434,13 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
 }
 
 /* The Scenes tab last (E13 C5; the owner's answer Q-E13-1 e, 09.10.2026): it is set once a season,
-   the others every session. Its panel is trial-scene.mjs's (`scenesTabHtml`). */
+   the others every session. Its panel is trial-scene.mjs's (`scenesTabHtml`). The Passages tab
+   after Doors (E79 C5; the plan's D31 mockup): a secret passage is a way between two rooms, as a
+   door is. Its panel is passages-tab.mjs's (`passagesTabHtml`), and its buttons write at once. */
 export const ROOM_SETUP_TABS = Object.freeze([
     ["bedrooms", "DRPG.Vault.tabBedrooms"],
     ["doors", "DRPG.Vault.tabDoors"],
+    ["passages", "DRPG.Vault.tabPassages"],
     ["search", "DRPG.Vault.tabSearching"],
     ["rest", "DRPG.Vault.tabRest"],
     ["stashes", "DRPG.Vault.tabStashes"],
@@ -2479,7 +2482,7 @@ function roomSetupColumns(kinds) {
 }
 
 /** The window's body: the tab strip and one panel per tab, dealt from the same cells. */
-function roomSetupContent({ initial, cells, students, stashRows, fogRows, uncovered, maxTokens, scenesPanel }) {
+function roomSetupContent({ initial, cells, students, stashRows, fogRows, uncovered, maxTokens, scenesPanel, passagesPanel = "" }) {
     const th = key => `<th>${game.i18n.localize(key)}</th>`;
     const TABLE = "drpg-vault-table drpg-room-setup-table";
     const tableFor = (heads, cols) => `<table class="${TABLE}">${
@@ -2520,6 +2523,8 @@ function roomSetupContent({ initial, cells, students, stashRows, fogRows, uncove
                 <p class="notes">${game.i18n.localize("DRPG.Vault.notSharedNote")}</p>
                 <p class="notes">${game.i18n.localize("DRPG.Vault.neighboursNote")}</p>
             `)}
+
+            ${panel("passages", passagesPanel)}
 
             ${panel("search", `
                 <p>${game.i18n.localize("DRPG.Vault.searchIntro")}</p>
@@ -3190,6 +3195,7 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
     }
     const rooms = Array.from(namedByName(scene).keys()).sort((a, b) => a.localeCompare(b));
     const scenesTab = await import("./trial-scene.mjs");
+    const passagesTab = await import("./passages-tab.mjs");
 
     const { studentActors } = await import("./monokuma.mjs");
     const { REST_FLAGS, setRestRoom } = await import("./rest.mjs");
@@ -3240,12 +3246,12 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
         // for 860px, lost to the 26rem `.drpg-panel` cap, and clipped its own
         // right-hand columns with no way to scroll to them.
         classes: ["drpg-panel", "drpg-projects", "drpg-room-setup", "drpg-window-rooms"],
-        // One size for all eight tabs, taken from the biggest of them - see
+        // One size for all nine tabs, taken from the biggest of them - see
         // `fitWindowToTabs`. Without it the window is fitted to whichever tab
         // is showing and jumps between 708px and 1504px as the GM switches.
         fitTabs: true,
         content: roomSetupContent({ initial, cells, students, stashRows, fogRows, uncovered, maxTokens,
-            scenesPanel: scenesTab.scenesTabHtml() }),
+            scenesPanel: scenesTab.scenesTabHtml(), passagesPanel: passagesTab.passagesTabHtml(scene, { students }) }),
         buttons: [
             {
                 action: "ok", label: game.i18n.localize("DRPG.Panel.apply"), default: true,
@@ -3274,6 +3280,7 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
             });
             wireTwoRoomsCheck(root, rooms);
             scenesTab.wireScenesTab(root, reason => setApplyBlock(root, "scenes", reason));
+            passagesTab.wirePassagesTab(root, scene, { dialog, students });
 
             const recount = where => recountTokenCells(where, scene);
 

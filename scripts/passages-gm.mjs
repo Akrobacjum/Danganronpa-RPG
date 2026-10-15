@@ -10,8 +10,13 @@
  * Scene, a flag or a world setting: a passage is the GMs' until a character learns it (the E79
  * plan's D2 and D38), and then it is in that character's owners' copies and nowhere else.
  *
- * What it does not do yet: the GMs' tab and overlay (C5, C6), the wall watcher that marks a row
- * broken (C5), a player showing a passage to another (C7) and the reset's start access (C8).
+ * Since C5 the GMs' Passages tab (passages-tab.mjs) works through the same functions, and three
+ * watches run on the primary GM alone: a wall moved off a passage's stretch or deleted marks the
+ * passage broken (`wallChanged`), and a student a GM let keep a passage until they leave the room
+ * they stand in forgets it once their route settles outside it (`revokeLeavers`).
+ *
+ * What it does not do yet: the GMs' overlay and the pick (C6), a player showing a passage to
+ * another (C7) and the reset's start access (C8).
  */
 
 import { MODULE_ID } from "./config.mjs";
@@ -295,6 +300,125 @@ export async function deletePassage(passageId, { stores = PASSAGE_STORES } = {})
     return true;
 }
 
+/**
+ * A GM: the student knows the passage from each season's start (`on`), or no more - the row's
+ * `startAccess`, which the season's reset gives back (C8). Who knows it now is not touched: the
+ * tab's two columns are two questions, today and the next season. The list is one field, so two
+ * GMs changing it at once keep the newer whole list (R554's rule for any field).
+ */
+export async function setStartAccess(passageId, actorId, on, { stores = PASSAGE_STORES } = {}) {
+    if (!game.user?.isGM) return refuse("only a GM changes one.", false);
+    const row = stores.map.get(passageId);
+    if (!row) return refuse(`no passage "${passageId}".`, false);
+    if (on && !studentOf(actorId)) return refuse(`no student "${actorId}".`, false);
+    const was = Array.isArray(row.startAccess) ? row.startAccess : [];
+    if (was.includes(actorId) === Boolean(on)) return true;
+    await stores.map.patch(passageId, { startAccess: on ? [...was, actorId] : was.filter(a => a !== actorId) });
+    await logRow(on ? "start" : "unstart", passageId, actorId, stores);
+    return true;
+}
+
+/**
+ * A GM: the student keeps the passage until they leave `room`, the room they stand in now (the
+ * mockup's 'Revoke when they leave the room'). The cell stays, and with it the passage in their
+ * owners' copies; `leave` names the room, and `revokeLeavers` revokes it on the primary GM when
+ * the student's route settles anywhere else on the passage's scene.
+ */
+export async function revokeWhenLeaving(passageId, actorId, room, { stores = PASSAGE_STORES } = {}) {
+    if (!game.user?.isGM) return refuse("only a GM revokes one.", false);
+    if (!stores.access.get(`${passageId}/${actorId}`)) return refuse(`"${actorId}" does not know "${passageId}".`, false);
+    if (typeof room !== "string" || !room) return refuse("no room to leave.", false);
+    await stores.access.patch(`${passageId}/${actorId}`, { leave: room });
+    await logRow("leave", passageId, actorId, stores);
+    return true;
+}
+
+/**
+ * The primary GM, when a token's route settles (movement.mjs `drpgRouteSettled`): every passage its
+ * student keeps only until leaving a room is revoked when the token stands on that passage's scene
+ * outside the room - in another room, or in none. A token on another scene leaves nothing: the
+ * room is a room of the passage's scene. `roomOf` is the suite's (movement.mjs `roomOfToken`
+ * otherwise). Answers the passages revoked.
+ */
+export async function revokeLeavers(tokenDoc, { stores = PASSAGE_STORES, roomOf = null } = {}) {
+    const actorId = tokenDoc?.actorId ?? tokenDoc?.actor?.id;
+    const sceneId = tokenDoc?.parent?.id;
+    if (!game.user?.isGM || !actorId || !sceneId) return [];
+    const due = Object.entries(stores.access.entries()).filter(([key, cell]) => !key.startsWith("touch/")
+        && key.endsWith(`/${actorId}`) && typeof cell?.leave === "string"
+        && stores.map.get(key.slice(0, -(actorId.length + 1)))?.sceneId === sceneId);
+    if (!due.length) return [];
+    const where = roomOf ? roomOf(tokenDoc) : (await import("./movement.mjs")).roomOfToken(tokenDoc);
+    const gone = [];
+    for (const [key, cell] of due) {
+        const passageId = key.slice(0, -(actorId.length + 1));
+        if (where === cell.leave) continue;
+        if (await revokePassage(passageId, actorId, { stores })) gone.push(passageId);
+    }
+    return gone;
+}
+
+/**
+ * The wall a passage was cut from changed (the plan's K11): every row on it whose stretch is no
+ * longer within `PASSAGE_TOLERANCE` of the wall's segment - or every row, when the wall is `gone` -
+ * is marked broken. A broken row is a wall to everybody (`secretRowsFrom` keeps only secret rows),
+ * keeps who knows it, and waits for a GM to pick it again (C6) or delete it. A wall that moved
+ * along its own line with the stretch still on it changes nothing. Never writes the wall. Answers
+ * the passages marked.
+ */
+export async function wallChanged(wall, { gone = false, stores = PASSAGE_STORES } = {}) {
+    const sceneId = wall?.parent?.id;
+    if (!game.user?.isGM || !wall?.id || !sceneId) return [];
+    const c = (wall.c ?? []).slice(0, 4).map(Number);
+    const whole = c.length === 4 && c.every(Number.isFinite);
+    const off = ({ x1, y1, x2, y2 } = {}) => gone || !whole || !onWall(x1, y1, c) || !onWall(x2, y2, c);
+    const marked = Object.entries(stores.map.entries())
+        .filter(([, row]) => row?.passageWallId === wall.id && row.sceneId === sceneId && row.state !== "broken" && off(row.passageSeg))
+        .map(([id]) => id);
+    for (const id of marked) {
+        await stores.map.patch(id, { state: "broken" });
+        await touch(knowersOf(id, stores), stores);
+        await logRow("broken", id, null, stores);
+    }
+    if (marked.length) tellAfter(stores);
+    return marked;
+}
+
+/** A GM: where the passage's stretch has its middle, `{ sceneId, level, x, y }`, for the tab's Show; null for none. */
+export function passageMiddle(passageId, { stores = PASSAGE_STORES } = {}) {
+    const row = game.user?.isGM ? stores.map.get(passageId) : null;
+    const seg = row?.passageSeg;
+    if (!seg) return null;
+    return { sceneId: row.sceneId, level: row.level ?? null, x: (seg.x1 + seg.x2) / 2, y: (seg.y1 + seg.y2) / 2 };
+}
+
+/**
+ * The primary GM: which of the passage's knowers no player of theirs has been sent it yet - each a
+ * student whose owners (a GM aside) include somebody, none of whom was last sent a copy that names
+ * the student under this passage (`told`, what `pushPassageCopies` last sent each). A player who is
+ * away is sent their copy when they come back. Null on any other browser, which sends nothing and
+ * cannot know; [] for a passage that is not secret, which no copy holds.
+ */
+export function undeliveredOf(passageId, { stores = PASSAGE_STORES, actors = game.actors, users = game.users, told = TOLD,
+    primary = isPrimaryGm() } = {}) {
+    if (!primary) return null;
+    if (stores.map.get(passageId)?.state !== "secret") return [];
+    const sent = user => {
+        try {
+            return JSON.parse(told.get(user.id) ?? "null")?.value?.[passageId]?.actorIds ?? [];
+        } catch {
+            return [];
+        }
+    };
+    const out = [];
+    for (const actorId of knowersOf(passageId, stores)) {
+        const actor = actors?.get?.(actorId);
+        const owners = [...(users ?? [])].filter(u => u && !u.isGM && actor?.testUserPermission?.(u, "OWNER"));
+        if (owners.length && !owners.some(u => sent(u).includes(actorId))) out.push(actorId);
+    }
+    return out;
+}
+
 /** A GM: every passage with who knows it, `[{ id, ...row, access: { actorId: { how, at, by } } }]`. */
 export function listPassages({ stores = PASSAGE_STORES } = {}) {
     if (!game.user?.isGM) return [];
@@ -323,7 +447,28 @@ function retellSoon() {
     }, 250);
 }
 
-/** At ready, on a GM's browser: the ask's listener, and the watches that tell the players what another GM changed. */
+/* The primary GM's watch on the walls (the plan's K11): a wall whose segment changed, or that went, may break a passage. */
+function onWallMoved(wall, change) {
+    if (!isPrimaryGm() || !foundry.utils.hasProperty(change ?? {}, "c")) return;
+    wallChanged(wall).catch(err => error("Could not mark a secret passage on a moved wall", err));
+}
+
+function onWallDeleted(wall) {
+    if (!isPrimaryGm()) return;
+    wallChanged(wall, { gone: true }).catch(err => error("Could not mark a secret passage on a deleted wall", err));
+}
+
+/* The primary GM's watch on the routes: a student kept a passage until leaving a room. */
+function onRouteSettled({ tokenDoc } = {}) {
+    if (!isPrimaryGm()) return;
+    revokeLeavers(tokenDoc).catch(err => error("Could not revoke a secret passage from a student who left the room", err));
+}
+
+/**
+ * At ready, on a GM's browser: the ask's listener, the watches that tell the players what another
+ * GM changed, and the primary's watches on the walls and the routes (each asks `isPrimaryGm` when it
+ * fires, so a GM who becomes the primary later takes them over).
+ */
 export function registerPassagesGm() {
     Hooks.once("ready", () => {
         if (!game.user.isGM) return;
@@ -338,5 +483,8 @@ export function registerPassagesGm() {
         Hooks.on("updateActor", (actor, change) => { if (change?.ownership !== undefined) retellSoon(); });
         Hooks.on("deleteActor", () => retellSoon());
         onGmStoresAudible(() => retellSoon());
+        Hooks.on("updateWall", onWallMoved);
+        Hooks.on("deleteWall", onWallDeleted);
+        Hooks.on("drpgRouteSettled", onRouteSettled);
     });
 }

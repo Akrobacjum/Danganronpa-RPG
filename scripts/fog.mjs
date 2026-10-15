@@ -64,7 +64,7 @@ import { roomOfToken, boundsOf, ROOM_FLAGS, whenAtRest } from "./movement.mjs";
 import { roomPieces, roomRegions, roomNames, sceneHoldsRooms, scenesWithRooms, namedRegions, viewedScene,
     viewedLevel, onLevel, isMoveChange, floorsOf, isPlaceScene, levelOf, joinsAnotherRoom, RENAMED_FROM, placeScenes,
     regionPatches } from "./rooms.mjs";
-import { isMastermind, mastermindLair, setMastermindLair } from "./mastermind.mjs";
+import { isMastermind, mastermindActor, mastermindLair, setMastermindLair } from "./mastermind.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { isPrimaryGm, primaryGmId, debug, log, warn, error, plural, whisperToGms, esc } from "./utils.mjs";
 import { ENTER, reducedMotion, glassOn } from "./motion.mjs";
@@ -1264,11 +1264,19 @@ function ownSection(section) {
  * exist: the mastermind knows the building, but what the class has actually
  * walked into is a different fact, and it is the one the GM is running the game
  * against. A room nobody has found yet stays under the veil for them too.
+ *
+ * WITHOUT THE MASTERMIND'S ROW (the owner's amend to E79 C5, 14.10.2026). `recordDiscovery` writes
+ * nothing for the Mastermind, but a row written before they were chosen stays in the store, and it
+ * lifted the veil on every room the Mastermind had walked into as a student - so the GM's map told
+ * which rooms the season's secret had been to. The current Mastermind's row is skipped here, at read
+ * time; nothing is deleted, so a Mastermind changed later reads as any student again. `ledger` and
+ * `mastermindId` are the suite's (R563); a GM's browser reads the store and its Mastermind.
  */
-function ledgerRooms(scene) {
+export function ledgerRooms(scene, { ledger = allDiscovered(), mastermindId = mastermindActor()?.id ?? null } = {}) {
     const rooms = new Set();
     if (!scene) return rooms;
-    for (const list of Object.values(allDiscovered()[scene.id] ?? {})) {
+    for (const [actorId, list] of Object.entries(ledger?.[scene.id] ?? {})) {
+        if (mastermindId && actorId === mastermindId) continue;
         for (const room of list ?? []) rooms.add(room);
     }
     return rooms;
@@ -1566,19 +1574,20 @@ async function studentActorIds() {
  * on the scene counts, because they drew the building. This never changes
  * which room is CURRENT - see `myCurrentRooms` - so it never lets them see
  * who is standing where, only that the room exists and roughly what is in it.
+ * `mastermind` and `gm` are the suite's (R563), read off this browser otherwise.
  */
-function myDiscoveredRooms(scene) {
+export function myDiscoveredRooms(scene, { mastermind = iAmTheMastermind(), gm = game.user.isGM } = {}) {
     if (!scene) return new Set();
 
     // The Mastermind drew the building: every room on the map counts as known
     // to them. This never says who is standing in one - that is
     // `myCurrentRooms`' business and not this function's.
-    if (iAmTheMastermind()) {
+    if (mastermind) {
         return new Set(roomNames(scene));
     }
 
     // The GM sees what the class has found. See `ledgerRooms`.
-    if (game.user.isGM) return ledgerRooms(scene);
+    if (gm) return ledgerRooms(scene);
 
     const rooms = new Set();
     for (const actor of game.actors) {
@@ -1598,11 +1607,12 @@ function myDiscoveredRooms(scene) {
  * lands there, before the primary GM's write and the setting sync that
  * follows it ever arrive, and a player should not watch their own floor stay
  * fogged for a network round-trip after they have already walked onto it.
+ * `tokens` and `gm` are the suite's (R563), this browser's drawn tokens and user otherwise.
  */
-function myCurrentRooms() {
+export function myCurrentRooms({ tokens = canvas?.tokens?.placeables ?? [], gm = game.user.isGM } = {}) {
     const rooms = new Set();
-    for (const token of canvas?.tokens?.placeables ?? []) {
-        if (!isMine(token)) continue;
+    for (const token of tokens) {
+        if (!isMine(token, gm)) continue;
         const room = roomOfToken(token.document);
         if (room) rooms.add(room);
     }
@@ -1621,11 +1631,11 @@ function myCurrentRooms() {
  * every token of every repaint and the module that owns that flag imports half
  * the system to answer the same question.
  */
-function isMine(token) {
+function isMine(token, gm = game.user.isGM) {
     const actor = token?.actor;
     if (!actor) return false;
 
-    if (game.user.isGM) return Boolean(actor.getFlag?.(MODULE_ID, FLAGS.monokuma));
+    if (gm) return Boolean(actor.getFlag?.(MODULE_ID, FLAGS.monokuma));
     return Boolean(token.isOwner) && actor.type === "character";
 }
 

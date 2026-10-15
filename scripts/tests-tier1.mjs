@@ -7886,7 +7886,7 @@ const INVARIANTS = [
         }
 
         equal(JSON.stringify([tabs, rooms, reports, writes, patches, clash, sets, applied, locked, reasons]), JSON.stringify([
-            ["scenes", 8, "bedrooms", "scenes", "doors", "bedrooms"], ["Stand"],
+            ["scenes", 9, "bedrooms", "scenes", "doors", "bedrooms"], ["Stand"],
             [["sameScene!"], ["hallHasRooms", "handPlaced", "duplicateInHall", "unlinkedToken"], ["noSchoolLinked"], [], true, true, true],
             [{ roles: null, cast: null, prepare: null },
                 { roles: { school: "R120SCENEC", trial: "R120SCENEB", zones: ["R120ZONE"] }, cast: null, prepare: null },
@@ -13826,6 +13826,237 @@ const INVARIANTS = [
             /\.teleport|movementAction|displace/.test(own)]),
         J([true, true, true, false]),
         "[sendBack ignores walls, handleSendback ignores walls, the audit's start is the GM's sighting before it moves, the audit reads teleport, movementAction or displace]");
+    }],
+    ["R561 - the Passages tab: Room Setup's tab after Doors lists the scene's passages; a student is given one in two clicks, '+' and the name; Close keeps who knows it while the copy, the client's cut and the GMs' audit read it as a wall, and Open gives it back; the cross revokes at once a student who is not in the passage's rooms and otherwise asks 'Revoke now' or 'Revoke when they leave the room', which the primary revokes when the student's route settles outside it; the season's start is its own column; a wall moved off the stretch or deleted marks the passage broken and one moved along its line does not, on the primary GM alone; Show pans to the stretch, Delete forgets it and who knew it after a yes; and a knower no player was sent it yet is named", async () => {
+        /*
+         * E79 C5, 15.10.2026; the E79 plan's A10-16 (D1's grant in two clicks, D2: grant, close, open and revoke)
+         * and K11 (a wall edited after the passage was made). The harms: a Close that forgets who knew the passage,
+         * or leaves it open in a copy, in the client's cut or in the audit; a grant behind more than two clicks; a
+         * revoke that shuts a student in the room past the passage with no choice, or a 'when they leave' that never
+         * comes; a passage whose wall moved left open where the wall no longer is; a tab that writes for a player.
+         * Run on an engine of the suite's own, as R555 is, with two students of this world (a grant and a start
+         * access name a student this world holds) and a detached panel drawn and wired by passages-tab.mjs itself:
+         * its clicks write to the suite's stores only. The real window, the real records and three players' copies
+         * are scenario 76's phase E. Red before C5: there was no tab, no `wallChanged` and no `revokeWhenLeaving`.
+         */
+        needs(world.atLeast("livingStudents", 2), "two students to give a passage to and take it back from");
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const P = await import("./passages-gm.mjs");
+        const L = await import("./passages.mjs");
+        const V = await import("./vault.mjs");
+        const T = await import("./passages-tab.mjs").catch(() => null);
+        ok(T && typeof P.wallChanged === "function" && typeof P.revokeWhenLeaving === "function",
+            "there is no Passages tab - passages-tab.mjs, passages-gm.mjs `wallChanged` or `revokeWhenLeaving` is missing");
+        if (!T || typeof P.wallChanged !== "function" || typeof P.revokeWhenLeaving !== "function") return;
+        const J = v => JSON.stringify(v);
+        const keys = V.ROOM_SETUP_TABS.map(([key]) => key);
+        equal(J([keys.indexOf("passages") - keys.indexOf("doors"), V.ROOM_SETUP_TABS.find(([key]) => key === "passages")?.[1]]), J([1, "DRPG.Vault.tabPassages"]),
+            "[the Passages tab's place after Doors, its label]");
+
+        let now = 9_000_000;
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R561GM", isGM: () => true, isPrimary: () => true, worldId: () => "R561WORLD",
+            activeGmIds: () => [], primaryGmId: () => "R561GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => now++,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const def = (h, name) => eng.define({ ...h.spec, name: `r561${name}`, key: `r561${name}`, afterRestore: undefined, exists: undefined });
+        const stores = { map: def(S.passageMapStore, "Map"), access: def(S.passageAccessStore, "Access"), log: def(S.passageLogStore, "Log"),
+            mastermind: eng.define({ name: "r561mm", key: "r561mm", kind: "record", fields: ["actorId"], sync: false, backup: false }) };
+        const [A, B] = studentActors();
+        const scene = { id: "R561SCENE" };
+        const row = (wall, x, state = "secret") => ({ sceneId: scene.id, level: null, shape: "wall", passageWallId: wall,
+            passageSeg: { x1: x, y1: 400, x2: x + 66, y2: 400 }, rooms: ["R561 Kitchen", "R561 Hall"], state, startAccess: [] });
+        const [P1, P2, P3] = [1, 2, 3].map(n => `${scene.id}.r561p${n}`);
+        await stores.map.patchMany({ [P1]: row("R561WALL1", 1234.5), [P2]: row("R561WALL1", 1320.5), [P3]: { ...row("R561WALL2", 2000), sceneId: "R561OTHER" } });
+
+        // A player of the suite's own owns A, and their copy is what a passage's state is read against.
+        const U = { id: "R561U", isGM: false, active: true, name: "R561 player" };
+        const fake = actor => ({ id: actor.id, name: actor.name, type: "character", getFlag: () => undefined,
+            testUserPermission: (user, level) => level === "OWNER" && (user?.isGM || user?.id === U.id) && actor.id === A.id });
+        const copy = () => Object.keys(P.passageCopyFor(U, { stores, actors: [fake(A), fake(B)] }).value).sort();
+        const cut = () => L.openSegmentsFor(A, scene.id, null, { known: L.secretRowsFrom(stores) }).map(s => s.id).sort();
+
+        const asked = [], shown = [];
+        let answer = null, sure = true;
+        const where = new Map();
+        const root = document.createElement("div");
+        root.innerHTML = T.passagesTabHtml(scene, { stores, students: [A, B] });
+        const tab = T.wirePassagesTab(root, scene, { stores, students: [A, B], ask: async q => { asked.push(q); return answer; },
+            confirm: async () => sure, roomOf: async actorId => where.get(actorId) ?? null, show: async id => { shown.push(id); return true; } });
+        const $ = sel => root.querySelector(sel);
+        const inRow = (id, sel) => $(`[data-drpg-passage="${id}"] ${sel}`);
+        const press = async (id, sel) => {
+            const button = inRow(id, sel);
+            if (!button) return false;
+            button.click();
+            await tab.settled();
+            return true;
+        };
+        const cell = (id, actor) => stores.access.get(`${id}/${actor.id}`) ?? null;
+        equal(J([Boolean(tab), root.querySelectorAll("tr[data-drpg-passage]").length, Boolean(inRow(P3, "td"))]), J([true, 2, false]),
+            "[the tab wired, its rows, a passage of another scene listed] - the table is not the scene's passages");
+
+        // A grant: '+' opens the students, the name gives it - two clicks.
+        const menu = inRow(P1, '[data-drpg-menu-of="grant"]');
+        const hiddenBefore = menu?.hidden;
+        inRow(P1, '[data-drpg-menu="grant"]')?.click();
+        const shownAfter = menu?.hidden === false;
+        const granted = await press(P1, `[data-drpg-passage-act="grant"][data-drpg-actor="${A.id}"]`);
+        equal(J([hiddenBefore, shownAfter, granted, cell(P1, A)?.how, Boolean(inRow(P1, `.drpg-passage-chip[data-drpg-actor="${A.id}"]`)), copy(), cut()]),
+            J([true, true, true, "gm", true, [P1], [P1]]),
+            "[the students hidden before '+', shown after it, the name pressed, the cell's way, the chip drawn, the player's copy, the client's cut]");
+
+        // Close keeps who knows it, and the passage is a wall in the copy, the cut and what the audit reads; Open gives it back.
+        await press(P1, '[data-drpg-passage-act="close"]');
+        const closed = [stores.map.get(P1)?.state, Boolean(cell(P1, A)), copy(), cut(), Object.hasOwn(L.secretRowsFrom(stores), P1),
+            inRow(P1, ".drpg-passage-state")?.dataset.state, Boolean(inRow(P1, '[data-drpg-passage-act="open"]'))];
+        await press(P1, '[data-drpg-passage-act="open"]');
+        equal(J([closed, [stores.map.get(P1)?.state, Boolean(cell(P1, A)), copy(), cut()]]),
+            J([["closed", true, [], [], false, "closed", true], ["secret", true, [P1], [P1]]]),
+            "[closed: the state, the cell kept, the copy, the cut, the GMs' open rows (the audit's), the state drawn, Open offered; opened: the state, the cell, the copy, the cut]");
+
+        // The cross: a student in neither room forgets it at once; one in a room of the passage is asked.
+        await P.grantPassage(P2, A.id, { stores });
+        tab.draw();
+        await press(P2, `[data-drpg-passage-act="revoke"][data-drpg-actor="${A.id}"]`);
+        const away = [asked.length, Boolean(cell(P2, A))];
+        await P.grantPassage(P2, A.id, { stores });
+        tab.draw();
+        where.set(A.id, "R561 Hall");
+        answer = null;
+        await press(P2, `[data-drpg-passage-act="revoke"][data-drpg-actor="${A.id}"]`);
+        const cancelled = [asked.length, asked[0]?.room, asked[0]?.name === A.name, Boolean(cell(P2, A))];
+        answer = "now";
+        await press(P2, `[data-drpg-passage-act="revoke"][data-drpg-actor="${A.id}"]`);
+        const revokedNow = [asked.length, Boolean(cell(P2, A))];
+        equal(J([away, cancelled, revokedNow]), J([[0, false], [1, "R561 Hall", true, true], [2, false]]),
+            "[in neither room: asked, kept; in the Hall, cancelled: asked, the room, the name, kept; 'Revoke now': asked, kept]");
+
+        answer = "leave";
+        await P.grantPassage(P2, A.id, { stores });
+        tab.draw();
+        await press(P2, `[data-drpg-passage-act="revoke"][data-drpg-actor="${A.id}"]`);
+        const leaving = [cell(P2, A)?.leave, Object.keys(P.passageCopyFor(U, { stores, actors: [fake(A)] }).value).includes(P2),
+            Boolean(inRow(P2, `.drpg-passage-chip[data-drpg-actor="${A.id}"] [data-drpg-passage-leave]`))];
+        const tokenIn = sceneId => ({ actorId: A.id, parent: { id: sceneId } });
+        const stays = await P.revokeLeavers(tokenIn(scene.id), { stores, roomOf: () => "R561 Hall" });
+        const elsewhere = await P.revokeLeavers(tokenIn("R561OTHER"), { stores, roomOf: () => null });
+        const kept = Boolean(cell(P2, A));
+        const left = await P.revokeLeavers(tokenIn(scene.id), { stores, roomOf: () => "R561 Kitchen" });
+        equal(J([leaving, stays, elsewhere, kept, left, Boolean(cell(P2, A)), cell(P1, A)?.how]),
+            J([["R561 Hall", true, true], [], [], true, [P2], false, "gm"]),
+            "['when they leave': the room kept, the copy still holds it, the chip says so; still in the Hall, on another scene, kept; out of the Hall, the cell, P1 untouched]");
+
+        // The season's start is its own column: who knows it now does not change.
+        inRow(P1, '[data-drpg-menu="start"]')?.click();
+        await press(P1, `[data-drpg-passage-act="start-on"][data-drpg-actor="${B.id}"]`);
+        const started = [stores.map.get(P1)?.startAccess, Boolean(cell(P1, B))];
+        await press(P1, `[data-drpg-passage-act="start-off"][data-drpg-actor="${B.id}"]`);
+        equal(J([started, stores.map.get(P1)?.startAccess]), J([[[B.id], false], []]), "[the start access set, B knows it now; taken off]");
+
+        // The Mastermind is listed nowhere, and the tab does not offer them.
+        await P.grantPassage(P1, B.id, { stores });
+        await stores.mastermind.patch(G.RECORD, { actorId: B.id });
+        tab.draw();
+        const unlisted = [Boolean(inRow(P1, `.drpg-passage-chip[data-drpg-actor="${B.id}"]`)), Boolean(inRow(P1, `[data-drpg-actor="${B.id}"]`))];
+        await stores.mastermind.patch(G.RECORD, { actorId: null });
+        tab.draw();
+        equal(J([unlisted, Boolean(inRow(P1, `.drpg-passage-chip[data-drpg-actor="${B.id}"]`))]), J([[false, false], true]),
+            "[the Mastermind's chip and any button naming them; the same student once nobody is the Mastermind]");
+
+        // Who has not been sent it: on the primary, a knower whose player's last copy does not name them under the passage.
+        const told = new Map();
+        const people = [U, { id: "R561GM", isGM: true }];
+        const actors = new Map([[A.id, fake(A)], [B.id, fake(B)]]);
+        const pending = () => P.undeliveredOf(P1, { stores, actors, users: people, told, primary: true });
+        const before = pending();
+        told.set(U.id, J({ value: { [P1]: { actorIds: [A.id] } } }));
+        const body = T.passagesTabBody(scene, { stores, students: [A, B], actors, users: [...people, { id: "R561U2", isGM: false, name: "R561 second" }], told: new Map() });
+        equal(J([before, pending(), P.undeliveredOf(P1, { stores, actors, users: people, told, primary: false }),
+            body.includes('data-state="pending"'), body.includes('data-state="shared"')]),
+        J([[A.id], [], null, true, false]),
+        "[before A's player was sent it, after, on a GM that is not the primary, the tab's pending line, a shared line for a student one player owns]");
+
+        // The wall: along its line nothing changes; moved off the stretch or deleted, the passage breaks, its knowers kept.
+        const wall = c => ({ id: "R561WALL1", parent: scene, c });
+        const along = await P.wallChanged(wall([1000, 400, 1500, 400]), { stores });
+        const moved = await P.wallChanged(wall([1100, 500, 1400, 500]), { stores });
+        const again = await P.wallChanged(wall([1100, 600, 1400, 600]), { stores });
+        tab.draw();
+        const broken = [stores.map.get(P1)?.state, Boolean(cell(P1, A)), copy(), cut(), inRow(P1, ".drpg-passage-state")?.dataset.state,
+            inRow(P1, '[data-drpg-passage-act="close"]')?.disabled];
+        const gone = await P.wallChanged({ id: "R561WALL2", parent: { id: "R561OTHER" }, c: [0, 0, 1, 1] }, { gone: true, stores });
+        equal(J([along, moved.sort(), again, broken, gone, stores.map.get(P3)?.state, await P.openPassage(P1, { stores })]),
+            J([[], [P1, P2].sort(), [], ["broken", true, [], [], "broken", true], [P3], "broken", false]),
+            "[along its line, moved off, moved again, the broken passage (state, cell, copy, cut, drawn, Close), the deleted wall, its passage, Open on a broken one]");
+
+        // Show pans to the stretch's middle; Delete asks, and forgets the passage and who knew it.
+        await press(P1, '[data-drpg-passage-act="show"]');
+        sure = false;
+        await press(P1, '[data-drpg-passage-act="delete"]');
+        const refused = Boolean(stores.map.get(P1));
+        sure = true;
+        await press(P1, '[data-drpg-passage-act="delete"]');
+        equal(J([shown, P.passageMiddle(P2, { stores }), refused, Boolean(stores.map.get(P1)), Object.keys(stores.access.entries()).filter(k => k.startsWith(`${P1}/`)),
+            Boolean(inRow(P1, "td"))]),
+        J([[P1], { sceneId: scene.id, level: null, x: 1353.5, y: 400 }, true, false, [], false]),
+        "[shown, the middle of a stretch, kept after a no, kept after a yes, its cells, its row drawn]");
+
+        // Only the primary acts on a wall's change, and only on its segment; the routes the same.
+        const gm = await fetch(`/modules/${MODULE_ID}/scripts/passages-gm.mjs`).then(r => r.text()).then(stripComments);
+        const register = fnSource(gm, "registerPassagesGm");
+        equal(J([/Hooks\.on\("updateWall", onWallMoved\)/.test(register), /Hooks\.on\("deleteWall", onWallDeleted\)/.test(register),
+            /Hooks\.on\("drpgRouteSettled", onRouteSettled\)/.test(register),
+            ["onWallMoved", "onWallDeleted", "onRouteSettled"].map(name => /if \(!isPrimaryGm\(\)/.test(fnSource(gm, name))),
+            /hasProperty\(change \?\? \{\}, "c"\)/.test(fnSource(gm, "onWallMoved"))]),
+        J([true, true, true, [true, true, true], true]),
+        "[the wall's move watched, its deletion, the routes, each on the primary alone, a move read as a change of its segment]");
+        const vault = await fetch(`/modules/${MODULE_ID}/scripts/vault.mjs`).then(r => r.text()).then(stripComments);
+        const opener = fnSource(vault, "openRoomSetupDialog");
+        ok(/passagesTab\.passagesTabHtml\(scene, \{ students \}\)/.test(opener) && /passagesTab\.wirePassagesTab\(root, scene, \{ dialog, students \}\)/.test(opener),
+            "Room Setup does not draw and wire the Passages tab for the scene it was opened on");
+    }],
+    ["R563 - the GM's fog ignores the Mastermind's discoveries: ledgerRooms leaves out the current Mastermind's row, written before they were chosen or not, and an ordinary student's entry still changes it; on the Mastermind's own browser every room of the scene reads discovered and the current room is only the one under their own token", async () => {
+        /*
+         * The owner's amend folded into E79 C5 (14.10.2026). The Mastermind's browser has the whole map discovered,
+         * and the GM's fog must ignore that discovery. `recordDiscovery` has written nothing for the Mastermind since
+         * 1.2.50, but a row written before they were chosen stayed in the ledger and `ledgerRooms` read it: the GM's
+         * map cleared every room the season's secret had walked into. Read on a ledger of the suite's own (no store is
+         * written) and, for the Mastermind's own view, on this world's scene on screen with stand-ins for the drawn
+         * tokens: `myDiscoveredRooms` and `myCurrentRooms` take the browser's facts as arguments since this commit.
+         * Red before C5: fog.mjs exported none of the three.
+         */
+        const F = await import("./fog.mjs");
+        ok(typeof F.ledgerRooms === "function" && typeof F.myDiscoveredRooms === "function" && typeof F.myCurrentRooms === "function",
+            "fog.mjs exports no ledgerRooms, myDiscoveredRooms or myCurrentRooms - the GM's fog cannot be read apart from this browser");
+        if (typeof F.ledgerRooms !== "function" || typeof F.myDiscoveredRooms !== "function" || typeof F.myCurrentRooms !== "function") return;
+        const J = v => JSON.stringify(v);
+        const scene = { id: "R563SCENE" };
+        const rows = { MM: ["R563 Lab", "R563 Gym"], S1: ["R563 Hall"] };
+        const read = (more, mm) => [...F.ledgerRooms(scene, { ledger: { [scene.id]: { ...rows, ...more } }, mastermindId: mm })].sort();
+        equal(J([read({}, "MM"), read({ MM: [...rows.MM, "R563 Pool"] }, "MM"), read({ S1: [...rows.S1, "R563 Pool"] }, "MM"), read({}, null), read({}, "S1")]),
+            J([["R563 Hall"], ["R563 Hall"], ["R563 Hall", "R563 Pool"], ["R563 Gym", "R563 Hall", "R563 Lab"], ["R563 Gym", "R563 Lab"]]),
+            "[the Mastermind's old row, the Mastermind entering a new room, a student entering one, nobody the Mastermind, another student the Mastermind]");
+        const fog = await fetch(`/modules/${MODULE_ID}/scripts/fog.mjs`).then(r => r.text()).then(stripComments);
+        const record = fnSource(fog, "recordDiscovery");
+        ok(record.search(/if \(isMastermind\(actor\)\) return false;/) > 0 && record.search(/if \(isMastermind\(actor\)\) return false;/) < record.search(/await writeCells\(/),
+            "recordDiscovery no longer refuses the Mastermind's walk before it writes");
+
+        needs(world.atLeast("studentsInRooms", 1), "a student standing in a room of the scene on screen");
+        const { roomNames } = await import("./rooms.mjs");
+        const { roomOfToken } = await import("./movement.mjs");
+        const here = canvas.scene;
+        const doc = [...here.tokens].find(t => studentActors().some(a => a.id === t.actorId) && roomOfToken(t));
+        const other = [...here.tokens].find(t => t !== doc && roomOfToken(t) && roomOfToken(t) !== roomOfToken(doc));
+        const placeable = (document, isOwner) => ({ document, isOwner, actor: { type: "character" } });
+        const all = [...F.myDiscoveredRooms(here, { mastermind: true, gm: false })].sort();
+        const mine = [...F.myCurrentRooms({ tokens: [placeable(doc, true), ...(other ? [placeable(other, false)] : [])], gm: false })];
+        const none = [...F.myCurrentRooms({ tokens: [placeable(doc, false)], gm: false })];
+        equal(J([all, mine, none]), J([[...new Set(roomNames(here))].sort(), [roomOfToken(doc)], []]),
+            "[the Mastermind's discovered rooms, the current room under their own token beside another's, under nobody's own]");
     }],
 ];
 

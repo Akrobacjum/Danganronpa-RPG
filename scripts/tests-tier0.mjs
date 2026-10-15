@@ -9293,7 +9293,7 @@ const REGRESSIONS = [
          * send-back. A verdict ending "(E79 C<n>)" names the commit that changes the road. E79 C1 adds 12: the three
          * records and the copy (STORE), the copy's three sources (SET), the ask and the copy on both ends (ACT) and the
          * wall a GM's new passage is held to (WALLS). E79 C2 adds 1: the move polygon's walls a token's own passages cut
-         * (WALLS).
+         * (WALLS). E79 C5 adds 2: the primary GM's watch on a passage's wall, moved and deleted (HOOK).
          * It reads names and text, not a syntax tree, as R534 does. Two places where it keys otherwise than the parse-only
          * census: a road inside a named inner function or a method (the census keys it by that name, this reader by the
          * top-level declaration), and a top-level declaration of several names (the census joins them, this reader takes
@@ -9357,7 +9357,10 @@ const REGRESSIONS = [
             ["ACT passages.mjs#onPassageRows#passage.rows -> screen", "CLAIM: refused unless addressed to this user and sent by the primary GM; 76 A forges one from p2 and p3 refuses it (R555)"],
             ["WALLS passages-gm.mjs#createPassage -> screen", "a GM's console only (`game.user.isGM` first): the wall a new passage is cut from is read to hold the stretch to it; nothing is written to the wall and nothing of it reaches a player but through the copy"],
             // ---- the way through (E79 C2)
-            ["WALLS passages.mjs#clipPassages -> screen", "this browser's move polygon only (`type` \"move\"; sight, light and sound stay whole), cut where the moving token's own character knows a passage on its scene and floor, by the wall's id; fails closed (R556; 76 B). CLAIM: a console's own copy cuts only its own walls; the GMs' audit (movement-audit.mjs) judges the landed move"]
+            ["WALLS passages.mjs#clipPassages -> screen", "this browser's move polygon only (`type` \"move\"; sight, light and sound stay whole), cut where the moving token's own character knows a passage on its scene and floor, by the wall's id; fails closed (R556; 76 B). CLAIM: a console's own copy cuts only its own walls; the GMs' audit (movement-audit.mjs) judges the landed move"],
+            // ---- the Passages tab's watch on a passage's wall (E79 C5)
+            ["HOOK passages-gm.mjs#registerPassagesGm#updateWall/onWallMoved -> record", "the primary GM only (`isPrimaryGm`), and only when the change carries `c`: a passage whose stretch is no longer on its wall's segment is marked broken in the GMs' records and drops out of every copy; the wall is never written (R561; 76 E)"],
+            ["HOOK passages-gm.mjs#registerPassagesGm#deleteWall/onWallDeleted -> record", "the primary GM only: every passage of the deleted wall is marked broken in the GMs' records and drops out of every copy (R561; 76 E)"]
         ];
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
         const HOOK_SINKS = { updateToken: ["judge"], createToken: ["judge"], preUpdateToken: ["veto"], updateWall: ["record"], deleteWall: ["record"] };

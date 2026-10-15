@@ -509,6 +509,8 @@ export const CAMERA_READERS = Object.freeze({
     "fog.mjs#announceRoom": "draw",
     "fog.mjs#playDiscoveryAnimation": "draw",
     "fog.mjs#floorSwitcher": "draw",
+    /* The Passages tab's Show (E79 C5): this GM's camera to a passage, viewing its scene first; it moves this canvas and decides nothing. */
+    "passages-tab.mjs#showPassage": "draw",
     /* A player's own view switched once after a load (E13 C3, Q-E13-1 c): it moves this browser's
        canvas and decides nothing - the plan named it a window row, but no GM window reads it. */
     "trial-scene.mjs#selfRepair": "draw",

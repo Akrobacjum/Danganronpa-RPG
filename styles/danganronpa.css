@@ -4025,6 +4025,42 @@ body.drpg-reduced-motion .application.sheet.actor .character-header-sheet .name-
     cursor: pointer;
 }
 
+/* The Passages tab (E79 C5; passages-tab.mjs), as the plan's D31 mockup drew it: its four columns one
+   width a kind, as the others' are (choices of the mockup, not readings; the tab at a desk is a row owed to AUDIT
+   9.2 at the release), a chip per student that is the module's `.drpg-room-chip`, the way each learnt the passage
+   dimmed after the name, the students '+' offers hidden until it is pressed, and the state's lines
+   wrapping inside their column as a room's name does below. */
+.drpg-room-setup-table .drpg-col-knows { width: calc(360px * var(--drpg-legacy-scale, 1)); }
+.drpg-room-setup-table .drpg-col-knows-start { width: calc(220px * var(--drpg-legacy-scale, 1)); }
+.drpg-room-setup-table .drpg-col-state { width: calc(190px * var(--drpg-legacy-scale, 1)); }
+.drpg-room-setup-table .drpg-col-actions { width: calc(260px * var(--drpg-legacy-scale, 1)); }
+.drpg-passage-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.drpg-passage-chip { align-items: center; white-space: nowrap; }
+.drpg-passage-chip b { font-weight: 400; color: var(--drpg-dim); font-size: 0.92em; }
+.drpg-passage-chip[data-how="gm"] { border-color: rgba(var(--drpg-red-rgb), 0.55); }
+.drpg-passage-chip[data-how="shown"] { border-style: dashed; }
+.drpg-passage-chip-x {
+    min-height: 0 !important;
+    height: 1.4em;
+    width: 1.4em;
+    padding: 0 !important;
+    margin-left: 2px;
+    line-height: 1;
+    background: none;
+    border: 0;
+    color: inherit;
+    cursor: pointer;
+    opacity: 0.7;
+}
+.drpg-passage-menu:not([hidden]) { display: flex; flex-wrap: wrap; gap: 4px; flex-basis: 100%; }
+.drpg-passage-none { color: var(--drpg-dim); font-style: italic; }
+.drpg-passage-state { display: block; }
+.application.dialog.drpg-room-setup .dialog-content .drpg-passage-table td.drpg-passage-state-cell { white-space: normal; }
+.drpg-passage-state[data-state="closed"] { color: var(--drpg-dim); }
+.drpg-passage-state[data-state="broken"] { color: var(--drpg-red); }
+.drpg-passage-state:is([data-state="pending"], [data-state="shared"]) { color: var(--drpg-dim); font-size: 0.9em; }
+.drpg-passage-actions { display: inline-flex; gap: 4px; flex-wrap: nowrap; }
+
 /* A room's name wraps inside its 220 px rather than running under the next
    column: the dialog-table rule keeps every cell on one line, and a fixed
    column does not grow to hold it. */

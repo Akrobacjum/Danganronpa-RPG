@@ -52,7 +52,15 @@
  *   her own passage stands. In `log` mode the move stands and the GM's Debug log has the row. The fuzz substitute:
  *   `move.sentBack` forged by p2 for p3, and one from the primary with a code nobody knows, are refused on the
  *   player's browser with a reason in its log; a `passage.request` of junk types is answered to p2 alone; none of it
- *   writes a document or throws. E (C5): Close, Open and revoke. F (C6): the GM's overlay. G (C7): a show.
+ *   writes a document or throws.
+ * E (C5): the Passages tab, pressed as a GM presses it, in Room Setup drawn as a window (`__dialogWindows`) on phase A's
+ *   passage. Close empties p1's copy and keeps Aiko in Who knows; Open gives the row back; Aiko's cross takes her off
+ *   at once (phase A's passage names no rooms, so the tab asks nothing; the question is R561's) and p3's world is as
+ *   the phase found it; '+' and her name grant her again in two clicks; the wall moved off the
+ *   stretch marks the passage broken on the primary GM - the tab says so with Close held, p1's copy is empty - and the
+ *   wall put back leaves it broken; Delete asks, then removes the row. The window closes and phase A's wall goes with
+ *   it; p3's world is read against itself at the phase's start, which parts from phase 0's by three settings phases C
+ *   and D put back as values (the phase's comment). F (C6): the GM's overlay. G (C7): a show.
  *   The `refused` sound the mover plays is not read: the harness maps no sound file, so `playSfx` plays nothing.
  *   A stair link is R559's alone: the harness world has no floors on this scene.
  *
@@ -112,6 +120,15 @@ const sizes = dump => Object.fromEntries(Object.entries(surfaces(dump)).map(([s,
 
 /* What p3 holds of walls, regions, the scenes' flags and the module's world settings: tokens are left out on
    purpose - every phase moves them, and a passage is not a token's. */
+/* Where two prints part, for a check's details: each scene's walls, regions and flags, and each setting, that differ. */
+const printDiff = (a, b) => {
+    const [x, y] = [JSON.parse(a), JSON.parse(b)];
+    const scenes = [...new Set([...x.scenes, ...y.scenes].map(s => s.id))].flatMap(id => ["walls", "regions", "flags"]
+        .filter(k => J(x.scenes.find(s => s.id === id)?.[k]) !== J(y.scenes.find(s => s.id === id)?.[k])).map(k => `${id}.${k}`));
+    const settings = [...new Set([...Object.keys(x.settings), ...Object.keys(y.settings)])].filter(k => J(x.settings[k]) !== J(y.settings[k]))
+        .map(k => `${k}: ${J(x.settings[k])} -> ${J(y.settings[k])}`.slice(0, 300));
+    return [...scenes, ...settings];
+};
 const worldPrint = (dump, { without = null } = {}) => J({
     scenes: (dump?.world?.Scene ?? []).map(s => ({ id: s?._id, walls: (s?.walls ?? []).filter(w => w?._id !== without), regions: s?.regions ?? [], flags: s?.flags ?? {} })),
     settings: Object.fromEntries(Object.entries(dump?.settings?.world ?? {}).filter(([key]) => key.startsWith("danganronpa-rpg.")))
@@ -198,6 +215,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, dump, socketTr
     await phaseB({ gm, p1, p2, p3, check, phase, IDS, repoUrl });
     await phaseC({ gm, p1, p2, p3, check, phase, settle, IDS, repoUrl });
     await phaseD({ gm, p1, p2, p3, check, phase, settle, socketTraffic, opLog, IDS, repoUrl });
+    await phaseE({ gm, p1, check, phase, settle, dump, socketTraffic, IDS, repoUrl, baseline });
 }
 
 const PHASE_A = "A: the GM creates a passage and grants Aiko - p1's copy holds that row alone, p2 and p3 nothing of it, p3's world as found";
@@ -613,4 +631,122 @@ async function phaseD({ gm, p1, p2, p3, check, phase, settle, socketTraffic, opL
     await settle(600);
     check("D: put back - the switch as found, Botan where phase C left him, the passage and both walls gone",
         back.gone !== false && back.mode === set.found && back.walls === 0 && J(back.at) === J([1300, 300]), J(back));
+}
+
+const PHASE_E = "E: the Passages tab - Close, Open, a revoke, a grant, the wall moved and Delete, each from the GM's Room Setup, and what p1, p2 and p3 are sent";
+
+/* Phase E's own gm.eval prelude: the open Room Setup's element, a row of the passage, and a wait. */
+const TAB = `const until = async (test, ms = 6000) => { const end = Date.now() + ms; let v; while (!(v = await test()) && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return v; };
+    const s = globalThis.__s76e, row = () => s.el?.querySelector('[data-drpg-passage="' + s.id + '"]') ?? null;
+    const press = selector => { const b = row()?.querySelector(selector); if (b) b.click(); return Boolean(b); };
+    const chips = col => [...(row()?.querySelectorAll('td:nth-child(' + col + ') [data-drpg-actor].drpg-passage-chip') ?? [])].map(c => c.dataset.drpgActor);
+    const state = () => row()?.querySelector('.drpg-passage-state')?.dataset.state ?? null;`;
+
+async function phaseE({ gm, p1, check, phase, settle, dump, socketTraffic, IDS, repoUrl, baseline }) {
+    phase(PHASE_E, { flow: "secret-passages" });
+    const from = socketTraffic.length;
+    /* Phase A's passage (its stretch starts at the marker) and Aiko's grant are still there: phase D took back only its own. */
+    const opened = await gm.eval(`
+        const until = async (test, ms = 8000) => { const end = Date.now() + ms; let v; while (!(v = await test()) && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return v; };
+        const G = await import("${repoUrl}/scripts/passages-gm.mjs"), V = await import("${repoUrl}/scripts/vault.mjs");
+        const passage = G.listPassages().find(p => p.sceneId === ${J(IDS.scene)} && p.passageSeg?.x1 === ${MARK});
+        const was = globalThis.__dialogWindows; globalThis.__dialogWindows = true;
+        const pending = V.openRoomSetupDialog({ tab: "passages" });
+        const app = await until(() => [...foundry.applications.instances.values()].find(a => a.rendered && a.element?.querySelector?.("[data-drpg-passages]")));
+        globalThis.__s76e = { id: passage?.id ?? null, wall: passage?.passageWallId ?? null, el: app?.element ?? null, app, pending, was };
+        const el = app?.element;
+        return { id: passage?.id ?? null, wall: passage?.passageWallId ?? null, aiko: Boolean(passage?.access?.[${J(IDS.aiko)}]),
+            title: app?.options?.window?.title ?? null, tab: el?.querySelector('[data-drpg-tab="passages"]') ? true : false,
+            row: Boolean(el?.querySelector('[data-drpg-passage="' + passage?.id + '"]')) };`, { timeout: 30000 });
+    const scene = await gm.eval(`return game.i18n.format("DRPG.Vault.manageTitleOn", { scene: game.scenes.get(${J(IDS.scene)}).name });`);
+    /* p3's world as phase D left it, the measure of this phase: not phase 0's baseline, from which phases C and D part by
+       three world settings their put-backs write as values that were unset (sealedRooms [], restrictions {}, moveAudit
+       "log"; read 15.10.2026 on this phase's first run, with `printDiff`). Phase A's wall is still in it. */
+    const start = await dump("p3");
+    const found = worldPrint(start), foundBare = worldPrint(start, { without: opened.wall });
+    check("E: the GM's Room Setup opens on the Passages tab, with a row for phase A's passage, which Aiko knows",
+        typeof opened.id === "string" && opened.aiko && opened.title === scene && opened.tab && opened.row, J({ opened, scene }));
+
+    /* Close: p1's copy is empty, the GMs keep Aiko's grant; Open: p1's copy holds the row again. */
+    const closed = await gm.eval(`${TAB} press('[data-drpg-passage-act="close"]'); await until(() => state() === "closed");
+        const G = await import("${repoUrl}/scripts/passages-gm.mjs");
+        return { state: state(), knows: chips(2), kept: Boolean(G.listPassages().find(p => p.id === s.id)?.access?.[${J(IDS.aiko)}]) };`, { timeout: 15000 });
+    await settle(600);
+    const copyClosed = await known(p1, repoUrl);
+    const reopened = await gm.eval(`${TAB} press('[data-drpg-passage-act="open"]'); await until(() => state() === "secret"); return { state: state(), knows: chips(2) };`, { timeout: 15000 });
+    await settle(600);
+    const copyOpen = await known(p1, repoUrl);
+    check("E: Close in the tab empties p1's copy and keeps Aiko in Who knows; Open gives p1 the row back",
+        closed.state === "closed" && J(closed.knows) === J([IDS.aiko]) && closed.kept && J(copyClosed) === "{}"
+            && reopened.state === "secret" && J(reopened.knows) === J([IDS.aiko]) && Object.keys(copyOpen).includes(opened.id),
+        J({ closed, copyClosed, reopened, copyOpen }));
+
+    /* The revoke: Aiko's cross. Phase A made the passage from the console with no rooms, so wherever her token stands it is
+       in none of them and the cross revokes at once, unasked; "now" is queued all the same, and an answer left over is
+       that road (the question itself is R561's). */
+    const revoked = await gm.eval(`${TAB} let asked = null;
+        globalThis.__dialogAnswers.push(config => { asked = config.window?.title ?? "?"; return "now"; });
+        press('[data-drpg-passage-act="revoke"][data-drpg-actor="${IDS.aiko}"]');
+        await until(() => chips(2).length === 0);
+        const left = globalThis.__dialogAnswers.length; globalThis.__dialogAnswers.length = 0;
+        return { asked, left, knows: chips(2) };`, { timeout: 15000 });
+    await settle(600);
+    const copyRevoked = await known(p1, repoUrl);
+    const d3 = await dump("p3");
+    check("E: Aiko's cross, unasked on a passage of no rooms, takes her off Who knows and empties p1's copy; after Close, Open and the revoke p3's world is as this phase found it, and the world-secrets scan finds nothing",
+        revoked.asked === null && J(revoked.knows) === "[]" && J(copyRevoked) === "{}" && worldPrint(d3) === found && worldScan(d3).length === 0,
+        J({ revoked, copyRevoked, diff: printDiff(found, worldPrint(d3)), hits: worldScan(d3) }));
+
+    /* The grant: '+' and then Aiko's name, two clicks. */
+    const granted = await gm.eval(`${TAB} const add = press('[data-drpg-passage-act="menu"][data-drpg-menu="grant"]');
+        const shown = row()?.querySelector('[data-drpg-menu-of="grant"]')?.hidden === false;
+        press('[data-drpg-menu-of="grant"] [data-drpg-passage-act="grant"][data-drpg-actor="${IDS.aiko}"]');
+        await until(() => chips(2).length === 1);
+        return { add, shown, knows: chips(2) };`, { timeout: 15000 });
+    await settle(600);
+    const copyGranted = await known(p1, repoUrl);
+    check("E: '+' and Aiko's name grant her the passage again - two clicks - and p1's copy holds the row",
+        granted.add && granted.shown && J(granted.knows) === J([IDS.aiko]) && Object.keys(copyGranted).includes(opened.id), J({ granted, copyGranted }));
+
+    /* The wall moved off the stretch: the primary GM marks the passage broken, p1's copy drops it, the tab says so and offers
+       no Open; the wall put back where it was leaves it broken (a GM picks the stretch again, C6). */
+    const broken = await gm.eval(`${TAB} const wall = game.scenes.get(${J(IDS.scene)}).walls.get(s.wall);
+        await wall.update({ c: [1100, 500, 1400, 500] });
+        await until(() => state() === "broken");
+        const text = row()?.querySelector('.drpg-passage-state')?.textContent ?? null;
+        const toggle = row()?.querySelector('[data-drpg-passage-act="open"], [data-drpg-passage-act="close"]');
+        await wall.update({ c: [1100, 400, 1400, 400] });
+        await new Promise(r => setTimeout(r, 400));
+        return { state: state(), text, toggle: toggle ? [toggle.dataset.drpgPassageAct, toggle.disabled] : null,
+            c: wall.c ?? wall.toObject().c };`, { timeout: 15000 });
+    await settle(600);
+    const copyBroken = await known(p1, repoUrl);
+    const brokenWord = await gm.eval(`return game.i18n.localize("DRPG.Passage.tab.stateBroken");`);
+    check("E: the passage's wall moved off its stretch - the tab reads it broken with its Close held, p1's copy is empty, and the wall put back leaves it broken",
+        broken.state === "broken" && broken.text === brokenWord && J(broken.toggle) === J(["close", true]) && J(broken.c) === J([1100, 400, 1400, 400])
+            && J(copyBroken) === "{}", J({ broken, brokenWord, copyBroken }));
+
+    /* Delete, after the tab's question (yes queued), then the window closed and phase A's wall taken back. */
+    const deleted = await gm.eval(`${TAB} globalThis.__dialogAnswers.push(true);
+        press('[data-drpg-passage-act="delete"]');
+        await until(() => !row());
+        const G = await import("${repoUrl}/scripts/passages-gm.mjs");
+        const gone = !G.listPassages().some(p => p.id === s.id), empty = Boolean(s.el?.querySelector("[data-drpg-passage-empty]"));
+        await s.app?.close?.();
+        const closed = await Promise.race([s.pending.then(() => true), new Promise(r => setTimeout(() => r(false), 8000))]);
+        globalThis.__dialogWindows = s.was;
+        const scene = game.scenes.get(${J(IDS.scene)});
+        if (scene.walls.get(s.wall)) await scene.deleteEmbeddedDocuments("Wall", [s.wall]);
+        delete globalThis.__s76e;
+        return { gone, empty, closed, wall: Boolean(scene.walls.get(s.wall ?? "")) };`, { timeout: 30000 });
+    await settle(600);
+    const after = await dump("p3");
+    const rows = socketTraffic.slice(from).filter(t => t.action === "passage.rows");
+    const stray = rows.filter(t => !Array.isArray(t.to) || t.to.length !== 1 || t.from !== "gm");
+    check("E: Delete asks, then removes the row and leaves the tab's empty line; the window closes; p3's world is as this phase found it but for phase A's wall, gone, and phase 0's but for phases C and D's three settings",
+        deleted.gone && deleted.empty && deleted.closed && !deleted.wall && worldPrint(after) === foundBare && worldScan(after).length === 0
+            && J(printDiff(baseline, worldPrint(after)).map(d => d.split(":")[0])) === J(["danganronpa-rpg.sealedRooms", "danganronpa-rpg.restrictions", "danganronpa-rpg.moveAudit"]),
+        J({ deleted, diff: printDiff(foundBare, worldPrint(after)), fromBaseline: printDiff(baseline, worldPrint(after)), hits: worldScan(after) }));
+    check("E: every copy the GM sent in this phase names one player, and Aiko's player was sent hers",
+        rows.length > 0 && stray.length === 0 && rows.some(t => J(t.to) === J([IDS.p1])), J(rows.map(t => ({ to: t.to, from: t.from }))));
 }

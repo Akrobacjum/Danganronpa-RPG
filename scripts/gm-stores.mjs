@@ -189,7 +189,9 @@ export const passageMapStore = defineGmStore({
  * WHO KNOWS A PASSAGE: a cell per `<passageId>/<actorId>`, `{ how, by, at }` - how the character
  * learnt it first ("gm" or "start"; "shown" is C7's, "built" and "found" E80's) and when, both
  * written fill-only, so learning it again keeps them; and `by`, a split field `{ <who>: at }` to
- * which a second grant, on this GM's browser or another's, adds its own key. Beside the cells a
+ * which a second grant, on this GM's browser or another's, adds its own key. Since C5 a cell may
+ * hold `leave`, the room the character keeps the passage until leaving (the tab's 'Revoke when
+ * they leave the room', passages-gm.mjs `revokeWhenLeaving`). Beside the cells a
  * `touch/<actorId>` row per character, stamped whenever what that character's owners may hold
  * changes: its stamp is that character's part of every copy (passages-gm.mjs `passageCopyFor`).
  * Cut by the reset's "passages" group.
@@ -206,7 +208,9 @@ export const passageAccessStore = defineGmStore({
 
 /**
  * WHAT WAS DONE WITH THE PASSAGES: the GMs' log, a row per create, grant, revoke, close, open and
- * delete - `{ at, what, passageId, actorId, by }` - the newest 200 kept (passages-gm.mjs
+ * delete, and since C5 per start access set or taken off (start, unstart), revoke put off until
+ * a room is left (leave) and passage its wall broke (broken) - `{ at, what, passageId, actorId,
+ * by }` - the newest 200 kept (passages-gm.mjs
  * `PASSAGE_LOG_ROWS`). Its `exists` answers no for every key, as the rolls' does: a row's key is
  * no document. Cut by the reset's "passages" group.
  */
