@@ -1,5 +1,6 @@
 /**
- * The secret passages (E79, 1.2.79; the E79 plan's 2.2): who may know a passage, on four clients.
+ * The secret passages (E79, 1.2.79; the E79 plan's 2.2): who may know a passage, on four clients, and in phase G
+ * six (a second GM and a fifth player, declared late, since fix r2-G3).
  *
  * A secret passage lives in the GMs' store and in the copies addressed to whoever may use it, and
  * nowhere else - not on a Wall, a Region or the Scene, not in a setting, not on the wire to anybody
@@ -23,7 +24,9 @@
  *   be taken back and which the later phases leave out by phase. Then p3's world as found - the
  *   world-secrets rule's scan (`worldScan`, lib/canary.mjs) with no hit, and the walls, the regions,
  *   the scenes' flags and the module's world settings p3 holds - is kept for phases A, E and G.
- * A (C1): the GM creates a passage on a wall it has just drawn, then grants Aiko (p1's). p1's copy holds
+ * A (C1): the GM creates a passage on a wall it has just drawn, then grants Aiko (p1's). Since fix r2-G3 the console's
+ *   create on that wall as the map stands, the Cafeteria on both sides, is refused and writes nothing, and the passage
+ *   is made with the map redrawn around the create (`acrossPantry`; D's the same way). p1's copy holds
  *   exactly that row; p2 and p3 read neither the marker nor the passage's id on any surface outside phase 0's
  *   wire and console; p3's world is the world as found but for the GM's new wall, after the create and after
  *   the grant; every copy the GM sends names one player; a copy p2 forges for p3 is refused; and an ask with
@@ -81,7 +84,11 @@
  *   does not know. Then p1 shows Botan: the GMs write 'shown' and one log row, Botan's copy on p2 gains the row,
  *   Aiko's actions are untouched, Botan's card (with the sound) names the Cafeteria and the Kitchen as unexplored and
  *   stays in p2's notice history, Aiko's names Botan and no room, and p3 sees and keeps neither. p3's world after the
- *   show, a Close and Botan's revoke is the world once the Kitchen was drawn; put back, as the phase found it.
+ *   show, a Close and Botan's revoke is the world once the Kitchen was drawn. Since fix r2-G3, two GMs and a reload: a
+ *   second GM connected with an empty browser makes a passage on the Kitchen's wall and gives it to Botan before its
+ *   stores settle - the primary pushes it to p2 alone and both GMs' records hold it beside phase G's; p4, given Botan,
+ *   holds it, passes it and lists it, and reloaded with its browser and with an empty one is sent its copy by the
+ *   primary and reads the same. Put back, as the phase found it.
  *   The `refused` sound the mover plays is not read: the harness maps no sound file, so `playSfx` plays nothing.
  *   A stair link is R559's alone: the harness world has no floors on this scene.
  *
@@ -97,8 +104,17 @@ export const layers = ["ci"];
    under the harness lock): 33 checks in 32.5 s by the cluster's line, each of D's moves waited 1-1.5 s - so 120 s,
    for the boot and for a2.sh's three lanes, which this reading did not run in. Fix r2-G1 (16.10.2026) adds eleven
    moves and send-backs to D: 60 checks in 92.6 s by the cluster's line, one run alone under the harness lock (98 s of
-   wall time) - so 150 s, the same margin for the lanes. */
-export const timeoutMs = 150000;
+   wall time) - so 150 s, the same margin for the lanes. Fix r2-G3 (16.10.2026) adds a second GM and a fifth player to
+   G, connected three times between them: 63 checks in 110.0 s by the cluster's line, one run alone under the harness
+   lock (115 s of wall time), 17.4 s over r2-G2's run of 60 - so 180 s. */
+export const timeoutMs = 180000;
+
+/* A second GM and a fifth player, seeded inactive and connected in phase G alone (E79 fix r2-G3), declared as 61 and 62
+   declare theirs. */
+export const accounts = [
+    { who: "gm2", id: "USERGM2000000000", name: "Second GM", role: 4, character: null, color: "#66aaff", late: true },
+    { who: "p4", id: "USERP4000000000A", name: "Player Four", role: 1, character: null, color: "#66aa66", late: true }
+];
 
 const J = value => JSON.stringify(value);
 
@@ -156,7 +172,7 @@ const worldPrint = (dump, { without = null } = {}) => J({
     settings: Object.fromEntries(Object.entries(dump?.settings?.world ?? {}).filter(([key]) => key.startsWith("danganronpa-rpg.")))
 });
 
-export async function run({ gm, p1, p2, p3, check, phase, settle, dump, socketTraffic, opLog, IDS, repoUrl }) {
+export async function run({ gm, gm2, p1, p2, p3, p4, check, phase, settle, dump, socketTraffic, opLog, connect, disconnect, storageOf, IDS, repoUrl }) {
     phase(PHASE0);
     /* The GM's load migration is waited for before anything is read (E79 C1, 14.10.2026). Its writes - the unstamped
        harness world opens the students' sheets - reach p3 as world changes. In a2.sh's first queue (three lanes) one
@@ -239,10 +255,34 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, dump, socketTr
     await phaseD({ gm, p1, p2, p3, check, phase, settle, socketTraffic, opLog, IDS, repoUrl });
     await phaseE({ gm, p1, check, phase, settle, dump, socketTraffic, IDS, repoUrl, baseline });
     await phaseF({ gm, p1, p2, p3, check, phase, settle, dump, IDS, repoUrl });
-    await phaseG({ gm, p1, p2, p3, check, phase, settle, dump, socketTraffic, IDS, repoUrl });
+    await phaseG({ gm, gm2, p1, p2, p3, p4, check, phase, settle, dump, socketTraffic, connect, disconnect, storageOf, IDS, repoUrl });
 }
 
 const PHASE_A = "A: the GM creates a passage and grants Aiko - p1's copy holds that row alone, p2 and p3 nothing of it, p3's world as found";
+
+/*
+ * THE MAP REDRAWN AROUND A CREATE (E79 fix r2-G3, 16.10.2026; review round 2, O4). Since that fix the console's create
+ * asks the pick's rule: a stretch between two rooms of one floor (passages-gm.mjs `stretchOnMap`). Phases A and D measure
+ * a passage inside the Cafeteria on purpose - A a wall the map gives no second room, D the audit's wall rule with no room
+ * crossed - and a GM may redraw the map after a passage is made: nothing reads a passage's rooms off the map again but
+ * the cross (`passageRoomsOnMap`), which reads the map as it stands. So, in the GM's one eval that makes the passage, the
+ * Cafeteria is drawn short of the wall at `y` and a Pantry beyond it, the passage is made, and the Cafeteria is drawn
+ * back and the Pantry taken away before the eval answers: the passage stands inside the Cafeteria as it did before the
+ * fix, and each phase reads what it read then. `create` is the console's call, an expression on `scene`; the code reads
+ * `id` after it.
+ */
+const acrossPantry = (y, create) => `
+        const cafe = scene.regions.find(r => r.name === "Cafeteria"), shapes = foundry.utils.deepClone(cafe._source.shapes), [box] = shapes;
+        await cafe.update({ shapes: [{ ...box, height: ${y} - box.y }] });
+        const [pantry] = await scene.createEmbeddedDocuments("Region", [{ name: "Pantry", behaviors: [],
+            shapes: [{ ...box, y: ${y}, height: box.y + box.height - ${y} }], flags: { "danganronpa-rpg": { room: true } } }]);
+        let id = null;
+        try {
+            id = await ${create};
+        } finally {
+            await scene.deleteEmbeddedDocuments("Region", [pantry.id]);
+            await cafe.update({ shapes });
+        }`;
 
 /* What a browser holds of the passages as the module reads them: the copy on a player's, the GMs' records on a GM's. */
 const known = (client, repoUrl) => client.eval(`const { knownPassages } = await import("${repoUrl}/scripts/passages.mjs"); return knownPassages();`);
@@ -256,8 +296,16 @@ async function phaseA({ gm, p1, p2, p3, check, phase, settle, dump, socketTraffi
         const [wall] = await scene.createEmbeddedDocuments("Wall", [{ c: [1100, 400, 1400, 400] }]);
         return wall?.id ?? null;`);
     await settle(300);
-    const id = await gm.eval(`return await game.drpg.passages.create({ sceneId: ${J(IDS.scene)}, wallId: ${J(made)},
-        seg: { x1: ${MARK}, y1: 400, x2: 1300.5, y2: 400 } });`);
+    /* E79 fix r2-G3 (review round 2, O4): on the map as it stands the wall has the Cafeteria on both sides, and the
+       console's create refuses it as the pick does, writing nothing. Red at the parent (d71759a): the create wrote. */
+    const bare = await gm.eval(`const G = await import("${repoUrl}/scripts/passages-gm.mjs"), before = G.listPassages().length;
+        const id = await game.drpg.passages.create({ sceneId: ${J(IDS.scene)}, wallId: ${J(made)}, seg: { x1: ${MARK}, y1: 400, x2: 1300.5, y2: 400 } });
+        return { id, written: G.listPassages().length - before };`);
+    check("A: the console's create on a wall with the Cafeteria on both sides is refused, as the pick refuses it, and writes nothing",
+        bare.id === null && bare.written === 0, J(bare));
+    const id = await gm.eval(`const scene = game.scenes.get(${J(IDS.scene)});${acrossPantry(400,
+        `game.drpg.passages.create({ sceneId: scene.id, wallId: ${J(made)}, seg: { x1: ${MARK}, y1: 400, x2: 1300.5, y2: 400 } })`)}
+        return id;`, { timeout: 30000 });
     await settle(400);
     const created3 = await dump("p3");
     const granted = await gm.eval(`return await game.drpg.passages.grant(${J(id)}, ${J(IDS.aiko)});`);
@@ -510,7 +558,7 @@ async function phaseD({ gm, p1, p2, p3, check, phase, settle, socketTraffic, opL
         const AUDIT = game.settings.settings.has("${MOD}.moveAudit");
         const scene = game.scenes.get(${J(IDS.scene)});
         const [plain, held] = await scene.createEmbeddedDocuments("Wall", [{ c: [1500, 400, 1500, 800] }, { c: [1200, 600, 1450, 600] }]);
-        const id = await game.drpg.passages.create({ sceneId: scene.id, wallId: held.id, seg: { x1: 1234.5, y1: 600, x2: 1400.5, y2: 600 } });
+        ${acrossPantry(600, "game.drpg.passages.create({ sceneId: scene.id, wallId: held.id, seg: { x1: 1234.5, y1: 600, x2: 1400.5, y2: 600 } })")}
         const granted = await game.drpg.passages.grant(id, ${J(IDS.aiko)});
         const botan = scene.tokens.get(${J(BOTAN)}), aiko = scene.tokens.get("TOKAIKO000000000");
         const keep = a => ({ actions: game.drpg.actionsLeft(a), free: a.getFlag("${MOD}", "freeMoveUsed") ?? null });
@@ -565,7 +613,9 @@ async function phaseD({ gm, p1, p2, p3, check, phase, settle, socketTraffic, opL
     const cannotReach = await p2.eval(`return game.i18n.format("DRPG.Move.cannotReach", { from: "Cafeteria" });`);
     /* The GMs are whispered once per token and mover in 30 s (review r1, cor F3): a put-back after the first is
        counted on the audit's row (`quiet`) instead - either is the one result here, and the burst is checked apart. */
-    const heard = r => (J(r.whispers) === J([[IDS.gm]]) && !(r.quiet > 0)) || (r.whispers.length === 0 && r.quiet === 1);
+    /* The GMs alone: every GM account of the world, the second GM phase G connects (declared late, so a user from the
+       start) among them - a whisper to the GMs names every GM account, connected or not (E79 fix r2-G3). */
+    const heard = r => (J(r.whispers.map(w => [...w].sort())) === J([[IDS.gm, "USERGM2000000000"]]) && !(r.quiet > 0)) || (r.whispers.length === 0 && r.quiet === 1);
     const sentBack = (r, home = HOME) => r.vetoOff && J(r.at) === J(home) && J(r.packets) === J([{ from: "gm", to: [IDS.p2] }]) && J(r.codes) === J(["wall"])
         && J(r.told) === J([cannotReach]) && r.p2cards === 0 && heard(r) && r.rows.length === 1 && r.rows[0].mode === "sendBack"
         && r.rows[0].user === IDS.p2 && r.rows[0].token === BOTAN;
@@ -1108,7 +1158,7 @@ const PHASE_G = "G: a show - Aiko's sheet lists her passage, she shows it to Bot
 const SHOW = `const until = async (test, ms = 6000) => { const end = Date.now() + ms; let v; while (!(v = await test()) && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return v; };
     const g = globalThis.__s76g ?? {};`;
 
-async function phaseG({ gm, p1, p2, p3, check, phase, settle, dump, socketTraffic, IDS, repoUrl }) {
+async function phaseG({ gm, gm2, p1, p2, p3, p4, check, phase, settle, dump, socketTraffic, connect, disconnect, storageOf, IDS, repoUrl }) {
     phase(PHASE_G, { flow: "secret-passages" });
     const MOD = "danganronpa-rpg", SOCKET = `module.${MOD}`, PLACE = { teleport: true, movementAction: "displace", animate: false };
     const from = socketTraffic.length;
@@ -1241,6 +1291,84 @@ async function phaseG({ gm, p1, p2, p3, check, phase, settle, dump, socketTraffi
             && !J({ ...d3, wire: undefined, console: undefined }).includes(set.id),
         J({ closed, revoked, close: printDiff(staged, afterClose), revoke: printDiff(staged, afterRevoke) }));
 
+    /*
+     * TWO GMS AND A RELOAD (E79 fix r2-G3, 16.10.2026; review round 2, H2: the plan's two steps that stood in for a
+     * table). A second GM connects with an empty browser and, in the same breath - before its stores have settled, while
+     * the other GM's copies are still on their way to it - makes a passage on the Kitchen's wall and gives it to Botan.
+     * Its own browser pushes nothing (it is not the primary): the primary merges the write and sends Botan's player the
+     * row, and the second GM's records come to hold phase G's passage beside its own. Then a reload: p4, a fifth player,
+     * is given Botan, holds the row, passes it on the move backend and lists it on Botan's sheet; leaves; and comes back
+     * with the browser it left with. Its copy comes back from the primary's answer to its ask, and the cut and the list
+     * are what they were.
+     */
+    const P4 = "USERP4000000000A", SEG2 = { x1: 1500.5, y1: 800, x2: 1600.5, y2: 800 };
+    const late = socketTraffic.length;
+    await connect("gm2");
+    const wrote = await gm2.eval(`const PG = await import("${repoUrl}/scripts/passages-gm.mjs"), seen = PG.listPassages().map(p => p.id);
+        const id = await game.drpg.passages.create({ sceneId: ${J(IDS.scene)}, wallId: ${J(set.wall)}, seg: ${J(SEG2)} });
+        const granted = id ? await game.drpg.passages.grant(id, ${J(IDS.botan)}) : null;
+        return { id, granted, seen, primary: (await import("${repoUrl}/scripts/utils.mjs")).isPrimaryGm() };`, { timeout: 30000 });
+    const records = client => client.eval(`${SHOW} const PG = await import("${repoUrl}/scripts/passages-gm.mjs");
+        const ids = () => PG.listPassages().map(p => p.id).sort();
+        await until(() => ${J([set.id, wrote.id].sort())}.every(id => ids().includes(id)));
+        const p = PG.listPassages().find(p => p.id === ${J(wrote.id)});
+        return { ids: ids(), seg: p?.passageSeg ?? null, rooms: p?.rooms ?? null, knows: Object.keys(p?.access ?? {}) };`, { timeout: 30000 });
+    const onGm = await records(gm), onGm2 = await records(gm2);
+    const copy2 = await p2.eval(`${SHOW} const PS = await import("${repoUrl}/scripts/passages.mjs");
+        await until(() => PS.knownPassages()[${J(wrote.id)}]); return PS.knownPassages()[${J(wrote.id)}]?.actorIds ?? null;`, { timeout: 30000 });
+    const sentLate = socketTraffic.slice(late).filter(t => t.action === "passage.rows");
+    const want = { seg: SEG2, rooms: ["Cafeteria", "Kitchen"], knows: [IDS.botan] };
+    check("G: a second GM, connected with an empty browser, makes a passage on the Kitchen's wall and gives it to Botan before its stores settle; the primary pushes it to Botan's player alone, p2's copy holds it, and both GMs' records hold it and phase G's passage",
+        typeof wrote.id === "string" && wrote.granted === true && wrote.primary === false && J(copy2) === J([IDS.botan])
+            && sentLate.some(t => t.from === "gm" && J(t.to) === J([IDS.p2])) && !sentLate.some(t => t.from === "gm2")
+            && [onGm, onGm2].every(r => r.ids.includes(set.id) && r.ids.includes(wrote.id) && J({ seg: r.seg, rooms: r.rooms, knows: r.knows }) === J(want)),
+        J({ wrote, onGm, onGm2, copy2, sent: sentLate.map(t => ({ from: t.from, to: t.to })) }));
+
+    /* p4's reads of Botan: its copy, the move backend for his token through the new passage and beside it on the same
+       wall, and his sheet's list (`draw`, as Aiko's above). */
+    const readP4 = async () => {
+        const held = await p4.eval(`${SHOW} const PS = await import("${repoUrl}/scripts/passages.mjs");
+            await until(() => PS.knownPassages()[${J(wrote.id)}]);
+            const backends = CONFIG.Canvas.polygonBackends, object = canvas.tokens.get("TOKBOTAN00000000") ?? null;
+            const hit = x => backends.move.testCollision({ x, y: 750 }, { x, y: 850 }, { type: "move", mode: "any", source: { object } });
+            return { copy: Object.keys(PS.knownPassages()).sort(), knowers: PS.knownPassages()[${J(wrote.id)}]?.actorIds ?? null,
+                token: Boolean(object), through: hit(1550.5), beside: hit(1750) };`, { timeout: 30000 });
+        const sheet = await p4.eval(draw(IDS.botan, false), { timeout: 30000 });
+        return { ...held, rows: sheet.rows };
+    };
+    await connect("p4");
+    await gm.eval(`await game.actors.get(${J(IDS.botan)}).update({ "ownership.${P4}": 3 }); return true;`);
+    await settle(1000);
+    const first = await readP4();
+    /* Reloaded twice: with the browser it left with, then with an empty one (another computer, or its storage cleared).
+       The harness's client asks at ready, before the others hear it connect (cluster.mjs `connect`), so the primary
+       passes the ask by - p4 is not active there yet - and answers its arrival: measured at d71759a, the reload was
+       answered by nobody and its copy was the one its storage kept. */
+    const reloadAs = async storage => {
+        const at = socketTraffic.length;
+        await disconnect("p4");
+        await settle(300);
+        await connect("p4", { storage });
+        await settle(1000);
+        const read = await readP4();
+        const wire = socketTraffic.slice(at).filter(t => /^passage\./.test(t.action ?? "")).map(t => ({ from: t.from, to: t.to, action: t.action }));
+        return { same: J(read) === J(first), read, wire,
+            asks: wire.filter(t => t.action === "passage.request" && t.from === "p4").length,
+            answers: wire.filter(t => t.action === "passage.rows" && J(t.to) === J([P4])).map(t => t.from) };
+    };
+    const kept = await reloadAs(await storageOf("p4"));
+    const fresh = await reloadAs(null);
+    const answered = r => r.same && r.asks >= 1 && r.answers.length >= 1 && r.answers.every(f => f === "gm");
+    check("G: p4, given Botan, holds the second GM's passage, passes it on the move backend and is stopped beside it, and lists it on Botan's sheet; reloaded with the browser it left with, and then with an empty one, it asks the primary, is sent its copy by the primary alone, and its copy, its cut and its list are as before",
+        J(first.copy) === J([wrote.id]) && J(first.knowers) === J([IDS.botan]) && first.token && first.through === false && first.beside === true
+            && first.rows.length === 1 && first.rows[0][1] === false && answered(kept) && answered(fresh),
+        J({ first, kept: { ...kept, read: kept.same ? "the same" : kept.read }, fresh: { ...fresh, read: fresh.same ? "the same" : fresh.read } }));
+    const lateBack = await gm.eval(`await game.actors.get(${J(IDS.botan)}).update({ "ownership.${P4}": 0 });
+        return await game.drpg.passages.delete(${J(wrote.id)});`, { timeout: 30000 });
+    await disconnect("p4");
+    await disconnect("gm2");
+    await settle(600);
+
     /* Put back: the passage, the wall, the Kitchen and Aiko's token. */
     const back = await gm.eval(`${SHOW}
         const scene = game.scenes.get(${J(IDS.scene)});
@@ -1256,7 +1384,7 @@ async function phaseG({ gm, p1, p2, p3, check, phase, settle, dump, socketTraffi
     const rows = socketTraffic.slice(from).filter(t => t.action === "passage.rows");
     const stray = rows.filter(t => !Array.isArray(t.to) || t.to.length !== 1 || t.from !== "gm");
     check("G: put back - the passage, the Kitchen and its wall gone, p3's world as this phase found it, no player reading the marker in more places outside this phase's wire, and every copy sent naming one player, Botan's among them",
-        back.gone !== false && back.kitchen === false && worldPrint(after) === found && worldScan(after).length === 0 && J(marksAfter) === J(marksBefore)
+        back.gone !== false && lateBack !== false && back.kitchen === false && worldPrint(after) === found && worldScan(after).length === 0 && J(marksAfter) === J(marksBefore)
             && rows.length > 0 && stray.length === 0 && rows.some(t => J(t.to) === J([IDS.p2])),
-        J({ back, diff: printDiff(found, worldPrint(after)), marksBefore, marksAfter, rows: rows.map(t => ({ to: t.to, from: t.from })) }));
+        J({ back, lateBack, diff: printDiff(found, worldPrint(after)), marksBefore, marksAfter, rows: rows.map(t => ({ to: t.to, from: t.from })) }));
 }

@@ -17,7 +17,8 @@
  *
  * Since C6 a GM makes a passage on the board (`startPassagePick`, from the tab's 'New passage'):
  * two clicks on one wall between two rooms of one floor, each snapped to the wall (`snapToWall`,
- * `stretchBetween`, pure), and a broken one is picked again the same way (`repickPassage`). The
+ * `stretchBetween`, pure), and a broken one is picked again the same way (`repickPassage`); since
+ * fix r2-G3 the console's create and the repick hold their stretch to the same two (`stretchOnMap`). The
  * GMs' overlay (gm-overlay.mjs) draws every passage of the scene and floor on screen on a GM's
  * browser alone (`drawPassagesLayer`), and the pick's stretch as it is made.
  *
@@ -334,11 +335,22 @@ function studentOf(actorId) {
 /**
  * A new passage's row, `{ row }`, or `{ refused }` with the reason: `seg` a stretch of the wall
  * (the whole wall when none is given) whose ends are within 1 px of it, on a wall that is no door
- * and blocks movement (what the pick refuses as well, `snapToWall`), `rooms` the names of the
- * rooms it joins, `level` the floor's id where the scene has floors, `startAccess` the students
- * who know it from the start. Every field the map's row holds, and nothing else (R554). Pure.
+ * and blocks movement, `level` the id of one of the scene's floors where it has any and null where
+ * it has none, the wall on that floor, and the stretch what the pick would make of two clicks on
+ * its ends (`stretchOnMap`): between two rooms of that floor, the same two at both ends, at least
+ * `PICK_SHORTEST` long, and on no stretch of `taken` (the scene's other passages, `takenOn`).
+ * `rooms` are the map's two, sorted; a caller that names rooms names those or is refused.
+ * `startAccess` the students who know it from the start. Every field the map's row holds, and
+ * nothing else (R554).
+ *
+ * ONE RULE FOR BOTH ROADS (E79 fix r2-G3, 16.10.2026; review round 2, O4). Until this commit the
+ * console's create (`game.drpg.passages.create`) asked only the wall's own four checks above the
+ * map's: it wrote a passage on a stretch another passage held, on a wall inside one room, beside a
+ * room of another floor, a pixel long, and with whatever `rooms` the caller typed - each one the
+ * pick refuses. R561's console cases measured all five written at the parent (d71759a); the
+ * pick's `snapToWall` and `stretchBetween` now judge both roads, and the repick as well.
  */
-export function passageRowFor(scene, wall, { seg = null, rooms = [], level = null, startAccess = [] } = {}) {
+export function passageRowFor(scene, wall, { seg = null, rooms = [], level = null, startAccess = [], taken = [] } = {}) {
     const c = (wall?.c ?? []).slice(0, 4).map(Number);
     if (!scene?.id || !wall?.id || c.length < 4 || !c.every(Number.isFinite)) return { refused: "no such wall on that scene." };
     if (Number(wall.door) > 0) return { refused: "that wall is a door." };
@@ -346,9 +358,21 @@ export function passageRowFor(scene, wall, { seg = null, rooms = [], level = nul
     const xy = seg ? ["x1", "y1", "x2", "y2"].map(k => Number(seg[k])) : c;
     if (!xy.every(Number.isFinite) || (xy[0] === xy[2] && xy[1] === xy[3])) return { refused: "the stretch needs two different ends." };
     if (!onWall(xy[0], xy[1], c) || !onWall(xy[2], xy[3], c)) return { refused: "the stretch is not on that wall." };
+    const floors = floorsOf(scene);
+    const floor = typeof level === "string" && level ? level : null;
+    if (floors.length ? !floors.some(f => f.id === floor) : floor !== null) {
+        return { refused: floors.length ? "name one of the scene's floors." : "that scene has no floors." };
+    }
+    if (!onLevel(wall, floor)) return { refused: "that wall is not on that floor." };
+    const map = stretchOnMap(scene, wall, xy, { level: floor, taken });
+    if (map.refused) return { refused: MAP_REFUSALS[map.refused] ?? `the pick refuses it (${map.refused}).` };
+    const named = (rooms ?? []).filter(r => typeof r === "string");
+    if (named.length && named.slice().sort((p, q) => p.localeCompare(q)).join("\n") !== map.rooms.join("\n")) {
+        return { refused: `the stretch stands between ${map.rooms.join(" and ")}, not the rooms named.` };
+    }
     const [x1, y1, x2, y2] = xy;
-    return { row: { sceneId: scene.id, level: typeof level === "string" && level ? level : null, shape: "wall", passageWallId: wall.id,
-        passageSeg: { x1, y1, x2, y2 }, rooms: (rooms ?? []).filter(r => typeof r === "string"), state: "secret",
+    return { row: { sceneId: scene.id, level: floor, shape: "wall", passageWallId: wall.id,
+        passageSeg: { x1, y1, x2, y2 }, rooms: map.rooms, state: "secret",
         startAccess: [...new Set(startAccess ?? [])] } };
 }
 
@@ -361,7 +385,7 @@ export async function createPassage({ sceneId, wallId, seg = null, rooms = [], l
     const scene = given ?? game.scenes?.get(sceneId);
     if (!scene || scene.id !== sceneId) return refuse(`no scene "${sceneId}".`);
     if ((startAccess ?? []).some(a => !studentOf(a))) return refuse("a start access names no student of this world.");
-    const { row, refused } = passageRowFor(scene, scene.walls?.get(wallId), { seg, rooms, level, startAccess });
+    const { row, refused } = passageRowFor(scene, scene.walls?.get(wallId), { seg, rooms, level, startAccess, taken: takenOn(scene.id, null, stores) });
     if (!row) return refuse(refused);
     const id = `${scene.id}.${foundry.utils.randomID()}`;
     await stores.map.patch(id, row);
@@ -835,6 +859,39 @@ export function stretchBetween(first, second, { taken = [] } = {}) {
     return { wallId: first.wallId, seg: { x1: first.x, y1: first.y, x2: second.x, y2: second.y }, rooms: [...first.rooms] };
 }
 
+/** A scene's rooms as the pick reads them, `{ name, polygons, here }`, `here` whether the piece is on `level`. */
+function pickRooms(scene, level) {
+    return roomPieces(scene).map(r => ({ name: r.name, polygons: regionShapes(r, { x: 0, y: 0 }), here: onLevel(r, level) }));
+}
+
+/**
+ * The stretch `[x1, y1, x2, y2]` of `wall` judged as two clicks on its ends would be: each end
+ * snapped to that wall alone (`snapToWall`, at the scene's grid), then the two (`stretchBetween`) -
+ * `{ rooms }`, the two it joins, sorted, or `{ refused }` with the pick's code. The console's create
+ * and the repick ask it through `passageRowFor`, so a stretch the pick refuses is refused there too.
+ */
+export function stretchOnMap(scene, wall, [x1, y1, x2, y2], { level = null, taken = [] } = {}) {
+    const cell = Number(scene?.grid?.size) || 100;
+    const rooms = pickRooms(scene, level);
+    const reach = { radius: PICK_RADIUS * cell / 100, reach: PICK_REACH * cell / 100, taken, only: wall?.id ?? null };
+    const first = snapToWall({ x: x1, y: y1 }, [wall], rooms, reach);
+    if (first.refused) return first;
+    const second = snapToWall({ x: x2, y: y2 }, [wall], rooms, reach);
+    if (second.refused) return second;
+    const stretch = stretchBetween(first, second, { taken });
+    return stretch.refused ? stretch : { rooms: stretch.rooms };
+}
+
+/* The console's words for the pick's codes (`passageRowFor`): a GM's console is English, as every refusal here is. */
+const MAP_REFUSALS = Object.freeze({
+    noWall: "no such wall on that scene.",
+    taken: "the stretch overlaps another passage on that wall.",
+    levels: "a room beside the stretch is on another floor.",
+    notBetween: "the stretch does not stand between two rooms.",
+    otherRooms: "the stretch's two ends stand between different rooms.",
+    short: `the stretch is shorter than ${PICK_SHORTEST} px.`
+});
+
 /** The stretches of a scene's passages, `{ wallId, x1, y1, x2, y2 }`, but the passage `except`: what a pick may not land on. */
 function takenOn(sceneId, except, stores) {
     return Object.entries(stores.map.entries())
@@ -860,7 +917,8 @@ export async function repickPassage(passageId, { wallId, seg, rooms = [] } = {},
     const scene = given ?? game.scenes?.get(old.sceneId);
     if (scene?.id !== old.sceneId) return refuse(`no scene "${old.sceneId}".`, false);
     const wall = sceneWalls(scene).find(w => w.id === wallId);
-    const { row, refused } = passageRowFor(scene, wall, { seg, rooms, level: old.level ?? null, startAccess: old.startAccess ?? [] });
+    const { row, refused } = passageRowFor(scene, wall, { seg, rooms, level: old.level ?? null, startAccess: old.startAccess ?? [],
+        taken: takenOn(scene.id, passageId, stores) });
     if (!row) return refuse(refused, false);
     await stores.map.patch(passageId, { passageWallId: row.passageWallId, passageSeg: row.passageSeg, rooms: row.rooms, state: "secret" });
     await touch(knowersOf(passageId, stores), stores, { door: true });
@@ -988,7 +1046,7 @@ export async function startPassagePick(scene, { dialog = null, passageId = null,
     const level = again ? again.level ?? null
         : floors.length ? (floors.some(f => f.id === viewed?.id) ? viewed.id : floors[0].id) : null;
     const walls = sceneWalls(scene).filter(w => onLevel(w, level));
-    const rooms = roomPieces(scene).map(r => ({ name: r.name, polygons: regionShapes(r, { x: 0, y: 0 }), here: onLevel(r, level) }));
+    const rooms = pickRooms(scene, level);
     const cell = Number(scene.grid?.size) || 100;
     const reachOf = { radius: PICK_RADIUS * cell / 100, reach: PICK_REACH * cell / 100, taken: takenOn(scene.id, passageId, stores) };
 
@@ -1065,13 +1123,15 @@ const LOOK = {
  * The overlay's layer "passages", drawn again: a Graphics per passage of the scene and floor on
  * screen, named by its id and carrying its state (`drpgState`), in its state's look. A GM's
  * browser only - `overlayLayer` is null anywhere else - and nothing is drawn under the fog.
+ * `scene` and `level` are the camera's unless given (R573 hands a floor of its own; the overlay
+ * never does). A floor switched is a new canvas, and the overlay is drawn again on it (gm-overlay.mjs
+ * `registerGmOverlay`, LIVE-E12-02).
  */
-export function drawPassagesLayer(layer = overlayLayer("passages"), { stores = PASSAGE_STORES } = {}) {
+export function drawPassagesLayer(layer = overlayLayer("passages"), { stores = PASSAGE_STORES, scene = viewedScene(), level = viewedLevel()?.id ?? null } = {}) {
     if (!layer) return 0;
     clearLayer(layer);
-    const scene = viewedScene();
     if (!scene) return 0;
-    const stretches = passageStretches(scene.id, viewedLevel()?.id ?? null, { stores });
+    const stretches = passageStretches(scene.id, level, { stores });
     for (const s of stretches) {
         const look = LOOK[s.state] ?? LOOK.secret;
         const g = new PIXI.Graphics();
@@ -1097,10 +1157,19 @@ function retellSoon() {
 
 /**
  * A player came or went: the door names the Mastermind's first connected owner (`ownerOf`), so a
- * co-owner coming or going may move it (SEC S2), and a player who comes back is sent what changed
- * while they were away. `retell` is the suite's (R555).
+ * co-owner coming or going may move it (SEC S2), and a player who comes back is sent their copy.
+ * `retell` and `told` are the suite's (R555).
+ *
+ * WHOLE, NOT WHAT CHANGED (E79 fix r2-G3, 16.10.2026; review round 2, H2). What the user was last
+ * sent is forgotten either way, so the retell sends their copy even when it is the one they had:
+ * the browser that comes back may hold none (another computer, a cleared storage), and its own ask
+ * at ready (`onPassageRequest`) may reach this GM before Foundry has marked the user active, where
+ * `pushPassageCopies` passes it by. The harness's order is that one (cluster.mjs `connect`; v14's is
+ * LIVE-E04-12): at d71759a, 76 G's p4 reloaded and asked, and nobody answered - its copy was the
+ * one its storage kept.
  */
-export function onUserConnected(user, connected, { retell = retellSoon } = {}) {
+export function onUserConnected(user, connected, { retell = retellSoon, told = TOLD } = {}) {
+    if (user?.id) told.delete(user.id);
     return retell();
 }
 

@@ -98,7 +98,18 @@ export function redrawGmOverlay(name = null) {
     }
 }
 
-/** On every browser: each new canvas asks for the overlay, which only a GM's draws. */
+/**
+ * On every browser: each new canvas asks for the overlay, which only a GM's draws.
+ *
+ * A FLOOR SWITCHED (E79 fix r2-G3, 16.10.2026; review round 2, O3). The passages are drawn for the
+ * floor on screen, and nothing here listens for a floor's change but `canvasReady`: the module's
+ * floor switcher views the scene at the new level (fog.mjs `renderFloorSwitcher`, `scene.view({ level })`),
+ * the fog's own redraw of the new floor rides the same `canvasReady` (fog.mjs, "floor switcher"),
+ * and the harness's view ends in one (audit/harness/client-entry.mjs `game._viewScene`). Whether v14 draws the canvas again
+ * for a level changed on a scene already on screen, or only re-renders it, is not measured: it is
+ * LIVE-E12-02 for the fog and LIVE-E79-05 for this overlay. R573 holds the drawing to the floor it
+ * is drawn for.
+ */
 export function registerGmOverlay() {
     Hooks.on("canvasReady", () => redrawGmOverlay());
 }

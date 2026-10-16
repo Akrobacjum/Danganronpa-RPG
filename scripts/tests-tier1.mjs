@@ -13279,17 +13279,25 @@ const INVARIANTS = [
         equal(J([RESET_GROUPS.filter(g => g.key === "passages").length, RESET_STEPS.includes("passages")]), J([1, true]),
             "the reset's \"passages\" group is not one group and one step");
 
-        const scene = { id: "R554SCENE" }, wall = { id: "R554WALL", c: [100, 400, 500, 400] };
+        /* Two rooms of the suite's own either side of the wall, on the scene's one floor: since E79 fix r2-G3 a row is
+           written only for a stretch the pick would make (`stretchOnMap`), and its rooms are the map's (R561). */
+        const room = (name, y) => ({ id: name, name, behaviors: [], getFlag: () => true, shapes: [{ x: 0, y, width: 600, height: 100 }] });
+        const scene = { id: "R554SCENE", grid: { size: 100 }, levels: [{ id: "R554LEVEL", elevation: 0 }],
+            regions: [room("R554 Kitchen", 300), room("R554 Pantry", 400)] };
+        const wall = { id: "R554WALL", c: [100, 400, 500, 400] };
         const [s1, s2] = studentActors().slice(0, 2).map(a => a.id);
-        const built = P.passageRowFor(scene, wall, { seg: { x1: 200, y1: 400.5, x2: 300, y2: 400 }, rooms: ["R554 Kitchen", 7], level: "R554LEVEL", startAccess: [s1, s1] });
+        const built = P.passageRowFor(scene, wall, { seg: { x1: 200, y1: 400.5, x2: 300, y2: 400 }, rooms: ["R554 Pantry", "R554 Kitchen", 7], level: "R554LEVEL", startAccess: [s1, s1] });
         equal(J(built), J({ row: { sceneId: "R554SCENE", level: "R554LEVEL", shape: "wall", passageWallId: "R554WALL",
-            passageSeg: { x1: 200, y1: 400.5, x2: 300, y2: 400 }, rooms: ["R554 Kitchen"], state: "secret", startAccess: [s1] } }),
+            passageSeg: { x1: 200, y1: 400.5, x2: 300, y2: 400 }, rooms: ["R554 Kitchen", "R554 Pantry"], state: "secret", startAccess: [s1] } }),
         "a new passage's row does not hold exactly the map's fields");
-        equal(J([P.passageRowFor(scene, wall, { seg: { x1: 200, y1: 402, x2: 300, y2: 400 } }).refused ?? null,
-            P.passageRowFor(scene, wall, { seg: { x1: 200, y1: 400, x2: 200, y2: 400 } }).refused ?? null,
-            P.passageRowFor(scene, wall).row?.passageSeg, P.passageRowFor(scene, { id: "R554GONE" }).refused ?? null]),
-        J(["the stretch is not on that wall.", "the stretch needs two different ends.", { x1: 100, y1: 400, x2: 500, y2: 400 }, "no such wall on that scene."]),
-        "a stretch 2 px off its wall, one of no length, no stretch (the whole wall) and no wall");
+        const level = "R554LEVEL";
+        equal(J([P.passageRowFor(scene, wall, { seg: { x1: 200, y1: 402, x2: 300, y2: 400 }, level }).refused ?? null,
+            P.passageRowFor(scene, wall, { seg: { x1: 200, y1: 400, x2: 200, y2: 400 }, level }).refused ?? null,
+            P.passageRowFor(scene, wall, { level }).row?.passageSeg, P.passageRowFor(scene, { id: "R554GONE" }, { level }).refused ?? null,
+            P.passageRowFor(scene, wall).refused ?? null]),
+        J(["the stretch is not on that wall.", "the stretch needs two different ends.", { x1: 100, y1: 400, x2: 500, y2: 400 }, "no such wall on that scene.",
+            "name one of the scene's floors."]),
+        "a stretch 2 px off its wall, one of no length, no stretch (the whole wall), no wall, and no floor on a scene that has one");
 
         let t = 7_000_000;
         const engineFor = self => G.createGmStoreEngine({
@@ -13536,6 +13544,12 @@ const INVARIANTS = [
         equal(J([firstTo, before6, connected, cOut.map(o => [o.packet.userId, o.options?.recipients, Object.keys(o.packet.passages)]).sort(), toldHook, z7(coming)]),
             J([["R555U1", "R555U2", "R555U3", "R555U4", "R555U7"], ["R555Z6"], 1, [["R555U6", ["R555U6"], [Q[0]]]], { sent: 1 }, []]),
             "[sent before U6 came, the undelivered while U6 was away, sent when U6 came, to whom and what, the push's hook, the undelivered after] - a player who connects is not told, or one who holds their copy is sent it again (O14, O16)");
+        /* E79 fix r2-G3 (review round 2, H2): a player who comes back, or leaves, is sent their copy whole the next time -
+           their browser may hold none, and their own ask may come before Foundry marks them active (76 G). Red at d71759a. */
+        const toldBefore = new Map([["R555U6", "{\"value\":{}}"], ["R555U7", "{\"value\":{}}"]]);
+        await P.onUserConnected(U6, true, { retell: () => 0, told: toldBefore });
+        await P.onUserConnected(U7, false, { retell: () => 0, told: toldBefore });
+        equal(J([...toldBefore.keys()]), J([]), "[what is still held as told after U6 came back and U7 left] - a returning player's copy is weighed against what an earlier browser was sent");
         const calls = [];
         const roleRetell = () => { calls.push("retell"); return P.retellPassages({ ...cCtx(coUsers2.map(u => (u.id === "R555U4" ? { ...u, isGM: true } : u))), primary: () => true }); };
         cOut.length = 0;
@@ -14171,7 +14185,7 @@ const INVARIANTS = [
         J([true, true, true, false, true, true, true, true]),
         "[sendBack ignores walls, handleSendback ignores walls, the audit's start is the GM's sighting before it moves, the audit reads teleport, movementAction or displace, every GM's record takes the put-back's mark from a GM's write alone, the mover takes the word from the primary counting a GM that has just loaded (SEC S6) - read in the source; the suite's world has one GM]");
     }],
-    ["R561 - the Passages tab: Room Setup's tab after Doors lists the scene's passages; a student is given one in two clicks, '+' and the name; Close keeps who knows it while the copy, the client's cut and the GMs' audit read it as a wall, and Open gives it back; the cross revokes at once a student who is not in the passage's rooms and otherwise asks 'Revoke now' or 'Revoke when they leave the room', which the primary revokes when the student's route settles outside it; the season's start is its own column; a wall moved off the stretch or deleted marks the passage broken and one moved along its line does not, on the primary GM alone; Show pans to the stretch, Delete forgets it and who knew it after a yes; a knower no player was sent it yet is named; and a new passage is two clicks on one wall between two rooms of one floor, each snapped to the wall and refused off it, on a door, on a wall that stops nobody, on a taken stretch, to another floor's room or on one room's wall, a broken one picked again from its row with its knowers kept, five clicks from 'New passage' to a student who knows it", async () => {
+    ["R561 - the Passages tab: Room Setup's tab after Doors lists the scene's passages; a student is given one in two clicks, '+' and the name; Close keeps who knows it while the copy, the client's cut and the GMs' audit read it as a wall, and Open gives it back; the cross revokes at once a student who is not in the passage's rooms and otherwise asks 'Revoke now' or 'Revoke when they leave the room', which the primary revokes when the student's route settles outside it; the season's start is its own column; a wall moved off the stretch or deleted marks the passage broken and one moved along its line does not, on the primary GM alone; Show pans to the stretch, Delete forgets it and who knew it after a yes; a knower no player was sent it yet is named; and a new passage is two clicks on one wall between two rooms of one floor, each snapped to the wall and refused off it, on a door, on a wall that stops nobody, on a taken stretch, to another floor's room or on one room's wall, a broken one picked again from its row with its knowers kept, five clicks from 'New passage' to a student who knows it; and the console's create and a repick refuse every stretch the pick refuses, over the scene's other passages included", async () => {
         /*
          * E79 C5, 15.10.2026; the E79 plan's A10-16 (D1's grant in two clicks, D2: grant, close, open and revoke)
          * and K11 (a wall edited after the passage was made). The harms: a Close that forgets who knew the passage,
@@ -14449,11 +14463,6 @@ const INVARIANTS = [
             stretch({ ...second, wallId: "WO" }).refused, stretch({ ...second, rooms: ["R561 Hall", "R561 Upstairs"] }).refused, stretch(snap(1238.5, 800)).refused]),
         J([{ wallId: "W1", seg: { x1: 1234.5, y1: 800, x2: 1600, y2: 800 }, rooms: ["R561 Hall", "R561 Kitchen"] }, undefined, "taken", "otherWall", "otherRooms", "short"]),
         "[two ends on the wall, with a stretch beside them taken, over a taken one, on another wall, between other rooms, 4 px apart]");
-        const console1 = wall1 => P.passageRowFor({ id: "R561S" }, { id: "R561W", c: [0, 0, 100, 0], ...wall1 }, { seg: { x1: 10, y1: 0, x2: 50, y2: 0 } });
-        equal(J([console1({ door: 1 }).refused, console1({ move: 0 }).refused, console1({}).row?.passageWallId]),
-            J(["that wall is a door.", "that wall does not block movement.", "R561W"]),
-            "[the console's road (`game.drpg.passages.create`) on a door, on a wall that stops nobody, on a plain wall] - it must refuse what the pick refuses");
-
         // From the tab: 'New passage', two clicks on the board and the passage is made; '+' and the name give it - five clicks.
         // A scene of the suite's own (two rooms, one wall), a board and a window that record what the pick asks of them.
         const region = (id, name, x, y, width, height) => ({ id, name, behaviors: [], getFlag: () => true, shapes: [{ x, y, width, height }] });
@@ -14510,6 +14519,51 @@ const INVARIANTS = [
             ["secret", { x1: 1234.5, y1: 800, x2: 1734.5, y2: 800 }, true, 1, ["minimized", "noWall", "step 2: R561 Hall - R561 Kitchen", "short", "info", "closed", "back"]],
             false, false]),
         "[cancelled: passages, what the pick asked; the broken row's state and its 'Pick again'; picked again: the state, the stretch, A's cell, passages, what the pick asked (a click off the wall, two ends 4 px apart refused); a repick of one not broken; its 'Pick again' after]");
+
+        /*
+         * The console's road (`game.drpg.passages.create`) and the repick ask the pick's rule (E79 fix r2-G3, 16.10.2026;
+         * review round 2, O4). The harm: a passage the pick refuses written from the console - over another passage,
+         * on a wall inside one room, beside a room of another floor, a few pixels long, from one pair of rooms to
+         * another, or with rooms the caller typed. A scene of the suite's own with two floors: the Hall, the Kitchen,
+         * the Yard and the Store on every floor, the Upstairs on the second alone. Measured at the parent (d71759a):
+         * every case below but the door, the wall that stops nobody and the right rooms on the second floor answered a
+         * row, and the three creates and the repick over another passage wrote.
+         */
+        const piece = (id, name, x, y, width, height, levels) => ({ ...region(id, name, x, y, width, height), ...(levels ? { levels: new Set(levels) } : {}) });
+        const con = { id: "R561CON", grid: { size: 100 }, levels: [{ id: "R561L1", elevation: 0 }, { id: "R561L2", elevation: 10 }],
+            regions: [piece("R561C1", "R561 Hall", 1200, 200, 800, 600), piece("R561C2", "R561 Kitchen", 1200, 800, 800, 300),
+                piece("R561C3", "R561 Upstairs", 2000, 200, 600, 600, ["R561L2"]), piece("R561C4", "R561 Yard", 1200, 1100, 1400, 300),
+                piece("R561C5", "R561 Store", 2000, 800, 600, 300)],
+            walls: Object.assign([{ id: "W1", c: [1200, 800, 2000, 800] }, { id: "WD", c: [2000, 300, 2000, 500], door: 1 },
+                { id: "WN", c: [2100, 900, 2300, 900], move: 0 }, { id: "WU", c: [1250, 250, 1250, 350], levels: new Set(["R561L2"]) },
+                { id: "WI", c: [1300, 350, 1300, 650] }, { id: "WX", c: [2000, 600, 2000, 780] }, { id: "WL", c: [1200, 1100, 2600, 1100] }],
+            { get(id) { return this.find(w => w.id === id); } }) };
+        const onCon = (wallId, x1, y1, x2, y2, o = {}) => P.passageRowFor(con, con.walls.get(wallId), { seg: { x1, y1, x2, y2 }, level: "R561L1", ...o });
+        const over = { taken: [{ wallId: "W1", x1: 1400, y1: 800, x2: 1500, y2: 800 }] };
+        equal(J([onCon("WD", 2000, 300, 2000, 400), onCon("WN", 2150, 900, 2250, 900), onCon("W1", 1234.5, 800, 1334.5, 800, { level: null }),
+            onCon("W1", 1234.5, 800, 1334.5, 800, { level: "R561L9" }), onCon("WU", 1250, 260, 1250, 340), onCon("WI", 1300, 360, 1300, 640),
+            onCon("WX", 2000, 620, 2000, 760), onCon("W1", 1300, 800, 1305, 800), onCon("WL", 1300, 1100, 2300, 1100),
+            onCon("W1", 1450, 800, 1600, 800, over), onCon("W1", 1350, 800, 1600, 800, over),
+            onCon("W1", 1234.5, 800, 1334.5, 800, { rooms: ["R561 Upstairs", "R561 Hall"] })].map(r => r.refused ?? null)
+            .concat([onCon("WX", 2000, 620, 2000, 760, { level: "R561L2" }).row?.rooms, onCon("W1", 1234.5, 800, 1334.5, 800, { rooms: ["R561 Kitchen", "R561 Hall"] }).row?.rooms])),
+        J(["that wall is a door.", "that wall does not block movement.", "name one of the scene's floors.", "name one of the scene's floors.",
+            "that wall is not on that floor.", "the stretch does not stand between two rooms.", "a room beside the stretch is on another floor.",
+            `the stretch is shorter than ${P.PICK_SHORTEST} px.`, "the stretch's two ends stand between different rooms.",
+            "the stretch overlaps another passage on that wall.", "the stretch overlaps another passage on that wall.",
+            "the stretch stands between R561 Hall and R561 Kitchen, not the rooms named.", ["R561 Hall", "R561 Upstairs"], ["R561 Hall", "R561 Kitchen"]]),
+        "[the console's road on a door, on a wall that stops nobody, with no floor, with a floor the scene has not, on another floor's wall, on a wall inside one room, beside another floor's room, 5 px long, from one pair of rooms to another, from inside a taken stretch, over one, with rooms of its own; the rooms it writes on the second floor and for the right rooms named] - it must refuse what the pick refuses");
+        const createOn = (wallId, x1, x2, y = 800) => P.createPassage({ sceneId: con.id, wallId, seg: { x1, y1: y, x2, y2: y }, level: "R561L1" }, { stores, scene: con });
+        const conFirst = await createOn("W1", 1234.5, 1334.5);
+        const conOver = await createOn("W1", 1300, 1500);
+        const conInside = await P.createPassage({ sceneId: con.id, wallId: "WI", seg: { x1: 1300, y1: 360, x2: 1300, y2: 640 }, level: "R561L1" }, { stores, scene: con });
+        const conSecond = await createOn("W1", 1600, 1700);
+        if (conSecond) await stores.map.patch(conSecond, { state: "broken" });
+        const conRepickOver = conSecond ? await P.repickPassage(conSecond, { wallId: "W1", seg: { x1: 1300, y1: 800, x2: 1400, y2: 800 } }, { stores, scene: con }) : null;
+        const conRepickOwn = conSecond ? await P.repickPassage(conSecond, { wallId: "W1", seg: { x1: 1650, y1: 800, x2: 1750, y2: 800 } }, { stores, scene: con }) : null;
+        equal(J([Boolean(conFirst), conOver, conInside, Boolean(conSecond), conRepickOver, conRepickOwn, stores.map.get(conFirst)?.rooms,
+            Object.keys(stores.map.entries()).filter(k => k.startsWith(`${con.id}.`)).length]),
+        J([true, null, null, true, false, true, ["R561 Hall", "R561 Kitchen"], 2]),
+        "[through `createPassage` and `repickPassage`: a passage made, one over it, one on a wall inside one room, a second beside the first, picked again over the first and over its own old stretch; the rooms written; passages on the scene] - the console's create must hold its stretch to the scene's other passages");
 
         // Only the primary acts on a wall's change, and only on its segment; the routes the same.
         const gm = await fetch(`/modules/${MODULE_ID}/scripts/passages-gm.mjs`).then(r => r.text()).then(stripComments);
@@ -14746,6 +14800,53 @@ const INVARIANTS = [
         const none = [...F.myCurrentRooms({ tokens: [placeable(doc, false)], gm: false })];
         equal(J([all, mine, none]), J([[...new Set(roomNames(here))].sort(), [roomOfToken(doc)], []]),
             "[the Mastermind's discovered rooms, the current room under their own token beside another's, under nobody's own]");
+    }],
+    ["R573 - the GMs' overlay follows the floor: drawn again for another floor of the scene it shows that floor's passages and the ones on no floor, and no other floor's or scene's; and a floor switched is a new canvas, on which the overlay draws every layer again from the camera", async () => {
+        /*
+         * E79 fix r2-G3, 16.10.2026; review round 2, O3. The harm: a GM switches floors and the overlay still shows the
+         * floor they left. The overlay is drawn again on `canvasReady` alone (gm-overlay.mjs `registerGmOverlay`), which
+         * is what the fog rides for the same switch (fog.mjs, "floor switcher": `scene.view({ level })`); whether v14
+         * ends a level's change on the scene on screen in one is LIVE-E12-02, and the overlay's look after it LIVE-E79-05.
+         * Not reproduced red: the harness's view ends in `canvasReady` (client-entry.mjs `game._viewScene`), so the switch
+         * redrew the overlay before this commit as well - 76 cannot tell the two apart. What this test holds is the
+         * drawing for a floor, on a layer and an engine of the suite's own, and the chain read off the source. Red at
+         * the parent (d71759a) only because `drawPassagesLayer` could not be handed a floor and drew the camera's.
+         */
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const P = await import("./passages-gm.mjs");
+        const J = v => JSON.stringify(v);
+        let now = 9_500_000;
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R573GM", isGM: () => true, isPrimary: () => true, worldId: () => "R573WORLD",
+            activeGmIds: () => [], primaryGmId: () => "R573GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => now++,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const map = eng.define({ ...S.passageMapStore.spec, name: "r573Map", key: "r573Map", afterRestore: undefined, exists: undefined });
+        const row = (sceneId, level, x, state = "secret") => ({ sceneId, level, shape: "wall", passageWallId: "R573W",
+            passageSeg: { x1: x, y1: 400, x2: x + 50, y2: 400 }, rooms: ["R573 A", "R573 B"], state, startAccess: [] });
+        await map.patchMany({ R573ONE: row("R573S", "R573L1", 100), R573TWO: row("R573S", "R573L2", 200, "closed"), R573ALL: row("R573S", null, 300),
+            R573ELSE: row("R573OTHER", "R573L2", 400) });
+        const layer = new PIXI.Container();
+        const drawn = level => {
+            const count = P.drawPassagesLayer(layer, { stores: { map }, scene: { id: "R573S" }, level });
+            return [count, layer.children.map(g => `${g.name}:${g.drpgState}`).sort()];
+        };
+        const first = drawn("R573L1"), second = drawn("R573L2"), every = drawn(null);
+        layer.destroy({ children: true });
+        equal(J([first, second, every]), J([[2, ["R573ALL:secret", "R573ONE:secret"]], [2, ["R573ALL:secret", "R573TWO:closed"]],
+            [3, ["R573ALL:secret", "R573ONE:secret", "R573TWO:closed"]]]),
+        "[drawn for the first floor, then for the second on the same layer, then for no floor] - the overlay must show the floor it is drawn for");
+
+        const source = file => fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => r.text()).then(stripComments);
+        const [overlay, gm, fog] = await Promise.all(["gm-overlay.mjs", "passages-gm.mjs", "fog.mjs"].map(source));
+        equal(J([/Hooks\.on\("canvasReady", \(\) => redrawGmOverlay\(\)\)/.test(fnSource(overlay, "registerGmOverlay")),
+            /overlayDrawer\("passages", layer => drawPassagesLayer\(layer\)\)/.test(fnSource(gm, "registerPassagesGm")),
+            /scene\.view\(\{ level: id \}\)/.test(fnSource(fog, "renderFloorSwitcher"))]),
+        J([true, true, true]),
+        "[every layer drawn again on a new canvas, the passages' drawer drawing the camera's scene and floor, the floor switcher viewing the scene at the new floor]");
     }],
 ];
 
