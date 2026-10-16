@@ -13366,7 +13366,7 @@ const INVARIANTS = [
             "[s1's, s2's and the Mastermind's newest stamp past the one before the reset] - a copy the cut emptied would not take the one sent after it");
     }],
 
-    ["R555 - a player's copy of the passages: only open passages a character the player owns knows, its knowers only theirs and no name or room, a stamp per owned character; the Mastermind's owner every open one, a Monokuma's nothing; a revoke, a Close, a Delete and a Mastermind change drop the row and are taken; the push is addressed to each player alone; a copy is taken only from the primary GM; the Mastermind's other owners nothing of it; an owner of no student an empty copy that is taken; a write that keeps the Mastermind sends nothing and a new one the two owners it changes; a deleted scene's passage in no copy and marked in the list", async () => {
+    ["R555 - a player's copy of the passages: only open passages a character the player owns knows, its knowers only theirs and no name or room, a stamp per owned character; the Mastermind's owner every open one, a Monokuma's nothing; a revoke, a Close, a Delete and a Mastermind change drop the row and are taken; the push is addressed to each player alone; a copy is taken only from the primary GM; the Mastermind's other owners nothing of it; an owner of no student an empty copy that is taken; a write that keeps the Mastermind sends nothing and a new one the two owners it changes; a deleted scene's passage in no copy and marked in the list; a second owner of the Mastermind's student is sent, step by step, what they would be sent were nobody the Mastermind; and a player who connects, or whose role changes, is told", async () => {
         /*
          * E79 C1, 14.10.2026; the E79 plan's A10-2 and D9. What a player's browser learns of a passage is its copy
          * (gm-stores.mjs `passageCopy`), cut for that user by `passageCopyFor` and sent by `pushPassageCopies`. The
@@ -13382,6 +13382,14 @@ const INVARIANTS = [
          * owning no student was answered `stamps: {}`, which the copy refuses, and kept the last one (SEC S3); any write
          * of the Mastermind's record sent every player a copy (goal F4); and a passage on a deleted scene stayed in its
          * knowers' copies (cor F6).
+         *
+         * E79 fix r2-G2 (16.10.2026), the round-2 review's harms: S2's answer left the Mastermind's student out of a second
+         * owner's copy, so that copy changed - and was sent - the moment the student became the Mastermind, and the
+         * passages the student had been given left that owner's list (SEC M3 = cor F1, its probe SECR2-P3); a player
+         * who connected was told by a hook no test drove (O14, O16), and a change of a user's role told nobody (O18).
+         * Red on the parent's runtime (977290d with this file, 16.10.2026, run alone): the second owner's copy
+         * `"{}"` stamped `[""]` where its own student's part was asked, and `onUserConnected` and `onUserUpdated` not
+         * functions.
          */
         const G = await import("./gm-store.mjs");
         const S = await import("./gm-stores.mjs");
@@ -13435,13 +13443,106 @@ const INVARIANTS = [
             J([[P1, P2], ["R555MM"], ["R555MM"], true]), "[the Mastermind's owner's passages, their knowers, the copy taken] - not every open passage");
 
         // SEC S2: the Mastermind's student has a second owner. The door names one (`ownerOf`, the connected one first); the other
-        // is sent nothing of the Mastermind, not even its id, and becomes the door's owner when the first is away.
+        // holds the student as any student's, its copy what it would be were nobody the Mastermind (SEC M3), and becomes the
+        // door's owner when the first is away.
         const U6 = user("R555U6"), coUsers = [...users, U6], coActors = [...actors.filter(a => a.id !== "R555MM"), actor("R555MM", ["R555U4", "R555U6"])];
-        const coCopy = (u, people = coUsers) => P.passageCopyFor(u, { stores, actors: coActors, users: people });
+        const coCopy = (u, people = coUsers, options = {}) => P.passageCopyFor(u, { stores, actors: coActors, users: people, ...options });
         const door4 = coCopy(U4), second = coCopy(U6), away = coCopy(U6, coUsers.map(u => (u.id === "R555U4" ? { ...u, active: false } : u)));
-        equal(J([ids(door4), J(second.value), Object.keys(second.stamps), J(second).includes("R555MM"), ids(away), away.value[P1]?.actorIds]),
-            J([[P1, P2], "{}", [""], false, [P1, P2], ["R555MM"]]),
-            "[the door's owner's passages, the second owner's copy, its stamps, the Mastermind named in it, the second owner's passages with the first away, their knowers]");
+        equal(J([ids(door4), Object.keys(door4.stamps).sort(), J(second.value), Object.keys(second.stamps), J(second) === J(coCopy(U6, coUsers, { mastermindId: null })),
+            ids(away), away.value[P1]?.actorIds, Object.keys(away.stamps).sort()]),
+        J([[P1, P2], ["R555MM", "door"], "{}", ["R555MM"], true, [P1, P2], ["R555MM"], ["R555MM", "door"]]),
+        "[the door's owner's passages, its stamp parts, the second owner's copy, its stamp parts, that copy the same with nobody the Mastermind, the second owner's passages with the first away, their knowers, their stamp parts]");
+
+        /*
+         * SEC M3, step by step: two second owners - U6, who owns only the Mastermind's student, and U7, who owns it and a
+         * student of their own - on stores of their own, run once with the student the Mastermind and once with nobody
+         * the Mastermind, through a choice of the Mastermind, a Close, an Open, a revoke of the student's own cell and a
+         * Delete. Each step's packets to U6 and U7 (passages, knowers, stamp parts; a stamp's value is the engine's own)
+         * are the same in both runs and as written here; the door's owner, U4, is the control - every open passage, and a
+         * packet at each step only in the run where the student is the Mastermind.
+         */
+        const U7 = user("R555U7"), coUsers2 = [...coUsers, U7];
+        const coActors2 = [...actors.filter(a => a.id !== "R555MM"), actor("R555MM", ["R555U4", "R555U6", "R555U7"]), actor("R555Z7", "R555U7")];
+        const Q = [1, 2, 3].map(n => `R555SCENE.r555q${n}`);
+        const coRun = async (suffix, chosen) => {
+            const st = { map: def(S.passageMapStore, `Map${suffix}`), access: def(S.passageAccessStore, `Access${suffix}`), log: def(S.passageLogStore, `Log${suffix}`),
+                mastermind: eng.define({ name: `r555mm${suffix}`, key: `r555mm${suffix}`, kind: "record", fields: ["actorId"], sync: false, backup: false }) };
+            await st.map.patchMany(Object.fromEntries(Q.map((id, i) => [id, row(i + 1)])));
+            await st.access.patchMany({ [`${Q[0]}/R555MM`]: { how: "gm", at: 1, by: { R555GM: 1 } }, [`${Q[1]}/R555Z7`]: { how: "gm", at: 1, by: { R555GM: 1 } } });
+            const out = [];
+            const ctx = { stores: st, actors: coActors2, users: coUsers2, socket: { emit: (event, packet) => out.push(packet) }, told: new Map() };
+            const seen = [];
+            const step = async (label, write) => {
+                await write();
+                await P.touchDoorChange(ctx);
+                const mark = out.length;
+                P.pushPassageCopies(null, ctx);
+                const to = out.slice(mark);
+                seen.push([label, ...["R555U4", "R555U6", "R555U7"].map(id => {
+                    const packet = to.find(x => x.userId === id);
+                    return packet ? [Object.keys(packet.passages).sort(), Object.values(packet.passages).map(r => r.actorIds), Object.keys(packet.stamps).sort()] : null;
+                })]);
+            };
+            await step("first", async () => {});
+            await step("chosen", () => (chosen ? st.mastermind.patch(G.RECORD, { actorId: "R555MM" }) : Promise.resolve()));
+            await step("close", () => P.closePassage(Q[2], { stores: st }));
+            await step("open", () => P.openPassage(Q[2], { stores: st }));
+            await step("revoke", () => P.revokePassage(Q[0], "R555MM", { stores: st }));
+            await step("delete", () => P.deletePassage(Q[2], { stores: st }));
+            return seen;
+        };
+        const coMm = await coRun("Co1", true), coNone = await coRun("Co2", false);
+        const coOf = seen => seen.map(([label, , u6, u7]) => [label, u6, u7]);
+        const mm = ["R555MM"], both = ["R555MM", "R555Z7"];
+        equal(J(coOf(coMm)), J([["first", [[Q[0]], [mm], mm], [[Q[0], Q[1]], [mm, ["R555Z7"]], both]], ["chosen", null, null], ["close", null, null],
+            ["open", null, null], ["revoke", [[], [], mm], [[Q[1]], [["R555Z7"]], both]], ["delete", null, null]]),
+        "[each step: U6's packet, U7's, as passages, knowers and stamp parts] with the student the Mastermind - a second owner is sent a copy for the choice, a Close, an Open or a Delete, or holds a passage the student was not given (SEC M3)");
+        equal(J(coOf(coMm)), J(coOf(coNone)), "[each step: U6's packet, U7's] differ between the student the Mastermind and nobody the Mastermind - a second owner reads the role off their copy (SEC M3)");
+        equal(J([coMm.map(([label, u4]) => [label, u4?.[0] ?? null]), coNone.map(([label, u4]) => [label, u4?.[0] ?? null])]),
+            J([[["first", [Q[0]]], ["chosen", Q], ["close", [Q[0], Q[1]]], ["open", Q], ["revoke", Q], ["delete", [Q[0], Q[1]]]],
+                [["first", [Q[0]]], ["chosen", null], ["close", null], ["open", null], ["revoke", []], ["delete", null]]]),
+        "[each step: the door owner's passages with the student the Mastermind, with nobody the Mastermind] - the door's copy is not every open passage, or is not sent when one moves");
+
+        /*
+         * O14 and O16: a player who connects is told what changed while they were away - `onUserConnected`, the hook's own
+         * handler, with the suite's retell standing in for `retellSoon` - in one packet addressed to them alone, the
+         * Passages tab's "not yet delivered" line (`undeliveredOf`: U6's own student) clears on the push's own hook, and
+         * a player who already holds their copy is sent nothing. O18: a change of role retells, a change of anything else
+         * does not, and the retell moves the door off a player made a GM to the next owner, the one copy sent.
+         */
+        const awayUsers = coUsers2.map(u => (u.id === "R555U6" ? { ...u, active: false } : u));
+        const cst = { map: def(S.passageMapStore, "MapCo3"), access: def(S.passageAccessStore, "AccessCo3"), log: def(S.passageLogStore, "LogCo3"),
+            mastermind: eng.define({ name: "r555mmCo3", key: "r555mmCo3", kind: "record", fields: ["actorId"], sync: false, backup: false }) };
+        await cst.map.patchMany({ [Q[0]]: row(1) });
+        await cst.access.patchMany(Object.fromEntries(["R555MM", "R555Z6", "R555Z7"].map(a => [`${Q[0]}/${a}`, { how: "gm", at: 1, by: { R555GM: 1 } }])));
+        const coActors3 = [...coActors2, actor("R555Z6", "R555U6")];
+        await cst.mastermind.patch(G.RECORD, { actorId: "R555MM" });
+        const cOut = [], cTold = new Map();
+        const cCtx = people => ({ stores: cst, actors: coActors3, users: people, socket: { emit: (event, packet, options) => cOut.push({ packet, options }) }, told: cTold });
+        await P.retellPassages({ ...cCtx(awayUsers), primary: () => true });
+        const z7 = actorsOf => P.undeliveredOf(Q[0], { stores: cst, actors: new Map(coActors3.map(a => [a.id, a])), users: actorsOf, told: cTold, primary: true });
+        const firstTo = cOut.map(o => o.packet.userId).sort();
+        cOut.length = 0;
+        let toldHook = null;
+        const hookId = Hooks.on("drpgPassagesTold", info => { toldHook = info; });
+        const coming = coUsers2;
+        const before6 = z7(awayUsers);
+        let connected;
+        try {
+            connected = await P.onUserConnected(U6, true, { retell: () => P.retellPassages({ ...cCtx(coming), primary: () => true }) });
+        } finally {
+            Hooks.off("drpgPassagesTold", hookId);
+        }
+        equal(J([firstTo, before6, connected, cOut.map(o => [o.packet.userId, o.options?.recipients, Object.keys(o.packet.passages)]).sort(), toldHook, z7(coming)]),
+            J([["R555U1", "R555U2", "R555U3", "R555U4", "R555U7"], ["R555Z6"], 1, [["R555U6", ["R555U6"], [Q[0]]]], { sent: 1 }, []]),
+            "[sent before U6 came, the undelivered while U6 was away, sent when U6 came, to whom and what, the push's hook, the undelivered after] - a player who connects is not told, or one who holds their copy is sent it again (O14, O16)");
+        const calls = [];
+        const roleRetell = () => { calls.push("retell"); return P.retellPassages({ ...cCtx(coUsers2.map(u => (u.id === "R555U4" ? { ...u, isGM: true } : u))), primary: () => true }); };
+        cOut.length = 0;
+        const named = await P.onUserUpdated(U7, { name: "R555 renamed" }, {}, "R555GM", { retell: roleRetell });
+        const roled = await P.onUserUpdated(U4, { role: 4 }, {}, "R555GM", { retell: roleRetell });
+        equal(J([named ?? null, calls, cOut.map(o => o.packet.userId).sort()]), J([null, ["retell"], ["R555U6"]]),
+            "[a rename's retell, the retells asked, sent after U4 was made a GM: U6, the door now] - a change of role tells nobody, or a rename retells (O18)");
 
         // The push: each player who is here, addressed to them alone; an unchanged copy is not sent twice unless asked for.
         const sent = [], told = new Map();
@@ -13846,6 +13947,11 @@ const INVARIANTS = [
          * wall's line handing no side on, so the step off it to the far side was clear; a move audited before the
          * put-back landed judged from the refused spot (no `back`); a row saying "sent back" when the write failed; and
          * the mover's check of the arriving GM read off the source alone.
+         * E79 fix r2-G2, 16.10.2026 (review r2: SEC M3 = cor F1): the Mastermind is who the door names (passages-gm.mjs
+         * `actsAsMastermind`), so a second owner of the Mastermind's student moving it through a passage the student does
+         * not know is judged as any mover; `mastermind` is now the suite's record of the Mastermind (`{ actorId }`), the
+         * students' owners read by `testUserPermission`. Red with the role read off the character alone (the parent's
+         * reading, planted as the mutant "r2g2-audit" of fix r2-G2): the second owner's move "clear".
          */
         const A = await import("./movement-audit.mjs");
         const M = await import("./movement.mjs");
@@ -13863,11 +13969,13 @@ const INVARIANTS = [
         const scene = { id: "R559S", name: "R559 scene", grid: { size: 100 }, dimensions: { width: 3000, height: 2000 }, levels: [], walls,
             regions: new Set([region("Lab", 0, 0, 1400, 480), region("Vault", 0, 520, 1400, 480), region("Hall", 1600, 0, 800, 1000)]) };
         const bare = { ...scene, id: "R559N", regions: new Set() };
-        const student = (id, flags = {}) => ({ id, name: id, type: "character", items: [], getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined) });
+        const student = (id, flags = {}, owners = ["R559U"]) => ({ id, name: id, type: "character", items: [], getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined),
+            testUserPermission: (u, level) => level === "OWNER" && owners.includes(u?.id) });
         const SA = student("R559A"), SB = student("R559B"), MK = student("R559M", { [FLAGS.monokuma]: true });
         const NPC = { ...student("R559C"), type: "adversary" };
         const known = { R559P: { sceneId: "R559S", level: null, passageWallId: "R559W2", passageSeg: { x1: 100, y1: 500, x2: 300, y2: 500 }, actorIds: ["R559A"] } };
-        const users = new Map([["R559U", { id: "R559U", isGM: false }], ["R559G", { id: "R559G", isGM: true }]]);
+        const users = new Map([["R559U", { id: "R559U", isGM: false, active: true }], ["R559G", { id: "R559G", isGM: true, active: true }],
+            ["R559V", { id: "R559V", isGM: false, active: true }]]);
         const tok = (x, y, { actor = SA, level, movement, on = scene } = {}) => ({ id: "R559T", name: "R559 token", x, y, width: 1, height: 1,
             elevation: 0, level, parent: on, actor, movement });
         const at = (x, y, level) => ({ x, y, elevation: 0, level });
@@ -13877,7 +13985,7 @@ const INVARIANTS = [
             const acts = [];
             const out = A.auditMove(token, { x: token.x, y: token.y }, options, user, was, {
                 REVERT: M.REVERT, SENT_BACK: M.SENT_BACK, sendBackRefusal: refusal, roomAt: M.roomAt, stairLinks: () => stairs,
-                history, held, users, known, mode, mastermind: () => mastermind, book, now,
+                history, held, users, known, mode, mastermind: { get: () => (mastermind ? { actorId: token.actor?.id } : null) }, book, now,
                 warn: (text, row) => acts.push(["warn", row.wall, row.passage, row.mode]),
                 sendBack: (doc, spot, how) => { acts.push(["sendBack", spot.x, spot.y, how.sound, how.audited]); if (wrote !== null) how.landed(wrote); },
                 socket: { emit: (event, packet, opts) => acts.push(["emit", event, packet, opts]) },
@@ -13899,6 +14007,12 @@ const INVARIANTS = [
         J(["crossed R559W1", "clear", "crossed R559W2/R559P", "clear", "crossed R559W2", "clear", "crossed R559W2/R559P", "crossed R559W1",
             "clear", "crossed R559W5", "clear", "crossed R559W4", "clear", "clear", "crossed R559W8"]),
         "[an ordinary wall, the passage's knower through it, another character, the Mastermind, the knower beside the passage, the knower's bend through it by the waypoints, another's, a start the update names, an open door, a closed one, a one-way wall from its open side, from the other, a wall that does not restrict movement, a wall upstairs from downstairs, from upstairs]");
+        // SEC M3: the Mastermind's student owned by R559U, whom the door names, and R559V, whom it does not.
+        const SD = student("R559D", {}, ["R559U", "R559V"]);
+        equal(J([said(tok(100, 700, { actor: SD }), at(100, 100), { mastermind: true }), said(tok(100, 700, { actor: SD }), at(100, 100), { mastermind: true, user: "R559V" }),
+            said(tok(100, 700, { actor: SD }), at(100, 100), { user: "R559V" })]),
+        J(["clear", "crossed R559W2/R559P", "crossed R559W2/R559P"]),
+        "[the Mastermind's student moved by the owner the door names, by its second owner, by that owner with nobody the Mastermind] through a passage the student does not know - the second owner's move let stand (SEC M3)");
 
         // The exemptions, on the move through the ordinary wall: each the GM's own reading, none the update's options.
         const back = [{ x: 1700, y: 100, elevation: 0, level: undefined, at: Date.now() }];
@@ -14411,7 +14525,7 @@ const INVARIANTS = [
         ok(/passagesTab\.passagesTabHtml\(scene, \{ students \}\)/.test(opener) && /passagesTab\.wirePassagesTab\(root, scene, \{ dialog, students \}\)/.test(opener),
             "Room Setup does not draw and wire the Passages tab for the scene it was opened on");
     }],
-    ["R562 - showing a secret passage: the 'Known passages' list names each passage the character knows by its rooms as the viewer may name them and says where the way is shut; a show is judged on the primary GM - the phase, the giver alive, in no incident and no Monocub, a secret passage it knows (a closed, unknown or made-up one refused alike), the one shown it a student beside it on its scene and floor, alive (a death nobody has found is not named) - writes 'shown', a log row and the stamp, and tells the one shown it the two rooms as they may know them with the sound, the giver with no room, and the GMs; the packet carries three ids and with no GM nothing is sent", async () => {
+    ["R562 - showing a secret passage: the 'Known passages' list names each passage the character knows by its rooms as the viewer may name them and says where the way is shut; a show is judged on the primary GM - the phase, the giver alive, in no incident and no Monocub, a secret passage it knows (a closed, unknown or made-up one refused alike), the one shown it a student beside it on its scene and floor, alive (a death nobody has found is not named) - writes 'shown', a log row and the stamp, and tells the one shown it the two rooms as they may know them with the sound, the asker with no room, and the GMs on a card of their own; a show to one who knows it already writes and tells nothing but the asker's same card; only the owner the door names shows as the Mastermind; the packet carries three ids and with no GM nothing is sent", async () => {
         /*
          * E79 C7, 15.10.2026; the E79 plan's A10-17 (P9-0, P10-0). A show teaches a passage to somebody the GMs did not
          * choose, so what can go wrong is who learns it and what they are told: a passage shown by a character that
@@ -14420,8 +14534,16 @@ const INVARIANTS = [
          * that names the rooms to the giver's owner or to anybody but the one shown it and the GMs; a cell that loses
          * the way the one shown it first learnt it. Run on an engine of the suite's own (R555's), with characters and a
          * world of its own: nothing of this world is read or written but this browser's own user, the names in its
-         * language file and its clock. `sharePassage` is driven with the world, the whisper and the notice injected;
+         * language file and its clock. `sharePassage` is driven with the world, the whisper and the GMs' whisper injected;
          * the list's reader `knownPassageRows` with the copy, the map and the veto injected.
+         *
+         * E79 fix r2-G2, 16.10.2026, the round-2 review's harms: a second owner of the Mastermind's student, whom the
+         * door tells "not the Mastermind", had a passage the student was never given carried out as a show (SEC M3);
+         * a show to one who knew it already wrote a log row and told the GMs each time, so 201 of them pushed the GMs'
+         * log out to its 200 rows (SEC m1); and the GMs' word was a notice on the primary's browser alone, the names in
+         * it unescaped (H3). `sharePassage` is now handed the asker, the users and the GMs' whisper. Red on the
+         * parent's runtime (977290d with this file, 16.10.2026, run alone): the GMs' card not sent (the notice instead),
+         * the knower's repeat telling the one shown it again, and the second owner's show carried out.
          */
         const G = await import("./gm-store.mjs");
         const S = await import("./gm-stores.mjs");
@@ -14451,21 +14573,27 @@ const INVARIANTS = [
         await stores.access.patchMany({ [`${P1}/R562A1`]: { how: "gm", at: 1, by: { R562GM: 1 } }, [`${P2}/R562A1`]: { how: "gm", at: 1, by: { R562GM: 1 } },
             [`${P4}/R562A1`]: { how: "gm", at: 1, by: { R562GM: 1 } }, [`${P1}/R562C`]: { how: "gm", at: 1, by: { R562GM: 1 } } });
         await stores.mastermind.patch(G.RECORD, { actorId: "R562MM" });
-        const cast = new Map(["R562A1", "R562B", "R562C", "R562D", "R562MM", "R562MK", "R562CUB", "R562NPC"].map(id => [id,
-            { id, name: id === "R562A1" ? "R562 <b>Aiko</b>" : id, type: id === "R562NPC" ? "adversary" : "character" }]));
+        // Players: R562U owns every student but the Mastermind's, which R562UM (the door, the first owner) and R562UC own.
+        const people = [{ id: "R562GM", isGM: true, active: true }, { id: "R562U", isGM: false, active: true },
+            { id: "R562UM", isGM: false, active: true }, { id: "R562UC", isGM: false, active: true }];
+        const [, asker, door, coOwner] = people;
+        const cast = new Map(["R562A1", "R562B", "R562C", "R562D", "R562E", "R562MM", "R562MK", "R562CUB", "R562NPC"].map(id => [id,
+            { id, name: id === "R562A1" ? "R562 <b>Aiko</b>" : id, type: id === "R562NPC" ? "adversary" : "character",
+                testUserPermission: (u, level) => level === "OWNER" && (id === "R562MM" ? ["R562UM", "R562UC"] : ["R562U"]).includes(u?.id) }]));
         const scene = { id: "R562SCENE" }, otherScene = { id: "R562OTHER" };
         const spot = { R562A1: { scene, room: CAF, level: null }, R562B: { scene, room: CAF, level: null }, R562C: { scene, room: CAF, level: null },
-            R562D: { scene, room: KIT, level: null }, R562MM: { scene, room: CAF, level: null }, R562MK: { scene, room: CAF, level: null },
+            R562D: { scene, room: KIT, level: null }, R562E: { scene, room: CAF, level: null }, R562MM: { scene, room: CAF, level: null }, R562MK: { scene, room: CAF, level: null },
             R562CUB: { scene, room: CAF, level: null }, R562NPC: { scene, room: CAF, level: null } };
         const world = (over = {}) => ({
             actor: id => cast.get(id) ?? null, locked: () => false, inIncident: () => false, monocub: a => a.id === "R562CUB",
             monokuma: a => a.id === "R562MK", dead: () => false, published: () => false, place: a => spot[a.id] ?? null,
             sides: (r, seg) => (seg?.x1 === 1234.5 ? [CAF, KIT] : []), knownRooms: () => new Set([CAF]), ...over });
-        const show = async (actorId, targetId, passageId, over = {}) => {
-            const cards = [], notes = [];
-            const out = await P.sharePassage({ actorId, targetId, passageId }, { stores, world: world(over),
-                whisper: async (to, content, extra) => cards.push({ to: to.id, content, sfx: extra?.flags?.[MODULE_ID]?.sfx ?? null }), notify: text => notes.push(text) });
-            return { out, cards, notes, code: out.refused ? reasonOf(out.refused) : null };
+        const show = async (actorId, targetId, passageId, over = {}, by = asker) => {
+            const cards = [], gm = [];
+            const out = await P.sharePassage({ actorId, targetId, passageId }, { stores, world: world(over), asker: by, users: people,
+                whisper: async (to, content, extra) => cards.push({ to: to.id, content, sfx: extra?.flags?.[MODULE_ID]?.sfx ?? null, only: extra?.whisper ?? null }),
+                gms: async content => gm.push(content) });
+            return { out, cards, gm, code: out.refused ? reasonOf(out.refused) : null };
         };
         const logRows = () => Object.values(stores.log.entries()).map(r => `${r.what} ${r.passageId === P1 ? "P1" : r.passageId} ${r.actorId}`);
 
@@ -14476,22 +14604,25 @@ const INVARIANTS = [
         equal(J([lawful.out, cell?.how, Object.keys(cell?.by ?? {}), Boolean(stores.access.get("touch/R562B")), logRows()]),
             J([{ shown: true }, "shown", ["R562A1"], true, ["show P1 R562B"]]),
             "[the answer, the cell's how, who showed it, the one shown it stamped, the log] - the show was not written as a show");
-        equal(J(lawful.cards.map(c => [c.to, c.sfx])), J([["R562B", "passageFound"], ["R562A1", null]]),
-            "[each card's character and sound] - the one shown it and then the giver, the sound only for the one shown it");
+        equal(J(lawful.cards.map(c => [c.to, c.sfx, c.only])), J([["R562B", "passageFound", null], ["R562A1", null, ["R562U"]]]),
+            "[each card's character, sound and recipients by name] - the one shown it to their owners and the GMs, then the giver to the asker alone, the sound only for the one shown it");
         ok(lawful.cards[0].content.includes(CAF) && lawful.cards[0].content.includes(unexplored) && !lawful.cards[0].content.includes(KIT)
             && lawful.cards[0].content.includes("R562 &lt;b&gt;Aiko&lt;/b&gt;"),
         `the one shown it is not told the room they know, "${unexplored}" for the one they do not, and the giver's name as text: ${lawful.cards[0].content}`);
         ok(![CAF, KIT, unexplored, "1234.5", P1].some(word => lawful.cards[1].content.includes(word)) && lawful.cards[1].content.includes("R562B"),
             `the giver's card names a room, the passage or its stretch, or not the one shown it: ${lawful.cards[1].content}`);
-        ok(lawful.notes.length === 1 && lawful.notes[0].includes(CAF) && lawful.notes[0].includes(KIT) && lawful.notes[0].includes("R562B"),
-            `the GMs are not told who was shown which passage: ${J(lawful.notes)}`);
+        ok(lawful.gm.length === 1 && lawful.gm[0].includes(CAF) && lawful.gm[0].includes(KIT) && lawful.gm[0].includes("R562B")
+            && lawful.gm[0].includes("R562 &lt;b&gt;Aiko&lt;/b&gt;") && !lawful.gm[0].includes("<b>"),
+            `the GMs are not told on one card of their own who was shown which passage, the names as text (H3): ${J(lawful.gm)}`);
 
-        // A student who knew it already, and the Mastermind: the same card and sound; the first how kept.
-        const again = await show("R562A1", "R562C", P1), mm = await show("R562A1", "R562MM", P1);
-        equal(J([again.code, stores.access.get(`${P1}/R562C`)?.how, again.cards.map(c => [c.to, c.sfx]), mm.code, mm.cards.map(c => [c.to, c.sfx]),
-            mm.cards[0]?.content.includes(KIT)]),
-        J([null, "gm", [["R562C", "passageFound"], ["R562A1", null]], null, [["R562MM", "passageFound"], ["R562A1", null]], true]),
-        "[a knower shown it, its first how, its cards, the Mastermind shown it, their cards, the Mastermind's card naming both rooms]");
+        // A student who knew it already: nothing written and nobody told but the asker, on the same card and answer (SEC m1);
+        // the Mastermind shown it: the card names both rooms.
+        const logOnce = J(logRows()), stampOnce = stores.access.newest("touch/R562C");
+        const again = await show("R562A1", "R562C", P1), logAgain = J(logRows()), mm = await show("R562A1", "R562MM", P1);
+        equal(J([again.out, stores.access.get(`${P1}/R562C`)?.how, again.cards.map(c => [c.to, c.sfx, c.only, c.content === lawful.cards[1].content.replace("R562B", "R562C")]),
+            again.gm.length, stores.access.newest("touch/R562C") === stampOnce, logAgain === logOnce, mm.code, mm.cards.map(c => [c.to, c.sfx]), mm.cards[0]?.content.includes(KIT)]),
+        J([{ shown: true }, "gm", [["R562A1", null, ["R562U"], true]], 0, true, true, null, [["R562MM", "passageFound"], ["R562A1", null]], true]),
+        "[a knower shown it: the answer, its first how, its cards (character, sound, recipients, the first show's text), the GMs' cards, its stamp kept, the log kept; the Mastermind shown it: the code, their cards, their card naming both rooms]");
 
         // Every refusal, its code, and nothing written or told.
         const cellsBefore = J(stores.access.entries()), logBefore = J(logRows());
@@ -14520,12 +14651,30 @@ const INVARIANTS = [
         const got = [];
         for (const [what, [a, b, p, over]] of cases) {
             const r = await show(a, b, p, over);
-            got.push(`${what}: ${r.code}${r.cards.length || r.notes.length ? " (told)" : ""}`);
+            got.push(`${what}: ${r.code}${r.cards.length || r.gm.length ? " (told)" : ""}`);
         }
         equal(J(got), J(cases.map(([what, , code]) => `${what}: ${code}`)), "a show refused with another reason, or something told of a refused one");
         equal(J([J(stores.access.entries()) === cellsBefore, J(logRows()) === logBefore]), J([true, true]), "[the cells, the log] changed by a refused show");
-        const mmShows = await show("R562MM", "R562D", P3, { place: a => ({ ...spot[a.id], room: KIT }) });
-        equal(J([mmShows.code, stores.access.get(`${P3}/R562D`)?.how]), J([null, "shown"]), "the Mastermind could not show a passage nobody gave them");
+        // The Mastermind shows a passage nobody gave them - as the owner the door names, never as its second owner (SEC M3),
+        // whose show is refused as a passage the giver does not know, and writes and tells nothing.
+        const inKitchen = { place: a => ({ ...spot[a.id], room: KIT }) };
+        const coShows = await show("R562MM", "R562D", P3, inKitchen, coOwner);
+        const coCell = stores.access.get(`${P3}/R562D`) ?? null, coTold = coShows.cards.length + coShows.gm.length, coLog = J(logRows());
+        const mmShows = await show("R562MM", "R562D", P3, inKitchen, door);
+        equal(J([coShows.code, coCell, coTold, coLog === logBefore, mmShows.code, stores.access.get(`${P3}/R562D`)?.how, mmShows.cards.map(c => [c.to, c.only])]),
+            J(["notKnown", null, 0, true, null, "shown", [["R562D", null], ["R562MM", ["R562UM"]]]]),
+            "[the second owner's show: its code, the cell, told, the log kept; the door owner's: its code, the cell, the cards and their recipients by name] - the Mastermind is read off the student, not the asker");
+
+        // SEC m1's measure: 201 shows of one passage to one student - one cell, one log row and one card to them and to the
+        // GMs, the log's earlier rows all kept; the asker's card and answer the same each time.
+        const logKept = Object.keys(stores.log.entries()), shows = [];
+        for (let i = 0; i < 201; i++) shows.push(await show("R562A1", "R562E", P1));
+        const logNow = Object.keys(stores.log.entries());
+        equal(J([new Set(shows.map(r => J(r.out))).size, shows.reduce((n, r) => n + r.cards.filter(c => c.to === "R562E").length, 0),
+            shows.reduce((n, r) => n + r.gm.length, 0), new Set(shows.map(r => J(r.cards.filter(c => c.to === "R562A1")))).size,
+            logNow.length - logKept.length, logKept.every(k => logNow.includes(k)), stores.access.get(`${P1}/R562E`)?.how]),
+        J([1, 1, 1, 1, 1, true, "shown"]),
+        "[distinct answers, cards to the one shown it, the GMs' cards, distinct asker's cards, log rows added, the earlier rows kept, the cell] after 201 shows");
 
         // The bridge's row: two guards, the sender first, then the giver's owner, and three ids through the whitelist.
         const decl = BRIDGE_ACTIONS["passage.share"];

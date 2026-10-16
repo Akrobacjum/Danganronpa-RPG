@@ -29,7 +29,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { isPrimaryGm, serverNow, whisperToOwner, ownerOf, warn, error } from "./utils.mjs";
+import { isPrimaryGm, serverNow, whisperToOwner, whisperToGms, ownerOf, warn, error } from "./utils.mjs";
 import { passageMapStore, passageAccessStore, passageLogStore, mastermindStore, mastermindUndecided } from "./gm-stores.mjs";
 import { RECORD, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible } from "./gm-store.mjs";
 import { senderOf } from "./bridge-guards.mjs";
@@ -49,6 +49,10 @@ export const PASSAGE_STORES = Object.freeze({ map: passageMapStore, access: pass
 
 const STATES = new Set(["secret", "closed", "broken"]);
 const touchKey = actorId => `touch/${actorId}`;
+/* The Mastermind's door row: stamped by what moves the every-passage copy only (see `passageCopyFor`). */
+const doorKey = actorId => `door/${actorId}`;
+/* The door row's part of the door owner's stamps: no actor's id is four letters long (Foundry's are sixteen). */
+const DOOR_PART = "door";
 
 /** The Mastermind's actor id as the GMs hold it, or null - none named, or the upgrade day's clear still undecided. */
 function mastermindIdOf(mastermind = mastermindStore) {
@@ -65,6 +69,26 @@ function mastermindIdOf(mastermind = mastermindStore) {
 export function isMastermindActor(actor, { mastermind = mastermindStore } = {}) {
     const id = typeof actor === "string" ? actor : actor?.id;
     return Boolean(id) && id === mastermindIdOf(mastermind);
+}
+
+/**
+ * Whether this user, acting for this character, acts as the Mastermind - knows every open secret
+ * passage through it (the owner's Q7): a GM, or the one owner the door names for the Mastermind's
+ * student (`ownerOf`, the first connected owner, as mastermind.mjs `retellDoor` tells it). The one
+ * reading of the role for a passage: the copy (`passageCopyFor`), a show (`shareRefusal`), the
+ * primary GM's audit of a move (movement-audit.mjs `auditMove`) and its witness judge (movement.mjs
+ * `judgeArrival`) all ask it. Until the round-2 review (16.10.2026: SEC M3 = cor F1) the last three
+ * read the role off the character alone, so another owner of the Mastermind's student, whom the door
+ * tells "not the Mastermind", had every open passage carried out, shown and let stand for it - and
+ * learnt the role from which of them were. `mastermind` (the record) and `users` are the suite's.
+ */
+export function actsAsMastermind(actor, user, { mastermind = mastermindStore, mastermindId = mastermindIdOf(mastermind), users = game.users } = {}) {
+    const id = typeof actor === "string" ? actor : actor?.id;
+    if (!id || !user || id !== mastermindId) return false;
+    if (user.isGM) return true;
+    const doc = typeof actor === "string" ? game.actors?.get(actor) : actor;
+    const people = Array.isArray(users) ? users : [...(users?.values?.() ?? [])];
+    return Boolean(doc) && ownerOf(doc, people)?.id === user.id;
 }
 
 /**
@@ -88,14 +112,23 @@ export function isMastermindActor(actor, { mastermind = mastermindStore } = {}) 
  * was the newest of its `touch` row and the Mastermind's record, so any write of the record sent
  * every player a packet; now a change of who the Mastermind is touches the two students it
  * changes (`touchDoorChange`). `users` is the suite's to hand.
+ *
+ * The round-2 review (16.10.2026: SEC M3 = cor F1, measured by its probe SECR2-P3) found S2's answer
+ * moved the harm: a second owner's copy left the Mastermind's student out, so its stamps named its
+ * other student alone (or fell to the part "") while the student was the Mastermind and both when it
+ * was not - the copy changed, and was sent, the moment the Mastermind was chosen - and the passages
+ * the student had been given left that owner's list and cut. Now every owner's copy holds the student
+ * as any student's - its own cells, stamped by its own `touch` row - and only the door's adds every
+ * open passage, stamped by a row of the door's own (`door/<actorId>`, the part "door" of the door
+ * owner's stamps alone): what moves because the student is the Mastermind - a passage made, closed,
+ * opened, deleted, broken or picked again, the door moved - stamps that row and never the student's
+ * `touch` row, so nobody but the door owner is sent a copy for it (R555).
  */
 export function passageCopyFor(user, { stores = PASSAGE_STORES, actors = game.actors, users = game.users,
     mastermindId = mastermindIdOf(stores.mastermind) } = {}) {
     const own = [...(actors ?? [])].filter(a => a?.type === "character" && !isMonokuma(a) && a.testUserPermission?.(user, "OWNER"));
     const ids = new Set(own.map(a => a.id));
-    const door = mastermindId && ids.has(mastermindId) ? ownerOf(own.find(a => a.id === mastermindId), users) : null;
-    const mastermind = door && door.id === user?.id ? mastermindId : null;
-    if (mastermindId && !mastermind) ids.delete(mastermindId);
+    const mastermind = own.find(a => actsAsMastermind(a, user, { mastermindId, users }))?.id ?? null;
     const value = {};
     for (const [id, row] of Object.entries(secretRowsFrom(stores))) {
         const actorIds = row.actorIds.filter(a => ids.has(a));
@@ -104,19 +137,22 @@ export function passageCopyFor(user, { stores = PASSAGE_STORES, actors = game.ac
     }
     const stamps = ids.size ? Object.fromEntries([...ids].map(a => [a, stores.access.newest(touchKey(a))]))
         : { "": stores.access.cleared() + 1 };
+    if (mastermind) stamps[DOOR_PART] = stores.access.newest(doorKey(mastermind));
     return { value, stamps };
 }
 
 /**
  * The primary GM, before it tells the copies (`retellPassages`): when who the Mastermind is, or
  * which of its student's owners the door names (`ownerOf`, the connected one first), is not what
- * the copies were last stamped for, the `touch` rows of the student who was and of the student
- * who is are stamped again - so those students' owners take their new copies and nobody else is
- * sent one (the round-1 review's goal F4). What was last stamped is kept on the student's own
- * `touch` row as `door`, the user the door named then: in the GMs' records, so a GM who becomes
- * the primary reads it rather than a memory of its own browser. A reset's cut takes the rows, and
- * the next call stamps the Mastermind again. Answers the students touched, by id. `actors` and
- * `users` are the suite's to hand.
+ * the copies were last stamped for, the door rows of the student who was and of the student who
+ * is are stamped again - so the two door owners take their new copies, the one that gains every
+ * open passage and the one that loses them, and nobody else is sent one (the round-1 review's goal
+ * F4; since the round-2 review's SEC M3 the door's row, `door/<actorId>`, and not the student's
+ * `touch` row, which every owner's stamps read). What was last stamped is kept on the door row as
+ * `door`, the user the door named then: in the GMs' records, so a GM who becomes the primary reads
+ * it rather than a memory of its own browser. A reset's cut takes the rows, and the next call
+ * stamps the Mastermind again. Answers the students touched, by id. `actors` and `users` are the
+ * suite's to hand.
  */
 export async function touchDoorChange({ stores = PASSAGE_STORES, actors = game.actors, users = game.users,
     mastermindId = mastermindIdOf(stores.mastermind) } = {}) {
@@ -125,11 +161,11 @@ export async function touchDoorChange({ stores = PASSAGE_STORES, actors = game.a
     const at = serverNow(), rows = {};
     for (const [key, row] of Object.entries(stores.access.entries())) {
         const [head, actorId] = key.split("/");
-        if (head === "touch" && actorId && actorId !== mastermindId && row?.door) rows[key] = { at, door: null };
+        if (head === "door" && actorId && actorId !== mastermindId && row?.door) rows[key] = { at, door: null };
     }
-    if (mastermindId && (stores.access.get(touchKey(mastermindId))?.door ?? null) !== door) rows[touchKey(mastermindId)] = { at, door };
+    if (mastermindId && (stores.access.get(doorKey(mastermindId))?.door ?? null) !== door) rows[doorKey(mastermindId)] = { at, door };
     if (Object.keys(rows).length) await stores.access.patchMany(rows);
-    return Object.keys(rows).map(key => key.slice(touchKey("").length));
+    return Object.keys(rows).map(key => key.slice(doorKey("").length));
 }
 
 /* What each player was last sent, by user id: an unchanged copy is not sent again unless asked for. */
@@ -188,13 +224,14 @@ export async function onPassageRequest(payload, senderId) {
 /**
  * The primary GM tells every connected player what changed (after a restore, a reset, a merge, a
  * change of the Mastermind), the Mastermind's two students touched first when the door moved
- * (`touchDoorChange`). Answers how many were sent.
+ * (`touchDoorChange`). Answers how many were sent. `primary` and the rest (`stores`, `actors`,
+ * `users`, `socket`, `told`, as `pushPassageCopies` takes them) are the suite's (R555).
  */
-export async function retellPassages() {
-    if (!isPrimaryGm() || gmStoresQuiet()) return 0;
-    await touchDoorChange();
-    if (!isPrimaryGm() || gmStoresQuiet()) return 0;
-    return pushPassageCopies();
+export async function retellPassages({ primary = isPrimaryGm, ...ctx } = {}) {
+    if (!primary() || gmStoresQuiet()) return 0;
+    await touchDoorChange(ctx);
+    if (!primary() || gmStoresQuiet()) return 0;
+    return pushPassageCopies(null, ctx);
 }
 
 /**
@@ -247,21 +284,29 @@ function onWall(x, y, [x1, y1, x2, y2]) {
     return Math.hypot(x - (x1 + t * dx), y - (y1 + t * dy)) <= PASSAGE_TOLERANCE;
 }
 
-/** Every character a cell of this passage names, and the Mastermind's: whose copies change with the row. */
+/**
+ * Every character a cell of this passage names: whose copies change with the row. The Mastermind's
+ * copy changes with every open passage, and is stamped by `touch`'s `door` (the round-2 review's
+ * SEC M3: until 16.10.2026 the Mastermind was a knower here, and every owner of its student was
+ * sent a copy for a passage only the door owner holds).
+ */
 function knowersOf(passageId, stores) {
     const out = new Set();
     for (const key of Object.keys(stores.access.entries())) {
         const [pid, actorId] = key.split("/");
         if (pid === passageId && actorId) out.add(actorId);
     }
-    const mm = mastermindIdOf(stores.mastermind);
-    if (mm) out.add(mm);
     return out;
 }
 
-/** Stamp each named character's `touch` row: what its owners may hold has changed. */
-function touch(actorIds, stores) {
-    const rows = Object.fromEntries([...actorIds].map(a => [touchKey(a), { at: serverNow() }]));
+/**
+ * Stamp each named character's `touch` row: what its owners may hold has changed; with `door`, a
+ * write that moves a passage itself, the Mastermind's door row as well (`passageCopyFor`).
+ */
+function touch(actorIds, stores, { door = false } = {}) {
+    const at = serverNow(), mastermind = door ? mastermindIdOf(stores.mastermind) : null;
+    const rows = Object.fromEntries([...actorIds].map(a => [touchKey(a), { at }]));
+    if (mastermind) rows[doorKey(mastermind)] = { at };
     return Object.keys(rows).length ? stores.access.patchMany(rows) : Promise.resolve();
 }
 
@@ -324,7 +369,7 @@ export async function createPassage({ sceneId, wallId, seg = null, rooms = [], l
     if (row.startAccess.length) {
         await stores.access.patchMany(Object.fromEntries(row.startAccess.map(a => [`${id}/${a}`, { how: "start", at, by: { [who]: at } }])), { fillOnly: true });
     }
-    await touch(knowersOf(id, stores), stores);
+    await touch(knowersOf(id, stores), stores, { door: true });
     await logRow("create", id, null, stores);
     tellAfter(stores);
     return id;
@@ -366,7 +411,7 @@ async function setState(passageId, state, from, stores) {
     if (!row) return refuse(`no passage "${passageId}".`, false);
     if (!STATES.has(state) || !from.includes(row.state)) return refuse(`"${passageId}" is ${row.state}.`, false);
     await stores.map.patch(passageId, { state });
-    await touch(knowersOf(passageId, stores), stores);
+    await touch(knowersOf(passageId, stores), stores, { door: true });
     await logRow(state === "secret" ? "open" : "close", passageId, null, stores);
     tellAfter(stores);
     return true;
@@ -383,7 +428,7 @@ export async function deletePassage(passageId, { stores = PASSAGE_STORES } = {})
     const cells = Object.keys(stores.access.entries()).filter(k => k.startsWith(`${passageId}/`));
     await stores.map.drop(passageId);
     if (cells.length) await stores.access.dropMany(cells);
-    await touch(knowers, stores);
+    await touch(knowers, stores, { door: true });
     await logRow("delete", passageId, null, stores);
     tellAfter(stores);
     return true;
@@ -508,7 +553,7 @@ export async function wallChanged(wall, { gone = false, stores = PASSAGE_STORES 
         .map(([id]) => id);
     for (const id of marked) {
         await stores.map.patch(id, { state: "broken" });
-        await touch(knowersOf(id, stores), stores);
+        await touch(knowersOf(id, stores), stores, { door: true });
         await logRow("broken", id, null, stores);
     }
     if (marked.length) tellAfter(stores);
@@ -542,7 +587,8 @@ export function undeliveredOf(passageId, { stores = PASSAGE_STORES, actors = gam
         }
     };
     const out = [];
-    for (const actorId of knowersOf(passageId, stores)) {
+    const mastermind = mastermindIdOf(stores.mastermind);
+    for (const actorId of new Set([...knowersOf(passageId, stores), ...(mastermind ? [mastermind] : [])])) {
         const actor = actors?.get?.(actorId);
         const owners = [...(users ?? [])].filter(u => u && !u.isGM && actor?.testUserPermission?.(u, "OWNER"));
         if (owners.length && !owners.some(u => sent(u).includes(actorId))) out.push(actorId);
@@ -616,13 +662,16 @@ async function liveShareWorld() {
  * Why this show is not carried out, as an English reason of the bridge's closed list
  * (bridge-guards.mjs `REASON_PATTERNS`), or null - asked in the order of the plan's P10-0: the phase,
  * the giver (alive, in no incident, no Monocub - D39 leaves a Monocub Move and Meddle), the passage
- * (secret, and known to the giver or the giver the Mastermind), then the one shown it (a student who
- * is not the giver and no Monokuma, in the giver's room on the same scene and floor, alive). A passage
- * that does not exist, one that is closed or broken, and one the giver does not know get one answer,
- * so the reason says nothing of which. A death nobody has found is `cannotNow`, never named. Pure but
- * for `world` and `stores`.
+ * (secret, and known to the giver, or the asker acting as the Mastermind through it - `actsAsMastermind`,
+ * the door's reading, so another owner of the Mastermind's student is held to what the student was
+ * given or shown, the round-2 review's SEC M3; `asker` null, as a caller that names nobody, is
+ * nobody's door), then the one shown it (a student who is not the giver and no Monokuma, in the
+ * giver's room on the same scene and floor, alive). A passage that does not exist, one that is
+ * closed or broken, and one the giver does not know get one answer, so the reason says nothing of
+ * which. A death nobody has found is `cannotNow`, never named. Pure but for `world`, `stores` and
+ * `users` (the suite's).
  */
-export function shareRefusal({ actorId, targetId, passageId } = {}, world, stores = PASSAGE_STORES) {
+export function shareRefusal({ actorId, targetId, passageId } = {}, world, stores = PASSAGE_STORES, { asker = null, users = game.users } = {}) {
     if (world.locked()) return "that action is locked";
     const giver = world.actor(actorId);
     if (!giver) return "no such character";
@@ -630,7 +679,7 @@ export function shareRefusal({ actorId, targetId, passageId } = {}, world, store
     if (world.monocub(giver)) return "that action is not open to that character now";
     const row = typeof passageId === "string" ? stores.map.get(passageId) : null;
     const knows = row?.state === "secret"
-        && (Boolean(stores.access.get(`${passageId}/${giver.id}`)) || isMastermindActor(giver, { mastermind: stores.mastermind }));
+        && (Boolean(stores.access.get(`${passageId}/${giver.id}`)) || actsAsMastermind(giver, asker, { mastermind: stores.mastermind, users }));
     if (!knows) return "the character does not know that passage";
     const target = world.actor(targetId);
     if (!target || target.id === giver.id || target.type !== "character" || world.monokuma(target)) return "no such character";
@@ -661,33 +710,44 @@ function roomsAsKnown(row, world, known) {
 
 /**
  * The primary GM carries out a show (`passage.share`): answers `{ refused }` with `shareRefusal`'s
- * reason, or `{ shown: true }` once written. The one shown it learns the passage - a cell `shown`,
- * the giver's actor id in `by`, fill-only so a cell that was there keeps its first `how` - their
- * owners' copies are sent, a log row "show" names them, and three are told: the one shown it, a card
- * to their owners and the GMs that names the two rooms as they may know them, with the sound
- * `passageFound` (R562); the giver, a card that names nobody's rooms; the GMs, a notice on this
- * browser and the log. `world`, `whisper` and `notify` are the suite's (R562).
+ * reason, or `{ shown: true }` once judged. The first show of a passage to a student writes it: the
+ * one shown it learns the passage - a cell `shown`, the giver's actor id in `by` - their owners'
+ * copies are sent, a log row "show" names them, and three are told: the one shown it, a card to
+ * their owners and the GMs that names the two rooms as they may know them, with the sound
+ * `passageFound` (R562); the GMs, a card of their own that names both students and both rooms; the
+ * giver's asker, a card that names nobody's rooms. A show to a student who already knows the
+ * passage writes nothing and tells the asker the same card and answer as a first one, and nobody
+ * else anything: the asker learns nothing of what the other knew, and a console that repeats it
+ * cannot push the GMs' log out to its 200 rows or fill the chat (the round-2 review, 16.10.2026:
+ * SEC m1, which measured both at 201 shows). The giver's card goes to the asker alone, so a first
+ * show and a repeated one reach the same people; the GMs read the show on their own card (until
+ * that review the GMs' word was a notice on the primary's browser alone, unescaped - S12-H3).
+ * `asker` is who asked (the bridge's sender, the local road's own user); `world`, `whisper`, `gms`
+ * and `users` are the suite's (R562).
  */
 export async function sharePassage({ actorId, targetId, passageId } = {}, { stores = PASSAGE_STORES, world = null, whisper = whisperToOwner,
-    notify = text => ui.notifications.info(text) } = {}) {
+    gms = whisperToGms, asker = null, users = game.users } = {}) {
     const facts = world ?? await liveShareWorld();
-    const why = shareRefusal({ actorId, targetId, passageId }, facts, stores);
+    const why = shareRefusal({ actorId, targetId, passageId }, facts, stores, { asker, users });
     if (why) return { refused: why };
     const giver = facts.actor(actorId), target = facts.actor(targetId);
     const row = stores.map.get(passageId);
-    const at = serverNow();
-    await stores.access.patch(`${passageId}/${target.id}`, { how: "shown", at, by: { [giver.id]: at } }, { fillOnly: true });
-    await touch([target.id], stores);
-    await logRow("show", passageId, target.id, stores);
-    tellAfter(stores);
+    const cellKey = `${passageId}/${target.id}`;
     const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
-    const mastermind = isMastermindActor(target, { mastermind: stores.mastermind });
-    const theirs = roomsAsKnown(row, facts, mastermind ? null : facts.knownRooms(target, row.sceneId));
-    await whisper(target, `<p>${game.i18n.format("DRPG.Passage.card.shown", { giver: esc(giver.name), from: esc(theirs.from), to: esc(theirs.to) })}</p>`,
-        { flags: { [MODULE_ID]: { sfx: "passageFound" } } });
-    await whisper(giver, `<p>${game.i18n.format("DRPG.Passage.card.done", { target: esc(target.name) })}</p>`);
-    const all = roomsAsKnown(row, facts, null);
-    notify(game.i18n.format("DRPG.Passage.gm.shown", { giver: giver.name, target: target.name, from: all.from, to: all.to }));
+    if (!stores.access.get(cellKey)) {
+        const at = serverNow();
+        await stores.access.patch(cellKey, { how: "shown", at, by: { [giver.id]: at } }, { fillOnly: true });
+        await touch([target.id], stores);
+        await logRow("show", passageId, target.id, stores);
+        tellAfter(stores);
+        const mastermind = isMastermindActor(target, { mastermind: stores.mastermind });
+        const theirs = roomsAsKnown(row, facts, mastermind ? null : facts.knownRooms(target, row.sceneId));
+        await whisper(target, `<p>${game.i18n.format("DRPG.Passage.card.shown", { giver: esc(giver.name), from: esc(theirs.from), to: esc(theirs.to) })}</p>`,
+            { flags: { [MODULE_ID]: { sfx: "passageFound" } } });
+        const all = roomsAsKnown(row, facts, null);
+        await gms(`<p>${game.i18n.format("DRPG.Passage.gm.shown", { giver: esc(giver.name), target: esc(target.name), from: esc(all.from), to: esc(all.to) })}</p>`);
+    }
+    await whisper(giver, `<p>${game.i18n.format("DRPG.Passage.card.done", { target: esc(target.name) })}</p>`, asker?.id ? { whisper: [asker.id] } : {});
     return { shown: true };
 }
 
@@ -803,7 +863,7 @@ export async function repickPassage(passageId, { wallId, seg, rooms = [] } = {},
     const { row, refused } = passageRowFor(scene, wall, { seg, rooms, level: old.level ?? null, startAccess: old.startAccess ?? [] });
     if (!row) return refuse(refused, false);
     await stores.map.patch(passageId, { passageWallId: row.passageWallId, passageSeg: row.passageSeg, rooms: row.rooms, state: "secret" });
-    await touch(knowersOf(passageId, stores), stores);
+    await touch(knowersOf(passageId, stores), stores, { door: true });
     await logRow("repick", passageId, null, stores);
     tellAfter(stores);
     return true;
@@ -1035,6 +1095,25 @@ function retellSoon() {
     }, 250);
 }
 
+/**
+ * A player came or went: the door names the Mastermind's first connected owner (`ownerOf`), so a
+ * co-owner coming or going may move it (SEC S2), and a player who comes back is sent what changed
+ * while they were away. `retell` is the suite's (R555).
+ */
+export function onUserConnected(user, connected, { retell = retellSoon } = {}) {
+    return retell();
+}
+
+/**
+ * A user's role changed: a player made a GM, or a GM made a player, is a door that moves - `ownerOf`
+ * passes a GM by - and a copy that starts or stops (the round-2 review, 16.10.2026: O18; until then
+ * nothing told the copies until the next unrelated change). Any other change of a user is not the
+ * passages' business. `retell` is the suite's (R555).
+ */
+export function onUserUpdated(user, change, options, userId, { retell = retellSoon } = {}) {
+    return change?.role !== undefined ? retell() : undefined;
+}
+
 /* The primary GM's watch on the walls (the plan's K11): a wall whose segment changed, or that went, may break a passage. */
 function onWallMoved(wall, change) {
     if (!isPrimaryGm() || !foundry.utils.hasProperty(change ?? {}, "c")) return;
@@ -1054,7 +1133,7 @@ function onRouteSettled({ tokenDoc } = {}) {
 
 /**
  * At ready, on a GM's browser: the ask's listener, the watches that tell the players what another
- * GM changed, and the primary's watches on the walls and the routes (each asks `isPrimaryGm` when it
+ * GM changed or who came, went or changed role, and the primary's watches on the walls and the routes (each asks `isPrimaryGm` when it
  * fires, so a GM who becomes the primary later takes them over).
  */
 export function registerPassagesGm() {
@@ -1072,8 +1151,8 @@ export function registerPassagesGm() {
         });
         Hooks.on("updateActor", (actor, change) => { if (change?.ownership !== undefined) retellSoon(); });
         Hooks.on("deleteActor", () => retellSoon());
-        // The door names the Mastermind's first connected owner (`ownerOf`): a co-owner coming or going may move it (SEC S2).
-        Hooks.on("userConnected", () => retellSoon());
+        Hooks.on("userConnected", onUserConnected);
+        Hooks.on("updateUser", onUserUpdated);
         onGmStoresAudible(() => retellSoon());
         Hooks.on("updateWall", onWallMoved);
         Hooks.on("deleteWall", onWallDeleted);

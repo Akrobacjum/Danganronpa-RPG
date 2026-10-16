@@ -1442,7 +1442,8 @@ export async function run({ gm, gm2, gm0, p1, p2, p3, check, phase, settle, conn
             access: Object.fromEntries(Object.entries(S.passageAccessStore.entries()).map(([key, cell]) => [key, cell?.how ?? "touch"])),
             log: PG.passageLog().length };`, { timeout: 120000 });
     await settle(1500);
-    const cells = Object.fromEntries(Object.entries(resetX.access ?? {}).filter(([key]) => !key.startsWith("touch/")));
+    // The stamps' rows, `touch/<actorId>` and since E79 fix r2-G2 the Mastermind's `door/<actorId>`, are not cells.
+    const cells = Object.fromEntries(Object.entries(resetX.access ?? {}).filter(([key]) => !key.startsWith("touch/") && !key.startsWith("door/")));
     check("X3: the reset of who knows the passages keeps the three passages and their start access, and takes the shown and the granted cells and the log",
         J(resetX.cleared) === J(["passages"]) && J(resetX.failed) === "[]" && resetX.errors?.length === 0
             && J(Object.keys(resetX.map ?? {}).sort()) === J(Object.values(pid).sort()) && Object.values(resetX.map).every(([state]) => state === "secret")

@@ -49,6 +49,9 @@ import { openSegmentsFor, crossingVia } from "./passages.mjs";
 // The GMs' audit of a move through a wall (E79 C4), called from `noteGmPosition` with this file's
 // readers handed in; movement-audit.mjs never imports this file statically (R161).
 import { auditMove, registerMoveAudit } from "./movement-audit.mjs";
+// Who acts as the Mastermind (E79 fix r2-G2), for the witness judge: passages-gm.mjs is already in this file's static
+// graph through movement-audit.mjs, so the edge adds no module and no cycle that was not there.
+import { actsAsMastermind } from "./passages-gm.mjs";
 
 /**
  * Region flags this file owns. Named like `VAULT_FLAGS`/`REST_FLAGS` in
@@ -209,11 +212,12 @@ export function registerMovement() {
     Hooks.on("createToken", (token, options, userId) => noteGmCreated(token, userId));
     Hooks.once("ready", primeGmPositions);
     registerMoveAudit();
-    // The witness judge's readers (E12 C12; `judgeArrival`), by a dynamic import: sheet-audit.mjs and
-    // mastermind.mjs each reach this file back through their own static imports (R161).
-    Promise.all([import("./sheet-audit.mjs"), import("./mastermind.mjs")])
-        .then(([sheet, mastermind]) => {
-            judgeReaders = { flagsHeldNow: sheet.flagsHeldNow, itemsHeldNow: sheet.itemsHeldNow, isMastermind: mastermind.isMastermind };
+    // The witness judge's readers (E12 C12; `judgeArrival`), by a dynamic import: sheet-audit.mjs reaches
+    // this file back through its own static imports (R161). mastermind.mjs's `isMastermind` was one of them
+    // until E79 fix r2-G2: the judge now asks `actsAsMastermind` of the mover.
+    Promise.all([import("./sheet-audit.mjs")])
+        .then(([sheet]) => {
+            judgeReaders = { flagsHeldNow: sheet.flagsHeldNow, itemsHeldNow: sheet.itemsHeldNow };
         })
         .catch(err => error("Could not load the readers the witness judge reads a student through", err));
     // Who may make a room (E12 C1; the note below). Inline, each one line, so the census of
@@ -676,7 +680,7 @@ function droppedFrom(tokenDoc) {
     }
     return null;
 }
-/** sheet-audit.mjs's held readers and mastermind.mjs's `isMastermind`, once `registerMovement`'s import lands. */
+/** sheet-audit.mjs's held readers, once `registerMovement`'s import lands. */
 let judgeReaders = null;
 
 /** Marks the bridge's send-back (gm-bridge.mjs `handleSendback`): a player's revert that a GM writes. */
@@ -731,7 +735,11 @@ export function judgeArrival(tokenDoc, userId = null, { revert = false, sentBack
         const flags = judgeReaders ? judgeReaders.flagsHeldNow(actor) : actor;
         const items = judgeReaders ? judgeReaders.itemsHeldNow(actor) : Array.from(actor.items ?? []);
         const student = { id: actor.id, name: actor.name, type: actor.type, getFlag: (scope, key) => flags.getFlag(scope, key), items };
-        const mastermind = Boolean(judgeReaders?.isMastermind(actor));
+        /* The Mastermind as the mover acts (passages-gm.mjs `actsAsMastermind`): the one owner the door names, as the
+           mover's own veto reads it (`iAmTheMastermind`). Until E79 fix r2-G2 (16.10.2026; the round-2 review's SEC M3)
+           the role was read off the student alone, and another owner of the Mastermind's student, whose own browser
+           refuses a lock and a passage it does not know, was let stand past both here. */
+        const mastermind = actsAsMastermind(actor, mover);
         // Through a secret passage (E79 C3): the straight line from where the primary last saw the token to
         // where it stands, on the floor of the room it came from, against the GMs' records.
         const via = was ? crossingVia(centresOf(tokenDoc, was, tokenDoc), actor, tokenDoc.parent?.id, was.last?.level ?? null, { mastermind }) : null;

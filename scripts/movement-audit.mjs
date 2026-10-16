@@ -26,7 +26,7 @@ import { SETTINGS } from "./settings.mjs";
 import { warn, error, esc, whisperToGms, primaryGmId } from "./utils.mjs";
 import { isMoveChange, levelOf, onLevel, isPlaceScene } from "./rooms.mjs";
 import { openSegmentsFor, cutSegment, stepCrosses, arrivingPrimary } from "./passages.mjs";
-import { isMastermindActor } from "./passages-gm.mjs";
+import { actsAsMastermind } from "./passages-gm.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { playSfx } from "./sfx.mjs";
 
@@ -238,7 +238,7 @@ export function auditRows() {
  * Judge one landed move of a token on the primary GM, and act on a wall it went through: `ctx` holds
  * movement.mjs's readers (`REVERT`, `SENT_BACK`, `history`, `sendBackRefusal`, `stairLinks`,
  * `roomAt`, `held`, `sendBack`) and, for the suite (R559), `mode`, `users`, `known`, `mastermind`,
- * `socket`, `whisper`, `warn`, `book` and `now`. Answers `{ verdict, why?, wall?, passage?, mode?, back? }`: "skip"
+ * `socket`, `whisper`, `warn`, `book` and `now` (`mastermind` the Mastermind's record, as gm-stores.mjs's). Answers `{ verdict, why?, wall?, passage?, mode?, back? }`: "skip"
  * for a move it does not judge, "exempt", "clear" or "crossed" (`back`, the spot a put-back is sent to). Every
  * exemption is the GM's own reading - the hook's user, the GMs' record of the token, the stairs on the map, the flags
  * as the GMs hold them - and none is an option of the update but the player a GM's send-back names, who is then
@@ -279,7 +279,8 @@ export function auditMove(tokenDoc, changes, options, userId, was, ctx = {}) {
             }
         }
         const known = ctx.known ? { known: ctx.known } : {};
-        const mastermind = Boolean((ctx.mastermind ?? isMastermindActor)(actor));
+        // The Mastermind as the mover acts, the door's reading (passages-gm.mjs `actsAsMastermind`; E79 fix r2-G2, SEC M3).
+        const mastermind = actsAsMastermind(actor, users?.get?.(mover) ?? null, { users, ...(ctx.mastermind ? { mastermind: ctx.mastermind } : {}) });
         const open = openSegmentsFor(actor, scene.id, from, { mastermind, ...known });
         const secret = openSegmentsFor(actor, scene.id, from, { mastermind: true, ...known });
         const { found, lines } = firstWallCrossed(tokenDoc, routeOf(tokenDoc, was), from, open, secret, kept?.sides ?? null);

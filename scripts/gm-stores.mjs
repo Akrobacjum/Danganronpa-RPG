@@ -193,8 +193,9 @@ export const passageMapStore = defineGmStore({
  * hold `leave`, the room the character keeps the passage until leaving (the tab's 'Revoke when
  * they leave the room', passages-gm.mjs `revokeWhenLeaving`). Beside the cells a
  * `touch/<actorId>` row per character, stamped whenever what that character's owners may hold
- * changes: its stamp is that character's part of every copy (passages-gm.mjs `passageCopyFor`).
- * Cut by the reset's "passages" group.
+ * changes: its stamp is that character's part of every copy (passages-gm.mjs `passageCopyFor`);
+ * since E79 fix r2-G2 a `door/<actorId>` row for the Mastermind's student, stamped by what moves
+ * every open passage, the door owner's part "door" alone. Cut by the reset's "passages" group.
  */
 export const passageAccessStore = defineGmStore({
     name: "passageAccess", key: SETTINGS.gmPassageAccess,
@@ -202,7 +203,7 @@ export const passageAccessStore = defineGmStore({
     afterRestore: () => import("./passages-gm.mjs").then(m => m.retellPassages()),
     exists: key => {
         const [head, actorId = ""] = String(key).split("/");
-        return Boolean(game.actors?.has(actorId)) && (head === "touch" || Boolean(game.scenes?.has(head.split(".")[0])));
+        return Boolean(game.actors?.has(actorId)) && (head === "touch" || head === "door" || Boolean(game.scenes?.has(head.split(".")[0])));
     }
 });
 

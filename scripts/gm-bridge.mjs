@@ -562,10 +562,11 @@ async function handleShareBulletOrGiveItem(payload, sender, ctx) {
 }
 
     // Showing a secret passage (E79 C7): the recipient learns it in the GMs' records, which only the
-    // primary writes. Every check past the sender's ownership of the giver is `shareRefusal`'s.
-async function handlePassageShare(payload) {
+    // primary writes. Every check past the sender's ownership of the giver is `shareRefusal`'s, and whether
+    // the sender acts as the Mastermind through the giver is asked of the sender (E79 fix r2-G2, SEC M3).
+async function handlePassageShare(payload, sender) {
     const { sharePassage } = await import("./passages-gm.mjs");
-    const out = await sharePassage({ actorId: payload.actorId, targetId: payload.targetId, passageId: payload.passageId });
+    const out = await sharePassage({ actorId: payload.actorId, targetId: payload.targetId, passageId: payload.passageId }, { asker: sender });
     if (out?.refused) return { refused: out.refused };
 }
 
@@ -1644,7 +1645,7 @@ export const BRIDGE_ACTIONS = table({
         answer: "ack",
         claims: {
             targetId: "passages-gm.mjs shareRefusal: a student who is not the giver and no Monokuma, in the giver's room on its scene and floor, alive",
-            passageId: "passages-gm.mjs shareRefusal: a secret passage the giver knows in the GMs' records (or the giver the Mastermind), else the one notKnown"
+            passageId: "passages-gm.mjs shareRefusal: a secret passage the giver knows in the GMs' records (or the sender acts as the Mastermind through the giver, `actsAsMastermind`), else the one notKnown"
         }
     },
     [ACTION_PLANT]: {
@@ -2379,7 +2380,7 @@ export function requestBodyLoot({ takerId, bodyId, itemId }) {
  */
 export function requestPassageShare({ actorId, targetId, passageId }) {
     return ask(ACTION_PASSAGE_SHARE, { actorId, targetId, passageId }, {
-        local: () => import("./passages-gm.mjs").then(m => m.sharePassage({ actorId, targetId, passageId })).then(out => {
+        local: () => import("./passages-gm.mjs").then(m => m.sharePassage({ actorId, targetId, passageId }, { asker: game.user })).then(out => {
             if (out?.refused) sayNotDone(ACTION_PASSAGE_SHARE, reasonOf(out.refused));
             return Boolean(out?.shown);
         })
