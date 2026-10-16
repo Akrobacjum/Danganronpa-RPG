@@ -12792,6 +12792,85 @@ const REGRESSIONS = [
         equal(J(reader(sources)), J(WHOLE),
             "[the GM gate first; the picture through safeRoomImage; one write, the hall's flag; one call, in applyScenesTab; the reader judging; "
             + "the flag's reads; the key's literals; the files naming the flag; the tile through hallRoom and its repaint]");
+    }],
+
+    ["R587 - under Stained Glass the dice are drawn in the badge's colours: the Hope die's plate is the Hope token and the Despair die's the Despair token, a critical repaints neither, and the letters' ink holds at least 4.5:1 on both", async () => {
+        /*
+         * E79 C13 (16.10.2026; the owner's N11 of 14.10: "roll-result dice in Hope/Despair colours"). The Hope
+         * die's plate was `--drpg-glass-accent` - the state colour, which moves with the hour - and the Despair
+         * die's the Eclipse's violet, while the verdict badge beside them is `--drpg-sg-hope` (#ffd23f) and
+         * `--drpg-sg-despair` (#ff3d8b): two colour languages on one roll card. Read off stained-glass.css: every
+         * Stained Glass rule naming a die is split into its selectors, each sorted by the side it can reach (only
+         * the Hope die, only the Despair die, or either), and the plates, the badges' colours and the letters'
+         * ink are read from them. A rule that paints both dice at once is allowed only as the base one, since
+         * the Despair die's own rule outranks it; any other - a critical's repaint - is listed (`either`). The
+         * ratios are WCAG's, from the tokens' values in the same sheet: 13.9 and 6.0 on 16.10.2026. The reader
+         * is held to two plants of the real sheet first: the Hope plate put back to the accent, and a critical
+         * rule repainting both dice gold. No roll card was drawn in a browser: LIVE-E79-17.
+         */
+        const J = JSON.stringify;
+        const BASE = "body.drpg-theme-stained-glass .drpg-duality-die";
+        const selectors = list => {
+            const out = [];
+            let depth = 0, from = 0;
+            for (let i = 0; i < list.length; i++) {
+                if (list[i] === "(") depth++;
+                else if (list[i] === ")") depth--;
+                else if (list[i] === "," && depth === 0) { out.push(list.slice(from, i).trim()); from = i + 1; }
+            }
+            out.push(list.slice(from).trim());
+            return out.filter(Boolean);
+        };
+        const declared = (decl, name) => (new RegExp(`(?:^|;)\\s*${name}\\s*:\\s*([^;!]+)`).exec(decl)?.[1] ?? "").trim() || null;
+        const tokenHex = (css, value) => {
+            const name = /^var\((--[\w-]+)\)$/.exec(value ?? "")?.[1];
+            return name ? (new RegExp(`${name}\\s*:\\s*(#[0-9a-fA-F]{6})\\s*;`).exec(css)?.[1] ?? null) : null;
+        };
+        const luminance = hex => {
+            const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255)
+                .map(c => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+            return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        };
+        const ratio = (a, b) => {
+            if (!a || !b) return null;
+            const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+            return Math.round(((hi + 0.05) / (lo + 0.05)) * 10) / 10;
+        };
+        const reading = css => {
+            const pieces = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+                .flatMap(([, list, decl]) => selectors(list).map(sel => ({ sel, decl })))
+                .filter(({ sel }) => sel.startsWith("body.drpg-theme-stained-glass"));
+            const dice = pieces.filter(({ sel }) => /\.drpg-duality-die\b/.test(sel));
+            const side = sel => (/\.is-despair\b/.test(sel) && !/\.is-hope\b/.test(sel) ? "despair"
+                : /\.is-hope\b/.test(sel) && !/\.is-despair\b/.test(sel) ? "hope" : "either");
+            const plates = which => [...new Set(dice.filter(({ sel }) => side(sel) === which || (which === "hope" && sel === BASE))
+                .map(({ decl }) => declared(decl, "background(?:-color)?")).filter(Boolean))];
+            const either = dice.filter(({ sel, decl }) => side(sel) === "either" && sel !== BASE && declared(decl, "background(?:-color)?")).map(({ sel }) => sel);
+            const badge = which => pieces.filter(({ sel }) => sel.endsWith(`.drpg-duality[data-side="${which}"] .drpg-duality-badge`))
+                .map(({ decl }) => declared(decl, "color")).filter(Boolean);
+            const inks = [...new Set(dice.map(({ decl }) => declared(decl, "color")).filter(Boolean))];
+            const [hope, despair] = [plates("hope"), plates("despair")];
+            const ratios = inks.flatMap(ink => [hope[0], despair[0]].map(plate => ratio(tokenHex(css, ink), tokenHex(css, plate))));
+            return [hope, despair, either, [badge("hope"), badge("despair")], inks, ratios];
+        };
+        const css = stripComments(new Map(await otherSources()).get("stained-glass.css")
+            ?? await fetch(`/modules/${MODULE_ID}/styles/stained-glass.css`).then(r => r.text()));
+        must(css.length > 10000 && css.includes(BASE), "stained-glass.css or its dice rule is not among the module's sources - this would measure nothing");
+        const planted = (from, to) => { must(css.includes(from), `the sheet has no "${from}"`); return css.replace(from, to); };
+        const base = bodyOf(css, `${BASE} {`, { until: "}" });
+        const plate = /background:\s*[^;]+;/.exec(base)?.[0] ?? "";
+        must(plate.length > 0, "the dice rule states no background");
+        const accent = reading(css.replace(base, base.replace(plate, "background: var(--drpg-glass-accent);")));
+        const critical = reading(planted(`${BASE} {`,
+            `body.drpg-theme-stained-glass .drpg-duality[data-side="critical"] .drpg-duality-die { background: var(--drpg-sg-hope); }\n${BASE} {`));
+        equal(J([accent[0], critical[2]]), J([["var(--drpg-glass-accent)"], ['body.drpg-theme-stained-glass .drpg-duality[data-side="critical"] .drpg-duality-die']]),
+            "the reader does not see the Hope plate put back to the accent, or a critical rule painting both dice");
+        const [hope, despair, either, badges, inks, ratios] = reading(css);
+        equal(J([hope, despair, either]), J([["var(--drpg-sg-hope)"], ["var(--drpg-sg-despair)"], []]),
+            "[the Hope die's plates; the Despair die's; the rules that paint both dice beside the base one] - the dice are not in their sides' colours");
+        equal(J([hope, despair]), J(badges), "[the Hope die's plate against the Hope badge's colour; the Despair die's against the Despair badge's]");
+        equal(J(inks), J(["var(--drpg-sg-ink)"]), "the dice's letters are not the ink the ratios were computed for");
+        ok(ratios.length === 2 && ratios.every(r => r !== null && r >= 4.5), `the letters' ink on the two plates reads ${J(ratios)}, under 4.5:1 or unread`);
     }]
 ];
 

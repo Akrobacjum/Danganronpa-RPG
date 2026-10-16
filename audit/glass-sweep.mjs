@@ -45,6 +45,11 @@
  * the stack has a ceiling (P24's other road); a line of the bottom card's words, scrolled to its end, under the
  * history's button or its unread badge (P8, P7). Its `why` is printed. R299 reads the same inside Foundry only.
  * `--no-notices` leaves it out.
+ * THE CARD ON ITS PANE (E79 C13, 16.10.2026; the owner's N16). The same check's `fill`: on a Stained Glass desk the
+ * card's plate is `#drpg-note-frame` on the note pane's polygon within 1 px, the card's words inside the pane, the card
+ * bare, the plate drawn with one and two cards and not with none; elsewhere no frame. The line prints `fill` with the
+ * outline's distance and the words outside. At the first Stained Glass desk `plantFill` plants three faults - the
+ * frame upright, the card's own plate back, the card pushed 60 px past the wall - and each must read as not ok.
  *
  * THE ROOM TILE (E77 C4, 13.10.2026). Last at every size, in every role (`--roles`, the GM's page and `?role=player`),
  * the page's `drpgRoomCheck` reads where the curtain put the room tile and fails the size on any of: placed where
@@ -511,6 +516,24 @@ async function plantPin(px) {
     return res;
 }
 
+/* Runs in the page: the notice check's `fill` controls (E79 C13), each planted as a rule of its own, read and taken out. */
+async function plantFill() {
+    const res = {}, FAULTS = {
+        upright: ["#drpg-note-frame { clip-path: none !important; }", /the frame's outline is/],
+        plate: ["body #drpg-popups .drpg-popup-body { background-color: rgba(7, 6, 11, 0.42) !important; }", /keeps a plate or an edge/],
+        wall: ["body #drpg-popups .drpg-popup { margin-left: -60px !important; }", /line boxes of the card's words outside/]
+    };
+    for (const [k, [rule, re]] of Object.entries(FAULTS)) {
+        const style = document.createElement("style");
+        style.textContent = rule;
+        document.head.append(style);
+        const n = await window.drpgNoticeCheck();
+        style.remove();
+        res[k] = { ok: n.ok, why: n.why, pass: !n.ok && re.test(n.why) };
+    }
+    return res;
+}
+
 /* Runs in the page: the row reading's planted fault, read at once and put back (E77 C8). */
 async function plantRow() {
     const row = document.getElementById("drpg-tile-row"), was = row?.style.height ?? "";
@@ -532,7 +555,7 @@ function deskAgain() {
     return { ok, why: JSON.stringify(got), pass: ok };
 }
 
-let lines = 0, themeOff = 0, bad = 0, glassSizes = 0, controlled = false, roomControlled = new Set(), pinControlled = new Set(), unpinned = 0, unboxed = 0, rowControlled = false, paneControlled = false, stackedRead = false, placesControlled = false, placesRead = false, voiceRead = false, voiceControlled = false, voiceNoneControlled = false, idleRead = false;
+let lines = 0, themeOff = 0, bad = 0, glassSizes = 0, controlled = false, roomControlled = new Set(), pinControlled = new Set(), unpinned = 0, unboxed = 0, rowControlled = false, paneControlled = false, stackedRead = false, placesControlled = false, placesRead = false, voiceRead = false, voiceControlled = false, voiceNoneControlled = false, idleRead = false, fillControlled = false;
 try {
     for (const theme of themes) for (const role of roles) {
         const qs = [theme === "legacy" ? "theme=legacy" : "", role === "player" ? "role=player" : ""].filter(Boolean);
@@ -606,8 +629,14 @@ try {
                 if (!n) fails.push("the page defines no drpgNoticeCheck");
                 else {
                     line += ` | notices ${n.ok ? "ok" : "NOT ok"}` + (n.ceiling ? ` ceiling ${n.ceiling.asIs.toFixed(0)}/${n.ceiling.docked.toFixed(0)}` : "")
-                        + (n.stack ? ` shown ${n.stack.shown}+${n.stack.parked}` : "") + (n.long ? ` long ${n.long.judged ? (n.long.inTile && n.long.scrolls ? "in" : "OUT") : "unjudged"}` : "");
+                        + (n.stack ? ` shown ${n.stack.shown}+${n.stack.parked}` : "") + (n.long ? ` long ${n.long.judged ? (n.long.inTile && n.long.scrolls ? "in" : "OUT") : "unjudged"}` : "")
+                        + (n.fill?.pane ? ` fill off ${n.fill.off} out ${n.fill.out}/${n.fill.lines}` : n.fill ? ` fill frame ${n.fill.frame}` : "");
                     if (!n.ok) fails.push("notices: " + n.why);
+                    if (control && !fillControlled && n.fill?.pane) {
+                        fillControlled = true;
+                        const ctl = await page.evaluate(plantFill);
+                        for (const [k, v] of Object.entries(ctl)) if (!v.pass) fails.push(`fill control ${k} reads as a pass (${v.why || "ok"})`);
+                    }
                 }
             }
             if (rooms) {
@@ -828,6 +857,7 @@ if (rooms && !opt("--sizes") && unpinned) { bad++; console.log(`FAIL: ${unpinned
 if (rooms && !opt("--sizes") && unboxed) { bad++; console.log(`FAIL: ${unboxed} placed line(s) of the default sizes have no box in PIN_BOX`); }
 if (control && rooms && !opt("--sizes") && themes.some(t => !pinControlled.has(t))) { bad++; console.log("FAIL: a theme's pin control never ran (no size of it pinned 'clock' read 'clock')"); }
 if (control && rooms && !opt("--sizes") && themes.includes("stained") && !paneControlled) { bad++; console.log("FAIL: the pane controls never ran (no Stained Glass size placed the tile beside the notices)"); }
+if (control && notices && themes.includes("stained") && !fillControlled) { bad++; console.log("FAIL: the fill controls never ran (no Stained Glass desk read the card on its pane)"); }
 if (control && rooms && stackedRead && !rowControlled) { bad++; console.log("FAIL: the row controls never ran (no stacked size read a row)"); }
 if (windows && placesRead && !placesControlled) { bad++; console.log("FAIL: the places' control never read an unclamped place off the screen or on the cluster"); }
 console.log(`SWEEP ${bad ? "RED" : "GREEN"}: ${themes.length} theme(s) x ${roles.length} role(s) x ${SIZES.length} sizes, ${glassSizes} with glass, ${bad} failing`);

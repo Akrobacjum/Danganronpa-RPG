@@ -12413,9 +12413,16 @@ body.drpg-theme-stained-glass .application.dialog:is(.drpg-window-murder, .drpg-
     font-size: var(--font-size-11, 0.6875rem);
 }
 
-#players #performance-stats {
-    font-size: var(--font-size-10, 0.625rem);
-    opacity: 0.8;
+/* FOUNDRY'S LATENCY AND FPS LINE IS NOT DRAWN (E79 C13, the owner's N16 answer of 15.10.2026, "To
+   usunmy u obu": for the players and the GMs, in both themes). It sat under the players' list and
+   lifted the gauge, and with it the notice tile's foot (glass.mjs `gaugeFoot`), by its line;
+   `game.drpg.perf()` is the module's measurement of the table. Stated once, here, for the base sheet
+   loads under both themes; `!important` because the rule further down and stained-glass.css's
+   lists (#players) style the same element. The id is the module's own reading of Foundry's
+   players list, not read from v14: LIVE-E79-18, with how far the tile's foot moves. Scenario 74
+   D4 reads it on a player's page and the GM's. */
+#performance-stats {
+    display: none !important;
 }
 
 /* ==========================================================================
@@ -14522,7 +14529,6 @@ body:not(.drpg-theme-stained-glass) .drpg-handbook-toc {
 }
 
 #players #performance-stats {
-    display: flex;
     gap: 10px;
     opacity: 1;
     font-size: var(--drpg-text-xs);

@@ -3010,9 +3010,18 @@ body.drpg-theme-stained-glass :is(.character-header-sheet .drpg-ultimate-row .dr
 
 /* ---- C-I4. The roll's two faces are cut dice --------------------------------------------
    The module's own roll card (action-rolls.mjs) prints the Hope die and the Despair die as two
-   spans; the audit page's roll window draws them as two cut dice, the Hope one in the state
-   colour and the Despair one in the Eclipse's violet, the total under them in the title face
-   and the verdict tracked out in the state colour. */
+   spans; the audit page's roll window draws them as two cut dice, the total under them in the
+   title face and the verdict tracked out in the state colour.
+   THE DICE WEAR THE BADGE'S COLOURS (E79 C13, the owner's N11 of 14.10.2026). The Hope die's
+   plate was the state colour (`--drpg-glass-accent`, which moves with the hour) and the Despair
+   die's the Eclipse's violet, while the verdict beside them is gold for Hope and pink for
+   Despair (`--drpg-sg-hope`, `--drpg-sg-despair`, below): two colour languages on one card. Each
+   plate is now its side's token, and nothing repaints it on a critical - a critical card keeps
+   `is-hope` and `is-despair` on its two spans (action-rolls.mjs), so its dice keep their sides.
+   The letters stay ink (#07070a); computed with the WCAG formula from the token values on
+   16.10.2026, 13.9:1 on #ffd23f and 6.0:1 on #ff3d8b. R587 holds both plates, the critical and
+   the two ratios. Monokuma Legacy already drew them gold and blood (danganronpa.css). No roll
+   card was drawn in a browser for this: LIVE-E79-17. */
 body.drpg-theme-stained-glass .drpg-duality-die {
     display: inline-grid;
     place-content: center;
@@ -3023,14 +3032,14 @@ body.drpg-theme-stained-glass .drpg-duality-die {
     font-size: max(var(--drpg-sg-floor), calc(30px * var(--drpg-sg-scale)));
     line-height: 1;
     color: var(--drpg-sg-ink);
-    background: var(--drpg-glass-accent);
+    background: var(--drpg-sg-hope);
     border: 0;
     border-radius: 0;
     text-shadow: none;
     clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 16px), calc(100% - 14px) 100%, 0 100%, 0 16px);
 }
 body.drpg-theme-stained-glass .drpg-duality-die.is-despair {
-    background: var(--drpg-sg-eclipse);
+    background: var(--drpg-sg-despair);
     clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 16px, 100% 100%, 14px 100%, 0 calc(100% - 16px));
 }
 body.drpg-theme-stained-glass .drpg-duality-total {
@@ -3562,6 +3571,33 @@ body.drpg-theme-stained-glass #drpg-popups .drpg-popup {
 body.drpg-theme-stained-glass #drpg-popups .drpg-popup-body {
     flex: 1 1 auto;
     align-content: start;
+}
+/* AND THE PLATE IS THE PANE'S, NOT THE CARD'S (E79 C13, the owner's N16 of 15.10.2026: "the notice
+   card fills its glass pane, as the room tile and the voice tile do"). The body's dark plate and the
+   card's accent edge stood on an upright box turned with the tile, inside a pane that leans and runs
+   to the wall and to the screen's foot (glass.mjs `seatNoteFrame` has the readings). They move to
+   `#drpg-note-frame`, the layer glass.mjs cuts to the note pane's polygon: the same plate, the edge
+   along the wall, drawn while a card stands on the tile (`data-drpg-notice`, which popup.mjs
+   `setFloor` keeps on the body: a parked or leaving card does not count) - and the card keeps only
+   its words and its title's stamp. Where no layer was made (`data-drpg-note-frame`, glass.mjs: no
+   pane, a stacked screen) the card keeps its own plate, the rules above. Two body attributes and not
+   `body:has(...)`: no rule of the module asks `:has` of the body, whose every insertion it would
+   re-ask, and none of the module's body observers watches either name. The glass harness's
+   `drpgNoticeCheck` (`fill`) holds the layer on the polygon, the words inside it and the card bare. */
+#drpg-note-frame {
+    display: none;
+    pointer-events: none;
+}
+body.drpg-theme-stained-glass[data-drpg-notice] #drpg-note-frame {
+    display: block;
+    background: rgba(7, 6, 11, 0.42);
+    box-shadow: inset 3px 0 0 var(--drpg-glass-accent);
+}
+body.drpg-theme-stained-glass[data-drpg-note-frame] #drpg-popups .drpg-popup {
+    border: 0;
+}
+body.drpg-theme-stained-glass[data-drpg-note-frame] #drpg-popups .drpg-popup-body {
+    background-color: transparent;
 }
 
 /* ---- 4. The Look window fits its rows ---------------------------------------------------- */

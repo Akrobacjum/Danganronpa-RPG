@@ -330,6 +330,8 @@ function capacityOf(host) {
 }
 
 const PARKED = "drpg-popup-parked";
+/** On the body while a card stands on the notice tile (`setFloor`): read by stained-glass.css for the pane's plate (E79 C13). */
+const NOTICE_MARK = "data-drpg-notice";
 const STICKY = "drpg-popup-sticky";
 
 /* Arrival order, kept on each card, because the two stacks lay it out differently: the
@@ -556,6 +558,10 @@ export function setFloor(host) {
         const floor = Array.from(host.querySelectorAll(`.drpg-popup:not(.leaving):not(.${PARKED})`)).sort(byArrival)[0] ?? null;
         host.querySelectorAll(`.${FLOOR}`).forEach(card => { if (card !== floor) card.classList.remove(FLOOR); });
         if (floor && !floor.classList.contains(FLOOR)) floor.classList.add(FLOOR);
+        /* A card stands on the tile exactly when it has a floor card, and every change of the
+           stack ends here: the body's mark is what lets Stained Glass draw the card's plate on the
+           whole pane (glass.mjs `seatNoteFrame`, E79 C13). Set only on a change. */
+        if (document.body.hasAttribute(NOTICE_MARK) !== Boolean(floor)) document.body.toggleAttribute(NOTICE_MARK, Boolean(floor));
         const body = floor?.querySelector(".drpg-popup-body");
         const [tail, kind] = body ? cornerTail(body) : [null, null];
         host.querySelectorAll(`.${TAIL}, .${TAIL_BLOCK}`).forEach(el => {

@@ -301,13 +301,22 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
        floor    R299 (b)'s six endings, each the only card, scrolled to its end: no line box of its words under the
                 corner button or its unread badge (P8, P7). The badge is the button's `::after`, its box read from
                 the computed style, since getBoundingClientRect does not include a pseudo-element.
+       fill     (E79 C13, 16.10.2026; the owner's N16 of 15.10: "the notice card fills its glass pane, as the room
+                tile and the voice tile do") one card: on a Stained Glass desk `#drpg-note-frame` drawn (displayed),
+                its outline - its clip-path at its box - on the note pane's polygon (LAST.panes, toned note-block,
+                at the curtain's box), each corner of either within 1 px of one of the other's (`off`); every line
+                box of the card's words inside that polygon within 1 px (`out`: each box read upright and put
+                through the turn the tile wears, since a turned box's client rectangle stands past its corners);
+                the card bare - no background, no border, the body without its plate; with a second card the
+                frame still drawn, with every card closed not drawn. Under Monokuma Legacy and on a stacked screen
+                there must be no frame.
      All of it with the tile's turn taken off, as R299 (b) and glass.mjs measure, and in client coordinates, so the
      containing block's offset under Stained Glass (P23; glass.mjs, `LAUNCH_CLEAR`) is the same for both boxes of a
      comparison. The cards are closed and the turn, the dock and the badge put back before it answers. */
   window.drpgNoticeCheck = async () => {
     const host = document.getElementById("drpg-popups"), button = document.getElementById("drpg-notices-corner");
     const body = document.body, stacked = body.classList.contains("drpg-stacked");
-    const out = { ok: false, why: [], stacked, ceiling: null, stack: null, long: null, floor: null };
+    const out = { ok: false, why: [], stacked, ceiling: null, stack: null, long: null, floor: null, fill: null };
     if (!host || !button) { out.why.push("no notice tile or no history button"); return out; }
     if (host.querySelector(".drpg-popup:not(.leaving)")) { out.why.push("a card is on the tile already (?card=1): the check draws its own"); return out; }
     const P = await import("/scripts/popup.mjs");
@@ -319,9 +328,69 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     const closers = [], still = body.classList.contains("drpg-reduced-motion"), lift = body.style.getPropertyValue("--drpg-av-lift");
     const turn = [host.style.getPropertyValue("transform"), host.style.getPropertyPriority("transform")];
     const shut = () => { while (closers.length) { try { closers.pop()({ instant: true }); } catch { /* already gone */ } } };
+    const worn = getComputedStyle(host).transform;
+    const turned = { m: new DOMMatrix(worn === "none" ? undefined : worn), o: getComputedStyle(host).transformOrigin.split(" ").map(px) };
     body.classList.add("drpg-reduced-motion");
     host.style.setProperty("transform", "none", "important");
     try {
+      {
+        const g = window.__glass, cur = document.getElementById("drpg-curtain"), glassOn = body.classList.contains("drpg-theme-stained-glass");
+        const pane = glassOn && !stacked && cur && g?.LAST?.panes ? g.LAST.panes.find(p => p.tone === "note-block" && p.poly?.length) : null;
+        const drawn = () => { const f = document.getElementById("drpg-note-frame"); return Boolean(f) && getComputedStyle(f).display !== "none"; };
+        if (!glassOn || stacked) {
+          out.fill = { frame: Boolean(document.getElementById("drpg-note-frame")) };
+          if (out.fill.frame) out.why.push(`fill: a note frame stands ${stacked ? "on a stacked screen" : "under Monokuma Legacy"}`);
+        } else if (!pane) out.why.push("fill: the cut has no pane toned note-block on a desk with glass");
+        else {
+          closers.push(P.showPopup(`<p>${"Fill words ".repeat(14)}</p>`, { title: "Fill", record: false }));
+          await frame();
+          const fr = document.getElementById("drpg-note-frame"), card = shown()[0], at = cur.getBoundingClientRect();
+          const want = pane.poly.map(([x, y]) => [at.left + x, at.top + y]);
+          let got = null;
+          if (fr) {
+            const r = fr.getBoundingClientRect(), m = /^polygon\((.*)\)$/.exec(getComputedStyle(fr).clipPath);
+            got = m ? m[1].split(",").map(q => q.trim().split(/\s+/).map(px)).map(([x, y]) => [r.left + x, r.top + y])
+              : [[r.left, r.top], [r.right, r.top], [r.right, r.bottom], [r.left, r.bottom]];
+          }
+          const near = (A, B) => Math.max(...A.map(([x, y]) => Math.min(...B.map(([u, v]) => Math.hypot(u - x, v - y)))));
+          const off = got ? Math.max(near(want, got), near(got, want)) : null;
+          // the words upright (the turn is off), then put through the turn about its origin at the box as laid out
+          const h0 = host.getBoundingClientRect(), O = [h0.left + turned.o[0], h0.top + turned.o[1]];
+          const turn1 = ([x, y]) => { const p = turned.m.transformPoint(new DOMPoint(x - O[0], y - O[1])); return [p.x + O[0], p.y + O[1]]; };
+          const toSide = (p, a, b) => { const ex = b[0] - a[0], ey = b[1] - a[1], t = Math.max(0, Math.min(1, ((p[0] - a[0]) * ex + (p[1] - a[1]) * ey) / ((ex * ex + ey * ey) || 1))); return Math.hypot(p[0] - a[0] - t * ex, p[1] - a[1] - t * ey); };
+          const inPane = ([x, y]) => {
+            let c = false;
+            for (let i = 0, j = want.length - 1; i < want.length; j = i++) {
+              const [xi, yi] = want[i], [xj, yj] = want[j];
+              if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c;
+            }
+            return c || want.some((a, i) => toSide([x, y], a, want[(i + 1) % want.length]) <= 1);
+          };
+          const texts = node => node.nodeType === Node.TEXT_NODE ? [node] : [...node.childNodes].flatMap(texts);
+          const boxes = card ? texts(card).filter(n => n.data.trim()).flatMap(n => { const rg = document.createRange(); rg.selectNodeContents(n); return [...rg.getClientRects()]; }).filter(r => r.width > 0) : [];
+          const outside = boxes.filter(r => ![[r.left, r.top], [r.right, r.top], [r.right, r.bottom], [r.left, r.bottom]].map(turn1).every(inPane));
+          const cs = card ? getComputedStyle(card) : null, plate = card ? getComputedStyle(card.querySelector(".drpg-popup-body") ?? card).backgroundColor : null;
+          const bare = Boolean(cs) && cs.backgroundColor === "rgba(0, 0, 0, 0)" && plate === "rgba(0, 0, 0, 0)"
+            && ["Top", "Right", "Bottom", "Left"].every(k => px(cs[`border${k}Width`]) === 0);
+          let corners = null;
+          if (card) { const c = card.getBoundingClientRect(); corners = [[c.left, c.top], [c.right, c.top], [c.right, c.bottom], [c.left, c.bottom]].map(turn1).map(p => p.map(Math.round)); }
+          const one = drawn();
+          closers.push(P.showPopup("<p>Fill two</p>", { title: "Fill 2", record: false }));
+          await frame();
+          const two = drawn();
+          shut();
+          await frame();
+          const none = drawn();
+          out.fill = { pane: want.map(p => p.map(Math.round)), off: off === null ? null : +off.toFixed(1), lines: boxes.length, out: outside.length, bare, card: corners,
+            plate, drawn: [one, two, none] };
+          if (!fr) out.why.push("fill: no #drpg-note-frame with a card on the tile");
+          else if (off > 1) out.why.push(`fill: the frame's outline is ${off.toFixed(1)} px off the note pane's polygon`);
+          if (!boxes.length) out.why.push("fill: no line of the card's words was read");
+          if (outside.length) out.why.push(`fill: ${outside.length} of ${boxes.length} line boxes of the card's words outside the note pane`);
+          if (!bare) out.why.push(`fill: the card keeps a plate or an edge of its own (body ${plate})`);
+          if (!one || !two || none) out.why.push(`fill: the frame drawn ${one}/${two}/${none} with one card, two cards and none (want true/true/false)`);
+        }
+      }
       if (stacked) {
         const read = () => px(getComputedStyle(host).maxHeight);
         const dock = `${Math.min(300, Math.floor(innerHeight / 2))}px`, asIs = read();

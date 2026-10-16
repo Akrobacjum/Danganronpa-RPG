@@ -19,7 +19,8 @@
  *     routes on room-tile.mjs's data; this reads what is drawn.
  *   D (Foundry's rails leave the screen, E77 C5): p1's scene controls computed `display: none` in both themes and its
  *     layer back to Tokens after a new canvas and a render of the controls; the GM's two windows closed, Foundry tools
- *     holding the sidebar collapsed, and a scene rail drawn in the left column moved into Map tools.
+ *     holding the sidebar collapsed, and a scene rail drawn in the left column moved into Map tools. And (E79 C13,
+ *     1.2.79, N16) Foundry's LATENCY/FPS readout computed `display: none` on p1 and on the GM in both themes.
  *   E (the corner's upper row, E77 C6): on the GM's page the red GM button and Foundry tools are children of the body
  *     in the cluster (`data-drpg-cluster`) with no `drpg-` class on them or above them, and a click on Foundry tools
  *     opens both windows (`aria-pressed` "true") and a second closes both; p1 and p2 have neither button.
@@ -285,12 +286,26 @@ export async function run({ gm, gm2, p1, p2, p4, check, phase, settle, connect, 
        (the theme's class swapped and put back); on the GM the guard moves the stand-in into Map tools before the next
        task, and the same rule leaves its display alone there - the control that the rule is the player's. The Tokens
        layer through the harness's `ui.controls` (v13's `control` and `activate`, LIVE-E77-11 at a table): another layer
-       set, then a new canvas, then a render of the controls; and with Tokens already active, nothing asked. */
+       set, then a new canvas, then a render of the controls; and with Tokens already active, nothing asked.
+       D4 (E79 C13, 1.2.79): the harness draws no players list either, so a stand-in `#performance-stats` - the element
+       Foundry fills with LATENCY and FPS - is put in `#players` (a stand-in one where the page has none), read in both
+       themes on p1 and on the GM, and taken away again. */
     const STAND_IN = `const standIn = () => { const el = document.createElement("div"); el.id = "scene-controls";
             el.innerHTML = '<menu><li><button type="button" class="ui-control"></button></li></menu>';
             (document.getElementById("ui-left") ?? document.getElementById("interface")).append(el); return el; };
-        const tick = () => new Promise(r => setTimeout(r, 0));`;
+        const tick = () => new Promise(r => setTimeout(r, 0));
+        const readout = () => { let host = document.getElementById("players"); const made = host ? null : (host = document.createElement("aside"));
+            if (made) { made.id = "players"; document.body.append(made); }
+            const el = document.createElement("div"); el.id = "performance-stats";
+            el.innerHTML = '<span class="latency">LATENCY 12ms</span><span class="fps">FPS 60</span>'; host.append(el);
+            return { el, drop: () => { el.remove(); made?.remove(); } }; };
+        const themed = legacy => { document.body.classList.toggle("drpg-theme-stained-glass", !legacy); document.body.classList.toggle("drpg-theme-monokuma-legacy", legacy); };
+        const bothThemes = el => { const was = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"].map(c => document.body.classList.contains(c));
+            try { themed(false); const stained = getComputedStyle(el).display; themed(true); return [stained, getComputedStyle(el).display]; }
+            finally { document.body.classList.toggle("drpg-theme-stained-glass", was[0]); document.body.classList.toggle("drpg-theme-monokuma-legacy", was[1]); } };`;
     const p1D = await p1.eval(`${STAND_IN} const body = document.body, el = standIn(), out = {};
+        const perf = readout();
+        try { out.perf = bothThemes(perf.el); } finally { perf.drop(); }
         const swap = legacy => { body.classList.toggle("drpg-theme-stained-glass", !legacy); body.classList.toggle("drpg-theme-monokuma-legacy", legacy); };
         const was = [body.classList.contains("drpg-theme-stained-glass"), body.classList.contains("drpg-theme-monokuma-legacy")];
         try {
@@ -326,6 +341,8 @@ export async function run({ gm, gm2, p1, p2, p4, check, phase, settle, connect, 
         await tick();
         out.rail = [el.parentElement === bodyOf(maptools), getComputedStyle(el).display];
         el.remove();
+        const perf = readout();
+        try { out.perf = bothThemes(perf.el); } finally { perf.drop(); }
         return out;`, { timeout: 20000 });
     const p2D = await p2.eval(`return [document.querySelectorAll(".drpg-foundry-window").length, document.body.classList.contains("drpg-player")];`);
     check("D1: a player's scene controls are display: none under Stained Glass and under Monokuma Legacy, and a player has no window of Foundry's",
@@ -337,6 +354,8 @@ export async function run({ gm, gm2, p1, p2, p4, check, phase, settle, connect, 
         + "collapsed; a scene rail drawn into the left column is in Map tools before the next task, and the player's rule leaves it shown",
         J(gmD.closed) === J([[true, true, true], [true, true, true]]) && J(gmD.sidebar) === J([true, true, true, false])
             && gmD.rail[0] === true && gmD.rail[1] !== "none", J(gmD));
+    check("D4: Foundry's LATENCY/FPS readout is display: none on a player's page and on the GM's, under Stained Glass and under Monokuma Legacy",
+        J([p1D.perf, gmD.perf]) === J([["none", "none"], ["none", "none"]]), J({ p1: p1D.perf, gm: gmD.perf }));
 
     /* ------------------------------ E. the corner's upper row (E77 C6) ------------------------------ */
     phase("E: the GM's button and Foundry tools stand in the corner on the GM's page alone, and Foundry tools opens and closes both windows");
