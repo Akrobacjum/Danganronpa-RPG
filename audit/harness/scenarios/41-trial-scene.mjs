@@ -33,6 +33,10 @@
  *      hall active and on its screen, takes for the school and makes of the hall.
  *   h  `voiceTargets()` on each browser in the trial: since E13 C4 one room for everybody (D8).
  *   l  (fix r1-F2) Room Setup's Scenes tab in the trial: the GM unlinks the hall; Apply held, and pressed anyway.
+ *   o  (E79 C11, N6) the room tile in the trial: p1's and p2's tile shows the trial's label, then the hall's name, picture
+ *      and words the GM writes in the Scenes tab; a picture of another host in the flag is none, and p1's call of the
+ *      writer writes nothing; after c (c2) the tiles are the players' rooms again. Since C11 (a2b, N5) Aiko's made hall
+ *      token has her Academy token's look, and both made tokens lock their rotation.
  *   c  `closeTrial()`: where every browser looks, the hall's tokens, their ids.
  *   d  a and c again through Edit campaign (`openClockDialog`, E11 C6's question answered yes); since E13 C6 that
  *      question says the trial takes the table to the hall.
@@ -109,6 +113,9 @@
  *   `timeoutMs`.
  * E13 fix l2-L2's a00 (the hall put back unprepared): 41 checks in 127.9 s, one run on 12.10.2026 (`--verbose`, lane A;
  *   no other harness client of the e12 trees alive when it started, other worktrees not checked) - still no `timeoutMs`.
+ * E79 C11's a2b, o1-o3 and c2: 51 checks in 162.7 s, 168 s from the command to its exit, one run on 16.10.2026
+ *   (`--verbose`, under the scratchpad's harness lock; whether a run of another worktree was on the machine not checked)
+ *   - about 55% of run-all.mjs's five minutes, so still no `timeoutMs`.
  */
 export const layers = ["ci"];
 const GM0 = "USERGA0000000000";
@@ -293,6 +300,13 @@ export async function run({ gm, gm0, p1, p2, p3, p4, check, note, phase, settle,
             && J(tab.read.placedByGm) === J(["Botan", "Monokuma", "Test"]) && tab.read.handPlaced === false
             && J(tab.read.ticks) === J({ Aiko: true, Botan: true, Chie: true, Ghost: false, Monokuma: true, Test: false }) && built.chose === true,
         J(tab), { flow: "trial-scene" });
+    /* E79 C11 (N5): Aiko's own token on the Academy, the one the stage copies, given a look of its own before the trial
+       opens - turned, faded, scaled - and a flag of the scenario's, which a made token must not carry. Its rotation lock
+       is left as the seed has it, naming none. Put back after a2b. */
+    const lookN5 = await gm.eval(`${HALL} const t = academy.tokens.find(x => x.actorId === "${IDS.aiko}" && x.actorLink);
+        const src = t.toObject(), was = { rotation: src.rotation ?? 0, alpha: src.alpha ?? 1, scaleX: src.texture?.scaleX ?? 1, lock: src.lockRotation ?? null };
+        await t.update({ rotation: 45, alpha: 0.7, "texture.scaleX": 1.3, "flags.world.s41n5": true });
+        return { id: t.id, was };`, { timeout: 30000 });
     const before = await readAll();
     const opsA = opLog.length;
     const opened = await gm.eval(`const { setClock } = await import("${repoUrl}/scripts/clock.mjs"); const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
@@ -322,6 +336,25 @@ export async function run({ gm, gm0, p1, p2, p3, p4, check, note, phase, settle,
             && r.gone === before[who].gone && r.open.length === MADE.length && MADE.every(name => cell(r.at[name] ?? [-1, -1])))
             && J(inTrial.gm.at.Aiko) !== J(inTrial.gm.at.Ghost),
         J({ chose: built.chose, opsInA, before, after: inTrial }), { flow: "trial-scene" });
+    /* E79 C11 (the owner's N5 of 14.10.2026: "the image rotates on movement"). The two made tokens as every browser holds
+       them: Aiko's has its Academy token's look and the stage's seat, and not that token's flag; the dead student's, with
+       no token on the Academy, its prototype's look; both lock their rotation - the prototype names Foundry's default,
+       false, since C11's shim (LIVE-E79-13). Red at C11's parent with C11's shim: both free to turn, Aiko's with the
+       prototype's look. */
+    const madeN5 = {};
+    for (const c of clients) madeN5[c.who] = await c.eval(`${HALL} const seats = hall.getFlag("${MOD}", "trialSeats") ?? {};
+        const look = name => { const t = hall.tokens.find(x => x.name === name); if (!t) return null; const d = t.toObject();
+            return { lock: d.lockRotation ?? null, rotation: d.rotation ?? null, alpha: d.alpha ?? null, scaleX: d.texture?.scaleX ?? null,
+                planted: d.flags?.world?.s41n5 ?? null, hidden: d.hidden, linked: d.actorLink, seat: J(seats[d.actorId] ? [seats[d.actorId].x, seats[d.actorId].y] : null) === J([d.x, d.y]) }; };
+        const J = JSON.stringify;
+        return { Aiko: look("Aiko"), Ghost: look("Ghost") };`, { timeout: 30000 });
+    check("a2b: the module's hall token of a student is its Academy token's look and locks its rotation - Aiko's turned, faded and scaled as on the Academy, without that token's flag, at its seat; the dead student's, with no Academy token, its prototype's, also locked (E79 C11, N5)",
+        Object.values(madeN5).every(r => J(r.Aiko) === J({ lock: true, rotation: 45, alpha: 0.7, scaleX: 1.3, planted: null, hidden: false, linked: true, seat: true })
+            && r.Ghost?.lock === true && r.Ghost.rotation !== 45 && r.Ghost.planted === null && r.Ghost.hidden === false && r.Ghost.seat === true),
+        J({ lookN5, madeN5 }), { flow: "trial-scene" });
+    await gm.eval(`${HALL} const t = academy.tokens.get("${lookN5.id}");
+        await t.update({ rotation: ${lookN5.was.rotation}, alpha: ${lookN5.was.alpha}, "texture.scaleX": ${lookN5.was.scaleX} });
+        await t.unsetFlag("world", "s41n5"); return true;`, { timeout: 30000 });
     /* A player hides their own hall token from their browser (whether Foundry v14 lets an owner do it is LIVE-E13-08; the
        harness lets the write through): the primary puts it back and tells the GMs. */
     const putBack = await p1.eval(`${HALL} const t = hall.tokens.find(x => x.name === "Aiko"); let wrote = true;
@@ -511,6 +544,64 @@ export async function run({ gm, gm0, p1, p2, p3, p4, check, note, phase, settle,
         relink.held === true && relink.label === true && relink.closed === "closed" && relink.linked === true && relink.warned === true,
         J(relink), { flow: "trial-scene" });
 
+    /* ------------------------------ o. the room tile in the trial ------------------------------ */
+    phase("o: in the trial the room tile shows the hall, under the name the GMs give it in the Scenes tab", { flow: "trial-scene" });
+    /* E79 C11 (the owner's N6 of 14.10.2026: "the room window in the Class Trial ... looks broken", then "B is better: it
+       can be done in Room Setup -> Scenes"). Each player's tile as drawn on that browser: its state, heading, words, the
+       picture on its art layer, aria-hidden and whether search tokens are drawn. Red at C11's parent: an empty pane,
+       aria-hidden, in o1 and o2, and the tab with no fields for the hall in o2. */
+    const TILE = `const el = document.getElementById("drpg-room-tile");
+        return el ? { state: el.dataset.state ?? null, name: el.querySelector(".drpg-room-tile-name")?.textContent ?? null,
+            words: el.querySelector(".drpg-room-tile-prose")?.textContent ?? null, art: el.querySelector(".drpg-room-tile-art")?.style.backgroundImage ?? "",
+            hidden: el.getAttribute("aria-hidden"), pips: Boolean(el.querySelector(".drpg-hud-room-tokens")) } : null;`;
+    const tiles = async () => ({ p1: await p1.eval(TILE), p2: await p2.eval(TILE) });
+    const label = await p1.eval(`const { phaseLabel } = await import("${repoUrl}/scripts/clock.mjs"); return phaseLabel("classTrial");`);
+    const tileO1 = await tiles();
+    check("o1: in the trial with nothing set for the hall, each player's room tile shows the trial's label, no search tokens, and is read by a screen reader (E79 C11, N6)",
+        Object.values(tileO1).every(t => J(t) === J({ state: "roomBare", name: label, words: null, art: "", hidden: null, pips: false })),
+        J({ label, tileO1 }), { flow: "trial-scene" });
+    const HALL_FACTS = { name: "S41 Courtroom", picture: "worlds/s41/courtroom.webp", words: "Sixteen stands in a ring." };
+    const applyO = await gm.eval(`${UNTIL} ${HALL} const V = await import("${repoUrl}/scripts/vault.mjs");
+        const drawn = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.element?.querySelector?.('[name="scenes:trial"]'));
+        const was = globalThis.__dialogWindows; globalThis.__dialogWindows = true;
+        const told = globalThis.__notifications.length, facts = ${J(HALL_FACTS)};
+        let fields = null, closed = "hung";
+        try {
+            const pending = V.openRoomSetupDialog({ tab: "scenes" });
+            const el = (await until(() => drawn()?.element, 8000)) ?? null;
+            const field = name => el?.querySelector('[name="scenes:' + name + '"]');
+            fields = ["hallName", "hallPicture", "hallWords"].map(name => Boolean(field(name) && !field(name).disabled)).concat(Boolean(el?.querySelector("[data-drpg-hall-picture]")));
+            if (field("hallName")) { field("hallName").value = facts.name; field("hallPicture").value = facts.picture; field("hallWords").value = facts.words; }
+            el?.querySelector('footer button[data-action="ok"]')?.click();
+            closed = await Promise.race([pending.then(() => "closed"), new Promise(r => setTimeout(() => r("hung"), 8000))]);
+        } finally { globalThis.__dialogWindows = was; }
+        await new Promise(r => setTimeout(r, 800));
+        return { fields, closed, stored: hall.getFlag("${MOD}", "hallRoom") ?? null, warned: globalThis.__notifications.slice(told).filter(n => n.level !== "info").map(n => n.level + ":" + n.msg) };`, { timeout: 60000 });
+    await settle(800);
+    const tileO2 = await tiles();
+    /* The art layer's url as jsdom writes it back is not compared whole: whether the picture's path is in it. */
+    const seen = t => t && J({ ...t, art: t.art.includes(HALL_FACTS.picture) });
+    const WANT = { state: "room", name: HALL_FACTS.name, words: HALL_FACTS.words, art: true, hidden: null, pips: false };
+    check("o2: the GM writes the hall's name, picture and words in Room Setup's Scenes tab in the trial, and each player's tile shows them, the words as text, with no search tokens (E79 C11, N6)",
+        J(applyO.fields) === J([true, true, true, true]) && applyO.closed === "closed" && J(applyO.stored) === J(HALL_FACTS) && !applyO.warned.length
+            && Object.values(tileO2).every(t => seen(t) === J(WANT)),
+        J({ applyO, tileO2 }), { flow: "trial-scene" });
+    /* A picture the room tile's check refuses, written into the flag raw on the GM's browser (as a console could), is no
+       picture on a player's tile; and a player's console call of the writer writes nothing. */
+    await gm.eval(`${HALL} await hall.setFlag("${MOD}", "hallRoom", { ...${J(HALL_FACTS)}, picture: "https://other.example/s41.webp" }); return true;`, { timeout: 30000 });
+    await settle(800);
+    const tileO3 = await tiles();
+    const forged = await p1.eval(`${HALL} const T = await import("${repoUrl}/scripts/trial-scene.mjs");
+        let answer = "threw"; try { answer = await T.setHallRoom(hall, { name: "p1's hall" }); } catch { /* the answer stays "threw" */ }
+        await new Promise(r => setTimeout(r, 400));
+        return { answer, name: hall.getFlag("${MOD}", "hallRoom")?.name ?? null, read: T.hallRoom(hall).picture };`, { timeout: 30000 });
+    await settle(400);
+    const heldO = await gm.eval(`${HALL} return hall.getFlag("${MOD}", "hallRoom")?.name ?? null;`);
+    check("o3: a picture of another host in the hall's flag is no picture on a player's tile, its name and words still shown; and a player's call of the writer answers nothing and writes nothing (E79 C11, N6)",
+        Object.values(tileO3).every(t => J(t) === J({ ...WANT, state: "roomText", art: "" })) && forged.answer === null && forged.name === HALL_FACTS.name
+            && forged.read === null && heldO === HALL_FACTS.name,
+        J({ tileO3, forged, heldO }), { flow: "trial-scene" });
+
     /* ------------------------------ c. closeTrial ------------------------------ */
     phase("c: closeTrial", { flow: "trial-scene" });
     const closed = await gm.eval(`const UI = await import("${repoUrl}/scripts/trial-floor-ui.mjs"); const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
@@ -522,6 +613,13 @@ export async function run({ gm, gm0, p1, p2, p3, p4, check, note, phase, settle,
         closed.done === true && closed.phase === "dailyLife" && views(afterClose).every(v => v === "school")
             && Object.values(afterClose).every(r => r.active === "school" && J(shown(r)) === J(["Decor"]) && J(r.ids) === J(before.gm.ids) && !r.open.length),
         J({ closed, afterClose }), { flow: "trial-scene" });
+    /* E79 C11: out of the trial each player's tile is its own room's again, not the hall's; then the hall's facts are
+       taken off, so the trials after this phase show the label. */
+    const tileC2 = await tiles();
+    check("c2: after closeTrial each player's room tile no longer shows the hall's name, words or picture (E79 C11, N6)",
+        Object.values(tileC2).every(t => t && t.name !== HALL_FACTS.name && t.words !== HALL_FACTS.words && !t.art.includes("s41")),
+        J({ tileC2 }), { flow: "trial-scene" });
+    await gm.eval(`${HALL} await hall.unsetFlag("${MOD}", "hallRoom"); return true;`, { timeout: 30000 });
     await handBack();
     await settle(400);
 

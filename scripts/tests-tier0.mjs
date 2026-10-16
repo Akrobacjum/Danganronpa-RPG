@@ -8093,6 +8093,7 @@ const REGRESSIONS = [
             ["HOOK fog.mjs#registerFog#createToken:inline", "out of scope: a token dropped redraws the fog on every client; no rule"],
             ["HOOK room-tile.mjs#registerRoomTile#createRegion:onRegionChanged", "out of scope: repaints this client's room tile (E77 C3); the paint reads `viewerRoom` and decides no rule"],
             ["HOOK room-tile.mjs#registerRoomTile#updateRegion:onRegionChanged", "out of scope: repaints this client's room tile (E77 C3); the paint reads `viewerRoom` and decides no rule"],
+            ["HOOK room-tile.mjs#registerRoomTile#updateScene:inline", "out of scope: repaints this client's room tile when the trial hall's `hallRoom` flag changes (E79 C11); the paint reads `hallRoom` and decides no rule"],
             ["HOOK room-tile.mjs#registerRoomTile#deleteRegion:onRegionChanged", "out of scope: repaints this client's room tile (E77 C3); the paint reads `viewerRoom` and decides no rule"],
             ["HOOK movement.mjs#registerMovement#preUpdateToken:onPreUpdateToken", "a claim, judged again: the veto runs on the mover's browser (a GM returns early); since E12 C9 it sees a `level`-only move (`isMoveChange`), reads each end on its own floor (`roomAt` per level) and links floors by the stairs alone where a scene has them (`stairLinks`); since E12 C12 the primary judges every arrival again from the last lawful room (`judgeArrival`), and one it refuses is no witness and no third party until it stands somewhere lawful (Q3 a); scenario 66 I [1b.1 a token's room / floor] MARKED"],
             ["HOOK movement.mjs#registerMovement#updateToken:onUpdateToken", "the charge on one client (`settleRoute`: the owning player's, else the primary's) - a player's own budget; since E12 C9 it gates on `isMoveChange` and prices a step by `crossingCost`: the stairs a door, a stairwell's floors free (Q1 a) [1b.1 a token's floor]"],
@@ -8787,6 +8788,12 @@ const REGRESSIONS = [
          * road of its own (one more row, 43) and widens MARKUP from three sinks to every one R509 names.
          * E77 C7 made the three STORE rows real: `SETTINGS.foundryWindows` exists since then.
          * E77 C8 added the last planned road, the narrow row's thumbnail (`img.src` in room-tile.mjs `paintTileRow`).
+         * E79 C11 (16.10.2026) put the trial hall on the tile: its name, picture and words, a flag of the hall scene
+         * (trial-scene.mjs `HALL_ROOM_FLAG`). READ reads `hallRoom(` too (room-tile.mjs's text, src and which,
+         * trial-scene.mjs's setup, the GM's own form), WRITER `setHallRoom(` and HOOK `updateScene`; nine rows, and the
+         * fixture a call of each and an `updateScene` hook. On C11's working tree (16.10.2026, the harness, this
+         * test alone, once) it passed: 56 roads against the 56 rows (12 READ, 10 FIELD, 8 FORM, 6 WRITER, 5 WHO, 7 HOOK,
+         * 5 SRC, 3 STORE; 47 before), none either side.
          * The reader is run first on a fixture: a call in a comment and one in a string, the reader's and the writer's
          * declarations beside calls, a second writer call in one declaration, a top-level hook outside the view files,
          * a hook of another event, a member `this.hudActor(` and the declaration of `hudActor`, a quoted "img:${", the
@@ -8799,6 +8806,9 @@ const REGRESSIONS = [
             ["WRITER api.mjs#DrpgApi -> src", "`image` passes the spread to `setVaultRoom`, which writes for a GM only, through `safeRoomImage`; a refused path is not written and the GM is told (`imageRefused`)"],
             ["WRITER vault.mjs#applyRoomRows -> text", "Room Setup is the GM's, and `setVaultRoom` writes for a GM only; the description is trimmed (`readRoomSetupForm`) and stored as a string"],
             ["WRITER vault.mjs#applyRoomRows -> src", "Room Setup's picture is judged by `safeRoomImage` before the row is compared: a refused path is not handed on and the GM is told which room (`imageRefused`)"],
+            // E79 C11: the trial hall's name, picture and words, a flag of the hall scene (trial-scene.mjs `HALL_ROOM_FLAG`; R583)
+            ["WRITER trial-scene.mjs#applyScenesTab -> text", "the Scenes tab's Apply, a GM's (`if (!game.user?.isGM || !read) return null`), and `setHallRoom` writes for a GM only: the name and the words as trimmed strings, drawn later as text only (R583)"],
+            ["WRITER trial-scene.mjs#applyScenesTab -> src", "`setHallRoom` writes the picture only as `safeRoomImage` gives it; a refused path is not written, the old one stays and the GM is told (`imageRefused`; R583)"],
             ["FIELD vault.mjs#setVaultRoom#description -> text", "the writer, GM only, `String(description ?? \"\")`; whether a player can write a region's flags by another road in v14 is not measured (LIVE-E12-04), so every reader takes the text as untrusted"],
             ["FIELD vault.mjs#pieceData#description -> text", "the list of flags a renamed piece carries; nothing is drawn"],
             ["FIELD vault.mjs#setVaultRoom#image -> src", "the one writer, GM only: `safeRoomImage(image)` at the write, null clears; whether a player can write a region's flags by another road in v14 is not measured (LIVE-E12-04), so the reader checks again"],
@@ -8825,6 +8835,12 @@ const REGRESSIONS = [
             ["READ room-tile.mjs#roomFacts#roomDescription -> which", "the room and scene `viewerRoom` gives: the viewer's own token's, at the spot its last settled route left it (R504, scenario 66 W1)"],
             ["READ room-tile.mjs#roomFacts#roomImage -> src", "`roomImage` answers `safeRoomImage` of the stored value on every read, null when refused (R504 reads a refused value as null)"],
             ["READ room-tile.mjs#roomFacts#roomImage -> which", "as the description: the viewer's own room on its own scene (R504, scenario 66 W1)"],
+            ["READ room-tile.mjs#tileView#hallRoom -> text", "the hall's name and words, handed to `hallView` as strings; the tile sets them as text only (R509, R582)"],
+            ["READ room-tile.mjs#tileView#hallRoom -> src", "`hallRoom` answers `safeRoomImage` of the stored value on every read, and `hallView` and the paint judge it again (R582 reads another host's and a `javascript:` picture as none)"],
+            ["READ room-tile.mjs#tileView#hallRoom -> which", "the hall linked as the trial hall (`trialScene()`), the same for every viewer, and only while `viewerRoom` says `trial` (scenario 41 N6)"],
+            ["READ trial-scene.mjs#setHallRoom#hallRoom -> setup", "the picture kept when a new one is refused: `hallRoom`'s, judged; not drawn"],
+            ["READ trial-scene.mjs#hallRoomFields#hallRoom -> setup", "the Scenes tab's three fields, the GM's own form: every value `esc`, the picture as `hallRoom` judged it"],
+            ["READ trial-scene.mjs#applyScenesTab#hallRoom -> setup", "the before-state the Apply compares the fields against (`hallRoomWrite`); not drawn"],
             // ---- whose room
             ["WHO explain.mjs#roomBlock#subjectActor -> which", "a player's `viewerActor()` only; a GM's selected token first, then their Monokuma (E77 C2; R509 reads the shape)"],
             ["WHO explain.mjs#openStatusExplainer#subjectActor -> which", "the counters of the same actor; no room text"],
@@ -8835,6 +8851,7 @@ const REGRESSIONS = [
             ["HOOK hud.mjs#registerHud#canvasReady -> which", "a repaint; the event chooses no room"],
             ["HOOK room-tile.mjs#registerRoomTile#drpgRouteSettled -> which", "the viewer's own token's settled route only, after its put-back when refused (R506; scenario 74 B reads one paint and nothing of a refused room at 400 and 1200 ms)"],
             ["HOOK room-tile.mjs#registerRoomTile#canvasReady -> which", "a repaint of `viewerRoom`; the event chooses no room"],
+            ["HOOK room-tile.mjs#registerRoomTile#updateScene -> which", "a repaint when the module's `hallRoom` flag of the linked hall changes (E79 C11); the event chooses no room, `tileView` does (scenario 41 N6)"],
             ["HOOK room-tile.mjs#registerRoomTile#updateRegion -> which", "a repaint of `viewerRoom` (a GM's edit of the room's words or picture, or of its shape); the event chooses no room (scenario 74 A)"],
             ["SRC room-tile.mjs#paintRoomTile#url -> src", "the art layer's `background-image`, only from `safeRoomImage` of the view's path, checked again at the paint, inside a CSS string whose quote, backslash and line breaks are escaped (`cssString`); R505 paints a `javascript:` picture as none"],
             ["SRC room-tile.mjs#openRoomImage#src -> src", "the probe that decodes the picture before the window opens, only from `safeRoomImage` of the path (R505)"],
@@ -8850,12 +8867,13 @@ const REGRESSIONS = [
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
         const VIEW_FILES = /^(?:hud|explain|room-tile|narrow)\.mjs$/, PAINT_FILES = /^(?:room-tile|narrow|foundry-windows)\.mjs$/;
         const WHO_FILES = /^(?:hud|explain|room-tile)\.mjs$/;
-        const REPAINTS = /\bHooks\.(?:on|once)\(\s*["'](updateToken|drpgRouteSettled|canvasReady|controlToken|updateRegion|updateUser|updateActor|renderSceneControls)["']|\bHooks\.callAll\(\s*["'](drpgRouteSettled)["']/g;
+        const REPAINTS = /\bHooks\.(?:on|once)\(\s*["'](updateToken|drpgRouteSettled|canvasReady|controlToken|updateRegion|updateScene|updateUser|updateActor|renderSceneControls)["']|\bHooks\.callAll\(\s*["'](drpgRouteSettled)["']/g;
         const STORE_SOURCES = ["self", "console", "stale"];
         // E77 fix r1-G1 (round 1's sec F4): every sink that parses a string as markup, not only the first three - R509's net.
         const MARKUP_SINKS = /\.\s*(innerHTML|outerHTML)\s*[+]?=(?![=>])|\b(insertAdjacentHTML|enrichHTML|setHTMLUnsafe|setHTML|createContextualFragment|parseFromString|parseHTMLUnsafe|renderTemplate)\s*\(|\.\s*(html)\s*\(|\bnew\s+(DOMParser)\b/g;
         const sinksOf = (kind, file, field) => kind === "FIELD" ? { description: ["text"], image: ["src"] }[field]
             : kind === "FORM" ? { desc: ["setup", "text"], img: ["setup", "src"] }[field]
+            : kind === "READ" && field === "hallRoom" ? (file === "room-tile.mjs" ? ["text", "src", "which"] : ["setup"])
             : kind === "READ" ? ({ "movement.mjs": ["card", "which"], "explain.mjs": ["explain", "which"] }[file] ?? (field === "roomImage" ? ["src", "which"] : ["text", "which"]))
             : kind === "SRC" && field === "ImagePopout" ? ["src", "text"]
             : { WRITER: ["text", "src"], WHO: ["which"], HOOK: ["which"], SRC: ["src"], MARKUP: ["text"], STORE: ["place"] }[kind];
@@ -8877,11 +8895,11 @@ const REGRESSIONS = [
                     return hook ? `Hooks.on(${hook[1]})` : "(top level)";
                 };
                 const declared = at => /\bfunction\s*\*?\s*$/.test(blank.slice(Math.max(0, at - 24), at));
-                for (const m of blank.matchAll(/(?<![\w$])(roomDescription|roomImage|setVaultRoom|hudActor|viewerActor|subjectActor)\s*\(/g)) {
+                for (const m of blank.matchAll(/(?<![\w$])(roomDescription|roomImage|setVaultRoom|hallRoom|setHallRoom|hudActor|viewerActor|subjectActor)\s*\(/g)) {
                     if (declared(m.index)) continue;
                     const decl = declAt(m.index), name = m[1], member = /\.\s*$/.test(blank.slice(Math.max(0, m.index - 8), m.index));
-                    if (name === "setVaultRoom") { if (!(file === "vault.mjs" && decl === name)) add("WRITER", file, decl, null); }
-                    else if (name === "roomDescription" || name === "roomImage") { if (!(file === "vault.mjs" && decl === name)) add("READ", file, decl, name); }
+                    if (name === "setVaultRoom" || name === "setHallRoom") { if (!(file === "vault.mjs" && decl === name)) add("WRITER", file, decl, null); }
+                    else if (name === "roomDescription" || name === "roomImage" || name === "hallRoom") { if (!(file === "vault.mjs" && decl === name)) add("READ", file, decl, name); }
                     else if (!member && WHO_FILES.test(file)) add("WHO", file, decl, name);
                 }
                 for (const m of blank.matchAll(/(?<![\w$.])VAULT_FLAGS\s*\??\.\s*(description|image)\b/g)) add("FIELD", file, declAt(m.index), m[1]);
@@ -8922,10 +8940,10 @@ const REGRESSIONS = [
         const planted = censusOf([
             ["vault.mjs", "// roomDescription(\"a comment is no road\");\nexport function roomDescription(room, scene) {\n    return roomFlag(scene, room, VAULT_FLAGS.description) ?? \"\";\n}\n"
                 + "export async function setVaultRoom(room, { description } = {}) {\n    if (!game.user.isGM) return null;\n}\n"],
-            ["planted.mjs", "export function shown(room, scene) {\n    const said = \"roomDescription(\";\n    return roomDescription(room, scene) + game.drpg.roomImage(room, scene);\n}\n"
-                + "async function kept(room) {\n    await setVaultRoom(room, {});\n    await game.drpg.setVaultRoom(room, {});\n}\n"
+            ["planted.mjs", "export function shown(room, scene) {\n    const said = \"roomDescription(\";\n    return roomDescription(room, scene) + game.drpg.roomImage(room, scene) + hallRoom(scene).name;\n}\n"
+                + "async function kept(room) {\n    await setVaultRoom(room, {});\n    await game.drpg.setVaultRoom(room, {});\n    await setHallRoom(room, {});\n}\n"
                 + "const cell = room => `<textarea name=\"desc:${room}\"></textarea>` + \"img:${room}\";\n"],
-            ["hud.mjs", "export function registerHud() {\n    Hooks.on(\"updateToken\", () => paint(hudActor()));\n    Hooks.on(\"updateSetting\", () => paint());\n}\n"
+            ["hud.mjs", "export function registerHud() {\n    Hooks.on(\"updateToken\", () => paint(hudActor()));\n    Hooks.on(\"updateSetting\", () => paint());\n    Hooks.on(\"updateScene\", () => paint());\n}\n"
                 + "function hudActor() {\n    return game.user.character;\n}\nfunction paint(actor = this.hudActor()) {}\n"],
             ["movement.mjs", "export function settleRoute(tokenDoc) {\n    Hooks.callAll(\"drpgRouteSettled\", tokenDoc);\n}\n"
                 + "Hooks.on(\"canvasReady\", () => roomDescription(\"Hall\", canvas.scene));\n"],
@@ -8935,10 +8953,11 @@ const REGRESSIONS = [
         equal(JSON.stringify(planted), JSON.stringify([
             "FIELD vault.mjs#roomDescription#description -> text",
             "READ planted.mjs#shown#roomDescription -> text", "READ planted.mjs#shown#roomDescription -> which",
-            "READ planted.mjs#shown#roomImage -> src", "READ planted.mjs#shown#roomImage -> which",
+            "READ planted.mjs#shown#roomImage -> src", "READ planted.mjs#shown#roomImage -> which", "READ planted.mjs#shown#hallRoom -> setup",
             "WRITER planted.mjs#kept -> text", "WRITER planted.mjs#kept -> src", "WRITER planted.mjs#kept (2) -> text", "WRITER planted.mjs#kept (2) -> src",
+            "WRITER planted.mjs#kept (3) -> text", "WRITER planted.mjs#kept (3) -> src",
             "FORM planted.mjs#cell#desc -> setup", "FORM planted.mjs#cell#desc -> text",
-            "WHO hud.mjs#registerHud#hudActor -> which", "HOOK hud.mjs#registerHud#updateToken -> which",
+            "WHO hud.mjs#registerHud#hudActor -> which", "HOOK hud.mjs#registerHud#updateToken -> which", "HOOK hud.mjs#registerHud#updateScene -> which",
             "READ movement.mjs#Hooks.on(canvasReady)#roomDescription -> card", "READ movement.mjs#Hooks.on(canvasReady)#roomDescription -> which",
             "HOOK movement.mjs#settleRoute#callAll -> which",
             "SRC room-tile.mjs#paintRoomTile#url -> src", "SRC room-tile.mjs#paintRoomTile#ImagePopout -> src", "SRC room-tile.mjs#paintRoomTile#ImagePopout -> text",
@@ -12703,6 +12722,76 @@ const REGRESSIONS = [
         must(glass.length > 1000, "glass.mjs is not among the module's sources - this would measure nothing");
         equal(JSON.stringify(reader(glass)), JSON.stringify([true, true, true, true]),
             "[Stained Glass's 'clock' branch free of the cap; the cap in the 'notes' height; in Legacy's 'clock' return; in Legacy's 'notes' return]");
+    }],
+
+    ["R583 - the trial hall's facts for the room tile have one writer and one reader: setHallRoom, a GM's, writes the hall's flag it is handed, its picture through safeRoomImage, called by the Scenes tab's Apply alone; hallRoom reads the flag and judges the picture again; the room tile reads the facts only through hallRoom, and the flag's name is named in trial-scene.mjs and the tile's repaint alone", async () => {
+        /*
+         * E79 C11 (16.10.2026; the owner's N6 of 14.10.2026). The hall's name, picture and words are a flag of
+         * the hall scene every browser holds (trial-scene.mjs `HALL_ROOM_FLAG`), so what a console writes there is
+         * read by every player's tile: the reader judges the picture on every read, as vault.mjs `roomImage` does a
+         * room's, and the writer is a GM's. Read off the module's files, comments blanked: [setHallRoom's first
+         * statement the GM gate; its picture through safeRoomImage; its one write, the hall's flag, and no other;
+         * its one call, in applyScenesTab; hallRoom reading the flag and judging the picture; one read of the flag
+         * in the module; the key's one literal; the files naming the flag; room-tile.mjs reading the facts in
+         * tileView through hallRoom and naming the flag in registerRoomTile and its import alone].
+         * THE CONTROL: a fixture of the two files is read whole, and each of five plants is seen - the gate
+         * taken off, a second caller, the picture written raw, the tile reading the flag itself, the reader not
+         * judging the picture.
+         */
+        const J = JSON.stringify;
+        const count = (text, pattern) => (text.match(pattern) ?? []).length;
+        const reader = files => {
+            const trial = files.get("trial-scene.mjs") ?? "", tile = files.get("room-tile.mjs") ?? "";
+            const write = fnSource(trial, "setHallRoom"), read = fnSource(trial, "hallRoom"), apply = fnSource(trial, "applyScenesTab");
+            const all = [...files];
+            const sum = pattern => all.reduce((n, [, text]) => n + count(text, pattern), 0);
+            const tileBody = tile.replace(/^import [^;]*;$/gm, "");
+            return [
+                /^[^\n]*\)\s*\{\s*if \(!game\.user\?\.isGM \|\| !hall\?\.setFlag\) return null;/.test(write),
+                /\bconst path = picture \? safeRoomImage\(picture\) : null;/.test(write) && /\bpicture: path\b/.test(write),
+                count(write, /\.setFlag\(|\.update\(|\.unsetFlag\(/g) === 1 && /\bhall\.setFlag\(MODULE_ID, HALL_ROOM_FLAG, next\)/.test(write),
+                sum(/(?<!function )\bsetHallRoom\(/g) === 1 && count(apply, /\bsetHallRoom\(hall, facts\)/g) === 1,
+                /getFlag\?\.\(MODULE_ID, HALL_ROOM_FLAG\)/.test(read) && /\bpicture: safeRoomImage\(raw\.picture\)/.test(read),
+                sum(/getFlag\??\.?\([^)]*HALL_ROOM_FLAG/g), sum(/["'`]hallRoom["'`]/g),
+                all.filter(([, text]) => /\bHALL_ROOM_FLAG\b/.test(text)).map(([file]) => file).sort(),
+                /\bhallRoom\(hall\)/.test(fnSource(tile, "tileView")) && count(tileBody, /\bHALL_ROOM_FLAG\b/g) === 1
+                    && count(fnSource(tile, "registerRoomTile"), /\bHALL_ROOM_FLAG\b/g) === 1
+            ];
+        };
+        const TRIAL = "export const HALL_ROOM_FLAG = \"hallRoom\";\n"
+            + "export function hallRoom(hall) {\n    const raw = hall?.getFlag?.(MODULE_ID, HALL_ROOM_FLAG);\n"
+            + "    return { name: text(raw.name).trim(), picture: safeRoomImage(raw.picture), words: text(raw.words) };\n}\n"
+            + "export async function setHallRoom(hall, { name = \"\", picture = \"\", words = \"\" } = {}) {\n"
+            + "    if (!game.user?.isGM || !hall?.setFlag) return null;\n    const path = picture ? safeRoomImage(picture) : null;\n"
+            + "    const next = { name, picture: path, words };\n    await hall.setFlag(MODULE_ID, HALL_ROOM_FLAG, next);\n    return next;\n}\n"
+            + "export async function applyScenesTab(read) {\n    const facts = hall ? hallRoomWrite(read, hallRoom(hall)) : null;\n"
+            + "    if (facts) done.hall = await setHallRoom(hall, facts);\n}\n";
+        const TILE = "import { hallRoom, HALL_ROOM_FLAG } from \"./trial-scene.mjs\";\n"
+            + "export function tileView() {\n    if (where.state === \"trial\") return hallView(hallRoom(hall), label);\n}\n"
+            + "export function registerRoomTile() {\n    Hooks.on(\"updateScene\", (scene, changed) => { if (ours.includes(HALL_ROOM_FLAG)) refreshRoomTile(); });\n}\n";
+        const files = (trial = TRIAL, tile = TILE) => new Map([["trial-scene.mjs", trial], ["room-tile.mjs", tile]]);
+        const planted = (text, from, to) => { must(text.includes(from), `the fixture has no "${from}"`); return text.replace(from, to); };
+        const WHOLE = [true, true, true, true, true, 1, 1, ["room-tile.mjs", "trial-scene.mjs"], true];
+        const at = (index, value) => WHOLE.map((cell, i) => (i === index ? value : cell));
+        equal(J([reader(files()),
+            reader(files(planted(TRIAL, "if (!game.user?.isGM || !hall?.setFlag) return null;", "if (!hall?.setFlag) return null;"))),
+            reader(files(TRIAL, planted(TILE, "refreshRoomTile(); });", "{ refreshRoomTile(); setHallRoom(scene, {}); } });"))),
+            reader(files(planted(TRIAL, "picture: path, words", "picture, words"))),
+            reader(files(TRIAL, planted(TILE, "hallView(hallRoom(hall), label)", "hallView(hall.getFlag(MODULE_ID, HALL_ROOM_FLAG), label)"))),
+            reader(files(planted(TRIAL, "picture: safeRoomImage(raw.picture)", "picture: raw.picture")))]),
+        J([WHOLE, at(0, false), at(3, false), at(1, false), WHOLE.map((cell, i) => (i === 5 ? 2 : i === 8 ? false : cell)), at(4, false)]),
+        "the reader does not read its fixture whole, or does not see the gate taken off, a second caller, the picture written raw, the tile reading the flag or the reader not judging the picture");
+        const sources = new Map((await otherSources()).map(([file, text]) => [file, stripComments(text)]));
+        must((sources.get("trial-scene.mjs") ?? "").length > 1000 && (sources.get("room-tile.mjs") ?? "").length > 1000,
+            "trial-scene.mjs or room-tile.mjs is not among the module's sources - this would measure nothing");
+        /* Asked as an assertion first (A2, 16.10.2026): at the parent the real reader below would throw out of fnSource
+           on the missing function, and a red first that errors is not one that failed on what it promises. */
+        const declared = ["setHallRoom", "hallRoom"].every(name => new RegExp(`\\bfunction ${name}\\(`).test(sources.get("trial-scene.mjs")));
+        ok(declared, "trial-scene.mjs declares no setHallRoom or hallRoom - the hall's facts have no writer or reader (N6)");
+        if (!declared) return;
+        equal(J(reader(sources)), J(WHOLE),
+            "[the GM gate first; the picture through safeRoomImage; one write, the hall's flag; one call, in applyScenesTab; the reader judging; "
+            + "the flag's reads; the key's literals; the files naming the flag; the tile through hallRoom and its repaint]");
     }]
 ];
 

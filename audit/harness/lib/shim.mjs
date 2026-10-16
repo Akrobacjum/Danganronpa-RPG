@@ -487,9 +487,12 @@ export function buildDocumentClasses(ctx) {
         /* E81 DZ6: `stageHall` builds a made token from this (trial-scene.mjs). Foundry's own merges the
            prototype token with the data asked for and answers an unsaved TokenDocument; this is the shim's
            model of that - the prototype, the actor's id, the data on top, and a `toObject` - not a measurement
-           of Foundry's (LIVE-E81-14, a check for a real table). */
+           of Foundry's (LIVE-E81-14, a check for a real table). Since E79 C11 a prototype that names no
+           `lockRotation` gives false, the default of Foundry's token data, as a real prototype does (not read
+           on v14 here: LIVE-E79-13); before, the made token named no lock and movement.mjs locked it, so the
+           harness never saw N5's turning picture. */
         async getTokenDocument(data = {}) {
-            const src = { ...U.deepClone(this.prototypeToken), actorId: this.id, ...data };
+            const src = { lockRotation: false, ...U.deepClone(this.prototypeToken), actorId: this.id, ...data };
             return { toObject: () => U.deepClone(src) };
         }
         getActiveTokens(linked = false, document = false) {

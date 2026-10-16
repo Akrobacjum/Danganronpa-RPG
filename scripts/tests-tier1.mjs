@@ -7622,6 +7622,9 @@ const INVARIANTS = [
          * second `dropMany` counted below (1 and 1 until then). Red at 0697d0f: `exists` read the scene's tokens.
          * E81 fix r1-D2 (12.10.2026): the stage's record of the module's tokens (`writeSeats`) is the hall's second
          * `setFlag`, counted on its own last - a flag of the hall, not of a token, and no store of the cast choice.
+         * E79 C11 (16.10.2026): the hall's third `setFlag` is `setHallRoom`'s, the name, picture and words the GMs give
+         * the room tile in a trial (R583 holds it to one writer); a flag of the hall scene, not of a token, no store
+         * of the cast choice. R433 failed on the 2 until it was said here.
          */
         const T = await import("./trial-scene.mjs").catch(() => null);
         ok(typeof T?.castRow === "function", "trial-scene.mjs has no `castRow` - the GMs' choice is kept nowhere (S06-57, D7)");
@@ -7649,9 +7652,9 @@ const INVARIANTS = [
         equal(JSON.stringify(exists), JSON.stringify([true, false, false, false, true]),
             `[the store's \`exists\` of a character in ${scene.name}, of ${other ? `${other.name} (${other.type})` : "an actor that is not there"}, of a scene that is gone, of a token's id; \`saveTrialCast\` skips an id that is not a character's]`);
         equal(JSON.stringify([writes, waits >= 0 && waits < reads, { name, kind, resetGroup, backup, sync, key }, setting?.scope ?? null, seasons]),
-            JSON.stringify([[2, 0, 1, 0, 2, 2, 1, 1, 1], true, { name: "trialCast", kind: "ledger", resetGroup: "trialFloor", backup: true, sync: true, key: "gmTrialCast" },
+            JSON.stringify([[3, 0, 1, 0, 2, 2, 1, 1, 1], true, { name: "trialCast", kind: "ledger", resetGroup: "trialFloor", backup: true, sync: true, key: "gmTrialCast" },
                 "client", [{ reveal: false }, null, null, null, null]]),
-            "[trial-scene.mjs's setFlag (two, both on the hall scene), unsetFlag, settings.set and store writes (patch, patchMany, dropMany), then the hall's trialReturnTo flag, then the one settings.set that is the roles (sceneRoles), then the hall's trialSeats flag; `applyTrialCast` waits for the store before it reads the cast; "
+            "[trial-scene.mjs's setFlag (three, all on the hall scene), unsetFlag, settings.set and store writes (patch, patchMany, dropMany), then the hall's trialReturnTo flag, then the one settings.set that is the roles (sceneRoles), then the hall's trialSeats flag; `applyTrialCast` waits for the store before it reads the cast; "
             + "the store's spec; its setting's scope; a row of this season, of the season before, of a season after, with no `reveal`, and none]");
     }],
 
@@ -15109,6 +15112,142 @@ const INVARIANTS = [
         equal(J([/^[^{]*\{\s*if \(!isPrimaryGm\(\)\) return null;/.test(pass), (src.match(/\.update\(/g) ?? []).length, (pass.match(/\.update\(/g) ?? []).length]),
             J([true, 2, 2]), "[the pass refuses any browser but the primary GM's first; the file's writes; the pass's writes]");
     }],
+
+    ["R581 - a token the trial hall's stage makes is its student's token: the school token's picture, size, look and rotation lock over the prototype's, the lock on where the school token names none, and never the school token's place, visibility, flags or id", async () => {
+        /*
+         * E79 C11 (16.10.2026; the owner's N5 of 14.10.2026: "trial-hall tokens the module makes lack the token's
+         * properties; the image rotates on movement"). trial-scene.mjs `hallTokenData` on stand-ins, Foundry's own
+         * defaults on the prototype (lockRotation false): a school token that locks, turns, scales and fades, with a
+         * place, an elevation, hidden, a planted flag, a delta, a sort and `locked`; no school token over a prototype
+         * that names no lock, one that names false and one that names true; a school token that names false (a GM's
+         * choice, kept), and one that names none. A copy shares nothing with the school token. Then `schoolTokenOf`:
+         * a token linked to the actor, the first by sort and then by id, an unlinked copy and another actor's never.
+         * Last the one create: `stageHall` builds its token through both.
+         */
+        const J = stableJson;
+        const T = await import("./trial-scene.mjs");
+        ok(typeof T.hallTokenData === "function" && typeof T.schoolTokenOf === "function",
+            "trial-scene.mjs has no `hallTokenData` and `schoolTokenOf` - a made hall token is the prototype's alone");
+        if (typeof T.hallTokenData !== "function" || typeof T.schoolTokenOf !== "function") return;
+        const stage = { id: "R581MADE", actorId: "R581A", x: 100, y: 200 };
+        const base = (more = {}) => ({ name: "Prototype", texture: { src: "proto.webp", scaleX: 1 }, width: 1, height: 1, rotation: 0,
+            alpha: 1, actorId: "R581A", x: 5, y: 5, hidden: true, actorLink: false, flags: { core: { proto: 1 } }, ...more });
+        const school = (more = {}) => ({ _id: "R581SCHOOL", name: "Aiko", texture: { src: "aiko.webp", scaleX: 1.3 }, width: 2, height: 2,
+            lockRotation: true, rotation: 90, alpha: 0.8, x: 700, y: 900, elevation: 10, hidden: true, flags: { planted: { r581: true } },
+            delta: { system: { r581: 1 } }, sort: 4, locked: true, actorId: "R581A", actorLink: true, ...more });
+        const read = token => [token._id, token.actorId, token.x, token.y, token.hidden, token.actorLink, token.name, token.texture, token.width,
+            token.height, token.lockRotation, token.rotation, token.alpha, token.elevation ?? null, token.flags, token.delta ?? null,
+            token.sort ?? null, token.locked ?? null];
+        const lone = { ...school() };
+        delete lone.lockRotation;
+        const made = T.hallTokenData(base({ lockRotation: false }), school(), stage);
+        equal(J([read(made),
+            T.hallTokenData(base(), null, stage).lockRotation, T.hallTokenData(base({ lockRotation: false }), null, stage).lockRotation,
+            T.hallTokenData(base({ lockRotation: true }), null, stage).lockRotation,
+            T.hallTokenData(base({ lockRotation: true }), school({ lockRotation: false }), stage).lockRotation,
+            T.hallTokenData(base({ lockRotation: false }), lone, stage).lockRotation,
+            read(T.hallTokenData(base({ lockRotation: false }), null, stage)).slice(0, 10)]),
+        J([["R581MADE", "R581A", 100, 200, false, true, "Aiko", { src: "aiko.webp", scaleX: 1.3 }, 2, 2, true, 90, 0.8, null, { core: { proto: 1 } },
+            null, null, null],
+            true, true, true, false, true,
+            ["R581MADE", "R581A", 100, 200, false, true, "Prototype", { src: "proto.webp", scaleX: 1 }, 1, 1]]),
+        "[a made token from a school token as [id, actor, x, y, hidden, linked, name, texture, width, height, lock, rotation, alpha, "
+            + "elevation, flags, delta, sort, locked]; the lock with no school token over a prototype naming none, false, true; over a school "
+            + "token naming false; one naming none; the prototype's own look with no school token]");
+        const source = school();
+        T.hallTokenData(base(), source, stage).texture.scaleX = 9;
+        equal(J([source.texture.scaleX, ["x", "y", "elevation", "hidden", "flags", "delta", "_id", "sort", "locked", "actorId", "actorLink"]
+            .filter(field => T.HALL_TOKEN_LOOK.includes(field))]), J([1.3, []]),
+        "[the school token's scale after a made token's was changed; the fields of place, visibility and identity the look copies]");
+        const token = (id, actorId, actorLink, sort) => ({ id, actorId, actorLink, sort, toObject: () => ({}) });
+        const scene = { tokens: [token("u", "R581A", false, 0), token("b", "R581A", true, 2), token("a", "R581A", true, 2), token("c", "R581B", true, 0),
+            token("d", "R581A", true, 3)] };
+        equal(J([T.schoolTokenOf("R581A", scene)?.id ?? null, T.schoolTokenOf("R581B", scene)?.id ?? null, T.schoolTokenOf("R581Z", scene),
+            T.schoolTokenOf("R581A", null), T.schoolTokenOf("R581A", { tokens: [token("u", "R581A", false, 0)] })]),
+        J(["a", "c", null, null, null]),
+        "[the actor's linked token, first by sort then id; another actor's; nobody's; no school; an unlinked copy alone]");
+        const create = fnSource(stripComments((await moduleSources()).get("trial-scene.mjs") ?? ""), "stageHall");
+        equal(J([(create.match(/\bhallTokenData\(doc\.toObject\(\), schoolTokenOf\(actorId\)\?\.toObject\(\) \?\? null,/g) ?? []).length,
+            /\.\.\.doc\.toObject\(\)/.test(create)]), J([1, false]),
+        "[stageHall's token built through hallTokenData from the prototype and the school token, once; the prototype's data spread in alone]");
+    }],
+
+    ["R582 - in a Class Trial the room tile shows the trial hall: the name the GMs gave it or the trial's label, its words as text and its picture only through safeRoomImage, drawn as a room with no search tokens and no project", async () => {
+        /*
+         * E79 C11 (16.10.2026; the owner's N6 of 14.10.2026: "the room window in the Class Trial ... looks broken"; "B
+         * is better: it can be done in Room Setup -> Scenes"). room-tile.mjs `hallView` and trial-scene.mjs `hallRoom`
+         * on stand-ins, and `paintRoomTile` on loose tiles of the suite's own: no facts (the label alone); a name
+         * with spaces round it, words with markup in them and a picture of this server; a name of spaces; a picture
+         * of another host, a `javascript:` one and one with a query. `hallRoom` reads the module's flag only, and a
+         * value that is no object is no facts. Whether a player's tile shows it in a real trial, after a GM's Apply,
+         * is scenario 41's (it needs the clock moved and a write).
+         */
+        const J = stableJson;
+        const R = await import("./room-tile.mjs");
+        const S = await import("./trial-scene.mjs");
+        ok(typeof R.hallView === "function" && typeof S.hallRoom === "function",
+            "room-tile.mjs has no `hallView` or trial-scene.mjs no `hallRoom` - the tile in a trial is an empty pane");
+        if (typeof R.hallView !== "function" || typeof S.hallRoom !== "function") return;
+        const LABEL = "R582 Trial";
+        const views = [R.hallView(null, LABEL), R.hallView({ name: "  Sala  ", words: "<b>Ławy</b> i podium", picture: "worlds/suite/hall.webp" }, LABEL, "R582HALL"),
+            R.hallView({ name: "   ", words: "", picture: "worlds/suite/hall.webp" }, LABEL),
+            ...["https://other.example/hall.webp", "javascript:alert(1)", "worlds/suite/hall.webp?x=1"]
+                .map(picture => R.hallView({ name: "Sala", words: "w", picture }, LABEL))];
+        equal(J(views.map(view => [view.state, view.hall, view.room, view.sceneId, view.description, view.image, view.tokens ?? null, view.project ?? null])),
+            J([["roomBare", true, LABEL, null, "", null, null, null],
+                ["room", true, "Sala", "R582HALL", "<b>Ławy</b> i podium", "worlds/suite/hall.webp", null, null],
+                ["roomPicture", true, LABEL, null, "", "worlds/suite/hall.webp", null, null],
+                ...Array(3).fill(["roomText", true, "Sala", null, "w", null, null, null])]),
+        "[each hall view as [state, hall, the heading, the scene, the words, the picture, search tokens, a project]]");
+        const scene = raw => ({ getFlag: (scope, key) => (scope === MODULE_ID && key === S.HALL_ROOM_FLAG ? raw : undefined) });
+        equal(J([S.hallRoom(scene({ name: " Sala ", picture: "javascript:alert(1)", words: 5 })),
+            S.hallRoom(scene({ name: "Sala", picture: "worlds/suite/hall.webp", words: "Ławy" })), S.hallRoom(scene("Sala")), S.hallRoom(null),
+            S.HALL_ROOM_FLAG]),
+        J([{ name: "Sala", picture: null, words: "" }, { name: "Sala", picture: "worlds/suite/hall.webp", words: "Ławy" },
+            { name: "", picture: null, words: "" }, { name: "", picture: null, words: "" }, "hallRoom"]),
+        "[the facts from a console's picture and a number for words; from a hall's own; from a string; from no hall; the flag's key]");
+        const paint = view => {
+            const box = document.createElement("section");
+            R.paintRoomTile(box, view);
+            return box;
+        };
+        const tile = paint(views[1]);
+        const shown = box => [box.dataset.state, box.querySelector(".drpg-room-tile-name")?.textContent ?? null,
+            box.querySelector(".drpg-room-tile-prose")?.textContent ?? null, Boolean(box.querySelector(".drpg-room-tile-prose b")),
+            Boolean(box.querySelector(".drpg-room-tile-open")), Boolean(box.querySelector(".drpg-hud-room-tokens")),
+            Boolean(box.querySelector(".drpg-hud-room-project")), box.getAttribute("aria-hidden")];
+        equal(J([shown(tile), shown(paint(views[0])), shown(paint(views[3]))]),
+            J([["room", "Sala", "<b>Ławy</b> i podium", false, true, false, false, null],
+                ["roomBare", LABEL, null, false, false, false, false, null],
+                ["roomText", "Sala", "w", false, false, false, false, null]]),
+        "[each tile as [state, the heading, the words, markup in the words, a button for the picture, search tokens, a project line, aria-hidden]]");
+    }],
+
+    ["R584 - an event card that carries the trial's clock runs no ticker behind it, and every other card keeps its word", async () => {
+        /*
+         * E79 C11 (16.10.2026; the owner's N6 of 14.10.2026, a screenshot: "TRIAL - CLASS TRIAL" ran behind the
+         * debate's seconds). events.mjs `cardTicker` on the cards `trialCard` and the rest hand `cardElement`: the
+         * trial's with a floor open (`clock: true`), without one, and another kind; a kind with no word has no
+         * ticker. Then `cardElement` takes its ticker from `cardTicker` alone. Whether the two overlapped at a
+         * table and stop overlapping is LIVE-E79-14: no browser here draws an event card with its clock.
+         */
+        const J = stableJson;
+        const E = await import("./events.mjs");
+        ok(typeof E.cardTicker === "function", "events.mjs has no `cardTicker` - the trial's clock still runs over its ticker");
+        if (typeof E.cardTicker !== "function") return;
+        const word = kind => game.i18n.localize(`DRPG.Events.ticker.${kind}`);
+        const read = card => {
+            const ticker = E.cardTicker(card);
+            return ticker ? [ticker.className, ticker.getAttribute("aria-hidden"), ticker.children.length, ticker.textContent.includes(word(card.kind))] : null;
+        };
+        equal(J([read({ kind: "trial", clock: true }), read({ kind: "trial", clock: false }), read({ kind: "trial" }), read({ kind: "body" }),
+            read({ kind: "r584-none" })]),
+        J([null, ["drpg-event-ticker", "true", 2, true], ["drpg-event-ticker", "true", 2, true], ["drpg-event-ticker", "true", 2, true], null]),
+        "[the ticker of the trial's card with its clock; without; with none named; a body's; a kind with no word]");
+        const build = fnSource(stripComments((await moduleSources()).get("events.mjs") ?? ""), "cardElement");
+        equal(J([(build.match(/\bcardTicker\(card\)/g) ?? []).length, build.includes("drpg-event-ticker"), build.includes("DRPG.Events.ticker")]),
+            J([1, false, false]), "[cardElement's calls of cardTicker; a ticker of its own; its word read there]");
+    }],
 ];
 
 /**
@@ -15162,7 +15301,9 @@ const LITERAL_KEYS = [
     // voice-tile.mjs names the microphone's line `DRPG.Voice.held.<reason>` (E78 C4): `micHold`'s five reasons.
     ...["eclipse", "eclipseHeard", "gmBlock", "external", "offline"].map(reason => `DRPG.Voice.held.${reason}`),
     // voice-panel.mjs names the gear's Voice section's lines `DRPG.Voice.panel.<name>` (E78 C5): all but the key's, which is literal.
-    ...["legend", "mic", "micNote", "output", "mode", "modeAlways", "modePtt", "pttChange"].map(name => `DRPG.Voice.panel.${name}`)
+    ...["legend", "mic", "micNote", "output", "mode", "modeAlways", "modePtt", "pttChange"].map(name => `DRPG.Voice.panel.${name}`),
+    // trial-scene.mjs names the Scenes tab's fields for the hall on the room tile `DRPG.TrialScene.hallRoom.<key>` (E79 C11).
+    ...["legend", "hint", "name", "picture", "words"].map(key => `DRPG.TrialScene.hallRoom.${key}`)
 ];
 
 /*

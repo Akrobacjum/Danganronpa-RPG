@@ -2040,6 +2040,13 @@
       "scenesIntro": "Link the two scenes of the season once: the school, where the students live, and the trial hall, a scene of its own for the Class Trial. Opening the trial takes every browser to the hall and gives each student ticked below a token there - the GMs' own token in the hall if there is one, else one the module makes; ending it takes the module's tokens away, remembering where they stood, hides the GMs' and takes the table back - End the trial to the room you choose, with the living students who took part from every scene with rooms, any other road to the school. The module never deletes a token the GMs placed in the hall.",
       "school": "School",
       "hall": "Trial hall",
+      "hallRoom": {
+        "legend": "The trial hall on the room tile",
+        "hint": "Everybody sees these on the room tile during the Class Trial. Write nothing secret here.",
+        "name": "Name",
+        "picture": "Picture",
+        "words": "Description"
+      },
       "noScene": "- none -",
       "castHeading": "Who takes part",
       "reveal": "Ticked: they take part - a token in the hall when the Class Trial opens (the GMs' own if there is one, else one the module makes), and brought to the room End the trial chooses. Unticked: no token of theirs is shown, and they are not moved after the trial - a test student, or a player nobody should see yet.",

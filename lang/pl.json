@@ -2120,6 +2120,13 @@
       "scenesIntro": "Podepnij raz dwie sceny sezonu: szkołę, w której mieszkają uczniowie, i salę rozpraw, osobną scenę na Class Trial. Początek rozprawy przenosi każdą przeglądarkę do sali i daje tam token każdemu uczniowi zaznaczonemu niżej - własny token GM-ów w sali, jeśli jest, a jeśli nie, token zrobiony przez moduł; koniec zabiera tokeny modułu, zapamiętując, gdzie stały, ukrywa tokeny GM-ów i zabiera stół z powrotem - Zakończ Class Trial do pokoju, który wybierzesz, z żyjącymi uczniami, którzy brali udział, z każdej sceny z pokojami, każda inna droga do szkoły. Moduł nigdy nie usuwa tokenu, który GM postawił w sali.",
       "school": "Szkoła",
       "hall": "Sala rozpraw",
+      "hallRoom": {
+        "legend": "Sala rozpraw na kafelku pokoju",
+        "hint": "Wszyscy widzą to na kafelku pokoju podczas Class Trialu. Nie wpisuj tu niczego tajnego.",
+        "name": "Nazwa",
+        "picture": "Zdjęcie",
+        "words": "Opis"
+      },
       "noScene": "- brak -",
       "castHeading": "Kto bierze udział",
       "reveal": "Zaznaczony: bierze udział - ma token w sali, gdy zaczyna się Class Trial (własny token GM-ów, jeśli jest, a jeśli nie, zrobiony przez moduł), i trafia do pokoju, który wybierze Zakończ Class Trial. Bez zaznaczenia: żaden jego token nie jest pokazywany i po rozprawie nie jest przenoszony - uczeń testowy albo gracz, którego nikt jeszcze nie powinien widzieć.",

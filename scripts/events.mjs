@@ -551,6 +551,33 @@ function overflowCard() {
    from a first sight. Keyed by card kind: two cards never share one. */
 const LAST_SUB = new Map();
 
+/**
+ * The card's ticker, or null. The same outline the clock runs behind itself, for the same reason: the card's
+ * colour says a state has changed and the word says which. One word, repeated, at the opacity the audit page
+ * sets - it is a texture, not a label, and the label is right underneath.
+ *
+ * NOT UNDER THE TRIAL'S CLOCK (E79 C11, 1.2.79; the owner's N6 of 14.10.2026, a screenshot of a trial at a
+ * table: "TRIAL - CLASS TRIAL" ran behind the debate's 2:37). A card that carries the clock (`trialCard`'s
+ * `clock`, while a floor is open) has a moving part already, the seconds; a second one under it made the
+ * seconds hard to read. Read on the owner's screenshot only: whether the glass harness can draw an event card
+ * with its clock was not measured, and the overlap at a table is LIVE-E79-14. Every other card keeps its word.
+ *
+ * @param {{kind: string, clock?: boolean}} card
+ * @returns {HTMLElement|null}
+ */
+export function cardTicker(card) {
+    if (card?.clock) return null;
+    const word = game.i18n.localize(`DRPG.Events.ticker.${card?.kind}`);
+    if (!word || word.indexOf("DRPG.") === 0) return null;
+    const ticker = document.createElement("div");
+    ticker.className = "drpg-event-ticker";
+    ticker.setAttribute("aria-hidden", "true");
+    const run = document.createElement("span");
+    run.textContent = Array(6).fill(word).join(" · ") + " · ";
+    ticker.append(run, run.cloneNode(true));
+    return ticker;
+}
+
 function cardElement(card) {
     const el = document.createElement("div");
     el.className = "drpg-event";
@@ -566,19 +593,8 @@ function cardElement(card) {
     glyph.className = "drpg-event-glyph drpg-pxi";
     glyph.setAttribute("aria-hidden", "true");
     el.append(glyph);
-    /* The same outline the clock runs behind itself, for the same reason: the card's colour
-       says a state has changed and the word says which. One word, repeated, at the opacity
-       the audit page sets - it is a texture, not a label, and the label is right underneath. */
-    const word = game.i18n.localize(`DRPG.Events.ticker.${card.kind}`);
-    if (word && word.indexOf("DRPG.") !== 0) {
-        const ticker = document.createElement("div");
-        ticker.className = "drpg-event-ticker";
-        ticker.setAttribute("aria-hidden", "true");
-        const run = document.createElement("span");
-        run.textContent = Array(6).fill(word).join(" · ") + " · ";
-        ticker.append(run, run.cloneNode(true));
-        el.append(ticker);
-    }
+    const ticker = cardTicker(card);
+    if (ticker) el.append(ticker);
     const add = (cls, text) => {
         if (!text) return;
         const line = document.createElement("div");

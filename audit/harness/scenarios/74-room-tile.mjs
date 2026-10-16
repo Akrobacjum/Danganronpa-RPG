@@ -41,9 +41,9 @@
  *     and once more, ended by p1's own next move (E77 fix r2-H1).
  *   H (the states that are no gate, E77 fix r1-G3): in an Eclipse p1's tile keeps Aiko's room and follows her
  *     Eclipse crossing; dead it keeps the room her body lies in, and as a Monocub follows her walk; in a Class Trial
- *     every tile is the trial's while each viewer still stands in a school room; and p4's character, on a scene of
- *     two floors, is shown in the room of its token's floor, not of the floor p4's canvas shows, and of its token's
- *     scene, not of the scene p4 looks at.
+ *     every tile is the trial's (since E79 C11 the hall's, under the trial's label) while each viewer still stands
+ *     in a school room; and p4's character, on a scene of two floors, is shown in the room of its token's floor, not
+ *     of the floor p4's canvas shows, and of its token's scene, not of the scene p4 looks at.
  *   I (a stored picture that cannot be read, E77 fix r2-H1): a path of this origin whose re-read the URL parser
  *     rejects, written on the Cafeteria past setVaultRoom - after a control, roomImage answers no picture on the GM
  *     and on p1, Room Setup opens and draws the Cafeteria with none, p1's tile follows Aiko in, and setVaultRoom
@@ -737,19 +737,24 @@ export async function run({ gm, gm2, p1, p2, p4, check, phase, settle, connect, 
 
     /* A Class Trial opened as 01-runtests and 10 open one (`setClock({ phase: "classTrial" })`; no hall is linked in this
        world, so nobody's token moves), read on all three tiles beside the room `locateActor` still finds for each viewer;
-       then the clock as it was before this phase. */
+       then the clock as it was before this phase. Until E79 C11 the tile was then an empty pane, aria-hidden, its heading
+       none; since C11 it shows the trial hall (room-tile.mjs `hallView`), here under the trial's own label, as no hall is
+       linked and so none has a name (the owner's N6 of 14.10.2026; scenario 41 o1-o3 reads a linked hall's). */
     const trialH = { set: await gm.eval(`await game.drpg.setClock({ phase: "classTrial" }); ${SLEEP(1200)} return game.drpg.getClock().phase;`,
         { timeout: 30000 }) };
     const TRIAL = `${VIEW} const H = await import("${repoUrl}/scripts/hud.mjs"), M = await import("${repoUrl}/scripts/movement.mjs");
-        return { ...await seen(() => read()?.state === "trial"), located: M.locateActor(H.viewerActor())?.room ?? null };`;
+        const { phaseLabel } = await import("${repoUrl}/scripts/clock.mjs"), label = phaseLabel("classTrial");
+        return { ...await seen(() => read()?.name === label), label, hidden: read() ? read().hidden : "no tile",
+            located: M.locateActor(H.viewerActor())?.room ?? null };`;
     for (const [who, c] of [["p1", p1], ["p2", p2], ["gm", gm]]) trialH[who] = await c.eval(TRIAL);
     trialH.end = await gm.eval(`await game.drpg.setClock(globalThis.__s74.clock); ${SLEEP(1200)} return game.drpg.getClock().phase;`, { timeout: 30000 });
     trialH.after = await p1.eval(`${VIEW} return seen(() => read()?.name === "Dorm A");`);
     check("H3: in a Class Trial every tile - p1's, p2's and the GM's - is the trial's, painted once, though each viewer still stands in a "
-        + "school room; after it p1's tile is Dorm A again",
-    trialH.set === "classTrial" && ["p1", "p2", "gm"].every(who => trialH[who].state === "trial" && J(trialH[who].view) === J(["trial", null]))
+        + "school room, and shows the trial's label with no hall linked (E79 C11); after it p1's tile is Dorm A again",
+    trialH.set === "classTrial" && ["p1", "p2", "gm"].every(who => trialH[who].state === "roomBare" && trialH[who].name === trialH[who].label
+            && trialH[who].hidden === null && J(trialH[who].view) === J(["trial", null]))
         && J(["p1", "p2", "gm"].map(who => trialH[who].located)) === J(["Dorm A", "74 Shed", "Hall"])
-        && J(trialH.p1.painted) === J([null]) && trialH.end !== "classTrial"
+        && J(trialH.p1.painted) === J([trialH.p1.label]) && trialH.end !== "classTrial"
         && trialH.after.name === "Dorm A" && J(trialH.after.view) === J(["room", "Dorm A"]) && J(trialH.after.painted) === J(["Dorm A"]),
     J(trialH));
 
