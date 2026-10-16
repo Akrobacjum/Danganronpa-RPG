@@ -98,6 +98,7 @@ import { registerA11y } from "./a11y.mjs";
 import { registerChrome } from "./chrome.mjs";
 import { registerApi } from "./api.mjs";
 import { registerEnforced } from "./enforced.mjs";
+import { registerUserMatch } from "./user-match.mjs";
 import { requirementsMet, announceMissingRequirements, announceNewerSystem,
     systemCompatibility } from "./requirements.mjs";
 import { warnAboutPageTinting, verifyStylesheet } from "./diagnostics.mjs";
@@ -287,6 +288,9 @@ Hooks.once("setup", () => {
      * already opened, on the first start after an update.
      */
     safely("the table's held settings", registerEnforced);
+    // A player's character found by the account's name (E79 C10, user-match.mjs): its hooks here, its
+    // pass at ready and after, on the primary GM alone.
+    safely("a player's character by name", registerUserMatch);
     /*
      * What a critical pays (G-16). At `setup` rather than `init`, because it
      * patches `game.system.api.dice.DualityRoll` and the system builds that

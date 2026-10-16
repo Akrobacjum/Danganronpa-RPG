@@ -150,9 +150,14 @@ export async function run({ gm, p1, p2, p4, check, phase, settle, connect, disco
                 && ![WORDS.owner, WORDS.veiled].some(w => String(otherStored?.[KEY] ?? "").includes(w)),
             J({ entries: other.entries.map(e => e.text), stored: String(otherStored?.[KEY] ?? "").length }));
         const gmAfter = await gm.eval(readHistory);
-        const gmNew = gmAfter.entries.slice(gmBefore.entries.length).map(e => [label(e.text), e.source]);
+        /* p4 connects with no character and no student named "Player Four", so since E79 C10 (16.10.2026) the GMs
+           are told so once, on a card that lands in the GM's history half a second after the connect, before or
+           after `gmBefore` was read (user-match.mjs). It is not one of this part's cards and is left out of both. */
+        const unmatched = await gm.eval(`return game.i18n.format("DRPG.Users.match.none", { names: ${J(accounts[0].name)} });`);
+        const ours = list => list.filter(e => !e.text.includes(unmatched));
+        const gmNew = ours(gmAfter.entries).slice(ours(gmBefore.entries).length).map(e => [label(e.text), e.source]);
         check("A6: the GM keeps the announcement alone - neither the owner's whisper nor the veiled card",
-            J(gmNew) === J([["announcement", "public"]]) && gmAfter.entries.length === gmBefore.entries.length + 1,
+            J(gmNew) === J([["announcement", "public"]]) && ours(gmAfter.entries).length === ours(gmBefore.entries).length + 1,
             J({ before: gmBefore.entries.length, new: gmNew }));
     } finally {
         await gm.eval(`await game.actors.get("${IDS.daichi}").update({ ownership: { "${P4}": 0 } }); return true;`);

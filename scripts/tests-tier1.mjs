@@ -15054,6 +15054,61 @@ const INVARIANTS = [
             J([[null, null, "useItem"], armed, armed, armed, 1, 0, 0, 0]),
             "[the portrait's action, edit and the sheet's other action for a player, a GM, a granted player and the switch off; then a file browser closed for each]");
     }],
+
+    ["R579 - two names are one when they differ only in case, Polish letters or white space, and never when one is part of the other", async () => {
+        /*
+         * E79 C10 (16.10.2026; the owner's N3 of 14.10.2026: "exact after normalising case, Polish
+         * diacritics, extra spaces; no partial match"). user-match.mjs `nameKey` is what an account's name
+         * and a student's are compared by. ł is asked by name: NFD leaves it whole, so stripping the marks
+         * alone keeps "łucja" apart from "lucja". A tab and a no-break space are white space; a name of white
+         * space alone is no name. One name inside another, or split in two, is not the same name.
+         */
+        const J = stableJson;
+        const { nameKey } = await import("./user-match.mjs");
+        ok(typeof nameKey === "function", "user-match.mjs has no name key - an account is matched to no student by its name");
+        const same = (a, b) => nameKey(a) === nameKey(b);
+        equal(J([nameKey("Łucja  Żak "), nameKey("ZAŻÓŁĆ gęślą jaźń"), same("Łucja  Żak ", "lucja zak"), same("Emi\tSato", "emi  sato"),
+            same("Aiko", "Aiko Hoshino"), same("Aiko Hoshino", "Aiko"), same("Ai ko", "Aiko"), nameKey(" \t ")]),
+            J(["lucja zak", "zazolc gesla jazn", true, true, false, false, false, ""]),
+            "[two keys; Łucja with extra spaces against lucja zak; a tab and a no-break space; a name inside a longer one, both ways; a name split; white space alone]");
+    }],
+
+    ["R580 - a player's character is the one student named exactly like the account, set by the primary GM alone, never over a GM's choice and never for a GM's account", async () => {
+        /*
+         * E79 C10 (16.10.2026; the owner's N3 of 14.10.2026; plan E79 part 4, question 2's default for a
+         * student another player has). user-match.mjs `matchPlan` on stand-ins, one account per rule: a free
+         * student matched with Owner given (A), and without it when the account owns it already (O) or when
+         * only a GM does (Mai); no student so named, a partial name, a Monokuma's name (B, K); two students
+         * (C); two accounts alike (T1, T2); a student another player owns (D) or plays (Y); the student a match
+         * gave and a GM cleared (E); an older match's student gone and a new one named alike (M); an account
+         * with a character (X); a GM's and an Assistant's (G, AG). Then the one pass that writes: its first
+         * statement asks for the primary GM, and the file's two writes are its.
+         */
+        const J = stableJson;
+        const { matchPlan } = await import("./user-match.mjs");
+        ok(typeof matchPlan === "function", "user-match.mjs has no plan - nothing decides which account a student goes to");
+        const user = (id, name, more = {}) => ({ id, name, isGM: false, role: 1, character: null, marker: null, ...more });
+        const users = [user("G", "Gm", { isGM: true, role: 4 }), user("AG", "Hana Ito", { isGM: true, role: 3 }), user("A", "lucja  ŻAK "),
+            user("B", "Daichi"), user("C", "Emi Sato"), user("D", "Botan Kage", { role: 2 }), user("P2", "PlayerTwo", { character: "botan" }),
+            user("E", "Chie Mori", { marker: "chie" }), user("K", "Kuma"), user("X", "Rin Aoi", { character: "aiko" }),
+            user("Y", "Aiko Hoshino"), user("M", "Sora Kai", { marker: "oldsora" }), user("T1", "Yui"), user("T2", " yui"),
+            user("O", "Ren Ito"), user("MAI", "Mai Ota")];
+        const actor = (id, name, ownership = {}, student = true) => ({ id, name, student, ownership: { default: 2, ...ownership } });
+        const actors = [actor("lucja", "Łucja Żak"), actor("daichi", "Daichi Sato"), actor("emi1", "Emi Sato"), actor("emi2", "emi sato"),
+            actor("botan", "Botan Kage", { P2: 3 }), actor("chie", "Chie Mori"), actor("kuma", "Kuma", {}, false), actor("hana", "Hana Ito"),
+            actor("aiko", "Aiko Hoshino"), actor("sora", "Sora Kai"), actor("ren", "Ren Ito", { O: 3 }), actor("mai", "Mai Ota", { G: 3 })];
+        equal(J(matchPlan({ users, actors, owner: 3 })), J({
+            assign: [{ userId: "A", actorId: "lucja", own: true }, { userId: "M", actorId: "sora", own: true },
+                { userId: "O", actorId: "ren", own: false }, { userId: "MAI", actorId: "mai", own: true }],
+            none: ["B", "K"], several: ["C"], same: ["T1", "T2"],
+            owned: [{ userId: "D", actorId: "botan", owners: ["P2"] }, { userId: "Y", actorId: "aiko", owners: ["X"] }],
+            kept: ["E"]
+        }), "[the plan for the sixteen accounts: assigned with or without Owner; none; several; alike; owned by another player; kept as a GM cleared it]");
+        const src = stripComments((await moduleSources()).get("user-match.mjs") ?? "");
+        const pass = fnSource(src, "matchAccounts");
+        equal(J([/^[^{]*\{\s*if \(!isPrimaryGm\(\)\) return null;/.test(pass), (src.match(/\.update\(/g) ?? []).length, (pass.match(/\.update\(/g) ?? []).length]),
+            J([true, 2, 2]), "[the pass refuses any browser but the primary GM's first; the file's writes; the pass's writes]");
+    }],
 ];
 
 /**

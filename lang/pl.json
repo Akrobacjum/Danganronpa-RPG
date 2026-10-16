@@ -3370,6 +3370,14 @@
     "Enforced": {
       "filesPutBack": "Dopóki włączone jest „Bez przeglądarki plików dla graczy”, konta graczy nie mogą przeglądać ani wysyłać plików: zmianę tych uprawnień cofnięto."
     },
+    "Users": {
+      "match": {
+        "none": "Żadna postać nie nazywa się tak jak te konta: {names}. Przypisz im postacie w konfiguracji użytkownika.",
+        "several": "Tak jak te konta nazywa się więcej niż jedna postać: {names}. Przypisz im postacie w konfiguracji użytkownika.",
+        "same": "Te konta nazywają się tak samo: {names}. Zmień nazwę jednego z nich albo przypisz im postacie w konfiguracji użytkownika.",
+        "owned": "Postać o nazwie konta {account} należy już do konta {owner}, więc niczego nie przypisano."
+      }
+    },
     "Anonymity": {
       "aboveLimited": "Udostępnione wszystkim jako Właściciel, więc cenzura nigdy nie działa i każdy gracz czyta cały arkusz, z ekwipunkiem i Truth Bullets: {actors}. Przestaw z powrotem na Obserwatora, chyba że tego właśnie chcesz.",
       "blocked": "Zablokowano: każdy gracz byłby właścicielem „{actor}”, a właściciel nigdy nie jest cenzurowany. Daj Właściciela tylko jego jednemu graczowi.",

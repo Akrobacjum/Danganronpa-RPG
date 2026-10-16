@@ -65,6 +65,7 @@ export async function run({ gm, gm0, p1, p2, check, phase, settle, connect, disc
     check("p1: switching the welcome back on by hand does not stick", after === false, String(after));
 
     await heldAtStart({ gm, p1, p2, check, phase, settle, IDS, repoUrl });
+    await matchedByName({ gm, check, phase, IDS, repoUrl });
     await tokenBars({ gm, p1, check, phase, IDS });
     const away = await awayAndBack({ gm, gm0, p1, check, phase, settle, connect, disconnect, storageOf, socketTraffic, IDS, repoUrl });
     await sheetAtReady({ gm0, p1, check, phase, IDS, repoUrl, away });
@@ -154,6 +155,79 @@ async function heldAtStart({ gm, p1, p2, check, phase, settle, IDS, repoUrl }) {
         await game.settings.set("${MOD}", "enforcePlayerFiles", true);
         return true;`);
     await settle(300);
+}
+
+/**
+ * A PLAYER'S CHARACTER BY THE ACCOUNT'S NAME (E79 C10, 16.10.2026; the owner's N3 of 14.10.2026).
+ *
+ * The GM makes a student nobody plays, "Łucja Żak", and then accounts, each after ready, as a GM makes
+ * them for a new player: A "lucja  ŻAK " gets her as its character and Owner of her, and the sheet audit
+ * keeps no row for the GM's write; B "Daichi" (the seed's Daichi Sato is not "Daichi"), C "Emi Sato"
+ * with two students named alike, D named like Botan, whom PlayerTwo owns and plays, and G named like a
+ * Monokuma get nothing, and the GMs are told on one card; F, an Assistant named like a free student,
+ * gets nothing and is not told about. Then E: the GM clears A's character, makes one more account, and
+ * A stays cleared while the new account alone is told about. user-match.mjs; R579 and R580 hold the
+ * rules on stand-ins. Everything made here is deleted at the end.
+ */
+async function matchedByName({ gm, check, phase, IDS, repoUrl }) {
+    phase("a player's character by the account's name");
+    const UNTIL = `const until = async (test, ms = 6000) => { const end = Date.now() + ms; while (!test() && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return test(); };`;
+    const cards = `const { wordsOf } = await import("${repoUrl}/scripts/secret.mjs");
+        // The GMs as they stand when the cards are read: F, made in this eval, is one.
+        const cards = async early => { const out = [], gmIds = game.users.filter(u => u.isGM).map(u => u.id);
+            for (const m of game.messages.contents.slice(early)) { const words = String(await wordsOf(m, 2000) ?? "");
+                if (words.includes("data-drpg-match")) out.push({ words: words.replace(/<[^>]*>/g, " ").replace(/\\s+/g, " ").trim(),
+                    toGms: (m.whisper ?? []).length > 0 && m.whisper.every(id => gmIds.includes(id)), whisper: m.whisper }); }
+            return out; };`;
+    try {
+        const first = await gm.eval(`${UNTIL} ${cards}
+            const rows = () => game.drpg.sheetWrites({ quiet: true }).length;
+            const early = game.messages.size, sheetRows = rows();
+            const made = globalThis.__n3made = { users: [], actors: [] };
+            const student = async (name, flags = {}) => { const a = await Actor.create({ name, type: "character", flags }); made.actors.push(a.id); return a; };
+            const actors = [await student("Łucja Żak"), await student("Emi Sato"), await student("emi sato"), await student("Hana Ito"),
+                await student("Kuma Test", { "${MOD}": { monokuma: true } })];
+            await new Promise(r => setTimeout(r, 800));
+            // One write for the six, as a GM's batch: one pass reads them all, whatever this machine's pace.
+            const list = await User.createDocuments([["lucja  ŻAK ", 1], ["Daichi", 1], ["Emi Sato", 1], ["Botan Kage", 1], ["Hana Ito", 3], ["Kuma Test", 1]]
+                .map(([name, role]) => ({ name, role })));
+            made.users.push(...list.map(u => u.id));
+            const users = Object.fromEntries(["A", "B", "C", "D", "F", "G"].map((k, i) => [k, list[i]]));
+            const lucja = actors[0];
+            await until(() => game.users.get(users.A.id)?.character?.id === lucja.id);
+            await new Promise(r => setTimeout(r, 1000));
+            const read = id => { const u = game.users.get(id); return { character: u?.character?.name ?? null, marker: u?.getFlag("${MOD}", "matchedCharacter") ?? null }; };
+            return { users: list.map(u => u.id),
+                A: { ...read(users.A.id), owner: lucja.ownership?.[users.A.id] ?? null, markerIs: read(users.A.id).marker === lucja.id },
+                others: Object.fromEntries(["B", "C", "D", "F", "G"].map(k => [k, read(users[k].id).character])),
+                botan: game.actors.get("${IDS.botan}")?.ownership?.[users.D.id] ?? null,
+                rowsAdded: rows() - sheetRows, cards: await cards(early), early: game.messages.size };`, { timeout: 60000 });
+        const [card] = first.cards;
+        check("N3 A: an account made named like a student nobody plays gets her as its character and Owner of her, marked as matched, and the sheet audit keeps no row for it",
+            first.A.character === "Łucja Żak" && first.A.owner === 3 && first.A.markerIs === true && first.rowsAdded === 0, J(first.A));
+        check("N3 B-D, F, G: no student so named, two named alike, a student another player has, an Assistant and a Monokuma's name assign nothing; the GMs alone are told on one card naming B, G, C and D with Botan's player, and not the Assistant",
+            Object.values(first.others).every(c => c === null) && first.botan === null && first.cards.length === 1 && card.toGms === true
+                && ["Daichi", "Kuma Test", "Emi Sato", "Botan Kage", "PlayerTwo"].every(n => card.words.includes(n)) && !card.words.includes("Hana Ito"),
+            J({ others: first.others, botan: first.botan, cards: first.cards }));
+
+        const cleared = await gm.eval(`${UNTIL} ${cards}
+            const early = ${first.early};
+            await game.users.get(${J(first.users[0])}).update({ character: null });
+            const late = await User.create({ name: "Nobody Here", role: 1 });
+            globalThis.__n3made.users.push(late.id);
+            await new Promise(r => setTimeout(r, 1500));
+            return { late: late.id, A: game.users.get(${J(first.users[0])})?.character?.name ?? null, cards: await cards(early) };`, { timeout: 60000 });
+        check("N3 E: a character the GM clears stays cleared when the next pass runs, and that pass tells the GMs of the new account alone",
+            cleared.A === null && cleared.cards.length === 1 && cleared.cards[0].words.includes("Nobody Here")
+                && !["Daichi", "Emi Sato", "Botan Kage", "Kuma Test"].some(n => cleared.cards[0].words.includes(n)),
+            J(cleared));
+    } finally {
+        await gm.eval(`const made = globalThis.__n3made ?? { users: [], actors: [] };
+            for (const id of made.users) await game.users.get(id)?.delete();
+            for (const id of made.actors) await game.actors.get(id)?.delete();
+            delete globalThis.__n3made;
+            return true;`, { timeout: 60000 });
+    }
 }
 
 /**

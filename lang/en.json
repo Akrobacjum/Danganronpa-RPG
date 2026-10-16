@@ -3230,6 +3230,14 @@
     "Enforced": {
       "filesPutBack": "Player accounts cannot browse or upload files while 'Keep players out of the file browser' is on: the change to those permissions was put back."
     },
+    "Users": {
+      "match": {
+        "none": "No student is named like these accounts: {names}. Assign their characters in User Configuration.",
+        "several": "More than one student is named like these accounts: {names}. Assign their characters in User Configuration.",
+        "same": "These accounts are named alike: {names}. Rename one of them, or assign their characters in User Configuration.",
+        "owned": "The student named like {account} already belongs to {owner}: nothing was assigned."
+      }
+    },
     "Anonymity": {
       "aboveLimited": "Shared as Owner to everyone, so the redaction never runs and any player reads the whole sheet, inventory and Truth Bullets included: {actors}. Set them back to Observer unless that is what you want.",
       "blocked": "Blocked: every player would own “{actor}”, and an owner is never redacted. Give Owner to their one player only.",
