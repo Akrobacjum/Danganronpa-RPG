@@ -773,6 +773,8 @@ W lewym dolnym rogu karty postaci jest przycisk ze słowem - **Safe Word**, chyb
 
 **Pasek stanu** (po prawej, nad zasobnikiem projektów): pozostałe akcje, czy Free Move wciąż jest, twój Hope i przejścia Eclipse, gdy trwa. To, co masz w zapasie ze Sprint albo Burst, widać na arkuszu, w linii nad siatką akcji. Kliknij pasek, by dostać wyjaśnienie.
 
+**Zasobnik projektów** (po prawej, pod paskiem stanu) wymienia projekty, o których wiesz. Zanim jakiś się pojawi, i tak pokazuje swój tytuł i wiersz **Na razie brak projektów.** (od 1.2.79; jeszcze nie sprawdzone przy stole: LIVE-E79-16).
+
 **Wiersze Despair** pokazują każdą pulę i to, jak jest pełna, a pod nimi overflow: "?" w miejscu jego licznika, obok liczby, przy której odpala. Kliknij, by dowiedzieć się, czym jest Despair.
 
 **Twój arkusz:**

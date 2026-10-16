@@ -8044,6 +8044,22 @@ body.drpg-player #scene-controls {
     position: relative;
     height: min(700px, calc(100vh - 110px));
 }
+/* COLLAPSED IS NARROW (E79 C12, 16.10.2026; the owner's N7 of 14.10). Foundry's rules that take the sidebar's content
+   away when its caret collapses it hang off #ui-right, and the node stands in this frame, so the caret flipped and
+   the window kept its 358 px (measured in Chromium on the glass harness's stand-in). foundry-windows.mjs marks the
+   frame `data-drpg-collapsed` from the collapseSidebar hook and from ui.sidebar.expanded, and this narrows the content
+   to nothing: the frame comes down to the rail, 90 px on the stand-in, and back to 358 px when it expands. Width and
+   visibility, not display or overflow: R509 holds that no rule here hides or clips anything in a frame, and a
+   context menu drawn from the rail must not be cut. `#sidebar-content` is the stand-in's name for the content, not
+   read from v14's (LIVE-E79-15); R585 reads the cascade under the mark. */
+.drpg-foundry-window[data-drpg-collapsed] .drpg-foundry-window-body > #sidebar #sidebar-content {
+    flex: none;
+    width: 0;
+    min-width: 0;
+    padding-inline: 0;
+    border-inline-width: 0;
+    visibility: hidden;
+}
 .drpg-foundry-window-body > #scene-controls {
     position: relative;
     margin: 0 !important;
@@ -12311,6 +12327,16 @@ body.drpg-theme-stained-glass .application.dialog:is(.drpg-window-murder, .drpg-
     gap: var(--drpg-project-gap);
 }
 
+/* No project a player may see yet (E79 C12, U1): their tray keeps its title and says so in
+   one line where the rows go (projects-tray.mjs `showTrayToPlayer`). */
+#countdowns .drpg-projects-empty {
+    margin: 0;
+    padding: 2px 0;
+    font-size: var(--drpg-text-xs);
+    font-style: italic;
+    opacity: 0.75;
+}
+
 #countdowns .countdown-container {
     min-height: var(--drpg-project-row);
 }
@@ -13330,6 +13356,31 @@ body.drpg-theme-stained-glass .application.dialog:is(.drpg-window-murder, .drpg-
 .drpg-room-tile .drpg-hud-room-project {
     font-size: var(--drpg-text-xs);
     opacity: 0.8;
+}
+
+/* THE PROJECT LINE HAS A BAND OF ITS OWN (E79 C12, 16.10.2026; the owner's N8 of 14.10: "the 'available project'
+   line shifts the layout - layout must be fixed whatever lines appear"). The rows pack from the tile's foot, so the
+   line pushed the name and the search tokens up when a project became available and dropped them when it went:
+   13 px under this theme at 1920x1080 and 1366x768, 18 to 20 px under Stained Glass (Chromium, the glass harness,
+   the plan's readings at 33ea568). A tile showing a room keeps the band at its foot whether the line is drawn or
+   not, and the line stands in it, one line cut with an ellipsis (its whole text is its title). On a desk only:
+   the stacked row (narrow.css) lays the line beside the tokens, where it moved nothing. `--drpg-room-band` is the
+   line's own size a fifth again; stained-glass.css states it from that theme's size for the line. The glass
+   harness's drpgRoomCheck reads the name and the tokens with the line and without it. */
+body:not(.drpg-stacked) .drpg-room-tile[data-state^="room"] {
+    --drpg-room-band: calc(var(--drpg-text-xs) * 1.2);
+    padding-bottom: calc(12px + var(--drpg-room-band));
+}
+body:not(.drpg-stacked) .drpg-room-tile > .drpg-hud-room-project {
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 10px;
+    height: var(--drpg-room-band);
+    line-height: var(--drpg-room-band);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* The toggle: a corner button, only where the room has words. Open, the description fills the

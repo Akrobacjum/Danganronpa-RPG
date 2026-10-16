@@ -773,6 +773,8 @@ Bottom-left of your character sheet is a button with a word on it - **Safe Word*
 
 **The status strip** (right, above the Projects tray): your actions left, whether your Free Move is still there, your Hope, and Eclipse crossings while one runs. Anything banked with Sprint or Burst shows on your sheet, in the line above the action grid. Click the strip for the explanation.
 
+**The Projects tray** (right, under the status strip) lists the projects you know of. Before there is one, it still shows its title and the line **No projects yet.** (since 1.2.79; not yet checked at a table: LIVE-E79-16).
+
 **The Despair rows** show every pool and how full it is, and under them the overflow: "?" where its count would be, beside the number it fires at. Click for what Despair is.
 
 **Your sheet:**

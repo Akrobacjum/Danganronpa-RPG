@@ -44,7 +44,8 @@
  *   quietly after): a click on the block still drawn as free is judged again by `moduleHoldsMic` and
  *   writes nothing, the GM told why; drawn again it is disabled with that line. The gear's window
  *   (`openLookDialog`, real windows) has the Voice section on p1 - the shim names no device, so the
- *   microphone's line and the mode - and push to talk writes p1's `voice.mode`; on p3 there is none.
+ *   microphone's line and the mode - after the volumes and right before the look's fieldset since E79 C12
+ *   (N9; until then after the look) - and push to talk writes p1's `voice.mode`; on p3 there is none.
  * D (C6): where the tile stands. The harness's screen is 1024 px wide, a stacked one, and jsdom cuts no curtain
  *   (its canvas is 0 px wide), so this reads the stacked half: on p1 the voice tile is in `#drpg-tile-row` beside the
  *   room tile, unstamped, its portrait inside its face and nothing of it on the body; a speaker shown and the list
@@ -497,6 +498,10 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
             const out = { form: Boolean(form()), panel: Boolean(panel()) };
             if (!panel()) return out;
             out.names = [...new Set([...panel().querySelectorAll("[name]")].map(el => el.name))];
+            // E79 C12 (N9): between the volumes and the look - after every volume slider, right before the look's fieldset
+            const sliders = [...form().querySelectorAll(".drpg-sound-slider")];
+            out.between = sliders.length > 0 && sliders.every(s => Boolean(s.compareDocumentPosition(panel()) & Node.DOCUMENT_POSITION_FOLLOWING))
+                && panel().nextElementSibling?.matches("fieldset.drpg-look") === true;
             out.note = panel().querySelector(".drpg-voice-panel-mic-note")?.textContent === game.i18n.localize("DRPG.Voice.panel.micNote");
             const ptt = panel().querySelector("[name='voice:mode'][value='ptt']");
             ptt.checked = true;
@@ -510,8 +515,8 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
             closeOpen("drpg-window-look");
         }`, { timeout: 15000 });
     const gearP1 = await gear(p1), gearP3 = await gear(p3);
-    check("C: the gear's window has the Voice section on p1 - the microphone's line (the shim names no device), the mode and nothing else; choosing push to talk writes p1's voice.mode - and on p3, with no voice, there is no section",
-        J(gearP1) === J({ form: true, panel: true, names: ["voice:mode"], note: true, wrote: "ptt" }) && J(gearP3) === J({ form: true, panel: false }),
+    check("C: the gear's window has the Voice section on p1 - the microphone's line (the shim names no device), the mode and nothing else, standing after the volumes and right before the look (E79 C12, N9); choosing push to talk writes p1's voice.mode - and on p3, with no voice, there is no section",
+        J(gearP1) === J({ form: true, panel: true, names: ["voice:mode"], between: true, note: true, wrote: "ptt" }) && J(gearP3) === J({ form: true, panel: false }),
         J({ gearP1, gearP3 }));
 
     phase("D: where the tile stands - on a stacked screen in the tiles' row beside the room tile, its portrait inside it, moved by no speaker and no list, built there again after the GM's switch");

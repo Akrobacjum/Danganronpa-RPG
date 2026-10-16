@@ -750,7 +750,9 @@ try {
                 else {
                     const at = r => r ? `${r.x},${r.y} ${r.w}x${r.h}` : "-";
                     if (wc.expect === "windows") line += ` | places ${wc.ok ? "ok" : "NOT ok"} drag ${wc.drag?.to?.join(",") ?? "-"} ft ${at(wc.clamp?.ftools)} mt ${at(wc.clamp?.maptools)}`
-                        + ` raw ${wc.raw ? "off" : "on"} focus ${wc.focus?.kept ? "kept" : "LOST"}/${wc.focus?.cuts ?? "-"}`;
+                        + ` raw ${wc.raw ? "off" : "on"} focus ${wc.focus?.kept ? "kept" : "LOST"}/${wc.focus?.cuts ?? "-"}`
+                        // E79 C12: Foundry tools' width expanded / collapsed by Foundry's caret (drpgWindowsCheck `collapse`)
+                        + ` collapse ${wc.collapse ? `${wc.collapse.wide}/${wc.collapse.narrow} head ${wc.collapse.head}` : "-"}`;
                     if (!wc.ok) fails.push("places: " + wc.why);
                     if (wc.raw) placesControlled = true;
                     if (wc.expect === "windows") placesRead = true;

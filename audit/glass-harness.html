@@ -50,8 +50,12 @@
   #ui-right{position:absolute;right:0;top:22px;bottom:0;display:flex;flex-direction:row;align-items:flex-start}
   #ui-right-column-1{display:flex;flex-direction:column;gap:4px;margin-right:22px;transition:none}
   #sidebar{display:flex;flex-direction:row;height:100%}
-  #sidebar-content{width:0;overflow:hidden;background:rgba(30,20,40,.9);transition:width .3s}
-  #sidebar.expanded #sidebar-content{width:300px}
+  /* v14-like since E79 C12 (16.10.2026): the content keeps its 300 px wherever the sidebar stands, and only a sidebar
+     left in #ui-right loses it when not expanded - where Foundry's own collapse hangs (read in danganronpa.css's
+     comments, not in v14's sheet). Until C12 the stand-in collapsed its content everywhere, so Foundry tools came
+     down to the rail with no rule of the module's and the owner's N7 could not be seen here. */
+  #sidebar-content{width:300px;background:rgba(30,20,40,.9);transition:width .3s}
+  #ui-right #sidebar:not(.expanded) #sidebar-content{width:0;overflow:hidden}
   #sidebar-tabs{width:48px;display:flex;flex-direction:column;gap:6px;padding:4px;margin:0}
   #sidebar-tabs button,#scene-controls button{width:36px;height:36px;display:block}
   #players{padding:6px 10px;font-size:12px;color:#ddd}
@@ -492,7 +496,7 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     const stacked = body.classList.contains("drpg-stacked"), glass = body.classList.contains("drpg-theme-stained-glass");
     const cut = Boolean(glass && g?.CHECKS?.length && g.LAST?.panes?.length && at && at.width > 10);
     const out = { ok: false, why: [], expect: stacked ? "row" : cut ? "placed" : glass ? "unplaced" : "flat", place: tile?.dataset.place ?? null,
-      F: null, need: null, maxH: null, box: null, clock: null, notes: null, art: null, cuts: null, row: null, flat: null };
+      F: null, need: null, maxH: null, box: null, clock: null, notes: null, art: null, cuts: null, row: null, flat: null, project: null };
     const done = () => { out.ok = !out.why.length; out.why = out.why.join("; "); return out; };
     /* WHAT IS WRITTEN ON THE TILE BESIDE THE NOTICES FITS ITS BOX (E78 fix h76-HF4, 14.10.2026). Read with the turn
        off: each part inside the box (a pixel of slack) and no two overlapping, closed, then with 400 words of
@@ -630,6 +634,37 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
       else if (!near(wide[0], wide[1])) out.why.push(`in a column ${wide[2]} wide the tile is ${wide[0]} wide, not the clock's ${wide[1]}`);
     }
     if (!tile || !hud) { out.why.push("no room tile or no clock"); return done(); }
+    /* THE PROJECT LINE MOVES NOTHING (E79 C12, 16.10.2026; the owner's N8 of 14.10: "the 'available project' line
+       shifts the layout - layout must be fixed whatever lines appear"). Read in the tile's own frame (offsets, which
+       its turn does not move), in every place and both themes: the name's and the search tokens' tops with the line
+       and with it taken out, the same within 1 px; the line inside the tile and on neither. At 33ea568 the rows packed
+       from the tile's foot and the line pushed them up: Stained Glass at 1920x1080 the name 548 -> 528 and the tokens
+       575 -> 556, at 1366x768 683 -> 665 and 694 -> 676; Monokuma Legacy 13 px at both (Chromium, the plan's readings).
+       This clause read at the parent on 16.10.2026, in the tile's frame: 13 to 20 px at each of 1920x1080, 1366x768 and
+       1280x720 in both themes, both roles; after C12, within 1 px at each. Not on a stacked screen: there the row is
+       narrow.css's grid, which C12 does not touch, and its line stands in a column of its own (read the same day at
+       768x1024 and 393x852: this clause found no line in the tile's frame there, at the parent and after C12). */
+    if (!stacked) {
+      const q = sel => tile.querySelector(`:scope > ${sel}`), line = q(".drpg-hud-room-project"), name = q(".drpg-room-tile-name"), pips = q(".drpg-hud-room-tokens");
+      const at = e => { let x = 0, y = 0, n = e; while (n && n !== tile) { x += n.offsetLeft; y += n.offsetTop; n = n.offsetParent; }
+        return n === tile && e.offsetWidth ? [x, y, x + e.offsetWidth, y + e.offsetHeight] : null; };
+      if (!line || !name || !pips) out.why.push("project: the harness's tile has no project line, name or search tokens to read");
+      else {
+        const withLine = [at(name), at(pips), at(line)], next = line.nextSibling;
+        line.remove();
+        const without = [at(name), at(pips)];
+        tile.insertBefore(line, next);
+        const [rn, rp, rl] = withLine, meet = (a, b) => a && b && a[0] < b[2] - 1 && b[0] < a[2] - 1 && a[1] < b[3] - 1 && b[1] < a[3] - 1;
+        out.project = { name: [rn?.[1], without[0]?.[1]], pips: [rp?.[1], without[1]?.[1]], line: rl };
+        if (!rn || !rp || !without[0] || !without[1]) out.why.push("project: the name or the search tokens are not drawn");
+        else if (!near(rn[1], without[0][1]) || !near(rp[1], without[1][1])) out.why.push(`project: the line moves the name ${without[0][1]} -> ${rn[1]} and the search tokens ${without[1][1]} -> ${rp[1]}`);
+        if (!rl) out.why.push("project: the line is not drawn");
+        else {
+          if (rl[0] < -1 || rl[1] < -1 || rl[2] > tile.offsetWidth + 1 || rl[3] > tile.offsetHeight + 1) out.why.push(`project: the line at ${rl} outside the tile ${tile.offsetWidth}x${tile.offsetHeight}`);
+          if (meet(rl, rn) || meet(rl, rp)) out.why.push(`project: the line at ${rl} on the name ${rn} or the search tokens ${rp}`);
+        }
+      }
+    }
     const room = g?.LAST?.room ?? null;
     const own = tile.querySelector(":scope > .drpg-room-tile-art"), loose = document.getElementById("drpg-room-art");
     if (out.expect === "unplaced") {
@@ -1097,12 +1132,21 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
                 off the cluster, placed again by its own ResizeObserver (E77 fix r2-H2, 13.10.2026; review round 2's cor F5: the sidebar
                 can grow after the place was taken). `raw`: the grown frame where it stood before - off the screen or
                 on the cluster, or the reading saw no growth; a screen too narrow to let the frame grow is not asked.
+       collapse Foundry's caret (E79 C12, the owner's N7): with Foundry tools open, `ui.sidebar.expanded` set and the
+                collapseSidebar hook called as v14 calls it - expanded, collapsed, expanded again, 450 ms after each for
+                the stand-in's transition: collapsed, the content 0 px and the frame no more than 8 px wider than the
+                wider of the rail and the title bar at its least (`head`, a hidden copy of the header at min-content);
+                expanded, the content 250 px or more and the frame at least the rail and the content wide, the same
+                both times within 1 px; no `drpgGlassCut` on the way. Read 16.10.2026 at 1366x768 (Chromium): Stained
+                Glass 358 -> 82 px, its rail 56; Monokuma Legacy 360 -> 134 px, where the title bar's 80 px of words, its
+                close button and its padding hold the frame, not the content (0 px). At the parent the content kept
+                its 300 px and the frame its width.
      The page is put back before it answers: windows closed, the setting emptied, the field and the row removed. */
   window.drpgWindowsCheck = async () => {
     const g = window.__glass, fw = window.__windows, M = 8, W = innerWidth, H = innerHeight;
     const frame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
     const frames = ["drpg-win-ftools", "drpg-win-maptools"].map(id => document.getElementById(id));
-    const out = { ok: false, why: [], expect: frames.some(Boolean) ? "windows" : "none", drag: null, clamp: null, raw: null, focus: null, grow: null };
+    const out = { ok: false, why: [], expect: frames.some(Boolean) ? "windows" : "none", drag: null, clamp: null, raw: null, focus: null, grow: null, collapse: null };
     const done = () => { out.ok = !out.why.length; out.why = out.why.join("; "); return out; };
     if (out.expect === "none") return done();
     if (frames.some(f => !f) || !fw?.clampPlace) { out.why.push("a window or clampPlace is missing"); return done(); }
@@ -1131,6 +1175,31 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
       out.drag = { from: [Math.round(from.x), Math.round(from.y)], to: [Math.round(to.x), Math.round(to.y)], want: [want.x, want.y], kept: setting().ftools ?? null };
       if (out.drag.to[0] !== want.x || out.drag.to[1] !== want.y) out.why.push(`the drag left Foundry tools at ${out.drag.to}, not ${want.x},${want.y}`);
       if (out.drag.kept?.x !== out.drag.to[0] || out.drag.kept?.y !== out.drag.to[1]) out.why.push("the drag's place is not the setting's");
+      {
+        /* collapse (E79 C12): Foundry's caret as v14 tells it, `ui.sidebar.expanded` and the collapseSidebar hook. */
+        const bar = globalThis.ui.sidebar, had = Object.hasOwn(bar, "expanded"), was = bar.expanded, tabs = document.getElementById("sidebar-tabs");
+        let cuts = 0; const cut = () => { cuts++; };
+        const content = document.getElementById("sidebar-content"), widthOf = e => e?.getBoundingClientRect().width ?? 0;
+        const caret = async expanded => { bar.expanded = expanded; Hooks.callAll("collapseSidebar", bar, !expanded); await frame(); await new Promise(r => setTimeout(r, 450)); return [rectOf(frames[0]).w, widthOf(content)]; };
+        /* the title bar at its least: a hidden copy at min-content, in the frame so the theme's rules reach it */
+        const headLeast = () => { const h = frames[0].querySelector(".drpg-foundry-window-header")?.cloneNode(true); if (!h) return 0;
+          h.style.cssText = "position:absolute;visibility:hidden;width:min-content"; frames[0].append(h); const w = widthOf(h); h.remove(); return w; };
+        Hooks.on("drpgGlassCut", cut);
+        try {
+          const [wide, cw] = await caret(true), [narrow, cn] = await caret(false), [back] = await caret(true), rail = widthOf(tabs), head = headLeast();
+          const least = Math.max(rail, head);
+          out.collapse = { wide: Math.round(wide), narrow: Math.round(narrow), back: Math.round(back), rail: Math.round(rail), head: Math.round(head), content: [Math.round(cw), Math.round(cn)], cuts };
+          if (!rail || !content || cn > 1 || narrow - least > 8) out.why.push(`collapse: Foundry tools stands ${Math.round(narrow)} px wide with the sidebar collapsed, its content ${Math.round(cn)} px, its rail ${Math.round(rail)} px and its title bar at least ${Math.round(head)} px - the caret did not narrow it`);
+          if (cw < 250 || wide < rail + cw - 1) out.why.push(`collapse: expanded ${Math.round(wide)} px with the content ${Math.round(cw)} px and the rail ${Math.round(rail)} px - the content did not come back`);
+          if (Math.abs(back - wide) > 1) out.why.push(`collapse: expanded again ${Math.round(back)} px, first ${Math.round(wide)} px`);
+          if (cuts) out.why.push(`collapse: the caret recut the glass ${cuts} times`);
+        } finally {
+          Hooks.off("drpgGlassCut", cut);
+          if (had) bar.expanded = was; else delete bar.expanded;
+          fw.markCollapsed?.();
+          await frame();
+        }
+      }
       fw.toggleFoundryTools(false);
       const p11 = { ftools: { x: 939, y: 130 }, maptools: { x: 520, y: 260 } };
       await game.settings.set("danganronpa-rpg", "foundryWindows", p11);

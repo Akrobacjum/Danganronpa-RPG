@@ -15248,6 +15248,111 @@ const INVARIANTS = [
         equal(J([(build.match(/\bcardTicker\(card\)/g) ?? []).length, build.includes("drpg-event-ticker"), build.includes("DRPG.Events.ticker")]),
             J([1, false, false]), "[cardElement's calls of cardTicker; a ticker of its own; its word read there]");
     }],
+
+    ["R585 - Foundry tools' sidebar window narrows when Foundry collapses its sidebar: the frame takes the module's collapsed mark from the collapseSidebar hook and from ui.sidebar.expanded when it adopts the sidebar, and under the mark the sidebar's content computes width 0 and hidden by the module's own rule", async () => {
+        /*
+         * E79 C12 (16.10.2026; the owner's N7 of 14.10: the caret at the rail's foot flipped and the window kept its
+         * width). foundry-windows.mjs `markCollapsed` on Foundry tools' frame, on the GM's client:
+         *   - THE HOOK: `collapseSidebar` called as Foundry calls it, collapsed and then expanded - the mark on, then
+         *     off - and `registerFoundryWindows` registers the listener (read in the source);
+         *   - THE ADOPTION: the sidebar collapsed and then expanded with Foundry's own call in the open window, the mark
+         *     each time; then the mark turned the wrong way by hand and `adoptFoundryNodes` run - the mark is
+         *     `ui.sidebar.expanded`'s again, for each state;
+         *   - THE MODULE'S OWN ROAD: the window closed (which collapses the sidebar) and opened again (which expands
+         *     it) - the mark on, then off;
+         *   - THE RULE: with the mark, the content (`#sidebar-content`, a stand-in planted in `#sidebar` where there is
+         *     none: v14's name for it is LIVE-E79-15) computes width 0px and visibility hidden; without it, neither.
+         *     Literal values, which jsdom's cascade resolves; the width in a browser is the glass harness's
+         *     `drpgWindowsCheck` (`collapse`).
+         * Red before C12: there was no `markCollapsed` (by `ok`). Everything is put back as it was found.
+         */
+        must(game.user.isGM, "the windows are a GM's, and tier 1 runs on the GM");
+        const FW = await import("./foundry-windows.mjs");
+        ok(typeof FW.markCollapsed === "function", "foundry-windows.mjs has no `markCollapsed` - the caret flips and the window keeps its width");
+        if (typeof FW.markCollapsed !== "function") return;
+        const frame = FW.foundryWindow("ftools"), side = document.getElementById("sidebar"), bar = globalThis.ui?.sidebar;
+        must(frame && side && bar, "Foundry tools' frame, the sidebar or ui.sidebar is missing - this would measure nothing");
+        const register = fnSource(stripComments(new Map(await moduleSources()).get("foundry-windows.mjs") ?? ""), "registerFoundryWindows");
+        ok(/\bHooks\.on\("collapseSidebar", onCollapseSidebar\)/.test(register), "registerFoundryWindows does not listen on collapseSidebar");
+        const marked = () => frame.hasAttribute("data-drpg-collapsed");
+        const open0 = !frame.hidden, expanded0 = bar.expanded, planted = side.querySelector("#sidebar-content") ? null : document.createElement("div");
+        if (planted) { planted.id = "sidebar-content"; side.append(planted); }
+        const content = side.querySelector("#sidebar-content");
+        try {
+            Hooks.callAll("collapseSidebar", bar, true);
+            const byHook = [marked()];
+            const narrow = [getComputedStyle(content).width, getComputedStyle(content).visibility];
+            Hooks.callAll("collapseSidebar", bar, false);
+            byHook.push(marked());
+            const wide = [getComputedStyle(content).width, getComputedStyle(content).visibility];
+            FW.setFoundryWindow("ftools", true);
+            const adopted = [];
+            for (const expanded of [false, true]) {
+                bar.toggleExpanded?.(expanded);
+                const told = marked();
+                frame.toggleAttribute("data-drpg-collapsed", expanded);
+                FW.adoptFoundryNodes();
+                adopted.push([bar.expanded === expanded, told, marked()]);
+            }
+            FW.setFoundryWindow("ftools", false);
+            const own = [marked(), bar.expanded];
+            FW.setFoundryWindow("ftools", true);
+            own.push(marked(), bar.expanded);
+            equal(JSON.stringify([byHook, narrow, wide[0] !== "0px" && wide[1] !== "hidden", adopted, own]),
+                JSON.stringify([[true, false], ["0px", "hidden"], true, [[true, true, true], [true, false, false]], [true, false, false, true]]),
+                "[the mark after collapseSidebar collapsed, expanded; the content's width and visibility under the mark; neither without it; "
+                + "for Foundry's own collapse and expand in the open window: the state taken, the mark it left, the mark after adoptFoundryNodes undid a wrong one; "
+                + "the module's close: the mark, expanded; its reopen: the mark, expanded]");
+        } finally {
+            planted?.remove();
+            FW.setFoundryWindow("ftools", open0);
+            if (typeof expanded0 === "boolean" && bar.expanded !== expanded0 && open0) bar.toggleExpanded?.(expanded0);
+            FW.markCollapsed();
+        }
+    }],
+
+    ["R586 - the gear puts the voice settings between the volumes and the look: the Voice section stands after the last volume slider and before the look's fieldset", async () => {
+        /*
+         * E79 C12 (16.10.2026; the owner's N9 of 14.10: "move the LiveKit sound between the volume and the theme
+         * settings"). look.mjs `wireVoice` on the Look window's own form (`lookFormHtml`, the markup `openLookDialog`
+         * draws), in a detached box, with voice standing in (`available`) and the section built by voice-panel.mjs's
+         * `voiceFieldset` from devices the suite names, so nothing is asked of this browser or written: the section
+         * after every volume slider and right before the look's fieldset; wired again, nothing added; on a form with
+         * no look fieldset, at its end; with no voice, nothing. The real window with the shim's LiveKit is 75-voice-tile's
+         * phase C. Red before C12: the section followed the look.
+         */
+        const L = await import("./look.mjs"), P = await import("./voice-panel.mjs");
+        ok(typeof L.wireVoice === "function" && typeof L.lookFormHtml === "function", "look.mjs exports no `wireVoice` or `lookFormHtml` to read the gear's form with");
+        if (typeof L.wireVoice !== "function" || typeof L.lookFormHtml !== "function") return;
+        const build = () => P.voiceFieldset({ client: { getAudioSources: async () => ({ R586MIC: "R586 Mic" }), getAudioSinks: async () => ({}) },
+            settings: { client: {}, set: async () => { throw new Error("R586 writes nothing"); } }, key: null });
+        const box = document.createElement("div");
+        box.hidden = true;
+        box.innerHTML = await L.lookFormHtml();
+        document.body.append(box);
+        const bare = document.createElement("div");
+        bare.hidden = true;
+        bare.innerHTML = "<form><label class=\"drpg-sound-slider\"></label></form>";
+        document.body.append(bare);
+        try {
+            const form = box.querySelector("form"), deps = { available: () => true, build };
+            const added = [await L.wireVoice(box, deps)];
+            const panel = form.querySelector("fieldset.drpg-voice-panel"), sliders = [...form.querySelectorAll(".drpg-sound-slider")];
+            const order = panel ? [sliders.length > 0, sliders.every(s => Boolean(s.compareDocumentPosition(panel) & Node.DOCUMENT_POSITION_FOLLOWING)),
+                panel.nextElementSibling?.matches("fieldset.drpg-look") === true] : "no section";
+            added.push(await L.wireVoice(box, deps), form.querySelectorAll("fieldset.drpg-voice-panel").length);
+            added.push(await L.wireVoice(bare, deps), bare.querySelector("form").lastElementChild?.matches("fieldset.drpg-voice-panel") === true);
+            const none = document.createElement("div");
+            none.innerHTML = await L.lookFormHtml();
+            added.push(await L.wireVoice(none, { available: () => false, build }), Boolean(none.querySelector("fieldset.drpg-voice-panel")));
+            equal(JSON.stringify([order, added]), JSON.stringify([[true, true, true], [true, false, 1, true, true, false, false]]),
+                "[[the form has volume sliders; the section after each; right before the look's fieldset]; [added; added again; sections in the form; "
+                + "added to a form with no look; at its end; added with no voice; a section there]]");
+        } finally {
+            box.remove();
+            bare.remove();
+        }
+    }],
 ];
 
 /**

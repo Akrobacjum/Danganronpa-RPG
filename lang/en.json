@@ -2746,6 +2746,7 @@
       "proposeButton": "Send it to the GM",
       "collapseTray": "Fold the projects away",
       "expandTray": "Show the projects",
+      "trayEmpty": "No projects yet.",
       "workOnHint": {
         "one": "Push the {n} project running in this room.",
         "other": "Push one of the {n} projects running in this room."

@@ -2839,6 +2839,7 @@
       "proposeButton": "Wyślij do GM-a",
       "collapseTray": "Zwiń projekty",
       "expandTray": "Pokaż projekty",
+      "trayEmpty": "Na razie brak projektów.",
       "workOnHint": {
         "one": "Popchnij {n} projekt trwający w tym pokoju.",
         "few": "Popchnij jeden z {n} projektów trwających w tym pokoju.",

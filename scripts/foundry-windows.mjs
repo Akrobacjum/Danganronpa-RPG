@@ -33,6 +33,23 @@
  * frame first, synchronously, so Shift+C and any module that opens a tab open the window. Collapsing with
  * Foundry's own button inside an open window only narrows it.
  *
+ * COLLAPSED IS NARROW (E79 C12, 16.10.2026; the owner's N7 of 14.10: "the caret at the rail's foot inside the
+ * Foundry tools window does nothing" - the caret flipped, so the state changed, and the window kept its width). The
+ * frame has no width of its own: it is as wide as `#sidebar`'s content. Measured in Chromium on the glass harness's
+ * stand-in sidebar (the plan of 16.10.2026, at 33ea568): expanded, the frame 358 px wide with the content's 300; with
+ * the stand-in's own collapse rule, 90 px, the rail alone; with a content that keeps its 300 px when the sidebar is
+ * not expanded, 358 px after the collapse - the owner's report. Foundry's rules that take the content's width away
+ * hang off `#ui-right` (read in this sheet's comments, not in v14's), and the node no longer stands there. What v14
+ * calls the collapsed state on the element, and the content's id, are not readable here: fvtt-types 14.366's
+ * sidebar.d.mts gives the `expanded` getter and the `collapseSidebar` hook and nothing more, and `#sidebar-content`
+ * is the glass harness's name for the content (LIVE-E79-15). So the mark is the module's own, keyed off those two
+ * alone: `data-drpg-collapsed` on Foundry tools' frame, set from the `collapseSidebar` hook's answer, from
+ * `ui.sidebar.expanded` at every adoption, and after each of the module's own calls and the wrapper's
+ * (`markCollapsed`); danganronpa.css narrows `#sidebar-content` under it. A `ui.sidebar` whose `expanded` is not
+ * true is collapsed (the glass harness's stand-in has no `expanded`, and its frame was the rail's width before this);
+ * with no `ui.sidebar` at all nothing is marked. R585 reads the mark and the cascade under it; the glass harness's
+ * `drpgWindowsCheck` reads the width in Chromium.
+ *
  * A PLACE OF ITS OWN, ON THE SCREEN (E77 C7; the owner's Q9, the design's step 12). A window is dragged by its
  * title bar (pointer events with the pointer captured, so a mouse and a finger both work; no resizing - 'Okna
  * przyciskow Foundry moga pozostac proste'). Where it is dropped is this browser's client setting
@@ -144,6 +161,7 @@ export function registerFoundryWindows() {
     wrapSidebar();
     collapseSidebar();
     for (const hook of ["renderSidebar", "renderSceneControls"]) Hooks.on(hook, adoptFoundryNodes);
+    Hooks.on("collapseSidebar", onCollapseSidebar);
     window.addEventListener("keydown", onEscape, { capture: true });
     window.addEventListener("resize", () => { for (const row of FOUNDRY_WINDOWS) placeFoundryWindow(row.key); });
     import("./glass.mjs").then(g => { cluster = g.LAUNCHERS ?? null; }).catch(() => null);
@@ -380,6 +398,7 @@ export function adoptFoundryNodes() {
         body.append(node);
         moved++;
     }
+    markCollapsed();
     return moved;
 }
 
@@ -405,6 +424,7 @@ function wrapSidebar() {
             const opening = (expanded ?? !this.expanded) === true;
             if (opening) windowStep(() => showFrame("ftools", true));
             const out = toggle.call(this, expanded, ...rest);
+            windowStep(() => markCollapsed());
             if (opening) windowStep(() => placeFoundryWindow("ftools"));
             return out;
         };
@@ -427,6 +447,24 @@ function windowStep(step) {
 function collapseSidebar() {
     const bar = globalThis.ui?.sidebar;
     if (bar?.expanded && ORIGINAL.toggleExpanded) ORIGINAL.toggleExpanded.call(bar, false);
+    markCollapsed();
+}
+
+/**
+ * Foundry tools' frame marked collapsed or not (see COLLAPSED IS NARROW): `collapsed` as the `collapseSidebar` hook
+ * answers it, else read off `ui.sidebar.expanded` now. Returns the mark, or null with no frame or no sidebar to read.
+ */
+export function markCollapsed(collapsed) {
+    const frame = foundryWindow("ftools"), bar = globalThis.ui?.sidebar;
+    if (!frame || (typeof collapsed !== "boolean" && !bar)) return null;
+    const on = typeof collapsed === "boolean" ? collapsed : bar.expanded !== true;
+    frame.toggleAttribute("data-drpg-collapsed", on);
+    return on;
+}
+
+/** The `collapseSidebar` hook's listener: Foundry hands the sidebar and whether it is collapsed now. */
+function onCollapseSidebar(sidebar, collapsed) {
+    markCollapsed(typeof collapsed === "boolean" ? collapsed : undefined);
 }
 
 function showFrame(key, open) {
@@ -447,6 +485,7 @@ export function setFoundryWindow(key, open) {
     const bar = globalThis.ui?.sidebar;
     if (key === "ftools" && open && bar && !bar.expanded && ORIGINAL.toggleExpanded) {
         ORIGINAL.toggleExpanded.call(bar, true);
+        markCollapsed();
         placeFoundryWindow(key);
     }
     return true;

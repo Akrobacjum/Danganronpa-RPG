@@ -185,38 +185,54 @@ function wireLook(root) {
 }
 
 /**
- * The third fieldset, Voice (E78 C5; voice-panel.mjs): the microphone, the output, the mode and the key, after the
- * look. Only where this world has voice to set (`voiceAvailable()`, voice-tile.mjs) - elsewhere the file is not even
- * loaded - and added once the window is drawn, because the device lists are asked of the browser and arrive later.
+ * The third fieldset, Voice (E78 C5; voice-panel.mjs): the microphone, the output, the mode and the key. Only where
+ * this world has voice to set (`voiceAvailable()`, voice-tile.mjs) - elsewhere the file is not even loaded - and
+ * added once the window is drawn, because the device lists are asked of the browser and arrive later.
+ *
+ * BETWEEN THE VOLUMES AND THE LOOK (E79 C12, 16.10.2026; the owner's N9 of 14.10: "move the LiveKit sound between the
+ * volume and the theme settings, so related settings sit together"). Until C12 it was appended after the look, at the
+ * window's foot. It goes before the look's fieldset now, and at the end only in a form that has none.
+ *
+ * `available` and `build` stand in for those two imports, for the suite (R586), which runs where no LiveKit is;
+ * the window passes neither.
  *
  * @param {HTMLElement} root  the window's element
+ * @param {{available?: () => boolean, build?: () => Promise<HTMLElement>}} [deps]
  * @returns {Promise<boolean>} whether the section was added
  */
-async function wireVoice(root) {
-    const { voiceAvailable } = await import("./voice-tile.mjs");
+export async function wireVoice(root, { available = null, build = null } = {}) {
+    const voiceAvailable = available ?? (await import("./voice-tile.mjs")).voiceAvailable;
     if (!voiceAvailable()) return false;
-    const { voiceFieldset } = await import("./voice-panel.mjs");
+    const voiceFieldset = build ?? (await import("./voice-panel.mjs")).voiceFieldset;
     const form = root?.querySelector("form");
     if (!form || form.querySelector("fieldset.drpg-voice-panel")) return false;
     const fieldset = await voiceFieldset();
     if (!form.isConnected || form.querySelector("fieldset.drpg-voice-panel")) return false;
-    form.append(fieldset);
+    const look = form.querySelector("fieldset.drpg-look");
+    if (look) look.before(fieldset);
+    else form.append(fieldset);
     return true;
 }
 
+/** The Look window's form as it is drawn, before the Voice section joins it: the volumes, then the look. */
+export async function lookFormHtml() {
+    const { soundSlidersHtml } = await import("./sfx.mjs");
+    return `<form>${soundSlidersHtml()}${lookFieldset()}</form>`;
+}
+
 /**
- * Open the Look dialog: volumes, look and - where this world has voice - the Voice section, one window, raised if
- * already open.
+ * Open the Look dialog: the volumes, the Voice section where this world has voice, and the look, one window, raised
+ * if already open.
  */
 export async function openLookDialog() {
     if (alreadyOpen("drpg-window-look")) return null;
     const { dialogContent, tableDialog } = await import("./utils.mjs");
-    const { soundSlidersHtml, wireSoundPanel } = await import("./sfx.mjs");
+    const { wireSoundPanel } = await import("./sfx.mjs");
     return tableDialog({
         window: { title: game.i18n.localize("DRPG.Look.title") },
         classes: ["drpg-panel", "drpg-projects", "drpg-sound", "drpg-sound-player", "drpg-window-look"],
         position: { width: 560 },
-        content: dialogContent(`<form>${soundSlidersHtml()}${lookFieldset()}</form>`),
+        content: dialogContent(await lookFormHtml()),
         buttons: [{ action: "close", label: game.i18n.localize("DRPG.Panel.close") }],
         render: (event, dialog) => {
             wireSoundPanel(dialog.element);

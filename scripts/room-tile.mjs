@@ -278,7 +278,12 @@ export function paintRoomTile(tile, view = tileView()) {
     parts.push(textNode("h3", "drpg-room-tile-name", view.room));
     // the trial hall has no search tokens (`hallView`, E79 C11)
     if (view.tokens) parts.push(buildSearchPips(view.tokens));
-    if (view.project) parts.push(textNode("div", "drpg-hud-room-project", game.i18n.localize("DRPG.Hud.roomProject")));
+    if (view.project) {
+        // one line in a band of its own at the foot, cut with an ellipsis: its whole text is its title (E79 C12, N8)
+        const words = game.i18n.localize("DRPG.Hud.roomProject"), line = textNode("div", "drpg-hud-room-project", words);
+        line.title = words;
+        parts.push(line);
+    }
 
     if (view.description) {
         const more = document.createElement("button");

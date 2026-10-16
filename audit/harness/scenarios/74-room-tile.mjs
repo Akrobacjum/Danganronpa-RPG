@@ -59,9 +59,12 @@
  *     Monokuma dragged from the Hall to the Cafeteria and p1's Aiko from Dorm A into B's Porch with the hook reading the
  *     drag's start, then Aiko back by a last update that still carries a waypoint pending - each tile names the new room
  *     once the token stands, and each of Aiko's crossings costs one action, once.
+ *   U (the Projects tray before the first project, E79 C12): a tray drawn from Daggerheart 2.6.5's template and hidden
+ *     as Daggerheart hides it from a player with no countdown: after the render hook p1 sees its title and the line
+ *     that there is no project yet, which goes with a countdown and comes back when none is left; the GM's as before.
  *   The phases run in this order, not the letters': G reads p1 as B left it (Aiko in Dorm A) and stands her there
  *     again, and C and H - the side fix line's, merged after E77 C9 on 13.10.2026 - move Aiko and Botan, so they run
- *     after it; I, K and J run last, and L after them.
+ *     after it; I, K and J run last, L after them and U, which moves nothing, at the end.
  *
  * A paint is counted as one `childList` record on the tile itself: `paintRoomTile` replaces the tile's children
  * in one call and writes nothing when its view is unchanged. What the tile looks like (the picture over the whole
@@ -1016,6 +1019,46 @@ export async function run({ gm, gm2, p1, p2, p4, check, phase, settle, connect, 
     p1aL.atHook === "74 Porch" && p1aL.atRest === "Dorm A" && afteraL === 0
         && p1aL.settled.filter(([ok, name]) => ok === true && name === "Dorm A").length === 1,
     J({ p1aL, afteraL }));
+
+    /* ------------------------------ U. the Projects tray before the first project ------------------------------ */
+    phase("U: a player's Projects tray keeps its title before the first project and says there is none; the GM's as before");
+    /* E79 C12 (16.10.2026; the owner's U1 of 14.10: "players do not see the 'Projects' tab title until a project exists").
+       The harness runs no Daggerheart tray, so each page draws one from Daggerheart 2.6.5's countdowns-view.hbs (the
+       header with its title, the rows' container; a row from parts/countdowns.hbs whose countdown is no project, which
+       hideUndiscovered keeps), hides it as countdowns.mjs:93 does - for anybody but a GM while it holds no countdown -
+       and calls the render hook the tray's render calls, twice on the same element (a line is never drawn twice). Three renders
+       on p1: no countdown, one, none again (the last project deleted); one on the GM with none. Red before C12: p1's tray stays hidden. The tray is taken off after. */
+    const TRAYU = renders => `const out = [], want = game.i18n.localize("DRPG.Project.trayEmpty");
+        const ROW = '<div class="countdown-category-container"><div class="countdown-container" data-countdown="S74NOPROJECT0001"><div class="countdown-main-container">'
+            + '<img src=""><div class="countdown-content"><header>S74 countdown</header><div class="countdown-tools"><div class="countdown-tool-controls">'
+            + '<div class="progress-tag">1/4</div></div><div class="countdown-tool-icons"></div></div></div></div></div></div>';
+        const el = document.createElement("div");
+        el.id = "s74-countdowns";
+        document.body.append(el);
+        try {
+            for (const rows of ${J(renders)}) {
+                el.innerHTML = '<div><header class="countdowns-header"><i class="fa-solid fa-clock-rotate-left" inert></i><span class="window-title"></span>'
+                    + '<div class="header-type-toggles"></div><a class="header-control" data-action="toggleViewMode"></a></header>'
+                    + '<div class="countdowns-container">' + ROW.repeat(rows) + '</div></div>';
+                el.querySelector(".window-title").textContent = game.i18n.localize("DAGGERHEART.UI.Countdowns.title");
+                el.hidden = !game.user.isGM && el.querySelectorAll(".countdown-container").length === 0;
+                Hooks.callAll("renderDhCountdowns", { render() {} }, el);
+                Hooks.callAll("renderDhCountdowns", { render() {} }, el); // the same element heard twice: one line, not two
+                const line = el.querySelectorAll(".countdowns-container .drpg-projects-empty");
+                out.push({ hidden: el.hidden, title: el.querySelector(".window-title")?.textContent ?? null, rows: el.querySelectorAll(".countdown-container").length,
+                    empty: line.length === 1 && line[0].textContent === want ? "line" : line.length, gear: Boolean(el.querySelector(".drpg-projects-gear")) });
+            }
+            return { title: game.i18n.localize("DAGGERHEART.UI.Countdowns.title"), out };
+        } finally { el.remove(); }`;
+    const trayP1 = await p1.eval(TRAYU([0, 1, 0]), { timeout: 15000 });
+    const trayGm = await gm.eval(TRAYU([0]), { timeout: 15000 });
+    const shownU = (read, rows, empty, gear) => ({ hidden: false, title: read.title, rows, empty, gear });
+    check("U1: p1, with no countdown, sees the tray Daggerheart hid - its title and the line that there is no project yet; the GM's tray with none "
+        + "is shown with its gear and no line, as before",
+    trayP1.title === "Projects" && J(trayP1.out[0]) === J(shownU(trayP1, 0, "line", false)) && J(trayGm.out) === J([shownU(trayGm, 0, 0, true)]),
+    J({ trayP1, trayGm }));
+    check("U2: on p1 the line goes when a countdown is drawn and comes back, once, when Daggerheart draws the tray again with none left",
+        J(trayP1.out.slice(1)) === J([shownU(trayP1, 1, 0, false), shownU(trayP1, 0, "line", false)]), J(trayP1.out));
 
     /* ------------------------------ restore ------------------------------ */
     await p1.eval(`Hooks.off("updateToken", globalThis.__s74written); Hooks.off("drpgRouteSettled", globalThis.__s74settled);

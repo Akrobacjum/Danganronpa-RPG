@@ -1206,15 +1206,16 @@ body.drpg-theme-stained-glass > #drpg-room-tile[data-place="notes"] {
    pane stood there, 301x150 at 1366x768 and 301x143 at 1280x720 (glass.mjs `roomNotesH`), where the
    name, the pips and the project line stacked under the toggle left the open description 37 and 30
    px - a line and a half (Chromium, the glass harness, the same day). So here the pips stand beside
-   the name, the project line under them, and the description, open, fills what is above them from
-   the tile's top, clear of the toggle by its width on each side rather than under it. Since E78 fix r2-H3
+   the name, the project line under them (in a band of its own at the foot since E79 C12), and the
+   description, open, fills what is above them from the tile's top, clear of the toggle by its width
+   on each side rather than under it. Since E78 fix r2-H3
    (14.10.2026) the box stands 31 px over the screen's edge with its pane run past it, 301x129 at 1366x768
    and 301x122 (`low`, the content's floor) at 1280x720; open, the description shows 2.4 and 2.1 lines
    there and scrolls (the glass harness's `drpgRoomCheck`, Chromium, the same day). */
 body.drpg-theme-stained-glass > #drpg-room-tile[data-place="notes"] {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, max-content) max-content minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) auto auto;
+    grid-template-rows: minmax(0, 1fr) auto;
     align-items: center;
     column-gap: 8px;
 }
@@ -1228,7 +1229,8 @@ body.drpg-theme-stained-glass > #drpg-room-tile[data-place="notes"] .drpg-hud-ro
     grid-area: 2 / 3;
     margin-top: 0;
 }
-body.drpg-theme-stained-glass > #drpg-room-tile[data-place="notes"] .drpg-hud-room-project { grid-area: 3 / 1 / 4 / -1; }
+/* The project line is no row of this grid since E79 C12 (N8): it stands in the band at the tile's foot, which the
+   base sheet keeps whether it is drawn or not (`--drpg-room-band`, below for this theme). */
 body.drpg-theme-stained-glass #drpg-room-tile .drpg-room-tile-name {
     position: relative;
     isolation: isolate;
@@ -1356,6 +1358,11 @@ body.drpg-theme-stained-glass #drpg-room-tile .drpg-hud-room-project {
     color: var(--drpg-glass-accent);
     opacity: 1;
     text-transform: uppercase;
+}
+/* The band the base sheet keeps for the line (E79 C12, N8): this theme's size for it, the rule further down that
+   lifts it to the floor, a fifth again. */
+body.drpg-theme-stained-glass:not(.drpg-stacked) #drpg-room-tile[data-state^="room"] {
+    --drpg-room-band: calc(max(var(--drpg-sg-floor), calc(11px * var(--drpg-sg-scale))) * 1.2);
 }
 body.drpg-theme-stained-glass #drpg-room-tile :is(.drpg-room-tile-more, .drpg-room-tile-describe) {
     border: 1px solid var(--drpg-glass-accent);
