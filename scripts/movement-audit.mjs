@@ -168,6 +168,40 @@ function keepLines(ledger, tokenDoc, entry) {
     if (entry?.sides?.size) ledger.lines.set(tokenDoc.id, entry);
 }
 
+/*
+ * AN EXEMPT LANDING KEEPS ITS SIDE (E79 fix r2-G1, 1.2.79; review r2, SEC M2). The sides a route hands on were taken
+ * out of the book before the audit asked whether the move was its to judge, and an exempt move - a GM's, an accepted
+ * REVERT or send-back, the stairs, a Monokuma - returned without keeping any: a REVERT onto a spot of the GMs' record
+ * that lies exactly on a wall's line, then a step off it to the far side, counted no crossing (the reviewer's SECR2-P2:
+ * Botan at 1550,400, 0 rows; R559 and 76 D read it red at 33ea568). Now an exempt landing keeps, for each wall whose
+ * line it lands on, the side its start was strictly on - the step from `was` straight to the landing, never the
+ * waypoints a REVERT names - or the side it was handed, as a judged step does. What it costs: a GM who sets a token
+ * exactly on a wall's line from its far side makes the token's next step to the near side a crossing. A landing on
+ * another floor than its start keeps nothing: the walls it stands on were not those of the step.
+ */
+function exemptLanding(tokenDoc, scene, was, kept) {
+    if (!was || (was.level ?? null) !== levelOf(tokenDoc)) return null;
+    const { lines } = firstWallCrossed(tokenDoc, [was, { x: tokenDoc.x, y: tokenDoc.y }], was.level ?? null, [], [], kept?.sides ?? null);
+    return { scene: scene.id, x: tokenDoc.x, y: tokenDoc.y, level: tokenDoc.level ?? null, sides: lines };
+}
+
+/*
+ * WHO ASKED A GM'S WRITE (E79 fix r2-G1, 1.2.79; review r2, SEC M1 = cor F2 = goal H1 a). The bridge's send-back
+ * (gm-bridge.mjs `handleSendback`) is written by the GM and was exempt as a GM's move before anything else was read,
+ * and `guardSendbackPlace` accepts the centre of a room the token stood in as well as a spot of the record: the
+ * owner's send-back to the centre of the room Botan stood in, across a wall, undid the audit's put-back with no row
+ * (the reviewers' SECR2-P1 and probe76: Botan at 1550,450, 0 rows, 0 whispers). Its write names the player who asked
+ * (`SENT_BACK`, read only on a GM's write, as `WALL_PUT_BACK` is), and the audit judges it as that player's own revert:
+ * exempt only where `sendBackRefusal` accepts the landing against the GMs' record, which holds no centre, and any
+ * other landing by the wall rule with that player as the mover. The guard is left as it is: refusing a centre a wall
+ * stands in front of would refuse the send-back of a token Foundry itself let through a wall. The audit's own put-back
+ * names nobody, so it does not loop.
+ */
+function askerOf(named, users) {
+    const user = typeof named === "string" ? users?.get(named) : null;
+    return user && !user.isGM ? user.id : null;
+}
+
 /**
  * One crossing on the audit's rows (`book`, above), folded into the newest row of the same token,
  * mover, wall, passage and mode when that row's last crossing is within `BURST_MS`.
@@ -191,8 +225,9 @@ function noteRow(ledger, row, now) {
 
 /**
  * What the audit has judged a crossing on this browser since the page loaded, oldest first, each row
- * `{ token, actor, user, scene, wall, passage, mode, verdict, at, last, times, quiet }` (`quiet`: the
- * put-backs on it the GMs were not whispered of), and how many older rows were let go: rows exist on
+ * `{ token, actor, user, scene, wall, passage, mode, verdict, at, last, times, quiet, sent? }` (`quiet`: the
+ * put-backs on it the GMs were not whispered of; `sent`, in "sendBack" mode: those written, and `verdict` "sent
+ * back" only when every one was, else "not sent back"), and how many older rows were let go: rows exist on
  * the primary GM's browser alone, where the audit runs. `game.drpg.passages.audit()`.
  */
 export function auditRows() {
@@ -203,10 +238,11 @@ export function auditRows() {
  * Judge one landed move of a token on the primary GM, and act on a wall it went through: `ctx` holds
  * movement.mjs's readers (`REVERT`, `SENT_BACK`, `history`, `sendBackRefusal`, `stairLinks`,
  * `roomAt`, `held`, `sendBack`) and, for the suite (R559), `mode`, `users`, `known`, `mastermind`,
- * `socket`, `whisper`, `warn`, `book` and `now`. Answers `{ verdict, why?, wall?, passage?, mode? }`: "skip" for a
- * move it does not judge, "exempt", "clear" or "crossed". Every exemption is the GM's own reading -
- * the hook's user, the GMs' record of the token, the stairs on the map, the flags as the GMs hold
- * them - and none is an option of the update: a REVERT is exempt only where `sendBackRefusal`
+ * `socket`, `whisper`, `warn`, `book` and `now`. Answers `{ verdict, why?, wall?, passage?, mode?, back? }`: "skip"
+ * for a move it does not judge, "exempt", "clear" or "crossed" (`back`, the spot a put-back is sent to). Every
+ * exemption is the GM's own reading - the hook's user, the GMs' record of the token, the stairs on the map, the flags
+ * as the GMs hold them - and none is an option of the update but the player a GM's send-back names, who is then
+ * judged as the mover (`askerOf`): a REVERT is exempt only where `sendBackRefusal`
  * accepts it against the GMs' record, which holds no spot this audit put the token back from
  * (movement.mjs `sightingsAfter`), and Foundry's teleport and displace are moves like any other. Fails open: a throw is
  * an error row and nothing else.
@@ -217,21 +253,29 @@ export function auditMove(tokenDoc, changes, options, userId, was, ctx = {}) {
         const actor = tokenDoc?.actor ?? null;
         const scene = tokenDoc?.parent ?? null;
         if (!isMoveChange(changes) || !actor || actor.type !== "character" || !scene) return { verdict: "skip", why: "not a student's move" };
-        const ledger = ctx.book ?? book, now = ctx.now ?? Date.now();
+        const ledger = ctx.book ?? book, now = ctx.now ?? Date.now(), users = ctx.users ?? game.users;
         const kept = takeLines(ledger, tokenDoc, scene, was);
-        if ((ctx.users ?? game.users)?.get(userId)?.isGM) return { verdict: "exempt", why: "a GM's move" };
-        if (isMonokuma((ctx.held ?? (a => a))(actor))) return { verdict: "exempt", why: "Monokuma" };
+        const exempt = why => {
+            keepLines(ledger, tokenDoc, exemptLanding(tokenDoc, scene, was, kept));
+            return { verdict: "exempt", why };
+        };
+        let mover = userId ?? null;
+        if (users?.get(userId)?.isGM) {
+            mover = askerOf(options?.[SENT_BACK], users);
+            if (!mover) return exempt("a GM's move");
+        }
+        if (isMonokuma((ctx.held ?? (a => a))(actor))) return exempt("Monokuma");
         if (!isPlaceScene(scene)) return { verdict: "skip", why: "no rooms" };
         if (!was) return { verdict: "skip", why: "never seen" };
         if (options?.[REVERT] || options?.[SENT_BACK]) {
             const spot = { x: tokenDoc.x, y: tokenDoc.y, elevation: tokenDoc.elevation ?? 0, level: tokenDoc.level ?? undefined };
-            if (!ctx.sendBackRefusal(spot, { scene, history: ctx.history ?? [] })) return { verdict: "exempt", why: "a send-back the GM accepts" };
+            if (!ctx.sendBackRefusal(spot, { scene, history: ctx.history ?? [] })) return exempt("a send-back the GM accepts");
         }
         const from = was.level ?? null, to = levelOf(tokenDoc);
         if (from !== to) {
             const pair = [ctx.roomAt(was.x, was.y, tokenDoc, from), ctx.roomAt(tokenDoc.x, tokenDoc.y, tokenDoc, to)].sort();
             if (pair.every(Boolean) && (ctx.stairLinks(scene) ?? []).some(link => link[0] === pair[0] && link[1] === pair[1])) {
-                return { verdict: "exempt", why: "the stairs" };
+                return exempt("the stairs");
             }
         }
         const known = ctx.known ? { known: ctx.known } : {};
@@ -249,9 +293,10 @@ export function auditMove(tokenDoc, changes, options, userId, was, ctx = {}) {
         const sending = mode === "sendBack";
         const crossing = { wall: found.wall, passage: found.passage };
         (ctx.warn ?? warn)(`A player's move took a token through a wall (${sending ? "sent back" : "noted"})`,
-            { token: tokenDoc.id, actor: actor.id, user: userId ?? null, scene: scene.id, ...crossing, mode: sending ? "sendBack" : "log" });
-        const row = noteRow(ledger, { token: tokenDoc.id, actor: actor.id, user: userId ?? null, scene: scene.id, ...crossing,
-            mode: sending ? "sendBack" : "log", verdict: sending ? "sent back" : "noted" }, now);
+            { token: tokenDoc.id, actor: actor.id, user: mover, scene: scene.id, ...crossing, mode: sending ? "sendBack" : "log" });
+        // "not sent back" until the put-back is written (`landed`, below): review r2, cor F4.
+        const row = noteRow(ledger, { token: tokenDoc.id, actor: actor.id, user: mover, scene: scene.id, ...crossing,
+            mode: sending ? "sendBack" : "log", verdict: sending ? "not sent back" : "noted" }, now);
         if (!sending) {
             keepLines(ledger, tokenDoc, landed);
             return { verdict: "crossed", ...crossing, mode: "log" };
@@ -262,15 +307,20 @@ export function auditMove(tokenDoc, changes, options, userId, was, ctx = {}) {
             sound: false,
             // Marked as this audit's (movement.mjs `sightingsAfter`): every GM's record drops the spot it leaves.
             audited: true,
-            // The mover is told once the token stands back where it was, so its line names that room; the
-            // sides a route that ended on a wall's line handed on are the token's again, where it stands.
+            // The row says what was written (E79 fix r2-G1; review r2, cor F4): it said "sent back" before the
+            // write, and a write that failed (`sendBack` logs it and the token stays) left it saying so. A row of a
+            // burst says "sent back" only once every put-back on it is written (`sent`). The mover is told once the
+            // token stands back where it was, so its line names that room; the sides a route that ended on a wall's
+            // line handed on are the token's again, where it stands.
             landed: wrote => {
+                row.sent = (row.sent ?? 0) + (wrote ? 1 : 0);
+                row.verdict = row.sent >= row.times ? "sent back" : "not sent back";
                 if (!wrote) return;
                 keepLines(ledger, tokenDoc, kept);
-                if (userId) socket.emit(SOCKET_EVENT, { action: "move.sentBack", userId, sceneId: scene.id, tokenId: tokenDoc.id, code: "wall" }, { recipients: [userId] });
+                if (mover) socket.emit(SOCKET_EVENT, { action: "move.sentBack", userId: mover, sceneId: scene.id, tokenId: tokenDoc.id, code: "wall" }, { recipients: [mover] });
             }
         });
-        const told = `${tokenDoc.id} ${userId ?? ""}`, last = ledger.told.get(told);
+        const told = `${tokenDoc.id} ${mover ?? ""}`, last = ledger.told.get(told);
         if (last !== undefined && now - last <= BURST_MS) row.quiet += 1;
         else {
             ledger.told.set(told, now);
@@ -278,7 +328,8 @@ export function auditMove(tokenDoc, changes, options, userId, was, ctx = {}) {
             (ctx.whisper ?? whisperToGms)(`<p class="drpg-warning" data-drpg-wall="${esc(tokenDoc.id)}">${esc(game.i18n.format("DRPG.Movement.wallCrossed", { name, scene: scene.name ?? "" }))}</p>`)
                 ?.catch?.(err => error("Could not tell the GMs of a token sent back through a wall", err));
         }
-        return { verdict: "crossed", ...crossing, mode: "sendBack" };
+        // `back`: where the token is sent, which the GMs' sighting becomes at once (movement.mjs `noteGmPosition`).
+        return { verdict: "crossed", ...crossing, mode: "sendBack", back: was };
     } catch (err) {
         error(`Could not audit the move of "${tokenDoc?.name}"`, err);
         return { verdict: "skip", why: "failed" };
@@ -288,10 +339,11 @@ export function auditMove(tokenDoc, changes, options, userId, was, ctx = {}) {
 /**
  * Why a `move.sentBack` is not this browser's to take, or null: addressed to this user, sent by the
  * primary GM (passages.mjs `passageRowsRefusal`'s rule, the GM whose world has just loaded counted as
- * connected, `arrivingPrimary` - review r1, SEC S6), and naming a code it knows. `me`, `users` and
- * `primary` are the suite's to hand.
+ * connected, `arrivingPrimary` - review r1, SEC S6), and naming a code it knows. `me`, `users`,
+ * `arriving` and `primary` are the suite's to hand: with `users` and `arriving` alone the primary is
+ * worked out as on a table (R559, review r2 goal O10).
  */
-export function sentBackRefusal(payload, senderId, { me = game.user, users = game.users, primary = primaryGmId({ arriving: arrivingPrimary() }) } = {}) {
+export function sentBackRefusal(payload, senderId, { me = game.user, users = game.users, arriving = arrivingPrimary(), primary = primaryGmId({ arriving, users }) } = {}) {
     if (me?.isGM) return "a GM's browser is not told";
     if (payload?.userId !== me?.id) return "addressed to somebody else";
     if (!users?.get(senderId)?.isGM) return "not sent by a GM";

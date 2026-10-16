@@ -153,9 +153,10 @@ export function gmIds() {
     return game.users.filter(u => u.isGM).map(u => u.id);
 }
 
-/** Ids of GMs who are actually connected. */
-export function activeGmIds() {
-    return game.users.filter(u => u.isGM && u.active).map(u => u.id);
+/** Ids of GMs who are actually connected; `users` is the world's list unless a test
+ *  hands primaryGmId its own (E79 fix r2-G1). */
+export function activeGmIds(users = game.users) {
+    return users.filter(u => u.isGM && u.active).map(u => u.id);
 }
 
 /** Wait this long, and nothing else. For the one second look a GM-side guard gives
@@ -218,14 +219,14 @@ export function isPrimaryGm({ leaving = null } = {}) {
  *
  * @returns {string|null} User id, or null when no GM is connected.
  */
-export function primaryGmId({ arriving = null, leaving = null } = {}) {
+export function primaryGmId({ arriving = null, leaving = null, users = game.users } = {}) {
     const here = u => u.id !== leaving && (u.active || (arriving !== null && u.id === arriving));
-    const full = game.users
+    const full = users
         .filter(u => here(u) && u.role === CONST.USER_ROLES.GAMEMASTER)
         .map(u => u.id)
         .sort();
 
-    const assistants = (arriving !== null && game.users.get(arriving)?.isGM ? [...new Set([...activeGmIds(), arriving])] : activeGmIds())
+    const assistants = (arriving !== null && users.get(arriving)?.isGM ? [...new Set([...activeGmIds(users), arriving])] : activeGmIds(users))
         .filter(id => id !== leaving);
     const pool = full.length ? full : assistants.sort();
     return pool[0] ?? null;

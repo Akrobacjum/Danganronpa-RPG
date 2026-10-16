@@ -49,7 +49,11 @@
  *   whispered, and the Debug log rows differ in their `passage` field only. A REVERT the GM never wrote, Foundry's
  *   teleport and a displace are put back the same way, and so is a move while the GM looks at the Annex. A GM's own
  *   move through the wall stands, a REVERT p2 writes back to where Botan stood a moment ago stands, and Aiko through
- *   her own passage stands. In `log` mode the move stands and the GM's Debug log has the row. The fuzz substitute:
+ *   her own passage stands. In `log` mode the move stands and the GM's Debug log has the row. Since fix r2-G1 (review
+ *   r2): p2's send-back through the bridge to the Cafeteria's centre across the wall is judged as p2's own move (put
+ *   back, or a row in `log` mode), asked after the put-back or in the same breath as the move; a move written before
+ *   the put-back lands is judged from where Botan is sent; and an exempt landing on the wall's line (a REVERT, the
+ *   bridge's send-back) keeps its side, so the step off it to the far side is a crossing. The fuzz substitute:
  *   `move.sentBack` forged by p2 for p3, and one from the primary with a code nobody knows, are refused on the
  *   player's browser with a reason in its log; a `passage.request` of junk types is answered to p2 alone; none of it
  *   writes a document or throws.
@@ -91,8 +95,10 @@ export const layers = ["ci"];
    the cluster's own line, 5.6-5.9 s of wall time with the boot. 60 s is 73's and 75's bound for a scenario of four clients
    and a few evals; a phase that adds minutes raises it with a reading of its own. With phase D (C4, 14.10.2026, one run
    under the harness lock): 33 checks in 32.5 s by the cluster's line, each of D's moves waited 1-1.5 s - so 120 s,
-   for the boot and for a2.sh's three lanes, which this reading did not run in. */
-export const timeoutMs = 120000;
+   for the boot and for a2.sh's three lanes, which this reading did not run in. Fix r2-G1 (16.10.2026) adds eleven
+   moves and send-backs to D: 60 checks in 92.6 s by the cluster's line, one run alone under the harness lock (98 s of
+   wall time) - so 150 s, the same margin for the lanes. */
+export const timeoutMs = 150000;
 
 const J = value => JSON.stringify(value);
 
@@ -537,7 +543,8 @@ async function phaseD({ gm, p1, p2, p3, check, phase, settle, socketTraffic, opL
         return { at: [t.x, t.y], cards: cards.map(m => [...(m.whisper ?? [])].sort()),
             rows: U.sessionFailures().filter(e => e.message.startsWith("A player's move took a token through a wall")).map(e => [e.message, e.count]),
             book: (game.drpg.passages.audit?.()?.rows ?? []).filter(r => r.token === ${J(BOTAN)})
-                .reduce((n, r) => ({ times: n.times + r.times, quiet: n.quiet + r.quiet }), { times: 0, quiet: 0 }) };`);
+                .reduce((n, r) => ({ times: n.times + r.times, quiet: n.quiet + r.quiet }), { times: 0, quiet: 0 }),
+            verdicts: (game.drpg.passages.audit?.()?.rows ?? []).filter(r => r.token === ${J(BOTAN)}).map(r => r.verdict) };`);
     const onP2 = () => p2.eval(`
         const { contentOf } = await import("${repoUrl}/scripts/secret.mjs");
         return { told: globalThis.__notifications.map(n => n.msg), wire: globalThis.__s76dWire.map(p => p.code),
@@ -564,6 +571,32 @@ async function phaseD({ gm, p1, p2, p3, check, phase, settle, socketTraffic, opL
         && r.rows[0].user === IDS.p2 && r.rows[0].token === BOTAN;
     const stood = (r, at) => J(r.at) === J(at) && r.packets.length === 0 && r.codes.length === 0 && r.told.length === 0 && r.whispers.length === 0 && r.rows.length === 0;
     const putBack = () => gm.eval(`await game.scenes.get(${J(IDS.scene)}).tokens.get(${J(BOTAN)}).update({ x: ${HOME[0]}, y: ${HOME[1]} }, ${J(PLACE)}); return true;`);
+    /* The owner's send-back through the bridge (`token.sendBack`), read as `attempt` reads a move. `forged`: moves p2's
+       console writes, its veto off, in the same breath - none waited for before the next, or before the ask. With no
+       `to`, the forged moves alone. */
+    const viaBridge = async (to, { forged = [] } = {}) => {
+        const mark = socketTraffic.length, g0 = await onGm(), q0 = await onP2();
+        const asked = await p2.eval(`
+            const list = Hooks._hooks.get("preUpdateToken") ?? [], at = list.findIndex(e => e.fn.name === "onPreUpdateToken");
+            const [veto] = ${forged.length ? "at >= 0 ? list.splice(at, 1) : []" : "[]"};
+            const B = await import("${repoUrl}/scripts/gm-bridge.mjs"), t = canvas.scene.tokens.get(${J(BOTAN)});
+            try {
+                const moving = ${J(forged)}.map(([x, y]) => t.update({ x, y }));
+                const r = ${J(to)} ? await B.requestSendBack(${J(IDS.scene)}, ${J(BOTAN)}, { x: ${J(to?.[0])}, y: ${J(to?.[1])} }) : null;
+                await Promise.all(moving);
+                return r && { ok: r.ok, refused: r.refused ?? null, reason: r.reason ?? null };
+            } finally { if (veto) list.splice(at, 0, veto); }`, { timeout: 30000 });
+        await settle(1500);
+        const g1 = await onGm(), q1 = await onP2();
+        return { asked, at: g1.at, packets: socketTraffic.slice(mark).filter(t => t.action === "move.sentBack").map(t => ({ from: t.from, to: t.to })),
+            codes: q1.wire.slice(q0.wire.length), whispers: g1.cards.slice(g0.cards.length), rows: grown(g0.rows, g1.rows),
+            counted: g1.book.times - g0.book.times, verdicts: g1.verdicts };
+    };
+    const centre = await gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
+        const t = game.scenes.get(${J(IDS.scene)}).tokens.get(${J(BOTAN)}), c = M.positionIn(M.roomOfToken(t), t, null);
+        return [c.x, c.y];`);
+    /* A crossing of the ordinary wall by p2, in "sendBack" mode: Botan where he started, every row the plain wall's and p2's. */
+    const p2Rows = (r, mode) => r.rows.length >= 1 && r.rows.every(x => x.wall === set.plain && x.user === IDS.p2 && x.mode === mode);
 
     const plain = await attempt(ACROSS);
     const held = await attempt([1250, 600]);
@@ -602,6 +635,26 @@ async function phaseD({ gm, p1, p2, p3, check, phase, settle, socketTraffic, opL
         asked.ok === false && asked.refused === true && asked.reason === "notWhereItStood" && J(askedAt) === J(HOME) && askedWrites.length === 0,
         J({ asked, askedAt, askedWrites }));
 
+    /* Review r2, SEC M1 (= cor F2 = goal H1 a; the reviewers' SECR2-P1 and probe76): the guard also takes the centre of a
+       room Botan stood in within the minute - the Cafeteria's, across the ordinary wall from HOME - and the GM's write of
+       it was exempt as a GM's move: at 33ea568 Botan stood there, 0 rows, 0 whispers. The write names p2 now and is
+       judged as p2's own move. Asked after the put-back, and in the same breath as a move across the wall; and a move
+       written before the put-back lands (goal H1 b) - across, then back over the wall - which was judged from across
+       and put back there after the first put-back. Each time Botan ends on the near side, p2's rows the plain wall's. */
+    const toCentre = await viaBridge(centre);
+    if (J(toCentre.at) !== J(HOME)) { await putBack(); await settle(800); }
+    const withMove = await viaBridge(centre, { forged: [ACROSS] });
+    if (J(withMove.at) !== J(HOME)) { await putBack(); await settle(800); }
+    const NEAR = [1200, 450];
+    const twoMoves = await viaBridge(null, { forged: [ACROSS, NEAR] });
+    if (J(twoMoves.at) !== J(HOME) && J(twoMoves.at) !== J(NEAR)) { await putBack(); await settle(800); }
+    check("D: p2's send-back through the bridge to the Cafeteria's centre, across the ordinary wall, is p2's own crossing - Botan put back where the GM saw him and told to p2, asked after the put-back or with a move across in the same breath; and a move back over the wall written before the put-back lands leaves him on the near side",
+        J(centre) === J([1550, 450]) && toCentre.asked?.ok === true && J(toCentre.at) === J(HOME) && toCentre.rows.length === 1 && p2Rows(toCentre, "sendBack")
+            && J(toCentre.packets) === J([{ from: "gm", to: [IDS.p2] }]) && J(toCentre.codes) === J(["wall"])
+            && withMove.asked?.ok === true && J(withMove.at) === J(HOME) && p2Rows(withMove, "sendBack")
+            && [HOME, NEAR].some(spot => J(spot) === J(twoMoves.at)) && twoMoves.rows.length <= 2 && p2Rows(twoMoves, "sendBack"),
+        J({ centre, toCentre, withMove, twoMoves }));
+
     /* Review r1, goal F1: a route that stops on a wall's line and goes on across it in a second move crosses the wall.
        Botan at 1450,400 has his centre on the ordinary wall's line (x 1500, y 400-800); from there to 1550,400 he is on
        its far side. Each move alone ends on the line or leaves it, and only the two together go through. */
@@ -612,6 +665,23 @@ async function phaseD({ gm, p1, p2, p3, check, phase, settle, socketTraffic, opL
     await settle(800);
     check("D: Botan stops on the ordinary wall's line, which stands, and goes on to its far side in a second move: put back onto the line, as through the wall",
         stood(onStand, ONLINE) && sentBack(onBack, ONLINE) && onBack.rows[0].wall === set.plain, J({ onStand, onBack }));
+
+    /* Review r2, SEC M2 (the reviewers' SECR2-P2): onto the line, back home, onto the line again by a REVERT the audit
+       exempts (a spot of the GMs' record), then off it to the far side. The exempt landing kept no side at 33ea568:
+       Botan at 1550,400, 0 rows. The control first: the exempt landing, then back to the side it came from. */
+    const exemptLine = async () => {
+        const steps = {};
+        for (const [name, to, options] of [["s1", ONLINE], ["s2", HOME], ["s3", ONLINE, { drpgRevert: true }], ["back", HOME],
+            ["s3b", ONLINE, { drpgRevert: true }], ["s4", ACROSS]]) steps[name] = await attempt(to, options ?? {});
+        return steps;
+    };
+    const line = await exemptLine();
+    await putBack();
+    await settle(800);
+    check("D: Botan stands on the wall's line by a REVERT the audit lets stand, and goes back to his side: nothing; on it again and off to the far side: put back onto the line, as through the wall",
+        stood(line.s1, ONLINE) && stood(line.s2, HOME) && stood(line.s3, ONLINE) && stood(line.back, HOME) && stood(line.s3b, ONLINE)
+            && sentBack(line.s4, ONLINE) && line.s4.rows[0].wall === set.plain,
+        J(line));
 
     /* What stands: a GM's own move across, a REVERT p2 writes back to where the GM saw Botan a moment ago, Aiko through her passage. */
     await gm.eval(`await game.scenes.get(${J(IDS.scene)}).tokens.get(${J(BOTAN)}).update({ x: ${ACROSS[0]}, y: ${ACROSS[1]} }); return true;`);
@@ -634,6 +704,24 @@ async function phaseD({ gm, p1, p2, p3, check, phase, settle, socketTraffic, opL
         J(logged.at) === J(ACROSS) && logged.packets.length === 0 && logged.codes.length === 0 && logged.whispers.length === 0
             && logged.rows.length === 1 && logged.rows[0].mode === "log" && logged.rows[0].wall === set.plain,
         J(logged));
+
+    /* SEC M1 in 'log' mode: p2's send-back to the centre across the wall stands, and is p2's row. SEC M2 in 'log' mode, by
+       the other exempt road - the bridge's send-back onto the wall's line, a spot of the record - then off it to the far
+       side: a row. The control: p2's send-back to a spot of the record off any line, where the GM saw Botan a moment ago. */
+    const logCentre = await viaBridge(centre);
+    await putBack();
+    await settle(800);
+    const logOn = await attempt(ONLINE), logHome = await attempt(HOME);
+    const logBridge = await viaBridge(ONLINE), logAcross = await attempt(ACROSS);
+    const logBackHome = await viaBridge(HOME);
+    check("D: in 'log' mode p2's send-back to the centre across the wall stands with p2's row; the bridge's send-back onto the wall's line stands with none, the step on to the far side has its row, and a send-back to where the GM saw Botan a moment ago has none",
+        logCentre.asked?.ok === true && J(logCentre.at) === J(centre) && logCentre.rows.length === 1 && p2Rows(logCentre, "log") && logCentre.packets.length === 0
+            && stood(logOn, ONLINE) && stood(logHome, HOME) && logBridge.asked?.ok === true && J(logBridge.at) === J(ONLINE) && logBridge.rows.length === 0
+            && J(logAcross.at) === J(ACROSS) && logAcross.rows.length === 1 && logAcross.rows[0].mode === "log" && logAcross.rows[0].wall === set.plain
+            && logBackHome.asked?.ok === true && J(logBackHome.at) === J(HOME) && logBackHome.rows.length === 0 && logBackHome.counted === 0,
+        J({ logCentre, logOn, logHome, logBridge, logAcross, logBackHome }));
+    await putBack();
+    await settle(800);
 
     const onStandLog = await attempt(ONLINE);
     const onLogged = await attempt(ACROSS);

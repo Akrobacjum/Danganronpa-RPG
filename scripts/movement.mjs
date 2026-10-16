@@ -424,6 +424,7 @@ function noteGmPosition(tokenDoc, changes, options, userId) {
     if (!game.user?.isGM) return;
     if (changes?.x === undefined && changes?.y === undefined
         && changes?.elevation === undefined && changes?.level === undefined) return;
+    let sentTo = null;
     // The arrival judged before `gmSeen` moves (E12 C12): a token the judge has no standing for
     // stood lawfully where `gmSeen` last saw it (`seenStanding`).
     if (judgingHere()) {
@@ -434,18 +435,25 @@ function noteGmPosition(tokenDoc, changes, options, userId) {
         }
         // The wall rule (E79 C4), from the same start: the GM's last sighting. It changes no standing
         // `judgeArrival` keeps (the plan's D7) and catches its own throw.
-        auditMove(tokenDoc, changes, options, userId, gmSeen.get(tokenDoc.id), {
+        const judged = auditMove(tokenDoc, changes, options, userId, gmSeen.get(tokenDoc.id), {
             REVERT, SENT_BACK, sendBackRefusal, stairLinks, roomAt, history: recentPositions(tokenDoc.id),
             held: judgeReaders?.flagsHeldNow ?? null,
             sendBack: (doc, spot, how) => sendBack(doc, spot, roomAt(spot.x, spot.y, doc, spot.level ?? levelOf(doc)), how)
         });
+        /* SEEN WHERE IT IS SENT (E79 fix r2-G1, 1.2.79; review r2, goal H1 b). The put-back is written a macrotask
+           after the audit (`sendBack`) and lands a round trip later; until then the GMs' sighting was the spot the
+           audit refused, so a second move landing in that window was judged from across the wall - a step back over
+           it was a crossing and put back there, after the first put-back: 76 D read Botan across the wall at
+           33ea568. The sighting is the spot the token is sent to from the audit on, so a move in the window is
+           judged from there; that spot is what the record gains (`sightingsAfter`), never the refused one. */
+        sentTo = judged?.back ?? null;
     }
     const was = gmSeen.get(tokenDoc.id);
     if (was) {
         const putBackTo = options?.[WALL_PUT_BACK] && game.users?.get(userId)?.isGM ? positionOf(tokenDoc) : null;
         gmHistory.set(tokenDoc.id, sightingsAfter(gmHistory.get(tokenDoc.id) ?? [], was, Date.now(), putBackTo));
     }
-    gmSeen.set(tokenDoc.id, positionOf(tokenDoc));
+    gmSeen.set(tokenDoc.id, sentTo ?? positionOf(tokenDoc));
 }
 
 /**
