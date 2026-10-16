@@ -1240,6 +1240,53 @@ async function phaseG({ gm, gm2, p1, p2, p3, p4, check, phase, settle, dump, soc
             && J(untouched) === J({ access: [IDS.aiko], shows: 0 }) && !p2before.includes(set.id),
         J({ forged, junk, untouched, p2before }));
 
+    /* E79 fix r2-G4 (16.10.2026; the round-2 fixes' G4, owed by r2-G2): a show through the bridge from the owner the door
+       names for the Mastermind's student, and from that student's other owner. Botan is made the Mastermind and p3 is given
+       Botan beside p2, whom the door names (the first connected owner); Botan, whom nobody gave the passage, shows it to
+       Aiko, who knows it: nothing is written, and the one card is the giver's, to the player who asked. The bridge hands
+       the show its sender as the one who asks (gm-bridge.mjs `handlePassageShare`): with nobody there p2's show is refused
+       as a passage Botan does not know, and with the door's owner there p3's is carried out. Then the Mastermind and p3's
+       ownership are put back, and p2's copy is waited for without the passage, as p2 held it above. */
+    const MM = `const M = await import("${repoUrl}/scripts/mastermind.mjs"), S = await import("${repoUrl}/scripts/gm-stores.mjs"), U = await import("${repoUrl}/scripts/utils.mjs");`;
+    const mmIds = await gm.eval(`return game.messages.contents.map(m => m.id);`);
+    const mmSet = await gm.eval(`${MM}
+        const was = S.mastermindStore.get("record") ?? {}, botan = game.actors.get(${J(IDS.botan)});
+        await botan.update({ ${J(`ownership.${IDS.p3}`)}: 3 });
+        await M.setMastermind(botan);
+        return { was: { actorId: was.actorId ?? null, room: was.room ?? null }, door: U.ownerOf(botan)?.id ?? null, picked: M.mastermindActor()?.id ?? null };`, { timeout: 30000 });
+    await settle(800);
+    /* The row answers "ack" (gm-bridge.mjs BRIDGE_ACTIONS), so the asker's answer is the GM's receipt, and a refusal of
+       the run comes after it as its own packet: each asker's bridge packets are read on its socket for 1.5 s. */
+    const askAs = client => client.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs"), got = [];
+        const on = payload => { if (payload?.userId === game.user.id && String(payload?.action ?? "").startsWith("bridge.")) got.push([payload.action, payload.reason ?? null]); };
+        game.socket.on("${SOCKET}", on);
+        const res = await B.requestPassageShare({ actorId: ${J(IDS.botan)}, targetId: ${J(IDS.aiko)}, passageId: ${J(set.id)} });
+        await new Promise(r => setTimeout(r, 1500));
+        game.socket.off?.("${SOCKET}", on);
+        return { ok: res.ok, refused: got.filter(([action]) => action === "bridge.refused").map(([, reason]) => reason) };`, { timeout: 30000 });
+    const coAsked = await askAs(p3), doorAsked = await askAs(p2);
+    await settle(1000);
+    const mmSide = await gm.eval(`const G = await import("${repoUrl}/scripts/passages-gm.mjs");
+        const cards = game.messages.contents.filter(m => !${J(mmIds)}.includes(m.id));
+        return { cards: cards.map(m => ({ id: m.id, whisper: [...(m.whisper ?? [])].sort() })), access: Object.keys(G.listPassages().find(p => p.id === ${J(set.id)})?.access ?? {}),
+            shows: G.passageLog().filter(r => r.what === "show" && r.passageId === ${J(set.id)}).length, done: game.i18n.format("DRPG.Passage.card.done", { target: "Aiko Hoshino" }) };`);
+    const mmRead = await p2.eval(`${SHOW} const { contentOf } = await import("${repoUrl}/scripts/secret.mjs"), ids = ${J(mmSide.cards.map(c => c.id))};
+        const text = id => String(contentOf(game.messages.get(id)) ?? "").replace(/<[^>]+>/g, "").trim();
+        await until(() => ids.every(text));
+        return ids.map(text);`, { timeout: 30000 });
+    const mmBack = await gm.eval(`${MM}
+        const was = ${J(mmSet.was)}, botan = game.actors.get(${J(IDS.botan)});
+        if (was.actorId) await M.setMastermind(game.actors.get(was.actorId), { room: was.room }); else await M.clearMastermind();
+        await botan.update({ ${J(`ownership.${IDS.p3}`)}: 0 });
+        return { actorId: M.mastermindActor()?.id ?? null, room: S.mastermindStore.get("record")?.room ?? null };`, { timeout: 30000 });
+    const p2back = await p2.eval(`${SHOW} const PS = await import("${repoUrl}/scripts/passages.mjs");
+        return Boolean(await until(() => !PS.knownPassages()[${J(set.id)}]));`, { timeout: 30000 });
+    check("G: Botan made the Mastermind, his show of the passage to Aiko through the bridge - p3, his other owner, refused as a passage he does not know; p2, whom the door names, carried out, nothing written and one card, whispered to p2 alone; the Mastermind, Botan's owners and p2's copy put back",
+        mmSet.door === IDS.p2 && mmSet.picked === IDS.botan && J(coAsked) === J({ ok: true, refused: ["notKnown"] }) && J(doorAsked) === J({ ok: true, refused: [] })
+            && mmSide.cards.length === 1 && J(mmSide.cards[0].whisper) === J([IDS.p2]) && J(mmRead) === J([mmSide.done])
+            && mmSide.shows === 0 && J(mmSide.access) === J([IDS.aiko]) && J(mmBack) === J(mmSet.was) && p2back === true,
+        J({ mmSet, coAsked, doorAsked, mmSide, mmRead, mmBack, p2back }));
+
     /* The show, from p1's own browser, as the list's button asks it once Botan is picked. The cards are the messages the
        show made, read by id: the GM's browser holds no words of a card whispered to p1 alone (secret.mjs), so a match on
        the text would miss Aiko's (E79 fix r2-G2). */
@@ -1258,10 +1305,11 @@ async function phaseG({ gm, gm2, p1, p2, p3, p4, check, phase, settle, dump, soc
                 done: game.i18n.format("DRPG.Passage.card.done", { target: "Botan Kage" }),
                 gm: game.i18n.format("DRPG.Passage.gm.shown", { giver: "Aiko Hoshino", target: "Botan Kage", from: ${J(set.sides ?? [])}[0], to: ${J(set.sides ?? [])}[1] }) } };`);
     const cardIds = gmSide.cards.map(c => c.id);
-    const read = (client, waitFor) => client.eval(`${SHOW} const { contentOf } = await import("${repoUrl}/scripts/secret.mjs"), NH = await import("${repoUrl}/scripts/notice-history.mjs");
+    const read = (client, waitFor) => client.eval(`${SHOW} const { contentOf, cardFlag } = await import("${repoUrl}/scripts/secret.mjs"), NH = await import("${repoUrl}/scripts/notice-history.mjs");
         const ids = ${J(cardIds)};
         ${waitFor ? `await until(() => NH.noticeEntries().some(e => ids.includes(e.messageId)));` : "await new Promise(r => setTimeout(r, 500));"}
         return { seen: ids.map(id => game.messages.get(id)).filter(m => m?.visible).map(m => String(contentOf(m) ?? "").replace(/<[^>]+>/g, "").trim()),
+            sfx: ids.map(id => game.messages.get(id)).filter(m => m?.visible).map(m => cardFlag(m, "sfx") ?? null),
             kept: NH.noticeEntries().filter(e => ids.includes(e.messageId)).length,
             copy: (await import("${repoUrl}/scripts/passages.mjs")).knownPassages()[${J(set.id)}]?.actorIds ?? null };`, { timeout: 30000 });
     const on1 = await read(p1, true), on2 = await read(p2, true), on3 = await read(p3, false);
@@ -1270,11 +1318,13 @@ async function phaseG({ gm, gm2, p1, p2, p3, p4, check, phase, settle, dump, soc
         J({ shown, gmSide: { ...gmSide, texts: undefined }, copy: on2.copy }));
     /* E79 fix r2-G2 (16.10.2026; the round-2 review's H3): the GMs read the show on a card of their own, whispered to the
        GMs alone and naming both students and both rooms - until then a notice on the primary's browser - and Aiko's card
-       goes to the player who asked alone. */
-    const gmCard = gmSide.cards.find(c => c.text === gmSide.texts.gm), doneCard = gmSide.cards.find(c => c !== gmCard && c.sfx === null);
-    check("G: Botan's card on p2, with the sound, names the Cafeteria and a room he has not found as unexplored, and stays in his notice history; Aiko's on p1 names Botan and no room, whispered to p1 alone; the GMs' own card names both and both rooms, whispered to the GMs alone; p3 sees none and keeps none",
-        gmSide.cards.length === 3 && gmSide.cards.filter(c => c.sfx === "passageFound").length === 1
-            && J(gmCard?.whisper) === J(gmSide.gms) && doneCard?.whisper?.length === 1 && !gmSide.gms.includes(doneCard.whisper[0])
+       goes to the player who asked alone. Since fix r2-G4 Botan's card goes to each of his owners alone - p2 here - and
+       its sound is read where it is heard, on p2: a card the GMs are not sent, they hold no words or flags of. */
+    const gmCard = gmSide.cards.find(c => c.text === gmSide.texts.gm), doneCard = gmSide.cards.find(c => J(c.whisper) === J([IDS.p1]));
+    const botanCard = gmSide.cards.find(c => J(c.whisper) === J([IDS.p2]));
+    check("G: Botan's card on p2, whispered to p2 alone, with the sound, names the Cafeteria and a room he has not found as unexplored, and stays in his notice history; Aiko's on p1 names Botan and no room, whispered to p1 alone; the GMs' own card names both and both rooms, whispered to the GMs alone; p3 sees none and keeps none",
+        gmSide.cards.length === 3 && Boolean(botanCard) && Boolean(doneCard) && J(on2.sfx) === J(["passageFound"]) && J(on1.sfx) === J([null])
+            && J(gmCard?.whisper) === J(gmSide.gms)
             && J(on2.seen) === J([gmSide.texts.shown]) && on2.kept === 1 && J(on1.seen) === J([gmSide.texts.done]) && on1.kept === 1
             && on3.seen.length === 0 && on3.kept === 0,
         J({ cards: gmSide.cards, texts: gmSide.texts, gms: gmSide.gms, on1, on2, on3 }));

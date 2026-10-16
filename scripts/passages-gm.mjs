@@ -88,9 +88,11 @@ export function actsAsMastermind(actor, user, { mastermind = mastermindStore, ma
     if (!id || !user || id !== mastermindId) return false;
     if (user.isGM) return true;
     const doc = typeof actor === "string" ? game.actors?.get(actor) : actor;
-    const people = Array.isArray(users) ? users : [...(users?.values?.() ?? [])];
-    return Boolean(doc) && ownerOf(doc, people)?.id === user.id;
+    return Boolean(doc) && ownerOf(doc, peopleOf(users))?.id === user.id;
 }
+
+/** The users a caller hands, as an array: Foundry's collection or the suite's list. */
+const peopleOf = users => (Array.isArray(users) ? users : [...(users?.values?.() ?? [])]);
 
 /**
  * One player's copy, `{ value, stamps }`: the open passages a character this user owns knows -
@@ -720,7 +722,8 @@ export function shareRefusal({ actorId, targetId, passageId } = {}, world, store
 /**
  * The two rooms a passage joins, as `actor` may name them: each room on the map (`world.sides`), else
  * the name the GM gave it, and a room this character has not found "Unexplored room n" as Listen says
- * it (action-rolls.mjs `listenLabels`); `null` for `known` names every room (a GM, the Mastermind).
+ * it (action-rolls.mjs `listenLabels`); `null` for `known` names every room (the GMs, and the owner
+ * who acts as the Mastermind through the character - `actsAsMastermind`).
  */
 function roomsAsKnown(row, world, known) {
     const seg = row.passageSeg ?? {};
@@ -737,7 +740,7 @@ function roomsAsKnown(row, world, known) {
  * reason, or `{ shown: true }` once judged. The first show of a passage to a student writes it: the
  * one shown it learns the passage - a cell `shown`, the giver's actor id in `by` - their owners'
  * copies are sent, a log row "show" names them, and three are told: the one shown it, a card to
- * their owners and the GMs that names the two rooms as they may know them, with the sound
+ * each of their owners alone that names the two rooms as that owner may know them, with the sound
  * `passageFound` (R562); the GMs, a card of their own that names both students and both rooms; the
  * giver's asker, a card that names nobody's rooms. A show to a student who already knows the
  * passage writes nothing and tells the asker the same card and answer as a first one, and nobody
@@ -746,6 +749,18 @@ function roomsAsKnown(row, world, known) {
  * SEC m1, which measured both at 201 shows). The giver's card goes to the asker alone, so a first
  * show and a repeated one reach the same people; the GMs read the show on their own card (until
  * that review the GMs' word was a notice on the primary's browser alone, unescaped - S12-H3).
+ *
+ * Each owner reads the one shown it's card as they may know the rooms (E79 fix r2-G4, 16.10.2026;
+ * the round-2 fixes' rule for what fix r2-G2 left owed): the owner who acts as the Mastermind through
+ * the student (`actsAsMastermind`, the door's one reading) every room, any other owner the student's
+ * found rooms - so another owner of the Mastermind's student gets the card any student's owner gets,
+ * and nothing on it tells the role. Until then one card named the rooms by the role read off the
+ * character (`isMastermindActor`) and went through `whisperToOwner` to `ownerOf`'s one owner and the
+ * GMs. R562's fixture on cf2e30a's code measured one card, naming the Kitchen the Mastermind's
+ * student never found, handed to `whisperToOwner` with no recipients of its own; read in utils.mjs,
+ * those are `ownerOf`'s one owner - the same the door names - and the GMs, so a second owner read no
+ * room, and was not told at all, of the Mastermind's student or of any other. The GMs read the show
+ * on their own card, not on each owner's.
  * `asker` is who asked (the bridge's sender, the local road's own user); `world`, `whisper`, `gms`
  * and `users` are the suite's (R562).
  */
@@ -764,10 +779,13 @@ export async function sharePassage({ actorId, targetId, passageId } = {}, { stor
         await touch([target.id], stores);
         await logRow("show", passageId, target.id, stores);
         tellAfter(stores);
-        const mastermind = isMastermindActor(target, { mastermind: stores.mastermind });
-        const theirs = roomsAsKnown(row, facts, mastermind ? null : facts.knownRooms(target, row.sceneId));
-        await whisper(target, `<p>${game.i18n.format("DRPG.Passage.card.shown", { giver: esc(giver.name), from: esc(theirs.from), to: esc(theirs.to) })}</p>`,
-            { flags: { [MODULE_ID]: { sfx: "passageFound" } } });
+        const found = facts.knownRooms(target, row.sceneId);
+        for (const user of peopleOf(users).filter(u => !u.isGM && target.testUserPermission?.(u, "OWNER"))) {
+            const door = actsAsMastermind(target, user, { mastermind: stores.mastermind, users });
+            const theirs = roomsAsKnown(row, facts, door ? null : found);
+            await whisper(target, `<p>${game.i18n.format("DRPG.Passage.card.shown", { giver: esc(giver.name), from: esc(theirs.from), to: esc(theirs.to) })}</p>`,
+                { whisper: [user.id], flags: { [MODULE_ID]: { sfx: "passageFound" } } });
+        }
         const all = roomsAsKnown(row, facts, null);
         await gms(`<p>${game.i18n.format("DRPG.Passage.gm.shown", { giver: esc(giver.name), target: esc(target.name), from: esc(all.from), to: esc(all.to) })}</p>`);
     }

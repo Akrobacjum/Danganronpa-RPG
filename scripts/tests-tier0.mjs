@@ -9597,9 +9597,10 @@ const REGRESSIONS = [
          * passage is one reading, `actsAsMastermind`, declared once, exported, in passages-gm.mjs - the door's owner or a
          * GM, never every owner of the student. In movement.mjs, movement-audit.mjs and passages-gm.mjs a call of
          * `isMastermindActor` or `isMastermind` (a reader's property included) is the role read off the character alone,
-         * and is broken ("role") everywhere but in `sharePassage`, which asks it of the one shown it to name the rooms on
-         * the card their door owner is sent. Until that review the copy, a show, the audit and the witness judge read it
-         * so, and another owner of the Mastermind's student had every passage carried out for it. And `whisperToGms` is
+         * and is broken ("role"). Until that review the copy, a show, the audit and the witness judge read it so, and
+         * another owner of the Mastermind's student had every passage carried out for it. `sharePassage` kept it to name
+         * the rooms on the card to the one shown it until fix r2-G4 (16.10.2026), which asks `actsAsMastermind` of each
+         * owner the card goes to; its exemption here went with it. And `whisperToGms` is
          * no longer a "card": the GMs' own card of a show goes through it (H3; until then a notice on the primary's
          * browser alone), and it reaches no player. passages-tab.mjs, a GM's window, is not read.
          */
@@ -9645,7 +9646,6 @@ const REGRESSIONS = [
                 const tops = [...blank.matchAll(TOP)].map(m => ({ at: m.index, name: m[1] ?? m[2] ?? m[3] ?? "(top level)" }));
                 if (ROLE_FILES.has(file)) for (const m of blank.matchAll(ROLE)) {
                     if (/\bfunction\s*\*?\s*$/.test(blank.slice(Math.max(0, m.index - 24), m.index))) continue;
-                    if (file === "passages-gm.mjs" && tops.findLast(t => t.at <= m.index)?.name === "sharePassage") continue;
                     at("role", m.index);
                 }
                 if (file === "gm-overlay.mjs") for (const m of blank.matchAll(/\bnew\s+PIXI\s*\.\s*Container\b/g)) {
@@ -9707,7 +9707,7 @@ const REGRESSIONS = [
         ]);
         equal(JSON.stringify(planted), JSON.stringify(["secretDoor walls.mjs:4", "secretDoor walls.mjs:5", "wallCreated walls.mjs:4",
             "unaddressed send.mjs:3", "unaddressed send.mjs:4", "flag flags.mjs:3", "geometry flags.mjs:3", "card passages.mjs:5", "leaf:movement.mjs passages.mjs:2",
-            "tile:passages.mjs room-tile.mjs:2", "card passages-gm.mjs:7", "role passages-gm.mjs:10", "overlayName fog.mjs:5",
+            "tile:passages.mjs room-tile.mjs:2", "card passages-gm.mjs:7", "role passages-gm.mjs:5", "role passages-gm.mjs:10", "overlayName fog.mjs:5",
             "role movement-audit.mjs:5", "role movement-audit.mjs:6", "scene movement-audit.mjs:2", "scene movement-audit.mjs:3",
             "overlayGate gm-overlay.mjs:3", "overlayLayer gm-overlay.mjs:8", "overlayLayer gm-overlay.mjs:17", "one:redrawOutline fog.mjs:2(not exported),fog-reveal.mjs:2",
             "one:shareRefusal passages-gm.mjs:9(not exported)",

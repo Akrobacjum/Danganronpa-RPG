@@ -14579,7 +14579,7 @@ const INVARIANTS = [
         ok(/passagesTab\.passagesTabHtml\(scene, \{ students \}\)/.test(opener) && /passagesTab\.wirePassagesTab\(root, scene, \{ dialog, students \}\)/.test(opener),
             "Room Setup does not draw and wire the Passages tab for the scene it was opened on");
     }],
-    ["R562 - showing a secret passage: the 'Known passages' list names each passage the character knows by its rooms as the viewer may name them and says where the way is shut; a show is judged on the primary GM - the phase, the giver alive, in no incident and no Monocub, a secret passage it knows (a closed, unknown or made-up one refused alike), the one shown it a student beside it on its scene and floor, alive (a death nobody has found is not named) - writes 'shown', a log row and the stamp, and tells the one shown it the two rooms as they may know them with the sound, the asker with no room, and the GMs on a card of their own; a show to one who knows it already writes and tells nothing but the asker's same card; only the owner the door names shows as the Mastermind; the packet carries three ids and with no GM nothing is sent", async () => {
+    ["R562 - showing a secret passage: the 'Known passages' list names each passage the character knows by its rooms as the viewer may name them and says where the way is shut; a show is judged on the primary GM - the phase, the giver alive, in no incident and no Monocub, a secret passage it knows (a closed, unknown or made-up one refused alike), the one shown it a student beside it on its scene and floor, alive (a death nobody has found is not named) - writes 'shown', a log row and the stamp, and tells each owner of the one shown it, on a card of their own, the two rooms as that owner may know them with the sound - every room only to the owner the door names for the Mastermind -, the asker with no room, and the GMs on a card of their own; a show to one who knows it already writes and tells nothing but the asker's same card; only the owner the door names shows as the Mastermind; the packet carries three ids and with no GM nothing is sent", async () => {
         /*
          * E79 C7, 15.10.2026; the E79 plan's A10-17 (P9-0, P10-0). A show teaches a passage to somebody the GMs did not
          * choose, so what can go wrong is who learns it and what they are told: a passage shown by a character that
@@ -14598,6 +14598,13 @@ const INVARIANTS = [
          * it unescaped (H3). `sharePassage` is now handed the asker, the users and the GMs' whisper. Red on the
          * parent's runtime (977290d with this file, 16.10.2026, run alone): the GMs' card not sent (the notice instead),
          * the knower's repeat telling the one shown it again, and the second owner's show carried out.
+         *
+         * E79 fix r2-G4, 16.10.2026 (the round-2 fixes' G4, owed by r2-G2): the card to the one shown it named the rooms
+         * by the role read off the character and went to one owner, `ownerOf`'s, and the GMs. The rule now: each owner
+         * of the one shown it gets a card of their own, the owner who acts as the Mastermind through the student every
+         * room, any other the student's found rooms. Read here by who each card is whispered to: the Mastermind's two
+         * owners (the door and its second owner) and an ordinary student's two (R562F). Red on the parent's runtime
+         * (cf2e30a with this file): one card, to `whisperToOwner`'s default, naming the Kitchen.
          */
         const G = await import("./gm-store.mjs");
         const S = await import("./gm-stores.mjs");
@@ -14627,16 +14634,17 @@ const INVARIANTS = [
         await stores.access.patchMany({ [`${P1}/R562A1`]: { how: "gm", at: 1, by: { R562GM: 1 } }, [`${P2}/R562A1`]: { how: "gm", at: 1, by: { R562GM: 1 } },
             [`${P4}/R562A1`]: { how: "gm", at: 1, by: { R562GM: 1 } }, [`${P1}/R562C`]: { how: "gm", at: 1, by: { R562GM: 1 } } });
         await stores.mastermind.patch(G.RECORD, { actorId: "R562MM" });
-        // Players: R562U owns every student but the Mastermind's, which R562UM (the door, the first owner) and R562UC own.
+        // Players: R562U owns every student but the Mastermind's, which R562UM (the door, the first owner) and R562UC own;
+        // R562F, an ordinary student, has two owners, R562U and R562UC.
         const people = [{ id: "R562GM", isGM: true, active: true }, { id: "R562U", isGM: false, active: true },
             { id: "R562UM", isGM: false, active: true }, { id: "R562UC", isGM: false, active: true }];
         const [, asker, door, coOwner] = people;
-        const cast = new Map(["R562A1", "R562B", "R562C", "R562D", "R562E", "R562MM", "R562MK", "R562CUB", "R562NPC"].map(id => [id,
+        const cast = new Map(["R562A1", "R562B", "R562C", "R562D", "R562E", "R562F", "R562MM", "R562MK", "R562CUB", "R562NPC"].map(id => [id,
             { id, name: id === "R562A1" ? "R562 <b>Aiko</b>" : id, type: id === "R562NPC" ? "adversary" : "character",
-                testUserPermission: (u, level) => level === "OWNER" && (id === "R562MM" ? ["R562UM", "R562UC"] : ["R562U"]).includes(u?.id) }]));
+                testUserPermission: (u, level) => level === "OWNER" && (id === "R562MM" ? ["R562UM", "R562UC"] : id === "R562F" ? ["R562U", "R562UC"] : ["R562U"]).includes(u?.id) }]));
         const scene = { id: "R562SCENE" }, otherScene = { id: "R562OTHER" };
         const spot = { R562A1: { scene, room: CAF, level: null }, R562B: { scene, room: CAF, level: null }, R562C: { scene, room: CAF, level: null },
-            R562D: { scene, room: KIT, level: null }, R562E: { scene, room: CAF, level: null }, R562MM: { scene, room: CAF, level: null }, R562MK: { scene, room: CAF, level: null },
+            R562D: { scene, room: KIT, level: null }, R562E: { scene, room: CAF, level: null }, R562F: { scene, room: CAF, level: null }, R562MM: { scene, room: CAF, level: null }, R562MK: { scene, room: CAF, level: null },
             R562CUB: { scene, room: CAF, level: null }, R562NPC: { scene, room: CAF, level: null } };
         const world = (over = {}) => ({
             actor: id => cast.get(id) ?? null, locked: () => false, inIncident: () => false, monocub: a => a.id === "R562CUB",
@@ -14658,8 +14666,8 @@ const INVARIANTS = [
         equal(J([lawful.out, cell?.how, Object.keys(cell?.by ?? {}), Boolean(stores.access.get("touch/R562B")), logRows()]),
             J([{ shown: true }, "shown", ["R562A1"], true, ["show P1 R562B"]]),
             "[the answer, the cell's how, who showed it, the one shown it stamped, the log] - the show was not written as a show");
-        equal(J(lawful.cards.map(c => [c.to, c.sfx, c.only])), J([["R562B", "passageFound", null], ["R562A1", null, ["R562U"]]]),
-            "[each card's character, sound and recipients by name] - the one shown it to their owners and the GMs, then the giver to the asker alone, the sound only for the one shown it");
+        equal(J(lawful.cards.map(c => [c.to, c.sfx, c.only])), J([["R562B", "passageFound", ["R562U"]], ["R562A1", null, ["R562U"]]]),
+            "[each card's character, sound and recipients by name] - the one shown it to its owner alone, then the giver to the asker alone, the sound only for the one shown it");
         ok(lawful.cards[0].content.includes(CAF) && lawful.cards[0].content.includes(unexplored) && !lawful.cards[0].content.includes(KIT)
             && lawful.cards[0].content.includes("R562 &lt;b&gt;Aiko&lt;/b&gt;"),
         `the one shown it is not told the room they know, "${unexplored}" for the one they do not, and the giver's name as text: ${lawful.cards[0].content}`);
@@ -14670,13 +14678,22 @@ const INVARIANTS = [
             `the GMs are not told on one card of their own who was shown which passage, the names as text (H3): ${J(lawful.gm)}`);
 
         // A student who knew it already: nothing written and nobody told but the asker, on the same card and answer (SEC m1);
-        // the Mastermind shown it: the card names both rooms.
+        // the Mastermind shown it: a card to each of its two owners, both rooms only on the door's (r2-G4).
         const logOnce = J(logRows()), stampOnce = stores.access.newest("touch/R562C");
         const again = await show("R562A1", "R562C", P1), logAgain = J(logRows()), mm = await show("R562A1", "R562MM", P1);
         equal(J([again.out, stores.access.get(`${P1}/R562C`)?.how, again.cards.map(c => [c.to, c.sfx, c.only, c.content === lawful.cards[1].content.replace("R562B", "R562C")]),
-            again.gm.length, stores.access.newest("touch/R562C") === stampOnce, logAgain === logOnce, mm.code, mm.cards.map(c => [c.to, c.sfx]), mm.cards[0]?.content.includes(KIT)]),
-        J([{ shown: true }, "gm", [["R562A1", null, ["R562U"], true]], 0, true, true, null, [["R562MM", "passageFound"], ["R562A1", null]], true]),
-        "[a knower shown it: the answer, its first how, its cards (character, sound, recipients, the first show's text), the GMs' cards, its stamp kept, the log kept; the Mastermind shown it: the code, their cards, their card naming both rooms]");
+            again.gm.length, stores.access.newest("touch/R562C") === stampOnce, logAgain === logOnce, mm.code]),
+        J([{ shown: true }, "gm", [["R562A1", null, ["R562U"], true]], 0, true, true, null]),
+        "[a knower shown it: the answer, its first how, its cards (character, sound, recipients, the first show's text), the GMs' cards, its stamp kept, the log kept; the Mastermind shown it: the code]");
+        // r2-G4's harm: the Mastermind's second owner, who is not the door, reads the Kitchen the student never found. Each
+        // owner's card by its recipients, its sound and the rooms it names; an ordinary student's two owners the same card.
+        const named = c => [c.to, c.sfx, c.only, c.content.includes(CAF), c.content.includes(KIT), c.content.includes(unexplored)];
+        const two = await show("R562A1", "R562F", P1);
+        equal(J([mm.cards.map(named), two.cards.map(named), two.cards[0]?.content === two.cards[1]?.content, mm.gm.length, two.gm.length]),
+            J([[["R562MM", "passageFound", ["R562UM"], true, true, false], ["R562MM", "passageFound", ["R562UC"], true, false, true], ["R562A1", null, ["R562U"], false, false, false]],
+                [["R562F", "passageFound", ["R562U"], true, false, true], ["R562F", "passageFound", ["R562UC"], true, false, true], ["R562A1", null, ["R562U"], false, false, false]],
+                true, 1, 1]),
+            "[the Mastermind shown it: each card's character, sound, recipients, and whether it names the Cafeteria, the Kitchen and an unexplored room; the same for an ordinary student of two owners; its two owners' cards alike; the GMs' cards of each] - a card names a room its reader may not know, or an owner is not told");
 
         // Every refusal, its code, and nothing written or told.
         const cellsBefore = J(stores.access.entries()), logBefore = J(logRows());
@@ -14716,7 +14733,7 @@ const INVARIANTS = [
         const coCell = stores.access.get(`${P3}/R562D`) ?? null, coTold = coShows.cards.length + coShows.gm.length, coLog = J(logRows());
         const mmShows = await show("R562MM", "R562D", P3, inKitchen, door);
         equal(J([coShows.code, coCell, coTold, coLog === logBefore, mmShows.code, stores.access.get(`${P3}/R562D`)?.how, mmShows.cards.map(c => [c.to, c.only])]),
-            J(["notKnown", null, 0, true, null, "shown", [["R562D", null], ["R562MM", ["R562UM"]]]]),
+            J(["notKnown", null, 0, true, null, "shown", [["R562D", ["R562U"]], ["R562MM", ["R562UM"]]]]),
             "[the second owner's show: its code, the cell, told, the log kept; the door owner's: its code, the cell, the cards and their recipients by name] - the Mastermind is read off the student, not the asker");
 
         // SEC m1's measure: 201 shows of one passage to one student - one cell, one log row and one card to them and to the
@@ -14847,6 +14864,54 @@ const INVARIANTS = [
             /scene\.view\(\{ level: id \}\)/.test(fnSource(fog, "renderFloorSwitcher"))]),
         J([true, true, true]),
         "[every layer drawn again on a new canvas, the passages' drawer drawing the camera's scene and floor, the floor switcher viewing the scene at the new floor]");
+    }],
+
+    ["R574 - the passages' access record keeps a door row's tombstone while its student is in the world, as a touch row's and a cell's: the GMs' compaction drops the three for a character who is gone and keeps them for one who is here", async () => {
+        /*
+         * E79 fix r2-G4, 16.10.2026 (the round-2 fixes' G4: fix r2-G2's `door/<actorId>` row had no test of the store's
+         * `exists`, gm-stores.mjs `passageAccessStore`). What `exists` decides was read first: it is asked by
+         * `compactGmStores` alone (gm-stores.mjs, its `handle.compact` call), of a tombstone older than
+         * `TIMING.gmStoreTombstoneDays` with no live field beside it - never by a reload, a restore or a copy. A door row
+         * is tombstoned where every row of the record is: on a GM that is not the primary, by the season's reset
+         * (passages-gm.mjs `passagesAfterReset`, its `dropMany`). Without "door" in `exists`, that tombstone of a living
+         * Mastermind's door row is removed as if its student were gone, and a GM that still holds the row live hands it
+         * back at the next exchange until it has compacted too (gm-store.mjs `compact`'s note) - a stamp of the door
+         * owner's copy the GMs had decided away. Whether the reset's watermark then cuts the row on every browser was not
+         * measured here; the test holds the rule the compaction states: a subject that exists keeps its tombstone.
+         * Run on an engine of the suite's own (R562's) with the record's own spec, `exists` included, and this world's
+         * first character and scene for the subjects; the compaction is asked as `compactGmStores` asks it. Red with
+         * "door" left out of `exists`: the door row's tombstone goes with the gone ones.
+         */
+        needs(world.atLeast("livingStudents", 1), "a character of this world is the subject of the rows that stay");
+        needs(world.atLeast("scenes", 1), "a scene of this world is the subject of the cell that stays");
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const J = v => JSON.stringify(v);
+        let t = 9_500_000;
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R574GM", isGM: () => true, isPrimary: () => true, worldId: () => "R574WORLD",
+            activeGmIds: () => [], primaryGmId: () => "R574GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => ++t,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const access = eng.define({ ...S.passageAccessStore.spec, name: "r574Access", key: "r574Access", afterRestore: undefined });
+        const exists = access.spec.exists;
+        const character = game.actors.find(a => a.type === "character"), scene = game.scenes.contents[0];
+        const here = [`${scene.id}.r574p/${character.id}`, `touch/${character.id}`, `door/${character.id}`];
+        const gone = [`${scene.id}.r574p/R574GONE`, `touch/R574GONE`, `door/R574GONE`];
+        const all = [...here, ...gone];
+        await access.patchMany(Object.fromEntries(all.map(k => [k, k.startsWith("door/") ? { at: 1, door: "R574U" } : { at: 1 }])));
+        await access.dropMany(all);
+        const tombs = () => all.map(k => access.tombstone(k) > 0);
+        const dropped = tombs();
+        const removed = await access.compact(t + 1, key => {
+            try { return !exists(key); } catch { return false; }
+        });
+        equal(J([exists === S.passageAccessStore.spec.exists, all.map(k => exists(k)), exists("door"), exists(`door/${scene.id}`), dropped, removed, tombs()]),
+            J([true, [true, true, true, false, false, false], false, false, [true, true, true, true, true, true], 3, [true, true, true, false, false, false]]),
+            "[the record's own `exists`; its answer for a cell, a touch row and a door row of a character here, then of one gone; a bare 'door' and a door row of a scene's id; "
+            + "the six tombstones written; how many the compaction removed; the tombstones left] - a row of a character who is here lost its tombstone, or one who is gone kept it");
     }],
 ];
 
