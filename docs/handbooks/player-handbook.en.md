@@ -13,6 +13,8 @@ This is the whole game from your chair: what the numbers on your sheet mean, wha
 
 You are an **Ultimate** - the one thing this character does best, written under their name on the sheet. The title is the character. Your Ultimate is also a Hope Call (see chapter 5): when it genuinely applies to something you are attempting, it buys advantage.
 
+Your portrait is the GM's to change: clicking it on your sheet opens nothing.
+
 ### Statistics
 
 Daggerheart's six traits are renamed. Your sheet shows these:

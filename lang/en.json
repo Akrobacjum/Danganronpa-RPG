@@ -280,6 +280,14 @@
         "name": "Keep Isometric Perspective's welcome window closed for everyone",
         "hint": "Isometric Perspective shows its welcome window on every start, and that is a setting of each browser, so turning it off for yourself does nothing for the players. On, the window stays closed on every client and its box disappears from everyone's settings, the GM's included. Off stops holding it: the box comes back and each browser can switch the window on again. Only does anything with Isometric Perspective enabled."
       },
+      "enforceDhWelcome": {
+        "name": "Keep Daggerheart's welcome window closed for everyone",
+        "hint": "Daggerheart opens its welcome journal the first time each account starts. On, it stays closed for everyone, the GM included. Off, Daggerheart shows it as before."
+      },
+      "enforcePlayerFiles": {
+        "name": "Keep players out of the file browser",
+        "hint": "Players and Trusted Players can neither browse nor upload files, and clicking a portrait opens nothing for them. Pictures already in the world still show. Off, you can give both back in Foundry's permissions."
+      },
       "pixelFont": {
         "name": "Pixel font",
         "hint": "Monokuma Legacy only, and on by default there: Press Start 2P on interface chrome - HUD, Despair, character name, statistic labels, tabs. Journals, chat and editable fields keep the normal face so long text stays readable. The Stained Glass theme has its own two faces and ignores this."
@@ -3218,6 +3226,9 @@
     "Redacted": {
       "tabLocked": "Theirs to tell you, not yours to read.",
       "settingsLocked": "The character's settings are the GM's."
+    },
+    "Enforced": {
+      "filesPutBack": "Player accounts cannot browse or upload files while 'Keep players out of the file browser' is on: the change to those permissions was put back."
     },
     "Anonymity": {
       "aboveLimited": "Shared as Owner to everyone, so the redaction never runs and any player reads the whole sheet, inventory and Truth Bullets included: {actors}. Set them back to Observer unless that is what you want.",

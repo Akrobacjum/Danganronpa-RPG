@@ -810,7 +810,12 @@ export function buildDocumentClasses(ctx) {
      * `hasRole("ASSISTANT")`, as far as can be said without its source here; the
      * module's own reading of it is the same. A role name this does not know was
      * taken as role 4, so asking for a misspelt role asked for a GM: it is false now.
-     * `can()` is still `isGM` - the permission matrix is not modelled (README.md).
+     * `can()` was `isGM` until E79 C9 (16.10.2026): since then a GM may do anything, an
+     * account's own grant (`permissions` on the user) answers first, and otherwise the role
+     * table in force, `game.permissions` (client-entry.mjs), says - Foundry's order as the
+     * module's notes read it; v14's `can` is not read here (LIVE-E79-11). The roles' table is
+     * modelled for the two file permissions alone, and a permission it does not name is
+     * still a GM's.
      */
     class UserImpl extends BaseDocument {
         static get documentName() { return "User"; }
@@ -837,7 +842,13 @@ export function buildDocumentClasses(ctx) {
             if (level === undefined) return false;
             return exact ? this.role === level : this.role >= level;
         }
-        can(perm) { return this.isGM; }
+        can(perm) {
+            if (this.isGM) return true;
+            const own = this._source.permissions?.[perm];
+            if (own !== undefined && own !== null) return Boolean(own);
+            const roles = ctx.gameRef().permissions?.[perm];
+            return Array.isArray(roles) && roles.includes(this.role);
+        }
         get targets() { return new Set(); }
         async query(name, data, options = {}) {
             // Foundry v13+ user queries: run on the target client. The harness

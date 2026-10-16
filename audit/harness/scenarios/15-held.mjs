@@ -64,9 +64,96 @@ export async function run({ gm, gm0, p1, p2, check, phase, settle, connect, disc
     const after = await p1.eval(`return game.settings.get("isometric-perspective", "showWelcome");`);
     check("p1: switching the welcome back on by hand does not stick", after === false, String(after));
 
+    await heldAtStart({ gm, p1, p2, check, phase, settle, IDS, repoUrl });
     await tokenBars({ gm, p1, check, phase, IDS });
     const away = await awayAndBack({ gm, gm0, p1, check, phase, settle, connect, disconnect, storageOf, socketTraffic, IDS, repoUrl });
     await sheetAtReady({ gm0, p1, check, phase, IDS, repoUrl, away });
+}
+
+/**
+ * THE START-UP WINDOWS AND THE FILE BROWSER (E79 C9, 16.10.2026; the stage's N1 and N4).
+ *
+ * N1: Daggerheart opens its welcome journal at its `ready` when the account has no
+ * `daggerheart.welcome-message` flag. The module sets it at `setup` in this browser's copy of the
+ * account alone (enforced.mjs `holdUserFlag`), so each player reads it set, the harness's stand-in
+ * for Daggerheart's `ready` read it set (client-entry.mjs `__dhWelcomeAtReady`), and the GM's copy
+ * of the same account holds no such flag: nothing was written to the world.
+ * N4: with "Keep players out of the file browser" on, Player and Trusted Player hold neither
+ * FILES_BROWSE nor FILES_UPLOAD (Foundry's roles 1 and 2) once the primary GM is ready; a portrait's
+ * picker on a sheet is taken off and a file browser closes on a player's browser and not on the GM's;
+ * a GM who adds role 1 to FILES_BROWSE sees it put back with one card to the GMs, and with the switch
+ * off the same write stands. The harness's `can` reads the roles the way Foundry's does, from notes
+ * (LIVE-E79-11), and its jsdom has no `navigator.userActivation`, so N2's window is held by R576 alone.
+ * The part leaves `core.permissions` and the switch as it found them.
+ */
+async function heldAtStart({ gm, p1, p2, check, phase, settle, IDS, repoUrl }) {
+    phase("the start-up windows and the file browser held");
+    for (const [who, client, id] of [["p1", p1, IDS.p1], ["p2", p2, IDS.p2]]) {
+        const own = await client.eval(`return { flag: game.user.flags?.daggerheart?.["welcome-message"] ?? null,
+            atReady: globalThis.__dhWelcomeAtReady ?? null, system: game.system?.id };`);
+        const onGm = await gm.eval(`return game.users.get("${id}")?.toObject().flags?.daggerheart ?? null;`);
+        check(`N1 ${who}: Daggerheart read its welcome as already seen at its ready, and the GM's copy of the account holds no such flag`,
+            own.system === "daggerheart" && own.flag === true && own.atReady === true && onGm === null, J({ own, onGm }));
+    }
+
+    const files = await p1.eval(`const P = game.permissions ?? {};
+        return { roles: ["FILES_BROWSE", "FILES_UPLOAD"].map(k => (P[k] ?? []).filter(r => r === 1 || r === 2)),
+                 can: [game.user.can("FILES_BROWSE"), game.user.can("FILES_UPLOAD")] };`);
+    check("N4a p1: neither a Player nor a Trusted Player may browse or upload files after boot",
+        J(files) === J({ roles: [[], []], can: [false, false] }), J(files));
+
+    const picker = `const el = document.createElement("form");
+        el.innerHTML = '<img class="profile" data-action="editImage" data-edit="img" src="icons/svg/mystery-man.svg">';
+        Hooks.callAll("renderDocumentSheetV2", { document: game.actors.get("${IDS.aiko}") }, el);
+        const img = el.querySelector("img");
+        let closed = 0;
+        Hooks.callAll("renderFilePicker", { close: () => { closed++; } });
+        return { action: img.getAttribute("data-action"), edit: img.getAttribute("data-edit"), closed };`;
+    const pickP1 = await p1.eval(picker), pickGm = await gm.eval(picker);
+    check("N4c: a portrait opens nothing and a file browser closes for p1, and both stay for the GM",
+        J(pickP1) === J({ action: null, edit: null, closed: 1 }) && J(pickGm) === J({ action: "editImage", edit: "img", closed: 0 }),
+        J({ pickP1, pickGm }));
+
+    const was = await gm.eval(`return foundry.utils.deepClone(game.settings.get("core", "permissions") ?? {});`);
+    const grant = `const value = foundry.utils.deepClone(game.settings.get("core", "permissions") ?? {});
+        value.FILES_BROWSE = [...new Set([1, ...(value.FILES_BROWSE ?? game.permissions.FILES_BROWSE ?? [])])];
+        await game.settings.set("core", "permissions", value);`;
+    const cards = `const { wordsOf } = await import("${repoUrl}/scripts/secret.mjs");
+        const tail = "the change to those permissions was put back.";
+        const found = [];
+        for (const m of game.messages.contents.slice(early)) if (String(await wordsOf(m, 2000) ?? "").includes(tail)) found.push(m);
+        const gmIds = game.users.filter(u => u.isGM).map(u => u.id);`;
+    const held = await gm.eval(`const early = game.messages.size; ${grant}
+        const end = Date.now() + 4000;
+        while (game.permissions.FILES_BROWSE.includes(1) && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        await new Promise(r => setTimeout(r, 300));
+        ${cards}
+        return { early, cards: found.length, toGms: found.every(m => (m.whisper ?? []).length > 0 && m.whisper.every(id => gmIds.includes(id))) };`);
+    await settle(300);
+    const heldP1 = await p1.eval(`return { browse: game.user.can("FILES_BROWSE"), roles: game.permissions.FILES_BROWSE };`);
+    let off = null;
+    try {
+        off = await gm.eval(`await game.settings.set("${MOD}", "enforcePlayerFiles", false);
+            await new Promise(r => setTimeout(r, 300));
+            const early = game.messages.size; ${grant}
+            await new Promise(r => setTimeout(r, 800));
+            ${cards}
+            return { switch: game.settings.get("${MOD}", "enforcePlayerFiles"), browse: game.permissions.FILES_BROWSE.includes(1), cards: found.length };`);
+    } catch (err) {
+        off = { error: String(err?.message ?? err) };
+    }
+    await settle(300);
+    const offP1 = await p1.eval(`return game.user.can("FILES_BROWSE");`);
+    check("N4b: a GM's grant of the file browser to Players is put back with one card to the GMs, and stands with the switch off",
+        held.cards === 1 && held.toGms === true && heldP1.browse === false && !heldP1.roles.includes(1)
+            && off?.switch === false && off.browse === true && off.cards === 0 && offP1 === true,
+        J({ held, heldP1, off, offP1 }));
+
+    // Put back as found, the switch last, so the primary GM's hold finds nothing to change.
+    await gm.eval(`await game.settings.set("core", "permissions", ${J(was)});
+        await game.settings.set("${MOD}", "enforcePlayerFiles", true);
+        return true;`);
+    await settle(300);
 }
 
 /**

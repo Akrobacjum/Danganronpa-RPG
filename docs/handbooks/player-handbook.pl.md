@@ -13,6 +13,8 @@ To cała gra widziana z twojego krzesła: co znaczą liczby na arkuszu, ile kosz
 
 Jesteś **Ultimate** - tym jednym, w czym ta postać jest najlepsza, wpisanym pod jej imieniem na arkuszu. Tytuł to postać. Twój Ultimate jest też Hope Callem (rozdział 5): gdy naprawdę stosuje się do tego, co próbujesz zrobić, kupuje przewagę.
 
+Portret zmienia GM: kliknięcie go na twojej karcie niczego nie otwiera.
+
 ### Statystyki
 
 Sześć cech Daggerheart nosi tu inne nazwy. Na arkuszu widzisz:

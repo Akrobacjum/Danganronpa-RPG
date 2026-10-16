@@ -5353,7 +5353,8 @@ const REGRESSIONS = [
         const unread = written.flatMap(([kind, paths]) => paths.filter(p => p.read !== "read").map(p => `${kind} at ${p.path} (${p.read})`));
         ok(!unread.length, `the module writes what the dump does not read: ${unread.join("; ")}`);
 
-        for (const row of ENFORCED) foreign.add(`${row.module}.${row.key}`);
+        // A user flag row (E79 C9, Daggerheart's welcome) holds no setting: it is held on this browser's own copy of its account.
+        for (const row of ENFORCED) if (row.kind !== "userFlag") foreign.add(`${row.module}.${row.key}`);
         ok(foreign.size >= 3, `the scan found ${foreign.size} settings of other namespaces, and there were three`);
         const missing = [...foreign].filter(full => !DUMP_FOREIGN_SETTINGS.includes(full));
         ok(!missing.length, `the module writes another namespace's setting the dump does not read: ${missing.join(", ")}`);

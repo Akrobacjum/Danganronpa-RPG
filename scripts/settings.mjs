@@ -18,6 +18,10 @@ export const SETTINGS = {
     relayWarned: "relayWarned",
     /** Hold Isometric Perspective's welcome window off on every client (E27, N2 - see enforced.mjs). */
     enforceIsoWelcome: "enforceIsoWelcome",
+    /** Hold Daggerheart's welcome journal closed for every account (E79 C9, N1 - see enforced.mjs). */
+    enforceDhWelcome: "enforceDhWelcome",
+    /** Players and Trusted Players browse and upload no files (E79 C9, N4 - see enforced.mjs). */
+    enforcePlayerFiles: "enforcePlayerFiles",
     forcePrivateRolls: "forcePrivateRolls",
     enforceAnonymity: "enforceAnonymity",
     searchTokensPerRoom: "searchTokensPerRoom",
@@ -968,6 +972,32 @@ export function registerSettings() {
     game.settings.register(MODULE_ID, SETTINGS.enforceIsoWelcome, {
         name: "DRPG.Settings.enforceIsoWelcome.name",
         hint: "DRPG.Settings.enforceIsoWelcome.hint",
+        scope: "world",
+        config: true,
+        type: Boolean,
+        default: true,
+        onChange: () => import("./enforced.mjs")
+            .then(m => m.applyEnforced())
+            .catch(err => console.error("danganronpa-rpg | Could not re-apply the held settings", err))
+    });
+
+    /* E79 C9 (N1, N4): two more held rows of enforced.mjs, each the table's decision and on by
+       default, as the owner asked on 14.10.2026; each client re-applies on change, as above. */
+    game.settings.register(MODULE_ID, SETTINGS.enforceDhWelcome, {
+        name: "DRPG.Settings.enforceDhWelcome.name",
+        hint: "DRPG.Settings.enforceDhWelcome.hint",
+        scope: "world",
+        config: true,
+        type: Boolean,
+        default: true,
+        onChange: () => import("./enforced.mjs")
+            .then(m => m.applyEnforced())
+            .catch(err => console.error("danganronpa-rpg | Could not re-apply the held settings", err))
+    });
+
+    game.settings.register(MODULE_ID, SETTINGS.enforcePlayerFiles, {
+        name: "DRPG.Settings.enforcePlayerFiles.name",
+        hint: "DRPG.Settings.enforcePlayerFiles.hint",
         scope: "world",
         config: true,
         type: Boolean,

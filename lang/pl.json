@@ -280,6 +280,14 @@
         "name": "Trzymaj okno powitalne Isometric Perspective zamknięte u wszystkich",
         "hint": "Isometric Perspective pokazuje okno powitalne przy każdym starcie, a to ustawienie każdej przeglądarki z osobna, więc wyłączenie go u siebie nic nie daje graczom. Włączone: okno nie otwiera się u nikogo, a jego przełącznik znika z ustawień wszystkich, także GM-a. Wyłączone: moduł przestaje go pilnować, przełącznik wraca i każda przeglądarka może znów włączyć okno. Działa tylko z włączonym Isometric Perspective."
       },
+      "enforceDhWelcome": {
+        "name": "Trzymaj okno powitalne Daggerheart zamknięte u wszystkich",
+        "hint": "Daggerheart otwiera swój dziennik powitalny przy pierwszym starcie każdego konta. Włączone: okno nie otwiera się u nikogo, także u GM-a. Wyłączone: Daggerheart pokazuje je jak dawniej."
+      },
+      "enforcePlayerFiles": {
+        "name": "Bez przeglądarki plików dla graczy",
+        "hint": "Gracze i zaufani gracze nie mogą przeglądać ani wysyłać plików, a kliknięcie portretu nic im nie otwiera. Obrazy, które już są w świecie, nadal się wyświetlają. Wyłączone: oba uprawnienia możesz znów nadać w uprawnieniach Foundry."
+      },
       "pixelFont": {
         "name": "Czcionka pikselowa",
         "hint": "Tylko Monokuma Legacy, tam domyślnie włączona: Press Start 2P na elementach interfejsu - HUD, Despair, imię postaci, etykiety statystyk, zakładki. Dzienniki, czat i pola edycji zachowują zwykły krój, by długi tekst dało się czytać. Motyw Stained Glass ma własne dwa kroje i to ignoruje."
@@ -3358,6 +3366,9 @@
     "Redacted": {
       "tabLocked": "To oni mają ci powiedzieć, nie ty przeczytać.",
       "settingsLocked": "Ustawienia postaci należą do GM-a."
+    },
+    "Enforced": {
+      "filesPutBack": "Dopóki włączone jest „Bez przeglądarki plików dla graczy”, konta graczy nie mogą przeglądać ani wysyłać plików: zmianę tych uprawnień cofnięto."
     },
     "Anonymity": {
       "aboveLimited": "Udostępnione wszystkim jako Właściciel, więc cenzura nigdy nie działa i każdy gracz czyta cały arkusz, z ekwipunkiem i Truth Bullets: {actors}. Przestaw z powrotem na Obserwatora, chyba że tego właśnie chcesz.",

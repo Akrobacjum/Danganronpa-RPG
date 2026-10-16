@@ -14913,6 +14913,147 @@ const INVARIANTS = [
             "[the record's own `exists`; its answer for a cell, a touch row and a door row of a character here, then of one gone; a bare 'door' and a door row of a scene's id; "
             + "the six tombstones written; how many the compaction removed; the tombstones left] - a row of a character who is here lost its tombstone, or one who is gone kept it");
     }],
+    ["R575 - Daggerheart's welcome window stays closed for every account: with enforceDhWelcome on, this browser's account reads Daggerheart's welcome flag set from setup on, and nothing was written; the switch off and a world of another system leave the flag alone", async () => {
+        /*
+         * E79 C9 (16.10.2026; the owner's N1 of 14.10.2026). Daggerheart's `ready` opens its welcome
+         * journal when `game.user.getFlag("daggerheart", "welcome-message")` is unset (2.6.5
+         * daggerheart.mjs:340-345, read during the design), so that flag on this browser's copy of its
+         * account is the whole promise: enforced.mjs `holdUserFlag` sets it at `setup` through
+         * `updateSource`, which sends nothing. Asked of this browser's account while the switch is on in
+         * a Daggerheart world, then of the holder on stand-in accounts whose `update` must stay uncalled:
+         * a fresh one, the switch off, another system, and an account that already saw the journal.
+         * Scenario 15 N1 reads the same on two players' browsers, and the GM's copy of their accounts.
+         */
+        const J = stableJson;
+        const { ENFORCED, holdUserFlag } = await import("./enforced.mjs");
+        const row = ENFORCED.find(r => r.id === "dhWelcome");
+        ok(row?.kind === "userFlag" && typeof holdUserFlag === "function", "Daggerheart's welcome is not a held user flag of enforced.mjs");
+        if (game.system.id === row.system && game.settings.get(MODULE_ID, SETTINGS.enforceDhWelcome) !== false) {
+            ok(Boolean(game.user.flags?.daggerheart?.["welcome-message"]),
+                "this browser's account reads Daggerheart's welcome flag unset: its next start opens the journal");
+        }
+        const standIn = flags => {
+            const user = { flags, sources: 0, updates: 0 };
+            user.updateSource = changes => { user.sources++; foundry.utils.mergeObject(user.flags, changes.flags ?? {}); return changes; };
+            user.update = async () => { user.updates++; };
+            return user;
+        };
+        const fresh = standIn({}), off = standIn({}), other = standIn({}), seen = standIn({ daggerheart: { "welcome-message": true } });
+        const held = [
+            holdUserFlag(row, { user: fresh, system: "daggerheart", on: true }),
+            holdUserFlag(row, { user: off, system: "daggerheart", on: false }),
+            holdUserFlag(row, { user: other, system: "suite-other-system", on: true }),
+            holdUserFlag(row, { user: seen, system: "daggerheart", on: true })];
+        equal(J([held, fresh.flags.daggerheart?.["welcome-message"] ?? null, off.flags, other.flags,
+            [fresh, off, other, seen].map(user => [user.sources, user.updates])]),
+        J([[true, false, false, true], true, {}, {}, [[1, 0], [0, 0], [0, 0], [0, 0]]]),
+        "[held for a fresh account, the switch off, another system, an account that saw it; the fresh account's flag; the other two's flags; local and server writes per account]");
+    }],
+
+    ["R576 - a User Configuration window that opens by itself at a start closes, and one a person opens stays", async () => {
+        /*
+         * E79 C9 (16.10.2026; the owner's N2 of 14.10.2026). Who opens the window at a start is not
+         * readable here (not scripts/, not Daggerheart 2.6.5 or 2.10.5: grep), so enforced.mjs
+         * `closeUnaskedUserConfig` closes it after it renders, on this browser's own account, at its
+         * first render, from `setup` to 30 s after `ready`, and only when the browser reads no user
+         * activation - a click on the players list gives one. The browser's reading and the clock are
+         * handed in, so nothing on this browser is stubbed: before `ready`, 1 s and 31 s after it,
+         * activation, no activation API, a later render, and a GM's window on another account.
+         */
+        const J = stableJson;
+        const { closeUnaskedUserConfig } = await import("./enforced.mjs");
+        ok(typeof closeUnaskedUserConfig === "function", "enforced.mjs has no guard for a User Configuration window");
+        const now = Date.now(), still = { isActive: false }, clicked = { isActive: true };
+        const own = { id: game.user.id }, someoneElse = { id: "R576OTHERUSER000" };
+        const closes = (doc, options, at) => {
+            const app = { document: doc, closed: 0, close() { this.closed++; } };
+            closeUnaskedUserConfig(app, options, { now, ...at });
+            return app.closed;
+        };
+        equal(J([
+            closes(own, { isFirstRender: true }, { activation: still, since: null }),
+            closes(own, { isFirstRender: true }, { activation: still, since: now - 1000 }),
+            closes(own, { isFirstRender: true }, { activation: clicked, since: now - 1000 }),
+            closes(someoneElse, { isFirstRender: true }, { activation: still, since: null }),
+            closes(own, { isFirstRender: true }, { activation: still, since: now - 31000 }),
+            closes(own, { isFirstRender: true }, { activation: undefined, since: null }),
+            closes(own, { isFirstRender: false }, { activation: still, since: now - 1000 })]),
+        J([1, 1, 0, 0, 0, 0, 0]),
+        "[closed: before ready, 1 s after, after a click, another account's, 31 s after, no activation reading, a later render]");
+    }],
+
+    ["R577 - no player or trusted player browses or uploads files: with enforcePlayerFiles on, the permissions in force give FILES_BROWSE and FILES_UPLOAD neither role 1 nor 2, and the held value keeps every other role and every other permission as it found them", async () => {
+        /*
+         * E79 C9 (16.10.2026; the owner's N4 of 14.10.2026). The primary GM holds Foundry's world setting
+         * `core.permissions` (enforced.mjs `holdPermissions`, at `ready` and on every change). Read here as
+         * it stands while the switch is on - the stored value over the permissions in force - and through
+         * each account that is not a GM's and has no grant of its own; then the pure `heldPermissions` on
+         * fixtures: roles taken off the two and nothing else, a permission the stored value lacks taken
+         * from the defaults in force first, and from the GM roles when nothing names it.
+         */
+        const J = stableJson;
+        const { heldPermissions, permissionsInForce } = await import("./enforced.mjs");
+        ok(typeof heldPermissions === "function" && typeof permissionsInForce === "function",
+            "enforced.mjs holds no file permissions");
+        const { PLAYER, TRUSTED, ASSISTANT, GAMEMASTER } = CONST.USER_ROLES;
+        const FILES = ["FILES_BROWSE", "FILES_UPLOAD"];
+        if (game.settings.get(MODULE_ID, SETTINGS.enforcePlayerFiles) !== false) {
+            const inForce = { ...permissionsInForce(), ...(game.settings.get("core", "permissions") ?? {}) };
+            equal(FILES.filter(name => (inForce[name] ?? []).some(role => role === PLAYER || role === TRUSTED)).join(", "), "",
+                "a permission in force still gives a Player or a Trusted Player the files");
+            const may = game.users.filter(user => !user.isGM)
+                .flatMap(user => FILES.filter(name => user.permissions?.[name] !== true && user.can(name)).map(name => `${user.name}: ${name}`));
+            equal(may.join(", "), "", "an account with no grant of its own may still browse or upload");
+        }
+        const stored = { FILES_BROWSE: [PLAYER, TRUSTED, ASSISTANT, GAMEMASTER], FILES_UPLOAD: [TRUSTED, ASSISTANT, GAMEMASTER],
+            SHOW_CURSOR: [PLAYER, TRUSTED, ASSISTANT, GAMEMASTER], ACTOR_CREATE: [TRUSTED] };
+        const kept = J(stored);
+        equal(J([
+            heldPermissions(stored, {}),
+            heldPermissions({ SHOW_CURSOR: [PLAYER] }, { FILES_BROWSE: [TRUSTED, ASSISTANT, GAMEMASTER], FILES_UPLOAD: [GAMEMASTER], SHOW_CURSOR: [ASSISTANT] }),
+            heldPermissions({}, {}),
+            J(stored) === kept]),
+        J([
+            { FILES_BROWSE: [ASSISTANT, GAMEMASTER], FILES_UPLOAD: [ASSISTANT, GAMEMASTER], SHOW_CURSOR: [PLAYER, TRUSTED, ASSISTANT, GAMEMASTER], ACTOR_CREATE: [TRUSTED] },
+            { SHOW_CURSOR: [PLAYER], FILES_BROWSE: [ASSISTANT, GAMEMASTER], FILES_UPLOAD: [GAMEMASTER] },
+            { FILES_BROWSE: [ASSISTANT, GAMEMASTER], FILES_UPLOAD: [ASSISTANT, GAMEMASTER] },
+            true]),
+        "[a stored table held, a table lacking both held from the defaults, nothing stored and no defaults, the stored table untouched]");
+    }],
+
+    ["R578 - a player's portrait opens no file browser: on a player's sheet no element carries Foundry's editImage action, a GM's sheet keeps it, and a file browser rendered on a player's browser is closed", async () => {
+        /*
+         * E79 C9 (16.10.2026; the owner's N4 of 14.10.2026). Daggerheart 2.6.5 puts `data-action='editImage'
+         * data-edit="img"` on the sheet's portrait (sidebar.hbs:3, limited.hbs:3, read during the design;
+         * the two attributes are its, the elements round them are written here), which DocumentSheetV2
+         * dispatches to a file browser. enforced.mjs `disarmPortraits` takes both off on a browser that may
+         * not see files and leaves the sheet's other actions; `closePlayerFilePicker` closes a file browser
+         * opened there by any other road. Asked for a player, a GM, a player a GM granted browsing by name,
+         * and a player with the switch off. Scenario 15 N4c hands the same to the hooks on a player's browser.
+         */
+        const J = stableJson;
+        const { disarmPortraits, closePlayerFilePicker } = await import("./enforced.mjs");
+        ok(typeof disarmPortraits === "function" && typeof closePlayerFilePicker === "function",
+            "enforced.mjs leaves a player's portrait and file browser alone");
+        const player = { isGM: false, permissions: {} }, gm = { isGM: true, permissions: {} },
+            granted = { isGM: false, permissions: { FILES_BROWSE: true } };
+        const sheet = (user, on = true) => {
+            const el = document.createElement("section");
+            el.innerHTML = `<aside class="sidebar"><img class="profile" src="icons/svg/mystery-man.svg" alt="" data-action='editImage' data-edit="img"><button type="button" data-action="useItem">-</button></aside>`;
+            disarmPortraits(el, { user, on });
+            const img = el.querySelector("img");
+            return [img.getAttribute("data-action"), img.getAttribute("data-edit"), el.querySelector("button").getAttribute("data-action")];
+        };
+        const picker = (user, on = true) => {
+            const app = { closed: 0, close() { this.closed++; } };
+            closePlayerFilePicker(app, { user, on });
+            return app.closed;
+        };
+        const armed = ["editImage", "img", "useItem"];
+        equal(J([sheet(player), sheet(gm), sheet(granted), sheet(player, false), picker(player), picker(gm), picker(granted), picker(player, false)]),
+            J([[null, null, "useItem"], armed, armed, armed, 1, 0, 0, 0]),
+            "[the portrait's action, edit and the sheet's other action for a player, a GM, a granted player and the switch off; then a file browser closed for each]");
+    }],
 ];
 
 /**
