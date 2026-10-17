@@ -928,22 +928,33 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
        floor that move wrote and moved it on again. gm3's `floor.now` packets are held 3 s on their way (a stand-in for the
        way to the primary, as the reviewer's scenario 93 held them). Two crossings: an objection with half a second left,
        run out by gm2's heartbeat while gm3's press is held; and one with ten seconds left, gm3 pressing and gm2 pressing
-       its own Now 200 ms later. gm3 presses once its copy shows the objection. Read per crossing: EVERY `trialQueue`
-       write on gm2 from the objection's on (a mode, or "ended" for an empty floor), gm2's floor once both settled, and
-       how often gm3 was told its press found the floor moved on. Red at c51d2bd (10.10.2026): see the bound note. */
+       its own Now 200 ms later. gm3 presses once its copy shows the objection, and gm2 moves the floor on only once that
+       press is on its way (`sent`): its own Now 200 ms after it, its heartbeat's rebuttal held at the gate until then.
+       Without that wait gm3 had to read the objection inside 200 ms: at c3efaf6 (17.10.2026, the setup and X2 alone, 20
+       rounds) gm3 first read its floor 80-214 ms after gm2's objection resolved and 25-129 ms before the rebuttal reached
+       it, and in k4s, beside another lane, after it - gm3 saw no objection, pressed on the rebuttal and ended it (`saw`
+       false, an "ended" write, nobody told). gm3 stalled 150, 300, 900 and 1500 ms as the objection lands failed 1 of 10,
+       2 of 10, 3 of 5 and 4 of 5 rounds so (the tick's too from 900 ms); with the wait none of 30, nor of 20 unstalled.
+       Read per crossing: EVERY `trialQueue` write on gm2 from the objection's on (a mode, or "ended" for an empty
+       floor), gm2's floor once both settled, and how often gm3 was told its press found the floor moved on. Red at
+       c51d2bd (10.10.2026): see the bound note. */
     const crossings = {};
     try {
         await gm2.eval(`const settings = game.settings, real = settings.set;
-            globalThis.__floorLog = { writes: [], own: Object.hasOwn(settings, "set"), real };
+            globalThis.__floorLog = { writes: [], gate: true, own: Object.hasOwn(settings, "set"), real };
             settings.set = async function (namespace, key, value, ...rest) {
-                if (namespace === "${MOD}" && key === "trialQueue") globalThis.__floorLog.writes.push(value?.mode ?? "ended");
+                if (namespace === "${MOD}" && key === "trialQueue") {
+                    globalThis.__floorLog.writes.push(value?.mode ?? "ended");
+                    if (value?.mode === "rebuttal") while (!globalThis.__floorLog.gate) await new Promise(r => setTimeout(r, 20));
+                }
                 return real.call(this, namespace, key, value, ...rest);
             };
             return true;`);
         await gm3.eval(`const sock = game.socket, real = sock.emit;
-            globalThis.__nowHold = { own: Object.hasOwn(sock, "emit"), real };
+            globalThis.__nowHold = { sent: 0, own: Object.hasOwn(sock, "emit"), real };
             sock.emit = function (event, packet, ...rest) {
                 if (packet?.action === "floor.now") {
+                    globalThis.__nowHold.sent++;
                     setTimeout(() => real.call(sock, event, packet, ...rest), 3000);
                     return true;
                 }
@@ -951,12 +962,16 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
             };
             return true;`);
         const cross = async (back, primaryPresses) => {
-            await gm2.eval(`globalThis.__floorLog.writes = []; return true;`);
+            await gm2.eval(`globalThis.__floorLog.writes = []; globalThis.__floorLog.gate = false; return true;`);
+            await gm3.eval(`globalThis.__nowHold.sent = 0; return true;`);
             const opened = await objection(back);
             const pressed = gm3.eval(`${until} ${F} globalThis.__s63x = globalThis.__notifications.length;
                 const saw = await until(() => F.trialFloor()?.mode === F.FLOOR_MODES.objection, 5000);
                 await F.advanceFloorNow();
                 return saw;`, { timeout: 30000 });
+            // gm2 moves the floor on only once gm3's press is on its way: gm2's heartbeat's rebuttal is held at the gate.
+            await gm3.eval(`${until} return await until(() => globalThis.__nowHold.sent > 0, 8000);`, { timeout: 30000 });
+            await gm2.eval(`globalThis.__floorLog.gate = true; return true;`);
             if (primaryPresses) {
                 await settle(200);
                 await gm2.eval(`${F} await F.advanceFloorNow(); return true;`, { timeout: 30000 });
