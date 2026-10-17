@@ -12206,7 +12206,7 @@ const INVARIANTS = [
         const composed = [hold({}), hold({ actors: [monocub] })].map(answer => T.micState({ hold: answer, settings: client() }).state);
 
         const lines = Object.fromEntries([...["mute", "unmute", "pttNoKey"].map(k => [k, `DRPG.Voice.mic.${k}`]),
-            ...["eclipse", "eclipseHeard", "gmBlock", "external", "offline"].map(k => [k, `DRPG.Voice.held.${k}`])]
+            ...["eclipse", "eclipseHeard", "gmBlock", "external", "offline", "connecting"].map(k => [k, `DRPG.Voice.held.${k}`])]
             .map(([k, key]) => [game.i18n.localize(key), k]));
         lines[game.i18n.format("DRPG.Voice.mic.ptt", { key: "R537KEY" })] = "ptt";
         const keyOf = text => lines[text] ?? (text ? `?${text}` : "");
@@ -12778,7 +12778,7 @@ const INVARIANTS = [
             + "camera, another's volume, a mode avclient-livekit has not, a number - refused; an output - written | videoUnwatched: audio and video "
             + "with the tile; audio; video; no voice; the tile off | runPreSessionChecks asks videoUnwatched]");
     }],
-    ["R535 - the voice tile shows only who this player hears in their own channel: a speaker of the own LiveKit Room after 250 ms, never one Foundry's table-wide signal or another Room names, never one muted, paused, silent or without a live track here, '+1' for a second, the channel's count, and nobody at once when the speaker leaves, the Room changes or the connection goes, a lost reconnect included; and only the dock's own elements and Foundry's camera popouts say who is heard", async () => {
+    ["R535 - the voice tile shows only who this player hears in their own channel: a speaker of the own LiveKit Room at once on an empty tile and a change of speaker after 250 ms, never one Foundry's table-wide signal or another Room names, never one muted, paused, silent or without a live track here, '+1' for a second, the channel's count, and nobody at once when the speaker leaves, the Room changes or the connection goes, a lost reconnect included; and only the dock's own elements and Foundry's camera popouts say who is heard", async () => {
         /*
          * E78 C3, 13.10.2026; the A9 design's R388 (T1; the E78 plan's D2 gave it this number). The harm: a portrait and
          * a name on this player's screen of somebody they cannot hear - a player in another room (Foundry's
@@ -12802,6 +12802,11 @@ const INVARIANTS = [
          * among `foundry.applications.instances`, and a paused element of each in front of both, in a wrapper shaped
          * like a popout that Foundry does not hold - both speakers heard; red at 90a9ebc (the whole document, the
          * first element in it: nobody, as the reviewer read it).
+         * E79 C15 (16.10.2026; the owner's N14 of 15.10: "the voice tile shows a speaker slightly too late"): the first
+         * reading is now taken at 0 ms - the first speaker on an empty tile at once, where it read nobody at 249 ms
+         * and the speaker at 250 ms until C15 - and a bench of its own holds the sticky rule where it still stands: the
+         * first shown, then only the second speaking - the first at 0 and 249 ms (held), the second at 250 ms.
+         * Red at C15's parent: the first reading (nobody at 0 ms).
          * Red before C3: there was no voice-tile.mjs (the first assertion).
          */
         needs(world.atLeast("playerAccounts", 3), "three accounts besides the GM's: two in the channel and one outside it");
@@ -12820,9 +12825,6 @@ const INVARIANTS = [
         V.attachRoom(rig.clientOf(room), rig.watch);
         const seen = [];
         rig.speak(room, [b.id]);
-        rig.advance(249);
-        seen.push(rig.read().name);
-        rig.advance(1);
         seen.push([rig.read().name, rig.read().state, rig.read().channel]);
         const hadActivity = Object.hasOwn(settings, "activity"), activity = settings.activity;
         try {
@@ -12872,6 +12874,18 @@ const INVARIANTS = [
             bench.advance(300);
             return `${what}: ${bench.read().name || "nobody"}`;
         });
+
+        const change = voiceTileRig(V, [b, d]);
+        const both = change.makeRoom([b.id, d.id]);
+        V.attachRoom(change.clientOf(both), change.watch);
+        change.speak(both, [b.id]);
+        change.advance(300);
+        change.speak(both, [d.id]);
+        const turned = [change.read().name];
+        change.advance(249);
+        turned.push(change.read().name);
+        change.advance(1);
+        turned.push(change.read().name);
 
         const lost = voiceTileRig(V, [b]);
         const flaky = lost.makeRoom([b.id]);
@@ -12926,13 +12940,15 @@ const INVARIANTS = [
             else delete ui.webrtc;
             for (const el of [decoy, standIn, popout]) el.remove();
         }
-        equal(JSON.stringify([seen, shownWhenUnheard, reconnect, heard]), JSON.stringify([
-            ["", [nameOf(b), "speaking", "2"], [nameOf(b), ""], "+1", [nameOf(d), "", "1"], ["", false, "0"], ["", false], ["", "offline", "0"]],
+        equal(JSON.stringify([seen, turned, shownWhenUnheard, reconnect, heard]), JSON.stringify([
+            [[nameOf(b), "speaking", "2"], [nameOf(b), ""], "+1", [nameOf(d), "", "1"], ["", false, "0"], ["", false], ["", "offline", "0"]],
+            [nameOf(b), nameOf(b), nameOf(d)],
             Object.keys(unheard).map(what => `${what}: nobody`),
             [[nameOf(b), "offline", true, false], ["", "offline", false, true]],
             [nameOf(b), nameOf(d)]]),
-        "[nobody at 249 ms, then the speaker with the state and the channel's count (the positive control); with Foundry's signal and another Room "
-            + "naming a third; '+' with a second speaker; the first leaves; the second leaves; a new Room; the connection lost] and [each way this "
+        "[the speaker at 0 ms on an empty tile with the state and the channel's count (the positive control); with Foundry's signal and another Room "
+            + "naming a third; '+' with a second speaker; the first leaves; the second leaves; a new Room; the connection lost] and [a change of "
+            + "speaker at 0, 249 and 250 ms] and [each way this "
             + "browser does not hear the speaker] and [reconnecting: name, state, face, 'nobody'; then lost] and [heard from Foundry's dock and "
             + "a camera popout with a paused element of each in front of them]");
     }],
@@ -15352,6 +15368,131 @@ const INVARIANTS = [
             box.remove();
             bare.remove();
         }
+    }],
+    ["R588 - the voice tile names its state in one word, as the Room says it: Connecting while LiveKit connects or reconnects or the module moves the Room, Disconnected with no Room or a lost one, Connected only when the Room says connected and nobody speaks, Eclipsed in either Eclipse hold, Blocked, Own window; the word runs in two aria-hidden copies, the sentence is the word's title and a visually hidden live text, and the word stays, still, under reduced motion and with the ticker off, in English and in Polish", async () => {
+        /*
+         * E79 C15 (16.10.2026; the prep's R585, renumbered: R585 and R586 were C12's by then). The owner's N10 of
+         * 14.10: "switching rooms shows an error ... instead 'Pending...' while switching", N12 and N15 of 15.10: the
+         * state captions only, the words settled in both languages. A bench (`voiceTileRig`) whose watch is handed
+         * the hold (`micHold`'s answer, as voice-tile.mjs asks it, connected) and whether voice-client.mjs is moving
+         * the Room (`applying`), each a value the test sets, and paints its buttons as the screen's tile does
+         * (`paintControls`), so a change of hold is drawn on the next paint. Each reading is the tile's `data-word`,
+         * the first run's word, the word's `title` and the live text; "-" with the word hidden. In order: no Room; a
+         * Room "connecting"; "connected"; "reconnecting"; "signalReconnecting"; connected again; the module moving the
+         * Room while the Room still says "connected", told only by `drpgVoiceApplying` (the tile in the document, the
+         * real hook's listener of registerVoiceTile); the move over; a GM's block; the block with the Room lost;
+         * either Eclipse hold, connected or not; avclient-livekit's own window while the module moves the Room;
+         * a speaker (no word); the speaker gone (Connected at once); under reduced motion and with the ticker off,
+         * the Room lost. Then the runs' shape, the live text's roles, `voiceWord`'s order on its own, and the words and
+         * the two new or rewritten sentences in lang/en.json and lang/pl.json as the owner settled them. That the
+         * word runs only with the ticker on and motion allowed is the stylesheets' (R589); the real switch of rooms on
+         * the harness's LiveKit is scenario 75's phase G.
+         * Red at C15's parent: there was no word (the first assertion).
+         */
+        needs(world.atLeast("playerAccounts", 1), "an account besides the GM's to speak on the bench");
+        const V = await import("./voice-tile.mjs");
+        ok(typeof V.voiceWord === "function", "voice-tile.mjs has no `voiceWord` - the tile has no state word, and a switch of rooms reads as offline");
+        if (typeof V.voiceWord !== "function") return;
+        const { voiceIdentity } = await import("./camera-view.mjs");
+        const [b] = game.users.filter(user => user.id !== game.user.id && !user.isGM).slice(0, 1);
+        const L = key => game.i18n.localize(key);
+        let hold = null, applying = false;
+        const rig = voiceTileRig(V, [b], { hold: () => hold, applying: () => applying, controls: (watch, gone) => V.paintControls(watch, gone) });
+        const box = rig.tile.querySelector(".drpg-voice-tile-state"), said = rig.tile.querySelector(".drpg-voice-tile-nobody");
+        must(box && said, "the voice tile has no state word or no live text to read");
+        const read = () => (box.hidden ? ["-", rig.tile.dataset.word ?? "-"]
+            : [rig.tile.dataset.word, box.firstElementChild?.textContent.split(" · ")[0] ?? "", box.title, said.textContent]);
+        const want = (word, line) => [word, L(`DRPG.Voice.tile.state.${word}`), L(line), L(line)];
+        const seen = [];
+        const repaint = () => {
+            V.paintControls(rig.watch);
+            seen.push(read());
+        };
+        V.attachRoom(null, rig.watch);
+        seen.push(read());
+        const room = rig.makeRoom([b.id]);
+        room.state = "connecting";
+        V.attachRoom(rig.clientOf(room), rig.watch);
+        seen.push(read());
+        for (const state of ["connected", "reconnecting", "signalReconnecting", "connected"]) {
+            room.state = state;
+            room.emit("connectionStateChanged", state);
+            seen.push(read());
+        }
+        const wrap = document.createElement("div");
+        wrap.hidden = true;
+        wrap.append(rig.tile);
+        document.body.append(wrap);
+        try {
+            applying = true;
+            Hooks.callAll("drpgVoiceApplying", true);
+            seen.push(read());
+            applying = false;
+            Hooks.callAll("drpgVoiceApplying", false);
+            seen.push(read());
+        } finally {
+            applying = false;
+            wrap.remove();
+        }
+        hold = { reason: "gmBlock", held: false };
+        repaint();
+        room.state = "disconnected";
+        repaint();
+        hold = { reason: "eclipse", held: true };
+        repaint();
+        room.state = "connected";
+        hold = { reason: "eclipseHeard", held: false };
+        repaint();
+        hold = { reason: "external", held: false };
+        applying = true;
+        repaint();
+        hold = null;
+        applying = false;
+        repaint();
+        rig.speak(room, [b.id]);
+        seen.push([...read(), rig.read().name]);
+        rig.leave(room, b.id);
+        seen.push(read());
+        const classes = ["drpg-reduced-motion", "drpg-no-ticker"], had = classes.map(name => document.body.classList.contains(name));
+        try {
+            document.body.classList.add(...classes);
+            room.state = "disconnected";
+            room.emit("disconnected");
+            seen.push([...read(), box.children.length]);
+        } finally {
+            classes.forEach((name, i) => document.body.classList.toggle(name, had[i]));
+        }
+        const runs = Array(6).fill(L("DRPG.Voice.tile.state.disconnected")).join(" · ") + " · ";
+        const shape = [box.getAttribute("aria-hidden"), [...box.children].map(run => `${run.tagName} ${run.textContent === runs}`),
+            said.getAttribute("role"), said.getAttribute("aria-live")];
+        const word = facts => V.voiceWord(facts)?.word.split(".").at(-1) ?? "-";
+        const order = [
+            { face: true, hold: { reason: "external" } }, { hold: { reason: "external" }, applying: true, state: "connecting" },
+            { hold: { reason: "eclipse" }, state: null }, { hold: { reason: "eclipseHeard" }, applying: true },
+            { hold: { reason: "gmBlock" }, applying: true, state: "connected" }, { hold: { reason: "gmBlock" }, state: "reconnecting" },
+            { hold: { reason: "gmBlock" }, state: "disconnected" }, { state: "R588-unknown" }, { state: "connected", applying: "yes" }, {}
+        ].map(word);
+        const [en, pl] = await Promise.all(["en", "pl"].map(lang => fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(res => res.json())));
+        const texts = file => [...["connecting", "disconnected", "connected", "eclipsed", "blocked", "external"].map(key => file.DRPG.Voice.tile.state?.[key]),
+            file.DRPG.Voice.held.connecting, file.DRPG.Voice.held.offline];
+        equal(JSON.stringify([seen, shape, order, texts(en), texts(pl)]), JSON.stringify([
+            [want("disconnected", "DRPG.Voice.held.offline"), want("connecting", "DRPG.Voice.held.connecting"),
+                want("connected", "DRPG.Voice.tile.nobody"), want("connecting", "DRPG.Voice.held.connecting"),
+                want("connecting", "DRPG.Voice.held.connecting"), want("connected", "DRPG.Voice.tile.nobody"),
+                want("connecting", "DRPG.Voice.held.connecting"), want("connected", "DRPG.Voice.tile.nobody"),
+                want("blocked", "DRPG.Voice.held.gmBlock"), want("disconnected", "DRPG.Voice.held.offline"),
+                want("eclipsed", "DRPG.Voice.held.eclipse"), want("eclipsed", "DRPG.Voice.held.eclipseHeard"),
+                want("external", "DRPG.Voice.held.external"), want("connected", "DRPG.Voice.tile.nobody"),
+                ["-", "-", voiceIdentity(b)?.name ?? null], want("connected", "DRPG.Voice.tile.nobody"),
+                [...want("disconnected", "DRPG.Voice.held.offline"), 2]],
+            ["true", ["SPAN true", "SPAN true"], "status", "polite"],
+            ["-", "external", "eclipsed", "eclipsed", "connecting", "connecting", "disconnected", "disconnected", "connected", "disconnected"],
+            ["Connecting", "Disconnected", "Connected", "Eclipsed", "Blocked", "Own window", "Joining your voice channel.", "You are not connected to voice."],
+            ["Łączenie", "Rozłączono", "Połączono", "Eclipsed", "Zablokowano", "Osobne okno", "Trwa dołączanie do kanału głosowego.", "Brak połączenia z głosem."]]),
+        "[the word, its run, title and live text: no Room; connecting; connected; reconnecting; signalReconnecting; connected; the module moving "
+            + "the Room (the hook); the move over; a GM's block; the block, lost; the Eclipse, lost; the Eclipse heard; own window while moving; "
+            + "a speaker (hidden, the name); gone; reduced motion and no ticker, lost, with its runs], [aria-hidden, the two runs, the live text's "
+            + "role and politeness], [voiceWord's order], [the English and the Polish words and sentences]");
     }],
 ];
 

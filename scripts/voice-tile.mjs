@@ -19,7 +19,12 @@
  *     speaker of mine. The element's selector is avclient-livekit 0.6.8's as the design read it on 11.10 (external,
  *     not re-read here); if a later avclient-livekit draws its audio elsewhere, the tile shows nobody - it does not
  *     guess.
- *   - A new speaker is shown after 250 ms of speech (`STICK_MS`), so a cough does not take the portrait. Whoever is
+ *   - On an empty tile the first speaker is shown at once (E79 C15, 1.2.79; the owner's N14 of 15.10.2026: "the
+ *     voice tile shows a speaker slightly too late"); a new speaker while somebody else is still drawn - held or
+ *     fading - is shown after 250 ms of speech (`STICK_MS`), so a cough does not take the portrait. Until C15 the
+ *     first speaker waited the 250 ms as well (R535 read 249 ms empty). A short noise on an empty tile now shows a
+ *     portrait for the hold and the fade (the prep's accepted cost). LiveKit's own delay before it lists a speaker
+ *     is not this file's and was not measured (LIVE-E79-20). Whoever is
  *     shown stays while the Room still lists them; when it stops, the loudest other speaker who has passed the
  *     250 ms takes over at once, and with nobody else the portrait holds 1500 ms (`HOLD_MS`) and then fades over
  *     `--drpg-t-turn` (840 ms), or goes at once under reduced motion (Q7). The same speaker back inside that time
@@ -90,6 +95,20 @@
  * The tile and the list send no socket and no packet, write no world setting and no document but the GM's block,
  * and set an element's volume only in `setPeerVolume`.
  *
+ * THE STATE WORD (E79 C15, 1.2.79; the owner's N10 of 14.10.2026, N12 and N15 of 15.10.2026). While nobody is drawn
+ * the tile says in one word how this browser's voice stands, running as the clock's ticker does (utils.mjs
+ * `tickerRuns`, two aria-hidden copies): Own window (avclient-livekit's own window), Eclipsed (either hold of the
+ * Eclipse), Connecting (this module moving the Room - voice-client.mjs `voiceApplying` - or the Room connecting or
+ * reconnecting), Disconnected (no Room, or a Room in any other state than connected), Blocked (a GM's block, while
+ * connected), Connected - in that order (`voiceWord`). Until C15 the tile had three states, and "connecting" and
+ * "reconnecting" read as offline: while voice-client.mjs moved the Room the note said "You are not connected to
+ * voice." (the owner's "error"). The sentence each word stands for is the word's `title` and the tile's polite
+ * live text (`.drpg-voice-tile-nobody`, read by a screen reader, never seen); the note under the buttons no longer
+ * shows (the stylesheets hide it as the live text is hidden; `paintMic` still writes it, the microphone's
+ * description). The Room's state is read off the Room the watch follows, and is "connected" only when the Room says
+ * so; the names of livekit-client's states other than "connected" and "disconnected" ("connecting",
+ * "reconnecting", "signalReconnecting") are the prep's reading of livekit-client, not read here (LIVE-E79-21).
+ *
  * Where the tile stands (E78 C6): under Stained Glass, a fixed block of the curtain's (glass.mjs `voice-block`) at
  * the right wall under the Projects tray, with a pane of its own and its portrait on the whole pane (`seatVoiceArt`
  * moves the art layer to the body, so the layer is kept by the tile here rather than looked up in its face); on a
@@ -101,12 +120,12 @@
 import { MODULE_ID } from "./config.mjs";
 import { micHold, moduleHoldsMic } from "./voice.mjs";
 import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
-import { avclientActive } from "./voice-client.mjs";
+import { avclientActive, voiceApplying } from "./voice-client.mjs";
 import { voiceIdentity, measureCameraDock } from "./camera-view.mjs";
 import { safeRoomImage } from "./vault.mjs";
 import { cssString } from "./room-tile.mjs";
 import { reducedMotion, TURN } from "./motion.mjs";
-import { error, plural } from "./utils.mjs";
+import { error, plural, tickerRuns } from "./utils.mjs";
 import { refreshGlass, seatVoiceArt } from "./glass.mjs";
 import { tileRow } from "./narrow.mjs";
 
@@ -115,7 +134,8 @@ const TILE_ID = "drpg-voice-tile";
 /** On `<body>` while the tile stands in for the dock: the dock and its popouts compute `display: none`. */
 export const DOCK_HIDDEN_CLASS = "drpg-dock-hidden";
 
-/** How long a new speaker speaks before the portrait is theirs (the design's sticky rule). */
+/** How long a new speaker speaks before the portrait is theirs while somebody else is drawn (the design's sticky
+    rule; an empty tile shows its first speaker at once since E79 C15). */
 export const STICK_MS = 250;
 
 /** How long the portrait stays after its speaker leaves the Room's list (Q7). */
@@ -126,6 +146,23 @@ const AUDIO = ".camera-view[data-user] audio.user-microphone-audio";
 
 /** A camera popout, as the hidden-dock rule (danganronpa.css) names it; Foundry v14's real id is not measured (R541). */
 const POPOUT = '.application[id^="camera-view-"]';
+
+/**
+ * The state words (E79 C15; the owner's N15 settled their English and Polish), each with the sentence it stands for:
+ * its `title` and the tile's live text. Spelt out, not built from the word, so R1 reads every key.
+ */
+const WORDS = {
+    external: { word: "DRPG.Voice.tile.state.external", line: "DRPG.Voice.held.external" },
+    eclipse: { word: "DRPG.Voice.tile.state.eclipsed", line: "DRPG.Voice.held.eclipse" },
+    eclipseHeard: { word: "DRPG.Voice.tile.state.eclipsed", line: "DRPG.Voice.held.eclipseHeard" },
+    connecting: { word: "DRPG.Voice.tile.state.connecting", line: "DRPG.Voice.held.connecting" },
+    disconnected: { word: "DRPG.Voice.tile.state.disconnected", line: "DRPG.Voice.held.offline" },
+    blocked: { word: "DRPG.Voice.tile.state.blocked", line: "DRPG.Voice.held.gmBlock" },
+    connected: { word: "DRPG.Voice.tile.state.connected", line: "DRPG.Voice.tile.nobody" }
+};
+
+/** A Room's states that are on the way to "connected" (livekit-client's names, as the prep read them; LIVE-E79-21). */
+const CONNECTING = ["connecting", "reconnecting", "signalReconnecting"];
 
 /** The microphone's states a click or the key may change: the viewer's own choice. The rest only say why not. */
 const MIC_FREE = ["on", "ptt", "muted"];
@@ -318,7 +355,17 @@ export function buildVoiceTile({ onMic = () => toggleOwnMic(), onSpeaker = tile 
     const controls = textNode("div", "drpg-voice-tile-controls", "");
     controls.append(mic, speaker);
 
-    tile.append(face, textNode("span", "drpg-voice-tile-nobody", game.i18n.localize("DRPG.Voice.tile.nobody")), controls, note);
+    /* The state word (E79 C15): two runs of the word, read by nobody (the sentence is the live text after it, and the
+       word's own `title`); hidden while a speaker is drawn. The live text was the "nobody" line, which a screen
+       reader read while nobody spoke; it now says the sentence of the state, politely, as it changes. */
+    const word = textNode("div", "drpg-voice-tile-state", "");
+    word.hidden = true;
+    word.setAttribute("aria-hidden", "true");
+    const said = textNode("span", "drpg-voice-tile-nobody", game.i18n.localize("DRPG.Voice.tile.nobody"));
+    said.setAttribute("role", "status");
+    said.setAttribute("aria-live", "polite");
+
+    tile.append(face, word, said, controls, note);
     return tile;
 }
 
@@ -368,13 +415,17 @@ function glyph(name) {
  * @param {() => boolean} [options.proximity]  whether proximity-voice-chat sets the elements' volumes itself
  * @param {() => boolean} [options.gm]  whether the list draws the GM's block: `game.user.isGM`; the suite draws a
  *   player's list with false (R539). The block's write asks `game.user.isGM` itself (`toggleBlock`).
+ * @param {() => object|null} [options.hold]  `micHold`'s answer for the state word, asked as if connected - the word
+ *   reads the connection off the watch's own Room (E79 C15); the suite hands in each hold
+ * @param {() => boolean} [options.applying]  whether voice-client.mjs is moving the Room now (`voiceApplying`)
  */
 export function voiceWatch(tile, { clock = realClock, dock = foundryDock,
     muteAll = () => game.webrtc?.settings?.client?.muteAll === true, fade = () => (reducedMotion() ? 0 : TURN()),
     userOf = id => game.users.get(id), controls = null, settings = () => game.webrtc?.settings, mutes = PEER_MUTES,
-    proximity = () => game.modules?.get?.("proximity-voice-chat")?.active === true, gm = () => game.user?.isGM === true } = {}) {
+    proximity = () => game.modules?.get?.("proximity-voice-chat")?.active === true, gm = () => game.user?.isGM === true,
+    hold = () => micHold({ connected: true }), applying = () => voiceApplying() } = {}) {
     const watch = {
-        tile, clock, dock, muteAll, fade, userOf, controls, settings, mutes, proximity, gm,
+        tile, clock, dock, muteAll, fade, userOf, controls, settings, mutes, proximity, gm, hold, applying,
         client: null, room: null, detach: null,
         /** The Room's speakers this browser can map, loudest first, as user ids; and when each began. */
         speakers: [], since: new Map(),
@@ -549,9 +600,10 @@ function inRoom(watch, userId, gone = null) {
 
 /**
  * The rule of who is drawn, run after every event and every timer: the shown speaker stays while the Room lists
- * them and this browser hears them; otherwise the loudest speaker past `STICK_MS`; otherwise the hold, then the
- * fade. A speaker not yet past `STICK_MS` sets the timer that asks again. Whoever the Room no longer holds is
- * dropped first, and the portrait with them at once.
+ * them and this browser hears them; otherwise, on an empty tile, the loudest speaker at once, and while somebody is
+ * still drawn (held or fading) the loudest speaker past `STICK_MS`; otherwise the hold, then the fade. A speaker not
+ * yet past `STICK_MS` sets the timer that asks again. Whoever the Room no longer holds is dropped first, and the
+ * portrait with them at once.
  *
  * @param {object} [watch]
  * @param {object} [gone]  a participant the Room has just said left
@@ -563,7 +615,7 @@ export function voiceStep(watch = live, gone = null) {
     for (const id of [...watch.since.keys()]) if (!watch.speakers.includes(id)) watch.since.delete(id);
     const now = watch.clock.now();
     const heard = watch.speakers.filter(id => audible(watch, id));
-    const ready = heard.filter(id => id === watch.shown || now - (watch.since.get(id) ?? now) >= STICK_MS);
+    const ready = heard.filter(id => id === watch.shown || !watch.shown || now - (watch.since.get(id) ?? now) >= STICK_MS);
     const waits = heard.filter(id => !ready.includes(id)).map(id => watch.since.get(id) + STICK_MS - now);
     cancel(watch, "stick");
     if (waits.length) schedule(watch, "stick", Math.max(0, Math.min(...waits)), () => voiceStep(watch));
@@ -672,7 +724,8 @@ function paintSpeaker(watch, more = 0, gone = null) {
     };
     const last = painted.get(tile) ?? {};
     const changed = Object.keys(next).filter(key => last[key] !== next[key]);
-    if (!changed.length) return false;
+    const worded = paintWord(watch, next.face);
+    if (!changed.length) return worded;
     painted.set(tile, next);
 
     const art = arts.get(tile) ?? null;
@@ -726,6 +779,80 @@ function channelCount(watch, gone = null) {
     if (room?.state !== "connected") return 0;
     return [...(room.remoteParticipants?.values?.() ?? [])]
         .filter(p => p && p !== gone && !p.isLocal && p !== room.localParticipant).length;
+}
+
+/**
+ * The tile's state word while nobody is drawn, or `null` while somebody is (E79 C15, 1.2.79; the owner's N10, N12
+ * and N15): `{ word, line }`, the keys of the word and of the sentence it stands for (`WORDS`). In this order:
+ * avclient-livekit's own window; either hold of the Eclipse (N12: "only 'Eclipsed' in an Eclipse", whether or not
+ * the Room is up yet); this module moving the Room, or the Room on its way; any Room that is not connected, and no
+ * Room at all; a GM's block, only while connected (with no connection the player hears nobody anyway); connected.
+ * Never connected before the Room says so: `state` is the Room's own, and "connected" is the one value that is.
+ *
+ * @param {object} [facts]
+ * @param {boolean} [facts.face]      whether a speaker is drawn
+ * @param {object|null} [facts.hold]  `micHold`'s answer, asked as if connected
+ * @param {string|null} [facts.state] the watch's Room's `state`, `null` with no Room
+ * @param {boolean} [facts.applying]  voice-client.mjs `voiceApplying()`
+ * @returns {{word: string, line: string}|null}
+ */
+export function voiceWord({ face = false, hold = null, state = null, applying = false } = {}) {
+    if (face) return null;
+    const reason = hold?.reason;
+    if (reason === "external" || reason === "eclipse" || reason === "eclipseHeard") return WORDS[reason];
+    if (applying === true || CONNECTING.includes(state)) return WORDS.connecting;
+    if (state !== "connected") return WORDS.disconnected;
+    return reason === "gmBlock" ? WORDS.blocked : WORDS.connected;
+}
+
+/** What each tile's state word shows now, as `painted` holds the speaker's. */
+const paintedWord = new WeakMap();
+
+/**
+ * Draw the state word on the watch's tile: the two runs (`tickerRuns`) of the word, its sentence as their `title`
+ * and as the tile's live text, `data-word` for the stylesheets; nothing while a speaker is drawn. Writes only what
+ * differs from what the tile shows, so a speaker's pauses write nothing (R536). A hold that throws reads as none.
+ *
+ * @param {object} watch
+ * @param {boolean} face  whether a speaker is drawn
+ * @returns {boolean} whether it wrote anything
+ */
+function paintWord(watch, face) {
+    const tile = watch?.tile, box = tile?.querySelector(".drpg-voice-tile-state"), said = tile?.querySelector(".drpg-voice-tile-nobody");
+    if (!box || !said) return false;
+    let hold = null;
+    try {
+        hold = watch.hold?.() ?? null;
+    } catch {
+        hold = null;
+    }
+    const now = voiceWord({ face, hold, state: watch.room?.state ?? null, applying: watch.applying?.() === true });
+    const next = { word: now ? game.i18n.localize(now.word) : "", line: now ? game.i18n.localize(now.line) : "" };
+    const last = paintedWord.get(tile) ?? {};
+    if (last.word === next.word && last.line === next.line) return false;
+    paintedWord.set(tile, next);
+    if (last.word !== next.word) {
+        box.replaceChildren(...(next.word ? tickerRuns(next.word) : []));
+        box.hidden = !next.word;
+        if (now) tile.dataset.word = now.word.split(".").at(-1);
+        else delete tile.dataset.word;
+    }
+    if (next.line) {
+        box.title = next.line;
+        if (said.textContent !== next.line) said.textContent = next.line;
+    } else box.removeAttribute("title");
+    return true;
+}
+
+/**
+ * voice-client.mjs began or ended a move of the Room (`drpgVoiceApplying`): every tile in the document says it,
+ * without waiting for an event of the Room, which still says "connected" while the move takes it down (E79 C15).
+ */
+export function onVoiceApplying() {
+    for (const tile of document.querySelectorAll(".drpg-voice-tile")) {
+        const watch = watches.get(tile);
+        if (watch) paintWord(watch, painted.get(tile)?.face === true);
+    }
 }
 
 /**
@@ -878,6 +1005,7 @@ export function paintControls(watch = live, gone = null) {
     if (!watch?.tile) return;
     try {
         paintMic(watch.tile, micState());
+        paintWord(watch, painted.get(watch.tile)?.face === true);
         paintSpeakerButton(watch.tile, { count: channelCount(watch, gone), muteAll: watch.muteAll() });
         if (watch.list && !watch.list.hidden) paintList(watch);
     } catch (err) {
@@ -1396,8 +1524,9 @@ function dropVoiceTile() {
 /**
  * The tile's triggers (module.mjs `ready`). The hook's argument is avclient-livekit's client; the field on
  * `game.webrtc.client` is read first, as voice-client.mjs reads it, and the argument only when that is absent. The
- * viewer's own user changing (a GM's block is a permission on it) repaints the buttons, anybody else's an open list
- * (the GM's block on them); a client setting - a mute, a volume, the voice mode - comes through
+ * viewer's own user changing (a GM's block is a permission on it) repaints the buttons and the state word, anybody
+ * else's an open list (the GM's block on them); voice-client.mjs moving the Room (`drpgVoiceApplying`, E79 C15) the
+ * state word; a client setting - a mute, a volume, the voice mode - comes through
  * `rtcSettingsChanged`, which also tells the sound launcher about "mute all" (sfx.mjs, the design's F5).
  */
 export function registerVoiceTile() {
@@ -1410,5 +1539,6 @@ export function registerVoiceTile() {
         if (user?.id === game.user?.id) paintControls();
         else if (live?.list && !live.list.hidden) paintList(live);
     });
+    Hooks.on("drpgVoiceApplying", () => onVoiceApplying());
     refreshVoiceTile();
 }

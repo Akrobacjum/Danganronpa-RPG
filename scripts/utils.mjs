@@ -1560,3 +1560,20 @@ export function wireDashboardTabs(root, { onSwitch = null } = {}) {
         });
     }
 }
+
+/**
+ * The two runs of a ticker: `word` six times, joined with " · " and ending in one, in two copies, so that a
+ * marquee that moves the pair by one copy's width starts again where it began (E79 C15, 1.2.79; the owner's N10,
+ * 14.10.2026: the voice tile's state word runs "in the clock ticker's build"). Until then hud.mjs `hudTicker` and
+ * events.mjs `cardTicker` each built the same two spans; the clock's and the event card's markup is what it was,
+ * byte for byte. The caller states the box, its class and `aria-hidden`: a run is a texture or a repeated word,
+ * and the sentence a reader needs is said elsewhere by each caller.
+ *
+ * @param {string} word
+ * @returns {[HTMLSpanElement, HTMLSpanElement]}
+ */
+export function tickerRuns(word) {
+    const run = document.createElement("span");
+    run.textContent = Array(6).fill(word).join(" · ") + " · ";
+    return [run, run.cloneNode(true)];
+}

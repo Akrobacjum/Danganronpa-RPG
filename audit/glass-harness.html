@@ -142,7 +142,7 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
      here, and `.drpg-pxi` with no mask is a square of its own colour - the white squares on the C6 and HF4 shots. At a
      table `glyph` writes the mask on every glyph it builds and pixel-icons.css states both sprites on the body, so the
      glyphs are drawn there (read in the code, 14.10.2026; not seen at a table). -->
-<section id="drpg-voice-tile" class="drpg-voice-tile" role="region" aria-label="Voice" data-state="speaking" data-in-channel="3"><div class="drpg-voice-tile-face"><div class="drpg-voice-tile-art" aria-hidden="true" style="background-image:linear-gradient(170deg,#c9a27e,#5b3a5e 60%,#1d1a2b)"></div><div class="drpg-voice-tile-plate"><span class="drpg-voice-tile-speaking">Speaking</span><span class="drpg-voice-tile-name">Aiko Hoshino</span><span class="drpg-voice-tile-more" hidden></span></div></div><span class="drpg-voice-tile-nobody" hidden>Nobody is speaking</span><div class="drpg-voice-tile-controls"><button type="button" class="drpg-launch-mini drpg-voice-mic" aria-label="Mute your microphone" aria-pressed="false"><i class="drpg-pxi" style="--drpg-px-mask: var(--drpg-px-mic)" aria-hidden="true" inert></i></button><button type="button" class="drpg-launch-mini drpg-voice-speaker" aria-label="Who you hear" aria-haspopup="dialog" aria-expanded="false"><i class="drpg-pxi" style="--drpg-px-mask: var(--drpg-px-sound)" aria-hidden="true" inert></i></button></div></section>
+<section id="drpg-voice-tile" class="drpg-voice-tile" role="region" aria-label="Voice" data-state="speaking" data-in-channel="3"><div class="drpg-voice-tile-face"><div class="drpg-voice-tile-art" aria-hidden="true" style="background-image:linear-gradient(170deg,#c9a27e,#5b3a5e 60%,#1d1a2b)"></div><div class="drpg-voice-tile-plate"><span class="drpg-voice-tile-speaking">Speaking</span><span class="drpg-voice-tile-name">Aiko Hoshino</span><span class="drpg-voice-tile-more" hidden></span></div></div><div class="drpg-voice-tile-state" aria-hidden="true" hidden></div><span class="drpg-voice-tile-nobody" hidden>Nobody is speaking</span><div class="drpg-voice-tile-controls"><button type="button" class="drpg-launch-mini drpg-voice-mic" aria-label="Mute your microphone" aria-pressed="false"><i class="drpg-pxi" style="--drpg-px-mask: var(--drpg-px-mic)" aria-hidden="true" inert></i></button><button type="button" class="drpg-launch-mini drpg-voice-speaker" aria-label="Who you hear" aria-haspopup="dialog" aria-expanded="false"><i class="drpg-pxi" style="--drpg-px-mask: var(--drpg-px-sound)" aria-hidden="true" inert></i></button></div></section>
 <div class="application dialog drpg-panel"><header class="window-header"><h1 class="window-title">Danganronpa - Advance the clock</h1><button class="header-control" data-action="close">x</button></header>
   <section class="window-content"><p>The afternoon ends. Everyone is placed for the Evening Eclipse.</p><footer class="form-footer"><button type="button" class="default">Advance the clock</button><button type="button">Not yet</button><button type="button" disabled>Rewind</button></footer></section></div>
 <script id="drpg-launch-check">
@@ -866,7 +866,15 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
      turned with the tile, on the voice pane rather than in the box. `corner` is each centre's distance from the
      screen's right edge and under the pane's top edge straight above it, which the sweep pins per size (PIN_CORNER);
      the microphone's must be within 28 px of both and the speaker's straight under it, or the buttons have moved back
-     in - at 60741cf they read 66/69 and 31/69 at 1366x768, side by side. Answers { read, why }. */
+     in - at 60741cf they read 66/69 and 31/69 at 1366x768, side by side.
+     THE STATE WORD (E79 C15, 1.2.79; the owner's N10, N12 and N15): shown in place of the face for the reading and
+     put back before anything is drawn - the longest of the six English words, "Disconnected", in the module's two
+     runs - it must stand inside the tile with 2 px to spare, clear of the buttons and, in the full form on the wall,
+     of the name plate's box (the compact form and Monokuma Legacy give it the plate's place, empty while nobody
+     speaks), in type of 11 px or more, at opacity 1 and in an ink of
+     alpha 1, at 4.5:1 or more against its own backing laid over white and over black (the picture under it is
+     anybody's), and the tile's box the same with it as without. `word` in `read`: its box, size, opacity and ratio.
+     Answers { read, why }. */
   window.drpgVoiceParts = (tile = document.getElementById("drpg-voice-tile")) => {
     const why = [], W = tile.offsetWidth, H = tile.offsetHeight;
     const at = e => { let x = 0, y = 0, n = e; while (n && n !== tile) { x += n.offsetLeft; y += n.offsetTop; n = n.offsetParent; }
@@ -877,7 +885,7 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     const corner = tile.dataset.place === "wall" && tile.dataset.fit !== "compact", cut = document.getElementById("drpg-curtain")?.getBoundingClientRect();
     const pane = corner ? (window.__glass?.LAST?.panes || []).find(p => p.tone === "voice-block") : null;
     const m = /^matrix\(([-\d.e]+), ([-\d.e]+),/.exec(getComputedStyle(tile).transform), cs = m ? +m[1] : 1, sn = m ? +m[2] : 0;
-    const read = { tile: [W, H], buttons: [], corner: corner ? [] : null, plate: null, name: null };
+    const read = { tile: [W, H], buttons: [], corner: corner ? [] : null, plate: null, name: null, word: null };
     if (corner && (!pane || !cut)) why.push("no voice pane to stand the buttons on");
     for (const b of tile.querySelectorAll(".drpg-voice-tile-controls > .drpg-launch-mini")) {
       const r = at(b), cls = b.classList.contains("drpg-voice-mic") ? "microphone" : "speaker", i = b.querySelector(".drpg-pxi");
@@ -903,6 +911,32 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
       if (!read.plate || out(read.plate)) why.push(`the name plate at ${read.plate} is outside the tile ${W}x${H}`);
       else if (read.buttons.some(r => r && meet(r, read.plate))) why.push(`the name plate at ${read.plate} is under the buttons at ${read.buttons.join(" / ")}`);
       if (read.name[0] < Math.min(read.name[1], 64)) why.push(`the name shows ${read.name[0]} px of its ${read.name[1]}`);
+    }
+    const word = tile.querySelector(".drpg-voice-tile-state");
+    if (!word) why.push("the tile has no state word");
+    else {
+      const was = { face: face?.hidden, word: word.hidden, kids: [...word.childNodes] }, run = document.createElement("span");
+      run.textContent = Array(6).fill("Disconnected").join(" · ") + " · ";
+      if (face) face.hidden = true;
+      word.hidden = false;
+      word.replaceChildren(run, run.cloneNode(true));
+      const r = at(word), cw = getComputedStyle(word), cr = getComputedStyle(run), size = parseFloat(cr.fontSize);
+      const rgba = c => (/rgba?\(([^)]+)\)/.exec(c)?.[1] ?? "0,0,0,0").split(",").map(Number).concat(1).slice(0, 4);
+      const lum = ([r0, g0, b0]) => [r0, g0, b0].map(v => v / 255).map(c => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)).reduce((t, c, i) => t + c * [0.2126, 0.7152, 0.0722][i], 0);
+      const ink = rgba(cr.color), back = rgba(cw.backgroundColor);
+      const ratio = under => { const bg = back.slice(0, 3).map((v, i) => v * back[3] + under[i] * (1 - back[3])); const [hi, lo] = [lum(ink), lum(bg)].sort((x, y) => y - x); return (hi + 0.05) / (lo + 0.05); };
+      const worst = Math.min(ratio([255, 255, 255]), ratio([0, 0, 0]));
+      read.word = { box: r, size, opacity: [cw.opacity, cr.opacity].map(Number), ink: ink[3], ratio: Math.round(worst * 10) / 10 };
+      if (!r || out(r)) why.push(`the state word at ${r} is outside the tile ${W}x${H}`);
+      else if (read.buttons.some(b => b && meet(b, r))) why.push(`the state word at ${r} is under the buttons at ${read.buttons.join(" / ")}`);
+      else if (corner && read.plate && meet(r, read.plate)) why.push(`the state word at ${r} is over the name plate's box at ${read.plate}`);
+      if (!(size >= 11)) why.push(`the state word is set at ${size} px`);
+      if (read.word.opacity.some(o => o !== 1) || ink[3] !== 1) why.push(`the state word is drawn at opacity ${read.word.opacity.join("/")} in an ink of alpha ${ink[3]}`);
+      if (!(worst >= 4.5)) why.push(`the state word reads ${read.word.ratio}:1 on its backing`);
+      if (tile.offsetWidth !== W || tile.offsetHeight !== H) why.push(`the tile is ${tile.offsetWidth}x${tile.offsetHeight} with the word and ${W}x${H} without`);
+      word.replaceChildren(...was.kids);
+      word.hidden = was.word;
+      if (face) face.hidden = was.face;
     }
     return { read, why };
   };

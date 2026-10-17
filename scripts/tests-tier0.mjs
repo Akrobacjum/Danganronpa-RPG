@@ -9099,6 +9099,8 @@ const REGRESSIONS = [
          * listening whom the viewer cannot see", which the WORLD row did not judge - it judges the dock's sound, and the
          * dock's camera views were the only thing that showed a silent listener. LISTEN is the suite's own: the parse-only
          * census (S/e78-design/census.mjs) does not read it, so the key-by-key comparison holds for the other fourteen.
+         * E79 C15 (16.10.2026, 1.2.79) added one HOLD row: the state word's hold, keyed `voiceWatch`, whose default asks
+         * `micHold` as if connected - the word reads the connection off the Room the watch follows (R588).
          * It reads names and text, not data flow, as the parse-only census does: a name handed to a helper the kinds
          * do not list is judged at the call, and which participant avclient-livekit maps to which user is no reading
          * of this module's source at all (only a table settles it: the owner's T1). One place where it reads more than the census: a template's
@@ -9130,6 +9132,7 @@ const REGRESSIONS = [
             ["STORE settings.mjs#voicePeerMutes#console -> volume", "`peerMutes` clamps on read: an object only, ids that are users of this world, volumes that are numbers clamped to 0..1; anything else is no mute, and a mute counts only while the volume is 0 (R538)"],
             ["STORE settings.mjs#voicePeerMutes#stale -> volume", "`peerMutes` skips an id that is not a user of this world on read, and the next write is of the read record, so it drops it (R538)"],
             // ---- E78 C4: the microphone button (voice-tile.mjs)
+            ["HOLD voice-tile.mjs#voiceWatch#micHold -> mic", "the state word only (E79 C15): `micHold` asked as if connected, the viewer's own facts as for the button; it moves no microphone, and its reason picks one of the words, Own window, Eclipsed or Blocked (R588)"],
             ["HOLD voice-tile.mjs#micState#micHold -> mic", "the viewer's own facts only: `micHold` reads the room the primary GM sent this browser, its own A/V state and its own characters, never GmStore (R537's spy and source reading); grey only for its `held`"],
             ["CLIENT voice-tile.mjs#toggleOwnMic -> *", "writes `users.<self>.muted` (`game.user.id`) and nothing else, on the viewer's own click or key, only in the states the viewer may change; as Foundry's own dock does (R537, R544)"],
             // ---- E78 C5: the list 'Who you hear' (voice-tile.mjs) and the gear's Voice section (voice-panel.mjs)
@@ -12904,6 +12907,92 @@ const REGRESSIONS = [
         equal(J([hope, despair]), J(badges), "[the Hope die's plate against the Hope badge's colour; the Despair die's against the Despair badge's]");
         equal(J(inks), J(["var(--drpg-sg-ink)"]), "the dice's letters are not the ink the ratios were computed for");
         ok(ratios.length === 2 && ratios.every(r => r !== null && r >= 4.5), `the letters' ink on the two plates reads ${J(ratios)}, under 4.5:1 or unread`);
+    }],
+
+    ["R589 - the voice tile's state word is read at full ink in both themes, and the ticker switch, reduced motion and a stacked screen only stop it: no rule of the module's stylesheets hides the word or its runs but its own `hidden`, none sets it at an opacity, its colour is a full ink in each theme, and each of the three switches stops its runs", async () => {
+        /*
+         * E79 C15 (16.10.2026; the prep's R586, renumbered: R586 was C12's by then). The owner's N12 and N15: the
+         * state word is the tile's caption; the clock's ticker, which the word runs like, is hidden by
+         * `body.drpg-no-ticker` and drawn as an outline at 22 % (stained-glass.css's C-J2 ticker) - neither may
+         * happen to the word. Every stylesheet module.json loads is cut into its rules, each with the at-rules
+         * around it; the rules whose selector names `.drpg-voice-tile-state` are read: none hides it (display none,
+         * visibility hidden, opacity 0 or content-visibility) but the one keyed on `[hidden]`, none states an
+         * opacity or a transparent fill, and their colours are the two full inks the stylesheets give it (Legacy's
+         * `--color-text-primary`, Stained Glass's `--drpg-glass-accent`); and `animation: none` on its runs under
+         * `body.drpg-no-ticker`, `body.drpg-reduced-motion`, `body.drpg-stacked` and `prefers-reduced-motion`.
+         * narrow.css, which loads last, is read with the rest: a rule there hiding the word is caught as anywhere.
+         * The reader is held to three plants first: the word hidden with the ticker off, its colour at 0.2, and
+         * the stacked screen's stop taken out. What the word looks like on the tile's picture is the glass
+         * harness's voice clause (Chromium); at a table, LIVE-E79-21.
+         * Red at C15's parent: there was no word (no rule names it).
+         */
+        const J = JSON.stringify;
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(res => res.json());
+        const sheets = [];
+        for (const href of manifest.styles ?? []) sheets.push([href.split("/").at(-1), (await fetch(`/modules/${MODULE_ID}/${href}`).then(res => res.text())).replace(/\/\*[\s\S]*?\*\//g, " ")]);
+        must(sheets.length >= 5 && sheets.some(([name]) => name === "narrow.css"), `module.json loads ${sheets.map(([name]) => name).join(", ")} - not the module's sheets`);
+        const split = list => {
+            const out = [];
+            let depth = 0, from = 0;
+            for (let i = 0; i < list.length; i++) {
+                if (list[i] === "(") depth++;
+                else if (list[i] === ")") depth--;
+                else if (list[i] === "," && depth === 0) { out.push(list.slice(from, i).trim()); from = i + 1; }
+            }
+            out.push(list.slice(from).trim());
+            return out.filter(Boolean);
+        };
+        const rulesOf = css => {
+            const out = [], open = [];
+            let from = 0;
+            for (let i = 0; i < css.length; i++) {
+                if (css[i] === "{") {
+                    open.push({ prelude: css.slice(from, i).split(";").at(-1).trim(), at: i + 1 });
+                    from = i + 1;
+                } else if (css[i] === "}") {
+                    const rule = open.pop();
+                    if (rule && !css.slice(rule.at, i).includes("{")) {
+                        for (const sel of split(rule.prelude)) out.push({ sel, decl: css.slice(rule.at, i), within: open.map(o => o.prelude).join(" ") });
+                    }
+                    from = i + 1;
+                }
+            }
+            return out;
+        };
+        const HIDES = /(?:^|;)\s*(?:display\s*:\s*none|visibility\s*:\s*hidden|opacity\s*:\s*0(?:\.0*)?\s*(?:!important)?\s*(?:;|$)|content-visibility\s*:\s*hidden)/;
+        const FAINT = /(?:^|;)\s*(?:opacity\s*:|-webkit-text-fill-color\s*:\s*transparent|color\s*:\s*(?:transparent|rgba\((?:[^()]|\([^()]*\))*,\s*0?\.\d+\s*\)|color-mix\([^;]*transparent))/;
+        const SWITCHES = { "no ticker": /body\.drpg-no-ticker\b/, "reduced motion": /body\.drpg-reduced-motion\b/, stacked: /body\.drpg-stacked\b/ };
+        const reading = list => {
+            const word = list.flatMap(([name, css]) => rulesOf(css).map(rule => ({ ...rule, name })))
+                .filter(({ sel }) => /\.drpg-voice-tile-state\b/.test(sel));
+            const hides = word.filter(({ sel, decl }) => HIDES.test(decl) && !/\[hidden\]$/.test(sel)).map(({ name, sel }) => `${name} ${sel}`);
+            const faint = word.filter(({ decl }) => FAINT.test(decl)).map(({ name, sel }) => `${name} ${sel}`);
+            const inks = [...new Set(word.map(({ decl }) => /(?:^|;)\s*color\s*:\s*([^;!]+)/.exec(decl)?.[1].trim()).filter(Boolean))].sort();
+            const stops = rule => /\.drpg-voice-tile-state\s*>\s*span$/.test(rule.sel) && /(?:^|;)\s*animation\s*:\s*none\b/.test(rule.decl);
+            const stopped = Object.fromEntries(Object.entries(SWITCHES).map(([what, re]) => [what, word.some(rule => stops(rule) && re.test(rule.sel))]));
+            stopped["prefers-reduced-motion"] = word.some(rule => stops(rule) && /prefers-reduced-motion\s*:\s*reduce/.test(rule.within));
+            const runs = word.some(({ sel, decl, within }) => /\.drpg-voice-tile-state\s*>\s*span$/.test(sel) && !within
+                && /(?:^|;)\s*animation\s*:\s*drpg-voice-word-run\b/.test(decl));
+            return [word.length > 0, hides, faint, inks, stopped, runs];
+        };
+        const plant = (file, from, to) => sheets.map(([name, css]) => {
+            if (name !== file) return [name, css];
+            // No `must` here: a sheet with no such text is not planted in and the reader below fails on an
+            // assertion, which is how this test reads at the parent (no word, nothing to plant in: red first, 17.10.2026).
+            return [name, css.replace(from, to)];
+        });
+        const hidden = reading(plant("danganronpa.css", "body.drpg-no-ticker .drpg-voice-tile-state > span,",
+            "body.drpg-no-ticker .drpg-voice-tile-state { display: none; }\nbody.drpg-no-ticker .drpg-voice-tile-state > span,"));
+        const sgWord = "body.drpg-theme-stained-glass #drpg-voice-tile .drpg-voice-tile-state {\n    font-family: var(--drpg-font-chrome);\n    letter-spacing: 0.04em;\n    color: var(--drpg-glass-accent);";
+        const faint = reading(plant("stained-glass.css", sgWord, sgWord.replace("var(--drpg-glass-accent)", "rgba(var(--drpg-accent-rgb), 0.2)")));
+        const unstopped = reading(plant("danganronpa.css", "body.drpg-stacked .drpg-voice-tile-state > span { animation: none; }",
+            "body.drpg-stacked .drpg-voice-tile-state > span { animation-play-state: running; }"));
+        equal(J([hidden[1], faint[2], unstopped[4].stacked]), J([["danganronpa.css body.drpg-no-ticker .drpg-voice-tile-state"],
+            ["stained-glass.css body.drpg-theme-stained-glass #drpg-voice-tile .drpg-voice-tile-state"], false]),
+        "the reader does not see the word hidden with the ticker off, its colour at 0.2, or the stacked screen's stop taken out");
+        equal(J(reading(sheets)), J([true, [], [], ["var(--color-text-primary, #efe6d8)", "var(--drpg-glass-accent)"],
+            { "no ticker": true, "reduced motion": true, stacked: true, "prefers-reduced-motion": true }, true]),
+        "[rules name the word; rules that hide it; rules that set it faint; its colours; its runs stopped by each switch; its runs running otherwise]");
     }]
 ];
 

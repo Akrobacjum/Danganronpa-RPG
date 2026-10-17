@@ -6520,7 +6520,7 @@ body.drpg-dock-hidden .application[id^="camera-view-"] {
 }
 .drpg-voice-tile.is-fading .drpg-voice-tile-face { opacity: 0; }
 .drpg-voice-tile :is(.drpg-voice-tile-face, .drpg-voice-tile-more, .drpg-voice-tile-nobody, .drpg-voice-tile-note,
-    .drpg-voice-count, .drpg-voice-count-line)[hidden] { display: none; }
+    .drpg-voice-tile-state, .drpg-voice-count, .drpg-voice-count-line)[hidden] { display: none; }
 
 .drpg-voice-tile-art {
     position: absolute;
@@ -6559,8 +6559,9 @@ body.drpg-dock-hidden .application[id^="camera-view-"] {
 }
 .drpg-voice-tile-more { font-size: var(--drpg-text-xs); }
 
-/* Read by a screen reader while nobody speaks, never seen. */
-.drpg-voice-tile-nobody {
+/* Read by a screen reader while nobody speaks, never seen: the sentence of the state word (E79 C15), and the
+   microphone's line, which the note under the buttons showed until C15 and the word says now. */
+.drpg-voice-tile :is(.drpg-voice-tile-nobody, .drpg-voice-tile-note) {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -6688,19 +6689,66 @@ body.drpg-dock-hidden .application[id^="camera-view-"] {
     background: var(--drpg-bone);
     color: var(--drpg-ink);
 }
-.drpg-voice-tile-note {
+.drpg-voice-tile-note { margin: 0; }
+
+/* THE STATE WORD (E79 C15, 1.2.79; the owner's N10, N12 and N15): while nobody speaks, one word of the
+   tile's state - Connecting, Disconnected, Connected, Eclipsed, Blocked, Own window - on the note's dark
+   plate and in its full ink: not the clock's ticker, which is an outline at 22 %. It runs as the clock's
+   does (utils.mjs `tickerRuns`: two copies, the pair moved by one copy's width), and stands still under
+   reduced motion, with the ticker switched off and on a stacked screen - never hidden by any of them
+   (R589). Under Monokuma Legacy it stands at the tile's foot, in the name plate's place, which is empty
+   while nobody speaks: the band left of the buttons in the top corner (the owner, 14.10.2026: "text in a
+   corner of the tile") is 69 px wide inside its padding there, and the six words in this font measured
+   86-143 px in Chromium on 16.10.2026 - cut, when still, to their first letters; at the foot it has 139.
+   stained-glass.css stands it in the top corner of its pane, where the words measured 41-65 px. */
+.drpg-voice-tile-state {
     position: absolute;
-    top: 42px;
+    bottom: 10px;
     left: 6px;
     right: 6px;
     z-index: 1;
-    margin: 0;
-    padding: 3px 6px;
+    box-sizing: border-box;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    white-space: nowrap;
+    padding: 0 6px;
     font-size: var(--drpg-text-xs);
     line-height: 1.3;
+    text-transform: uppercase;
     color: var(--color-text-primary, #efe6d8);
     border-radius: 4px;
     background: rgba(var(--drpg-deep-rgb), 0.85);
+    -webkit-mask-image: linear-gradient(90deg, #000 82%, transparent);
+    mask-image: linear-gradient(90deg, #000 82%, transparent);
+    pointer-events: auto;
+}
+.drpg-voice-tile-state > span {
+    flex: 0 0 auto;
+    padding-right: 0.5em;
+    animation: drpg-voice-word-run 12s linear infinite;
+}
+@keyframes drpg-voice-word-run {
+    from { transform: translateX(0); }
+    to   { transform: translateX(-100%); }
+}
+/* Still, never gone: with the ticker off, under reduced motion and on a stacked screen. */
+body.drpg-no-ticker .drpg-voice-tile-state > span,
+body.drpg-reduced-motion .drpg-voice-tile-state > span,
+body.drpg-stacked .drpg-voice-tile-state > span { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+    .drpg-voice-tile-state > span { animation: none; }
+}
+/* On a stacked screen, in the tiles' row between the face (hidden while nobody speaks) and the buttons.
+   Here and not in narrow.css, which E79 leaves untouched (the stage's glass check); narrow.css states no
+   rule of this element for it to lose a tie with. */
+body.drpg-stacked #drpg-tile-row .drpg-voice-tile-state {
+    position: static;
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 132px;
+    margin-right: 6px;
 }
 
 /* THE LIST 'WHO YOU HEAR' (E78 C5, 14.10.2026; the owner's Q0): the speaker button's dialog,

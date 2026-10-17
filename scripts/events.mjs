@@ -21,7 +21,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { getClock } from "./clock.mjs";
-import { error, plural } from "./utils.mjs";
+import { error, plural, tickerRuns } from "./utils.mjs";
 import { marksOf } from "./character.mjs";
 import { motive } from "./rules.mjs";
 import { pendingGather } from "./call-effects.mjs";
@@ -572,9 +572,7 @@ export function cardTicker(card) {
     const ticker = document.createElement("div");
     ticker.className = "drpg-event-ticker";
     ticker.setAttribute("aria-hidden", "true");
-    const run = document.createElement("span");
-    run.textContent = Array(6).fill(word).join(" · ") + " · ";
-    ticker.append(run, run.cloneNode(true));
+    ticker.append(...tickerRuns(word));
     return ticker;
 }
 

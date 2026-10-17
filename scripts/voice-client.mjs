@@ -80,6 +80,26 @@ let chain = Promise.resolve();
  */
 let applying = false;
 
+/**
+ * Whether this file is moving the client between rooms now (`applying`), for the voice tile's state word (E79
+ * C15, 1.2.79; the owner's N10 of 14.10.2026: "switching rooms shows an error ... instead 'Pending...' while
+ * switching"). Until then the tile could not see a switch: avclient-livekit's Room still said "connected" while
+ * `game.webrtc.connect()` was taking it down, and the tile's note said "You are not connected to voice." once it
+ * had. `drpgVoiceApplying` is called with the new value each time it flips (`setApplying`), and the tile repaints
+ * its word on it (voice-tile.mjs `onVoiceApplying`); nothing else listens.
+ *
+ * @returns {boolean}
+ */
+export function voiceApplying() {
+    return applying;
+}
+
+function setApplying(value) {
+    if (applying === value) return;
+    applying = value;
+    Hooks.callAll("drpgVoiceApplying", value);
+}
+
 export function registerVoiceClient() {
     // A/V comes up (or comes back up) - this is the moment a parked room can
     // finally be applied, and the moment a fresh client should ask where it
@@ -370,7 +390,7 @@ export async function applyBreakout(room) {
 
     const client = liveKitClient();
     let connected = false;
-    applying = true;
+    setApplying(true);
     try {
         client.breakoutRoom = room ?? undefined;
         connected = await game.webrtc.connect();
@@ -382,7 +402,7 @@ export async function applyBreakout(room) {
         error(`Could not move this client's voice to "${target ?? "the main room"}"`, err);
         return "failed";
     } finally {
-        applying = false;
+        setApplying(false);
     }
 
     if (connected === false) {

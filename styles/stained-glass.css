@@ -1312,8 +1312,16 @@ body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"]:not([data-fi
     flex-direction: column;
     gap: 4px;
 }
-body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"]:not([data-fit="compact"]) .drpg-voice-tile-note {
+/* The state word (E79 C15) where the microphone's line stood, left of the buttons; in the game state's colour at
+   full ink on the note's dark plate (the clock's ticker is that colour as an outline at 22 %). */
+body.drpg-theme-stained-glass #drpg-voice-tile .drpg-voice-tile-state {
+    font-family: var(--drpg-font-chrome);
+    letter-spacing: 0.04em;
+    color: var(--drpg-glass-accent);
+}
+body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"]:not([data-fit="compact"]) .drpg-voice-tile-state {
     top: 6px;
+    bottom: auto;
     right: 40px;
 }
 /* COMPACT, ON A SHORT DESK (E78 fix r2-H1, 14.10.2026; review round 2's cor F1): a tile glass.mjs
@@ -1332,6 +1340,12 @@ body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="co
 }
 body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"] :is(.drpg-voice-tile-speaking, .drpg-voice-tile-note) {
     display: none;
+}
+/* The state word takes the name plate's place when nobody speaks (E79 C15): one row, left of the buttons. */
+body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"] .drpg-voice-tile-state {
+    top: calc(50% - 15px);
+    bottom: auto;
+    right: 82px;
 }
 body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"] .drpg-voice-tile-plate {
     flex-direction: row;

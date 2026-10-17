@@ -24,7 +24,7 @@ import { MODULE_ID, TIMES_OF_DAY, ECLIPSE_FREE_PLACEMENT, ECLIPSE_MOVES, TIMING 
 import { overflowCrossings } from "./overflow.mjs";
 import { getClock, setClock, campaignName, phaseLabel, timeOfDayLabel, rewindTimeOfDay } from "./clock.mjs";
 import { play, TURN, ARRIVE, LEAVE } from "./motion.mjs";
-import { isPrimaryGm, error, debug, serverNow } from "./utils.mjs";
+import { isPrimaryGm, error, debug, serverNow, tickerRuns } from "./utils.mjs";
 import { isSyncedSetting } from "./sync.mjs";
 // A leaf: settings.mjs imports config.mjs and nothing else. Its reader used to
 // be a private copy here "for the cycle" (audit C3) - the cycle was real, the
@@ -312,9 +312,7 @@ function hudTicker(phase, clock) {
     ticker.className = "drpg-hud-ticker";
     ticker.setAttribute("aria-hidden", "true");
     const word = phase === "eclipse" ? game.i18n.localize("DRPG.Explain.phase.eclipseTitle") : phaseLabel(clock.phase);
-    const run = document.createElement("span");
-    run.textContent = Array(6).fill(word).join(" · ") + " · ";
-    ticker.append(run, run.cloneNode(true));
+    ticker.append(...tickerRuns(word));
     return ticker;
 }
 

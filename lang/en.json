@@ -3510,6 +3510,14 @@
         "label": "Voice",
         "speaking": "Speaking",
         "nobody": "Nobody is speaking",
+        "state": {
+          "connecting": "Connecting",
+          "disconnected": "Disconnected",
+          "connected": "Connected",
+          "eclipsed": "Eclipsed",
+          "blocked": "Blocked",
+          "external": "Own window"
+        },
         "more": {
           "one": "and {n} more speaking",
           "other": "and {n} more speaking"
@@ -3528,7 +3536,8 @@
         "eclipseHeard": "Eclipse: nobody hears you until the lights come back.",
         "gmBlock": "The GM blocked your microphone.",
         "external": "Voice is in its own window - use the controls there.",
-        "offline": "You are not connected to voice."
+        "offline": "You are not connected to voice.",
+        "connecting": "Joining your voice channel."
       },
       "list": {
         "open": "Who you hear",
