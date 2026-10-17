@@ -57,6 +57,12 @@ const ACTION_VOTE_CAST = "vote.cast";
 const ACTION_VOTE_ASK = "vote.ask";
 /** GM -> primary GM: the GM's Now on the trial's floor (E10 fix r2-G6; trial-floor.mjs `advanceFloorNow`). */
 const ACTION_FLOOR_NOW = "floor.now";
+/** player -> primary GM: OBJECTION!, aimed at whoever speaks, pending its Truth Bullet (E79 C16; trial.mjs `objectOnPrimary`). */
+const ACTION_TRIAL_OBJECT = "trial.object";
+/** player -> primary GM: the Truth Bullet for that pending Objection (E79 C16; trial.mjs `evidenceOnPrimary`). */
+const ACTION_TRIAL_EVIDENCE = "trial.evidence";
+/** GM -> primary GM: the running Objection aimed at somebody else, from the trial console (E79 C16; trial.mjs `repointOnPrimary`). */
+const ACTION_FLOOR_REPOINT = "floor.repoint";
 /** GM -> primary GM: Approve or Decline on a reshape card (E09 C10; cleanup.mjs `ruleReshape`, `askReshapeRuling`). */
 const ACTION_RESHAPE_RULING = "cleanup.ruling";
 /** player -> GM: "which of this roll's statistics?" (E32+E07 C11b; trait-ruling.mjs). */
@@ -1511,6 +1517,30 @@ async function handleFloorNow(payload) {
     return { reply: await advanceFloorOnPrimary(seen) };
 }
 
+/** The run of `trial.object` (E79 C16): the primary's judgement of the press, its payment and its pending card (trial.mjs `objectOnPrimary`). */
+async function handleTrialObject(payload) {
+    const { objectOnPrimary } = await import("./trial.mjs");
+    const out = await objectOnPrimary({ actorId: payload.actorId, targetId: payload.targetId });
+    if (out?.refused) return { refused: out.refused };
+    return { reply: out?.reply ?? null };
+}
+
+/** The run of `trial.evidence` (E79 C16): the Truth Bullet on the objector's own pending card (trial.mjs `evidenceOnPrimary`). */
+async function handleTrialEvidence(payload) {
+    const { evidenceOnPrimary } = await import("./trial.mjs");
+    const out = await evidenceOnPrimary({ actorId: payload.actorId, itemId: payload.itemId, comment: payload.comment });
+    if (out?.refused) return { refused: out.refused };
+    return { reply: out?.reply ?? null };
+}
+
+/** The run of `floor.repoint` (E79 C16): a GM's new target for the running Objection (trial.mjs `repointOnPrimary`). */
+async function handleFloorRepoint(payload) {
+    const { repointOnPrimary } = await import("./trial.mjs");
+    const out = await repointOnPrimary({ targetId: payload.targetId });
+    if (out?.refused) return { refused: out.refused };
+    return { reply: out?.reply ?? null };
+}
+
 /** The run of `cleanup.ruling` (E09 C10): the primary's own ruling (cleanup.mjs `ruleReshape`), recorded as the asking GM's. */
 async function handleReshapeRuling(payload, sender) {
     const { ruleReshape } = await import("./cleanup.mjs");
@@ -2234,6 +2264,55 @@ export const BRIDGE_ACTIONS = table({
         }
     },
     /*
+     * AN OBJECTION, RAISED ON THE PRIMARY GM AND PROVED AFTER (E79 C16, 1.2.79; the owner, 17.10.2026). The press
+     * names only the objector: the target is whoever the primary GM's voice Room counts as speaking now, or last
+     * (trial-speakers.mjs), and the packet's `targetId` is read only when the primary has no Room to listen to.
+     * The primary judges the trial, the floor, the death and the bullets as the GMs hold them, pays the price, posts
+     * the card as a GM, pending, and opens the floor on it (trial.mjs `objectOnPrimary`); refused, nothing is paid.
+     * `reply`: the asker opens its picker on the answer, the card and its deadline. Quiet: the asker's picker and
+     * the whisper of the price say what came of it, and a refusal is told by the runner as every refusal is - not
+     * quiet, then: the player pressed and waits for this.
+     */
+    [ACTION_TRIAL_OBJECT]: {
+        label: "DRPG.Bridge.what.trial.object",
+        guards: [knownSender, owns("actorId", "sender does not own the character objecting")],
+        sanitize: pick({ actorId: as.id, targetId: as.id }),
+        run: handleTrialObject,
+        answer: "reply",
+        claims: {
+            targetId: "read by trial.mjs objectOnPrimary only while the primary GM has no voice Room (trial-speakers.mjs speakerRoomOpen), then held by targetRefusal (trial-floor.mjs mayObjectTo) to a living student the floor lets the objector aim at; with a Room it is not read"
+        }
+    },
+    /*
+     * THE TRUTH BULLET FOR IT (E79 C16). The objector's own Objection, pending, inside its seconds, and a bullet the
+     * character holds as the GMs hold it (trial.mjs `evidenceOnPrimary`, trial-floor.mjs `pendingFor`); a late
+     * pick, somebody else's or a made-up item changes nothing. `reply`: the asker's picker closes on it.
+     */
+    [ACTION_TRIAL_EVIDENCE]: {
+        label: "DRPG.Bridge.what.trial.evidence",
+        guards: [knownSender, owns("actorId", "sender does not own the character objecting")],
+        sanitize: pick({ actorId: as.id, itemId: as.id, comment: as.text }),
+        run: handleTrialEvidence,
+        answer: "reply",
+        claims: {
+            itemId: "held by trial.mjs evidenceOnPrimary to a Truth Bullet the objector holds as the GMs hold it (sheet-audit.mjs itemAsHeld), on the objector's own pending Objection inside its seconds (trial-floor.mjs pendingFor)"
+        }
+    },
+    /*
+     * A GM'S RE-POINT, RUN ON THE PRIMARY GM (E79 C16). The trial console's Re-point: the running Objection's
+     * target alone, as `floor.now` moves the floor on, so a second GM's press is not a second writer.
+     */
+    [ACTION_FLOOR_REPOINT]: {
+        label: "DRPG.Bridge.what.floor.repoint",
+        guards: [gmOnly("only a GM re-points an objection")],
+        sanitize: pick({ targetId: as.id }),
+        run: handleFloorRepoint,
+        answer: "reply",
+        claims: {
+            targetId: "held by trial.mjs repointOnPrimary to a living student the floor lets the objector aim at (trial-floor.mjs mayObjectTo); a GM's request only"
+        }
+    },
+    /*
      * A RESHAPE RULED ON THE PRIMARY GM (E09 C10, 08.10.2026). Each GM has the card, and
      * each GM's ruling used to run on its own browser against its own copy of the synced
      * attempt store: two GMs - or Approve and Decline on one card - both wrote. The primary
@@ -2383,6 +2462,43 @@ export function requestPassageShare({ actorId, targetId, passageId }) {
         local: () => import("./passages-gm.mjs").then(m => m.sharePassage({ actorId, targetId, passageId }, { asker: game.user })).then(out => {
             if (out?.refused) sayNotDone(ACTION_PASSAGE_SHARE, reasonOf(out.refused));
             return Boolean(out?.shown);
+        })
+    });
+}
+
+/**
+ * OBJECTION!, for the viewer's own student (E79 C16; trial.mjs `raiseObjection`). Its value is the primary GM's
+ * `{ messageId, target, how, deadline }`. `targetId` is the asker's choice when its own browser has no voice Room,
+ * and the primary reads it only when it has none either. A GM's own browser runs it here when it is the primary.
+ */
+export function requestObject({ actorId, targetId = null }) {
+    return ask(ACTION_TRIAL_OBJECT, { actorId, targetId }, {
+        onPrimary: true,
+        local: () => import("./trial.mjs").then(m => m.objectOnPrimary({ actorId, targetId })).then(out => {
+            if (out?.refused) sayNotDone(ACTION_TRIAL_OBJECT, reasonOf(out.refused));
+            return out?.reply ?? null;
+        })
+    });
+}
+
+/** The Truth Bullet for the asker's pending Objection (E79 C16; trial.mjs `pickObjectionEvidence`). Its value is `{ item }`. */
+export function requestEvidence({ actorId, itemId, comment = "" }) {
+    return ask(ACTION_TRIAL_EVIDENCE, { actorId, itemId, comment }, {
+        onPrimary: true,
+        local: () => import("./trial.mjs").then(m => m.evidenceOnPrimary({ actorId, itemId, comment })).then(out => {
+            if (out?.refused) sayNotDone(ACTION_TRIAL_EVIDENCE, reasonOf(out.refused));
+            return out?.reply ?? null;
+        })
+    });
+}
+
+/** A GM's new target for the running Objection (E79 C16; trial.mjs `repointDialog`). Its value is `{ target }`. */
+export function requestRepoint(targetId) {
+    return ask(ACTION_FLOOR_REPOINT, { targetId }, {
+        onPrimary: true,
+        local: () => import("./trial.mjs").then(m => m.repointOnPrimary({ targetId })).then(out => {
+            if (out?.refused) sayNotDone(ACTION_FLOOR_REPOINT, reasonOf(out.refused));
+            return out?.reply ?? null;
         })
     });
 }

@@ -8619,7 +8619,7 @@ const INVARIANTS = [
             NH.holdNoticeHistory(false);
         }
         const sources = await moduleSources();
-        const evidence = bodyOf(stripComments(sources.get("trial.mjs") ?? ""), "if (authorised) showPopup(", { length: 500 });
+        const evidence = bodyOf(stripComments(sources.get("trial.mjs") ?? ""), "if (authorised && !playerObjection) showPopup(", { length: 500 });
         const summary = fnSource(stripComments(sources.get("day-summary.mjs") ?? ""), "showDaySummary");
         direct.sources = [/\bsource:\s*"evidence"/.test(evidence) && /\bmessageId:\s*message\.id\b/.test(evidence), /showPopup\([^;]*\bsource:\s*"summary"/.test(summary)];
         const t = key => game.i18n.localize(key);
@@ -15588,6 +15588,116 @@ const INVARIANTS = [
             + "the Room (the hook); the move over; a GM's block; the block, lost; the Eclipse, lost; the Eclipse heard; own window while moving; "
             + "a speaker (hidden, the name); gone; reduced motion and no ticker, lost, with its runs], [aria-hidden, the two runs, the live text's "
             + "role and politeness], [voiceWord's order], [the English and the Polish words and sentences]");
+    }],
+
+    ["R590 - an Objection is aimed at the speaker the Room counts: somebody listed by LiveKit for 1000 ms without a break is speaking now, loudest first, else the newest run that counted is the last who spoke; a shorter run, the objector and whoever the reader turns down are passed over; a new Room ends the old Room's runs, keeps what counted and hears nothing of the old Room; and the record holds nothing outside a Class Trial and starts empty in each", async () => {
+        /*
+         * E79 C16 (17.10.2026; the prep's (a)). The owner, 17.10: "objection na aktualnie mowiacego (lub jesli nikt juz
+         * nie mowi - ostatniego mowiacego gracza)". trial-speakers.mjs's record, built here with a clock the test
+         * moves and a trial switch it throws (`speakerRecord({ clock, trial })`), so a read-only tier walks a trial in
+         * and out without writing the clock; a stand-in Room of the voice tile's shape (its `remoteParticipants`, the
+         * client's `getParticipantFVTTUser`) lists three player accounts, A, B and C, and `objectionTarget` is read
+         * with a reader that stands each account for a student (`actorOf`, the primary's being `speakingStudent`)
+         * and turns down whom the test names. In order: B listed outside a trial; in one, B listed at 0 and read at
+         * 999 and 1000 ms; C louder from 1500, read at 1500 and 2500; C the objector; silence at 3000; A's cough of
+         * 500 ms; C turned down (a GM, a Monocub or the dead, as `speakingStudent` answers them - their fixtures are
+         * the tier-2 test's); A listed at 4000 and a new Room at 5200, then the old Room listing B and the listeners
+         * left on each; the new Room listing B for 1100 ms; the trial ended and begun again; and `speakerRoomOpen`
+         * for a connected Room, a connecting one, a Room without `on` and none. Each read is "<who>:<how>" or "-".
+         * Red at C16's parent: there was no trial-speakers.mjs (the first assertion). How soon a real LiveKit lists a
+         * speaker after the first word, and whether 1000 ms is right at a table, is LIVE-E79-22.
+         */
+        needs(world.atLeast("playerAccounts", 3), "three accounts besides the GM's to speak in the stand-in Room");
+        let T = null;
+        try {
+            T = await import("./trial-speakers.mjs");
+        } catch {
+            T = null;
+        }
+        ok(typeof T?.objectionTarget === "function" && typeof T?.speakerRecord === "function",
+            "trial-speakers.mjs does not answer whom an Objection is aimed at - the objector still names the target");
+        if (typeof T?.objectionTarget !== "function" || typeof T?.speakerRecord !== "function") return;
+        const users = game.users.filter(user => user.id !== game.user.id && !user.isGM).slice(0, 3);
+        const NAMES = ["A", "B", "C"], idOf = name => users[NAMES.indexOf(name)].id, nameOf = id => NAMES[users.findIndex(u => u.id === id)] ?? "?";
+        const makeRoom = () => {
+            const handlers = new Map();
+            const room = {
+                state: "connected", activeSpeakers: [], localParticipant: { identity: game.user.id, isLocal: true },
+                remoteParticipants: new Map(users.map(user => [user.id, { identity: user.id, isLocal: false }])),
+                on(event, fn) { if (!handlers.has(event)) handlers.set(event, []); handlers.get(event).push(fn); return this; },
+                off(event, fn) { const list = handlers.get(event) ?? []; if (list.includes(fn)) list.splice(list.indexOf(fn), 1); return this; },
+                listenerCount: event => (handlers.get(event) ?? []).length,
+                emit(event, arg) { for (const fn of [...(handlers.get(event) ?? [])]) fn(arg); }
+            };
+            return room;
+        };
+        const clientOf = room => ({ liveKitRoom: room, getParticipantFVTTUser: participant => game.users.get(participant?.identity) });
+        const speak = (room, names) => {
+            room.activeSpeakers = names.map(name => room.remoteParticipants.get(idOf(name)));
+            room.emit("activeSpeakersChanged", room.activeSpeakers);
+        };
+        let now = 0, inTrial = false, exclude = null;
+        const turnedDown = new Set();
+        const record = T.speakerRecord({ clock: { now: () => now }, trial: () => inTrial });
+        const actorOf = userId => (turnedDown.has(userId) ? null : { id: `actor-${nameOf(userId)}` });
+        const read = () => {
+            const found = T.objectionTarget({ exclude, record, actorOf });
+            return found ? `${nameOf(found.userId)}:${found.how}` : "-";
+        };
+        const seen = [];
+        const at = (ms, note) => { now = ms; seen.push(note ? `${note} ${read()}` : read()); };
+        const first = makeRoom(), second = makeRoom();
+        T.attachSpeakers(clientOf(first), record);
+        now = 0;
+        speak(first, ["B"]);
+        at(2000, "outside");
+        inTrial = true;
+        now = 0;
+        speak(first, ["B"]);
+        at(999);
+        at(1000);
+        now = 1500;
+        speak(first, ["C", "B"]);
+        at(1500);
+        at(2500);
+        exclude = "actor-C";
+        at(2500, "objector C");
+        exclude = null;
+        now = 3000;
+        speak(first, []);
+        at(3000, "silence");
+        now = 3100;
+        speak(first, ["A"]);
+        now = 3600;
+        speak(first, []);
+        at(3600, "cough");
+        turnedDown.add(idOf("C"));
+        at(3600, "C turned down");
+        turnedDown.clear();
+        now = 4000;
+        speak(first, ["A"]);
+        now = 5200;
+        const attached = T.attachSpeakers(clientOf(second), record);
+        at(5200, "new Room");
+        now = 6500;
+        speak(first, ["B"]);
+        at(6500, "old Room");
+        const listeners = [first.listenerCount("activeSpeakersChanged"), second.listenerCount("activeSpeakersChanged")];
+        speak(second, ["B"]);
+        at(7600, "new Room B");
+        inTrial = false;
+        at(7600, "ended");
+        inTrial = true;
+        at(7600, "again");
+        const open = [T.speakerRoomOpen(clientOf(second)), T.speakerRoomOpen(clientOf({ ...makeRoom(), state: "connecting" })),
+            T.speakerRoomOpen({ liveKitRoom: { state: "connected" } }), T.speakerRoomOpen(null)];
+        equal(JSON.stringify([seen, attached, listeners, open, T.SPEAKER_MS]), JSON.stringify([
+            ["outside -", "-", "B:now", "B:now", "C:now", "objector C B:now", "silence C:last", "cough C:last", "C turned down B:last",
+                "new Room A:last", "old Room A:last", "new Room B B:now", "ended -", "again -"],
+            true, [0, 1], [true, false, false, false], 1000]),
+        "[the reads: B outside a trial; at 999 and 1000 ms; C louder at 1500 and 2500; C objecting; silence; a 500 ms cough; C turned down; "
+            + "a new Room; the old Room's event; the new Room's B; the trial ended; begun again], [the new Room followed], "
+            + "[listeners left on the old Room and on the new], [speakerRoomOpen: connected, connecting, no `on`, none], [the 1000 ms]");
     }],
 ];
 

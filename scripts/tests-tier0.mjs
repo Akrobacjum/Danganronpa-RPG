@@ -2240,35 +2240,24 @@ const REGRESSIONS = [
             "nothing on the player's side asks who may be aimed at");
 
         /*
-         * AND THE FALLBACK IS OFFERED ONLY TO THE LIVING, AND ONLY ON A PRICE.
-         * A corpse or a Monokuma is refused with nothing offered, because a free
-         * Present in place of an impossible Objection is a different act nobody
-         * asked for (Dawid, 17.09).
+         * THE SAME RULE ON THE ROAD THAT REPLACED THE WINDOW'S (E79 C16, 1.2.79). The sheet's window presents only
+         * since the owner's rule of 17.10.2026, and its free-Present fallback went with the Objection it stood in
+         * for; an Objection is raised on the primary GM (`objectOnPrimary`), which asks the pair through the two
+         * questions without their words (trial-floor.mjs `objectionOpen`, `mayObjectTo`), and the button's preview
+         * (`objectionButtonState`) asks the floor's.
          */
+        ok(/export function objectionOpen\([^{]*\{\s*return floorRefusal\(floor\) === null;/.test(floorSrc)
+            && /export function mayObjectTo\([^{]*\{\s*return targetRefusal\(objectorId, targetId, floor\) === null;/.test(floorSrc),
+            "objectionOpen or mayObjectTo stopped being the two refusals' questions, so the primary judges an Objection by another rule");
+        const raise = bodyOf(trialSrc, "export async function objectOnPrimary", { until: "export async function evidenceOnPrimary" });
+        ok(raise.includes("objectionOpen(") && raise.includes("mayObjectTo("),
+            "the primary GM's Objection stopped asking the floor rule or the target rule");
+        const preview = bodyOf(trialSrc, "export async function objectionButtonState", { until: "export async function repointDialog" });
+        ok(preview.includes("floorRefusal(") && preview.includes("objectionOpen("),
+            "OBJECTION!'s preview stopped asking the floor rule, so the button promises what the primary refuses");
         const dialog = bodyOf(trialSrc, "export async function presentDialog", { until: "export async function presentBullet" });
-        const offer = bodyOf(dialog, "const offerPresent", { until: ";" });
-        ok(/!floorBlock/.test(offer), "the free Present is offered while the floor itself is blocked");
-        ok(offer.includes('"noPrice"'),
-            "the free Present is offered to characters who are quoted no price at all");
-
-        /*
-         * ENTER MUST HAVE SOMEWHERE TO GO. DialogV2 renders every footer button as a
-         * submit, and implicit submission from the target select aims at the FIRST
-         * one in tree order - a disabled first button kills Enter outright rather
-         * than falling through to the next.
-         *
-         * So the array that answers a price block leads with the free Present: it is
-         * enabled, it carries `default: true`, and it is what Enter from the select
-         * should do anyway. The ordinary array's first button is `disabled: stopped`
-         * and that is right - every case that sets `stopped` there renders the
-         * "nobody to aim at" note or no fieldset at all, so there is no select for
-         * Enter to come from.
-         */
-        const firstButton = bodyOf(dialog, "buttons: (offerPresent ? [", { until: "}" });
-        ok(!/disabled:/.test(firstButton),
-            "the free Present is disabled, which kills Enter from the target select");
-        ok(/default: true/.test(firstButton),
-            "the free Present is not the default, so Enter presses a greyed OBJECTION");
+        ok(!/offerPresent|objection/i.test(dialog.replace(/presentBullet\(actor, item, \{ comment \}\)/, "")),
+            "the sheet's window still offers an Objection or the free Present that stood in for one");
 
         // The question alone, never the one that toasts: a window opening with no
         // GM connected must not warn every player who opens it (audit A16).
@@ -5636,6 +5625,8 @@ const REGRESSIONS = [
             recordBallot: "refused", ballotRefusal: "returns",
             // E79 C7: a secret passage shown, judged on the primary (passages-gm.mjs), whose run passes its `{ refused }` on.
             sharePassage: "refused", shareRefusal: "returns",
+            // E79 C16: an Objection raised, proved and re-pointed on the primary (trial.mjs), whose runs pass their `{ refused }` on.
+            objectOnPrimary: "refused", evidenceOnPrimary: "refused", repointOnPrimary: "refused",
             resolveObserve: "passes", hopeCallRefusal: "wraps"
         };
         const sources = [...await otherSources()].map(([file, raw]) => [file, stripComments(raw)]);
@@ -7172,6 +7163,9 @@ const REGRESSIONS = [
             ["tables.mjs", "wirePaneHeading", "gone", "a pool table, deleted"],
             ["tables.mjs", "wirePaneRows", "result", "a pool table's result and its flags"],
             ["tables.mjs", "createPoolFrom", "RollTable", "a new pool table"],
+            ["trial.mjs", "objectOnPrimary", "message", "an Objection's own card, taken back when the floor did not move (E79 C16; a bridge run, on the primary GM)"],
+            ["trial.mjs", "evidenceOnPrimary", "message", "an Objection's card, filled with its Truth Bullet (E79 C16; a bridge run, on the primary GM)"],
+            ["trial.mjs", "repointOnPrimary", "message", "an Objection's card, its target's line rewritten (E79 C16; a bridge run, on the primary GM)"],
             ["utils.mjs", "privately", "ChatMessage", "a whispered chat card"]
             // vault.mjs applyRoomRows's "region" row went with E12 C2a: Room Setup writes a room's flags
             // through `updateRoom`, which is gated on a GM's client.
@@ -7564,7 +7558,19 @@ const REGRESSIONS = [
             ["SOCKET vote.mjs#onBallotOpened#picks", "out of scope: a GM -> player packet (vote.mjs:214-215); the window draws as many lists as it says, and since C2 the primary holds the answer to the vote's own count (`ballotRefusal`, wrongCount) [F5]"],
             ["SOCKET gm-bridge.mjs#onAdvancementOffers#offers", "out of scope: the primary's reply to an owner; `replyForMe` checks a GM sender and the address, and `receiveOffers` keeps only the receiver's own characters with a known kind (level-up.mjs:199) [F7]"],
             ["SOCKET gm-bridge.mjs#onAdvancementOffers#stamps", "out of scope: the primary's reply to an owner; `replyForMe` checks a GM sender and the address, and `receiveOffers` keeps only the receiver's own characters with a known kind (level-up.mjs:199) [F7]"],
-            ["CHAT trial.mjs#registerTrial", "judged: a Present card's popup shows only when the author is a GM or owns the speaker and it holds the item (trial.mjs ~534-553); an objection acts on the primary only and `seizeFloor` re-judges it (author owns the objector, `itemAsHeld`, `floorRefusal`/`targetRefusal`), refused and told on the card; since C16 a dead objector too (`flagsAsHeld`) [F4 read road]"],
+            ["CHAT trial.mjs#registerTrial", "judged: a Present card's popup shows only when the author is a GM or owns the speaker and it holds the item (trial.mjs ~534-553); an objection acts on the primary only and `seizeFloor` re-judges it (author owns the objector, `itemAsHeld`, `floorRefusal`/`targetRefusal`), refused and told on the card; since C16 a dead objector too (`flagsAsHeld`) [F4 read road]. Since E79 C16 a player-authored objection card raises no popup and goes to `refusePlayersCard`; a GM's pending card waits for `objectOnPrimary`'s floor, and its redraw (`updateChatMessage`) follows a GM's card only"],
+            ["CHAT trial.mjs#refusePlayersCard", "judged (E79 C16): the primary marks a player-authored objection card refused and tells its character's owner (the author owns it: `objectionByButton`; else `objectionNotYours`); it pays nothing and moves no floor - the card's flags are claims and none is read for a write"],
+            ["CHAT trial.mjs#repointOnPrimary", "judged (E79 C16): `floor.repoint` is gmOnly; the target a living student as the GMs hold it (`livingStudentsForGm`) that `mayObjectTo` allows; the card's presenter flag is read only to redraw its line, the GMs' own card"],
+            ["CHAT trial.mjs#withdrawObjectionCard", "out of scope (E79 C16): a GM's write of the GMs' own pending card at the lapse (`lapseObjection`, primary); its flags are the ones `objectOnPrimary` wrote"],
+            ["SHEET trial.mjs#objectOnPrimary", "judged (E79 C16): `trial.object`'s run on the primary - knownSender + owns(actorId); the objector's death through `flagsAsHeld` and its bullets through `itemsAsHeld` before anything is paid; the target the primary's Room counts (`objectionTarget`, `speakingStudent`) or, with no Room, `livingStudentsForGm` with `mayObjectTo`; the packet's `targetId` read only then [1b.2, F4]"],
+            ["SHEET trial.mjs#nameObjectionTarget", "out of scope: the objector's own browser (R4): the list of whom to name with no voice Room (`livingStudents`, a courtesy); the primary judges the name (`objectOnPrimary`)"],
+            ["SHEET trial-speakers.mjs#speakingStudent", "judged in part (E79 C16): who a speaker stands for, on the primary at the read - a student the account owns, no Monokuma or Monocub, not dead by `isDeadForGm` (the flag or the GMs' `deaths` row); a death flag a player's write took off the document stands until the sheet audit puts it back, the same class as `applyFinalVerdict`'s, left to E40"],
+            ["PACKET gm-bridge.mjs#trial.object#actorId", "judged (E79 C16): knownSender + owns(actorId); `objectOnPrimary` reads the character as the GMs hold it"],
+            ["PACKET gm-bridge.mjs#trial.object#targetId", "judged (E79 C16): read only with no voice Room on the primary, then a living student as the GMs hold it (`livingStudentsForGm`) whom `mayObjectTo` allows; with a Room never read - the Room's speaker is the target (`objectionTarget`)"],
+            ["PACKET gm-bridge.mjs#trial.evidence#actorId", "judged (E79 C16): knownSender + owns(actorId); the floor must be that character's pending Objection on its card, inside its seconds (`pendingFor`)"],
+            ["PACKET gm-bridge.mjs#trial.evidence#itemId", "judged (E79 C16): a Truth Bullet as the GMs hold it (`itemAsHeld` + `isTruthBullet`), drawn on the card from what its holder knows (`holderView`)"],
+            ["PACKET gm-bridge.mjs#trial.evidence#comment", "judged (E79 C16): `as.text`, refused past a player's words (`noteTooLong`), escaped on the card"],
+            ["PACKET gm-bridge.mjs#floor.repoint#targetId", "judged (E79 C16): gmOnly; a living student as the GMs hold it whom `mayObjectTo` allows (`repointOnPrimary`)"],
             ["CHAT trial.mjs#seizeFloor", "judged: the card's flags are claims; the objector's death through `flagsAsHeld` (C16) and the item through `itemAsHeld` (E29), both before anything is paid, then the synchronous refusals [1b.2]"],
             ["CHAT trial.mjs#presentedThisChapter", "out of scope: a GM's log of the chapter's Present and Objection cards (trial.mjs:778, 798, GM only); a display, feeds no write"],
             ["SHEET events.mjs#bodyCard", "out of scope for the trial: the Investigation's body card (every client, display) draws only the bodies dead as the GMs hold them (`isDeceased` of `flagsHeldNow`), since E11 fix r1-G2; R346 judges it"],
@@ -7577,8 +7583,8 @@ const REGRESSIONS = [
             ["SHEET vote.mjs#executeSentenced", "judged (C5, fix r1-G4): each execution awaits `judgedFor(id)`, reads `flagsHeldNow(actor)` and, with nothing awaited after that read (H3), calls `killCharacter`, whose own head check is `isDeadForGm`, or for a death the GMs hold and nobody has found `publishDeath`, whose head reads the GMs' row (Q-E10-2 (a)); one the table knows dead is passed over, not killed twice; `killCharacter` is told `secret: false`, so an execution is public, an open incident's living victim's too (fix r2-G3), and `phase: \"classTrial\"` on both branches, so a verdict given after End the trial is no body to discover (E11 fix r1-G1) [1b.2]"],
             ["SHEET level-up.mjs#buildDetail", "out of scope: the picker's display on the player's own browser (R4); the GM decides in `handleAdvancement` [1b.2]"],
             ["SHEET level-up.mjs#applyAdvancement", "judged (C8): one `meansWrite` from `numberHeld` (E29 r2-H24/H25); a statistic not among TRAITS, an experience to raise with none named, or one not on the sheet the GMs hold (read in the job) stops the whole Level Up, nothing written; the `actor.system.experiences[id].name` read is a label in the GM's summary; R318 pins it [1b.2]"],
-            ["SHEET trial.mjs#presentDialog", "out of scope: the presenter's own browser (R4): the window's target list and, since C16, a dead presenter refused before it opens (document `isDeceased`, a courtesy); `seizeFloor` judges on the primary"],
-            ["SHEET trial.mjs#presentBullet", "out of scope: the presenter's own browser (R4): since C16 a dead presenter's card is refused on the API's road (document `isDeceased`); an Objection is judged by `seizeFloor` on the primary, and a Present has no GM-side judge - its popup (`registerTrial`) reads no death, left to E70's `isMutedDead`"],
+            ["SHEET trial.mjs#presentDialog", "out of scope: the presenter's own browser (R4): since C16 a dead presenter refused before it opens (document `isDeceased`, a courtesy); since E79 C16 a Present only, with no target list"],
+            ["SHEET trial.mjs#presentBullet", "out of scope: the presenter's own browser (R4): since C16 a dead presenter's card is refused on the API's road (document `isDeceased`); since E79 C16 an Objection only on a GM's browser, judged by `seizeFloor` on the primary, and a Present has no GM-side judge - its popup (`registerTrial`) reads no death, left to E70's `isMutedDead`"],
             ["SHEET trial.mjs#seizeFloor", "judged (C16): a dead objector is refused and told on the primary - `isDeceased(await flagsAsHeld(actor))` before the item and the synchronous `floorRefusal`/`targetRefusal`, nothing paid [1b.2, F4]"],
             ["SHEET sheet.mjs#addPresentButton", "out of scope: a display on the sheet's own browser (R4, C16): no Present button for a dead student (document `isDeceased`)"],
             ["SHEET trial-floor-ui.mjs#startClassTrial", "judged (C12): who is alive for 'nobody for the trial' is read as the GMs hold it - `isDeceased(flagsHeldNow(actor))` in one synchronous pass after `judgedFor` of every student, as `eligibleVoters`; the card's budget line after the write still counts `livingStudents()` (a display, R4) [1b.2]"],
@@ -7595,10 +7601,11 @@ const REGRESSIONS = [
             ["STORE gm-stores.mjs#offerStore", "not a source: a GM store the primary writes (`recordOffer`, `dropOffer`); a row is a list per character since C6, a 1.2.70 row read as a list of one (`offerList`) [F7]"],
             ["STORE gm-stores.mjs#deferredOfferStore", "not a source: a GM store [F7]"],
             ["STORE gm-stores.mjs#verdictStore", "not a source (fix r1-G1): a GM store (`gmVerdict`) `applyVerdict` writes - the verdict's `at` and the Blackened its GM named - and `finishVerdict` reads; never sent to a player"],
-            ["STORE settings.mjs#trialQueue", "not a source: a world setting only a GM writes; since C16 a sheet's Present reads `trialQueue.active` on render (`addPresentButton`) and on change (`repaintPresentButtons`, from `SYNC.trial`)"]
+            ["STORE settings.mjs#trialQueue", "not a source: a world setting only a GM writes; since E79 C16 it holds a pending Objection's `pending` and `messageId` as well, written by the primary (`openObjection`, `fillObjection`, the lapse) and read by OBJECTION! and the console as a display"]
         ];
-        const ROADS = /^(?:vote|advancement)\./;
-        const FILES = ["vote.mjs", "level-up.mjs", "trial.mjs", "trial-floor.mjs", "trial-floor-ui.mjs", "events.mjs", "mastermind.mjs"];
+        // `trial.*` and `floor.repoint` since E79 C16: the Objection raised, proved and re-pointed on the primary.
+        const ROADS = /^(?:(?:vote|advancement|trial)\.|floor\.repoint$)/;
+        const FILES = ["vote.mjs", "level-up.mjs", "trial.mjs", "trial-floor.mjs", "trial-floor-ui.mjs", "events.mjs", "mastermind.mjs", "trial-speakers.mjs"];
         const NAMED = { "character.mjs": ["stampStartingSheet"], "gm-bridge.mjs": ["handleAdvancement", "handleAdvancementOffer", "askForOffers", "onAdvancementOffers"],
             "sheet.mjs": ["addPresentButton", "injectAdvanceButton"], "chapter.mjs": ["livingStudents", "killCharacter", "openChapterEndDialog"],
             "season-setup.mjs": ["wipeStudent"], "clock.mjs": ["reconcilePhase"] };
@@ -8595,6 +8602,9 @@ const REGRESSIONS = [
             ["NOTDONE cleanup.mjs#attemptCleanup", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); a murder refusal kept like the rest (the owner's Q4), within the history's budgets, as a notDone entry (R297)"],
             ["NOTDONE cleanup.mjs#attemptStageSix", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); a murder refusal kept like the rest (the owner's Q4), within the history's budgets, as a notDone entry (R297)"],
             ["NOTDONE gm-bridge.mjs#requestPassageShare", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E79 C7)"],
+            ["NOTDONE gm-bridge.mjs#requestObject", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the primary GM's refusal checked against `REASONS`); a refusal of an Objection kept like the rest, as a notDone entry (R297; E79 C16)"],
+            ["NOTDONE gm-bridge.mjs#requestEvidence", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the primary GM's refusal checked against `REASONS`); a refusal of an Objection's Truth Bullet kept like the rest, as a notDone entry (R297; E79 C16)"],
+            ["NOTDONE gm-bridge.mjs#requestRepoint", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the primary GM's refusal checked against `REASONS`); a GM's re-point refused kept like the rest, as a notDone entry (R297; E79 C16)"],
             ["NOTDONE monocub.mjs#performCubAbility", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE trial-floor.mjs#advanceFloorNow", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE vote.mjs#sendBallot", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
@@ -8847,6 +8857,7 @@ const REGRESSIONS = [
             ["WHO explain.mjs#subjectActor#viewerActor -> which", "the one viewer rule (hud.mjs `viewerActor`): the assigned character, else the one owned student, else the GM's Monokuma"],
             ["WHO room-tile.mjs#viewerRoom#viewerActor -> which", "the viewer's own character and no other actor (R509; scenario 66 W1 on the GM and two players)"],
             ["WHO room-tile.mjs#registerRoomTile#viewerActor -> which", "the settle hook repaints for the viewer's own token only (`tokenDoc.actorId !== viewerActor()?.id` returns; R506), and what it paints is `viewerRoom`'s"],
+            ["WHO hud.mjs#objectionControl#viewerActor -> which", "the OBJECTION! button of a player's trial row: the viewer's own student and no other actor (R509); the speaker it is aimed at is the primary GM's, not read here (R591; E79 C16)"],
             ["HOOK movement.mjs#onUpdateToken#callAll -> which", "`drpgRouteSettled` is client-local and carries the token and the room its update names; fired on the update that names a route's end, never while a put-back is on its way, which is announced when it lands (R506, scenario 66 W2-W4, N13, 76 D N13); on the browser that settles the route, and since E77 fix r1-G2 on every other that owns the token - at once for a route of one update since E79 C14, else once its put-back lands or the token is quiet (`untilQuiet`; scenario 74 C1-C4, 66 W2, N13a); once more, `again`, only where the token rests in another room; a listener paints only its own viewer's token"],
             ["HOOK hud.mjs#registerHud#canvasReady -> which", "a repaint; the event chooses no room"],
             ["HOOK room-tile.mjs#registerRoomTile#drpgRouteSettled -> which", "the viewer's own token's settled route only, after its put-back when refused (R506; scenario 74 B reads one paint and nothing of a refused room at 400 and 1200 ms)"],
@@ -9126,6 +9137,7 @@ const REGRESSIONS = [
             // ---- the voice tile (voice-tile.mjs, E78 C3) and its two settings
             ["PEER voice-tile.mjs#participantUser -> which", "only a remote participant this client's own LiveKit Room holds (the viewer's own and anybody the Room does not hold is nobody); the user is avclient-livekit's mapping (external), and a participant with no user of this world is not drawn (R535)"],
             ["SPEAK voice-tile.mjs#attachRoom -> which", "the own Room's `activeSpeakersChanged` only, never `settings.activity`; every listener leaves the old Room before the new one is attached, and an event of a Room the watch no longer follows changes nothing (R535, R540)"],
+            ["SPEAK trial-speakers.mjs#attachSpeakers -> which", "the primary GM's own Room's `activeSpeakersChanged` only, never `settings.activity`; the old Room's listeners leave before the new one is attached and an event of a Room no longer followed changes nothing; it aims an Objection and paints nothing (R590, R591; E79 C16)"],
             ["WHO voice-tile.mjs#paintSpeaker#voiceIdentity -> *", "the name as `textContent`; the portrait, a path the speaker's own account sets (their character's `img`, which its owner writes, or their avatar), only through `voicePortrait` - the first of the two `safeRoomImage` accepts (vault.mjs, the room tile's check: this page's files, or on The Forge its Assets Library) - and `cssString` into the art layer's `url()`; none accepted draws no portrait (R542 names the actor, R536 the paint, R546 The Forge and the second candidate)"],
             ["SRC voice-tile.mjs#paintSpeaker#url -> src", "the path `safeRoomImage` gave, inside a CSS string `cssString` escapes; never a URL from a packet"],
             ["STORE settings.mjs#voicePeerMutes#self -> volume", "this browser's own 'Mute for me', a client setting read and written only by the list (E78 C5): a mute is the volume set to 0 with the volume before kept here, so it moves only this browser's sound (R538)"],
@@ -13030,6 +13042,63 @@ const REGRESSIONS = [
         equal(J(reading(sheets)), J([true, [], [], ["var(--color-text-primary, #efe6d8)", "var(--drpg-glass-accent)"],
             { "no ticker": true, "reduced motion": true, stacked: true, "prefers-reduced-motion": true }, true]),
         "[rules name the word; rules that hide it; rules that set it faint; its colours; its runs stopped by each switch; its runs running otherwise]");
+    }],
+    ["R591 - the Objection's target and evidence are the primary GM's: LiveKit's speaker list is read in voice-tile.mjs and trial-speakers.mjs alone, the record and its two reads are declared once, exported, there; objectOnPrimary reads the packet's target only with no Room, the filled card is drawn from the holder's view, a player's own Objection card is refused, the trial bar does not load the trial at start, and the sheet's row raises no Objection", async () => {
+        /*
+         * E79 C16 (1.2.79), the source half of the owner's 17.10 rule; R590 is the record's behaviour and tier 2's
+         * named tests the road on the primary GM. What this holds:
+         *   - `activeSpeakersChanged` is listened to in two files, the voice tile's and the trial's speakers, and
+         *     nowhere else: a third reader would be a second answer to "who is speaking";
+         *   - `speakerRecord`, `objectionTarget` and `speakingStudent` are declared once, exported, in
+         *     trial-speakers.mjs, and no other file declares a function of those names;
+         *   - `objectOnPrimary` reads `targetId` only in the branch taken when `speakerRoomOpen()` is false, so a
+         *     packet's target is never weighed against a Room the primary hears;
+         *   - `evidenceOnPrimary` draws the card from `holderView(data)`, never the bullet's GM half;
+         *   - `presentBullet` refuses an Objection a player's browser would post (`objection && !game.user.isGM`);
+         *   - hud.mjs imports neither trial.mjs nor trial-speakers.mjs statically: the trial bar is drawn on every
+         *     browser at start, and both are loaded on the press (17.10.2026, walked: trial-speakers.mjs's own
+         *     imports reach hud.mjs, a cycle at load);
+         *   - the sheet's row (`addPresentButton`) names no objection, and sync.mjs no longer repaints it.
+         * A move of any of these lines out of the function it is cut from fails the cut (bodyOf/fnSource), not the
+         * assertion.
+         */
+        const sources = new Map(await otherSources());
+        const src = file => {
+            must(sources.has(file), `${file} is not among the module's sources`);
+            return sources.get(file);
+        };
+        const listeners = [...sources].filter(([, raw]) => /activeSpeakersChanged/.test(stripComments(raw))).map(([file]) => file).sort();
+        equal(JSON.stringify(listeners), JSON.stringify(["trial-speakers.mjs", "voice-tile.mjs"]),
+            "the files that name LiveKit's activeSpeakersChanged");
+        for (const name of ["speakerRecord", "objectionTarget", "speakingStudent"]) {
+            const where = [...sources].flatMap(([file, raw]) =>
+                [...stripComments(raw).matchAll(new RegExp(`^(export )?(?:async )?function ${name}\\(`, "gm"))].map(m => `${file}${m[1] ? " exported" : ""}`));
+            equal(JSON.stringify(where), JSON.stringify(["trial-speakers.mjs exported"]), `where ${name} is declared`);
+        }
+        /* The two roads of the primary GM are asked for before they are cut: a source without them fails here, on an assertion, rather than in the cut. */
+        const trialSrc = stripComments(src("trial.mjs"));
+        const declared = ["objectOnPrimary", "evidenceOnPrimary"].map(name => new RegExp(`^(?:export )?(?:async )?function ${name}\\(`, "m").test(trialSrc));
+        ok(declared.every(Boolean), `trial.mjs declares objectOnPrimary and evidenceOnPrimary (${declared})`);
+        if (!declared.every(Boolean)) return;
+        const object = stripComments(fnSource(src("trial.mjs"), "objectOnPrimary"));
+        const roomBranch = bodyOf(object, "if (speakers.speakerRoomOpen()) {", { until: "} else if (targetId" });
+        const before = bodyOf(object, "export async function objectOnPrimary", { until: "if (speakers.speakerRoomOpen()) {" });
+        const after = bodyOf(object, "if (!target) return { refused:", { until: "\n}" });
+        equal(JSON.stringify([/\btargetId\b/.test(roomBranch), (before.match(/\btargetId\b/g) ?? []).length, /\btargetId\b/.test(after),
+            /\} else if \(targetId && mayObjectTo\(actor\.id, targetId\)\)/.test(object)]), JSON.stringify([false, 1, false, true]),
+        "[the Room's branch reads targetId; targetId named before it (the signature only); after it; the no-Room branch judges it]");
+        const evidence = stripComments(fnSource(src("trial.mjs"), "evidenceOnPrimary"));
+        ok(/buildCard\(actor, holderView\(data\)/.test(evidence) && !/\b(?:realType|realLabel|gmNote)\b/.test(evidence),
+            "evidenceOnPrimary draws the card from the holder's view and names no field of the GM half");
+        ok(/if \(objection && !game\.user\.isGM\)/.test(stripComments(fnSource(src("trial.mjs"), "presentBullet"))),
+            "presentBullet refuses an Objection on a player's browser");
+        const hudImports = [...stripComments(src("hud.mjs")).matchAll(/^import [^;]*? from "\.\/([\w-]+\.mjs)";/gm)].map(m => m[1]);
+        equal(JSON.stringify(hudImports.filter(file => file === "trial.mjs" || file === "trial-speakers.mjs")), "[]",
+            "hud.mjs's static imports of trial.mjs or trial-speakers.mjs");
+        ok(hudImports.length > 3, `hud.mjs's static imports were read (${hudImports.length})`);
+        ok(!/objection/i.test(stripComments(fnSource(src("sheet.mjs"), "addPresentButton"))),
+            "the sheet's Present button names no objection");
+        ok(!/repaintPresentButtons/.test(stripComments(src("sync.mjs"))), "sync.mjs repaints no Present button");
     }]
 ];
 

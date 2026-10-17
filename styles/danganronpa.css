@@ -3856,17 +3856,23 @@ body.drpg-reduced-motion .application.sheet.actor .character-header-sheet .name-
     color: var(--drpg-gold-antique);
 }
 
-/* The loud one. It is the button that interrupts somebody. */
-.drpg-row-present.is-objection {
+/* The loud one: it interrupts somebody. On the HUD in a Class Trial since 1.2.79 (E79 C16), where the
+   sheet's row had it until then; full ink, so it is never as faint as the hour's arrows beside it. */
+#drpg-hud .drpg-hud-button.drpg-hud-objection {
+    opacity: 1;
     background: rgba(var(--drpg-crimson-rgb), 0.22);
     border-color: rgba(var(--drpg-crimson-rgb), 0.8);
 }
 
-.drpg-row-present.is-objection:hover {
+#drpg-hud .drpg-hud-button.drpg-hud-objection:hover:not([aria-disabled="true"]) {
     background: rgba(var(--drpg-crimson-rgb), 0.45);
 }
 
-.drpg-row-present.is-objection i {
+#drpg-hud .drpg-hud-button.drpg-hud-objection[aria-disabled="true"] {
+    opacity: 0.4;
+}
+
+#drpg-hud .drpg-hud-button.drpg-hud-objection i {
     color: var(--drpg-crimson-light);
 }
 

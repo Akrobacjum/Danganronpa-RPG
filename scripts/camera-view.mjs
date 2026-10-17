@@ -216,7 +216,7 @@ export function voiceIdentity(user) {
  * is true for every actor in the world, so running it for a GM returns
  * whichever character happens to be first in the collection.
  */
-function voiceActorFor(user) {
+export function voiceActorFor(user) {
     const assigned = user.character;
     if (assigned?.name && (user.isGM || assigned.testUserPermission?.(user, "OWNER") === true)) return assigned;
 

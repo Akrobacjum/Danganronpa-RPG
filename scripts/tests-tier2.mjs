@@ -3067,6 +3067,65 @@ async function tickCast(hall, actors, out = []) {
     return () => saveTrialCast(hall, Object.fromEntries(actors.map(actor => [actor.id, null])));
 }
 
+/*
+ * THE OBJECTION'S STAGE (E79 C16, 1.2.79; the owner, 17.10.2026). The Objection is raised on the primary GM and
+ * aimed at whom that GM's LiveKit Room counts as speaking (trial-speakers.mjs), and the four tests that drive it
+ * share this. `objectionKit` answers trial.mjs and trial-speakers.mjs when both carry the road, or null - which is
+ * how each test reads at C16's parent, where the road did not exist: an assertion, not a throw. `standInRoom` puts a
+ * Room of the voice tile's shape (R590's: `remoteParticipants`, the client's `getParticipantFVTTUser`) on this
+ * browser's A/V client in place of avclient-livekit's, for as long as the test runs, and has this browser's speaker
+ * record follow it; `restore` puts the client back and the record follows that again. On a real table that is the
+ * primary GM's own Room set aside for the test - its speakers are not heard by the record meanwhile, and nothing of
+ * avclient-livekit's is called. Who LiveKit names at a table, and how soon, is LIVE-E79-22.
+ */
+async function objectionKit() {
+    try {
+        const trial = await import("./trial.mjs");
+        const speakers = await import("./trial-speakers.mjs");
+        return typeof trial.objectOnPrimary === "function" && typeof trial.evidenceOnPrimary === "function"
+            && typeof speakers.objectionTarget === "function" ? { trial, speakers } : null;
+    } catch {
+        return null;
+    }
+}
+
+function standInRoom(speakers, { connected = true } = {}) {
+    const host = game.webrtc?.client;
+    must(host, "this browser has no A/V client to stand a LiveKit Room on - this would measure nothing");
+    const own = Object.getOwnPropertyDescriptor(host, "_liveKitClient");
+    const handlers = new Map();
+    const room = {
+        state: connected ? "connected" : "disconnected", activeSpeakers: [],
+        localParticipant: { identity: game.user.id, isLocal: true },
+        remoteParticipants: new Map(game.users.filter(user => user.id !== game.user.id).map(user => [user.id, { identity: user.id, isLocal: false }])),
+        on(event, fn) { if (!handlers.has(event)) handlers.set(event, []); handlers.get(event).push(fn); return this; },
+        off(event, fn) { const list = handlers.get(event) ?? []; if (list.includes(fn)) list.splice(list.indexOf(fn), 1); return this; }
+    };
+    const client = { liveKitRoom: room, getParticipantFVTTUser: participant => game.users.get(participant?.identity) };
+    Object.defineProperty(host, "_liveKitClient", { configurable: true, writable: true, value: client });
+    speakers.attachSpeakers(client);
+    return {
+        speak(userIds) {
+            room.activeSpeakers = userIds.map(id => room.remoteParticipants.get(id)).filter(Boolean);
+            for (const fn of [...(handlers.get("activeSpeakersChanged") ?? [])]) fn(room.activeSpeakers);
+        },
+        restore() {
+            if (own) Object.defineProperty(host, "_liveKitClient", own);
+            else delete host._liveKitClient;
+            speakers.attachSpeakers(host._liveKitClient ?? null);
+        }
+    };
+}
+
+/** What a pending Objection's road leaves behind, taken back: the floor to the debate, the cards and whispers it posted. */
+async function clearObjections(floorMod, seen) {
+    if (floorMod.trialFloor()?.mode === floorMod.FLOOR_MODES.objection) await floorMod.returnToDebate({});
+    for (const message of game.messages.filter(m => !seen.has(m.id))) {
+        try { await message.delete(); } catch { /* already gone */ }
+    }
+    await settle();
+}
+
 const SCENARIOS = [
     ["a document keeps a given id only with keepId", async () => {
         /*
@@ -30547,7 +30606,7 @@ const SCENARIOS = [
             "an objection took the floor with a Tool a write had made a Truth Bullet outside the GMs' mark (holds the floor, refused, actions)");
     }],
 
-    ["opening a debate turns every open sheet's Present into Objection", async () => {
+    ["a Truth Bullet's row is a Present outside a debate, in one and after it", async () => {
         /*
          * E10 C16, 1.2.71; audit S03-27, S06-43. A Truth Bullet's row draws one button, a Present while no debate
          * is open and an Objection while one is, and the act was read once, when the sheet was drawn: the GM
@@ -30557,6 +30616,10 @@ const SCENARIOS = [
          * (`drawnSheet`: no Daggerheart sheet renders in the harness), in a Class Trial with no floor; then a
          * debate is opened and closed by the floor's own functions, and the row is read each time - its act, its
          * tooltip and its icon. Until this commit the row stayed a Present through the debate.
+         * E79 C16 (1.2.79; the owner, 17.10.2026): an Objection is raised with OBJECTION! on the trial bar and its
+         * Truth Bullet chosen after it, so the row is a Present in every mode of the trial and the debate changes
+         * nothing on it. The same three reads, each a Present now; red at C16's parent, where the debate's row was
+         * the red Objection.
          */
         const [who] = cast(1);
         const floorMod = await import("./trial-floor.mjs");
@@ -30564,7 +30627,6 @@ const SCENARIOS = [
         const clock = foundry.utils.deepClone(getClock());
         const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
         const present = game.i18n.localize("DRPG.Trial.presentTooltip");
-        const objection = game.i18n.localize("DRPG.Trial.objectionTooltip");
         let item = null, sheet = null;
         const read = [];
         const row = () => {
@@ -30581,10 +30643,10 @@ const SCENARIOS = [
             must(row(), "the sheet's render hook drew no Present on the bullet's row - this would measure nothing");
             read.push(row());
             await floorMod.startFloor({});
-            await until(() => row()?.[0] === true);
+            await settle();
             read.push(row());
             await floorMod.endFloor();
-            await until(() => row()?.[0] === false);
+            await settle();
             read.push(row());
         } finally {
             sheet?.remove();
@@ -30594,8 +30656,8 @@ const SCENARIOS = [
             await setClock(clock);
             await settle();
         }
-        equal(stableJson(read), stableJson([[false, present, false], [true, objection, true], [false, present, false]]),
-            "an open sheet's Present did not follow the debate (each: is an Objection, its tooltip, the hand icon - before, during, after)");
+        equal(stableJson(read), stableJson([[false, present, false], [false, present, false], [false, present, false]]),
+            "an open sheet's row was not a Present through the debate (each: is an Objection, its tooltip, the hand icon - before, during, after)");
     }],
 
     ["a dead student is offered no Present and their Objection is refused on the primary and told", async () => {
@@ -30738,7 +30800,7 @@ const SCENARIOS = [
             "the evidence stage was not raised for an Objection until it was touched (with evidence, with the Objection, after its pointerdown)");
     }],
 
-    ["a Present and an Objection made through the window tell the presenter and only the Objection comes to the front", async () => {
+    ["a Present made through the window tells the presenter, in a discussion and in a debate, and does not come to the front", async () => {
         /*
          * E10 C16, 1.2.71; audit S03-27 and the owner's amend of 04.10. The window closed and nothing else on the
          * presenter's screen moved, and the OBJECTION! card landed under the windows. A Present in a discussion and
@@ -30746,6 +30808,9 @@ const SCENARIOS = [
          * window's markup), and the presenter's toasts are read, and after each whether the evidence stage of this
          * client - the card's own road, trial.mjs `registerTrial` - is raised over the windows. The Objection's
          * floor is the primary GM's answer, so the toast says it was sent; who holds the floor is not asserted.
+         * E79 C16 (1.2.79): the window makes a Present in a debate too - an Objection is OBJECTION! on the trial bar
+         * - so both presses are a Present, each told as one, and neither raises the stage. Red at C16's parent,
+         * where the debate's press was an Objection, told as sent and raised.
          */
         const [who] = cast(1);
         const trial = await import("./trial.mjs");
@@ -30784,10 +30849,10 @@ const SCENARIOS = [
             raisedAfter.push(raised());
             await floorMod.startFloor({});
             await settle();
-            const objected = await trial.presentDialog(who, item);
-            await until(raised);
+            const inDebate = await trial.presentDialog(who, item);
+            await settle();
             raisedAfter.push(raised());
-            must(presented && objected, `the fixture's Present or Objection was not posted (${presented}, ${objected})`);
+            must(presented && inDebate, `the fixture's Presents were not posted (${presented}, ${inDebate})`);
         } finally {
             if (ownWait) Object.defineProperty(D, "wait", ownWait);
             else delete D.wait;
@@ -30804,8 +30869,373 @@ const SCENARIOS = [
         }
         const name = "SUITE E10 C16 a toast";
         equal(stableJson([said.filter(s => s.includes(name)), raisedAfter]), stableJson([[
-            game.i18n.format("DRPG.Trial.presented", { name }), game.i18n.format("DRPG.Trial.objectionSent", { name })], [false, true]]),
-            "the presenter was not told their Present and their Objection went out, or the stage was not raised for the Objection alone (the toasts naming the evidence; raised after the Present, after the Objection)");
+            game.i18n.format("DRPG.Trial.presented", { name }), game.i18n.format("DRPG.Trial.presented", { name })], [false, false]]),
+            "the presenter was not told each Present went out, or the stage was raised for one (the toasts naming the evidence; raised after the Present in a discussion, in a debate)");
+    }],
+
+    ["an Objection pressed in a trial is aimed at the speaker the primary GM's Room counts, never at the packet's target while it has one, and at the packet's target, judged, when it has none", async () => {
+        /*
+         * E79 C16 (1.2.79; the prep's (b), and (a) on the primary's own record). The owner, 17.10.2026: the player no
+         * longer chooses whom they object to. `objectOnPrimary` - `trial.object`'s run - is called here as the bridge
+         * calls it on the primary, every time with a packet naming C, while a stand-in Room (`standInRoom`) lists
+         * whom the test makes speak. Read in order: nobody has spoken; the objector alone for 1.1 s; B for 1.1 s
+         * (B, now); B silent and C's 500 ms cough (B, last); B dead as the GMs hold it (nobody); B alive again and C
+         * a Monocub after 1.1 s of C (B, last - C is newer and skipped); then a Room that is not connected - the
+         * fallback - with the packet's C (C, named), the objector themself and no one (both refused). Each read is
+         * the refusal's text, or the target's name and how it was found; with the objector's actions after it and
+         * whether the floor waits pending on that target. Every success is taken back before the next, and the
+         * actions refilled. A GM's account is read straight off `speakingStudent`: the Room never lists this
+         * browser's own account (voice-tile.mjs `participantUser`). Red at C16's parent: no such road (the first
+         * assertion); until C16 the target was whatever the objector's card named.
+         */
+        needs(world.atLeast("playersWithCharacter", 3), "three player accounts that own a character to speak in the trial");
+        const kit = await objectionKit();
+        ok(kit, "there is no Objection raised on the primary GM - the objector's card still names its target");
+        if (!kit) return;
+        const { trial, speakers } = kit;
+        const floorMod = await import("./trial-floor.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const C = await import("./chapter.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const voices = game.users.filter(user => !user.isGM).map(user => [user, speakers.speakingStudent(user.id)]).filter(([, student]) => student);
+        must(voices.length >= 3, `only ${voices.length} player accounts speak as a living student of theirs - this would measure nothing`);
+        const [[uO, O], [uB, B], [uC, cee]] = voices;
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const before = { actions: O.system.resources.actions.value, max: O.system.resources.actions.max, grants: O.getFlag(MODULE_ID, FLAGS.freeActionGrants) ?? 0 };
+        const seen = new Set(game.messages.map(m => m.id));
+        const cub = cee.getFlag(MODULE_ID, FLAGS.monocub) ?? null;
+        let item = null, room = null, killed = false;
+        const read = [];
+        const press = async (targetId = cee.id) => {
+            await O.update({ "system.resources.actions.max": 3, "system.resources.actions.value": 3 });
+            const res = await trial.objectOnPrimary({ actorId: O.id, targetId });
+            const floor = floorMod.trialFloor();
+            read.push([res.refused ?? `${res.reply?.target}:${res.reply?.how}`, O.system.resources.actions.value,
+                floor?.pending === true && floor?.targetId === game.actors.getName(res.reply?.target ?? "")?.id]);
+            await clearObjections(floorMod, seen);
+        };
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            if (floorMod.trialFloor()) await floorMod.endFloor();
+            await floorMod.startFloor({});
+            await O.setFlag(MODULE_ID, FLAGS.freeActionGrants, 0);
+            item = await bullets.createTruthBullet(O, { name: "SUITE E79 C16 an aimed objection", realType: "neutral", visibility: "obvious" });
+            must(item, "the fixture's Truth Bullet was not made");
+            await sheetAuditIdle();
+            await settle();
+            room = standInRoom(speakers);
+            await press();
+            room.speak([uO.id]);
+            await wait(1100);
+            room.speak([]);
+            await press();
+            room.speak([uB.id]);
+            await wait(1100);
+            await press();
+            room.speak([]);
+            room.speak([uC.id]);
+            await wait(500);
+            room.speak([]);
+            await press();
+            must(await C.killCharacter(B, { secret: false, keepBullets: true }), `${B.name}'s death was not recorded`);
+            killed = true;
+            await sheetAuditIdle();
+            await press();
+            await C.reviveCharacter(B, { quiet: true });
+            killed = false;
+            await sheetAuditIdle();
+            room.speak([uC.id]);
+            await wait(1100);
+            room.speak([]);
+            await cee.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await press();
+            if (cub === null) await cee.unsetFlag(MODULE_ID, FLAGS.monocub);
+            else await cee.setFlag(MODULE_ID, FLAGS.monocub, cub);
+            room.restore();
+            room = standInRoom(speakers, { connected: false });
+            await press();
+            await press(O.id);
+            await press(null);
+            read.push(speakers.speakingStudent(game.user.id));
+        } finally {
+            room?.restore();
+            if (killed || C.isDeadForGm(B)) await C.reviveCharacter(B, { quiet: true });
+            if (cub === null) await cee.unsetFlag(MODULE_ID, FLAGS.monocub);
+            else await cee.setFlag(MODULE_ID, FLAGS.monocub, cub);
+            await clearObjections(floorMod, seen);
+            try { await item?.delete(); } catch { /* already gone */ }
+            if (floorMod.trialFloor()) await floorMod.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await setClock(clock);
+            await O.setFlag(MODULE_ID, FLAGS.freeActionGrants, before.grants);
+            await O.update({ "system.resources.actions.max": before.max, "system.resources.actions.value": before.actions });
+            await sheetAuditIdle();
+            await settle();
+        }
+        const nobody = "nobody has spoken in this trial that the objection could be aimed at", named = "the student named may not be objected to now";
+        equal(stableJson(read), stableJson([[nobody, 3, false], [nobody, 3, false], [`${B.name}:now`, 2, true], [`${B.name}:last`, 2, true],
+            [nobody, 3, false], [`${B.name}:last`, 2, true], [`${cee.name}:named`, 2, true], [named, 3, false], [named, 3, false], null]),
+        "[each press with the packet naming C: the refusal or the target and how; the objector's actions after it; the floor pending on that target] - "
+            + "nobody yet; the objector alone; B speaking; B silent after a cough of C's; B dead; C a Monocub; no Room: C, the objector, nobody; then the GM's own account as a speaker");
+    }],
+
+    ["a pending Objection with no Truth Bullet in thirty seconds goes back to the debate, the card withdrawn and the price kept; a late bullet or another student's changes nothing; and the minute runs from the bullet", async () => {
+        /*
+         * E79 C16 (1.2.79; the prep's (c); the owner's defaults D4 and D5). O raises an Objection at B on the
+         * fallback road (a Room that is not connected), and the bullet is asked for wrongly twice: B putting their
+         * own bullet on O's Objection, and O putting B's. Then the seconds are spent - the floor's `startedAt`
+         * written 31 s back, as the time passing would - and the heartbeat (trial-floor.mjs `advanceIfDue`, once a
+         * second on the primary) is waited for. Read: the floor's mode, the card's pending and withdrawn marks and
+         * words, and O's actions (one paid, none given back); then O's own bullet, late. Then a second Objection is
+         * filled 300 ms after it was raised: the floor no longer pending, its clock restarted at the fill and running
+         * `TRIAL.objectionSeconds`, and the card carrying the bullet. Red at C16's parent: no such road.
+         */
+        const kit = await objectionKit();
+        ok(kit, "there is no pending Objection to lapse - the bullet is still chosen before the Objection");
+        if (!kit) return;
+        const { trial, speakers } = kit;
+        const { TRIAL_FLAGS } = trial;
+        const { TRIAL } = await import("./config.mjs");
+        const floorMod = await import("./trial-floor.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const [O, B] = cast(2);
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const before = { actions: O.system.resources.actions.value, max: O.system.resources.actions.max, grants: O.getFlag(MODULE_ID, FLAGS.freeActionGrants) ?? 0 };
+        const seen = new Set(game.messages.map(m => m.id));
+        const withdrawn = game.i18n.localize("DRPG.Trial.objectionWithdrawn"), over = "that objection is no longer waiting for its Truth Bullet";
+        const made = [];
+        let room = null;
+        const read = [];
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            if (floorMod.trialFloor()) await floorMod.endFloor();
+            await floorMod.startFloor({});
+            await O.setFlag(MODULE_ID, FLAGS.freeActionGrants, 0);
+            await O.update({ "system.resources.actions.max": 3, "system.resources.actions.value": 3 });
+            for (const actor of [O, B]) {
+                made.push(await bullets.createTruthBullet(actor, { name: `SUITE E79 C16 ${actor.name}'s bullet`, realType: "neutral", visibility: "obvious" }));
+            }
+            must(made.every(Boolean), "the fixtures' Truth Bullets were not made");
+            const [mine, theirs] = made;
+            await sheetAuditIdle();
+            await settle();
+            room = standInRoom(speakers, { connected: false });
+
+            const raised = await trial.objectOnPrimary({ actorId: O.id, targetId: B.id });
+            must(raised.reply?.messageId, `the Objection was not raised (${raised.refused})`);
+            const card = game.messages.get(raised.reply.messageId);
+            read.push((await trial.evidenceOnPrimary({ actorId: B.id, itemId: theirs.id })).refused ?? "filled",
+                (await trial.evidenceOnPrimary({ actorId: O.id, itemId: theirs.id })).refused ?? "filled",
+                Boolean(floorMod.trialFloor()?.pending));
+            const stored = getSetting(SETTINGS.trialQueue);
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, { ...stored, startedAt: stored.startedAt - 31000 });
+            await until(() => floorMod.trialFloor()?.mode === floorMod.FLOOR_MODES.debate && card?.getFlag(MODULE_ID, TRIAL_FLAGS.withdrawn), 5000);
+            read.push(floorMod.trialFloor()?.mode, Boolean(card?.getFlag(MODULE_ID, TRIAL_FLAGS.pending)), Boolean(card?.getFlag(MODULE_ID, TRIAL_FLAGS.withdrawn)),
+                String(card?.content ?? "").includes(foundry.utils.escapeHTML(withdrawn)), O.system.resources.actions.value);
+            read.push((await trial.evidenceOnPrimary({ actorId: O.id, itemId: mine.id })).refused ?? "filled",
+                floorMod.trialFloor()?.mode, Boolean(card?.getFlag(MODULE_ID, TRIAL_FLAGS.withdrawn)), card?.getFlag(MODULE_ID, TRIAL_FLAGS.item) ?? null);
+
+            const again = await trial.objectOnPrimary({ actorId: O.id, targetId: B.id });
+            /* Read as a result, not as a precondition: an Objection that cannot be raised again is the very thing a bullet filling it for somebody else would cause. */
+            if (!again.reply?.messageId) read.push(`the second Objection was not raised (${again.refused})`);
+            else {
+                const startedAt = floorMod.trialFloor()?.startedAt;
+                await wait(300);
+                const filled = await trial.evidenceOnPrimary({ actorId: O.id, itemId: mine.id, comment: "SUITE E79 C16" });
+                const floor = floorMod.trialFloor();
+                const second = game.messages.get(again.reply.messageId);
+                read.push(filled.refused ?? "filled", floor?.mode, floor?.pending, floor?.startedAt > startedAt, floorMod.modeSeconds(floor) === TRIAL.objectionSeconds,
+                    Boolean(second?.getFlag(MODULE_ID, TRIAL_FLAGS.pending)), second?.getFlag(MODULE_ID, TRIAL_FLAGS.item) === mine.id);
+            }
+        } finally {
+            room?.restore();
+            await clearObjections(floorMod, seen);
+            for (const item of made) { try { await item?.delete(); } catch { /* already gone */ } }
+            if (floorMod.trialFloor()) await floorMod.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await setClock(clock);
+            await O.setFlag(MODULE_ID, FLAGS.freeActionGrants, before.grants);
+            await O.update({ "system.resources.actions.max": before.max, "system.resources.actions.value": before.actions });
+            await sheetAuditIdle();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([over, "that character holds no such Truth Bullet", true, "debate", false, true, true, 2, over, "debate", true, null,
+            "filled", "objection", false, true, true, false, true]),
+        "[B's bullet on O's Objection; B's bullet from O; still pending], [after the seconds: the floor; the card pending, withdrawn, saying so; O's actions], "
+            + "[O's bullet late; the floor; the card withdrawn; its item], [a second Objection filled: answer; mode; pending; the clock restarted; the objection's seconds; the card pending; its item]");
+    }],
+
+    ["an Objection's card is one card on the table from pending to filled and to withdrawn, and it is filled from what its holder knows", async () => {
+        /*
+         * E79 C16 (1.2.79; the prep's (d) and (e)). The card is filled on the primary GM's browser, where
+         * `truthBulletData` answers the GM half too - the bullet's real type, the GM's note, the ledger's reading the
+         * holder has not bought. A bullet is made with all three planted (realType "incident" shown as neutral, a
+         * note, an analysis), O raises an Objection and fills it with that bullet, and the card is read: on this
+         * screen (the trial's own hook shows it, `.drpg-popup[data-drpg-message]`), in this browser's notice
+         * history (notice-history.mjs `noticeEntries`, by the message), and off the message's words and flags for
+         * the planted three. Then a second Objection, left to lapse. Read for each: how many cards and entries the
+         * message has, and whether the card's body says pending, carries the bullet's name and the holder's text,
+         * or says withdrawn. Red at C16's parent: no such road; the old card was built on the player's browser,
+         * where there is no GM half to leak.
+         */
+        const kit = await objectionKit();
+        ok(kit, "there is no Objection filled on the primary GM - the card is still built on the objector's browser");
+        if (!kit) return;
+        const { trial, speakers } = kit;
+        const { TRIAL_FLAGS } = trial;
+        const floorMod = await import("./trial-floor.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const NH = await import("./notice-history.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const [O, B] = cast(2);
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const before = { actions: O.system.resources.actions.value, max: O.system.resources.actions.max, grants: O.getFlag(MODULE_ID, FLAGS.freeActionGrants) ?? 0 };
+        const seen = new Set(game.messages.map(m => m.id));
+        const PLANTED = { note: "SUITE E79 C16 the GM's planted note", reading: "SUITE E79 C16 the ledger's planted reading" };
+        const name = "SUITE E79 C16 the evidence", text = "SUITE E79 C16 what its holder wrote";
+        const pending = game.i18n.localize("DRPG.Trial.objectionPending"), withdrawn = game.i18n.localize("DRPG.Trial.objectionWithdrawn");
+        let item = null, room = null, leaks = null;
+        const read = [];
+        const onTable = id => {
+            const cards = [...document.querySelectorAll(".drpg-popup[data-drpg-message]")].filter(card => card.dataset.drpgMessage === id);
+            const body = cards[0]?.querySelector(".drpg-popup-body")?.textContent ?? "";
+            const entries = NH.noticeEntries().filter(entry => entry.messageId === id);
+            return [cards.length, entries.length, body.includes(pending), body.includes(name), body.includes(text), body.includes(withdrawn),
+                entries.some(entry => String(entry.text ?? "").includes(body.includes(withdrawn) ? withdrawn : body.includes(name) ? name : pending))];
+        };
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            if (floorMod.trialFloor()) await floorMod.endFloor();
+            await floorMod.startFloor({});
+            await O.setFlag(MODULE_ID, FLAGS.freeActionGrants, 0);
+            await O.update({ "system.resources.actions.max": 3, "system.resources.actions.value": 3 });
+            item = await bullets.createTruthBullet(O, { name, realType: "incident", shownType: "neutral", visibility: "obvious",
+                gmNote: PLANTED.note, analyzedText: PLANTED.reading, playerText: text });
+            must(item, "the fixture's Truth Bullet was not made");
+            await sheetAuditIdle();
+            const data = bullets.truthBulletData(item);
+            must(data?.realType === "incident" && data.gmNote === PLANTED.note && data.realAnalyzedText === PLANTED.reading && !data.analyzedText,
+                "this GM's browser does not hold the planted answer key, or the holder already reads it - this would measure nothing");
+            room = standInRoom(speakers, { connected: false });
+
+            const raised = await trial.objectOnPrimary({ actorId: O.id, targetId: B.id });
+            must(raised.reply?.messageId, `the Objection was not raised (${raised.refused})`);
+            const id = raised.reply.messageId;
+            await until(() => onTable(id)[0] > 0 && onTable(id)[1] > 0);
+            read.push(onTable(id));
+            const filled = await trial.evidenceOnPrimary({ actorId: O.id, itemId: item.id });
+            must(filled.reply, `the Objection was not filled (${filled.refused})`);
+            await until(() => onTable(id)[3] && onTable(id)[6]);
+            read.push(onTable(id));
+            const card = game.messages.get(id);
+            const words = String(card?.content ?? ""), flags = JSON.stringify(card?.flags ?? {});
+            const realLabel = (await import("./config.mjs")).TRUTH_BULLET_TYPES.incident.label;
+            leaks = [PLANTED.note, PLANTED.reading, realLabel, "\"incident\""].filter(key => words.includes(key) || flags.includes(key));
+
+            await floorMod.returnToDebate({});
+            const again = await trial.objectOnPrimary({ actorId: O.id, targetId: B.id });
+            must(again.reply?.messageId, `the second Objection was not raised (${again.refused})`);
+            const lapsed = again.reply.messageId;
+            await until(() => onTable(lapsed)[0] > 0);
+            const stored = getSetting(SETTINGS.trialQueue);
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, { ...stored, startedAt: stored.startedAt - 31000 });
+            await until(() => onTable(lapsed)[5] && onTable(lapsed)[6], 5000);
+            read.push(onTable(lapsed));
+        } finally {
+            room?.restore();
+            await clearObjections(floorMod, seen);
+            try { await item?.delete(); } catch { /* already gone */ }
+            if (floorMod.trialFloor()) await floorMod.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await setClock(clock);
+            await O.setFlag(MODULE_ID, FLAGS.freeActionGrants, before.grants);
+            await O.update({ "system.resources.actions.max": before.max, "system.resources.actions.value": before.actions });
+            await sheetAuditIdle();
+            await settle();
+        }
+        equal(stableJson([read, leaks]), stableJson([[[1, 1, true, false, false, false, true], [1, 1, false, true, true, false, true],
+            [1, 1, false, false, false, true, true]], []]),
+        "[each time: cards on this screen for the message; its entries in the notice history; the body says pending; names the bullet; carries the holder's text; says withdrawn; "
+            + "the entry follows the body] - raised, filled, then a second one lapsed; [what of the planted answer key the filled card's words or flags carry]");
+    }],
+
+    ["a card a player's browser posts as an Objection is refused and marked on the primary, shown on no screen and told to its owner, and a player's Present is free", async () => {
+        /*
+         * E79 C16 (1.2.79; the prep's (f)). An Objection is raised on the primary GM now, which posts its card as a GM
+         * (`objectOnPrimary`), so a card a player's browser posts with the objection flag is a console's or an old
+         * client's: `registerTrial` shows it to nobody and the primary marks it refused (`refusePlayersCard`) and
+         * tells its owner where an Objection is raised. The card is posted here in the owner's name (`author`, as a
+         * GM may) with the owner's own bullet, in a debate - every question `seizeFloor` used to ask answers yes.
+         * Read: refused, the floor's holder, whether it stood on this screen, the objector's actions, and whether a
+         * whisper said OBJECTION! is on the HUD; then a Present card of the same owner's, with no objection flag:
+         * shown, not refused, the actions the same. Red at C16's parent (e79run, 17.10.2026, by reading
+         * `seizeFloor`): the card took the floor and was paid for.
+         */
+        const [O, B] = cast(2);
+        const owner = game.users.find(user => !user.isGM && O.testUserPermission(user, "OWNER"));
+        must(owner, `no player account owns ${O.name} - this would measure nothing`);
+        const trial = await import("./trial.mjs");
+        const { TRIAL_FLAGS } = trial;
+        const floorMod = await import("./trial-floor.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const before = { actions: O.system.resources.actions.value, max: O.system.resources.actions.max, grants: O.getFlag(MODULE_ID, FLAGS.freeActionGrants) ?? 0 };
+        const seen = new Set(game.messages.map(m => m.id));
+        const told = game.i18n.localize("DRPG.Trial.objectionByButton");
+        let item = null;
+        const read = [];
+        const card = objection => ChatMessage.create({
+            author: owner.id, content: `<p>SUITE E79 C16 a player's ${objection ? "objection" : "present"}</p>`,
+            speaker: ChatMessage.getSpeaker({ actor: O }),
+            flags: { [MODULE_ID]: {
+                [TRIAL_FLAGS.present]: true, [TRIAL_FLAGS.objection]: objection, [TRIAL_FLAGS.presenter]: O.name, [TRIAL_FLAGS.item]: item.id,
+                ...(objection ? { [TRIAL_FLAGS.target]: B.id, [TRIAL_FLAGS.targetName]: B.name } : {}),
+                [TRIAL_FLAGS.chapter]: getClock().chapter, popupKind: "none"
+            } }
+        });
+        const shown = message => [...document.querySelectorAll(".drpg-popup[data-drpg-message]")].some(el => el.dataset.drpgMessage === message.id);
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            if (floorMod.trialFloor()) await floorMod.endFloor();
+            await floorMod.startFloor({});
+            await O.setFlag(MODULE_ID, FLAGS.freeActionGrants, 0);
+            await O.update({ "system.resources.actions.max": 3, "system.resources.actions.value": 3 });
+            item = await bullets.createTruthBullet(O, { name: "SUITE E79 C16 a player's card", realType: "neutral", visibility: "obvious" });
+            must(item, "the fixture's Truth Bullet was not made");
+            await sheetAuditIdle();
+            await settle();
+            const forged = await card(true);
+            must(forged.author?.id === owner.id, "this Foundry did not keep the author a GM gave the card - this would measure nothing");
+            await until(() => forged.getFlag(MODULE_ID, TRIAL_FLAGS.refused) || floorMod.trialFloor()?.holderId === O.id);
+            await settle();
+            const whispers = await Promise.all(game.messages.filter(m => !seen.has(m.id) && (m.whisper ?? []).length).map(m => wordsOf(m, 2000)));
+            read.push(Boolean(forged.getFlag(MODULE_ID, TRIAL_FLAGS.refused)), floorMod.trialFloor()?.holderId ?? null, shown(forged),
+                O.system.resources.actions.value, whispers.some(w => String(w ?? "").includes(told)));
+            if (floorMod.trialFloor()?.holderId) await floorMod.returnToDebate({});
+            const present = await card(false);
+            await until(() => shown(present));
+            await settle();
+            read.push(shown(present), Boolean(present.getFlag(MODULE_ID, TRIAL_FLAGS.refused)), floorMod.trialFloor()?.holderId ?? null, O.system.resources.actions.value);
+        } finally {
+            await clearObjections(floorMod, seen);
+            try { await item?.delete(); } catch { /* already gone */ }
+            if (floorMod.trialFloor()) await floorMod.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await setClock(clock);
+            await O.setFlag(MODULE_ID, FLAGS.freeActionGrants, before.grants);
+            await O.update({ "system.resources.actions.max": before.max, "system.resources.actions.value": before.actions });
+            await sheetAuditIdle();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([true, null, false, 3, true, true, false, null, 3]),
+            "[the player's Objection card: refused; the floor's holder; on this screen; the objector's actions; its owner told of OBJECTION!], [their Present: on this screen; refused; the floor's holder; the actions]");
     }],
 
     ["Analyze outside a Class Trial still costs exactly one action", async () => {

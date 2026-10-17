@@ -3258,11 +3258,12 @@ function buildBulletRow(li, item, app) {
  * every screen. `presentDialog` refuses them as well, and `seizeFloor` refuses
  * their Objection on the primary GM.
  *
- * ONE BUTTON, TWO ACTS, and which one it is depends on whether a debate is
- * open - see `presentDialog`. The window behind it decides for real; this
- * matches it so the player is not told one thing on the row and another in the
- * window. Read straight off the setting rather than through trial-floor.mjs:
- * this file is on the render path and the shape is one boolean.
+ * ONE BUTTON, ONE ACT, since 1.2.79 (E79 C16; the owner, 17.10.2026). Until
+ * then the row's button was Present outside a debate and an Objection inside
+ * one, repainted in place as the floor moved (E10 C16, S03-27, S06-43). An
+ * Objection is raised now with OBJECTION! on the HUD and its Truth Bullet is
+ * chosen after it (trial.mjs `raiseObjection`), so the row only ever presents:
+ * free, the floor untouched, in a debate as outside one.
  */
 function addPresentButton(li, item, app) {
     if (!inClassTrial() || isDeceased(app.document)) return;
@@ -3270,7 +3271,11 @@ function addPresentButton(li, item, app) {
     const button = document.createElement("button");
     button.type = "button";
     button.dataset.drpgRowAction = "present";
-    paintPresentButton(button, presentObjects());
+    const tip = game.i18n.localize("DRPG.Trial.presentTooltip");
+    button.className = "drpg-row-button drpg-row-present";
+    button.dataset.tooltip = tip;
+    button.setAttribute("aria-label", tip);
+    button.innerHTML = `<i class="fa-solid fa-gavel" inert></i>`;
 
     button.addEventListener("click", async () => {
         const { presentDialog } = await import("./trial.mjs");
@@ -3278,49 +3283,6 @@ function addPresentButton(li, item, app) {
     });
 
     li.append(button);
-}
-
-/** Whether a Present pressed now is an Objection: a floor open at all means evidence takes it. */
-function presentObjects() {
-    try {
-        return Boolean(game.settings.get(MODULE_ID, SETTINGS.trialQueue)?.active);
-    } catch {
-        // Present is the quieter of the two and the safer thing to promise.
-        return false;
-    }
-}
-
-/** The row's one button drawn as the act it is now: its class, its tooltip and its icon. */
-function paintPresentButton(button, objecting) {
-    const tip = game.i18n.localize(objecting
-        ? "DRPG.Trial.objectionTooltip" : "DRPG.Trial.presentTooltip");
-    button.className = `drpg-row-button drpg-row-present${objecting ? " is-objection" : ""}`;
-    button.dataset.tooltip = tip;
-    button.setAttribute("aria-label", tip);
-    button.innerHTML = `<i class="fa-solid ${objecting ? "fa-hand" : "fa-gavel"}" inert></i>`;
-}
-
-/**
- * THE ROW FOLLOWS THE FLOOR (E10 C16, 1.2.71; audit S03-27, S06-43). The button
- * was drawn at render and never again, and nothing re-renders a sheet when the
- * GM opens or closes a debate (sync.mjs `SYNC.trial` redrew the floor bar and
- * the HUD), so an open sheet went on offering a free Present while the window
- * behind it made an Objection, and after the debate the red Objection that
- * costs an action. Repainted in place from the trial's sync, every open sheet
- * at once and only the buttons whose act changed: the audit offered a render
- * of every sheet or this, and `SYNC.trial` also runs for every write of the
- * trial's progress, which changes nothing on a row. Returns how many it
- * repainted.
- */
-export function repaintPresentButtons(root = document) {
-    const objecting = presentObjects();
-    let painted = 0;
-    for (const button of root.querySelectorAll(".drpg-row-present")) {
-        if (button.classList.contains("is-objection") === objecting) continue;
-        paintPresentButton(button, objecting);
-        painted++;
-    }
-    return painted;
 }
 
 /**

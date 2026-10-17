@@ -5396,6 +5396,136 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         return true;`, { timeout: 60000 });
     await settle(300);
 
+    /*
+     * FORGERIES OF AN OBJECTION (E79 C16, 1.2.79; the owner, 17.10.2026). OBJECTION! is aimed at whoever the primary
+     * GM's LiveKit Room counts as speaking (trial.mjs `objectOnPrimary`), its Truth Bullet is chosen after it on the
+     * objector's own pending Objection inside its 30 s (`evidenceOnPrimary`), and the card is the primary's. The
+     * harness's LiveKit is installed on the GM, the clock put in a Class Trial with a debate open, Aiko (p1's) and
+     * Botan (p2's) each given a bullet and actions, and Chie's player speaks on the GM's Room for 1.2 s - so Chie is
+     * the speaker. Then, from consoles: p1 objects for Botan (refused for ownership, nothing moves); p1 objects for
+     * Aiko naming Botan in the packet (answered, aimed at Chie: the packet's target is not read while the GM has a
+     * Room); p2 puts Botan's bullet on Aiko's pending Objection, as Botan and as Aiko (each refused, nothing moves);
+     * the seconds run out and p1's bullet arrives late (refused, the card stays withdrawn); and p1's browser posts an
+     * Objection card of its own (marked refused on the GM, on no screen, the floor and Aiko's actions as they were).
+     * The control, a legal Objection and its bullet, is 33-bridge-paths A15 and 63-class-trial Y.
+     */
+    phase("forgeries of an Objection", { flow: "class-trial" });
+    const F30 = `const F = await import("${repoUrl}/scripts/trial-floor.mjs"); const T = await import("${repoUrl}/scripts/trial.mjs");`;
+    const objSetup = await gm.eval(`${F30} const B = await import("${repoUrl}/scripts/truth-bullets.mjs");
+        const C = await import("${repoUrl}/scripts/chapter.mjs");
+        const { sheetAuditIdle } = await import("${repoUrl}/scripts/sheet-audit.mjs");
+        if (typeof globalThis.__liveKit?.install !== "function") return null;
+        await __liveKit.install(); __liveKit.setRoster({ [__liveKit.MAIN_ROOM]: ${JSON.stringify([gm.userId, p1.userId, p2.userId, p3.userId])} });
+        const room = await game.webrtc.connect();
+        const cast = ["${ids.aiko}", "${ids.botan}", "${ids.chie}"].map(id => game.actors.get(id));
+        for (const a of cast) if (C.isDeadForGm(a)) await C.reviveCharacter(a, { quiet: true });
+        globalThis.__s30obj = { clock: foundry.utils.deepClone(game.settings.get("${MOD}", "clock")),
+            queue: foundry.utils.deepClone(game.settings.get("${MOD}", "trialQueue") ?? {}),
+            had: cast.slice(0, 2).map(a => ({ max: a.system.resources.actions.max, value: a.system.resources.actions.value,
+                grants: a.getFlag("${MOD}", "freeActionGrants") ?? null })) };
+        const items = [];
+        for (const a of cast.slice(0, 2)) {
+            items.push((await B.createTruthBullet(a, { name: "SEC objection " + a.name, realType: "neutral", visibility: "obvious" }))?.id ?? null);
+            await a.setFlag("${MOD}", "freeActionGrants", 0);
+            await a.update({ "system.resources.actions.max": 3, "system.resources.actions.value": 3 });
+        }
+        await game.settings.set("${MOD}", "clock", { ...globalThis.__s30obj.clock, phase: "classTrial" });
+        if (F.trialFloor()) await F.endFloor();
+        await F.startFloor({});
+        await sheetAuditIdle();
+        __liveKit.speak(["${p3.userId}"]);
+        await new Promise(r => setTimeout(r, 1200));
+        return { room, items, floor: F.trialFloor()?.mode ?? null, speaker: game.actors.get("${ids.chie}")?.testUserPermission(game.users.get("${p3.userId}"), "OWNER") };`,
+    { timeout: 60000 });
+    await settle(500);
+    const readObj = `${F30} const f = F.trialFloor(); const m = f?.messageId ? game.messages.get(f.messageId) : null;
+        return { mode: f?.mode ?? null, holder: f?.holderId ?? null, target: f?.targetId ?? null, pending: f?.pending ?? null, card: m?.id ?? null,
+            item: m?.getFlag("${MOD}", T.TRIAL_FLAGS.item) ?? null, withdrawn: Boolean(m?.getFlag("${MOD}", T.TRIAL_FLAGS.withdrawn)),
+            actions: ["${ids.aiko}", "${ids.botan}"].map(id => game.actors.get(id).system.resources.actions.value),
+            cards: game.messages.filter(x => x.getFlag("${MOD}", T.TRIAL_FLAGS.objection)).length };`;
+    /** One packet of a trial action from `client`'s console, in its own name, with what the GM answered it. */
+    const objSend = async (client, action, fields, id) => {
+        await gm.eval(`(await import("${repoUrl}/scripts/utils.mjs")).clearSessionFailures(); return true;`);
+        const before = await gm.eval(readObj);
+        await client.eval(`
+            if (!globalThis.__objToldHook) {
+                globalThis.__objToldHook = true; globalThis.__objTold = [];
+                game.socket.on("${SOCKET}", payload => {
+                    if (payload?.action === "bridge.refused" || payload?.action === "bridge.done") globalThis.__objTold.push([payload.requestId ?? null, payload.action, payload.reason ?? null]);
+                });
+            }
+            globalThis.__objTold.length = 0;
+            game.socket.emit("${SOCKET}", { action: "${action}", userId: game.user.id, requestId: "${id}", ...${JSON.stringify(fields)} },
+                { recipients: game.users.filter(u => u.isGM && u.active).map(u => u.id) });
+            return true;`);
+        await settle(1200);
+        const after = await gm.eval(readObj);
+        const told = await client.eval(`return globalThis.__objTold.filter(t => t[0] === "${id}");`);
+        const logged = await gm.eval(`return (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures()
+            .filter(e => e.message.includes('Refused a "${action}"')).map(e => e.message);`);
+        return { before, after, told, logged, unchanged: JSON.stringify(before) === JSON.stringify(after) };
+    };
+    const refusedAs = (sent, code) => sent.unchanged && sent.told.length === 1 && sent.told[0][1] === "bridge.refused" && (code === null || sent.told[0][2] === code);
+    const objOther = await objSend(p1, "trial.object", { actorId: ids.botan }, "SECOBJOTHER");
+    check("SECURITY: p1 objecting for p2's Botan is refused for ownership and told - nothing paid, posted or put on the floor",
+        objSetup?.room === true && objSetup.floor === "debate" && objSetup.speaker === true && refusedAs(objOther, null)
+            && objOther.logged.some(r => /sender does not own/.test(r)), JSON.stringify({ objSetup, objOther }), { flow: "class-trial" });
+    const objAimed = await objSend(p1, "trial.object", { actorId: ids.aiko, targetId: ids.botan }, "SECOBJAIM");
+    check("SECURITY: p1's Objection naming Botan in its packet is aimed at Chie, whom the GM's Room hears - the packet's target is not read",
+        objAimed.after.mode === "objection" && objAimed.after.holder === ids.aiko && objAimed.after.target === ids.chie && objAimed.after.pending === true
+            && objAimed.after.actions[0] === objAimed.before.actions[0] - 1 && objAimed.told.length === 1 && objAimed.told[0][1] === "bridge.done"
+            && objAimed.logged.length === 0, JSON.stringify(objAimed), { flow: "class-trial" });
+    const objTheirs = await objSend(p2, "trial.evidence", { actorId: ids.botan, itemId: objSetup?.items?.[1] ?? "" }, "SECOBJTHEIRS");
+    const objAsAiko = await objSend(p2, "trial.evidence", { actorId: ids.aiko, itemId: objSetup?.items?.[1] ?? "" }, "SECOBJASAIKO");
+    check("SECURITY: p2's bullet on Aiko's pending Objection is refused, as Botan's (objectionOver) and as Aiko's (ownership) - the card stays pending",
+        refusedAs(objTheirs, "objectionOver") && refusedAs(objAsAiko, null) && objAsAiko.logged.some(r => /sender does not own/.test(r))
+            && objAsAiko.after.pending === true && objAsAiko.after.item === null, JSON.stringify({ objTheirs, objAsAiko }), { flow: "class-trial" });
+    const objLapsed = await gm.eval(`${F30} const stored = game.settings.get("${MOD}", "trialQueue");
+        const id = stored?.messageId ?? null;
+        await game.settings.set("${MOD}", "trialQueue", { ...stored, startedAt: stored.startedAt - 31000 });
+        for (let i = 0; i < 60 && !(F.trialFloor()?.mode === "debate" && game.messages.get(id)?.getFlag("${MOD}", T.TRIAL_FLAGS.withdrawn)); i++)
+            await new Promise(r => setTimeout(r, 100));
+        return { id, mode: F.trialFloor()?.mode ?? null, withdrawn: Boolean(game.messages.get(id)?.getFlag("${MOD}", T.TRIAL_FLAGS.withdrawn)) };`,
+    { timeout: 30000 });
+    const objLate = await objSend(p1, "trial.evidence", { actorId: ids.aiko, itemId: objSetup?.items?.[0] ?? "" }, "SECOBJLATE");
+    const lateCard = await gm.eval(`const T = await import("${repoUrl}/scripts/trial.mjs"); const m = game.messages.get(${JSON.stringify(objLapsed.id)});
+        return { withdrawn: Boolean(m?.getFlag("${MOD}", T.TRIAL_FLAGS.withdrawn)), item: m?.getFlag("${MOD}", T.TRIAL_FLAGS.item) ?? null };`);
+    check("SECURITY: p1's bullet after its Objection's seconds ran out is refused (objectionOver) - the card stays withdrawn and empty, the action not given back",
+        objLapsed.mode === "debate" && objLapsed.withdrawn && refusedAs(objLate, "objectionOver") && lateCard.withdrawn && lateCard.item === null
+            && objLate.after.actions[0] === objAimed.after.actions[0], JSON.stringify({ objLapsed, objLate, lateCard }), { flow: "class-trial" });
+    const objCardBefore = await gm.eval(readObj);
+    const objCard = await p1.eval(`const T = await import("${repoUrl}/scripts/trial.mjs"), a = game.actors.get("${ids.aiko}");
+        const doc = await ChatMessage.create({ content: "<p>SEC a player's objection</p>", speaker: ChatMessage.getSpeaker({ actor: a }),
+            flags: { "${MOD}": { [T.TRIAL_FLAGS.present]: true, [T.TRIAL_FLAGS.objection]: true, [T.TRIAL_FLAGS.presenter]: a.name,
+                [T.TRIAL_FLAGS.item]: ${JSON.stringify(objSetup?.items?.[0] ?? null)}, [T.TRIAL_FLAGS.target]: "${ids.botan}", [T.TRIAL_FLAGS.targetName]: "Botan Kage",
+                popupKind: "none" } } });
+        return doc?.id ?? null;`);
+    await settle(1500);
+    const shownOn = c => c.eval(`return [...document.querySelectorAll(".drpg-popup[data-drpg-message]")].some(el => el.dataset.drpgMessage === ${JSON.stringify(objCard)});`);
+    const objCardRead = { id: objCard, refused: await gm.eval(`const T = await import("${repoUrl}/scripts/trial.mjs");
+            return Boolean(game.messages.get(${JSON.stringify(objCard)})?.getFlag("${MOD}", T.TRIAL_FLAGS.refused));`),
+        onGm: await shownOn(gm), onP3: await shownOn(p3), after: await gm.eval(readObj) };
+    check("SECURITY: an Objection card p1's browser posts is marked refused on the GM and shown on no screen - the floor and Aiko's actions as they were",
+        Boolean(objCard) && objCardRead.refused && !objCardRead.onGm && !objCardRead.onP3 && objCardRead.after.mode === "debate"
+            && objCardRead.after.holder === null && JSON.stringify(objCardRead.after.actions) === JSON.stringify(objCardBefore.actions),
+        JSON.stringify({ objCardBefore, objCardRead }), { flow: "class-trial" });
+    await gm.eval(`${F30} const was = globalThis.__s30obj;
+        for (const m of game.messages.filter(x => x.getFlag("${MOD}", T.TRIAL_FLAGS.objection))) await m.delete();
+        if (F.trialFloor()) await F.endFloor();
+        if (was) {
+            await game.settings.set("${MOD}", "trialQueue", was.queue);
+            await game.settings.set("${MOD}", "clock", was.clock);
+            for (const [i, id] of ["${ids.aiko}", "${ids.botan}"].entries()) {
+                const a = game.actors.get(id), h = was.had[i];
+                await a.update({ "system.resources.actions.max": h.max, "system.resources.actions.value": h.value });
+                if (h.grants === null) await a.unsetFlag("${MOD}", "freeActionGrants"); else await a.setFlag("${MOD}", "freeActionGrants", h.grants);
+            }
+        }
+        for (const [i, id] of ["${ids.aiko}", "${ids.botan}"].entries()) await game.actors.get(id).items.get(${JSON.stringify(objSetup?.items ?? [])}[i] ?? "")?.delete();
+        await game.webrtc.disconnect?.();
+        return true;`, { timeout: 60000 });
+    await settle(500);
+
     /* A PLAYER'S CARD IN THE GM'S NOTICE HISTORY (E81 C7, 12.10.2026). A public card of the module's, posted from p1's
        console with markup in it, is a card the GM's browser draws and keeps (popup.mjs `onCreateChatMessage`, E81 C3).
        The GM then opens the history window, every entry in it, and moves the pointer over every element there: what the

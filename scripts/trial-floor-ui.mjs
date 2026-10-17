@@ -669,7 +669,8 @@ function trialConsoleHtml(view) {
                         "DRPG.Floor.holdingDebateOver", { seconds: Math.abs(left) })}</p>`
                     : `<p>${game.i18n.format("DRPG.Floor.holdingDebate", { seconds: left })}</p>`)
                 : floor.mode === FLOOR_MODES.objection
-                    ? `<p>${game.i18n.format("DRPG.Floor.holdingObjection", {
+                    // E79 C16: an Objection raised and still waiting for its Truth Bullet runs the seconds to pick.
+                    ? `<p>${game.i18n.format(floor.pending ? "DRPG.Floor.holdingObjectionPending" : "DRPG.Floor.holdingObjection", {
                         who: esc(holder?.name ?? "-"), target: esc(target?.name ?? "-"),
                         seconds: Math.max(left, 0)
                     })}</p>`
@@ -775,7 +776,9 @@ function trialSignature(view) {
         // `next` too (E10 C14): the default is a button's property, so a vote opened by another GM
         // moves Enter only by drawing the footer again. And the table's door (E13 C6), which another GM's
         // activation turns from one into the other.
-        return [running, Boolean(floor), restrictive, finalNow, afterwards,
+        // The mode too since 1.2.79: Re-point stands only while an Objection runs (`trialButtons`), and an
+        // Objection and a rebuttal are both `restrictive`.
+        return [running, Boolean(floor), floor?.mode ?? "-", restrictive, finalNow, afterwards,
             progress.voteClosed, progress.verdictApplied, Boolean(stopped), next, table?.action ?? "-"].join("|");
 }
 
@@ -799,7 +802,12 @@ function trialButtons({ floor, running, restrictive, finalNow, progress, afterwa
                         default: isDefault("now") },
                        { action: "debate", label: game.i18n.localize("DRPG.Floor.backToDebate") }]
                     : []),
-                ...(floor ? [{ action: "extend", label: game.i18n.localize("DRPG.Floor.extend") }] : [])
+                ...(floor ? [{ action: "extend", label: game.i18n.localize("DRPG.Floor.extend") }] : []),
+                // E79 C16: the running Objection aimed at somebody else, picked in a window of its own - this
+                // console's body is redrawn every second and holds no field (`repointDialog`).
+                ...(floor?.mode === FLOOR_MODES.objection
+                    ? [{ action: "repoint", label: game.i18n.localize("DRPG.Floor.repoint") }]
+                    : [])
               ]
             : []),
         ...(afterwards
@@ -862,6 +870,10 @@ const TRIAL_ACTIONS = {
     now: () => advanceFloorNow(),
     debate: () => returnToDebate(),
     extend: () => extendFloor(30),
+    repoint: async () => {
+        const { repointDialog } = await import("./trial.mjs");
+        await repointDialog();
+    },
     vote: () => openVoteDialog(),
     /* THE FINAL TRIAL'S VERDICT IS THE MASTERMIND'S WINDOW (E10 C10, 1.2.71; audit S06-16). This
        button opened `openVerdictDialog` whatever the trial was, and in a Final Trial that is the

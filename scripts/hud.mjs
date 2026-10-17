@@ -30,12 +30,14 @@ import { isSyncedSetting } from "./sync.mjs";
 // be a private copy here "for the cycle" (audit C3) - the cycle was real, the
 // copy was the wrong cure. character.mjs was the other such reader, and it went
 // with the incident row when that moved to the Event panel (1.2.47).
-import { incomingTimeOfDay, incidentWitness, incidentCast, incidentSeats, SETTINGS, getSetting, bodyDiscovery } from "./settings.mjs";
+import { incomingTimeOfDay, incidentWitness, incidentCast, incidentSeats, SETTINGS, getSetting, bodyDiscovery, isDeadForGm } from "./settings.mjs";
 // The room rows' four imports (movement, rooms, projects, search tokens) left with the rows for
 // room-tile.mjs (E77 C3). This file avoids static imports because it sits on the render path the
 // clock itself calls back into, so a cycle here would be a load-order problem rather than a lint
 // complaint; everything still imported below was walked for that when it was added.
 import { isMonokuma, poolUserFor, ownStudent } from "./monokuma.mjs";
+// For OBJECTION! (E79 C16): monocub.mjs's static imports, walked to the end on 17.10.2026, never reach this file.
+import { isMonocub } from "./monocub.mjs";
 // Static, and safe: nothing imports hud.mjs, so no path leads back here.
 import { murderState } from "./murder.mjs";
 import { nowPlayingHere } from "./music.mjs";
@@ -1100,6 +1102,9 @@ function buildTimeRow(clock, isGM) {
         slot.className = "drpg-hud-time-slot";
         slot.append(label);
         row.append(slot);
+        // The one control the trial puts back, and only on a player's row (E79 C16, `objectionControl`).
+        const objection = isGM ? null : objectionControl();
+        if (objection) row.append(objection);
         return row;
     }
 
@@ -1316,6 +1321,72 @@ export function viewerActor() {
     }
 
     return ownStudent();
+}
+
+/** Whether an OBJECTION! press is between its first click and its last window, on this browser. */
+let objectionRaising = false;
+
+/**
+ * OBJECTION! (E79 C16, 1.2.79; the owner, 17.10.2026): the trial bar's one control, on a player's row only, for
+ * the student this screen is about (`viewerActor`) - none for a Monokuma, a Monocub or a student dead as this
+ * browser may know it. The sheet's row was where an Objection was made until 1.2.79; it presents only now.
+ *
+ * WHAT IT SAYS BEFORE IT IS PRESSED is trial.mjs `objectionButtonState`: whom it would be aimed at as this
+ * browser's voice Room hears it, or why it is held, and the price - read when the cursor or the focus arrives,
+ * because the speaker changes by the second and the row is not redrawn for it. Held is dimmed and `aria-disabled`,
+ * still pressable, and a held press says why (`control`'s rule). Drawn held at once when what this file already
+ * reads says so - no debate, or an Objection running - so the row does not wait on an import to look right.
+ *
+ * NOT ON THE CLOCK'S LATCH (`holdControls`): a press waits on the primary GM and then on a person for up to
+ * `TRIAL.objectionPickSeconds`, past the latch's ceiling, and the chevrons it holds are not on this row in a trial.
+ * Its own flag keeps a second press out until the first is over, across the redraws the floor moving causes.
+ */
+function objectionControl() {
+    const actor = viewerActor();
+    if (!actor || actor.type !== "character" || isMonokuma(actor) || isMonocub(actor) || isDeadForGm(actor)) return null;
+    const name = game.i18n.localize("DRPG.Trial.objection");
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "drpg-hud-button drpg-hud-objection";
+    button.dataset.tooltip = name;
+    button.setAttribute("aria-label", name);
+    button.innerHTML = `<i class="fa-solid fa-hand" inert></i>`;
+    const floor = trialFloor();
+    if (!floor || floor.mode === FLOOR_MODES.objection) button.setAttribute("aria-disabled", "true");
+    if (objectionRaising) button.disabled = true;
+
+    const preview = async () => {
+        const { objectionButtonState } = await import("./trial.mjs");
+        const state = await objectionButtonState(actor);
+        button.dataset.tooltip = state.text;
+        button.setAttribute("aria-label", `${name} ${state.text}`);
+        if (state.held) button.setAttribute("aria-disabled", "true");
+        else button.removeAttribute("aria-disabled");
+        return state;
+    };
+    const look = () => void preview().catch(err => error("Could not read what OBJECTION! would do", err));
+    button.addEventListener("pointerenter", look);
+    button.addEventListener("focus", look);
+    button.addEventListener("click", async event => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (objectionRaising) return void debug("hud: an Objection is already being raised");
+        objectionRaising = true;
+        button.disabled = true;
+        try {
+            const state = await preview();
+            if (state.held) return void ui.notifications.warn(state.text);
+            const { raiseObjection } = await import("./trial.mjs");
+            await raiseObjection(actor);
+        } catch (err) {
+            error("OBJECTION! failed", err);
+            ui.notifications.error(game.i18n.localize("DRPG.Trial.objectionFailed"));
+        } finally {
+            objectionRaising = false;
+            for (const other of document.querySelectorAll(`#${HUD_ID} .drpg-hud-objection`)) other.disabled = false;
+        }
+    });
+    return button;
 }
 
 const MARK_FIRST_ACTION = TIMING.elapsedMarksMinutes[0] * 60 * 1000;

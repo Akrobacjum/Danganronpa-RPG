@@ -3466,6 +3466,16 @@ body.drpg-theme-stained-glass #drpg-hud .drpg-hud-button i {
     height: calc(14px * var(--drpg-sg-scale));
     font-size: calc(14px * var(--drpg-sg-scale));
 }
+/* OBJECTION! on the trial bar (E79 C16, 1.2.79): the same plate in crimson, whatever the state's colour. */
+body.drpg-theme-stained-glass #drpg-hud .drpg-hud-button.drpg-hud-objection {
+    color: var(--drpg-crimson-light);
+    border-color: rgba(var(--drpg-crimson-rgb), 0.8);
+    background: rgba(var(--drpg-crimson-rgb), 0.22);
+}
+body.drpg-theme-stained-glass #drpg-hud .drpg-hud-button.drpg-hud-objection:hover:not([aria-disabled="true"]) {
+    border-color: rgba(var(--drpg-crimson-rgb), 1);
+    background: rgba(var(--drpg-crimson-rgb), 0.45);
+}
 /* the notice tile is always there, at the audit page's place; the cards land on it. Its foot
    is fitted onto Foundry's gauge by glass.mjs (`fitNoteTile`, 21.09); 100 on the geometry
    scale is where it stood before that, and where it stands until a pass has run. */

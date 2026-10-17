@@ -202,8 +202,9 @@ const CELL_SPAN = /^[1-9]\d{0,2}$/;
  * action-rolls.mjs, the words inside a `${...}` of the attribute included - but the module's own
  * frames and Foundry's (`drpg-popup*`, `drpg-notices-*`, `drpg-corner-tail*`, `application`,
  * `window-*`, `inline-roll`, `content-link`, `fa-*`), which would dress a snapshot as a live card
- * or a window. 62 at E81 C2 (12.10.2026); R294 runs the same grep and fails on a difference, so a
- * class a card body gains is either added here or drawn bare in the window.
+ * or a window. 62 at E81 C2 (12.10.2026), 61 at E79 C16 (the Present dialog lost its Objection fieldset);
+ * R294 runs the same grep and fails on a difference, so a class a card body gains is either added here or
+ * drawn bare in the window.
  */
 export const NOTICE_CLASSES = Object.freeze([
     "chapter", "drpg-briefing-block", "drpg-briefing-facts", "drpg-briefing-instruction", "drpg-checkbox",
@@ -212,7 +213,7 @@ export const NOTICE_CLASSES = Object.freeze([
     "drpg-duality-op", "drpg-duality-result", "drpg-duality-stat", "drpg-duality-total",
     "drpg-evidence-card", "drpg-evidence-comment", "drpg-evidence-hint", "drpg-evidence-name",
     "drpg-evidence-text", "drpg-evidence-who", "drpg-gm-reference", "drpg-gm-route", "drpg-item-effect",
-    "drpg-objection-banner", "drpg-objection-block", "drpg-objection-live", "drpg-objection-log",
+    "drpg-objection-banner", "drpg-objection-live", "drpg-objection-log",
     "drpg-safeword-heading", "drpg-specific-note",
     "drpg-sum-action", "drpg-sum-crit", "drpg-sum-found", "drpg-sum-head", "drpg-sum-lede", "drpg-sum-left",
     "drpg-sum-list", "drpg-sum-room", "drpg-sum-row", "drpg-sum-sep", "drpg-sum-tail", "drpg-sum-total",
