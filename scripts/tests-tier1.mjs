@@ -15762,6 +15762,87 @@ const INVARIANTS = [
             + "[the live record's listeners on a stand-in Room: the module moving the Room, the move over, the client put back], "
             + "[this browser's GM account as a speaker]");
     }],
+
+    ["R592 - OBJECTION! on a player's trial row: drawn for a living student and for no Monokuma, Monocub or dead student, held with no floor and while an Objection runs, its preview on the pointer's arrival and on focus, a held press raising nothing and two presses one Objection", async () => {
+        /*
+         * E79 fix r4-G3 (17.10.2026; the round-4 review's goal C16-11 and Q2). C16 put OBJECTION! on a player's trial
+         * row (hud.mjs `objectionControl`, in place of the hour's chevrons), and no test drew it or pressed it: 63 Y
+         * raised through trial.mjs `raiseObjection` from p1's console. The suite runs on a GM's browser, whose row
+         * draws no button, so the button is drawn here as a player's row draws it, with the student, the floor, the
+         * preview's reader and the press handed in (the row hands in none: the viewer, the floor this browser holds,
+         * `objectionButtonState` on this browser's own Room and `raiseObjection`). Read: a living student's button
+         * on no floor, a debate and a running Objection (its class, its type, aria-disabled, its label); none for a
+         * Monokuma, a Monocub, a student dead as this browser knows it (stand-ins carrying the flag alone, so
+         * nothing is written) and no viewer; the preview's words on the pointer's arrival and on focus, held words
+         * holding it; a held press, which reaches no raise; and on a fresh button two presses at once, one raise
+         * (the button's own latch), waited on until it is let go. Where the button stands on the clock's row in
+         * either theme and on a stacked screen is the glass sweep's (audit/glass-sweep.mjs, the trial row); a player's
+         * real row in a real trial, its preview and its press, is 63 Y; its glyph under Monokuma Legacy and Foundry's
+         * tooltip at a table are LIVE-E79-23. Red at fix r4-G3's parent: hud.mjs exported
+         * no `objectionControl` (the first assertion) - the road was there and untested, so the mutants are what show
+         * that this reads it (e79run/scratch/r4g3.a2).
+         */
+        needs(world.atLeast("livingStudents", 1), "a living student to draw the button for");
+        const H = await import("./hud.mjs");
+        ok(typeof H.objectionControl === "function", "hud.mjs exports no objectionControl - a player's OBJECTION! cannot be drawn on this browser");
+        if (typeof H.objectionControl !== "function") return;
+        const { livingStudents } = await import("./chapter.mjs");
+        const student = livingStudents().find(actor => actor.type === "character");
+        must(student, "no living student of type character - this would measure nothing");
+        const name = game.i18n.localize("DRPG.Trial.objection");
+        const standIn = (key, flag) => ({ id: `R592${key}`.padEnd(16, "0"), name: `R592 ${key}`, type: "character",
+            getFlag: (scope, k) => (scope === MODULE_ID && k === flag ? true : undefined) });
+        const drawn = [null, { mode: "debate" }, { mode: "objection" }].map(floor => {
+            const button = H.objectionControl(student, { floor });
+            return button && [button.className, button.type, button.getAttribute("aria-disabled"), button.getAttribute("aria-label") === name];
+        });
+        const hidden = [standIn("MONOKUMA", FLAGS.monokuma), standIn("MONOCUB", FLAGS.monocub), standIn("DEAD", FLAGS.deceased), null]
+            .map(actor => H.objectionControl(actor, { floor: { mode: "debate" } }));
+        let answer = { text: "R592 at B", held: false };
+        const asked = [], raised = [];
+        let release = null;
+        const gate = new Promise(resolve => { release = resolve; });
+        const state = async actor => { asked.push(actor.id); return { ...answer }; };
+        const raise = async actor => { raised.push(actor.id); await gate; return true; };
+        const looks = [];
+        const look = button => [button.dataset.tooltip, button.getAttribute("aria-label"), button.getAttribute("aria-disabled")];
+        const first = H.objectionControl(student, { floor: { mode: "debate" }, state, raise });
+        try {
+            // jsdom may have no PointerEvent (as the clause near the top of this file allows); the listener asks only for the event's name.
+            first.dispatchEvent(new (typeof globalThis.PointerEvent === "function" ? globalThis.PointerEvent : MouseEvent)("pointerenter"));
+            await until(() => asked.length === 1, 2000);
+            looks.push(look(first));
+            answer = { text: "R592 held", held: true };
+            first.dispatchEvent(new FocusEvent("focus"));
+            await until(() => asked.length === 2, 2000);
+            looks.push(look(first));
+            first.click();
+            await until(() => asked.length === 3, 2000);
+            await wait(100);
+            looks.push([raised.length, first.getAttribute("aria-disabled")]);
+            answer = { text: "R592 at C", held: false };
+            const second = H.objectionControl(student, { floor: { mode: "debate" }, state, raise });
+            second.click();
+            // The second press is dispatched, not clicked: a disabled button takes no click(), but it does take an
+            // event dispatched on it (jsdom, read 17.10.2026), so the module's latch, not the attribute, holds this one.
+            second.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+            await until(() => raised.length > 0, 2000);
+            await wait(100);
+            looks.push([raised.length, asked.length, raised[0] === student.id, second.disabled]);
+        } finally {
+            release();
+            await wait(50);
+        }
+        equal(stableJson([drawn, hidden, looks]), stableJson([
+            [["drpg-hud-button drpg-hud-objection", "button", "true", true], ["drpg-hud-button drpg-hud-objection", "button", null, true],
+                ["drpg-hud-button drpg-hud-objection", "button", "true", true]],
+            [null, null, null, null],
+            [["R592 at B", `${name} R592 at B`, null], ["R592 held", `${name} R592 held`, "true"], [0, "true"], [1, 4, true, true]]
+        ]), "[a living student's button on no floor, a debate and a running Objection: class, type, aria-disabled, labelled OBJECTION], "
+            + "[a Monokuma's, a Monocub's, a dead student's, no viewer's], "
+            + "[the preview on the pointer's arrival: tooltip, label, held; on focus with held words; a held press: raises, held; "
+            + "two presses on a fresh button: raises, previews asked, the viewer's own student raised, the button held down while it waits]");
+    }],
 ];
 
 /**

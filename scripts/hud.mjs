@@ -1340,10 +1340,20 @@ let objectionRaising = false;
  * NOT ON THE CLOCK'S LATCH (`holdControls`): a press waits on the primary GM and then on a person for up to
  * `TRIAL.objectionPickSeconds`, past the latch's ceiling, and the chevrons it holds are not on this row in a trial.
  * Its own flag keeps a second press out until the first is over, across the redraws the floor moving causes.
+ *
+ * EXPORTED FOR R592 (E79 fix r4-G3, 1.2.79, 17.10.2026; the round-4 review's goal C16-11): the suite runs on a GM's browser,
+ * where `buildTimeRow` draws no button, so R592 hands in the student, the floor, the preview's reader and the press.
+ * The row passes none of them: the viewer, the floor as this browser holds it, trial.mjs `objectionButtonState` (this
+ * browser's own Room) and `raiseObjection`.
+ *
+ * @param {Actor|null} [actor]  the student this screen is about (`viewerActor`)
+ * @param {{floor?: object|null, state?: Function, raise?: Function}} [given]
  */
-function objectionControl() {
-    const actor = viewerActor();
+export function objectionControl(actor = viewerActor(), given = {}) {
     if (!actor || actor.type !== "character" || isMonokuma(actor) || isMonocub(actor) || isDeadForGm(actor)) return null;
+    const floor = "floor" in given ? given.floor : trialFloor();
+    const stateOf = given.state ?? (async who => (await import("./trial.mjs")).objectionButtonState(who));
+    const raise = given.raise ?? (async who => (await import("./trial.mjs")).raiseObjection(who));
     const name = game.i18n.localize("DRPG.Trial.objection");
     const button = document.createElement("button");
     button.type = "button";
@@ -1351,13 +1361,11 @@ function objectionControl() {
     button.dataset.tooltip = name;
     button.setAttribute("aria-label", name);
     button.innerHTML = `<i class="fa-solid fa-hand" inert></i>`;
-    const floor = trialFloor();
     if (!floor || floor.mode === FLOOR_MODES.objection) button.setAttribute("aria-disabled", "true");
     if (objectionRaising) button.disabled = true;
 
     const preview = async () => {
-        const { objectionButtonState } = await import("./trial.mjs");
-        const state = await objectionButtonState(actor);
+        const state = await stateOf(actor);
         button.dataset.tooltip = state.text;
         button.setAttribute("aria-label", `${name} ${state.text}`);
         if (state.held) button.setAttribute("aria-disabled", "true");
@@ -1376,8 +1384,7 @@ function objectionControl() {
         try {
             const state = await preview();
             if (state.held) return void ui.notifications.warn(state.text);
-            const { raiseObjection } = await import("./trial.mjs");
-            await raiseObjection(actor);
+            await raise(actor);
         } catch (err) {
             error("OBJECTION! failed", err);
             ui.notifications.error(game.i18n.localize("DRPG.Trial.objectionFailed"));

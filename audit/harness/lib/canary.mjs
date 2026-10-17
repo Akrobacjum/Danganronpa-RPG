@@ -67,6 +67,8 @@ export const SEEDS = Object.freeze({
     "remnant.note": { cls: "answer-key", field: "a trace's note (placeRemnant)", plantedBy: "72-canary, 10-murder" },
     "remnant.subject": { cls: "answer-key", field: "a trace's subject (placeRemnant)", plantedBy: "72-canary, 10-murder" },
     "bullet.note": { cls: "gm-notes", field: "a Truth Bullet's GM note", plantedBy: "72-canary" },
+    // E79 fix r4-G3 (1.2.79): the reading an unanalysed bullet waits for, which the GMs hold (72's Objection phase).
+    "bullet.reading": { cls: "answer-key", field: "a Truth Bullet's reading, held by the GMs until an Analyze", plantedBy: "72-canary" },
     "project.name": { cls: "plan", field: "a secret project's name", plantedBy: "72-canary" },
     "project.condition": { cls: "plan", field: "an indirect murder's condition", plantedBy: "72-canary" },
     "note.player": { cls: "plan", field: "a player's pre-session note", plantedBy: "72-canary, 11-killer-secrecy" },

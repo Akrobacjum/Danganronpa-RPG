@@ -31483,6 +31483,119 @@ const SCENARIOS = [
             + "closed within 1.5 s of Back to debate; the card withdrawn], [Cancel on a second: the debate within a second; the floor's mode; the card withdrawn; O's actions]");
     }],
 
+    ["a GM's Re-point moves a running Objection's target, its card's line and flags once, pending and filled, and its notice follows; the objector, a GM's account, a Monokuma, a dead student and a floor with no Objection are refused", async () => {
+        /*
+         * E79 fix r4-G3 (1.2.79; the round-4 review's Q3 and SEC4-5's tier-2 half). C16's Re-point (trial.mjs
+         * `repointOnPrimary`, the run of `floor.repoint` on the primary GM) had no test of its own: 63 Y3 pressed it
+         * once, on a filled card. O raises an Objection at B on the fallback road (a stand-in Room that is not
+         * connected, as the roads test above), with D's death published first (the table's dead, fix r4-G1's rule).
+         * Read: a Re-point with only a debate on the floor; then, on the pending card, a Re-point at the objector,
+         * at this GM's own account, at a Monokuma and at D - each answer, whether the floor still aims at B, and the
+         * floor's and the card's target writes (`updateSetting` of the trial queue, `updateChatMessage` naming the
+         * target); then a Re-point at T and, once O's bullet fills the card, one back at B - each answer, the writes
+         * (one of each), the floor's target, the card's target id and name, its who line naming the new target and
+         * not the old, and this browser's notice-history entry following the card. A death the GMs keep unpublished
+         * is not read here: the GMs' list (`livingStudentsForGm`) is the Re-point's, and its refusal is told to a GM.
+         */
+        needs(world.atLeast("monokumas", 1), "a Monokuma, the GMs' own character, to re-point at");
+        const kit = await objectionKit();
+        ok(kit && typeof kit.trial.repointOnPrimary === "function", "there is no Re-point run on the primary GM to read");
+        if (!kit || typeof kit.trial.repointOnPrimary !== "function") return;
+        const { trial, speakers } = kit;
+        const { TRIAL_FLAGS } = trial;
+        const floorMod = await import("./trial-floor.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const NH = await import("./notice-history.mjs");
+        const C = await import("./chapter.mjs");
+        const { isMonokuma } = await import("./monokuma.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const [O, B, T, D] = cast(4);
+        const monokuma = game.actors.find(actor => actor.type === "character" && isMonokuma(actor));
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const before = { actions: O.system.resources.actions.value, max: O.system.resources.actions.max, grants: O.getFlag(MODULE_ID, FLAGS.freeActionGrants) ?? 0 };
+        const seen = new Set(game.messages.map(m => m.id));
+        const writes = { floor: 0, card: 0 };
+        const floorHook = Hooks.on("updateSetting", setting => { if (setting?.key === `${MODULE_ID}.${SETTINGS.trialQueue}`) writes.floor++; });
+        const cardHook = Hooks.on("updateChatMessage", (message, changes) => {
+            if (foundry.utils.hasProperty(changes, `flags.${MODULE_ID}.${TRIAL_FLAGS.target}`)) writes.card++;
+        });
+        const view = (id, now, was) => {
+            const card = game.messages.get(id);
+            const box = document.createElement("template");
+            box.innerHTML = String(card?.content ?? "");
+            const who = box.content.querySelector(".drpg-evidence-who")?.textContent ?? "";
+            const entry = NH.noticeEntries().find(e => e.messageId === id);
+            return [floorMod.trialFloor()?.targetId === now.id, card?.getFlag(MODULE_ID, TRIAL_FLAGS.target) === now.id,
+                card?.getFlag(MODULE_ID, TRIAL_FLAGS.targetName) === now.name, who.includes(now.name) && !who.includes(was.name),
+                String(entry?.text ?? "").includes(now.name) && !String(entry?.text ?? "").includes(was.name)];
+        };
+        const repoint = async targetId => {
+            const w = { ...writes };
+            const res = await trial.repointOnPrimary({ targetId });
+            await settle();
+            return [res.refused ?? res.reply?.target ?? null, writes.floor - w.floor, writes.card - w.card];
+        };
+        const read = [];
+        let item = null, room = null, killed = false;
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            if (floorMod.trialFloor()) await floorMod.endFloor();
+            await floorMod.startFloor({});
+            await O.setFlag(MODULE_ID, FLAGS.freeActionGrants, 0);
+            await O.update({ "system.resources.actions.max": 3, "system.resources.actions.value": 3 });
+            item = await bullets.createTruthBullet(O, { name: "SUITE r4-G3 the re-pointed evidence", realType: "neutral", visibility: "obvious" });
+            must(item, "the fixture's Truth Bullet was not made");
+            must(await C.killCharacter(D, { secret: false, keepBullets: true }), `${D.name}'s death was not recorded`);
+            killed = true;
+            must(C.isDeceased(D), `${D.name}'s death is not the table's - this would measure nothing`);
+            await sheetAuditIdle();
+            await settle();
+            room = standInRoom(speakers, { connected: false });
+            read.push(["debate", ...(await repoint(T.id))]);
+            const raised = await trial.objectOnPrimary({ actorId: O.id, targetId: B.id });
+            must(raised.reply?.messageId, `the Objection was not raised (${raised.refused})`);
+            const id = raised.reply.messageId;
+            must(await until(() => NH.noticeEntries().some(entry => entry.messageId === id)), "the Objection's card is not in this browser's notice history - this would measure nothing");
+            for (const [label, targetId] of [["objector", O.id], ["GM account", game.user.id], ["Monokuma", monokuma.id], ["dead", D.id]]) {
+                read.push([label, ...(await repoint(targetId)), floorMod.trialFloor()?.targetId === B.id]);
+            }
+            read.push(["pending", ...(await repoint(T.id))]);
+            await until(() => view(id, T, B).every(Boolean), 3000);
+            read.push(view(id, T, B));
+            const filled = await trial.evidenceOnPrimary({ actorId: O.id, itemId: item.id });
+            must(!filled.refused, `the Objection was not filled (${filled.refused})`);
+            await until(() => game.messages.get(id)?.getFlag(MODULE_ID, TRIAL_FLAGS.item) === item.id, 3000);
+            read.push(["filled", ...(await repoint(B.id)), floorMod.trialFloor()?.pending === false]);
+            await until(() => view(id, B, T).every(Boolean), 3000);
+            read.push(view(id, B, T));
+        } finally {
+            Hooks.off("updateSetting", floorHook);
+            Hooks.off("updateChatMessage", cardHook);
+            room?.restore();
+            if (killed || C.isDeadForGm(D)) await C.reviveCharacter(D, { quiet: true });
+            await clearObjections(floorMod, seen);
+            try { await item?.delete(); } catch { /* already gone */ }
+            if (floorMod.trialFloor()) await floorMod.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await setClock(clock);
+            await O.setFlag(MODULE_ID, FLAGS.freeActionGrants, before.grants);
+            await O.update({ "system.resources.actions.max": before.max, "system.resources.actions.value": before.actions });
+            await sheetAuditIdle();
+            await settle();
+        }
+        const no = "the student named may not be objected to now";
+        equal(stableJson(read), stableJson([
+            ["debate", "the floor holds no objection to re-point", 0, 0],
+            ["objector", no, 0, 0, true], ["GM account", no, 0, 0, true], ["Monokuma", no, 0, 0, true], ["dead", no, 0, 0, true],
+            ["pending", T.name, 1, 1], [true, true, true, true, true],
+            ["filled", B.name, 1, 1, true], [true, true, true, true, true]
+        ]), "[a Re-point with a debate on the floor: its answer, the floor's and the card's target writes], "
+            + "[at the objector, this GM's account, a Monokuma, a published death: answer, writes, the floor still at B], "
+            + "[at T on the pending card: answer, writes], [the floor at T, the card's id and name, its who line, its notice entry], "
+            + "[at B on the filled card: answer, writes, filled], [the same at B]");
+    }],
+
     ["a card a player's browser posts as an Objection is refused and marked on the primary, shown on no screen and told to its owner, and a player's Present is free", async () => {
         /*
          * E79 C16 (1.2.79; the prep's (f)). An Objection is raised on the primary GM now, which posts its card as a GM

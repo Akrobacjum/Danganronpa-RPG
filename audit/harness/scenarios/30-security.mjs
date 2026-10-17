@@ -5405,7 +5405,8 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
      * the speaker. Then, from consoles: p1 objects for Botan (refused for ownership, nothing moves); p1 objects for
      * Aiko naming Botan in the packet (answered, aimed at Chie: the packet's target is not read while the GM has a
      * Room); p2 puts Botan's bullet on Aiko's pending Objection, as Botan and as Aiko (each refused, nothing moves);
-     * the seconds run out and p1's bullet arrives late (refused, the card stays withdrawn); and p1's browser posts an
+     * p1 re-points it at Botan (refused, a GM's only: fix r4-G3); the seconds run out and p1's bullet arrives late
+     * (refused, the card stays withdrawn); and p1's browser posts an
      * Objection card of its own (marked refused on the GM, on no screen, the floor and Aiko's actions as they were).
      * The control, a legal Objection and its bullet, is 33-bridge-paths A15 and 63-class-trial Y.
      */
@@ -5475,6 +5476,14 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         objAimed.after.mode === "objection" && objAimed.after.holder === ids.aiko && objAimed.after.target === ids.chie && objAimed.after.pending === true
             && objAimed.after.actions[0] === objAimed.before.actions[0] - 1 && objAimed.told.length === 1 && objAimed.told[0][1] === "bridge.done"
             && objAimed.logged.length === 0, JSON.stringify(objAimed), { flow: "class-trial" });
+    /* E79 fix r4-G3 (1.2.79; the round-4 review's SEC4-5): the trial console's Re-point (`floor.repoint`, a GM's only)
+       forged from p1's console during Aiko's running Objection, naming Botan. Refused gmOnly and told with its code,
+       logged on the GM; the floor still aimed at Chie, the card and the count of Objection cards as they were. */
+    const objRepoint = await objSend(p1, "floor.repoint", { targetId: ids.botan }, "SECOBJREPOINT");
+    check("SECURITY: p1's Re-point of Aiko's running Objection at Botan is refused (gmOnly) and told - the floor still aimed at Chie, nothing posted",
+        refusedAs(objRepoint, "gmOnly") && objRepoint.logged.some(r => /only a GM re-points an objection/.test(r))
+            && objRepoint.after.mode === "objection" && objRepoint.after.target === ids.chie && objRepoint.after.cards === objRepoint.before.cards,
+        JSON.stringify(objRepoint), { flow: "class-trial" });
     const objTheirs = await objSend(p2, "trial.evidence", { actorId: ids.botan, itemId: objSetup?.items?.[1] ?? "" }, "SECOBJTHEIRS");
     const objAsAiko = await objSend(p2, "trial.evidence", { actorId: ids.aiko, itemId: objSetup?.items?.[1] ?? "" }, "SECOBJASAIKO");
     check("SECURITY: p2's bullet on Aiko's pending Objection is refused, as Botan's (objectionOver) and as Aiko's (ownership) - the card stays pending",

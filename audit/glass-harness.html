@@ -22,7 +22,8 @@
      the page boots foundry-windows.mjs as the module does: on the GM's page the scene controls and the sidebar stand
      in its two closed windows, on a player's the body carries `drpg-player` and the stylesheet hides both rails, and
      `drpgFoundryCut()` reads that opening the windows recuts nothing; since E77 C7 `drpgWindowsCheck()` reads a drag,
-     the clamp of places saved at 1920x1080 and a focused field through a recut. -->
+     the clamp of places saved at 1920x1080 and a focused field through a recut; since E79 fix r4-G3 (1.2.79)
+     `drpgObjectionCheck()` draws a player's trial row, with OBJECTION!, in the clock's row and measures it. -->
 <!doctype html><html><head><meta charset="utf-8">
 <link rel="stylesheet" href="/styles/motion.css"><link rel="stylesheet" href="/styles/danganronpa.css"><link rel="stylesheet" href="/styles/stained-glass.css"><link rel="stylesheet" href="/styles/pixel-icons.css"><link rel="stylesheet" href="/styles/messenger.css"><link rel="stylesheet" href="/styles/narrow.css">
 <style>
@@ -1246,8 +1247,9 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
                 can grow after the place was taken). `raw`: the grown frame where it stood before - off the screen or
                 on the cluster, or the reading saw no growth; a screen too narrow to let the frame grow is not asked.
        collapse Foundry's caret (E79 C12, the owner's N7): with Foundry tools open, `ui.sidebar.expanded` set and the
-                collapseSidebar hook called as v14 calls it - expanded, collapsed, expanded again, 450 ms after each for
-                the stand-in's transition: collapsed, the content 0 px and the frame no more than 8 px wider than the
+                collapseSidebar hook called as v14 calls it - expanded, collapsed, expanded again, each read once the frame's
+                and the content's transitions have ended (at most 2 s, `late` counting a bound hit; a fixed 450 ms until
+                E79 fix r4-G3, 17.10.2026): collapsed, the content 0 px and the frame no more than 8 px wider than the
                 wider of the rail and the title bar at its least (`head`, a hidden copy of the header at min-content);
                 expanded, the content 250 px or more and the frame at least the rail and the content wide, the same
                 both times within 1 px; no `drpgGlassCut` on the way. Read 16.10.2026 at 1366x768 (Chromium): Stained
@@ -1293,7 +1295,14 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
         const bar = globalThis.ui.sidebar, had = Object.hasOwn(bar, "expanded"), was = bar.expanded, tabs = document.getElementById("sidebar-tabs");
         let cuts = 0; const cut = () => { cuts++; };
         const content = document.getElementById("sidebar-content"), widthOf = e => e?.getBoundingClientRect().width ?? 0;
-        const caret = async expanded => { bar.expanded = expanded; Hooks.callAll("collapseSidebar", bar, !expanded); await frame(); await new Promise(r => setTimeout(r, 450)); return [rectOf(frames[0]).w, widthOf(content)]; };
+        /* Read once the frame's transitions have ended (E79 fix r4-G3, review round 4's Q6): the fixed 450 ms against the
+           stand-in's 0.3 s read a 1680x1050 collapse 23 px wide once in four sweeps of r3-G4. Every running animation of
+           the frame and of the content is awaited, bounded at 2 s, which the reading says it hit (`late`). */
+        let late = 0;
+        const settled = async () => { const runs = [...frames[0].getAnimations({ subtree: true }), ...(content?.getAnimations() ?? [])];
+          const ended = await Promise.race([Promise.all(runs.map(a => a.finished.catch(() => null))).then(() => true), new Promise(r => setTimeout(r, 2000, false))]);
+          if (!ended) late++; await frame(); };
+        const caret = async expanded => { bar.expanded = expanded; Hooks.callAll("collapseSidebar", bar, !expanded); await frame(); await settled(); return [rectOf(frames[0]).w, widthOf(content)]; };
         /* the title bar at its least: a hidden copy at min-content, in the frame so the theme's rules reach it */
         const headLeast = () => { const h = frames[0].querySelector(".drpg-foundry-window-header")?.cloneNode(true); if (!h) return 0;
           h.style.cssText = "position:absolute;visibility:hidden;width:min-content"; frames[0].append(h); const w = widthOf(h); h.remove(); return w; };
@@ -1301,7 +1310,8 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
         try {
           const [wide, cw] = await caret(true), [narrow, cn] = await caret(false), [back] = await caret(true), rail = widthOf(tabs), head = headLeast();
           const least = Math.max(rail, head);
-          out.collapse = { wide: Math.round(wide), narrow: Math.round(narrow), back: Math.round(back), rail: Math.round(rail), head: Math.round(head), content: [Math.round(cw), Math.round(cn)], cuts };
+          out.collapse = { wide: Math.round(wide), narrow: Math.round(narrow), back: Math.round(back), rail: Math.round(rail), head: Math.round(head), content: [Math.round(cw), Math.round(cn)], cuts, late };
+          if (late) out.why.push(`collapse: a transition of Foundry tools ran past 2 s ${late} time(s), so a width was read before it ended`);
           if (!rail || !content || cn > 1 || narrow - least > 8) out.why.push(`collapse: Foundry tools stands ${Math.round(narrow)} px wide with the sidebar collapsed, its content ${Math.round(cn)} px, its rail ${Math.round(rail)} px and its title bar at least ${Math.round(head)} px - the caret did not narrow it`);
           if (cw < 250 || wide < rail + cw - 1) out.why.push(`collapse: expanded ${Math.round(wide)} px with the content ${Math.round(cw)} px and the rail ${Math.round(rail)} px - the content did not come back`);
           if (Math.abs(back - wide) > 1) out.why.push(`collapse: expanded again ${Math.round(back)} px, first ${Math.round(wide)} px`);
@@ -1358,6 +1368,49 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
       await game.settings.set("danganronpa-rpg", "foundryWindows", {});
       g.refreshGlass(); await frame();
     }
+    return done();
+  };
+  /* drpgObjectionCheck (E79 fix r4-G3, 17.10.2026; review round 4's goal C16-11 = Q2): the clock's row as a player's
+     trial row draws it - the trial's label in the slot and OBJECTION! after it, the markup hud.mjs `objectionControl`
+     writes - read against the row it replaced: the button inside the row and the clock, the chevron's box within 1 px
+     and neither side under 24 px, clear of the label, and its centre answering `elementFromPoint` with the button.
+     The row's height is printed (`row`: before, after) and not judged: at 2560x1440 and 3840x2160 under Stained Glass
+     the trial's label, its words and not the button, stood the row 60.6 -> 62.4 px (17.10.2026). `keep` ("idle", "held", "preview") leaves the trial row drawn for a shot, held
+     with aria-disabled, and `drpgObjectionCheck.restore()` puts the row back; `plant` is the sweep's control - "small"
+     the button 20 px square, "out" the button 400 px towards the wall. Otherwise the row is put back before it answers. */
+  window.drpgObjectionCheck = async ({ keep = null, plant = null } = {}) => {
+    const frame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const out = { ok: false, why: [], chevron: null, button: null, row: null, label: null };
+    const done = () => { out.ok = !out.why.length; out.why = out.why.join("; "); return out; };
+    const hud = document.getElementById("drpg-hud"), row = hud?.querySelector(".drpg-hud-time-row"), chev = row?.querySelector(".drpg-hud-button");
+    const box = el => { const r = el.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; };
+    const shown = r => [Math.round(r.x), Math.round(r.y), Math.round(r.w), Math.round(r.h)];
+    if (!chev || !chev.offsetWidth) { out.why.push("the clock draws no chevron to measure the trial row against"); return done(); }
+    const c = box(chev), r0 = box(row), was = [...row.childNodes];
+    const slot = document.createElement("div"), label = document.createElement("div"), button = document.createElement("button");
+    slot.className = "drpg-hud-time-slot"; label.className = "drpg-hud-time is-trial is-debate"; label.textContent = "Nonstop Debate"; slot.append(label);
+    button.type = "button"; button.className = "drpg-hud-button drpg-hud-objection"; button.setAttribute("aria-label", "OBJECTION!");
+    button.innerHTML = '<i class="fa-solid fa-hand" inert></i>';
+    if (keep === "held") button.setAttribute("aria-disabled", "true");
+    if (keep === "preview") button.setAttribute("aria-label", "OBJECTION! Raise it at Botan: 1 action");
+    if (plant === "small") button.style.cssText = "box-sizing:border-box;width:20px;height:20px;min-width:20px;min-height:20px;padding:0";
+    if (plant === "out") button.style.translate = "400px 0";
+    row.replaceChildren(slot, button);
+    const put = () => row.replaceChildren(...was);
+    try {
+      await frame();
+      const b = box(button), r = box(row), k = box(hud), l = box(label);
+      const inside = (a, o) => a.x >= o.x - 0.5 && a.y >= o.y - 0.5 && a.x + a.w <= o.x + o.w + 0.5 && a.y + a.h <= o.y + o.h + 0.5;
+      const meet = (a, o) => a.x < o.x + o.w - 0.5 && a.x + a.w > o.x + 0.5 && a.y < o.y + o.h - 0.5 && a.y + a.h > o.y + 0.5;
+      const hit = document.elementFromPoint(b.x + b.w / 2, b.y + b.h / 2);
+      Object.assign(out, { chevron: shown(c), button: shown(b), row: [shown(r0), shown(r)], label: shown(l) });
+      if (!inside(b, r)) out.why.push(`OBJECTION! at ${shown(b)} leaves the row at ${shown(r)}`);
+      if (!inside(b, k)) out.why.push(`OBJECTION! at ${shown(b)} leaves the clock at ${shown(k)}`);
+      if (Math.abs(b.w - c.w) > 1 || Math.abs(b.h - c.h) > 1) out.why.push(`OBJECTION! is ${Math.round(b.w)}x${Math.round(b.h)}, the chevron ${Math.round(c.w)}x${Math.round(c.h)}`);
+      if (Math.min(b.w, b.h) < 24) out.why.push(`OBJECTION! is ${Math.round(b.w)}x${Math.round(b.h)}, under 24 px`);
+      if (meet(b, l)) out.why.push(`OBJECTION! at ${shown(b)} lies on the trial's label at ${shown(l)}`);
+      if (!(hit && button.contains(hit))) out.why.push(`OBJECTION!'s centre answers ${hit ? hit.id || hit.className || hit.tagName : "nothing"}`);
+    } finally { if (keep) window.drpgObjectionCheck.restore = put; else put(); }
     return done();
   };
 </script>

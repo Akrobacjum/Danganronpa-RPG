@@ -3440,10 +3440,13 @@ body.drpg-theme-stained-glass :is(#drpg-hud, #drpg-room-tile, #drpg-despair, #dr
 
 /* ---- Milestone 12 (1.2.36): the notice tile, the hour's pips ------------------------------
    The hour's two arrows are the audit page's pips: a 26 px cut plate with a 14 px pixel arrow,
-   the state colour on its edge, full when the cursor is on it. They were bare buttons. */
+   the state colour on its edge, full when the cursor is on it. They were bare buttons.
+   Never under 24 px (E79 fix r4-G3, 1.2.79): the sweep's `drpgObjectionCheck` read the plates
+   22x22 on a stacked screen, where the type scale stands at its 0.85 floor (393x852 and 640x360,
+   17.10.2026), and the trial row's OBJECTION! is one of them; the sweep's desks read 27 and 29. */
 body.drpg-theme-stained-glass #drpg-hud .drpg-hud-button {
-    width: calc(26px * var(--drpg-sg-scale));
-    height: calc(26px * var(--drpg-sg-scale));
+    width: max(24px, calc(26px * var(--drpg-sg-scale)));
+    height: max(24px, calc(26px * var(--drpg-sg-scale)));
     display: inline-flex;
     align-items: center;
     justify-content: center;

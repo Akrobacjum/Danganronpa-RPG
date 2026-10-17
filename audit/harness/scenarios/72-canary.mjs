@@ -38,6 +38,8 @@
  *                 promotion dialog ticks it - its row and p1's copy of its token are
  *                 read (E05 C14); the watch's Truth Bullet reaches Chie, naming Botan
  *                 (E05 fix r2-F0b); Aiko takes a torch off Botan's body (E05 C14);
+ *   objection     Aiko's Objection at Daichi, pending, filled with a bullet whose GM half is planted, and a
+ *                 second one withdrawn, each scanned on the players' browsers (E79 fix r4-G3);
  *   verdict       a trial naming Daichi, a wrong verdict: Chie survives, nothing is written on
  *                 her, and her Reinforced Level Up waits in the GMs' store (E05 C11).
  * Each later E05 commit adds its checks to the phase that shows its secret.
@@ -615,6 +617,63 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
         Boolean(torch) && (lootRow?.taken ?? []).includes("72: Botan's torch") && lootP1 === null && lootP2 === null,
         JSON.stringify({ torch, looted, lootRow, lootP1, lootP2 }));
     await scanned("discovery", { ...KILLER_CHAT, who: ["p1"] });
+
+    /* OBJECTION! UNDER THE CANARY (E79 fix r4-G3, 1.2.79; the round-4 review's SEC4-4). C16 writes the trial queue's
+       `pending` and `messageId` and a card the primary GM posts and rewrites - pending, filled, withdrawn - with its
+       flags, and until this phase no player's browser was scanned after one. The GM gives Aiko (p1's) a Truth Bullet
+       whose GM half is planted (its GM note and its reading, which waits for an Analyze) and three actions, and opens a
+       Class Trial's debate. p1 presses as the trial bar does (`raiseObjection`); the GM has no voice Room here, so p1
+       names Daichi, and the bullet picker waits while the canary scans the pending Objection; then it answers Aiko's
+       bullet and the canary scans the filled card; then, after the GM's Back to debate, p1 raises a second one and
+       closes its picker, and the canary scans the withdrawn card. Each scan is `scanned`'s: the markers on every
+       player's browser, p1's and p2's world data, and p1's chat. Read 17.10.2026: no scan found either marker, so the
+       module was not changed; the filled card built with the GM's note on it (fix r4-G3's mutant c1) fails the filled
+       scan on p1's ChatMessage content. */
+    phase("objection");
+    const objNote = canary.marker("bullet.note"), objReading = canary.marker("bullet.reading");
+    const OBJ = `const F = await import("${repoUrl}/scripts/trial-floor.mjs"); const T = await import("${repoUrl}/scripts/trial.mjs");`;
+    const objSetup = await gm.eval(`${OBJ} const aiko = game.actors.get("${IDS.aiko}");
+        const item = await game.drpg.createTruthBullet(aiko, { name: "72: Aiko's receipt", playerText: "A crumpled receipt.", gmNote: "${objNote}", analyzedText: "${objReading}" });
+        await aiko.setFlag("${MOD}", "freeActionGrants", 0);
+        await aiko.update({ "system.resources.actions.max": 3, "system.resources.actions.value": 3 });
+        await game.drpg.setClock({ phase: "classTrial" });
+        if (F.trialFloor()) await F.endFloor();
+        await F.startFloor({});
+        return { item: item?.id ?? null, floor: F.trialFloor()?.mode ?? null };`, { timeout: 60000 });
+    await settle(800);
+    /* the floor's card, or once the floor lets it go the newest Objection's card, as 63 Y reads it */
+    const objCardOn = `${OBJ} const f = F.trialFloor();
+        const m = game.messages.get(f?.messageId ?? "") ?? game.messages.contents.filter(x => x.getFlag("${MOD}", T.TRIAL_FLAGS.objection) === true).at(-1) ?? null;
+        return { mode: f?.mode ?? null, pending: f?.pending ?? null, target: f?.targetId ?? null, card: m?.id ?? null,
+            item: m?.getFlag("${MOD}", T.TRIAL_FLAGS.item) ?? null, withdrawn: Boolean(m?.getFlag("${MOD}", T.TRIAL_FLAGS.withdrawn)) };`;
+    await p1.eval(`${OBJ} const aiko = game.actors.get("${IDS.aiko}");
+        globalThis.__dialogAnswers.push(async () => "${IDS.daichi}");
+        globalThis.__dialogAnswers.push(async () => {
+            await new Promise(resolve => { globalThis.__s72pick = resolve; });
+            return { itemId: "${objSetup.item ?? "none"}", comment: "72: the receipt says otherwise" };
+        });
+        globalThis.__s72raise = T.raiseObjection(aiko);
+        return true;`);
+    const objPending = await settled("objection", () => gm.eval(objCardOn).then(v => (v.mode === "objection" && v.pending === true && v.card ? v : null)));
+    await scanned("objection pending", { ...KILLER_CHAT, who: ["p1"] });
+    const objFilled = await p1.eval(`globalThis.__s72pick?.(); return await globalThis.__s72raise;`, { timeout: 60000 });
+    await settle(800);
+    const objCard = await gm.eval(objCardOn);
+    check("gm: Aiko's Objection is raised at Daichi pending, then filled with her planted bullet (E79 fix r4-G3)",
+        objSetup.floor === "debate" && objPending?.target === IDS.daichi && objFilled === true && objCard.card === objPending?.card
+            && objCard.item === objSetup.item && objCard.pending === false, JSON.stringify({ objSetup, objPending, objFilled, objCard }));
+    await scanned("objection filled", { ...KILLER_CHAT, who: ["p1"] });
+    const objAgain = await gm.eval(`${OBJ} await F.returnToDebate({}); return F.trialFloor()?.mode ?? null;`);
+    const objClosed = await p1.eval(`${OBJ} const aiko = game.actors.get("${IDS.aiko}");
+        globalThis.__dialogAnswers.push(async () => "${IDS.daichi}");
+        globalThis.__dialogAnswers.push(async () => null);
+        return await T.raiseObjection(aiko);`, { timeout: 60000 });
+    const objWithdrawn = await settled("objection", () => gm.eval(objCardOn).then(v => (v.withdrawn && v.mode === "debate" ? v : null)), 10000);
+    check("gm: a second Objection whose picker p1 closes is withdrawn at once, the floor back in the debate (E79 fix r4-G3)",
+        objAgain === "debate" && objClosed === false && Boolean(objWithdrawn?.card) && objWithdrawn.card !== objCard.card && objWithdrawn.item === null,
+        JSON.stringify({ objAgain, objClosed, objWithdrawn }));
+    await scanned("objection withdrawn", { ...KILLER_CHAT, who: ["p1"] });
+    await gm.eval(`${OBJ} if (F.trialFloor()) await F.endFloor(); return true;`);
 
     /* verdict: the trial names Daichi, which is wrong - Chie survives, and is the Blackened
        the verdict rewards. p1 votes; p3 (the killer's player) too; p2's student is dead. */
