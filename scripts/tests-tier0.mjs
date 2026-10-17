@@ -9585,7 +9585,7 @@ const REGRESSIONS = [
             "a passage or movement road without a census row, or a row whose road is gone: give the new one a verdict (what judges it, or the E79 commit that will) and strike the gone one");
     }],
 
-    ["R560 - the passages' source rules: no wall is written a secret door or created, every passage packet names the list of its recipients, no flag holds a passage and no file but the records names a passage's geometry, passages.mjs imports only its leaf's files, room-tile.mjs does not import the passages, the frame's passage verdict, the outline's redraw and the GMs' wall audit are each declared once, exported, in their file, the audit called from one place, the primary GM's sighting of a move, and reading no scene on screen; and the GMs' overlay is made in one place, gm-overlay.mjs's exported `gmOverlay`, only after it asked for a GM, every layer of it through that, and its name is read nowhere else; and a passage is shown in one place, passages-gm.mjs's exported `sharePassage` judged by its exported `shareRefusal`, whose cards go out through `whisperToOwner` and the GMs' through `whisperToGms`, with no chat message made in either passages file any other way; and who acts as the Mastermind for a passage is read in one place, passages-gm.mjs's exported `actsAsMastermind`, and never off the character alone in the copy, a show's judgement, the GMs' audit or the witness judge; and who asked a GM's send-back is read in one place, movement-audit.mjs's exported `askerOf`, which the primary GM's sighting hands the witness judge and the judge reads", async () => {
+    ["R560 - the passages' source rules: no wall is written a secret door or created, every passage packet names the list of its recipients, no flag holds a passage and no file but the records names a passage's geometry, passages.mjs imports only its leaf's files, room-tile.mjs does not import the passages, the frame's passage verdict, the outline's redraw and the GMs' wall audit are each declared once, exported, in their file, the audit called from one place, the primary GM's sighting of a move, and reading no scene on screen; and the GMs' overlay is made in one place, gm-overlay.mjs's exported `gmOverlay`, only after it asked for a GM, every layer of it through that, and its name is read nowhere else; and a passage is shown in one place, passages-gm.mjs's exported `sharePassage` judged by its exported `shareRefusal`, whose cards go out through `whisperToOwner` and the GMs' through `whisperToGms`, with no chat message made in either passages file any other way; and who acts as the Mastermind for a passage is read in one place, passages-gm.mjs's exported `actsAsMastermind`, and never off the character alone in the copy, a show's judgement, the GMs' audit or the witness judge; and who asked a GM's send-back is read in one place, movement-audit.mjs's exported `askerOf`, which the primary GM's sighting hands the witness judge and the judge reads; and the season reset's passages step is declared once, exported, in passages-gm.mjs", async () => {
         /*
          * E79 C1, 14.10.2026; the E79 plan's A10-9, its first clauses (C4, C6 and C7 add theirs). A secret passage is
          * the GMs' and its knowers' (decisions D2 and D38): world data reaches every browser, so a passage written into
@@ -9652,12 +9652,18 @@ const REGRESSIONS = [
          * and every `actsAsMastermind` call in `judgeArrival` reads `asked ?? mover` ("asker"). Its other caller,
          * `noteGmCreated`, judges a dropped token, which no send-back names. Scenario 76 G sends the Mastermind's token
          * back through the bridge as each owner.
+         *
+         * E79 fix r4-G7, 17.10.2026 (the release ledger's RISK-e): the reset entry is the fifth minimal form A10-9
+         * hands on, and it was held by nothing here. `passagesAfterReset` is declared once, exported, in passages-gm.mjs
+         * (E42 takes it), read as the other names of ONE are; its one caller, season-setup.mjs's passages step, is a
+         * dynamic import's property and is not read.
          */
         const LEAF = new Set(["rooms.mjs", "gm-stores.mjs", "gm-store.mjs", "settings.mjs", "utils.mjs", "config.mjs"]);
         const RECORDS = new Set(["gm-stores.mjs", "passages.mjs", "passages-gm.mjs"]);
         const IMPORTS = /\bimport\s*(?:[\w$\s{},*]+?\s*from\s*)?(["'])\.\/([\w.-]+\.mjs)\1|\bimport\s*\(\s*(["'])\.\/([\w.-]+\.mjs)\3\s*\)/g;
         const ONE = { passageOpenFor: "movement.mjs", redrawOutline: "fog.mjs", auditMove: "movement-audit.mjs", gmOverlay: "gm-overlay.mjs",
-            sharePassage: "passages-gm.mjs", shareRefusal: "passages-gm.mjs", actsAsMastermind: "passages-gm.mjs", askerOf: "movement-audit.mjs" };
+            sharePassage: "passages-gm.mjs", shareRefusal: "passages-gm.mjs", actsAsMastermind: "passages-gm.mjs", askerOf: "movement-audit.mjs",
+            passagesAfterReset: "passages-gm.mjs" };
         const SHARE_FILES = new Set(["passages.mjs", "passages-gm.mjs"]);
         const CHAT = /(?<![\w$.])ChatMessage(?![\w$])|(?<![\w$.])(?:postSecret|postAsked|postToThread|whisperToOwnerOnly|privately)\s*\(/g;
         const ROLE_FILES = new Set(["movement.mjs", "movement-audit.mjs", "passages-gm.mjs"]);
@@ -9755,7 +9761,9 @@ const REGRESSIONS = [
                 + "    await whisper(p.target, isMastermindActor(p.target) ? \"all\" : \"known\");\n    await whisperToGms(\"<p>shown</p>\");\n"
                 + "    return ChatMessage.create({ content: \"\", whisper: roomUsers(p.giver) });\n}\nfunction shareRefusal(giver) {\n"
                 + "    return isMastermindActor(giver) ? null : \"no\";\n}\nexport function isMastermindActor(actor) {\n    return Boolean(actor);\n}\n"
-                + "export function actsAsMastermind(actor, user) {\n    return Boolean(actor && user);\n}\n"],
+                + "export function actsAsMastermind(actor, user) {\n    return Boolean(actor && user);\n}\n"
+                + "export async function passagesAfterReset() {\n    return 0;\n}\n"],
+            ["season-setup.mjs", "// export async function passagesAfterReset() in a comment declares nothing\nconst passagesAfterReset = () => 0;\n"],
             ["movement.mjs", "export function passageOpenFor(actor) {\n    return Boolean(actor);\n}\n"
                 + "function noteGmPosition(t) {\n    // auditMove(t) in a comment calls nothing\n    auditMove(t, {}, {}, null, null, {});\n"
                 + "    judgeArrival(t, null, { sentBack: true });\n    judgeArrival(t, null, { asker: askerOf(o?.[SENT_BACK], game.users) });\n}\n"
@@ -9778,7 +9786,7 @@ const REGRESSIONS = [
             "tile:passages.mjs room-tile.mjs:2", "card passages-gm.mjs:7", "role passages-gm.mjs:5", "role passages-gm.mjs:10", "asker movement.mjs:15", "askerPassed movement.mjs:7", "overlayName fog.mjs:5",
             "role movement-audit.mjs:5", "role movement-audit.mjs:6", "scene movement-audit.mjs:2", "scene movement-audit.mjs:3",
             "overlayGate gm-overlay.mjs:3", "overlayLayer gm-overlay.mjs:8", "overlayLayer gm-overlay.mjs:17", "one:redrawOutline fog.mjs:2(not exported),fog-reveal.mjs:2",
-            "one:shareRefusal passages-gm.mjs:9(not exported)", "one:askerOf movement-audit.mjs:7(not exported)",
+            "one:shareRefusal passages-gm.mjs:9(not exported)", "one:askerOf movement-audit.mjs:7(not exported)", "one:passagesAfterReset passages-gm.mjs:18,season-setup.mjs:2(not exported)",
             "call:auditMove movement.mjs#noteGmPosition,movement.mjs#other"]),
         "the source rules do not read the planted fixture as planted - the module would be read wrong too");
 
@@ -9788,7 +9796,7 @@ const REGRESSIONS = [
             "a file these rules read is not among the module's sources - the rules would read nothing of it");
         const broken = rulesOf(sources);
         log(`R560: ${sources.length} module file(s) read; ${broken.length} broken rule(s)`);
-        equal(JSON.stringify(broken), "[]", "a wall written as a secret door or created, an un-addressed passage packet, a passage in a flag or a file outside the records, an import the leaf or the room tile must not have, a second (or unexported) passageOpenFor, redrawOutline, auditMove or gmOverlay, the audit called from anywhere but noteGmPosition or more than once, the audit reading the scene on screen, the GMs' overlay or a layer of it made without asking for a GM, the overlay's name read outside gm-overlay.mjs, a second (or unexported) sharePassage, shareRefusal, actsAsMastermind or askerOf, the Mastermind's role read off the character alone outside sharePassage, the judge of arrivals not handed or not reading who asked a GM's send-back, or a chat message made in a passages file other than through whisperToOwner and whisperToGms");
+        equal(JSON.stringify(broken), "[]", "a wall written as a secret door or created, an un-addressed passage packet, a passage in a flag or a file outside the records, an import the leaf or the room tile must not have, a second (or unexported) passageOpenFor, redrawOutline, auditMove or gmOverlay, the audit called from anywhere but noteGmPosition or more than once, the audit reading the scene on screen, the GMs' overlay or a layer of it made without asking for a GM, the overlay's name read outside gm-overlay.mjs, a second (or unexported) sharePassage, shareRefusal, actsAsMastermind, askerOf or passagesAfterReset, the Mastermind's role read off the character alone outside sharePassage, the judge of arrivals not handed or not reading who asked a GM's send-back, or a chat message made in a passages file other than through whisperToOwner and whisperToGms");
     }],
 
 

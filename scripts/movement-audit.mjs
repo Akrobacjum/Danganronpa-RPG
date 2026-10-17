@@ -32,7 +32,8 @@ import { playSfx } from "./sfx.mjs";
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 
-/** The codes a `move.sentBack` may carry: a wall, the one thing the audit sends a token back for. */
+/** The codes a `move.sentBack` may carry: a wall, the one thing the audit sends a token back for. E17 takes the
+ *  packet over with `auditMove` (A10-9) and adds its codes here rather than writing a second send-back. */
 const SENT_BACK_CODES = new Set(["wall"]);
 
 /*

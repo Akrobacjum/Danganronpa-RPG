@@ -329,6 +329,10 @@ export async function retellPassages({ primary = isPrimaryGm, ...ctx } = {}) {
  * past the cut by it, and a player's copy the cut emptied takes the new one. Measured 15.10.2026: a
  * `touch` of every knower and of the Mastermind here, in C8's first draft, changed nothing of R554 or
  * 65-season X. The suite's own stores tell nobody: only the module's send the copies.
+ *
+ * The minimal form of the reset entry (A10-9, E79 fix r4-G7): E42 takes this function over and
+ * extends it rather than writing a second reset step for the passages. R560 holds it to one
+ * declaration, exported, here; season-setup.mjs `wipeSeason` is its one caller.
  */
 export async function passagesAfterReset({ stores = PASSAGE_STORES } = {}) {
     for (const store of [stores.access, stores.log]) {
