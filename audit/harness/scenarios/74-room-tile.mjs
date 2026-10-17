@@ -620,16 +620,21 @@ export async function run({ gm, gm2, p1, p2, p4, check, phase, settle, connect, 
         && J(refusedC.painted) === J(["Dorm A"]) && refusedC.tile === "Dorm A" && refusedC.token === "Dorm A" && refusedC.putBackMs !== null,
     J({ brokeC, viaC, refusedC }));
 
-    /* Every update of the token starts p2's wait again (movement.mjs `restartQuiet`): p2 takes Botan into the Porch and,
-       a second later - before that route is quiet - drags him on into the Shed, a step with waypoints pending (stood in
-       on p1 and p2) and, a second after it, the drag's last. Were the wait not started again, the first route would be
-       announced 1.5 s after its update, with Botan standing on the drag's pending step, and the tile would draw a room
-       the drag was still passing. */
+    /* Every update of the token starts p2's wait again (movement.mjs `restartQuiet`): p2 drags Botan into the Porch, a
+       step inside Dorm A with waypoints pending and then the drag's last, and, a second later - before that route is
+       quiet - drags him on into the Shed, a step with waypoints pending (each stood in on p1 and p2) and, a second
+       after it, the drag's last. Were the wait not started again, the first route would be announced 1.5 s after its
+       last update, with Botan standing on the second drag's pending step, and the tile would draw a room the drag was
+       still passing. The first route has a pending step since E79 C14 (1.2.79): a co-owner announces a route of one
+       update at once (66 N13a), and only a route that had steps pending waits for quiet. */
     const draggedC = await gm.eval(`const botan = game.actors.get("${IDS.botan}");
         await game.drpg.setActions(botan, 3); await new Promise(r => setTimeout(r, 600)); return game.drpg.actionsLeft(botan);`, { timeout: 30000 });
-    const intoC = await p2.eval(`${ACADEMY} ${TILE} const t = academy.tokens.get("TOKBOTAN00000000"); take();
+    await p1.eval(PENDING);
+    const intoC = await p2.eval(`${PENDING.replace(" return true;", "")} ${TILE} const t = academy.tokens.get("TOKBOTAN00000000"); take();
+        try { await t.update({ x: 600, y: 400 }); } finally { delete t.movement; }
         await t.update({ x: 900, y: 300 }); await new Promise(r => setTimeout(r, 1000));
         return { tile: read()?.name ?? null, painted: take() };`, { timeout: 30000 });
+    await p1.eval(`${ACADEMY} delete academy.tokens.get("TOKBOTAN00000000").movement; return true;`);
     await p1.eval(PENDING);
     const midC = await p2.eval(`${PENDING.replace(" return true;", "")} ${TILE} const t = academy.tokens.get("TOKBOTAN00000000");
         try { await t.update({ x: 900, y: 600 }); await new Promise(r => setTimeout(r, 1000)); } finally { delete t.movement; }
@@ -639,8 +644,8 @@ export async function run({ gm, gm2, p1, p2, p4, check, phase, settle, connect, 
         await t.update({ x: 920, y: 640 });
         const followed = await until(() => read()?.name === "74 Shed", 5000);
         return { followed, tile: read()?.name ?? null, painted: take(), token: M.roomOfToken(t) };`, { timeout: 30000 });
-    check("C4: a drag p2 starts before its last route is quiet keeps p2's tile on Dorm A through the drag's pending step, and "
-        + "the tile is painted once, in the Shed, when the drag is",
+    check("C4: a drag p2 starts before its last drag is quiet keeps p2's tile on Dorm A through the second drag's pending step, and "
+        + "the tile is painted once, in the Shed, when that drag is",
     draggedC === 3 && intoC.tile === "Dorm A" && J(intoC.painted) === "[]" && midC.tile === "Dorm A" && J(midC.painted) === "[]"
         && lastC.followed && J(lastC.painted) === J(["74 Shed"]) && lastC.token === "74 Shed",
     J({ draggedC, intoC, midC, lastC }));
@@ -981,7 +986,7 @@ export async function run({ gm, gm2, p1, p2, p4, check, phase, settle, connect, 
     check("J4: the switch is back on", backJ === true, J(backJ));
 
     /* ------------------------------ L. a drag the hook reads before it ends ------------------------------ */
-    phase("L: a drag whose update the hook reads before the token stands - the tile, the price and the announcement follow it at rest");
+    phase("L: a drag whose update the hook reads before the token stands - the tile, the price and the announcement follow where it ends");
     /* The owner's report of 14.10.2026 (1.2.77 at a v14 table): the GM's Monokuma dragged into another room kept the old
        room's tile and played no arrival, and nothing counted, until a second drag inside the new room. Which of two
        readings the table gave is not measured (movement.mjs `whenAtRest`, LIVE-E78-14), so both are stood in here, on the
@@ -989,12 +994,18 @@ export async function run({ gm, gm2, p1, p2, p4, check, phase, settle, connect, 
        "pending" until it is let go 400 ms later; (a) the drag's last update still carries a waypoint pending, its movement
        "stopped". Without movement.mjs's re-read at rest L1-L3 fail as the owner saw: the tile keeps the room left and no
        action is charged (one run of each, 14.10.2026). The fog's own re-read (fog.mjs `onUpdateToken`) needs a canvas to
-       show anything and is not read here. */
+       show anything and is not read here. Since E79 C14 (1.2.79; the owner's "entering a room reads too late", 15.10.2026)
+       the room of (b) is read from the update itself (movement.mjs `destinationOf`): the route is announced while the
+       token still reads its start, in the room it enters, and the re-read at rest finds that room and says nothing more.
+       Each announcement is recorded with the tile's name, whether the token was still held, and the room it names. Read on
+       16.10.2026, one run with C14 and one with movement.mjs and passages-gm.mjs at the parent: L1-L3 as below with C14;
+       at the parent L1 and L2 announced twice, in the room left while held and in the room entered at rest, and L3 named
+       no room. */
     const HELDL = (token, room, held) => `${ACADEMY} ${TILE} const M = await import("${repoUrl}/scripts/movement.mjs");
         const t = academy.tokens.get("${token}"), to = M.positionIn("${room}", t), from = { x: t.x, y: t.y };
-        const settled = []; const spy = ({ tokenDoc, accepted }) => { if (tokenDoc?.id === "${token}") settled.push([accepted, read()?.name ?? null]); };
-        Hooks.on("drpgRouteSettled", spy);
         let holding = true;
+        const settled = []; const spy = ({ tokenDoc, accepted, room }) => { if (tokenDoc?.id === "${token}") settled.push([accepted, read()?.name ?? null, holding, room]); };
+        Hooks.on("drpgRouteSettled", spy);
         ${held === "origin" ? `Object.defineProperty(t, "x", { get() { return holding ? from.x : this._source.x; }, configurable: true });
         Object.defineProperty(t, "y", { get() { return holding ? from.y : this._source.y; }, configurable: true });
         Object.defineProperty(t, "movement", { get() { return { state: holding ? "pending" : "completed", pending: { waypoints: [] } }; }, configurable: true });`
@@ -1020,23 +1031,29 @@ export async function run({ gm, gm2, p1, p2, p4, check, phase, settle, connect, 
     const ACTIONSL = `await new Promise(r => setTimeout(r, 800)); return game.drpg.actionsLeft(game.actors.get("${IDS.aiko}"));`;
     const standL = await gm.eval(STANDL, { timeout: 30000 });
     const gmL = await gm.eval(HELDL("TOKMONOKUMA00000", "Cafeteria", "origin"), { timeout: 30000 });
-    check("L1: the GM drags its Monokuma from the Hall to the Cafeteria, the hook reading the drag's start - the GM's tile names the Hall "
-        + "at the hook and the Cafeteria once the token stands, and a route is announced there",
-    gmL.atHook === "Hall" && gmL.atRest === "Cafeteria" && gmL.room === "Cafeteria" && gmL.settled.some(([ok, name]) => ok === true && name === "Cafeteria"),
+    /* Until E79 C14 the GM's tile named the Hall at the hook, and the route was announced twice: in the Hall at the hook
+       and in the Cafeteria at rest. */
+    check("L1: the GM drags its Monokuma from the Hall to the Cafeteria, the hook reading the drag's start - the route is announced "
+        + "once, while the token is held, in the Cafeteria, and the GM's tile names it at the hook and once the token stands (E79 C14)",
+    gmL.atHook === "Cafeteria" && gmL.atRest === "Cafeteria" && gmL.room === "Cafeteria"
+        && J(gmL.settled) === J([[true, "Cafeteria", true, "Cafeteria"]]),
     J({ standL, gmL }));
     const p1bL = await p1.eval(HELDL("TOKAIKO000000000", "74 Porch", "origin"), { timeout: 30000 });
     const afterbL = await gm.eval(ACTIONSL, { timeout: 30000 });
-    check("L2: p1 drags Aiko from Dorm A into phase B's Porch the same way, with two actions and the free move spent - p1's tile names "
-        + "the Porch at rest and the crossing costs one action, once",
-    standL.free === false && standL.actions === 2 && p1bL.atHook === "Dorm A" && p1bL.atRest === "74 Porch" && afterbL === 1
-        && p1bL.settled.filter(([ok, name]) => ok === true && name === "74 Porch").length === 1,
+    /* p1's announcement waits for the crossing's charge, a round trip to the GM, so the tile 150 ms after the update is
+       recorded (atHook) and not held to a room. Until E79 C14 the route was announced in Dorm A at the hook, free, and
+       charged and announced again at rest. */
+    check("L2: p1 drags Aiko from Dorm A into phase B's Porch the same way, with two actions and the free move spent - the route is "
+        + "announced once, while the token is held, in the Porch, p1's tile names the Porch at rest and the crossing costs one action, once (E79 C14)",
+    standL.free === false && standL.actions === 2 && p1bL.atRest === "74 Porch" && afterbL === 1
+        && J(p1bL.settled) === J([[true, "74 Porch", true, "74 Porch"]]),
     J({ standL, p1bL, afterbL }));
     const p1aL = await p1.eval(HELDL("TOKAIKO000000000", "Dorm A", "pending"), { timeout: 30000 });
     const afteraL = await gm.eval(ACTIONSL, { timeout: 30000 });
     check("L3: p1 drags Aiko back to Dorm A by an update that still carries a waypoint pending, its movement stopped - nothing moves at the "
         + "hook, and at rest p1's tile names Dorm A and the crossing costs the other action, once",
     p1aL.atHook === "74 Porch" && p1aL.atRest === "Dorm A" && afteraL === 0
-        && p1aL.settled.filter(([ok, name]) => ok === true && name === "Dorm A").length === 1,
+        && J(p1aL.settled) === J([[true, "Dorm A", false, "Dorm A"]]),
     J({ p1aL, afteraL }));
 
     /* ------------------------------ U. the Projects tray before the first project ------------------------------ */

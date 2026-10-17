@@ -73,6 +73,9 @@
  *      refused for its price and put back (read at 400 and 1200 ms), and a GM's move - and the move card, which no longer
  *      carries the room's description; then the refused route again with a GM's flag written on the token while p1
  *      judges it (E77 fix r1-G2, W5).
+ *   N13 the room at the move's destination (E79 C14): p1's crossing of one update announced at once on p1 and on the GM,
+ *      which owns Aiko, in the room it enters; a hook that reads the token at its start; a drag's pending step and its
+ *      last; and the at-rest read announcing again only for another room.
  *   X  what the second review found (E12 fix r2-S2): a tower whose upper floor alone is walled, with a room of Foundry's
  *      name, under the GM's map check and the fog's report on each floor (EARLY-C10-3, O4, EARLY-C10-2); a Teleport
  *      taken off a marked Hall and put back, with p1 looking at it (EARLY-C7-3); a region marked and renamed through its
@@ -135,6 +138,9 @@
  * drafts, 59 and 60 passing, took 103.8 s and 105.7 s); whether other lanes ran then was not read.
  * E77 fix r1-G2 (W2 rewritten, W5 added; W's crossing settles for 1000 ms): 62 checks in 119.3 s, one run of the side
  * fix line's fast set on 13.10.2026; whether other lanes ran then was not read.
+ * E79 C14 (N13a, N13b, N13c, N13e added after W; W(c) stands its pending step in on the GM too): 66 checks in 129.4 s, one
+ * run under the harness lock on 16.10.2026 (a draft before it, two failing, 128.6 s); whether other lanes ran then was not
+ * read.
  */
 export const layers = ["ci"];
 /* P's returning GM (E12 fix r2-H3), as 65 declares its own: its id sorts BEFORE the seeded GM's, so its arrival makes it
@@ -1408,8 +1414,9 @@ export async function run({ gm, gm0, gm2, p1, p2, check, note, phase, settle, co
         await new Promise(r => setTimeout(r, 1500));
         const words = await Promise.all(game.messages.contents.slice(before).map(m => S.wordsOf(m)));
         return words.map(String).filter(text => text.includes("66 W Porch"));`, { timeout: 30000 });
-    /* 1000 ms rather than 300 since E77 fix r1-G2: the GM, which owns Aiko, announces p1's route once the token has been
-       quiet for movement.mjs's ROUTE_QUIET_MS, 1500 ms after the update reached it. */
+    /* 1000 ms rather than 300 since E77 fix r1-G2, when the GM, which owns Aiko, announced p1's route once the token had
+       been quiet for movement.mjs's ROUTE_QUIET_MS, 1500 ms after the update reached it; since E79 C14 it announces a
+       route of one update at once (N13a), and the wait is kept. */
     await settle(1000);
     const acceptedW = await takeAll();
     /* (b) Two steps inside the Porch: the first while Foundry would still have waypoints of the route pending (the
@@ -1426,16 +1433,21 @@ export async function run({ gm, gm0, gm2, p1, p2, check, note, phase, settle, co
        (a step with waypoints still pending) into the Shed. Each step passes the veto, which judges a step's two ends
        with the budget not yet spent (`onPreUpdateToken`); the route's first crossing takes the action and its second
        is refused, and the token is put back in Dorm A, the room that was paid for (settleRoute, MAP-11). Each browser
-       is read 400 and 1200 ms after p1's last step is sent. */
+       is read 400 and 1200 ms after p1's last step is sent. The pending step is stood in on the GM's copy as well as p1's
+       since E79 C14: the GM owns Aiko and announces a route of one update at once, and would take that step for one,
+       announcing Dorm A and then the refused Shed before its put-back. */
     const brokeW = await gm.eval(`const A = await import("${repoUrl}/scripts/actions.mjs"), aiko = game.actors.get("${IDS.aiko}");
         await game.drpg.setActions(aiko, 1); await aiko.setFlag("${MOD}", "freeMoveUsed", true);
         await new Promise(r => setTimeout(r, 600));
         return { actions: game.drpg.actionsLeft(aiko), freeActions: A.freeActionsLeft(aiko), grants: A.freeMovesLeft(aiko), free: A.hasFreeMove(aiko) };`,
     { timeout: 30000 });
+    await gm.eval(`${SCENES} Object.defineProperty(academy.tokens.get("TOKAIKO000000000"), "movement",
+        { value: { pending: { waypoints: [{ x: 900, y: 600 }] } }, configurable: true }); return true;`);
     const viaW = await p1.eval(`${SCENES} const t = academy.tokens.get("TOKAIKO000000000");
         Object.defineProperty(t, "movement", { value: { pending: { waypoints: [{ x: 900, y: 600 }] } }, configurable: true });
         try { await t.update({ x: 600, y: 400 }); await new Promise(r => setTimeout(r, 800)); } finally { delete t.movement; }
         return globalThis.__s66wTake();`, { timeout: 30000 });
+    await gm.eval(`${SCENES} delete academy.tokens.get("TOKAIKO000000000").movement; return true;`);
     await takeAll();
     const AT = `const at = async ms => { await new Promise(r => setTimeout(r, ms)); return globalThis.__s66wTake(); };`;
     const [refusedP1, refusedP2, refusedGm] = await Promise.all([
@@ -1551,6 +1563,135 @@ export async function run({ gm, gm0, gm2, p1, p2, check, note, phase, settle, co
         && [flagP1, flagGm].every(({ early, late }) => J([...early.heard, ...late.heard]) === J([false]))
         && shedFree(flagP1) && dormW(flagP1.late.view) && flagP1.token === "Dorm A",
     J({ flagSetW, flagP1, flagGm }));
+
+    /* ------------------------------ N13. the room at the move's destination ------------------------------ */
+    phase("N13: a route announced on the update that names where it ends, in the room it names, and again at rest only for another room");
+    /* E79 C14 (1.2.79; plan-p4 N13). The owner's report of 15.10.2026, on 1.2.78 at a v14 table: "entering a room reads too
+       late". At 33ea568 (the part-4 probe, one run) the GM's browser, which owns Aiko, announced p1's route of one update
+       1500 ms after it (movement.mjs ROUTE_QUIET_MS), and a hook that read the token at its drag's start named the room left
+       and announced the room entered only at rest. The GM draws a Porch and a Shed as W's, stands Aiko in Dorm A and gives
+       her two actions with the free move spent (again before (c) and (e)); p1 and the GM record each announcement of Aiko's route - when, accepted,
+       the room it names, `again`, and the room of `settledSpot` at that moment - and when each move update of Aiko reached
+       them. Read on 16.10.2026, one run with C14 and one with its two files at the parent (movement.mjs, passages-gm.mjs),
+       each under the harness lock: the numbers below are those runs', in ms from the update reaching the browser. */
+    const setN = await gm.eval(`${SCENES} const M = await import("${repoUrl}/scripts/movement.mjs"), aiko = game.actors.get("${IDS.aiko}");
+        const t = academy.tokens.get("TOKAIKO000000000");
+        const was = globalThis.__s66n = { actions: game.drpg.actionsLeft(aiko), free: aiko.getFlag("${MOD}", "freeMoveUsed") ?? null, at: { x: t.x, y: t.y } };
+        const made = await academy.createEmbeddedDocuments("Region", [
+            { name: "66 N Porch", shapes: ${rect(820, 200, 300, 300)}, flags: { "${MOD}": { room: true } }, behaviors: [] },
+            { name: "66 N Shed", shapes: ${rect(820, 520, 300, 280)}, flags: { "${MOD}": { room: true } }, behaviors: [] }]);
+        was.regions = made.map(r => r.id);
+        await t.update(M.positionIn("Dorm A", t), { teleport: true, movementAction: "displace", animate: false });
+        await game.drpg.setActions(aiko, 2); await aiko.setFlag("${MOD}", "freeMoveUsed", true);
+        await new Promise(r => setTimeout(r, 1200));
+        return { room: M.roomOfToken(t), actions: game.drpg.actionsLeft(aiko) };`, { timeout: 30000 });
+    const N_LISTEN = `${SCENES} const M = await import("${repoUrl}/scripts/movement.mjs"), R = globalThis.__s66n13 = { heard: [], moved: [] };
+        const mine = doc => doc?.id === "TOKAIKO000000000";
+        const spotRoom = doc => { const s = M.settledSpot(doc); return s ? M.roomAt(s.x, s.y, doc, s.level ?? undefined) : null; };
+        R.on = ({ tokenDoc, accepted, room, again }) => { if (mine(tokenDoc)) R.heard.push([Date.now(), accepted, room ?? null, again ?? null, spotRoom(tokenDoc)]); };
+        R.up = (doc, changes) => { if (mine(doc) && ("x" in changes || "y" in changes)) R.moved.push(Date.now()); };
+        R.take = () => ({ heard: R.heard.splice(0), moved: R.moved.splice(0) });
+        Hooks.on("drpgRouteSettled", R.on); Hooks.on("updateToken", R.up); return true;`;
+    const N_TAKE = "return globalThis.__s66n13.take();";
+    await Promise.all([p1, gm].map(client => client.eval(N_LISTEN)));
+    /* The milliseconds from the last move update that reached a browser to each announcement there. */
+    const lagN = ({ heard, moved }) => heard.map(([at]) => at - Math.max(...moved.filter(t => t <= at)));
+    const roomsN = ({ heard }) => heard.map(([, accepted, room, again, spot]) => [accepted, room, again, spot]);
+    /* (a) p1 takes Aiko across into the Porch, one update; both browsers are read 2.5 s after it. */
+    await p1.eval(`${SCENES} await academy.tokens.get("TOKAIKO000000000").update({ x: 900, y: 300 }); await new Promise(r => setTimeout(r, 2500)); return true;`,
+        { timeout: 30000 });
+    const intoN = { p1: await p1.eval(N_TAKE), gm: await gm.eval(N_TAKE) };
+    /* (b) p1 takes her back into Dorm A with the token's position read at its start while it is held (as 74 L stands in a
+       drag whose hook reads its origin: x and y the start, its movement "pending"), for 2 s; p1 is read at 1 s and 3.5 s. */
+    const heldN = await p1.eval(`${SCENES} const M = await import("${repoUrl}/scripts/movement.mjs"), t = academy.tokens.get("TOKAIKO000000000");
+        const to = M.positionIn("Dorm A", t), from = { x: t.x, y: t.y };
+        let holding = true;
+        Object.defineProperty(t, "x", { get() { return holding ? from.x : this._source.x; }, configurable: true });
+        Object.defineProperty(t, "y", { get() { return holding ? from.y : this._source.y; }, configurable: true });
+        Object.defineProperty(t, "movement", { get() { return { state: holding ? "pending" : "completed", pending: { waypoints: [] } }; }, configurable: true });
+        try {
+            await t.update({ x: to.x, y: to.y });
+            await new Promise(r => setTimeout(r, 1000));
+            const mid = { ...globalThis.__s66n13.take(), token: M.roomOfToken(t) };
+            await new Promise(r => setTimeout(r, 1000));
+            holding = false;
+            await new Promise(r => setTimeout(r, 1500));
+            return { mid, end: globalThis.__s66n13.take(), token: M.roomOfToken(t) };
+        } finally { delete t.x; delete t.y; delete t.movement; }`, { timeout: 30000 });
+    const heldGmN = await gm.eval(N_TAKE);
+    /* (c) A drag: a step into the Porch with waypoints pending (stood in on p1 and on the GM, which would otherwise take
+       that step for a whole route of one update), then its last update into the Shed; read 800 ms after the step and
+       2.5 s after the last. */
+    const ACTIONS_N = `await game.drpg.setActions(game.actors.get("${IDS.aiko}"), 2); await new Promise(r => setTimeout(r, 600));
+        return game.drpg.actionsLeft(game.actors.get("${IDS.aiko}"));`;
+    const givenN = [await gm.eval(ACTIONS_N, { timeout: 30000 })];
+    const STAND_N = `${SCENES} Object.defineProperty(academy.tokens.get("TOKAIKO000000000"), "movement",
+        { value: { pending: { waypoints: [{ x: 920, y: 640 }] } }, configurable: true }); return true;`;
+    await Promise.all([p1, gm].map(client => client.eval(STAND_N)));
+    await p1.eval(`${SCENES} await academy.tokens.get("TOKAIKO000000000").update({ x: 900, y: 300 }); await new Promise(r => setTimeout(r, 800)); return true;`,
+        { timeout: 30000 });
+    await Promise.all([p1, gm].map(client => client.eval(`${SCENES} delete academy.tokens.get("TOKAIKO000000000").movement; return true;`)));
+    const stepN = { p1: await p1.eval(N_TAKE), gm: await gm.eval(N_TAKE) };
+    await p1.eval(`${SCENES} await academy.tokens.get("TOKAIKO000000000").update({ x: 920, y: 640 }); await new Promise(r => setTimeout(r, 2500)); return true;`,
+        { timeout: 30000 });
+    const dragN = { p1: await p1.eval(N_TAKE), gm: await gm.eval(N_TAKE), actions: await gm.eval(`return game.drpg.actionsLeft(game.actors.get("${IDS.aiko}"));`) };
+    /* (e) The at-rest read as the backstop: p1 takes Aiko into the Porch while the token's position reads that spot as it
+       is held, and a spot in Dorm A once it is let go 1 s later - a token that came to rest elsewhere than its update
+       named, which no harness drag does; p1 is read 3.5 s after the update. */
+    givenN.push(await gm.eval(ACTIONS_N, { timeout: 30000 }));
+    await p1.eval(N_TAKE);
+    const restN = await p1.eval(`${SCENES} const M = await import("${repoUrl}/scripts/movement.mjs"), t = academy.tokens.get("TOKAIKO000000000");
+        const rest = M.positionIn("Dorm A", t);
+        let holding = true;
+        Object.defineProperty(t, "x", { get() { return holding ? this._source.x : rest.x; }, configurable: true });
+        Object.defineProperty(t, "y", { get() { return holding ? this._source.y : rest.y; }, configurable: true });
+        Object.defineProperty(t, "movement", { get() { return { state: holding ? "pending" : "completed", pending: { waypoints: [] } }; }, configurable: true });
+        try {
+            await t.update({ x: 900, y: 300 });
+            await new Promise(r => setTimeout(r, 1000));
+            holding = false;
+            await new Promise(r => setTimeout(r, 2500));
+            return { ...globalThis.__s66n13.take(), token: M.roomOfToken(t) };
+        } finally { delete t.x; delete t.y; delete t.movement; }`, { timeout: 30000 });
+    await Promise.all([p1, gm].map(client => client.eval(`Hooks.off("drpgRouteSettled", globalThis.__s66n13.on); Hooks.off("updateToken", globalThis.__s66n13.up);
+        delete globalThis.__s66n13; return true;`)));
+    await gm.eval(`${SCENES} const aiko = game.actors.get("${IDS.aiko}"), was = globalThis.__s66n;
+        await academy.tokens.get("TOKAIKO000000000").update(was.at, { teleport: true, movementAction: "displace", animate: false });
+        await academy.deleteEmbeddedDocuments("Region", was.regions);
+        await game.drpg.setActions(aiko, was.actions);
+        if (was.free === null) await aiko.unsetFlag("${MOD}", "freeMoveUsed"); else await aiko.setFlag("${MOD}", "freeMoveUsed", was.free);
+        delete globalThis.__s66n; return true;`, { timeout: 30000 });
+    await settle(800);
+    const PORCH_N = [true, "66 N Porch", false, "66 N Porch"], SHED_N = [true, "66 N Shed", false, "66 N Shed"];
+    /* With C14 the GM announced it 1 ms after the update and p1 98 ms after (the charge's round trip); at the parent the GM
+       1501 ms after, waiting for quiet, p1 119, and no announcement named a room. */
+    check("N13a: p1's crossing into the Porch, one update, is announced once on p1 and once on the GM, which owns Aiko, each in the Porch "
+        + "and with settledSpot there - on the GM within 400 ms of the update reaching it, on p1, which pays it, within 1000 ms (E79 C14)",
+    setN.room === "Dorm A" && setN.actions === 2
+        && J(roomsN(intoN.p1)) === J([PORCH_N]) && J(roomsN(intoN.gm)) === J([PORCH_N])
+        && lagN(intoN.gm).every(ms => ms <= 400) && lagN(intoN.p1).every(ms => ms <= 1000),
+    J({ setN, intoN, lag: { p1: lagN(intoN.p1), gm: lagN(intoN.gm) } }));
+    /* With C14 p1 announced it in Dorm A 104 ms after the update, while the token read the Porch. At the parent the hook read
+       the start: the route was announced in the Porch 1 ms after the update, free, and charged and announced in Dorm A at
+       rest, 2333 ms after it. */
+    check("N13b: a route whose hook reads the token at its start is announced on p1 within 1000 ms, in Dorm A where its update puts it, "
+        + "with settledSpot there while the token still reads the Porch, and not again once it stands (E79 C14)",
+    heldN.mid.token === "66 N Porch" && J(roomsN(heldN.mid)) === J([[true, "Dorm A", false, "Dorm A"]]) && lagN(heldN.mid).every(ms => ms <= 1000)
+        && J(heldN.end.heard) === "[]" && heldN.token === "Dorm A" && J(roomsN(heldGmN)) === J([[true, "Dorm A", false, "Dorm A"]]),
+    J({ heldN, heldGmN, lag: lagN(heldN.mid) }));
+    /* The same at the parent but for the payload, which named no room: p1 181 ms, the GM 1500 ms (with C14 197 and 1501). */
+    check("N13c: a drag's step with waypoints pending is announced nowhere; its last update is announced once on p1, in the Shed, within "
+        + "1000 ms, and once on the GM, in the Shed, once the token has been quiet for ROUTE_QUIET_MS; no announcement names the Porch (E79 C14)",
+    J(stepN.p1.heard) === "[]" && J(stepN.gm.heard) === "[]"
+        && J(roomsN(dragN.p1)) === J([SHED_N]) && lagN(dragN.p1).every(ms => ms <= 1000)
+        && J(roomsN(dragN.gm)) === J([SHED_N]) && lagN(dragN.gm).every(ms => ms >= 1400) && givenN[0] === 2 && dragN.actions === 0,
+    J({ givenN, stepN, dragN, lag: { p1: lagN(dragN.p1), gm: lagN(dragN.gm) } }));
+    /* With C14, 84 ms and 1431 ms after the update; at the parent the same two announcements, naming no room and no `again`
+       (the at-rest read compared with the room its update recorded, the Porch). */
+    check("N13e: a token that comes to rest in another room than its update named is announced again there, marked `again`, after the "
+        + "Porch its update named (E79 C14)",
+    givenN[1] === 2 && J(roomsN(restN)) === J([PORCH_N, [true, "Dorm A", true, "Dorm A"]]) && restN.token === "Dorm A",
+    J({ givenN, restN }));
 
     /* ------------------------------ X. the second review's findings ------------------------------ */
     phase("X: one floor's walls, a room of Foundry's name, a Teleport taken off and put on, regions in a scene's update, a GM's handover");

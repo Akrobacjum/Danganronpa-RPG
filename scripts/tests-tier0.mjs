@@ -8847,7 +8847,7 @@ const REGRESSIONS = [
             ["WHO explain.mjs#subjectActor#viewerActor -> which", "the one viewer rule (hud.mjs `viewerActor`): the assigned character, else the one owned student, else the GM's Monokuma"],
             ["WHO room-tile.mjs#viewerRoom#viewerActor -> which", "the viewer's own character and no other actor (R509; scenario 66 W1 on the GM and two players)"],
             ["WHO room-tile.mjs#registerRoomTile#viewerActor -> which", "the settle hook repaints for the viewer's own token only (`tokenDoc.actorId !== viewerActor()?.id` returns; R506), and what it paints is `viewerRoom`'s"],
-            ["HOOK movement.mjs#onUpdateToken#callAll -> which", "`drpgRouteSettled` is client-local and carries the token; fired once a route's position is final, a refusal's only when its put-back lands (R506, scenario 66 W2-W4); on the browser that settles the route, and since E77 fix r1-G2 on every other that owns the token once its put-back lands or the token is quiet (`untilQuiet`; scenario 74 C1-C4, 66 W2); a listener paints only its own viewer's token"],
+            ["HOOK movement.mjs#onUpdateToken#callAll -> which", "`drpgRouteSettled` is client-local and carries the token and the room its update names; fired on the update that names a route's end, never while a put-back is on its way, which is announced when it lands (R506, scenario 66 W2-W4, N13, 76 D N13); on the browser that settles the route, and since E77 fix r1-G2 on every other that owns the token - at once for a route of one update since E79 C14, else once its put-back lands or the token is quiet (`untilQuiet`; scenario 74 C1-C4, 66 W2, N13a); once more, `again`, only where the token rests in another room; a listener paints only its own viewer's token"],
             ["HOOK hud.mjs#registerHud#canvasReady -> which", "a repaint; the event chooses no room"],
             ["HOOK room-tile.mjs#registerRoomTile#drpgRouteSettled -> which", "the viewer's own token's settled route only, after its put-back when refused (R506; scenario 74 B reads one paint and nothing of a refused room at 400 and 1200 ms)"],
             ["HOOK room-tile.mjs#registerRoomTile#canvasReady -> which", "a repaint of `viewerRoom`; the event chooses no room"],
@@ -9408,7 +9408,7 @@ const REGRESSIONS = [
             ["HOOK passages-gm.mjs#registerPassagesGm#updateWall/onWallMoved -> record", "the primary GM only (`isPrimaryGm`), and only when the change carries `c`: a passage whose stretch is no longer on its wall's segment is marked broken in the GMs' records and drops out of every copy; the wall is never written (R561; 76 E)"],
             ["HOOK passages-gm.mjs#registerPassagesGm#deleteWall/onWallDeleted -> record", "the primary GM only: every passage of the deleted wall is marked broken in the GMs' records and drops out of every copy (R561; 76 E)"],
             // ---- the routes, the copies' retelling and what a copy redraws (E79 fix r1-G4, SEC S4)
-            ["HOOK passages-gm.mjs#registerPassagesGm#drpgRouteSettled/onRouteSettled -> record", "the primary GM only (`isPrimaryGm`): a student whose route settles outside the passage's rooms on the map loses a cell held 'Revoke when they leave the room' (`revokeLeavers`, R561; 76 E)"],
+            ["HOOK passages-gm.mjs#registerPassagesGm#drpgRouteSettled/onRouteSettled -> record", "the primary GM only (`isPrimaryGm`): a student whose route settles outside the passage's rooms on the map loses a cell held 'Revoke when they leave the room' (`revokeLeavers`, R561; 76 E), read in the room the announcement names (E79 C14)"],
             ["HOOK room-tile.mjs#registerRoomTile#drpgRouteSettled/inline -> record", "this file's own: the room tile repaints for the viewer's own token and writes no record; E79 adds no road through it"],
             ["HOOK passages-gm.mjs#registerPassagesGm#clientSettingChanged/inline -> copy", "a GM's browser only (the `ready` hook returns on a player's): a change of the map, the access list or the Mastermind retells every player's copy from the GMs' records (`retellSoon`), quiet while tier 2 holds the stores (`gmStoresQuiet`); and the map's redraws the GMs' overlay"],
             ["HOOK passages-gm.mjs#registerPassagesGm#updateActor/inline -> copy", "a GM's browser only: a change of an actor's ownership retells the copies from the GMs' records (read in the code)"],
@@ -9918,7 +9918,7 @@ const REGRESSIONS = [
             "[the field drawn and read by the room's name; Apply judging the picture, comparing it in `same` and handing it on; setVaultRoom the one "
             + "writer, through safeRoomImage; pieceData carrying it; roomImage checking it on read] and the files other than vault.mjs that write it or name its flag");
     }],
-    ["R506 - a route is announced once, when its position is final: movement.mjs alone fires drpgRouteSettled, from onUpdateToken, after the gate that keeps a refusal quiet until its put-back lands; a route this browser judges is marked before its first await and answered at the spot before it; and the move card says where and the price, with no description of the room; the room tile repaints on it for its own token, and nothing listens on updateToken in its stead; the clock tells the tile each time it is drawn", async () => {
+    ["R506 - a route is announced on the update that names its final destination, in the room that update names, never while its put-back is on its way, and the at-rest read announces again only when it finds another room: movement.mjs alone fires drpgRouteSettled, from onUpdateToken; a route this browser judges is marked before its first await and answered at the spot before it; and the move card says where and the price, with no description of the room; the room tile repaints on it for its own token, and nothing listens on updateToken in its stead; the clock tells the tile each time it is drawn", async () => {
         /*
          * E77 C2, 13.10.2026; the A8 design's R381 (the E77 plan's D2 gave it this number; ledger V4, D5, D7), its
          * C2 clauses, read in movement.mjs with comments blanked. The plan put R506 on tier 1; what it asks - one
@@ -9955,13 +9955,22 @@ const REGRESSIONS = [
          * a route another browser settles waits on an owning browser (`untilQuiet`), every update starting the
          * wait again and the REVERT, a GM's move and the next route ending it. Scenario 74 C and 66 W2/W5 run
          * what these read; the fixture gains one variant per shape, each taken out.
+         * E79 C14 (16.10.2026; plan-p4 N13, the owner's "entering a room reads too late") amends it: the gate is any
+         * put-back on its way (`if (putBack.has(tokenDoc.id)) return;` - the GMs' wall audit marks one on the primary
+         * while the judge awaits, and a move inside one room it put back was announced as accepted first, 76 D N13);
+         * the announcement carries the room at the spot the update names (`destinationOf`, read once at the top of
+         * `judgeMove` into `route.landing`, the judge's `after` read there and not off the token's position);
+         * `settledSpot` answers that spot until the token rests (`landing`); a route another browser settles stands
+         * at once when it had no step pending and waits for quiet only when it had; the at-rest read compares the
+         * room it finds with the one announced and says which update it reads (`of`). Scenario 66 N13 runs these;
+         * the fixture gains a sixth clause and one variant per new shape, each taken out.
          */
         const FIRE = /\bHooks\.callAll\(\s*["']drpgRouteSettled["']/g;
         const shape = src => {
             const body = name => topLevelFunction(src, name) ?? "";
-            const on = body("onUpdateToken"), judge = body("judgeMove"), card = body("chargeForCrossing");
-            const gate = on.indexOf("if (accepted === false && putBack.has(tokenDoc.id)) return;");
-            const fire = on.search(/Hooks\.callAll\("drpgRouteSettled", \{ tokenDoc, accepted \}\)/);
+            const on = body("onUpdateToken"), judge = body("judgeMove"), card = body("chargeForCrossing"), rest = body("recheckAtRest");
+            const gate = on.indexOf("if (putBack.has(tokenDoc.id)) return;");
+            const fire = on.search(/Hooks\.callAll\("drpgRouteSettled", \{ tokenDoc, accepted, room, again \}\)/);
             const mark = judge.indexOf("unsettled.set(tokenDoc.id, route)");
             return [
                 [...src.matchAll(FIRE)].length === 1 && gate >= 0 && fire > gate && /Hooks\.on\("updateToken", onUpdateToken\)/.test(src)
@@ -9970,45 +9979,69 @@ const REGRESSIONS = [
                     && /\?\.isGM\) \{[^}]*if \(!isMoveChange\(changes\)\) return;\s*endQuiet\(tokenDoc\.id\);\s*putBack\.delete\(tokenDoc\.id\);\s*unsettled\.delete\(tokenDoc\.id\);\s*return true;\s*\}/.test(judge)
                     && /pending\?\.waypoints\?\.length\) \{[^}]*return;\s*\}/.test(judge),
                 mark > judge.indexOf("pending?.waypoints") && mark < judge.indexOf("await ") && /putBack\.add\(tokenDoc\.id\)/.test(body("sendBack"))
-                    && /return unsettled\.get\(tokenDoc\.id\)\?\.spot \?\? spotOf\(tokenDoc\);/.test(body("settledSpot")),
+                    && /return unsettled\.get\(tokenDoc\.id\)\?\.spot \?\? landing\.get\(tokenDoc\.id\)\?\.spot \?\? spotOf\(tokenDoc\);/.test(body("settledSpot")),
                 /<p>\$\{where\}<br>\$\{price\}<\/p>`\)/.test(card) && !/\broomDescription\b|drpg-room-prose/.test(src),
                 /^\s*restartQuiet\(tokenDoc\.id\);/m.test(on) && /endQuiet\(tokenDoc\.id\);\s*putBack\.delete\(tokenDoc\.id\);\s*route\.spot = /.test(judge)
-                    && /if \(settled !== undefined \|\| !actor\.isOwner\) return settled;[^]*?await untilQuiet\(tokenDoc\)/.test(judge)
+                    && /if \(settled !== undefined \|\| !actor\.isOwner\) return settled;[^]*?if \(!path\.length\) \{[^}]*return true;\s*\}\s*const quiet = await untilQuiet\(tokenDoc\)/.test(judge),
+                /const landed = route\.landing = atRest \? spotOf\(tokenDoc\) : destinationOf\(tokenDoc, changes\);\s*const after = roomAtSpot\(tokenDoc, landed\);/.test(judge)
+                    && !/\bconst after = roomOfToken\(/.test(judge)
+                    && /const spot = route\.landing \?\? spotOf\(tokenDoc\), room = roomAtSpot\(tokenDoc, spot\);/.test(on)
+                    && /if \(!pathRooms\.has\(id\) && roomOfToken\(tokenDoc\) === \(told \? told\.room : lastRoom\.get\(id\)\)\)/.test(rest)
+                    && /\{ atRest: true, of: turn \}/.test(rest)
             ];
         };
         const FIXTURE = "export function registerMovement() {\n    Hooks.on(\"updateToken\", onUpdateToken);\n}\n"
-            + "export function settledSpot(tokenDoc) {\n    return unsettled.get(tokenDoc.id)?.spot ?? spotOf(tokenDoc);\n}\n"
+            + "export function settledSpot(tokenDoc) {\n    return unsettled.get(tokenDoc.id)?.spot ?? landing.get(tokenDoc.id)?.spot ?? spotOf(tokenDoc);\n}\n"
             + "async function onUpdateToken(tokenDoc, changes, options, userId) {\n    restartQuiet(tokenDoc.id);\n    const route = {};\n"
             + "    try {\n        accepted = await judgeMove(tokenDoc, changes, options, userId, route);\n    } finally {\n"
             + "        if (unsettled.get(tokenDoc.id) === route && !putBack.has(tokenDoc.id)) unsettled.delete(tokenDoc.id);\n    }\n"
-            + "    if (accepted === false && putBack.has(tokenDoc.id)) return;\n"
-            + "    if (accepted === true || accepted === false) Hooks.callAll(\"drpgRouteSettled\", { tokenDoc, accepted });\n}\n"
-            + "async function judgeMove(tokenDoc, changes, options, userId, route = {}) {\n    if (options?.[REVERT]) {\n        endQuiet(tokenDoc.id);\n        putBack.delete(tokenDoc.id);\n        return false;\n    }\n"
+            + "    if (putBack.has(tokenDoc.id)) return;\n"
+            + "    const spot = route.landing ?? spotOf(tokenDoc), room = roomAtSpot(tokenDoc, spot);\n"
+            + "    Hooks.callAll(\"drpgRouteSettled\", { tokenDoc, accepted, room, again });\n}\n"
+            + "async function recheckAtRest(tokenDoc, changes, options, userId, turn) {\n"
+            + "    if (!pathRooms.has(id) && roomOfToken(tokenDoc) === (told ? told.room : lastRoom.get(id))) {\n        return;\n    }\n"
+            + "    await onUpdateToken(tokenDoc, changes, options, userId, { atRest: true, of: turn });\n}\n"
+            + "async function judgeMove(tokenDoc, changes, options, userId, route = {}) {\n"
+            + "    const landed = route.landing = atRest ? spotOf(tokenDoc) : destinationOf(tokenDoc, changes);\n    const after = roomAtSpot(tokenDoc, landed);\n"
+            + "    if (options?.[REVERT]) {\n        endQuiet(tokenDoc.id);\n        putBack.delete(tokenDoc.id);\n        return false;\n    }\n"
             + "    if (game.users.get(userId)?.isGM) {\n        if (!isMoveChange(changes)) return;\n        endQuiet(tokenDoc.id);\n        putBack.delete(tokenDoc.id);\n        unsettled.delete(tokenDoc.id);\n        return true;\n    }\n"
             + "    if (tokenDoc.movement?.pending?.waypoints?.length) {\n        return;\n    }\n"
             + "    endQuiet(tokenDoc.id);\n    putBack.delete(tokenDoc.id);\n    route.spot = lastPosition.get(tokenDoc.id) ?? null;\n    unsettled.set(tokenDoc.id, route);\n"
             + "    const actor = await import(\"./monokuma.mjs\");\n    const settled = await settleRoute(tokenDoc);\n"
-            + "    if (settled !== undefined || !actor.isOwner) return settled;\n    return await untilQuiet(tokenDoc);\n}\n"
+            + "    if (settled !== undefined || !actor.isOwner) return settled;\n    if (!path.length) {\n        return true;\n    }\n"
+            + "    const quiet = await untilQuiet(tokenDoc);\n}\n"
             + "async function chargeForCrossing(actor, from, to) {\n    await whisperToOwner(actor, `${cardHead({ room: to })}<p>${where}<br>${price}</p>`);\n}\n"
             + "async function sendBack(tokenDoc) {\n    putBack.add(tokenDoc.id);\n}\n";
-        equal(JSON.stringify([shape(FIXTURE), shape(FIXTURE.replace("    if (accepted === false && putBack.has(tokenDoc.id)) return;\n", "")),
+        const T = [true, true, true, true, true, true];
+        const off = i => T.map((v, j) => j !== i);
+        equal(JSON.stringify([shape(FIXTURE), shape(FIXTURE.replace("    if (putBack.has(tokenDoc.id)) return;\n", "")),
             shape(FIXTURE.replace("<br>${price}</p>", "<br>${price}</p><p class=\"drpg-room-prose\">${escapeHTML(roomDescription(to, scene))}</p>")),
             shape(FIXTURE.replace("unsettled.get(tokenDoc.id) === route && ", "")),
             shape(FIXTURE.replace("        if (!isMoveChange(changes)) return;\n", "")),
-            shape(FIXTURE.replace("    if (settled !== undefined || !actor.isOwner) return settled;\n    return await untilQuiet(tokenDoc);\n", "    return settled;\n"))]),
-        JSON.stringify([[true, true, true, true, true], [false, true, true, true, true], [true, true, true, false, true],
-            [false, true, true, true, true], [true, false, true, true, true], [true, true, true, true, false]]),
+            shape(FIXTURE.replace("    const quiet = await untilQuiet(tokenDoc);\n", "")),
+            shape(FIXTURE.replace("    if (putBack.has(tokenDoc.id)) return;\n", "    if (accepted === false && putBack.has(tokenDoc.id)) return;\n")),
+            shape(FIXTURE.replace("    if (!path.length) {\n        return true;\n    }\n", "")),
+            shape(FIXTURE.replace(" ?? landing.get(tokenDoc.id)?.spot", "")),
+            shape(FIXTURE.replace("    const landed = route.landing = atRest ? spotOf(tokenDoc) : destinationOf(tokenDoc, changes);\n    const after = roomAtSpot(tokenDoc, landed);\n",
+                "    const after = roomOfToken(tokenDoc);\n")),
+            shape(FIXTURE.replace("if (!pathRooms.has(id) && roomOfToken(tokenDoc) === (told ? told.room : lastRoom.get(id))) {", "if (!pathRooms.has(id)) {")),
+            shape(FIXTURE.replace(", room, again });", " });"))]),
+        JSON.stringify([T, off(0), off(3), off(0), off(1), off(4), off(0), off(4), off(2), off(5), off(5), off(0)]),
         "the reader does not read its fixture whole, or does not miss the gate taken out, the description put back on the card, "
-            + "the finally clearing any mark, a GM's write that moves nothing answered as a route or the wait for quiet taken out");
+            + "the finally clearing any mark, a GM's write that moves nothing answered as a route, the wait for quiet taken out, the gate "
+            + "for a refusal alone, a co-owner's route of one update waiting, the landing spot not answered, the room read off the token "
+            + "at the hook, the at-rest read not comparing the room announced, or the announcement without its room");
         const sources = new Map(await otherSources());
         const movement = stripComments(sources.get("movement.mjs") ?? "");
         must(movement.length > 1000, "movement.mjs is not among the module's sources - this would measure nothing");
         const elsewhere = [...sources].filter(([file, text]) => file !== "movement.mjs" && [...stripComments(text).matchAll(FIRE)].length).map(([file]) => file);
-        equal(JSON.stringify([shape(movement), elsewhere]), JSON.stringify([[true, true, true, true, true], []]),
-            "[one announcement, in onUpdateToken behind the put-back's gate, and onUpdateToken on updateToken, its finally clearing only its own mark; "
-            + "the REVERT answering false, a GM's move true and a GM's write that moves nothing nothing, a pending waypoint nothing; the route marked before "
-            + "the first await, the put-back marked, the settled spot the one before; the card where and the price, and no description read in "
-            + "movement.mjs; a route another browser settles waited on for quiet where the actor is owned] and the other files that announce a route");
+        equal(JSON.stringify([shape(movement), elsewhere]), JSON.stringify([T, []]),
+            "[one announcement, with its room, in onUpdateToken behind the gate of any put-back on its way, and onUpdateToken on updateToken, its "
+            + "finally clearing only its own mark; the REVERT answering false, a GM's move true and a GM's write that moves nothing nothing, a pending "
+            + "waypoint nothing; the route marked before the first await, the put-back marked, the settled spot the one before, then the landing; the "
+            + "card where and the price, and no description read in movement.mjs; a route another browser settles standing at once with no step "
+            + "pending, else waited on for quiet where the actor is owned; the room read at the spot the update names, and the at-rest read "
+            + "comparing the room announced] and the other files that announce a route");
 
         const ON_MOVE = /\bHooks\.(?:on|once)\(\s*["']updateToken["']/;
         const listens = (tile, hud) => [

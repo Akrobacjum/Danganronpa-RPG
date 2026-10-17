@@ -119,8 +119,9 @@ const putBack = new Set();
  * co-owner's browser - 164 ms headless, one run on 13.10.2026 beside scenario 66 in another lane. 1500 ms
  * is the bound until a table has a reading of its own (the charge and the put-back each take a round trip
  * to the server there, which the harness's sockets do not); a put-back slower than that is drawn on the
- * refused room for a moment before it lands. It is also how long a co-owner's tile lags behind an accepted
- * route: 74 C1 and C2 read 1509 and 1516 ms in that run.
+ * refused room for a moment before it lands. It was also how long a co-owner's tile lagged behind an accepted
+ * route: 74 C1 and C2 read 1509 and 1516 ms in that run. Since E79 C14 (1.2.79) a co-owner waits only for a
+ * route that had steps pending, and announces a route of one update at once (`judgeMove`; scenario 66 N13).
  */
 const awaitingQuiet = new Map();
 const ROUTE_QUIET_MS = 1500;
@@ -171,6 +172,34 @@ export async function whenAtRest(tokenDoc) {
 const moveTurns = new Map();
 
 /**
+ * The room each token's last announcement named, with the move update it was for (`{ turn, room }`), and the
+ * spot that announcement read it at while its token has not yet come to rest (`landing`, `{ turn, spot }`):
+ * the at-rest read announces again only for another room than the one announced (E79 C14), and until then
+ * `settledSpot` answers the spot the route was announced at.
+ */
+const announced = new Map();
+const landing = new Map();
+
+/**
+ * Where a move's update puts the token (E79 C14, 1.2.79; plan-p4 N13): the x and y the update names, else the
+ * document's own (`_source`), on the token's floor. The owner's report of 15.10.2026 (1.2.78 at a v14 table):
+ * "entering a room reads too late" - since 1.2.78 a hook that read the token where its drag began waited for the
+ * token to stand still (`whenAtRest`) before the room was right. Read from the update itself, the
+ * room is the destination's at the hook, whatever the token's position reads during its animation. Whether
+ * v14's document reads the drag's start at the hook at all is not measured (LIVE-E78-14, LIVE-E79-19); where
+ * it reads the destination this is that same spot.
+ */
+function destinationOf(tokenDoc, changes) {
+    const at = key => [changes?.[key], tokenDoc._source?.[key], tokenDoc[key]].find(Number.isFinite);
+    const level = levelOf(tokenDoc);
+    return level === null ? { x: at("x"), y: at("y") } : { x: at("x"), y: at("y"), level };
+}
+
+function roomAtSpot(tokenDoc, spot) {
+    return spot && Number.isFinite(spot.x) && Number.isFinite(spot.y) ? roomAt(spot.x, spot.y, tokenDoc, spot.level ?? levelOf(tokenDoc)) : null;
+}
+
+/**
  * Where a token stands, to be put back to: x and y, and its floor when it has one (E12 C9). A
  * refused climb that put back x and y alone left the token upstairs, and a send-back that names
  * no floor is the one the GM's record (`positionOf`) matches only on a scene of one floor.
@@ -190,11 +219,12 @@ function spotOf(tokenDoc) {
  * holds nothing and answers the token's spot as written. Nor is a step taken while waypoints are pending:
  * it answers the step's own spot, and nothing is announced for it. A put-back that never lands (the GM's
  * bridge refused it) keeps the spot before the route until the token's next move, a GM's included (E77
- * fix r1-G2: until then a GM's move left it, review round 1 cor F3; scenario 74 C5).
+ * fix r1-G2: until then a GM's move left it, review round 1 cor F3; scenario 74 C5). A route announced is
+ * answered at the spot its update named until the token comes to rest (`landing`, E79 C14; scenario 66 N13b).
  */
 export function settledSpot(tokenDoc) {
     if (!tokenDoc) return null;
-    return unsettled.get(tokenDoc.id)?.spot ?? spotOf(tokenDoc);
+    return unsettled.get(tokenDoc.id)?.spot ?? landing.get(tokenDoc.id)?.spot ?? spotOf(tokenDoc);
 }
 
 export function registerMovement() {
@@ -1657,28 +1687,45 @@ async function settleRoute(tokenDoc, actor, { before, previous, crossings }) {
 }
 
 /**
- * A token's update, judged (`judgeMove`), and its route announced once the token stands where the route
- * leaves it (E77 C2, 13.10.2026; the A8 design's step 5).
+ * A token's update, judged (`judgeMove`), and its route announced on the update that names where it ends
+ * (E77 C2, 13.10.2026; the A8 design's step 5; E79 C14, 1.2.79).
  *
- * `Hooks.callAll("drpgRouteSettled", { tokenDoc, accepted })` is client-local and fires once per route:
- * `accepted: true` when the move stands (a GM's, a Monokuma's, a token's first sight, a move inside a room,
- * an Eclipse's allowed crossings, the charge switched off, every crossing paid); `accepted: false` when the
- * module put the token where it stands now (its own REVERT - a refusal's put-back, the bridge's, a gather -
- * on every browser) or refused a crossing it did not put back (`takeMove` paid nothing). A refusal that
- * schedules a put-back is not announced: the put-back is, when it lands, so a listener never reads the
- * token in a room it was refused. Nothing fires for a change that is no move (a GM's included, E77 fix
- * r1-G2), or for a step of a drag still in flight (`movement.pending.waypoints`). On a browser that does
- * not settle the route (another one charges it) it fires only where the token's actor is owned: `false`
- * when the put-back lands, `true` once the token has been quiet for `ROUTE_QUIET_MS` (`untilQuiet`, E77 fix
- * r1-G2; until then nothing fired there, review round 1 cor F1). Until C2 a reader had only the raw update,
- * which reaches every browser before the refusal and its put-back (the A8 design's CB-8): a tile drawn on
- * it names a room the character never entered. Scenario 66 W2-W4 counts the announcements on the mover's
- * browser and two others, scenario 74 C on a co-owner's; R506 reads that this is the one place that fires it.
+ * `Hooks.callAll("drpgRouteSettled", { tokenDoc, accepted, room, again })` is client-local: `accepted: true`
+ * when the move stands (a GM's, a Monokuma's, a token's first sight, a move inside a room, an Eclipse's allowed
+ * crossings, the charge switched off, every crossing paid); `accepted: false` when the module put the token where
+ * it stands now (its own REVERT - a refusal's put-back, the bridge's, a gather - on every browser) or refused a
+ * crossing it did not put back (`takeMove` paid nothing). `room` is the room at the spot the update names
+ * (`destinationOf`), not where the token's position reads at the hook. A route whose put-back is on its way is
+ * not announced, whoever's refusal it is - this browser's charge or, on the primary GM, the GMs' wall audit
+ * (`noteGmPosition`, which marks it before the judge's first `await` resumes; until E79 C14 the audit's put-back
+ * of a move inside one room was announced as accepted first, scenario 76 D N13): the put-back is, when it lands,
+ * so a listener never reads the token in a room it was refused. Nothing fires for a change that is no move (a
+ * GM's included, E77 fix r1-G2), or for a step of a drag still in flight (`movement.pending.waypoints`). On a
+ * browser that does not settle the route (another one charges it) it fires only where the token's actor is
+ * owned: at once for a route of one update, and for a route that had steps pending once the token has been quiet
+ * for `ROUTE_QUIET_MS` (`untilQuiet`, E77 fix r1-G2), or `false` when its put-back lands.
+ *
+ * The at-rest read (`recheckAtRest`) announces once more, with `again: true` when this browser announced that
+ * update already, only where the token comes to rest in another room than the one announced; a listener takes
+ * the second as the correction of the first (the room tile repaints, the primary's watch on the passages asks
+ * again; the move card is the charge's, posted once per crossing paid).
+ *
+ * The owner's report of 15.10.2026, on 1.2.78: "entering a room reads too late". Read headless at 33ea568 (the
+ * E79 part-4 probe, once): a co-owner's browser - the GM's, for a player's route - announced a route of one update
+ * 1500 ms after it (`ROUTE_QUIET_MS`), and a hook that read the token at its drag's start announced the room left
+ * and then, at rest, the room entered. Scenario 66 N13 reads both since C14 (the numbers are in its comments);
+ * the wait for a real animation and a v14 drag's last update are LIVE-E79-19. Until E77 C2 a reader had only the
+ * raw update, which reaches every browser before the refusal and its put-back (the A8 design's CB-8). Scenario 66
+ * W2-W5 and N13 count the announcements on the mover's browser and two others, scenario 74 C on a co-owner's;
+ * R506 reads that this is the one place that fires it.
  */
-async function onUpdateToken(tokenDoc, changes, options, userId, { atRest = false } = {}) {
+async function onUpdateToken(tokenDoc, changes, options, userId, { atRest = false, of = 0 } = {}) {
     restartQuiet(tokenDoc.id);
     const turn = atRest || !isMoveChange(changes) ? 0 : (moveTurns.get(tokenDoc.id) ?? 0) + 1;
-    if (turn) moveTurns.set(tokenDoc.id, turn);
+    if (turn) {
+        moveTurns.set(tokenDoc.id, turn);
+        landing.delete(tokenDoc.id);
+    }
     const route = {};
     let accepted;
     try {
@@ -1689,29 +1736,41 @@ async function onUpdateToken(tokenDoc, changes, options, userId, { atRest = fals
         if (unsettled.get(tokenDoc.id) === route && !putBack.has(tokenDoc.id)) unsettled.delete(tokenDoc.id);
     }
     if (turn) recheckAtRest(tokenDoc, changes, options, userId, turn).catch(err => error("Movement re-read at rest failed", err));
-    if (accepted === false && putBack.has(tokenDoc.id)) return;
-    if (accepted === true || accepted === false) Hooks.callAll("drpgRouteSettled", { tokenDoc, accepted });
+    if (putBack.has(tokenDoc.id)) return;
+    if (accepted !== true && accepted !== false) return;
+    const spot = route.landing ?? spotOf(tokenDoc), room = roomAtSpot(tokenDoc, spot);
+    const again = atRest && announced.get(tokenDoc.id)?.turn === of;
+    announced.set(tokenDoc.id, { turn: turn || of, room });
+    if (turn && moveTurns.get(tokenDoc.id) === turn) landing.set(tokenDoc.id, { turn, spot });
+    Hooks.callAll("drpgRouteSettled", { tokenDoc, accepted, room, again });
 }
 
 /**
  * The move judged once more where the token came to rest (`whenAtRest`, whose note has the owner's report of
- * 14.10.2026), as the same update - a GM's, a put-back or a player's - and announced as it would have been: when no newer move of the token reached this browser meanwhile, no put-back is on its way, and the
- * character's room is not the one its update recorded (`lastRoom`) or a step of its drag is still noted
- * (`pathRooms`) with no last step behind it. A route left pending waits `ROUTE_QUIET_MS` from its last
- * update first, as a co-owner's wait for quiet does, so a drag whose last step is merely slow is not cut in
- * two. Everywhere else - every route the hook read where it ended, every route of the harness - it finds
- * the room recorded and does nothing.
+ * 14.10.2026), as the same update - a GM's, a put-back or a player's - and announced as it would have been: when no
+ * newer move of the token reached this browser meanwhile, no put-back is on its way, and the character stands in
+ * another room than the one announced for that update (`announced`; the one its update recorded, `lastRoom`, where
+ * this browser announced none of it), or a step of its drag is still noted (`pathRooms`) with no last step behind
+ * it. A route left pending waits `ROUTE_QUIET_MS` from its last update first, as a co-owner's wait for quiet does,
+ * so a drag whose last step is merely slow is not cut in two. Everywhere else - every route the hook read where it
+ * ended, every route of the harness - it finds the room announced, takes the spot it stands on as the last in that
+ * room, and announces nothing.
  */
 async function recheckAtRest(tokenDoc, changes, options, userId, turn) {
     await whenAtRest(tokenDoc);
     const id = tokenDoc.id;
     if (pathRooms.has(id)) await pause(ROUTE_QUIET_MS);
     if (moveTurns.get(id) !== turn || putBack.has(id) || unsettled.has(id)) return;
+    if (landing.get(id)?.turn === turn) landing.delete(id);
     if (tokenDoc.actor?.type !== "character" || !lastRoom.has(id)) return;
-    if (!pathRooms.has(id) && roomOfToken(tokenDoc) === lastRoom.get(id)) return;
+    const told = announced.get(id)?.turn === turn ? announced.get(id) : null;
+    if (!pathRooms.has(id) && roomOfToken(tokenDoc) === (told ? told.room : lastRoom.get(id))) {
+        if (told) lastPosition.set(id, spotOf(tokenDoc));
+        return;
+    }
     debug(`Route of ${tokenDoc.name} read again at rest: recorded ${lastRoom.get(id) ?? "no room"}, `
         + `standing in ${roomOfToken(tokenDoc) ?? "no room"}.`);
-    await onUpdateToken(tokenDoc, changes, options, userId, { atRest: true });
+    await onUpdateToken(tokenDoc, changes, options, userId, { atRest: true, of: turn });
 }
 
 /**
@@ -1720,11 +1779,15 @@ async function recheckAtRest(tokenDoc, changes, options, userId, turn) {
  * `atRest` (`recheckAtRest`) judges the token where it stands, its waypoints pending or not.
  */
 async function judgeMove(tokenDoc, changes, options, userId, route = {}, { atRest = false } = {}) {
+    // Where the update puts the token (`destinationOf`, E79 C14), and where it stands at rest.
+    const landed = route.landing = atRest ? spotOf(tokenDoc) : destinationOf(tokenDoc, changes);
+    const after = roomAtSpot(tokenDoc, landed);
+
     // Our own revert: record where it landed, charge nothing.
     if (options?.[REVERT]) {
         endQuiet(tokenDoc.id);
-        lastRoom.set(tokenDoc.id, roomOfToken(tokenDoc));
-        lastPosition.set(tokenDoc.id, spotOf(tokenDoc));
+        lastRoom.set(tokenDoc.id, after);
+        lastPosition.set(tokenDoc.id, landed);
         putBack.delete(tokenDoc.id);
         unsettled.delete(tokenDoc.id);
         return false;
@@ -1742,8 +1805,8 @@ async function judgeMove(tokenDoc, changes, options, userId, route = {}, { atRes
     // it always did. A GM's move ends whatever this browser held of the token's last route, a put-back
     // that never landed included (cor F3).
     if (game.users.get(userId)?.isGM) {
-        lastRoom.set(tokenDoc.id, roomOfToken(tokenDoc));
-        lastPosition.set(tokenDoc.id, spotOf(tokenDoc));
+        lastRoom.set(tokenDoc.id, after);
+        lastPosition.set(tokenDoc.id, landed);
         if (!isMoveChange(changes)) return;
         endQuiet(tokenDoc.id);
         putBack.delete(tokenDoc.id);
@@ -1798,8 +1861,8 @@ async function judgeMove(tokenDoc, changes, options, userId, route = {}, { atRes
     // spend and no walls to respect.
     const { isMonokuma } = await import("./monokuma.mjs");
     if (isMonokuma(actor)) {
-        lastRoom.set(tokenDoc.id, roomOfToken(tokenDoc));
-        lastPosition.set(tokenDoc.id, spotOf(tokenDoc));
+        lastRoom.set(tokenDoc.id, after);
+        lastPosition.set(tokenDoc.id, landed);
         return true;
     }
 
@@ -1809,11 +1872,10 @@ async function judgeMove(tokenDoc, changes, options, userId, route = {}, { atRes
     const known = lastRoom.has(tokenDoc.id);
     const before = lastRoom.get(tokenDoc.id) ?? null;
     const previous = lastPosition.get(tokenDoc.id) ?? null;
-    const after = roomOfToken(tokenDoc);
 
     if (!known) {
         lastRoom.set(tokenDoc.id, after);
-        lastPosition.set(tokenDoc.id, spotOf(tokenDoc));
+        lastPosition.set(tokenDoc.id, landed);
         return true;
     }
 
@@ -1827,7 +1889,7 @@ async function judgeMove(tokenDoc, changes, options, userId, route = {}, { atRes
     // at all: free. Remember the new spot so a later refused crossing snaps
     // back to somewhere sensible.
     if (!crossings.length) {
-        lastPosition.set(tokenDoc.id, spotOf(tokenDoc));
+        lastPosition.set(tokenDoc.id, landed);
         lastRoom.set(tokenDoc.id, after);
         return true;
     }
@@ -1836,9 +1898,18 @@ async function judgeMove(tokenDoc, changes, options, userId, route = {}, { atRes
 
     const settled = await settleRoute(tokenDoc, actor, { before, previous, crossings });
     if (settled !== undefined || !actor.isOwner) return settled;
-    // Another browser settles it (`awaitingQuiet`). Accepted, it stands where it stopped: the spot the
+    // Another browser settles it. A route of one update stands where it names, at once (E79 C14; the owner's
+    // "entering a room reads too late": the GM's browser announced such a route 1500 ms after it, waiting for
+    // quiet). A refusal of that route by the browser that charges it means its budget moved between that
+    // browser's veto and its charge; its put-back is announced here when it lands, after the room it refused.
+    // A route that had steps pending, which the charging browser may refuse at a later crossing (scenario 74
+    // C3, 66 W4), still waits for quiet (`awaitingQuiet`). Accepted, it stands where it stopped: the spot the
     // settling browser's charge records there (`chargeForCrossing`), and this browser's next route starts
     // from it.
+    if (!path.length) {
+        lastPosition.set(tokenDoc.id, landed);
+        return true;
+    }
     const quiet = await untilQuiet(tokenDoc);
     if (quiet) lastPosition.set(tokenDoc.id, spotOf(tokenDoc));
     return quiet;

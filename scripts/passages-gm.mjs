@@ -497,8 +497,8 @@ export async function revokeWhenLeaving(passageId, actorId, room, { stores = PAS
  * The primary GM, when a token's route settles (movement.mjs `drpgRouteSettled`): every passage its
  * student keeps only until leaving a room is revoked when the token stands on that passage's scene
  * outside the room - in another room, or in none. A token on another scene leaves nothing: the
- * room is a room of the passage's scene. `roomOf` is the suite's (movement.mjs `roomOfToken`
- * otherwise). Answers the passages revoked.
+ * room is a room of the passage's scene. `roomOf` is the suite's, or the room the route's announcement
+ * names (`onRouteSettled`, E79 C14); movement.mjs `roomOfToken` otherwise. Answers the passages revoked.
  */
 export async function revokeLeavers(tokenDoc, { stores = PASSAGE_STORES, roomOf = null } = {}) {
     const actorId = tokenDoc?.actorId ?? tokenDoc?.actor?.id;
@@ -1212,10 +1212,12 @@ function onWallDeleted(wall) {
     wallChanged(wall, { gone: true }).catch(err => error("Could not mark a secret passage on a deleted wall", err));
 }
 
-/* The primary GM's watch on the routes: a student kept a passage until leaving a room. */
-function onRouteSettled({ tokenDoc } = {}) {
+/* The primary GM's watch on the routes: a student kept a passage until leaving a room. The room is the one the
+   announcement names (movement.mjs `drpgRouteSettled`, E79 C14: the spot the route's update names), and a second
+   announcement of one move, the at-rest read's (`again`), asks again with the room the token came to rest in. */
+function onRouteSettled({ tokenDoc, room } = {}) {
     if (!isPrimaryGm()) return;
-    revokeLeavers(tokenDoc).catch(err => error("Could not revoke a secret passage from a student who left the room", err));
+    revokeLeavers(tokenDoc, room === undefined ? {} : { roomOf: () => room }).catch(err => error("Could not revoke a secret passage from a student who left the room", err));
 }
 
 /**

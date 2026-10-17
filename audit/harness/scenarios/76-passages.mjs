@@ -49,7 +49,8 @@
  *   is crossed and the room rules have nothing to say, the GM draws an ordinary wall and a wall with a passage granted
  *   to Aiko. p2, with its own veto taken off, moves Botan through each: both are put back where the GM last saw him,
  *   p2 alone is sent `move.sentBack` and reads the veto's sentence for the room he stands in, the GMs alone are
- *   whispered, and the Debug log rows differ in their `passage` field only. A REVERT the GM never wrote, Foundry's
+ *   whispered, and the Debug log rows differ in their `passage` field only; the GM's browser announces the route
+ *   through the ordinary wall once, as refused, when its put-back lands (E79 C14). A REVERT the GM never wrote, Foundry's
  *   teleport and a displace are put back the same way, and so is a move while the GM looks at the Annex. A GM's own
  *   move through the wall stands, a REVERT p2 writes back to where Botan stood a moment ago stands, and Aiko through
  *   her own passage stands. In `log` mode the move stands and the GM's Debug log has the row. Since fix r2-G1 (review
@@ -648,7 +649,23 @@ async function phaseD({ gm, p1, p2, p3, check, phase, settle, socketTraffic, opL
     /* A crossing of the ordinary wall by p2, in "sendBack" mode: Botan where he started, every row the plain wall's and p2's. */
     const p2Rows = (r, mode) => r.rows.length >= 1 && r.rows.every(x => x.wall === set.plain && x.user === IDS.p2 && x.mode === mode);
 
+    /* E79 C14 (1.2.79): what the GM's browser announces of Botan's route while the audit sends it back - every announcement
+       with the room it names and the moment the put-back reached the GM. Botan's route stays inside the Cafeteria, so the
+       GM, which owns him, judges it free at once; the audit's put-back is marked as the update arrives (`noteGmPosition`),
+       and nothing may be announced before it lands. */
+    await gm.eval(`const R = globalThis.__s76dN13 = { heard: [], back: null }, M = await import("${repoUrl}/scripts/movement.mjs");
+        R.on = ({ tokenDoc, accepted, room }) => { if (tokenDoc?.id === ${J(BOTAN)}) R.heard.push([accepted, room ?? null, R.back !== null]); };
+        R.up = (doc, changes, options) => { if (doc.id === ${J(BOTAN)} && options?.[M.REVERT] && R.back === null) R.back = Date.now(); };
+        Hooks.on("drpgRouteSettled", R.on); Hooks.on("updateToken", R.up); return true;`);
     const plain = await attempt(ACROSS);
+    const plainHeard = await gm.eval(`const R = globalThis.__s76dN13; Hooks.off("drpgRouteSettled", R.on); Hooks.off("updateToken", R.up);
+        delete globalThis.__s76dN13; return { heard: R.heard, back: R.back !== null };`);
+    /* Until E79 C14 the GM announced the route as accepted before the put-back, then as refused: read on 16.10.2026 with
+       movement.mjs and passages-gm.mjs at the parent, [[true, null, false], [false, null, true]] (the old gate held back
+       only a refusal whose put-back was on its way, and the payload named no room). */
+    check("D N13: while the audit sends Botan back, the GM's browser announces his route once, as refused, in the Cafeteria where the put-back "
+        + "stands him, after the put-back reached it, and nothing before it (E79 C14)",
+    plainHeard.back && J(plainHeard.heard) === J([[false, "Cafeteria", true]]), J(plainHeard));
     const held = await attempt([1250, 600]);
     const blind = r => J({ ...r, whispers: null, quiet: null, rows: r.rows.map(x => ({ ...x, wall: null, passage: null })) });
     check("D: p2, its veto off, moves Botan through the ordinary wall and through the passage's wall: each time he is put back where the GM saw him, p2 alone is sent the code 'wall' and reads the veto's sentence, the GMs alone are whispered",
