@@ -5480,6 +5480,17 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     check("SECURITY: p2's bullet on Aiko's pending Objection is refused, as Botan's (objectionOver) and as Aiko's (ownership) - the card stays pending",
         refusedAs(objTheirs, "objectionOver") && refusedAs(objAsAiko, null) && objAsAiko.logged.some(r => /sender does not own/.test(r))
             && objAsAiko.after.pending === true && objAsAiko.after.item === null, JSON.stringify({ objTheirs, objAsAiko }), { flow: "class-trial" });
+    /* E79 fix r4-G2 (1.2.79; cor F4): the objector's withdrawal (`trial.withdraw`, quiet: nobody waits on it) forged
+       from p2's console - as Aiko (ownership) and as Botan with Aiko's card (not Botan's Objection). Each refused and
+       logged on the GM, the floor and the card as they were, no "done" told. The control is 33-bridge-paths A15b. */
+    const objCardId = objAsAiko.after.card ?? "";
+    const objWdAsAiko = await objSend(p2, "trial.withdraw", { actorId: ids.aiko, messageId: objCardId }, "SECOBJWDAIKO");
+    const objWdAsBotan = await objSend(p2, "trial.withdraw", { actorId: ids.botan, messageId: objCardId }, "SECOBJWDBOTAN");
+    const notDone = sent => sent.unchanged && !sent.told.some(t => t[1] === "bridge.done") && sent.logged.length === 1;
+    check("SECURITY: p2's withdrawal of Aiko's pending Objection is refused, as Aiko's (ownership) and as Botan's - the floor still Aiko's, the card pending",
+        Boolean(objCardId) && notDone(objWdAsAiko) && objWdAsAiko.logged.some(r => /sender does not own/.test(r)) && notDone(objWdAsBotan)
+            && objWdAsBotan.after.mode === "objection" && objWdAsBotan.after.pending === true && objWdAsBotan.after.withdrawn === false,
+        JSON.stringify({ objWdAsAiko, objWdAsBotan }), { flow: "class-trial" });
     const objLapsed = await gm.eval(`${F30} const stored = game.settings.get("${MOD}", "trialQueue");
         const id = stored?.messageId ?? null;
         await game.settings.set("${MOD}", "trialQueue", { ...stored, startedAt: stored.startedAt - 31000 });

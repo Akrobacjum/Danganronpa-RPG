@@ -2193,7 +2193,7 @@
       "objectionRebuttalTargets": "Każdy może wciąć się w rebuttal, ale tylko wobec dwójki, która już ma głos. Objection przekierowuje głos, a ten, kogo wskażesz, dostaje odpowiadający rebuttal.",
       "objectionByButton": "Objection wnosi się przyciskiem OBJECTION! na HUD, nie z karty postaci. Naciśnij go, a potem wybierz swój Truth Bullet.",
       "objectionPending": "w toku - wybór Truth Bulletu",
-      "objectionWithdrawn": "wycofane - Truth Bullet nie został wybrany na czas",
+      "objectionWithdrawn": "wycofane - nie przedstawiono Truth Bulletu",
       "objectionPickTitle": "OBJECTION! - wybierz swój Truth Bullet",
       "objectionPickIntro": "Twoje Objection jest wymierzone w: {target}. Wybierz Truth Bullet, który to dowodzi.",
       "objectionPickLabel": "Truth Bullet",
@@ -2988,6 +2988,7 @@
         "vote.ask": "Twoja karta do głosowania",
         "trial.object": "Wniesienie Objection",
         "trial.evidence": "Twój Truth Bullet do Objection",
+        "trial.withdraw": "Wycofanie Twojego Objection",
         "floor.repoint": "Przekierowanie Objection"
       },
       "notDone": "Prośba „{what}” nie została wykonana. {why}",

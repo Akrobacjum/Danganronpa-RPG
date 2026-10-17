@@ -126,6 +126,19 @@ export function secondsLeft(floor = trialFloor()) {
     return Math.round(modeSeconds(floor) - spent);
 }
 
+/*
+ * A PENDING OBJECTION'S SECONDS, TO THE MILLISECOND (E79 fix r4-G2, 1.2.79; the round-4 review's cor F3). The primary
+ * asked `secondsLeft`, which rounds, so a Truth Bullet sent in the last half second was refused and the heartbeat
+ * lapsed the Objection then, while the objector's picker, which rounds up, still showed 1 s. The primary's test
+ * (`pendingFor`), its lapse (`advanceIfDue`) and the picker (trial.mjs `pickObjectionEvidence`) read this one count
+ * now, so the picker shows no second the primary would refuse. Measured in tier 2 "a pending Objection's seconds
+ * are the floor's...": a bullet 450 ms before the end is put on the card (refused before this fix).
+ */
+export function msLeft(floor = trialFloor()) {
+    if (!floor?.startedAt) return 0;
+    return modeSeconds(floor) * 1000 - (serverNow() - floor.startedAt);
+}
+
 /** Whoever took the floor - the objector, in both restrictive modes. */
 export function floorHolder(floor = trialFloor()) {
     return floor?.holderId ? (game.actors.get(floor.holderId) ?? null) : null;
@@ -207,7 +220,8 @@ export async function startFloor({ seconds = TRIAL.speakSeconds, confirmNewTrial
         error("Could not switch the campaign phase to the Class Trial", err);
     }
 
-    return writeFloor({
+    const replaced = trialFloor();
+    const opened = await writeFloor({
         active: true,
         mode: FLOOR_MODES.debate,
         holderId: null,
@@ -222,6 +236,8 @@ export async function startFloor({ seconds = TRIAL.speakSeconds, confirmNewTrial
         order: null,
         current: null
     });
+    await withdrawReplaced(replaced);
+    return opened;
 }
 
 /**
@@ -433,7 +449,9 @@ export async function openRebuttal() {
     const floor = trialFloor();
     if (!floor) return null;
 
-    return writeFloor({ mode: FLOOR_MODES.rebuttal, startedAt: serverNow(), pending: false });
+    const next = await writeFloor({ mode: FLOOR_MODES.rebuttal, startedAt: serverNow(), pending: false });
+    await withdrawReplaced(floor);
+    return next;
 }
 
 /**
@@ -462,7 +480,47 @@ export async function fillObjection(objectorId, messageId) {
 export function pendingFor(floor, objectorId, messageId) {
     return Boolean(floor) && floor.mode === FLOOR_MODES.objection && floor.pending === true
         && Boolean(objectorId) && floor.holderId === objectorId && Boolean(messageId) && floor.messageId === messageId
-        && secondsLeft(floor) > 0;
+        && msLeft(floor) > 0;
+}
+
+/*
+ * A PENDING OBJECTION IS WITHDRAWN ON EVERY ROAD THAT REPLACES ITS FLOOR (E79 fix r4-G2, 1.2.79; the round-4
+ * review's cor F2). Only the lapse marked the card, so the GM's Back to debate, a floor closed, the trial's end
+ * (`reconcilePhase` closes the floor) and a debate opened over it left the card saying "pending" on every screen and
+ * in every notice history, and the objector's picker open to a deadline nobody kept. Each writer that replaces a
+ * floor hands the floor it replaced here, after its own write, so a card that cannot be marked leaves no floor
+ * waiting for it; the fill does not (its floor stays the Objection's), and the card is marked once whoever asks
+ * twice (trial.mjs `withdrawObjectionCard` marks only a card still pending). Nothing is given back (D4).
+ */
+async function withdrawReplaced(floor) {
+    if (floor?.mode !== FLOOR_MODES.objection || floor.pending !== true || !floor.messageId) return false;
+    try {
+        const { withdrawObjectionCard } = await import("./trial.mjs");
+        return await withdrawObjectionCard(floor.messageId);
+    } catch (err) {
+        error("Could not mark the withdrawn Objection's card", err);
+        return false;
+    }
+}
+
+/**
+ * The objector takes their pending Objection back (E79 fix r4-G2, 1.2.79; cor F4: the handbooks' "Close the window
+ * ... and the Objection is withdrawn"): the picker closed or cancelled, asked of the primary (trial.mjs
+ * `withdrawOnPrimary`, `trial.withdraw`). Only `objectorId`'s Objection on the card `messageId`, still pending - a
+ * floor that moved on, somebody else's or a newer Objection's answers null and writes nothing. The floor goes back to
+ * the debate and the card is marked as at a lapse, nothing given back. Under the heartbeat's latch, as the fill is.
+ *
+ * @returns {Promise<object|null>} the floor written, or null
+ */
+export async function withdrawObjection(objectorId, messageId) {
+    if (!game.user.isGM || advancing) return null;
+    if (!pendingFor(trialFloor(), objectorId, messageId)) return null;
+    advancing = true;
+    try {
+        return await returnToDebate({});
+    } finally {
+        advancing = false;
+    }
 }
 
 /**
@@ -486,7 +544,7 @@ export async function returnToDebate({ seconds = null } = {}) {
     const floor = trialFloor();
     if (!floor) return null;
 
-    return writeFloor({
+    const next = await writeFloor({
         mode: FLOOR_MODES.debate,
         holderId: null,
         targetId: null,
@@ -495,6 +553,8 @@ export async function returnToDebate({ seconds = null } = {}) {
         pending: false,
         messageId: null
     });
+    await withdrawReplaced(floor);
+    return next;
 }
 
 /** Give the current mode more time, without changing whose it is. */
@@ -541,7 +601,9 @@ export async function extendFloor(extraSeconds = 30) {
  */
 export async function endFloor() {
     if (!game.user.isGM) return null;
+    const floor = trialFloor();
     await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
+    await withdrawReplaced(floor);
     return null;
 }
 
@@ -623,7 +685,7 @@ export async function advanceFloorOnPrimary(seen) {
 /** `advanceFloorOnPrimary`'s write, held under `advancing`. */
 async function advanceFrom(floor) {
     // A pending Objection's next step is its lapse (E79 C16): no evidence came, so there is nothing to answer.
-    if (floor.mode === FLOOR_MODES.objection && floor.pending) return lapseObjection(floor);
+    if (floor.mode === FLOOR_MODES.objection && floor.pending) return lapseObjection();
     if (floor.mode === FLOOR_MODES.objection) return openRebuttal();
     /*
      * A REBUTTAL ENDS THE FLOOR (Dawid, 28.08), rather than dropping back into
@@ -651,17 +713,10 @@ let advancing = false;
  * 17.10.2026): the floor goes back to the debate and the card says the Objection was withdrawn. NOTHING IS GIVEN
  * BACK - the price was the interruption, and the room did stop for it. Written by the two writers of a timed move
  * (`advanceIfDue`, and the GM's Now through `advanceFrom`), under their latch, on the primary. The card is marked
- * after the floor, so a card that cannot be marked leaves no floor waiting for it.
+ * by `returnToDebate`, after the floor, as on every road that replaces a pending floor (`withdrawReplaced`).
  */
-async function lapseObjection(floor) {
-    const back = await returnToDebate({});
-    try {
-        const { withdrawObjectionCard } = await import("./trial.mjs");
-        await withdrawObjectionCard(floor.messageId);
-    } catch (err) {
-        error("Could not mark the withdrawn Objection's card", err);
-    }
-    return back;
+async function lapseObjection() {
+    return returnToDebate({});
 }
 
 /**
@@ -695,11 +750,12 @@ async function advanceIfDue() {
     if (advancing) return;
     const floor = trialFloor();
     if (!floor || !isPrimaryGm()) return;
-    if (secondsLeft(floor) > 0) return;
+    // A pending Objection's seconds are the primary's test's, to the millisecond (`msLeft`, fix r4-G2).
+    if (floor.mode === FLOOR_MODES.objection && floor.pending ? msLeft(floor) > 0 : secondsLeft(floor) > 0) return;
 
     advancing = true;
     try {
-        if (floor.mode === FLOOR_MODES.objection && floor.pending) await lapseObjection(floor);
+        if (floor.mode === FLOOR_MODES.objection && floor.pending) await lapseObjection();
         else if (floor.mode === FLOOR_MODES.objection) await openRebuttal();
         // Same rule when the clock runs it out as when the GM brings it
         // forward - see `advanceFloorNow`.

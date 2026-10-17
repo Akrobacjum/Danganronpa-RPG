@@ -90,8 +90,8 @@
  *      and gm3 is told.
  *   Y  (run after X; E79 C16, 1.2.79) the harness's LiveKit on gm2 and p1: Botan's player speaks on gm2's Room, p1's
  *      OBJECTION! names Botan before the press and is aimed at Botan, the bullet chosen after it fills the card on p3's
- *      screen in place; gm2 re-points it at Chie; a second press whose picker p1 closes lapses at its seconds, the
- *      card withdrawn and the action kept; then (fix r4-G1) gm2's Room dropped while p1's stays up: p1's press asks
+ *      screen in place; gm2 re-points it at Chie; a second press whose picker p1 closes is withdrawn at once (fix
+ *      r4-G2), the card withdrawn and the action kept; then (fix r4-G1) gm2's Room dropped while p1's stays up: p1's press asks
  *      p1 for a name and lands, filled, at the student named.
  *
  * Headless limits: no layout (the Objection card's stacking, the select widths, the text's
@@ -992,9 +992,13 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
        bullet (the GM's API, not under test). Botan's player speaks on gm2's Room for 1.2 s; then p1 reads its
        button's preview and presses (trial.mjs `raiseObjection`, the bullet picker answered with Aiko's bullet), and
        the floor and the card are read on gm2 and the card on p3's screen; gm2 re-points it at Chie from the console
-       (`repointDialog`, answered); then a second press whose picker p1 closes, the seconds spent as Y's own write
-       of the floor's start, and the lapse read on gm2, on p3 and in Aiko's actions. */
-    begin("Y", "OBJECTION! aimed at the speaker gm2's Room counts, the bullet after it, a re-point and a lapse");
+       (`repointDialog`, answered); then a second press whose picker p1 closes, and the withdrawal read on gm2, on
+       p3 and in Aiko's actions.
+       E79 fix r4-G2 (1.2.79; the round-4 review's cor F4): the closed picker withdraws the Objection at once
+       (`trial.withdraw`), as the handbooks say, where C16 left it pending until Y spent its seconds by writing the
+       floor's start 31 s back. Y4 reads gm2 within a second of p1's close, with no seconds spent. Red at 9f0d216:
+       the floor still pending. */
+    begin("Y", "OBJECTION! aimed at the speaker gm2's Room counts, the bullet after it, a re-point and a withdrawal");
     const Fy = `const F = await import("${repoUrl}/scripts/trial-floor.mjs"); const T = await import("${repoUrl}/scripts/trial.mjs");`;
     const yEveryone = J([IDS.gm, IDS.p1, IDS.p2, IDS.p3, P4, "USERGM2000000000", "USERGM3000000000"]);
     const yRoom = c => c.eval(`if (typeof globalThis.__liveKit?.install !== "function") return false;
@@ -1048,17 +1052,16 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
     await settle(500);
     const ySecond = await p1.eval(`${Fy} globalThis.__dialogAnswers.push(null);
         return await T.raiseObjection(game.actors.get("${IDS.aiko}"));`, { timeout: 60000 });
-    const yLapsed = await gm2.eval(`${until} ${Fy} const id = F.trialFloor()?.messageId ?? null; const pending = F.trialFloor()?.pending === true;
-        const stored = game.settings.get("${MOD}", "trialQueue");
-        await game.settings.set("${MOD}", "trialQueue", { ...stored, startedAt: stored.startedAt - 31000 });
-        await until(() => F.trialFloor()?.mode === "debate" && game.messages.get(id)?.getFlag("${MOD}", T.TRIAL_FLAGS.withdrawn), 6000);
-        return { id, pending, mode: F.trialFloor()?.mode ?? null, withdrawn: Boolean(game.messages.get(id)?.getFlag("${MOD}", T.TRIAL_FLAGS.withdrawn)),
+    const yLapsed = await gm2.eval(`${until} ${Fy} const card = () => game.messages.contents.filter(m => m.getFlag("${MOD}", T.TRIAL_FLAGS.objection) === true).at(-1) ?? null;
+        const back = Boolean(await until(() => F.trialFloor()?.mode === "debate" && card()?.id !== "${yCard.id}" && card()?.getFlag("${MOD}", T.TRIAL_FLAGS.withdrawn), 1000));
+        const id = card()?.id !== "${yCard.id}" ? (card()?.id ?? null) : null;
+        return { id, back, mode: F.trialFloor()?.mode ?? null, withdrawn: Boolean(game.messages.get(id)?.getFlag("${MOD}", T.TRIAL_FLAGS.withdrawn)),
             actions: game.actors.get("${IDS.aiko}").system.resources.actions.value };`, { timeout: 30000 });
     await settle(800);
     const yLapsedOnP3 = await yOnP3(yLapsed.id);
     const yWithdrawnWords = await p3.eval(`return ${text("DRPG.Trial.objectionWithdrawn")};`);
-    verdict("a press whose picker p1 closes lapses at its seconds: gm2's floor back to the debate, the card withdrawn on p3 in place, Aiko's action not given back",
-        yLapse === true && ySecond === false && yLapsed.pending && yLapsed.mode === "debate" && yLapsed.withdrawn && yLapsed.actions === 1
+    verdict("a press whose picker p1 closes is withdrawn at once: gm2's floor back to the debate within a second, the card withdrawn on p3 in place, Aiko's action not given back",
+        yLapse === true && ySecond === false && yLapsed.back && yLapsed.mode === "debate" && yLapsed.withdrawn && yLapsed.actions === 1
             && yLapsedOnP3.cards === 1 && yLapsedOnP3.body.includes(yWithdrawnWords), J({ ySecond, yLapsed, yLapsedOnP3 }));
     /* Fix r4-G1 (17.10.2026; cor F1 = SEC4-2): gm2's Room dropped (`__liveKit.drop()` - the GM's A/V off, or
        avclient-livekit in its own window) while p1's stays up. p1 presses: the primary answers asking for a name,

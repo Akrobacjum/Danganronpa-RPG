@@ -46,10 +46,10 @@
 
 import { MODULE_ID, TRUTH_BULLET_TYPES, TRIAL } from "./config.mjs";
 import { getClock } from "./clock.mjs";
-import { truthBulletData, isTruthBullet, bulletDescription } from "./truth-bullets.mjs";
+import { truthBulletData, isTruthBullet, bulletDescription, bulletAsHeld } from "./truth-bullets.mjs";
 import { showPopup } from "./popup.mjs";
 import { announce, dialogContent, isPrimaryGm, log, error, tableDialog,
-    whisperToOwner, serverNow } from "./utils.mjs";
+    whisperToOwner } from "./utils.mjs";
 // The price of an interruption, quoted where it is about to be shown (T-1).
 import { quotePrice, priceLine, payPrice, refundPrice, paidLine } from "./price.mjs";
 // The question alone, with no toast: this decides a button, and a window that
@@ -100,7 +100,10 @@ export const TRIAL_FLAGS = {
      * (the player named them, because the primary GM had no voice Room to listen to).
      */
     how: "objectionHow",
-    /** The seconds to pick the Truth Bullet ran out: the card says the Objection was withdrawn, and the price stays paid. */
+    /**
+     * The Objection was withdrawn before its Truth Bullet (its seconds out, its picker closed, its floor replaced):
+     * the card says so, and the price stays paid.
+     */
     withdrawn: "objectionWithdrawn",
     chapter: "chapter"
 };
@@ -369,7 +372,7 @@ export function holderView(data) {
 
 /**
  * An objection's card before its evidence (E79 C16): the banner, who objects to whom, and one line of its state -
- * "pending" while the objector chooses the Truth Bullet, "withdrawn" once the seconds for it ran out.
+ * "pending" while the objector chooses the Truth Bullet, "withdrawn" once it was withdrawn before one (`withdrawObjectionCard`).
  *
  * @param {"pending"|"withdrawn"} state
  */
@@ -688,6 +691,8 @@ async function seizeFloor(message, objectorId, targetId) {
  *                  the card with the bullet as its holder knows it (`holderView`) and starts the minute.
  *   the lapse      no bullet within `TRIAL.objectionPickSeconds`: the heartbeat (trial-floor.mjs `advanceIfDue`)
  *                  puts the floor back to the debate and `withdrawObjectionCard` marks the card. The price stays.
+ *   the withdrawal the picker closed (`trial.withdraw`, `withdrawOnPrimary`), or any road that replaces the pending
+ *                  floor (trial-floor.mjs `withdrawReplaced`): the card marked as at the lapse (fix r4-G2).
  *   the re-point   a GM points the running Objection at somebody else from the trial console (`floor.repoint`,
  *                  `repointOnPrimary`); the card's line follows.
  */
@@ -807,6 +812,14 @@ export async function objectOnPrimary({ actorId, targetId = null }) {
  * Bullet the character holds as the GMs hold it; anything else is refused and changes nothing. The card is filled
  * from the bullet as its holder knows it (`holderView`), and the minute starts here (`fillObjection`).
  *
+ * The card's words are the bullet as the GMs hold it (E79 fix r4-G2; the round-4 review's SEC4-1): `itemAsHeld`
+ * decides only that the item is a bullet, and the shown fields were read off the document, where a player's write
+ * whose put-back has not landed, or failed, stands - onto a card a GM authors and every notice history, drawn once.
+ * They are read through `bulletAsHeld`, as handover.mjs mints a copy. And a card that cannot be filled puts the
+ * floor back (SEC4-3): the fill writes the floor first, and a failed update left a filled Objection running its
+ * minute with the pending words on the table while its objector was told it failed. The floor goes back to the
+ * debate and the card is marked withdrawn, nothing given back, as at a lapse.
+ *
  * @param {{actorId: string, itemId: string, comment?: string}} request
  */
 export async function evidenceOnPrimary({ actorId, itemId, comment = "" }) {
@@ -823,7 +836,7 @@ export async function evidenceOnPrimary({ actorId, itemId, comment = "" }) {
     const { itemAsHeld } = await import("./sheet-audit.mjs");
     const held = itemId ? await itemAsHeld(actor, itemId) : null;
     const item = held && isTruthBullet(held) ? (actor.items.get(itemId) ?? null) : null;
-    const data = item ? truthBulletData(item) : null;
+    const data = item ? truthBulletData(bulletAsHeld(item)) : null;
     if (!data) return { refused: "that character holds no such Truth Bullet" };
 
     if (!(await fillObjection(actor.id, message.id))) {
@@ -838,10 +851,42 @@ export async function evidenceOnPrimary({ actorId, itemId, comment = "" }) {
         });
     } catch (err) {
         error("Could not put the Truth Bullet on the Objection's card", err);
+        await unfill(actor.id, message.id);
         return { refused: "the objection's card could not be filled" };
     }
-    log(`${actor.name} objected with "${item.name}".`);
-    return { reply: { item: item.name } };
+    log(`${actor.name} objected with "${data.name}".`);
+    return { reply: { item: data.name } };
+}
+
+/** `evidenceOnPrimary`'s put-back when its card could not be filled: the floor it filled back to the debate, the card withdrawn. */
+async function unfill(objectorId, messageId) {
+    try {
+        const { trialFloor, returnToDebate, FLOOR_MODES } = await import("./trial-floor.mjs");
+        const floor = trialFloor();
+        if (floor?.mode === FLOOR_MODES.objection && floor.holderId === objectorId && floor.messageId === messageId) await returnToDebate({});
+        await withdrawObjectionCard(messageId);
+    } catch (err) {
+        error("Could not put the floor back after the Objection's card could not be filled", err);
+    }
+}
+
+/**
+ * The run of `trial.withdraw` (gm-bridge.mjs) on the primary GM (E79 fix r4-G2, 1.2.79; the round-4 review's cor F4):
+ * the objector's picker closed or cancelled, so their pending Objection on the card `messageId` goes back to the
+ * debate and its card is marked withdrawn, nothing given back (D4) - the handbooks' "Close the window ... and the
+ * Objection is withdrawn", which until this fix waited for the seconds to run out. Anything but the objector's own
+ * Objection on that card, still pending, is refused and changes nothing (trial-floor.mjs `withdrawObjection`).
+ *
+ * @param {{actorId: string, messageId: string}} request
+ */
+export async function withdrawOnPrimary({ actorId, messageId }) {
+    const actor = game.actors.get(actorId ?? "");
+    if (!actor) return { refused: "no such character" };
+    const { withdrawObjection } = await import("./trial-floor.mjs");
+    if (!(await withdrawObjection(actor.id, messageId ?? null))) {
+        return { refused: "that objection is no longer waiting for its Truth Bullet" };
+    }
+    return { reply: { withdrawn: true } };
 }
 
 /** `html` with its card's first line rewritten for a new target (`repointOnPrimary`). */
@@ -884,8 +929,9 @@ export async function repointOnPrimary({ targetId }) {
 }
 
 /**
- * The card of an Objection whose seconds to pick ran out, marked withdrawn (trial-floor.mjs `lapseObjection`, on
- * the primary GM). Only a card still pending; answers whether it was marked.
+ * The card of an Objection that was never filled, marked withdrawn: its seconds ran out, its objector closed the
+ * picker, or its floor was replaced (trial-floor.mjs `withdrawReplaced`, on the GM that replaced it), or the card
+ * could not be filled (`unfill`). Only a card still pending, so it is marked once; answers whether it was marked.
  */
 export async function withdrawObjectionCard(messageId) {
     if (!game.user.isGM || !messageId) return false;
@@ -910,7 +956,7 @@ export async function withdrawObjectionCard(messageId) {
  */
 export async function raiseObjection(actor) {
     if (!actor || !inClassTrial()) return false;
-    const { requestObject, requestEvidence } = await import("./gm-bridge.mjs");
+    const { requestObject, requestEvidence, requestWithdraw } = await import("./gm-bridge.mjs");
     const asked = await requestObject({ actorId: actor.id, targetId: null });
     let raised = asked.ok ? (asked.value ?? null) : null;
     if (raised?.needName === true) {
@@ -921,8 +967,13 @@ export async function raiseObjection(actor) {
     }
     if (!raised?.messageId) return false;
     const pick = await pickObjectionEvidence(actor, raised);
-    // Closed or cancelled: the Objection lapses at its deadline on the primary, as the window says.
-    if (!pick) return false;
+    if (!pick) {
+        // Closed or cancelled while the Objection still waits: it is withdrawn now, as the handbooks say (fix r4-G2,
+        // cor F4), not at its deadline. A window the floor closed (its seconds out, the floor moved on) asks nothing.
+        const { trialFloor, pendingFor } = await import("./trial-floor.mjs");
+        if (pendingFor(trialFloor(), actor.id, raised.messageId)) await requestWithdraw({ actorId: actor.id, messageId: raised.messageId });
+        return false;
+    }
     const filled = await requestEvidence({ actorId: actor.id, itemId: pick.itemId, comment: pick.comment });
     return filled.ok === true;
 }
@@ -961,13 +1012,24 @@ async function nameObjectionTarget(actor) {
 }
 
 /**
- * The Truth Bullet for a raised Objection: the character's bullets, a comment, and the seconds left to the
- * primary's deadline counted down on the window, which closes itself at zero. Answers `{ itemId, comment }`, or
- * null when it was closed or cancelled - and then the Objection lapses, its price kept, as the window says.
+ * The Truth Bullet for a raised Objection: the character's bullets, a comment, and the seconds left counted down on
+ * the window, which closes itself at zero. Answers `{ itemId, comment }`, or null when it was closed or cancelled -
+ * and then `raiseObjection` withdraws the Objection, its price kept, as the window says.
+ *
+ * THE FLOOR'S SECONDS, NOT THE PRESS'S (E79 fix r4-G2, 1.2.79; the round-4 review's cor F3). The window counted to
+ * the deadline the press answered, so a GM's +30 s (`extendFloor`) gave the primary thirty more seconds and the
+ * window none - it closed, and the Objection lapsed thirty seconds later with its price kept - and a floor the GM
+ * moved on left the window open to that deadline. It reads the floor now, each half second: the seconds while the
+ * floor still waits for this card (trial-floor.mjs `pendingFor`, `msLeft`, the primary's own count), and zero, which
+ * closes it, once it does not.
  */
-async function pickObjectionEvidence(actor, { target, deadline }) {
+async function pickObjectionEvidence(actor, { target, messageId }) {
+    const { trialFloor, pendingFor, msLeft } = await import("./trial-floor.mjs");
     const bullets = actor.items.filter(item => isTruthBullet(item)).sort((a, b) => a.name.localeCompare(b.name));
-    const left = () => Math.max(0, Math.ceil((Number(deadline) - serverNow()) / 1000));
+    const left = () => {
+        const floor = trialFloor();
+        return pendingFor(floor, actor.id, messageId) ? Math.ceil(msLeft(floor) / 1000) : 0;
+    };
     const countLine = () => game.i18n.format("DRPG.Trial.objectionPickCount", { seconds: left() });
     const choice = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Trial.objectionPickTitle") },

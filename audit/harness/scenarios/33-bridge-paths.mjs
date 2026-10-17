@@ -931,6 +931,27 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
             && evidence15?.ok === true && evidence15.value?.item === "S33 A15 the evidence" && a15.floor.mode === "objection" && a15.floor.holder === IDS.aiko
             && a15.floor.target === IDS.botan && a15.floor.pending === false && a15.floor.item === set15.item && a15.floor.how === "now"
             && a15.floor.actions === 2 && a15.logged.length === 0 && a15.told.length === 0, JSON.stringify(a15));
+    /* A15b (E79 fix r4-G2, 1.2.79; cor F4): the objector's picker closed. The GM puts the floor back to the debate (its
+       API, not under test), p1 raises a second Objection and asks its withdrawal (`trial.withdraw`, the request
+       `raiseObjection` makes when the picker answers nothing): the GM's floor back in the debate, the card marked
+       withdrawn, the second action not given back, and nothing refused. */
+    await gm.eval(`${F15} await F.returnToDebate({}); return true;`);
+    await settle(500);
+    const object15b = await p1.eval(`return await ${bridge}.requestObject({ actorId: "${IDS.aiko}" });`, { timeout: 30000 });
+    await settle(800);
+    // Read as a result: at the fix's parent the bridge had no such request, and that is the red this step reads.
+    const withdraw15b = await p1.eval(`const B = ${bridge}; return typeof B.requestWithdraw === "function"
+        ? await B.requestWithdraw({ actorId: "${IDS.aiko}", messageId: "${object15b?.value?.messageId ?? ""}" }) : null;`, { timeout: 30000 });
+    await settle(1200);
+    const a15b = { object: object15b, withdraw: withdraw15b, floor: await gm.eval(`${F15} const f = F.trialFloor();
+            const m = game.messages.get("${object15b?.value?.messageId ?? ""}");
+            return { mode: f?.mode ?? null, pending: Boolean(m?.getFlag("${MOD}", T.TRIAL_FLAGS.pending)), withdrawn: Boolean(m?.getFlag("${MOD}", T.TRIAL_FLAGS.withdrawn)),
+                actions: game.actors.get("${IDS.aiko}").system.resources.actions.value };`),
+        logged: await refusalsLogged(gm, "trial.withdraw"),
+        told: (await refusedSince(p1, told15)).filter(t => /^trial\./.test(t.what ?? "")) };
+    check("A15b: p1's withdrawal of its pending Objection puts the GM's floor back in the debate and the card withdrawn, the action kept, nothing refused",
+        object15b?.ok === true && Boolean(object15b.value?.messageId) && withdraw15b?.ok === true && a15b.floor.mode === "debate" && a15b.floor.pending === false
+            && a15b.floor.withdrawn === true && a15b.floor.actions === 1 && a15b.logged.length === 0 && a15b.told.length === 0, JSON.stringify(a15b));
     await gm.eval(`${F15} const aiko = game.actors.get("${IDS.aiko}"), was = globalThis.__s33a15;
         if (F.trialFloor()) await F.endFloor();
         if (was) {

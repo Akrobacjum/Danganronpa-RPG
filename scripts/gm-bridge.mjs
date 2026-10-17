@@ -61,6 +61,8 @@ const ACTION_FLOOR_NOW = "floor.now";
 const ACTION_TRIAL_OBJECT = "trial.object";
 /** player -> primary GM: the Truth Bullet for that pending Objection (E79 C16; trial.mjs `evidenceOnPrimary`). */
 const ACTION_TRIAL_EVIDENCE = "trial.evidence";
+/** player -> primary GM: that pending Objection taken back, its picker closed (E79 fix r4-G2; trial.mjs `withdrawOnPrimary`). */
+const ACTION_TRIAL_WITHDRAW = "trial.withdraw";
 /** GM -> primary GM: the running Objection aimed at somebody else, from the trial console (E79 C16; trial.mjs `repointOnPrimary`). */
 const ACTION_FLOOR_REPOINT = "floor.repoint";
 /** GM -> primary GM: Approve or Decline on a reshape card (E09 C10; cleanup.mjs `ruleReshape`, `askReshapeRuling`). */
@@ -1533,6 +1535,13 @@ async function handleTrialEvidence(payload) {
     return { reply: out?.reply ?? null };
 }
 
+/** The run of `trial.withdraw` (E79 fix r4-G2): the objector's own pending Objection taken back (trial.mjs `withdrawOnPrimary`). */
+async function handleTrialWithdraw(payload) {
+    const { withdrawOnPrimary } = await import("./trial.mjs");
+    const out = await withdrawOnPrimary({ actorId: payload.actorId, messageId: payload.messageId });
+    if (out?.refused) return { refused: out.refused };
+}
+
 /** The run of `floor.repoint` (E79 C16): a GM's new target for the running Objection (trial.mjs `repointOnPrimary`). */
 async function handleFloorRepoint(payload) {
     const { repointOnPrimary } = await import("./trial.mjs");
@@ -2301,6 +2310,24 @@ export const BRIDGE_ACTIONS = table({
         }
     },
     /*
+     * THE OBJECTION TAKEN BACK (E79 fix r4-G2, 1.2.79; the round-4 review's cor F4). The objector's picker closed or
+     * cancelled before its seconds ran out: the primary puts the floor back to the debate and marks the card, as at a
+     * lapse, nothing given back (trial.mjs `withdrawOnPrimary`, trial-floor.mjs `withdrawObjection`). Only the
+     * objector's own Objection on the card `messageId` names, still pending. "ack" and quiet: the window is closed
+     * and nobody waits on the answer, and a refusal - the floor moved on, the seconds ran out - has the card saying
+     * what came of it already.
+     */
+    [ACTION_TRIAL_WITHDRAW]: {
+        label: "DRPG.Bridge.what.trial.withdraw",
+        guards: [knownSender, owns("actorId", "sender does not own the character objecting")],
+        sanitize: pick({ actorId: as.id, messageId: as.id }),
+        run: handleTrialWithdraw,
+        answer: "ack", quiet: true,
+        claims: {
+            messageId: "held by trial-floor.mjs withdrawObjection (pendingFor) to the card of the objector's own Objection on the floor the primary holds, still pending; any other changes nothing"
+        }
+    },
+    /*
      * A GM'S RE-POINT, RUN ON THE PRIMARY GM (E79 C16). The trial console's Re-point: the running Objection's
      * target alone, as `floor.now` moves the floor on, so a second GM's press is not a second writer.
      */
@@ -2492,6 +2519,17 @@ export function requestEvidence({ actorId, itemId, comment = "" }) {
             if (out?.refused) sayNotDone(ACTION_TRIAL_EVIDENCE, reasonOf(out.refused));
             return out?.reply ?? null;
         })
+    });
+}
+
+/**
+ * The asker's pending Objection taken back, its picker closed or cancelled (E79 fix r4-G2; trial.mjs `raiseObjection`).
+ * Quiet: nobody waits on it, and the card says what came of the Objection.
+ */
+export function requestWithdraw({ actorId, messageId }) {
+    return ask(ACTION_TRIAL_WITHDRAW, { actorId, messageId }, {
+        onPrimary: true,
+        local: () => import("./trial.mjs").then(m => m.withdrawOnPrimary({ actorId, messageId })).then(out => !out?.refused)
     });
 }
 

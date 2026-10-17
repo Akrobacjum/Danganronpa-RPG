@@ -89,10 +89,11 @@ export const FLOWS = Object.freeze([
     // E10 fix r2-G6 (1.2.71): the GM's Now on a GM that is not the primary is asked of it through `floor.now`; 63 X sends it from gm3.
     // E79 C16 (1.2.79): an Objection is raised from a player's trial bar (`trial.object`), its Truth Bullet put on it after
     // (`trial.evidence`), and a GM re-points it (`floor.repoint`); 63 drives the three, 33 the legal pair from a player
-    // and 30 the forged ones.
+    // and 30 the forged ones. E79 fix r4-G2: the objector's closed picker withdraws it (`trial.withdraw`); 33 sends it
+    // from p1, 30 a forged one from p2.
     { id: "class-trial", what: "The Class Trial: advancement offers and asks, the vote and its ballots, and an Objection raised, proved and re-pointed",
         entry: { bridge: ["advancement.apply", "advancement.offer", "advancement.ask", "keys.charge", "vote.run", "vote.cast", "vote.ask", "floor.now",
-            "trial.object", "trial.evidence", "floor.repoint"],
+            "trial.object", "trial.evidence", "trial.withdraw", "floor.repoint"],
             sockets: ["vote.mjs"] },
         scenarios: ["10-murder", "11-killer-secrecy", "30-security", "33-bridge-paths", "61-gmstore-case", "63-class-trial"], status: "partial", stage: "E40" },
     { id: "clock-day", what: "The clock: a GM moves the time of day or opens an Eclipse, every client redraws and refills",

@@ -2125,7 +2125,7 @@
       "objectionRebuttalTargets": "Anybody may cut into a rebuttal, but only at the two already on the floor. An objection re-points the floor, and whoever you name gets the answering rebuttal.",
       "objectionByButton": "An Objection is raised with OBJECTION! on the HUD, not from the sheet. Press it, then choose your Truth Bullet.",
       "objectionPending": "pending - choosing a Truth Bullet",
-      "objectionWithdrawn": "withdrawn - no Truth Bullet was chosen in time",
+      "objectionWithdrawn": "withdrawn - no Truth Bullet was presented",
       "objectionPickTitle": "OBJECTION! - choose your Truth Bullet",
       "objectionPickIntro": "Your Objection is aimed at {target}. Choose the Truth Bullet that proves it.",
       "objectionPickLabel": "Truth Bullet",
@@ -2872,6 +2872,7 @@
         "vote.ask": "Your ballot",
         "trial.object": "Raise an Objection",
         "trial.evidence": "Put your Truth Bullet on the Objection",
+        "trial.withdraw": "Withdraw your Objection",
         "floor.repoint": "Re-point the Objection"
       },
       "notDone": "“{what}” was not carried out. {why}",

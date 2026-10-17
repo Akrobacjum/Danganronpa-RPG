@@ -5627,6 +5627,8 @@ const REGRESSIONS = [
             sharePassage: "refused", shareRefusal: "returns",
             // E79 C16: an Objection raised, proved and re-pointed on the primary (trial.mjs), whose runs pass their `{ refused }` on.
             objectOnPrimary: "refused", evidenceOnPrimary: "refused", repointOnPrimary: "refused",
+            // E79 fix r4-G2: the objector's pending Objection taken back, on the primary (trial.mjs).
+            withdrawOnPrimary: "refused",
             resolveObserve: "passes", hopeCallRefusal: "wraps"
         };
         const sources = [...await otherSources()].map(([file, raw]) => [file, stripComments(raw)]);
@@ -7561,7 +7563,7 @@ const REGRESSIONS = [
             ["CHAT trial.mjs#registerTrial", "judged: a Present card's popup shows only when the author is a GM or owns the speaker and it holds the item (trial.mjs ~534-553); an objection acts on the primary only and `seizeFloor` re-judges it (author owns the objector, `itemAsHeld`, `floorRefusal`/`targetRefusal`), refused and told on the card; since C16 a dead objector too (`flagsAsHeld`) [F4 read road]. Since E79 C16 a player-authored objection card raises no popup and goes to `refusePlayersCard`; a GM's pending card waits for `objectOnPrimary`'s floor, and its redraw (`updateChatMessage`) follows a GM's card only"],
             ["CHAT trial.mjs#refusePlayersCard", "judged (E79 C16): the primary marks a player-authored objection card refused and tells its character's owner (the author owns it: `objectionByButton`; else `objectionNotYours`); it pays nothing and moves no floor - the card's flags are claims and none is read for a write"],
             ["CHAT trial.mjs#repointOnPrimary", "judged (E79 C16): `floor.repoint` is gmOnly; the target a living student as the GMs hold it (`livingStudentsForGm`) that `mayObjectTo` allows; the card's presenter flag is read only to redraw its line, the GMs' own card"],
-            ["CHAT trial.mjs#withdrawObjectionCard", "out of scope (E79 C16): a GM's write of the GMs' own pending card at the lapse (`lapseObjection`, primary); its flags are the ones `objectOnPrimary` wrote"],
+            ["CHAT trial.mjs#withdrawObjectionCard", "out of scope (E79 C16, fix r4-G2): a GM's write of the GMs' own pending card when its floor is replaced (trial-floor.mjs `withdrawReplaced`: the lapse, Back to debate, a closed floor, the trial's end, the objector's `trial.withdraw`) or its fill failed (`unfill`); its flags are the ones `objectOnPrimary` wrote"],
             ["SHEET trial.mjs#objectOnPrimary", "judged (E79 C16): `trial.object`'s run on the primary - knownSender + owns(actorId); the objector's death through `flagsAsHeld` and its bullets through `itemsAsHeld` before anything is paid; the target the primary's Room counts (`objectionTarget`, `speakingStudent`) or, with no Room, `livingStudents` (the table's living) with `mayObjectTo`, and a press naming nobody answered `needName` with nothing paid (fix r4-G1); the packet's `targetId` read only then [1b.2, F4]"],
             ["SHEET trial.mjs#nameObjectionTarget", "out of scope: the objector's own browser (R4): the list of whom to name when the primary answers `needName` (`livingStudents`, a courtesy); the primary judges the name (`objectOnPrimary`)"],
             ["SHEET trial-speakers.mjs#speakingStudent", "judged in part (E79 C16): who a speaker stands for, on the primary at the read - a student the account owns, no Monokuma or Monocub, not dead by `isDeceased` (the published death: a death the GMs keep is not told, fix r4-G1), never spoken by an account that owns the objector (`objectionTarget`); a death flag a player's write took off the document stands until the sheet audit puts it back, the same class as `applyFinalVerdict`'s, left to E40"],
@@ -7570,6 +7572,8 @@ const REGRESSIONS = [
             ["PACKET gm-bridge.mjs#trial.evidence#actorId", "judged (E79 C16): knownSender + owns(actorId); the floor must be that character's pending Objection on its card, inside its seconds (`pendingFor`)"],
             ["PACKET gm-bridge.mjs#trial.evidence#itemId", "judged (E79 C16): a Truth Bullet as the GMs hold it (`itemAsHeld` + `isTruthBullet`), drawn on the card from what its holder knows (`holderView`)"],
             ["PACKET gm-bridge.mjs#trial.evidence#comment", "judged (E79 C16): `as.text`, refused past a player's words (`noteTooLong`), escaped on the card"],
+            ["PACKET gm-bridge.mjs#trial.withdraw#actorId", "judged (E79 fix r4-G2): knownSender + owns(actorId); the floor must be that character's pending Objection (`withdrawObjection`, `pendingFor`)"],
+            ["PACKET gm-bridge.mjs#trial.withdraw#messageId", "judged (E79 fix r4-G2): the card of the objector's own Objection on the floor the primary holds, still pending (`pendingFor`); any other changes nothing"],
             ["PACKET gm-bridge.mjs#floor.repoint#targetId", "judged (E79 C16): gmOnly; a living student as the GMs hold it whom `mayObjectTo` allows (`repointOnPrimary`)"],
             ["CHAT trial.mjs#seizeFloor", "judged: the card's flags are claims; the objector's death through `flagsAsHeld` (C16) and the item through `itemAsHeld` (E29), both before anything is paid, then the synchronous refusals [1b.2]"],
             ["CHAT trial.mjs#presentedThisChapter", "out of scope: a GM's log of the chapter's Present and Objection cards (trial.mjs:778, 798, GM only); a display, feeds no write"],
@@ -13058,7 +13062,11 @@ const REGRESSIONS = [
          *     gm-bridge.mjs alone, twice - the run, which hands the packet's field to it and reads nothing else of
          *     it, and the asker's local road - and `raiseObjection` asks no Room of its own browser, so one browser,
          *     the primary, decides which road a press takes;
-         *   - `evidenceOnPrimary` draws the card from `holderView(data)`, never the bullet's GM half;
+         *   - `evidenceOnPrimary` draws the card from `holderView(data)`, never the bullet's GM half, and `data` is
+         *     the bullet as the GMs hold it (`truthBulletData(bulletAsHeld(item))`, fix r4-G2's SEC4-1), never the
+         *     document's fields a player's write may hold before its put-back; and the functions of trial.mjs that
+         *     read a bullet's data are that one, `holderView` and the Present's two on the presenter's own browser,
+         *     so the re-point (the card's first line) and the withdrawn card (its flags) draw nothing from a bullet;
          *   - `presentBullet` refuses an Objection a player's browser would post (`objection && !game.user.isGM`);
          *   - hud.mjs imports neither trial.mjs nor trial-speakers.mjs statically: the trial bar is drawn on every
          *     browser at start, and both are loaded on the press (17.10.2026, walked: trial-speakers.mjs's own
@@ -13112,6 +13120,12 @@ const REGRESSIONS = [
         const evidence = stripComments(fnSource(src("trial.mjs"), "evidenceOnPrimary"));
         ok(/buildCard\(actor, holderView\(data\)/.test(evidence) && !/\b(?:realType|realLabel|gmNote)\b/.test(evidence),
             "evidenceOnPrimary draws the card from the holder's view and names no field of the GM half");
+        const dataRead = [...evidence.matchAll(/\btruthBulletData\(([^\n;]*)\)/g)].map(m => m[1]);
+        const builders = [...trialSrc.matchAll(/^(?:export )?(?:async )?function (\w+)\(/gm)].map(m => m[1])
+            .filter(name => /\bholderView\(|\btruthBulletData\(/.test(stripComments(fnSource(src("trial.mjs"), name))));
+        equal(JSON.stringify([dataRead, builders.sort()]),
+            JSON.stringify([["bulletAsHeld(item)"], ["evidenceOnPrimary", "holderView", "presentBullet", "presentDialog"]]),
+            "[what evidenceOnPrimary hands truthBulletData; the functions of trial.mjs that read a bullet's data or its holder's view]");
         ok(/if \(objection && !game\.user\.isGM\)/.test(stripComments(fnSource(src("trial.mjs"), "presentBullet"))),
             "presentBullet refuses an Objection on a player's browser");
         const hudImports = [...stripComments(src("hud.mjs")).matchAll(/^import [^;]*? from "\.\/([\w-]+\.mjs)";/gm)].map(m => m[1]);
