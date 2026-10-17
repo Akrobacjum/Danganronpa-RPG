@@ -44,10 +44,15 @@ function stateDiff(a, b, at = "", out = []) {
    failed with "eval timeout on gm" in A2 with nothing hung: tier 1 alone inside a Class Trial (a probe running
    A2's setup, e79run/scratch/r3g4-a2time) read 221 s and 246 s on that group's tree and 238 s on its parent,
    ca76c6a, which the fix did not slow down - the run had grown to its bound. So 600 s, about two and a half
-   times the slowest reading. */
-const READ_ONLY_MS = 600000;
+   times the slowest reading, until E79 fix r4-G4 (review round 4, Q5): a bound that admits two and a half times
+   the run lets a run that has grown by half pass unread. Held now to those three readings, 1.5 times the slowest
+   (246 s, so 369 s, rounded up to 370 s): half again for a lane beside other scenarios, as the chain runs 01 (whether
+   other lanes ran during the three readings was not read), against their spread of 11 %. Each run's seconds are
+   printed in its first check's detail, so the next reader compares them with 246 s rather than with the bound. */
+const READ_ONLY_MS = 370000;
 
 async function readOnlyRun(gm, check, label, repoUrl) {
+    const began = Date.now();
     const out = await gm.eval(`
         const [{ whenGmStoresLoaded }, { migrationOnLoad }] = await Promise.all([import("${repoUrl}/scripts/gm-stores.mjs"), import("${repoUrl}/scripts/migrate.mjs")]);
         const settled = await Promise.race([Promise.all([whenGmStoresLoaded(), migrationOnLoad()]).then(() => true),
@@ -60,8 +65,9 @@ async function readOnlyRun(gm, check, label, repoUrl) {
             tier2: /TIER 2/.test(r?.text ?? ""), purity: (r?.results ?? []).find(x => x.name === "tier 0/1 changed nothing in the world") ?? null,
             fails: (r?.results ?? []).filter(x => x.outcome === "fail").map(x => (x.name + ": " + (x.message ?? "")).slice(0, 300)) };
     `, { timeout: READ_ONLY_MS });
+    const seconds = Math.round((Date.now() - began) / 100) / 10;
     check(`gm: ${label} - tiers 0 and 1 only, no tier 2`, out && !out.tier2 && out.tiers.every(t => t <= 1) && out.tiers.length > 0,
-        JSON.stringify({ tiers: out?.tiers, tier2: out?.tier2 }));
+        JSON.stringify({ tiers: out?.tiers, tier2: out?.tier2, seconds, boundSeconds: READ_ONLY_MS / 1000 }));
     const moved = out ? stateDiff(out.before, out.after) : ["no answer"];
     check(`gm: ${label} - the harness's own reading of the world did not move`, moved.length === 0,
         (out?.settled === false ? "the load had not settled in 30 s; " : "") + moved.slice(0, 12).join("; "));

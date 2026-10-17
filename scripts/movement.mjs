@@ -24,9 +24,9 @@
 import { MODULE_ID, ECLIPSE_MOVES, ECLIPSE_FREE_PLACEMENT, FLAGS,
     ROOM_OWNER_FLAG, BEDROOM_KEY_FLAG } from "./config.mjs";
 import {
-    SETTINGS, iAmTheMastermind, incidentParticipants, incomingTimeOfDay, discoveryLedger, eclipseMovesUsed, isDeadForGm
+    SETTINGS, iAmTheMastermind, incidentParticipants, incomingTimeOfDay, discoveryLedger, eclipseMovesUsed, isDeadForGm, isEclipse
 } from "./settings.mjs";
-import { hasFreeMove, takeMove, actionsLeft, canPayFor, freeMovesLeft } from "./actions.mjs";
+import { hasFreeMove, takeMove, actionsLeft, canPayFor, freeMovesLeft, freeActionsLeft } from "./actions.mjs";
 // Statically imported, not lazily: the crossing veto runs inside a synchronous
 // `preUpdateToken` hook, where there is no opportunity to await an import.
 // call-effects.mjs only reaches back into this file lazily, so there is no cycle.
@@ -101,6 +101,11 @@ const lastPosition = new Map();
  */
 const unsettled = new Map();
 const putBack = new Set();
+/* How many put-backs this browser has sent for each token (`sendBack`), so that a route judged here that sent one is
+   not announced when its judgement ends, whether its put-back is still on its way or has landed and been announced
+   already (E79 fix r4-G4: the refusal's put-back is written before its card since then, and lands while the card is
+   awaited - scenario 66 N13d read the route announced a second time, as refused in the room it was refused). */
+const putBacksSent = new Map();
 
 /**
  * The routes this browser waits on because another one settles them (`untilQuiet`), by token id.
@@ -426,6 +431,8 @@ const gmSeen = new Map();
 /** tokenId -> the places it was moved from, newest last. */
 const gmHistory = new Map();
 const GM_HISTORY_KEPT = 8;
+/* How long a room's newest spot outlives the ring of `GM_HISTORY_KEPT` (`keptSightings`): the readers' own window. */
+const GM_ROOM_KEPT_MS = 60_000;
 
 function positionOf(tokenDoc) {
     return {
@@ -486,7 +493,7 @@ function noteGmPosition(tokenDoc, changes, options, userId) {
     const was = gmSeen.get(tokenDoc.id);
     if (was) {
         const putBackTo = options?.[WALL_PUT_BACK] && game.users?.get(userId)?.isGM ? positionOf(tokenDoc) : null;
-        gmHistory.set(tokenDoc.id, sightingsAfter(gmHistory.get(tokenDoc.id) ?? [], was, Date.now(), putBackTo));
+        gmHistory.set(tokenDoc.id, sightingsAfter(gmHistory.get(tokenDoc.id) ?? [], was, Date.now(), putBackTo, roomAtSpot(tokenDoc, was)));
     }
     gmSeen.set(tokenDoc.id, sentTo ?? positionOf(tokenDoc));
 }
@@ -536,10 +543,29 @@ export function forgetToken(tokenId) {
  * back to, not only the one it leaves: a second move written before the put-back landed stood on the
  * far side as well. A GM's write alone cuts; a player's option of that name is ignored.
  */
-export function sightingsAfter(ring, was, at, putBackTo = null) {
-    if (!putBackTo) return [...ring, { ...was, at }].slice(-GM_HISTORY_KEPT);
+export function sightingsAfter(ring, was, at, putBackTo = null, room = null) {
+    if (!putBackTo) return keptSightings([...ring, { ...was, at, room }], at);
     const left = ring.findLastIndex(spot => samePlace(spot, putBackTo));
     return left < 0 ? [...ring] : ring.slice(0, left + 1);
+}
+
+/*
+ * EACH ROOM'S NEWEST SPOT FOR THE MINUTE, APART FROM THE RING (E79 fix r4-G4, 1.2.79; review round 4, SEC S2 residual).
+ * A refused route is put back on its own newest spot in the room it paid for (`settleRoute`, r3-G2), and the GMs' wall
+ * audit and the judge of arrivals take that put-back for a send-back only while the spot is in their record. The record
+ * was the newest `GM_HISTORY_KEPT` sightings alone, so a drag with eight more updates after it left the paid room pushed
+ * the spot out within the minute: the put-back was judged as a move from the route's end, through any wall on the
+ * straight line back - in 'sendBack' mode the token sent on to the room it had not paid for (scenario 66 W7, red at
+ * 0641c4c), and a put-back over two rooms an arrival the rules refuse. Kept now: the newest eight, and before them the
+ * newest entry of each room (its floor too) seen within `GM_ROOM_KEPT_MS` of `at`, by the `room` each entry was noted
+ * with - at most one more entry per room a token passed through in a minute. How many updates a real v14 drag writes
+ * is LIVE-E79-24.
+ */
+function keptSightings(ring, at) {
+    const roomKey = spot => `${spot.room ?? ""}|${spot.level ?? ""}`;
+    const newestOf = new Map(ring.map(spot => [roomKey(spot), spot]));
+    const recent = ring.slice(-GM_HISTORY_KEPT), older = ring.slice(0, Math.max(0, ring.length - GM_HISTORY_KEPT));
+    return [...older.filter(spot => at - spot.at <= GM_ROOM_KEPT_MS && newestOf.get(roomKey(spot)) === spot), ...recent];
 }
 
 /** The places this token was moved from lately, as the primary GM saw them. */
@@ -786,8 +812,9 @@ export function judgeArrival(tokenDoc, userId = null, { revert = false, sentBack
             : standingHere(tokenDoc, { lawful: false, last: was?.last ?? null, told: was?.lawful === false && was.told, reason: verdict });
     }
     if (own && !samePlace(own, now)) {
-        const ring = [...(standingHistory.get(tokenDoc.id) ?? []), { ...own }];
-        standingHistory.set(tokenDoc.id, ring.slice(-GM_HISTORY_KEPT));
+        // Kept as the GMs' sightings are (`keptSightings`, E79 fix r4-G4): a put-back's `back` is found by the same spot.
+        const at = Date.now(), ring = [...(standingHistory.get(tokenDoc.id) ?? []), { ...own, at, room: roomAtSpot(tokenDoc, own) }];
+        standingHistory.set(tokenDoc.id, keptSightings(ring, at));
     }
     keepStanding(tokenDoc, now);
     if (!now.lawful && !now.told && isPrimaryGm()) {
@@ -1692,8 +1719,8 @@ async function settleRoute(tokenDoc, actor, { before, previous, crossings }) {
        middle of each wall - read it crossed on the plain wall beside the second door: a row and a warn naming
        the player in "log" mode, and in "sendBack" the token sent on to the route's end, the room not paid for.
        The spot the drag stood on last in that room (`notePathRoom`) is a landing every GM saw, so the GMs'
-       record holds it (`recentPositions`: for a minute, and while fewer than eight later sightings push it
-       out - a longer drag through the next room is not measured) and the audit and the judge of arrivals take
+       record holds it (`recentPositions`: for a minute, past the ring's eight sightings as the room's newest since
+       E79 fix r4-G4, `keptSightings`, scenario 66 W7) and the audit and the judge of arrivals take
        the put-back as a send-back to it, by the rule they already keep and with no centre for a console to aim
        at (round 2's SEC M1). Scenario 66 W6: red at 647c8b0 in both modes. */
     let standing = previous;
@@ -1714,8 +1741,8 @@ async function settleRoute(tokenDoc, actor, { before, previous, crossings }) {
  * crossings, the charge switched off, every crossing paid); `accepted: false` when the module put the token where
  * it stands now (its own REVERT - a refusal's put-back, the bridge's, a gather - on every browser) or refused a
  * crossing it did not put back (`takeMove` paid nothing). `room` is the room at the spot the update names
- * (`destinationOf`), not where the token's position reads at the hook. A route whose put-back is on its way is
- * not announced, whoever's refusal it is - this browser's charge or, on the primary GM, the GMs' wall audit
+ * (`destinationOf`), not where the token's position reads at the hook. A route whose put-back is on its way, or
+ * landed before its judgement ended (`putBacksSent`, E79 fix r4-G4), is not announced, whoever's refusal it is - this browser's charge or, on the primary GM, the GMs' wall audit
  * (`noteGmPosition`, which marks it before the judge's first `await` resumes; until E79 C14 the audit's put-back
  * of a move inside one room was announced as accepted first, scenario 76 D N13): the put-back is, when it lands,
  * so a listener never reads the token in a room it was refused. Nothing fires for a change that is no move (a
@@ -1725,7 +1752,9 @@ async function settleRoute(tokenDoc, actor, { before, previous, crossings }) {
  * for `ROUTE_QUIET_MS` (`untilQuiet`, E77 fix r1-G2), or `false` when its put-back lands. `provisional` is false
  * for every announcement but the first of those, a route of one update another browser charges, where it is a
  * promise of whether the route stood (`judgeMove`'s note, review round 3 cor D): a screen draws the room at once,
- * and a write of the GMs' records waits on it.
+ * and a write of the GMs' records waits on it. On the primary GM it is false at once for a route it reads as refused
+ * (`refusedOnPrimary`, E79 fix r4-G4), and so is the `provisional` of a route with steps pending that it announces
+ * after quiet.
  *
  * The at-rest read (`recheckAtRest`) announces once more, with `again: true` when this browser announced that
  * update already, only where the token comes to rest in another room than the one announced; a listener takes
@@ -1748,7 +1777,7 @@ async function onUpdateToken(tokenDoc, changes, options, userId, { atRest = fals
         moveTurns.set(tokenDoc.id, turn);
         landing.delete(tokenDoc.id);
     }
-    const route = {};
+    const route = {}, sent = putBacksSent.get(tokenDoc.id) ?? 0;
     let accepted;
     try {
         accepted = await judgeMove(tokenDoc, changes, options, userId, route, { atRest });
@@ -1758,7 +1787,7 @@ async function onUpdateToken(tokenDoc, changes, options, userId, { atRest = fals
         if (unsettled.get(tokenDoc.id) === route && !putBack.has(tokenDoc.id)) unsettled.delete(tokenDoc.id);
     }
     if (turn) recheckAtRest(tokenDoc, changes, options, userId, turn).catch(err => error("Movement re-read at rest failed", err));
-    if (putBack.has(tokenDoc.id)) return;
+    if (putBack.has(tokenDoc.id) || (putBacksSent.get(tokenDoc.id) ?? 0) !== sent) return;
     if (accepted !== true && accepted !== false) return;
     const spot = route.landing ?? spotOf(tokenDoc), room = roomAtSpot(tokenDoc, spot);
     const again = atRest && announced.get(tokenDoc.id)?.turn === of;
@@ -1933,14 +1962,40 @@ async function judgeMove(tokenDoc, changes, options, userId, route = {}, { atRes
     // token's next route ends the wait first (`endQuiet`). A listener that acts on the GMs' records, not on
     // what a screen shows, waits on it (passages-gm.mjs `onRouteSettled`): until then the primary revoked a
     // passage kept "until they leave the room" on a route its charge then refused and put back (scenario 76 E).
+    // On the primary GM a route it reads as refused (`refusedOnPrimary`, E79 fix r4-G4) settles false at once,
+    // whenever its put-back lands; the quiet bound is kept for every other reading and every other browser.
+    const refused = refusedOnPrimary(tokenDoc, actor, crossings);
     if (!path.length) {
         lastPosition.set(tokenDoc.id, landed);
-        route.stands = untilQuiet(tokenDoc).then(quiet => quiet === true);
+        route.stands = refused ? Promise.resolve(false) : untilQuiet(tokenDoc).then(quiet => quiet === true);
         return true;
     }
     const quiet = await untilQuiet(tokenDoc);
     if (quiet) lastPosition.set(tokenDoc.id, spotOf(tokenDoc));
+    if (quiet && refused) route.stands = Promise.resolve(false);
     return quiet;
+}
+
+/*
+ * THE PRIMARY'S OWN READING OF A ROUTE ANOTHER BROWSER CHARGES (E79 fix r4-G4, 1.2.79; review round 4, cor D residual).
+ * Whether the route stood was the quiet bound's answer alone: true once the token was quiet for `ROUTE_QUIET_MS`, so a
+ * put-back that landed later - a loaded browser, a slow server - left a refused route standing, and the primary's
+ * `revokeLeavers` (passages-gm.mjs `onRouteSettled`) took a passage kept "until they leave the room" for a step that
+ * never stood (scenario 76 E, its put-back held 2 s: red at 0641c4c). The fix list asked for the primary's own
+ * `judgeArrival` verdict. That verdict judges the rules of a crossing and never its price (it asks `crossingVerdict`
+ * with no `pay`): on that route it read the step lawful, since the refusal was the charge's, for want of a Move - so
+ * it is one of the two readings here. The other is the charge's own question (`chargeForCrossing`, `takeMove`) asked
+ * of the same flags on the GM's copy of the student as the update reaches it, before the charging browser's spend can:
+ * a free Move, the Sprints, the Bursts and the actions, one a crossing. True only for a route this browser reads as
+ * refused; an Eclipse (`judgeEclipseCrossing` counts what the GMs hold of it) and a route the rules let through
+ * and the charge then refuses for a budget that moved meanwhile still wait for quiet.
+ */
+function refusedOnPrimary(tokenDoc, actor, crossings) {
+    if (!isPrimaryGm()) return false;
+    if (standings.get(tokenDoc.id)?.lawful === false) return true;
+    if (isEclipse() || !game.settings.get(MODULE_ID, SETTINGS.chargeMovement)) return false;
+    const budget = (hasFreeMove(actor) ? 1 : 0) + freeMovesLeft(actor) + freeActionsLeft(actor) + actionsLeft(actor);
+    return budget < crossings.length;
 }
 
 /**
@@ -2111,6 +2166,15 @@ async function chargeForCrossing(actor, from, to, tokenDoc = null, previous = nu
      * a crossing that costs an action is an action like any other.
      */
     if (!free && freeMovesLeft(actor) < 1 && !canPayFor(actor, 1)) {
+        /* The put-back first, the card after (E79 fix r4-G4, 1.2.79; review round 4, Q1): the card is awaited, a
+           private card's create and its resolution, and the put-back waited for it, with the token in the room it could
+           not pay for. Scenario 66 W4, each private card held 300 ms as a loaded machine's stand-in, one run each in a
+           lane beside other scenarios on 17.10.2026: the put-back written 822 ms after the step at 0641c4c, after the
+           paid crossing's card (done at 308 ms) and this one (710 ms), and 451 ms with this order, after the paid
+           crossing's card alone (311 ms) - this card's whole wait, 371 ms there. Without the stand-in the gain is this
+           card's create, about 110 ms by review round 4's reading on p1 (correctness Q1), not measured again here.
+           The route that sent it is not announced when its put-back lands first (`putBacksSent`). */
+        await sendBack(tokenDoc, previous, from);
         ui.notifications.warn(game.i18n.localize("DRPG.Move.noBudget"));
         // Tagged as an error popup (red border) rather than the default
         // info one - this is a refusal, the concrete case the red variant
@@ -2118,8 +2182,6 @@ async function chargeForCrossing(actor, from, to, tokenDoc = null, previous = nu
         await whisperToOwner(actor, `${cardHead({ action: game.i18n.localize("DRPG.Move.title") })}<p>${
             game.i18n.localize("DRPG.Move.noBudgetLong")
         }</p>`, { flags: { [MODULE_ID]: { popupKind: "error" } } });
-
-        await sendBack(tokenDoc, previous, from);
         return false;
     }
 
@@ -2190,6 +2252,7 @@ async function sendBack(tokenDoc, previous, room, { sound = true, landed = null,
     if (!tokenDoc || !previous) return;
     // Announced when the REVERT lands, on every browser (`onUpdateToken`, E77 C2), not by the refusal.
     putBack.add(tokenDoc.id);
+    putBacksSent.set(tokenDoc.id, (putBacksSent.get(tokenDoc.id) ?? 0) + 1);
 
     // The only "error" a player makes regularly, and until now the only signal
     // was the token sliding back. Local, on the client that tried it.

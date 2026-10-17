@@ -52,7 +52,7 @@ const STATES = new Set(["secret", "closed", "broken"]);
 const touchKey = actorId => `touch/${actorId}`;
 /* The Mastermind's door row: stamped by what moves the every-passage copy only (see `passageCopyFor`). */
 const doorKey = actorId => `door/${actorId}`;
-/* A door row's `left`, `{ userId: stamp }`, or nothing: see `touchDoorChange`. */
+/* A door row's or a touch row's `left`, `{ userId: stamp }`, or nothing: see `touchDoorChange` and `touchOwnerChange`. */
 const leftOf = row => (row?.left && typeof row.left === "object" && !Array.isArray(row.left) ? row.left : {});
 
 /** The Mastermind's actor id as the GMs hold it, or null - none named, or the upgrade day's clear still undecided. */
@@ -146,13 +146,61 @@ export function passageCopyFor(user, { stores = PASSAGE_STORES, actors = game.ac
        each part). Until review round 3 (17.10.2026, cor A) it carried no such part, and its other parts - the student's
        own, 0 where nobody had given it a passage - had not moved: a copy that kept the part was refused, and the
        passages stayed on that browser. Read off every door row, so an owner who also lost the student is told. */
+    /* The same for a student this user owned and owns no more (E79 fix r4-G4, 1.2.79; review round 4, Q8): its part,
+       at the stamp `touchOwnerChange` wrote in its `touch` row's `left` as the user left it, newer than the part their
+       copy holds. Without it the copy that takes that student's rows away was stamped by the students left alone -
+       each 0 where nobody had given it a passage - and refused at the engine's first gate (gm-store.mjs `receiveCopy`,
+       its newest part not past the cut), and the rows stayed on that browser (R555; scenario 76 G, red at 0641c4c). A
+       part of the student's own and not "": a part a later copy leaves out is gone, never older, so no copy after it
+       is refused for it. */
     let door = mastermind ? stores.access.newest(doorKey(mastermind)) : 0;
     for (const [key, row] of Object.entries(stores.access.entries())) {
         const was = key.startsWith(doorKey("")) ? Number(leftOf(row)[user?.id]) : 0;
         if (was > door) door = was;
+        const lost = key.startsWith(touchKey("")) ? key.slice(touchKey("").length) : "";
+        const gone = lost && !ids.has(lost) ? Number(leftOf(row)[user?.id]) : 0;
+        if (gone > 0) stamps[lost] = gone;
     }
     if (mastermind || door > 0) stamps[DOOR_PART] = door;
     return { value, stamps };
+}
+
+/* The players who own a student now, by id and sorted: what a `touch` row's `owners` is held against. */
+function ownersOf(actor, users) {
+    return [...(users ?? [])].filter(u => u && !u.isGM && actor.testUserPermission?.(u, "OWNER")).map(u => u.id).sort();
+}
+
+/* What a student's `touch` row is patched with when its players are not the ones it holds (`touchOwnerChange`):
+   `owners` as they are, and in `left` each one it held and holds no more, at one past the row's newest stamp. Null
+   when they are the same, or for a student this world does not hold. */
+function ownersPatch(key, row, actor, users, stores) {
+    if (!actor) return null;
+    const now = ownersOf(actor, users), held = Array.isArray(row?.owners) ? row.owners : null;
+    if (held && JSON.stringify(held) === JSON.stringify(now)) return null;
+    const left = { ...leftOf(row) };
+    for (const userId of held ?? []) if (!now.includes(userId)) left[userId] = stores.access.newest(key) + 1;
+    return Object.keys(left).length ? { owners: now, left } : { owners: now };
+}
+
+/**
+ * The primary GM, before it tells the copies (`retellPassages`), beside `touchDoorChange`: each student's `touch` row
+ * whose players are not the ones it holds (`owners`, written by `touch` as well) is stamped with them, and each player
+ * it held and holds no more is kept in `left` at one past the row's newest stamp (E79 fix r4-G4, 1.2.79; review round
+ * 4, Q8 = goal S16-11). `passageCopyFor` stamps that player's part for the student with it, so the copy without the
+ * student's rows is newer than the one it replaces and taken; it does not move again when the student's rows do. The
+ * row's own stamp moves, so the student's other players are sent a copy too, the same rows. Answers the students
+ * stamped, by id. `actors` and `users` are the suite's to hand (R555).
+ */
+export async function touchOwnerChange({ stores = PASSAGE_STORES, actors = game.actors, users = game.users } = {}) {
+    const byId = new Map([...(actors ?? [])].map(a => [a?.id, a]));
+    const at = serverNow(), rows = {};
+    for (const [key, row] of Object.entries(stores.access.entries())) {
+        if (!key.startsWith(touchKey(""))) continue;
+        const patch = ownersPatch(key, row, byId.get(key.slice(touchKey("").length)) ?? null, users, stores);
+        if (patch) rows[key] = { at, ...patch };
+    }
+    if (Object.keys(rows).length) await stores.access.patchMany(rows);
+    return Object.keys(rows).map(key => key.slice(touchKey("").length));
 }
 
 /**
@@ -252,13 +300,15 @@ export async function onPassageRequest(payload, senderId) {
 
 /**
  * The primary GM tells every connected player what changed (after a restore, a reset, a merge, a
- * change of the Mastermind), the Mastermind's two students touched first when the door moved
- * (`touchDoorChange`). Answers how many were sent. `primary` and the rest (`stores`, `actors`,
+ * change of the Mastermind, a student given to another player), the Mastermind's two students
+ * touched first when the door moved (`touchDoorChange`) and each student whose players changed
+ * (`touchOwnerChange`, since E79 fix r4-G4). Answers how many were sent. `primary` and the rest (`stores`, `actors`,
  * `users`, `socket`, `told`, as `pushPassageCopies` takes them) are the suite's (R555).
  */
 export async function retellPassages({ primary = isPrimaryGm, ...ctx } = {}) {
     if (!primary() || gmStoresQuiet()) return 0;
     await touchDoorChange(ctx);
+    await touchOwnerChange(ctx);
     if (!primary() || gmStoresQuiet()) return 0;
     return pushPassageCopies(null, ctx);
 }
@@ -330,11 +380,14 @@ function knowersOf(passageId, stores) {
 
 /**
  * Stamp each named character's `touch` row: what its owners may hold has changed; with `door`, a
- * write that moves a passage itself, the Mastermind's door row as well (`passageCopyFor`).
+ * write that moves a passage itself, the Mastermind's door row as well (`passageCopyFor`). Its
+ * players with it, as `touchOwnerChange` keeps them, so a change of them since is not written over
+ * unnoticed (E79 fix r4-G4).
  */
 function touch(actorIds, stores, { door = false } = {}) {
     const at = serverNow(), mastermind = door ? mastermindIdOf(stores.mastermind) : null;
-    const rows = Object.fromEntries([...actorIds].map(a => [touchKey(a), { at }]));
+    const rows = Object.fromEntries([...actorIds].map(a => [touchKey(a),
+        { at, ...(ownersPatch(touchKey(a), stores.access.get(touchKey(a)), game.actors?.get(a) ?? null, game.users, stores) ?? {}) }]));
     if (mastermind) rows[doorKey(mastermind)] = { at };
     return Object.keys(rows).length ? stores.access.patchMany(rows) : Promise.resolve();
 }

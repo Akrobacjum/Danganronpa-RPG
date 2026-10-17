@@ -10017,16 +10017,24 @@ const REGRESSIONS = [
          * when its put-back, a GM's move or the next route ends it) as `provisional`, false on every other
          * announcement; the primary's revoke of a student who left the room waits on it (R561, scenario 76 E). The
          * fixture gains two variants: the mark taken out of the branch, and the announcement without it.
+         * E79 fix r4-G4 (17.10.2026; review round 4, cor D residual) makes the mark the primary's own reading first
+         * (movement.mjs `refusedOnPrimary`: false at once for a route it reads as refused, the quiet bound otherwise;
+         * scenario 76 E's put-back held 2 s); the fixture gains a variant with the reading taken out. Its put-back written
+         * before the refusal's card (chargeForCrossing, Q1) lands while the card is awaited, so the gate is also a put-back
+         * this update's judgement sent (`putBacksSent`, counted in `sendBack`; scenario 66 N13d read the route announced
+         * twice without it); the fixture gains two variants, the gate without the count and `sendBack` not counting.
          */
         const FIRE = /\bHooks\.callAll\(\s*["']drpgRouteSettled["']/g;
         const shape = src => {
             const body = name => topLevelFunction(src, name) ?? "";
             const on = body("onUpdateToken"), judge = body("judgeMove"), card = body("chargeForCrossing"), rest = body("recheckAtRest");
-            const gate = on.indexOf("if (putBack.has(tokenDoc.id)) return;");
+            const gate = on.indexOf("if (putBack.has(tokenDoc.id) || (putBacksSent.get(tokenDoc.id) ?? 0) !== sent) return;");
             const fire = on.search(/Hooks\.callAll\("drpgRouteSettled", \{ tokenDoc, accepted, room, again, provisional: route\.stands \?\? false \}\)/);
             const mark = judge.indexOf("unsettled.set(tokenDoc.id, route)");
             return [
                 [...src.matchAll(FIRE)].length === 1 && gate >= 0 && fire > gate && /Hooks\.on\("updateToken", onUpdateToken\)/.test(src)
+                    && /const route = \{\}, sent = putBacksSent\.get\(tokenDoc\.id\) \?\? 0;/.test(on)
+                    && /putBacksSent\.set\(tokenDoc\.id, \(putBacksSent\.get\(tokenDoc\.id\) \?\? 0\) \+ 1\);/.test(body("sendBack"))
                     && /if \(unsettled\.get\(tokenDoc\.id\) === route && !putBack\.has\(tokenDoc\.id\)\) unsettled\.delete\(tokenDoc\.id\);/.test(on),
                 /if \(options\?\.\[REVERT\]\) \{\s*endQuiet\(tokenDoc\.id\);[^}]*putBack\.delete\(tokenDoc\.id\);[^}]*return false;\s*\}/.test(judge)
                     && /\?\.isGM\) \{[^}]*if \(!isMoveChange\(changes\)\) return;\s*endQuiet\(tokenDoc\.id\);\s*putBack\.delete\(tokenDoc\.id\);\s*unsettled\.delete\(tokenDoc\.id\);\s*return true;\s*\}/.test(judge)
@@ -10035,7 +10043,7 @@ const REGRESSIONS = [
                     && /return unsettled\.get\(tokenDoc\.id\)\?\.spot \?\? landing\.get\(tokenDoc\.id\)\?\.spot \?\? spotOf\(tokenDoc\);/.test(body("settledSpot")),
                 /<p>\$\{where\}<br>\$\{price\}<\/p>`\)/.test(card) && !/\broomDescription\b|drpg-room-prose/.test(src),
                 /^\s*restartQuiet\(tokenDoc\.id\);/m.test(on) && /endQuiet\(tokenDoc\.id\);\s*putBack\.delete\(tokenDoc\.id\);\s*route\.spot = /.test(judge)
-                    && /if \(settled !== undefined \|\| !actor\.isOwner\) return settled;[^]*?if \(!path\.length\) \{[^}]*route\.stands = untilQuiet\(tokenDoc\)\.then\(quiet => quiet === true\);\s*return true;\s*\}\s*const quiet = await untilQuiet\(tokenDoc\)/.test(judge),
+                    && /if \(settled !== undefined \|\| !actor\.isOwner\) return settled;[^]*?if \(!path\.length\) \{[^}]*route\.stands = refused \? Promise\.resolve\(false\) : untilQuiet\(tokenDoc\)\.then\(quiet => quiet === true\);\s*return true;\s*\}\s*const quiet = await untilQuiet\(tokenDoc\)/.test(judge),
                 /const landed = route\.landing = atRest \? spotOf\(tokenDoc\) : destinationOf\(tokenDoc, changes\);\s*const after = roomAtSpot\(tokenDoc, landed\);/.test(judge)
                     && !/\bconst after = roomOfToken\(/.test(judge)
                     && /const spot = route\.landing \?\? spotOf\(tokenDoc\), room = roomAtSpot\(tokenDoc, spot\);/.test(on)
@@ -10045,10 +10053,10 @@ const REGRESSIONS = [
         };
         const FIXTURE = "export function registerMovement() {\n    Hooks.on(\"updateToken\", onUpdateToken);\n}\n"
             + "export function settledSpot(tokenDoc) {\n    return unsettled.get(tokenDoc.id)?.spot ?? landing.get(tokenDoc.id)?.spot ?? spotOf(tokenDoc);\n}\n"
-            + "async function onUpdateToken(tokenDoc, changes, options, userId) {\n    restartQuiet(tokenDoc.id);\n    const route = {};\n"
+            + "async function onUpdateToken(tokenDoc, changes, options, userId) {\n    restartQuiet(tokenDoc.id);\n    const route = {}, sent = putBacksSent.get(tokenDoc.id) ?? 0;\n"
             + "    try {\n        accepted = await judgeMove(tokenDoc, changes, options, userId, route);\n    } finally {\n"
             + "        if (unsettled.get(tokenDoc.id) === route && !putBack.has(tokenDoc.id)) unsettled.delete(tokenDoc.id);\n    }\n"
-            + "    if (putBack.has(tokenDoc.id)) return;\n"
+            + "    if (putBack.has(tokenDoc.id) || (putBacksSent.get(tokenDoc.id) ?? 0) !== sent) return;\n"
             + "    const spot = route.landing ?? spotOf(tokenDoc), room = roomAtSpot(tokenDoc, spot);\n"
             + "    Hooks.callAll(\"drpgRouteSettled\", { tokenDoc, accepted, room, again, provisional: route.stands ?? false });\n}\n"
             + "async function recheckAtRest(tokenDoc, changes, options, userId, turn) {\n"
@@ -10061,30 +10069,34 @@ const REGRESSIONS = [
             + "    if (tokenDoc.movement?.pending?.waypoints?.length) {\n        return;\n    }\n"
             + "    endQuiet(tokenDoc.id);\n    putBack.delete(tokenDoc.id);\n    route.spot = lastPosition.get(tokenDoc.id) ?? null;\n    unsettled.set(tokenDoc.id, route);\n"
             + "    const actor = await import(\"./monokuma.mjs\");\n    const settled = await settleRoute(tokenDoc);\n"
-            + "    if (settled !== undefined || !actor.isOwner) return settled;\n    if (!path.length) {\n        route.stands = untilQuiet(tokenDoc).then(quiet => quiet === true);\n        return true;\n    }\n"
+            + "    if (settled !== undefined || !actor.isOwner) return settled;\n    if (!path.length) {\n        route.stands = refused ? Promise.resolve(false) : untilQuiet(tokenDoc).then(quiet => quiet === true);\n        return true;\n    }\n"
             + "    const quiet = await untilQuiet(tokenDoc);\n}\n"
             + "async function chargeForCrossing(actor, from, to) {\n    await whisperToOwner(actor, `${cardHead({ room: to })}<p>${where}<br>${price}</p>`);\n}\n"
-            + "async function sendBack(tokenDoc) {\n    putBack.add(tokenDoc.id);\n}\n";
+            + "async function sendBack(tokenDoc) {\n    putBack.add(tokenDoc.id);\n    putBacksSent.set(tokenDoc.id, (putBacksSent.get(tokenDoc.id) ?? 0) + 1);\n}\n";
         const T = [true, true, true, true, true, true];
         const off = i => T.map((v, j) => j !== i);
-        equal(JSON.stringify([shape(FIXTURE), shape(FIXTURE.replace("    if (putBack.has(tokenDoc.id)) return;\n", "")),
+        const GATE = "    if (putBack.has(tokenDoc.id) || (putBacksSent.get(tokenDoc.id) ?? 0) !== sent) return;\n";
+        equal(JSON.stringify([shape(FIXTURE), shape(FIXTURE.replace(GATE, "")),
             shape(FIXTURE.replace("<br>${price}</p>", "<br>${price}</p><p class=\"drpg-room-prose\">${escapeHTML(roomDescription(to, scene))}</p>")),
             shape(FIXTURE.replace("unsettled.get(tokenDoc.id) === route && ", "")),
             shape(FIXTURE.replace("        if (!isMoveChange(changes)) return;\n", "")),
             shape(FIXTURE.replace("    const quiet = await untilQuiet(tokenDoc);\n", "")),
-            shape(FIXTURE.replace("    if (putBack.has(tokenDoc.id)) return;\n", "    if (accepted === false && putBack.has(tokenDoc.id)) return;\n")),
-            shape(FIXTURE.replace("    if (!path.length) {\n        route.stands = untilQuiet(tokenDoc).then(quiet => quiet === true);\n        return true;\n    }\n", "")),
-            shape(FIXTURE.replace("        route.stands = untilQuiet(tokenDoc).then(quiet => quiet === true);\n", "")),
+            shape(FIXTURE.replace(GATE, "    if (accepted === false && putBack.has(tokenDoc.id)) return;\n")),
+            shape(FIXTURE.replace(GATE, "    if (putBack.has(tokenDoc.id)) return;\n")),
+            shape(FIXTURE.replace("    if (!path.length) {\n        route.stands = refused ? Promise.resolve(false) : untilQuiet(tokenDoc).then(quiet => quiet === true);\n        return true;\n    }\n", "")),
+            shape(FIXTURE.replace("        route.stands = refused ? Promise.resolve(false) : untilQuiet(tokenDoc).then(quiet => quiet === true);\n", "")),
+            shape(FIXTURE.replace("route.stands = refused ? Promise.resolve(false) : untilQuiet", "route.stands = untilQuiet")),
             shape(FIXTURE.replace(" ?? landing.get(tokenDoc.id)?.spot", "")),
             shape(FIXTURE.replace("    const landed = route.landing = atRest ? spotOf(tokenDoc) : destinationOf(tokenDoc, changes);\n    const after = roomAtSpot(tokenDoc, landed);\n",
                 "    const after = roomOfToken(tokenDoc);\n")),
             shape(FIXTURE.replace("if (!pathRooms.has(id) && roomOfToken(tokenDoc) === (told ? told.room : lastRoom.get(id))) {", "if (!pathRooms.has(id)) {")),
             shape(FIXTURE.replace(", room, again, provisional: route.stands ?? false });", " });")),
-            shape(FIXTURE.replace(", again, provisional: route.stands ?? false });", ", again });"))]),
-        JSON.stringify([T, off(0), off(3), off(0), off(1), off(4), off(0), off(4), off(4), off(2), off(5), off(5), off(0), off(0)]),
+            shape(FIXTURE.replace(", again, provisional: route.stands ?? false });", ", again });")),
+            shape(FIXTURE.replace("    putBacksSent.set(tokenDoc.id, (putBacksSent.get(tokenDoc.id) ?? 0) + 1);\n", ""))]),
+        JSON.stringify([T, off(0), off(3), off(0), off(1), off(4), off(0), off(0), off(4), off(4), off(4), off(2), off(5), off(5), off(0), off(0), off(0)]),
         "the reader does not read its fixture whole, or does not miss the gate taken out, the description put back on the card, "
             + "the finally clearing any mark, a GM's write that moves nothing answered as a route, the wait for quiet taken out, the gate "
-            + "for a refusal alone, a co-owner's route of one update waiting or not marked provisional, the landing spot not answered, the room "
+            + "for a refusal alone or for a put-back on its way alone, a co-owner's route of one update waiting or not marked provisional or its mark not the primary's reading first, the landing spot not answered, the room "
             + "read off the token at the hook, the at-rest read not comparing the room announced, or the announcement without its room or "
             + "without whether it stands yet");
         const sources = new Map(await otherSources());

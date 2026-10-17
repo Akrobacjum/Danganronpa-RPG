@@ -107,8 +107,11 @@ export const layers = ["ci"];
    moves and send-backs to D: 60 checks in 92.6 s by the cluster's line, one run alone under the harness lock (98 s of
    wall time) - so 150 s, the same margin for the lanes. Fix r2-G3 (16.10.2026) adds a second GM and a fifth player to
    G, connected three times between them: 63 checks in 110.0 s by the cluster's line, one run alone under the harness
-   lock (115 s of wall time), 17.4 s over r2-G2's run of 60 - so 180 s. */
-export const timeoutMs = 180000;
+   lock (115 s of wall time), 17.4 s over r2-G2's run of 60 - so 180 s. Fix r4-G4 (17.10.2026) adds E's held put-back
+   (3.5 s) and G's lost student (up to 8 s): 71 checks in 136.3 s by the cluster's line, one run in a lane of a2.sh beside
+   two others (142.7 s with the fix's two runtime files at 0641c4c, two failing; no run alone) - so 210 s, about one and a
+   half times that reading, as 180 s was of r2-G3's. */
+export const timeoutMs = 210000;
 
 /* A second GM and a fifth player, seeded inactive and connected in phase G alone (E79 fix r2-G3), declared as 61 and 62
    declare theirs. */
@@ -1008,6 +1011,53 @@ async function phaseE({ gm, p1, check, phase, settle, dump, socketTraffic, IDS, 
         refusedVeto && J(refusedOut.at) === J([1700, 300]) && refusedOut.room === "Cafeteria" && refusedOut.cell?.leave === "Cafeteria"
             && Object.keys(refusedOut.copy ?? {}).includes(opened.id) && J(refusedHeard) === J([[true, null, true, false], [false, "Cafeteria", false, null]]),
         J({ refusedVeto, refusedOut, refusedHeard }));
+    /* Review round 4, cor D residual (E79 fix r4-G4, 17.10.2026): the same refused step with p1's put-back held 2 s - past
+       ROUTE_QUIET_MS, as a loaded browser or a slow server may hold it. Until the fix the GM's `provisional` was the wait
+       for quiet alone, true at 1500 ms with the put-back still on its way, and its primary revoked the 'leave' cell for
+       the step out (red at 0641c4c: the cell gone on the GM and the row gone from p1's copy). Since, the primary reads the
+       route as refused from its own copy of her budget (movement.mjs `refusedOnPrimary`) and answers false at once.
+       Each GM announcement is read as [accepted, room, provisional, its answer, the judge of arrivals' `lawful` then]: the
+       judge read the step lawful, since it asks no price - the reason the fix reads the budget as well. */
+    await gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs"), a = game.scenes.get(${J(IDS.scene)}).tokens.get("TOKAIKO000000000").actor;
+        await game.drpg.setActions(a, 0); await a.setFlag("danganronpa-rpg", "freeMoveUsed", true);
+        const R = globalThis.__s76eH = { heard: [] };
+        R.on = ({ tokenDoc, accepted, room, provisional }) => {
+            if (tokenDoc?.id !== "TOKAIKO000000000") return;
+            const row = [accepted, room ?? null, Boolean(provisional), null, M.standingOf(tokenDoc)?.lawful ?? null];
+            R.heard.push(row);
+            if (provisional) provisional.then(v => { row[3] = v; });
+        };
+        Hooks.on("drpgRouteSettled", R.on); return true;`, { timeout: 30000 });
+    await settle(600);
+    const heldVeto = await p1.eval(`const M = await import("${repoUrl}/scripts/movement.mjs"), t = canvas.scene.tokens.get("TOKAIKO000000000");
+        const list = Hooks._hooks.get("preUpdateToken") ?? [], at = list.findIndex(e => e.fn.name === "onPreUpdateToken");
+        const [veto] = at >= 0 ? list.splice(at, 1) : [];
+        const real = t.update;
+        globalThis.__s76eHeld = { started: null, wrote: null };
+        t.update = async function (data, options) {
+            if (options?.[M.REVERT]) {
+                globalThis.__s76eHeld.started = Date.now();
+                await new Promise(r => setTimeout(r, 2000));
+                globalThis.__s76eHeld.wrote = Date.now();
+            }
+            return real.call(this, data, options);
+        };
+        try { await t.update({ x: 2100, y: 300 }); } finally { if (veto) list.splice(at, 0, veto); }
+        return Boolean(veto);`, { timeout: 30000 });
+    await settle(3500);
+    const heldHold = await p1.eval(`const t = canvas.scene.tokens.get("TOKAIKO000000000"); delete t.update;
+        const held = globalThis.__s76eHeld; delete globalThis.__s76eHeld; return { ms: held.started && held.wrote ? held.wrote - held.started : null };`);
+    const heldOut = await aikoNow();
+    const heldHeard = await gm.eval(`const R = globalThis.__s76eH, s = globalThis.__s76e, a = game.scenes.get(${J(IDS.scene)}).tokens.get("TOKAIKO000000000").actor;
+        Hooks.off("drpgRouteSettled", R.on); delete globalThis.__s76eH;
+        await game.drpg.setActions(a, s.aiko.actions);
+        if (s.aiko.free === null) await a.unsetFlag("danganronpa-rpg", "freeMoveUsed"); else await a.setFlag("danganronpa-rpg", "freeMoveUsed", s.aiko.free);
+        return R.heard;`, { timeout: 30000 });
+    await settle(600);
+    check("E: the same refused step with p1's put-back held 2 s keeps 'Revoke when they leave the room' - the cell on the GM and the row in p1's copy - and the GM's provisional answered false, where the judge of arrivals read the step lawful (E79 fix r4-G4)",
+        heldVeto && heldHold.ms >= 2000 && J(heldOut.at) === J([1700, 300]) && heldOut.room === "Cafeteria" && heldOut.cell?.leave === "Cafeteria"
+            && Object.keys(heldOut.copy ?? {}).includes(opened.id) && J(heldHeard) === J([[true, null, true, false, true], [false, "Cafeteria", false, null, true]]),
+        J({ heldVeto, heldHold, heldOut, heldHeard }));
     await stepTo(2100, 300);
     await settle(1500);
     /* The GM's cell is gone within the 1500 ms; p1's copy follows it, the packet to p1 alone. How long after is not
@@ -1551,6 +1601,29 @@ async function phaseG({ gm, gm2, p1, p2, p3, p4, check, phase, settle, dump, soc
         J(first.copy) === J([wrote.id]) && J(first.knowers) === J([IDS.botan]) && first.token && first.through === false && first.beside === true
             && first.rows.length === 1 && first.rows[0][1] === false && answered(kept) && answered(fresh),
         J({ first, kept: { ...kept, read: kept.same ? "the same" : kept.read }, fresh: { ...fresh, read: fresh.same ? "the same" : fresh.read } }));
+    /* Review round 4, Q8 = goal S16-11 (E79 fix r4-G4, 17.10.2026): a player with two students, only one of them given a
+       passage, loses that one. The GM gives p4 Daichi, whom nobody gave a passage (his part of p4's copy 0), then takes
+       Botan away. Until the fix the copy without Botan's passage was stamped by Daichi's part alone, at 0, and refused at
+       the engine's first gate on p4's browser (gm-store.mjs `receiveCopy`), and p4 kept the passage (red at 0641c4c).
+       Waited for up to 8 s, as E's copy is, the ms in the details; Daichi is taken back after, Botan stays taken. */
+    const lostQ8 = await (async () => {
+        await gm.eval(`await game.actors.get(${J(IDS.daichi)}).update({ "ownership.${P4}": 3 }); return true;`);
+        await settle(1000);
+        const both = Object.keys(await known(p4, repoUrl) ?? {}).sort();
+        const t0 = Date.now();
+        await gm.eval(`await game.actors.get(${J(IDS.botan)}).update({ "ownership.${P4}": 0 }); return true;`);
+        let held = both;
+        while (Date.now() - t0 < 8000) {
+            held = Object.keys(await known(p4, repoUrl) ?? {}).sort();
+            if (!held.includes(wrote.id)) break;
+            await settle(200);
+        }
+        const waited = Date.now() - t0;
+        await gm.eval(`await game.actors.get(${J(IDS.daichi)}).update({ "ownership.${P4}": 0 }); return true;`);
+        return { both, held, waited };
+    })();
+    check("G: p4, given Daichi beside Botan and then losing Botan, holds none of the passage Botan knows within 8 s (E79 fix r4-G4)",
+        J(lostQ8.both) === J([wrote.id]) && J(lostQ8.held) === "[]" && lostQ8.waited < 8000, J(lostQ8));
     const lateBack = await gm.eval(`await game.actors.get(${J(IDS.botan)}).update({ "ownership.${P4}": 0 });
         return await game.drpg.passages.delete(${J(wrote.id)});`, { timeout: 30000 });
     await disconnect("p4");

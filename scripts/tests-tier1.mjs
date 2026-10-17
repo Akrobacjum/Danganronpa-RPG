@@ -13418,7 +13418,7 @@ const INVARIANTS = [
             "[s1's, s2's and the Mastermind's newest stamp past the one before the reset] - a copy the cut emptied would not take the one sent after it");
     }],
 
-    ["R555 - a player's copy of the passages: only open passages a character the player owns knows, its knowers only theirs and no name or room, a stamp per owned character; the Mastermind's owner every open one, a Monokuma's nothing; a revoke, a Close, a Delete and a Mastermind change drop the row and are taken; the push is addressed to each player alone; a copy is taken only from the primary GM; the Mastermind's other owners nothing of it; an owner of no student an empty copy that is taken; a write that keeps the Mastermind sends nothing and a new one the two owners it changes; a deleted scene's passage in no copy and marked in the list; a second owner of the Mastermind's student is sent, step by step, what they would be sent were nobody the Mastermind; and a player who connects, or whose role changes, is told", async () => {
+    ["R555 - a player's copy of the passages: only open passages a character the player owns knows, its knowers only theirs and no name or room, a stamp per owned character; the Mastermind's owner every open one, a Monokuma's nothing; a revoke, a Close, a Delete and a Mastermind change drop the row and are taken; the push is addressed to each player alone; a copy is taken only from the primary GM; the Mastermind's other owners nothing of it; an owner of no student an empty copy that is taken; a write that keeps the Mastermind sends nothing and a new one the two owners it changes; a deleted scene's passage in no copy and marked in the list; a second owner of the Mastermind's student is sent, step by step, what they would be sent were nobody the Mastermind; and a player who connects, or whose role changes, is told; and a player who loses a student takes the copy without its rows", async () => {
         /*
          * E79 C1, 14.10.2026; the E79 plan's A10-2 and D9. What a player's browser learns of a passage is its copy
          * (gm-stores.mjs `passageCopy`), cut for that user by `passageCopyFor` and sent by `pushPassageCopies`. The
@@ -13535,6 +13535,47 @@ const INVARIANTS = [
             J([true, [P1, P2], [P1, P2], ["R555MM", "door"], true, [], []]),
             "[on the door's owner's browser: the Mastermind's copy taken, what it holds, after a reload; the parts of the copy once nobody is the Mastermind, "
                 + "taken, what it holds, after a reload] - the door's owner refuses its every-passage copy, or keeps it once the door names nobody (cor A)");
+
+        /*
+         * Review round 4, Q8 = goal S16-11 (E79 fix r4-G4, 17.10.2026): a player who loses a student. U1 owns X, given a
+         * passage, and Y, given none (its part 0); X is taken from U1. Until the fix the copy without X's rows was stamped by
+         * Y's part alone, at 0, and refused at the engine's first gate (gm-store.mjs `receiveCopy`): X's rows stayed on U1's
+         * browser. Run as cor A's case, on stores of its own and U1's engine with a storage of its own, through `cleanCopy`
+         * and the copy's `receive`, each change of owners told by `touchOwnerChange` as the primary's retell tells it; then
+         * the same copy again, refused as nothing newer, and X given back. Red at 0641c4c with this file: no
+         * `touchOwnerChange`, and the copy after the loss stamped by Y alone and refused.
+         */
+        const lose = { map: def(S.passageMapStore, "MapOw"), access: def(S.passageAccessStore, "AccessOw"), log: def(S.passageLogStore, "LogOw"),
+            mastermind: eng.define({ name: "r555mmOw", key: "r555mmOw", kind: "record", fields: ["actorId"], sync: false, backup: false }) };
+        const xOwners = ["R555U1"], owned = [actor("R555OX", xOwners), actor("R555OY", "R555U1")];
+        await lose.map.patchMany({ [P1]: row(1) });
+        await lose.access.patchMany({ [`${P1}/R555OX`]: { how: "gm", at: 1, by: { R555GM: 1 } }, "touch/R555OX": { at: 1 } });
+        const loseCtx = { stores: lose, actors: owned, users };
+        const ownerChange = () => (typeof P.touchOwnerChange === "function" ? P.touchOwnerChange(loseCtx) : Promise.resolve(null));
+        const browserU1 = new Map();
+        const u1Copy = G.createGmStoreEngine({
+            selfId: () => "R555U1", isGM: () => false, isPrimary: () => false, worldId: () => "R555WORLD",
+            activeGmIds: () => [], primaryGmId: () => null, senderIsGM: () => false, userName: u => u, send: () => {},
+            storage: { read: k => browserU1.get(k) ?? null, write: async (k, v) => { browserU1.set(k, JSON.stringify(v)); } },
+            readLegacy: () => undefined, now: () => t, timers: { set: () => null, clear: () => {} }, clock: () => ({}),
+            log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        }).defineCopy({ name: "r555lose", key: "r555loseCopy", resetGroup: "passages", fallback: {}, combine: S.offersCombine });
+        const loseWorld = { actors: new Map(owned.map(a => [a.id, a])), scenes: new Map([["R555SCENE", {}]]) };
+        const toU1 = async () => {
+            const c = P.passageCopyFor(U1, loseCtx), clean = L.cleanCopy(c.value, c.stamps, loseWorld);
+            return [Object.keys(c.stamps).sort(), await u1Copy.receive(clean.value, clean.stamps), Object.keys(u1Copy.read() ?? {}).sort()];
+        };
+        const firstOwners = await ownerChange(), given = await toU1();
+        xOwners.length = 0;
+        const lostOwners = await ownerChange(), lost = await toU1(), again = await toU1(), quiet = await ownerChange();
+        xOwners.push("R555U1");
+        const backOwners = await ownerChange(), regained = await toU1();
+        equal(J([firstOwners, given, lostOwners, lost, again, quiet, backOwners, regained]),
+            J([["R555OX"], [["R555OX", "R555OY"], true, [P1]], ["R555OX"], [["R555OX", "R555OY"], true, []], [["R555OX", "R555OY"], false, []], [],
+                ["R555OX"], [["R555OX", "R555OY"], true, [P1]]]),
+            "[on U1's browser: the students whose players were first written, the copy's parts, taken, held; after X is taken from U1 the students "
+                + "stamped, the copy's parts, taken, held; the same copy again; the retell after it; X given back] - the copy without X's rows "
+                + "refused while Y's part is 0, or a copy taken again for nothing (Q8)");
 
         // SEC S2: the Mastermind's student has a second owner. The door names one (`ownerOf`, the connected one first); the other
         // holds the student as any student's, its copy what it would be were nobody the Mastermind (SEC M3), and becomes the
@@ -14266,7 +14307,7 @@ const INVARIANTS = [
         equal(J([/constrainOptions: \{ ignoreWalls: true \}/.test(fnSource(movement, "sendBack")), /constrainOptions: \{ ignoreWalls: true \}/.test(fnSource(bridge, "handleSendback")),
             /auditMove\(tokenDoc, changes, options, userId, gmSeen\.get\(tokenDoc\.id\),/.test(seen) && seen.search(/auditMove\(/) < seen.search(/gmSeen\.set\(/),
             /\.teleport|movementAction|displace/.test(own),
-            /options\?\.\[WALL_PUT_BACK\] && game\.users\?\.get\(userId\)\?\.isGM/.test(seen) && /sightingsAfter\(gmHistory\.get\(tokenDoc\.id\) \?\? \[\], was, Date\.now\(\), putBackTo\)/.test(seen)
+            /options\?\.\[WALL_PUT_BACK\] && game\.users\?\.get\(userId\)\?\.isGM/.test(seen) && /sightingsAfter\(gmHistory\.get\(tokenDoc\.id\) \?\? \[\], was, Date\.now\(\), putBackTo, roomAtSpot\(tokenDoc, was\)\)/.test(seen)
                 && /\[WALL_PUT_BACK\]: true/.test(fnSource(movement, "sendBack")),
             /export function sentBackRefusal\([^)]*arriving = arrivingPrimary\(\), primary = primaryGmId\(\{ arriving, users \}\)/.test(own),
             /const judged = auditMove\(/.test(seen) && /sentTo = judged\?\.back \?\? null;/.test(seen) && /gmSeen\.set\(tokenDoc\.id, sentTo \?\? positionOf\(tokenDoc\)\)/.test(seen),
