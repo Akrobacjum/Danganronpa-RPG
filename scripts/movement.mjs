@@ -1709,7 +1709,7 @@ async function settleRoute(tokenDoc, actor, { before, previous, crossings }) {
  * A token's update, judged (`judgeMove`), and its route announced on the update that names where it ends
  * (E77 C2, 13.10.2026; the A8 design's step 5; E79 C14, 1.2.79).
  *
- * `Hooks.callAll("drpgRouteSettled", { tokenDoc, accepted, room, again })` is client-local: `accepted: true`
+ * `Hooks.callAll("drpgRouteSettled", { tokenDoc, accepted, room, again, provisional })` is client-local: `accepted: true`
  * when the move stands (a GM's, a Monokuma's, a token's first sight, a move inside a room, an Eclipse's allowed
  * crossings, the charge switched off, every crossing paid); `accepted: false` when the module put the token where
  * it stands now (its own REVERT - a refusal's put-back, the bridge's, a gather - on every browser) or refused a
@@ -1722,7 +1722,10 @@ async function settleRoute(tokenDoc, actor, { before, previous, crossings }) {
  * GM's included, E77 fix r1-G2), or for a step of a drag still in flight (`movement.pending.waypoints`). On a
  * browser that does not settle the route (another one charges it) it fires only where the token's actor is
  * owned: at once for a route of one update, and for a route that had steps pending once the token has been quiet
- * for `ROUTE_QUIET_MS` (`untilQuiet`, E77 fix r1-G2), or `false` when its put-back lands.
+ * for `ROUTE_QUIET_MS` (`untilQuiet`, E77 fix r1-G2), or `false` when its put-back lands. `provisional` is false
+ * for every announcement but the first of those, a route of one update another browser charges, where it is a
+ * promise of whether the route stood (`judgeMove`'s note, review round 3 cor D): a screen draws the room at once,
+ * and a write of the GMs' records waits on it.
  *
  * The at-rest read (`recheckAtRest`) announces once more, with `again: true` when this browser announced that
  * update already, only where the token comes to rest in another room than the one announced; a listener takes
@@ -1761,7 +1764,7 @@ async function onUpdateToken(tokenDoc, changes, options, userId, { atRest = fals
     const again = atRest && announced.get(tokenDoc.id)?.turn === of;
     announced.set(tokenDoc.id, { turn: turn || of, room });
     if (turn && moveTurns.get(tokenDoc.id) === turn) landing.set(tokenDoc.id, { turn, spot });
-    Hooks.callAll("drpgRouteSettled", { tokenDoc, accepted, room, again });
+    Hooks.callAll("drpgRouteSettled", { tokenDoc, accepted, room, again, provisional: route.stands ?? false });
 }
 
 /**
@@ -1925,8 +1928,14 @@ async function judgeMove(tokenDoc, changes, options, userId, route = {}, { atRes
     // C3, 66 W4), still waits for quiet (`awaitingQuiet`). Accepted, it stands where it stopped: the spot the
     // settling browser's charge records there (`chargeForCrossing`), and this browser's next route starts
     // from it.
+    // Announced at once, it is still provisional here (review round 3, 17.10.2026, cor D): `route.stands`
+    // settles true once the token is quiet for `ROUTE_QUIET_MS`, false when the put-back, a GM's move or the
+    // token's next route ends the wait first (`endQuiet`). A listener that acts on the GMs' records, not on
+    // what a screen shows, waits on it (passages-gm.mjs `onRouteSettled`): until then the primary revoked a
+    // passage kept "until they leave the room" on a route its charge then refused and put back (scenario 76 E).
     if (!path.length) {
         lastPosition.set(tokenDoc.id, landed);
+        route.stands = untilQuiet(tokenDoc).then(quiet => quiet === true);
         return true;
     }
     const quiet = await untilQuiet(tokenDoc);

@@ -37894,6 +37894,49 @@ const SCENARIOS = [
         });
     }],
 
+    ["a door row of a student who is gone loses its tombstone to the compaction and the season reset's cut keeps a GM's older copy of it away while a door row of a student here keeps its tombstone", async () => {
+        /*
+         * E79 fix r3-G3, 17.10.2026 (review round 3, P11: R574 asks the record's `exists` and the engine's `compact` as
+         * `compactGmStores` asks them, and never calls it). The secret passages' access record, as the stores hold it,
+         * through `compactGmStores` and `applyGmStoreCuts`. Two door rows (passages-gm.mjs `touchDoorChange`), one of a
+         * student of this world and one of an actor that is not, each dropped long ago, so each is a tombstone older
+         * than `TIMING.gmStoreTombstoneDays`. The compaction takes the gone one's and keeps the other's (the control).
+         * Then a GM that held the gone one's row live before it was dropped hands it back: with its tombstone gone the
+         * merge takes it, as gm-store.mjs `compact`'s note says it will until that GM has compacted too, while the same
+         * older copy of the student's row is refused by the tombstone that stayed. The season's reset (its cut of the
+         * group "passages") raises the watermark over both stamps: the row is gone and the same copy merged again is
+         * refused. In a world the stores have never opened, every stamp built for the fixture.
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { TIMING } = await import("./config.mjs");
+        const [student] = cast(1);
+        const day = 24 * 60 * 60 * 1000, now = E.gmStoreNow();
+        const old = now - (TIMING.gmStoreTombstoneDays + 1) * day, older = old - 5000;
+        const here = `door/${student.id}`, gone = "door/SUITEGONEDOOR000";
+        const row = { at: 1, door: "SUITEGONEUSER000", left: {} };
+        const stale = key => S.passageAccessStore.mergeIn({ e: { [key]: row }, t: { [key]: older }, d: {}, cleared: 0 }, { source: "sync" });
+        await E.withGmStoreWorld(`suite-door-compact-${foundry.utils.randomID(8)}`, async () => {
+            await S.passageAccessStore.mergeIn({ e: {}, t: {}, d: { [here]: old, [gone]: old }, cleared: 0 }, { source: "sync" });
+            const report = await S.compactGmStores({ now, epoch: 10, primary: true });
+            await E.gmStoresIdle();
+            const compacted = { here: S.passageAccessStore.tombstone(here), gone: S.passageAccessStore.tombstone(gone), report: report?.passageAccess ?? 0 };
+            await stale(gone);
+            await stale(here);
+            await E.gmStoresIdle();
+            const handedBack = { gone: S.passageAccessStore.has(gone), here: S.passageAccessStore.has(here) };
+            await E.applyGmStoreCuts({ resetCuts: { passages: old - 1000 } });
+            await E.gmStoresIdle();
+            const cut = S.passageAccessStore.has(gone);
+            await stale(gone);
+            await E.gmStoresIdle();
+            equal(stableJson({ compacted, handedBack, cut, again: S.passageAccessStore.has(gone), hereTomb: S.passageAccessStore.tombstone(here) }),
+                stableJson({ compacted: { here: old, gone: 0, report: 1 }, handedBack: { gone: true, here: false }, cut: false, again: false, hereTomb: old }),
+                "[the tombstones after the compaction and what it reported; an older copy of each row merged; the gone one after the reset's cut; merged again; the student's tombstone] "
+                    + "- a door row of a student here lost its tombstone, one of a gone actor kept it, or the reset's cut does not keep the row away");
+        });
+    }],
+
     ["an unstamped world in play keeps its safeword", async () => {
         /*
          * E04 C11, 26.09.2026; audit S01-14. A world with no migration stamp is new, or

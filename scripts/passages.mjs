@@ -343,21 +343,32 @@ export function engineOffNotice({ cut = movementCut, user = game.user } = {}) {
 }
 
 /**
+ * The part of a copy's stamps that stamps the Mastermind's every open passage, on the copy of the owner the
+ * door names and of an owner it named before (passages-gm.mjs `passageCopyFor`, since E79 fix r2-G2): no
+ * actor's id is four letters long (Foundry's are sixteen), so no row can name it.
+ */
+export const DOOR_PART = "door";
+
+/**
  * A packet's copy, kept to what a copy may hold: rows of this world's scenes with a whole segment,
  * the shape "wall" (a tunnel is E80's), and only characters the packet's stamps name - each of
- * this world - so a row naming nobody of this user is left out. The part "" is kept: it is the
- * stamp of a copy for a user who owns no student (passages-gm.mjs `passageCopyFor`), and no row
- * can name it.
+ * this world - so a row naming nobody of this user is left out. Two parts that are no character
+ * are kept, and no row can name either: "", the stamp of a copy for a user who owns no student, and
+ * `DOOR_PART` (passages-gm.mjs `passageCopyFor`). Until review round 3 (17.10.2026, cor A, run by
+ * the reviewer in scenario 76 G) the second was dropped here, so the door owner's copy was weighed
+ * on the parts that had not moved - the student's own, stamped 0 when nobody had given it a passage -
+ * and refused: p2, whom the door named, listed and passed none of the passages the GMs' audit let
+ * the Mastermind through. `actors` and `scenes` are the suite's to hand (R555); this world's otherwise.
  */
-function cleanCopy(passages, stamps) {
+export function cleanCopy(passages, stamps, { actors = game.actors, scenes = game.scenes } = {}) {
     const value = {}, own = {};
     for (const [actorId, s] of Object.entries(isPlain(stamps) ? stamps : {})) {
-        if (actorId === "" || game.actors?.has(actorId)) own[actorId] = Number(s) || 0;
+        if (actorId === "" || actorId === DOOR_PART || actors?.has(actorId)) own[actorId] = Number(s) || 0;
     }
     for (const [id, row] of Object.entries(isPlain(passages) ? passages : {})) {
         const seg = segmentOf(id, row);
-        if (!seg || row.shape !== "wall" || typeof row.sceneId !== "string" || !game.scenes?.has(row.sceneId)) continue;
-        const actorIds = Array.isArray(row.actorIds) ? [...new Set(row.actorIds.filter(a => typeof a === "string" && a && Object.hasOwn(own, a)))] : [];
+        if (!seg || row.shape !== "wall" || typeof row.sceneId !== "string" || !scenes?.has(row.sceneId)) continue;
+        const actorIds = Array.isArray(row.actorIds) ? [...new Set(row.actorIds.filter(a => typeof a === "string" && a && a !== DOOR_PART && Object.hasOwn(own, a)))] : [];
         if (!actorIds.length) continue;
         value[id] = { sceneId: row.sceneId, shape: "wall", level: typeof row.level === "string" ? row.level : null,
             passageWallId: seg.wallId, passageSeg: { x1: seg.x1, y1: seg.y1, x2: seg.x2, y2: seg.y2 }, actorIds };

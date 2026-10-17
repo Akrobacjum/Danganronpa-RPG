@@ -974,6 +974,40 @@ async function phaseE({ gm, p1, check, phase, settle, dump, socketTraffic, IDS, 
     await stepTo(1700, 300);
     await settle(1500);
     const inside = await aikoNow();
+    /* Review round 3, cor D (E79 fix r3-G3, 17.10.2026). The same step out, refused: Aiko has no action and no free Move
+       left, and p1's veto is taken off for the one update, so p1's charge refuses the route and puts her back. The GM,
+       the route's co-owner, announces a route of one update at once (E79 C14), and until this fix its primary revoked
+       her 'leave' cell on that announcement, before the put-back landed: the passage gone, on the GM and in p1's copy,
+       for a step that never stood. The GM's announcements of her token are read as [accepted, room, whether it came
+       provisional, what that answered]; her budget is put back before the legal step out below. */
+    await gm.eval(`const a = game.scenes.get(${J(IDS.scene)}).tokens.get("TOKAIKO000000000").actor;
+        await game.drpg.setActions(a, 0); await a.setFlag("danganronpa-rpg", "freeMoveUsed", true);
+        const R = globalThis.__s76eD = { heard: [] };
+        R.on = ({ tokenDoc, accepted, room, provisional }) => {
+            if (tokenDoc?.id !== "TOKAIKO000000000") return;
+            const row = [accepted, room ?? null, Boolean(provisional), null];
+            R.heard.push(row);
+            if (provisional) provisional.then(v => { row[3] = v; });
+        };
+        Hooks.on("drpgRouteSettled", R.on); return true;`, { timeout: 30000 });
+    await settle(600);
+    const refusedVeto = await p1.eval(`const list = Hooks._hooks.get("preUpdateToken") ?? [], at = list.findIndex(e => e.fn.name === "onPreUpdateToken");
+        const [veto] = at >= 0 ? list.splice(at, 1) : [];
+        try { await canvas.scene.tokens.get("TOKAIKO000000000").update({ x: 2100, y: 300 }); }
+        finally { if (veto) list.splice(at, 0, veto); }
+        return Boolean(veto);`, { timeout: 30000 });
+    await settle(2500);
+    const refusedOut = await aikoNow();
+    const refusedHeard = await gm.eval(`const R = globalThis.__s76eD, s = globalThis.__s76e, a = game.scenes.get(${J(IDS.scene)}).tokens.get("TOKAIKO000000000").actor;
+        Hooks.off("drpgRouteSettled", R.on); delete globalThis.__s76eD;
+        await game.drpg.setActions(a, s.aiko.actions);
+        if (s.aiko.free === null) await a.unsetFlag("danganronpa-rpg", "freeMoveUsed"); else await a.setFlag("danganronpa-rpg", "freeMoveUsed", s.aiko.free);
+        return R.heard;`, { timeout: 30000 });
+    await settle(600);
+    check("E: a step out of the Cafeteria that p1's charge refuses and puts back keeps 'Revoke when they leave the room' - the cell on the GM and the row in p1's copy - and the GM announced it provisional, answered false when the put-back landed (E79 fix r3-G3)",
+        refusedVeto && J(refusedOut.at) === J([1700, 300]) && refusedOut.room === "Cafeteria" && refusedOut.cell?.leave === "Cafeteria"
+            && Object.keys(refusedOut.copy ?? {}).includes(opened.id) && J(refusedHeard) === J([[true, null, true, false], [false, "Cafeteria", false, null]]),
+        J({ refusedVeto, refusedOut, refusedHeard }));
     await stepTo(2100, 300);
     await settle(1500);
     /* The GM's cell is gone within the 1500 ms; p1's copy follows it, the packet to p1 alone. How long after is not
@@ -1272,6 +1306,30 @@ async function phaseG({ gm, gm2, p1, p2, p3, p4, check, phase, settle, dump, soc
         await M.setMastermind(botan);
         return { was: { actorId: was.actorId ?? null, room: was.room ?? null }, door: U.ownerOf(botan)?.id ?? null, picked: M.mastermindActor()?.id ?? null };`, { timeout: 30000 });
     await settle(800);
+    /* Review round 3, cor A (E79 fix r3-G3, 17.10.2026): what the door's owner's own browser holds. p2's copy and the move
+       backend for Botan's token through the passage (x 1284.5 on the Kitchen's wall) and beside it on the same wall (x
+       1800), read as `readP4` reads them below; `held` waits up to 6 s for the passage to be there, or not, as `want`
+       says. Until the fix the player's browser dropped the copy's part "door" (passages.mjs `onPassageRows`), so the
+       copy that gives the door's owner every open passage was weighed on parts that had not moved and refused: p2 held
+       nothing and Botan was stopped at the passage. With it, the copy p2's browser stored for its next load (`stored`,
+       its passages; p2 is one of the harness's seeded clients, which cannot connect again, so the load itself is R555's),
+       and below, after the Mastermind is put back, the same without it. */
+    const doorRead = want => p2.eval(`${SHOW} const PS = await import("${repoUrl}/scripts/passages.mjs");
+        const held = Boolean(await until(() => Boolean(PS.knownPassages()[${J(set.id)}]) === ${want}));
+        const object = canvas.tokens.get("TOKBOTAN00000000") ?? null;
+        const hit = x => CONFIG.Canvas.polygonBackends.move.testCollision({ x, y: 750 }, { x, y: 850 }, { type: "move", mode: "any", source: { object } });
+        let kept = game.settings.storage.get("client").getItem("${MOD}.minePassages");
+        while (typeof kept === "string") kept = JSON.parse(kept);
+        const stored = Object.keys(kept?.worlds?.[game.world.id]?.[game.user.id]?.value ?? {}).sort();
+        return { held, keys: Object.keys(PS.knownPassages()).sort(), stored, knowers: PS.knownPassages()[${J(set.id)}]?.actorIds ?? null, token: Boolean(object),
+            through: hit(1284.5), beside: hit(1800) };`, { timeout: 30000 });
+    const openNow = () => gm.eval(`const P = await import("${repoUrl}/scripts/passages.mjs");
+        return Object.keys(P.secretRowsFrom({ scenes: game.scenes })).sort();`);
+    const doorGiven = await doorRead(true), openGiven = await openNow();
+    check("G: p2, whom the door names for the Mastermind's student, holds every open passage, the one nobody gave Botan among them, stored for its next load as well, and passes it on the move backend, stopped beside it (E79 fix r3-G3)",
+        openGiven.includes(set.id) && doorGiven.held && J(doorGiven.keys) === J(openGiven) && J(doorGiven.stored) === J(openGiven)
+            && J(doorGiven.knowers) === J([IDS.botan]) && doorGiven.token && doorGiven.through === false && doorGiven.beside === true,
+        J({ openGiven, doorGiven }));
     /* The row answers "ack" (gm-bridge.mjs BRIDGE_ACTIONS), so the asker's answer is the GM's receipt, and a refusal of
        the run comes after it as its own packet: each asker's bridge packets are read on its socket for 1.5 s. */
     const askAs = client => client.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs"), got = [];
@@ -1353,6 +1411,14 @@ async function phaseG({ gm, gm2, p1, p2, p3, p4, check, phase, settle, dump, soc
         return { actorId: M.mastermindActor()?.id ?? null, room: S.mastermindStore.get("record")?.room ?? null };`, { timeout: 30000 });
     const p2back = await p2.eval(`${SHOW} const PS = await import("${repoUrl}/scripts/passages.mjs");
         return Boolean(await until(() => !PS.knownPassages()[${J(set.id)}]));`, { timeout: 30000 });
+    /* The copy that takes the passage away from p2, whom the door names no more (cor A's second road): until the fix it
+       carried no part "door" and its other part, Botan's own, had not moved, so it was refused at the gate and p2 kept
+       every open passage. */
+    const doorTaken = await doorRead(false);
+    check("G: the Mastermind put back, p2 holds no passage, as nobody gave Botan one, and stores none for its next load, and Botan is stopped at it (E79 fix r3-G3)",
+        doorTaken.held && J(doorTaken.keys) === "[]" && J(doorTaken.stored) === "[]" && doorTaken.knowers === null && doorTaken.token
+            && doorTaken.through === true && doorTaken.beside === true,
+        J({ doorTaken }));
     check("G: Botan made the Mastermind, his show of the passage to Aiko through the bridge - p3, his other owner, refused as a passage he does not know; p2, whom the door names, carried out, nothing written and one card, whispered to p2 alone; the Mastermind, Botan's owners and p2's copy put back",
         mmSet.door === IDS.p2 && mmSet.picked === IDS.botan && J(coAsked) === J({ ok: true, refused: ["notKnown"] }) && J(doorAsked) === J({ ok: true, refused: [] })
             && mmSide.cards.length === 1 && J(mmSide.cards[0].whisper) === J([IDS.p2]) && J(mmRead) === J([mmSide.done])

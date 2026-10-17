@@ -1643,19 +1643,34 @@ export async function run({ gm, gm0, gm2, p1, p2, check, note, phase, settle, co
     const N_LISTEN = `${SCENES} const M = await import("${repoUrl}/scripts/movement.mjs"), R = globalThis.__s66n13 = { heard: [], moved: [] };
         const mine = doc => doc?.id === "TOKAIKO000000000";
         const spotRoom = doc => { const s = M.settledSpot(doc); return s ? M.roomAt(s.x, s.y, doc, s.level ?? undefined) : null; };
-        R.on = ({ tokenDoc, accepted, room, again }) => { if (mine(tokenDoc)) R.heard.push([Date.now(), accepted, room ?? null, again ?? null, spotRoom(tokenDoc)]); };
+        R.on = ({ tokenDoc, accepted, room, again, provisional }) => {
+            if (!mine(tokenDoc)) return;
+            const row = [Date.now(), accepted, room ?? null, again ?? null, spotRoom(tokenDoc), provisional ? "pending" : null];
+            R.heard.push(row);
+            if (provisional) provisional.then(stood => { row[5] = stood; });
+        };
         R.up = (doc, changes) => { if (mine(doc) && ("x" in changes || "y" in changes)) R.moved.push(Date.now()); };
         R.take = () => ({ heard: R.heard.splice(0), moved: R.moved.splice(0) });
+        const F = await import("${repoUrl}/scripts/fog.mjs");
+        R.reveal = null;
+        R.poll = setInterval(() => { if (R.reveal === null && F.discoveredFor(academy.id, "${IDS.aiko}").includes("66 N Porch")) R.reveal = Date.now(); }, 10);
         Hooks.on("drpgRouteSettled", R.on); Hooks.on("updateToken", R.up); return true;`;
     const N_TAKE = "return globalThis.__s66n13.take();";
     await Promise.all([p1, gm].map(client => client.eval(N_LISTEN)));
     /* The milliseconds from the last move update that reached a browser to each announcement there. */
     const lagN = ({ heard, moved }) => heard.map(([at]) => at - Math.max(...moved.filter(t => t <= at)));
     const roomsN = ({ heard }) => heard.map(([, accepted, room, again, spot]) => [accepted, room, again, spot]);
+    const standsN = ({ heard }) => heard.map(row => row[5]);
     /* (a) p1 takes Aiko across into the Porch, one update; both browsers are read 2.5 s after it. */
     await p1.eval(`${SCENES} await academy.tokens.get("TOKAIKO000000000").update({ x: 900, y: 300 }); await new Promise(r => setTimeout(r, 2500)); return true;`,
         { timeout: 30000 });
     const intoN = { p1: await p1.eval(N_TAKE), gm: await gm.eval(N_TAKE) };
+    /* The fog's discovery of the Porch (E79 fix r3-G3; goal N13d): the first 10 ms poll of fog.mjs `discoveredFor` that
+       holds it, from the last move update that reached that browser before it. */
+    const N_REVEAL = "return globalThis.__s66n13.reveal;";
+    const revealN = { p1: await p1.eval(N_REVEAL), gm: await gm.eval(N_REVEAL) };
+    const revealLagN = Object.fromEntries(["p1", "gm"].map(c => [c, revealN[c] === null ? null
+        : revealN[c] - Math.max(...intoN[c].moved.filter(t => t <= revealN[c]))]));
     /* (b) p1 takes her back into Dorm A with the token's position read at its start while it is held (as 74 L stands in a
        drag whose hook reads its origin: x and y the start, its movement "pending"), for 2 s; p1 is read at 1 s and 3.5 s. */
     const heldN = await p1.eval(`${SCENES} const M = await import("${repoUrl}/scripts/movement.mjs"), t = academy.tokens.get("TOKAIKO000000000");
@@ -1690,6 +1705,18 @@ export async function run({ gm, gm0, gm2, p1, p2, check, note, phase, settle, co
     await p1.eval(`${SCENES} await academy.tokens.get("TOKAIKO000000000").update({ x: 920, y: 640 }); await new Promise(r => setTimeout(r, 2500)); return true;`,
         { timeout: 30000 });
     const dragN = { p1: await p1.eval(N_TAKE), gm: await gm.eval(N_TAKE), actions: await gm.eval(`return game.drpg.actionsLeft(game.actors.get("${IDS.aiko}"));`) };
+    /* (d) A route of one update the charge refuses (review round 3 cor D, E79 fix r3-G3): Aiko, her actions spent by (c)
+       and her free Move gone, is taken from the Shed into the Porch by p1 with its veto off for the one update, so p1's
+       charge refuses it and puts her back. The GM, which owns her and does not settle the route, announces it at once,
+       provisional, and the put-back when it lands; p1 announces only the put-back. Read 2.5 s after the update. */
+    const refusedOneN = await p1.eval(`${SCENES} const M = await import("${repoUrl}/scripts/movement.mjs"), t = academy.tokens.get("TOKAIKO000000000");
+        const list = Hooks._hooks.get("preUpdateToken") ?? [], at = list.findIndex(e => e.fn.name === "onPreUpdateToken");
+        const [veto] = at >= 0 ? list.splice(at, 1) : [];
+        try { await t.update({ x: 900, y: 300 }); } finally { if (veto) list.splice(at, 0, veto); }
+        await new Promise(r => setTimeout(r, 2500));
+        return { veto: Boolean(veto), ...globalThis.__s66n13.take(), token: M.roomOfToken(t), at: [t.x, t.y] };`, { timeout: 30000 });
+    const refusedGmN = await gm.eval(`${SCENES} const M = await import("${repoUrl}/scripts/movement.mjs");
+        return { ...globalThis.__s66n13.take(), token: M.roomOfToken(academy.tokens.get("TOKAIKO000000000")) };`);
     /* (e) The at-rest read as the backstop: p1 takes Aiko into the Porch while the token's position reads that spot as it
        is held, and a spot in Dorm A once it is let go 1 s later - a token that came to rest elsewhere than its update
        named, which no harness drag does; p1 is read 3.5 s after the update. */
@@ -1709,6 +1736,7 @@ export async function run({ gm, gm0, gm2, p1, p2, check, note, phase, settle, co
             return { ...globalThis.__s66n13.take(), token: M.roomOfToken(t) };
         } finally { delete t.x; delete t.y; delete t.movement; }`, { timeout: 30000 });
     await Promise.all([p1, gm].map(client => client.eval(`Hooks.off("drpgRouteSettled", globalThis.__s66n13.on); Hooks.off("updateToken", globalThis.__s66n13.up);
+        clearInterval(globalThis.__s66n13.poll);
         delete globalThis.__s66n13; return true;`)));
     await gm.eval(`${SCENES} const aiko = game.actors.get("${IDS.aiko}"), was = globalThis.__s66n;
         await academy.tokens.get("TOKAIKO000000000").update(was.at, { teleport: true, movementAction: "displace", animate: false });
@@ -1741,6 +1769,25 @@ export async function run({ gm, gm0, gm2, p1, p2, check, note, phase, settle, co
         && J(roomsN(dragN.p1)) === J([SHED_N]) && lagN(dragN.p1).every(ms => ms <= 1000)
         && J(roomsN(dragN.gm)) === J([SHED_N]) && lagN(dragN.gm).every(ms => ms >= 1400) && givenN[0] === 2 && dragN.actions === 0,
     J({ givenN, stepN, dragN, lag: { p1: lagN(dragN.p1), gm: lagN(dragN.gm) } }));
+    /* The fog's discovery of the Porch, read on 17.10.2026 (E79 fix r3-G3, one run of 66 alone with this fix): 23 ms after
+       the update reached p1 and 8 ms after it reached the GM - before p1's announcement (142 ms) and after the GM's (at
+       once): fog.mjs reacts to the raw update, not to the announcement. The bound is N13a's 400 ms for the GM's
+       announcement, a margin of about seventeen times p1's reading for a machine running the whole set; at the parent's
+       runtime plan-p4's one reading was 151 ms from just before p1's update (33ea568). */
+    check("N13a fog: the Porch is discovered for Aiko on p1 and on the GM within 400 ms of p1's update reaching each (E79 fix r3-G3)",
+        ["p1", "gm"].every(c => Number.isFinite(revealLagN[c]) && revealLagN[c] >= 0 && revealLagN[c] <= 400),
+        J({ revealLagN, revealN, moved: { p1: intoN.p1.moved, gm: intoN.gm.moved } }));
+    /* At the parent (1bf136a, 17.10.2026) the same two announcements on the GM, the first, accepted in the Porch, with no
+       `provisional` (null): a reader of it, as passages-gm.mjs `onRouteSettled` is, took a step the put-back undid 77 ms
+       later as one that stood (review round 3, cor D). */
+    check("N13d: a route of one update that p1's charge refuses is announced on the GM, which owns Aiko, at once and provisional, "
+        + "answered false when the put-back lands, and then as put back in the Shed, where the token stands; p1 announces only the "
+        + "put-back (E79 fix r3-G3)",
+    refusedOneN.veto && J(refusedOneN.at) === J([920, 640]) && refusedOneN.token === "66 N Shed" && refusedGmN.token === "66 N Shed"
+        && J(roomsN(refusedOneN)) === J([[false, "66 N Shed", false, "66 N Shed"]]) && J(standsN(refusedOneN)) === J([null])
+        && J(roomsN(refusedGmN).map(r => r.slice(0, 3))) === J([[true, "66 N Porch", false], [false, "66 N Shed", false]])
+        && J(standsN(refusedGmN)) === J([false, null]),
+    J({ refusedOneN, refusedGmN }));
     /* With C14, 84 ms and 1431 ms after the update; at the parent the same two announcements, naming no room and no `again`
        (the at-rest read compared with the room its update recorded, the Porch). */
     check("N13e: a token that comes to rest in another room than its update named is announced again there, marked `again`, after the "

@@ -13469,6 +13469,48 @@ const INVARIANTS = [
         equal(J([ids(c4), c4.value[P1]?.actorIds, c4.value[P2]?.actorIds, taken(plain4, c4)]),
             J([[P1, P2], ["R555MM"], ["R555MM"], true]), "[the Mastermind's owner's passages, their knowers, the copy taken] - not every open passage");
 
+        /*
+         * Review round 3, cor A (E79 fix r3-G3, 17.10.2026): what the door's owner's own browser takes, not what the GM cuts
+         * for it. Until the fix a player's browser dropped a copy's part "door" (passages.mjs `cleanCopy`, then inside
+         * `onPassageRows`), so the copy that gives the door's owner every open passage was weighed on parts that had not
+         * moved and refused; and the copy that takes them away named no part newer than the one held, and was refused at
+         * the engine's first gate (gm-store.mjs `receiveCopy`). Run on stores of its own and a player's engine of its own
+         * (its storage a Map), through `cleanCopy` and the copy's own `receive`; a reload is a second engine on the same
+         * storage. Red at 1bf136a with this file (17.10.2026): `cleanCopy` not exported, nothing taken.
+         */
+        const dst = { map: def(S.passageMapStore, "MapDo"), access: def(S.passageAccessStore, "AccessDo"), log: def(S.passageLogStore, "LogDo"),
+            mastermind: eng.define({ name: "r555mmDo", key: "r555mmDo", kind: "record", fields: ["actorId"], sync: false, backup: false }) };
+        await dst.map.patchMany({ [P1]: row(1), [P2]: row(2), [P3]: { ...row(3), state: "closed" } });
+        await dst.access.patchMany({ [`${P1}/R555A1`]: { how: "gm", at: 1, by: { R555GM: 1 } } });
+        const doorCopy = () => P.passageCopyFor(U4, { stores: dst, actors, users });
+        const browser = new Map();
+        const playerCopy = () => G.createGmStoreEngine({
+            selfId: () => "R555U4", isGM: () => false, isPrimary: () => false, worldId: () => "R555WORLD",
+            activeGmIds: () => [], primaryGmId: () => null, senderIsGM: () => false, userName: u => u, send: () => {},
+            storage: { read: k => browser.get(k) ?? null, write: async (k, v) => { browser.set(k, JSON.stringify(v)); } },
+            readLegacy: () => undefined, now: () => t, timers: { set: () => null, clear: () => {} }, clock: () => ({}),
+            log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        }).defineCopy({ name: "r555door", key: "r555doorCopy", resetGroup: "passages", fallback: {}, combine: S.offersCombine });
+        const thisWorld = { actors: new Map(actors.map(a => [a.id, a])), scenes: new Map([["R555SCENE", {}]]) };
+        let mine = playerCopy();
+        const deliver = async c => {
+            const clean = typeof L.cleanCopy === "function" ? L.cleanCopy(c.value, c.stamps, thisWorld) : null;
+            return clean ? mine.receive(clean.value, clean.stamps) : false;
+        };
+        const held = () => Object.keys(mine.read() ?? {}).sort();
+        const reloaded = () => { mine = playerCopy(); return held(); };
+        await dst.mastermind.patch(G.RECORD, { actorId: "R555MM" });
+        await P.touchDoorChange({ stores: dst, actors, users });
+        const doorGiven = await deliver(doorCopy()), heldGiven = held(), reloadGiven = reloaded();
+        await dst.mastermind.patch(G.RECORD, { actorId: null });
+        await P.touchDoorChange({ stores: dst, actors, users });
+        const doorGone = doorCopy();
+        const takenAway = await deliver(doorGone), heldGone = held(), reloadGone = reloaded();
+        equal(J([doorGiven, heldGiven, reloadGiven, Object.keys(doorGone.stamps).sort(), takenAway, heldGone, reloadGone]),
+            J([true, [P1, P2], [P1, P2], ["R555MM", "door"], true, [], []]),
+            "[on the door's owner's browser: the Mastermind's copy taken, what it holds, after a reload; the parts of the copy once nobody is the Mastermind, "
+                + "taken, what it holds, after a reload] - the door's owner refuses its every-passage copy, or keeps it once the door names nobody (cor A)");
+
         // SEC S2: the Mastermind's student has a second owner. The door names one (`ownerOf`, the connected one first); the other
         // holds the student as any student's, its copy what it would be were nobody the Mastermind (SEC M3), and becomes the
         // door's owner when the first is away.
@@ -13629,9 +13671,12 @@ const INVARIANTS = [
         equal(J([ids(m4), taken(d4, m4)]), J([[], true]), "the Mastermind's former owner still holds the passages, or the copy that drops them is refused");
 
         // SEC S3: p2 comes to own no student - their copy is empty, stamped, and taken over the one that named their student.
+        // It carries the part "door" as well: the door named p2 while R555A2 was the Mastermind (goal F4, above), and since
+        // review round 3 (cor A) an owner the door left keeps that part, at the stamp it left them with.
         const held2 = copy(U2), orphan = P.passageCopyFor(U2, { stores, actors: actors.filter(a => a.id !== "R555A2"), users });
-        equal(J([ids(held2), orphan, taken(held2, orphan)]), J([[P2], { value: {}, stamps: { "": 1 } }, true]),
-            "[p2's passages, p2's copy once they own no student, that copy taken] - a player who owns nothing keeps what they held");
+        equal(J([ids(held2), orphan.value, orphan.stamps[""], Object.keys(orphan.stamps).sort(), orphan.stamps.door === held2.stamps.door, taken(held2, orphan)]),
+            J([[P2], {}, 1, ["", "door"], true, true]),
+            "[p2's passages, p2's copy once they own no student: its rows, its part \"\", its parts, its part \"door\" the one held; that copy taken] - a player who owns nothing keeps what they held");
 
         // cor F6: P2's scene is deleted - P2 leaves its knower's copy and the cut, and the GMs' list keeps it, marked, for a Delete.
         const gone = { ...stores, scenes: new Set(["R555OTHER"]) };
@@ -14590,9 +14635,11 @@ const INVARIANTS = [
         equal(J([/Hooks\.on\("updateWall", onWallMoved\)/.test(register), /Hooks\.on\("deleteWall", onWallDeleted\)/.test(register),
             /Hooks\.on\("drpgRouteSettled", onRouteSettled\)/.test(register),
             ["onWallMoved", "onWallDeleted", "onRouteSettled"].map(name => /if \(!isPrimaryGm\(\)/.test(fnSource(gm, name))),
-            /hasProperty\(change \?\? \{\}, "c"\)/.test(fnSource(gm, "onWallMoved"))]),
-        J([true, true, true, [true, true, true], true]),
-        "[the wall's move watched, its deletion, the routes, each on the primary alone, a move read as a change of its segment]");
+            /hasProperty\(change \?\? \{\}, "c"\)/.test(fnSource(gm, "onWallMoved")),
+            /if \(provisional && !\(await provisional\)\) return;\s*await revokeLeavers\(/.test(fnSource(gm, "onRouteSettled"))]),
+        J([true, true, true, [true, true, true], true, true]),
+        "[the wall's move watched, its deletion, the routes, each on the primary alone, a move read as a change of its segment, a route "
+            + "announced before it stood read only once it stands (E79 fix r3-G3; scenario 76 E runs it)]");
         const vault = await fetch(`/modules/${MODULE_ID}/scripts/vault.mjs`).then(r => r.text()).then(stripComments);
         const opener = fnSource(vault, "openRoomSetupDialog");
         ok(/passagesTab\.passagesTabHtml\(scene, \{ students \}\)/.test(opener) && /passagesTab\.wirePassagesTab\(root, scene, \{ dialog, students \}\)/.test(opener),

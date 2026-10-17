@@ -9411,7 +9411,7 @@ const REGRESSIONS = [
             ["HOOK passages-gm.mjs#registerPassagesGm#updateWall/onWallMoved -> record", "the primary GM only (`isPrimaryGm`), and only when the change carries `c`: a passage whose stretch is no longer on its wall's segment is marked broken in the GMs' records and drops out of every copy; the wall is never written (R561; 76 E)"],
             ["HOOK passages-gm.mjs#registerPassagesGm#deleteWall/onWallDeleted -> record", "the primary GM only: every passage of the deleted wall is marked broken in the GMs' records and drops out of every copy (R561; 76 E)"],
             // ---- the routes, the copies' retelling and what a copy redraws (E79 fix r1-G4, SEC S4)
-            ["HOOK passages-gm.mjs#registerPassagesGm#drpgRouteSettled/onRouteSettled -> record", "the primary GM only (`isPrimaryGm`): a student whose route settles outside the passage's rooms on the map loses a cell held 'Revoke when they leave the room' (`revokeLeavers`, R561; 76 E), read in the room the announcement names (E79 C14)"],
+            ["HOOK passages-gm.mjs#registerPassagesGm#drpgRouteSettled/onRouteSettled -> record", "the primary GM only (`isPrimaryGm`): a student whose route settles outside the passage's rooms on the map loses a cell held 'Revoke when they leave the room' (`revokeLeavers`, R561; 76 E), read in the room the announcement names (E79 C14), and for a route announced before it stood (`provisional`) only once it stands (E79 fix r3-G3; 76 E)"],
             ["HOOK room-tile.mjs#registerRoomTile#drpgRouteSettled/inline -> record", "this file's own: the room tile repaints for the viewer's own token and writes no record; E79 adds no road through it"],
             ["HOOK passages-gm.mjs#registerPassagesGm#clientSettingChanged/inline -> copy", "a GM's browser only (the `ready` hook returns on a player's): a change of the map, the access list or the Mastermind retells every player's copy from the GMs' records (`retellSoon`), quiet while tier 2 holds the stores (`gmStoresQuiet`); and the map's redraws the GMs' overlay"],
             ["HOOK passages-gm.mjs#registerPassagesGm#updateActor/inline -> copy", "a GM's browser only: a change of an actor's ownership retells the copies from the GMs' records (read in the code)"],
@@ -9996,13 +9996,18 @@ const REGRESSIONS = [
          * at once when it had no step pending and waits for quiet only when it had; the at-rest read compares the
          * room it finds with the one announced and says which update it reads (`of`). Scenario 66 N13 runs these;
          * the fixture gains a sixth clause and one variant per new shape, each taken out.
+         * E79 fix r3-G3 (17.10.2026; review round 3 cor D) adds one: the co-owner's route of one update, announced
+         * at once, carries whether it stood (`route.stands`, the wait for quiet's answer, true at quiet and false
+         * when its put-back, a GM's move or the next route ends it) as `provisional`, false on every other
+         * announcement; the primary's revoke of a student who left the room waits on it (R561, scenario 76 E). The
+         * fixture gains two variants: the mark taken out of the branch, and the announcement without it.
          */
         const FIRE = /\bHooks\.callAll\(\s*["']drpgRouteSettled["']/g;
         const shape = src => {
             const body = name => topLevelFunction(src, name) ?? "";
             const on = body("onUpdateToken"), judge = body("judgeMove"), card = body("chargeForCrossing"), rest = body("recheckAtRest");
             const gate = on.indexOf("if (putBack.has(tokenDoc.id)) return;");
-            const fire = on.search(/Hooks\.callAll\("drpgRouteSettled", \{ tokenDoc, accepted, room, again \}\)/);
+            const fire = on.search(/Hooks\.callAll\("drpgRouteSettled", \{ tokenDoc, accepted, room, again, provisional: route\.stands \?\? false \}\)/);
             const mark = judge.indexOf("unsettled.set(tokenDoc.id, route)");
             return [
                 [...src.matchAll(FIRE)].length === 1 && gate >= 0 && fire > gate && /Hooks\.on\("updateToken", onUpdateToken\)/.test(src)
@@ -10014,7 +10019,7 @@ const REGRESSIONS = [
                     && /return unsettled\.get\(tokenDoc\.id\)\?\.spot \?\? landing\.get\(tokenDoc\.id\)\?\.spot \?\? spotOf\(tokenDoc\);/.test(body("settledSpot")),
                 /<p>\$\{where\}<br>\$\{price\}<\/p>`\)/.test(card) && !/\broomDescription\b|drpg-room-prose/.test(src),
                 /^\s*restartQuiet\(tokenDoc\.id\);/m.test(on) && /endQuiet\(tokenDoc\.id\);\s*putBack\.delete\(tokenDoc\.id\);\s*route\.spot = /.test(judge)
-                    && /if \(settled !== undefined \|\| !actor\.isOwner\) return settled;[^]*?if \(!path\.length\) \{[^}]*return true;\s*\}\s*const quiet = await untilQuiet\(tokenDoc\)/.test(judge),
+                    && /if \(settled !== undefined \|\| !actor\.isOwner\) return settled;[^]*?if \(!path\.length\) \{[^}]*route\.stands = untilQuiet\(tokenDoc\)\.then\(quiet => quiet === true\);\s*return true;\s*\}\s*const quiet = await untilQuiet\(tokenDoc\)/.test(judge),
                 /const landed = route\.landing = atRest \? spotOf\(tokenDoc\) : destinationOf\(tokenDoc, changes\);\s*const after = roomAtSpot\(tokenDoc, landed\);/.test(judge)
                     && !/\bconst after = roomOfToken\(/.test(judge)
                     && /const spot = route\.landing \?\? spotOf\(tokenDoc\), room = roomAtSpot\(tokenDoc, spot\);/.test(on)
@@ -10029,7 +10034,7 @@ const REGRESSIONS = [
             + "        if (unsettled.get(tokenDoc.id) === route && !putBack.has(tokenDoc.id)) unsettled.delete(tokenDoc.id);\n    }\n"
             + "    if (putBack.has(tokenDoc.id)) return;\n"
             + "    const spot = route.landing ?? spotOf(tokenDoc), room = roomAtSpot(tokenDoc, spot);\n"
-            + "    Hooks.callAll(\"drpgRouteSettled\", { tokenDoc, accepted, room, again });\n}\n"
+            + "    Hooks.callAll(\"drpgRouteSettled\", { tokenDoc, accepted, room, again, provisional: route.stands ?? false });\n}\n"
             + "async function recheckAtRest(tokenDoc, changes, options, userId, turn) {\n"
             + "    if (!pathRooms.has(id) && roomOfToken(tokenDoc) === (told ? told.room : lastRoom.get(id))) {\n        return;\n    }\n"
             + "    await onUpdateToken(tokenDoc, changes, options, userId, { atRest: true, of: turn });\n}\n"
@@ -10040,7 +10045,7 @@ const REGRESSIONS = [
             + "    if (tokenDoc.movement?.pending?.waypoints?.length) {\n        return;\n    }\n"
             + "    endQuiet(tokenDoc.id);\n    putBack.delete(tokenDoc.id);\n    route.spot = lastPosition.get(tokenDoc.id) ?? null;\n    unsettled.set(tokenDoc.id, route);\n"
             + "    const actor = await import(\"./monokuma.mjs\");\n    const settled = await settleRoute(tokenDoc);\n"
-            + "    if (settled !== undefined || !actor.isOwner) return settled;\n    if (!path.length) {\n        return true;\n    }\n"
+            + "    if (settled !== undefined || !actor.isOwner) return settled;\n    if (!path.length) {\n        route.stands = untilQuiet(tokenDoc).then(quiet => quiet === true);\n        return true;\n    }\n"
             + "    const quiet = await untilQuiet(tokenDoc);\n}\n"
             + "async function chargeForCrossing(actor, from, to) {\n    await whisperToOwner(actor, `${cardHead({ room: to })}<p>${where}<br>${price}</p>`);\n}\n"
             + "async function sendBack(tokenDoc) {\n    putBack.add(tokenDoc.id);\n}\n";
@@ -10052,17 +10057,20 @@ const REGRESSIONS = [
             shape(FIXTURE.replace("        if (!isMoveChange(changes)) return;\n", "")),
             shape(FIXTURE.replace("    const quiet = await untilQuiet(tokenDoc);\n", "")),
             shape(FIXTURE.replace("    if (putBack.has(tokenDoc.id)) return;\n", "    if (accepted === false && putBack.has(tokenDoc.id)) return;\n")),
-            shape(FIXTURE.replace("    if (!path.length) {\n        return true;\n    }\n", "")),
+            shape(FIXTURE.replace("    if (!path.length) {\n        route.stands = untilQuiet(tokenDoc).then(quiet => quiet === true);\n        return true;\n    }\n", "")),
+            shape(FIXTURE.replace("        route.stands = untilQuiet(tokenDoc).then(quiet => quiet === true);\n", "")),
             shape(FIXTURE.replace(" ?? landing.get(tokenDoc.id)?.spot", "")),
             shape(FIXTURE.replace("    const landed = route.landing = atRest ? spotOf(tokenDoc) : destinationOf(tokenDoc, changes);\n    const after = roomAtSpot(tokenDoc, landed);\n",
                 "    const after = roomOfToken(tokenDoc);\n")),
             shape(FIXTURE.replace("if (!pathRooms.has(id) && roomOfToken(tokenDoc) === (told ? told.room : lastRoom.get(id))) {", "if (!pathRooms.has(id)) {")),
-            shape(FIXTURE.replace(", room, again });", " });"))]),
-        JSON.stringify([T, off(0), off(3), off(0), off(1), off(4), off(0), off(4), off(2), off(5), off(5), off(0)]),
+            shape(FIXTURE.replace(", room, again, provisional: route.stands ?? false });", " });")),
+            shape(FIXTURE.replace(", again, provisional: route.stands ?? false });", ", again });"))]),
+        JSON.stringify([T, off(0), off(3), off(0), off(1), off(4), off(0), off(4), off(4), off(2), off(5), off(5), off(0), off(0)]),
         "the reader does not read its fixture whole, or does not miss the gate taken out, the description put back on the card, "
             + "the finally clearing any mark, a GM's write that moves nothing answered as a route, the wait for quiet taken out, the gate "
-            + "for a refusal alone, a co-owner's route of one update waiting, the landing spot not answered, the room read off the token "
-            + "at the hook, the at-rest read not comparing the room announced, or the announcement without its room");
+            + "for a refusal alone, a co-owner's route of one update waiting or not marked provisional, the landing spot not answered, the room "
+            + "read off the token at the hook, the at-rest read not comparing the room announced, or the announcement without its room or "
+            + "without whether it stands yet");
         const sources = new Map(await otherSources());
         const movement = stripComments(sources.get("movement.mjs") ?? "");
         must(movement.length > 1000, "movement.mjs is not among the module's sources - this would measure nothing");

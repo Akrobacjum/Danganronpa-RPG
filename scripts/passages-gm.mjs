@@ -35,7 +35,7 @@ import { passageMapStore, passageAccessStore, passageLogStore, mastermindStore, 
 import { RECORD, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible } from "./gm-store.mjs";
 import { senderOf } from "./bridge-guards.mjs";
 import { isMonokuma } from "./monokuma.mjs";
-import { secretRowsFrom, sceneGone, PASSAGE_TOLERANCE } from "./passages.mjs";
+import { secretRowsFrom, sceneGone, PASSAGE_TOLERANCE, DOOR_PART } from "./passages.mjs";
 import { roomPieces, onLevel, floorsOf, isTrialScene, viewedScene, viewedLevel } from "./rooms.mjs";
 import { regionShapes, inFlatPolygons, distanceToSegment } from "./fog-geometry.mjs";
 import { overlayLayer, clearLayer, overlayColour, dashedLine, overlayDrawer, redrawGmOverlay } from "./gm-overlay.mjs";
@@ -52,8 +52,8 @@ const STATES = new Set(["secret", "closed", "broken"]);
 const touchKey = actorId => `touch/${actorId}`;
 /* The Mastermind's door row: stamped by what moves the every-passage copy only (see `passageCopyFor`). */
 const doorKey = actorId => `door/${actorId}`;
-/* The door row's part of the door owner's stamps: no actor's id is four letters long (Foundry's are sixteen). */
-const DOOR_PART = "door";
+/* A door row's `left`, `{ userId: stamp }`, or nothing: see `touchDoorChange`. */
+const leftOf = row => (row?.left && typeof row.left === "object" && !Array.isArray(row.left) ? row.left : {});
 
 /** The Mastermind's actor id as the GMs hold it, or null - none named, or the upgrade day's clear still undecided. */
 function mastermindIdOf(mastermind = mastermindStore) {
@@ -140,7 +140,18 @@ export function passageCopyFor(user, { stores = PASSAGE_STORES, actors = game.ac
     }
     const stamps = ids.size ? Object.fromEntries([...ids].map(a => [a, stores.access.newest(touchKey(a))]))
         : { "": stores.access.cleared() + 1 };
-    if (mastermind) stamps[DOOR_PART] = stores.access.newest(doorKey(mastermind));
+    /* The copy that takes the every-passage rows away from an owner the door named before carries the part as well, at
+       the stamp `touchDoorChange` wrote for that owner as the door left them: newer than the part their copy holds, so
+       the player's browser takes it (gm-store.mjs `receiveCopy` weighs the newest part first, then `offersCombine`
+       each part). Until review round 3 (17.10.2026, cor A) it carried no such part, and its other parts - the student's
+       own, 0 where nobody had given it a passage - had not moved: a copy that kept the part was refused, and the
+       passages stayed on that browser. Read off every door row, so an owner who also lost the student is told. */
+    let door = mastermind ? stores.access.newest(doorKey(mastermind)) : 0;
+    for (const [key, row] of Object.entries(stores.access.entries())) {
+        const was = key.startsWith(doorKey("")) ? Number(leftOf(row)[user?.id]) : 0;
+        if (was > door) door = was;
+    }
+    if (mastermind || door > 0) stamps[DOOR_PART] = door;
     return { value, stamps };
 }
 
@@ -156,6 +167,13 @@ export function passageCopyFor(user, { stores = PASSAGE_STORES, actors = game.ac
  * it rather than a memory of its own browser. A reset's cut takes the rows, and the next call
  * stamps the Mastermind again. Answers the students touched, by id. `actors` and `users` are the
  * suite's to hand.
+ *
+ * Since review round 3 (17.10.2026, cor A) the row also keeps `left`, `{ userId: stamp }`: each owner
+ * the door named before and names no more, at one past the row's newest stamp as the door left them -
+ * past every part of "door" their copy took from this row - and dropped again when the door names
+ * them. `passageCopyFor` stamps that owner's part "door" with it, so their next copy, the one without
+ * the every-passage rows, is newer and taken; and since it does not move when the door moves on among
+ * others, nobody it left is sent a copy for that.
  */
 export async function touchDoorChange({ stores = PASSAGE_STORES, actors = game.actors, users = game.users,
     mastermindId = mastermindIdOf(stores.mastermind) } = {}) {
@@ -164,9 +182,17 @@ export async function touchDoorChange({ stores = PASSAGE_STORES, actors = game.a
     const at = serverNow(), rows = {};
     for (const [key, row] of Object.entries(stores.access.entries())) {
         const [head, actorId] = key.split("/");
-        if (head === "door" && actorId && actorId !== mastermindId && row?.door) rows[key] = { at, door: null };
+        if (head === "door" && actorId && actorId !== mastermindId && row?.door) {
+            rows[key] = { at, door: null, left: { ...leftOf(row), [row.door]: stores.access.newest(key) + 1 } };
+        }
     }
-    if (mastermindId && (stores.access.get(doorKey(mastermindId))?.door ?? null) !== door) rows[doorKey(mastermindId)] = { at, door };
+    const held = mastermindId ? stores.access.get(doorKey(mastermindId)) : null;
+    if (mastermindId && (held?.door ?? null) !== door) {
+        const left = { ...leftOf(held) };
+        if (held?.door) left[held.door] = stores.access.newest(doorKey(mastermindId)) + 1;
+        if (door) delete left[door];
+        rows[doorKey(mastermindId)] = { at, door, left };
+    }
     if (Object.keys(rows).length) await stores.access.patchMany(rows);
     return Object.keys(rows).map(key => key.slice(doorKey("").length));
 }
@@ -1214,10 +1240,16 @@ function onWallDeleted(wall) {
 
 /* The primary GM's watch on the routes: a student kept a passage until leaving a room. The room is the one the
    announcement names (movement.mjs `drpgRouteSettled`, E79 C14: the spot the route's update names), and a second
-   announcement of one move, the at-rest read's (`again`), asks again with the room the token came to rest in. */
-function onRouteSettled({ tokenDoc, room } = {}) {
+   announcement of one move, the at-rest read's (`again`), asks again with the room the token came to rest in.
+   A route announced before it stood (`provisional`, a route of one update the player's browser charges) is read
+   once it stands, and not at all when its charge put it back (review round 3, 17.10.2026, cor D): a revoke is
+   no repaint, and until then a refused step out of the room revoked the passage (scenario 76 E). A step out that the
+   token's next route ends inside `ROUTE_QUIET_MS` is read through that route alone, as a route with steps pending
+   always was: out and back again that fast revokes nothing (read, not measured). */
+async function onRouteSettled({ tokenDoc, room, provisional = false } = {}) {
     if (!isPrimaryGm()) return;
-    revokeLeavers(tokenDoc, room === undefined ? {} : { roomOf: () => room }).catch(err => error("Could not revoke a secret passage from a student who left the room", err));
+    if (provisional && !(await provisional)) return;
+    await revokeLeavers(tokenDoc, room === undefined ? {} : { roomOf: () => room }).catch(err => error("Could not revoke a secret passage from a student who left the room", err));
 }
 
 /**
