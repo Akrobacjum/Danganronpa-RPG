@@ -9373,7 +9373,7 @@ const REGRESSIONS = [
             ["HOOK voice.mjs#registerVoice#createToken/inline -> judge", "this file's own; E79 adds no road through it"],
             // ---- the update's options a client sets
             ["OPT movement.mjs#noteGmPosition#REVERT -> exempt", "a claim, judged: handed to `judgeArrival` as `revert`, which takes it only where `sendBackRefusal` does; the wall rule reads the option itself (below), by the same rule"],
-            ["OPT movement.mjs#noteGmPosition#SENT_BACK -> exempt", "a claim, judged as REVERT is: it marks a move the GM sent back itself"],
+            ["OPT movement.mjs#noteGmPosition#SENT_BACK -> exempt", "a claim, judged as REVERT is: it marks a move the GM sent back itself; on a GM's write the player it names is handed the witness judge as the one who asked (`askerOf`, E79 fix r3-G2), who acts as the Mastermind or not as that player does (R560; 76 G)"],
             ["OPT movement.mjs#onPreUpdateToken#REVERT -> exempt", "advisory: the mover's own client lets its own revert past its own veto; nothing on the GM reads the client's veto"],
             ["OPT movement.mjs#judgeMove#REVERT -> exempt", "this file's own: the mover's client charges nothing for its own revert; no judge takes it as an exemption"],
             ["OPT call-world.mjs#fallbackGather#displace -> exempt", "a GM's own write (`updateEmbeddedDocuments` with REVERT, `teleport` and `displace`): a GM's move is let through because a GM made it (the hook's user), not because of these options"],
@@ -9569,7 +9569,7 @@ const REGRESSIONS = [
             "a passage or movement road without a census row, or a row whose road is gone: give the new one a verdict (what judges it, or the E79 commit that will) and strike the gone one");
     }],
 
-    ["R560 - the passages' source rules: no wall is written a secret door or created, every passage packet names the list of its recipients, no flag holds a passage and no file but the records names a passage's geometry, passages.mjs imports only its leaf's files, room-tile.mjs does not import the passages, the frame's passage verdict, the outline's redraw and the GMs' wall audit are each declared once, exported, in their file, the audit called from one place, the primary GM's sighting of a move, and reading no scene on screen; and the GMs' overlay is made in one place, gm-overlay.mjs's exported `gmOverlay`, only after it asked for a GM, every layer of it through that, and its name is read nowhere else; and a passage is shown in one place, passages-gm.mjs's exported `sharePassage` judged by its exported `shareRefusal`, whose cards go out through `whisperToOwner` and the GMs' through `whisperToGms`, with no chat message made in either passages file any other way; and who acts as the Mastermind for a passage is read in one place, passages-gm.mjs's exported `actsAsMastermind`, and never off the character alone in the copy, a show's judgement, the GMs' audit or the witness judge", async () => {
+    ["R560 - the passages' source rules: no wall is written a secret door or created, every passage packet names the list of its recipients, no flag holds a passage and no file but the records names a passage's geometry, passages.mjs imports only its leaf's files, room-tile.mjs does not import the passages, the frame's passage verdict, the outline's redraw and the GMs' wall audit are each declared once, exported, in their file, the audit called from one place, the primary GM's sighting of a move, and reading no scene on screen; and the GMs' overlay is made in one place, gm-overlay.mjs's exported `gmOverlay`, only after it asked for a GM, every layer of it through that, and its name is read nowhere else; and a passage is shown in one place, passages-gm.mjs's exported `sharePassage` judged by its exported `shareRefusal`, whose cards go out through `whisperToOwner` and the GMs' through `whisperToGms`, with no chat message made in either passages file any other way; and who acts as the Mastermind for a passage is read in one place, passages-gm.mjs's exported `actsAsMastermind`, and never off the character alone in the copy, a show's judgement, the GMs' audit or the witness judge; and who asked a GM's send-back is read in one place, movement-audit.mjs's exported `askerOf`, which the primary GM's sighting hands the witness judge and the judge reads", async () => {
         /*
          * E79 C1, 14.10.2026; the E79 plan's A10-9, its first clauses (C4, C6 and C7 add theirs). A secret passage is
          * the GMs' and its knowers' (decisions D2 and D38): world data reaches every browser, so a passage written into
@@ -9626,18 +9626,29 @@ const REGRESSIONS = [
          * owner the card goes to; its exemption here went with it. And `whisperToGms` is
          * no longer a "card": the GMs' own card of a show goes through it (H3; until then a notice on the primary's
          * browser alone), and it reaches no player. passages-tab.mjs, a GM's window, is not read.
+         *
+         * E79 fix r3-G2, 17.10.2026 (the round-3 review's SEC S4): the bridge's send-back is written by a GM, so its
+         * hook's user is the GM, and who asked it is one reading, `askerOf`, declared once, exported, in
+         * movement-audit.mjs - a player a GM's write names, never a GM and never a player's own claim. The audit read it
+         * for the wall rule since fix r2-G1, while the judge of arrivals asked `actsAsMastermind` of the hook's user, a
+         * GM, and let another owner's send-back of the Mastermind's token stand past a passage the student does not know.
+         * In movement.mjs a call of `judgeArrival` in `noteGmPosition` hands it `asker: askerOf(...)` ("askerPassed"),
+         * and every `actsAsMastermind` call in `judgeArrival` reads `asked ?? mover` ("asker"). Its other caller,
+         * `noteGmCreated`, judges a dropped token, which no send-back names. Scenario 76 G sends the Mastermind's token
+         * back through the bridge as each owner.
          */
         const LEAF = new Set(["rooms.mjs", "gm-stores.mjs", "gm-store.mjs", "settings.mjs", "utils.mjs", "config.mjs"]);
         const RECORDS = new Set(["gm-stores.mjs", "passages.mjs", "passages-gm.mjs"]);
         const IMPORTS = /\bimport\s*(?:[\w$\s{},*]+?\s*from\s*)?(["'])\.\/([\w.-]+\.mjs)\1|\bimport\s*\(\s*(["'])\.\/([\w.-]+\.mjs)\3\s*\)/g;
         const ONE = { passageOpenFor: "movement.mjs", redrawOutline: "fog.mjs", auditMove: "movement-audit.mjs", gmOverlay: "gm-overlay.mjs",
-            sharePassage: "passages-gm.mjs", shareRefusal: "passages-gm.mjs", actsAsMastermind: "passages-gm.mjs" };
+            sharePassage: "passages-gm.mjs", shareRefusal: "passages-gm.mjs", actsAsMastermind: "passages-gm.mjs", askerOf: "movement-audit.mjs" };
         const SHARE_FILES = new Set(["passages.mjs", "passages-gm.mjs"]);
         const CHAT = /(?<![\w$.])ChatMessage(?![\w$])|(?<![\w$.])(?:postSecret|postAsked|postToThread|whisperToOwnerOnly|privately)\s*\(/g;
         const ROLE_FILES = new Set(["movement.mjs", "movement-audit.mjs", "passages-gm.mjs"]);
         const ROLE = /(?<![\w$])isMastermind(?:Actor)?\s*\(/g;
         const OVERLAY_GATE = /!\s*game\s*\.\s*user\s*\??\.\s*isGM\s*\)\s*return\s+null\b/;
         const AUDIT_CALLER = "movement.mjs#noteGmPosition";
+        const ASKER_READ = /^asked\s*\?\?\s*mover$/, ASKER_PASSED = /(?<![\w$.])asker\s*:\s*askerOf\s*\(/;
         // A statement at column 0 and the name it declares, as R553's census reads a top-level declaration.
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(?:const|let|var)\s+([\w$]+))?/gm;
         const rulesOf = sources => {
@@ -9670,6 +9681,20 @@ const REGRESSIONS = [
                 if (ROLE_FILES.has(file)) for (const m of blank.matchAll(ROLE)) {
                     if (/\bfunction\s*\*?\s*$/.test(blank.slice(Math.max(0, m.index - 24), m.index))) continue;
                     at("role", m.index);
+                }
+                if (file === "movement.mjs") {
+                    const inTop = (m, name) => tops.findLast(t => t.at <= m.index)?.name === name
+                        && !/\bfunction\s*\*?\s*$/.test(blank.slice(Math.max(0, m.index - 24), m.index));
+                    for (const m of blank.matchAll(/(?<![\w$.])actsAsMastermind\s*\(/g)) {
+                        if (!inTop(m, "judgeArrival")) continue;
+                        const { args } = callArgs(blank, m.index + m[0].length - 1);
+                        if (!args[1] || !ASKER_READ.test(blank.slice(args[1].start, args[1].end).trim())) at("asker", m.index);
+                    }
+                    for (const m of blank.matchAll(/(?<![\w$.])judgeArrival\s*\(/g)) {
+                        if (!inTop(m, "noteGmPosition")) continue;
+                        const { close } = callArgs(blank, m.index + m[0].length - 1);
+                        if (!ASKER_PASSED.test(blank.slice(m.index, close))) at("askerPassed", m.index);
+                    }
                 }
                 if (file === "gm-overlay.mjs") for (const m of blank.matchAll(/\bnew\s+PIXI\s*\.\s*Container\b/g)) {
                     const top = tops.findLast(t => t.at <= m.index);
@@ -9716,13 +9741,17 @@ const REGRESSIONS = [
                 + "    return isMastermindActor(giver) ? null : \"no\";\n}\nexport function isMastermindActor(actor) {\n    return Boolean(actor);\n}\n"
                 + "export function actsAsMastermind(actor, user) {\n    return Boolean(actor && user);\n}\n"],
             ["movement.mjs", "export function passageOpenFor(actor) {\n    return Boolean(actor);\n}\n"
-                + "function noteGmPosition(t) {\n    // auditMove(t) in a comment calls nothing\n    auditMove(t, {}, {}, null, null, {});\n}\n"
-                + "function other(t) {\n    return auditMove(t);\n}\n"],
+                + "function noteGmPosition(t) {\n    // auditMove(t) in a comment calls nothing\n    auditMove(t, {}, {}, null, null, {});\n"
+                + "    judgeArrival(t, null, { sentBack: true });\n    judgeArrival(t, null, { asker: askerOf(o?.[SENT_BACK], game.users) });\n}\n"
+                + "function other(t) {\n    return auditMove(t);\n}\n"
+                + "function judgeArrival(t, userId, { asker = null } = {}) {\n    const mover = game.users.get(userId), asked = asker && game.users.get(asker);\n"
+                + "    return actsAsMastermind(t.actor, asked ?? mover) || actsAsMastermind(t.actor, mover);\n}\n"],
             ["fog.mjs", "// export function redrawOutline() in a comment declares nothing\nfunction redrawOutline() {\n    return false;\n}\n"
                 + "const box = canvas.interface.getChildByName(\"drpgGmOverlay\"); // \"drpgGmOverlay\" in a comment names nothing\n"],
             ["fog-reveal.mjs", "const said = 'export function passageOpenFor()';\nexport const redrawOutline = () => null;\n"],
             ["movement-audit.mjs", "export function auditMove(tokenDoc) {\n    const walls = canvas.scene?.walls;\n    return walls ?? canvas?.edges ?? tokenDoc.parent.walls;\n}\n"
-                + "const judged = actor => isMastermindActor(actor);\nconst read = actor => readers?.isMastermind(actor) || iAmTheMastermind();\n"],
+                + "const judged = actor => isMastermindActor(actor);\nconst read = actor => readers?.isMastermind(actor) || iAmTheMastermind();\n"
+                + "function askerOf(named) {\n    return named;\n}\n"],
             ["gm-overlay.mjs", "export const OVERLAY_NAME = \"drpgGmOverlay\";\nexport function gmOverlay() {\n    const box = new PIXI.Container();\n"
                 + "    if (!game.user?.isGM) return null;\n    return box;\n}\nexport function overlayLayer(name) {\n    const layer = new PIXI.Container();\n"
                 + "    return gmOverlay()?.addChild(layer);\n}\nexport function layerOk(name) {\n    const box = gmOverlay();\n"
@@ -9730,10 +9759,10 @@ const REGRESSIONS = [
         ]);
         equal(JSON.stringify(planted), JSON.stringify(["secretDoor walls.mjs:4", "secretDoor walls.mjs:5", "wallCreated walls.mjs:4",
             "unaddressed send.mjs:3", "unaddressed send.mjs:4", "flag flags.mjs:3", "geometry flags.mjs:3", "card passages.mjs:5", "leaf:movement.mjs passages.mjs:2",
-            "tile:passages.mjs room-tile.mjs:2", "card passages-gm.mjs:7", "role passages-gm.mjs:5", "role passages-gm.mjs:10", "overlayName fog.mjs:5",
+            "tile:passages.mjs room-tile.mjs:2", "card passages-gm.mjs:7", "role passages-gm.mjs:5", "role passages-gm.mjs:10", "asker movement.mjs:15", "askerPassed movement.mjs:7", "overlayName fog.mjs:5",
             "role movement-audit.mjs:5", "role movement-audit.mjs:6", "scene movement-audit.mjs:2", "scene movement-audit.mjs:3",
             "overlayGate gm-overlay.mjs:3", "overlayLayer gm-overlay.mjs:8", "overlayLayer gm-overlay.mjs:17", "one:redrawOutline fog.mjs:2(not exported),fog-reveal.mjs:2",
-            "one:shareRefusal passages-gm.mjs:9(not exported)",
+            "one:shareRefusal passages-gm.mjs:9(not exported)", "one:askerOf movement-audit.mjs:7(not exported)",
             "call:auditMove movement.mjs#noteGmPosition,movement.mjs#other"]),
         "the source rules do not read the planted fixture as planted - the module would be read wrong too");
 
@@ -9743,7 +9772,7 @@ const REGRESSIONS = [
             "a file these rules read is not among the module's sources - the rules would read nothing of it");
         const broken = rulesOf(sources);
         log(`R560: ${sources.length} module file(s) read; ${broken.length} broken rule(s)`);
-        equal(JSON.stringify(broken), "[]", "a wall written as a secret door or created, an un-addressed passage packet, a passage in a flag or a file outside the records, an import the leaf or the room tile must not have, a second (or unexported) passageOpenFor, redrawOutline, auditMove or gmOverlay, the audit called from anywhere but noteGmPosition or more than once, the audit reading the scene on screen, the GMs' overlay or a layer of it made without asking for a GM, the overlay's name read outside gm-overlay.mjs, a second (or unexported) sharePassage, shareRefusal or actsAsMastermind, the Mastermind's role read off the character alone outside sharePassage, or a chat message made in a passages file other than through whisperToOwner and whisperToGms");
+        equal(JSON.stringify(broken), "[]", "a wall written as a secret door or created, an un-addressed passage packet, a passage in a flag or a file outside the records, an import the leaf or the room tile must not have, a second (or unexported) passageOpenFor, redrawOutline, auditMove or gmOverlay, the audit called from anywhere but noteGmPosition or more than once, the audit reading the scene on screen, the GMs' overlay or a layer of it made without asking for a GM, the overlay's name read outside gm-overlay.mjs, a second (or unexported) sharePassage, shareRefusal, actsAsMastermind or askerOf, the Mastermind's role read off the character alone outside sharePassage, the judge of arrivals not handed or not reading who asked a GM's send-back, or a chat message made in a passages file other than through whisperToOwner and whisperToGms");
     }],
 
 

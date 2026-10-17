@@ -48,7 +48,7 @@ import { playSfx } from "./sfx.mjs";
 import { openSegmentsFor, crossingVia } from "./passages.mjs";
 // The GMs' audit of a move through a wall (E79 C4), called from `noteGmPosition` with this file's
 // readers handed in; movement-audit.mjs never imports this file statically (R161).
-import { auditMove, registerMoveAudit } from "./movement-audit.mjs";
+import { askerOf, auditMove, registerMoveAudit } from "./movement-audit.mjs";
 // Who acts as the Mastermind (E79 fix r2-G2), for the witness judge: passages-gm.mjs is already in this file's static
 // graph through movement-audit.mjs, so the edge adds no module and no cycle that was not there.
 import { actsAsMastermind } from "./passages-gm.mjs";
@@ -463,7 +463,8 @@ function noteGmPosition(tokenDoc, changes, options, userId) {
     // stood lawfully where `gmSeen` last saw it (`seenStanding`).
     if (judgingHere()) {
         try {
-            judgeArrival(tokenDoc, userId, { revert: Boolean(options?.[REVERT]), sentBack: Boolean(options?.[SENT_BACK]) });
+            judgeArrival(tokenDoc, userId, { revert: Boolean(options?.[REVERT]), sentBack: Boolean(options?.[SENT_BACK]),
+                asker: askerOf(options?.[SENT_BACK], game.users) });
         } catch (err) {
             error(`Could not judge where "${tokenDoc.name}" arrived`, err);
         }
@@ -575,9 +576,11 @@ export function roomsVisited(tokenDoc, { now = Date.now(), windowMs = 60_000 } =
  * @param {object[]} [options.centres]  The spot `positionIn` gives for each room
  *   the token stood in during the window (`roomsVisited`). A route through
  *   several rooms that fails at the second crossing sends the token to the room
- *   it paid for (MAP-11), and that spot is a room's centre, which the token
- *   never stood on - the E03 review found the honest request refused. A centre
- *   names the floor it is on when the room was asked on one (`positionIn`).
+ *   it paid for (MAP-11), and until E79 fix r3-G2 that spot was a room's centre,
+ *   which the token never stood on - the E03 review found the honest request
+ *   refused. It is the route's own spot in that room since, which the history
+ *   holds; the bridge's guard alone still hands the centres in. A centre names
+ *   the floor it is on when the room was asked on one (`positionIn`).
  * @param {*} [options.level]  The floor the token stands on now, for a packet
  *   that names none.
  * @param {number} [options.now]
@@ -741,11 +744,11 @@ function seenStanding(tokenDoc) {
 /**
  * Judge where this token now stands (the note above), record it, and tell the GMs when it
  * turned unlawful. `userId` is the mover's, `revert` whether the write was marked as our own
- * revert, `sentBack` whether the bridge wrote it for a player, `created` whether the token was
- * just dropped. On the primary, from `noteGmPosition` and `noteGmCreated`; exported for tier 2,
- * which judges a plain token.
+ * revert, `sentBack` whether the bridge wrote it for a player, `asker` that player's id as the audit
+ * reads it (movement-audit.mjs `askerOf`), `created` whether the token was just dropped. On the
+ * primary, from `noteGmPosition` and `noteGmCreated`; exported for tier 2, which judges a plain token.
  */
-export function judgeArrival(tokenDoc, userId = null, { revert = false, sentBack = false, created = false } = {}) {
+export function judgeArrival(tokenDoc, userId = null, { revert = false, sentBack = false, asker = null, created = false } = {}) {
     if (!tokenDoc?.id) return null;
     judgingHere();
     const own = standings.get(tokenDoc.id) ?? seenStanding(tokenDoc);
@@ -768,8 +771,13 @@ export function judgeArrival(tokenDoc, userId = null, { revert = false, sentBack
         /* The Mastermind as the mover acts (passages-gm.mjs `actsAsMastermind`): the one owner the door names, as the
            mover's own veto reads it (`iAmTheMastermind`). Until E79 fix r2-G2 (16.10.2026; the round-2 review's SEC M3)
            the role was read off the student alone, and another owner of the Mastermind's student, whose own browser
-           refuses a lock and a passage it does not know, was let stand past both here. */
-        const mastermind = actsAsMastermind(actor, mover);
+           refuses a lock and a passage it does not know, was let stand past both here. On the bridge's send-back the
+           mover is the player who asked it (`asker`), as the audit reads the same write (E79 fix r3-G2; review r3, SEC
+           S4): the hook's user is the GM who wrote it, and a GM acts as the Mastermind, so a co-owner's send-back of
+           the Mastermind's token through a passage the student does not know stood lawful (76 G, red at 647c8b0). The
+           asker is read on a GM's write alone, as the audit reads it: a player's own write naming another is its writer's. */
+        const asked = asker && mover?.isGM ? game.users?.get(asker) ?? null : null;
+        const mastermind = actsAsMastermind(actor, asked ?? mover);
         // Through a secret passage (E79 C3): the straight line from where the primary last saw the token to
         // where it stands, on the floor of the room it came from, against the GMs' records.
         const via = was ? crossingVia(centresOf(tokenDoc, was, tokenDoc), actor, tokenDoc.parent?.id, was.last?.level ?? null, { mastermind }) : null;
@@ -1677,11 +1685,22 @@ async function settleRoute(tokenDoc, actor, { before, previous, crossings }) {
     // crossing here. The token goes to the room that WAS paid for.
     // On the floor the step reached (E12 fix r2-H1; early review EARLY-C9-2): a room's centre
     // without its floor put a route refused at the stairs back at the Hall's x and y upstairs.
+    /* ON THE ROUTE'S OWN SPOT, NOT THE ROOM'S CENTRE (E79 fix r3-G2, 1.2.79; review r3, SEC S2 = cor B). The
+       room paid for was put back at its centre (`positionIn`), where the token never stood: the GMs' wall
+       audit judges that put-back as a move (movement-audit.mjs; its record holds no centre) along the straight
+       step from the route's end to the centre, and the security probe F3 - three rooms in a row, a door in the
+       middle of each wall - read it crossed on the plain wall beside the second door: a row and a warn naming
+       the player in "log" mode, and in "sendBack" the token sent on to the route's end, the room not paid for.
+       The spot the drag stood on last in that room (`notePathRoom`) is a landing every GM saw, so the GMs'
+       record holds it (`recentPositions`: for a minute, and while fewer than eight later sightings push it
+       out - a longer drag through the next room is not measured) and the audit and the judge of arrivals take
+       the put-back as a send-back to it, by the rule they already keep and with no centre for a console to aim
+       at (round 2's SEC M1). Scenario 66 W6: red at 647c8b0 in both modes. */
     let standing = previous;
-    for (const [from, to, floors] of crossings) {
+    for (const [from, to, , spot] of crossings) {
         const paid = await chargeForCrossing(actor, from, to, tokenDoc, standing);
         if (!paid) return false;
-        standing = positionIn(to, tokenDoc, floors?.to ?? null) ?? standing;
+        standing = spot ?? standing;
     }
     return true;
 }
@@ -1837,7 +1856,7 @@ async function judgeMove(tokenDoc, changes, options, userId, route = {}, { atRes
        so adjacency and locks were never fooled by a multi-waypoint route -
        only the price was. */
     if (!atRest && tokenDoc.movement?.pending?.waypoints?.length) {
-        notePathRoom(tokenDoc.id, roomOfToken(tokenDoc), levelOf(tokenDoc));
+        notePathRoom(tokenDoc.id, roomOfToken(tokenDoc), levelOf(tokenDoc), spotOf(tokenDoc));
         return;
     }
 
@@ -1883,7 +1902,7 @@ async function judgeMove(tokenDoc, changes, options, userId, route = {}, { atRes
     // them. Ending where you started is no longer the same as going
     // nowhere: the route is what is charged for.
     const crossings = crossingsAlong({ room: before, level: previous?.level ?? null }, path,
-        { room: after, level: levelOf(tokenDoc) });
+        { room: after, level: levelOf(tokenDoc), spot: landed });
 
     // Nothing crossed - a move inside one room, or a scene with no regions
     // at all: free. Remember the new spot so a later refused crossing snaps
@@ -1968,15 +1987,19 @@ const pathRooms = new Map();
  *
  * A step is a room and the floor it was read on (E12 C9); a step to the same
  * room on another floor - up a stairwell - is not noted, as it costs nothing.
+ * Each step keeps the newest spot the drag stood on in its room (`spot`, E79 fix
+ * r3-G2): a route refused at a later crossing is put back there (`settleRoute`).
  */
-function notePathRoom(tokenId, room, level = null) {
+function notePathRoom(tokenId, room, level = null, spot = null) {
     if (!room) return;
     const seen = pathRooms.get(tokenId);
     if (!seen) {
-        pathRooms.set(tokenId, [{ room, level }]);
+        pathRooms.set(tokenId, [{ room, level, spot }]);
         return;
     }
-    if (seen[seen.length - 1].room !== room) seen.push({ room, level });
+    const last = seen[seen.length - 1];
+    if (last.room !== room) seen.push({ room, level, spot });
+    else if (spot) last.spot = spot;
 }
 
 /** The noted path for a token, removed as it is read. */
@@ -1995,17 +2018,19 @@ function takePath(tokenId) {
  * neighbour yields one, and a there-and-back route yields two - which is what
  * it costs at the table.
  *
- * Every step is `{room, level}` (E12 C9) and `crossingCost` prices it; each
- * crossing handed on is `[from, to, {from, to}]`, the two room names and the
- * floor of each end (E12 fix r2-H1), for the stairs rule on the Eclipse's road
- * and the floor a refused route is put back on.
+ * Every step is `{room, level, spot?}` (E12 C9) and `crossingCost` prices it; each
+ * crossing handed on is `[from, to, {from, to}, spot]`, the two room names, the
+ * floor of each end (E12 fix r2-H1), for the stairs rule on the Eclipse's road,
+ * and the spot the route stood on past it (`notePathRoom`; E79 fix r3-G2), where
+ * a route refused at the next crossing is put back.
  */
 function crossingsAlong(before, path, after) {
     const route = [before, ...path, after];
     const crossings = [];
     for (let i = 1; i < route.length; i++) {
         if (crossingCost(route[i - 1], route[i]) === 0) continue;
-        crossings.push([route[i - 1].room, route[i].room, { from: route[i - 1].level ?? null, to: route[i].level ?? null }]);
+        crossings.push([route[i - 1].room, route[i].room, { from: route[i - 1].level ?? null, to: route[i].level ?? null },
+            route[i].spot ?? null]);
     }
     return crossings;
 }
@@ -2201,9 +2226,9 @@ async function sendBack(tokenDoc, previous, room, { sound = true, landed = null,
  * A position inside a named room on the token's scene - its centre, less the token's own size.
  * The centre of the room's first piece (E12 C2a): a room of two pieces has no centre of its own
  * that is inside it, and the token's scene is the only one asked - never the camera's. Given a
- * `level`, the first piece on that floor, and the spot names the floor (E12 fix r2-H1): a
- * refused route is put back on the floor it paid for, and the bridge's send-back guard matches
- * a room's centre on the floor asked. No piece on that floor is no position.
+ * `level`, the first piece on that floor, and the spot names the floor (E12 fix r2-H1): the
+ * bridge's send-back guard matches a room's centre on the floor asked (a refused route was put
+ * back at one until E79 fix r3-G2). No piece on that floor is no position.
  */
 export function positionIn(room, tokenDoc, level = null) {
     try {

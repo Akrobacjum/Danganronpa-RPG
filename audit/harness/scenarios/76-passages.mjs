@@ -1291,6 +1291,61 @@ async function phaseG({ gm, gm2, p1, p2, p3, p4, check, phase, settle, dump, soc
         const text = id => String(contentOf(game.messages.get(id)) ?? "").replace(/<[^>]+>/g, "").trim();
         await until(() => ids.every(text));
         return ids.map(text);`, { timeout: 30000 });
+    /* E79 fix r3-G2 (1.2.79; review r3, SEC S4): the bridge's send-back of the Mastermind's token, judged by the primary's
+       judge of arrivals as the player who asked it, as the audit judges it. A second passage on the Kitchen's wall
+       (1500-1700, y 800) that nobody is given; the GM stands Botan in the Kitchen off its centre and then in the Cafeteria
+       (1550,600), and the owner asks the bridge to send him back to the Kitchen's centre (1550,900: the guard takes the
+       centre of a room he stood in this minute), the step from the Cafeteria through the second passage. p2, whom the door
+       names, acts as the Mastermind, who passes every open passage: lawful, no row (the control). Then the GMs' records
+       of the token are dropped (movement.mjs `forgetToken`, so that the centre is no spot of them), the GM stands him the
+       same way again, and p3, his other owner, asks the same: a passage Botan does not know, so an unlawful standing and
+       p3's row. Until this fix the judge read the hook's user, the GM who wrote the send-back, and a GM acts as the
+       Mastermind: p3's standing lawful. And the same again from p3's console, its veto off: its own write of the move, as
+       a revert naming p2 as the one who asked - a player's word, which the judge reads as its writer's: unlawful, p3's
+       row. The audit stays in 'log' mode; Botan, the second passage and the records are put back. */
+    const mmSendBack = await gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs"), scene = game.scenes.get(${J(IDS.scene)});
+        const t = scene.tokens.get("TOKBOTAN00000000"), at = { x: t.x, y: t.y };
+        const id = await game.drpg.passages.create({ sceneId: scene.id, wallId: ${J(set.wall)}, seg: { x1: 1500, y1: 800, x2: 1700, y2: 800 } });
+        globalThis.__s76gS4 = { at, id };
+        return { id, mode: game.settings.get("${MOD}", "moveAudit"), centre: M.positionIn("Kitchen", t, null) };`, { timeout: 30000 });
+    await settle(600);
+    const standKitchen = forget => gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs"), t = game.scenes.get(${J(IDS.scene)}).tokens.get("TOKBOTAN00000000");
+        if (${forget}) M.forgetToken(t.id);
+        await t.update({ x: 1550, y: 950 }, ${J(PLACE)}); await new Promise(r => setTimeout(r, 400));
+        await t.update({ x: 1550, y: 600 }, ${J(PLACE)}); await new Promise(r => setTimeout(r, 600));
+        return [M.roomOfToken(t), M.standingOf(t)?.lawful ?? null];`, { timeout: 30000 });
+    const s4Rows = `(game.drpg.passages.audit?.()?.rows ?? []).filter(r => r.token === "TOKBOTAN00000000").map(r => [r.user, r.verdict, r.times])`;
+    const s4Ask = async (client, forged = false) => {
+        const stood = await standKitchen(client !== p2);
+        const rows0 = await gm.eval(`return ${s4Rows};`);
+        const asked = await client.eval(forged ? `const list = Hooks._hooks.get("preUpdateToken") ?? [], at = list.findIndex(e => e.fn.name === "onPreUpdateToken");
+            const [veto] = at >= 0 ? list.splice(at, 1) : [];
+            try { await canvas.scene.tokens.get("TOKBOTAN00000000").update({ x: 1550, y: 900 }, { drpgRevert: true, drpgSentBack: ${J(IDS.p2)} }); }
+            finally { if (veto) list.splice(at, 0, veto); }
+            return { ok: Boolean(veto), reason: null };` : `const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+            const r = await B.requestSendBack(${J(IDS.scene)}, "TOKBOTAN00000000", { x: 1550, y: 900 });
+            return { ok: r.ok, reason: r.reason ?? null };`, { timeout: 30000 });
+        await settle(1200);
+        const read = await gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs"), t = game.scenes.get(${J(IDS.scene)}).tokens.get("TOKBOTAN00000000");
+            return { at: [t.x, t.y], room: M.roomOfToken(t), lawful: M.standingOf(t)?.lawful ?? null, rows: ${s4Rows} };`);
+        const times = rows => rows.reduce((n, row) => n + row[2], 0);
+        return { stood, asked, ...read, counted: times(read.rows) - times(rows0), last: read.rows.at(-1)?.slice(0, 2) ?? null };
+    };
+    const s4Door = await s4Ask(p2), s4Co = await s4Ask(p3), s4Forged = await s4Ask(p3, true);
+    const s4Back = await gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs"), t = game.scenes.get(${J(IDS.scene)}).tokens.get("TOKBOTAN00000000");
+        const was = globalThis.__s76gS4; delete globalThis.__s76gS4;
+        const gone = await game.drpg.passages.delete(was.id);
+        await t.update(was.at, ${J(PLACE)}); await new Promise(r => setTimeout(r, 400));
+        return { gone, at: [t.x, t.y], back: [was.at.x, was.at.y], lawful: M.standingOf(t)?.lawful ?? null, room: M.roomOfToken(t) };`, { timeout: 30000 });
+    await settle(600);
+    check("G: the Mastermind's token sent back through the bridge, through a passage nobody was given, is judged as the owner who asked - "
+        + "p2, whom the door names, lawful with no row; p3, his other owner, unlawful with p3's row, and so is p3's own write naming p2 - "
+        + "and Botan and the second passage are put back (E79 fix r3-G2)",
+    typeof mmSendBack.id === "string" && mmSendBack.mode === "log" && J(mmSendBack.centre) === J({ x: 1550, y: 900 })
+        && [s4Door, s4Co, s4Forged].every(r => J(r.stood) === J(["Cafeteria", true]) && r.asked.ok === true && J(r.at) === J([1550, 900]) && r.room === "Kitchen")
+        && s4Door.lawful === true && s4Door.counted === 0 && [s4Co, s4Forged].every(r => r.lawful === false && r.counted === 1 && J(r.last) === J([IDS.p3, "noted"]))
+        && s4Back.gone === true && J(s4Back.at) === J(s4Back.back) && s4Back.lawful === true && s4Back.room === "Cafeteria",
+    J({ mmSendBack, s4Door, s4Co, s4Forged, s4Back }));
     const mmBack = await gm.eval(`${MM}
         const was = ${J(mmSet.was)}, botan = game.actors.get(${J(IDS.botan)});
         if (was.actorId) await M.setMastermind(game.actors.get(was.actorId), { room: was.room }); else await M.clearMastermind();

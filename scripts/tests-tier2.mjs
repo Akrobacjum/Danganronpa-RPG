@@ -49887,7 +49887,9 @@ const SCENARIOS = [
          * E12 fix r2-H1, 11.10.2026; early review EARLY-C9-2 (MAP-11). A route of two crossings settles one at a time, and
          * the one that cannot be paid for puts the token back in the room the route last paid for, at that room's centre
          * (movement.mjs `settleRoute`, `positionIn`) - without its floor, so a route that paid its way from the Lab into
-         * the Hall and failed on the stairs up to the Landing was put back at the Hall's x and y upstairs. Here
+         * the Hall and failed on the stairs up to the Landing was put back at the Hall's x and y upstairs. Since E79 fix
+         * r3-G2 (review r3, SEC S2 = cor B) not at the centre (650,150 here) but on the spot the drag stood on in the Hall,
+         * its pending step (600,100), which the GMs' record holds and the wall audit takes for a send-back. Here
          * movement.mjs's charge, taken off `Hooks.events` as in C9's test above, is handed a plain token of a plain
          * character no connected player owns (the primary GM pays) with the free Move and nothing else: its place
          * recorded as our own revert records it in the Lab, a step of the drag in flight in the Hall, and the drag's end on
@@ -49937,7 +49939,7 @@ const SCENARIOS = [
         } finally {
             ui.notifications.warn = warn;
         }
-        equal(stableJson(read), stableJson([[{ x: 650, y: 150, level: L1 }], true, [game.i18n.localize("DRPG.Move.noBudget")]]),
+        equal(stableJson(read), stableJson([[{ x: 600, y: 100, level: L1 }], true, [game.i18n.localize("DRPG.Move.noBudget")]]),
             "[what the send-back wrote to a token whose route paid into the Hall and failed on the stairs to the Landing, "
                 + "whether the free Move was spent, what the GM was told]");
     }],

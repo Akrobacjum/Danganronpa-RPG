@@ -1510,6 +1510,50 @@ export async function run({ gm, gm0, gm2, p1, p2, check, note, phase, settle, co
         Hooks.off("updateToken", globalThis.__s66wWritten); Hooks.off("drpgRoomCrossed", globalThis.__s66wCrossed);
         delete globalThis.__s66wSettled; delete globalThis.__s66wWritten; delete globalThis.__s66wCrossed; delete globalThis.__s66wTake;
         return true;`)));
+    /* (f) E79 fix r3-G2 (1.2.79; review r3, SEC S2 = cor B): the route of (c) again, with an ordinary wall the GM draws inside
+       Dorm A (x 700, y 520-800) that no step of the route goes through - the token's centre runs from the Porch's centre, 970,350, to 650,450 and
+       950,650 - and that the straight step from the Shed back to Dorm A's centre (450,450; its token's centre 500,500)
+       does, at y 566.7. Until this fix the refused route was put back at that centre (movement.mjs `settleRoute`), and
+       the GMs' wall audit, whose record holds no centre, judged the put-back a move of p1's through the wall: in 'log'
+       mode a row, in 'sendBack' mode Aiko sent on to the Shed, the room not paid for. Since, it is put back on the
+       route's own spot in Dorm A (600,400), a landing the GMs saw. Once in each mode, each from the GM's records of
+       Aiko dropped (movement.mjs `forgetToken`): (d) and (e) stood her on Dorm A's centre within the minute, a spot of
+       the record the audit takes - so the first draft of this step was green at the parent; then the control, p1's console
+       through the same wall with its veto off, still in 'sendBack' mode: a row, and Aiko put back. Read on the GM, Aiko's
+       rows of the audit (`times`) and her spot. */
+    const routeF = await gm.eval(`${SCENES} const [wall] = await academy.createEmbeddedDocuments("Wall", [{ c: [700, 520, 700, 800] }]);
+        globalThis.__s66wf = { wall: wall.id, mode: game.settings.get("${MOD}", "moveAudit") }; return wall.id;`, { timeout: 30000 });
+    const rowsF = `const rowsF = () => (game.drpg.passages.audit?.()?.rows ?? []).filter(r => r.token === "TOKAIKO000000000")
+        .map(r => [r.user, r.wall, r.verdict, r.times]);`;
+    const runF = async mode => {
+        await gm.eval(`${SCENES} const M = await import("${repoUrl}/scripts/movement.mjs"), aiko = game.actors.get("${IDS.aiko}");
+            await game.settings.set("${MOD}", "moveAudit", ${J(mode)});
+            const t = academy.tokens.get("TOKAIKO000000000");
+            M.forgetToken(t.id);
+            await t.update(M.positionIn("66 W Porch", t), { teleport: true, movementAction: "displace", animate: false });
+            await game.drpg.setActions(aiko, 1); await aiko.setFlag("${MOD}", "freeMoveUsed", true);
+            await new Promise(r => setTimeout(r, 800)); return true;`, { timeout: 30000 });
+        const before = await gm.eval(`${rowsF} return rowsF();`);
+        await Promise.all([p1, gm].map(client => client.eval(STAND_IN)));
+        await p1.eval(`${SCENES} await academy.tokens.get("TOKAIKO000000000").update({ x: 600, y: 400 }); await new Promise(r => setTimeout(r, 800)); return true;`,
+            { timeout: 30000 });
+        await Promise.all([p1, gm].map(client => client.eval(`${SCENES} delete academy.tokens.get("TOKAIKO000000000").movement; return true;`)));
+        await p1.eval(`${SCENES} academy.tokens.get("TOKAIKO000000000").update({ x: 900, y: 600 }).catch(() => null);
+            await new Promise(r => setTimeout(r, 2000)); return true;`, { timeout: 30000 });
+        const after = await gm.eval(`${SCENES} ${rowsF} const M = await import("${repoUrl}/scripts/movement.mjs"), t = academy.tokens.get("TOKAIKO000000000");
+            return { mode: game.settings.get("${MOD}", "moveAudit"), rows: rowsF(), at: [t.x, t.y], room: M.roomOfToken(t),
+                actions: game.drpg.actionsLeft(game.actors.get("${IDS.aiko}")) };`, { timeout: 30000 });
+        return { before, ...after };
+    };
+    const logF = await runF("log"), sendF = await runF("sendBack");
+    const consoleF = await p1.eval(`${SCENES} const list = Hooks._hooks.get("preUpdateToken") ?? [], at = list.findIndex(e => e.fn.name === "onPreUpdateToken");
+        const [veto] = at >= 0 ? list.splice(at, 1) : [];
+        try { await academy.tokens.get("TOKAIKO000000000").update({ x: 700, y: 700 }); } finally { if (veto) list.splice(at, 0, veto); }
+        await new Promise(r => setTimeout(r, 1500)); return Boolean(veto);`, { timeout: 30000 });
+    const consoleRows = await gm.eval(`${SCENES} ${rowsF} const t = academy.tokens.get("TOKAIKO000000000"); return { rows: rowsF(), at: [t.x, t.y] };`);
+    const backF = await gm.eval(`${SCENES} const was = globalThis.__s66wf; await academy.deleteEmbeddedDocuments("Wall", [was.wall]);
+        await game.settings.set("${MOD}", "moveAudit", was.mode); delete globalThis.__s66wf;
+        return { wall: Boolean(academy.walls.get(was.wall)), mode: game.settings.get("${MOD}", "moveAudit"), was: was.mode };`, { timeout: 30000 });
     await gm.eval(`${SCENES} const V = await import("${repoUrl}/scripts/vault.mjs"), aiko = game.actors.get("${IDS.aiko}"), was = globalThis.__s66w;
         await academy.deleteEmbeddedDocuments("Region", was.regions);
         for (const [room, { description, image }] of Object.entries(was.rooms)) await V.setVaultRoom(room, { description, image, scene: academy });
@@ -1563,6 +1607,17 @@ export async function run({ gm, gm0, gm2, p1, p2, check, note, phase, settle, co
         && [flagP1, flagGm].every(({ early, late }) => J([...early.heard, ...late.heard]) === J([false]))
         && shedFree(flagP1) && dormW(flagP1.late.view) && flagP1.token === "Dorm A",
     J({ flagSetW, flagP1, flagGm }));
+    /* At 647c8b0: in 'log' mode Aiko in Dorm A at 450,450 with a row [p1, the wall, "noted"]; in 'sendBack' mode a row
+       "sent back" and Aiko at 900,600 in the Shed. */
+    const sameRows = r => J(r.rows) === J(r.before);
+    check("W6: a route refused at its second crossing for its price is put back on its own spot in the room it paid for, and the GMs' "
+        + "wall audit takes that for a send-back to a spot it saw, in 'log' and in 'sendBack' mode: no row, Aiko in Dorm A at 600,400; "
+        + "and p1's console through the same wall, its veto off, has its row and is put back (E79 fix r3-G2)",
+    typeof routeF === "string" && [[logF, "log"], [sendF, "sendBack"]].every(([r, mode]) => r.mode === mode && sameRows(r) && J(r.at) === J([600, 400])
+        && r.room === "Dorm A" && r.actions === 0)
+        && consoleF === true && consoleRows.rows.length === sendF.rows.length + 1 && J(consoleRows.rows.at(-1)) === J([IDS.p1, routeF, "sent back", 1])
+        && J(consoleRows.at) === J([600, 400]) && backF.wall === false && backF.mode === backF.was,
+    J({ logF, sendF, consoleF, consoleRows, backF }));
 
     /* ------------------------------ N13. the room at the move's destination ------------------------------ */
     phase("N13: a route announced on the update that names where it ends, in the room it names, and again at rest only for another room");

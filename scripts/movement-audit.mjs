@@ -195,9 +195,10 @@ function exemptLanding(tokenDoc, scene, was, kept) {
  * exempt only where `sendBackRefusal` accepts the landing against the GMs' record, which holds no centre, and any
  * other landing by the wall rule with that player as the mover. The guard is left as it is: refusing a centre a wall
  * stands in front of would refuse the send-back of a token Foundry itself let through a wall. The audit's own put-back
- * names nobody, so it does not loop.
+ * names nobody, so it does not loop. movement.mjs's judge of arrivals reads the same asker for the same write (E79
+ * fix r3-G2, SEC S4).
  */
-function askerOf(named, users) {
+export function askerOf(named, users) {
     const user = typeof named === "string" ? users?.get(named) : null;
     return user && !user.isGM ? user.id : null;
 }
