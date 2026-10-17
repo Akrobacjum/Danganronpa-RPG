@@ -76,6 +76,9 @@ export const RESET_GROUPS = [
 
     { key: "projects", section: "board" },
     { key: "mastermind", section: "board" },
+    // Who knows each secret passage, and the GMs' log of them (E79 C1): the passages stay - the map has no group -
+    // and so does each one's start access, given back by the step (E79 C8).
+    { key: "passages", section: "board" },
     { key: "seals", section: "board" },
     { key: "motive", section: "board" },
     { key: "rules", section: "board" },

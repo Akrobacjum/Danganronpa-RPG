@@ -18,6 +18,10 @@ export const SETTINGS = {
     relayWarned: "relayWarned",
     /** Hold Isometric Perspective's welcome window off on every client (E27, N2 - see enforced.mjs). */
     enforceIsoWelcome: "enforceIsoWelcome",
+    /** Hold Daggerheart's welcome journal closed for every account (E79 C9, N1 - see enforced.mjs). */
+    enforceDhWelcome: "enforceDhWelcome",
+    /** Players and Trusted Players browse and upload no files (E79 C9, N4 - see enforced.mjs). */
+    enforcePlayerFiles: "enforcePlayerFiles",
     forcePrivateRolls: "forcePrivateRolls",
     enforceAnonymity: "enforceAnonymity",
     searchTokensPerRoom: "searchTokensPerRoom",
@@ -30,6 +34,8 @@ export const SETTINGS = {
     extraPoolUsers: "extraPoolUsers",
     /** Which Gamemaster's pool each Monokuma actor spends from. */
     monokumaPools: "monokumaPools",
+    /** The season each player account was last seen with, given or set a character in by a GM (E79 fix r3-G1 - see user-match.mjs). */
+    accountCharacters: "accountCharacters",
     gmAssignments: "gmAssignments",
     despairFromRolls: "despairFromRolls",
     projectMeta: "projectMeta",
@@ -73,6 +79,16 @@ export const SETTINGS = {
      */
     gmDeaths: "gmDeaths",
     mineDeaths: "mineDeaths",
+    /**
+     * THE SECRET PASSAGES (E79 C1, 1.2.79): three GM stores (gm-stores.mjs) - where each
+     * passage is and its state (`passageMapStore`), who knows each one (`passageAccessStore`)
+     * and what was done with them (`passageLogStore`) - and nothing in world data: a wall,
+     * a region, a scene or a world setting reaches every browser. This user's own copy is
+     * `minePassages` (`passageCopy`, below `mineFog`).
+     */
+    gmPassageMap: "gmPassageMap",
+    gmPassageAccess: "gmPassageAccess",
+    gmPassageLog: "gmPassageLog",
     /**
      * The live Despair Overflow: `{ active }` (Z10), the stamp of the ONE time of
      * day a darkening covers, or null - public, since the card that fires it is.
@@ -799,6 +815,18 @@ export const SETTINGS = {
     mineFog: "mineFog",
     legacyDiscoveryMine: "discoveryMine",
     /**
+     * The secret passages this user's own characters know, as the primary GM sent them
+     * (E79 C1; gm-stores.mjs `passageCopy`): `{ passageId: { sceneId, shape, level,
+     * passageWallId, passageSeg, actorIds } }`, open rows only, no name and no room.
+     */
+    minePassages: "minePassages",
+    /**
+     * What the primary GM does with a player's token moved through a wall its character could not
+     * pass (E79 C4, movement-audit.mjs): "log", a row in the Debug log (the default, the plan's AM-1),
+     * or "sendBack", the token put back where it stood, its player told and the GMs warned.
+     */
+    moveAudit: "moveAudit",
+    /**
      * Rooms, not sight lines, decide what a player can see.
      *
      * Turning this on makes the module's own region fog the ONLY thing hiding
@@ -845,9 +873,10 @@ export const DEFAULT_CLOCK = {
     campaignName: "",
     /**
      * Which season this is: 1, and one more at every season reset that wipes the
-     * clock (season-setup.mjs `wipeSeason`; E10 C10, D12 option 1). A count only:
-     * no other reader at 1.2.71 (grep of scripts/ on 10.10.2026) - the season's epoch
-     * is `seasonStartedAt`.
+     * clock (season-setup.mjs `wipeSeason`; E10 C10, D12 option 1). A count: no other
+     * reader at 1.2.71 (grep of scripts/ on 10.10.2026) - the season's epoch is
+     * `seasonStartedAt` - until user-match.mjs's record of which accounts a GM has word
+     * on stamped its rows with it (E79 fix r3-G1, 17.10.2026).
      */
     season: 1,
     chapter: 1,
@@ -946,6 +975,32 @@ export function registerSettings() {
     game.settings.register(MODULE_ID, SETTINGS.enforceIsoWelcome, {
         name: "DRPG.Settings.enforceIsoWelcome.name",
         hint: "DRPG.Settings.enforceIsoWelcome.hint",
+        scope: "world",
+        config: true,
+        type: Boolean,
+        default: true,
+        onChange: () => import("./enforced.mjs")
+            .then(m => m.applyEnforced())
+            .catch(err => console.error("danganronpa-rpg | Could not re-apply the held settings", err))
+    });
+
+    /* E79 C9 (N1, N4): two more held rows of enforced.mjs, each the table's decision and on by
+       default, as the owner asked on 14.10.2026; each client re-applies on change, as above. */
+    game.settings.register(MODULE_ID, SETTINGS.enforceDhWelcome, {
+        name: "DRPG.Settings.enforceDhWelcome.name",
+        hint: "DRPG.Settings.enforceDhWelcome.hint",
+        scope: "world",
+        config: true,
+        type: Boolean,
+        default: true,
+        onChange: () => import("./enforced.mjs")
+            .then(m => m.applyEnforced())
+            .catch(err => console.error("danganronpa-rpg | Could not re-apply the held settings", err))
+    });
+
+    game.settings.register(MODULE_ID, SETTINGS.enforcePlayerFiles, {
+        name: "DRPG.Settings.enforcePlayerFiles.name",
+        hint: "DRPG.Settings.enforcePlayerFiles.hint",
         scope: "world",
         config: true,
         type: Boolean,
@@ -1572,6 +1627,21 @@ export function registerSettings() {
        (1): one switch as the emergency way back at the table). On by default; off, foundry-windows.mjs builds nothing
        on a GM's page and Foundry's two rails stay where Foundry puts them (THE WORLD SWITCH there). A reload, because
        the windows are built once at ready and hold Foundry's own nodes. A player's page is the same either way. */
+    /* The GMs' audit of a move through a wall (E79 C4; the plan's 5.3 and AM-1): a world switch, a GM's,
+       "log" until a table has shown that "sendBack" puts nobody back wrongly (E17 decides the default). */
+    game.settings.register(MODULE_ID, SETTINGS.moveAudit, {
+        name: "DRPG.Settings.moveAudit.name",
+        hint: "DRPG.Settings.moveAudit.hint",
+        scope: "world",
+        config: true,
+        type: String,
+        choices: {
+            log: "DRPG.Settings.moveAudit.log",
+            sendBack: "DRPG.Settings.moveAudit.sendBack"
+        },
+        default: "log"
+    });
+
     game.settings.register(MODULE_ID, SETTINGS.foundryToolWindows, {
         name: "DRPG.Settings.foundryToolWindows.name",
         hint: "DRPG.Settings.foundryToolWindows.hint",
@@ -2127,6 +2197,34 @@ export function registerSettings() {
         default: {},
         onChange: () => onDeathsChange()
     });
+    // The secret passages (E79 C1): the GMs' three stores, and a player's copy of their own. A
+    // change of the copy is told to whatever this browser draws or cuts from it by
+    // `drpgPassagesChanged`; the primary watches the stores' keys (passages-gm.mjs).
+    game.settings.register(MODULE_ID, SETTINGS.gmPassageMap, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    game.settings.register(MODULE_ID, SETTINGS.gmPassageAccess, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    game.settings.register(MODULE_ID, SETTINGS.gmPassageLog, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    game.settings.register(MODULE_ID, SETTINGS.minePassages, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => Hooks.callAll("drpgPassagesChanged")
+    });
     // The world key before 1.2.64: read once by `liftEclipseMoves`, and empty after.
     game.settings.register(MODULE_ID, SETTINGS.legacyEclipseMoves, {
         scope: "world",
@@ -2195,6 +2293,16 @@ export function registerSettings() {
         type: Object,
         default: {},
         onChange: () => onWorldChange(SETTINGS.monokumaPools)
+    });
+
+    // The season each player account was last seen with a character, given one or set by a GM, written
+    // by the primary GM alone (user-match.mjs): an account with a row of this season keeps what a GM
+    // left it. Format: { "<userId>": <season> } - a season, never an actor id (72-canary's world scan).
+    game.settings.register(MODULE_ID, SETTINGS.accountCharacters, {
+        scope: "world",
+        config: false,
+        type: Object,
+        default: {}
     });
 
     // Search token counters, keyed by room. Format: { "Library": 2, "Kitchen": 0 }

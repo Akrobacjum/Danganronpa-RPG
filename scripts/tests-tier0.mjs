@@ -383,7 +383,11 @@ const REGRESSIONS = [
             "voice.mjs": "room membership, keyed by the sender",
             "voice-client.mjs": "room membership, keyed by the sender",
             // E31 review: it passed on text elsewhere in the file (the runner, the guards); this is its own reason.
-            "bridge-guards.mjs": "the answers to this client's own requests: taken only from a GM, for its own pending id; acts on no actor"
+            "bridge-guards.mjs": "the answers to this client's own requests: taken only from a GM, for its own pending id; acts on no actor",
+            // E79 C1 (1.2.79): `payload.userId` is the copy's address, compared with this user's own id; R555 holds the rule (`passageRowsRefusal`).
+            "passages.mjs": "a player's copy of the secret passages: taken only from the primary GM, addressed to this user, and cut to the characters it stamps; acts on no actor",
+            // E79 C4 (1.2.79): `payload.userId` is the address, `sceneId` and `tokenId` only name the room the line says; `sentBackRefusal` holds the rule.
+            "movement-audit.mjs": "the GMs' word that a token of this user's was put back from a wall: taken only from the primary GM, addressed to this user, with a code it knows; plays a sound and shows a line, and acts on no actor"
             // E10 C2 (1.2.71): vote.mjs is off the list. A ballot reaches the GMs on the bridge (`vote.cast`), and
             // the one packet its listener still takes, a GM's ballot, names no id.
         };
@@ -2236,35 +2240,24 @@ const REGRESSIONS = [
             "nothing on the player's side asks who may be aimed at");
 
         /*
-         * AND THE FALLBACK IS OFFERED ONLY TO THE LIVING, AND ONLY ON A PRICE.
-         * A corpse or a Monokuma is refused with nothing offered, because a free
-         * Present in place of an impossible Objection is a different act nobody
-         * asked for (Dawid, 17.09).
+         * THE SAME RULE ON THE ROAD THAT REPLACED THE WINDOW'S (E79 C16, 1.2.79). The sheet's window presents only
+         * since the owner's rule of 17.10.2026, and its free-Present fallback went with the Objection it stood in
+         * for; an Objection is raised on the primary GM (`objectOnPrimary`), which asks the pair through the two
+         * questions without their words (trial-floor.mjs `objectionOpen`, `mayObjectTo`), and the button's preview
+         * (`objectionButtonState`) asks the floor's.
          */
+        ok(/export function objectionOpen\([^{]*\{\s*return floorRefusal\(floor\) === null;/.test(floorSrc)
+            && /export function mayObjectTo\([^{]*\{\s*return targetRefusal\(objectorId, targetId, floor\) === null;/.test(floorSrc),
+            "objectionOpen or mayObjectTo stopped being the two refusals' questions, so the primary judges an Objection by another rule");
+        const raise = bodyOf(trialSrc, "export async function objectOnPrimary", { until: "export async function evidenceOnPrimary" });
+        ok(raise.includes("objectionOpen(") && raise.includes("mayObjectTo("),
+            "the primary GM's Objection stopped asking the floor rule or the target rule");
+        const preview = bodyOf(trialSrc, "export async function objectionButtonState", { until: "export async function repointDialog" });
+        ok(preview.includes("floorRefusal(") && preview.includes("objectionOpen("),
+            "OBJECTION!'s preview stopped asking the floor rule, so the button promises what the primary refuses");
         const dialog = bodyOf(trialSrc, "export async function presentDialog", { until: "export async function presentBullet" });
-        const offer = bodyOf(dialog, "const offerPresent", { until: ";" });
-        ok(/!floorBlock/.test(offer), "the free Present is offered while the floor itself is blocked");
-        ok(offer.includes('"noPrice"'),
-            "the free Present is offered to characters who are quoted no price at all");
-
-        /*
-         * ENTER MUST HAVE SOMEWHERE TO GO. DialogV2 renders every footer button as a
-         * submit, and implicit submission from the target select aims at the FIRST
-         * one in tree order - a disabled first button kills Enter outright rather
-         * than falling through to the next.
-         *
-         * So the array that answers a price block leads with the free Present: it is
-         * enabled, it carries `default: true`, and it is what Enter from the select
-         * should do anyway. The ordinary array's first button is `disabled: stopped`
-         * and that is right - every case that sets `stopped` there renders the
-         * "nobody to aim at" note or no fieldset at all, so there is no select for
-         * Enter to come from.
-         */
-        const firstButton = bodyOf(dialog, "buttons: (offerPresent ? [", { until: "}" });
-        ok(!/disabled:/.test(firstButton),
-            "the free Present is disabled, which kills Enter from the target select");
-        ok(/default: true/.test(firstButton),
-            "the free Present is not the default, so Enter presses a greyed OBJECTION");
+        ok(!/offerPresent|objection/i.test(dialog.replace(/presentBullet\(actor, item, \{ comment \}\)/, "")),
+            "the sheet's window still offers an Objection or the free Present that stood in for one");
 
         // The question alone, never the one that toasts: a window opening with no
         // GM connected must not warn every player who opens it (audit A16).
@@ -5349,7 +5342,8 @@ const REGRESSIONS = [
         const unread = written.flatMap(([kind, paths]) => paths.filter(p => p.read !== "read").map(p => `${kind} at ${p.path} (${p.read})`));
         ok(!unread.length, `the module writes what the dump does not read: ${unread.join("; ")}`);
 
-        for (const row of ENFORCED) foreign.add(`${row.module}.${row.key}`);
+        // A user flag row (E79 C9, Daggerheart's welcome) holds no setting: it is held on this browser's own copy of its account.
+        for (const row of ENFORCED) if (row.kind !== "userFlag") foreign.add(`${row.module}.${row.key}`);
         ok(foreign.size >= 3, `the scan found ${foreign.size} settings of other namespaces, and there were three`);
         const missing = [...foreign].filter(full => !DUMP_FOREIGN_SETTINGS.includes(full));
         ok(!missing.length, `the module writes another namespace's setting the dump does not read: ${missing.join(", ")}`);
@@ -5629,6 +5623,12 @@ const REGRESSIONS = [
             cubAbilityRefusal: "returns",
             // E10 C2: a ballot, judged on the primary (vote.mjs), whose run passes its `{ refused }` on.
             recordBallot: "refused", ballotRefusal: "returns",
+            // E79 C7: a secret passage shown, judged on the primary (passages-gm.mjs), whose run passes its `{ refused }` on.
+            sharePassage: "refused", shareRefusal: "returns",
+            // E79 C16: an Objection raised, proved and re-pointed on the primary (trial.mjs), whose runs pass their `{ refused }` on.
+            objectOnPrimary: "refused", evidenceOnPrimary: "refused", repointOnPrimary: "refused",
+            // E79 fix r4-G2: the objector's pending Objection taken back, on the primary (trial.mjs).
+            withdrawOnPrimary: "refused",
             resolveObserve: "passes", hopeCallRefusal: "wraps"
         };
         const sources = [...await otherSources()].map(([file, raw]) => [file, stripComments(raw)]);
@@ -5889,8 +5889,14 @@ const REGRESSIONS = [
         const named = [...E.gmStoreHandles().map(h => [`the store ${h.name}`, h.spec.resetGroup]),
             ...E.gmCopyNames().map(name => [`the copy ${name}`, E.gmCopySpec(name)?.resetGroup])];
         ok(named.length >= 14, `only ${named.length} GM stores and copies are defined - the table was not read`);
-        const strays = named.filter(([, group]) => !groups.has(group)).map(([what, group]) => `${what} (${group})`);
+        /* A store no reset cuts, on purpose, with its reason (E79 C1, 14.10.2026; the E79 plan's 1b.1): a secret passage
+           is the map's and stays from season to season - who knows it is the "passages" group's (passageAccess). */
+        const UNCUT = { "the store passageMap": "a secret passage stays; who knows it is cut with the passages group" };
+        const strays = named.filter(([what, group]) => !groups.has(group) && !(group === undefined && Object.hasOwn(UNCUT, what)))
+            .map(([what, group]) => `${what} (${group})`);
         ok(!strays.length, `a reset can never cut ${strays.join(", ")}: its reset group is none the window offers`);
+        const unlisted = Object.keys(UNCUT).filter(what => !named.some(([w, group]) => w === what && group === undefined));
+        ok(!unlisted.length, `kept out of every reset, and gone or given a group since - take it off the list: ${unlisted.join(", ")}`);
         // The owner's Q4: a reset withdraws the Level Ups on offer by its cut alone, and sends nothing to draw that.
         ok(typeof E.gmCopySpec("offers")?.onCut === "function", "an owner's copy of the offers is cut by a reset and nothing draws the sheet again");
 
@@ -7159,6 +7165,9 @@ const REGRESSIONS = [
             ["tables.mjs", "wirePaneHeading", "gone", "a pool table, deleted"],
             ["tables.mjs", "wirePaneRows", "result", "a pool table's result and its flags"],
             ["tables.mjs", "createPoolFrom", "RollTable", "a new pool table"],
+            ["trial.mjs", "objectOnPrimary", "message", "an Objection's own card, taken back when the floor did not move (E79 C16; a bridge run, on the primary GM)"],
+            ["trial.mjs", "evidenceOnPrimary", "message", "an Objection's card, filled with its Truth Bullet (E79 C16; a bridge run, on the primary GM)"],
+            ["trial.mjs", "repointOnPrimary", "message", "an Objection's card, its target's line rewritten (E79 C16; a bridge run, on the primary GM)"],
             ["utils.mjs", "privately", "ChatMessage", "a whispered chat card"]
             // vault.mjs applyRoomRows's "region" row went with E12 C2a: Room Setup writes a room's flags
             // through `updateRoom`, which is gated on a GM's client.
@@ -7551,7 +7560,21 @@ const REGRESSIONS = [
             ["SOCKET vote.mjs#onBallotOpened#picks", "out of scope: a GM -> player packet (vote.mjs:214-215); the window draws as many lists as it says, and since C2 the primary holds the answer to the vote's own count (`ballotRefusal`, wrongCount) [F5]"],
             ["SOCKET gm-bridge.mjs#onAdvancementOffers#offers", "out of scope: the primary's reply to an owner; `replyForMe` checks a GM sender and the address, and `receiveOffers` keeps only the receiver's own characters with a known kind (level-up.mjs:199) [F7]"],
             ["SOCKET gm-bridge.mjs#onAdvancementOffers#stamps", "out of scope: the primary's reply to an owner; `replyForMe` checks a GM sender and the address, and `receiveOffers` keeps only the receiver's own characters with a known kind (level-up.mjs:199) [F7]"],
-            ["CHAT trial.mjs#registerTrial", "judged: a Present card's popup shows only when the author is a GM or owns the speaker and it holds the item (trial.mjs ~534-553); an objection acts on the primary only and `seizeFloor` re-judges it (author owns the objector, `itemAsHeld`, `floorRefusal`/`targetRefusal`), refused and told on the card; since C16 a dead objector too (`flagsAsHeld`) [F4 read road]"],
+            ["CHAT trial.mjs#registerTrial", "judged: a Present card's popup shows only when the author is a GM or owns the speaker and it holds the item (trial.mjs ~534-553); an objection acts on the primary only and `seizeFloor` re-judges it (author owns the objector, `itemAsHeld`, `floorRefusal`/`targetRefusal`), refused and told on the card; since C16 a dead objector too (`flagsAsHeld`) [F4 read road]. Since E79 C16 a player-authored objection card raises no popup and goes to `refusePlayersCard`; a GM's pending card waits for `objectOnPrimary`'s floor, and its redraw (`updateChatMessage`) follows a GM's card only"],
+            ["CHAT trial.mjs#refusePlayersCard", "judged (E79 C16): the primary marks a player-authored objection card refused and tells its character's owner (the author owns it: `objectionByButton`; else `objectionNotYours`); it pays nothing and moves no floor - the card's flags are claims and none is read for a write"],
+            ["CHAT trial.mjs#repointOnPrimary", "judged (E79 C16): `floor.repoint` is gmOnly; the target a living student as the GMs hold it (`livingStudentsForGm`) that `mayObjectTo` allows; the card's presenter flag is read only to redraw its line, the GMs' own card"],
+            ["CHAT trial.mjs#withdrawObjectionCard", "out of scope (E79 C16, fix r4-G2): a GM's write of the GMs' own pending card when its floor is replaced (trial-floor.mjs `withdrawReplaced`: the lapse, Back to debate, a closed floor, the trial's end, the objector's `trial.withdraw`) or its fill failed (`unfill`); its flags are the ones `objectOnPrimary` wrote"],
+            ["SHEET trial.mjs#objectOnPrimary", "judged (E79 C16): `trial.object`'s run on the primary - knownSender + owns(actorId); the objector's death through `flagsAsHeld` and its bullets through `itemsAsHeld` before anything is paid; the target the primary's Room counts (`objectionTarget`, `speakingStudent`) or, with no Room, `livingStudents` (the table's living) with `mayObjectTo`, and a press naming nobody answered `needName` with nothing paid (fix r4-G1); the packet's `targetId` read only then [1b.2, F4]"],
+            ["SHEET trial.mjs#nameObjectionTarget", "out of scope: the objector's own browser (R4): the list of whom to name when the primary answers `needName` (`livingStudents`, a courtesy); the primary judges the name (`objectOnPrimary`)"],
+            ["SHEET trial-speakers.mjs#speakingStudent", "judged in part (E79 C16): who a speaker stands for, on the primary at the read - a student the account owns, no Monokuma or Monocub, not dead by `isDeceased` (the published death: a death the GMs keep is not told, fix r4-G1), never spoken by an account that owns the objector (`objectionTarget`); a death flag a player's write took off the document stands until the sheet audit puts it back, the same class as `applyFinalVerdict`'s, left to E40"],
+            ["PACKET gm-bridge.mjs#trial.object#actorId", "judged (E79 C16): knownSender + owns(actorId); `objectOnPrimary` reads the character as the GMs hold it"],
+            ["PACKET gm-bridge.mjs#trial.object#targetId", "judged (E79 C16): read only with no voice Room on the primary, then a student alive as the table knows it (`livingStudents`, fix r4-G1) whom `mayObjectTo` allows, and none named answered `needName`, nothing paid; with a Room never read - the Room's speaker is the target (`objectionTarget`)"],
+            ["PACKET gm-bridge.mjs#trial.evidence#actorId", "judged (E79 C16): knownSender + owns(actorId); the floor must be that character's pending Objection on its card, inside its seconds (`pendingFor`)"],
+            ["PACKET gm-bridge.mjs#trial.evidence#itemId", "judged (E79 C16): a Truth Bullet as the GMs hold it (`itemAsHeld` + `isTruthBullet`), drawn on the card from what its holder knows (`holderView`)"],
+            ["PACKET gm-bridge.mjs#trial.evidence#comment", "judged (E79 C16): `as.text`, refused past a player's words (`noteTooLong`), escaped on the card"],
+            ["PACKET gm-bridge.mjs#trial.withdraw#actorId", "judged (E79 fix r4-G2): knownSender + owns(actorId); the floor must be that character's pending Objection (`withdrawObjection`, `pendingFor`)"],
+            ["PACKET gm-bridge.mjs#trial.withdraw#messageId", "judged (E79 fix r4-G2): the card of the objector's own Objection on the floor the primary holds, still pending (`pendingFor`); any other changes nothing"],
+            ["PACKET gm-bridge.mjs#floor.repoint#targetId", "judged (E79 C16): gmOnly; a living student as the GMs hold it whom `mayObjectTo` allows (`repointOnPrimary`)"],
             ["CHAT trial.mjs#seizeFloor", "judged: the card's flags are claims; the objector's death through `flagsAsHeld` (C16) and the item through `itemAsHeld` (E29), both before anything is paid, then the synchronous refusals [1b.2]"],
             ["CHAT trial.mjs#presentedThisChapter", "out of scope: a GM's log of the chapter's Present and Objection cards (trial.mjs:778, 798, GM only); a display, feeds no write"],
             ["SHEET events.mjs#bodyCard", "out of scope for the trial: the Investigation's body card (every client, display) draws only the bodies dead as the GMs hold them (`isDeceased` of `flagsHeldNow`), since E11 fix r1-G2; R346 judges it"],
@@ -7564,8 +7587,8 @@ const REGRESSIONS = [
             ["SHEET vote.mjs#executeSentenced", "judged (C5, fix r1-G4): each execution awaits `judgedFor(id)`, reads `flagsHeldNow(actor)` and, with nothing awaited after that read (H3), calls `killCharacter`, whose own head check is `isDeadForGm`, or for a death the GMs hold and nobody has found `publishDeath`, whose head reads the GMs' row (Q-E10-2 (a)); one the table knows dead is passed over, not killed twice; `killCharacter` is told `secret: false`, so an execution is public, an open incident's living victim's too (fix r2-G3), and `phase: \"classTrial\"` on both branches, so a verdict given after End the trial is no body to discover (E11 fix r1-G1) [1b.2]"],
             ["SHEET level-up.mjs#buildDetail", "out of scope: the picker's display on the player's own browser (R4); the GM decides in `handleAdvancement` [1b.2]"],
             ["SHEET level-up.mjs#applyAdvancement", "judged (C8): one `meansWrite` from `numberHeld` (E29 r2-H24/H25); a statistic not among TRAITS, an experience to raise with none named, or one not on the sheet the GMs hold (read in the job) stops the whole Level Up, nothing written; the `actor.system.experiences[id].name` read is a label in the GM's summary; R318 pins it [1b.2]"],
-            ["SHEET trial.mjs#presentDialog", "out of scope: the presenter's own browser (R4): the window's target list and, since C16, a dead presenter refused before it opens (document `isDeceased`, a courtesy); `seizeFloor` judges on the primary"],
-            ["SHEET trial.mjs#presentBullet", "out of scope: the presenter's own browser (R4): since C16 a dead presenter's card is refused on the API's road (document `isDeceased`); an Objection is judged by `seizeFloor` on the primary, and a Present has no GM-side judge - its popup (`registerTrial`) reads no death, left to E70's `isMutedDead`"],
+            ["SHEET trial.mjs#presentDialog", "out of scope: the presenter's own browser (R4): since C16 a dead presenter refused before it opens (document `isDeceased`, a courtesy); since E79 C16 a Present only, with no target list"],
+            ["SHEET trial.mjs#presentBullet", "out of scope: the presenter's own browser (R4): since C16 a dead presenter's card is refused on the API's road (document `isDeceased`); since E79 C16 an Objection only on a GM's browser, judged by `seizeFloor` on the primary, and a Present has no GM-side judge - its popup (`registerTrial`) reads no death, left to E70's `isMutedDead`"],
             ["SHEET trial.mjs#seizeFloor", "judged (C16): a dead objector is refused and told on the primary - `isDeceased(await flagsAsHeld(actor))` before the item and the synchronous `floorRefusal`/`targetRefusal`, nothing paid [1b.2, F4]"],
             ["SHEET sheet.mjs#addPresentButton", "out of scope: a display on the sheet's own browser (R4, C16): no Present button for a dead student (document `isDeceased`)"],
             ["SHEET trial-floor-ui.mjs#startClassTrial", "judged (C12): who is alive for 'nobody for the trial' is read as the GMs hold it - `isDeceased(flagsHeldNow(actor))` in one synchronous pass after `judgedFor` of every student, as `eligibleVoters`; the card's budget line after the write still counts `livingStudents()` (a display, R4) [1b.2]"],
@@ -7582,10 +7605,11 @@ const REGRESSIONS = [
             ["STORE gm-stores.mjs#offerStore", "not a source: a GM store the primary writes (`recordOffer`, `dropOffer`); a row is a list per character since C6, a 1.2.70 row read as a list of one (`offerList`) [F7]"],
             ["STORE gm-stores.mjs#deferredOfferStore", "not a source: a GM store [F7]"],
             ["STORE gm-stores.mjs#verdictStore", "not a source (fix r1-G1): a GM store (`gmVerdict`) `applyVerdict` writes - the verdict's `at` and the Blackened its GM named - and `finishVerdict` reads; never sent to a player"],
-            ["STORE settings.mjs#trialQueue", "not a source: a world setting only a GM writes; since C16 a sheet's Present reads `trialQueue.active` on render (`addPresentButton`) and on change (`repaintPresentButtons`, from `SYNC.trial`)"]
+            ["STORE settings.mjs#trialQueue", "not a source: a world setting only a GM writes; since E79 C16 it holds a pending Objection's `pending` and `messageId` as well, written by the primary (`openObjection`, `fillObjection`, the lapse) and read by OBJECTION! and the console as a display"]
         ];
-        const ROADS = /^(?:vote|advancement)\./;
-        const FILES = ["vote.mjs", "level-up.mjs", "trial.mjs", "trial-floor.mjs", "trial-floor-ui.mjs", "events.mjs", "mastermind.mjs"];
+        // `trial.*` and `floor.repoint` since E79 C16: the Objection raised, proved and re-pointed on the primary.
+        const ROADS = /^(?:(?:vote|advancement|trial)\.|floor\.repoint$)/;
+        const FILES = ["vote.mjs", "level-up.mjs", "trial.mjs", "trial-floor.mjs", "trial-floor-ui.mjs", "events.mjs", "mastermind.mjs", "trial-speakers.mjs"];
         const NAMED = { "character.mjs": ["stampStartingSheet"], "gm-bridge.mjs": ["handleAdvancement", "handleAdvancementOffer", "askForOffers", "onAdvancementOffers"],
             "sheet.mjs": ["addPresentButton", "injectAdvanceButton"], "chapter.mjs": ["livingStudents", "killCharacter", "openChapterEndDialog"],
             "season-setup.mjs": ["wipeStudent"], "clock.mjs": ["reconcilePhase"] };
@@ -8080,6 +8104,7 @@ const REGRESSIONS = [
             ["HOOK fog.mjs#registerFog#createToken:inline", "out of scope: a token dropped redraws the fog on every client; no rule"],
             ["HOOK room-tile.mjs#registerRoomTile#createRegion:onRegionChanged", "out of scope: repaints this client's room tile (E77 C3); the paint reads `viewerRoom` and decides no rule"],
             ["HOOK room-tile.mjs#registerRoomTile#updateRegion:onRegionChanged", "out of scope: repaints this client's room tile (E77 C3); the paint reads `viewerRoom` and decides no rule"],
+            ["HOOK room-tile.mjs#registerRoomTile#updateScene:inline", "out of scope: repaints this client's room tile when the trial hall's `hallRoom` flag changes (E79 C11); the paint reads `hallRoom` and decides no rule"],
             ["HOOK room-tile.mjs#registerRoomTile#deleteRegion:onRegionChanged", "out of scope: repaints this client's room tile (E77 C3); the paint reads `viewerRoom` and decides no rule"],
             ["HOOK movement.mjs#registerMovement#preUpdateToken:onPreUpdateToken", "a claim, judged again: the veto runs on the mover's browser (a GM returns early); since E12 C9 it sees a `level`-only move (`isMoveChange`), reads each end on its own floor (`roomAt` per level) and links floors by the stairs alone where a scene has them (`stairLinks`); since E12 C12 the primary judges every arrival again from the last lawful room (`judgeArrival`), and one it refuses is no witness and no third party until it stands somewhere lawful (Q3 a); scenario 66 I [1b.1 a token's room / floor] MARKED"],
             ["HOOK movement.mjs#registerMovement#updateToken:onUpdateToken", "the charge on one client (`settleRoute`: the owning player's, else the primary's) - a player's own budget; since E12 C9 it gates on `isMoveChange` and prices a step by `crossingCost`: the stairs a door, a stairwell's floors free (Q1 a) [1b.1 a token's floor]"],
@@ -8109,7 +8134,8 @@ const REGRESSIONS = [
             ["SHEET chapter.mjs#witnessesOf", "judged held where its caller passes `held` (`checkBodyFound`: `flagsHeldNow`; the default `held = actor => actor` reads the document); since E12 C12 `checkBodyFound` passes the standing through `roomOf` (`lawfulRoomOf`), the read still one synchronous step (H3, H17); since E12 fix r2-H3 one token a student counts"],
             ["SHEET movement.mjs#isCorpse", "out of scope: `isDeadForGm` (the GM's record) and the Monocub flag on the document (movement.mjs:264-265), on the mover's browser; E12 changes neither"],
             ["SHEET movement.mjs#crossingVerdict", "a claim on the mover's browser, judged again on the primary: exported since E12 C9 with the floor of each end (the stairs rule, `crossingRefused`); since E12 C12 `judgeArrival` asks it of the student as the GMs hold it (`flagsHeldNow`, `itemsHeldNow`, one synchronous step), with the mover it judges and no price (`pay: false`) [1b.2] MARKED"],
-            ["SHEET movement.mjs#restrictedFrom", "the restriction flags and the bedroom keys of the student it is handed: the document on the mover's browser, as the GMs hold it from `judgeArrival` since E12 C12, which hands in the mover (a GM or not, the Mastermind or not) rather than this browser's user [1b.2]"],
+            ["SHEET movement.mjs#restrictedFrom", "the restriction flags and the bedroom keys of the student it is handed: the document on the mover's browser, as the GMs hold it from `judgeArrival` since E12 C12, which hands in the mover (a GM or not, the Mastermind or not) rather than this browser's user; since E79 C3 `via: \"passage\"` skips the bedroom key alone, never a GM's lock, a seal, the chain or the courtroom (R558) [1b.2]"],
+            ["SHEET movement.mjs#passageOpenFor", "out of scope as a judgement: on the viewer's own browser, whether its outline draws a secret passage as a gap (fog-doorways.mjs `doorwayEdges`, never on a GM's) - the passages its own copy names and `restrictedFrom` with `via: \"passage\"` on the document; it moves nothing, and the step itself is the veto's and the primary's (E79 C3, R557)"],
             ["SHEET movement.mjs#judgeArrival", "judged on the primary: every arrival of a student's token by a non-GM, from the last lawful room the primary recorded - after a change of primary, where `gmSeen` saw the token; a drop, from that student's newest standing on the scene, else from nowhere (E12 fix r2-H3) - by `crossingVerdict` with no price; the student read held (`flagsHeldNow`, `itemsHeldNow`) in one synchronous step; a REVERT is honoured only where `sendBackRefusal` passes it; GMs told once per turn to unlawful; nothing put back (Q3 a); scenario 66 I and two tier-2 tests [1b.2] MARKED"],
             ["SHEET movement.mjs#countsAsPresent", "out of scope as a reader: the Monokuma flag and `isDeadForGm` of tokens in a room; its callers count the located scene's token documents (`othersInNamedRoom`, since E12 C3; `occupantsOf` for Listen and a Monocub's dice, since E12 fix r1-G4)"],
             ["SHEET murder-rules.mjs#registerMurder", "judged where it acts: the `updateToken` hook runs on the primary; `isDeadForGm` is the GM's record; since E12 C12 `maybeThirdParty` counts a token only in its lawful room (`lawfulRoomOf`)"],
@@ -8311,6 +8337,7 @@ const REGRESSIONS = [
             ["HOOK fog.mjs#deleteToken#arrow1", "out of scope: recomputes this client's own draw on a token write; E13's reveal and hide, and since E81 DZ6 the stage's one delete, trigger it on every client, as any GM's write does [1b.1 a hall token's hidden]"],
             ["HOOK foundry-windows.mjs#canvasReady#keepTokensLayer", "out of scope: asks this client's own Tokens layer back after a new canvas, at most once a second and never while it is active (E77 C5); a player's layer decides no rule"],
             ["HOOK glass.mjs#canvasReady#schedule", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
+            ["HOOK gm-overlay.mjs#canvasReady#arrow1", "out of scope: draws the GMs' overlay on this client only, and only a GM's browser makes it (E79 C6, R560); the scene a client views decides no rule [1b.1 which scene a client views]"],
             ["HOOK handbooks.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK hud.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK messenger-app.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
@@ -8578,6 +8605,10 @@ const REGRESSIONS = [
             ["NOTDONE calls.mjs#askReroll (3)", "a refusal in the GM's answer that carries no words of its own (`reasonOf(out.refused)`), composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE cleanup.mjs#attemptCleanup", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); a murder refusal kept like the rest (the owner's Q4), within the history's budgets, as a notDone entry (R297)"],
             ["NOTDONE cleanup.mjs#attemptStageSix", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); a murder refusal kept like the rest (the owner's Q4), within the history's budgets, as a notDone entry (R297)"],
+            ["NOTDONE gm-bridge.mjs#requestPassageShare", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E79 C7)"],
+            ["NOTDONE gm-bridge.mjs#requestObject", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the primary GM's refusal checked against `REASONS`); a refusal of an Objection kept like the rest, as a notDone entry (R297; E79 C16)"],
+            ["NOTDONE gm-bridge.mjs#requestEvidence", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the primary GM's refusal checked against `REASONS`); a refusal of an Objection's Truth Bullet kept like the rest, as a notDone entry (R297; E79 C16)"],
+            ["NOTDONE gm-bridge.mjs#requestRepoint", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the primary GM's refusal checked against `REASONS`); a GM's re-point refused kept like the rest, as a notDone entry (R297; E79 C16)"],
             ["NOTDONE monocub.mjs#performCubAbility", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE trial-floor.mjs#advanceFloorNow", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE vote.mjs#sendBallot", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
@@ -8771,6 +8802,12 @@ const REGRESSIONS = [
          * road of its own (one more row, 43) and widens MARKUP from three sinks to every one R509 names.
          * E77 C7 made the three STORE rows real: `SETTINGS.foundryWindows` exists since then.
          * E77 C8 added the last planned road, the narrow row's thumbnail (`img.src` in room-tile.mjs `paintTileRow`).
+         * E79 C11 (16.10.2026) put the trial hall on the tile: its name, picture and words, a flag of the hall scene
+         * (trial-scene.mjs `HALL_ROOM_FLAG`). READ reads `hallRoom(` too (room-tile.mjs's text, src and which,
+         * trial-scene.mjs's setup, the GM's own form), WRITER `setHallRoom(` and HOOK `updateScene`; nine rows, and the
+         * fixture a call of each and an `updateScene` hook. On C11's working tree (16.10.2026, the harness, this
+         * test alone, once) it passed: 56 roads against the 56 rows (12 READ, 10 FIELD, 8 FORM, 6 WRITER, 5 WHO, 7 HOOK,
+         * 5 SRC, 3 STORE; 47 before), none either side.
          * The reader is run first on a fixture: a call in a comment and one in a string, the reader's and the writer's
          * declarations beside calls, a second writer call in one declaration, a top-level hook outside the view files,
          * a hook of another event, a member `this.hudActor(` and the declaration of `hudActor`, a quoted "img:${", the
@@ -8783,6 +8820,9 @@ const REGRESSIONS = [
             ["WRITER api.mjs#DrpgApi -> src", "`image` passes the spread to `setVaultRoom`, which writes for a GM only, through `safeRoomImage`; a refused path is not written and the GM is told (`imageRefused`)"],
             ["WRITER vault.mjs#applyRoomRows -> text", "Room Setup is the GM's, and `setVaultRoom` writes for a GM only; the description is trimmed (`readRoomSetupForm`) and stored as a string"],
             ["WRITER vault.mjs#applyRoomRows -> src", "Room Setup's picture is judged by `safeRoomImage` before the row is compared: a refused path is not handed on and the GM is told which room (`imageRefused`)"],
+            // E79 C11: the trial hall's name, picture and words, a flag of the hall scene (trial-scene.mjs `HALL_ROOM_FLAG`; R583)
+            ["WRITER trial-scene.mjs#applyScenesTab -> text", "the Scenes tab's Apply, a GM's (`if (!game.user?.isGM || !read) return null`), and `setHallRoom` writes for a GM only: the name and the words as trimmed strings, drawn later as text only (R583)"],
+            ["WRITER trial-scene.mjs#applyScenesTab -> src", "`setHallRoom` writes the picture only as `safeRoomImage` gives it; a refused path is not written, the old one stays and the GM is told (`imageRefused`; R583)"],
             ["FIELD vault.mjs#setVaultRoom#description -> text", "the writer, GM only, `String(description ?? \"\")`; whether a player can write a region's flags by another road in v14 is not measured (LIVE-E12-04), so every reader takes the text as untrusted"],
             ["FIELD vault.mjs#pieceData#description -> text", "the list of flags a renamed piece carries; nothing is drawn"],
             ["FIELD vault.mjs#setVaultRoom#image -> src", "the one writer, GM only: `safeRoomImage(image)` at the write, null clears; whether a player can write a region's flags by another road in v14 is not measured (LIVE-E12-04), so the reader checks again"],
@@ -8809,16 +8849,24 @@ const REGRESSIONS = [
             ["READ room-tile.mjs#roomFacts#roomDescription -> which", "the room and scene `viewerRoom` gives: the viewer's own token's, at the spot its last settled route left it (R504, scenario 66 W1)"],
             ["READ room-tile.mjs#roomFacts#roomImage -> src", "`roomImage` answers `safeRoomImage` of the stored value on every read, null when refused (R504 reads a refused value as null)"],
             ["READ room-tile.mjs#roomFacts#roomImage -> which", "as the description: the viewer's own room on its own scene (R504, scenario 66 W1)"],
+            ["READ room-tile.mjs#tileView#hallRoom -> text", "the hall's name and words, handed to `hallView` as strings; the tile sets them as text only (R509, R582)"],
+            ["READ room-tile.mjs#tileView#hallRoom -> src", "`hallRoom` answers `safeRoomImage` of the stored value on every read, and `hallView` and the paint judge it again (R582 reads another host's and a `javascript:` picture as none)"],
+            ["READ room-tile.mjs#tileView#hallRoom -> which", "the hall linked as the trial hall (`trialScene()`), the same for every viewer, and only while `viewerRoom` says `trial` (scenario 41 N6)"],
+            ["READ trial-scene.mjs#setHallRoom#hallRoom -> setup", "the picture kept when a new one is refused: `hallRoom`'s, judged; not drawn"],
+            ["READ trial-scene.mjs#hallRoomFields#hallRoom -> setup", "the Scenes tab's three fields, the GM's own form: every value `esc`, the picture as `hallRoom` judged it"],
+            ["READ trial-scene.mjs#applyScenesTab#hallRoom -> setup", "the before-state the Apply compares the fields against (`hallRoomWrite`); not drawn"],
             // ---- whose room
             ["WHO explain.mjs#roomBlock#subjectActor -> which", "a player's `viewerActor()` only; a GM's selected token first, then their Monokuma (E77 C2; R509 reads the shape)"],
             ["WHO explain.mjs#openStatusExplainer#subjectActor -> which", "the counters of the same actor; no room text"],
             ["WHO explain.mjs#subjectActor#viewerActor -> which", "the one viewer rule (hud.mjs `viewerActor`): the assigned character, else the one owned student, else the GM's Monokuma"],
             ["WHO room-tile.mjs#viewerRoom#viewerActor -> which", "the viewer's own character and no other actor (R509; scenario 66 W1 on the GM and two players)"],
             ["WHO room-tile.mjs#registerRoomTile#viewerActor -> which", "the settle hook repaints for the viewer's own token only (`tokenDoc.actorId !== viewerActor()?.id` returns; R506), and what it paints is `viewerRoom`'s"],
-            ["HOOK movement.mjs#onUpdateToken#callAll -> which", "`drpgRouteSettled` is client-local and carries the token; fired once a route's position is final, a refusal's only when its put-back lands (R506, scenario 66 W2-W4); on the browser that settles the route, and since E77 fix r1-G2 on every other that owns the token once its put-back lands or the token is quiet (`untilQuiet`; scenario 74 C1-C4, 66 W2); a listener paints only its own viewer's token"],
+            ["WHO hud.mjs#objectionControl#viewerActor -> which", "the OBJECTION! button of a player's trial row: the viewer's own student and no other actor (R509); the speaker it is aimed at is the primary GM's, not read here (R591; E79 C16)"],
+            ["HOOK movement.mjs#onUpdateToken#callAll -> which", "`drpgRouteSettled` is client-local and carries the token and the room its update names; fired on the update that names a route's end, never while a put-back is on its way, which is announced when it lands (R506, scenario 66 W2-W4, N13, 76 D N13); on the browser that settles the route, and since E77 fix r1-G2 on every other that owns the token - at once for a route of one update since E79 C14, else once its put-back lands or the token is quiet (`untilQuiet`; scenario 74 C1-C4, 66 W2, N13a); once more, `again`, only where the token rests in another room; a listener paints only its own viewer's token"],
             ["HOOK hud.mjs#registerHud#canvasReady -> which", "a repaint; the event chooses no room"],
             ["HOOK room-tile.mjs#registerRoomTile#drpgRouteSettled -> which", "the viewer's own token's settled route only, after its put-back when refused (R506; scenario 74 B reads one paint and nothing of a refused room at 400 and 1200 ms)"],
             ["HOOK room-tile.mjs#registerRoomTile#canvasReady -> which", "a repaint of `viewerRoom`; the event chooses no room"],
+            ["HOOK room-tile.mjs#registerRoomTile#updateScene -> which", "a repaint when the module's `hallRoom` flag of the linked hall changes (E79 C11); the event chooses no room, `tileView` does (scenario 41 N6)"],
             ["HOOK room-tile.mjs#registerRoomTile#updateRegion -> which", "a repaint of `viewerRoom` (a GM's edit of the room's words or picture, or of its shape); the event chooses no room (scenario 74 A)"],
             ["SRC room-tile.mjs#paintRoomTile#url -> src", "the art layer's `background-image`, only from `safeRoomImage` of the view's path, checked again at the paint, inside a CSS string whose quote, backslash and line breaks are escaped (`cssString`); R505 paints a `javascript:` picture as none"],
             ["SRC room-tile.mjs#openRoomImage#src -> src", "the probe that decodes the picture before the window opens, only from `safeRoomImage` of the path (R505)"],
@@ -8834,12 +8882,13 @@ const REGRESSIONS = [
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
         const VIEW_FILES = /^(?:hud|explain|room-tile|narrow)\.mjs$/, PAINT_FILES = /^(?:room-tile|narrow|foundry-windows)\.mjs$/;
         const WHO_FILES = /^(?:hud|explain|room-tile)\.mjs$/;
-        const REPAINTS = /\bHooks\.(?:on|once)\(\s*["'](updateToken|drpgRouteSettled|canvasReady|controlToken|updateRegion|updateUser|updateActor|renderSceneControls)["']|\bHooks\.callAll\(\s*["'](drpgRouteSettled)["']/g;
+        const REPAINTS = /\bHooks\.(?:on|once)\(\s*["'](updateToken|drpgRouteSettled|canvasReady|controlToken|updateRegion|updateScene|updateUser|updateActor|renderSceneControls)["']|\bHooks\.callAll\(\s*["'](drpgRouteSettled)["']/g;
         const STORE_SOURCES = ["self", "console", "stale"];
         // E77 fix r1-G1 (round 1's sec F4): every sink that parses a string as markup, not only the first three - R509's net.
         const MARKUP_SINKS = /\.\s*(innerHTML|outerHTML)\s*[+]?=(?![=>])|\b(insertAdjacentHTML|enrichHTML|setHTMLUnsafe|setHTML|createContextualFragment|parseFromString|parseHTMLUnsafe|renderTemplate)\s*\(|\.\s*(html)\s*\(|\bnew\s+(DOMParser)\b/g;
         const sinksOf = (kind, file, field) => kind === "FIELD" ? { description: ["text"], image: ["src"] }[field]
             : kind === "FORM" ? { desc: ["setup", "text"], img: ["setup", "src"] }[field]
+            : kind === "READ" && field === "hallRoom" ? (file === "room-tile.mjs" ? ["text", "src", "which"] : ["setup"])
             : kind === "READ" ? ({ "movement.mjs": ["card", "which"], "explain.mjs": ["explain", "which"] }[file] ?? (field === "roomImage" ? ["src", "which"] : ["text", "which"]))
             : kind === "SRC" && field === "ImagePopout" ? ["src", "text"]
             : { WRITER: ["text", "src"], WHO: ["which"], HOOK: ["which"], SRC: ["src"], MARKUP: ["text"], STORE: ["place"] }[kind];
@@ -8861,11 +8910,11 @@ const REGRESSIONS = [
                     return hook ? `Hooks.on(${hook[1]})` : "(top level)";
                 };
                 const declared = at => /\bfunction\s*\*?\s*$/.test(blank.slice(Math.max(0, at - 24), at));
-                for (const m of blank.matchAll(/(?<![\w$])(roomDescription|roomImage|setVaultRoom|hudActor|viewerActor|subjectActor)\s*\(/g)) {
+                for (const m of blank.matchAll(/(?<![\w$])(roomDescription|roomImage|setVaultRoom|hallRoom|setHallRoom|hudActor|viewerActor|subjectActor)\s*\(/g)) {
                     if (declared(m.index)) continue;
                     const decl = declAt(m.index), name = m[1], member = /\.\s*$/.test(blank.slice(Math.max(0, m.index - 8), m.index));
-                    if (name === "setVaultRoom") { if (!(file === "vault.mjs" && decl === name)) add("WRITER", file, decl, null); }
-                    else if (name === "roomDescription" || name === "roomImage") { if (!(file === "vault.mjs" && decl === name)) add("READ", file, decl, name); }
+                    if (name === "setVaultRoom" || name === "setHallRoom") { if (!(file === "vault.mjs" && decl === name)) add("WRITER", file, decl, null); }
+                    else if (name === "roomDescription" || name === "roomImage" || name === "hallRoom") { if (!(file === "vault.mjs" && decl === name)) add("READ", file, decl, name); }
                     else if (!member && WHO_FILES.test(file)) add("WHO", file, decl, name);
                 }
                 for (const m of blank.matchAll(/(?<![\w$.])VAULT_FLAGS\s*\??\.\s*(description|image)\b/g)) add("FIELD", file, declAt(m.index), m[1]);
@@ -8906,10 +8955,10 @@ const REGRESSIONS = [
         const planted = censusOf([
             ["vault.mjs", "// roomDescription(\"a comment is no road\");\nexport function roomDescription(room, scene) {\n    return roomFlag(scene, room, VAULT_FLAGS.description) ?? \"\";\n}\n"
                 + "export async function setVaultRoom(room, { description } = {}) {\n    if (!game.user.isGM) return null;\n}\n"],
-            ["planted.mjs", "export function shown(room, scene) {\n    const said = \"roomDescription(\";\n    return roomDescription(room, scene) + game.drpg.roomImage(room, scene);\n}\n"
-                + "async function kept(room) {\n    await setVaultRoom(room, {});\n    await game.drpg.setVaultRoom(room, {});\n}\n"
+            ["planted.mjs", "export function shown(room, scene) {\n    const said = \"roomDescription(\";\n    return roomDescription(room, scene) + game.drpg.roomImage(room, scene) + hallRoom(scene).name;\n}\n"
+                + "async function kept(room) {\n    await setVaultRoom(room, {});\n    await game.drpg.setVaultRoom(room, {});\n    await setHallRoom(room, {});\n}\n"
                 + "const cell = room => `<textarea name=\"desc:${room}\"></textarea>` + \"img:${room}\";\n"],
-            ["hud.mjs", "export function registerHud() {\n    Hooks.on(\"updateToken\", () => paint(hudActor()));\n    Hooks.on(\"updateSetting\", () => paint());\n}\n"
+            ["hud.mjs", "export function registerHud() {\n    Hooks.on(\"updateToken\", () => paint(hudActor()));\n    Hooks.on(\"updateSetting\", () => paint());\n    Hooks.on(\"updateScene\", () => paint());\n}\n"
                 + "function hudActor() {\n    return game.user.character;\n}\nfunction paint(actor = this.hudActor()) {}\n"],
             ["movement.mjs", "export function settleRoute(tokenDoc) {\n    Hooks.callAll(\"drpgRouteSettled\", tokenDoc);\n}\n"
                 + "Hooks.on(\"canvasReady\", () => roomDescription(\"Hall\", canvas.scene));\n"],
@@ -8919,10 +8968,11 @@ const REGRESSIONS = [
         equal(JSON.stringify(planted), JSON.stringify([
             "FIELD vault.mjs#roomDescription#description -> text",
             "READ planted.mjs#shown#roomDescription -> text", "READ planted.mjs#shown#roomDescription -> which",
-            "READ planted.mjs#shown#roomImage -> src", "READ planted.mjs#shown#roomImage -> which",
+            "READ planted.mjs#shown#roomImage -> src", "READ planted.mjs#shown#roomImage -> which", "READ planted.mjs#shown#hallRoom -> setup",
             "WRITER planted.mjs#kept -> text", "WRITER planted.mjs#kept -> src", "WRITER planted.mjs#kept (2) -> text", "WRITER planted.mjs#kept (2) -> src",
+            "WRITER planted.mjs#kept (3) -> text", "WRITER planted.mjs#kept (3) -> src",
             "FORM planted.mjs#cell#desc -> setup", "FORM planted.mjs#cell#desc -> text",
-            "WHO hud.mjs#registerHud#hudActor -> which", "HOOK hud.mjs#registerHud#updateToken -> which",
+            "WHO hud.mjs#registerHud#hudActor -> which", "HOOK hud.mjs#registerHud#updateToken -> which", "HOOK hud.mjs#registerHud#updateScene -> which",
             "READ movement.mjs#Hooks.on(canvasReady)#roomDescription -> card", "READ movement.mjs#Hooks.on(canvasReady)#roomDescription -> which",
             "HOOK movement.mjs#settleRoute#callAll -> which",
             "SRC room-tile.mjs#paintRoomTile#url -> src", "SRC room-tile.mjs#paintRoomTile#ImagePopout -> src", "SRC room-tile.mjs#paintRoomTile#ImagePopout -> text",
@@ -9064,6 +9114,8 @@ const REGRESSIONS = [
          * listening whom the viewer cannot see", which the WORLD row did not judge - it judges the dock's sound, and the
          * dock's camera views were the only thing that showed a silent listener. LISTEN is the suite's own: the parse-only
          * census (S/e78-design/census.mjs) does not read it, so the key-by-key comparison holds for the other fourteen.
+         * E79 C15 (16.10.2026, 1.2.79) added one HOLD row: the state word's hold, keyed `voiceWatch`, whose default asks
+         * `micHold` as if connected - the word reads the connection off the Room the watch follows (R588).
          * It reads names and text, not data flow, as the parse-only census does: a name handed to a helper the kinds
          * do not list is judged at the call, and which participant avclient-livekit maps to which user is no reading
          * of this module's source at all (only a table settles it: the owner's T1). One place where it reads more than the census: a template's
@@ -9089,12 +9141,14 @@ const REGRESSIONS = [
             // ---- the voice tile (voice-tile.mjs, E78 C3) and its two settings
             ["PEER voice-tile.mjs#participantUser -> which", "only a remote participant this client's own LiveKit Room holds (the viewer's own and anybody the Room does not hold is nobody); the user is avclient-livekit's mapping (external), and a participant with no user of this world is not drawn (R535)"],
             ["SPEAK voice-tile.mjs#attachRoom -> which", "the own Room's `activeSpeakersChanged` only, never `settings.activity`; every listener leaves the old Room before the new one is attached, and an event of a Room the watch no longer follows changes nothing (R535, R540)"],
+            ["SPEAK trial-speakers.mjs#attachSpeakers -> which", "the primary GM's own Room's `activeSpeakersChanged` only, never `settings.activity`; the old Room's listeners leave before the new one is attached and an event of a Room no longer followed changes nothing; it aims an Objection and paints nothing (R590, R591; E79 C16)"],
             ["WHO voice-tile.mjs#paintSpeaker#voiceIdentity -> *", "the name as `textContent`; the portrait, a path the speaker's own account sets (their character's `img`, which its owner writes, or their avatar), only through `voicePortrait` - the first of the two `safeRoomImage` accepts (vault.mjs, the room tile's check: this page's files, or on The Forge its Assets Library) - and `cssString` into the art layer's `url()`; none accepted draws no portrait (R542 names the actor, R536 the paint, R546 The Forge and the second candidate)"],
             ["SRC voice-tile.mjs#paintSpeaker#url -> src", "the path `safeRoomImage` gave, inside a CSS string `cssString` escapes; never a URL from a packet"],
             ["STORE settings.mjs#voicePeerMutes#self -> volume", "this browser's own 'Mute for me', a client setting read and written only by the list (E78 C5): a mute is the volume set to 0 with the volume before kept here, so it moves only this browser's sound (R538)"],
             ["STORE settings.mjs#voicePeerMutes#console -> volume", "`peerMutes` clamps on read: an object only, ids that are users of this world, volumes that are numbers clamped to 0..1; anything else is no mute, and a mute counts only while the volume is 0 (R538)"],
             ["STORE settings.mjs#voicePeerMutes#stale -> volume", "`peerMutes` skips an id that is not a user of this world on read, and the next write is of the read record, so it drops it (R538)"],
             // ---- E78 C4: the microphone button (voice-tile.mjs)
+            ["HOLD voice-tile.mjs#voiceWatch#micHold -> mic", "the state word only (E79 C15): `micHold` asked as if connected, the viewer's own facts as for the button; it moves no microphone, and its reason picks one of the words, Own window, Eclipsed or Blocked (R588)"],
             ["HOLD voice-tile.mjs#micState#micHold -> mic", "the viewer's own facts only: `micHold` reads the room the primary GM sent this browser, its own A/V state and its own characters, never GmStore (R537's spy and source reading); grey only for its `held`"],
             ["CLIENT voice-tile.mjs#toggleOwnMic -> *", "writes `users.<self>.muted` (`game.user.id`) and nothing else, on the viewer's own click or key, only in the states the viewer may change; as Foundry's own dock does (R537, R544)"],
             // ---- E78 C5: the list 'Who you hear' (voice-tile.mjs) and the gear's Voice section (voice-panel.mjs)
@@ -9245,6 +9299,539 @@ const REGRESSIONS = [
             "a voice-tile road without a census row, or a row whose road is gone: give the new one a verdict (what judges it, or the E78 commit that will) and strike the gone one");
     }],
 
+    ["R553 - a passage road has a census row, and every row judges a road", async () => {
+        /*
+         * E79 C0, 14.10.2026; R534's twin for the secret passages (census-1c.md of the E79 plan, METHOD change 1; the
+         * plan's D2 gave it this number). E79 keeps a secret passage in the GMs' store and in copies addressed to whoever
+         * may use it, cuts its wall out of the mover's own move backend and has the primary GM judge every landed move
+         * against the walls of the token's own scene. The harms: a passage, its access list or its geometry in a browser
+         * that may not know it; a move through a wall standing because a client said so (an update's option, a forged
+         * copy, a skipped veto); a lawful move sent back; and a second judge or a second road of a refusal. This test keeps
+         * the list of the roads to those: a new one fails until it has a row and a verdict, a row whose road is gone fails
+         * until it is struck. The plan's PLANNED rows are not here: each commit of E79 that writes a road moves its row in
+         * with it.
+         * A row is a pair, "<kind> <file>#<declaration>[#<field>] -> <sink>", keyed as the parse-only census of the E79 plan
+         * keys its verdicts (S/e79-design/census.mjs and census-verdicts.mjs, kept outside the repository), so the two can
+         * be compared key by key; a row ending "-> *" judges every sink of its source. One key is one road however many
+         * places of it a declaration holds. The sinks: judge (the primary GM's verdict on a move it has seen land), veto
+         * (the mover's own client refusing a move before it is sent), exempt (whether a move is let past a check), write
+         * (a GM's write of a token's position), record (the GMs' passage records), copy (what reaches a player's browser
+         * about a passage), screen (what a player's client cuts, draws or lists from what it holds), mode (whether the wall
+         * rule only notes a move or also sends the token back). Eight kinds, read live in the module's files with comments
+         * blanked, each place keyed by the top-level declaration it stands in (a top-level `Hooks.on("<event>", ...)` by its
+         * event): HOOK - every `Hooks.on` or `Hooks.once` of updateToken and createToken (judge), preUpdateToken (veto),
+         * updateWall and deleteWall (record), its field "<event>/<handler's name, or inline>"; OPT - every read of an
+         * update's option a client sets: `x[REVERT]`, `x[SENT_BACK]` (a computed key of an object literal is a write, not
+         * a read), a member `.teleport` or `.movementAction`, and the string "displace" (exempt); ACT - the strings
+         * "token.sendBack" (write), "move.sentBack" and "passage.rows" (screen), "passage.request" (copy) and
+         * "passage.share" (record and copy); IGN - a member or a key `ignoreWalls` (write); WALLS - a member `.walls` in
+         * movement-audit.mjs (judge), passages.mjs and passages-gm.mjs (screen), and in those two a member `.edges` as
+         * well, a move polygon's walls (E79 C2); SCENE - `canvas.scene` or `canvas.edges`
+         * in movement-audit.mjs (judge), which has no row and fails by design: the audit reads the token's own scene;
+         * STORE - a `defineGmStore(` (record) or `defineGmCopy(` (copy) whose spec's `name` starts with "passage"; SET -
+         * `SETTINGS.minePassages`'s three sources (the primary GM's push, a console's value, a stale copy; screen) and
+         * `SETTINGS.moveAudit`'s one (the GM's choice; mode), once each key exists.
+         * At C0 the module has 21 roads, census-1c.md's 21 pairs at 32fd204 (15 HOOK, 5 OPT, 1 ACT), none of E79's own:
+         * the hooks that read a moved token, the options a revert and the GM's fallback gather carry, and the bridge's
+         * send-back. A verdict ending "(E79 C<n>)" names the commit that changes the road. E79 C1 adds 12: the three
+         * records and the copy (STORE), the copy's three sources (SET), the ask and the copy on both ends (ACT) and the
+         * wall a GM's new passage is held to (WALLS). E79 C2 adds 1: the move polygon's walls a token's own passages cut
+         * (WALLS). E79 C5 adds 2: the primary GM's watch on a passage's wall, moved and deleted (HOOK). E79 C6 adds 1:
+         * the walls a GM's pick on the board snaps to and a broken passage is picked again on (WALLS). E79 C7 adds 1: a
+         * player's show of a passage, the bridge's packet judged on the primary GM (ACT).
+         * E79 fix r1-G4 adds 12 (15.10.2026, review r1 SEC S4: the reader knew five events, so a new handler on one that
+         * retells a player's copy or writes the access list was held to nothing). Two events of the stage's own, read in
+         * every file: drpgRouteSettled (record: the primary's revoke of a student who left the room, and the room tile's
+         * repaint) and drpgPassagesChanged (screen: the outline and the 'Known passages' page). And in the passage
+         * family's own files (FAMILY) every hook but the registration's (`ready`, `init`, `setup`) and every
+         * `onGmStoresAudible` call, each with its event's sink from FAMILY_SINKS - an event that table does not name
+         * reads "unsorted", which no row names, so a new event there fails until it is sorted and given a row.
+         * updateActor, deleteActor, clientSettingChanged and userConnected are read in the family alone: 14, 2, 14 and
+         * 11 files of scripts/ listen to them (counted 15.10.2026), and outside the family none of those handlers reads
+         * a passage's row (read in the code that day: sheet.mjs, the one of them that imports the family, forgets a
+         * Tamper and repaints a resource there). The parse-only census does not read these 12; the two are compared on
+         * the rest.
+         * E79 fix r2-G2 adds 1 (16.10.2026, review r2 O18): updateUser, a change of role, read in the family alone as the
+         * four above - 4 files of scripts/ outside it listen to it (despair.mjs, own-ring.mjs, player-status.mjs and
+         * voice-tile.mjs, counted that day) and none of them imports the family - so the 12 are 13.
+         * It reads names and text, not a syntax tree, as R534 does. Two places where it keys otherwise than the parse-only
+         * census: a road inside a named inner function or a method (the census keys it by that name, this reader by the
+         * top-level declaration), and a top-level declaration of several names (the census joins them, this reader takes
+         * the first); neither stands among the 21. What neither reads: an option taken by destructuring
+         * (`const { teleport } = options`) or by a quoted key (`options["teleport"]`), and a name handed to a helper -
+         * the audit's own test measures the audit's results (E79 C4).
+         * Measured 14.10.2026 on C0's working tree (db6c51d and these files): this reader, run in Node on every
+         * scripts/*.mjs outside the suite's own files (a probe kept with the plan, outside the repository), found the 21
+         * roads against the 21 rows, none either side - the same 21 keys as the parse-only census at the same tree,
+         * compared key by key; and each of five mutants of C0 (a row dropped, a stale key, the reader blind to the
+         * scene on screen, an option read with no row, a second updateToken hook) red by an assertion.
+         * The reader is run first on a fixture: one road of each kind, a road in a comment and one in a string, a
+         * computed key that is a write, an array after `return`, a top-level hook, a store of another name and the two
+         * settings, and (E79 fix r1-G4) a family file's hooks - one of an event FAMILY_SINKS does not sort - and a file
+         * outside the family whose updateActor and `onGmStoresAudible` are not read; then the judge on a planted table with a road without a row, a "-> *" row and a stale key.
+         */
+        const PASSAGE_CENSUS = [
+            // ---- the hooks that read a moved token
+            ["HOOK movement.mjs#registerMovement#updateToken/noteGmPosition -> judge", "on the primary GM only (`judgingHere`); the start is the GM's last sighting (`gmSeen`), never a packet; `judgeArrival` puts nothing back. The wall rule (movement-audit.mjs `auditMove`, E79 C4) is a call here, before `gmSeen` moves - one call site, no second hook (R559, R560). Every GM's record (`gmHistory`) drops the spot the audit's put-back leaves, by the put-back's own option on a GM's write (`sightingsAfter`, E79 fix r1-G1; R559, 76 D)"],
+            ["HOOK movement.mjs#registerMovement#preUpdateToken/onPreUpdateToken -> veto", "advisory: the mover's own client refuses a move with `crossingVerdict`, and a console steps past it - which is why the primary GM judges the landed move; since E79 C3 the route's passage (`crossingVia`) is handed in as `via`, and a passage the character knows joins its two rooms (`passesThrough`, R558)"],
+            ["HOOK movement.mjs#registerMovement#updateToken/onUpdateToken -> judge", "this file's own: the mover's client charges and announces the move it made (`judgeMove`); E79 adds no road through it"],
+            ["HOOK movement.mjs#registerMovement#createToken/inline -> judge", "this file's own: `noteGmCreated`, the GM's first sighting of a token; E79 adds no road through it"],
+            ["HOOK fog.mjs#registerFog#updateToken/onUpdateToken -> judge", "this file's own: this browser's discovery and outline; E79 adds no road through it (the gap's redraw hangs on its own event, not on this hook)"],
+            ["HOOK fog.mjs#registerFog#createToken/inline -> judge", "this file's own: this browser's discovery mirror; E79 adds no road through it"],
+            ["HOOK murder-rules.mjs#registerMurder#updateToken/inline -> judge", "this file's own; E79 adds no road through it"],
+            ["HOOK projects-map.mjs#registerProjectsMap#updateToken/inline -> judge", "this file's own; E79 adds no road through it"],
+            ["HOOK remnant-ring.mjs#registerRemnantRings#updateToken/inline -> judge", "this file's own; E79 adds no road through it"],
+            ["HOOK trial-scene.mjs#registerTrialScene#updateToken/watchCast -> judge", "this file's own: the courtroom's cast, where no passage stands; E79 adds no road through it"],
+            ["HOOK trial-scene.mjs#registerTrialScene#createToken/watchCastCreated -> judge", "this file's own; E79 adds no road through it"],
+            ["HOOK visibility.mjs#registerVisibility#updateToken/inline -> judge", "this file's own; E79 adds no road through it"],
+            ["HOOK visibility.mjs#registerVisibility#createToken/inline -> judge", "this file's own; E79 adds no road through it"],
+            ["HOOK voice.mjs#registerVoice#updateToken/inline -> judge", "this file's own: the voice room follows the room; E79 adds no road through it"],
+            ["HOOK voice.mjs#registerVoice#createToken/inline -> judge", "this file's own; E79 adds no road through it"],
+            // ---- the update's options a client sets
+            ["OPT movement.mjs#noteGmPosition#REVERT -> exempt", "a claim, judged: handed to `judgeArrival` as `revert`, which takes it only where `sendBackRefusal` does; the wall rule reads the option itself (below), by the same rule"],
+            ["OPT movement.mjs#noteGmPosition#SENT_BACK -> exempt", "a claim, judged as REVERT is: it marks a move the GM sent back itself; on a GM's write the player it names is handed the witness judge as the one who asked (`askerOf`, E79 fix r3-G2), who acts as the Mastermind or not as that player does (R560; 76 G)"],
+            ["OPT movement.mjs#onPreUpdateToken#REVERT -> exempt", "advisory: the mover's own client lets its own revert past its own veto; nothing on the GM reads the client's veto"],
+            ["OPT movement.mjs#judgeMove#REVERT -> exempt", "this file's own: the mover's client charges nothing for its own revert; no judge takes it as an exemption"],
+            ["OPT call-world.mjs#fallbackGather#displace -> exempt", "a GM's own write (`updateEmbeddedDocuments` with REVERT, `teleport` and `displace`): a GM's move is let through because a GM made it (the hook's user), not because of these options"],
+            // ---- the packets
+            ["ACT gm-bridge.mjs#ACTION_SENDBACK#token.sendBack -> write", "the bridge row judges the sender's ownership and the place (`guardSendbackPlace`) against the GMs' record of the token, which holds no spot the audit put it back from (`sightingsAfter`, E79 fix r1-G1: 76 D asks for that spot and is refused, the token where it was put back, nothing written); `handleSendback` writes REVERT and SENT_BACK on the GM, with walls ignored (the IGN row below), SENT_BACK naming the player who asked, and the GMs' audit judges the landing as that player's move (E79 fix r2-G1: a room's centre across a wall is put back, or a row in log mode; R559, 76 D)"],
+            // ---- the GMs' audit of a move through a wall (E79 C4)
+            ["WALLS movement-audit.mjs#firstWallCrossed -> judge", "the token's own scene's walls (`tokenDoc.parent.walls`) on the floor it set out from, never the scene on screen (a SCENE row is unclassified by design); a passage's wall cut where the character may pass, from the GMs' records (R559; 76 D)"],
+            ["OPT movement-audit.mjs#auditMove#REVERT -> exempt", "a claim, judged: exempt only where `sendBackRefusal` accepts the spot against the GMs' record of the token, which holds no spot the audit put it back from (E79 fix r1-G1); a GM's move is exempt by the hook's user, and Foundry's teleport and displace are never read (R559; 76 D)"],
+            ["OPT movement-audit.mjs#auditMove#SENT_BACK -> exempt", "a claim, judged as REVERT is; on a GM's write it names the player who asked the bridge's send-back (`askerOf`, E79 fix r2-G1), judged then as the mover: exempt only to a spot of the GMs' record, a centre across a wall a crossing (R559; 76 D)"],
+            ["IGN movement.mjs#sendBack -> write", "the one road of a refusal's put-back, the audit's included: back to where the token stood, so a wall between the two does not stop it (R559)"],
+            ["IGN gm-bridge.mjs#handleSendback -> write", "the lawful send-back, written on the GM after `guardSendbackPlace` (R559; 76 D)"],
+            ["ACT movement-audit.mjs#auditMove#move.sentBack -> screen", "the primary GM's word to the mover alone (`recipients`), a code and the token's ids, no geometry; sent once the put-back has landed (R559, R560; 76 D)"],
+            ["ACT movement-audit.mjs#onSentBack#move.sentBack -> screen", "CLAIM: refused unless addressed to this user by the primary GM with a known code (`sentBackRefusal`); plays the refusal's sound and shows the veto's line (R559; 76 D)"],
+            ["SET settings.mjs#moveAudit#gm -> mode", "a world setting, GM only, \"log\" by default (the plan's AM-1): a row in the Debug log, or \"sendBack\" (R559; 76 D)"],
+            // ---- the GMs' records of the passages and each player's copy (E79 C1)
+            ["STORE gm-stores.mjs#passageMapStore#passageMap -> record", "GM only: written by passages-gm.mjs on a GM's browser, refused by the engine on a player's; no reset group (a cut never wipes the map, R177 says why); `exists` refuses a row whose scene is gone (R554)"],
+            ["STORE gm-stores.mjs#passageAccessStore#passageAccess -> record", "GM only; cells `passageId/actorId` with `how` and `at` kept from the first grant and `by` a split field each GM adds to, `touch/actorId` stamps, the reset's \"passages\" group; two GMs' cells merged cell by cell (R554)"],
+            ["STORE gm-stores.mjs#passageLogStore#passageLog -> record", "GM only; the newest 200 rows (`PASSAGE_LOG_ROWS`); the reset's \"passages\" group (R554)"],
+            ["STORE gm-stores.mjs#passageCopy#passages -> copy", "the addressed copy: only rows `secret` a character this user owns knows (the Mastermind's owner: every one), `actorIds` only the user's own, a Monokuma nothing; sent with `recipients` (R555, R560)"],
+            ["SET settings.mjs#minePassages#primary -> screen", "taken only from the primary GM and addressed to this user (`onPassageRows`, `replyForMe`'s rule and the primary's), cut to this world's scenes and the characters the packet stamps (R555; 76 A)"],
+            ["SET settings.mjs#minePassages#console -> screen", "CLAIM: a console's own copy changes only what that browser cuts, draws and lists; the GMs' audit (movement-audit.mjs) judges every landed move on the walls from the GMs' records, never from a copy"],
+            ["SET settings.mjs#minePassages#stale -> screen", "replaced on `ready` and `drpgPrimaryReady` by the primary's answer to `passage.request`, and on every change by its push (R555)"],
+            ["ACT passages.mjs#requestPassages#passage.request -> copy", "the player's ask carries no field the GM reads: it is answered about Foundry's sender"],
+            ["ACT passages-gm.mjs#onPassageRequest#passage.request -> copy", "judged on the primary GM with `senderOf` (a GM's ask is not answered); the answer is that user's copy alone, built from the records once the other GMs' are in (R555; 76 A)"],
+            ["ACT passages-gm.mjs#pushPassageCopies#passage.rows -> screen", "the primary GM's push, to each player with `recipients` naming that player alone (R555, R560; 76 A)"],
+            ["ACT passages.mjs#onPassageRows#passage.rows -> screen", "CLAIM: refused unless addressed to this user and sent by the primary GM; 76 A forges one from p2 and p3 refuses it (R555)"],
+            ["WALLS passages-gm.mjs#createPassage -> screen", "a GM's console only (`game.user.isGM` first): the wall a new passage is cut from is read to hold the stretch to it, and since E79 fix r2-G3 the stretch to the pick's rule as well (`passageRowFor` asks `stretchOnMap`: the scene's rooms and floors, the other passages' stretches; R554, R561; 76 A); nothing is written to the wall and nothing of it reaches a player but through the copy"],
+            // ---- the way through (E79 C2)
+            ["WALLS passages.mjs#clipPassages -> screen", "this browser's move polygon only (`type` \"move\"; sight, light and sound stay whole), cut where the moving token's own character knows a passage on its scene and floor, by the wall's id; fails closed (R556; 76 B). CLAIM: a console's own copy cuts only its own walls; the GMs' audit (movement-audit.mjs) judges the landed move"],
+            // ---- the pick on the board (E79 C6)
+            ["WALLS passages-gm.mjs#sceneWalls -> screen", "a GM's pick only (`startPassagePick` and `repickPassage` ask `game.user.isGM` first): the walls of the scene Room Setup was opened on, read to snap a click to one and to hold the stretch to it through `passageRowFor`; nothing is written to a wall and nothing of it reaches a player but through the copy (R561; 76 F)"],
+            // ---- showing a passage (E79 C7)
+            ["ACT gm-bridge.mjs#ACTION_PASSAGE_SHARE#passage.share -> *", "judged on the primary GM: `knownSender` and `owns(\"actorId\")`, then passages-gm.mjs `shareRefusal` - the phase, the giver alive, in no incident and no Monocub, the giver's own cell of a secret passage (a closed, unknown or made-up one refused alike), both in one room, scene and floor now, the one shown it alive; `sharePassage` writes the records and pushes the copies (R562; 76 G)"],
+            // ---- the Passages tab's watch on a passage's wall (E79 C5)
+            ["HOOK passages-gm.mjs#registerPassagesGm#updateWall/onWallMoved -> record", "the primary GM only (`isPrimaryGm`), and only when the change carries `c`: a passage whose stretch is no longer on its wall's segment is marked broken in the GMs' records and drops out of every copy; the wall is never written (R561; 76 E)"],
+            ["HOOK passages-gm.mjs#registerPassagesGm#deleteWall/onWallDeleted -> record", "the primary GM only: every passage of the deleted wall is marked broken in the GMs' records and drops out of every copy (R561; 76 E)"],
+            // ---- the routes, the copies' retelling and what a copy redraws (E79 fix r1-G4, SEC S4)
+            ["HOOK passages-gm.mjs#registerPassagesGm#drpgRouteSettled/onRouteSettled -> record", "the primary GM only (`isPrimaryGm`): a student whose route settles outside the passage's rooms on the map loses a cell held 'Revoke when they leave the room' (`revokeLeavers`, R561; 76 E), read in the room the announcement names (E79 C14), and for a route announced before it stood (`provisional`) only once it stands (E79 fix r3-G3; 76 E)"],
+            ["HOOK room-tile.mjs#registerRoomTile#drpgRouteSettled/inline -> record", "this file's own: the room tile repaints for the viewer's own token and writes no record; E79 adds no road through it"],
+            ["HOOK passages-gm.mjs#registerPassagesGm#clientSettingChanged/inline -> copy", "a GM's browser only (the `ready` hook returns on a player's): a change of the map, the access list or the Mastermind retells every player's copy from the GMs' records (`retellSoon`), quiet while tier 2 holds the stores (`gmStoresQuiet`); and the map's redraws the GMs' overlay"],
+            ["HOOK passages-gm.mjs#registerPassagesGm#updateActor/inline -> copy", "a GM's browser only: a change of an actor's ownership retells the copies from the GMs' records (read in the code)"],
+            ["HOOK passages-gm.mjs#registerPassagesGm#deleteActor/inline -> copy", "a GM's browser only: a deleted actor retells the copies from the GMs' records (read in the code)"],
+            ["HOOK passages-gm.mjs#registerPassagesGm#userConnected/onUserConnected -> copy", "a GM's browser only: a user coming or going retells the copies, since the Mastermind's door names its first connected owner (E79 fix r1-G2, SEC S2; R555)"],
+            ["HOOK passages-gm.mjs#registerPassagesGm#updateUser/onUserUpdated -> copy", "a GM's browser only: a user's change of role, and nothing else of a user, retells the copies - a player made a GM, or a GM a player, moves the door and starts or stops a copy (E79 fix r2-G2, review r2 O18; R555)"],
+            ["HOOK passages-gm.mjs#registerPassagesGm#gmStoresAudible/inline -> copy", "a GM's browser only: when tier 2 lets the stores speak again the copies are retold from the records (`onGmStoresAudible`, R184's rule)"],
+            ["HOOK passages.mjs#registerPassages#drpgPrimaryReady/inline -> copy", "a player's browser only: the copy is asked again of a primary GM whose world has loaded, and only that GM's answer is taken (`onPassageRows`, R555)"],
+            ["HOOK passages.mjs#registerPassages#userConnected/inline -> copy", "a player's browser only: an arriving primary GM that leaves is forgotten; it names whom a copy is taken from and nothing more"],
+            ["HOOK gm-overlay.mjs#registerGmOverlay#canvasReady/inline -> screen", "every browser asks, only a GM's draws: `gmOverlay` asks for a GM before it makes a layer (R560)"],
+            ["HOOK fog.mjs#registerFog#drpgPassagesChanged/inline -> screen", "this browser's outline redrawn from its own copy when the copy changes, with no sound (`redrawOutline`, R557)"],
+            ["HOOK sheet.mjs#registerSheetTweaks#drpgPassagesChanged/redrawPassageSheets -> screen", "the 'Known passages' page drawn again from this browser's own copy (R562)"]
+        ];
+        const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
+        const HOOK_SINKS = { updateToken: ["judge"], createToken: ["judge"], preUpdateToken: ["veto"], updateWall: ["record"], deleteWall: ["record"],
+            drpgRouteSettled: ["record"], drpgPassagesChanged: ["screen"] };
+        const FAMILY = /^(?:passages|passages-gm|passages-tab|gm-overlay|movement-audit)\.mjs$/;
+        const FAMILY_SINKS = { clientSettingChanged: ["copy"], updateActor: ["copy"], deleteActor: ["copy"], userConnected: ["copy"], updateUser: ["copy"],
+            drpgPrimaryReady: ["copy"], gmStoresAudible: ["copy"], canvasReady: ["screen"] };
+        const REGISTRATION = new Set(["ready", "init", "setup"]);
+        const ACT_SINKS = { "token.sendBack": ["write"], "move.sentBack": ["screen"], "passage.request": ["copy"], "passage.share": ["record", "copy"], "passage.rows": ["screen"] };
+        const SET_SOURCES = { minePassages: [["primary", "console", "stale"], "screen"], moveAudit: [["gm"], "mode"] };
+        const AUDIT_FILES = /^(?:movement-audit|passages|passages-gm)\.mjs$/;
+        const KEYWORDS = new Set(["return", "typeof", "in", "of", "case", "else", "do", "yield", "await", "void", "delete", "new", "throw", "instanceof"]);
+        const censusOf = (sources, settings) => {
+            const found = [];
+            const add = (kind, file, decl, field, sinks) => {
+                const base = `${kind} ${file}#${decl}${field ? `#${field}` : ""}`;
+                for (const sink of sinks) if (!found.includes(`${base} -> ${sink}`)) found.push(`${base} -> ${sink}`);
+            };
+            for (const [file, raw] of sources) {
+                if (!file.endsWith(".mjs")) continue;
+                const code = blankComments(raw), blank = blankLiterals(code);
+                const tops = [...blank.matchAll(TOP)].map(m => ({ at: m.index, name: m[1] ?? m[2] ?? m[4] ?? null }));
+                const declAt = at => {
+                    const top = tops.findLast(t => t.at <= at);
+                    if (top?.name) return top.name;
+                    const hook = top && code.slice(top.at, top.at + 200).match(/^Hooks\.(?:on|once)\(\s*["']([\w.]+)["']/);
+                    return hook ? `Hooks.on(${hook[1]})` : "(top level)";
+                };
+                // A string of the code: found in `code` (comments blank), kept only where blankLiterals blanked its quote.
+                const strings = re => [...code.matchAll(re)].filter(m => blank[m.index] === " ");
+                for (const m of blank.matchAll(/(?<![\w$.])Hooks\s*\.\s*(?:on|once)\s*\(/g)) {
+                    const { args } = callArgs(blank, m.index + m[0].length - 1);
+                    const event = args[0] && code.slice(args[0].start, args[0].end).trim().match(/^(["'])([\w.]+)\1$/)?.[2];
+                    const sinks = Object.hasOwn(HOOK_SINKS, event ?? "") ? HOOK_SINKS[event]
+                        : FAMILY.test(file) && !REGISTRATION.has(event) ? (Object.hasOwn(FAMILY_SINKS, event ?? "") ? FAMILY_SINKS[event] : ["unsorted"]) : null;
+                    if (!sinks) continue;
+                    const handler = args[1] ? code.slice(args[1].start, args[1].end).trim() : "";
+                    add("HOOK", file, declAt(m.index), `${event ?? "computed"}/${/^[\w$]+$/.test(handler) ? handler : "inline"}`, sinks);
+                }
+                if (FAMILY.test(file)) {
+                    for (const m of blank.matchAll(/(?<![\w$.])onGmStoresAudible\s*\(/g)) {
+                        if (/\bfunction\s*\*?\s*$/.test(blank.slice(Math.max(0, m.index - 24), m.index))) continue;
+                        const arg = callArgs(blank, m.index + m[0].length - 1).args[0];
+                        const handler = arg ? code.slice(arg.start, arg.end).trim() : "";
+                        add("HOOK", file, declAt(m.index), `gmStoresAudible/${/^[\w$]+$/.test(handler) ? handler : "inline"}`, FAMILY_SINKS.gmStoresAudible);
+                    }
+                }
+                for (const m of blank.matchAll(/([\w$]+|[)\]])\s*(?:\?\.\s*)?\[\s*(REVERT|SENT_BACK)\s*\]/g)) {
+                    if (!KEYWORDS.has(m[1])) add("OPT", file, declAt(m.index), m[2], ["exempt"]);
+                }
+                for (const m of blank.matchAll(/(?<!\.)\.\s*(teleport|movementAction)(?![\w$])/g)) add("OPT", file, declAt(m.index), m[1], ["exempt"]);
+                for (const m of strings(/(["'])displace\1/g)) add("OPT", file, declAt(m.index), "displace", ["exempt"]);
+                for (const m of strings(/(["'])(token\.sendBack|move\.sentBack|passage\.request|passage\.share|passage\.rows)\1/g)) {
+                    add("ACT", file, declAt(m.index), m[2], ACT_SINKS[m[2]]);
+                }
+                for (const m of blank.matchAll(/(?<!\.)\.\s*ignoreWalls(?![\w$])|(?<![\w$.?]\s*)ignoreWalls\s*:(?!:)|[{,]\s*ignoreWalls\s*[,}]/g)) {
+                    add("IGN", file, declAt(m.index), null, ["write"]);
+                }
+                if (AUDIT_FILES.test(file)) {
+                    const sink = file === "movement-audit.mjs" ? "judge" : "screen";
+                    const member = sink === "judge" ? /(?<!\.)\.\s*walls(?![\w$])/g : /(?<!\.)\.\s*(?:walls|edges)(?![\w$])/g;
+                    for (const m of blank.matchAll(member)) add("WALLS", file, declAt(m.index), null, [sink]);
+                }
+                if (file === "movement-audit.mjs") {
+                    for (const m of blank.matchAll(/(?<![\w$.])canvas\s*\??\.\s*(scene|edges)(?![\w$])/g)) add("SCENE", file, declAt(m.index), m[1], ["judge"]);
+                }
+                for (const m of blank.matchAll(/(?<![\w$.])(defineGmStore|defineGmCopy)\s*\(/g)) {
+                    if (/\bfunction\s*\*?\s*$/.test(blank.slice(Math.max(0, m.index - 24), m.index))) continue;
+                    const spec = callArgs(blank, m.index + m[0].length - 1).args[0];
+                    const text = spec ? code.slice(spec.start, spec.end).trim() : "";
+                    const name = text.startsWith("{") ? text.match(/(?<![\w$])name\s*:\s*(["'])([^"'\n]*)\1/)?.[2] : null;
+                    if (name && /^passage/i.test(name)) add("STORE", file, declAt(m.index), name, [m[1] === "defineGmCopy" ? "copy" : "record"]);
+                }
+            }
+            for (const [key, [sources, sink]] of Object.entries(SET_SOURCES)) {
+                if (Object.hasOwn(settings ?? {}, key)) for (const source of sources) add("SET", "settings.mjs", key, source, [sink]);
+            }
+            return found;
+        };
+        const judge = (found, table) => {
+            const rows = new Set(table.map(([key]) => key)), used = new Set(), unclassified = [];
+            for (const key of found) {
+                const star = key.replace(/ -> \w+$/, " -> *");
+                if (rows.has(key)) used.add(key);
+                else if (rows.has(star)) used.add(star);
+                else unclassified.push(key);
+            }
+            return { unclassified, stale: [...rows].filter(key => !used.has(key)) };
+        };
+        const KINDS = ["HOOK", "OPT", "ACT", "IGN", "WALLS", "SCENE", "STORE", "SET"];
+        const planted = censusOf([
+            ["movement.mjs", "export function registerMovement() {\n    Hooks.on(\"updateToken\", noteGmPosition);\n"
+                + "    Hooks.once(\"createToken\", (token, options, userId) => noteGmCreated(token, userId));\n    Hooks.on(\"renderChatMessage\", noteGmPosition);\n}\n"
+                + "function noteGmPosition(tokenDoc, changes, options) {\n    // options?.[SENT_BACK] in a comment is no road\n    const said = \"options?.[SENT_BACK]\";\n"
+                + "    const opts = { [REVERT]: true };\n    return [REVERT].length + (options?.[REVERT] ? 1 : 0) + (options[SENT_BACK] ? 1 : 0);\n}\n"],
+            ["call-world.mjs", "async function fallbackGather(scene, updates) {\n"
+                + "    await scene.updateEmbeddedDocuments(\"Token\", updates, { teleport: true, movementAction: \"displace\" });\n"
+                + "    return updates.filter(u => u.teleport || u?.movementAction);\n}\n"],
+            ["gm-bridge.mjs", "const ACTION_SENDBACK = \"token.sendBack\";\n// \"move.sentBack\" in a comment is no road\n"
+                + "function handleSendback(payload) {\n    return sendBack(payload, { ignoreWalls: true });\n}\n"],
+            ["movement-audit.mjs", "export function auditMove(tokenDoc) {\n    const walls = tokenDoc.parent.walls;\n    return canvas.scene?.id ?? canvas?.edges;\n}\n"],
+            ["passages.mjs", "export function requestPassages() {\n    game.socket.emit(\"module.danganronpa-rpg\", { action: 'passage.request' });\n}\n"
+                + "export function clipPassages(polygon, wanted) {\n    return wanted.ignoreWalls ? [] : polygon?.edges;\n}\n"],
+            ["passages-gm.mjs", "Hooks.on(\"updateWall\", onWallChanged);\nconst ACTION_PASSAGE_SHARE = \"passage.share\";\n"],
+            ["gm-stores.mjs", "export const passageMapStore = defineGmStore({\n    name: \"passageMap\", key: SETTINGS.passageMap\n});\n"
+                + "export const passageCopy = defineGmCopy({ name: \"passages\", key: SETTINGS.minePassages });\n"
+                + "export const doorCopy = defineGmCopy({ name: \"door\", key: SETTINGS.mineDoor });\n"],
+            ["passages-tab.mjs", "export function registerPassagesTab() {\n    Hooks.once(\"ready\", () => {\n        Hooks.on(\"updateActor\", retell);\n"
+                + "        Hooks.on(\"drpgSomethingNew\", () => retell());\n        onGmStoresAudible(() => retell());\n    });\n}\n"],
+            ["sheet-audit.mjs", "export function registerSheetAudit() {\n    Hooks.on(\"updateActor\", audit);\n    onGmStoresAudible(audit);\n"
+                + "    Hooks.on(\"drpgRouteSettled\", paint);\n}\n"]
+        ], { minePassages: "minePassages", moveAudit: "moveAudit" });
+        equal(JSON.stringify(planted), JSON.stringify([
+            "HOOK movement.mjs#registerMovement#updateToken/noteGmPosition -> judge", "HOOK movement.mjs#registerMovement#createToken/inline -> judge",
+            "OPT movement.mjs#noteGmPosition#REVERT -> exempt", "OPT movement.mjs#noteGmPosition#SENT_BACK -> exempt",
+            "OPT call-world.mjs#fallbackGather#teleport -> exempt", "OPT call-world.mjs#fallbackGather#movementAction -> exempt",
+            "OPT call-world.mjs#fallbackGather#displace -> exempt",
+            "ACT gm-bridge.mjs#ACTION_SENDBACK#token.sendBack -> write", "IGN gm-bridge.mjs#handleSendback -> write",
+            "WALLS movement-audit.mjs#auditMove -> judge", "SCENE movement-audit.mjs#auditMove#scene -> judge", "SCENE movement-audit.mjs#auditMove#edges -> judge",
+            "ACT passages.mjs#requestPassages#passage.request -> copy", "IGN passages.mjs#clipPassages -> write", "WALLS passages.mjs#clipPassages -> screen",
+            "HOOK passages-gm.mjs#Hooks.on(updateWall)#updateWall/onWallChanged -> record",
+            "ACT passages-gm.mjs#ACTION_PASSAGE_SHARE#passage.share -> record", "ACT passages-gm.mjs#ACTION_PASSAGE_SHARE#passage.share -> copy",
+            "STORE gm-stores.mjs#passageMapStore#passageMap -> record", "STORE gm-stores.mjs#passageCopy#passages -> copy",
+            "HOOK passages-tab.mjs#registerPassagesTab#updateActor/retell -> copy", "HOOK passages-tab.mjs#registerPassagesTab#drpgSomethingNew/inline -> unsorted",
+            "HOOK passages-tab.mjs#registerPassagesTab#gmStoresAudible/inline -> copy", "HOOK sheet-audit.mjs#registerSheetAudit#drpgRouteSettled/paint -> record",
+            "SET settings.mjs#minePassages#primary -> screen", "SET settings.mjs#minePassages#console -> screen", "SET settings.mjs#minePassages#stale -> screen",
+            "SET settings.mjs#moveAudit#gm -> mode"]),
+            "the census reader does not read the planted fixture as planted - the live census below would measure the wrong roads");
+        equal(JSON.stringify(judge(planted.slice(16, 19), [["ACT passages-gm.mjs#ACTION_PASSAGE_SHARE#passage.share -> *", ""], ["HOOK passages-gm.mjs#gone -> record", ""]])),
+            JSON.stringify({ unclassified: ["STORE gm-stores.mjs#passageMapStore#passageMap -> record"], stale: ["HOOK passages-gm.mjs#gone -> record"] }),
+            "the census judge does not tell a planted road without a row, a source's \"-> *\" row from its sinks, or a row without its road");
+
+        const found = censusOf(await otherSources(), SETTINGS);
+        const count = kind => found.filter(key => key.startsWith(`${kind} `)).length;
+        // The kinds the module has a road of before any E79 code (census-1c.md at 32fd204): an assertion, so that a reader
+        // gone blind to them fails here and not as a silent "nothing without a row".
+        ok(count("HOOK") > 0 && count("OPT") > 0 && count("ACT") > 0,
+            `the census read ${count("HOOK")} HOOK, ${count("OPT")} OPT and ${count("ACT")} ACT - the hooks that read a moved token, the options of a revert and the bridge's send-back have no road`);
+        const verdict = judge(found, PASSAGE_CENSUS);
+        log(`R553: the census read ${found.length} road(s) (${KINDS.map(kind => `${count(kind)} ${kind}`).join(", ")}) `
+            + `against ${PASSAGE_CENSUS.length} row(s); ${verdict.unclassified.length} without a row, ${verdict.stale.length} row(s) without a road`);
+        equal(JSON.stringify(verdict), JSON.stringify({ unclassified: [], stale: [] }),
+            "a passage or movement road without a census row, or a row whose road is gone: give the new one a verdict (what judges it, or the E79 commit that will) and strike the gone one");
+    }],
+
+    ["R560 - the passages' source rules: no wall is written a secret door or created, every passage packet names the list of its recipients, no flag holds a passage and no file but the records names a passage's geometry, passages.mjs imports only its leaf's files, room-tile.mjs does not import the passages, the frame's passage verdict, the outline's redraw and the GMs' wall audit are each declared once, exported, in their file, the audit called from one place, the primary GM's sighting of a move, and reading no scene on screen; and the GMs' overlay is made in one place, gm-overlay.mjs's exported `gmOverlay`, only after it asked for a GM, every layer of it through that, and its name is read nowhere else; and a passage is shown in one place, passages-gm.mjs's exported `sharePassage` judged by its exported `shareRefusal`, whose cards go out through `whisperToOwner` and the GMs' through `whisperToGms`, with no chat message made in either passages file any other way; and who acts as the Mastermind for a passage is read in one place, passages-gm.mjs's exported `actsAsMastermind`, and never off the character alone in the copy, a show's judgement, the GMs' audit or the witness judge; and who asked a GM's send-back is read in one place, movement-audit.mjs's exported `askerOf`, which the primary GM's sighting hands the witness judge and the judge reads; and the season reset's passages step is declared once, exported, in passages-gm.mjs", async () => {
+        /*
+         * E79 C1, 14.10.2026; the E79 plan's A10-9, its first clauses (C4, C6 and C7 add theirs). A secret passage is
+         * the GMs' and its knowers' (decisions D2 and D38): world data reaches every browser, so a passage written into
+         * a Wall (a secret door, `door: 2`, or a wall the module creates), a flag or an un-addressed packet is a
+         * passage every player's console can read. Read here, in every module file outside the suite's own with
+         * comments blanked: a `door:` of 2 or `CONST.WALL_DOOR_TYPES.SECRET` written anywhere; a
+         * `createEmbeddedDocuments("Wall"`; a `socket.emit` whose packet names a `passage.*` or `move.sentBack` action
+         * without `recipients: [` in its options; a `setFlag(` whose arguments name a passage; `passageSeg` or
+         * `passageWallId` in a file other than the records' three (gm-stores.mjs, passages.mjs, passages-gm.mjs); an
+         * import of passages.mjs, static or `import()`, of a file but rooms, the GM stores, settings, utils and config
+         * (the leaf movement.mjs reads from C3, which must not read movement.mjs back); and room-tile.mjs importing
+         * either passages file (a room's tile names no passage). What it does not read: a packet built in a variable
+         * before the emit (R201 holds every emit to its recipients), a flag written through `update` with a computed
+         * key, and a passage's numbers under other names - scenario 76's probe looks for the 1234.5 marker on every
+         * surface instead. The reader is run first on planted source, one fault of each rule and a clean twin.
+         *
+         * E79 C3, 14.10.2026 (A10-9's "one" clauses, risk e): the minimal forms a later stage takes over rather than
+         * writes again are each declared once in the module, exported, in the file named - `passageOpenFor` in
+         * movement.mjs (E51's door predicate takes it) and `redrawOutline` in fog.mjs (E51's outline refresher). Read
+         * as a `function`, `const`, `let` or `var` of that name outside comments and strings; a second under another
+         * name is not read.
+         *
+         * E79 C4, 14.10.2026 (A10-9's audit clauses, risk d): `auditMove` is declared once, exported, in
+         * movement-audit.mjs (E17 extends it), and called from exactly one place - movement.mjs `noteGmPosition`, the
+         * primary GM's sighting of a landed move, before `gmSeen` moves - read as a call of that name outside comments
+         * and strings in the top-level declaration that holds it; and movement-audit.mjs names neither `canvas.scene`
+         * nor `canvas.edges` (its walls are the token's own scene's). A call through another name is not read.
+         *
+         * E79 C6, 15.10.2026 (A10-9's overlay clause; the plan's F3): the GMs' overlay draws every secret passage of the
+         * scene on screen, so a copy of it on a player's browser would be the whole map of them. `gmOverlay` is declared
+         * once, exported, in gm-overlay.mjs (E60 adds its layer 'traces' there); in that file a `new PIXI.Container`
+         * stands in `gmOverlay` only after `if (!game.user?.isGM) return null` and in any other declaration only after
+         * a call of `gmOverlay()` (a layer is the overlay's child, never the canvas's); and the overlay's name,
+         * "drpgGmOverlay", is written as a string in no other module file. A container made under another class's name
+         * is not read; scenario 76 F counts the overlay on each of the four browsers.
+         *
+         * E79 C7, 15.10.2026 (A10-9's share clauses; the plan's P10): a show tells the one shown it the passage's two
+         * rooms, so a card that reached anybody else would be the passage told to them. `sharePassage` and the rule it
+         * asks, `shareRefusal`, are each declared once, exported, in passages-gm.mjs (the bridge row and a GM's own
+         * show both call them; a second judge is a second door); and in passages.mjs and passages-gm.mjs no chat
+         * message is made but through `whisperToOwner` - read as the name `ChatMessage`, or a call of `postSecret`,
+         * `postAsked`, `postToThread`, `whisperToGms`, `whisperToOwnerOnly` or `privately`, outside comments and
+         * strings. A card whispered through `whisperToOwner` to the wrong character is not read here: R562 counts who
+         * each card went to, and scenario 76 G reads the card in the one shown it's notice history and in nobody else's.
+         * (The packet's own road, "passage.share" written once in gm-bridge.mjs, is R553's census row.)
+         *
+         * E79 fix r2-G2, 16.10.2026 (the round-2 review's SEC M3 = cor F1, and H3): who acts as the Mastermind for a
+         * passage is one reading, `actsAsMastermind`, declared once, exported, in passages-gm.mjs - the door's owner or a
+         * GM, never every owner of the student. In movement.mjs, movement-audit.mjs and passages-gm.mjs a call of
+         * `isMastermindActor` or `isMastermind` (a reader's property included) is the role read off the character alone,
+         * and is broken ("role"). Until that review the copy, a show, the audit and the witness judge read it so, and
+         * another owner of the Mastermind's student had every passage carried out for it. `sharePassage` kept it to name
+         * the rooms on the card to the one shown it until fix r2-G4 (16.10.2026), which asks `actsAsMastermind` of each
+         * owner the card goes to; its exemption here went with it. And `whisperToGms` is
+         * no longer a "card": the GMs' own card of a show goes through it (H3; until then a notice on the primary's
+         * browser alone), and it reaches no player. passages-tab.mjs, a GM's window, is not read.
+         *
+         * E79 fix r3-G2, 17.10.2026 (the round-3 review's SEC S4): the bridge's send-back is written by a GM, so its
+         * hook's user is the GM, and who asked it is one reading, `askerOf`, declared once, exported, in
+         * movement-audit.mjs - a player a GM's write names, never a GM and never a player's own claim. The audit read it
+         * for the wall rule since fix r2-G1, while the judge of arrivals asked `actsAsMastermind` of the hook's user, a
+         * GM, and let another owner's send-back of the Mastermind's token stand past a passage the student does not know.
+         * In movement.mjs a call of `judgeArrival` in `noteGmPosition` hands it `asker: askerOf(...)` ("askerPassed"),
+         * and every `actsAsMastermind` call in `judgeArrival` reads `asked ?? mover` ("asker"). Its other caller,
+         * `noteGmCreated`, judges a dropped token, which no send-back names. Scenario 76 G sends the Mastermind's token
+         * back through the bridge as each owner.
+         *
+         * E79 fix r4-G7, 17.10.2026 (the release ledger's RISK-e): the reset entry is the fifth minimal form A10-9
+         * hands on, and it was held by nothing here. `passagesAfterReset` is declared once, exported, in passages-gm.mjs
+         * (E42 takes it), read as the other names of ONE are; its one caller, season-setup.mjs's passages step, is a
+         * dynamic import's property and is not read.
+         */
+        const LEAF = new Set(["rooms.mjs", "gm-stores.mjs", "gm-store.mjs", "settings.mjs", "utils.mjs", "config.mjs"]);
+        const RECORDS = new Set(["gm-stores.mjs", "passages.mjs", "passages-gm.mjs"]);
+        const IMPORTS = /\bimport\s*(?:[\w$\s{},*]+?\s*from\s*)?(["'])\.\/([\w.-]+\.mjs)\1|\bimport\s*\(\s*(["'])\.\/([\w.-]+\.mjs)\3\s*\)/g;
+        const ONE = { passageOpenFor: "movement.mjs", redrawOutline: "fog.mjs", auditMove: "movement-audit.mjs", gmOverlay: "gm-overlay.mjs",
+            sharePassage: "passages-gm.mjs", shareRefusal: "passages-gm.mjs", actsAsMastermind: "passages-gm.mjs", askerOf: "movement-audit.mjs",
+            passagesAfterReset: "passages-gm.mjs" };
+        const SHARE_FILES = new Set(["passages.mjs", "passages-gm.mjs"]);
+        const CHAT = /(?<![\w$.])ChatMessage(?![\w$])|(?<![\w$.])(?:postSecret|postAsked|postToThread|whisperToOwnerOnly|privately)\s*\(/g;
+        const ROLE_FILES = new Set(["movement.mjs", "movement-audit.mjs", "passages-gm.mjs"]);
+        const ROLE = /(?<![\w$])isMastermind(?:Actor)?\s*\(/g;
+        const OVERLAY_GATE = /!\s*game\s*\.\s*user\s*\??\.\s*isGM\s*\)\s*return\s+null\b/;
+        const AUDIT_CALLER = "movement.mjs#noteGmPosition";
+        const ASKER_READ = /^asked\s*\?\?\s*mover$/, ASKER_PASSED = /(?<![\w$.])asker\s*:\s*askerOf\s*\(/;
+        // A statement at column 0 and the name it declares, as R553's census reads a top-level declaration.
+        const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(?:const|let|var)\s+([\w$]+))?/gm;
+        const rulesOf = sources => {
+            const broken = [], auditCalls = [];
+            const declared = Object.fromEntries(Object.keys(ONE).map(name => [name, []]));
+            for (const [file, raw] of sources) {
+                if (!file.endsWith(".mjs")) continue;
+                const code = blankComments(raw), blank = blankLiterals(code);
+                const at = (rule, i) => broken.push(`${rule} ${file}:${lineAt(code, i)}`);
+                for (const name of Object.keys(ONE)) {
+                    const DECL = new RegExp(String.raw`(?<![\w$.])(export\s+)?(?:async\s+)?(?:function\s*\*?\s*|(?:const|let|var)\s+)${name}(?![\w$])`, "g");
+                    for (const m of blank.matchAll(DECL)) declared[name].push(`${file}:${lineAt(code, m.index)}${m[1] ? "" : "(not exported)"}`);
+                }
+                for (const m of blank.matchAll(/(?<![\w$.])door\s*:\s*(?:2(?![\w.])|CONST\s*\.\s*WALL_DOOR_TYPES\s*\.\s*SECRET\b)/g)) at("secretDoor", m.index);
+                for (const m of code.matchAll(/\bcreateEmbeddedDocuments\s*\(\s*(["'])Wall\1/g)) if (blank[m.index] !== " ") at("wallCreated", m.index);
+                for (const m of blank.matchAll(/\bsocket\s*\??\.\s*emit\s*\(/g)) {
+                    const { args } = callArgs(blank, m.index + m[0].length - 1);
+                    const packet = args[1] ? code.slice(args[1].start, args[1].end) : "";
+                    const options = args[2] ? blank.slice(args[2].start, args[2].end) : "";
+                    if (/(["'])(?:passage\.\w+|move\.sentBack)\1/.test(packet) && !/\brecipients\s*:\s*\[/.test(options)) at("unaddressed", m.index);
+                }
+                for (const m of blank.matchAll(/\.\s*setFlag\s*\(/g)) {
+                    const { args, close } = callArgs(blank, m.index + m[0].length - 1);
+                    if (args.length && /passage/i.test(code.slice(m.index, close))) at("flag", m.index);
+                }
+                if (!RECORDS.has(file)) for (const m of code.matchAll(/\b(?:passageSeg|passageWallId)\b/g)) at("geometry", m.index);
+                if (file !== "gm-overlay.mjs") for (const m of code.matchAll(/(["'`])drpgGmOverlay\1/g)) at("overlayName", m.index);
+                if (SHARE_FILES.has(file)) for (const m of blank.matchAll(CHAT)) at("card", m.index);
+                const tops = [...blank.matchAll(TOP)].map(m => ({ at: m.index, name: m[1] ?? m[2] ?? m[3] ?? "(top level)" }));
+                if (ROLE_FILES.has(file)) for (const m of blank.matchAll(ROLE)) {
+                    if (/\bfunction\s*\*?\s*$/.test(blank.slice(Math.max(0, m.index - 24), m.index))) continue;
+                    at("role", m.index);
+                }
+                if (file === "movement.mjs") {
+                    const inTop = (m, name) => tops.findLast(t => t.at <= m.index)?.name === name
+                        && !/\bfunction\s*\*?\s*$/.test(blank.slice(Math.max(0, m.index - 24), m.index));
+                    for (const m of blank.matchAll(/(?<![\w$.])actsAsMastermind\s*\(/g)) {
+                        if (!inTop(m, "judgeArrival")) continue;
+                        const { args } = callArgs(blank, m.index + m[0].length - 1);
+                        if (!args[1] || !ASKER_READ.test(blank.slice(args[1].start, args[1].end).trim())) at("asker", m.index);
+                    }
+                    for (const m of blank.matchAll(/(?<![\w$.])judgeArrival\s*\(/g)) {
+                        if (!inTop(m, "noteGmPosition")) continue;
+                        const { close } = callArgs(blank, m.index + m[0].length - 1);
+                        if (!ASKER_PASSED.test(blank.slice(m.index, close))) at("askerPassed", m.index);
+                    }
+                }
+                if (file === "gm-overlay.mjs") for (const m of blank.matchAll(/\bnew\s+PIXI\s*\.\s*Container\b/g)) {
+                    const top = tops.findLast(t => t.at <= m.index);
+                    const before = blank.slice(top?.at ?? 0, m.index);
+                    if (top?.name === "gmOverlay" ? !OVERLAY_GATE.test(before) : !/(?<![\w$.])gmOverlay\s*\(\s*\)/.test(before)) {
+                        at(top?.name === "gmOverlay" ? "overlayGate" : "overlayLayer", m.index);
+                    }
+                }
+                for (const m of blank.matchAll(/(?<![\w$.])auditMove\s*\(/g)) {
+                    if (/\bfunction\s*\*?\s*$/.test(blank.slice(Math.max(0, m.index - 24), m.index))) continue;
+                    auditCalls.push(`${file}#${tops.findLast(t => t.at <= m.index)?.name ?? "(top level)"}`);
+                }
+                if (file === "movement-audit.mjs") for (const m of blank.matchAll(/(?<![\w$.])canvas\s*\??\.\s*(?:scene|edges)(?![\w$])/g)) at("scene", m.index);
+                for (const m of code.matchAll(IMPORTS)) {
+                    if (blank[m.index] === " ") continue;
+                    const target = m[2] ?? m[4];
+                    if (file === "passages.mjs" && !LEAF.has(target)) at(`leaf:${target}`, m.index);
+                    if (file === "room-tile.mjs" && /^passages(?:-gm)?\.mjs$/.test(target)) at(`tile:${target}`, m.index);
+                }
+            }
+            for (const [name, found] of Object.entries(declared)) {
+                if (found.length !== 1 || !found[0].startsWith(`${ONE[name]}:`) || found[0].endsWith("(not exported)")) broken.push(`one:${name} ${found.join(",") || "none"}`);
+            }
+            if (auditCalls.length !== 1 || auditCalls[0] !== AUDIT_CALLER) broken.push(`call:auditMove ${auditCalls.join(",") || "none"}`);
+            return broken;
+        };
+        const planted = rulesOf([
+            ["walls.mjs", "export async function plant(scene, wall) {\n    // door: 2 and createEmbeddedDocuments(\"Wall\" in a comment write nothing\n"
+                + "    const said = 'createEmbeddedDocuments(\"Wall\", [{ door: 2 }])';\n"
+                + "    await scene.createEmbeddedDocuments(\"Wall\", [{ c: [0, 0, 1, 1], door: 2 }]);\n"
+                + "    await wall.update({ door: CONST.WALL_DOOR_TYPES.SECRET, ds: 2 });\n    await wall.update({ door: 1, door2: 2 });\n}\n"],
+            ["send.mjs", "export function send(userId) {\n    game.socket.emit(EVENT, { action: \"passage.rows\", userId }, { recipients: [userId] });\n"
+                + "    game.socket.emit(EVENT, { action: \"passage.rows\", userId });\n    game.socket.emit(EVENT, { action: 'move.sentBack' }, { recipients: \"all\" });\n"
+                + "    game.socket.emit(EVENT, { action: \"fog.request\" });\n}\n"],
+            ["flags.mjs", "export function keep(actor, row) {\n    actor.setFlag(MODULE_ID, \"seen\", true);\n"
+                + "    return actor.setFlag(MODULE_ID, \"passages\", { seg: row.passageSeg });\n}\n"],
+            ["passages.mjs", "import { MODULE_ID } from \"./config.mjs\";\nimport { canCross } from \"./movement.mjs\";\n"
+                + "const later = () => import(\"./rooms.mjs\");\nconst said = 'import(\"./fog.mjs\")';\nexport const tell = (userId, html) => postToThread(userId, html);\n"],
+            ["room-tile.mjs", "import { roomFacts } from \"./rooms.mjs\";\nimport { knownPassages } from \"./passages.mjs\";\n"],
+            ["passages-gm.mjs", "const row = { passageSeg: { x1: 1 }, passageWallId: \"w\" };\nexport async function sharePassage(p, { whisper = whisperToOwner } = {}) {\n"
+                + "    // ChatMessage.create in a comment posts nothing\n    await whisper(p.target, \"ChatMessage\");\n"
+                + "    await whisper(p.target, isMastermindActor(p.target) ? \"all\" : \"known\");\n    await whisperToGms(\"<p>shown</p>\");\n"
+                + "    return ChatMessage.create({ content: \"\", whisper: roomUsers(p.giver) });\n}\nfunction shareRefusal(giver) {\n"
+                + "    return isMastermindActor(giver) ? null : \"no\";\n}\nexport function isMastermindActor(actor) {\n    return Boolean(actor);\n}\n"
+                + "export function actsAsMastermind(actor, user) {\n    return Boolean(actor && user);\n}\n"
+                + "export async function passagesAfterReset() {\n    return 0;\n}\n"],
+            ["season-setup.mjs", "// export async function passagesAfterReset() in a comment declares nothing\nconst passagesAfterReset = () => 0;\n"],
+            ["movement.mjs", "export function passageOpenFor(actor) {\n    return Boolean(actor);\n}\n"
+                + "function noteGmPosition(t) {\n    // auditMove(t) in a comment calls nothing\n    auditMove(t, {}, {}, null, null, {});\n"
+                + "    judgeArrival(t, null, { sentBack: true });\n    judgeArrival(t, null, { asker: askerOf(o?.[SENT_BACK], game.users) });\n}\n"
+                + "function other(t) {\n    return auditMove(t);\n}\n"
+                + "function judgeArrival(t, userId, { asker = null } = {}) {\n    const mover = game.users.get(userId), asked = asker && game.users.get(asker);\n"
+                + "    return actsAsMastermind(t.actor, asked ?? mover) || actsAsMastermind(t.actor, mover);\n}\n"],
+            ["fog.mjs", "// export function redrawOutline() in a comment declares nothing\nfunction redrawOutline() {\n    return false;\n}\n"
+                + "const box = canvas.interface.getChildByName(\"drpgGmOverlay\"); // \"drpgGmOverlay\" in a comment names nothing\n"],
+            ["fog-reveal.mjs", "const said = 'export function passageOpenFor()';\nexport const redrawOutline = () => null;\n"],
+            ["movement-audit.mjs", "export function auditMove(tokenDoc) {\n    const walls = canvas.scene?.walls;\n    return walls ?? canvas?.edges ?? tokenDoc.parent.walls;\n}\n"
+                + "const judged = actor => isMastermindActor(actor);\nconst read = actor => readers?.isMastermind(actor) || iAmTheMastermind();\n"
+                + "function askerOf(named) {\n    return named;\n}\n"],
+            ["gm-overlay.mjs", "export const OVERLAY_NAME = \"drpgGmOverlay\";\nexport function gmOverlay() {\n    const box = new PIXI.Container();\n"
+                + "    if (!game.user?.isGM) return null;\n    return box;\n}\nexport function overlayLayer(name) {\n    const layer = new PIXI.Container();\n"
+                + "    return gmOverlay()?.addChild(layer);\n}\nexport function layerOk(name) {\n    const box = gmOverlay();\n"
+                + "    return box && box.addChild(new PIXI.Container());\n}\nfunction inner() {\n    if (!game.user?.isGM) return null;\n    return new PIXI.Container();\n}\n"]
+        ]);
+        equal(JSON.stringify(planted), JSON.stringify(["secretDoor walls.mjs:4", "secretDoor walls.mjs:5", "wallCreated walls.mjs:4",
+            "unaddressed send.mjs:3", "unaddressed send.mjs:4", "flag flags.mjs:3", "geometry flags.mjs:3", "card passages.mjs:5", "leaf:movement.mjs passages.mjs:2",
+            "tile:passages.mjs room-tile.mjs:2", "card passages-gm.mjs:7", "role passages-gm.mjs:5", "role passages-gm.mjs:10", "asker movement.mjs:15", "askerPassed movement.mjs:7", "overlayName fog.mjs:5",
+            "role movement-audit.mjs:5", "role movement-audit.mjs:6", "scene movement-audit.mjs:2", "scene movement-audit.mjs:3",
+            "overlayGate gm-overlay.mjs:3", "overlayLayer gm-overlay.mjs:8", "overlayLayer gm-overlay.mjs:17", "one:redrawOutline fog.mjs:2(not exported),fog-reveal.mjs:2",
+            "one:shareRefusal passages-gm.mjs:9(not exported)", "one:askerOf movement-audit.mjs:7(not exported)", "one:passagesAfterReset passages-gm.mjs:18,season-setup.mjs:2(not exported)",
+            "call:auditMove movement.mjs#noteGmPosition,movement.mjs#other"]),
+        "the source rules do not read the planted fixture as planted - the module would be read wrong too");
+
+        const sources = await otherSources();
+        const names = new Set(sources.map(([file]) => file));
+        ok(["passages.mjs", "passages-gm.mjs", "room-tile.mjs", "gm-stores.mjs", "movement.mjs", "fog.mjs", "movement-audit.mjs", "gm-overlay.mjs"].every(f => names.has(f)),
+            "a file these rules read is not among the module's sources - the rules would read nothing of it");
+        const broken = rulesOf(sources);
+        log(`R560: ${sources.length} module file(s) read; ${broken.length} broken rule(s)`);
+        equal(JSON.stringify(broken), "[]", "a wall written as a secret door or created, an un-addressed passage packet, a passage in a flag or a file outside the records, an import the leaf or the room tile must not have, a second (or unexported) passageOpenFor, redrawOutline, auditMove or gmOverlay, the audit called from anywhere but noteGmPosition or more than once, the audit reading the scene on screen, the GMs' overlay or a layer of it made without asking for a GM, the overlay's name read outside gm-overlay.mjs, a second (or unexported) sharePassage, shareRefusal, actsAsMastermind, askerOf or passagesAfterReset, the Mastermind's role read off the character alone outside sharePassage, the judge of arrivals not handed or not reading who asked a GM's send-back, or a chat message made in a passages file other than through whisperToOwner and whisperToGms");
+    }],
+
+
+    ["R572 - the GM's section 9.6 says who acts as the Mastermind for a passage, what a GM's move of a Monokuma passes, and that a repeated show tells nobody, as the code does, in English and in Polish", async () => {
+        /*
+         * E79 fix r2-G2, 16.10.2026 (the round-2 review's O15, SEC M3, SEC m1). Section 9.6 said "The Mastermind knows
+         * every secret passage" and stopped: since round 1 only the owner the Mastermind's door names (`ownerOf`, the
+         * first connected owner) is sent every passage, and since this fix only that owner may show one or pass one
+         * (passages-gm.mjs `actsAsMastermind`), while another owner of the student is held to what it was given; a GM's
+         * move of a Monokuma passes every open passage (passages.mjs `passageSegmentsFor`), and whether Foundry 14 holds
+         * a GM's drag at a wall at all is LIVE-E79-08, unmeasured; and a show to a student who already knows the passage
+         * writes and tells nothing but the asker's card (R562). Read in each book's "### 9.6" up to the next heading,
+         * as served; each book is asserted to have loaded and the section to be there, so nothing passes on an empty
+         * read. What a reader understands of it is not read here.
+         */
+        const WANT = {
+            en: ["The Mastermind knows every secret passage", "first connected player among the owners of the Mastermind's student",
+                "knows only the passages the student was given or shown", "A Monokuma's token passes every open secret passage when a GM moves it",
+                "LIVE-E79-08", "already knows the passage writes nothing and tells nobody but the player who showed it"],
+            pl: ["Mastermind zna każde tajne przejście", "pierwszy połączony gracz spośród właścicieli ucznia Masterminda",
+                "zna tylko przejścia, które uczeń dostał albo które mu pokazano", "Token Monokumy przechodzi przez każde otwarte tajne przejście, gdy przesuwa go GM",
+                "LIVE-E79-08", "już zna przejście, niczego nie zapisuje i nikomu nic nie mówi poza graczem, który je pokazał"]
+        };
+        const missing = {};
+        for (const lang of ["en", "pl"]) {
+            const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/gm-handbook.${lang}.md`);
+            ok(res.ok, `docs/handbooks/gm-handbook.${lang}.md did not load`);
+            const text = await res.text();
+            const section = text.split(/^(?=#{2,3} )/m).find(part => part.startsWith("### 9.6 ")) ?? "";
+            ok(section.split("\n").length > 3, `docs/handbooks/gm-handbook.${lang}.md has no section 9.6 - this test measured nothing`);
+            missing[lang] = WANT[lang].filter(words => !section.includes(words));
+        }
+        equal(JSON.stringify(missing), JSON.stringify({ en: [], pl: [] }), "section 9.6 of the GM's handbook does not say who acts as the Mastermind for a passage, what a GM's move of a Monokuma passes, or what a repeated show does");
+    }],
+
     ["R544 - nothing reads the table-wide speaking signal or moves a microphone on its own: no file of scripts/ reads `settings.activity` or names `setUserIsSpeaking`, `toggleAudio(` is called and a client `muted` key written only in `toggleOwnMic`, and there only the viewer's own, `micHold` and `moduleHoldsMic` are declared once each, exported, in voice.mjs, and an account's characters are ranked only in `voiceRowFor`, which `voiceTargets` asks", async () => {
         /*
          * E78 C2, 13.10.2026; the A9 design's R397 (T9; the E78 plan's D2 gave it this number), S16-10: "the module
@@ -9387,7 +9974,7 @@ const REGRESSIONS = [
             "[the field drawn and read by the room's name; Apply judging the picture, comparing it in `same` and handing it on; setVaultRoom the one "
             + "writer, through safeRoomImage; pieceData carrying it; roomImage checking it on read] and the files other than vault.mjs that write it or name its flag");
     }],
-    ["R506 - a route is announced once, when its position is final: movement.mjs alone fires drpgRouteSettled, from onUpdateToken, after the gate that keeps a refusal quiet until its put-back lands; a route this browser judges is marked before its first await and answered at the spot before it; and the move card says where and the price, with no description of the room; the room tile repaints on it for its own token, and nothing listens on updateToken in its stead; the clock tells the tile each time it is drawn", async () => {
+    ["R506 - a route is announced on the update that names its final destination, in the room that update names, never while its put-back is on its way, and the at-rest read announces again only when it finds another room: movement.mjs alone fires drpgRouteSettled, from onUpdateToken; a route this browser judges is marked before its first await and answered at the spot before it; and the move card says where and the price, with no description of the room; the room tile repaints on it for its own token, and nothing listens on updateToken in its stead; the clock tells the tile each time it is drawn", async () => {
         /*
          * E77 C2, 13.10.2026; the A8 design's R381 (the E77 plan's D2 gave it this number; ledger V4, D5, D7), its
          * C2 clauses, read in movement.mjs with comments blanked. The plan put R506 on tier 1; what it asks - one
@@ -9424,60 +10011,113 @@ const REGRESSIONS = [
          * a route another browser settles waits on an owning browser (`untilQuiet`), every update starting the
          * wait again and the REVERT, a GM's move and the next route ending it. Scenario 74 C and 66 W2/W5 run
          * what these read; the fixture gains one variant per shape, each taken out.
+         * E79 C14 (16.10.2026; plan-p4 N13, the owner's "entering a room reads too late") amends it: the gate is any
+         * put-back on its way (`if (putBack.has(tokenDoc.id)) return;` - the GMs' wall audit marks one on the primary
+         * while the judge awaits, and a move inside one room it put back was announced as accepted first, 76 D N13);
+         * the announcement carries the room at the spot the update names (`destinationOf`, read once at the top of
+         * `judgeMove` into `route.landing`, the judge's `after` read there and not off the token's position);
+         * `settledSpot` answers that spot until the token rests (`landing`); a route another browser settles stands
+         * at once when it had no step pending and waits for quiet only when it had; the at-rest read compares the
+         * room it finds with the one announced and says which update it reads (`of`). Scenario 66 N13 runs these;
+         * the fixture gains a sixth clause and one variant per new shape, each taken out.
+         * E79 fix r3-G3 (17.10.2026; review round 3 cor D) adds one: the co-owner's route of one update, announced
+         * at once, carries whether it stood (`route.stands`, the wait for quiet's answer, true at quiet and false
+         * when its put-back, a GM's move or the next route ends it) as `provisional`, false on every other
+         * announcement; the primary's revoke of a student who left the room waits on it (R561, scenario 76 E). The
+         * fixture gains two variants: the mark taken out of the branch, and the announcement without it.
+         * E79 fix r4-G4 (17.10.2026; review round 4, cor D residual) makes the mark the primary's own reading first
+         * (movement.mjs `refusedOnPrimary`: false at once for a route it reads as refused, the quiet bound otherwise;
+         * scenario 76 E's put-back held 2 s); the fixture gains a variant with the reading taken out. Its put-back written
+         * before the refusal's card (chargeForCrossing, Q1) lands while the card is awaited, so the gate is also a put-back
+         * this update's judgement sent (`putBacksSent`, counted in `sendBack`; scenario 66 N13d read the route announced
+         * twice without it); the fixture gains two variants, the gate without the count and `sendBack` not counting.
          */
         const FIRE = /\bHooks\.callAll\(\s*["']drpgRouteSettled["']/g;
         const shape = src => {
             const body = name => topLevelFunction(src, name) ?? "";
-            const on = body("onUpdateToken"), judge = body("judgeMove"), card = body("chargeForCrossing");
-            const gate = on.indexOf("if (accepted === false && putBack.has(tokenDoc.id)) return;");
-            const fire = on.search(/Hooks\.callAll\("drpgRouteSettled", \{ tokenDoc, accepted \}\)/);
+            const on = body("onUpdateToken"), judge = body("judgeMove"), card = body("chargeForCrossing"), rest = body("recheckAtRest");
+            const gate = on.indexOf("if (putBack.has(tokenDoc.id) || (putBacksSent.get(tokenDoc.id) ?? 0) !== sent) return;");
+            const fire = on.search(/Hooks\.callAll\("drpgRouteSettled", \{ tokenDoc, accepted, room, again, provisional: route\.stands \?\? false \}\)/);
             const mark = judge.indexOf("unsettled.set(tokenDoc.id, route)");
             return [
                 [...src.matchAll(FIRE)].length === 1 && gate >= 0 && fire > gate && /Hooks\.on\("updateToken", onUpdateToken\)/.test(src)
+                    && /const route = \{\}, sent = putBacksSent\.get\(tokenDoc\.id\) \?\? 0;/.test(on)
+                    && /putBacksSent\.set\(tokenDoc\.id, \(putBacksSent\.get\(tokenDoc\.id\) \?\? 0\) \+ 1\);/.test(body("sendBack"))
                     && /if \(unsettled\.get\(tokenDoc\.id\) === route && !putBack\.has\(tokenDoc\.id\)\) unsettled\.delete\(tokenDoc\.id\);/.test(on),
                 /if \(options\?\.\[REVERT\]\) \{\s*endQuiet\(tokenDoc\.id\);[^}]*putBack\.delete\(tokenDoc\.id\);[^}]*return false;\s*\}/.test(judge)
                     && /\?\.isGM\) \{[^}]*if \(!isMoveChange\(changes\)\) return;\s*endQuiet\(tokenDoc\.id\);\s*putBack\.delete\(tokenDoc\.id\);\s*unsettled\.delete\(tokenDoc\.id\);\s*return true;\s*\}/.test(judge)
                     && /pending\?\.waypoints\?\.length\) \{[^}]*return;\s*\}/.test(judge),
                 mark > judge.indexOf("pending?.waypoints") && mark < judge.indexOf("await ") && /putBack\.add\(tokenDoc\.id\)/.test(body("sendBack"))
-                    && /return unsettled\.get\(tokenDoc\.id\)\?\.spot \?\? spotOf\(tokenDoc\);/.test(body("settledSpot")),
+                    && /return unsettled\.get\(tokenDoc\.id\)\?\.spot \?\? landing\.get\(tokenDoc\.id\)\?\.spot \?\? spotOf\(tokenDoc\);/.test(body("settledSpot")),
                 /<p>\$\{where\}<br>\$\{price\}<\/p>`\)/.test(card) && !/\broomDescription\b|drpg-room-prose/.test(src),
                 /^\s*restartQuiet\(tokenDoc\.id\);/m.test(on) && /endQuiet\(tokenDoc\.id\);\s*putBack\.delete\(tokenDoc\.id\);\s*route\.spot = /.test(judge)
-                    && /if \(settled !== undefined \|\| !actor\.isOwner\) return settled;[^]*?await untilQuiet\(tokenDoc\)/.test(judge)
+                    && /if \(settled !== undefined \|\| !actor\.isOwner\) return settled;[^]*?if \(!path\.length\) \{[^}]*route\.stands = refused \? Promise\.resolve\(false\) : untilQuiet\(tokenDoc\)\.then\(quiet => quiet === true\);\s*return true;\s*\}\s*const quiet = await untilQuiet\(tokenDoc\)/.test(judge),
+                /const landed = route\.landing = atRest \? spotOf\(tokenDoc\) : destinationOf\(tokenDoc, changes\);\s*const after = roomAtSpot\(tokenDoc, landed\);/.test(judge)
+                    && !/\bconst after = roomOfToken\(/.test(judge)
+                    && /const spot = route\.landing \?\? spotOf\(tokenDoc\), room = roomAtSpot\(tokenDoc, spot\);/.test(on)
+                    && /if \(!pathRooms\.has\(id\) && roomOfToken\(tokenDoc\) === \(told \? told\.room : lastRoom\.get\(id\)\)\)/.test(rest)
+                    && /\{ atRest: true, of: turn \}/.test(rest)
             ];
         };
         const FIXTURE = "export function registerMovement() {\n    Hooks.on(\"updateToken\", onUpdateToken);\n}\n"
-            + "export function settledSpot(tokenDoc) {\n    return unsettled.get(tokenDoc.id)?.spot ?? spotOf(tokenDoc);\n}\n"
-            + "async function onUpdateToken(tokenDoc, changes, options, userId) {\n    restartQuiet(tokenDoc.id);\n    const route = {};\n"
+            + "export function settledSpot(tokenDoc) {\n    return unsettled.get(tokenDoc.id)?.spot ?? landing.get(tokenDoc.id)?.spot ?? spotOf(tokenDoc);\n}\n"
+            + "async function onUpdateToken(tokenDoc, changes, options, userId) {\n    restartQuiet(tokenDoc.id);\n    const route = {}, sent = putBacksSent.get(tokenDoc.id) ?? 0;\n"
             + "    try {\n        accepted = await judgeMove(tokenDoc, changes, options, userId, route);\n    } finally {\n"
             + "        if (unsettled.get(tokenDoc.id) === route && !putBack.has(tokenDoc.id)) unsettled.delete(tokenDoc.id);\n    }\n"
-            + "    if (accepted === false && putBack.has(tokenDoc.id)) return;\n"
-            + "    if (accepted === true || accepted === false) Hooks.callAll(\"drpgRouteSettled\", { tokenDoc, accepted });\n}\n"
-            + "async function judgeMove(tokenDoc, changes, options, userId, route = {}) {\n    if (options?.[REVERT]) {\n        endQuiet(tokenDoc.id);\n        putBack.delete(tokenDoc.id);\n        return false;\n    }\n"
+            + "    if (putBack.has(tokenDoc.id) || (putBacksSent.get(tokenDoc.id) ?? 0) !== sent) return;\n"
+            + "    const spot = route.landing ?? spotOf(tokenDoc), room = roomAtSpot(tokenDoc, spot);\n"
+            + "    Hooks.callAll(\"drpgRouteSettled\", { tokenDoc, accepted, room, again, provisional: route.stands ?? false });\n}\n"
+            + "async function recheckAtRest(tokenDoc, changes, options, userId, turn) {\n"
+            + "    if (!pathRooms.has(id) && roomOfToken(tokenDoc) === (told ? told.room : lastRoom.get(id))) {\n        return;\n    }\n"
+            + "    await onUpdateToken(tokenDoc, changes, options, userId, { atRest: true, of: turn });\n}\n"
+            + "async function judgeMove(tokenDoc, changes, options, userId, route = {}) {\n"
+            + "    const landed = route.landing = atRest ? spotOf(tokenDoc) : destinationOf(tokenDoc, changes);\n    const after = roomAtSpot(tokenDoc, landed);\n"
+            + "    if (options?.[REVERT]) {\n        endQuiet(tokenDoc.id);\n        putBack.delete(tokenDoc.id);\n        return false;\n    }\n"
             + "    if (game.users.get(userId)?.isGM) {\n        if (!isMoveChange(changes)) return;\n        endQuiet(tokenDoc.id);\n        putBack.delete(tokenDoc.id);\n        unsettled.delete(tokenDoc.id);\n        return true;\n    }\n"
             + "    if (tokenDoc.movement?.pending?.waypoints?.length) {\n        return;\n    }\n"
             + "    endQuiet(tokenDoc.id);\n    putBack.delete(tokenDoc.id);\n    route.spot = lastPosition.get(tokenDoc.id) ?? null;\n    unsettled.set(tokenDoc.id, route);\n"
             + "    const actor = await import(\"./monokuma.mjs\");\n    const settled = await settleRoute(tokenDoc);\n"
-            + "    if (settled !== undefined || !actor.isOwner) return settled;\n    return await untilQuiet(tokenDoc);\n}\n"
+            + "    if (settled !== undefined || !actor.isOwner) return settled;\n    if (!path.length) {\n        route.stands = refused ? Promise.resolve(false) : untilQuiet(tokenDoc).then(quiet => quiet === true);\n        return true;\n    }\n"
+            + "    const quiet = await untilQuiet(tokenDoc);\n}\n"
             + "async function chargeForCrossing(actor, from, to) {\n    await whisperToOwner(actor, `${cardHead({ room: to })}<p>${where}<br>${price}</p>`);\n}\n"
-            + "async function sendBack(tokenDoc) {\n    putBack.add(tokenDoc.id);\n}\n";
-        equal(JSON.stringify([shape(FIXTURE), shape(FIXTURE.replace("    if (accepted === false && putBack.has(tokenDoc.id)) return;\n", "")),
+            + "async function sendBack(tokenDoc) {\n    putBack.add(tokenDoc.id);\n    putBacksSent.set(tokenDoc.id, (putBacksSent.get(tokenDoc.id) ?? 0) + 1);\n}\n";
+        const T = [true, true, true, true, true, true];
+        const off = i => T.map((v, j) => j !== i);
+        const GATE = "    if (putBack.has(tokenDoc.id) || (putBacksSent.get(tokenDoc.id) ?? 0) !== sent) return;\n";
+        equal(JSON.stringify([shape(FIXTURE), shape(FIXTURE.replace(GATE, "")),
             shape(FIXTURE.replace("<br>${price}</p>", "<br>${price}</p><p class=\"drpg-room-prose\">${escapeHTML(roomDescription(to, scene))}</p>")),
             shape(FIXTURE.replace("unsettled.get(tokenDoc.id) === route && ", "")),
             shape(FIXTURE.replace("        if (!isMoveChange(changes)) return;\n", "")),
-            shape(FIXTURE.replace("    if (settled !== undefined || !actor.isOwner) return settled;\n    return await untilQuiet(tokenDoc);\n", "    return settled;\n"))]),
-        JSON.stringify([[true, true, true, true, true], [false, true, true, true, true], [true, true, true, false, true],
-            [false, true, true, true, true], [true, false, true, true, true], [true, true, true, true, false]]),
+            shape(FIXTURE.replace("    const quiet = await untilQuiet(tokenDoc);\n", "")),
+            shape(FIXTURE.replace(GATE, "    if (accepted === false && putBack.has(tokenDoc.id)) return;\n")),
+            shape(FIXTURE.replace(GATE, "    if (putBack.has(tokenDoc.id)) return;\n")),
+            shape(FIXTURE.replace("    if (!path.length) {\n        route.stands = refused ? Promise.resolve(false) : untilQuiet(tokenDoc).then(quiet => quiet === true);\n        return true;\n    }\n", "")),
+            shape(FIXTURE.replace("        route.stands = refused ? Promise.resolve(false) : untilQuiet(tokenDoc).then(quiet => quiet === true);\n", "")),
+            shape(FIXTURE.replace("route.stands = refused ? Promise.resolve(false) : untilQuiet", "route.stands = untilQuiet")),
+            shape(FIXTURE.replace(" ?? landing.get(tokenDoc.id)?.spot", "")),
+            shape(FIXTURE.replace("    const landed = route.landing = atRest ? spotOf(tokenDoc) : destinationOf(tokenDoc, changes);\n    const after = roomAtSpot(tokenDoc, landed);\n",
+                "    const after = roomOfToken(tokenDoc);\n")),
+            shape(FIXTURE.replace("if (!pathRooms.has(id) && roomOfToken(tokenDoc) === (told ? told.room : lastRoom.get(id))) {", "if (!pathRooms.has(id)) {")),
+            shape(FIXTURE.replace(", room, again, provisional: route.stands ?? false });", " });")),
+            shape(FIXTURE.replace(", again, provisional: route.stands ?? false });", ", again });")),
+            shape(FIXTURE.replace("    putBacksSent.set(tokenDoc.id, (putBacksSent.get(tokenDoc.id) ?? 0) + 1);\n", ""))]),
+        JSON.stringify([T, off(0), off(3), off(0), off(1), off(4), off(0), off(0), off(4), off(4), off(4), off(2), off(5), off(5), off(0), off(0), off(0)]),
         "the reader does not read its fixture whole, or does not miss the gate taken out, the description put back on the card, "
-            + "the finally clearing any mark, a GM's write that moves nothing answered as a route or the wait for quiet taken out");
+            + "the finally clearing any mark, a GM's write that moves nothing answered as a route, the wait for quiet taken out, the gate "
+            + "for a refusal alone or for a put-back on its way alone, a co-owner's route of one update waiting or not marked provisional or its mark not the primary's reading first, the landing spot not answered, the room "
+            + "read off the token at the hook, the at-rest read not comparing the room announced, or the announcement without its room or "
+            + "without whether it stands yet");
         const sources = new Map(await otherSources());
         const movement = stripComments(sources.get("movement.mjs") ?? "");
         must(movement.length > 1000, "movement.mjs is not among the module's sources - this would measure nothing");
         const elsewhere = [...sources].filter(([file, text]) => file !== "movement.mjs" && [...stripComments(text).matchAll(FIRE)].length).map(([file]) => file);
-        equal(JSON.stringify([shape(movement), elsewhere]), JSON.stringify([[true, true, true, true, true], []]),
-            "[one announcement, in onUpdateToken behind the put-back's gate, and onUpdateToken on updateToken, its finally clearing only its own mark; "
-            + "the REVERT answering false, a GM's move true and a GM's write that moves nothing nothing, a pending waypoint nothing; the route marked before "
-            + "the first await, the put-back marked, the settled spot the one before; the card where and the price, and no description read in "
-            + "movement.mjs; a route another browser settles waited on for quiet where the actor is owned] and the other files that announce a route");
+        equal(JSON.stringify([shape(movement), elsewhere]), JSON.stringify([T, []]),
+            "[one announcement, with its room, in onUpdateToken behind the gate of any put-back on its way, and onUpdateToken on updateToken, its "
+            + "finally clearing only its own mark; the REVERT answering false, a GM's move true and a GM's write that moves nothing nothing, a pending "
+            + "waypoint nothing; the route marked before the first await, the put-back marked, the settled spot the one before, then the landing; the "
+            + "card where and the price, and no description read in movement.mjs; a route another browser settles standing at once with no step "
+            + "pending, else waited on for quiet where the actor is owned; the room read at the spot the update names, and the at-rest read "
+            + "comparing the room announced] and the other files that announce a route");
 
         const ON_MOVE = /\bHooks\.(?:on|once)\(\s*["']updateToken["']/;
         const listens = (tile, hud) => [
@@ -12191,6 +12831,330 @@ const REGRESSIONS = [
         must(glass.length > 1000, "glass.mjs is not among the module's sources - this would measure nothing");
         equal(JSON.stringify(reader(glass)), JSON.stringify([true, true, true, true]),
             "[Stained Glass's 'clock' branch free of the cap; the cap in the 'notes' height; in Legacy's 'clock' return; in Legacy's 'notes' return]");
+    }],
+
+    ["R583 - the trial hall's facts for the room tile have one writer and one reader: setHallRoom, a GM's, writes the hall's flag it is handed, its picture through safeRoomImage, called by the Scenes tab's Apply alone; hallRoom reads the flag and judges the picture again; the room tile reads the facts only through hallRoom, and the flag's name is named in trial-scene.mjs and the tile's repaint alone", async () => {
+        /*
+         * E79 C11 (16.10.2026; the owner's N6 of 14.10.2026). The hall's name, picture and words are a flag of
+         * the hall scene every browser holds (trial-scene.mjs `HALL_ROOM_FLAG`), so what a console writes there is
+         * read by every player's tile: the reader judges the picture on every read, as vault.mjs `roomImage` does a
+         * room's, and the writer is a GM's. Read off the module's files, comments blanked: [setHallRoom's first
+         * statement the GM gate; its picture through safeRoomImage; its one write, the hall's flag, and no other;
+         * its one call, in applyScenesTab; hallRoom reading the flag and judging the picture; one read of the flag
+         * in the module; the key's one literal; the files naming the flag; room-tile.mjs reading the facts in
+         * tileView through hallRoom and naming the flag in registerRoomTile and its import alone].
+         * THE CONTROL: a fixture of the two files is read whole, and each of five plants is seen - the gate
+         * taken off, a second caller, the picture written raw, the tile reading the flag itself, the reader not
+         * judging the picture.
+         */
+        const J = JSON.stringify;
+        const count = (text, pattern) => (text.match(pattern) ?? []).length;
+        const reader = files => {
+            const trial = files.get("trial-scene.mjs") ?? "", tile = files.get("room-tile.mjs") ?? "";
+            const write = fnSource(trial, "setHallRoom"), read = fnSource(trial, "hallRoom"), apply = fnSource(trial, "applyScenesTab");
+            const all = [...files];
+            const sum = pattern => all.reduce((n, [, text]) => n + count(text, pattern), 0);
+            const tileBody = tile.replace(/^import [^;]*;$/gm, "");
+            return [
+                /^[^\n]*\)\s*\{\s*if \(!game\.user\?\.isGM \|\| !hall\?\.setFlag\) return null;/.test(write),
+                /\bconst path = picture \? safeRoomImage\(picture\) : null;/.test(write) && /\bpicture: path\b/.test(write),
+                count(write, /\.setFlag\(|\.update\(|\.unsetFlag\(/g) === 1 && /\bhall\.setFlag\(MODULE_ID, HALL_ROOM_FLAG, next\)/.test(write),
+                sum(/(?<!function )\bsetHallRoom\(/g) === 1 && count(apply, /\bsetHallRoom\(hall, facts\)/g) === 1,
+                /getFlag\?\.\(MODULE_ID, HALL_ROOM_FLAG\)/.test(read) && /\bpicture: safeRoomImage\(raw\.picture\)/.test(read),
+                sum(/getFlag\??\.?\([^)]*HALL_ROOM_FLAG/g), sum(/["'`]hallRoom["'`]/g),
+                all.filter(([, text]) => /\bHALL_ROOM_FLAG\b/.test(text)).map(([file]) => file).sort(),
+                /\bhallRoom\(hall\)/.test(fnSource(tile, "tileView")) && count(tileBody, /\bHALL_ROOM_FLAG\b/g) === 1
+                    && count(fnSource(tile, "registerRoomTile"), /\bHALL_ROOM_FLAG\b/g) === 1
+            ];
+        };
+        const TRIAL = "export const HALL_ROOM_FLAG = \"hallRoom\";\n"
+            + "export function hallRoom(hall) {\n    const raw = hall?.getFlag?.(MODULE_ID, HALL_ROOM_FLAG);\n"
+            + "    return { name: text(raw.name).trim(), picture: safeRoomImage(raw.picture), words: text(raw.words) };\n}\n"
+            + "export async function setHallRoom(hall, { name = \"\", picture = \"\", words = \"\" } = {}) {\n"
+            + "    if (!game.user?.isGM || !hall?.setFlag) return null;\n    const path = picture ? safeRoomImage(picture) : null;\n"
+            + "    const next = { name, picture: path, words };\n    await hall.setFlag(MODULE_ID, HALL_ROOM_FLAG, next);\n    return next;\n}\n"
+            + "export async function applyScenesTab(read) {\n    const facts = hall ? hallRoomWrite(read, hallRoom(hall)) : null;\n"
+            + "    if (facts) done.hall = await setHallRoom(hall, facts);\n}\n";
+        const TILE = "import { hallRoom, HALL_ROOM_FLAG } from \"./trial-scene.mjs\";\n"
+            + "export function tileView() {\n    if (where.state === \"trial\") return hallView(hallRoom(hall), label);\n}\n"
+            + "export function registerRoomTile() {\n    Hooks.on(\"updateScene\", (scene, changed) => { if (ours.includes(HALL_ROOM_FLAG)) refreshRoomTile(); });\n}\n";
+        const files = (trial = TRIAL, tile = TILE) => new Map([["trial-scene.mjs", trial], ["room-tile.mjs", tile]]);
+        const planted = (text, from, to) => { must(text.includes(from), `the fixture has no "${from}"`); return text.replace(from, to); };
+        const WHOLE = [true, true, true, true, true, 1, 1, ["room-tile.mjs", "trial-scene.mjs"], true];
+        const at = (index, value) => WHOLE.map((cell, i) => (i === index ? value : cell));
+        equal(J([reader(files()),
+            reader(files(planted(TRIAL, "if (!game.user?.isGM || !hall?.setFlag) return null;", "if (!hall?.setFlag) return null;"))),
+            reader(files(TRIAL, planted(TILE, "refreshRoomTile(); });", "{ refreshRoomTile(); setHallRoom(scene, {}); } });"))),
+            reader(files(planted(TRIAL, "picture: path, words", "picture, words"))),
+            reader(files(TRIAL, planted(TILE, "hallView(hallRoom(hall), label)", "hallView(hall.getFlag(MODULE_ID, HALL_ROOM_FLAG), label)"))),
+            reader(files(planted(TRIAL, "picture: safeRoomImage(raw.picture)", "picture: raw.picture")))]),
+        J([WHOLE, at(0, false), at(3, false), at(1, false), WHOLE.map((cell, i) => (i === 5 ? 2 : i === 8 ? false : cell)), at(4, false)]),
+        "the reader does not read its fixture whole, or does not see the gate taken off, a second caller, the picture written raw, the tile reading the flag or the reader not judging the picture");
+        const sources = new Map((await otherSources()).map(([file, text]) => [file, stripComments(text)]));
+        must((sources.get("trial-scene.mjs") ?? "").length > 1000 && (sources.get("room-tile.mjs") ?? "").length > 1000,
+            "trial-scene.mjs or room-tile.mjs is not among the module's sources - this would measure nothing");
+        /* Asked as an assertion first (A2, 16.10.2026): at the parent the real reader below would throw out of fnSource
+           on the missing function, and a red first that errors is not one that failed on what it promises. */
+        const declared = ["setHallRoom", "hallRoom"].every(name => new RegExp(`\\bfunction ${name}\\(`).test(sources.get("trial-scene.mjs")));
+        ok(declared, "trial-scene.mjs declares no setHallRoom or hallRoom - the hall's facts have no writer or reader (N6)");
+        if (!declared) return;
+        equal(J(reader(sources)), J(WHOLE),
+            "[the GM gate first; the picture through safeRoomImage; one write, the hall's flag; one call, in applyScenesTab; the reader judging; "
+            + "the flag's reads; the key's literals; the files naming the flag; the tile through hallRoom and its repaint]");
+    }],
+
+    ["R587 - under Stained Glass the dice are drawn in the badge's colours: the Hope die's plate is the Hope token and the Despair die's the Despair token, a critical repaints neither, and the letters' ink holds at least 4.5:1 on both", async () => {
+        /*
+         * E79 C13 (16.10.2026; the owner's N11 of 14.10: "roll-result dice in Hope/Despair colours"). The Hope
+         * die's plate was `--drpg-glass-accent` - the state colour, which moves with the hour - and the Despair
+         * die's the Eclipse's violet, while the verdict badge beside them is `--drpg-sg-hope` (#ffd23f) and
+         * `--drpg-sg-despair` (#ff3d8b): two colour languages on one roll card. Read off stained-glass.css: every
+         * Stained Glass rule naming a die is split into its selectors, each sorted by the side it can reach (only
+         * the Hope die, only the Despair die, or either), and the plates, the badges' colours and the letters'
+         * ink are read from them. A rule that paints both dice at once is allowed only as the base one, since
+         * the Despair die's own rule outranks it; any other - a critical's repaint - is listed (`either`). The
+         * ratios are WCAG's, from the tokens' values in the same sheet: 13.9 and 6.0 on 16.10.2026. The reader
+         * is held to two plants of the real sheet first: the Hope plate put back to the accent, and a critical
+         * rule repainting both dice gold. No roll card was drawn in a browser: LIVE-E79-17.
+         */
+        const J = JSON.stringify;
+        const BASE = "body.drpg-theme-stained-glass .drpg-duality-die";
+        const selectors = list => {
+            const out = [];
+            let depth = 0, from = 0;
+            for (let i = 0; i < list.length; i++) {
+                if (list[i] === "(") depth++;
+                else if (list[i] === ")") depth--;
+                else if (list[i] === "," && depth === 0) { out.push(list.slice(from, i).trim()); from = i + 1; }
+            }
+            out.push(list.slice(from).trim());
+            return out.filter(Boolean);
+        };
+        const declared = (decl, name) => (new RegExp(`(?:^|;)\\s*${name}\\s*:\\s*([^;!]+)`).exec(decl)?.[1] ?? "").trim() || null;
+        const tokenHex = (css, value) => {
+            const name = /^var\((--[\w-]+)\)$/.exec(value ?? "")?.[1];
+            return name ? (new RegExp(`${name}\\s*:\\s*(#[0-9a-fA-F]{6})\\s*;`).exec(css)?.[1] ?? null) : null;
+        };
+        const luminance = hex => {
+            const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255)
+                .map(c => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+            return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        };
+        const ratio = (a, b) => {
+            if (!a || !b) return null;
+            const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+            return Math.round(((hi + 0.05) / (lo + 0.05)) * 10) / 10;
+        };
+        const reading = css => {
+            const pieces = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+                .flatMap(([, list, decl]) => selectors(list).map(sel => ({ sel, decl })))
+                .filter(({ sel }) => sel.startsWith("body.drpg-theme-stained-glass"));
+            const dice = pieces.filter(({ sel }) => /\.drpg-duality-die\b/.test(sel));
+            const side = sel => (/\.is-despair\b/.test(sel) && !/\.is-hope\b/.test(sel) ? "despair"
+                : /\.is-hope\b/.test(sel) && !/\.is-despair\b/.test(sel) ? "hope" : "either");
+            const plates = which => [...new Set(dice.filter(({ sel }) => side(sel) === which || (which === "hope" && sel === BASE))
+                .map(({ decl }) => declared(decl, "background(?:-color)?")).filter(Boolean))];
+            const either = dice.filter(({ sel, decl }) => side(sel) === "either" && sel !== BASE && declared(decl, "background(?:-color)?")).map(({ sel }) => sel);
+            const badge = which => pieces.filter(({ sel }) => sel.endsWith(`.drpg-duality[data-side="${which}"] .drpg-duality-badge`))
+                .map(({ decl }) => declared(decl, "color")).filter(Boolean);
+            const inks = [...new Set(dice.map(({ decl }) => declared(decl, "color")).filter(Boolean))];
+            const [hope, despair] = [plates("hope"), plates("despair")];
+            const ratios = inks.flatMap(ink => [hope[0], despair[0]].map(plate => ratio(tokenHex(css, ink), tokenHex(css, plate))));
+            return [hope, despair, either, [badge("hope"), badge("despair")], inks, ratios];
+        };
+        const css = stripComments(new Map(await otherSources()).get("stained-glass.css")
+            ?? await fetch(`/modules/${MODULE_ID}/styles/stained-glass.css`).then(r => r.text()));
+        must(css.length > 10000 && css.includes(BASE), "stained-glass.css or its dice rule is not among the module's sources - this would measure nothing");
+        const planted = (from, to) => { must(css.includes(from), `the sheet has no "${from}"`); return css.replace(from, to); };
+        const base = bodyOf(css, `${BASE} {`, { until: "}" });
+        const plate = /background:\s*[^;]+;/.exec(base)?.[0] ?? "";
+        must(plate.length > 0, "the dice rule states no background");
+        const accent = reading(css.replace(base, base.replace(plate, "background: var(--drpg-glass-accent);")));
+        const critical = reading(planted(`${BASE} {`,
+            `body.drpg-theme-stained-glass .drpg-duality[data-side="critical"] .drpg-duality-die { background: var(--drpg-sg-hope); }\n${BASE} {`));
+        equal(J([accent[0], critical[2]]), J([["var(--drpg-glass-accent)"], ['body.drpg-theme-stained-glass .drpg-duality[data-side="critical"] .drpg-duality-die']]),
+            "the reader does not see the Hope plate put back to the accent, or a critical rule painting both dice");
+        const [hope, despair, either, badges, inks, ratios] = reading(css);
+        equal(J([hope, despair, either]), J([["var(--drpg-sg-hope)"], ["var(--drpg-sg-despair)"], []]),
+            "[the Hope die's plates; the Despair die's; the rules that paint both dice beside the base one] - the dice are not in their sides' colours");
+        equal(J([hope, despair]), J(badges), "[the Hope die's plate against the Hope badge's colour; the Despair die's against the Despair badge's]");
+        equal(J(inks), J(["var(--drpg-sg-ink)"]), "the dice's letters are not the ink the ratios were computed for");
+        ok(ratios.length === 2 && ratios.every(r => r !== null && r >= 4.5), `the letters' ink on the two plates reads ${J(ratios)}, under 4.5:1 or unread`);
+    }],
+
+    ["R589 - the voice tile's state word is read at full ink in both themes, and the ticker switch, reduced motion and a stacked screen only stop it: no rule of the module's stylesheets hides the word or its runs but its own `hidden`, none sets it at an opacity, its colour is a full ink in each theme, and each of the three switches stops its runs", async () => {
+        /*
+         * E79 C15 (16.10.2026; the prep's R586, renumbered: R586 was C12's by then). The owner's N12 and N15: the
+         * state word is the tile's caption; the clock's ticker, which the word runs like, is hidden by
+         * `body.drpg-no-ticker` and drawn as an outline at 22 % (stained-glass.css's C-J2 ticker) - neither may
+         * happen to the word. Every stylesheet module.json loads is cut into its rules, each with the at-rules
+         * around it; the rules whose selector names `.drpg-voice-tile-state` are read: none hides it (display none,
+         * visibility hidden, opacity 0 or content-visibility) but the one keyed on `[hidden]`, none states an
+         * opacity or a transparent fill, and their colours are the two full inks the stylesheets give it (Legacy's
+         * `--color-text-primary`, Stained Glass's `--drpg-glass-accent`); and `animation: none` on its runs under
+         * `body.drpg-no-ticker`, `body.drpg-reduced-motion`, `body.drpg-stacked` and `prefers-reduced-motion`.
+         * narrow.css, which loads last, is read with the rest: a rule there hiding the word is caught as anywhere.
+         * The reader is held to three plants first: the word hidden with the ticker off, its colour at 0.2, and
+         * the stacked screen's stop taken out. What the word looks like on the tile's picture is the glass
+         * harness's voice clause (Chromium); at a table, LIVE-E79-21.
+         * Red at C15's parent: there was no word (no rule names it).
+         */
+        const J = JSON.stringify;
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(res => res.json());
+        const sheets = [];
+        for (const href of manifest.styles ?? []) sheets.push([href.split("/").at(-1), (await fetch(`/modules/${MODULE_ID}/${href}`).then(res => res.text())).replace(/\/\*[\s\S]*?\*\//g, " ")]);
+        must(sheets.length >= 5 && sheets.some(([name]) => name === "narrow.css"), `module.json loads ${sheets.map(([name]) => name).join(", ")} - not the module's sheets`);
+        const split = list => {
+            const out = [];
+            let depth = 0, from = 0;
+            for (let i = 0; i < list.length; i++) {
+                if (list[i] === "(") depth++;
+                else if (list[i] === ")") depth--;
+                else if (list[i] === "," && depth === 0) { out.push(list.slice(from, i).trim()); from = i + 1; }
+            }
+            out.push(list.slice(from).trim());
+            return out.filter(Boolean);
+        };
+        const rulesOf = css => {
+            const out = [], open = [];
+            let from = 0;
+            for (let i = 0; i < css.length; i++) {
+                if (css[i] === "{") {
+                    open.push({ prelude: css.slice(from, i).split(";").at(-1).trim(), at: i + 1 });
+                    from = i + 1;
+                } else if (css[i] === "}") {
+                    const rule = open.pop();
+                    if (rule && !css.slice(rule.at, i).includes("{")) {
+                        for (const sel of split(rule.prelude)) out.push({ sel, decl: css.slice(rule.at, i), within: open.map(o => o.prelude).join(" ") });
+                    }
+                    from = i + 1;
+                }
+            }
+            return out;
+        };
+        const HIDES = /(?:^|;)\s*(?:display\s*:\s*none|visibility\s*:\s*hidden|opacity\s*:\s*0(?:\.0*)?\s*(?:!important)?\s*(?:;|$)|content-visibility\s*:\s*hidden)/;
+        const FAINT = /(?:^|;)\s*(?:opacity\s*:|-webkit-text-fill-color\s*:\s*transparent|color\s*:\s*(?:transparent|rgba\((?:[^()]|\([^()]*\))*,\s*0?\.\d+\s*\)|color-mix\([^;]*transparent))/;
+        const SWITCHES = { "no ticker": /body\.drpg-no-ticker\b/, "reduced motion": /body\.drpg-reduced-motion\b/, stacked: /body\.drpg-stacked\b/ };
+        const reading = list => {
+            const word = list.flatMap(([name, css]) => rulesOf(css).map(rule => ({ ...rule, name })))
+                .filter(({ sel }) => /\.drpg-voice-tile-state\b/.test(sel));
+            const hides = word.filter(({ sel, decl }) => HIDES.test(decl) && !/\[hidden\]$/.test(sel)).map(({ name, sel }) => `${name} ${sel}`);
+            const faint = word.filter(({ decl }) => FAINT.test(decl)).map(({ name, sel }) => `${name} ${sel}`);
+            const inks = [...new Set(word.map(({ decl }) => /(?:^|;)\s*color\s*:\s*([^;!]+)/.exec(decl)?.[1].trim()).filter(Boolean))].sort();
+            const stops = rule => /\.drpg-voice-tile-state\s*>\s*span$/.test(rule.sel) && /(?:^|;)\s*animation\s*:\s*none\b/.test(rule.decl);
+            const stopped = Object.fromEntries(Object.entries(SWITCHES).map(([what, re]) => [what, word.some(rule => stops(rule) && re.test(rule.sel))]));
+            stopped["prefers-reduced-motion"] = word.some(rule => stops(rule) && /prefers-reduced-motion\s*:\s*reduce/.test(rule.within));
+            const runs = word.some(({ sel, decl, within }) => /\.drpg-voice-tile-state\s*>\s*span$/.test(sel) && !within
+                && /(?:^|;)\s*animation\s*:\s*drpg-voice-word-run\b/.test(decl));
+            return [word.length > 0, hides, faint, inks, stopped, runs];
+        };
+        const plant = (file, from, to) => sheets.map(([name, css]) => {
+            if (name !== file) return [name, css];
+            // No `must` here: a sheet with no such text is not planted in and the reader below fails on an
+            // assertion, which is how this test reads at the parent (no word, nothing to plant in: red first, 17.10.2026).
+            return [name, css.replace(from, to)];
+        });
+        const hidden = reading(plant("danganronpa.css", "body.drpg-no-ticker .drpg-voice-tile-state > span,",
+            "body.drpg-no-ticker .drpg-voice-tile-state { display: none; }\nbody.drpg-no-ticker .drpg-voice-tile-state > span,"));
+        const sgWord = "body.drpg-theme-stained-glass #drpg-voice-tile .drpg-voice-tile-state {\n    font-family: var(--drpg-font-chrome);\n    letter-spacing: 0.04em;\n    color: var(--drpg-glass-accent);";
+        const faint = reading(plant("stained-glass.css", sgWord, sgWord.replace("var(--drpg-glass-accent)", "rgba(var(--drpg-accent-rgb), 0.2)")));
+        const unstopped = reading(plant("danganronpa.css", "body.drpg-stacked .drpg-voice-tile-state > span { animation: none; }",
+            "body.drpg-stacked .drpg-voice-tile-state > span { animation-play-state: running; }"));
+        equal(J([hidden[1], faint[2], unstopped[4].stacked]), J([["danganronpa.css body.drpg-no-ticker .drpg-voice-tile-state"],
+            ["stained-glass.css body.drpg-theme-stained-glass #drpg-voice-tile .drpg-voice-tile-state"], false]),
+        "the reader does not see the word hidden with the ticker off, its colour at 0.2, or the stacked screen's stop taken out");
+        equal(J(reading(sheets)), J([true, [], [], ["var(--color-text-primary, #efe6d8)", "var(--drpg-glass-accent)"],
+            { "no ticker": true, "reduced motion": true, stacked: true, "prefers-reduced-motion": true }, true]),
+        "[rules name the word; rules that hide it; rules that set it faint; its colours; its runs stopped by each switch; its runs running otherwise]");
+    }],
+    ["R591 - the Objection's target and evidence are the primary GM's: LiveKit's speaker list is read in voice-tile.mjs and trial-speakers.mjs alone, the record and its two reads are declared once, exported, there; objectOnPrimary reads the packet's target only with no Room, the filled card is drawn from the holder's view, a player's own Objection card is refused, the trial bar does not load the trial at start, and the sheet's row raises no Objection", async () => {
+        /*
+         * E79 C16 (1.2.79), the source half of the owner's 17.10 rule; R590 is the record's behaviour and tier 2's
+         * named tests the road on the primary GM. What this holds:
+         *   - `activeSpeakersChanged` is listened to in two files, the voice tile's and the trial's speakers, and
+         *     nowhere else: a third reader would be a second answer to "who is speaking";
+         *   - `speakerRecord`, `objectionTarget` and `speakingStudent` are declared once, exported, in
+         *     trial-speakers.mjs, and no other file declares a function of those names;
+         *   - `objectOnPrimary` reads `targetId` only in the branch taken when `speakerRoomOpen()` is false, so a
+         *     packet's target is never weighed against a Room the primary hears; there a press naming nobody is
+         *     answered `needName` before anything is paid, posted or moved (fix r4-G1);
+         *   - no function but `objectOnPrimary` reads `trial.object`'s `targetId` (fix r4-G1, Q4): it is called in
+         *     gm-bridge.mjs alone, twice - the run, which hands the packet's field to it and reads nothing else of
+         *     it, and the asker's local road - and `raiseObjection` asks no Room of its own browser, so one browser,
+         *     the primary, decides which road a press takes;
+         *   - `evidenceOnPrimary` draws the card from `holderView(data)`, never the bullet's GM half, and `data` is
+         *     the bullet as the GMs hold it (`truthBulletData(bulletAsHeld(item))`, fix r4-G2's SEC4-1), never the
+         *     document's fields a player's write may hold before its put-back; and the functions of trial.mjs that
+         *     read a bullet's data are that one, `holderView` and the Present's two on the presenter's own browser,
+         *     so the re-point (the card's first line) and the withdrawn card (its flags) draw nothing from a bullet;
+         *   - `presentBullet` refuses an Objection a player's browser would post (`objection && !game.user.isGM`);
+         *   - hud.mjs imports neither trial.mjs nor trial-speakers.mjs statically: the trial bar is drawn on every
+         *     browser at start, and both are loaded on the press (17.10.2026, walked: trial-speakers.mjs's own
+         *     imports reach hud.mjs, a cycle at load);
+         *   - the sheet's row (`addPresentButton`) names no objection, and sync.mjs no longer repaints it.
+         * A move of any of these lines out of the function it is cut from fails the cut (bodyOf/fnSource), not the
+         * assertion.
+         */
+        const sources = new Map(await otherSources());
+        const src = file => {
+            must(sources.has(file), `${file} is not among the module's sources`);
+            return sources.get(file);
+        };
+        const listeners = [...sources].filter(([, raw]) => /activeSpeakersChanged/.test(stripComments(raw))).map(([file]) => file).sort();
+        equal(JSON.stringify(listeners), JSON.stringify(["trial-speakers.mjs", "voice-tile.mjs"]),
+            "the files that name LiveKit's activeSpeakersChanged");
+        for (const name of ["speakerRecord", "objectionTarget", "speakingStudent"]) {
+            const where = [...sources].flatMap(([file, raw]) =>
+                [...stripComments(raw).matchAll(new RegExp(`^(export )?(?:async )?function ${name}\\(`, "gm"))].map(m => `${file}${m[1] ? " exported" : ""}`));
+            equal(JSON.stringify(where), JSON.stringify(["trial-speakers.mjs exported"]), `where ${name} is declared`);
+        }
+        /* The two roads of the primary GM are asked for before they are cut: a source without them fails here, on an assertion, rather than in the cut. */
+        const trialSrc = stripComments(src("trial.mjs"));
+        const declared = ["objectOnPrimary", "evidenceOnPrimary"].map(name => new RegExp(`^(?:export )?(?:async )?function ${name}\\(`, "m").test(trialSrc));
+        ok(declared.every(Boolean), `trial.mjs declares objectOnPrimary and evidenceOnPrimary (${declared})`);
+        if (!declared.every(Boolean)) return;
+        const object = stripComments(fnSource(src("trial.mjs"), "objectOnPrimary"));
+        /* Asked before the cuts that end at it, so a source without it fails on an assertion (fix r4-G1). */
+        ok(object.includes("} else if (!targetId) {"),
+            "objectOnPrimary has no branch for a press that names nobody while the primary has no Room - it is refused, and its player is never asked for a name");
+        if (!object.includes("} else if (!targetId) {")) return;
+        const roomBranch = bodyOf(object, "if (speakers.speakerRoomOpen()) {", { until: "} else if (!targetId) {" });
+        const unnamed = bodyOf(object, "} else if (!targetId) {", { until: "} else if (mayObjectTo(" });
+        const before = bodyOf(object, "export async function objectOnPrimary", { until: "if (speakers.speakerRoomOpen()) {" });
+        const after = bodyOf(object, "if (!target) return { refused:", { until: "\n}" });
+        equal(JSON.stringify([/\btargetId\b/.test(roomBranch), (before.match(/\btargetId\b/g) ?? []).length, /\btargetId\b/.test(after),
+            /\} else if \(mayObjectTo\(actor\.id, targetId\)\)/.test(object),
+            /^\s*return \{ reply: \{ needName: true \} \};\s*$/.test(unnamed.replace(/^[^\n]*\n/, "")),
+            /\bpayPrice\(/.test(bodyOf(object, "export async function objectOnPrimary", { until: "} else if (!targetId) {" }))]),
+        JSON.stringify([false, 1, false, true, true, false]),
+        "[the Room's branch reads targetId; targetId named before it (the signature only); after it; the no-Room branch judges it; "
+            + "a press naming nobody answered needName and nothing else; anything paid before that answer]");
+        const callers = [...sources].flatMap(([file, raw]) =>
+            [...stripComments(raw).matchAll(/\bobjectOnPrimary\(/g)].map(() => file)).filter(file => file !== "trial.mjs");
+        const run = stripComments(fnSource(src("gm-bridge.mjs"), "handleTrialObject"));
+        equal(JSON.stringify([callers, (run.match(/\btargetId\b/g) ?? []).length,
+            /objectOnPrimary\(\{ actorId: payload\.actorId, targetId: payload\.targetId \}\)/.test(run),
+            /speakerRoomOpen|trial-speakers/.test(stripComments(fnSource(src("trial.mjs"), "raiseObjection")))]),
+        JSON.stringify([["gm-bridge.mjs", "gm-bridge.mjs"], 2, true, false]),
+        "[the files that call objectOnPrimary; targetId named in trial.object's run; the run hands the packet's field to objectOnPrimary; raiseObjection asks its own Room]");
+        const evidence = stripComments(fnSource(src("trial.mjs"), "evidenceOnPrimary"));
+        ok(/buildCard\(actor, holderView\(data\)/.test(evidence) && !/\b(?:realType|realLabel|gmNote)\b/.test(evidence),
+            "evidenceOnPrimary draws the card from the holder's view and names no field of the GM half");
+        const dataRead = [...evidence.matchAll(/\btruthBulletData\(([^\n;]*)\)/g)].map(m => m[1]);
+        const builders = [...trialSrc.matchAll(/^(?:export )?(?:async )?function (\w+)\(/gm)].map(m => m[1])
+            .filter(name => /\bholderView\(|\btruthBulletData\(/.test(stripComments(fnSource(src("trial.mjs"), name))));
+        equal(JSON.stringify([dataRead, builders.sort()]),
+            JSON.stringify([["bulletAsHeld(item)"], ["evidenceOnPrimary", "holderView", "presentBullet", "presentDialog"]]),
+            "[what evidenceOnPrimary hands truthBulletData; the functions of trial.mjs that read a bullet's data or its holder's view]");
+        ok(/if \(objection && !game\.user\.isGM\)/.test(stripComments(fnSource(src("trial.mjs"), "presentBullet"))),
+            "presentBullet refuses an Objection on a player's browser");
+        const hudImports = [...stripComments(src("hud.mjs")).matchAll(/^import [^;]*? from "\.\/([\w-]+\.mjs)";/gm)].map(m => m[1]);
+        equal(JSON.stringify(hudImports.filter(file => file === "trial.mjs" || file === "trial-speakers.mjs")), "[]",
+            "hud.mjs's static imports of trial.mjs or trial-speakers.mjs");
+        ok(hudImports.length > 3, `hud.mjs's static imports were read (${hudImports.length})`);
+        ok(!/objection/i.test(stripComments(fnSource(src("sheet.mjs"), "addPresentButton"))),
+            "the sheet's Present button names no objection");
+        ok(!/repaintPresentButtons/.test(stripComments(src("sync.mjs"))), "sync.mjs repaints no Present button");
     }]
 ];
 

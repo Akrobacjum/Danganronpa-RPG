@@ -13,7 +13,7 @@ import { DataFieldOperator, ForcedDeletion, ForcedReplacement, revive } from "./
 import { readVersions } from "./lib/versions.mjs";
 import { attachModuleStyles, wrapGetComputedStyle } from "./lib/css.mjs";
 import { AUTOMATION_DEFAULT, resourceTables, ResourceUpdateMap, modifyResource, updateFear } from "./lib/daggerheart.mjs";
-import { HooksImpl, Collection, buildDocumentClasses, buildPIXI, buildApplications, RollImpl, Die, NumericTerm, OperatorTerm, REPO, MODULE_ID, recordError } from "./lib/shim.mjs";
+import { HooksImpl, Collection, buildDocumentClasses, buildPolygonBackends, buildPIXI, buildApplications, RollImpl, Die, NumericTerm, OperatorTerm, REPO, MODULE_ID, recordError } from "./lib/shim.mjs";
 
 const WHO = process.env.DRPG_USER ?? "gm";
 const send = m => process.send?.(m);
@@ -393,7 +393,22 @@ settingDefs.set("isometric-perspective.showWelcome", {
 hooks.once("ready", () => {
     try { globalThis.__isoWelcomeAtReady = settingsApi.get("isometric-perspective", "showWelcome"); }
     catch (err) { globalThis.__isoWelcomeAtReady = `unreadable: ${err.message}`; }
+    /* ...and the flag Daggerheart's own `ready` reads before it opens its welcome journal (E79 C9; 2.6.5
+       daggerheart.mjs:340-345, read during the design): the system's hooks are registered before any
+       module's, as this one is. */
+    globalThis.__dhWelcomeAtReady = game.user?.flags?.daggerheart?.["welcome-message"] ?? null;
 });
+
+/*
+ * FOUNDRY'S OWN TABLE OF WHO MAY DO WHAT (E79 C9, 16.10.2026). `core.permissions` is a world setting
+ * Foundry registers itself, an object of permission names to role lists, with no box in Configure
+ * Settings; enforced.mjs holds two of its rows (N4). Registered here as the module's notes say
+ * Foundry registers it - an empty object by default, not shown - and the table in force is
+ * `game.permissions` below: each permission's default roles (CONST.USER_PERMISSIONS here) and over
+ * them what the world stored. v14's own defaults and whether its `game.permissions` fills a permission
+ * the world never stored are not read here (LIVE-E79-11).
+ */
+settingDefs.set("core.permissions", { name: "Permissions", scope: "world", config: false, type: Object, default: {} });
 
 const settingsApi = {
     register(ns, key, def) { settingDefs.set(`${ns}.${key}`, def); },
@@ -682,6 +697,14 @@ const game = {
     version: versions.foundry.version,
     release: { generation: versions.foundry.generation, build: versions.foundry.build },
     ready: false,
+    /* The permissions in force (E79 C9): see `core.permissions` above. */
+    get permissions() {
+        const out = {};
+        for (const [name, def] of Object.entries(CONST.USER_PERMISSIONS)) {
+            out[name] = Object.values(CONST.USER_ROLES).filter(role => role > 0 && role >= def.defaultRole);
+        }
+        return { ...out, ...settingsApi.get("core", "permissions") };
+    },
     paused: false,
     togglePause(state) { game.paused = state ?? !game.paused; hooks.callAll("pauseGame", game.paused); },
     socket: {
@@ -1158,10 +1181,16 @@ const MESSAGE_MODES = {
     self: { label: "Self Roll", icon: "fa-solid fa-user" }
 };
 
+function polygonBackends() {
+    const { ClockwiseSweepPolygon } = buildPolygonBackends();
+    return { sight: ClockwiseSweepPolygon, light: ClockwiseSweepPolygon, sound: ClockwiseSweepPolygon, move: ClockwiseSweepPolygon };
+}
+
 globalThis.CONFIG = {
     debug: { hooks: false },
     // Foundry's own selection colours (CONTROLLED is its orange).
-    Canvas: { dispositionColors: { CONTROLLED: 0xFF9829 }, doorControlClass: DoorControl },
+    /* One class for each polygon type (shim.mjs buildPolygonBackends, E79 C2). */
+    Canvas: { dispositionColors: { CONTROLLED: 0xFF9829 }, doorControlClass: DoorControl, polygonBackends: polygonBackends() },
     DH: {
         id: "daggerheart",
         // Built as resourceConfig.mjs builds it (lib/daggerheart.mjs). It was `{ character: { custom: {} } }`,
@@ -1209,6 +1238,14 @@ globalThis.CONFIG = {
 
 const CONST = {
     USER_ROLES: { NONE: 0, PLAYER: 1, TRUSTED: 2, ASSISTANT: 3, GAMEMASTER: 4 },
+    /* The two permissions the module holds (E79 C9, N4), each from the Trusted Player up: v14's own
+       default roles are not readable here (fvtt-types names the permissions only; LIVE-E79-11), and
+       from role 2 is the more open of the two readings the design weighed, so a Trusted Player browses
+       here until the module holds it - never less than a Foundry whose default stands higher. */
+    USER_PERMISSIONS: {
+        FILES_BROWSE: { label: "PERMISSION.FilesBrowse", defaultRole: 2 },
+        FILES_UPLOAD: { label: "PERMISSION.FilesUpload", defaultRole: 2 }
+    },
     DOCUMENT_OWNERSHIP_LEVELS: { INHERIT: -1, NONE: 0, LIMITED: 1, OBSERVER: 2, OWNER: 3 },
     TOKEN_DISPOSITIONS: { SECRET: -2, HOSTILE: -1, NEUTRAL: 0, FRIENDLY: 1 },
     CHAT_MESSAGE_STYLES: { OTHER: 0, OOC: 1, IC: 2, EMOTE: 3 },

@@ -280,6 +280,14 @@
         "name": "Keep Isometric Perspective's welcome window closed for everyone",
         "hint": "Isometric Perspective shows its welcome window on every start, and that is a setting of each browser, so turning it off for yourself does nothing for the players. On, the window stays closed on every client and its box disappears from everyone's settings, the GM's included. Off stops holding it: the box comes back and each browser can switch the window on again. Only does anything with Isometric Perspective enabled."
       },
+      "enforceDhWelcome": {
+        "name": "Keep Daggerheart's welcome window closed for everyone",
+        "hint": "Daggerheart opens its welcome journal the first time each account starts. On, it stays closed for everyone, the GM included. Off, Daggerheart shows it as before."
+      },
+      "enforcePlayerFiles": {
+        "name": "Keep players out of the file browser",
+        "hint": "Players and Trusted Players can neither browse nor upload files, and clicking a portrait opens nothing for them. Pictures already in the world still show. Off, you can give both back in Foundry's permissions."
+      },
       "pixelFont": {
         "name": "Pixel font",
         "hint": "Monokuma Legacy only, and on by default there: Press Start 2P on interface chrome - HUD, Despair, character name, statistic labels, tabs. Journals, chat and editable fields keep the normal face so long text stays readable. The Stained Glass theme has its own two faces and ignores this."
@@ -287,6 +295,12 @@
       "language": {
         "name": "Language",
         "hint": "This client only. The language of this module's own windows, cards and sheet. The game's proper names - Truth Bullets, Remnants, Despair - stay in English in every language. Takes effect after a reload."
+      },
+      "moveAudit": {
+        "name": "A player's token moved through a wall",
+        "hint": "What happens when a player's token is moved through a wall its character could not pass: a line in the Debug log, or the token put back where it stood, its player told and the GMs warned.",
+        "log": "Note it in the Debug log",
+        "sendBack": "Send the token back"
       },
       "foundryToolWindows": {
         "name": "The module's windows for Foundry's sidebar and scene controls",
@@ -541,6 +555,89 @@
       "trialClockTooltip": "How long this part of the debate has left.",
       "trialEveryone": "Everyone",
       "trialVersus": "vs {who}"
+    },
+    "Passage": {
+      "engineOff": "Secret passages cannot open here: every token stops at their walls. Check for an update of Danganronpa RPG, or turn off the modules that change how tokens move.",
+      "tab": {
+        "intro": "A secret passage is one stretch of wall between two rooms that only the students who know it can walk through, at a door's price. To everybody else it is a wall. Each button here takes effect at once; Apply and Cancel do not change it.",
+        "rooms": "Rooms",
+        "knows": "Who knows",
+        "start": "At season start",
+        "state": "State",
+        "noRooms": "Rooms not named",
+        "unknown": "a student no longer here",
+        "none": "nobody",
+        "empty": "No secret passages on this map.",
+        "howGm": "GM",
+        "howStart": "start",
+        "howShown": "shown",
+        "leaving": "until they leave the {room}",
+        "revoke": "Revoke",
+        "grant": "Give a student this passage",
+        "startAdd": "Known at season start",
+        "startRemove": "Take off the season's start",
+        "stateSecret": "Secret",
+        "stateClosed": "Closed",
+        "stateBroken": "The wall moved - pick it again",
+        "pending": "Not yet delivered: {names}",
+        "shared": "{players} all play {student}, and each of them learns this passage.",
+        "show": "Show",
+        "close": "Close",
+        "open": "Open",
+        "delete": "Delete",
+        "footnote": "The Mastermind knows every secret passage and is not listed. Closed keeps who knows it, and the passage is a wall to all of them until it is opened again. Delete forgets the passage and who knew it.",
+        "revokeTitle": "Revoke - {passage}",
+        "revokeAsk": "{name} is in the {room}, one of the rooms this passage joins. When does it close to them?",
+        "revokeNote": "Revoke now: it is a wall to them from this moment. Revoke when they leave the room: it stays open to them until they leave the {room}.",
+        "revokeNow": "Revoke now",
+        "revokeLeave": "Revoke when they leave the room",
+        "deleteTitle": "Delete the secret passage",
+        "deleteAsk": "Delete the secret passage {passage}? Every student who knows it forgets it."
+      },
+      "list": {
+        "title": "Known passages",
+        "where": "Show it on the map",
+        "shut": "the way is shut"
+      },
+      "show": {
+        "button": "Show the passage",
+        "title": "Show the passage - {passage}",
+        "intro": "Who do you show the secret passage to? You are in the {room}.",
+        "note": "They can walk through it from now on, as you can. Costs no action; the GMs are told."
+      },
+      "card": {
+        "shown": "{giver} shows you a secret passage: {from} - {to}.",
+        "done": "You show {target} the secret passage."
+      },
+      "gm": {
+        "shown": "{giver} showed {target} the secret passage {from} - {to}."
+      },
+      "pick": {
+        "new": "+ New passage",
+        "newHint": "Two clicks on a wall between two rooms of this floor.",
+        "title": "New secret passage",
+        "retitle": "Pick the secret passage again",
+        "step": "Click {n} of 2",
+        "first": "Click where the secret passage begins, on a wall between two rooms. Esc cancels.",
+        "second": "Click where the secret passage ends, on the same wall. Esc cancels.",
+        "cancel": "Cancel",
+        "repick": "Pick again",
+        "made": "Secret passage {passage} made. Give it to a student in the Passages tab.",
+        "moved": "Secret passage {passage} is on its wall again.",
+        "why": {
+          "noWall": "No wall there. Click on a wall between two rooms.",
+          "door": "That is a door. A secret passage goes on a plain wall.",
+          "noMove": "That wall stops nobody, so a secret passage there would change nothing.",
+          "notBetween": "That wall does not stand between two different rooms.",
+          "levels": "The room on the other side is on another floor.",
+          "taken": "Another secret passage is already on that stretch of wall.",
+          "otherWall": "The end must be on the same wall as the start.",
+          "otherRooms": "The end must join the same two rooms as the start.",
+          "short": "The two ends are too close together. Click further along the wall.",
+          "trial": "The trial hall has no rooms, so it has no secret passages.",
+          "board": "The map is not shown on this screen. Open the scene and try again."
+        }
+      }
     },
     "Room": {
       "tileLabel": "Room",
@@ -972,7 +1069,7 @@
         "verdictElsewhere": "{name} is giving the verdict. If their browser was reloaded inside it, Finish the verdict is on their console; end the chapter once the verdict is done.",
         "chapterEnd": "The verdict is in. End the chapter for the reveal and the next chapter."
       },
-      "objectionNote": "You never move the debate for an objection: presenting evidence takes it.",
+      "objectionNote": "You never move the debate for an objection: a player's OBJECTION! takes it, and the minute starts when their Truth Bullet is on the table.",
       "manageTrial": "Class Trial",
       "mode": {
         "debate": "Nonstop Debate",
@@ -981,8 +1078,11 @@
       },
       "discussionNote": "The debate's clock is your budget for it, not a limit: running past it turns the clock red and nothing else. An Objection is what takes the debate away from the table.",
       "holdingDebateOver": "Nonstop Debate - {seconds} s over your budget. Everyone may speak; +30 seconds puts half a minute back on the clock.",
-      "holdingDebate": "Nonstop Debate - {seconds} s left on your budget. Everyone may speak; a Truth Bullet presented now is an Objection.",
+      "holdingDebate": "Nonstop Debate - {seconds} s left on your budget. Everyone may speak; a player's OBJECTION! takes the floor.",
       "holdingObjection": "{who} holds the debate, objecting to {target} - {seconds} s. Nobody else may speak; the rebuttal follows automatically.",
+      "holdingObjectionPending": "{who} objects to {target} and is choosing a Truth Bullet - {seconds} s. Withdrawn at zero.",
+      "repoint": "Re-point",
+      "repointTo": "Aim the Objection at",
       "holdingRebuttal": "Rebuttal: {who} and {target}, {seconds} s. Only those two; it returns to open discussion by itself.",
       "modeNote": "This runs out on its own. Use the buttons below to cut it short, give it another half minute, or drop straight back to the open debate.",
       "extend": "+30 seconds",
@@ -1754,6 +1854,7 @@
       },
       "tabBedrooms": "Bedrooms",
       "tabDoors": "Doors",
+      "tabPassages": "Passages",
       "tabSearching": "Searching",
       "tabRest": "Rests",
       "tabDescription": "Description",
@@ -1942,6 +2043,13 @@
       "scenesIntro": "Link the two scenes of the season once: the school, where the students live, and the trial hall, a scene of its own for the Class Trial. Opening the trial takes every browser to the hall and gives each student ticked below a token there - the GMs' own token in the hall if there is one, else one the module makes; ending it takes the module's tokens away, remembering where they stood, hides the GMs' and takes the table back - End the trial to the room you choose, with the living students who took part from every scene with rooms, any other road to the school. The module never deletes a token the GMs placed in the hall.",
       "school": "School",
       "hall": "Trial hall",
+      "hallRoom": {
+        "legend": "The trial hall on the room tile",
+        "hint": "Everybody sees these on the room tile during the Class Trial. Write nothing secret here.",
+        "name": "Name",
+        "picture": "Picture",
+        "words": "Description"
+      },
       "noScene": "- none -",
       "castHeading": "Who takes part",
       "reveal": "Ticked: they take part - a token in the hall when the Class Trial opens (the GMs' own if there is one, else one the module makes), and brought to the room End the trial chooses. Unticked: no token of theirs is shown, and they are not moved after the trial - a test student, or a player nobody should see yet.",
@@ -1977,7 +2085,7 @@
       "presentIntro": "You are about to show {name} ({type}) to everyone. Only what you can see goes on the card. Never the GM's notes.",
       "comment": "Say something with it (optional)",
       "commentPlaceholder": "e.g. This is why the timeline does not work.",
-      "presentNote": "The debate is not open, so this simply goes on the table - nobody's turn to speak changes. Once the GM opens the debate, the same button becomes an Objection.",
+      "presentNote": "Present puts this on the table for everyone to see. It costs nothing, and nobody's turn to speak changes. To take the floor in the debate, press OBJECTION! on the HUD.",
       "present": "Present",
       "presentShort": "Presented",
       "objection": "OBJECTION!",
@@ -1990,17 +2098,17 @@
       "logTitle": "Trial evidence log",
       "logSummary": "{total} presented this chapter, {objections} of them as an Objection that took the floor.",
       "logRefused": "refused",
+      "logWithdrawn": "withdrawn",
       "objectionPaid": "Your Objection has the floor. {what}",
       "objectionRefusedWhisper": "Your Objection did not take the floor: {why} Nothing was taken from you, and the card is marked as refused.",
       "objectionNotYours": "That Objection was posted by somebody who does not own {name}, so the floor did not move.",
       "objectionNoItem": "That Objection named no evidence, so the floor did not move.",
       "deadCannotPresent": "{name} is dead, and the dead neither present evidence nor object.",
       "presented": "{name} went on the table.",
-      "objectionSent": "Objection sent with {name}. The GM's side decides whether it takes the floor.",
       "logEmpty": "Nothing has been presented this chapter yet.",
       "objectionTarget": "Who are you contradicting?",
       "objectionNobody": "There is nobody else left to object to.",
-      "objectionWarning": "An Objection takes the debate, unlike showing evidence: {objection} seconds in which only you may speak, then {rebuttal} seconds of rebuttal with the person you name.",
+      "objectionWarning": "Once your Truth Bullet is on the table, the debate is yours: {objection} seconds in which only you may speak, then {rebuttal} seconds of rebuttal with the one you objected to.",
       "actionsLocked": "The Class Trial is in session. Only Analyze and an Objection are open - and your Hope Calls.",
       "moveLocked": "The Class Trial is in session. Nobody leaves the courtroom until it ends.",
       "callsLocked": "The Class Trial is in session. Despair Calls wait for it to end.",
@@ -2008,16 +2116,26 @@
       "objectionSelf": "You cannot object to yourself.",
       "objectionRebuttalOutsider": "A rebuttal can only be aimed at the two people already on the floor.",
       "objectionNoGm": "No GM is connected, so nobody can hand over the floor. Put the evidence on the table instead.",
-      "objectionFreePresent": "Present instead",
-      "objectionFreePresentNote": "You have nothing left to pay for an Objection. You may still put this on the table: it costs nothing, it does not take the floor, and the log records it as a Present.",
       "objectionDuringObjection": "Somebody else's Objection is running. Wait for their minute and the rebuttal that follows it.",
       "objectedTo": "{who} objects to {target}",
       "logKind": "What",
       "logWho": "Who",
       "logAgainst": "Against",
       "logWhen": "When",
-      "objectionTooltip": "Objection - put this on the table and take the floor. It costs an action, or Hope, or Sanity.",
-      "objectionRebuttalTargets": "Anybody may cut into a rebuttal, but only at the two already on the floor. An objection re-points the floor, and whoever you name gets the answering rebuttal."
+      "objectionRebuttalTargets": "Anybody may cut into a rebuttal, but only at the two already on the floor. An objection re-points the floor, and whoever you name gets the answering rebuttal.",
+      "objectionByButton": "An Objection is raised with OBJECTION! on the HUD, not from the sheet. Press it, then choose your Truth Bullet.",
+      "objectionPending": "pending - choosing a Truth Bullet",
+      "objectionWithdrawn": "withdrawn - no Truth Bullet was presented",
+      "objectionPickTitle": "OBJECTION! - choose your Truth Bullet",
+      "objectionPickIntro": "Your Objection is aimed at {target}. Choose the Truth Bullet that proves it.",
+      "objectionPickLabel": "Truth Bullet",
+      "objectionPickCount": "{seconds} s left to choose. When they run out the Objection is withdrawn, and what you paid is not given back.",
+      "objectionAtNow": "OBJECTION! at {target}, who is speaking now.",
+      "objectionAtLast": "OBJECTION! at {target}, the last to speak.",
+      "objectionAtNobody": "Nobody has spoken in this trial yet, so there is nobody to object to.",
+      "objectionAtNamed": "OBJECTION! - at whoever is speaking now, or at the one you name.",
+      "objectionNoRoom": "The GM is not connected to a voice channel, so name whom you contradict.",
+      "objectionFailed": "Your Objection did not go through. Press OBJECTION! again, or tell the GM."
     },
     "Handover": {
       "alreadyHasKey": "{who} already has a key to that room.",
@@ -2473,6 +2591,7 @@
     "Movement": {
       "unlawfulArrival": "{name} reached {room} by a crossing the rules refuse. Until they stand somewhere they could have walked to from {from}, they are no witness to a body and no third party to a murder. Nothing was put back: a GM's move makes the spot they stand on lawful.",
       "outsideRooms": "outside the rooms",
+      "wallCrossed": "{name}'s token was moved through a wall on {scene} and was sent back where it stood.",
       "droppedFromNowhere": "A player placed a token of {name} in {room} on {scene}, where {name} had stood nowhere before. It was judged as an arrival from outside the rooms, so no rule about which rooms connect applied, and it counts as a witness there. Move the token if it should not be there."
     },
     "Move": {
@@ -2640,6 +2759,7 @@
       "proposeButton": "Send it to the GM",
       "collapseTray": "Fold the projects away",
       "expandTray": "Show the projects",
+      "trayEmpty": "No projects yet.",
       "workOnHint": {
         "one": "Push the {n} project running in this room.",
         "other": "Push one of the {n} projects running in this room."
@@ -2708,6 +2828,7 @@
         "analyze.resolve": "Analyze",
         "handover.bullet": "Share a Truth Bullet",
         "handover.item": "Hand over an item",
+        "passage.share": "Show a secret passage",
         "vault.steal": "Stash",
         "action.steal": "Palm",
         "vault.findStash": "Find a stash",
@@ -2748,7 +2869,11 @@
         "floor.now": "The floor's next step now, run on the primary GM",
         "vote.run": "A step of the vote, run on the primary GM",
         "vote.cast": "Cast your vote",
-        "vote.ask": "Your ballot"
+        "vote.ask": "Your ballot",
+        "trial.object": "Raise an Objection",
+        "trial.evidence": "Put your Truth Bullet on the Objection",
+        "trial.withdraw": "Withdraw your Objection",
+        "floor.repoint": "Re-point the Objection"
       },
       "notDone": "“{what}” was not carried out. {why}",
       "nothingSpent": "Nothing was spent.",
@@ -2811,7 +2936,13 @@
         "notEligible": "You hold no ballot in this vote.",
         "sameTwice": "Your ballot names somebody twice.",
         "wrongCount": "Your ballot does not name as many people as the vote asks for.",
-        "sheetPutBack": "The GM's client put that change to your sheet back: nothing it knows of covers it."
+        "sheetPutBack": "The GM's client put that change to your sheet back: nothing it knows of covers it.",
+        "notKnown": "You do not know that secret passage.",
+        "recipientDead": "The one you chose is dead. Nothing was shown.",
+        "floorClosed": "The debate is not open to an Objection now.",
+        "noSpeaker": "Nobody has spoken in this trial yet, so there is nobody to object to.",
+        "noBullet": "You hold no Truth Bullet to prove an Objection with.",
+        "objectionOver": "That Objection is no longer waiting for a Truth Bullet."
       },
       "criticalHint": "Critical - this player is owed a substantial hint.",
       "send": "Send to GM",
@@ -3125,6 +3256,25 @@
       "tabLocked": "Theirs to tell you, not yours to read.",
       "settingsLocked": "The character's settings are the GM's."
     },
+    "Enforced": {
+      "filesPutBack": "Player accounts cannot browse or upload files while 'Keep players out of the file browser' is on: the change to those permissions was put back.",
+      "filesFirstHold": "'Keep players out of the file browser' took these permissions away: {lost}. Turning it off does not give them back: grant them again in Foundry's permissions.",
+      "lost": {
+        "player": "Player",
+        "trusted": "Trusted Player",
+        "browse": "browse files",
+        "upload": "upload files"
+      }
+    },
+    "Users": {
+      "match": {
+        "none": "No student is named like these accounts: {names}. Assign their characters in User Configuration.",
+        "several": "More than one student is named like these accounts: {names}. Assign their characters in User Configuration.",
+        "same": "These accounts are named alike: {names}. Rename one of them, or assign their characters in User Configuration.",
+        "owned": "The student named like {account} already belongs to {owner}: nothing was assigned.",
+        "owns": "{account} already owns {students}: nothing was assigned. Assign its character in User Configuration."
+      }
+    },
     "Anonymity": {
       "aboveLimited": "Shared as Owner to everyone, so the redaction never runs and any player reads the whole sheet, inventory and Truth Bullets included: {actors}. Set them back to Observer unless that is what you want.",
       "blocked": "Blocked: every player would own “{actor}”, and an owner is never redacted. Give Owner to their one player only.",
@@ -3389,6 +3539,14 @@
         "label": "Voice",
         "speaking": "Speaking",
         "nobody": "Nobody is speaking",
+        "state": {
+          "connecting": "Connecting",
+          "disconnected": "Disconnected",
+          "connected": "Connected",
+          "eclipsed": "Eclipsed",
+          "blocked": "Blocked",
+          "external": "Own window"
+        },
         "more": {
           "one": "and {n} more speaking",
           "other": "and {n} more speaking"
@@ -3407,7 +3565,8 @@
         "eclipseHeard": "Eclipse: nobody hears you until the lights come back.",
         "gmBlock": "The GM blocked your microphone.",
         "external": "Voice is in its own window - use the controls there.",
-        "offline": "You are not connected to voice."
+        "offline": "You are not connected to voice.",
+        "connecting": "Joining your voice channel."
       },
       "list": {
         "open": "Who you hear",
@@ -3741,6 +3900,7 @@
         "stashesFound": "The stashes each student has already found, and every hidden stash open again",
         "projects": "Projects, repairs and their countdowns",
         "mastermind": "The Mastermind",
+        "passages": "Who knows each secret passage (the passages stay, and whoever knew one at season start knows it again)",
         "seals": "Despair Calls still in force, and every Call armed for a roll",
         "motive": "The motive",
         "rules": "Monokuma's standing rules",
@@ -4050,6 +4210,9 @@
         "bullets": "Truth Bullets",
         "remnants": "Traces",
         "mastermind": "The Mastermind",
+        "passageMap": "The secret passages: where each one is and whether it is open",
+        "passageAccess": "Who knows each secret passage, and how they learnt it",
+        "passageLog": "What was done with the secret passages",
         "cast": "The incident's cast",
         "blackened": "The Blackened register",
         "trapLedger": "The traps' planted objects",

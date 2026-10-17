@@ -487,9 +487,12 @@ export function buildDocumentClasses(ctx) {
         /* E81 DZ6: `stageHall` builds a made token from this (trial-scene.mjs). Foundry's own merges the
            prototype token with the data asked for and answers an unsaved TokenDocument; this is the shim's
            model of that - the prototype, the actor's id, the data on top, and a `toObject` - not a measurement
-           of Foundry's (LIVE-E81-14, a check for a real table). */
+           of Foundry's (LIVE-E81-14, a check for a real table). Since E79 C11 a prototype that names no
+           `lockRotation` gives false, the default of Foundry's token data, as a real prototype does (not read
+           on v14 here: LIVE-E79-13); before, the made token named no lock and movement.mjs locked it, so the
+           harness never saw N5's turning picture. */
         async getTokenDocument(data = {}) {
-            const src = { ...U.deepClone(this.prototypeToken), actorId: this.id, ...data };
+            const src = { lockRotation: false, ...U.deepClone(this.prototypeToken), actorId: this.id, ...data };
             return { toObject: () => U.deepClone(src) };
         }
         getActiveTokens(linked = false, document = false) {
@@ -810,7 +813,12 @@ export function buildDocumentClasses(ctx) {
      * `hasRole("ASSISTANT")`, as far as can be said without its source here; the
      * module's own reading of it is the same. A role name this does not know was
      * taken as role 4, so asking for a misspelt role asked for a GM: it is false now.
-     * `can()` is still `isGM` - the permission matrix is not modelled (README.md).
+     * `can()` was `isGM` until E79 C9 (16.10.2026): since then a GM may do anything, an
+     * account's own grant (`permissions` on the user) answers first, and otherwise the role
+     * table in force, `game.permissions` (client-entry.mjs), says - Foundry's order as the
+     * module's notes read it; v14's `can` is not read here (LIVE-E79-11). The roles' table is
+     * modelled for the two file permissions alone, and a permission it does not name is
+     * still a GM's.
      */
     class UserImpl extends BaseDocument {
         static get documentName() { return "User"; }
@@ -837,7 +845,13 @@ export function buildDocumentClasses(ctx) {
             if (level === undefined) return false;
             return exact ? this.role === level : this.role >= level;
         }
-        can(perm) { return this.isGM; }
+        can(perm) {
+            if (this.isGM) return true;
+            const own = this._source.permissions?.[perm];
+            if (own !== undefined && own !== null) return Boolean(own);
+            const roles = ctx.gameRef().permissions?.[perm];
+            return Array.isArray(roles) && roles.includes(this.role);
+        }
         get targets() { return new Set(); }
         async query(name, data, options = {}) {
             // Foundry v13+ user queries: run on the target client. The harness
@@ -934,6 +948,82 @@ export function buildDocumentClasses(ctx) {
     };
     ctx.classes = classes;
     return classes;
+}
+
+/* ============================== Polygon backends ========================= */
+
+/*
+ * FOUNDRY'S MOVE BACKEND, AS FAR AS A WALL TEST GOES (E79 C2, 14.10.2026). Until C2 the harness had
+ * no `CONFIG.Canvas.polygonBackends`, so fog-doorways.mjs `nothingInTheWay` answered "clear" for
+ * every ray and passages.mjs found no class to extend. Written from the shape the design read in
+ * Foundry 14.365 on 11.10.2026 (clockwise-sweep.mjs:228-288, edges/edge.mjs:23; at a table: LIVE-E79-01), not
+ * copied from its source: `testCollision(origin, dest, { mode, ...config })` rounds both ends to
+ * whole pixels, builds an instance, `initialize`s it and asks `_testCollision`, which gathers the
+ * edges with `_identifyEdges()` into `this.edges`, a Set of `Edge`s whose id is their wall's.
+ *
+ * What it gathers: the walls of the scene on screen whose restriction for the polygon's type is not
+ * NONE, less an open door; with a `level` in the config, only the walls on that floor, and without
+ * one every wall. What it leaves out, and so answers more "clear" than Foundry: a one-way wall
+ * (`dir`), a limited sense's second wall, a threshold, the scene's boundary and a token's own
+ * shape. One class answers every type here.
+ */
+export function buildPolygonBackends() {
+    class Edge {
+        constructor(a, b, { id, object, type = "wall", direction = 0, light = 20, move = 20, sight = 20, sound = 20, threshold = null } = {}) {
+            this.a = { x: a.x, y: a.y };
+            this.b = { x: b.x, y: b.y };
+            Object.assign(this, { id, object, type, direction, light, move, sight, sound, threshold });
+            this.intersections = [];
+        }
+        clone() {
+            const { id, object, type, direction, light, move, sight, sound, threshold } = this;
+            return new Edge(this.a, this.b, { id, object, type, direction, light, move, sight, sound, threshold });
+        }
+    }
+    const hit = (A, B, e) => {
+        const rx = B.x - A.x, ry = B.y - A.y, sx = e.b.x - e.a.x, sy = e.b.y - e.a.y;
+        const den = rx * sy - ry * sx;
+        if (!den) return null;
+        const t = ((e.a.x - A.x) * sy - (e.a.y - A.y) * sx) / den;
+        const u = ((e.a.x - A.x) * ry - (e.a.y - A.y) * rx) / den;
+        if (!(t > 0 && t <= 1 && u >= 0 && u <= 1)) return null;
+        return { x: A.x + t * rx, y: A.y + t * ry, t0: t, edge: e };
+    };
+    class ClockwiseSweepPolygon {
+        static testCollision(origin, destination, { mode = "all", ...config } = {}) {
+            const round = p => ({ x: Math.round(p.x), y: Math.round(p.y) });
+            const polygon = new this();
+            polygon.initialize(round(origin), config);
+            return polygon._testCollision({ A: round(origin), B: round(destination) }, mode);
+        }
+        initialize(origin, config = {}) {
+            this.origin = origin;
+            this.config = { type: "sight", ...config };
+            this.edges = new Set();
+        }
+        _identifyEdges() {
+            const type = this.config.type, level = this.config.level ?? null;
+            for (const wall of globalThis.canvas?.scene?.walls ?? []) {
+                const c = wall.c;
+                if (!Array.isArray(c) || c.length < 4) continue;
+                if ((wall[type] ?? 20) === 0) continue;
+                if (wall.door > 0 && wall.ds === 1) continue;
+                if (level !== null && typeof wall.includedInLevel === "function" && !wall.includedInLevel(level)) continue;
+                this.edges.add(new Edge({ x: c[0], y: c[1] }, { x: c[2], y: c[3] }, {
+                    id: wall.id, object: { id: wall.id, document: wall }, type: "wall", direction: wall.dir ?? 0,
+                    light: wall.light ?? 20, move: wall.move ?? 20, sight: wall.sight ?? 20, sound: wall.sound ?? 20
+                }));
+            }
+        }
+        _testCollision(ray, mode) {
+            this._identifyEdges();
+            const hits = [...this.edges].map(e => hit(ray.A, ray.B, e)).filter(Boolean).sort((p, q) => p.t0 - q.t0);
+            if (mode === "any") return hits.length > 0;
+            if (mode === "closest") return hits[0] ?? null;
+            return hits;
+        }
+    }
+    return { Edge, ClockwiseSweepPolygon };
 }
 
 /* ============================== Roll ===================================== */

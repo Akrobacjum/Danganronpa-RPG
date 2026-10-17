@@ -87,10 +87,15 @@ export const FLOWS = Object.freeze([
     // over the bridge is 33's (an Assistant GM's), the charge 62 P's (gm2 opens the trial; 62 tags it through its
     // `begin` helper, so it is not listed here). No scenario sends `vote.run` from a second GM: partial until E40.
     // E10 fix r2-G6 (1.2.71): the GM's Now on a GM that is not the primary is asked of it through `floor.now`; 63 X sends it from gm3.
-    { id: "class-trial", what: "The Class Trial: advancement offers and asks, the vote and its ballots",
-        entry: { bridge: ["advancement.apply", "advancement.offer", "advancement.ask", "keys.charge", "vote.run", "vote.cast", "vote.ask", "floor.now"],
+    // E79 C16 (1.2.79): an Objection is raised from a player's trial bar (`trial.object`), its Truth Bullet put on it after
+    // (`trial.evidence`), and a GM re-points it (`floor.repoint`); 63 drives the three, 33 the legal pair from a player
+    // and 30 the forged ones. E79 fix r4-G2: the objector's closed picker withdraws it (`trial.withdraw`); 33 sends it
+    // from p1, 30 a forged one from p2.
+    { id: "class-trial", what: "The Class Trial: advancement offers and asks, the vote and its ballots, and an Objection raised, proved and re-pointed",
+        entry: { bridge: ["advancement.apply", "advancement.offer", "advancement.ask", "keys.charge", "vote.run", "vote.cast", "vote.ask", "floor.now",
+            "trial.object", "trial.evidence", "trial.withdraw", "floor.repoint"],
             sockets: ["vote.mjs"] },
-        scenarios: ["10-murder", "11-killer-secrecy", "33-bridge-paths", "61-gmstore-case", "63-class-trial"], status: "partial", stage: "E40" },
+        scenarios: ["10-murder", "11-killer-secrecy", "30-security", "33-bridge-paths", "61-gmstore-case", "63-class-trial"], status: "partial", stage: "E40" },
     { id: "clock-day", what: "The clock: a GM moves the time of day or opens an Eclipse, every client redraws and refills",
         entry: { api: ["setClock", "advanceTimeOfDay", "startEclipse", "endEclipse"] }, scenarios: ["40-flow", "14-quiet"],
         status: "partial", stage: "E37" },
@@ -241,6 +246,16 @@ export const FLOWS = Object.freeze([
     // message with the drawn flag is not read as drawn and awards nothing and is named once", "a refused relay write on
     // another's student leaves a row naming its sender", "a rewrite put back leaves a row naming the player"; the guards
     // "a GM's card with the same flags stands" and "an H5 neutral card is never a forgery").
+    // E79 C1 (14.10.2026): the GMs' records of the secret passages and each player's addressed copy. 76's phase A
+    // creates one, grants it, reads p1's copy and p2's and p3's surfaces, forges a copy and sends a junk ask; the
+    // move through it (C2-C4), Close and Open (C5) and showing it (C7) are the later phases'. E79 C4: the GMs' audit's
+    // word to a player whose token it put back from a wall (movement-audit.mjs `onSentBack`), 76's phase D. E79 C7
+    // (15.10.2026): a player shows a passage their character knows to a student beside it (`passage.share`), 76's phase G.
+    // Covered at the 1.2.79 release (17.10.2026) on what a harness can read: 76's phases A to G, on the k4t run of 770b06c
+    // 71 of 71 checks, seven of them tagged with this flow; what it cannot (a real table's walls, floors, LiveKit and
+    // Foundry's own move backend) is LIVE-E79-01..25 in AUDIT section 9.2.
+    { id: "secret-passages", what: "A secret passage: the GMs' records, and each player's copy of the ones their own characters know, sent to them alone",
+        entry: { sockets: ["passages.mjs", "passages-gm.mjs", "movement-audit.mjs"], bridge: ["passage.share"] }, scenarios: ["76-passages"], status: "covered", stage: "1.2.79" },
     { id: "sheet-audit", what: "A player's own write on their student: judged on the primary GM, put back, flagged or listed - at the write, or at the primary's ready for one made with no GM watching",
         entry: { calls: ["sheet-audit.mjs#judgeWrite", "sheet-audit.mjs#compareAtReady"], bridge: ["audit.decide"] },
         scenarios: ["30-security", "40-flow", "61-gmstore-case", "20-crit-hope", "10-murder", "15-held", "83-roll-integrity"], status: "covered", stage: "1.2.68" },

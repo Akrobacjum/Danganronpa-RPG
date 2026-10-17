@@ -15,7 +15,8 @@
  *      sender's to make (A10), and since E08+E28 C8 a rewrite of its rolls put back. Since E32+E07 C11b also a crisis action's statistic, put to the GMs
  *      by its own player and picked on the card (A11). Since E08+E28 C2 also a roll's bookmark for the
  *      Reroll, kept on the GMs from its roller's report (A12). Since E09 C5 also a Sabotage's trace, tied to the
- *      crime when the saboteur's character is the trap's killer (A14).
+ *      crime when the saboteur's character is the trap's killer (A14). Since E79 C16 also an Objection aimed by the GM's
+ *      voice Room and its Truth Bullet, chosen after it (A15).
  *   B  what E31 adds, each written red (`expectedRed`, with what it measured) until the commit that
  *      made it so, and a plain check since: a refusal carries its reason, in the player's own
  *      language; a refused request is not acknowledged; an exception on the GM's side ends as one
@@ -881,6 +882,88 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     check("B14: p1's pre-session note is answered as sent and kept in the GM's store; p1 reads its own copy, p2 nothing, and p1's flag holds no text",
         b14.saved === "sent" && b14.gm === "E05 33 B14 p1's note" && b14.p1 === b14.gm && b14.p2 === "" && b14.said.length === 0
         && b14.flag?.written === true && !Object.hasOwn(b14.flag ?? {}, "text"), JSON.stringify(b14));
+
+    /* A15. AN OBJECTION AND ITS TRUTH BULLET (E79 C16, 1.2.79; the owner, 17.10.2026). OBJECTION! is aimed at whoever
+       the primary GM's LiveKit Room counts as speaking, and the bullet is chosen after it, two requests from the
+       objector's browser (`trial.object`, `trial.evidence`). The harness's LiveKit (lib/livekit.mjs) is installed on
+       the GM alone; the clock is put in a Class Trial and a debate opened there, Aiko given a bullet and her actions
+       (the GM's API, not under test), and Botan's player speaks on the GM's Room for 1.2 s. p1 asks the objection with
+       no target in its packet, then the bullet: each answered, aimed at Botan as speaking now, the card filled, one
+       action paid, and no refusal logged on the GM or told to p1. Put back after: the floor ended, the clock, Aiko's
+       actions and the bullet, the GM's Room left. Its forgeries are 30-security's. */
+    phase("an Objection and its Truth Bullet", { flow: "class-trial" });
+    const F15 = `const F = await import("${repoUrl}/scripts/trial-floor.mjs"); const T = await import("${repoUrl}/scripts/trial.mjs");`;
+    await clearFailures(gm);
+    const told15 = await refusedCount(p1);
+    const set15 = await gm.eval(`${F15} const B = await import("${repoUrl}/scripts/truth-bullets.mjs");
+        const { sheetAuditIdle } = await import("${repoUrl}/scripts/sheet-audit.mjs");
+        if (typeof globalThis.__liveKit?.install !== "function") return null;
+        await __liveKit.install(); __liveKit.setRoster({ [__liveKit.MAIN_ROOM]: ${JSON.stringify([IDS.gm, IDS.p1, IDS.p2, IDS.p3])} });
+        const room = await game.webrtc.connect();
+        const aiko = game.actors.get("${IDS.aiko}");
+        globalThis.__s33a15 = { clock: foundry.utils.deepClone(game.settings.get("${MOD}", "clock")),
+            actions: foundry.utils.deepClone(aiko.system.resources.actions), grants: aiko.getFlag("${MOD}", "freeActionGrants") ?? null };
+        const item = await B.createTruthBullet(aiko, { name: "S33 A15 the evidence", realType: "neutral", visibility: "obvious" });
+        await aiko.setFlag("${MOD}", "freeActionGrants", 0);
+        await aiko.update({ "system.resources.actions.max": 3, "system.resources.actions.value": 3 });
+        await game.settings.set("${MOD}", "clock", { ...globalThis.__s33a15.clock, phase: "classTrial" });
+        if (F.trialFloor()) await F.endFloor();
+        await F.startFloor({});
+        await sheetAuditIdle();
+        __liveKit.speak(["${IDS.p2}"]);
+        await new Promise(r => setTimeout(r, 1200));
+        return { room, item: item?.id ?? null, floor: F.trialFloor()?.mode ?? null };`, { timeout: 60000 });
+    await settle(800);
+    const object15 = await p1.eval(`return await ${bridge}.requestObject({ actorId: "${IDS.aiko}" });`, { timeout: 30000 });
+    await settle(800);
+    const evidence15 = await p1.eval(`return await ${bridge}.requestEvidence({ actorId: "${IDS.aiko}", itemId: "${set15?.item ?? ""}", comment: "S33 A15" });`,
+        { timeout: 30000 });
+    await settle(1200);
+    const a15 = { set15, object: object15, evidence: evidence15, floor: await gm.eval(`${F15} const f = F.trialFloor();
+            const m = f?.messageId ? game.messages.get(f.messageId) : null;
+            return { mode: f?.mode ?? null, holder: f?.holderId ?? null, target: f?.targetId ?? null, pending: f?.pending ?? null,
+                item: m?.getFlag("${MOD}", T.TRIAL_FLAGS.item) ?? null, how: m?.getFlag("${MOD}", T.TRIAL_FLAGS.how) ?? null,
+                actions: game.actors.get("${IDS.aiko}").system.resources.actions.value };`),
+        logged: [...await refusalsLogged(gm, "trial.object"), ...await refusalsLogged(gm, "trial.evidence")],
+        told: (await refusedSince(p1, told15)).filter(t => /^trial\./.test(t.what ?? "")) };
+    check("A15: p1's Objection with no target in its packet is aimed at Botan as the GM's Room hears him, its bullet fills the card, one action is paid, and nothing is refused",
+        set15?.room === true && set15.floor === "debate" && object15?.ok === true && object15.value?.how === "now" && object15.value?.target === "Botan Kage"
+            && evidence15?.ok === true && evidence15.value?.item === "S33 A15 the evidence" && a15.floor.mode === "objection" && a15.floor.holder === IDS.aiko
+            && a15.floor.target === IDS.botan && a15.floor.pending === false && a15.floor.item === set15.item && a15.floor.how === "now"
+            && a15.floor.actions === 2 && a15.logged.length === 0 && a15.told.length === 0, JSON.stringify(a15));
+    /* A15b (E79 fix r4-G2, 1.2.79; cor F4): the objector's picker closed. The GM puts the floor back to the debate (its
+       API, not under test), p1 raises a second Objection and asks its withdrawal (`trial.withdraw`, the request
+       `raiseObjection` makes when the picker answers nothing): the GM's floor back in the debate, the card marked
+       withdrawn, the second action not given back, and nothing refused. */
+    await gm.eval(`${F15} await F.returnToDebate({}); return true;`);
+    await settle(500);
+    const object15b = await p1.eval(`return await ${bridge}.requestObject({ actorId: "${IDS.aiko}" });`, { timeout: 30000 });
+    await settle(800);
+    // Read as a result: at the fix's parent the bridge had no such request, and that is the red this step reads.
+    const withdraw15b = await p1.eval(`const B = ${bridge}; return typeof B.requestWithdraw === "function"
+        ? await B.requestWithdraw({ actorId: "${IDS.aiko}", messageId: "${object15b?.value?.messageId ?? ""}" }) : null;`, { timeout: 30000 });
+    await settle(1200);
+    const a15b = { object: object15b, withdraw: withdraw15b, floor: await gm.eval(`${F15} const f = F.trialFloor();
+            const m = game.messages.get("${object15b?.value?.messageId ?? ""}");
+            return { mode: f?.mode ?? null, pending: Boolean(m?.getFlag("${MOD}", T.TRIAL_FLAGS.pending)), withdrawn: Boolean(m?.getFlag("${MOD}", T.TRIAL_FLAGS.withdrawn)),
+                actions: game.actors.get("${IDS.aiko}").system.resources.actions.value };`),
+        logged: await refusalsLogged(gm, "trial.withdraw"),
+        told: (await refusedSince(p1, told15)).filter(t => /^trial\./.test(t.what ?? "")) };
+    check("A15b: p1's withdrawal of its pending Objection puts the GM's floor back in the debate and the card withdrawn, the action kept, nothing refused",
+        object15b?.ok === true && Boolean(object15b.value?.messageId) && withdraw15b?.ok === true && a15b.floor.mode === "debate" && a15b.floor.pending === false
+            && a15b.floor.withdrawn === true && a15b.floor.actions === 1 && a15b.logged.length === 0 && a15b.told.length === 0, JSON.stringify(a15b));
+    await gm.eval(`${F15} const aiko = game.actors.get("${IDS.aiko}"), was = globalThis.__s33a15;
+        if (F.trialFloor()) await F.endFloor();
+        if (was) {
+            await game.settings.set("${MOD}", "clock", was.clock);
+            await aiko.update({ "system.resources.actions.max": was.actions.max, "system.resources.actions.value": was.actions.value });
+            if (was.grants === null) await aiko.unsetFlag("${MOD}", "freeActionGrants"); else await aiko.setFlag("${MOD}", "freeActionGrants", was.grants);
+        }
+        const item = aiko.items.get(${JSON.stringify(set15?.item ?? "")});
+        if (item) await item.delete();
+        await game.webrtc.disconnect?.();
+        return true;`, { timeout: 60000 });
+    await settle(800);
 
     /* ------------------------------------------- A. the Assistant as the primary */
 

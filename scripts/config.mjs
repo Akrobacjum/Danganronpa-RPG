@@ -3519,6 +3519,22 @@ export const TRIAL = {
     objectionSeconds: 60,
     rebuttalSeconds: 120,
     /**
+     * How long an objector has to pick the Truth Bullet once their Objection is in (E79 C16, 1.2.79; the owner,
+     * 17.10.2026: the bullet is chosen AFTER the objection, and the card waits "pending" for it). The floor is the
+     * objector's while they choose, and the minute above starts only when the bullet is on the card
+     * (trial-floor.mjs `fillObjection`), so the minute is the minute they argue with it. Past these seconds the
+     * Objection is withdrawn, the floor goes back to the debate and the price stays paid (trial-floor.mjs
+     * `advanceIfDue`): an interruption that stopped the room and showed nothing is not free. The owner's default D4.
+     */
+    objectionPickSeconds: 30,
+    /**
+     * How long, in milliseconds, somebody has to stay in LiveKit's list of active speakers to count as speaking for
+     * an Objection's target (trial-speakers.mjs; the owner's default D2 of 17.10.2026): a cough, a laugh or a "hm"
+     * is not the floor. Whether a second is right at a real table, and how soon LiveKit lists somebody after their
+     * first word, is LIVE-E79-22 - nothing headless measures either.
+     */
+    speakerMs: 1000,
+    /**
      * You may accuse a Monokuma, somebody already dead, or yourself.
      *
      * The guide is explicit on all three: "Można głosować na Monokumę oraz na
@@ -4295,6 +4311,11 @@ export const SFX_EVENTS = {
         hint: "A wall, a locked door or a sealed room turns somebody back. Heard by whoever tried - the one mistake a player makes regularly.",
         category: "world",
         vary: true
+    },
+    passageFound: {
+        label: "Secret passage shown",
+        hint: "Another student shows somebody a secret passage. Heard by the one shown it.",
+        category: "world"
     },
     actionSpent: {
         label: "Action spent",

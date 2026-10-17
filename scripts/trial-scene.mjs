@@ -127,11 +127,18 @@
  * START SAYS WHERE THE TABLE GOES, AND A TRIAL HAS TWO DOORS THAT KEEP THE PHASE (E13 C6): the Start
  * window's lines and the console's "Show the hall" / "Back to school", under "THE START WINDOW AND
  * THE CONSOLE" below.
+ *
+ * A MADE TOKEN IS ITS STUDENT'S TOKEN, AND THE HALL HAS A NAME OF ITS OWN (E79 C11, 1.2.79; the owner's
+ * N5 and N6 of 14.10.2026). `hallTokenData` builds a token the stage makes from the student's token on
+ * the school - its picture, size and look, its rotation lock - and from the prototype only when there is
+ * none; and the Scenes tab gives the hall a name, a picture and words for the room tile in a trial
+ * (`hallRoom`, `setHallRoom`), under "THE HALL ON THE ROOM TILE" below.
  */
 
 import { MODULE_ID, FLAGS } from "./config.mjs";
 import { SETTINGS, seasonEpoch, getClock, isDeadForGm } from "./settings.mjs";
 import { trialCastStore, answerKeysOpen } from "./gm-stores.mjs";
+import { safeRoomImage } from "./vault.mjs";
 import { trialScene, schoolScene, viewedScene, isPlaceScene, roomNames, roomRegions, isRoom, sceneRoles, forgetSceneRoles } from "./rooms.mjs";
 import { fogOffPatch } from "./fog.mjs";
 import { judgedFor, flagsHeldNow } from "./sheet-audit.mjs";
@@ -488,6 +495,57 @@ export function seatFor({ seat = null, index = 0, count = 1, rect = null, grid =
 }
 
 /**
+ * What a token the stage makes takes from the student's token on the school (E79 C11, N5): how it looks
+ * and how it is turned, and nothing about where it stands, whether it is seen or what other code noted on
+ * it. Not whether it turns: a made token's rotation is always locked (`hallTokenData`).
+ */
+export const HALL_TOKEN_LOOK = Object.freeze(["texture", "width", "height", "rotation", "alpha", "ring",
+    "light", "sight", "detectionModes", "displayName", "displayBars", "disposition", "name"]);
+
+/**
+ * The data of one token the stage makes (E79 C11; the owner's N5 of 14.10.2026: "trial-hall tokens the
+ * module makes lack the token's properties; the image rotates on movement"). Until C11 it was the
+ * prototype's `toObject()` alone, which carries the prototype's `lockRotation` - false, Foundry's default
+ * (not read on v14 here: LIVE-E79-13) - so movement.mjs `onPreCreateToken`, which locks a token only when
+ * its data names no lock, never locked it, and the picture turned with every move. The headless harness
+ * hid it: its prototype named no lock until C11 gave it Foundry's default.
+ *
+ * `base` is the prototype's token data (`getTokenDocument(...).toObject()`, what Foundry makes a new token
+ * from); `school` the student's token on the school (`schoolTokenOf`, as `toObject()`), or null. Each field
+ * of `HALL_TOKEN_LOOK` the school token has is copied over the base. The rotation lock is on, whatever the
+ * prototype or the school token says (E79 fix r3-G4, review round 3's cor C): until then the school token's
+ * lock was copied when it was a boolean, and a `toObject()` states every field of the token's data, so a
+ * school token nobody locked handed on `false` and its hall token turned with every move - the owner's N5
+ * again; the "else on" was reached only by a student with no school token. Whether v14's `toObject()` of an
+ * unlocked token says `false` is LIVE-E79-13, which tries one. The id, the actor, the seat, `hidden: false`
+ * and `actorLink: true` are the stage's too, and the school token's place, elevation, visibility, flags,
+ * delta, sort and lock against moves are never read. Pure.
+ *
+ * @param {object} base     the prototype's token data
+ * @param {object|null} school  the school token's data, or null
+ * @param {{id: string, actorId: string, x: number, y: number}} stage
+ * @returns {object}
+ */
+export function hallTokenData(base, school, { id, actorId, x, y }) {
+    const look = {};
+    for (const field of HALL_TOKEN_LOOK) {
+        if (school && school[field] !== undefined) look[field] = foundry.utils.deepClone(school[field]);
+    }
+    return { ...foundry.utils.deepClone(base ?? {}), ...look, lockRotation: true, _id: id, actorId, x, y, hidden: false, actorLink: true };
+}
+
+/**
+ * The student's own token on the school (`schoolScene`), the one `hallTokenData` copies the look of: a
+ * token linked to the actor, the first by `sort` (then by id); null with no school or no such token. A
+ * token of the actor that is not linked is somebody's copy and is not read.
+ */
+export function schoolTokenOf(actorId, school = schoolScene()) {
+    const own = Array.from(school?.tokens ?? []).filter(token => token.actorId === actorId && token.actorLink);
+    own.sort((a, b) => ((a.sort ?? 0) - (b.sort ?? 0)) || String(a.id).localeCompare(String(b.id)));
+    return own[0] ?? null;
+}
+
+/**
  * The hall staged for the trial (`into`) or cleared after it, on a GM's client (E81 DZ6): the one place
  * this file creates or deletes a token. The way in waits for the store as `applyTrialCast` did
  * (`answerKeysOpen`): unopened, nothing is made, deleted or shown and the GMs are told. Then, in this
@@ -495,7 +553,8 @@ export function seatFor({ seat = null, index = 0, count = 1, rect = null, grid =
  * `remove` (movement.mjs's memory of each dropped, as `carryAcross` does); ONE record write - the deleted
  * set to null, each create's id (made here) and seat; ONE create, from the actor's prototype
  * (`getTokenDocument`, `actorLink` forced, so what the trial spends stays on the actor - LIVE-E81-14),
- * with `keepId`; the record put right for a create whose id was not kept; `applyTrialCast`'s show and
+ * with `keepId` - since E79 C11 the student's school token's look over the prototype's (`hallTokenData`);
+ * the record put right for a create whose id was not kept; `applyTrialCast`'s show and
  * hide; and the GMs told by name of anybody in the cast left with no token (Monokuma, whom the module
  * never makes, or a create that failed). Every stop between two steps leaves the record naming at most
  * a token that is gone, which the next stage drops and makes again - never a token of the module's the
@@ -533,7 +592,8 @@ export async function stageHall(hall, { into = true, open = () => answerKeysOpen
         const spot = seatFor({ seat: seats[actorId], index: order.indexOf(actorId), count: order.length, rect, grid, taken });
         try {
             const doc = await actor.getTokenDocument({ x: spot.x, y: spot.y, hidden: false, actorLink: true });
-            const token = { ...doc.toObject(), _id: foundry.utils.randomID(), actorId, x: spot.x, y: spot.y, hidden: false, actorLink: true };
+            const token = hallTokenData(doc.toObject(), schoolTokenOf(actorId)?.toObject() ?? null,
+                { id: foundry.utils.randomID(), actorId, x: spot.x, y: spot.y });
             data.push(token);
             taken.add(`${spot.x},${spot.y}`);
             patch[actorId] = { x: spot.x, y: spot.y, token: token._id };
@@ -1228,10 +1288,89 @@ export function readCastPicker(root) {
     return { sceneId: box.dataset.drpgCast, changes };
 }
 
+/*
+ * THE HALL ON THE ROOM TILE (E79 C11, 1.2.79; the owner's N6 of 14.10.2026, "what is going on with the room
+ * window in the Class Trial? it looks broken", then "B is better: it can be done in Room Setup -> Scenes").
+ * Until C11 the tile was an empty pane in a trial (room-tile.mjs `viewerRoom`, by design since E77: the hall
+ * holds no room, R114). Now the GMs give the hall a name, a picture and words in the Scenes tab, and in a trial
+ * the tile shows them, or the trial's own label when no name is set. They are a flag of the hall scene
+ * (`HALL_ROOM_FLAG`), not a region and not a room: the hall still holds none, and nothing that reads rooms
+ * reads this. One writer, `setHallRoom`, called by the tab's Apply on a GM's browser; one reader, `hallRoom`,
+ * which judges the picture again (`safeRoomImage`) on every read, as vault.mjs `roomImage` does a room's;
+ * R583 holds both to that.
+ */
+
+/** The hall scene's flag holding `{ name, picture, words }` for the room tile in a trial. */
+export const HALL_ROOM_FLAG = "hallRoom";
+
+/**
+ * What the GMs gave `hall` for the room tile: `name` and `words` as strings ("" when none, the name
+ * trimmed) and `picture`, a path `safeRoomImage` accepts or null - so a value a console wrote, or one
+ * from another host, is no picture. Reads the flag only.
+ *
+ * @param {Scene|null} hall
+ * @returns {{name: string, picture: string|null, words: string}}
+ */
+export function hallRoom(hall) {
+    const raw = hall?.getFlag?.(MODULE_ID, HALL_ROOM_FLAG);
+    const text = value => (typeof value === "string" ? value : "");
+    if (!raw || typeof raw !== "object") return { name: "", picture: null, words: "" };
+    return { name: text(raw.name).trim(), picture: safeRoomImage(raw.picture), words: text(raw.words) };
+}
+
+/**
+ * What an Apply writes of the hall's facts, decided before it writes: `{ sceneId, name, picture, words }`
+ * when the tab's fields differ from what the chosen hall holds (`stored`, `hallRoom`'s answer), else null -
+ * so an Apply that changed nothing writes nothing (R120's rule). Null with no hall chosen, or for a reading
+ * without the fields. Pure.
+ */
+export function hallRoomWrite(read, stored) {
+    const facts = read?.hallRoom, hall = read?.trial || null;
+    if (!hall || !facts || scenesClash(read)) return null;
+    const before = { name: stored?.name ?? "", picture: stored?.picture ?? "", words: stored?.words ?? "" };
+    const after = { name: String(facts.name ?? "").trim(), picture: String(facts.picture ?? "").trim(), words: String(facts.words ?? "").trim() };
+    return ["name", "picture", "words"].some(field => after[field] !== before[field]) ? { sceneId: hall, ...after } : null;
+}
+
+/**
+ * Write the hall's facts on `hall`, a GM's write (the tab's Apply, `applyScenesTab`; nothing else calls it).
+ * The name and the words are kept as strings, trimmed; the picture only as `safeRoomImage` gives it - ""
+ * clears it, and a path it refuses is not written (the picture stays as it was) and this GM is told, as
+ * Room Setup's own pictures are (`DRPG.Vault.imageRefused`). Answers what it wrote, or null off a GM.
+ */
+export async function setHallRoom(hall, { name = "", picture = "", words = "" } = {}) {
+    if (!game.user?.isGM || !hall?.setFlag) return null;
+    const path = picture ? safeRoomImage(picture) : null;
+    const next = { name: String(name ?? "").trim(), picture: path, words: String(words ?? "").trim() };
+    if (picture && !path) {
+        next.picture = hallRoom(hall).picture;
+        ui.notifications?.warn(game.i18n.format("DRPG.Vault.imageRefused", { room: next.name || hall.name }));
+    }
+    await hall.setFlag(MODULE_ID, HALL_ROOM_FLAG, next);
+    return next;
+}
+
+/** The tab's three fields for the hall's facts, filled from `hall` (`hallRoom`); disabled with no hall chosen. */
+function hallRoomFields(hall) {
+    const facts = hallRoom(hall);
+    const off = hall ? "" : " disabled";
+    const say = key => esc(game.i18n.localize(`DRPG.TrialScene.hallRoom.${key}`));
+    const pick = esc(game.i18n.localize("DRPG.Vault.imagePick"));
+    return `<legend>${say("legend")}</legend>
+            <p class="hint">${say("hint")}</p>
+            <label>${say("name")} <input type="text" name="scenes:hallName" value="${esc(facts.name)}"${off} /></label>
+            <label>${say("picture")} <input type="text" name="scenes:hallPicture" value="${esc(facts.picture ?? "")}"${off} />
+                <button type="button" class="drpg-mini-button" data-drpg-hall-picture title="${pick}" aria-label="${pick}"${off}><i class="fa-solid fa-image" aria-hidden="true"></i></button></label>
+            <label>${say("words")} <textarea name="scenes:hallWords" rows="3"${off}>${esc(facts.words)}</textarea></label>`;
+}
+
 /** proximity-voice-chat's id: its `disabled` scene flag is the one this module's voice check reads (voice.mjs `competingModuleWarnings`). */
 const PROXIMITY_VOICE = "proximity-voice-chat";
 
-/** The Scenes tab's panel: the two selects, the warnings and the cast of the hall linked now, and "Prepare the hall". */
+/**
+ * The Scenes tab's panel: the two selects, the hall's name, picture and words for the room tile (E79 C11), the
+ * warnings and the cast of the hall linked now, and "Prepare the hall".
+ */
 export function scenesTabHtml(roles = sceneRoles()) {
     const drawn = { school: drawnRole(roles, "school"), trial: drawnRole(roles, "trial") };
     const scenes = Array.from(game.scenes ?? []).sort((a, b) => a.name.localeCompare(b.name));
@@ -1247,6 +1386,7 @@ export function scenesTabHtml(roles = sceneRoles()) {
             <label>${game.i18n.localize("DRPG.TrialScene.school")} ${select("school")}</label>
             <label>${game.i18n.localize("DRPG.TrialScene.hall")} ${select("trial")}</label>
         </div>
+        <fieldset class="drpg-scene-hall-room" data-drpg-hall-room>${hallRoomFields(hall)}</fieldset>
         <div data-drpg-scenes-report>${reportHtml(school, hall)}</div>
         <div data-drpg-cast-box>${castPickerHtml(hall)}</div>
         <fieldset class="drpg-scene-prepare">
@@ -1266,6 +1406,7 @@ export function wireScenesTab(root, block = () => {}) {
     const [school, trial] = ["school", "trial"].map(role => root?.querySelector?.(`[name="scenes:${role}"]`));
     const report = root?.querySelector?.("[data-drpg-scenes-report]");
     const castBox = root?.querySelector?.("[data-drpg-cast-box]");
+    const hallBox = root?.querySelector?.("[data-drpg-hall-room]");
     if (!school || !trial || !report || !castBox) return;
     const scene = select => (select.value ? game.scenes.get(select.value) : null) ?? null;
     const redraw = () => {
@@ -1279,16 +1420,33 @@ export function wireScenesTab(root, block = () => {}) {
         block(reason);
     };
     school.addEventListener("change", redraw);
+    /* The picture's button: Foundry's file picker, its answer written into the field when it arrives (the field
+       looked up then, as utils.mjs `wirePortraitPickers` does). Not that helper itself: it pairs every
+       `data-drpg-portrait` of the form with a field by a name, and Room Setup's own pictures are named by room. */
+    const wirePicture = () => hallBox?.querySelector("[data-drpg-hall-picture]")?.addEventListener("click", () => {
+        const field = () => root.querySelector('[name="scenes:hallPicture"]');
+        new foundry.applications.apps.FilePicker.implementation({
+            type: "image", current: field()?.value || "",
+            callback: path => { const live = field(); if (live) live.value = path; }
+        }).render(true);
+    });
     trial.addEventListener("change", () => {
         castBox.innerHTML = castPickerHtml(scene(trial));
+        // the fields show the hall now chosen: what Apply compares them with is that hall's (`hallRoomWrite`)
+        if (hallBox) {
+            hallBox.innerHTML = hallRoomFields(scene(trial));
+            wirePicture();
+        }
         redraw();
     });
+    wirePicture();
     redraw();
 }
 
 /**
  * What the Scenes tab hands Apply: each select's value and what it drew, the cast list's changed
- * ticks, and whether (and how) to prepare the hall. Null when the tab is not in the form.
+ * ticks, the hall's three fields for the room tile (E79 C11; null without them), and whether (and how)
+ * to prepare the hall. Null when the tab is not in the form.
  */
 export function readScenesTab(root) {
     const pick = name => root?.querySelector?.(`[name="scenes:${name}"]`) ?? null;
@@ -1298,6 +1456,7 @@ export function readScenesTab(root) {
         school: school.value, trial: trial.value,
         drawn: { school: school.dataset.drawn ?? "", trial: trial.dataset.drawn ?? "" },
         cast: readCastPicker(root),
+        hallRoom: pick("hallName") ? { name: pick("hallName").value, picture: pick("hallPicture")?.value ?? "", words: pick("hallWords")?.value ?? "" } : null,
         prepare: pick("prepare")?.checked
             ? { playlist: Boolean(pick("preparePlaylist")?.checked), voice: Boolean(pick("prepareVoice")?.checked) } : null
     };
@@ -1392,7 +1551,8 @@ export async function prepareTrialScene(scene, { playlist = false, voice = false
  * module's tokens deleted; the orchestrator's Q5 of 12.10.2026); in the trial with another scene
  * active nothing. A change of the hall itself in
  * a running trial never reaches here: Room Setup refuses it first (`hallLocked`).
- * Then "Prepare the hall". Answers what it did, or null off a GM.
+ * Then "Prepare the hall", then the hall's name, picture and words for the room tile when the GM changed
+ * one (`hallRoomWrite`, `setHallRoom`; E79 C11). Answers what it did, or null off a GM.
  */
 export async function applyScenesTab(read) {
     if (!game.user?.isGM || !read) return null;
@@ -1413,6 +1573,10 @@ export async function applyScenesTab(read) {
         else if (hall.active) done.shown = await stageHall(hall, { into: true });
     }
     if (writes.prepare && hall) done.prepared = await prepareTrialScene(hall, writes.prepare);
+    // E79 C11: the hall's facts on the hall the Apply leaves chosen, only when a field differs; `done` gains
+    // `hall` only then, so an untouched Apply answers what it always did (R120).
+    const facts = hall ? hallRoomWrite(read, hallRoom(hall)) : null;
+    if (facts) done.hall = await setHallRoom(hall, facts);
     return done;
 }
 

@@ -25,7 +25,7 @@ import { placeRoomNames } from "./rooms.mjs";
 import { dialogContent, error, tableDialog, wirePortraitPickers } from "./utils.mjs";
 import { alreadyOpen, keepFresh } from "./live.mjs";
 import {
-    leaveIconOnly, localiseRawKeys, hideUndiscovered, paintProgress, applyCollapsed, addCollapseControl
+    leaveIconOnly, localiseRawKeys, hideUndiscovered, showTrayToPlayer, paintProgress, applyCollapsed, addCollapseControl
 } from "./projects-tray.mjs";
 export { refreshProjects, hideUndiscovered } from "./projects-tray.mjs";
 
@@ -73,6 +73,8 @@ function onRenderCountdowns(app, element) {
 
         localiseRawKeys(root);
         hideUndiscovered(root);
+        // after the rows the player has not found are gone: they count as none (E79 C12, U1)
+        showTrayToPlayer(root);
         paintProgress(root);
 
         // Folding the tray away is everybody's, not the GM's - a player with

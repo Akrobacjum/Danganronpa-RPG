@@ -19,7 +19,8 @@
  *     routes on room-tile.mjs's data; this reads what is drawn.
  *   D (Foundry's rails leave the screen, E77 C5): p1's scene controls computed `display: none` in both themes and its
  *     layer back to Tokens after a new canvas and a render of the controls; the GM's two windows closed, Foundry tools
- *     holding the sidebar collapsed, and a scene rail drawn in the left column moved into Map tools.
+ *     holding the sidebar collapsed, and a scene rail drawn in the left column moved into Map tools. And (E79 C13,
+ *     1.2.79, N16) Foundry's LATENCY/FPS readout computed `display: none` on p1 and on the GM in both themes.
  *   E (the corner's upper row, E77 C6): on the GM's page the red GM button and Foundry tools are children of the body
  *     in the cluster (`data-drpg-cluster`) with no `drpg-` class on them or above them, and a click on Foundry tools
  *     opens both windows (`aria-pressed` "true") and a second closes both; p1 and p2 have neither button.
@@ -41,9 +42,9 @@
  *     and once more, ended by p1's own next move (E77 fix r2-H1).
  *   H (the states that are no gate, E77 fix r1-G3): in an Eclipse p1's tile keeps Aiko's room and follows her
  *     Eclipse crossing; dead it keeps the room her body lies in, and as a Monocub follows her walk; in a Class Trial
- *     every tile is the trial's while each viewer still stands in a school room; and p4's character, on a scene of
- *     two floors, is shown in the room of its token's floor, not of the floor p4's canvas shows, and of its token's
- *     scene, not of the scene p4 looks at.
+ *     every tile is the trial's (since E79 C11 the hall's, under the trial's label) while each viewer still stands
+ *     in a school room; and p4's character, on a scene of two floors, is shown in the room of its token's floor, not
+ *     of the floor p4's canvas shows, and of its token's scene, not of the scene p4 looks at.
  *   I (a stored picture that cannot be read, E77 fix r2-H1): a path of this origin whose re-read the URL parser
  *     rejects, written on the Cafeteria past setVaultRoom - after a control, roomImage answers no picture on the GM
  *     and on p1, Room Setup opens and draws the Cafeteria with none, p1's tile follows Aiko in, and setVaultRoom
@@ -59,9 +60,12 @@
  *     Monokuma dragged from the Hall to the Cafeteria and p1's Aiko from Dorm A into B's Porch with the hook reading the
  *     drag's start, then Aiko back by a last update that still carries a waypoint pending - each tile names the new room
  *     once the token stands, and each of Aiko's crossings costs one action, once.
+ *   U (the Projects tray before the first project, E79 C12): a tray drawn from Daggerheart 2.6.5's template and hidden
+ *     as Daggerheart hides it from a player with no countdown: after the render hook p1 sees its title and the line
+ *     that there is no project yet, which goes with a countdown and comes back when none is left; the GM's as before.
  *   The phases run in this order, not the letters': G reads p1 as B left it (Aiko in Dorm A) and stands her there
  *     again, and C and H - the side fix line's, merged after E77 C9 on 13.10.2026 - move Aiko and Botan, so they run
- *     after it; I, K and J run last, and L after them.
+ *     after it; I, K and J run last, L after them and U, which moves nothing, at the end.
  *
  * A paint is counted as one `childList` record on the tile itself: `paintRoomTile` replaces the tile's children
  * in one call and writes nothing when its view is unchanged. What the tile looks like (the picture over the whole
@@ -282,12 +286,26 @@ export async function run({ gm, gm2, p1, p2, p4, check, phase, settle, connect, 
        (the theme's class swapped and put back); on the GM the guard moves the stand-in into Map tools before the next
        task, and the same rule leaves its display alone there - the control that the rule is the player's. The Tokens
        layer through the harness's `ui.controls` (v13's `control` and `activate`, LIVE-E77-11 at a table): another layer
-       set, then a new canvas, then a render of the controls; and with Tokens already active, nothing asked. */
+       set, then a new canvas, then a render of the controls; and with Tokens already active, nothing asked.
+       D4 (E79 C13, 1.2.79): the harness draws no players list either, so a stand-in `#performance-stats` - the element
+       Foundry fills with LATENCY and FPS - is put in `#players` (a stand-in one where the page has none), read in both
+       themes on p1 and on the GM, and taken away again. */
     const STAND_IN = `const standIn = () => { const el = document.createElement("div"); el.id = "scene-controls";
             el.innerHTML = '<menu><li><button type="button" class="ui-control"></button></li></menu>';
             (document.getElementById("ui-left") ?? document.getElementById("interface")).append(el); return el; };
-        const tick = () => new Promise(r => setTimeout(r, 0));`;
+        const tick = () => new Promise(r => setTimeout(r, 0));
+        const readout = () => { let host = document.getElementById("players"); const made = host ? null : (host = document.createElement("aside"));
+            if (made) { made.id = "players"; document.body.append(made); }
+            const el = document.createElement("div"); el.id = "performance-stats";
+            el.innerHTML = '<span class="latency">LATENCY 12ms</span><span class="fps">FPS 60</span>'; host.append(el);
+            return { el, drop: () => { el.remove(); made?.remove(); } }; };
+        const themed = legacy => { document.body.classList.toggle("drpg-theme-stained-glass", !legacy); document.body.classList.toggle("drpg-theme-monokuma-legacy", legacy); };
+        const bothThemes = el => { const was = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"].map(c => document.body.classList.contains(c));
+            try { themed(false); const stained = getComputedStyle(el).display; themed(true); return [stained, getComputedStyle(el).display]; }
+            finally { document.body.classList.toggle("drpg-theme-stained-glass", was[0]); document.body.classList.toggle("drpg-theme-monokuma-legacy", was[1]); } };`;
     const p1D = await p1.eval(`${STAND_IN} const body = document.body, el = standIn(), out = {};
+        const perf = readout();
+        try { out.perf = bothThemes(perf.el); } finally { perf.drop(); }
         const swap = legacy => { body.classList.toggle("drpg-theme-stained-glass", !legacy); body.classList.toggle("drpg-theme-monokuma-legacy", legacy); };
         const was = [body.classList.contains("drpg-theme-stained-glass"), body.classList.contains("drpg-theme-monokuma-legacy")];
         try {
@@ -323,6 +341,8 @@ export async function run({ gm, gm2, p1, p2, p4, check, phase, settle, connect, 
         await tick();
         out.rail = [el.parentElement === bodyOf(maptools), getComputedStyle(el).display];
         el.remove();
+        const perf = readout();
+        try { out.perf = bothThemes(perf.el); } finally { perf.drop(); }
         return out;`, { timeout: 20000 });
     const p2D = await p2.eval(`return [document.querySelectorAll(".drpg-foundry-window").length, document.body.classList.contains("drpg-player")];`);
     check("D1: a player's scene controls are display: none under Stained Glass and under Monokuma Legacy, and a player has no window of Foundry's",
@@ -334,6 +354,8 @@ export async function run({ gm, gm2, p1, p2, p4, check, phase, settle, connect, 
         + "collapsed; a scene rail drawn into the left column is in Map tools before the next task, and the player's rule leaves it shown",
         J(gmD.closed) === J([[true, true, true], [true, true, true]]) && J(gmD.sidebar) === J([true, true, true, false])
             && gmD.rail[0] === true && gmD.rail[1] !== "none", J(gmD));
+    check("D4: Foundry's LATENCY/FPS readout is display: none on a player's page and on the GM's, under Stained Glass and under Monokuma Legacy",
+        J([p1D.perf, gmD.perf]) === J([["none", "none"], ["none", "none"]]), J({ p1: p1D.perf, gm: gmD.perf }));
 
     /* ------------------------------ E. the corner's upper row (E77 C6) ------------------------------ */
     phase("E: the GM's button and Foundry tools stand in the corner on the GM's page alone, and Foundry tools opens and closes both windows");
@@ -598,16 +620,21 @@ export async function run({ gm, gm2, p1, p2, p4, check, phase, settle, connect, 
         && J(refusedC.painted) === J(["Dorm A"]) && refusedC.tile === "Dorm A" && refusedC.token === "Dorm A" && refusedC.putBackMs !== null,
     J({ brokeC, viaC, refusedC }));
 
-    /* Every update of the token starts p2's wait again (movement.mjs `restartQuiet`): p2 takes Botan into the Porch and,
-       a second later - before that route is quiet - drags him on into the Shed, a step with waypoints pending (stood in
-       on p1 and p2) and, a second after it, the drag's last. Were the wait not started again, the first route would be
-       announced 1.5 s after its update, with Botan standing on the drag's pending step, and the tile would draw a room
-       the drag was still passing. */
+    /* Every update of the token starts p2's wait again (movement.mjs `restartQuiet`): p2 drags Botan into the Porch, a
+       step inside Dorm A with waypoints pending and then the drag's last, and, a second later - before that route is
+       quiet - drags him on into the Shed, a step with waypoints pending (each stood in on p1 and p2) and, a second
+       after it, the drag's last. Were the wait not started again, the first route would be announced 1.5 s after its
+       last update, with Botan standing on the second drag's pending step, and the tile would draw a room the drag was
+       still passing. The first route has a pending step since E79 C14 (1.2.79): a co-owner announces a route of one
+       update at once (66 N13a), and only a route that had steps pending waits for quiet. */
     const draggedC = await gm.eval(`const botan = game.actors.get("${IDS.botan}");
         await game.drpg.setActions(botan, 3); await new Promise(r => setTimeout(r, 600)); return game.drpg.actionsLeft(botan);`, { timeout: 30000 });
-    const intoC = await p2.eval(`${ACADEMY} ${TILE} const t = academy.tokens.get("TOKBOTAN00000000"); take();
+    await p1.eval(PENDING);
+    const intoC = await p2.eval(`${PENDING.replace(" return true;", "")} ${TILE} const t = academy.tokens.get("TOKBOTAN00000000"); take();
+        try { await t.update({ x: 600, y: 400 }); } finally { delete t.movement; }
         await t.update({ x: 900, y: 300 }); await new Promise(r => setTimeout(r, 1000));
         return { tile: read()?.name ?? null, painted: take() };`, { timeout: 30000 });
+    await p1.eval(`${ACADEMY} delete academy.tokens.get("TOKBOTAN00000000").movement; return true;`);
     await p1.eval(PENDING);
     const midC = await p2.eval(`${PENDING.replace(" return true;", "")} ${TILE} const t = academy.tokens.get("TOKBOTAN00000000");
         try { await t.update({ x: 900, y: 600 }); await new Promise(r => setTimeout(r, 1000)); } finally { delete t.movement; }
@@ -617,8 +644,8 @@ export async function run({ gm, gm2, p1, p2, p4, check, phase, settle, connect, 
         await t.update({ x: 920, y: 640 });
         const followed = await until(() => read()?.name === "74 Shed", 5000);
         return { followed, tile: read()?.name ?? null, painted: take(), token: M.roomOfToken(t) };`, { timeout: 30000 });
-    check("C4: a drag p2 starts before its last route is quiet keeps p2's tile on Dorm A through the drag's pending step, and "
-        + "the tile is painted once, in the Shed, when the drag is",
+    check("C4: a drag p2 starts before its last drag is quiet keeps p2's tile on Dorm A through the second drag's pending step, and "
+        + "the tile is painted once, in the Shed, when that drag is",
     draggedC === 3 && intoC.tile === "Dorm A" && J(intoC.painted) === "[]" && midC.tile === "Dorm A" && J(midC.painted) === "[]"
         && lastC.followed && J(lastC.painted) === J(["74 Shed"]) && lastC.token === "74 Shed",
     J({ draggedC, intoC, midC, lastC }));
@@ -737,19 +764,24 @@ export async function run({ gm, gm2, p1, p2, p4, check, phase, settle, connect, 
 
     /* A Class Trial opened as 01-runtests and 10 open one (`setClock({ phase: "classTrial" })`; no hall is linked in this
        world, so nobody's token moves), read on all three tiles beside the room `locateActor` still finds for each viewer;
-       then the clock as it was before this phase. */
+       then the clock as it was before this phase. Until E79 C11 the tile was then an empty pane, aria-hidden, its heading
+       none; since C11 it shows the trial hall (room-tile.mjs `hallView`), here under the trial's own label, as no hall is
+       linked and so none has a name (the owner's N6 of 14.10.2026; scenario 41 o1-o3 reads a linked hall's). */
     const trialH = { set: await gm.eval(`await game.drpg.setClock({ phase: "classTrial" }); ${SLEEP(1200)} return game.drpg.getClock().phase;`,
         { timeout: 30000 }) };
     const TRIAL = `${VIEW} const H = await import("${repoUrl}/scripts/hud.mjs"), M = await import("${repoUrl}/scripts/movement.mjs");
-        return { ...await seen(() => read()?.state === "trial"), located: M.locateActor(H.viewerActor())?.room ?? null };`;
+        const { phaseLabel } = await import("${repoUrl}/scripts/clock.mjs"), label = phaseLabel("classTrial");
+        return { ...await seen(() => read()?.name === label), label, hidden: read() ? read().hidden : "no tile",
+            located: M.locateActor(H.viewerActor())?.room ?? null };`;
     for (const [who, c] of [["p1", p1], ["p2", p2], ["gm", gm]]) trialH[who] = await c.eval(TRIAL);
     trialH.end = await gm.eval(`await game.drpg.setClock(globalThis.__s74.clock); ${SLEEP(1200)} return game.drpg.getClock().phase;`, { timeout: 30000 });
     trialH.after = await p1.eval(`${VIEW} return seen(() => read()?.name === "Dorm A");`);
     check("H3: in a Class Trial every tile - p1's, p2's and the GM's - is the trial's, painted once, though each viewer still stands in a "
-        + "school room; after it p1's tile is Dorm A again",
-    trialH.set === "classTrial" && ["p1", "p2", "gm"].every(who => trialH[who].state === "trial" && J(trialH[who].view) === J(["trial", null]))
+        + "school room, and shows the trial's label with no hall linked (E79 C11); after it p1's tile is Dorm A again",
+    trialH.set === "classTrial" && ["p1", "p2", "gm"].every(who => trialH[who].state === "roomBare" && trialH[who].name === trialH[who].label
+            && trialH[who].hidden === null && J(trialH[who].view) === J(["trial", null]))
         && J(["p1", "p2", "gm"].map(who => trialH[who].located)) === J(["Dorm A", "74 Shed", "Hall"])
-        && J(trialH.p1.painted) === J([null]) && trialH.end !== "classTrial"
+        && J(trialH.p1.painted) === J([trialH.p1.label]) && trialH.end !== "classTrial"
         && trialH.after.name === "Dorm A" && J(trialH.after.view) === J(["room", "Dorm A"]) && J(trialH.after.painted) === J(["Dorm A"]),
     J(trialH));
 
@@ -954,7 +986,7 @@ export async function run({ gm, gm2, p1, p2, p4, check, phase, settle, connect, 
     check("J4: the switch is back on", backJ === true, J(backJ));
 
     /* ------------------------------ L. a drag the hook reads before it ends ------------------------------ */
-    phase("L: a drag whose update the hook reads before the token stands - the tile, the price and the announcement follow it at rest");
+    phase("L: a drag whose update the hook reads before the token stands - the tile, the price and the announcement follow where it ends");
     /* The owner's report of 14.10.2026 (1.2.77 at a v14 table): the GM's Monokuma dragged into another room kept the old
        room's tile and played no arrival, and nothing counted, until a second drag inside the new room. Which of two
        readings the table gave is not measured (movement.mjs `whenAtRest`, LIVE-E78-14), so both are stood in here, on the
@@ -962,12 +994,18 @@ export async function run({ gm, gm2, p1, p2, p4, check, phase, settle, connect, 
        "pending" until it is let go 400 ms later; (a) the drag's last update still carries a waypoint pending, its movement
        "stopped". Without movement.mjs's re-read at rest L1-L3 fail as the owner saw: the tile keeps the room left and no
        action is charged (one run of each, 14.10.2026). The fog's own re-read (fog.mjs `onUpdateToken`) needs a canvas to
-       show anything and is not read here. */
+       show anything and is not read here. Since E79 C14 (1.2.79; the owner's "entering a room reads too late", 15.10.2026)
+       the room of (b) is read from the update itself (movement.mjs `destinationOf`): the route is announced while the
+       token still reads its start, in the room it enters, and the re-read at rest finds that room and says nothing more.
+       Each announcement is recorded with the tile's name, whether the token was still held, and the room it names. Read on
+       16.10.2026, one run with C14 and one with movement.mjs and passages-gm.mjs at the parent: L1-L3 as below with C14;
+       at the parent L1 and L2 announced twice, in the room left while held and in the room entered at rest, and L3 named
+       no room. */
     const HELDL = (token, room, held) => `${ACADEMY} ${TILE} const M = await import("${repoUrl}/scripts/movement.mjs");
         const t = academy.tokens.get("${token}"), to = M.positionIn("${room}", t), from = { x: t.x, y: t.y };
-        const settled = []; const spy = ({ tokenDoc, accepted }) => { if (tokenDoc?.id === "${token}") settled.push([accepted, read()?.name ?? null]); };
-        Hooks.on("drpgRouteSettled", spy);
         let holding = true;
+        const settled = []; const spy = ({ tokenDoc, accepted, room }) => { if (tokenDoc?.id === "${token}") settled.push([accepted, read()?.name ?? null, holding, room]); };
+        Hooks.on("drpgRouteSettled", spy);
         ${held === "origin" ? `Object.defineProperty(t, "x", { get() { return holding ? from.x : this._source.x; }, configurable: true });
         Object.defineProperty(t, "y", { get() { return holding ? from.y : this._source.y; }, configurable: true });
         Object.defineProperty(t, "movement", { get() { return { state: holding ? "pending" : "completed", pending: { waypoints: [] } }; }, configurable: true });`
@@ -993,24 +1031,70 @@ export async function run({ gm, gm2, p1, p2, p4, check, phase, settle, connect, 
     const ACTIONSL = `await new Promise(r => setTimeout(r, 800)); return game.drpg.actionsLeft(game.actors.get("${IDS.aiko}"));`;
     const standL = await gm.eval(STANDL, { timeout: 30000 });
     const gmL = await gm.eval(HELDL("TOKMONOKUMA00000", "Cafeteria", "origin"), { timeout: 30000 });
-    check("L1: the GM drags its Monokuma from the Hall to the Cafeteria, the hook reading the drag's start - the GM's tile names the Hall "
-        + "at the hook and the Cafeteria once the token stands, and a route is announced there",
-    gmL.atHook === "Hall" && gmL.atRest === "Cafeteria" && gmL.room === "Cafeteria" && gmL.settled.some(([ok, name]) => ok === true && name === "Cafeteria"),
+    /* Until E79 C14 the GM's tile named the Hall at the hook, and the route was announced twice: in the Hall at the hook
+       and in the Cafeteria at rest. */
+    check("L1: the GM drags its Monokuma from the Hall to the Cafeteria, the hook reading the drag's start - the route is announced "
+        + "once, while the token is held, in the Cafeteria, and the GM's tile names it at the hook and once the token stands (E79 C14)",
+    gmL.atHook === "Cafeteria" && gmL.atRest === "Cafeteria" && gmL.room === "Cafeteria"
+        && J(gmL.settled) === J([[true, "Cafeteria", true, "Cafeteria"]]),
     J({ standL, gmL }));
     const p1bL = await p1.eval(HELDL("TOKAIKO000000000", "74 Porch", "origin"), { timeout: 30000 });
     const afterbL = await gm.eval(ACTIONSL, { timeout: 30000 });
-    check("L2: p1 drags Aiko from Dorm A into phase B's Porch the same way, with two actions and the free move spent - p1's tile names "
-        + "the Porch at rest and the crossing costs one action, once",
-    standL.free === false && standL.actions === 2 && p1bL.atHook === "Dorm A" && p1bL.atRest === "74 Porch" && afterbL === 1
-        && p1bL.settled.filter(([ok, name]) => ok === true && name === "74 Porch").length === 1,
+    /* p1's announcement waits for the crossing's charge, a round trip to the GM, so the tile 150 ms after the update is
+       recorded (atHook) and not held to a room. Until E79 C14 the route was announced in Dorm A at the hook, free, and
+       charged and announced again at rest. */
+    check("L2: p1 drags Aiko from Dorm A into phase B's Porch the same way, with two actions and the free move spent - the route is "
+        + "announced once, while the token is held, in the Porch, p1's tile names the Porch at rest and the crossing costs one action, once (E79 C14)",
+    standL.free === false && standL.actions === 2 && p1bL.atRest === "74 Porch" && afterbL === 1
+        && J(p1bL.settled) === J([[true, "74 Porch", true, "74 Porch"]]),
     J({ standL, p1bL, afterbL }));
     const p1aL = await p1.eval(HELDL("TOKAIKO000000000", "Dorm A", "pending"), { timeout: 30000 });
     const afteraL = await gm.eval(ACTIONSL, { timeout: 30000 });
     check("L3: p1 drags Aiko back to Dorm A by an update that still carries a waypoint pending, its movement stopped - nothing moves at the "
         + "hook, and at rest p1's tile names Dorm A and the crossing costs the other action, once",
     p1aL.atHook === "74 Porch" && p1aL.atRest === "Dorm A" && afteraL === 0
-        && p1aL.settled.filter(([ok, name]) => ok === true && name === "Dorm A").length === 1,
+        && J(p1aL.settled) === J([[true, "Dorm A", false, "Dorm A"]]),
     J({ p1aL, afteraL }));
+
+    /* ------------------------------ U. the Projects tray before the first project ------------------------------ */
+    phase("U: a player's Projects tray keeps its title before the first project and says there is none; the GM's as before");
+    /* E79 C12 (16.10.2026; the owner's U1 of 14.10: "players do not see the 'Projects' tab title until a project exists").
+       The harness runs no Daggerheart tray, so each page draws one from Daggerheart 2.6.5's countdowns-view.hbs (the
+       header with its title, the rows' container; a row from parts/countdowns.hbs whose countdown is no project, which
+       hideUndiscovered keeps), hides it as countdowns.mjs:93 does - for anybody but a GM while it holds no countdown -
+       and calls the render hook the tray's render calls, twice on the same element (a line is never drawn twice). Three renders
+       on p1: no countdown, one, none again (the last project deleted); one on the GM with none. Red before C12: p1's tray stays hidden. The tray is taken off after. */
+    const TRAYU = renders => `const out = [], want = game.i18n.localize("DRPG.Project.trayEmpty");
+        const ROW = '<div class="countdown-category-container"><div class="countdown-container" data-countdown="S74NOPROJECT0001"><div class="countdown-main-container">'
+            + '<img src=""><div class="countdown-content"><header>S74 countdown</header><div class="countdown-tools"><div class="countdown-tool-controls">'
+            + '<div class="progress-tag">1/4</div></div><div class="countdown-tool-icons"></div></div></div></div></div></div>';
+        const el = document.createElement("div");
+        el.id = "s74-countdowns";
+        document.body.append(el);
+        try {
+            for (const rows of ${J(renders)}) {
+                el.innerHTML = '<div><header class="countdowns-header"><i class="fa-solid fa-clock-rotate-left" inert></i><span class="window-title"></span>'
+                    + '<div class="header-type-toggles"></div><a class="header-control" data-action="toggleViewMode"></a></header>'
+                    + '<div class="countdowns-container">' + ROW.repeat(rows) + '</div></div>';
+                el.querySelector(".window-title").textContent = game.i18n.localize("DAGGERHEART.UI.Countdowns.title");
+                el.hidden = !game.user.isGM && el.querySelectorAll(".countdown-container").length === 0;
+                Hooks.callAll("renderDhCountdowns", { render() {} }, el);
+                Hooks.callAll("renderDhCountdowns", { render() {} }, el); // the same element heard twice: one line, not two
+                const line = el.querySelectorAll(".countdowns-container .drpg-projects-empty");
+                out.push({ hidden: el.hidden, title: el.querySelector(".window-title")?.textContent ?? null, rows: el.querySelectorAll(".countdown-container").length,
+                    empty: line.length === 1 && line[0].textContent === want ? "line" : line.length, gear: Boolean(el.querySelector(".drpg-projects-gear")) });
+            }
+            return { title: game.i18n.localize("DAGGERHEART.UI.Countdowns.title"), out };
+        } finally { el.remove(); }`;
+    const trayP1 = await p1.eval(TRAYU([0, 1, 0]), { timeout: 15000 });
+    const trayGm = await gm.eval(TRAYU([0]), { timeout: 15000 });
+    const shownU = (read, rows, empty, gear) => ({ hidden: false, title: read.title, rows, empty, gear });
+    check("U1: p1, with no countdown, sees the tray Daggerheart hid - its title and the line that there is no project yet; the GM's tray with none "
+        + "is shown with its gear and no line, as before",
+    trayP1.title === "Projects" && J(trayP1.out[0]) === J(shownU(trayP1, 0, "line", false)) && J(trayGm.out) === J([shownU(trayGm, 0, 0, true)]),
+    J({ trayP1, trayGm }));
+    check("U2: on p1 the line goes when a countdown is drawn and comes back, once, when Daggerheart draws the tray again with none left",
+        J(trayP1.out.slice(1)) === J([shownU(trayP1, 1, 0, false), shownU(trayP1, 0, "line", false)]), J(trayP1.out));
 
     /* ------------------------------ restore ------------------------------ */
     await p1.eval(`Hooks.off("updateToken", globalThis.__s74written); Hooks.off("drpgRouteSettled", globalThis.__s74settled);

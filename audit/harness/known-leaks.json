@@ -56,6 +56,30 @@
       ],
       "readme": "leak:foundry-hidden-tokens",
       "measuredAt": "E30 C20 on 4a83b6b, 24.09.2026: the token.hidden marker, a hidden token's name, on p1, p2 and p3 at Scene *.tokens.*.name, wire and rest"
+    },
+    {
+      "id": "foundry-passage-crossing",
+      "class": "metadata",
+      "severity": "info",
+      "what": "A token that goes through a secret passage is seen to go by every browser: its position before and after, on either side of the passage's wall, says where the passage is to a player whose characters do not know it. The passage itself, who knows it and its stretch of wall stay on the GMs' browsers and the knowers'.",
+      "foundryLimit": "Foundry v14 sends every Token document's position, and each of its moves, to every connected client.",
+      "detectedBy": [
+        {"scenario": "65-season", "check": "X2: a crossing is seen - p3, whose Chie does not know P1, reads Aiko's token go from y 600 to y 850 across the Closet's wall at x 1240, inside P1's stretch"}
+      ],
+      "readme": "leak:foundry-passage-crossing",
+      "measuredAt": "E79 C8, 15.10.2026, before its commit: p3, whose Chie knows P2 and P3 and not P1, read Aiko's token at [1240,600] before and [1240,850] after she went through P1 from p1 (65-season X2)"
+    },
+    {
+      "id": "foundry-passage-only-room",
+      "class": "metadata",
+      "severity": "info",
+      "what": "A room no door reaches, whose only entrance is a secret passage, is seen as one by every browser: its region and the rooms the map joins it to are world data, so a token standing in it came through a passage.",
+      "foundryLimit": "Foundry v14 sends every Scene's regions, walls and their flags to every connected client.",
+      "detectedBy": [
+        {"scenario": "65-season", "check": "X2b: a room only a passage reaches is seen - on p3 the map joins the Closet to no room, and Aiko's token stands in it"}
+      ],
+      "readme": "leak:foundry-passage-only-room",
+      "measuredAt": "E79 C8, 15.10.2026, before its commit: on p3 neighbouringRooms of the Closet read [] and Aiko's token stood in the Closet (65-season X2b)"
     }
   ]
 }

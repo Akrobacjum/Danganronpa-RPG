@@ -38,8 +38,32 @@ export const accounts = [{ who: "gm0", id: "USERGA0000000000", name: "Returning 
 
 const MOD = "danganronpa-rpg";
 const J = value => JSON.stringify(value);
+/* The first hold's card (enforced.mjs `holdPermissions`, `first`) as the GM's language words it: `want` whole,
+   with the Trusted Player's two permissions, and `tail`, the words after the list, which any such card carries. */
+const FIRST_HOLD = `const L = key => game.i18n.localize(key);
+        const lost = L("DRPG.Enforced.lost.trusted") + ": " + L("DRPG.Enforced.lost.browse") + ", " + L("DRPG.Enforced.lost.upload");
+        const want = game.i18n.format("DRPG.Enforced.filesFirstHold", { lost });
+        const tail = want.slice(want.indexOf(lost) + lost.length);`;
 
-export async function run({ gm, gm0, p1, p2, check, phase, settle, connect, disconnect, storageOf, socketTraffic, IDS, repoUrl }) {
+/**
+ * N4e (E79 fix r3-G1): the GM who returns is the primary GM at its own ready, on a world the first GM's
+ * hold already wrote, so its hold finds nothing to do: p1 heard no write of `core.permissions` since
+ * before the GM left, and the returning GM posted no first hold's card. Read on gm0, which wrote
+ * whatever card it posted (its words are its own).
+ */
+async function nextReadyQuiet({ gm0, p1, check, repoUrl }) {
+    const back = await gm0.eval(`const { wordsOf } = await import("${repoUrl}/scripts/secret.mjs");
+        const { isPrimaryGm } = await import("${repoUrl}/scripts/utils.mjs");
+        ${FIRST_HOLD}
+        let cards = 0;
+        for (const m of game.messages.contents) if (m.author?.id === game.user.id && String(await wordsOf(m, 2000) ?? "").includes(tail)) cards++;
+        return { primary: isPrimaryGm(), cards };`);
+    const writes = await p1.eval(`return globalThis.__n4eWrites ?? null;`);
+    check("N4e: the next GM's ready, on a world already held, writes no file permission and tells the GMs nothing",
+        back.primary === true && back.cards === 0 && writes === 0, J({ back, writes }));
+}
+
+export async function run({ gm, gm0, p1, p2, p3, check, phase, settle, connect, disconnect, storageOf, socketTraffic, IDS, repoUrl }) {
     for (const [who, client] of [["p1", p1], ["p2", p2]]) {
         const held = await client.eval(`
             const entry = game.settings.settings.get("isometric-perspective.showWelcome");
@@ -64,9 +88,251 @@ export async function run({ gm, gm0, p1, p2, check, phase, settle, connect, disc
     const after = await p1.eval(`return game.settings.get("isometric-perspective", "showWelcome");`);
     check("p1: switching the welcome back on by hand does not stick", after === false, String(after));
 
+    await heldAtStart({ gm, p1, p2, check, phase, settle, IDS, repoUrl });
+    await matchedByName({ gm, p3, check, phase, IDS, repoUrl });
     await tokenBars({ gm, p1, check, phase, IDS });
+    // Every write of `core.permissions` p1 hears from here on, for N4e: the returning GM's ready must write none.
+    await p1.eval(`globalThis.__n4eWrites = 0;
+        Hooks.on("updateSetting", setting => { if (setting?.key === "core.permissions") globalThis.__n4eWrites++; });
+        return true;`);
     const away = await awayAndBack({ gm, gm0, p1, check, phase, settle, connect, disconnect, storageOf, socketTraffic, IDS, repoUrl });
+    await nextReadyQuiet({ gm0, p1, check, repoUrl });
     await sheetAtReady({ gm0, p1, check, phase, IDS, repoUrl, away });
+}
+
+/**
+ * THE START-UP WINDOWS AND THE FILE BROWSER (E79 C9, 16.10.2026; the stage's N1 and N4).
+ *
+ * N1: Daggerheart opens its welcome journal at its `ready` when the account has no
+ * `daggerheart.welcome-message` flag. The module sets it at `setup` in this browser's copy of the
+ * account alone (enforced.mjs `holdUserFlag`), so each player reads it set, the harness's stand-in
+ * for Daggerheart's `ready` read it set (client-entry.mjs `__dhWelcomeAtReady`), and the GM's copy
+ * of the same account holds no such flag: nothing was written to the world.
+ * N4: with "Keep players out of the file browser" on, Player and Trusted Player hold neither
+ * FILES_BROWSE nor FILES_UPLOAD (Foundry's roles 1 and 2) once the primary GM is ready; a portrait's
+ * picker on a sheet is taken off and a file browser closes on a player's browser and not on the GM's;
+ * a GM who adds role 1 to FILES_BROWSE sees it put back with one card to the GMs, and with the switch
+ * off the same write stands. The harness's `can` reads the roles the way Foundry's does, from notes
+ * (LIVE-E79-11), and its jsdom has no `navigator.userActivation`, so N2's window is held by R576 alone.
+ * The part leaves `core.permissions` and the switch as it found them.
+ * N4d (E79 fix r3-G1, 17.10.2026; review round 3's P4): the harness's world stores no `core.permissions`
+ * and its defaults give both permissions from the Trusted Player up (client-entry.mjs, `defaultRole: 2`, as
+ * Foundry's own are recalled), so the primary GM's first hold at ready takes them from the Trusted Player,
+ * as it does in a world on Foundry's defaults at 1.2.79's first start: the GMs get one card saying so. At
+ * 2399885 they got none. N4e, after the GM's return: the next ready, on a world already held, writes and
+ * tells nothing.
+ */
+async function heldAtStart({ gm, p1, p2, check, phase, settle, IDS, repoUrl }) {
+    phase("the start-up windows and the file browser held");
+    const first = await gm.eval(`const { wordsOf } = await import("${repoUrl}/scripts/secret.mjs");
+        ${FIRST_HOLD}
+        const found = [];
+        for (const m of game.messages.contents) { const words = String(await wordsOf(m, 2000) ?? "");
+            if (words.includes(tail)) found.push({ exact: words.includes(want), whisper: m.whisper ?? [] }); }
+        const gmIds = game.users.filter(u => u.isGM).map(u => u.id);
+        return { found, toGms: found.every(f => f.whisper.length > 0 && f.whisper.every(id => gmIds.includes(id))) };`);
+    check("N4d: the first hold at ready took browsing and uploading files from the Trusted Player and told the GMs so on one card",
+        first.found.length === 1 && first.found[0].exact === true && first.toGms === true, J(first));
+
+    for (const [who, client, id] of [["p1", p1, IDS.p1], ["p2", p2, IDS.p2]]) {
+        const own = await client.eval(`return { flag: game.user.flags?.daggerheart?.["welcome-message"] ?? null,
+            atReady: globalThis.__dhWelcomeAtReady ?? null, system: game.system?.id };`);
+        const onGm = await gm.eval(`return game.users.get("${id}")?.toObject().flags?.daggerheart ?? null;`);
+        check(`N1 ${who}: Daggerheart read its welcome as already seen at its ready, and the GM's copy of the account holds no such flag`,
+            own.system === "daggerheart" && own.flag === true && own.atReady === true && onGm === null, J({ own, onGm }));
+    }
+
+    const files = await p1.eval(`const P = game.permissions ?? {};
+        return { roles: ["FILES_BROWSE", "FILES_UPLOAD"].map(k => (P[k] ?? []).filter(r => r === 1 || r === 2)),
+                 can: [game.user.can("FILES_BROWSE"), game.user.can("FILES_UPLOAD")] };`);
+    check("N4a p1: neither a Player nor a Trusted Player may browse or upload files after boot",
+        J(files) === J({ roles: [[], []], can: [false, false] }), J(files));
+
+    const picker = `const el = document.createElement("form");
+        el.innerHTML = '<img class="profile" data-action="editImage" data-edit="img" src="icons/svg/mystery-man.svg">';
+        Hooks.callAll("renderDocumentSheetV2", { document: game.actors.get("${IDS.aiko}") }, el);
+        const img = el.querySelector("img");
+        let closed = 0;
+        Hooks.callAll("renderFilePicker", { close: () => { closed++; } });
+        return { action: img.getAttribute("data-action"), edit: img.getAttribute("data-edit"), closed };`;
+    const pickP1 = await p1.eval(picker), pickGm = await gm.eval(picker);
+    check("N4c: a portrait opens nothing and a file browser closes for p1, and both stay for the GM",
+        J(pickP1) === J({ action: null, edit: null, closed: 1 }) && J(pickGm) === J({ action: "editImage", edit: "img", closed: 0 }),
+        J({ pickP1, pickGm }));
+
+    const was = await gm.eval(`return foundry.utils.deepClone(game.settings.get("core", "permissions") ?? {});`);
+    const grant = `const value = foundry.utils.deepClone(game.settings.get("core", "permissions") ?? {});
+        value.FILES_BROWSE = [...new Set([1, ...(value.FILES_BROWSE ?? game.permissions.FILES_BROWSE ?? [])])];
+        await game.settings.set("core", "permissions", value);`;
+    const cards = `const { wordsOf } = await import("${repoUrl}/scripts/secret.mjs");
+        const tail = "the change to those permissions was put back.";
+        const found = [];
+        for (const m of game.messages.contents.slice(early)) if (String(await wordsOf(m, 2000) ?? "").includes(tail)) found.push(m);
+        const gmIds = game.users.filter(u => u.isGM).map(u => u.id);`;
+    const held = await gm.eval(`const early = game.messages.size; ${grant}
+        const end = Date.now() + 4000;
+        while (game.permissions.FILES_BROWSE.includes(1) && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        await new Promise(r => setTimeout(r, 300));
+        ${cards}
+        return { early, cards: found.length, toGms: found.every(m => (m.whisper ?? []).length > 0 && m.whisper.every(id => gmIds.includes(id))) };`);
+    await settle(300);
+    const heldP1 = await p1.eval(`return { browse: game.user.can("FILES_BROWSE"), roles: game.permissions.FILES_BROWSE };`);
+    let off = null;
+    try {
+        off = await gm.eval(`await game.settings.set("${MOD}", "enforcePlayerFiles", false);
+            await new Promise(r => setTimeout(r, 300));
+            const early = game.messages.size; ${grant}
+            await new Promise(r => setTimeout(r, 800));
+            ${cards}
+            return { switch: game.settings.get("${MOD}", "enforcePlayerFiles"), browse: game.permissions.FILES_BROWSE.includes(1), cards: found.length };`);
+    } catch (err) {
+        off = { error: String(err?.message ?? err) };
+    }
+    await settle(300);
+    const offP1 = await p1.eval(`return game.user.can("FILES_BROWSE");`);
+    check("N4b: a GM's grant of the file browser to Players is put back with one card to the GMs, and stands with the switch off",
+        held.cards === 1 && held.toGms === true && heldP1.browse === false && !heldP1.roles.includes(1)
+            && off?.switch === false && off.browse === true && off.cards === 0 && offP1 === true,
+        J({ held, heldP1, off, offP1 }));
+
+    // Put back as found, the switch last, so the primary GM's hold finds nothing to change.
+    await gm.eval(`await game.settings.set("core", "permissions", ${J(was)});
+        await game.settings.set("${MOD}", "enforcePlayerFiles", true);
+        return true;`);
+    await settle(300);
+}
+
+/**
+ * A PLAYER'S CHARACTER BY THE ACCOUNT'S NAME (E79 C10, 16.10.2026; the owner's N3 of 14.10.2026).
+ *
+ * The GM makes a student nobody plays, "Łucja Żak", and then accounts, each after ready, as a GM makes
+ * them for a new player: A "lucja  ŻAK " gets her as its character and Owner of her, and the sheet audit
+ * keeps no row for the GM's write; B "Daichi" (the seed's Daichi Sato is not "Daichi"), C "Emi Sato"
+ * with two students named alike, D named like Botan, whom PlayerTwo owns and plays, and G named like a
+ * Monokuma get nothing, and the GMs are told on one card; F, an Assistant named like a free student,
+ * gets nothing and is not told about. Then E: the GM clears A's character, makes one more account, and
+ * A stays cleared while the new account alone is told about. user-match.mjs; R579 and R580 hold the
+ * rules on stand-ins. Everything made here is deleted at the end.
+ */
+async function matchedByName({ gm, p3, check, phase, IDS, repoUrl }) {
+    phase("a player's character by the account's name");
+    const UNTIL = `const until = async (test, ms = 6000) => { const end = Date.now() + ms; while (!test() && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return test(); };`;
+    const cards = `const { wordsOf } = await import("${repoUrl}/scripts/secret.mjs");
+        // The GMs as they stand when the cards are read: F, made in this eval, is one.
+        const cards = async early => { const out = [], gmIds = game.users.filter(u => u.isGM).map(u => u.id);
+            for (const m of game.messages.contents.slice(early)) { const words = String(await wordsOf(m, 2000) ?? "");
+                if (words.includes("data-drpg-match")) out.push({ words: words.replace(/<[^>]*>/g, " ").replace(/\\s+/g, " ").trim(),
+                    toGms: (m.whisper ?? []).length > 0 && m.whisper.every(id => gmIds.includes(id)), whisper: m.whisper }); }
+            return out; };`;
+    try {
+        const first = await gm.eval(`${UNTIL} ${cards}
+            const rows = () => game.drpg.sheetWrites({ quiet: true }).length;
+            const early = game.messages.size, sheetRows = rows();
+            const made = globalThis.__n3made = { users: [], actors: [] };
+            const student = async (name, flags = {}) => { const a = await Actor.create({ name, type: "character", flags }); made.actors.push(a.id); return a; };
+            const actors = [await student("Łucja Żak"), await student("Emi Sato"), await student("emi sato"), await student("Hana Ito"),
+                await student("Kuma Test", { "${MOD}": { monokuma: true } })];
+            await new Promise(r => setTimeout(r, 800));
+            // One write for the six, as a GM's batch: one pass reads them all, whatever this machine's pace.
+            const list = await User.createDocuments([["lucja  ŻAK ", 1], ["Daichi", 1], ["Emi Sato", 1], ["Botan Kage", 1], ["Hana Ito", 3], ["Kuma Test", 1]]
+                .map(([name, role]) => ({ name, role })));
+            made.users.push(...list.map(u => u.id));
+            const users = Object.fromEntries(["A", "B", "C", "D", "F", "G"].map((k, i) => [k, list[i]]));
+            const lucja = actors[0];
+            await until(() => game.users.get(users.A.id)?.character?.id === lucja.id);
+            await new Promise(r => setTimeout(r, 1000));
+            const read = id => game.users.get(id)?.character?.name ?? null;
+            let record = null;
+            try { record = game.settings.get("${MOD}", "accountCharacters"); } catch { record = null; }
+            return { users: list.map(u => u.id),
+                // The row is the clock's season, and no row names an actor (72-canary's world scan).
+                A: { character: read(users.A.id), owner: lucja.ownership?.[users.A.id] ?? null,
+                    recorded: record?.[users.A.id] === (game.settings.get("${MOD}", "clock")?.season ?? 1) && !JSON.stringify(record).includes(lucja.id) },
+                others: Object.fromEntries(["B", "C", "D", "F", "G"].map(k => [k, read(users[k].id)])),
+                botan: game.actors.get("${IDS.botan}")?.ownership?.[users.D.id] ?? null,
+                rowsAdded: rows() - sheetRows, cards: await cards(early), early: game.messages.size };`, { timeout: 60000 });
+        const [card] = first.cards;
+        check("N3 A: an account made named like a student nobody plays gets her as its character and Owner of her, kept in the GMs' record, and the sheet audit keeps no row for it",
+            first.A.character === "Łucja Żak" && first.A.owner === 3 && first.A.recorded === true && first.rowsAdded === 0, J(first.A));
+        check("N3 B-D, F, G: no student so named, two named alike, a student another player has, an Assistant and a Monokuma's name assign nothing; the GMs alone are told on one card naming B, G, C and D with Botan's player, and not the Assistant",
+            Object.values(first.others).every(c => c === null) && first.botan === null && first.cards.length === 1 && card.toGms === true
+                && ["Daichi", "Kuma Test", "Emi Sato", "Botan Kage", "PlayerTwo"].every(n => card.words.includes(n)) && !card.words.includes("Hana Ito"),
+            J({ others: first.others, botan: first.botan, cards: first.cards }));
+
+        const cleared = await gm.eval(`${UNTIL} ${cards}
+            const early = ${first.early};
+            await game.users.get(${J(first.users[0])}).update({ character: null });
+            const late = await User.create({ name: "Nobody Here", role: 1 });
+            globalThis.__n3made.users.push(late.id);
+            await new Promise(r => setTimeout(r, 1500));
+            return { late: late.id, A: game.users.get(${J(first.users[0])})?.character?.name ?? null, cards: await cards(early) };`, { timeout: 60000 });
+        check("N3 E: a character the GM clears stays cleared when the next pass runs, and that pass tells the GMs of the new account alone",
+            cleared.A === null && cleared.cards.length === 1 && cleared.cards[0].words.includes("Nobody Here")
+                && !["Daichi", "Emi Sato", "Botan Kage", "Kuma Test"].some(n => cleared.cards[0].words.includes(n)),
+            J(cleared));
+
+        /* E79 fix r3-G1 (17.10.2026; review round 3's SEC S1 and S3). Rin, an account the GM assigned by
+           hand at its creation - as every account of a world from before 1.2.79 was - and Sen, assigned and
+           cleared by the GM before any pass ran; PlayerThree (p3), whose Owner of Chie the GM takes away,
+           and whose own browser then writes its character away and the match's old flag - a write the GMs'
+           hook does not record, so only the first pass's row of an account seen with a character holds it; Mio, with
+           no character and Owner of another student. One more account makes the pass run after all of it.
+           At 2399885 Rin, Sen and PlayerThree were each given the student named like them with Owner, and
+           Mio a second student. p3 is put back in the `finally`. */
+        await gm.eval(`const made = globalThis.__n3made, early = game.messages.size;
+            const student = async name => { const a = await Actor.create({ name, type: "character" }); made.actors.push(a.id); return a; };
+            const account = async data => { const u = await User.create({ role: 1, ...data }); made.users.push(u.id); return u; };
+            const [rin, sen, three, kei, mio] = [await student("Rin Probe"), await student("Sen Probe"), await student("PlayerThree"),
+                await student("Kei Probe"), await student("Mio Probe")];
+            const rinU = await account({ name: "Rin Probe", character: rin.id });
+            await rin.update({ ["ownership." + rinU.id]: 3 });
+            const senU = await account({ name: "Sen Probe" });
+            await senU.update({ character: sen.id });
+            await sen.update({ ["ownership." + senU.id]: 3 });
+            await sen.update({ ["ownership." + senU.id]: 0 });
+            await senU.update({ character: null });
+            await game.actors.get("${IDS.chie}").update({ "ownership.${IDS.p3}": 0 });
+            const mioU = await account({ name: "Mio Probe" });
+            await kei.update({ ["ownership." + mioU.id]: 3 });
+            globalThis.__n3probe = { early, rin: rin.id, rinU: rinU.id, sen: sen.id, senU: senU.id, three: three.id, kei: kei.id, mio: mio.id, mioU: mioU.id };
+            await new Promise(r => setTimeout(r, 1500));
+            return true;`, { timeout: 60000 });
+        // Its own writes: a character no actor is, then none, with the old flag naming that nobody.
+        await p3.eval(`await game.user.update({ character: "ACTORNOBODY00000" });
+            await game.user.update({ character: null, "flags.${MOD}.matchedCharacter": "ACTORNOBODY00000" });
+            return true;`);
+        const probe = await gm.eval(`${UNTIL} ${cards}
+            // From the first of these passes: Mio is told about once, at the pass that first reads it.
+            const P = globalThis.__n3probe, early = P.early;
+            await game.actors.get(P.rin).update({ ["ownership." + P.rinU]: 0 });
+            await game.users.get(P.rinU).update({ character: null });
+            const late = await User.create({ name: "Probe Late", role: 1 });
+            globalThis.__n3made.users.push(late.id);
+            await new Promise(r => setTimeout(r, 1500));
+            const of = (userId, actorId) => ({ character: game.users.get(userId)?.character?.id ?? null, owner: game.actors.get(actorId)?.ownership?.[userId] ?? 0 });
+            const owns = game.i18n.format("DRPG.Users.match.owns", { account: "Mio Probe", students: "Kei Probe" });
+            return { rin: of(P.rinU, P.rin), sen: of(P.senU, P.sen), three: of("${IDS.p3}", P.three), mio: of(P.mioU, P.mio),
+                kei: game.actors.get(P.kei)?.ownership?.[P.mioU] ?? 0, owns: (await cards(early)).some(c => c.toGms && c.words.includes(owns)) };`, { timeout: 60000 });
+        const none = { character: null, owner: 0 };
+        check("N3 S1a: an account the GM assigned by hand, and one the GM assigned and cleared before any pass ran, stay cleared with no Owner once the GM took the student away and a new account was made",
+            J(probe.rin) === J(none) && J(probe.sen) === J(none), J(probe));
+        check("N3 S1b: PlayerThree, whose Owner of its student the GM took away and whose own browser cleared its character and rewrote the old match flag, stays cleared and is not given the student named like it",
+            J(probe.three) === J(none), J(probe));
+        check("N3 S3: an account that owns another student is not given the one named like it, keeps the one it owns, and the GMs are told on the pass's card",
+            J(probe.mio) === J(none) && probe.kei === 3 && probe.owns === true, J(probe));
+    } finally {
+        // p3 as the seed has it: Chie its character and Owner of her, and no flag of the match's.
+        await p3.eval(`if (game.user.flags?.["${MOD}"]?.matchedCharacter !== undefined) await game.user.unsetFlag("${MOD}", "matchedCharacter"); return true;`).catch(() => null);
+        await gm.eval(`await game.actors.get("${IDS.chie}").update({ "ownership.${IDS.p3}": 3 });
+            await game.users.get("${IDS.p3}").update({ character: "${IDS.chie}" });
+            delete globalThis.__n3probe;
+            return true;`, { timeout: 60000 });
+        await gm.eval(`const made = globalThis.__n3made ?? { users: [], actors: [] };
+            for (const id of made.users) await game.users.get(id)?.delete();
+            for (const id of made.actors) await game.actors.get(id)?.delete();
+            delete globalThis.__n3made;
+            return true;`, { timeout: 60000 });
+    }
 }
 
 /**

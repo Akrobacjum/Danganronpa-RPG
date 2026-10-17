@@ -592,6 +592,39 @@ export function seatVoiceArt() {
   const after = room && room.previousElementSibling === cur ? room : cur;
   if (after.nextElementSibling !== art) after.after(art);
 }
+/* THE NOTICE CARD FILLS ITS PANE (E79 C13, the owner's N16 of 15.10.2026, "as the room tile and the
+   voice tile do"). The cards stand in `#drpg-popups`, an upright box turned 8 degrees with the
+   notice tile, and they drew their plates themselves, so a card was a smaller box inside a pane
+   that leans, runs to the wall and to the screen's foot. Measured in Chromium on the glass harness
+   on 15.10.2026: at 1920x1080 the pane [[0,678],[389,733],[340,1080],[0,1080]] and the card's
+   corners TL(58,707) TR(377,752) BR(340,1015) BL(21,970) - about 21 px of bare glass over the card,
+   9 px to its right, 21-58 px at the wall and 65-110 px under it. The harness did not reproduce the
+   owner's cut edges (images/14.png): the card was inside the pane there (LIVE-E79-18).
+   So the plate is not the card's any more: this layer, the note pane's polygon in the screen's
+   coordinates and its only writer, is moved to the body after the curtain's glow (the two tiles'
+   pictures stand between the curtain and the glow, and the glass harness holds them there; the
+   card's own plate covered the glow on this pane before as well), sized to the pane's
+   bounds and clipped to its polygon, as those pictures are, and `data-drpg-note-frame` on the body
+   says it stands. Stained Glass paints it while a card is on the tile (stained-glass.css, N16;
+   popup.mjs `setFloor` says when) and takes the plate and the edge off the card; the words
+   keep their place in the turned stack. Desks only: the stacked layout keeps its own notice stack
+   (narrow.css), and with no pane - Monokuma Legacy, no cut - there is no layer. Called after every
+   new cut and at the unmount, as the pictures are; a card shown or closed needs no call. */
+export function seatNoteFrame() {
+  const cur = document.getElementById("drpg-curtain");
+  const pane = curtains.length && cur && !narrowLayout() ? (LAST.panes || []).find(p => p.tone === "note-block" && p.poly?.length) : null;
+  let frame = document.getElementById("drpg-note-frame");
+  document.body.toggleAttribute("data-drpg-note-frame", Boolean(pane));
+  if (!pane) { frame?.remove(); return; }
+  if (!frame) { frame = document.createElement("div"); frame.id = "drpg-note-frame"; frame.setAttribute("aria-hidden", "true"); }
+  const { x0, y0, x1, y1 } = bboxOf(pane.poly), at = cur.getBoundingClientRect();
+  const set = { position: "fixed", left: (at.left + x0) + "px", top: (at.top + y0) + "px", width: (x1 - x0) + "px", height: (y1 - y0) + "px",
+    "clip-path": "polygon(" + pane.poly.map(q => (q[0] - x0).toFixed(1) + "px " + (q[1] - y0).toFixed(1) + "px").join(", ") + ")", "z-index": cur.style.zIndex || "1" };
+  for (const [k, v] of Object.entries(set)) frame.style.setProperty(k, v);
+  let after = cur.parentElement.querySelector(":scope > .curtain-glow[data-glow]:not(.drpg-glow-ghost)");
+  if (!after) { after = cur; while (after.nextElementSibling && after.nextElementSibling !== frame && ["drpg-room-art", "drpg-voice-art"].includes(after.nextElementSibling.id)) after = after.nextElementSibling; }
+  if (after.nextElementSibling !== frame) after.after(frame);
+}
 /* ---- the rotations: one stylesheet, rewritten after every geometry pass ----------------------
    A block is rotated with its pane. Written as a rule on the block's selector (not an inline
    style), the rotation survives the module rebuilding that block from scratch - the status strip
@@ -3080,6 +3113,7 @@ function unmount() {
   VOICE.box = null; LAST.voice = null; OPEN_AREAS.length = 0;
   seatVoiceTile(null);
   seatVoiceArt();
+  seatNoteFrame();
   globalThis.Hooks?.callAll?.("drpgGlassCut", { room: null });
   document.querySelectorAll(".drpg-curtain-ghost, #drpg-curtain > canvas.morph, #drpg-curtain > canvas.ghost").forEach(g => g.remove());
   if (rotSheet) { rotSheet.remove(); rotSheet = null; }
@@ -3338,6 +3372,7 @@ function rebuildAll() {
         if (!wasPainted || !check?.same) {
           seatRoomArt();
           seatVoiceArt();
+          seatNoteFrame();
           globalThis.Hooks?.callAll?.("drpgGlassCut", { room: LAST.room ? { ...LAST.room } : null });
         }
       } else { j.painted = true; document.body.classList.toggle("drpg-curtain-on", true); }

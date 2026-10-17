@@ -51,6 +51,11 @@
  * fog-geometry.mjs, doorway detection or glow into fog-doorways.mjs, the reveal's
  * or the outline's drawing into fog-reveal.mjs, and a check of the map into
  * fog-diagnostics.mjs.
+ *
+ * `redrawOutline` (E79 C3, 14.10.2026) draws the standing outline again when this browser's secret
+ * passages change, so a gap opens or closes without a step and without the entering sound. It is
+ * the minimal form the E79 plan's A10-9 names: E51's outline refresher takes it over, and R560
+ * holds that it is written once.
  */
 
 import { MODULE_ID, FLAGS } from "./config.mjs";
@@ -59,7 +64,7 @@ import { roomOfToken, boundsOf, ROOM_FLAGS, whenAtRest } from "./movement.mjs";
 import { roomPieces, roomRegions, roomNames, sceneHoldsRooms, scenesWithRooms, namedRegions, viewedScene,
     viewedLevel, onLevel, isMoveChange, floorsOf, isPlaceScene, levelOf, joinsAnotherRoom, RENAMED_FROM, placeScenes,
     regionPatches } from "./rooms.mjs";
-import { isMastermind, mastermindLair, setMastermindLair } from "./mastermind.mjs";
+import { isMastermind, mastermindActor, mastermindLair, setMastermindLair } from "./mastermind.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { isPrimaryGm, primaryGmId, debug, log, warn, error, plural, whisperToGms, esc } from "./utils.mjs";
 import { ENTER, reducedMotion, glassOn } from "./motion.mjs";
@@ -346,6 +351,10 @@ export function registerFog() {
      * they happened to walk somewhere.
      */
     Hooks.on("drpgEclipseChanged", () => repaintFog());
+
+    // The passages this browser knows changed (settings.mjs, the copy's onChange): the standing
+    // outline is drawn again with the gaps its character may take now (E79 C3).
+    Hooks.on("drpgPassagesChanged", () => { try { redrawOutline(); } catch (err) { debug("Fog: could not redraw the outline", err); } });
 
     /*
      * THE SEAM COLOUR IS A DOM FACT, SO IT IS WATCHED IN THE DOM.
@@ -681,12 +690,14 @@ async function carryRename(scene, from, to, pieces) {
             if (rooms.includes(from)) cells[cellKey(scene.id, actorId)] = { [from]: false, [to]: true };
         }
         await writeCells(cells);
+        // The GMs' records of the secret passages on this scene, which name rooms too (E79 fix r1-G3, passages-gm.mjs `carryPassageRooms`).
+        const passages = await (await import("./passages-gm.mjs")).carryPassageRooms(scene.id, from, to);
         await dropRenameRecords(scene, from, to);
         repaintRoomScene(scene);
         const moved = { ...sheets, cells: Object.keys(cells).length, ...world };
         log(`"${from}" on "${scene.name}" was renamed "${to}": ${moved.keys} key(s), ${moved.items} stashed item(s), `
             + `${moved.found} found note(s), ${moved.cells} discovery row(s), ${moved.projects} project(s), ${moved.plants} plant(s), `
-            + `${moved.lists} Neighbours list(s), ${moved.lair} lair, ${moved.gather} assembly, ${moved.sealed} seal and ${moved.bodies} body record(s) carried.`);
+            + `${moved.lists} Neighbours list(s), ${moved.lair} lair, ${moved.gather} assembly, ${moved.sealed} seal, ${moved.bodies} body record(s) and ${passages} secret passage record(s) carried.`);
         if (Object.values(moved).some(Boolean)) {
             await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Rooms.renamed", { from, to, scene: scene.name, ...moved }))}</p>`);
         }
@@ -1255,11 +1266,19 @@ function ownSection(section) {
  * exist: the mastermind knows the building, but what the class has actually
  * walked into is a different fact, and it is the one the GM is running the game
  * against. A room nobody has found yet stays under the veil for them too.
+ *
+ * WITHOUT THE MASTERMIND'S ROW (the owner's amend to E79 C5, 14.10.2026). `recordDiscovery` writes
+ * nothing for the Mastermind, but a row written before they were chosen stays in the store, and it
+ * lifted the veil on every room the Mastermind had walked into as a student - so the GM's map told
+ * which rooms the season's secret had been to. The current Mastermind's row is skipped here, at read
+ * time; nothing is deleted, so a Mastermind changed later reads as any student again. `ledger` and
+ * `mastermindId` are the suite's (R563); a GM's browser reads the store and its Mastermind.
  */
-function ledgerRooms(scene) {
+export function ledgerRooms(scene, { ledger = allDiscovered(), mastermindId = mastermindActor()?.id ?? null } = {}) {
     const rooms = new Set();
     if (!scene) return rooms;
-    for (const list of Object.values(allDiscovered()[scene.id] ?? {})) {
+    for (const [actorId, list] of Object.entries(ledger?.[scene.id] ?? {})) {
+        if (mastermindId && actorId === mastermindId) continue;
         for (const room of list ?? []) rooms.add(room);
     }
     return rooms;
@@ -1557,19 +1576,20 @@ async function studentActorIds() {
  * on the scene counts, because they drew the building. This never changes
  * which room is CURRENT - see `myCurrentRooms` - so it never lets them see
  * who is standing where, only that the room exists and roughly what is in it.
+ * `mastermind` and `gm` are the suite's (R563), read off this browser otherwise.
  */
-function myDiscoveredRooms(scene) {
+export function myDiscoveredRooms(scene, { mastermind = iAmTheMastermind(), gm = game.user.isGM } = {}) {
     if (!scene) return new Set();
 
     // The Mastermind drew the building: every room on the map counts as known
     // to them. This never says who is standing in one - that is
     // `myCurrentRooms`' business and not this function's.
-    if (iAmTheMastermind()) {
+    if (mastermind) {
         return new Set(roomNames(scene));
     }
 
     // The GM sees what the class has found. See `ledgerRooms`.
-    if (game.user.isGM) return ledgerRooms(scene);
+    if (gm) return ledgerRooms(scene);
 
     const rooms = new Set();
     for (const actor of game.actors) {
@@ -1589,11 +1609,12 @@ function myDiscoveredRooms(scene) {
  * lands there, before the primary GM's write and the setting sync that
  * follows it ever arrive, and a player should not watch their own floor stay
  * fogged for a network round-trip after they have already walked onto it.
+ * `tokens` and `gm` are the suite's (R563), this browser's drawn tokens and user otherwise.
  */
-function myCurrentRooms() {
+export function myCurrentRooms({ tokens = canvas?.tokens?.placeables ?? [], gm = game.user.isGM } = {}) {
     const rooms = new Set();
-    for (const token of canvas?.tokens?.placeables ?? []) {
-        if (!isMine(token)) continue;
+    for (const token of tokens) {
+        if (!isMine(token, gm)) continue;
         const room = roomOfToken(token.document);
         if (room) rooms.add(room);
     }
@@ -1612,11 +1633,11 @@ function myCurrentRooms() {
  * every token of every repaint and the module that owns that flag imports half
  * the system to answer the same question.
  */
-function isMine(token) {
+function isMine(token, gm = game.user.isGM) {
     const actor = token?.actor;
     if (!actor) return false;
 
-    if (game.user.isGM) return Boolean(actor.getFlag?.(MODULE_ID, FLAGS.monokuma));
+    if (gm) return Boolean(actor.getFlag?.(MODULE_ID, FLAGS.monokuma));
     return Boolean(token.isOwner) && actor.type === "character";
 }
 
@@ -3672,7 +3693,7 @@ async function reactToMove(tokenDoc) {
             if (changedRoom) {
                 repaintFog();
                 if (entered?.isNew) playDiscoveryAnimation(entered.room, tokenDoc);
-                else if (entered) announceRoom(entered.room);
+                else if (entered) announceRoom(entered.room, tokenDoc.actor);
             }
         }
     } catch (err) {
@@ -3713,7 +3734,7 @@ function revealStartingRooms() {
         // saying "you are in this one", and it has to be there from the moment
         // the scene appears rather than waiting for a step.
         if (entered.isNew) playDiscoveryAnimation(entered.room, token.document);
-        else announceRoom(entered.room);
+        else announceRoom(entered.room, token.document.actor);
     }
 }
 
@@ -3765,9 +3786,10 @@ function roomEnteredByMe(tokenDoc) {
 
 /**
  * The outline and the name, without the reveal - what walking back into a room
- * you already know looks like.
+ * you already know looks like. `actor` is the character that walked in: its
+ * secret passages open in the outline (E79 C3; fog-doorways.mjs `doorwayEdges`).
  */
-function announceRoom(room) {
+function announceRoom(room, actor = null) {
     // BEFORE THE EARLY RETURNS. Crossing into a room you already know is the
     // event; whether this client can draw the outline for it is a separate
     // question, and a scene without a usable region should not also go silent.
@@ -3782,7 +3804,22 @@ function announceRoom(room) {
     if (!region) return;
 
     const dims = canvas.dimensions;
-    flashOutline(fx, region, dims?.rect ?? { x: 0, y: 0 }, level);
+    flashOutline(fx, region, dims?.rect ?? { x: 0, y: 0 }, level, { actor });
+}
+
+/**
+ * The outline standing now, drawn again from what it was drawn from - its room's shape, floor and
+ * character - with no sound and no reveal: what a change of the secret passages this browser knows
+ * looks like (E79 C3, 14.10.2026; the E79 plan's P7-0). `room`, when named, redraws only that
+ * room's outline. Answers whether it drew. The minimal form A10-9 names: E51's outline refresher
+ * takes it over rather than writing a second (R560).
+ */
+export function redrawOutline(room = null) {
+    const standing = roomOutline;
+    if (!standing || standing.group?.destroyed || !standing.fx || standing.fx.destroyed || !standing.region) return false;
+    if (room !== null && standing.room !== room) return false;
+    flashOutline(standing.fx, standing.region, standing.rect, standing.level, { actor: standing.actor ?? null });
+    return true;
 }
 
 /**
@@ -3840,7 +3877,7 @@ function playDiscoveryAnimation(room, tokenDoc) {
     // No measurable shape, no renderer, or a viewer who has asked for no
     // motion: the room is already clear underneath, so just name it.
     if (!bounds || !renderer || motionOff()) {
-        flashOutline(fx, region, rect, level);
+        flashOutline(fx, region, rect, level, { actor: tokenDoc?.actor ?? null });
         return;
     }
 
@@ -3904,7 +3941,7 @@ function playDiscoveryAnimation(room, tokenDoc) {
 
     const L = buildRevealLayers(fx, { region, bounds, rect, glass, ink, bone, lineWidth, width, height, resolution, stains });
     if (!L) {
-        flashOutline(fx, region, rect, level);
+        flashOutline(fx, region, rect, level, { actor: tokenDoc?.actor ?? null });
         return;
     }
     const { fogScratch, lineScratch, fogTex, lineTex, fogSprite, lineSprite, lineLayer } = L;
@@ -3938,7 +3975,7 @@ function playDiscoveryAnimation(room, tokenDoc) {
 
     // The outline and the name run WITH the lines, not after them: one gesture
     // in one colour rather than three things taking turns.
-    flashOutline(fx, region, rect, level);
+    flashOutline(fx, region, rect, level, { actor: tokenDoc?.actor ?? null });
 
     const state = { t: 0 };
     const done = () => destroyRevealLayers(L, stains);

@@ -221,11 +221,13 @@ function matcherFor(only) {
  */
 const LOAD_WAIT_MS = 30000;
 async function loadSettled() {
-    const [{ whenGmStoresLoaded }, { migrationOnLoad }] = await Promise.all([import("./gm-stores.mjs"), import("./migrate.mjs")]);
+    const [{ whenGmStoresLoaded }, { migrationOnLoad }, { matchSettled }] = await Promise.all([import("./gm-stores.mjs"),
+        import("./migrate.mjs"), import("./user-match.mjs")]);
     let timer = null;
     const bound = new Promise(resolve => { timer = setTimeout(() => resolve(false), LOAD_WAIT_MS); });
     try {
-        return await Promise.race([Promise.all([whenGmStoresLoaded(), migrationOnLoad()]).then(() => true), bound]);
+        // The account match's first pass writes its record half a second after `ready` (E79 fix r3-G1).
+        return await Promise.race([Promise.all([whenGmStoresLoaded(), migrationOnLoad(), matchSettled()]).then(() => true), bound]);
     } finally {
         clearTimeout(timer);
     }

@@ -16,7 +16,8 @@
  *   Then a second connect builds a new Room - the old one says `disconnected`, the hook comes again with
  *   the new one, a speaker on it is heard there and not on the old - and the attach writes `muteAll`.
  * A (C3): the voice tile on p1, which voice-tile.mjs draws on the hook's next Room (a third connect, so
- *   the attach writes p1's `muteAll` off again). p2 speaks: after the 250 ms sticky rule p1's tile shows
+ *   the attach writes p1's `muteAll` off again). p2 speaks: at once on the empty tile (E79 C15, the owner's N14;
+ *   until then after the 250 ms sticky rule, and the reading at 120 ms was empty) p1's tile shows
  *   the name `voiceIdentity` gives p2 and the portrait - a .webp path put on p2's character in p1's memory
  *   only (`updateSource`, put back; the harness's portraits are .svg, which `safeRoomImage` refuses); p3
  *   named speaking in Foundry's table-wide `settings.activity` on p1 changes nothing; after the Room's
@@ -44,7 +45,8 @@
  *   quietly after): a click on the block still drawn as free is judged again by `moduleHoldsMic` and
  *   writes nothing, the GM told why; drawn again it is disabled with that line. The gear's window
  *   (`openLookDialog`, real windows) has the Voice section on p1 - the shim names no device, so the
- *   microphone's line and the mode - and push to talk writes p1's `voice.mode`; on p3 there is none.
+ *   microphone's line and the mode - after the volumes and right before the look's fieldset since E79 C12
+ *   (N9; until then after the look) - and push to talk writes p1's `voice.mode`; on p3 there is none.
  * D (C6): where the tile stands. The harness's screen is 1024 px wide, a stacked one, and jsdom cuts no curtain
  *   (its canvas is 0 px wide), so this reads the stacked half: on p1 the voice tile is in `#drpg-tile-row` beside the
  *   room tile, unstamped, its portrait inside its face and nothing of it on the body; a speaker shown and the list
@@ -70,6 +72,13 @@
  *   the mode - each found on screen and used: the tile's microphone, p2's slider in 'Who you hear', and the gear (the
  *   corner's `#drpg-sound-launcher`) with its Voice section, two devices put on p1's AVClient for the phase (the
  *   shim names none). Each writes p1's own A/V settings; the GM's and p2's are as they were. All put back after.
+ * G (E79 C15; the owner's N10, N12 and N15): the state word on p1's tile, with nobody speaking. Connected in the
+ *   main room; Connecting while voice-client.mjs moves p1 to another room (`applyBreakout`, its `game.webrtc.connect`
+ *   held at a gate for the reading) though the old Room still says "connected"; Connected once the move is over;
+ *   Connecting while the Room says "reconnecting"; Disconnected when the server goes (`__liveKit.drop()`); and no
+ *   word while p2 speaks. The word's title and the live text say the sentence of each. p1 is put back in the main
+ *   room with the room voice-client.mjs wanted before. What a real LiveKit Room says, in both themes, full and
+ *   compact, is LIVE-E79-21; how late the first portrait comes at a table, LIVE-E79-20.
  *
  * What the shim cannot settle - real audio, how late LiveKit says who speaks, the dock hidden at a
  * table, audio after F5 - is LIVE-E78-01, LIVE-E78-02 and the owner's T1, LIVE-E78-10 (lib/livekit.mjs's header).
@@ -84,7 +93,9 @@ export const layers = ["ci"];
    20 checks in 7.3-7.4 s, 11.5-12.1 s of wall time - it stands. With phase E (C7, two green runs on 14.10.2026, under the harness lock):
    21 checks, 1 of them the expected red, in 8.4-8.6 s - it stands. With phase F (E78 fix r1-G1, one green run on 14.10.2026, under
    the harness lock): 23 checks, 1 of them the expected red, in 8.0 s - it stands. With D's cut signature (E78 fix r2-H2, one
-   green run on 14.10.2026, under the harness lock): 24 checks, 1 of them the expected red, in 8.5 s, 14 s of wall time - it stands. */
+   green run on 14.10.2026, under the harness lock): 24 checks, 1 of them the expected red, in 8.5 s, 14 s of wall time - it stands.
+   With phase G (E79 C15, one green run on 17.10.2026, under the harness lock): 26 checks, 1 of them the expected red, in 7.9 s,
+   13 s of wall time - it stands. */
 export const timeoutMs = 60000;
 
 const J = value => JSON.stringify(value);
@@ -208,10 +219,10 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
         }
         return out;`, { timeout: 20000 });
     const ok = (value, state, name, face) => value?.state === state && value.name === name && value.face === face;
-    check("A: on p1 the voice tile shows p2 - the Room's speaker - after the 250 ms sticky rule, with the name voiceIdentity gives and the checked portrait, the channel's count 2; Foundry's table-wide signal naming p3 changes nothing",
+    check("A: on p1 the voice tile shows p2 - the Room's speaker - at once on the empty tile (shown 120 ms after the Room says so), with the name voiceIdentity gives and the checked portrait, the channel's count 2; Foundry's table-wide signal naming p3 changes nothing",
         a.installed === true && a.connected === true && a.names[0] !== a.names[1]
             && a.fresh?.state === "silent" && a.fresh.channel === "2" && a.fresh.face === false
-            && ok(a.early, "silent", "", false)
+            && ok(a.early, "speaking", a.names[0], true)
             && ok(a.speaking, "speaking", a.names[0], true) && a.speaking.channel === "2" && /s75\/portrait-p2\.webp/.test(a.speaking.art)
             && ok(a.activity, "speaking", a.names[0], true),
         J(a));
@@ -497,6 +508,10 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
             const out = { form: Boolean(form()), panel: Boolean(panel()) };
             if (!panel()) return out;
             out.names = [...new Set([...panel().querySelectorAll("[name]")].map(el => el.name))];
+            // E79 C12 (N9): between the volumes and the look - after every volume slider, right before the look's fieldset
+            const sliders = [...form().querySelectorAll(".drpg-sound-slider")];
+            out.between = sliders.length > 0 && sliders.every(s => Boolean(s.compareDocumentPosition(panel()) & Node.DOCUMENT_POSITION_FOLLOWING))
+                && panel().nextElementSibling?.matches("fieldset.drpg-look") === true;
             out.note = panel().querySelector(".drpg-voice-panel-mic-note")?.textContent === game.i18n.localize("DRPG.Voice.panel.micNote");
             const ptt = panel().querySelector("[name='voice:mode'][value='ptt']");
             ptt.checked = true;
@@ -510,8 +525,8 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
             closeOpen("drpg-window-look");
         }`, { timeout: 15000 });
     const gearP1 = await gear(p1), gearP3 = await gear(p3);
-    check("C: the gear's window has the Voice section on p1 - the microphone's line (the shim names no device), the mode and nothing else; choosing push to talk writes p1's voice.mode - and on p3, with no voice, there is no section",
-        J(gearP1) === J({ form: true, panel: true, names: ["voice:mode"], note: true, wrote: "ptt" }) && J(gearP3) === J({ form: true, panel: false }),
+    check("C: the gear's window has the Voice section on p1 - the microphone's line (the shim names no device), the mode and nothing else, standing after the volumes and right before the look (E79 C12, N9); choosing push to talk writes p1's voice.mode - and on p3, with no voice, there is no section",
+        J(gearP1) === J({ form: true, panel: true, names: ["voice:mode"], between: true, note: true, wrote: "ptt" }) && J(gearP3) === J({ form: true, panel: false }),
         J({ gearP1, gearP3 }));
 
     phase("D: where the tile stands - on a stacked screen in the tiles' row beside the room tile, its portrait inside it, moved by no speaker and no list, built there again after the GM's switch");
@@ -741,4 +756,77 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
     check("F: with the dock hidden p1 reaches the four from the tile and the gear - p1's microphone on the tile, p2's volume in 'Who you hear', the microphone device and the mode in the gear's Voice section - each used and written in p1's own settings; the GM's and p2's are as they were",
         J(f.reached) === J({ mute: true, volume: true, device: true, mode: true }) && J(fAfter) === J(fBefore),
         J({ reached: f.reached, used: f.used, before: f.before, othersBefore: fBefore, othersAfter: fAfter }));
+
+    phase("G: the state word on p1's tile while nobody speaks - Connected, Connecting while the module moves the Room and while LiveKit reconnects, Disconnected when the server goes, none while somebody speaks");
+    // E79 C15. p1's `game.webrtc.connect` is held at a gate while voice-client.mjs moves p1 to another room, so
+    // the reading between the start of the move and the new Room is taken while the old Room still says
+    // "connected": only voice-client.mjs's `drpgVoiceApplying` can tell the tile then.
+    const st = await p1.eval(`${tileJs}
+        if (globalThis.__liveKit?.installed !== true) return { installed: false };
+        const VC = await import("${repoUrl}/scripts/voice-client.mjs");
+        const word = () => {
+            const el = document.getElementById("drpg-voice-tile"), box = el?.querySelector(".drpg-voice-tile-state");
+            return { word: el?.dataset.word ?? null, shown: box ? !box.hidden : false, run: box?.firstElementChild?.textContent.split(" · ")[0] ?? "",
+                title: box?.title ?? "", live: el?.querySelector(".drpg-voice-tile-nobody")?.textContent ?? "", face: el?.querySelector(".drpg-voice-tile-face")?.hidden === false };
+        };
+        const L = key => game.i18n.localize(key);
+        const before = VC.desiredRoom(), webrtc = game.webrtc, own = Object.getOwnPropertyDescriptor(webrtc, "connect"), real = webrtc.connect;
+        const out = { installed: true, texts: {
+            connected: [L("DRPG.Voice.tile.state.connected"), L("DRPG.Voice.tile.nobody")],
+            connecting: [L("DRPG.Voice.tile.state.connecting"), L("DRPG.Voice.held.connecting")],
+            disconnected: [L("DRPG.Voice.tile.state.disconnected"), L("DRPG.Voice.held.offline")] } };
+        __liveKit.setRoster({ [__liveKit.MAIN_ROOM]: ${J([IDS.gm, IDS.p1, IDS.p2])} });
+        __liveKit.speak([]);
+        await until(() => __liveKit.read().state === "connected" && word().face === false, 1500 + 840 + 1500);
+        out.silent = word();
+        let release = null;
+        try {
+            const gate = new Promise(resolve => { release = resolve; });
+            webrtc.connect = async function (...args) {
+                await gate;
+                return real.apply(this, args);
+            };
+            const moving = VC.applyBreakout("drpg-s75-word");
+            await until(() => word().word === "connecting", 1000);
+            out.moving = { ...word(), room: __liveKit.read().state, applying: VC.voiceApplying() };
+            release();
+            out.result = await moving;
+            await until(() => word().word === "connected", 1000);
+            out.moved = { ...word(), room: __liveKit.read().name, applying: VC.voiceApplying() };
+        } finally {
+            release?.();
+            if (own) Object.defineProperty(webrtc, "connect", own);
+            else delete webrtc.connect;
+        }
+        const room = lk.liveKitRoom;
+        room.state = "reconnecting";
+        room.emit("connectionStateChanged", "reconnecting");
+        out.reconnecting = word();
+        room.state = "connected";
+        room.emit("connectionStateChanged", "connected");
+        out.back = word();
+        __liveKit.drop();
+        out.dropped = { ...word(), room: __liveKit.read().state };
+        if (before === undefined) {
+            lk.breakoutRoom = undefined;
+            await game.webrtc.connect();
+            VC.forgetDesiredRoom();
+        } else await VC.applyBreakout(before);
+        await until(() => __liveKit.read().state === "connected" && word().word === "connected", 1000);
+        out.home = { ...word(), room: __liveKit.read().name };
+        __liveKit.speak(["${IDS.p2}"]);
+        await until(() => word().face === true, 1000);
+        out.speaking = word();
+        __liveKit.speak([]);
+        return out;`, { timeout: 20000 });
+    const said = (value, which) => value?.word === which && value.shown === true && J([value.run, value.title]) === J(st.texts?.[which])
+        && value.live === st.texts[which][1] && value.face === false;
+    check("G: p1's tile says Connected while nobody speaks in the main room, and Connecting while voice-client.mjs moves p1 to another room though the old Room still says connected - the word, its title and the live text the sentence of each",
+        st.installed === true && said(st.silent, "connected") && said(st.moving, "connecting") && st.moving.room === "connected" && st.moving.applying === true,
+        J({ silent: st.silent, moving: st.moving, texts: st.texts }));
+    check("G: once the move is over p1's tile says Connected in the new room; Connecting while the Room says reconnecting, Connected again when it is back, Disconnected when the server goes, Connected back home, and no word while p2 speaks",
+        st.installed === true && st.result === "applied" && said(st.moved, "connected") && st.moved.room === "drpg-s75-word" && st.moved.applying === false
+            && said(st.reconnecting, "connecting") && said(st.back, "connected") && said(st.dropped, "disconnected") && st.dropped.room === "disconnected"
+            && said(st.home, "connected") && st.speaking?.shown === false && st.speaking.word === null && st.speaking.face === true,
+        J({ result: st.result, moved: st.moved, reconnecting: st.reconnecting, back: st.back, dropped: st.dropped, home: st.home, speaking: st.speaking }));
 }

@@ -330,6 +330,10 @@ function capacityOf(host) {
 }
 
 const PARKED = "drpg-popup-parked";
+/** On the body while a card stands on the notice tile (`setFloor`): read by stained-glass.css for the pane's plate (E79 C13). */
+const NOTICE_MARK = "data-drpg-notice";
+/** On the body while more than one card stands there: each card keeps its own edge (E79 fix r3-G4). */
+const NOTICES_MARK = "data-drpg-notices";
 const STICKY = "drpg-popup-sticky";
 
 /* Arrival order, kept on each card, because the two stacks lay it out differently: the
@@ -553,9 +557,19 @@ const TAIL_BLOCK = "drpg-corner-tail-block";
 export function setFloor(host) {
     if (host?.id !== CONTAINER_ID) return null;
     try {
-        const floor = Array.from(host.querySelectorAll(`.drpg-popup:not(.leaving):not(.${PARKED})`)).sort(byArrival)[0] ?? null;
+        const shown = Array.from(host.querySelectorAll(`.drpg-popup:not(.leaving):not(.${PARKED})`));
+        const floor = shown.sort(byArrival)[0] ?? null;
         host.querySelectorAll(`.${FLOOR}`).forEach(card => { if (card !== floor) card.classList.remove(FLOOR); });
         if (floor && !floor.classList.contains(FLOOR)) floor.classList.add(FLOOR);
+        /* A card stands on the tile exactly when it has a floor card, and every change of the
+           stack ends here: the body's mark is what lets Stained Glass draw the card's plate on the
+           whole pane (glass.mjs `seatNoteFrame`, E79 C13). Set only on a change. */
+        if (document.body.hasAttribute(NOTICE_MARK) !== Boolean(floor)) document.body.toggleAttribute(NOTICE_MARK, Boolean(floor));
+        /* And a second mark while more than one card stands (E79 fix r3-G4, review round 3's cor F and P2): two
+           cards on the one plate stood with no edge between them (0 px each, measured in the glass harness at
+           1920x1080 on 17.10.2026), so with two each card keeps its accent edge and the fill is one card's. */
+        const many = shown.length > 1;
+        if (document.body.hasAttribute(NOTICES_MARK) !== many) document.body.toggleAttribute(NOTICES_MARK, many);
         const body = floor?.querySelector(".drpg-popup-body");
         const [tail, kind] = body ? cornerTail(body) : [null, null];
         host.querySelectorAll(`.${TAIL}, .${TAIL_BLOCK}`).forEach(el => {

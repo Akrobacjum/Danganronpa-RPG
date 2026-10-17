@@ -1,6 +1,6 @@
 # Danganronpa RPG - Podręcznik gracza
 
-*Dla uczniów killing game. Moduł w wersji 1.2.78, zbudowany na Daggerheart dla Foundry VTT v14.*
+*Dla uczniów killing game. Moduł w wersji 1.2.79, zbudowany na Daggerheart dla Foundry VTT v14.*
 
 To cała gra widziana z twojego krzesła: co znaczą liczby na arkuszu, ile kosztuje akcja, co kupuje Hope, co się dzieje, gdy ktoś ginie, i co kliknąć. Każda liczba tutaj jest liczbą modułu; tam, gdzie decyzja należy do człowieka, napisano "GM decyduje".
 
@@ -12,6 +12,8 @@ To cała gra widziana z twojego krzesła: co znaczą liczby na arkuszu, ile kosz
 ## 1. Kim jesteś
 
 Jesteś **Ultimate** - tym jednym, w czym ta postać jest najlepsza, wpisanym pod jej imieniem na arkuszu. Tytuł to postać. Twój Ultimate jest też Hope Callem (rozdział 5): gdy naprawdę stosuje się do tego, co próbujesz zrobić, kupuje przewagę.
+
+Portret zmienia GM: kliknięcie go na twojej karcie niczego nie otwiera.
 
 ### Statystyki
 
@@ -128,13 +130,15 @@ Zawraca cię:
 
 GM może wyłączyć cenę przejść; wtedy to, które pokoje się łączą, razem ze schodami, ocenia sam poza Eclipse.
 
+**Tajne przejścia.** Niektóre ściany kryją tajne przejście. Gdy twoja postać je zna, twój token przechodzi przez ten odcinek ściany jak przez drzwi, a krok to przejście jak każde inne; dla wszystkich innych to ściana. Tajne przejście prowadzi do cudzej sypialni bez klucza; zamknięte drzwi, zapieczętowany pokój, Chained i Class Trial nadal cię zawracają. Karta postaci wypisuje znane ci przejścia pod **Znane tajne przejścia**: nazwa pokazuje przejście na mapie, a **droga zamknięta** obok niej znaczy, że z miejsca, w którym stoisz, się nie otwiera. **Pokaż tajne przejście** pokazuje je innemu uczniowi w tym samym pokoju, który od tej chwili też może nim przechodzić: nie kosztuje akcji, musi być połączony GM, a GM-owie się o tym dowiedzą. GM może też dać ci tajne przejście, a niektóre znasz od startu sezonu; reset sezonu zostawia ci tylko te. Wszyscy widzą, jak twój token przechodzi, tak jak widzą każdy ruch tokenu.
+
 ### Co widzisz
 
 - Pokój, w którym jesteś, jest w pełnym kolorze. Pokoje, w których już byłeś, prześwitują zza zasłony. Reszta szkoły tonie we mgle, dopóki do niej nie wejdziesz - pokój odkrywa się wejściem, raz, per postać. Podczas Eclipse nawet pokój, w którym stoisz, jest tylko za zasłoną.
 - Na mapie o kilku piętrach widzisz jedno piętro naraz. Przyciski **Piętra** obok HUD proponują piętra, na których stoi twoja postać, i każde piętro z pokojem, który odkryłeś, od najniższego. Odkryty pokój wygląda tak samo na każdym piętrze - za zasłoną, bez nikogo, kogo widzisz - a pokój, w którym nigdy nie byłeś, na każdym piętrze zostaje we mgle.
 - Widzisz ikony drzwi tych pokoi, które widzisz - tego, w którym stoisz, i tych, w których już byłeś - a nie każde drzwi na mapie.
 - Widzisz tylko osoby stojące w twoim pokoju. Nikogo innego dla ciebie na mapie nie ma.
-- **Kafelek pokoju** stoi pod zegarem - albo, gdy ekran nie zostawia tam miejsca, na prawo od powiadomień - i pokazuje pokój, w którym stoi twoja własna postać, nigdy inny: jego nazwę, jego Search Tokens, **Dostępny projekt**, gdy jest w nim projekt, nad którym możesz pracować, zdjęcie pokoju od GMa pod nimi i opis od GMa, schowany za małą strzałką w prawym górnym rogu kafelka: strzałka (**Czytaj dalej**) rozwija opis nad zdjęciem, a obrócona do góry (**Zwiń opis**) zwija go z powrotem. Kliknij zdjęcie, by zobaczyć je w dużym rozmiarze, tylko na swoim ekranie. Podczas Class Trialu kafelek nie pokazuje pokoju. Na wąskim ekranie jest jednym wierszem stosu: małe zdjęcie (kliknij, by zobaczyć duże), nazwa, Search Tokens i przycisk **Opis**, który otwiera opis w oknie. Gdy tę samą postać ma dwóch graczy, kafelek na ekranie jednego z nich może nadążyć za ruchem mniej więcej półtorej sekundy później.
+- **Kafelek pokoju** stoi pod zegarem - albo, gdy ekran nie zostawia tam miejsca, na prawo od powiadomień - i pokazuje pokój, w którym stoi twoja własna postać, nigdy inny: jego nazwę, jego Search Tokens, **Dostępny projekt**, gdy jest w nim projekt, nad którym możesz pracować, zdjęcie pokoju od GMa pod nimi i opis od GMa, schowany za małą strzałką w prawym górnym rogu kafelka: strzałka (**Czytaj dalej**) rozwija opis nad zdjęciem, a obrócona do góry (**Zwiń opis**) zwija go z powrotem. Kliknij zdjęcie, by zobaczyć je w dużym rozmiarze, tylko na swoim ekranie. Podczas Class Trialu kafelek pokazuje salę rozpraw: nazwę, zdjęcie i opis od GMa albo "Class Trial". Na wąskim ekranie jest jednym wierszem stosu: małe zdjęcie (kliknij, by zobaczyć duże), nazwa, Search Tokens i przycisk **Opis**, który otwiera opis w oknie. Gdy tę samą postać ma dwóch graczy, kafelek na ekranie jednego z nich może nadążyć za ruchem przez kilka punktów trasy mniej więcej półtorej sekundy później.
 - Zegar w lewej kolumnie da się kliknąć: tłumaczy fazę, porę dnia, gdzie jesteś, i wypisuje opis pokoju, jeśli GM go napisał.
 - Karta innego gracza otwiera się ocenzurowana: imię, portret, Ultimate, Health, Sanity, to, co trzyma w rękach, i ile ma doświadczeń. Nic więcej.
 
@@ -142,7 +146,7 @@ GM może wyłączyć cenę przejść; wtedy to, które pokoje się łączą, raz
 
 Z włączonym głosem per pokój każdy pokój jest własnym kanałem: słyszysz tylko tych, którzy stoją z tobą w pokoju, a twój klient głosowy idzie za tokenem w chwili, gdy przekroczy granicę pokoju. Podczas Eclipse każdy gracz jest sam we własnym kanale. Podczas Class Trial wszyscy są w jednym pokoju głosowym, także zmarli, gdziekolwiek stoi ich token (rozdział 12). Monokuma, który wejdzie do twojego pokoju, słyszy cię jak każdy inny - i ty go widzisz.
 
-**Kafel głosu.** Gdy jesteś w głosie, doku kamer Foundry nie ma na twoim ekranie: zastępuje go mały kafel - pod Stained Glass szyba witrażu przy prawej krawędzi, pod tacką Projects; pod Monokuma Legacy przy prawej krawędzi, nad przyciskami w rogu; na wąskim ekranie w rzędzie obok kafelka pokoju. Pokazuje portret i imię tego, kogo słyszysz mówiącego w twoim własnym kanale głosowym, i nikogo spoza niego, a chwilę po tym, jak ktoś przestanie mówić, gaśnie. Razem z dokiem odchodzą jego obrazy z kamer, jakość połączenia i okna wyskakujące; jeśli GM wyłączy kafel, dok wraca. Na kaflu są dwa przyciski:
+**Kafel głosu.** Gdy jesteś w głosie, doku kamer Foundry nie ma na twoim ekranie: zastępuje go mały kafel - pod Stained Glass szyba witrażu przy prawej krawędzi, pod tacką Projects; pod Monokuma Legacy przy prawej krawędzi, nad przyciskami w rogu; na wąskim ekranie w rzędzie obok kafelka pokoju. Pokazuje portret i imię tego, kogo słyszysz mówiącego w twoim własnym kanale głosowym, i nikogo spoza niego, a chwilę po tym, jak ktoś przestanie mówić, gaśnie. Razem z dokiem odchodzą jego obrazy z kamer, jakość połączenia i okna wyskakujące; jeśli GM wyłączy kafel, dok wraca. Gdy nikt nie mówi, kafel mówi jednym słowem, jak stoi twój głos: **Połączono**; **Łączenie**, gdy dołączasz, przechodzisz do innego kanału albo połączenie wraca; **Rozłączono**, gdy głos się zerwał; **Eclipsed** podczas Eclipse; **Zablokowano**, gdy GM zablokował twój mikrofon; **Osobne okno**, gdy głos działa w osobnym oknie. Wskaż słowo, żeby zobaczyć całe zdanie. Na kaflu są dwa przyciski:
 - **Mikrofon** wycisza i włącza twój własny mikrofon, niczyj inny; to samo robi klawisz w sterowaniu Foundry, gdy go przypiszesz. Przekreślony - jest wyciszony: przez ciebie albo przez GMa, gdy widać na nim małą kłódkę (**GM zablokował twój mikrofon.**). Szary i przekreślony - trzyma go gra: podczas Eclipse, z powodem pod spodem. Kliknięcie niczego wtedy nie zmienia i mówi ci dlaczego. Z małą kropką - nie jesteś połączony z głosem albo głos działa w osobnym oknie. Świeci, gdy twój mikrofon niesie twój głos. Przy trybie naciśnij, aby mówić nosi **PTT**: przytrzymaj klawisz, żeby mówić. Monocub podczas Eclipse zachowuje mikrofon i dostaje informację, że do powrotu światła nikt go nie słyszy.
 - **Głośnik** pokazuje, ile innych osób jest w twoim kanale - każdą, która cię słyszy, mówiącą czy nie - i otwiera **Kogo słyszysz**: każdą z nich z suwakiem głośności i **Wycisz u siebie: *imię*** (potem **Znów słuchaj: *imię***), a na górze **Wycisz wszystkich u siebie**. Wszystko to jest tylko twoje - nikt inny nie słyszy różnicy - i ta przeglądarka to pamięta. Escape albo kliknięcie obok zamyka listę.
 
@@ -657,7 +661,7 @@ Gdy GM przygotował salę rozpraw, początek rozprawy przenosi tam twój ekran, 
 
 Class Trial otwiera się **otwartą dyskusją**: mówią wszyscy, a Truth Bullet można za darmo **Przedstawić** z ekwipunku - trafia na stół jako karta dla wszystkich, z twoim komentarzem, i nikomu nie zabiera głosu. Na kartę trafia tylko to, co sam widzisz. Dowiadujesz się, kiedy trafił na stół.
 
-Gdy sala jest gotowa się spierać, GM otwiera **Nonstop Debate**. Debata ma zegar (budżet GMa, domyślnie **180 sekund**; przekroczenie zmienia go na czerwony i nic więcej). Wewnątrz debaty przedstawienie Truth Bulleta staje się **OBJECTION** (przycisk Przedstaw na twoim arkuszu zmienia się w Objection, dopóki debata jest otwarta), wycenionym jak Analyze - 1 akcja, inaczej 1 Hope, inaczej 1 Sanity - a gdy zatrzymuje cię tylko cena, dostajesz przycisk *Przedstaw zamiast tego*, za darmo:
+Gdy sala jest gotowa się spierać, GM otwiera **Nonstop Debate**. Debata ma zegar (budżet GMa, domyślnie **180 sekund**; przekroczenie zmienia go na czerwony i nic więcej). Wewnątrz debaty przerywasz przyciskiem **OBJECTION!** w wierszu rozprawy na HUD (przycisk Przedstaw na twoim arkuszu przez całą rozprawę zostaje Przedstaw, za darmo). Kosztuje jak Analyze - 1 akcja, inaczej 1 Hope, inaczej 1 Sanity - i płacisz w chwili naciśnięcia:
 
 | Tryb | Kto mówi | Jak długo |
 |---|---|---|
@@ -665,7 +669,7 @@ Gdy sala jest gotowa się spierać, GM otwiera **Nonstop Debate**. Debata ma zeg
 | OBJECTION | tylko wnoszący | 60 sekund |
 | Rebuttal | wnoszący i osoba, którą wskazał | 120 sekund, potem głos się zamyka i Class Trial wraca do otwartej dyskusji |
 
-Wskazujesz, komu zaprzeczasz. Nikt nie wnosi objection, gdy trwa cudze; każdy może wciąć się w rebuttal, ale tylko wobec jednej z dwóch osób, które już mają głos. Na każdym ekranie zegar podaje tryb, a karta Class Trialu na panelu zdarzeń pokazuje tryb, kto ma głos (w rebuttalu także, komu odpowiada) i ile zostało czasu. Ciszy pilnuje stół, nie oprogramowanie. Gdy wyślesz Objection, dowiadujesz się, że poszło; o tym, czy przejmuje głos, rozstrzyga strona GMa. Karta Objection stoi nad każdym oknem, dopóki jej nie klikniesz. Martwy uczeń ani nie przedstawia dowodów, ani nie wnosi objection.
+Nie wybierasz, komu zaprzeczasz: Objection trafia w tego, kto mówi teraz, tak jak słyszy go pokój głosowy GMa (liczy się mniej więcej sekunda mowy), a gdy nikt nie mówi - w ostatniego gracza, który mówił w tej rozprawie; nigdy w GMa, Monocuba, ucznia, którego śmierć ogłoszono, ani w ciebie czy innego twojego ucznia. Przycisk podaje tę osobę, zanim go naciśniesz; jeśli nikt jeszcze nie mówił, mówi to i nic nie jest pobierane. Potem wybierasz Truth Bullet: **30 sekund**, odliczanych w oknie. Dopóki nie trafi na stół, karta Objection mówi, że czeka; 60 sekund zaczyna się, gdy trafi. Zamknij okno albo pozwól minąć czasowi, a Objection zostaje wycofane, jego karta to mówi, a to, co zapłaciłeś, nie wraca. GM może przekierować trwające Objection na kogoś innego. Gdy przeglądarka GMa nie ma pokoju głosowego, po naciśnięciu sam wybierasz, komu zaprzeczasz, cokolwiek dzieje się z twoim własnym pokojem głosowym. Nikt nie wnosi objection, gdy trwa cudze; każdy może wciąć się w rebuttal, ale tylko wobec jednej z dwóch osób, które już mają głos. Na każdym ekranie zegar podaje tryb, a karta Class Trialu na panelu zdarzeń pokazuje tryb, kto ma głos (w rebuttalu także, komu odpowiada) i ile zostało czasu. Ciszy pilnuje stół, nie oprogramowanie. O tym, czy Objection przejmuje głos, rozstrzyga strona GMa, a gdy przejmuje, dowiadujesz się, ile kosztowało. Karta Objection stoi nad każdym oknem, dopóki jej nie klikniesz. Martwy uczeń ani nie przedstawia dowodów, ani nie wnosi objection.
 
 ### Głosowanie
 
@@ -768,6 +772,8 @@ W lewym dolnym rogu karty postaci jest przycisk ze słowem - **Safe Word**, chyb
 **Panel zdarzeń** (pod wierszami Despair): to, co dzieje się teraz - Motive z odliczaniem i ceną zignorowania, zwołane zgromadzenie, trwające zaciemnienie, znalezione ciało, tryb Class Trialu, mówca i pozostały czas, otwarte głosowanie, zatrzymana scena. Karty samego morderstwa widzą tylko jego uczestnicy.
 
 **Pasek stanu** (po prawej, nad zasobnikiem projektów): pozostałe akcje, czy Free Move wciąż jest, twój Hope i przejścia Eclipse, gdy trwa. To, co masz w zapasie ze Sprint albo Burst, widać na arkuszu, w linii nad siatką akcji. Kliknij pasek, by dostać wyjaśnienie.
+
+**Zasobnik projektów** (po prawej, pod paskiem stanu) wymienia projekty, o których wiesz. Zanim jakiś się pojawi, i tak pokazuje swój tytuł i wiersz **Na razie brak projektów.** (od 1.2.79; jeszcze nie sprawdzone przy stole: LIVE-E79-16).
 
 **Wiersze Despair** pokazują każdą pulę i to, jak jest pełna, a pod nimi overflow: "?" w miejscu jego licznika, obok liczby, przy której odpala. Kliknij, by dowiedzieć się, czym jest Despair.
 

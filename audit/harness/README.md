@@ -119,6 +119,7 @@ belongs to.
 | 73 | scenarios/73-notice-history.mjs | ci | exists | E81 | a player's notice history after F5, the GM's own diet |
 | 74 | scenarios/74-room-tile.mjs | ci | exists | E77 | the room tile: every browser shows its own character's room, painted once the move has settled (a refused move draws nothing), the GM's text only as text (E77 C3: the GM's Room Setup on the viewer's tile and on no other's, every state a player's tile can take (A), a crossing and a refused crossing (B)); the curtain's cut, also with Foundry's windows open, comes with E77's later commits |
 | 75 | scenarios/75-voice-tile.mjs | ci | exists | E78 | the voice tile: who each browser hears in its own LiveKit room, on the harness's LiveKit shim (`lib/livekit.mjs`), which only this scenario installs (E78 C1: the shim measured on its own - a Room on `liveKitClientInitialized`, its participants mapped to users, an `<audio>` for each written from the client settings, a new Room at each connect, and no Room where it is not installed (0)); the tile (A, C3), the microphone (B, C4), the list 'Who you hear', the GM's block and the gear's Voice section (C, C5); the curtain's cut comes with C6 |
+| 76 | scenarios/76-passages.mjs | ci | exists | E79 | the secret passages: who may know a passage, read on every surface a browser holds through the passage's own numeric marker, 1234.5 (E79 C0: the marker found on each surface it is planted on, nothing on a browser it was not planted on, the planted dump with the marker taken out read as nothing, and p3's world as found, for the later phases to compare (0)); the copy and its addressees (A, C1), the client's cut (B, C2), the gap and the veto (C, C3), the GM's audit (D, C4), Close, Open and revoke (E, C5), the GM's overlay (F, C6), a player's show (G, C7); since fix r2-G3 the console's create refused where the pick refuses (A), and in G a second GM and a fifth player, both declared late (`gm2`, `p4`): a passage the second GM writes before its stores settle, and a player's reload |
 | 81 | scenarios/81-render-budget.mjs | local-gate | planned | E37 | render counts per event on real sheets (E53 compares) |
 | 82 | scenarios/82-two-gms.mjs | ci | planned | E38 | two GMs: sync both ways, a change of primary |
 | 83 | scenarios/83-roll-integrity.mjs | ci, local-gate | exists | E33 | every legal road a player's roll takes read clean (E33 C4); twelve forgeries from a player's console, each undone or never applied and traced to that player (C5b) |
@@ -386,6 +387,18 @@ makes a critical certain, no rally die), and every roll at a table.
   0.6.8 (not re-read here); real audio, how late a speaker is named, the hidden
   dock at a table and audio after F5 are LIVE-E78-01, LIVE-E78-02 and the
   owner's T1 (LIVE-E78-10).
+- **Secret passages** (E79, 1.2.79). Foundry's move backend is `lib/shim.mjs`'s
+  `CONFIG.Canvas.polygonBackends`, written from the design's reading of
+  Foundry 14.365, not copied from it: whether v14 cuts a passage's wall for a
+  drag, the ruler, the keyboard and an update from code is LIVE-E79-01, and
+  the GMs' audit at a table, with a GM on another scene and with floors, is
+  LIVE-E79-02 (`sendBack` mode only after it, LIVE-E79-07). Two floors with
+  Isometric Perspective, a show between two players, the gap, the overlay and
+  the list as drawn, and the GMs' two-click pick are LIVE-E79-03 to -06, and
+  a Monokuma's token, or a GM's own drag, through a passage is LIVE-E79-08. What
+  a player with a console always sees of a passage is two Foundry limits in
+  `known-leaks.json`, read in 65-season X: a token crossing its wall, and a
+  room whose only way in is one.
 - **Versions** (E30, `lib/versions.mjs`). Foundry and Daggerheart are the
   versions `module.json` says the module is verified on; the companion modules
   it requires or recommends take theirs from an installed Foundry when

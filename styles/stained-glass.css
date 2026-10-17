@@ -1206,15 +1206,16 @@ body.drpg-theme-stained-glass > #drpg-room-tile[data-place="notes"] {
    pane stood there, 301x150 at 1366x768 and 301x143 at 1280x720 (glass.mjs `roomNotesH`), where the
    name, the pips and the project line stacked under the toggle left the open description 37 and 30
    px - a line and a half (Chromium, the glass harness, the same day). So here the pips stand beside
-   the name, the project line under them, and the description, open, fills what is above them from
-   the tile's top, clear of the toggle by its width on each side rather than under it. Since E78 fix r2-H3
+   the name, the project line under them (in a band of its own at the foot since E79 C12), and the
+   description, open, fills what is above them from the tile's top, clear of the toggle by its width
+   on each side rather than under it. Since E78 fix r2-H3
    (14.10.2026) the box stands 31 px over the screen's edge with its pane run past it, 301x129 at 1366x768
    and 301x122 (`low`, the content's floor) at 1280x720; open, the description shows 2.4 and 2.1 lines
    there and scrolls (the glass harness's `drpgRoomCheck`, Chromium, the same day). */
 body.drpg-theme-stained-glass > #drpg-room-tile[data-place="notes"] {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, max-content) max-content minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) auto auto;
+    grid-template-rows: minmax(0, 1fr) auto;
     align-items: center;
     column-gap: 8px;
 }
@@ -1228,7 +1229,8 @@ body.drpg-theme-stained-glass > #drpg-room-tile[data-place="notes"] .drpg-hud-ro
     grid-area: 2 / 3;
     margin-top: 0;
 }
-body.drpg-theme-stained-glass > #drpg-room-tile[data-place="notes"] .drpg-hud-room-project { grid-area: 3 / 1 / 4 / -1; }
+/* The project line is no row of this grid since E79 C12 (N8): it stands in the band at the tile's foot, which the
+   base sheet keeps whether it is drawn or not (`--drpg-room-band`, below for this theme). */
 body.drpg-theme-stained-glass #drpg-room-tile .drpg-room-tile-name {
     position: relative;
     isolation: isolate;
@@ -1310,8 +1312,16 @@ body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"]:not([data-fi
     flex-direction: column;
     gap: 4px;
 }
-body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"]:not([data-fit="compact"]) .drpg-voice-tile-note {
+/* The state word (E79 C15) where the microphone's line stood, left of the buttons; in the game state's colour at
+   full ink on the note's dark plate (the clock's ticker is that colour as an outline at 22 %). */
+body.drpg-theme-stained-glass #drpg-voice-tile .drpg-voice-tile-state {
+    font-family: var(--drpg-font-chrome);
+    letter-spacing: 0.04em;
+    color: var(--drpg-glass-accent);
+}
+body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"]:not([data-fit="compact"]) .drpg-voice-tile-state {
     top: 6px;
+    bottom: auto;
     right: 40px;
 }
 /* COMPACT, ON A SHORT DESK (E78 fix r2-H1, 14.10.2026; review round 2's cor F1): a tile glass.mjs
@@ -1330,6 +1340,12 @@ body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="co
 }
 body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"] :is(.drpg-voice-tile-speaking, .drpg-voice-tile-note) {
     display: none;
+}
+/* The state word takes the name plate's place when nobody speaks (E79 C15): one row, left of the buttons. */
+body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"] .drpg-voice-tile-state {
+    top: calc(50% - 15px);
+    bottom: auto;
+    right: 82px;
 }
 body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"] .drpg-voice-tile-plate {
     flex-direction: row;
@@ -1356,6 +1372,11 @@ body.drpg-theme-stained-glass #drpg-room-tile .drpg-hud-room-project {
     color: var(--drpg-glass-accent);
     opacity: 1;
     text-transform: uppercase;
+}
+/* The band the base sheet keeps for the line (E79 C12, N8): this theme's size for it, the rule further down that
+   lifts it to the floor, a fifth again. */
+body.drpg-theme-stained-glass:not(.drpg-stacked) #drpg-room-tile[data-state^="room"] {
+    --drpg-room-band: calc(max(var(--drpg-sg-floor), calc(11px * var(--drpg-sg-scale))) * 1.2);
 }
 body.drpg-theme-stained-glass #drpg-room-tile :is(.drpg-room-tile-more, .drpg-room-tile-describe) {
     border: 1px solid var(--drpg-glass-accent);
@@ -3003,9 +3024,21 @@ body.drpg-theme-stained-glass :is(.character-header-sheet .drpg-ultimate-row .dr
 
 /* ---- C-I4. The roll's two faces are cut dice --------------------------------------------
    The module's own roll card (action-rolls.mjs) prints the Hope die and the Despair die as two
-   spans; the audit page's roll window draws them as two cut dice, the Hope one in the state
-   colour and the Despair one in the Eclipse's violet, the total under them in the title face
-   and the verdict tracked out in the state colour. */
+   spans; the audit page's roll window draws them as two cut dice, the total under them in the
+   title face and the verdict tracked out in the state colour.
+   THE DICE WEAR THE BADGE'S COLOURS (E79 C13, the owner's N11 of 14.10.2026). The Hope die's
+   plate was the state colour (`--drpg-glass-accent`, which moves with the hour) and the Despair
+   die's the Eclipse's violet, while the verdict beside them is gold for Hope and pink for
+   Despair (`--drpg-sg-hope`, `--drpg-sg-despair`, below): two colour languages on one card. Each
+   plate is now its side's token, and nothing repaints it on a critical - a critical card keeps
+   `is-hope` and `is-despair` on its two spans (action-rolls.mjs), so its dice keep their sides.
+   The letters stay ink (#07070a); computed with the WCAG formula from the token values on
+   16.10.2026, 13.9:1 on #ffd23f and 6.0:1 on #ff3d8b. R587 holds both plates, the critical and
+   the two ratios. Monokuma Legacy already drew them gold and blood (danganronpa.css). Drawn in
+   Chromium on 17.10.2026 (E79 fix r3-G4, review round 3's N11d) from dualityBar's markup written
+   out on the glass harness page, a Hope, a Despair and a critical card: the plates read
+   rgb(255, 210, 63) and rgb(255, 61, 139) on all three and the letters rgb(7, 7, 10). A card
+   Foundry posts is still LIVE-E79-17. */
 body.drpg-theme-stained-glass .drpg-duality-die {
     display: inline-grid;
     place-content: center;
@@ -3016,14 +3049,14 @@ body.drpg-theme-stained-glass .drpg-duality-die {
     font-size: max(var(--drpg-sg-floor), calc(30px * var(--drpg-sg-scale)));
     line-height: 1;
     color: var(--drpg-sg-ink);
-    background: var(--drpg-glass-accent);
+    background: var(--drpg-sg-hope);
     border: 0;
     border-radius: 0;
     text-shadow: none;
     clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 16px), calc(100% - 14px) 100%, 0 100%, 0 16px);
 }
 body.drpg-theme-stained-glass .drpg-duality-die.is-despair {
-    background: var(--drpg-sg-eclipse);
+    background: var(--drpg-sg-despair);
     clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 16px, 100% 100%, 14px 100%, 0 calc(100% - 16px));
 }
 body.drpg-theme-stained-glass .drpg-duality-total {
@@ -3407,10 +3440,13 @@ body.drpg-theme-stained-glass :is(#drpg-hud, #drpg-room-tile, #drpg-despair, #dr
 
 /* ---- Milestone 12 (1.2.36): the notice tile, the hour's pips ------------------------------
    The hour's two arrows are the audit page's pips: a 26 px cut plate with a 14 px pixel arrow,
-   the state colour on its edge, full when the cursor is on it. They were bare buttons. */
+   the state colour on its edge, full when the cursor is on it. They were bare buttons.
+   Never under 24 px (E79 fix r4-G3, 1.2.79): the sweep's `drpgObjectionCheck` read the plates
+   22x22 on a stacked screen, where the type scale stands at its 0.85 floor (393x852 and 640x360,
+   17.10.2026), and the trial row's OBJECTION! is one of them; the sweep's desks read 27 and 29. */
 body.drpg-theme-stained-glass #drpg-hud .drpg-hud-button {
-    width: calc(26px * var(--drpg-sg-scale));
-    height: calc(26px * var(--drpg-sg-scale));
+    width: max(24px, calc(26px * var(--drpg-sg-scale)));
+    height: max(24px, calc(26px * var(--drpg-sg-scale)));
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -3432,6 +3468,16 @@ body.drpg-theme-stained-glass #drpg-hud .drpg-hud-button i {
     width: calc(14px * var(--drpg-sg-scale));
     height: calc(14px * var(--drpg-sg-scale));
     font-size: calc(14px * var(--drpg-sg-scale));
+}
+/* OBJECTION! on the trial bar (E79 C16, 1.2.79): the same plate in crimson, whatever the state's colour. */
+body.drpg-theme-stained-glass #drpg-hud .drpg-hud-button.drpg-hud-objection {
+    color: var(--drpg-crimson-light);
+    border-color: rgba(var(--drpg-crimson-rgb), 0.8);
+    background: rgba(var(--drpg-crimson-rgb), 0.22);
+}
+body.drpg-theme-stained-glass #drpg-hud .drpg-hud-button.drpg-hud-objection:hover:not([aria-disabled="true"]) {
+    border-color: rgba(var(--drpg-crimson-rgb), 1);
+    background: rgba(var(--drpg-crimson-rgb), 0.45);
 }
 /* the notice tile is always there, at the audit page's place; the cards land on it. Its foot
    is fitted onto Foundry's gauge by glass.mjs (`fitNoteTile`, 21.09); 100 on the geometry
@@ -3555,6 +3601,36 @@ body.drpg-theme-stained-glass #drpg-popups .drpg-popup {
 body.drpg-theme-stained-glass #drpg-popups .drpg-popup-body {
     flex: 1 1 auto;
     align-content: start;
+}
+/* AND THE PLATE IS THE PANE'S, NOT THE CARD'S (E79 C13, the owner's N16 of 15.10.2026: "the notice
+   card fills its glass pane, as the room tile and the voice tile do"). The body's dark plate and the
+   card's accent edge stood on an upright box turned with the tile, inside a pane that leans and runs
+   to the wall and to the screen's foot (glass.mjs `seatNoteFrame` has the readings). They move to
+   `#drpg-note-frame`, the layer glass.mjs cuts to the note pane's polygon: the same plate, the edge
+   along the wall, drawn while a card stands on the tile (`data-drpg-notice`, which popup.mjs
+   `setFloor` keeps on the body: a parked or leaving card does not count) - and the card keeps only
+   its words and its title's stamp. Where no layer was made (`data-drpg-note-frame`, glass.mjs: no
+   pane, a stacked screen) the card keeps its own plate, the rules above. While two cards stand
+   (`data-drpg-notices`, setFloor's second mark; E79 fix r3-G4, review round 3's cor F and P2) each
+   keeps its accent edge on the one plate, which they share: bare, the two stood with no edge between
+   them. Three body attributes and not `body:has(...)`: no rule of the module asks `:has` of the body,
+   whose every insertion it would re-ask, and none of the module's body observers watches any of them.
+   The glass harness's `drpgNoticeCheck` (`fill`) holds the layer on the polygon, the words inside it
+   and the card bare. */
+#drpg-note-frame {
+    display: none;
+    pointer-events: none;
+}
+body.drpg-theme-stained-glass[data-drpg-notice] #drpg-note-frame {
+    display: block;
+    background: rgba(7, 6, 11, 0.42);
+    box-shadow: inset 3px 0 0 var(--drpg-glass-accent);
+}
+body.drpg-theme-stained-glass[data-drpg-note-frame]:not([data-drpg-notices]) #drpg-popups .drpg-popup {
+    border: 0;
+}
+body.drpg-theme-stained-glass[data-drpg-note-frame] #drpg-popups .drpg-popup-body {
+    background-color: transparent;
 }
 
 /* ---- 4. The Look window fits its rows ---------------------------------------------------- */

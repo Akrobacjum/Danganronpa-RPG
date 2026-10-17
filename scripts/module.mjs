@@ -64,6 +64,9 @@ import { registerRollDialog } from "./roll-dialog.mjs";
 import { registerForcedRolls } from "./forced-roll.mjs";
 import { registerEclipse } from "./eclipse.mjs";
 import { registerPreSessionNote } from "./pre-session-note.mjs";
+import { registerPassages, registerPassageMovement } from "./passages.mjs";
+import { registerPassagesGm } from "./passages-gm.mjs";
+import { registerGmOverlay } from "./gm-overlay.mjs";
 import { registerMonokuma } from "./monokuma.mjs";
 import { registerMessenger } from "./messenger.mjs";
 import { registerMessengerUi } from "./messenger-app.mjs";
@@ -90,11 +93,13 @@ import { registerGlass } from "./glass.mjs";
 import { registerNarrow } from "./narrow.mjs";
 import { ensureRoomTile, registerRoomTile } from "./room-tile.mjs";
 import { registerVoiceTile, registerVoiceKeybinding } from "./voice-tile.mjs";
+import { registerTrialSpeakers } from "./trial-speakers.mjs";
 import { registerFoundryWindows } from "./foundry-windows.mjs";
 import { registerA11y } from "./a11y.mjs";
 import { registerChrome } from "./chrome.mjs";
 import { registerApi } from "./api.mjs";
 import { registerEnforced } from "./enforced.mjs";
+import { registerUserMatch } from "./user-match.mjs";
 import { requirementsMet, announceMissingRequirements, announceNewerSystem,
     systemCompatibility } from "./requirements.mjs";
 import { warnAboutPageTinting, verifyStylesheet } from "./diagnostics.mjs";
@@ -210,6 +215,10 @@ Hooks.once("init", () => {
     safely("the Eclipse", registerEclipse);
     // A player's copy of their own pre-session note, and the note kept for a GM who is not here (E05).
     safely("the pre-session note", registerPreSessionNote);
+    // The secret passages (E79): a player's copy of the ones their characters know, and the GMs' records and their answers.
+    safely("the players' secret passages", registerPassages);
+    safely("the GMs' secret passages", registerPassagesGm);
+    safely("the GMs' overlay on the board", registerGmOverlay);
     safely("Monokumas", registerMonokuma);
     // Before the messenger, whose arrival chime is now a mapped event. Only a
     // hook goes up here - `playSfx` is a plain function and works whether or
@@ -280,6 +289,9 @@ Hooks.once("setup", () => {
      * already opened, on the first start after an update.
      */
     safely("the table's held settings", registerEnforced);
+    // A player's character found by the account's name (E79 C10, user-match.mjs): its hooks here, its
+    // pass at ready and after, on the primary GM alone.
+    safely("a player's character by name", registerUserMatch);
     /*
      * What a critical pays (G-16). At `setup` rather than `init`, because it
      * patches `game.system.api.dice.DualityRoll` and the system builds that
@@ -293,6 +305,12 @@ Hooks.once("setup", () => {
     safely("the GM's draw of a player's roll", registerRollDraw);
     // And a roll thrown while no GM was connected (E08+E28 C18): stamped as it is created, and asked of the GMs.
     safely("the rolls thrown with no GM connected", registerUnwitnessedRolls);
+    /*
+     * The secret passages' way through a wall (E79 C2): Foundry's move backend extended so a token
+     * passes where its character knows a passage. At `setup`, after every module's `init` has put
+     * its own class there, so the passages extend whatever stands in that place by now.
+     */
+    safely("the secret passages' way through a wall", registerPassageMovement);
 });
 
 Hooks.once("ready", () => {
@@ -368,6 +386,8 @@ Hooks.once("ready", () => {
     // The voice tile instead of the camera dock (E78 C3): before the narrow layout and the glass,
     // so that they find it once E78 C6 makes it one of their blocks; until then neither measures it.
     safely("the voice tile", registerVoiceTile);
+    // Who is speaking in a Class Trial, for an Objection's target (E79 C16): every browser, the primary's deciding.
+    safely("the trial's speakers", registerTrialSpeakers);
     // before the curtain, which does not draw over a stacked layout
     safely("the narrow layout", registerNarrow);
     // after the layout, because it sweeps the blocks wherever the layout put them

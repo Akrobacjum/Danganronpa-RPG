@@ -83,6 +83,10 @@
  *      cast while the chat cannot be deleted - the report card's lines; a cast's step that throws on the primary - its
  *      words; the reset window drawn for a world whose only remembered exception was the cast's sheet notes; and a chapter
  *      ended from its own Class Trial with the next morning - whether its trial step's move stops it.
+ *   X  the secret passages (E79 C8): a Closet the map joins to no room and three passages into it, one each player's
+ *      character knows at the season's start or was shown or granted; Aiko through hers from p1, read on p3, whose Chie
+ *      does not know it (the two known leaks); a reset of the passages group alone with p3 absent - the GMs' records, each copy, p3's when it
+ *      asks again, and each stretch's marker at rest on every player's browser.
  * Not readable headless (the plan's section 5): what a player's canvas hides of a project
  * token (`applyToProjectToken` needs `token.object`), and what the gather's camera and the
  * dimmed Eclipse chevron look like: the harness's canvas has an `animatePan` that does nothing,
@@ -120,7 +124,7 @@ export const accounts = [
 const MOD = "danganronpa-rpg";
 const J = value => JSON.stringify(value);
 
-export async function run({ gm, gm2, gm0, p1, p2, p3, check, phase, settle, connect, disconnect, IDS, repoUrl }) {
+export async function run({ gm, gm2, gm0, p1, p2, p3, check, phase, settle, connect, disconnect, dump, IDS, repoUrl }) {
     const UNTIL = `const until = async (test, ms = 8000) => { const end = Date.now() + ms; let v; while (!(v = await test()) && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return v; };`;
     const CARDS = `const cards = () => game.messages.filter(m => m.flags?.["${MOD}"]?.sfx?.key === "bodyFound").length;`;
     const PROJECT_TOKENS = `const projectTokens = () => game.scenes.contents.flatMap(s => s.tokens.filter(t => t.getFlag("${MOD}", "projectId")).map(t => ({ scene: s.id, id: t.id, project: t.getFlag("${MOD}", "projectId") })));`;
@@ -573,8 +577,9 @@ export async function run({ gm, gm2, gm0, p1, p2, p3, check, phase, settle, conn
     // E11 C1: the `bodyFound` group clears the season's stamps of the bodies found too (`stamped`: the chapters stamped before, after).
     // E11 C9: the result lists group keys, `failed` among them; the running incident closed once and nothing of it is left.
     // E11 fix r2-H4: 28 groups - the cast's sheet notes went (a Daggerheart character has no notes field to clear).
+    // E79 C1: 29 - who knows each secret passage (`passages`); this read 28 from C1 to C8, which first ran 65 again.
     check("R1: after the reset no Level Up is offered, the Final Trial is off, the season is the second, no body's stamp is left, the incident closed once and is gone, and nothing failed or was told as an error",
-        Array.isArray(reset.cleared) && reset.cleared.length === 28 && reset.kept?.length === 0 && J(reset.failed) === "[]" && reset.offers === 0
+        Array.isArray(reset.cleared) && reset.cleared.length === 29 && reset.kept?.length === 0 && J(reset.failed) === "[]" && reset.offers === 0
             && reset.finalTrial === false && reset.season === 2 && reset.stamped[0] > 0 && reset.stamped[1] === 0
             && reset.incident.before === true && reset.incident.closes === 1 && reset.incident.after === null
             && reset.reports === 0 && reset.errors.length === 0, J(reset), { flow: "season-reset" });
@@ -1356,4 +1361,126 @@ export async function run({ gm, gm2, gm0, p1, p2, p3, check, phase, settle, conn
         trialEndJ.before.phase === "classTrial" && trialEndJ.ended === true && trialEndJ.floor === false && trialEndJ.told === 0
             && J(trialEndJ.after) === J({ session: trialEndJ.before.session + 1, day: trialEndJ.before.day + 1, phase: "dailyLife" }),
         J(trialEndJ), { flow: "clock-day" });
+
+    /* ------------------------------ X. the secret passages ------------------------------ */
+    /* X (E79 C8, 15.10.2026; the E79 plan's A10-12). A season's reset of the passages group: the GMs' passages stay, each one's
+       start access comes back, what a GM granted and a player showed goes and so does the log (passages-gm.mjs
+       `passagesAfterReset`); every player's copy is cut by the reset and told again - an absent player's when it asks. A
+       Closet under the Cafeteria (1200-2000 x 800-1100) that the map joins to no room, its wall at y 800, three passages in
+       it: P1 (1234.5-1334.5, Aiko's at the season's start, shown to Botan), P2 (1500.5-1600.5, granted to Chie by a GM) and
+       P3 (1800.5-1900.5, Chie's at the start). Each stretch's first end is its marker, as 76's 1234.5 is. Before the reset,
+       Aiko goes through P1 into the Closet from p1's browser, and what p3, whose Chie does not know P1, reads of it is the two
+       known leaks (known-leaks.json `foundry-passage-crossing`, `foundry-passage-only-room`). p3 is absent for the reset
+       (its module socket put aside, as `mute` does for all three: a player of this harness cannot reconnect). Red first,
+       15.10.2026: with the reset as C1 left it (no start access back) X3 to X6 were red - the GMs' access empty, every copy
+       empty, no marker at rest; with passages.mjs's `arriving` kept after the GM it named left (phase U's gm0), X1, X2, X2b and X4 to X6 were,
+       every player refusing the primary's copy as "not sent by the primary GM". */
+    phase("X: the secret passages through a reset of who knows them - the start access back, a copy cut and told again, an absent player's rebuilt, and what a crossing shows", { flow: "season-reset" });
+    const PLACE = { teleport: true, movementAction: "displace", animate: false };
+    const MARKS = { p1: 1234.5, p2: 1500.5, p3: 1800.5 };
+    const setX = await gm.eval(`
+        const scene = game.scenes.get(${J(IDS.scene)}), M = await import("${repoUrl}/scripts/movement.mjs");
+        const [closet] = await scene.createEmbeddedDocuments("Region", [{ name: "Closet", behaviors: [],
+            shapes: [{ type: "rectangle", x: 1200, y: 800, width: 800, height: 300 }], flags: { "${MOD}": { room: true, drpgNeighbours: "Nowhere" } } }]);
+        const [wall] = await scene.createEmbeddedDocuments("Wall", [{ c: [1200, 800, 2000, 800] }]);
+        const P = game.drpg.passages, seg = x => ({ x1: x, y1: 800, x2: x + 100, y2: 800 });
+        const ids = { p1: await P.create({ sceneId: scene.id, wallId: wall.id, seg: seg(${MARKS.p1}), startAccess: [${J(IDS.aiko)}] }),
+            p2: await P.create({ sceneId: scene.id, wallId: wall.id, seg: seg(${MARKS.p2}) }),
+            p3: await P.create({ sceneId: scene.id, wallId: wall.id, seg: seg(${MARKS.p3}), startAccess: [${J(IDS.chie)}] }) };
+        const G = await import("${repoUrl}/scripts/passages-gm.mjs"), S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const granted = [await P.grant(ids.p2, ${J(IDS.chie)}), await G.grantPassage(ids.p1, ${J(IDS.botan)}, { how: "shown" })];
+        const aiko = game.actors.get(${J(IDS.aiko)}), t = scene.tokens.get("TOKAIKO000000000");
+        globalThis.__s65x = { closet: closet.id, wall: wall.id, ids, at: { x: t.x, y: t.y }, actions: game.drpg.actionsLeft(aiko) };
+        await t.update({ x: 1240, y: 600 }, ${J(PLACE)});
+        if (game.drpg.actionsLeft(aiko) < 2) await game.drpg.setActions(aiko, 2);
+        return { ids, granted, room: M.roomOfToken(t), neighbours: M.neighbouringRooms(scene, "Closet"), mastermind: S.mastermindStore.get("record")?.actorId ?? null,
+            log: G.passageLog().length };`, { timeout: 30000 });
+    await settle(1000);
+    const pid = setX.ids ?? {};
+    check("X0: the GM draws the Closet, which the map joins to no room, its wall and three passages, grants P2 to Chie, shows P1 to Botan and puts Aiko in the Cafeteria; nobody is the Mastermind",
+        Object.values(pid).every(id => typeof id === "string") && J(setX.granted) === J([true, true]) && setX.room === "Cafeteria"
+            && J(setX.neighbours) === "[]" && setX.mastermind === null && setX.log === 5, J(setX), { flow: "season-reset" });
+
+    /* What a player's browser holds: its copy's passages, each with the characters it names, and Aiko's token as it reads it. */
+    const copyOf = client => client.eval(`const L = await import("${repoUrl}/scripts/passages.mjs"), M = await import("${repoUrl}/scripts/movement.mjs");
+        const scene = game.scenes.get(${J(IDS.scene)}), t = scene.tokens.get("TOKAIKO000000000");
+        return { known: Object.fromEntries(Object.entries(L.knownPassages()).map(([id, row]) => [id, [...row.actorIds].sort()])),
+            aiko: [t.x, t.y], room: M.roomOfToken(t), closet: M.neighbouringRooms(scene, "Closet") };`);
+    const named = known => Object.fromEntries(Object.entries(known ?? {}).map(([id, who]) => [Object.keys(pid).find(k => pid[k] === id) ?? id, who]));
+    const beforeX = { p1: await copyOf(p1), p2: await copyOf(p2), p3: await copyOf(p3) };
+    check("X1: before the reset each player's copy holds the passages their character knows - p1 P1 (Aiko), p2 P1 (Botan, shown), p3 P2 and P3 (Chie)",
+        J(named(beforeX.p1.known)) === J({ p1: [IDS.aiko] }) && J(named(beforeX.p2.known)) === J({ p1: [IDS.botan] })
+            && J(named(beforeX.p3.known)) === J({ p2: [IDS.chie], p3: [IDS.chie] }), J(beforeX), { flow: "season-reset" });
+
+    const movedX = await p1.eval(`const t = game.scenes.get(${J(IDS.scene)}).tokens.get("TOKAIKO000000000"), first = globalThis.__notifications.length;
+        await t.update({ x: 1240, y: 850 });
+        return globalThis.__notifications.slice(first).map(n => n.msg);`, { timeout: 30000 });
+    await settle(1500);
+    const crossed = await gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs"), t = game.scenes.get(${J(IDS.scene)}).tokens.get("TOKAIKO000000000");
+        return { at: [t.x, t.y], room: M.roomOfToken(t) };`);
+    const seenX = await copyOf(p3);
+    const wentThrough = J(movedX) === "[]" && J(crossed.at) === J([1240, 850]) && crossed.room === "Closet";
+    const blind = !Object.keys(seenX.known).includes(pid.p1) && Object.keys(seenX.known).length > 0;
+    /* The two known leaks, a Foundry limit each: every browser holds every token's position and every room's region. A check
+       is green when the passage is not seen; red, as known-leaks.json says, while it is - measured only when Aiko went through
+       and p3's copy holds passages but not P1 (p2's Botan was shown P1, so p2 is not asked). */
+    check("X2: a crossing is seen - p3, whose Chie does not know P1, reads Aiko's token go from y 600 to y 850 across the Closet's wall at x 1240, inside P1's stretch",
+        !(J(beforeX.p3.aiko) === J([1240, 600]) && J(seenX.aiko) === J([1240, 850])),
+        J({ movedX, crossed, before: beforeX.p3.aiko, after: seenX.aiko, known: Object.keys(named(seenX.known)) }),
+        { knownLeak: "foundry-passage-crossing", measured: wentThrough && blind });
+    check("X2b: a room only a passage reaches is seen - on p3 the map joins the Closet to no room, and Aiko's token stands in it",
+        !(seenX.room === "Closet" && J(seenX.closet) === "[]"),
+        J({ crossed, p3: [seenX.room, seenX.closet] }),
+        { knownLeak: "foundry-passage-only-room", measured: wentThrough && blind });
+
+    // p3 is absent for the reset: its module socket is put aside, so neither the copies' push nor anything else reaches it.
+    await p3.eval(`globalThis.__mutedSocket = (game.socket._handlers.get("module.${MOD}") ?? []).splice(0); return true;`);
+    const resetX = await gm.eval(`${resetRun({ ticked: J(["passages"]) })}
+        const PG = await import("${repoUrl}/scripts/passages-gm.mjs");
+        return { cleared: read.cleared, failed: read.failed, errors: read.errors,
+            map: Object.fromEntries(Object.entries(S.passageMapStore.entries()).map(([id, row]) => [id, [row.state, row.startAccess]])),
+            access: Object.fromEntries(Object.entries(S.passageAccessStore.entries()).map(([key, cell]) => [key, cell?.how ?? "touch"])),
+            log: PG.passageLog().length };`, { timeout: 120000 });
+    await settle(1500);
+    // The stamps' rows, `touch/<actorId>` and since E79 fix r2-G2 the Mastermind's `door/<actorId>`, are not cells.
+    const cells = Object.fromEntries(Object.entries(resetX.access ?? {}).filter(([key]) => !key.startsWith("touch/") && !key.startsWith("door/")));
+    check("X3: the reset of who knows the passages keeps the three passages and their start access, and takes the shown and the granted cells and the log",
+        J(resetX.cleared) === J(["passages"]) && J(resetX.failed) === "[]" && resetX.errors?.length === 0
+            && J(Object.keys(resetX.map ?? {}).sort()) === J(Object.values(pid).sort()) && Object.values(resetX.map).every(([state]) => state === "secret")
+            && J(cells) === J({ [`${pid.p1}/${IDS.aiko}`]: "start", [`${pid.p3}/${IDS.chie}`]: "start" }) && resetX.log === 0,
+        J({ resetX, named: named(Object.fromEntries(Object.entries(cells).map(([k, v]) => [k.split("/")[0], [k.split("/")[1], v]]))) }), { flow: "season-reset" });
+
+    const afterX = { p1: await copyOf(p1), p2: await copyOf(p2), p3: await copyOf(p3) };
+    check("X4: after the reset p1's copy holds P1 again, p2's nothing, and the absent p3's copy is cut to nothing",
+        J(named(afterX.p1.known)) === J({ p1: [IDS.aiko] }) && J(afterX.p2.known) === "{}" && J(afterX.p3.known) === "{}",
+        J(afterX), { flow: "season-reset" });
+    await p3.eval(`(game.socket._handlers.get("module.${MOD}") ?? []).push(...(globalThis.__mutedSocket ?? [])); globalThis.__mutedSocket = [];
+        return (await import("${repoUrl}/scripts/passages.mjs")).requestPassages();`);
+    await settle(1500);
+    const backX = await copyOf(p3);
+    check("X5: p3 back at the table asks for its copy and gets P3, Chie's start access, and not P2, which a GM granted",
+        J(named(backX.known)) === J({ p3: [IDS.chie] }), J(backX), { flow: "season-reset" });
+
+    /* Each stretch's marker at rest on each player's browser (76's probe: not inside a longer number): the copies' client
+       setting and storages, the world's documents and settings. The wire is not read - p3 was sent P2 before the reset. */
+    const atRest = async who => {
+        const d = await dump(who), text = J({ world: d?.world ?? {}, settings: d?.settings ?? {}, storage: d?.storage ?? {} });
+        return Object.fromEntries(Object.entries(MARKS).map(([k, x]) => [k, [...text.matchAll(new RegExp(`(?<![\\d.])${String(x).replace(".", "\\.")}(?!\\d)`, "g"))].length]));
+    };
+    const restX = { p1: await atRest("p1"), p2: await atRest("p2"), p3: await atRest("p3") };
+    check("X6: at rest p1 holds P1's stretch alone, p2 none and p3 P3's alone - P2's, which p3 knew before the reset, is gone from its storage",
+        restX.p1.p1 > 0 && restX.p1.p2 + restX.p1.p3 === 0 && restX.p2.p1 + restX.p2.p2 + restX.p2.p3 === 0
+            && restX.p3.p3 > 0 && restX.p3.p1 + restX.p3.p2 === 0, J(restX), { flow: "season-reset" });
+
+    const putBackX = await gm.eval(`const scene = game.scenes.get(${J(IDS.scene)}), was = globalThis.__s65x, aiko = game.actors.get(${J(IDS.aiko)});
+        await scene.tokens.get("TOKAIKO000000000").update(was.at, ${J(PLACE)});
+        await game.drpg.setActions(aiko, was.actions);
+        const gone = [];
+        for (const id of Object.values(was.ids)) gone.push(await game.drpg.passages.delete(id));
+        await scene.deleteEmbeddedDocuments("Wall", [was.wall]);
+        await scene.deleteEmbeddedDocuments("Region", [was.closet]);
+        delete globalThis.__s65x;
+        return { gone, closet: scene.regions.some(r => r.name === "Closet") };`, { timeout: 30000 });
+    check("X7: put back - the three passages deleted, the Closet and its wall gone, Aiko where X found her",
+        putBackX.gone.every(g => g !== false) && putBackX.closet === false, J(putBackX), { flow: "season-reset" });
 }

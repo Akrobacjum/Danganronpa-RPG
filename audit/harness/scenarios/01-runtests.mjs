@@ -40,7 +40,19 @@ function stateDiff(a, b, at = "", out = []) {
  * A1, e29run/r1g9probe) it failed the same way without this wait (1 run of 1) and passed with it
  * (2 of 2). Bounded as the suite's is.
  */
+/* The bound of one run of tiers 0 and 1 (A1, A2, A3). 240 s until E79 fix r3-G4 (17.10.2026), when 01 whole
+   failed with "eval timeout on gm" in A2 with nothing hung: tier 1 alone inside a Class Trial (a probe running
+   A2's setup, e79run/scratch/r3g4-a2time) read 221 s and 246 s on that group's tree and 238 s on its parent,
+   ca76c6a, which the fix did not slow down - the run had grown to its bound. So 600 s, about two and a half
+   times the slowest reading, until E79 fix r4-G4 (review round 4, Q5): a bound that admits two and a half times
+   the run lets a run that has grown by half pass unread. Held now to those three readings, 1.5 times the slowest
+   (246 s, so 369 s, rounded up to 370 s): half again for a lane beside other scenarios, as the chain runs 01 (whether
+   other lanes ran during the three readings was not read), against their spread of 11 %. Each run's seconds are
+   printed in its first check's detail, so the next reader compares them with 246 s rather than with the bound. */
+const READ_ONLY_MS = 370000;
+
 async function readOnlyRun(gm, check, label, repoUrl) {
+    const began = Date.now();
     const out = await gm.eval(`
         const [{ whenGmStoresLoaded }, { migrationOnLoad }] = await Promise.all([import("${repoUrl}/scripts/gm-stores.mjs"), import("${repoUrl}/scripts/migrate.mjs")]);
         const settled = await Promise.race([Promise.all([whenGmStoresLoaded(), migrationOnLoad()]).then(() => true),
@@ -52,9 +64,10 @@ async function readOnlyRun(gm, check, label, repoUrl) {
         return { settled, before, after, tiers: [...new Set((r?.results ?? []).map(x => x.tier))], failed: r?.failed, passed: r?.passed,
             tier2: /TIER 2/.test(r?.text ?? ""), purity: (r?.results ?? []).find(x => x.name === "tier 0/1 changed nothing in the world") ?? null,
             fails: (r?.results ?? []).filter(x => x.outcome === "fail").map(x => (x.name + ": " + (x.message ?? "")).slice(0, 300)) };
-    `, { timeout: 240000 });
+    `, { timeout: READ_ONLY_MS });
+    const seconds = Math.round((Date.now() - began) / 100) / 10;
     check(`gm: ${label} - tiers 0 and 1 only, no tier 2`, out && !out.tier2 && out.tiers.every(t => t <= 1) && out.tiers.length > 0,
-        JSON.stringify({ tiers: out?.tiers, tier2: out?.tier2 }));
+        JSON.stringify({ tiers: out?.tiers, tier2: out?.tier2, seconds, boundSeconds: READ_ONLY_MS / 1000 }));
     const moved = out ? stateDiff(out.before, out.after) : ["no answer"];
     check(`gm: ${label} - the harness's own reading of the world did not move`, moved.length === 0,
         (out?.settled === false ? "the load had not settled in 30 s; " : "") + moved.slice(0, 12).join("; "));
@@ -119,7 +132,7 @@ export async function run({ gm, p1, p2, p3, check, note, settle, socketTraffic, 
     const a3 = await gm.eval(`
         const r = await game.drpg.runTests();
         return { tiers: [...new Set((r?.results ?? []).map(x => x.tier))], murder: game.drpg.murderState() ?? null, failed: r?.failed };
-    `, { timeout: 240000 });
+    `, { timeout: READ_ONLY_MS });
     check("gm: A3 - runTests() runs tiers 0 and 1 only and opens no incident",
         a3 && a3.tiers.length > 0 && a3.tiers.every(t => t <= 1) && a3.murder === null && a3.failed === 0, JSON.stringify(a3).slice(0, 300));
 

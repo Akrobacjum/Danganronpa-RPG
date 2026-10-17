@@ -153,9 +153,10 @@ export function gmIds() {
     return game.users.filter(u => u.isGM).map(u => u.id);
 }
 
-/** Ids of GMs who are actually connected. */
-export function activeGmIds() {
-    return game.users.filter(u => u.isGM && u.active).map(u => u.id);
+/** Ids of GMs who are actually connected; `users` is the world's list unless a test
+ *  hands primaryGmId its own (E79 fix r2-G1). */
+export function activeGmIds(users = game.users) {
+    return users.filter(u => u.isGM && u.active).map(u => u.id);
 }
 
 /** Wait this long, and nothing else. For the one second look a GM-side guard gives
@@ -218,14 +219,14 @@ export function isPrimaryGm({ leaving = null } = {}) {
  *
  * @returns {string|null} User id, or null when no GM is connected.
  */
-export function primaryGmId({ arriving = null, leaving = null } = {}) {
+export function primaryGmId({ arriving = null, leaving = null, users = game.users } = {}) {
     const here = u => u.id !== leaving && (u.active || (arriving !== null && u.id === arriving));
-    const full = game.users
+    const full = users
         .filter(u => here(u) && u.role === CONST.USER_ROLES.GAMEMASTER)
         .map(u => u.id)
         .sort();
 
-    const assistants = (arriving !== null && game.users.get(arriving)?.isGM ? [...new Set([...activeGmIds(), arriving])] : activeGmIds())
+    const assistants = (arriving !== null && users.get(arriving)?.isGM ? [...new Set([...activeGmIds(users), arriving])] : activeGmIds(users))
         .filter(id => id !== leaving);
     const pool = full.length ? full : assistants.sort();
     return pool[0] ?? null;
@@ -330,10 +331,15 @@ export function placeRoomOptions({ room = null, sceneId = null } = {}) {
         rooms.map(r => option(scene, r)).join("")}</optgroup>`).join("");
 }
 
-export function ownerOf(actor) {
+/**
+ * The one player an actor is told to: its first owner who is connected, else its first owner. `users`
+ * is the suite's to hand (R555, since E79 fix r1-G2: a passage's copy asks it, as the Mastermind's door
+ * does).
+ */
+export function ownerOf(actor, users = game.users) {
     if (!actor) return null;
-    return game.users.find(u => !u.isGM && u.active && actor.testUserPermission(u, "OWNER"))
-        ?? game.users.find(u => !u.isGM && actor.testUserPermission(u, "OWNER"))
+    return users.find(u => !u.isGM && u.active && actor.testUserPermission(u, "OWNER"))
+        ?? users.find(u => !u.isGM && actor.testUserPermission(u, "OWNER"))
         ?? null;
 }
 
@@ -1085,9 +1091,10 @@ export function windowWidthFor(root, content, widest) {
 /**
  * One size for a tabbed window, taken from its biggest tab.
  *
- * Room Setup holds a table behind each of its eight tabs (`ROOM_SETUP_TABS` in
+ * Room Setup holds a table behind each of its nine tabs (`ROOM_SETUP_TABS` in
  * vault.mjs; this said "five" until 16.09, and had been wrong since the sixth
- * was added; the eighth, Scenes, is E13 C5's and holds no table) and they are nothing like each
+ * was added; the eighth, Scenes, is E13 C5's and holds no table, and Passages,
+ * E79 C5's, holds one only on a scene with a secret passage) and they are nothing like each
  * other: Bedrooms is two columns, Fog is one column per room. Fitting the
  * window on every switch made it right for whichever tab was showing and made
  * the window itself jump - measured at 708px on Bedrooms and 1504 on Fog, on
@@ -1552,4 +1559,21 @@ export function wireDashboardTabs(root, { onSwitch = null } = {}) {
             onSwitch?.(tab.dataset.drpgTab);
         });
     }
+}
+
+/**
+ * The two runs of a ticker: `word` six times, joined with " · " and ending in one, in two copies, so that a
+ * marquee that moves the pair by one copy's width starts again where it began (E79 C15, 1.2.79; the owner's N10,
+ * 14.10.2026: the voice tile's state word runs "in the clock ticker's build"). Until then hud.mjs `hudTicker` and
+ * events.mjs `cardTicker` each built the same two spans; the clock's and the event card's markup is what it was,
+ * byte for byte. The caller states the box, its class and `aria-hidden`: a run is a texture or a repeated word,
+ * and the sentence a reader needs is said elsewhere by each caller.
+ *
+ * @param {string} word
+ * @returns {[HTMLSpanElement, HTMLSpanElement]}
+ */
+export function tickerRuns(word) {
+    const run = document.createElement("span");
+    run.textContent = Array(6).fill(word).join(" · ") + " · ";
+    return [run, run.cloneNode(true)];
 }

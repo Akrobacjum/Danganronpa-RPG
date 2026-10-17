@@ -12,14 +12,21 @@
  *
  * Rooms are Scene Regions. A scene with no regions charges nothing, which keeps
  * a half-built map from eating everyone's actions.
+ *
+ * A secret passage a character knows (E79, passages.mjs) is one more way out of
+ * the room on either side of it, for that character alone: `passesThrough`,
+ * `reachableFrom` and `passageOpenFor` below. `passageOpenFor` is the minimal
+ * form of the doorway glow's predicate, for passages only; E51 generalises it to
+ * every door and takes this one over rather than writing a second (the E79
+ * plan's A10-9, R560's "one" clause).
  */
 
 import { MODULE_ID, ECLIPSE_MOVES, ECLIPSE_FREE_PLACEMENT, FLAGS,
     ROOM_OWNER_FLAG, BEDROOM_KEY_FLAG } from "./config.mjs";
 import {
-    SETTINGS, iAmTheMastermind, incidentParticipants, incomingTimeOfDay, discoveryLedger, eclipseMovesUsed, isDeadForGm
+    SETTINGS, iAmTheMastermind, incidentParticipants, incomingTimeOfDay, discoveryLedger, eclipseMovesUsed, isDeadForGm, isEclipse
 } from "./settings.mjs";
-import { hasFreeMove, takeMove, actionsLeft, canPayFor, freeMovesLeft } from "./actions.mjs";
+import { hasFreeMove, takeMove, actionsLeft, canPayFor, freeMovesLeft, freeActionsLeft } from "./actions.mjs";
 // Statically imported, not lazily: the crossing veto runs inside a synchronous
 // `preUpdateToken` hook, where there is no opportunity to await an import.
 // call-effects.mjs only reaches back into this file lazily, so there is no cycle.
@@ -36,6 +43,15 @@ import { whisperToOwner, whisperToGms, isPrimaryGm, log, debug, error, esc, card
 import { ROOM_FLAG, playerRegionIds, roomPieces, roomRegions, roomFlag, roomNames, isPlaceScene, homeScene, placeScenes,
     isMoveChange, levelOf, onLevel, passageBehaviour, regionPatches } from "./rooms.mjs";
 import { playSfx } from "./sfx.mjs";
+// The secret passages this browser may know (E79 C3), static for the veto's sake as the imports
+// above. passages.mjs is a leaf that never reads this file back (R560 holds its imports).
+import { openSegmentsFor, crossingVia } from "./passages.mjs";
+// The GMs' audit of a move through a wall (E79 C4), called from `noteGmPosition` with this file's
+// readers handed in; movement-audit.mjs never imports this file statically (R161).
+import { askerOf, auditMove, registerMoveAudit } from "./movement-audit.mjs";
+// Who acts as the Mastermind (E79 fix r2-G2), for the witness judge: passages-gm.mjs is already in this file's static
+// graph through movement-audit.mjs, so the edge adds no module and no cycle that was not there.
+import { actsAsMastermind } from "./passages-gm.mjs";
 
 /**
  * Region flags this file owns. Named like `VAULT_FLAGS`/`REST_FLAGS` in
@@ -85,6 +101,11 @@ const lastPosition = new Map();
  */
 const unsettled = new Map();
 const putBack = new Set();
+/* How many put-backs this browser has sent for each token (`sendBack`), so that a route judged here that sent one is
+   not announced when its judgement ends, whether its put-back is still on its way or has landed and been announced
+   already (E79 fix r4-G4: the refusal's put-back is written before its card since then, and lands while the card is
+   awaited - scenario 66 N13d read the route announced a second time, as refused in the room it was refused). */
+const putBacksSent = new Map();
 
 /**
  * The routes this browser waits on because another one settles them (`untilQuiet`), by token id.
@@ -103,8 +124,9 @@ const putBack = new Set();
  * co-owner's browser - 164 ms headless, one run on 13.10.2026 beside scenario 66 in another lane. 1500 ms
  * is the bound until a table has a reading of its own (the charge and the put-back each take a round trip
  * to the server there, which the harness's sockets do not); a put-back slower than that is drawn on the
- * refused room for a moment before it lands. It is also how long a co-owner's tile lags behind an accepted
- * route: 74 C1 and C2 read 1509 and 1516 ms in that run.
+ * refused room for a moment before it lands. It was also how long a co-owner's tile lagged behind an accepted
+ * route: 74 C1 and C2 read 1509 and 1516 ms in that run. Since E79 C14 (1.2.79) a co-owner waits only for a
+ * route that had steps pending, and announces a route of one update at once (`judgeMove`; scenario 66 N13).
  */
 const awaitingQuiet = new Map();
 const ROUTE_QUIET_MS = 1500;
@@ -155,6 +177,34 @@ export async function whenAtRest(tokenDoc) {
 const moveTurns = new Map();
 
 /**
+ * The room each token's last announcement named, with the move update it was for (`{ turn, room }`), and the
+ * spot that announcement read it at while its token has not yet come to rest (`landing`, `{ turn, spot }`):
+ * the at-rest read announces again only for another room than the one announced (E79 C14), and until then
+ * `settledSpot` answers the spot the route was announced at.
+ */
+const announced = new Map();
+const landing = new Map();
+
+/**
+ * Where a move's update puts the token (E79 C14, 1.2.79; plan-p4 N13): the x and y the update names, else the
+ * document's own (`_source`), on the token's floor. The owner's report of 15.10.2026 (1.2.78 at a v14 table):
+ * "entering a room reads too late" - since 1.2.78 a hook that read the token where its drag began waited for the
+ * token to stand still (`whenAtRest`) before the room was right. Read from the update itself, the
+ * room is the destination's at the hook, whatever the token's position reads during its animation. Whether
+ * v14's document reads the drag's start at the hook at all is not measured (LIVE-E78-14, LIVE-E79-19); where
+ * it reads the destination this is that same spot.
+ */
+function destinationOf(tokenDoc, changes) {
+    const at = key => [changes?.[key], tokenDoc._source?.[key], tokenDoc[key]].find(Number.isFinite);
+    const level = levelOf(tokenDoc);
+    return level === null ? { x: at("x"), y: at("y") } : { x: at("x"), y: at("y"), level };
+}
+
+function roomAtSpot(tokenDoc, spot) {
+    return spot && Number.isFinite(spot.x) && Number.isFinite(spot.y) ? roomAt(spot.x, spot.y, tokenDoc, spot.level ?? levelOf(tokenDoc)) : null;
+}
+
+/**
  * Where a token stands, to be put back to: x and y, and its floor when it has one (E12 C9). A
  * refused climb that put back x and y alone left the token upstairs, and a send-back that names
  * no floor is the one the GM's record (`positionOf`) matches only on a scene of one floor.
@@ -174,11 +224,12 @@ function spotOf(tokenDoc) {
  * holds nothing and answers the token's spot as written. Nor is a step taken while waypoints are pending:
  * it answers the step's own spot, and nothing is announced for it. A put-back that never lands (the GM's
  * bridge refused it) keeps the spot before the route until the token's next move, a GM's included (E77
- * fix r1-G2: until then a GM's move left it, review round 1 cor F3; scenario 74 C5).
+ * fix r1-G2: until then a GM's move left it, review round 1 cor F3; scenario 74 C5). A route announced is
+ * answered at the spot its update named until the token comes to rest (`landing`, E79 C14; scenario 66 N13b).
  */
 export function settledSpot(tokenDoc) {
     if (!tokenDoc) return null;
-    return unsettled.get(tokenDoc.id)?.spot ?? spotOf(tokenDoc);
+    return unsettled.get(tokenDoc.id)?.spot ?? landing.get(tokenDoc.id)?.spot ?? spotOf(tokenDoc);
 }
 
 export function registerMovement() {
@@ -195,11 +246,13 @@ export function registerMovement() {
     Hooks.on("updateToken", noteGmPosition);
     Hooks.on("createToken", (token, options, userId) => noteGmCreated(token, userId));
     Hooks.once("ready", primeGmPositions);
-    // The witness judge's readers (E12 C12; `judgeArrival`), by a dynamic import: sheet-audit.mjs and
-    // mastermind.mjs each reach this file back through their own static imports (R161).
-    Promise.all([import("./sheet-audit.mjs"), import("./mastermind.mjs")])
-        .then(([sheet, mastermind]) => {
-            judgeReaders = { flagsHeldNow: sheet.flagsHeldNow, itemsHeldNow: sheet.itemsHeldNow, isMastermind: mastermind.isMastermind };
+    registerMoveAudit();
+    // The witness judge's readers (E12 C12; `judgeArrival`), by a dynamic import: sheet-audit.mjs reaches
+    // this file back through its own static imports (R161). mastermind.mjs's `isMastermind` was one of them
+    // until E79 fix r2-G2: the judge now asks `actsAsMastermind` of the mover.
+    Promise.all([import("./sheet-audit.mjs")])
+        .then(([sheet]) => {
+            judgeReaders = { flagsHeldNow: sheet.flagsHeldNow, itemsHeldNow: sheet.itemsHeldNow };
         })
         .catch(err => error("Could not load the readers the witness judge reads a student through", err));
     // Who may make a room (E12 C1; the note below). Inline, each one line, so the census of
@@ -378,6 +431,8 @@ const gmSeen = new Map();
 /** tokenId -> the places it was moved from, newest last. */
 const gmHistory = new Map();
 const GM_HISTORY_KEPT = 8;
+/* How long a room's newest spot outlives the ring of `GM_HISTORY_KEPT` (`keptSightings`): the readers' own window. */
+const GM_ROOM_KEPT_MS = 60_000;
 
 function positionOf(tokenDoc) {
     return {
@@ -410,21 +465,37 @@ function noteGmPosition(tokenDoc, changes, options, userId) {
     if (!game.user?.isGM) return;
     if (changes?.x === undefined && changes?.y === undefined
         && changes?.elevation === undefined && changes?.level === undefined) return;
+    let sentTo = null;
     // The arrival judged before `gmSeen` moves (E12 C12): a token the judge has no standing for
     // stood lawfully where `gmSeen` last saw it (`seenStanding`).
     if (judgingHere()) {
         try {
-            judgeArrival(tokenDoc, userId, { revert: Boolean(options?.[REVERT]), sentBack: Boolean(options?.[SENT_BACK]) });
+            judgeArrival(tokenDoc, userId, { revert: Boolean(options?.[REVERT]), sentBack: Boolean(options?.[SENT_BACK]),
+                asker: askerOf(options?.[SENT_BACK], game.users) });
         } catch (err) {
             error(`Could not judge where "${tokenDoc.name}" arrived`, err);
         }
+        // The wall rule (E79 C4), from the same start: the GM's last sighting. It changes no standing
+        // `judgeArrival` keeps (the plan's D7) and catches its own throw.
+        const judged = auditMove(tokenDoc, changes, options, userId, gmSeen.get(tokenDoc.id), {
+            REVERT, SENT_BACK, sendBackRefusal, stairLinks, roomAt, history: recentPositions(tokenDoc.id),
+            held: judgeReaders?.flagsHeldNow ?? null,
+            sendBack: (doc, spot, how) => sendBack(doc, spot, roomAt(spot.x, spot.y, doc, spot.level ?? levelOf(doc)), how)
+        });
+        /* SEEN WHERE IT IS SENT (E79 fix r2-G1, 1.2.79; review r2, goal H1 b). The put-back is written a macrotask
+           after the audit (`sendBack`) and lands a round trip later; until then the GMs' sighting was the spot the
+           audit refused, so a second move landing in that window was judged from across the wall - a step back over
+           it was a crossing and put back there, after the first put-back: 76 D read Botan across the wall at
+           33ea568. The sighting is the spot the token is sent to from the audit on, so a move in the window is
+           judged from there; that spot is what the record gains (`sightingsAfter`), never the refused one. */
+        sentTo = judged?.back ?? null;
     }
     const was = gmSeen.get(tokenDoc.id);
     if (was) {
-        const ring = [...(gmHistory.get(tokenDoc.id) ?? []), { ...was, at: Date.now() }];
-        gmHistory.set(tokenDoc.id, ring.slice(-GM_HISTORY_KEPT));
+        const putBackTo = options?.[WALL_PUT_BACK] && game.users?.get(userId)?.isGM ? positionOf(tokenDoc) : null;
+        gmHistory.set(tokenDoc.id, sightingsAfter(gmHistory.get(tokenDoc.id) ?? [], was, Date.now(), putBackTo, roomAtSpot(tokenDoc, was)));
     }
-    gmSeen.set(tokenDoc.id, positionOf(tokenDoc));
+    gmSeen.set(tokenDoc.id, sentTo ?? positionOf(tokenDoc));
 }
 
 /**
@@ -452,6 +523,49 @@ export function noteGmCreated(tokenDoc, userId) {
  */
 export function forgetToken(tokenId) {
     for (const kept of [lastRoom, lastPosition, gmSeen, gmHistory, standings, standingHistory, pathRooms]) kept.delete(tokenId);
+}
+
+/**
+ * The GMs' record of a token (`gmHistory`) once it is seen to leave `was` at `at`: the spot added, the
+ * newest `GM_HISTORY_KEPT` kept. The audit's put-back of a move through a wall (`putBackTo`, where it
+ * stands the token again) adds nothing and cuts the record back to the newest sighting of that spot.
+ *
+ * WHY THE RECORD, NOT A MARK (E79 fix r1-G1, 1.2.79; review r1, SEC S1 and goal F2, F3). The spot
+ * the audit put a token back from entered this record when the put-back landed - the GM had seen the
+ * token there - and every reader of the record took it as a place the token stood a moment ago: the
+ * bridge's `token.sendBack` (`guardSendbackPlace`, its spots and the centres of `roomsVisited`), the
+ * audit's own REVERT and `judgeArrival`'s. C4 kept marks of those spots on the auditing browser, read by
+ * the audit's REVERT alone, for 60 s from the audit while the record's entry lived 60 s from the landing:
+ * 76 D measured the owner's send-back through the bridge to the spot written, walls ignored, and exempt
+ * as a GM's move. Cut from the record, the spot is no reader's, with no clock to outlive and no second
+ * store; and every GM cuts it, since the put-back's write carries `WALL_PUT_BACK` to every browser, so a
+ * GM that becomes the primary within the minute holds the same record. Cut back to the spot it is put
+ * back to, not only the one it leaves: a second move written before the put-back landed stood on the
+ * far side as well. A GM's write alone cuts; a player's option of that name is ignored.
+ */
+export function sightingsAfter(ring, was, at, putBackTo = null, room = null) {
+    if (!putBackTo) return keptSightings([...ring, { ...was, at, room }], at);
+    const left = ring.findLastIndex(spot => samePlace(spot, putBackTo));
+    return left < 0 ? [...ring] : ring.slice(0, left + 1);
+}
+
+/*
+ * EACH ROOM'S NEWEST SPOT FOR THE MINUTE, APART FROM THE RING (E79 fix r4-G4, 1.2.79; review round 4, SEC S2 residual).
+ * A refused route is put back on its own newest spot in the room it paid for (`settleRoute`, r3-G2), and the GMs' wall
+ * audit and the judge of arrivals take that put-back for a send-back only while the spot is in their record. The record
+ * was the newest `GM_HISTORY_KEPT` sightings alone, so a drag with eight more updates after it left the paid room pushed
+ * the spot out within the minute: the put-back was judged as a move from the route's end, through any wall on the
+ * straight line back - in 'sendBack' mode the token sent on to the room it had not paid for (scenario 66 W7, red at
+ * 0641c4c), and a put-back over two rooms an arrival the rules refuse. Kept now: the newest eight, and before them the
+ * newest entry of each room (its floor too) seen within `GM_ROOM_KEPT_MS` of `at`, by the `room` each entry was noted
+ * with - at most one more entry per room a token passed through in a minute. How many updates a real v14 drag writes
+ * is LIVE-E79-24.
+ */
+function keptSightings(ring, at) {
+    const roomKey = spot => `${spot.room ?? ""}|${spot.level ?? ""}`;
+    const newestOf = new Map(ring.map(spot => [roomKey(spot), spot]));
+    const recent = ring.slice(-GM_HISTORY_KEPT), older = ring.slice(0, Math.max(0, ring.length - GM_HISTORY_KEPT));
+    return [...older.filter(spot => at - spot.at <= GM_ROOM_KEPT_MS && newestOf.get(roomKey(spot)) === spot), ...recent];
 }
 
 /** The places this token was moved from lately, as the primary GM saw them. */
@@ -488,9 +602,11 @@ export function roomsVisited(tokenDoc, { now = Date.now(), windowMs = 60_000 } =
  * @param {object[]} [options.centres]  The spot `positionIn` gives for each room
  *   the token stood in during the window (`roomsVisited`). A route through
  *   several rooms that fails at the second crossing sends the token to the room
- *   it paid for (MAP-11), and that spot is a room's centre, which the token
- *   never stood on - the E03 review found the honest request refused. A centre
- *   names the floor it is on when the room was asked on one (`positionIn`).
+ *   it paid for (MAP-11), and until E79 fix r3-G2 that spot was a room's centre,
+ *   which the token never stood on - the E03 review found the honest request
+ *   refused. It is the route's own spot in that room since, which the history
+ *   holds; the bridge's guard alone still hands the centres in. A centre names
+ *   the floor it is on when the room was asked on one (`positionIn`).
  * @param {*} [options.level]  The floor the token stands on now, for a packet
  *   that names none.
  * @param {number} [options.now]
@@ -623,11 +739,14 @@ function droppedFrom(tokenDoc) {
     }
     return null;
 }
-/** sheet-audit.mjs's held readers and mastermind.mjs's `isMastermind`, once `registerMovement`'s import lands. */
+/** sheet-audit.mjs's held readers, once `registerMovement`'s import lands. */
 let judgeReaders = null;
 
 /** Marks the bridge's send-back (gm-bridge.mjs `handleSendback`): a player's revert that a GM writes. */
 export const SENT_BACK = "drpgSentBack";
+
+/** Marks the GMs' audit's put-back of a move through a wall (movement-audit.mjs), for every GM's record (`sightingsAfter`). */
+const WALL_PUT_BACK = "drpgWallPutBack";
 
 function samePlace(a, b) {
     return a.x === b.x && a.y === b.y && (a.level ?? null) === (b.level ?? null);
@@ -651,11 +770,11 @@ function seenStanding(tokenDoc) {
 /**
  * Judge where this token now stands (the note above), record it, and tell the GMs when it
  * turned unlawful. `userId` is the mover's, `revert` whether the write was marked as our own
- * revert, `sentBack` whether the bridge wrote it for a player, `created` whether the token was
- * just dropped. On the primary, from `noteGmPosition` and `noteGmCreated`; exported for tier 2,
- * which judges a plain token.
+ * revert, `sentBack` whether the bridge wrote it for a player, `asker` that player's id as the audit
+ * reads it (movement-audit.mjs `askerOf`), `created` whether the token was just dropped. On the
+ * primary, from `noteGmPosition` and `noteGmCreated`; exported for tier 2, which judges a plain token.
  */
-export function judgeArrival(tokenDoc, userId = null, { revert = false, sentBack = false, created = false } = {}) {
+export function judgeArrival(tokenDoc, userId = null, { revert = false, sentBack = false, asker = null, created = false } = {}) {
     if (!tokenDoc?.id) return null;
     judgingHere();
     const own = standings.get(tokenDoc.id) ?? seenStanding(tokenDoc);
@@ -675,14 +794,27 @@ export function judgeArrival(tokenDoc, userId = null, { revert = false, sentBack
         const flags = judgeReaders ? judgeReaders.flagsHeldNow(actor) : actor;
         const items = judgeReaders ? judgeReaders.itemsHeldNow(actor) : Array.from(actor.items ?? []);
         const student = { id: actor.id, name: actor.name, type: actor.type, getFlag: (scope, key) => flags.getFlag(scope, key), items };
-        const verdict = arrivalVerdict(student, was?.last ?? null, tokenDoc,
-            { gm: false, mastermind: Boolean(judgeReaders?.isMastermind(actor)) });
+        /* The Mastermind as the mover acts (passages-gm.mjs `actsAsMastermind`): the one owner the door names, as the
+           mover's own veto reads it (`iAmTheMastermind`). Until E79 fix r2-G2 (16.10.2026; the round-2 review's SEC M3)
+           the role was read off the student alone, and another owner of the Mastermind's student, whose own browser
+           refuses a lock and a passage it does not know, was let stand past both here. On the bridge's send-back the
+           mover is the player who asked it (`asker`), as the audit reads the same write (E79 fix r3-G2; review r3, SEC
+           S4): the hook's user is the GM who wrote it, and a GM acts as the Mastermind, so a co-owner's send-back of
+           the Mastermind's token through a passage the student does not know stood lawful (76 G, red at 647c8b0). The
+           asker is read on a GM's write alone, as the audit reads it: a player's own write naming another is its writer's. */
+        const asked = asker && mover?.isGM ? game.users?.get(asker) ?? null : null;
+        const mastermind = actsAsMastermind(actor, asked ?? mover);
+        // Through a secret passage (E79 C3): the straight line from where the primary last saw the token to
+        // where it stands, on the floor of the room it came from, against the GMs' records.
+        const via = was ? crossingVia(centresOf(tokenDoc, was, tokenDoc), actor, tokenDoc.parent?.id, was.last?.level ?? null, { mastermind }) : null;
+        const verdict = arrivalVerdict(student, was?.last ?? null, tokenDoc, { gm: false, mastermind }, via);
         now = verdict === true ? standingHere(tokenDoc)
             : standingHere(tokenDoc, { lawful: false, last: was?.last ?? null, told: was?.lawful === false && was.told, reason: verdict });
     }
     if (own && !samePlace(own, now)) {
-        const ring = [...(standingHistory.get(tokenDoc.id) ?? []), { ...own }];
-        standingHistory.set(tokenDoc.id, ring.slice(-GM_HISTORY_KEPT));
+        // Kept as the GMs' sightings are (`keptSightings`, E79 fix r4-G4): a put-back's `back` is found by the same spot.
+        const at = Date.now(), ring = [...(standingHistory.get(tokenDoc.id) ?? []), { ...own, at, room: roomAtSpot(tokenDoc, own) }];
+        standingHistory.set(tokenDoc.id, keptSightings(ring, at));
     }
     keepStanding(tokenDoc, now);
     if (!now.lawful && !now.told && isPrimaryGm()) {
@@ -700,7 +832,7 @@ export function judgeArrival(tokenDoc, userId = null, { revert = false, sentBack
  * and a body is a body (`isCorpse`, which the veto asks before them). Pure but for the settings
  * those rules read.
  */
-function arrivalVerdict(student, last, tokenDoc, mover) {
+function arrivalVerdict(student, last, tokenDoc, mover, via = null) {
     if (isCorpse(student)) return game.i18n.localize("DRPG.Move.dead");
     // Nobody stands in the trial hall (rooms.mjs, E13 C1), so no move there is a crossing. Asked
     // here and not left to `roomOfToken`: the last room the judge holds may predate the link.
@@ -710,7 +842,7 @@ function arrivalVerdict(student, last, tokenDoc, mover) {
     const from = last?.room ?? null;
     const to = roomOfToken(tokenDoc);
     if (from === to) return true;                      // the same room, a stairwell's floors too
-    return crossingVerdict(student, from, to, tokenDoc.parent, { from: last?.level ?? null, to: levelOf(tokenDoc) }, { mover, pay: false });
+    return crossingVerdict(student, from, to, tokenDoc.parent, { from: last?.level ?? null, to: levelOf(tokenDoc) }, { mover, pay: false, via });
 }
 
 /** The GMs' notice, once per turn to unlawful; and the GM's console. */
@@ -817,7 +949,12 @@ function onPreUpdateToken(tokenDoc, changes, options) {
         if (from === to) return;                       // same room: always free, a stairwell's floors too
         if (!from && !to) return;                      // no regions here
 
-        const allowed = crossingVerdict(actor, from, to, tokenDoc.parent, { from: here, to: there });
+        // Whether the step goes through a secret passage this character knows (E79 C3): the token's centre now
+        // and where it is going, as one straight line. A route of several waypoints is read on that line,
+        // which can miss a passage the waypoints went through; then the bedroom beyond is shut, as a door's.
+        const via = crossingVia(centresOf(tokenDoc, tokenDoc, { x: changes.x ?? tokenDoc.x, y: changes.y ?? tokenDoc.y }),
+            actor, tokenDoc.parent?.id, here);
+        const allowed = crossingVerdict(actor, from, to, tokenDoc.parent, { from: here, to: there }, { via });
         if (allowed === true) return;
 
         ui.notifications.warn(allowed);
@@ -873,9 +1010,18 @@ function isCorpse(actor) {
  * asks every rule but the price - the Eclipse's count of crossings and the economy below the
  * movement setting. What a crossing costs is the charge's, on whichever browser pays it.
  *
+ * A SECRET PASSAGE IS A WAY OUT FOR WHOEVER KNOWS IT (E79 C3, 14.10.2026; the E79 plan's P5-0). Where
+ * the character knows a passage between `from` and `to` on one floor (`passesThrough`), the two rooms
+ * are connected for it, in daily life and in an Eclipse alike - and nothing else changes: the lock,
+ * the seal, the chain, the courtroom, the Eclipse's count and the price are asked as for a door.
+ * `via` is "passage" when the caller read the step going through a passage this character knows
+ * (passages.mjs `crossingVia`: the veto from the token's route, the witness judge from where it last
+ * stood), and only then is a bedroom beyond open without its key (`restrictedFrom`). `known` is the
+ * suite's (R558): rows of its own in the copy's shape.
+ *
  * @returns {true|string} true, or the reason it is refused.
  */
-export function crossingVerdict(actor, from, to, scene, floors = null, { mover = null, pay = true } = {}) {
+export function crossingVerdict(actor, from, to, scene, floors = null, { mover = null, pay = true, via = null, known } = {}) {
     // Monokumas are not bound by any of this.
     if (actor.getFlag(MODULE_ID, FLAGS.monokuma)) return true;
 
@@ -891,7 +1037,8 @@ export function crossingVerdict(actor, from, to, scene, floors = null, { mover =
 
     // Despair Calls that physically stop you. Checked before the action economy
     // because they are absolute: no amount of actions buys past a locked door.
-    const blocked = restrictedFrom(actor, to, scene, mover);
+    const passage = passesThrough(actor, from, to, scene, floors, { mover, known });
+    const blocked = restrictedFrom(actor, to, scene, mover, { via: passage && via === "passage" ? "passage" : null });
     if (blocked) return blocked;
 
     const clock = game.settings.get(MODULE_ID, SETTINGS.clock);
@@ -953,7 +1100,7 @@ export function crossingVerdict(actor, from, to, scene, floors = null, { mover =
                into the Attic above it cost one crossing, and the witness judge, which asks here with
                `pay: false`, called it lawful. One rule for both roads now; tier 2 "a change of floor
                between rooms only a player's stairs link is refused ..." reads it in an Eclipse. */
-            const refused = crossingRefused(scene, from, to, floors);
+            const refused = passage ? false : crossingRefused(scene, from, to, floors);
             if (refused) return refused;
         }
         return true;
@@ -967,7 +1114,7 @@ export function crossingVerdict(actor, from, to, scene, floors = null, { mover =
     // they are in." Only the Eclipse used to check this, so during an ordinary
     // time of day a token could be dragged clean across the map for one Move -
     // which makes Listen, room visibility and any alibi meaningless.
-    const notConnected = crossingRefused(scene, from, to, floors);
+    const notConnected = passage ? false : crossingRefused(scene, from, to, floors);
     if (notConnected) return notConnected;
     if (!pay) return true;
 
@@ -1166,9 +1313,14 @@ function lockedInIncident(actor) {
  * `mover` is the one `crossingVerdict` was handed (E12 C12): the primary judging a player's
  * arrival is a GM, and asks of the player whether they are the Mastermind and are a GM.
  *
+ * `via: "passage"` (E79 C3; the E79 plan's P7-0) is a step through a secret passage the character
+ * knows, and it skips one rule only: the key to somebody's bedroom, since a passage into a bedroom
+ * is the way in without one. A GM's lock, a seal and the chain stand, and so does the courtroom,
+ * which `crossingVerdict` asks below this.
+ *
  * @returns {false|string} false when the move is allowed, otherwise the reason.
  */
-function restrictedFrom(actor, to, scene, mover = null) {
+function restrictedFrom(actor, to, scene, mover = null, { via = null } = {}) {
     try {
         if (isChained(actor)) return game.i18n.localize("DRPG.Calls.chainedBlocked");
         if (to && !(mover ? mover.mastermind : iAmTheMastermind())) {
@@ -1178,7 +1330,7 @@ function restrictedFrom(actor, to, scene, mover = null) {
             // key they were given - see the note on keys in vault.mjs. A GM
             // moving a token is not standing in the fiction and is never
             // stopped by a door.
-            if (!(mover ? mover.gm : game.user.isGM) && bedroomShut(actor, scene, to)) {
+            if (via !== "passage" && !(mover ? mover.gm : game.user.isGM) && bedroomShut(actor, scene, to)) {
                 return game.i18n.format("DRPG.Vault.keyMissing", { room: to });
             }
         }
@@ -1225,6 +1377,91 @@ function bedroomShut(actor, scene, to) {
     if (!owner || owner === actor?.id) return false;
     return !Array.from(actor?.items ?? [])
         .some(item => item.getFlag(MODULE_ID, BEDROOM_KEY_FLAG) === to);
+}
+
+/* ------------------------------------------------------------------------------------------------------------
+ * THE SECRET PASSAGES, AS THE VERDICT READS THEM (E79 C3, 14.10.2026; the E79 plan's P5-0 and P7-0).
+ *
+ * A passage is a stretch of a wall (passages.mjs); which rooms it joins is read off the map, not off the
+ * GMs' record of it - a player's copy names no room, and a room renamed since the passage was made is
+ * still the room on each side. From the stretch's middle the hit test (`piecesAt`) is asked outward on
+ * each side, at the fractions of a square `neighbourBeyond` steps out at for a doorway (fog-doorways.mjs:
+ * that file reads this one, so the four numbers are written here again rather than imported), on the
+ * floor asked. A side where no room is found joins nothing.
+ * ------------------------------------------------------------------------------------------------------------ */
+const PASSAGE_SIDES = [0.35, 0.6, 0.85, 1];
+
+/**
+ * The room on each side of a passage's stretch `{ x1, y1, x2, y2 }` on `level`, `[a, b]`, null where none.
+ * Exported since E79 C7 (15.10.2026): the sheet's 'Known passages' names a passage by these two rooms, and
+ * the show's cards on the primary GM (passages-gm.mjs `sharePassage`) do the same.
+ */
+export function passageRooms(scene, passage, level = null) {
+    const dx = passage.x2 - passage.x1, dy = passage.y2 - passage.y1, length = Math.hypot(dx, dy);
+    if (!(length > 0)) return [null, null];
+    const grid = scene?.grid?.size ?? 100;
+    const mx = (passage.x1 + passage.x2) / 2, my = (passage.y1 + passage.y2) / 2;
+    const nx = -dy / length, ny = dx / length;
+    return [1, -1].map(side => {
+        for (const fraction of PASSAGE_SIDES) {
+            const x = mx + side * nx * grid * fraction, y = my + side * ny * grid * fraction;
+            const room = piecesAt(scene, x, y, 0, level).map(region => region.name).sort()[0];
+            if (room) return room;
+        }
+        return null;
+    });
+}
+
+/**
+ * The rooms this character reaches from `room` through the secret passages it knows on this scene and
+ * floor, sorted: none for a character that knows none, which is nearly every crossing. On a GM's
+ * browser the GMs' records name the knowers, and `mover.mastermind` passes every passage (the owner's
+ * Q7). `known` is the suite's (R558).
+ */
+export function reachableFrom(actor, room, scene, { level = null, mover = null, known } = {}) {
+    if (!room || !scene?.id) return [];
+    const far = new Set();
+    for (const passage of openSegmentsFor(actor, scene.id, level, { mastermind: Boolean(mover?.mastermind), known })) {
+        const sides = passageRooms(scene, passage, level);
+        if (!sides.includes(room)) continue;
+        for (const other of sides) if (other && other !== room) far.add(other);
+    }
+    return [...far].sort();
+}
+
+/**
+ * Whether a passage this character knows joins `from` to `to` on one floor - a crossing the connected-rooms
+ * rule then lets through (`crossingVerdict`, eclipse.mjs `judgeEclipseCrossing`). A change of floor is the
+ * stairs' (`crossingRefused`), never a passage's.
+ */
+export function passesThrough(actor, from, to, scene, floors = null, { mover = null, known } = {}) {
+    if (!from || !to || from === to) return false;
+    if (floors && levelKey(floors.from) !== levelKey(floors.to)) return false;
+    return reachableFrom(actor, from, scene, { level: floors?.from ?? null, mover, known }).includes(to);
+}
+
+/**
+ * Whether this passage, `{ id, x1, y1, x2, y2 }`, is a way out for this character now (the E79 plan's
+ * P7-0, the owner's Q9): it knows the passage, and the rules that stop a step through it - a GM's lock, a
+ * seal, the chain (`restrictedFrom` with `via: "passage"`) - stop none into the room beyond `from`, or into
+ * either room when `from` is neither. The doorway glow draws a gap only where this is true (fog-doorways.mjs
+ * `doorwayEdges`), so the frame says what the veto would answer. E51 generalises it to every door and takes
+ * it over (the E79 plan's A10-9); R560 holds that it is written once. `known` is the suite's (R557).
+ */
+export function passageOpenFor(actor, passage, scene, { from = null, level = null, mover = null, known } = {}) {
+    if (!passage?.id || !scene?.id) return false;
+    const knows = openSegmentsFor(actor, scene.id, level, { mastermind: Boolean(mover?.mastermind), known })
+        .some(seg => seg.id === passage.id);
+    if (!knows) return false;
+    const beyond = passageRooms(scene, passage, level).filter(room => room && room !== from);
+    return beyond.length > 0 && beyond.every(room => !restrictedFrom(actor, room, scene, mover, { via: "passage" }));
+}
+
+/** A token's centre at each spot `{ x, y }` (its top-left corner), measured with its own scene's grid as `regionsAt` measures it. */
+function centresOf(tokenDoc, ...spots) {
+    const size = tokenDoc?.parent?.grid?.size ?? canvas?.grid?.size ?? 100;
+    const w = ((tokenDoc?.width ?? 1) * size) / 2, h = ((tokenDoc?.height ?? 1) * size) / 2;
+    return spots.map(spot => ({ x: Number(spot?.x) + w, y: Number(spot?.y) + h }));
 }
 
 /**
@@ -1475,39 +1712,72 @@ async function settleRoute(tokenDoc, actor, { before, previous, crossings }) {
     // crossing here. The token goes to the room that WAS paid for.
     // On the floor the step reached (E12 fix r2-H1; early review EARLY-C9-2): a room's centre
     // without its floor put a route refused at the stairs back at the Hall's x and y upstairs.
+    /* ON THE ROUTE'S OWN SPOT, NOT THE ROOM'S CENTRE (E79 fix r3-G2, 1.2.79; review r3, SEC S2 = cor B). The
+       room paid for was put back at its centre (`positionIn`), where the token never stood: the GMs' wall
+       audit judges that put-back as a move (movement-audit.mjs; its record holds no centre) along the straight
+       step from the route's end to the centre, and the security probe F3 - three rooms in a row, a door in the
+       middle of each wall - read it crossed on the plain wall beside the second door: a row and a warn naming
+       the player in "log" mode, and in "sendBack" the token sent on to the route's end, the room not paid for.
+       The spot the drag stood on last in that room (`notePathRoom`) is a landing every GM saw, so the GMs'
+       record holds it (`recentPositions`: for a minute, past the ring's eight sightings as the room's newest since
+       E79 fix r4-G4, `keptSightings`, scenario 66 W7) and the audit and the judge of arrivals take
+       the put-back as a send-back to it, by the rule they already keep and with no centre for a console to aim
+       at (round 2's SEC M1). Scenario 66 W6: red at 647c8b0 in both modes. */
     let standing = previous;
-    for (const [from, to, floors] of crossings) {
+    for (const [from, to, , spot] of crossings) {
         const paid = await chargeForCrossing(actor, from, to, tokenDoc, standing);
         if (!paid) return false;
-        standing = positionIn(to, tokenDoc, floors?.to ?? null) ?? standing;
+        standing = spot ?? standing;
     }
     return true;
 }
 
 /**
- * A token's update, judged (`judgeMove`), and its route announced once the token stands where the route
- * leaves it (E77 C2, 13.10.2026; the A8 design's step 5).
+ * A token's update, judged (`judgeMove`), and its route announced on the update that names where it ends
+ * (E77 C2, 13.10.2026; the A8 design's step 5; E79 C14, 1.2.79).
  *
- * `Hooks.callAll("drpgRouteSettled", { tokenDoc, accepted })` is client-local and fires once per route:
- * `accepted: true` when the move stands (a GM's, a Monokuma's, a token's first sight, a move inside a room,
- * an Eclipse's allowed crossings, the charge switched off, every crossing paid); `accepted: false` when the
- * module put the token where it stands now (its own REVERT - a refusal's put-back, the bridge's, a gather -
- * on every browser) or refused a crossing it did not put back (`takeMove` paid nothing). A refusal that
- * schedules a put-back is not announced: the put-back is, when it lands, so a listener never reads the
- * token in a room it was refused. Nothing fires for a change that is no move (a GM's included, E77 fix
- * r1-G2), or for a step of a drag still in flight (`movement.pending.waypoints`). On a browser that does
- * not settle the route (another one charges it) it fires only where the token's actor is owned: `false`
- * when the put-back lands, `true` once the token has been quiet for `ROUTE_QUIET_MS` (`untilQuiet`, E77 fix
- * r1-G2; until then nothing fired there, review round 1 cor F1). Until C2 a reader had only the raw update,
- * which reaches every browser before the refusal and its put-back (the A8 design's CB-8): a tile drawn on
- * it names a room the character never entered. Scenario 66 W2-W4 counts the announcements on the mover's
- * browser and two others, scenario 74 C on a co-owner's; R506 reads that this is the one place that fires it.
+ * `Hooks.callAll("drpgRouteSettled", { tokenDoc, accepted, room, again, provisional })` is client-local: `accepted: true`
+ * when the move stands (a GM's, a Monokuma's, a token's first sight, a move inside a room, an Eclipse's allowed
+ * crossings, the charge switched off, every crossing paid); `accepted: false` when the module put the token where
+ * it stands now (its own REVERT - a refusal's put-back, the bridge's, a gather - on every browser) or refused a
+ * crossing it did not put back (`takeMove` paid nothing). `room` is the room at the spot the update names
+ * (`destinationOf`), not where the token's position reads at the hook. A route whose put-back is on its way, or
+ * landed before its judgement ended (`putBacksSent`, E79 fix r4-G4), is not announced, whoever's refusal it is - this browser's charge or, on the primary GM, the GMs' wall audit
+ * (`noteGmPosition`, which marks it before the judge's first `await` resumes; until E79 C14 the audit's put-back
+ * of a move inside one room was announced as accepted first, scenario 76 D N13): the put-back is, when it lands,
+ * so a listener never reads the token in a room it was refused. Nothing fires for a change that is no move (a
+ * GM's included, E77 fix r1-G2), or for a step of a drag still in flight (`movement.pending.waypoints`). On a
+ * browser that does not settle the route (another one charges it) it fires only where the token's actor is
+ * owned: at once for a route of one update, and for a route that had steps pending once the token has been quiet
+ * for `ROUTE_QUIET_MS` (`untilQuiet`, E77 fix r1-G2), or `false` when its put-back lands. `provisional` is false
+ * for every announcement but the first of those, a route of one update another browser charges, where it is a
+ * promise of whether the route stood (`judgeMove`'s note, review round 3 cor D): a screen draws the room at once,
+ * and a write of the GMs' records waits on it. On the primary GM it is false at once for a route it reads as refused
+ * (`refusedOnPrimary`, E79 fix r4-G4), and so is the `provisional` of a route with steps pending that it announces
+ * after quiet.
+ *
+ * The at-rest read (`recheckAtRest`) announces once more, with `again: true` when this browser announced that
+ * update already, only where the token comes to rest in another room than the one announced; a listener takes
+ * the second as the correction of the first (the room tile repaints, the primary's watch on the passages asks
+ * again; the move card is the charge's, posted once per crossing paid).
+ *
+ * The owner's report of 15.10.2026, on 1.2.78: "entering a room reads too late". Read headless at 33ea568 (the
+ * E79 part-4 probe, once): a co-owner's browser - the GM's, for a player's route - announced a route of one update
+ * 1500 ms after it (`ROUTE_QUIET_MS`), and a hook that read the token at its drag's start announced the room left
+ * and then, at rest, the room entered. Scenario 66 N13 reads both since C14 (the numbers are in its comments);
+ * the wait for a real animation and a v14 drag's last update are LIVE-E79-19. Until E77 C2 a reader had only the
+ * raw update, which reaches every browser before the refusal and its put-back (the A8 design's CB-8). Scenario 66
+ * W2-W5 and N13 count the announcements on the mover's browser and two others, scenario 74 C on a co-owner's;
+ * R506 reads that this is the one place that fires it.
  */
-async function onUpdateToken(tokenDoc, changes, options, userId, { atRest = false } = {}) {
+async function onUpdateToken(tokenDoc, changes, options, userId, { atRest = false, of = 0 } = {}) {
     restartQuiet(tokenDoc.id);
     const turn = atRest || !isMoveChange(changes) ? 0 : (moveTurns.get(tokenDoc.id) ?? 0) + 1;
-    if (turn) moveTurns.set(tokenDoc.id, turn);
-    const route = {};
+    if (turn) {
+        moveTurns.set(tokenDoc.id, turn);
+        landing.delete(tokenDoc.id);
+    }
+    const route = {}, sent = putBacksSent.get(tokenDoc.id) ?? 0;
     let accepted;
     try {
         accepted = await judgeMove(tokenDoc, changes, options, userId, route, { atRest });
@@ -1517,29 +1787,41 @@ async function onUpdateToken(tokenDoc, changes, options, userId, { atRest = fals
         if (unsettled.get(tokenDoc.id) === route && !putBack.has(tokenDoc.id)) unsettled.delete(tokenDoc.id);
     }
     if (turn) recheckAtRest(tokenDoc, changes, options, userId, turn).catch(err => error("Movement re-read at rest failed", err));
-    if (accepted === false && putBack.has(tokenDoc.id)) return;
-    if (accepted === true || accepted === false) Hooks.callAll("drpgRouteSettled", { tokenDoc, accepted });
+    if (putBack.has(tokenDoc.id) || (putBacksSent.get(tokenDoc.id) ?? 0) !== sent) return;
+    if (accepted !== true && accepted !== false) return;
+    const spot = route.landing ?? spotOf(tokenDoc), room = roomAtSpot(tokenDoc, spot);
+    const again = atRest && announced.get(tokenDoc.id)?.turn === of;
+    announced.set(tokenDoc.id, { turn: turn || of, room });
+    if (turn && moveTurns.get(tokenDoc.id) === turn) landing.set(tokenDoc.id, { turn, spot });
+    Hooks.callAll("drpgRouteSettled", { tokenDoc, accepted, room, again, provisional: route.stands ?? false });
 }
 
 /**
  * The move judged once more where the token came to rest (`whenAtRest`, whose note has the owner's report of
- * 14.10.2026), as the same update - a GM's, a put-back or a player's - and announced as it would have been: when no newer move of the token reached this browser meanwhile, no put-back is on its way, and the
- * character's room is not the one its update recorded (`lastRoom`) or a step of its drag is still noted
- * (`pathRooms`) with no last step behind it. A route left pending waits `ROUTE_QUIET_MS` from its last
- * update first, as a co-owner's wait for quiet does, so a drag whose last step is merely slow is not cut in
- * two. Everywhere else - every route the hook read where it ended, every route of the harness - it finds
- * the room recorded and does nothing.
+ * 14.10.2026), as the same update - a GM's, a put-back or a player's - and announced as it would have been: when no
+ * newer move of the token reached this browser meanwhile, no put-back is on its way, and the character stands in
+ * another room than the one announced for that update (`announced`; the one its update recorded, `lastRoom`, where
+ * this browser announced none of it), or a step of its drag is still noted (`pathRooms`) with no last step behind
+ * it. A route left pending waits `ROUTE_QUIET_MS` from its last update first, as a co-owner's wait for quiet does,
+ * so a drag whose last step is merely slow is not cut in two. Everywhere else - every route the hook read where it
+ * ended, every route of the harness - it finds the room announced, takes the spot it stands on as the last in that
+ * room, and announces nothing.
  */
 async function recheckAtRest(tokenDoc, changes, options, userId, turn) {
     await whenAtRest(tokenDoc);
     const id = tokenDoc.id;
     if (pathRooms.has(id)) await pause(ROUTE_QUIET_MS);
     if (moveTurns.get(id) !== turn || putBack.has(id) || unsettled.has(id)) return;
+    if (landing.get(id)?.turn === turn) landing.delete(id);
     if (tokenDoc.actor?.type !== "character" || !lastRoom.has(id)) return;
-    if (!pathRooms.has(id) && roomOfToken(tokenDoc) === lastRoom.get(id)) return;
+    const told = announced.get(id)?.turn === turn ? announced.get(id) : null;
+    if (!pathRooms.has(id) && roomOfToken(tokenDoc) === (told ? told.room : lastRoom.get(id))) {
+        if (told) lastPosition.set(id, spotOf(tokenDoc));
+        return;
+    }
     debug(`Route of ${tokenDoc.name} read again at rest: recorded ${lastRoom.get(id) ?? "no room"}, `
         + `standing in ${roomOfToken(tokenDoc) ?? "no room"}.`);
-    await onUpdateToken(tokenDoc, changes, options, userId, { atRest: true });
+    await onUpdateToken(tokenDoc, changes, options, userId, { atRest: true, of: turn });
 }
 
 /**
@@ -1548,11 +1830,15 @@ async function recheckAtRest(tokenDoc, changes, options, userId, turn) {
  * `atRest` (`recheckAtRest`) judges the token where it stands, its waypoints pending or not.
  */
 async function judgeMove(tokenDoc, changes, options, userId, route = {}, { atRest = false } = {}) {
+    // Where the update puts the token (`destinationOf`, E79 C14), and where it stands at rest.
+    const landed = route.landing = atRest ? spotOf(tokenDoc) : destinationOf(tokenDoc, changes);
+    const after = roomAtSpot(tokenDoc, landed);
+
     // Our own revert: record where it landed, charge nothing.
     if (options?.[REVERT]) {
         endQuiet(tokenDoc.id);
-        lastRoom.set(tokenDoc.id, roomOfToken(tokenDoc));
-        lastPosition.set(tokenDoc.id, spotOf(tokenDoc));
+        lastRoom.set(tokenDoc.id, after);
+        lastPosition.set(tokenDoc.id, landed);
         putBack.delete(tokenDoc.id);
         unsettled.delete(tokenDoc.id);
         return false;
@@ -1570,8 +1856,8 @@ async function judgeMove(tokenDoc, changes, options, userId, route = {}, { atRes
     // it always did. A GM's move ends whatever this browser held of the token's last route, a put-back
     // that never landed included (cor F3).
     if (game.users.get(userId)?.isGM) {
-        lastRoom.set(tokenDoc.id, roomOfToken(tokenDoc));
-        lastPosition.set(tokenDoc.id, spotOf(tokenDoc));
+        lastRoom.set(tokenDoc.id, after);
+        lastPosition.set(tokenDoc.id, landed);
         if (!isMoveChange(changes)) return;
         endQuiet(tokenDoc.id);
         putBack.delete(tokenDoc.id);
@@ -1602,7 +1888,7 @@ async function judgeMove(tokenDoc, changes, options, userId, route = {}, { atRes
        so adjacency and locks were never fooled by a multi-waypoint route -
        only the price was. */
     if (!atRest && tokenDoc.movement?.pending?.waypoints?.length) {
-        notePathRoom(tokenDoc.id, roomOfToken(tokenDoc), levelOf(tokenDoc));
+        notePathRoom(tokenDoc.id, roomOfToken(tokenDoc), levelOf(tokenDoc), spotOf(tokenDoc));
         return;
     }
 
@@ -1626,8 +1912,8 @@ async function judgeMove(tokenDoc, changes, options, userId, route = {}, { atRes
     // spend and no walls to respect.
     const { isMonokuma } = await import("./monokuma.mjs");
     if (isMonokuma(actor)) {
-        lastRoom.set(tokenDoc.id, roomOfToken(tokenDoc));
-        lastPosition.set(tokenDoc.id, spotOf(tokenDoc));
+        lastRoom.set(tokenDoc.id, after);
+        lastPosition.set(tokenDoc.id, landed);
         return true;
     }
 
@@ -1637,11 +1923,10 @@ async function judgeMove(tokenDoc, changes, options, userId, route = {}, { atRes
     const known = lastRoom.has(tokenDoc.id);
     const before = lastRoom.get(tokenDoc.id) ?? null;
     const previous = lastPosition.get(tokenDoc.id) ?? null;
-    const after = roomOfToken(tokenDoc);
 
     if (!known) {
         lastRoom.set(tokenDoc.id, after);
-        lastPosition.set(tokenDoc.id, spotOf(tokenDoc));
+        lastPosition.set(tokenDoc.id, landed);
         return true;
     }
 
@@ -1649,13 +1934,13 @@ async function judgeMove(tokenDoc, changes, options, userId, route = {}, { atRes
     // them. Ending where you started is no longer the same as going
     // nowhere: the route is what is charged for.
     const crossings = crossingsAlong({ room: before, level: previous?.level ?? null }, path,
-        { room: after, level: levelOf(tokenDoc) });
+        { room: after, level: levelOf(tokenDoc), spot: landed });
 
     // Nothing crossed - a move inside one room, or a scene with no regions
     // at all: free. Remember the new spot so a later refused crossing snaps
     // back to somewhere sensible.
     if (!crossings.length) {
-        lastPosition.set(tokenDoc.id, spotOf(tokenDoc));
+        lastPosition.set(tokenDoc.id, landed);
         lastRoom.set(tokenDoc.id, after);
         return true;
     }
@@ -1664,12 +1949,53 @@ async function judgeMove(tokenDoc, changes, options, userId, route = {}, { atRes
 
     const settled = await settleRoute(tokenDoc, actor, { before, previous, crossings });
     if (settled !== undefined || !actor.isOwner) return settled;
-    // Another browser settles it (`awaitingQuiet`). Accepted, it stands where it stopped: the spot the
+    // Another browser settles it. A route of one update stands where it names, at once (E79 C14; the owner's
+    // "entering a room reads too late": the GM's browser announced such a route 1500 ms after it, waiting for
+    // quiet). A refusal of that route by the browser that charges it means its budget moved between that
+    // browser's veto and its charge; its put-back is announced here when it lands, after the room it refused.
+    // A route that had steps pending, which the charging browser may refuse at a later crossing (scenario 74
+    // C3, 66 W4), still waits for quiet (`awaitingQuiet`). Accepted, it stands where it stopped: the spot the
     // settling browser's charge records there (`chargeForCrossing`), and this browser's next route starts
     // from it.
+    // Announced at once, it is still provisional here (review round 3, 17.10.2026, cor D): `route.stands`
+    // settles true once the token is quiet for `ROUTE_QUIET_MS`, false when the put-back, a GM's move or the
+    // token's next route ends the wait first (`endQuiet`). A listener that acts on the GMs' records, not on
+    // what a screen shows, waits on it (passages-gm.mjs `onRouteSettled`): until then the primary revoked a
+    // passage kept "until they leave the room" on a route its charge then refused and put back (scenario 76 E).
+    // On the primary GM a route it reads as refused (`refusedOnPrimary`, E79 fix r4-G4) settles false at once,
+    // whenever its put-back lands; the quiet bound is kept for every other reading and every other browser.
+    const refused = refusedOnPrimary(tokenDoc, actor, crossings);
+    if (!path.length) {
+        lastPosition.set(tokenDoc.id, landed);
+        route.stands = refused ? Promise.resolve(false) : untilQuiet(tokenDoc).then(quiet => quiet === true);
+        return true;
+    }
     const quiet = await untilQuiet(tokenDoc);
     if (quiet) lastPosition.set(tokenDoc.id, spotOf(tokenDoc));
+    if (quiet && refused) route.stands = Promise.resolve(false);
     return quiet;
+}
+
+/*
+ * THE PRIMARY'S OWN READING OF A ROUTE ANOTHER BROWSER CHARGES (E79 fix r4-G4, 1.2.79; review round 4, cor D residual).
+ * Whether the route stood was the quiet bound's answer alone: true once the token was quiet for `ROUTE_QUIET_MS`, so a
+ * put-back that landed later - a loaded browser, a slow server - left a refused route standing, and the primary's
+ * `revokeLeavers` (passages-gm.mjs `onRouteSettled`) took a passage kept "until they leave the room" for a step that
+ * never stood (scenario 76 E, its put-back held 2 s: red at 0641c4c). The fix list asked for the primary's own
+ * `judgeArrival` verdict. That verdict judges the rules of a crossing and never its price (it asks `crossingVerdict`
+ * with no `pay`): on that route it read the step lawful, since the refusal was the charge's, for want of a Move - so
+ * it is one of the two readings here. The other is the charge's own question (`chargeForCrossing`, `takeMove`) asked
+ * of the same flags on the GM's copy of the student as the update reaches it, before the charging browser's spend can:
+ * a free Move, the Sprints, the Bursts and the actions, one a crossing. True only for a route this browser reads as
+ * refused; an Eclipse (`judgeEclipseCrossing` counts what the GMs hold of it) and a route the rules let through
+ * and the charge then refuses for a budget that moved meanwhile still wait for quiet.
+ */
+function refusedOnPrimary(tokenDoc, actor, crossings) {
+    if (!isPrimaryGm()) return false;
+    if (standings.get(tokenDoc.id)?.lawful === false) return true;
+    if (isEclipse() || !game.settings.get(MODULE_ID, SETTINGS.chargeMovement)) return false;
+    const budget = (hasFreeMove(actor) ? 1 : 0) + freeMovesLeft(actor) + freeActionsLeft(actor) + actionsLeft(actor);
+    return budget < crossings.length;
 }
 
 /**
@@ -1725,15 +2051,19 @@ const pathRooms = new Map();
  *
  * A step is a room and the floor it was read on (E12 C9); a step to the same
  * room on another floor - up a stairwell - is not noted, as it costs nothing.
+ * Each step keeps the newest spot the drag stood on in its room (`spot`, E79 fix
+ * r3-G2): a route refused at a later crossing is put back there (`settleRoute`).
  */
-function notePathRoom(tokenId, room, level = null) {
+function notePathRoom(tokenId, room, level = null, spot = null) {
     if (!room) return;
     const seen = pathRooms.get(tokenId);
     if (!seen) {
-        pathRooms.set(tokenId, [{ room, level }]);
+        pathRooms.set(tokenId, [{ room, level, spot }]);
         return;
     }
-    if (seen[seen.length - 1].room !== room) seen.push({ room, level });
+    const last = seen[seen.length - 1];
+    if (last.room !== room) seen.push({ room, level, spot });
+    else if (spot) last.spot = spot;
 }
 
 /** The noted path for a token, removed as it is read. */
@@ -1752,17 +2082,19 @@ function takePath(tokenId) {
  * neighbour yields one, and a there-and-back route yields two - which is what
  * it costs at the table.
  *
- * Every step is `{room, level}` (E12 C9) and `crossingCost` prices it; each
- * crossing handed on is `[from, to, {from, to}]`, the two room names and the
- * floor of each end (E12 fix r2-H1), for the stairs rule on the Eclipse's road
- * and the floor a refused route is put back on.
+ * Every step is `{room, level, spot?}` (E12 C9) and `crossingCost` prices it; each
+ * crossing handed on is `[from, to, {from, to}, spot]`, the two room names, the
+ * floor of each end (E12 fix r2-H1), for the stairs rule on the Eclipse's road,
+ * and the spot the route stood on past it (`notePathRoom`; E79 fix r3-G2), where
+ * a route refused at the next crossing is put back.
  */
 function crossingsAlong(before, path, after) {
     const route = [before, ...path, after];
     const crossings = [];
     for (let i = 1; i < route.length; i++) {
         if (crossingCost(route[i - 1], route[i]) === 0) continue;
-        crossings.push([route[i - 1].room, route[i].room, { from: route[i - 1].level ?? null, to: route[i].level ?? null }]);
+        crossings.push([route[i - 1].room, route[i].room, { from: route[i - 1].level ?? null, to: route[i].level ?? null },
+            route[i].spot ?? null]);
     }
     return crossings;
 }
@@ -1834,6 +2166,15 @@ async function chargeForCrossing(actor, from, to, tokenDoc = null, previous = nu
      * a crossing that costs an action is an action like any other.
      */
     if (!free && freeMovesLeft(actor) < 1 && !canPayFor(actor, 1)) {
+        /* The put-back first, the card after (E79 fix r4-G4, 1.2.79; review round 4, Q1): the card is awaited, a
+           private card's create and its resolution, and the put-back waited for it, with the token in the room it could
+           not pay for. Scenario 66 W4, each private card held 300 ms as a loaded machine's stand-in, one run each in a
+           lane beside other scenarios on 17.10.2026: the put-back written 822 ms after the step at 0641c4c, after the
+           paid crossing's card (done at 308 ms) and this one (710 ms), and 451 ms with this order, after the paid
+           crossing's card alone (311 ms) - this card's whole wait, 371 ms there. Without the stand-in the gain is this
+           card's create, about 110 ms by review round 4's reading on p1 (correctness Q1), not measured again here.
+           The route that sent it is not announced when its put-back lands first (`putBacksSent`). */
+        await sendBack(tokenDoc, previous, from);
         ui.notifications.warn(game.i18n.localize("DRPG.Move.noBudget"));
         // Tagged as an error popup (red border) rather than the default
         // info one - this is a refusal, the concrete case the red variant
@@ -1841,8 +2182,6 @@ async function chargeForCrossing(actor, from, to, tokenDoc = null, previous = nu
         await whisperToOwner(actor, `${cardHead({ action: game.i18n.localize("DRPG.Move.title") })}<p>${
             game.i18n.localize("DRPG.Move.noBudgetLong")
         }</p>`, { flags: { [MODULE_ID]: { popupKind: "error" } } });
-
-        await sendBack(tokenDoc, previous, from);
         return false;
     }
 
@@ -1902,24 +2241,33 @@ async function chargeForCrossing(actor, from, to, tokenDoc = null, previous = nu
  * updating a document while its own update hook is still running is what made
  * the earlier attempt silently do nothing. The move is also marked so our own
  * hook ignores it and does not charge for the way back.
+ *
+ * Walls ignored (E79 C4): the way back is where the token stood a moment ago, and Foundry's
+ * `constrainOptions.ignoreWalls` keeps a wall between the two from stopping it - one road for
+ * every refusal, the GMs' audit's (movement-audit.mjs) included, which plays no sound on the GM's
+ * browser (`sound`) and tells the mover once the write has landed (`landed`, with whether it wrote).
+ * Whether v14 honours the option on an update is not read here: LIVE-E79-02.
  */
-async function sendBack(tokenDoc, previous, room) {
+async function sendBack(tokenDoc, previous, room, { sound = true, landed = null, audited = false } = {}) {
     if (!tokenDoc || !previous) return;
     // Announced when the REVERT lands, on every browser (`onUpdateToken`, E77 C2), not by the refusal.
     putBack.add(tokenDoc.id);
+    putBacksSent.set(tokenDoc.id, (putBacksSent.get(tokenDoc.id) ?? 0) + 1);
 
     // The only "error" a player makes regularly, and until now the only signal
     // was the token sliding back. Local, on the client that tried it.
-    playSfx("refused");
+    if (sound) playSfx("refused");
 
     const apply = async () => {
+        let wrote = false;
         try {
             // Its floor too, when it had one (`spotOf`, E12 C9): a refused climb put back by x
             // and y alone stays upstairs.
             await tokenDoc.update(
                 previous.level !== undefined ? { x: previous.x, y: previous.y, level: previous.level } : { x: previous.x, y: previous.y },
-                { animate: false, [REVERT]: true }
+                { animate: false, [REVERT]: true, ...(audited ? { [WALL_PUT_BACK]: true } : {}), constrainOptions: { ignoreWalls: true } }
             );
+            wrote = true;
         } catch (err) {
             /*
              * A player may not own the token; ask the GM to do it.
@@ -1940,6 +2288,7 @@ async function sendBack(tokenDoc, previous, room) {
         }
         lastRoom.set(tokenDoc.id, room);
         lastPosition.set(tokenDoc.id, previous);
+        landed?.(wrote);
     };
 
     setTimeout(apply, 0);
@@ -1949,9 +2298,9 @@ async function sendBack(tokenDoc, previous, room) {
  * A position inside a named room on the token's scene - its centre, less the token's own size.
  * The centre of the room's first piece (E12 C2a): a room of two pieces has no centre of its own
  * that is inside it, and the token's scene is the only one asked - never the camera's. Given a
- * `level`, the first piece on that floor, and the spot names the floor (E12 fix r2-H1): a
- * refused route is put back on the floor it paid for, and the bridge's send-back guard matches
- * a room's centre on the floor asked. No piece on that floor is no position.
+ * `level`, the first piece on that floor, and the spot names the floor (E12 fix r2-H1): the
+ * bridge's send-back guard matches a room's centre on the floor asked (a refused route was put
+ * back at one until E79 fix r3-G2). No piece on that floor is no position.
  */
 export function positionIn(room, tokenDoc, level = null) {
     try {

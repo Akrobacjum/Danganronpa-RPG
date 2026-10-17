@@ -33,6 +33,25 @@
  * frame first, synchronously, so Shift+C and any module that opens a tab open the window. Collapsing with
  * Foundry's own button inside an open window only narrows it.
  *
+ * COLLAPSED IS NARROW (E79 C12, 16.10.2026; the owner's N7 of 14.10: "the caret at the rail's foot inside the
+ * Foundry tools window does nothing" - the caret flipped, so the state changed, and the window kept its width). The
+ * frame has no width of its own: it is as wide as `#sidebar`'s content. Measured in Chromium on the glass harness's
+ * stand-in sidebar (the plan of 16.10.2026, at 33ea568): expanded, the frame 358 px wide with the content's 300; with
+ * the stand-in's own collapse rule, 90 px, the rail alone; with a content that keeps its 300 px when the sidebar is
+ * not expanded, 358 px after the collapse - the owner's report. Foundry's rules that take the content's width away
+ * hang off `#ui-right` (read in this sheet's comments, not in v14's), and the node no longer stands there. What v14
+ * calls the collapsed state on the element, and the content's id, are not readable here: fvtt-types 14.366's
+ * sidebar.d.mts gives the `expanded` getter and the `collapseSidebar` hook and nothing more, and `#sidebar-content`
+ * is the glass harness's name for the content (LIVE-E79-15). So the mark is the module's own, keyed off those two
+ * alone: `data-drpg-collapsed` on Foundry tools' frame, set from the `collapseSidebar` hook's answer, from
+ * `ui.sidebar.expanded` at every adoption, and after each of the module's own calls and the wrapper's
+ * (`markCollapsed`); danganronpa.css narrows `#sidebar-content` under it. Only a `ui.sidebar` whose `expanded` is
+ * false is collapsed: one that does not answer `expanded` is not, and with no `ui.sidebar` at all nothing is marked
+ * (E79 fix r3-G4, review round 3's cor E: until then anything but true read as collapsed, so a Foundry whose sidebar
+ * did not answer narrowed Foundry tools to its rail at every adoption; the glass harness's stand-in is such a
+ * sidebar, and its frame now opens expanded, as `setFoundryWindow` leaves a real one). R585 reads the mark, both
+ * answers and the cascade under it; the glass harness's `drpgWindowsCheck` reads the width in Chromium.
+ *
  * A PLACE OF ITS OWN, ON THE SCREEN (E77 C7; the owner's Q9, the design's step 12). A window is dragged by its
  * title bar (pointer events with the pointer captured, so a mouse and a finger both work; no resizing - 'Okna
  * przyciskow Foundry moga pozostac proste'). Where it is dropped is this browser's client setting
@@ -40,13 +59,14 @@
  * design's home (FOUNDRY_WINDOWS `home`, read at 1920x1080 in P8 and P10, not measured here). A console can write
  * the setting raw, so it is read through `readPlaces` every time: two finite numbers or no place. Every place is
  * then clamped (`clampPlace`): wholly on the screen 8 px in, and off the corner cluster's box with 8 px around it,
- * moved left or up whichever is shorter. The clamp runs on every opening, at the drop, on the browser's `resize`
- * and on every change of the frame's own size (a ResizeObserver: the Regions palette, the chat expanding, the
- * sidebar collapsing). P10 and P11 measured the frame before it had its size and their clamp failed at 1366x768,
- * windows down to y 788 and 818 (the design's K6); here the frame is shown, put at 0,0 and measured with
- * `getBoundingClientRect` in the same task that places it, so no paint sees the unclamped place and the width is
- * the frame's own rather than what the screen's edge left it. The clamp never writes the setting: a place
- * remembered on a big screen comes back when the screen is big again.
+ * moved left or up whichever is shorter - or, where neither move clears the cluster, cut down to the room above it
+ * or beside it (`seatFrame` writes the cap as the frame's `max-height` or `max-width`). The clamp runs on every
+ * opening, at the drop, on the browser's `resize` and on every change of the frame's own size (a ResizeObserver: the
+ * Regions palette, the chat expanding, the sidebar collapsing). P10 and P11 measured the frame before it had its
+ * size and their clamp failed at 1366x768, windows down to y 788 and 818 (the design's K6); here the frame is shown,
+ * put at 0,0 and measured with `getBoundingClientRect` in the same task that places it, so no paint sees the
+ * unclamped place and the width is the frame's own rather than what the screen's edge left it. The clamp never
+ * writes the setting: a place remembered on a big screen comes back when the screen is big again.
  *
  * ESCAPE IS FOUNDRY'S FIRST. Foundry's `core.dismiss` (read by the design in 14.365's client-keybindings.mjs, not
  * by this file) closes, in order, a drag, the main menu, a context menu, a tour, every framed window, then releases
@@ -144,6 +164,7 @@ export function registerFoundryWindows() {
     wrapSidebar();
     collapseSidebar();
     for (const hook of ["renderSidebar", "renderSceneControls"]) Hooks.on(hook, adoptFoundryNodes);
+    Hooks.on("collapseSidebar", onCollapseSidebar);
     window.addEventListener("keydown", onEscape, { capture: true });
     window.addEventListener("resize", () => { for (const row of FOUNDRY_WINDOWS) placeFoundryWindow(row.key); });
     import("./glass.mjs").then(g => { cluster = g.LAUNCHERS ?? null; }).catch(() => null);
@@ -238,10 +259,9 @@ function dragByTitle(frame, head, key) {
             const r = frame.getBoundingClientRect();
             const at = clampPlace({ x: from.x + e.clientX - x0, y: from.y + e.clientY - y0 }, { w: r.width, h: r.height },
                 { W: window.innerWidth, H: window.innerHeight }, block);
-            frame.style.left = `${at.x}px`;
-            frame.style.top = `${at.y}px`;
-            placed.set(key, at);
-            return at;
+            seatFrame(frame, at, false);
+            placed.set(key, { x: at.x, y: at.y });
+            return { x: at.x, y: at.y };
         };
         const move = e => { to(e, null); };
         const end = e => {
@@ -280,10 +300,21 @@ function rememberPlace(key, at) {
 /**
  * Where a window of `size` { w, h } wanting `place` { x, y } stands on a screen { W, H }: x in [8, W - w - 8] and y
  * in [8, H - h - 8] (8 when it is wider or taller than that), then, when its box with 8 px around it meets `block`
- * { x, y, w, h } (the corner cluster's), moved left or up by the shorter of the two that keeps it on the screen -
- * up when neither does. Rounded down, not to the nearest: a frame's size is fractional, and on 13.10.2026 at 768x1024
- * under Legacy rounding to the nearest left Foundry tools 0.4 px inside the cluster's margin, which the sweep's
- * `drpgWindowsCheck` read as standing on it. Pure: R516 reads it with numbers.
+ * { x, y, w, h } (the corner cluster's), moved left or up by the shorter of the two that keeps it on the screen.
+ * Rounded down, not to the nearest: a frame's size is fractional, and on 13.10.2026 at 768x1024 under Legacy rounding
+ * to the nearest left Foundry tools 0.4 px inside the cluster's margin, which the sweep's `drpgWindowsCheck` read as
+ * standing on it. Pure: R516 reads it with numbers.
+ *
+ * WHEN NEITHER MOVE CLEARS, THE WINDOW IS CUT DOWN (E79 fix r3-G4, review round 3's P1). Until then it went up as
+ * far as the screen let it and stayed on the cluster: at 393x852 under Monokuma Legacy Foundry tools was 294x736
+ * with the cluster at 277,674.7 94x155.3, so left reached x -25 and up y -69, neither on the screen, and the frame
+ * stood at 58,8 over the corner's buttons (the correctness review's reading; the glass sweep's GM "places" read red
+ * there in both themes at the parent in Chromium on 17.10.2026, and with the frame expanded, as cor E's fix opens
+ * it, it is 358 px wide under Stained Glass and 360 under Legacy). Now the answer carries a cap: `h`, the room over
+ * the cluster (`block.y - 2 * 8`), with the window at y 8 where it stood across; or `w`, the room left of it
+ * (`block.x - 2 * 8`), with the window at x 8 - whichever keeps the larger share of the window, the height on a tie.
+ * At 393x852 that is the height in both themes: 658 of Legacy's 736 px (89 %) against 261 of its 294 or 360 px. With
+ * no room on either side the window stands at y 8 as before.
  */
 export function clampPlace(place, size, screen, block = null) {
     const M = WINDOW_MARGIN, w = Math.max(0, size.w || 0), h = Math.max(0, size.h || 0);
@@ -293,9 +324,27 @@ export function clampPlace(place, size, screen, block = null) {
         const left = x + w + M - block.x, up = y + h + M - block.y;
         const canLeft = x - left >= M, canUp = y - up >= M;
         if (canLeft && (!canUp || left <= up)) x -= left;
-        else y = Math.max(M, y - up);
+        else if (canUp) y -= up;
+        else {
+            const capH = Math.floor(block.y - 2 * M), capW = Math.floor(block.x - 2 * M);
+            const keptH = capH > 0 && h > 0 ? Math.min(1, capH / h) : 0, keptW = capW > 0 && w > 0 ? Math.min(1, capW / w) : 0;
+            if (keptH > 0 && keptH >= keptW) return { x: Math.floor(x), y: M, h: capH };
+            if (keptW > 0) return { x: M, y: Math.floor(y), w: capW };
+            y = M;
+        }
     }
     return { x: Math.floor(x), y: Math.floor(y) };
+}
+
+/** A frame to the place `clampPlace` answered: its left and top, and the cap it carries as `max-height` or `max-width`.
+    `clear` takes off a cap this place does not carry; a drag keeps the one the frame wears until the next placing. */
+function seatFrame(frame, at, clear = true) {
+    frame.style.left = `${at.x}px`;
+    frame.style.top = `${at.y}px`;
+    if (at.h !== undefined) frame.style.maxHeight = `${at.h}px`;
+    else if (clear) frame.style.maxHeight = "";
+    if (at.w !== undefined) frame.style.maxWidth = `${at.w}px`;
+    else if (clear) frame.style.maxWidth = "";
 }
 
 /** The corner cluster's box on this screen: the union of its buttons' boxes, or null before glass.mjs's selector is read. */
@@ -318,12 +367,13 @@ export function placeFoundryWindow(key) {
     if (!row || !frame || frame.hidden) return null;
     frame.style.left = "0px";
     frame.style.top = "0px";
+    frame.style.maxHeight = "";
+    frame.style.maxWidth = "";
     const r = frame.getBoundingClientRect(), size = { w: r.width, h: r.height }, screen = { W: window.innerWidth, H: window.innerHeight };
     const want = savedPlaces()[key] ?? { x: row.home.x ?? screen.W - row.home.right - size.w, y: row.home.y };
     const at = clampPlace(want, size, screen, clusterBox());
-    frame.style.left = `${at.x}px`;
-    frame.style.top = `${at.y}px`;
-    placed.set(key, at);
+    seatFrame(frame, at);
+    placed.set(key, { x: at.x, y: at.y });
     return at;
 }
 
@@ -380,6 +430,7 @@ export function adoptFoundryNodes() {
         body.append(node);
         moved++;
     }
+    markCollapsed();
     return moved;
 }
 
@@ -405,6 +456,7 @@ function wrapSidebar() {
             const opening = (expanded ?? !this.expanded) === true;
             if (opening) windowStep(() => showFrame("ftools", true));
             const out = toggle.call(this, expanded, ...rest);
+            windowStep(() => markCollapsed());
             if (opening) windowStep(() => placeFoundryWindow("ftools"));
             return out;
         };
@@ -427,6 +479,24 @@ function windowStep(step) {
 function collapseSidebar() {
     const bar = globalThis.ui?.sidebar;
     if (bar?.expanded && ORIGINAL.toggleExpanded) ORIGINAL.toggleExpanded.call(bar, false);
+    markCollapsed();
+}
+
+/**
+ * Foundry tools' frame marked collapsed or not (see COLLAPSED IS NARROW): `collapsed` as the `collapseSidebar` hook
+ * answers it, else read off `ui.sidebar.expanded` now. Returns the mark, or null with no frame or no sidebar to read.
+ */
+export function markCollapsed(collapsed) {
+    const frame = foundryWindow("ftools"), bar = globalThis.ui?.sidebar;
+    if (!frame || (typeof collapsed !== "boolean" && !bar)) return null;
+    const on = typeof collapsed === "boolean" ? collapsed : bar.expanded === false;
+    frame.toggleAttribute("data-drpg-collapsed", on);
+    return on;
+}
+
+/** The `collapseSidebar` hook's listener: Foundry hands the sidebar and whether it is collapsed now. */
+function onCollapseSidebar(sidebar, collapsed) {
+    markCollapsed(typeof collapsed === "boolean" ? collapsed : undefined);
 }
 
 function showFrame(key, open) {
@@ -447,6 +517,7 @@ export function setFoundryWindow(key, open) {
     const bar = globalThis.ui?.sidebar;
     if (key === "ftools" && open && bar && !bar.expanded && ORIGINAL.toggleExpanded) {
         ORIGINAL.toggleExpanded.call(bar, true);
+        markCollapsed();
         placeFoundryWindow(key);
     }
     return true;

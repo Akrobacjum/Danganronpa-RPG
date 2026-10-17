@@ -159,7 +159,8 @@ export const REASONS = Object.freeze([
     "notWhereItStood", "alreadyDone", "nothingToUndo", "deathStands", "cannotNow", "cannotFrame", "notThere",
     "answerKeyMissing", "keysNotOpen", "rollUnknown", "rollNotYours", "rollOtherAction", "rollUsed", "rollStale",
     "rollMissed", "projectFrozen", "rollReplaced", "notPaid", "rollThrown", "callNotPaid", "callNotApproved", "itemNotDecided",
-    "notEligible", "sameTwice", "wrongCount", "relay", "sheetPutBack", "failed",
+    "notEligible", "sameTwice", "wrongCount", "notKnown", "recipientDead", "floorClosed", "noSpeaker", "noBullet",
+    "objectionOver", "relay", "sheetPutBack", "failed",
     "refused", "noGm", "noAnswer"
 ]);
 
@@ -351,7 +352,29 @@ export const REASON_PATTERNS = Object.freeze([
     ["notEligible", /^the sender holds no ballot in this vote$/],
     ["sameTwice", /^the ballot names somebody twice$/],
     ["wrongCount", /^the ballot names \d+, the vote asks for \d+$/],
-    ["missing", /^the ballot names somebody who is not on it$/]
+    ["missing", /^the ballot names somebody who is not on it$/],
+    // E79 C7: a show of a secret passage, judged by the primary GM (gm-bridge.mjs `passage.share`, passages-gm.mjs
+    // `shareRefusal`). One reason for a passage that does not exist, is closed or the giver does not know (R562).
+    ["notKnown", /^the character does not know that passage$/],
+    ["recipientDead", /^the character shown it is dead$/],
+    // E79 C16: an Objection raised from the trial bar and proved after, judged by the primary GM (gm-bridge.mjs
+    // `trial.object`, `trial.evidence`, `floor.repoint`; trial.mjs `objectOnPrimary`, `evidenceOnPrimary`,
+    // `repointOnPrimary`). The four new codes are the four a player at the table can act on: wait for the debate,
+    // somebody has to speak first, pick up a bullet, press again; the rest say what an older code says already.
+    ["floorClosed", /^no Class Trial is in session$/],
+    ["floorClosed", /^the trial's floor is not open to an objection now$/],
+    ["cannotNow", /^that character is offered no Objection$/],
+    ["cannotNow", /^a dead student does not object$/],
+    ["noBullet", /^that character holds no Truth Bullet$/],
+    ["noBullet", /^that character holds no such Truth Bullet$/],
+    ["noSpeaker", /^nobody has spoken in this trial that the objection could be aimed at$/],
+    ["cannotNow", /^the student named may not be objected to now$/],
+    ["nothingLeft", /^nothing left to pay for an objection$/],
+    ["failed", /^the objection's card could not be (?:posted|filled)$/],
+    ["failed", /^the floor did not move for that objection$/],
+    ["badRequest", /^the comment is longer than a player's words may be$/],
+    ["objectionOver", /^that objection is no longer waiting for its Truth Bullet$/],
+    ["objectionOver", /^the floor holds no objection to re-point$/]
 ].map(([code, pattern]) => Object.freeze([code, pattern])));
 
 /** The code of the closed list an English reason stands for: the first pattern that takes it, else `refused`. */

@@ -2793,7 +2793,7 @@ const INVARIANTS = [
         }
     }],
 
-    ["R516 - a GM's Foundry windows remember a place in this browser and stand on the screen: `foundryWindows` a client setting read as two finite numbers a window or no place, places saved at 1920x1080 clamped wholly onto 1366x768 and off the corner cluster, and a drag by the title writes where it ends", async () => {
+    ["R516 - a GM's Foundry windows remember a place in this browser and stand on the screen: `foundryWindows` a client setting read as two finite numbers a window or no place, places saved at 1920x1080 clamped wholly onto 1366x768 and off the corner cluster, cut down to the room over or beside the cluster where neither move clears it, and a drag by the title writes where it ends", async () => {
         /*
          * E77 C7, 13.10.2026; the place, drag and clamp clauses of the A8 design's R386 (R511 holds its DOM clauses,
          * R514 its layout one), numbered apart as R514 was. Headless, where jsdom gives every box 0x0, so the clamp is
@@ -2815,6 +2815,13 @@ const INVARIANTS = [
          * dump could not see until it read stored copies (tests-kit.mjs `clientStored`, R532). So a copy this browser
          * did not have is taken out of its client store after the value is written back, once the drop's write has
          * had a settle to land, and the stored text is read against what was found.
+         * THE CAP (E79 fix r3-G4, 17.10.2026; review round 3's P1): where neither move clears the cluster the place
+         * carries a cap. The correctness review's reading at 393x852 under Monokuma Legacy - the frame 294x736, the
+         * cluster 277,674.7 94x155.3 - and the Chromium one of this fix under Stained Glass, the frame expanded at
+         * 358x734 and the cluster 277,690.25 94x139.75 (read on the glass harness page): both cut to the room over
+         * the cluster, 658 and 674 px at y 8, which keeps more of each window than the 261 px left of it; a frame
+         * that keeps more by its width cut to that at x 8; no room on either side, up to y 8 as before. Red at the
+         * parent: each answer was a place on the cluster with no cap (91,8 and 27,8 by the parent's arithmetic).
          */
         must(game.user.isGM, "the windows are a GM's, and tier 1 runs on the GM");
         const FW = await import("./foundry-windows.mjs");
@@ -2838,6 +2845,16 @@ const INVARIANTS = [
             FW.clampPlace({ x: 400, y: 600 }, { w: 1300, h: 100 }, S, B), FW.clampPlace({ x: -500, y: 1e9 }, { w: 360, h: 690 }, S, null)]),
             JSON.stringify([{ x: 1122, y: 600 }, { x: 1150, y: 504 }, { x: 58, y: 504 }, { x: 8, y: 70 }]),
             "[on the cluster, left shorter; up shorter; too wide to go left; a console's far-off place]");
+        const S393 = { W: 393, H: 852 }, LEGACY = { x: 277, y: 674.734375, w: 94, h: 155.265625 }, GLASS = { x: 277, y: 690.25, w: 94, h: 139.75 };
+        const capped = [FW.clampPlace({ x: 939, y: 130 }, { w: 293.796875, h: 736 }, S393, LEGACY), FW.clampPlace({ x: 939, y: 130 }, { w: 358, h: 734 }, S393, GLASS),
+            FW.clampPlace({ x: 939, y: 130 }, { w: 340, h: 800 }, S393, { x: 300, y: 60, w: 80, h: 700 }), FW.clampPlace({ x: 5, y: 5 }, { w: 100, h: 100 }, S393, { x: 0, y: 0, w: 393, h: 852 })];
+        const clear = (at, size, block) => !(at.x - M < block.x + block.w && at.x + Math.min(size.w, at.w ?? Infinity) + M > block.x
+            && at.y - M < block.y + block.h && at.y + Math.min(size.h, at.h ?? Infinity) + M > block.y);
+        equal(JSON.stringify([capped, clear(capped[0], { w: 293.796875, h: 736 }, LEGACY), clear(capped[1], { w: 358, h: 734 }, GLASS),
+            clear(capped[2], { w: 340, h: 800 }, { x: 300, y: 60, w: 80, h: 700 })]),
+            JSON.stringify([[{ x: 91, y: 8, h: 658 }, { x: 27, y: 8, h: 674 }, { x: 8, y: 44, w: 284 }, { x: 8, y: 8 }], true, true, true]),
+            "[at 393x852 where neither move clears: Legacy's 294x736 and Stained Glass's 358x734 cut to the room over the cluster; a frame that keeps "
+            + "more by its width cut beside it; no room either way; each cut frame clear of its cluster]");
         const frame = FW.foundryWindow("ftools"), head = frame?.querySelector(":scope > header"), close = head?.querySelector("button");
         must(frame && head && close, "no Foundry tools window with a title bar - this would measure nothing");
         const key = `${MODULE_ID}.${SETTINGS.foundryWindows}`, was = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.foundryWindows));
@@ -5722,7 +5739,9 @@ const INVARIANTS = [
             // E05 C13: the bullets' store, which each player's copy of their bullets' traces is made of.
             ["truth-bullets.mjs", "retellBulletRefs"],
             // E06 fix r2-G4: the Confusions' store, which each owner's copy of their characters' armed Confusions is made of.
-            ["call-effects.mjs", "retellConfusions"]];
+            ["call-effects.mjs", "retellConfusions"],
+            // E79 C1: the passages' map and who knows each, which each player's copy of their secret passages is made of.
+            ["passages-gm.mjs", "retellPassages"]];
         const hooks = E.gmStoreHandles().map(h => String(h.spec.afterRestore ?? ""));
         const uncalled = RETELLS.filter(([, fn]) => !hooks.some(src => src.includes(`.${fn}(`))).map(([, fn]) => fn);
         ok(!uncalled.length, `no store's afterRestore calls ${uncalled.join(", ")}`);
@@ -7620,6 +7639,9 @@ const INVARIANTS = [
          * second `dropMany` counted below (1 and 1 until then). Red at 0697d0f: `exists` read the scene's tokens.
          * E81 fix r1-D2 (12.10.2026): the stage's record of the module's tokens (`writeSeats`) is the hall's second
          * `setFlag`, counted on its own last - a flag of the hall, not of a token, and no store of the cast choice.
+         * E79 C11 (16.10.2026): the hall's third `setFlag` is `setHallRoom`'s, the name, picture and words the GMs give
+         * the room tile in a trial (R583 holds it to one writer); a flag of the hall scene, not of a token, no store
+         * of the cast choice. R433 failed on the 2 until it was said here.
          */
         const T = await import("./trial-scene.mjs").catch(() => null);
         ok(typeof T?.castRow === "function", "trial-scene.mjs has no `castRow` - the GMs' choice is kept nowhere (S06-57, D7)");
@@ -7647,9 +7669,9 @@ const INVARIANTS = [
         equal(JSON.stringify(exists), JSON.stringify([true, false, false, false, true]),
             `[the store's \`exists\` of a character in ${scene.name}, of ${other ? `${other.name} (${other.type})` : "an actor that is not there"}, of a scene that is gone, of a token's id; \`saveTrialCast\` skips an id that is not a character's]`);
         equal(JSON.stringify([writes, waits >= 0 && waits < reads, { name, kind, resetGroup, backup, sync, key }, setting?.scope ?? null, seasons]),
-            JSON.stringify([[2, 0, 1, 0, 2, 2, 1, 1, 1], true, { name: "trialCast", kind: "ledger", resetGroup: "trialFloor", backup: true, sync: true, key: "gmTrialCast" },
+            JSON.stringify([[3, 0, 1, 0, 2, 2, 1, 1, 1], true, { name: "trialCast", kind: "ledger", resetGroup: "trialFloor", backup: true, sync: true, key: "gmTrialCast" },
                 "client", [{ reveal: false }, null, null, null, null]]),
-            "[trial-scene.mjs's setFlag (two, both on the hall scene), unsetFlag, settings.set and store writes (patch, patchMany, dropMany), then the hall's trialReturnTo flag, then the one settings.set that is the roles (sceneRoles), then the hall's trialSeats flag; `applyTrialCast` waits for the store before it reads the cast; "
+            "[trial-scene.mjs's setFlag (three, all on the hall scene), unsetFlag, settings.set and store writes (patch, patchMany, dropMany), then the hall's trialReturnTo flag, then the one settings.set that is the roles (sceneRoles), then the hall's trialSeats flag; `applyTrialCast` waits for the store before it reads the cast; "
             + "the store's spec; its setting's scope; a row of this season, of the season before, of a season after, with no `reveal`, and none]");
     }],
 
@@ -7884,7 +7906,7 @@ const INVARIANTS = [
         }
 
         equal(JSON.stringify([tabs, rooms, reports, writes, patches, clash, sets, applied, locked, reasons]), JSON.stringify([
-            ["scenes", 8, "bedrooms", "scenes", "doors", "bedrooms"], ["Stand"],
+            ["scenes", 9, "bedrooms", "scenes", "doors", "bedrooms"], ["Stand"],
             [["sameScene!"], ["hallHasRooms", "handPlaced", "duplicateInHall", "unlinkedToken"], ["noSchoolLinked"], [], true, true, true],
             [{ roles: null, cast: null, prepare: null },
                 { roles: { school: "R120SCENEC", trial: "R120SCENEB", zones: ["R120ZONE"] }, cast: null, prepare: null },
@@ -8597,7 +8619,7 @@ const INVARIANTS = [
             NH.holdNoticeHistory(false);
         }
         const sources = await moduleSources();
-        const evidence = bodyOf(stripComments(sources.get("trial.mjs") ?? ""), "if (authorised) showPopup(", { length: 500 });
+        const evidence = bodyOf(stripComments(sources.get("trial.mjs") ?? ""), "if (authorised && !playerObjection) showPopup(", { length: 500 });
         const summary = fnSource(stripComments(sources.get("day-summary.mjs") ?? ""), "showDaySummary");
         direct.sources = [/\bsource:\s*"evidence"/.test(evidence) && /\bmessageId:\s*message\.id\b/.test(evidence), /showPopup\([^;]*\bsource:\s*"summary"/.test(summary)];
         const t = key => game.i18n.localize(key);
@@ -11459,7 +11481,7 @@ const INVARIANTS = [
             `in a fresh realm (${road}) beside a class ForgeVTT, as a classic script declares it: [the name's type, no property of the global object, `
             + "a Library picture kept, another host refused] with usingTheForge true; the same with it false");
     }],
-    ["R504 - a screen's room is its viewer's own and no other: roomFacts answers the GM's words and a picture of this server for the room asked on the scene asked, from the first room piece that carries them, and viewerRoom on this browser is the room viewerActor's own token stands in, on that token's scene; the tile drawn from them carries that room's words and no other's, in every state", async () => {
+    ["R504 - a screen's room is its viewer's own and no other: roomFacts answers the GM's words and a picture of this server for the room asked on the scene asked, from the first room piece that carries them, and viewerRoom on this browser is the room viewerActor's own token stands in, on that token's scene; the tile drawn from them carries that room's words and no other's, in every state, and in a Class Trial the trial hall's (R582)", async () => {
         /*
          * E77 C2, 13.10.2026; the A8 design's R379 (the E77 plan's D2 gave it this number; ledger V2, D1, D5), its
          * data clauses - E77 C3 adds the tile's DOM (no word and no request of another room). The states this suite
@@ -11580,8 +11602,16 @@ const INVARIANTS = [
         ok(Boolean(live), "this browser has no #drpg-room-tile - module.mjs did not build the tile");
         if (!live) return;
         const heading = view.room ?? { nowhere: L("DRPG.Hud.roomNowhere"), noActor: L("DRPG.Explain.room.noActor") }[view.state] ?? null;
-        equal(JSON.stringify([live.dataset.state, live.querySelector(".drpg-room-tile-name")?.textContent ?? null, view.room]),
-            JSON.stringify([view.state, heading, got.room]), "this browser's tile as [state, heading] and tileView's room, against tileView and viewerRoom");
+        /* E79 fix r3-G4 (review round 3's k4p, 17.10.2026): in a Class Trial viewerRoom answers "trial" and no room,
+           and the tile shows the trial hall (E79 C11's part 4, R582): measured with the clock in the trial (scenario
+           01's A2), the tile read ["roomBare", "Class Trial"] and tileView's room "Class Trial" where this clause
+           wanted viewerRoom's null. The hall's name is the GMs' (trial-scene.mjs `hallRoom`) or the trial's label. */
+        const inTrial = got.state === "trial";
+        const hallName = inTrial ? (await import("./trial-scene.mjs").then(S => S.hallRoom(R.trialScene())?.name?.trim(), () => null)
+            || (await import("./clock.mjs")).phaseLabel("classTrial")) : null;
+        equal(JSON.stringify([live.dataset.state, live.querySelector(".drpg-room-tile-name")?.textContent ?? null, view.room, view.hall === true]),
+            JSON.stringify([view.state, heading, inTrial ? hallName : got.room, inTrial]),
+            "this browser's tile as [state, heading], tileView's room and whether it is the hall, against tileView, and viewerRoom or in a trial the hall");
         /* E77 C4 (13.10.2026): beside the notices glass.mjs `placeRoomTile` hands the tile to the body, and the
            tile's own refresh must leave it there - put back under the clock between two passes, it would push the
            scene rail down for a frame and stand where its pane is not. Under the clock the refresh still seats it. */
@@ -12201,7 +12231,7 @@ const INVARIANTS = [
         const composed = [hold({}), hold({ actors: [monocub] })].map(answer => T.micState({ hold: answer, settings: client() }).state);
 
         const lines = Object.fromEntries([...["mute", "unmute", "pttNoKey"].map(k => [k, `DRPG.Voice.mic.${k}`]),
-            ...["eclipse", "eclipseHeard", "gmBlock", "external", "offline"].map(k => [k, `DRPG.Voice.held.${k}`])]
+            ...["eclipse", "eclipseHeard", "gmBlock", "external", "offline", "connecting"].map(k => [k, `DRPG.Voice.held.${k}`])]
             .map(([k, key]) => [game.i18n.localize(key), k]));
         lines[game.i18n.format("DRPG.Voice.mic.ptt", { key: "R537KEY" })] = "ptt";
         const keyOf = text => lines[text] ?? (text ? `?${text}` : "");
@@ -12773,7 +12803,7 @@ const INVARIANTS = [
             + "camera, another's volume, a mode avclient-livekit has not, a number - refused; an output - written | videoUnwatched: audio and video "
             + "with the tile; audio; video; no voice; the tile off | runPreSessionChecks asks videoUnwatched]");
     }],
-    ["R535 - the voice tile shows only who this player hears in their own channel: a speaker of the own LiveKit Room after 250 ms, never one Foundry's table-wide signal or another Room names, never one muted, paused, silent or without a live track here, '+1' for a second, the channel's count, and nobody at once when the speaker leaves, the Room changes or the connection goes, a lost reconnect included; and only the dock's own elements and Foundry's camera popouts say who is heard", async () => {
+    ["R535 - the voice tile shows only who this player hears in their own channel: a speaker of the own LiveKit Room at once on an empty tile and a change of speaker after 250 ms, never one Foundry's table-wide signal or another Room names, never one muted, paused, silent or without a live track here, '+1' for a second, the channel's count, and nobody at once when the speaker leaves, the Room changes or the connection goes, a lost reconnect included; and only the dock's own elements and Foundry's camera popouts say who is heard", async () => {
         /*
          * E78 C3, 13.10.2026; the A9 design's R388 (T1; the E78 plan's D2 gave it this number). The harm: a portrait and
          * a name on this player's screen of somebody they cannot hear - a player in another room (Foundry's
@@ -12797,6 +12827,11 @@ const INVARIANTS = [
          * among `foundry.applications.instances`, and a paused element of each in front of both, in a wrapper shaped
          * like a popout that Foundry does not hold - both speakers heard; red at 90a9ebc (the whole document, the
          * first element in it: nobody, as the reviewer read it).
+         * E79 C15 (16.10.2026; the owner's N14 of 15.10: "the voice tile shows a speaker slightly too late"): the first
+         * reading is now taken at 0 ms - the first speaker on an empty tile at once, where it read nobody at 249 ms
+         * and the speaker at 250 ms until C15 - and a bench of its own holds the sticky rule where it still stands: the
+         * first shown, then only the second speaking - the first at 0 and 249 ms (held), the second at 250 ms.
+         * Red at C15's parent: the first reading (nobody at 0 ms).
          * Red before C3: there was no voice-tile.mjs (the first assertion).
          */
         needs(world.atLeast("playerAccounts", 3), "three accounts besides the GM's: two in the channel and one outside it");
@@ -12815,9 +12850,6 @@ const INVARIANTS = [
         V.attachRoom(rig.clientOf(room), rig.watch);
         const seen = [];
         rig.speak(room, [b.id]);
-        rig.advance(249);
-        seen.push(rig.read().name);
-        rig.advance(1);
         seen.push([rig.read().name, rig.read().state, rig.read().channel]);
         const hadActivity = Object.hasOwn(settings, "activity"), activity = settings.activity;
         try {
@@ -12867,6 +12899,18 @@ const INVARIANTS = [
             bench.advance(300);
             return `${what}: ${bench.read().name || "nobody"}`;
         });
+
+        const change = voiceTileRig(V, [b, d]);
+        const both = change.makeRoom([b.id, d.id]);
+        V.attachRoom(change.clientOf(both), change.watch);
+        change.speak(both, [b.id]);
+        change.advance(300);
+        change.speak(both, [d.id]);
+        const turned = [change.read().name];
+        change.advance(249);
+        turned.push(change.read().name);
+        change.advance(1);
+        turned.push(change.read().name);
 
         const lost = voiceTileRig(V, [b]);
         const flaky = lost.makeRoom([b.id]);
@@ -12921,13 +12965,15 @@ const INVARIANTS = [
             else delete ui.webrtc;
             for (const el of [decoy, standIn, popout]) el.remove();
         }
-        equal(JSON.stringify([seen, shownWhenUnheard, reconnect, heard]), JSON.stringify([
-            ["", [nameOf(b), "speaking", "2"], [nameOf(b), ""], "+1", [nameOf(d), "", "1"], ["", false, "0"], ["", false], ["", "offline", "0"]],
+        equal(JSON.stringify([seen, turned, shownWhenUnheard, reconnect, heard]), JSON.stringify([
+            [[nameOf(b), "speaking", "2"], [nameOf(b), ""], "+1", [nameOf(d), "", "1"], ["", false, "0"], ["", false], ["", "offline", "0"]],
+            [nameOf(b), nameOf(b), nameOf(d)],
             Object.keys(unheard).map(what => `${what}: nobody`),
             [[nameOf(b), "offline", true, false], ["", "offline", false, true]],
             [nameOf(b), nameOf(d)]]),
-        "[nobody at 249 ms, then the speaker with the state and the channel's count (the positive control); with Foundry's signal and another Room "
-            + "naming a third; '+' with a second speaker; the first leaves; the second leaves; a new Room; the connection lost] and [each way this "
+        "[the speaker at 0 ms on an empty tile with the state and the channel's count (the positive control); with Foundry's signal and another Room "
+            + "naming a third; '+' with a second speaker; the first leaves; the second leaves; a new Room; the connection lost] and [a change of "
+            + "speaker at 0, 249 and 250 ms] and [each way this "
             + "browser does not hear the speaker] and [reconnecting: name, state, face, 'nobody'; then lost] and [heard from Foundry's dock and "
             + "a camera popout with a paused element of each in front of them]");
     }],
@@ -13248,6 +13294,2596 @@ const INVARIANTS = [
             + "it again], dockHiddenFor over (available, on), the voiceTile and voicePeerMutes registrations, refreshVoiceTile deciding with the setting, "
             + "[voiceAvailable and the dock hidden: DISABLED, AUDIO, VIDEO, AUDIO_VIDEO with avclient-livekit, AUDIO without], its facts read and asked");
     }],
+    ["R554 - the passages' records: a row holds the map's fields with its shape and a stretch on its wall, two GMs' cells are merged cell by cell, a browser keeps a cell's first `how` and each GM's grant is added to `by`, the log keeps its newest 200, and the reset's passages group cuts who knows them and never the map, and gives each passage's start access back with every knower's copy stamped again", async () => {
+        /*
+         * E79 C1, 14.10.2026; the E79 plan's A10-1 (its reset half is C8's). A secret passage is the GMs' alone:
+         * three GM stores (gm-stores.mjs `passageMapStore`, `passageAccessStore`, `passageLogStore`) written by
+         * passages-gm.mjs. The harms: a row that holds more than the map needs (a player's copy is cut from it), a
+         * second GM's grant lost in the merge, the log growing without end, and a reset that takes the passages
+         * themselves. Run on two engines of the suite's own (`createGmStoreEngine`), whose stores are the real
+         * specs under other names, and with two students of this world, whom `grantPassage` asks for: nothing of
+         * this world is written. Measured on the C1 tree: two GMs granting one cell at once both stay in `by`, and
+         * the merge keeps the newer `how` - "the first `how` kept" holds on one browser (fill-only), not across two
+         * GMs writing in the same moment, which the plan's A10-1 does not separate.
+         */
+        needs(world.atLeast("livingStudents", 2), "two students of this world are granted a passage on the suite's own engines");
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const P = await import("./passages-gm.mjs");
+        const { RESET_GROUPS } = await import("./season-exceptions.mjs");
+        const { RESET_STEPS } = await import("./season-setup.mjs");
+        const J = v => JSON.stringify(v);
+
+        const specs = [S.passageMapStore, S.passageAccessStore, S.passageLogStore].map(h => h.spec);
+        equal(J([specs.map(s => [s.name, s.kind, s.backup, s.sync, s.resetGroup ?? null, s.split ?? null]),
+            [G.gmCopySpec("passages")?.from, G.gmCopySpec("passages")?.resetGroup, G.gmCopySpec("passages")?.combine === S.offersCombine]]),
+        J([[["passageMap", "ledger", true, true, null, null], ["passageAccess", "ledger", true, true, "passages", ["by"]],
+            ["passageLog", "ledger", true, true, "passages", null]], ["passageAccess", "passages", true]]),
+        "the three records' specs (name, kind, backup, sync, reset group, split) and the copy's (made of, reset group, offersCombine)");
+        equal(J([RESET_GROUPS.filter(g => g.key === "passages").length, RESET_STEPS.includes("passages")]), J([1, true]),
+            "the reset's \"passages\" group is not one group and one step");
+
+        /* Two rooms of the suite's own either side of the wall, on the scene's one floor: since E79 fix r2-G3 a row is
+           written only for a stretch the pick would make (`stretchOnMap`), and its rooms are the map's (R561). */
+        const room = (name, y) => ({ id: name, name, behaviors: [], getFlag: () => true, shapes: [{ x: 0, y, width: 600, height: 100 }] });
+        const scene = { id: "R554SCENE", grid: { size: 100 }, levels: [{ id: "R554LEVEL", elevation: 0 }],
+            regions: [room("R554 Kitchen", 300), room("R554 Pantry", 400)] };
+        const wall = { id: "R554WALL", c: [100, 400, 500, 400] };
+        const [s1, s2] = studentActors().slice(0, 2).map(a => a.id);
+        const built = P.passageRowFor(scene, wall, { seg: { x1: 200, y1: 400.5, x2: 300, y2: 400 }, rooms: ["R554 Pantry", "R554 Kitchen", 7], level: "R554LEVEL", startAccess: [s1, s1] });
+        equal(J(built), J({ row: { sceneId: "R554SCENE", level: "R554LEVEL", shape: "wall", passageWallId: "R554WALL",
+            passageSeg: { x1: 200, y1: 400.5, x2: 300, y2: 400 }, rooms: ["R554 Kitchen", "R554 Pantry"], state: "secret", startAccess: [s1] } }),
+        "a new passage's row does not hold exactly the map's fields");
+        const level = "R554LEVEL";
+        equal(J([P.passageRowFor(scene, wall, { seg: { x1: 200, y1: 402, x2: 300, y2: 400 }, level }).refused ?? null,
+            P.passageRowFor(scene, wall, { seg: { x1: 200, y1: 400, x2: 200, y2: 400 }, level }).refused ?? null,
+            P.passageRowFor(scene, wall, { level }).row?.passageSeg, P.passageRowFor(scene, { id: "R554GONE" }, { level }).refused ?? null,
+            P.passageRowFor(scene, wall).refused ?? null]),
+        J(["the stretch is not on that wall.", "the stretch needs two different ends.", { x1: 100, y1: 400, x2: 500, y2: 400 }, "no such wall on that scene.",
+            "name one of the scene's floors."]),
+        "a stretch 2 px off its wall, one of no length, no stretch (the whole wall), no wall, and no floor on a scene that has one");
+
+        let t = 7_000_000;
+        const engineFor = self => G.createGmStoreEngine({
+            selfId: () => self, isGM: () => true, isPrimary: () => self === "R554GMA", worldId: () => "R554WORLD",
+            activeGmIds: () => [], primaryGmId: () => "R554GMA", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => t,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const storesOf = (eng, tag) => {
+            const def = (h, name) => eng.define({ ...h.spec, name: `r554${name}`, key: `r554${name}${tag}`, afterRestore: undefined, exists: undefined });
+            return { map: def(S.passageMapStore, "Map"), access: def(S.passageAccessStore, "Access"), log: def(S.passageLogStore, "Log"),
+                mastermind: eng.define({ name: "r554mm", key: `r554mm${tag}`, kind: "record", fields: ["actorId"], sync: false, backup: false }) };
+        };
+        const A = storesOf(engineFor("R554GMA"), "A"), B = storesOf(engineFor("R554GMB"), "B");
+        const id = "R554SCENE.r554p1", cell1 = `${id}/${s1}`, cell2 = `${id}/${s2}`;
+        await A.map.patch(id, built.row);
+        await B.map.mergeIn(A.map.section(), { source: "sync" });
+        equal(G.stableJson(B.map.get(id)), G.stableJson(built.row), "a second GM's map does not hold the row the first wrote");
+
+        // Two GMs at once: GM A grants s1, GM B grants s2 and s1 (shown), neither having merged the other's.
+        equal(J([await P.grantPassage(id, s1, { how: "gm", by: "R554GMA", stores: A }), (t += 5, await P.grantPassage(id, s2, { how: "gm", by: "R554GMB", stores: B })),
+            await P.grantPassage(id, s1, { how: "shown", by: "R554GMB", stores: B })]), J([true, true, true]), "a grant on the suite's engines was refused");
+        const touched1 = A.access.newest(`touch/${s1}`);
+        await A.access.mergeIn(B.access.section(), { source: "sync" });
+        await B.access.mergeIn(A.access.section(), { source: "sync" });
+        const cellsOf = h => Object.fromEntries(Object.entries(h.access.entries()).filter(([k]) => k.startsWith(`${id}/`)));
+        equal(G.stableJson(cellsOf(A)), G.stableJson(cellsOf(B)), "two GMs' cells do not read the same once each has the other's");
+        equal(J([Object.keys(cellsOf(A)).sort(), Object.keys(A.access.get(cell1)?.by ?? {}).sort(), A.access.get(cell1)?.how, A.access.get(cell2)?.how]),
+            J([[cell1, cell2].sort(), ["R554GMA", "R554GMB"], "shown", "gm"]),
+            "[the cells after the merge, the GMs in s1's `by`, s1's `how` (the newer of two at once), s2's `how`]");
+        // On one browser, a later grant keeps the first `how` and its time, and adds its GM to `by`.
+        const at1 = A.access.get(cell1)?.at;
+        t += 5;
+        await P.grantPassage(id, s1, { how: "gm", by: "R554GMC", stores: A });
+        equal(J([A.access.get(cell1)?.how, A.access.get(cell1)?.at === at1, Object.keys(A.access.get(cell1)?.by ?? {}).sort(), A.access.newest(`touch/${s1}`) > touched1]),
+            J(["shown", true, ["R554GMA", "R554GMB", "R554GMC"], true]),
+            "[a second grant's `how`, its time, `by` and the character's touch stamp] - the first `how` was replaced, `by` lost a GM or nothing told the owners");
+
+        // The log: 2 rows of s1's grants, then 200 of s2's grants and revokes - the two oldest go.
+        for (let i = 0; i < 100; i++) {
+            t += 1;
+            await P.revokePassage(id, s2, { stores: A });
+            await P.grantPassage(id, s2, { by: "R554GMA", stores: A });
+        }
+        const rows = P.passageLog({ stores: A });
+        equal(J([Object.keys(A.log.entries()).length, rows.length, rows[0]?.what, rows[0]?.actorId === s2, rows.some(r => r.actorId === s1)]),
+            J([P.PASSAGE_LOG_ROWS, 200, "grant", true, false]),
+            "[rows held, rows listed, the newest row's kind, its student, any of s1's two left] - the log does not keep exactly its newest 200");
+
+        /*
+         * The reset half (E79 C8, 15.10.2026; the plan's A10-1, step 17). The season's reset of the "passages" group on the
+         * primary (GM A): the map stays, who knows each passage goes but its start access, which comes back as a cell
+         * `how: "start"` for each student of this world the row names (a second row names s2 and an id that is nobody's,
+         * and is closed), and the log starts empty; every character whose copy changed - s1, s2 and the Mastermind - reads a
+         * newest stamp past the one before (the clear's watermark), or a copy the reset's cut emptied would refuse the one
+         * sent after it. Red on C1's
+         * step (C7's tree, 15.10.2026, run alone) at the first assertion, `[true,[],null,null,0]`: every cell went, the
+         * start ones with them (the stamps' assertion after it was not reached).
+         */
+        const id2 = "R554SCENE.r554p2", ghost = "R554NOBODY000000";
+        await A.map.patch(id2, { ...built.row, passageSeg: { x1: 350, y1: 400, x2: 450, y2: 400 }, state: "closed", startAccess: [s2, ghost] });
+        await A.mastermind.patch(G.RECORD, { actorId: "R554MM" });
+        const mapBefore = G.stableJson(A.map.entries());
+        const touchedBefore = Object.fromEntries([s1, s2, "R554MM"].map(a => [a, A.access.newest(`touch/${a}`)]));
+        t += 10;
+        equal(await P.passagesAfterReset({ stores: A }), 0, "a reset on the suite's own stores sent a copy to somebody");
+        const after = A.access.entries();
+        equal(J([G.stableJson(A.map.entries()) === mapBefore, Object.keys(after).filter(k => !k.startsWith("touch/")).sort(),
+            after[cell1]?.how, after[`${id2}/${s2}`]?.how, Object.keys(A.log.entries()).length]),
+        J([true, [cell1, `${id2}/${s2}`].sort(), "start", "start", 0]),
+        "[the map unchanged, the cells left, s1's and s2's `how`, the log's rows] - the reset took a passage or its start access, kept a granted or shown cell, named nobody's id or left the log");
+        equal(J([s1, s2, "R554MM"].map(a => A.access.newest(`touch/${a}`) > touchedBefore[a])), J([true, true, true]),
+            "[s1's, s2's and the Mastermind's newest stamp past the one before the reset] - a copy the cut emptied would not take the one sent after it");
+    }],
+
+    ["R555 - a player's copy of the passages: only open passages a character the player owns knows, its knowers only theirs and no name or room, a stamp per owned character; the Mastermind's owner every open one, a Monokuma's nothing; a revoke, a Close, a Delete and a Mastermind change drop the row and are taken; the push is addressed to each player alone; a copy is taken only from the primary GM; the Mastermind's other owners nothing of it; an owner of no student an empty copy that is taken; a write that keeps the Mastermind sends nothing and a new one the two owners it changes; a deleted scene's passage in no copy and marked in the list; a second owner of the Mastermind's student is sent, step by step, what they would be sent were nobody the Mastermind; and a player who connects, or whose role changes, is told; and a player who loses a student takes the copy without its rows", async () => {
+        /*
+         * E79 C1, 14.10.2026; the E79 plan's A10-2 and D9. What a player's browser learns of a passage is its copy
+         * (gm-stores.mjs `passageCopy`), cut for that user by `passageCopyFor` and sent by `pushPassageCopies`. The
+         * harms: a passage on a browser whose characters do not know it, a copy naming somebody else's character or a
+         * room, a row that stays after its knower forgot it (D9: revoking the last passage empties the copy), a packet
+         * every browser receives, and a copy another player or a GM that is not the primary can hand a browser. Run on
+         * an engine of the suite's own, with characters and users of its own: nothing of this world is read or written
+         * but this browser's own user. The weighing is `offersCombine`'s own (`passageCopy`'s combine): each copy
+         * after a change is held against the one before it.
+         *
+         * E79 fix r1-G2 (15.10.2026), the round-1 review's harms: a second owner of the Mastermind's student, told
+         * "not the Mastermind" by the door, was sent every open passage naming the Mastermind (SEC S2); a player left
+         * owning no student was answered `stamps: {}`, which the copy refuses, and kept the last one (SEC S3); any write
+         * of the Mastermind's record sent every player a copy (goal F4); and a passage on a deleted scene stayed in its
+         * knowers' copies (cor F6).
+         *
+         * E79 fix r2-G2 (16.10.2026), the round-2 review's harms: S2's answer left the Mastermind's student out of a second
+         * owner's copy, so that copy changed - and was sent - the moment the student became the Mastermind, and the
+         * passages the student had been given left that owner's list (SEC M3 = cor F1, its probe SECR2-P3); a player
+         * who connected was told by a hook no test drove (O14, O16), and a change of a user's role told nobody (O18).
+         * Red on the parent's runtime (977290d with this file, 16.10.2026, run alone): the second owner's copy
+         * `"{}"` stamped `[""]` where its own student's part was asked, and `onUserConnected` and `onUserUpdated` not
+         * functions.
+         */
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const P = await import("./passages-gm.mjs");
+        const L = await import("./passages.mjs");
+        const J = v => JSON.stringify(v);
+        let t = 8_000_000;
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R555GM", isGM: () => true, isPrimary: () => true, worldId: () => "R555WORLD",
+            activeGmIds: () => [], primaryGmId: () => "R555GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => t,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const def = (h, name) => eng.define({ ...h.spec, name: `r555${name}`, key: `r555${name}`, afterRestore: undefined, exists: undefined });
+        const stores = { map: def(S.passageMapStore, "Map"), access: def(S.passageAccessStore, "Access"), log: def(S.passageLogStore, "Log"),
+            mastermind: eng.define({ name: "r555mm", key: "r555mm", kind: "record", fields: ["actorId"], sync: false, backup: false }) };
+        const user = (id, { gm = false, active = true } = {}) => ({ id, isGM: gm, active });
+        const users = [user("R555GM", { gm: true }), user("R555U1"), user("R555U2"), user("R555U3"), user("R555U4"), user("R555U5", { active: false })];
+        const actor = (id, owner, { monokuma = false } = {}) => ({ id, type: "character",
+            getFlag: (scope, key) => (monokuma && scope === MODULE_ID && key === FLAGS.monokuma ? true : undefined),
+            testUserPermission: (u, level) => level === "OWNER" && (u?.isGM || [owner].flat().includes(u?.id)) });
+        const actors = [actor("R555A1", "R555U1"), actor("R555A2", "R555U2"), actor("R555MK", "R555U3", { monokuma: true }), actor("R555MM", "R555U4")];
+        const [, U1, U2, U3, U4] = users;
+        const row = n => ({ sceneId: "R555SCENE", level: null, shape: "wall", passageWallId: `R555WALL${n}`,
+            passageSeg: { x1: 1234.5, y1: 100 * n, x2: 1300.5, y2: 100 * n }, rooms: ["R555 Kitchen"], state: "secret", startAccess: [] });
+        const [P1, P2, P3, P4] = [1, 2, 3, 4].map(n => `R555SCENE.r555p${n}`);
+        await stores.map.patchMany({ [P1]: row(1), [P2]: row(2), [P3]: { ...row(3), state: "closed" }, [P4]: { ...row(4), state: "broken" } });
+        const cells = { [`${P1}/R555A1`]: 1, [`${P1}/R555A2`]: 1, [`${P1}/R555MK`]: 1, [`${P2}/R555A2`]: 1, [`${P3}/R555A1`]: 1, [`${P4}/R555A1`]: 1, [`${P3}/R555A2`]: 1 };
+        await stores.access.patchMany(Object.fromEntries(Object.keys(cells).map(k => [k, { how: "gm", at: 1, by: { R555GM: 1 } }])));
+        await stores.access.patchMany(Object.fromEntries(["R555A1", "R555A2", "R555MK"].map(a => [`touch/${a}`, { at: 1 }])));
+        const copy = u => P.passageCopyFor(u, { stores, actors, users });
+        const touchDoor = (options = {}) => (typeof P.touchDoorChange === "function" ? P.touchDoorChange({ stores, actors, users, ...options }) : Promise.resolve([]));
+        const ids = c => Object.keys(c.value).sort();
+        const taken = (held, next) => S.offersCombine(held, next) !== null;
+
+        const c1 = copy(U1), c2 = copy(U2);
+        equal(J([ids(c1), c1.value[P1]?.actorIds, Object.keys(c1.value[P1] ?? {}).sort(), Object.keys(c1.stamps), c1.stamps.R555A1 > 0]),
+            J([[P1], ["R555A1"], ["actorIds", "level", "passageSeg", "passageWallId", "sceneId", "shape"], ["R555A1"], true]),
+            "[p1's passages, its knowers, a row's fields, the characters stamped, a stamp] - a closed or broken passage, somebody else's character or a field beyond the copy's");
+        equal(J([ids(c2), c2.value[P1]?.actorIds, c2.value[P2]?.actorIds, J(c2).includes("R555 Kitchen")]), J([[P1, P2], ["R555A2"], ["R555A2"], false]),
+            "[p2's passages, their knowers, a room's name in the copy]");
+        const plain4 = copy(U4);
+        const none = copy(U3);
+        equal(J([none, plain4, G.copyStamps(none.stamps)]), J([{ value: {}, stamps: { "": 1 } }, { value: {}, stamps: { R555MM: 0 } }, { "": 1 }]),
+            "[a Monokuma's owner, a student's who knows nothing and is not the Mastermind, the first one's stamps as a copy reads them] - a passage held, or a copy of no student that cannot be taken (SEC S3)");
+        await stores.mastermind.patch(G.RECORD, { actorId: "R555MM" });
+        await touchDoor();
+        const c4 = copy(U4);
+        equal(J([ids(c4), c4.value[P1]?.actorIds, c4.value[P2]?.actorIds, taken(plain4, c4)]),
+            J([[P1, P2], ["R555MM"], ["R555MM"], true]), "[the Mastermind's owner's passages, their knowers, the copy taken] - not every open passage");
+
+        /*
+         * Review round 3, cor A (E79 fix r3-G3, 17.10.2026): what the door's owner's own browser takes, not what the GM cuts
+         * for it. Until the fix a player's browser dropped a copy's part "door" (passages.mjs `cleanCopy`, then inside
+         * `onPassageRows`), so the copy that gives the door's owner every open passage was weighed on parts that had not
+         * moved and refused; and the copy that takes them away named no part newer than the one held, and was refused at
+         * the engine's first gate (gm-store.mjs `receiveCopy`). Run on stores of its own and a player's engine of its own
+         * (its storage a Map), through `cleanCopy` and the copy's own `receive`; a reload is a second engine on the same
+         * storage. Red at 1bf136a with this file (17.10.2026): `cleanCopy` not exported, nothing taken.
+         */
+        const dst = { map: def(S.passageMapStore, "MapDo"), access: def(S.passageAccessStore, "AccessDo"), log: def(S.passageLogStore, "LogDo"),
+            mastermind: eng.define({ name: "r555mmDo", key: "r555mmDo", kind: "record", fields: ["actorId"], sync: false, backup: false }) };
+        await dst.map.patchMany({ [P1]: row(1), [P2]: row(2), [P3]: { ...row(3), state: "closed" } });
+        await dst.access.patchMany({ [`${P1}/R555A1`]: { how: "gm", at: 1, by: { R555GM: 1 } } });
+        const doorCopy = () => P.passageCopyFor(U4, { stores: dst, actors, users });
+        const browser = new Map();
+        const playerCopy = () => G.createGmStoreEngine({
+            selfId: () => "R555U4", isGM: () => false, isPrimary: () => false, worldId: () => "R555WORLD",
+            activeGmIds: () => [], primaryGmId: () => null, senderIsGM: () => false, userName: u => u, send: () => {},
+            storage: { read: k => browser.get(k) ?? null, write: async (k, v) => { browser.set(k, JSON.stringify(v)); } },
+            readLegacy: () => undefined, now: () => t, timers: { set: () => null, clear: () => {} }, clock: () => ({}),
+            log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        }).defineCopy({ name: "r555door", key: "r555doorCopy", resetGroup: "passages", fallback: {}, combine: S.offersCombine });
+        const thisWorld = { actors: new Map(actors.map(a => [a.id, a])), scenes: new Map([["R555SCENE", {}]]) };
+        let mine = playerCopy();
+        const deliver = async c => {
+            const clean = typeof L.cleanCopy === "function" ? L.cleanCopy(c.value, c.stamps, thisWorld) : null;
+            return clean ? mine.receive(clean.value, clean.stamps) : false;
+        };
+        const held = () => Object.keys(mine.read() ?? {}).sort();
+        const reloaded = () => { mine = playerCopy(); return held(); };
+        await dst.mastermind.patch(G.RECORD, { actorId: "R555MM" });
+        await P.touchDoorChange({ stores: dst, actors, users });
+        const doorGiven = await deliver(doorCopy()), heldGiven = held(), reloadGiven = reloaded();
+        await dst.mastermind.patch(G.RECORD, { actorId: null });
+        await P.touchDoorChange({ stores: dst, actors, users });
+        const doorGone = doorCopy();
+        const takenAway = await deliver(doorGone), heldGone = held(), reloadGone = reloaded();
+        equal(J([doorGiven, heldGiven, reloadGiven, Object.keys(doorGone.stamps).sort(), takenAway, heldGone, reloadGone]),
+            J([true, [P1, P2], [P1, P2], ["R555MM", "door"], true, [], []]),
+            "[on the door's owner's browser: the Mastermind's copy taken, what it holds, after a reload; the parts of the copy once nobody is the Mastermind, "
+                + "taken, what it holds, after a reload] - the door's owner refuses its every-passage copy, or keeps it once the door names nobody (cor A)");
+
+        /*
+         * Review round 4, Q8 = goal S16-11 (E79 fix r4-G4, 17.10.2026): a player who loses a student. U1 owns X, given a
+         * passage, and Y, given none (its part 0); X is taken from U1. Until the fix the copy without X's rows was stamped by
+         * Y's part alone, at 0, and refused at the engine's first gate (gm-store.mjs `receiveCopy`): X's rows stayed on U1's
+         * browser. Run as cor A's case, on stores of its own and U1's engine with a storage of its own, through `cleanCopy`
+         * and the copy's `receive`, each change of owners told by `touchOwnerChange` as the primary's retell tells it; then
+         * the same copy again, refused as nothing newer, and X given back. Red at 0641c4c with this file: no
+         * `touchOwnerChange`, and the copy after the loss stamped by Y alone and refused.
+         */
+        const lose = { map: def(S.passageMapStore, "MapOw"), access: def(S.passageAccessStore, "AccessOw"), log: def(S.passageLogStore, "LogOw"),
+            mastermind: eng.define({ name: "r555mmOw", key: "r555mmOw", kind: "record", fields: ["actorId"], sync: false, backup: false }) };
+        const xOwners = ["R555U1"], owned = [actor("R555OX", xOwners), actor("R555OY", "R555U1")];
+        await lose.map.patchMany({ [P1]: row(1) });
+        await lose.access.patchMany({ [`${P1}/R555OX`]: { how: "gm", at: 1, by: { R555GM: 1 } }, "touch/R555OX": { at: 1 } });
+        const loseCtx = { stores: lose, actors: owned, users };
+        const ownerChange = () => (typeof P.touchOwnerChange === "function" ? P.touchOwnerChange(loseCtx) : Promise.resolve(null));
+        const browserU1 = new Map();
+        const u1Copy = G.createGmStoreEngine({
+            selfId: () => "R555U1", isGM: () => false, isPrimary: () => false, worldId: () => "R555WORLD",
+            activeGmIds: () => [], primaryGmId: () => null, senderIsGM: () => false, userName: u => u, send: () => {},
+            storage: { read: k => browserU1.get(k) ?? null, write: async (k, v) => { browserU1.set(k, JSON.stringify(v)); } },
+            readLegacy: () => undefined, now: () => t, timers: { set: () => null, clear: () => {} }, clock: () => ({}),
+            log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        }).defineCopy({ name: "r555lose", key: "r555loseCopy", resetGroup: "passages", fallback: {}, combine: S.offersCombine });
+        const loseWorld = { actors: new Map(owned.map(a => [a.id, a])), scenes: new Map([["R555SCENE", {}]]) };
+        const toU1 = async () => {
+            const c = P.passageCopyFor(U1, loseCtx), clean = L.cleanCopy(c.value, c.stamps, loseWorld);
+            return [Object.keys(c.stamps).sort(), await u1Copy.receive(clean.value, clean.stamps), Object.keys(u1Copy.read() ?? {}).sort()];
+        };
+        const firstOwners = await ownerChange(), given = await toU1();
+        xOwners.length = 0;
+        const lostOwners = await ownerChange(), lost = await toU1(), again = await toU1(), quiet = await ownerChange();
+        xOwners.push("R555U1");
+        const backOwners = await ownerChange(), regained = await toU1();
+        equal(J([firstOwners, given, lostOwners, lost, again, quiet, backOwners, regained]),
+            J([["R555OX"], [["R555OX", "R555OY"], true, [P1]], ["R555OX"], [["R555OX", "R555OY"], true, []], [["R555OX", "R555OY"], false, []], [],
+                ["R555OX"], [["R555OX", "R555OY"], true, [P1]]]),
+            "[on U1's browser: the students whose players were first written, the copy's parts, taken, held; after X is taken from U1 the students "
+                + "stamped, the copy's parts, taken, held; the same copy again; the retell after it; X given back] - the copy without X's rows "
+                + "refused while Y's part is 0, or a copy taken again for nothing (Q8)");
+
+        // SEC S2: the Mastermind's student has a second owner. The door names one (`ownerOf`, the connected one first); the other
+        // holds the student as any student's, its copy what it would be were nobody the Mastermind (SEC M3), and becomes the
+        // door's owner when the first is away.
+        const U6 = user("R555U6"), coUsers = [...users, U6], coActors = [...actors.filter(a => a.id !== "R555MM"), actor("R555MM", ["R555U4", "R555U6"])];
+        const coCopy = (u, people = coUsers, options = {}) => P.passageCopyFor(u, { stores, actors: coActors, users: people, ...options });
+        const door4 = coCopy(U4), second = coCopy(U6), away = coCopy(U6, coUsers.map(u => (u.id === "R555U4" ? { ...u, active: false } : u)));
+        equal(J([ids(door4), Object.keys(door4.stamps).sort(), J(second.value), Object.keys(second.stamps), J(second) === J(coCopy(U6, coUsers, { mastermindId: null })),
+            ids(away), away.value[P1]?.actorIds, Object.keys(away.stamps).sort()]),
+        J([[P1, P2], ["R555MM", "door"], "{}", ["R555MM"], true, [P1, P2], ["R555MM"], ["R555MM", "door"]]),
+        "[the door's owner's passages, its stamp parts, the second owner's copy, its stamp parts, that copy the same with nobody the Mastermind, the second owner's passages with the first away, their knowers, their stamp parts]");
+
+        /*
+         * SEC M3, step by step: two second owners - U6, who owns only the Mastermind's student, and U7, who owns it and a
+         * student of their own - on stores of their own, run once with the student the Mastermind and once with nobody
+         * the Mastermind, through a choice of the Mastermind, a Close, an Open, a revoke of the student's own cell and a
+         * Delete. Each step's packets to U6 and U7 (passages, knowers, stamp parts; a stamp's value is the engine's own)
+         * are the same in both runs and as written here; the door's owner, U4, is the control - every open passage, and a
+         * packet at each step only in the run where the student is the Mastermind.
+         */
+        const U7 = user("R555U7"), coUsers2 = [...coUsers, U7];
+        const coActors2 = [...actors.filter(a => a.id !== "R555MM"), actor("R555MM", ["R555U4", "R555U6", "R555U7"]), actor("R555Z7", "R555U7")];
+        const Q = [1, 2, 3].map(n => `R555SCENE.r555q${n}`);
+        const coRun = async (suffix, chosen) => {
+            const st = { map: def(S.passageMapStore, `Map${suffix}`), access: def(S.passageAccessStore, `Access${suffix}`), log: def(S.passageLogStore, `Log${suffix}`),
+                mastermind: eng.define({ name: `r555mm${suffix}`, key: `r555mm${suffix}`, kind: "record", fields: ["actorId"], sync: false, backup: false }) };
+            await st.map.patchMany(Object.fromEntries(Q.map((id, i) => [id, row(i + 1)])));
+            await st.access.patchMany({ [`${Q[0]}/R555MM`]: { how: "gm", at: 1, by: { R555GM: 1 } }, [`${Q[1]}/R555Z7`]: { how: "gm", at: 1, by: { R555GM: 1 } } });
+            const out = [];
+            const ctx = { stores: st, actors: coActors2, users: coUsers2, socket: { emit: (event, packet) => out.push(packet) }, told: new Map() };
+            const seen = [];
+            const step = async (label, write) => {
+                await write();
+                await P.touchDoorChange(ctx);
+                const mark = out.length;
+                P.pushPassageCopies(null, ctx);
+                const to = out.slice(mark);
+                seen.push([label, ...["R555U4", "R555U6", "R555U7"].map(id => {
+                    const packet = to.find(x => x.userId === id);
+                    return packet ? [Object.keys(packet.passages).sort(), Object.values(packet.passages).map(r => r.actorIds), Object.keys(packet.stamps).sort()] : null;
+                })]);
+            };
+            await step("first", async () => {});
+            await step("chosen", () => (chosen ? st.mastermind.patch(G.RECORD, { actorId: "R555MM" }) : Promise.resolve()));
+            await step("close", () => P.closePassage(Q[2], { stores: st }));
+            await step("open", () => P.openPassage(Q[2], { stores: st }));
+            await step("revoke", () => P.revokePassage(Q[0], "R555MM", { stores: st }));
+            await step("delete", () => P.deletePassage(Q[2], { stores: st }));
+            return seen;
+        };
+        const coMm = await coRun("Co1", true), coNone = await coRun("Co2", false);
+        const coOf = seen => seen.map(([label, , u6, u7]) => [label, u6, u7]);
+        const mm = ["R555MM"], both = ["R555MM", "R555Z7"];
+        equal(J(coOf(coMm)), J([["first", [[Q[0]], [mm], mm], [[Q[0], Q[1]], [mm, ["R555Z7"]], both]], ["chosen", null, null], ["close", null, null],
+            ["open", null, null], ["revoke", [[], [], mm], [[Q[1]], [["R555Z7"]], both]], ["delete", null, null]]),
+        "[each step: U6's packet, U7's, as passages, knowers and stamp parts] with the student the Mastermind - a second owner is sent a copy for the choice, a Close, an Open or a Delete, or holds a passage the student was not given (SEC M3)");
+        equal(J(coOf(coMm)), J(coOf(coNone)), "[each step: U6's packet, U7's] differ between the student the Mastermind and nobody the Mastermind - a second owner reads the role off their copy (SEC M3)");
+        equal(J([coMm.map(([label, u4]) => [label, u4?.[0] ?? null]), coNone.map(([label, u4]) => [label, u4?.[0] ?? null])]),
+            J([[["first", [Q[0]]], ["chosen", Q], ["close", [Q[0], Q[1]]], ["open", Q], ["revoke", Q], ["delete", [Q[0], Q[1]]]],
+                [["first", [Q[0]]], ["chosen", null], ["close", null], ["open", null], ["revoke", []], ["delete", null]]]),
+        "[each step: the door owner's passages with the student the Mastermind, with nobody the Mastermind] - the door's copy is not every open passage, or is not sent when one moves");
+
+        /*
+         * O14 and O16: a player who connects is told what changed while they were away - `onUserConnected`, the hook's own
+         * handler, with the suite's retell standing in for `retellSoon` - in one packet addressed to them alone, the
+         * Passages tab's "not yet delivered" line (`undeliveredOf`: U6's own student) clears on the push's own hook, and
+         * a player who already holds their copy is sent nothing. O18: a change of role retells, a change of anything else
+         * does not, and the retell moves the door off a player made a GM to the next owner, the one copy sent.
+         */
+        const awayUsers = coUsers2.map(u => (u.id === "R555U6" ? { ...u, active: false } : u));
+        const cst = { map: def(S.passageMapStore, "MapCo3"), access: def(S.passageAccessStore, "AccessCo3"), log: def(S.passageLogStore, "LogCo3"),
+            mastermind: eng.define({ name: "r555mmCo3", key: "r555mmCo3", kind: "record", fields: ["actorId"], sync: false, backup: false }) };
+        await cst.map.patchMany({ [Q[0]]: row(1) });
+        await cst.access.patchMany(Object.fromEntries(["R555MM", "R555Z6", "R555Z7"].map(a => [`${Q[0]}/${a}`, { how: "gm", at: 1, by: { R555GM: 1 } }])));
+        const coActors3 = [...coActors2, actor("R555Z6", "R555U6")];
+        await cst.mastermind.patch(G.RECORD, { actorId: "R555MM" });
+        const cOut = [], cTold = new Map();
+        const cCtx = people => ({ stores: cst, actors: coActors3, users: people, socket: { emit: (event, packet, options) => cOut.push({ packet, options }) }, told: cTold });
+        await P.retellPassages({ ...cCtx(awayUsers), primary: () => true });
+        const z7 = actorsOf => P.undeliveredOf(Q[0], { stores: cst, actors: new Map(coActors3.map(a => [a.id, a])), users: actorsOf, told: cTold, primary: true });
+        const firstTo = cOut.map(o => o.packet.userId).sort();
+        cOut.length = 0;
+        let toldHook = null;
+        const hookId = Hooks.on("drpgPassagesTold", info => { toldHook = info; });
+        const coming = coUsers2;
+        const before6 = z7(awayUsers);
+        let connected;
+        try {
+            connected = await P.onUserConnected(U6, true, { retell: () => P.retellPassages({ ...cCtx(coming), primary: () => true }) });
+        } finally {
+            Hooks.off("drpgPassagesTold", hookId);
+        }
+        equal(J([firstTo, before6, connected, cOut.map(o => [o.packet.userId, o.options?.recipients, Object.keys(o.packet.passages)]).sort(), toldHook, z7(coming)]),
+            J([["R555U1", "R555U2", "R555U3", "R555U4", "R555U7"], ["R555Z6"], 1, [["R555U6", ["R555U6"], [Q[0]]]], { sent: 1 }, []]),
+            "[sent before U6 came, the undelivered while U6 was away, sent when U6 came, to whom and what, the push's hook, the undelivered after] - a player who connects is not told, or one who holds their copy is sent it again (O14, O16)");
+        /* E79 fix r2-G3 (review round 2, H2): a player who comes back, or leaves, is sent their copy whole the next time -
+           their browser may hold none, and their own ask may come before Foundry marks them active (76 G). Red at d71759a. */
+        const toldBefore = new Map([["R555U6", "{\"value\":{}}"], ["R555U7", "{\"value\":{}}"]]);
+        await P.onUserConnected(U6, true, { retell: () => 0, told: toldBefore });
+        await P.onUserConnected(U7, false, { retell: () => 0, told: toldBefore });
+        equal(J([...toldBefore.keys()]), J([]), "[what is still held as told after U6 came back and U7 left] - a returning player's copy is weighed against what an earlier browser was sent");
+        const calls = [];
+        const roleRetell = () => { calls.push("retell"); return P.retellPassages({ ...cCtx(coUsers2.map(u => (u.id === "R555U4" ? { ...u, isGM: true } : u))), primary: () => true }); };
+        cOut.length = 0;
+        const named = await P.onUserUpdated(U7, { name: "R555 renamed" }, {}, "R555GM", { retell: roleRetell });
+        const roled = await P.onUserUpdated(U4, { role: 4 }, {}, "R555GM", { retell: roleRetell });
+        equal(J([named ?? null, calls, cOut.map(o => o.packet.userId).sort()]), J([null, ["retell"], ["R555U6"]]),
+            "[a rename's retell, the retells asked, sent after U4 was made a GM: U6, the door now] - a change of role tells nobody, or a rename retells (O18)");
+
+        // The push: each player who is here, addressed to them alone; an unchanged copy is not sent twice unless asked for.
+        const sent = [], told = new Map();
+        const socket = { emit: (event, packet, options) => sent.push({ event, packet, options }) };
+        const push = (only = null, force = false) => P.pushPassageCopies(only, { force, stores, actors, users, socket, told });
+        const n1 = push(), n2 = push(), n3 = push(null, true), n4 = push(["R555U1"], true);
+        equal(J([n1, n2, n3, n4, sent.slice(0, n1).map(s => s.packet.userId)]), J([4, 0, 4, 1, ["R555U1", "R555U2", "R555U3", "R555U4"]]),
+            "[sent, again unchanged, forced, forced to p1 alone, to whom] - a GM, an absent player or nobody was sent a copy");
+        const unaddressed = sent.filter(s => s.event !== `module.${MODULE_ID}` || s.packet.action !== "passage.rows"
+            || J(s.options?.recipients) !== J([s.packet.userId]));
+        equal(J(unaddressed.map(s => s.packet.userId)), "[]", "a copy went out without its recipients naming its user alone");
+        equal(J(sent[0].packet.passages), J(c1.value), "the copy pushed to p1 is not p1's copy");
+
+        // Goal F4: a write of the Mastermind's record that keeps who it is sends nobody a copy; a new Mastermind sends exactly the owners of
+        // the student who was and of the student who is - and so does the way back.
+        const pushed = async () => {
+            await touchDoor();
+            const mark = sent.length;
+            push();
+            return sent.slice(mark).map(s => s.packet.userId).sort();
+        };
+        await stores.mastermind.patch(G.RECORD, { actorId: "R555MM" });
+        const kept = await pushed();
+        await stores.mastermind.patch(G.RECORD, { actorId: "R555A2" });
+        const moved = await pushed();
+        await stores.mastermind.patch(G.RECORD, { actorId: "R555MM" });
+        const back = await pushed();
+        equal(J([kept, moved, back]), J([[], ["R555U2", "R555U4"], ["R555U2", "R555U4"]]),
+            "[sent after a write that keeps the Mastermind, after it moved to p2's student, after it moved back]");
+
+        // Each change drops the row from the copies it was in, and each new copy is taken over the one before.
+        const before = { 1: copy(U1), 2: copy(U2), 4: copy(U4) };
+        equal(await P.revokePassage(P1, "R555A1", { stores }), true, "a revoke was refused");
+        const r1 = copy(U1);
+        equal(J([ids(r1), taken(before[1], r1), ids(copy(U2))]), J([[], true, [P1, P2]]),
+            "[p1's passages after the last was revoked, the copy taken, p2's] (D9)");
+        equal(await P.closePassage(P2, { stores }), true, "a Close was refused");
+        const k2 = copy(U2), k4 = copy(U4);
+        equal(J([ids(k2), taken(before[2], k2), ids(k4), taken(before[4], k4), Object.hasOwn(stores.access.entries(), `${P2}/R555A2`)]),
+            J([[P1], true, [P1], true, true]), "[p2's after the Close, taken, the Mastermind's, taken, the cell kept]");
+        equal(await P.openPassage(P2, { stores }), true, "an Open was refused");
+        equal(J(ids(copy(U2))), J([P1, P2]), "an opened passage did not come back to its knower's copy");
+        const o2 = copy(U2), o4 = copy(U4);
+        equal(await P.deletePassage(P1, { stores }), true, "a Delete was refused");
+        const d2 = copy(U2), d4 = copy(U4);
+        equal(J([ids(d2), taken(o2, d2), ids(d4), taken(o4, d4), Object.keys(stores.access.entries()).filter(k => k.startsWith(`${P1}/`))]),
+            J([[P2], true, [P2], true, []]), "[p2's after the Delete, taken, the Mastermind's, taken, the deleted passage's cells]");
+        await stores.mastermind.patch(G.RECORD, { actorId: null });
+        await touchDoor();
+        const m4 = copy(U4);
+        equal(J([ids(m4), taken(d4, m4)]), J([[], true]), "the Mastermind's former owner still holds the passages, or the copy that drops them is refused");
+
+        // SEC S3: p2 comes to own no student - their copy is empty, stamped, and taken over the one that named their student.
+        // It carries the part "door" as well: the door named p2 while R555A2 was the Mastermind (goal F4, above), and since
+        // review round 3 (cor A) an owner the door left keeps that part, at the stamp it left them with.
+        const held2 = copy(U2), orphan = P.passageCopyFor(U2, { stores, actors: actors.filter(a => a.id !== "R555A2"), users });
+        equal(J([ids(held2), orphan.value, orphan.stamps[""], Object.keys(orphan.stamps).sort(), orphan.stamps.door === held2.stamps.door, taken(held2, orphan)]),
+            J([[P2], {}, 1, ["", "door"], true, true]),
+            "[p2's passages, p2's copy once they own no student: its rows, its part \"\", its parts, its part \"door\" the one held; that copy taken] - a player who owns nothing keeps what they held");
+
+        // cor F6: P2's scene is deleted - P2 leaves its knower's copy and the cut, and the GMs' list keeps it, marked, for a Delete.
+        const gone = { ...stores, scenes: new Set(["R555OTHER"]) };
+        const listed = P.listPassages({ stores: gone }).find(p => p.id === P2);
+        equal(J([Object.keys(P.passageCopyFor(U2, { stores: gone, actors, users }).value), Object.keys(L.secretRowsFrom(gone)), listed?.sceneGone ?? null,
+            P.listPassages({ stores }).find(p => p.id === P2)?.sceneGone ?? null]), J([[], [], true, null]),
+            "[p2's passages, the GMs' open rows, the list's mark, the mark while the scene stands] once P2's scene is gone");
+
+        // The receiver's rule: addressed to this user, and sent by the primary GM.
+        const me = { id: "R555U1", isGM: false };
+        const people = new Map([["R555GM", { isGM: true }], ["R555GM2", { isGM: true }], ["R555U2", { isGM: false }]]);
+        const refusal = (payload, sender, who = me) => L.passageRowsRefusal(payload, sender, { me: who, users: people, primary: "R555GM" });
+        equal(J([refusal({ userId: "R555U1" }, "R555GM"), refusal({ userId: "R555U1" }, "R555GM2"), refusal({ userId: "R555U1" }, "R555U2"),
+            refusal({ userId: "R555U2" }, "R555GM"), refusal({ userId: "R555GM" }, "R555GM", { id: "R555GM", isGM: true })]),
+        J([null, "not sent by the primary GM", "not sent by a GM", "addressed to somebody else", "a GM's browser keeps no copy"]),
+        "[the primary's to p1, another GM's, a player's, the primary's to p2, any to a GM] - a copy is taken from somebody other than the primary GM");
+
+        // A step goes through a passage's stretch within 1 px of it, and never along it.
+        const seg = { x1: 1234.5, y1: 400, x2: 1300.5, y2: 400 };
+        const through = (ax, ay, bx, by) => L.stepCrosses({ x: ax, y: ay }, { x: bx, y: by }, seg);
+        equal(J([through(1250, 350, 1250, 450), through(1240, 380, 1300, 380), through(1250, 350, 1250, 399.5), through(1250, 350, 1250, 398),
+            through(1234, 350, 1234, 450), through(1232, 350, 1232, 450)]), J([true, false, true, false, true, false]),
+        "[across, along, 0.5 px short, 2 px short, 0.5 px past its end, 2.5 px past it]");
+    }],
+    ["R556 - a token's move passes only the passages its own character knows: the move polygon's edge of a passage's wall, found by the wall's id, is cut around the stretch on the token's scene and floor, a sliver dropped and a stretch off the wall's line ignored; a Monokuma's token on a GM's browser passes every open one; sight, light and sound, another character, another scene, another floor, no token and another wall on the same line stay whole; a throw leaves the walls whole; the move backend is extended once, and a GM is told when it could not be", async () => {
+        /*
+         * E79 C2, 14.10.2026; the E79 plan's A10-3. passages.mjs puts `PassageMovePolygon` in the place of Foundry's move
+         * backend at `setup`; its `_identifyEdges()` asks Foundry's and then `clipPassages`. The harms: a wall a token
+         * passes that its character does not know (another character of the same player, another scene, another floor),
+         * a passage open to an eye, a lamp or a sound, another wall that happens to lie on the passage's line opened with
+         * it, a half-cut polygon after a throw, and a backend wrapped twice. Run on polygons, edges and copies of the
+         * suite's own (`known`, in the copy's shape), and on a backend table of its own: nothing of this world is read
+         * but the live backend's PATCHES row and Foundry's sight backend. What a real Foundry's sweep does with the cut
+         * edges is LIVE-E79-01; scenario 76 B drives the harness's backend through `testCollision`.
+         */
+        const L = await import("./passages.mjs");
+        const { PATCHES } = await import("./patches.mjs");
+        const J = v => JSON.stringify(v);
+        const MARK = Symbol.for("drpgPassages");
+        const r = n => Math.round(n * 1000) / 1000;
+        const cut = (wall, open) => {
+            const pieces = L.cutSegment(wall, open);
+            return pieces && pieces.map(p => [r(p.x1), r(p.y1), r(p.x2), r(p.y2)]);
+        };
+        const W = { x1: 1100, y1: 400, x2: 1400, y2: 400 };
+        const S1 = { x1: 1234.5, y1: 400, x2: 1300.5, y2: 400 };
+        equal(J([cut(W, [S1]), cut(W, [{ x1: 1300.5, y1: 400, x2: 1234.5, y2: 400 }]),
+            cut({ x1: 0, y1: 0, x2: 300, y2: 400 }, [{ x1: 60, y1: 80, x2: 180, y2: 240 }]),
+            cut(W, [{ x1: 1100, y1: 400, x2: 1400, y2: 400 }]), cut(W, [{ x1: 1100, y1: 400, x2: 1200, y2: 400 }]),
+            cut(W, [{ x1: 1150, y1: 400, x2: 1200, y2: 400 }, { x1: 1300, y1: 400, x2: 1350, y2: 400 }]),
+            cut(W, [{ x1: 1100.3, y1: 400, x2: 1300, y2: 400 }]), cut(W, [{ x1: 1350, y1: 400, x2: 1500, y2: 400 }]),
+            cut(W, [{ x1: 1150, y1: 405, x2: 1200, y2: 405 }]), cut(W, [])]),
+        J([[[1100, 400, 1234.5, 400], [1300.5, 400, 1400, 400]], [[1100, 400, 1234.5, 400], [1300.5, 400, 1400, 400]],
+            [[0, 0, 60, 80], [180, 240, 300, 400]], [], [[1200, 400, 1400, 400]],
+            [[1100, 400, 1150, 400], [1200, 400, 1300, 400], [1350, 400, 1400, 400]], [[1300, 400, 1400, 400]], [[1100, 400, 1350, 400]],
+            null, null]),
+        "[the middle, the stretch drawn backwards, a slanted wall, the whole wall, at an end, two on one wall, a 0.3 px sliver, past the wall's end, 5 px off its line, none]");
+
+        class Edge {
+            constructor(a, b, options = {}) {
+                this.a = a;
+                this.b = b;
+                Object.assign(this, options);
+                this.intersections = [];
+            }
+        }
+        const fields = { type: "wall", direction: 0, light: 20, move: 20, sight: 10, sound: 20, threshold: null };
+        const edgeOf = (id, w, E = Edge) => new E({ x: w.x1, y: w.y1 }, { x: w.x2, y: w.y2 }, { id, object: { id }, ...fields });
+        const known = {
+            R556PA: { sceneId: "R556S", level: null, passageWallId: "R556W1", passageSeg: S1, actorIds: ["R556A"] },
+            R556PB: { sceneId: "R556S", level: "R556L2", passageWallId: "R556W3", passageSeg: { x1: 500, y1: 100, x2: 550, y2: 100 }, actorIds: ["R556A"] }
+        };
+        const polygon = ({ type = "move", actor = "R556A", monokuma = false, scene = "R556S", tokenLevel = "R556L1", level, source = true, drpgPassages, E = Edge } = {}) => ({
+            config: { type, ...(source ? { source: { object: { document: { actor: actor && { id: actor,
+                getFlag: (scope, key) => (monokuma && scope === MODULE_ID && key === FLAGS.monokuma ? true : undefined) }, parent: { id: scene }, level: tokenLevel } } } } : {}),
+                ...(level === undefined ? {} : { level }), ...(drpgPassages ? { drpgPassages } : {}) },
+            edges: new Set([edgeOf("R556W1", W, E), edgeOf("R556W2", W, E), edgeOf("R556W3", { x1: 400, y1: 100, x2: 700, y2: 100 }, E)])
+        });
+        const run = (options, k = known) => {
+            const p = polygon(options), before = [...p.edges];
+            const n = L.clipPassages(p, { known: k });
+            return { n, ids: [...p.edges].map(e => e.id).sort(), p, before };
+        };
+        const mine = run();
+        equal(J([mine.n, mine.ids]), J([1, ["R556W1#p1", "R556W1#p2", "R556W2", "R556W3"]]),
+            "[walls cut, the edges] for the knower's token on the passage's scene, on floor L1 - the wrong wall, the other floor's passage or the wall on the same line was cut");
+        const [p1, p2] = [...mine.p.edges].filter(e => e.id.startsWith("R556W1#"));
+        const old = mine.before[0];
+        equal(J([p1 instanceof Edge, [p1.a, p1.b, p2.a, p2.b], [p1.type, p1.direction, p1.light, p1.move, p1.sight, p1.sound, p1.threshold],
+            p1.object === old.object, p1.intersections]),
+        J([true, [{ x: 1100, y: 400 }, { x: 1234.5, y: 400 }, { x: 1300.5, y: 400 }, { x: 1400, y: 400 }], [old.type, 0, 20, 20, 10, 20, null], true, []]),
+        "[the edge's class, the pieces' ends, the wall's fields, the same wall object, no intersections] - a cut edge is not its wall's");
+        ok(mine.before.slice(1).every(e => mine.p.edges.has(e)), "an edge the cut did not touch was replaced");
+        const tally = options => { const { n, ids } = run(options); return [n, ids.filter(id => id.includes("#")).length]; };
+        equal(J([tally({ level: "R556L2" }), tally({ tokenLevel: null }), tally({ actor: "R556B" }), tally({ scene: "R556S2" }),
+            tally({ source: false }), tally({ actor: null }), tally({ type: "sight" }), tally({ type: "light" }), tally({ type: "sound" })]),
+        J([[2, 4], [2, 4], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0]]),
+        "[the move's own floor L2, a token on no floor, another character of the player, another scene, no token, a token with no character, sight, light, sound] - [walls cut, pieces]");
+        // E79 fix r1-G2 (the round-1 review's goal G5, 15.10.2026): a Monokuma's token passes every open passage on a GM's browser, which reads
+        // the GMs' records; a student's that knows none passes none there; on a player's browser, whose copy never names a Monokuma, nothing opens.
+        const onBrowser = (options, gm) => {
+            const p = polygon(options), n = L.clipPassages(p, { known, gm });
+            return [n, [...p.edges].filter(e => e.id.includes("#")).length];
+        };
+        equal(J([onBrowser({ actor: "R556MK", monokuma: true }, true), onBrowser({ actor: "R556MK", monokuma: true, tokenLevel: "R556L2" }, true),
+            onBrowser({ actor: "R556B" }, true), onBrowser({ actor: "R556MK", monokuma: true }, false)]),
+        J([[1, 2], [2, 4], [0, 0], [0, 0]]),
+        "[a Monokuma's token on a GM's browser on floor L1, on L2, a student's that knows none there, a Monokuma's on a player's browser] - [walls cut, pieces]");
+        const asked = run({ source: false, drpgPassages: [{ id: "R556PX", wallId: "R556W2", ...S1 }] });
+        equal(J([asked.n, asked.ids]), J([1, ["R556W1", "R556W2#p1", "R556W2#p2", "R556W3"]]),
+            "the frame's own stretches (`drpgPassages`) do not cut their wall alone");
+        const open = run({}, { R556PA: { ...known.R556PA, passageSeg: { ...W } } });
+        equal(J([open.n, open.ids]), J([1, ["R556W2", "R556W3"]]), "a passage the whole length of its wall does not take the wall away");
+        class Bad extends Edge {
+            constructor(a, b, options) {
+                if (String(options?.id).includes("#")) throw new Error("R556 planted");
+                super(a, b, options);
+            }
+        }
+        const broken = run({ E: Bad });
+        equal(J([broken.n, broken.ids, broken.before.every(e => broken.p.edges.has(e))]), J([0, ["R556W1", "R556W2", "R556W3"], true]),
+            "a cut that threw left the move polygon's walls cut or partly gone");
+
+        // The install: once, over a class with `_identifyEdges`, and only in the move's place.
+        class Base {
+            _identifyEdges() {
+                this.edges = new Set([edgeOf("R556W1", W)]);
+                return "R556 found";
+            }
+        }
+        const table = { move: Base, sight: Base };
+        const installed = L.installPassageMovement(table), Passage = table.move;
+        const second = L.installPassageMovement(table);
+        const swept = type => {
+            const p = new table.move();
+            p.config = { type, drpgPassages: [{ id: "R556PX", wallId: "R556W1", ...S1 }] };
+            return [p._identifyEdges(), [...p.edges].map(e => e.id)];
+        };
+        const empty = {}, bare = { move: class {} };
+        equal(J([installed, Passage !== Base && Passage.prototype instanceof Base, Boolean(Passage[MARK]), table.sight === Base,
+            second, table.move === Passage, swept("move"), swept("sight"),
+            L.installPassageMovement(empty), Object.keys(empty), L.installPassageMovement(bare), L.installPassageMovement(null)]),
+        J([true, true, true, true, true, true, ["R556 found", ["R556W1#p1", "R556W1#p2"]], ["R556 found", ["R556W1"]],
+            false, [], false, false]),
+        "[installed, a subclass, marked, sight left alone, a second install, not wrapped twice, a move swept, a sight swept, no class, untouched, no _identifyEdges, no table]");
+        equal(J([L.engineOffNotice({ cut: false, user: { isGM: true } }), L.engineOffNotice({ cut: false, user: { isGM: false } }),
+            L.engineOffNotice({ cut: true, user: { isGM: true } }), L.engineOffNotice({ cut: null, user: { isGM: true } })]),
+        J(["DRPG.Passage.engineOff", null, null, null]),
+        "[a GM with no cut, a player, a GM with the cut, before setup] - who is told the passages cannot open");
+
+        // This browser's own backend, as the module left it at setup.
+        const row = PATCHES.find(p => p.file === "passages.mjs");
+        equal(J([row?.owner ?? null, row?.probe?.() ?? null]), J(["foundry", { present: true, ours: true }]),
+            "the move backend here is not the module's: no token passes a passage on this browser (PATCHES, passages.mjs)");
+        ok(!CONFIG.Canvas?.polygonBackends?.sight?.[MARK], "the sight backend carries the passages' mark: every eye would see through a passage");
+    }],
+    ["R557 - the frame opens a secret passage only for whoever may take it: a character that knows it on a player's browser, never one that does not, a GM's browser or no character, and not into a room a GM locked; the cut walls leave the gap and nothing else; no character and a GM draw today's outline; the outline is redrawn on a change of the passages by one listener, with no sound", async () => {
+        /*
+         * E79 C3, 14.10.2026; the E79 plan's A10-4 (P7-0, the owner's Q9: the gap is the veto's own predicate, per
+         * viewer). The harms: a gap drawn in the outline of a character that does not know the passage (the secret, on
+         * screen), a gap into a room a GM locked (a way out the veto then refuses), a GM's outline or a no-character one
+         * changed by the passages, and a change of the passages that plays the entering sound or is redrawn by two
+         * listeners. Read on a scene of plain objects (a Lab over a Vault, a passage in the wall between them) and rows
+         * of the suite's own in the copy's shape (`known`), with fog-doorways.mjs `viewerPassages` asked as a player's
+         * browser (`gm: false`); nothing of this world is read but the module's own listener table and its source. What
+         * the outline then looks like is a look at a table (LIVE-E79-05): the harness's polygons contain no point, so `doorwayEdges` opens no
+         * doorway headless (E12 C2b) and its two outlines are compared as measured, not as drawn; scenario 76 C reads the
+         * same comparison on the players' browsers.
+         */
+        const D = await import("./fog-doorways.mjs");
+        const M = await import("./movement.mjs");
+        const F = await import("./fog.mjs");
+        const R = await import("./rooms.mjs");
+        const J = v => JSON.stringify(v);
+        const region = (name, x, y, w, h, flags = {}) => ({ id: `R557R${name}`, name: `R557 ${name}`, levels: new Set(), behaviors: [],
+            bounds: { x, y, width: w, height: h }, shapes: [{ type: "rectangle", x, y, width: w, height: h }],
+            testPoint: p => p.x >= x && p.x <= x + w && p.y >= y && p.y <= y + h,
+            getFlag: (scope, key) => (scope !== MODULE_ID ? undefined : key === R.ROOM_FLAG ? true : flags[key]) });
+        const sceneWith = (vault = {}) => {
+            const scene = { id: "R557S", name: "R557 scene", grid: { size: 100 }, levels: [], walls: [] };
+            const lab = region("Lab", 0, 0, 400, 400), rooms = [lab, region("Vault", 0, 400, 400, 200, vault)];
+            for (const r of rooms) r.parent = scene;
+            scene.regions = new Set(rooms);
+            scene.walls = [{ id: "R557W", c: [0, 400, 400, 400], move: 20, door: 0, ds: 0 }];
+            return { scene, lab };
+        };
+        const A = { id: "R557A", name: "R557 A", items: [], getFlag: () => undefined };
+        const B = { id: "R557B", name: "R557 B", items: [], getFlag: () => undefined };
+        const known = { R557P: { sceneId: "R557S", level: null, passageWallId: "R557W", passageSeg: { x1: 100, y1: 400, x2: 200, y2: 400 }, actorIds: ["R557A"] } };
+        const ids = list => list.map(p => p.id);
+        const { scene, lab } = sceneWith();
+        const locked = sceneWith({ [M.ROOM_FLAGS.locked]: true });
+        equal(J([ids(D.viewerPassages(A, lab, scene, null, { gm: false, known })), ids(D.viewerPassages(B, lab, scene, null, { gm: false, known })),
+            ids(D.viewerPassages(A, lab, scene, null, { gm: true, known })), ids(D.viewerPassages(null, lab, scene, null, { gm: false, known })),
+            ids(D.viewerPassages(A, locked.lab, locked.scene, null, { gm: false, known })), ids(D.viewerPassages(A, lab, scene, null, { gm: false, known: {} }))]),
+        J([["R557P"], [], [], [], [], []]),
+        "[the knower, another character, a GM's browser, no character, the Vault locked by a GM, no row] - the passages the frame would open");
+        const passage = { id: "R557P", wallId: "R557W", x1: 100, y1: 400, x2: 200, y2: 400 };
+        equal(J([M.passageOpenFor(A, passage, scene, { from: "R557 Lab", known }), M.passageOpenFor(B, passage, scene, { from: "R557 Lab", known }),
+            M.passageOpenFor(A, passage, locked.scene, { from: "R557 Lab", known }), M.passageOpenFor(A, { ...passage, id: "R557Q" }, scene, { from: "R557 Lab", known })]),
+        J([true, false, false, false]), "[known and open, not known, into a locked room, another passage's id] - passageOpenFor");
+
+        // The walls the outline reads: the passage's stretch is taken out of its own wall, and only there.
+        const other = { id: "R557X", c: [0, 0, 400, 0], move: 20, door: 0, ds: 0 };
+        const walls = [scene.walls[0], other];
+        const cut = D.passageWalls(walls, [passage]);
+        equal(J([D.passageWalls(walls, []) === walls, cut.length, cut.map(w => w.c), cut[2] === other, cut[0].move]),
+            J([true, 3, [[0, 400, 100, 400], [200, 400, 400, 400], [0, 0, 400, 0]], true, 20]),
+            "[nothing open is the same walls, three walls, where they run, the other wall the same, the cut keeps its fields]");
+        const near = 60;
+        equal(J([D.wallAlongEdge(150, 400, 1, 0, cut, near), D.wallAlongEdge(50, 400, 1, 0, cut, near), D.wallAlongEdge(300, 400, 1, 0, cut, near),
+            D.wallAlongEdge(150, 400, 1, 0, walls, near)]),
+        J([false, true, true, true]), "[in the passage, beside it on each side, the uncut wall] - a wall along the border");
+
+        // No character and a GM's browser (this one) read the outline as it was.
+        must(game.user.isGM, "the suite runs on a GM's browser - the GM's clause would measure a player's");
+        const before = J(D.doorwayEdges(lab, null));
+        ok(J(D.doorwayEdges(lab, null)).length > 2, "doorwayEdges measured no edge of the Lab - the comparison would compare nothing");
+        equal(J([J(D.doorwayEdges(lab, null, { actor: A })) === before, J(D.doorwayEdges(lab, null, {})) === before]), J([true, true]),
+            "[a GM drawing for the knower, no character] - an outline the passages changed");
+
+        // The redraw: one listener, no sound, nothing drawn for a room that is not outlined.
+        const listeners = (Hooks.events?.drpgPassagesChanged ?? []).filter(entry => /redrawOutline/.test(String(entry.fn)));
+        const fog = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/fog.mjs`).then(r => r.text()));
+        const redraw = fnSource(fog, "redrawOutline");
+        equal(J([listeners.length, /\bplaySfx\s*\(/.test(redraw), /flashOutline\s*\(/.test(redraw), F.redrawOutline("R557 no such room")]),
+            J([1, false, true, false]), "[listeners of a passage change that redraw, a sound in the redraw, it draws the outline, a room not outlined]");
+    }],
+    ["R558 - the veto lets a character through a secret passage it knows and nobody else: the two rooms are joined for it on one floor, today's refusal for anyone else; `via` opens another's bedroom and never a GM's lock, a seal, the chain or the courtroom; the Eclipse asks the same; a step through costs one crossing; Listen and the body's reach do not follow passages", async () => {
+        /*
+         * E79 C3, 14.10.2026; the E79 plan's A10-5 (P5-0, the owner's Q1, Q9 and Q10). The harms: a character with
+         * access refused at the wall (red at the parent: `crossingRefused` knew no passage, so the knower got today's
+         * "not connected" for the room beyond), a passage opening a room for a character that does not know it, a claimed
+         * `via` with no passage behind it, `via` skipping a GM's lock or anything but the bedroom key, the Eclipse's own
+         * judge left asking the map alone, and Listen or the body's reach widened by a secret. Read on a scene of plain
+         * objects (a Lab whose list names the Hall, a Vault under the Lab beyond a passage) and rows of the suite's own in
+         * the copy's shape (`known`), for plain characters with a mover that is neither a GM nor the Mastermind; nothing
+         * of this world is read but its seals and restrictions under names no world holds, and the module's source. The
+         * seal and the chain are world settings tier 1 does not write: scenario 76 C sets each and reads the veto, and
+         * drives the move itself. The Eclipse is not driven (its start is a write); its judge is read off the source.
+         * E79 fix r1-G4, 15.10.2026 (review r1 cor F4: a judge that asked with the wrong floors still passed a source
+         * regex): eclipse.mjs `judgeEclipseCrossing` is called as `crossingVerdict` is, with a running Eclipse's clock,
+         * the suite's rows (`known`) and a recorder for its warning and its count in place of the notice and the GM's
+         * count. At e19dcce this test passed with `floors = null;` planted before the judge's question (e79run
+         * scratch/r1g4-old.log): the knower crossed floors through the passage and the regex still matched. What it
+         * does not read: which rows the judge takes when it is handed none (the GMs' records on a GM, the copy on a
+         * player).
+         */
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const { ROOM_OWNER_FLAG } = await import("./config.mjs");
+        const J = v => JSON.stringify(v);
+        const region = (name, x, y, w, h, flags = {}) => ({ id: `R558R${name}`, name: `R558 ${name}`, levels: new Set(), behaviors: [],
+            bounds: { x, y, width: w, height: h }, shapes: [{ type: "rectangle", x, y, width: w, height: h }],
+            testPoint: p => p.x >= x && p.x <= x + w && p.y >= y && p.y <= y + h,
+            getFlag: (scope, key) => (scope !== MODULE_ID ? undefined : key === R.ROOM_FLAG ? true : flags[key]) });
+        const sceneWith = (vault = {}) => ({ id: "R558S", name: "R558 scene", grid: { size: 100 }, levels: [],
+            regions: new Set([region("Lab", 0, 0, 400, 400, { [M.ROOM_FLAGS.neighbours]: "R558 Hall" }), region("Hall", 500, 0, 400, 400),
+                region("Vault", 0, 400, 400, 200, vault)]) });
+        const scene = sceneWith();
+        const A = { id: "R558A", name: "R558 A", items: [], getFlag: () => undefined };
+        const B = { id: "R558B", name: "R558 B", items: [], getFlag: () => undefined };
+        const known = { R558P: { sceneId: "R558S", level: null, passageWallId: "R558W", passageSeg: { x1: 100, y1: 400, x2: 200, y2: 400 }, actorIds: ["R558A"] } };
+        const mover = { gm: false, mastermind: false };
+        const LAB = "R558 Lab", HALL = "R558 Hall", VAULT = "R558 Vault";
+        equal(J([M.passesThrough(A, LAB, VAULT, scene, null, { known }), M.passesThrough(A, VAULT, LAB, scene, null, { known }),
+            M.passesThrough(B, LAB, VAULT, scene, null, { known }), M.passesThrough(A, LAB, HALL, scene, null, { known }),
+            M.passesThrough(A, LAB, VAULT, scene, { from: "R558L1", to: "R558L2" }, { known }),
+            M.passesThrough(B, LAB, VAULT, scene, null, { mover: { mastermind: true }, known }),
+            M.reachableFrom(A, LAB, scene, { known }), M.reachableFrom(B, LAB, scene, { known }), M.reachableFrom(A, HALL, scene, { known })]),
+        J([true, true, false, false, false, true, [VAULT], [], []]),
+        "[the knower down, and back up, another character, a door the passage is not, across floors, the Mastermind on a GM's browser, the knower's rooms beyond the Lab, another's, the Hall's]");
+        ok(typeof M.crossingRefused(scene, LAB, VAULT) === "string" && M.crossingRefused(scene, LAB, HALL) === false,
+            "the map itself does not join the Lab to the Vault, or does not join it to the Hall - the passage would be measured against nothing");
+
+        const at = (vault, actor, via) => M.crossingVerdict(actor, LAB, VAULT, sceneWith(vault), null, { mover, pay: false, via, known });
+        const lockedText = game.i18n.localize("DRPG.Move.locked");
+        const keyText = game.i18n.format("DRPG.Vault.keyMissing", { room: VAULT });
+        const bedroom = { [ROOM_OWNER_FLAG]: "R558OWNER" };
+        equal(J([at({ [M.ROOM_FLAGS.locked]: true }, A, "passage") === lockedText, at(bedroom, A, null) === keyText,
+            at(bedroom, A, "passage") === keyText, at(bedroom, B, "passage") === keyText]),
+        J([true, true, false, true]),
+        "[a GM's lock through the passage, another's bedroom by the map, through the passage, a claimed passage the character does not know] - refused");
+
+        // `via` is read in one line of `restrictedFrom`, the bedroom's; the courtroom is asked after it, apart.
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/movement.mjs`).then(r => r.text()));
+        const restricted = fnSource(src, "restrictedFrom");
+        const viaLines = restricted.split("\n").filter(line => /\bvia\b/.test(line));
+        const verdict = fnSource(src, "crossingVerdict");
+        equal(J([viaLines.length, /bedroomShut\(/.test(viaLines[1] ?? ""), /isLocked|isSealed|isChained/.test(viaLines.join("\n")),
+            (verdict.match(/passage \? false : crossingRefused\(scene, from, to, floors\)/g) ?? []).length,
+            verdict.split("\n").filter(line => /classTrial/.test(line)).some(line => /\bvia\b|passage/.test(line))]),
+        J([2, true, false, 2, false]),
+        "[lines of restrictedFrom naming via (its signature and one rule), the bedroom's, a lock, seal or chain under via, both of the verdict's connected-rooms rules asking the passage, the courtroom under via]");
+        const eclipse = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/eclipse.mjs`).then(r => r.text()));
+        const judge = fnSource(eclipse, "judgeEclipseCrossing");
+        ok(/passesThrough\(actor, from, to, scene, floors, \{ known \}\) \? false : crossingRefused\(scene, from, to, floors\)/.test(judge)
+            && (judge.match(/\brecord\(/g) ?? []).length === 1 && /record = recordMove\b/.test(judge),
+        "the Eclipse's own judge does not ask the passage before the map in one place, or counts a crossing other than once");
+        // The Eclipse's verdicts, with a running Eclipse that is no free placement (the morning's, `eclipseAllowance`).
+        const E = await import("./eclipse.mjs");
+        const dark = { ...getClock(), eclipse: true, timeOfDay: "morning" };
+        const eclipseAt = async (actor, to, floors = null) => {
+            const said = [], counted = [];
+            const passed = await E.judgeEclipseCrossing(actor, LAB, to, scene, floors, { clock: dark, known,
+                warn: text => said.push(text), record: (who, into) => { counted.push([who.id, into]); return true; } });
+            return [passed, said, counted];
+        };
+        const UP = { from: "R558L1", to: "R558L2" };
+        equal(J([E.eclipseAllowance(dark) !== null, await eclipseAt(A, VAULT), await eclipseAt(B, VAULT), await eclipseAt(A, VAULT, UP), await eclipseAt(A, HALL)]),
+            J([true, [true, [], [["R558A", VAULT]]], [false, [M.crossingRefused(scene, LAB, VAULT)], []],
+                [false, [M.crossingRefused(scene, LAB, VAULT, UP)], []], [true, [], [["R558A", HALL]]]]),
+            "[a counted Eclipse, the knower through the passage, another character, the knower across floors, the map's own door] - the Eclipse's judge, its warning and its count");
+
+        // The price is a door's, and what a room hears and where a body is found stay the map's.
+        equal(J([M.crossingCost({ room: LAB }, { room: VAULT }), M.neighbouringRooms(scene, LAB)]), J([1, [HALL]]),
+            "[a step through the passage's price, the Lab's neighbours for Listen and the body]");
+        const neighbours = fnSource(src, "neighbourAnswer") + fnSource(src, "neighbouringRooms");
+        ok(!/passesThrough|reachableFrom|openSegmentsFor|knownPassages/.test(neighbours), "the neighbours Listen and the body read ask the secret passages");
+        // The route's caller hands the Eclipse's judge the floors of each crossing (review r2, goal O19): five arguments,
+        // `floors` the crossing's own, as `crossingVerdict` is asked.
+        const settle = fnSource(src, "settleRoute");
+        ok(/for \(const \[from, to, floors\] of crossings\) \{\s*const allowed = await judgeEclipseCrossing\(actor, from, to, tokenDoc\.parent, floors\);/.test(settle),
+            "the route's Eclipse judge is not handed each crossing's floors as its fifth argument");
+    }],
+    ["R559 - one wall rule on the primary GM: a move through an ordinary wall and through a passage's wall is judged alike, the knower and the Mastermind pass the passage, doors, one-way walls, floors and the start are the GM's, a forged revert, teleport and displace are judged like any move, a send-back the GM accepts, the stairs, a GM and a Monokuma the GMs hold pass; \"log\" writes a row and moves nothing, \"sendBack\" puts the token back and tells its mover alone, from the primary GM; a route through a point on a wall's line crosses it, the spot a put-back leaves is in no GM's record of the token, and the audit keeps a counted row of every crossing with one whisper per token and mover in 30 s; a GM's send-back for a player is judged as that player's move, an exempt landing on a wall's line keeps its side, a move before the put-back lands is judged from where the token is sent, and a row says sent back only once it is written", async () => {
+        /*
+         * E79 C4, 14.10.2026; the E79 plan's A10-6 (V1, V8, D7, RISK-b, AM-1). The harms: a console's move through a
+         * wall left standing (red at the parent: no audit, and this file's import of movement-audit.mjs throws), a passage
+         * wall judged otherwise than an ordinary one, a start, an exemption or the walls read from what the update or the
+         * screen says, and "log" mode moving a token. Read on a scene of plain objects that is never the one on screen
+         * (`tokenDoc.parent`): seven walls - an ordinary one, a passage's (a stretch of it known to A), an open door, a
+         * closed one, a one-way wall, one that does not restrict movement, one upstairs only - and rooms for the scene to
+         * be a place; the passages are rows of the suite's own in the copy's shape (`known`). Every act is a recorder
+         * the test hands in (`warn`, `sendBack`, `socket`, `whisper`), so nothing is written, sent or logged. Foundry's
+         * own reading of a one-way wall (`orient2dFast` < 0 LEFT) is the plan's, not read in v14's source; scenario 76 D
+         * drives the audit through the harness on four clients.
+         * E79 fix r1-G1, 15.10.2026 (review r1: SEC S1, S6, goal F1, F2, F3, F6, cor F3), each red at e6e3349: a route
+         * through a point exactly on a wall's line, in one move's waypoints or in two moves, judged clear; the spot the
+         * audit put a token back from kept in the GMs' record, where a REVERT 61 s after the audit and 30 s after the
+         * landing - and the bridge's send-back, 76 D - took it as a place the token stood; a whisper for every put-back
+         * of a burst; and no record of the crossings but the Debug log's first 60 rows. The audit's book (`book`) is
+         * the suite's own here, fresh for each call unless the case shares one.
+         * E79 fix r2-G1, 16.10.2026 (review r2: SEC M1 = cor F2, SEC M2, goal H1 b, cor F4, goal O10, O19), each red at
+         * 33ea568: the bridge's send-back to a room's centre across a wall exempt as a GM's move; an exempt landing on a
+         * wall's line handing no side on, so the step off it to the far side was clear; a move audited before the
+         * put-back landed judged from the refused spot (no `back`); a row saying "sent back" when the write failed; and
+         * the mover's check of the arriving GM read off the source alone.
+         * E79 fix r2-G2, 16.10.2026 (review r2: SEC M3 = cor F1): the Mastermind is who the door names (passages-gm.mjs
+         * `actsAsMastermind`), so a second owner of the Mastermind's student moving it through a passage the student does
+         * not know is judged as any mover; `mastermind` is now the suite's record of the Mastermind (`{ actorId }`), the
+         * students' owners read by `testUserPermission`. Red with the role read off the character alone (the parent's
+         * reading, planted as the mutant "r2g2-audit" of fix r2-G2): the second owner's move "clear".
+         */
+        const A = await import("./movement-audit.mjs");
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const J = v => JSON.stringify(v);
+        const region = (name, x, y, w, h) => ({ id: `R559R${name}`, name: `R559 ${name}`, levels: new Set(), behaviors: [],
+            bounds: { x, y, width: w, height: h }, shapes: [{ type: "rectangle", x, y, width: w, height: h }],
+            testPoint: p => p.x >= x && p.x <= x + w && p.y >= y && p.y <= y + h,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === R.ROOM_FLAG ? true : undefined) });
+        const W = (id, c, more = {}) => ({ id, c, move: 20, door: 0, ds: 0, dir: 0, levels: new Set(), ...more });
+        const walls = [W("R559W1", [1500, 0, 1500, 1000]), W("R559W2", [0, 500, 1400, 500]),
+            W("R559W3", [600, 1200, 600, 1600], { door: 1, ds: 1 }), W("R559W5", [800, 1200, 800, 1600], { door: 1, ds: 0 }),
+            W("R559W4", [1000, 1200, 1000, 1600], { dir: 1 }), W("R559W6", [1200, 1200, 1200, 1600], { move: 0 }),
+            W("R559W8", [1300, 1700, 1300, 2000], { levels: new Set(["R559L2"]) })];
+        const scene = { id: "R559S", name: "R559 scene", grid: { size: 100 }, dimensions: { width: 3000, height: 2000 }, levels: [], walls,
+            regions: new Set([region("Lab", 0, 0, 1400, 480), region("Vault", 0, 520, 1400, 480), region("Hall", 1600, 0, 800, 1000)]) };
+        const bare = { ...scene, id: "R559N", regions: new Set() };
+        const student = (id, flags = {}, owners = ["R559U"]) => ({ id, name: id, type: "character", items: [], getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined),
+            testUserPermission: (u, level) => level === "OWNER" && owners.includes(u?.id) });
+        const SA = student("R559A"), SB = student("R559B"), MK = student("R559M", { [FLAGS.monokuma]: true });
+        const NPC = { ...student("R559C"), type: "adversary" };
+        const known = { R559P: { sceneId: "R559S", level: null, passageWallId: "R559W2", passageSeg: { x1: 100, y1: 500, x2: 300, y2: 500 }, actorIds: ["R559A"] } };
+        const users = new Map([["R559U", { id: "R559U", isGM: false, active: true }], ["R559G", { id: "R559G", isGM: true, active: true }],
+            ["R559V", { id: "R559V", isGM: false, active: true }]]);
+        const tok = (x, y, { actor = SA, level, movement, on = scene } = {}) => ({ id: "R559T", name: "R559 token", x, y, width: 1, height: 1,
+            elevation: 0, level, parent: on, actor, movement });
+        const at = (x, y, level) => ({ x, y, elevation: 0, level });
+        const fresh = () => ({ rows: [], told: new Map(), lines: new Map(), dropped: 0 });
+        const audit = (token, was, { options = {}, user = "R559U", mode = "log", held = a => a, stairs = [], history = [], mastermind = false, book = fresh(),
+            now = Date.now(), refusal = M.sendBackRefusal, wrote = true } = {}) => {
+            const acts = [];
+            const out = A.auditMove(token, { x: token.x, y: token.y }, options, user, was, {
+                REVERT: M.REVERT, SENT_BACK: M.SENT_BACK, sendBackRefusal: refusal, roomAt: M.roomAt, stairLinks: () => stairs,
+                history, held, users, known, mode, mastermind: { get: () => (mastermind ? { actorId: token.actor?.id } : null) }, book, now,
+                warn: (text, row) => acts.push(["warn", row.wall, row.passage, row.mode]),
+                sendBack: (doc, spot, how) => { acts.push(["sendBack", spot.x, spot.y, how.sound, how.audited]); if (wrote !== null) how.landed(wrote); },
+                socket: { emit: (event, packet, opts) => acts.push(["emit", event, packet, opts]) },
+                whisper: html => { acts.push(["whisper", html.includes('data-drpg-wall="R559T"')]); return Promise.resolve(); }
+            });
+            return { said: out.verdict === "crossed" ? `crossed ${out.wall}${out.passage ? `/${out.passage}` : ""}` : out.verdict, acts, out };
+        };
+        const said = (...args) => audit(...args).said;
+
+        // The walls, from the GM's last sighting (`was`) to where the token stands.
+        equal(J([said(tok(1700, 100), at(100, 100)), said(tok(100, 700), at(100, 100)), said(tok(100, 700, { actor: SB }), at(100, 100)),
+            said(tok(100, 700, { actor: SB }), at(100, 100), { mastermind: true }), said(tok(500, 700), at(500, 100)),
+            said(tok(500, 700, { movement: { passed: { waypoints: [at(500, 100), at(150, 100), at(150, 700)] } } }), at(500, 100)),
+            said(tok(500, 700, { actor: SB, movement: { passed: { waypoints: [at(500, 100), at(150, 100), at(150, 700)] } } }), at(500, 100)),
+            said(tok(1700, 100, { movement: { origin: at(1600, 100), passed: { waypoints: [] } } }), at(100, 100)),
+            said(tok(650, 1300), at(100, 1300)), said(tok(850, 1300), at(650, 1300)), said(tok(1050, 1300), at(850, 1300)),
+            said(tok(850, 1300), at(1050, 1300)), said(tok(1200, 1300), at(1100, 1300)),
+            said(tok(1350, 1750, { level: "R559L1" }), at(1150, 1750, "R559L1")), said(tok(1350, 1750, { level: "R559L2" }), at(1150, 1750, "R559L2"))]),
+        J(["crossed R559W1", "clear", "crossed R559W2/R559P", "clear", "crossed R559W2", "clear", "crossed R559W2/R559P", "crossed R559W1",
+            "clear", "crossed R559W5", "clear", "crossed R559W4", "clear", "clear", "crossed R559W8"]),
+        "[an ordinary wall, the passage's knower through it, another character, the Mastermind, the knower beside the passage, the knower's bend through it by the waypoints, another's, a start the update names, an open door, a closed one, a one-way wall from its open side, from the other, a wall that does not restrict movement, a wall upstairs from downstairs, from upstairs]");
+        // SEC M3: the Mastermind's student owned by R559U, whom the door names, and R559V, whom it does not.
+        const SD = student("R559D", {}, ["R559U", "R559V"]);
+        equal(J([said(tok(100, 700, { actor: SD }), at(100, 100), { mastermind: true }), said(tok(100, 700, { actor: SD }), at(100, 100), { mastermind: true, user: "R559V" }),
+            said(tok(100, 700, { actor: SD }), at(100, 100), { user: "R559V" })]),
+        J(["clear", "crossed R559W2/R559P", "crossed R559W2/R559P"]),
+        "[the Mastermind's student moved by the owner the door names, by its second owner, by that owner with nobody the Mastermind] through a passage the student does not know - the second owner's move let stand (SEC M3)");
+
+        // The exemptions, on the move through the ordinary wall: each the GM's own reading, none the update's options.
+        const back = [{ x: 1700, y: 100, elevation: 0, level: undefined, at: Date.now() }];
+        const notHeld = () => ({ getFlag: () => undefined });
+        const across = [tok(1700, 100), at(100, 100)];
+        equal(J([said(...across, { user: "R559G" }), said(...across, { options: { [M.REVERT]: true } }), said(...across, { options: { [M.SENT_BACK]: true } }),
+            said(...across, { options: { teleport: true, movementAction: "displace" } }), said(...across, { options: { [M.REVERT]: true }, history: back }),
+            said(tok(1700, 100, { level: "R559L2" }), at(100, 100, "R559L1"), { stairs: [["R559 Hall", "R559 Lab"]] }),
+            said(tok(1700, 100, { level: "R559L2" }), at(100, 100, "R559L1")),
+            said(tok(1700, 100, { actor: MK }), at(100, 100)), said(tok(1700, 100, { actor: MK }), at(100, 100), { held: notHeld }),
+            said(tok(1700, 100, { actor: NPC }), at(100, 100)), said(tok(1700, 100, { on: bare }), at(100, 100)), said(tok(1700, 100), null)]),
+        J(["exempt", "crossed R559W1", "crossed R559W1", "crossed R559W1", "exempt", "exempt", "crossed R559W1", "exempt", "crossed R559W1",
+            "skip", "skip", "skip"]),
+        "[a GM's move, a forged REVERT, a forged SENT_BACK, teleport and displace, a REVERT to where the GM saw it a moment ago, the stairs, a change of floor with no stairs, a Monokuma the GMs hold, a Monokuma flag the GMs do not hold, a token that is no student, a scene with no rooms, a token never seen]");
+
+        // What each mode does, and the same for the mover whichever wall it was.
+        const EMIT = () => ["emit", `module.${MODULE_ID}`, { action: "move.sentBack", userId: "R559U", sceneId: "R559S", tokenId: "R559T", code: "wall" }, { recipients: ["R559U"] }];
+        const plain = audit(...across), plainSent = audit(...across, { mode: "sendBack" });
+        const hidden = audit(tok(100, 700, { actor: SB }), at(100, 100), { mode: "sendBack" });
+        equal(J([plain.acts, plainSent.acts, hidden.acts]), J([[["warn", "R559W1", null, "log"]],
+            [["warn", "R559W1", null, "sendBack"], ["sendBack", 100, 100, false, true], EMIT(), ["whisper", true]],
+            [["warn", "R559W2", "R559P", "sendBack"], ["sendBack", 100, 100, false, true], EMIT(), ["whisper", true]]]),
+        "[\"log\" mode, \"sendBack\" mode through an ordinary wall, through a passage's wall] - the row, the put-back to the GM's sighting with no sound on the GM, the mover told alone, the GMs warned");
+        // A REVERT back to the spot the audit put the token back from (SEC S1, goal F2, F3): the GMs saw it there, through the
+        // wall, and the put-back's landing cuts it from their record (`sightingsAfter`) - read 61 s after the audit and 30 s
+        // after the landing, where C4's marks had lapsed and the record's entry had not; with an ordinary sighting as the
+        // control, and a second move written before the put-back landed (it stood on the far side too). A tree without
+        // `sightingsAfter` kept every sighting, the spot included: that rule stands in for it there.
+        const sightingsAfter = M.sightingsAfter ?? ((ring, was, at) => [...ring, { ...was, at }]);
+        const t0 = Date.now(), HOME = { ...at(100, 100), level: undefined }, FAR = { ...at(1700, 100), level: undefined }, FARTHER = { ...at(1800, 100), level: undefined };
+        const first = sightingsAfter([], HOME, t0);
+        const putBack = sightingsAfter(first, FAR, t0 + 31_000, HOME), ordinary = sightingsAfter(first, FAR, t0 + 31_000);
+        const raced = sightingsAfter(sightingsAfter(first, FAR, t0 + 1), FARTHER, t0 + 31_000, HOME);
+        const later = (spot, o) => M.sendBackRefusal(spot, { ...o, now: t0 + 61_000 });
+        const revertTo = (x, history) => said(tok(x, 100), at(100, 100), { options: { [M.REVERT]: true }, history, refusal: later });
+        equal(J([revertTo(1700, putBack), revertTo(1700, ordinary), revertTo(1700, raced), revertTo(1800, raced),
+            M.sendBackRefusal(FAR, { history: putBack, now: t0 + 61_000 }) === null, M.sendBackRefusal(FAR, { history: ordinary, now: t0 + 61_000 }) === null,
+            putBack.length, sightingsAfter([], FAR, t0, HOME).length]),
+        J(["crossed R559W1", "exempt", "crossed R559W1", "crossed R559W1", false, true, 1, 0]),
+        "[a REVERT to the spot the audit put the token back from, the same after an ordinary sighting, after a second move before the put-back landed, to that move's spot; the bridge's send-back judge on the spot (the put-back's record, an ordinary one); the put-back's record's length, a put-back to a spot never seen]");
+
+        // A route through a point exactly on a wall's line (goal F1): in one move's waypoints, over two moves, and the
+        // controls - one that touches the line and comes back, one along the line past the wall's end, the knower in
+        // her passage's stretch on the line, and a second move with nothing handed on.
+        const via = (x, y, waypoints, actor = SA) => tok(x, y, { actor, movement: { passed: { waypoints } } });
+        const shared = fresh(), onLine = at(1450, 100);
+        const twoMoves = [said(tok(1450, 100), at(100, 100), { book: shared }), said(tok(1700, 100), onLine, { book: shared })];
+        const touch = fresh();
+        const touchBack = [said(tok(1450, 100), at(100, 100), { book: touch }), said(tok(1300, 100), onLine, { book: touch })];
+        const kept = fresh();
+        said(tok(1450, 100), at(100, 100), { book: kept });
+        const sentTwice = [audit(tok(1700, 100), onLine, { book: kept, mode: "sendBack" }).said, said(tok(1700, 100), onLine, { book: kept })];
+        equal(J([said(via(1700, 100, [onLine]), at(100, 100)), said(via(1300, 100, [onLine]), at(100, 100)), ...twoMoves, ...touchBack,
+            said(tok(1700, 100), onLine), said(via(1400, 600, [at(1400, 450)]), at(1400, 300)),
+            said(via(150, 700, [at(150, 450)]), at(100, 100)), said(via(150, 700, [at(150, 450)], SB), at(100, 100)), ...sentTwice]),
+        J(["crossed R559W1", "clear", "clear", "crossed R559W1", "clear", "clear", "clear", "clear", "clear", "crossed R559W2/R559P",
+            "crossed R559W1", "crossed R559W1"]),
+        "[a waypoint on the line then past it, then back, two moves onto the line and past it, onto it and back, the second move with nothing handed on, along the line past the wall's end, the knower in her passage's stretch, another there, put back onto the line and past it again, and once more]");
+
+        // A GM's send-back for a player (review r2, SEC M1 = cor F2): the bridge's write names its asker in SENT_BACK and is
+        // that player's revert - exempt to a spot of the GMs' record, judged by the wall rule anywhere else (a room's
+        // centre across the wall), put back and told to the asker; one naming nobody, a GM or a stranger is a GM's move.
+        const asks = (who, more = {}) => audit(...across, { user: "R559G", options: { [M.REVERT]: true, [M.SENT_BACK]: who }, ...more });
+        const askedCentre = asks("R559U", { mode: "sendBack" });
+        equal(J([askedCentre.said, askedCentre.acts.filter(act => act[0] === "emit").map(act => act[3]), asks("R559U", { history: back }).said,
+            asks(true).said, asks(false).said, asks("R559G").said, asks("R559X").said]),
+        J(["crossed R559W1", [{ recipients: ["R559U"] }], "exempt", "exempt", "exempt", "exempt", "exempt"]),
+        "[a GM's send-back asked by a player to a spot across the wall the record does not hold, and whom it tells; to a spot of the record; marked with no name, unmarked, naming a GM, naming nobody of this world]");
+
+        // An exempt landing on a wall's line keeps the side its start was on (review r2, SEC M2): a REVERT onto a spot of
+        // the record, a GM's move and the bridge's send-back there, each then a step off the line to the far side; the
+        // controls - back to the same side, and a landing off the line - and the cost: a GM's move onto the line from the
+        // far side makes the next step to the near side a crossing.
+        const onTo = (more, book) => audit(tok(1450, 100), at(100, 100), { book, ...more }).said;
+        const thenTo = (x, book, was = onLine) => said(tok(x, 100), was, { book });
+        const lineCase = (more, x = 1700) => { const book = fresh(); return [onTo(more, book), thenTo(x, book)]; };
+        const fromFar = fresh();
+        const farThenNear = [audit(tok(1450, 100), at(1700, 100), { user: "R559G", book: fromFar }).said, thenTo(1300, fromFar)];
+        const offLine = fresh();
+        const offThen = [audit(tok(1300, 100), at(100, 100), { user: "R559G", book: offLine }).said, said(tok(1700, 100), at(1300, 100), { book: offLine })];
+        const onBack = [{ ...onLine, at: Date.now() }];
+        equal(J([lineCase({ options: { [M.REVERT]: true }, history: onBack }), lineCase({ user: "R559G" }),
+            lineCase({ user: "R559G", options: { [M.REVERT]: true, [M.SENT_BACK]: "R559U" }, history: onBack }),
+            lineCase({ options: { [M.REVERT]: true }, history: onBack }, 1300), farThenNear, offThen]),
+        J([["exempt", "crossed R559W1"], ["exempt", "crossed R559W1"], ["exempt", "crossed R559W1"], ["exempt", "clear"],
+            ["exempt", "crossed R559W1"], ["exempt", "crossed R559W1"]]),
+        "[a REVERT onto the line then across, a GM's move onto it then across, the bridge's send-back onto it then across, a REVERT onto it then back, a GM's move onto it from the far side then to the near side, a GM's move off the line then across]");
+
+        // A move before the put-back lands (review r2, goal H1 b): the audit answers where the token is sent (`back`), which
+        // the GMs' sighting becomes at once (noteGmPosition, read below); a second move judged from there through the wall
+        // is put back there, not to the refused spot. And the row says what was written (cor F4): a put-back whose write
+        // failed is "not sent back", tells nobody, and a burst row says "sent back" only once each of its put-backs is written.
+        const pending = audit(...across, { mode: "sendBack", wrote: null });
+        const window2 = audit(tok(1800, 100), pending.out.back, { mode: "sendBack" });
+        const failedBook = fresh(), failed = audit(...across, { mode: "sendBack", wrote: false, book: failedBook });
+        const mixed = fresh();
+        audit(...across, { mode: "sendBack", book: mixed, now: t0 });
+        audit(...across, { mode: "sendBack", book: mixed, now: t0 + 1000, wrote: false });
+        const mixedAfter = mixed.rows.map(r => r.verdict);
+        audit(...across, { mode: "sendBack", book: mixed, now: t0 + 2000 });
+        equal(J([J(pending.out.back) === J(at(100, 100)), window2.said, window2.acts.filter(act => act[0] === "sendBack").map(act => [act[1], act[2]]),
+            failedBook.rows.map(r => [r.verdict, r.sent]), failed.acts.some(act => act[0] === "emit"), mixedAfter, mixed.rows.map(r => [r.verdict, r.times, r.sent])]),
+        J([true, "crossed R559W1", [[100, 100]], [["not sent back", 0]], false, ["not sent back"], [["not sent back", 3, 2]]]),
+        "[the audit names where it sends the token, a second move judged from there, where it is put back; a put-back whose write failed, whether its mover was told; a burst with a failed write, then one more written]");
+
+        // The audit's rows (goal F6) and the whispers of a burst (cor F3): sixty-one crossings a minute apart are sixty-one
+        // rows, the newest thousand kept and the rest counted; ten in ten seconds are one row with times 10 and one whisper,
+        // and the next after thirty seconds whispers again.
+        const ledger = fresh();
+        for (let i = 0; i < 61; i++) audit(...across, { book: ledger, now: t0 + i * 60_000 });
+        const sixtyOne = [ledger.rows.length, ledger.rows.every(r => r.times === 1 && r.wall === "R559W1" && r.user === "R559U" && r.token === "R559T"
+            && r.mode === "log" && r.verdict === "noted"), ledger.dropped];
+        for (let i = 61; i < 1001; i++) audit(...across, { book: ledger, now: t0 + i * 60_000 });
+        const burst = fresh(), whispers = [];
+        for (let i = 0; i < 10; i++) whispers.push(...audit(...across, { book: burst, mode: "sendBack", now: t0 + i * 1000 }).acts.filter(act => act[0] === "whisper"));
+        const afterBurst = [whispers.length, burst.rows.map(r => [r.times, r.quiet, r.verdict])];
+        const next = audit(...across, { book: burst, mode: "sendBack", now: t0 + 9000 + 30_001 }).acts.filter(act => act[0] === "whisper").length;
+        const other = audit(...across, { book: burst, mode: "sendBack", user: "R559V", now: t0 + 9000 + 30_002 }).acts.filter(act => act[0] === "whisper").length;
+        const api = game.drpg?.passages?.audit?.();
+        equal(J([...sixtyOne, ledger.rows.length, ledger.dropped, ...afterBurst, next, other, burst.rows.length, Array.isArray(api?.rows), typeof api?.dropped]),
+            J([61, true, 0, 1000, 1, 1, [[10, 9, "sent back"]], 1, 1, 3, true, "number"]),
+            "[61 crossings' rows, each naming the token, mover, wall, mode and verdict once, none let go; after 1001, kept and let go; a burst of ten's whispers and its row's times, quiet and verdict; the next after 30 s, another mover's; the rows then; game.drpg.passages.audit()'s rows and count]");
+
+        // The mover takes the word only from the primary GM, addressed to it, with a code it knows.
+        const me = { id: "R559U", isGM: false };
+        const people = new Map([...users, ["R559H", { id: "R559H", isGM: true }], ["R559V", { id: "R559V", isGM: false }]]);
+        const word = (packet, sender, who = me) => A.sentBackRefusal({ action: "move.sentBack", userId: "R559U", code: "wall", ...packet }, sender, { me: who, users: people, primary: "R559G" }) === null;
+        equal(J([word({}, "R559G"), word({ userId: "R559V" }, "R559G"), word({}, "R559V"), word({}, "R559H"), word({ code: "x" }, "R559G"), word({}, "R559G", { id: "R559U", isGM: true })]),
+            J([true, false, false, false, false, false]),
+            "[from the primary GM, addressed to another player, from a player, from another GM, an unknown code, on a GM's browser] - taken");
+        // The primary as a table works it out (review r2, goal O10): a GM whose world has just loaded and who sorts first is
+        // the primary before this browser sees it connect - its word taken and the other GM's refused - and without it the
+        // connected GM's. The users are the suite's, so no user of this world is read.
+        const table = Object.assign([{ id: "R559G", isGM: true, active: true, role: CONST.USER_ROLES.GAMEMASTER },
+            { id: "R559A0", isGM: true, active: false, role: CONST.USER_ROLES.GAMEMASTER }, { id: "R559U", isGM: false, active: true, role: CONST.USER_ROLES.PLAYER }],
+        { get(id) { return this.find(u => u.id === id); } });
+        const heard = (sender, arriving) => A.sentBackRefusal({ action: "move.sentBack", userId: "R559U", code: "wall" }, sender, { me, users: table, arriving }) === null;
+        equal(J([heard("R559A0", "R559A0"), heard("R559G", "R559A0"), heard("R559G", null), heard("R559A0", null)]), J([true, false, true, false]),
+            "[the arriving GM that sorts first, the connected GM beside it, the connected GM alone, the arriving GM not yet arrived] - taken");
+
+        // The world switch, and the one road back with walls ignored.
+        const setting = game.settings.settings.get(`${MODULE_ID}.moveAudit`);
+        equal(J([setting?.scope, setting?.config, setting?.default, Object.keys(setting?.choices ?? {})]), J(["world", true, "log", ["log", "sendBack"]]),
+            "[the setting's scope, shown in the settings, its default, its choices]");
+        const src = file => fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => r.text()).then(stripComments);
+        const [movement, bridge, own] = await Promise.all([src("movement.mjs"), src("gm-bridge.mjs"), src("movement-audit.mjs")]);
+        const seen = fnSource(movement, "noteGmPosition");
+        equal(J([/constrainOptions: \{ ignoreWalls: true \}/.test(fnSource(movement, "sendBack")), /constrainOptions: \{ ignoreWalls: true \}/.test(fnSource(bridge, "handleSendback")),
+            /auditMove\(tokenDoc, changes, options, userId, gmSeen\.get\(tokenDoc\.id\),/.test(seen) && seen.search(/auditMove\(/) < seen.search(/gmSeen\.set\(/),
+            /\.teleport|movementAction|displace/.test(own),
+            /options\?\.\[WALL_PUT_BACK\] && game\.users\?\.get\(userId\)\?\.isGM/.test(seen) && /sightingsAfter\(gmHistory\.get\(tokenDoc\.id\) \?\? \[\], was, Date\.now\(\), putBackTo, roomAtSpot\(tokenDoc, was\)\)/.test(seen)
+                && /\[WALL_PUT_BACK\]: true/.test(fnSource(movement, "sendBack")),
+            /export function sentBackRefusal\([^)]*arriving = arrivingPrimary\(\), primary = primaryGmId\(\{ arriving, users \}\)/.test(own),
+            /const judged = auditMove\(/.test(seen) && /sentTo = judged\?\.back \?\? null;/.test(seen) && /gmSeen\.set\(tokenDoc\.id, sentTo \?\? positionOf\(tokenDoc\)\)/.test(seen),
+            /\[prepared\.SENT_BACK\]: sender\.isGM \? false : sender\.id/.test(fnSource(bridge, "handleSendback"))]),
+        J([true, true, true, false, true, true, true, true]),
+        "[sendBack ignores walls, handleSendback ignores walls, the audit's start is the GM's sighting before it moves, the audit reads teleport, movementAction or displace, every GM's record takes the put-back's mark from a GM's write alone, the mover takes the word from the primary counting a GM that has just loaded (SEC S6) - read in the source; the suite's world has one GM]");
+    }],
+    ["R561 - the Passages tab: Room Setup's tab after Doors lists the scene's passages; a student is given one in two clicks, '+' and the name; Close keeps who knows it while the copy, the client's cut and the GMs' audit read it as a wall, and Open gives it back; the cross revokes at once a student who is not in the passage's rooms and otherwise asks 'Revoke now' or 'Revoke when they leave the room', which the primary revokes when the student's route settles outside it; the season's start is its own column; a wall moved off the stretch or deleted marks the passage broken and one moved along its line does not, on the primary GM alone; Show pans to the stretch, Delete forgets it and who knew it after a yes; a knower no player was sent it yet is named; and a new passage is two clicks on one wall between two rooms of one floor, each snapped to the wall and refused off it, on a door, on a wall that stops nobody, on a taken stretch, to another floor's room or on one room's wall, a broken one picked again from its row with its knowers kept, five clicks from 'New passage' to a student who knows it; and the console's create and a repick refuse every stretch the pick refuses, over the scene's other passages included", async () => {
+        /*
+         * E79 C5, 15.10.2026; the E79 plan's A10-16 (D1's grant in two clicks, D2: grant, close, open and revoke)
+         * and K11 (a wall edited after the passage was made). The harms: a Close that forgets who knew the passage,
+         * or leaves it open in a copy, in the client's cut or in the audit; a grant behind more than two clicks; a
+         * revoke that shuts a student in the room past the passage with no choice, or a 'when they leave' that never
+         * comes; a passage whose wall moved left open where the wall no longer is; a tab that writes for a player.
+         * Run on an engine of the suite's own, as R555 is, with two students of this world (a grant and a start
+         * access name a student this world holds) and a detached panel drawn and wired by passages-tab.mjs itself:
+         * its clicks write to the suite's stores only. The real window, the real records and three players' copies
+         * are scenario 76's phase E. Red before C5: there was no tab, no `wallChanged` and no `revokeWhenLeaving`.
+         *
+         * E79 C6, 15.10.2026; the plan's D5 (two clicks, no handles) and P8-0's refusals. The harms: a passage on a door,
+         * on a wall that stops nobody, across one room, to a room of another floor or over another passage; a click
+         * that lands off the wall written as a stretch the wall does not hold; a broken passage that cannot be put back
+         * without losing who knew it. The pure snap (`snapToWall`, `stretchBetween`) on walls and rooms of the suite's
+         * own; then the pick itself through the tab's 'New passage' and 'Pick again', on a scene object of the suite's
+         * (two rooms and one wall; `createPassage` and `repickPassage` take the document in hand) with a board and a
+         * window that record what the pick asks of them, writing to the suite's stores only. The pointer on a real
+         * canvas, and the overlay, are scenario 76's phase F. Red before C6: there was no pick.
+         */
+        needs(world.atLeast("livingStudents", 2), "two students to give a passage to and take it back from");
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const P = await import("./passages-gm.mjs");
+        const L = await import("./passages.mjs");
+        const V = await import("./vault.mjs");
+        const T = await import("./passages-tab.mjs").catch(() => null);
+        ok(T && typeof P.wallChanged === "function" && typeof P.revokeWhenLeaving === "function",
+            "there is no Passages tab - passages-tab.mjs, passages-gm.mjs `wallChanged` or `revokeWhenLeaving` is missing");
+        if (!T || typeof P.wallChanged !== "function" || typeof P.revokeWhenLeaving !== "function") return;
+        const J = v => JSON.stringify(v);
+        const keys = V.ROOM_SETUP_TABS.map(([key]) => key);
+        equal(J([keys.indexOf("passages") - keys.indexOf("doors"), V.ROOM_SETUP_TABS.find(([key]) => key === "passages")?.[1]]), J([1, "DRPG.Vault.tabPassages"]),
+            "[the Passages tab's place after Doors, its label]");
+
+        let now = 9_000_000;
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R561GM", isGM: () => true, isPrimary: () => true, worldId: () => "R561WORLD",
+            activeGmIds: () => [], primaryGmId: () => "R561GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => now++,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const def = (h, name) => eng.define({ ...h.spec, name: `r561${name}`, key: `r561${name}`, afterRestore: undefined, exists: undefined });
+        const stores = { map: def(S.passageMapStore, "Map"), access: def(S.passageAccessStore, "Access"), log: def(S.passageLogStore, "Log"),
+            mastermind: eng.define({ name: "r561mm", key: "r561mm", kind: "record", fields: ["actorId"], sync: false, backup: false }) };
+        const [A, B] = studentActors();
+        // Two rooms of the suite's own on either side of the walls' line (y 400), which the cross reads (review r1, cor F1).
+        const box = (id, name, x, y, width, height) => ({ id, name, behaviors: [], getFlag: () => true, shapes: [{ x, y, width, height }] });
+        const scene = { id: "R561SCENE", grid: { size: 100 }, levels: [],
+            regions: [box("R561RH", "R561 Hall", 1200, 200, 800, 200), box("R561RK", "R561 Kitchen", 1200, 400, 800, 400)] };
+        const row = (wall, x, state = "secret") => ({ sceneId: scene.id, level: null, shape: "wall", passageWallId: wall,
+            passageSeg: { x1: x, y1: 400, x2: x + 66, y2: 400 }, rooms: ["R561 Kitchen", "R561 Hall"], state, startAccess: [] });
+        const [P1, P2, P3] = [1, 2, 3].map(n => `${scene.id}.r561p${n}`);
+        await stores.map.patchMany({ [P1]: row("R561WALL1", 1234.5), [P2]: row("R561WALL1", 1320.5), [P3]: { ...row("R561WALL2", 2000), sceneId: "R561OTHER" } });
+
+        // A player of the suite's own owns A, and their copy is what a passage's state is read against.
+        const U = { id: "R561U", isGM: false, active: true, name: "R561 player" };
+        const fake = actor => ({ id: actor.id, name: actor.name, type: "character", getFlag: () => undefined,
+            testUserPermission: (user, level) => level === "OWNER" && (user?.isGM || user?.id === U.id) && actor.id === A.id });
+        const copy = () => Object.keys(P.passageCopyFor(U, { stores, actors: [fake(A), fake(B)] }).value).sort();
+        const cut = () => L.openSegmentsFor(A, scene.id, null, { known: L.secretRowsFrom(stores) }).map(s => s.id).sort();
+
+        const asked = [], shown = [];
+        let answer = null, sure = true;
+        const where = new Map();
+        const root = document.createElement("div");
+        root.innerHTML = T.passagesTabHtml(scene, { stores, students: [A, B] });
+        const tab = T.wirePassagesTab(root, scene, { stores, students: [A, B], ask: async q => { asked.push(q); return answer; },
+            confirm: async () => sure, roomOf: async actorId => where.get(actorId) ?? null, show: async id => { shown.push(id); return true; } });
+        const $ = sel => root.querySelector(sel);
+        const inRow = (id, sel) => $(`[data-drpg-passage="${id}"] ${sel}`);
+        const press = async (id, sel) => {
+            const button = inRow(id, sel);
+            if (!button) return false;
+            button.click();
+            await tab.settled();
+            return true;
+        };
+        const cell = (id, actor) => stores.access.get(`${id}/${actor.id}`) ?? null;
+        equal(J([Boolean(tab), root.querySelectorAll("tr[data-drpg-passage]").length, Boolean(inRow(P3, "td"))]), J([true, 2, false]),
+            "[the tab wired, its rows, a passage of another scene listed] - the table is not the scene's passages");
+
+        // A grant: '+' opens the students, the name gives it - two clicks.
+        const menu = inRow(P1, '[data-drpg-menu-of="grant"]');
+        const hiddenBefore = menu?.hidden;
+        inRow(P1, '[data-drpg-menu="grant"]')?.click();
+        const shownAfter = menu?.hidden === false;
+        const granted = await press(P1, `[data-drpg-passage-act="grant"][data-drpg-actor="${A.id}"]`);
+        equal(J([hiddenBefore, shownAfter, granted, cell(P1, A)?.how, Boolean(inRow(P1, `.drpg-passage-chip[data-drpg-actor="${A.id}"]`)), copy(), cut()]),
+            J([true, true, true, "gm", true, [P1], [P1]]),
+            "[the students hidden before '+', shown after it, the name pressed, the cell's way, the chip drawn, the player's copy, the client's cut]");
+
+        // Close keeps who knows it, and the passage is a wall in the copy, the cut and what the audit reads; Open gives it back.
+        await press(P1, '[data-drpg-passage-act="close"]');
+        const closed = [stores.map.get(P1)?.state, Boolean(cell(P1, A)), copy(), cut(), Object.hasOwn(L.secretRowsFrom(stores), P1),
+            inRow(P1, ".drpg-passage-state")?.dataset.state, Boolean(inRow(P1, '[data-drpg-passage-act="open"]'))];
+        await press(P1, '[data-drpg-passage-act="open"]');
+        equal(J([closed, [stores.map.get(P1)?.state, Boolean(cell(P1, A)), copy(), cut()]]),
+            J([["closed", true, [], [], false, "closed", true], ["secret", true, [P1], [P1]]]),
+            "[closed: the state, the cell kept, the copy, the cut, the GMs' open rows (the audit's), the state drawn, Open offered; opened: the state, the cell, the copy, the cut]");
+
+        // The cross: a student in neither room forgets it at once; one in a room of the passage is asked.
+        await P.grantPassage(P2, A.id, { stores });
+        tab.draw();
+        await press(P2, `[data-drpg-passage-act="revoke"][data-drpg-actor="${A.id}"]`);
+        const away = [asked.length, Boolean(cell(P2, A))];
+        await P.grantPassage(P2, A.id, { stores });
+        tab.draw();
+        where.set(A.id, "R561 Hall");
+        answer = null;
+        await press(P2, `[data-drpg-passage-act="revoke"][data-drpg-actor="${A.id}"]`);
+        const cancelled = [asked.length, asked[0]?.room, asked[0]?.name === A.name, Boolean(cell(P2, A))];
+        answer = "now";
+        await press(P2, `[data-drpg-passage-act="revoke"][data-drpg-actor="${A.id}"]`);
+        const revokedNow = [asked.length, Boolean(cell(P2, A))];
+        equal(J([away, cancelled, revokedNow]), J([[0, false], [1, "R561 Hall", true, true], [2, false]]),
+            "[in neither room: asked, kept; in the Hall, cancelled: asked, the room, the name, kept; 'Revoke now': asked, kept]");
+
+        answer = "leave";
+        await P.grantPassage(P2, A.id, { stores });
+        tab.draw();
+        await press(P2, `[data-drpg-passage-act="revoke"][data-drpg-actor="${A.id}"]`);
+        const leaving = [cell(P2, A)?.leave, Object.keys(P.passageCopyFor(U, { stores, actors: [fake(A)] }).value).includes(P2),
+            Boolean(inRow(P2, `.drpg-passage-chip[data-drpg-actor="${A.id}"] [data-drpg-passage-leave]`))];
+        const tokenIn = sceneId => ({ actorId: A.id, parent: { id: sceneId } });
+        const stays = await P.revokeLeavers(tokenIn(scene.id), { stores, roomOf: () => "R561 Hall" });
+        const elsewhere = await P.revokeLeavers(tokenIn("R561OTHER"), { stores, roomOf: () => null });
+        const kept = Boolean(cell(P2, A));
+        const left = await P.revokeLeavers(tokenIn(scene.id), { stores, roomOf: () => "R561 Kitchen" });
+        equal(J([leaving, stays, elsewhere, kept, left, Boolean(cell(P2, A)), cell(P1, A)?.how]),
+            J([["R561 Hall", true, true], [], [], true, [P2], false, "gm"]),
+            "['when they leave': the room kept, the copy still holds it, the chip says so; still in the Hall, on another scene, kept; out of the Hall, the cell, P1 untouched]");
+
+        /* Review r1, cor F1 (15.10.2026): the rooms the cross asks about are the map's, either side of the stretch, not the
+           names a row shows - the console's road leaves them empty, and a GM's rename left the old one. Until the fix the
+           tab asked only when the student's room was one of those names, so both rows below revoked A at once, standing in
+           the Hall beside them. A student in no room of theirs is revoked unasked (the control). Then a rename carried into
+           the records: the names a row shows, and a pending 'when they leave', which a route in the renamed room revoked. */
+        const [P4, P5] = [4, 5].map(n => `${scene.id}.r561p${n}`);
+        await stores.map.patchMany({ [P4]: { ...row("R561WALL3", 1500), rooms: [] }, [P5]: { ...row("R561WALL3", 1700), rooms: ["R561 Old Hall", "R561 Kitchen"] } });
+        for (const id of [P4, P5]) await P.grantPassage(id, A.id, { stores });
+        tab.draw();
+        answer = null;
+        const askedAt = asked.length;
+        where.set(A.id, "R561 Hall");
+        for (const id of [P4, P5]) await press(id, `[data-drpg-passage-act="revoke"][data-drpg-actor="${A.id}"]`);
+        const beside = [asked.length - askedAt, asked.slice(askedAt).map(q => q.room), Boolean(cell(P4, A)), Boolean(cell(P5, A))];
+        where.set(A.id, "R561 Dorm");
+        for (const id of [P4, P5]) await press(id, `[data-drpg-passage-act="revoke"][data-drpg-actor="${A.id}"]`);
+        const apart = [asked.length - askedAt, Boolean(cell(P4, A)), Boolean(cell(P5, A))];
+        const onMap = typeof P.passageRoomsOnMap === "function" ? (await P.passageRoomsOnMap(P4, { stores, scene })).sort() : null;
+        equal(J([beside, apart, onMap]), J([[2, ["R561 Hall", "R561 Hall"], true, true], [2, false, false], ["R561 Hall", "R561 Kitchen"]]),
+            "[in the Hall beside a passage of no rooms and one whose names are stale: asked, the room, both kept; in the Dorm: not asked, both revoked; the rooms the map gives]");
+
+        await P.grantPassage(P5, A.id, { stores });
+        await P.revokeWhenLeaving(P5, A.id, "R561 Hall", { stores });
+        // The carry waits for the stores' hydration, as a GM's rename does on a browser that has just loaded: the suite's
+        // engine is opened here, alone, as a lone GM's is (until now nothing in this test waited on it).
+        await eng.open();
+        const carried = typeof P.carryPassageRooms === "function"
+            ? [await P.carryPassageRooms(scene.id, "R561 Kitchen", "R561 Scullery", { stores }), await P.carryPassageRooms(scene.id, "R561 Hall", "R561 Great Hall", { stores })] : null;
+        const stillIn = await P.revokeLeavers(tokenIn(scene.id), { stores, roomOf: () => "R561 Great Hall" });
+        const fog = stripComments(new Map(await otherSources()).get("fog.mjs") ?? "");
+        equal(J([carried, stores.map.get(P5)?.rooms, cell(P5, A)?.leave, stillIn, Boolean(cell(P5, A)), stores.map.get(P3)?.rooms,
+            /\bcarryPassageRooms\(scene\.id, from, to\)/.test(fnSource(fog, "carryRename"))]),
+        J([[3, 3], ["R561 Old Hall", "R561 Scullery"], "R561 Great Hall", [], true, ["R561 Kitchen", "R561 Hall"], true]),
+        "[the rows and cells each rename carried, P5's names, A's room to leave, a route in the renamed room revokes nothing, the cell, another scene's row, fog.mjs carryRename's call]");
+        for (const id of [P4, P5]) await P.deletePassage(id, { stores });
+
+        // The season's start is its own column: who knows it now does not change.
+        inRow(P1, '[data-drpg-menu="start"]')?.click();
+        await press(P1, `[data-drpg-passage-act="start-on"][data-drpg-actor="${B.id}"]`);
+        const started = [stores.map.get(P1)?.startAccess, Boolean(cell(P1, B))];
+        await press(P1, `[data-drpg-passage-act="start-off"][data-drpg-actor="${B.id}"]`);
+        equal(J([started, stores.map.get(P1)?.startAccess]), J([[[B.id], false], []]), "[the start access set, B knows it now; taken off]");
+
+        // The Mastermind is listed nowhere, and the tab does not offer them.
+        await P.grantPassage(P1, B.id, { stores });
+        await stores.mastermind.patch(G.RECORD, { actorId: B.id });
+        tab.draw();
+        const unlisted = [Boolean(inRow(P1, `.drpg-passage-chip[data-drpg-actor="${B.id}"]`)), Boolean(inRow(P1, `[data-drpg-actor="${B.id}"]`))];
+        await stores.mastermind.patch(G.RECORD, { actorId: null });
+        tab.draw();
+        equal(J([unlisted, Boolean(inRow(P1, `.drpg-passage-chip[data-drpg-actor="${B.id}"]`))]), J([[false, false], true]),
+            "[the Mastermind's chip and any button naming them; the same student once nobody is the Mastermind]");
+
+        // Who has not been sent it: on the primary, a knower whose player's last copy does not name them under the passage.
+        const told = new Map();
+        const people = [U, { id: "R561GM", isGM: true }];
+        const actors = new Map([[A.id, fake(A)], [B.id, fake(B)]]);
+        const pending = () => P.undeliveredOf(P1, { stores, actors, users: people, told, primary: true });
+        const before = pending();
+        told.set(U.id, J({ value: { [P1]: { actorIds: [A.id] } } }));
+        const body = T.passagesTabBody(scene, { stores, students: [A, B], actors, users: [...people, { id: "R561U2", isGM: false, name: "R561 second" }], told: new Map() });
+        equal(J([before, pending(), P.undeliveredOf(P1, { stores, actors, users: people, told, primary: false }),
+            body.includes('data-state="pending"'), body.includes('data-state="shared"')]),
+        J([[A.id], [], null, true, false]),
+        "[before A's player was sent it, after, on a GM that is not the primary, the tab's pending line, a shared line for a student one player owns]");
+
+        /* Review r1, cor F2 (15.10.2026): a push redraws the open tab. On a real window's element (keepFresh stops once it is
+           detached), A's player connected and sent their copy, B's never connected: before the push the line names both;
+           after it, within one redraw, B alone. Until the fix nothing redrew the tab after a push that came later than the
+           records' own redraw (a retell, the answer to a player connecting), and the line kept A. A push that sends nothing
+           says nothing. */
+        const { TIMING } = await import("./config.mjs");
+        const U2 = { id: "R561U2", isGM: false, active: false, name: "R561 second" };
+        const owns = { [A.id]: U.id, [B.id]: U2.id };
+        // Read by id and walked by value, as game.actors is (passageCopyFor walks it, undeliveredOf reads it by id).
+        const actors2 = new Map([A, B].map(a => [a.id, { ...fake(a), testUserPermission: (user, level) => level === "OWNER" && (user?.isGM || user?.id === owns[a.id]) }]));
+        actors2[Symbol.iterator] = function () { return this.values(); };
+        const told2 = new Map(), heard = [];
+        const app = { element: document.createElement("div") };
+        app.element.innerHTML = T.passagesTabHtml(scene, { stores, students: [A, B] });
+        document.body.append(app.element);
+        const hookId = Hooks.on("drpgPassagesTold", payload => heard.push(payload?.sent ?? null));
+        let lines;
+        try {
+            const live = T.wirePassagesTab(app.element, scene, { dialog: app, stores, students: [A, B], actors: actors2, users: [U, U2, people[1]], told: told2 });
+            live.draw();
+            const line = () => app.element.querySelector(`[data-drpg-passage="${P1}"] [data-state="pending"]`)?.textContent ?? "";
+            const named = () => [A, B].map(a => line().includes(a.name));
+            const before = named();
+            const pushed = [P.pushPassageCopies(null, { stores, actors: actors2, users: [U, U2], socket: { emit: () => {} }, told: told2 })];
+            await wait(TIMING.coalesceMs * 3);
+            pushed.push(P.pushPassageCopies(null, { stores, actors: actors2, users: [U, U2], socket: { emit: () => {} }, told: told2 }));
+            lines = [before, pushed, named(), heard];
+        } finally {
+            Hooks.off("drpgPassagesTold", hookId);
+            app.element.remove();
+        }
+        equal(J(lines), J([[true, true], [1, 0], [false, true], [1]]),
+            "[the pending line before the push names A and B, what each push sent, the line after it, the hook heard]");
+
+        // The wall: along its line nothing changes; moved off the stretch or deleted, the passage breaks, its knowers kept.
+        const wall = c => ({ id: "R561WALL1", parent: scene, c });
+        const along = await P.wallChanged(wall([1000, 400, 1500, 400]), { stores });
+        const moved = await P.wallChanged(wall([1100, 500, 1400, 500]), { stores });
+        const again = await P.wallChanged(wall([1100, 600, 1400, 600]), { stores });
+        tab.draw();
+        const broken = [stores.map.get(P1)?.state, Boolean(cell(P1, A)), copy(), cut(), inRow(P1, ".drpg-passage-state")?.dataset.state,
+            inRow(P1, '[data-drpg-passage-act="close"]')?.disabled];
+        const gone = await P.wallChanged({ id: "R561WALL2", parent: { id: "R561OTHER" }, c: [0, 0, 1, 1] }, { gone: true, stores });
+        equal(J([along, moved.sort(), again, broken, gone, stores.map.get(P3)?.state, await P.openPassage(P1, { stores })]),
+            J([[], [P1, P2].sort(), [], ["broken", true, [], [], "broken", true], [P3], "broken", false]),
+            "[along its line, moved off, moved again, the broken passage (state, cell, copy, cut, drawn, Close), the deleted wall, its passage, Open on a broken one]");
+
+        // Show pans to the stretch's middle; Delete asks, and forgets the passage and who knew it.
+        await press(P1, '[data-drpg-passage-act="show"]');
+        sure = false;
+        await press(P1, '[data-drpg-passage-act="delete"]');
+        const refused = Boolean(stores.map.get(P1));
+        sure = true;
+        await press(P1, '[data-drpg-passage-act="delete"]');
+        equal(J([shown, P.passageMiddle(P2, { stores }), refused, Boolean(stores.map.get(P1)), Object.keys(stores.access.entries()).filter(k => k.startsWith(`${P1}/`)),
+            Boolean(inRow(P1, "td"))]),
+        J([[P1], { sceneId: scene.id, level: null, x: 1353.5, y: 400 }, true, false, [], false]),
+        "[shown, the middle of a stretch, kept after a no, kept after a yes, its cells, its row drawn]");
+
+        // The pick (E79 C6): each click snapped to the nearest wall in reach, and every refusal its own code.
+        const flat = (x, y, w, h) => [[x, y, x + w, y, x + w, y + h, x, y + h]];
+        const rooms = [{ name: "R561 Hall", polygons: flat(1200, 200, 800, 600), here: true }, { name: "R561 Kitchen", polygons: flat(1200, 800, 800, 300), here: true },
+            { name: "R561 Upstairs", polygons: flat(2000, 200, 600, 600), here: false }];
+        const walls = [{ id: "W1", c: [1200, 800, 2000, 800] }, { id: "WD", c: [2000, 300, 2000, 500], door: 1 }, { id: "WN", c: [2100, 900, 2300, 900], move: 0 },
+            { id: "WX", c: [2000, 600, 2000, 780] }, { id: "WO", c: [1200, 1100, 2000, 1100] }];
+        const snap = (x, y, o) => P.snapToWall({ x, y }, walls, rooms, o);
+        const taken = [{ wallId: "W1", x1: 1300, y1: 800, x2: 1400, y2: 800 }];
+        const first = snap(1234.5, 803), second = snap(1600, 797);
+        equal(J([first, [snap(1234.5, 860), snap(2003, 400), snap(2200, 902), snap(1997, 700), snap(1500, 1098), snap(1350, 802, { taken }),
+            snap(1997, 700, { only: "W1" })].map(r => r.refused)]),
+        J([{ wallId: "W1", x: 1234.5, y: 800, rooms: ["R561 Hall", "R561 Kitchen"] }, ["noWall", "door", "noMove", "levels", "notBetween", "taken", "otherWall"]]),
+        "[a click 3 px off the wall between two rooms, snapped; a click 60 px off, on a door, on a wall that stops nobody, on a wall to another floor's room, on an outer wall, on a taken stretch, near another wall than the first click's]");
+        const stretch = (b, o) => P.stretchBetween(first, b, o);
+        equal(J([stretch(second), stretch(second, { taken: [{ wallId: "W1", x1: 1700, y1: 800, x2: 1800, y2: 800 }] }).refused, stretch(second, { taken }).refused,
+            stretch({ ...second, wallId: "WO" }).refused, stretch({ ...second, rooms: ["R561 Hall", "R561 Upstairs"] }).refused, stretch(snap(1238.5, 800)).refused]),
+        J([{ wallId: "W1", seg: { x1: 1234.5, y1: 800, x2: 1600, y2: 800 }, rooms: ["R561 Hall", "R561 Kitchen"] }, undefined, "taken", "otherWall", "otherRooms", "short"]),
+        "[two ends on the wall, with a stretch beside them taken, over a taken one, on another wall, between other rooms, 4 px apart]");
+        // From the tab: 'New passage', two clicks on the board and the passage is made; '+' and the name give it - five clicks.
+        // A scene of the suite's own (two rooms, one wall), a board and a window that record what the pick asks of them.
+        const region = (id, name, x, y, width, height) => ({ id, name, behaviors: [], getFlag: () => true, shapes: [{ x, y, width, height }] });
+        const site = { id: "R561PICK", name: "R561 pick", grid: { size: 100 }, levels: [], view: async () => true,
+            regions: [region("R561R1", "R561 Hall", 1200, 200, 800, 600), region("R561R2", "R561 Kitchen", 1200, 800, 800, 300)],
+            walls: Object.assign([{ id: "R561W", c: [1200, 800, 2000, 800] }], { get(id) { return this.find(w => w.id === id); } }) };
+        let board = null;
+        const said = [];
+        const pickWith = (scene2, options) => P.startPassagePick(scene2, { ...options, preview: () => {}, notify: (kind, text) => said.push(kind),
+            board: handlers => { board = handlers; return () => { board = null; }; },
+            prompt: () => ({ step: (n, r) => said.push(`step ${n}: ${r.join(" - ")}`), refuse: code => said.push(code), close: () => said.push("closed") }),
+            dialog: { options: { window: { minimizable: true } }, minimize: () => said.push("minimized"), maximize: () => said.push("back") } });
+        const root2 = document.createElement("div");
+        root2.innerHTML = T.passagesTabHtml(site, { stores, students: [A, B] });
+        const pickTab = T.wirePassagesTab(root2, site, { stores, students: [A, B], pick: pickWith });
+        const onBoard = async () => { for (let i = 0; i < 100 && !board; i++) await new Promise(r => setTimeout(r, 5)); return board; };
+        const ofSite = () => Object.keys(stores.map.entries()).filter(k => k.startsWith(`${site.id}.`));
+        let clicks = 0;
+        const tap = async (node, settle = true) => { if (!node) return false; clicks++; node.click(); if (settle) await pickTab.settled(); return true; };
+        await tap(root2.querySelector("[data-drpg-passage-new]"), false);
+        await (await onBoard())?.click({ x: 1234.5, y: 803 }); clicks++;
+        await board?.click({ x: 1334.5, y: 797 }); clicks++;
+        await pickTab.settled();
+        const [made] = ofSite();
+        const inRow2 = (id, sel) => root2.querySelector(`[data-drpg-passage="${id}"] ${sel}`);
+        await tap(inRow2(made, '[data-drpg-menu="grant"]'), false);
+        await tap(inRow2(made, `[data-drpg-passage-act="grant"][data-drpg-actor="${A.id}"]`));
+        const madeRow = stores.map.get(made);
+        equal(J([ofSite().length, madeRow?.passageWallId, madeRow?.passageSeg, madeRow?.rooms, madeRow?.state, madeRow?.level, cell(made, A)?.how, clicks, said.splice(0)]),
+            J([1, "R561W", { x1: 1234.5, y1: 800, x2: 1334.5, y2: 800 }, ["R561 Hall", "R561 Kitchen"], "secret", null, "gm", 5,
+                ["minimized", "step 2: R561 Hall - R561 Kitchen", "info", "closed", "back"]]),
+            "[passages made, the wall, the stretch, the rooms, the state, the floor, the grant's way, the clicks from 'New passage' to a student who knows it, what the pick asked of the window and the GM]");
+
+        // Cancelled, nothing is written; a broken passage is picked again from its row, a refused click asked again, its knowers kept.
+        await tap(root2.querySelector("[data-drpg-passage-new]"), false);
+        await (await onBoard())?.click({ x: 1500, y: 802 });
+        board?.cancel();
+        await pickTab.settled();
+        const cancelled2 = [ofSite().length, said.splice(0)];
+        await P.wallChanged({ id: "R561W", parent: site, c: [1200, 900, 2000, 900] }, { stores });
+        pickTab.draw();
+        const offered = [stores.map.get(made)?.state, Boolean(inRow2(made, '[data-drpg-passage-act="repick"]'))];
+        await tap(inRow2(made, '[data-drpg-passage-act="repick"]'), false);
+        await (await onBoard())?.click({ x: 1234.5, y: 860 });
+        await board?.click({ x: 1234.5, y: 803 });
+        await board?.click({ x: 1238.5, y: 801 });
+        await board?.click({ x: 1734.5, y: 799 });
+        await pickTab.settled();
+        const repicked = stores.map.get(made);
+        equal(J([cancelled2, offered, [repicked?.state, repicked?.passageSeg, Boolean(cell(made, A)), ofSite().length, said.splice(0)],
+            await P.repickPassage(made, { wallId: "R561W", seg: { x1: 1200, y1: 800, x2: 1300, y2: 800 } }, { stores, scene: site }),
+            Boolean(inRow2(made, '[data-drpg-passage-act="repick"]'))]),
+        J([[1, ["minimized", "step 2: R561 Hall - R561 Kitchen", "closed", "back"]], ["broken", true],
+            ["secret", { x1: 1234.5, y1: 800, x2: 1734.5, y2: 800 }, true, 1, ["minimized", "noWall", "step 2: R561 Hall - R561 Kitchen", "short", "info", "closed", "back"]],
+            false, false]),
+        "[cancelled: passages, what the pick asked; the broken row's state and its 'Pick again'; picked again: the state, the stretch, A's cell, passages, what the pick asked (a click off the wall, two ends 4 px apart refused); a repick of one not broken; its 'Pick again' after]");
+
+        /*
+         * The console's road (`game.drpg.passages.create`) and the repick ask the pick's rule (E79 fix r2-G3, 16.10.2026;
+         * review round 2, O4). The harm: a passage the pick refuses written from the console - over another passage,
+         * on a wall inside one room, beside a room of another floor, a few pixels long, from one pair of rooms to
+         * another, or with rooms the caller typed. A scene of the suite's own with two floors: the Hall, the Kitchen,
+         * the Yard and the Store on every floor, the Upstairs on the second alone. Measured at the parent (d71759a):
+         * every case below but the door, the wall that stops nobody and the right rooms on the second floor answered a
+         * row, and the three creates and the repick over another passage wrote.
+         */
+        const piece = (id, name, x, y, width, height, levels) => ({ ...region(id, name, x, y, width, height), ...(levels ? { levels: new Set(levels) } : {}) });
+        const con = { id: "R561CON", grid: { size: 100 }, levels: [{ id: "R561L1", elevation: 0 }, { id: "R561L2", elevation: 10 }],
+            regions: [piece("R561C1", "R561 Hall", 1200, 200, 800, 600), piece("R561C2", "R561 Kitchen", 1200, 800, 800, 300),
+                piece("R561C3", "R561 Upstairs", 2000, 200, 600, 600, ["R561L2"]), piece("R561C4", "R561 Yard", 1200, 1100, 1400, 300),
+                piece("R561C5", "R561 Store", 2000, 800, 600, 300)],
+            walls: Object.assign([{ id: "W1", c: [1200, 800, 2000, 800] }, { id: "WD", c: [2000, 300, 2000, 500], door: 1 },
+                { id: "WN", c: [2100, 900, 2300, 900], move: 0 }, { id: "WU", c: [1250, 250, 1250, 350], levels: new Set(["R561L2"]) },
+                { id: "WI", c: [1300, 350, 1300, 650] }, { id: "WX", c: [2000, 600, 2000, 780] }, { id: "WL", c: [1200, 1100, 2600, 1100] }],
+            { get(id) { return this.find(w => w.id === id); } }) };
+        const onCon = (wallId, x1, y1, x2, y2, o = {}) => P.passageRowFor(con, con.walls.get(wallId), { seg: { x1, y1, x2, y2 }, level: "R561L1", ...o });
+        const over = { taken: [{ wallId: "W1", x1: 1400, y1: 800, x2: 1500, y2: 800 }] };
+        equal(J([onCon("WD", 2000, 300, 2000, 400), onCon("WN", 2150, 900, 2250, 900), onCon("W1", 1234.5, 800, 1334.5, 800, { level: null }),
+            onCon("W1", 1234.5, 800, 1334.5, 800, { level: "R561L9" }), onCon("WU", 1250, 260, 1250, 340), onCon("WI", 1300, 360, 1300, 640),
+            onCon("WX", 2000, 620, 2000, 760), onCon("W1", 1300, 800, 1305, 800), onCon("WL", 1300, 1100, 2300, 1100),
+            onCon("W1", 1450, 800, 1600, 800, over), onCon("W1", 1350, 800, 1600, 800, over),
+            onCon("W1", 1234.5, 800, 1334.5, 800, { rooms: ["R561 Upstairs", "R561 Hall"] })].map(r => r.refused ?? null)
+            .concat([onCon("WX", 2000, 620, 2000, 760, { level: "R561L2" }).row?.rooms, onCon("W1", 1234.5, 800, 1334.5, 800, { rooms: ["R561 Kitchen", "R561 Hall"] }).row?.rooms])),
+        J(["that wall is a door.", "that wall does not block movement.", "name one of the scene's floors.", "name one of the scene's floors.",
+            "that wall is not on that floor.", "the stretch does not stand between two rooms.", "a room beside the stretch is on another floor.",
+            `the stretch is shorter than ${P.PICK_SHORTEST} px.`, "the stretch's two ends stand between different rooms.",
+            "the stretch overlaps another passage on that wall.", "the stretch overlaps another passage on that wall.",
+            "the stretch stands between R561 Hall and R561 Kitchen, not the rooms named.", ["R561 Hall", "R561 Upstairs"], ["R561 Hall", "R561 Kitchen"]]),
+        "[the console's road on a door, on a wall that stops nobody, with no floor, with a floor the scene has not, on another floor's wall, on a wall inside one room, beside another floor's room, 5 px long, from one pair of rooms to another, from inside a taken stretch, over one, with rooms of its own; the rooms it writes on the second floor and for the right rooms named] - it must refuse what the pick refuses");
+        const createOn = (wallId, x1, x2, y = 800) => P.createPassage({ sceneId: con.id, wallId, seg: { x1, y1: y, x2, y2: y }, level: "R561L1" }, { stores, scene: con });
+        const conFirst = await createOn("W1", 1234.5, 1334.5);
+        const conOver = await createOn("W1", 1300, 1500);
+        const conInside = await P.createPassage({ sceneId: con.id, wallId: "WI", seg: { x1: 1300, y1: 360, x2: 1300, y2: 640 }, level: "R561L1" }, { stores, scene: con });
+        const conSecond = await createOn("W1", 1600, 1700);
+        if (conSecond) await stores.map.patch(conSecond, { state: "broken" });
+        const conRepickOver = conSecond ? await P.repickPassage(conSecond, { wallId: "W1", seg: { x1: 1300, y1: 800, x2: 1400, y2: 800 } }, { stores, scene: con }) : null;
+        const conRepickOwn = conSecond ? await P.repickPassage(conSecond, { wallId: "W1", seg: { x1: 1650, y1: 800, x2: 1750, y2: 800 } }, { stores, scene: con }) : null;
+        equal(J([Boolean(conFirst), conOver, conInside, Boolean(conSecond), conRepickOver, conRepickOwn, stores.map.get(conFirst)?.rooms,
+            Object.keys(stores.map.entries()).filter(k => k.startsWith(`${con.id}.`)).length]),
+        J([true, null, null, true, false, true, ["R561 Hall", "R561 Kitchen"], 2]),
+        "[through `createPassage` and `repickPassage`: a passage made, one over it, one on a wall inside one room, a second beside the first, picked again over the first and over its own old stretch; the rooms written; passages on the scene] - the console's create must hold its stretch to the scene's other passages");
+
+        // Only the primary acts on a wall's change, and only on its segment; the routes the same.
+        const gm = await fetch(`/modules/${MODULE_ID}/scripts/passages-gm.mjs`).then(r => r.text()).then(stripComments);
+        const register = fnSource(gm, "registerPassagesGm");
+        equal(J([/Hooks\.on\("updateWall", onWallMoved\)/.test(register), /Hooks\.on\("deleteWall", onWallDeleted\)/.test(register),
+            /Hooks\.on\("drpgRouteSettled", onRouteSettled\)/.test(register),
+            ["onWallMoved", "onWallDeleted", "onRouteSettled"].map(name => /if \(!isPrimaryGm\(\)/.test(fnSource(gm, name))),
+            /hasProperty\(change \?\? \{\}, "c"\)/.test(fnSource(gm, "onWallMoved")),
+            /if \(provisional && !\(await provisional\)\) return;\s*await revokeLeavers\(/.test(fnSource(gm, "onRouteSettled"))]),
+        J([true, true, true, [true, true, true], true, true]),
+        "[the wall's move watched, its deletion, the routes, each on the primary alone, a move read as a change of its segment, a route "
+            + "announced before it stood read only once it stands (E79 fix r3-G3; scenario 76 E runs it)]");
+        const vault = await fetch(`/modules/${MODULE_ID}/scripts/vault.mjs`).then(r => r.text()).then(stripComments);
+        const opener = fnSource(vault, "openRoomSetupDialog");
+        ok(/passagesTab\.passagesTabHtml\(scene, \{ students \}\)/.test(opener) && /passagesTab\.wirePassagesTab\(root, scene, \{ dialog, students \}\)/.test(opener),
+            "Room Setup does not draw and wire the Passages tab for the scene it was opened on");
+    }],
+    ["R562 - showing a secret passage: the 'Known passages' list names each passage the character knows by its rooms as the viewer may name them and says where the way is shut; a show is judged on the primary GM - the phase, the giver alive, in no incident and no Monocub, a secret passage it knows (a closed, unknown or made-up one refused alike), the one shown it a student beside it on its scene and floor, alive (a death nobody has found is not named) - writes 'shown', a log row and the stamp, and tells each owner of the one shown it, on a card of their own, the two rooms as that owner may know them with the sound - every room only to the owner the door names for the Mastermind -, the asker with no room, and the GMs on a card of their own; a show to one who knows it already writes and tells nothing but the asker's same card; only the owner the door names shows as the Mastermind; the packet carries three ids and with no GM nothing is sent", async () => {
+        /*
+         * E79 C7, 15.10.2026; the E79 plan's A10-17 (P9-0, P10-0). A show teaches a passage to somebody the GMs did not
+         * choose, so what can go wrong is who learns it and what they are told: a passage shown by a character that
+         * does not know it, or to one in another room, on another floor, dead or a Monokuma; a refusal that tells a
+         * closed or unknown passage from one that does not exist (each would be the passage told to the asker); a card
+         * that names the rooms to the giver's owner or to anybody but the one shown it and the GMs; a cell that loses
+         * the way the one shown it first learnt it. Run on an engine of the suite's own (R555's), with characters and a
+         * world of its own: nothing of this world is read or written but this browser's own user, the names in its
+         * language file and its clock. `sharePassage` is driven with the world, the whisper and the GMs' whisper injected;
+         * the list's reader `knownPassageRows` with the copy, the map and the veto injected.
+         *
+         * E79 fix r2-G2, 16.10.2026, the round-2 review's harms: a second owner of the Mastermind's student, whom the
+         * door tells "not the Mastermind", had a passage the student was never given carried out as a show (SEC M3);
+         * a show to one who knew it already wrote a log row and told the GMs each time, so 201 of them pushed the GMs'
+         * log out to its 200 rows (SEC m1); and the GMs' word was a notice on the primary's browser alone, the names in
+         * it unescaped (H3). `sharePassage` is now handed the asker, the users and the GMs' whisper. Red on the
+         * parent's runtime (977290d with this file, 16.10.2026, run alone): the GMs' card not sent (the notice instead),
+         * the knower's repeat telling the one shown it again, and the second owner's show carried out.
+         *
+         * E79 fix r2-G4, 16.10.2026 (the round-2 fixes' G4, owed by r2-G2): the card to the one shown it named the rooms
+         * by the role read off the character and went to one owner, `ownerOf`'s, and the GMs. The rule now: each owner
+         * of the one shown it gets a card of their own, the owner who acts as the Mastermind through the student every
+         * room, any other the student's found rooms. Read here by who each card is whispered to: the Mastermind's two
+         * owners (the door and its second owner) and an ordinary student's two (R562F). Red on the parent's runtime
+         * (cf2e30a with this file): one card, to `whisperToOwner`'s default, naming the Kitchen.
+         */
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const P = await import("./passages-gm.mjs");
+        const SH = await import("./sheet.mjs");
+        const { reasonOf, createWaiter, knownSender } = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const J = v => JSON.stringify(v);
+        equal(J([typeof P.sharePassage, typeof P.shareRefusal, typeof SH.knownPassageRows, Object.hasOwn(BRIDGE_ACTIONS, "passage.share")]),
+            J(["function", "function", "function", true]), "[the show, its rule, the list's reader, the bridge's row] - a player has no way to show a passage");
+        let t = 9_000_000;
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R562GM", isGM: () => true, isPrimary: () => true, worldId: () => "R562WORLD",
+            activeGmIds: () => [], primaryGmId: () => "R562GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => ++t,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const def = (h, name) => eng.define({ ...h.spec, name: `r562${name}`, key: `r562${name}`, afterRestore: undefined, exists: undefined });
+        const stores = { map: def(S.passageMapStore, "Map"), access: def(S.passageAccessStore, "Access"), log: def(S.passageLogStore, "Log"),
+            mastermind: eng.define({ name: "r562mm", key: "r562mm", kind: "record", fields: ["actorId"], sync: false, backup: false }) };
+        const CAF = "R562 Cafeteria", KIT = "R562 Kitchen";
+        const row = (n, state = "secret") => ({ sceneId: "R562SCENE", level: null, shape: "wall", passageWallId: `R562WALL${n}`,
+            passageSeg: { x1: 1234.5, y1: 100 * n, x2: 1300.5, y2: 100 * n }, rooms: [CAF, KIT], state, startAccess: [] });
+        const [P1, P2, P3, P4] = [1, 2, 3, 4].map(n => `R562SCENE.r562p${n}`);
+        await stores.map.patchMany({ [P1]: row(1), [P2]: row(2, "closed"), [P3]: row(3), [P4]: row(4, "broken") });
+        await stores.access.patchMany({ [`${P1}/R562A1`]: { how: "gm", at: 1, by: { R562GM: 1 } }, [`${P2}/R562A1`]: { how: "gm", at: 1, by: { R562GM: 1 } },
+            [`${P4}/R562A1`]: { how: "gm", at: 1, by: { R562GM: 1 } }, [`${P1}/R562C`]: { how: "gm", at: 1, by: { R562GM: 1 } } });
+        await stores.mastermind.patch(G.RECORD, { actorId: "R562MM" });
+        // Players: R562U owns every student but the Mastermind's, which R562UM (the door, the first owner) and R562UC own;
+        // R562F, an ordinary student, has two owners, R562U and R562UC.
+        const people = [{ id: "R562GM", isGM: true, active: true }, { id: "R562U", isGM: false, active: true },
+            { id: "R562UM", isGM: false, active: true }, { id: "R562UC", isGM: false, active: true }];
+        const [, asker, door, coOwner] = people;
+        const cast = new Map(["R562A1", "R562B", "R562C", "R562D", "R562E", "R562F", "R562MM", "R562MK", "R562CUB", "R562NPC"].map(id => [id,
+            { id, name: id === "R562A1" ? "R562 <b>Aiko</b>" : id, type: id === "R562NPC" ? "adversary" : "character",
+                testUserPermission: (u, level) => level === "OWNER" && (id === "R562MM" ? ["R562UM", "R562UC"] : id === "R562F" ? ["R562U", "R562UC"] : ["R562U"]).includes(u?.id) }]));
+        const scene = { id: "R562SCENE" }, otherScene = { id: "R562OTHER" };
+        const spot = { R562A1: { scene, room: CAF, level: null }, R562B: { scene, room: CAF, level: null }, R562C: { scene, room: CAF, level: null },
+            R562D: { scene, room: KIT, level: null }, R562E: { scene, room: CAF, level: null }, R562F: { scene, room: CAF, level: null }, R562MM: { scene, room: CAF, level: null }, R562MK: { scene, room: CAF, level: null },
+            R562CUB: { scene, room: CAF, level: null }, R562NPC: { scene, room: CAF, level: null } };
+        const world = (over = {}) => ({
+            actor: id => cast.get(id) ?? null, locked: () => false, inIncident: () => false, monocub: a => a.id === "R562CUB",
+            monokuma: a => a.id === "R562MK", dead: () => false, published: () => false, place: a => spot[a.id] ?? null,
+            sides: (r, seg) => (seg?.x1 === 1234.5 ? [CAF, KIT] : []), knownRooms: () => new Set([CAF]), ...over });
+        const show = async (actorId, targetId, passageId, over = {}, by = asker) => {
+            const cards = [], gm = [];
+            const out = await P.sharePassage({ actorId, targetId, passageId }, { stores, world: world(over), asker: by, users: people,
+                whisper: async (to, content, extra) => cards.push({ to: to.id, content, sfx: extra?.flags?.[MODULE_ID]?.sfx ?? null, only: extra?.whisper ?? null }),
+                gms: async content => gm.push(content) });
+            return { out, cards, gm, code: out.refused ? reasonOf(out.refused) : null };
+        };
+        const logRows = () => Object.values(stores.log.entries()).map(r => `${r.what} ${r.passageId === P1 ? "P1" : r.passageId} ${r.actorId}`);
+
+        // The lawful show: Aiko shows Botan the passage both stand beside.
+        const lawful = await show("R562A1", "R562B", P1);
+        const cell = stores.access.get(`${P1}/R562B`);
+        const unexplored = game.i18n.format("DRPG.Listen.unknownRoom", { n: 1 });
+        equal(J([lawful.out, cell?.how, Object.keys(cell?.by ?? {}), Boolean(stores.access.get("touch/R562B")), logRows()]),
+            J([{ shown: true }, "shown", ["R562A1"], true, ["show P1 R562B"]]),
+            "[the answer, the cell's how, who showed it, the one shown it stamped, the log] - the show was not written as a show");
+        equal(J(lawful.cards.map(c => [c.to, c.sfx, c.only])), J([["R562B", "passageFound", ["R562U"]], ["R562A1", null, ["R562U"]]]),
+            "[each card's character, sound and recipients by name] - the one shown it to its owner alone, then the giver to the asker alone, the sound only for the one shown it");
+        ok(lawful.cards[0].content.includes(CAF) && lawful.cards[0].content.includes(unexplored) && !lawful.cards[0].content.includes(KIT)
+            && lawful.cards[0].content.includes("R562 &lt;b&gt;Aiko&lt;/b&gt;"),
+        `the one shown it is not told the room they know, "${unexplored}" for the one they do not, and the giver's name as text: ${lawful.cards[0].content}`);
+        ok(![CAF, KIT, unexplored, "1234.5", P1].some(word => lawful.cards[1].content.includes(word)) && lawful.cards[1].content.includes("R562B"),
+            `the giver's card names a room, the passage or its stretch, or not the one shown it: ${lawful.cards[1].content}`);
+        ok(lawful.gm.length === 1 && lawful.gm[0].includes(CAF) && lawful.gm[0].includes(KIT) && lawful.gm[0].includes("R562B")
+            && lawful.gm[0].includes("R562 &lt;b&gt;Aiko&lt;/b&gt;") && !lawful.gm[0].includes("<b>"),
+            `the GMs are not told on one card of their own who was shown which passage, the names as text (H3): ${J(lawful.gm)}`);
+
+        // A student who knew it already: nothing written and nobody told but the asker, on the same card and answer (SEC m1);
+        // the Mastermind shown it: a card to each of its two owners, both rooms only on the door's (r2-G4).
+        const logOnce = J(logRows()), stampOnce = stores.access.newest("touch/R562C");
+        const again = await show("R562A1", "R562C", P1), logAgain = J(logRows()), mm = await show("R562A1", "R562MM", P1);
+        equal(J([again.out, stores.access.get(`${P1}/R562C`)?.how, again.cards.map(c => [c.to, c.sfx, c.only, c.content === lawful.cards[1].content.replace("R562B", "R562C")]),
+            again.gm.length, stores.access.newest("touch/R562C") === stampOnce, logAgain === logOnce, mm.code]),
+        J([{ shown: true }, "gm", [["R562A1", null, ["R562U"], true]], 0, true, true, null]),
+        "[a knower shown it: the answer, its first how, its cards (character, sound, recipients, the first show's text), the GMs' cards, its stamp kept, the log kept; the Mastermind shown it: the code]");
+        // r2-G4's harm: the Mastermind's second owner, who is not the door, reads the Kitchen the student never found. Each
+        // owner's card by its recipients, its sound and the rooms it names; an ordinary student's two owners the same card.
+        const named = c => [c.to, c.sfx, c.only, c.content.includes(CAF), c.content.includes(KIT), c.content.includes(unexplored)];
+        const two = await show("R562A1", "R562F", P1);
+        equal(J([mm.cards.map(named), two.cards.map(named), two.cards[0]?.content === two.cards[1]?.content, mm.gm.length, two.gm.length]),
+            J([[["R562MM", "passageFound", ["R562UM"], true, true, false], ["R562MM", "passageFound", ["R562UC"], true, false, true], ["R562A1", null, ["R562U"], false, false, false]],
+                [["R562F", "passageFound", ["R562U"], true, false, true], ["R562F", "passageFound", ["R562UC"], true, false, true], ["R562A1", null, ["R562U"], false, false, false]],
+                true, 1, 1]),
+            "[the Mastermind shown it: each card's character, sound, recipients, and whether it names the Cafeteria, the Kitchen and an unexplored room; the same for an ordinary student of two owners; its two owners' cards alike; the GMs' cards of each] - a card names a room its reader may not know, or an owner is not told");
+
+        // Every refusal, its code, and nothing written or told.
+        const cellsBefore = J(stores.access.entries()), logBefore = J(logRows());
+        const dead = id => a => a.id === id;
+        const cases = [
+            ["the Eclipse or the trial", ["R562A1", "R562B", P1, { locked: () => true }], "actionLocked"],
+            ["a giver that is not here", ["R562NONE", "R562B", P1], "missing"],
+            ["a dead giver", ["R562A1", "R562B", P1, { dead: dead("R562A1") }], "cannotNow"],
+            ["a giver in an incident", ["R562A1", "R562B", P1, { inIncident: a => a.id === "R562A1" }], "cannotNow"],
+            ["a Monocub giver", ["R562CUB", "R562B", P1], "actionDenied"],
+            ["a closed passage", ["R562A1", "R562B", P2], "notKnown"],
+            ["a broken passage", ["R562A1", "R562B", P4], "notKnown"],
+            ["a passage the giver does not know", ["R562A1", "R562B", P3], "notKnown"],
+            ["a passage that is not there", ["R562A1", "R562B", "R562SCENE.nothing"], "notKnown"],
+            ["no passage", ["R562A1", "R562B", null], "notKnown"],
+            ["the giver to itself", ["R562A1", "R562A1", P1], "missing"],
+            ["a Monokuma", ["R562A1", "R562MK", P1], "missing"],
+            ["not a student", ["R562A1", "R562NPC", P1], "missing"],
+            ["another room", ["R562A1", "R562D", P1], "notThere"],
+            ["another scene", ["R562A1", "R562B", P1, { place: a => (a.id === "R562B" ? { scene: otherScene, room: CAF, level: null } : spot[a.id]) }], "notThere"],
+            ["another floor", ["R562A1", "R562B", P1, { place: a => ({ ...spot[a.id], level: a.id === "R562B" ? "R562UP" : null }) }], "notThere"],
+            ["a giver with no token", ["R562A1", "R562B", P1, { place: a => (a.id === "R562A1" ? null : spot[a.id]) }], "notThere"],
+            ["a death the table knows", ["R562A1", "R562B", P1, { dead: dead("R562B"), published: dead("R562B") }], "recipientDead"],
+            ["a death nobody has found", ["R562A1", "R562B", P1, { dead: dead("R562B") }], "cannotNow"]
+        ];
+        const got = [];
+        for (const [what, [a, b, p, over]] of cases) {
+            const r = await show(a, b, p, over);
+            got.push(`${what}: ${r.code}${r.cards.length || r.gm.length ? " (told)" : ""}`);
+        }
+        equal(J(got), J(cases.map(([what, , code]) => `${what}: ${code}`)), "a show refused with another reason, or something told of a refused one");
+        equal(J([J(stores.access.entries()) === cellsBefore, J(logRows()) === logBefore]), J([true, true]), "[the cells, the log] changed by a refused show");
+        // The Mastermind shows a passage nobody gave them - as the owner the door names, never as its second owner (SEC M3),
+        // whose show is refused as a passage the giver does not know, and writes and tells nothing.
+        const inKitchen = { place: a => ({ ...spot[a.id], room: KIT }) };
+        const coShows = await show("R562MM", "R562D", P3, inKitchen, coOwner);
+        const coCell = stores.access.get(`${P3}/R562D`) ?? null, coTold = coShows.cards.length + coShows.gm.length, coLog = J(logRows());
+        const mmShows = await show("R562MM", "R562D", P3, inKitchen, door);
+        equal(J([coShows.code, coCell, coTold, coLog === logBefore, mmShows.code, stores.access.get(`${P3}/R562D`)?.how, mmShows.cards.map(c => [c.to, c.only])]),
+            J(["notKnown", null, 0, true, null, "shown", [["R562D", ["R562U"]], ["R562MM", ["R562UM"]]]]),
+            "[the second owner's show: its code, the cell, told, the log kept; the door owner's: its code, the cell, the cards and their recipients by name] - the Mastermind is read off the student, not the asker");
+
+        // SEC m1's measure: 201 shows of one passage to one student - one cell, one log row and one card to them and to the
+        // GMs, the log's earlier rows all kept; the asker's card and answer the same each time.
+        const logKept = Object.keys(stores.log.entries()), shows = [];
+        for (let i = 0; i < 201; i++) shows.push(await show("R562A1", "R562E", P1));
+        const logNow = Object.keys(stores.log.entries());
+        equal(J([new Set(shows.map(r => J(r.out))).size, shows.reduce((n, r) => n + r.cards.filter(c => c.to === "R562E").length, 0),
+            shows.reduce((n, r) => n + r.gm.length, 0), new Set(shows.map(r => J(r.cards.filter(c => c.to === "R562A1")))).size,
+            logNow.length - logKept.length, logKept.every(k => logNow.includes(k)), stores.access.get(`${P1}/R562E`)?.how]),
+        J([1, 1, 1, 1, 1, true, "shown"]),
+        "[distinct answers, cards to the one shown it, the GMs' cards, distinct asker's cards, log rows added, the earlier rows kept, the cell] after 201 shows");
+
+        // The bridge's row: two guards, the sender first, then the giver's owner, and three ids through the whitelist.
+        const decl = BRIDGE_ACTIONS["passage.share"];
+        equal(J([decl?.guards?.[0] === knownSender, decl?.guards?.[1]?.factory, decl?.guards?.[1]?.covers, decl?.answer,
+            decl?.sanitize?.({ actorId: "R562A1", targetId: "R562B", passageId: P1, passageSeg: { x1: 1 }, rooms: [CAF], how: "gm", userId: "R562U" })]),
+        J([true, "owns", ["actorId"], "ack", { actorId: "R562A1", targetId: "R562B", passageId: P1 }]),
+        "[the first guard, the second's kind, the field it judges, the answer, what the run is handed] - a field beyond the three ids reached the run");
+
+        // With no GM the ask goes nowhere and says so.
+        const sent = [], said = [];
+        const waiter = createWaiter({ emit: (packet, to) => sent.push({ packet, to }), gmIds: () => [], me: () => ({ id: "R562U", isGM: false, isPrimary: false }),
+            notify: (action, reason) => said.push(`${action} ${reason}`), fromGm: () => false, report: () => {} });
+        const alone = await waiter.request("passage.share", { actorId: "R562A1", targetId: "R562B", passageId: P1 }, { settle: "ack", ackMs: 40, timeoutMs: 200 });
+        equal(J([alone, sent.length, said]), J([{ ok: false, reason: "noGm" }, 0, ["passage.share noGm"]]), "[the answer, packets sent, said] with no GM");
+
+        // The list: the rooms as the viewer may name them, the way shut where the veto says so, only its own passages.
+        const known = { [P1]: { sceneId: "R562SCENE", level: null, shape: "wall", passageWallId: "R562WALL1", passageSeg: row(1).passageSeg, actorIds: ["R562A1"] },
+            [P3]: { sceneId: "R562SCENE", level: null, shape: "wall", passageWallId: "R562WALL3", passageSeg: row(3).passageSeg, actorIds: ["R562A1"] },
+            [P2]: { sceneId: "R562SCENE", level: null, shape: "wall", passageWallId: "R562WALL2", passageSeg: row(2).passageSeg, actorIds: ["R562B"] },
+            "R562GONE.p": { sceneId: "R562GONE", level: null, shape: "wall", passageWallId: "R562WALLG", passageSeg: row(1).passageSeg, actorIds: ["R562A1"] } };
+        const asked = [];
+        const list = (actor, mastermind = false) => SH.knownPassageRows(actor, { known, mastermind, sceneOf: id => (id === "R562SCENE" ? scene : null),
+            sides: (s, p) => (p.id === P3 ? [KIT, CAF] : [CAF, KIT]), knownRooms: () => new Set([CAF]),
+            opens: (a, p, s, o) => { asked.push([p.id === P1 ? "P1" : p.id === P3 ? "P3" : "P2", o.from, o.mover]); return p.id !== P3; },
+            place: a => spot[a.id] });
+        const rows = list(cast.get("R562A1"));
+        equal(J([rows.map(r => [r.label, r.shut]), asked]),
+            J([[[`${CAF} - ${unexplored}`, false], [`${unexplored} - ${CAF}`, true]], [["P1", CAF, null], ["P3", CAF, null]]]),
+            "[each row's rooms and whether the way is shut, the veto asked from the character's room with no mover] - another's passage, a scene that is gone, a room the character has not found named, or the veto asked otherwise");
+        asked.length = 0;
+        equal(J([list(cast.get("R562MM"), true).length, asked.map(a => a[2])]), J([3, [{ mastermind: true }, { mastermind: true }, { mastermind: true }]]),
+            "[the Mastermind's rows, the veto asked for the Mastermind] - the Mastermind does not list every passage of a scene this world holds");
+    }],
+    ["R563 - the GM's fog ignores the Mastermind's discoveries: ledgerRooms leaves out the current Mastermind's row, written before they were chosen or not, and an ordinary student's entry still changes it; on the Mastermind's own browser every room of the scene reads discovered and the current room is only the one under their own token", async () => {
+        /*
+         * The owner's amend folded into E79 C5 (14.10.2026). The Mastermind's browser has the whole map discovered,
+         * and the GM's fog must ignore that discovery. `recordDiscovery` has written nothing for the Mastermind since
+         * 1.2.50, but a row written before they were chosen stayed in the ledger and `ledgerRooms` read it: the GM's
+         * map cleared every room the season's secret had walked into. Read on a ledger of the suite's own (no store is
+         * written) and, for the Mastermind's own view, on this world's scene on screen with stand-ins for the drawn
+         * tokens: `myDiscoveredRooms` and `myCurrentRooms` take the browser's facts as arguments since this commit.
+         * Red before C5: fog.mjs exported none of the three.
+         */
+        const F = await import("./fog.mjs");
+        ok(typeof F.ledgerRooms === "function" && typeof F.myDiscoveredRooms === "function" && typeof F.myCurrentRooms === "function",
+            "fog.mjs exports no ledgerRooms, myDiscoveredRooms or myCurrentRooms - the GM's fog cannot be read apart from this browser");
+        if (typeof F.ledgerRooms !== "function" || typeof F.myDiscoveredRooms !== "function" || typeof F.myCurrentRooms !== "function") return;
+        const J = v => JSON.stringify(v);
+        const scene = { id: "R563SCENE" };
+        const rows = { MM: ["R563 Lab", "R563 Gym"], S1: ["R563 Hall"] };
+        const read = (more, mm) => [...F.ledgerRooms(scene, { ledger: { [scene.id]: { ...rows, ...more } }, mastermindId: mm })].sort();
+        equal(J([read({}, "MM"), read({ MM: [...rows.MM, "R563 Pool"] }, "MM"), read({ S1: [...rows.S1, "R563 Pool"] }, "MM"), read({}, null), read({}, "S1")]),
+            J([["R563 Hall"], ["R563 Hall"], ["R563 Hall", "R563 Pool"], ["R563 Gym", "R563 Hall", "R563 Lab"], ["R563 Gym", "R563 Lab"]]),
+            "[the Mastermind's old row, the Mastermind entering a new room, a student entering one, nobody the Mastermind, another student the Mastermind]");
+        const fog = await fetch(`/modules/${MODULE_ID}/scripts/fog.mjs`).then(r => r.text()).then(stripComments);
+        const record = fnSource(fog, "recordDiscovery");
+        ok(record.search(/if \(isMastermind\(actor\)\) return false;/) > 0 && record.search(/if \(isMastermind\(actor\)\) return false;/) < record.search(/await writeCells\(/),
+            "recordDiscovery no longer refuses the Mastermind's walk before it writes");
+
+        needs(world.atLeast("studentsInRooms", 1), "a student standing in a room of the scene on screen");
+        const { roomNames } = await import("./rooms.mjs");
+        const { roomOfToken } = await import("./movement.mjs");
+        const here = canvas.scene;
+        const doc = [...here.tokens].find(t => studentActors().some(a => a.id === t.actorId) && roomOfToken(t));
+        const other = [...here.tokens].find(t => t !== doc && roomOfToken(t) && roomOfToken(t) !== roomOfToken(doc));
+        const placeable = (document, isOwner) => ({ document, isOwner, actor: { type: "character" } });
+        const all = [...F.myDiscoveredRooms(here, { mastermind: true, gm: false })].sort();
+        const mine = [...F.myCurrentRooms({ tokens: [placeable(doc, true), ...(other ? [placeable(other, false)] : [])], gm: false })];
+        const none = [...F.myCurrentRooms({ tokens: [placeable(doc, false)], gm: false })];
+        equal(J([all, mine, none]), J([[...new Set(roomNames(here))].sort(), [roomOfToken(doc)], []]),
+            "[the Mastermind's discovered rooms, the current room under their own token beside another's, under nobody's own]");
+    }],
+    ["R573 - the GMs' overlay follows the floor: drawn again for another floor of the scene it shows that floor's passages and the ones on no floor, and no other floor's or scene's; and a floor switched is a new canvas, on which the overlay draws every layer again from the camera", async () => {
+        /*
+         * E79 fix r2-G3, 16.10.2026; review round 2, O3. The harm: a GM switches floors and the overlay still shows the
+         * floor they left. The overlay is drawn again on `canvasReady` alone (gm-overlay.mjs `registerGmOverlay`), which
+         * is what the fog rides for the same switch (fog.mjs, "floor switcher": `scene.view({ level })`); whether v14
+         * ends a level's change on the scene on screen in one is LIVE-E12-02, and the overlay's look after it LIVE-E79-05.
+         * Not reproduced red: the harness's view ends in `canvasReady` (client-entry.mjs `game._viewScene`), so the switch
+         * redrew the overlay before this commit as well - 76 cannot tell the two apart. What this test holds is the
+         * drawing for a floor, on a layer and an engine of the suite's own, and the chain read off the source. Red at
+         * the parent (d71759a) only because `drawPassagesLayer` could not be handed a floor and drew the camera's.
+         */
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const P = await import("./passages-gm.mjs");
+        const J = v => JSON.stringify(v);
+        let now = 9_500_000;
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R573GM", isGM: () => true, isPrimary: () => true, worldId: () => "R573WORLD",
+            activeGmIds: () => [], primaryGmId: () => "R573GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => now++,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const map = eng.define({ ...S.passageMapStore.spec, name: "r573Map", key: "r573Map", afterRestore: undefined, exists: undefined });
+        const row = (sceneId, level, x, state = "secret") => ({ sceneId, level, shape: "wall", passageWallId: "R573W",
+            passageSeg: { x1: x, y1: 400, x2: x + 50, y2: 400 }, rooms: ["R573 A", "R573 B"], state, startAccess: [] });
+        await map.patchMany({ R573ONE: row("R573S", "R573L1", 100), R573TWO: row("R573S", "R573L2", 200, "closed"), R573ALL: row("R573S", null, 300),
+            R573ELSE: row("R573OTHER", "R573L2", 400) });
+        const layer = new PIXI.Container();
+        const drawn = level => {
+            const count = P.drawPassagesLayer(layer, { stores: { map }, scene: { id: "R573S" }, level });
+            return [count, layer.children.map(g => `${g.name}:${g.drpgState}`).sort()];
+        };
+        const first = drawn("R573L1"), second = drawn("R573L2"), every = drawn(null);
+        layer.destroy({ children: true });
+        equal(J([first, second, every]), J([[2, ["R573ALL:secret", "R573ONE:secret"]], [2, ["R573ALL:secret", "R573TWO:closed"]],
+            [3, ["R573ALL:secret", "R573ONE:secret", "R573TWO:closed"]]]),
+        "[drawn for the first floor, then for the second on the same layer, then for no floor] - the overlay must show the floor it is drawn for");
+
+        const source = file => fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => r.text()).then(stripComments);
+        const [overlay, gm, fog] = await Promise.all(["gm-overlay.mjs", "passages-gm.mjs", "fog.mjs"].map(source));
+        equal(J([/Hooks\.on\("canvasReady", \(\) => redrawGmOverlay\(\)\)/.test(fnSource(overlay, "registerGmOverlay")),
+            /overlayDrawer\("passages", layer => drawPassagesLayer\(layer\)\)/.test(fnSource(gm, "registerPassagesGm")),
+            /scene\.view\(\{ level: id \}\)/.test(fnSource(fog, "renderFloorSwitcher"))]),
+        J([true, true, true]),
+        "[every layer drawn again on a new canvas, the passages' drawer drawing the camera's scene and floor, the floor switcher viewing the scene at the new floor]");
+    }],
+
+    ["R574 - the passages' access record keeps a door row's tombstone while its student is in the world, as a touch row's and a cell's: the GMs' compaction drops the three for a character who is gone and keeps them for one who is here", async () => {
+        /*
+         * E79 fix r2-G4, 16.10.2026 (the round-2 fixes' G4: fix r2-G2's `door/<actorId>` row had no test of the store's
+         * `exists`, gm-stores.mjs `passageAccessStore`). What `exists` decides was read first: it is asked by
+         * `compactGmStores` alone (gm-stores.mjs, its `handle.compact` call), of a tombstone older than
+         * `TIMING.gmStoreTombstoneDays` with no live field beside it - never by a reload, a restore or a copy. A door row
+         * is tombstoned where every row of the record is: on a GM that is not the primary, by the season's reset
+         * (passages-gm.mjs `passagesAfterReset`, its `dropMany`). Without "door" in `exists`, that tombstone of a living
+         * Mastermind's door row is removed as if its student were gone, and a GM that still holds the row live hands it
+         * back at the next exchange until it has compacted too (gm-store.mjs `compact`'s note) - a stamp of the door
+         * owner's copy the GMs had decided away. Whether the reset's watermark then cuts the row on every browser was not
+         * measured here; the test holds the rule the compaction states: a subject that exists keeps its tombstone.
+         * Run on an engine of the suite's own (R562's) with the record's own spec, `exists` included, and this world's
+         * first character and scene for the subjects; the compaction is asked as `compactGmStores` asks it. Red with
+         * "door" left out of `exists`: the door row's tombstone goes with the gone ones.
+         */
+        needs(world.atLeast("livingStudents", 1), "a character of this world is the subject of the rows that stay");
+        needs(world.atLeast("scenes", 1), "a scene of this world is the subject of the cell that stays");
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const J = v => JSON.stringify(v);
+        let t = 9_500_000;
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R574GM", isGM: () => true, isPrimary: () => true, worldId: () => "R574WORLD",
+            activeGmIds: () => [], primaryGmId: () => "R574GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => ++t,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const access = eng.define({ ...S.passageAccessStore.spec, name: "r574Access", key: "r574Access", afterRestore: undefined });
+        const exists = access.spec.exists;
+        const character = game.actors.find(a => a.type === "character"), scene = game.scenes.contents[0];
+        const here = [`${scene.id}.r574p/${character.id}`, `touch/${character.id}`, `door/${character.id}`];
+        const gone = [`${scene.id}.r574p/R574GONE`, `touch/R574GONE`, `door/R574GONE`];
+        const all = [...here, ...gone];
+        await access.patchMany(Object.fromEntries(all.map(k => [k, k.startsWith("door/") ? { at: 1, door: "R574U" } : { at: 1 }])));
+        await access.dropMany(all);
+        const tombs = () => all.map(k => access.tombstone(k) > 0);
+        const dropped = tombs();
+        const removed = await access.compact(t + 1, key => {
+            try { return !exists(key); } catch { return false; }
+        });
+        equal(J([exists === S.passageAccessStore.spec.exists, all.map(k => exists(k)), exists("door"), exists(`door/${scene.id}`), dropped, removed, tombs()]),
+            J([true, [true, true, true, false, false, false], false, false, [true, true, true, true, true, true], 3, [true, true, true, false, false, false]]),
+            "[the record's own `exists`; its answer for a cell, a touch row and a door row of a character here, then of one gone; a bare 'door' and a door row of a scene's id; "
+            + "the six tombstones written; how many the compaction removed; the tombstones left] - a row of a character who is here lost its tombstone, or one who is gone kept it");
+    }],
+    ["R575 - Daggerheart's welcome window stays closed for every account: with enforceDhWelcome on, this browser's account reads Daggerheart's welcome flag set from setup on, and nothing was written; the switch off and a world of another system leave the flag alone", async () => {
+        /*
+         * E79 C9 (16.10.2026; the owner's N1 of 14.10.2026). Daggerheart's `ready` opens its welcome
+         * journal when `game.user.getFlag("daggerheart", "welcome-message")` is unset (2.6.5
+         * daggerheart.mjs:340-345, read during the design), so that flag on this browser's copy of its
+         * account is the whole promise: enforced.mjs `holdUserFlag` sets it at `setup` through
+         * `updateSource`, which sends nothing. Asked of this browser's account while the switch is on in
+         * a Daggerheart world, then of the holder on stand-in accounts whose `update` must stay uncalled:
+         * a fresh one, the switch off, another system, and an account that already saw the journal.
+         * Scenario 15 N1 reads the same on two players' browsers, and the GM's copy of their accounts.
+         */
+        const J = stableJson;
+        const { ENFORCED, holdUserFlag } = await import("./enforced.mjs");
+        const row = ENFORCED.find(r => r.id === "dhWelcome");
+        ok(row?.kind === "userFlag" && typeof holdUserFlag === "function", "Daggerheart's welcome is not a held user flag of enforced.mjs");
+        if (game.system.id === row.system && game.settings.get(MODULE_ID, SETTINGS.enforceDhWelcome) !== false) {
+            ok(Boolean(game.user.flags?.daggerheart?.["welcome-message"]),
+                "this browser's account reads Daggerheart's welcome flag unset: its next start opens the journal");
+        }
+        const standIn = flags => {
+            const user = { flags, sources: 0, updates: 0 };
+            user.updateSource = changes => { user.sources++; foundry.utils.mergeObject(user.flags, changes.flags ?? {}); return changes; };
+            user.update = async () => { user.updates++; };
+            return user;
+        };
+        const fresh = standIn({}), off = standIn({}), other = standIn({}), seen = standIn({ daggerheart: { "welcome-message": true } });
+        const held = [
+            holdUserFlag(row, { user: fresh, system: "daggerheart", on: true }),
+            holdUserFlag(row, { user: off, system: "daggerheart", on: false }),
+            holdUserFlag(row, { user: other, system: "suite-other-system", on: true }),
+            holdUserFlag(row, { user: seen, system: "daggerheart", on: true })];
+        equal(J([held, fresh.flags.daggerheart?.["welcome-message"] ?? null, off.flags, other.flags,
+            [fresh, off, other, seen].map(user => [user.sources, user.updates])]),
+        J([[true, false, false, true], true, {}, {}, [[1, 0], [0, 0], [0, 0], [0, 0]]]),
+        "[held for a fresh account, the switch off, another system, an account that saw it; the fresh account's flag; the other two's flags; local and server writes per account]");
+    }],
+
+    ["R576 - a User Configuration window that opens by itself at a start closes, and one a person opens stays", async () => {
+        /*
+         * E79 C9 (16.10.2026; the owner's N2 of 14.10.2026). Who opens the window at a start is not
+         * readable here (not scripts/, not Daggerheart 2.6.5 or 2.10.5: grep), so enforced.mjs
+         * `closeUnaskedUserConfig` closes it after it renders, on this browser's own account, at its
+         * first render, from `setup` to 30 s after `ready`, and only when the browser reads no user
+         * activation - a click on the players list gives one. The browser's reading and the clock are
+         * handed in, so nothing on this browser is stubbed: before `ready`, 1 s and 31 s after it,
+         * activation, no activation API, a later render, and a GM's window on another account.
+         */
+        const J = stableJson;
+        const { closeUnaskedUserConfig } = await import("./enforced.mjs");
+        ok(typeof closeUnaskedUserConfig === "function", "enforced.mjs has no guard for a User Configuration window");
+        const now = Date.now(), still = { isActive: false }, clicked = { isActive: true };
+        const own = { id: game.user.id }, someoneElse = { id: "R576OTHERUSER000" };
+        const closes = (doc, options, at) => {
+            const app = { document: doc, closed: 0, close() { this.closed++; } };
+            closeUnaskedUserConfig(app, options, { now, ...at });
+            return app.closed;
+        };
+        equal(J([
+            closes(own, { isFirstRender: true }, { activation: still, since: null }),
+            closes(own, { isFirstRender: true }, { activation: still, since: now - 1000 }),
+            closes(own, { isFirstRender: true }, { activation: clicked, since: now - 1000 }),
+            closes(someoneElse, { isFirstRender: true }, { activation: still, since: null }),
+            closes(own, { isFirstRender: true }, { activation: still, since: now - 31000 }),
+            closes(own, { isFirstRender: true }, { activation: undefined, since: null }),
+            closes(own, { isFirstRender: false }, { activation: still, since: now - 1000 })]),
+        J([1, 1, 0, 0, 0, 0, 0]),
+        "[closed: before ready, 1 s after, after a click, another account's, 31 s after, no activation reading, a later render]");
+    }],
+
+    ["R577 - no player or trusted player browses or uploads files: with enforcePlayerFiles on, the permissions in force give FILES_BROWSE and FILES_UPLOAD neither role 1 nor 2, and the held value keeps every other role and every other permission as it found them", async () => {
+        /*
+         * E79 C9 (16.10.2026; the owner's N4 of 14.10.2026). The primary GM holds Foundry's world setting
+         * `core.permissions` (enforced.mjs `holdPermissions`, at `ready` and on every change). Read here as
+         * it stands while the switch is on - the stored value over the permissions in force - and through
+         * each account that is not a GM's and has no grant of its own; then the pure `heldPermissions` on
+         * fixtures: roles taken off the two and nothing else, a permission the stored value lacks taken
+         * from the defaults in force first, and from the GM roles when nothing names it.
+         */
+        const J = stableJson;
+        const { heldPermissions, permissionsInForce } = await import("./enforced.mjs");
+        ok(typeof heldPermissions === "function" && typeof permissionsInForce === "function",
+            "enforced.mjs holds no file permissions");
+        const { PLAYER, TRUSTED, ASSISTANT, GAMEMASTER } = CONST.USER_ROLES;
+        const FILES = ["FILES_BROWSE", "FILES_UPLOAD"];
+        if (game.settings.get(MODULE_ID, SETTINGS.enforcePlayerFiles) !== false) {
+            const inForce = { ...permissionsInForce(), ...(game.settings.get("core", "permissions") ?? {}) };
+            equal(FILES.filter(name => (inForce[name] ?? []).some(role => role === PLAYER || role === TRUSTED)).join(", "), "",
+                "a permission in force still gives a Player or a Trusted Player the files");
+            const may = game.users.filter(user => !user.isGM)
+                .flatMap(user => FILES.filter(name => user.permissions?.[name] !== true && user.can(name)).map(name => `${user.name}: ${name}`));
+            equal(may.join(", "), "", "an account with no grant of its own may still browse or upload");
+        }
+        const stored = { FILES_BROWSE: [PLAYER, TRUSTED, ASSISTANT, GAMEMASTER], FILES_UPLOAD: [TRUSTED, ASSISTANT, GAMEMASTER],
+            SHOW_CURSOR: [PLAYER, TRUSTED, ASSISTANT, GAMEMASTER], ACTOR_CREATE: [TRUSTED] };
+        const kept = J(stored);
+        equal(J([
+            heldPermissions(stored, {}),
+            heldPermissions({ SHOW_CURSOR: [PLAYER] }, { FILES_BROWSE: [TRUSTED, ASSISTANT, GAMEMASTER], FILES_UPLOAD: [GAMEMASTER], SHOW_CURSOR: [ASSISTANT] }),
+            heldPermissions({}, {}),
+            J(stored) === kept]),
+        J([
+            { FILES_BROWSE: [ASSISTANT, GAMEMASTER], FILES_UPLOAD: [ASSISTANT, GAMEMASTER], SHOW_CURSOR: [PLAYER, TRUSTED, ASSISTANT, GAMEMASTER], ACTOR_CREATE: [TRUSTED] },
+            { SHOW_CURSOR: [PLAYER], FILES_BROWSE: [ASSISTANT, GAMEMASTER], FILES_UPLOAD: [GAMEMASTER] },
+            { FILES_BROWSE: [ASSISTANT, GAMEMASTER], FILES_UPLOAD: [ASSISTANT, GAMEMASTER] },
+            true]),
+        "[a stored table held, a table lacking both held from the defaults, nothing stored and no defaults, the stored table untouched]");
+    }],
+
+    ["R578 - a player's portrait opens no file browser: on a player's sheet no element carries Foundry's editImage action, a GM's sheet keeps it, and a file browser rendered on a player's browser is closed", async () => {
+        /*
+         * E79 C9 (16.10.2026; the owner's N4 of 14.10.2026). Daggerheart 2.6.5 puts `data-action='editImage'
+         * data-edit="img"` on the sheet's portrait (sidebar.hbs:3, limited.hbs:3, read during the design;
+         * the two attributes are its, the elements round them are written here), which DocumentSheetV2
+         * dispatches to a file browser. enforced.mjs `disarmPortraits` takes both off on a browser that may
+         * not see files and leaves the sheet's other actions; `closePlayerFilePicker` closes a file browser
+         * opened there by any other road. Asked for a player, a GM, a player a GM granted browsing by name,
+         * and a player with the switch off. Scenario 15 N4c hands the same to the hooks on a player's browser.
+         */
+        const J = stableJson;
+        const { disarmPortraits, closePlayerFilePicker } = await import("./enforced.mjs");
+        ok(typeof disarmPortraits === "function" && typeof closePlayerFilePicker === "function",
+            "enforced.mjs leaves a player's portrait and file browser alone");
+        const player = { isGM: false, permissions: {} }, gm = { isGM: true, permissions: {} },
+            granted = { isGM: false, permissions: { FILES_BROWSE: true } };
+        const sheet = (user, on = true) => {
+            const el = document.createElement("section");
+            el.innerHTML = `<aside class="sidebar"><img class="profile" src="icons/svg/mystery-man.svg" alt="" data-action='editImage' data-edit="img"><button type="button" data-action="useItem">-</button></aside>`;
+            disarmPortraits(el, { user, on });
+            const img = el.querySelector("img");
+            return [img.getAttribute("data-action"), img.getAttribute("data-edit"), el.querySelector("button").getAttribute("data-action")];
+        };
+        const picker = (user, on = true) => {
+            const app = { closed: 0, close() { this.closed++; } };
+            closePlayerFilePicker(app, { user, on });
+            return app.closed;
+        };
+        const armed = ["editImage", "img", "useItem"];
+        equal(J([sheet(player), sheet(gm), sheet(granted), sheet(player, false), picker(player), picker(gm), picker(granted), picker(player, false)]),
+            J([[null, null, "useItem"], armed, armed, armed, 1, 0, 0, 0]),
+            "[the portrait's action, edit and the sheet's other action for a player, a GM, a granted player and the switch off; then a file browser closed for each]");
+    }],
+
+    ["R579 - two names are one when they differ only in case, Polish letters or white space, and never when one is part of the other", async () => {
+        /*
+         * E79 C10 (16.10.2026; the owner's N3 of 14.10.2026: "exact after normalising case, Polish
+         * diacritics, extra spaces; no partial match"). user-match.mjs `nameKey` is what an account's name
+         * and a student's are compared by. ł is asked by name: NFD leaves it whole, so stripping the marks
+         * alone keeps "łucja" apart from "lucja". A tab and a no-break space are white space; a name of white
+         * space alone is no name. One name inside another, or split in two, is not the same name.
+         */
+        const J = stableJson;
+        const { nameKey } = await import("./user-match.mjs");
+        ok(typeof nameKey === "function", "user-match.mjs has no name key - an account is matched to no student by its name");
+        const same = (a, b) => nameKey(a) === nameKey(b);
+        equal(J([nameKey("Łucja  Żak "), nameKey("ZAŻÓŁĆ gęślą jaźń"), same("Łucja  Żak ", "lucja zak"), same("Emi\tSato", "emi  sato"),
+            same("Aiko", "Aiko Hoshino"), same("Aiko Hoshino", "Aiko"), same("Ai ko", "Aiko"), nameKey(" \t ")]),
+            J(["lucja zak", "zazolc gesla jazn", true, true, false, false, false, ""]),
+            "[two keys; Łucja with extra spaces against lucja zak; a tab and a no-break space; a name inside a longer one, both ways; a name split; white space alone]");
+    }],
+
+    ["R580 - a player's character is the one student named exactly like the account, set by the primary GM alone, never over a GM's choice and never for a GM's account", async () => {
+        /*
+         * E79 C10 (16.10.2026; the owner's N3 of 14.10.2026; plan E79 part 4, question 2's default for a
+         * student another player has). user-match.mjs `matchPlan` on stand-ins, one account per rule: a free
+         * student matched with Owner given (A), and without it when the account owns it already (O) or when
+         * only a GM does (Mai); no student so named, a partial name, a Monokuma's name (B, K); two students
+         * (C); two accounts alike (T1, T2); a student another player owns (D) or plays (Y); the student a match
+         * gave and a GM cleared (E); an older match's student gone and a new one named alike (M); an account
+         * with a character (X); a GM's and an Assistant's (G, AG). Then the one pass that writes: its first
+         * statement asks for the primary GM, and the file's two writes are its.
+         * Since E79 fix r3-G1 (17.10.2026; review round 3's SEC S1, S3) E's word is the GMs' record (`seen`, the
+         * season its row was written in, in season 3), not a flag on the account: an account a GM assigned by hand
+         * and cleared (R) is kept as well, and so is a row of a later season (N, a clock put back), while a row
+         * of season 2 holds nothing (M); an account with the old flag naming its student and no row (F) is
+         * matched, since nothing reads the account's own flags; an account that owns another student is given
+         * nothing (MIO), and one that owns only a Monokuma is (Q). At 2399885 R, N and E were assigned and MIO
+         * given a second student. The source: user-match.mjs reads and writes no flag.
+         */
+        const J = stableJson;
+        const { matchPlan } = await import("./user-match.mjs");
+        ok(typeof matchPlan === "function", "user-match.mjs has no plan - nothing decides which account a student goes to");
+        const user = (id, name, more = {}) => ({ id, name, isGM: false, role: 1, character: null, ...more });
+        const users = [user("G", "Gm", { isGM: true, role: 4 }), user("AG", "Hana Ito", { isGM: true, role: 3 }), user("A", "lucja  ŻAK "),
+            user("B", "Daichi"), user("C", "Emi Sato"), user("D", "Botan Kage", { role: 2 }), user("P2", "PlayerTwo", { character: "botan" }),
+            user("E", "Chie Mori", { seen: 3 }), user("K", "Kuma"), user("X", "Rin Aoi", { character: "aiko" }),
+            user("Y", "Aiko Hoshino"), user("M", "Sora Kai", { seen: 2 }), user("T1", "Yui"), user("T2", " yui"),
+            user("O", "Ren Ito"), user("MAI", "Mai Ota"), user("R", "Rin Probe", { seen: 3 }), user("N", "Nao Probe", { seen: 4 }),
+            user("F", "Fen Ito", { marker: "fen" }), user("MIO", "Mio Probe"), user("Q", "Quin")];
+        const actor = (id, name, ownership = {}, student = true) => ({ id, name, student, ownership: { default: 2, ...ownership } });
+        const actors = [actor("lucja", "Łucja Żak"), actor("daichi", "Daichi Sato"), actor("emi1", "Emi Sato"), actor("emi2", "emi sato"),
+            actor("botan", "Botan Kage", { P2: 3 }), actor("chie", "Chie Mori"), actor("kuma", "Kuma", { Q: 3 }, false), actor("hana", "Hana Ito"),
+            actor("aiko", "Aiko Hoshino"), actor("sora", "Sora Kai"), actor("ren", "Ren Ito", { O: 3 }), actor("mai", "Mai Ota", { G: 3 }),
+            actor("rin", "Rin Probe"), actor("nao", "Nao Probe"), actor("fen", "Fen Ito"), actor("mio", "Mio Probe"), actor("kei", "Kei Probe", { MIO: 3 }),
+            actor("quin", "Quin")];
+        equal(J(matchPlan({ users, actors, owner: 3, season: 3 })), J({
+            assign: [{ userId: "A", actorId: "lucja", own: true }, { userId: "M", actorId: "sora", own: true },
+                { userId: "O", actorId: "ren", own: false }, { userId: "MAI", actorId: "mai", own: true },
+                { userId: "F", actorId: "fen", own: true }, { userId: "Q", actorId: "quin", own: true }],
+            none: ["B", "K"], several: ["C"], same: ["T1", "T2"],
+            owned: [{ userId: "D", actorId: "botan", owners: ["P2"] }, { userId: "Y", actorId: "aiko", owners: ["X"] }],
+            owns: [{ userId: "MIO", actorId: "mio", owns: ["kei"] }],
+            kept: ["E", "R", "N"]
+        }), "[the plan for the twenty-one accounts: assigned with or without Owner; none; several; alike; owned by another player; owning another student; kept as the GMs' record holds it]");
+        const src = stripComments((await moduleSources()).get("user-match.mjs") ?? "");
+        const pass = fnSource(src, "matchAccounts");
+        equal(J([/^[^{]*\{\s*if \(!isPrimaryGm\(\)\) return null;/.test(pass), (src.match(/\.update\(/g) ?? []).length, (pass.match(/\.update\(/g) ?? []).length,
+            /\bflags\b|getFlag|setFlag|unsetFlag/.test(src)]),
+            J([true, 2, 2, false]), "[the pass refuses any browser but the primary GM's first; the file's writes; the pass's writes; a flag read or written]");
+    }],
+
+    ["R581 - a token the trial hall's stage makes is its student's token: the school token's picture, size and look over the prototype's, its rotation always locked, and never the school token's place, visibility, flags or id", async () => {
+        /*
+         * E79 C11 (16.10.2026; the owner's N5 of 14.10.2026: "trial-hall tokens the module makes lack the token's
+         * properties; the image rotates on movement"). trial-scene.mjs `hallTokenData` on stand-ins, Foundry's own
+         * defaults on the prototype (lockRotation false): a school token that turns, scales and fades, with a place,
+         * an elevation, hidden, a planted flag, a delta, a sort and `locked`, and `lockRotation: false` - a school
+         * token nobody locked, as its `toObject()` states it (E79 fix r3-G4, review round 3's cor C: the fixture
+         * locked, and its "names none" case deleted a field `toObject()` never leaves out); no school token over a
+         * prototype that names no lock, one that names false and one that names true; a locked school token over an
+         * unlocked prototype. Every made token locks its rotation (the owner's N5: the picture must not turn); red
+         * at the parent, where the school token's false was copied. A copy shares nothing with the school token.
+         * Then `schoolTokenOf`: a token linked to the actor, the first by sort and then by id, an unlinked copy and
+         * another actor's never. Last the one create: `stageHall` builds its token through both.
+         */
+        const J = stableJson;
+        const T = await import("./trial-scene.mjs");
+        ok(typeof T.hallTokenData === "function" && typeof T.schoolTokenOf === "function",
+            "trial-scene.mjs has no `hallTokenData` and `schoolTokenOf` - a made hall token is the prototype's alone");
+        if (typeof T.hallTokenData !== "function" || typeof T.schoolTokenOf !== "function") return;
+        const stage = { id: "R581MADE", actorId: "R581A", x: 100, y: 200 };
+        const base = (more = {}) => ({ name: "Prototype", texture: { src: "proto.webp", scaleX: 1 }, width: 1, height: 1, rotation: 0,
+            alpha: 1, actorId: "R581A", x: 5, y: 5, hidden: true, actorLink: false, flags: { core: { proto: 1 } }, ...more });
+        const school = (more = {}) => ({ _id: "R581SCHOOL", name: "Aiko", texture: { src: "aiko.webp", scaleX: 1.3 }, width: 2, height: 2,
+            lockRotation: false, rotation: 90, alpha: 0.8, x: 700, y: 900, elevation: 10, hidden: true, flags: { planted: { r581: true } },
+            delta: { system: { r581: 1 } }, sort: 4, locked: true, actorId: "R581A", actorLink: true, ...more });
+        const read = token => [token._id, token.actorId, token.x, token.y, token.hidden, token.actorLink, token.name, token.texture, token.width,
+            token.height, token.lockRotation, token.rotation, token.alpha, token.elevation ?? null, token.flags, token.delta ?? null,
+            token.sort ?? null, token.locked ?? null];
+        const made = T.hallTokenData(base({ lockRotation: false }), school(), stage);
+        equal(J([read(made),
+            T.hallTokenData(base(), null, stage).lockRotation, T.hallTokenData(base({ lockRotation: false }), null, stage).lockRotation,
+            T.hallTokenData(base({ lockRotation: true }), null, stage).lockRotation,
+            T.hallTokenData(base({ lockRotation: false }), school({ lockRotation: true }), stage).lockRotation,
+            read(T.hallTokenData(base({ lockRotation: false }), null, stage)).slice(0, 10)]),
+        J([["R581MADE", "R581A", 100, 200, false, true, "Aiko", { src: "aiko.webp", scaleX: 1.3 }, 2, 2, true, 90, 0.8, null, { core: { proto: 1 } },
+            null, null, null],
+            true, true, true, true,
+            ["R581MADE", "R581A", 100, 200, false, true, "Prototype", { src: "proto.webp", scaleX: 1 }, 1, 1]]),
+        "[a made token from a school token as [id, actor, x, y, hidden, linked, name, texture, width, height, lock, rotation, alpha, "
+            + "elevation, flags, delta, sort, locked]; the lock with no school token over a prototype naming none, false, true; a locked school "
+            + "token over an unlocked prototype; the prototype's own look with no school token]");
+        const source = school();
+        T.hallTokenData(base(), source, stage).texture.scaleX = 9;
+        equal(J([source.texture.scaleX, ["x", "y", "elevation", "hidden", "flags", "delta", "_id", "sort", "locked", "actorId", "actorLink"]
+            .filter(field => T.HALL_TOKEN_LOOK.includes(field))]), J([1.3, []]),
+        "[the school token's scale after a made token's was changed; the fields of place, visibility and identity the look copies]");
+        const token = (id, actorId, actorLink, sort) => ({ id, actorId, actorLink, sort, toObject: () => ({}) });
+        const scene = { tokens: [token("u", "R581A", false, 0), token("b", "R581A", true, 2), token("a", "R581A", true, 2), token("c", "R581B", true, 0),
+            token("d", "R581A", true, 3)] };
+        equal(J([T.schoolTokenOf("R581A", scene)?.id ?? null, T.schoolTokenOf("R581B", scene)?.id ?? null, T.schoolTokenOf("R581Z", scene),
+            T.schoolTokenOf("R581A", null), T.schoolTokenOf("R581A", { tokens: [token("u", "R581A", false, 0)] })]),
+        J(["a", "c", null, null, null]),
+        "[the actor's linked token, first by sort then id; another actor's; nobody's; no school; an unlinked copy alone]");
+        const create = fnSource(stripComments((await moduleSources()).get("trial-scene.mjs") ?? ""), "stageHall");
+        equal(J([(create.match(/\bhallTokenData\(doc\.toObject\(\), schoolTokenOf\(actorId\)\?\.toObject\(\) \?\? null,/g) ?? []).length,
+            /\.\.\.doc\.toObject\(\)/.test(create)]), J([1, false]),
+        "[stageHall's token built through hallTokenData from the prototype and the school token, once; the prototype's data spread in alone]");
+    }],
+
+    ["R582 - in a Class Trial the room tile shows the trial hall: the name the GMs gave it or the trial's label, its words as text and its picture only through safeRoomImage, drawn as a room with no search tokens and no project", async () => {
+        /*
+         * E79 C11 (16.10.2026; the owner's N6 of 14.10.2026: "the room window in the Class Trial ... looks broken"; "B
+         * is better: it can be done in Room Setup -> Scenes"). room-tile.mjs `hallView` and trial-scene.mjs `hallRoom`
+         * on stand-ins, and `paintRoomTile` on loose tiles of the suite's own: no facts (the label alone); a name
+         * with spaces round it, words with markup in them and a picture of this server; a name of spaces; a picture
+         * of another host, a `javascript:` one and one with a query. `hallRoom` reads the module's flag only, and a
+         * value that is no object is no facts. Whether a player's tile shows it in a real trial, after a GM's Apply,
+         * is scenario 41's (it needs the clock moved and a write).
+         */
+        const J = stableJson;
+        const R = await import("./room-tile.mjs");
+        const S = await import("./trial-scene.mjs");
+        ok(typeof R.hallView === "function" && typeof S.hallRoom === "function",
+            "room-tile.mjs has no `hallView` or trial-scene.mjs no `hallRoom` - the tile in a trial is an empty pane");
+        if (typeof R.hallView !== "function" || typeof S.hallRoom !== "function") return;
+        const LABEL = "R582 Trial";
+        const views = [R.hallView(null, LABEL), R.hallView({ name: "  Sala  ", words: "<b>Ławy</b> i podium", picture: "worlds/suite/hall.webp" }, LABEL, "R582HALL"),
+            R.hallView({ name: "   ", words: "", picture: "worlds/suite/hall.webp" }, LABEL),
+            ...["https://other.example/hall.webp", "javascript:alert(1)", "worlds/suite/hall.webp?x=1"]
+                .map(picture => R.hallView({ name: "Sala", words: "w", picture }, LABEL))];
+        equal(J(views.map(view => [view.state, view.hall, view.room, view.sceneId, view.description, view.image, view.tokens ?? null, view.project ?? null])),
+            J([["roomBare", true, LABEL, null, "", null, null, null],
+                ["room", true, "Sala", "R582HALL", "<b>Ławy</b> i podium", "worlds/suite/hall.webp", null, null],
+                ["roomPicture", true, LABEL, null, "", "worlds/suite/hall.webp", null, null],
+                ...Array(3).fill(["roomText", true, "Sala", null, "w", null, null, null])]),
+        "[each hall view as [state, hall, the heading, the scene, the words, the picture, search tokens, a project]]");
+        const scene = raw => ({ getFlag: (scope, key) => (scope === MODULE_ID && key === S.HALL_ROOM_FLAG ? raw : undefined) });
+        equal(J([S.hallRoom(scene({ name: " Sala ", picture: "javascript:alert(1)", words: 5 })),
+            S.hallRoom(scene({ name: "Sala", picture: "worlds/suite/hall.webp", words: "Ławy" })), S.hallRoom(scene("Sala")), S.hallRoom(null),
+            S.HALL_ROOM_FLAG]),
+        J([{ name: "Sala", picture: null, words: "" }, { name: "Sala", picture: "worlds/suite/hall.webp", words: "Ławy" },
+            { name: "", picture: null, words: "" }, { name: "", picture: null, words: "" }, "hallRoom"]),
+        "[the facts from a console's picture and a number for words; from a hall's own; from a string; from no hall; the flag's key]");
+        const paint = view => {
+            const box = document.createElement("section");
+            R.paintRoomTile(box, view);
+            return box;
+        };
+        const tile = paint(views[1]);
+        const shown = box => [box.dataset.state, box.querySelector(".drpg-room-tile-name")?.textContent ?? null,
+            box.querySelector(".drpg-room-tile-prose")?.textContent ?? null, Boolean(box.querySelector(".drpg-room-tile-prose b")),
+            Boolean(box.querySelector(".drpg-room-tile-open")), Boolean(box.querySelector(".drpg-hud-room-tokens")),
+            Boolean(box.querySelector(".drpg-hud-room-project")), box.getAttribute("aria-hidden")];
+        equal(J([shown(tile), shown(paint(views[0])), shown(paint(views[3]))]),
+            J([["room", "Sala", "<b>Ławy</b> i podium", false, true, false, false, null],
+                ["roomBare", LABEL, null, false, false, false, false, null],
+                ["roomText", "Sala", "w", false, false, false, false, null]]),
+        "[each tile as [state, the heading, the words, markup in the words, a button for the picture, search tokens, a project line, aria-hidden]]");
+    }],
+
+    ["R584 - an event card that carries the trial's clock runs no ticker behind it, and every other card keeps its word", async () => {
+        /*
+         * E79 C11 (16.10.2026; the owner's N6 of 14.10.2026, a screenshot: "TRIAL - CLASS TRIAL" ran behind the
+         * debate's seconds). events.mjs `cardTicker` on the cards `trialCard` and the rest hand `cardElement`: the
+         * trial's with a floor open (`clock: true`), without one, and another kind; a kind with no word has no
+         * ticker. Then `cardElement` takes its ticker from `cardTicker` alone. Whether the two overlapped at a
+         * table and stop overlapping is LIVE-E79-14: no browser here draws an event card with its clock.
+         */
+        const J = stableJson;
+        const E = await import("./events.mjs");
+        ok(typeof E.cardTicker === "function", "events.mjs has no `cardTicker` - the trial's clock still runs over its ticker");
+        if (typeof E.cardTicker !== "function") return;
+        const word = kind => game.i18n.localize(`DRPG.Events.ticker.${kind}`);
+        const read = card => {
+            const ticker = E.cardTicker(card);
+            return ticker ? [ticker.className, ticker.getAttribute("aria-hidden"), ticker.children.length, ticker.textContent.includes(word(card.kind))] : null;
+        };
+        equal(J([read({ kind: "trial", clock: true }), read({ kind: "trial", clock: false }), read({ kind: "trial" }), read({ kind: "body" }),
+            read({ kind: "r584-none" })]),
+        J([null, ["drpg-event-ticker", "true", 2, true], ["drpg-event-ticker", "true", 2, true], ["drpg-event-ticker", "true", 2, true], null]),
+        "[the ticker of the trial's card with its clock; without; with none named; a body's; a kind with no word]");
+        const build = fnSource(stripComments((await moduleSources()).get("events.mjs") ?? ""), "cardElement");
+        equal(J([(build.match(/\bcardTicker\(card\)/g) ?? []).length, build.includes("drpg-event-ticker"), build.includes("DRPG.Events.ticker")]),
+            J([1, false, false]), "[cardElement's calls of cardTicker; a ticker of its own; its word read there]");
+    }],
+
+    ["R585 - Foundry tools' sidebar window narrows when Foundry collapses its sidebar: the frame takes the module's collapsed mark from the collapseSidebar hook and from ui.sidebar.expanded when it adopts the sidebar, and under the mark the sidebar's content computes width 0 and hidden by the module's own rule; a sidebar that does not answer expanded is not collapsed", async () => {
+        /*
+         * E79 C12 (16.10.2026; the owner's N7 of 14.10: the caret at the rail's foot flipped and the window kept its
+         * width). foundry-windows.mjs `markCollapsed` on Foundry tools' frame, on the GM's client:
+         *   - THE HOOK: `collapseSidebar` called as Foundry calls it, collapsed and then expanded - the mark on, then
+         *     off - and `registerFoundryWindows` registers the listener (read in the source);
+         *   - THE ADOPTION: the sidebar collapsed and then expanded with Foundry's own call in the open window, the mark
+         *     each time; then the mark turned the wrong way by hand and `adoptFoundryNodes` run - the mark is
+         *     `ui.sidebar.expanded`'s again, for each state;
+         *   - THE MODULE'S OWN ROAD: the window closed (which collapses the sidebar) and opened again (which expands
+         *     it) - the mark on, then off;
+         *   - THE RULE: with the mark, the content (`#sidebar-content`, a stand-in planted in `#sidebar` where there is
+         *     none: v14's name for it is LIVE-E79-15) computes width 0px and visibility hidden; without it, neither.
+         *     Literal values, which jsdom's cascade resolves; the width in a browser is the glass harness's
+         *     `drpgWindowsCheck` (`collapse`).
+         *   - THE ANSWER (E79 fix r3-G4, 17.10.2026; review round 3's cor E): with stand-ins for `ui.sidebar` while
+         *     the hook gives no answer - one that does not answer `expanded`, one that answers false, one true - the
+         *     mark off, on, off. Red at the parent: the one with no answer marked collapsed.
+         * Red before C12: there was no `markCollapsed` (by `ok`). Everything is put back as it was found.
+         */
+        must(game.user.isGM, "the windows are a GM's, and tier 1 runs on the GM");
+        const FW = await import("./foundry-windows.mjs");
+        ok(typeof FW.markCollapsed === "function", "foundry-windows.mjs has no `markCollapsed` - the caret flips and the window keeps its width");
+        if (typeof FW.markCollapsed !== "function") return;
+        const frame = FW.foundryWindow("ftools"), side = document.getElementById("sidebar"), bar = globalThis.ui?.sidebar;
+        must(frame && side && bar, "Foundry tools' frame, the sidebar or ui.sidebar is missing - this would measure nothing");
+        const register = fnSource(stripComments(new Map(await moduleSources()).get("foundry-windows.mjs") ?? ""), "registerFoundryWindows");
+        ok(/\bHooks\.on\("collapseSidebar", onCollapseSidebar\)/.test(register), "registerFoundryWindows does not listen on collapseSidebar");
+        const marked = () => frame.hasAttribute("data-drpg-collapsed");
+        const open0 = !frame.hidden, expanded0 = bar.expanded, planted = side.querySelector("#sidebar-content") ? null : document.createElement("div");
+        if (planted) { planted.id = "sidebar-content"; side.append(planted); }
+        const content = side.querySelector("#sidebar-content");
+        try {
+            Hooks.callAll("collapseSidebar", bar, true);
+            const byHook = [marked()];
+            const narrow = [getComputedStyle(content).width, getComputedStyle(content).visibility];
+            Hooks.callAll("collapseSidebar", bar, false);
+            byHook.push(marked());
+            const wide = [getComputedStyle(content).width, getComputedStyle(content).visibility];
+            FW.setFoundryWindow("ftools", true);
+            const adopted = [];
+            for (const expanded of [false, true]) {
+                bar.toggleExpanded?.(expanded);
+                const told = marked();
+                frame.toggleAttribute("data-drpg-collapsed", expanded);
+                FW.adoptFoundryNodes();
+                adopted.push([bar.expanded === expanded, told, marked()]);
+            }
+            FW.setFoundryWindow("ftools", false);
+            const own = [marked(), bar.expanded];
+            FW.setFoundryWindow("ftools", true);
+            own.push(marked(), bar.expanded);
+            const answers = [];
+            for (const stand of [{}, { expanded: false }, { expanded: true }]) {
+                globalThis.ui.sidebar = stand;
+                try { answers.push(FW.markCollapsed()); } finally { globalThis.ui.sidebar = bar; }
+            }
+            equal(JSON.stringify(answers), JSON.stringify([false, true, false]),
+                "[the mark with a ui.sidebar that does not answer expanded, one that answers false, one that answers true]");
+            equal(JSON.stringify([byHook, narrow, wide[0] !== "0px" && wide[1] !== "hidden", adopted, own]),
+                JSON.stringify([[true, false], ["0px", "hidden"], true, [[true, true, true], [true, false, false]], [true, false, false, true]]),
+                "[the mark after collapseSidebar collapsed, expanded; the content's width and visibility under the mark; neither without it; "
+                + "for Foundry's own collapse and expand in the open window: the state taken, the mark it left, the mark after adoptFoundryNodes undid a wrong one; "
+                + "the module's close: the mark, expanded; its reopen: the mark, expanded]");
+        } finally {
+            planted?.remove();
+            FW.setFoundryWindow("ftools", open0);
+            if (typeof expanded0 === "boolean" && bar.expanded !== expanded0 && open0) bar.toggleExpanded?.(expanded0);
+            FW.markCollapsed();
+        }
+    }],
+
+    ["R586 - the gear puts the voice settings between the volumes and the look: the Voice section stands after the last volume slider and before the look's fieldset", async () => {
+        /*
+         * E79 C12 (16.10.2026; the owner's N9 of 14.10: "move the LiveKit sound between the volume and the theme
+         * settings"). look.mjs `wireVoice` on the Look window's own form (`lookFormHtml`, the markup `openLookDialog`
+         * draws), in a detached box, with voice standing in (`available`) and the section built by voice-panel.mjs's
+         * `voiceFieldset` from devices the suite names, so nothing is asked of this browser or written: the section
+         * after every volume slider and right before the look's fieldset; wired again, nothing added; on a form with
+         * no look fieldset, at its end; with no voice, nothing. The real window with the shim's LiveKit is 75-voice-tile's
+         * phase C. Red before C12: the section followed the look.
+         */
+        const L = await import("./look.mjs"), P = await import("./voice-panel.mjs");
+        ok(typeof L.wireVoice === "function" && typeof L.lookFormHtml === "function", "look.mjs exports no `wireVoice` or `lookFormHtml` to read the gear's form with");
+        if (typeof L.wireVoice !== "function" || typeof L.lookFormHtml !== "function") return;
+        const build = () => P.voiceFieldset({ client: { getAudioSources: async () => ({ R586MIC: "R586 Mic" }), getAudioSinks: async () => ({}) },
+            settings: { client: {}, set: async () => { throw new Error("R586 writes nothing"); } }, key: null });
+        const box = document.createElement("div");
+        box.hidden = true;
+        box.innerHTML = await L.lookFormHtml();
+        document.body.append(box);
+        const bare = document.createElement("div");
+        bare.hidden = true;
+        bare.innerHTML = "<form><label class=\"drpg-sound-slider\"></label></form>";
+        document.body.append(bare);
+        try {
+            const form = box.querySelector("form"), deps = { available: () => true, build };
+            const added = [await L.wireVoice(box, deps)];
+            const panel = form.querySelector("fieldset.drpg-voice-panel"), sliders = [...form.querySelectorAll(".drpg-sound-slider")];
+            const order = panel ? [sliders.length > 0, sliders.every(s => Boolean(s.compareDocumentPosition(panel) & Node.DOCUMENT_POSITION_FOLLOWING)),
+                panel.nextElementSibling?.matches("fieldset.drpg-look") === true] : "no section";
+            added.push(await L.wireVoice(box, deps), form.querySelectorAll("fieldset.drpg-voice-panel").length);
+            added.push(await L.wireVoice(bare, deps), bare.querySelector("form").lastElementChild?.matches("fieldset.drpg-voice-panel") === true);
+            const none = document.createElement("div");
+            none.innerHTML = await L.lookFormHtml();
+            added.push(await L.wireVoice(none, { available: () => false, build }), Boolean(none.querySelector("fieldset.drpg-voice-panel")));
+            equal(JSON.stringify([order, added]), JSON.stringify([[true, true, true], [true, false, 1, true, true, false, false]]),
+                "[[the form has volume sliders; the section after each; right before the look's fieldset]; [added; added again; sections in the form; "
+                + "added to a form with no look; at its end; added with no voice; a section there]]");
+        } finally {
+            box.remove();
+            bare.remove();
+        }
+    }],
+    ["R588 - the voice tile names its state in one word, as the Room says it: Connecting while LiveKit connects or reconnects or the module moves the Room, Disconnected with no Room or a lost one, Connected only when the Room says connected and nobody speaks, Eclipsed in either Eclipse hold, Blocked, Own window; the word runs in two aria-hidden copies, the sentence is the word's title and a visually hidden live text, and the word stays, still, under reduced motion and with the ticker off, in English and in Polish", async () => {
+        /*
+         * E79 C15 (16.10.2026; the prep's R585, renumbered: R585 and R586 were C12's by then). The owner's N10 of
+         * 14.10: "switching rooms shows an error ... instead 'Pending...' while switching", N12 and N15 of 15.10: the
+         * state captions only, the words settled in both languages. A bench (`voiceTileRig`) whose watch is handed
+         * the hold (`micHold`'s answer, as voice-tile.mjs asks it, connected) and whether voice-client.mjs is moving
+         * the Room (`applying`), each a value the test sets, and paints its buttons as the screen's tile does
+         * (`paintControls`), so a change of hold is drawn on the next paint. Each reading is the tile's `data-word`,
+         * the first run's word, the word's `title` and the live text; "-" with the word hidden. In order: no Room; a
+         * Room "connecting"; "connected"; "reconnecting"; "signalReconnecting"; connected again; the module moving the
+         * Room while the Room still says "connected", told only by `drpgVoiceApplying` (the tile in the document, the
+         * real hook's listener of registerVoiceTile); the move over; a GM's block; the block with the Room lost;
+         * either Eclipse hold, connected or not; avclient-livekit's own window while the module moves the Room;
+         * a speaker (no word); the speaker gone (Connected at once); under reduced motion and with the ticker off,
+         * the Room lost. Then the runs' shape, the live text's roles, `voiceWord`'s order on its own, and the words and
+         * the two new or rewritten sentences in lang/en.json and lang/pl.json as the owner settled them. That the
+         * word runs only with the ticker on and motion allowed is the stylesheets' (R589); the real switch of rooms on
+         * the harness's LiveKit is scenario 75's phase G.
+         * Red at C15's parent: there was no word (the first assertion).
+         */
+        needs(world.atLeast("playerAccounts", 1), "an account besides the GM's to speak on the bench");
+        const V = await import("./voice-tile.mjs");
+        ok(typeof V.voiceWord === "function", "voice-tile.mjs has no `voiceWord` - the tile has no state word, and a switch of rooms reads as offline");
+        if (typeof V.voiceWord !== "function") return;
+        const { voiceIdentity } = await import("./camera-view.mjs");
+        const [b] = game.users.filter(user => user.id !== game.user.id && !user.isGM).slice(0, 1);
+        const L = key => game.i18n.localize(key);
+        let hold = null, applying = false;
+        const rig = voiceTileRig(V, [b], { hold: () => hold, applying: () => applying, controls: (watch, gone) => V.paintControls(watch, gone) });
+        const box = rig.tile.querySelector(".drpg-voice-tile-state"), said = rig.tile.querySelector(".drpg-voice-tile-nobody");
+        must(box && said, "the voice tile has no state word or no live text to read");
+        const read = () => (box.hidden ? ["-", rig.tile.dataset.word ?? "-"]
+            : [rig.tile.dataset.word, box.firstElementChild?.textContent.split(" · ")[0] ?? "", box.title, said.textContent]);
+        const want = (word, line) => [word, L(`DRPG.Voice.tile.state.${word}`), L(line), L(line)];
+        const seen = [];
+        const repaint = () => {
+            V.paintControls(rig.watch);
+            seen.push(read());
+        };
+        V.attachRoom(null, rig.watch);
+        seen.push(read());
+        const room = rig.makeRoom([b.id]);
+        room.state = "connecting";
+        V.attachRoom(rig.clientOf(room), rig.watch);
+        seen.push(read());
+        for (const state of ["connected", "reconnecting", "signalReconnecting", "connected"]) {
+            room.state = state;
+            room.emit("connectionStateChanged", state);
+            seen.push(read());
+        }
+        const wrap = document.createElement("div");
+        wrap.hidden = true;
+        wrap.append(rig.tile);
+        document.body.append(wrap);
+        try {
+            applying = true;
+            Hooks.callAll("drpgVoiceApplying", true);
+            seen.push(read());
+            applying = false;
+            Hooks.callAll("drpgVoiceApplying", false);
+            seen.push(read());
+        } finally {
+            applying = false;
+            wrap.remove();
+        }
+        hold = { reason: "gmBlock", held: false };
+        repaint();
+        room.state = "disconnected";
+        repaint();
+        hold = { reason: "eclipse", held: true };
+        repaint();
+        room.state = "connected";
+        hold = { reason: "eclipseHeard", held: false };
+        repaint();
+        hold = { reason: "external", held: false };
+        applying = true;
+        repaint();
+        hold = null;
+        applying = false;
+        repaint();
+        rig.speak(room, [b.id]);
+        seen.push([...read(), rig.read().name]);
+        rig.leave(room, b.id);
+        seen.push(read());
+        const classes = ["drpg-reduced-motion", "drpg-no-ticker"], had = classes.map(name => document.body.classList.contains(name));
+        try {
+            document.body.classList.add(...classes);
+            room.state = "disconnected";
+            room.emit("disconnected");
+            seen.push([...read(), box.children.length]);
+        } finally {
+            classes.forEach((name, i) => document.body.classList.toggle(name, had[i]));
+        }
+        const runs = Array(6).fill(L("DRPG.Voice.tile.state.disconnected")).join(" · ") + " · ";
+        const shape = [box.getAttribute("aria-hidden"), [...box.children].map(run => `${run.tagName} ${run.textContent === runs}`),
+            said.getAttribute("role"), said.getAttribute("aria-live")];
+        const word = facts => V.voiceWord(facts)?.word.split(".").at(-1) ?? "-";
+        const order = [
+            { face: true, hold: { reason: "external" } }, { hold: { reason: "external" }, applying: true, state: "connecting" },
+            { hold: { reason: "eclipse" }, state: null }, { hold: { reason: "eclipseHeard" }, applying: true },
+            { hold: { reason: "gmBlock" }, applying: true, state: "connected" }, { hold: { reason: "gmBlock" }, state: "reconnecting" },
+            { hold: { reason: "gmBlock" }, state: "disconnected" }, { state: "R588-unknown" }, { state: "connected", applying: "yes" }, {}
+        ].map(word);
+        const [en, pl] = await Promise.all(["en", "pl"].map(lang => fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(res => res.json())));
+        const texts = file => [...["connecting", "disconnected", "connected", "eclipsed", "blocked", "external"].map(key => file.DRPG.Voice.tile.state?.[key]),
+            file.DRPG.Voice.held.connecting, file.DRPG.Voice.held.offline];
+        equal(JSON.stringify([seen, shape, order, texts(en), texts(pl)]), JSON.stringify([
+            [want("disconnected", "DRPG.Voice.held.offline"), want("connecting", "DRPG.Voice.held.connecting"),
+                want("connected", "DRPG.Voice.tile.nobody"), want("connecting", "DRPG.Voice.held.connecting"),
+                want("connecting", "DRPG.Voice.held.connecting"), want("connected", "DRPG.Voice.tile.nobody"),
+                want("connecting", "DRPG.Voice.held.connecting"), want("connected", "DRPG.Voice.tile.nobody"),
+                want("blocked", "DRPG.Voice.held.gmBlock"), want("disconnected", "DRPG.Voice.held.offline"),
+                want("eclipsed", "DRPG.Voice.held.eclipse"), want("eclipsed", "DRPG.Voice.held.eclipseHeard"),
+                want("external", "DRPG.Voice.held.external"), want("connected", "DRPG.Voice.tile.nobody"),
+                ["-", "-", voiceIdentity(b)?.name ?? null], want("connected", "DRPG.Voice.tile.nobody"),
+                [...want("disconnected", "DRPG.Voice.held.offline"), 2]],
+            ["true", ["SPAN true", "SPAN true"], "status", "polite"],
+            ["-", "external", "eclipsed", "eclipsed", "connecting", "connecting", "disconnected", "disconnected", "connected", "disconnected"],
+            ["Connecting", "Disconnected", "Connected", "Eclipsed", "Blocked", "Own window", "Joining your voice channel.", "You are not connected to voice."],
+            ["Łączenie", "Rozłączono", "Połączono", "Eclipsed", "Zablokowano", "Osobne okno", "Trwa dołączanie do kanału głosowego.", "Brak połączenia z głosem."]]),
+        "[the word, its run, title and live text: no Room; connecting; connected; reconnecting; signalReconnecting; connected; the module moving "
+            + "the Room (the hook); the move over; a GM's block; the block, lost; the Eclipse, lost; the Eclipse heard; own window while moving; "
+            + "a speaker (hidden, the name); gone; reduced motion and no ticker, lost, with its runs], [aria-hidden, the two runs, the live text's "
+            + "role and politeness], [voiceWord's order], [the English and the Polish words and sentences]");
+    }],
+
+    ["R590 - an Objection is aimed at the speaker the Room counts: somebody listed by LiveKit for 1000 ms without a break is speaking now, loudest first, else the newest run that counted is the last who spoke; a shorter run, the objector and whoever the reader turns down are passed over; a new Room ends the old Room's runs, keeps what counted and hears nothing of the old Room; and the record holds nothing outside a Class Trial and starts empty in each; a record follows its own client's Room by itself on the way into a trial, at a read and when the module has moved the Room", async () => {
+        /*
+         * E79 C16 (17.10.2026; the prep's (a)). The owner, 17.10: "objection na aktualnie mowiacego (lub jesli nikt juz
+         * nie mowi - ostatniego mowiacego gracza)". trial-speakers.mjs's record, built here with a clock the test
+         * moves and a trial switch it throws (`speakerRecord({ clock, trial })`), so a read-only tier walks a trial in
+         * and out without writing the clock; a stand-in Room of the voice tile's shape (its `remoteParticipants`, the
+         * client's `getParticipantFVTTUser`) lists three player accounts, A, B and C, and `objectionTarget` is read
+         * with a reader that stands each account for a student (`actorOf`, the primary's being `speakingStudent`)
+         * and turns down whom the test names. In order: B listed outside a trial; in one, B listed at 0 and read at
+         * 999 and 1000 ms; C louder from 1500, read at 1500 and 2500; C the objector; silence at 3000; A's cough of
+         * 500 ms; C turned down (a GM, a Monocub or the dead, as `speakingStudent` answers them - their fixtures are
+         * the tier-2 test's); A listed at 4000 and a new Room at 5200, then the old Room listing B and the listeners
+         * left on each; the new Room listing B for 1100 ms; the trial ended and begun again; and `speakerRoomOpen`
+         * for a connected Room, a connecting one, a Room without `on` and none. Each read is "<who>:<how>" or "-".
+         * Red at C16's parent: there was no trial-speakers.mjs (the first assertion). How soon a real LiveKit lists a
+         * speaker after the first word, and whether 1000 ms is right at a table, is LIVE-E79-22.
+         *
+         * Fix r4-G1 (17.10.2026; cor F5, Q4): a record that follows a client by itself (`source`, the live record's
+         * being avclient-livekit's) is driven with no `liveKitClientInitialized` at all - the order of that hook
+         * and the Room, which the harness's stand-in keeps and avclient-livekit is not measured to keep. Read in
+         * order: outside a trial (nothing followed, no listener); the phase moved into the trial (`followPhase`, as
+         * the clock's hook calls it) - the Room's listener; B listed from then, read at 1000 ms; the client's Room
+         * replaced, again with no hook, C listed on it before anybody follows it, read at once (followed at the
+         * read: B's run ended and counted, C not yet) and 1100 ms later; the listeners left on the two Rooms.
+         * Then the live record with a stand-in client set on this browser's A/V client: the listeners on its Room
+         * while voice-client.mjs says it is moving the Room (`drpgVoiceApplying` true), once it says the move is
+         * over (false), and after the A/V client is put back and the hook called again - for those few lines the
+         * live record hears nothing of a real Room, and its runs in progress end (at a table: a trial's speaker is
+         * counted again from their next word). Red at the fix's parent: the phase's move followed no Room (the
+         * second read) and nothing listened to `drpgVoiceApplying` here.
+         */
+        needs(world.atLeast("playerAccounts", 3), "three accounts besides the GM's to speak in the stand-in Room");
+        let T = null;
+        try {
+            T = await import("./trial-speakers.mjs");
+        } catch {
+            T = null;
+        }
+        ok(typeof T?.objectionTarget === "function" && typeof T?.speakerRecord === "function",
+            "trial-speakers.mjs does not answer whom an Objection is aimed at - the objector still names the target");
+        if (typeof T?.objectionTarget !== "function" || typeof T?.speakerRecord !== "function") return;
+        const users = game.users.filter(user => user.id !== game.user.id && !user.isGM).slice(0, 3);
+        const NAMES = ["A", "B", "C"], idOf = name => users[NAMES.indexOf(name)].id, nameOf = id => NAMES[users.findIndex(u => u.id === id)] ?? "?";
+        const makeRoom = () => {
+            const handlers = new Map();
+            const room = {
+                state: "connected", activeSpeakers: [], localParticipant: { identity: game.user.id, isLocal: true },
+                remoteParticipants: new Map(users.map(user => [user.id, { identity: user.id, isLocal: false }])),
+                on(event, fn) { if (!handlers.has(event)) handlers.set(event, []); handlers.get(event).push(fn); return this; },
+                off(event, fn) { const list = handlers.get(event) ?? []; if (list.includes(fn)) list.splice(list.indexOf(fn), 1); return this; },
+                listenerCount: event => (handlers.get(event) ?? []).length,
+                emit(event, arg) { for (const fn of [...(handlers.get(event) ?? [])]) fn(arg); }
+            };
+            return room;
+        };
+        const clientOf = room => ({ liveKitRoom: room, getParticipantFVTTUser: participant => game.users.get(participant?.identity) });
+        const speak = (room, names) => {
+            room.activeSpeakers = names.map(name => room.remoteParticipants.get(idOf(name)));
+            room.emit("activeSpeakersChanged", room.activeSpeakers);
+        };
+        let now = 0, inTrial = false, exclude = null;
+        const turnedDown = new Set();
+        const record = T.speakerRecord({ clock: { now: () => now }, trial: () => inTrial });
+        const actorOf = userId => (turnedDown.has(userId) ? null : { id: `actor-${nameOf(userId)}` });
+        const read = () => {
+            const found = T.objectionTarget({ exclude, record, actorOf });
+            return found ? `${nameOf(found.userId)}:${found.how}` : "-";
+        };
+        const seen = [];
+        const at = (ms, note) => { now = ms; seen.push(note ? `${note} ${read()}` : read()); };
+        const first = makeRoom(), second = makeRoom();
+        T.attachSpeakers(clientOf(first), record);
+        now = 0;
+        speak(first, ["B"]);
+        at(2000, "outside");
+        inTrial = true;
+        now = 0;
+        speak(first, ["B"]);
+        at(999);
+        at(1000);
+        now = 1500;
+        speak(first, ["C", "B"]);
+        at(1500);
+        at(2500);
+        exclude = "actor-C";
+        at(2500, "objector C");
+        exclude = null;
+        now = 3000;
+        speak(first, []);
+        at(3000, "silence");
+        now = 3100;
+        speak(first, ["A"]);
+        now = 3600;
+        speak(first, []);
+        at(3600, "cough");
+        turnedDown.add(idOf("C"));
+        at(3600, "C turned down");
+        turnedDown.clear();
+        now = 4000;
+        speak(first, ["A"]);
+        now = 5200;
+        const attached = T.attachSpeakers(clientOf(second), record);
+        at(5200, "new Room");
+        now = 6500;
+        speak(first, ["B"]);
+        at(6500, "old Room");
+        const listeners = [first.listenerCount("activeSpeakersChanged"), second.listenerCount("activeSpeakersChanged")];
+        speak(second, ["B"]);
+        at(7600, "new Room B");
+        inTrial = false;
+        at(7600, "ended");
+        inTrial = true;
+        at(7600, "again");
+        const open = [T.speakerRoomOpen(clientOf(second)), T.speakerRoomOpen(clientOf({ ...makeRoom(), state: "connecting" })),
+            T.speakerRoomOpen({ liveKitRoom: { state: "connected" } }), T.speakerRoomOpen(null)];
+        equal(JSON.stringify([seen, attached, listeners, open, T.SPEAKER_MS]), JSON.stringify([
+            ["outside -", "-", "B:now", "B:now", "C:now", "objector C B:now", "silence C:last", "cough C:last", "C turned down B:last",
+                "new Room A:last", "old Room A:last", "new Room B B:now", "ended -", "again -"],
+            true, [0, 1], [true, false, false, false], 1000]),
+        "[the reads: B outside a trial; at 999 and 1000 ms; C louder at 1500 and 2500; C objecting; silence; a 500 ms cough; C turned down; "
+            + "a new Room; the old Room's event; the new Room's B; the trial ended; begun again], [the new Room followed], "
+            + "[listeners left on the old Room and on the new], [speakerRoomOpen: connected, connecting, no `on`, none], [the 1000 ms]");
+
+        let current = null, ownTrial = false;
+        const own = T.speakerRecord({ clock: { now: () => now }, trial: () => ownTrial, source: () => current });
+        const third = makeRoom(), fourth = makeRoom();
+        const heard = room => room.listenerCount("activeSpeakersChanged");
+        const readOwn = () => {
+            const found = T.objectionTarget({ record: own, actorOf });
+            return found ? `${nameOf(found.userId)}:${found.how}` : "-";
+        };
+        const follows = [];
+        current = clientOf(third);
+        now = 10000;
+        follows.push(readOwn(), heard(third));
+        ownTrial = true;
+        // The phase's move as the clock's hook hands it on (`followPhase`); at the fix's parent that function was
+        // not exported, and the nearest road to it was the record's first event in the trial (`noteSpeakers`).
+        (typeof T.followPhase === "function" ? T.followPhase : record => T.noteSpeakers(record, []))(own);
+        follows.push(heard(third));
+        speak(third, ["B"]);
+        now = 11000;
+        follows.push(readOwn());
+        current = clientOf(fourth);
+        speak(fourth, ["C"]);
+        follows.push(readOwn());
+        now = 12100;
+        follows.push(readOwn(), [heard(third), heard(fourth)]);
+        const host = game.webrtc?.client;
+        must(host, "this browser has no A/V client to stand a LiveKit Room on - the live record's hook would measure nothing");
+        const kept = Object.getOwnPropertyDescriptor(host, "_liveKitClient");
+        const fifth = makeRoom();
+        const moved = [];
+        try {
+            Object.defineProperty(host, "_liveKitClient", { configurable: true, writable: true, value: clientOf(fifth) });
+            Hooks.callAll("drpgVoiceApplying", true);
+            moved.push(heard(fifth));
+            Hooks.callAll("drpgVoiceApplying", false);
+            moved.push(heard(fifth));
+        } finally {
+            if (kept) Object.defineProperty(host, "_liveKitClient", kept);
+            else delete host._liveKitClient;
+            Hooks.callAll("drpgVoiceApplying", false);
+        }
+        moved.push(heard(fifth));
+        equal(JSON.stringify([follows, moved, T.speakingStudent(game.user.id)]), JSON.stringify([
+            ["-", 0, 1, "B:now", "B:last", "C:now", [0, 1]], [0, 1, 0], null]),
+        "[a record following its own client: outside a trial and its Room's listeners; the phase into the trial; B at 1000 ms; "
+            + "a new Room with no hook read at once and 1100 ms later; the listeners left on the two Rooms], "
+            + "[the live record's listeners on a stand-in Room: the module moving the Room, the move over, the client put back], "
+            + "[this browser's GM account as a speaker]");
+    }],
+
+    ["R592 - OBJECTION! on a player's trial row: drawn for a living student and for no Monokuma, Monocub or dead student, held with no floor and while an Objection runs, its preview on the pointer's arrival and on focus, a held press raising nothing and two presses one Objection", async () => {
+        /*
+         * E79 fix r4-G3 (17.10.2026; the round-4 review's goal C16-11 and Q2). C16 put OBJECTION! on a player's trial
+         * row (hud.mjs `objectionControl`, in place of the hour's chevrons), and no test drew it or pressed it: 63 Y
+         * raised through trial.mjs `raiseObjection` from p1's console. The suite runs on a GM's browser, whose row
+         * draws no button, so the button is drawn here as a player's row draws it, with the student, the floor, the
+         * preview's reader and the press handed in (the row hands in none: the viewer, the floor this browser holds,
+         * `objectionButtonState` on this browser's own Room and `raiseObjection`). Read: a living student's button
+         * on no floor, a debate and a running Objection (its class, its type, aria-disabled, its label); none for a
+         * Monokuma, a Monocub, a student dead as this browser knows it (stand-ins carrying the flag alone, so
+         * nothing is written) and no viewer; the preview's words on the pointer's arrival and on focus, held words
+         * holding it; a held press, which reaches no raise; and on a fresh button two presses at once, one raise
+         * (the button's own latch), waited on until it is let go. Where the button stands on the clock's row in
+         * either theme and on a stacked screen is the glass sweep's (audit/glass-sweep.mjs, the trial row); a player's
+         * real row in a real trial, its preview and its press, is 63 Y; its glyph under Monokuma Legacy and Foundry's
+         * tooltip at a table are LIVE-E79-23. Red at fix r4-G3's parent: hud.mjs exported
+         * no `objectionControl` (the first assertion) - the road was there and untested, so the mutants are what show
+         * that this reads it (e79run/scratch/r4g3.a2).
+         */
+        needs(world.atLeast("livingStudents", 1), "a living student to draw the button for");
+        const H = await import("./hud.mjs");
+        ok(typeof H.objectionControl === "function", "hud.mjs exports no objectionControl - a player's OBJECTION! cannot be drawn on this browser");
+        if (typeof H.objectionControl !== "function") return;
+        const { livingStudents } = await import("./chapter.mjs");
+        const student = livingStudents().find(actor => actor.type === "character");
+        must(student, "no living student of type character - this would measure nothing");
+        const name = game.i18n.localize("DRPG.Trial.objection");
+        const standIn = (key, flag) => ({ id: `R592${key}`.padEnd(16, "0"), name: `R592 ${key}`, type: "character",
+            getFlag: (scope, k) => (scope === MODULE_ID && k === flag ? true : undefined) });
+        const drawn = [null, { mode: "debate" }, { mode: "objection" }].map(floor => {
+            const button = H.objectionControl(student, { floor });
+            return button && [button.className, button.type, button.getAttribute("aria-disabled"), button.getAttribute("aria-label") === name];
+        });
+        const hidden = [standIn("MONOKUMA", FLAGS.monokuma), standIn("MONOCUB", FLAGS.monocub), standIn("DEAD", FLAGS.deceased), null]
+            .map(actor => H.objectionControl(actor, { floor: { mode: "debate" } }));
+        let answer = { text: "R592 at B", held: false };
+        const asked = [], raised = [];
+        let release = null;
+        const gate = new Promise(resolve => { release = resolve; });
+        const state = async actor => { asked.push(actor.id); return { ...answer }; };
+        const raise = async actor => { raised.push(actor.id); await gate; return true; };
+        const looks = [];
+        const look = button => [button.dataset.tooltip, button.getAttribute("aria-label"), button.getAttribute("aria-disabled")];
+        const first = H.objectionControl(student, { floor: { mode: "debate" }, state, raise });
+        try {
+            // jsdom may have no PointerEvent (as the clause near the top of this file allows); the listener asks only for the event's name.
+            first.dispatchEvent(new (typeof globalThis.PointerEvent === "function" ? globalThis.PointerEvent : MouseEvent)("pointerenter"));
+            await until(() => asked.length === 1, 2000);
+            looks.push(look(first));
+            answer = { text: "R592 held", held: true };
+            first.dispatchEvent(new FocusEvent("focus"));
+            await until(() => asked.length === 2, 2000);
+            looks.push(look(first));
+            first.click();
+            await until(() => asked.length === 3, 2000);
+            await wait(100);
+            looks.push([raised.length, first.getAttribute("aria-disabled")]);
+            answer = { text: "R592 at C", held: false };
+            const second = H.objectionControl(student, { floor: { mode: "debate" }, state, raise });
+            second.click();
+            // The second press is dispatched, not clicked: a disabled button takes no click(), but it does take an
+            // event dispatched on it (jsdom, read 17.10.2026), so the module's latch, not the attribute, holds this one.
+            second.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+            await until(() => raised.length > 0, 2000);
+            await wait(100);
+            looks.push([raised.length, asked.length, raised[0] === student.id, second.disabled]);
+        } finally {
+            release();
+            await wait(50);
+        }
+        equal(stableJson([drawn, hidden, looks]), stableJson([
+            [["drpg-hud-button drpg-hud-objection", "button", "true", true], ["drpg-hud-button drpg-hud-objection", "button", null, true],
+                ["drpg-hud-button drpg-hud-objection", "button", "true", true]],
+            [null, null, null, null],
+            [["R592 at B", `${name} R592 at B`, null], ["R592 held", `${name} R592 held`, "true"], [0, "true"], [1, 4, true, true]]
+        ]), "[a living student's button on no floor, a debate and a running Objection: class, type, aria-disabled, labelled OBJECTION], "
+            + "[a Monokuma's, a Monocub's, a dead student's, no viewer's], "
+            + "[the preview on the pointer's arrival: tooltip, label, held; on focus with held words; a held press: raises, held; "
+            + "two presses on a fresh button: raises, previews asked, the viewer's own student raised, the button held down while it waits]");
+    }],
 ];
 
 /**
@@ -13301,7 +15937,9 @@ const LITERAL_KEYS = [
     // voice-tile.mjs names the microphone's line `DRPG.Voice.held.<reason>` (E78 C4): `micHold`'s five reasons.
     ...["eclipse", "eclipseHeard", "gmBlock", "external", "offline"].map(reason => `DRPG.Voice.held.${reason}`),
     // voice-panel.mjs names the gear's Voice section's lines `DRPG.Voice.panel.<name>` (E78 C5): all but the key's, which is literal.
-    ...["legend", "mic", "micNote", "output", "mode", "modeAlways", "modePtt", "pttChange"].map(name => `DRPG.Voice.panel.${name}`)
+    ...["legend", "mic", "micNote", "output", "mode", "modeAlways", "modePtt", "pttChange"].map(name => `DRPG.Voice.panel.${name}`),
+    // trial-scene.mjs names the Scenes tab's fields for the hall on the room tile `DRPG.TrialScene.hallRoom.<key>` (E79 C11).
+    ...["legend", "hint", "name", "picture", "words"].map(key => `DRPG.TrialScene.hallRoom.${key}`)
 ];
 
 /*

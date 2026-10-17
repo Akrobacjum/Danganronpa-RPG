@@ -22,7 +22,8 @@
      the page boots foundry-windows.mjs as the module does: on the GM's page the scene controls and the sidebar stand
      in its two closed windows, on a player's the body carries `drpg-player` and the stylesheet hides both rails, and
      `drpgFoundryCut()` reads that opening the windows recuts nothing; since E77 C7 `drpgWindowsCheck()` reads a drag,
-     the clamp of places saved at 1920x1080 and a focused field through a recut. -->
+     the clamp of places saved at 1920x1080 and a focused field through a recut; since E79 fix r4-G3 (1.2.79)
+     `drpgObjectionCheck()` draws a player's trial row, with OBJECTION!, in the clock's row and measures it. -->
 <!doctype html><html><head><meta charset="utf-8">
 <link rel="stylesheet" href="/styles/motion.css"><link rel="stylesheet" href="/styles/danganronpa.css"><link rel="stylesheet" href="/styles/stained-glass.css"><link rel="stylesheet" href="/styles/pixel-icons.css"><link rel="stylesheet" href="/styles/messenger.css"><link rel="stylesheet" href="/styles/narrow.css">
 <style>
@@ -50,8 +51,12 @@
   #ui-right{position:absolute;right:0;top:22px;bottom:0;display:flex;flex-direction:row;align-items:flex-start}
   #ui-right-column-1{display:flex;flex-direction:column;gap:4px;margin-right:22px;transition:none}
   #sidebar{display:flex;flex-direction:row;height:100%}
-  #sidebar-content{width:0;overflow:hidden;background:rgba(30,20,40,.9);transition:width .3s}
-  #sidebar.expanded #sidebar-content{width:300px}
+  /* v14-like since E79 C12 (16.10.2026): the content keeps its 300 px wherever the sidebar stands, and only a sidebar
+     left in #ui-right loses it when not expanded - where Foundry's own collapse hangs (read in danganronpa.css's
+     comments, not in v14's sheet). Until C12 the stand-in collapsed its content everywhere, so Foundry tools came
+     down to the rail with no rule of the module's and the owner's N7 could not be seen here. */
+  #sidebar-content{width:300px;background:rgba(30,20,40,.9);transition:width .3s}
+  #ui-right #sidebar:not(.expanded) #sidebar-content{width:0;overflow:hidden}
   #sidebar-tabs{width:48px;display:flex;flex-direction:column;gap:6px;padding:4px;margin:0}
   #sidebar-tabs button,#scene-controls button{width:36px;height:36px;display:block}
   #players{padding:6px 10px;font-size:12px;color:#ddd}
@@ -138,7 +143,7 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
      here, and `.drpg-pxi` with no mask is a square of its own colour - the white squares on the C6 and HF4 shots. At a
      table `glyph` writes the mask on every glyph it builds and pixel-icons.css states both sprites on the body, so the
      glyphs are drawn there (read in the code, 14.10.2026; not seen at a table). -->
-<section id="drpg-voice-tile" class="drpg-voice-tile" role="region" aria-label="Voice" data-state="speaking" data-in-channel="3"><div class="drpg-voice-tile-face"><div class="drpg-voice-tile-art" aria-hidden="true" style="background-image:linear-gradient(170deg,#c9a27e,#5b3a5e 60%,#1d1a2b)"></div><div class="drpg-voice-tile-plate"><span class="drpg-voice-tile-speaking">Speaking</span><span class="drpg-voice-tile-name">Aiko Hoshino</span><span class="drpg-voice-tile-more" hidden></span></div></div><span class="drpg-voice-tile-nobody" hidden>Nobody is speaking</span><div class="drpg-voice-tile-controls"><button type="button" class="drpg-launch-mini drpg-voice-mic" aria-label="Mute your microphone" aria-pressed="false"><i class="drpg-pxi" style="--drpg-px-mask: var(--drpg-px-mic)" aria-hidden="true" inert></i></button><button type="button" class="drpg-launch-mini drpg-voice-speaker" aria-label="Who you hear" aria-haspopup="dialog" aria-expanded="false"><i class="drpg-pxi" style="--drpg-px-mask: var(--drpg-px-sound)" aria-hidden="true" inert></i></button></div></section>
+<section id="drpg-voice-tile" class="drpg-voice-tile" role="region" aria-label="Voice" data-state="speaking" data-in-channel="3"><div class="drpg-voice-tile-face"><div class="drpg-voice-tile-art" aria-hidden="true" style="background-image:linear-gradient(170deg,#c9a27e,#5b3a5e 60%,#1d1a2b)"></div><div class="drpg-voice-tile-plate"><span class="drpg-voice-tile-speaking">Speaking</span><span class="drpg-voice-tile-name">Aiko Hoshino</span><span class="drpg-voice-tile-more" hidden></span></div></div><div class="drpg-voice-tile-state" aria-hidden="true" hidden></div><span class="drpg-voice-tile-nobody" hidden>Nobody is speaking</span><div class="drpg-voice-tile-controls"><button type="button" class="drpg-launch-mini drpg-voice-mic" aria-label="Mute your microphone" aria-pressed="false"><i class="drpg-pxi" style="--drpg-px-mask: var(--drpg-px-mic)" aria-hidden="true" inert></i></button><button type="button" class="drpg-launch-mini drpg-voice-speaker" aria-label="Who you hear" aria-haspopup="dialog" aria-expanded="false"><i class="drpg-pxi" style="--drpg-px-mask: var(--drpg-px-sound)" aria-hidden="true" inert></i></button></div></section>
 <div class="application dialog drpg-panel"><header class="window-header"><h1 class="window-title">Danganronpa - Advance the clock</h1><button class="header-control" data-action="close">x</button></header>
   <section class="window-content"><p>The afternoon ends. Everyone is placed for the Evening Eclipse.</p><footer class="form-footer"><button type="button" class="default">Advance the clock</button><button type="button">Not yet</button><button type="button" disabled>Rewind</button></footer></section></div>
 <script id="drpg-launch-check">
@@ -297,13 +302,26 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
        floor    R299 (b)'s six endings, each the only card, scrolled to its end: no line box of its words under the
                 corner button or its unread badge (P8, P7). The badge is the button's `::after`, its box read from
                 the computed style, since getBoundingClientRect does not include a pseudo-element.
+       fill     (E79 C13, 16.10.2026; the owner's N16 of 15.10: "the notice card fills its glass pane, as the room
+                tile and the voice tile do") one card: on a Stained Glass desk `#drpg-note-frame` drawn (displayed),
+                its outline - its clip-path at its box - on the note pane's polygon (LAST.panes, toned note-block,
+                at the curtain's box), each corner of either within 1 px of one of the other's (`off`); every line
+                box of the card's words inside that polygon within 1 px (`out`: each box read upright and put
+                through the turn the tile wears, since a turned box's client rectangle stands past its corners);
+                the card bare - no background, no border, the body without its plate; with a second card the
+                frame still drawn, with every card closed not drawn; then two short cards: where both are shown, each
+                with its own left edge, and where the second parks, the one shown bare (`edges`, E79 fix r3-G4, review
+                round 3's cor F: bare, two cards stood with no edge between them; measured on 17.10.2026, two short
+                cards stand together at 1920x1080, 1366x768 and 1680x1050 and one parks at 1440x900, and beside the
+                long card the second parks at most desk sizes). Under Monokuma Legacy and on a stacked screen
+                there must be no frame.
      All of it with the tile's turn taken off, as R299 (b) and glass.mjs measure, and in client coordinates, so the
      containing block's offset under Stained Glass (P23; glass.mjs, `LAUNCH_CLEAR`) is the same for both boxes of a
      comparison. The cards are closed and the turn, the dock and the badge put back before it answers. */
   window.drpgNoticeCheck = async () => {
     const host = document.getElementById("drpg-popups"), button = document.getElementById("drpg-notices-corner");
     const body = document.body, stacked = body.classList.contains("drpg-stacked");
-    const out = { ok: false, why: [], stacked, ceiling: null, stack: null, long: null, floor: null };
+    const out = { ok: false, why: [], stacked, ceiling: null, stack: null, long: null, floor: null, fill: null };
     if (!host || !button) { out.why.push("no notice tile or no history button"); return out; }
     if (host.querySelector(".drpg-popup:not(.leaving)")) { out.why.push("a card is on the tile already (?card=1): the check draws its own"); return out; }
     const P = await import("/scripts/popup.mjs");
@@ -315,9 +333,75 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     const closers = [], still = body.classList.contains("drpg-reduced-motion"), lift = body.style.getPropertyValue("--drpg-av-lift");
     const turn = [host.style.getPropertyValue("transform"), host.style.getPropertyPriority("transform")];
     const shut = () => { while (closers.length) { try { closers.pop()({ instant: true }); } catch { /* already gone */ } } };
+    const worn = getComputedStyle(host).transform;
+    const turned = { m: new DOMMatrix(worn === "none" ? undefined : worn), o: getComputedStyle(host).transformOrigin.split(" ").map(px) };
     body.classList.add("drpg-reduced-motion");
     host.style.setProperty("transform", "none", "important");
     try {
+      {
+        const g = window.__glass, cur = document.getElementById("drpg-curtain"), glassOn = body.classList.contains("drpg-theme-stained-glass");
+        const pane = glassOn && !stacked && cur && g?.LAST?.panes ? g.LAST.panes.find(p => p.tone === "note-block" && p.poly?.length) : null;
+        const drawn = () => { const f = document.getElementById("drpg-note-frame"); return Boolean(f) && getComputedStyle(f).display !== "none"; };
+        if (!glassOn || stacked) {
+          out.fill = { frame: Boolean(document.getElementById("drpg-note-frame")) };
+          if (out.fill.frame) out.why.push(`fill: a note frame stands ${stacked ? "on a stacked screen" : "under Monokuma Legacy"}`);
+        } else if (!pane) out.why.push("fill: the cut has no pane toned note-block on a desk with glass");
+        else {
+          closers.push(P.showPopup(`<p>${"Fill words ".repeat(14)}</p>`, { title: "Fill", record: false }));
+          await frame();
+          const fr = document.getElementById("drpg-note-frame"), card = shown()[0], at = cur.getBoundingClientRect();
+          const want = pane.poly.map(([x, y]) => [at.left + x, at.top + y]);
+          let got = null;
+          if (fr) {
+            const r = fr.getBoundingClientRect(), m = /^polygon\((.*)\)$/.exec(getComputedStyle(fr).clipPath);
+            got = m ? m[1].split(",").map(q => q.trim().split(/\s+/).map(px)).map(([x, y]) => [r.left + x, r.top + y])
+              : [[r.left, r.top], [r.right, r.top], [r.right, r.bottom], [r.left, r.bottom]];
+          }
+          const near = (A, B) => Math.max(...A.map(([x, y]) => Math.min(...B.map(([u, v]) => Math.hypot(u - x, v - y)))));
+          const off = got ? Math.max(near(want, got), near(got, want)) : null;
+          // the words upright (the turn is off), then put through the turn about its origin at the box as laid out
+          const h0 = host.getBoundingClientRect(), O = [h0.left + turned.o[0], h0.top + turned.o[1]];
+          const turn1 = ([x, y]) => { const p = turned.m.transformPoint(new DOMPoint(x - O[0], y - O[1])); return [p.x + O[0], p.y + O[1]]; };
+          const toSide = (p, a, b) => { const ex = b[0] - a[0], ey = b[1] - a[1], t = Math.max(0, Math.min(1, ((p[0] - a[0]) * ex + (p[1] - a[1]) * ey) / ((ex * ex + ey * ey) || 1))); return Math.hypot(p[0] - a[0] - t * ex, p[1] - a[1] - t * ey); };
+          const inPane = ([x, y]) => {
+            let c = false;
+            for (let i = 0, j = want.length - 1; i < want.length; j = i++) {
+              const [xi, yi] = want[i], [xj, yj] = want[j];
+              if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c;
+            }
+            return c || want.some((a, i) => toSide([x, y], a, want[(i + 1) % want.length]) <= 1);
+          };
+          const texts = node => node.nodeType === Node.TEXT_NODE ? [node] : [...node.childNodes].flatMap(texts);
+          const boxes = card ? texts(card).filter(n => n.data.trim()).flatMap(n => { const rg = document.createRange(); rg.selectNodeContents(n); return [...rg.getClientRects()]; }).filter(r => r.width > 0) : [];
+          const outside = boxes.filter(r => ![[r.left, r.top], [r.right, r.top], [r.right, r.bottom], [r.left, r.bottom]].map(turn1).every(inPane));
+          const cs = card ? getComputedStyle(card) : null, plate = card ? getComputedStyle(card.querySelector(".drpg-popup-body") ?? card).backgroundColor : null;
+          const bare = Boolean(cs) && cs.backgroundColor === "rgba(0, 0, 0, 0)" && plate === "rgba(0, 0, 0, 0)"
+            && ["Top", "Right", "Bottom", "Left"].every(k => px(cs[`border${k}Width`]) === 0);
+          let corners = null;
+          if (card) { const c = card.getBoundingClientRect(); corners = [[c.left, c.top], [c.right, c.top], [c.right, c.bottom], [c.left, c.bottom]].map(turn1).map(p => p.map(Math.round)); }
+          const one = drawn();
+          closers.push(P.showPopup("<p>Fill two</p>", { title: "Fill 2", record: false }));
+          await frame();
+          const two = drawn();
+          shut();
+          await frame();
+          const none = drawn();
+          closers.push(P.showPopup("<p>Edge one</p>", { title: "Edge 1", record: false }), P.showPopup("<p>Edge two</p>", { title: "Edge 2", record: false }));
+          await frame();
+          const edges = shown().map(c => px(getComputedStyle(c).borderLeftWidth));
+          shut();
+          await frame();
+          out.fill = { pane: want.map(p => p.map(Math.round)), off: off === null ? null : +off.toFixed(1), lines: boxes.length, out: outside.length, bare, card: corners,
+            plate, drawn: [one, two, none], edges };
+          if (!fr) out.why.push("fill: no #drpg-note-frame with a card on the tile");
+          else if (off > 1) out.why.push(`fill: the frame's outline is ${off.toFixed(1)} px off the note pane's polygon`);
+          if (!boxes.length) out.why.push("fill: no line of the card's words was read");
+          if (outside.length) out.why.push(`fill: ${outside.length} of ${boxes.length} line boxes of the card's words outside the note pane`);
+          if (!bare) out.why.push(`fill: the card keeps a plate or an edge of its own (body ${plate})`);
+          if (edges.length === 2 ? !edges.every(e => e > 0) : edges.length !== 1 || edges[0] !== 0) out.why.push(`fill: with two short cards the left edges read ${JSON.stringify(edges)} px (want two, each over 0, or one shown at 0)`);
+          if (!one || !two || none) out.why.push(`fill: the frame drawn ${one}/${two}/${none} with one card, two cards and none (want true/true/false)`);
+        }
+      }
       if (stacked) {
         const read = () => px(getComputedStyle(host).maxHeight);
         const dock = `${Math.min(300, Math.floor(innerHeight / 2))}px`, asIs = read();
@@ -492,7 +576,7 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     const stacked = body.classList.contains("drpg-stacked"), glass = body.classList.contains("drpg-theme-stained-glass");
     const cut = Boolean(glass && g?.CHECKS?.length && g.LAST?.panes?.length && at && at.width > 10);
     const out = { ok: false, why: [], expect: stacked ? "row" : cut ? "placed" : glass ? "unplaced" : "flat", place: tile?.dataset.place ?? null,
-      F: null, need: null, maxH: null, box: null, clock: null, notes: null, art: null, cuts: null, row: null, flat: null };
+      F: null, need: null, maxH: null, box: null, clock: null, notes: null, art: null, cuts: null, row: null, flat: null, project: null };
     const done = () => { out.ok = !out.why.length; out.why = out.why.join("; "); return out; };
     /* WHAT IS WRITTEN ON THE TILE BESIDE THE NOTICES FITS ITS BOX (E78 fix h76-HF4, 14.10.2026). Read with the turn
        off: each part inside the box (a pixel of slack) and no two overlapping, closed, then with 400 words of
@@ -630,6 +714,37 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
       else if (!near(wide[0], wide[1])) out.why.push(`in a column ${wide[2]} wide the tile is ${wide[0]} wide, not the clock's ${wide[1]}`);
     }
     if (!tile || !hud) { out.why.push("no room tile or no clock"); return done(); }
+    /* THE PROJECT LINE MOVES NOTHING (E79 C12, 16.10.2026; the owner's N8 of 14.10: "the 'available project' line
+       shifts the layout - layout must be fixed whatever lines appear"). Read in the tile's own frame (offsets, which
+       its turn does not move), in every place and both themes: the name's and the search tokens' tops with the line
+       and with it taken out, the same within 1 px; the line inside the tile and on neither. At 33ea568 the rows packed
+       from the tile's foot and the line pushed them up: Stained Glass at 1920x1080 the name 548 -> 528 and the tokens
+       575 -> 556, at 1366x768 683 -> 665 and 694 -> 676; Monokuma Legacy 13 px at both (Chromium, the plan's readings).
+       This clause read at the parent on 16.10.2026, in the tile's frame: 13 to 20 px at each of 1920x1080, 1366x768 and
+       1280x720 in both themes, both roles; after C12, within 1 px at each. Not on a stacked screen: there the row is
+       narrow.css's grid, which C12 does not touch, and its line stands in a column of its own (read the same day at
+       768x1024 and 393x852: this clause found no line in the tile's frame there, at the parent and after C12). */
+    if (!stacked) {
+      const q = sel => tile.querySelector(`:scope > ${sel}`), line = q(".drpg-hud-room-project"), name = q(".drpg-room-tile-name"), pips = q(".drpg-hud-room-tokens");
+      const at = e => { let x = 0, y = 0, n = e; while (n && n !== tile) { x += n.offsetLeft; y += n.offsetTop; n = n.offsetParent; }
+        return n === tile && e.offsetWidth ? [x, y, x + e.offsetWidth, y + e.offsetHeight] : null; };
+      if (!line || !name || !pips) out.why.push("project: the harness's tile has no project line, name or search tokens to read");
+      else {
+        const withLine = [at(name), at(pips), at(line)], next = line.nextSibling;
+        line.remove();
+        const without = [at(name), at(pips)];
+        tile.insertBefore(line, next);
+        const [rn, rp, rl] = withLine, meet = (a, b) => a && b && a[0] < b[2] - 1 && b[0] < a[2] - 1 && a[1] < b[3] - 1 && b[1] < a[3] - 1;
+        out.project = { name: [rn?.[1], without[0]?.[1]], pips: [rp?.[1], without[1]?.[1]], line: rl };
+        if (!rn || !rp || !without[0] || !without[1]) out.why.push("project: the name or the search tokens are not drawn");
+        else if (!near(rn[1], without[0][1]) || !near(rp[1], without[1][1])) out.why.push(`project: the line moves the name ${without[0][1]} -> ${rn[1]} and the search tokens ${without[1][1]} -> ${rp[1]}`);
+        if (!rl) out.why.push("project: the line is not drawn");
+        else {
+          if (rl[0] < -1 || rl[1] < -1 || rl[2] > tile.offsetWidth + 1 || rl[3] > tile.offsetHeight + 1) out.why.push(`project: the line at ${rl} outside the tile ${tile.offsetWidth}x${tile.offsetHeight}`);
+          if (meet(rl, rn) || meet(rl, rp)) out.why.push(`project: the line at ${rl} on the name ${rn} or the search tokens ${rp}`);
+        }
+      }
+    }
     const room = g?.LAST?.room ?? null;
     const own = tile.querySelector(":scope > .drpg-room-tile-art"), loose = document.getElementById("drpg-room-art");
     if (out.expect === "unplaced") {
@@ -762,7 +877,15 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
      turned with the tile, on the voice pane rather than in the box. `corner` is each centre's distance from the
      screen's right edge and under the pane's top edge straight above it, which the sweep pins per size (PIN_CORNER);
      the microphone's must be within 28 px of both and the speaker's straight under it, or the buttons have moved back
-     in - at 60741cf they read 66/69 and 31/69 at 1366x768, side by side. Answers { read, why }. */
+     in - at 60741cf they read 66/69 and 31/69 at 1366x768, side by side.
+     THE STATE WORD (E79 C15, 1.2.79; the owner's N10, N12 and N15): shown in place of the face for the reading and
+     put back before anything is drawn - the longest of the six English words, "Disconnected", in the module's two
+     runs - it must stand inside the tile with 2 px to spare, clear of the buttons and, in the full form on the wall,
+     of the name plate's box (the compact form and Monokuma Legacy give it the plate's place, empty while nobody
+     speaks), in type of 11 px or more, at opacity 1 and in an ink of
+     alpha 1, at 4.5:1 or more against its own backing laid over white and over black (the picture under it is
+     anybody's), and the tile's box the same with it as without. `word` in `read`: its box, size, opacity and ratio.
+     Answers { read, why }. */
   window.drpgVoiceParts = (tile = document.getElementById("drpg-voice-tile")) => {
     const why = [], W = tile.offsetWidth, H = tile.offsetHeight;
     const at = e => { let x = 0, y = 0, n = e; while (n && n !== tile) { x += n.offsetLeft; y += n.offsetTop; n = n.offsetParent; }
@@ -773,7 +896,7 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     const corner = tile.dataset.place === "wall" && tile.dataset.fit !== "compact", cut = document.getElementById("drpg-curtain")?.getBoundingClientRect();
     const pane = corner ? (window.__glass?.LAST?.panes || []).find(p => p.tone === "voice-block") : null;
     const m = /^matrix\(([-\d.e]+), ([-\d.e]+),/.exec(getComputedStyle(tile).transform), cs = m ? +m[1] : 1, sn = m ? +m[2] : 0;
-    const read = { tile: [W, H], buttons: [], corner: corner ? [] : null, plate: null, name: null };
+    const read = { tile: [W, H], buttons: [], corner: corner ? [] : null, plate: null, name: null, word: null };
     if (corner && (!pane || !cut)) why.push("no voice pane to stand the buttons on");
     for (const b of tile.querySelectorAll(".drpg-voice-tile-controls > .drpg-launch-mini")) {
       const r = at(b), cls = b.classList.contains("drpg-voice-mic") ? "microphone" : "speaker", i = b.querySelector(".drpg-pxi");
@@ -799,6 +922,32 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
       if (!read.plate || out(read.plate)) why.push(`the name plate at ${read.plate} is outside the tile ${W}x${H}`);
       else if (read.buttons.some(r => r && meet(r, read.plate))) why.push(`the name plate at ${read.plate} is under the buttons at ${read.buttons.join(" / ")}`);
       if (read.name[0] < Math.min(read.name[1], 64)) why.push(`the name shows ${read.name[0]} px of its ${read.name[1]}`);
+    }
+    const word = tile.querySelector(".drpg-voice-tile-state");
+    if (!word) why.push("the tile has no state word");
+    else {
+      const was = { face: face?.hidden, word: word.hidden, kids: [...word.childNodes] }, run = document.createElement("span");
+      run.textContent = Array(6).fill("Disconnected").join(" · ") + " · ";
+      if (face) face.hidden = true;
+      word.hidden = false;
+      word.replaceChildren(run, run.cloneNode(true));
+      const r = at(word), cw = getComputedStyle(word), cr = getComputedStyle(run), size = parseFloat(cr.fontSize);
+      const rgba = c => (/rgba?\(([^)]+)\)/.exec(c)?.[1] ?? "0,0,0,0").split(",").map(Number).concat(1).slice(0, 4);
+      const lum = ([r0, g0, b0]) => [r0, g0, b0].map(v => v / 255).map(c => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)).reduce((t, c, i) => t + c * [0.2126, 0.7152, 0.0722][i], 0);
+      const ink = rgba(cr.color), back = rgba(cw.backgroundColor);
+      const ratio = under => { const bg = back.slice(0, 3).map((v, i) => v * back[3] + under[i] * (1 - back[3])); const [hi, lo] = [lum(ink), lum(bg)].sort((x, y) => y - x); return (hi + 0.05) / (lo + 0.05); };
+      const worst = Math.min(ratio([255, 255, 255]), ratio([0, 0, 0]));
+      read.word = { box: r, size, opacity: [cw.opacity, cr.opacity].map(Number), ink: ink[3], ratio: Math.round(worst * 10) / 10 };
+      if (!r || out(r)) why.push(`the state word at ${r} is outside the tile ${W}x${H}`);
+      else if (read.buttons.some(b => b && meet(b, r))) why.push(`the state word at ${r} is under the buttons at ${read.buttons.join(" / ")}`);
+      else if (corner && read.plate && meet(r, read.plate)) why.push(`the state word at ${r} is over the name plate's box at ${read.plate}`);
+      if (!(size >= 11)) why.push(`the state word is set at ${size} px`);
+      if (read.word.opacity.some(o => o !== 1) || ink[3] !== 1) why.push(`the state word is drawn at opacity ${read.word.opacity.join("/")} in an ink of alpha ${ink[3]}`);
+      if (!(worst >= 4.5)) why.push(`the state word reads ${read.word.ratio}:1 on its backing`);
+      if (tile.offsetWidth !== W || tile.offsetHeight !== H) why.push(`the tile is ${tile.offsetWidth}x${tile.offsetHeight} with the word and ${W}x${H} without`);
+      word.replaceChildren(...was.kids);
+      word.hidden = was.word;
+      if (face) face.hidden = was.face;
     }
     return { read, why };
   };
@@ -1097,12 +1246,22 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
                 off the cluster, placed again by its own ResizeObserver (E77 fix r2-H2, 13.10.2026; review round 2's cor F5: the sidebar
                 can grow after the place was taken). `raw`: the grown frame where it stood before - off the screen or
                 on the cluster, or the reading saw no growth; a screen too narrow to let the frame grow is not asked.
+       collapse Foundry's caret (E79 C12, the owner's N7): with Foundry tools open, `ui.sidebar.expanded` set and the
+                collapseSidebar hook called as v14 calls it - expanded, collapsed, expanded again, each read once the frame's
+                and the content's transitions have ended (at most 2 s, `late` counting a bound hit; a fixed 450 ms until
+                E79 fix r4-G3, 17.10.2026): collapsed, the content 0 px and the frame no more than 8 px wider than the
+                wider of the rail and the title bar at its least (`head`, a hidden copy of the header at min-content);
+                expanded, the content 250 px or more and the frame at least the rail and the content wide, the same
+                both times within 1 px; no `drpgGlassCut` on the way. Read 16.10.2026 at 1366x768 (Chromium): Stained
+                Glass 358 -> 82 px, its rail 56; Monokuma Legacy 360 -> 134 px, where the title bar's 80 px of words, its
+                close button and its padding hold the frame, not the content (0 px). At the parent the content kept
+                its 300 px and the frame its width.
      The page is put back before it answers: windows closed, the setting emptied, the field and the row removed. */
   window.drpgWindowsCheck = async () => {
     const g = window.__glass, fw = window.__windows, M = 8, W = innerWidth, H = innerHeight;
     const frame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
     const frames = ["drpg-win-ftools", "drpg-win-maptools"].map(id => document.getElementById(id));
-    const out = { ok: false, why: [], expect: frames.some(Boolean) ? "windows" : "none", drag: null, clamp: null, raw: null, focus: null, grow: null };
+    const out = { ok: false, why: [], expect: frames.some(Boolean) ? "windows" : "none", drag: null, clamp: null, raw: null, focus: null, grow: null, collapse: null };
     const done = () => { out.ok = !out.why.length; out.why = out.why.join("; "); return out; };
     if (out.expect === "none") return done();
     if (frames.some(f => !f) || !fw?.clampPlace) { out.why.push("a window or clampPlace is missing"); return done(); }
@@ -1131,6 +1290,39 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
       out.drag = { from: [Math.round(from.x), Math.round(from.y)], to: [Math.round(to.x), Math.round(to.y)], want: [want.x, want.y], kept: setting().ftools ?? null };
       if (out.drag.to[0] !== want.x || out.drag.to[1] !== want.y) out.why.push(`the drag left Foundry tools at ${out.drag.to}, not ${want.x},${want.y}`);
       if (out.drag.kept?.x !== out.drag.to[0] || out.drag.kept?.y !== out.drag.to[1]) out.why.push("the drag's place is not the setting's");
+      {
+        /* collapse (E79 C12): Foundry's caret as v14 tells it, `ui.sidebar.expanded` and the collapseSidebar hook. */
+        const bar = globalThis.ui.sidebar, had = Object.hasOwn(bar, "expanded"), was = bar.expanded, tabs = document.getElementById("sidebar-tabs");
+        let cuts = 0; const cut = () => { cuts++; };
+        const content = document.getElementById("sidebar-content"), widthOf = e => e?.getBoundingClientRect().width ?? 0;
+        /* Read once the frame's transitions have ended (E79 fix r4-G3, review round 4's Q6): the fixed 450 ms against the
+           stand-in's 0.3 s read a 1680x1050 collapse 23 px wide once in four sweeps of r3-G4. Every running animation of
+           the frame and of the content is awaited, bounded at 2 s, which the reading says it hit (`late`). */
+        let late = 0;
+        const settled = async () => { const runs = [...frames[0].getAnimations({ subtree: true }), ...(content?.getAnimations() ?? [])];
+          const ended = await Promise.race([Promise.all(runs.map(a => a.finished.catch(() => null))).then(() => true), new Promise(r => setTimeout(r, 2000, false))]);
+          if (!ended) late++; await frame(); };
+        const caret = async expanded => { bar.expanded = expanded; Hooks.callAll("collapseSidebar", bar, !expanded); await frame(); await settled(); return [rectOf(frames[0]).w, widthOf(content)]; };
+        /* the title bar at its least: a hidden copy at min-content, in the frame so the theme's rules reach it */
+        const headLeast = () => { const h = frames[0].querySelector(".drpg-foundry-window-header")?.cloneNode(true); if (!h) return 0;
+          h.style.cssText = "position:absolute;visibility:hidden;width:min-content"; frames[0].append(h); const w = widthOf(h); h.remove(); return w; };
+        Hooks.on("drpgGlassCut", cut);
+        try {
+          const [wide, cw] = await caret(true), [narrow, cn] = await caret(false), [back] = await caret(true), rail = widthOf(tabs), head = headLeast();
+          const least = Math.max(rail, head);
+          out.collapse = { wide: Math.round(wide), narrow: Math.round(narrow), back: Math.round(back), rail: Math.round(rail), head: Math.round(head), content: [Math.round(cw), Math.round(cn)], cuts, late };
+          if (late) out.why.push(`collapse: a transition of Foundry tools ran past 2 s ${late} time(s), so a width was read before it ended`);
+          if (!rail || !content || cn > 1 || narrow - least > 8) out.why.push(`collapse: Foundry tools stands ${Math.round(narrow)} px wide with the sidebar collapsed, its content ${Math.round(cn)} px, its rail ${Math.round(rail)} px and its title bar at least ${Math.round(head)} px - the caret did not narrow it`);
+          if (cw < 250 || wide < rail + cw - 1) out.why.push(`collapse: expanded ${Math.round(wide)} px with the content ${Math.round(cw)} px and the rail ${Math.round(rail)} px - the content did not come back`);
+          if (Math.abs(back - wide) > 1) out.why.push(`collapse: expanded again ${Math.round(back)} px, first ${Math.round(wide)} px`);
+          if (cuts) out.why.push(`collapse: the caret recut the glass ${cuts} times`);
+        } finally {
+          Hooks.off("drpgGlassCut", cut);
+          if (had) bar.expanded = was; else delete bar.expanded;
+          fw.markCollapsed?.();
+          await frame();
+        }
+      }
       fw.toggleFoundryTools(false);
       const p11 = { ftools: { x: 939, y: 130 }, maptools: { x: 520, y: 260 } };
       await game.settings.set("danganronpa-rpg", "foundryWindows", p11);
@@ -1176,6 +1368,49 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
       await game.settings.set("danganronpa-rpg", "foundryWindows", {});
       g.refreshGlass(); await frame();
     }
+    return done();
+  };
+  /* drpgObjectionCheck (E79 fix r4-G3, 17.10.2026; review round 4's goal C16-11 = Q2): the clock's row as a player's
+     trial row draws it - the trial's label in the slot and OBJECTION! after it, the markup hud.mjs `objectionControl`
+     writes - read against the row it replaced: the button inside the row and the clock, the chevron's box within 1 px
+     and neither side under 24 px, clear of the label, and its centre answering `elementFromPoint` with the button.
+     The row's height is printed (`row`: before, after) and not judged: at 2560x1440 and 3840x2160 under Stained Glass
+     the trial's label, its words and not the button, stood the row 60.6 -> 62.4 px (17.10.2026). `keep` ("idle", "held", "preview") leaves the trial row drawn for a shot, held
+     with aria-disabled, and `drpgObjectionCheck.restore()` puts the row back; `plant` is the sweep's control - "small"
+     the button 20 px square, "out" the button 400 px towards the wall. Otherwise the row is put back before it answers. */
+  window.drpgObjectionCheck = async ({ keep = null, plant = null } = {}) => {
+    const frame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const out = { ok: false, why: [], chevron: null, button: null, row: null, label: null };
+    const done = () => { out.ok = !out.why.length; out.why = out.why.join("; "); return out; };
+    const hud = document.getElementById("drpg-hud"), row = hud?.querySelector(".drpg-hud-time-row"), chev = row?.querySelector(".drpg-hud-button");
+    const box = el => { const r = el.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; };
+    const shown = r => [Math.round(r.x), Math.round(r.y), Math.round(r.w), Math.round(r.h)];
+    if (!chev || !chev.offsetWidth) { out.why.push("the clock draws no chevron to measure the trial row against"); return done(); }
+    const c = box(chev), r0 = box(row), was = [...row.childNodes];
+    const slot = document.createElement("div"), label = document.createElement("div"), button = document.createElement("button");
+    slot.className = "drpg-hud-time-slot"; label.className = "drpg-hud-time is-trial is-debate"; label.textContent = "Nonstop Debate"; slot.append(label);
+    button.type = "button"; button.className = "drpg-hud-button drpg-hud-objection"; button.setAttribute("aria-label", "OBJECTION!");
+    button.innerHTML = '<i class="fa-solid fa-hand" inert></i>';
+    if (keep === "held") button.setAttribute("aria-disabled", "true");
+    if (keep === "preview") button.setAttribute("aria-label", "OBJECTION! Raise it at Botan: 1 action");
+    if (plant === "small") button.style.cssText = "box-sizing:border-box;width:20px;height:20px;min-width:20px;min-height:20px;padding:0";
+    if (plant === "out") button.style.translate = "400px 0";
+    row.replaceChildren(slot, button);
+    const put = () => row.replaceChildren(...was);
+    try {
+      await frame();
+      const b = box(button), r = box(row), k = box(hud), l = box(label);
+      const inside = (a, o) => a.x >= o.x - 0.5 && a.y >= o.y - 0.5 && a.x + a.w <= o.x + o.w + 0.5 && a.y + a.h <= o.y + o.h + 0.5;
+      const meet = (a, o) => a.x < o.x + o.w - 0.5 && a.x + a.w > o.x + 0.5 && a.y < o.y + o.h - 0.5 && a.y + a.h > o.y + 0.5;
+      const hit = document.elementFromPoint(b.x + b.w / 2, b.y + b.h / 2);
+      Object.assign(out, { chevron: shown(c), button: shown(b), row: [shown(r0), shown(r)], label: shown(l) });
+      if (!inside(b, r)) out.why.push(`OBJECTION! at ${shown(b)} leaves the row at ${shown(r)}`);
+      if (!inside(b, k)) out.why.push(`OBJECTION! at ${shown(b)} leaves the clock at ${shown(k)}`);
+      if (Math.abs(b.w - c.w) > 1 || Math.abs(b.h - c.h) > 1) out.why.push(`OBJECTION! is ${Math.round(b.w)}x${Math.round(b.h)}, the chevron ${Math.round(c.w)}x${Math.round(c.h)}`);
+      if (Math.min(b.w, b.h) < 24) out.why.push(`OBJECTION! is ${Math.round(b.w)}x${Math.round(b.h)}, under 24 px`);
+      if (meet(b, l)) out.why.push(`OBJECTION! at ${shown(b)} lies on the trial's label at ${shown(l)}`);
+      if (!(hit && button.contains(hit))) out.why.push(`OBJECTION!'s centre answers ${hit ? hit.id || hit.className || hit.tagName : "nothing"}`);
+    } finally { if (keep) window.drpgObjectionCheck.restore = put; else put(); }
     return done();
   };
 </script>

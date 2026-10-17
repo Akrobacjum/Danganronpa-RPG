@@ -12,7 +12,7 @@
  */
 
 import { MODULE_ID, FLAGS } from "./config.mjs";
-import { studentActors } from "./monokuma.mjs";
+import { studentActors, isMonokuma } from "./monokuma.mjs";
 import { narrowScreen } from "./settings.mjs";
 import { allVaults } from "./vault.mjs";
 import { isPrimaryGm } from "./utils.mjs";
@@ -532,6 +532,8 @@ const WORLD = {
     studentTokensOnScreen: ["students with a token on the scene on screen",
         () => living().filter(a => [...(viewed()?.tokens ?? [])].some(t => t.actorId === a.id)).length],
     livingStudents: ["living students", () => living().length],
+    // E79 fix r4-G3 (1.2.79): the GMs' own character, which a GM's Re-point may not aim an Objection at (tier 2).
+    monokumas: ["Monokuma actors", () => game.actors.filter(a => a.type === "character" && isMonokuma(a)).length],
     playerAccounts: ["player accounts", () => game.users.filter(u => !u.isGM).length],
     playersWithCharacter: ["player accounts that own a character", () => game.users.filter(u => !u.isGM
         && game.actors.some(a => a.type === "character" && a.testUserPermission(u, "OWNER"))).length],

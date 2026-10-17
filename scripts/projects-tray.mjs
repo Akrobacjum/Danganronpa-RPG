@@ -4,9 +4,11 @@
  * What happens to Daggerheart's countdown tray on every render, in every
  * browser: the Icon Only view left (`leaveIconOnly`), the system's raw keys
  * localised (`localiseRawKeys`), the rows of projects this user has not found
- * taken out (`hideUndiscovered`), the progress painted (`paintProgress`), the
- * fold control and its state (`addCollapseControl`, `applyCollapsed`), and the
- * redraw sync.mjs asks for (`refreshProjects`). What it does not hold: the
+ * taken out (`hideUndiscovered`), the tray shown to a player before the first
+ * project with a line saying there is none (`showTrayToPlayer`, E79 C12), the
+ * progress painted (`paintProgress`), the fold control and its state
+ * (`addCollapseControl`, `applyCollapsed`), and the redraw sync.mjs asks for
+ * (`refreshProjects`). What it does not hold: the
  * render hook that calls them, the GM's gear, the manager, the project dialog
  * and the sharing window (projects-ui.mjs), and every rule about projects
  * (projects.mjs).
@@ -23,6 +25,7 @@
  * file. Five names are exported that were not (`leaveIconOnly`,
  * `localiseRawKeys`, `paintProgress`, `applyCollapsed`, `addCollapseControl`),
  * because the render hook calls them; projects-ui.mjs does not re-export them.
+ * E79 C12 adds a sixth the hook calls, `showTrayToPlayer`, on the same terms.
  * No module state: the fold is a client setting.
  */
 
@@ -166,6 +169,36 @@ export function hideUndiscovered(root, user = game.user) {
         removed += 1;
     }
     return removed;
+}
+
+/**
+ * THE TRAY STANDS FOR A PLAYER BEFORE THE FIRST PROJECT (E79 C12, 16.10.2026; the owner's U1 of 14.10: "players
+ * do not see the 'Projects' tab title until a project exists - wrong").
+ *
+ * Daggerheart hides the whole tray, its title with it, from anybody but a GM while there is no countdown:
+ * `this.element.hidden = !game.user.isGM && this.#getCountdowns().length === 0` in its `_onRender`
+ * (countdowns.mjs:93, read the same at 2.6.5 and 2.10.5), which runs before the render hook. So on a player's
+ * browser that one property is taken back and nothing else of the system's is touched. A tray with no row left
+ * for this player - none made yet, or every one a project they have not found, which `hideUndiscovered` took out
+ * first - says so in one line where the rows go, and the line goes on the render that brings a row. A GM's tray
+ * is the system's, shown always and given no line.
+ *
+ * Takes the reader as an argument, as `hideUndiscovered` does, so the suite, which runs as a GM, can ask it.
+ *
+ * @returns {boolean|null} whether the line is drawn; null for a GM, or for a tray with no place for rows.
+ */
+export function showTrayToPlayer(root, user = game.user) {
+    if (!root || user?.isGM) return null;
+    root.hidden = false;
+    root.querySelector(".drpg-projects-empty")?.remove();
+    const rows = root.querySelector(".countdowns-container");
+    if (!rows) return null;
+    if (rows.querySelector(".countdown-container")) return false;
+    const line = document.createElement("p");
+    line.className = "drpg-projects-empty";
+    line.textContent = game.i18n.localize("DRPG.Project.trayEmpty");
+    rows.append(line);
+    return true;
 }
 
 /**

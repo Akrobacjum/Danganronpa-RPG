@@ -88,6 +88,11 @@
  *      once with half a minute left: the rebuttal is written once in each, on gm2 (`floor.now`). X2 (fix r2-G7):
  *      gm3's Now held on its way until gm2's heartbeat, or gm2's own Now, has moved the floor on moves nothing more,
  *      and gm3 is told.
+ *   Y  (run after X; E79 C16, 1.2.79) the harness's LiveKit on gm2 and p1: Botan's player speaks on gm2's Room, p1's
+ *      OBJECTION! names Botan before the press and is aimed at Botan, the bullet chosen after it fills the card on p3's
+ *      screen in place; gm2 re-points it at Chie; a second press whose picker p1 closes is withdrawn at once (fix
+ *      r4-G2), the card withdrawn and the action kept; then (fix r4-G1) gm2's Room dropped while p1's stays up: p1's press asks
+ *      p1 for a name and lands, filled, at the student named.
  *
  * Headless limits: no layout (the Objection card's stacking, the select widths, the text's
  * hierarchy - LIVE-E10-03); no real Enter on Foundry's DialogV2 (F reads the DOM order of the
@@ -923,22 +928,33 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
        floor that move wrote and moved it on again. gm3's `floor.now` packets are held 3 s on their way (a stand-in for the
        way to the primary, as the reviewer's scenario 93 held them). Two crossings: an objection with half a second left,
        run out by gm2's heartbeat while gm3's press is held; and one with ten seconds left, gm3 pressing and gm2 pressing
-       its own Now 200 ms later. gm3 presses once its copy shows the objection. Read per crossing: EVERY `trialQueue`
-       write on gm2 from the objection's on (a mode, or "ended" for an empty floor), gm2's floor once both settled, and
-       how often gm3 was told its press found the floor moved on. Red at c51d2bd (10.10.2026): see the bound note. */
+       its own Now 200 ms later. gm3 presses once its copy shows the objection, and gm2 moves the floor on only once that
+       press is on its way (`sent`): its own Now 200 ms after it, its heartbeat's rebuttal held at the gate until then.
+       Without that wait gm3 had to read the objection inside 200 ms: at c3efaf6 (17.10.2026, the setup and X2 alone, 20
+       rounds) gm3 first read its floor 80-214 ms after gm2's objection resolved and 25-129 ms before the rebuttal reached
+       it, and in k4s, beside another lane, after it - gm3 saw no objection, pressed on the rebuttal and ended it (`saw`
+       false, an "ended" write, nobody told). gm3 stalled 150, 300, 900 and 1500 ms as the objection lands failed 1 of 10,
+       2 of 10, 3 of 5 and 4 of 5 rounds so (the tick's too from 900 ms); with the wait none of 30, nor of 20 unstalled.
+       Read per crossing: EVERY `trialQueue` write on gm2 from the objection's on (a mode, or "ended" for an empty
+       floor), gm2's floor once both settled, and how often gm3 was told its press found the floor moved on. Red at
+       c51d2bd (10.10.2026): see the bound note. */
     const crossings = {};
     try {
         await gm2.eval(`const settings = game.settings, real = settings.set;
-            globalThis.__floorLog = { writes: [], own: Object.hasOwn(settings, "set"), real };
+            globalThis.__floorLog = { writes: [], gate: true, own: Object.hasOwn(settings, "set"), real };
             settings.set = async function (namespace, key, value, ...rest) {
-                if (namespace === "${MOD}" && key === "trialQueue") globalThis.__floorLog.writes.push(value?.mode ?? "ended");
+                if (namespace === "${MOD}" && key === "trialQueue") {
+                    globalThis.__floorLog.writes.push(value?.mode ?? "ended");
+                    if (value?.mode === "rebuttal") while (!globalThis.__floorLog.gate) await new Promise(r => setTimeout(r, 20));
+                }
                 return real.call(this, namespace, key, value, ...rest);
             };
             return true;`);
         await gm3.eval(`const sock = game.socket, real = sock.emit;
-            globalThis.__nowHold = { own: Object.hasOwn(sock, "emit"), real };
+            globalThis.__nowHold = { sent: 0, own: Object.hasOwn(sock, "emit"), real };
             sock.emit = function (event, packet, ...rest) {
                 if (packet?.action === "floor.now") {
+                    globalThis.__nowHold.sent++;
                     setTimeout(() => real.call(sock, event, packet, ...rest), 3000);
                     return true;
                 }
@@ -946,12 +962,16 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
             };
             return true;`);
         const cross = async (back, primaryPresses) => {
-            await gm2.eval(`globalThis.__floorLog.writes = []; return true;`);
+            await gm2.eval(`globalThis.__floorLog.writes = []; globalThis.__floorLog.gate = false; return true;`);
+            await gm3.eval(`globalThis.__nowHold.sent = 0; return true;`);
             const opened = await objection(back);
             const pressed = gm3.eval(`${until} ${F} globalThis.__s63x = globalThis.__notifications.length;
                 const saw = await until(() => F.trialFloor()?.mode === F.FLOOR_MODES.objection, 5000);
                 await F.advanceFloorNow();
                 return saw;`, { timeout: 30000 });
+            // gm2 moves the floor on only once gm3's press is on its way: gm2's heartbeat's rebuttal is held at the gate.
+            await gm3.eval(`${until} return await until(() => globalThis.__nowHold.sent > 0, 8000);`, { timeout: 30000 });
+            await gm2.eval(`globalThis.__floorLog.gate = true; return true;`);
             if (primaryPresses) {
                 await settle(200);
                 await gm2.eval(`${F} await F.advanceFloorNow(); return true;`, { timeout: 30000 });
@@ -979,6 +999,123 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
     const once = ["objection", true, ["objection", "rebuttal"], "rebuttal", 1];
     verdict("gm3's Now reaching gm2 after the move it was pressed for - gm2's heartbeat's, or gm2's own Now's - moves nothing, and gm3 is told (fix r2-G7)",
         J(crossings) === J({ tick: once, now: once }) && crossErrors.length === 0, J({ crossings, crossErrors }));
+    /* ------------------------------ Y. the Objection aimed by the Room, proved after ------------------------------ */
+
+    /* E79 C16 (1.2.79; the owner, 17.10.2026), run after X. OBJECTION! is aimed at whoever gm2's LiveKit Room counts
+       as speaking, and the Truth Bullet is chosen after it. The harness's LiveKit (lib/livekit.mjs) is installed on
+       gm2, the primary, and on p1, everybody in its one room; Aiko, Botan and Chie are alive again and Aiko holds a
+       bullet (the GM's API, not under test). Botan's player speaks on gm2's Room for 1.2 s; then p1 reads its
+       button's preview and presses (trial.mjs `raiseObjection`, the bullet picker answered with Aiko's bullet), and
+       the floor and the card are read on gm2 and the card on p3's screen; gm2 re-points it at Chie from the console
+       (`repointDialog`, answered); then a second press whose picker p1 closes, and the withdrawal read on gm2, on
+       p3 and in Aiko's actions.
+       E79 fix r4-G2 (1.2.79; the round-4 review's cor F4): the closed picker withdraws the Objection at once
+       (`trial.withdraw`), as the handbooks say, where C16 left it pending until Y spent its seconds by writing the
+       floor's start 31 s back. Y4 reads gm2 within a second of p1's close, with no seconds spent. Red at 9f0d216:
+       the floor still pending. */
+    begin("Y", "OBJECTION! aimed at the speaker gm2's Room counts, the bullet after it, a re-point and a withdrawal");
+    const Fy = `const F = await import("${repoUrl}/scripts/trial-floor.mjs"); const T = await import("${repoUrl}/scripts/trial.mjs");`;
+    const yEveryone = J([IDS.gm, IDS.p1, IDS.p2, IDS.p3, P4, "USERGM2000000000", "USERGM3000000000"]);
+    const yRoom = c => c.eval(`if (typeof globalThis.__liveKit?.install !== "function") return false;
+        await __liveKit.install(); __liveKit.setRoster({ [__liveKit.MAIN_ROOM]: ${yEveryone} }); return await game.webrtc.connect();`, { timeout: 30000 });
+    const yRooms = [await yRoom(gm2), await yRoom(p1)];
+    const ySetup = await gm2.eval(`${Fy} const C = await import("${repoUrl}/scripts/chapter.mjs");
+        const B = await import("${repoUrl}/scripts/truth-bullets.mjs");
+        const { sheetAuditIdle } = await import("${repoUrl}/scripts/sheet-audit.mjs");
+        for (const id of ["${IDS.aiko}", "${IDS.botan}", "${IDS.chie}"]) if (C.isDeadForGm(game.actors.get(id))) await C.reviveCharacter(game.actors.get(id), { quiet: true });
+        const aiko = game.actors.get("${IDS.aiko}");
+        const item = await B.createTruthBullet(aiko, { name: "S63 Y the evidence", realType: "neutral", visibility: "obvious" });
+        await aiko.setFlag("${MOD}", "freeActionGrants", 0);
+        await aiko.update({ "system.resources.actions.max": 3, "system.resources.actions.value": 3 });
+        globalThis.__s63yClock = foundry.utils.deepClone(game.settings.get("${MOD}", "clock"));
+        await game.settings.set("${MOD}", "clock", { ...globalThis.__s63yClock, phase: "classTrial" });
+        if (F.trialFloor()) await F.endFloor();
+        await F.startFloor({});
+        await sheetAuditIdle();
+        __liveKit.speak(["${IDS.p2}"]);
+        await new Promise(r => setTimeout(r, 1200));
+        return { item: item?.id ?? null, alive: ["${IDS.aiko}", "${IDS.botan}", "${IDS.chie}"].filter(id => !C.isDeadForGm(game.actors.get(id))).length,
+            floor: F.trialFloor()?.mode ?? null };`, { timeout: 60000 });
+    verdict("setup: the Room on gm2 and p1, the three alive, Aiko's bullet, a debate open",
+        J(yRooms) === J([true, true]) && ySetup.item && ySetup.alive === 3 && ySetup.floor === "debate", J({ yRooms, ySetup }));
+    await settle(800);
+    /* Fix r4-G3 (17.10.2026; review round 4's goal C16-11 = Q2): p1 presses OBJECTION! on its own trial row as a
+       player does - focus for the preview hud.mjs draws from trial.mjs `objectionButtonState`, then a click - where
+       until then this part called those two functions and the row's button was read by no scenario. `raised` is the
+       floor's Objection held by Aiko and filled, as p1 holds the floor. */
+    const yPressed = await p1.eval(`${until} ${Fy}
+        __liveKit.speak(["${IDS.p2}"]);
+        await new Promise(r => setTimeout(r, 1200));
+        const button = await until(() => document.querySelector("#drpg-hud .drpg-hud-objection:not([aria-disabled='true'])"), 4000);
+        const named = button?.getAttribute("aria-label") ?? null;
+        button?.dispatchEvent(new FocusEvent("focus"));
+        const preview = button ? await until(() => button.getAttribute("aria-label") !== named && button.getAttribute("aria-label"), 4000) : null;
+        globalThis.__dialogAnswers.push(async () => ({ itemId: "${ySetup.item}", comment: "S63 Y" }));
+        button?.click();
+        const raised = Boolean(button) && Boolean(await until(() => { const f = F.trialFloor();
+            return f?.mode === "objection" && f.holderId === "${IDS.aiko}" && f.pending === false; }, 15000));
+        return { button: Boolean(button), preview: preview || "", raised };`, { timeout: 60000 });
+    await settle(800);
+    const yCard = await gm2.eval(`${Fy} const floor = F.trialFloor(); const m = floor?.messageId ? game.messages.get(floor.messageId) : null;
+        return { mode: floor?.mode, holder: floor?.holderId, target: floor?.targetId, pending: floor?.pending, how: m?.getFlag("${MOD}", T.TRIAL_FLAGS.how) ?? null,
+            item: m?.getFlag("${MOD}", T.TRIAL_FLAGS.item) ?? null, id: m?.id ?? null, actions: game.actors.get("${IDS.aiko}").system.resources.actions.value };`);
+    const yOnP3 = id => p3.eval(`const cards = [...document.querySelectorAll(".drpg-popup[data-drpg-message]")].filter(c => c.dataset.drpgMessage === "${id}");
+        return { cards: cards.length, body: cards[0]?.querySelector(".drpg-popup-body")?.textContent.replace(/\\s+/g, " ").trim() ?? "" };`);
+    const yFilledOnP3 = await yOnP3(yCard.id);
+    verdict("p1's button on its trial row names Botan, its press is aimed at Botan as now speaking (not chosen by p1), the bullet fills the card and p3 holds one card with it",
+        yPressed.raised === true && yPressed.preview.includes("Botan Kage") && yCard.mode === "objection" && yCard.holder === IDS.aiko && yCard.target === IDS.botan
+            && yCard.pending === false && yCard.how === "now" && yCard.item === ySetup.item && yCard.actions === 2
+            && yFilledOnP3.cards === 1 && yFilledOnP3.body.includes("S63 Y the evidence"), J({ yPressed, yCard, yFilledOnP3 }));
+    const yRepointed = await gm2.eval(`${Fy} globalThis.__dialogAnswers.push(async () => "${IDS.chie}");
+        const answer = await T.repointDialog(); return { answer, target: F.trialFloor()?.targetId ?? null };`, { timeout: 30000 });
+    await settle(800);
+    const yRepointOnP3 = await yOnP3(yCard.id);
+    verdict("gm2's Re-point aims the running Objection at Chie, and p3's card says so in place",
+        yRepointed.target === IDS.chie && yRepointOnP3.cards === 1 && yRepointOnP3.body.includes("Chie Mori") && !yRepointOnP3.body.includes("Botan Kage"),
+        J({ yRepointed, yRepointOnP3 }));
+    const yLapse = await gm2.eval(`${Fy} await F.returnToDebate({}); return true;`);
+    await settle(500);
+    const ySecond = await p1.eval(`${Fy} globalThis.__dialogAnswers.push(null);
+        return await T.raiseObjection(game.actors.get("${IDS.aiko}"));`, { timeout: 60000 });
+    const yLapsed = await gm2.eval(`${until} ${Fy} const card = () => game.messages.contents.filter(m => m.getFlag("${MOD}", T.TRIAL_FLAGS.objection) === true).at(-1) ?? null;
+        const back = Boolean(await until(() => F.trialFloor()?.mode === "debate" && card()?.id !== "${yCard.id}" && card()?.getFlag("${MOD}", T.TRIAL_FLAGS.withdrawn), 1000));
+        const id = card()?.id !== "${yCard.id}" ? (card()?.id ?? null) : null;
+        return { id, back, mode: F.trialFloor()?.mode ?? null, withdrawn: Boolean(game.messages.get(id)?.getFlag("${MOD}", T.TRIAL_FLAGS.withdrawn)),
+            actions: game.actors.get("${IDS.aiko}").system.resources.actions.value };`, { timeout: 30000 });
+    await settle(800);
+    const yLapsedOnP3 = await yOnP3(yLapsed.id);
+    const yWithdrawnWords = await p3.eval(`return ${text("DRPG.Trial.objectionWithdrawn")};`);
+    verdict("a press whose picker p1 closes is withdrawn at once: gm2's floor back to the debate within a second, the card withdrawn on p3 in place, Aiko's action not given back",
+        yLapse === true && ySecond === false && yLapsed.back && yLapsed.mode === "debate" && yLapsed.withdrawn && yLapsed.actions === 1
+            && yLapsedOnP3.cards === 1 && yLapsedOnP3.body.includes(yWithdrawnWords), J({ ySecond, yLapsed, yLapsedOnP3 }));
+    /* Fix r4-G1 (17.10.2026; cor F1 = SEC4-2): gm2's Room dropped (`__liveKit.drop()` - the GM's A/V off, or
+       avclient-livekit in its own window) while p1's stays up. p1 presses: the primary answers asking for a name,
+       p1's name window (answered Chie, its words kept) opens, the press goes again with the name and the picker is
+       answered with Aiko's bullet. Read on gm2: the floor's Objection held by Aiko at Chie, found as named, filled,
+       and Aiko's actions one lower than the 3 set here. Red at the fix's parent: p1's own Room was open, so its
+       press named nobody and gm2, with no Room, refused it. */
+    const yNoRoom = await gm2.eval(`${Fy} const S = await import("${repoUrl}/scripts/trial-speakers.mjs"); __liveKit.drop();
+        const aiko = game.actors.get("${IDS.aiko}");
+        await aiko.update({ "system.resources.actions.max": 3, "system.resources.actions.value": 3 });
+        return { open: S.speakerRoomOpen(), floor: F.trialFloor()?.mode ?? null };`, { timeout: 30000 });
+    await settle(500);
+    const yNamed = await p1.eval(`${Fy} const S = await import("${repoUrl}/scripts/trial-speakers.mjs");
+        let asked = null;
+        globalThis.__dialogAnswers.push(async config => { asked = String(config.content?.textContent ?? config.content ?? ""); return "${IDS.chie}"; });
+        globalThis.__dialogAnswers.push(async () => ({ itemId: "${ySetup.item}", comment: "S63 Y no Room" }));
+        const raised = await T.raiseObjection(game.actors.get("${IDS.aiko}"));
+        return { open: S.speakerRoomOpen(), raised, said: Boolean(asked?.includes(game.i18n.localize("DRPG.Trial.objectionNoRoom"))) };`, { timeout: 60000 });
+    await settle(800);
+    const yNamedCard = await gm2.eval(`${Fy} const floor = F.trialFloor(); const m = floor?.messageId ? game.messages.get(floor.messageId) : null;
+        return { mode: floor?.mode ?? null, holder: floor?.holderId ?? null, target: floor?.targetId ?? null, pending: floor?.pending ?? null,
+            how: m?.getFlag("${MOD}", T.TRIAL_FLAGS.how) ?? null, item: m?.getFlag("${MOD}", T.TRIAL_FLAGS.item) ?? null,
+            actions: game.actors.get("${IDS.aiko}").system.resources.actions.value };`);
+    verdict("with gm2's Room dropped and p1's up, p1's press asks p1 for a name, saying the GM has no voice channel, and lands at the student named, filled, paid once",
+        yNoRoom.open === false && yNoRoom.floor === "debate" && yNamed.open === true && yNamed.raised === true && yNamed.said
+            && yNamedCard.mode === "objection" && yNamedCard.holder === IDS.aiko && yNamedCard.target === IDS.chie && yNamedCard.pending === false
+            && yNamedCard.how === "named" && yNamedCard.item === ySetup.item && yNamedCard.actions === 2, J({ yNoRoom, yNamed, yNamedCard }));
+    await gm2.eval(`${Fy} if (F.trialFloor()) await F.endFloor(); await game.settings.set("${MOD}", "clock", globalThis.__s63yClock); return true;`);
+    await settle(500);
     await disconnect("gm3");
     await disconnect("p4");
     await disconnect("gm2");

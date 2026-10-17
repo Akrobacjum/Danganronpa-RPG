@@ -280,6 +280,14 @@
         "name": "Trzymaj okno powitalne Isometric Perspective zamknięte u wszystkich",
         "hint": "Isometric Perspective pokazuje okno powitalne przy każdym starcie, a to ustawienie każdej przeglądarki z osobna, więc wyłączenie go u siebie nic nie daje graczom. Włączone: okno nie otwiera się u nikogo, a jego przełącznik znika z ustawień wszystkich, także GM-a. Wyłączone: moduł przestaje go pilnować, przełącznik wraca i każda przeglądarka może znów włączyć okno. Działa tylko z włączonym Isometric Perspective."
       },
+      "enforceDhWelcome": {
+        "name": "Trzymaj okno powitalne Daggerheart zamknięte u wszystkich",
+        "hint": "Daggerheart otwiera swój dziennik powitalny przy pierwszym starcie każdego konta. Włączone: okno nie otwiera się u nikogo, także u GM-a. Wyłączone: Daggerheart pokazuje je jak dawniej."
+      },
+      "enforcePlayerFiles": {
+        "name": "Bez przeglądarki plików dla graczy",
+        "hint": "Gracze i zaufani gracze nie mogą przeglądać ani wysyłać plików, a kliknięcie portretu nic im nie otwiera. Obrazy, które już są w świecie, nadal się wyświetlają. Wyłączone: oba uprawnienia możesz znów nadać w uprawnieniach Foundry."
+      },
       "pixelFont": {
         "name": "Czcionka pikselowa",
         "hint": "Tylko Monokuma Legacy, tam domyślnie włączona: Press Start 2P na elementach interfejsu - HUD, Despair, imię postaci, etykiety statystyk, zakładki. Dzienniki, czat i pola edycji zachowują zwykły krój, by długi tekst dało się czytać. Motyw Stained Glass ma własne dwa kroje i to ignoruje."
@@ -287,6 +295,12 @@
       "language": {
         "name": "Język",
         "hint": "Tylko ten klient. Język okien, kart i arkusza tego modułu. Nazwy własne gry - Truth Bullets, Remnants, Despair - zostają po angielsku w każdym języku. Działa po przeładowaniu."
+      },
+      "moveAudit": {
+        "name": "Żeton gracza przesunięty przez ścianę",
+        "hint": "Co się dzieje, gdy żeton gracza zostanie przesunięty przez ścianę, przez którą jego postać nie mogła przejść: wpis w Dzienniku debugowania albo żeton cofnięty tam, gdzie stał, z komunikatem dla gracza i ostrzeżeniem dla MG.",
+        "log": "Zapisz to w Dzienniku debugowania",
+        "sendBack": "Cofnij żeton"
       },
       "foundryToolWindows": {
         "name": "Okna modułu dla paska bocznego i sterowania sceną Foundry",
@@ -522,6 +536,89 @@
       "controlFailed": "Ta operacja na zegarze nie doszła do końca. Powód podaje Dziennik debugowania w panelu GM-a.",
       "nowPlaying": "Gra tutaj: {track}. To odtwarza twoja własna przeglądarka - nie zawsze to samo, co przeglądarka kogoś innego.",
       "rewindEclipse": "Trwa Eclipse, więc nie ma pory dnia, do której można się cofnąć. Najpierw zakończ go w panelu GM-a."
+    },
+    "Passage": {
+      "engineOff": "Tajne przejścia nie mogą się tu otworzyć: każdy token zatrzyma się na ich ścianach. Sprawdź, czy jest aktualizacja Danganronpa RPG, albo wyłącz moduły, które zmieniają ruch tokenów.",
+      "tab": {
+        "intro": "Tajne przejście to odcinek ściany między dwoma pokojami, przez który przejdą tylko uczniowie, którzy je znają, za cenę drzwi. Dla wszystkich innych to ściana. Każdy przycisk tej zakładki działa od razu; Zastosuj i Anuluj go nie zmieniają.",
+        "rooms": "Pokoje",
+        "knows": "Kto zna",
+        "start": "Na start sezonu",
+        "state": "Stan",
+        "noRooms": "Pokoje bez nazwy",
+        "unknown": "uczeń, którego już nie ma",
+        "none": "nikt",
+        "empty": "Na tej mapie nie ma tajnych przejść.",
+        "howGm": "GM",
+        "howStart": "start",
+        "howShown": "pokazane",
+        "leaving": "do wyjścia z pokoju {room}",
+        "revoke": "Odbierz",
+        "grant": "Daj uczniowi to przejście",
+        "startAdd": "Zna od startu sezonu",
+        "startRemove": "Zdejmij ze startu sezonu",
+        "stateSecret": "Tajne",
+        "stateClosed": "Zamknięte",
+        "stateBroken": "Ściana się przesunęła - wskaż przejście jeszcze raz",
+        "pending": "Jeszcze nie dostarczone: {names}",
+        "shared": "{players} grają postacią {student} i każdy z nich poznaje to przejście.",
+        "show": "Pokaż",
+        "close": "Zamknij",
+        "open": "Otwórz",
+        "delete": "Usuń",
+        "footnote": "Mastermind zna każde tajne przejście i nie ma go na liście. Zamknięte zachowuje listę tych, którzy je znają, a przejście jest dla nich wszystkich ścianą, dopóki nie zostanie otwarte. Usuń zapomina przejście i to, kto je znał.",
+        "revokeTitle": "Odbierz - {passage}",
+        "revokeAsk": "{name} jest w pokoju {room}, jednym z pokoi, które łączy to przejście. Kiedy przejście ma się zamknąć dla tej postaci?",
+        "revokeNote": "Odbierz teraz: od tej chwili to dla tej postaci ściana. Odbierz po wyjściu z pokoju: zostaje otwarte, dopóki postać nie wyjdzie z pokoju {room}.",
+        "revokeNow": "Odbierz teraz",
+        "revokeLeave": "Odbierz po wyjściu z pokoju",
+        "deleteTitle": "Usuń tajne przejście",
+        "deleteAsk": "Usunąć tajne przejście {passage}? Każdy uczeń, który je zna, zapomina je."
+      },
+      "list": {
+        "title": "Znane tajne przejścia",
+        "where": "Pokaż na mapie",
+        "shut": "droga zamknięta"
+      },
+      "show": {
+        "button": "Pokaż tajne przejście",
+        "title": "Pokaż tajne przejście - {passage}",
+        "intro": "Komu pokazujesz tajne przejście? Jesteś w: {room}.",
+        "note": "Od teraz ta osoba może przez nie przechodzić, tak jak ty. Nie kosztuje akcji; GM-owie się o tym dowiedzą."
+      },
+      "card": {
+        "shown": "{giver} pokazuje ci tajne przejście: {from} - {to}.",
+        "done": "Pokazujesz postaci {target} tajne przejście."
+      },
+      "gm": {
+        "shown": "{giver} pokazuje postaci {target} tajne przejście {from} - {to}."
+      },
+      "pick": {
+        "new": "+ Nowe przejście",
+        "newHint": "Dwa kliknięcia na ścianie między dwoma pokojami tego piętra.",
+        "title": "Nowe tajne przejście",
+        "retitle": "Wskaż tajne przejście jeszcze raz",
+        "step": "Kliknięcie {n} z 2",
+        "first": "Kliknij, gdzie zaczyna się tajne przejście, na ścianie między dwoma pokojami. Esc anuluje.",
+        "second": "Kliknij, gdzie kończy się tajne przejście, na tej samej ścianie. Esc anuluje.",
+        "cancel": "Anuluj",
+        "repick": "Wskaż ponownie",
+        "made": "Tajne przejście {passage} gotowe. Daj je uczniowi w zakładce Przejścia.",
+        "moved": "Tajne przejście {passage} znów jest na swojej ścianie.",
+        "why": {
+          "noWall": "Tu nie ma ściany. Kliknij na ścianie między dwoma pokojami.",
+          "door": "To są drzwi. Tajne przejście idzie w zwykłej ścianie.",
+          "noMove": "Ta ściana nikogo nie zatrzymuje, więc tajne przejście nic by w niej nie zmieniło.",
+          "notBetween": "Ta ściana nie stoi między dwoma różnymi pokojami.",
+          "levels": "Pokój po drugiej stronie jest na innym piętrze.",
+          "taken": "Na tym odcinku ściany jest już inne tajne przejście.",
+          "otherWall": "Koniec musi być na tej samej ścianie co początek.",
+          "otherRooms": "Koniec musi łączyć te same dwa pokoje co początek.",
+          "short": "Oba końce są za blisko siebie. Kliknij dalej wzdłuż ściany.",
+          "trial": "Sala rozpraw nie ma pokoi, więc nie ma też tajnych przejść.",
+          "board": "Ta mapa nie jest wyświetlona na tym ekranie. Otwórz scenę i spróbuj jeszcze raz."
+        }
+      }
     },
     "Room": {
       "tileLabel": "Pokój",
@@ -961,7 +1058,7 @@
         "verdictElsewhere": "Werdykt wydaje {name}. Jeśli przeglądarka tego GM-a przeładowała się w trakcie, Dokończ werdykt jest w konsoli tego GM-a; zakończ rozdział, gdy werdykt będzie wydany.",
         "chapterEnd": "Werdykt zapadł. Użyj Zakończ rozdział, by przejść do ujawnienia i następnego rozdziału."
       },
-      "objectionNote": "Nigdy nie przesuwasz debaty dla objection: przedstawienie dowodu robi to samo.",
+      "objectionNote": "Nigdy nie przesuwasz debaty dla objection: przejmuje ją OBJECTION! gracza, a minuta rusza, gdy jego Truth Bullet trafi na stół.",
       "manageTrial": "Class Trial",
       "mode": {
         "debate": "Nonstop Debate",
@@ -969,8 +1066,11 @@
         "rebuttal": "Rebuttal"
       },
       "discussionNote": "Zegar debaty to twój budżet, nie limit: przekroczenie go zmienia kolor zegara na czerwony i nic więcej. To Objection odbiera debatę stołowi.",
-      "holdingDebate": "Nonstop Debate - {seconds} s budżetu. Każdy może mówić; Truth Bullet przedstawiony teraz to Objection.",
+      "holdingDebate": "Nonstop Debate - {seconds} s budżetu. Każdy może mówić; OBJECTION! gracza przejmuje głos.",
       "holdingObjection": "{who} ma głos, objection wobec: {target} - {seconds} s. Nikt inny nie mówi; rebuttal następuje automatycznie.",
+      "holdingObjectionPending": "{who} wnosi objection wobec: {target} i wybiera Truth Bullet - {seconds} s. Przy zerze zostanie wycofane.",
+      "repoint": "Przekieruj",
+      "repointTo": "Wymierz Objection w",
       "holdingRebuttal": "Rebuttal: {who} i {target}, {seconds} s. Tylko ta dwójka; samo wraca do otwartej dyskusji.",
       "modeNote": "To kończy się samo. Przyciskami poniżej skróć to, dodaj pół minuty albo wróć od razu do otwartej debaty.",
       "extend": "+30 sekund",
@@ -1801,6 +1901,7 @@
       },
       "tabBedrooms": "Sypialnie",
       "tabDoors": "Drzwi",
+      "tabPassages": "Przejścia",
       "tabSearching": "Przeszukiwanie",
       "tabRest": "Odpoczynki",
       "tabDescription": "Opis",
@@ -2022,6 +2123,13 @@
       "scenesIntro": "Podepnij raz dwie sceny sezonu: szkołę, w której mieszkają uczniowie, i salę rozpraw, osobną scenę na Class Trial. Początek rozprawy przenosi każdą przeglądarkę do sali i daje tam token każdemu uczniowi zaznaczonemu niżej - własny token GM-ów w sali, jeśli jest, a jeśli nie, token zrobiony przez moduł; koniec zabiera tokeny modułu, zapamiętując, gdzie stały, ukrywa tokeny GM-ów i zabiera stół z powrotem - Zakończ Class Trial do pokoju, który wybierzesz, z żyjącymi uczniami, którzy brali udział, z każdej sceny z pokojami, każda inna droga do szkoły. Moduł nigdy nie usuwa tokenu, który GM postawił w sali.",
       "school": "Szkoła",
       "hall": "Sala rozpraw",
+      "hallRoom": {
+        "legend": "Sala rozpraw na kafelku pokoju",
+        "hint": "Wszyscy widzą to na kafelku pokoju podczas Class Trialu. Nie wpisuj tu niczego tajnego.",
+        "name": "Nazwa",
+        "picture": "Zdjęcie",
+        "words": "Opis"
+      },
       "noScene": "- brak -",
       "castHeading": "Kto bierze udział",
       "reveal": "Zaznaczony: bierze udział - ma token w sali, gdy zaczyna się Class Trial (własny token GM-ów, jeśli jest, a jeśli nie, zrobiony przez moduł), i trafia do pokoju, który wybierze Zakończ Class Trial. Bez zaznaczenia: żaden jego token nie jest pokazywany i po rozprawie nie jest przenoszony - uczeń testowy albo gracz, którego nikt jeszcze nie powinien widzieć.",
@@ -2059,7 +2167,7 @@
       "presentIntro": "Zaraz pokażesz wszystkim {name} ({type}). Na kartę trafia tylko to, co widzisz. Nigdy notatki GM-a.",
       "comment": "Dodaj coś od siebie (opcjonalnie)",
       "commentPlaceholder": "np. Dlatego oś czasu się nie zgadza.",
-      "presentNote": "Debata nie jest otwarta, więc to po prostu trafia na stół - niczyja kolej mówienia się nie zmienia. Gdy GM otworzy debatę, ten sam przycisk stanie się Objection.",
+      "presentNote": "Przedstaw kładzie to na stole, by wszyscy zobaczyli. Nic to nie kosztuje i niczyja kolej mówienia się nie zmienia. Aby przejąć głos w debacie, naciśnij OBJECTION! na HUD.",
       "present": "Przedstaw",
       "presentShort": "Przedstawiono",
       "objection": "OBJECTION!",
@@ -2074,7 +2182,7 @@
       "logEmpty": "W tym rozdziale nic jeszcze nie przedstawiono.",
       "objectionTarget": "Komu zaprzeczasz?",
       "objectionNobody": "Nie ma już nikogo, wobec kogo można wnieść objection.",
-      "objectionWarning": "Objection przejmuje debatę, w przeciwieństwie do pokazania dowodu: {objection} sekund, w których mówisz tylko ty, potem {rebuttal} sekund rebuttalu z osobą, którą wskażesz.",
+      "objectionWarning": "Gdy twój Truth Bullet trafi na stół, debata jest twoja: {objection} sekund, w których mówisz tylko ty, potem {rebuttal} sekund rebuttalu z osobą, wobec której wniosłeś objection.",
       "objectionNoFloor": "Debata nie jest otwarta, więc nie ma czego przerywać. Zamiast tego pokaż dowód.",
       "objectionDuringObjection": "Trwa cudze Objection. Poczekaj na tamtą minutę i rebuttal, który po niej następuje.",
       "objectedTo": "{who} wnosi objection wobec: {target}",
@@ -2082,24 +2190,34 @@
       "logWho": "Kto",
       "logAgainst": "Wobec",
       "logWhen": "Kiedy",
-      "objectionTooltip": "Objection - połóż to na stole i przejmij głos.",
       "objectionRebuttalTargets": "Każdy może wciąć się w rebuttal, ale tylko wobec dwójki, która już ma głos. Objection przekierowuje głos, a ten, kogo wskażesz, dostaje odpowiadający rebuttal.",
+      "objectionByButton": "Objection wnosi się przyciskiem OBJECTION! na HUD, nie z karty postaci. Naciśnij go, a potem wybierz swój Truth Bullet.",
+      "objectionPending": "w toku - wybór Truth Bulletu",
+      "objectionWithdrawn": "wycofane - nie przedstawiono Truth Bulletu",
+      "objectionPickTitle": "OBJECTION! - wybierz swój Truth Bullet",
+      "objectionPickIntro": "Twoje Objection jest wymierzone w: {target}. Wybierz Truth Bullet, który to dowodzi.",
+      "objectionPickLabel": "Truth Bullet",
+      "objectionPickCount": "Na wybór zostało {seconds} s. Gdy czas minie, Objection zostanie wycofane, a to, co zapłaciłeś, nie wróci.",
+      "objectionAtNow": "OBJECTION! wobec: {target} - mówi teraz.",
+      "objectionAtLast": "OBJECTION! wobec: {target} - ostatnia wypowiedź.",
+      "objectionAtNobody": "W tym Class Trialu nikt jeszcze nie mówił, więc nie ma wobec kogo wnieść objection.",
+      "objectionAtNamed": "OBJECTION! - wobec tego, kto mówi teraz, albo wobec tego, kogo wskażesz.",
+      "objectionNoRoom": "GM nie jest połączony z kanałem głosowym, więc wskaż, komu zaprzeczasz.",
+      "objectionFailed": "Twoje Objection nie przeszło. Naciśnij OBJECTION! jeszcze raz albo powiedz GM-owi.",
       "logRefused": "odrzucone",
+      "logWithdrawn": "wycofane",
       "objectionPaid": "Twoje Objection przejmuje głos. {what}",
       "objectionRefusedWhisper": "Twoje Objection nie przejęło głosu: {why} Nic ci nie zabrano, a karta jest oznaczona jako odrzucona.",
       "objectionNotYours": "To Objection wysłał ktoś, kto nie jest właścicielem postaci {name}, więc nikt nie przejął głosu.",
       "objectionNoItem": "To Objection nie wskazywało żadnego dowodu, więc nikt nie przejął głosu.",
       "deadCannotPresent": "{name} nie żyje, a zmarli nie przedstawiają dowodów i nie wnoszą Objection.",
       "presented": "{name} trafia na stół.",
-      "objectionSent": "Wysłano Objection z dowodem {name}. Czy przejmie głos, rozstrzyga strona GM-a.",
       "actionsLocked": "Class Trial trwa. Dostępne są tylko Analyze i Objection - oraz twoje Hope Calls.",
       "moveLocked": "Class Trial trwa. Nikt nie opuszcza sali, dopóki się nie skończy.",
       "callsLocked": "Class Trial trwa. Despair Calls czekają na jego koniec.",
       "objectionSelf": "Nie możesz wnieść objection wobec siebie.",
       "objectionRebuttalOutsider": "Rebuttal można wymierzyć tylko w dwójkę, która już ma głos.",
-      "objectionNoGm": "Żaden GM nie jest połączony, więc nikt nie może przekazać głosu. Zamiast tego połóż dowód na stole.",
-      "objectionFreePresent": "Przedstaw zamiast tego",
-      "objectionFreePresentNote": "Nie masz już czym zapłacić za Objection. Wciąż możesz położyć to na stole: nic to nie kosztuje, nie przejmuje głosu, a dziennik zapisze to jako „Przedstawiono”."
+      "objectionNoGm": "Żaden GM nie jest połączony, więc nikt nie może przekazać głosu. Zamiast tego połóż dowód na stole."
     },
     "Handover": {
       "alreadyHasKey": "{who} ma już klucz do tego pokoju.",
@@ -2577,6 +2695,7 @@
     "Movement": {
       "unlawfulArrival": "Postać {name} weszła do: {room} przejściem, na które zasady nie pozwalają. Dopóki nie stanie tam, dokąd mogła dojść z: {from}, nie jest świadkiem przy ciele ani stroną trzecią morderstwa. Niczego nie cofnięto: ruch MG czyni miejsce, w którym stoi, dozwolonym.",
       "outsideRooms": "poza pokojami",
+      "wallCrossed": "Żeton postaci {name} przesunięto przez ścianę na scenie {scene} i cofnięto tam, gdzie stał.",
       "droppedFromNowhere": "Gracz postawił żeton postaci {name} w: {room} na scenie {scene}, gdzie ta postać wcześniej nigdzie nie stała. Oceniono to jak wejście spoza pokojów, więc nie obowiązywała żadna zasada o tym, które pokoje się łączą, i liczy się tam jako świadek. Przesuń żeton, jeśli nie powinien tam stać."
     },
     "Move": {
@@ -2733,6 +2852,7 @@
       "proposeButton": "Wyślij do GM-a",
       "collapseTray": "Zwiń projekty",
       "expandTray": "Pokaż projekty",
+      "trayEmpty": "Na razie brak projektów.",
       "workOnHint": {
         "one": "Popchnij {n} projekt trwający w tym pokoju.",
         "few": "Popchnij jeden z {n} projektów trwających w tym pokoju.",
@@ -2822,6 +2942,7 @@
         "analyze.resolve": "Analyze",
         "handover.bullet": "Przekazanie Truth Bulleta",
         "handover.item": "Przekazanie przedmiotu",
+        "passage.share": "Pokazanie tajnego przejścia",
         "vault.steal": "Skrytka",
         "action.steal": "Palm",
         "vault.findStash": "Szukanie skrytki",
@@ -2864,7 +2985,11 @@
         "floor.now": "Następny krok debaty od razu, wykonywany przez głównego GM-a",
         "vote.run": "Krok głosowania, wykonywany przez głównego GM-a",
         "vote.cast": "Oddanie głosu",
-        "vote.ask": "Twoja karta do głosowania"
+        "vote.ask": "Twoja karta do głosowania",
+        "trial.object": "Wniesienie Objection",
+        "trial.evidence": "Twój Truth Bullet do Objection",
+        "trial.withdraw": "Wycofanie Twojego Objection",
+        "floor.repoint": "Przekierowanie Objection"
       },
       "notDone": "Prośba „{what}” nie została wykonana. {why}",
       "nothingSpent": "Nic nie wydano.",
@@ -2927,7 +3052,13 @@
         "notEligible": "Nie masz głosu w tym głosowaniu.",
         "sameTwice": "Twoja karta do głosowania wskazuje kogoś dwa razy.",
         "wrongCount": "Twoja karta do głosowania nie wskazuje tylu osób, ilu wymaga głosowanie.",
-        "sheetPutBack": "Klient GM-a cofnął tę zmianę na twojej karcie: nic, o czym wie, jej nie pokrywa."
+        "sheetPutBack": "Klient GM-a cofnął tę zmianę na twojej karcie: nic, o czym wie, jej nie pokrywa.",
+        "notKnown": "Nie znasz tego tajnego przejścia.",
+        "recipientDead": "Wybrana osoba nie żyje. Nic nie zostało pokazane.",
+        "floorClosed": "Debata nie jest teraz otwarta na Objection.",
+        "noSpeaker": "W tym Class Trialu nikt jeszcze nie mówił, więc nie ma wobec kogo wnieść objection.",
+        "noBullet": "Nie masz żadnego Truth Bulletu, którym można dowieść Objection.",
+        "objectionOver": "To Objection nie czeka już na Truth Bullet."
       },
       "criticalHint": "Krytyk - temu graczowi należy się solidna podpowiedź.",
       "send": "Wyślij do GM-a",
@@ -3265,6 +3396,25 @@
       "tabLocked": "To oni mają ci powiedzieć, nie ty przeczytać.",
       "settingsLocked": "Ustawienia postaci należą do GM-a."
     },
+    "Enforced": {
+      "filesPutBack": "Dopóki włączone jest „Bez przeglądarki plików dla graczy”, konta graczy nie mogą przeglądać ani wysyłać plików: zmianę tych uprawnień cofnięto.",
+      "filesFirstHold": "„Bez przeglądarki plików dla graczy” odebrało te uprawnienia: {lost}. Wyłączenie tego ustawienia ich nie przywróci: nadaj je znów w uprawnieniach Foundry.",
+      "lost": {
+        "player": "Gracz",
+        "trusted": "Zaufany gracz",
+        "browse": "przeglądanie plików",
+        "upload": "wysyłanie plików"
+      }
+    },
+    "Users": {
+      "match": {
+        "none": "Żadna postać nie nazywa się tak jak te konta: {names}. Przypisz im postacie w konfiguracji użytkownika.",
+        "several": "Tak jak te konta nazywa się więcej niż jedna postać: {names}. Przypisz im postacie w konfiguracji użytkownika.",
+        "same": "Te konta nazywają się tak samo: {names}. Zmień nazwę jednego z nich albo przypisz im postacie w konfiguracji użytkownika.",
+        "owned": "Postać o nazwie konta {account} należy już do konta {owner}, więc niczego nie przypisano.",
+        "owns": "Konto {account} jest już Właścicielem: {students}, więc niczego nie przypisano. Przypisz mu postać w konfiguracji użytkownika."
+      }
+    },
     "Anonymity": {
       "aboveLimited": "Udostępnione wszystkim jako Właściciel, więc cenzura nigdy nie działa i każdy gracz czyta cały arkusz, z ekwipunkiem i Truth Bullets: {actors}. Przestaw z powrotem na Obserwatora, chyba że tego właśnie chcesz.",
       "blocked": "Zablokowano: każdy gracz byłby właścicielem „{actor}”, a właściciel nigdy nie jest cenzurowany. Daj Właściciela tylko jego jednemu graczowi.",
@@ -3537,6 +3687,14 @@
         "label": "Głos",
         "speaking": "Mówi",
         "nobody": "Nikt nie mówi",
+        "state": {
+          "connecting": "Łączenie",
+          "disconnected": "Rozłączono",
+          "connected": "Połączono",
+          "eclipsed": "Eclipsed",
+          "blocked": "Zablokowano",
+          "external": "Osobne okno"
+        },
         "more": {
           "one": "i jeszcze {n} osoba mówi",
           "few": "i jeszcze {n} osoby mówią",
@@ -3557,7 +3715,8 @@
         "eclipseHeard": "Eclipse: do powrotu światła nikt cię nie słyszy.",
         "gmBlock": "GM zablokował twój mikrofon.",
         "external": "Głos jest w osobnym oknie - użyj jego przycisków.",
-        "offline": "Nie jesteś połączony z głosem."
+        "offline": "Brak połączenia z głosem.",
+        "connecting": "Trwa dołączanie do kanału głosowego."
       },
       "list": {
         "open": "Kogo słyszysz",
@@ -3948,6 +4107,7 @@
         "stashesFound": "Skrytki, które każdy uczeń już znalazł, a każda ukryta skrytka znów otwarta",
         "projects": "Projekty, naprawy i ich Countdowny",
         "mastermind": "Mastermind",
+        "passages": "Kto zna które tajne przejście (przejścia zostają, a kto znał je na start sezonu, zna je znowu)",
         "seals": "Wciąż obowiązujące Despair Calls i każdy Call uzbrojony na rzut",
         "motive": "Motive",
         "rules": "Stałe zasady Monokumy",
@@ -5054,6 +5214,10 @@
           "label": "Przejście odrzucone",
           "hint": "Ściana, zamknięte drzwi albo zapieczętowany pokój zawracają kogoś. Słyszy ten, kto próbował - jedyny błąd, który gracz popełnia regularnie."
         },
+        "passageFound": {
+          "label": "Pokazano tajne przejście",
+          "hint": "Inny uczeń pokazuje komuś tajne przejście. Słyszy ten, komu je pokazano."
+        },
         "actionSpent": {
           "label": "Wydano akcję",
           "hint": "Słyszy gracz, który ją wydał."
@@ -5341,6 +5505,9 @@
         "bullets": "Truth Bullety",
         "remnants": "Ślady",
         "mastermind": "Mastermind",
+        "passageMap": "Tajne przejścia: gdzie jest każde i czy jest otwarte",
+        "passageAccess": "Kto zna które tajne przejście i skąd",
+        "passageLog": "Co robiono z tajnymi przejściami",
         "cast": "Obsada incydentu",
         "blackened": "Rejestr Blackened",
         "trapLedger": "Podłożone przedmioty pułapek",

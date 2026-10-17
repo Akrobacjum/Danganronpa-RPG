@@ -45,6 +45,13 @@
  * the stack has a ceiling (P24's other road); a line of the bottom card's words, scrolled to its end, under the
  * history's button or its unread badge (P8, P7). Its `why` is printed. R299 reads the same inside Foundry only.
  * `--no-notices` leaves it out.
+ * THE CARD ON ITS PANE (E79 C13, 16.10.2026; the owner's N16). The same check's `fill`: on a Stained Glass desk the
+ * card's plate is `#drpg-note-frame` on the note pane's polygon within 1 px, the card's words inside the pane, the card
+ * bare, the plate drawn with one and two cards and not with none, and with two short cards each card's left edge back
+ * where both stand, the one shown bare where the second parks (E79 fix r3-G4, review round 3's cor F); elsewhere no
+ * frame. The line prints `fill` with the outline's distance and the words outside. At the first Stained Glass desk
+ * `plantFill` plants four faults - the frame upright, the card's own plate back, the card pushed 60 px past the wall,
+ * two cards with no edge - and each must read as not ok.
  *
  * THE ROOM TILE (E77 C4, 13.10.2026). Last at every size, in every role (`--roles`, the GM's page and `?role=player`),
  * the page's `drpgRoomCheck` reads where the curtain put the room tile and fails the size on any of: placed where
@@ -145,11 +152,22 @@
  * the right-hand column moved 24 px towards the wall, which the module answers with a pass and a slide, must read
  * passes and transitions above 0; a control that reads 0 fails the sweep.
  *
+ * OBJECTION! ON THE TRIAL ROW (E79 fix r4-G3, 17.10.2026; review round 4's goal C16-11 = Q2). Every size, both roles,
+ * runs the page's `drpgObjectionCheck`: the clock's row drawn as a player's trial row draws it, and a size fails where
+ * OBJECTION! leaves the row or the clock, is not the chevron's box within 1 px or is under 24 px, lies on the trial's
+ * label or is covered at its centre (the row's own height is the label's, and is not judged). Read 17.10.2026: 22x22
+ * on a stacked screen under Stained Glass before fix r4-G3 floored the plates at 24 px; since, 24 on every stacked
+ * size and 27 or 29 on a desk under Stained Glass, 26 everywhere under Monokuma Legacy. Its control, once a run at the first size that reads
+ * ok: the button 20 px square and the button 400 px towards the wall, each of which must read not ok. With `--shots`
+ * a player's page also keeps the clock in the trial row idle, held and hovered for the preview
+ * (`<theme>-player-<size>-objection-<state>.png`). The line prints `objection ok <button> chevron <chevron>`.
+ * `--no-objection` leaves it out.
+ *
  * usage: node audit/glass-sweep.mjs [--root <tree>] [--base <url>] [--page <path?query>]
  *          [--themes stained,legacy] [--sizes 1920x1080,...] [--known <size>:<ov|nc|bf|eg>=<n>,...]
  *          [--sel <launcher selector>] [--wait <ms after the glass, 2500>] [--shots <dir>] [--corner]
  *          [--chromium <executable>] [--no-control] [--no-notices] [--roles gm,player] [--no-room]
- *          [--no-windows] [--no-voice] [--idle <s>, 5]
+ *          [--no-windows] [--no-voice] [--no-objection] [--idle <s>, 5]
  * `--corner` loads at twice the pixel density and `--shots` then keeps the bottom-right
  * 200x230 only; without it a shot is the full screen.
  */
@@ -169,7 +187,7 @@ const sel = opt("--sel");
 const waitMs = Number(opt("--wait") ?? 2500);
 const shots = opt("--shots"), corner = args.includes("--corner"), control = !args.includes("--no-control"), notices = !args.includes("--no-notices");
 const roles = (opt("--roles") ?? "gm,player").split(",").filter(Boolean), rooms = !args.includes("--no-room");
-const windows = !args.includes("--no-windows"), voices = !args.includes("--no-voice");
+const windows = !args.includes("--no-windows"), voices = !args.includes("--no-voice"), objections = !args.includes("--no-objection");
 const idleS = Number(opt("--idle") ?? 5);
 const known = Object.fromEntries((opt("--known") ?? "").split(",").filter(Boolean).map(k => {
     const [size, kv] = k.split(":"); const [key, v] = kv.split("=");
@@ -511,6 +529,25 @@ async function plantPin(px) {
     return res;
 }
 
+/* Runs in the page: the notice check's `fill` controls (E79 C13), each planted as a rule of its own, read and taken out. */
+async function plantFill() {
+    const res = {}, FAULTS = {
+        upright: ["#drpg-note-frame { clip-path: none !important; }", /the frame's outline is/],
+        plate: ["body #drpg-popups .drpg-popup-body { background-color: rgba(7, 6, 11, 0.42) !important; }", /keeps a plate or an edge/],
+        wall: ["body #drpg-popups .drpg-popup { margin-left: -60px !important; }", /line boxes of the card's words outside/],
+        edgeless: ["body #drpg-popups .drpg-popup { border-left-width: 0 !important; }", /with two short cards the left edges read/]
+    };
+    for (const [k, [rule, re]] of Object.entries(FAULTS)) {
+        const style = document.createElement("style");
+        style.textContent = rule;
+        document.head.append(style);
+        const n = await window.drpgNoticeCheck();
+        style.remove();
+        res[k] = { ok: n.ok, why: n.why, pass: !n.ok && re.test(n.why) };
+    }
+    return res;
+}
+
 /* Runs in the page: the row reading's planted fault, read at once and put back (E77 C8). */
 async function plantRow() {
     const row = document.getElementById("drpg-tile-row"), was = row?.style.height ?? "";
@@ -532,7 +569,7 @@ function deskAgain() {
     return { ok, why: JSON.stringify(got), pass: ok };
 }
 
-let lines = 0, themeOff = 0, bad = 0, glassSizes = 0, controlled = false, roomControlled = new Set(), pinControlled = new Set(), unpinned = 0, unboxed = 0, rowControlled = false, paneControlled = false, stackedRead = false, placesControlled = false, placesRead = false, voiceRead = false, voiceControlled = false, voiceNoneControlled = false, idleRead = false;
+let lines = 0, themeOff = 0, bad = 0, glassSizes = 0, controlled = false, roomControlled = new Set(), pinControlled = new Set(), unpinned = 0, unboxed = 0, rowControlled = false, paneControlled = false, stackedRead = false, placesControlled = false, placesRead = false, voiceRead = false, voiceControlled = false, voiceNoneControlled = false, idleRead = false, fillControlled = false, objectionControlled = false;
 try {
     for (const theme of themes) for (const role of roles) {
         const qs = [theme === "legacy" ? "theme=legacy" : "", role === "player" ? "role=player" : ""].filter(Boolean);
@@ -606,8 +643,14 @@ try {
                 if (!n) fails.push("the page defines no drpgNoticeCheck");
                 else {
                     line += ` | notices ${n.ok ? "ok" : "NOT ok"}` + (n.ceiling ? ` ceiling ${n.ceiling.asIs.toFixed(0)}/${n.ceiling.docked.toFixed(0)}` : "")
-                        + (n.stack ? ` shown ${n.stack.shown}+${n.stack.parked}` : "") + (n.long ? ` long ${n.long.judged ? (n.long.inTile && n.long.scrolls ? "in" : "OUT") : "unjudged"}` : "");
+                        + (n.stack ? ` shown ${n.stack.shown}+${n.stack.parked}` : "") + (n.long ? ` long ${n.long.judged ? (n.long.inTile && n.long.scrolls ? "in" : "OUT") : "unjudged"}` : "")
+                        + (n.fill?.pane ? ` fill off ${n.fill.off} out ${n.fill.out}/${n.fill.lines}` : n.fill ? ` fill frame ${n.fill.frame}` : "");
                     if (!n.ok) fails.push("notices: " + n.why);
+                    if (control && !fillControlled && n.fill?.pane) {
+                        fillControlled = true;
+                        const ctl = await page.evaluate(plantFill);
+                        for (const [k, v] of Object.entries(ctl)) if (!v.pass) fails.push(`fill control ${k} reads as a pass (${v.why || "ok"})`);
+                    }
                 }
             }
             if (rooms) {
@@ -750,10 +793,28 @@ try {
                 else {
                     const at = r => r ? `${r.x},${r.y} ${r.w}x${r.h}` : "-";
                     if (wc.expect === "windows") line += ` | places ${wc.ok ? "ok" : "NOT ok"} drag ${wc.drag?.to?.join(",") ?? "-"} ft ${at(wc.clamp?.ftools)} mt ${at(wc.clamp?.maptools)}`
-                        + ` raw ${wc.raw ? "off" : "on"} focus ${wc.focus?.kept ? "kept" : "LOST"}/${wc.focus?.cuts ?? "-"}`;
+                        + ` raw ${wc.raw ? "off" : "on"} focus ${wc.focus?.kept ? "kept" : "LOST"}/${wc.focus?.cuts ?? "-"}`
+                        // E79 C12: Foundry tools' width expanded / collapsed by Foundry's caret (drpgWindowsCheck `collapse`)
+                        + ` collapse ${wc.collapse ? `${wc.collapse.wide}/${wc.collapse.narrow} head ${wc.collapse.head}` : "-"}`;
                     if (!wc.ok) fails.push("places: " + wc.why);
                     if (wc.raw) placesControlled = true;
                     if (wc.expect === "windows") placesRead = true;
+                }
+            }
+            if (objections) {
+                const oc = await page.evaluate(() => window.drpgObjectionCheck?.() ?? null);
+                if (!oc) fails.push("the page defines no drpgObjectionCheck");
+                else {
+                    line += ` | objection ${oc.ok ? "ok" : "NOT ok"} ${oc.button ? `${oc.button[2]}x${oc.button[3]} chevron ${oc.chevron[2]}x${oc.chevron[3]}` : "-"}`;
+                    if (!oc.ok) fails.push("objection: " + oc.why);
+                    if (control && !objectionControlled && oc.ok) {
+                        objectionControlled = true;
+                        for (const plant of ["small", "out"]) {
+                            const v = await page.evaluate(p => window.drpgObjectionCheck({ plant: p }), plant);
+                            console.log(`  objection control ${plant.padEnd(5)} ${v.ok ? "MISSES IT" : "sees it"}: ${String(v.why).slice(0, 110)}`);
+                            if (v.ok) fails.push("objection control " + plant + " reads as a pass");
+                        }
+                    }
                 }
             }
             if (!r.tile) fails.push("no #drpg-notices-corner");
@@ -763,6 +824,16 @@ try {
             if (shots) {
                 const file = `${shots}/${theme}-${role}-${size}${corner ? "-corner" : ""}.png`;
                 await page.screenshot(corner ? { path: file, clip: { x: W - 200, y: H - 230, width: 200, height: 230 } } : { path: file });
+                /* a player's trial row, idle, held and hovered for its preview: the clock and 12 px round it */
+                if (objections && role === "player") for (const state of ["idle", "held", "preview"]) {
+                    await page.evaluate(s => window.drpgObjectionCheck?.({ keep: s }), state);
+                    if (state === "preview") await page.hover("#drpg-hud .drpg-hud-objection").catch(() => {});
+                    const hb = await page.evaluate(() => { const r = document.getElementById("drpg-hud")?.getBoundingClientRect(); return r && { x: r.left, y: r.top, w: r.width, h: r.height }; });
+                    if (hb) { const x = Math.max(0, Math.floor(hb.x - 12)), y = Math.max(0, Math.floor(hb.y - 12));
+                        await page.screenshot({ path: `${shots}/${theme}-${role}-${size}-objection-${state}.png`, clip: { x, y, width: Math.min(W - x, Math.ceil(hb.w + 24)), height: Math.min(H - y, Math.ceil(hb.h + 24)) } }); }
+                    await page.mouse.move(0, 0);
+                    await page.evaluate(() => window.drpgObjectionCheck?.restore?.());
+                }
             }
             await page.close();
         }
@@ -826,7 +897,9 @@ if (rooms && !opt("--sizes") && unpinned) { bad++; console.log(`FAIL: ${unpinned
 if (rooms && !opt("--sizes") && unboxed) { bad++; console.log(`FAIL: ${unboxed} placed line(s) of the default sizes have no box in PIN_BOX`); }
 if (control && rooms && !opt("--sizes") && themes.some(t => !pinControlled.has(t))) { bad++; console.log("FAIL: a theme's pin control never ran (no size of it pinned 'clock' read 'clock')"); }
 if (control && rooms && !opt("--sizes") && themes.includes("stained") && !paneControlled) { bad++; console.log("FAIL: the pane controls never ran (no Stained Glass size placed the tile beside the notices)"); }
+if (control && notices && themes.includes("stained") && !fillControlled) { bad++; console.log("FAIL: the fill controls never ran (no Stained Glass desk read the card on its pane)"); }
 if (control && rooms && stackedRead && !rowControlled) { bad++; console.log("FAIL: the row controls never ran (no stacked size read a row)"); }
+if (control && objections && lines && !objectionControlled) { bad++; console.log("FAIL: the objection controls never ran (no size read the trial row ok)"); }
 if (windows && placesRead && !placesControlled) { bad++; console.log("FAIL: the places' control never read an unclamped place off the screen or on the cluster"); }
 console.log(`SWEEP ${bad ? "RED" : "GREEN"}: ${themes.length} theme(s) x ${roles.length} role(s) x ${SIZES.length} sizes, ${glassSizes} with glass, ${bad} failing`);
 process.exit(bad ? 1 : 0);

@@ -1,6 +1,6 @@
 # Danganronpa RPG - Player Handbook
 
-*For students of the killing game. Module version 1.2.78, built on Daggerheart for Foundry VTT v14.*
+*For students of the killing game. Module version 1.2.79, built on Daggerheart for Foundry VTT v14.*
 
 This is the whole game from your chair: what the numbers on your sheet mean, what an action costs, what Hope buys, what happens when somebody dies, and what to press. Every number in here is the module's own; where a decision belongs to a human, it says "the GM decides".
 
@@ -12,6 +12,8 @@ This is the whole game from your chair: what the numbers on your sheet mean, wha
 ## 1. Who you are
 
 You are an **Ultimate** - the one thing this character does best, written under their name on the sheet. The title is the character. Your Ultimate is also a Hope Call (see chapter 5): when it genuinely applies to something you are attempting, it buys advantage.
+
+Your portrait is the GM's to change: clicking it on your sheet opens nothing.
 
 ### Statistics
 
@@ -128,13 +130,15 @@ You are turned back by:
 
 Your GM may turn off the price of crossings; then which rooms connect, the stairs included, is theirs to judge outside an Eclipse.
 
+**Secret passages.** Some walls hide a secret passage. When your character knows one, your token goes through that stretch of wall as through a door, and the step is a crossing like any other; to everybody else it is a wall. A passage takes you into somebody else's bedroom without a key; a locked door, a sealed room, being Chained and a Class Trial still turn you back. Your sheet lists the passages you know under **Known passages**: a name shows its passage on the map, and **the way is shut** beside it means it does not open for you from where you stand. **Show the passage** shows it to another student in the same room, who can walk through it from then on: it costs no action, a GM has to be connected, and the GMs are told. A GM may also give you a passage, and some you know from the season's start; a season's reset leaves you only those. Everybody sees your token go through, as they see any token move.
+
 ### What you can see
 
 - The room you are in is in full colour. Rooms you have already visited show through a veil. The rest of the school is fogged until you walk into it - a room is discovered by entering it, once, per character. During an Eclipse even the room you stand in is only veiled.
 - On a map of several floors you see one floor at a time. The **Floors** buttons beside the HUD offer the floors your character stands on and every floor holding a room you have found, lowest first. A room you have found looks the same on any floor - under the veil, with nobody you can see in it - and a room you have never been in stays fogged on every floor.
 - You see the door controls of the rooms you can see - the one you stand in and the ones you have been in - not every door on the map.
 - You only see the people standing in your room. Nobody else is on the map for you.
-- **The room tile** stands under the clock - or, when the screen leaves too little room there, to the right of the notices - and shows the room your own character stands in, never another: its name, its search tokens, **Available project** when it holds a project you can work on, the GM's picture of it behind them, and the GM's description, behind a small arrow in the tile's top right corner: the arrow (**Read more**) unfolds the description over the picture and, turned up (**Show less**), folds it again. Click the picture to see it large, on your screen alone. During a Class Trial it shows no room. On a narrow screen it is one row of the stack: a small picture (click it for the large one), the name, the tokens and a **Description** button that opens the description in a window. When two players own the same character, the tile on one of their screens can follow a move about a second and a half late.
+- **The room tile** stands under the clock - or, when the screen leaves too little room there, to the right of the notices - and shows the room your own character stands in, never another: its name, its search tokens, **Available project** when it holds a project you can work on, the GM's picture of it behind them, and the GM's description, behind a small arrow in the tile's top right corner: the arrow (**Read more**) unfolds the description over the picture and, turned up (**Show less**), folds it again. Click the picture to see it large, on your screen alone. During a Class Trial it shows the trial hall: the name, picture and description the GM gave it, or "Class Trial". On a narrow screen it is one row of the stack: a small picture (click it for the large one), the name, the tokens and a **Description** button that opens the description in a window. When two players own the same character, the tile on one of their screens can follow a move of several waypoints about a second and a half late.
 - The clock in the left column can be clicked: it explains the phase, the time of day, where you are, and prints the room's description if the GM wrote one.
 - Another player's sheet opens redacted: name, portrait, Ultimate, Health, Sanity, what they hold ready and how many Experiences they have. Nothing else.
 
@@ -142,7 +146,7 @@ Your GM may turn off the price of crossings; then which rooms connect, the stair
 
 With regional voice on, every room is its own voice channel: you hear only whoever stands in the room with you, and your voice client follows your token the moment it crosses into another room. During an Eclipse every player is alone in a channel of their own. During the Class Trial everybody is in one voice room, the dead too, wherever their token stands (chapter 12). A Monokuma who walks into your room hears you like anyone else, and you see them.
 
-**The voice tile.** While you are in voice, Foundry's camera dock is not on your screen: a small tile stands in for it - under Stained Glass a pane of the glass at the right edge, under the Projects tray; under Monokuma Legacy at the right edge, over the corner's buttons; on a narrow screen in the row beside the room tile. It shows the portrait and the name of whoever you hear speaking in your own voice channel, and nobody outside it, and fades a moment after they stop. The dock's camera pictures, its connection quality and its pop-out windows go with it; if the GM turns the tile off, the dock comes back. Two buttons sit on the tile:
+**The voice tile.** While you are in voice, Foundry's camera dock is not on your screen: a small tile stands in for it - under Stained Glass a pane of the glass at the right edge, under the Projects tray; under Monokuma Legacy at the right edge, over the corner's buttons; on a narrow screen in the row beside the room tile. It shows the portrait and the name of whoever you hear speaking in your own voice channel, and nobody outside it, and fades a moment after they stop. The dock's camera pictures, its connection quality and its pop-out windows go with it; if the GM turns the tile off, the dock comes back. While nobody speaks, the tile says in one word where your voice stands: **Connected**; **Connecting** while you join, move to another channel or the connection comes back; **Disconnected** when voice is lost; **Eclipsed** during an Eclipse; **Blocked** when the GM blocked your microphone; **Own window** when voice runs in its own window. Point at the word for the whole sentence. Two buttons sit on the tile:
 - **The microphone** mutes and unmutes your own microphone and nobody else's; a key in Foundry's Controls does the same, once you bind one. Struck through, it is muted - by you, or by the GM when a small lock shows on it (**The GM blocked your microphone.**). Grey and struck through, the game holds it: during an Eclipse, with the reason under it. A click then changes nothing and tells you why. With a small dot you are not connected to voice, or voice runs in its own window. It lights up while your microphone carries your voice. With push to talk it wears **PTT**: hold your key to speak. A Monocub keeps its microphone during an Eclipse and is told that nobody hears it until the lights come back.
 - **The speaker** shows how many others are in your channel - everyone who can hear you, speaking or not - and opens **Who you hear**: each of them with a volume slider and **Mute *name* for you** (then **Hear *name* again**), and at the top **Mute everybody for you**. All of it is yours alone - nobody else hears the difference - and this browser keeps it. Escape or a click outside closes the list.
 
@@ -657,7 +661,7 @@ When the GM has set up a trial hall, opening the trial takes your screen to it a
 
 The trial opens as an **open discussion**: everybody talks, and a Truth Bullet can be **Presented** from your inventory for free - it goes on the table as a card for everyone, with a comment of yours, and takes nobody's turn away. Only what you can see goes on the card. You are told when it has gone on the table.
 
-When the room is ready to argue, the GM opens the **Nonstop Debate**. The debate has a clock (the GM's budget, **180 seconds** by default; overrunning turns it red and nothing else). Inside the debate, presenting a Truth Bullet becomes an **OBJECTION** (the Present button on your sheet turns into Objection while the debate is open), priced like Analyze - 1 action, else 1 Hope, else 1 Sanity - and when the price is all that stops you, you are offered a free Present instead:
+When the room is ready to argue, the GM opens the **Nonstop Debate**. The debate has a clock (the GM's budget, **180 seconds** by default; overrunning turns it red and nothing else). Inside the debate you interrupt with **OBJECTION!**, the button on the HUD's trial row (the Present button on your sheet stays Present, free, all trial long). It is priced like Analyze - 1 action, else 1 Hope, else 1 Sanity - and paid when you press it:
 
 | Mode | Who may speak | How long |
 |---|---|---|
@@ -665,7 +669,7 @@ When the room is ready to argue, the GM opens the **Nonstop Debate**. The debate
 | OBJECTION | the objector alone | 60 seconds |
 | Rebuttal | the objector and the person they named | 120 seconds, then the floor closes and the trial is back to open discussion |
 
-You name who you are contradicting. Nobody may object while somebody else's objection is running; anybody may cut into a rebuttal, but only against one of the two already on the floor. On every screen the clock names the mode, and the Event panel's trial card shows the mode, who holds the floor (in a rebuttal, also whom they answer) and the time left. Silence is kept by the table, not by the software. When you send an Objection you are told it went; the GM's side decides whether it takes the floor. An Objection's card stays above every window until you click it. A dead student neither presents evidence nor objects.
+You do not choose whom you contradict: an Objection is aimed at whoever is speaking now, as the GM's voice room hears them (about a second of speech counts), or, when nobody is, at the last player who spoke in this trial - never a GM, a Monocub, a student whose death has been announced, yourself or another student of yours. The button names that person before you press it; if nobody has spoken yet, it says so and nothing is paid. Then you choose the Truth Bullet: **30 seconds**, counted down in the window. Until it is on the table the Objection's card says it is pending; the 60 seconds start when it is. Close the window or let the time run out and the Objection is withdrawn, its card says so, and what you paid is not given back. The GM can re-point a running Objection at somebody else. When the GM's browser has no voice room, the press asks you whom you contradict instead, whatever your own voice room is doing. Nobody may object while somebody else's objection is running; anybody may cut into a rebuttal, but only against one of the two already on the floor. On every screen the clock names the mode, and the Event panel's trial card shows the mode, who holds the floor (in a rebuttal, also whom they answer) and the time left. Silence is kept by the table, not by the software. The GM's side decides whether an Objection takes the floor, and you are told what it cost when it does. An Objection's card stays above every window until you click it. A dead student neither presents evidence nor objects.
 
 ### The vote
 
@@ -768,6 +772,8 @@ Bottom-left of your character sheet is a button with a word on it - **Safe Word*
 **The Event panel** (under the Despair rows): what is happening now - the Motive with its countdown and what ignoring it costs, a called assembly, a darkening that is running, a body found, the trial's mode, speaker and time left, an open vote, a stopped scene. A murder's own cards show only to the people in it.
 
 **The status strip** (right, above the Projects tray): your actions left, whether your Free Move is still there, your Hope, and Eclipse crossings while one runs. Anything banked with Sprint or Burst shows on your sheet, in the line above the action grid. Click the strip for the explanation.
+
+**The Projects tray** (right, under the status strip) lists the projects you know of. Before there is one, it still shows its title and the line **No projects yet.** (since 1.2.79; not yet checked at a table: LIVE-E79-16).
 
 **The Despair rows** show every pool and how full it is, and under them the overflow: "?" where its count would be, beside the number it fires at. Click for what Despair is.
 

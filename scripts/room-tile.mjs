@@ -47,6 +47,13 @@
  * (`paintTileRow`), and pressing it opens the same ImagePopout; the window (`openRoomWindow`) is built from
  * the view with `textContent` alone, under a title of the module's, not the room's name.
  *
+ * THE TRIAL HALL (E79 C11, 1.2.79; the owner's N6 of 14.10.2026). In a Class Trial the tile was an empty pane
+ * (`viewerRoom`'s `trial`), and the owner read it as broken. Now it shows the hall, the same for everybody: the
+ * name, picture and words the GMs gave the linked hall in Room Setup's Scenes tab (trial-scene.mjs `hallRoom`,
+ * the one reader of them), or the trial's own label when no name is set (`hallView`). They are drawn as a
+ * room's are - text only, the picture through `safeRoomImage` again - with no search tokens and no project,
+ * which a hall does not have. A GM's change of them repaints the tile (`updateScene` of the hall).
+ *
  * The suite reaches this file through R504's and R505's imports (which is also how R503's census reads its
  * roads); module.mjs builds the tile at `ready` (`ensureRoomTile`, `registerRoomTile`).
  */
@@ -61,6 +68,10 @@ import { seatRoomArt } from "./glass.mjs";
 import { tileRow } from "./narrow.mjs";
 import { alreadyOpen } from "./live.mjs";
 import { error } from "./utils.mjs";
+import { MODULE_ID } from "./config.mjs";
+import { phaseLabel } from "./clock.mjs";
+import { trialScene } from "./rooms.mjs";
+import { hallRoom, HALL_ROOM_FLAG } from "./trial-scene.mjs";
 
 const TILE_ID = "drpg-room-tile";
 const PROSE_ID = "drpg-room-tile-prose";
@@ -132,6 +143,10 @@ export function roomFacts(room, scene) {
  */
 export function tileView() {
     const where = viewerRoom();
+    if (where.state === "trial") {
+        const hall = trialScene();
+        return hallView(hallRoom(hall), phaseLabel("classTrial"), hall?.id ?? null);
+    }
     if (where.state !== "room") return { state: where.state, room: null };
     const { description, image } = roomFacts(where.room, where.scene);
     const sealed = SearchTokens.sealed(where.room, where.scene);
@@ -144,6 +159,26 @@ export function tileView() {
         image,
         tokens: { max: SearchTokens.max, left: sealed ? 0 : SearchTokens.left(where.room, where.scene), sealed },
         project: projectsAvailableIn(place, game.user).length > 0
+    };
+}
+
+/**
+ * The tile's view in a Class Trial (E79 C11): the hall's facts (`hallRoom`'s answer) drawn as a room's, under
+ * the name the GMs gave it or `label` (the trial's own) when none is set, the picture judged again by
+ * `safeRoomImage`. The state is one of the four room states, so both themes and the narrow row draw it as a
+ * room; `hall` marks it, and it carries no search tokens and no project. Pure.
+ *
+ * @param {{name?: string, picture?: string|null, words?: string}|null} facts
+ * @param {string} label
+ * @param {string|null} [sceneId]
+ */
+export function hallView(facts, label, sceneId = null) {
+    const name = typeof facts?.name === "string" && facts.name.trim() ? facts.name.trim() : label;
+    const description = typeof facts?.words === "string" ? facts.words : "";
+    const image = safeRoomImage(facts?.picture ?? null);
+    return {
+        state: image ? (description ? "room" : "roomPicture") : (description ? "roomText" : "roomBare"),
+        hall: true, room: name, sceneId, description, image
     };
 }
 
@@ -193,7 +228,8 @@ const painted = new WeakMap();
  *
  * Built with `createElement` and `textContent` alone. A change of room (or of its scene) closes the
  * description; a repaint of the same room keeps it as the viewer left it. `trial` and `none` are an empty
- * pane hidden from a screen reader; `nowhere` and `noActor` one line.
+ * pane hidden from a screen reader (`tileView` gives no `trial` since E79 C11: a trial is the hall's view, a
+ * room's states with no search tokens); `nowhere` and `noActor` one line.
  *
  * @param {HTMLElement} tile
  * @param {ReturnType<typeof tileView>} [view]
@@ -240,8 +276,14 @@ export function paintRoomTile(tile, view = tileView()) {
     }
 
     parts.push(textNode("h3", "drpg-room-tile-name", view.room));
-    parts.push(buildSearchPips(view.tokens));
-    if (view.project) parts.push(textNode("div", "drpg-hud-room-project", game.i18n.localize("DRPG.Hud.roomProject")));
+    // the trial hall has no search tokens (`hallView`, E79 C11)
+    if (view.tokens) parts.push(buildSearchPips(view.tokens));
+    if (view.project) {
+        // one line in a band of its own at the foot, cut with an ellipsis: its whole text is its title (E79 C12, N8)
+        const words = game.i18n.localize("DRPG.Hud.roomProject"), line = textNode("div", "drpg-hud-room-project", words);
+        line.title = words;
+        parts.push(line);
+    }
 
     if (view.description) {
         const more = document.createElement("button");
@@ -551,6 +593,11 @@ export function registerRoomTile() {
     Hooks.on("createRegion", onRegionChanged);
     Hooks.on("updateRegion", onRegionChanged);
     Hooks.on("deleteRegion", onRegionChanged);
+    // E79 C11: a GM's change of the trial hall's name, picture or words; the paint's key decides the rest
+    Hooks.on("updateScene", (scene, changed) => {
+        const ours = changed?.flags?.[MODULE_ID];
+        if (ours && Object.keys(ours).some(key => key.replace(/^-=/, "") === HALL_ROOM_FLAG) && scene?.id === trialScene()?.id) refreshRoomTile();
+    });
     Hooks.on("drpgHudRendered", () => refreshRoomTile());
     Hooks.on("getHeaderControlsImagePopout", stripImageControls);
     refreshRoomTile();

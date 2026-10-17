@@ -23,7 +23,7 @@ import { SETTINGS, isEclipse, incomingTimeOfDay, eclipseId, eclipseMovesUsed, is
 // know that.
 export { isEclipse, incomingTimeOfDay, eclipseId };
 import { getClock, setClock, timeOfDayLabel } from "./clock.mjs";
-import { roomOfActor, placesOf, allRooms, crossingRefused } from "./movement.mjs";
+import { roomOfActor, placesOf, allRooms, crossingRefused, passesThrough } from "./movement.mjs";
 import { announce, whisperToOwner, whisperToOwnerOnly, whisperToGms, dialogContent, log, error, plural, cardHead, esc, isPrimaryGm,
     primaryGmId, ownerIdsOf } from "./utils.mjs";
 import { overflowCrossings } from "./overflow.mjs";
@@ -99,8 +99,8 @@ export function movesUsed(actor) {
  * Crossings this character has left. `null` means unlimited - a Morning or
  * Night Eclipse places freely, so there is no number to count down.
  */
-export function movesLeft(actor) {
-    const allowance = eclipseAllowance();
+export function movesLeft(actor, clock = getClock()) {
+    const allowance = eclipseAllowance(clock);
     if (allowance === null) return null;
     return Math.max(0, allowance - movesUsed(actor));
 }
@@ -891,9 +891,14 @@ function placingActors(dead) {
  * Returns true when the move is allowed. Crossings are limited to two, and to
  * rooms actually connected to the one you are leaving - the guide's "2
  * connected rooms", not two arbitrary hops.
+ *
+ * The last argument is the suite's (R558, E79 fix r1-G4): tier 1 writes nothing, so it hands in a
+ * running Eclipse's clock, its own passage rows in the copy's shape (`known`), and a recorder for the
+ * warning and the count in place of the notice and `recordMove`. Every road of the module passes none.
  */
-export async function judgeEclipseCrossing(actor, from, to, scene = null, floors = null) {
-    if (!isEclipse()) return true;
+export async function judgeEclipseCrossing(actor, from, to, scene = null, floors = null, { clock = null, known, warn = null, record = recordMove } = {}) {
+    if (!(clock ? clock.eclipse === true : isEclipse())) return true;
+    const say = warn ?? (text => ui.notifications.warn(text));
 
     /*
      * A free-placement Eclipse (ECLIPSE_FREE_PLACEMENT) is "pick any room to begin in": no budget and
@@ -910,13 +915,13 @@ export async function judgeEclipseCrossing(actor, from, to, scene = null, floors
      * the same question the rest of the file already asks, and `null` still
      * means what it always meant.
      */
-    const allowance = eclipseAllowance();
+    const allowance = eclipseAllowance(clock ?? getClock());
     const free = allowance === null;
 
     if (!free) {
-        const left = movesLeft(actor);
+        const left = movesLeft(actor, clock ?? getClock());
         if (left <= 0) {
-            ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.noMovesLeft"));
+            say(game.i18n.localize("DRPG.Eclipse.noMovesLeft"));
             return false;
         }
 
@@ -924,9 +929,12 @@ export async function judgeEclipseCrossing(actor, from, to, scene = null, floors
         // review EARLY-C9-1): the veto's own rule, movement.mjs `crossingRefused`, on the scene the
         // token crossed on and the floor of each end (`settleRoute` hands both in, E12 C2a). Its
         // sentence names only rooms the viewer has been in, the destination included (E06 C11).
-        const refused = crossingRefused(scene, from, to, floors);
+        // A secret passage the character knows joins its two rooms as a door would (E79 C3,
+        // 14.10.2026; movement.mjs `passesThrough`, on the floor the crossing starts on): the step
+        // through it is one crossing, counted once by `recordMove` below like any other.
+        const refused = passesThrough(actor, from, to, scene, floors, { known }) ? false : crossingRefused(scene, from, to, floors);
         if (refused) {
-            ui.notifications.warn(refused);
+            say(refused);
             return false;
         }
     }
@@ -942,7 +950,7 @@ export async function judgeEclipseCrossing(actor, from, to, scene = null, floors
      * into is posted by the GM too: posted here, its document named this character as
      * the speaker and this player as the author and the reader, in every browser.
      */
-    return (await recordMove(actor, to)) !== false;
+    return (await record(actor, to)) !== false;
 }
 
 /**

@@ -623,12 +623,22 @@ const STEPS = {
            Holding every write of the world half that ends an incident 300 ms on the GM (a probe,
            scratchpad e09run/scratch/r1g3tp12-par and -fix, 08.10.2026) failed TP12 in 3 runs of
            3 on the parent's grid, each with that I10 at step 5, and in none of 3 with this wait:
-           a crowd waits for no incident at all. */
+           a crowd waits for no incident at all.
+           AND FOR THE CLOSE'S HOOK, NOT THE WORLD HALF ALONE (17.10.2026; k4r's TP12, at 39a4a24). The world half
+           reads inactive on the GM when the harness's `settingApplied` lands, and `endMurder` fires
+           `drpgIncidentClosed` only once `game.settings.set` resolves, on the server's `ack` - a second IPC
+           message: 0.15-6.5 ms later in 40 runs of TP12 alone (0.3 ms typical). A poll of the wait that fell
+           between the two read no incident, and the step, the case's end and `watching`'s unhook ran before the
+           ack, so I4 read 0 closes twice ("0 close(s) of 1 incident(s), the model's 1"), the close landing after.
+           That set's resolution held 100 ms on the GM failed TP12 5 runs of 5 at 39a4a24 and at 0641c4c with
+           that message, and none of 5 with this wait (scratchpad e79run/tp12). A close that never fires the hook
+           still waits the whole bound and I4 still says so. */
         const crowding = Boolean(m.thirdId) && !m.departed.includes(actor.id);
+        const closesBefore = run.closes;
         await placeIn(run, actor, run.room, positionIn);
         await until(() => {
             const now = run.M.murderState();
-            return crowding ? !now : (!now || now.thirdId !== before?.thirdId);
+            return crowding ? !now && run.closes > closesBefore : (!now || now.thirdId !== before?.thirdId);
         }, crowding ? 4000 : 1500);
         if (m.departed.includes(actor.id)) {
             if (run.M.murderState()?.thirdId === actor.id) run.violate("I13", `${actor.name} left the incident and walked back into it`);
