@@ -15102,31 +15102,44 @@ const INVARIANTS = [
          * gave and a GM cleared (E); an older match's student gone and a new one named alike (M); an account
          * with a character (X); a GM's and an Assistant's (G, AG). Then the one pass that writes: its first
          * statement asks for the primary GM, and the file's two writes are its.
+         * Since E79 fix r3-G1 (17.10.2026; review round 3's SEC S1, S3) E's word is the GMs' record (`seen`, the
+         * season its row was written in, in season 3), not a flag on the account: an account a GM assigned by hand
+         * and cleared (R) is kept as well, and so is a row of a later season (N, a clock put back), while a row
+         * of season 2 holds nothing (M); an account with the old flag naming its student and no row (F) is
+         * matched, since nothing reads the account's own flags; an account that owns another student is given
+         * nothing (MIO), and one that owns only a Monokuma is (Q). At 2399885 R, N and E were assigned and MIO
+         * given a second student. The source: user-match.mjs reads and writes no flag.
          */
         const J = stableJson;
         const { matchPlan } = await import("./user-match.mjs");
         ok(typeof matchPlan === "function", "user-match.mjs has no plan - nothing decides which account a student goes to");
-        const user = (id, name, more = {}) => ({ id, name, isGM: false, role: 1, character: null, marker: null, ...more });
+        const user = (id, name, more = {}) => ({ id, name, isGM: false, role: 1, character: null, ...more });
         const users = [user("G", "Gm", { isGM: true, role: 4 }), user("AG", "Hana Ito", { isGM: true, role: 3 }), user("A", "lucja  ŻAK "),
             user("B", "Daichi"), user("C", "Emi Sato"), user("D", "Botan Kage", { role: 2 }), user("P2", "PlayerTwo", { character: "botan" }),
-            user("E", "Chie Mori", { marker: "chie" }), user("K", "Kuma"), user("X", "Rin Aoi", { character: "aiko" }),
-            user("Y", "Aiko Hoshino"), user("M", "Sora Kai", { marker: "oldsora" }), user("T1", "Yui"), user("T2", " yui"),
-            user("O", "Ren Ito"), user("MAI", "Mai Ota")];
+            user("E", "Chie Mori", { seen: 3 }), user("K", "Kuma"), user("X", "Rin Aoi", { character: "aiko" }),
+            user("Y", "Aiko Hoshino"), user("M", "Sora Kai", { seen: 2 }), user("T1", "Yui"), user("T2", " yui"),
+            user("O", "Ren Ito"), user("MAI", "Mai Ota"), user("R", "Rin Probe", { seen: 3 }), user("N", "Nao Probe", { seen: 4 }),
+            user("F", "Fen Ito", { marker: "fen" }), user("MIO", "Mio Probe"), user("Q", "Quin")];
         const actor = (id, name, ownership = {}, student = true) => ({ id, name, student, ownership: { default: 2, ...ownership } });
         const actors = [actor("lucja", "Łucja Żak"), actor("daichi", "Daichi Sato"), actor("emi1", "Emi Sato"), actor("emi2", "emi sato"),
-            actor("botan", "Botan Kage", { P2: 3 }), actor("chie", "Chie Mori"), actor("kuma", "Kuma", {}, false), actor("hana", "Hana Ito"),
-            actor("aiko", "Aiko Hoshino"), actor("sora", "Sora Kai"), actor("ren", "Ren Ito", { O: 3 }), actor("mai", "Mai Ota", { G: 3 })];
-        equal(J(matchPlan({ users, actors, owner: 3 })), J({
+            actor("botan", "Botan Kage", { P2: 3 }), actor("chie", "Chie Mori"), actor("kuma", "Kuma", { Q: 3 }, false), actor("hana", "Hana Ito"),
+            actor("aiko", "Aiko Hoshino"), actor("sora", "Sora Kai"), actor("ren", "Ren Ito", { O: 3 }), actor("mai", "Mai Ota", { G: 3 }),
+            actor("rin", "Rin Probe"), actor("nao", "Nao Probe"), actor("fen", "Fen Ito"), actor("mio", "Mio Probe"), actor("kei", "Kei Probe", { MIO: 3 }),
+            actor("quin", "Quin")];
+        equal(J(matchPlan({ users, actors, owner: 3, season: 3 })), J({
             assign: [{ userId: "A", actorId: "lucja", own: true }, { userId: "M", actorId: "sora", own: true },
-                { userId: "O", actorId: "ren", own: false }, { userId: "MAI", actorId: "mai", own: true }],
+                { userId: "O", actorId: "ren", own: false }, { userId: "MAI", actorId: "mai", own: true },
+                { userId: "F", actorId: "fen", own: true }, { userId: "Q", actorId: "quin", own: true }],
             none: ["B", "K"], several: ["C"], same: ["T1", "T2"],
             owned: [{ userId: "D", actorId: "botan", owners: ["P2"] }, { userId: "Y", actorId: "aiko", owners: ["X"] }],
-            kept: ["E"]
-        }), "[the plan for the sixteen accounts: assigned with or without Owner; none; several; alike; owned by another player; kept as a GM cleared it]");
+            owns: [{ userId: "MIO", actorId: "mio", owns: ["kei"] }],
+            kept: ["E", "R", "N"]
+        }), "[the plan for the twenty-one accounts: assigned with or without Owner; none; several; alike; owned by another player; owning another student; kept as the GMs' record holds it]");
         const src = stripComments((await moduleSources()).get("user-match.mjs") ?? "");
         const pass = fnSource(src, "matchAccounts");
-        equal(J([/^[^{]*\{\s*if \(!isPrimaryGm\(\)\) return null;/.test(pass), (src.match(/\.update\(/g) ?? []).length, (pass.match(/\.update\(/g) ?? []).length]),
-            J([true, 2, 2]), "[the pass refuses any browser but the primary GM's first; the file's writes; the pass's writes]");
+        equal(J([/^[^{]*\{\s*if \(!isPrimaryGm\(\)\) return null;/.test(pass), (src.match(/\.update\(/g) ?? []).length, (pass.match(/\.update\(/g) ?? []).length,
+            /\bflags\b|getFlag|setFlag|unsetFlag/.test(src)]),
+            J([true, 2, 2, false]), "[the pass refuses any browser but the primary GM's first; the file's writes; the pass's writes; a flag read or written]");
     }],
 
     ["R581 - a token the trial hall's stage makes is its student's token: the school token's picture, size, look and rotation lock over the prototype's, the lock on where the school token names none, and never the school token's place, visibility, flags or id", async () => {

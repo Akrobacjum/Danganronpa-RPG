@@ -3236,14 +3236,22 @@
       "settingsLocked": "The character's settings are the GM's."
     },
     "Enforced": {
-      "filesPutBack": "Player accounts cannot browse or upload files while 'Keep players out of the file browser' is on: the change to those permissions was put back."
+      "filesPutBack": "Player accounts cannot browse or upload files while 'Keep players out of the file browser' is on: the change to those permissions was put back.",
+      "filesFirstHold": "'Keep players out of the file browser' took these permissions away: {lost}. Turning it off does not give them back: grant them again in Foundry's permissions.",
+      "lost": {
+        "player": "Player",
+        "trusted": "Trusted Player",
+        "browse": "browse files",
+        "upload": "upload files"
+      }
     },
     "Users": {
       "match": {
         "none": "No student is named like these accounts: {names}. Assign their characters in User Configuration.",
         "several": "More than one student is named like these accounts: {names}. Assign their characters in User Configuration.",
         "same": "These accounts are named alike: {names}. Rename one of them, or assign their characters in User Configuration.",
-        "owned": "The student named like {account} already belongs to {owner}: nothing was assigned."
+        "owned": "The student named like {account} already belongs to {owner}: nothing was assigned.",
+        "owns": "{account} already owns {students}: nothing was assigned. Assign its character in User Configuration."
       }
     },
     "Anonymity": {

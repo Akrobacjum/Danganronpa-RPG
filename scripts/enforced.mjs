@@ -303,25 +303,58 @@ const sameRoles = (a, b) => Array.isArray(a) && Array.isArray(b)
    next may already be asked, and two holds reading the same value would write twice. */
 let permissionsQueue = Promise.resolve();
 
+/* The words for what a hold took away; literal keys, so the language check reads each one. */
+const LOST_ROLES = { PLAYER: "DRPG.Enforced.lost.player", TRUSTED: "DRPG.Enforced.lost.trusted" };
+const LOST_PERMISSIONS = { FILES_BROWSE: "DRPG.Enforced.lost.browse", FILES_UPLOAD: "DRPG.Enforced.lost.upload" };
+
+/**
+ * What a hold takes away, role by role: each of the row's roles with the row's
+ * permissions it held before (the stored value, else the one in force, as
+ * `heldPermissions` reads them) and does not after. Empty when the write changes
+ * nobody's permissions - a permission stored for the first time, say.
+ *
+ * @returns {{ role: string, permissions: string[] }[]}
+ */
+export function permissionsLost(stored, inForce, held, row = ENFORCED.find(r => r.kind === "permissions")) {
+    const roles = CONST.USER_ROLES;
+    const before = name => Array.isArray(stored?.[name]) ? stored[name]
+        : Array.isArray(inForce?.[name]) ? inForce[name] : [roles.ASSISTANT, roles.GAMEMASTER];
+    return row.roles.map(role => ({ role, permissions: row.permissions.filter(name =>
+        before(name).includes(roles[role]) && !(held?.[name] ?? []).includes(roles[role])) }))
+        .filter(entry => entry.permissions.length);
+}
+
 /**
  * Hold `core.permissions` (N4) on the primary GM, after `ready`.
  *
  * Writes only when one of the row's permissions is not as held, so the write's
  * own `updateSetting` finds nothing to do and cannot loop. `tell` is a GM's
- * change put back: the GMs are told, once per put-back; the first hold at
- * `ready` and a switch turned on are not news.
+ * change put back: the GMs are told, once per put-back. `first` is the hold at
+ * `ready`: when it took a permission from a role, the GMs are told which, and that
+ * the switch's off does not give it back (E79 fix r3-G1, 17.10.2026; review round 3's
+ * P4: until then the first hold at 1.2.79's first start took the Trusted Player's
+ * browse and upload away without a word where they stood at their defaults - both
+ * TRUSTED in the harness's Foundry, audit/harness/client-entry.mjs; v14's own not read
+ * here). A switch turned on is the GM's own act and
+ * is not news.
  *
  * @returns {Promise<boolean>} whether this browser holds the row.
  */
-function holdPermissions(row, { tell = false } = {}) {
+function holdPermissions(row, { tell = false, first = false } = {}) {
     const run = permissionsQueue.then(async () => {
         if (readyAt === null || !isPrimaryGm() || !wanted(row)) return false;
         let stored;
         try { stored = game.settings.get("core", "permissions") ?? {}; } catch { return false; }
-        const held = heldPermissions(stored, permissionsInForce(), row);
+        const inForce = permissionsInForce();
+        const held = heldPermissions(stored, inForce, row);
         if (row.permissions.every(name => sameRoles(stored[name], held[name]))) return true;
         await game.settings.set("core", "permissions", held);
         if (tell) await whisperToGms(`<p>${game.i18n.localize("DRPG.Enforced.filesPutBack")}</p>`);
+        else if (first) {
+            const lost = permissionsLost(stored, inForce, held, row).map(({ role, permissions }) =>
+                `${game.i18n.localize(LOST_ROLES[role])}: ${permissions.map(name => game.i18n.localize(LOST_PERMISSIONS[name])).join(", ")}`);
+            if (lost.length) await whisperToGms(`<p>${game.i18n.format("DRPG.Enforced.filesFirstHold", { lost: lost.join("; ") })}</p>`);
+        }
         return true;
     });
     permissionsQueue = run.catch(() => false);
@@ -406,7 +439,7 @@ export function registerEnforced() {
     Hooks.on("renderFilePicker", app => { closePlayerFilePicker(app); });
     Hooks.once("ready", () => {
         readyAt = Date.now();
-        holdPermissions(ENFORCED.find(r => r.kind === "permissions"))
+        holdPermissions(ENFORCED.find(r => r.kind === "permissions"), { first: true })
             .catch(err => error("Could not hold the file permissions", err));
     });
     applyEnforced().catch(err => error("Could not hold the table's settings", err));

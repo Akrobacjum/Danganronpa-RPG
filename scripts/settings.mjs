@@ -34,6 +34,8 @@ export const SETTINGS = {
     extraPoolUsers: "extraPoolUsers",
     /** Which Gamemaster's pool each Monokuma actor spends from. */
     monokumaPools: "monokumaPools",
+    /** The season each player account was last seen with, given or set a character in by a GM (E79 fix r3-G1 - see user-match.mjs). */
+    accountCharacters: "accountCharacters",
     gmAssignments: "gmAssignments",
     despairFromRolls: "despairFromRolls",
     projectMeta: "projectMeta",
@@ -871,9 +873,10 @@ export const DEFAULT_CLOCK = {
     campaignName: "",
     /**
      * Which season this is: 1, and one more at every season reset that wipes the
-     * clock (season-setup.mjs `wipeSeason`; E10 C10, D12 option 1). A count only:
-     * no other reader at 1.2.71 (grep of scripts/ on 10.10.2026) - the season's epoch
-     * is `seasonStartedAt`.
+     * clock (season-setup.mjs `wipeSeason`; E10 C10, D12 option 1). A count: no other
+     * reader at 1.2.71 (grep of scripts/ on 10.10.2026) - the season's epoch is
+     * `seasonStartedAt` - until user-match.mjs's record of which accounts a GM has word
+     * on stamped its rows with it (E79 fix r3-G1, 17.10.2026).
      */
     season: 1,
     chapter: 1,
@@ -2290,6 +2293,16 @@ export function registerSettings() {
         type: Object,
         default: {},
         onChange: () => onWorldChange(SETTINGS.monokumaPools)
+    });
+
+    // The season each player account was last seen with a character, given one or set by a GM, written
+    // by the primary GM alone (user-match.mjs): an account with a row of this season keeps what a GM
+    // left it. Format: { "<userId>": <season> } - a season, never an actor id (72-canary's world scan).
+    game.settings.register(MODULE_ID, SETTINGS.accountCharacters, {
+        scope: "world",
+        config: false,
+        type: Object,
+        default: {}
     });
 
     // Search token counters, keyed by room. Format: { "Library": 2, "Kitchen": 0 }

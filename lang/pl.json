@@ -3376,14 +3376,22 @@
       "settingsLocked": "Ustawienia postaci należą do GM-a."
     },
     "Enforced": {
-      "filesPutBack": "Dopóki włączone jest „Bez przeglądarki plików dla graczy”, konta graczy nie mogą przeglądać ani wysyłać plików: zmianę tych uprawnień cofnięto."
+      "filesPutBack": "Dopóki włączone jest „Bez przeglądarki plików dla graczy”, konta graczy nie mogą przeglądać ani wysyłać plików: zmianę tych uprawnień cofnięto.",
+      "filesFirstHold": "„Bez przeglądarki plików dla graczy” odebrało te uprawnienia: {lost}. Wyłączenie tego ustawienia ich nie przywróci: nadaj je znów w uprawnieniach Foundry.",
+      "lost": {
+        "player": "Gracz",
+        "trusted": "Zaufany gracz",
+        "browse": "przeglądanie plików",
+        "upload": "wysyłanie plików"
+      }
     },
     "Users": {
       "match": {
         "none": "Żadna postać nie nazywa się tak jak te konta: {names}. Przypisz im postacie w konfiguracji użytkownika.",
         "several": "Tak jak te konta nazywa się więcej niż jedna postać: {names}. Przypisz im postacie w konfiguracji użytkownika.",
         "same": "Te konta nazywają się tak samo: {names}. Zmień nazwę jednego z nich albo przypisz im postacie w konfiguracji użytkownika.",
-        "owned": "Postać o nazwie konta {account} należy już do konta {owner}, więc niczego nie przypisano."
+        "owned": "Postać o nazwie konta {account} należy już do konta {owner}, więc niczego nie przypisano.",
+        "owns": "Konto {account} jest już Właścicielem: {students}, więc niczego nie przypisano. Przypisz mu postać w konfiguracji użytkownika."
       }
     },
     "Anonymity": {
