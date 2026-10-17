@@ -23,17 +23,31 @@
  * this GM, a reconnect - ends every run in the old one (a run that had counted goes into `done`), so "now" is never
  * somebody of a Room this browser has left, and "last" survives the move.
  *
+ * WHICH ROOM IS FOLLOWED. avclient-livekit's client's Room as it stands (`followClient`), looked at on four
+ * occasions: `liveKitClientInitialized`, the phase moving into a Class Trial, the end of a move of the Room by the
+ * module (voice-client.mjs `drpgVoiceApplying` false) and every read of the target. Until fix r4-G1 (17.10.2026)
+ * only the hook and the read did, and the harness's stand-in fires the hook after it has made the Room
+ * (lib/livekit.mjs `initialize`) - the order this record relied on, not measured on avclient-livekit: were the
+ * Room made after the hook, the trial's Room would be heard only from the first press on, and that press refused
+ * for nobody counted. Which order avclient-livekit keeps is LIVE-E79-22.
+ *
  * WHO MAY BE THE TARGET is decided at the read (`objectionTarget`), not at the event, so a death or a Monocub's
- * mark that lands mid-trial is read as it stands then: a student a player owns, alive as the GMs hold it
- * (`isDeadForGm`), no Monocub and no Monokuma, never a GM's account, an account with no student, or the objector.
- * The student is the one the voice surfaces name the account by (camera-view.mjs `voiceActorFor`), never a token.
+ * mark that lands mid-trial is read as it stands then: a student a player owns, alive as the table knows it
+ * (`isDeceased`, the published death), no Monocub and no Monokuma, never a GM's account, an account with no
+ * student, the objector, or an account that owns the objector (a player of two students is not aimed at their
+ * other one; fix r4-G1). The student is the one the voice surfaces name the account by (camera-view.mjs
+ * `voiceActorFor`), never a token. THE TABLE'S DEAD, NOT THE GMS' (the orchestrator, round 4, 17.10.2026): until
+ * fix r4-G1 a death the GMs keep unpublished (`isDeadForGm`) was skipped on the primary, so a refusal for nobody, or
+ * the card naming somebody other than the speaker the button previewed, told the objector of a death the table has
+ * not been told - and the card goes to every browser, which CLAUDE.md's death rule gives to `isDeceased`. For the
+ * table such a student is alive, and may be objected to.
  *
  * WHAT IS EXTERNAL: avclient-livekit's private Room (`game.webrtc.client._liveKitClient.liveKitRoom`) and its
  * participant-to-user map, read through voice-tile.mjs `participantUser`, as the tile reads them.
  */
 
 import { MODULE_ID, TRIAL } from "./config.mjs";
-import { SETTINGS, isDeadForGm } from "./settings.mjs";
+import { SETTINGS, isDeceased } from "./settings.mjs";
 import { error } from "./utils.mjs";
 import { participantUser } from "./voice-tile.mjs";
 import { voiceActorFor } from "./camera-view.mjs";
@@ -58,16 +72,18 @@ function inTrial() {
 /**
  * A record, empty. `clock.now()` is read for every time and `trial()` for whether a Class Trial is in session; the
  * live record's are `Date` and the clock's phase, the suite's a hand it moves and a switch it throws (R590), so a
- * read-only tier can walk a trial in and out without writing the clock.
+ * read-only tier can walk a trial in and out without writing the clock. `source()` answers the client whose Room the
+ * record follows by itself (`followClient`): the live record's is avclient-livekit's, the suite's a stand-in; a
+ * record with none follows only what `attachSpeakers` is handed.
  *
- * @param {{clock?: {now: () => number}, trial?: () => boolean}} [options]
+ * @param {{clock?: {now: () => number}, trial?: () => boolean, source?: (() => object|null)|null}} [options]
  */
-export function speakerRecord({ clock = Date, trial = inTrial } = {}) {
-    return { clock, trial, client: null, room: null, detach: null, phase: null, heard: [], since: new Map(), done: [] };
+export function speakerRecord({ clock = Date, trial = inTrial, source = null } = {}) {
+    return { clock, trial, source, client: null, room: null, detach: null, phase: null, heard: [], since: new Map(), done: [] };
 }
 
 /** This browser's record (`registerTrialSpeakers`). */
-const live = speakerRecord();
+const live = speakerRecord({ source: liveKitClient });
 
 /** Empty the record: nobody now, nobody last. */
 export function resetSpeakers(record = live) {
@@ -78,13 +94,28 @@ export function resetSpeakers(record = live) {
 
 /**
  * The table went into a trial, came out of one, or neither: the record is emptied on the first two, so what it
- * holds is always of the trial in session (and nothing outside one).
+ * holds is always of the trial in session (and nothing outside one); on the way into a trial it follows its
+ * client's Room as it stands then (`followClient`). Answers whether that followed a new Room - whose list
+ * `attachSpeakers` has read already.
  */
-function followPhase(record = live) {
+export function followPhase(record = live) {
     const phase = record.trial() ? "classTrial" : "other";
-    if (record.phase === phase) return;
+    if (record.phase === phase) return false;
     record.phase = phase;
     resetSpeakers(record);
+    return phase === "classTrial" ? followClient(record) : false;
+}
+
+/**
+ * Follow the record's own client's Room (`source`) when it is not the one followed: a new client, or a new Room
+ * on the same client, that came with no hook. Answers whether it attached.
+ */
+export function followClient(record = live) {
+    if (typeof record.source !== "function") return false;
+    const client = record.source() ?? null;
+    if (record.client === client && record.room === (client?.liveKitRoom ?? null)) return false;
+    attachSpeakers(client, record);
+    return true;
 }
 
 /** End every run in progress: a run that had counted goes into `done` as ended now. */
@@ -105,8 +136,8 @@ function endRuns(record, now) {
  * @param {Array} speakers  LiveKit's participants
  */
 export function noteSpeakers(record, speakers) {
-    followPhase(record);
-    if (record.phase !== "classTrial") return;
+    // A new Room followed on the way into the trial has had its own list read; this event may be the old Room's.
+    if (followPhase(record) || record.phase !== "classTrial") return;
     const now = record.clock.now(), ids = [];
     for (const participant of Array.isArray(speakers) ? speakers : []) {
         const id = participantUser(record.client, participant, record.room)?.id;
@@ -160,7 +191,7 @@ export function attachSpeakers(client, record = live) {
     return true;
 }
 
-/** avclient-livekit's client, when it is the A/V client (external; voice-tile.mjs reads the same field). */
+/** avclient-livekit's client, when it is the A/V client (external; voice-tile.mjs reads the same field); the live record's `source`. */
 function liveKitClient() {
     return game.webrtc?.client?._liveKitClient ?? null;
 }
@@ -178,7 +209,7 @@ export function speakerRoomOpen(client = liveKitClient()) {
 /**
  * The student a speaking account stands for, or `null` when it may not be objected to: never a GM's account; the
  * student the voice surfaces name the account by (`voiceActorFor`), owned by that account, no Monokuma, no Monocub,
- * and alive as the GMs hold it.
+ * and alive as the table knows it (`isDeceased`; the header says why not the GMs' predicate).
  */
 export function speakingStudent(userId) {
     const user = game.users.get(userId);
@@ -186,29 +217,33 @@ export function speakingStudent(userId) {
     const actor = voiceActorFor(user);
     if (!actor || actor.type !== "character" || isMonokuma(actor) || isMonocub(actor)) return null;
     if (actor.testUserPermission?.(user, "OWNER") !== true) return null;
-    return isDeadForGm(actor) ? null : actor;
+    return isDeceased(actor) ? null : actor;
 }
 
 /**
  * Who an objection made now is aimed at: `{ actorId, userId, how }`, `how` "now" for the loudest counted speaker
  * in the Room's list, "last" for the newest finished run that counted; `null` when nobody may be named. Each
- * speaker is weighed in that order and the first that `actorOf` answers - and that is not `exclude`, the objector -
- * is the target. Outside a Class Trial, null.
+ * speaker is weighed in that order and the first that `actorOf` answers - and that is not `exclude`, the objector,
+ * nor spoken by an account other than a GM's that owns the objector - is the target. Outside a Class Trial, null.
+ * The primary's run and the trial bar's preview both ask it, so the two skip alike.
  *
  * @param {{exclude?: string|null, record?: object, actorOf?: (userId: string) => (Actor|null)}} [options]
  */
 export function objectionTarget({ exclude = null, record = live, actorOf = speakingStudent } = {}) {
     followPhase(record);
     if (record.phase !== "classTrial") return null;
-    if (record === live) {
-        const client = liveKitClient();
-        if (record.client !== client || record.room !== (client?.liveKitRoom ?? null)) attachSpeakers(client, record);
-    }
+    followClient(record);
     const now = record.clock.now();
     const seen = new Set();
+    const objector = exclude ? (game.actors?.get?.(exclude) ?? null) : null;
+    const ownsObjector = userId => {
+        const user = objector ? game.users.get(userId) : null;
+        return Boolean(user && !user.isGM && objector.testUserPermission?.(user, "OWNER") === true);
+    };
     const weigh = (userId, how) => {
         if (seen.has(userId)) return null;
         seen.add(userId);
+        if (ownsObjector(userId)) return null;
         const actor = actorOf(userId);
         return actor && actor.id !== exclude ? { actorId: actor.id, userId, how } : null;
     };
@@ -227,11 +262,20 @@ export function objectionTarget({ exclude = null, record = live, actorOf = speak
 }
 
 /**
- * The record's triggers, on every browser (module.mjs `ready`): a new Room on every `liveKitClientInitialized`,
- * and the clock's world setting, whose phase empties the record on the way into a trial and out of it.
+ * The record's triggers, on every browser (module.mjs `ready`): a new Room on every `liveKitClientInitialized`, the
+ * Room as it stands when voice-client.mjs has finished moving it (`drpgVoiceApplying` false), and the clock's world
+ * setting, whose phase empties the record on the way into a trial and out of it.
  */
 export function registerTrialSpeakers() {
     Hooks.on("liveKitClientInitialized", client => attachSpeakers(liveKitClient() ?? client ?? null));
+    Hooks.on("drpgVoiceApplying", applying => {
+        if (applying) return;
+        try {
+            followClient();
+        } catch (err) {
+            error("Could not follow the voice Room after it moved", err);
+        }
+    });
     Hooks.on("updateSetting", setting => {
         if (setting?.key === `${MODULE_ID}.${SETTINGS.clock}`) followPhase();
     });

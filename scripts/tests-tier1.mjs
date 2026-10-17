@@ -15590,7 +15590,7 @@ const INVARIANTS = [
             + "role and politeness], [voiceWord's order], [the English and the Polish words and sentences]");
     }],
 
-    ["R590 - an Objection is aimed at the speaker the Room counts: somebody listed by LiveKit for 1000 ms without a break is speaking now, loudest first, else the newest run that counted is the last who spoke; a shorter run, the objector and whoever the reader turns down are passed over; a new Room ends the old Room's runs, keeps what counted and hears nothing of the old Room; and the record holds nothing outside a Class Trial and starts empty in each", async () => {
+    ["R590 - an Objection is aimed at the speaker the Room counts: somebody listed by LiveKit for 1000 ms without a break is speaking now, loudest first, else the newest run that counted is the last who spoke; a shorter run, the objector and whoever the reader turns down are passed over; a new Room ends the old Room's runs, keeps what counted and hears nothing of the old Room; and the record holds nothing outside a Class Trial and starts empty in each; a record follows its own client's Room by itself on the way into a trial, at a read and when the module has moved the Room", async () => {
         /*
          * E79 C16 (17.10.2026; the prep's (a)). The owner, 17.10: "objection na aktualnie mowiacego (lub jesli nikt juz
          * nie mowi - ostatniego mowiacego gracza)". trial-speakers.mjs's record, built here with a clock the test
@@ -15606,6 +15606,20 @@ const INVARIANTS = [
          * for a connected Room, a connecting one, a Room without `on` and none. Each read is "<who>:<how>" or "-".
          * Red at C16's parent: there was no trial-speakers.mjs (the first assertion). How soon a real LiveKit lists a
          * speaker after the first word, and whether 1000 ms is right at a table, is LIVE-E79-22.
+         *
+         * Fix r4-G1 (17.10.2026; cor F5, Q4): a record that follows a client by itself (`source`, the live record's
+         * being avclient-livekit's) is driven with no `liveKitClientInitialized` at all - the order of that hook
+         * and the Room, which the harness's stand-in keeps and avclient-livekit is not measured to keep. Read in
+         * order: outside a trial (nothing followed, no listener); the phase moved into the trial (`followPhase`, as
+         * the clock's hook calls it) - the Room's listener; B listed from then, read at 1000 ms; the client's Room
+         * replaced, again with no hook, C listed on it before anybody follows it, read at once (followed at the
+         * read: B's run ended and counted, C not yet) and 1100 ms later; the listeners left on the two Rooms.
+         * Then the live record with a stand-in client set on this browser's A/V client: the listeners on its Room
+         * while voice-client.mjs says it is moving the Room (`drpgVoiceApplying` true), once it says the move is
+         * over (false), and after the A/V client is put back and the hook called again - for those few lines the
+         * live record hears nothing of a real Room, and its runs in progress end (at a table: a trial's speaker is
+         * counted again from their next word). Red at the fix's parent: the phase's move followed no Room (the
+         * second read) and nothing listened to `drpgVoiceApplying` here.
          */
         needs(world.atLeast("playerAccounts", 3), "three accounts besides the GM's to speak in the stand-in Room");
         let T = null;
@@ -15698,6 +15712,55 @@ const INVARIANTS = [
         "[the reads: B outside a trial; at 999 and 1000 ms; C louder at 1500 and 2500; C objecting; silence; a 500 ms cough; C turned down; "
             + "a new Room; the old Room's event; the new Room's B; the trial ended; begun again], [the new Room followed], "
             + "[listeners left on the old Room and on the new], [speakerRoomOpen: connected, connecting, no `on`, none], [the 1000 ms]");
+
+        let current = null, ownTrial = false;
+        const own = T.speakerRecord({ clock: { now: () => now }, trial: () => ownTrial, source: () => current });
+        const third = makeRoom(), fourth = makeRoom();
+        const heard = room => room.listenerCount("activeSpeakersChanged");
+        const readOwn = () => {
+            const found = T.objectionTarget({ record: own, actorOf });
+            return found ? `${nameOf(found.userId)}:${found.how}` : "-";
+        };
+        const follows = [];
+        current = clientOf(third);
+        now = 10000;
+        follows.push(readOwn(), heard(third));
+        ownTrial = true;
+        // The phase's move as the clock's hook hands it on (`followPhase`); at the fix's parent that function was
+        // not exported, and the nearest road to it was the record's first event in the trial (`noteSpeakers`).
+        (typeof T.followPhase === "function" ? T.followPhase : record => T.noteSpeakers(record, []))(own);
+        follows.push(heard(third));
+        speak(third, ["B"]);
+        now = 11000;
+        follows.push(readOwn());
+        current = clientOf(fourth);
+        speak(fourth, ["C"]);
+        follows.push(readOwn());
+        now = 12100;
+        follows.push(readOwn(), [heard(third), heard(fourth)]);
+        const host = game.webrtc?.client;
+        must(host, "this browser has no A/V client to stand a LiveKit Room on - the live record's hook would measure nothing");
+        const kept = Object.getOwnPropertyDescriptor(host, "_liveKitClient");
+        const fifth = makeRoom();
+        const moved = [];
+        try {
+            Object.defineProperty(host, "_liveKitClient", { configurable: true, writable: true, value: clientOf(fifth) });
+            Hooks.callAll("drpgVoiceApplying", true);
+            moved.push(heard(fifth));
+            Hooks.callAll("drpgVoiceApplying", false);
+            moved.push(heard(fifth));
+        } finally {
+            if (kept) Object.defineProperty(host, "_liveKitClient", kept);
+            else delete host._liveKitClient;
+            Hooks.callAll("drpgVoiceApplying", false);
+        }
+        moved.push(heard(fifth));
+        equal(JSON.stringify([follows, moved, T.speakingStudent(game.user.id)]), JSON.stringify([
+            ["-", 0, 1, "B:now", "B:last", "C:now", [0, 1]], [0, 1, 0], null]),
+        "[a record following its own client: outside a trial and its Room's listeners; the phase into the trial; B at 1000 ms; "
+            + "a new Room with no hook read at once and 1100 ms later; the listeners left on the two Rooms], "
+            + "[the live record's listeners on a stand-in Room: the module moving the Room, the move over, the client put back], "
+            + "[this browser's GM account as a speaker]");
     }],
 ];
 

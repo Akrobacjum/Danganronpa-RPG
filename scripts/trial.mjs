@@ -677,7 +677,13 @@ async function seizeFloor(message, objectorId, targetId) {
  *                  `openObjection`). Refused, nothing is paid; the floor not moving after the payment refunds it.
  *   the target     with a voice Room on the primary GM, the speaker its Room counts (trial-speakers.mjs
  *                  `objectionTarget`), and nothing the packet names; with none - no A/V, another A/V client, not
- *                  connected - the student the packet names, judged by `targetRefusal` as the window judged it.
+ *                  connected - the student the packet names, judged by `targetRefusal` as the window judged it,
+ *                  and with none named the answer asks the objector for a name, nothing paid (`needName`).
+ *                  ONE BROWSER DECIDES (fix r4-G1, 17.10.2026): until then the objector's browser asked for a
+ *                  name only when its own Room was closed, so with the player's Room up and the primary's down
+ *                  (A/V off on the GM, avclient-livekit in its own window, a Room reconnecting) every press was
+ *                  refused and no road named a target, and with the player's down and the primary's up the name
+ *                  was asked for and thrown away. The press now always goes unnamed first.
  *   the bullet     the player's picker (`pickObjectionEvidence`) asks `trial.evidence`: `evidenceOnPrimary` fills
  *                  the card with the bullet as its holder knows it (`holderView`) and starts the minute.
  *   the lapse      no bullet within `TRIAL.objectionPickSeconds`: the heartbeat (trial-floor.mjs `advanceIfDue`)
@@ -709,7 +715,7 @@ export async function objectOnPrimary({ actorId, targetId = null }) {
         if (quotePrice(actor, "objection").blockedKind === "noPrice") return { refused: "that character is offered no Objection" };
         // The death and the bullets as the GMs hold them, as `seizeFloor` reads them (E10 C16, E29 fix r2-H20).
         const { itemsAsHeld, flagsAsHeld } = await import("./sheet-audit.mjs");
-        const { isDeceased, livingStudentsForGm } = await import("./chapter.mjs");
+        const { isDeceased, livingStudents } = await import("./chapter.mjs");
         if (isDeceased(await flagsAsHeld(actor))) return { refused: "a dead student does not object" };
         if (!(await itemsAsHeld(actor)).some(item => isTruthBullet(item))) return { refused: "that character holds no Truth Bullet" };
 
@@ -724,8 +730,14 @@ export async function objectOnPrimary({ actorId, targetId = null }) {
             if (!found) return { refused: "nobody has spoken in this trial that the objection could be aimed at" };
             target = game.actors.get(found.actorId) ?? null;
             how = found.how;
-        } else if (targetId && mayObjectTo(actor.id, targetId)) {
-            target = livingStudentsForGm().find(student => student.id === targetId) ?? null;
+        } else if (!targetId) {
+            // No Room here and nobody named: the objector is asked whom they contradict, and nothing is paid, posted
+            // or moved - not a refusal, nothing was refused (`raiseObjection` asks again with the name).
+            return { reply: { needName: true } };
+        } else if (mayObjectTo(actor.id, targetId)) {
+            // Alive as the table knows it, as the Room's speakers are (trial-speakers.mjs `speakingStudent`): a death
+            // the GMs keep is not told by a refusal of its name.
+            target = livingStudents().find(student => student.id === targetId) ?? null;
         }
         if (!target) return { refused: "the student named may not be objected to now" };
 
@@ -889,31 +901,33 @@ export async function withdrawObjectionCard(messageId) {
 
 /**
  * OBJECTION!, pressed on a player's trial bar (hud.mjs): ask the primary GM to raise it, then choose the Truth
- * Bullet. With no voice Room on this browser the player names the target first, as the old window asked - the
- * primary reads the name only when it has no Room of its own (`objectOnPrimary`). Every refusal is the bridge's to
- * say. Answers whether the card was filled.
+ * Bullet. The press names nobody; when the primary GM has no voice Room it answers asking for a name
+ * (`needName`), and the player names the target, as the old window asked, and the press goes again with it. This
+ * browser's own Room decides nothing here (fix r4-G1: the primary's alone does; the header above says why). Every
+ * refusal is the bridge's to say. Answers whether the card was filled.
  *
  * @param {Actor} actor  the viewer's own student (hud.mjs `viewerActor`)
  */
 export async function raiseObjection(actor) {
     if (!actor || !inClassTrial()) return false;
-    const speakers = await import("./trial-speakers.mjs");
-    let targetId = null;
-    if (!speakers.speakerRoomOpen()) {
-        targetId = await nameObjectionTarget(actor);
-        if (!targetId) return false;
-    }
     const { requestObject, requestEvidence } = await import("./gm-bridge.mjs");
-    const raised = await requestObject({ actorId: actor.id, targetId });
-    if (!raised.ok || !raised.value?.messageId) return false;
-    const pick = await pickObjectionEvidence(actor, raised.value);
+    const asked = await requestObject({ actorId: actor.id, targetId: null });
+    let raised = asked.ok ? (asked.value ?? null) : null;
+    if (raised?.needName === true) {
+        const named = await nameObjectionTarget(actor);
+        if (!named) return false;
+        const again = await requestObject({ actorId: actor.id, targetId: named });
+        raised = again.ok ? (again.value ?? null) : null;
+    }
+    if (!raised?.messageId) return false;
+    const pick = await pickObjectionEvidence(actor, raised);
     // Closed or cancelled: the Objection lapses at its deadline on the primary, as the window says.
     if (!pick) return false;
     const filled = await requestEvidence({ actorId: actor.id, itemId: pick.itemId, comment: pick.comment });
     return filled.ok === true;
 }
 
-/** The old choice, for a browser with no voice Room: a living student, during a rebuttal one of the two in it. */
+/** The old choice, when the primary GM has no voice Room: a living student, during a rebuttal one of the two in it. */
 async function nameObjectionTarget(actor) {
     const { livingStudents } = await import("./chapter.mjs");
     const { trialFloor, FLOOR_MODES } = await import("./trial-floor.mjs");
@@ -934,6 +948,7 @@ async function nameObjectionTarget(actor) {
                 <select name="target">${choices.map(student =>
                     `<option value="${student.id}">${foundry.utils.escapeHTML(student.name)}</option>`).join("")}</select></label>
             ${pair ? `<p class="notes">${game.i18n.localize("DRPG.Trial.objectionRebuttalTargets")}</p>` : ""}
+            <p class="notes">${game.i18n.localize("DRPG.Trial.objectionNoRoom")}</p>
         </form>`),
         buttons: [
             { action: "object", label: game.i18n.localize("DRPG.Trial.objection"), default: true,

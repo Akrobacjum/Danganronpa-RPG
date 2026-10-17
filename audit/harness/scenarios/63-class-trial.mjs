@@ -91,7 +91,8 @@
  *   Y  (run after X; E79 C16, 1.2.79) the harness's LiveKit on gm2 and p1: Botan's player speaks on gm2's Room, p1's
  *      OBJECTION! names Botan before the press and is aimed at Botan, the bullet chosen after it fills the card on p3's
  *      screen in place; gm2 re-points it at Chie; a second press whose picker p1 closes lapses at its seconds, the
- *      card withdrawn and the action kept.
+ *      card withdrawn and the action kept; then (fix r4-G1) gm2's Room dropped while p1's stays up: p1's press asks
+ *      p1 for a name and lands, filled, at the student named.
  *
  * Headless limits: no layout (the Objection card's stacking, the select widths, the text's
  * hierarchy - LIVE-E10-03); no real Enter on Foundry's DialogV2 (F reads the DOM order of the
@@ -1059,6 +1060,32 @@ export async function run({ gm, gm2, gm3, p1, p2, p3, p4, check, phase, settle, 
     verdict("a press whose picker p1 closes lapses at its seconds: gm2's floor back to the debate, the card withdrawn on p3 in place, Aiko's action not given back",
         yLapse === true && ySecond === false && yLapsed.pending && yLapsed.mode === "debate" && yLapsed.withdrawn && yLapsed.actions === 1
             && yLapsedOnP3.cards === 1 && yLapsedOnP3.body.includes(yWithdrawnWords), J({ ySecond, yLapsed, yLapsedOnP3 }));
+    /* Fix r4-G1 (17.10.2026; cor F1 = SEC4-2): gm2's Room dropped (`__liveKit.drop()` - the GM's A/V off, or
+       avclient-livekit in its own window) while p1's stays up. p1 presses: the primary answers asking for a name,
+       p1's name window (answered Chie, its words kept) opens, the press goes again with the name and the picker is
+       answered with Aiko's bullet. Read on gm2: the floor's Objection held by Aiko at Chie, found as named, filled,
+       and Aiko's actions one lower than the 3 set here. Red at the fix's parent: p1's own Room was open, so its
+       press named nobody and gm2, with no Room, refused it. */
+    const yNoRoom = await gm2.eval(`${Fy} const S = await import("${repoUrl}/scripts/trial-speakers.mjs"); __liveKit.drop();
+        const aiko = game.actors.get("${IDS.aiko}");
+        await aiko.update({ "system.resources.actions.max": 3, "system.resources.actions.value": 3 });
+        return { open: S.speakerRoomOpen(), floor: F.trialFloor()?.mode ?? null };`, { timeout: 30000 });
+    await settle(500);
+    const yNamed = await p1.eval(`${Fy} const S = await import("${repoUrl}/scripts/trial-speakers.mjs");
+        let asked = null;
+        globalThis.__dialogAnswers.push(async config => { asked = String(config.content?.textContent ?? config.content ?? ""); return "${IDS.chie}"; });
+        globalThis.__dialogAnswers.push(async () => ({ itemId: "${ySetup.item}", comment: "S63 Y no Room" }));
+        const raised = await T.raiseObjection(game.actors.get("${IDS.aiko}"));
+        return { open: S.speakerRoomOpen(), raised, said: Boolean(asked?.includes(game.i18n.localize("DRPG.Trial.objectionNoRoom"))) };`, { timeout: 60000 });
+    await settle(800);
+    const yNamedCard = await gm2.eval(`${Fy} const floor = F.trialFloor(); const m = floor?.messageId ? game.messages.get(floor.messageId) : null;
+        return { mode: floor?.mode ?? null, holder: floor?.holderId ?? null, target: floor?.targetId ?? null, pending: floor?.pending ?? null,
+            how: m?.getFlag("${MOD}", T.TRIAL_FLAGS.how) ?? null, item: m?.getFlag("${MOD}", T.TRIAL_FLAGS.item) ?? null,
+            actions: game.actors.get("${IDS.aiko}").system.resources.actions.value };`);
+    verdict("with gm2's Room dropped and p1's up, p1's press asks p1 for a name, saying the GM has no voice channel, and lands at the student named, filled, paid once",
+        yNoRoom.open === false && yNoRoom.floor === "debate" && yNamed.open === true && yNamed.raised === true && yNamed.said
+            && yNamedCard.mode === "objection" && yNamedCard.holder === IDS.aiko && yNamedCard.target === IDS.chie && yNamedCard.pending === false
+            && yNamedCard.how === "named" && yNamedCard.item === ySetup.item && yNamedCard.actions === 2, J({ yNoRoom, yNamed, yNamedCard }));
     await gm2.eval(`${Fy} if (F.trialFloor()) await F.endFloor(); await game.settings.set("${MOD}", "clock", globalThis.__s63yClock); return true;`);
     await settle(500);
     await disconnect("gm3");

@@ -30873,20 +30873,27 @@ const SCENARIOS = [
             "the presenter was not told each Present went out, or the stage was raised for one (the toasts naming the evidence; raised after the Present in a discussion, in a debate)");
     }],
 
-    ["an Objection pressed in a trial is aimed at the speaker the primary GM's Room counts, never at the packet's target while it has one, and at the packet's target, judged, when it has none", async () => {
+    ["an Objection pressed in a trial is aimed at the speaker the primary GM's Room counts, never at the packet's target while it has one, and at the packet's target, judged, when it has none; with no Room and nobody named it asks for a name and pays nothing; a speaker who owns the objector is passed over, and a death the GMs keep unpublished is no skip", async () => {
         /*
          * E79 C16 (1.2.79; the prep's (b), and (a) on the primary's own record). The owner, 17.10.2026: the player no
          * longer chooses whom they object to. `objectOnPrimary` - `trial.object`'s run - is called here as the bridge
          * calls it on the primary, every time with a packet naming C, while a stand-in Room (`standInRoom`) lists
          * whom the test makes speak. Read in order: nobody has spoken; the objector alone for 1.1 s; B for 1.1 s
-         * (B, now); B silent and C's 500 ms cough (B, last); B dead as the GMs hold it (nobody); B alive again and C
-         * a Monocub after 1.1 s of C (B, last - C is newer and skipped); then a Room that is not connected - the
-         * fallback - with the packet's C (C, named), the objector themself and no one (both refused). Each read is
-         * the refusal's text, or the target's name and how it was found; with the objector's actions after it and
+         * (B, now); B silent and C's 500 ms cough (B, last); B dead as the GMs keep it, unpublished (B, last - for
+         * the table B is alive); B's death published (nobody); B alive again and C a Monocub after 1.1 s of C (B,
+         * last - C is newer and skipped); then C's student given to O's account instead of C's - C's account owns no
+         * student, and O's account owns the objector C - with C's account speaking 1.1 s (B, last) and then O's
+         * account speaking (B, last: O's student is not aimed at by the objector's own player); then a Room that is
+         * not connected - the fallback - with nobody named (the answer asks for a name: actions, Hope and the cards
+         * as they were, the floor not pending), then the packet's C (C, named, paid once), the objector themself
+         * (refused), and B named while B's death is kept unpublished (B, named). Each read is the refusal's text, the
+         * name-asking answer, or the target's name and how it was found; with the objector's actions after it and
          * whether the floor waits pending on that target. Every success is taken back before the next, and the
          * actions refilled. A GM's account is read straight off `speakingStudent`: the Room never lists this
-         * browser's own account (voice-tile.mjs `participantUser`). Red at C16's parent: no such road (the first
-         * assertion); until C16 the target was whatever the objector's card named.
+         * browser's own account (voice-tile.mjs `participantUser`), and the suite's world has one GM. Red at C16's
+         * parent: no such road (the first assertion); until C16 the target was whatever the objector's card named.
+         * Red at fix r4-G1's parent (cor F1, F6; the orchestrator's dead rule): the unpublished death skipped
+         * (nobody, then named refused), O's own student aimed at (O, now), and the unnamed press refused.
          */
         needs(world.atLeast("playersWithCharacter", 3), "three player accounts that own a character to speak in the trial");
         const kit = await objectionKit();
@@ -30900,28 +30907,53 @@ const SCENARIOS = [
         const voices = game.users.filter(user => !user.isGM).map(user => [user, speakers.speakingStudent(user.id)]).filter(([, student]) => student);
         must(voices.length >= 3, `only ${voices.length} player accounts speak as a living student of theirs - this would measure nothing`);
         const [[uO, O], [uB, B], [uC, cee]] = voices;
+        must(game.actors.filter(actor => actor.type === "character" && actor.testUserPermission(uC, "OWNER")).length === 1,
+            `${uC.name} owns more than one student - taking ${cee.name} away would not leave the account without one`);
         const clock = foundry.utils.deepClone(getClock());
         const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
-        const before = { actions: O.system.resources.actions.value, max: O.system.resources.actions.max, grants: O.getFlag(MODULE_ID, FLAGS.freeActionGrants) ?? 0 };
+        const keep = actor => ({ actions: actor.system.resources.actions.value, max: actor.system.resources.actions.max,
+            grants: actor.getFlag(MODULE_ID, FLAGS.freeActionGrants) ?? 0 });
+        const before = keep(O), beforeC = keep(cee);
+        const ownership = foundry.utils.deepClone(cee.ownership ?? {});
+        // The map as it was: O's account's key taken out again when it had none (an update merges the map).
+        const ownershipBack = () => ({ [`ownership.${uO.id}`]: uO.id in ownership ? ownership[uO.id] : forcedDeletion(),
+            [`ownership.${uC.id}`]: uC.id in ownership ? ownership[uC.id] : forcedDeletion() });
         const seen = new Set(game.messages.map(m => m.id));
         const cub = cee.getFlag(MODULE_ID, FLAGS.monocub) ?? null;
-        let item = null, room = null, killed = false;
+        const made = [];
+        let room = null, killed = false, moved = false;
         const read = [];
-        const press = async (targetId = cee.id) => {
-            await O.update({ "system.resources.actions.max": 3, "system.resources.actions.value": 3 });
-            const res = await trial.objectOnPrimary({ actorId: O.id, targetId });
+        const press = async (targetId = cee.id, objector = O) => {
+            await objector.update({ "system.resources.actions.max": 3, "system.resources.actions.value": 3 });
+            const hope = objector.system.resources.hope?.value ?? null, cards = game.messages.size;
+            const res = await trial.objectOnPrimary({ actorId: objector.id, targetId });
             const floor = floorMod.trialFloor();
-            read.push([res.refused ?? `${res.reply?.target}:${res.reply?.how}`, O.system.resources.actions.value,
+            read.push([res.refused ?? (res.reply?.needName === true ? `needName:${Object.keys(res.reply).length}` : `${res.reply?.target}:${res.reply?.how}`),
+                objector.system.resources.actions.value,
                 floor?.pending === true && floor?.targetId === game.actors.getName(res.reply?.target ?? "")?.id]);
+            if (targetId === null) read.push([(objector.system.resources.hope?.value ?? null) === hope, game.messages.size - cards, floor?.pending === true]);
             await clearObjections(floorMod, seen);
+        };
+        const kill = async secret => {
+            must(await C.killCharacter(B, { secret, keepBullets: true }), `${B.name}'s death was not recorded`);
+            killed = true;
+            await sheetAuditIdle();
+        };
+        const revive = async () => {
+            await C.reviveCharacter(B, { quiet: true });
+            killed = false;
+            await sheetAuditIdle();
         };
         try {
             await setClock({ ...clock, phase: "classTrial" });
             if (floorMod.trialFloor()) await floorMod.endFloor();
             await floorMod.startFloor({});
-            await O.setFlag(MODULE_ID, FLAGS.freeActionGrants, 0);
-            item = await bullets.createTruthBullet(O, { name: "SUITE E79 C16 an aimed objection", realType: "neutral", visibility: "obvious" });
-            must(item, "the fixture's Truth Bullet was not made");
+            for (const actor of [O, cee]) {
+                await actor.setFlag(MODULE_ID, FLAGS.freeActionGrants, 0);
+                const item = await bullets.createTruthBullet(actor, { name: `SUITE E79 C16 an aimed objection (${actor.name})`, realType: "neutral", visibility: "obvious" });
+                must(item, "the fixture's Truth Bullet was not made");
+                made.push(item);
+            }
             await sheetAuditIdle();
             await settle();
             room = standInRoom(speakers);
@@ -30938,13 +30970,12 @@ const SCENARIOS = [
             await wait(500);
             room.speak([]);
             await press();
-            must(await C.killCharacter(B, { secret: false, keepBullets: true }), `${B.name}'s death was not recorded`);
-            killed = true;
-            await sheetAuditIdle();
+            await kill(true);
             await press();
-            await C.reviveCharacter(B, { quiet: true });
-            killed = false;
-            await sheetAuditIdle();
+            await revive();
+            await kill(false);
+            await press();
+            await revive();
             room.speak([uC.id]);
             await wait(1100);
             room.speak([]);
@@ -30952,32 +30983,58 @@ const SCENARIOS = [
             await press();
             if (cub === null) await cee.unsetFlag(MODULE_ID, FLAGS.monocub);
             else await cee.setFlag(MODULE_ID, FLAGS.monocub, cub);
+            const L = CONST.DOCUMENT_OWNERSHIP_LEVELS;
+            await cee.update({ ownership: { [uO.id]: L.OWNER, [uC.id]: L.NONE } });
+            moved = true;
+            await sheetAuditIdle();
+            room.speak([uC.id]);
+            await wait(1100);
+            room.speak([]);
+            await press(cee.id, O);
+            room.speak([uO.id]);
+            await wait(1100);
+            await press(O.id, cee);
+            room.speak([]);
+            await cee.update(ownershipBack());
+            moved = false;
+            await sheetAuditIdle();
             room.restore();
             room = standInRoom(speakers, { connected: false });
+            await press(null);
             await press();
             await press(O.id);
-            await press(null);
+            await kill(true);
+            await press(B.id);
+            await revive();
             read.push(speakers.speakingStudent(game.user.id));
         } finally {
             room?.restore();
             if (killed || C.isDeadForGm(B)) await C.reviveCharacter(B, { quiet: true });
+            if (moved) await cee.update(ownershipBack());
             if (cub === null) await cee.unsetFlag(MODULE_ID, FLAGS.monocub);
             else await cee.setFlag(MODULE_ID, FLAGS.monocub, cub);
             await clearObjections(floorMod, seen);
-            try { await item?.delete(); } catch { /* already gone */ }
+            for (const item of made) {
+                try { await item.delete(); } catch { /* already gone */ }
+            }
             if (floorMod.trialFloor()) await floorMod.endFloor();
             await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
             await setClock(clock);
-            await O.setFlag(MODULE_ID, FLAGS.freeActionGrants, before.grants);
-            await O.update({ "system.resources.actions.max": before.max, "system.resources.actions.value": before.actions });
+            for (const [actor, was] of [[O, before], [cee, beforeC]]) {
+                await actor.setFlag(MODULE_ID, FLAGS.freeActionGrants, was.grants);
+                await actor.update({ "system.resources.actions.max": was.max, "system.resources.actions.value": was.actions });
+            }
             await sheetAuditIdle();
             await settle();
         }
         const nobody = "nobody has spoken in this trial that the objection could be aimed at", named = "the student named may not be objected to now";
         equal(stableJson(read), stableJson([[nobody, 3, false], [nobody, 3, false], [`${B.name}:now`, 2, true], [`${B.name}:last`, 2, true],
-            [nobody, 3, false], [`${B.name}:last`, 2, true], [`${cee.name}:named`, 2, true], [named, 3, false], [named, 3, false], null]),
-        "[each press with the packet naming C: the refusal or the target and how; the objector's actions after it; the floor pending on that target] - "
-            + "nobody yet; the objector alone; B speaking; B silent after a cough of C's; B dead; C a Monocub; no Room: C, the objector, nobody; then the GM's own account as a speaker");
+            [`${B.name}:last`, 2, true], [nobody, 3, false], [`${B.name}:last`, 2, true], [`${B.name}:last`, 2, true], [`${B.name}:last`, 2, true],
+            ["needName:1", 3, false], [true, 0, false], [`${cee.name}:named`, 2, true], [named, 3, false], [`${B.name}:named`, 2, true], null]),
+        "[each press with the packet naming C: the refusal, the name-asking answer or the target and how; the objector's actions after it; the floor pending on that target] - "
+            + "nobody yet; the objector alone; B speaking; B silent after a cough of C's; B dead unpublished; B dead published; C a Monocub; "
+            + "C's account with no student; O's account speaking with C, whom it owns, objecting; "
+            + "no Room: nobody named [Hope unchanged, cards posted, the floor pending], C, the objector, B dead unpublished; then the GM's own account as a speaker");
     }],
 
     ["a pending Objection with no Truth Bullet in thirty seconds goes back to the debate, the card withdrawn and the price kept; a late bullet or another student's changes nothing; and the minute runs from the bullet", async () => {

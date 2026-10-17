@@ -2266,7 +2266,9 @@ export const BRIDGE_ACTIONS = table({
     /*
      * AN OBJECTION, RAISED ON THE PRIMARY GM AND PROVED AFTER (E79 C16, 1.2.79; the owner, 17.10.2026). The press
      * names only the objector: the target is whoever the primary GM's voice Room counts as speaking now, or last
-     * (trial-speakers.mjs), and the packet's `targetId` is read only when the primary has no Room to listen to.
+     * (trial-speakers.mjs), and the packet's `targetId` is read only when the primary has no Room to listen to;
+     * then a press that names nobody is answered `{ needName: true }`, nothing paid, and the asker names the target
+     * and asks again (fix r4-G1: the primary's Room alone decides which road is taken).
      * The primary judges the trial, the floor, the death and the bullets as the GMs hold them, pays the price, posts
      * the card as a GM, pending, and opens the floor on it (trial.mjs `objectOnPrimary`); refused, nothing is paid.
      * `reply`: the asker opens its picker on the answer, the card and its deadline. Quiet: the asker's picker and
@@ -2280,7 +2282,7 @@ export const BRIDGE_ACTIONS = table({
         run: handleTrialObject,
         answer: "reply",
         claims: {
-            targetId: "read by trial.mjs objectOnPrimary only while the primary GM has no voice Room (trial-speakers.mjs speakerRoomOpen), then held by targetRefusal (trial-floor.mjs mayObjectTo) to a living student the floor lets the objector aim at; with a Room it is not read"
+            targetId: "read by trial.mjs objectOnPrimary only while the primary GM has no voice Room (trial-speakers.mjs speakerRoomOpen), then held by targetRefusal (trial-floor.mjs mayObjectTo) to a student alive as the table knows it (chapter.mjs livingStudents) the floor lets the objector aim at, and with none named answered needName with nothing paid; with a Room it is not read"
         }
     },
     /*
@@ -2468,8 +2470,9 @@ export function requestPassageShare({ actorId, targetId, passageId }) {
 
 /**
  * OBJECTION!, for the viewer's own student (E79 C16; trial.mjs `raiseObjection`). Its value is the primary GM's
- * `{ messageId, target, how, deadline }`. `targetId` is the asker's choice when its own browser has no voice Room,
- * and the primary reads it only when it has none either. A GM's own browser runs it here when it is the primary.
+ * `{ messageId, target, how, deadline }`, or `{ needName: true }` when the primary has no voice Room and `targetId`
+ * names nobody - nothing was paid, and the asker names the target and asks again. The primary reads `targetId` only
+ * when it has no Room. A GM's own browser runs it here when it is the primary.
  */
 export function requestObject({ actorId, targetId = null }) {
     return ask(ACTION_TRIAL_OBJECT, { actorId, targetId }, {

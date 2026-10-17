@@ -2133,7 +2133,8 @@
       "objectionAtNow": "OBJECTION! at {target}, who is speaking now.",
       "objectionAtLast": "OBJECTION! at {target}, the last to speak.",
       "objectionAtNobody": "Nobody has spoken in this trial yet, so there is nobody to object to.",
-      "objectionAtNamed": "OBJECTION! - you choose whom it is aimed at.",
+      "objectionAtNamed": "OBJECTION! - at whoever is speaking now, or at the one you name.",
+      "objectionNoRoom": "The GM is not connected to a voice channel, so name whom you contradict.",
       "objectionFailed": "Your Objection did not go through. Press OBJECTION! again, or tell the GM."
     },
     "Handover": {

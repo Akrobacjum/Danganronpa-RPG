@@ -7562,11 +7562,11 @@ const REGRESSIONS = [
             ["CHAT trial.mjs#refusePlayersCard", "judged (E79 C16): the primary marks a player-authored objection card refused and tells its character's owner (the author owns it: `objectionByButton`; else `objectionNotYours`); it pays nothing and moves no floor - the card's flags are claims and none is read for a write"],
             ["CHAT trial.mjs#repointOnPrimary", "judged (E79 C16): `floor.repoint` is gmOnly; the target a living student as the GMs hold it (`livingStudentsForGm`) that `mayObjectTo` allows; the card's presenter flag is read only to redraw its line, the GMs' own card"],
             ["CHAT trial.mjs#withdrawObjectionCard", "out of scope (E79 C16): a GM's write of the GMs' own pending card at the lapse (`lapseObjection`, primary); its flags are the ones `objectOnPrimary` wrote"],
-            ["SHEET trial.mjs#objectOnPrimary", "judged (E79 C16): `trial.object`'s run on the primary - knownSender + owns(actorId); the objector's death through `flagsAsHeld` and its bullets through `itemsAsHeld` before anything is paid; the target the primary's Room counts (`objectionTarget`, `speakingStudent`) or, with no Room, `livingStudentsForGm` with `mayObjectTo`; the packet's `targetId` read only then [1b.2, F4]"],
-            ["SHEET trial.mjs#nameObjectionTarget", "out of scope: the objector's own browser (R4): the list of whom to name with no voice Room (`livingStudents`, a courtesy); the primary judges the name (`objectOnPrimary`)"],
-            ["SHEET trial-speakers.mjs#speakingStudent", "judged in part (E79 C16): who a speaker stands for, on the primary at the read - a student the account owns, no Monokuma or Monocub, not dead by `isDeadForGm` (the flag or the GMs' `deaths` row); a death flag a player's write took off the document stands until the sheet audit puts it back, the same class as `applyFinalVerdict`'s, left to E40"],
+            ["SHEET trial.mjs#objectOnPrimary", "judged (E79 C16): `trial.object`'s run on the primary - knownSender + owns(actorId); the objector's death through `flagsAsHeld` and its bullets through `itemsAsHeld` before anything is paid; the target the primary's Room counts (`objectionTarget`, `speakingStudent`) or, with no Room, `livingStudents` (the table's living) with `mayObjectTo`, and a press naming nobody answered `needName` with nothing paid (fix r4-G1); the packet's `targetId` read only then [1b.2, F4]"],
+            ["SHEET trial.mjs#nameObjectionTarget", "out of scope: the objector's own browser (R4): the list of whom to name when the primary answers `needName` (`livingStudents`, a courtesy); the primary judges the name (`objectOnPrimary`)"],
+            ["SHEET trial-speakers.mjs#speakingStudent", "judged in part (E79 C16): who a speaker stands for, on the primary at the read - a student the account owns, no Monokuma or Monocub, not dead by `isDeceased` (the published death: a death the GMs keep is not told, fix r4-G1), never spoken by an account that owns the objector (`objectionTarget`); a death flag a player's write took off the document stands until the sheet audit puts it back, the same class as `applyFinalVerdict`'s, left to E40"],
             ["PACKET gm-bridge.mjs#trial.object#actorId", "judged (E79 C16): knownSender + owns(actorId); `objectOnPrimary` reads the character as the GMs hold it"],
-            ["PACKET gm-bridge.mjs#trial.object#targetId", "judged (E79 C16): read only with no voice Room on the primary, then a living student as the GMs hold it (`livingStudentsForGm`) whom `mayObjectTo` allows; with a Room never read - the Room's speaker is the target (`objectionTarget`)"],
+            ["PACKET gm-bridge.mjs#trial.object#targetId", "judged (E79 C16): read only with no voice Room on the primary, then a student alive as the table knows it (`livingStudents`, fix r4-G1) whom `mayObjectTo` allows, and none named answered `needName`, nothing paid; with a Room never read - the Room's speaker is the target (`objectionTarget`)"],
             ["PACKET gm-bridge.mjs#trial.evidence#actorId", "judged (E79 C16): knownSender + owns(actorId); the floor must be that character's pending Objection on its card, inside its seconds (`pendingFor`)"],
             ["PACKET gm-bridge.mjs#trial.evidence#itemId", "judged (E79 C16): a Truth Bullet as the GMs hold it (`itemAsHeld` + `isTruthBullet`), drawn on the card from what its holder knows (`holderView`)"],
             ["PACKET gm-bridge.mjs#trial.evidence#comment", "judged (E79 C16): `as.text`, refused past a player's words (`noteTooLong`), escaped on the card"],
@@ -13052,7 +13052,12 @@ const REGRESSIONS = [
          *   - `speakerRecord`, `objectionTarget` and `speakingStudent` are declared once, exported, in
          *     trial-speakers.mjs, and no other file declares a function of those names;
          *   - `objectOnPrimary` reads `targetId` only in the branch taken when `speakerRoomOpen()` is false, so a
-         *     packet's target is never weighed against a Room the primary hears;
+         *     packet's target is never weighed against a Room the primary hears; there a press naming nobody is
+         *     answered `needName` before anything is paid, posted or moved (fix r4-G1);
+         *   - no function but `objectOnPrimary` reads `trial.object`'s `targetId` (fix r4-G1, Q4): it is called in
+         *     gm-bridge.mjs alone, twice - the run, which hands the packet's field to it and reads nothing else of
+         *     it, and the asker's local road - and `raiseObjection` asks no Room of its own browser, so one browser,
+         *     the primary, decides which road a press takes;
          *   - `evidenceOnPrimary` draws the card from `holderView(data)`, never the bullet's GM half;
          *   - `presentBullet` refuses an Objection a player's browser would post (`objection && !game.user.isGM`);
          *   - hud.mjs imports neither trial.mjs nor trial-speakers.mjs statically: the trial bar is drawn on every
@@ -13081,12 +13086,29 @@ const REGRESSIONS = [
         ok(declared.every(Boolean), `trial.mjs declares objectOnPrimary and evidenceOnPrimary (${declared})`);
         if (!declared.every(Boolean)) return;
         const object = stripComments(fnSource(src("trial.mjs"), "objectOnPrimary"));
-        const roomBranch = bodyOf(object, "if (speakers.speakerRoomOpen()) {", { until: "} else if (targetId" });
+        /* Asked before the cuts that end at it, so a source without it fails on an assertion (fix r4-G1). */
+        ok(object.includes("} else if (!targetId) {"),
+            "objectOnPrimary has no branch for a press that names nobody while the primary has no Room - it is refused, and its player is never asked for a name");
+        if (!object.includes("} else if (!targetId) {")) return;
+        const roomBranch = bodyOf(object, "if (speakers.speakerRoomOpen()) {", { until: "} else if (!targetId) {" });
+        const unnamed = bodyOf(object, "} else if (!targetId) {", { until: "} else if (mayObjectTo(" });
         const before = bodyOf(object, "export async function objectOnPrimary", { until: "if (speakers.speakerRoomOpen()) {" });
         const after = bodyOf(object, "if (!target) return { refused:", { until: "\n}" });
         equal(JSON.stringify([/\btargetId\b/.test(roomBranch), (before.match(/\btargetId\b/g) ?? []).length, /\btargetId\b/.test(after),
-            /\} else if \(targetId && mayObjectTo\(actor\.id, targetId\)\)/.test(object)]), JSON.stringify([false, 1, false, true]),
-        "[the Room's branch reads targetId; targetId named before it (the signature only); after it; the no-Room branch judges it]");
+            /\} else if \(mayObjectTo\(actor\.id, targetId\)\)/.test(object),
+            /^\s*return \{ reply: \{ needName: true \} \};\s*$/.test(unnamed.replace(/^[^\n]*\n/, "")),
+            /\bpayPrice\(/.test(bodyOf(object, "export async function objectOnPrimary", { until: "} else if (!targetId) {" }))]),
+        JSON.stringify([false, 1, false, true, true, false]),
+        "[the Room's branch reads targetId; targetId named before it (the signature only); after it; the no-Room branch judges it; "
+            + "a press naming nobody answered needName and nothing else; anything paid before that answer]");
+        const callers = [...sources].flatMap(([file, raw]) =>
+            [...stripComments(raw).matchAll(/\bobjectOnPrimary\(/g)].map(() => file)).filter(file => file !== "trial.mjs");
+        const run = stripComments(fnSource(src("gm-bridge.mjs"), "handleTrialObject"));
+        equal(JSON.stringify([callers, (run.match(/\btargetId\b/g) ?? []).length,
+            /objectOnPrimary\(\{ actorId: payload\.actorId, targetId: payload\.targetId \}\)/.test(run),
+            /speakerRoomOpen|trial-speakers/.test(stripComments(fnSource(src("trial.mjs"), "raiseObjection")))]),
+        JSON.stringify([["gm-bridge.mjs", "gm-bridge.mjs"], 2, true, false]),
+        "[the files that call objectOnPrimary; targetId named in trial.object's run; the run hands the packet's field to objectOnPrimary; raiseObjection asks its own Room]");
         const evidence = stripComments(fnSource(src("trial.mjs"), "evidenceOnPrimary"));
         ok(/buildCard\(actor, holderView\(data\)/.test(evidence) && !/\b(?:realType|realLabel|gmNote)\b/.test(evidence),
             "evidenceOnPrimary draws the card from the holder's view and names no field of the GM half");
