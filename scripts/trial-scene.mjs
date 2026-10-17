@@ -496,9 +496,10 @@ export function seatFor({ seat = null, index = 0, count = 1, rect = null, grid =
 
 /**
  * What a token the stage makes takes from the student's token on the school (E79 C11, N5): how it looks
- * and turns, and nothing about where it stands, whether it is seen or what other code noted on it.
+ * and how it is turned, and nothing about where it stands, whether it is seen or what other code noted on
+ * it. Not whether it turns: a made token's rotation is always locked (`hallTokenData`).
  */
-export const HALL_TOKEN_LOOK = Object.freeze(["texture", "width", "height", "lockRotation", "rotation", "alpha", "ring",
+export const HALL_TOKEN_LOOK = Object.freeze(["texture", "width", "height", "rotation", "alpha", "ring",
     "light", "sight", "detectionModes", "displayName", "displayBars", "disposition", "name"]);
 
 /**
@@ -511,10 +512,14 @@ export const HALL_TOKEN_LOOK = Object.freeze(["texture", "width", "height", "loc
  *
  * `base` is the prototype's token data (`getTokenDocument(...).toObject()`, what Foundry makes a new token
  * from); `school` the student's token on the school (`schoolTokenOf`, as `toObject()`), or null. Each field
- * of `HALL_TOKEN_LOOK` the school token has is copied over the base; the lock is the school token's when it
- * states one, else on, whatever the prototype says (a GM who left a school token free to turn keeps that).
- * The id, the actor, the seat, `hidden: false` and `actorLink: true` are the stage's, and the school token's
- * place, elevation, visibility, flags, delta, sort and lock against moves are never read. Pure.
+ * of `HALL_TOKEN_LOOK` the school token has is copied over the base. The rotation lock is on, whatever the
+ * prototype or the school token says (E79 fix r3-G4, review round 3's cor C): until then the school token's
+ * lock was copied when it was a boolean, and a `toObject()` states every field of the token's data, so a
+ * school token nobody locked handed on `false` and its hall token turned with every move - the owner's N5
+ * again; the "else on" was reached only by a student with no school token. Whether v14's `toObject()` of an
+ * unlocked token says `false` is LIVE-E79-13, which tries one. The id, the actor, the seat, `hidden: false`
+ * and `actorLink: true` are the stage's too, and the school token's place, elevation, visibility, flags,
+ * delta, sort and lock against moves are never read. Pure.
  *
  * @param {object} base     the prototype's token data
  * @param {object|null} school  the school token's data, or null
@@ -526,8 +531,7 @@ export function hallTokenData(base, school, { id, actorId, x, y }) {
     for (const field of HALL_TOKEN_LOOK) {
         if (school && school[field] !== undefined) look[field] = foundry.utils.deepClone(school[field]);
     }
-    const lockRotation = typeof school?.lockRotation === "boolean" ? school.lockRotation : true;
-    return { ...foundry.utils.deepClone(base ?? {}), ...look, lockRotation, _id: id, actorId, x, y, hidden: false, actorLink: true };
+    return { ...foundry.utils.deepClone(base ?? {}), ...look, lockRotation: true, _id: id, actorId, x, y, hidden: false, actorLink: true };
 }
 
 /**

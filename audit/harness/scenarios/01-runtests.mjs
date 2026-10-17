@@ -40,6 +40,13 @@ function stateDiff(a, b, at = "", out = []) {
  * A1, e29run/r1g9probe) it failed the same way without this wait (1 run of 1) and passed with it
  * (2 of 2). Bounded as the suite's is.
  */
+/* The bound of one run of tiers 0 and 1 (A1, A2, A3). 240 s until E79 fix r3-G4 (17.10.2026), when 01 whole
+   failed with "eval timeout on gm" in A2 with nothing hung: tier 1 alone inside a Class Trial (a probe running
+   A2's setup, e79run/scratch/r3g4-a2time) read 221 s and 246 s on that group's tree and 238 s on its parent,
+   ca76c6a, which the fix did not slow down - the run had grown to its bound. So 600 s, about two and a half
+   times the slowest reading. */
+const READ_ONLY_MS = 600000;
+
 async function readOnlyRun(gm, check, label, repoUrl) {
     const out = await gm.eval(`
         const [{ whenGmStoresLoaded }, { migrationOnLoad }] = await Promise.all([import("${repoUrl}/scripts/gm-stores.mjs"), import("${repoUrl}/scripts/migrate.mjs")]);
@@ -52,7 +59,7 @@ async function readOnlyRun(gm, check, label, repoUrl) {
         return { settled, before, after, tiers: [...new Set((r?.results ?? []).map(x => x.tier))], failed: r?.failed, passed: r?.passed,
             tier2: /TIER 2/.test(r?.text ?? ""), purity: (r?.results ?? []).find(x => x.name === "tier 0/1 changed nothing in the world") ?? null,
             fails: (r?.results ?? []).filter(x => x.outcome === "fail").map(x => (x.name + ": " + (x.message ?? "")).slice(0, 300)) };
-    `, { timeout: 240000 });
+    `, { timeout: READ_ONLY_MS });
     check(`gm: ${label} - tiers 0 and 1 only, no tier 2`, out && !out.tier2 && out.tiers.every(t => t <= 1) && out.tiers.length > 0,
         JSON.stringify({ tiers: out?.tiers, tier2: out?.tier2 }));
     const moved = out ? stateDiff(out.before, out.after) : ["no answer"];
@@ -119,7 +126,7 @@ export async function run({ gm, p1, p2, p3, check, note, settle, socketTraffic, 
     const a3 = await gm.eval(`
         const r = await game.drpg.runTests();
         return { tiers: [...new Set((r?.results ?? []).map(x => x.tier))], murder: game.drpg.murderState() ?? null, failed: r?.failed };
-    `, { timeout: 240000 });
+    `, { timeout: READ_ONLY_MS });
     check("gm: A3 - runTests() runs tiers 0 and 1 only and opens no incident",
         a3 && a3.tiers.length > 0 && a3.tiers.every(t => t <= 1) && a3.murder === null && a3.failed === 0, JSON.stringify(a3).slice(0, 300));
 

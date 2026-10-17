@@ -47,9 +47,11 @@
  * `--no-notices` leaves it out.
  * THE CARD ON ITS PANE (E79 C13, 16.10.2026; the owner's N16). The same check's `fill`: on a Stained Glass desk the
  * card's plate is `#drpg-note-frame` on the note pane's polygon within 1 px, the card's words inside the pane, the card
- * bare, the plate drawn with one and two cards and not with none; elsewhere no frame. The line prints `fill` with the
- * outline's distance and the words outside. At the first Stained Glass desk `plantFill` plants three faults - the
- * frame upright, the card's own plate back, the card pushed 60 px past the wall - and each must read as not ok.
+ * bare, the plate drawn with one and two cards and not with none, and with two short cards each card's left edge back
+ * where both stand, the one shown bare where the second parks (E79 fix r3-G4, review round 3's cor F); elsewhere no
+ * frame. The line prints `fill` with the outline's distance and the words outside. At the first Stained Glass desk
+ * `plantFill` plants four faults - the frame upright, the card's own plate back, the card pushed 60 px past the wall,
+ * two cards with no edge - and each must read as not ok.
  *
  * THE ROOM TILE (E77 C4, 13.10.2026). Last at every size, in every role (`--roles`, the GM's page and `?role=player`),
  * the page's `drpgRoomCheck` reads where the curtain put the room tile and fails the size on any of: placed where
@@ -521,7 +523,8 @@ async function plantFill() {
     const res = {}, FAULTS = {
         upright: ["#drpg-note-frame { clip-path: none !important; }", /the frame's outline is/],
         plate: ["body #drpg-popups .drpg-popup-body { background-color: rgba(7, 6, 11, 0.42) !important; }", /keeps a plate or an edge/],
-        wall: ["body #drpg-popups .drpg-popup { margin-left: -60px !important; }", /line boxes of the card's words outside/]
+        wall: ["body #drpg-popups .drpg-popup { margin-left: -60px !important; }", /line boxes of the card's words outside/],
+        edgeless: ["body #drpg-popups .drpg-popup { border-left-width: 0 !important; }", /with two short cards the left edges read/]
     };
     for (const [k, [rule, re]] of Object.entries(FAULTS)) {
         const style = document.createElement("style");

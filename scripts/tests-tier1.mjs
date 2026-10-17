@@ -2793,7 +2793,7 @@ const INVARIANTS = [
         }
     }],
 
-    ["R516 - a GM's Foundry windows remember a place in this browser and stand on the screen: `foundryWindows` a client setting read as two finite numbers a window or no place, places saved at 1920x1080 clamped wholly onto 1366x768 and off the corner cluster, and a drag by the title writes where it ends", async () => {
+    ["R516 - a GM's Foundry windows remember a place in this browser and stand on the screen: `foundryWindows` a client setting read as two finite numbers a window or no place, places saved at 1920x1080 clamped wholly onto 1366x768 and off the corner cluster, cut down to the room over or beside the cluster where neither move clears it, and a drag by the title writes where it ends", async () => {
         /*
          * E77 C7, 13.10.2026; the place, drag and clamp clauses of the A8 design's R386 (R511 holds its DOM clauses,
          * R514 its layout one), numbered apart as R514 was. Headless, where jsdom gives every box 0x0, so the clamp is
@@ -2815,6 +2815,13 @@ const INVARIANTS = [
          * dump could not see until it read stored copies (tests-kit.mjs `clientStored`, R532). So a copy this browser
          * did not have is taken out of its client store after the value is written back, once the drop's write has
          * had a settle to land, and the stored text is read against what was found.
+         * THE CAP (E79 fix r3-G4, 17.10.2026; review round 3's P1): where neither move clears the cluster the place
+         * carries a cap. The correctness review's reading at 393x852 under Monokuma Legacy - the frame 294x736, the
+         * cluster 277,674.7 94x155.3 - and the Chromium one of this fix under Stained Glass, the frame expanded at
+         * 358x734 and the cluster 277,690.25 94x139.75 (read on the glass harness page): both cut to the room over
+         * the cluster, 658 and 674 px at y 8, which keeps more of each window than the 261 px left of it; a frame
+         * that keeps more by its width cut to that at x 8; no room on either side, up to y 8 as before. Red at the
+         * parent: each answer was a place on the cluster with no cap (91,8 and 27,8 by the parent's arithmetic).
          */
         must(game.user.isGM, "the windows are a GM's, and tier 1 runs on the GM");
         const FW = await import("./foundry-windows.mjs");
@@ -2838,6 +2845,16 @@ const INVARIANTS = [
             FW.clampPlace({ x: 400, y: 600 }, { w: 1300, h: 100 }, S, B), FW.clampPlace({ x: -500, y: 1e9 }, { w: 360, h: 690 }, S, null)]),
             JSON.stringify([{ x: 1122, y: 600 }, { x: 1150, y: 504 }, { x: 58, y: 504 }, { x: 8, y: 70 }]),
             "[on the cluster, left shorter; up shorter; too wide to go left; a console's far-off place]");
+        const S393 = { W: 393, H: 852 }, LEGACY = { x: 277, y: 674.734375, w: 94, h: 155.265625 }, GLASS = { x: 277, y: 690.25, w: 94, h: 139.75 };
+        const capped = [FW.clampPlace({ x: 939, y: 130 }, { w: 293.796875, h: 736 }, S393, LEGACY), FW.clampPlace({ x: 939, y: 130 }, { w: 358, h: 734 }, S393, GLASS),
+            FW.clampPlace({ x: 939, y: 130 }, { w: 340, h: 800 }, S393, { x: 300, y: 60, w: 80, h: 700 }), FW.clampPlace({ x: 5, y: 5 }, { w: 100, h: 100 }, S393, { x: 0, y: 0, w: 393, h: 852 })];
+        const clear = (at, size, block) => !(at.x - M < block.x + block.w && at.x + Math.min(size.w, at.w ?? Infinity) + M > block.x
+            && at.y - M < block.y + block.h && at.y + Math.min(size.h, at.h ?? Infinity) + M > block.y);
+        equal(JSON.stringify([capped, clear(capped[0], { w: 293.796875, h: 736 }, LEGACY), clear(capped[1], { w: 358, h: 734 }, GLASS),
+            clear(capped[2], { w: 340, h: 800 }, { x: 300, y: 60, w: 80, h: 700 })]),
+            JSON.stringify([[{ x: 91, y: 8, h: 658 }, { x: 27, y: 8, h: 674 }, { x: 8, y: 44, w: 284 }, { x: 8, y: 8 }], true, true, true]),
+            "[at 393x852 where neither move clears: Legacy's 294x736 and Stained Glass's 358x734 cut to the room over the cluster; a frame that keeps "
+            + "more by its width cut beside it; no room either way; each cut frame clear of its cluster]");
         const frame = FW.foundryWindow("ftools"), head = frame?.querySelector(":scope > header"), close = head?.querySelector("button");
         must(frame && head && close, "no Foundry tools window with a title bar - this would measure nothing");
         const key = `${MODULE_ID}.${SETTINGS.foundryWindows}`, was = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.foundryWindows));
@@ -11464,7 +11481,7 @@ const INVARIANTS = [
             `in a fresh realm (${road}) beside a class ForgeVTT, as a classic script declares it: [the name's type, no property of the global object, `
             + "a Library picture kept, another host refused] with usingTheForge true; the same with it false");
     }],
-    ["R504 - a screen's room is its viewer's own and no other: roomFacts answers the GM's words and a picture of this server for the room asked on the scene asked, from the first room piece that carries them, and viewerRoom on this browser is the room viewerActor's own token stands in, on that token's scene; the tile drawn from them carries that room's words and no other's, in every state", async () => {
+    ["R504 - a screen's room is its viewer's own and no other: roomFacts answers the GM's words and a picture of this server for the room asked on the scene asked, from the first room piece that carries them, and viewerRoom on this browser is the room viewerActor's own token stands in, on that token's scene; the tile drawn from them carries that room's words and no other's, in every state, and in a Class Trial the trial hall's (R582)", async () => {
         /*
          * E77 C2, 13.10.2026; the A8 design's R379 (the E77 plan's D2 gave it this number; ledger V2, D1, D5), its
          * data clauses - E77 C3 adds the tile's DOM (no word and no request of another room). The states this suite
@@ -11585,8 +11602,16 @@ const INVARIANTS = [
         ok(Boolean(live), "this browser has no #drpg-room-tile - module.mjs did not build the tile");
         if (!live) return;
         const heading = view.room ?? { nowhere: L("DRPG.Hud.roomNowhere"), noActor: L("DRPG.Explain.room.noActor") }[view.state] ?? null;
-        equal(JSON.stringify([live.dataset.state, live.querySelector(".drpg-room-tile-name")?.textContent ?? null, view.room]),
-            JSON.stringify([view.state, heading, got.room]), "this browser's tile as [state, heading] and tileView's room, against tileView and viewerRoom");
+        /* E79 fix r3-G4 (review round 3's k4p, 17.10.2026): in a Class Trial viewerRoom answers "trial" and no room,
+           and the tile shows the trial hall (E79 C11's part 4, R582): measured with the clock in the trial (scenario
+           01's A2), the tile read ["roomBare", "Class Trial"] and tileView's room "Class Trial" where this clause
+           wanted viewerRoom's null. The hall's name is the GMs' (trial-scene.mjs `hallRoom`) or the trial's label. */
+        const inTrial = got.state === "trial";
+        const hallName = inTrial ? (await import("./trial-scene.mjs").then(S => S.hallRoom(R.trialScene())?.name?.trim(), () => null)
+            || (await import("./clock.mjs")).phaseLabel("classTrial")) : null;
+        equal(JSON.stringify([live.dataset.state, live.querySelector(".drpg-room-tile-name")?.textContent ?? null, view.room, view.hall === true]),
+            JSON.stringify([view.state, heading, inTrial ? hallName : got.room, inTrial]),
+            "this browser's tile as [state, heading], tileView's room and whether it is the hall, against tileView, and viewerRoom or in a trial the hall");
         /* E77 C4 (13.10.2026): beside the notices glass.mjs `placeRoomTile` hands the tile to the body, and the
            tile's own refresh must leave it there - put back under the clock between two passes, it would push the
            scene rail down for a frame and stand where its pane is not. Under the clock the refresh still seats it. */
@@ -15189,16 +15214,19 @@ const INVARIANTS = [
             J([true, 2, 2, false]), "[the pass refuses any browser but the primary GM's first; the file's writes; the pass's writes; a flag read or written]");
     }],
 
-    ["R581 - a token the trial hall's stage makes is its student's token: the school token's picture, size, look and rotation lock over the prototype's, the lock on where the school token names none, and never the school token's place, visibility, flags or id", async () => {
+    ["R581 - a token the trial hall's stage makes is its student's token: the school token's picture, size and look over the prototype's, its rotation always locked, and never the school token's place, visibility, flags or id", async () => {
         /*
          * E79 C11 (16.10.2026; the owner's N5 of 14.10.2026: "trial-hall tokens the module makes lack the token's
          * properties; the image rotates on movement"). trial-scene.mjs `hallTokenData` on stand-ins, Foundry's own
-         * defaults on the prototype (lockRotation false): a school token that locks, turns, scales and fades, with a
-         * place, an elevation, hidden, a planted flag, a delta, a sort and `locked`; no school token over a prototype
-         * that names no lock, one that names false and one that names true; a school token that names false (a GM's
-         * choice, kept), and one that names none. A copy shares nothing with the school token. Then `schoolTokenOf`:
-         * a token linked to the actor, the first by sort and then by id, an unlinked copy and another actor's never.
-         * Last the one create: `stageHall` builds its token through both.
+         * defaults on the prototype (lockRotation false): a school token that turns, scales and fades, with a place,
+         * an elevation, hidden, a planted flag, a delta, a sort and `locked`, and `lockRotation: false` - a school
+         * token nobody locked, as its `toObject()` states it (E79 fix r3-G4, review round 3's cor C: the fixture
+         * locked, and its "names none" case deleted a field `toObject()` never leaves out); no school token over a
+         * prototype that names no lock, one that names false and one that names true; a locked school token over an
+         * unlocked prototype. Every made token locks its rotation (the owner's N5: the picture must not turn); red
+         * at the parent, where the school token's false was copied. A copy shares nothing with the school token.
+         * Then `schoolTokenOf`: a token linked to the actor, the first by sort and then by id, an unlinked copy and
+         * another actor's never. Last the one create: `stageHall` builds its token through both.
          */
         const J = stableJson;
         const T = await import("./trial-scene.mjs");
@@ -15209,27 +15237,24 @@ const INVARIANTS = [
         const base = (more = {}) => ({ name: "Prototype", texture: { src: "proto.webp", scaleX: 1 }, width: 1, height: 1, rotation: 0,
             alpha: 1, actorId: "R581A", x: 5, y: 5, hidden: true, actorLink: false, flags: { core: { proto: 1 } }, ...more });
         const school = (more = {}) => ({ _id: "R581SCHOOL", name: "Aiko", texture: { src: "aiko.webp", scaleX: 1.3 }, width: 2, height: 2,
-            lockRotation: true, rotation: 90, alpha: 0.8, x: 700, y: 900, elevation: 10, hidden: true, flags: { planted: { r581: true } },
+            lockRotation: false, rotation: 90, alpha: 0.8, x: 700, y: 900, elevation: 10, hidden: true, flags: { planted: { r581: true } },
             delta: { system: { r581: 1 } }, sort: 4, locked: true, actorId: "R581A", actorLink: true, ...more });
         const read = token => [token._id, token.actorId, token.x, token.y, token.hidden, token.actorLink, token.name, token.texture, token.width,
             token.height, token.lockRotation, token.rotation, token.alpha, token.elevation ?? null, token.flags, token.delta ?? null,
             token.sort ?? null, token.locked ?? null];
-        const lone = { ...school() };
-        delete lone.lockRotation;
         const made = T.hallTokenData(base({ lockRotation: false }), school(), stage);
         equal(J([read(made),
             T.hallTokenData(base(), null, stage).lockRotation, T.hallTokenData(base({ lockRotation: false }), null, stage).lockRotation,
             T.hallTokenData(base({ lockRotation: true }), null, stage).lockRotation,
-            T.hallTokenData(base({ lockRotation: true }), school({ lockRotation: false }), stage).lockRotation,
-            T.hallTokenData(base({ lockRotation: false }), lone, stage).lockRotation,
+            T.hallTokenData(base({ lockRotation: false }), school({ lockRotation: true }), stage).lockRotation,
             read(T.hallTokenData(base({ lockRotation: false }), null, stage)).slice(0, 10)]),
         J([["R581MADE", "R581A", 100, 200, false, true, "Aiko", { src: "aiko.webp", scaleX: 1.3 }, 2, 2, true, 90, 0.8, null, { core: { proto: 1 } },
             null, null, null],
-            true, true, true, false, true,
+            true, true, true, true,
             ["R581MADE", "R581A", 100, 200, false, true, "Prototype", { src: "proto.webp", scaleX: 1 }, 1, 1]]),
         "[a made token from a school token as [id, actor, x, y, hidden, linked, name, texture, width, height, lock, rotation, alpha, "
-            + "elevation, flags, delta, sort, locked]; the lock with no school token over a prototype naming none, false, true; over a school "
-            + "token naming false; one naming none; the prototype's own look with no school token]");
+            + "elevation, flags, delta, sort, locked]; the lock with no school token over a prototype naming none, false, true; a locked school "
+            + "token over an unlocked prototype; the prototype's own look with no school token]");
         const source = school();
         T.hallTokenData(base(), source, stage).texture.scaleX = 9;
         equal(J([source.texture.scaleX, ["x", "y", "elevation", "hidden", "flags", "delta", "_id", "sort", "locked", "actorId", "actorLink"]
@@ -15325,7 +15350,7 @@ const INVARIANTS = [
             J([1, false, false]), "[cardElement's calls of cardTicker; a ticker of its own; its word read there]");
     }],
 
-    ["R585 - Foundry tools' sidebar window narrows when Foundry collapses its sidebar: the frame takes the module's collapsed mark from the collapseSidebar hook and from ui.sidebar.expanded when it adopts the sidebar, and under the mark the sidebar's content computes width 0 and hidden by the module's own rule", async () => {
+    ["R585 - Foundry tools' sidebar window narrows when Foundry collapses its sidebar: the frame takes the module's collapsed mark from the collapseSidebar hook and from ui.sidebar.expanded when it adopts the sidebar, and under the mark the sidebar's content computes width 0 and hidden by the module's own rule; a sidebar that does not answer expanded is not collapsed", async () => {
         /*
          * E79 C12 (16.10.2026; the owner's N7 of 14.10: the caret at the rail's foot flipped and the window kept its
          * width). foundry-windows.mjs `markCollapsed` on Foundry tools' frame, on the GM's client:
@@ -15340,6 +15365,9 @@ const INVARIANTS = [
          *     none: v14's name for it is LIVE-E79-15) computes width 0px and visibility hidden; without it, neither.
          *     Literal values, which jsdom's cascade resolves; the width in a browser is the glass harness's
          *     `drpgWindowsCheck` (`collapse`).
+         *   - THE ANSWER (E79 fix r3-G4, 17.10.2026; review round 3's cor E): with stand-ins for `ui.sidebar` while
+         *     the hook gives no answer - one that does not answer `expanded`, one that answers false, one true - the
+         *     mark off, on, off. Red at the parent: the one with no answer marked collapsed.
          * Red before C12: there was no `markCollapsed` (by `ok`). Everything is put back as it was found.
          */
         must(game.user.isGM, "the windows are a GM's, and tier 1 runs on the GM");
@@ -15374,6 +15402,13 @@ const INVARIANTS = [
             const own = [marked(), bar.expanded];
             FW.setFoundryWindow("ftools", true);
             own.push(marked(), bar.expanded);
+            const answers = [];
+            for (const stand of [{}, { expanded: false }, { expanded: true }]) {
+                globalThis.ui.sidebar = stand;
+                try { answers.push(FW.markCollapsed()); } finally { globalThis.ui.sidebar = bar; }
+            }
+            equal(JSON.stringify(answers), JSON.stringify([false, true, false]),
+                "[the mark with a ui.sidebar that does not answer expanded, one that answers false, one that answers true]");
             equal(JSON.stringify([byHook, narrow, wide[0] !== "0px" && wide[1] !== "hidden", adopted, own]),
                 JSON.stringify([[true, false], ["0px", "hidden"], true, [[true, true, true], [true, false, false]], [true, false, false, true]]),
                 "[the mark after collapseSidebar collapsed, expanded; the content's width and visibility under the mark; neither without it; "

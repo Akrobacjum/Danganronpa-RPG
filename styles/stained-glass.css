@@ -3034,8 +3034,11 @@ body.drpg-theme-stained-glass :is(.character-header-sheet .drpg-ultimate-row .dr
    `is-hope` and `is-despair` on its two spans (action-rolls.mjs), so its dice keep their sides.
    The letters stay ink (#07070a); computed with the WCAG formula from the token values on
    16.10.2026, 13.9:1 on #ffd23f and 6.0:1 on #ff3d8b. R587 holds both plates, the critical and
-   the two ratios. Monokuma Legacy already drew them gold and blood (danganronpa.css). No roll
-   card was drawn in a browser for this: LIVE-E79-17. */
+   the two ratios. Monokuma Legacy already drew them gold and blood (danganronpa.css). Drawn in
+   Chromium on 17.10.2026 (E79 fix r3-G4, review round 3's N11d) from dualityBar's markup written
+   out on the glass harness page, a Hope, a Despair and a critical card: the plates read
+   rgb(255, 210, 63) and rgb(255, 61, 139) on all three and the letters rgb(7, 7, 10). A card
+   Foundry posts is still LIVE-E79-17. */
 body.drpg-theme-stained-glass .drpg-duality-die {
     display: inline-grid;
     place-content: center;
@@ -3594,10 +3597,13 @@ body.drpg-theme-stained-glass #drpg-popups .drpg-popup-body {
    along the wall, drawn while a card stands on the tile (`data-drpg-notice`, which popup.mjs
    `setFloor` keeps on the body: a parked or leaving card does not count) - and the card keeps only
    its words and its title's stamp. Where no layer was made (`data-drpg-note-frame`, glass.mjs: no
-   pane, a stacked screen) the card keeps its own plate, the rules above. Two body attributes and not
-   `body:has(...)`: no rule of the module asks `:has` of the body, whose every insertion it would
-   re-ask, and none of the module's body observers watches either name. The glass harness's
-   `drpgNoticeCheck` (`fill`) holds the layer on the polygon, the words inside it and the card bare. */
+   pane, a stacked screen) the card keeps its own plate, the rules above. While two cards stand
+   (`data-drpg-notices`, setFloor's second mark; E79 fix r3-G4, review round 3's cor F and P2) each
+   keeps its accent edge on the one plate, which they share: bare, the two stood with no edge between
+   them. Three body attributes and not `body:has(...)`: no rule of the module asks `:has` of the body,
+   whose every insertion it would re-ask, and none of the module's body observers watches any of them.
+   The glass harness's `drpgNoticeCheck` (`fill`) holds the layer on the polygon, the words inside it
+   and the card bare. */
 #drpg-note-frame {
     display: none;
     pointer-events: none;
@@ -3607,7 +3613,7 @@ body.drpg-theme-stained-glass[data-drpg-notice] #drpg-note-frame {
     background: rgba(7, 6, 11, 0.42);
     box-shadow: inset 3px 0 0 var(--drpg-glass-accent);
 }
-body.drpg-theme-stained-glass[data-drpg-note-frame] #drpg-popups .drpg-popup {
+body.drpg-theme-stained-glass[data-drpg-note-frame]:not([data-drpg-notices]) #drpg-popups .drpg-popup {
     border: 0;
 }
 body.drpg-theme-stained-glass[data-drpg-note-frame] #drpg-popups .drpg-popup-body {

@@ -308,7 +308,11 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
                 box of the card's words inside that polygon within 1 px (`out`: each box read upright and put
                 through the turn the tile wears, since a turned box's client rectangle stands past its corners);
                 the card bare - no background, no border, the body without its plate; with a second card the
-                frame still drawn, with every card closed not drawn. Under Monokuma Legacy and on a stacked screen
+                frame still drawn, with every card closed not drawn; then two short cards: where both are shown, each
+                with its own left edge, and where the second parks, the one shown bare (`edges`, E79 fix r3-G4, review
+                round 3's cor F: bare, two cards stood with no edge between them; measured on 17.10.2026, two short
+                cards stand together at 1920x1080, 1366x768 and 1680x1050 and one parks at 1440x900, and beside the
+                long card the second parks at most desk sizes). Under Monokuma Legacy and on a stacked screen
                 there must be no frame.
      All of it with the tile's turn taken off, as R299 (b) and glass.mjs measure, and in client coordinates, so the
      containing block's offset under Stained Glass (P23; glass.mjs, `LAUNCH_CLEAR`) is the same for both boxes of a
@@ -381,13 +385,19 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
           shut();
           await frame();
           const none = drawn();
+          closers.push(P.showPopup("<p>Edge one</p>", { title: "Edge 1", record: false }), P.showPopup("<p>Edge two</p>", { title: "Edge 2", record: false }));
+          await frame();
+          const edges = shown().map(c => px(getComputedStyle(c).borderLeftWidth));
+          shut();
+          await frame();
           out.fill = { pane: want.map(p => p.map(Math.round)), off: off === null ? null : +off.toFixed(1), lines: boxes.length, out: outside.length, bare, card: corners,
-            plate, drawn: [one, two, none] };
+            plate, drawn: [one, two, none], edges };
           if (!fr) out.why.push("fill: no #drpg-note-frame with a card on the tile");
           else if (off > 1) out.why.push(`fill: the frame's outline is ${off.toFixed(1)} px off the note pane's polygon`);
           if (!boxes.length) out.why.push("fill: no line of the card's words was read");
           if (outside.length) out.why.push(`fill: ${outside.length} of ${boxes.length} line boxes of the card's words outside the note pane`);
           if (!bare) out.why.push(`fill: the card keeps a plate or an edge of its own (body ${plate})`);
+          if (edges.length === 2 ? !edges.every(e => e > 0) : edges.length !== 1 || edges[0] !== 0) out.why.push(`fill: with two short cards the left edges read ${JSON.stringify(edges)} px (want two, each over 0, or one shown at 0)`);
           if (!one || !two || none) out.why.push(`fill: the frame drawn ${one}/${two}/${none} with one card, two cards and none (want true/true/false)`);
         }
       }

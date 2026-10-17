@@ -8057,6 +8057,10 @@ body.drpg-player #scene-controls {
     z-index: var(--z-index-app, 30);
     display: flex;
     flex-direction: column;
+    /* The border inside the box (E79 fix r3-G4): `max-width` here and the cap foundry-windows.mjs writes are the
+       frame's whole size. With the content box a capped frame stood its 1 or 2 px borders past the cap, 676 px for a
+       674 px cap over the cluster at 393x852 (Chromium, 17.10.2026), and a frame at this max-width 2 px off the screen. */
+    box-sizing: border-box;
     max-width: calc(100vw - 16px);
     background: rgba(9, 8, 13, 0.88);
     border: 1px solid color-mix(in srgb, var(--drpg-glass-accent, #8a7fa0) 45%, transparent);
@@ -8091,6 +8095,21 @@ body.drpg-player #scene-controls {
 .drpg-foundry-window-body > #sidebar {
     position: relative;
     height: min(700px, calc(100vh - 110px));
+}
+/* A CAPPED FRAME SHRINKS ITS NODE (E79 fix r3-G4, review round 3's P1). Where neither moving left nor moving up
+   clears the corner cluster, foundry-windows.mjs `clampPlace` cuts the frame to the room above it (`max-height`) or
+   beside it (`max-width`). For the height to reach the node the body is a column that may shrink, and the node with
+   it, from the 700 px stated above: a block body kept the sidebar's height and the frame's foot stood over the
+   cluster's buttons with the sidebar running out of it. Nothing is clipped (R509): what does not fit in Foundry's
+   own sidebar scrolls there as it does in its column. The cap is a placing's and the next placing takes it off. */
+.drpg-foundry-window-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+.drpg-foundry-window-body > #sidebar {
+    min-height: 0;
 }
 /* COLLAPSED IS NARROW (E79 C12, 16.10.2026; the owner's N7 of 14.10). Foundry's rules that take the sidebar's content
    away when its caret collapses it hang off #ui-right, and the node stands in this frame, so the caret flipped and
