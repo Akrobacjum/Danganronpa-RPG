@@ -1,8 +1,15 @@
 # .github/workflows/ci.yml (INFRA I3, 18.10.2026). The 'ci' layer of the release gate, as before
 # (decision D47): lint, tools/check.mjs, the gate's self-test, the suite and every scenario whose layers include
-# "ci" - now spread over parallel jobs so that one push is validated in roughly 10-15 minutes (to be measured on the
-# first runs) instead of today's 32-47 min (the longer of one suite job and one scenarios job, four PR runs at
-# 1.2.71-1.2.77).
+# "ci" - now spread over parallel jobs so that one push is validated in roughly 10-15 minutes instead of today's
+# 32-47 min (the longer of one suite job and one scenarios job, four PR runs at 1.2.71-1.2.77).
+#
+# Measured on the first four runs, 18.10.2026 (push to the last job's end; 18 jobs each, none queued):
+#   run 39095288436 (3f9a835) 953 s, 39096431845 (8b120b5) 957 s, 39096979046 (9ff7fa2) 974 s - each red on suite
+#   7/8 alone (a test's count read another test's trace digest, fixed in the test at 67d2ea7) - and 39099666858
+#   (67d2ea7) 671 s, green. Suite 1/8 was the longest job every time (930, 932, 952, 647 s: it runs tiers 0-1 and
+#   01-runtests' parts A and B beside its eighth of tier 2); the other shards 251-365 s, the scenario buckets
+#   107-365 s, quick 36-56 s, verdict 10-12 s. Why suite 1/8 took 647 s on the fourth run and 930-952 s on the
+#   first three is not measured.
 #
 # Jobs (17-19 at once at most, 20 on a crlf dispatch; the Free plan allows 20 concurrent jobs on standard runners, free for a
 # public repository):
