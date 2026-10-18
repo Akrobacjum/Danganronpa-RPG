@@ -13,9 +13,9 @@ export const layers = ["ci"];
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 
 /*
- * DRPG_SUITE_SHARD=i/n (INFRA I2, 18.10.2026): this run is shard i of n - tier 2's tests at
- * positions k with k % n = i - 1 (tests.mjs `runTests({ shard })`), tiers 0-1 and parts A
- * and B in shard 1 alone. Unset, the run is 1/1, the whole suite, as before. Each shard's
+ * DRPG_SUITE_SHARD=i/n (INFRA I2, 18.10.2026): this run is shard i of n - tiers 0-1 and parts
+ * A and B in shard 1 alone, tier 2's tests at positions k with 2 + k % (n - 1) = i, none in
+ * shard 1 (tests.mjs `runTests({ shard })` and `shardOfPosition`, INFRA I3). Unset, the run is 1/1, the whole suite, as before. Each shard's
  * results file keeps its part (evidence.shard: the shard, the tier-2 names it ran, the whole
  * tier-2 list with its length and hash) for suite-merge.mjs, which holds the parts to that
  * list, each name once.

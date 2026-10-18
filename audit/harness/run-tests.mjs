@@ -9,8 +9,8 @@
  * the GM's client. --tier is 1 when not given, as runTests' own default; --only
  * may be given more than once, and the list goes to runTests whole, where each
  * entry has to name a test in the tiers asked for (tests.mjs `matcherFor`); --shard
- * hands `{ index, count }` on (INFRA I2: tier 2's tests at positions k with
- * k % n = i - 1, tiers 0 and 1 in shard 1 alone). It
+ * hands `{ index, count }` on (INFRA I2: tiers 0 and 1 in shard 1 alone, tier 2's
+ * tests at positions k with 2 + k % (n - 1) = i, none in shard 1). It
  * prints the runner's text between the SUITE OUTPUT lines suite-diff.mjs reads
  * (the whole text: 01-runtests cuts its copy at 30,000 characters), the cluster's
  * own lines only with --verbose, and then one last line:

@@ -18,7 +18,8 @@
 #   quick      run-all.mjs lint check gate
 #   scenarios  one job per bucket: run-all.mjs scenarios --only <name>, for each name of the bucket
 #   suite      one job per shard: run-all.mjs suite with DRPG_SUITE_SHARD=i/N (INFRA I2: tests.mjs deals tier 2
-#              by position, 01-runtests.mjs runs tiers 0-1 and its parts A and B in shard 1 alone)
+#              by position over shards 2..N, 01-runtests.mjs runs tiers 0-1 and its parts A and B in shard 1 alone;
+#              tier 2 was dealt over all N on the four runs below, and suite 1/8 was the last job on each)
 #   verdict    after all of them: the shards' union is the whole suite, once (audit/harness/suite-merge.mjs, which
 #              reads shards/results-suite-<i>/01-runtests.json), every job green
 #   crlf       only on a dispatch with crlf = true (once per train, before its PR; METHOD-lessons change 4): the whole

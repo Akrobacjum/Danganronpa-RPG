@@ -55,8 +55,9 @@ list as `evidence.suite`, as 01 keeps it). Measured 18.10.2026 on 4 cores:
 
 The suite in shards (INFRA I2): `DRPG_SUITE_SHARD=i/n` before `run-all.mjs
 suite` or `cluster.mjs scenarios/01-runtests.mjs` makes the run shard i of n.
-`runTests({ shard })` runs tier 2's tests at positions k with
-k % n = i - 1 of the list (after `only`), and tiers 0 and 1 in shard 1 alone;
+`runTests({ shard })` runs tiers 0 and 1 in shard 1 alone, and tier 2's tests
+at positions k with 2 + k % (n - 1) = i of the list (after `only`), none in
+shard 1 (tests.mjs `shardOfPosition`; INFRA I3, 18.10.2026);
 01-runtests runs its parts A and B (tiers 0-1 mid-game, the default, the tier-2
 window) in shard 1 alone, asks of its skips only that each is listed in
 `skip-baseline.json`, and writes `evidence.shard`: the shard, the tier-2 names it
@@ -67,7 +68,10 @@ list and hash, each name in the shard its position gives it, tiers 0-1 in
 shard 1, the skips together exactly the baseline's, nothing failed; exit 1 with
 what is missing or doubled, 2 when there is nothing to read. Unset, the run is
 1/1, and suite-merge reads its folder as a set of one. Measured 18.10.2026 on 4
-cores: shard 1/8 1087 s wall, 449 tests of tiers 0-1 and 119 of tier 2's 950, with parts A and B, shard 2/8 325 s wall, 119 of tier 2's 950.
+cores, at 47a8f4a: shard 1/8 880 s wall, 450 tests of tiers 0-1 with parts A and
+B, shard 2/8 336 s wall, 136 of tier 2's 950. With tier 2 dealt over all eight
+(k % n = i - 1, until this dealing) shard 1/8 took 1116 s and 2/8 331 s, 119 each;
+on CI's first five runs suite 1/8 took 647-952 s and the others 251-365 s.
 
 ## Layers
 

@@ -112,8 +112,8 @@ let inFlight = false;
  *   `true` included - opens the window, so a line copied from a handbook into a
  *   campaign world still asks.
  * @param {{index: number, count: number}} [options.shard] One part of `count` (INFRA I2):
- *   tier 2's tests, after `only`, at positions k with k % count === index - 1, and
- *   tiers 0 and 1 (the purity line with them) in shard 1 alone. For CI's parallel
+ *   tiers 0 and 1 (the purity line with them) in shard 1 alone, and tier 2's tests,
+ *   after `only`, in the shard `shardOfPosition` gives their position. For CI's parallel
  *   jobs; audit/harness/suite-merge.mjs holds the parts to being the whole suite once.
  * @returns {Promise<{passed: number, failed: number, skipped: number, red: number, text: string,
  *   results: {tier: number, name: string, outcome: "pass"|"fail"|"skip"|"red", message?: string,
@@ -207,6 +207,18 @@ function shardCut(shard) {
     if (shard === null || shard === undefined) return { index: 1, count: 1 };
     const index = Number(shard?.index), count = Number(shard?.count);
     return Number.isInteger(index) && Number.isInteger(count) && count >= 1 && index >= 1 && index <= count ? { index, count } : null;
+}
+
+/**
+ * The shard a tier-2 test at position k of the list runs in, of `count`. Shard 1 runs tiers 0 and 1, and 01-runtests
+ * runs its parts A and B (tiers 0-1 three times more) there alone, so tier 2 is dealt over shards 2..count and none
+ * of it to shard 1; one shard of one runs it all. Dealt over every shard at first (k % count === index - 1): on CI's
+ * first five runs (18.10.2026, 39095288436-39100646452) suite 1/8 took 647-952 s with its 119 of tier 2's 950 and
+ * the other seven 251-365 s, and it was the run's last job every time (INFRA I3).
+ * audit/harness/suite-merge.mjs holds each test to this place, with the same rule written out.
+ */
+function shardOfPosition(k, count) {
+    return count > 1 ? 2 + (k % (count - 1)) : 1;
 }
 
 /** The notice history as this browser stores it, the text itself: "" where nothing is stored. */
@@ -327,7 +339,7 @@ async function runSuite(tier, only = null, cut = { index: 1, count: 1 }) {
     const ledger = await stageLedger();
     const notes = ledger ? [] : ["stage ledger not served by this install: whether a marked stage has shipped was checked at release, not here"];
     if (cut.count > 1) {
-        notes.push(`shard ${cut.index} of ${cut.count}: ${first ? "tiers 0 and 1, and " : ""}tier 2's tests at positions k with k % ${cut.count} = ${cut.index - 1}`);
+        notes.push(`shard ${cut.index} of ${cut.count}: ${first ? "tiers 0 and 1, and " : ""}tier 2's tests at positions k with ${cut.count > 1 ? `2 + k % ${cut.count - 1} = ${cut.index}` : "any k"}`);
     }
 
     // Tier 0 runs at every level, including `{ tier: 1 }` - the round-by-round
@@ -473,7 +485,7 @@ async function runSuite(tier, only = null, cut = { index: 1, count: 1 }) {
                  */
                 const asFound = await worldDump();
                 const reported = new Set();
-                const list = pick(SCENARIOS), mine = list.filter((_, k) => k % cut.count === cut.index - 1);
+                const list = pick(SCENARIOS), mine = list.filter((_, k) => shardOfPosition(k, cut.count) === cut.index);
                 shard.list = list.map(([name]) => name);
                 shard.ran = mine.map(([name]) => name);
                 for (const entry of mine) {

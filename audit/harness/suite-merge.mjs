@@ -14,7 +14,8 @@
  *     on its hash, and their indices are 1..count, each exactly once;
  *   - every shard's copy of the list hashes to the hash it wrote; the names the
  *     shards ran are that list, each name once and in the shard its position gives
- *     it (position k is shard k % count + 1's), none missing and none from outside
+ *     it (position k is shard 2 + k % (count - 1)'s, shard 1 runs none of tier 2;
+ *     a set of one is 1/1 and runs them all - tests.mjs `shardOfPosition`), none missing and none from outside
  *     it, each named; and each name a shard says it ran is a tier-2 test in its
  *     results, and no other is;
  *   - tiers 0 and 1 are in shard 1 and in no other;
@@ -100,7 +101,7 @@ export function mergeShards(dir, baseline) {
     for (const s of shards) for (const name of s.shard.names) ranBy.set(name, [...(ranBy.get(name) ?? []), s.shard.index]);
     const missing = [], doubled = [], misplaced = [];
     list.forEach((name, k) => {
-        const at = ranBy.get(name) ?? [], home = (k % count) + 1;
+        const at = ranBy.get(name) ?? [], home = count > 1 ? 2 + (k % (count - 1)) : 1;
         if (!at.length) { if (byIndex.has(home)) missing.push(`${name} (shard ${home})`); }
         else if (at.length > 1) doubled.push(`${name} (shards ${at.join(", ")})`);
         else if (at[0] !== home) misplaced.push(`${name} (shard ${at[0]}, its place is shard ${home})`);
