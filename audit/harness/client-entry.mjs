@@ -645,6 +645,109 @@ function installDualityRoll(DualityRoll, diceTypes) {
         countdownProgressionTypes: { actionRoll: { id: "actionRoll" }, fear: { id: "fear" } }
     });
     globalThis.CONFIG.DH.TRIGGER = { triggers: { dualityRoll: { id: "dualityRoll" }, fearRoll: { id: "fearRoll" } } };
+    wrapWindowCosts(DualityRoll.DefaultDialog);
+}
+
+/*
+ * THE ROLL WINDOW'S COSTS AND USES DECIDE ROLL (E16 p1 C0, 18.10.2026). The window's stand-in
+ * (lib/dh-dice/applications/dialogs/d20RollDialog.mjs, whose header still says it leaves this out)
+ * answers `canRoll: true` always, so a window Daggerheart greys out - S02-04: an experience clicked
+ * at 0 Hope - rolled here, and no test of the module's forced costs could fail. Read in 2.10.5's
+ * d20RollDialog.mjs `_prepareContext` (:85-107 of the tag) with costField.mjs and usesField.mjs:
+ * with costs, `CostField.calcCosts` fills each one's total, enabled and max from the actor's
+ * resources, `canRoll` is `CostField.hasCost` of them, and the first cost's total becomes the roll
+ * data's `scale`; with `uses.max`, `canRoll` also needs `UsesField.hasUses`. Wrapped onto the stand-in
+ * here at boot, after its own context, because no byte under lib/dh-dice/ is edited (STAGE E16
+ * p1's line rule); 2.10.5 does it before the roll's formula, which reads neither the costs nor
+ * `scale` (dualityRoll.mjs, d20Roll.mjs: no `scale`, grep 18.10).
+ *
+ * As written there, a cost whose key the actor holds no resource for (not Fear) throws a TypeError
+ * in `calcCosts`, here too (S02-04's unlocked case). Taken out: the costs' labels (:90-95, not in the
+ * stand-in's markup), an inventory item's quantity filter and an item's own resource (`itemId`):
+ * both of the action, which the stand-in does not look up; `calcUses`'s remaining uses and a formula
+ * as `uses.max` (no action to read them from; no module code sets `config.uses`, grep 18.10). A
+ * resource's `isReversed`, which Daggerheart's prepared actor carries (creature.mjs, from
+ * `CONFIG.DH.RESOURCE`'s `reverse`) and the harness's source-data actors do not (lib/seed.mjs), is
+ * taken from the same table here, so a Stress cost counts up as there. On a roll with no actor -
+ * every roll the harness throws (the stand-in's THE PLAYER) - nothing of it runs: 2.10.5's
+ * `{ actor: undefined }` would throw on the first cost, and a table's roll has its actor. A GM's
+ * own window holds no costs, so its Roll stays as it was. Whether 2.6.5 or a later Daggerheart
+ * computes the same is LIVE-E16-01's: not measured. Measured on a scratch tier-2 probe (18.10, the
+ * GM's window on a character at Hope 2, Fear 0): a Fear cost of 1 greys Roll out, a Stress cost of 1
+ * leaves it on (its max 6), a cost keyed to no resource throws in `_prepareContext` (the shim logs
+ * it and draws Roll off); before this wrap all three windows had Roll on.
+ */
+function costResources(actor) {
+    const resources = U.deepClone(actor.system.resources ?? {});
+    if (actor.system.partner) resources.hope = U.deepClone(actor.system.partner.system.resources.hope);
+    const table = globalThis.CONFIG.DH.RESOURCE?.[actor.type]?.all ?? {};
+    for (const [key, resource] of Object.entries(resources)) {
+        if (resource && typeof resource === "object" && !("isReversed" in resource) && table[key]) resource.isReversed = table[key].reverse;
+    }
+    return resources;
+}
+
+/* costField.mjs `calcCosts` (2.10.5), without the item's quantity filter. */
+function calcCosts(actor, costs) {
+    const resources = costResources(actor);
+    const fear = () => game.settings.get(globalThis.CONFIG.DH.id, globalThis.CONFIG.DH.SETTINGS.gameSettings.Resources.Fear);
+    return costs.map(c => {
+        c.scale = c.scale ?? 0;
+        c.step = c.step ?? 1;
+        c.total = c.value + c.scale * c.step;
+        c.enabled = Object.hasOwn(c, "enabled") ? c.enabled : true;
+        c.max = c.key === "fear" ? fear()
+            : resources[c.key].isReversed ? resources[c.key].max - resources[c.key].value : resources[c.key].value;
+        if (c.scalable) c.maxStep = Math.floor((c.max - c.value) / c.step);
+        return c;
+    });
+}
+
+/* costField.mjs `getRealCosts` and `hasCost` (2.10.5), whole. */
+function hasCost(actor, costs) {
+    const merged = [];
+    for (const c of U.deepClone(costs).filter(c => c.enabled)) {
+        const same = merged.find(m => m.key === c.key);
+        if (same) same.total += c.total;
+        else merged.push(c);
+    }
+    const fearAt = merged.findIndex(c => c.key === "fear");
+    if (fearAt > -1) {
+        const fearCost = merged.splice(fearAt, 1)[0];
+        if (!game.user.isGM || fearCost.total > game.settings.get(globalThis.CONFIG.DH.id, globalThis.CONFIG.DH.SETTINGS.gameSettings.Resources.Fear)) return false;
+    }
+    const resources = costResources(actor);
+    // As written there: `a &&` binds to the reversed test alone, so a false so far is dropped at a
+    // cost on a resource that counts the other way.
+    return merged.reduce((a, c) => !resources[c.key] ? a
+        : a && resources[c.key].isReversed ? resources[c.key].value + (c.total ?? c.value) <= resources[c.key].max
+            : resources[c.key]?.value >= (c.total ?? c.value), true);
+}
+
+/* usesField.mjs `hasUses` (2.10.5), its max a number. */
+function hasUses(uses) {
+    if (!uses) return true;
+    return (Object.hasOwn(uses, "enabled") && !uses.enabled) || uses.value + 1 <= Number(uses.max ?? 0);
+}
+
+function wrapWindowCosts(Dialog) {
+    const prepare = Dialog.prototype._prepareContext;
+    Dialog.prototype._prepareContext = async function _prepareContext(options) {
+        const context = await prepare.call(this, options);
+        const actor = this.actor;
+        if (!actor) return context;
+        if (this.config.costs?.length) {
+            const updated = calcCosts(actor, this.config.costs);
+            context.costs = updated;
+            context.canRoll = hasCost(actor, updated);
+            this.config.data.scale = this.config.costs[0].total;
+        }
+        if (this.config.uses?.max) {
+            context.uses = { ...this.config.uses, enabled: Object.hasOwn(this.config.uses, "enabled") ? this.config.uses.enabled : true };
+            context.canRoll = context.canRoll && hasUses(context.uses);
+        }
+        return context;
+    };
 }
 
 /* A statistic's value off the character, as the harness's formula and message read it. */

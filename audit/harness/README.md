@@ -253,7 +253,11 @@ part of a roll comes from:
   import: `applications/dialogs/d20RollDialog.mjs` (since E33 C2b a stand-in
   shaped as the window - its config, its roll, the markup the module's hooks
   read and its actions, the hooks fired through the shim's render and close;
-  its header says what it leaves out), `helpers/utils.mjs` (two of Daggerheart's helpers, and two that throw
+  its header says what it leaves out; since E16 p1 C0 its Roll is greyed out
+  from the costs and uses against the actor's resources, as 2.10.5's
+  `_prepareContext` greys it, by a wrap client-entry.mjs `wrapWindowCosts`
+  puts on the class at boot - an assumption about the table's Daggerheart that
+  LIVE-E16-01 checks), `helpers/utils.mjs` (two of Daggerheart's helpers, and two that throw
   if a copy ever calls them), `data/action/baseAction.mjs` (the
   `ResourceUpdateMap` of `lib/daggerheart.mjs`); in client-entry.mjs
   (`installDualityRoll`): the roll and the dice registered where Daggerheart
@@ -268,8 +272,9 @@ the summary its throw leaves in the config, `extraDice`, the resource step
 (critical.mjs's patch of it included) and a live reroll's settlement run for
 real, and the window's choices reach them as its actions make them (E33 C2b).
 Not run: the window's form (a select changed, a formula typed), its chat card,
-triggers and countdowns, anything read off the roll data's `parent` (no effect
-makes a critical certain, no rally die), and every roll at a table.
+triggers and countdowns, anything read off the roll data's `parent` but the
+window's costs (no effect makes a critical certain, no rally die), and every
+roll at a table.
 
 ## What the harness cannot do
 
