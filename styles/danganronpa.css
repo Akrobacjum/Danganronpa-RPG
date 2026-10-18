@@ -7043,6 +7043,73 @@ body.drpg-pixel-font .drpg-action-button .drpg-action-cost {
     white-space: nowrap;
 }
 
+/* NO TITLE SETS THE WINDOW'S WIDTH (the owner, 04.10; E16 C2, 18.10.2026). The rules above
+   bound the heading and truncate the title bar, and both still counted toward the width a window
+   of `width: auto` takes from its content: a long title widened the window up to its ceiling.
+   `contain: inline-size` takes their text out of that sum, and the flex growth gives them the
+   room the rest of the window makes. Only the computed `contain` is read here (tier 2, "a
+   player's locked roll window ..."); what a table's window does with a long title is LIVE-E16-02. */
+.application.roll-selection .window-header .window-title,
+.application.roll-selection .dialog-header h1 {
+    contain: inline-size;
+    flex: 1 1 auto;
+}
+
+/* THE TITLE BAR IS A BAR, NOT A PANE (audit S01-22; E16 C2). At 70% (stained-glass.css,
+   Foundry's windows) the roll window's title read over what lay under it - a sheet's numbers,
+   the incident card's names. 92% here: under the glass its own ground's colour written out, as
+   the same `background` shorthand on a selector one class above that rule's (stained-glass.css
+   loads later; in the harness's jsdom a `background-color` with `!important` lost to it at 0.7,
+   at that rule's specificity and at this one's); elsewhere the module's Ink. Tier 2 reads the
+   glass's, the theme the harness runs; the bar on a table, in both themes, is LIVE-E16-02. */
+.application.roll-selection > .window-header {
+    background: rgba(var(--drpg-ink-rgb), 0.92) !important;
+}
+
+body.drpg-theme-stained-glass .application.roll-selection:not(.drpg-panel) > .window-header {
+    background: rgba(5, 4, 9, 0.92) !important;
+}
+
+/* The mode select on one line (S01-22: at 70-75 px 'Public as User' spilled over three). */
+.application.roll-selection select[name="selectedMessageMode"] {
+    min-width: 150px;
+    white-space: nowrap;
+}
+
+/* A PLAYER'S LOCKED WINDOW (E16 C2; audits S02-29, S01-17): what the render hook put away is
+   not drawn (roll-dialog.mjs `collapseLocked`), the mode is a chip, one line says what the
+   roll is, and Roll - the one thing left to press - is full Bone. A Free Critical keeps its red. */
+.application.roll-selection .drpg-locked-away {
+    display: none !important;
+}
+
+.application.roll-selection .drpg-mode-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.15rem 0.6rem;
+    border: 1px solid var(--drpg-line-strong);
+    border-radius: 2px;
+    color: var(--drpg-bone);
+    font-size: var(--drpg-text-xs);
+    white-space: nowrap;
+}
+
+.application.roll-selection .drpg-roll-summary-line {
+    margin: 0.5rem 0;
+    color: var(--drpg-bone);
+    text-align: center;
+}
+
+.application.roll-selection.drpg-roll-summary:not(.drpg-forced-critical) button.submit-btn {
+    background: var(--drpg-bone) !important;
+    border-color: var(--drpg-bone) !important;
+    color: var(--drpg-ink) !important;
+}
+
+.application.roll-selection.drpg-roll-summary:not(.drpg-forced-critical) button.submit-btn:hover:not(:disabled) {
+    background: rgba(var(--drpg-bone-rgb), 0.85) !important;
+}
+
 /* THE ROLL DIALOG SPEAKS BONE, NOT DAGGERHEART'S AMBER.
    --------------------------------------------------------------------------
    Measured on the live window: the title, the Reaction Roll chip, both

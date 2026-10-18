@@ -14,19 +14,19 @@
  * name, so a system rename cannot quietly disable this.
  */
 
-import { MODULE_ID } from "./config.mjs";
+import { MODULE_ID, TRAITS, TRAIT_BY_DH } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 // Statically imported: the lock runs inside a synchronous render hook and has no
 // opportunity to await. Neither module reaches back here, so no cycle.
 import { pendingCalls, situationalAdvantage } from "./call-effects.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { isBrokenDown } from "./character.mjs";
-import { debug, warn } from "./utils.mjs";
+import { debug, plural, warn } from "./utils.mjs";
 // One string, and nothing in action-rolls.mjs reaches back here - the roll
 // dialog is opened BY the system, not by that file.
 import { DRPG_ACTION_ROLL, TRAIT_BY_GM } from "./action-rolls.mjs";
 import { LOADED_DIE } from "./forced-roll.mjs";
-import { ROLL_NONCE, noteWindowCalls } from "./private-rolls.mjs";
+import { ROLL_NONCE, noteWindowCalls, rollClaimOf } from "./private-rolls.mjs";
 
 export function registerRollDialog() {
     Hooks.on("renderApplicationV2", onRenderApplication);
@@ -383,11 +383,7 @@ export function onRenderApplication(app, element) {
  * Hope/Despair economy in the first place.
  */
 function reactionHeld(app) {
-    // Where the window draws its reaction chip, and nowhere else: a DualityRoll
-    // whose config does not skip it (d20RollDialog.mjs `showReaction`, 2.10.5 and
-    // 2.6.5, read; header.hbs draws the chip on it).
-    if (!app?.roll || app.config?.skips?.reaction || app.roll.constructor?.name !== "DualityRoll") return false;
-    if (!isStudentRoll(actorOf(app))) return false;
+    if (!drawsReactionChip(app) || !isStudentRoll(actorOf(app))) return false;
     // An action declared it. Leave the chip alone - a player may legitimately
     // want a reaction roll for an action in some corner the guide has not
     // reached, and this is not the place to decide they cannot. Where the GM
@@ -399,22 +395,53 @@ function reactionHeld(app) {
     return !app.config?.[DRPG_ACTION_ROLL];
 }
 
+/** Where the window draws its reaction chip, and nowhere else: a DualityRoll whose config does not skip it (d20RollDialog.mjs `showReaction`, 2.10.5 and 2.6.5, read; header.hbs draws the chip on it). */
+function drawsReactionChip(app) {
+    return Boolean(app?.roll) && !app.config?.skips?.reaction && app.roll.constructor?.name === "DualityRoll";
+}
+
+/*
+ * THE THROWS THEIR HOPE OR DESPAIR DECIDES ARE HELD AT 'ACTION' (E16 C2, 18.10.2026; audit S02-23).
+ * In a crisis action's window and in the murder's opening everything was locked but the Reaction
+ * chip, and those throws are what their Hope and Despair decide (the keys, the Despair penalties):
+ * a reaction earns neither, and nothing on the window said what the chip was doing there. A roll the
+ * GM draws is thrown as an action whatever the chip says (roll-draw.mjs `onGmTerms`), so this is the
+ * window telling the truth, and the chip deciding on a Daggerheart build that draw was not written
+ * for. Which throw it is comes from its claim (private-rolls.mjs `rollClaimOf`, the key `throwDice`
+ * gave it); every other action keeps its chip, as `reactionHeld` explains. Measured in tier 2, "an
+ * opening or crisis throw holds its Reaction chip ...": at c952b92 both chips were unlocked and one
+ * click made the roll a reaction.
+ */
+const HELD_AS_ACTION = new Set(["crisis", "murderOpening"]);
+
+function actionHeld(app) {
+    if (!drawsReactionChip(app) || app.config?.[DRPG_ACTION_ROLL] !== true || !isStudentRoll(actorOf(app))) return false;
+    return HELD_AS_ACTION.has(rollClaimOf(app.config?.[ROLL_NONCE])?.actionKey);
+}
+
 function forceReaction(app) {
-    if (!reactionHeld(app)) return;
     // The dialog's own state, set the way its own handler sets it. Not through
     // a synthetic click on the chip: `toggleReaction` calls `render()`.
-    app.reactionOverride = true;
-    app.config.actionType = "reaction";
+    if (reactionHeld(app)) {
+        app.reactionOverride = true;
+        app.config.actionType = "reaction";
+    } else if (actionHeld(app)) {
+        app.reactionOverride = false;
+        if (app.config.actionType === "reaction") app.config.actionType = "action";
+    }
 }
 
 function paintReaction(root, app) {
     const chip = root.querySelector('[data-action="toggleReaction"]');
-    if (!chip || !reactionHeld(app)) return;             // template moved, or not held
+    const held = !chip ? null : reactionHeld(app) ? "reaction" : actionHeld(app) ? "action" : null;
+    if (!held) return;                                   // template moved, or not held
     // Painted here as well: a window that could not be wrapped drew the chip before
-    // the config said reaction, and there may not be another render.
-    chip.classList.add("selected", "drpg-locked");
-    chip.querySelector("i")?.classList?.replace("fa-regular", "fa-solid");
-    chip.dataset.tooltip = game.i18n.localize("DRPG.RollDialog.reactionLocked");
+    // the config said what it is, and there may not be another render.
+    const reaction = held === "reaction";
+    chip.classList.toggle("selected", reaction);
+    chip.classList.add("drpg-locked");
+    chip.querySelector("i")?.classList?.replace(reaction ? "fa-regular" : "fa-solid", reaction ? "fa-solid" : "fa-regular");
+    chip.dataset.tooltip = game.i18n.localize(reaction ? "DRPG.RollDialog.reactionLocked" : "DRPG.RollDialog.actionLocked");
     chip.addEventListener("click", stop, { capture: true });
 }
 
@@ -737,6 +764,73 @@ function lockControls(root, app) {
     // Roll mode: privacy is enforced by the module, not chosen per roll.
     const mode = root.querySelector('select[name="selectedMessageMode"]');
     if (mode) disable(mode, "DRPG.RollDialog.modeLocked");
+
+    if (!game.user?.isGM) collapseLocked(root, app, actor, armed);
+}
+
+/*
+ * A PLAYER'S LOCKED WINDOW IS ONE LINE AND ROLL (E16 C2, 18.10.2026; audits S02-29, S01-17, S01-22).
+ * With the lock on, a student's window was the dice, the experiences, advantage, the trait, the bonus
+ * and the roll mode, every one greyed out, and one live Roll: a player looking for the one button that
+ * did something read a wall of controls it could not touch, and the locked mode select spilled over
+ * three lines into the formula. So for a player every section with no control left to use is put away
+ * (a Call that opens one - the experiences, the trait - keeps its section), the mode select becomes a
+ * chip that says what it is, and one line says what the roll is: the trait, what modifies it, the
+ * formula ('Body, no modifiers - 1d12 + 1d12'); where advantage is forced its reason is the line's
+ * tooltip, as it was the chip's. The locks above stay on whatever is put away. A GM sees the whole
+ * window. Read off the cascade jsdom computes (tier 2, "a player's locked roll window is one summary
+ * line ..."; at c952b92 every section was shown, with no line and no chip); what a table's Daggerheart
+ * draws in both themes at 1366x768 is LIVE-E16-02.
+ */
+const PUT_AWAY = "drpg-locked-away";
+
+function usable(el) {
+    return !el.disabled && !el.readOnly && !el.classList.contains("drpg-locked");
+}
+
+function collapseLocked(root, app, actor, armed) {
+    root.classList.add("drpg-roll-summary");
+    for (const section of root.querySelectorAll(".dices-section, .dice-select, fieldset")) {
+        const controls = section.querySelectorAll("select, input, button, [data-action]");
+        if (controls.length && ![...controls].some(usable)) section.classList.add(PUT_AWAY);
+    }
+
+    const mode = root.querySelector('select[name="selectedMessageMode"]');
+    if (mode && !usable(mode) && !mode.parentElement?.querySelector(".drpg-mode-chip")) {
+        const chip = document.createElement("span");
+        chip.className = "drpg-mode-chip";
+        chip.textContent = mode.value === "public"
+            ? game.i18n.localize("DRPG.RollDialog.modePublic")
+            : (mode.selectedOptions?.[0]?.textContent?.trim() || mode.value);
+        chip.dataset.tooltip = game.i18n.localize("DRPG.RollDialog.modeLocked");
+        mode.classList.add(PUT_AWAY);
+        mode.after(chip);
+    }
+
+    if (root.querySelector(".drpg-roll-summary-line")) return;
+    const formula = root.querySelector(".formula-label");
+    const line = document.createElement("p");
+    line.className = "drpg-roll-summary-line";
+    const { sign, count, capped, sources } = advantageSources(app, actor);
+    line.textContent = summaryOf(app, actor, armed, sign, count, formula?.textContent?.trim() ?? "");
+    if (sign !== 0) line.dataset.tooltip = game.i18n.localize(explainAdvantage(sign, count, capped, sources));
+    const anchor = formula ?? root.querySelector(".roll-dialog-controls");
+    if (anchor) anchor.before(line);
+    else (root.querySelector(".roll-dialog-container") ?? root).append(line);
+    formula?.classList.add(PUT_AWAY);
+}
+
+/** 'Body, no modifiers - 1d12 + 1d12': the trait, what modifies the roll, the formula the window drew. */
+function summaryOf(app, actor, armed, sign, count, formula) {
+    const dh = app.config?.roll?.trait;
+    const trait = TRAITS[TRAIT_BY_DH[dh]]?.label ?? TRAITS[dh]?.label ?? null;
+    const parts = [];
+    if (sign !== 0) parts.push(plural(`DRPG.RollDialog.summary.${sign > 0 ? "advantage" : "disadvantage"}`, { n: count }));
+    const bonus = bonusOf(app, actor, armed);
+    if (bonus) parts.push(game.i18n.format("DRPG.RollDialog.summary.bonus", { bonus }));
+    const what = [trait, parts.length ? parts.join(", ") : game.i18n.localize("DRPG.RollDialog.summary.none")]
+        .filter(Boolean).join(", ");
+    return formula ? `${what} - ${formula}` : what;
 }
 
 /*

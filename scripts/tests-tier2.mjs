@@ -53506,6 +53506,158 @@ const SCENARIOS = [
             "a Find Passage thrown through the window lost its findPassage, its action, or its roll (the roll in hand's action and findPassage, the total's type)");
     }],
 
+    ["an opening or crisis throw holds its Reaction chip at action with its reason and another action leaves it alone (S02-23)", async () => {
+        /*
+         * E16 p1 C2, 18.10.2026; audit S02-23 (E16-10). In the windows of a crisis action and of the murder's
+         * opening everything was locked but the Reaction chip, and those throws are decided by their Hope or
+         * Despair: a reaction earns neither, and a player could click the chip on a roll it does not fit. A
+         * student's three throws through Daggerheart's window (`rollTrait` with the key and context the module
+         * throws them with - murder-rules.mjs `resolveCrisisAction` and the opening; Analyze as the other
+         * action), the lock on, the suite's skip of the window off as in A10's test. At each window's first
+         * render the chip is read and then clicked as a player would. Read, each: the chip selected, locked,
+         * its tooltip, and whether the window's roll is a reaction after the click. At c952b92: the crisis
+         * and the opening as [false, false, null, true], as Analyze.
+         */
+        const [actor] = cast(1);
+        const rolls = await import("./action-rolls.mjs");
+        const lockWas = game.settings.get(MODULE_ID, SETTINGS.lockRollDialog);
+        const rolling = game.drpg.suiteRolling;
+        const { gameSettings } = CONFIG.DH.SETTINGS;
+        const fear = game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear);
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        const throws = [["crisis", { actionKey: "crisis", context: { crisis: "strike" } }],
+            ["murderOpening", { remember: false, actionKey: "murderOpening", context: { side: "killer" } }],
+            ["analyze", { actionKey: "analyze", context: {} }]];
+        const read = {}, outcomes = [];
+        let seen = null;
+        const hook = Hooks.on("renderApplicationV2", (app, element) => {
+            if (!seen || seen.done || !element?.classList?.contains?.("roll-selection")) return;
+            seen.done = true;
+            const chip = element.querySelector('[data-action="toggleReaction"]');
+            if (!chip) { seen.read = "no reaction chip"; return; }
+            const before = [chip.classList.contains("selected"), chip.classList.contains("drpg-locked"), chip.dataset.tooltip ?? null];
+            chip.click();
+            seen.read = [...before, app.config?.actionType === "reaction" || app.reactionOverride === true];
+        });
+        try {
+            if (!lockWas) await game.settings.set(MODULE_ID, SETTINGS.lockRollDialog, true);
+            game.drpg.suiteRolling = false;
+            globalThis.__forceRoll = { hope: 9, fear: 4 };
+            for (const [key, options] of throws) {
+                seen = { done: false, read: "no window" };
+                outcomes.push(await rolls.rollTrait(actor, "body", options));
+                read[key] = seen.read;
+            }
+        } finally {
+            Hooks.off("renderApplicationV2", hook);
+            game.drpg.suiteRolling = rolling;
+            if (hadForce) globalThis.__forceRoll = force;
+            else delete globalThis.__forceRoll;
+            await settle();
+            for (const outcome of outcomes) await (outcome?.raw?.message ?? null)?.delete?.();
+            if (game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear) !== fear) await game.settings.set(CONFIG.DH.id, gameSettings.Resources.Fear, fear);
+            if (game.settings.get(MODULE_ID, SETTINGS.lockRollDialog) !== lockWas) await game.settings.set(MODULE_ID, SETTINGS.lockRollDialog, lockWas);
+        }
+        const held = [false, true, game.i18n.localize("DRPG.RollDialog.actionLocked"), false];
+        equal(stableJson(read), stableJson({ analyze: [false, false, null, true], crisis: held, murderOpening: held }),
+            "a crisis or opening window let its Reaction chip be clicked or did not say why, or another action's chip was held (each: selected, locked, tooltip, a reaction after the click)");
+    }],
+
+    ["a player's locked roll window is one summary line and Roll while a GM's stays whole (S02-29 S01-17 S01-22)", async () => {
+        /*
+         * E16 p1 C2, 18.10.2026; audits S02-29, S01-17 and S01-22 (E16-11 to E16-13). With the lock on a
+         * student's window was a wall of greyed controls - dice, experiences, advantage, the trait, the bonus,
+         * the roll mode - and one live Roll; the locked mode select spilled over three lines and the title bar
+         * let what is under the window show through. Daggerheart's window (`rollWindow`, the harness's stand-in)
+         * opened by this GM for a student's Body action roll, the lock on: read as the GM drew it, then drawn
+         * again from its own context and handed to the render hook while this browser reads as a player
+         * (`asConsole`); the same with a Support armed, and with an Experience Call armed. A title bar and its
+         * title are planted in the window to read the stylesheet's answer for them (the stand-in draws no frame).
+         * Read, from the cascade jsdom computes (no layout headless; the look on a table is LIVE-E16-02): which
+         * of the dice, experiences and modifiers sections are not displayed, the summary line and its tooltip,
+         * the mode select displayed, the chip beside it, Roll disabled; for the GM the mode select's min-width
+         * and white-space; the title bar's alpha and the title's and the heading's `contain`. At c952b92 the
+         * player's window was the GM's (no section away, no line, the select shown, no chip), the select's
+         * min-width "auto" and white-space "", the bar at 0.7 (the glass's) and both `contain` "none".
+         */
+        const RD = await import("./roll-dialog.mjs");
+        const [actor] = cast(1);
+        const { DRPG_ACTION_ROLL } = await import("./action-rolls.mjs");
+        const lockWas = game.settings.get(MODULE_ID, SETTINGS.lockRollDialog);
+        const SECTIONS = [".dices-section", ".experience-container", ".modifier-container"];
+        const shown = el => Boolean(el) && getComputedStyle(el).display !== "none";
+        const view = root => {
+            const line = root.querySelector(".drpg-roll-summary-line");
+            const mode = root.querySelector('select[name="selectedMessageMode"]');
+            return {
+                away: SECTIONS.filter(sel => root.querySelector(sel) && !shown(root.querySelector(sel))),
+                line: line ? [line.textContent.trim(), line.dataset.tooltip ?? null] : null,
+                mode: [shown(mode), root.querySelector(".drpg-mode-chip")?.textContent?.trim() ?? null],
+                roll: root.querySelector("button.submit-btn")?.disabled ?? null
+            };
+        };
+        const formulaOf = root => root.querySelector(".formula-label")?.textContent?.trim() ?? null;
+        const asPlayer = async win => {
+            const context = await win.app._prepareContext({});
+            await win.app._replaceHTML(await win.app._renderHTML(context), win.app.element);
+            asConsole(() => RD.onRenderApplication(win.app, win.app.element));
+            return view(win.element);
+        };
+        const read = {};
+        let call = null, win = null, formula = null, supported = null;
+        try {
+            if (!lockWas) await game.settings.set(MODULE_ID, SETTINGS.lockRollDialog, true);
+            win = await (await rollWindow(actor, { [DRPG_ACTION_ROLL]: true, roll: { trait: "strength" } })).open();
+            must(win.element?.querySelector(".experience-container"), `${actor.name}'s window offers no experience - this would measure nothing`);
+            read.gm = view(win.element);
+            formula = formulaOf(win.element);
+            const mode = win.element.querySelector('select[name="selectedMessageMode"]');
+            read.gmMode = mode ? [getComputedStyle(mode).minWidth, getComputedStyle(mode).whiteSpace] : null;
+            const header = document.createElement("header");
+            header.className = "window-header";
+            header.innerHTML = '<h1 class="window-title">A title long enough to want the whole screen for itself</h1>';
+            win.element.prepend(header);
+            const alpha = Number(/,\s*([\d.]+)\s*\)\s*$/.exec(getComputedStyle(header).backgroundColor)?.[1] ?? 0);
+            const heading = document.createElement("h1");
+            win.element.querySelector(".dialog-header")?.append(heading);
+            read.title = [alpha >= 0.85, getComputedStyle(header.querySelector(".window-title")).contain || null,
+                getComputedStyle(heading).contain || null];
+            header.remove();
+            heading.remove();
+            read.player = await asPlayer(win);
+            await win.cancel();
+            win = null;
+            call = await c3Call(actor, C3_SUPPORT);
+            win = await (await rollWindow(actor, { [DRPG_ACTION_ROLL]: true, roll: { trait: "strength" } })).open();
+            read.support = await asPlayer(win);
+            supported = formulaOf(win.element);
+            await win.cancel();
+            win = null;
+            await call.spend();
+            call = await c3Call(actor, { key: "experience", kind: "hope", grants: "experience" });
+            win = await (await rollWindow(actor, { [DRPG_ACTION_ROLL]: true, roll: { trait: "strength" } })).open();
+            read.experience = (await asPlayer(win)).away;
+        } finally {
+            await win?.cancel();
+            await call?.spend();
+            if (game.settings.get(MODULE_ID, SETTINGS.lockRollDialog) !== lockWas) await game.settings.set(MODULE_ID, SETTINGS.lockRollDialog, lockWas);
+        }
+        const L = key => game.i18n.localize(key);
+        const { plural } = await import("./utils.mjs");
+        // The Support's die is in the formula its window drew (`supported`), checked below to be more than the plain one.
+        equal(stableJson(read), stableJson({
+            experience: [".dices-section", ".modifier-container"],
+            gm: { away: [], line: null, mode: [true, null], roll: false },
+            gmMode: ["150px", "nowrap"],
+            player: { away: SECTIONS, line: [`Body, ${L("DRPG.RollDialog.summary.none")} - ${formula}`, null], mode: [false, L("DRPG.RollDialog.modePublic")], roll: false },
+            support: { away: SECTIONS, line: [`Body, ${plural("DRPG.RollDialog.summary.advantage", { n: 1 })} - ${supported}`, L("DRPG.RollDialog.forcedByCall")],
+                mode: [false, L("DRPG.RollDialog.modePublic")], roll: false },
+            title: [true, "inline-size", "inline-size"]
+        }), "a player's locked window kept a locked section or had no summary, a GM's lost one, the mode select or the title bar is not as S01-22 asks, or a title can set the width (see the comment for each key)");
+        ok(/\dd12/.test(formula ?? "") && typeof supported === "string" && supported.length > formula.length,
+            `the window's formula names no d12, or the Support's adds nothing to it (${formula}; ${supported})`);
+    }],
+
     ...GRID
 ];
 

@@ -2827,7 +2827,21 @@
       "pickOneExperience": "Pick the one experience this roll relates to. Clicking another moves the choice.",
       "experienceLocked": "Using an experience is the Experience Hope Call - ask the GM to spend it.",
       "bonusLocked": "Situational bonuses are the GM's call.",
-      "modeLocked": "Roll privacy is enforced by the module.",
+      "modeLocked": "Who sees this roll is set by the game, not here.",
+      "modePublic": "Public",
+      "actionLocked": "This roll's Hope or Despair decides what happens next, so it is an action, never a reaction.",
+      "summary": {
+        "none": "no modifiers",
+        "advantage": {
+          "one": "advantage",
+          "other": "advantage ×{n}"
+        },
+        "disadvantage": {
+          "one": "disadvantage",
+          "other": "disadvantage ×{n}"
+        },
+        "bonus": "{bonus} from a Call"
+      },
       "reactionLocked": "A statistic rolled on its own is a reaction: it costs nothing and earns nothing. Hope and Despair come from actions.",
       "unlockedByCall": "Unlocked by a Call you paid for.",
       "freeCritArmed": "Loaded Die is armed. One die is set to 12 and the other is thrown - a very high total, and a critical only if that one comes up 12 as well.",

@@ -2941,7 +2941,25 @@
       "pickOneExperience": "Wybierz jedno doświadczenie, którego dotyczy ten rzut. Kliknięcie innego przenosi wybór.",
       "experienceLocked": "Użycie doświadczenia to Hope Call „Experience” - poproś GM-a, by je wydać.",
       "bonusLocked": "Premie sytuacyjne to decyzja GM-a.",
-      "modeLocked": "Prywatność rzutów wymusza moduł.",
+      "modeLocked": "To, kto widzi ten rzut, ustala gra, nie to okno.",
+      "modePublic": "Publiczny",
+      "actionLocked": "O tym, co stanie się dalej, decyduje Hope albo Despair tego rzutu, więc to akcja, nigdy reakcja.",
+      "summary": {
+        "none": "bez modyfikatorów",
+        "advantage": {
+          "one": "przewaga",
+          "few": "przewaga ×{n}",
+          "many": "przewaga ×{n}",
+          "other": "przewaga ×{n}"
+        },
+        "disadvantage": {
+          "one": "utrudnienie",
+          "few": "utrudnienie ×{n}",
+          "many": "utrudnienie ×{n}",
+          "other": "utrudnienie ×{n}"
+        },
+        "bonus": "{bonus} z Calla"
+      },
       "reactionLocked": "Statystyka rzucona sama w sobie to reakcja: nic nie kosztuje i nic nie daje. Hope i Despair biorą się z akcji.",
       "unlockedByCall": "Odblokowane przez opłacony Call.",
       "freeCritArmed": "Loaded Die uzbrojony. Jedna kość ustawiona na 12, druga rzucana - bardzo wysoki wynik, a krytyk tylko, jeśli i ta wypadnie 12.",
