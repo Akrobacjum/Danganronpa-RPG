@@ -1585,6 +1585,58 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         return true;`, { timeout: 30000 });
     await settle(800);
 
+    /* 7e3. A SECRET DOOR A PLAYER OPENS (E80 C5, 18.10.2026; S16-18, P1-18; the stage's write road "door ds"). Foundry
+       lets a player change a door's state from a console (the harness's server as design A10 reads v14, cluster.mjs),
+       and the GMs' audit lets a token through an open door. The GM draws a secret door across the Cafeteria at x 1500,
+       stands Aiko west of it and turns the audit to "sendBack" (the GM's own writes, not under test). From p1's
+       console, its veto taken off as a console's client would not run it, Aiko's player opens the door and steps her
+       through it in the same breath: the primary GM shuts the door again and sends her back. Then the GM opens the
+       door itself, and the same step stands. */
+    phase("a secret door a player opens", { flow: "secret-passages" });
+    const door = await gm.eval(`const scene = canvas.scene, P = { teleport: true, movementAction: "displace", animate: false };
+        const [wall] = await scene.createEmbeddedDocuments("Wall", [{ c: [1500, 200, 1500, 800], door: 2, ds: 0, move: 20, sight: 20 }]);
+        const t = scene.tokens.get("TOKAIKO000000000");
+        globalThis.__s30door = { id: wall.id, at: { x: t.x, y: t.y }, mode: game.settings.get("${MOD}", "moveAudit") };
+        await t.update({ x: 1300, y: 400 }, P);
+        await game.settings.set("${MOD}", "moveAudit", "sendBack");
+        return { id: wall.id, mode: game.settings.get("${MOD}", "moveAudit") };`, { timeout: 30000 });
+    await settle(1000);
+    const stepThrough = open => p1.eval(`
+        const list = Hooks._hooks.get("preUpdateToken") ?? [], at = list.findIndex(e => e.fn.name === "onPreUpdateToken");
+        const [veto] = at >= 0 ? list.splice(at, 1) : [];
+        let opened = null;
+        try {
+            if (${open}) {
+                try { await canvas.scene.walls.get("${door?.id}").update({ ds: 1 }); opened = "written"; } catch (err) { opened = "denied: " + err.message; }
+            }
+            await canvas.scene.tokens.get("TOKAIKO000000000").update({ x: 1600, y: 400 });
+        } finally { if (veto) list.splice(at, 0, veto); }
+        return { vetoOff: Boolean(veto), opened };`, { timeout: 30000 });
+    const readDoor = `const s = canvas.scene, t = s.tokens.get("TOKAIKO000000000"), w = s.walls.get("${door?.id}");
+        return { door: w?.door ?? null, ds: w?.ds ?? null, at: [t.x, t.y] };`;
+    const forcedDoor = await stepThrough(true);
+    await settle(2000);
+    const doorOnGm = await gm.eval(readDoor), doorOnP1 = await p1.eval(readDoor);
+    check("SECURITY: a player who opens a secret door from the console and steps through it at once finds the door shut again and the token sent back",
+        door?.mode === "sendBack" && forcedDoor.vetoOff && forcedDoor.opened === "written"
+            && JSON.stringify([doorOnGm, doorOnP1]) === JSON.stringify([{ door: 2, ds: 0, at: [1300, 400] }, { door: 2, ds: 0, at: [1300, 400] }]),
+        JSON.stringify({ door, forcedDoor, doorOnGm, doorOnP1 }));
+    await gm.eval(`await canvas.scene.walls.get("${door?.id}").update({ ds: 1 }); return true;`);
+    await settle(1000);
+    const lawfulDoor = await stepThrough(false);
+    await settle(2000);
+    const lawfulOnGm = await gm.eval(readDoor);
+    check("control: through a secret door the GM opened, the same step stands and the door stays open",
+        lawfulDoor.vetoOff && JSON.stringify(lawfulOnGm) === JSON.stringify({ door: 2, ds: 1, at: [1600, 400] }), JSON.stringify({ lawfulDoor, lawfulOnGm }));
+    await gm.eval(`const scene = canvas.scene, was = globalThis.__s30door, P = { teleport: true, movementAction: "displace", animate: false };
+        if (!was) return null;
+        await scene.deleteEmbeddedDocuments("Wall", [was.id]);
+        await scene.tokens.get("TOKAIKO000000000").update(was.at, P);
+        await game.settings.set("${MOD}", "moveAudit", was.mode);
+        delete globalThis.__s30door;
+        return true;`, { timeout: 30000 });
+    await settle(800);
+
     // 7f. remnant.place: who left it, where, and what it points at, rebuilt on the GM. A discarded
     //     item's trace: a Search's names its roll since E08+E28 C15, and is measured below.
     phase("a player's traces", { flow: "trace-remnant" });

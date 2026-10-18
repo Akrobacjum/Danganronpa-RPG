@@ -31,6 +31,22 @@ const isPlain = o => o !== null && typeof o === "object" && !Array.isArray(o);
 /** How far, in pixels, a route may miss a passage's segment and still go through it (the plan's 1 px). */
 export const PASSAGE_TOLERANCE = 1;
 
+/**
+ * Whether a wall is one of Foundry's secret doors (E80 C5, S16): a wall every player's browser holds
+ * as world data, where it stands and that it is a door, and whose state Foundry lets a player change.
+ * The module's passages are the road the map check (fog-diagnostics.mjs `secretDoorRows`) and the
+ * Season setup's 'Convert to passages' (passages-gm.mjs `convertSecretDoors`) point a GM to. Read
+ * against Foundry's constant, the number 2 where the constant is not there (the harness's).
+ */
+export function isSecretDoor(wall) {
+    return Number(wall?.door ?? 0) === (globalThis.CONST?.WALL_DOOR_TYPES?.SECRET ?? 2);
+}
+
+/** A scene's secret doors (`isSecretDoor`), as its walls hold them. */
+export function secretDoorsOn(scene) {
+    return Array.from(scene?.walls ?? []).filter(isSecretDoor);
+}
+
 /** A row's segment, `{ id, wallId, x1, y1, x2, y2 }`, or null when its four numbers are not all finite. */
 function segmentOf(id, row) {
     const seg = row?.passageSeg;

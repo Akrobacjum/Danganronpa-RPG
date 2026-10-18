@@ -3798,6 +3798,25 @@
         "one": "Stopped sharing the cursor for {n} role.",
         "other": "Stopped sharing the cursor for {n} roles."
       },
+      "convertDoors": "Convert to passages",
+      "fixedSecretDoors": {
+        "one": "Converted {n} secret door. A door that stood between two rooms is a secret passage now, and nobody knows it until you give it to a student in the Passages tab.",
+        "other": "Converted {n} secret doors. Each door that stood between two rooms is a secret passage now, and nobody knows it until you give it to a student in the Passages tab."
+      },
+      "secretDoorsPlain": {
+        "one": "{n} of them stood between no two rooms and is a plain wall now.",
+        "other": "{n} of them stood between no two rooms and are plain walls now."
+      },
+      "hideRulers": "Hide",
+      "showRulers": "Show",
+      "fixedRulers": {
+        "one": "The movement ruler is hidden for {n} role.",
+        "other": "The movement ruler is hidden for {n} roles."
+      },
+      "undoneRulers": {
+        "one": "The movement ruler is shown for {n} role again.",
+        "other": "The movement ruler is shown for {n} roles again."
+      },
       "fixed": {
         "one": "Set up {n} character with the starting resources.",
         "other": "Set up {n} characters with the starting resources."
@@ -3833,6 +3852,10 @@
       "hint.scenes": "Room Setup's Scenes tab links the scene the season is played on and the scene the Class Trial is held in. Optional: with none linked the trial is held wherever the table is.",
       "step.cursor": "The GM's pointer is private (recommended)",
       "hint.cursor": "Foundry shows every cursor to the table with a name on it - a live feed of what you are looking at. This turns it off for the two GM roles and leaves the players' pointers alone.",
+      "step.secretDoors": "No Foundry secret doors (recommended)",
+      "hint.secretDoors": "Any player can open a Foundry secret door, and their character walks through it. Convert to passages makes each one an ordinary wall, shut; where it stands between two rooms it is also a secret passage nobody knows yet - give it to a student in the Passages tab. One that stands between no two rooms is a plain wall.",
+      "step.rulers": "The players' movement ruler is hidden (optional)",
+      "hint.rulers": "While a player drags a token, the whole table sees the route it takes - through a secret passage too. Hide takes the ruler from the Player and Trusted Player roles, and Show gives it back. The GM roles keep theirs.",
       "step.mastermind": "The Mastermind (optional)",
       "hint.mastermind": "Who is hiding among the students, and the Final Truth Remnants that prove it. A season without a Mastermind is a legal season - this row never turns red.",
       "resetTitle": "Reset the season",
@@ -4045,6 +4068,10 @@
       "notRooms": {
         "one": "{n} named region is not a room",
         "other": "{n} named regions are not rooms"
+      },
+      "secretDoor": {
+        "problem": "A Foundry secret door",
+        "detail": "Any player can open it. In Season setup, the No Foundry secret doors row's Convert to passages makes it a wall, and a secret passage where it stands between two rooms."
       },
       "notRoom": {
         "problem": "Named, but not a room",

@@ -148,6 +148,23 @@ function canWrite(userId, op) {
          */
         if (action.startsWith("embedded-") && op.embeddedName === "Region") return true;
         /*
+         * A PLAYER'S DOOR (E80 C5, 18.10.2026; S16-18). Foundry lets a player open and close a door that is not
+         * locked - a change of the wall's `ds` alone, from and to no locked state (2) - and refuses every other write
+         * of a wall: v14's BaseWall#canUpdate as design A10 reads it (common/documents/wall.mjs:122-129 on 14.365),
+         * not read here. Refusing it, as this did, hid the road the module answers (passages-gm.mjs
+         * `putBackSecretDoor`); scenario 30 drives a console's opening of a secret door. Whether v14 lets a player
+         * change a secret door's state at a table is LIVE-E80-03.
+         */
+        if (action === "embedded-update" && op.embeddedName === "Wall") {
+            const scene = world.collections.Scene.find(s => s._id === op.docId);
+            if (!scene || roleOf(userId) < 1) return false;
+            return (op.payload ?? []).every(u => {
+                const wall = (scene.walls ?? []).find(w => w._id === u?._id);
+                const keys = Object.keys(u ?? {}).filter(k => k !== "_id");
+                return Boolean(wall) && keys.length === 1 && keys[0] === "ds" && Number(wall.ds ?? 0) !== 2 && Number(u.ds) !== 2;
+            });
+        }
+        /*
          * A PLAYER'S TOKEN (E13 fix r1-F2, 12.10.2026; review r1 sec B). Foundry lets a user whose role
          * the world grants "Create New Tokens" (TOKEN_CREATE) make a token - a drag from the Actors
          * tab - and this harness does not model that permission (lib/shim.mjs `can`). Refusing every

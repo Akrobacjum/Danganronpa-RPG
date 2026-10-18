@@ -53245,6 +53245,72 @@ const SCENARIOS = [
             "[the options of a crossing's write, how many kinds of options every crossing's write had, the first two crossings as the traps are told of them]");
         equal(stableJson(warned), "[]", "the GM's screen was warned of a player's refusal");
     }],
+    ["A10-15 - Foundry's secret doors and the players' rulers on the world: 'Convert to passages' turns a secret door in the wall two rooms of a scene share into an ordinary wall, shut, and a secret passage nobody knows, and one inside a room into a plain wall it names, with none left; a player's opening of a secret door is written shut again through Foundry; Hide and Show of the players' movement rulers write the world's permissions, the movement ruler alone, and the permissions are put back as they were", async () => {
+        /*
+         * E80 C5 (18.10.2026; S16-18, P1-17 to P1-19), R601's reading on Foundry's own documents: a scene of the suite's
+         * own with two rooms and two secret doors, the passages in a world the stores have never opened
+         * (`withGmStoreWorld`), and the world's `core.permissions`, read before and written back after. A player's
+         * opening is handed to the put-back as Foundry's hook would hand it (the sender a player): the suite runs on the
+         * GM, and scenario 30 drives a console's opening from a player's page. v14's own SHOW_RULER, and what a table
+         * sees once it is off, are LIVE-E80-02.
+         */
+        const P = await import("./passages-gm.mjs");
+        const D = await import("./fog-diagnostics.mjs");
+        const SS = await import("./season-setup.mjs");
+        const R = await import("./rooms.mjs");
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const J = stableJson;
+        ok([D.secretDoorRows, P.convertSecretDoors, P.putBackSecretDoor, SS.setPlayerRulers].every(f => typeof f === "function"),
+            "the map check's secret door rows, the conversion, the put-back and the rulers' Hide and Show are not there");
+        const before = foundry.utils.deepClone(game.settings.get("core", "permissions") ?? {});
+        const rest = value => J(Object.fromEntries(Object.entries(value ?? {}).filter(([k]) => k !== "SHOW_RULER")));
+        const mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
+        const room = (name, x) => ({ name, shapes: [{ type: "rectangle", x, y: 0, width: 600, height: 600 }], flags: mark, behaviors: [] });
+        let scene = null, read = null, rulers = null, shared = null, inner = null, spare = null;
+        try {
+            scene = await Scene.create({ name: "SUITE E80 C5 doors", width: 1200, height: 600, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [room("SUITE E80 C5 Hall", 0), room("SUITE E80 C5 Kitchen", 600)]);
+            [shared, inner, spare] = await scene.createEmbeddedDocuments("Wall", [{ c: [600, 100, 600, 300], door: 2, ds: 0, move: 20 },
+                { c: [100, 300, 300, 300], door: 2, ds: 1, move: 20 }, { c: [700, 400, 900, 400], door: 2, ds: 0, move: 20 }]);
+            await settle();
+            read = await E.withGmStoreWorld(`suite-e80-c5-${foundry.utils.randomID(8)}`, async () => {
+                // The spare door a player opens, put back, before the conversion takes it.
+                await spare.update({ ds: 1 });
+                const putBack = await P.putBackSecretDoor(spare, { ds: 1 }, "SUITEPLAYER", { sender: { id: "SUITEPLAYER", isGM: false, active: true } });
+                await settle();
+                const spareAfter = [scene.walls.get(spare.id)?.ds, P.secretDoorHeldShut(spare.id)];
+                const named = D.secretDoorRows(scene).length;
+                const out = await P.convertSecretDoors({ scenes: [scene] });
+                await settle();
+                const id = out?.passages?.find(p => S.passageMapStore.get(p)?.passageWallId === shared.id) ?? null;
+                const row = id ? S.passageMapStore.get(id) : null;
+                return { putBack, spareAfter, named, converted: out?.converted ?? null, plain: (out?.plain ?? []).map(p => p.wallId),
+                    row: row && [row.passageWallId, row.passageSeg, row.rooms, row.state, row.startAccess],
+                    knowers: Object.keys(S.passageAccessStore.entries()).filter(k => id && k.startsWith(`${id}/`)),
+                    walls: [shared, inner].map(w => scene.walls.get(w.id)).map(w => [w?.door, w?.ds, w?.move]),
+                    left: D.secretDoorRows(scene).length };
+            });
+            rulers = [];
+            for (const show of [false, true]) {
+                const n = await SS.setPlayerRulers(show);
+                await settle();
+                const now = game.settings.get("core", "permissions") ?? {};
+                rulers.push([n > 0, [1, 2].map(role => (now.SHOW_RULER ?? []).includes(role)), [3, 4].every(role => (now.SHOW_RULER ?? []).includes(role)), rest(now) === rest(before)]);
+            }
+        } finally {
+            await game.settings.set("core", "permissions", before);
+            await scene?.delete();
+        }
+        equal(J(read), J({ putBack: true, spareAfter: [0, false], named: 3, converted: 3, plain: [inner?.id, spare?.id],
+            row: [shared?.id, { x1: 600, y1: 100, x2: 600, y2: 300 }, ["SUITE E80 C5 Hall", "SUITE E80 C5 Kitchen"], "secret", []],
+            knowers: [], walls: [[0, 0, 20], [0, 0, 20]], left: 0 }),
+        "[the player's opening put back, the spare door after it as [state, held shut], secret doors named, converted, the walls left plain, the passage as [wall, stretch, rooms, state, start access], who knows it, the two walls as [door, state, move], secret doors left]");
+        equal(J(rulers), J([[true, [false, false], true, true], [true, [true, true], true, true]]),
+            "[Hide, then Show, each as [it wrote, the Player and Trusted Player roles hold the ruler, both GM roles hold it, every other permission as it was]]");
+        equal(rest(game.settings.get("core", "permissions")) + J(game.settings.get("core", "permissions")?.SHOW_RULER ?? null),
+            rest(before) + J(before.SHOW_RULER ?? null), "the world's permissions after the test are not the ones it found");
+    }],
     ...GRID
 ];
 

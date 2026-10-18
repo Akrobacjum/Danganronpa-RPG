@@ -53,6 +53,11 @@ import { cardFlag } from "./secret.mjs";
 import { NOTE_FLAG, hasNote } from "./pre-session-note.mjs";
 import { alreadyOpen, handOff } from "./live.mjs";
 import { projectTokensOn } from "./projects-map.mjs";
+// Foundry's secret doors and the players' rulers (E80 C5): the doors as the map holds them, their
+// conversion, and the permissions in force where `core.permissions` names none.
+import { secretDoorsOn } from "./passages.mjs";
+import { convertSecretDoors } from "./passages-gm.mjs";
+import { permissionsInForce } from "./enforced.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -72,6 +77,61 @@ function gmRolesSharingCursor() {
         // put a repair button under a question this cannot answer.
         return [];
     }
+}
+
+/* The two player roles whose movement ruler the `rulers` step hides and shows. */
+const PLAYER_ROLES = [CONST.USER_ROLES.PLAYER, CONST.USER_ROLES.TRUSTED];
+
+/**
+ * The roles that hold Foundry's SHOW_RULER, sorted: as `core.permissions` (`stored`) names them, else
+ * as the permissions in force do (enforced.mjs `permissionsInForce`), else every role from Player up -
+ * the default this module assumes for v14, not read in v14's source (LIVE-E80-02).
+ */
+export function rulerRoles(stored, inForce) {
+    const list = Array.isArray(stored?.SHOW_RULER) ? stored.SHOW_RULER
+        : Array.isArray(inForce?.SHOW_RULER) ? inForce.SHOW_RULER
+            : Object.values(CONST.USER_ROLES).filter(role => role >= CONST.USER_ROLES.PLAYER);
+    return [...new Set(list.map(Number))].sort((a, b) => a - b);
+}
+
+/**
+ * Hide (`show` false) or Show the movement ruler of the Player and Trusted Player roles (E80 C5, S18,
+ * P1-19): a player's ruler, which the whole table sees while a token is dragged, draws a route through
+ * a passage too. Only SHOW_RULER's two player roles change; every other permission and role of
+ * `core.permissions` is written back as it was read. Answers how many of the two roles changed, and
+ * writes nothing when none did. `settings` and `inForce` are the suite's to hand (R601).
+ */
+export async function setPlayerRulers(show, { settings = game.settings, inForce = permissionsInForce() } = {}) {
+    const perms = foundry.utils.deepClone(settings.get("core", "permissions") ?? {});
+    const before = rulerRoles(perms, inForce);
+    const after = show ? [...new Set([...before, ...PLAYER_ROLES])].sort((a, b) => a - b) : before.filter(role => !PLAYER_ROLES.includes(role));
+    const changed = PLAYER_ROLES.filter(role => before.includes(role) !== after.includes(role)).length;
+    if (!changed) return 0;
+    perms.SHOW_RULER = after;
+    await settings.set("core", "permissions", perms);
+    return changed;
+}
+
+/** The player roles that hold the movement ruler now; none when the permissions cannot be read, as `gmRolesSharingCursor`. */
+function playerRolesWithRuler() {
+    try {
+        const roles = rulerRoles(game.settings.get("core", "permissions") ?? {}, permissionsInForce());
+        return PLAYER_ROLES.filter(role => roles.includes(role));
+    } catch {
+        return [];
+    }
+}
+
+/** Each scene with a Foundry secret door, `{ scene, n }`: what the `secretDoors` step names. */
+function scenesWithSecretDoors() {
+    return Array.from(game.scenes ?? []).map(scene => ({ scene, n: secretDoorsOn(scene).length })).filter(({ n }) => n > 0);
+}
+
+/** The `secretDoors` step's Convert: every scene's secret doors (passages-gm.mjs `convertSecretDoors`). Answers how many. */
+async function convertDoorsStep() {
+    const out = await convertSecretDoors();
+    if (out?.plain?.length) ui.notifications.warn(plural("DRPG.Season.secretDoorsPlain", { n: out.plain.length }));
+    return out?.converted ?? 0;
 }
 
 /** A role number as the word core prints for it. */
@@ -419,6 +479,35 @@ export function steps() {
             // counts GM roles that have stopped broadcasting their pointer.
             fixedKey: "DRPG.Season.fixedCursor"
         },
+        /* FOUNDRY'S SECRET DOORS (E80 C5, S16, P1-17). Every player's browser holds a secret door as
+           world data, and Foundry lets a player open it; the module's own road is a passage. Offered,
+           the same shape as the cursor row: Convert makes each an ordinary wall, and a passage nobody
+           knows where it stands between two rooms (passages-gm.mjs `convertSecretDoors`). Read on every
+           scene of the world, as the map check reads the one on screen. */
+        {
+            key: "secretDoors",
+            optional: true,
+            done: !scenesWithSecretDoors().length,
+            missing: () => scenesWithSecretDoors().map(({ scene, n }) => `${scene.name} (${n})`),
+            fix: convertDoorsStep,
+            doKey: "DRPG.Season.convertDoors",
+            fixedKey: "DRPG.Season.fixedSecretDoors"
+        },
+        /* THE PLAYERS' RULERS (E80 C5, S18, P1-19). A player's ruler is drawn for the whole table while a
+           token is dragged, a route through a passage with it. A table that likes the ruler keeps it, so the
+           row is optional, and Show stands beside it once it is hidden (`undo`). */
+        {
+            key: "rulers",
+            optional: true,
+            done: !playerRolesWithRuler().length,
+            missing: () => playerRolesWithRuler().map(roleName),
+            fix: () => setPlayerRulers(false),
+            doKey: "DRPG.Season.hideRulers",
+            fixedKey: "DRPG.Season.fixedRulers",
+            undo: () => setPlayerRulers(true),
+            undoKey: "DRPG.Season.showRulers",
+            undoneKey: "DRPG.Season.undoneRulers"
+        },
         /* A SELF-HOSTED VOICE SERVER'S SECRET IN THE WORLD (S11-59; voice.mjs
            `liveKitSecretWarning`). Only while it is true; a cross with nothing to open,
            because the setting is avclient-livekit's and the repair is choosing a server
@@ -522,10 +611,14 @@ function setupRows(list) {
         // the handler, was logged, and closed and reopened the window for nothing -
         // and brought the GM panel with it. Its hint already says what to do, and
         // creating characters is Foundry's own sidebar rather than a window of ours.
-        const button = step.done || step.inline || !(step.fix || step.open)
-            ? ""
-            : `<button type="button" class="drpg-setup-do" data-step="${step.key}">${
-                esc(game.i18n.localize(step.fix ? "DRPG.Season.doIt" : "DRPG.Season.openIt"))}</button>`;
+        // A row with an `undo` (E80 C5, the rulers) offers it once it is done, its own word on it.
+        const button = step.done
+            ? (step.undo ? `<button type="button" class="drpg-setup-do" data-step="${step.key}" data-undo="1">${
+                esc(game.i18n.localize(step.undoKey))}</button>` : "")
+            : step.inline || !(step.fix || step.open)
+                ? ""
+                : `<button type="button" class="drpg-setup-do" data-step="${step.key}">${
+                    esc(game.i18n.localize(step.doKey ?? (step.fix ? "DRPG.Season.doIt" : "DRPG.Season.openIt")))}</button>`;
 
         // An optional row that is not done is not a failure, so it gets neither
         // the cross nor the "outstanding" styling - a dash and its own note.
@@ -596,7 +689,10 @@ function wireSetupSteps(dialog, onHandOff) {
             const step = steps().find(s => s.key === button.dataset.step);
             if (!step) return;
             try {
-                if (step.fix) {
+                if (button.dataset.undo && step.undo) {
+                    const n = await step.undo();
+                    ui.notifications.info(plural(step.undoneKey, { n }));
+                } else if (step.fix) {
                     const n = await step.fix();
                     ui.notifications.info(plural(step.fixedKey ?? "DRPG.Season.fixed", { n }));
                 } else {

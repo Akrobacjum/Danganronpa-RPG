@@ -32,6 +32,13 @@
  * `tunnelRowFor`); the pick takes it from the tab's 'Tunnel or stairs', the console's create from
  * `shape` and `ends`. A knower's copy carries both ends as it carries a stretch, and the GMs' overlay
  * draws the ends on the floor on screen.
+ *
+ * Since E80 C5 (18.10.2026; S16-17) Foundry's secret doors have a road out: the Season setup's
+ * 'Convert to passages' (`convertSecretDoors`) makes each an ordinary wall, shut, and a passage along
+ * it that nobody knows where it stands between two rooms; and while one stands, the primary GM writes
+ * back any change of its state a player makes (`putBackSecretDoor`, on `updateWall`), the audit reading
+ * it shut until that write lands (`secretDoorHeldShut`). The one Wall write here, and only of `door`
+ * and `ds` on a wall that already is (R560 still holds: no wall is made a secret door or created).
  */
 
 import { MODULE_ID, ACTIONS } from "./config.mjs";
@@ -41,7 +48,7 @@ import { passageMapStore, passageAccessStore, passageLogStore, mastermindStore, 
 import { RECORD, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible } from "./gm-store.mjs";
 import { senderOf } from "./bridge-guards.mjs";
 import { isMonokuma } from "./monokuma.mjs";
-import { secretRowsFrom, sceneGone, endsOf, PASSAGE_TOLERANCE, DOOR_PART } from "./passages.mjs";
+import { secretRowsFrom, sceneGone, endsOf, PASSAGE_TOLERANCE, DOOR_PART, isSecretDoor, secretDoorsOn } from "./passages.mjs";
 import { roomPieces, onLevel, floorsOf, isTrialScene, viewedScene, viewedLevel } from "./rooms.mjs";
 import { regionShapes, inFlatPolygons, distanceToSegment } from "./fog-geometry.mjs";
 import { overlayLayer, clearLayer, overlayColour, dashedLine, overlayDrawer, redrawGmOverlay } from "./gm-overlay.mjs";
@@ -484,6 +491,15 @@ export async function createPassage({ sceneId, wallId, seg = null, rooms = [], l
         ? tunnelRowFor(scene, ends, { rooms, startAccess, taken: endsTakenOn(scene.id, null, stores) })
         : passageRowFor(scene, scene.walls?.get(wallId), { seg, rooms, level, startAccess, taken: takenOn(scene.id, null, stores) });
     if (!row) return refuse(refused);
+    return writeNewPassage(scene, row, stores);
+}
+
+/**
+ * A new passage's write, its row as `passageRowFor` or `tunnelRowFor` made it: the row, its start
+ * access, the knowers' touch, the log's "create" row, and with `tell` the copies sent. Answers its id.
+ * `createPassage`'s, and since E80 C5 `convertSecretDoors`', which sends the copies once for all.
+ */
+async function writeNewPassage(scene, row, stores, { tell = true } = {}) {
     const id = `${scene.id}.${foundry.utils.randomID()}`;
     await stores.map.patch(id, row);
     const at = serverNow(), who = game.user.id;
@@ -492,8 +508,115 @@ export async function createPassage({ sceneId, wallId, seg = null, rooms = [], l
     }
     await touch(knowersOf(id, stores), stores, { door: true });
     await logRow("create", id, null, stores);
-    tellAfter(stores);
+    if (tell) tellAfter(stores);
     return id;
+}
+
+/* -----------------------------------------------------------------------------------------
+ * Foundry's secret doors (E80 C5, 18.10.2026; S16-17, P1-17, P1-18). A secret door is a wall every
+ * player's browser holds - where it stands and that it is a door - and Foundry lets a player change
+ * its state (open or shut; never to or from locked), so a console opens it and a token walks
+ * through. The module's own road is a passage; these are the GM's way from one to the other.
+ * ----------------------------------------------------------------------------------------- */
+
+const DOOR_NONE = () => globalThis.CONST?.WALL_DOOR_TYPES?.NONE ?? 0;
+const DOOR_OPEN = () => globalThis.CONST?.WALL_DOOR_STATES?.OPEN ?? 1;
+const DOOR_CLOSED = () => globalThis.CONST?.WALL_DOOR_STATES?.CLOSED ?? 0;
+
+/**
+ * A wall the conversion made ordinary, as a passage: the whole wall, on the first of the scene's
+ * floors it stands on whose row `passageRowFor` makes (on a scene with no floors, `level` null).
+ * `{ row }` or `{ refused }` with the last floor's reason.
+ */
+function doorPassageRow(scene, wall, stores) {
+    const floors = floorsOf(scene);
+    const levels = floors.length ? floors.filter(f => onLevel(wall, f.id)).map(f => f.id) : [null];
+    let refused = "that wall is on none of the scene's floors.";
+    for (const level of levels) {
+        const made = passageRowFor(scene, wall, { level, taken: takenOn(scene.id, null, stores) });
+        if (made.row) return made;
+        refused = made.refused;
+    }
+    return { refused };
+}
+
+/**
+ * A GM: every secret door of `scenes` (each world scene when none are given) made an ordinary wall,
+ * shut - one Wall write per scene, of `door` and `ds` alone, so it blocks a move and sight as it was
+ * drawn to - and a secret passage along each one that stands between two rooms (`passageRowFor`,
+ * the console's create's rule), with no start access: nobody knows it until a GM grants it. A door
+ * that stands between no two rooms (one inside a room, at the map's edge, on a stretch another
+ * passage holds) stays the plain wall it now is and is named in `plain` with the reason. Answers
+ * `{ converted, passages, plain }`, or null on a player's browser. Run again it finds nothing to do.
+ */
+export async function convertSecretDoors({ scenes = null, stores = PASSAGE_STORES } = {}) {
+    if (!game.user?.isGM) return refuse("only a GM converts the secret doors.");
+    const out = { converted: 0, passages: [], plain: [] };
+    for (const scene of scenes ?? Array.from(game.scenes ?? [])) {
+        const ids = secretDoorsOn(scene).map(wall => wall.id);
+        if (!ids.length) continue;
+        await scene.updateEmbeddedDocuments("Wall", ids.map(_id => ({ _id, door: DOOR_NONE(), ds: DOOR_CLOSED() })));
+        for (const wallId of ids) {
+            HELD_SHUT.delete(wallId);
+            const wall = scene.walls?.get(wallId);
+            if (isSecretDoor(wall)) continue;
+            out.converted += 1;
+            const { row, refused } = doorPassageRow(scene, wall, stores);
+            if (row) out.passages.push(await writeNewPassage(scene, row, stores, { tell: false }));
+            else out.plain.push({ sceneId: scene.id, wallId, why: refused });
+        }
+    }
+    if (out.passages.length) tellAfter(stores);
+    if (out.converted) {
+        warn(`Secret doors: ${out.converted} converted, ${out.passages.length} as secret passages nobody knows yet; `
+            + `${out.plain.length} stand between no two rooms and are plain walls now`
+            + (out.plain.length ? ` (${out.plain.map(p => `${p.sceneId}/${p.wallId}: ${p.why}`).join("; ")}).` : "."));
+    }
+    return out;
+}
+
+/* The secret doors a player changed whose put-back has not landed: the audit reads each shut. */
+const HELD_SHUT = new Set();
+
+/** Whether the primary GM holds this wall shut for the audit (`putBackSecretDoor`): a player's change of it not yet undone. */
+export function secretDoorHeldShut(wallId) {
+    return HELD_SHUT.has(wallId);
+}
+
+/**
+ * The primary GM's answer to a change of a secret door's state (`updateWall`, E80 C5, P1-18): one a
+ * GM made stands, and lets go of a hold; one anybody else made - a player, or a writer this world does
+ * not know as an active user (`senderOf`) - is written back to the state before it (opened: shut;
+ * shut: open), and the door held shut for the audit until that write lands, which lets go of it. On
+ * the primary GM alone: another browser answers false and holds nothing. A
+ * change of no state, or of any wall that is no secret door, is left alone. Answers whether it wrote
+ * the put-back. A put-back that fails keeps the door held shut and is logged. The hold is taken before
+ * the first await: a step the same player sends after the opening is judged against it. Read on
+ * Foundry's documents by A10-15 and from a player's page by scenario 30 7e3; a console's change on v14
+ * is LIVE-E80-03.
+ */
+export async function putBackSecretDoor(wall, change, userId, { sender = senderOf(userId) } = {}) {
+    if (!isPrimaryGm()) return false;
+    if (!isSecretDoor(wall) || !foundry.utils.hasProperty(change ?? {}, "ds")) return false;
+    if (sender?.isGM) {
+        HELD_SHUT.delete(wall.id);
+        return false;
+    }
+    HELD_SHUT.add(wall.id);
+    const back = Number(change.ds) === DOOR_CLOSED() ? DOOR_OPEN() : DOOR_CLOSED();
+    warn(`Secret doors: ${sender?.name ?? userId ?? "somebody"} changed the secret door ${wall.id}${wall.parent?.name ? ` on "${wall.parent.name}"` : ""}; it is put back.`);
+    try {
+        await wall.update({ ds: back });
+    } catch (err) {
+        error(`Could not put the secret door ${wall.id} back; the audit reads it shut`, err);
+    }
+    return true;
+}
+
+/* The primary GM's watch on the secret doors: the hold is taken in the hook's own turn. */
+function onSecretDoorChanged(wall, change, options, userId) {
+    if (!isPrimaryGm()) return;
+    putBackSecretDoor(wall, change, userId).catch(err => error("Could not put a secret door back", err));
 }
 
 /**
@@ -1691,6 +1814,7 @@ export function registerPassagesGm() {
         Hooks.on("updateUser", onUserUpdated);
         onGmStoresAudible(() => retellSoon());
         Hooks.on("updateWall", onWallMoved);
+        Hooks.on("updateWall", onSecretDoorChanged);
         Hooks.on("deleteWall", onWallDeleted);
         Hooks.on("drpgRouteSettled", onRouteSettled);
         redrawGmOverlay("passages");

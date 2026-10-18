@@ -3978,6 +3978,8 @@
         "roomsMarked": "Każdy nazwany region rozstrzygnięty: pokój albo nie",
         "scenes": "Szkoła i sala rozpraw są podpięte",
         "cursor": "Kursor GM-a jest prywatny (zalecane)",
+        "secretDoors": "Brak sekretnych drzwi Foundry (zalecane)",
+        "rulers": "Linijka ruchu graczy jest ukryta (opcjonalnie)",
         "mastermind": "Mastermind (opcjonalnie)",
         "roomCount": "Dość pokoi dla obsady",
         "despairSplit": "Uczniowie są podzieleni po równo między pule"
@@ -3997,6 +3999,8 @@
         "roomsMarked": "Region jest pokojem tylko wtedy, gdy GM zaznaczy „To jest pokój” w Ustawieniach pokoi (karta Drzwi). O tych nazwanych regionach nikt jeszcze nie zdecydował.",
         "scenes": "Karta Sceny w Ustawieniach pokoi podpina scenę, na której toczy się sezon, i scenę, w której odbywa się Class Trial. Opcjonalne: bez podpiętych scen rozprawa odbywa się tam, gdzie akurat jest stół.",
         "cursor": "Foundry pokazuje stołowi każdy kursor z nazwiskiem - transmisja na żywo z tego, na co patrzysz. To wyłącza ją dla dwóch ról GM-a i zostawia kursory graczy w spokoju.",
+        "secretDoors": "Sekretne drzwi Foundry może otworzyć każdy gracz, a jego postać przez nie przejdzie. Zamień na przejścia robi z każdych zwykłą, zamkniętą ścianę; tam, gdzie stały między dwoma pokojami, także tajne przejście, którego jeszcze nikt nie zna - daj je uczniowi na karcie Przejścia. Drzwi, które nie stały między dwoma pokojami, zostają zwykłą ścianą.",
+        "rulers": "Gdy gracz przeciąga żeton, cały stół widzi trasę, którą idzie - także przez tajne przejście. Ukryj zabiera linijkę rolom Gracz i Zaufany gracz, a Pokaż ją oddaje. Role GM-a zachowują swoją.",
         "mastermind": "Kto ukrywa się wśród uczniów i Final Truth Remnants, które to udowodnią. Sezon bez Masterminda to legalny sezon - ten wiersz nigdy nie robi się czerwony.",
         "roomCount": "Około półtora pokoju na gracza, nie licząc korytarzy i sypialni. Mniej zadziała, ale dwie prywatne rozmowy nie mogą toczyć się naraz.",
         "despairSplit": "Bez względu na liczbę Monokum żyjąca obsada powinna być podzielona po równo - najwyżej jeden uczeń różnicy. Tylko rada: obsada, której nie da się podzielić, albo Monokuma, który ma pilnować niebezpiecznej połowy, to decyzja, a nie błąd."
@@ -4076,6 +4080,33 @@
         "few": "Wyłączono udostępnianie kursora dla {n} ról.",
         "many": "Wyłączono udostępnianie kursora dla {n} ról.",
         "other": "Wyłączono udostępnianie kursora dla {n} ról."
+      },
+      "convertDoors": "Zamień na przejścia",
+      "fixedSecretDoors": {
+        "one": "Zamienione sekretne drzwi: {n}. Drzwi, które stały między dwoma pokojami, są teraz tajnym przejściem, którego nikt nie zna, dopóki nie dasz go uczniowi na karcie Przejścia.",
+        "few": "Zamienione sekretne drzwi: {n}. Drzwi, które stały między dwoma pokojami, są teraz tajnymi przejściami, których nikt nie zna, dopóki nie dasz ich uczniom na karcie Przejścia.",
+        "many": "Zamienione sekretne drzwi: {n}. Drzwi, które stały między dwoma pokojami, są teraz tajnymi przejściami, których nikt nie zna, dopóki nie dasz ich uczniom na karcie Przejścia.",
+        "other": "Zamienione sekretne drzwi: {n}. Drzwi, które stały między dwoma pokojami, są teraz tajnymi przejściami, których nikt nie zna, dopóki nie dasz ich uczniom na karcie Przejścia."
+      },
+      "secretDoorsPlain": {
+        "one": "Drzwi, które nie stały między dwoma pokojami i są teraz zwykłą ścianą: {n}.",
+        "few": "Drzwi, które nie stały między dwoma pokojami i są teraz zwykłymi ścianami: {n}.",
+        "many": "Drzwi, które nie stały między dwoma pokojami i są teraz zwykłymi ścianami: {n}.",
+        "other": "Drzwi, które nie stały między dwoma pokojami i są teraz zwykłymi ścianami: {n}."
+      },
+      "hideRulers": "Ukryj",
+      "showRulers": "Pokaż",
+      "fixedRulers": {
+        "one": "Linijka ruchu ukryta dla {n} roli.",
+        "few": "Linijka ruchu ukryta dla {n} ról.",
+        "many": "Linijka ruchu ukryta dla {n} ról.",
+        "other": "Linijka ruchu ukryta dla {n} ról."
+      },
+      "undoneRulers": {
+        "one": "Linijka ruchu znów widoczna dla {n} roli.",
+        "few": "Linijka ruchu znów widoczna dla {n} ról.",
+        "many": "Linijka ruchu znów widoczna dla {n} ról.",
+        "other": "Linijka ruchu znów widoczna dla {n} ról."
       },
       "resetGroupsTitle": "Co znika, a co zostaje",
       "resetGroupsNote": "Odznacz wszystko, czego ten reset ma nie ruszać. Wybór zostaje zapamiętany na następny reset i wraca odznaczony - zaznacz ponownie, a zniknie.",
@@ -4243,6 +4274,10 @@
         "few": "{n} nazwane regiony nie są pokojami",
         "many": "{n} nazwanych regionów nie jest pokojami",
         "other": "{n} nazwanego regionu nie jest pokojem"
+      },
+      "secretDoor": {
+        "problem": "Sekretne drzwi Foundry",
+        "detail": "Każdy gracz może je otworzyć. W Ustawieniach sezonu Zamień na przejścia w wierszu Brak sekretnych drzwi Foundry robi z nich ścianę, a tam, gdzie stoją między dwoma pokojami, także tajne przejście."
       },
       "notRoom": {
         "problem": "Ma nazwę, ale nie jest pokojem",

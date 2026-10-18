@@ -26,7 +26,7 @@ import { SETTINGS } from "./settings.mjs";
 import { warn, error, esc, whisperToGms, primaryGmId } from "./utils.mjs";
 import { isMoveChange, levelOf, onLevel, isPlaceScene } from "./rooms.mjs";
 import { openSegmentsFor, cutSegment, stepCrosses, arrivingPrimary } from "./passages.mjs";
-import { actsAsMastermind } from "./passages-gm.mjs";
+import { actsAsMastermind, secretDoorHeldShut } from "./passages-gm.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { playSfx } from "./sfx.mjs";
 
@@ -130,7 +130,9 @@ function firstWallCrossed(tokenDoc, route, level, open, secret, carried = null) 
         const c = Array.isArray(wall?.c) ? wall.c.map(Number) : [];
         if (c.length < 4 || !c.every(Number.isFinite)) continue;
         if (Number(wall.move ?? 20) === 0) continue;
-        if (Number(wall.door ?? 0) > 0 && Number(wall.ds) === 1) continue;
+        // A secret door a player opened is read shut until the primary GM's put-back lands (E80 C5, P1-18;
+        // passages-gm.mjs `putBackSecretDoor`): the step that follows the opening is judged against it. R601.
+        if (Number(wall.door ?? 0) > 0 && Number(wall.ds) === 1 && !secretDoorHeldShut(wall.id)) continue;
         const whole = { x1: c[0], y1: c[1], x2: c[2], y2: c[3] };
         const pieces = cutSegment(whole, open.filter(seg => seg.wallId === wall.id)) ?? [whole];
         const ends = [{ x: c[0], y: c[1] }, { x: c[2], y: c[3] }];

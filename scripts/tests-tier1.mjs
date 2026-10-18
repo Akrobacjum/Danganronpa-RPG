@@ -16602,6 +16602,148 @@ const INVARIANTS = [
             ["stash", "here", null], ["stash", "away", `the character is not in "${AWAY}": ${student.name}`]]),
             "[the report, where, the GM's refusal] - a passage search's report springs a trap in a room the character is not in");
     }],
+    ["R601 - Foundry's secret doors and the players' rulers (A10-15): the map check names each secret door of a scene and no other door or wall; 'Convert to passages' leaves none on the scenes it is given - each an ordinary wall, shut, that still blocks a move, with a secret passage along its whole length that nobody knows, one that stands between no two rooms a plain wall it names - and run again changes nothing; a player's opening or closing of a secret door is put back the other way, a GM's stands and so does a player's change of any other door, and until the put-back lands the GMs' audit reads the door a player opened as shut; the Season setup offers both rows, Hide takes the movement ruler from the Player and Trusted Player roles and Show gives it back, every other permission and role as it was", async () => {
+        /*
+         * E80 C5 (18.10.2026; S16-18, P1-17 to P1-19). The harms: a secret door is world data, so every player's console
+         * reads where it is and may open it (Foundry lets a player change a door's state), and once it stands open the
+         * GMs' audit let a token through it; a GM who wants them gone had no road but each door by hand; and a player's
+         * ruler, shown to the table, draws the route of a move through a passage. Read on plain objects the suite holds:
+         * a scene of two rooms with two secret doors (one in their shared wall, one inside a room, open), an ordinary
+         * door and a wall, whose `updateEmbeddedDocuments` records; stores of an engine of its own, as R594's; walls whose
+         * `update` records; the audit as R559 reads it; and a settings object of its own - nothing of the world is
+         * written. The road through a real Foundry is A10-15's tier-2 test and scenario 30; v14's own permission defaults
+         * and a console's change of a door on v14 are LIVE-E80-02 and LIVE-E80-03.
+         */
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const P = await import("./passages-gm.mjs");
+        const D = await import("./fog-diagnostics.mjs");
+        const SS = await import("./season-setup.mjs");
+        const A = await import("./movement-audit.mjs");
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const J = stableJson;
+        ok([D.secretDoorRows, P.convertSecretDoors, P.putBackSecretDoor, P.secretDoorHeldShut, SS.setPlayerRulers, SS.rulerRoles].every(f => typeof f === "function"),
+            "the map check's secret door rows, the conversion, the put-back, its hold, and the rulers' Hide and Show are not there");
+        let now = 9_800_000;
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R601GM", isGM: () => true, isPrimary: () => true, worldId: () => "R601WORLD",
+            activeGmIds: () => [], primaryGmId: () => "R601GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => now++,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const def = (h, name) => eng.define({ ...h.spec, name: `r601${name}`, key: `r601${name}`, afterRestore: undefined, exists: undefined });
+        const stores = { map: def(S.passageMapStore, "Map"), access: def(S.passageAccessStore, "Access"), log: def(S.passageLogStore, "Log"),
+            mastermind: eng.define({ name: "r601mm", key: "r601mm", kind: "record", fields: ["actorId"], sync: false, backup: false }) };
+        const region = (name, x, y, w, h) => ({ id: `R601R${name}`, name: `R601 ${name}`, levels: new Set(), behaviors: [],
+            bounds: { x, y, width: w, height: h }, shapes: [{ type: "rectangle", x, y, width: w, height: h }],
+            testPoint: p => p.x >= x && p.x <= x + w && p.y >= y && p.y <= y + h,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === R.ROOM_FLAG ? true : undefined) });
+        const W = (id, c, more = {}) => ({ id, c, move: 20, sight: 20, door: 0, ds: 0, dir: 0, levels: new Set(), ...more });
+
+        // 1. The map check and the conversion, on a scene of two rooms.
+        const walls = [W("R601WS1", [600, 100, 600, 300], { door: 2 }), W("R601WD", [600, 400, 600, 500], { door: 1 }),
+            W("R601WS2", [100, 300, 300, 300], { door: 2, ds: 1 }), W("R601WP", [0, 600, 1200, 600])];
+        const updates = [];
+        const site = { id: "R601SCENE", name: "R601", grid: { size: 100 }, levels: [], dimensions: { width: 1200, height: 700 },
+            regions: [region("Hall", 0, 0, 600, 600), region("Kitchen", 600, 0, 600, 600)],
+            walls: Object.assign(walls, { get: id => walls.find(w => w.id === id) }),
+            updateEmbeddedDocuments: async (name, list) => {
+                updates.push([name, J(list)]);
+                for (const u of list) Object.assign(walls.find(w => w.id === u._id) ?? {}, u);
+                return list;
+            } };
+        const rows = D.secretDoorRows(site);
+        const problem = game.i18n.localize("DRPG.Fog.secretDoor.problem");
+        const ofSite = () => Object.keys(stores.map.entries()).filter(k => k.startsWith(`${site.id}.`)).sort();
+        const first = await P.convertSecretDoors({ scenes: [site], stores });
+        const made = first?.passages?.[0] ?? null;
+        const cells = Object.keys(stores.access.entries()).filter(k => made && k.startsWith(`${made}/`));
+        const wallsAfter = walls.map(w => [w.id, w.door, w.ds, w.move]);
+        const keys = ofSite();
+        const again = await P.convertSecretDoors({ scenes: [site], stores });
+        equal(J([rows.map(r => [r.level, r.problem === problem, r.at]), problem !== "DRPG.Fog.secretDoor.problem"]),
+            J([[["warning", true, { x: 600, y: 200 }], ["warning", true, { x: 200, y: 300 }]], true]),
+            "[each row of the map check's secret doors as [level, the problem's words, where], the words localized] - an ordinary door or wall named, or a secret door missed");
+        equal(J([first?.converted, first?.passages?.length, (first?.plain ?? []).map(p => [p.sceneId, p.wallId, typeof p.why]), updates.map(u => u[0]), wallsAfter]),
+            J([2, 1, [[site.id, "R601WS2", "string"]], ["Wall"],
+                [["R601WS1", 0, 0, 20], ["R601WD", 1, 0, 20], ["R601WS2", 0, 0, 20], ["R601WP", 0, 0, 20]]]),
+            "[converted, passages made, the walls left plain, the writes, each wall as [id, door, state, move]] after 'Convert to passages'");
+        equal(J([keys, stores.map.get(made) ?? null, cells, D.secretDoorRows(site).length]),
+            J([[made], { sceneId: site.id, level: null, shape: "wall", passageWallId: "R601WS1", passageSeg: { x1: 600, y1: 100, x2: 600, y2: 300 },
+                rooms: ["R601 Hall", "R601 Kitchen"], state: "secret", startAccess: [] }, [], 0]),
+            "[the scene's passages, the row, who knows it, secret doors left] - the passage the shared wall's door became");
+        equal(J([again?.converted, again?.passages, again?.plain, updates.length, ofSite()]), J([0, [], [], 1, [made]]),
+            "[converted, passages, plain walls, writes, the scene's passages] when the conversion is run again");
+        const sources = new Map(await otherSources());
+        must(sources.get("fog-diagnostics.mjs")?.length, "fog-diagnostics.mjs is not among the module's sources - this would measure nothing");
+        ok(/\bsecretDoorRows\(scene\)/.test(fnSource(stripComments(sources.get("fog-diagnostics.mjs")), "checkRegions")),
+            "checkRegions does not ask secretDoorRows of the scene it checks");
+
+        // 2. The put-back, and the audit's reading of a door a player opened.
+        const player = { id: "R601U", isGM: false, active: true }, gm = { id: "R601G", isGM: true, active: true };
+        const writes = [];
+        const door = (id, more = {}) => ({ ...W(id, [1500, 0, 1500, 1000], { door: 2, ...more }), update: async data => { writes.push([id, J(data)]); return true; } });
+        const back = async (wall, change, sender) => [await P.putBackSecretDoor(wall, change, sender?.id ?? "R601NOBODY", { sender }), P.secretDoorHeldShut(wall.id)];
+        const S1 = door("R601D1", { ds: 1 }), S2 = door("R601D2"), S3 = door("R601D3", { ds: 1 }), OD = door("R601D4", { door: 1, ds: 1 }), S5 = door("R601D5", { ds: 1 });
+        const users = new Map([[player.id, player], [gm.id, gm]]);
+        const student = { id: "R601A", name: "R601A", type: "character", items: [], getFlag: () => undefined, testUserPermission: (u, level) => level === "OWNER" && u?.id === player.id };
+        const scene = { id: "R601S", name: "R601 scene", grid: { size: 100 }, dimensions: { width: 3000, height: 1000 }, levels: [], walls: [S1],
+            regions: new Set([region("Lab", 0, 0, 3000, 1000)]) };
+        const audit = () => {
+            const token = { id: "R601T", name: "R601 token", x: 1700, y: 400, width: 1, height: 1, elevation: 0, level: undefined, parent: scene, actor: student };
+            const out = A.auditMove(token, { x: token.x, y: token.y }, {}, player.id, { x: 1200, y: 400, elevation: 0 }, {
+                REVERT: M.REVERT, SENT_BACK: M.SENT_BACK, sendBackRefusal: M.sendBackRefusal, roomAt: M.roomAt, stairLinks: () => [],
+                history: [], held: a => a, users, known: {}, mode: "log", mastermind: { get: () => null }, book: { rows: [], told: new Map(), lines: new Map(), dropped: 0 },
+                now: Date.now(), warn: () => {}, sendBack: () => {}, socket: { emit: () => {} }, whisper: () => Promise.resolve() });
+            return out.verdict === "crossed" ? `crossed ${out.wall}` : out.verdict;
+        };
+        const steps = [];
+        try {
+            steps.push(["a player opens", ...(await back(S1, { ds: 1 }, player)), audit()]);
+            steps.push(["the put-back lands", ...(await back(S1, { ds: 0 }, gm))]);
+            steps.push(["a GM opens it", ...(await back(S1, { ds: 1 }, gm)), audit()]);
+            steps.push(["a player closes", ...(await back(S2, { ds: 0 }, player))]);
+            steps.push(["the put-back lands", ...(await back(S2, { ds: 1 }, gm))]);
+            steps.push(["a GM's change of no state", ...(await back(S3, { sight: 0 }, gm))]);
+            steps.push(["a player opens an ordinary door", ...(await back(OD, { ds: 1 }, player))]);
+            steps.push(["somebody the GM does not know opens", ...(await back(S5, { ds: 1 }, null))]);
+        } finally {
+            for (const wall of [S1, S2, S3, OD, S5]) await P.putBackSecretDoor(wall, { ds: wall.ds }, gm.id, { sender: gm });
+        }
+        equal(J([steps, writes]), J([[["a player opens", true, true, "crossed R601D1"], ["the put-back lands", false, false],
+            ["a GM opens it", false, false, "clear"], ["a player closes", true, true], ["the put-back lands", false, false],
+            ["a GM's change of no state", false, false], ["a player opens an ordinary door", false, false], ["somebody the GM does not know opens", true, true]],
+        [["R601D1", J({ ds: 0 })], ["R601D2", J({ ds: 1 })], ["R601D5", J({ ds: 0 })]]]),
+            "[each change as [what, put back, held shut, the audit of a step through the open door], the put-backs written]");
+
+        // 3. The Season setup's two rows, and the rulers' Hide and Show on a settings object of the suite's own.
+        const kept = { "core.permissions": { SHOW_CURSOR: [1, 2], FILES_BROWSE: [3, 4] } };
+        const wrote = [];
+        const settings = { get: (ns, key) => foundry.utils.deepClone(kept[`${ns}.${key}`]),
+            set: async (ns, key, value) => { wrote.push(`${ns}.${key}`); kept[`${ns}.${key}`] = foundry.utils.deepClone(value); return value; } };
+        const ruler = [];
+        const step = async (what, show, inForce = {}) => ruler.push([what, await SS.setPlayerRulers(show, { settings, inForce }), J(kept["core.permissions"])]);
+        await step("hide, nothing stored", false);
+        await step("hide again", false);
+        await step("show", true);
+        kept["core.permissions"] = { SHOW_CURSOR: [1, 2] };
+        await step("hide, the roles in force", false, { SHOW_RULER: [2, 3, 4] });
+        await step("show, stored", true, { SHOW_RULER: [2, 3, 4] });
+        equal(J([ruler, wrote.length]), J([[
+            ["hide, nothing stored", 2, J({ SHOW_CURSOR: [1, 2], FILES_BROWSE: [3, 4], SHOW_RULER: [3, 4] })],
+            ["hide again", 0, J({ SHOW_CURSOR: [1, 2], FILES_BROWSE: [3, 4], SHOW_RULER: [3, 4] })],
+            ["show", 2, J({ SHOW_CURSOR: [1, 2], FILES_BROWSE: [3, 4], SHOW_RULER: [1, 2, 3, 4] })],
+            ["hide, the roles in force", 1, J({ SHOW_CURSOR: [1, 2], SHOW_RULER: [3, 4] })],
+            ["show, stored", 2, J({ SHOW_CURSOR: [1, 2], SHOW_RULER: [1, 2, 3, 4] })]], 4]),
+        "[each press as [what, roles changed, the permissions after], the writes] - Hide and Show of the players' movement rulers");
+        const offered = SS.steps().filter(r => ["secretDoors", "rulers"].includes(r.key))
+            .map(r => [r.key, Boolean(r.optional), typeof r.fix, typeof r.undo, [`DRPG.Season.step.${r.key}`, `DRPG.Season.hint.${r.key}`, r.fixedKey, r.doKey, r.undoKey, r.undoneKey]
+                .filter(Boolean).every(k => game.i18n.has(k) || game.i18n.has(`${k}.other`))]);
+        equal(J(offered), J([["secretDoors", true, "function", "undefined", true], ["rulers", true, "function", "function", true]]),
+            "[each new row of the Season setup as [key, optional, its fix, its undo, every one of its words in the language file]]");
+    }],
 ];
 
 /**
@@ -16637,6 +16779,8 @@ const LITERAL_KEYS = [
     "DRPG.Season.step.roomsMarked", "DRPG.Season.hint.roomsMarked",
     // E13 C5: the row that says whether the school and the trial hall are linked.
     "DRPG.Season.step.scenes", "DRPG.Season.hint.scenes",
+    // E80 C5: the rows of Foundry's secret doors and of the players' rulers.
+    "DRPG.Season.step.secretDoors", "DRPG.Season.hint.secretDoors", "DRPG.Season.step.rulers", "DRPG.Season.hint.rulers",
     "DRPG.Roll.opening.killer", "DRPG.Roll.opening.victim",
     // monocub.mjs labels a row's choices `DRPG.Monocub.<choice>` (E33 C10): the two the table has.
     "DRPG.Monocub.help", "DRPG.Monocub.hinder",
