@@ -123,18 +123,28 @@ export function scenarioDecls(repo) {
     });
 }
 
-/** The stage a version ships: the ledger row carrying it, else the row planned for it. */
-export function stageFor(repo, version) {
+/**
+ * The stages a version ships: every ledger row carrying it, else every row planned for it. A train
+ * (owner O1, 15.10.2026) writes one version to several rows; until 18.10 this answered the first row
+ * only, so a later stage of a train that declared `touches` or `drills` would have been read as
+ * declaring nothing (found writing I10; the self-test's "train" case holds both readers to every row).
+ */
+export function stagesFor(repo, version) {
     let rows = [];
     try { rows = JSON.parse(fs.readFileSync(path.join(repo, "tools", "stages.json"), "utf8")).stages ?? []; } catch { /* no ledger: no stage */ }
-    return rows.find(r => r.version === version) ?? rows.find(r => r.planned === version) ?? null;
+    const shipped = rows.filter(r => r.version === version);
+    return shipped.length ? shipped : rows.filter(r => r.planned === version);
+}
+
+/** The first of stagesFor's rows, or null: kept for a reader that names one stage. */
+export function stageFor(repo, version) {
+    return stagesFor(repo, version)[0] ?? null;
 }
 
 /** Every part the gate has for this tree and version: the live parts, one per local-gate scenario, the drills. */
 export function partsFor(repo, version) {
     const decls = scenarioDecls(repo);
-    const stage = stageFor(repo, version);
-    const drills = new Set([...(stage?.drills ?? []), ...decls.filter(d => d.fixture && d.layers.includes("local-gate")).map(d => d.fixture)]);
+    const drills = new Set([...stagesFor(repo, version).flatMap(s => s.drills ?? []), ...decls.filter(d => d.fixture && d.layers.includes("local-gate")).map(d => d.fixture)]);
     return [
         ...LIVE_PARTS.map(p => ({ ...p })),
         ...decls.filter(d => d.layers.includes("local-gate") && !d.fixture).map(d => ({ id: `sandbox-${d.name}`, layer: "sandbox", scenario: d.file })),
@@ -177,9 +187,10 @@ export function previousTag(repo, version, rev = "HEAD") {
 export function requiredBecause(repo, version, rev = "HEAD") {
     const why = [];
     if (NO_WAIVER.includes(version)) why.push(`${version} is the last stage: it needs a passed gate`);
-    const stage = stageFor(repo, version);
-    const touched = (stage?.touches ?? []).filter(t => DETECTORS[t]);
-    if (touched.length) why.push(`${stage.id} declares it touches ${touched.join(", ")} (tools/stages.json)`);
+    for (const stage of stagesFor(repo, version)) {
+        const touched = (stage.touches ?? []).filter(t => DETECTORS[t]);
+        if (touched.length) why.push(`${stage.id} declares it touches ${touched.join(", ")} (tools/stages.json)`);
+    }
     const prev = previousTag(repo, version, rev);
     if (!prev) { why.push(`no earlier v* tag is an ancestor of ${rev}, so what changed cannot be read`); return why; }
     let changed = [];

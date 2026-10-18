@@ -356,6 +356,13 @@ async function selfTest() {
             ok: written.verdict === "incomplete" && written.parts.length === 5
                 && written.parts.every(p => p.status === "not-run" && (p.layer === "drill" ? p.reason === "no-fixtures" : p.reason === "no-server" && /127\.0\.0\.1:9/.test(p.why)))
                 && written.hmac === null && written.digest === G.digestOf(written) }), { ok: true });
+        await expect("train: the drills and touches of every stage shipping the version are read, not the first row's", async () => {
+            const t = path.join(root, "train"); write(t, "tools/stages.json", JSON.stringify({ stages: [
+                { id: "E96", planned: "1.2.61", version: "1.2.61", shipped: "2026-10-18", touches: null, drills: [] },
+                { id: "E97", planned: "1.2.61", version: "1.2.61", shipped: "2026-10-18", touches: ["sockets"], drills: ["train-world"] }] }));
+            const ids = G.partsFor(t, "1.2.61").map(p => p.id), why = G.requiredBecause(t, "1.2.61", "HEAD");
+            return { ok: ids.includes("drill-train-world") && why.some(w => w.startsWith("E97 declares it touches sockets")) };
+        }, { ok: true });
         const good = playSandbox(base, written);
         const fresh = () => JSON.parse(JSON.stringify(good));
         const v = (doc, opts = {}) => async () => { save(base, doc); return verify({ repo: base, tag, envCheck: ENV_OK, ...opts }); };
