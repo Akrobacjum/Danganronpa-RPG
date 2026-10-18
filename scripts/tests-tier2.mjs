@@ -52878,7 +52878,7 @@ const SCENARIOS = [
         equal(J([refused[0], J(refused[1]) === refused[2], refused[3].length]), J([null, true, 1]),
             "[the Analyze's answer, what the student holds unchanged, the words said] for a Find Passage picked in a Class Trial - it was paid for, or said nothing");
     }],
-    ["A10-18 - 'Go through' a tunnel is carried out on the primary GM at a door's price: the token lands by the far end with teleport, displace and no animation, the crossing is told to the traps, a crossing back pays again; a lock, a seal, the chain, the courtroom, no budget and a spent Eclipse refuse it in the doors' words with nothing written, paid or warned on the GM, as does a tunnel the character does not know; the Mastermind passes the lock, anybody another's bedroom; an Eclipse counts one crossing and costs nothing else; a write that fails gives back exactly what it took", async () => {
+    ["A10-18 - 'Go through' a tunnel is carried out on the primary GM at a door's price: the token lands by the far end with teleport, displace and no animation, the crossing is told to the traps, a crossing back pays again; a lock, a seal, the chain, the courtroom, no budget and a spent Eclipse refuse it in the doors' words with nothing written, paid or warned on the GM, as does a tunnel the character does not know; the Mastermind passes the lock, anybody another's bedroom; an Eclipse counts one crossing and costs nothing else; a write that fails gives back exactly what it took; a token the GMs are putting back, one they hold as standing where the rules refuse and one moved while the price is taken stand at no end", async () => {
         /*
          * E80 C2 (18.10.2026; P1-05 to P1-08, the stage's write roads "token x, y, level" and "price"). The harms: a
          * crossing judged by other rules than a door's, a refusal that still moves, charges or counts, a GM's screen
@@ -52889,6 +52889,11 @@ const SCENARIOS = [
          * stands moves the token to the other end. A failed write is `write` throwing, the one thing handed in. The
          * incident's lock is the doors' `lockedInIncident`, its reason R597's; three real clients and the bridge are
          * scenario 76's tunnel phase. Red at the parent (917280b): no `crossTunnel`.
+         * E80 fix early-C2-G1 (the review's E80-C2-1): the near end judged where the token's document stood, not where
+         * the GMs read it - a console's jump across a wall crossed while its put-back was on its way, and the put-back
+         * landing first in the price's round trip left the token past the wall; a jump the doors refused crossed, and
+         * the GM's write made it lawful at the far end; a move landing while the price was taken was written over.
+         * Red at 272db28: each of the three "crossed", one action paid.
          */
         const P = await import("./passages-gm.mjs");
         const M = await import("./movement.mjs");
@@ -52915,12 +52920,17 @@ const SCENARIOS = [
         const budget = ({ actions = 2, free = false, burst = 0 } = {}) => student.update({ "system.resources.actions.value": actions,
             [`flags.${MODULE_ID}.${FLAGS.freeMoveUsed}`]: !free, [`flags.${MODULE_ID}.${FLAGS.freeActionGrants}`]: burst, [`flags.${MODULE_ID}.${FLAGS.freeMoveGrants}`]: 0 });
         const purse = () => [ACT.actionsLeft(student), ACT.hasFreeMove(student), ACT.freeActionsLeft(student)];
-        let scene = null, token = null, read = null;
-        const writes = [], crossed = [], warned = [];
+        let scene = null, token = null, read = null, release = null, moved = false, paidWrites = 0;
+        const writes = [], crossed = [], warned = [], lawful = [], purseWrites = [];
+        const mode = game.settings.get(MODULE_ID, SETTINGS.moveAudit);
         const onPre = (doc, changes, options) => {
             if (doc.id === token?.id) writes.push([changes.x ?? null, changes.y ?? null, options.teleport ?? null, options.movementAction ?? null, options.animate ?? null]);
         };
         const onCrossed = event => { if (event?.tokenDoc?.id === token?.id) crossed.push([event.from, event.to, event.cost]); };
+        // The student's purse written: its actions, the free Move, a Sprint or a Burst (a price, or a price given back).
+        const onPurse = (doc, changes) => {
+            if (doc.id === student.id && /resources\.actions|freeMove|freeActionGrants/.test(Object.keys(foundry.utils.flattenObject(changes ?? {})).join(" "))) paidWrites += 1;
+        };
         const warn = ui.notifications.warn;
         try {
             scene = await Scene.create({ name: "SUITE E80 C2 a tunnel", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
@@ -52929,6 +52939,7 @@ const SCENARIOS = [
             await settle();
             Hooks.on("preUpdateToken", onPre);
             Hooks.on("drpgRoomCrossed", onCrossed);
+            Hooks.on("preUpdateActor", onPurse);
             ui.notifications.warn = message => { warned.push(String(message)); };
             read = await E.withGmStoreWorld(`suite-e80-c2-${foundry.utils.randomID(8)}`, async () => {
                 const id = await P.createPassage({ sceneId: scene.id, shape: "tunnel", ends: [{ x: 250, y: 250, level: null }, { x: 1450, y: 250, level: null }] }, { scene });
@@ -52972,6 +52983,60 @@ const SCENARIOS = [
                 await setClock({ phase: "dailyLife", eclipse: false });
                 await budget({ actions: 1 });
                 await step("another student, who does not know it", { actorId: other.id });
+                /* Where the GMs read the token, not where its document says (E80 fix early-C2-G1; the review's E80-C2-1).
+                   A player's move as the primary hears it is a GM's write that names the player (`SENT_BACK`, the
+                   bridge's send-back road), which the audit and the judge read as that player's (movement-audit.mjs
+                   `askerOf`), to a spot the token did not stand on a minute ago, so neither honours it as a send-back.
+                   The audit's put-back is held until its step is read: the window the price's round trip leaves open. */
+                const PLACE = { teleport: true, movementAction: "displace", animate: false }, asPlayer = { ...PLACE, [M.SENT_BACK]: asker.id };
+                const aside = async fn => { const n = writes.length; await fn(); await settle(); writes.splice(n); };
+                const unseen = spot => !M.recentPositions(token.id).some(h => h.x === spot.x && h.y === spot.y);
+                const counted = async what => { const n = paidWrites; await step(what); purseWrites.push(paidWrites - n); };
+                must(scene.tokens.get(token.id) === token && game.actors.get(student.id) === student,
+                    "the token or the student the suite holds is not the one the hooks hand on - nothing below would be held");
+                const [inner] = await scene.createEmbeddedDocuments("Wall", [{ c: [1550, 0, 1550, 600] }]);
+                await game.settings.set(MODULE_ID, SETTINGS.moveAudit, "sendBack");
+                await aside(() => token.update({ x: 1600, y: 200 }, PLACE));
+                await budget({ actions: 2 });
+                const tokenWrite = Object.getPrototypeOf(token).update;
+                Object.defineProperty(token, "update", { configurable: true, value: (data, options = {}) => options?.[M.REVERT] && !release
+                    ? new Promise(done => { release = () => { done?.(tokenWrite.call(token, data, options)); done = null; }; }) : tokenWrite.call(token, data, options) });
+                must(unseen({ x: 1300, y: 200 }), "the token stood on the jump's spot a minute ago - it would be honoured as a send-back and this would measure nothing");
+                await aside(async () => { await token.update({ x: 1300, y: 200 }, asPlayer); await until(() => release); });
+                must(release, "the GMs' audit sent nothing back across the wall - this would measure nothing");
+                await counted("a put-back on its way");
+                await aside(async () => { release(); await until(() => token.x === 1600); });
+                delete token.update;
+                // A jump the doors refuse, no put-back (the audit on "log"): the judge's standing turns unlawful.
+                await game.settings.set(MODULE_ID, SETTINGS.moveAudit, "log");
+                await dorm.update({ [`flags.${MODULE_ID}.${M.ROOM_FLAGS.locked}`]: true });
+                must(unseen({ x: 230, y: 230 }), "the token stood on the jump's spot a minute ago - it would be honoured as a send-back and this would measure nothing");
+                await aside(() => token.update({ x: 230, y: 230 }, asPlayer));
+                await dorm.update({ [`flags.${MODULE_ID}.${M.ROOM_FLAGS.locked}`]: false });
+                await budget({ actions: 2 });
+                lawful.push(M.standingOf(token)?.lawful ?? null);
+                await counted("a jump the doors refused");
+                lawful.push(M.standingOf(token)?.lawful ?? null);
+                // A move that lands while the price is taken (here a GM's, made from the price's own write).
+                await aside(() => token.update({ x: 200, y: 200 }, PLACE));
+                await budget({ actions: 2 });
+                await settle();
+                const actorWrite = Object.getPrototypeOf(student).update;
+                Object.defineProperty(student, "update", { configurable: true, value: async (data, options) => {
+                    if (data?.["system.resources.actions.value"] === undefined) return actorWrite.call(student, data, options);
+                    delete student.update;
+                    const n = writes.length;
+                    await token.update({ x: 420, y: 300 }, PLACE);
+                    writes.splice(n);
+                    moved = true;
+                    return student.update(data, options);
+                } });
+                await counted("a move while the price is taken");
+                delete student.update;
+                must(moved, "nothing moved the token while the price was taken - this would measure nothing");
+                await scene.deleteEmbeddedDocuments("Wall", [inner.id]);
+                if (game.settings.get(MODULE_ID, SETTINGS.moveAudit) !== mode) await game.settings.set(MODULE_ID, SETTINGS.moveAudit, mode);
+                await aside(() => token.update({ x: 1400, y: 200 }, PLACE));
                 await budget({ actions: 2 });
                 await step("an action, the write failing", failing);
                 await budget({ actions: 2, burst: 1 });
@@ -52995,8 +53060,13 @@ const SCENARIOS = [
         } finally {
             Hooks.off("preUpdateToken", onPre);
             Hooks.off("drpgRoomCrossed", onCrossed);
+            Hooks.off("preUpdateActor", onPurse);
             ui.notifications.warn = warn;
+            release?.();
+            if (token) delete token.update;
+            delete student.update;
             for (const [key, value] of held) await game.settings.set(MODULE_ID, key, value);
+            if (game.settings.get(MODULE_ID, SETTINGS.moveAudit) !== mode) await game.settings.set(MODULE_ID, SETTINGS.moveAudit, mode);
             await scene?.delete();
             await setClock(clock);
             await settle();
@@ -53014,11 +53084,17 @@ const SCENARIOS = [
             ["into another's bedroom", "crossed", 1, IN_GYM, 0, false, 0, 0],
             ["a seal", "roomSealed", 0, IN_GYM, 0, false, 0, 0], ["the chain", "chained", 0, IN_GYM, 0, false, 0, 0],
             ["the courtroom", "trialLocked", 0, IN_GYM, 1, false, 0, 0], ["another student, who does not know it", "notKnown", 0, IN_GYM, 1, false, 0, 0],
+            ["a put-back on its way", "notAtPassage", 0, "1300,200", 2, false, 0, 0], ["a jump the doors refused", "notAtPassage", 0, "230,230", 2, false, 0, 0],
+            ["a move while the price is taken", "notAtPassage", 0, "420,300", 2, false, 0, 0],
             ["an action, the write failing", "refused", 0, IN_GYM, 2, false, 0, 0], ["a Burst, the write failing", "refused", 0, IN_GYM, 2, false, 1, 0],
             ["the free Move, the write failing", "refused", 0, IN_GYM, 2, true, 0, 0],
             ["an Eclipse crossing", "crossed", 1, IN_DORM, 2, false, 0, 1], ["an Eclipse crossing, the write failing", "refused", 0, IN_DORM, 2, false, 0, 1],
             ...tail, ["beyond the Eclipse's crossings", "eclipseSpent", 0, ends, 2, false, 0, allowance]]),
         "each step as [what, the answer, token writes, where the token stands, actions, the free Move, Bursts, the Eclipse's count]");
+        equal(stableJson(purseWrites), stableJson([0, 0, 2]),
+            "[the writes of the student's purse for the put-back on its way, the jump the doors refused, the move while the price was taken] - a refusal paid, or the price taken was not given back");
+        equal(stableJson(lawful), stableJson([false, false]),
+            "[the judge's standing of the token the doors refused, before its 'Go through' and after] - the GM's write made it lawful at the far end");
         const first = writes[0] ?? [];
         equal(stableJson([first.slice(2), new Set(writes.map(w => stableJson(w.slice(2)))).size, crossed.slice(0, 2)]),
             stableJson([[true, "displace", false], 1, [[DORM, GYM, "action"], [GYM, DORM, "action"]]]),

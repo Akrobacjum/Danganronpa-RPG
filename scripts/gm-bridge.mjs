@@ -1724,7 +1724,7 @@ export const BRIDGE_ACTIONS = table({
         run: handlePassageCross,
         answer: "reply",
         claims: {
-            passageId: "passages-gm.mjs crossTunnel: a secret tunnel of the GMs' records the character knows (or the sender acts as the Mastermind through it, `actsAsMastermind`), else the one notKnown; the token at an end of it, the doors' rules and the price judged on the primary (movement.mjs `tunnelVerdict`, `settleCrossingOnGm`)"
+            passageId: "passages-gm.mjs crossTunnel: a secret tunnel of the GMs' records the character knows (or the sender acts as the Mastermind through it, `actsAsMastermind`), else the one notKnown; the token at an end of it where the GMs read it, the doors' rules and the price judged on the primary (movement.mjs `gmSpotOf`, `tunnelVerdict`, `settleCrossingOnGm`)"
         }
     },
     [ACTION_PASSAGE_FIND]: {

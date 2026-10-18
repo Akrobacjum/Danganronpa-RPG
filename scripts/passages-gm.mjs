@@ -925,11 +925,14 @@ export function crossingWhy(code) {
  * runner's "nothing was carried out" when the write fails). In `serialWrite`, one step per character at a
  * time, so two asks in one breath read the price and the count each after the other's write. The tunnel is
  * a secret tunnel of the GMs' records on a scene that still exists, the same answer as one the character
- * does not know (`notKnown`) otherwise; the token is the character's on that scene. Then the doors' rules
- * (movement.mjs `tunnelVerdict`, with the GMs' rows as `known`, the sender's role as the door's reading -
- * `actsAsMastermind` - and the price left to the next step), the price taken (`settleCrossingOnGm`), the token
- * written beside the far end (`tunnelLanding`) with `teleport`, `displace` and no animation, and on a write
- * that throws the price given back exactly (`refundCrossingOnGm`). A crossing written is told as a door's is
+ * does not know (`notKnown`) otherwise; the token is the character's on that scene, standing where the GMs
+ * read it (movement.mjs `gmSpotOf`: none they are putting back or hold as standing where the rules refuse -
+ * `notAtPassage`; E80 fix early-C2-G1). Then the doors' rules (`tunnelVerdict`, with the GMs' rows as `known`,
+ * the sender's role as the door's reading - `actsAsMastermind` - and the price left to the next step), the
+ * price taken (`settleCrossingOnGm`), the token read again (a move that landed in the price's round trip:
+ * `notAtPassage`, the price given back), the token written beside the far end (`tunnelLanding`) with
+ * `teleport`, `displace` and no animation, and on a write that throws the price given back exactly
+ * (`refundCrossingOnGm`). A crossing written is told as a door's is
  * (`announceCrossingOnGm`: the owner's card and the traps' `drpgRoomCrossed`). Refused, nothing is written,
  * paid or counted, and nothing is said on the GM's screen: the bridge tells the player. `asker` is the
  * bridge's sender (the local road's own user); `stores`, `users` and `write` are the suite's (tier 2 "A10-18").
@@ -947,14 +950,24 @@ export async function crossTunnel({ actorId, passageId } = {}, { asker = null, s
         const mover = { gm: Boolean(asker?.isGM), mastermind: actsAsMastermind(actor, asker, { mastermind: stores.mastermind, users }) };
         const known = secretRowsFrom({ map: stores.map, access: stores.access });
         const passage = { id: passageId, sceneId: row.sceneId };
-        // A character with two tokens on the scene goes through with the one at an end.
-        const judged = Array.from(scene.tokens ?? []).filter(t => t.actorId === actor.id)
-            .map(token => ({ token, verdict: M.tunnelVerdict(actor, passage, token, { mover, known, pay: false }) }));
-        const { token, verdict } = judged.find(j => !j.verdict?.code) ?? judged[0]
-            ?? { token: null, verdict: M.tunnelVerdict(actor, passage, null, { mover, known, pay: false }) };
+        // A character with two tokens on the scene goes through with the one at an end. Where a token stands is the
+        // GMs' reading (movement.mjs `gmSpotOf`, E80 fix early-C2-G1): one they are putting back, or hold as standing
+        // where the rules refuse, stands at no end.
+        const judged = Array.from(scene.tokens ?? []).filter(t => t.actorId === actor.id).map(token => {
+            const at = M.gmSpotOf(token), verdict = M.tunnelVerdict(actor, passage, token, { mover, known, pay: false });
+            return { token, at, verdict: verdict?.code || at ? verdict : { code: "notAtPassage" } };
+        });
+        const { token, at, verdict } = judged.find(j => !j.verdict?.code) ?? judged[0]
+            ?? { token: null, at: null, verdict: M.tunnelVerdict(actor, passage, null, { mover, known, pay: false }) };
         if (verdict?.code) return { refused: crossingWhy(verdict.code) };
         const paid = await M.settleCrossingOnGm(actor, verdict.to);
         if (paid.code) return { refused: crossingWhy(paid.code) };
+        // The price is a round trip, and a move can land in it - a put-back, a jump, a GM's hand. A token the GMs no
+        // longer read where it was judged is not moved from there, and the price goes back.
+        if (!M.gmSpotOf(token, at)) {
+            await M.refundCrossingOnGm(actor, paid.cost).catch(back => error("Could not give a tunnel crossing's price back", back));
+            return { refused: crossingWhy("notAtPassage") };
+        }
         const spot = M.tunnelLanding(token, verdict.far, verdict.to);
         try {
             await write(token, { x: spot.x, y: spot.y, ...(spot.level ? { level: spot.level } : {}) },

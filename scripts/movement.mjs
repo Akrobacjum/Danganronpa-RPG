@@ -909,6 +909,23 @@ export function lawfulRoomOf(tokenDoc) {
 }
 
 /**
+ * Where the primary GM reads this token as standing, for a write it makes from there (E80 fix early-C2-G1; the
+ * review's E80-C2-1): passages-gm.mjs `crossTunnel` judges a tunnel's near end from it and asks again once the
+ * price is taken. `{ x, y, elevation, level }`, or null while the GMs do not read the token where its document
+ * stands: a put-back this browser sent is on its way (`putBack`: the audit's, or a crossing this browser refused),
+ * or the judge holds it as standing where the rules refuse (`standingOf`), which a GM's write from there would
+ * make lawful. Given `was`, a spot read before an await, null too when the token no longer stands on it. The
+ * GMs' sighting (`gmSeen`) is not read apart: by the code it stands elsewhere than the document only while
+ * `putBack` holds the token - `noteGmPosition` moves it to the audit's put-back in the hook that sends one, and
+ * `judgeMove` lets go of the token only in a hook that writes a new sighting. On the primary GM.
+ */
+export function gmSpotOf(tokenDoc, was = null) {
+    if (!tokenDoc?.id || putBack.has(tokenDoc.id) || standingOf(tokenDoc)?.lawful === false) return null;
+    const here = positionOf(tokenDoc);
+    return was && !samePlace(was, here) ? null : here;
+}
+
+/**
  * Veto a room crossing the character cannot pay for.
  *
  * Runs on the client making the change, before anything is saved, so the answer
