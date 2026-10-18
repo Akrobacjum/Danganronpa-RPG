@@ -13170,6 +13170,157 @@ const REGRESSIONS = [
         ok(!/objection/i.test(stripComments(fnSource(src("sheet.mjs"), "addPresentButton"))),
             "the sheet's Present button names no objection");
         ok(!/repaintPresentButtons/.test(stripComments(src("sync.mjs"))), "sync.mjs repaints no Present button");
+    }],
+
+    ["R603 - the handbooks say what E80 built - tunnels and stairs, 'Go through', Find Passage and its Reroll, a Find Stash's Reroll, Make public, the Passages tab's columns, Foundry's secret doors and the players' rulers - as the code does, with the texts the stage names, in English and in Polish", async () => {
+        /*
+         * E80 C7, 18.10.2026 (P1-23). E80 C1-C6 gave a GM tunnels and stairs, a student 'Go through' and Find Passage, a
+         * Reroll that replays a Find Passage or a Find Stash, Make public, three new columns and two Season setup rows,
+         * and the handbooks said none of it: section 9.6 still called a passage "one stretch of a plain wall", and a
+         * player's Analyze still had "three things behind one tile". Each claim is a pair, as R387's: what the code does,
+         * read from its function with comments blanked, and the sentences that say it, one per book that says it. A code
+         * fact that changes fails here with its sentences; a sentence rewritten without the code fails too; and the
+         * stale sentences fail wherever they come back. The texts the stage names (its "Text" rule) are read from both
+         * language files and config.mjs. Each book is asserted to have loaded and each function to have been cut
+         * (`fnSource` fails on a renamed one), so nothing passes on an empty read. What a reader understands of it is
+         * not read here.
+         */
+        const sources = await moduleSources();
+        const code = file => {
+            const text = stripComments(sources.get(file) ?? "");
+            ok(text.length > 0, `${file} was not read - this test measured nothing`);
+            return text;
+        };
+        const gmSrc = code("passages-gm.mjs"), movement = code("movement.mjs"), season = code("season-setup.mjs");
+        const cross = fnSource(gmSrc, "crossTunnel"), verdict = fnSource(movement, "tunnelVerdict"), landing = fnSource(movement, "tunnelLanding");
+        const find = fnSource(gmSrc, "passagesToFind"), analyze = fnSource(code("reroll.mjs"), "settleAnalyze");
+        const facts = {
+            tunnel: /tunnelEndAt\(scene, end, end\?\.level \?\? null, \{ taken \}\)/.test(fnSource(gmSrc, "tunnelRowFor"))
+                && /if \(at\[0\]\.room === at\[1\]\.room\) return \{ refused: TUNNEL_REFUSALS\.oneRoom \};/.test(fnSource(gmSrc, "tunnelRowFor")),
+            goThrough: /requestPassageCross\(\{ actorId: actor\.id, passageId: row\.passage\.id \}\)/.test(fnSource(code("sheet.mjs"), "goThrough"))
+                && /M\.tunnelVerdict\(actor, passage, token,/.test(cross) && /M\.settleCrossingOnGm\(actor, verdict\.to\)/.test(cross)
+                && /M\.refundCrossingOnGm\(actor, paid\.cost\)/.test(cross)
+                && /\{ teleport: true, movementAction: "displace", animate: false \}/.test(cross),
+            doors: /crossingVerdict\(actor, here, to, scene, \{ from: near\.level, to: near\.far\.level \},/.test(verdict)
+                && /via: "passage", known, joined: true, keyed: true/.test(verdict)
+                && /if \(to && !\(mover \? mover\.mastermind : iAmTheMastermind\(\)\)\) \{\s*if \(isLocked\(scene, to\)\)/.test(fnSource(movement, "restrictedFrom")),
+            landing: /for \(let ring = 0; ring <= 3; ring\+\+\)/.test(landing) && /=== room;/.test(landing) && /inside && free\(spot\)/.test(landing),
+            findPassage: ACTIONS.analyze?.passageThreshold === 16,
+            findWhat: /row\.actorIds\.includes\(actor\.id\)\) continue;/.test(find) && /first\(a\.id\) - first\(b\.id\)/.test(find)
+                && /stores\.map\.stampOf\(id, "sceneId"\)/.test(find),
+            reroll: /if \(bookmark\.findStash && !bookmark\.bulletId\) return settleStashFind\(actor, bookmark, after, done\);/.test(analyze)
+                && /resolvePassageSearch\(/.test(code("reroll.mjs")),
+            sound: SFX_EVENTS.passageFound?.label === "A secret passage opens to you"
+                && /finds a secret passage/.test(SFX_EVENTS.passageFound?.hint ?? "") && /showed it to them/.test(SFX_EVENTS.passageFound?.hint ?? ""),
+            public: /export const makePassagePublic = \(passageId, \{ stores = PASSAGE_STORES \} = \{\}\) => setPublic\(passageId, true, stores\);/.test(gmSrc)
+                && /export const makePassageSecret = \(passageId, \{ stores = PASSAGE_STORES \} = \{\}\) => setPublic\(passageId, false, stores\);/.test(gmSrc),
+            columns: /\["rooms", "kind", "shape", "origin", "knows", "start", "state"\]/.test(code("passages-tab.mjs")),
+            secretDoors: /key: "secretDoors",[\s\S]{0,200}fix: convertDoorsStep,\s*doKey: "DRPG\.Season\.convertDoors"/.test(season)
+                && /convertSecretDoors\(/.test(fnSource(season, "convertDoorsStep"))
+                && /findings\.push\(\.\.\.secretDoorRows\(scene\)\);/.test(fnSource(code("fog-diagnostics.mjs"), "checkRegions"))
+                && /^\s*if \(!isPrimaryGm\(\)\) return false;/m.test(fnSource(gmSrc, "putBackSecretDoor")),
+            rulers: /const PLAYER_ROLES = \[CONST\.USER_ROLES\.PLAYER, CONST\.USER_ROLES\.TRUSTED\];/.test(season)
+                && /key: "rulers",[\s\S]{0,400}doKey: "DRPG\.Season\.hideRulers",[\s\S]{0,300}undoKey: "DRPG\.Season\.showRulers"/.test(season)
+        };
+        const SAYS = {
+            en: {
+                gm: {
+                    tunnel: ["or a tunnel or stairs between two rooms on one floor or two", "**+ Tunnel or stairs**, then a click in each of two rooms",
+                        "An end in no room, both ends in one room, or an end on a square where another tunnel already ends is refused."],
+                    goThrough: ["presses **Go through** beside it under **Known passages** on their sheet",
+                        "if the token cannot be moved there, the price is given back"],
+                    doors: ["somebody else's bedroom is passed, while a locked door, a sealed room, Chained, a running incident, a Class Trial",
+                        "The Mastermind passes a locked door and a sealed room this way too."],
+                    landing: ["lands on the far end's square, or the nearest free square of that end's room, on that end's floor"],
+                    findPassage: ["Locate a hidden stash: 16. Find Passage: 16", "**Find Passage.** Analyze's fourth choice, offered in every room and refused in a Class Trial before anything is paid: Head against 16"],
+                    findWhat: ["16 or a critical finds the oldest open secret passage of the student's room on their floor that they do not know",
+                        "The Mastermind finds none: they know them all."],
+                    reroll: ["A Reroll that beats 16 finds once; one that falls below takes back only what its own roll found."],
+                    sound: ["a crossing refused, a secret passage opening to you,"],
+                    public: ["**Make public**, beside Close, gives the passage to every student at once", "**Make secret** gives it back to the students listed in its row alone"],
+                    columns: ["in the columns Rooms, Kind, Shape, Origin, Who knows, At season start and State"],
+                    secretDoors: ["| No Foundry secret doors (recommended) |", "**Convert to passages** makes each one an ordinary wall, shut",
+                        "a secret door a player opens is shut again by the primary GM's browser"],
+                    rulers: ["| The players' movement ruler is hidden (optional) |", "**Hide** takes the movement ruler from the Player and Trusted Player roles, and **Show** gives it back"]
+                },
+                player: {
+                    tunnel: ["Some passages are a tunnel or stairs between two rooms, on one floor or two"],
+                    goThrough: ["press **Go through** beside it under **Known passages**"],
+                    landing: ["you come out by the far end, on its floor"],
+                    findPassage: ["Four things behind one tile:", "**Find Passage.** 16+ or a critical opens to you one secret passage of this room you do not know yet"],
+                    reroll: ["A Reroll of a Find Passage or a Find Stash searches again with the new dice"],
+                    public: ["When a GM makes a passage public, every student knows it"]
+                },
+                brochure: {
+                    findPassage: ["find a hidden stash (16+) or find a secret passage (16+)"]
+                },
+                stale: ["Three things behind one tile", "A secret passage is one stretch of a plain wall between two rooms of one floor:"]
+            },
+            pl: {
+                gm: {
+                    tunnel: ["albo tunel lub schody między dwoma pokojami, na jednym piętrze lub dwóch", "**+ Tunel lub schody**, potem kliknięcie w każdym z dwóch pokoi",
+                        "Koniec poza pokojem, oba końce w jednym pokoju albo koniec na polu, na którym kończy się już inny tunel, są odrzucane."],
+                    goThrough: ["naciska **Przejdź** obok niego pod **Znane tajne przejścia** na karcie postaci",
+                        "jeśli tokenu nie da się tam przesunąć, cena wraca"],
+                    doors: ["cudzą sypialnię przechodzi, a zamknięte drzwi, zapieczętowany pokój, Chained, trwający incydent, Class Trial",
+                        "Mastermind przechodzi tak też przez zamknięte drzwi i zapieczętowany pokój."],
+                    landing: ["ląduje na polu dalszego końca albo na najbliższym wolnym polu pokoju tego końca, na jego piętrze"],
+                    findPassage: ["Znajdź ukrytą skrytkę: 16. Znajdź tajne przejście: 16", "**Znajdź tajne przejście.** Czwarty wybór Analyze, dostępny w każdym pokoju i odrzucany w Class Trial, zanim cokolwiek zostanie zapłacone: Head przeciw 16"],
+                    findWhat: ["16 albo krytyk znajduje najstarsze otwarte tajne przejście pokoju ucznia na jego piętrze, którego uczeń nie zna",
+                        "Mastermind nie znajduje żadnego: zna wszystkie."],
+                    reroll: ["Reroll powyżej 16 znajduje raz; taki, który spada poniżej, zabiera tylko to, co znalazł jego własny rzut."],
+                    sound: ["odrzucone przejście, poznane tajne przejście,"],
+                    public: ["**Ujawnij**, obok Zamknij, daje przejście od razu każdemu uczniowi", "**Utajnij** oddaje je z powrotem tylko uczniom wymienionym w jego wierszu"],
+                    columns: ["w kolumnach Pokoje, Rodzaj, Kształt, Pochodzenie, Kto zna, Na start sezonu i Stan"],
+                    secretDoors: ["| Brak sekretnych drzwi Foundry (zalecane) |", "**Zamień na przejścia** robi z każdych zwykłą, zamkniętą ścianę",
+                        "sekretne drzwi otwarte przez gracza przeglądarka głównego GMa zamyka z powrotem"],
+                    rulers: ["| Linijka ruchu graczy jest ukryta (opcjonalnie) |", "**Ukryj** zabiera linijkę ruchu rolom Gracz i Zaufany gracz, a **Pokaż** ją oddaje"]
+                },
+                player: {
+                    tunnel: ["Niektóre przejścia to tunel lub schody między dwoma pokojami, na jednym piętrze lub dwóch"],
+                    goThrough: ["naciśnij **Przejdź** obok niego pod **Znane tajne przejścia**"],
+                    landing: ["wychodzisz przy dalszym końcu, na jego piętrze"],
+                    findPassage: ["Cztery rzeczy za jednym kafelkiem:", "**Znajdź tajne przejście.** 16+ albo krytyk otwiera przed tobą jedno tajne przejście tego pokoju, którego jeszcze nie znasz"],
+                    reroll: ["Reroll Znajdź tajne przejście albo Znajdź ukrytą skrytkę szuka jeszcze raz nowymi kośćmi"],
+                    public: ["Gdy GM ujawni przejście, zna je każdy uczeń"]
+                },
+                brochure: {
+                    findPassage: ["znajdź ukrytą skrytkę (16+) albo znajdź tajne przejście (16+)"]
+                },
+                stale: ["Trzy rzeczy za jednym kafelkiem", "Tajne przejście to odcinek zwykłej ściany między dwoma pokojami jednego piętra:"]
+            }
+        };
+        const BOOKS = { gm: "gm-handbook", player: "player-handbook", brochure: "player-brochure" };
+        const lang = {};
+        for (const [lc, says] of Object.entries(SAYS)) {
+            const text = {};
+            for (const [book, file] of Object.entries(BOOKS)) {
+                const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${file}.${lc}.md`);
+                ok(res.ok, `docs/handbooks/${file}.${lc}.md did not load`);
+                text[book] = await res.text();
+                ok(text[book].split("\n").length > 10, `docs/handbooks/${file}.${lc}.md is empty - this test measured nothing`);
+            }
+            const measured = {}, expected = {};
+            for (const book of Object.keys(BOOKS)) {
+                for (const [claim, sentences] of Object.entries(says[book])) {
+                    measured[`${book}.${claim}`] = [facts[claim], ...sentences.map(s => text[book].includes(s))];
+                    expected[`${book}.${claim}`] = sentences.map(() => true).concat(true);
+                }
+            }
+            measured.stale = says.stale.map(s => Object.values(text).some(t => t.includes(s)));
+            expected.stale = says.stale.map(() => false);
+            equal(JSON.stringify(measured), JSON.stringify(expected),
+                `the ${lc} handbooks say what E80's code does not do, or leave out what it does, or a stale sentence is back (each claim: [the code, ...its sentences])`);
+            lang[lc] = await fetch(`/modules/${MODULE_ID}/lang/${lc}.json`).then(r => r.json()).then(j => j.DRPG);
+        }
+        const texts = l => [l?.Passage?.list?.cross, l?.Passage?.mark?.to, l?.Analyze?.passageNothing, l?.Analyze?.findPassage, l?.Passage?.pick?.tunnel,
+            l?.Passage?.tab?.makePublic, l?.Passage?.tab?.makeSecret, l?.Season?.convertDoors, l?.Season?.hideRulers, l?.Season?.showRulers];
+        equal(JSON.stringify([texts(lang.en), texts(lang.pl), lang.pl?.Config?.SFX_EVENTS?.passageFound?.label,
+            /znajduje tajne przejście/.test(lang.pl?.Config?.SFX_EVENTS?.passageFound?.hint ?? "") && /pokazał/.test(lang.pl?.Config?.SFX_EVENTS?.passageFound?.hint ?? "")]),
+            JSON.stringify([["Go through", "Secret passage to {room}", "You find no hidden passage here.", "Find Passage", "+ Tunnel or stairs", "Make public", "Make secret", "Convert to passages", "Hide", "Show"],
+                ["Przejdź", "Tajne przejście do: {room}", "Nie znajdujesz tu tajnego przejścia.", "Znajdź tajne przejście", "+ Tunel lub schody", "Ujawnij", "Utajnij", "Zamień na przejścia", "Ukryj", "Pokaż"],
+                "Poznajesz tajne przejście", true]),
+            "the texts the stage names, and the words the handbooks quote ([en], [pl], the Polish Sound row's label, its hint naming a find and a show)");
     }]
 ];
 

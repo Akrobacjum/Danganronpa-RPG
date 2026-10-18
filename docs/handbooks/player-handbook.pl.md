@@ -130,7 +130,7 @@ Zawraca cię:
 
 GM może wyłączyć cenę przejść; wtedy to, które pokoje się łączą, razem ze schodami, ocenia sam poza Eclipse.
 
-**Tajne przejścia.** Niektóre ściany kryją tajne przejście. Gdy twoja postać je zna, twój token przechodzi przez ten odcinek ściany jak przez drzwi, a krok to przejście jak każde inne; dla wszystkich innych to ściana. Tajne przejście prowadzi do cudzej sypialni bez klucza; zamknięte drzwi, zapieczętowany pokój, Chained i Class Trial nadal cię zawracają. Karta postaci wypisuje znane ci przejścia pod **Znane tajne przejścia**: nazwa pokazuje przejście na mapie, a **droga zamknięta** obok niej znaczy, że z miejsca, w którym stoisz, się nie otwiera. **Pokaż tajne przejście** pokazuje je innemu uczniowi w tym samym pokoju, który od tej chwili też może nim przechodzić: nie kosztuje akcji, musi być połączony GM, a GM-owie się o tym dowiedzą. GM może też dać ci tajne przejście, a niektóre znasz od startu sezonu; reset sezonu zostawia ci tylko te. Wszyscy widzą, jak twój token przechodzi, tak jak widzą każdy ruch tokenu.
+**Tajne przejścia.** Niektóre ściany kryją tajne przejście. Gdy twoja postać je zna, twój token przechodzi przez ten odcinek ściany jak przez drzwi, a krok to przejście jak każde inne; dla wszystkich innych to ściana. Tajne przejście prowadzi do cudzej sypialni bez klucza; zamknięte drzwi, zapieczętowany pokój, Chained i Class Trial nadal cię zawracają. Karta postaci wypisuje znane ci przejścia pod **Znane tajne przejścia**: nazwa pokazuje przejście na mapie, a **droga zamknięta** obok niej znaczy, że z miejsca, w którym stoisz, się nie otwiera. **Pokaż tajne przejście** pokazuje je innemu uczniowi w tym samym pokoju, który od tej chwili też może nim przechodzić: nie kosztuje akcji, musi być połączony GM, a GM-owie się o tym dowiedzą. GM może też dać ci tajne przejście, a niektóre znasz od startu sezonu; reset sezonu zostawia ci tylko te. Gdy GM ujawni przejście, zna je każdy uczeń, dopóki GM go nie utajni. Niektóre przejścia to tunel lub schody między dwoma pokojami, na jednym piętrze lub dwóch: koniec w twoim pokoju jest oznaczony "Tajne przejście do:" i pokojem, do którego prowadzi. Stań przy tym końcu i naciśnij **Przejdź** obok niego pod **Znane tajne przejścia**: kosztuje tyle, co drzwi, a wychodzisz przy dalszym końcu, na jego piętrze. Musi być połączony GM. To, co zawraca cię przy drzwiach, zawraca cię i tu, tymi samymi słowami, i nic nie kosztuje. Wszyscy widzą, jak twój token przechodzi, tak jak widzą każdy ruch tokenu.
 
 ### Co widzisz
 
@@ -214,11 +214,12 @@ Dowiadujesz się, co znalazłeś, nigdy jak trudne to było. Ślady powiązane z
 
 ### Analyze - Head, 1 akcja
 
-Trzy rzeczy za jednym kafelkiem:
+Cztery rzeczy za jednym kafelkiem:
 
 - **Zidentyfikuj Truth Bullet.** Zamienia Neutral Truth Bullet w jego prawdziwą kategorię. **Porażka blokuje ten bullet dla ciebie do końca rozdziału** - przekaż kopię komuś innemu, jego kopii twoja porażka nie wiąże.
 - **Poproś o wskazówkę.** Brak dowodów w ręku? Poproś GMa, by cię gdzieś skierował. 14+ kupuje subtelną podpowiedź ("jesteś daleko od celu"), 18+ bezpośrednią ("przeszukaj pomieszczenie z basenem"), krytyk pozwala im zadać ci jedno pytanie ("czy ofiara naprawdę zginęła w tym pokoju?"). Poniżej 14 - bez pomocy.
 - **Znajdź ukrytą skrytkę.** 16+ otwiera przed tobą jedną skrytkę w tym pokoju. GM się dowiaduje; właściciel nie.
+- **Znajdź tajne przejście.** 16+ albo krytyk otwiera przed tobą jedno tajne przejście tego pokoju, którego jeszcze nie znasz: odcinek jego ściany albo koniec tunelu, na twoim piętrze. Poniżej 16 albo gdy żadnego nie ma, twoja karta mówi "Nie znajdujesz tu tajnego przejścia." GMowie widzą tę samą kartę. Nie w Class Trial.
 
 ### Projekty - statystyka projektu, 1 akcja
 
@@ -356,7 +357,7 @@ Hope jest twój. Masz najwyżej **6**. Wraca, gdy rzuty idą po twojej myśli (+
 | **Ultimate** | 1 | Przewaga na rzut, do którego twój Ultimate naprawdę się stosuje. Czeka na GMa tak samo. |
 | **Contribution** | 2 | +1 postępu do projektu, nad którym trwa praca w pokoju, w którym jesteś. |
 | **Sprint** | 2 | Jeszcze jedno przejście między pokojami o tej porze dnia, bez płacenia akcją. |
-| **Reroll** | 3 | Przerzuć ostatnią akcję. Cofa poprzedni wynik - ślad, przedmiot, Sanity idą razem z nim. Stara karta zostaje, z przekreślonym wynikiem i linią pod nagłówkiem, która podaje stary i nowy wynik. Niektóre rzeczy zostają: ręka, która już była w kieszeni, trop, który już podłożono, ślad, na którym GM coś zapisał albo który ktoś już znalazł. Reroll sprzątania albo Analyze, których pierwszej próby nie da się już cofnąć, jest odrzucany i nic nie zostaje wydane. Akcji kryzysowej, która kogoś zabiła, nie da się przerzucić: śmierć zostaje. Reroll robi przeglądarka GM-a i to ona pobiera Hope; bez podłączonego GM-a Reroll się nie odbywa i nic nie zostaje wydane. Jeśli rzutu nie ma już na czacie, Reroll jest odrzucany i nic nie zostaje wydane. Przerzucony rzut liczy to, co GM policzył za pierwszym razem. |
+| **Reroll** | 3 | Przerzuć ostatnią akcję. Cofa poprzedni wynik - ślad, przedmiot, Sanity idą razem z nim. Stara karta zostaje, z przekreślonym wynikiem i linią pod nagłówkiem, która podaje stary i nowy wynik. Niektóre rzeczy zostają: ręka, która już była w kieszeni, trop, który już podłożono, ślad, na którym GM coś zapisał albo który ktoś już znalazł. Reroll sprzątania albo Analyze, których pierwszej próby nie da się już cofnąć, jest odrzucany i nic nie zostaje wydane. Akcji kryzysowej, która kogoś zabiła, nie da się przerzucić: śmierć zostaje. Reroll robi przeglądarka GM-a i to ona pobiera Hope; bez podłączonego GM-a Reroll się nie odbywa i nic nie zostaje wydane. Jeśli rzutu nie ma już na czacie, Reroll jest odrzucany i nic nie zostaje wydane. Przerzucony rzut liczy to, co GM policzył za pierwszym razem. Reroll Znajdź tajne przejście albo Znajdź ukrytą skrytkę szuka jeszcze raz nowymi kośćmi: w górę znajduje raz; w dół skrytka, którą otworzył, zostaje otwarta, a przejście, które znalazł tylko ten rzut, przepada. |
 | **Resolve** | 3 | Na jeden rzut sam wybierz, którą statystykę dodać. |
 | **Burst** | 4 | Twoja następna akcja nic nie kosztuje - cała akcja, ile by nie kosztowała. |
 | **Relief** | 4 | Weź Short Rest od razu: bez akcji, bez oznaczonego pokoju i nie zużywa tego z tej pory dnia. |
