@@ -1036,8 +1036,10 @@ async function phaseE({ gm, p1, check, phase, settle, dump, socketTraffic, IDS, 
         globalThis.__s76eHeld = { started: null, wrote: null };
         t.update = async function (data, options) {
             if (options?.[M.REVERT]) {
-                globalThis.__s76eHeld.started = Date.now();
-                await new Promise(r => setTimeout(r, 2000));
+                /* Held until Date.now() has moved 2000 ms: one setTimeout(2000) was read as 1999 ms on CI's run of d64618e
+                   (scenarios b7), the timer and the clock rounding apart, and the check below asks for 2000. */
+                const started = globalThis.__s76eHeld.started = Date.now();
+                while (Date.now() - started < 2000) await new Promise(r => setTimeout(r, 2000 - (Date.now() - started)));
                 globalThis.__s76eHeld.wrote = Date.now();
             }
             return real.call(this, data, options);
