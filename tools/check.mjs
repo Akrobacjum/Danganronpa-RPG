@@ -68,7 +68,7 @@
  *             verdict.
  *   registry  the harness's scenario numbers (audit/harness/README.md) against
  *             the files and their layers, and the suite's R numbers (the
- *             block at the end of CLAUDE.md) against the tier files, unique -
+ *             block in docs/dev/R-REGISTRY.md) against the tier files, unique -
  *             tools/registry.mjs, whose `--write` regenerates the block - and
  *             the flows of scripts/tests-flows.mjs against both.
  *   stages    tools/stages.json and every marker that names a stage
