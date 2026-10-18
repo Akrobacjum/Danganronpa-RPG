@@ -3439,6 +3439,7 @@
       "itemStuck": "{item} could not be removed automatically - ask the GM to take it.",
       "itemDrawn": "You find {item} instead (Tier {tier}).",
       "searchNothing": "The new result finds nothing.",
+      "stashFound": "The new result opens a hidden stash: its card says whose.",
       "tokenKept": "The room's search token stays spent - the room was searched either way.",
       "remnantRetuned": "The trace you left has been adjusted to match.",
       "remnantLeft": "The new result leaves a trace behind.",

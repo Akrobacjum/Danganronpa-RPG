@@ -429,8 +429,9 @@ async function replayRefusal(actor, row) {
 function ruledByHand(bookmark) {
     if (!bookmark?.gmRuled) return false;
     if (bookmark.actionKey === "observe") return !bookmark.observeKey;
-    // A Find Passage leaves its fact too (E80 C3, passages-gm.mjs `noteFindFact`), and is replayed by it.
-    if (bookmark.actionKey === "analyze") return !bookmark.bulletId && !bookmark.findPassage;
+    // A Find Passage and a Find Stash leave their facts too (E80 C3, passages-gm.mjs `noteFindFact`; C4, gm-bridge.mjs
+    // `handleFindStash`), and are replayed by them.
+    if (bookmark.actionKey === "analyze") return !bookmark.bulletId && !bookmark.findPassage && !bookmark.findStash;
     return bookmark.actionKey === "search";
 }
 
@@ -1659,6 +1660,8 @@ async function settleAnalyze(actor, bookmark, after, done) {
     // A Find Passage (E80 C3; the GMs' fact `findPassage`, passages-gm.mjs `noteFindFact`): the new dice find once
     // and take back only the cell this roll wrote (its `rollId`), never a passage found or given otherwise.
     if (bookmark.findPassage && !bookmark.bulletId) return settlePassageFind(actor, bookmark, after, done);
+    // A Find Stash (E80 C4; the GMs' facts `findStash`, `stashFound`): one find per roll, kept on lower dice.
+    if (bookmark.findStash && !bookmark.bulletId) return settleStashFind(actor, bookmark, after, done);
     if (!bookmark.bulletId) {
         done.push(game.i18n.localize("DRPG.Reroll.noReplay"));
         return {};
@@ -1677,6 +1680,24 @@ async function settleAnalyze(actor, bookmark, after, done) {
     if (replayWasRefused(res.ok, res.value)) return null;
     done.push(game.i18n.localize("DRPG.Reroll.analyzeReplayed"));
     return { bulletId: bookmark.bulletId };
+}
+
+/**
+ * A Find Stash replayed on this GM (E80 C4, S16-19; the GMs' facts `findStash`, `stashFound`: gm-bridge.mjs
+ * `handleFindStash`, action-rolls.mjs `locateStash`). A roll that opened a stash keeps it whatever the new dice say,
+ * and opens no second one; one that did not searches again with the new dice (vault.mjs `resolveStashSearch`, its own
+ * card to the finder and, on a find, to the GMs). A character with no room to search gives the Reroll back.
+ */
+async function settleStashFind(actor, bookmark, after, done) {
+    if (bookmark.stashFound) {
+        done.push(game.i18n.localize("DRPG.Reroll.searchStashStands"));
+        return {};
+    }
+    const { resolveStashSearch } = await import("./vault.mjs");
+    const out = await resolveStashSearch({ actorId: actor.id, total: after.total, isCritical: after.isCritical });
+    if (!out || out.reason === "noRoom") return null;
+    done.push(game.i18n.localize(out.found ? "DRPG.Reroll.stashFound" : "DRPG.Reroll.searchNothing"));
+    return out.found ? { stashFound: true } : {};
 }
 
 /** A Find Passage replayed on this primary (`settleAnalyze`): the roller's lines say what the new dice did; no card of its own. */

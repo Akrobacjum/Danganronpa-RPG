@@ -52878,6 +52878,67 @@ const SCENARIOS = [
         equal(J([refused[0], J(refused[1]) === refused[2], refused[3].length]), J([null, true, 1]),
             "[the Analyze's answer, what the student holds unchanged, the words said] for a Find Passage picked in a Class Trial - it was paid for, or said nothing");
     }],
+    ["A10-7 stash - a Find Stash's Reroll replays its search on the GM: 12 to 17 opens one hidden stash, 17 to 12 the find stands, and 12 to 17 again opens no second one", async () => {
+        /*
+         * E80 C4 (S16-19; P1-16). The harm: a student who misses a Find Stash and buys a Reroll that beats 16 pays 3 Hope
+         * for dice that open nothing ("this roll left no lasting effect"), and a replay that searched again on every
+         * Reroll would open a second stash with one roll. A connected player's character in a room holding the concealed
+         * stashes of two other characters (the region's flags, as 40-flow's hidden stash sets them, put back after); a
+         * roll of theirs kept on the GMs with the GMs' record of it at 12 (`playerRollBookmark`), its `vault.findStash`
+         * judged as the bridge judges that player's packet, then three Rerolls made on this GM as theirs (`rerollAgain`):
+         * 12 into 17, 17 into 12, 12 into 17. Read after each: whether it stood, how many of the two stashes the
+         * character has found, and whether its lines say the find or that it stands. Red at the parent (34abae2): no
+         * replay, 0 found each time.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the stashes are in the room the player's character stands in");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
+        needs(world.atLeast("livingStudents", 3), "a finder and two other students whose stashes are hidden in that room");
+        const V = await import("./vault.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const owners = game.actors.filter(a => a.type === "character" && a.id !== actor.id).slice(0, 2);
+        must(owners.length === 2, "the world has no two other characters to own the stashes - this would measure nothing");
+        const region = V.regionsByName(where.scene).get(where.room);
+        must(region, `the room ${where.room} has no region to hide a stash in`);
+        must((ACTIONS.analyze?.stashThreshold ?? 16) === 16, "the stash's threshold is not 16 - 12 and 17 would not straddle it");
+        const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
+        const before = keys.map(k => foundry.utils.deepClone(region.getFlag(MODULE_ID, k)));
+        const foundBefore = foundry.utils.deepClone(actor.getFlag(MODULE_ID, V.VAULT_FLAGS.found) ?? null);
+        const hope = actor.system.resources.hope.value;
+        const opened = () => owners.filter(o => V.hasFoundStash(actor, where.room, o.id, where.scene)).length;
+        const said = (out, key) => Array.isArray(out?.lines) && out.lines.includes(game.i18n.localize(key));
+        let F = null;
+        const read = [];
+        try {
+            await region.update({ [`flags.${MODULE_ID}.${V.VAULT_FLAGS.stashes}`]: owners.map(o => ({ actorId: o.id, concealed: true })),
+                [`flags.${MODULE_ID}.${V.VAULT_FLAGS.hinders}`]: [], [`flags.${MODULE_ID}.${V.VAULT_FLAGS.favours}`]: [] });
+            must(opened() === 0, "the character has found one of those stashes already - this would measure nothing");
+            F = await playerRollBookmark(player, actor, "analyze", {}, { record: { total: 12 } });
+            const asked = await F.ask({ action: "vault.findStash", requestId: `E80C4${foundry.utils.randomID(8)}`, actorId: actor.id,
+                total: 12, isCritical: false, rollId: F.message.id });
+            await settle();
+            must(asked && opened() === 0, `the first search at 12 was refused or opened a stash - this would measure nothing: ${stableJson([asked, F.sent])}`);
+            for (const [first, next, key] of [[{ hope: 7, fear: 5 }, { hope: 10, fear: 7 }, "DRPG.Reroll.stashFound"],
+                [{ hope: 10, fear: 7 }, { hope: 7, fear: 5 }, "DRPG.Reroll.searchStashStands"],
+                [{ hope: 7, fear: 5 }, { hope: 10, fear: 7 }, "DRPG.Reroll.searchStashStands"]]) {
+                await trustedWrite(actor, { "system.resources.hope.value": Math.max(3, actor.system.resources.hope.value) }, { reason: "gmRuling" });
+                const { out } = await rerollAgain(actor, F.message, first, next);
+                read.push([Array.isArray(out?.lines), opened(), said(out, key)]);
+            }
+        } finally {
+            await F?.putBack();
+            await region.update(Object.fromEntries(keys.map((k, i) => [`flags.${MODULE_ID}.${k}`, before[i] === undefined ? forcedDeletion() : before[i]])));
+            if (JSON.stringify(actor.getFlag(MODULE_ID, V.VAULT_FLAGS.found) ?? null) !== JSON.stringify(foundBefore)) {
+                if (foundBefore === null) await actor.unsetFlag(MODULE_ID, V.VAULT_FLAGS.found);
+                else await actor.setFlag(MODULE_ID, V.VAULT_FLAGS.found, foundBefore);
+            }
+            if (actor.system.resources.hope.value !== hope) await trustedWrite(actor, { "system.resources.hope.value": hope }, { reason: "gmRuling" });
+        }
+        equal(stableJson(read), stableJson([[true, 1, true], [true, 1, true], [true, 1, true]]),
+            "[stood, stashes found, its line] after a Find Stash's Rerolls 12 to 17, 17 to 12 and 12 to 17 again - the replay opened none, took the find back, or opened a second");
+    }],
+
     ["A10-18 - 'Go through' a tunnel is carried out on the primary GM at a door's price: the token lands by the far end with teleport, displace and no animation, the crossing is told to the traps, a crossing back pays again; a lock, a seal, the chain, the courtroom, no budget and a spent Eclipse refuse it in the doors' words with nothing written, paid or warned on the GM, as does a tunnel the character does not know; the Mastermind passes the lock, anybody another's bedroom; an Eclipse counts one crossing and costs nothing else; a write that fails gives back exactly what it took; a token the GMs are putting back, one they hold as standing where the rules refuse and one moved while the price is taken stand at no end", async () => {
         /*
          * E80 C2 (18.10.2026; P1-05 to P1-08, the stage's write roads "token x, y, level" and "price"). The harms: a

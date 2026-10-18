@@ -3585,6 +3585,7 @@
       "itemStuck": "Nie dało się automatycznie usunąć: {item} - poproś GM-a, by to zabrał.",
       "itemDrawn": "Zamiast tego znajdujesz {item} (Tier {tier}).",
       "searchNothing": "Nowy wynik nic nie znajduje.",
+      "stashFound": "Nowy wynik otwiera ukrytą skrytkę: jej karta mówi, czyja jest.",
       "tokenKept": "Search Token pokoju zostaje wydany - pokój tak czy inaczej został przeszukany.",
       "remnantRetuned": "Ślad, który po tobie został, dostosowano do wyniku.",
       "remnantLeft": "Nowy wynik zostawia ślad.",

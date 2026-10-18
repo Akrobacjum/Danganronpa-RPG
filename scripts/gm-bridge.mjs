@@ -648,11 +648,16 @@ async function handlePlant(payload, sender, ctx) {
     // stashes, so it happens where the threshold is checked.
 async function handleFindStash(payload, sender, ctx) {
     const { resolveStashSearch } = await import("./vault.mjs");
-    await resolveStashSearch({
+    const out = await resolveStashSearch({
         actorId: payload.actorId,
         total: payload.total,
         isCritical: payload.isCritical
     });
+    // The GMs' fact on the roll the packet names (E80 C4, S16-19): it was a Find Stash, and whether it opened one. Its
+    // Reroll replays the search from these (reroll.mjs `settleStashFind`), never from the roller's word.
+    const rolls = await import("./action-rolls.mjs");
+    await rolls.noteFactOn(rolls.rollOfFact({ rollId: payload.rollId ?? null, by: sender?.id ?? null, actorId: payload.actorId,
+        actions: ["analyze"] }), { findStash: true, stashFound: Boolean(out?.found) });
 }
 
     // And out of their pockets. Same reasoning as the stash below, plus one

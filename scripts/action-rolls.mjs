@@ -1068,7 +1068,8 @@ export function rollClaims(actionKey, context) {
  * A Dynamic action's band is one since fix r2-H3: a GM's own picks it in its own window (`askDynamicDifficulty`)
  * and leaves no ruling on a card, where a player's band is read (gm-bridge.mjs `dynamicRulingOf`).
  */
-const OWN_FACTS = ["remnantId", "remnantScene", "repairId", "targetProjectId", "projectId", "progress", "bandIndex"];
+// A GM's own Find Stash (E80 C4): what a player's is given by gm-bridge.mjs `handleFindStash`, for its Reroll's replay.
+const OWN_FACTS = ["remnantId", "remnantScene", "repairId", "targetProjectId", "projectId", "progress", "bandIndex", "findStash", "stashFound"];
 function ownFacts(data) {
     return Object.fromEntries(OWN_FACTS.filter(f => data?.[f] !== undefined).map(f => [f, data[f]]));
 }
@@ -5093,12 +5094,13 @@ async function locateStash(actor, def, roll, request = "", charge = null) {
         rollId: rollInHand(actor)?.messageId ?? null
     });
 
-    // NOT `gmRuled`. A Reroll can genuinely replay this - the outcome follows
-    // from a threshold, not from a person - and the replay is idempotent
-    // because `resolveStashSearch` skips a stash this character has already
-    // found. Rerolling a success and succeeding again opens nothing new.
+    // NOT `gmRuled`. A Reroll replays this from a threshold (reroll.mjs `settleStashFind`, E80 C4), on the GMs'
+    // facts that this roll was a Find Stash and whether it opened one: a player's written by gm-bridge.mjs
+    // `handleFindStash`, a GM's own here (`OWN_FACTS`, from the answer of its own search). A roll that opened
+    // one opens no second, however often it is rerolled.
     await noteRollContext(actor, {
-        actionKey: "analyze", findStash: true, request, label: title, room
+        actionKey: "analyze", findStash: true, request, label: title, room,
+        ...(game.user?.isGM ? { stashFound: Boolean(res.value?.found) } : {})
     });
 
     // Silent on the outcome, like `analyseBullet`: this client does not know
