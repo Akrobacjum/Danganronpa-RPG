@@ -165,6 +165,37 @@ export function pause(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+/** Per key, the promise the next step of that key waits for: the last step's end, never its failure. */
+const serialTails = new Map();
+
+/**
+ * Run `step` after every step asked earlier under the same `key` has ended, and answer
+ * what it answers (or throws).
+ *
+ * WHY (E80 C0, 18.10.2026; the owner's decision of 11.10: E80 builds it in the shape
+ * E36's goal names, and E36 takes it over instead of building a second one). Foundry
+ * changes a setting's cached value only when the server answers, so two read-modify-write
+ * steps on one setting that start within a round trip both read the old value and the
+ * second overwrites the first (the audit's finding behind E17 and E36: an Eclipse
+ * crossing not counted, a Fear lost). Such a step on the primary GM reads inside `step`,
+ * under one key per thing it writes.
+ *
+ * The shape the owner fixed: a signature that knows nothing of projects, no wait in the
+ * UI, a queue that survives a throw in a step. Here a key is any string; the call returns
+ * a promise at once and `step` starts no earlier than the next microtask, so a click
+ * handler never runs inside a step; another key's steps do not wait;
+ * and a step that throws, synchronously or by rejecting, rejects only its own caller's
+ * promise while the steps behind it run. A step that never settles holds its key, so a
+ * step awaits nothing that may never answer (a dialog, a player's reply).
+ */
+export function serialWrite(key, step) {
+    const run = (serialTails.get(key) ?? Promise.resolve()).then(() => step());
+    const tail = run.then(() => undefined, () => undefined);
+    serialTails.set(key, tail);
+    tail.then(() => { if (serialTails.get(key) === tail) serialTails.delete(key); });
+    return run;
+}
+
 /**
  * Now, on the server's clock where Foundry gives one (`game.time.serverTime`), else this
  * machine's - the same reading the GMs' store stamps with (gm-store.mjs `now`).

@@ -15884,6 +15884,54 @@ const INVARIANTS = [
             + "[the preview on the pointer's arrival: tooltip, label, held; on focus with held words; a held press: raises, held; "
             + "two presses on a fresh button: raises, previews asked, the viewer's own student raised, the button held down while it waits]");
     }],
+    ["R593 - serialWrite runs one key's steps one after another in the order they were asked, each reading what the one before wrote; a step that throws or rejects fails only its own caller and the steps behind it run; another key never waits; the call returns before its step starts", async () => {
+        /*
+         * E80 C0 (18.10.2026; the owner's decision of 11.10: E80 builds E36's queue, E36 takes it over). The
+         * harm: two read-modify-write steps on one setting that start within a server round trip both read the
+         * old value, and the second overwrites the first. Ten steps that read a value, yield to the timer queue
+         * and write it plus one end at 10 through one key; the same ten unqueued end at 1, so the count can see
+         * a lost write. Then one key's steps behind a gate held shut: nothing of that key runs past the gate
+         * while another key's step runs and settles, a synchronous throw and a rejection fail their own callers
+         * only, and the steps behind them run in order. Nothing here touches the world: the keys are this
+         * test's own and the values live in this closure.
+         */
+        const J = stableJson;
+        const U = await import("./utils.mjs");
+        ok(typeof U.serialWrite === "function", "utils.mjs has no `serialWrite` - two writes of one setting on the primary GM still read the same old value");
+        if (typeof U.serialWrite !== "function") return;
+        const key = `r593-${foundry.utils.randomID()}`, other = `${key}-other`;
+        const yieldToTimers = () => new Promise(resolve => setTimeout(resolve, 0));
+        const store = { queued: 0, bare: 0 };
+        const bump = field => async () => { const v = store[field]; await yieldToTimers(); store[field] = v + 1; return v + 1; };
+        const counted = await Promise.all(Array.from({ length: 10 }, () => U.serialWrite(`${key}-count`, bump("queued"))));
+        await Promise.all(Array.from({ length: 10 }, () => bump("bare")()));
+        equal(J([store.queued, counted, store.bare]), J([10, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 1]),
+            "[ten steps through one key: the value, what each step answered; the same ten unqueued: the value]");
+
+        const seen = [];
+        let open;
+        const gate = new Promise(resolve => { open = resolve; });
+        const first = U.serialWrite(key, async () => { seen.push("first starts"); await gate; seen.push("first ends"); return "first"; });
+        const thrown = U.serialWrite(key, () => { seen.push("thrown"); throw new Error("r593 a step threw"); });
+        const rejected = U.serialWrite(key, async () => { seen.push("rejected"); await yieldToTimers(); throw new Error("r593 a step rejected"); });
+        const after = U.serialWrite(key, async () => { seen.push("after"); return "after"; });
+        seen.push(`the call returned ${first instanceof Promise}`);
+        // Bounded, so a queue shared by every key answers "still waiting" here instead of hanging the suite behind
+        // the shut gate: 1000 ms is a ceiling for one timer turn, not a time this step was measured to take.
+        const elsewhere = await Promise.race([
+            U.serialWrite(other, async () => { seen.push("another key"); await yieldToTimers(); return "elsewhere"; }),
+            new Promise(resolve => setTimeout(() => resolve("still waiting"), 1000))
+        ]);
+        seen.push(`another key settled: ${elsewhere}`);
+        open();
+        const answers = list => list.map(r => (r.status === "fulfilled" ? r.value : `rejected: ${r.reason?.message}`));
+        const settled = answers(await Promise.allSettled([first, thrown, rejected, after]));
+        const [later] = answers(await Promise.allSettled([U.serialWrite(key, () => "a step asked after all of them")]));
+        equal(J(seen), J(["the call returned true", "first starts", "another key", "another key settled: elsewhere",
+            "first ends", "thrown", "rejected", "after"]), "[what ran, in order, around a gate held shut and then opened]");
+        equal(J([settled, later]), J([["first", "rejected: r593 a step threw", "rejected: r593 a step rejected", "after"],
+            "a step asked after all of them"]), "[what each caller got: the gated step, the throw, the rejection, the one behind them; a step asked afterwards]");
+    }],
 ];
 
 /**
