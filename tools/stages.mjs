@@ -4,6 +4,7 @@
  *     node tools/stages.mjs check                    the ledger, and every marker that names a stage
  *     node tools/stages.mjs check --release v1.2.61  ...and that this tree is that release
  *     node tools/stages.mjs ship E30                 the release commit marks its stage shipped
+ *     node tools/stages.mjs ship E35 E36             ...or every stage of its train (I10)
  *
  * WHY A FILE AND NOT A SENTENCE IN A PLAN. A test can now say "red until E07"
  * (`expectedRed` in scripts/tests-kit.mjs), and a harness check "a known leak,
@@ -18,8 +19,9 @@
  * 1.2.100 arrives with E44 and a string comparison puts it before 1.2.99.
  * `version` and `shipped` are written by `ship` and by nothing else, from
  * module.json and the UTC date, in the commit that bumps the version.
- * `planned` (D20's numbering) is information only: a stage that slips keeps
- * its row, and its version is the one it really shipped as.
+ * `planned` (D20's numbering until O1 retired it on 15.10.2026) is information
+ * only: a stage that slips keeps its row, and its version is the one it really
+ * shipped as.
  *
  * TWO STAGES, ONE RELEASE (E32 C1, 28.09.2026; the owner's decision of 27.09: E32
  * and E07 ship together as 1.2.66). A row whose `with` names the row directly above
@@ -27,6 +29,18 @@
  * row above writes both, and `check` holds the pair to one `planned` and one
  * `version`. Anything else that shares a version is still two stages claiming one
  * release, and still refused.
+ *
+ * A TRAIN (INFRA I10, 18.10.2026; the owner's O1 of 15.10: a release is a train of
+ * several stages, D20's one stage per 1.2.X is retired). `ship E35 E36` writes
+ * module.json's version and one date to every stage named and to every row that
+ * ships `with` one of them. `check` reads a version shared by rows that follow one
+ * another among the rows that carry a version as one train, and holds them to the
+ * one date a `ship` writes: a stage already shipped, or one shipped on another
+ * date, is still a second release claiming the version. The date is all the
+ * ledger records of "shipped together" - two hand edits on one day read as one
+ * train, which only a review of the diff would see. A row the train passes over
+ * keeps null; it can ship later only once its row is moved below the train's,
+ * because a version above a lower one is still "rows are in release order".
  *
  * Node only, no dependencies, nothing the module loads: tools/ is
  * export-ignored, so an installed zip has no ledger, and the suite says so in
@@ -186,10 +200,16 @@ export function problems(doc, { modVersion, markers = [] } = {}) {
             errs.push(`${at}: version and shipped are written together, by \`ship\` - one of them is missing`);
         }
         if (r.version) {
-            const partner = joined && versions.get(r.version) === r.with;
-            if (versions.has(r.version) && !partner) errs.push(`${at}: ${r.version} is already ${versions.get(r.version)}'s`);
-            if (!partner) versions.set(r.version, r.id);
-            if (lastVersion && !partner && compareVersions(r.version, lastVersion.version) <= 0) {
+            /* One train (or a `with` pair, its smallest case): the version of the last row
+               that carried one, on the date that row's `ship` wrote. */
+            const train = lastVersion?.version === r.version;
+            if (versions.has(r.version) && !train) errs.push(`${at}: ${r.version} is already ${versions.get(r.version)}'s`);
+            else if (train && r.shipped !== lastVersion.shipped) {
+                errs.push(`${at}: shares ${r.version} with ${lastVersion.id}, shipped ${lastVersion.shipped}, and says ${r.shipped} - `
+                    + "a train is one `ship`, which writes one date to all its rows");
+            }
+            if (!versions.has(r.version)) versions.set(r.version, r.id);
+            if (lastVersion && !train && compareVersions(r.version, lastVersion.version) <= 0) {
                 errs.push(`${at}: shipped as ${r.version}, after ${lastVersion.id}'s ${lastVersion.version} - rows are in release order`);
             }
             lastVersion = r;
@@ -255,18 +275,27 @@ function serialize(doc) {
 }
 
 /**
- * @returns {{doc?: object, refused?: string[]}} the ledger with `id` shipped - and every
- * row that ships `with` it (a joint release, see the header) - or why not
+ * @param {string|string[]} ids  one stage, or every stage of a train (see the header)
+ * @returns {{doc?: object, refused?: string[]}} the ledger with every stage named shipped
+ * as one version - and every row that ships `with` one of them - or why not
  */
-export function ship(doc, id, { modVersion, markers = [], today }) {
-    const row = doc.stages.find(r => r.id === id);
-    if (!row) return { refused: [`${id} is not a stage in tools/stages.json`] };
-    if (row.with !== undefined) return { refused: [`${id} ships with ${row.with}: run \`ship ${row.with}\`, which writes both`] };
-    if (row.version) return { refused: [`${id} already carries ${row.version} (shipped ${row.shipped}); a stage ships once`] };
+export function ship(doc, ids, { modVersion, markers = [], today }) {
+    const named = [].concat(ids);
+    if (!named.length) return { refused: ["no stage named"] };
+    const refused = [];
+    const twice = [...new Set(named.filter((id, i) => named.indexOf(id) !== i))];
+    if (twice.length) refused.push(`${twice.join(", ")} named twice`);
+    for (const id of new Set(named)) {
+        const row = doc.stages.find(r => r.id === id);
+        if (!row) refused.push(`${id} is not a stage in tools/stages.json`);
+        else if (row.with !== undefined && !named.includes(row.with)) refused.push(`${id} ships with ${row.with}: name ${row.with}, which writes both`);
+        else if (row.version) refused.push(`${id} already carries ${row.version} (shipped ${row.shipped}); a stage ships once`);
+    }
+    if (refused.length) return { refused };
     const holder = doc.stages.find(r => r.version === modVersion);
     if (holder) return { refused: [`module.json's ${modVersion} is ${holder.id}'s - bump module.json in the release commit first`] };
     const next = structuredClone(doc);
-    for (const r of next.stages.filter(r => r.id === id || r.with === id)) Object.assign(r, { version: modVersion, shipped: today });
+    for (const r of next.stages.filter(r => named.includes(r.id) || named.includes(r.with))) Object.assign(r, { version: modVersion, shipped: today });
     const errs = problems(next, { modVersion, markers });
     return errs.length ? { refused: errs } : { doc: next };
 }
@@ -298,19 +327,19 @@ function main(argv) {
         return errs.length ? 1 : 0;
     }
     if (cmd === "ship") {
-        const id = rest[0];
-        const res = ship(doc, id, { modVersion, markers, today: new Date().toISOString().slice(0, 10) });
+        const res = ship(doc, rest, { modVersion, markers, today: new Date().toISOString().slice(0, 10) });
         if (res.refused) {
-            for (const e of res.refused) console.log(`stages: ship ${id} refused: ${e}`);
+            for (const e of res.refused) console.log(`stages: ship ${rest.join(" ")} refused: ${e}`);
             return 1;
         }
         fs.writeFileSync(path.join(REPO, "tools", "stages.json"), serialize(res.doc));
-        const row = res.doc.stages.find(r => r.id === id);
-        const also = res.doc.stages.filter(r => r.with === id).map(r => r.id);
-        console.log(`stages: ${[id, ...also].join(" and ")} shipped as ${row.version} on ${row.shipped}`);
+        /* In plan order, `with` rows included: the line release.sh copies into its commit message. */
+        const rows = res.doc.stages.filter(r => r.version === modVersion).map(r => r.id);
+        const list = rows.length > 1 ? `${rows.slice(0, -1).join(", ")} and ${rows.at(-1)}` : rows[0];
+        console.log(`stages: ${list} shipped as ${modVersion} on ${res.doc.stages.find(r => r.version === modVersion).shipped}`);
         return 0;
     }
-    console.log("usage: node tools/stages.mjs check [--release vX.Y.Z] | ship EXX");
+    console.log("usage: node tools/stages.mjs check [--release vX.Y.Z] | ship EXX [EXX ...]");
     return 2;
 }
 

@@ -46,6 +46,24 @@
 # New steps take the inputs through env: rather than ${{ }} inside a script;
 # the older build and publish steps still interpolate the tag, which by then
 # check.mjs has refused unless it reads vX.Y.Z.
+#
+# WHAT CHANGED FOR TRAINS (INFRA I10, 18.10.2026; the owner's O1 of 15.10: a
+# release is a train of several stages, D20 retired). A train is published as a
+# prerelease, the owner plays it at a table, and only then is it made latest:
+#
+#   - `prerelease`: the same gates and the same build, published with
+#     --prerelease instead of --latest; the check after it expects
+#     releases/latest to be what it was before the run, read just before;
+#   - `promote`: a job of its own - no gate, no build, no asset - that edits the
+#     release that is there to `--prerelease=false --latest`, after refusing a
+#     tag that is not a prerelease (promoting an older full release would move
+#     latest backwards), and then the same check, expecting the tag;
+#   - both at once is refused in the first job, so nothing else starts.
+#
+# The gates are not run again for a promote: they ran on that tag's commit when
+# it was published, and the release's assets are not touched. The plain
+# `gh release view` lines both modes read (tag:, prerelease:) are its non-TTY
+# output; that a runner prints them so is to be seen on the first train.
 name: Release
 
 on:
@@ -62,6 +80,16 @@ on:
         description: "Leave empty. Only with a waiver the owner wrote (enforce mode): the tag again. Never for 1.3.0."
         required: false
         default: ""
+      prerelease:
+        description: "Publish as a prerelease (a train before the owner's smoke); latest stays the previous release"
+        type: boolean
+        required: false
+        default: false
+      promote:
+        description: "No build: make the published prerelease of this tag the latest release. Not with prerelease."
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -79,13 +107,26 @@ jobs:
             echo "releases are cut from main; this was dispatched on ${GITHUB_REF}" >&2
             exit 1
           fi
+      - name: Refuse prerelease and promote together
+        # One publishes a new release, the other edits one that is there; a
+        # dispatch asking for both has not said which it meant.
+        env:
+          PRERELEASE: ${{ inputs.prerelease }}
+          PROMOTE: ${{ inputs.promote }}
+        run: |
+          if [ "$PRERELEASE" = "true" ] && [ "$PROMOTE" = "true" ]; then
+            echo "prerelease and promote are exclusive: publish the prerelease first, promote it in a second run" >&2
+            exit 1
+          fi
 
   ci:
     needs: main-only
+    if: ${{ !inputs.promote }}
     uses: ./.github/workflows/ci.yml
 
   local-gate:
     needs: main-only
+    if: ${{ !inputs.promote }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -131,7 +172,7 @@ jobs:
   release:
     needs: [ci, local-gate, waiver-approval]
     # Written out: without it a skipped waiver-approval would skip the release too.
-    if: ${{ !cancelled() && needs.ci.result == 'success' && needs.local-gate.result == 'success' && (needs.waiver-approval.result == 'success' || needs.waiver-approval.result == 'skipped') }}
+    if: ${{ !cancelled() && !inputs.promote && needs.ci.result == 'success' && needs.local-gate.result == 'success' && (needs.waiver-approval.result == 'success' || needs.waiver-approval.result == 'skipped') }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -180,31 +221,94 @@ jobs:
           print("download ->", manifest["download"])
           PY
 
+      - name: Read what latest resolves to now
+        # Only a prerelease's check reads it: latest is to stay this tag. Empty
+        # when there is no release yet or the line is not there, and the check
+        # then says it could not tell.
+        id: before
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          prev="$(gh release view -R "${{ github.repository }}" 2>/dev/null | sed -n 's/^tag:[[:space:]]*//p' | head -1 || true)"
+          echo "latest before this run: ${prev:-unknown}"
+          echo "tag=$prev" >> "$GITHUB_OUTPUT"
+
       - name: Create the release
         env:
           GH_TOKEN: ${{ github.token }}
           TITLE: ${{ inputs.title }}
+          PRERELEASE: ${{ inputs.prerelease }}
         run: |
           title="${TITLE:-${{ inputs.tag }}}"
+          if [ "$PRERELEASE" = "true" ]; then which=--prerelease; else which=--latest; fi
           gh release create "${{ inputs.tag }}" module.zip module.json \
             -R "${{ github.repository }}" \
             --target "${{ github.sha }}" \
             --title "$title" \
             --notes-file ".github/release-notes/${{ inputs.tag }}.md" \
-            --latest
+            "$which"
 
       - name: Show what latest resolves to
         env:
           GH_TOKEN: ${{ github.token }}
+          PRERELEASE: ${{ inputs.prerelease }}
+          PREV: ${{ steps.before.outputs.tag }}
         # No --json: the runner's gh does not know every field name, and a
         # verification step that can fail on a field name fails the whole run
         # AFTER the release is already out - which is exactly what happened on
         # run 1. Plain view cannot. A mismatch is printed as a warning rather than
         # failing, for the same reason: the release exists by now, and what is
         # wanted is somebody looking at it (a new prerelease can move `latest`).
+        # A prerelease expects the latest read before it, and a warning names the
+        # tag it wanted.
         run: |
           view="$(gh release view -R "${{ github.repository }}" | head -5)"
           echo "$view"
-          if ! printf '%s\n' "$view" | grep -qF "${{ inputs.tag }}"; then
-            echo "::warning::releases/latest does not resolve to ${{ inputs.tag }} - check the Releases page"
+          if [ "$PRERELEASE" = "true" ]; then want="$PREV"; else want="${{ inputs.tag }}"; fi
+          if [ -z "$want" ]; then
+            echo "::warning::latest could not be read before the prerelease, so whether it stayed is not checked - check the Releases page"
+          elif ! printf '%s\n' "$view" | grep -qF "$want"; then
+            echo "::warning::releases/latest does not resolve to $want - check the Releases page"
+          fi
+
+  promote:
+    # The owner's smoke passed: the prerelease this tag published becomes the
+    # latest release. Nothing is built, uploaded or deleted.
+    needs: main-only
+    if: ${{ inputs.promote }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Promote the prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+          REPO: ${{ github.repository }}
+        run: |
+          if ! printf '%s\n' "$TAG" | grep -qxE 'v[0-9]+\.[0-9]+\.[0-9]+'; then
+            echo "promote: '$TAG' is not a vX.Y.Z tag" >&2
+            exit 1
+          fi
+          # Not piped: a step with no `shell:` runs `bash -e` (GitHub's docs), with no pipefail, so a pipe would hide gh's exit.
+          view="$(gh release view "$TAG" -R "$REPO")" || { echo "promote: there is no release $TAG to promote" >&2; exit 1; }
+          view="$(printf '%s\n' "$view" | head -5)"
+          echo "$view"
+          if ! printf '%s\n' "$view" | grep -qxE 'prerelease:[[:space:]]+true'; then
+            echo "promote: $TAG is not a prerelease (or its view has no 'prerelease:' line), so it is left as it is" >&2
+            exit 1
+          fi
+          gh release edit "$TAG" -R "$REPO" --prerelease=false --latest
+
+      - name: Show what latest resolves to
+        # The same check as the release job's, expecting the tag; a warning,
+        # because the edit is made by now.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          view="$(gh release view -R "${{ github.repository }}" | head -5)"
+          echo "$view"
+          if ! printf '%s\n' "$view" | grep -qF "$TAG"; then
+            echo "::warning::releases/latest does not resolve to $TAG - check the Releases page"
           fi

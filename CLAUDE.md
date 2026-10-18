@@ -521,9 +521,10 @@ run against a real Foundry (its README says so first).
 2. Write `.github/release-notes/vX.Y.Z.md` (`node tools/check.mjs notes`). Its
    "## Checked" section says what was measured and, on a line starting
    "- Not checked in a real Foundry", what was not.
-3. In the same commit, `node tools/stages.mjs ship EXX` marks the stage
-   shipped. It refuses while a marker in the suite still names that stage, and
-   from then on every red still promised for it fails, on purpose.
+3. In the same commit, `node tools/stages.mjs ship EXX [EYY ...]` marks every
+   stage of the train shipped, as one version on one date. It refuses while a
+   marker in the suite still names one of them, and from then on every red
+   still promised for them fails, on purpose.
 4. Run the local gate on that commit (`npm run gate:local`) and commit
    `audit/gate/local-gate.json` and `audit/gate/evidence/` on top of it, in a
    commit of their own - not amended in: the file names the commit it ran on.
@@ -537,11 +538,14 @@ run against a real Foundry (its README says so first).
 7. `main` is the release branch: merge on green CI only. The tag is created
    there, and the workflow refuses a dispatch from anywhere else.
 8. Actions ▸ Release, dispatched on `main` with the tag (and a title for the
-   last one). Afterwards check that `releases/latest` is the new version: a
-   prerelease can move it.
-9. Numbering (decision D20): each stage of the 1.3.0 plan ships as the next
-   `1.2.X`; the last stage ships as `1.3.0` "Stained Update". After it, `1.3.X`
-   is balance and fixes. The 1.3.0 notes say what of the text rework the
+   last one) and `prerelease` ticked: a train is published as a prerelease,
+   and `releases/latest` stays the previous release (the run warns when it does
+   not). After the owner's smoke at a table, dispatch it again with the tag and
+   `promote` ticked: no build, the release edited to latest, and the run warns
+   when `releases/latest` is not the tag. The two inputs together are refused.
+9. Numbering: decision D20 (one stage, one `1.2.X`) was retired by O1 on
+   15.10.2026. Each train of the 1.3.0 plan ships as the next `1.2.X`; the last
+   ships as `1.3.0` "Stained Update". After it, `1.3.X` is balance and fixes. The 1.3.0 notes say what of the text rework the
    `1.2.43`-`1.2.47` notes promised with it went in, and what did not.
 
 ## Test author contract
