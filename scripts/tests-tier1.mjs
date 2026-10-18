@@ -21,7 +21,7 @@ import { voiceTargets, liveKitRoomFor } from "./voice.mjs";
 import { MUSIC_STATES, musicMap } from "./music.mjs";
 import {
     ok, needs, env, world, equal, must, wait, settle, until, cascadeAvailable, LIVE_PROBE,
-    moduleSources, otherSources, stripComments, moduleStyles, bodyOf, fnSource, topLevelFunction, STANDING, watchLog, stableJson,
+    moduleSources, otherSources, stripComments, moduleStyles, bodyOf, fnSource, topLevelFunction, lineAround, STANDING, watchLog, stableJson,
     worldDump, dumpDiff
 } from "./tests-kit.mjs";
 
@@ -16881,6 +16881,41 @@ const INVARIANTS = [
             J([[...words, ""], 8, [word("kindPublic"), word("shapeWall"), word("originGm")], [word("kindSecret"), word("shapeWall"), word("originGm")],
                 [word("kindSecret"), word("shapeWall"), word("originDoor")], [word("kindSecret"), word("shapeTunnel"), word("originGm")]]),
             "[the table's heads, its columns with a width, the Kind, Shape and Origin of a public passage, a secret one, one made of a secret door, a tunnel]");
+    }],
+
+    ["R801 - a failure in the roll window is said on the console, with the module's name and the step it was at (S02-69)", async () => {
+        /*
+         * E16 p1 C1, 18.10.2026; audit S02-69. Every catch of roll-dialog.mjs swallowed what it caught, so a GM
+         * told "the Call did nothing" found an empty console after a Daggerheart update moved the window's
+         * markup. Read: the first line of every catch block of roll-dialog.mjs, which is to call `failed` (the
+         * module's `warn` with the step); then the render hook, the wrapper of the window's `_prepareContext`
+         * and the close hook handed a window whose config throws, and the console's lines from the module that
+         * name the step and the error. Nothing is written: the window is an object of this test's, taken out of
+         * the open windows by the close hook it is handed last. At cfbbf60: no catch called anything, and the
+         * three steps said nothing.
+         */
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/roll-dialog.mjs`).then(r => r.text()));
+        const catches = [...src.matchAll(/\bcatch\s*(?:\(\s*\w*\s*\))?\s*\{[ \t]*\n/g)];
+        ok(catches.length >= 8, `roll-dialog.mjs holds ${catches.length} catch blocks - the file moved and this would read nothing`);
+        const silent = catches.map(m => lineAround(src, m.index + m[0].length).trim()).filter(line => !/^failed\("[^"]+", \w+\);/.test(line));
+        equal(stableJson(silent), stableJson([]), "a catch block of roll-dialog.mjs does not say what failed (the first line of each that does not)");
+        const RD = await import("./roll-dialog.mjs");
+        const Dialog = typeof RD.rollDialogClass === "function" ? RD.rollDialogClass() : game.system?.api?.dice?.DualityRoll?.DefaultDialog;
+        ok(typeof Dialog?.prototype?._prepareContext === "function", "Daggerheart's roll window class names no _prepareContext here - the wrapper's catch would not be read");
+        const root = document.createElement("form");
+        root.classList.add("roll-selection");
+        const broken = { element: root, options: { classes: ["roll-selection"] }, get config() { throw new Error("SUITE R801 config"); } };
+        const log = watchLog();
+        try {
+            RD.onRenderApplication(broken, root);
+            await Dialog.prototype._prepareContext.call(broken, {}).catch(() => null);
+            await RD.onCloseApplication(broken);
+        } finally {
+            log.stop();
+        }
+        const said = step => log.count(new RegExp(`^${MODULE_ID} \\| The roll window failed at ${step}: SUITE R801 config$`));
+        equal(stableJson([said("drawing"), said("forcing before its context"), said("its close")]), stableJson([1, 1, 1]),
+            "the render hook, the wrapper of the window's context or the close hook said nothing of the failure, or said it without the module's name or the step (lines: drawing, forcing before its context, its close)");
     }],
 ];
 

@@ -21,7 +21,7 @@ import { SETTINGS } from "./settings.mjs";
 import { pendingCalls, situationalAdvantage } from "./call-effects.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { isBrokenDown } from "./character.mjs";
-import { debug } from "./utils.mjs";
+import { debug, warn } from "./utils.mjs";
 // One string, and nothing in action-rolls.mjs reaches back here - the roll
 // dialog is opened BY the system, not by that file.
 import { DRPG_ACTION_ROLL, TRAIT_BY_GM } from "./action-rolls.mjs";
@@ -32,6 +32,8 @@ export function registerRollDialog() {
     Hooks.on("renderApplicationV2", onRenderApplication);
     Hooks.on("closeApplicationV2", onCloseApplication);
     Hooks.on("updateActor", redrawRollWindows);
+    // At setup: Daggerheart puts its window's class on game.system.api in its own init.
+    Hooks.once("setup", () => wrapPrepareContext());
 }
 
 /**
@@ -74,7 +76,8 @@ export async function onCloseApplication(app) {
         if (drawnByGm(app.config)) return;
         const { consumeCallsByNonce } = await import("./call-effects.mjs");
         await consumeCallsByNonce(actor, nonces);
-    } catch {
+    } catch (err) {
+        failed("its close", err);
         // Never let bookkeeping break a roll.
     }
 }
@@ -125,7 +128,8 @@ function redrawRollWindows(actor, changes) {
     for (const app of openWindows) {
         try {
             if (actorOf(app)?.id === actor?.id) app.render();
-        } catch {
+        } catch (err) {
+            failed("redrawing for a changed character", err);
             // A window that cannot redraw keeps what it shows; its close still spends only its own.
         }
     }
@@ -161,6 +165,107 @@ function isRollDialog(app) {
     return Array.isArray(classes) && classes.includes("roll-selection");
 }
 
+/*
+ * WHAT A CALL FORCES IS WRITTEN BEFORE THE WINDOW IS DRAWN (E16 C1, 18.10.2026; audit S02-04).
+ *
+ * Daggerheart's window works out three things from its config in `_prepareContext`, before
+ * any render hook runs (d20RollDialog.mjs, 2.10.5 and 2.6.5, read): whether Roll is offered
+ * (from the costs), the roll's scale, and the formula it shows. The module wrote the config
+ * in the render hook, after all three were drawn: an experience's Hope cost was taken out
+ * after Roll had been greyed from it, so a player at 0 Hope who had just paid for the
+ * Experience Call could not throw the roll they bought (tier 2, "a player at 0 Hope who
+ * bought an Experience Call ...", at cfbbf60: Roll disabled, the lock on and off). And a
+ * cost taken out of the config left its row on the window, which the form's handler merged
+ * back on the next change as a cost with no resource, and the window threw on it.
+ *
+ * So the window's `_prepareContext` is wrapped once (`wrapPrepareContext`, at setup) and
+ * everything the module imposes on the config (`forceConfig`) is written first; the render
+ * hook only paints and locks what was drawn. Wrapped only where the method is the window's
+ * own and reads as the one read here (it computes `canRoll` from `config.costs`). Anywhere
+ * else - another build, a method moved or renamed - the module says so once on the console
+ * and the render hook writes the config as it did before E16 C1, with a redraw where something
+ * changed (tier 2, "a roll window whose context the module could not wrap ..."). Whether the
+ * table's own Daggerheart (2.6.5, or Forge's) takes the wrapper is not measured here: the
+ * harness's window is a stand-in (LIVE-E16-01).
+ */
+const CONTEXT_MARK = Symbol.for("drpgRollContext");
+const refused = new WeakSet();
+
+/** Daggerheart's roll window class, where its API puts it; null when it is not there. */
+export function rollDialogClass() {
+    const api = game.system?.api;
+    return api?.applications?.dialogs?.d20RollDialog ?? api?.dice?.DualityRoll?.DefaultDialog ?? null;
+}
+
+/** Every caught failure of this file, said with the step it was at (audit S02-69). */
+function failed(step, err) {
+    warn(`The roll window failed at ${step}:`, err);
+}
+
+/**
+ * Put `forceConfig` in front of the window's `_prepareContext`. True when the window's
+ * method is the module's (now or from before); false, said once per class, when it is
+ * missing or of another shape - then the render hook forces the config instead.
+ */
+export function wrapPrepareContext(Dialog = rollDialogClass()) {
+    const proto = Dialog?.prototype;
+    const own = proto && Object.hasOwn(proto, "_prepareContext") ? proto._prepareContext : null;
+    if (typeof own === "function" && typeof own[CONTEXT_MARK] === "function") return true;
+
+    const text = typeof own === "function" ? Function.prototype.toString.call(own) : "";
+    const wrong = !proto ? "no roll window class"
+        : typeof own !== "function" ? "no _prepareContext of its own"
+            : !(/\bcanRoll\b/.test(text) && /\.config\.costs\b/.test(text)) ? "a _prepareContext of another shape"
+                : null;
+    if (wrong) {
+        const key = Dialog ?? wrapPrepareContext;
+        if (!refused.has(key)) {
+            refused.add(key);
+            warn(`The roll window's _prepareContext is not wrapped (${wrong}): what a Call forces is written after the window is drawn, as before.`);
+        }
+        return false;
+    }
+
+    const original = own;
+    const forcedFirst = async function drpgPrepareContext(...args) {
+        try {
+            if (isRollDialog(this)) forceConfig(this);
+        } catch (err) {
+            failed("forcing before its context", err);
+        }
+        return original.apply(this, args);
+    };
+    forcedFirst[CONTEXT_MARK] = original;
+    proto._prepareContext = forcedFirst;
+    return true;
+}
+
+/** Did this window's context already run `forceConfig`? */
+function contextForced(app) {
+    return typeof app?._prepareContext?.[CONTEXT_MARK] === "function";
+}
+
+/**
+ * Everything the module writes on a roll window's config: the experiences' costs out, the
+ * reaction held, the advantage imposed, the Call's bonus (with the lock on), one experience.
+ * Returns whether something changed that a window already drawn would show stale.
+ */
+function forceConfig(app) {
+    stripExperienceCosts(app);
+    const actor = actorOf(app);
+    if (!isStudentRoll(actor)) return false;
+
+    forceReaction(app);
+    let redraw = false;
+    const { sign, count } = advantageSources(app, actor);
+    if (sign !== 0) redraw = forceAdvantage(app, sign, count);
+
+    const armed = grantsFor(app, actor);
+    if (locking()) redraw = imposeBonus(app, actor, armed) || redraw;
+    if (armed.has("experience")) redraw = capExperiences(app) || redraw;
+    return redraw;
+}
+
 export function onRenderApplication(app, element) {
     const root = element instanceof HTMLElement ? element : element?.[0];
     if (!root?.classList?.contains?.("roll-selection")) return;
@@ -174,7 +279,11 @@ export function onRenderApplication(app, element) {
         const die = root.querySelector("button.submit-btn i.fa-dice");
         die?.classList.replace("fa-dice", "fa-dice-d12");
 
-        stripExperienceCosts(app);
+        // The costs as this render drew them, before a window that could not be wrapped
+        // has its config forced here: the rows on the window are numbered from this list.
+        const drawn = Array.isArray(app.config?.costs) ? [...app.config.costs] : [];
+        if (!contextForced(app) && forceConfig(app)) app.render();
+        hideCostSection(root, drawn);
 
         const actor = actorOf(app);
 
@@ -195,7 +304,7 @@ export function onRenderApplication(app, element) {
         // than what the player may touch - and because it applies whether or
         // not the lock is on. "Let the players drive their own roll window"
         // cannot also mean "let them mint Hope by clicking a statistic".
-        forceReaction(root, app);
+        paintReaction(root, app);
 
         if (locking()) {
             lockControls(root, app);
@@ -213,20 +322,23 @@ export function onRenderApplication(app, element) {
          * still had to be clicked by hand, the Experience chips still charged Hope for
          * something already paid for, and the purchase was consumed either way.
          *
-         * So the terms of the purchase are imposed here too, and only the things that
-         * are the PLAYER's are left alone: which trait, which experience, the roll
-         * mode, the free-text bonus. What a Call bought is not one of those.
+         * So the terms of the purchase are imposed here too (`forceConfig`, before the
+         * window is drawn), and only the things that are the PLAYER's are left alone:
+         * which trait, which experience, the roll mode, the free-text bonus. What a Call
+         * bought is not one of those.
          *
          * BOTH CHIPS ARE LOCKED WHENEVER THERE IS A NET MODIFIER. Locking only the
          * matching pair leaves the opposite one live, and one click on it makes
          * Daggerheart cancel the modifier the Call just bought - which is the defect
          * with an extra step. This is the same shape `lockControls` uses, which is why
          * it reads like it.
+         *
+         * An experience a Call bought is not paid for twice: its cost is out of the
+         * config before Roll is worked out from it, and a row a window drew before
+         * that is taken off above (`hideCostSection`).
          */
         const { sign, count, capped, sources } = advantageSources(app, actor);
         if (sign !== 0) {
-            forceAdvantage(app, sign, count);
-
             const reason = explainAdvantage(sign, count, capped, sources);
             const adv = root.querySelectorAll(".advantage-chip");
             const dis = root.querySelectorAll(".disadvantage-chip");
@@ -240,21 +352,8 @@ export function onRenderApplication(app, element) {
                 }
             }
         }
-
-        /*
-         * AND AN EXPERIENCE A CALL BOUGHT IS NOT PAID FOR TWICE. The Call has already
-         * been paid; with the lock off the window went on offering the Hope cost
-         * beside every experience, and Daggerheart charges it. Two removals, because
-         * they are two different things: the cost is taken out of the roll's config,
-         * and the `<li>` that draws it is taken off the screen.
-         */
-        const armed = grantsFor(app, actor);
-        if (armed.has("experience")) {
-            stripExperienceCosts(app);
-            capExperiences(app);
-            hideCostSection(root);
-        }
-    } catch {
+    } catch (err) {
+        failed("drawing", err);
         // Never break the roll dialog itself.
     }
 }
@@ -275,19 +374,20 @@ export function onRenderApplication(app, element) {
  * generator and a Despair faucet, and neither cost anything.
  *
  * Two halves, and both are needed. The chip is forced on and made unclickable
- * here so the player can SEE what kind of roll this is; `despair-award.mjs`
- * reads the same fact off the finished message, because a lock on a control is
- * an interface and the rule has to hold whatever the interface does.
+ * (`paintReaction`) so the player can SEE what kind of roll this is;
+ * `despair-award.mjs` reads the same fact off the finished message, because a
+ * lock on a control is an interface and the rule has to hold whatever the
+ * interface does. The config half is written here, before the window is drawn.
  *
  * Monokumas are exempt, like everywhere else in this file: they are not on the
  * Hope/Despair economy in the first place.
  */
-function forceReaction(root, app) {
-    const chip = root.querySelector('[data-action="toggleReaction"]');
-    if (!chip) return;                                   // template moved
-
-    const actor = actorOf(app);
-    if (!isStudentRoll(actor)) return;
+function reactionHeld(app) {
+    // Where the window draws its reaction chip, and nowhere else: a DualityRoll
+    // whose config does not skip it (d20RollDialog.mjs `showReaction`, 2.10.5 and
+    // 2.6.5, read; header.hbs draws the chip on it).
+    if (!app?.roll || app.config?.skips?.reaction || app.roll.constructor?.name !== "DualityRoll") return false;
+    if (!isStudentRoll(actorOf(app))) return false;
     // An action declared it. Leave the chip alone - a player may legitimately
     // want a reaction roll for an action in some corner the guide has not
     // reached, and this is not the place to decide they cannot. Where the GM
@@ -296,16 +396,22 @@ function forceReaction(root, app) {
     // from the sheet as a reaction even when this window was skipped
     // (roll-draw.mjs `onGmTerms`, E08+E28 fix r2-H8). The chip still decides
     // on a Daggerheart build the draw was not written for.
-    if (app?.config?.[DRPG_ACTION_ROLL]) return;
+    return !app.config?.[DRPG_ACTION_ROLL];
+}
 
+function forceReaction(app) {
+    if (!reactionHeld(app)) return;
     // The dialog's own state, set the way its own handler sets it. Not through
-    // a synthetic click on the chip: `toggleReaction` calls `render()`, and a
-    // render triggered from inside a render hook is a loop.
+    // a synthetic click on the chip: `toggleReaction` calls `render()`.
     app.reactionOverride = true;
     app.config.actionType = "reaction";
+}
 
-    // And painted here for the same reason - the template will draw it selected
-    // on the next render, and there may not be one.
+function paintReaction(root, app) {
+    const chip = root.querySelector('[data-action="toggleReaction"]');
+    if (!chip || !reactionHeld(app)) return;             // template moved, or not held
+    // Painted here as well: a window that could not be wrapped drew the chip before
+    // the config said reaction, and there may not be another render.
     chip.classList.add("selected", "drpg-locked");
     chip.querySelector("i")?.classList?.replace("fa-regular", "fa-solid");
     chip.dataset.tooltip = game.i18n.localize("DRPG.RollDialog.reactionLocked");
@@ -365,7 +471,8 @@ function actorOf(app) {
 function locking() {
     try {
         return game.settings.get(MODULE_ID, SETTINGS.lockRollDialog);
-    } catch {
+    } catch (err) {
+        failed("reading the lock setting", err);
         return true;
     }
 }
@@ -373,14 +480,19 @@ function locking() {
 /**
  * Selecting an experience adds a Hope cost to the roll. In this game spending
  * Hope on an experience is the "Experience" Hope Call, paid deliberately - not
- * a silent charge for ticking a box. The cost is removed on every render, which
- * is also every time the config changes, because the dialog submits on change.
+ * a silent charge for ticking a box. The cost is removed before every render's
+ * context (`forceConfig`), which is also every time the config changes, because
+ * the dialog submits on change.
  */
+function isExperienceCost(cost) {
+    return Boolean(cost?.extKey) && (cost.key === "hope" || cost.key === "fear");
+}
+
 function stripExperienceCosts(app) {
     const costs = app?.config?.costs;
     if (!Array.isArray(costs) || !costs.length) return;
 
-    const kept = costs.filter(c => !(c?.extKey && (c.key === "hope" || c.key === "fear")));
+    const kept = costs.filter(c => !isExperienceCost(c));
     if (kept.length === costs.length) return;
 
     app.config.costs = kept;
@@ -455,8 +567,9 @@ function lockAdvantage(root, app, actor) {
     const { sign, count, capped, sources } = advantageSources(app, actor);
 
     if (sign !== 0) {
-        forceAdvantage(app, sign, count);
-
+        // The roll's advantage itself is written before the window is drawn
+        // (`forceConfig`); here it is shown and locked.
+        //
         // The tooltip has to say WHICH, or a player sees a locked advantage they
         // never bought and reads it as a bug.
         //
@@ -512,7 +625,6 @@ function lockExperiences(root, app, armed) {
         // experience the character owns was adding all of them to the total, so
         // a 1-Hope Call was worth +4 on a starting character with two.
         for (const chip of chips) unlock(chip, "DRPG.RollDialog.pickOneExperience");
-        capExperiences(app);
     } else {
         for (const chip of chips) lockChip(chip, "DRPG.RollDialog.experienceLocked");
     }
@@ -523,15 +635,37 @@ function lockExperiences(root, app, armed) {
 // flat modifier (Monocub's Meddle at its lower tier). Imposed the same way
 // advantage is: pre-filled and read-only, not offered for the player to
 // edit or clear.
+/** The flat bonus this window's Calls impose, as the input holds it ("+1", "-2"); null for none. */
+function bonusOf(app, actor, armed) {
+    const amount = armed.has("bonus") ? pendingAmount(windowCalls(app, actor)) : null;
+    if (!amount) return null;
+    return amount > 0 ? `+${amount}` : `${amount}`;
+}
+
+/**
+ * The config's half of the bonus, written before the window is drawn: the Call's number,
+ * or nothing with the lock on and no number (E33 fix r1-G2 below). True when it changed.
+ */
+function imposeBonus(app, actor, armed) {
+    const bonus = bonusOf(app, actor, armed);
+    if (bonus) {
+        if (app.config.extraFormula === bonus) return false;
+        app.config.extraFormula = bonus;
+        return true;
+    }
+    if (!app.config.extraFormula) return false;
+    app.config.extraFormula = undefined;
+    return true;
+}
+
 function lockBonus(root, app, actor, armed) {
     const extra = root.querySelector('input[name="extraFormula"]');
     if (extra) {
-        const amount = armed.has("bonus") ? pendingAmount(windowCalls(app, actor)) : null;
-        if (amount) {
+        const bonus = bonusOf(app, actor, armed);
+        if (bonus) {
             // Unlike advantage, a flat bonus only ever comes from a Call -
             // `situationalAdvantage()` deals in advantage/disadvantage, not
             // in numbers - so the tooltip does not need the two-way check above.
-            const bonus = amount > 0 ? `+${amount}` : `${amount}`;
             // THE WINDOW KEEPS WHAT ITS FORM SENDS IT (E33 C3, 07.10.2026). Daggerheart's
             // window copies its inputs into the roll's config only in its form's handler
             // (d20RollDialog.mjs:150-171, 2.10.5, read: `config.extraFormula` :169), run on
@@ -547,7 +681,9 @@ function lockBonus(root, app, actor, armed) {
             // under `submitOnChange` - is written from its documented ApplicationV2, not
             // measured: its source is not on this machine. Whether a table's Roll click
             // submits the form too (the button has no `type`, rollSelection.hbs:195) is not
-            // known here (LIVE-E33).
+            // known here (LIVE-E33). Since E16 C1 the config holds the number before the window
+            // is drawn (`imposeBonus`), so the input is drawn with it and the change is said only
+            // where the two still differ.
             if (extra.value !== bonus || (app.config && app.config.extraFormula !== bonus)) {
                 extra.value = bonus;
                 extra.dispatchEvent(new Event("change", { bubbles: true }));
@@ -567,10 +703,10 @@ function lockBonus(root, app, actor, armed) {
             // false `modifier` whisper (roll-draw.mjs `checkRoll`) and a roll a window shows with a
             // number the GM does not throw. The input is cleared, the config with it where the handler
             // does not run (a disabled control is not in the form's data in Foundry either, as
-            // remembered of FormDataExtended, not read), and the same `change` is said.
+            // remembered of FormDataExtended, not read), and the same `change` is said. Since E16 C1
+            // the config is cleared before the window is drawn (`imposeBonus`).
             if (extra.value !== "" || app.config?.extraFormula) {
                 extra.value = "";
-                if (app.config && app.config.extraFormula !== undefined) app.config.extraFormula = undefined;
                 extra.dispatchEvent(new Event("change", { bubbles: true }));
             }
         }
@@ -593,10 +729,6 @@ function lockControls(root, app) {
     lockTrait(root, app, armed);
     lockAdvantage(root, app, actor);
     lockExperiences(root, app, armed);
-
-    // Selecting an experience normally adds a Hope cost. The Call has already
-    // been paid for, so the cost block is meaningless here - remove it.
-    hideCostSection(root);
 
     if (armed.has("critical")) announceFreeCritical(root);
 
@@ -643,7 +775,8 @@ function armedOn(actor) {
     if (!actor) return [];
     try {
         return pendingCalls(actor);
-    } catch {
+    } catch (err) {
+        failed("reading the armed Calls", err);
         return [];
     }
 }
@@ -682,7 +815,8 @@ function pendingAmount(calls) {
             .map(entry => Number(entry.amount));
         if (!bonuses.length) return null;
         return bonuses.reduce((sum, value) => sum + value, 0);
-    } catch {
+    } catch (err) {
+        failed("adding up a bonus", err);
         return null;
     }
 }
@@ -691,7 +825,8 @@ function pendingAmount(calls) {
 function situationalGrant() {
     try {
         return situationalAdvantage();
-    } catch {
+    } catch (err) {
+        failed("reading the room's advantage", err);
         return 0;
     }
 }
@@ -706,7 +841,8 @@ function situationalGrant() {
 function stateGrant(actor) {
     try {
         return isBrokenDown(actor) ? -1 : 0;
-    } catch {
+    } catch (err) {
+        failed("reading a Breakdown", err);
         return 0;
     }
 }
@@ -748,7 +884,8 @@ function callDice(calls) {
     try {
         return calls.reduce((sum, entry) =>
             sum + (entry.grants === "advantage" ? 1 : entry.grants === "disadvantage" ? -1 : 0), 0);
-    } catch {
+    } catch (err) {
+        failed("counting the Calls' dice", err);
         return 0;
     }
 }
@@ -876,10 +1013,12 @@ function lockChip(chip, tooltip) {
  * The buttons are cosmetic; the roll reads `config.roll.advantage` and
  * `config.experiences`. Both are written directly, so the modifier is real even
  * though the player never clicked anything - and cannot be clicked away, since
- * the buttons are locked immediately afterwards.
+ * the buttons are locked as the window is drawn.
  *
- * Each dialog is forced once. Writing the config triggers a re-render, which
- * re-enters this hook, so without the guard this would loop forever.
+ * Written before the window's context (`forceConfig`, E16 C1), so the formula
+ * it shows is the one forced. Each returns whether it changed anything: a window
+ * that could not be wrapped is redrawn by the render hook then, and only then -
+ * asking for what is already set changes nothing, so that redraw cannot loop.
  * ========================================================================== */
 
 const forced = new WeakMap();
@@ -905,7 +1044,7 @@ const forced = new WeakMap();
 function forceAdvantage(app, advantage, count = 1) {
     try {
         const want = `${advantage}:${count}`;
-        if (forced.get(app) === want) return;
+        if (forced.get(app) === want) return false;
 
         // Already exactly right - from a previous pass, or because the player
         // is a Monokuma whose window we do not lock. Recorded so the next
@@ -913,7 +1052,7 @@ function forceAdvantage(app, advantage, count = 1) {
         if (app.config.roll.advantage === advantage
             && Number(app.roll?.advantageNumber) === count) {
             forced.set(app, want);
-            return;
+            return false;
         }
         forced.set(app, want);
 
@@ -930,10 +1069,11 @@ function forceAdvantage(app, advantage, count = 1) {
             advantage === 1 ? rules?.defaultAdvantageDice : rules?.defaultDisadvantageDice
         );
         if (!Number.isNaN(faces)) app.roll.advantageFaces = faces;
-
-        app.render();
-    } catch {
+        return true;
+    } catch (err) {
+        failed("forcing the advantage", err);
         // A forced modifier is better missing than fatal.
+        return false;
     }
 }
 
@@ -945,32 +1085,40 @@ function forceAdvantage(app, advantage, count = 1) {
  * the most recent pick is dropped - which reads as "clicking a second one moves
  * the choice" rather than as a refusal.
  *
- * No re-entrancy guard is needed: the length test below is what stops the render
- * this triggers from looping.
+ * No re-entrancy guard is needed: the length test below is what stops a redraw
+ * from looping.
  */
 function capExperiences(app) {
     try {
         const chosen = app.config.experiences ?? [];
-        if (chosen.length <= 1) return;
+        if (chosen.length <= 1) return false;
 
         app.config.experiences = [chosen[chosen.length - 1]];
-        app.render();
-    } catch {
+        return true;
+    } catch (err) {
+        failed("holding one experience", err);
         // A miscounted experience is better than a broken roll window.
+        return false;
     }
 }
 
 /**
- * Remove the Hope-cost block.
+ * Remove an experience's Hope-cost row.
  *
  * Experiences normally charge Hope when ticked. Here the Experience Hope Call
- * has already been paid, so the block would be charging twice - and offering a
- * checkbox that must not be unticked. `stripExperienceCosts` empties it from the
- * config; this clears the markup the current render already produced.
+ * has already been paid, so the row would be charging twice - and offering a
+ * checkbox that must not be unticked. `stripExperienceCosts` takes the cost out
+ * of the config; this clears a row a window drew before it did (one the module
+ * could not wrap). ONLY an experience's row (audit S02-71): every cost row went,
+ * so a Stress cost Daggerheart charges was charged unseen (tier 2, "the roll
+ * window hides only the experiences' cost rows ...", at cfbbf60: no row left).
+ * The rows are numbered as `drawn`, the costs this render drew from
+ * (costSelection.hbs `costs.{{index}}.enabled`, read).
  */
-function hideCostSection(root) {
+function hideCostSection(root, drawn = []) {
     for (const input of root.querySelectorAll('input[name^="costs."]')) {
-        input.closest("li")?.remove();
+        const index = Number(/^costs\.(\d+)\./.exec(input.name)?.[1]);
+        if (Number.isInteger(index) && isExperienceCost(drawn[index])) input.closest("li")?.remove();
     }
     for (const fieldset of root.querySelectorAll("fieldset")) {
         const list = fieldset.querySelector("ul");

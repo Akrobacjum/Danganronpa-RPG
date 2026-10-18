@@ -4090,9 +4090,15 @@ const REGRESSIONS = [
          * matching pair leaves the opposite one live, and one click on it makes
          * Daggerheart cancel the modifier the Call just bought - the same defect with
          * an extra step.
+         *
+         * Since E16 C1 the experience's cost leaves the config in `forceConfig`, run
+         * before the window's context (and from the hook where that could not be
+         * wrapped), ahead of any test of the lock; the hook takes off the rows drawn
+         * for it. Read in both.
          */
         const dialog = stripComments(new Map(await otherSources()).get("roll-dialog.mjs") ?? "");
         const open = bodyOf(dialog, "function onRenderApplication", { until: "function forceReaction" });
+        const force = bodyOf(dialog, "function forceConfig", { until: "isStudentRoll(actor)" });
         ok(open.length > 400, "the render hook has moved or gone");
         ok(/advantageSources\(app, actor\)/.test(open),
             "the unlocked road reads Breakdown alone again, so a bought die is lost");
@@ -4100,7 +4106,8 @@ const REGRESSIONS = [
             "the state-only reader is back");
         ok(/\[\.\.\.adv, \.\.\.dis\]/.test(open),
             "only one pair of chips is locked, so the other one can cancel the purchase");
-        ok(/stripExperienceCosts\(app\)/.test(open) && /hideCostSection\(root\)/.test(open),
+        ok(/^function forceConfig\(app\) \{\s*stripExperienceCosts\(app\);/.test(force) && !/locking\(\)/.test(force)
+            && /forceConfig\(app\)/.test(open) && /hideCostSection\(root, drawn\)/.test(open),
             "an experience a Call paid for is charged again when the lock is off");
         ok(open.indexOf("locking()") < open.indexOf("advantageSources(app, actor)"),
             "the unlocked branch now runs for everybody, including the locked road");
@@ -13321,6 +13328,57 @@ const REGRESSIONS = [
                 ["Przejdź", "Tajne przejście do: {room}", "Nie znajdujesz tu tajnego przejścia.", "Znajdź tajne przejście", "+ Tunel lub schody", "Ujawnij", "Utajnij", "Zamień na przejścia", "Ukryj", "Pokaż"],
                 "Poznajesz tajne przejście", true]),
             "the texts the stage names, and the words the handbooks quote ([en], [pl], the Polish Sound row's label, its hint naming a find and a show)");
+    }],
+
+    ["R800 - the roll window's render hook writes nothing under the roll's config: what a Call or the lock forces is written before Daggerheart's context (E16)", async () => {
+        /*
+         * E16 p1 C1, 18.10.2026; audit S02-04. Daggerheart's roll window computes its Roll button, its costs and
+         * its formula in `_prepareContext` (d20RollDialog.mjs, 2.10.5 and 2.6.5, read), before the render hook
+         * runs; the module wrote the config in that hook, so a player at 0 Hope who bought an Experience Call
+         * and clicked the experience saw Roll greyed out by a cost the hook took out a moment too late. The
+         * writes moved into the wrapper of `_prepareContext` (`wrapPrepareContext`, through `forceConfig`); the
+         * render hook keeps one road to `forceConfig`, for a window whose method the module could not wrap
+         * (the warning mode), on the line that asks `contextForced`. Read: every top-level function of
+         * roll-dialog.mjs the hook names, and the ones they name, but `forceConfig`, for an assignment or an
+         * array write under a `config`; the line of each `forceConfig` the hook names; and the wrapper's call
+         * of `forceConfig` before the method it wraps. A planted source is read first, so a detector that
+         * finds nothing is told from a hook that writes nothing. At cfbbf60 the hook reached five writes, in
+         * `stripExperienceCosts`, `forceReaction`, `forceAdvantage`, `capExperiences` and `lockBonus`.
+         */
+        const WRITE = /(?:(?:\?\.|\.)config(?:\??\.[\w$]+|\[[^\]\n]*\])*|\bconfig(?:\??\.[\w$]+|\[[^\]\n]*\])+)\s*(?:[-+*/%]|\?\?|\|\||&&)?=(?![=>])|\bconfig(?:\??\.[\w$]+)+\.(?:push|splice|pop|shift|unshift|sort|reverse)\(|\b(?:assign|mergeObject)\(\s*[\w$.?]*config\b/g;
+        const hookWrites = text => {
+            const names = new Set([...text.matchAll(/^(?:export )?(?:async )?function (\w+)\(/gm)].map(m => m[1]));
+            const seen = [], writes = [], queue = ["onRenderApplication"];
+            while (queue.length) {
+                const name = queue.shift();
+                if (seen.includes(name) || name === "forceConfig") continue;
+                seen.push(name);
+                const body = fnSource(text, name);
+                for (const m of body.matchAll(WRITE)) writes.push([name, m[0].trim()]);
+                for (const m of body.matchAll(/(?<![.\w$])([A-Za-z_$][\w$]*)\b/g)) if (names.has(m[1]) && m[1] !== name) queue.push(m[1]);
+            }
+            const hook = fnSource(text, "onRenderApplication");
+            const roads = [...hook.matchAll(/\bforceConfig\(/g)].map(m => /!contextForced\(app\)/.test(lineAround(hook, m.index)));
+            return { seen, writes, roads };
+        };
+        const PLANT = [
+            "export function onRenderApplication(app, element) {", "    paint(app);", "    if (!contextForced(app) && forceConfig(app)) app.render();", "}",
+            "function paint(app) {", "    deeper(app);", "    const config = app.config;", "    if (config.roll.advantage === 1) return;", "}",
+            "function deeper(app) {", "    app.config.roll.advantage = 1;", "    app.config.experiences.push(\"x\");", "}",
+            "function forceConfig(app) {", "    app.config.costs = [];", "}",
+            "function contextForced(app) {", "    return false;", "}", ""].join("\n");
+        equal(JSON.stringify(hookWrites(PLANT)),
+            JSON.stringify({ seen: ["onRenderApplication", "paint", "contextForced", "deeper"], writes: [["deeper", ".config.roll.advantage ="], ["deeper", "config.experiences.push("]], roads: [true] }),
+            "the detector does not read the planted hook as written (what it read, the writes it found, whether each road to forceConfig is the warning mode's) - it would find nothing in the module either");
+        const src = stripComments(new Map(await otherSources()).get("roll-dialog.mjs") ?? "");
+        const real = hookWrites(src);
+        equal(JSON.stringify([real.writes, real.roads]), JSON.stringify([[], [true]]),
+            "the roll window's render hook writes under the roll's config, or reaches forceConfig on a line that is not the warning mode's ([the writes, each road to forceConfig on the contextForced line])");
+        ok(["lockControls", "lockBonus", "hideCostSection", "paintReaction"].every(name => real.seen.includes(name)),
+            `the render hook no longer reaches the functions that draw the lock (read: ${real.seen.join(", ")}) - this would measure nothing`);
+        const wrap = fnSource(src, "wrapPrepareContext");
+        const forcedAt = wrap.search(/\bforceConfig\(this\)/), originalAt = wrap.search(/\boriginal\.apply\(this/);
+        ok(forcedAt > 0 && originalAt > forcedAt, "the wrapper of the window's _prepareContext does not write what is forced before Daggerheart's own method runs");
     }]
 ];
 

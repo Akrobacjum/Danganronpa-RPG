@@ -53311,6 +53311,201 @@ const SCENARIOS = [
         equal(rest(game.settings.get("core", "permissions")) + J(game.settings.get("core", "permissions")?.SHOW_RULER ?? null),
             rest(before) + J(before.SHOW_RULER ?? null), "the world's permissions after the test are not the ones it found");
     }],
+    ["a player at 0 Hope who bought an Experience Call clicks the experience: Roll stays on and it costs nothing, the lock on or off; with the lock off and no Call the free experience leaves no cost row for the next change to break (S02-04)", async () => {
+        /*
+         * E16 p1 C1, 18.10.2026; audit S02-04 (E16-01, E16-02). The Experience Call is paid before the roll, so
+         * a player who had 1 Hope has 0 when the window opens. Daggerheart's window adds an experience's Hope
+         * cost when it is clicked and greys Roll out from that cost in `_prepareContext`; the module took the
+         * cost out in the render hook, after the button was drawn, and the bought roll could not be thrown.
+         * With the lock off and no Call the experience is free (the module's rule), the cost was taken out of
+         * the config and its row left on the window, and Daggerheart's form handler merges the rows back on the
+         * next change (d20RollDialog.mjs `updateRollConfiguration`, 2.10.5, read: `mergeObject(this.config.costs,
+         * rest.costs)`) - a cost with no resource, which its `calcCosts` throws on. A student at Hope 0; for the
+         * lock on and off an Experience Call armed by a GM, Daggerheart's window (`rollWindow`, the harness's
+         * stand-in, whose Roll C0 greys from the costs) opened on its action roll and the first experience
+         * clicked; then the lock off with no Call, the same click, the handler's merge done here as written
+         * there (the stand-in's handler does not run it) and the window's context computed again. Read, each:
+         * Roll disabled, the Hope the config's costs ask, the cost rows on the window; and whether the context
+         * threw. At cfbbf60: [true, 0, 0] locked and unlocked, and [true, 0, 1, "TypeError"] free.
+         */
+        const [actor] = cast(1);
+        const { DRPG_ACTION_ROLL } = await import("./action-rolls.mjs");
+        const lockWas = game.settings.get(MODULE_ID, SETTINGS.lockRollDialog);
+        const settled = w => (typeof w.app.settled === "function" ? w.app.settled() : settle());
+        const chip = w => w.element?.querySelector('[data-action="selectExperience"]') ?? null;
+        const state = w => [w.element?.querySelector("button.submit-btn")?.disabled ?? null,
+            (w.app.config?.costs ?? []).filter(c => c?.key === "hope").reduce((sum, c) => sum + Number(c.value ?? 0), 0),
+            w.element?.querySelectorAll('input[name^="costs."]').length ?? null];
+        const hope = await c3Values(actor, { "system.resources.hope.value": 0 });
+        const read = {};
+        let call = null, win = null;
+        try {
+            for (const lock of [true, false]) {
+                await game.settings.set(MODULE_ID, SETTINGS.lockRollDialog, lock);
+                call = await c3Call(actor, { key: "experience", kind: "hope", grants: "experience" });
+                win = await (await rollWindow(actor, { [DRPG_ACTION_ROLL]: true })).open();
+                must(chip(win), `${actor.name}'s window offers no experience - this would measure nothing`);
+                chip(win).click();
+                await settled(win);
+                read[lock ? "locked" : "unlocked"] = state(win);
+                await win.cancel();
+                win = null;
+                await call.spend();
+                call = null;
+            }
+            win = await (await rollWindow(actor, { [DRPG_ACTION_ROLL]: true })).open();
+            must(chip(win), `${actor.name}'s window offers no experience - this would measure nothing`);
+            chip(win).click();
+            await settled(win);
+            const free = state(win);
+            const form = Object.fromEntries([...win.element.querySelectorAll("input, select")]
+                .filter(el => el.name && !el.disabled).map(el => [el.name, el.type === "checkbox" ? el.checked : el.value]));
+            const { costs } = foundry.utils.expandObject(form);
+            win.app.config.costs = foundry.utils.mergeObject(win.app.config.costs, costs ?? {});
+            let threw = null;
+            try {
+                await win.app._prepareContext({});
+                threw = false;
+            } catch (err) {
+                threw = err?.name ?? String(err);
+            }
+            read.free = [...free, threw];
+        } finally {
+            await win?.cancel();
+            await call?.spend();
+            if (game.settings.get(MODULE_ID, SETTINGS.lockRollDialog) !== lockWas) await game.settings.set(MODULE_ID, SETTINGS.lockRollDialog, lockWas);
+            await hope.undo();
+        }
+        equal(stableJson(read), stableJson({ free: [false, 0, 0, false], locked: [false, 0, 0], unlocked: [false, 0, 0] }),
+            "a bought or free experience at 0 Hope greyed Roll out, cost Hope, left its cost row, or broke the window on the next change (each: Roll disabled, the Hope asked, the cost rows; free: and what the context threw)");
+    }],
+
+    ["a roll window whose context the module could not wrap says so once on the console, and still gets what a Call forces from the render hook (E16-04)", async () => {
+        /*
+         * E16 p1 C1, 18.10.2026; the plan's risk for E16 (D1 does not stop a newer Daggerheart). The wrapper of
+         * the window's `_prepareContext` is put on a method of the shape read on 2.10.5 and 2.6.5; where the
+         * method is missing or of another shape the module is to say so once and work as at Base (4263c09), from the
+         * render hook. Read: the wrapper asked twice of a window class with no method of its own and once of one
+         * whose method computes no Roll from the costs - what it answered, the console's lines from the module
+         * naming `_prepareContext`, and whether either class was changed; then Daggerheart's window with the
+         * glue's own method put back for the test (the wrapper's mark keeps it), a Support armed by a GM:
+         * the roll's advantage and its number of dice, whether the advantage chip is selected and locked. At
+         * cfbbf60 the module had no wrapper to ask.
+         */
+        const RD = await import("./roll-dialog.mjs");
+        const MARK = Symbol.for("drpgRollContext");
+        const { ApplicationV2 } = foundry.applications.api;
+        const [actor] = cast(1);
+        const read = {};
+        if (typeof RD.wrapPrepareContext !== "function" || typeof RD.rollDialogClass !== "function") {
+            read.wrap = "roll-dialog.mjs has no wrapPrepareContext or rollDialogClass";
+        } else {
+            class Bare extends ApplicationV2 {}
+            class Odd extends ApplicationV2 {
+                async _prepareContext() { return {}; }
+            }
+            const odd = Odd.prototype._prepareContext;
+            const log = watchLog();
+            try {
+                read.wrap = [RD.wrapPrepareContext(Bare), RD.wrapPrepareContext(Bare), RD.wrapPrepareContext(Odd)];
+            } finally {
+                log.stop();
+            }
+            read.said = log.count(new RegExp(`^${MODULE_ID} \\| .*_prepareContext`));
+            read.untouched = [Object.hasOwn(Bare.prototype, "_prepareContext"), Odd.prototype._prepareContext === odd];
+            const proto = RD.rollDialogClass()?.prototype;
+            const ours = proto?._prepareContext;
+            must(typeof ours?.[MARK] === "function", "Daggerheart's roll window here is not the module's wrapped one - this would measure nothing");
+            const lockWas = game.settings.get(MODULE_ID, SETTINGS.lockRollDialog);
+            let support = null, win = null;
+            try {
+                if (!lockWas) await game.settings.set(MODULE_ID, SETTINGS.lockRollDialog, true);
+                proto._prepareContext = ours[MARK];
+                support = await c3Call(actor, C3_SUPPORT);
+                win = await (await rollWindow(actor, { roll: { trait: "agility" } })).open();
+                const chipEl = win.element.querySelector(".advantage-chip");
+                read.base = [win.app.config?.roll?.advantage ?? null, win.roll?.advantageNumber ?? null,
+                    Boolean(chipEl?.classList.contains("selected") && chipEl?.disabled)];
+            } finally {
+                await win?.cancel();
+                proto._prepareContext = ours;
+                await support?.spend();
+                if (game.settings.get(MODULE_ID, SETTINGS.lockRollDialog) !== lockWas) await game.settings.set(MODULE_ID, SETTINGS.lockRollDialog, lockWas);
+            }
+        }
+        equal(stableJson(read), stableJson({ base: [1, 1, true], said: 2, untouched: [false, true], wrap: [false, false, false] }),
+            "the wrapper took a missing or other-shaped method, said so more or less than once a class, changed a class it refused, or a window it could not wrap lost what a Support forces (wrap answers, lines, [Bare has a method, Odd's kept], [advantage, dice, the chip selected and locked])");
+    }],
+
+    ["the roll window hides only the experiences' cost rows: a cost Daggerheart will charge stays in sight (S02-71)", async () => {
+        /*
+         * E16 p1 C1, 18.10.2026; audit S02-71. `hideCostSection` took every cost row off a student's window, so
+         * a Daggerheart action a GM gave a student that costs Stress would charge it unseen. Only an
+         * experience's cost (`extKey`) is the Experience Call's, paid already. A student's window opened by a GM
+         * with a Stress cost of 1 on its config, the lock on, an Experience Call armed and the first experience
+         * clicked. Read: the cost rows on the window and the costs on the config. At cfbbf60: no row, ["stress"].
+         */
+        const [actor] = cast(1);
+        const { DRPG_ACTION_ROLL } = await import("./action-rolls.mjs");
+        const lockWas = game.settings.get(MODULE_ID, SETTINGS.lockRollDialog);
+        let call = null, win = null, read = null;
+        try {
+            if (!lockWas) await game.settings.set(MODULE_ID, SETTINGS.lockRollDialog, true);
+            call = await c3Call(actor, { key: "experience", kind: "hope", grants: "experience" });
+            win = await (await rollWindow(actor, { [DRPG_ACTION_ROLL]: true, costs: [{ key: "stress", value: 1 }] })).open();
+            const chip = win.element.querySelector('[data-action="selectExperience"]');
+            must(chip, `${actor.name}'s window offers no experience - this would measure nothing`);
+            chip.click();
+            if (typeof win.app.settled === "function") await win.app.settled();
+            else await settle();
+            read = [[...win.element.querySelectorAll('input[name^="costs."]')].map(input => input.name), (win.app.config?.costs ?? []).map(c => c.key)];
+        } finally {
+            await win?.cancel();
+            await call?.spend();
+            if (game.settings.get(MODULE_ID, SETTINGS.lockRollDialog) !== lockWas) await game.settings.set(MODULE_ID, SETTINGS.lockRollDialog, lockWas);
+        }
+        equal(stableJson(read), stableJson([["costs.0.enabled"], ["stress"]]),
+            "the window hid a cost that is not an experience's, or kept the experience's (the cost rows, the config's costs)");
+    }],
+
+    ["a Find Passage thrown through the roll window keeps its findPassage on the roll in hand that noteRollContext extends (A10)", async () => {
+        /*
+         * E16 p1 C1, 18.10.2026; the owner's A10 of 11.10 ("the roll window's rebuild keeps the findPassage
+         * context in noteRollContext"), a guard: the context is the action's, handed to `rollTrait` and kept on
+         * the roll in hand (`rememberRoll`), which `locatePassage`'s `noteRollContext` then extends; the window
+         * is what C1 rebuilt. A student's Find Passage roll (`rollTrait` of Head with the Analyze's key and
+         * `findPassage`, as action-rolls.mjs `performAnalyze` throws it) thrown through Daggerheart's window
+         * (the suite's rolls skip it, `suiteRolling`), the lock on, its faces set. Read: the roll in hand's
+         * action, its findPassage, and whether a total came back. Green at cfbbf60 as well. A11's `direction`
+         * and `mode` join this when E80 part 2 merges into line B.
+         */
+        const [actor] = cast(1);
+        const rolls = await import("./action-rolls.mjs");
+        const lockWas = game.settings.get(MODULE_ID, SETTINGS.lockRollDialog);
+        const rolling = game.drpg.suiteRolling;
+        const { gameSettings } = CONFIG.DH.SETTINGS;
+        const fear = game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear);
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        let outcome = null;
+        try {
+            if (!lockWas) await game.settings.set(MODULE_ID, SETTINGS.lockRollDialog, true);
+            game.drpg.suiteRolling = false;
+            globalThis.__forceRoll = { hope: 9, fear: 4 };
+            outcome = await rolls.rollTrait(actor, "head", { actionKey: "analyze", context: { findPassage: true } });
+        } finally {
+            game.drpg.suiteRolling = rolling;
+            if (hadForce) globalThis.__forceRoll = force;
+            else delete globalThis.__forceRoll;
+            await settle();
+            await (outcome?.raw?.message ?? null)?.delete?.();
+            if (game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear) !== fear) await game.settings.set(CONFIG.DH.id, gameSettings.Resources.Fear, fear);
+            if (game.settings.get(MODULE_ID, SETTINGS.lockRollDialog) !== lockWas) await game.settings.set(MODULE_ID, SETTINGS.lockRollDialog, lockWas);
+        }
+        const hand = rolls.rollInHand(actor);
+        equal(stableJson([hand?.actionKey ?? null, hand?.findPassage ?? null, typeof outcome?.total]), stableJson(["analyze", true, "number"]),
+            "a Find Passage thrown through the window lost its findPassage, its action, or its roll (the roll in hand's action and findPassage, the total's type)");
+    }],
+
     ...GRID
 ];
 
