@@ -41,6 +41,18 @@ reason changed, the order changed. The log keeps the first 30,000 characters of
 the suite's text; `--json` compares the two runs' results files instead, where
 01-runtests keeps the suite's whole list of results (`evidence.suite`).
 
+`node run-tests.mjs [--tier 0|1|2] [--only <R number or piece of a name>]...
+[--verbose]` (INFRA I1) runs the suite's tiers once, on the cluster 01-runtests
+boots, without 01's other steps: `game.drpg.runTests({ tier, only, confirmed })`
+on the GM, `--tier` 1 when not given, every `--only` handed over as one list, of
+which each entry has to name a test in the tiers asked for. It prints the
+runner's whole text between the lines suite-diff reads and ends on
+`run-tests: P passed, F failed, S skipped, R red`; exit 0 only with nothing
+failed and at least one test run, 1 otherwise, 2 on a usage error, 3 when the
+cluster left no results file of this run (`results/run-tests.json`, the suite's
+list as `evidence.suite`, as 01 keeps it). Measured 18.10.2026 on 4 cores:
+`--tier 1` 200-212 s wall in two runs, 449 tests; `--only R553` 11 s, one test.
+
 ## Layers
 
 Every file declares `export const layers = [...]`, written out as a JSON array

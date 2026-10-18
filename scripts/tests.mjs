@@ -100,11 +100,13 @@ let inFlight = false;
  * @param {0|1|2} [options.tier=1]  0 reads the module's source; 1 adds the read-only
  *   invariants - the default, safe during play, and checked to be (the whole world is
  *   read before and after); 2 adds the scenarios, which WRITE, and asks first.
- * @param {string} [options.only]    Run only these tests, in every tier up to `tier`:
+ * @param {string|string[]} [options.only] Run only these tests, in every tier up to `tier`:
  *   an R number ("R15") names that one test, anything else is a piece of a name.
- *   For the loop of fixing one thing: a full run is four minutes, and the
- *   scenario being fixed is one of them. The world is still snapshotted and
- *   restored around the scenarios that run.
+ *   A list runs every test any of its entries names, and each entry has to name
+ *   one in those tiers (audit/harness/run-tests.mjs hands its repeated --only over
+ *   as one, INFRA I1). For the loop of fixing one thing: a full run is four
+ *   minutes, and the scenario being fixed is one of them. The world is still
+ *   snapshotted and restored around the scenarios that run.
  * @param {string} [options.confirmed] Tier 2 only: THIS world's id (game.world.id),
  *   for a caller that cannot answer a window (the headless harness). Anything else -
  *   `true` included - opens the window, so a line copied from a handbook into a
@@ -199,11 +201,24 @@ function noticeHistoryText() {
  * names that day). An R number is now matched whole against the name's first
  * word; anything else is still a piece of the name.
  */
+/*
+ * A LIST IS EACH OF ITS ENTRIES (INFRA I1, 18.10.2026): a test runs when one entry
+ * names it, by the rule above. An empty entry names nothing and is dropped, so
+ * `only: ""`, `null` and `[]` all mean every test, as `only: ""` did before.
+ */
+function onlyEntries(only) {
+    return (Array.isArray(only) ? only : [only])
+        .filter(x => x !== null && x !== undefined && String(x).trim() !== "").map(x => String(x).trim());
+}
+
 function matcherFor(only) {
-    if (only === null || only === undefined || only === "") return () => true;
-    const wanted = String(only).trim().toLowerCase();
-    if (/^r\d+[a-z]?$/.test(wanted)) return name => name.split(/\s/)[0].toLowerCase() === wanted;
-    return name => name.toLowerCase().includes(wanted);
+    const entries = onlyEntries(only);
+    if (!entries.length) return () => true;
+    const one = wanted => /^r\d+[a-z]?$/.test(wanted)
+        ? name => name.split(/\s/)[0].toLowerCase() === wanted
+        : name => name.toLowerCase().includes(wanted);
+    const tests = entries.map(entry => one(entry.toLowerCase()));
+    return name => tests.some(test => test(name));
 }
 
 /*
@@ -264,17 +279,20 @@ async function runSuite(tier, only = null) {
      * that matched no test in the tiers asked for printed "1 passed, 0 failed" - the
      * purity line alone - and so did `runTests({ only: "legacy trace" })` once the
      * default became tier 1, the test it names being a tier-2 scenario. Said as a
-     * failure, with the tier where the name does match, if there is one.
+     * failure, with the tier where the name does match, if there is one. In a list
+     * each entry is asked on its own (INFRA I1): one misspelt name of five would
+     * otherwise run four tests and say nothing of the fifth.
      */
-    if (only !== null && only !== undefined && only !== "") {
-        const tiers = [[0, REGRESSIONS], [1, INVARIANTS], [2, SCENARIOS]];
-        if (!tiers.some(([t, list]) => t <= tier && pick(list).length)) {
-            const later = tiers.filter(([t, list]) => t > tier && pick(list).length);
-            record({ tier, name: `only "${only}" names a test in tiers 0-${tier}`, outcome: "fail", assertions: null,
+    const tiers = [[0, REGRESSIONS], [1, INVARIANTS], [2, SCENARIOS]];
+    for (const entry of onlyEntries(only)) {
+        const named = matcherFor(entry), mine = list => list.filter(([name]) => named(name));
+        if (!tiers.some(([t, list]) => t <= tier && mine(list).length)) {
+            const later = tiers.filter(([t, list]) => t > tier && mine(list).length);
+            record({ tier, name: `only "${entry}" names a test in tiers 0-${tier}`, outcome: "fail", assertions: null,
                 message: later.length
                     ? later.map(([t, list]) => {
-                        const n = pick(list).length;
-                        return `it names ${n} test${n === 1 ? "" : "s"} in tier ${t} - runTests({ tier: ${t}, only: ${JSON.stringify(only)} })`;
+                        const n = mine(list).length;
+                        return `it names ${n} test${n === 1 ? "" : "s"} in tier ${t} - runTests({ tier: ${t}, only: ${JSON.stringify(entry)} })`;
                     }).join("; ")
                     : "no test in any tier has that in its name" });
         }

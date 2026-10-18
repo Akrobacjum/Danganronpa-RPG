@@ -35,6 +35,7 @@ If a claim cannot be measured, say that instead of rounding it up.
 | Everything CI runs | `npm test` in `audit/harness`: lint, `tools/check.mjs`, the gate's self-test, the suite and every scenario whose layers include `ci`. 38m13s here (05.10, 4 cores, 17 scenarios); exit 1 on anything red |
 | The quick part | `npm run quick` - lint, the checks and the gate's self-test, 9-13 s here; `npm run lint` and `npm run check` alone |
 | The suite, headless | `npm run suite`, or `node cluster.mjs scenarios/01-runtests.mjs` |
+| Tiers 0-1, or a few tests by name, headless | `node run-tests.mjs --tier 1` in `audit/harness`: 200-212 s here (18.10, 4 cores, 449 tests); `--tier 2 --only R553 --only "<piece of a name>"` runs only those, `--only` as often as wanted; the runner's text, then `run-tests: P passed, F failed, S skipped, R red`; exit 1 on a failure, on nothing run and on an `--only` that names nothing in the tiers asked for |
 | One scenario | `node cluster.mjs scenarios/40-flow.mjs` (add `--verbose` for per-test lines); `node run-all.mjs scenarios --only 40-flow` also holds it to a fresh results file |
 | Every scenario | `npm run scenarios`: the rows with layers `ci` in `audit/harness/README.md` |
 | One check | `node tools/check.mjs <part>`: stamps, notes, dashes, parity, prose, names, moves, contract, registry, stages, tree, gatecode |
