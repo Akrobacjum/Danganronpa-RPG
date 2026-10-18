@@ -1102,7 +1102,7 @@ async function worksOwnMurder(payload, actor, action, sender) {
  * A roll that leaves no trace is refused, and a packet whose visibility differs is placed at the
  * GM's band and logged (bridge-guards.mjs `onRecord`). Whether a trace is placed at all is still
  * the roller's browser's: a console that sends no `remnant.place` leaves none, and a Work's trace
- * (`project`, not in `TRACE_OF_ROLL`) takes the band its packet names - CLAUDE.md's "What stays
+ * (`project`, not in `TRACE_OF_ROLL`) takes the band its packet names - .claude/rules/trust-model.md's "What stays
  * open" (the round-2 review's S2-8; fix r2-H7).
  */
 async function traceBandOf(record) {

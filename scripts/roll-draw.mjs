@@ -663,7 +663,7 @@ function paidCosts(costs) {
  *   - two draws of one character's action at once are one too many (`drawing`).
  * WHAT THIS DOES NOT CLOSE. A payment is the roller's own write to their own character, which
  * Foundry lets an owner make - and so is the rise that gives it back: a console that pays, draws
- * and then hands itself the action back has paid, as far as this GM can see (CLAUDE.md, layer
+ * and then hands itself the action back has paid, as far as this GM can see (.claude/rules/trust-model.md, layer
  * two). A Move or a Rest lowers the actions too, and is a ticket nobody honest draws on. The
  * tickets are each GM's own memory, and a draw takes one on the GM that draws it: a payment made
  * before a GM loaded is not seen there, and its roll is refused as a closed window is - the

@@ -30,7 +30,7 @@
  * The module's roads that write a student's traits or Health and Sanity maxima are a
  * GM's for that reason - `applyAdvancement`, `initCharacter` and `restoreStartingSheet`
  * refuse any other browser before their first write (R79, R221) - and the trust model
- * in CLAUDE.md says what a player's own browser can still move on its own character.
+ * in .claude/rules/trust-model.md says what a player's own browser can still move on its own character.
  * The protection is on the primary GM since E29 C3 (sheet-audit.mjs): what a roll is
  * built from - statistics, maxima, rules, bonuses, the GM-only flags and the effects
  * that carry them - is put back there whoever wrote it, and the writer is told.
