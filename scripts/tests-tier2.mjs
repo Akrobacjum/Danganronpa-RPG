@@ -28269,6 +28269,16 @@ const SCENARIOS = [
             if (getClock().phase !== "dailyLife") await setClock({ phase: "dailyLife" });
             await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(), chapter: getClock().chapter, verdictApplied: false });
             must(!getClock().eclipse, "an Eclipse was already running - Start's own check would refuse first, and this would measure nothing");
+            /* The count below is the cards Start posts. The GMs' trace digest (remnants.mjs `flushTraceDigest`) holds
+               every trace placed since the last turn of the time of day in this browser's memory, and says them on
+               the clock's next turn or an Eclipse's end - so a clock write inside the count said another test's
+               traces as one of Start's cards. Said here, before the count. Measured 18.10.2026 (INFRA I2): suite
+               shard 7/8 read 1 card where 0, on CI on three commits and here three times; here the card was a "1 new
+               trace" naming the trace that the test "the clause takes an older incident's marks off its traces ..."
+               places. Run alone, after the test before it in that shard, and in the whole suite, 0 (there a clock
+               change between the two tests says the digest first; read off the order, not measured). */
+            await (await import("./remnants.mjs")).flushTraceDigest();
+            await settle();
             const cards = game.messages.size;
             const started = await UI.startClassTrial();
             await settle();
