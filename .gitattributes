@@ -14,6 +14,7 @@ docs/dev/ export-ignore
 # How the project is worked on, not how it is played: useful in the repository,
 # nothing a module installed in a Data folder has any use for.
 CLAUDE.md export-ignore
+.claude/ export-ignore
 CONTRIBUTING.md export-ignore
 eslint.config.mjs export-ignore
 

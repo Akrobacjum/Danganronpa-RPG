@@ -852,7 +852,7 @@ try {
         if (!ctl || !ctl.passes || !ctl.starts) { bad++; console.log("FAIL: the idle reading's control - a column moved towards the wall read no pass or no transition, so the reading cannot see one"); }
     }
     /* NO SPARE STRIP AT A RIGHT WALL WITH NO RAIL (E78 C6, S12-95). The harness's page always has Foundry's
-       sidebar tabs, and the curtain is not recut for a rail taken away from a page already loaded (CLAUDE.md), so
+       sidebar tabs, and the curtain is not recut for a rail taken away from a page already loaded (.claude/rules/code.md), so
        the page is loaded without them - the response rewritten - once as it is and once with glass.mjs's
        no-rail branch put back to the spare band (the control). Without the voice tile too: the shard stood under
        the tray, where the voice tile's pane now drops it (14.10.2026, the desk's cut on 1920x1080 blocks: the shard

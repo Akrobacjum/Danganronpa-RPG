@@ -21,8 +21,11 @@
  *   notes     .github/release-notes/v<version>.md exists and is not empty.
  *   dashes    the house rule (CLAUDE.md): no U+2014 or U+2013 in the language
  *             files' decoded keys and values, the handbooks, README and the
- *             release notes; no U+2014 in CLAUDE.md or CONTRIBUTING.md outside
- *             inline code, nor in the code and workflows. U+2013 is not ruled
+ *             release notes and every other .md under docs/ (the R-number
+ *             registry, docs/dev/R-REGISTRY.md, among them); no U+2014 in
+ *             CLAUDE.md, its path-scoped rules (.claude/rules/*.md, INFRA I5)
+ *             or CONTRIBUTING.md outside inline code, nor in the code and
+ *             workflows. U+2013 is not ruled
  *             in code: the rule names the em dash, and on 24.09.2026 scripts/,
  *             styles/ and tools/ held 18 en dashes: 15 in comments (page ranges
  *             mostly) and 3 in strings a player or GM sees.
@@ -181,7 +184,13 @@ function dashes() {
         files++;
         for (const line of hits(read(f), [EM, EN])) problems.push(`${f}:${line}: an en or em dash in prose`);
     }
-    for (const f of ["CLAUDE.md", "CONTRIBUTING.md"]) {
+    /* CLAUDE.md's sections that moved to .claude/rules (INFRA I5) keep its rule. Listed off the disk, not
+       through git: a clone's .git/info/exclude may name .claude/ (this machine's did, 18.10.2026), and then
+       gitFiles would not list a new rule file until it was added. */
+    const rules = exists(".claude/rules")
+        ? fs.readdirSync(path.join(REPO, ".claude", "rules")).filter(f => f.endsWith(".md")).sort().map(f => `.claude/rules/${f}`)
+        : [];
+    for (const f of ["CLAUDE.md", "CONTRIBUTING.md", ...rules]) {
         files++;
         for (const line of hits(outsideCode(read(f)), [EM])) problems.push(`${f}:${line}: an em dash outside inline code`);
     }

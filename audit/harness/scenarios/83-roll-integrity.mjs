@@ -439,8 +439,8 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
 
     /* p1 posts Aiko's duality card as Daggerheart writes one, with Hope, and asks Daggerheart's relay for its Hope
        (actor.mjs `modifyResource`), as 20-crit-hope does. The plan wrote "listed" for it; measured on 07.10.2026
-       (e33run/scratch/c4/logs/r1.log) the write leaves no row at all - it is written on the GM's client (CLAUDE.md, the
-       trust model), and the audit judges a player's writes - so it ran is read off Aiko's Hope alone. Since fix r1-G1
+       (e33run/scratch/c4/logs/r1.log) the write leaves no row at all - it is written on the GM's client (.claude/rules/
+       trust-model.md), and the audit judges a player's writes - so it ran is read off Aiko's Hope alone. Since fix r1-G1
        (round 1's sec m5 = cor M5) the gain the card covered has a `covered` row naming the card (sheet-audit.mjs
        keepGainRow), set aside by quietOf as every covered row is and read by L10's third check. */
     phase("L10: Daggerheart's own roll's Hope, through the relay", { flow: "sheet-audit" });
@@ -871,7 +871,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
     /* p1's console writes a card as Daggerheart writes an item's action roll (baseAction.mjs prepareBaseConfig:
        `source` naming the item and the action), with Hope, and asks the relay for its Hope +1 (actor.mjs
        modifyResource) - as L10 does for a statistic's card - then asks for it a second time on the same card. Its
-       dice are p1's browser's: what stands on them is layer two's open part (CLAUDE.md, the trust model; E29 2.5),
+       dice are p1's browser's: what stands on them is layer two's open part (.claude/rules/trust-model.md; E29 2.5),
        so the first Hope stands. The plan's 2.4 has it `listed`, naming the message; measured on 07.10.2026
        (e33run/c5b-a1/it2.log) it left no row at all at c618bf9, as L10 did - C4's round-1 finding (a); since fix
        r1-G1 (round 1's sec m5 = cor M5) the GM keeps a `covered` row of the one gain the card covers, naming the

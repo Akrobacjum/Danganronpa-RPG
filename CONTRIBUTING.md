@@ -75,8 +75,9 @@ It will ask where a number came from. Most of the long comments in here exist
 because a plausible-sounding answer turned out to be wrong, so "it looked right"
 is not enough for anything that can be measured - and most things here can be.
 
-`CLAUDE.md` has the longer working notes: the traps, the invariants the suite
-enforces, and the release procedure.
+`CLAUDE.md` and the path-scoped rules beside it in `.claude/rules/` have the
+longer working notes: the traps, the invariants the suite enforces, and the
+release procedure.
 
 ## Reporting something instead
 
