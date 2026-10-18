@@ -592,8 +592,9 @@ async function handlePassageCross(payload, sender) {
 }
 
 // Find Passage (E80 C3): a `found` cell in the GMs' records, which only the primary writes. Every check past the sender's
-// ownership of the character is `resolvePassageSearch`'s - the phase, the character, its room and floor, the passages it
-// does not know - and the total is the GMs' record of the roll (`rolled`, `findPassageRoll`), never the packet's.
+// ownership of the character is `resolvePassageSearch`'s - the phase, the character, its room and floor where the GMs read
+// it (movement.mjs `gmPlaceOf`), the passages it does not know - and the total is the GMs' record of the roll (`rolled`,
+// `findPassageRoll`), never the packet's.
 async function handlePassageFind(payload, sender) {
     const { resolvePassageSearch } = await import("./passages-gm.mjs");
     const out = await resolvePassageSearch({ actorId: payload.actorId, total: payload.total, isCritical: payload.isCritical, rollId: payload.rollId },
@@ -1718,7 +1719,7 @@ export const BRIDGE_ACTIONS = table({
         run: handlePassageShare,
         answer: "ack",
         claims: {
-            targetId: "passages-gm.mjs shareRefusal: a student who is not the giver and no Monokuma, in the giver's room on its scene and floor, alive",
+            targetId: "passages-gm.mjs shareRefusal: a student who is not the giver and no Monokuma, in the giver's room on its scene and floor where the GMs read both (movement.mjs `gmPlaceOf`), alive",
             passageId: "passages-gm.mjs shareRefusal: a secret passage the giver knows in the GMs' records (or the sender acts as the Mastermind through the giver, `actsAsMastermind`), else the one notKnown"
         }
     },

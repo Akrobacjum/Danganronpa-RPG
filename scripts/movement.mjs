@@ -926,6 +926,22 @@ export function gmSpotOf(tokenDoc, was = null) {
 }
 
 /**
+ * Where the primary GM reads this character as standing, in `locateActor`'s shape - `{ tokenDoc, scene, room, level }`,
+ * the token `locateActor` chooses (`sceneId` a hint among the character's own, as there), its room and floor those of
+ * the spot `gmSpotOf` reads on the token's scene - or null: no token on a place scene, or one the GMs do not read where
+ * its document stands (`gmSpotOf`: a put-back on its way, a standing the rules refuse). E80 fix early-C3-G2 (the
+ * review's E80-C3-1; the stage's D2: "end, room, floor, scene: the GM's reading"): passages-gm.mjs reads a Find
+ * Passage's searcher and a show's two students here, where it read the token's document, which the player's own
+ * browser writes - a console's jump through a wall found the passage beyond it. On the primary GM.
+ */
+export function gmPlaceOf(actor, { sceneId = null } = {}) {
+    const place = locateActor(actor, { sceneId });
+    const spot = place ? gmSpotOf(place.tokenDoc) : null;
+    if (!spot) return null;
+    return { tokenDoc: place.tokenDoc, scene: place.scene, room: roomAtSpot(place.tokenDoc, spot), level: spot.level ?? levelOf(place.tokenDoc) };
+}
+
+/**
  * Veto a room crossing the character cannot pay for.
  *
  * Runs on the client making the change, before anything is saved, so the answer

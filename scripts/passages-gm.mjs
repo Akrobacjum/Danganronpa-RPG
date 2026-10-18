@@ -759,13 +759,15 @@ const floorKey = level => level?.id ?? level ?? null;
 
 /**
  * What a show reads of the world, on this browser now: the suite hands a world of its own (R562).
- * `place` is `locateActor`'s `{ scene, room, level }`; `sides` the rooms a passage joins on the map
- * (movement.mjs `passageRooms`); `knownRooms` the rooms this character has found on that scene, from
- * the discovery ledger and the room it stands in.
+ * `place` is where the GMs read the character (movement.mjs `gmPlaceOf`: `locateActor`'s `{ scene, room,
+ * level }`, null for a token they are putting back or hold as standing where the rules refuse - E80 fix
+ * early-C3-G2, where it read the token's document, which the player's own browser writes); `sides` the
+ * rooms a passage joins on the map (movement.mjs `passageRooms`); `knownRooms` the rooms this character
+ * has found on that scene, from the discovery ledger and the room the GMs read it in.
  */
 async function liveShareWorld() {
     const [{ isEclipse, isDeadForGm, isDeceased, incidentParticipants, discoveryLedger }, { inClassTrial }, { isMonocub },
-        { locateActor, passageRooms }] = await Promise.all([import("./settings.mjs"), import("./trial.mjs"), import("./monocub.mjs"), import("./movement.mjs")]);
+        { gmPlaceOf, passageRooms }] = await Promise.all([import("./settings.mjs"), import("./trial.mjs"), import("./monocub.mjs"), import("./movement.mjs")]);
     return {
         actor: id => game.actors?.get(id) ?? null,
         locked: () => isEclipse() || inClassTrial(),
@@ -774,11 +776,11 @@ async function liveShareWorld() {
         monokuma: actor => isMonokuma(actor),
         dead: actor => isDeadForGm(actor),
         published: actor => isDeceased(actor),
-        place: actor => locateActor(actor),
+        place: actor => gmPlaceOf(actor),
         sides: (row, seg) => passageRooms(game.scenes?.get(row.sceneId), seg, row.level ?? null),
         knownRooms: (actor, sceneId) => {
             const known = new Set(discoveryLedger()[sceneId]?.[actor.id] ?? []);
-            const here = locateActor(actor, { sceneId });
+            const here = gmPlaceOf(actor, { sceneId });
             if (here?.scene?.id === sceneId && here.room) known.add(here.room);
             return known;
         }
@@ -793,7 +795,9 @@ async function liveShareWorld() {
  * the door's reading, so another owner of the Mastermind's student is held to what the student was
  * given or shown, the round-2 review's SEC M3; `asker` null, as a caller that names nobody, is
  * nobody's door), then the one shown it (a student who is not the giver and no Monokuma, in the
- * giver's room on the same scene and floor, alive). A passage that does not exist, one that is
+ * giver's room on the same scene and floor, alive - both where `world.place` reads them, on the live
+ * world the GMs' reading, so a giver they read nowhere has no token on a scene and a student shown it
+ * they read nowhere is not in that room). A passage that does not exist, one that is
  * closed or broken, and one the giver does not know get one answer, so the reason says nothing of
  * which. A death nobody has found is `cannotNow`, never named. Pure but for `world`, `stores` and
  * `users` (the suite's).
@@ -991,9 +995,10 @@ export async function crossTunnel({ actorId, passageId } = {}, { asker = null, s
 
 /**
  * What a passage search reads of the world, on this browser now: the suite hands a world of its own (A10-7).
- * `place` is `locateActor`'s `{ scene, room, level }`, `sides` the two rooms of a row (movement.mjs
- * `passageRooms`: a tunnel's each at its own end and floor), `knownRooms` the rooms this character has found
- * on that scene - `liveShareWorld`'s readings, with the trial alone for the phase.
+ * `place` is where the GMs read the character (movement.mjs `gmPlaceOf`, null where they read it nowhere),
+ * `sides` the two rooms of a row (movement.mjs `passageRooms`: a tunnel's each at its own end and floor),
+ * `knownRooms` the rooms this character has found on that scene - `liveShareWorld`'s readings, with the trial
+ * alone for the phase.
  */
 async function liveFindWorld() {
     const share = await liveShareWorld();
@@ -1031,7 +1036,9 @@ function passagesToFind(actor, place, facts, stores) {
  * (bridge-guards.mjs `REASON_PATTERNS`), else `{ searched: true, found }`, or for a Reroll's replay (`undo`,
  * reroll.mjs `settleAnalyze`) one of `{ found, to }`, `{ kept }`, `{ lost }`, `{ nothing }`. In `serialWrite`,
  * one search per character at a time. Refused: off the primary, in a Class Trial, for no student, a dead one
- * (a death nobody has found is `cannotNow`, never named), a Monocub, one with no token in a room. A search
+ * (a death nobody has found is `cannotNow`, never named), a Monocub, and - but for a replay's own find - one the
+ * GMs do not read standing in a room (`world.place`: no token, a put-back on its way, a standing the rules
+ * refuse; never the room of the token's document alone, which the player's own browser writes). A search
  * beats `ACTIONS.analyze.passageThreshold` or is a critical; it finds the oldest open secret passage here the
  * character does not know (`passagesToFind`) - none for the asker acting as the Mastermind through it
  * (`actsAsMastermind`, the door's reading), who knows them all - and writes the cell `found` with the roll
@@ -1054,8 +1061,6 @@ export async function resolvePassageSearch({ actorId, total = 0, isCritical = fa
         if (!actor || actor.type !== "character" || facts.monokuma(actor)) return { refused: "no such character" };
         if (facts.dead(actor)) return { refused: "that cannot be done now" };
         if (facts.monocub(actor)) return { refused: "that action is not open to that character now" };
-        const place = facts.place(actor);
-        if (!place?.room || !place.scene?.id) return { refused: "the character has no token on a scene" };
 
         const beat = Boolean(isCritical) || Number(total) >= ACTIONS.analyze.passageThreshold;
         const door = actsAsMastermind(actor, asker, { mastermind: stores.mastermind, users });
@@ -1070,6 +1075,11 @@ export async function resolvePassageSearch({ actorId, total = 0, isCritical = fa
             tellAfter(stores);
             return { lost: true };
         }
+        // Where the GMs read the character (`facts.place`; E80 fix early-C3-G2, the review's E80-C3-1), asked after a
+        // replay's own find: its Reroll takes that back or keeps it wherever the character stands, so a jump out of the
+        // GMs' reading does not turn the replay into a refusal that gives the Reroll back and keeps the find.
+        const place = facts.place(actor);
+        if (!place?.room || !place.scene?.id) return { refused: "the character has no token on a scene" };
 
         const pick = beat && !door ? passagesToFind(actor, place, facts, stores)[0] ?? null : null;
         let to = null;

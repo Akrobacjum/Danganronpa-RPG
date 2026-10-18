@@ -52770,7 +52770,7 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson([[false, true, [OLD]], [true, true, [null, null]]]),
             "[the new name sealed, the old name sealed, the record on each piece of the new name] after the first piece's rename and after the second's");
     }],
-    ["A10-7 - Find Passage on the primary GM: the Analyze window offers it in every room, never greyed, with its 16 in the briefing, and not in a Class Trial, where one asked anyway is refused before the price; on a map of the suite's own a Head of 15 misses and 16 finds the tunnel whose end the student stands by, the cell 'found' with its roll, a card of one shape to the GMs, and the Reroll's lower dice take the find back", async () => {
+    ["A10-7 - Find Passage on the primary GM: the Analyze window offers it in every room, never greyed, with its 16 in the briefing, and not in a Class Trial, where one asked anyway is refused before the price; on a map of the suite's own a Head of 15 misses and 16 finds the tunnel whose end the student stands by, the cell 'found' with its roll, a card of one shape to the GMs, and the Reroll's lower dice take the find back; a student the GMs do not read where her token stands - a console's jump through a wall, noted or being put back - finds nothing there and shows nothing, and a Reroll still takes back its own roll's find", async () => {
         /*
          * E80 C3 (18.10.2026; P1-10, P1-11, P1-13, the stage's write road "found cell"). The harms: a row that greys out
          * where there is no passage (a detector nobody rolls for), a row in the courtroom or a price paid for a search
@@ -52782,6 +52782,15 @@ const SCENARIOS = [
          * rooms), in a GM-store world of the suite's own (`withGmStoreWorld`), its card and the GMs' note handed in so no
          * card is posted. Three real clients, the bridge and the roll's record are scenario 76's phase V. Red at the
          * parent (879d6d5): the window has no such row.
+         * E80 fix early-C3-G2 (the review's E80-C3-1; the stage's D2: "end, room, floor, scene: the GM's reading"): the
+         * search read the room of the token's document, which the player's own browser writes - a console's jump through a
+         * wall with the audit on "log" found the passage beyond it, and on "sendBack" before the put-back landed. Now the
+         * search and a show read the place where the GMs read the character (movement.mjs `gmPlaceOf`, on `gmSpotOf`).
+         * A player's move as the primary hears it is a GM's write naming her player (`SENT_BACK`, the bridge's
+         * send-back road, as A10-18 does), to a spot the token did not stand on a minute ago. Below the Dorm, beyond a
+         * wall, lies a Hall whose list names the Gym alone, so the doors do not join it to the Dorm (scenario 76's
+         * Kitchen); beside the Dorm, beyond another wall, a Bath the map joins to it. Red at 26b86cc: the jump from the
+         * Hall found the tunnel and showed it to Botan, and the jump from the Bath being put back found it.
          */
         const rolls = await import("./action-rolls.mjs");
         const ACT = await import("./actions.mjs");
@@ -52789,9 +52798,14 @@ const SCENARIOS = [
         const R = await import("./rooms.mjs");
         const E = await import("./gm-store.mjs");
         const B = await import("./bridge-guards.mjs");
+        const M = await import("./movement.mjs");
+        const { ownerOf } = await import("./utils.mjs");
         const J = v => JSON.stringify(v);
         const [student] = cast(1);
+        needs(world.ownedByPlayer(student), "Hana's jumps are her player's moves, and the student's player is the one the suite has");
+        const asker = ownerOf(student);
         const clock = foundry.utils.deepClone(getClock() ?? {});
+        const mode = game.settings.get(MODULE_ID, SETTINGS.moveAudit), charged = game.settings.get(MODULE_ID, SETTINGS.chargeMovement);
         const purse = actor => [ACT.actionsLeft(actor), actor.system.resources.hope?.value ?? null, actor.system.resources.stress?.value ?? null];
         const kept = { actions: ACT.actionsLeft(student) };
         const api = foundry.applications.api.DialogV2, own = Object.getOwnPropertyDescriptor(api, "wait"), warn = ui.notifications.warn;
@@ -52810,19 +52824,24 @@ const SCENARIOS = [
             return label ? { html: label.outerHTML, disabled: input.disabled, unavailable: label.classList.contains("unavailable") } : null;
         };
         const DORM = "SUITE E80 C3 Dorm", GYM = "SUITE E80 C3 Gym", mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
-        const room = (name, x) => ({ name, shapes: [{ type: "rectangle", x, y: 0, width: 600, height: 600 }], flags: mark, behaviors: [] });
-        let scene = null, hana = null, read = null;
+        const room = (name, x, y = 0, width = 600, height = 600, flags = mark) => ({ name, shapes: [{ type: "rectangle", x, y, width, height }], flags, behaviors: [] });
+        const hall = room("SUITE E80 C3 Hall", 0, 600, 600, 400, { [MODULE_ID]: { [R.ROOM_FLAG]: true, [M.ROOM_FLAGS.neighbours]: GYM } });
+        let scene = null, hana = null, botan = null, token = null, read = null, release = null;
         const notes = [];
         try {
             api.wait = async config => { seen = config?.content?.innerHTML ?? String(config?.content ?? ""); return answer; };
             ui.notifications.warn = text => { notes.push(String(text)); };
             if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+            if (!charged) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, true);
             await ACT.setActions(student, 2);
             scene = await Scene.create({ name: "SUITE E80 C3 a tunnel", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
-            await scene.createEmbeddedDocuments("Region", [room(DORM, 0), room(GYM, 1200)]);
+            await scene.createEmbeddedDocuments("Region", [room(DORM, 0), room(GYM, 1200), hall, room("SUITE E80 C3 Bath", 600, 0, 400, 600)]);
+            await scene.createEmbeddedDocuments("Wall", [{ c: [0, 600, 600, 600] }, { c: [600, 0, 600, 600] }]);
             read = await E.withGmStoreWorld(`suite-e80-c3-${foundry.utils.randomID(8)}`, async () => {
-                hana = await Actor.create({ name: "SUITE E80 C3 Hana", type: "character" });
-                await scene.createEmbeddedDocuments("Token", [{ actorId: hana.id, actorLink: true, name: hana.name, x: 200, y: 200, width: 1, height: 1 }]);
+                hana = await Actor.create({ name: "SUITE E80 C3 Hana", type: "character", ownership: { default: 0, [asker.id]: CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER } });
+                botan = await Actor.create({ name: "SUITE E80 C3 Botan", type: "character" });
+                [token] = await scene.createEmbeddedDocuments("Token", [{ actorId: hana.id, actorLink: true, name: hana.name, x: 200, y: 200, width: 1, height: 1 },
+                    { actorId: botan.id, actorLink: true, name: botan.name, x: 400, y: 400, width: 1, height: 1 }]);
                 await ACT.setActions(hana, 2);
                 await settle();
                 const id = await P.createPassage({ sceneId: scene.id, shape: "tunnel", ends: [{ x: 250, y: 250, level: null }, { x: 1450, y: 250, level: null }] }, { scene });
@@ -52840,6 +52859,62 @@ const SCENARIOS = [
                         P.PASSAGE_STORES.access.get(`${id}/${hana.id}`)?.rollId ?? null];
                 };
                 const steps = [await search(15), await search(16), await search(10, { undo: true })];
+                // Where the GMs read her (the note above): each step [what, the answer, Hana's cell (Botan's for the show)].
+                const PLACE = { teleport: true, movementAction: "displace", animate: false }, asPlayer = { ...PLACE, [M.SENT_BACK]: asker.id };
+                const cell = actor => P.PASSAGE_STORES.access.get(`${id}/${actor.id}`)?.how ?? null;
+                const told = [], unread = [], lawful = [];
+                const look = async (total, rollId, more = {}) => {
+                    const out = await P.resolvePassageSearch({ actorId: hana.id, total, rollId, ...more }, { ...opts, asker,
+                        whisper: async (to, content) => { told.push([to.id, content]); } });
+                    return [out?.refused ? B.reasonOf(out.refused) : out, cell(hana)];
+                };
+                const put = async spot => { await token.update(spot, PLACE); await settle(); };
+                const jump = async spot => {
+                    must(!M.recentPositions(token.id).some(h => h.x === spot.x && h.y === spot.y),
+                        "the token stood on the jump's spot a minute ago - it would be honoured as a send-back and this would measure nothing");
+                    await token.update(spot, asPlayer);
+                    await settle();
+                };
+                const forget = async actor => { if (cell(actor)) await P.revokePassage(id, actor.id); };
+                must(scene.tokens.get(token.id) === token, "the token the suite holds is not the one the hooks hand on - nothing below would be held");
+                // Noted, not put back: from the Hall into the Dorm through the wall, which the doors do not join - held unlawful.
+                await game.settings.set(MODULE_ID, SETTINGS.moveAudit, "log");
+                await put({ x: 200, y: 800 });
+                await jump({ x: 230, y: 230 });
+                lawful.push(M.standingOf(token)?.lawful ?? null);
+                unread.push(["noted", ...await look(16, "SUITEA107ROLL02")]);
+                await forget(hana);
+                // A show from there, of the tunnel she was given, to Botan in the Dorm.
+                must(await P.grantPassage(id, hana.id), "the tunnel was not given to Hana - the show would measure nothing");
+                const shown = await P.sharePassage({ actorId: hana.id, targetId: botan.id, passageId: id }, { asker, users: game.users,
+                    whisper: async () => {}, gms: async () => {} });
+                unread.push(["shown from there", shown?.refused ? B.reasonOf(shown.refused) : shown, cell(botan)]);
+                await forget(hana);
+                await forget(botan);
+                // A find in the Dorm, then a jump into the Hall: the Reroll's lower dice take back the find of its own roll (P1-13)
+                // wherever she stands, so a jump does not turn the replay into a refusal that gives the Reroll back and keeps the find.
+                await put({ x: 200, y: 200 });
+                const found = await look(16, "SUITEA107ROLL03");
+                await jump({ x: 260, y: 860 });
+                lawful.push(M.standingOf(token)?.lawful ?? null);
+                unread.push(["found, then a jump", ...found, ...await look(10, "SUITEA107ROLL03", { undo: true })]);
+                // Being put back: from the Bath into the Dorm through the other wall, which the map joins - she stands lawfully
+                // there, and the audit's put-back is held until the search is read (A10-18's window).
+                await game.settings.set(MODULE_ID, SETTINGS.moveAudit, "sendBack");
+                await put({ x: 700, y: 200 });
+                const tokenWrite = Object.getPrototypeOf(token).update;
+                Object.defineProperty(token, "update", { configurable: true, value: (data, options = {}) => options?.[M.REVERT] && !release
+                    ? new Promise(done => { release = () => { done?.(tokenWrite.call(token, data, options)); done = null; }; }) : tokenWrite.call(token, data, options) });
+                await jump({ x: 270, y: 270 });
+                await until(() => release);
+                must(release, "the GMs' audit sent nothing back across the wall - this would measure nothing");
+                lawful.push(M.standingOf(token)?.lawful ?? null);
+                unread.push(["being put back", ...await look(16, "SUITEA107ROLL04")]);
+                release();
+                await until(() => token.x === 700 && token.y === 200);
+                delete token.update;
+                await forget(hana);
+                await game.settings.set(MODULE_ID, SETTINGS.moveAudit, mode);
                 await setClock({ phase: "classTrial" });
                 await ACT.setActions(student, 2);
                 const inTrial = rowOf(await windowFor(student));
@@ -52852,19 +52927,24 @@ const SCENARIOS = [
                 answer = null;
                 await P.deletePassage(id);
                 await hana.delete();
-                hana = null;
-                return { here, there, briefed, inTrial, steps, cards, refused };
+                await botan.delete();
+                hana = botan = null;
+                return { here, there, briefed, inTrial, steps, cards, refused, unread, lawful, told: told.length };
             });
         } finally {
             if (own) Object.defineProperty(api, "wait", own); else delete api.wait;
             ui.notifications.warn = warn;
-            if (hana) await hana.delete().catch(() => {});
+            release?.();
+            if (token) delete token.update;
+            if (game.settings.get(MODULE_ID, SETTINGS.moveAudit) !== mode) await game.settings.set(MODULE_ID, SETTINGS.moveAudit, mode);
+            if (game.settings.get(MODULE_ID, SETTINGS.chargeMovement) !== charged) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, charged);
+            for (const actor of [hana, botan]) if (actor) await actor.delete().catch(() => {});
             await scene?.delete();
             await setClock(clock);
             await ACT.setActions(student, kept.actions);
             await settle();
         }
-        const { here, there, briefed, inTrial, steps, cards, refused } = read;
+        const { here, there, briefed, inTrial, steps, cards, refused, unread, lawful, told } = read;
         equal(J([Boolean(here), here?.html === there?.html, here?.disabled, here?.unavailable, briefed, inTrial]),
             J([true, true, false, false, true, null]),
             "[the row offered where the student stands, the same by the tunnel's end, disabled, greyed, the briefing's 16, the row in a Class Trial] - the Analyze window tells where a passage is, or offers a search in the courtroom");
@@ -52877,6 +52957,9 @@ const SCENARIOS = [
             "[Hana's card, its words, its sound, how many it went to] for the miss and the find (no Reroll card: the Reroll's lines say it) - the find names a room or reaches another number of people");
         equal(J([refused[0], J(refused[1]) === refused[2], refused[3].length]), J([null, true, 1]),
             "[the Analyze's answer, what the student holds unchanged, the words said] for a Find Passage picked in a Class Trial - it was paid for, or said nothing");
+        equal(J([unread, lawful, told]), J([[["noted", "notThere", null], ["shown from there", "notThere", null],
+            ["found, then a jump", { searched: true, found: true }, "found", { lost: true }, null], ["being put back", "notThere", null]], [false, false, true], 1]),
+            "[each step as what, the answer, Hana's cell (Botan's for the show); the judge's standing after each jump; the cards] - a search or a show read the room of the token's document where the GMs do not read her, or a jump kept a find its Reroll took back");
     }],
     ["A10-7 stash - a Find Stash's Reroll replays its search on the GM: 12 to 17 opens one hidden stash, 17 to 12 the find stands, and 12 to 17 again opens no second one", async () => {
         /*
