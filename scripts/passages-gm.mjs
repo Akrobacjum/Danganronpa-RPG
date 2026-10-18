@@ -34,7 +34,7 @@
  * draws the ends on the floor on screen.
  */
 
-import { MODULE_ID } from "./config.mjs";
+import { MODULE_ID, ACTIONS } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { isPrimaryGm, serverNow, whisperToOwner, whisperToGms, ownerOf, warn, error, serialWrite } from "./utils.mjs";
 import { passageMapStore, passageAccessStore, passageLogStore, mastermindStore, mastermindUndecided } from "./gm-stores.mjs";
@@ -967,6 +967,133 @@ export async function crossTunnel({ actorId, passageId } = {}, { asker = null, s
         await M.announceCrossingOnGm(actor, verdict.from, verdict.to, token, paid.cost);
         return { crossed: true };
     });
+}
+
+/* ----------------------------------------------------------------------------------------- *
+ * Find Passage (E80 C3, 18.10.2026; the stage's P1-10 to P1-15, the owner's A10 proposal 13): Analyze's
+ * fourth road. The roller's browser throws Head and asks gm-bridge.mjs `passage.find`; the total is the
+ * GMs' record of the roll, and what it finds is judged here, on the primary, against the GMs' records and
+ * the world as it stands now - never the packet's room, floor or passage.
+ * ----------------------------------------------------------------------------------------- */
+
+/**
+ * What a passage search reads of the world, on this browser now: the suite hands a world of its own (A10-7).
+ * `place` is `locateActor`'s `{ scene, room, level }`, `sides` the two rooms of a row (movement.mjs
+ * `passageRooms`: a tunnel's each at its own end and floor), `knownRooms` the rooms this character has found
+ * on that scene - `liveShareWorld`'s readings, with the trial alone for the phase.
+ */
+async function liveFindWorld() {
+    const share = await liveShareWorld();
+    const { inClassTrial } = await import("./trial.mjs");
+    return { ...share, trial: () => inClassTrial() };
+}
+
+/**
+ * The open secret passages of `place` this character does not know, oldest first, each `{ id, row, here }`
+ * with `here` the index of the side (a tunnel's end) in this room: a wall's on this floor (or on none) whose
+ * map sides name the room, and a tunnel's end on this floor whose room is this one. Oldest is the map row's
+ * first stamp (the store's stamp of `sceneId`, written once at its create), then the id.
+ */
+function passagesToFind(actor, place, facts, stores) {
+    const floor = floorKey(place.level), out = [];
+    for (const [id, row] of Object.entries(secretRowsFrom({ map: stores.map, access: stores.access }))) {
+        if (row.sceneId !== place.scene.id || row.actorIds.includes(actor.id)) continue;
+        if (row.shape === "tunnel") {
+            const sides = facts.sides(row, { ends: row.ends }) ?? [];
+            const here = [0, 1].find(i => sides[i] === place.room && (floor === null || row.ends[i].level === null || row.ends[i].level === floor));
+            if (here !== undefined) out.push({ id, row, here });
+            continue;
+        }
+        if (floor !== null && row.level !== null && row.level !== floor) continue;
+        const seg = row.passageSeg ?? {};
+        const here = (facts.sides(row, { x1: seg.x1, y1: seg.y1, x2: seg.x2, y2: seg.y2 }) ?? []).indexOf(place.room);
+        if (here >= 0) out.push({ id, row, here });
+    }
+    const first = id => stores.map.stampOf(id, "sceneId");
+    return out.sort((a, b) => first(a.id) - first(b.id) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+}
+
+/**
+ * Carry out a Find Passage on the primary GM: answers `{ refused }` with a reason of the bridge's closed list
+ * (bridge-guards.mjs `REASON_PATTERNS`), else `{ searched: true, found }`, or for a Reroll's replay (`undo`,
+ * reroll.mjs `settleAnalyze`) one of `{ found, to }`, `{ kept }`, `{ lost }`, `{ nothing }`. In `serialWrite`,
+ * one search per character at a time. Refused: off the primary, in a Class Trial, for no student, a dead one
+ * (a death nobody has found is `cannotNow`, never named), a Monocub, one with no token in a room. A search
+ * beats `ACTIONS.analyze.passageThreshold` or is a critical; it finds the oldest open secret passage here the
+ * character does not know (`passagesToFind`) - none for the asker acting as the Mastermind through it
+ * (`actsAsMastermind`, the door's reading), who knows them all - and writes the cell `found` with the roll
+ * (`rollId`), the character's `touch` row, a log row, and the copies. One card tells the character's owner
+ * (the asker, a player) and the GMs, of one shape whatever came of it: the passage found and the room it leads
+ * to as that owner may name it, or "no hidden passage here" - so a miss, an empty room and the Mastermind read
+ * alike - with the sound `passageFound` (the GMs hear it too) or `searchNothing`. The primary's screen says it
+ * once; no card goes to the GMs alone. A replay writes no card - the Reroll's lines say it - and takes back only
+ * the cell its own roll wrote. `asker` is the bridge's sender; `stores`, `users`, `world`, `whisper`, `toast`,
+ * `note` and `primary` are the suite's (A10-7).
+ */
+export async function resolvePassageSearch({ actorId, total = 0, isCritical = false, rollId = null, undo = false } = {}, { asker = null,
+    stores = PASSAGE_STORES, users = game.users, world = null, whisper = whisperToOwner, toast = text => ui.notifications?.info(text),
+    note = noteFindFact, primary = isPrimaryGm } = {}) {
+    return serialWrite(`passage.find/${actorId}`, async () => {
+        if (!primary()) return { refused: "nothing was carried out: a passage search is judged on the primary GM's browser" };
+        const facts = world ?? await liveFindWorld();
+        if (facts.trial()) return { refused: "the Class Trial is in session" };
+        const actor = typeof actorId === "string" ? facts.actor(actorId) : null;
+        if (!actor || actor.type !== "character" || facts.monokuma(actor)) return { refused: "no such character" };
+        if (facts.dead(actor)) return { refused: "that cannot be done now" };
+        if (facts.monocub(actor)) return { refused: "that action is not open to that character now" };
+        const place = facts.place(actor);
+        if (!place?.room || !place.scene?.id) return { refused: "the character has no token on a scene" };
+
+        const beat = Boolean(isCritical) || Number(total) >= ACTIONS.analyze.passageThreshold;
+        const door = actsAsMastermind(actor, asker, { mastermind: stores.mastermind, users });
+        const roll = typeof rollId === "string" && rollId ? rollId : null;
+        const mine = undo && roll ? Object.entries(stores.access.entries())
+            .find(([key, cell]) => key.endsWith(`/${actor.id}`) && cell?.how === "found" && cell.rollId === roll)?.[0] ?? null : null;
+        if (mine && beat) return { kept: true };
+        if (mine) {
+            await stores.access.drop(mine);
+            await touch([actor.id], stores);
+            await logRow("lost", mine.slice(0, -(actor.id.length + 1)), actor.id, stores);
+            tellAfter(stores);
+            return { lost: true };
+        }
+
+        const pick = beat && !door ? passagesToFind(actor, place, facts, stores)[0] ?? null : null;
+        let to = null;
+        if (pick) {
+            const at = serverNow();
+            await stores.access.patch(`${pick.id}/${actor.id}`, { how: "found", at, by: { [actor.id]: at }, ...(roll ? { rollId: roll } : {}) }, { fillOnly: true });
+            await touch([actor.id], stores);
+            await logRow("found", pick.id, actor.id, stores);
+            tellAfter(stores);
+            const named = roomsAsKnown(stores.map.get(pick.id), facts, facts.knownRooms(actor, pick.row.sceneId));
+            to = pick.here === 0 ? named.to : named.from;
+        }
+        if (undo) return pick ? { found: true, to } : { nothing: true };
+
+        if (!pick) await logRow("searched", null, actor.id, stores);
+        const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
+        const people = peopleOf(users);
+        const owner = asker && !asker.isGM ? asker : ownerOf(actor, people);
+        const words = pick ? game.i18n.format("DRPG.Analyze.passageFound", { to: esc(to) }) : game.i18n.localize("DRPG.Analyze.passageNothing");
+        await whisper(actor, `<p>${words}</p>`, {
+            whisper: [...new Set([...(owner ? [owner.id] : []), ...people.filter(u => u.isGM).map(u => u.id)])],
+            flags: { [MODULE_ID]: { sfx: { key: pick ? "passageFound" : "searchNothing", gm: Boolean(pick) } } }
+        });
+        if (pick) {
+            const all = roomsAsKnown(stores.map.get(pick.id), facts, null);
+            toast(game.i18n.format("DRPG.Passage.gm.found", { actor: actor.name, from: all.from, to: all.to }));
+        } else toast(game.i18n.format("DRPG.Passage.gm.searched", { actor: actor.name, room: place.room }));
+        await note({ actorId: actor.id, rollId: roll, by: asker?.id ?? null });
+        return { searched: true, found: Boolean(pick) };
+    });
+}
+
+/** The GMs' fact on the roll a first search was thrown with (action-rolls.mjs `rollOfFact`): its Reroll replays a passage search. */
+async function noteFindFact({ actorId, rollId, by }) {
+    if (!rollId) return false;
+    const rolls = await import("./action-rolls.mjs");
+    return rolls.noteFactOn(rolls.rollOfFact({ rollId, by, actorId, actions: ["analyze"] }), { findPassage: true });
 }
 
 /* ----------------------------------------------------------------------------------------- *

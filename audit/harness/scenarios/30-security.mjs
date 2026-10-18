@@ -4,7 +4,8 @@ export const layers = ["ci"];
    E33 run from C2a on (e33run/<c>/s30.res, three harness lanes at once: C5b 286.9 s, C6 290.7 s, fix
    r1-G1 286.8 s) and 288.7 s in k1's ci set (e33run/k1/cmp.txt, beside the suite's lane) - 3-6% under
    run-all's shared five minutes. Seven minutes is a hang detector with room for a slower runner; the
-   scenario is not shortened. */
+   scenario is not shortened. E80 C3 (18.10.2026) adds a console's Find Passage: 235 checks in 319.9 s by run-all's
+   line, one run alone under the harness lock - seven minutes stands. */
 export const timeoutMs = 420000;
 
 const MOD = "danganronpa-rpg";
@@ -1439,6 +1440,52 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
             && Boolean(stashRoll.messageId) && stashRoll.total < consoleStash.threshold
             && stashOnRecord.found === false && !stashOnRecord.reasons.length && stashOnRecord.said.length > 0,
         JSON.stringify({ consoleStash, stashNoRoll, stashRoll, stashOnRecord }), { flow: "give-take-stash" });
+
+    /* A CONSOLE'S FIND PASSAGE (E80 C3, 18.10.2026; the stage's write road "found cell"). A search is scored on the GMs'
+       record of the roll its packet names, and only a roll thrown as a Find Passage counts (gm-bridge.mjs
+       `findPassageRoll`). The GM makes a tunnel with an end in Aiko's room (the GM's API, not under test); from p1's
+       browser, Aiko's search saying 30 and a critical names no roll, then a Find Passage roll the GM drew on 2 and 1,
+       then a Search's roll and a hint Analyze's on 12 and 11: Aiko's cell stays empty each time. The control, a Find
+       Passage roll on 12 and 11 with a packet saying 0, writes it 'found' with that roll. Red at 879d6d5: the bridge has
+       no `passage.find`, so every packet is refused as unknown and the control writes nothing. */
+    phase("a console's Find Passage", { flow: "secret-passages" });
+    const findSet = await gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs"), t = canvas.scene.tokens.get("TOKAIKO000000000");
+        const room = M.roomOfToken(t), far = room === "Dorm A" ? { x: 1930, y: 1760, level: null } : { x: 720, y: 730, level: null };
+        const id = await game.drpg.passages.create({ sceneId: canvas.scene.id, shape: "tunnel", ends: [{ x: t.x + 50, y: t.y + 50, level: null }, far] });
+        globalThis.__s30find = id;
+        return { id, room };`, { timeout: 30000 });
+    await settle(800);
+    const findCell = `const S = await import("${repoUrl}/scripts/gm-stores.mjs"), c = S.passageAccessStore.get(${JSON.stringify(String(findSet?.id) + "/" + ids.aiko)});
+        return c ? [c.how ?? null, c.rollId ?? null] : null;`;
+    const findAsk = async rollId => {
+        await clearFailures();
+        await sendAs(p1, "passage.find", { actorId: ids.aiko, total: 30, isCritical: true, ...(rollId ? { rollId } : {}) });
+        await settle(1500);
+        return { cell: await gm.eval(findCell), reasons: await refusedFor("passage.find") };
+    };
+    const findNoRoll = await findAsk(null);
+    const findLow = await drawnRoll(p1, ids.aiko, "analyze", "head", { hope: 2, fear: 1 }, { context: { findPassage: true } });
+    const findOnLow = await findAsk(findLow.messageId);
+    const findSearch = await drawnRoll(p1, ids.aiko, "search", "eye", { hope: 12, fear: 11 });
+    const findOnSearch = await findAsk(findSearch.messageId);
+    const findHint = await drawnRoll(p1, ids.aiko, "analyze", "head", { hope: 12, fear: 11 });
+    const findOnHint = await findAsk(findHint.messageId);
+    const findHigh = await drawnRoll(p1, ids.aiko, "analyze", "head", { hope: 12, fear: 11 }, { context: { findPassage: true } });
+    await clearFailures();
+    await sendAs(p1, "passage.find", { actorId: ids.aiko, total: 0, isCritical: false, rollId: findHigh.messageId });
+    await settle(1500);
+    const findControl = { cell: await gm.eval(findCell), reasons: await refusedFor("passage.find") };
+    await gm.eval(`const id = globalThis.__s30find; delete globalThis.__s30find; if (id) await game.drpg.passages.delete(id); return true;`, { timeout: 30000 });
+    await settle(800);
+    check("SECURITY: a console's Find Passage saying 30 and a critical is refused without its roll, scored on the record of a Find Passage roll of 2 and 1, and refused on a Search's roll and a hint's - no cell",
+        typeof findSet?.id === "string" && findNoRoll.cell === null && findNoRoll.reasons.some(r => /no roll the GM drew is named/.test(r))
+            && Boolean(findLow.messageId) && findLow.total < 16 && findOnLow.cell === null && !findOnLow.reasons.length
+            && [findSearch, findHint].every(r => Boolean(r.messageId)) && [findOnSearch, findOnHint].every(r => r.cell === null
+                && r.reasons.some(text => /that roll was not thrown for that action/.test(text))),
+        JSON.stringify({ findSet, findNoRoll, findLow, findOnLow, findSearch, findOnSearch, findHint, findOnHint }), { flow: "secret-passages" });
+    check("control: a console's Find Passage on the record of a Find Passage roll of 12 and 11, its packet saying 0, writes Aiko's cell 'found' with that roll",
+        Boolean(findHigh.messageId) && findHigh.total >= 16 && JSON.stringify(findControl.cell) === JSON.stringify(["found", findHigh.messageId]) && !findControl.reasons.length,
+        JSON.stringify({ findHigh, findControl }), { flow: "secret-passages" });
 
     /*
      * A CONSOLE'S STEAL (E08+E28 C15, 04.10.2026; audit S10-06). A Palm was scored on the two

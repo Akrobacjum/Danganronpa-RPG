@@ -40,7 +40,7 @@ import {
 const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
 const t = key => game.i18n.localize(key);
 const tf = (key, data) => game.i18n.format(key, data);
-const HOW = { gm: "DRPG.Passage.tab.howGm", start: "DRPG.Passage.tab.howStart", shown: "DRPG.Passage.tab.howShown" };
+const HOW = { gm: "DRPG.Passage.tab.howGm", start: "DRPG.Passage.tab.howStart", shown: "DRPG.Passage.tab.howShown", found: "DRPG.Passage.tab.howFound" };
 
 /** A passage's rooms as the tab and its windows name it: "Kitchen - Dining Hall", or that none is named. */
 export function passageTitle(passage) {

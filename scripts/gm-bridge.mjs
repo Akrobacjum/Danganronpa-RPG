@@ -93,6 +93,8 @@ const ACTION_GIVE_ITEM = "handover.item";
 const ACTION_PASSAGE_SHARE = "passage.share";
 /** player -> GM: my character at a tunnel's end goes through it (E80 C2) - see passages-gm.mjs `crossTunnel`. */
 const ACTION_PASSAGE_CROSS = "passage.cross";
+/** player -> GM: my character's Analyze was a Find Passage (E80 C3) - see passages-gm.mjs `resolvePassageSearch`. */
+const ACTION_PASSAGE_FIND = "passage.find";
 const ACTION_VAULT_STEAL = "vault.steal";
 const ACTION_STEAL = "action.steal";
 const ACTION_FIND_STASH = "vault.findStash";
@@ -587,6 +589,23 @@ async function handlePassageCross(payload, sender) {
     const out = await crossTunnel({ actorId: payload.actorId, passageId: payload.passageId }, { asker: sender });
     if (out?.refused) return { refused: out.refused };
     return { reply: true };
+}
+
+// Find Passage (E80 C3): a `found` cell in the GMs' records, which only the primary writes. Every check past the sender's
+// ownership of the character is `resolvePassageSearch`'s - the phase, the character, its room and floor, the passages it
+// does not know - and the total is the GMs' record of the roll (`rolled`, `findPassageRoll`), never the packet's.
+async function handlePassageFind(payload, sender) {
+    const { resolvePassageSearch } = await import("./passages-gm.mjs");
+    const out = await resolvePassageSearch({ actorId: payload.actorId, total: payload.total, isCritical: payload.isCritical, rollId: payload.rollId },
+        { asker: sender });
+    if (out?.refused) return { refused: out.refused };
+    return { reply: true };
+}
+
+/* A Find Passage's roll is an Analyze thrown as one (roll-draw.mjs keeps `findPassage` on its record): an Analyze for a
+   hint or a bullet settles no passage search. Read off the GMs' record by the runner (bridge-guards.mjs `rollsFor`). */
+function findPassageRoll(record) {
+    return record?.findPassage === true ? null : { why: "that roll was not thrown for that action" };
 }
 
 /*
@@ -1708,6 +1727,18 @@ export const BRIDGE_ACTIONS = table({
             passageId: "passages-gm.mjs crossTunnel: a secret tunnel of the GMs' records the character knows (or the sender acts as the Mastermind through it, `actsAsMastermind`), else the one notKnown; the token at an end of it, the doors' rules and the price judged on the primary (movement.mjs `tunnelVerdict`, `settleCrossingOnGm`)"
         }
     },
+    [ACTION_PASSAGE_FIND]: {
+        label: "DRPG.Bridge.what.passage.find",
+        guards: [knownSender, owns("actorId", "sender does not own that character")],
+        sanitize: pick({ actorId: as.id, total: as.num, isCritical: as.bool, rollId: as.id }),
+        run: handlePassageFind,
+        answer: "reply",
+        // An Analyze's roll, thrown as a Find Passage (`findPassageRoll`): its total and critical are the GMs' record's.
+        rolled: { field: "rollId", actor: "actorId", kind: "analyze", derive: findPassageRoll },
+        claims: {
+            rollId: "the roll the result is read from (bridge-guards.mjs rollRefusal): one the GM drew for the sender's character's Analyze, thrown as a Find Passage (`findPassageRoll`)"
+        }
+    },
     [ACTION_PLANT]: {
         label: "DRPG.Bridge.what.action.plant",
         guards: [knownSender, owns("plannerId", "sender does not own the character planting")],
@@ -2527,6 +2558,22 @@ export function requestPassageCross({ actorId, passageId }) {
         local: () => import("./passages-gm.mjs").then(m => m.crossTunnel({ actorId, passageId }, { asker: game.user })).then(out => {
             if (out?.refused) sayNotDone(ACTION_PASSAGE_CROSS, reasonOf(out.refused));
             return Boolean(out?.crossed);
+        })
+    });
+}
+
+/**
+ * Find Passage (E80 C3; action-rolls.mjs `locatePassage`): the roll `rollId` names goes to the primary GM, which reads the
+ * total off its record and judges the rest from the GMs' records (passages-gm.mjs `resolvePassageSearch`); a GM's own
+ * browser does it here when it is the primary, and says a refusal as the bridge would. Its value is true once judged:
+ * what was found the character's owner is told on a card of its own, a miss in the same shape.
+ */
+export function requestPassageFind({ actorId, total = 0, isCritical = false, rollId = null }) {
+    return ask(ACTION_PASSAGE_FIND, { actorId, total, isCritical, rollId }, {
+        onPrimary: true,
+        local: () => import("./passages-gm.mjs").then(m => m.resolvePassageSearch({ actorId, total, isCritical, rollId }, { asker: game.user })).then(out => {
+            if (out?.refused) sayNotDone(ACTION_PASSAGE_FIND, reasonOf(out.refused));
+            return !out?.refused;
         })
     });
 }

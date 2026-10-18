@@ -102,6 +102,10 @@
  *   the one update; with Dorm A locked her way back is refused in the door's words, nothing moved or paid and p3 sent
  *   nothing; p2's asks for Aiko and for Botan are refused (not p2's; a tunnel Botan does not know); p1's console jump back,
  *   its veto off, across a wall the GM draws, is sent back by the audit in `sendBack`. The GM's screen is warned of none.
+ * V (E80 C3): Find Passage. p1's own Analyze, picked as Find Passage, in Dorm A with no passage and then by a tunnel's end:
+ *   the empty room and a miss find nothing, a find writes Aiko's cell 'found' with her roll; one card each, its words and
+ *   sound to p1 and the GMs and none on p3; p2's ask for Aiko and p1's second ask on a scored roll are refused; Botan as the
+ *   Mastermind finds nothing, p2 told. Put back, as the phase found it.
  *
  * What the harness cannot settle - a real canvas's move backend, the ruler and the keyboard, a GM on
  * another scene at a real table - is LIVE-E79-01 to LIVE-E79-08 (AUDIT 9.2, since C8).
@@ -123,8 +127,9 @@ export const layers = ["ci"];
    half times that reading, as 180 s was of r2-G3's. E80 C1 (18.10.2026) adds phase T: 76 checks in 133.2 s by the
    cluster's line, one run alone under the harness lock (137.5 s by run-all's) - 210 s stands.
    E80 C2 (18.10.2026) adds phase U: 82 checks in 147.9 s by run-all's line, one run alone under the harness lock
-   (the commit's quick gate) - 210 s, near one and a half times it, stands. */
-export const timeoutMs = 210000;
+   (the commit's quick gate) - 210 s, near one and a half times it, stands. E80 C3 (18.10.2026) adds phase V: 88 checks
+   in 166.2 s by run-all's line, one run alone under the harness lock - so 250 s, near one and a half times it. */
+export const timeoutMs = 250000;
 
 /* A second GM and a fifth player, seeded inactive and connected in phase G alone (E79 fix r2-G3), declared as 61 and 62
    declare theirs. */
@@ -275,6 +280,7 @@ export async function run({ gm, gm2, p1, p2, p3, p4, check, phase, settle, dump,
     await phaseG({ gm, gm2, p1, p2, p3, p4, check, phase, settle, dump, socketTraffic, connect, disconnect, storageOf, IDS, repoUrl });
     await phaseT({ gm, p1, p2, p3, check, phase, settle, dump, socketTraffic, IDS, repoUrl });
     await phaseU({ gm, p1, p2, p3, check, phase, settle, dump, socketTraffic, IDS, repoUrl });
+    await phaseV({ gm, p1, p2, p3, check, phase, settle, dump, IDS, repoUrl });
 }
 
 const PHASE_A = "A: the GM creates a passage and grants Aiko - p1's copy holds that row alone, p2 and p3 nothing of it, p3's world as found";
@@ -1859,4 +1865,120 @@ async function phaseU({ gm, p1, p2, p3, check, phase, settle, dump, socketTraffi
     const after = await dump("p3");
     check("U: put back - the tunnel deleted, the wall gone, Aiko where the phase found her, p3's world as this phase found it",
         restored.gone !== false && worldPrint(after) === found && worldScan(after).length === 0, J({ restored, diff: printDiff(found, worldPrint(after)) }));
+}
+
+const PHASE_V = "V: Find Passage - p1's Analyze is searched on the primary GM: an empty room and a miss find nothing, a find writes Aiko's cell with its roll, the Mastermind finds none; one card each, to its player and the GMs, and nothing for an onlooker; a forged ask writes nothing";
+
+/* E80 C3 (18.10.2026; P1-10 to P1-12). The harms: a search that writes no cell, or one off another roll; a card that
+   reaches a third browser, comes in two shapes or goes to the GMs alone; the Mastermind's student led to a passage the
+   door already gives; and an ask for another's character or with a total of its own carried out. Each search is p1's
+   (p2's for Botan) own Analyze, `performAction` with the window's answer handed in and the faces scripted
+   (`__forceRoll`), so the price, the drawn roll and the real bridge are the module's. What each browser reads of the new
+   cards is `cardFlag` and `contentOf` (secret.mjs), the sound and the words as that browser holds them. Red at 879d6d5:
+   the Analyze window has no Find Passage row and the bridge no `passage.find`. */
+async function phaseV({ gm, p1, p2, p3, check, phase, settle, dump, IDS, repoUrl }) {
+    phase(PHASE_V, { flow: "secret-passages" });
+    const MOD = "danganronpa-rpg", PLACE = { teleport: true, movementAction: "displace", animate: false };
+    const AIKO = "TOKAIKO000000000", BOTAN = "TOKBOTAN00000000";
+    const found = worldPrint(await dump("p3"));
+    const MM = `const M = await import("${repoUrl}/scripts/mastermind.mjs"), S = await import("${repoUrl}/scripts/gm-stores.mjs");`;
+    const set = await gm.eval(`${MM}
+        const scene = game.scenes.get(${J(IDS.scene)}), a = scene.tokens.get(${J(AIKO)}), b = scene.tokens.get(${J(BOTAN)});
+        const was = S.mastermindStore.get("record") ?? {};
+        globalThis.__s76v = { a: { x: a.x, y: a.y }, b: { x: b.x, y: b.y }, actions: [game.drpg.actionsLeft(a.actor), game.drpg.actionsLeft(b.actor)],
+            mm: { actorId: was.actorId ?? null, room: was.room ?? null }, id: null };
+        await a.update({ x: 700, y: 700 }, ${J(PLACE)});
+        await b.update({ x: 600, y: 700 }, ${J(PLACE)});
+        const R = await import("${repoUrl}/scripts/movement.mjs");
+        return { rooms: [R.roomOfToken(a), R.roomOfToken(b)], passages: (await import("${repoUrl}/scripts/passages-gm.mjs")).listPassages().length, mm: globalThis.__s76v.mm };`, { timeout: 30000 });
+    check("V: Aiko and Botan stand in Dorm A, where no passage is yet, and nobody is the Mastermind",
+        J(set.rooms) === J(["Dorm A", "Dorm A"]) && set.passages === 0 && set.mm.actorId === null, J(set));
+
+    const words = await p1.eval(`return { nothing: game.i18n.localize("DRPG.Analyze.passageNothing"),
+        found: [game.i18n.format("DRPG.Analyze.passageFound", { to: "Gym" }), game.i18n.format("DRPG.Analyze.passageFound", { to: game.i18n.format("DRPG.Listen.unknownRoom", { n: 1 }) })] };`);
+    /* What one browser holds of the cards `ids` names: each one's sound and words, waited for up to `ms` when one is due. */
+    const READ = (ids, ms) => `const S = await import("${repoUrl}/scripts/secret.mjs"), ids = ${J(ids)};
+        const read = () => ids.map(id => game.messages.get(id)).filter(Boolean).map(m => ({ sfx: S.cardFlag(m, "sfx") ?? null,
+            words: String(S.contentOf(m) ?? "").replace(/<[^>]+>/g, "").trim(), to: [...(m.whisper ?? [])].sort() }));
+        const end = Date.now() + ${ms};
+        while (!read().some(c => c.sfx) && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        return read();`;
+    /* One Analyze picked as Find Passage on `client` for `actorId`, its faces scripted; the window answers once. */
+    const search = async (client, actorId, faces, readers) => {
+        const mark = await gm.eval(`return game.messages.contents.map(m => m.id);`);
+        await gm.eval(`await game.drpg.setActions(game.actors.get(${J(actorId)}), 2); return true;`);
+        await settle(400);
+        const out = await client.eval(`const D = foundry.applications.api.DialogV2, own = Object.getOwnPropertyDescriptor(D, "wait"), A = await import("${repoUrl}/scripts/action-rolls.mjs");
+            const asked = [], actor = game.actors.get(${J(actorId)});
+            D.wait = async config => { asked.push(String(config?.window?.title ?? "")); return asked.length === 1 ? { value: "passage", form: document.createElement("form"), trait: null } : null; };
+            globalThis.__forceRoll = ${J(faces)};
+            let res = null;
+            try { res = await game.drpg.performAction(actor, "analyze"); }
+            finally { delete globalThis.__forceRoll; if (own) Object.defineProperty(D, "wait", own); else delete D.wait; }
+            return { asked, total: res?.roll?.total ?? null, rollId: A.rollInHand(actor)?.messageId ?? null, actions: game.drpg.actionsLeft(actor) };`, { timeout: 60000 });
+        await settle(1500);
+        const side = await gm.eval(`const G = await import("${repoUrl}/scripts/gm-stores.mjs"), was = ${J(mark)};
+            const cell = Object.entries(G.passageAccessStore.entries()).filter(([key]) => key.endsWith("/" + ${J(actorId)}) && !key.startsWith("touch/") && !key.startsWith("door/")).map(([key, c]) => [key.split("/")[0], c?.how ?? null, c?.rollId ?? null]);
+            return { ids: game.messages.contents.filter(m => !was.includes(m.id)).map(m => m.id), cell };`);
+        const seen = {};
+        for (const [who, c, ms] of readers) seen[who] = (await c.eval(READ(side.ids, ms), { timeout: 30000 })).filter(r => r.sfx || [words.nothing, ...words.found].includes(r.words));
+        return { ...out, ...side, seen };
+    };
+    const asker = [["gm", gm, 4000], ["p1", p1, 4000], ["p3", p3, 1000]];
+    const gms = await gm.eval(`return game.users.filter(u => u.isGM).map(u => u.id);`);
+    const one = (r, who, key, text) => r.seen[who]?.length === 1 && r.seen[who][0].sfx?.key === key && r.seen[who][0].sfx?.gm === (key === "passageFound")
+        && text.includes(r.seen[who][0].words) && J(r.seen[who][0].to) === J([...gms, who === "p2" || r.seen.p2 ? IDS.p2 : IDS.p1].sort());
+    const quiet = (r, who) => (r.seen[who] ?? []).length === 0;
+
+    const empty = await search(p1, IDS.aiko, { hope: 11, fear: 10 }, asker);
+    check("V: in a room with no passage p1's Find Passage (a total of 16 or more) finds nothing - one card, the words and the miss's sound to p1 and the GMs, nothing on p3, no cell, one action paid",
+        J(empty.asked) === J([empty.asked[0]]) && empty.total >= 16 && empty.actions === 1 && empty.cell.length === 0
+            && one(empty, "p1", "searchNothing", [words.nothing]) && one(empty, "gm", "searchNothing", [words.nothing]) && quiet(empty, "p3"), J({ empty, words }));
+
+    const made = await gm.eval(`const id = await game.drpg.passages.create({ sceneId: ${J(IDS.scene)}, shape: "tunnel", ends: [{ x: 720, y: 730, level: null }, { x: 1930, y: 1760, level: null }] });
+        globalThis.__s76v.id = id; return id;`, { timeout: 30000 });
+    await settle(600);
+    const miss = await search(p1, IDS.aiko, { hope: 2, fear: 1 }, asker);
+    const hit = await search(p1, IDS.aiko, { hope: 11, fear: 10 }, asker);
+    check("V: by the tunnel's Dorm A end a miss (under 16) finds nothing, and a find writes Aiko's cell 'found' with the roll she threw - one card each, the find's sound to p1 and the GMs, nothing on p3",
+        typeof made === "string" && miss.total < 16 && miss.cell.length === 0 && one(miss, "p1", "searchNothing", [words.nothing]) && quiet(miss, "p3")
+            && hit.total >= 16 && J(hit.cell) === J([[made, "found", hit.rollId]]) && typeof hit.rollId === "string"
+            && one(hit, "p1", "passageFound", words.found) && one(hit, "gm", "passageFound", words.found) && quiet(hit, "p3"), J({ made, miss, hit, words }));
+
+    /* Forged asks of the bridge itself: p2 for Aiko, and p1 again on the miss's roll with a total of its own. */
+    // Read as a result: at 879d6d5 the bridge has no such request, and that is the red this phase reads.
+    const forge = (client, payload) => client.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        if (typeof B.requestPassageFind !== "function") return { ok: null, reason: "no requestPassageFind" };
+        const res = await B.requestPassageFind(${J(payload)}); return { ok: res?.ok ?? null, reason: res?.reason ?? null };`, { timeout: 30000 });
+    const notMine = await forge(p2, { actorId: IDS.aiko, total: 30, isCritical: true, rollId: hit.rollId });
+    const ownTotal = await forge(p1, { actorId: IDS.aiko, total: 30, isCritical: true, rollId: miss.rollId });
+    await settle(1000);
+    const after = await gm.eval(`const G = await import("${repoUrl}/scripts/gm-stores.mjs");
+        return Object.entries(G.passageAccessStore.entries()).filter(([key]) => key.endsWith("/" + ${J(IDS.aiko)}) && !key.startsWith("touch/") && !key.startsWith("door/")).map(([key, c]) => [key.split("/")[0], c?.how ?? null, c?.rollId ?? null]);`);
+    check("V: p2's ask for Aiko is refused as not p2's, and p1's own ask again on the miss's roll with a total of 30 as a roll already scored - Aiko's cell is the find's alone",
+        notMine.ok === false && notMine.reason === "notYours" && ownTotal.ok === false && ownTotal.reason === "rollUsed" && J(after) === J(hit.cell), J({ notMine, ownTotal, after, cell: hit.cell }));
+
+    const mmSet = await gm.eval(`${MM} await M.setMastermind(game.actors.get(${J(IDS.botan)})); return M.mastermindActor()?.id ?? null;`, { timeout: 30000 });
+    await settle(1000);
+    const mm = await search(p2, IDS.botan, { hope: 11, fear: 10 }, [["gm", gm, 4000], ["p2", p2, 4000], ["p3", p3, 1000]]);
+    check("V: Botan, the Mastermind, finds nothing by the same end with a total of 16 or more - one card, the miss's, to p2 and the GMs, nothing on p3, no cell",
+        mmSet === IDS.botan && mm.total >= 16 && mm.cell.length === 0 && one(mm, "p2", "searchNothing", [words.nothing]) && quiet(mm, "p3"), J({ mmSet, mm }));
+
+    /* Put back: the Mastermind, both tokens and their actions, the tunnel (its cells with it). */
+    const restored = await gm.eval(`${MM}
+        const scene = game.scenes.get(${J(IDS.scene)}), was = globalThis.__s76v, a = scene.tokens.get(${J(AIKO)}), b = scene.tokens.get(${J(BOTAN)});
+        if (was.mm.actorId) await M.setMastermind(game.actors.get(was.mm.actorId), { room: was.mm.room }); else await M.clearMastermind();
+        await a.update(was.a, ${J(PLACE)});
+        await b.update(was.b, ${J(PLACE)});
+        await game.drpg.setActions(a.actor, was.actions[0]);
+        await game.drpg.setActions(b.actor, was.actions[1]);
+        const gone = was.id ? await game.drpg.passages.delete(was.id) : null;
+        delete globalThis.__s76v;
+        const G = await import("${repoUrl}/scripts/gm-stores.mjs");
+        return { gone, cells: Object.keys(G.passageAccessStore.entries()).filter(k => k.startsWith(String(was.id) + "/")).length, mm: M.mastermindActor()?.id ?? null };`, { timeout: 30000 });
+    await settle(800);
+    const atEnd = await dump("p3");
+    check("V: put back - the tunnel and its cells gone, nobody the Mastermind, Aiko and Botan where the phase found them, p3's world as this phase found it",
+        restored.gone !== false && restored.cells === 0 && restored.mm === null && worldPrint(atEnd) === found && worldScan(atEnd).length === 0,
+        J({ restored, diff: printDiff(found, worldPrint(atEnd)) }));
 }

@@ -429,7 +429,8 @@ async function replayRefusal(actor, row) {
 function ruledByHand(bookmark) {
     if (!bookmark?.gmRuled) return false;
     if (bookmark.actionKey === "observe") return !bookmark.observeKey;
-    if (bookmark.actionKey === "analyze") return !bookmark.bulletId;
+    // A Find Passage leaves its fact too (E80 C3, passages-gm.mjs `noteFindFact`), and is replayed by it.
+    if (bookmark.actionKey === "analyze") return !bookmark.bulletId && !bookmark.findPassage;
     return bookmark.actionKey === "search";
 }
 
@@ -1655,6 +1656,9 @@ async function settleSteal(actor, bookmark, after, done) {
  * which also means a Reroll can lift a lock the first roll had just stamped on.
  */
 async function settleAnalyze(actor, bookmark, after, done) {
+    // A Find Passage (E80 C3; the GMs' fact `findPassage`, passages-gm.mjs `noteFindFact`): the new dice find once
+    // and take back only the cell this roll wrote (its `rollId`), never a passage found or given otherwise.
+    if (bookmark.findPassage && !bookmark.bulletId) return settlePassageFind(actor, bookmark, after, done);
     if (!bookmark.bulletId) {
         done.push(game.i18n.localize("DRPG.Reroll.noReplay"));
         return {};
@@ -1673,6 +1677,19 @@ async function settleAnalyze(actor, bookmark, after, done) {
     if (replayWasRefused(res.ok, res.value)) return null;
     done.push(game.i18n.localize("DRPG.Reroll.analyzeReplayed"));
     return { bulletId: bookmark.bulletId };
+}
+
+/** A Find Passage replayed on this primary (`settleAnalyze`): the roller's lines say what the new dice did; no card of its own. */
+async function settlePassageFind(actor, bookmark, after, done) {
+    const { resolvePassageSearch } = await import("./passages-gm.mjs");
+    const out = await resolvePassageSearch({ actorId: actor.id, total: after.total, isCritical: after.isCritical,
+        rollId: bookmark.messageId ?? null, undo: true }, { asker: game.user });
+    if (replayWasRefused(Boolean(out), out)) return null;
+    if (out.found) done.push(game.i18n.format("DRPG.Reroll.passageFound", { to: out.to ?? "-" }));
+    else if (out.kept) done.push(game.i18n.localize("DRPG.Reroll.passageStands"));
+    else if (out.lost) done.push(game.i18n.localize("DRPG.Reroll.passageLost"));
+    else done.push(game.i18n.localize("DRPG.Reroll.searchNothing"));
+    return {};
 }
 
 /**

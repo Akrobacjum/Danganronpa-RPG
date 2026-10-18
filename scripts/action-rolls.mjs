@@ -541,6 +541,7 @@ function thresholdFacts(actor, actionKey, def) {
             const [a, b] = mins(def.hintThresholds);
             if (a !== undefined) f("DRPG.Action.dcHint", { a, b: b ?? a });
             if (def.stashThreshold) f("DRPG.Action.dcStash", { n: def.stashThreshold });
+            if (def.passageThreshold) f("DRPG.Action.dcPassage", { n: def.passageThreshold });
             break;
         }
         case "project": {
@@ -4868,9 +4869,9 @@ async function performAnalyze(actor, def, options) {
     const choice = asked?.choice ?? null;
     if (!choice || choice === "cancel") return null;
 
-    // "hint" and "stash" are literal action ids; anything else is the bullet id
-    // the "bullet" row's own select returned above.
-    const ruled = choice === "hint" || choice === "stash";
+    // "hint", "stash" and "passage" are literal action ids; anything else is the
+    // bullet id the "bullet" row's own select returned above.
+    const ruled = choice === "hint" || choice === "stash" || choice === "passage";
     const subject = ruled ? null : (bullets.find(b => b.id === choice) ?? null);
     if (!ruled && !subject) return null;
 
@@ -4880,6 +4881,12 @@ async function performAnalyze(actor, def, options) {
      * paid for, the dice were thrown, and the packet was dropped on the way out.
      */
     const { gmOnline, sayNotDone } = await import("./bridge-guards.mjs");
+    // Find Passage is no road in a Class Trial (E80 C3): its row is not offered there, and an
+    // Analyze that names it anyway is refused here, before the price - the GM refuses it too.
+    if (choice === "passage" && getClock().phase === "classTrial") {
+        sayNotDone("passage.find", "trialLocked", { nothingSpent: true });
+        return null;
+    }
     if (!gmOnline()) {
         // The bridge's own sentence for a request with no GM (E31), and nothing was paid.
         sayNotDone("analyze.resolve", "noGm", { nothingSpent: true });
@@ -4896,7 +4903,10 @@ async function performAnalyze(actor, def, options) {
         // A bullet's own difficulty is read off its REAL type, which is the
         // answer the roll exists to find - so only the two ruled routes show one.
         dc: choice === "hint" ? (def.hintThresholds ?? []).map(t => t.min).join(" / ")
-            : choice === "stash" ? def.stashThreshold : null
+            : choice === "stash" ? def.stashThreshold
+            : choice === "passage" ? def.passageThreshold : null,
+        // What the GMs' record of the roll keeps for gm-bridge.mjs `passage.find` (roll-draw.mjs `CONTEXT_SENT`).
+        ...(choice === "passage" ? { context: { findPassage: true } } : {})
     });
     if (!roll) {
         // The window was closed. Whatever the chain took, it gives back - the
@@ -4906,6 +4916,7 @@ async function performAnalyze(actor, def, options) {
     }
 
     if (choice === "stash") return locateStash(actor, def, roll, asked?.request ?? "", charge);
+    if (choice === "passage") return locatePassage(actor, def, roll, asked?.request ?? "", charge);
     return subject
         ? analyseBullet(actor, def, roll, subject, charge)
         : askForHint(actor, def, roll, asked?.request ?? "", charge);
@@ -5101,7 +5112,46 @@ async function locateStash(actor, def, roll, request = "", charge = null) {
 }
 
 /**
- * Which bullet, a hint, or somebody's hiding place.
+ * Find Passage (E80 C3; the owner's A10, proposal 13): Head against `def.passageThreshold`, judged on
+ * the primary GM from its own record of the roll (passages-gm.mjs `resolvePassageSearch`), which tells
+ * the character's owner on a card of its own what was found - one shape whatever came of it. Like the
+ * stash's, the row is offered in every room and never greyed: one that dimmed where there is no passage
+ * would answer the question for free. A trap watching for it fires on every attempt, hit or miss,
+ * announced before the answer (`locateStash`'s rule). This card says only that the walls were gone over.
+ */
+async function locatePassage(actor, def, roll, request = "", charge = null) {
+    const room = roomOfActor(actor);
+    Hooks.callAll("drpgPassageHunted", { actor, room, total: roll.total });
+
+    const { requestPassageFind } = await import("./gm-bridge.mjs");
+    const { gmOnline, sayNotDone } = await import("./bridge-guards.mjs");
+    if (!gmOnline()) {
+        if (charge) await refundPrice(actor, charge);
+        sayNotDone("passage.find", "noGm", { nothingSpent: true });
+        return null;
+    }
+
+    const res = await requestPassageFind({
+        actorId: actor.id,
+        total: roll.total,
+        isCritical: Boolean(roll.isCritical),
+        rollId: rollInHand(actor)?.messageId ?? null
+    });
+
+    // Not `gmRuled`: a Reroll replays it from a threshold (reroll.mjs `settleAnalyze`), on the GMs' fact
+    // that this roll was a Find Passage (passages-gm.mjs `noteFindFact`).
+    await noteRollContext(actor, {
+        actionKey: "analyze", request, label: game.i18n.localize("DRPG.Analyze.findPassage"), room
+    });
+
+    await whisperToOwner(actor, `${rollHead(def, roll)}${res.ok ? `<p>${
+        game.i18n.localize("DRPG.Analyze.passageSent")}</p>` : ""}`, rollCardFlags(def, roll));
+
+    return { roll, subject: null };
+}
+
+/**
+ * Which bullet, a hint, somebody's hiding place, or a secret passage.
  *
  * The bullet picker used to be its own dialog, shown only after choosing
  * "Analyze a bullet" - two windows every time there was a bullet to analyze.
@@ -5146,7 +5196,13 @@ async function askWhatToAnalyze(actor, def, bullets) {
                 hint: game.i18n.format("DRPG.Analyze.findStashHint", {
                     n: def.stashThreshold
                 })
-            }
+            },
+            // Never disabled either (`locatePassage`), and in every room; not offered in a Class Trial (E80 C3).
+            ...(getClock().phase === "classTrial" ? [] : [{
+                value: "passage", icon: "fa-dungeon",
+                label: game.i18n.localize("DRPG.Analyze.findPassage"),
+                hint: game.i18n.format("DRPG.Analyze.findPassageHint", { n: def.passageThreshold })
+            }])
         ],
         extra: `${bullets.length
             ? `<label>${game.i18n.localize("DRPG.Analyze.whichBullet")}
@@ -5166,7 +5222,7 @@ async function askWhatToAnalyze(actor, def, bullets) {
     // the line below reads an element that is not there and comes back `null`,
     // which `performAnalyze` treats as "cancelled" - measured: picking "Locate
     // a hidden stash" spent nothing, rolled nothing and closed in silence.
-    if (picked.value === "hint" || picked.value === "stash") {
+    if (picked.value === "hint" || picked.value === "stash" || picked.value === "passage") {
         return { choice: picked.value, request };
     }
     return { choice: picked.form.querySelector("[name=bullet]")?.value ?? null, request };

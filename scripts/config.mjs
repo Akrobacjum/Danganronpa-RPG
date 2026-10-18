@@ -1424,7 +1424,13 @@ export const ACTIONS = {
          * result goes to the GM and they decide what it bought. See
          * `locateStash` in action-rolls.mjs for why nothing is modelled.
          */
-        stashThreshold: 16
+        stashThreshold: 16,
+        /**
+         * The fourth: Find Passage (E80 C3; the owner's A10, proposal 13). Head against a flat
+         * 16, as the stash, and a critical finds too; what it finds is the GMs' records' to say,
+         * on the primary GM (passages-gm.mjs `resolvePassageSearch`), never this number's.
+         */
+        passageThreshold: 16
     },
     project: {
         kind: "universal",
@@ -2719,6 +2725,16 @@ export const TRAP_TRIGGERS = {
         hint: "Any attempt, hit or miss. It answers the looking, not the finding.",
         icon: "fa-box-archive",
         watch: "stash"
+    },
+    /*
+     * FIND PASSAGE, EVERY ATTEMPT (E80 C3; the owner's A10, proposal 13): the stash's rule for a
+     * search of the walls - it answers the looking, so a miss and an empty room set it off too.
+     */
+    passage: {
+        label: "Somebody hunts for a secret passage here",
+        hint: "Any Find Passage in this room, hit or miss.",
+        icon: "fa-dungeon",
+        watch: "passage"
     },
     /*
      * TODAY'S BEHAVIOUR, WRITTEN DOWN. No `watch`, so nothing listens and the
@@ -4313,8 +4329,8 @@ export const SFX_EVENTS = {
         vary: true
     },
     passageFound: {
-        label: "Secret passage shown",
-        hint: "Another student shows somebody a secret passage. Heard by the one shown it.",
+        label: "A secret passage opens to you",
+        hint: "A student finds a secret passage, or another student showed it to them. Heard by them, and by the GMs at a find.",
         category: "world"
     },
     actionSpent: {

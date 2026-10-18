@@ -17,9 +17,9 @@
  * `fireTrap` is untouched. The only thing that changes is WHEN the card comes.
  *
  * ---------------------------------------------------------------------------
- * FIVE LISTENERS FOR EIGHT TRIGGERS, AND THAT IS THE POINT OF DOING IT HERE.
+ * SIX LISTENERS FOR NINE TRIGGERS, AND THAT IS THE POINT OF DOING IT HERE.
  *
- * The plan called it eight listeners on hot paths. It is five, because three of
+ * The plan called it eight listeners on hot paths. It was five, because three of
  * the triggers are the same event asked three questions (`drpgActionResolved`
  * for Search, project and sabotage) and two more are the same crossing:
  *
@@ -27,6 +27,7 @@
  *   action     → search, project, sabotage
  *   rest       → rest
  *   stash      → stash
+ *   passage    → passage (a Find Passage, E80 C3: the sixth)
  *   item       → item
  *
  * A room crossing and an action resolution happen several hundred times in a
@@ -675,7 +676,7 @@ export function itemTrapsWithoutPlant() {
 }
 
 /* ==========================================================================
- * THE FIVE LISTENERS
+ * THE SIX LISTENERS
  * ========================================================================== */
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
@@ -710,9 +711,9 @@ export function registerTraps() {
      * is never called - the trap stays armed and nothing happens, which looks
      * exactly like a trap nobody walked into.
      *
-     * Four of the five hooks are raised by the client that DID the thing: a
+     * Five of the six hooks are raised by the client that DID the thing: a
      * crossing is charged on the mover's client, an action resolves on the
-     * roller's, a rest and a stash hunt likewise. Only `createChatMessage`
+     * roller's, a rest, a stash hunt and a passage search likewise. Only `createChatMessage`
      * reaches everybody, which is why the item trigger was the one that worked.
      *
      * So the acting client says "this happened" and the GM decides what it
@@ -766,9 +767,13 @@ export function registerTraps() {
         if (relay("stash", { actorId: event?.actor?.id, room: event?.room ?? null })) return;
         onStashHunted(event);
     });
+    Hooks.on("drpgPassageHunted", event => {
+        if (relay("passage", { actorId: event?.actor?.id, room: event?.room ?? null })) return;
+        onPassageHunted(event);
+    });
 
     // Raised on every client already, so it needs no relay - and it is the only
-    // one of the five that was ever working.
+    // one of the first five that was ever working.
     Hooks.on("createChatMessage", onChatMessage);
 
     // The primary GM judges it, by the declaration below; nobody waits on a report,
@@ -789,7 +794,7 @@ export const TRAP_ACTIONS = table({
     [TRAP_EVENT]: {
         label: "DRPG.Bridge.what.trap.event",
         guards: [knownSender, guardRelayOwner, guardRelayActor, guardRelayRoom],
-        sanitize: pick({ kind: as.oneOf("crossing", "action", "rest", "stash"), actorId: as.id, to: as.maybeText,
+        sanitize: pick({ kind: as.oneOf("crossing", "action", "rest", "stash", "passage"), actorId: as.id, to: as.maybeText,
             room: as.maybeText, actionKey: as.text, hit: as.bool, projectId: as.id, sceneId: as.id }),
         run: handleTrapEvent,
         answer: "none", quiet: true,
@@ -818,11 +823,12 @@ async function handleTrapEvent(payload, sender, ctx) {
         }); break;
         case "rest": await onRested({ actor, room: payload.room }); break;
         case "stash": await onStashHunted({ actor, room: payload.room }); break;
+        case "passage": await onPassageHunted({ actor, room: payload.room }); break;
     }
 }
 
-/** Which field of each relayed event names a room: a crossing's destination, the rest's and the stash's room. */
-export const RELAYED_ROOM = { crossing: "to", rest: "room", stash: "room" };
+/** Which field of each relayed event names a room: a crossing's destination, the rest's, the stash's and the passage search's room. */
+export const RELAYED_ROOM = { crossing: "to", rest: "room", stash: "room", passage: "room" };
 
 /**
  * Is this character in that room, as this client sees it - asked twice, a
@@ -1001,6 +1007,21 @@ async function onStashHunted({ actor, room } = {}) {
         }
     } catch (err) {
         error("A trap could not react to a stash hunt", err);
+    }
+}
+
+/** Trigger 9 (E80 C3): a Find Passage in the trap's room, every attempt, as the stash hunt's - before the GM judges the roll. */
+async function onPassageHunted({ actor, room } = {}) {
+    try {
+        if (!isPrimaryGm() || !armed().byRoom.has(room)) return;
+        const scene = await sceneOfEvent(actor);
+        for (const trap of armedIn(room, scene)) {
+            if (trap.trigger.kind !== "passage") continue;
+            if (!passesModifiers(trap, actor)) continue;
+            await alert(trap, actor, game.i18n.localize("DRPG.Trap.why.passage"), scene);
+        }
+    } catch (err) {
+        error("A trap could not react to a passage search", err);
     }
 }
 

@@ -50546,6 +50546,10 @@ const SCENARIOS = [
          * player's browser relays it; then, with the token here hidden so that the student stands
          * on the suite's scene, a Search, a Rest and a stash hunt there. Red before this fix: all
          * nine spring their trap.
+         *
+         * E80 C3, 18.10.2026: a fifth trap, on a Find Passage (P1-10's trap), read as the stash hunt's - done here, as
+         * the GM's browser raises it and as the player's browser relays it, and done there. Red at the parent (879d6d5):
+         * no trap watches for one, so the two that should spring do not.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 1), "the relayed crossing is a connected player's");
         const playerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
@@ -50562,8 +50566,8 @@ const SCENARIOS = [
         const ROOM = locateActor(student).room, mine = home.tokens.find(t => t.actorId === student.id && !t.hidden) ?? null;
         must(mine, `${student.name} has no token a GM has not hidden on the scene on screen - this would measure nothing`);
         const before = foundry.utils.deepClone(getSetting(SETTINGS.projectMeta) ?? {});
-        const KINDS = ["enters", "search", "rest", "stash"], traps = {};
-        let scene = null, read = null;
+        const KINDS = ["enters", "search", "rest", "stash", "passage"], traps = {};
+        let scene = null, read = null, armed = null;
         try {
             scene = await Scene.create({ name: "SUITE E12 fix r2-S1 a room of the same name", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
             await scene.createEmbeddedDocuments("Region", [{ name: ROOM, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
@@ -50577,8 +50581,10 @@ const SCENARIOS = [
                 await P.addProgress(made.id, 1, { by: builder.id });
             }
             await settle();
-            must(T.diagnoseTraps().armed === KINDS.length && KINDS.every(kind => P.projectScene(traps[kind])?.id === home.id),
-                `the four traps are not armed in "${ROOM}" on the scene on screen - this would measure nothing`);
+            // The Find Passage trap's arming is measured, not required: at the parent no trap watches for one.
+            armed = T.diagnoseTraps().armed;
+            must(armed >= KINDS.length - 1 && KINDS.every(kind => P.projectScene(traps[kind])?.id === home.id),
+                `the ${KINDS.length - 1} traps before E80 are not armed in "${ROOM}" on the scene on screen - this would measure nothing`);
             must(locateActor(student)?.scene === home, `${student.name} is not placed on the scene on screen while both tokens show - this would measure nothing`);
             const fires = async (kind, raise) => {
                 const fired = () => Boolean(P.secretsOf(traps[kind]).trigger?.firedAt);
@@ -50586,19 +50592,22 @@ const SCENARIOS = [
                 const spoke = await until(fired, 2500);
                 if (spoke) {
                     await T.rearmTrap(traps[kind]);
-                    await until(() => !fired() && T.diagnoseTraps().armed === KINDS.length);
+                    await until(() => !fired() && T.diagnoseTraps().armed === armed);
                 }
                 return spoke;
             };
             const standing = async () => [
                 await fires("search", () => Hooks.callAll("drpgActionResolved", { actor: student, actionKey: "search", outcome: { success: true, room: ROOM } })),
                 await fires("rest", () => Hooks.callAll("drpgRested", { actor: student, kind: "short", picks: [], room: ROOM })),
-                await fires("stash", () => Hooks.callAll("drpgStashHunted", { actor: student, room: ROOM, total: 10 }))
+                await fires("stash", () => Hooks.callAll("drpgStashHunted", { actor: student, room: ROOM, total: 10 })),
+                await fires("passage", () => Hooks.callAll("drpgPassageHunted", { actor: student, room: ROOM, total: 10 }))
             ];
             read = [await fires("enters", () => Hooks.callAll("drpgRoomCrossed", { actor: student, from: null, to: ROOM, tokenDoc: mine })),
                 ...await standing(),
                 await fires("enters", () => Hooks.callAll("drpgRoomCrossed", { actor: student, from: null, to: ROOM, tokenDoc: away })),
                 await fires("enters", () => G.judge(T.TRAP_ACTIONS, { action: "trap.event", kind: "crossing", actorId: student.id, to: ROOM, sceneId: scene.id },
+                    playerOf(student).id, { send: () => {} })),
+                await fires("passage", () => G.judge(T.TRAP_ACTIONS, { action: "trap.event", kind: "passage", actorId: student.id, room: ROOM },
                     playerOf(student).id, { send: () => {} }))];
             await mine.update({ hidden: true });
             must(locateActor(student)?.scene === scene, `${student.name} is not placed on the suite's scene with the token here hidden - this would measure nothing`);
@@ -50611,9 +50620,10 @@ const SCENARIOS = [
             await scene?.delete();
             await settle();
         }
-        equal(stableJson(read), stableJson([true, true, true, true, false, false, false, false, false]),
-            `the traps in "${ROOM}" on the scene on screen spoke for ${student.name}'s crossing, Search, Rest and stash hunt there; for a crossing into a room of that name `
-            + "on a scene of the suite's own, as the GM's browser raises it and as the player's browser relays it; and for a Search, a Rest and a stash hunt there");
+        equal(stableJson([armed, ...read]), stableJson([KINDS.length, true, true, true, true, true, false, false, true, false, false, false, false]),
+            `[the traps armed, then whether each spoke] - the traps in "${ROOM}" on the scene on screen spoke for ${student.name}'s crossing, Search, Rest, stash hunt and Find Passage there; for a crossing into a room of that name `
+            + "on a scene of the suite's own, as the GM's browser raises it and as the player's browser relays it; for a Find Passage there as the player's browser relays it; "
+            + "and for a Search, a Rest, a stash hunt and a Find Passage there");
     }],
 
     ["a secret project is a non-obvious Observe's find only in its room on its own scene", async () => {
@@ -52759,6 +52769,114 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson([[false, true, [OLD]], [true, true, [null, null]]]),
             "[the new name sealed, the old name sealed, the record on each piece of the new name] after the first piece's rename and after the second's");
+    }],
+    ["A10-7 - Find Passage on the primary GM: the Analyze window offers it in every room, never greyed, with its 16 in the briefing, and not in a Class Trial, where one asked anyway is refused before the price; on a map of the suite's own a Head of 15 misses and 16 finds the tunnel whose end the student stands by, the cell 'found' with its roll, a card of one shape to the GMs, and the Reroll's lower dice take the find back", async () => {
+        /*
+         * E80 C3 (18.10.2026; P1-10, P1-11, P1-13, the stage's write road "found cell"). The harms: a row that greys out
+         * where there is no passage (a detector nobody rolls for), a row in the courtroom or a price paid for a search
+         * refused there, and a find read off another floor or room of the real map. The window is the module's own,
+         * Foundry's DialogV2.wait handed in to read what it was given and close it, so nothing is rolled or paid: once for
+         * a student of this world where it stands, once for a student of the suite's own by a tunnel's end on a scene
+         * of the suite's own, once in a Class Trial, and once in the trial picking the row anyway. The search is the
+         * primary's (this GM's) `resolvePassageSearch` on that scene with the live world (`locateActor`, the map's
+         * rooms), in a GM-store world of the suite's own (`withGmStoreWorld`), its card and the GMs' note handed in so no
+         * card is posted. Three real clients, the bridge and the roll's record are scenario 76's phase V. Red at the
+         * parent (879d6d5): the window has no such row.
+         */
+        const rolls = await import("./action-rolls.mjs");
+        const ACT = await import("./actions.mjs");
+        const P = await import("./passages-gm.mjs");
+        const R = await import("./rooms.mjs");
+        const E = await import("./gm-store.mjs");
+        const B = await import("./bridge-guards.mjs");
+        const J = v => JSON.stringify(v);
+        const [student] = cast(1);
+        const clock = foundry.utils.deepClone(getClock() ?? {});
+        const purse = actor => [ACT.actionsLeft(actor), actor.system.resources.hope?.value ?? null, actor.system.resources.stress?.value ?? null];
+        const kept = { actions: ACT.actionsLeft(student) };
+        const api = foundry.applications.api.DialogV2, own = Object.getOwnPropertyDescriptor(api, "wait"), warn = ui.notifications.warn;
+        let answer = null, seen = null;
+        const windowFor = async actor => {
+            seen = null;
+            await rolls.performAction(actor, "analyze");
+            await settle();
+            return seen;
+        };
+        const rowOf = html => {
+            const doc = document.createElement("template");
+            doc.innerHTML = String(html ?? "");
+            const input = doc.content.querySelector('input[name="variant"][value="passage"]');
+            const label = input?.closest("label");
+            return label ? { html: label.outerHTML, disabled: input.disabled, unavailable: label.classList.contains("unavailable") } : null;
+        };
+        const DORM = "SUITE E80 C3 Dorm", GYM = "SUITE E80 C3 Gym", mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
+        const room = (name, x) => ({ name, shapes: [{ type: "rectangle", x, y: 0, width: 600, height: 600 }], flags: mark, behaviors: [] });
+        let scene = null, hana = null, read = null;
+        const notes = [];
+        try {
+            api.wait = async config => { seen = config?.content?.innerHTML ?? String(config?.content ?? ""); return answer; };
+            ui.notifications.warn = text => { notes.push(String(text)); };
+            if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+            await ACT.setActions(student, 2);
+            scene = await Scene.create({ name: "SUITE E80 C3 a tunnel", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [room(DORM, 0), room(GYM, 1200)]);
+            read = await E.withGmStoreWorld(`suite-e80-c3-${foundry.utils.randomID(8)}`, async () => {
+                hana = await Actor.create({ name: "SUITE E80 C3 Hana", type: "character" });
+                await scene.createEmbeddedDocuments("Token", [{ actorId: hana.id, actorLink: true, name: hana.name, x: 200, y: 200, width: 1, height: 1 }]);
+                await ACT.setActions(hana, 2);
+                await settle();
+                const id = await P.createPassage({ sceneId: scene.id, shape: "tunnel", ends: [{ x: 250, y: 250, level: null }, { x: 1450, y: 250, level: null }] }, { scene });
+                must(typeof id === "string", "the tunnel was not made - this would measure nothing");
+                const here = rowOf(await windowFor(student)), there = rowOf(await windowFor(hana));
+                const briefed = String(seen ?? "").includes(game.i18n.format("DRPG.Action.dcPassage", { n: 16 }));
+                const cards = [];
+                const opts = { asker: game.user, whisper: async (to, content, extra) => cards.push([to.id === hana.id, content, extra?.flags?.[MODULE_ID]?.sfx ?? null,
+                    (extra?.whisper ?? []).length]), toast: () => {}, note: () => {} };
+                const search = async (total, more = {}) => {
+                    // Read as a result: at the parent passages-gm.mjs has no passage search, and that is the red here.
+                    const out = typeof P.resolvePassageSearch === "function"
+                        ? await P.resolvePassageSearch({ actorId: hana.id, total, rollId: "SUITEA107ROLL01", ...more }, opts) : "no resolvePassageSearch";
+                    return [out?.refused ? B.reasonOf(out.refused) : out, P.PASSAGE_STORES.access.get(`${id}/${hana.id}`)?.how ?? null,
+                        P.PASSAGE_STORES.access.get(`${id}/${hana.id}`)?.rollId ?? null];
+                };
+                const steps = [await search(15), await search(16), await search(10, { undo: true })];
+                await setClock({ phase: "classTrial" });
+                await ACT.setActions(student, 2);
+                const inTrial = rowOf(await windowFor(student));
+                steps.push(await search(20));
+                answer = { value: "passage", form: document.createElement("form"), trait: null };
+                const before = purse(student), said = notes.length;
+                const asked = await rolls.performAction(student, "analyze");
+                await settle();
+                const refused = [asked ?? null, purse(student), J(before), notes.slice(said)];
+                answer = null;
+                await P.deletePassage(id);
+                await hana.delete();
+                hana = null;
+                return { here, there, briefed, inTrial, steps, cards, refused };
+            });
+        } finally {
+            if (own) Object.defineProperty(api, "wait", own); else delete api.wait;
+            ui.notifications.warn = warn;
+            if (hana) await hana.delete().catch(() => {});
+            await scene?.delete();
+            await setClock(clock);
+            await ACT.setActions(student, kept.actions);
+            await settle();
+        }
+        const { here, there, briefed, inTrial, steps, cards, refused } = read;
+        equal(J([Boolean(here), here?.html === there?.html, here?.disabled, here?.unavailable, briefed, inTrial]),
+            J([true, true, false, false, true, null]),
+            "[the row offered where the student stands, the same by the tunnel's end, disabled, greyed, the briefing's 16, the row in a Class Trial] - the Analyze window tells where a passage is, or offers a search in the courtroom");
+        const unexplored = game.i18n.format("DRPG.Listen.unknownRoom", { n: 1 });
+        equal(J(steps), J([[{ searched: true, found: false }, null, null], [{ searched: true, found: true }, "found", "SUITEA107ROLL01"],
+            [{ lost: true }, null, null], ["trialLocked", null, null]]),
+            "[the answer, Hana's cell, its roll] at 15, 16, a Reroll to 10 and 20 in a Class Trial - the tunnel by her is not found on the real map, or its find is not her roll's");
+        equal(J(cards), J([[true, `<p>${game.i18n.localize("DRPG.Analyze.passageNothing")}</p>`, { key: "searchNothing", gm: false }, cards[0]?.[3]],
+            [true, `<p>${game.i18n.format("DRPG.Analyze.passageFound", { to: unexplored })}</p>`, { key: "passageFound", gm: true }, cards[0]?.[3]]]),
+            "[Hana's card, its words, its sound, how many it went to] for the miss and the find (no Reroll card: the Reroll's lines say it) - the find names a room or reaches another number of people");
+        equal(J([refused[0], J(refused[1]) === refused[2], refused[3].length]), J([null, true, 1]),
+            "[the Analyze's answer, what the student holds unchanged, the words said] for a Find Passage picked in a Class Trial - it was paid for, or said nothing");
     }],
     ["A10-18 - 'Go through' a tunnel is carried out on the primary GM at a door's price: the token lands by the far end with teleport, displace and no animation, the crossing is told to the traps, a crossing back pays again; a lock, a seal, the chain, the courtroom, no budget and a spent Eclipse refuse it in the doors' words with nothing written, paid or warned on the GM, as does a tunnel the character does not know; the Mastermind passes the lock, anybody another's bedroom; an Eclipse counts one crossing and costs nothing else; a write that fails gives back exactly what it took", async () => {
         /*

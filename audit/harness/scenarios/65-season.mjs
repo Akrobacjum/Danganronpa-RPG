@@ -1368,7 +1368,9 @@ export async function run({ gm, gm2, gm0, p1, p2, p3, check, phase, settle, conn
        `passagesAfterReset`); every player's copy is cut by the reset and told again - an absent player's when it asks. A
        Closet under the Cafeteria (1200-2000 x 800-1100) that the map joins to no room, its wall at y 800, three passages in
        it: P1 (1234.5-1334.5, Aiko's at the season's start, shown to Botan), P2 (1500.5-1600.5, granted to Chie by a GM) and
-       P3 (1800.5-1900.5, Chie's at the start). Each stretch's first end is its marker, as 76's 1234.5 is. Before the reset,
+       P3 (1800.5-1900.5, Chie's at the start). Each stretch's first end is its marker, as 76's 1234.5 is. Aiko, put in the
+       Cafeteria, finds P2 with a search of 16 (passages-gm.mjs `resolvePassageSearch`, E80 C3): a 'found' cell, which the
+       reset takes with the shown and the granted ones (X3, X4 and X6 read it gone; P1-15). Before the reset,
        Aiko goes through P1 into the Closet from p1's browser, and what p3, whose Chie does not know P1, reads of it is the two
        known leaks (known-leaks.json `foundry-passage-crossing`, `foundry-passage-only-room`). p3 is absent for the reset
        (its module socket put aside, as `mute` does for all three: a player of this harness cannot reconnect). Red first,
@@ -1393,13 +1395,17 @@ export async function run({ gm, gm2, gm0, p1, p2, p3, check, phase, settle, conn
         globalThis.__s65x = { closet: closet.id, wall: wall.id, ids, at: { x: t.x, y: t.y }, actions: game.drpg.actionsLeft(aiko) };
         await t.update({ x: 1240, y: 600 }, ${J(PLACE)});
         if (game.drpg.actionsLeft(aiko) < 2) await game.drpg.setActions(aiko, 2);
+        // Read as a result: at 879d6d5 passages-gm.mjs has no passage search, and that is the red X0 reads.
+        const searched = typeof G.resolvePassageSearch === "function"
+            ? await G.resolvePassageSearch({ actorId: aiko.id, total: 16, rollId: "S65XFINDROLL0001" }, { asker: game.user, note: async () => false }) : "no resolvePassageSearch";
         return { ids, granted, room: M.roomOfToken(t), neighbours: M.neighbouringRooms(scene, "Closet"), mastermind: S.mastermindStore.get("record")?.actorId ?? null,
-            log: G.passageLog().length };`, { timeout: 30000 });
+            log: G.passageLog().length, searched, found: S.passageAccessStore.get(ids.p2 + "/" + aiko.id)?.how ?? null };`, { timeout: 30000 });
     await settle(1000);
     const pid = setX.ids ?? {};
-    check("X0: the GM draws the Closet, which the map joins to no room, its wall and three passages, grants P2 to Chie, shows P1 to Botan and puts Aiko in the Cafeteria; nobody is the Mastermind",
+    check("X0: the GM draws the Closet, which the map joins to no room, its wall and three passages, grants P2 to Chie, shows P1 to Botan and puts Aiko in the Cafeteria, where her search of 16 finds P2; nobody is the Mastermind",
         Object.values(pid).every(id => typeof id === "string") && J(setX.granted) === J([true, true]) && setX.room === "Cafeteria"
-            && J(setX.neighbours) === "[]" && setX.mastermind === null && setX.log === 5, J(setX), { flow: "season-reset" });
+            && J(setX.neighbours) === "[]" && setX.mastermind === null && setX.log === 6
+            && J(setX.searched) === J({ searched: true, found: true }) && setX.found === "found", J(setX), { flow: "season-reset" });
 
     /* What a player's browser holds: its copy's passages, each with the characters it names, and Aiko's token as it reads it. */
     const copyOf = client => client.eval(`const L = await import("${repoUrl}/scripts/passages.mjs"), M = await import("${repoUrl}/scripts/movement.mjs");
@@ -1408,8 +1414,8 @@ export async function run({ gm, gm2, gm0, p1, p2, p3, check, phase, settle, conn
             aiko: [t.x, t.y], room: M.roomOfToken(t), closet: M.neighbouringRooms(scene, "Closet") };`);
     const named = known => Object.fromEntries(Object.entries(known ?? {}).map(([id, who]) => [Object.keys(pid).find(k => pid[k] === id) ?? id, who]));
     const beforeX = { p1: await copyOf(p1), p2: await copyOf(p2), p3: await copyOf(p3) };
-    check("X1: before the reset each player's copy holds the passages their character knows - p1 P1 (Aiko), p2 P1 (Botan, shown), p3 P2 and P3 (Chie)",
-        J(named(beforeX.p1.known)) === J({ p1: [IDS.aiko] }) && J(named(beforeX.p2.known)) === J({ p1: [IDS.botan] })
+    check("X1: before the reset each player's copy holds the passages their character knows - p1 P1 (Aiko) and P2 (Aiko, found), p2 P1 (Botan, shown), p3 P2 and P3 (Chie)",
+        J(named(beforeX.p1.known)) === J({ p1: [IDS.aiko], p2: [IDS.aiko] }) && J(named(beforeX.p2.known)) === J({ p1: [IDS.botan] })
             && J(named(beforeX.p3.known)) === J({ p2: [IDS.chie], p3: [IDS.chie] }), J(beforeX), { flow: "season-reset" });
 
     const movedX = await p1.eval(`const t = game.scenes.get(${J(IDS.scene)}).tokens.get("TOKAIKO000000000"), first = globalThis.__notifications.length;
@@ -1444,7 +1450,7 @@ export async function run({ gm, gm2, gm0, p1, p2, p3, check, phase, settle, conn
     await settle(1500);
     // The stamps' rows, `touch/<actorId>` and since E79 fix r2-G2 the Mastermind's `door/<actorId>`, are not cells.
     const cells = Object.fromEntries(Object.entries(resetX.access ?? {}).filter(([key]) => !key.startsWith("touch/") && !key.startsWith("door/")));
-    check("X3: the reset of who knows the passages keeps the three passages and their start access, and takes the shown and the granted cells and the log",
+    check("X3: the reset of who knows the passages keeps the three passages and their start access, and takes the shown, the granted and the found cells and the log",
         J(resetX.cleared) === J(["passages"]) && J(resetX.failed) === "[]" && resetX.errors?.length === 0
             && J(Object.keys(resetX.map ?? {}).sort()) === J(Object.values(pid).sort()) && Object.values(resetX.map).every(([state]) => state === "secret")
             && J(cells) === J({ [`${pid.p1}/${IDS.aiko}`]: "start", [`${pid.p3}/${IDS.chie}`]: "start" }) && resetX.log === 0,

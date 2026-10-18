@@ -308,7 +308,7 @@ async function drawAndPlay(cls, config, message) {
  */
 export const DRAWN_OPTIONS = Object.freeze([ROLL_NONCE, "actionType", "roll", "experiences", "guaranteedCritical", "extraFormula", "data"]);
 const CONTEXT_SENT = Object.freeze({ category: "text", goal: "text", stashDie: "bool", projectId: "id", targetProjectId: "id", side: "text",
-    crisis: "text", cleanupKey: "text", cleanupVia: "bool" });
+    crisis: "text", cleanupKey: "text", cleanupVia: "bool", findPassage: "bool" });
 const LISTED_MAX = 16;
 
 /** The context fields a check on the GM reads, plain; nothing else of the action's context leaves. */
@@ -812,6 +812,8 @@ async function drawRefusal(actor, key, context) {
         return rowsOf(actor.id, key).some(row => row.incident?.openedAt === state.openedAt)
             ? "that character's roll of that action has been thrown already" : null;
     }
+    // Find Passage is no road in a Class Trial (E80 C3; the owner's A10, proposal 13): refused before its payment's ticket is taken.
+    if (key === "analyze" && context.findPassage === true && getClock()?.phase === "classTrial") return "the Class Trial is in session";
     if (key === "cleanup" && state?.active && state.freeCleanup === actor.id
         && !rowsOf(actor.id, key).some(row => unsettled(row) && row.incident?.openedAt === state.openedAt)) return null;
     for (const end = Date.now() + PAY_WAIT_MS; !ticketFor(actor.id, key) && Date.now() < end;) {
@@ -1307,6 +1309,8 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
         // Search's goal, which the find's judge reads (sheet-audit.mjs `searchFind`, E29 fix r1-G8).
         crisis: key === "crisis" ? told.context.crisis ?? null : null, project: projectNamed(key, told.context),
         goal: key === "search" ? told.context.goal ?? null : null,
+        // Whether an Analyze was thrown as a Find Passage (E80 C3), which gm-bridge.mjs `passage.find` holds its roll to.
+        findPassage: key === "analyze" ? told.context.findPassage === true : null,
         incident, superseded: null, at: Date.now()
     });
     if (flags.length) await tellUnexpected(actor, flags);

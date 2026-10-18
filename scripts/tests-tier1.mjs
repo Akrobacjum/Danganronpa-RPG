@@ -16300,6 +16300,308 @@ const INVARIANTS = [
         J([J({ x: 1100, y: 100, level: L2 }), J({ x: 1100, y: 0, level: L2 }), J({ x: 1100, y: 100, level: L2 }), J({ x: 1000, y: 100, level: L2 })]),
         "[the far end free, another student on it, another student on that square downstairs, two squares taken]");
     }],
+    ["R598 - Find Passage is judged on the primary GM from the GMs' records: 15 misses and 16 or a critical finds the oldest open secret passage of this room on this floor the character does not know - a tunnel's end here, never one upstairs, a closed one, another scene's or one it knows - writing the cell 'found' with its roll; the Mastermind finds none; a miss, an empty room and the Mastermind get one card, the same, and a find a card of the same shape, to the owner and the GMs alone; a refusal names its reason and writes nothing; a Reroll's new dice find once, keep a find, and take back only the cell their own roll wrote; the bridge's row holds the roll to an Analyze thrown as a Find Passage", async () => {
+        /*
+         * E80 C3, 18.10.2026; the stage's A10-7 (P1-10, P1-11, P1-12, P1-13) and its D2 row for `passage.find`. The
+         * harms: a search that finds what another floor or another scene holds, or one the character knows already, so
+         * a player maps the building for free; a passage found by an Analyze thrown for a bullet or by a Search's roll;
+         * a card whose shape tells a miss from an empty room or from the Mastermind; a card to the GMs alone, or a find
+         * the owner is not told of; a Reroll that opens a second passage, or takes back one the GMs gave. Run on an
+         * engine of the suite's own (R562's), with characters, people and a world of its own: nothing of this world is
+         * read or written but this browser's user, the names in its language file and its clock. The rows are made one
+         * at a time so their first stamps run in that order, and their ids run the other way, so "oldest" is the stamp's.
+         * The phase, the price, the picker and the real map are tier 2's "A10-7"; the bridge's runner on three clients
+         * is scenario 76's phase V and 30-security's forgeries. Red at the parent (879d6d5): no `resolvePassageSearch`.
+         */
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const P = await import("./passages-gm.mjs");
+        const B = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const J = v => JSON.stringify(v);
+        const row = BRIDGE_ACTIONS["passage.find"];
+        ok(typeof P.resolvePassageSearch === "function" && Boolean(row), "passages-gm.mjs carries out no passage search, or the bridge has no `passage.find` - Find Passage finds nothing");
+        if (typeof P.resolvePassageSearch !== "function" || !row) return;
+        let t = 7_000_000;
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R598GM", isGM: () => true, isPrimary: () => true, worldId: () => "R598WORLD",
+            activeGmIds: () => [], primaryGmId: () => "R598GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => ++t,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const def = (h, name) => eng.define({ ...h.spec, name: `r598${name}`, key: `r598${name}`, afterRestore: undefined, exists: undefined });
+        const stores = { map: def(S.passageMapStore, "Map"), access: def(S.passageAccessStore, "Access"), log: def(S.passageLogStore, "Log"),
+            mastermind: eng.define({ name: "r598mm", key: "r598mm", kind: "record", fields: ["actorId"], sync: false, backup: false }) };
+        const CAF = "R598 Cafeteria", KIT = "R598 Kitchen", GYM = "R598 Gym", LAB = "R598 Lab", DOWN = "R598DOWN", UP = "R598UP";
+        const wall = (x, { level = null, state = "secret", sceneId = "R598SCENE" } = {}) => ({ sceneId, level, shape: "wall", passageWallId: `R598WALL${x}`,
+            passageSeg: { x1: x, y1: 0, x2: x, y2: 100 }, rooms: [CAF, KIT], state, startAccess: [] });
+        const tunnel = (a, b) => ({ sceneId: "R598SCENE", level: null, shape: "tunnel", ends: [a, b], rooms: [], state: "secret", startAccess: [] });
+        const ROOM_AT = { 13: CAF, 14: GYM, 17: GYM, 18: CAF };
+        // Made in this order, oldest first; the ids run the other way.
+        const ROWS = [["R598SCENE.zknown", wall(11)], ["R598SCENE.yupstairs", wall(12, { level: UP })],
+            ["R598SCENE.xtunnelup", tunnel({ x: 13, y: 0, level: UP }, { x: 14, y: 0, level: DOWN })], ["R598SCENE.wclosed", wall(15, { state: "closed" })],
+            ["R598OTHER.vother", wall(16, { sceneId: "R598OTHER" })], ["R598SCENE.ttunnel", tunnel({ x: 17, y: 0, level: DOWN }, { x: 18, y: 0, level: DOWN })],
+            ["R598SCENE.awall", wall(19)]];
+        for (const [id, r] of ROWS) await stores.map.patch(id, r);
+        const [KNOWN, , , , , TUN, WALL] = ROWS.map(([id]) => id);
+        await stores.access.patch(`${KNOWN}/R598A`, { how: "gm", at: 1, by: { R598GM: 1 } });
+        await stores.mastermind.patch(G.RECORD, { actorId: "R598MM" });
+        const people = [{ id: "R598GM", isGM: true, active: true }, { id: "R598U", isGM: false, active: true }, { id: "R598UM", isGM: false, active: true }];
+        const [, asker, door] = people;
+        const IDS = ["R598A", "R598B", "R598C", "R598D", "R598MM", "R598MK", "R598CUB", "R598NPC", "R598DEAD"];
+        const cast = new Map(IDS.map(id => [id, { id, name: id === "R598A" ? "R598 <b>Aiko</b>" : id, type: id === "R598NPC" ? "adversary" : "character",
+            testUserPermission: (u, level) => level === "OWNER" && (id === "R598MM" ? ["R598UM"] : ["R598U"]).includes(u?.id) }]));
+        const scene = { id: "R598SCENE" };
+        const spot = id => ({ scene, room: id === "R598B" ? LAB : CAF, level: DOWN });
+        const world = (over = {}) => ({
+            actor: id => cast.get(id) ?? null, trial: () => false, monocub: a => a.id === "R598CUB", monokuma: a => a.id === "R598MK",
+            dead: a => a.id === "R598DEAD", place: a => spot(a.id),
+            sides: (r, seg) => (seg?.ends ? seg.ends.map(e => ROOM_AT[e.x] ?? null) : Number.isFinite(seg?.x1) ? [CAF, KIT] : []),
+            knownRooms: () => new Set([CAF, KIT]), ...over });
+        const said = { cards: [], toasts: [], notes: [] };
+        const search = async (actorId, total, { crit = false, rollId = null, undo = false, by = asker, over = {}, primary = () => true } = {}) => {
+            const cards = said.cards.length;
+            const out = await P.resolvePassageSearch({ actorId, total, isCritical: crit, rollId, undo }, { asker: by, stores, users: people, world: world(over),
+                whisper: async (to, content, extra) => said.cards.push({ to: to.id, content, extra }),
+                toast: text => said.toasts.push(text), note: n => said.notes.push(n), primary });
+            return { out, code: out?.refused ? B.reasonOf(out.refused) : null, cards: said.cards.slice(cards) };
+        };
+        const cellsOf = actorId => Object.entries(stores.access.entries()).filter(([key]) => key.endsWith(`/${actorId}`) && !key.startsWith("touch/") && !key.startsWith("door/"))
+            .map(([key, cell]) => [key.slice(0, -(actorId.length + 1)), cell.how, cell.rollId ?? null]).sort((a, b) => (a[0] < b[0] ? -1 : 1));
+        const NOTHING = game.i18n.localize("DRPG.Analyze.passageNothing");
+        const foundTo = to => game.i18n.format("DRPG.Analyze.passageFound", { to });
+        const unexplored = game.i18n.format("DRPG.Listen.unknownRoom", { n: 1 });
+        const card = c => [c.to, c.content, c.extra?.flags?.[MODULE_ID]?.sfx ?? null, [...(c.extra?.whisper ?? [])].sort()];
+        const messages = game.messages?.size ?? 0;
+
+        // Aiko in the Cafeteria downstairs: a miss, two finds (16, then a critical's 3), and nothing left to find.
+        const steps = [];
+        for (const [total, o] of [[15, { rollId: "R598ROLL0" }], [16, { rollId: "R598ROLL1" }], [3, { crit: true, rollId: "R598ROLL2" }], [20, { rollId: "R598ROLL3" }]]) {
+            const s = await search("R598A", total, o);
+            steps.push([total, s.out, s.cards.map(card), cellsOf("R598A")]);
+        }
+        const toB = ["R598GM", "R598U"];
+        equal(J(steps), J([
+            [15, { searched: true, found: false }, [["R598A", `<p>${NOTHING}</p>`, { key: "searchNothing", gm: false }, toB]], [[KNOWN, "gm", null]]],
+            [16, { searched: true, found: true }, [["R598A", `<p>${foundTo(unexplored)}</p>`, { key: "passageFound", gm: true }, toB]], [[TUN, "found", "R598ROLL1"], [KNOWN, "gm", null]]],
+            [3, { searched: true, found: true }, [["R598A", `<p>${foundTo("R598 Kitchen")}</p>`, { key: "passageFound", gm: true }, toB]],
+                [[WALL, "found", "R598ROLL2"], [TUN, "found", "R598ROLL1"], [KNOWN, "gm", null]]],
+            [20, { searched: true, found: false }, [["R598A", `<p>${NOTHING}</p>`, { key: "searchNothing", gm: false }, toB]],
+                [[WALL, "found", "R598ROLL2"], [TUN, "found", "R598ROLL1"], [KNOWN, "gm", null]]]]),
+            "[the total, the answer, the card (to, words, sound, whispered to), Aiko's cells] at 15, 16, a critical's 3 and 20 - the tunnel's end here first, the wall here next; never the passage she knows, the wall upstairs, the tunnel whose Cafeteria end is upstairs, the closed one or another scene's");
+        const cellA = stores.access.get(`${TUN}/R598A`);
+        equal(J([Object.keys(cellA?.by ?? {}), said.notes.slice(0, 2)]),
+            J([["R598A"], [{ actorId: "R598A", rollId: "R598ROLL0", by: "R598U" }, { actorId: "R598A", rollId: "R598ROLL1", by: "R598U" }]]),
+            "[who found the tunnel, the GMs' fact on the first two rolls] - the cell does not name the finder, or a Reroll cannot tell a Find Passage's roll");
+
+        // An empty room, and the Mastermind through the door - both alike, and like a miss; the find's card of the same shape.
+        const empty = await search("R598B", 20, { rollId: "R598ROLL4" });
+        const master = await search("R598MM", 20, { by: door, rollId: "R598ROLL5" });
+        const shape = c => [Object.keys(c.extra ?? {}).sort(), c.extra?.whisper?.length ?? null, (c.content.match(/<p>/g) ?? []).length,
+            Object.keys(c.extra?.flags?.[MODULE_ID] ?? {}), Object.keys(c.extra?.flags?.[MODULE_ID]?.sfx ?? {}).sort()];
+        const miss = steps[0][2][0];
+        equal(J([empty.out, master.out, cellsOf("R598B"), cellsOf("R598MM"), [miss, card(empty.cards[0]), card(master.cards[0])].map(c => [c[1], J(c[2])])]),
+            J([{ searched: true, found: false }, { searched: true, found: false }, [], [], [[`<p>${NOTHING}</p>`, J({ key: "searchNothing", gm: false })],
+                [`<p>${NOTHING}</p>`, J({ key: "searchNothing", gm: false })], [`<p>${NOTHING}</p>`, J({ key: "searchNothing", gm: false })]]]),
+            "[an empty room's answer, the Mastermind's, their cells, the words and sound of a miss, an empty room and the Mastermind] - they do not read alike");
+        const found = said.cards.find(c => c.content.includes(unexplored));
+        equal(J([found, empty.cards[0], master.cards[0], said.cards[0]].map(shape)), J(Array(4).fill(shape(said.cards[0]))),
+            "[a find's card, an empty room's, the Mastermind's, a miss's] ([its fields, how many it is whispered to, paragraphs, flags, the sound's fields]) - the shape tells them apart");
+        equal(J(master.cards[0].extra.whisper.slice().sort()), J(["R598GM", "R598UM"]), "the Mastermind's card is not to its door owner and the GMs");
+
+        // Every card went through the injected whisper, none to the GMs alone, and nothing was posted in this world.
+        const passagesSrc = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/passages-gm.mjs`).then(r => r.text()));
+        equal(J([game.messages?.size ?? 0, /whisperToGms|\bgms\(/.test(fnSource(passagesSrc, "resolvePassageSearch")), said.toasts.length, said.cards.every(c => c.extra.whisper.includes("R598GM"))]),
+            J([messages, false, 6, true]),
+            "[this world's chat, the search's source naming the GMs' whisper, the primary's notes for 6 searches, every card to the GMs too]");
+
+        // Refused, by its reason: nothing written, nothing said.
+        const before = J(stores.access.entries());
+        const refusals = [];
+        for (const [what, actorId, o] of [
+            ["off the primary", "R598D", { primary: () => false }], ["in a Class Trial", "R598D", { over: { trial: () => true } }],
+            ["no such character", "R598NONE", {}], ["not a student", "R598NPC", {}], ["a Monokuma", "R598MK", {}],
+            ["a death", "R598DEAD", {}], ["a Monocub", "R598CUB", {}], ["no token", "R598D", { over: { place: () => null } }]]) {
+            const s = await search(actorId, 20, o);
+            refusals.push([what, s.code, s.cards.length]);
+        }
+        equal(J(refusals), J([["off the primary", "refused", 0], ["in a Class Trial", "trialLocked", 0], ["no such character", "missing", 0], ["not a student", "missing", 0],
+            ["a Monokuma", "missing", 0], ["a death", "cannotNow", 0], ["a Monocub", "actionDenied", 0], ["no token", "notThere", 0]]),
+            "[what was refused, its reason, cards] - a passage search was carried out where it may not be, or under another reason");
+        equal(J(stores.access.entries()), before, "a refused search wrote to the GMs' records");
+
+        // A Reroll's replay: Chie misses, the new dice find once, a second Reroll keeps it, lower dice take it back - and only the cell their roll wrote.
+        const replays = [];
+        const step = async (what, total, o) => { const s = await search("R598C", total, o); replays.push([what, s.out?.refused ? s.code : s.out, s.cards.length, cellsOf("R598C")]); };
+        await step("the first roll, 15", 15, { rollId: "R598R1" });
+        await step("its Reroll to 16", 16, { rollId: "R598R1", undo: true });
+        await step("again, 18", 18, { rollId: "R598R1", undo: true });
+        await step("again, 10", 10, { rollId: "R598R1", undo: true });
+        await stores.access.patch(`${WALL}/R598C`, { how: "gm", at: 2, by: { R598GM: 2 } });
+        await step("a new roll, 16", 16, { rollId: "R598R2" });
+        await step("the first roll's Reroll, 10", 10, { rollId: "R598R1", undo: true });
+        await step("the new roll's Reroll, 10", 10, { rollId: "R598R2", undo: true });
+        equal(J(replays), J([
+            ["the first roll, 15", { searched: true, found: false }, 1, []],
+            ["its Reroll to 16", { found: true, to: KIT }, 0, [[KNOWN, "found", "R598R1"]]],
+            ["again, 18", { kept: true }, 0, [[KNOWN, "found", "R598R1"]]],
+            ["again, 10", { lost: true }, 0, []],
+            ["a new roll, 16", { searched: true, found: true }, 1, [[WALL, "gm", null], [KNOWN, "found", "R598R2"]]],
+            ["the first roll's Reroll, 10", { nothing: true }, 0, [[WALL, "gm", null], [KNOWN, "found", "R598R2"]]],
+            ["the new roll's Reroll, 10", { lost: true }, 0, [[WALL, "gm", null]]]]),
+            "[the step, the answer, cards, Chie's cells] - a Reroll found twice, took back a passage another roll found or the GMs gave, or wrote a card");
+
+        // What a roller's browser tells the GM it threw the roll for (roll-draw.mjs `drawPacketOf`): a Find Passage, as a plain flag, and nothing of a passage or a room.
+        const D = await import("./roll-draw.mjs");
+        const told = context => D.drawPacketOf({ toJSON: () => ({ class: "Roll", formula: "1d12", terms: [], options: {} }) }, {},
+            { subject: { id: "R598A" }, actionKey: "analyze", facts: { context } }).context;
+        equal(J([told({ findPassage: true, passageId: TUN, sides: [CAF, KIT] }), told({ findPassage: "yes" }), told({})]), J([{ findPassage: true }, {}, {}]),
+            "[a Find Passage's context with a passage and its rooms, one whose flag is no boolean, none] as the GM is sent it - the GM cannot tell a Find Passage's roll, or is sent more");
+
+        // The bridge's row: the sender's own character, four fields, and the roll an Analyze thrown as a Find Passage.
+        const clean = row.sanitize({ actorId: "R598A", total: "16", isCritical: 1, rollId: "R598ROLL1", undo: true, passageId: TUN, room: CAF });
+        equal(J([row.answer, row.guards.length, row.guards[0] === B.knownSender, row.rolled?.field, row.rolled?.actor, row.rolled?.kind, clean]),
+            J(["reply", 2, true, "rollId", "actorId", "analyze", { actorId: "R598A", total: 16, isCritical: true, rollId: "R598ROLL1" }]),
+            "[the answer, the guards, the first the known sender, the roll's field, its character, its action, the packet as the GM reads it] - the row takes a passage, a room or an undo from the packet, or no roll");
+        const sender = { id: "R598U", isGM: false }, packet = { actorId: "R598A", rollId: "R598ROLL1" };
+        const record = over => ({ rollId: "R598ROLL1", actorId: "R598A", userId: "R598U", actionKey: "analyze", at: Date.now(), superseded: null, resolved: [], ...over });
+        // As the runner asks them (bridge-guards.mjs `rollsFor`): the record against the row's roll first, then the row's own reading of it.
+        const derived = over => row.rolled.derive?.(record(over), packet)?.why ?? null;
+        equal(J([B.rollRefusal(record({ findPassage: true }), row.rolled, packet, sender), derived({ findPassage: true }),
+            B.rollRefusal(record({ actionKey: "search", findPassage: null }), row.rolled, packet, sender),
+            derived({ findPassage: false }), derived({})]),
+            J([null, null, "that roll was not thrown for that action", "that roll was not thrown for that action", "that roll was not thrown for that action"]),
+            "[an Analyze thrown as a Find Passage (the record, the row's reading), a Search's roll, an Analyze for a bullet or a hint, a record of before C3] - a passage was found on another action's roll");
+    }],
+    ["R599 - the sound of a secret passage: a find rings passageFound for the finder's owner and the GMs, a miss searchNothing for the owner alone, a show passageFound for the owner of the one shown it alone; a revoke, a Close and the season's reset write no card and ring nothing - the reset takes every cell a find wrote and keeps the tunnel; the sound's line names a find and a show in English and in Polish", async () => {
+        /*
+         * E80 C3, 18.10.2026; the stage's A10-14 (P1-14, P1-15). The harms: a find nobody hears, a sound that tells the
+         * GMs of every miss or a third player of a show, a sound or a card at a GM's revoke or Close that tells the
+         * table a passage existed, and a reset that keeps a season's finds or loses the GMs' map. Run on an engine of
+         * the suite's own (R562's): the search and the show with their whispers injected, each card's sound read as
+         * sfx.mjs `soundFromMessage` reads a GM's card, its hearers by that file's audience rule (a whisper reaches its
+         * names; a GM of them only for a sound marked for the GMs). The revoke, the Close and the reset on the same
+         * stores, with this browser's chat and its sounds watched. Make public is not built (the stage's
+         * C6). Red at the parent (879d6d5): no `resolvePassageSearch`.
+         */
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const P = await import("./passages-gm.mjs");
+        const { soundFromMessage } = await import("./sfx.mjs");
+        const J = v => JSON.stringify(v);
+        ok(typeof P.resolvePassageSearch === "function", "passages-gm.mjs carries out no passage search - a find rings nothing");
+        if (typeof P.resolvePassageSearch !== "function") return;
+        let t = 8_000_000;
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R599GM", isGM: () => true, isPrimary: () => true, worldId: () => "R599WORLD",
+            activeGmIds: () => [], primaryGmId: () => "R599GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => ++t,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const def = (h, name) => eng.define({ ...h.spec, name: `r599${name}`, key: `r599${name}`, afterRestore: undefined, exists: undefined });
+        const stores = { map: def(S.passageMapStore, "Map"), access: def(S.passageAccessStore, "Access"), log: def(S.passageLogStore, "Log"),
+            mastermind: eng.define({ name: "r599mm", key: "r599mm", kind: "record", fields: ["actorId"], sync: false, backup: false }) };
+        const CAF = "R599 Cafeteria", KIT = "R599 Kitchen", GYM = "R599 Gym";
+        const [start] = studentActors();
+        const WALL = "R599SCENE.wall", TUN = "R599SCENE.tunnel";
+        await stores.map.patch(WALL, { sceneId: "R599SCENE", level: null, shape: "wall", passageWallId: "R599WALL", passageSeg: { x1: 5, y1: 0, x2: 5, y2: 100 },
+            rooms: [CAF, KIT], state: "secret", startAccess: [] });
+        await stores.map.patch(TUN, { sceneId: "R599SCENE", level: null, shape: "tunnel", ends: [{ x: 1, y: 0, level: null }, { x: 2, y: 0, level: null }],
+            rooms: [CAF, GYM], state: "secret", startAccess: start ? [start.id] : [] });
+        const people = [{ id: "R599GM", isGM: true, active: true }, { id: "R599U", isGM: false, active: true }, { id: "R599U2", isGM: false, active: true },
+            { id: "R599U3", isGM: false, active: true }];
+        const cast = new Map(["R599A", "R599B", "R599E"].map(id => [id, { id, name: id, type: "character",
+            testUserPermission: (u, level) => level === "OWNER" && (id === "R599B" ? ["R599U2"] : ["R599U"]).includes(u?.id) }]));
+        const scene = { id: "R599SCENE" };
+        const world = {
+            actor: id => cast.get(id) ?? null, trial: () => false, locked: () => false, inIncident: () => false, monocub: () => false, monokuma: () => false,
+            dead: () => false, published: () => false, place: () => ({ scene, room: CAF, level: null }),
+            sides: (r, seg) => (seg?.ends ? [CAF, GYM] : Number.isFinite(seg?.x1) ? [CAF, KIT] : []), knownRooms: () => new Set([CAF])
+        };
+        const cards = [];
+        const whisper = async (to, content, extra) => cards.push({ to: to.id, sfx: extra?.flags?.[MODULE_ID]?.sfx ?? null, whisper: extra?.whisper ?? [] });
+        const asker = people[1];
+        const opts = { asker, stores, users: people, world, whisper, toast: () => {}, note: () => {}, primary: () => true };
+        // Who hears a GM's card: its whisper's names, a GM of them only when the sound is marked for the GMs.
+        const hears = c => {
+            const asked = soundFromMessage({ author: { isGM: true }, flags: { [MODULE_ID]: { sfx: c.sfx } } });
+            return asked ? [asked.key, people.filter(u => c.whisper.includes(u.id) && (!u.isGM || asked.forGm)).map(u => u.id)] : [null, []];
+        };
+
+        await P.resolvePassageSearch({ actorId: "R599A", total: 16, rollId: "R599ROLL1" }, opts);
+        await P.resolvePassageSearch({ actorId: "R599E", total: 15, rollId: "R599ROLL2" }, opts);
+        await P.sharePassage({ actorId: "R599A", targetId: "R599B", passageId: WALL }, { stores, world, whisper, gms: async () => {}, asker, users: people });
+        equal(J(cards.map(c => [c.to, ...hears(c)])), J([["R599A", "passageFound", ["R599GM", "R599U"]], ["R599E", "searchNothing", ["R599U"]],
+            ["R599B", "passageFound", ["R599U2"]], ["R599A", null, []]]),
+            "[whose card, its sound, who hears it] for Aiko's find, Eiji's miss, Aiko's show to Botan and her own word on it - a sound reaches somebody it should not, or misses one");
+
+        // A GM's revoke and Close, and the season's reset: no card, no sound. Eiji finds the wall first, so the reset has a find to take.
+        await P.resolvePassageSearch({ actorId: "R599E", total: 18, rollId: "R599ROLL3" }, opts);
+        const held = [];
+        const watch = (owner, name) => {
+            const original = owner?.[name];
+            if (typeof original !== "function") return;
+            const own = Object.hasOwn(owner, name);
+            owner[name] = function (...args) { held.push(name); return original.apply(this, args); };
+            return () => { if (own) owner[name] = original; else delete owner[name]; };
+        };
+        const undo = [watch(foundry.audio?.AudioHelper, "play"), watch(foundry.audio?.Sound?.prototype, "play"),
+            watch(globalThis.HTMLMediaElement?.prototype, "play")].filter(Boolean);
+        const posted = Hooks.on("preCreateChatMessage", () => { held.push("chat"); });
+        const before = cards.length, mapBefore = J(stores.map.get(TUN));
+        const cellsBefore = Object.entries(stores.access.entries()).filter(([k]) => !k.startsWith("touch/")).map(([k, c]) => `${k} ${c.how}`).sort();
+        let did = null;
+        try {
+            did = [await P.revokePassage(WALL, "R599A", { stores }), await P.closePassage(WALL, { stores }), await P.passagesAfterReset({ stores })];
+        } finally {
+            Hooks.off("preCreateChatMessage", posted);
+            for (const put of undo) put();
+        }
+        const cellsAfter = Object.entries(stores.access.entries()).map(([k, c]) => `${k} ${c.how}`).sort();
+        equal(J([did.slice(0, 2), cards.length - before, held]), J([[true, true], 0, []]),
+            "[the revoke and the Close carried out, cards written, what was posted or played] - a GM's revoke, Close or reset tells the table");
+        equal(J([cellsBefore, cellsAfter, J(stores.map.get(TUN)) === mapBefore, Object.keys(stores.log.entries()).length]),
+            J([[`${WALL}/R599A found`, `${WALL}/R599B shown`, `${WALL}/R599E found`], start ? [`${TUN}/${start.id} start`] : [], true, 0]),
+            "[the cells before the reset, after it, the tunnel's row kept, the log's rows] - the reset kept a season's finds or lost the GMs' map");
+
+        // The line a GM reads beside the sound: a find and a show, in both languages.
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
+        const plRow = pl?.DRPG?.Config?.SFX_EVENTS?.passageFound ?? {};
+        equal(J([SFX_EVENTS.passageFound?.label, SFX_EVENTS.passageFound?.hint, plRow.label, plRow.hint]),
+            J(["A secret passage opens to you", "A student finds a secret passage, or another student showed it to them. Heard by them, and by the GMs at a find.",
+                "Poznajesz tajne przejście", "Uczeń znajduje tajne przejście albo ktoś mu je pokazał. Słyszy go on, a przy znalezieniu także GM-owie."]),
+            "[the sound's label and line in English, in Polish] - the GM's sound list still says a passage rings only at a show");
+    }],
+    ["R600 - a passage search's trap report names the room the character stands in: the GM's side reads the kind and refuses a room the character is not in, as a stash hunt's", async () => {
+        /*
+         * E80 C3, 18.10.2026; the stage's write road "trap event kind passage" (P1-10's trap). A trap watching for a
+         * Find Passage fires on every attempt, so a report is a claim about an event; the harm is a player's console
+         * that names a room their character is not in and springs, and spends, the trap a killer built there. Read on a
+         * student of this world standing in a room of the scene on screen: the relay's packet as the GM reads it, and
+         * its room guard for the room the student stands in, a room it is not in, and the stash hunt's the same way
+         * (the control). Red at the parent (879d6d5): the kind is read as nothing and its room is not asked.
+         */
+        needs(world.atLeast("studentsInRooms"), "a student standing in a room to report from");
+        const T = await import("./traps.mjs");
+        const B = await import("./bridge-guards.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const J = v => JSON.stringify(v);
+        const student = studentActors().find(a => locateActor(a)?.room && locateActor(a).scene === canvas?.scene) ?? null;
+        must(student, "no student stands in a room of the scene on screen - this would measure nothing");
+        const here = locateActor(student).room, AWAY = "R600 nowhere";
+        const clean = T.TRAP_ACTIONS["trap.event"].sanitize({ kind: "passage", actorId: student.id, room: AWAY, passageId: "R600P" });
+        const said = [];
+        for (const [kind, room] of [["passage", here], ["passage", AWAY], ["stash", here], ["stash", AWAY]]) {
+            said.push([kind, room === here ? "here" : "away", await B.guardRelayRoom(game.user, { kind, actorId: student.id, room })]);
+        }
+        equal(J([clean.kind, clean.room, Object.hasOwn(clean, "passageId"), T.RELAYED_ROOM.passage]), J(["passage", AWAY, false, "room"]),
+            "[the kind, the room, a passage named, the field the room is read from] as the GM reads a passage search's report");
+        equal(J(said), J([["passage", "here", null], ["passage", "away", `the character is not in "${AWAY}": ${student.name}`],
+            ["stash", "here", null], ["stash", "away", `the character is not in "${AWAY}": ${student.name}`]]),
+            "[the report, where, the GM's refusal] - a passage search's report springs a trap in a room the character is not in");
+    }],
 ];
 
 /**

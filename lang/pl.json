@@ -552,6 +552,7 @@
         "howGm": "GM",
         "howStart": "start",
         "howShown": "pokazane",
+        "howFound": "znalezione",
         "leaving": "do wyjścia z pokoju {room}",
         "revoke": "Odbierz",
         "grant": "Daj uczniowi to przejście",
@@ -592,6 +593,8 @@
         "done": "Pokazujesz postaci {target} tajne przejście."
       },
       "gm": {
+        "found": "{actor} znajduje tajne przejście {from} - {to}.",
+        "searched": "{actor} szuka tajnego przejścia w pokoju {room} i nie znajduje żadnego.",
         "shown": "{giver} pokazuje postaci {target} tajne przejście {from} - {to}."
       },
       "pick": {
@@ -660,6 +663,7 @@
       "dcAnalyze": "Identyfikacja Truth Bulleta, wg widoczności jego śladu - ze zbrodni: {rows}; nikły: {faint}; Key i Final: {key}.",
       "dcHint": "Wskazówka: {a}+ na subtelną, {b}+ na bezpośrednią.",
       "dcStash": "Znalezienie skrytki: {n}+.",
+      "dcPassage": "Znalezienie tajnego przejścia: {n}+.",
       "dcProject": "Praca: {a}+ za +1 postępu, {b}+ za +2{relief}.",
       "dcSabotage": "Sabotaż: {a}+ zostawia prostą naprawę, {b}+ złożoną{relief}.",
       "dcRelief": " (narzędzie w ręce zdejmuje {n})",
@@ -828,6 +832,11 @@
       "findStash": "Znajdź ukrytą skrytkę",
       "findStashHint": "Ustal, czy ktoś coś schował w tym pokoju. {n}+ otwiera przed tobą jedną skrytkę.",
       "stashNothing": "Przeczesujesz pokój i nie znajdujesz niczego, co ktoś próbował schować.",
+      "findPassage": "Znajdź tajne przejście",
+      "findPassageHint": "Przejrzyj ściany tego pokoju w poszukiwaniu drogi, której nikt nie pokazuje. {n}+ otwiera przed tobą jedno tajne przejście stąd.",
+      "passageSent": "Przeglądasz ściany pokoju w poszukiwaniu przejścia.",
+      "passageNothing": "Nie znajdujesz tu tajnego przejścia.",
+      "passageFound": "W tym pokoju jest tajne przejście do: {to}. Gdzie droga jest otwarta, mapa ci je pokazuje.",
       "stashFound": "Jest tu skrytka i należy do: {who}. Możesz się do niej dostać - panel w zakładce Ekwipunek pokazuje, co w niej jest.",
       "stashFoundGm": "{finder} - rzut {total}, znaleziona ukryta skrytka ({who}) w: {room}. {who} nic o tym nie wie.",
       "stashSent": "Przeczesujesz pokój w poszukiwaniu czegoś, co tu nie pasuje."
@@ -2961,6 +2970,7 @@
         "vault.steal": "Skrytka",
         "action.steal": "Palm",
         "vault.findStash": "Szukanie skrytki",
+        "passage.find": "Szukanie tajnego przejścia",
         "action.plant": "Podłożenie",
         "murder.crisis": "Incydent",
         "murder.openingResult": "Rzut otwarcia",
@@ -3537,6 +3547,9 @@
     "Reroll": {
       "searchNeverRan": "Pokój nie został przeszukany - Search Token odmówiono - więc nie ma czego losować ponownie.",
       "searchStashStands": "Znalezisko ze skrytki zostaje: nowe kości nie otwierają skrytki drugi raz.",
+      "passageFound": "Nowy wynik znajduje w tym pokoju tajne przejście do: {to}. Gdzie droga jest otwarta, mapa ci je pokazuje.",
+      "passageLost": "Nowy wynik nie znajduje przejścia: to, które znalazł pierwszy rzut, znika z twojej mapy.",
+      "passageStands": "Znalezione przejście zostaje: nowe kości nie otwierają go drugi raz.",
       "title": "Reroll",
       "nothingToReroll": "Nie ma żadnego rzutu do cofnięcia.",
       "notARoll": "Twoja ostatnia wiadomość nie zawiera kości.",
@@ -4307,6 +4320,7 @@
         "project": "Ktoś pracuje nad wskazanym projektem",
         "sabotage": "Ktoś sabotuje wskazany projekt",
         "stash": "Ktoś szuka tu ukrytej skrytki",
+        "passage": "Ktoś szuka tu tajnego przejścia",
         "manual": "Mój własny warunek - dopilnuję go osobiście"
       },
       "why": {
@@ -4315,6 +4329,7 @@
         "search": "Przeszukali pokój i coś znaleźli.",
         "rest": "Odpoczywali tutaj.",
         "stash": "Szukali tu czyjejś ukrytej skrytki - znaleźli czy nie.",
+        "passage": "Szukali tu tajnego przejścia - znaleźli czy nie.",
         "project": "Popchnęli projekt, którego pilnowała pułapka.",
         "sabotage": "Sabotowali projekt, którego pilnowała pułapka.",
         "item": "Użyli: {item}."
@@ -4921,6 +4936,10 @@
           "label": "Ktoś szuka tu ukrytej skrytki",
           "hint": "Każda próba, udana czy nie. Odpowiada na szukanie, nie na znalezienie."
         },
+        "passage": {
+          "label": "Ktoś szuka tu tajnego przejścia",
+          "hint": "Każde szukanie tajnego przejścia w tym pokoju, udane czy nie."
+        },
         "manual": {
           "label": "Mój własny warunek - dopilnuję go osobiście",
           "hint": "Karta przychodzi, gdy projekt jest ukończony, jak dotąd."
@@ -5238,8 +5257,8 @@
           "hint": "Ściana, zamknięte drzwi albo zapieczętowany pokój zawracają kogoś. Słyszy ten, kto próbował - jedyny błąd, który gracz popełnia regularnie."
         },
         "passageFound": {
-          "label": "Pokazano tajne przejście",
-          "hint": "Inny uczeń pokazuje komuś tajne przejście. Słyszy ten, komu je pokazano."
+          "label": "Poznajesz tajne przejście",
+          "hint": "Uczeń znajduje tajne przejście albo ktoś mu je pokazał. Słyszy go on, a przy znalezieniu także GM-owie."
         },
         "actionSpent": {
           "label": "Wydano akcję",

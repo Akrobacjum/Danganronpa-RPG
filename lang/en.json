@@ -571,6 +571,7 @@
         "howGm": "GM",
         "howStart": "start",
         "howShown": "shown",
+        "howFound": "found",
         "leaving": "until they leave the {room}",
         "revoke": "Revoke",
         "grant": "Give a student this passage",
@@ -611,6 +612,8 @@
         "done": "You show {target} the secret passage."
       },
       "gm": {
+        "found": "{actor} finds the secret passage {from} - {to}.",
+        "searched": "{actor} looks for a secret passage in {room} and finds none.",
         "shown": "{giver} showed {target} the secret passage {from} - {to}."
       },
       "pick": {
@@ -679,6 +682,7 @@
       "dcAnalyze": "Identifying a bullet, by how visible its trace was - of the crime: {rows}; faint: {faint}; Key and Final: {key}.",
       "dcHint": "A hint: {a}+ for a subtle one, {b}+ for a direct one.",
       "dcStash": "Finding a stash: {n}+.",
+      "dcPassage": "Finding a secret passage: {n}+.",
       "dcProject": "Work: {a}+ for +1 progress, {b}+ for +2{relief}.",
       "dcSabotage": "Sabotage: {a}+ leaves a simple repair, {b}+ a complex one{relief}.",
       "dcRelief": " (your tool in hand takes {n} off)",
@@ -839,6 +843,11 @@
       "findStash": "Locate a hidden stash",
       "findStashHint": "Work out whether somebody has hidden something in this room. {n}+ opens one stash to you.",
       "stashNothing": "You go over the room and find nothing anybody has tried to hide.",
+      "findPassage": "Find Passage",
+      "findPassageHint": "Go over the walls of this room for a way through that nobody shows. {n}+ opens one secret passage here to you.",
+      "passageSent": "You go over the walls of the room, looking for a way through.",
+      "passageNothing": "You find no hidden passage here.",
+      "passageFound": "There is a secret passage in this room, to {to}. Where the way is open, your map shows it.",
       "stashFound": "There is a stash here, and it is {who}'s. You can get into it now - the panel on your Inventory tab lists what is in it.",
       "stashFoundGm": "{finder} rolled {total} and found {who}'s hidden stash in {room}. {who} has not been told.",
       "stashSent": "You go over the room looking for anything that does not belong."
@@ -2847,6 +2856,7 @@
         "vault.steal": "Stash",
         "action.steal": "Palm",
         "vault.findStash": "Find a stash",
+        "passage.find": "Find a secret passage",
         "action.plant": "Plant",
         "murder.crisis": "Incident",
         "murder.openingResult": "Opening roll",
@@ -3391,6 +3401,9 @@
     "Reroll": {
       "searchNeverRan": "The room was never searched - the search token was refused - so there is nothing to draw again.",
       "searchStashStands": "The stash find stands: new dice do not open the stash twice.",
+      "passageFound": "The new result finds a secret passage in this room, to {to}. Where the way is open, your map shows it.",
+      "passageLost": "The new result finds no passage: the one the first roll found is gone from your map.",
+      "passageStands": "The passage find stands: new dice do not open it twice.",
       "title": "Reroll",
       "nothingToReroll": "You have not rolled anything, so there is nothing to take back.",
       "notARoll": "Your last message carries no dice.",
@@ -4099,6 +4112,7 @@
         "project": "Somebody works on a named project",
         "sabotage": "Somebody sabotages a named project",
         "stash": "Somebody hunts for a hidden stash here",
+        "passage": "Somebody hunts for a secret passage here",
         "manual": "My own condition, and I will watch for it"
       },
       "why": {
@@ -4107,6 +4121,7 @@
         "search": "They searched the room and found something.",
         "rest": "They took a Rest here.",
         "stash": "They went looking for somebody's hidden stash here - whether they found one or not.",
+        "passage": "They looked for a secret passage here - whether they found one or not.",
         "project": "They pushed the project the trap was watching.",
         "sabotage": "They sabotaged the project the trap was watching.",
         "item": "They used {item}."
