@@ -1507,6 +1507,37 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     check("control: a send-back to where the token stood a moment ago puts it there",
         back.x === start.x && back.y === start.y, JSON.stringify({ start, back }));
 
+    /* 7e2. passage.cross (E80 C2, 18.10.2026): 'Go through' carried out on the primary GM. The GM makes a tunnel from
+       Dorm A to the Gym, grants it to Botan alone and stands Botan and Aiko at its Dorm A end (the GM's API, not under
+       test). p1 forges the request for Botan, who is p2's, and then for its own Aiko, who does not know the tunnel:
+       neither token moves, nobody's actions change, and the GM's record names why. 76-passages U drives the legal road. */
+    phase("a tunnel nobody of the sender's knows", { flow: "secret-passages" });
+    const tunnel = await gm.eval(`const scene = canvas.scene, P = { teleport: true, movementAction: "displace", animate: false };
+        const id = await game.drpg.passages.create({ sceneId: scene.id, shape: "tunnel", ends: [{ x: 720, y: 730, level: null }, { x: 1930, y: 1760, level: null }] });
+        const granted = await game.drpg.passages.grant(id, "${ids.botan}");
+        const toks = ["TOKBOTAN00000000", "TOKAIKO000000000"].map(t => scene.tokens.get(t));
+        globalThis.__s30tunnel = { id, at: toks.map(t => ({ x: t.x, y: t.y })) };
+        await toks[0].update({ x: 700, y: 700 }, P);
+        await toks[1].update({ x: 760, y: 700 }, P);
+        return { id, granted };`, { timeout: 30000 });
+    await settle(800);
+    const readCross = `const s = canvas.scene; return ["TOKBOTAN00000000", "TOKAIKO000000000"].map(t => s.tokens.get(t))
+        .map(t => ({ x: t.x, y: t.y, actions: game.drpg.actionsLeft(t.actor) }));`;
+    const crossOther = await forge("passage.cross", { actorId: ids.botan, passageId: tunnel?.id ?? "" }, readCross);
+    check("SECURITY: a player's 'Go through' for another player's character moves nothing",
+        tunnel?.granted === true && crossOther.unchanged && crossOther.forOwnership, JSON.stringify({ tunnel, crossOther }));
+    const crossUnknown = await forge("passage.cross", { actorId: ids.aiko, passageId: tunnel?.id ?? "" }, readCross);
+    check("SECURITY: a player's 'Go through' for its own character, of a tunnel that character does not know, moves nothing",
+        crossUnknown.unchanged && crossUnknown.reasons.some(r => /does not know that passage/.test(r)), JSON.stringify(crossUnknown));
+    await gm.eval(`const scene = canvas.scene, was = globalThis.__s30tunnel, P = { teleport: true, movementAction: "displace", animate: false };
+        if (!was) return null;
+        await scene.tokens.get("TOKBOTAN00000000").update(was.at[0], P);
+        await scene.tokens.get("TOKAIKO000000000").update(was.at[1], P);
+        await game.drpg.passages.delete(was.id);
+        delete globalThis.__s30tunnel;
+        return true;`, { timeout: 30000 });
+    await settle(800);
+
     // 7f. remnant.place: who left it, where, and what it points at, rebuilt on the GM. A discarded
     //     item's trace: a Search's names its roll since E08+E28 C15, and is measured below.
     phase("a player's traces", { flow: "trace-remnant" });

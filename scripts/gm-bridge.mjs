@@ -91,6 +91,8 @@ const ACTION_SHARE_BULLET = "handover.bullet";
 const ACTION_GIVE_ITEM = "handover.item";
 /** player -> GM: my character shows a secret passage it knows to a student beside it (E79 C7) - see passages-gm.mjs `sharePassage`. */
 const ACTION_PASSAGE_SHARE = "passage.share";
+/** player -> GM: my character at a tunnel's end goes through it (E80 C2) - see passages-gm.mjs `crossTunnel`. */
+const ACTION_PASSAGE_CROSS = "passage.cross";
 const ACTION_VAULT_STEAL = "vault.steal";
 const ACTION_STEAL = "action.steal";
 const ACTION_FIND_STASH = "vault.findStash";
@@ -576,6 +578,15 @@ async function handlePassageShare(payload, sender) {
     const { sharePassage } = await import("./passages-gm.mjs");
     const out = await sharePassage({ actorId: payload.actorId, targetId: payload.targetId, passageId: payload.passageId }, { asker: sender });
     if (out?.refused) return { refused: out.refused };
+}
+
+// 'Go through' a tunnel (E80 C2): the token moved by the primary, which alone writes it for a player. Every check
+// past the sender's ownership of the character is `crossTunnel`'s, against the GMs' records and the map as it is now.
+async function handlePassageCross(payload, sender) {
+    const { crossTunnel } = await import("./passages-gm.mjs");
+    const out = await crossTunnel({ actorId: payload.actorId, passageId: payload.passageId }, { asker: sender });
+    if (out?.refused) return { refused: out.refused };
+    return { reply: true };
 }
 
 /*
@@ -1687,6 +1698,16 @@ export const BRIDGE_ACTIONS = table({
             passageId: "passages-gm.mjs shareRefusal: a secret passage the giver knows in the GMs' records (or the sender acts as the Mastermind through the giver, `actsAsMastermind`), else the one notKnown"
         }
     },
+    [ACTION_PASSAGE_CROSS]: {
+        label: "DRPG.Bridge.what.passage.cross",
+        guards: [knownSender, owns("actorId", "sender does not own that character")],
+        sanitize: pick({ actorId: as.id, passageId: as.id }),
+        run: handlePassageCross,
+        answer: "reply",
+        claims: {
+            passageId: "passages-gm.mjs crossTunnel: a secret tunnel of the GMs' records the character knows (or the sender acts as the Mastermind through it, `actsAsMastermind`), else the one notKnown; the token at an end of it, the doors' rules and the price judged on the primary (movement.mjs `tunnelVerdict`, `settleCrossingOnGm`)"
+        }
+    },
     [ACTION_PLANT]: {
         label: "DRPG.Bridge.what.action.plant",
         guards: [knownSender, owns("plannerId", "sender does not own the character planting")],
@@ -2491,6 +2512,21 @@ export function requestPassageShare({ actorId, targetId, passageId }) {
         local: () => import("./passages-gm.mjs").then(m => m.sharePassage({ actorId, targetId, passageId }, { asker: game.user })).then(out => {
             if (out?.refused) sayNotDone(ACTION_PASSAGE_SHARE, reasonOf(out.refused));
             return Boolean(out?.shown);
+        })
+    });
+}
+
+/**
+ * 'Go through' a tunnel my character stands at an end of (E80 C2; sheet.mjs). The primary GM judges it and moves
+ * the token; a GM's own browser does it here when it is the primary, and says a refusal as the bridge would.
+ * Its value is true once the token was moved.
+ */
+export function requestPassageCross({ actorId, passageId }) {
+    return ask(ACTION_PASSAGE_CROSS, { actorId, passageId }, {
+        onPrimary: true,
+        local: () => import("./passages-gm.mjs").then(m => m.crossTunnel({ actorId, passageId }, { asker: game.user })).then(out => {
+            if (out?.refused) sayNotDone(ACTION_PASSAGE_CROSS, reasonOf(out.refused));
+            return Boolean(out?.crossed);
         })
     });
 }

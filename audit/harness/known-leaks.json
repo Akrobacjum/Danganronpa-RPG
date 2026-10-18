@@ -70,6 +70,18 @@
       "measuredAt": "E79 C8, 15.10.2026, before its commit: p3, whose Chie knows P2 and P3 and not P1, read Aiko's token at [1240,600] before and [1240,850] after she went through P1 from p1 (65-season X2)"
     },
     {
+      "id": "foundry-passage-tunnel",
+      "class": "metadata",
+      "severity": "info",
+      "what": "A token that goes through a tunnel is seen by every browser to leave one end and stand by the other: its position before and after says where the tunnel's two ends are to a player whose characters do not know it. The tunnel itself, who knows it and its ends stay on the GMs' browsers and the knowers'.",
+      "foundryLimit": "Foundry v14 sends every Token document's position, and each of its moves, to every connected client.",
+      "detectedBy": [
+        {"scenario": "76-passages", "check": "U: a tunnel's crossing is seen - p3, whose Chie does not know the tunnel, reads Aiko's token go from its Dorm A end at [700,700] to its Gym end at [1900,1700]"}
+      ],
+      "readme": "leak:foundry-passage-tunnel",
+      "measuredAt": "E80 C2, 18.10.2026, before its commit: p3, whose Chie does not know the tunnel, read Aiko's token at [700,700] by its Dorm A end before and at [1900,1700] by its Gym end after she went through it from p1 (76-passages U)"
+    },
+    {
       "id": "foundry-passage-only-room",
       "class": "metadata",
       "severity": "info",

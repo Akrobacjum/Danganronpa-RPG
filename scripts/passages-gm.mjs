@@ -36,7 +36,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { isPrimaryGm, serverNow, whisperToOwner, whisperToGms, ownerOf, warn, error } from "./utils.mjs";
+import { isPrimaryGm, serverNow, whisperToOwner, whisperToGms, ownerOf, warn, error, serialWrite } from "./utils.mjs";
 import { passageMapStore, passageAccessStore, passageLogStore, mastermindStore, mastermindUndecided } from "./gm-stores.mjs";
 import { RECORD, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible } from "./gm-store.mjs";
 import { senderOf } from "./bridge-guards.mjs";
@@ -892,6 +892,81 @@ export async function sharePassage({ actorId, targetId, passageId } = {}, { stor
     }
     await whisper(giver, `<p>${game.i18n.format("DRPG.Passage.card.done", { target: esc(target.name) })}</p>`, asker?.id ? { whisper: [asker.id] } : {});
     return { shown: true };
+}
+
+/* ----------------------------------------------------------------------------------------- *
+ * 'Go through' a tunnel (E80 C2, 18.10.2026; the stage's P1-05 to P1-08): the primary GM carries out
+ * gm-bridge.mjs `passage.cross` - the sender owns the character (the row's guard), and the rest is
+ * judged here against the GMs' records and the world as it stands now, never the packet.
+ * ----------------------------------------------------------------------------------------- */
+
+/**
+ * The English reason of the bridge's closed list (bridge-guards.mjs `REASON_PATTERNS`) for a refusal's code
+ * (movement.mjs `tunnelVerdict`, `settleCrossingOnGm`). The player reads the code's own words
+ * (`DRPG.Bridge.why.<code>`), which are the words the door's veto says.
+ */
+export function crossingWhy(code) {
+    switch (code) {
+        case "notKnown": return "the character does not know that passage";
+        case "notAtPassage": return "the character is not at an end of that passage";
+        case "doorLocked": return "the room beyond is locked";
+        case "roomSealed": return "the room beyond is sealed";
+        case "chained": return "the character is chained where it stands";
+        case "cannotLeave": return "the character is held in the incident";
+        case "trialLocked": return "the Class Trial is in session";
+        case "noBudget": return "the character has no Move and no action left";
+        case "eclipseSpent": return "the character's Eclipse crossings are used up";
+        default: return "that cannot be done now";
+    }
+}
+
+/**
+ * Carry out a 'Go through': answers `{ crossed: true }` or `{ refused }` (`crossingWhy`'s reason, or the
+ * runner's "nothing was carried out" when the write fails). In `serialWrite`, one step per character at a
+ * time, so two asks in one breath read the price and the count each after the other's write. The tunnel is
+ * a secret tunnel of the GMs' records on a scene that still exists, the same answer as one the character
+ * does not know (`notKnown`) otherwise; the token is the character's on that scene. Then the doors' rules
+ * (movement.mjs `tunnelVerdict`, with the GMs' rows as `known`, the sender's role as the door's reading -
+ * `actsAsMastermind` - and the price left to the next step), the price taken (`settleCrossingOnGm`), the token
+ * written beside the far end (`tunnelLanding`) with `teleport`, `displace` and no animation, and on a write
+ * that throws the price given back exactly (`refundCrossingOnGm`). A crossing written is told as a door's is
+ * (`announceCrossingOnGm`: the owner's card and the traps' `drpgRoomCrossed`). Refused, nothing is written,
+ * paid or counted, and nothing is said on the GM's screen: the bridge tells the player. `asker` is the
+ * bridge's sender (the local road's own user); `stores`, `users` and `write` are the suite's (tier 2 "A10-18").
+ */
+export async function crossTunnel({ actorId, passageId } = {}, { asker = null, stores = PASSAGE_STORES, users = game.users,
+    write = (doc, data, options) => doc.update(data, options) } = {}) {
+    return serialWrite(`passage.cross/${actorId}`, async () => {
+        // The bridge runs it on the primary GM alone, and the local road only there.
+        if (!isPrimaryGm()) return { refused: "nothing was carried out: the token is moved on the primary GM's browser" };
+        const actor = typeof actorId === "string" ? game.actors?.get(actorId) ?? null : null;
+        const row = typeof passageId === "string" ? stores.map.get(passageId) : null;
+        const scene = row ? game.scenes?.get(row.sceneId) ?? null : null;
+        if (!actor || row?.state !== "secret" || !endsOf(row) || !scene) return { refused: crossingWhy("notKnown") };
+        const M = await import("./movement.mjs");
+        const mover = { gm: Boolean(asker?.isGM), mastermind: actsAsMastermind(actor, asker, { mastermind: stores.mastermind, users }) };
+        const known = secretRowsFrom({ map: stores.map, access: stores.access });
+        const passage = { id: passageId, sceneId: row.sceneId };
+        // A character with two tokens on the scene goes through with the one at an end.
+        const judged = Array.from(scene.tokens ?? []).filter(t => t.actorId === actor.id)
+            .map(token => ({ token, verdict: M.tunnelVerdict(actor, passage, token, { mover, known, pay: false }) }));
+        const { token, verdict } = judged.find(j => !j.verdict?.code) ?? judged[0]
+            ?? { token: null, verdict: M.tunnelVerdict(actor, passage, null, { mover, known, pay: false }) };
+        if (verdict?.code) return { refused: crossingWhy(verdict.code) };
+        const paid = await M.settleCrossingOnGm(actor, verdict.to);
+        if (paid.code) return { refused: crossingWhy(paid.code) };
+        const spot = M.tunnelLanding(token, verdict.far, verdict.to);
+        try {
+            await write(token, { x: spot.x, y: spot.y, ...(spot.level ? { level: spot.level } : {}) },
+                { teleport: true, movementAction: "displace", animate: false });
+        } catch (err) {
+            error(`Could not move "${token.name}" through a tunnel`, err);
+            await M.refundCrossingOnGm(actor, paid.cost).catch(back => error("Could not give a tunnel crossing's price back", back));
+            return { refused: "nothing was carried out: the token could not be moved" };
+        }
+        await M.announceCrossingOnGm(actor, verdict.from, verdict.to, token, paid.cost);
+        return { crossed: true };
+    });
 }
 
 /* ----------------------------------------------------------------------------------------- *

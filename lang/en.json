@@ -597,7 +597,8 @@
       "list": {
         "title": "Known passages",
         "where": "Show it on the map",
-        "shut": "the way is shut"
+        "shut": "the way is shut",
+        "cross": "Go through"
       },
       "show": {
         "button": "Show the passage",
@@ -2604,6 +2605,7 @@
       "unlawfulArrival": "{name} reached {room} by a crossing the rules refuse. Until they stand somewhere they could have walked to from {from}, they are no witness to a body and no third party to a murder. Nothing was put back: a GM's move makes the spot they stand on lawful.",
       "outsideRooms": "outside the rooms",
       "wallCrossed": "{name}'s token was moved through a wall on {scene} and was sent back where it stood.",
+      "floorJumped": "{name}'s token was moved to another floor on {scene} where no stairs lead, and was sent back where it stood.",
       "droppedFromNowhere": "A player placed a token of {name} in {room} on {scene}, where {name} had stood nowhere before. It was judged as an arrival from outside the rooms, so no rule about which rooms connect applied, and it counts as a witness there. Move the token if it should not be there."
     },
     "Move": {
@@ -2841,6 +2843,7 @@
         "handover.bullet": "Share a Truth Bullet",
         "handover.item": "Hand over an item",
         "passage.share": "Show a secret passage",
+        "passage.cross": "Go through a secret passage",
         "vault.steal": "Stash",
         "action.steal": "Palm",
         "vault.findStash": "Find a stash",
@@ -2954,7 +2957,15 @@
         "floorClosed": "The debate is not open to an Objection now.",
         "noSpeaker": "Nobody has spoken in this trial yet, so there is nobody to object to.",
         "noBullet": "You hold no Truth Bullet to prove an Objection with.",
-        "objectionOver": "That Objection is no longer waiting for a Truth Bullet."
+        "objectionOver": "That Objection is no longer waiting for a Truth Bullet.",
+        "notAtPassage": "Your character is not at an end of that passage.",
+        "doorLocked": "The door is locked.",
+        "roomSealed": "That room is sealed for this time of day. Nobody gets in.",
+        "chained": "You are chained here until this time of day ends.",
+        "cannotLeave": "You are in an incident. The only way out is a crisis action - Survive, Escape together, or, if you only walked in on it, Averted eyes.",
+        "trialLocked": "The Class Trial is in session. Nobody leaves the courtroom until it ends.",
+        "noBudget": "No Free Move and no actions left.",
+        "eclipseSpent": "Your Eclipse crossings are used up."
       },
       "criticalHint": "Critical - this player is owed a substantial hint.",
       "send": "Send to GM",

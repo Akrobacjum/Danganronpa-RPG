@@ -5629,6 +5629,8 @@ const REGRESSIONS = [
             objectOnPrimary: "refused", evidenceOnPrimary: "refused", repointOnPrimary: "refused",
             // E79 fix r4-G2: the objector's pending Objection taken back, on the primary (trial.mjs).
             withdrawOnPrimary: "refused",
+            // E80 C2: 'Go through' a tunnel, carried out on the primary (passages-gm.mjs), its reasons by code.
+            crossTunnel: "refused", crossingWhy: "returns",
             resolveObserve: "passes", hopeCallRefusal: "wraps"
         };
         const sources = [...await otherSources()].map(([file, raw]) => [file, stripComments(raw)]);
@@ -7145,6 +7147,7 @@ const REGRESSIONS = [
             ["music.mjs", "stopPlaylistDead", "playlist", "a playlist stopped"],
             ["music.mjs", "wireSoundPlay", "Playlist", "the situational playlist, made from the sound window"],
             ["notice-history.mjs", "updateNotice", "engine", "the notice history's own engine, not a document: a kept entry's state or snapshot, in this browser's setting (E81 C3; R293)"],
+            ["passages-gm.mjs", "crossTunnel", "doc", "a token moved through a tunnel by the primary GM: 'Go through', its default write, the crossing judged and paid before it (E80 C2; a bridge run, gated on the primary)"],
             ["projects-tray.mjs", "leaveIconOnly", "game.user", "the user's own view of the projects tray"],
             ["remnants.mjs", "placeRemnant", "target", "a Remnant's token, placed on a scene"],
             ["remnants.mjs", "propagatePublic", "tokenDoc", "a Remnant token's public half"],
@@ -8606,6 +8609,7 @@ const REGRESSIONS = [
             ["NOTDONE cleanup.mjs#attemptCleanup", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); a murder refusal kept like the rest (the owner's Q4), within the history's budgets, as a notDone entry (R297)"],
             ["NOTDONE cleanup.mjs#attemptStageSix", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); a murder refusal kept like the rest (the owner's Q4), within the history's budgets, as a notDone entry (R297)"],
             ["NOTDONE gm-bridge.mjs#requestPassageShare", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E79 C7)"],
+            ["NOTDONE gm-bridge.mjs#requestPassageCross", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E80 C2)"],
             ["NOTDONE gm-bridge.mjs#requestObject", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the primary GM's refusal checked against `REASONS`); a refusal of an Objection kept like the rest, as a notDone entry (R297; E79 C16)"],
             ["NOTDONE gm-bridge.mjs#requestEvidence", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the primary GM's refusal checked against `REASONS`); a refusal of an Objection's Truth Bullet kept like the rest, as a notDone entry (R297; E79 C16)"],
             ["NOTDONE gm-bridge.mjs#requestRepoint", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the primary GM's refusal checked against `REASONS`); a GM's re-point refused kept like the rest, as a notDone entry (R297; E79 C16)"],
@@ -9392,6 +9396,7 @@ const REGRESSIONS = [
             ["OPT movement.mjs#noteGmPosition#SENT_BACK -> exempt", "a claim, judged as REVERT is: it marks a move the GM sent back itself; on a GM's write the player it names is handed the witness judge as the one who asked (`askerOf`, E79 fix r3-G2), who acts as the Mastermind or not as that player does (R560; 76 G)"],
             ["OPT movement.mjs#onPreUpdateToken#REVERT -> exempt", "advisory: the mover's own client lets its own revert past its own veto; nothing on the GM reads the client's veto"],
             ["OPT movement.mjs#judgeMove#REVERT -> exempt", "this file's own: the mover's client charges nothing for its own revert; no judge takes it as an exemption"],
+            ["OPT passages-gm.mjs#crossTunnel#displace -> exempt", "the primary GM's own write of a 'Go through' (E80 C2: `teleport`, `displace`, no animation): a GM's move is let through because a GM made it (the hook's user), not because of these options; the crossing was judged before it by the doors' rules (`tunnelVerdict`; A10-18)"],
             ["OPT call-world.mjs#fallbackGather#displace -> exempt", "a GM's own write (`updateEmbeddedDocuments` with REVERT, `teleport` and `displace`): a GM's move is let through because a GM made it (the hook's user), not because of these options"],
             // ---- the packets
             ["ACT gm-bridge.mjs#ACTION_SENDBACK#token.sendBack -> write", "the bridge row judges the sender's ownership and the place (`guardSendbackPlace`) against the GMs' record of the token, which holds no spot the audit put it back from (`sightingsAfter`, E79 fix r1-G1: 76 D asks for that spot and is refused, the token where it was put back, nothing written); `handleSendback` writes REVERT and SENT_BACK on the GM, with walls ignored (the IGN row below), SENT_BACK naming the player who asked, and the GMs' audit judges the landing as that player's move (E79 fix r2-G1: a room's centre across a wall is put back, or a row in log mode; R559, 76 D)"],

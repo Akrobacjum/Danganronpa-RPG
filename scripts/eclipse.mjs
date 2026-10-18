@@ -1022,6 +1022,24 @@ export async function applyRecordedMove(actorId, { to = null } = {}) {
 }
 
 /**
+ * Take one counted crossing back, GM side (E80 C2, 18.10.2026): a 'Go through' the primary counted
+ * (`applyRecordedMove`, movement.mjs `settleCrossingOnGm`) and could not write, so the token never moved.
+ * The owner is sent their copy again; the veiled card that crossing posted stays where it was sent, and is
+ * the one thing not taken back (a gap of E80 C2). Answers whether a crossing was taken back.
+ */
+export async function unrecordMove(actorId) {
+    if (!game.user.isGM) return false;
+    await eclipseMoveStore.whenHydrated();
+    const actor = game.actors.get(actorId);
+    const id = eclipseId();
+    const before = eclipseMovesUsed(actorId);
+    if (!actor || !id || before < 1) return false;
+    await eclipseMoveStore.patch(actorId, { used: before - 1, eclipse: id });
+    for (const userId of ownerIdsOf(actor)) sendMovesTo(userId);
+    return true;
+}
+
+/**
  * The room a crossing names, when it is a room of a scene this character has a token on;
  * else null. Judged against the scene's rooms, not the route: the primary's record of a
  * token's route (movement.mjs `roomsVisited`) holds a position per update, and whether a

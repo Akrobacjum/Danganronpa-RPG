@@ -52760,6 +52760,153 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson([[false, true, [OLD]], [true, true, [null, null]]]),
             "[the new name sealed, the old name sealed, the record on each piece of the new name] after the first piece's rename and after the second's");
     }],
+    ["A10-18 - 'Go through' a tunnel is carried out on the primary GM at a door's price: the token lands by the far end with teleport, displace and no animation, the crossing is told to the traps, a crossing back pays again; a lock, a seal, the chain, the courtroom, no budget and a spent Eclipse refuse it in the doors' words with nothing written, paid or warned on the GM, as does a tunnel the character does not know; the Mastermind passes the lock, anybody another's bedroom; an Eclipse counts one crossing and costs nothing else; a write that fails gives back exactly what it took", async () => {
+        /*
+         * E80 C2 (18.10.2026; P1-05 to P1-08, the stage's write roads "token x, y, level" and "price"). The harms: a
+         * crossing judged by other rules than a door's, a refusal that still moves, charges or counts, a GM's screen
+         * warned of a player's empty budget, and a failed write that keeps the price. Driven on this GM (the primary, as
+         * the bridge runs `passage.cross`) through `crossTunnel`, the asker the student's owner the door names, on a
+         * scene of the suite's own with a Dorm and a Gym and a tunnel between them, made and given by the GMs' own roads
+         * in a GM-store world of the suite's own (`withGmStoreWorld`), so no player's copy is sent. Each crossing that
+         * stands moves the token to the other end. A failed write is `write` throwing, the one thing handed in. The
+         * incident's lock is the doors' `lockedInIncident`, its reason R597's; three real clients and the bridge are
+         * scenario 76's tunnel phase. Red at the parent (917280b): no `crossTunnel`.
+         */
+        const P = await import("./passages-gm.mjs");
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const S = await import("./gm-stores.mjs");
+        const E = await import("./gm-store.mjs");
+        const EC = await import("./eclipse.mjs");
+        const V = await import("./vault.mjs");
+        const CW = await import("./call-world.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const ACT = await import("./actions.mjs");
+        const { ownerOf } = await import("./utils.mjs");
+        ok(typeof P.crossTunnel === "function", "passages-gm.mjs carries out no tunnel crossing - 'Go through' does nothing");
+        if (typeof P.crossTunnel !== "function") return;
+        const [student, other] = cast(2);
+        needs(world.ownedByPlayer(student), "the student goes through on its player's ask, and the door names that player");
+        const asker = ownerOf(student);
+        const clock = getClock() ?? {};
+        if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+        if (!game.settings.get(MODULE_ID, SETTINGS.chargeMovement)) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, true);
+        const held = [SETTINGS.sealedRooms, SETTINGS.restrictions].map(key => [key, foundry.utils.deepClone(game.settings.get(MODULE_ID, key))]);
+        const DORM = "SUITE E80 C2 Dorm", GYM = "SUITE E80 C2 Gym", mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
+        const room = (name, x) => ({ name, shapes: [{ type: "rectangle", x, y: 0, width: 600, height: 600 }], flags: mark, behaviors: [] });
+        const budget = ({ actions = 2, free = false, burst = 0 } = {}) => student.update({ "system.resources.actions.value": actions,
+            [`flags.${MODULE_ID}.${FLAGS.freeMoveUsed}`]: !free, [`flags.${MODULE_ID}.${FLAGS.freeActionGrants}`]: burst, [`flags.${MODULE_ID}.${FLAGS.freeMoveGrants}`]: 0 });
+        const purse = () => [ACT.actionsLeft(student), ACT.hasFreeMove(student), ACT.freeActionsLeft(student)];
+        let scene = null, token = null, read = null;
+        const writes = [], crossed = [], warned = [];
+        const onPre = (doc, changes, options) => {
+            if (doc.id === token?.id) writes.push([changes.x ?? null, changes.y ?? null, options.teleport ?? null, options.movementAction ?? null, options.animate ?? null]);
+        };
+        const onCrossed = event => { if (event?.tokenDoc?.id === token?.id) crossed.push([event.from, event.to, event.cost]); };
+        const warn = ui.notifications.warn;
+        try {
+            scene = await Scene.create({ name: "SUITE E80 C2 a tunnel", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            const [dorm] = await scene.createEmbeddedDocuments("Region", [room(DORM, 0), room(GYM, 1200)]);
+            [token] = await scene.createEmbeddedDocuments("Token", [{ actorId: student.id, actorLink: true, name: student.name, x: 200, y: 200, width: 1, height: 1 }]);
+            await settle();
+            Hooks.on("preUpdateToken", onPre);
+            Hooks.on("drpgRoomCrossed", onCrossed);
+            ui.notifications.warn = message => { warned.push(String(message)); };
+            read = await E.withGmStoreWorld(`suite-e80-c2-${foundry.utils.randomID(8)}`, async () => {
+                const id = await P.createPassage({ sceneId: scene.id, shape: "tunnel", ends: [{ x: 250, y: 250, level: null }, { x: 1450, y: 250, level: null }] }, { scene });
+                must(typeof id === "string" && await P.grantPassage(id, student.id), "the tunnel was not made or given - this would measure nothing");
+                const steps = [];
+                // [what, the answer, writes, where the token is, what the student holds after: actions, the free Move, Bursts, the Eclipse's count]
+                const step = async (what, { actorId = student.id, ...o } = {}) => {
+                    const before = writes.length;
+                    const out = await P.crossTunnel({ actorId, passageId: id }, { asker, ...o });
+                    await settle();
+                    steps.push([what, out?.refused ? G.reasonOf(out.refused) : out?.crossed ? "crossed" : stableJson(out), writes.length - before,
+                        `${token.x},${token.y}`, ...purse(), S.eclipseMoveStore.get(student.id)?.used ?? 0]);
+                };
+                const failing = { write: () => { throw new Error("SUITE E80 C2 a write that fails"); } };
+                await budget({ actions: 2 });
+                await step("an action");
+                await step("back, an action");
+                await step("no budget");
+                await budget({ actions: 2, free: true });
+                await step("the free Move");
+                await dorm.update({ [`flags.${MODULE_ID}.${M.ROOM_FLAGS.locked}`]: true });
+                await step("a lock");
+                await S.mastermindStore.patch("record", { actorId: student.id });
+                // An asker the door does not name for the Mastermind's student (SEC M3): held to the lock as anyone.
+                await step("another asker for the Mastermind's student", { asker: { id: "SUITEE80C2ASKER0", name: "SUITE E80 C2 asker", isGM: false } });
+                await step("the Mastermind through the lock");
+                await S.mastermindStore.patch("record", { actorId: null });
+                await dorm.update({ [`flags.${MODULE_ID}.${M.ROOM_FLAGS.locked}`]: false });
+                await V.setVaultRoom(GYM, { owner: other.id, scene });
+                await step("into another's bedroom");
+                await CW.sealRoom(DORM);
+                await step("a seal");
+                await game.settings.set(MODULE_ID, SETTINGS.sealedRooms, held[0][1]);
+                await CW.restrict(student, { chained: true });
+                await step("the chain");
+                await game.settings.set(MODULE_ID, SETTINGS.restrictions, held[1][1]);
+                // A move of the clock refills the budget (measured: 2 after each), so each is set after it.
+                await setClock({ phase: "classTrial" });
+                await budget({ actions: 1 });
+                await step("the courtroom");
+                await setClock({ phase: "dailyLife", eclipse: false });
+                await budget({ actions: 1 });
+                await step("another student, who does not know it", { actorId: other.id });
+                await budget({ actions: 2 });
+                await step("an action, the write failing", failing);
+                await budget({ actions: 2, burst: 1 });
+                await step("a Burst, the write failing", failing);
+                await budget({ actions: 2, free: true });
+                await step("the free Move, the write failing", failing);
+                await setClock({ timeOfDay: "morning" });
+                await EC.startEclipse();
+                await settle();
+                await budget({ actions: 2 });
+                const allowance = EC.eclipseAllowance();
+                must(Number.isInteger(allowance) && allowance >= 1, `the Eclipse has no allowance to count against (${allowance})`);
+                await step("an Eclipse crossing");
+                await step("an Eclipse crossing, the write failing", failing);
+                for (let n = 2; n <= allowance; n++) await step(`Eclipse crossing ${n}`);
+                await step("beyond the Eclipse's crossings");
+                if (EC.isEclipse()) await EC.endEclipse({ advance: false }).catch(() => {});
+                await S.eclipseMoveStore.drop(student.id);
+                return { steps, allowance };
+            });
+        } finally {
+            Hooks.off("preUpdateToken", onPre);
+            Hooks.off("drpgRoomCrossed", onCrossed);
+            ui.notifications.warn = warn;
+            for (const [key, value] of held) await game.settings.set(MODULE_ID, key, value);
+            await scene?.delete();
+            await setClock(clock);
+            await settle();
+        }
+        const { steps, allowance } = read;
+        const IN_GYM = "1400,200", IN_DORM = "200,200";
+        const ends = allowance % 2 ? IN_DORM : IN_GYM;
+        const tail = [];
+        for (let n = 2; n <= allowance; n++) tail.push([`Eclipse crossing ${n}`, "crossed", 1, n % 2 ? IN_DORM : IN_GYM, 2, false, 0, n]);
+        equal(stableJson(steps), stableJson([
+            ["an action", "crossed", 1, IN_GYM, 1, false, 0, 0], ["back, an action", "crossed", 1, IN_DORM, 0, false, 0, 0],
+            ["no budget", "noBudget", 0, IN_DORM, 0, false, 0, 0], ["the free Move", "crossed", 1, IN_GYM, 2, false, 0, 0],
+            ["a lock", "doorLocked", 0, IN_GYM, 2, false, 0, 0], ["another asker for the Mastermind's student", "doorLocked", 0, IN_GYM, 2, false, 0, 0],
+            ["the Mastermind through the lock", "crossed", 1, IN_DORM, 1, false, 0, 0],
+            ["into another's bedroom", "crossed", 1, IN_GYM, 0, false, 0, 0],
+            ["a seal", "roomSealed", 0, IN_GYM, 0, false, 0, 0], ["the chain", "chained", 0, IN_GYM, 0, false, 0, 0],
+            ["the courtroom", "trialLocked", 0, IN_GYM, 1, false, 0, 0], ["another student, who does not know it", "notKnown", 0, IN_GYM, 1, false, 0, 0],
+            ["an action, the write failing", "refused", 0, IN_GYM, 2, false, 0, 0], ["a Burst, the write failing", "refused", 0, IN_GYM, 2, false, 1, 0],
+            ["the free Move, the write failing", "refused", 0, IN_GYM, 2, true, 0, 0],
+            ["an Eclipse crossing", "crossed", 1, IN_DORM, 2, false, 0, 1], ["an Eclipse crossing, the write failing", "refused", 0, IN_DORM, 2, false, 0, 1],
+            ...tail, ["beyond the Eclipse's crossings", "eclipseSpent", 0, ends, 2, false, 0, allowance]]),
+        "each step as [what, the answer, token writes, where the token stands, actions, the free Move, Bursts, the Eclipse's count]");
+        const first = writes[0] ?? [];
+        equal(stableJson([first.slice(2), new Set(writes.map(w => stableJson(w.slice(2)))).size, crossed.slice(0, 2)]),
+            stableJson([[true, "displace", false], 1, [[DORM, GYM, "action"], [GYM, DORM, "action"]]]),
+            "[the options of a crossing's write, how many kinds of options every crossing's write had, the first two crossings as the traps are told of them]");
+        equal(stableJson(warned), "[]", "the GM's screen was warned of a player's refusal");
+    }],
     ...GRID
 ];
 

@@ -16,7 +16,8 @@
  *      by its own player and picked on the card (A11). Since E08+E28 C2 also a roll's bookmark for the
  *      Reroll, kept on the GMs from its roller's report (A12). Since E09 C5 also a Sabotage's trace, tied to the
  *      crime when the saboteur's character is the trap's killer (A14). Since E79 C16 also an Objection aimed by the GM's
- *      voice Room and its Truth Bullet, chosen after it (A15).
+ *      voice Room and its Truth Bullet, chosen after it (A15). Since E80 C2 also a tunnel gone through, and the
+ *      way back refused in the Class Trial with its reason (A16).
  *   B  what E31 adds, each written red (`expectedRed`, with what it measured) until the commit that
  *      made it so, and a plain check since: a refusal carries its reason, in the player's own
  *      language; a refused request is not acknowledged; an exception on the GM's side ends as one
@@ -964,6 +965,66 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         await game.webrtc.disconnect?.();
         return true;`, { timeout: 60000 });
     await settle(800);
+
+    /* A16. A TUNNEL GONE THROUGH (E80 C2, 18.10.2026). 'Go through' is a request from the knower's browser
+       (`passage.cross`), carried out on the primary GM. The GM makes a tunnel from Dorm A to the Gym and grants it to
+       Aiko, stands her at its Dorm A end with two actions and no free Move (the GM's API, not under test). p1 asks: she
+       lands by the Gym's end, one action paid, no refusal logged on the GM or told to p1, nothing on the GM's screen.
+       Then the clock is put in the Class Trial and p1 asks back: refused with its reason, `trialLocked`, logged once on
+       the GM, nothing moved or paid. Put back after: the clock, Aiko's token, actions and free Move, the tunnel. Its
+       forgeries and the console's jump are 76-passages' phase U. */
+    phase("a tunnel gone through", { flow: "secret-passages" });
+    const PLACE16 = JSON.stringify({ teleport: true, movementAction: "displace", animate: false });
+    await clearFailures(gm);
+    const set16 = await gm.eval(`const scene = game.scenes.get("${IDS.scene}"), t = scene.tokens.get("TOKAIKO000000000"), aiko = t.actor;
+        const id = await game.drpg.passages.create({ sceneId: scene.id, shape: "tunnel", ends: [{ x: 720, y: 730, level: null }, { x: 1930, y: 1760, level: null }] });
+        const granted = await game.drpg.passages.grant(id, "${IDS.aiko}");
+        globalThis.__s33a16 = { id, at: { x: t.x, y: t.y }, actions: game.drpg.actionsLeft(aiko), free: aiko.getFlag("${MOD}", "freeMoveUsed") ?? null,
+            clock: foundry.utils.deepClone(game.settings.get("${MOD}", "clock")) };
+        await t.update({ x: 700, y: 700 }, ${PLACE16});
+        await game.drpg.setActions(aiko, 2);
+        await aiko.setFlag("${MOD}", "freeMoveUsed", true);
+        return { id, granted, charge: game.settings.get("${MOD}", "chargeMovement"), actions: game.drpg.actionsLeft(aiko) };`, { timeout: 30000 });
+    const known16 = () => p1.eval(`const { knownPassages } = await import("${repoUrl}/scripts/passages.mjs"); return Boolean(knownPassages()?.["${set16?.id ?? ""}"]);`);
+    for (const t0 = Date.now(); !(await known16()) && Date.now() - t0 < 8000;) await settle(200);
+    const ask16 = async () => {
+        const [told0, notes0, gmNotes0] = [await refusedCount(p1), await noticeCount(p1), await noticeCount(gm)];
+        // Read as a result: at 917280b the bridge has no such request, and that is the red A16 reads.
+        const res = await p1.eval(`const B = ${bridge};
+            if (typeof B.requestPassageCross !== "function") return { ok: null, value: null, reason: "no requestPassageCross" };
+            const res = await B.requestPassageCross({ actorId: "${IDS.aiko}", passageId: "${set16?.id ?? ""}" });
+            return { ok: res.ok, value: res.value ?? null, reason: res.reason ?? null };`, { timeout: 30000 });
+        await settle(1200);
+        return { res, ...(await gm.eval(`const t = game.scenes.get("${IDS.scene}").tokens.get("TOKAIKO000000000");
+                return { at: [t.x, t.y], actions: game.drpg.actionsLeft(t.actor) };`)),
+            logged: await refusalsLogged(gm, "passage.cross"), told: (await refusedSince(p1, told0)).filter(t => t.what === "passage.cross"),
+            notes: (await noticesSince(p1, notes0)).length, gmNotes: (await noticesSince(gm, gmNotes0)).length };
+    };
+    const went16 = { known: await known16(), ...(await ask16()) };
+    check("A16: p1's 'Go through' of the tunnel it knows is carried out by the primary GM - Aiko lands by the Gym's end, one action paid, nothing refused or told, nothing on the GM's screen",
+        set16?.granted === true && set16.charge === true && set16.actions === 2 && went16.known === true && went16.res.ok === true && went16.res.value === true
+            && JSON.stringify(went16.at) === JSON.stringify([1900, 1700]) && went16.actions === 1 && went16.logged.length === 0 && went16.told.length === 0
+            && went16.notes === 0 && went16.gmNotes === 0, JSON.stringify({ set16, went16 }));
+    const trial16 = await gm.eval(`await game.settings.set("${MOD}", "clock", { ...globalThis.__s33a16.clock, phase: "classTrial" });
+        return game.drpg.actionsLeft(game.actors.get("${IDS.aiko}"));`);
+    await settle(500);
+    const back16 = await ask16();
+    check("A16: in the Class Trial p1's way back is refused with its reason, trialLocked, logged once on the GM and told to p1 once - Aiko where she stood, nothing paid, nothing on the GM's screen",
+        back16.res.ok === false && back16.logged.length === 1 && back16.told.length === 1 && back16.told[0].reason === "trialLocked"
+            && JSON.stringify(back16.at) === JSON.stringify([1900, 1700]) && back16.actions === trial16 && back16.gmNotes === 0, JSON.stringify({ trial16, back16 }));
+    const restored16 = await gm.eval(`const scene = game.scenes.get("${IDS.scene}"), t = scene.tokens.get("TOKAIKO000000000"), aiko = t.actor, was = globalThis.__s33a16;
+        if (!was) return null;
+        await game.settings.set("${MOD}", "clock", was.clock);
+        await t.update(was.at, ${PLACE16});
+        await game.drpg.setActions(aiko, was.actions);
+        if (was.free === null) await aiko.unsetFlag("${MOD}", "freeMoveUsed"); else await aiko.setFlag("${MOD}", "freeMoveUsed", was.free);
+        const gone = await game.drpg.passages.delete(was.id);
+        delete globalThis.__s33a16;
+        return { gone, at: [t.x, t.y], actions: game.drpg.actionsLeft(aiko), was: [was.at.x, was.at.y], wasActions: was.actions };`, { timeout: 30000 });
+    await settle(800);
+    check("A16: put back - the tunnel deleted, the clock, Aiko where she stood with her actions",
+        restored16?.gone === true && JSON.stringify(restored16.at) === JSON.stringify(restored16.was) && restored16.actions === restored16.wasActions,
+        JSON.stringify(restored16));
 
     /* ------------------------------------------- A. the Assistant as the primary */
 

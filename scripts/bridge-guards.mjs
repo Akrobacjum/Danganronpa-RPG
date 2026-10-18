@@ -161,6 +161,7 @@ export const REASONS = Object.freeze([
     "rollMissed", "projectFrozen", "rollReplaced", "notPaid", "rollThrown", "callNotPaid", "callNotApproved", "itemNotDecided",
     "notEligible", "sameTwice", "wrongCount", "notKnown", "recipientDead", "floorClosed", "noSpeaker", "noBullet",
     "objectionOver", "relay", "sheetPutBack", "failed",
+    "notAtPassage", "doorLocked", "roomSealed", "chained", "cannotLeave", "trialLocked", "noBudget", "eclipseSpent",
     "refused", "noGm", "noAnswer"
 ]);
 
@@ -357,6 +358,16 @@ export const REASON_PATTERNS = Object.freeze([
     // `shareRefusal`). One reason for a passage that does not exist, is closed or the giver does not know (R562).
     ["notKnown", /^the character does not know that passage$/],
     ["recipientDead", /^the character shown it is dead$/],
+    // E80 C2: 'Go through' a tunnel, judged by the primary GM by the doors' rules (gm-bridge.mjs `passage.cross`,
+    // passages-gm.mjs `crossTunnel`, `crossingWhy`); each code's words are the door's veto's (R597).
+    ["notAtPassage", /^the character is not at an end of that passage$/],
+    ["doorLocked", /^the room beyond is locked$/],
+    ["roomSealed", /^the room beyond is sealed$/],
+    ["chained", /^the character is chained where it stands$/],
+    ["cannotLeave", /^the character is held in the incident$/],
+    ["trialLocked", /^the Class Trial is in session$/],
+    ["noBudget", /^the character has no Move and no action left$/],
+    ["eclipseSpent", /^the character's Eclipse crossings are used up$/],
     // E79 C16: an Objection raised from the trial bar and proved after, judged by the primary GM (gm-bridge.mjs
     // `trial.object`, `trial.evidence`, `floor.repoint`; trial.mjs `objectOnPrimary`, `evidenceOnPrimary`,
     // `repointOnPrimary`). The four new codes are the four a player at the table can act on: wait for the debate,

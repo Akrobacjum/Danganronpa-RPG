@@ -578,7 +578,8 @@
       "list": {
         "title": "Znane tajne przejścia",
         "where": "Pokaż na mapie",
-        "shut": "droga zamknięta"
+        "shut": "droga zamknięta",
+        "cross": "Przejdź"
       },
       "show": {
         "button": "Pokaż tajne przejście",
@@ -2708,6 +2709,7 @@
       "unlawfulArrival": "Postać {name} weszła do: {room} przejściem, na które zasady nie pozwalają. Dopóki nie stanie tam, dokąd mogła dojść z: {from}, nie jest świadkiem przy ciele ani stroną trzecią morderstwa. Niczego nie cofnięto: ruch MG czyni miejsce, w którym stoi, dozwolonym.",
       "outsideRooms": "poza pokojami",
       "wallCrossed": "Żeton postaci {name} przesunięto przez ścianę na scenie {scene} i cofnięto tam, gdzie stał.",
+      "floorJumped": "Żeton postaci {name} przeniesiono na scenie {scene} na inne piętro, dokąd nie prowadzą schody, i cofnięto tam, gdzie stał.",
       "droppedFromNowhere": "Gracz postawił żeton postaci {name} w: {room} na scenie {scene}, gdzie ta postać wcześniej nigdzie nie stała. Oceniono to jak wejście spoza pokojów, więc nie obowiązywała żadna zasada o tym, które pokoje się łączą, i liczy się tam jako świadek. Przesuń żeton, jeśli nie powinien tam stać."
     },
     "Move": {
@@ -2955,6 +2957,7 @@
         "handover.bullet": "Przekazanie Truth Bulleta",
         "handover.item": "Przekazanie przedmiotu",
         "passage.share": "Pokazanie tajnego przejścia",
+        "passage.cross": "Przejście tajnym przejściem",
         "vault.steal": "Skrytka",
         "action.steal": "Palm",
         "vault.findStash": "Szukanie skrytki",
@@ -3070,7 +3073,15 @@
         "floorClosed": "Debata nie jest teraz otwarta na Objection.",
         "noSpeaker": "W tym Class Trialu nikt jeszcze nie mówił, więc nie ma wobec kogo wnieść objection.",
         "noBullet": "Nie masz żadnego Truth Bulletu, którym można dowieść Objection.",
-        "objectionOver": "To Objection nie czeka już na Truth Bullet."
+        "objectionOver": "To Objection nie czeka już na Truth Bullet.",
+        "notAtPassage": "Twoja postać nie stoi przy wylocie tego przejścia.",
+        "doorLocked": "Drzwi są zamknięte.",
+        "roomSealed": "To pomieszczenie jest zapieczętowane na tę porę dnia. Nikt nie wchodzi.",
+        "chained": "Jesteś tu przykuty do końca tej pory dnia.",
+        "cannotLeave": "Jesteś w incydencie. Jedyne wyjście to akcja kryzysowa - Survive, Escape together albo, jeśli to tylko przypadkowe wejście, Averted eyes.",
+        "trialLocked": "Class Trial trwa. Nikt nie opuszcza sali, dopóki się nie skończy.",
+        "noBudget": "Brak Free Move i brak akcji.",
+        "eclipseSpent": "Przejścia Eclipse wyczerpane."
       },
       "criticalHint": "Krytyk - temu graczowi należy się solidna podpowiedź.",
       "send": "Wyślij do GM-a",

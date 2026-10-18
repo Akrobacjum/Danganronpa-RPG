@@ -26,7 +26,7 @@ import { MODULE_ID, ECLIPSE_MOVES, ECLIPSE_FREE_PLACEMENT, FLAGS,
 import {
     SETTINGS, iAmTheMastermind, incidentParticipants, incomingTimeOfDay, discoveryLedger, eclipseMovesUsed, isDeadForGm, isEclipse
 } from "./settings.mjs";
-import { hasFreeMove, takeMove, actionsLeft, canPayFor, freeMovesLeft, freeActionsLeft } from "./actions.mjs";
+import { hasFreeMove, takeMove, giveMoveBack, actionsLeft, canPayFor, freeMovesLeft, freeActionsLeft } from "./actions.mjs";
 // Statically imported, not lazily: the crossing veto runs inside a synchronous
 // `preUpdateToken` hook, where there is no opportunity to await an import.
 // call-effects.mjs only reaches back into this file lazily, so there is no cycle.
@@ -478,7 +478,7 @@ function noteGmPosition(tokenDoc, changes, options, userId) {
         // The wall rule (E79 C4), from the same start: the GM's last sighting. It changes no standing
         // `judgeArrival` keeps (the plan's D7) and catches its own throw.
         const judged = auditMove(tokenDoc, changes, options, userId, gmSeen.get(tokenDoc.id), {
-            REVERT, SENT_BACK, sendBackRefusal, stairLinks, roomAt, history: recentPositions(tokenDoc.id),
+            REVERT, SENT_BACK, sendBackRefusal, stairLinks, roomAt, history: recentPositions(tokenDoc.id), floorRefused: floorJumpRefused,
             held: judgeReaders?.flagsHeldNow ?? null,
             sendBack: (doc, spot, how) => sendBack(doc, spot, roomAt(spot.x, spot.y, doc, spot.level ?? levelOf(doc)), how)
         });
@@ -496,6 +496,23 @@ function noteGmPosition(tokenDoc, changes, options, userId) {
         gmHistory.set(tokenDoc.id, sightingsAfter(gmHistory.get(tokenDoc.id) ?? [], was, Date.now(), putBackTo, roomAtSpot(tokenDoc, was)));
     }
     gmSeen.set(tokenDoc.id, sentTo ?? positionOf(tokenDoc));
+}
+
+/**
+ * The GMs' audit's floor rule (E80 C2, 18.10.2026; movement-audit.mjs `auditMove`): whether a player's change of
+ * floor from the room `from` to the room `to` is one the doors' connected-rooms rule refuses (`crossingRefused`,
+ * the stairs between floors), asked only where the movement economy asks that rule - in an Eclipse with an
+ * allowance, and outside one while crossing rooms costs a Move (`crossingVerdict`); elsewhere a GM handles moves
+ * by hand and nothing is refused. A console that writes its token's `level` and spot to a tunnel's far end
+ * upstairs, with no wall on the way, was read clear by the wall rule (R596, red at 917280b).
+ */
+function floorJumpRefused(scene, from, to, floors) {
+    const clock = game.settings.get(MODULE_ID, SETTINGS.clock);
+    if (clock?.eclipse === true) {
+        const freePlacement = ECLIPSE_FREE_PLACEMENT.includes(incomingTimeOfDay(clock));
+        if (overflowCrossings(freePlacement ? null : ECLIPSE_MOVES) === null) return false;
+    } else if (!game.settings.get(MODULE_ID, SETTINGS.chargeMovement)) return false;
+    return crossingRefused(scene, from, to, floors);
 }
 
 /**
@@ -1019,9 +1036,16 @@ function isCorpse(actor) {
  * stood), and only then is a bedroom beyond open without its key (`restrictedFrom`). `known` is the
  * suite's (R558): rows of its own in the copy's shape.
  *
- * @returns {true|string} true, or the reason it is refused.
+ * THE KEYED CORE (E80 C2, 18.10.2026; the stage's "doors' words"). 'Go through' a tunnel is judged here, by
+ * these rules and no copy of them (`tunnelVerdict`): `joined` is true for a crossing the caller has already
+ * read as one through a tunnel the character knows, so the rooms are connected as through a passage, and
+ * `keyed` answers a refusal as `{ code, text }` - `code` one of the bridge's reasons (bridge-guards.mjs
+ * `REASONS`), `text` the sentence this function gives the veto - so the primary GM can tell the player
+ * which rule stopped it without sending a sentence of its own. Unkeyed, every answer is as before.
+ *
+ * @returns {true|string|{code: string, text: string}} true, or the reason it is refused.
  */
-export function crossingVerdict(actor, from, to, scene, floors = null, { mover = null, pay = true, via = null, known } = {}) {
+export function crossingVerdict(actor, from, to, scene, floors = null, { mover = null, pay = true, via = null, known, joined = false, keyed = false } = {}) {
     // Monokumas are not bound by any of this.
     if (actor.getFlag(MODULE_ID, FLAGS.monokuma)) return true;
 
@@ -1032,13 +1056,13 @@ export function crossingVerdict(actor, from, to, scene, floors = null, { mover =
     // together, a Finishing blow. Dragging the token across the map is not one
     // of them, and doing it left the engine running an incident between two
     // people standing in different rooms.
-    const inIncident = lockedInIncident(actor);
+    const inIncident = lockedInIncident(actor, keyed);
     if (inIncident) return inIncident;
 
     // Despair Calls that physically stop you. Checked before the action economy
     // because they are absolute: no amount of actions buys past a locked door.
-    const passage = passesThrough(actor, from, to, scene, floors, { mover, known });
-    const blocked = restrictedFrom(actor, to, scene, mover, { via: passage && via === "passage" ? "passage" : null });
+    const passage = joined || passesThrough(actor, from, to, scene, floors, { mover, known });
+    const blocked = restrictedFrom(actor, to, scene, mover, { via: passage && via === "passage" ? "passage" : null, keyed });
     if (blocked) return blocked;
 
     const clock = game.settings.get(MODULE_ID, SETTINGS.clock);
@@ -1052,7 +1076,7 @@ export function crossingVerdict(actor, from, to, scene, floors = null, { mover =
      * the top of this function still wins, which is right - they are the ones
      * running it.
      */
-    if (clock?.phase === "classTrial") return game.i18n.localize("DRPG.Trial.moveLocked");
+    if (clock?.phase === "classTrial") return refusal(keyed, "trialLocked", game.i18n.localize("DRPG.Trial.moveLocked"));
 
     const eclipse = clock?.eclipse === true;
 
@@ -1092,7 +1116,7 @@ export function crossingVerdict(actor, from, to, scene, floors = null, { mover =
             // The GMs' count on a GM's browser, the owner's copy of it on theirs (E05; the
             // settings.mjs leaf, for the cycle above). A stale copy can only let a crossing
             // through that the GM's count then refuses and sends back (eclipse.mjs).
-            if (pay && eclipseMovesUsed(actor.id, clock) >= allowance) return game.i18n.localize("DRPG.Eclipse.noMovesLeft");
+            if (pay && eclipseMovesUsed(actor.id, clock) >= allowance) return refusal(keyed, "eclipseSpent", game.i18n.localize("DRPG.Eclipse.noMovesLeft"));
 
             /* The connected-rooms rule, the stairs between floors included (E12 fix r2-H1, 11.10.2026;
                early review EARLY-C9-1). This branch asked `neighbouringRooms` itself and never reached
@@ -1101,7 +1125,7 @@ export function crossingVerdict(actor, from, to, scene, floors = null, { mover =
                `pay: false`, called it lawful. One rule for both roads now; tier 2 "a change of floor
                between rooms only a player's stairs link is refused ..." reads it in an Eclipse. */
             const refused = passage ? false : crossingRefused(scene, from, to, floors);
-            if (refused) return refused;
+            if (refused) return refusal(keyed, "cannotNow", refused);
         }
         return true;
     }
@@ -1115,7 +1139,7 @@ export function crossingVerdict(actor, from, to, scene, floors = null, { mover =
     // time of day a token could be dragged clean across the map for one Move -
     // which makes Listen, room visibility and any alibi meaningless.
     const notConnected = passage ? false : crossingRefused(scene, from, to, floors);
-    if (notConnected) return notConnected;
+    if (notConnected) return refusal(keyed, "cannotNow", notConnected);
     if (!pay) return true;
 
     /*
@@ -1135,7 +1159,12 @@ export function crossingVerdict(actor, from, to, scene, floors = null, { mover =
     if (hasFreeMove(actor)) return true;
     if (freeMovesLeft(actor) >= 1) return true;
     if (canPayFor(actor, 1)) return true;
-    return game.i18n.localize("DRPG.Move.noBudget");
+    return refusal(keyed, "noBudget", game.i18n.localize("DRPG.Move.noBudget"));
+}
+
+/** A refusal as the keyed core answers it, `{ code, text }`, or the bare sentence every other caller reads (`crossingVerdict`). */
+function refusal(keyed, code, text) {
+    return keyed ? { code, text } : text;
 }
 
 /**
@@ -1278,7 +1307,7 @@ export function roomsKnownToMe(scene = null) {
  *
  * @returns {false|string} false when free to move, otherwise the reason.
  */
-function lockedInIncident(actor) {
+function lockedInIncident(actor, keyed = false) {
     try {
         const state = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
         if (!state.active || state.stage !== "incident") return false;
@@ -1288,7 +1317,7 @@ function lockedInIncident(actor) {
         // client that is neither has nobody here to hold still.
         if (!incidentParticipants().includes(actor.id)) return false;
 
-        return game.i18n.localize("DRPG.Murder.cannotLeave");
+        return refusal(keyed, "cannotLeave", game.i18n.localize("DRPG.Murder.cannotLeave"));
     } catch {
         // A state we cannot read must not become a map nobody can walk across.
         return false;
@@ -1320,18 +1349,18 @@ function lockedInIncident(actor) {
  *
  * @returns {false|string} false when the move is allowed, otherwise the reason.
  */
-function restrictedFrom(actor, to, scene, mover = null, { via = null } = {}) {
+function restrictedFrom(actor, to, scene, mover = null, { via = null, keyed = false } = {}) {
     try {
-        if (isChained(actor)) return game.i18n.localize("DRPG.Calls.chainedBlocked");
+        if (isChained(actor)) return refusal(keyed, "chained", game.i18n.localize("DRPG.Calls.chainedBlocked"));
         if (to && !(mover ? mover.mastermind : iAmTheMastermind())) {
-            if (isLocked(scene, to)) return game.i18n.localize("DRPG.Move.locked");
-            if (isSealed(to)) return game.i18n.format("DRPG.Calls.sealedBlocked", { room: to });
+            if (isLocked(scene, to)) return refusal(keyed, "doorLocked", game.i18n.localize("DRPG.Move.locked"));
+            if (isSealed(to)) return refusal(keyed, "roomSealed", game.i18n.format("DRPG.Calls.sealedBlocked", { room: to }));
             // Somebody's bedroom. The owner walks in; anybody else needs the
             // key they were given - see the note on keys in vault.mjs. A GM
             // moving a token is not standing in the fiction and is never
             // stopped by a door.
             if (via !== "passage" && !(mover ? mover.gm : game.user.isGM) && bedroomShut(actor, scene, to)) {
-                return game.i18n.format("DRPG.Vault.keyMissing", { room: to });
+                return refusal(keyed, "cannotNow", game.i18n.format("DRPG.Vault.keyMissing", { room: to }));
             }
         }
     } catch {
@@ -1476,6 +1505,87 @@ export function passageOpenFor(actor, passage, scene, { from = null, level = nul
     if (!knows) return false;
     const beyond = passageRooms(scene, passage, level).filter(room => room && room !== from);
     return beyond.length > 0 && beyond.every(room => !restrictedFrom(actor, room, scene, mover, { via: "passage" }));
+}
+
+/* ------------------------------------------------------------------------------------------------------------
+ * 'GO THROUGH' A TUNNEL (E80 C2, 18.10.2026; the stage's P1-05 to P1-08). A tunnel is not walked: its two ends are
+ * two squares anywhere on a scene, on one floor or two, and a knower standing at one end asks the primary GM to
+ * move its token to the other (gm-bridge.mjs `passage.cross`, passages-gm.mjs `crossTunnel`). Whether it may is
+ * the doors' question (`crossingVerdict`, keyed), never one of the tunnel's own: a lock, a seal, the chain, the
+ * incident, the courtroom, the Eclipse's count and the price all stand, and only another's bedroom is passed, as
+ * through a passage (design A10 Q1 = b). The sheet asks it first on the player's browser, for the sentence; the
+ * primary asks it again of the world as it holds it, and its answer is the one that moves anything.
+ * ------------------------------------------------------------------------------------------------------------ */
+
+/* How near an end a token stands to go through: its centre on the end's square or on one of the eight around it.
+   Chosen, not measured: the square a player clicks for an end is the one they stand a token on, and one square of
+   slack is a token dropped beside it. In grid squares. */
+const TUNNEL_REACH = 1;
+
+/**
+ * May this character go through this tunnel, `{ id, sceneId }`, from where `tokenDoc` stands? `{ near, far, from,
+ * to }` - the two ends as `tunnelEndsFor` hands them and the rooms they stand in - or a refusal `{ code, text }`
+ * (the keyed core's, and `notKnown`, `notAtPassage` and `cannotNow` of its own). The tunnel is one the character
+ * knows (the Mastermind every one: `mover.mastermind`), the token is on its scene with its centre within
+ * `TUNNEL_REACH` of an end on that end's floor and in that end's room, and the room at the other end is still on
+ * the map; then the doors' rules decide, the crossing joined as through a passage (`joined`, `via`). `mover` and
+ * `pay` are `crossingVerdict`'s: the primary asks with the sender's role and `pay: false`, since the price is
+ * taken when the crossing is carried out (`settleCrossingOnGm`). `known` is the suite's (R597).
+ */
+export function tunnelVerdict(actor, passage, tokenDoc, { mover = null, known, pay = true } = {}) {
+    if (!actor || !passage?.id) return { code: "notKnown", text: game.i18n.localize("DRPG.Bridge.why.notKnown") };
+    const ends = tunnelEndsFor(actor, passage.sceneId, null, { mastermind: Boolean(mover?.mastermind), known })
+        .filter(end => end.id === passage.id);
+    if (!ends.length) return { code: "notKnown", text: game.i18n.localize("DRPG.Bridge.why.notKnown") };
+    const away = { code: "notAtPassage", text: game.i18n.localize("DRPG.Bridge.why.notAtPassage") };
+    const scene = tokenDoc?.parent ?? null;
+    if (!scene || scene.id !== passage.sceneId) return away;
+    const reach = (scene.grid?.size ?? 100) * TUNNEL_REACH + 1;
+    const [centre] = centresOf(tokenDoc, tokenDoc);
+    const level = levelKey(levelOf(tokenDoc));
+    const here = roomOfToken(tokenDoc);
+    const near = ends.find(end => Math.abs(centre.x - end.x) <= reach && Math.abs(centre.y - end.y) <= reach
+        && (end.level === null || end.level === level) && passageRooms(scene, { ends: [end, end.far] })[0] === here);
+    if (!near || !here) return away;
+    const to = passageRooms(scene, { ends: [near, near.far] })[1];
+    if (!to || isCorpse(actor)) return { code: "cannotNow", text: game.i18n.localize(to ? "DRPG.Move.dead" : "DRPG.Bridge.why.cannotNow") };
+    const verdict = crossingVerdict(actor, here, to, scene, { from: near.level, to: near.far.level },
+        { mover, pay, via: "passage", known, joined: true, keyed: true });
+    return verdict === true ? { near, far: near.far, from: here, to } : verdict;
+}
+
+/**
+ * Where a token that goes through lands, `{ x, y, level }` (its top-left corner): the far end's square, or else
+ * the nearest square around it, ring by ring up to three out, whose centre is in `room` on the end's floor and
+ * which no other token on that floor covers - nearest first, then the higher, then the one further left. None
+ * free: the end's square. Chosen, not measured (the stage's numbers: "the nearest free square of the end's room").
+ */
+export function tunnelLanding(tokenDoc, far, room) {
+    const scene = tokenDoc?.parent ?? null;
+    const grid = scene?.grid?.size ?? 100;
+    const w = (tokenDoc?.width ?? 1) * grid, h = (tokenDoc?.height ?? 1) * grid;
+    const level = far?.level ?? null;
+    const base = { x: Number(far?.x) - w / 2, y: Number(far?.y) - h / 2 };
+    const others = Array.from(scene?.tokens ?? []).filter(t => t?.id !== tokenDoc?.id
+        && (level === null || levelKey(levelOf(t)) === level));
+    const free = spot => !others.some(t => {
+        const tw = (t.width ?? 1) * grid, th = (t.height ?? 1) * grid;
+        return t.x < spot.x + w && spot.x < t.x + tw && t.y < spot.y + h && spot.y < t.y + th;
+    });
+    const spots = [];
+    for (let ring = 0; ring <= 3; ring++) {
+        for (let dy = -ring; dy <= ring; dy++) {
+            for (let dx = -ring; dx <= ring; dx++) {
+                if (Math.max(Math.abs(dx), Math.abs(dy)) !== ring) continue;
+                const spot = { x: base.x + dx * grid, y: base.y + dy * grid };
+                const inside = piecesAt(scene, spot.x + w / 2, spot.y + h / 2, 0, level).map(region => region.name).sort()[0] === room;
+                if (inside && free(spot)) spots.push({ ...spot, d: Math.hypot(dx, dy) });
+            }
+        }
+    }
+    spots.sort((a, b) => a.d - b.d || a.y - b.y || a.x - b.x);
+    const [best] = spots;
+    return { x: best?.x ?? base.x, y: best?.y ?? base.y, level };
 }
 
 /** A token's centre at each spot `{ x, y }` (its top-left corner), measured with its own scene's grid as `regionsAt` measures it. */
@@ -2172,8 +2282,12 @@ export function stairLinks(scene) {
  * @returns {Promise<boolean>} whether the crossing was paid for. A route
  *   settles one crossing at a time and stops at the first refusal, so the
  *   caller needs to know which happened.
+ *
+ * `paid` is a price already taken (E80 C2): the primary GM's 'Go through' pays first and moves after
+ * (`settleCrossingOnGm`), and asks this for the card and the traps' hook alone, so a tunnel's crossing is
+ * told as a door's is and the price is never taken twice.
  */
-async function chargeForCrossing(actor, from, to, tokenDoc = null, previous = null) {
+async function chargeForCrossing(actor, from, to, tokenDoc = null, previous = null, { paid = null } = {}) {
     const free = hasFreeMove(actor);
 
     /*
@@ -2186,7 +2300,7 @@ async function chargeForCrossing(actor, from, to, tokenDoc = null, previous = nu
      * greyed-out grid, one layer down. `canPayFor` covers the Burst half, since
      * a crossing that costs an action is an action like any other.
      */
-    if (!free && freeMovesLeft(actor) < 1 && !canPayFor(actor, 1)) {
+    if (!paid && !free && freeMovesLeft(actor) < 1 && !canPayFor(actor, 1)) {
         /* The put-back first, the card after (E79 fix r4-G4, 1.2.79; review round 4, Q1): the card is awaited, a
            private card's create and its resolution, and the put-back waited for it, with the token in the room it could
            not pay for. Scenario 66 W4, each private card held 300 ms as a loaded machine's stand-in, one run each in a
@@ -2206,7 +2320,7 @@ async function chargeForCrossing(actor, from, to, tokenDoc = null, previous = nu
         return false;
     }
 
-    const cost = await takeMove(actor);
+    const cost = paid ?? await takeMove(actor);
     if (!cost) return false;
 
     const where = to
@@ -2253,6 +2367,48 @@ async function chargeForCrossing(actor, from, to, tokenDoc = null, previous = nu
      */
     Hooks.callAll("drpgRoomCrossed", { actor, from, to, tokenDoc, cost });
     return true;
+}
+
+/*
+ * THE PRICE OF 'GO THROUGH', ON THE PRIMARY GM (E80 C2, 18.10.2026; the stage's write road "price"). A door's
+ * price is taken on the mover's own browser as its token lands (`chargeForCrossing`); a tunnel's crossing is
+ * the primary's write, so the primary takes the price first - the Eclipse's count where an Eclipse runs, nothing
+ * where the GM handles movement by hand, else the free Move, a Sprint, a Burst or an action (`takeMove`, quiet:
+ * nothing is said or played on the GM's screen) - moves the token after, and gives exactly that back when the
+ * move is not written (`refundCrossingOnGm`). Tier 2 "A10-18" reads each.
+ */
+
+/** Take a tunnel crossing's price: `{ cost }` ("eclipse", "none", or `takeMove`'s answer), or `{ code }` refused. */
+export async function settleCrossingOnGm(actor, to) {
+    if (isEclipse()) {
+        const { applyRecordedMove } = await import("./eclipse.mjs");
+        const out = await applyRecordedMove(actor.id, { to });
+        if (!out) return { code: "cannotNow" };
+        return out.refused ? { code: "eclipseSpent" } : { cost: "eclipse" };
+    }
+    if (!game.settings.get(MODULE_ID, SETTINGS.chargeMovement)) return { cost: "none" };
+    const cost = await takeMove(actor, { quiet: true });
+    return cost ? { cost } : { code: "noBudget" };
+}
+
+/** Give back what `settleCrossingOnGm` took, `cost`, for a crossing that was not written. */
+export async function refundCrossingOnGm(actor, cost) {
+    if (cost === "none") return true;
+    if (cost === "eclipse") {
+        const { unrecordMove } = await import("./eclipse.mjs");
+        return unrecordMove(actor.id);
+    }
+    return giveMoveBack(actor, cost);
+}
+
+/**
+ * A tunnel's crossing written: the owner's card and the traps' hook, as a door's crossing that was charged
+ * (`chargeForCrossing` with the price already taken). Nothing in an Eclipse or with the movement cost off,
+ * where a door's crossing posts no card of this kind and fires no hook either.
+ */
+export async function announceCrossingOnGm(actor, from, to, tokenDoc, cost) {
+    if (cost === "eclipse" || cost === "none") return false;
+    return chargeForCrossing(actor, from, to, tokenDoc, null, { paid: cost });
 }
 
 /**

@@ -16174,6 +16174,129 @@ const INVARIANTS = [
         equal(J(["R595U2", "R595GM2", "R595GM"].map(sender => L.passageRowsRefusal(packet, sender, { me: { id: "R595U1", isGM: false }, users: people, primary: "R595GM" }))),
             J(["not sent by a GM", "not sent by the primary GM", null]), "[a tunnel's packet from another player, from a GM who is not the primary, from the primary]");
     }],
+    ["R596 - a player's change of floor where the doors' rules join no two rooms is put back on the primary GM: a console's jump to a tunnel's far end on another floor, with no wall on the way, is a row in \"log\" and sent back in \"sendBack\", its mover told alone; the stairs, rooms stacked on a scene with no stairs, a GM's move, a step on one floor and a rule that is not asked now stand", async () => {
+        /*
+         * E80 C2 (18.10.2026; P1-09, the stage's write roads "token own update ... floor rule"). The harm: a player's
+         * console writes its token's `level` and position to the far end of a tunnel two floors up, and on a map with no
+         * wall between the two spots the GMs' wall audit read the step as clear - the tunnel crossed for nothing, the
+         * price unpaid. The rule is the doors' connected-rooms rule (movement.mjs `crossingRefused`, handed in as
+         * `floorRefused`, and asked only where the movement economy asks it - movement.mjs `floorJumpRefused`); a scene
+         * with no stairs reads rooms drawn over each other as joined, so the stairless climb scenario 66 G3 keeps stands.
+         * Plain objects as R559's: two floors, a Lab with an Attic drawn over it, a Hall beside the Lab and a Tower far off
+         * upstairs, no walls; every act a recorder. Red at the parent (917280b): the jump to the Tower "clear", no row.
+         */
+        const A = await import("./movement-audit.mjs");
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const J = v => JSON.stringify(v);
+        const [L1, L2] = ["R596L1", "R596L2"];
+        const region = (name, x, levels) => ({ id: `R596R${name}`, name: `R596 ${name}`, levels: new Set(levels), behaviors: [],
+            bounds: { x, y: 0, width: 400, height: 400 }, shapes: [{ type: "rectangle", x, y: 0, width: 400, height: 400 }],
+            testPoint: p => p.x >= x && p.x <= x + 400 && p.y >= 0 && p.y <= 400,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === R.ROOM_FLAG ? true : undefined) });
+        const scene = { id: "R596S", name: "R596 scene", grid: { size: 100 }, dimensions: { width: 3000, height: 1000 }, walls: [],
+            levels: [{ id: L1, name: "Ground" }, { id: L2, name: "Upper" }],
+            regions: new Set([region("Lab", 0, [L1]), region("Attic", 0, [L2]), region("Hall", 500, [L1]), region("Tower", 2000, [L2])]) };
+        const SA = { id: "R596A", name: "R596A", type: "character", items: [], getFlag: () => undefined,
+            testUserPermission: (u, level) => level === "OWNER" && u?.id === "R596U" };
+        const users = new Map([["R596U", { id: "R596U", isGM: false, active: true }], ["R596G", { id: "R596G", isGM: true, active: true }]]);
+        const tok = (x, level) => ({ id: "R596T", name: "R596 token", x, y: 100, width: 1, height: 1, elevation: 0, level, parent: scene, actor: SA });
+        const was = { x: 100, y: 100, elevation: 0, level: L1 };
+        const rule = (s, a, b, floors) => M.crossingRefused(s, a, b, floors);
+        const audit = (token, { user = "R596U", mode = "log", stairs = [], floorRefused = rule } = {}) => {
+            const acts = [];
+            const out = A.auditMove(token, { x: token.x, y: token.y, level: token.level }, {}, user, was, {
+                REVERT: M.REVERT, SENT_BACK: M.SENT_BACK, sendBackRefusal: M.sendBackRefusal, roomAt: M.roomAt, stairLinks: () => stairs, floorRefused,
+                history: [], held: a => a, users, known: {}, mode, mastermind: { get: () => null }, book: { rows: [], told: new Map(), lines: new Map(), dropped: 0 },
+                warn: (text, row) => acts.push(["warn", row.wall, row.passage, row.mode]),
+                sendBack: (doc, spot, how) => { acts.push(["sendBack", spot.x, spot.level, how.sound, how.audited]); how.landed(true); },
+                socket: { emit: (event, packet, opts) => acts.push(["emit", packet.code, opts.recipients]) },
+                whisper: html => { acts.push(["whisper", html.includes(foundry.utils.escapeHTML(game.i18n.format("DRPG.Movement.floorJumped", { name: "R596A", scene: "R596 scene" })))]); return Promise.resolve(); }
+            });
+            const said = out.verdict === "crossed" ? `crossed ${out.floor ? "floor" : out.wall}` : out.verdict;
+            return { said, acts };
+        };
+        ok(typeof M.crossingRefused(scene, "R596 Lab", "R596 Tower", { from: L1, to: L2 }) === "string"
+            && M.crossingRefused(scene, "R596 Lab", "R596 Attic", { from: L1, to: L2 }) === false,
+            "the map itself does not refuse the Lab to the Tower, or refuses the Lab to the Attic over it - the audit would be measured against nothing");
+        equal(J([audit(tok(2100, L2)).said, audit(tok(2100, L2), { stairs: [["R596 Lab", "R596 Tower"]] }).said, audit(tok(100, L2)).said,
+            audit(tok(2100, L2), { user: "R596G" }).said, audit(tok(600, L1)).said, audit(tok(2100, L2), { floorRefused: () => false }).said]),
+        J(["crossed floor", "exempt", "clear", "exempt", "clear", "clear"]),
+        "[a jump from the Lab to the Tower upstairs, the same up stairs that link them, up into the Attic over the Lab on a scene with no stairs, a GM's jump, a step to the Hall on the floor, a jump the rule does not ask now]");
+        const logged = audit(tok(2100, L2)), sent = audit(tok(2100, L2), { mode: "sendBack" });
+        equal(J([logged.acts, sent.acts]), J([[["warn", null, null, "log"]],
+            [["warn", null, null, "sendBack"], ["sendBack", 100, L1, false, true], ["emit", "floor", ["R596U"]], ["whisper", true]]]),
+        "[\"log\" mode, \"sendBack\" mode] - the row, the put-back to the floor and spot the GMs saw, the mover told alone, the GMs told of the floor");
+        equal(A.sentBackRefusal({ action: "move.sentBack", userId: "R596U", code: "floor" }, "R596G", { me: { id: "R596U", isGM: false }, users, primary: "R596G" }), null,
+            "the mover's browser does not take the primary GM's put-back from a floor");
+    }],
+    ["R597 - 'Go through' is judged by the doors' rules: a knower standing at an end crosses to the room at the other end, on that end's floor; a character that does not know the tunnel, stands away from its ends or on another floor or scene is refused, as is a lock beyond, while the Mastermind passes the lock and anybody passes another's bedroom; each refusal has its own reason and words, and the token lands on the free square nearest the far end, in its room", async () => {
+        /*
+         * E80 C2 (18.10.2026; P1-05, P1-06, P1-07, the stage's D2 row for `passage.cross`). The harms: a crossing judged
+         * by rules of its own rather than the doors' (a lock or a seal a tunnel walks past), a character crossing a tunnel
+         * it does not know or from across the map, a refusal no player can read, and a landing on another student or in
+         * the next room. Read on plain objects as R558's, never on screen: two floors, a Dorm downstairs, a Gym upstairs
+         * and a Lab, a tunnel from the Dorm to the Gym known to A in the copy's shape (`known`); the price and the
+         * settings-held rules (a seal, the chain, the incident, the courtroom, the Eclipse's count, the budget) are asked
+         * by tier 2's "A10-18" on the primary GM, which writes. Red at the parent (917280b): movement.mjs has no
+         * `tunnelVerdict`, and the bridge has no reason for a tunnel refused.
+         */
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const P = await import("./passages-gm.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const { ROOM_OWNER_FLAG } = await import("./config.mjs");
+        const J = v => JSON.stringify(v);
+        const CODES = ["notAtPassage", "doorLocked", "roomSealed", "chained", "cannotLeave", "trialLocked", "noBudget", "eclipseSpent"];
+        equal(J(CODES.filter(code => !G.REASONS.includes(code))), "[]", "the bridge's closed list of reasons lacks a tunnel's refusal");
+        ok(typeof M.tunnelVerdict === "function" && typeof M.tunnelLanding === "function" && typeof P.crossingWhy === "function",
+            "movement.mjs judges no tunnel crossing, or passages-gm.mjs says no reason for one - 'Go through' is judged by nothing");
+        if (typeof M.tunnelVerdict !== "function" || typeof P.crossingWhy !== "function") return;
+        equal(J([...CODES, "notKnown", "cannotNow"].map(code => G.reasonOf(P.crossingWhy(code)))), J([...CODES, "notKnown", "cannotNow"]),
+            "a tunnel's refusal reaches the player under another reason's words");
+
+        const [L1, L2] = ["R597L1", "R597L2"];
+        const region = (name, x, levels, flags = {}) => ({ id: `R597R${name}`, name: `R597 ${name}`, levels: new Set(levels), behaviors: [],
+            bounds: { x, y: 0, width: 400, height: 400 }, shapes: [{ type: "rectangle", x, y: 0, width: 400, height: 400 }],
+            testPoint: p => p.x >= x && p.x <= x + 400 && p.y >= 0 && p.y <= 400,
+            getFlag: (scope, key) => (scope !== MODULE_ID ? undefined : key === R.ROOM_FLAG ? true : flags[key]) });
+        const sceneWith = (gym = {}, tokens = []) => {
+            const scene = { id: "R597S", name: "R597 scene", grid: { size: 100 }, levels: [{ id: L1, name: "Ground" }, { id: L2, name: "Upper" }], tokens,
+                regions: new Set([region("Dorm", 0, [L1]), region("Lab", 500, [L1]), region("Gym", 1000, [L2], gym)]) };
+            for (const token of tokens) token.parent = scene;
+            return scene;
+        };
+        const student = id => ({ id, name: id, type: "character", items: [], getFlag: () => undefined });
+        const A = student("R597A"), B = student("R597B");
+        const ends = [{ x: 150, y: 150, level: L1 }, { x: 1150, y: 150, level: L2 }];
+        const known = { R597T: { sceneId: "R597S", shape: "tunnel", level: null, ends, actorIds: ["R597A"] } };
+        const passage = { id: "R597T", sceneId: "R597S" };
+        const mover = { gm: false, mastermind: false }, mastermind = { gm: false, mastermind: true };
+        const tok = (x, y, level, scene, actor = A, id = "R597K") => ({ id, x, y, width: 1, height: 1, elevation: 0, level, parent: scene, actor });
+        const said = (actor, token, who = mover) => {
+            const out = M.tunnelVerdict(actor, passage, token, { mover: who, known, pay: false });
+            return out?.code ?? (out?.from ? `${out.from} > ${out.to} on ${out.far.level}` : J(out));
+        };
+        const plain = sceneWith(), other = { ...sceneWith(), id: "R597X" };
+        equal(J([said(A, tok(100, 100, L1, plain)), said(B, tok(100, 100, L1, plain)), said(B, tok(100, 100, L1, plain), mastermind),
+            said(A, tok(300, 300, L1, plain)), said(A, tok(100, 100, L2, plain)), said(A, tok(100, 100, L1, other)), said(A, null)]),
+        J(["R597 Dorm > R597 Gym on R597L2", "notKnown", "R597 Dorm > R597 Gym on R597L2", "notAtPassage", "notAtPassage", "notAtPassage", "notAtPassage"]),
+        "[the knower at the Dorm's end, a student who does not know it, the Mastermind, the knower two squares off, at the end's spot upstairs, on another scene, with no token]");
+        const locked = sceneWith({ [M.ROOM_FLAGS.locked]: true }), bedroom = sceneWith({ [ROOM_OWNER_FLAG]: "R597OWNER" });
+        equal(J([said(A, tok(100, 100, L1, locked)), said(A, tok(100, 100, L1, locked), mastermind), said(A, tok(100, 100, L1, bedroom))]),
+        J(["doorLocked", "R597 Dorm > R597 Gym on R597L2", "R597 Dorm > R597 Gym on R597L2"]),
+        "[a GM's lock on the Gym, the Mastermind through it, another student's bedroom the tunnel leads into]");
+        const lockedText = M.tunnelVerdict(A, passage, tok(100, 100, L1, locked), { mover, known, pay: false })?.text;
+        equal(lockedText, game.i18n.localize("DRPG.Move.locked"), "a tunnel's lock is not said in the door's words");
+
+        // The landing: the far end's square when free; else the nearest free square of the Gym on its floor.
+        const far = ends[1], GYM = "R597 Gym";
+        const land = tokens => { const scene = sceneWith({}, tokens); const me = tok(100, 100, L1, scene); return J(M.tunnelLanding(me, far, GYM)); };
+        equal(J([land([]), land([tok(1100, 100, L2, null, B, "R597O")]), land([tok(1100, 100, L1, null, B, "R597O")]),
+            land([tok(1100, 100, L2, null, B, "R597O"), tok(1100, 0, L2, null, B, "R597P")])]),
+        J([J({ x: 1100, y: 100, level: L2 }), J({ x: 1100, y: 0, level: L2 }), J({ x: 1100, y: 100, level: L2 }), J({ x: 1000, y: 100, level: L2 })]),
+        "[the far end free, another student on it, another student on that square downstairs, two squares taken]");
+    }],
 ];
 
 /**
