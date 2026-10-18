@@ -24,6 +24,10 @@
  * start the pick on the board (passages-gm.mjs `startPassagePick`, E79 C6): Room Setup is minimized
  * for the two clicks and the table redrawn after them. E44 and E46 take the tab's table with the
  * other Room Setup tables when they rebuild them.
+ *
+ * 'Tunnel or stairs' beside it (E80 C1) starts the same pick for a tunnel's two ends, a click in each
+ * room (`startPassagePick` with `shape` "tunnel"); its row is a row as any passage's, named by the two
+ * rooms its ends stand in.
  */
 
 import { error } from "./utils.mjs";
@@ -139,7 +143,9 @@ export function passagesTabBody(scene, { stores = PASSAGE_STORES, students = [],
 export function passagesTabHtml(scene, options = {}) {
     if (!game.user?.isGM) return "";
     return `<p>${esc(t("DRPG.Passage.tab.intro"))}</p><div class="drpg-passage-bar"><button type="button" class="drpg-mini-button"
-        data-drpg-passage-new>${esc(t("DRPG.Passage.pick.new"))}</button><span class="notes">${esc(t("DRPG.Passage.pick.newHint"))}</span></div>
+        data-drpg-passage-new>${esc(t("DRPG.Passage.pick.new"))}</button><button type="button" class="drpg-mini-button"
+        data-drpg-passage-tunnel>${esc(t("DRPG.Passage.pick.tunnel"))}</button><span class="notes">${esc(t("DRPG.Passage.pick.newHint"))} ${
+        esc(t("DRPG.Passage.pick.tunnelHint"))}</span></div>
         <div data-drpg-passages>${passagesTabBody(scene, options)}</div>`;
 }
 
@@ -253,6 +259,12 @@ export function wirePassagesTab(root, scene, { dialog = null, stores = PASSAGE_S
         event.preventDefault();
         busy = busy.then(() => pick(scene, { dialog, stores }))
             .catch(err => error("The pick of a new secret passage failed", err))
+            .then(draw);
+    });
+    root.querySelector("[data-drpg-passage-tunnel]")?.addEventListener("click", event => {
+        event.preventDefault();
+        busy = busy.then(() => pick(scene, { dialog, stores, shape: "tunnel" }))
+            .catch(err => error("The pick of a new tunnel failed", err))
             .then(draw);
     });
     if (dialog) keepFresh(dialog, { run: draw, watch: { stores: [stores.map, stores.access, stores.mastermind], hooks: ["userConnected", "drpgPassagesTold"] } });

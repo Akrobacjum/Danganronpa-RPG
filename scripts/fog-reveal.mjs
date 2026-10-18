@@ -40,7 +40,7 @@ import { debug, error } from "./utils.mjs";
 import { BEAT, glassOn, SEAM_GLOW } from "./motion.mjs";
 import { traceRegionPathsAt, regionShapes, clamp01, largestPiece } from "./fog-geometry.mjs";
 import {
-    colourOf, GLOW_NAME, doorwayEdges, addDoorwayGlow, traceOutlineGapped, outlineColour
+    colourOf, GLOW_NAME, doorwayEdges, addDoorwayGlow, traceOutlineGapped, outlineColour, tunnelMarks, addTunnelMarks
 } from "./fog-doorways.mjs";
 
 const CanvasAnimation = foundry.canvas.animation.CanvasAnimation;
@@ -958,6 +958,8 @@ export function flashOutline(fx, region, rect, level = null, { actor = null } = 
     group.addChild(outline, label);
     // Under the outline and the name, so neither is softened by it.
     addDoorwayGlow(group, region, edges, rect);
+    // The tunnel ends this character knows in the room, marked for it alone (E80 C1); a redraw keeps them.
+    addTunnelMarks(group, tunnelMarks(actor, region, region?.parent, level), rect);
     group.setChildIndex(outline, group.children.length - 1);
     group.setChildIndex(label, group.children.length - 1);
     fx.addChild(group);

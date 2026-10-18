@@ -92,6 +92,11 @@
  *   primary and reads the same. Put back, as the phase found it.
  *   The `refused` sound the mover plays is not read: the harness maps no sound file, so `playSfx` plays nothing.
  *   A stair link is R559's alone: the harness world has no floors on this scene.
+ * T (E80 C1): a tunnel. The GM's console refuses one with both ends in Dorm A and makes one from Dorm A to the Gym, each
+ *   end the middle of the square clicked, then grants Aiko: p1's copy holds the tunnel and its two ends alone, and Aiko's
+ *   Dorm A marks the end there, the Gym unexplored; p2 and p3 read the tunnel's id on no surface outside phase 0's wire
+ *   and console and mark nothing; every copy sent names one player; p3's world is the phase's own. Closed, p1's copy and
+ *   marks hold neither; deleted, nothing is left. The stairs between two floors are R594's: this scene has no floors.
  *
  * What the harness cannot settle - a real canvas's move backend, the ruler and the keyboard, a GM on
  * another scene at a real table - is LIVE-E79-01 to LIVE-E79-08 (AUDIT 9.2, since C8).
@@ -110,7 +115,8 @@ export const layers = ["ci"];
    lock (115 s of wall time), 17.4 s over r2-G2's run of 60 - so 180 s. Fix r4-G4 (17.10.2026) adds E's held put-back
    (3.5 s) and G's lost student (up to 8 s): 71 checks in 136.3 s by the cluster's line, one run in a lane of a2.sh beside
    two others (142.7 s with the fix's two runtime files at 0641c4c, two failing; no run alone) - so 210 s, about one and a
-   half times that reading, as 180 s was of r2-G3's. */
+   half times that reading, as 180 s was of r2-G3's. E80 C1 (18.10.2026) adds phase T: 76 checks in 133.2 s by the
+   cluster's line, one run alone under the harness lock (137.5 s by run-all's) - 210 s stands. */
 export const timeoutMs = 210000;
 
 /* A second GM and a fifth player, seeded inactive and connected in phase G alone (E79 fix r2-G3), declared as 61 and 62
@@ -260,6 +266,7 @@ export async function run({ gm, gm2, p1, p2, p3, p4, check, phase, settle, dump,
     await phaseE({ gm, p1, check, phase, settle, dump, socketTraffic, IDS, repoUrl, baseline });
     await phaseF({ gm, p1, p2, p3, check, phase, settle, dump, IDS, repoUrl });
     await phaseG({ gm, gm2, p1, p2, p3, p4, check, phase, settle, dump, socketTraffic, connect, disconnect, storageOf, IDS, repoUrl });
+    await phaseT({ gm, p1, p2, p3, check, phase, settle, dump, socketTraffic, IDS, repoUrl });
 }
 
 const PHASE_A = "A: the GM creates a passage and grants Aiko - p1's copy holds that row alone, p2 and p3 nothing of it, p3's world as found";
@@ -1650,4 +1657,73 @@ async function phaseG({ gm, gm2, p1, p2, p3, p4, check, phase, settle, dump, soc
         back.gone !== false && lateBack !== false && back.kitchen === false && worldPrint(after) === found && worldScan(after).length === 0 && J(marksAfter) === J(marksBefore)
             && rows.length > 0 && stray.length === 0 && rows.some(t => J(t.to) === J([IDS.p2])),
         J({ back, lateBack, diff: printDiff(found, worldPrint(after)), marksBefore, marksAfter, rows: rows.map(t => ({ to: t.to, from: t.from })) }));
+}
+
+const PHASE_T = "T: a tunnel from Dorm A to the Gym, granted to Aiko - p1's copy holds its two ends and marks the one in Dorm A, p2 and p3 nothing of it; Closed, neither";
+
+/* E80 C1 (18.10.2026; P1-03, P1-04). The harms: a tunnel's ends on a browser whose characters do not know it (where a
+   secret way comes out), a knower's browser that drops it or marks nothing, and a closed tunnel still in a copy or
+   marked. On the harness's scene with no floors: the Dorm A at 200-800 and the Gym at 1200-2000 x 1200-1800, a grid of
+   100. Each copy is waited for up to 8 s, as phase G's is. */
+async function phaseT({ gm, p1, p2, p3, check, phase, settle, dump, socketTraffic, IDS, repoUrl }) {
+    phase(PHASE_T, { flow: "secret-passages" });
+    const found = worldPrint(await dump("p3"));
+    const from = socketTraffic.length;
+    const until = async (client, ok) => {
+        const t0 = Date.now();
+        let held = await known(client, repoUrl);
+        while (!ok(held) && Date.now() - t0 < 8000) {
+            await settle(200);
+            held = await known(client, repoUrl);
+        }
+        return held;
+    };
+    const made = await gm.eval(`const G = await import("${repoUrl}/scripts/passages-gm.mjs"), before = G.listPassages().length;
+        const oneRoom = await game.drpg.passages.create({ sceneId: ${J(IDS.scene)}, shape: "tunnel", ends: [{ x: 720, y: 730, level: null }, { x: 310, y: 640, level: null }] });
+        const written = G.listPassages().length - before;
+        const id = await game.drpg.passages.create({ sceneId: ${J(IDS.scene)}, shape: "tunnel", ends: [{ x: 720, y: 730, level: null }, { x: 1930, y: 1760, level: null }] });
+        const row = G.listPassages().find(p => p.id === id) ?? null;
+        const granted = await game.drpg.passages.grant(id, ${J(IDS.aiko)});
+        return { oneRoom, written, id, ends: row?.ends ?? null, rooms: row?.rooms ?? null, granted };`, { timeout: 30000 });
+    const ends = [{ x: 750, y: 750, level: null }, { x: 1950, y: 1750, level: null }];
+    check("T: the GM's console refuses a tunnel with both ends in Dorm A and writes nothing, makes one from Dorm A to the Gym at the middles of the squares clicked, and grants it to Aiko",
+        made.oneRoom === null && made.written === 0 && typeof made.id === "string" && J(made.ends) === J(ends)
+            && J(made.rooms) === J(["Dorm A", "Gym"]) && made.granted === true, J(made));
+    const id = made.id;
+    const markOf = (client, actorId) => client.eval(`const F = await import("${repoUrl}/scripts/fog-doorways.mjs");
+        const scene = game.scenes.get(${J(IDS.scene)});
+        return F.tunnelMarks(game.actors.get(${J(actorId)}), scene.regions.get("REGDORMA00000000"), scene, null);`);
+    const copy1 = await until(p1, held => Boolean(held?.[id]));
+    const marks1 = await markOf(p1, IDS.aiko);
+    // The Gym as p1 may name it: by its name once p1's characters have found it, else "Unexplored room 1" (movement.mjs `roomsKnownToMe`).
+    const gym = await p1.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
+        const known = M.roomsKnownToMe(game.scenes.get(${J(IDS.scene)}));
+        return !known || known.has("Gym") ? "Gym" : game.i18n.format("DRPG.Listen.unknownRoom", { n: 1 });`);
+    check("T: p1's copy holds the tunnel alone - its scene, shape, two ends and Aiko - and Aiko's Dorm A marks the end there, the Gym as she may name it",
+        J(copy1) === J({ [id]: { sceneId: IDS.scene, shape: "tunnel", level: null, ends, actorIds: [IDS.aiko] } })
+            && J(marks1) === J([{ id, x: 750, y: 750, to: gym }]), J({ copy1, marks1, gym }));
+
+    const idRe = new RegExp(String(id).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+    const [d2, d3] = [await dump("p2"), await dump("p3")];
+    const on2 = probe(d2, { skip: PHASE0, re: idRe }), on3 = probe(d3, { skip: PHASE0, re: idRe });
+    const others = { copies: [await known(p2, repoUrl), await known(p3, repoUrl)], marks: [await markOf(p2, IDS.botan), await markOf(p3, IDS.chie)] };
+    const rows = socketTraffic.slice(from).filter(t => t.action === "passage.rows");
+    check("T: p2 and p3 read the tunnel's id on no surface, hold no copy of it and mark nothing; every copy sent names one player, p1's among them; p3's world is the phase's own",
+        total(on2) + total(on3) === 0 && J(others.copies) === J([{}, {}]) && J(others.marks) === J([[], []])
+            && rows.length > 0 && rows.every(t => Array.isArray(t.to) && t.to.length === 1 && t.from === "gm") && rows.some(t => J(t.to) === J([IDS.p1]))
+            && worldPrint(d3) === found && worldScan(d3).length === 0,
+        J({ on2, on3, others, rows: rows.map(t => ({ to: t.to, from: t.from })), diff: printDiff(found, worldPrint(d3)) }));
+
+    const closed = await gm.eval(`return await game.drpg.passages.close(${J(id)});`);
+    const shut = await until(p1, held => !held?.[id]);
+    const shutMarks = await markOf(p1, IDS.aiko);
+    check("T: Closed, p1's copy holds neither the tunnel nor its ends, and Aiko's Dorm A marks nothing",
+        closed === true && J(shut) === "{}" && J(shutMarks) === "[]", J({ closed, shut, shutMarks }));
+
+    const gone = await gm.eval(`return await game.drpg.passages.delete(${J(id)});`, { timeout: 30000 });
+    await settle(600);
+    const after = await dump("p3");
+    const left = await gm.eval(`const G = await import("${repoUrl}/scripts/passages-gm.mjs"); return G.listPassages().filter(p => p.shape === "tunnel").length;`);
+    check("T: put back - the tunnel deleted, no tunnel left in the GMs' records, p3's world as this phase found it",
+        gone !== false && left === 0 && worldPrint(after) === found && worldScan(after).length === 0, J({ gone, left, diff: printDiff(found, worldPrint(after)) }));
 }

@@ -624,6 +624,12 @@
         "repick": "Pick again",
         "made": "Secret passage {passage} made. Give it to a student in the Passages tab.",
         "moved": "Secret passage {passage} is on its wall again.",
+        "tunnel": "+ Tunnel or stairs",
+        "tunnelHint": "A tunnel or stairs: a click in each of two rooms, on one floor or two.",
+        "tunnelTitle": "New tunnel or stairs",
+        "tunnelFirst": "Click the square where the tunnel begins, inside a room. For stairs, switch to the other floor before the second click. Esc cancels.",
+        "tunnelSecond": "Click the square where it comes out, inside another room, on this floor or another. Esc cancels.",
+        "tunnelMade": "Tunnel {passage} made. Give it to a student in the Passages tab.",
         "why": {
           "noWall": "No wall there. Click on a wall between two rooms.",
           "door": "That is a door. A secret passage goes on a plain wall.",
@@ -635,8 +641,14 @@
           "otherRooms": "The end must join the same two rooms as the start.",
           "short": "The two ends are too close together. Click further along the wall.",
           "trial": "The trial hall has no rooms, so it has no secret passages.",
-          "board": "The map is not shown on this screen. Open the scene and try again."
+          "board": "The map is not shown on this screen. Open the scene and try again.",
+          "offRoom": "That square is in no room of this floor. Click inside a room.",
+          "oneRoom": "Both ends would be in the same room. Click in another room.",
+          "endTaken": "Another tunnel already ends on that square."
         }
+      },
+      "mark": {
+        "to": "Secret passage to {room}"
       }
     },
     "Room": {

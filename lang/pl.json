@@ -605,6 +605,12 @@
         "repick": "Wskaż ponownie",
         "made": "Tajne przejście {passage} gotowe. Daj je uczniowi w zakładce Przejścia.",
         "moved": "Tajne przejście {passage} znów jest na swojej ścianie.",
+        "tunnel": "+ Tunel lub schody",
+        "tunnelHint": "Tunel lub schody: kliknięcie w każdym z dwóch pokoi, na jednym piętrze lub dwóch.",
+        "tunnelTitle": "Nowy tunel lub schody",
+        "tunnelFirst": "Kliknij pole, na którym zaczyna się tunel, wewnątrz pokoju. Przy schodach przed drugim kliknięciem przełącz na drugie piętro. Esc anuluje.",
+        "tunnelSecond": "Kliknij pole, na którym tunel wychodzi, wewnątrz innego pokoju, na tym piętrze lub innym. Esc anuluje.",
+        "tunnelMade": "Tunel {passage} gotowy. Daj go uczniowi w zakładce Przejścia.",
         "why": {
           "noWall": "Tu nie ma ściany. Kliknij na ścianie między dwoma pokojami.",
           "door": "To są drzwi. Tajne przejście idzie w zwykłej ścianie.",
@@ -616,8 +622,14 @@
           "otherRooms": "Koniec musi łączyć te same dwa pokoje co początek.",
           "short": "Oba końce są za blisko siebie. Kliknij dalej wzdłuż ściany.",
           "trial": "Sala rozpraw nie ma pokoi, więc nie ma też tajnych przejść.",
-          "board": "Ta mapa nie jest wyświetlona na tym ekranie. Otwórz scenę i spróbuj jeszcze raz."
+          "board": "Ta mapa nie jest wyświetlona na tym ekranie. Otwórz scenę i spróbuj jeszcze raz.",
+          "offRoom": "To pole nie leży w żadnym pokoju tego piętra. Kliknij wewnątrz pokoju.",
+          "oneRoom": "Oba końce byłyby w tym samym pokoju. Kliknij w innym pokoju.",
+          "endTaken": "Na tym polu kończy się już inny tunel."
         }
+      },
+      "mark": {
+        "to": "Tajne przejście do: {room}"
       }
     },
     "Room": {

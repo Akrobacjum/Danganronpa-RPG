@@ -26,6 +26,12 @@
  * judged by `shareRefusal` on the primary GM, asked as gm-bridge.mjs `passage.share`).
  *
  * The season's reset gives back each passage's start access (`passagesAfterReset`, since C8).
+ *
+ * Since E80 C1 (18.10.2026) a passage may be a tunnel or stairs (`shape: "tunnel"`): two ends, a click
+ * each, in two rooms of the scene on one floor or two, with no wall under either (`tunnelEndAt`,
+ * `tunnelRowFor`); the pick takes it from the tab's 'Tunnel or stairs', the console's create from
+ * `shape` and `ends`. A knower's copy carries both ends as it carries a stretch, and the GMs' overlay
+ * draws the ends on the floor on screen.
  */
 
 import { MODULE_ID } from "./config.mjs";
@@ -35,7 +41,7 @@ import { passageMapStore, passageAccessStore, passageLogStore, mastermindStore, 
 import { RECORD, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible } from "./gm-store.mjs";
 import { senderOf } from "./bridge-guards.mjs";
 import { isMonokuma } from "./monokuma.mjs";
-import { secretRowsFrom, sceneGone, PASSAGE_TOLERANCE, DOOR_PART } from "./passages.mjs";
+import { secretRowsFrom, sceneGone, endsOf, PASSAGE_TOLERANCE, DOOR_PART } from "./passages.mjs";
 import { roomPieces, onLevel, floorsOf, isTrialScene, viewedScene, viewedLevel } from "./rooms.mjs";
 import { regionShapes, inFlatPolygons, distanceToSegment } from "./fog-geometry.mjs";
 import { overlayLayer, clearLayer, overlayColour, dashedLine, overlayDrawer, redrawGmOverlay } from "./gm-overlay.mjs";
@@ -462,15 +468,21 @@ export function passageRowFor(scene, wall, { seg = null, rooms = [], level = nul
 }
 
 /**
- * A GM: a new passage on a wall of a scene (`passageRowFor`). Answers the passage's id, or null.
- * `scene` is the document in hand (the pick's; the suite's own in R561), else the world's by `sceneId`.
+ * A GM: a new passage on a wall of a scene (`passageRowFor`), or with `shape` "tunnel" a tunnel or
+ * stairs between its two `ends`, `[{ x, y, level }, { x, y, level }]` (`tunnelRowFor`, E80 C1). Answers
+ * the passage's id, or null. `scene` is the document in hand (the pick's; the suite's own in R561 and
+ * R594), else the world's by `sceneId`.
  */
-export async function createPassage({ sceneId, wallId, seg = null, rooms = [], level = null, startAccess = [] } = {}, { stores = PASSAGE_STORES, scene: given = null } = {}) {
+export async function createPassage({ sceneId, wallId, seg = null, rooms = [], level = null, startAccess = [], shape = "wall", ends = null } = {},
+    { stores = PASSAGE_STORES, scene: given = null } = {}) {
     if (!game.user?.isGM) return refuse("only a GM creates one.");
     const scene = given ?? game.scenes?.get(sceneId);
     if (!scene || scene.id !== sceneId) return refuse(`no scene "${sceneId}".`);
     if ((startAccess ?? []).some(a => !studentOf(a))) return refuse("a start access names no student of this world.");
-    const { row, refused } = passageRowFor(scene, scene.walls?.get(wallId), { seg, rooms, level, startAccess, taken: takenOn(scene.id, null, stores) });
+    if (shape !== "wall" && shape !== "tunnel") return refuse(`a passage is "wall" or "tunnel", not "${shape}".`);
+    const { row, refused } = shape === "tunnel"
+        ? tunnelRowFor(scene, ends, { rooms, startAccess, taken: endsTakenOn(scene.id, null, stores) })
+        : passageRowFor(scene, scene.walls?.get(wallId), { seg, rooms, level, startAccess, taken: takenOn(scene.id, null, stores) });
     if (!row) return refuse(refused);
     const id = `${scene.id}.${foundry.utils.randomID()}`;
     await stores.map.patch(id, row);
@@ -613,9 +625,10 @@ export async function revokeLeavers(tokenDoc, { stores = PASSAGE_STORES, roomOf 
 export async function passageRoomsOnMap(passageId, { stores = PASSAGE_STORES, scene = null } = {}) {
     const row = game.user?.isGM ? stores.map.get(passageId) : null;
     const on = scene ?? game.scenes?.get(row?.sceneId);
-    if (!row?.passageSeg || !on || on.id !== row.sceneId) return [];
+    const ends = endsOf(row);
+    if ((!row?.passageSeg && !ends) || !on || on.id !== row.sceneId) return [];
     const { passageRooms } = await import("./movement.mjs");
-    return [...new Set(passageRooms(on, row.passageSeg, row.level ?? null).filter(Boolean))];
+    return [...new Set(passageRooms(on, ends ? { ends } : row.passageSeg, row.level ?? null).filter(Boolean))];
 }
 
 /**
@@ -669,9 +682,14 @@ export async function wallChanged(wall, { gone = false, stores = PASSAGE_STORES 
     return marked;
 }
 
-/** A GM: where the passage's stretch has its middle, `{ sceneId, level, x, y }`, for the tab's Show; null for none. */
+/**
+ * A GM: where the passage's stretch has its middle, `{ sceneId, level, x, y }`, for the tab's Show - a
+ * tunnel's first end, on that end's floor (E80 C1); null for none.
+ */
 export function passageMiddle(passageId, { stores = PASSAGE_STORES } = {}) {
     const row = game.user?.isGM ? stores.map.get(passageId) : null;
+    const ends = endsOf(row);
+    if (ends) return { sceneId: row.sceneId, level: ends[0].level, x: ends[0].x, y: ends[0].y };
     const seg = row?.passageSeg;
     if (!seg) return null;
     return { sceneId: row.sceneId, level: row.level ?? null, x: (seg.x1 + seg.x2) / 2, y: (seg.y1 + seg.y2) / 2 };
@@ -809,8 +827,8 @@ export function shareRefusal({ actorId, targetId, passageId } = {}, world, store
  * who acts as the Mastermind through the character - `actsAsMastermind`).
  */
 function roomsAsKnown(row, world, known) {
-    const seg = row.passageSeg ?? {};
-    const sides = world.sides(row, { x1: seg.x1, y1: seg.y1, x2: seg.x2, y2: seg.y2 }) ?? [];
+    const seg = row.passageSeg ?? {}, ends = endsOf(row);
+    const sides = world.sides(row, ends ? { ends } : { x1: seg.x1, y1: seg.y1, x2: seg.x2, y2: seg.y2 }) ?? [];
     const names = [0, 1].map(i => sides[i] ?? row.rooms?.[i] ?? null);
     let unexplored = 0;
     const said = names.map(room => !room ? "-" : !known || known.has(room) ? room
@@ -1000,6 +1018,72 @@ function takenOn(sceneId, except, stores) {
         .map(([, row]) => ({ wallId: row.passageWallId, ...row.passageSeg }));
 }
 
+/**
+ * Where one end of a tunnel or stairs lands for a click at `point` on `level` (E80 C1): the middle of the
+ * grid square clicked, `{ x, y, level, room }` with the room it stands in on that floor (the first by name
+ * where rooms overlap, as movement.mjs `passageRooms` names it), or `{ refused }` - "floor" for a floor the
+ * scene has not (none on a scene with no floors), "offRoom" for a square in no room of that floor,
+ * "endTaken" for a square another passage's end holds on that floor (`taken`, `[{ x, y, level }]`). The
+ * middle of a square because the token that comes through stands on one; a room is read where a stretch's
+ * sides are (`pickRooms`). Pure but for `scene`.
+ */
+export function tunnelEndAt(scene, point, level = null, { taken = [] } = {}) {
+    const cell = Number(scene?.grid?.size) || 100;
+    const px = Number(point?.x), py = Number(point?.y);
+    const floors = floorsOf(scene);
+    const floor = typeof level === "string" && level ? level : null;
+    if (floors.length ? !floors.some(f => f.id === floor) : floor !== null) return { refused: "floor" };
+    if (!Number.isFinite(px) || !Number.isFinite(py)) return { refused: "offRoom" };
+    const x = (Math.floor(px / cell) + 0.5) * cell, y = (Math.floor(py / cell) + 0.5) * cell;
+    const room = pickRooms(scene, floor).filter(r => r.here && inFlatPolygons(r.polygons, x, y)).map(r => r.name).sort()[0];
+    if (!room) return { refused: "offRoom" };
+    if ((taken ?? []).some(end => end.x === x && end.y === y && (end.level ?? null) === floor)) return { refused: "endTaken" };
+    return { x, y, level: floor, room };
+}
+
+/* The console's words for a tunnel's codes (`tunnelRowFor`): English, as every refusal here is. */
+const TUNNEL_REFUSALS = Object.freeze({
+    floor: "name one of the scene's floors for each end (none on a scene with no floors).",
+    offRoom: "an end is in no room on its floor.",
+    endTaken: "an end stands on the square of another passage's end.",
+    oneRoom: "both ends are in one room.",
+    trial: "the trial hall has no secret passages."
+});
+
+/**
+ * The row of a new tunnel or stairs between `ends` on `scene` (E80 C1): `{ row }`, or `{ refused }` in
+ * the console's words. Each end judged by `tunnelEndAt` on its own floor, the two in two rooms, on a
+ * scene that is no trial's, and `rooms`, when the caller names them, the two the ends stand in. The row
+ * is on no floor in particular (`level` null): each end carries its own. The pick and the console ask
+ * this one rule, as `passageRowFor` is the one rule of a stretch.
+ */
+export function tunnelRowFor(scene, ends, { rooms = [], startAccess = [], taken = [] } = {}) {
+    if (!scene?.id) return { refused: "no such scene." };
+    if (isTrialScene(scene)) return { refused: TUNNEL_REFUSALS.trial };
+    if (!Array.isArray(ends) || ends.length !== 2) return { refused: "a tunnel needs two ends, [{ x, y, level }, { x, y, level }]." };
+    const at = [];
+    for (const end of ends) {
+        const one = tunnelEndAt(scene, end, end?.level ?? null, { taken });
+        if (one.refused) return { refused: TUNNEL_REFUSALS[one.refused] };
+        at.push(one);
+    }
+    if (at[0].room === at[1].room) return { refused: TUNNEL_REFUSALS.oneRoom };
+    const named = (rooms ?? []).filter(r => typeof r === "string");
+    const found = at.map(end => end.room);
+    if (named.length && named.slice().sort().join("\n") !== found.slice().sort().join("\n")) {
+        return { refused: `the ends stand in ${found.join(" and ")}, not the rooms named.` };
+    }
+    return { row: { sceneId: scene.id, level: null, shape: "tunnel", ends: at.map(({ x, y, level }) => ({ x, y, level })),
+        rooms: found, state: "secret", startAccess: [...new Set(startAccess ?? [])] } };
+}
+
+/** The ends of a scene's tunnels, `[{ x, y, level }]`, but the passage `except`'s, whatever their state: what a new end may not land on. */
+function endsTakenOn(sceneId, except, stores) {
+    return Object.entries(stores.map.entries())
+        .filter(([id, row]) => id !== except && row?.sceneId === sceneId)
+        .flatMap(([, row]) => endsOf(row) ?? []);
+}
+
 /** A scene's walls as documents: the pick's and the repick's one read of them. */
 function sceneWalls(scene) {
     return Array.from(scene?.walls ?? []);
@@ -1035,14 +1119,15 @@ const escp = text => foundry.utils.escapeHTML(String(text ?? ""));
  * The pick's window, `{ step(n, rooms), refuse(code), close() }`: which click is next, the rooms the
  * first one found, a refusal's line; closing it (Cancel, Esc, its cross) is `cancel`.
  */
-function pickPrompt({ again, cancel }) {
+function pickPrompt({ again, tunnel = false, cancel }) {
     let closing = false;
+    const say = n => tp(tunnel ? (n === 1 ? "tunnelFirst" : "tunnelSecond") : n === 1 ? "first" : "second");
     const dialog = new foundry.applications.api.DialogV2({
-        window: { title: tp(again ? "retitle" : "title") },
+        window: { title: tp(tunnel ? "tunnelTitle" : again ? "retitle" : "title") },
         classes: ["drpg-panel", "drpg-passage-pick"],
         position: { width: 360, top: 80 },
         content: `<p data-drpg-pick-step>${escp(game.i18n.format("DRPG.Passage.pick.step", { n: 1 }))}</p>
-            <p data-drpg-pick-say>${escp(tp("first"))}</p><p class="notes" data-drpg-pick-where hidden></p>
+            <p data-drpg-pick-say>${escp(say(1))}</p><p class="notes" data-drpg-pick-where hidden></p>
             <p class="notes drpg-passage-pick-why" data-drpg-pick-why hidden></p>`,
         buttons: [{ action: "cancel", label: tp("cancel"), default: true }],
         rejectClose: false
@@ -1059,7 +1144,7 @@ function pickPrompt({ again, cancel }) {
     return {
         step(n, rooms) {
             set("[data-drpg-pick-step]", game.i18n.format("DRPG.Passage.pick.step", { n }));
-            set("[data-drpg-pick-say]", tp(n === 1 ? "first" : "second"));
+            set("[data-drpg-pick-say]", say(n));
             set("[data-drpg-pick-where]", (rooms ?? []).join(" - "));
             set("[data-drpg-pick-why]", "");
         },
@@ -1131,25 +1216,37 @@ export function drawPickLayer({ first = null, at = null, ok = true } = {}) {
  * viewed first when another is on screen, and the floor is the one on screen. Each click is snapped
  * (`snapToWall`, `stretchBetween`) and a refused one is said in the pick's window and asked again;
  * the second writes through `createPassage` or `repickPassage`. Answers the passage's id, or null
- * when it was cancelled or refused. `board`, `prompt`, `preview` and `notify` are the suite's to replace.
+ * when it was cancelled or refused. `board`, `prompt`, `preview`, `notify` and `floorNow` (the floor on
+ * screen, by id) are the suite's to replace.
+ *
+ * With `shape` "tunnel" (E80 C1) the two clicks are a tunnel's or stairs' two ends: each the middle of
+ * the square clicked, in a room of the floor on screen at that click (`tunnelEndAt`), so the GM switches
+ * the floor between the clicks for stairs; the second in another room than the first. A tunnel is never
+ * picked again: no wall moves under it.
  */
-export async function startPassagePick(scene, { dialog = null, passageId = null, stores = PASSAGE_STORES, board = canvasBoard,
-    prompt = pickPrompt, preview = drawPickLayer, notify = (kind, text) => ui.notifications?.[kind]?.(text) } = {}) {
+export async function startPassagePick(scene, { dialog = null, passageId = null, shape = "wall", stores = PASSAGE_STORES, board = canvasBoard,
+    prompt = pickPrompt, preview = drawPickLayer, notify = (kind, text) => ui.notifications?.[kind]?.(text),
+    floorNow = () => viewedLevel()?.id ?? null } = {}) {
     if (!game.user?.isGM) return refuse("only a GM picks one.");
     if (!scene?.id) return null;
     const warnWhy = code => { notify("warn", tp(`why.${code}`)); return null; };
     if (isTrialScene(scene)) return warnWhy("trial");
+    const tunnel = shape === "tunnel";
+    if (tunnel && passageId) return refuse("a tunnel is never picked again.");
     const again = passageId ? stores.map.get(passageId) : null;
     if (passageId && (again?.state !== "broken" || again.sceneId !== scene.id)) return refuse(`"${passageId}" is not a broken passage of this scene.`);
     if (viewedScene()?.id !== scene.id) await scene.view();
     const floors = floorsOf(scene);
-    const viewed = viewedLevel();
-    const level = again ? again.level ?? null
-        : floors.length ? (floors.some(f => f.id === viewed?.id) ? viewed.id : floors[0].id) : null;
+    const floorOf = () => {
+        const viewed = floorNow();
+        return floors.length ? (floors.some(f => f.id === viewed) ? viewed : floors[0].id) : null;
+    };
+    const level = again ? again.level ?? null : floorOf();
     const walls = sceneWalls(scene).filter(w => onLevel(w, level));
     const rooms = pickRooms(scene, level);
     const cell = Number(scene.grid?.size) || 100;
     const reachOf = { radius: PICK_RADIUS * cell / 100, reach: PICK_REACH * cell / 100, taken: takenOn(scene.id, passageId, stores) };
+    const endsTaken = tunnel ? endsTakenOn(scene.id, null, stores) : [];
 
     return new Promise(resolve => {
         let first = null, done = false, writing = false, stop = null, ask = null;
@@ -1163,12 +1260,18 @@ export async function startPassagePick(scene, { dialog = null, passageId = null,
             resolve(value);
         };
         const cancel = () => (writing ? null : end(null));
-        ask = prompt({ again: Boolean(again), cancel });
-        const snap = point => snapToWall(point, walls, rooms, { ...reachOf, only: first?.wallId ?? null });
+        ask = prompt({ again: Boolean(again), tunnel, cancel });
+        const endAt = point => {
+            const at = tunnelEndAt(scene, point, floorOf(), { taken: endsTaken });
+            return !at.refused && first && at.room === first.room ? { refused: "oneRoom" } : at;
+        };
+        const snap = tunnel ? endAt : point => snapToWall(point, walls, rooms, { ...reachOf, only: first?.wallId ?? null });
         const move = point => {
             if (done) return;
             const at = snap(point);
-            preview({ first, at: at.refused ? point : at, ok: !at.refused });
+            // A tunnel's first end on another floor than the one on screen is not drawn there (stairs).
+            const from = tunnel && first && first.level !== floorOf() ? null : first;
+            preview({ first: from, at: at.refused ? point : at, ok: !at.refused });
         };
         const click = async point => {
             if (done || writing) return null;
@@ -1177,22 +1280,24 @@ export async function startPassagePick(scene, { dialog = null, passageId = null,
             if (!first) {
                 first = at;
                 preview({ first });
-                return ask.step(2, at.rooms);
+                return ask.step(2, tunnel ? [at.room] : at.rooms);
             }
-            const stretch = stretchBetween(first, at, { taken: reachOf.taken });
+            const stretch = tunnel ? { rooms: [first.room, at.room] } : stretchBetween(first, at, { taken: reachOf.taken });
             if (stretch.refused) return ask.refuse(stretch.refused);
             writing = true;
             let made = null;
             try {
-                made = again
-                    ? (await repickPassage(passageId, stretch, { stores, scene })) && passageId
-                    : await createPassage({ sceneId: scene.id, wallId: stretch.wallId, seg: stretch.seg, rooms: stretch.rooms, level }, { stores, scene });
+                made = tunnel
+                    ? await createPassage({ sceneId: scene.id, shape: "tunnel", ends: [first, at].map(({ x, y, level: floor }) => ({ x, y, level: floor })) }, { stores, scene })
+                    : again
+                        ? (await repickPassage(passageId, stretch, { stores, scene })) && passageId
+                        : await createPassage({ sceneId: scene.id, wallId: stretch.wallId, seg: stretch.seg, rooms: stretch.rooms, level }, { stores, scene });
             } catch (err) {
                 error("Could not write the secret passage the pick made", err);
             } finally {
                 writing = false;
             }
-            if (made) notify("info", game.i18n.format(`DRPG.Passage.pick.${again ? "moved" : "made"}`, { passage: stretch.rooms.join(" - ") }));
+            if (made) notify("info", game.i18n.format(`DRPG.Passage.pick.${tunnel ? "tunnelMade" : again ? "moved" : "made"}`, { passage: stretch.rooms.join(" - ") }));
             return end(made || null);
         };
         stop = board({ click, move, cancel });
@@ -1211,6 +1316,21 @@ export function passageStretches(sceneId, level = null, { stores = PASSAGE_STORE
     return Object.entries(stores.map.entries())
         .filter(([, row]) => row?.sceneId === sceneId && row.passageSeg && (!level || !row.level || row.level === level))
         .map(([id, row]) => ({ id, state: row.state, ...row.passageSeg }));
+}
+
+/**
+ * A GM: the tunnels of a scene with an end on a floor (or every floor, `level` null), `[{ id, state, ends }]`,
+ * `ends` only those on that floor - both for one floor's tunnel, one for stairs (E80 C1); [] elsewhere.
+ */
+export function passageTunnels(sceneId, level = null, { stores = PASSAGE_STORES } = {}) {
+    if (!game.user?.isGM) return [];
+    const out = [];
+    for (const [id, row] of Object.entries(stores.map.entries())) {
+        const ends = row?.sceneId === sceneId ? endsOf(row) : null;
+        const here = (ends ?? []).filter(end => !level || !end.level || end.level === level);
+        if (here.length) out.push({ id, state: row.state, ends: here });
+    }
+    return out;
 }
 
 /* Each state's look: a secret one dashed in the passage colour, a closed one dashed grey, a broken one dotted red. */
@@ -1242,7 +1362,20 @@ export function drawPassagesLayer(layer = overlayLayer("passages"), { stores = P
         dashedLine(g, s.x1, s.y1, s.x2, s.y2, look.dash, look.gap);
         layer.addChild(g);
     }
-    return stretches.length;
+    // A tunnel's ends on this floor, a ring each, joined by the dashed line when both are here (E80 C1).
+    const tunnels = passageTunnels(scene.id, level, { stores });
+    const ring = (Number(scene.grid?.size) || 100) * 0.3;
+    for (const t of tunnels) {
+        const look = LOOK[t.state] ?? LOOK.secret;
+        const g = new PIXI.Graphics();
+        g.name = t.id;
+        g.drpgState = t.state;
+        g.lineStyle(look.width, overlayColour(look.token, look.fallback), 0.95);
+        for (const end of t.ends) g.drawCircle(end.x, end.y, ring);
+        if (t.ends.length === 2) dashedLine(g, t.ends[0].x, t.ends[0].y, t.ends[1].x, t.ends[1].y, look.dash, look.gap);
+        layer.addChild(g);
+    }
+    return stretches.length + tunnels.length;
 }
 
 /* A change the primary merged, or a student given to another player: the copies are told, once, a moment later. */

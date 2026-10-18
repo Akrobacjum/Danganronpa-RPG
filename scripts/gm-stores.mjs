@@ -173,7 +173,9 @@ export const mastermindStore = defineGmStore({
  *
  * THE MAP: a row per passage, keyed `<sceneId>.<random id>` so that `exists` answers by the
  * scene alone - `{ sceneId, level, shape, passageWallId, passageSeg: { x1, y1, x2, y2 }, rooms,
- * state, startAccess }`. `shape` is "wall" in E79 ("tunnel" is E80's, the owner's Q4); `state`
+ * state, startAccess }`. `shape` is "wall" in E79; since E80 C1 (the owner's Q4) it may be "tunnel",
+ * a tunnel or stairs - `{ sceneId, level: null, shape: "tunnel", ends: [{ x, y, level }, { x, y,
+ * level }], rooms, state, startAccess }`, no wall and no stretch, each end on its own floor; `state`
  * is secret, closed (the GMs' Close, the owner's Q5: who knows it is kept, and the copies leave
  * it out) or broken (its wall moved or went: C5). No reset group: a season's reset takes who
  * knows a passage, never the passage.
@@ -849,7 +851,8 @@ export const offerCopy = defineGmCopy({
 
 /**
  * A PLAYER'S SECRET PASSAGES (E79 C1): `{ passageId: { sceneId, shape, level, passageWallId,
- * passageSeg, actorIds } }`, the open passages this user's own characters know (the Mastermind's
+ * passageSeg, actorIds } }` - a tunnel's `{ sceneId, shape: "tunnel", level: null, ends, actorIds }`
+ * since E80 C1 -, the open passages this user's own characters know (the Mastermind's
  * player: every open passage, the owner's Q7), `actorIds` only this user's own - no name, no room
  * and nothing of who else knows it. Sent by the primary GM alone, addressed to this user, and
  * taken by the offers' rule (`offersCombine`): a stamp per character this user owns, so a copy

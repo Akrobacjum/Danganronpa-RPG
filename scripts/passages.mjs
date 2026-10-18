@@ -1,7 +1,9 @@
 /**
  * Danganronpa RPG - the secret passages, as this browser may know them (E79, 1.2.79).
  * ---------------------------------------------------------------------------
- * A secret passage is a stretch of a wall that a character who knows it may pass. Where it
+ * A secret passage is a stretch of a wall that a character who knows it may pass - or, since E80
+ * C1 (18.10.2026), a tunnel or stairs: two ends in two rooms of one scene, on one floor or two,
+ * which no wall is cut for (a knower goes through by the GM's hand, E80 C2). Where it
  * is and who knows it are the GMs' (gm-stores.mjs `passageMapStore`, `passageAccessStore`);
  * a player's browser holds only its copy (`passageCopy`): the open passages this user's own
  * characters know, sent by the primary GM to this user alone (passages-gm.mjs
@@ -38,6 +40,16 @@ function segmentOf(id, row) {
     return { id, wallId: typeof row.passageWallId === "string" ? row.passageWallId : null, x1, y1, x2, y2 };
 }
 
+/**
+ * A tunnel's two ends, `[{ x, y, level }, { x, y, level }]` - each a point of the scene and the floor it is on
+ * (null on a scene with none) - or null when the row is no tunnel or an end is not two finite numbers (E80 C1).
+ */
+export function endsOf(row) {
+    if (row?.shape !== "tunnel" || !Array.isArray(row.ends) || row.ends.length !== 2) return null;
+    const ends = row.ends.map(end => ({ x: Number(end?.x), y: Number(end?.y), level: typeof end?.level === "string" && end.level ? end.level : null }));
+    return ends.every(end => Number.isFinite(end.x) && Number.isFinite(end.y)) ? ends : null;
+}
+
 /** Whether a row is on this floor: no floor asked, a row on no floor in particular, or the floor's own id (rooms.mjs `onLevel`'s rule). */
 function onLevelOf(row, level) {
     if (level === null || level === undefined || row?.level === null || row?.level === undefined) return true;
@@ -55,7 +67,8 @@ export function sceneGone(row, { map = passageMapStore, scenes } = {}) {
 
 /**
  * The open passages of the GMs' records, `{ passageId: { sceneId, shape, level, passageWallId,
- * passageSeg, actorIds } }`, each with every character that knows it: what a GM's browser reads
+ * passageSeg, actorIds } }` - a tunnel's `{ sceneId, shape: "tunnel", level: null, ends, actorIds }`
+ * (E80 C1: its row is on no floor in particular, each end on its own) -, each with every character that knows it: what a GM's browser reads
  * where a player's reads its copy, and what passages-gm.mjs cuts each copy from. `stores` is the
  * suite's (R554, R555): two handles of an engine of its own, and `scenes` beside them when it asks.
  *
@@ -67,7 +80,13 @@ export function sceneGone(row, { map = passageMapStore, scenes } = {}) {
 export function secretRowsFrom({ map = passageMapStore, access = passageAccessStore, scenes } = {}) {
     const rows = {};
     for (const [id, row] of Object.entries(map.entries())) {
-        if (row?.state !== "secret" || !segmentOf(id, row) || sceneGone(row, { map, scenes })) continue;
+        if (row?.state !== "secret" || sceneGone(row, { map, scenes })) continue;
+        const ends = endsOf(row);
+        if (ends) {
+            rows[id] = { sceneId: row.sceneId, shape: "tunnel", level: null, ends, actorIds: [] };
+            continue;
+        }
+        if (row.shape === "tunnel" || !segmentOf(id, row)) continue;
         rows[id] = { sceneId: row.sceneId, shape: row.shape, level: row.level ?? null, passageWallId: row.passageWallId ?? null,
             passageSeg: { ...row.passageSeg }, actorIds: [] };
     }
@@ -114,7 +133,9 @@ export function openSegmentsFor(actor, sceneId, level = null, { mastermind = fal
  * sheet's 'Known passages' (E79 C7, sheet.mjs `knownPassageRows`). The rows that name it, or every row for the
  * Mastermind (`mastermind`, as `openSegmentsFor` takes it). The stretch is handed out so the list can ask which
  * rooms a passage joins, whether it is open and where to pan; the wall's id is not, and neither is anything
- * else of the row (R560: only the records' files name a passage's geometry). `known` is the suite's (R562).
+ * else of the row (R560: only the records' files name a passage's geometry). A tunnel (E80 C1) is
+ * `{ id, sceneId, level: null, shape: "tunnel", ends }`: its two ends, which the list names by their rooms
+ * and the mark of an end is drawn at. `known` is the suite's (R562).
  */
 export function passagesKnownBy(actor, { mastermind = false, known = knownPassages() } = {}) {
     const actorId = typeof actor === "string" ? actor : actor?.id;
@@ -123,8 +144,35 @@ export function passagesKnownBy(actor, { mastermind = false, known = knownPassag
     for (const [id, row] of Object.entries(isPlain(known) ? known : {})) {
         if (typeof row?.sceneId !== "string") continue;
         if (!mastermind && !(Array.isArray(row.actorIds) && row.actorIds.includes(actorId))) continue;
-        const seg = segmentOf(id, row);
+        const ends = endsOf(row);
+        if (ends) {
+            out.push({ id, sceneId: row.sceneId, level: null, shape: "tunnel", ends });
+            continue;
+        }
+        const seg = row.shape === "tunnel" ? null : segmentOf(id, row);
         if (seg) out.push({ id, sceneId: row.sceneId, level: row.level ?? null, x1: seg.x1, y1: seg.y1, x2: seg.x2, y2: seg.y2 });
+    }
+    return out;
+}
+
+/**
+ * Each end of a tunnel this character knows on this scene that is on `level` (an end on no floor in particular
+ * is on each, and no floor asked is every floor), `[{ id, x, y, level, far: { x, y, level } }]` with the end
+ * at the other side: where the mark of an end is drawn for its knowers (fog-doorways.mjs `tunnelMarks`, E80
+ * C1) and where 'Go through' stands (C2). The rows that name it, or every tunnel for the Mastermind
+ * (`mastermind`, as `openSegmentsFor` takes it). `known` is the suite's (R595).
+ */
+export function tunnelEndsFor(actor, sceneId, level = null, { mastermind = false, known = knownPassages() } = {}) {
+    const actorId = typeof actor === "string" ? actor : actor?.id;
+    if (!actorId || typeof sceneId !== "string") return [];
+    const out = [];
+    for (const row of secretRowsOn(sceneId, null, { known })) {
+        if (!mastermind && !(Array.isArray(row.actorIds) && row.actorIds.includes(actorId))) continue;
+        const ends = endsOf(row);
+        if (!ends) continue;
+        ends.forEach((end, i) => {
+            if (onLevelOf(end, level)) out.push({ id: row.id, ...end, far: { ...ends[1 - i] } });
+        });
     }
     return out;
 }
@@ -350,8 +398,9 @@ export function engineOffNotice({ cut = movementCut, user = game.user } = {}) {
 export const DOOR_PART = "door";
 
 /**
- * A packet's copy, kept to what a copy may hold: rows of this world's scenes with a whole segment,
- * the shape "wall" (a tunnel is E80's), and only characters the packet's stamps name - each of
+ * A packet's copy, kept to what a copy may hold: rows of this world's scenes with a whole segment
+ * and the shape "wall", or the shape "tunnel" and two whole ends (E80 C1; until then a tunnel was
+ * dropped here), and only characters the packet's stamps name - each of
  * this world - so a row naming nobody of this user is left out. Two parts that are no character
  * are kept, and no row can name either: "", the stamp of a copy for a user who owns no student, and
  * `DOOR_PART` (passages-gm.mjs `passageCopyFor`). Until review round 3 (17.10.2026, cor A, run by
@@ -366,10 +415,15 @@ export function cleanCopy(passages, stamps, { actors = game.actors, scenes = gam
         if (actorId === "" || actorId === DOOR_PART || actors?.has(actorId)) own[actorId] = Number(s) || 0;
     }
     for (const [id, row] of Object.entries(isPlain(passages) ? passages : {})) {
-        const seg = segmentOf(id, row);
-        if (!seg || row.shape !== "wall" || typeof row.sceneId !== "string" || !scenes?.has(row.sceneId)) continue;
+        const ends = endsOf(row);
+        const seg = ends || row?.shape !== "wall" ? null : segmentOf(id, row);
+        if ((!ends && !seg) || typeof row.sceneId !== "string" || !scenes?.has(row.sceneId)) continue;
         const actorIds = Array.isArray(row.actorIds) ? [...new Set(row.actorIds.filter(a => typeof a === "string" && a && a !== DOOR_PART && Object.hasOwn(own, a)))] : [];
         if (!actorIds.length) continue;
+        if (ends) {
+            value[id] = { sceneId: row.sceneId, shape: "tunnel", level: null, ends, actorIds };
+            continue;
+        }
         value[id] = { sceneId: row.sceneId, shape: "wall", level: typeof row.level === "string" ? row.level : null,
             passageWallId: seg.wallId, passageSeg: { x1: seg.x1, y1: seg.y1, x2: seg.x2, y2: seg.y2 }, actorIds };
     }

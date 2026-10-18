@@ -2039,12 +2039,16 @@ export function knownPassageRows(actor, { known, mastermind = false, sceneOf = i
     return rows.sort((a, b) => a.label.localeCompare(b.label));
 }
 
-/** This browser's camera to a passage's middle, on its scene - viewed first when another is on screen. */
+/**
+ * This browser's camera to a passage's middle, on its scene - viewed first when another is on screen; a
+ * tunnel's first end (E80 C1), on whatever floor is on screen.
+ */
 async function panToPassage(passage) {
     const scene = game.scenes?.get(passage.sceneId);
     if (!scene) return false;
     if (canvas?.scene?.id !== scene.id) await scene.view();
-    await canvas?.animatePan?.({ x: (passage.x1 + passage.x2) / 2, y: (passage.y1 + passage.y2) / 2 });
+    const end = Array.isArray(passage.ends) ? passage.ends[0] : null;
+    await canvas?.animatePan?.(end ? { x: end.x, y: end.y } : { x: (passage.x1 + passage.x2) / 2, y: (passage.y1 + passage.y2) / 2 });
     return true;
 }
 

@@ -45,7 +45,7 @@ import { ROOM_FLAG, playerRegionIds, roomPieces, roomRegions, roomFlag, roomName
 import { playSfx } from "./sfx.mjs";
 // The secret passages this browser may know (E79 C3), static for the veto's sake as the imports
 // above. passages.mjs is a leaf that never reads this file back (R560 holds its imports).
-import { openSegmentsFor, crossingVia } from "./passages.mjs";
+import { openSegmentsFor, crossingVia, tunnelEndsFor } from "./passages.mjs";
 // The GMs' audit of a move through a wall (E79 C4), called from `noteGmPosition` with this file's
 // readers handed in; movement-audit.mjs never imports this file statically (R161).
 import { askerOf, auditMove, registerMoveAudit } from "./movement-audit.mjs";
@@ -1395,8 +1395,21 @@ const PASSAGE_SIDES = [0.35, 0.6, 0.85, 1];
  * The room on each side of a passage's stretch `{ x1, y1, x2, y2 }` on `level`, `[a, b]`, null where none.
  * Exported since E79 C7 (15.10.2026): the sheet's 'Known passages' names a passage by these two rooms, and
  * the show's cards on the primary GM (passages-gm.mjs `sharePassage`) do the same.
+ *
+ * A tunnel or stairs (E80 C1), `{ ends: [{ x, y, level }, { x, y, level }] }`: the room each end stands in,
+ * on that end's own floor - `level` is not read, since the two ends may be on two floors. Read off the map as
+ * a stretch's sides are, so a room renamed since the tunnel was made is named as it is now. This names the
+ * rooms a tunnel joins and nothing more: `reachableFrom` reads only the stretches a character may walk
+ * through, so a token dragged from one end's room to the other's is a move between those rooms as ever.
  */
 export function passageRooms(scene, passage, level = null) {
+    if (Array.isArray(passage?.ends)) {
+        return [0, 1].map(i => {
+            const end = passage.ends[i], x = Number(end?.x), y = Number(end?.y);
+            if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+            return piecesAt(scene, x, y, 0, end.level ?? null).map(region => region.name).sort()[0] ?? null;
+        });
+    }
     const dx = passage.x2 - passage.x1, dy = passage.y2 - passage.y1, length = Math.hypot(dx, dy);
     if (!(length > 0)) return [null, null];
     const grid = scene?.grid?.size ?? 100;
@@ -1450,6 +1463,14 @@ export function passesThrough(actor, from, to, scene, floors = null, { mover = n
  */
 export function passageOpenFor(actor, passage, scene, { from = null, level = null, mover = null, known } = {}) {
     if (!passage?.id || !scene?.id) return false;
+    /* A tunnel (E80 C1): known among the tunnels of the scene, and the room at an end other than `from` open to the
+       character by the same rules - the bedroom passed, as through a passage (design A10 Q1 = b). */
+    if (Array.isArray(passage.ends)) {
+        const knowsTunnel = tunnelEndsFor(actor, scene.id, null, { mastermind: Boolean(mover?.mastermind), known })
+            .some(end => end.id === passage.id);
+        const far = knowsTunnel ? passageRooms(scene, passage).filter(room => room && room !== from) : [];
+        return far.length > 0 && far.every(room => !restrictedFrom(actor, room, scene, mover, { via: "passage" }));
+    }
     const knows = openSegmentsFor(actor, scene.id, level, { mastermind: Boolean(mover?.mastermind), known })
         .some(seg => seg.id === passage.id);
     if (!knows) return false;

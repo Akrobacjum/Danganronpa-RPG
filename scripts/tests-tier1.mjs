@@ -15932,6 +15932,248 @@ const INVARIANTS = [
         equal(J([settled, later]), J([["first", "rejected: r593 a step threw", "rejected: r593 a step rejected", "after"],
             "a step asked after all of them"]), "[what each caller got: the gated step, the throw, the rejection, the one behind them; a step asked afterwards]");
     }],
+    ["R594 - a tunnel or stairs between two rooms: each end a click, snapped to the middle of the square, in a room of the floor on screen at that click; refused in no room, with both ends in one room, on another tunnel's end and on a floor the scene has not; the pick from the tab's 'Tunnel or stairs' across two floors, the console's create by the same rule, and the GMs' overlay drawing the ends of the floor drawn", async () => {
+        /*
+         * E80 C1 (18.10.2026; P1-03). The harms: a tunnel whose end lies in no room, so whoever comes through it stands
+         * nowhere; one that joins a room to itself; two tunnels ending on one square; stairs a GM cannot make because the
+         * pick reads one floor for both clicks; and a console create that writes what the pick refuses. A scene of the
+         * suite's own with two floors - the Kitchen and the Hall on the first, the Attic on the second - and stores of an
+         * engine of its own, as R561's pick has them; the pick runs through the tab's own button with a board, a window and
+         * a floor on screen that the suite hands it. The pointer and the floor switch on a real v14 canvas are not measured
+         * here: a table's to see, with C2's live item. Red at the parent (d64618e): `createPassage` read no `shape` and refused every tunnel as a
+         * wall it could not find.
+         */
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const P = await import("./passages-gm.mjs");
+        const T = await import("./passages-tab.mjs");
+        const J = stableJson;
+        let now = 9_700_000;
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R594GM", isGM: () => true, isPrimary: () => true, worldId: () => "R594WORLD",
+            activeGmIds: () => [], primaryGmId: () => "R594GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => now++,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const def = (h, name) => eng.define({ ...h.spec, name: `r594${name}`, key: `r594${name}`, afterRestore: undefined, exists: undefined });
+        const stores = { map: def(S.passageMapStore, "Map"), access: def(S.passageAccessStore, "Access"), log: def(S.passageLogStore, "Log"),
+            mastermind: eng.define({ name: "r594mm", key: "r594mm", kind: "record", fields: ["actorId"], sync: false, backup: false }) };
+        const [L1, L2] = ["R594L1", "R594L2"];
+        const region = (id, name, x, y, width, height, levels) => ({ id, name, behaviors: [], getFlag: () => true, shapes: [{ x, y, width, height }],
+            levels: new Set(levels) });
+        const site = { id: "R594SCENE", name: "R594", grid: { size: 100 }, levels: [{ id: L1, elevation: 0 }, { id: L2, elevation: 10 }], view: async () => true,
+            regions: [region("R594RK", "R594 Kitchen", 1200, 800, 800, 300, [L1]), region("R594RH", "R594 Hall", 1200, 200, 800, 600, [L1]),
+                region("R594RA", "R594 Attic", 2000, 200, 600, 600, [L2])],
+            walls: Object.assign([], { get: () => undefined }) };
+        const ofSite = () => Object.keys(stores.map.entries()).filter(k => k.startsWith(`${site.id}.`)).sort();
+        const create = (ends, more = {}) => P.createPassage({ sceneId: site.id, shape: "tunnel", ends, ...more }, { stores, scene: site });
+        const end = (x, y, level) => ({ x, y, level });
+
+        // The console's road: stairs from the Kitchen to the Attic, a tunnel from the Kitchen to the Hall on one floor.
+        const stairs = await create([end(1234.5, 950, L1), end(2100, 300, L2)]);
+        const flat = await create([end(1300, 1000, L1), end(1300, 300, L1)]);
+        equal(J([Boolean(stairs), Boolean(flat), stores.map.get(stairs) ?? null, stores.map.get(flat)?.ends ?? null, stores.map.get(flat)?.rooms ?? null]),
+            J([true, true, { sceneId: site.id, level: null, shape: "tunnel", ends: [end(1250, 950, L1), end(2150, 350, L2)], rooms: ["R594 Kitchen", "R594 Attic"],
+                state: "secret", startAccess: [] }, [end(1350, 1050, L1), end(1350, 350, L1)], ["R594 Kitchen", "R594 Hall"]]),
+            "[stairs made, a tunnel on one floor made, the stairs' row, the tunnel's ends, its rooms] - a tunnel's end is the middle of the square clicked, each on its own floor");
+        ok(typeof P.tunnelEndAt === "function" && typeof P.tunnelRowFor === "function" && typeof P.passageTunnels === "function",
+            "passages-gm.mjs has no `tunnelEndAt`, `tunnelRowFor` or `passageTunnels`");
+        if (typeof P.tunnelEndAt !== "function" || typeof P.tunnelRowFor !== "function" || typeof P.passageTunnels !== "function") return;
+
+        // Each end alone, and every refusal its own code.
+        const at = (x, y, level, o) => P.tunnelEndAt(site, { x, y }, level, o);
+        const taken = [end(1250, 950, L1)];
+        equal(J([at(1234.5, 950, L1), at(2100, 300, L2), [at(2100, 300, L1), at(500, 500, L1), at(1300, 900, null), at(1300, 900, "R594L9"),
+            at(1210, 910, L1, { taken }), at(1210, 910, L2, { taken })].map(r => r.refused ?? r.room)]),
+        J([{ x: 1250, y: 950, level: L1, room: "R594 Kitchen" }, { x: 2150, y: 350, level: L2, room: "R594 Attic" },
+            ["offRoom", "offRoom", "floor", "floor", "endTaken", "offRoom"]]),
+        "[a click in the Kitchen, one in the Attic; the Attic's square on the first floor, a square in no room, no floor, a floor the scene has not, "
+            + "a square another end holds, that square on the other floor]");
+
+        // The console's road refuses what the pick refuses, and writes nothing for it.
+        const before = ofSite().length;
+        const refusedRows = [[end(1260, 960, L1), end(1500, 300, L1)], [end(1300, 850, L1), end(1900, 1050, L1)], [end(100, 100, L1), end(1300, 300, L1)],
+            [end(1700, 1000, null), end(1700, 300, L1)], [end(1700, 1000, L1)]].map(ends => P.tunnelRowFor(site, ends, { taken: [...taken, end(1350, 1050, L1)] }).refused);
+        const named = P.tunnelRowFor(site, [end(1700, 1000, L1), end(2400, 700, L2)], { rooms: ["R594 Hall", "R594 Attic"] }).refused;
+        const madeNot = [await create([end(1260, 960, L1), end(1500, 300, L1)]), await create([end(1300, 850, L1), end(1900, 1050, L1)]),
+            await create([end(1700, 1000, L1), end(2400, 700, L2)], { rooms: ["R594 Hall", "R594 Attic"] }), await create([end(1700, 1000, L1), end(2400, 700, L2)], { shape: "pit" })];
+        equal(J([refusedRows, named, madeNot, ofSite().length - before]),
+            J([["an end stands on the square of another passage's end.", "both ends are in one room.", "an end is in no room on its floor.",
+                "name one of the scene's floors for each end (none on a scene with no floors).", "a tunnel needs two ends, [{ x, y, level }, { x, y, level }]."],
+                "the ends stand in R594 Kitchen and R594 Attic, not the rooms named.", [null, null, null, null], 0]),
+            "[the console's words for an end on another's, one room, no room, no floor, one end; rooms named that are not the ends'; four creates refused; rows written]");
+
+        // From the tab: 'Tunnel or stairs', a click on the first floor, one refused in the same room, the floor switched, one off every room, one in the Attic.
+        let board = null, floor = L1;
+        const said = [];
+        const pickWith = (scene2, options) => P.startPassagePick(scene2, { ...options, preview: () => {}, notify: kind => said.push(kind), floorNow: () => floor,
+            board: handlers => { board = handlers; return () => { board = null; }; },
+            prompt: ({ tunnel }) => ({ step: (n, r) => said.push(`${tunnel ? "tunnel" : "wall"} step ${n}: ${r.join(" - ")}`), refuse: code => said.push(code),
+                close: () => said.push("closed") }),
+            dialog: { options: { window: { minimizable: true } }, minimize: () => said.push("minimized"), maximize: () => said.push("back") } });
+        const root = document.createElement("div");
+        root.innerHTML = T.passagesTabHtml(site, { stores, students: [] });
+        const tab = T.wirePassagesTab(root, site, { stores, students: [], pick: pickWith });
+        const onBoard = async () => { for (let i = 0; i < 100 && !board; i++) await new Promise(r => setTimeout(r, 5)); return board; };
+        const button = root.querySelector("[data-drpg-passage-tunnel]");
+        button?.click();
+        await (await onBoard())?.click({ x: 1550, y: 1050 });
+        await board?.click({ x: 1650, y: 1050 });
+        floor = L2;
+        await board?.click({ x: 500, y: 500 });
+        await board?.click({ x: 2450, y: 650 });
+        await tab?.settled();
+        const picked = ofSite().find(id => id !== stairs && id !== flat);
+        const pickedRow = picked ? stores.map.get(picked) : null;
+        equal(J([Boolean(button), ofSite().length, pickedRow?.ends ?? null, pickedRow?.rooms ?? null, said.splice(0)]),
+            J([true, 3, [end(1550, 1050, L1), end(2450, 650, L2)], ["R594 Kitchen", "R594 Attic"],
+                ["minimized", "tunnel step 2: R594 Kitchen", "oneRoom", "offRoom", "info", "closed", "back"]]),
+            "[the tab's button, passages on the scene, the picked ends, their rooms, what the pick asked of the window and the GM] - stairs need each click read on the floor on screen at that click");
+        floor = L1;
+        button?.click();
+        await (await onBoard())?.click({ x: 1510, y: 1010 });
+        board?.cancel();
+        await tab?.settled();
+        equal(J([ofSite().length, said.splice(0)]), J([3, ["minimized", "endTaken", "closed", "back"]]),
+            "[passages after a click on a square another tunnel's end holds and a cancel, what the pick asked]");
+
+        // The GMs' overlay: on each floor that floor's ends - both for the tunnel on one floor, one of each pair of stairs.
+        const layer = new PIXI.Container();
+        const drawn = level => [P.drawPassagesLayer(layer, { stores, scene: site, level }), layer.children.map(g => `${g.name === stairs ? "stairs" : g.name === flat ? "flat" : "picked"}`).sort(),
+            P.passageTunnels(site.id, level, { stores }).map(t => t.ends.length).sort()];
+        const first = drawn(L1), second = drawn(L2);
+        layer.destroy({ children: true });
+        equal(J([first, second, P.passageMiddle(stairs, { stores }), await P.passageRoomsOnMap(stairs, { stores, scene: site })]),
+            J([[3, ["flat", "picked", "stairs"], [1, 1, 2]], [2, ["picked", "stairs"], [1, 1]], { sceneId: site.id, level: L1, x: 1250, y: 950 }, ["R594 Kitchen", "R594 Attic"]]),
+            "[drawn on the first floor: count, passages, ends each; on the second; where Show pans for stairs; the rooms the tab's revoke asks about]");
+    }],
+    ["R595 - a tunnel's ends reach its knowers alone: the copy of a player whose character knows a tunnel carries its two ends, every other player's holds neither, the player's browser keeps them, its knower's room marks the end there with the room beyond as that player may name it, and Close takes the ends and the mark away; a tunnel on a deleted scene leaves every copy; a show of a tunnel by somebody who does not know it is refused", async () => {
+        /*
+         * E80 C1 (18.10.2026; P1-04, the stage's write roads "copy rows"). A tunnel is the GMs' until a character learns
+         * it; its ends are where a knower goes through (C2). The harms: the ends in the copy of a player whose characters
+         * do not know it (a third client that learns where a secret way comes out); a knower's own browser dropping the
+         * tunnel its copy carries, so nothing marks it; a tunnel the GMs closed, or one whose scene is gone, still marked;
+         * a mark naming a room the player has not found; a show that teaches a tunnel the giver does not know. Stores of an
+         * engine of its own, two players with a student each, and a scene of the suite's own with two floors; the copy
+         * cut by `passageCopyFor` and kept by `cleanCopy` as a player's browser keeps it. Three real clients are scenario
+         * 76's tunnel phase; how a mark looks on a real canvas is not measured here. Red at the parent (d64618e): the
+         * copy of the knower's player held no tunnel (`secretRowsFrom` kept only rows with a stretch).
+         */
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const P = await import("./passages-gm.mjs");
+        const L = await import("./passages.mjs");
+        const M = await import("./movement.mjs");
+        const F = await import("./fog-doorways.mjs");
+        const J = v => JSON.stringify(v);
+        let t = 9_800_000;
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R595GM", isGM: () => true, isPrimary: () => true, worldId: () => "R595WORLD",
+            activeGmIds: () => [], primaryGmId: () => "R595GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => t++,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const def = (h, name) => eng.define({ ...h.spec, name: `r595${name}`, key: `r595${name}`, afterRestore: undefined, exists: undefined });
+        const SC = "R595SCENE", [L1, L2] = ["R595L1", "R595L2"];
+        const stores = { map: def(S.passageMapStore, "Map"), access: def(S.passageAccessStore, "Access"), log: def(S.passageLogStore, "Log"),
+            mastermind: eng.define({ name: "r595mm", key: "r595mm", kind: "record", fields: ["actorId"], sync: false, backup: false }),
+            scenes: new Set([SC]) };
+        const user = id => ({ id, isGM: false, active: true });
+        const users = [{ id: "R595GM", isGM: true, active: true }, user("R595U1"), user("R595U2")];
+        const actor = (id, owner) => ({ id, type: "character", name: id, getFlag: () => undefined,
+            testUserPermission: (u, level) => level === "OWNER" && (u?.isGM || u?.id === owner) });
+        const actors = [actor("R595A1", "R595U1"), actor("R595A2", "R595U2")];
+        const [, U1, U2] = users;
+        const [A1, A2] = actors;
+        // Rooms that carry the room flag alone: no lock or seal for `passageOpenFor` to read.
+        const region = (id, name, x, y, width, height, levels) => ({ id, name, behaviors: [], getFlag: (scope, key) => key === "room",
+            shapes: [{ x, y, width, height }], levels: new Set(levels) });
+        const kitchen = region("R595RK", "R595 Kitchen", 1200, 800, 800, 300, [L1]), hall = region("R595RH", "R595 Hall", 1200, 200, 800, 600, [L1]);
+        const attic = region("R595RA", "R595 Attic", 2000, 200, 600, 600, [L2]);
+        const site = { id: SC, grid: { size: 100 }, levels: [{ id: L1, elevation: 0 }, { id: L2, elevation: 10 }], regions: [kitchen, hall, attic] };
+        const end = (x, y, level) => ({ x, y, level });
+        const tunnel = (sceneId, ends, state = "secret") => ({ sceneId, level: null, shape: "tunnel", ends, rooms: [], state, startAccess: [] });
+        const [T1, T2, T4] = ["r595t1", "r595t2", "r595t4"].map(k => `${SC}.${k}`), T3 = "R595GONE.r595t3";
+        const stairs = [end(1250, 950, L1), end(2150, 350, L2)];
+        await stores.map.patchMany({ [T1]: tunnel(SC, stairs), [T2]: tunnel(SC, [end(1350, 1050, L1), end(1350, 350, L1)]),
+            [T3]: tunnel("R595GONE", [end(1250, 950, null), end(1250, 350, null)]), [T4]: { ...tunnel(SC, [end(1450, 950, L1)]) } });
+        const cell = { how: "gm", at: 1, by: { R595GM: 1 } };
+        await stores.access.patchMany({ [`${T1}/R595A1`]: cell, [`${T2}/R595A2`]: cell, [`${T3}/R595A1`]: cell, [`${T4}/R595A1`]: cell,
+            "touch/R595A1": { at: 1 }, "touch/R595A2": { at: 1 } });
+        const copy = u => P.passageCopyFor(u, { stores, actors, users });
+        const ids = c => Object.keys(c.value).sort();
+
+        const c1 = copy(U1), c2 = copy(U2);
+        equal(J([ids(c1), c1.value[T1] ?? null, ids(c2), J(c2).includes(T1), J(c2).includes("2150")]),
+            J([[T1], { sceneId: SC, shape: "tunnel", level: null, ends: stairs, actorIds: ["R595A1"] }, [T2], false, false]),
+            "[the knower's player's passages, the tunnel in that copy, the other player's passages, the tunnel's id in theirs, its far end in theirs] "
+                + "- a tunnel on a deleted scene, one with one end, or the ends in a copy of a player who does not know it");
+
+        // What the knower's browser keeps (`cleanCopy`): the tunnel and its two ends; a forged row with one end, or naming a student not of this copy, is left out.
+        const thisWorld = { actors: new Map(actors.map(a => [a.id, a])), scenes: new Map([[SC, site]]) };
+        const forged = { ...c1.value, [`${SC}.forged1`]: { sceneId: SC, shape: "tunnel", ends: [end(1, 2, null)], actorIds: ["R595A1"] },
+            [`${SC}.forged2`]: { sceneId: SC, shape: "tunnel", ends: stairs, actorIds: ["R595A2"] } };
+        const kept = L.cleanCopy(forged, c1.stamps, thisWorld).value;
+        equal(J([Object.keys(kept).sort(), kept[T1] ?? null]), J([[T1], { sceneId: SC, shape: "tunnel", level: null, ends: stairs, actorIds: ["R595A1"] }]),
+            "[what the knower's browser keeps, the tunnel kept] - the browser drops a tunnel, or keeps a forged one");
+        ok(typeof L.tunnelEndsFor === "function" && typeof F.tunnelMarks === "function", "passages.mjs has no `tunnelEndsFor` or fog-doorways.mjs no `tunnelMarks`");
+        if (typeof L.tunnelEndsFor !== "function" || typeof F.tunnelMarks !== "function") return;
+
+        // The ends on each floor, the list's rooms, and the marks: the knower's in the end's room, as the player may name the room beyond.
+        const unexplored = game.i18n.format("DRPG.Listen.unknownRoom", { n: 1 });
+        const found = rooms => () => new Set(rooms);
+        const marks = (who, room, level, o = {}) => F.tunnelMarks(who, room, site, level, { gm: false, known: kept, knownRooms: found(["R595 Kitchen"]), ...o });
+        const [listed] = L.passagesKnownBy(A1, { known: kept });
+        equal(J([L.tunnelEndsFor(A1, SC, L1, { known: kept }), L.tunnelEndsFor(A1, SC, L2, { known: kept }).map(e => [e.x, e.y]), L.tunnelEndsFor(A2, SC, null, { known: kept }),
+            listed ?? null, M.passageRooms(site, listed ?? {})]),
+        J([[{ id: T1, x: 1250, y: 950, level: L1, far: end(2150, 350, L2) }], [[2150, 350]], [],
+            { id: T1, sceneId: SC, level: null, shape: "tunnel", ends: stairs }, ["R595 Kitchen", "R595 Attic"]]),
+        "[the knower's ends on the first floor, on the second, another student's, the sheet's row, the rooms it names]");
+        equal(J([M.passageOpenFor(A1, listed ?? {}, site, { from: "R595 Kitchen", known: kept }), M.passageOpenFor(A1, listed ?? {}, site, { from: "R595 Attic", known: kept }),
+            M.passageOpenFor(A2, listed ?? {}, site, { from: "R595 Kitchen", known: kept })]), J([true, true, false]),
+            "[the sheet's 'the way is shut' for the tunnel: its knower from the Kitchen, from the Attic, a student who does not know it]");
+        equal(J([marks(A1, kitchen, L1), marks(A1, kitchen, L1, { knownRooms: found(["R595 Kitchen", "R595 Attic"]) }), marks(A1, attic, L2), marks(A1, hall, L1),
+            marks(A2, kitchen, L1), marks(A1, kitchen, L1, { gm: true }), marks(A1, kitchen, L1, { knownRooms: () => null })]),
+        J([[{ id: T1, x: 1250, y: 950, to: unexplored }], [{ id: T1, x: 1250, y: 950, to: "R595 Attic" }], [{ id: T1, x: 2150, y: 350, to: "R595 Kitchen" }], [], [], [],
+            [{ id: T1, x: 1250, y: 950, to: "R595 Attic" }]]),
+        "[the Kitchen's mark for the knower, once the Attic is found, the Attic's, the Hall's, for another student, on a GM's browser, for a viewer who names every room]");
+
+        // Closed: neither the ends nor the mark, and the copy that takes them away is taken; Open gives both back.
+        await P.closePassage(T1, { stores });
+        const shut = copy(U1);
+        const shutKept = L.cleanCopy(shut.value, shut.stamps, thisWorld).value;
+        const shutMarks = F.tunnelMarks(A1, kitchen, site, L1, { gm: false, known: shutKept, knownRooms: found([]) });
+        await P.openPassage(T1, { stores });
+        equal(J([ids(shut), shutMarks, S.offersCombine(c1, shut) !== null, ids(copy(U1)), ids(copy(U2))]), J([[], [], true, [T1], [T2]]),
+            "[the knower's passages once closed, the marks, that copy taken over the one held; reopened, theirs and the other player's]");
+
+        // The scene deleted: the tunnel leaves the copy.
+        const gone = { ...stores, scenes: new Set(["R595OTHER"]) };
+        equal(J([ids(P.passageCopyFor(U1, { stores: gone, actors, users })), Object.keys(L.secretRowsFrom(gone))]), J([[], []]),
+            "[the knower's passages once the tunnel's scene is gone, the GMs' open rows]");
+
+        // A show (`passage.share`): refused to a giver who does not know the tunnel, in the words an unknown passage gets; the knower's names the rooms off the map.
+        const cards = [];
+        const world = { locked: () => false, actor: id => actors.find(a => a.id === id) ?? null, dead: () => false, inIncident: () => false,
+            monocub: () => false, monokuma: () => false, published: () => false, place: () => ({ scene: site, room: "R595 Kitchen", level: L1 }),
+            sides: (row, seg) => M.passageRooms(site, seg, row.level ?? null), knownRooms: () => new Set(["R595 Kitchen"]) };
+        const share = (actorId, targetId, asker) => P.sharePassage({ actorId, targetId, passageId: T1 }, { stores, world, asker, users,
+            whisper: async (who, html, o) => cards.push([who.id, o?.whisper ?? null, html.includes("R595 Kitchen"), html.includes(unexplored)]), gms: async html => cards.push(["gms", html.includes("R595 Attic")]) });
+        const refused = await share("R595A2", "R595A1", U2);
+        const shown = await share("R595A1", "R595A2", U1);
+        equal(J([refused, shown, Boolean(stores.access.get(`${T1}/R595A2`)), ids(copy(U2)), cards]),
+            J([{ refused: "the character does not know that passage" }, { shown: true }, true, [T1, T2],
+                [["R595A2", ["R595U2"], true, true], ["gms", true], ["R595A1", ["R595U1"], false, false]]]),
+            "[a show by a student who does not know the tunnel, by its knower, the one shown it now knows it, their player's passages, the cards: theirs, the GMs', the giver's]");
+
+        // The receiver's rule holds for a packet that carries a tunnel: from another player, or from a GM who is not the primary, it is not taken.
+        const people = new Map([["R595GM", { isGM: true }], ["R595GM2", { isGM: true }], ["R595U2", { isGM: false }]]);
+        const packet = { action: "passage.rows", userId: "R595U1", passages: c1.value, stamps: c1.stamps };
+        equal(J(["R595U2", "R595GM2", "R595GM"].map(sender => L.passageRowsRefusal(packet, sender, { me: { id: "R595U1", isGM: false }, users: people, primary: "R595GM" }))),
+            J(["not sent by a GM", "not sent by the primary GM", null]), "[a tunnel's packet from another player, from a GM who is not the primary, from the primary]");
+    }],
 ];
 
 /**

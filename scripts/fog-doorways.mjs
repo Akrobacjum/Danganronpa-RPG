@@ -26,15 +26,17 @@
  * are utils.mjs (`debug`), fog-geometry.mjs and the rooms.mjs leaf (`roomPieces`,
  * E12 C2b) - and, since E79 C3 (14.10.2026), the passages.mjs leaf (`openSegmentsFor`,
  * `cutSegment`) and movement.mjs (`passageOpenFor`), for the secret passages a viewer's
- * character may take; neither reaches a fog file back (R161). `ADRIFT_WARN_RUN` is read only by
+ * character may take; neither reaches a fog file back (R161). Since E80 C1 (18.10.2026) the marks of
+ * the tunnel ends a viewer's character knows in its room (`tunnelMarks`, `addTunnelMarks`), read
+ * from the same copy (passages.mjs `tunnelEndsFor`). `ADRIFT_WARN_RUN` is read only by
  * fog-diagnostics.mjs's `adriftCheck`; it stays among the doorway constants it
  * was written beside.
  */
 
 import { debug } from "./utils.mjs";
 import { roomPieces, onLevel } from "./rooms.mjs";
-import { openSegmentsFor, cutSegment } from "./passages.mjs";
-import { passageOpenFor } from "./movement.mjs";
+import { openSegmentsFor, cutSegment, tunnelEndsFor } from "./passages.mjs";
+import { passageOpenFor, passageRooms, roomsKnownToMe } from "./movement.mjs";
 import {
     regionShapes, polylineLength, inPolygons, resamplePolyline, smoothPolyline, trimPolyline, innerStretches
 } from "./fog-geometry.mjs";
@@ -686,6 +688,61 @@ export function viewerPassages(actor, region, scene, level = null, { gm = Boolea
     if (!actor || gm || !scene?.id) return [];
     return openSegmentsFor(actor, scene.id, level, { known })
         .filter(passage => passage.wallId && passageOpenFor(actor, passage, scene, { from: region?.name ?? null, level, known }));
+}
+
+/**
+ * The marks of the tunnel ends this character knows in `region`'s room on this floor (E80 C1; P1-04):
+ * `[{ id, x, y, to }]`, `to` the room at the other end as this viewer may name it - a room it has not
+ * found is "Unexplored room 1", as Listen says it (action-rolls.mjs `listenLabels`). Read from this
+ * browser's copy (passages.mjs `tunnelEndsFor`), so a tunnel the GMs closed, deleted or never gave a
+ * character of this player's has no mark, and the rooms are read off the map as the list reads them
+ * (movement.mjs `passageRooms`). None on a GM's browser, as `viewerPassages` hands a GM none. `gm`,
+ * `known` and `knownRooms` are the suite's (R595).
+ */
+export function tunnelMarks(actor, region, scene, level = null, { gm = Boolean(game.user?.isGM), known, knownRooms = roomsKnownToMe } = {}) {
+    if (!actor || gm || !scene?.id || !region?.name) return [];
+    const ends = tunnelEndsFor(actor, scene.id, level, { known });
+    if (!ends.length) return [];
+    const found = knownRooms(scene);
+    const marks = [];
+    for (const end of ends) {
+        const [here, far] = passageRooms(scene, { ends: [end, end.far] });
+        if (here !== region.name || !far) continue;
+        marks.push({ id: end.id, x: end.x, y: end.y, to: !found || found.has(far) ? far : game.i18n.format("DRPG.Listen.unknownRoom", { n: 1 }) });
+    }
+    return marks;
+}
+
+/**
+ * The marks `tunnelMarks` answers, on a room's outline group (fog-reveal.mjs `flashOutline`): a ring at
+ * each end in the outline's colour, and 'Secret passage to {room}' under it, in the outline's space
+ * (`rect` taken off, as `labelPoint` takes it). Answers how many it drew. Not measured: the harness draws
+ * no outline for a player (scenario 66's header), so how a mark looks on a real canvas is not seen here;
+ * R595 reads the marks, not the drawing.
+ */
+export function addTunnelMarks(group, marks, rect = { x: 0, y: 0 }) {
+    if (!group || !marks?.length) return 0;
+    const grid = canvas?.grid?.size ?? 100;
+    const colour = outlineColour();
+    for (const mark of marks) {
+        const x = mark.x - (rect?.x ?? 0), y = mark.y - (rect?.y ?? 0);
+        const ring = new PIXI.Graphics();
+        ring.lineStyle({ width: Math.max(3, Math.round(grid * 0.05)), color: colour, alpha: 0.95 });
+        ring.drawCircle(x, y, grid * 0.3);
+        const text = new PIXI.Text(game.i18n.format("DRPG.Passage.mark.to", { room: mark.to }), {
+            fontFamily: '"Special Elite", "Courier New", monospace',
+            fontSize: Math.max(14, Math.round(grid * 0.22)),
+            fill: colour,
+            stroke: colourOf("--drpg-ink", 0x1a1620),
+            strokeThickness: Math.max(3, Math.round(grid * 0.05)),
+            align: "center"
+        });
+        text.resolution = 2;
+        text.anchor.set(0.5, 0);
+        text.position.set(x, y + grid * 0.35);
+        group.addChild(ring, text);
+    }
+    return marks.length;
 }
 
 /**
