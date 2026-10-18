@@ -1,14 +1,16 @@
 /**
  * The suite's tiers from the command line (INFRA I1, 18.10.2026).
  * ---------------------------------------------------------------------------
- *     node run-tests.mjs [--tier 0|1|2] [--only <R number or piece of a name>]... [--verbose]
+ *     node run-tests.mjs [--tier 0|1|2] [--only <R number or piece of a name>]... [--shard i/n] [--verbose]
  *
  * Boots the cluster as 01-runtests does - four jsdom clients, the players' module
  * listeners silenced and their dialogs left unanswered, real windows on the GM -
  * and calls `game.drpg.runTests({ tier, only, confirmed: <this world's id> })` on
  * the GM's client. --tier is 1 when not given, as runTests' own default; --only
  * may be given more than once, and the list goes to runTests whole, where each
- * entry has to name a test in the tiers asked for (tests.mjs `matcherFor`). It
+ * entry has to name a test in the tiers asked for (tests.mjs `matcherFor`); --shard
+ * hands `{ index, count }` on (INFRA I2: tier 2's tests at positions k with
+ * k % n = i - 1, tiers 0 and 1 in shard 1 alone). It
  * prints the runner's text between the SUITE OUTPUT lines suite-diff.mjs reads
  * (the whole text: 01-runtests cuts its copy at 30,000 characters), the cluster's
  * own lines only with --verbose, and then one last line:
@@ -66,13 +68,13 @@ const EVAL_MS = { 0: 370_000, 1: 370_000, 2: 3_600_000 };
 /* ------------------------------ the scenario ------------------------------ */
 
 export async function run({ gm, p1, p2, p3, check }) {
-    const { tier, only } = JSON.parse(process.env.DRPG_RUN_TESTS ?? "{}");
+    const { tier, only, shard = null } = JSON.parse(process.env.DRPG_RUN_TESTS ?? "{}");
     // As 01-runtests: a player client answering a dialog it was sent, or its own listeners taking a packet,
     // would race the suite's measurements, and the GM's DialogV2 draws real windows (01, REAL WINDOWS ON THE GM).
     for (const c of [p1, p2, p3]) await c.eval(`globalThis.__dialogAuto = false; (game.socket._handlers.get("module.danganronpa-rpg") ?? []).length = 0; return true;`);
     await gm.eval(`globalThis.__dialogWindows = true; return true;`);
     const res = await gm.eval(`
-        const r = await game.drpg.runTests({ tier: ${JSON.stringify(tier)}, only: ${JSON.stringify(only)}, confirmed: game.world.id });
+        const r = await game.drpg.runTests({ tier: ${JSON.stringify(tier)}, only: ${JSON.stringify(only)}, shard: ${JSON.stringify(shard)}, confirmed: game.world.id });
         return { passed: r?.passed, failed: r?.failed, skipped: r?.skipped, red: r?.red, refused: r?.refused ?? null,
             results: r?.results ?? null, text: r?.text ?? "" };
     `, { timeout: EVAL_MS[tier] });
@@ -83,19 +85,19 @@ export async function run({ gm, p1, p2, p3, check }) {
     check("the suite ran", res && typeof res.passed === "number" && !res.refused, JSON.stringify({ refused: res?.refused }));
     check("at least one test ran", ran > 0, `${ran} tests ran`);
     check("nothing failed", res?.failed === 0, `${res?.failed} failed`);
-    return { runTests: { tier, only, ran },
+    return { runTests: { tier, only, shard, ran },
         suite: { passed: res?.passed, failed: res?.failed, skipped: res?.skipped, red: res?.red, results: res?.results ?? null } };
 }
 
 /* -------------------------------- the command ------------------------------ */
 
 function usage(why) {
-    console.log(`run-tests: ${why}\nusage: node run-tests.mjs [--tier 0|1|2] [--only <R number or piece of a name>]... [--verbose]`);
+    console.log(`run-tests: ${why}\nusage: node run-tests.mjs [--tier 0|1|2] [--only <R number or piece of a name>]... [--shard i/n] [--verbose]`);
     process.exit(2);
 }
 
 function parseArgs(argv) {
-    let tier = 1, verbose = false;
+    let tier = 1, verbose = false, shard = null;
     const only = [];
     for (let i = 0; i < argv.length; i++) {
         const a = argv[i];
@@ -108,9 +110,13 @@ function parseArgs(argv) {
             const o = argv[++i];
             if (o === undefined || !o.trim()) usage("--only takes an R number or a piece of a test's name");
             only.push(o.trim());
+        } else if (a === "--shard") {
+            const m = /^(\d+)\/(\d+)$/.exec(argv[++i] ?? "");
+            if (!m || !(Number(m[2]) >= 1 && Number(m[1]) >= 1 && Number(m[1]) <= Number(m[2]))) usage("--shard takes i/n with 1 <= i <= n, e.g. --shard 2/8");
+            shard = { index: Number(m[1]), count: Number(m[2]) };
         } else usage(`unknown argument ${JSON.stringify(a)}`);
     }
-    return { tier, only: only.length ? only : null, verbose };
+    return { tier, only: only.length ? only : null, shard, verbose };
 }
 
 /** Kill a detached child's whole process group; nothing to do when it is already gone (run-all.mjs's). */
@@ -124,13 +130,13 @@ function killGroup(pid) {
 }
 
 async function main() {
-    const { tier, only, verbose } = parseArgs(process.argv.slice(2));
+    const { tier, only, shard, verbose } = parseArgs(process.argv.slice(2));
     const t0 = Date.now();
     const started = new Date(t0 - 1000);  // a second of slack, as run-all.mjs allows
     fs.rmSync(RESULTS_FILE, { force: true });
     const child = spawn(process.execPath, [path.join(HERE, "cluster.mjs"), SELF, ...(verbose ? ["--verbose"] : [])], {
         cwd: HERE, detached: process.platform !== "win32", stdio: ["ignore", "pipe", "pipe"],
-        env: { ...process.env, FORCE_COLOR: "0", DRPG_RUN_TESTS: JSON.stringify({ tier, only }) }
+        env: { ...process.env, FORCE_COLOR: "0", DRPG_RUN_TESTS: JSON.stringify({ tier, only, shard }) }
     });
     for (const sig of ["SIGINT", "SIGTERM"]) process.on(sig, () => { killGroup(child.pid); process.exit(1); });
     // Without --verbose only the runner's text goes through, line by line as it comes.
@@ -169,7 +175,8 @@ async function main() {
     if (timedOut) problems.push(`timed out after ${(EVAL_MS[tier] + 5 * 60_000) / 1000} s`);
     if ((code === 0) !== (doc.failed === 0)) problems.push(`the cluster exited ${code} while its checks said ${doc.failed} failed`);
     for (const p of problems) console.log(`run-tests: RED - ${p}`);
-    console.log(`run-tests: tiers 0-${tier}${only ? `, only ${only.map(o => JSON.stringify(o)).join(", ")}` : ""}: ${ran} tests ran, ${seconds} s wall`);
+    console.log(`run-tests: tiers 0-${tier}${only ? `, only ${only.map(o => JSON.stringify(o)).join(", ")}` : ""}`
+        + `${shard ? `, shard ${shard.index}/${shard.count}` : ""}: ${ran} tests ran, ${seconds} s wall`);
     console.log(`run-tests: ${s.passed ?? 0} passed, ${s.failed ?? 0} failed, ${s.skipped ?? 0} skipped, ${s.red ?? 0} red`);
     process.exit(problems.length || s.failed !== 0 || !(ran > 0) ? 1 : 0);
 }

@@ -36,6 +36,7 @@ If a claim cannot be measured, say that instead of rounding it up.
 | The quick part | `npm run quick` - lint, the checks and the gate's self-test, 9-13 s here; `npm run lint` and `npm run check` alone |
 | The suite, headless | `npm run suite`, or `node cluster.mjs scenarios/01-runtests.mjs` |
 | Tiers 0-1, or a few tests by name, headless | `node run-tests.mjs --tier 1` in `audit/harness`: 200-212 s here (18.10, 4 cores, 449 tests); `--tier 2 --only R553 --only "<piece of a name>"` runs only those, `--only` as often as wanted; the runner's text, then `run-tests: P passed, F failed, S skipped, R red`; exit 1 on a failure, on nothing run and on an `--only` that names nothing in the tiers asked for |
+| The suite in shards, and the shards together | `DRPG_SUITE_SHARD=i/n node run-all.mjs suite` in `audit/harness` runs shard i of n: tier 2's tests at positions k with k % n = i - 1, and tiers 0-1 with 01-runtests' parts A and B in shard 1 alone (CI runs 8); `node suite-merge.mjs <dir>` holds every `01-runtests.json` under `<dir>` to the whole suite once - the list's hash, each tier-2 test in its shard, tiers 0-1 in shard 1, the skips exactly `skip-baseline.json`'s, failed 0 - and exit 1 names what is missing or doubled. Here (18.10, 4 cores): shard 1/8 1087 s wall, 449 tests of tiers 0-1 and 119 of tier 2's 950, with parts A and B, shard 2/8 325 s wall, 119 of tier 2's 950 |
 | One scenario | `node cluster.mjs scenarios/40-flow.mjs` (add `--verbose` for per-test lines); `node run-all.mjs scenarios --only 40-flow` also holds it to a fresh results file |
 | Every scenario | `npm run scenarios`: the rows with layers `ci` in `audit/harness/README.md` |
 | One check | `node tools/check.mjs <part>`: stamps, notes, dashes, parity, prose, names, moves, contract, registry, stages, tree, gatecode |
@@ -475,8 +476,10 @@ A release meets two layers (decision D47, E30), and `release.yml` checks both
 before it builds anything.
 
 1. **ci** - `npm test`, above. `.github/workflows/ci.yml` runs it on every push
-   and pull request to `main`, in three jobs; `release.yml` calls the same file
-   on the release commit.
+   to `main` or a `claude/**` branch and on a dispatch, spread over parallel jobs -
+   lint, check and gate; the scenarios in buckets; the suite in eight shards; then
+   `verdict`, which merges the shards with `suite-merge.mjs` (INFRA I3) - and
+   `release.yml` calls the same file on the release commit.
 2. **local-gate** - what no headless run can do: the suite's tier 2 in both
    themes on a real Foundry v14, the whole-world diff around it, the scenarios
    whose layers include `local-gate`, and the drills a stage names in

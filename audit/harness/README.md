@@ -53,6 +53,22 @@ cluster left no results file of this run (`results/run-tests.json`, the suite's
 list as `evidence.suite`, as 01 keeps it). Measured 18.10.2026 on 4 cores:
 `--tier 1` 200-212 s wall in two runs, 449 tests; `--only R553` 11 s, one test.
 
+The suite in shards (INFRA I2): `DRPG_SUITE_SHARD=i/n` before `run-all.mjs
+suite` or `cluster.mjs scenarios/01-runtests.mjs` makes the run shard i of n.
+`runTests({ shard })` runs tier 2's tests at positions k with
+k % n = i - 1 of the list (after `only`), and tiers 0 and 1 in shard 1 alone;
+01-runtests runs its parts A and B (tiers 0-1 mid-game, the default, the tier-2
+window) in shard 1 alone, asks of its skips only that each is listed in
+`skip-baseline.json`, and writes `evidence.shard`: the shard, the tier-2 names it
+ran, and the whole list with its length and hash. `node suite-merge.mjs <dir>`
+reads every `01-runtests.json` under `<dir>` (CI's verdict job: one folder per
+shard, `shards/results-suite-<i>/`) and holds them to the whole suite once: one
+list and hash, each name in the shard its position gives it, tiers 0-1 in
+shard 1, the skips together exactly the baseline's, nothing failed; exit 1 with
+what is missing or doubled, 2 when there is nothing to read. Unset, the run is
+1/1, and suite-merge reads its folder as a set of one. Measured 18.10.2026 on 4
+cores: shard 1/8 1087 s wall, 449 tests of tiers 0-1 and 119 of tier 2's 950, with parts A and B, shard 2/8 325 s wall, 119 of tier 2's 950.
+
 ## Layers
 
 Every file declares `export const layers = [...]`, written out as a JSON array

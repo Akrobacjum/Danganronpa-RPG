@@ -111,14 +111,27 @@ let inFlight = false;
  *   for a caller that cannot answer a window (the headless harness). Anything else -
  *   `true` included - opens the window, so a line copied from a handbook into a
  *   campaign world still asks.
+ * @param {{index: number, count: number}} [options.shard] One part of `count` (INFRA I2):
+ *   tier 2's tests, after `only`, at positions k with k % count === index - 1, and
+ *   tiers 0 and 1 (the purity line with them) in shard 1 alone. For CI's parallel
+ *   jobs; audit/harness/suite-merge.mjs holds the parts to being the whole suite once.
  * @returns {Promise<{passed: number, failed: number, skipped: number, red: number, text: string,
  *   results: {tier: number, name: string, outcome: "pass"|"fail"|"skip"|"red", message?: string,
- *   probe?: string, assertions: number|null}[], refused?: "running"|"cancelled"}|null>}
+ *   probe?: string, assertions: number|null}[], shard?: {index: number, count: number, list: string[],
+ *   ran: string[]}, refused?: "running"|"cancelled"|"shard"}|null>}
  */
-export async function runTests({ tier = 1, only = null, confirmed = null } = {}) {
+export async function runTests({ tier = 1, only = null, confirmed = null, shard = null } = {}) {
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
+    }
+    const cut = shardCut(shard);
+    if (!cut) {
+        // A console's caller, the harness's runners: said in the answer and the log, not in a window.
+        const text = `runTests({ shard }) takes { index, count }, whole numbers with 1 <= index <= count; got ${JSON.stringify(shard)}`;
+        warn(text);
+        return { passed: 0, failed: 1, skipped: 0, red: 0, text, refused: "shard",
+            results: [{ tier: 0, name: "the shard is one part of its count", outcome: "fail", assertions: null, message: text }] };
     }
 
     if (inFlight) {
@@ -150,7 +163,7 @@ export async function runTests({ tier = 1, only = null, confirmed = null } = {})
         // `suiteRolling` in action-rolls.mjs for why, and the scenario named "the
         // roll window opens, locked" for what still covers it.
         if (game.drpg) game.drpg.suiteRolling = true;
-        return await runSuite(tier, only);
+        return await runSuite(tier, only, cut);
     } finally {
         if (game.drpg) game.drpg.suiteRolling = false;
         inFlight = false;
@@ -187,6 +200,13 @@ async function confirmTier2(confirmed) {
         ],
         rejectClose: false
     });
+}
+
+/** `{ index, count }` for a shard given, 1 of 1 for none, null for one that is not a part of its count. */
+function shardCut(shard) {
+    if (shard === null || shard === undefined) return { index: 1, count: 1 };
+    const index = Number(shard?.index), count = Number(shard?.count);
+    return Number.isInteger(index) && Number.isInteger(count) && count >= 1 && index >= 1 && index <= count ? { index, count } : null;
 }
 
 /** The notice history as this browser stores it, the text itself: "" where nothing is stored. */
@@ -248,8 +268,13 @@ async function loadSettled() {
     }
 }
 
-async function runSuite(tier, only = null) {
+async function runSuite(tier, only = null, cut = { index: 1, count: 1 }) {
     const lines = [], results = [];
+    /* SHARD 1 HOLDS TIERS 0 AND 1 (INFRA I2, 18.10.2026). They read; their purity line reads the
+       world around them; tier 2 is what takes the time (01-runtests' C on 18.10.2026, 4 cores: 2360 s, of
+       which tiers 0-1 alone take about 200-212 s). So tier 2 is dealt by position and the rest stays whole. */
+    const first = cut.index === 1;
+    const shard = { index: cut.index, count: cut.count, list: [], ran: [] };
     let passed = 0, failed = 0, skipped = 0, red = 0;
     const wanted = matcherFor(only);
     const pick = list => list.filter(([name]) => wanted(name));
@@ -284,7 +309,7 @@ async function runSuite(tier, only = null) {
      * otherwise run four tests and say nothing of the fifth.
      */
     const tiers = [[0, REGRESSIONS], [1, INVARIANTS], [2, SCENARIOS]];
-    for (const entry of onlyEntries(only)) {
+    for (const entry of first ? onlyEntries(only) : []) {
         const named = matcherFor(entry), mine = list => list.filter(([name]) => named(name));
         if (!tiers.some(([t, list]) => t <= tier && mine(list).length)) {
             const later = tiers.filter(([t, list]) => t > tier && mine(list).length);
@@ -301,6 +326,9 @@ async function runSuite(tier, only = null) {
     // The stage ledger, once per run: a red marker is held to it (expectedRed in tests-kit.mjs).
     const ledger = await stageLedger();
     const notes = ledger ? [] : ["stage ledger not served by this install: whether a marked stage has shipped was checked at release, not here"];
+    if (cut.count > 1) {
+        notes.push(`shard ${cut.index} of ${cut.count}: ${first ? "tiers 0 and 1, and " : ""}tier 2's tests at positions k with k % ${cut.count} = ${cut.index - 1}`);
+    }
 
     // Tier 0 runs at every level, including `{ tier: 1 }` - the round-by-round
     // pass E17 makes on the way in and on the way out. It is the cheapest thing
@@ -310,21 +338,21 @@ async function runSuite(tier, only = null) {
     if (!await loadSettled()) {
         notes.push(`the load's own writes had not finished after ${LOAD_WAIT_MS / 1000} s: one landing during tiers 0 and 1 reads there as the suite's`);
     }
-    const untouched = await worldDump();
+    const untouched = first ? await worldDump() : null;
     let running = null;
     const writes = watchWrites(() => running);
     // The world's scene links while tier 2 holds them empty (below), put back in the `finally`.
     let heldRoles = null;
     let noticesFound = null;
     try {
-        lines.push("TIER 0 - module-wide regression (source is read, not called)");
-        for (const entry of pick(REGRESSIONS)) {
+        if (first) lines.push("TIER 0 - module-wide regression (source is read, not called)");
+        for (const entry of first ? pick(REGRESSIONS) : []) {
             running = entry[0];
             record(await runOne(entry, { tier: 0, ledger }));
             running = null;
         }
 
-        if (tier >= 1) {
+        if (tier >= 1 && first) {
             lines.push("");
             lines.push("TIER 1 - invariants (the world is not touched)");
             for (const entry of pick(INVARIANTS)) {
@@ -339,7 +367,8 @@ async function runSuite(tier, only = null) {
         // write all the same, so the reading waits for one settle first. The whole world
         // is read (worldDump, E30), not the parts E01 knew to fingerprint.
         await settle();
-        const moved = dumpDiff(untouched, await worldDump());
+        // In a shard after the first nothing of tiers 0-1 ran, and the line is shard 1's.
+        const moved = first ? dumpDiff(untouched, await worldDump()) : [];
         const purity = { tier: 1, name: "tier 0/1 changed nothing in the world", assertions: null };
         if (moved.length) {
             const when = [...new Set(writes.seen)];
@@ -348,7 +377,7 @@ async function runSuite(tier, only = null) {
                 ...(when.length ? [`written: ${when.slice(0, 8).join("; ")}${more(when, 8)}`] : []),
                 "(run during play, a player acting or a timer running out moves these too; a write during a test is that test's)"
             ].join("\n") });
-        } else {
+        } else if (first) {
             record({ ...purity, outcome: "pass" });
         }
 
@@ -444,7 +473,10 @@ async function runSuite(tier, only = null) {
                  */
                 const asFound = await worldDump();
                 const reported = new Set();
-                for (const entry of pick(SCENARIOS)) {
+                const list = pick(SCENARIOS), mine = list.filter((_, k) => k % cut.count === cut.index - 1);
+                shard.list = list.map(([name]) => name);
+                shard.ran = mine.map(([name]) => name);
+                for (const entry of mine) {
                     running = entry[0];
                     record(await runOne(entry, { tier: 2, ledger }));
                     running = null;
@@ -549,5 +581,5 @@ async function runSuite(tier, only = null) {
     if (failed || skipNote) ui.notifications.warn(skipNote ? `${summary} - ${skipNote}` : summary);
     else ui.notifications.info(summary);
     log(`Regression suite: ${summary}`);
-    return { passed, failed, skipped, red, text, results };
+    return { passed, failed, skipped, red, text, results, shard };
 }

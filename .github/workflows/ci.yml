@@ -1,81 +1,225 @@
-# The 'ci' layer of the release gate (E30, decision D47): `npm test` in
-# audit/harness, split into three jobs that run side by side. release.yml calls
-# this file before it builds, so a release and a pull request meet the same steps.
+# .github/workflows/ci.yml (INFRA I3, 18.10.2026). The 'ci' layer of the release gate, as before
+# (decision D47): lint, tools/check.mjs, the gate's self-test, the suite and every scenario whose layers include
+# "ci" - now spread over parallel jobs so that one push is validated in roughly 10-15 minutes (to be measured on the
+# first runs) instead of today's 32-47 min (the longer of one suite job and one scenarios job, four PR runs at
+# 1.2.71-1.2.77).
 #
-# Measured 24.09.2026 in a 4-core container (audit/harness/run-all.mjs, one run
-# of everything, 8m08s wall): lint 3.4 s, check 2.9 s, the suite 309.5 s, the
-# other fourteen scenarios 171.7 s together (30-security 65.5 s of it). Peak
-# memory: the suite's GM client 474 MB, every other client 217-232 MB, each
-# cluster 58-63 MB, run-all 302 MB with ESLint loaded. Every results JSON
-# records its time and each client's maxRSS, uploaded below.
+# Jobs (17-19 at once at most, 20 on a crlf dispatch; the Free plan allows 20 concurrent jobs on standard runners, free for a
+# public repository):
+#   plan       reads the ci scenarios off the source exactly as run-all.mjs does (LAYERS_RE) and deals them into
+#              BUCKETS by weight, longest first - a scenario added by a stage is picked up with no edit here
+#   quick      run-all.mjs lint check gate
+#   scenarios  one job per bucket: run-all.mjs scenarios --only <name>, for each name of the bucket
+#   suite      one job per shard: run-all.mjs suite with DRPG_SUITE_SHARD=i/N (INFRA I2: tests.mjs deals tier 2
+#              by position, 01-runtests.mjs runs tiers 0-1 and its parts A and B in shard 1 alone)
+#   verdict    after all of them: the shards' union is the whole suite, once (audit/harness/suite-merge.mjs, which
+#              reads shards/results-suite-<i>/01-runtests.json), every job green
+#   crlf       only on a dispatch with crlf = true (once per train, before its PR; METHOD-lessons change 4): the whole
+#              chain, unsharded, on a checkout with Windows line ends (core.autocrlf true), as a Windows GM's copy reads
 #
-# Measured on Actions (ubuntu-24.04), the "npm test" step of each job: 1.2.67
-# (05.10.2026, run 15, 738 tests) the suite 17 min 56 s, the scenarios 11 min
-# 59 s, lint-check-gate 11 s. 1.2.68 (06.10.2026, run 17, 863 tests) the suite
-# ran into its 25-minute limit and was cancelled 25 min 2 s into the step, the
-# scenarios took 16 min 11 s; the same suite on the same code took 1547.7 s in
-# the 4-core container (k4 on 0fa68c3). The limits below are there to end a
-# hang, not to budget a run: each is about twice the last green run of its job,
-# and the suite grows with every stage of the 1.3.0 plan (309 s on 24.09, 1548 s
-# on 06.10). 07.10.2026 (E33 part 1, 899 tests, the 4-core container, e33run/k1c):
-# the suite 1702 s and its scenario 1993 s wall, beside two other harness lanes;
-# run-all's own suite bound is 72 minutes since E33 fix r2-G4 (1.2 times the
-# tier-2 eval's 3600 s, which needs about 360 s of wall on top: k3, 07.10.2026,
-# 1825 s and 2185 s wall), and the suite job's limit sits above it at 80 so that
-# run-all's own verdict, not the runner's cancel, is what ends a hang.
+# Triggers: a push to main or to a line branch (claude/**), a dispatch, and release.yml's call. No pull_request
+# trigger: a PR from a line branch would run every job twice on the same commit (34 jobs against the plan's 20).
+# Branch protection matches a required check by name on the PR's head commit, so the push run's "verdict" is the one
+# the PR waits for; INFRA I3 checks this on the first PR (not measured when this file landed).
 #
-# workflow_dispatch lets anyone with write access run it on any branch - the
-# mutation branches of the E30 gate design among them. Making these jobs
-# required for a merge is a branch-protection setting on GitHub, not this file.
+# The line's session cannot read job logs or artifacts (their blob host is refused), so a red job also writes its
+# first problems as error annotations, which the API serves (the session's ci-status.sh prints them; it is not in
+# this repository).
+#
+# The suite job's limit stays 80 minutes, above run-all.mjs's own 72-minute bound on the suite (its comment says
+# why), so that a hung shard is ended by run-all, whose verdict names the test, rather than by the runner's cancel.
 name: CI
 
 on:
   push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+    branches: [main, 'claude/**']
   workflow_dispatch:
+    inputs:
+      crlf:
+        description: "Also run the whole chain on a CRLF checkout (once per train, before its PR)"
+        type: boolean
+        default: false
   workflow_call:
 
 permissions:
   contents: read
 
+# One run per commit; a newer push does not cancel an older run (every pushed commit keeps its verdict).
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.sha }}
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: 22.22.2
+  BUCKETS: 8
+  SHARDS: 8
+  # Prints the problems of results/run-all.json's red parts one a line (read by the "name the failures" steps below).
+  # Red parts only: run-all's check and gate parts keep the lines of a green run that mention "problem" or "missing"
+  # too ("dashes: ... 0 problem(s)"), which would fill the ten annotations before the real one.
+  NAME_FAILS: >-
+    const j = JSON.parse(require("fs").readFileSync("results/run-all.json", "utf8"));
+    for (const r of j.parts) if (r.status === "red") for (const p of (r.problems || []))
+    console.log(r.part + ": " + String(p).replace(/[\r\n]+/g, " ").replace(/%/g, "%25").slice(0, 300));
+
 jobs:
-  test:
-    name: ${{ matrix.name }}
+  plan:
     runs-on: ubuntu-24.04
-    timeout-minutes: ${{ matrix.minutes }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { name: "lint, check, gate", parts: "lint check gate", minutes: 10 }
-          - { name: "suite", parts: "suite", minutes: 80 }
-          - { name: "scenarios", parts: "scenarios", minutes: 40 }
+    timeout-minutes: 5
+    outputs:
+      buckets: ${{ steps.plan.outputs.buckets }}
+      shards: ${{ steps.plan.outputs.shards }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: plan
+        name: Deal the ci scenarios into buckets
+        # Weights in seconds from the k-chain logs of E77-E79 (61 ~300, 30 ~285, 83 ~158, 41 ~149, 66 ~111, 74 ~68,
+        # 76 ~60, 73 ~34, 75 ~9); every other scenario counts 60 until measured. Re-read them from
+        # results/<scenario>.json after the first runs.
+        run: |
+          node -e '
+            const fs = require("fs"), dir = "audit/harness/scenarios";
+            const RE = /export const layers = (\[[^\]]*\])/;
+            const W = { "61-gmstore-case": 300, "30-security": 285, "83-roll-integrity": 158, "41-trial-scene": 149,
+                        "66-rooms": 111, "74-room-tile": 68, "76-passages": 60, "73-notice-history": 34, "75-voice-tile": 9 };
+            const names = fs.readdirSync(dir).filter(f => /^\d{2}-.+\.mjs$/.test(f)).sort().filter(f => {
+              const m = fs.readFileSync(dir + "/" + f, "utf8").match(RE);
+              try { return !!m && JSON.parse(m[1]).includes("ci"); } catch { return false; }
+            }).map(f => f.replace(/\.mjs$/, "")).filter(n => n !== "01-runtests");
+            const k = Math.max(1, Math.min(Number(process.env.BUCKETS), names.length));
+            const b = Array.from({ length: k }, (_, i) => ({ name: "b" + (i + 1), list: [], w: 0 }));
+            for (const n of [...names].sort((x, y) => (W[y] ?? 60) - (W[x] ?? 60))) {
+              const t = b.reduce((m, x) => (x.w < m.w ? x : m)); t.list.push(n); t.w += W[n] ?? 60;
+            }
+            const buckets = b.filter(x => x.list.length).map(x => ({ name: x.name, list: x.list.join(" "), w: x.w }));
+            const shards = Array.from({ length: Number(process.env.SHARDS) }, (_, i) => i + 1);
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, "buckets=" + JSON.stringify(buckets) + "\nshards=" + JSON.stringify(shards) + "\n");
+            console.log(names.length + " ci scenarios in " + buckets.length + " buckets:");
+            for (const x of buckets) console.log("  " + x.name + " (~" + x.w + " s): " + x.list);
+          '
+
+  quick:
+    name: lint, check, gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with:
-          node-version: 22.22.2
-          cache: npm
-          cache-dependency-path: audit/harness/package-lock.json
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: npm, cache-dependency-path: audit/harness/package-lock.json }
       - name: Install the harness
         working-directory: audit/harness
-        # Playwright is a devDependency for the local gate's live runner, which
-        # never runs here; 1.56.1 has no install script, and this keeps it so.
-        env:
-          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+        env: { PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1" }
         run: npm ci
-      - name: npm test (${{ matrix.parts }})
+      - name: run-all lint check gate
         working-directory: audit/harness
-        env:
-          PARTS: ${{ matrix.parts }}
-        run: node run-all.mjs $PARTS
+        run: |
+          node run-all.mjs lint check gate && exit 0
+          (node -e "$NAME_FAILS" || echo "results/run-all.json is missing") | head -10 | sed 's/^/::error title=lint check gate::/'
+          exit 1
+
+  scenarios:
+    needs: plan
+    name: scenarios ${{ matrix.bucket.name }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        bucket: ${{ fromJSON(needs.plan.outputs.buckets) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: npm, cache-dependency-path: audit/harness/package-lock.json }
+      - name: Install the harness
+        working-directory: audit/harness
+        env: { PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1" }
+        run: npm ci
+      - name: ${{ matrix.bucket.list }}
+        working-directory: audit/harness
+        env: { LIST: "${{ matrix.bucket.list }}" }
+        run: |
+          rc=0; : > problems.txt
+          for s in $LIST; do
+            node run-all.mjs scenarios --only "$s" && continue
+            rc=1; (node -e "$NAME_FAILS" || echo "$s: results/run-all.json is missing") >> problems.txt
+          done
+          head -10 problems.txt | sed 's/^/::error title=scenarios::/'
+          exit $rc
       - name: Keep the results
         if: always()
         uses: actions/upload-artifact@v4
-        with:
-          name: results-${{ strategy.job-index }}
-          path: audit/harness/results/
-          if-no-files-found: ignore
-          retention-days: 14
+        with: { name: "results-scen-${{ matrix.bucket.name }}", path: audit/harness/results/, if-no-files-found: ignore, retention-days: 14 }
+
+  suite:
+    needs: plan
+    name: suite ${{ matrix.shard }}/${{ strategy.job-total }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 80
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.plan.outputs.shards) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: npm, cache-dependency-path: audit/harness/package-lock.json }
+      - name: Install the harness
+        working-directory: audit/harness
+        env: { PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1" }
+        run: npm ci
+      - name: run-all suite (shard ${{ matrix.shard }})
+        working-directory: audit/harness
+        env: { DRPG_SUITE_SHARD: "${{ matrix.shard }}/${{ env.SHARDS }}" }
+        run: |
+          node run-all.mjs suite && exit 0
+          (node -e "$NAME_FAILS" || echo "results/run-all.json is missing") | head -10 | sed 's/^/::error title=suite ${{ matrix.shard }}::/'
+          exit 1
+      - name: Keep the results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with: { name: "results-suite-${{ matrix.shard }}", path: audit/harness/results/, if-no-files-found: ignore, retention-days: 14 }
+
+  crlf:
+    if: github.event_name == 'workflow_dispatch' && inputs.crlf
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    steps:
+      - name: Windows line ends for the checkout below
+        run: git config --global core.autocrlf true
+      - uses: actions/checkout@v4
+      - name: The tree really has CRLF line ends
+        run: grep -c $'\r$' README.md | grep -qv '^0$'
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: npm, cache-dependency-path: audit/harness/package-lock.json }
+      - name: Install the harness
+        working-directory: audit/harness
+        env: { PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1" }
+        run: npm ci
+      - name: npm test on the CRLF tree
+        working-directory: audit/harness
+        run: |
+          node run-all.mjs && exit 0
+          (node -e "$NAME_FAILS" || echo "results/run-all.json is missing") | head -10 | sed 's/^/::error title=crlf::/'
+          exit 1
+
+  verdict:
+    needs: [quick, scenarios, suite, crlf]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}" }
+      - uses: actions/download-artifact@v4
+        with: { pattern: "results-suite-*", path: shards }
+      - name: The shards together are the whole suite (INFRA I2)
+        run: node audit/harness/suite-merge.mjs shards
+      - name: Every job green
+        env:
+          QUICK: ${{ needs.quick.result }}
+          SCEN: ${{ needs.scenarios.result }}
+          SUITE: ${{ needs.suite.result }}
+          CRLF: ${{ needs.crlf.result }}
+        run: |
+          echo "quick $QUICK, scenarios $SCEN, suite $SUITE, crlf $CRLF"
+          [ "$QUICK" = success ] && [ "$SCEN" = success ] && [ "$SUITE" = success ] && { [ "$CRLF" = success ] || [ "$CRLF" = skipped ]; }
