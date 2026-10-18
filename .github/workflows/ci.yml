@@ -53,13 +53,22 @@ env:
   NODE_VERSION: 22.22.2
   BUCKETS: 8
   SHARDS: 8
-  # Prints the problems of results/run-all.json's red parts one a line (read by the "name the failures" steps below).
+  # Prints what went red, one a line (read by the "name the failures" steps below): first each suite test that failed
+  # (results/01-runtests.json's evidence.suite.results) and each scenario check that failed (results/<scenario>.json's
+  # results), with its message; then the problems of results/run-all.json's red parts. The suite and the checks come
+  # first because run-all's problems name only the check ("FAIL gm: suite failures") - CI run 39095288436 on 18.10.2026
+  # went red on shard 7 with that line alone, and the test that failed could not be read from the session.
   # Red parts only: run-all's check and gate parts keep the lines of a green run that mention "problem" or "missing"
   # too ("dashes: ... 0 problem(s)"), which would fill the ten annotations before the real one.
   NAME_FAILS: >-
-    const j = JSON.parse(require("fs").readFileSync("results/run-all.json", "utf8"));
+    const fs = require("fs"); const one = s => String(s).replace(/[\r\n]+/g, " ").replace(/%/g, "%25").slice(0, 300);
+    for (const f of (fs.existsSync("results") ? fs.readdirSync("results") : []).filter(f => /^\d\d-.*\.json$/.test(f))) {
+    let s = null; try { s = JSON.parse(fs.readFileSync("results/" + f, "utf8")); } catch { continue; }
+    for (const t of (s.evidence?.suite?.results || [])) if (t.outcome === "fail") console.log(one("test " + t.name + ": " + (t.message || "")));
+    for (const c of (s.results || [])) if (c.status === "fail") console.log(one(f.replace(/\.json$/, "") + " " + c.name + ": " + (c.details || ""))); }
+    const j = JSON.parse(fs.readFileSync("results/run-all.json", "utf8"));
     for (const r of j.parts) if (r.status === "red") for (const p of (r.problems || []))
-    console.log(r.part + ": " + String(p).replace(/[\r\n]+/g, " ").replace(/%/g, "%25").slice(0, 300));
+    console.log(r.part + ": " + one(p));
 
 jobs:
   plan:
