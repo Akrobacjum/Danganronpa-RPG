@@ -16278,13 +16278,16 @@ const INVARIANTS = [
             return out?.code ?? (out?.from ? `${out.from} > ${out.to} on ${out.far.level}` : J(out));
         };
         const plain = sceneWith(), other = { ...sceneWith(), id: "R597X" };
+        // A crossing every other rule lets through meets the courtroom's in a Class Trial (movement.mjs `crossingVerdict`),
+        // as a door's does: scenario 01's A2 runs this tier inside one, where CI read the crossing refused (879d6d5).
+        const through = getClock()?.phase === "classTrial" ? "trialLocked" : "R597 Dorm > R597 Gym on R597L2";
         equal(J([said(A, tok(100, 100, L1, plain)), said(B, tok(100, 100, L1, plain)), said(B, tok(100, 100, L1, plain), mastermind),
             said(A, tok(300, 300, L1, plain)), said(A, tok(100, 100, L2, plain)), said(A, tok(100, 100, L1, other)), said(A, null)]),
-        J(["R597 Dorm > R597 Gym on R597L2", "notKnown", "R597 Dorm > R597 Gym on R597L2", "notAtPassage", "notAtPassage", "notAtPassage", "notAtPassage"]),
+        J([through, "notKnown", through, "notAtPassage", "notAtPassage", "notAtPassage", "notAtPassage"]),
         "[the knower at the Dorm's end, a student who does not know it, the Mastermind, the knower two squares off, at the end's spot upstairs, on another scene, with no token]");
         const locked = sceneWith({ [M.ROOM_FLAGS.locked]: true }), bedroom = sceneWith({ [ROOM_OWNER_FLAG]: "R597OWNER" });
         equal(J([said(A, tok(100, 100, L1, locked)), said(A, tok(100, 100, L1, locked), mastermind), said(A, tok(100, 100, L1, bedroom))]),
-        J(["doorLocked", "R597 Dorm > R597 Gym on R597L2", "R597 Dorm > R597 Gym on R597L2"]),
+        J(["doorLocked", through, through]),
         "[a GM's lock on the Gym, the Mastermind through it, another student's bedroom the tunnel leads into]");
         const lockedText = M.tunnelVerdict(A, passage, tok(100, 100, L1, locked), { mover, known, pay: false })?.text;
         equal(lockedText, game.i18n.localize("DRPG.Move.locked"), "a tunnel's lock is not said in the door's words");
