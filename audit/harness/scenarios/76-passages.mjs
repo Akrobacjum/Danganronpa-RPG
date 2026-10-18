@@ -106,6 +106,9 @@
  *   the empty room and a miss find nothing, a find writes Aiko's cell 'found' with her roll; one card each, its words and
  *   sound to p1 and the GMs and none on p3; p2's ask for Aiko and p1's second ask on a scored roll are refused; Botan as the
  *   Mastermind finds nothing, p2 told. Put back, as the phase found it.
+ * W (E80 C6): Make public. A tunnel granted to Aiko, made public: each player's copy names that player's own students
+ *   alone, every copy sent to one player, no chat message on any client; made secret, Aiko's player alone holds it again;
+ *   p3's world the phase's own. Put back, as the phase found it.
  *
  * What the harness cannot settle - a real canvas's move backend, the ruler and the keyboard, a GM on
  * another scene at a real table - is LIVE-E79-01 to LIVE-E79-08 (AUDIT 9.2, since C8).
@@ -128,7 +131,9 @@ export const layers = ["ci"];
    cluster's line, one run alone under the harness lock (137.5 s by run-all's) - 210 s stands.
    E80 C2 (18.10.2026) adds phase U: 82 checks in 147.9 s by run-all's line, one run alone under the harness lock
    (the commit's quick gate) - 210 s, near one and a half times it, stands. E80 C3 (18.10.2026) adds phase V: 88 checks
-   in 166.2 s by run-all's line, one run alone under the harness lock - so 250 s, near one and a half times it. */
+   in 166.2 s by run-all's line, one run alone under the harness lock - so 250 s, near one and a half times it. E80 C6
+   (18.10.2026) adds phase W: 91 checks in 166.3 s by run-all's line, one run alone under the harness lock (the commit's
+   quick gate) - 250 s stands. */
 export const timeoutMs = 250000;
 
 /* A second GM and a fifth player, seeded inactive and connected in phase G alone (E79 fix r2-G3), declared as 61 and 62
@@ -281,6 +286,7 @@ export async function run({ gm, gm2, p1, p2, p3, p4, check, phase, settle, dump,
     await phaseT({ gm, p1, p2, p3, check, phase, settle, dump, socketTraffic, IDS, repoUrl });
     await phaseU({ gm, p1, p2, p3, check, phase, settle, dump, socketTraffic, IDS, repoUrl });
     await phaseV({ gm, p1, p2, p3, check, phase, settle, dump, IDS, repoUrl });
+    await phaseW({ gm, p1, p2, p3, check, phase, settle, dump, socketTraffic, IDS, repoUrl });
 }
 
 const PHASE_A = "A: the GM creates a passage and grants Aiko - p1's copy holds that row alone, p2 and p3 nothing of it, p3's world as found";
@@ -903,6 +909,8 @@ async function phaseD({ gm, p1, p2, p3, check, phase, settle, socketTraffic, opL
 
 const PHASE_E = "E: the Passages tab - Close, Open, a revoke, a grant, the wall moved and Delete, each from the GM's Room Setup, and what p1, p2 and p3 are sent";
 
+/* The tab's Who knows column, by its place: the fifth since E80 C6 put Kind, Shape and Origin after Rooms. */
+const KNOWS = 5;
 /* Phase E's own gm.eval prelude: the open Room Setup's element, a row of the passage, and a wait. */
 const TAB = `const until = async (test, ms = 6000) => { const end = Date.now() + ms; let v; while (!(v = await test()) && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return v; };
     const s = globalThis.__s76e, row = () => s.el?.querySelector('[data-drpg-passage="' + s.id + '"]') ?? null;
@@ -938,10 +946,10 @@ async function phaseE({ gm, p1, check, phase, settle, dump, socketTraffic, IDS, 
     /* Close: p1's copy is empty, the GMs keep Aiko's grant; Open: p1's copy holds the row again. */
     const closed = await gm.eval(`${TAB} press('[data-drpg-passage-act="close"]'); await until(() => state() === "closed");
         const G = await import("${repoUrl}/scripts/passages-gm.mjs");
-        return { state: state(), knows: chips(2), kept: Boolean(G.listPassages().find(p => p.id === s.id)?.access?.[${J(IDS.aiko)}]) };`, { timeout: 15000 });
+        return { state: state(), knows: chips(${KNOWS}), kept: Boolean(G.listPassages().find(p => p.id === s.id)?.access?.[${J(IDS.aiko)}]) };`, { timeout: 15000 });
     await settle(600);
     const copyClosed = await known(p1, repoUrl);
-    const reopened = await gm.eval(`${TAB} press('[data-drpg-passage-act="open"]'); await until(() => state() === "secret"); return { state: state(), knows: chips(2) };`, { timeout: 15000 });
+    const reopened = await gm.eval(`${TAB} press('[data-drpg-passage-act="open"]'); await until(() => state() === "secret"); return { state: state(), knows: chips(${KNOWS}) };`, { timeout: 15000 });
     await settle(600);
     const copyOpen = await known(p1, repoUrl);
     check("E: Close in the tab empties p1's copy and keeps Aiko in Who knows; Open gives p1 the row back",
@@ -955,9 +963,9 @@ async function phaseE({ gm, p1, check, phase, settle, dump, socketTraffic, IDS, 
     const revoked = await gm.eval(`${TAB} let asked = null;
         globalThis.__dialogAnswers.push(config => { asked = config.window?.title ?? "?"; return "now"; });
         press('[data-drpg-passage-act="revoke"][data-drpg-actor="${IDS.aiko}"]');
-        await until(() => chips(2).length === 0);
+        await until(() => chips(${KNOWS}).length === 0);
         const left = globalThis.__dialogAnswers.length; globalThis.__dialogAnswers.length = 0;
-        return { asked, left, knows: chips(2) };`, { timeout: 15000 });
+        return { asked, left, knows: chips(${KNOWS}) };`, { timeout: 15000 });
     await settle(600);
     const copyRevoked = await known(p1, repoUrl);
     const d3 = await dump("p3");
@@ -979,7 +987,7 @@ async function phaseE({ gm, p1, check, phase, settle, dump, socketTraffic, IDS, 
         const G = await import("${repoUrl}/scripts/passages-gm.mjs"), M = await import("${repoUrl}/scripts/movement.mjs");
         const cellOf = () => G.listPassages().find(p => p.id === s.id)?.access?.[${J(IDS.aiko)}] ?? null;
         const granted = await game.drpg.passages.grant(s.id, ${J(IDS.aiko)});
-        await until(() => chips(2).length === 1);
+        await until(() => chips(${KNOWS}).length === 1);
         let asked = null;
         globalThis.__dialogAnswers.push(config => { asked = config.window?.title ?? "?"; return "leave"; });
         press('[data-drpg-passage-act="revoke"][data-drpg-actor="${IDS.aiko}"]');
@@ -1108,11 +1116,11 @@ async function phaseE({ gm, p1, check, phase, settle, dump, socketTraffic, IDS, 
     const granted = await gm.eval(`${TAB} const add = press('[data-drpg-passage-act="menu"][data-drpg-menu="grant"]');
         const shown = row()?.querySelector('[data-drpg-menu-of="grant"]')?.hidden === false;
         press('[data-drpg-menu-of="grant"] [data-drpg-passage-act="grant"][data-drpg-actor="${IDS.aiko}"]');
-        await until(() => chips(2).length === 1);
+        await until(() => chips(${KNOWS}).length === 1);
         /* The primary's own grant sends p1 the copy before the tab draws (passages-gm.mjs \`tellAfter\`): no "not yet
            delivered" line, then or a redraw later (cor F2's stale line came from a push later than the redraw). */
         await new Promise(r => setTimeout(r, 600));
-        return { add, shown, knows: chips(2), pending: row()?.querySelector('[data-state="pending"]')?.textContent ?? null };`, { timeout: 15000 });
+        return { add, shown, knows: chips(${KNOWS}), pending: row()?.querySelector('[data-state="pending"]')?.textContent ?? null };`, { timeout: 15000 });
     await settle(600);
     const copyGranted = await known(p1, repoUrl);
     check("E: '+' and Aiko's name grant her the passage again - two clicks - p1's copy holds the row, and the tab names nobody not yet sent it",
@@ -1981,4 +1989,68 @@ async function phaseV({ gm, p1, p2, p3, check, phase, settle, dump, IDS, repoUrl
     check("V: put back - the tunnel and its cells gone, nobody the Mastermind, Aiko and Botan where the phase found them, p3's world as this phase found it",
         restored.gone !== false && restored.cells === 0 && restored.mm === null && worldPrint(atEnd) === found && worldScan(atEnd).length === 0,
         J({ restored, diff: printDiff(found, worldPrint(atEnd)) }));
+}
+
+const PHASE_W = "W: Make public - every student's player is sent the passage, each copy naming that player's own students alone, and nobody is told; Make secret takes it back to the student who knew it; p3's world as the phase found it";
+
+/* E80 C6 (18.10.2026; D4, the owner's A10 Q2; P1-21). The harms: a public passage that misses a student's player, or
+   reaches one naming another player's students; one that leaves world data behind (the owner's Q2: none), or tells the
+   table with a card or a sound; and a Make secret that leaves it with everybody, or takes it from the one who knew it.
+   The GM presses nothing here: `makePassagePublic` and `makePassageSecret` are what the tab's buttons call (R602 presses
+   them). Each player's own students are read on the GM's browser (`testUserPermission`, a Monokuma left out), the copy
+   on the player's. Each copy is waited for up to 8 s, as phase T's is. Red at 5cb86d3: no `makePassagePublic`. */
+async function phaseW({ gm, p1, p2, p3, check, phase, settle, dump, socketTraffic, IDS, repoUrl }) {
+    phase(PHASE_W, { flow: "secret-passages" });
+    const found = worldPrint(await dump("p3"));
+    const players = [["p1", p1, IDS.p1], ["p2", p2, IDS.p2], ["p3", p3, IDS.p3]];
+    const until = async (client, ok) => {
+        const t0 = Date.now();
+        let held = await known(client, repoUrl);
+        while (!ok(held) && Date.now() - t0 < 8000) {
+            await settle(200);
+            held = await known(client, repoUrl);
+        }
+        return held;
+    };
+    const chats = () => Promise.all([gm, p1, p2, p3].map(c => c.eval(`return game.messages.size;`)));
+    const made = await gm.eval(`const id = await game.drpg.passages.create({ sceneId: ${J(IDS.scene)}, shape: "tunnel", ends: [{ x: 720, y: 730, level: null }, { x: 1930, y: 1760, level: null }] });
+        const granted = await game.drpg.passages.grant(id, ${J(IDS.aiko)});
+        const own = Object.fromEntries(${J(players.map(([, , u]) => u))}.map(u => [u, game.actors.filter(a => a.type === "character"
+            && !a.getFlag("danganronpa-rpg", "monokuma") && a.testUserPermission(game.users.get(u), "OWNER")).map(a => a.id).sort()]));
+        return { id, granted, own };`, { timeout: 30000 });
+    const id = made.id;
+    const before = await until(p1, held => Boolean(held?.[id]));
+    await settle(600);
+    const chat0 = await chats(), from = socketTraffic.length;
+    const opened = await gm.eval(`const G = await import("${repoUrl}/scripts/passages-gm.mjs");
+        if (typeof G.makePassagePublic !== "function") return { ok: null };
+        return { ok: await G.makePassagePublic(${J(id)}), stored: G.listPassages().find(p => p.id === ${J(id)})?.public ?? null };`, { timeout: 30000 });
+    const pub = [];
+    for (const [, client] of players) pub.push((await until(client, held => Boolean(held?.[id])))?.[id]?.actorIds?.slice().sort() ?? null);
+    await settle(600);
+    const chat1 = await chats();
+    const rows = socketTraffic.slice(from).filter(t => t.action === "passage.rows");
+    check("W: Made public, each player's copy holds the tunnel naming that player's own students alone (Aiko's before it, only p1's); every copy sent names one player; no client holds a chat message more",
+        typeof id === "string" && made.granted === true && J(before?.[id]?.actorIds) === J([IDS.aiko]) && opened.ok === true && opened.stored === true
+            && players.every(([, , u], i) => made.own[u].length > 0 && J(pub[i]) === J(made.own[u]))
+            && rows.length > 0 && rows.every(t => Array.isArray(t.to) && t.to.length === 1 && t.from === "gm") && J(chat1) === J(chat0),
+        J({ made, before: before?.[id] ?? null, opened, pub, rows: rows.map(t => ({ to: t.to, from: t.from })), chat0, chat1 }));
+
+    const shut = await gm.eval(`const G = await import("${repoUrl}/scripts/passages-gm.mjs");
+        if (typeof G.makePassageSecret !== "function") return { ok: null };
+        return { ok: await G.makePassageSecret(${J(id)}), stored: G.listPassages().find(p => p.id === ${J(id)})?.public ?? null };`, { timeout: 30000 });
+    const back = [await until(p1, held => J(held?.[id]?.actorIds) === J([IDS.aiko])), await until(p2, held => !held?.[id]), await until(p3, held => !held?.[id])];
+    await settle(600);
+    const chat2 = await chats();
+    const d3 = await dump("p3");
+    check("W: Made secret, p1's copy still names Aiko alone and p2's and p3's hold no tunnel; no chat message more; p3's world is the phase's own",
+        shut.ok === true && shut.stored === false && J(back[0]?.[id]?.actorIds) === J([IDS.aiko]) && !back[1]?.[id] && !back[2]?.[id] && J(chat2) === J(chat0)
+            && worldPrint(d3) === found && worldScan(d3).length === 0,
+        J({ shut, back: back.map(b => b?.[id] ?? null), chat0, chat2, diff: printDiff(found, worldPrint(d3)) }));
+
+    const gone = await gm.eval(`return await game.drpg.passages.delete(${J(id)});`, { timeout: 30000 });
+    await settle(600);
+    const after = await dump("p3");
+    check("W: put back - the tunnel deleted, p3's world as this phase found it",
+        gone !== false && worldPrint(after) === found && worldScan(after).length === 0, J({ gone, diff: printDiff(found, worldPrint(after)) }));
 }

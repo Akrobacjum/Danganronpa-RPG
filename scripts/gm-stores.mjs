@@ -175,7 +175,10 @@ export const mastermindStore = defineGmStore({
  * scene alone - `{ sceneId, level, shape, passageWallId, passageSeg: { x1, y1, x2, y2 }, rooms,
  * state, startAccess }`. `shape` is "wall" in E79; since E80 C1 (the owner's Q4) it may be "tunnel",
  * a tunnel or stairs - `{ sceneId, level: null, shape: "tunnel", ends: [{ x, y, level }, { x, y,
- * level }], rooms, state, startAccess }`, no wall and no stretch, each end on its own floor; `state`
+ * level }], rooms, state, startAccess }`, no wall and no stretch, each end on its own floor. Since E80
+ * C6 (D4) a row may hold `public` (true: every student knows it, passages.mjs `secretRowsFrom`; the GMs'
+ * 'Make public', which writes no cell and no world data) and `origin` ("gm", or "door" for a converted
+ * secret door; a row written before C6 has none and is the GM's). `state`
  * is secret, closed (the GMs' Close, the owner's Q5: who knows it is kept, and the copies leave
  * it out) or broken (its wall moved or went: C5). No reset group: a season's reset takes who
  * knows a passage, never the passage.

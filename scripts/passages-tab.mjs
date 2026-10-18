@@ -28,13 +28,19 @@
  * 'Tunnel or stairs' beside it (E80 C1) starts the same pick for a tunnel's two ends, a click in each
  * room (`startPassagePick` with `shape` "tunnel"); its row is a row as any passage's, named by the two
  * rooms its ends stand in.
+ *
+ * Since E80 C6 (18.10.2026; D4) the columns are Rooms, Kind (secret or public), Shape (in a wall, or a tunnel or
+ * stairs), Origin (the GM's, or a converted secret door), then who knows it, the start, the state and the buttons,
+ * where 'Make public' and 'Make secret' stand beside Close (passages-gm.mjs `makePassagePublic`, `makePassageSecret`).
+ * A public passage's chips stay the students who knew it before, whom Make secret leaves knowing it.
  */
 
 import { error } from "./utils.mjs";
 import { keepFresh } from "./live.mjs";
 import {
     PASSAGE_STORES, listPassages, grantPassage, revokePassage, revokeWhenLeaving, setStartAccess,
-    closePassage, openPassage, deletePassage, isMastermindActor, undeliveredOf, passageMiddle, startPassagePick, passageRoomsOnMap
+    closePassage, openPassage, deletePassage, isMastermindActor, undeliveredOf, passageMiddle, startPassagePick, passageRoomsOnMap,
+    makePassagePublic, makePassageSecret
 } from "./passages-gm.mjs";
 
 const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
@@ -106,9 +112,16 @@ function rowHtml(passage, { stores, students, actors, users, told }) {
     }
     const stateWord = { secret: "DRPG.Passage.tab.stateSecret", closed: "DRPG.Passage.tab.stateClosed", broken: "DRPG.Passage.tab.stateBroken" }[state];
     const toggle = state === "closed" ? "open" : "close";
+    const kind = passage.public === true ? "public" : "secret";
+    const shape = passage.shape === "tunnel" ? "shapeTunnel" : "shapeWall";
+    const origin = passage.origin === "door" ? "originDoor" : "originGm";
+    const reveal = kind === "public" ? "secret" : "public";
 
     return `<tr data-drpg-passage="${esc(passage.id)}">
         <td>${esc(passageTitle(passage))}</td>
+        <td><span class="drpg-passage-kind" data-kind="${kind}">${esc(t(kind === "public" ? "DRPG.Passage.tab.kindPublic" : "DRPG.Passage.tab.kindSecret"))}</span></td>
+        <td>${esc(t(`DRPG.Passage.tab.${shape}`))}</td>
+        <td>${esc(t(`DRPG.Passage.tab.${origin}`))}</td>
         <td><span class="drpg-passage-chips">${knowsCell}</span></td>
         <td><span class="drpg-passage-chips">${startCell}</span></td>
         <td class="drpg-passage-state-cell"><span class="drpg-passage-state" data-state="${state}">${esc(t(stateWord))}</span>${notes.join("")}</td>
@@ -117,6 +130,7 @@ function rowHtml(passage, { stores, students, actors, users, told }) {
                 state === "broken" ? `
             <button type="button" class="drpg-mini-button" data-drpg-passage-act="repick">${esc(t("DRPG.Passage.pick.repick"))}</button>` : ""}
             <button type="button" class="drpg-mini-button" data-drpg-passage-act="${toggle}"${state === "broken" ? " disabled" : ""}>${esc(t(toggle === "open" ? "DRPG.Passage.tab.open" : "DRPG.Passage.tab.close"))}</button>
+            <button type="button" class="drpg-mini-button" data-drpg-passage-act="${reveal}">${esc(t(reveal === "public" ? "DRPG.Passage.tab.makePublic" : "DRPG.Passage.tab.makeSecret"))}</button>
             <button type="button" class="drpg-mini-button" data-drpg-passage-act="delete">${esc(t("DRPG.Passage.tab.delete"))}</button>
         </span></td>
     </tr>`;
@@ -132,8 +146,8 @@ export function passagesTabBody(scene, { stores = PASSAGE_STORES, students = [],
     const passages = listPassages({ stores }).filter(p => p.sceneId === scene?.id)
         .sort((a, b) => passageTitle(a).localeCompare(passageTitle(b)) || a.id.localeCompare(b.id));
     const table = passages.length ? `<table class="drpg-vault-table drpg-room-setup-table drpg-passage-table">
-        <colgroup><col class="drpg-col-room" /><col class="drpg-col-knows" /><col class="drpg-col-knows-start" /><col class="drpg-col-state" /><col class="drpg-col-actions" /></colgroup>
-        <thead><tr><th>${esc(t("DRPG.Passage.tab.rooms"))}</th><th>${esc(t("DRPG.Passage.tab.knows"))}</th><th>${esc(t("DRPG.Passage.tab.start"))}</th><th>${esc(t("DRPG.Passage.tab.state"))}</th><th></th></tr></thead>
+        <colgroup><col class="drpg-col-room" /><col class="drpg-col-kind" /><col class="drpg-col-shape" /><col class="drpg-col-origin" /><col class="drpg-col-knows" /><col class="drpg-col-knows-start" /><col class="drpg-col-state" /><col class="drpg-col-actions" /></colgroup>
+        <thead><tr>${["rooms", "kind", "shape", "origin", "knows", "start", "state"].map(k => `<th>${esc(t(`DRPG.Passage.tab.${k}`))}</th>`).join("")}<th></th></tr></thead>
         <tbody>${passages.map(p => rowHtml(p, { stores, students, actors, users, told })).join("")}</tbody></table>`
         : `<p class="drpg-passage-none" data-drpg-passage-empty>${esc(t("DRPG.Passage.tab.empty"))}</p>`;
     return `${table}<p class="notes">${esc(t("DRPG.Passage.tab.footnote"))}</p>`;
@@ -221,6 +235,8 @@ export function wirePassagesTab(root, scene, { dialog = null, stores = PASSAGE_S
             case "start-off": return setStartAccess(passageId, actorId, false, { stores });
             case "close": return closePassage(passageId, { stores });
             case "open": return openPassage(passageId, { stores });
+            case "public": return makePassagePublic(passageId, { stores });
+            case "secret": return makePassageSecret(passageId, { stores });
             case "show": return show(passageId);
             case "repick": return pick(scene, { dialog, passageId, stores });
             case "delete": return (await confirm({ title })) ? deletePassage(passageId, { stores }) : false;

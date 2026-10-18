@@ -4041,10 +4041,19 @@ body.drpg-reduced-motion .application.sheet.actor .character-header-sheet .name-
    width a kind, as the others' are (choices of the mockup, not readings; the tab at a desk is LIVE-E79-06),
    a chip per student that is the module's `.drpg-room-chip`, the way each learnt the passage dimmed after the name, the students '+' offers hidden until it is pressed, and the state's lines
    wrapping inside their column as a room's name does below. */
-.drpg-room-setup-table .drpg-col-knows { width: calc(360px * var(--drpg-legacy-scale, 1)); }
-.drpg-room-setup-table .drpg-col-knows-start { width: calc(220px * var(--drpg-legacy-scale, 1)); }
-.drpg-room-setup-table .drpg-col-state { width: calc(190px * var(--drpg-legacy-scale, 1)); }
-.drpg-room-setup-table .drpg-col-actions { width: calc(260px * var(--drpg-legacy-scale, 1)); }
+/* E80 C6 (D4): Kind, Shape and Origin after Rooms, each a word or two, and a fourth button (Make public or
+   Make secret) in the last column; Who knows and the start narrowed to make room. Choices, not readings: the tab at
+   1366x768 was not laid out here (the harness lays nothing out). The Kind word in the inks the state lines use,
+   the theme tokens `--drpg-red` and `--drpg-dim`. */
+.drpg-room-setup-table .drpg-col-kind { width: calc(90px * var(--drpg-legacy-scale, 1)); }
+.drpg-room-setup-table .drpg-col-shape { width: calc(130px * var(--drpg-legacy-scale, 1)); }
+.drpg-room-setup-table .drpg-col-origin { width: calc(110px * var(--drpg-legacy-scale, 1)); }
+.drpg-room-setup-table .drpg-col-knows { width: calc(300px * var(--drpg-legacy-scale, 1)); }
+.drpg-room-setup-table .drpg-col-knows-start { width: calc(180px * var(--drpg-legacy-scale, 1)); }
+.drpg-room-setup-table .drpg-col-state { width: calc(170px * var(--drpg-legacy-scale, 1)); }
+.drpg-room-setup-table .drpg-col-actions { width: calc(340px * var(--drpg-legacy-scale, 1)); }
+.drpg-passage-kind[data-kind="secret"] { color: var(--drpg-dim); }
+.drpg-passage-kind[data-kind="public"] { color: var(--drpg-red); font-weight: 600; }
 .drpg-passage-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 .drpg-passage-chip { align-items: center; white-space: nowrap; }
 .drpg-passage-chip b { font-weight: 400; color: var(--drpg-dim); font-size: 0.92em; }

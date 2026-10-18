@@ -15975,8 +15975,8 @@ const INVARIANTS = [
         const flat = await create([end(1300, 1000, L1), end(1300, 300, L1)]);
         equal(J([Boolean(stairs), Boolean(flat), stores.map.get(stairs) ?? null, stores.map.get(flat)?.ends ?? null, stores.map.get(flat)?.rooms ?? null]),
             J([true, true, { sceneId: site.id, level: null, shape: "tunnel", ends: [end(1250, 950, L1), end(2150, 350, L2)], rooms: ["R594 Kitchen", "R594 Attic"],
-                state: "secret", startAccess: [] }, [end(1350, 1050, L1), end(1350, 350, L1)], ["R594 Kitchen", "R594 Hall"]]),
-            "[stairs made, a tunnel on one floor made, the stairs' row, the tunnel's ends, its rooms] - a tunnel's end is the middle of the square clicked, each on its own floor");
+                state: "secret", startAccess: [], origin: "gm" }, [end(1350, 1050, L1), end(1350, 350, L1)], ["R594 Kitchen", "R594 Hall"]]),
+            "[stairs made, a tunnel on one floor made, the stairs' row (its `origin` since E80 C6), the tunnel's ends, its rooms] - a tunnel's end is the middle of the square clicked, each on its own floor");
         ok(typeof P.tunnelEndAt === "function" && typeof P.tunnelRowFor === "function" && typeof P.passageTunnels === "function",
             "passages-gm.mjs has no `tunnelEndAt`, `tunnelRowFor` or `passageTunnels`");
         if (typeof P.tunnelEndAt !== "function" || typeof P.tunnelRowFor !== "function" || typeof P.passageTunnels !== "function") return;
@@ -16672,8 +16672,8 @@ const INVARIANTS = [
             "[converted, passages made, the walls left plain, the writes, each wall as [id, door, state, move]] after 'Convert to passages'");
         equal(J([keys, stores.map.get(made) ?? null, cells, D.secretDoorRows(site).length]),
             J([[made], { sceneId: site.id, level: null, shape: "wall", passageWallId: "R601WS1", passageSeg: { x1: 600, y1: 100, x2: 600, y2: 300 },
-                rooms: ["R601 Hall", "R601 Kitchen"], state: "secret", startAccess: [] }, [], 0]),
-            "[the scene's passages, the row, who knows it, secret doors left] - the passage the shared wall's door became");
+                rooms: ["R601 Hall", "R601 Kitchen"], state: "secret", startAccess: [], origin: "door" }, [], 0]),
+            "[the scene's passages, the row (its `origin` since E80 C6), who knows it, secret doors left] - the passage the shared wall's door became");
         equal(J([again?.converted, again?.passages, again?.plain, updates.length, ofSite()]), J([0, [], [], 1, [made]]),
             "[converted, passages, plain walls, writes, the scene's passages] when the conversion is run again");
         const sources = new Map(await otherSources());
@@ -16743,6 +16743,144 @@ const INVARIANTS = [
                 .filter(Boolean).every(k => game.i18n.has(k) || game.i18n.has(`${k}.other`))]);
         equal(J(offered), J([["secretDoors", true, "function", "undefined", true], ["rulers", true, "function", "function", true]]),
             "[each new row of the Season setup as [key, optional, its fix, its undo, every one of its words in the language file]]");
+    }],
+    ["R602 - Make public and Make secret (D4): a public passage is in the copy of every student's owner, each copy naming the player's own students alone, and the GMs' audit lets any student through it while a secret one beside it still stops a stranger; Make secret gives it back to those who knew it; neither writes a cell or a chat message, and the reset keeps it public; the Passages tab's columns are Rooms, Kind, Shape, Origin and then the rest", async () => {
+        /*
+         * E80 C6 (18.10.2026; D4, the owner's A10 Q2: no world data, every student a knower in the copies, the cut and the
+         * audit, no lock lifted, kept by the reset; P1-21, P1-22). The harms: a GM who wants a passage known to the whole
+         * class had no road but a grant per student, each told with a card and a sound; a public passage that reaches a
+         * player's browser naming somebody else's students (the copy's cut), or that the GMs' audit still sends a student
+         * back from; one that stays public after Make secret, or that forgets who knew it before; and a tab with no word of
+         * what a passage is, how it is made or where it came from. On stores of an engine of the suite's own, as R555's and
+         * R561's, with two students of this world (`touch` stamps the world's students) seen through actors of the suite's
+         * own whose owners are users of its own; the audit as R559 reads it, on a scene of plain objects; the tab drawn and
+         * wired by passages-tab.mjs on a detached element. Nothing of the world is written: tellAfter sends no copy for
+         * stores that are not the module's, and every chat message asked for while the buttons are pressed is counted and
+         * refused. The real records, the four clients' copies and the sockets are scenario 76's phase W. Red at 5cb86d3:
+         * no 'Make public' in the tab, so no copy, cut or audit moved; the tab's heads Rooms, Who knows, At season start, State.
+         */
+        needs(world.atLeast("livingStudents", 2), "two students whose owners' copies a public passage reaches");
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const P = await import("./passages-gm.mjs");
+        const L = await import("./passages.mjs");
+        const T = await import("./passages-tab.mjs");
+        const A = await import("./movement-audit.mjs");
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const J = v => JSON.stringify(v);
+        let now = 9_500_000;
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R602GM", isGM: () => true, isPrimary: () => true, worldId: () => "R602WORLD",
+            activeGmIds: () => [], primaryGmId: () => "R602GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => now++,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const def = (h, name) => eng.define({ ...h.spec, name: `r602${name}`, key: `r602${name}`, afterRestore: undefined, exists: undefined });
+        const stores = { map: def(S.passageMapStore, "Map"), access: def(S.passageAccessStore, "Access"), log: def(S.passageLogStore, "Log"),
+            mastermind: eng.define({ name: "r602mm", key: "r602mm", kind: "record", fields: ["actorId"], sync: false, backup: false }) };
+        const [SA, SB] = studentActors();
+        const owners = { [SA.id]: "R602U1", [SB.id]: "R602U2", R602MK: "R602U3" };
+        const fake = (id, name, { monokuma = false } = {}) => ({ id, name, type: "character", items: [],
+            getFlag: (scope, key) => (monokuma && scope === MODULE_ID && key === FLAGS.monokuma ? true : undefined),
+            testUserPermission: (u, level) => level === "OWNER" && (u?.isGM || owners[id] === u?.id) });
+        const [FA, FB, MK] = [fake(SA.id, SA.name), fake(SB.id, SB.name), fake("R602MK", "R602 Monokuma", { monokuma: true })];
+        const actors = [FA, FB, MK];
+        const U = ["R602U1", "R602U2", "R602U3"].map(id => ({ id, isGM: false, active: true, name: id }));
+        const users = new Map([...U.map(u => [u.id, u]), ["R602GM", { id: "R602GM", isGM: true, active: true }]]);
+
+        // A scene of two rooms, the Lab over the Vault, with one wall between them and two passages along it.
+        const region = (name, x, y, w, h) => ({ id: `R602R${name}`, name: `R602 ${name}`, levels: new Set(), behaviors: [],
+            bounds: { x, y, width: w, height: h }, shapes: [{ type: "rectangle", x, y, width: w, height: h }],
+            testPoint: p => p.x >= x && p.x <= x + w && p.y >= y && p.y <= y + h,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === R.ROOM_FLAG ? true : undefined) });
+        const scene = { id: "R602S", name: "R602 scene", grid: { size: 100 }, dimensions: { width: 2000, height: 1200 }, levels: [],
+            walls: [{ id: "R602W", c: [0, 500, 1400, 500], move: 20, door: 0, ds: 0, dir: 0, levels: new Set() }],
+            regions: new Set([region("Lab", 0, 0, 1400, 480), region("Vault", 0, 520, 1400, 480)]) };
+        const row = (x, more = {}) => ({ sceneId: scene.id, level: null, shape: "wall", passageWallId: "R602W",
+            passageSeg: { x1: x, y1: 500, x2: x + 200, y2: 500 }, rooms: ["R602 Lab", "R602 Vault"], state: "secret", startAccess: [], ...more });
+        const [PUB, SEC, DOOR, TUN] = ["pub", "sec", "door", "tun"].map(n => `${scene.id}.r602${n}`);
+        await stores.map.patchMany({ [PUB]: row(100), [SEC]: row(900), [DOOR]: row(1200, { origin: "door", state: "closed" }),
+            [TUN]: { sceneId: scene.id, level: null, shape: "tunnel", ends: [{ x: 250, y: 250, level: null }, { x: 1250, y: 750, level: null }],
+                rooms: ["R602 Lab", "R602 Vault"], state: "closed", startAccess: [] } });
+        const at = 1;
+        await stores.access.patchMany({ [`${PUB}/${SB.id}`]: { how: "gm", at, by: { R602GM: at } }, [`${SEC}/${SA.id}`]: { how: "gm", at, by: { R602GM: at } } });
+
+        const copy = u => P.passageCopyFor(u, { stores, actors, users: [...users.values()] });
+        const look = u => Object.fromEntries(Object.entries(copy(u).value).map(([id, r]) => [id.slice(`${scene.id}.r602`.length), r.actorIds]));
+        const copies = () => U.map(look);
+        const cells = () => Object.keys(stores.access.entries()).filter(k => !k.startsWith("touch/") && !k.startsWith("door/")).sort();
+        // The audit of a move from the Lab to the Vault across the wall at `x`, by the student's owner, in "log" mode.
+        const tok = (actor, x, y) => ({ id: "R602T", name: "R602 token", x, y, width: 1, height: 1, elevation: 0, level: undefined, parent: scene, actor });
+        const audit = (actor, x) => {
+            const out = A.auditMove(tok(actor, x, 700), { x, y: 700 }, {}, owners[actor.id], { x, y: 100, elevation: 0, level: undefined }, {
+                REVERT: M.REVERT, SENT_BACK: M.SENT_BACK, sendBackRefusal: M.sendBackRefusal, roomAt: M.roomAt, stairLinks: () => [],
+                history: [], held: a => a, users, known: L.secretRowsFrom({ map: stores.map, access: stores.access, actors }), mode: "log",
+                mastermind: { get: () => null }, book: { rows: [], told: new Map(), lines: new Map(), dropped: 0 }, now: Date.now(),
+                warn: () => {}, sendBack: () => {}, socket: { emit: () => {} }, whisper: () => Promise.resolve()
+            });
+            return out.verdict === "crossed" ? `crossed ${out.passage ?? out.wall}` : out.verdict;
+        };
+        const audits = () => [audit(FA, 200), audit(FB, 200), audit(FA, 1000), audit(FB, 1000)];
+        const pubCut = () => L.openSegmentsFor(FA, scene.id, null, { known: L.secretRowsFrom({ map: stores.map, access: stores.access, actors }) }).map(s => s.id).sort();
+
+        const root = document.createElement("div");
+        root.innerHTML = T.passagesTabHtml(scene, { stores, students: [SA, SB], actors: new Map(actors.map(a => [a.id, a])), users: [...users.values()] });
+        const tab = T.wirePassagesTab(root, scene, { stores, students: [SA, SB], actors: new Map(actors.map(a => [a.id, a])), users: [...users.values()] });
+        const inRow = (id, sel) => root.querySelector(`[data-drpg-passage="${id}"] ${sel}`);
+        let said = 0;
+        const hush = () => { said += 1; return false; };
+        const press = async (id, act) => {
+            const button = inRow(id, `[data-drpg-passage-act="${act}"]`);
+            if (!button) return false;
+            button.click();
+            await tab.settled();
+            return true;
+        };
+
+        const before = { copies: copies(), cells: cells(), audits: audits(), cut: pubCut() };
+        const first = copy(U[0]);
+        const hook = Hooks.on("preCreateChatMessage", hush);
+        let made, madeSecret, again;
+        try {
+            made = await press(PUB, "public");
+            const opened = { copies: copies(), cells: cells(), audits: audits(), cut: pubCut(), stored: stores.map.get(PUB)?.public ?? null,
+                taken: S.offersCombine(first, copy(U[0])) !== null, kind: inRow(PUB, ".drpg-passage-kind")?.dataset.kind ?? null,
+                offered: Boolean(inRow(PUB, '[data-drpg-passage-act="secret"]')) };
+            madeSecret = await press(PUB, "secret");
+            const shut = { copies: copies(), cells: cells(), audits: audits(), stored: stores.map.get(PUB)?.public ?? null, log: P.passageLog({ stores }).map(r => r.what) };
+            equal(J([before, [made, opened], [madeSecret, shut]]), J([
+                { copies: [{ sec: [SA.id] }, { pub: [SB.id] }, {}], cells: [`${PUB}/${SB.id}`, `${SEC}/${SA.id}`],
+                    audits: ["crossed " + PUB, "clear", "clear", "crossed " + SEC], cut: [SEC] },
+                [true, { copies: [{ pub: [SA.id], sec: [SA.id] }, { pub: [SB.id] }, {}], cells: [`${PUB}/${SB.id}`, `${SEC}/${SA.id}`],
+                    audits: ["clear", "clear", "clear", "crossed " + SEC], cut: [PUB, SEC], stored: true, taken: true, kind: "public", offered: true }],
+                [true, { copies: [{ sec: [SA.id] }, { pub: [SB.id] }, {}], cells: [`${PUB}/${SB.id}`, `${SEC}/${SA.id}`],
+                    audits: ["crossed " + PUB, "clear", "clear", "crossed " + SEC], stored: false, log: ["secret", "public"] }]]),
+                "[before: each player's copy as {passage: knowers}, the cells, the audit of A and B across the public-to-be and the secret passage, A's cut; "
+                    + "'Make public' pressed: the same and the row's flag, A's copy taken, the Kind drawn, 'Make secret' offered; 'Make secret' pressed: the same, and the GMs' log newest first]"
+                    + " - a public passage missing from a student's copy, a copy naming another player's student, the audit sending a student back, or Make secret not giving back who knew it");
+
+            // The reset keeps a public passage public: who knew it is cut, every student still knows it.
+            again = await press(PUB, "public");
+            await P.passagesAfterReset({ stores });
+            const reset = { copies: copies(), cells: cells(), stored: stores.map.get(PUB)?.public ?? null };
+            equal(J([again, reset, said]), J([true, { copies: [{ pub: [SA.id] }, { pub: [SB.id] }, {}], cells: [], stored: true }, 0]),
+                "[Make public again, then the season's reset: the copies, the cells, the row's flag; the chat messages asked for by every press and the reset]");
+        } finally {
+            Hooks.off("preCreateChatMessage", hook);
+        }
+
+        // The tab's columns: Rooms, Kind, Shape, Origin, then the rest, each with a width; a row's three new cells.
+        tab.draw();
+        const heads = [...root.querySelectorAll("thead th")].map(th => th.textContent.trim());
+        const words = ["rooms", "kind", "shape", "origin", "knows", "start", "state"].map(k => game.i18n.localize(`DRPG.Passage.tab.${k}`));
+        const cellsOf = id => [...(root.querySelector(`tr[data-drpg-passage="${id}"]`)?.children ?? [])].slice(1, 4).map(td => td.textContent.trim());
+        const word = k => game.i18n.localize(`DRPG.Passage.tab.${k}`);
+        equal(J([heads, root.querySelectorAll("colgroup col").length, cellsOf(PUB), cellsOf(SEC), cellsOf(DOOR), cellsOf(TUN)]),
+            J([[...words, ""], 8, [word("kindPublic"), word("shapeWall"), word("originGm")], [word("kindSecret"), word("shapeWall"), word("originGm")],
+                [word("kindSecret"), word("shapeWall"), word("originDoor")], [word("kindSecret"), word("shapeTunnel"), word("originGm")]]),
+            "[the table's heads, its columns with a width, the Kind, Shape and Origin of a public passage, a secret one, one made of a secret door, a tunnel]");
     }],
 ];
 

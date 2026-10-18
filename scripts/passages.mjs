@@ -92,11 +92,19 @@ export function sceneGone(row, { map = passageMapStore, scenes } = {}) {
  * nothing watches a scene's deletion, so its rows stayed secret, were sent to their knowers for ever
  * and came back live with a Restore. Read here, on the reading side, a restored row needs nothing
  * more; the GMs still list it (passages-gm.mjs `listPassages`, marked `sceneGone`) and may delete it.
+ *
+ * A public passage (E80 C6, D4: the GMs' 'Make public', the owner's A10 Q2) is known to every student:
+ * each one `actors` holds (the world's when none are given; a Monokuma is no student) is among its
+ * knowers, after the cells. So the one reading serves all three - each copy, cut to its player's own
+ * students (passages-gm.mjs `passageCopyFor`), the client's cut and the GMs' audit - and nothing is
+ * written for it but the row's `public`: Make secret leaves the cells as they were, and their knowers
+ * alone know it again.
  */
-export function secretRowsFrom({ map = passageMapStore, access = passageAccessStore, scenes } = {}) {
-    const rows = {};
+export function secretRowsFrom({ map = passageMapStore, access = passageAccessStore, scenes, actors } = {}) {
+    const rows = {}, open = [];
     for (const [id, row] of Object.entries(map.entries())) {
         if (row?.state !== "secret" || sceneGone(row, { map, scenes })) continue;
+        if (row.public === true) open.push(id);
         const ends = endsOf(row);
         if (ends) {
             rows[id] = { sceneId: row.sceneId, shape: "tunnel", level: null, ends, actorIds: [] };
@@ -110,7 +118,19 @@ export function secretRowsFrom({ map = passageMapStore, access = passageAccessSt
         const [passageId, actorId] = key.split("/");
         if (actorId && Object.hasOwn(rows, passageId)) rows[passageId].actorIds.push(actorId);
     }
+    const everyone = open.length ? studentIdsOf(actors) : [];
+    for (const id of open.filter(id => Object.hasOwn(rows, id))) {
+        for (const actorId of everyone) if (!rows[id].actorIds.includes(actorId)) rows[id].actorIds.push(actorId);
+    }
     return rows;
+}
+
+/**
+ * The ids of the students among `actors` (the world's when none are given): every character that is no Monokuma,
+ * read by the flag monokuma.mjs `isMonokuma` reads - this leaf imports no file beyond its own (R560).
+ */
+export function studentIdsOf(actors = game.actors) {
+    return [...(actors ?? game.actors ?? [])].filter(a => a?.type === "character" && !a.getFlag?.(MODULE_ID, FLAGS.monokuma)).map(a => a.id);
 }
 
 /** The secret passages this browser may know: on a GM's the GMs' open rows, on a player's its copy. */

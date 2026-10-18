@@ -39,6 +39,12 @@
  * back any change of its state a player makes (`putBackSecretDoor`, on `updateWall`), the audit reading
  * it shut until that write lands (`secretDoorHeldShut`). The one Wall write here, and only of `door`
  * and `ds` on a wall that already is (R560 still holds: no wall is made a secret door or created).
+ *
+ * Since E80 C6 (18.10.2026; D4, the owner's A10 Q2) a GM makes a passage public and secret again from the tab
+ * (`makePassagePublic`, `makePassageSecret`): every student knows a public one - in the copies, the client's cut
+ * and the GMs' audit alike (passages.mjs `secretRowsFrom`) - and the row's `public` is all that is written: no
+ * cell, no card, no sound, no world data, no lock lifted; the reset keeps it. A new row carries its `origin`,
+ * "gm" or, for a converted secret door, "door", which the tab names.
  */
 
 import { MODULE_ID, ACTIONS } from "./config.mjs";
@@ -48,7 +54,7 @@ import { passageMapStore, passageAccessStore, passageLogStore, mastermindStore, 
 import { RECORD, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible } from "./gm-store.mjs";
 import { senderOf } from "./bridge-guards.mjs";
 import { isMonokuma } from "./monokuma.mjs";
-import { secretRowsFrom, sceneGone, endsOf, PASSAGE_TOLERANCE, DOOR_PART, isSecretDoor, secretDoorsOn } from "./passages.mjs";
+import { secretRowsFrom, studentIdsOf, sceneGone, endsOf, PASSAGE_TOLERANCE, DOOR_PART, isSecretDoor, secretDoorsOn } from "./passages.mjs";
 import { roomPieces, onLevel, floorsOf, isTrialScene, viewedScene, viewedLevel } from "./rooms.mjs";
 import { regionShapes, inFlatPolygons, distanceToSegment } from "./fog-geometry.mjs";
 import { overlayLayer, clearLayer, overlayColour, dashedLine, overlayDrawer, redrawGmOverlay } from "./gm-overlay.mjs";
@@ -146,7 +152,8 @@ export function passageCopyFor(user, { stores = PASSAGE_STORES, actors = game.ac
     const ids = new Set(own.map(a => a.id));
     const mastermind = own.find(a => actsAsMastermind(a, user, { mastermindId, users }))?.id ?? null;
     const value = {};
-    for (const [id, row] of Object.entries(secretRowsFrom(stores))) {
+    // `actors` beside the stores: a public passage's knowers are the students the caller holds (E80 C6).
+    for (const [id, row] of Object.entries(secretRowsFrom({ ...stores, actors }))) {
         const actorIds = row.actorIds.filter(a => ids.has(a));
         if (mastermind && !actorIds.includes(mastermind)) actorIds.push(mastermind);
         if (actorIds.length) value[id] = { ...row, actorIds };
@@ -384,10 +391,11 @@ function onWall(x, y, [x1, y1, x2, y2]) {
  * Every character a cell of this passage names: whose copies change with the row. The Mastermind's
  * copy changes with every open passage, and is stamped by `touch`'s `door` (the round-2 review's
  * SEC M3: until 16.10.2026 the Mastermind was a knower here, and every owner of its student was
- * sent a copy for a passage only the door owner holds).
+ * sent a copy for a passage only the door owner holds). A public passage's are every student of the world
+ * besides (E80 C6): a Close, an Open or a Delete of one changes every student's owners' copies.
  */
 function knowersOf(passageId, stores) {
-    const out = new Set();
+    const out = new Set(stores.map.get(passageId)?.public === true ? studentIdsOf() : []);
     for (const key of Object.keys(stores.access.entries())) {
         const [pid, actorId] = key.split("/");
         if (pid === passageId && actorId) out.add(actorId);
@@ -495,13 +503,14 @@ export async function createPassage({ sceneId, wallId, seg = null, rooms = [], l
 }
 
 /**
- * A new passage's write, its row as `passageRowFor` or `tunnelRowFor` made it: the row, its start
+ * A new passage's write, its row as `passageRowFor` or `tunnelRowFor` made it: the row with its `origin`
+ * (E80 C6: "gm", or "door" for a converted secret door, which the tab's Origin names), its start
  * access, the knowers' touch, the log's "create" row, and with `tell` the copies sent. Answers its id.
  * `createPassage`'s, and since E80 C5 `convertSecretDoors`', which sends the copies once for all.
  */
-async function writeNewPassage(scene, row, stores, { tell = true } = {}) {
+async function writeNewPassage(scene, row, stores, { tell = true, origin = "gm" } = {}) {
     const id = `${scene.id}.${foundry.utils.randomID()}`;
-    await stores.map.patch(id, row);
+    await stores.map.patch(id, { ...row, origin });
     const at = serverNow(), who = game.user.id;
     if (row.startAccess.length) {
         await stores.access.patchMany(Object.fromEntries(row.startAccess.map(a => [`${id}/${a}`, { how: "start", at, by: { [who]: at } }])), { fillOnly: true });
@@ -562,7 +571,7 @@ export async function convertSecretDoors({ scenes = null, stores = PASSAGE_STORE
             if (isSecretDoor(wall)) continue;
             out.converted += 1;
             const { row, refused } = doorPassageRow(scene, wall, stores);
-            if (row) out.passages.push(await writeNewPassage(scene, row, stores, { tell: false }));
+            if (row) out.passages.push(await writeNewPassage(scene, row, stores, { tell: false, origin: "door" }));
             else out.plain.push({ sceneId: scene.id, wallId, why: refused });
         }
     }
@@ -663,6 +672,29 @@ async function setState(passageId, state, from, stores) {
 
 export const closePassage = (passageId, { stores = PASSAGE_STORES } = {}) => setState(passageId, "closed", ["secret"], stores);
 export const openPassage = (passageId, { stores = PASSAGE_STORES } = {}) => setState(passageId, "secret", ["closed"], stores);
+
+/**
+ * A GM: the passage public (`on`) - every student knows it (passages.mjs `secretRowsFrom`) - or secret again, known
+ * to the students its cells name, as before (E80 C6; D4, the owner's A10 Q2). The row's `public` alone is written,
+ * then every student's `touch` (each owner's copy gains or loses the row) and a log row "public" or "secret", and
+ * the copies sent. Nobody is told: no card and no sound; a lock, a seal or a Close stays as it is; the season's reset,
+ * which takes the cells, keeps the row and with it `public`. Answers true, also when it already was; false refused.
+ */
+async function setPublic(passageId, on, stores) {
+    if (!game.user?.isGM) return refuse("only a GM changes one.", false);
+    const row = stores.map.get(passageId);
+    if (!row) return refuse(`no passage "${passageId}".`, false);
+    if ((row.public === true) === on) return true;
+    const before = knowersOf(passageId, stores);
+    await stores.map.patch(passageId, { public: on });
+    await touch(new Set([...before, ...knowersOf(passageId, stores)]), stores);
+    await logRow(on ? "public" : "secret", passageId, null, stores);
+    tellAfter(stores);
+    return true;
+}
+
+export const makePassagePublic = (passageId, { stores = PASSAGE_STORES } = {}) => setPublic(passageId, true, stores);
+export const makePassageSecret = (passageId, { stores = PASSAGE_STORES } = {}) => setPublic(passageId, false, stores);
 
 /** A GM: the passage is gone, and every cell of it. */
 export async function deletePassage(passageId, { stores = PASSAGE_STORES } = {}) {
@@ -932,8 +964,8 @@ export function shareRefusal({ actorId, targetId, passageId } = {}, world, store
     if (world.dead(giver) || world.inIncident(giver)) return "that cannot be done now";
     if (world.monocub(giver)) return "that action is not open to that character now";
     const row = typeof passageId === "string" ? stores.map.get(passageId) : null;
-    const knows = row?.state === "secret"
-        && (Boolean(stores.access.get(`${passageId}/${giver.id}`)) || actsAsMastermind(giver, asker, { mastermind: stores.mastermind, users }));
+    const knows = row?.state === "secret" && (row.public === true
+        || Boolean(stores.access.get(`${passageId}/${giver.id}`)) || actsAsMastermind(giver, asker, { mastermind: stores.mastermind, users }));
     if (!knows) return "the character does not know that passage";
     const target = world.actor(targetId);
     if (!target || target.id === giver.id || target.type !== "character" || world.monokuma(target)) return "no such character";
@@ -1001,7 +1033,8 @@ export async function sharePassage({ actorId, targetId, passageId } = {}, { stor
     const row = stores.map.get(passageId);
     const cellKey = `${passageId}/${target.id}`;
     const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
-    if (!stores.access.get(cellKey)) {
+    // A public passage is known to the one shown it already (E80 C6): no cell, which would outlast a Make secret.
+    if (!stores.access.get(cellKey) && row.public !== true) {
         const at = serverNow();
         await stores.access.patch(cellKey, { how: "shown", at, by: { [giver.id]: at } }, { fillOnly: true });
         await touch([target.id], stores);
