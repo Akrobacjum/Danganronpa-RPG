@@ -16988,6 +16988,114 @@ const INVARIANTS = [
         equal(stableJson([said("drawing"), said("forcing before its context"), said("its close")]), stableJson([1, 1, 1]),
             "the render hook, the wrapper of the window's context or the close hook said nothing of the failure, or said it without the module's name or the step (lines: drawing, forcing before its context, its close)");
     }],
+
+    ["R807 - a voice room is applied on the harness's LiveKit as at a table: unavailable with no LiveKit, with avclient-livekit off and with its client under another name; parked until the client is up and applied when it is; applied, then unchanged; failed when the connect is refused, throws or lands in the main room; and a dropped connection keeps the room's name with no live Room under it (S11-56)", async () => {
+        /*
+         * E19 C0, 19.10.2026; audit S11-56. Every voice fix E19 makes (a card on a drop, a retry, the dead
+         * channel, the Eclipse's silence) is measured on the harness's stand-in for avclient-livekit
+         * (audit/harness/lib/livekit.mjs), and until C0 that stand-in could not fail: every connect landed,
+         * `useExternalAV` was not registered, and nothing put the browser back once it was installed. So a test
+         * of "the connection dropped" or "the server refused" had nothing to stand on, and a fix could be green
+         * on a transport that never breaks. Read here, through voice-client.mjs `applyBreakout` and
+         * `applyLocally` (the GM's own apply, which waits for the parked one): no stand-in; the stand-in with
+         * avclient-livekit switched off; before its client is up (parked) and once it is (the parked room applied
+         * by the hook); a room, the same room, another; a connect refused, one that throws, one that lands in the
+         * main room; the room again; the Room dropped (what `client.room`, the Room and the client say); the
+         * main room twice; `useExternalAV` read by voice.mjs `micHold`; then a later avclient-livekit with its
+         * client and its setting under other names (unavailable, not external); and what the uninstall leaves.
+         * The answer after a drop is not asked here: it is S11-09's, and C2 changes it. Red at C0's parent:
+         * the stand-in registered no setting, and with no `fail` and no `uninstall` every failed connect
+         * applied and the uninstall left its client on this browser (the rows "setting", "refuse" to "again",
+         * "gone" and "renamed"). How avclient-livekit 0.6.8 really fails is not read on this machine
+         * (lib/livekit.mjs's header), and a drop at a real table is not measured here.
+         */
+        needs(env.liveKitShim(), "the harness's LiveKit stand-in, to fail a connect on purpose");
+        needs(world.moduleActive("avclient-livekit"), "avclient-livekit enabled, so the module reads LiveKit at all");
+        const VC = await import("./voice-client.mjs");
+        const { micHold } = await import("./voice.mjs");
+        const { refreshVoiceTile } = await import("./voice-tile.mjs");
+        const stub = globalThis.__liveKit, avModule = game.modules.get("avclient-livekit"), wasActive = avModule.active;
+        const before = VC.desiredRoom(), dockBefore = document.getElementById("camera-views");
+        const A = `${VC.ROOM_PREFIX}r807-a`, B = `${VC.ROOM_PREFIX}r807-b`;
+        const host = game.webrtc.client;
+        const where = () => [host.room ?? null, host._liveKitClient?.liveKitRoom?.state ?? null];
+        const external = () => micHold({ user: game.user, room: null, connected: true, canBroadcastAudio: true })?.reason ?? null;
+        let lk = null;
+        const install = async options => {
+            await stub.install(options);
+            lk = globalThis.__liveKit;
+            return lk;
+        };
+        const uninstall = () => {
+            const done = typeof lk?.uninstall === "function" ? lk.uninstall() : false;
+            lk = null;
+            globalThis.__liveKit = stub;
+            return done;
+        };
+        const fail = mode => (typeof lk?.fail === "function" ? lk.fail(mode) : false);
+        const seen = [];
+        try {
+            seen.push(["none", await VC.applyBreakout(A), VC.desiredRoom() === before]);
+            const ctl = await install({ external: true });
+            seen.push(["setting", game.settings.settings.has("avclient-livekit.useExternalAV"), external()]);
+            avModule.active = false;
+            seen.push(["off", await VC.applyBreakout(A)]);
+            avModule.active = wasActive;
+            seen.push(["parked", await VC.applyBreakout(A), VC.desiredRoom(), ...where()]);
+            await host.initialize();
+            seen.push(["up", await VC.applyLocally(A), ...where()]);
+            seen.push(["same", await VC.applyBreakout(A)]);
+            seen.push(["other", await VC.applyBreakout(B), ...where()]);
+            // Each to a room the client is not named in, so the name alone cannot answer "unchanged".
+            for (const [mode, room] of [["refuse", A], ["throw", B], ["main", A]]) {
+                fail(mode);
+                seen.push([mode, await VC.applyBreakout(room), VC.desiredRoom(), ...where()]);
+            }
+            fail(null);
+            seen.push(["again", await VC.applyBreakout(A), ...where()]);
+            ctl.drop();
+            seen.push(["drop", ...where(), host._liveKitClient?.connectionState ?? null, host._liveKitClient?.breakoutRoom ?? null]);
+            seen.push(["main", await VC.applyBreakout(null), await VC.applyBreakout(null), host.room === ctl.MAIN_ROOM]);
+            seen.push(["gone", uninstall(), "_liveKitClient" in host, game.settings.settings.has("avclient-livekit.useExternalAV")]);
+            await install({ external: true, names: { client: "_liveKitClientNext", external: "useExternalAVNext" } });
+            seen.push(["renamed", await VC.applyBreakout(A), external()]);
+            seen.push(["gone", uninstall(), "_liveKitClientNext" in host, game.settings.settings.has("avclient-livekit.useExternalAVNext"),
+                document.getElementById("camera-views") === dockBefore]);
+        } finally {
+            if (lk) uninstall();
+            avModule.active = wasActive;
+            // `desired` put back as found: forgotten, or parked again on a stand-in that is never brought up.
+            if (before === undefined) VC.forgetDesiredRoom();
+            else {
+                await install();
+                await VC.applyBreakout(before);
+                uninstall();
+            }
+            Hooks.callAll("drpgVoiceApplying", false);
+            refreshVoiceTile();
+        }
+        equal(stableJson(seen), stableJson([
+            ["none", "unavailable", true],
+            ["setting", true, "external"],
+            ["off", "unavailable"],
+            ["parked", "deferred", A, null, null],
+            ["up", "unchanged", A, "connected"],
+            ["same", "unchanged"],
+            ["other", "applied", B, "connected"],
+            ["refuse", "failed", A, A, "disconnected"],
+            ["throw", "failed", B, B, "disconnected"],
+            ["main", "failed", A, "harness-main-room", "connected"],
+            ["again", "applied", A, "connected"],
+            ["drop", A, "disconnected", "disconnected", A],
+            ["main", "applied", "unchanged", true],
+            ["gone", true, false, false],
+            ["renamed", "unavailable", null],
+            ["gone", true, false, false, true]]),
+        "[no stand-in], [useExternalAV registered and read], [avclient-livekit off], [parked: the answer, desired, client.room, the Room], "
+            + "[the client up: the parked room applied], [the same room], [another], [a connect refused, thrown, landed in the main room: "
+            + "the answer, desired, client.room, the Room], [the room again], [the drop: client.room, the Room, the client, breakoutRoom], "
+            + "[the main room twice], [uninstalled: done, the client's field, the setting], [a renamed client and setting], [uninstalled again, the dock as found]");
+    }],
 ];
 
 /**

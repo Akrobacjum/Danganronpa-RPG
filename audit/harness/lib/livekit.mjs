@@ -38,17 +38,50 @@
  * recorded and does nothing else, and the audio element plays as soon as it is attached (autoplay at
  * a table is T1's second item).
  *
- * TWO CHOICES OF THE SHIM'S OWN, not readings: (1) a Room's participants that are there when it
+ * CHOICES OF THE SHIM'S OWN, not readings: (1) a Room's participants that are there when it
  * connects come with the connect, without a `participantConnected` each - a reader takes them from
  * `remoteParticipants` after it attached, and only a participant who joins later is announced;
  * (2) a new `initialize()` disconnects the Room it replaces first (`disconnected` on the old Room,
  * then the hook with the new one), since a switch of rooms is a disconnect and a reconnect
- * (voice-client.mjs `applyBreakout`'s own words).
+ * (voice-client.mjs `applyBreakout`'s own words); (3) `client.room` is named before the connection
+ * is tried, so a connect that fails leaves it naming the room it could not reach over a Room that
+ * never connected (voice-client.mjs `landedCorrectly` reads `LiveKitAVClient#connect` as setting
+ * `this.room`; where in the connect it does is not read).
+ *
+ * A TRANSPORT THAT FAILS (E19 C0, 19.10.2026; audit S11-56). Until C0 every connect here landed, so
+ * no test could show what a dropped or refused connection does to a player's voice. Now:
+ *   - `fail(mode)` makes every connect from then on fail as a table can see it: "refuse" (AVMaster's
+ *     `connect()` answers false: a dead server, a rejected token), "throw" (the connect rejects), "main"
+ *     (it lands in the main room whatever `breakoutRoom` says, as a connect already in flight answers
+ *     with its own room); `fail(null)` lets connects through again;
+ *   - `drop()` loses the connection and keeps `client.room` and `breakoutRoom`, as the module reads
+ *     avclient-livekit's `onDisconnected` (voice-client.mjs `startSelfCheck`): the name says a room,
+ *     the Room under it is "disconnected" and nothing reconnects;
+ *   - avclient-livekit's client setting `useExternalAV` (this browser sends its audio from LiveKit's own
+ *     web page) is registered where the module reads it (voice.mjs `externalAV`), as a client Boolean
+ *     shown in the settings (the shim's guess, see below), false unless the install says otherwise
+ *     (`external`). That value is registered as the default, so the install stores nothing;
+ *   - `names` installs a later avclient-livekit whose client field or setting was renamed (`client`
+ *     for `_liveKitClient`, `external` for `useExternalAV`), so a test reads what the module does when
+ *     a name it relies on is gone;
+ *   - `uninstall()` puts this browser back as it found it: the Room left (its listeners hear the
+ *     `disconnected`), every field the install set on `game.webrtc`, its settings and `ui.webrtc` put
+ *     back or removed, the setting it registered unregistered and the dock it drew removed. A value
+ *     written to the setting through `game.settings.set` stays in the harness's store: nothing here
+ *     writes one. client-entry.mjs's stub is the caller's to put back (`globalThis.__liveKit`).
+ * avclient-livekit's real registration (its scope, `config`, any `onChange`) and its real failures
+ * are not read on this machine, and a dropped connection at a real table is not measured here.
  */
 import { getProperty, setProperty } from "./futil.mjs";
 
 /** The room a client stands in when nobody gave it a breakout: not one of the module's `drpg-` rooms. */
 export const MAIN_ROOM = "harness-main-room";
+
+/** avclient-livekit's id, the namespace of its settings. */
+const AV_MODULE = "avclient-livekit";
+
+/** The ways `fail` can make a connect fail (the header's list). */
+const FAILS = ["refuse", "throw", "main"];
 
 /** livekit-client's Room is an EventEmitter: `on`, `once`, `off` (and its alias), `emit`, `listenerCount`. */
 class Emitter {
@@ -107,29 +140,51 @@ class Room extends Emitter {
  * owner's Q11), since at DISABLED voice-client.mjs and voice.mjs stop before any room is read.
  * `roster` names who stands in each room, `{ [room]: [userId, ...] }`; a room it does not name holds
  * every user Foundry says is connected. A scenario knows where everybody is; the shim of one browser
- * cannot ask the others.
+ * cannot ask the others. `external` and `names` are the header's (E19 C0).
  */
-export function installLiveKit({ roster = {} } = {}) {
+export function installLiveKit({ roster = {}, external = false, names = {} } = {}) {
     const webrtc = game.webrtc;
     const settings = webrtc.settings;
-    const state = { roster: { ...roster }, rooms: 0, toggles: [], attaches: 0 };
+    const state = { roster: { ...roster }, rooms: 0, toggles: [], attaches: 0, fail: null };
+    const CLIENT_FIELD = names.client ?? "_liveKitClient";
+    const EXTERNAL_KEY = names.external ?? "useExternalAV";
+
+    /* What `uninstall` puts back, newest first: each field as it was (its descriptor), or gone when it was not there. */
+    const undo = [];
+    const keep = (obj, key) => {
+        const had = Object.getOwnPropertyDescriptor(obj, key);
+        undo.push(() => (had ? Object.defineProperty(obj, key, had) : delete obj[key]));
+    };
+    const put = (obj, key, value) => {
+        keep(obj, key);
+        obj[key] = value;
+    };
+    let drawnDock = null;
+
+    const externalFull = `${AV_MODULE}.${EXTERNAL_KEY}`;
+    if (!game.settings.settings.has(externalFull)) {
+        game.settings.register(AV_MODULE, EXTERNAL_KEY, {
+            name: "Use external AV client", scope: "client", config: true, type: Boolean, default: Boolean(external)
+        });
+        undo.push(() => game.settings.settings.delete(externalFull));
+    }
 
     /* Foundry's AVSettings: `get` reads, `set` writes the scope's object, `getUser` a user's client row
        (the harness's own `set` wrote nothing; nothing read it back until the voice tile). Whether
        Foundry fires `rtcSettingsChanged` with these arguments is not read here: it is fired, so a
        listener is not starved of the change, and C5's readings say what they rely on. */
-    settings.client.users ??= {};
-    settings.set = (scope, key, value) => {
+    if (!settings.client.users) put(settings.client, "users", {});
+    put(settings, "set", (scope, key, value) => {
         setProperty(settings[scope], key, value);
         Hooks.callAll("rtcSettingsChanged", settings, { [scope]: { [key]: value } });
-    };
-    settings.getUser = userId => {
+    });
+    put(settings, "getUser", userId => {
         if (!game.users.get(userId)) return null;
         settings.client.users[userId] ??= { volume: 1, muted: false, hidden: false, blocked: false, popout: false };
         return settings.client.users[userId];
-    };
-    webrtc.mode = foundry.av.AVSettings.AV_MODES.AUDIO;
-    settings.world.mode = foundry.av.AVSettings.AV_MODES.AUDIO;
+    });
+    put(webrtc, "mode", foundry.av.AVSettings.AV_MODES.AUDIO);
+    put(settings.world, "mode", foundry.av.AVSettings.AV_MODES.AUDIO);
 
     const dock = () => {
         let el = document.getElementById("camera-views");
@@ -138,13 +193,15 @@ export function installLiveKit({ roster = {} } = {}) {
             el.id = "camera-views";
             el.className = "camera-views";
             document.body.append(el);
+            drawnDock = el;
         }
         return el;
     };
     /* Foundry's CameraViews as far as the voice tile reads it (E78 fix r1-G2, 14.10.2026): its `element` is the dock,
        `#camera-views`, the root avclient-livekit looks in for a user's `<audio>` (LiveKitClient.ts
        `getUserAudioElement`, external). The harness had no `ui.webrtc`; nothing else of CameraViews is modelled. */
-    ui.webrtc ??= {};
+    if (!ui.webrtc) put(ui, "webrtc", {});
+    keep(ui.webrtc, "element");
     Object.defineProperty(ui.webrtc, "element", { configurable: true, get: dock });
 
     const viewOf = userId => [...dock().querySelectorAll(".camera-view[data-user]")].find(v => v.dataset.user === userId) ?? null;
@@ -218,21 +275,23 @@ export function installLiveKit({ roster = {} } = {}) {
     }
 
     const client = webrtc.client;
-    client._liveKitClient = liveKitClient;
-    client.room = null;
-    client.initialize = async () => {
+    put(client, CLIENT_FIELD, liveKitClient);
+    put(client, "room", null);
+    put(client, "initialize", async () => {
         liveKitClient.initState = "initializing";
         leaveRoom(liveKitClient.liveKitRoom);
         liveKitClient.liveKitRoom = new Room(++state.rooms);
         liveKitClient.initState = "initialized";
         Hooks.callAll("liveKitClientInitialized", liveKitClient);
         return true;
-    };
-    client.connect = async () => {
+    });
+    put(client, "connect", async () => {
         const room = liveKitClient.liveKitRoom;
         if (!room) return false;
-        const name = liveKitClient.breakoutRoom ?? MAIN_ROOM;
+        const name = state.fail === "main" ? MAIN_ROOM : (liveKitClient.breakoutRoom ?? MAIN_ROOM);
         client.room = name;
+        if (state.fail === "throw") throw new Error(`the harness's LiveKit refused "${name}" (fail: throw)`);
+        if (state.fail === "refuse") return false;
         room.name = name;
         room.state = "connected";
         liveKitClient.connectionState = "connected";
@@ -242,19 +301,19 @@ export function installLiveKit({ roster = {} } = {}) {
         }
         room.emit("connectionStateChanged", "connected");
         return true;
-    };
-    client.disconnect = async () => {
+    });
+    put(client, "disconnect", async () => {
         leaveRoom(liveKitClient.liveKitRoom);
         client.room = null;
         return true;
-    };
-    client.toggleAudio = enable => { state.toggles.push(Boolean(enable)); };
+    });
+    put(client, "toggleAudio", enable => { state.toggles.push(Boolean(enable)); });
     // AVMaster#connect, as voice-client.mjs reads it: `client.initialize()` on every connect, then the client's connect.
-    webrtc.connect = async () => {
+    put(webrtc, "connect", async () => {
         await client.initialize();
         return client.connect();
-    };
-    webrtc.disconnect = () => client.disconnect();
+    });
+    put(webrtc, "disconnect", () => client.disconnect());
 
     const room = () => liveKitClient.liveKitRoom;
     return {
@@ -300,8 +359,23 @@ export function installLiveKit({ roster = {} } = {}) {
             r.emit("activeSpeakersChanged", speakers);
             return speakers.map(p => p.fvttUserId);
         },
-        /** The connection is lost: the Room says so and empties; nothing reconnects until a connect. */
+        /** The connection is lost: the Room says so and empties; `client.room` and `breakoutRoom` keep their names; nothing reconnects until a connect. */
         drop() { leaveRoom(room()); },
+        /** How every connect from now on fails: "refuse", "throw", "main" (lands in the main room), or null to let them through. */
+        fail(mode) {
+            if (mode !== null && !FAILS.includes(mode)) return false;
+            state.fail = mode;
+            return true;
+        },
+        /** This browser as the install found it (the header's list); true once, false after. */
+        uninstall() {
+            if (!undo.length) return false;
+            leaveRoom(room());
+            drawnDock?.remove();
+            drawnDock = null;
+            while (undo.length) undo.pop()();
+            return true;
+        },
         /** What a scenario reads of this browser's view of the room, as plain data. */
         read() {
             const r = room();
@@ -310,6 +384,8 @@ export function installLiveKit({ roster = {} } = {}) {
                 serial: r?.serial ?? null,
                 state: r?.state ?? null,
                 name: r?.name ?? null,
+                /* The room's name as the A/V client holds it, which a drop keeps (E19 C0). */
+                clientRoom: client.room ?? null,
                 remote: r ? [...r.remoteParticipants.values()].map(p => liveKitClient.getParticipantFVTTUser(p)?.id ?? null) : [],
                 audio: [...dock().querySelectorAll(".camera-view[data-user]")].map(view => {
                     const el = view.querySelector("audio.user-microphone-audio");

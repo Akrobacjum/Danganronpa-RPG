@@ -506,7 +506,11 @@ const env = Object.freeze({
         return probe("env.fonts", face && !/depends on user agent/i.test(face), "no font family resolves here");
     },
     webAnimations: () => probe("env.webAnimations", typeof HTMLElement.prototype.getAnimations === "function"
-        && typeof globalThis.CSSTransition === "function", "no Web Animations API here")
+        && typeof globalThis.CSSTransition === "function", "no Web Animations API here"),
+    /* The headless harness's stand-in for avclient-livekit (audit/harness/lib/livekit.mjs, E19 C0), there and not
+       installed: client-entry.mjs's stub. A real Foundry has none, and its A/V client is not a test's to break. */
+    liveKitShim: () => probe("env.liveKitShim", globalThis.__liveKit?.installed === false
+        && typeof globalThis.__liveKit?.install === "function", "no LiveKit stand-in here, only the browser's own A/V client")
 });
 
 const viewed = () => canvas?.scene ?? null;
