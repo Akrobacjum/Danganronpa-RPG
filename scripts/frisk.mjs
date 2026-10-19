@@ -12,7 +12,7 @@
  * end for every ask (`askToFrisk`, `answerFrisk`, `followFrisk`, `sweepFriskAsks`, `friskRouteSettled`).
  */
 
-import { SETTINGS, getSetting, getClock, isEclipse, isDeadForGm, incidentParticipants } from "./settings.mjs";
+import { SETTINGS, getSetting, getClock, isEclipse, isDeadForGm, isDeceased, incidentParticipants } from "./settings.mjs";
 import { MODULE_ID, FLAGS, ITEM_CATEGORIES, TIMING } from "./config.mjs";
 import { gmPlaceOf, lawfulRoomOf } from "./movement.mjs";
 import { witnessesOf } from "./chapter.mjs";
@@ -36,14 +36,37 @@ const FORCEABLE = Object.freeze(["refused", "noAnswer"]);
 
 /**
  * Whether `searcherId` may draw a Frisk's force now: the GMs' `friskForce` is on and an ask of theirs stands refused or
- * unanswered inside its window. Asked by roll-draw.mjs `drawRefusal` before a `frisk` roll takes its ticket.
+ * unanswered inside its window - `forceUntil` and the grace for a press in its last moment (`forceDrawnBy`). Asked by
+ * roll-draw.mjs `drawRefusal` before a `frisk` roll takes its ticket.
  */
 export function friskForceOpen(searcherId, now = Date.now()) {
     if (!searcherId || getSetting(SETTINGS.friskForce) !== true) return false;
     for (const row of friskAsks.values()) {
-        if (row?.searcherId === searcherId && FORCEABLE.includes(row.state) && Number(row.forceUntil) > now) return true;
+        if (row?.searcherId === searcherId && FORCEABLE.includes(row.state) && forceDrawnBy(row) > now) return true;
     }
     return false;
+}
+
+/**
+ * How long past an ask's clocks the primary still takes what was pressed in their last moment (`TIMING.friskGraceMs`):
+ * the target's window and 'Make them?' each open one trip after the primary's clock started and close a full clock after
+ * that, so an answer or a force pressed at the end reaches the primary past it (E80 fix r1-G1, the review's E80-C3-4).
+ */
+export const FRISK_GRACE_MS = TIMING.friskGraceMs;
+
+/** The last moment (epoch ms) a force of `row`'s may be drawn: its window and the grace. Also gm-bridge.mjs `friskForceRoll`'s. */
+export function forceDrawnBy(row) {
+    return Number(row?.forceUntil) + FRISK_GRACE_MS;
+}
+
+/**
+ * Whether `asker` (a user) knows that `target` is dead: a death published is the table's, everybody's (settings.mjs
+ * `isDeceased` - publishing drops the GMs' row of it, chapter.mjs `publishDeath`); one the GMs keep is known to those
+ * its row names (incident-store.mjs `knowsOfDeath`). A Frisk never touches a known body (the A11 design's resolved 20;
+ * E80 fix r1-G1, the review's rc2-1), as handover.mjs `lootBody` reads the same two.
+ */
+function knownBody(asker, target) {
+    return isDeceased(target) || (isDeadForGm(target) && knowsOfDeath(asker, target.id));
 }
 
 /** A floor as `gmPlaceOf` hands it - an id or a Level document - as one comparable id. */
@@ -166,8 +189,8 @@ export async function friskPerson({ searcherId, targetId, total = 0, isCritical 
     };
     const why = personActionRefusal(searcher, target);
     if (why) return refuse(why);
+    if (knownBody(asker, target)) return refuse("that cannot be done now");
     const body = isDeadForGm(target);
-    if (body && knowsOfDeath(asker, target.id)) return refuse("that cannot be done now");
 
     const { ACTIONS } = await import("./config.mjs");
     const part = ACTIONS.palm.rummage;
@@ -225,7 +248,7 @@ export async function replayRummage(searcher, fact, { total = 0, isCritical = fa
     const here = gmPlaceOf(searcher);
     const asker = (by ? game.users?.get(by) : null) ?? null;
     if (!target || personActionRefusal(searcher, target) || here?.scene?.id !== fact.sceneId || here?.room !== fact.room
-        || (isDeadForGm(target) && knowsOfDeath(asker, target.id))) {
+        || knownBody(asker, target)) {
         log(`A Reroll of ${searcher.name}'s Frisk of ${target?.name ?? "?"} found the moment passed.`);
         return late();
     }
@@ -290,7 +313,9 @@ export async function performFrisk(actor, def, victim, mode, { cost = def?.cost 
  * the target (`frisk.ask`, to them alone); an answer is judged by who Foundry says sent it (`answerFrisk`,
  * `action.friskAnswer`); a force or a 'Leave it' names the ask (`followFrisk`, `action.friskFollow`). The ask lives in
  * `friskAsks`, this browser's memory: a reload or a new primary ends it with no dice thrown - the searcher's wait
- * runs out and hands the action back, an answer is told `missing` (the design's risk 3). Nothing enters world data
+ * runs out and hands the action back, an answer is told `missing` (the design's risk 3). A GM that is no longer the
+ * primary while it still holds asks (another GM connected whose turn it is) drops them at its next sweep, with no card
+ * and no answer, as a reload would (`sweepFriskAsks`; E80 fix r1-G1, the review's E80-C3-6). Nothing enters world data
  * but the veiled cards: no flag, no item, no setting, no store.
  * ========================================================================== */
 
@@ -301,7 +326,13 @@ const FRISK_ASK = "frisk.ask";
 const FRISK_CANCEL = "frisk.cancel";
 /** The outcomes that end an ask before its row is written, the action handed back by the searcher's browser. */
 export const FRISK_REFUNDED = Object.freeze(["askedAlready", "targetBusy", "youBusy", "isBody"]);
-/** How long past its own clock a row waits for the packet that ends it (`TIMING.friskMarginMs`). */
+/**
+ * The outcomes whose action the searcher's browser hands back, by what it paid (action-rolls.mjs `abort`, its receipt):
+ * those above, and an ask `interrupted` with no dice thrown. Handed back there and not by the primary, which cannot tell
+ * a Burst from an action nor a GM's free Frisk from a paid one (E80 fix r1-G1, the review's E80-C3-3).
+ */
+export const FRISK_HANDED_BACK = Object.freeze([...FRISK_REFUNDED, "interrupted"]);
+/** How long past its force's clock a refused or unanswered row waits for the follow that ends it (`TIMING.friskMarginMs`). */
 export const FRISK_MARGIN_MS = TIMING.friskMarginMs;
 
 /** The pairs asked, `searcherId>targetId`, with the time of day they were asked in: one ask a pair a time of day (chosen). */
@@ -383,17 +414,19 @@ function standing(row) {
  *   forceFailed    the searcher's neutral miss, the target shook them off, the room told;
  *   letGo          'Leave it', the force's clock, the searcher leaving, a refusal with `friskForce` off: the target and the room;
  *   gone           the target walked away: the searcher and the room;
- *   interrupted    nothing thrown and the action handed back here (a GM's write, which takes no ticket): the searcher alone.
- * A target the GMs keep silent (a body nobody found, an incident's side) gets no card of its own.
+ *   interrupted    nothing thrown: the searcher alone, whose browser hands the action back by what it paid (`FRISK_HANDED_BACK`).
+ * A target the GMs keep silent (a body nobody found, an incident's side) gets no card of its own; nor do the target and the
+ * room of an ask that ended before it was asked (still "opening": `askToFrisk` reads where the two stand once its claim
+ * has landed), as nobody there knew of it (E80 fix r1-G1, the review's E80-C3-2).
  */
 async function endAsk(row, outcome) {
     if (!friskAsks.has(row.askId) || row.ending) return false;
+    const asked = row.state !== "opening";
     row.ending = true;
     friskAsks.delete(row.askId);
     clearTimeout(row.timer);
     if (row.state === "asking" || row.state === "opening") emitTo(row.answerUserIds, { action: FRISK_CANCEL, askId: row.askId });
-    const { endTicket } = await import("./roll-draw.mjs");
-    endTicket(row.searcherId, "friskAsk");
+    await closeTicket(row);
     const searcher = game.actors.get(row.searcherId) ?? null;
     const target = game.actors.get(row.targetId) ?? null;
     const who = searcher?.name ?? "", them = target?.name ?? "";
@@ -405,18 +438,24 @@ async function endAsk(row, outcome) {
     else if (outcome === "forced") await cardTo(searcher, `${listOfLines(target, row.lines)}${asAsked}`);
     else if (outcome === "forceFailed") await cardTo(searcher, say("DRPG.Frisk.missed", { who: them }));
     else if (outcome === "gone") await cardTo(searcher, say("DRPG.Frisk.gone", { who: them }));
-    else if (outcome === "interrupted") {
-        await cardTo(searcher, say("DRPG.Frisk.interrupted"));
-        if (row.paid && searcher) {
-            const { refundAction } = await import("./actions.mjs");
-            await refundAction(searcher, 1).catch(err => error("Could not hand a Frisk's action back", err));
-        }
-    }
-    if (forTarget[outcome] && !row.silent && target) await cardTo(target, say(forTarget[outcome], { who }));
-    if (forRoom[outcome]) await tellWitnesses(row, say(forRoom[outcome], { who, target: them }));
+    else if (outcome === "interrupted") await cardTo(searcher, say("DRPG.Frisk.interrupted"));
+    if (forTarget[outcome] && asked && !row.silent && target) await cardTo(target, say(forTarget[outcome], { who }));
+    if (forRoom[outcome] && asked) await tellWitnesses(row, say(forRoom[outcome], { who, target: them }));
     log(`${who} frisked ${them} openly: ${outcome}${["shown", "forced"].includes(outcome) ? `, ${row.lines.length} item(s) listed` : ""}.`);
     answerSearcher(row, { askId: row.askId, outcome, forceMs: null });
     return true;
+}
+
+/**
+ * The ticket `row`'s ask claimed (`row.claimed`), closed to a force once (roll-draw.mjs `endTicket`): by its end, by
+ * `askToFrisk` when the row went while its claim was landing, or by a GM dropping its asks - whichever reads the claim
+ * first, so no end closes another ask's ticket and none leaves this one open (E80 fix r1-G1, the review's E80-C3-2).
+ */
+async function closeTicket(row) {
+    const { endTicket } = await import("./roll-draw.mjs");
+    if (!row.claimed) return false;
+    row.claimed = false;
+    return endTicket(row.searcherId, "friskAsk");
 }
 
 /** The searcher's wait on its ask, answered once (`row.reply`, the bridge's late answer or a GM's own promise). */
@@ -432,35 +471,49 @@ function answerSearcher(row, value) {
 
 /**
  * The target refused, or did not answer in time (`state` "refused" or "noAnswer"): the searcher is told, and with the
- * GMs' `friskForce` on, may force it until `forceUntil` (`followFrisk`); with it off the ask ends as 'Leave it'.
+ * GMs' `friskForce` on, may force it until `forceUntil` (`followFrisk`); with it off the ask ends as 'Leave it'. The
+ * force's clock is set in the same tick as the state, before the card is awaited: a sweep that runs meanwhile - any
+ * other ask's timer sweeps every row - read a refused row with no clock as one whose clock had run out, and ended it as
+ * 'lets it go' before its force was offered (E80 fix r1-G1, the review's E80-C3-1).
  */
 async function noYes(row, state) {
     const moved = standing(row);
     if (moved) return endAsk(row, moved);
     if (row.state === "asking") emitTo(row.answerUserIds, { action: FRISK_CANCEL, askId: row.askId });
+    const force = getSetting(SETTINGS.friskForce) === true;
     row.state = state;
+    if (force) {
+        row.forceUntil = Date.now() + TIMING.friskForceMs;
+        clearTimeout(row.timer);
+        row.timer = setTimeout(() => sweepFriskAsks().catch(err => error("Could not end a Frisk's ask", err)), TIMING.friskForceMs + FRISK_MARGIN_MS);
+    }
     const target = game.actors.get(row.targetId) ?? null;
     await cardTo(game.actors.get(row.searcherId) ?? null, say(state === "refused" ? "DRPG.Frisk.refused" : "DRPG.Frisk.noAnswer", { who: target?.name }));
-    if (getSetting(SETTINGS.friskForce) !== true) return endAsk(row, "letGo");
-    row.forceUntil = Date.now() + TIMING.friskForceMs;
-    clearTimeout(row.timer);
-    row.timer = setTimeout(() => sweepFriskAsks().catch(err => error("Could not end a Frisk's ask", err)), TIMING.friskForceMs + FRISK_MARGIN_MS);
+    if (!force) return endAsk(row, "letGo");
+    if (!friskAsks.has(row.askId) || row.ending) return false;
     answerSearcher(row, { askId: row.askId, outcome: state, forceMs: TIMING.friskForceMs });
     return true;
 }
 
 /**
- * Every ask whose clock has run out, ended: an unanswered one is 'does not answer' (`noYes`), a force nobody took
- * 'lets it go', each a little past its clock (`FRISK_MARGIN_MS`) for the packet already on its way. The rows' timers
- * call it; `now` is the suite's, to read an ask's end without waiting a minute. Answers the ask ids it ended.
+ * Every ask whose clock has run out, ended: an unanswered one is 'does not answer' (`noYes`) once the grace for an answer
+ * pressed in the window's last moment has passed too (`FRISK_GRACE_MS`), a force nobody took 'lets it go' a little past
+ * its clock (`FRISK_MARGIN_MS`) for the follow already on its way. A row whose state is being changed (a refusal whose
+ * force's clock is not set yet) is not read. The rows' timers call it; `now` is the suite's, to read an ask's end without
+ * waiting a minute. Answers the ask ids it ended.
+ *
+ * On a GM that is no longer the primary (`isPrimaryGm`) it ends nothing and posts nothing: it drops every ask it holds
+ * (`dropFriskAsks`), as a reload of this GM would - the searcher's wait runs out and hands the action back, an answer
+ * goes to the new primary and is told `missing`, and 'Make them' finds no force open there (E80 fix r1-G1, E80-C3-6).
  */
 export async function sweepFriskAsks(now = Date.now()) {
+    if (!isPrimaryGm()) return dropFriskAsks();
     const ended = [];
     for (const row of [...friskAsks.values()]) {
-        if (row.state === "asking" && now >= row.expiresAt) {
+        if (row.state === "asking" && now >= row.expiresAt + FRISK_GRACE_MS) {
             await noYes(row, "noAnswer");
             ended.push(row.askId);
-        } else if (FORCEABLE.includes(row.state) && now >= Number(row.forceUntil) + FRISK_MARGIN_MS) {
+        } else if (FORCEABLE.includes(row.state) && Number.isFinite(row.forceUntil) && now >= row.forceUntil + FRISK_MARGIN_MS) {
             await endAsk(row, standing(row) === "gone" ? "gone" : "letGo");
             ended.push(row.askId);
         }
@@ -479,7 +532,10 @@ export async function sweepFriskAsks(now = Date.now()) {
  * answering one ask at a time (targetBusy, its window only, so nobody shields a suspect with ask after ask), one ask a
  * pair a time of day (askedAlready); the row written before anything is awaited, then the ticket of the asker's payment
  * claimed (roll-draw.mjs `claimTicket`; a GM's own pays nothing this GM counts) and the snapshot of the pockets taken
- * (vault.mjs `pocketsAsHeld`, cut to lines here: what is listed later is what they carried now).
+ * (vault.mjs `pocketsAsHeld`, cut to lines here: what is listed later is what they carried now). While the claim waits
+ * for the payment the row is "opening", which no move ends (`friskRouteSettled`): once it has landed, the row gone
+ * meanwhile closes the ticket it claimed (`endTicket`), and the two read where they stand (`standing`) end it before
+ * anybody is asked - so no end leaves a payment claimed for an ask nobody holds (E80 fix r1-G1, the review's E80-C3-2).
  *
  * WHO ANSWERS (the design's step 8). The target's players who are connected (`ownerIdsOf`, active); a character with no
  * player, the GMs connected (`byGms`, 'You answer for {name}'); a player who is away, nobody, and the ask is 'does not
@@ -501,7 +557,7 @@ export async function askToFrisk({ searcherId, targetId } = {}, { asker = null, 
         log(`${searcher.name}'s Frisk's ask of ${target.name}: ${outcome}, the action handed back.`);
         return { value: { askId: null, outcome, forceMs: null } };
     };
-    if (isDeadForGm(target) && knowsOfDeath(asker, target.id)) return early("isBody");
+    if (knownBody(asker, target)) return early("isBody");
     const live = [...friskAsks.values()];
     if (live.some(row => row.searcherId === searcher.id)) return early("youBusy");
     if (live.some(row => row.targetId === target.id && ["opening", "asking"].includes(row.state))) return early("targetBusy");
@@ -512,7 +568,7 @@ export async function askToFrisk({ searcherId, targetId } = {}, { asker = null, 
     const askId = foundry.utils.randomID(16);
     const row = { askId, asker: asker?.id ?? null, searcherId: searcher.id, targetId: target.id, state: "opening", reply, replied: false,
         sceneId: place.scene?.id ?? null, level: floorKey(place.level), room: place.room, answerUserIds: [], byGms: false, silent: null,
-        at: Date.now(), expiresAt: Infinity, forceUntil: null, lines: [], paid: false, timer: null };
+        at: Date.now(), expiresAt: Infinity, forceUntil: null, lines: [], claimed: false, timer: null };
     friskAsks.set(askId, row);
     askedPairs.set(pair, now);
     const { claimTicket } = await import("./roll-draw.mjs");
@@ -522,14 +578,28 @@ export async function askToFrisk({ searcherId, targetId } = {}, { asker = null, 
         log(`Refused a Frisk's ask by ${searcher.name} of ${target.name}: no payment of theirs stands for it.`);
         return { refused: "no payment of that character's stands for that roll" };
     }
-    row.paid = true;
+    row.claimed = !asker?.isGM;
+    // Gone while its claim or its snapshot was awaited (dropped, ended, forgotten by the suite): the ticket it claimed is
+    // closed here unless its end has closed it.
+    if (!friskAsks.has(askId)) {
+        await closeTicket(row);
+        return { later: true };
+    }
     const { pocketsAsHeld } = await import("./vault.mjs");
     row.lines = (await pocketsAsHeld(target, searcher, { undecided: "drop" })).map(friskLine);
-    if (!friskAsks.has(askId)) return { later: true };
+    if (!friskAsks.has(askId)) {
+        await closeTicket(row);
+        return { later: true };
+    }
 
     const owners = ownerIdsOf(target);
     const active = owners.filter(id => game.users.get(id)?.active);
     row.silent = isDeadForGm(target) ? "kept" : incidentParticipants().includes(target.id) ? "incident" : null;
+    const moved = standing(row);
+    if (moved) {
+        await endAsk(row, moved);
+        return { later: true };
+    }
     row.byGms = !row.silent && !owners.length;
     row.answerUserIds = row.silent ? [] : row.byGms ? activeGmIds() : active;
     const away = owners.length > 0 && !active.length;
@@ -545,7 +615,7 @@ export async function askToFrisk({ searcherId, targetId } = {}, { asker = null, 
     log(`${searcher.name} asks ${target.name} to turn out their pockets (${row.silent ? `nobody asked: ${row.silent}` : away ? "nobody connected answers"
         : row.byGms ? "the GMs answer" : `${row.answerUserIds.length} player(s) asked`}).`);
     if (away || (!row.silent && !row.answerUserIds.length)) await noYes(row, "noAnswer");
-    else row.timer = setTimeout(() => sweepFriskAsks().catch(err => error("Could not end a Frisk's ask", err)), TIMING.friskAnswerMs + 50);
+    else row.timer = setTimeout(() => sweepFriskAsks().catch(err => error("Could not end a Frisk's ask", err)), TIMING.friskAnswerMs + FRISK_GRACE_MS + 50);
     return { later: true };
 }
 
@@ -631,6 +701,24 @@ export async function followFrisk({ searcherId, askId, rollId = null, total = 0,
     const won = Boolean(isCritical) || Number(total) >= ACTIONS.palm.frisk.threshold;
     await endAsk(row, won ? "forced" : "forceFailed");
     return { outcome: won ? "forced" : "forceFailed" };
+}
+
+/**
+ * Every ask this GM holds dropped with nothing posted and nobody answered, each ticket it claimed closed to a force
+ * (roll-draw.mjs `endTicket`): what a GM that is no longer the primary does with its asks (`sweepFriskAsks`). Answers the
+ * ask ids it dropped.
+ */
+async function dropFriskAsks() {
+    const rows = [...friskAsks.values()];
+    if (!rows.length) return [];
+    for (const row of rows) {
+        if (!friskAsks.has(row.askId) || row.ending) continue;
+        clearTimeout(row.timer);
+        friskAsks.delete(row.askId);
+        await closeTicket(row);
+    }
+    log(`This GM is no longer the primary: ${rows.length} Frisk ask(s) it held dropped with nothing posted.`);
+    return rows.map(row => row.askId);
 }
 
 /** For the suite: every ask this primary holds and every pair asked forgotten, their clocks stopped, nothing posted. */
@@ -765,7 +853,8 @@ async function askToForce(def, forceMs) {
 /**
  * The searcher's browser, an open Frisk of `victim` (the design's steps 6, 7 and 12). The action is paid first, as a
  * Palm's; the primary is asked (`requestFriskAsk`) and its answer awaited. No GM, a refusal, no answer from the primary,
- * or an ask that ended before its row (askedAlready, targetBusy, youBusy, isBody): the action back (`abort`). The list,
+ * an ask that ended before its row (askedAlready, targetBusy, youBusy, isBody) or one interrupted with no dice thrown:
+ * the action back as it was paid (`abort`, its receipt: a Burst as a Burst, a free Frisk nothing). The list,
  * the refusal and every other line are the primary's cards. After a refusal or no answer with a force open: 'Make them?',
  * and 'Make them' throws Body (`frisk`, remembered: an armed Call is eaten by it) on the ask's payment and names it; 'Leave
  * it', a close or the clock names none. `drpgActionResolved` goes out only after that roll, as `palm` with `direction:
@@ -780,7 +869,7 @@ async function performFriskOpenly(actor, def, victim, { cost = def?.cost ?? 1, r
     const { requestFriskAsk, requestFriskFollow } = await import("./gm-bridge.mjs");
     const res = await requestFriskAsk({ searcherId: actor.id, targetId: victim.id });
     const asked = res.ok ? res.value : null;
-    if (!asked?.outcome || FRISK_REFUNDED.includes(asked.outcome)) return A.abort(actor, paid);
+    if (!asked?.outcome || FRISK_HANDED_BACK.includes(asked.outcome)) return A.abort(actor, paid);
     const base = { direction: "frisk", mode: "openly", target: victim.name, asked: asked.outcome };
     if (!FORCEABLE.includes(asked.outcome) || !asked.forceMs || !asked.askId) return base;
 
@@ -802,7 +891,8 @@ async function performFriskOpenly(actor, def, victim, { cost = def?.cost ?? 1, r
 
 /**
  * The primary GM, when a token's route settles (movement.mjs `drpgRouteSettled`): an ask whose target walked out of its
- * room is 'gone' and one whose searcher did 'lets it go', at once rather than at its next answer or clock.
+ * room is 'gone' and one whose searcher did 'lets it go', at once rather than at its next answer or clock. An ask still
+ * "opening" is left to `askToFrisk`, which reads where the two stand once its claim has landed (E80-C3-2).
  */
 export async function friskRouteSettled({ tokenDoc, provisional = false } = {}) {
     if (!isPrimaryGm()) return [];
@@ -810,7 +900,7 @@ export async function friskRouteSettled({ tokenDoc, provisional = false } = {}) 
     const actorId = tokenDoc?.actorId ?? tokenDoc?.actor?.id ?? null;
     const ended = [];
     for (const row of [...friskAsks.values()]) {
-        if (!actorId || (row.searcherId !== actorId && row.targetId !== actorId) || row.ending) continue;
+        if (!actorId || (row.searcherId !== actorId && row.targetId !== actorId) || row.ending || row.state === "opening") continue;
         const moved = standing(row);
         if (moved === "gone" || moved === "letGo") {
             await endAsk(row, moved);
@@ -820,7 +910,11 @@ export async function friskRouteSettled({ tokenDoc, provisional = false } = {}) 
     return ended;
 }
 
-/** Every browser: the `frisk.ask` and `frisk.cancel` listener; the primary: the watch on routes. Called once (gm-bridge.mjs). */
+/**
+ * Every browser: the `frisk.ask` and `frisk.cancel` listener; the primary: the watch on routes; a GM holding asks: when a
+ * user connects or leaves and this GM is no longer the primary, it drops them at once (`dropFriskAsks`), not at the next
+ * clock's sweep. Called once (gm-bridge.mjs).
+ */
 export function registerFrisk() {
     game.socket.on(SOCKET_EVENT, (payload, senderId) => {
         if (payload?.action !== FRISK_ASK && payload?.action !== FRISK_CANCEL) return;
@@ -828,5 +922,8 @@ export function registerFrisk() {
     });
     Hooks.on("drpgRouteSettled", data => {
         friskRouteSettled(data).catch(err => error("Could not read a Frisk's ask after a move", err));
+    });
+    Hooks.on("userConnected", () => {
+        if (game.user?.isGM && friskAsks.size && !isPrimaryGm()) dropFriskAsks().catch(err => error("Could not drop a Frisk's asks", err));
     });
 }

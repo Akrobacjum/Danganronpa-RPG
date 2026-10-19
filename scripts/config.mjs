@@ -364,10 +364,16 @@ export const TIMING = {
      *  not measured - short enough that the target does not hang in the window. */
     friskAnswerMs: 60000,
     friskForceMs: 30000,
-    /** How long past either clock the primary keeps an ask for the packet already on its way that ends it - an answer
-     *  pressed at the last second, a force drawn just before the window closed - and the searcher's wait runs past the
-     *  answer's clock (E80 part 2 C3): chosen, not measured. */
+    /** How long the searcher's wait on an open Frisk's ask runs past the answer's clock (gm-bridge.mjs `action.friskAsk`,
+     *  its `timeoutMs` and `lateMs`), and how long past the force's clock the primary keeps a refused or unanswered ask
+     *  for the follow that names a force drawn in time (frisk.mjs `sweepFriskAsks`) (E80 part 2 C3): chosen, not measured. */
     friskMarginMs: 15000,
+    /** How long past either clock the primary still takes what was pressed at the last second on a window that opened
+     *  one trip after the clock started: an answer to an ask (frisk.mjs `sweepFriskAsks` ends an unanswered ask only
+     *  then) and a force's draw (`friskForceOpen`, gm-bridge.mjs `friskForceRoll`). The windows themselves close at
+     *  `friskAnswerMs` and `friskForceMs` after they open. Under `friskMarginMs`, so a late 'does not answer' still
+     *  reaches the searcher's wait (E80 fix r1-G1): chosen, not measured. */
+    friskGraceMs: 5000,
     /** How long an Observe waits for its ruling before the bookmark is swept. */
     pendingObserveTtlMs: 60 * 60 * 1000,
     /** How many private cards' words a browser keeps; beyond this the oldest go. */

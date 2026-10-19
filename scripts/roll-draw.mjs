@@ -863,7 +863,8 @@ export async function claimTicket(actorId, kind) {
  * An open Frisk's ask has ended unforced (E80 part 2 C3): the newest ticket of `actorId`'s that `kind` was claimed on and
  * nothing rode is closed (`ENDED`), so no later force rides it - ticketFor rides the newest ticket whose parts are all
  * partners - and, drawn on, no Search or refund takes it either. True when it closed one. The action stays spent; where
- * the primary hands it back (frisk.mjs, an `interrupted` ask), it writes the refund itself, which takes no ticket.
+ * an ask ends `interrupted`, the searcher's browser hands it back by its receipt (frisk.mjs `FRISK_HANDED_BACK`), judged
+ * as any refund of a player's (sheet-audit.mjs, its credit), and the closed ticket is not given back with it.
  */
 export function endTicket(actorId, kind) {
     const ticket = [...ticketsOf(actorId)].reverse().find(t => t.kinds.length === 1 && t.kinds[0] === kind) ?? null;

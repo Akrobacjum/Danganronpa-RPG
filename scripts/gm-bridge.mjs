@@ -753,16 +753,16 @@ async function handleFriskFollow(payload) {
 /*
  * A FORCE'S ROLL, FOR THE ASK IT NAMES (E80 part 2 C3). The runner holds the record to the searcher, to a `frisk` roll and
  * to one settlement (`rollRefusal`); this holds it to the ask: one the primary holds for that searcher, a roll drawn after
- * the ask was made and no later than its force's window (`forceUntil`, which `friskForceOpen` held the draw to), so a Body
- * roll drawn for one ask settles no other. Its fields are the record's result.
+ * the ask was made and no later than its force's window and its grace (frisk.mjs `forceDrawnBy`, which `friskForceOpen`
+ * held the draw to; E80 fix r1-G1), so a Body roll drawn for one ask settles no other. Its fields are the record's result.
  */
 async function friskForceRoll(record, payload) {
-    const { friskAsks } = await import("./frisk.mjs");
+    const { friskAsks, forceDrawnBy } = await import("./frisk.mjs");
     const row = friskAsks.get(typeof payload?.askId === "string" ? payload.askId : "") ?? null;
     if (!row) return { why: "no such Frisk ask" };
     if (row.searcherId !== record.actorId) return { why: "not their character" };
     if (!(Number(record.at) >= Number(row.at))) return { why: "that roll was not thrown for that action" };
-    if (!(Number(record.at) <= Number(row.forceUntil))) return { why: "that roll is too old to settle anything" };
+    if (!(Number(record.at) <= forceDrawnBy(row))) return { why: "that roll is too old to settle anything" };
     return { fields: { total: Number(record.total) || 0, isCritical: Boolean(record.isCritical) } };
 }
 
