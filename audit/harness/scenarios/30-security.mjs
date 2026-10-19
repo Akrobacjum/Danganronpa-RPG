@@ -1631,6 +1631,55 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
             && targetAnswer.reply === "shown" && forgedAsk.before === forgedAsk.after,
         JSON.stringify({ friskAsk, outsiderAnswer, targetAnswer, forgedAsk }), { flow: "frisk-openly" });
 
+    /*
+     * AN OPEN FRISK'S OTHER PACKETS FROM A CONSOLE (E80 fix r1-G4, 19.10.2026; the review's goal-P2-19 and E80-C3-7 (b)).
+     * p3's console asks for Aiko (p1's) of Botan (`action.friskAsk`): refused, p3 does not own the character searching, and
+     * no ask is held. Then the GM asks for Aiko of Botan and p2's window refuses, so Aiko's force is open; p3's console
+     * follows that ask (`action.friskFollow`) naming its own Chie and then Aiko as the searcher, and p1's names a Search
+     * roll of Aiko's the GM drew on 12 and 11 as the force: each refused (not their character; the sender does not own
+     * the character searching; that roll was not thrown for that action), and the ask still refused and open after all
+     * three. The control: p1's follow naming no roll, 'Leave it', ends it.
+     */
+    const friskRows = `const F = await import("${repoUrl}/scripts/frisk.mjs");
+        return [...F.friskAsks.values()].filter(r => r.searcherId === "${ids.aiko}").map(r => [r.state, r.searcherId === "${ids.aiko}"]);`;
+    await clearFailures();
+    await sendAs(p3, "action.friskAsk", { searcherId: ids.aiko, targetId: ids.botan });
+    await settle(1200);
+    const strangerAsk = { reasons: await refusedFor("action.friskAsk"), rows: await gm.eval(friskRows) };
+    await p2.eval(`globalThis.__dialogAnswers.push("refuse"); return true;`);
+    const heldAsk = await gm.eval(`const F = await import("${repoUrl}/scripts/frisk.mjs");
+        F.forgetFriskAsks();
+        await F.askToFrisk({ searcherId: "${ids.aiko}", targetId: "${ids.botan}" }, { asker: game.user });
+        return [...F.friskAsks.values()].find(r => r.searcherId === "${ids.aiko}")?.askId ?? null;`, { timeout: 30000 });
+    let heldState = await gm.eval(friskRows);
+    for (let i = 0; i < 40 && heldState[0]?.[0] !== "refused"; i++) {
+        await settle(250);
+        heldState = await gm.eval(friskRows);
+    }
+    const follow = async (client, fields) => {
+        await clearFailures();
+        await sendAs(client, "action.friskFollow", { askId: heldAsk ?? "none", ...fields });
+        await settle(1200);
+        return { reasons: await refusedFor("action.friskFollow"), rows: await gm.eval(friskRows) };
+    };
+    const ownFollow = await follow(p3, { searcherId: ids.chie });
+    const strangerFollow = await follow(p3, { searcherId: ids.aiko });
+    const searchRoll = await drawnRoll(p1, ids.aiko, "search", "eye", { hope: 12, fear: 11 });
+    const searchFollow = await follow(p1, { searcherId: ids.aiko, rollId: searchRoll.messageId ?? "none", total: 30, isCritical: true });
+    const leaveFollow = await follow(p1, { searcherId: ids.aiko });
+    await p2.eval(`globalThis.__dialogAnswers.length = 0; return true;`);
+    await gm.eval(`(await import("${repoUrl}/scripts/frisk.mjs")).forgetFriskAsks(); return true;`);
+    const stillOpen = [["refused", true]];
+    check("SECURITY: an open Frisk is asked and followed only for the sender's own character - p3's ask for Aiko holds nothing, p3's follows of Aiko's ask and p1's naming a Search roll are refused, the ask still open; 'Leave it' from p1 ends it",
+        strangerAsk.reasons.some(r => /sender does not own the character searching/.test(r)) && JSON.stringify(strangerAsk.rows) === "[]"
+            && Boolean(heldAsk) && JSON.stringify(heldState) === JSON.stringify(stillOpen)
+            && ownFollow.reasons.some(r => /not their character/.test(r)) && JSON.stringify(ownFollow.rows) === JSON.stringify(stillOpen)
+            && strangerFollow.reasons.some(r => /sender does not own the character searching/.test(r)) && JSON.stringify(strangerFollow.rows) === JSON.stringify(stillOpen)
+            && Boolean(searchRoll.messageId) && searchFollow.reasons.some(r => /that roll was not thrown for that action/.test(r))
+            && JSON.stringify(searchFollow.rows) === JSON.stringify(stillOpen)
+            && !leaveFollow.reasons.length && JSON.stringify(leaveFollow.rows) === "[]",
+        JSON.stringify({ strangerAsk, heldAsk, heldState, ownFollow, strangerFollow, searchRoll, searchFollow, leaveFollow }), { flow: "frisk-openly" });
+
     // 7d. despair.adjust from a player, with no Reroll behind it and with a rewrite of a roll (a receipt until E08+E28 C8).
     phase("Despair corrections", { flow: "despair" });
     const readPool = `return { pool: game.drpg.getDespair(game.user.id) };`;

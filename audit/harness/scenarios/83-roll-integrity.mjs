@@ -1090,6 +1090,47 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
         return true;`, { timeout: 60000 });
     await settle(800);
 
-    const forgeries = ["F1", "F1b", "F2", "F3", "F5a", "F7", "F4", "F4b", "F4c", "F6a", "F6b", "F5c", "F5b"];
+    /* ------------- F8. a Frisk's hand and force on a card with the draw's flags ------------- */
+
+    /* E80 fix r1-G4 (19.10.2026; the review's sec-3, goal-P2-19 and E80-C3-7 (b)): a Frisk is judged on the GMs' record
+       of its rolls (gm-bridge.mjs `friskRolls`, `friskForceRoll`), so a card of p1's own carrying the draw's flags is no
+       roll of it. p1's console writes a duality card of Aiko's with a total of 40 and the flags the GM's draw stamps
+       (`drawn`, and the rollId of F5a's record), as F4's, then names it as an unseen Frisk's hand and cover of Botan
+       (`action.friskUnseen`, saying 30 and a critical) and as an open Frisk's force (`action.friskFollow`). Each is
+       refused for naming no roll the GM drew (`rollUnknown`), the card is not read as drawn on any client, and no card of a Frisk
+       reaches p1; the trace is F4's (a forged row naming p1 and one card to the GMs) and p1's two refusals. */
+    phase("F8: a card with the draw's flags named as a Frisk's hand and its force", { flow: "give-take-stash" });
+    mark = await readings();
+    const f8From = await gm.eval(`return Date.now();`);
+    const f8 = await p1.eval(`const a = game.actors.get("${aiko}"), B = await import("${SCRIPT("gm-bridge")}");
+        const roll = { class: "DualityRoll", formula: "1d12 + 1d12 + 27", total: 40, evaluated: true, dHope: { total: 9 }, dFear: { total: 4 },
+            dice: [{ faces: 12, total: 9, results: [{ result: 9, active: true }] }, { faces: 12, total: 4, results: [{ result: 4, active: true }] }],
+            options: { actionType: "action" } };
+        const m = await ChatMessage.create({ author: game.user.id, speaker: ChatMessage.getSpeaker({ actor: a }), content: '<div class="dice-roll">Duality</div>',
+            rolls: [roll], system: { roll }, flags: { "${MOD}": { drawn: true, rollId: ${J(f5aRow?.id ?? "C5BINVENTEDROLL1")} } } });
+        const card = m?.id ?? null;
+        const hand = await B.requestFriskUnseen({ searcherId: "${aiko}", targetId: "${botan}", total: 30, isCritical: true, unseenTotal: 30, unseenCritical: true,
+            rollId: card, unseenRollId: card });
+        const force = await B.requestFriskFollow({ searcherId: "${aiko}", askId: "F8NOASKNAMED0000", rollId: card, total: 30, isCritical: true });
+        return { card, hand: [hand?.ok ?? null, hand?.reason ?? null], force: [force?.ok ?? null, force?.reason ?? null] };`, { timeout: 60000 });
+    await settle(1500);
+    const rf8 = await mark.since();
+    const f8Drawn = await onAll(`const P = await import("${SCRIPT("private-rolls")}"); const m = game.messages.get(${J(f8.card ?? "none")});
+        return m ? P.isDrawnRoll(m) : null;`);
+    const f8Cards = await gm.eval(`return game.messages.contents.filter(m => m.author?.isGM && (m.timestamp ?? 0) >= ${J(f8From)}
+        && (m.whisper ?? []).includes("${users.p1}")).length;`);
+    await p1.eval(`await game.messages.get(${J(f8.card ?? "none")})?.delete(); return true;`);
+    const f8Refused = rf8.p1.refused.map(x => x.join(" "));
+    forgery("F8", { ran: "p1's card was written and named in both packets", undone: "both refused for naming no roll the GM drew, the card not read as drawn on any client, and no card of a Frisk to p1",
+        trace: "a forged row naming p1 and the card's flags, one card to the GMs, and p1's two refusals" },
+    { owns: 4, did: Boolean(f8.card) && Boolean(f5aRow),
+        undone: f8.hand[0] === false && f8.force[0] === false
+            && JSON.stringify(f8Refused) === JSON.stringify(["action.friskUnseen rollUnknown", "action.friskFollow rollUnknown"])
+            && allAre(f8Drawn, false) && f8Cards === 0,
+        r: rf8, own: x => x.startsWith(`row: ${names.aiko} forged `) || x.startsWith("audit card: ") || /^p1 refused: action\.frisk(Unseen|Follow) rollUnknown$/.test(x),
+        trace: p1Rows(rf8, "forged", names.aiko).some(x => x.change.includes(`flags.${MOD}.drawn`) && x.change.includes(`flags.${MOD}.rollId`)) && rf8.gm.audit.length === 1,
+        details: { f8, drawn: f8Drawn, cards: f8Cards, refused: f8Refused } });
+
+    const forgeries = ["F1", "F1b", "F2", "F3", "F5a", "F7", "F4", "F4b", "F4c", "F6a", "F6b", "F5c", "F5b", "F8"];
     note("the forgeries that ran", J(forgeries.map(k => `${k}: ${forged[k] ? "ran" : "DID NOT RUN"}`)));
 }

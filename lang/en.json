@@ -3438,6 +3438,7 @@
       "refused": "{who} will not show you.",
       "noAnswer": "{who} does not answer.",
       "gone": "{who} walks away before answering.",
+      "goneAfterNo": "{who} walks away.",
       "interrupted": "The moment has passed: this cannot be done now. Your action is back.",
       "isBody": "That is a body now. Look through it from its sheet. Your action is back.",
       "askedAlready": "You have already asked {who} this time of day. Your action is back.",
@@ -3467,7 +3468,9 @@
       "wWalkedAway": "{who} asks {target} to turn out their pockets, and {target} walks away.",
       "gmFor": "You answer for {name}, who has no player.",
       "gmKept": "{who} asks {target} to turn out their pockets. {target} is a body you keep, so nobody is asked: in {s} seconds {who} hears that there is no answer. You may open the discovery yourself.",
-      "gmIncident": "{who} asks {target} to turn out their pockets. {target} is in the incident, so nobody is asked: in {s} seconds {who} hears that there is no answer."
+      "gmIncident": "{who} asks {target} to turn out their pockets. {target} is in the incident, so nobody is asked: in {s} seconds {who} hears that there is no answer.",
+      "gmKeptNow": "{who} asks {target} to turn out their pockets. {target} is a body you keep, and their player is not here, so nobody is asked: {who} hears at once that there is no answer. You may open the discovery yourself.",
+      "gmIncidentNow": "{who} asks {target} to turn out their pockets. {target} is in the incident, and their player is not here, so nobody is asked: {who} hears at once that there is no answer."
     },
     "Reroll": {
       "searchNeverRan": "The room was never searched - the search token was refused - so there is nothing to draw again.",

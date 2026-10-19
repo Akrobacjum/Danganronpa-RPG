@@ -1120,6 +1120,29 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     check("C: with no GM connected, p1's Resolve on its own character settles at once, sends nothing, arms and pays nothing, and says there is no GM",
         c5.answer === null && c5.ms < 1000 && c5.sent === 0 && c5After.hope === 3 && c5After.resolve === false
         && c5.said.some(m => m.includes(c5.label) && m.includes(c5After.noGm)), JSON.stringify({ c5, c5After }), { flow: "call-arm" });
+    /* E80 fix r1-G4 (19.10.2026; the review's goal-P2-20 and sec-3, the A11 design's A11-14): p1's Frisk with no GM connected,
+       Openly and then Unseen - the Palm window's answer queued as a player gives it (the Frisk, Botan and the mode) - is
+       refused before its window and its price (action-rolls.mjs `performAction`'s gate): the actions unchanged, no window
+       opened and the answer queued for it left unread, nothing sent, and one line said: that an action roll waits for a GM.
+       The gate stood at the parent already (the review's sec-3): this check is what keeps a Frisk-only road past it red. */
+    const friskOffline = [];
+    for (const mode of ["openly", "unseen"]) {
+        const c = await offline("action.friskAsk", `(async () => {
+            const a = game.actors.get("${IDS.aiko}"), before = game.drpg.actionsLeft(a), opened = globalThis.__dialogLog.length;
+            globalThis.__dialogAnswers.push(() => ({ value: "frisk", form: { querySelector: sel => sel.includes("who") ? { value: "${IDS.botan}" }
+                : sel.includes("friskMode") ? { value: "${mode}" } : null } }));
+            const r = await game.drpg.performAction(a, "palm", {});
+            const unread = globalThis.__dialogAnswers.length;
+            globalThis.__dialogAnswers.length = 0;
+            return { r: r ?? null, actions: [before, game.drpg.actionsLeft(a)], windows: globalThis.__dialogLog.length - opened, unread };
+        })()`);
+        friskOffline.push({ mode, ...c });
+    }
+    const waitsForGm = await p1.eval(`return game.i18n.localize("DRPG.Rolls.waitsForGm");`);
+    check("C: with no GM connected, p1's Frisk, Openly and Unseen, is refused before its window and its price - the actions unchanged, nothing sent, one line: an action roll waits for a GM",
+        friskOffline.length === 2 && friskOffline.every(c => c.answer && c.answer.r === null && c.answer.actions[0] === c.answer.actions[1]
+            && c.answer.windows === 0 && c.answer.unread === 1 && c.ms < 1000 && c.sent === 0 && JSON.stringify(c.said) === JSON.stringify([waitsForGm])),
+        JSON.stringify({ friskOffline, waitsForGm }), { flow: "give-take-stash" });
     const sentence = [c1, c2, c3].map(c => (c.said[0] ?? "").split(c.label).join("{what}"));
     check("C: the three say the same sentence apart from what they name", sentence.every(s => s && s === sentence[0]), JSON.stringify(sentence));
 

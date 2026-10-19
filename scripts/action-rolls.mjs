@@ -1177,9 +1177,12 @@ export async function keepGmBookmark({ actorId, messageId, actionKey = null, tra
         // The same roll again: its claims, and its card once named. The action is the first
         // one told (fix r1-G1; the review's S2): it chooses which replay reads the GM's facts,
         // and a packet sent again for the same message within `guardRollAuthor`'s minute
-        // could rename it. Palm's hand roll is told as "steal" and renamed "palm" by its
-        // context - one replay (reroll.mjs `settleSteal`), and no claims under either; every
-        // other action names its key as it throws (`rollTrait`), so the first is the action's.
+        // could rename it. Palm's Take is told as "steal" and renamed "palm" by its context -
+        // one replay (reroll.mjs `settleSteal`), and no claims under either. A Frisk's hand
+        // ("rummage") and its force ("frisk") keep their keys: no context renames them, as
+        // each names a replay of its own (`settleRummage`, `settleForce`; the review's
+        // er-cor-5). Every other action names its key as it throws (`rollTrait`), so the
+        // first is the action's.
         const again = { claims: rollClaims(held.actionKey ?? null, context), ...(card ? { reportMessageId: card } : {}) };
         const facts = takeFactsAwaiting(message.id, actor.id, held);
         if (Object.keys(facts).length) again.facts = { ...(held.facts ?? {}), ...facts };
@@ -4230,9 +4233,7 @@ async function resolvePlant(actor, def, { victim, planted, hand, shadow, room, s
     // "Sent" only when it was (E31): a request not carried out has been said once already.
     const plantOutcome = {
         success, seen, target: victim.name,
-        text: res.ok ? game.i18n.format("DRPG.Steal.plantSent", {
-            name: foundry.utils.escapeHTML(victim.name)
-        }) : ""
+        text: res.ok ? game.i18n.format("DRPG.Steal.plantSent", { name: victim.name }) : ""
     };
     await report(actor, def, hand, plantOutcome);
     Hooks.callAll("drpgActionResolved", { actor, actionKey: "palm", roll: hand, outcome: plantOutcome });
@@ -4396,9 +4397,7 @@ async function performPalm(actor, def, options) {
         seen,
         target: victim.name,
         // "Sent" only when it was (E31), as for a plant.
-        text: res.ok ? game.i18n.format("DRPG.Steal.sent", {
-            name: foundry.utils.escapeHTML(victim.name)
-        }) : ""
+        text: res.ok ? game.i18n.format("DRPG.Steal.sent", { name: victim.name }) : ""
     };
 
     await report(actor, def, hand, outcome);
@@ -5981,6 +5980,7 @@ export async function report(actor, def, roll, outcome) {
             lines.push(`<p><em>${game.i18n.localize("DRPG.Action.substitute")}</em></p>`);
         }
     } else if (outcome.text) {
+        // Plain text, escaped here once: a name formatted into it goes in raw (an escaped one showed "D&#x27;Arcy").
         lines.push(`<p>${esc(outcome.text)}</p>`);
     }
 

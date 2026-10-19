@@ -6885,7 +6885,9 @@ const INVARIANTS = [
             [["r219.primary", "r219.anyGm"], [], ["here", "here"]]
         ]), "a request only the primary may decide was done on another GM, or not sent to the primary (each: run here, sent, answers)");
         const sources = new Map(await otherSources());
-        const named = [["gm-bridge.mjs", "requestReroll"], ["roll-draw.mjs", "askToDecide"]]
+        // E80 fix r1-G4 (the review's goal-P2-02): a Frisk's four requests, whose asks the primary alone holds (R621).
+        const named = [["gm-bridge.mjs", "requestReroll"], ["roll-draw.mjs", "askToDecide"], ["gm-bridge.mjs", "requestFriskUnseen"],
+            ["gm-bridge.mjs", "requestFriskAsk"], ["gm-bridge.mjs", "requestFriskAnswer"], ["gm-bridge.mjs", "requestFriskFollow"]]
             .filter(([file, fn]) => !/\bonPrimary:\s*true\b/.test(fnSource(stripComments(sources.get(file) ?? ""), fn)));
         ok(!named.length, `these are decided on whichever GM asks, not on the primary: ${named.map(([f, fn]) => `${f} ${fn}`).join(", ")}`);
         const feeAsk = topLevelFunction(stripComments(sources.get("investigation.mjs") ?? ""), "askToChargeForUnfoundKeys") ?? "";

@@ -1743,6 +1743,169 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
             && auditDay.patches > 0 && auditDay.patches <= Math.ceil(MARK_PATCHES_MEASURED * 1.25),
         JSON.stringify({ ...auditDay, c6Phase: [dayItems.patches, dayRun?.gm?.patches] }).slice(0, 1500), { flow: "sheet-audit" });
 
+    // ---- 6h. an open Frisk at the table: three players' browsers -----------------------------
+    /*
+     * E80 fix r1-G4, 19.10.2026; the review's goal-P2-18 (the A11 design's A11-12) and goal-P2-20's GM line. Until this
+     * block an open Frisk ran in real browsers once, as 30-security's allow. The GM stands Aiko (p1), Botan (p2) and Chie
+     * (p3) in a room nobody else is in, hands Botan a comb, turns `friskForce` on and gives Aiko two actions before each
+     * Frisk. p1's browser frisks Botan openly as a player does (`performAction`, the Palm window answered with the
+     * Frisk, Botan and Openly; 'Make them?' answered as queued; the force's dice set on the roll). p2's browser answers in
+     * its own window. The phases: an allow; a refusal and a force won (12 and 11); a refusal and a force lost (2 and 1);
+     * silence, p2's window drawn as a real one (`__dialogWindows`) and the answer's clock read by the GM's sweep at a time
+     * past it (`sweepFriskAsks`, as its timer calls it, not waited on), then 'Leave it'; the target walking out, p2's
+     * window open while the GM moves Botan to another room; and an allow with Chie a Monocub, the witness. Read on each
+     * browser: which of the design's lines its chat shows (the longest line a card holds), whether the comb is named
+     * there, and on p1 the outcome, the actions left and the windows opened; on p2 whether the window's withdrawal was
+     * said; on the GM, no warning. Everything put back after: the three where they stood, the comb, Aiko's actions and
+     * Hope, `friskForce`, Chie alive and no Monocub, the asks forgotten. Measured on the harness on 19.10.2026: green, and
+     * red under a mutant that drops the cancel's `clock` (frisk.mjs `noYes`: p2 told 'withdrawn' in the silence) and one
+     * that names no roll on the force (`performFriskOpenly`: each force read as 'Leave it', the list never shown).
+     */
+    phase("an open Frisk at the table", { flow: "frisk-openly" });
+    const FRISK_ROOM = `const M = await import("${REPO}/scripts/movement.mjs"), F = await import("${REPO}/scripts/frisk.mjs");
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const tokenOf = id => canvas.scene.tokens.find(t => t.actorId === id) ?? null;`;
+    const friskSet = await gm.eval(`${FRISK_ROOM}
+        const INV = await import("${REPO}/scripts/inventory.mjs");
+        const actors = ["${ids.aiko}", "${ids.botan}", "${ids.chie}"].map(id => game.actors.get(id));
+        const toks = actors.map(a => tokenOf(a.id));
+        if (toks.some(t => !t)) return { err: "no token" };
+        const rooms = M.allRooms(canvas.scene);
+        const room = rooms.find(r => M.othersInNamedRoom(r).length === 0) ?? null;
+        const away = rooms.find(r => r !== room) ?? null;
+        if (!room || !away) return { err: "no empty room", rooms };
+        globalThis.__f40Frisk = { was: toks.map(t => [t.id, { x: t.x, y: t.y }]), actions: game.drpg.actionsLeft(actors[0]),
+            hope: actors[0].system.resources.hope.value, force: game.settings.get("${MOD}", "friskForce"), item: null };
+        for (const t of toks) await t.update(M.positionIn(room, t), PLACE);
+        const item = await INV.grantItem(actors[1], { name: "Scenario 40 frisk comb", category: "usable", tier: 1, override: true, quiet: true });
+        globalThis.__f40Frisk.item = item?.id ?? null;
+        await game.settings.set("${MOD}", "friskForce", true);
+        F.forgetFriskAsks();
+        return { room, away, item: item?.id ?? null, others: M.othersInRoom(actors[0]).map(a => a.id).sort() };`, { timeout: 60000 });
+    await settle(800);
+    const friskLines = await p1.eval(`const who = game.actors.get("${ids.aiko}").name, target = game.actors.get("${ids.botan}").name;
+        const f = (k, d) => game.i18n.format("DRPG.Frisk." + k, d);
+        return { shownHeading: f("shownHeading", { who: target }), listHeading: f("listHeading", { who: target }), refused: f("refused", { who: target }),
+            noAnswer: f("noAnswer", { who: target }), gone: f("gone", { who: target }), goneAfterNo: f("goneAfterNo", { who: target }),
+            missed: f("missed", { who: target }), forceSent: f("forceSent", { name: target }),
+            shown: f("shown", { who }), forced: f("forced", { who }), forcedFailed: f("forcedFailed", { who }), letGo: f("letGo", { who }),
+            wShown: f("wShown", { who, target }), wForced: f("wForced", { who, target }), wForcedFailed: f("wForcedFailed", { who, target }),
+            wLetGo: f("wLetGo", { who, target }), wWalkedAway: f("wWalkedAway", { who, target }) };`);
+    const friskWords = await p1.eval(`return { withdrawn: game.i18n.localize("DRPG.Frisk.withdrawn"), askTitle: game.i18n.localize("DRPG.Frisk.askTitle"),
+        forceTitle: game.i18n.localize("DRPG.Frisk.forceTitle") };`);
+    const byLength = Object.entries(friskLines).sort((a, b) => b[1].length - a[1].length);
+    const COMB = "Scenario 40 frisk comb";
+    const chatOf = async (c, from) => {
+        const cards = (await cardsSince(c, from)).filter(x => x.visible).map(x => `${x.words} ${x.says}`);
+        return { lines: cards.map(t => byLength.find(([, line]) => t.includes(line))?.[0] ?? null).filter(Boolean), comb: cards.some(t => t.includes(COMB)) };
+    };
+    const askRow = `${FRISK_ROOM} return [...F.friskAsks.values()].find(r => r.searcherId === "${ids.aiko}")?.state ?? null;`;
+    const untilAsking = async () => {
+        let state = null, drawn = false;
+        for (let i = 0; i < 60 && !(state === "asking" && drawn); i++) {
+            await settle(200);
+            state = await gm.eval(askRow);
+            drawn = await p2.eval(`return globalThis.__dialogLog.some(d => d.title === ${JSON.stringify(friskWords.askTitle)});`);
+        }
+        return state === "asking" && drawn;
+    };
+    const gmWarnings = [];
+    const friskAt = async ({ answer, press = null, faces = [], during = null }) => {
+        await gm.eval(`${FRISK_ROOM} F.forgetFriskAsks(); await game.drpg.setActions(game.actors.get("${ids.aiko}"), 2); return true;`);
+        await clearLogs();
+        const from = { p1: await count(p1), p2: await count(p2), p3: await count(p3) };
+        await p2.eval(answer === "hold" ? `globalThis.__f40Windows = globalThis.__dialogWindows; globalThis.__dialogWindows = true; return true;`
+            : `globalThis.__dialogAnswers.push(${JSON.stringify(answer)}); return true;`);
+        await p1.eval(`const actor = game.actors.get("${ids.aiko}");
+            for (let i = 0; i < 50 && game.drpg.actionsLeft(actor) !== 2; i++) await new Promise(r => setTimeout(r, 100));
+            globalThis.__dialogAnswers.push(() => ({ value: "frisk", form: { querySelector: sel => sel.includes("who") ? { value: "${ids.botan}" }
+                : sel.includes("friskMode") ? { value: "openly" } : null } }));
+            ${press ? `globalThis.__dialogAnswers.push(${JSON.stringify(press)});` : ""}
+            const faces = ${JSON.stringify(faces)}, own = Object.getPrototypeOf(actor).rollTrait;
+            actor.rollTrait = async function (key, options) { globalThis.__forceRoll = faces.shift(); return own.call(actor, key, options); };
+            globalThis.__f40Run = game.drpg.performAction(actor, "palm", {}).then(r => ({ r }), e => ({ err: String(e?.stack ?? e).slice(0, 300) }))
+                .finally(() => { delete actor.rollTrait; delete globalThis.__forceRoll; });
+            return true;`);
+        const midway = during ? await during() : null;
+        const p1Out = await p1.eval(`const out = await globalThis.__f40Run; delete globalThis.__f40Run;
+            await new Promise(r => setTimeout(r, 800));
+            return { err: out.err ?? null, asked: out.r?.asked ?? null, success: out.r?.success ?? null, left: game.drpg.actionsLeft(game.actors.get("${ids.aiko}")),
+                unread: globalThis.__dialogAnswers.length, forceAsked: globalThis.__dialogLog.filter(d => d.title === ${JSON.stringify(friskWords.forceTitle)}).length };`,
+            { timeout: 120000 });
+        await settle(1500);
+        if (answer === "hold") await p2.eval(`globalThis.__dialogWindows = globalThis.__f40Windows; delete globalThis.__f40Windows; return true;`);
+        await p1.eval(`globalThis.__dialogAnswers.length = 0; return true;`);
+        await p2.eval(`globalThis.__dialogAnswers.length = 0; return true;`);
+        gmWarnings.push(...(await notifs(gm)).filter(n => n.startsWith("warn:")));
+        return { midway, ...p1Out, p1: await chatOf(p1, from.p1), p2: await chatOf(p2, from.p2), p3: await chatOf(p3, from.p3),
+            p2Withdrawn: (await notifs(p2)).some(n => n.includes(friskWords.withdrawn)), row: await gm.eval(askRow) };
+    };
+    const friskSeen = {};
+    if (!friskSet.err) {
+        friskSeen.allow = await friskAt({ answer: "allow" });
+        friskSeen.forceWon = await friskAt({ answer: "refuse", press: "force", faces: [{ hope: 12, fear: 11 }] });
+        friskSeen.forceLost = await friskAt({ answer: "refuse", press: "force", faces: [{ hope: 2, fear: 1 }] });
+        friskSeen.silence = await friskAt({ answer: "hold", press: "leave", during: async () => {
+            const asking = await untilAsking();
+            const swept = await gm.eval(`${FRISK_ROOM} const { TIMING } = await import("${REPO}/scripts/config.mjs");
+                return (await F.sweepFriskAsks(Date.now() + TIMING.friskAnswerMs + F.FRISK_GRACE_MS + 1000)).length;`);
+            return { asking, swept };
+        } });
+        friskSeen.walkedOut = await friskAt({ answer: "hold", during: async () => {
+            const asking = await untilAsking();
+            const moved = await gm.eval(`${FRISK_ROOM} const bt = tokenOf("${ids.botan}");
+                await bt.update(M.positionIn(${JSON.stringify(friskSet.away)}, bt), PLACE); return M.locateActor(game.actors.get("${ids.botan}"))?.room ?? null;`);
+            return { asking, moved };
+        } });
+        await gm.eval(`${FRISK_ROOM} const bt = tokenOf("${ids.botan}"); await bt.update(M.positionIn(${JSON.stringify(friskSet.room)}, bt), PLACE);
+            const C = await import("${REPO}/scripts/chapter.mjs"), Mc = await import("${REPO}/scripts/monocub.mjs");
+            const chie = game.actors.get("${ids.chie}");
+            await C.markDeceased(chie);
+            globalThis.__f40Frisk.cub = Boolean(await Mc.setMonocub(chie, true));
+            return true;`, { timeout: 60000 });
+        await settle(800);
+        friskSeen.cubWitness = await friskAt({ answer: "allow" });
+    }
+    const friskBack = await gm.eval(`${FRISK_ROOM}
+        const C = await import("${REPO}/scripts/chapter.mjs"), Mc = await import("${REPO}/scripts/monocub.mjs");
+        const aiko = game.actors.get("${ids.aiko}"), botan = game.actors.get("${ids.botan}"), chie = game.actors.get("${ids.chie}");
+        const set = globalThis.__f40Frisk ?? null;
+        delete globalThis.__f40Frisk;
+        F.forgetFriskAsks();
+        if (!set) return { cub: null };
+        if (set.cub) await Mc.setMonocub(chie, false);
+        if (C.isDeadForGm(chie)) await C.reviveCharacter(chie, { quiet: true });
+        for (const i of botan.items.filter(i => i.name === "Scenario 40 frisk comb")) await i.delete();
+        for (const [id, was] of set.was) await canvas.scene.tokens.get(id)?.update(was, PLACE);
+        if (game.drpg.actionsLeft(aiko) !== set.actions) await game.drpg.setActions(aiko, set.actions);
+        if (aiko.system.resources.hope.value !== set.hope) await aiko.update({ "system.resources.hope.value": set.hope });
+        if (game.settings.get("${MOD}", "friskForce") !== set.force) await game.settings.set("${MOD}", "friskForce", set.force);
+        return { cub: set.cub ?? null, chieAlive: !C.isDeadForGm(chie), chieCub: Boolean(chie.getFlag("${MOD}", "monocub")) };`, { timeout: 60000 });
+    await settle(800);
+    const friskExpected = {
+        allow: { asked: "shown", success: null, left: 1, unread: 0, forceAsked: 0, p1: { lines: ["shownHeading"], comb: true },
+            p2: { lines: ["shown"], comb: false }, p3: { lines: ["wShown"], comb: false }, p2Withdrawn: false, row: null },
+        forceWon: { asked: "refused", success: true, left: 1, unread: 0, forceAsked: 1, p1: { lines: ["refused", "listHeading", "forceSent"], comb: true },
+            p2: { lines: ["forced"], comb: false }, p3: { lines: ["wForced"], comb: false }, p2Withdrawn: false, row: null },
+        forceLost: { asked: "refused", success: false, left: 1, unread: 0, forceAsked: 1, p1: { lines: ["refused", "missed", "forceSent"], comb: false },
+            p2: { lines: ["forcedFailed"], comb: false }, p3: { lines: ["wForcedFailed"], comb: false }, p2Withdrawn: false, row: null },
+        silence: { midway: { asking: true, swept: 1 }, asked: "noAnswer", success: null, left: 1, unread: 0, forceAsked: 1, p1: { lines: ["noAnswer"], comb: false },
+            p2: { lines: ["letGo"], comb: false }, p3: { lines: ["wLetGo"], comb: false }, p2Withdrawn: false, row: null },
+        walkedOut: { midway: { asking: true, moved: friskSet.away }, asked: "gone", success: null, left: 1, unread: 0, forceAsked: 0, p1: { lines: ["gone"], comb: false },
+            p2: { lines: [], comb: false }, p3: { lines: ["wWalkedAway"], comb: false }, p2Withdrawn: true, row: null },
+        cubWitness: { asked: "shown", success: null, left: 1, unread: 0, forceAsked: 0, p1: { lines: ["shownHeading"], comb: true },
+            p2: { lines: ["shown"], comb: false }, p3: { lines: ["wShown"], comb: false }, p2Withdrawn: false, row: null }
+    };
+    const friskRead = Object.fromEntries(Object.entries(friskSeen).map(([phaseKey, seen]) => [phaseKey,
+        Object.fromEntries(Object.keys(friskExpected[phaseKey]).map(k => [k, seen[k] ?? null]))]));
+    check("p1, p2, p3: an open Frisk at the table - an allow, a force won and lost after a refusal, silence and 'Leave it', the target walking out and a Monocub witness each say the design's lines in each player's chat, the list to the searcher alone, one action each, and the GM warned of nothing",
+        !friskSet.err && JSON.stringify(friskSet.others) === JSON.stringify([ids.botan, ids.chie].sort())
+            && Object.keys(friskSeen).length === 6 && Object.values(friskSeen).every(seen => !seen.err)
+            && JSON.stringify(friskRead) === JSON.stringify(friskExpected) && friskBack.cub === true && friskBack.chieAlive && !friskBack.chieCub
+            && gmWarnings.length === 0,
+        JSON.stringify({ friskSet, friskRead, friskBack, gmWarnings, errs: Object.fromEntries(Object.entries(friskSeen).map(([k, v]) => [k, v.err])) }).slice(0, 3000),
+        { flow: "frisk-openly" });
+
     // ---- 7. uncaught errors ------------------------------------------------------------------
     phase("errors");
     for (const c of [gm, ...players]) {

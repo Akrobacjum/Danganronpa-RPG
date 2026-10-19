@@ -307,12 +307,13 @@ export async function performFrisk(actor, def, victim, mode, { cost = def?.cost 
         total: hand.total, isCritical: Boolean(hand.isCritical), unseenTotal: shadow.total, unseenCritical: Boolean(shadow.isCritical),
         rollId: A.rollInHand(actor)?.messageId ?? null, unseenRollId: shadow.raw?.message?.id ?? shadow.raw?.message?._id ?? null
     });
-    // As a Palm's: the GMs' row keeps the key the hand was told as (`rummage`), which is the Reroll's (the design's step 11).
-    await A.noteRollContext(actor, { actionKey: "palm", direction: "frisk", mode, room, victimId: victim.id, seen, success });
+    // The hand keeps the key it was thrown as (`rummage`), here and in the GMs' row: it names the Reroll's replay (the
+    // design's step 11, reroll.mjs `settleRummage`), so no context renames it (the review's er-cor-5).
+    await A.noteRollContext(actor, { direction: "frisk", mode, room, victimId: victim.id, seen, success });
     // "Sent" only when the primary judged it (E31): a request it did not carry out has been said once already.
     const outcome = {
         success, seen, direction: "frisk", mode, target: victim.name,
-        text: res.ok && res.value ? game.i18n.format("DRPG.Frisk.sent", { name: esc(victim.name) }) : ""
+        text: res.ok && res.value ? game.i18n.format("DRPG.Frisk.sent", { name: victim.name }) : ""
     };
     await A.report(actor, def, hand, outcome);
     Hooks.callAll("drpgActionResolved", { actor, actionKey: "palm", roll: hand, outcome });
@@ -428,7 +429,7 @@ function standing(row) {
  *   forced         the same list under 'is carrying:', the target forced, the room told;
  *   forceFailed    the searcher's neutral miss, the target shook them off, the room told;
  *   letGo          'Leave it', the force's clock, the searcher leaving, a refusal with `friskForce` off: the target and the room;
- *   gone           the target walked away: the searcher and the room;
+ *   gone           the target walked away: the searcher ('before answering', or after a refusal without it) and the room;
  *   interrupted    nothing thrown: the searcher alone, whose browser hands the action back by what it paid (`FRISK_HANDED_BACK`);
  *   settled        no card: a force whose dice landed after the gate shut, or a shut gate the force's clock found with no
  *                  follow from the searcher's browser, which alone could hand the action back (E80 fix r1-G2).
@@ -454,7 +455,8 @@ async function endAsk(row, outcome) {
     if (outcome === "shown") await cardTo(searcher, `${listOfLines(target, row.lines, "DRPG.Frisk.shownHeading")}${asAsked}`);
     else if (outcome === "forced") await cardTo(searcher, `${listOfLines(target, row.lines)}${asAsked}`);
     else if (outcome === "forceFailed") await cardTo(searcher, say("DRPG.Frisk.missed", { who: them }));
-    else if (outcome === "gone") await cardTo(searcher, say("DRPG.Frisk.gone", { who: them }));
+    // A target who refused and then walked away did answer: 'before answering' is for an ask still waiting (E80-C3-5).
+    else if (outcome === "gone") await cardTo(searcher, say(row.state === "refused" ? "DRPG.Frisk.goneAfterNo" : "DRPG.Frisk.gone", { who: them }));
     else if (outcome === "interrupted") await cardTo(searcher, say("DRPG.Frisk.interrupted"));
     if (forTarget[outcome] && asked && !row.silent && target) await cardTo(target, say(forTarget[outcome], { who }));
     if (forRoom[outcome] && asked) await tellWitnesses(row, say(forRoom[outcome], { who, target: them }));
@@ -496,7 +498,8 @@ function answerSearcher(row, value) {
 async function noYes(row, state) {
     const moved = standing(row);
     if (moved) return endAsk(row, moved);
-    if (row.state === "asking") emitTo(row.answerUserIds, { action: FRISK_CANCEL, askId: row.askId });
+    // The clock's own end: the window closes with no 'withdrawn' line, as nothing was withdrawn (the review's er-cor-9).
+    if (row.state === "asking") emitTo(row.answerUserIds, { action: FRISK_CANCEL, askId: row.askId, clock: state === "noAnswer" });
     const force = getSetting(SETTINGS.friskForce) === true;
     row.state = state;
     if (force) {
@@ -629,6 +632,7 @@ export async function askToFrisk({ searcherId, targetId } = {}, { asker = null, 
     row.expiresAt = Date.now() + (away ? 0 : TIMING.friskAnswerMs);
     const seconds = Math.round(TIMING.friskAnswerMs / 1000);
     if (row.silent) {
+        // `s` 0: the target's player is away, so the searcher hears at once (the GMs' line says so; the review's er-cor-6).
         emitTo(activeGmIds(), { action: FRISK_ASK, askId, notice: row.silent, who: searcher.name, name: target.name, s: away ? 0 : seconds });
     } else if (row.answerUserIds.length) {
         emitTo(row.answerUserIds, { action: FRISK_ASK, askId, who: searcher.name, name: target.name, ms: TIMING.friskAnswerMs, force, byGms: row.byGms });
@@ -779,10 +783,11 @@ export async function onFriskPacket(payload, senderId) {
         debug(`A "${payload.action}" was not taken: ${why}.`);
         return false;
     }
-    if (payload.action === FRISK_CANCEL) return withdrawAsk(payload.askId);
+    if (payload.action === FRISK_CANCEL) return withdrawAsk(payload.askId, { clock: payload.clock === true });
     if (payload.notice) {
-        const key = payload.notice === "kept" ? "DRPG.Frisk.gmKept" : "DRPG.Frisk.gmIncident";
-        toast(game.i18n.format(key, { who: payload.who ?? "", target: payload.name ?? "", s: Number(payload.s) || 0 }));
+        const s = Number(payload.s) || 0;
+        const key = `DRPG.Frisk.${payload.notice === "kept" ? "gmKept" : "gmIncident"}${s > 0 ? "" : "Now"}`;
+        toast(game.i18n.format(key, { who: payload.who ?? "", target: payload.name ?? "", s }));
         return true;
     }
     openAskWindow(payload).catch(err => error("Could not open a Frisk's window", err));
@@ -800,14 +805,18 @@ function toast(text) {
         .catch(err => debug("A Frisk's line could not be kept in this browser's history", err));
 }
 
-/** The primary withdrew an ask: its window closes with 'The request is withdrawn.', and nothing is answered from it. */
-function withdrawAsk(askId) {
+/**
+ * The primary withdrew an ask: its window closes with 'The request is withdrawn.', and nothing is answered from it. At
+ * the answer's clock (`clock`) it closes with no line: nothing was withdrawn, the silence counts as a refusal and the
+ * searcher may force (the review's er-cor-9).
+ */
+function withdrawAsk(askId, { clock = false } = {}) {
     const open = askWindows.get(askId ?? "");
     if (!open) return false;
     open.withdrawn = true;
     clearTimeout(open.timer);
     if (open.dialog?.rendered) open.dialog.close();
-    toast(game.i18n.localize("DRPG.Frisk.withdrawn"));
+    if (!clock) toast(game.i18n.localize("DRPG.Frisk.withdrawn"));
     return true;
 }
 
@@ -910,9 +919,10 @@ async function performFriskOpenly(actor, def, victim, { cost = def?.cost ?? 1, r
     if (!roll && follow.ok && FRISK_HANDED_BACK.includes(follow.value)) return A.abort(actor, paid);
     if (!roll) return base;
     const success = Boolean(roll.isCritical) || roll.total >= def.frisk.threshold;
-    await A.noteRollContext(actor, { actionKey: "palm", direction: "frisk", mode: "openly", room, victimId: victim.id, success });
+    // As the hand's: the force keeps the key it was thrown as (`frisk`, reroll.mjs `settleForce`).
+    await A.noteRollContext(actor, { direction: "frisk", mode: "openly", room, victimId: victim.id, success });
     const outcome = { ...base, success,
-        text: follow.ok && follow.value ? game.i18n.format("DRPG.Frisk.forceSent", { name: esc(victim.name) }) : "" };
+        text: follow.ok && follow.value ? game.i18n.format("DRPG.Frisk.forceSent", { name: victim.name }) : "" };
     await A.report(actor, def, roll, outcome);
     Hooks.callAll("drpgActionResolved", { actor, actionKey: "palm", roll, outcome });
     return outcome;

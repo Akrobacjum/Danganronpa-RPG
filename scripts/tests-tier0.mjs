@@ -8056,6 +8056,10 @@ const REGRESSIONS = [
          * since E12 fix k3-K2): it decides whether a rename carries a room or joins one, as the room flag decides
          * what a room is. 118 places - 53 PACKET, 21 SOCKET, 26 HOOK, 8 SHEET, 10 STORE - against 118 rows
          * (harness, 12.10.2026, once).
+         * E80 fix r1-G4 (19.10.2026; the review's rc2-5 and goal-P2-02) added nineteen: the Frisk's four declarations
+         * (FAMILIES names `action\.frisk\w+`; `action.friskUnseen#targetId` and `action.friskAsk#targetId` are judged by
+         * `personActionRefusal`, as `action.steal#victimId` by `stealFromPerson`), 18 PACKET rows, and frisk.mjs's socket
+         * (SOCKET_FILES), one SOCKET row. Red before the rows: those 19 places without a row (harness, this test alone).
          * The reader is run first on a fixture: a packet of a family and of none, an inline socket
          * arrow with a field named only in a comment, a token listener beside another event's, a
          * sheet reader of movement.mjs beside one whose flag is only in a comment, a reader in a
@@ -8084,6 +8088,24 @@ const REGRESSIONS = [
             ["PACKET gm-bridge.mjs#action.steal#unseenCritical", "out of scope: a steal's rolls and ids (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
             ["PACKET gm-bridge.mjs#action.steal#rollId", "out of scope: a steal's rolls and ids (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
             ["PACKET gm-bridge.mjs#action.steal#unseenRollId", "out of scope: a steal's rolls and ids (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#action.friskUnseen#searcherId", "out of scope: a Frisk's rolls and ids (E80 part 2: knownSender + owns(searcherId), the rolls by their receipt - `rolled`); no room field"],
+            ["PACKET gm-bridge.mjs#action.friskUnseen#targetId", "judged on the primary: knownSender + owns(searcherId); frisk.mjs `personActionRefusal` (movement.mjs `sameRoom`: both placed by `gmPlaceOf`, the same scene, floor and room, the target's token not hidden) in `friskPerson`, before the price (E80 fix r1-G4, the review's rc2-5)"],
+            ["PACKET gm-bridge.mjs#action.friskUnseen#total", "out of scope: a Frisk's rolls and ids (E80 part 2: knownSender + owns(searcherId), the rolls by their receipt - `rolled`); no room field"],
+            ["PACKET gm-bridge.mjs#action.friskUnseen#isCritical", "out of scope: a Frisk's rolls and ids (E80 part 2: knownSender + owns(searcherId), the rolls by their receipt - `rolled`); no room field"],
+            ["PACKET gm-bridge.mjs#action.friskUnseen#unseenTotal", "out of scope: a Frisk's rolls and ids (E80 part 2: knownSender + owns(searcherId), the rolls by their receipt - `rolled`); no room field"],
+            ["PACKET gm-bridge.mjs#action.friskUnseen#unseenCritical", "out of scope: a Frisk's rolls and ids (E80 part 2: knownSender + owns(searcherId), the rolls by their receipt - `rolled`); no room field"],
+            ["PACKET gm-bridge.mjs#action.friskUnseen#rollId", "out of scope: a Frisk's rolls and ids (E80 part 2: knownSender + owns(searcherId), the rolls by their receipt - `rolled`); no room field"],
+            ["PACKET gm-bridge.mjs#action.friskUnseen#unseenRollId", "out of scope: a Frisk's rolls and ids (E80 part 2: knownSender + owns(searcherId), the rolls by their receipt - `rolled`); no room field"],
+            ["PACKET gm-bridge.mjs#action.friskAsk#searcherId", "out of scope: a Frisk's rolls and ids (E80 part 2: knownSender + owns(searcherId), the rolls by their receipt - `rolled`); no room field"],
+            ["PACKET gm-bridge.mjs#action.friskAsk#targetId", "judged on the primary: knownSender + owns(searcherId); frisk.mjs `personActionRefusal` (movement.mjs `sameRoom`: both placed by `gmPlaceOf`, the same scene, floor and room, the target's token not hidden) in `askToFrisk`, before the price (E80 fix r1-G4, the review's rc2-5); where the two stand is read again at each answer, follow, sweep and settled route (`standing`, `friskRouteSettled`): a target gone is 'gone', a searcher gone 'lets it go'"],
+            ["PACKET gm-bridge.mjs#action.friskAnswer#askId", "judged on the primary by `answerFrisk`: an ask it holds, the sender one it was sent to; the room is the ask row's, read again by `standing` before the answer is taken"],
+            ["PACKET gm-bridge.mjs#action.friskAnswer#allow", "out of scope: an answer's yes or no; no room field"],
+            ["PACKET gm-bridge.mjs#action.friskFollow#searcherId", "out of scope: a Frisk's rolls and ids (E80 part 2: knownSender + owns(searcherId), the rolls by their receipt - `rolled`); no room field"],
+            ["PACKET gm-bridge.mjs#action.friskFollow#askId", "judged on the primary by `followFrisk`: the searcher's own refused or unanswered ask; the room is the ask row's, read again by `standing` before a force is taken"],
+            ["PACKET gm-bridge.mjs#action.friskFollow#rollId", "out of scope: a Frisk's rolls and ids (E80 part 2: knownSender + owns(searcherId), the rolls by their receipt - `rolled`); no room field"],
+            ["PACKET gm-bridge.mjs#action.friskFollow#total", "out of scope: a Frisk's rolls and ids (E80 part 2: knownSender + owns(searcherId), the rolls by their receipt - `rolled`); no room field"],
+            ["PACKET gm-bridge.mjs#action.friskFollow#isCritical", "out of scope: a Frisk's rolls and ids (E80 part 2: knownSender + owns(searcherId), the rolls by their receipt - `rolled`); no room field"],
+            ["SOCKET frisk.mjs#registerFrisk#-", "out of scope: `frisk.ask` and `frisk.cancel`, taken on a browser only from the primary GM and addressed to that user (`friskPacketRefusal`); names and an ask id, no room field (E80 fix r1-G4)"],
             ["PACKET gm-bridge.mjs#vault.steal#thiefId", "out of scope: a vault steal's rolls and ids; the vault's room is the GM document's (`vaultOwnerOf`, C2a reads every piece) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
             ["PACKET gm-bridge.mjs#vault.steal#ownerId", "out of scope: a vault steal's rolls and ids; the vault's room is the GM document's (`vaultOwnerOf`, C2a reads every piece) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
             ["PACKET gm-bridge.mjs#vault.steal#itemId", "out of scope: a vault steal's rolls and ids; the vault's room is the GM document's (`vaultOwnerOf`, C2a reads every piece) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
@@ -8187,9 +8209,9 @@ const REGRESSIONS = [
             ["STORE settings.mjs#bodiesFound", "not a source: a world setting only a GM writes (E11 C1 `recordBodyFound`); its `sceneId` is the body's scene since E12 C5 - `runDiscovery` takes the scene it is given, else the room's own (`sceneOfRoom`), and the body window sends the scene of the room picked - never the camera's (R118) (E12 C5); since E12 fix k3-K2 a GM's rename of the room moves a stamp's `room` on the primary (`carryBodyRooms`, R349)"],
             ["STORE Item#keyRoom", "item flags: a key on a player's sheet is the owner's own document (class 1; whether a write to these flags is put back: not read by the prep), read held on the GM's branch (`keysHeldBy`); since E12 C8 a GM's rename rewrites the key's and the stashed item's room on the primary, read held after `judgedFor`, one `trustedWrite` per item (vault.mjs `carryRoomOnSheets`)"],
         ];
-        const FAMILIES = /^(?:token\.sendBack|eclipse\.move|action\.steal|action\.plant|vault\.steal|vault\.findStash|call\.arm|project\.\w+|remnant\.place)$/;
+        const FAMILIES = /^(?:token\.sendBack|eclipse\.move|action\.steal|action\.plant|action\.frisk\w+|vault\.steal|vault\.findStash|call\.arm|project\.\w+|remnant\.place)$/;
         const SOCKET_FILES = ["movement.mjs", "fog.mjs", "eclipse.mjs", "search-tokens.mjs", "traps.mjs", "call-effects.mjs", "mastermind.mjs",
-            "voice.mjs", "bridge-guards.mjs", "sync.mjs", "call-world.mjs", "chapter.mjs", "vault.mjs", "projects-map.mjs"];
+            "voice.mjs", "bridge-guards.mjs", "sync.mjs", "call-world.mjs", "chapter.mjs", "vault.mjs", "projects-map.mjs", "frisk.mjs"];
         // The declarations whose reads of a student's sheet the crossing and the witness judge rest on; null = every one in the file.
         const SHEET_NAMED = { "movement.mjs": null, "chapter.mjs": ["witnessesOf", "checkBodyFound"], "murder-rules.mjs": ["registerMurder"],
             "vault.mjs": ["keysHeldBy"] };
@@ -13428,6 +13450,70 @@ const REGRESSIONS = [
                 ["Przejdź", "Tajne przejście do: {room}", "Nie znajdujesz tu tajnego przejścia.", "Znajdź tajne przejście", "+ Tunel lub schody", "Ujawnij", "Utajnij", "Zamień na przejścia", "Ukryj", "Pokaż"],
                 "Poznajesz tajne przejście", true]),
             "the texts the stage names, and the words the handbooks quote ([en], [pl], the Polish Sound row's label, its hint naming a find and a show)");
+    }],
+    ["R621 - a Frisk is judged where its asks are held (A11-1): the four Frisk requests are asked of the primary GM (onPrimary) and run on it alone when the asker is a GM, each declaration answers 'reply', and the ask waits for a person (patient) for its answer's clock and margin, with its late answer read for that margin", async () => {
+        /*
+         * E80 fix r1-G4, 19.10.2026; the review's goal-P2-02, er-cor-7 and E80-C3-7 (a). The harm: an open Frisk's ask is
+         * a row in the primary GM's memory (frisk.mjs `friskAsks`), and the target's window takes `frisk.ask` only from
+         * the primary (`friskPacketRefusal`). A request asked without `onPrimary` runs its `local` on whichever GM asks:
+         * a second GM's own Frisk then holds its row where no answer is judged, sends a `frisk.ask` every target's
+         * browser drops, and the clock ends it as 'does not answer' with the force open against a player never asked;
+         * a second GM's 'You answer for' runs `answerFrisk` where no ask is held, and the NPC's answer is lost. The
+         * harness has one GM, who is the primary, so no tier and no scenario turns red on that edit: the waiter's
+         * `onPrimary` road is R219's (driven with fakes), and this reads that each Frisk request takes it.
+         * Read: gm-bridge.mjs's source with its comments blanked, each `requestFrisk*` cut with `fnSource`, and the live
+         * `BRIDGE_ACTIONS` rows with TIMING. THE CONTROL: the same reader on each request with `onPrimary: true` taken out
+         * must miss it, so the reading is of the option and not of the name. Red at 42b684b with `onPrimary: true` taken
+         * out of requestFriskAnswer (the review's mutant), green at 42b684b as it stands.
+         */
+        const { TIMING } = await import("./config.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const bridge = stripComments(new Map(await otherSources()).get("gm-bridge.mjs") ?? "");
+        const REQUESTS = { requestFriskUnseen: ["ACTION_FRISK_UNSEEN", "friskPerson"], requestFriskAsk: ["ACTION_FRISK_ASK", "askToFriskHere"],
+            requestFriskAnswer: ["ACTION_FRISK_ANSWER", "answerFrisk"], requestFriskFollow: ["ACTION_FRISK_FOLLOW", "followFrisk"] };
+        const readOf = (fn, [action, here]) => ({
+            asks: new RegExp(`\\bask\\(\\s*${action}\\s*,`).test(fn),
+            onPrimary: /\bonPrimary:\s*true\b/.test(fn),
+            local: new RegExp(`\\blocal:\\s*\\(\\)\\s*=>\\s*import\\("\\./frisk\\.mjs"\\)\\.then\\(m\\s*=>\\s*m\\.${here}\\(`).test(fn)
+        });
+        const measured = {}, control = {};
+        for (const [name, row] of Object.entries(REQUESTS)) {
+            const fn = fnSource(bridge, name);
+            must(fn.length > 100, `gm-bridge.mjs has no ${name} - the reads below would measure nothing`);
+            measured[name] = readOf(fn, row);
+            control[name] = readOf(fn.replace(/\bonPrimary:\s*true\s*,?/, ""), row).onPrimary;
+        }
+        equal(JSON.stringify(control), JSON.stringify(Object.fromEntries(Object.keys(REQUESTS).map(name => [name, false]))),
+            "the reader finds `onPrimary` in a request it was taken out of - it reads the name, not the option");
+        equal(JSON.stringify(measured), JSON.stringify(Object.fromEntries(Object.keys(REQUESTS).map(name => [name, { asks: true, onPrimary: true, local: true }]))),
+            "a Frisk request is not asked of the primary GM, or a GM's own runs somewhere other than its frisk.mjs judge (each: asks its action, onPrimary, local)");
+        const ask = fnSource(bridge, "requestFriskAsk");
+        ok(/\blateMs:\s*TIMING\.friskMarginMs\b/.test(ask), "requestFriskAsk does not read an answer that lands after its wait for the margin the primary keeps");
+        const rows = ["action.friskUnseen", "action.friskAsk", "action.friskAnswer", "action.friskFollow"].map(action => BRIDGE_ACTIONS[action]);
+        equal(JSON.stringify(rows.map(row => [row?.answer ?? null, Boolean(row?.patient), row?.timeoutMs ?? null])),
+            JSON.stringify([["reply", false, null], ["reply", true, TIMING.friskAnswerMs + TIMING.friskMarginMs], ["reply", false, null], ["reply", false, null]]),
+            "a Frisk's declaration does not hand back the primary's reply, or the ask's wait is not a person's for the answer's clock and its margin (each: answer, patient, timeoutMs)");
+    }],
+    ["R622 - a roll card's outcome line is plain text, escaped once by report: no outcome's `text` formats an escaped name into it (the review's rc2-2: a Frisk's and a Take's 'sent' line read \"D&#x27;Arcy\")", async () => {
+        /*
+         * E80 fix r1-G4, 19.10.2026; the review's rc2-2. action-rolls.mjs `report` writes `outcome.text` as
+         * `<p>${esc(outcome.text)}</p>`: a name escaped before it was formatted into the line is escaped twice, and the
+         * searcher's card shows the entity ("D&#x27;Arcy", "Kyoko &amp; Co"). The class: every `text:` of an outcome in the
+         * files whose outcomes `report` prints (action-rolls.mjs, frisk.mjs) that formats a key with an `esc(` or an
+         * `escapeHTML(` among its arguments. Read in the source with comments blanked; tier 2 "a GM's own unseen Frisk
+         * opens one window ..." reads the card itself. THE CONTROL: the reader finds the planted double escape. Red at
+         * 42b684b: frisk.mjs `performFrisk` (DRPG.Frisk.sent), `performFriskOpenly` (DRPG.Frisk.forceSent), action-rolls.mjs
+         * `performPalm`'s plant (DRPG.Steal.plantSent) and its Take (DRPG.Steal.sent).
+         */
+        const DOUBLE = /\btext:\s*[^;]*?game\.i18n\.format\(\s*"([\w.]+)"\s*,\s*\{[^}]*\b(?:esc|foundry\.utils\.escapeHTML)\(/g;
+        const found = text => [...stripComments(text).matchAll(DOUBLE)].map(m => m[1]);
+        equal(JSON.stringify(found('const outcome = { text: res.ok ? game.i18n.format("DRPG.Planted.sent", { name: esc(victim.name) }) : "" };')),
+            JSON.stringify(["DRPG.Planted.sent"]), "the reader misses a planted double escape - it would measure nothing");
+        const sources = new Map(await otherSources());
+        const read = ["action-rolls.mjs", "frisk.mjs"].map(file => [file, sources.get(file) ?? ""]);
+        must(read.every(([, text]) => text.length > 1000), "action-rolls.mjs or frisk.mjs was not read - this would measure nothing");
+        equal(JSON.stringify(read.flatMap(([file, text]) => found(text).map(key => `${file} ${key}`))), JSON.stringify([]),
+            "an outcome's line formats an escaped name, and report escapes it again: the card shows the entity");
     }]
 ];
 
