@@ -29297,7 +29297,8 @@ const SCENARIOS = [
          * is (in the harness nothing is linked, so the table does not move), the phase set to the trial and back by the clock's one
          * writer: in the trial every connected account, and every character's row, is sent to the main room (target
          * null) and no account is pulled two ways; after it the same accounts are in rooms again and nobody is placed
-         * who was not placed before (an account with no character stays where it was). Scenario 41 h reads it on four
+         * who was not placed before (an account with no character is sent the main room in and out of the trial since
+         * E19 C4, R818; it stayed where it was before). Scenario 41 h reads it on four
          * browsers with the school and the hall linked, a dead student among them.
          */
         needs(world.atLeast("occupiedRooms"), "a voice to take off a room");

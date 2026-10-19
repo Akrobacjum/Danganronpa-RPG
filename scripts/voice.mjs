@@ -48,7 +48,7 @@ import { SETTINGS, getSetting, getClock, isDeadForGm, isDeceased, isEclipse } fr
 import { allRooms } from "./movement.mjs";
 import { roomPieces, isMoveChange, isTrialScene } from "./rooms.mjs";
 import { isMonokuma, poolUserFor } from "./monokuma.mjs";
-import { VOICE, ROOM_PREFIX, DEAD_ROOM, applyLocally, forgetDesiredRoom, avclientActive, desiredRoom, externalAV } from "./voice-client.mjs";
+import { VOICE, ROOM_PREFIX, DEAD_ROOM, applyLocally, forgetDesiredRoom, avclientActive, desiredRoom, externalAV, silentRoomFor } from "./voice-client.mjs";
 import { isPrimaryGm, primaryGmId, debug, warn, error, plural, gmReport } from "./utils.mjs";
 import { alreadyOpen } from "./live.mjs";
 
@@ -160,8 +160,10 @@ const RECONCILE_HOOKS = ["updateActor", "updateUser", "createRegion", "updateReg
  * a user's character or role, a Scene Region made, changed or deleted (the rooms a voice room is named for), and
  * the two settings that say whose voice a Monokuma is (monokuma.mjs `poolUserFor`: the Monokuma pools and the
  * Despair pools). Since C3 (A9) at once, the dead channel's triggers that are world settings: the incident's
- * public half (`murderState`: an incident opened or closed) and the discoveries' stamps (`bodiesFound`). Pure, so
- * R813 and R815 ask it a table.
+ * public half (`murderState`: an incident opened or closed) and the discoveries' stamps (`bodiesFound`). Since C4
+ * at once, the clock (an Eclipse begun or ended by any write of it, besides the roads that announce one with
+ * `drpgEclipseChanged`; a time of day or a phase too, a pass that sends nothing where nothing moved). Pure, so
+ * R813, R815 and R818 ask it a table.
  *
  * @param {string} hook
  * @param {object} doc
@@ -183,7 +185,7 @@ export function reconcileTrigger(hook, doc, changes) {
             return {};
         case "createSetting":
         case "updateSetting":
-            if ([SETTINGS.murderState, SETTINGS.bodiesFound].some(key => doc?.key === `${MODULE_ID}.${key}`)) return { immediate: true };
+            if ([SETTINGS.murderState, SETTINGS.bodiesFound, SETTINGS.clock].some(key => doc?.key === `${MODULE_ID}.${key}`)) return { immediate: true };
             return [SETTINGS.monokumaPools, SETTINGS.despairPools].some(key => doc?.key === `${MODULE_ID}.${key}`) ? {} : null;
         default:
             return null;
@@ -512,7 +514,7 @@ export function createVoiceLedger({ emit = (event, packet, { recipients }) => ga
 }
 
 const voiceLedger = createVoiceLedger();
-const { settled, forget, forgetEveryone, assignUser, waitApplied } = voiceLedger;
+const { settled, forget, assignUser, waitApplied } = voiceLedger;
 
 /**
  * A client answering. Only the primary GM keeps the record (`createVoiceLedger`).
@@ -634,22 +636,9 @@ export async function voiceTargets() {
     const { rows, byUser, claims, waits } = await placeVoices({
         actors: game.actors.filter(a => a.type === "character"), eclipse, trial,
         death: eclipse || trial ? null : await deathFacts(),
-        locate: actor => locateActor(actor)
+        locate: actor => locateActor(actor),
+        users: game.users.filter(u => u.active)
     });
-
-    // An Eclipse silences PEOPLE, not characters. Everyone else in this file is
-    // reached through the character they own, so an account with no character -
-    // a spectator, a player between chapters, a GM holding no Monokuma pool -
-    // would otherwise be the one person left on an open channel. The Class Trial
-    // gathers people the same way (E13 C4): such an account still standing in a
-    // breakout room from before the trial would miss the trial, and outside these
-    // two nobody is moved who owns no character.
-    if (eclipse || trial) {
-        for (const user of game.users.filter(u => u.active)) {
-            if (byUser.has(user.id)) continue;
-            byUser.set(user.id, { actor: null, monokuma: false, user, ...voiceClaim({ user, eclipse, trial }) });
-        }
-    }
 
     // Only a real disagreement counts. Two characters in the same room, or two
     // that both want the main room, are not a conflict - they are one answer
@@ -690,10 +679,11 @@ export async function voiceTargets() {
  * @param {Function} [facts.userOf]      actor -> the account whose voice it is (`voiceUserOf`)
  * @param {Function} [facts.dead]        the GMs' record (`isDeadForGm`)
  * @param {Function} [facts.monokumaOf]  `isMonokuma`
+ * @param {User[]} [facts.users]         the connected accounts, each given a row of its own when no character gives one
  * @returns {Promise<{rows: Array, byUser: Map<string, object>, claims: Map<string, Array>, waits: Map<string, string[]>}>}
  */
 export async function placeVoices({ actors = [], eclipse = false, trial = false, death, locate = () => null,
-    userOf = actor => voiceUserOf(actor, isMonokuma(actor)), dead = isDeadForGm, monokumaOf = isMonokuma } = {}) {
+    userOf = actor => voiceUserOf(actor, isMonokuma(actor)), dead = isDeadForGm, monokumaOf = isMonokuma, users = [] } = {}) {
     // Nobody's death is asked in an Eclipse or the trial (`voiceClaim`; R117), so nor are the facts of one.
     const asked = !eclipse && !trial;
     const facts = asked ? death ?? await deathFacts() : null;
@@ -724,6 +714,18 @@ export async function placeVoices({ actors = [], eclipse = false, trial = false,
     }
     // In the order each account's first row came, as the inline ranking this replaced filled it (E78 C2).
     for (const userId of claims.keys()) byUser.set(userId, voiceRowFor(rows, userId));
+
+    // EVERY CONNECTED ACCOUNT HAS A ROW (E19 C4, 19.10.2026; audit S11-11). Everyone else here is reached through a
+    // character, so an account with none - a spectator, a player between chapters, a GM holding no Monokuma pool - was
+    // given a row only in an Eclipse (no channel; the GMs' room) and in the trial (E13 C4), and after an Eclipse it was
+    // sent nothing again: it stayed in the Eclipse's room, out of voice or among the GMs, until a reload. Outside both
+    // its room is the main room. No character, so never a witness and never contested.
+    for (const user of users) {
+        if (!user?.active || byUser.has(user.id)) continue;
+        const row = { actor: null, monokuma: false, user, ...voiceClaim({ user, eclipse, trial }) };
+        if (asked) row.why = "no character - the main room";
+        byUser.set(user.id, row);
+    }
 
     const waits = new Map();
     if (!asked) return { rows, byUser, claims, waits };
@@ -815,12 +817,12 @@ export function voiceRowFor(rows, userId) {
  * So `held` is true for the module's own reasons and for nothing else:
  *   - "external": avclient-livekit sends this browser's audio from its own window (`useExternalAV`) - not held;
  *   - "offline": no LiveKit Room in this browser, or one that is not connected - not held;
- *   - "eclipse": HELD - the primary GM put this account alone in its Eclipse room (`voiceClaim`), where nobody hears
- *     it. Never a GM: the GMs share one Eclipse room;
+ *   - "eclipse": HELD - the primary GM took this account out of voice for the Eclipse (`voiceClaim`; E19 C4: no
+ *     channel, before C4 a room of its own), connected or not. Never a GM: the GMs share one Eclipse room;
  *   - "gmBlock": a GM blocked this microphone for everybody (Foundry's `canBroadcastAudio`) - a person's choice, not
  *     held; the module's own reason is named first when both stand;
- *   - "eclipseHeard": a Monocub in its Eclipse room - alone there today too, so the tile must not pretend somebody
- *     hears it, but a Monocub is never held (the design's P6), so this is a line of information.
+ *   - "eclipseHeard": a Monocub in an Eclipse - out of voice like every player (E19 C4), so the tile must not pretend
+ *     somebody hears it, but a Monocub is never held (the design's P6), so this is a line of information.
  *   - "deadAlone": HELD - the primary GM put this account in the dead channel (E19 C3; A9): its voice character's
  *     death is not public, and the living neither hear it nor are heard there. Until A9's first trigger a dead
  *     student talks in the room they died in, and nothing is held (Q2); E67 adds "deadMuted".
@@ -838,8 +840,9 @@ export function micHold({ user = game.user, room = desiredRoom(), external = ext
     canBroadcastAudio = broadcastAllowed(user), actors } = {}) {
     if (!user) return null;
     if (external) return { reason: "external", held: false };
-    if (!connected) return { reason: "offline", held: false };
     const eclipse = !user.isGM && room === eclipseRoomFor(user);
+    // In an Eclipse a player's browser is out of voice on purpose (E19 C4): no connection is the Eclipse's, not "offline".
+    if (!connected && !eclipse) return { reason: "offline", held: false };
     // Inside its Eclipse room the voice character is the account's lowest actor id, as `voiceRowFor` ranks every
     // claim of an Eclipse alike; `silenced` and `locate` are never asked there.
     const voice = eclipse ? accountRow(user, { actors, eclipse: true, silenced: () => false })?.actor : null;
@@ -942,13 +945,14 @@ export function voiceClaim({ user, monokuma = false, eclipse = false, trial = fa
         // the room they were in when the lights went out, so the group that
         // was together stays on an open channel through the whole thing.
         //
-        // So each player is put in a room of their own, which is what "voice
-        // is unavailable" means when the transport has no mute of its own.
-        // GMs share one, because the Eclipse is exactly when they need to
-        // talk to each other.
+        // So no player is in any channel (the owner, 25.09; E19 C4): the room
+        // named here for a player is the word its browser leaves voice on
+        // (voice-client.mjs `silentRoomFor`); until C4 it joined it, alone. The
+        // GMs share one, because the Eclipse is exactly when they need to talk
+        // to each other.
         row.target = eclipseRoomFor(user);
         row.claim = CLAIM.inRoom;
-        row.why = user.isGM ? "Eclipse - the GMs' own channel" : "Eclipse - alone, hearing nobody";
+        row.why = user.isGM ? "Eclipse - the GMs' own channel" : "Eclipse - in no voice channel";
     } else if (trial) {
         // ONE ROOM FOR THE CLASS TRIAL (D8, the owner's decision; S11-10). The
         // trial is the one scene everybody is meant to hear: the living argue,
@@ -1031,8 +1035,8 @@ export function liveKitRoomFor(sceneId, drpgRoom) {
 /**
  * Where a person's voice goes while the lights are out.
  *
- * One room per player, so the room has exactly one person in it - the closest
- * thing to "no voice at all" that a transport with only rooms can express. One
+ * A player's is voice-client.mjs `silentRoomFor`: their browser leaves voice on
+ * it (E19 C4; until then it joined it, a room with exactly one person in it). One
  * shared room for the GMs, who have to be able to talk while they run it.
  *
  * Carries no scene and no region, on purpose: this is the one assignment in the
@@ -1040,7 +1044,7 @@ export function liveKitRoomFor(sceneId, drpgRoom) {
  * Eclipse that is the secret.
  */
 function eclipseRoomFor(user) {
-    return user?.isGM ? `${ROOM_PREFIX}eclipse-gm` : `${ROOM_PREFIX}eclipse-${user.id}`;
+    return user?.isGM ? `${ROOM_PREFIX}eclipse-gm` : silentRoomFor(user.id);
 }
 
 /**
@@ -1103,14 +1107,14 @@ export function scheduleReconcile({ immediate = false, force = false } = {}) {
         clearTimeout(reconcileTimer);
         reconcileTimer = null;
     }
-    if (immediate) {
-        reconcileNow({ force });
-        return;
-    }
+    // The pass itself when immediate (E19 C4), so `resetAllVoice` can say how many it sent; a caller that only
+    // schedules ignores it, as before.
+    if (immediate) return reconcileNow({ force });
     reconcileTimer = setTimeout(() => {
         reconcileTimer = null;
         reconcileNow({ force });
     }, RECONCILE_DEBOUNCE_MS);
+    return null;
 }
 
 /**
@@ -1131,11 +1135,12 @@ function startHeartbeat() {
     }, HEARTBEAT_MS);
 }
 
+/** @returns {Promise<number|null>} how many assignments the pass sent or applied; null when it did not run */
 async function reconcileNow({ force = false } = {}) {
     try {
-        if (!isPrimaryGm()) return;
-        if (!getSetting(SETTINGS.voiceEnabled)) return;
-        if (!avclientActive()) return;
+        if (!isPrimaryGm()) return null;
+        if (!getSetting(SETTINGS.voiceEnabled)) return null;
+        if (!avclientActive()) return null;
 
         // Deliberately NOT skipped during an Eclipse any more.
         //
@@ -1155,8 +1160,10 @@ async function reconcileNow({ force = false } = {}) {
             waitFor: (userId, room) => waitApplied(userId, room)
         });
         if (changed) debug(`Voice: reassigned ${changed} participant(s).`);
+        return changed;
     } catch (err) {
         error("Voice reconcile failed", err);
+        return null;
     }
 }
 
@@ -1253,7 +1260,7 @@ function reportContested(contested, byUser) {
     for (const [userId, list] of contested) {
         const name = game.users.get(userId)?.name ?? userId;
         const chosen = byUser.get(userId);
-        const places = list.map(r => `${r.actor.name} → ${r.room ?? "the main room"}`).join("; ");
+        const places = list.map(r => `${r.actor.name} → ${r.room ?? game.i18n.localize("DRPG.Voice.mainRoom")}`).join("; ");
         warn(game.i18n.format("DRPG.Voice.contested", {
             name, places, room: chosen?.room ?? game.i18n.localize("DRPG.Voice.mainRoom")
         }));
@@ -1482,14 +1489,14 @@ export async function voicePlan({ toChat = false } = {}) {
     if (eclipse) {
         lines.push("");
         lines.push("AN ECLIPSE IS RUNNING. Nobody is being placed by their token - the rooms are");
-        lines.push("not even being read. Every player is in a channel of their own and hears");
-        lines.push("nobody; the GMs share one. It goes back to normal the moment it ends.");
+        lines.push("not even being read. No player is in any voice channel; the GMs share one.");
+        lines.push("It goes back to normal the moment it ends.");
     }
     lines.push("");
 
     const rooms = new Map();
     for (const row of rows) {
-        const key = eclipse ? "(Eclipse - everyone alone)" : (row.room ?? "(main room)");
+        const key = eclipse ? "(Eclipse - no player in voice)" : (row.room ?? "(main room)");
         if (!rooms.has(key)) rooms.set(key, []);
         const held = byUser.get(row.user?.id);
         // An account pulled two ways is only actually going to one of them, and
@@ -1550,39 +1557,44 @@ export async function voicePlan({ toChat = false } = {}) {
  * ========================================================================== */
 
 /**
- * Send every connected participant back to the main room.
+ * Re-send every connected account its voice room: the GM panel's "Re-send everybody's voice room" and the console's
+ * `game.drpg.resetAllVoice()` (E19 C4, 19.10.2026; audit S11-25). Answers how many assignments it sent or applied,
+ * or `null` when this browser cannot (LiveKit AVClient off, or not the primary GM).
  *
- * Primary GM only. This used to run on `game.user.isGM`, so at a table with two
- * GMs both of them reset - two sets of assignments and two sets of retries aimed
- * at the same clients, in whatever order they arrived. That is precisely the
- * race the note above `reconcileNow` exists to prevent, reintroduced by the one
- * function whose job is to fix drift.
+ * A RESYNC, NOT A RETURN TO THE MAIN ROOM. Until C4 it sent everybody to the main room, and the next pass - or the
+ * heartbeat, up to a minute later - sent each back to their room: at the table a minute of the whole cast in one
+ * room, the crime scene included, to repair one browser that had drifted. Now it forgets what every client confirmed
+ * (`forgetEveryone`) and runs one forced pass at once, so each account is sent the room it belongs in. With regional
+ * voice off that room is the main room for everybody, and that is what it sends - which is also how switching the
+ * setting off lets everyone go (settings.mjs, `voiceEnabled`'s `onChange`).
+ *
+ * Primary GM only. This used to run on `game.user.isGM`, so at a table with two GMs both of them reset - two sets of
+ * assignments and two sets of retries aimed at the same clients. The ledger, the pass and the setting can be handed
+ * in, so R819 reads the resync without a socket.
+ *
+ * @param {object} [io]
+ * @param {object} [io.ledger]       `createVoiceLedger`'s, the module's own
+ * @param {Function} [io.reconcile]  `scheduleReconcile`
+ * @param {boolean} [io.enabled]     the `voiceEnabled` setting
+ * @returns {Promise<number|null>}
  */
-export async function resetAllVoice() {
-    // `null`, not `0`. The GM panel reports the number sent back, and an
-    // assistant GM clicking this used to be told "0 player(s) sent back to the
-    // main voice room" - a sentence that describes a working reset of an empty
-    // table rather than a button that did nothing for them.
+export async function resetAllVoice({ ledger = voiceLedger, reconcile = scheduleReconcile,
+    enabled = getSetting(SETTINGS.voiceEnabled) } = {}) {
+    // `null`, not `0`: the panel says why nothing was sent rather than "sent to 0 people".
     if (!avclientActive()) return null;
     if (!isPrimaryGm()) return null;
 
-    // Forget FIRST. This used to run at the end, which cancelled the retry
-    // timers for the very assignments it had just sent - "start again" wiped its
-    // own restart. Clearing up front means every user below is unsettled and
-    // therefore actually re-sent.
-    forgetEveryone();
-    forgetDesiredRoom();
+    // Forget FIRST: every account below is unsettled, so the pass sends each one again.
+    ledger.forgetEveryone();
+    if (enabled) return (await reconcile({ immediate: true, force: true })) ?? 0;
 
-    // Everyone who is actually here, rather than everyone this browser happens
-    // to have a note about: "send them all back" is also how a GM says "this has
-    // drifted, start again", and the drift may well be a client we lost track of.
+    // Regional voice off: no pass runs, and the room every account belongs in is the main room.
+    forgetDesiredRoom();
     let n = 0;
     for (const user of game.users.filter(u => u.active && u.id !== game.user.id)) {
-        if (assignUser(user.id, null, { force: true })) n += 1;
+        if (ledger.assignUser(user.id, null, { force: true })) n += 1;
     }
-
     if (await assignUserToRoom(game.user.id, null, { force: true })) n += 1;
-
     return n;
 }
 

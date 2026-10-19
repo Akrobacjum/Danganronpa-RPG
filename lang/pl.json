@@ -3331,7 +3331,7 @@
         "many": "Wyczyszczono {n} Faint Remnants.",
         "other": "Wyczyszczono {n} Faint Remnants."
       },
-      "voiceReset": "Zresetuj wszystkie pokoje głosowe",
+      "voiceReset": "Wyślij wszystkim ponownie ich pokój głosowy",
       "publicRoll": {
         "label": "Rzut publiczny",
         "formula": "Formuła",
@@ -3755,21 +3755,23 @@
       "contested": "Głos: {name} ma postacie w więcej niż jednym miejscu ({places}). Klient głosowy może być tylko w jednym pokoju, więc {name} trafia do „{room}”, a reszta jest pomijana. Oddaj zapasowe postacie innemu kontu albo zdejmij ich tokeny z mapy.",
       "mainRoom": "główny pokój",
       "claimTrial": "Class Trial - wszyscy w jednym pokoju",
-      "notActive": "LiveKit AVClient nie jest zainstalowany, włączony ani połączony.",
       "needsAvclient": "Głos per pokój jest włączony, ale LiveKit AVClient nie jest aktywny.",
       "avDisabled": "Głos per pokój jest włączony, ale Audio/Wideo jest wyłączone dla tego świata. Włącz je w Konfiguracji ustawień.",
       "resetDone": {
-        "one": "{n} gracz odesłany do głównego pokoju głosowego.",
-        "few": "{n} graczy odesłanych do głównego pokoju głosowego.",
-        "many": "{n} graczy odesłanych do głównego pokoju głosowego.",
-        "other": "{n} graczy odesłanych do głównego pokoju głosowego."
+        "one": "Wysłano ponownie pokój głosowy {n} osobie.",
+        "few": "Wysłano ponownie pokoje głosowe {n} osobom.",
+        "many": "Wysłano ponownie pokoje głosowe {n} osobom.",
+        "other": "Wysłano ponownie pokoje głosowe {n} osoby."
       },
       "drop": {
         "title": "Głos rozłączony",
         "retry": "Nie masz połączenia głosowego. Łączymy cię ponownie; jeśli za minutę nadal nikogo nie słyszysz, odśwież stronę (F5).",
         "closed": "Połączenie głosowe zamknął serwer głosu albo inne okno zalogowane na twoje konto. Odśwież tę stronę (F5), żeby dołączyć ponownie."
       },
-      "resetRefused": "Nie ma czego resetować: głos per pokój jest wyłączony, LiveKit nieaktywny albo prowadzi go klient innego GM-a.",
+      "resetRefused": {
+        "primary": "Pokoje głosowe wysyła ponownie tylko główny GM, {name}. Poproś o to GM-a {name}.",
+        "livekit": "Nic nie wysłano: LiveKit AVClient nie jest aktywny. Włącz go w Zarządzaj modułami i przeładuj świat."
+      },
       "tile": {
         "label": "Głos",
         "speaking": "Mówi",

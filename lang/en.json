@@ -3196,7 +3196,7 @@
         "one": "{n} Faint Remnant cleared.",
         "other": "{n} Faint Remnants cleared."
       },
-      "voiceReset": "Reset all voice rooms",
+      "voiceReset": "Re-send everybody's voice room",
       "publicRoll": {
         "label": "Public roll",
         "formula": "Formula",
@@ -3605,19 +3605,21 @@
       "contested": "Voice: {name} owns characters in more than one place ({places}). A voice client can only be in one room, so {name} is being sent to \"{room}\" and the rest are ignored. Give the spare characters to another account, or leave their tokens off the map.",
       "mainRoom": "the main room",
       "claimTrial": "the Class Trial - everybody in one room",
-      "notActive": "LiveKit AVClient is not installed, not active, or not connected.",
       "needsAvclient": "Regional voice is on, but LiveKit AVClient is not active.",
       "avDisabled": "Regional voice is on, but Audio/Video is off for this world. Turn it on in Configure Settings.",
       "resetDone": {
-        "one": "{n} player sent back to the main voice room.",
-        "other": "{n} players sent back to the main voice room."
+        "one": "Sent {n} person their voice room again.",
+        "other": "Sent {n} people their voice rooms again."
       },
       "drop": {
         "title": "Voice disconnected",
         "retry": "You are not connected to voice. Reconnecting you now; if you still hear nobody in a minute, reload the page (F5).",
         "closed": "Your voice connection was closed by the voice server or by another window signed in as you. Reload this page (F5) to join again."
       },
-      "resetRefused": "Nothing to reset: regional voice is off, LiveKit is inactive, or another GM's client is running it.",
+      "resetRefused": {
+        "primary": "Only the primary GM, {name}, can re-send the voice rooms. Ask {name}.",
+        "livekit": "Nothing was sent: LiveKit AVClient is not active. Turn it on in Manage Modules, then reload the world."
+      },
       "tile": {
         "label": "Voice",
         "speaking": "Speaking",

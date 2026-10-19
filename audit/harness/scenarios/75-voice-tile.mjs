@@ -31,9 +31,10 @@
  *   `users.<p1>.muted` client setting and no other row (p2's 0.5 kept), and a second click opens it again;
  *   push-to-talk wears its small label and its line, Foundry's mute-all strikes the speaker button; a
  *   GM's block (`canBroadcastAudio` false on p1's row, put back) is struck with the lock, not grey, and a
- *   click writes nothing and tells p1 why. The primary GM's own `voice.assign` puts p1 alone in p1's
- *   Eclipse room: the button is grey and struck with the reason, a click writes nothing and says why;
- *   back in the main room it is open. The shim's record of `toggleAudio` stays empty throughout.
+ *   click writes nothing and tells p1 why. The primary GM's own `voice.assign` of p1's Eclipse room takes
+ *   p1 out of voice (E19 C4: the Room disconnected, avclient-livekit's `breakoutRoom` naming it; before C4 p1 joined it alone): the
+ *   button is grey and struck with the reason, a click writes nothing and says why; back in the main
+ *   room it is open. The shim's record of `toggleAudio` stays empty throughout.
  * C (C5): who p1 hears. p1's speaker opens the list 'Who you hear' - the GM and p2, no GM's block for a
  *   player. p2's slider writes p1's own `users.<p2>.volume` and p2's element, nothing else; 'Mute for me' on
  *   the GM is p1's volume for the GM at 0 with the volume before in p1's `voicePeerMutes`, and a new Room
@@ -337,15 +338,16 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
             && b.unblocked?.cls === "" && b.unblocked.disabled === null,
         J({ blocked: b.blocked, unblocked: b.unblocked }));
 
-    // The Eclipse: the primary GM's own packet puts p1 alone in p1's Eclipse room (voice-client.mjs `onVoiceSocket`), which
+    // The Eclipse: the primary GM's own packet of p1's Eclipse room (voice-client.mjs `onVoiceSocket`) takes p1 out of voice
+    // (E19 C4: `applyBreakout` disconnects on it, leaving `breakoutRoom` named, while the shim's `client.room` reads null), which
     // `micHold` holds; then the main room again.
     const eclipseRoom = `drpg-eclipse-${IDS.p1}`;
     const assign = room => gm.eval(`game.socket.emit("module.danganronpa-rpg", { action: "voice.assign", target: "${IDS.p1}", room: ${J(room)} }); return true;`);
     await p1.eval(`__liveKit.setRoster({ [__liveKit.MAIN_ROOM]: ${J([IDS.gm, IDS.p1, IDS.p2])}, "drpg-elsewhere": ${J([IDS.p1, IDS.p3])}, ${J(eclipseRoom)}: ${J([IDS.p1])} }); return true;`);
     await assign(eclipseRoom);
     const held = await p1.eval(`${micJs}
-        await until(() => mic()?.cls === "is-held", 5000);
-        const seen = notices(), kept = JSON.stringify(rows()), out = { mic: mic(), room: __liveKit.read().name, speaker: speaker(), eclipse: text("DRPG.Voice.held.eclipse") };
+        await until(() => mic()?.cls === "is-held" && __liveKit.read().state === "disconnected", 5000);
+        const seen = notices(), kept = JSON.stringify(rows()), out = { mic: mic(), state: __liveKit.read().state, room: game.webrtc.client._liveKitClient?.breakoutRoom ?? null, speaker: speaker(), eclipse: text("DRPG.Voice.held.eclipse") };
         el()?.click();
         await until(() => notices() > seen);
         return { ...out, told: globalThis.__notifications.slice(seen).map(n => n.msg), unchanged: JSON.stringify(rows()) === kept };`, { timeout: 10000 });
@@ -353,8 +355,8 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
     const freed = await p1.eval(`${micJs}
         await until(() => mic()?.cls === "" && __liveKit.read().name === __liveKit.MAIN_ROOM, 5000);
         return { mic: mic(), room: __liveKit.read().name, main: __liveKit.MAIN_ROOM, toggles: __liveKit.toggles };`, { timeout: 10000 });
-    check("B: alone in p1's Eclipse room the microphone is grey and struck with the reason in its note and tooltip; p1's click writes nothing and tells p1 why; back in the main room it is open",
-        held.room === eclipseRoom
+    check("B: out of voice in an Eclipse (p1's Eclipse room named, the Room disconnected) the microphone is grey and struck with the reason in its note and tooltip; p1's click writes nothing and tells p1 why; back in the main room it is open",
+        held.state === "disconnected" && held.room === eclipseRoom
             && J(held.mic) === J({ cls: "is-held", pressed: "false", disabled: "true", tip: held.eclipse, note: held.eclipse, lock: "none" })
             && J(held.speaker) === J({ count: "", struck: false })
             && J(held.told) === J([held.eclipse]) && held.unchanged === true

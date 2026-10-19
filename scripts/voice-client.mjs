@@ -191,10 +191,12 @@ function startSelfCheck() {
     selfCheckTimer = setInterval(selfCheck, SELF_CHECK_MS);
 }
 
-function selfCheck() {
+export function selfCheck() {
     if (applying) return null;                  // mid-switch; not a verdict yet
     if (!avclientActive() || !clientReady()) return null;
     if (game.webrtc?.mode === foundry.av.AVSettings.AV_MODES.DISABLED || usingLiveKit() === false) return null;
+    // Out of voice on purpose (an Eclipse, E19 C4): no connection is the right state, and a connected one is left again.
+    if (silentFor(desired)) return landedCorrectly(desired) ? null : enqueue(() => applyAndReport(desired, null));
     if (lost && !lost.retry) return null;       // closed for us: the card says reload
     if (PENDING_STATES.includes(roomState())) return null;
     if (!externalAV() && !live()) {
@@ -382,6 +384,26 @@ export const ROOM_PREFIX = "drpg-";
 export const DEAD_ROOM = `${ROOM_PREFIX}dead`;
 
 /**
+ * Where a player's voice goes in an Eclipse: nowhere (E19 C4, 19.10.2026; the owner's answer of 25.09, audit S11-11).
+ * The primary GM sends this name, and the browser it names leaves voice on it rather than joining it (`applyBreakout`).
+ * Until C4 the browser joined it, a LiveKit room of one, connected through the whole placement window. Still one
+ * name per account, and still the room LiveKit is pointed at while out: a connect this file did not ask for (Foundry's
+ * own after an A/V settings change) lands alone, as before C4, and the self-check leaves it again. The GMs' shared
+ * room is voice.mjs `eclipseRoomFor`'s other name, which no browser leaves on.
+ *
+ * @param {string} userId
+ * @returns {string}
+ */
+export function silentRoomFor(userId) {
+    return `${ROOM_PREFIX}eclipse-${userId}`;
+}
+
+/** Whether `room` is this browser's own `silentRoomFor`: the primary GM's word for "be in no voice channel". */
+function silentFor(room) {
+    return typeof room === "string" && Boolean(game.user?.id) && room === silentRoomFor(game.user.id);
+}
+
+/**
  * Did this client end up where it was asked to?
  *
  * `LiveKitAVClient#connect()` sets `this.room` to the breakout room when one is
@@ -402,6 +424,9 @@ function landedCorrectly(target) {
     // the name alone answered "unchanged" for a browser that hears nobody (E19 C2; audit S11-09). Not asked of a
     // browser that joins voice in LiveKit's own page (`useExternalAV`): Foundry's Room never connects there, and
     // a connect for it opens another Join window rather than a voice.
+    // Out of voice (an Eclipse): landed once the Room says it is disconnected, whatever name it keeps. LiveKit's own
+    // page (`useExternalAV`) is not left from here, so there the name is read as for any room.
+    if (silentFor(target) && !externalAV()) return roomState() === "disconnected";
     if (!externalAV() && !live()) return false;
     const room = game.webrtc?.client?.room ?? null;
     if (target) return room === target;
@@ -479,10 +504,15 @@ export async function applyBreakout(room, { remember = true } = {}) {
 
     const client = liveKitClient();
     let connected = false;
+    // An Eclipse's word for this player (`silentFor`): Foundry's `AVMaster#disconnect` (fvtt-types 14.366 types it
+    // `Promise<boolean>`, "whether an existing connection was terminated"), whose answer is not the verdict - the
+    // Room's state is, below. `breakoutRoom` still names the account's own room, so a connect not asked here lands alone.
+    const leave = silentFor(target) && !externalAV();
     setApplying(true);
     try {
         client.breakoutRoom = room ?? undefined;
-        connected = await game.webrtc.connect();
+        if (leave) await game.webrtc.disconnect();
+        else connected = await game.webrtc.connect();
     } catch (err) {
         // `breakout()` in avclient-livekit clears `breakoutRoom` on a failed
         // connect. `desired` is deliberately left alone, so the GM's next pass -
@@ -494,7 +524,7 @@ export async function applyBreakout(room, { remember = true } = {}) {
         setApplying(false);
     }
 
-    if (connected === false) {
+    if (!leave && connected === false) {
         debug(`Voice: A/V refused to connect for "${target ?? "the main room"}".`);
         return "failed";
     }
@@ -582,7 +612,7 @@ function watchForDrops() {
 }
 
 function onRoomDisconnected(room, reason) {
-    if (applying || externalAV() || OWN_LEAVE.includes(reason)) return;
+    if (applying || externalAV() || OWN_LEAVE.includes(reason) || silentFor(desired)) return;
     setTimeout(() => {
         if (applying || liveKitClient()?.liveKitRoom !== room || room.state !== "disconnected") return;
         voiceDropped(!NOT_FOUGHT.includes(reason));

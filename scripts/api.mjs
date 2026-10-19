@@ -204,7 +204,7 @@ import {
     totalUnread as messengerUnreadTotal
 } from "./messenger.mjs";
 import {
-    scheduleReconcile as reconcileVoice,
+    scheduleReconcile,
     voicePlan, voiceTargets,
     resetAllVoice
 } from "./voice.mjs";
@@ -1307,8 +1307,9 @@ export const DrpgApi = {
      * installed, active, and the world setting is on. Every function here is
      * a safe no-op otherwise. */
 
-    /** Re-check every player's room and reassign voice now, skipping the debounce. */
-    reconcileVoice,
+    /** Re-check every player's room and reassign voice now, skipping the debounce. Until E19 C4 it was the
+     *  debounced call itself, which a console calls with no options: the pass ran 1.5 s later. */
+    reconcileVoice: () => scheduleReconcile({ immediate: true }),
 
     voicePlan,
 
@@ -1320,7 +1321,7 @@ export const DrpgApi = {
      */
     voiceTargets,
 
-    /** Send everyone currently assigned back to the main room (also a tile under Between sessions). */
+    /** Send every connected account its voice room again, at once (the GM panel's "Re-send everybody's voice room"). */
     resetAllVoice,
 
     /* ---- music -------------------------------------------------------------

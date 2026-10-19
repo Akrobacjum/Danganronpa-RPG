@@ -7764,8 +7764,9 @@ const INVARIANTS = [
          * get the main room (target null) with one claim of their own, and neither where anybody stands nor who is dead
          * is asked - so no token, and no linked school or hall, can change the answer. Outside the trial the same six keep
          * the answers they had (the two living and the Monocub their rooms, Monokuma the Hall, the dead the main room).
-         * In the source with comments blanked: `voiceTargets` reads the trial from the clock and asks the accounts with
-         * no character only in an Eclipse or the trial, and a browser that asks for its own room (`targetForUser`, the
+         * In the source with comments blanked: `voiceTargets` reads the trial from the clock and hands every connected
+         * account to the decision, one with no character included (E19 C4; until C4 only in an Eclipse or the trial, R818),
+         * and a browser that asks for its own room (`targetForUser`, the
          * answer to a client that connects mid-trial) is answered from that one decision, not from its token. Scenario 41 h reads it on four browsers in a real trial, and the
          * tier-2 test "the Class Trial takes every connected voice ..." on this world. Red before C4: no `voiceClaim`.
          */
@@ -7796,7 +7797,7 @@ const INVARIANTS = [
             inTrial.map(r => r.target), new Set(inTrial.map(r => r.claim)).size, inTrial.some(r => outside.some(o => o.claim === r.claim)),
             inTrial.every(r => r.why === game.i18n.localize("DRPG.Voice.claimTrial")), askedInTrial,
             outside.map(r => r.target),
-            /const trial = getClock\(\)\.phase === "classTrial"/.test(decide), /if \(eclipse \|\| trial\)/.test(decide),
+            /const trial = getClock\(\)\.phase === "classTrial"/.test(decide), /users: game\.users\.filter\(u => u\.active\)/.test(decide),
             /return byUser\.get\(userId\)\?\.target \?\? null;/.test(answer) && !/locateActor/.test(answer)]),
             JSON.stringify([
                 [null, null, null, null, null, null], 1, false, true, 0,
@@ -7805,7 +7806,7 @@ const INVARIANTS = [
                 true, true, true]),
             "[in the trial: the targets of two living students in two rooms, a dead student, a Monocub, Monokuma, an account with no "
             + "character; one claim for all, a claim of the trial's own; the trial's reason; nobody's place or death asked; outside the "
-            + "trial the same six; voiceTargets reads the trial from the clock and places accounts with no character only in an Eclipse or the trial; "
+            + "trial the same six; voiceTargets reads the trial from the clock and places every connected account, one with no character included; "
             + "a browser's own question is answered from voiceTargets, not from its token]");
     }],
 
@@ -12059,7 +12060,8 @@ const INVARIANTS = [
          *   - `micHold`'s table: a player in their own Eclipse room, alone or with no character - held; a GM in the GMs'
          *     Eclipse room, a player in another's, in a room, or told nothing - null; a Monocub in its Eclipse room -
          *     "eclipseHeard", not held; a GM's block on a plain player and on a Monocub there - "gmBlock", not held, but
-         *     the Eclipse's own hold named first when both stand; `useExternalAV` and no connection - not held, and first;
+         *     the Eclipse's own hold named first when both stand; `useExternalAV`, and no connection in a room - not held, and
+         *     first (in the own Eclipse room no connection is the Eclipse's since E19 C4, held: R817);
          *     a dead student in a room - null (Q2); an account with a living character and a Monocub - the lower actor id
          *     decides, either way round, as `voiceRowFor` ranks every claim of an Eclipse alike;
          *   - `moduleHoldsMic`'s table on this GM's client, the GMs' record of deaths handed in: a death kept secret -
@@ -12116,7 +12118,7 @@ const INVARIANTS = [
             hold({ room: `${ROOM_PREFIX}eclipse-R537OTHER0000000` }), hold({ room: `${ROOM_PREFIX}dorm-a` }), hold({ room: undefined }),
             hold({ actors: [monocub] }), hold({ actors: [monocub], canBroadcastAudio: false }),
             hold({ room: null, canBroadcastAudio: false }), hold({ canBroadcastAudio: false }),
-            hold({ external: true }), hold({ connected: false, canBroadcastAudio: false }),
+            hold({ external: true }), hold({ room: `${ROOM_PREFIX}dorm-a`, connected: false, canBroadcastAudio: false }),
             hold({ room: `${ROOM_PREFIX}dorm-a`, actors: [dead] }),
             hold({ actors: [living, monocub] }), hold({ actors: [actor("R537ACTOR0000000"), monocub] })
         ].map(reason);
@@ -12198,7 +12200,7 @@ const INVARIANTS = [
             [["R537A2", "R537B2", null, "R537M1", null], true, ["R537A1", "R537B1", null, "R537M1", null], true, ["R537A1", "R537B1", null, "R537M1", null], true],
             true, true, false, true, [], true]),
         "[micHold: own Eclipse room, with no character; a GM in the GMs' room; another's Eclipse room; a room; told nothing; a Monocub there; blocked there; "
-            + "blocked in the main room; blocked and in the Eclipse; avclient-livekit's window; no connection; a dead student in a room; a living character and "
+            + "blocked in the main room; blocked and in the Eclipse; avclient-livekit's window; no connection in a room; a dead student in a room; a living character and "
             + "a Monocub, each with the lower id | moduleHoldsMic: a secret death; one on the sheet; living; living beside a secret death; Monokuma | voiceRowFor "
             + "per account outside, in the trial and in an Eclipse, and the same rows as the old loop | the spy sees a read; micHold answers the Eclipse for a "
             + "player; it read no murderState | micHold reaches accountRow, voiceRowFor and voiceClaim; GmStore readers in what it reaches | moduleHoldsMic is null "
@@ -17909,6 +17911,259 @@ const INVARIANTS = [
         stableJson([[null, null, null, null, null], 1, false, 0, 0, null, true, true]),
             "[in the trial: each account's room, how many rooms, anybody in the dead channel, witnesses waited for, deaths and places asked; "
             + "a silenced secret death's room in the trial and its reason; voiceTargets asking no death in the trial]");
+    }],
+    ["R817 - in an Eclipse a player is in no voice channel: the room the primary GM sends a player then is one the player's browser leaves voice on, never joins, and no drop card or self-check brings it back; each player's differs from every other's and from the GMs' one shared room; the microphone is held with the Eclipse's reason while nothing is connected; the room after it is joined again (E19-20)", async () => {
+        /*
+         * E19 C4, 19.10.2026; the owner's answer of 25.09 ("in an Eclipse a player is joined to no voice channel - today
+         * they land in a room of their own, alone, hearing nobody; the GMs keep a shared channel, and after the Eclipse
+         * everybody returns to the right room"). Until C4 the primary GM sent each player `drpg-eclipse-<id>` and the
+         * player's browser joined it: a LiveKit room of one, connected all through the placement window. Now that name
+         * is the sentinel the browser leaves voice on (voice-client.mjs `applyBreakout`); it is still named for that one
+         * account, so a connect nobody here asked for (Foundry's own after an A/V settings change) lands alone, as
+         * before. Read on the harness's LiveKit (lib/livekit.mjs) through `applyLocally` (the apply every assignment
+         * reaches): a Room connected, the sentinel this account gets in an Eclipse (`voiceClaim`, what `voiceTargets`
+         * sends), the same again, the self-check (45 s at the table, called here once), `micHold` while nothing is
+         * connected, and a room after it. Red at C4's parent: the browser joined the sentinel ("connected"), the
+         * self-check was not callable, and `micHold` said "offline" while the Eclipse held the account.
+         */
+        needs(env.liveKitShim(), "the harness's LiveKit stand-in, to read whether the Room is connected");
+        needs(world.moduleActive("avclient-livekit"), "avclient-livekit enabled, so the module reads LiveKit at all");
+        const V = await import("./voice.mjs");
+        const VC = await import("./voice-client.mjs");
+        const { refreshVoiceTile } = await import("./voice-tile.mjs");
+        const stub = globalThis.__liveKit, before = VC.desiredRoom(), host = game.webrtc.client;
+        const person = (id, isGM = false) => ({ id, name: id, active: true, isGM });
+        const me = person(game.user.id);
+        const silent = V.voiceClaim({ user: me, eclipse: true }).target;
+        const other = V.voiceClaim({ user: person("R817OTHER0000000"), eclipse: true }).target;
+        const gms = [person("R817GMA000000000", true), person("R817GMB000000000", true)].map(user => V.voiceClaim({ user, eclipse: true }).target);
+        const A = `${VC.ROOM_PREFIX}r817-a`;
+        const where = () => [host.room ?? null, host._liveKitClient?.liveKitRoom?.state ?? null];
+        let lk = null, main = null;
+        const install = async options => {
+            await stub.install(options);
+            lk = globalThis.__liveKit;
+            return lk;
+        };
+        const uninstall = () => {
+            const done = typeof lk?.uninstall === "function" ? lk.uninstall() : false;
+            lk = null;
+            globalThis.__liveKit = stub;
+            return done;
+        };
+        const seen = [["rooms", typeof silent === "string" && silent !== other, gms[0] === gms[1] && typeof gms[0] === "string",
+            gms.includes(silent) || gms.includes(other)]];
+        try {
+            main = (await install({})).MAIN_ROOM;
+            await host.initialize();
+            seen.push(["in a room", await VC.applyLocally(A), ...where()]);
+            seen.push(["the Eclipse", await VC.applyLocally(silent), where()[1]]);
+            await wait(50);
+            seen.push(["told", VC.voiceDrop?.() ?? null]);
+            seen.push(["again", await VC.applyLocally(silent), where()[1]]);
+            seen.push(["self-check", typeof VC.selfCheck === "function" ? await VC.selfCheck() : "no self-check", where()[1], VC.voiceDrop?.() ?? null]);
+            const held = V.micHold({ user: me, room: silent, external: false, connected: false, canBroadcastAudio: true, actors: [] });
+            seen.push(["held", held ? `${held.reason}:${held.held}` : null]);
+            seen.push(["after", await VC.applyLocally(null), ...where()]);
+        } finally {
+            if (lk) uninstall();
+            if (before === undefined) VC.forgetDesiredRoom();
+            else {
+                await install();
+                await VC.applyBreakout(before);
+                uninstall();
+            }
+            Hooks.callAll("drpgVoiceApplying", false);
+            refreshVoiceTile();
+        }
+        equal(stableJson(seen), stableJson([
+            ["rooms", true, true, false],
+            ["in a room", "applied", A, "connected"],
+            ["the Eclipse", "applied", "disconnected"],
+            ["told", null],
+            ["again", "unchanged", "disconnected"],
+            ["self-check", null, "disconnected", null],
+            ["held", "eclipse:true"],
+            ["after", "applied", main, "connected"]]),
+        "[a player's Eclipse room differs from another player's, the two GMs share one, neither player's is the GMs'], [in a room: the answer, "
+            + "client.room, the Room], [the Eclipse's room: the answer, the Room], [a drop told], [the same again], [the self-check: its answer, "
+            + "the Room, a drop told], [micHold with nothing connected], [the main room after it: the answer, client.room, the Room]");
+    }],
+
+    ["R818 - every connected account has a voice row, in and out of an Eclipse: a spectator, a GM holding no Monokuma and a Monocub's player each get one - no channel for a player and the GMs' shared room in the Eclipse, the main room or the character's own room after it - and an account not connected none; any write of the clock places the voices again at once (E19-21)", async () => {
+        /*
+         * E19 C4, 19.10.2026; audit S11-11. Until C4 `voiceTargets` added a row for an account with no character only in
+         * an Eclipse or the trial, so after an Eclipse a spectator and a GM holding no Monokuma pool were never sent
+         * anywhere again: they stayed in the Eclipse's room until a reload. Read on plain objects, nothing written and
+         * nothing sent: voice.mjs `placeVoices` - the decision `voiceTargets` makes, handed the connected accounts
+         * (`users`) - in an Eclipse and outside it, for a player with a character in a room, a spectator, a Monocub's
+         * player, a player not connected, a GM holding Monokuma and a GM holding none. A player's Eclipse room is read
+         * as "alone" when it names that account and nobody else's row has it; the GMs' as "gms" when both GMs have it.
+         * And the trigger: an Eclipse that ends by a write of the clock no other road announces (a hand edit, a restore)
+         * still places everybody (`reconcileTrigger`). Red at C4's parent: `placeVoices` left the spectator and the GM
+         * with no pool out in both, and the clock was no trigger.
+         */
+        const V = await import("./voice.mjs");
+        const school = { id: "R818SCHOOL000000", name: "R818 School" };
+        const person = (id, isGM = false, active = true) => ({ id, name: id, active, isGM });
+        const P = {
+            student: person("R818PSTUDENT0000"), spectator: person("R818PSPECTATOR00"), cub: person("R818PCUB00000000"),
+            away: person("R818PAWAY0000000", false, false), gm: person("R818GMMONOKUMA00", true), bare: person("R818GMBARE000000", true)
+        };
+        const actor = (id, flags = {}) => ({ id, name: id, type: "character", getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined) });
+        const A = {
+            student: actor("R818ASTUDENT0000"), cub: actor("R818ACUB00000000", { [FLAGS.deceased]: { chapter: 1 }, [FLAGS.monocub]: true }),
+            monokuma: actor("R818AMONOKUMA000", { [FLAGS.monokuma]: true }), away: actor("R818AAWAY0000000")
+        };
+        const owner = new Map([[A.student, P.student], [A.cub, P.cub], [A.monokuma, P.gm], [A.away, P.away]]);
+        const stands = new Map([[A.student, "Kitchen"], [A.cub, "Dorm"], [A.monokuma, "Hall"], [A.away, "Kitchen"]]);
+        const place = async eclipse => {
+            const { byUser } = await V.placeVoices({
+                actors: Object.values(A), users: Object.values(P), eclipse, trial: false,
+                death: { state: null, hydrated: true, cast: new Set(), announced: async () => false },
+                locate: a => ({ scene: school, room: stands.get(a) }), userOf: a => owner.get(a) ?? null,
+                dead: a => a === A.cub, monokumaOf: a => a === A.monokuma
+            });
+            const targets = [...byUser].map(([id, row]) => [id, row.target ?? null]);
+            const label = (id, target) => {
+                if (target === null) return "main";
+                const room = ["Kitchen", "Dorm", "Hall"].find(name => V.liveKitRoomFor(school.id, name) === target);
+                if (room) return room;
+                const shared = targets.filter(([, t]) => t === target).map(([other]) => other);
+                if (shared.length === 1 && target.includes(id)) return "alone";
+                if (shared.length === 2 && shared.every(other => other === P.gm.id || other === P.bare.id)) return "gms";
+                return `?${target}`;
+            };
+            const name = id => Object.keys(P).find(key => P[key].id === id) ?? id;
+            return Object.fromEntries(targets.map(([id, target]) => [name(id), label(id, target)]).sort(([a], [b]) => (a < b ? -1 : 1)));
+        };
+        const voice = stripComments((await moduleSources()).get("voice.mjs") ?? "");
+        must(voice.length, "voice.mjs is not among the module's sources - this would measure nothing");
+        const decide = fnSource(voice, "voiceTargets");
+        const clock = V.reconcileTrigger("updateSetting", { key: `${MODULE_ID}.${SETTINGS.clock}` }, {});
+        equal(stableJson([await place(true), await place(false), clock,
+            /users: game\.users\.filter\(u => u\.active\)/.test(decide), /if \(eclipse \|\| trial\)/.test(decide)]),
+        stableJson([
+            { bare: "gms", cub: "alone", gm: "gms", spectator: "alone", student: "alone" },
+            { bare: "main", cub: "Dorm", gm: "Hall", spectator: "main", student: "Kitchen" },
+            { immediate: true }, true, false]),
+        "[in an Eclipse, each connected account's room], [outside it], [a write of the clock], "
+            + "[voiceTargets hands every connected account to placeVoices, and no longer only in an Eclipse or the trial]");
+    }],
+
+    ["R819 - Reset all voice rooms re-sends everybody's voice room: it forgets what every client confirmed and runs one forced pass at once, sending nobody to the main room by itself; its label says so, its result is said in both languages (Polish with few and many) and a refusal names what to do; the unused LiveKit line is gone; the console's reconcileVoice skips the debounce as it says; the contested warning names the main room in the reader's language (E19-22, E19-23)", async () => {
+        /*
+         * E19 C4, 19.10.2026; audit S11-25, S11-51. Until C4 the reset sent every connected account to the main room
+         * and the next pass, or the heartbeat a minute later, sent each back to its room: at the table one minute of
+         * the whole cast in one room, the crime scene's included, and a label promising a reset. Now it is a resync:
+         * voice.mjs `resetAllVoice` forgets the ledger (`forgetEveryone`) and runs `scheduleReconcile({ immediate,
+         * force })`, whose count it answers. Read on a ledger of the test's own (`createVoiceLedger`, its socket a
+         * list) with the pass handed in, so nothing is sent; then the texts from lang/en.json and lang/pl.json, and in
+         * the source with comments blanked: api.mjs `reconcileVoice` (documented "skipping the debounce", which a bare
+         * `scheduleReconcile` did not) and voice.mjs `reportContested` (an English "the main room" in a localized
+         * line). Red at C4's parent: the reset ran no pass and answered the accounts it sent to the main room, the
+         * label read "Reset all voice rooms", `notActive` was in both files, `reconcileVoice` was the debounced call.
+         */
+        needs(env.primaryGm(), "the reset runs on the primary GM alone");
+        needs(world.moduleActive("avclient-livekit"), "avclient-livekit enabled, or the reset answers that it cannot");
+        const V = await import("./voice.mjs");
+        const sent = [], asked = [];
+        const ledger = V.createVoiceLedger({ emit: (event, packet, { recipients }) => sent.push({ ...packet, recipients }), later: () => null, cancel: () => {} });
+        ledger.assignUser("R819PA0000000000", `drpg-r819-a`);
+        ledger.answer("R819PA0000000000", { room: `drpg-r819-a`, state: "applied", requestId: sent[0]?.requestId ?? null });
+        ledger.assignUser("R819PB0000000000", `drpg-r819-b`);
+        const held = [ledger.settled.size, ledger.inFlight.size];
+        sent.length = 0;
+        const n = await V.resetAllVoice({ ledger, reconcile: async options => { asked.push(options); return 2; }, enabled: true });
+        const after = [n, asked, ledger.settled.size, ledger.inFlight.size, sent.length];
+
+        const [en, pl] = await Promise.all(["en", "pl"].map(lang => fetch(`/modules/${MODULE_ID}/lang/${lang}.json`, { cache: "no-cache" }).then(r => r.json())));
+        const keys = value => (value && typeof value === "object" ? Object.keys(value).sort() : typeof value);
+        const texts = [en, pl].map(file => {
+            const voice = file.DRPG?.Voice ?? {};
+            return [keys(voice.resetDone), "notActive" in voice, keys(voice.resetRefused), String(voice.resetRefused?.primary ?? "").includes("{name}"),
+                /main voice room|głównego pokoju/.test(JSON.stringify(voice.resetDone ?? {}))];
+        });
+        const label = [en.DRPG?.Panel?.voiceReset, pl.DRPG?.Panel?.voiceReset !== "Zresetuj wszystkie pokoje głosowe"];
+        const sources = await moduleSources();
+        const api = stripComments(sources.get("api.mjs") ?? ""), voice = stripComments(sources.get("voice.mjs") ?? "");
+        must(api.length && voice.length, "api.mjs or voice.mjs is not among the module's sources - this would measure nothing");
+        const code = [/reconcileVoice: \(\) => scheduleReconcile\(\{ immediate: true \}\)/.test(api),
+            /"the main room"/.test(fnSource(voice, "reportContested"))];
+        equal(stableJson([held, after, texts, label, code]), stableJson([
+            [1, 1], [2, [{ force: true, immediate: true }], 0, 0, 0],
+            [[["one", "other"], false, ["livekit", "primary"], true, false], [["few", "many", "one", "other"], false, ["livekit", "primary"], true, false]],
+            ["Re-send everybody's voice room", true],
+            [true, false]]),
+        "[the ledger before: settled, in flight], [the reset: its answer, the passes it ran, settled and in flight after, packets it sent itself], "
+            + "[EN, PL: resetDone's forms, notActive kept, resetRefused's two, the refusal naming the primary GM, a result saying the main room], "
+            + "[the label EN, PL rewritten], [reconcileVoice immediate, reportContested's English main room]");
+    }],
+
+    ["R820 - the voice follows a move through a tunnel (`passage.cross`, a teleport and a displace) into a room where another player stands: the crosser alone is sent, into that player's room; and at an Eclipse's end a spectator and a GM holding no Monokuma are sent back to the main room (E19-24, A10)", async () => {
+        /*
+         * E19 C4, 19.10.2026; the owner's A10 (the voice follows a `passage.cross` move with a second player in the
+         * target room), and the Eclipse's end for a GM with no Monokuma pool and a spectator. The tunnel's move is
+         * passages-gm.mjs `crossTunnel`'s token write, read in the source with comments blanked: its fields are a move
+         * to rooms.mjs `isMoveChange`, which `registerVoice`'s `updateToken` hook asks before it places the voices.
+         * Then the passes on plain objects through a ledger of the test's own (`createVoiceLedger`, its socket a list):
+         * `placeVoices` and `sendInPasses` before the crossing (both players answer), after it (what is sent); an
+         * Eclipse (everybody answers) and the pass after it (what is sent). The A10 half is green at C4's parent too: a
+         * guard on what the tunnel's move already did. Red at C4's parent: after the Eclipse nothing was sent to the
+         * spectator or the GM with no pool, who stayed in the Eclipse's room.
+         */
+        const V = await import("./voice.mjs");
+        const { isMoveChange } = await import("./rooms.mjs");
+        const sources = await moduleSources();
+        const passages = stripComments(sources.get("passages-gm.mjs") ?? ""), voice = stripComments(sources.get("voice.mjs") ?? "");
+        must(passages.length && voice.length, "passages-gm.mjs or voice.mjs is not among the module's sources - this would measure nothing");
+        const write = /await write\(token, \{ x: spot\.x, y: spot\.y, \.\.\.\(spot\.level \? \{ level: spot\.level \} : \{\}\) \},\s*\{ teleport: true, movementAction: "displace", animate: false \}\)/
+            .test(fnSource(passages, "crossTunnel"));
+        const hook = /Hooks\.on\("updateToken", \(doc, changes\) => \{[\s\S]{0,200}?if \(isMoveChange\(changes\)\) scheduleReconcile\(\);/.test(fnSource(voice, "registerVoice"));
+
+        const school = { id: "R820SCHOOL000000", name: "R820 School" };
+        const person = (id, isGM = false) => ({ id, name: id, active: true, isGM });
+        const P = { crosser: person("R820PCROSSER0000"), there: person("R820PTHERE000000"), spectator: person("R820PSPECTATOR00"), bare: person("R820GMBARE000000", true) };
+        const actor = id => ({ id, name: id, type: "character", getFlag: () => undefined });
+        const A = { crosser: actor("R820ACROSSER0000"), there: actor("R820ATHERE000000") };
+        const owner = new Map([[A.crosser, P.crosser], [A.there, P.there]]);
+        const stands = new Map([[A.crosser, "Kitchen"], [A.there, "Storage"]]);
+        const sent = [];
+        const ledger = V.createVoiceLedger({ emit: (event, packet, { recipients }) => sent.push({ ...packet, recipients }), later: () => null, cancel: () => {} });
+        const name = id => Object.keys(P).find(key => P[key].id === id) ?? id;
+        const label = target => (target === null ? "main" : ["Kitchen", "Storage"].find(room => V.liveKitRoomFor(school.id, room) === target) ?? "other");
+        const pass = async ({ eclipse = false, users = [P.crosser, P.there] } = {}) => {
+            sent.length = 0;
+            const { byUser, waits } = await V.placeVoices({
+                actors: Object.values(A), users, eclipse, trial: false,
+                death: { state: null, hydrated: true, cast: new Set(), announced: async () => false },
+                locate: a => ({ scene: school, room: stands.get(a) }), userOf: a => owner.get(a) ?? null,
+                dead: () => false, monokumaOf: () => false
+            });
+            await V.sendInPasses(V.applyOrder(byUser, "R820NOBODY000000"), waits, {
+                ownId: "R820NOBODY000000",
+                assign: (userId, row) => ledger.assignUser(userId, row.target ?? null),
+                waitFor: (userId, room) => ledger.waitApplied(userId, room)
+            });
+            const out = sent.map(p => [name(p.target), eclipse ? (p.room === null ? "main" : "eclipse") : label(p.room), p.recipients.length === 1 && p.recipients[0] === p.target]);
+            for (const p of [...sent]) ledger.answer(p.target, { room: p.room, state: "applied", requestId: p.requestId });
+            return out;
+        };
+        const seen = [["the tunnel's move", write, isMoveChange({ x: 1, y: 2 }), isMoveChange({ x: 1, y: 2, level: "R820LEVEL" }), hook]];
+        seen.push(["before", await pass()]);
+        stands.set(A.crosser, "Storage");
+        seen.push(["crossed", await pass()]);
+        const everybody = Object.values(P);
+        seen.push(["the Eclipse", (await pass({ eclipse: true, users: everybody })).map(([who]) => who).sort()]);
+        seen.push(["after it", (await pass({ users: everybody })).sort()]);
+        equal(stableJson(seen), stableJson([
+            ["the tunnel's move", true, true, true, true],
+            ["before", [["crosser", "Kitchen", true], ["there", "Storage", true]]],
+            ["crossed", [["crosser", "Storage", true]]],
+            ["the Eclipse", ["bare", "crosser", "spectator", "there"]],
+            ["after it", [["bare", "main", true], ["crosser", "Storage", true], ["spectator", "main", true], ["there", "Storage", true]]]]),
+        "[crossTunnel's token write, a move with and without a floor, the voice's updateToken hook], [before the crossing: who is sent where, "
+            + "to them alone], [after it], [in the Eclipse: who is sent], [after the Eclipse: who is sent where, to them alone]");
     }],
 ];
 
