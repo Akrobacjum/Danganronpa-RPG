@@ -1837,7 +1837,8 @@ export function diagnoseMusic() {
  *      volume is the slider (fvtt-types 14.366 `AudioHelper`, a gain per
  *      channel; not measured here, the harness has no audio). So the room's
  *      sounds are held on this browser instead (`createRoomHold`) and given
- *      back when it is over.
+ *      back when it is over: paused on a player's browser (04.10: "pauzowane"),
+ *      held in place on a GM's, whose browser moves the table's playlists on.
  *
  * NOTHING MAPPED MEANS NOTHING HAPPENS, the same contract every other row in
  * the table has: a GM who has not chosen a murder playlist gets the behaviour
@@ -1889,35 +1890,61 @@ export function murderPlayData({ src, volume }) {
 }
 
 /**
- * The room's music, held on this browser while a murder track plays.
+ * The room's music, paused or held on this browser while a murder track plays.
  *
- * HELD IN PLACE, NOT PAUSED. Each sound playing here has its own volume set to 0
- * and keeps running; given back, it is at the volume its track carries. A
- * `Sound#pause` would be the plainer reading of "paused", and it is wrong on a
- * GM's browser - always in the incident - because a playlist moves to its next
- * track when a GM's browser hears the last one end (a player cannot write the
- * playlist), and a paused sound never ends. Held in place, the table's playlist
- * keeps its time and its order, and a participant comes back to the room where
- * the room is now.
+ * PAUSED ON A PLAYER'S BROWSER (the owner's 04.10: "playlisty pokoju pauzowane na
+ * czas incydentu"). Each room sound playing here is paused (`Sound#pause`) and,
+ * when the incident is over, resumed where it stood (`Sound#play` with no
+ * offset resumes from `pausedTime` and keeps the loop and volume it had,
+ * fvtt-types 14.366; not measured on real audio, the harness has none). A
+ * player's browser drives no playlist - it cannot write one - so a pause there
+ * moves nothing for the table.
  *
- * A SOUND THAT STARTS LATER IS HELD AS IT STARTS: every sound of the room is
- * listened to for "play" once, and while the hold is on, a start - a new track,
- * a sync that set the volume again - is put back to 0. A soundboard is left
- * alone: its one-shots are effects, not the room's music, as `holdEverything`
- * reads them.
+ * HELD IN PLACE ON A GM'S BROWSER. A GM is always in the incident, and a
+ * playlist moves to its next track when a GM's browser hears the last one end;
+ * a paused sound never ends, so a pause there would stop the table's playlist
+ * for everybody. There each sound's own volume goes to 0 while it runs, and is
+ * given back at the volume its track carries. Until E19 fix r1-G3 (the review's
+ * F2) every browser was held in place, and a player came back to the room
+ * minutes on from where the incident had taken them.
+ *
+ * A SOUND THAT STARTS LATER IS PAUSED OR HELD AS IT STARTS: every sound of the
+ * room is listened to for "play" once, and while the hold is on, a start - a
+ * new track, a sync that set the volume or started a paused sound again - is
+ * put back. A track the playlist no longer plays when the hold ends (the GM's
+ * browser moved on, a GM stopped it) is stopped rather than resumed, so its
+ * pause point does not come back with it later. A soundboard is left alone:
+ * its one-shots are effects, not the room's music, as `holdEverything` reads
+ * them.
+ *
+ * @param {object} [options]
+ * @param {() => boolean} [options.pauses]  whether this browser pauses (a player's) or holds in place (a GM's);
+ *   read when a hold begins
  */
-export function createRoomHold() {
+export function createRoomHold({ pauses = () => false } = {}) {
     let holding = false;
-    const held = new Set();
+    let pausing = false;
+    const held = new Map();
     const heard = new WeakSet();
-    const mute = sound => {
+    const quiet = sound => {
         const local = sound?.sound;
         if (!local?.playing) return;
+        if (pausing && typeof local.pause === "function") {
+            try {
+                local.pause();
+                held.set(sound, "paused");
+                return;
+            } catch (err) {
+                debug("Murder music: a room sound would not pause; held at 0 instead", err);
+            }
+        }
+        // Playing at 0, whatever it was before: given back by its volume.
         local.volume = 0;
-        held.add(sound);
+        held.set(sound, "muted");
     };
     return {
         hold(playlists) {
+            if (!holding) pausing = Boolean(pauses());
             holding = true;
             for (const playlist of playlists ?? []) {
                 if (playlist?.mode === soundboardMode()) continue;
@@ -1926,17 +1953,29 @@ export function createRoomHold() {
                     if (!local) continue;
                     if (!heard.has(local) && typeof local.addEventListener === "function") {
                         heard.add(local);
-                        local.addEventListener("play", () => { if (holding) mute(sound); });
+                        local.addEventListener("play", () => { if (holding) quiet(sound); });
                     }
-                    mute(sound);
+                    quiet(sound);
                 }
             }
         },
         release() {
             holding = false;
-            for (const sound of held) {
+            for (const [sound, how] of held) {
+                const local = sound.sound;
+                if (!local) continue;
+                if (how === "paused") {
+                    const failed = err => debug("Murder music: a paused room sound would not resume or stop", err);
+                    try {
+                        // Resumed from where it was paused; a track the playlist has left is stopped instead.
+                        Promise.resolve(sound.playing ? local.play() : local.stop()).catch(failed);
+                    } catch (err) {
+                        failed(err);
+                    }
+                    continue;
+                }
                 const level = Number(sound.volume);
-                if (sound.sound) sound.sound.volume = Number.isFinite(level) ? level : 1;
+                local.volume = Number.isFinite(level) ? level : 1;
             }
             held.clear();
         },
@@ -1959,7 +1998,11 @@ export function createRoomHold() {
  *   - every start and stop takes a new generation, and a track that arrives for
  *     an older one is stopped as it arrives;
  *   - a file that fails is said once (`unplayable`) and not asked for again
- *     until the playlist gives another;
+ *     in that incident (its key); the next incident asks for it once more.
+ *     Until E19 fix r1-G3 (the review's E19-COR-5) it was skipped until the
+ *     playlist gave another file, and a murder playlist of one track never
+ *     does: one 404 (a late upload, a fetch that hiccuped) meant no murder
+ *     music and the room not held in every later incident until F5;
  *   - asked again for the track it is playing or waiting for, it does nothing,
  *     so every murder write can ask.
  *
@@ -1977,6 +2020,7 @@ export function createMurderOverlay({ pick, play, holdRoom, releaseRoom, unplaya
     let track = null;
     let heard = null;
     let failed = null;
+    let failedIn = null;
     const state = () => ({
         playing: Boolean(track), track: heard?.name ?? null, playlist: heard?.playlist ?? null,
         volume: heard?.volume ?? null, failed
@@ -1998,10 +2042,13 @@ export function createMurderOverlay({ pick, play, holdRoom, releaseRoom, unplaya
     async function want(inIt, key = null) {
         const next = inIt ? pick(key) : null;
         if (!next) {
+            // Out of the incident (or nothing mapped): the next one tries its file afresh.
+            failed = null;
+            failedIn = null;
             if (asked || track) await stop();
             return state();
         }
-        if (next.src === asked || next.src === failed) return state();
+        if (next.src === asked || (next.src === failed && key === failedIn)) return state();
         if (asked || track) await stop();
         const mine = ++generation;
         asked = next.src;
@@ -2023,10 +2070,12 @@ export function createMurderOverlay({ pick, play, holdRoom, releaseRoom, unplaya
         if (!sound || sound.failed) {
             asked = null;
             failed = next.src;
+            failedIn = key;
             unplayable(next);
             return state();
         }
         failed = null;
+        failedIn = null;
         track = sound;
         heard = next;
         holdRoom();
@@ -2037,7 +2086,7 @@ export function createMurderOverlay({ pick, play, holdRoom, releaseRoom, unplaya
 }
 
 /** This browser's room hold and overlay, wired to Foundry. */
-const roomHold = createRoomHold();
+const roomHold = createRoomHold({ pauses: () => !game.user?.isGM });
 const murderOverlay = createMurderOverlay({
     pick: key => {
         const playlist = playlistFor("murder");
