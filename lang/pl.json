@@ -3759,6 +3759,7 @@
     "Voice": {
       "contested": "Głos: {name} ma postacie w więcej niż jednym miejscu ({places}). Klient głosowy może być tylko w jednym pokoju, więc {name} trafia do „{room}”, a reszta jest pomijana. Oddaj zapasowe postacie innemu kontu albo zdejmij ich tokeny z mapy.",
       "mainRoom": "główny pokój",
+      "deadRoom": "kanał zmarłych",
       "claimTrial": "Class Trial - wszyscy w jednym pokoju",
       "needsAvclient": "Głos per pokój jest włączony, ale LiveKit AVClient nie jest aktywny.",
       "avDisabled": "Głos per pokój jest włączony, ale Audio/Wideo jest wyłączone dla tego świata. Włącz je w Konfiguracji ustawień.",

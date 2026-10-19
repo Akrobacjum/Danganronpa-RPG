@@ -858,16 +858,17 @@ export function onVoiceApplying() {
 /**
  * The microphone button's state, from this browser's own facts (E78 C4; the design's step 6, Q1, Q15): `micHold`
  * (voice.mjs, never GmStore) and this browser's client settings. One of
- *   - "held": the module holds the microphone (`micHold`'s `held`: the Eclipse room, and since E19 C3 the dead channel,
- *     "deadAlone"; E67 adds its own) - grey and struck, the reason shown;
+ *   - "held": the module holds the microphone (`micHold`'s `held`: the Eclipse room; E67 adds its own) - grey and
+ *     struck, the reason shown;
  *   - "gmBlock": a GM blocked it for everybody - struck in the normal colours, with a lock, never grey (Q15);
  *   - "offline": no connected Room, or avclient-livekit's own window ("external") - not struck, a dot, the reason shown;
  *   - "muted": the viewer muted it - struck in the normal colours, `aria-pressed`;
  *   - "ptt" or "on": open, "ptt" while Foundry's voice mode is push-to-talk.
  * `reason` names the line under `DRPG.Voice.held` for the first three; `info` is a reason that holds nothing
- * ("eclipseHeard": a Monocub alone in its Eclipse room, never grey - the design's P6), shown beside an open or muted
- * button. "Muted by me" is the stored `users.<self>.muted` - the value `toggleOwnMic` writes - and not `getUser`'s
- * answer, which Foundry may complete from the A/V client's own state (av/settings.mjs, external, not re-read here).
+ * ("eclipseHeard": a Monocub alone in its Eclipse room, never grey - the design's P6; "deadAlone": the dead channel,
+ * since E19 fix r1-G1, where the dead hear each other), shown beside an open or muted button. "Muted by me" is the
+ * stored `users.<self>.muted` - the value `toggleOwnMic` writes - and not `getUser`'s answer, which Foundry may complete
+ * from the A/V client's own state (av/settings.mjs, external, not re-read here).
  *
  * @param {object} [facts]  handed in by R537; left out, each is read here
  * @param {object|null} [facts.hold]  `micHold()`'s answer

@@ -68,7 +68,10 @@
  *   (incident-store.mjs `restoreState`, closed with `restoreState({})` and the setting put back), killed in secret
  *   again: the room p2 stood in is kept while the incident runs, and the dead channel follows its close. Until E19
  *   C3 this was A9-K3 of known-leaks.json, an expected red: the kill sent p2 to the main room, where p1 heard them.
- *   Last, a packet from p3, a player, naming the dead channel for p1: p1 stays meant for the main room and in it.
+ *   Then a packet from p3, a player, naming the dead channel for p1: p1 stays meant for the main room and in it.
+ *   Last (E19 fix r1-G1, the review's sec-3), p1's page put back to the moment it loads - its told room forgotten,
+ *   voice-client.mjs `landAloneFirst` asked as the hook asks it before ready - and connected: p1 joins its room of
+ *   one, not the main room, and the primary GM's packet brings it back.
  * F (E78 fix r1-G1; the review's SEC-R1-1 and the goal's S16-10 (d)): with the dock hidden. p1 in the main room with
  *   the GM and p2, nobody speaking: the number on the speaker, in the tiles' row and drawn without a click, says 2; a
  *   participant avclient-livekit maps to no user (put in p1's Room by hand) makes it 3, and their leaving 2. Then the
@@ -646,7 +649,7 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
         out.closed = await targets();
         out.idleAgain = I.murderState() === null;
         return out;`, { timeout: 20000 });
-    let heard = null, forged = null;
+    let heard = null, forged = null, landed = null;
     try {
         // p1 stands in the main room (the primary GM's packet, as in B), and the main room holds whom the GM's reading
         // sends there: p2 is in p1's Room only if the module put p2 in the main room.
@@ -688,6 +691,30 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
             const VC = await import("${repoUrl}/scripts/voice-client.mjs");
             const moved = await until(() => VC.desiredRoom() !== null || __liveKit.read().name !== __liveKit.MAIN_ROOM, 1000);
             return { moved, desired: VC.desiredRoom() ?? null, room: __liveKit.read().name === __liveKit.MAIN_ROOM };`, { timeout: 15000 });
+        // E19 fix r1-G1 (the review's sec-3): a page that loads is told nothing yet, and Foundry's own connect at setup
+        // comes right after `liveKitClientInitialized`. A seeded client cannot reload, so p1's page is put back to
+        // that moment by hand - its told room forgotten, `landAloneFirst` asked as the hook asks it before ready - and
+        // connected as Foundry connects: p1 joins its room of one, where nobody is heard, never the main room. The
+        // primary GM's packet then brings p1 back to the main room for F.
+        landed = await p1.eval(`${micJs}
+            if (globalThis.__liveKit?.installed !== true) return { installed: false };
+            const VC = await import("${repoUrl}/scripts/voice-client.mjs");
+            const own = VC.silentRoomFor(game.user.id);
+            __liveKit.setRoster({ [__liveKit.MAIN_ROOM]: ${J(main)}, [own]: [game.user.id] });
+            VC.forgetDesiredRoom();
+            const out = { installed: true, pointed: VC.landAloneFirst({ ready: false, voiceOn: true }) };
+            const serial = __liveKit.read().serial;
+            await game.webrtc.connect();
+            await until(() => __liveKit.read().serial !== serial);
+            const read = __liveKit.read();
+            out.alone = read.name === own;
+            out.main = read.name === __liveKit.MAIN_ROOM;
+            out.heard = read.remote;
+            return out;`, { timeout: 15000 });
+        await gm.eval(`game.socket.emit("module.danganronpa-rpg", { action: "voice.assign", target: "${IDS.p1}", room: null }); return true;`);
+        landed.back = await p1.eval(`${micJs}
+            const VC = await import("${repoUrl}/scripts/voice-client.mjs");
+            return await until(() => __liveKit.read().name === __liveKit.MAIN_ROOM && VC.desiredRoom() === null);`, { timeout: 15000 });
     } finally {
         await gm.eval(`
             const C = await import("${repoUrl}/scripts/chapter.mjs");
@@ -707,6 +734,9 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
         J({ victim, heard }));
     check("E: a player's packet naming the dead channel for p1 moves p1 nowhere - p1 is still meant for the main room and in its Room",
         forged?.moved === false && forged?.desired === null && forged?.room === true, J(forged));
+    check("E: a page that loads is in a room of its own until the primary GM says which - Foundry's connect before ready, untold, joins p1's room of one, where nobody is heard, never the main room; the GM's packet then brings p1 to the main room",
+        landed?.installed === true && landed.pointed === true && landed.alone === true && landed.main === false
+            && J(landed.heard) === J([]) && landed.back === true, J(landed));
 
     phase("F: with the dock hidden, p1 sees who is in p1's Room without a click, and reaches p1's microphone, a volume, the microphone device and the mode from the tile and the gear");
     // E78 fix r1-G1 (the review's SEC-R1-1 and the goal's S16-10 (d)). p1 back in the main room with the GM and p2,

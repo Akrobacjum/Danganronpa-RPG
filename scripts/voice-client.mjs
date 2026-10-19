@@ -116,6 +116,8 @@ export function registerVoiceClient() {
         watchForDrops();
         if (applying) return;               // our own reconnect - see `applying`
         debug("Voice: A/V client initialised.");
+        // Foundry's own connect at setup comes right after this hook: alone, not in the main room (`landAloneFirst`).
+        landAloneFirst();
         if (!game.ready) return;
         if (desired !== undefined) enqueue(() => applyAndReport(desired, parkedRequestId));
         else askWhereIBelong();
@@ -160,7 +162,48 @@ export function registerVoiceClient() {
 export function catchUpVoice() {
     if (desired !== undefined && clientReady()) return enqueue(() => applyAndReport(desired, parkedRequestId));
     askWhereIBelong();
+    // Nobody can answer: no GM is connected. A page that landed alone (`landAloneFirst`) joins the main room as every
+    // page did before E19 fix r1-G1, unremembered; the GM who arrives is asked again (`userConnected` above).
+    if (landedAlone && !activeGmIds().length) return enqueue(() => applyBreakout(null, { remember: false }));
     return Promise.resolve(null);
+}
+
+/** Whether this page's first connect was pointed at a room of its own by `landAloneFirst`, and no room since. */
+let landedAlone = false;
+
+/**
+ * A PAGE THAT LOADS IS IN NO CHANNEL UNTIL THE PRIMARY GM SAYS WHICH (E19 fix r1-G1, 19.10.2026; the review's sec-3).
+ * Foundry connects A/V during its setup, before `ready`, and avclient-livekit connects to the world's own room - the
+ * main room - when nothing has set `breakoutRoom` (this file's header). Nothing had: `desired` lives in this page's
+ * memory, so after a reload a dead student, or a victim in the crime room, sat in the main room from that connect
+ * until `ready`, its question and the primary's answer - heard by every player there, and named on their tiles,
+ * which broke E19-18 ("never the main room") and E19-19. Now this hook, which avclient-livekit fires at the end of its
+ * own `initialize()`, right before that connect reads `breakoutRoom`, points it at this account's own room of one
+ * (`silentRoomFor`, the Eclipse's word, which nobody else is sent), while regional voice is on and before anybody has
+ * told this page a room. Nobody hears it there and it hears nobody; the primary's answer moves it, and with no GM
+ * connected at `ready` it joins the main room (`catchUpVoice`). Nothing is stored: a page remembers no room across a
+ * reload, so a stale one can put nobody anywhere. Where avclient-livekit 0.6.8 reads `breakoutRoom` in its connect is
+ * this file's header's reading, not measured at a table (E19-19's live check, which AUDIT 9.2 has no item of yet).
+ *
+ * The facts can be handed in, so R834 asks it on a client of its own.
+ *
+ * @returns {boolean} whether it pointed the connect at the room of one
+ */
+export function landAloneFirst({ ready = game.ready, told = desired !== undefined, voiceOn = regionalVoiceOn(),
+    client = liveKitClient(), userId = game.user?.id } = {}) {
+    if (ready || told || !voiceOn || !client || !userId) return false;
+    client.breakoutRoom = silentRoomFor(userId);
+    landedAlone = client === liveKitClient();
+    return true;
+}
+
+/** The world's regional voice switch (settings.mjs `SETTINGS.voiceEnabled`), read by its key: settings.mjs is not imported here. */
+function regionalVoiceOn() {
+    try {
+        return game.settings.get(MODULE_ID, "voiceEnabled") === true;
+    } catch {
+        return false;
+    }
 }
 
 /**
@@ -509,6 +552,7 @@ export async function applyBreakout(room, { remember = true } = {}) {
     // Room's state is, below. `breakoutRoom` still names the account's own room, so a connect not asked here lands alone.
     const leave = silentFor(target) && !externalAV();
     setApplying(true);
+    landedAlone = false;
     try {
         client.breakoutRoom = room ?? undefined;
         if (leave) await game.webrtc.disconnect();
