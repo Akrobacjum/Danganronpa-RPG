@@ -17835,6 +17835,86 @@ const INVARIANTS = [
         J(["Frisk: zobacz, co ktoś nosi", true, true, false]),
         "[the Polish row, the Polish Palm hint says it, the Polish brochure says it, the Polish GM handbook's Palm says 'GMa']");
     }],
+    ["R623 - the Frisk's windows are drawn as the module's (the mock-up pass's mk-1, mk-3, mk-4): the Palm window with its Frisk ways pins its footer to the foot of its scrolling box, as a table window does and a short module dialog does not; the target's ask and 'Make them?' open as module panels; and every Palm row's icon is a pixel glyph under Stained Glass", async () => {
+        /*
+         * E80 fix r2-G2, 19.10.2026; the fx-4 mock-up pass (scratchpad c2mock/p2: make.mjs, Chromium, the module's six
+         * sheets on a stand-in of Foundry's frame). The harms: at 1366x768 with Frisk picked the Palm window's content
+         * scrolled by 92 px under Stained Glass and 66 px (EN) / 53 px (PL) under Monokuma Legacy, and its footer - 'Do it'
+         * and 'Cancel' - lay wholly below the visible box, because the sticky footer held only windows with a table (mk-1);
+         * the target's 'Turn out your pockets?' and the searcher's 'Make them?' opened with no module class, as Foundry's
+         * bare 400 px dialog beside the Palm window's 544 and without Glass's frame (mk-3); and the Frisk row's
+         * `fa-hand-pointer` had no pixel glyph, the one Palm row Stained Glass would draw in Font Awesome's style (mk-4).
+         * jsdom has no layout, so this reads what decides each, as the cascade test of the room tile does: the Palm
+         * window as action-rolls.mjs `choosePalm` draws it (`DialogV2.wait` answered with nothing, nothing shown) set in
+         * Foundry's DialogV2 frame (window-content > dialog-form > dialog-content + form-footer) on a document of its
+         * own, and for its footer the `position` of every style rule of module.json's sheets whose selector the footer
+         * matches by its own `matches`; the same frame round a table and round a short paragraph, the two controls; the
+         * `classes` of the two DialogV2 calls in frisk.mjs; and each row icon of that window against the mask rule
+         * pixel-icons.css states for its name, with a name no sprite has as the control. What only a screen shows - that
+         * the pinned footer is reachable in Foundry's own frame at 1366x768, both themes, EN and PL - is the owner's
+         * A11-16. Red at the parent (aa58b22): the Palm window's footer matches no sticky rule, both frisk.mjs windows
+         * have no classes, and `fa-hand-pointer` has no mask rule.
+         */
+        needs(world.atLeast("stashedItems", 1), "the target carries something, a stashed item among it");
+        const { choosePalm } = await import("./action-rolls.mjs");
+        const target = game.actors.find(a => a.type === "character" && a.items.some(i => i.getFlag(MODULE_ID, "location") === "vault"));
+        const actor = game.actors.find(a => a.type === "character" && a.id !== target?.id);
+        must(target && actor, "the world has no two characters, one of them holding a stashed item - this would measure nothing");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const drawn = [];
+        D.wait = async cfg => { drawn.push(cfg); return null; };
+        try {
+            await choosePalm(actor, ACTIONS.palm, [target], [{ id: "R623MINE", name: "R623 own thing", getFlag: () => undefined }]);
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+        }
+        must(drawn.length === 1, `choosePalm drew ${drawn.length} window(s) of 1 - this would measure nothing`);
+        const palm = drawn[0];
+
+        const sheet = new document.defaultView.CSSStyleSheet();
+        sheet.replaceSync(await moduleStyles());
+        const rules = [...sheet.cssRules].filter(rule => typeof rule.selectorText === "string" && rule.style);
+        ok(rules.length > 1000, `only ${rules.length} style rules were read - the stylesheets did not load`);
+        const page = document.implementation.createHTMLDocument("R623");
+        // The `position` each matching rule gives the footer of a DialogV2 frame of `classes` round `content`.
+        const footerPositions = (classes, content) => {
+            const frame = page.createElement("div");
+            frame.className = ["application", "dialog", ...classes].join(" ");
+            frame.innerHTML = `<section class="window-content"><form class="dialog-form standard-form"><div class="dialog-content standard-form"></div>`
+                + `<footer class="form-footer"><button type="submit" data-action="ok">ok</button></footer></form></section>`;
+            const slot = frame.querySelector(".dialog-content");
+            if (typeof content === "string") slot.innerHTML = content; else slot.append(content.cloneNode(true));
+            page.body.replaceChildren(frame);
+            const footer = frame.querySelector("footer.form-footer");
+            const found = [];
+            for (const rule of rules) {
+                if (!rule.style.getPropertyValue("position")) continue;
+                let hit = false;
+                try { hit = footer.matches(rule.selectorText); } catch { hit = false; }
+                if (hit) found.push(rule.style.getPropertyValue("position"));
+            }
+            return found;
+        };
+        must(palm.content?.querySelector?.(".drpg-frisk-modes"), "the Palm window has no Frisk ways - this would measure nothing");
+        const positions = [footerPositions(palm.classes ?? [], palm.content),
+            footerPositions(["drpg-panel"], "<table><tr><td>R623</td></tr></table>"),
+            footerPositions(["drpg-panel"], "<p>R623 a short dialog</p>")];
+
+        const frisk = stripComments(new Map(await otherSources()).get("frisk.mjs") ?? "");
+        const classesOf = name => {
+            const call = bodyOf(fnSource(frisk, name), "DialogV2.wait({", { until: "buttons:" });
+            return [...(call.match(/classes:\s*\[([^\]]*)\]/)?.[1] ?? "").matchAll(/"([^"]+)"/g)].map(m => m[1]);
+        };
+
+        const css = await fetch(`/modules/${MODULE_ID}/styles/pixel-icons.css`).then(r => r.text());
+        const glyphless = names => names.filter(name => !new RegExp(`\\.${name}:is\\(i, span\\) \\{ --drpg-px-mask: var\\(--drpg-px-[\\w-]+\\); \\}`).test(css));
+        const icons = [...palm.content.querySelectorAll(".drpg-choice i")].map(i => [...i.classList].find(c => c.startsWith("fa-") && c !== "fa-solid") ?? null);
+
+        equal(stableJson([palm.classes ?? [], positions, classesOf("openAskWindow"), classesOf("askToForce"), icons.length, glyphless(icons), glyphless(["fa-r623-no-sprite"])]),
+            stableJson([["drpg-panel"], [["sticky"], ["sticky"], []], ["drpg-panel"], ["drpg-panel"], 3, [], ["fa-r623-no-sprite"]]),
+            "[the Palm window's classes; the footer's position by each rule it matches: the Palm window with its Frisk ways, a table window, a short dialog (the controls); the classes of the target's ask and of 'Make them?'; the Palm rows' icons, those with no pixel glyph, and a name no sprite has (the control)]");
+    }],
 ];
 
 /**

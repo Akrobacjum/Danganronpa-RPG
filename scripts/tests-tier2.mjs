@@ -12365,7 +12365,7 @@ const SCENARIOS = [
         }
     }],
 
-    ["an open Frisk's action comes back only where its card says so, after a reload or a new primary, and before a GM's own force meets a shut gate (E80 fix r2-G1, the review's fx-1, fx-2 and fx-3): an ask interrupted while nobody waits on it is not told its action is back, one interrupted on a live wait is told once by the browser that hands it back and not at all where nothing was paid; a follow of an ask a reload or a new primary dropped hands the action back, one the primary ended does not; a GM's own force under a shut gate throws no dice, eats no Call and hands the action back", async () => {
+    ["an open Frisk's action comes back only where its card says so, after a reload or a new primary, and before a GM's own force meets a shut gate (E80 fix r2-G1, the review's fx-1, fx-2 and fx-3): an ask interrupted while nobody waits on it is not told its action is back, one interrupted on a live wait is told once by the browser that hands it back and not at all where nothing was paid; a follow of an ask a reload or a new primary dropped hands the action back, one the primary ended does not; a GM's own force under a shut gate throws no dice, eats no Call and hands the action back; and one whose gate shuts while its own roll window is open counts its roll for nothing - no card, nothing told resolved, the action handed back (E80 fix r2-G2)", async () => {
         /*
          * E80 fix r2-G1, 19.10.2026; the fix-diff review's fx-1, fx-2 and fx-3, the A11 design's steps 7 and 12, STAGE.md's
          * rule "a reload or a new primary ends it with no dice thrown, the action refunded and the answerer told missing".
@@ -12386,6 +12386,13 @@ const SCENARIOS = [
          * then 'Make them'. Read: the answers and follows, the actions left of `top`, the cards (as fix r1-G2's test reads
          * them) and whether a card says the action is back, the browser's 'Your action is back.' lines, the rolls thrown,
          * the Calls armed after and what was told resolved. Red at the parent (bcbd213): every phase but the control.
+         * E80 fix r2-G2, 19.10.2026 (r2-G1's own gap): the phase gateShutInWindow - the same GM's own refused ask with a
+         * Hope Call armed, 'Make them' pressed with the gate open, and an Eclipse that lands as the roll window closes,
+         * after the gate was read and before the dice are thrown (the `daggerheart.postDualityRollConfiguration` hook
+         * shadows the roll's `evaluate`, as the configuration hook's own test does). The dice are thrown and the Call the
+         * window applied is spent (`calls` []: a GM's own window spends it as it closes); the roll is then read against the
+         * gate again and counts for nothing. Red at the parent (aa58b22): the roll reported as a force (a card of its
+         * own), told resolved, the action left spent and nothing said of it.
          */
         needs(world.atLeast("connectedPlayersWithCharacter"), "the ask is a connected player's, as Foundry names only those");
         const G = await import("./bridge-guards.mjs");
@@ -12507,6 +12514,7 @@ const SCENARIOS = [
             return { asking, answered, asked: out?.asked ?? null, left: actionsLeft(theirs), ...read() };
         };
         const seen = {};
+        let inWindow = null;
         const stood = await aloneTogether(theirs, other);
         // As fix r1-G2's test: the GMs' trace digest said first, as this test ends Eclipses inside its reads.
         await (await import("./remnants.mjs")).flushTraceDigest();
@@ -12560,9 +12568,29 @@ const SCENARIOS = [
             must(await C.armCall(theirs, { key: "support", kind: "hope", grants: "advantage" }), "the Hope Call could not be armed");
             const shut = await gmFrisk({ pressed: async () => { await eclipse(true); return "force"; } });
             seen.gateShut = { ...shut, calls: [theirs.getFlag(MODULE_ID, FLAGS.pendingCall) ?? []].flat().map(entry => entry?.key ?? null) };
+            // fix r2-G2: a GM's own, refused, a Hope Call armed; 'Make them' with the gate open; an Eclipse lands as its roll
+            // window closes, before the dice are thrown.
+            await theirs.unsetFlag(MODULE_ID, FLAGS.pendingCall);
+            must(await C.armCall(theirs, { key: "support", kind: "hope", grants: "advantage" }), "the Hope Call could not be armed");
+            let landed = 0;
+            inWindow = Hooks.on("daggerheart.postDualityRollConfiguration", roll => {
+                const evaluate = roll?.evaluate;
+                if (typeof evaluate !== "function") return;
+                Object.defineProperty(roll, "evaluate", { configurable: true, writable: true, value: async function (...args) {
+                    delete this.evaluate;
+                    await eclipse(true);
+                    landed += 1;
+                    return evaluate.apply(this, args);
+                } });
+            });
+            const late = await gmFrisk({ pressed: "force" });
+            Hooks.off("daggerheart.postDualityRollConfiguration", inWindow);
+            inWindow = null;
+            seen.gateShutInWindow = { ...late, landed, calls: [theirs.getFlag(MODULE_ID, FLAGS.pendingCall) ?? []].flat().map(entry => entry?.key ?? null) };
         } finally {
             Hooks.off("createChatMessage", hook);
             Hooks.off("drpgActionResolved", resolved);
+            if (inWindow !== null) Hooks.off("daggerheart.postDualityRollConfiguration", inWindow);
             ui.notifications.info = info;
             if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
             globalThis.__dialogAnswers.length = 0;
@@ -12594,7 +12622,10 @@ const SCENARIOS = [
             // One roll: the harness's own, thrown on this browser to cut the draw's packet from (`drawnForPlayer`); none drawn.
             newPrimary: { no: ["refused"], swept: 1, draw: "cannotNow", follow: ["interrupted"], cards: [], ...quiet, rolls: 1 },
             endedByPrimary: { no: ["refused"], swept: 1, follow: ["missing"], cards: [["toTarget letGo", ["target"], false]], ...quiet },
-            gateShut: { asking: true, answered: ["refused"], asked: null, left: top, cards: [refusal, interrupted], ...quiet, backs: 1, calls: ["support"] }
+            gateShut: { asking: true, answered: ["refused"], asked: null, left: top, cards: [refusal, interrupted], ...quiet, backs: 1, calls: ["support"] },
+            // One roll: the dice were thrown (Daggerheart's message, claimed and hidden); the Call its window applied spent.
+            gateShutInWindow: { asking: true, answered: ["refused"], asked: null, left: top, cards: [refusal, interrupted], ...quiet, rolls: 1, backs: 1,
+                landed: 1, calls: [] }
         };
         // One reading of every phase, so a red names each phase that differs.
         equal(stableJson(seen), stableJson(expected), `[each phase: the answers and follows, the actions left of ${top}, each card (what it says, to whom, whether it says the action is back), the rolls thrown, the searcher's late answers, the browser's 'Your action is back.' lines, what was told resolved; and the Calls armed after the shut gate's force]`);

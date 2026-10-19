@@ -858,7 +858,9 @@ function withdrawAsk(askId, { clock = false } = {}) {
 /**
  * The target's window (the design's step 6d): 'Turn out your pockets?', the asker and the character asked about by
  * name, the clock, 'Refuse' first and the default, 'Let them look'. A close, Escape or the clock is a refusal; the clock
- * closes it with nothing sent, since the primary has run the same clock. The answer goes back by the bridge.
+ * closes it with nothing sent, since the primary has run the same clock. The answer goes back by the bridge. A module
+ * panel (`drpg-panel`), as the Palm window that asked it is, and 'Make them?' too: the module's width and each theme's
+ * frame (E80 fix r2-G2, the mock-up pass's mk-3: both opened as Foundry's bare 400 px dialog).
  */
 async function openAskWindow({ askId, who = "", name = "", ms = 0, force = false, byGms = false }) {
     const open = { withdrawn: false, timer: null, dialog: null };
@@ -871,6 +873,7 @@ async function openAskWindow({ askId, who = "", name = "", ms = 0, force = false
     try {
         answer = await DialogV2.wait({
             window: { title: game.i18n.localize("DRPG.Frisk.askTitle") },
+            classes: ["drpg-panel"],
             content: dialogContent(text),
             rejectClose: false,
             buttons: [
@@ -905,6 +908,7 @@ async function askToForce(def, forceMs) {
     try {
         const picked = await DialogV2.wait({
             window: { title: game.i18n.localize("DRPG.Frisk.forceTitle") },
+            classes: ["drpg-panel"],
             content: dialogContent(say("DRPG.Frisk.forceText", { force: def?.frisk?.threshold, s: Math.round(forceMs / 1000) })),
             rejectClose: false,
             buttons: [
@@ -954,7 +958,8 @@ function gmForceShut(searcher, target, silentAtAsk) {
  * back and only where something was paid (fx-1); a follow the primary answers `interrupted` because a reload or a new
  * primary dropped the ask while 'Make them?' was open hands it back as well (fx-2); and a GM's own 'Make them' reads the
  * force's gate before its dice (`gmForceShut`), so a gate shut meanwhile throws nothing, eats no Call and ends the ask
- * `interrupted` (fx-3). Still thrown: a GM's force whose gate shuts while its own roll window is open.
+ * `interrupted` (fx-3). A gate that shuts while that GM's own roll window is open is read again as the dice come back
+ * (E80 fix r2-G2): the roll counts for nothing, though its dice were thrown and its window's Calls spent.
  */
 async function performFriskOpenly(actor, def, victim, { cost = def?.cost ?? 1, room = null } = {}) {
     const A = await import("./action-rolls.mjs");
@@ -978,10 +983,22 @@ async function performFriskOpenly(actor, def, victim, { cost = def?.cost ?? 1, r
     if (!FORCEABLE.includes(asked.outcome) || !asked.forceMs || !asked.askId) return base;
 
     const pressed = await askToForce(def, asked.forceMs);
-    const roll = pressed && !(game.user?.isGM && gmForceShut(actor, victim, silentAtAsk)) ? await A.rollTrait(actor, def.frisk.trait, {
+    const gmOwn = Boolean(game.user?.isGM);
+    let roll = pressed && !(gmOwn && gmForceShut(actor, victim, silentAtAsk)) ? await A.rollTrait(actor, def.frisk.trait, {
         actionKey: "frisk", dc: def.frisk.threshold, title: def.frisk.label,
         context: { room, victimId: victim.id, direction: "frisk", mode: "openly" }
     }) : null;
+    // A GM's own roll window stood open while the gate shut (E80 fix r2-G2, r2-G1's gap): read again as the dice come
+    // back, before anything is played, reported or told resolved. Shut: the roll counts for nothing - no card, no
+    // `drpgActionResolved`, the follow names no roll, so the primary reads where the two stand and ends the ask
+    // `interrupted` (the action handed back below) or 'lets it go' past the force's window, as it does for a player's
+    // draw refused before its dice. What stays: the dice were thrown on this GM's browser (Daggerheart's message,
+    // claimed and never shown, and the GMs' Reroll row, which says `friskStands`), and the Calls its window applied,
+    // spent as the window closed - a player's force keeps them, since the primary refuses its draw before spending.
+    if (roll && gmOwn && gmForceShut(actor, victim, silentAtAsk)) {
+        log("A GM's own Frisk force came back from its roll window after the gate shut: the roll counts for nothing.");
+        roll = null;
+    }
     const follow = await requestFriskFollow({ searcherId: actor.id, askId: asked.askId,
         rollId: roll ? A.rollInHand(actor)?.messageId ?? null : null, total: roll?.total ?? 0, isCritical: Boolean(roll?.isCritical) });
     // No roll thrown, and the primary read the gate shut or the ask dropped ('interrupted'): the action back as it was paid

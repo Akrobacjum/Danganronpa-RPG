@@ -5247,9 +5247,17 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    enough to need that scroll, the buttons (Save, Confirm, Close) were exactly
    what disappeared first, off the bottom edge. `position: sticky` keeps the
    footer pinned to the bottom of that same scrolling box instead. Scoped to
-   `:has(.dialog-content table)`: every other module dialog is short enough
-   that this was never the problem, and giving every footer its own opaque
-   background would repaint plenty of windows that do not need it.
+   `:has(.dialog-content table)` and to the Palm window with its Frisk ways
+   (`.drpg-frisk-modes`, action-rolls.mjs `friskModes`): giving every footer its
+   own opaque background would repaint plenty of windows that do not need it.
+   The Palm window is the one short dialog measured to need it (E80 fix r2-G2,
+   19.10.2026, the mock-up kit c2mock/p2/make.mjs in Chromium, the module's
+   sheets in a stand-in of Foundry's frame): at 1366x768 with Frisk picked its
+   content scrolled by 92 px under Stained Glass and 66 px (EN) / 53 px (PL)
+   under Monokuma Legacy, with 'Do it' and 'Cancel' wholly below the visible
+   box; with Take picked, and at 1920x1080, it fits. Pinned, both buttons stay
+   on screen while the Frisk ways scroll under them. Foundry's own frame at
+   that size is the owner's live check (A11-16).
 
    THE BAR HAS TO COVER THE WHOLE BOTTOM OF THE BOX, not most of it.
    ------------------------------------------------------------------------
@@ -5304,7 +5312,7 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
-):has(.dialog-content table) footer.form-footer {
+):has(.dialog-content table, .dialog-content .drpg-frisk-modes) footer.form-footer {
     position: sticky;
     bottom: calc(-1 * var(--drpg-window-pad));
     left: 0;
@@ -5636,9 +5644,13 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
 }
 
 /* A Frisk's ways under its row (E80 part 2 C2, `friskModes` in action-rolls.mjs): one radio a way, each with its
-   bars, drawn as the Rest window's options are. C2 has Unseen alone; C3 adds Openly above it. Drawn in Chromium
-   with this stylesheet alone (19.10.2026, a 460 px window, both themes, EN and PL): the block opens under the
-   checked Frisk row, 74 px high, its hint on two lines. In Foundry's own window: not measured (no layout here). */
+   bars, drawn as the Rest window's options are. C2 has Unseen alone; C3 adds Openly above it. Measured 19.10.2026
+   with the mock-up kit (c2mock/p2/make.mjs: Chromium, the module's six sheets on a stand-in of Foundry's frame,
+   the Palm window at 544 px, Openly checked, EN and PL; E80 fix r2-G2): the block opens under the checked Frisk row
+   116-129 px high with no theme class, 175 px under Stained Glass and 141-154 px under Monokuma Legacy. C2's first
+   note here (74 px "in both themes") came from shots whose theme class never reached the page, so no theme was
+   drawn. The window's footer stays on screen through the sticky rule above (`.drpg-frisk-modes`). In Foundry's own
+   window: not measured (no layout here; A11-16). */
 .drpg-frisk-modes {
     display: flex;
     flex-direction: column;
