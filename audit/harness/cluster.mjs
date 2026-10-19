@@ -508,6 +508,15 @@ function onClientMessage(who, entry, msg) {
             if (!isGM(entry.userId)) {
                 error = "User lacks permission to update world Setting";
                 permissionDenials.push({ who, op: `setting ${msg.key}`, error });
+            } else if (Object.hasOwn(world.settings, msg.key) && JSON.stringify(world.settings[msg.key]) === JSON.stringify(msg.value)) {
+                /* An empty diff (E16 fix r1e-G1, finding fd3-1): v14 keeps a world setting as its JSON string and
+                   updates its Setting document with that string, and an update that changes nothing is dropped
+                   before it is sent - no write, no `updateSetting`, no `onChange`, and `_stats.lastModifiedBy` stays
+                   the last real writer's. Until this fix the harness applied and stamped it, so a put-back that
+                   wrote the very JSON stored looked like a write here. Recalled, not read: LIVE-E30-03 (the empty
+                   update) and LIVE-E16-04 (the Setting's stamp). Same JSON means same key order too: v14 compares
+                   the strings, so the same rows in another order are a change. Nothing is logged: `settingLog`
+                   holds the writes the server applied. */
             } else {
                 world.settings[msg.key] = msg.value;
                 settingWriters[msg.key] = entry.userId;

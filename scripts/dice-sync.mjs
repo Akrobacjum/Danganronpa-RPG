@@ -115,7 +115,9 @@
  * below full Gamemaster while a full Gamemaster's primary is here is put back as the switches are, heard or found
  * at the next step. Both judge the writer, not the rows (E16 fix r1-G1 of round r1d, finding fd2-1): the same rows
  * in another key order are another string to v14 and name the Assistant, so they are written again too, with a
- * write stamp `w` that makes every write a change. A world setting reaches every client, players' too: what it
+ * write stamp `w` that makes every write a change - one the stored `w` cannot hold still, however an Assistant
+ * set it, and a put-back is told only where its write landed (E16 fix r1e-G1, finding fd3-1). A world setting
+ * reaches every client, players' too: what it
  * holds is what every client already holds on the actors themselves (their Dice So Nice overlays), with the
  * stamps, so nothing of the GMs' is told.
  * Who wrote a Setting is modelled in the harness, not read on v14: LIVE-E16-04.
@@ -172,6 +174,8 @@ let heldTableLook = null;
 /** The world's copy of the store (E16 fix r1c-G1): its key; the value this browser last saw a full Gamemaster leave there, as JSON. */
 const WORLD_COPY = SETTINGS.diceLookWorld;
 let worldCopyHeld = null, worldCopyTaken = false, worldCopyChain = Promise.resolve(), saidWorldCopy = false;
+/** The world's copy, as its JSON, that this browser's write of it last left as it was (E16 fix r1e-G1, finding fd3-1): not "moved" again. */
+let worldCopyStuck = null;
 
 /**
  * Called from module.mjs's own `ready` hook, not from a `Hooks.once("ready")` registered here: Foundry does not
@@ -367,6 +371,9 @@ function worldCopyMoved() {
     if (!isFullGm(game.user)) return false;
     const value = worldCopyValue();
     if (value === undefined) return false;
+    // A copy this browser's write could not move (a write v14 dropped) waits for its next change or the next load:
+    // trying again at each step only repeats the write, and sends every user's update to a sweep (finding fd3-1).
+    if (worldCopyStuck !== null && JSON.stringify(value) === worldCopyStuck) return false;
     if (writtenBelowFullGm()) return true;
     return worldCopyHeld !== null && stableJson(value) !== worldCopyHeld;
 }
@@ -385,22 +392,40 @@ function rowsOfCopy(value) {
 }
 
 /**
+ * The write stamp of the world's copy: one that differs from the stamp `current` holds, so the write is a change of
+ * the value (E16 fix r1e-G1, finding fd3-1). The stamp orders nothing - the rows carry their own stamps, and are
+ * merged by those - so the stored one is read only where it is a safe integer, for which `+ 1` is exact: an
+ * Assistant's console writes any `w`, and from 2**53 up `w + 1 === w`, which wrote back the very JSON stored, an
+ * empty diff v14 drops. Anything else gives this clock's milliseconds, a safe integer, so not the stored value.
+ */
+function nextStamp(current) {
+    const now = Date.now();
+    return Number.isSafeInteger(current?.w) ? Math.max(now, current.w + 1) : now;
+}
+
+/**
  * The world's copy written from this browser's store, one write at a time: by a full Gamemaster's primary only,
  * and only once its load took the copy there (a store older than the world's must not write over it first). It is
  * written where its rows differ, and also where its last writer is not a full Gamemaster, rows equal or not (E16
  * fix r1-G1 of round r1d, finding fd2-1): the copy must name a full Gamemaster again, or every later load refuses
- * it. The write stamp `w` makes each write a change of the value, so that it is never an empty diff that leaves
- * the writer as it was; the rows are compared without it. True when it wrote.
+ * it. The write stamp `w` (`nextStamp`) makes each write a change of the value, so that it is never an empty diff
+ * that leaves the writer as it was; the rows are compared without it. True only when the write landed, the value
+ * moved (E16 fix r1e-G1, finding fd3-1) - with the stamp a landed write always moves it, and the writer is not
+ * asked, since a dropped write leaves a full Gamemaster who wrote before named too: a write that changed nothing
+ * is no put-back to tell, and the copy it left is not tried again until it moves (`worldCopyStuck`).
  */
 function writeWorldCopy() {
     worldCopyChain = worldCopyChain.catch(() => false).then(async () => {
         if (!isPrimaryGm() || !isFullGm(game.user) || !worldCopyTaken || !diceLookStore.isHydrated()) return false;
         const rows = rowsOfActors(diceLookStore.section());
         const current = worldCopyValue();
-        const wrote = !isFullGm(worldCopyWriter()) || stableJson(rowsOfCopy(current)) !== stableJson(rows);
-        if (wrote) {
-            const w = Math.max(Date.now(), (Number.isFinite(current?.w) ? current.w : 0) + 1);
-            await game.settings.set(MODULE_ID, WORLD_COPY, { ...rows, w });
+        let wrote = false;
+        if (!isFullGm(worldCopyWriter()) || stableJson(rowsOfCopy(current)) !== stableJson(rows)) {
+            const before = JSON.stringify(current ?? null);
+            await game.settings.set(MODULE_ID, WORLD_COPY, { ...rows, w: nextStamp(current) });
+            const after = JSON.stringify(worldCopyValue() ?? null);
+            wrote = after !== before;
+            worldCopyStuck = wrote ? null : after;
         }
         worldCopyHeld = stableJson(worldCopyValue() ?? rows);
         return wrote;
@@ -813,10 +838,11 @@ export async function compareOverlays() {
     return back;
 }
 
-/** Suite only: what a reload forgets - the fuse's counts and the users and actors it stopped - for tier 2's reload. */
+/** Suite only: what a reload forgets - the fuse's counts, the users and actors it stopped, and the minute of the switches' notice - for tier 2's reload. */
 export function forgetFuses() {
     putBacks.clear();
     blown.clear();
+    toldSwitchAt = 0;
 }
 
 /** Suite only: the fuse's clock moved `ms` on, for tier 2's wait of a minute (E16 fix r1-G1, finding C3-C2). */

@@ -28,19 +28,22 @@
  *      held the GMs' stores (E16 fix r1b-G1); first, with only the Assistant
  *      at the table, to a character's look the GM gave after it left (E16 fix
  *      r1c-G1); last, `ag2`, a second Assistant declared late, comes back
- *      alone to such a look (H9, E16 fix r1-G2 of round r1d).
+ *      alone to such a look (H9, E16 fix r1-G2 of round r1d); then ag2 becomes the
+ *      primary after loading beside gm2 (H12), and `ag3`, a third Assistant
+ *      declared late, after loading beside ag2 alone (H13, E16 fix r1e-G1).
  * What v14 itself allows an Assistant is modelled, not measured: LIVE-E30-04,
  * -05 and -06 in audit/AUDIT-1.2.42.md section 9.2.
  */
 export const layers = ["ci"];
 export const accounts = [{ who: "ag", id: "USERAG0000000000", name: "Assistant", role: 3, character: null, color: "#aa66ff" },
     { who: "gm2", id: "USERGM2000000000", name: "Second GM", role: 4, character: null, color: "#66aaff", late: true },
-    { who: "ag2", id: "USERAG2000000000", name: "Second Assistant", role: 3, character: null, color: "#cc88ff", late: true }];
+    { who: "ag2", id: "USERAG2000000000", name: "Second Assistant", role: 3, character: null, color: "#cc88ff", late: true },
+    { who: "ag3", id: "USERAG3000000000", name: "Third Assistant", role: 3, character: null, color: "#ddaaff", late: true }];
 
 const MOD = "danganronpa-rpg";
 const DH = "system.daggerheart";
 
-export async function run({ gm, ag, gm2, ag2, p1, p2, p3, check, settle, opLog, socketTraffic, connect, disconnect, storageOf, IDS, repoUrl }) {
+export async function run({ gm, ag, gm2, ag2, ag3, p1, p2, p3, check, settle, opLog, socketTraffic, connect, disconnect, storageOf, IDS, repoUrl }) {
     const utils = `(await import("${repoUrl}/scripts/utils.mjs"))`;
     const scene = IDS.scene;
 
@@ -423,6 +426,55 @@ export async function run({ gm, ag, gm2, ag2, p1, p2, p3, check, settle, opLog, 
     check("H6: an Assistant's write of the world's copy of the characters' dice looks with the same rows in another order is put back, so the copy names a full Gamemaster as its writer",
         h6.before === IDS.gm && /,e$/.test(h6.forged) && Object.values(h6.writer).every(id => id === IDS.gm) && h6.row === frost, JSON.stringify(h6));
 
+    /* E16 fix r1e-G1 (finding fd3-1). The put-back made each write a change with a stamp `w` one above the stored
+       one, and an Assistant writes `w` too: from 2**53 up `w + 1 === w`, so the put-back wrote the very JSON the
+       Assistant stored, an empty diff v14 drops (the harness models it from this fix on: LIVE-E30-03) - the Setting
+       went on naming the Assistant, and H5's load would refuse the copy. H10: the Assistant's console writes the
+       copy with `w: 2**53`. Read: the writer the Setting names on the GM's browser and on the Assistant's, the stamp
+       after, and Botan's row. At 15e5d5b with the harness's empty diff alone: the Assistant named, `w` still 2**53. */
+    const stampOn = c => c.eval(`try { return game.settings.get("${MOD}", "diceLookWorld")?.w ?? null; } catch { return null; }`);
+    const h10 = { forged: await ag.eval(`const v = game.settings.get("${MOD}", "diceLookWorld");
+        await game.settings.set("${MOD}", "diceLookWorld", { ...v, w: 2 ** 53 }); return game.settings.get("${MOD}", "diceLookWorld")?.w ?? null;`) };
+    await settle(1500);
+    Object.assign(h10, { writer: { gm: await worldWriterOn(gm), ag: await worldWriterOn(ag) }, w: await stampOn(gm), row: await worldRowOn(gm) });
+    check("H10: an Assistant's write of the world's copy with a write stamp too large to count on is put back, so the copy names a full Gamemaster as its writer",
+        h10.forged === 2 ** 53 && Object.values(h10.writer).every(id => id === IDS.gm) && h10.w !== 2 ** 53 && Number.isSafeInteger(h10.w)
+        && h10.row === frost, JSON.stringify(h10));
+
+    /* E16 fix r1e-G1 (finding fd3-1). The put-back said "put back" whenever it decided to write, landed or not, and a
+       copy it could not move stayed "moved" for every later step: each one wrote again, and while it did every user's
+       update went to a sweep no fuse counts. H11: on the GM's browser a write of the world's copy is dropped, as a
+       `preUpdateSetting` listener that returns false drops it on v14 (a stand-in; the fuses and the minute's notice
+       forgotten, as a reload forgets them); the Assistant's console writes the copy in another key order, then p1
+       posts a message (the primary's next step). Then the writes go through again and the Assistant writes once
+       more. Read: the GM's writes of the copy tried while dropped, the GM's notices naming the Assistant after each,
+       and the writer the Setting names at the end. At 15e5d5b: tried again at the message (tried [1, 2]), and no
+       write landed after it either (told [0, 0], the Assistant named: H10's stamp held). With `wrote` true for any
+       write tried (the mutant of this fix): told [1, ...]. */
+    const toldAgOn = `const said = game.i18n.format("DRPG.DiceLook.settingBack", { name: game.users.get("${IDS.ag}").name });
+        return globalThis.__notifications.filter(n => n.msg === said).length;`;
+    await gm.eval(`${syncJs}.forgetFuses(); const set = game.settings.set; globalThis.__h11 = { set, tried: 0 };
+        game.settings.set = function (ns, key, value, options) {
+            if (key === "diceLookWorld") { globalThis.__h11.tried += 1; return Promise.resolve(value); }
+            return set.call(this, ns, key, value, options);
+        };
+        return true;`);
+    const toldH11 = await gm.eval(toldAgOn);
+    const h11 = { forged: await ag.eval(reorderJs(false)) };
+    await settle(1500);
+    Object.assign(h11, { tried: [await gm.eval(`return globalThis.__h11.tried;`)], told: [await gm.eval(toldAgOn) - toldH11] });
+    await p1.eval(`await ChatMessage.create({ content: "E16 throw after a world copy a GM could not put back", speaker: { actor: "${IDS.aiko}" } }); return true;`);
+    await settle(1500);
+    h11.tried.push(await gm.eval(`const n = globalThis.__h11.tried; game.settings.set = globalThis.__h11.set; delete globalThis.__h11; return n;`));
+    h11.named = await worldWriterOn(gm);
+    await ag.eval(reorderJs(false));
+    await settle(1500);
+    Object.assign(h11, { writer: await worldWriterOn(gm), row: await worldRowOn(gm) });
+    h11.told.push(await gm.eval(toldAgOn) - toldH11);
+    check("H11: a put-back of the world's copy that does not land is not told as put back nor tried again at the next step, and one that lands is told",
+        /,e$/.test(h11.forged) && JSON.stringify(h11.tried) === JSON.stringify([1, 1]) && JSON.stringify(h11.told) === JSON.stringify([0, 1])
+        && h11.named === IDS.ag && h11.writer === IDS.gm && h11.row === frost, JSON.stringify(h11));
+
     /* ---------------------------- D. the full GM leaves ----------------------------- */
 
     const gmErrors = await gm.eval(`return (globalThis.__errors ?? []).map(e => e.where + ": " + e.message);`);
@@ -639,4 +691,59 @@ export async function run({ gm, ag, gm2, ag2, p1, p2, p3, check, settle, opLog, 
         h9.row === "ice" && h9.world === frost && h9.writer === gm2Id && h9.primary === "USERAG2000000000"
         && Object.values(h9.held).every(colour => colour === "frost") && h9.writes.length === 0 && h9.worldAfter === frost
         && h9.errors.length === 0, JSON.stringify(h9));
+
+    /* E16 fix r1e-G1 (the gap fix r1-G2 of round r1d left: fd2-2's side case). An Assistant's browser that is not the
+       primary merges the world's copy at its load too, for when it becomes the primary later (dice-sync.mjs
+       `onStoresHydrated`, `takeWorldCopy`); H9 measured only an Assistant that loads alone. H12: ag2 leaves, gm2 comes
+       back on the browser it left with and gives Botan sky, which ag2's browser (Botan in frost since H9) never hears;
+       ag2 comes back on its own browser while gm2 is the primary; gm2 leaves, so ag2 is the primary; p2 posts a
+       message as Botan (the primary's check at a throw). Read: the primary after gm2 leaves, Botan's overlay on ag2's
+       client and on p2's, ag2's row of Botan, and who wrote Botan from ag2's return on (opLog). */
+    const sky = JSON.stringify({ global: { colorset: "sky" } });
+    await disconnect("ag2");
+    await settle(600);
+    await back();
+    await gm2.eval(`await game.actors.get("${IDS.botan}").update({ "flags.${DSN}.appearance": ${sky} }); return true;`);
+    await settle(1500);
+    await gm2.eval(`const E = ${storesJs}; await E.gmStoresIdle(); return true;`);
+    const h12 = { world: await worldRowOn(gm2) };
+    mark = opLog.length;
+    await connect("ag2", { storage: await storageOf("ag2") });
+    await ag2.eval(`const E = ${storesJs}; await E.whenGmStoresHydrated(); await E.gmStoresIdle(); return true;`);
+    await settle(1500);
+    await disconnect("gm2");
+    await settle(600);
+    h12.primary = await ag2.eval(`return ${utils}.primaryGmId();`);
+    await p2.eval(`await ChatMessage.create({ content: "E16 throw as Botan with an Assistant the primary", speaker: { actor: "${IDS.botan}" } }); return true;`);
+    await settle(1500);
+    Object.assign(h12, { row: await ag2.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        return S.diceLookStore.get("${IDS.botan}")?.look?.global?.colorset ?? null;`), writes: actorWrites(mark, IDS.botan), held: {},
+        errors: await ag2.eval(`return (globalThis.__errors ?? []).map(e => e.where + ": " + e.message);`) });
+    for (const c of [ag2, p2]) h12.held[c.who] = await colourOn(c, IDS.botan);
+    check("H12: a full Gamemaster's newer dice look on a character stands when an Assistant that loaded beside that Gamemaster becomes the primary",
+        h12.world === sky && h12.primary === "USERAG2000000000" && h12.row === "sky" && Object.values(h12.held).every(colour => colour === "sky")
+        && h12.writes.length === 0 && h12.errors.length === 0, JSON.stringify(h12));
+
+    /* E16 fix r1e-G1 (the same gap). H12 holds by two roads: ag2's store takes gm2's rows, which hold the world's copy,
+       besides ag2's own merge of that copy. Where the primary at an Assistant's load is an Assistant, no full
+       Gamemaster's browser sends a row (gm-stores.mjs `fullGmOnly`), and the merge is the only road. H13: `ag3` loads
+       on a browser that never held the GMs' store while ag2 is the primary; ag2 leaves, so ag3 is the primary; p2
+       posts a message as Botan. Read: the primary, ag3's row of Botan, Botan's overlay on ag3's client and on p2's,
+       and who wrote Botan from ag3's connect on (opLog). With no merge: no row, so Botan's sky is put back to none. */
+    mark = opLog.length;
+    await connect("ag3");
+    await ag3.eval(`const E = ${storesJs}; await E.whenGmStoresHydrated(); await E.gmStoresIdle(); return true;`);
+    await settle(1500);
+    await disconnect("ag2");
+    await settle(600);
+    const h13 = { primary: await ag3.eval(`return ${utils}.primaryGmId();`) };
+    await p2.eval(`await ChatMessage.create({ content: "E16 throw as Botan with a third Assistant the primary", speaker: { actor: "${IDS.botan}" } }); return true;`);
+    await settle(1500);
+    Object.assign(h13, { row: await ag3.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        return S.diceLookStore.get("${IDS.botan}")?.look?.global?.colorset ?? null;`), writes: actorWrites(mark, IDS.botan), held: {},
+        errors: await ag3.eval(`return (globalThis.__errors ?? []).map(e => e.where + ": " + e.message);`) });
+    for (const c of [ag3, p2]) h13.held[c.who] = await colourOn(c, IDS.botan);
+    check("H13: a full Gamemaster's dice look on a character stands when an Assistant that loaded beside another Assistant becomes the primary",
+        h13.primary === "USERAG3000000000" && h13.row === "sky" && Object.values(h13.held).every(colour => colour === "sky")
+        && h13.writes.length === 0 && h13.errors.length === 0, JSON.stringify(h13));
 }

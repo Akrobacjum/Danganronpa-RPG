@@ -390,6 +390,11 @@ roll at a table.
   and since E16 fix r1c-G1 with `_stats.lastModifiedBy`: the user whose write
   the server last applied (cluster.mjs `settingWriters`; null for a value the
   seed wrote). That v14 stamps a Setting so is modelled, not read: LIVE-E16-04.
+  Since E16 fix r1e-G1 a world setting written with the JSON it already holds
+  (key order too) is an empty diff: not applied, not broadcast, no
+  `updateSetting` or `onChange`, no `settingLog` row, and its writer stays the
+  last real one - v14 drops an update that changes nothing, recalled, not read
+  (LIVE-E30-03, LIVE-E16-04). A document's update is still not diffed here.
 - **The GM store at a real table** (E04). Late GM accounts (`connect`,
   `disconnect`, `storageOf`) are clients on one machine: `game.time.serverTime`
   is that machine's clock and a client's skew moves its `Date.now` alone
