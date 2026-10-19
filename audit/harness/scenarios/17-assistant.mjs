@@ -19,10 +19,12 @@
  *      post one card (run before D, while the full GM is here; E11 fix r1-G2);
  *   G  one dice look, the GM's, on every user below full Gamemaster and on their
  *      characters (E16 p1 C3, C4), and an Assistant's write of the GMs' copy
- *      of them refused (E16 fix r1-G2);
+ *      of them refused (E16 fix r1-G2), or of the two switches put back (E16
+ *      fix r1b-G1);
  *   H  a character's dice look with no GM watching: `gm2`, a second full
  *      Gamemaster declared late below, leaves before D and comes back to a table
- *      with no other GM (E16 fix early-C4-G1).
+ *      with no other GM (E16 fix early-C4-G1), last on a browser that never
+ *      held the GMs' stores (E16 fix r1b-G1).
  * What v14 itself allows an Assistant is modelled, not measured: LIVE-E30-04,
  * -05 and -06 in audit/AUDIT-1.2.42.md section 9.2.
  */
@@ -340,6 +342,27 @@ export async function run({ gm, ag, gm2, p1, p2, p3, check, settle, opLog, socke
     check("G4: an Assistant's write of the GMs' copy of a character's dice look, through the store or its own packet, is refused, and the character keeps the GM's look at its player's next throw",
         g4.row === gmOverlay && g4.held === gmOverlay && g4.writes.length === 0, JSON.stringify(g4));
 
+    /* E16 fix r1b-G1, 19.10.2026 (finding E16-COR-2; the owner's Q5 runs on its default (a)). Foundry lets an
+       Assistant write a world setting, so the Assistant's console switched `forceDiceLook` off - and threw in its own
+       look from then on - or pointed `diceLookSource` at gm2, a full Gamemaster offline with no look, which the
+       primary then spread to every player. G5: the Assistant's console does both, 1.5 s apart. Read: both settings on
+       every client against what they were, p1's look against the GM's, and the GM's notices naming the Assistant.
+       At d0c7e6e: off and gm2's on every client, p1 in gm2's look, nothing said. */
+    const switchesOn = c => c.eval(`return JSON.stringify([game.settings.get("${MOD}", "forceDiceLook"), game.settings.get("${MOD}", "diceLookSource")]);`);
+    const gm2Id = accounts.find(a => a.who === "gm2").id;
+    const switches = await switchesOn(gm);
+    const gmTold = await gm.eval(`return globalThis.__notifications.length;`);
+    await ag.eval(`await game.settings.set("${MOD}", "forceDiceLook", false); return true;`);
+    await settle(1500);
+    await ag.eval(`await game.settings.set("${MOD}", "diceLookSource", "${gm2Id}"); return true;`);
+    await settle(1500);
+    const g5 = { switches, held: {}, p1: await lookOn(gm, IDS.p1) === canon,
+        told: await gm.eval(`const said = game.i18n.format("DRPG.DiceLook.settingBack", { name: game.users.get("${IDS.ag}").name });
+            return globalThis.__notifications.slice(${gmTold}).filter(n => n.msg === said).length;`) };
+    for (const c of [gm, ag, p1]) g5.held[c.who] = await switchesOn(c) === switches;
+    check("G5: an Assistant's switch of the table's dice look off, or to another full Gamemaster's, is put back on every client, the players keep the GM's look, and the GM is told once",
+        JSON.parse(switches)[0] === true && JSON.parse(switches)[1] === IDS.gm && Object.values(g5.held).every(Boolean) && g5.p1 && g5.told === 1, JSON.stringify(g5));
+
     /* E16 fix early-C4-G1, 19.10.2026 (finding E16-C4-F1). gm2, a second full Gamemaster on a browser of its own, joins
        while the GM and the Assistant are here, takes the GMs' stores from them, and leaves with what they held - Botan's
        overlay the GM's, from G2 - before D, so that the Assistant is the primary there. H brings it back. */
@@ -446,6 +469,27 @@ export async function run({ gm, ag, gm2, p1, p2, p3, check, settle, opLog, socke
     check("H2: past the fuse a character's dice look stands, the GM is told once, and it goes back to the GMs' when the primary GM reloads",
         h2.stood === "black-5" && h2.told === 1 && Object.values(h2.held).every(Boolean)
         && JSON.stringify(h2.writes) === JSON.stringify([...answered, ...answered, ...answered, ...answered, ...answered, ...answered]), JSON.stringify(h2));
+
+    /* E16 fix r1b-G1, 19.10.2026 (findings sec-5 and E16-COR-3). H1 holds only because gm2 comes back with the storage
+       it left with: the GMs' copy is each GM browser's store, and a GM alone on a browser that never held it took
+       every overlay as found. H4: gm2 leaves, p2 writes Botan's overlay with no GM at the table, and gm2 comes back on
+       an empty browser. Read: Botan's overlay on every client (p2 owns Botan: none), Daichi's (no player owns it: the
+       GM's from G2 stands) and who wrote Botan from p2's write on. At d0c7e6e: p2's black on Botan, written by p2 only. */
+    await gm2.eval(`const E = ${storesJs}; await E.gmStoresIdle(); return true;`);
+    await disconnect("gm2");
+    await settle(600);
+    mark = opLog.length;
+    await p2.eval(`await game.actors.get("${IDS.botan}").setFlag("${DSN}", "appearance", { global: { colorset: "black" } }); return true;`);
+    await settle(1200);
+    const h4 = { stood: await colourOn(p2, IDS.botan) };
+    await connect("gm2");
+    await gm2.eval(`const E = ${storesJs}; await E.whenGmStoresHydrated(); return true;`);
+    await settle(1500);
+    Object.assign(h4, { writes: actorWrites(mark, IDS.botan), held: {} });
+    for (const c of [gm2, p1, p2]) h4.held[c.who] = [await overlayOn(c, IDS.botan), await colourOn(c, IDS.daichi)];
+    check("H4: on a GM browser that never held the GMs' copy, a character's dice look its player wrote with no GM connected goes back to none, and a GM's look on a student no player owns stands",
+        h4.stood === "black" && Object.values(h4.held).every(([botan, daichi]) => botan === "null" && daichi === "fire")
+        && JSON.stringify(h4.writes) === JSON.stringify(["p2 update", "gm2 update"]), JSON.stringify(h4));
 
     const late = {};
     for (const c of [gm2, p1, p2, p3]) late[c.who] = await c.eval(`return (globalThis.__errors ?? []).map(e => e.where + ": " + e.message);`);

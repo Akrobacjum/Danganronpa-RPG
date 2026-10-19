@@ -1696,7 +1696,11 @@ process.on("message", async msg => {
                 worldValues.set(msg.key, msg.value);
                 const def = settingDefs.get(msg.key);
                 if (def) { try { def.onChange?.(coerce(def, msg.value)); } catch (err) { logLine(`setting onChange ${msg.key}: ${err.stack}`); recordError(`setting onChange ${msg.key}`, err); } }
-                hooks.callAll("updateSetting", { key: msg.key, value: msg.value }, {}, msg.userId);
+                /* Foundry's shape, `(document, changed, options, userId)`: until E16 fix r1b-G1 (19.10.2026) the writer's
+                   id was handed third, where a listener reads the options, so no listener could tell who wrote a world
+                   setting (dice-sync.mjs `onSwitchWritten`, tests-kit.mjs `watchWrites`, which took every write for
+                   this client's own). */
+                hooks.callAll("updateSetting", { key: msg.key, value: msg.value }, { value: msg.value }, {}, msg.userId);
                 break;
             }
             case "socketMsg": {

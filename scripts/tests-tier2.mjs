@@ -54433,6 +54433,121 @@ const SCENARIOS = [
             "a look written with no hook stood through a GM's rewrite of the roller's dice (quiet: the player's own colour before it; rerolled: the GM's look after it)");
     }],
 
+    ["a player's own dice look on an unlinked token of their character goes back to the character's, at the write and at a throw as the token (S16-02)", async () => {
+        /*
+         * E16 fix r1b-G1, 19.10.2026 (finding sec-4; E16-21). An unlinked token's actor is a synthetic actor whose own
+         * overlay lives in its ActorDelta, and it carries its base actor's id: the put-back read `game.actors` only,
+         * at a write and at a message (`speaker.actor`, the base), so a player's overlay on its unlinked token was
+         * never put back and DSN drew every throw as that token in it. The harness has no synthetic actor (lib/shim.mjs
+         * `TokenDocumentImpl.actor` answers the base), so one is stood in: the player's character with `isToken` true,
+         * the seed token of that character as its `token`, an overlay of its own and an `update` that writes only it;
+         * the token answers it as its actor for the length of the test. The GM gives the base an overlay (the GMs'
+         * copy); then the player's write on the token is handed to `updateActor`'s listeners with the player's id;
+         * then the token's overlay changes with no hook and the player posts a message that speaks as the token; then
+         * the GM writes a look of its own on the token and posts as it. Read: the token's and the base's colours 1.2 s
+         * after each (three times the put-back's wait), and the GMs' copy of the base. At d0c7e6e: the player's
+         * colours stand on the token.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter"));
+        const gm = game.user;
+        const player = game.users.find(u => !u.isGM && u.active && game.actors.some(a => a.type === "character" && a.testUserPermission(u, "OWNER")));
+        const student = game.actors.find(a => a.type === "character" && a.testUserPermission(player, "OWNER"));
+        const scene = game.scenes.find(s => s.tokens?.some(t => t.actorId === student.id));
+        ok(scene, `no scene holds a token of ${student.name}, the player's character`);
+        const token = scene.tokens.find(t => t.actorId === student.id);
+        const { diceLookStore } = await import("./gm-stores.mjs");
+        const { gmStoresIdle } = await import("./gm-store.mjs");
+        const { ForcedDeletion, ForcedReplacement } = foundry.data.operators;
+        const path = `flags.${DSN_SCOPE}.appearance`;
+        const found = actorDiceFound([student]);
+        const own = { look: null };
+        const synthetic = Object.create(student, {
+            isToken: { value: true }, token: { value: token },
+            flags: { get: () => ({ [DSN_SCOPE]: { appearance: own.look } }) },
+            update: { value: async changes => {
+                const value = changes?.[path];
+                own.look = value instanceof ForcedDeletion ? null : value instanceof ForcedReplacement ? value.replacement : value;
+                return synthetic;
+            } }
+        });
+        const colours = () => [own.look?.global?.colorset ?? null, overlayOf(student)?.global?.colorset ?? null];
+        const asToken = { scene: scene.id, token: token.id, actor: student.id, alias: token.name };
+        const cards = [];
+        const read = {};
+        try {
+            await student.update(overlayWrite(GM_OVERLAY));
+            await wait(1200);
+            await gmStoresIdle();
+            Object.defineProperty(token, "actor", { configurable: true, get: () => synthetic });
+            read.same = game.scenes.get(scene.id)?.tokens?.get(token.id)?.actor === synthetic && synthetic.id === student.id;
+            own.look = foundry.utils.deepClone(OWN_OVERLAY);
+            Hooks.callAll("updateActor", synthetic, { flags: { [DSN_SCOPE]: { appearance: OWN_OVERLAY } } }, {}, player.id);
+            await wait(1200);
+            read.written = colours();
+            own.look = { global: { colorset: "emerald" } };
+            await wait(600);
+            cards.push(await ChatMessage.create({ author: player.id, speaker: asToken, content: "E16 a player's throw as an unlinked token" }));
+            await wait(1200);
+            read.thrown = colours();
+            own.look = { global: { colorset: "gold" } };
+            Hooks.callAll("updateActor", synthetic, { flags: { [DSN_SCOPE]: { appearance: own.look } } }, {}, gm.id);
+            cards.push(await ChatMessage.create({ speaker: asToken, content: "E16 a GM's throw as an unlinked token" }));
+            await wait(1200);
+            await gmStoresIdle();
+            read.gm = [...colours(), diceLookStore.get(student.id)?.look?.global?.colorset ?? null];
+        } finally {
+            delete token.actor;
+            for (const card of cards) if (card && game.messages.get(card.id)) await card.delete();
+            await putBackActorDice(found);
+        }
+        equal(stableJson(read), stableJson({ gm: ["gold", "ice", "ice"], same: true, thrown: ["ice", "ice"], written: ["ice", "ice"] }),
+            "a player's own overlay on an unlinked token stood, or the put-back wrote the base or took a GM's look on the token (same: the token answers the stand-in, which carries the base's id; written, thrown: [the token's colour, the base's] after the player's write and after its throw as the token; gm: the same after a GM's own look and throw as the token, then the GMs' copy of the base)");
+    }],
+
+    ["a character a player owns keeps no dice look of its own where the GMs' copy never held it, and one no player owns keeps the GM's (S16-02)", async () => {
+        /*
+         * E16 fix r1b-G1, 19.10.2026 (findings sec-5 and E16-COR-3; E16-21). At a primary's load the GMs' copy took
+         * the overlay as found for every actor its store held no row for - the first run, an actor a player made
+         * while no GM was connected, or every actor on a GM browser that never held the store (another machine,
+         * cleared site data) - so a player's own overlay written with no GM watching became the GMs' copy there.
+         * Two actors are made with no hook (no GM hears them, as none would be connected): one the player owns with
+         * the player's overlay, one no player owns with a GM's; then the comparison at load runs (`compareOverlays`,
+         * the fuse's counts forgotten as a reload forgets them). Read: whether the store held either before, each
+         * overlay after, and the copy's rows. At d0c7e6e: the player's overlay stands and is the copy.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter"));
+        const player = game.users.find(u => !u.isGM && u.active);
+        const sync = await import("./dice-sync.mjs");
+        const { diceLookStore } = await import("./gm-stores.mjs");
+        const { gmStoresIdle } = await import("./gm-store.mjs");
+        const made = [];
+        const read = {};
+        try {
+            made.push(...await Actor.createDocuments([
+                { name: "E16 a player's actor no GM saw", type: "adversary", ownership: { default: 0, [player.id]: CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER },
+                    flags: { [DSN_SCOPE]: { appearance: OWN_OVERLAY } } },
+                { name: "E16 a GM's actor no GM saw", type: "adversary", flags: { [DSN_SCOPE]: { appearance: GM_OVERLAY } } }], { noHook: true }));
+            const [mine, npc] = made;
+            read.unseen = [diceLookStore.has(mine.id), diceLookStore.has(npc.id), mine.testUserPermission(player, "OWNER"), npc.testUserPermission(player, "OWNER")];
+            sync.forgetFuses?.();
+            await sync.compareOverlays?.();
+            read.mine = await until(() => overlayOf(mine) === null, 3000);
+            await wait(600);
+            await gmStoresIdle();
+            read.npc = overlayOf(npc)?.global?.colorset ?? null;
+            read.rows = [stableJson(diceLookStore.get(mine.id)?.look ?? null), diceLookStore.get(npc.id)?.look?.global?.colorset ?? null];
+        } finally {
+            sync.forgetFuses?.();
+            for (const actor of made) if (game.actors.get(actor.id)) await actor.delete();
+        }
+        equal(stableJson(read), stableJson({ mine: true, npc: "ice", rows: ["null", "ice"], unseen: [false, false, true, false] }),
+            "an unseen character a player owns kept the player's own dice look, or one no player owns lost the GM's (unseen: [the store held the player's, the GM's, the player owns them]; mine: the player's overlay gone; npc: the GM's colour kept; rows: the copy of each)");
+    }],
+
     ...GRID
 ];
 

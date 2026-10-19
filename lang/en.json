@@ -2824,6 +2824,7 @@
     },
     "DiceLook": {
       "setByGm": "Your dice look is set by the GM.",
+      "settingBack": "{name} changed the table's dice look settings, which only a full Gamemaster may change, so they were put back.",
       "stopped": "{name}'s dice look keeps changing straight back, so it is left as it is for a minute."
     },
     "RollDialog": {

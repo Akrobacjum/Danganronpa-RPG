@@ -2938,6 +2938,7 @@
     },
     "DiceLook": {
       "setByGm": "Twój wygląd kości ustala GM.",
+      "settingBack": "{name}: zmiana ustawień wyglądu kości przy stole cofnięta - zmienić je może tylko pełny Gamemaster.",
       "stopped": "{name}: wygląd kości wciąż od razu zmienia się z powrotem, więc przez minutę zostaje taki, jaki jest."
     },
     "RollDialog": {

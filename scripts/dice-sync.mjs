@@ -26,12 +26,19 @@
  * held: an Assistant, forced like a player by the owner's Q3, set the table's look by writing it on the
  * Gamemaster. So each GM browser keeps a copy of the source's look - its two flags and its colour, which DSN's
  * `ALL_CUSTOMIZATION` builds a look from - taken as it loads and at each write of the source's by a full
- * Gamemaster (and by anyone while the switch is off: then nothing is forced). A write of it by anyone below full
+ * Gamemaster (and by anyone while a full Gamemaster has the switch off: then nothing is forced). A write of it by anyone below full
  * Gamemaster, and one no hook heard that a sweep finds, is put back to that copy before anything spreads, with
  * the users' wait and fuse. The copy is memory: an Assistant's write while no full Gamemaster's browser was
- * there is the copy at the next load, the family of fix early-C4-G1's gap on the GMs' stores. The two world
- * settings an Assistant may also change, `forceDiceLook` and `diceLookSource`, are not judged here: which roles
- * may set them is the owner's to say.
+ * there is the copy at the next load, the family of fix early-C4-G1's gap on the GMs' stores.
+ *
+ * THE TWO SWITCHES (E16 fix r1b-G1, 19.10.2026; finding E16-COR-2, the owner's Q5 run on its default (a)). Foundry
+ * lets an Assistant GM write a world setting, so an Assistant lifted its own forcing by switching `forceDiceLook`
+ * off, or moved the table's look by pointing `diceLookSource` at another full Gamemaster. Each GM browser keeps a
+ * copy of both as a full Gamemaster left them - taken as it loads and at each full Gamemaster's write - and the
+ * primary writes a change by anyone below full Gamemaster back to that copy before a sweep spreads anything,
+ * telling its GM once a minute. The primary's own write is its copy too: an Assistant primary (no full Gamemaster
+ * connected) judges for itself, and its own console's change stands until a full Gamemaster's browser loads, which
+ * takes the value it finds (the copy is memory, as the source's is).
  *
  * NO LOOP. A put-back waits 400 ms after the user's last update (DSN's save is six updates in a row), compares
  * before it writes, and stops for that user after five in a minute, with one console error and one notice to
@@ -47,11 +54,15 @@
  * same wait, comparison and fuse. Here the writer is read, since the overlay has no canonical value of its own:
  * it is the one Foundry stamps on the update, never a packet's. The store takes rows from a full Gamemaster's
  * browser only (`fullGmOnly`, E16 fix r1-G2, finding sec-3): an Assistant's console wrote it until then. In a world with no full Gamemaster no overlay is
- * put back, as no user's look is (E16 fix r1-G1, finding E16-C4-F3). An unlinked token's own overlay (its
- * ActorDelta's flags) is not watched: the harness has no synthetic actor to measure one on (lib/shim.mjs
- * `TokenDocumentImpl`), and which hook v14 fires for it is LIVE-E16-03; so that a full Gamemaster's overlay on one
- * token never becomes its base actor's copy, a synthetic actor (`isToken`, its base's id) is passed over
- * (E16 fix r1-G2, finding E16-C4-F5). Daggerheart's GM relay, which writes as the GM,
+ * put back, as no user's look is (E16 fix r1-G1, finding E16-C4-F3). A full Gamemaster's overlay on one unlinked
+ * token never becomes its base actor's copy: a synthetic actor (`isToken`, its base's id) is no row of the store
+ * (E16 fix r1-G2, finding E16-C4-F5). Its own overlay (its ActorDelta's flags) is held to the base actor's copy
+ * (E16 fix r1b-G1, finding sec-4): a write of it below full Gamemaster, should v14 fire `updateActor` for the
+ * synthetic actor (LIVE-E16-03), and every throw a user below full Gamemaster makes as that token - the message's
+ * `speaker.token` read through its scene, as private-rolls.mjs `rollSubjectNow` reads it - are put back on the
+ * token's actor. A full Gamemaster's own throw as a token is not checked, so a GM's look on an NPC's token stands
+ * until a player throws as it. The harness has no synthetic actor (lib/shim.mjs `TokenDocumentImpl.actor`
+ * answers the base), so tier 2 stands one in. Daggerheart's GM relay, which writes as the GM,
  * carries no actor flag (relay-guard.mjs `actorRefusal` lets through resource values only). Which actor DSN lays
  * over a throw, and what the throw then looks like, is not drawn headless: LIVE-E16-03.
  *
@@ -63,9 +74,13 @@
  * only for an actor the store holds no row for - the first run, or an actor made while no GM was connected - and
  * weakly, so that a copy another GM's browser holds wins as the two meet. An actor a user below full Gamemaster
  * makes has none in the copy. So the comparison is as good as the copy the loading GM's browser holds, as the
- * sheets' marks are (sheet-audit.mjs): a GM alone on a browser that never held it takes the overlays as it finds
- * them, and one alone on a browser whose copy is older than another GM browser's puts an overlay a full Gamemaster
- * gave since back to its own.
+ * sheets' marks are (sheet-audit.mjs): one alone on a browser whose copy is older than another GM browser's puts an
+ * overlay a full Gamemaster gave since back to its own. A GM alone on a browser that never held the store (another
+ * machine, cleared site data) took every overlay as found, so one a player wrote with no GM connected became the
+ * GMs' copy there (E16 fix r1b-G1, findings sec-5 and E16-COR-3): an unseen actor that a user below Assistant
+ * owns - its player, or the player who made it - is taken with none and put back to none; only an actor no
+ * player owns is taken as found. A full Gamemaster's overlay on a player's character is lost the same way, once,
+ * on such a browser.
  *
  * A WRITE NO HOOK HEARS. An update with `noHook` reaches no listener (in the harness; on v14 LIVE-E16-04), so the
  * primary also compares at each message a user posts - a throw's card is one - the author's look and the
@@ -98,6 +113,10 @@ const RECORD_WAIT_MS = 200;
 const ACTOR = "actor:";
 /** The fuse's key of the source's own look, put back to the GMs' copy. */
 const SOURCE = "source:";
+/** The debounce and fuse key of an unlinked token's own overlay: `token:<sceneId>.<tokenId>`. */
+const TOKEN = "token:";
+/** The world settings only a full Gamemaster sets (the owner's Q5, its default (a)). */
+const SWITCHES = [SETTINGS.forceDiceLook, SETTINGS.diceLookSource];
 
 const timers = new Map();
 const putBacks = new Map();
@@ -107,6 +126,9 @@ const saidStopped = new Set();
 /** This browser's copy of the source's look: `{ id, look }`, its flags and colour as a full Gamemaster left them. */
 let sourceCopy = null;
 let saidNoSource = false, saidRefused = false, toldPlayer = false, ownWriteAt = 0;
+/** This GM browser's copy of SWITCHES as a full Gamemaster left them, by name; the put-back in flight; its last notice. */
+const switchCopy = new Map();
+let holdingSwitches = null, toldSwitchAt = 0;
 
 /**
  * Called from module.mjs's own `ready` hook, not from a `Hooks.once("ready")` registered here: Foundry does not
@@ -139,15 +161,18 @@ export function registerDiceSync() {
         if (sourceCopy?.id === user.id) sourceCopy = null;
         if (user.id === namedSourceId()) schedule(SWEEP);
     });
-    Hooks.on("updateSetting", setting => {
-        if (setting?.key === `${MODULE_ID}.${SETTINGS.diceLookSource}`) schedule(SWEEP);
-    });
+    // A world setting's first write creates its document: both hooks name the writer last.
+    Hooks.on("updateSetting", (setting, _changes, _options, userId) => onSwitchWritten(setting, userId));
+    Hooks.on("createSetting", (setting, _options, userId) => onSwitchWritten(setting, userId));
     // A user who joins gets the look before its first throw: this runs on the primary when the joiner's socket connects.
     Hooks.on("userConnected", (user, connected) => {
         if (!connected || !isForced(user) || !isPrimaryGm()) return;
         void putBack(user.id, { count: false });
     });
-    if (game.user?.isGM) copySource();
+    if (game.user?.isGM) {
+        copySwitches();
+        copySource();
+    }
     // The overlays wait for the other GMs' copies of the store, not for DSN: they are flags, read as they stand.
     if (gmStoresHydrated()) onStoresHydrated();
     else onGmStoresHydrated(onStoresHydrated);
@@ -166,6 +191,72 @@ function onStoresHydrated() {
 function enforcing() {
     try { return game.settings.get(MODULE_ID, SETTINGS.forceDiceLook) === true; }
     catch { return false; }
+}
+
+/** The switch as a full Gamemaster left it, where this browser holds a copy: off only by a full Gamemaster's hand. */
+function enforcingAsHeld() {
+    return switchCopy.has(SETTINGS.forceDiceLook) ? switchCopy.get(SETTINGS.forceDiceLook) === true : enforcing();
+}
+
+/** One of SWITCHES as it stands, or undefined where it cannot be read. */
+function switchValue(name) {
+    try { return game.settings.get(MODULE_ID, name); } catch { return undefined; }
+}
+
+/** Both switches as they stand taken as this GM browser's copy (at its load). */
+function copySwitches() {
+    for (const name of SWITCHES) {
+        const value = switchValue(name);
+        if (value !== undefined) switchCopy.set(name, value);
+    }
+}
+
+/**
+ * A write of a world setting as every browser hears it. On a GM's browser a full Gamemaster's write of a switch is
+ * the copy from then on, and so is the primary's own; on the primary anyone else's is written back to the copy.
+ * Either switch moved may move the table's look: one sweep, which waits for the put-back first.
+ */
+function onSwitchWritten(setting, userId) {
+    const name = SWITCHES.find(key => setting?.key === `${MODULE_ID}.${key}`);
+    if (!name) return;
+    if (game.user?.isGM) {
+        const writer = game.users.get(userId);
+        if (isFullGm(writer) || (writer?.id === game.user.id && isPrimaryGm())) {
+            const value = switchValue(name);
+            if (value !== undefined) switchCopy.set(name, value);
+        } else if (isPrimaryGm()) void holdSwitches(writer);
+    }
+    schedule(SWEEP);
+}
+
+/**
+ * On the primary, each switch that is not its copy written back to it, once at a time; a sweep awaits it before it
+ * spreads anything. The GM reads one notice a minute at most, naming the writer where one is known.
+ */
+function holdSwitches(writer = null) {
+    if (holdingSwitches) return holdingSwitches;
+    const run = (async () => {
+        if (!isPrimaryGm()) return;
+        let held = false;
+        for (const name of SWITCHES) {
+            if (!switchCopy.has(name) || switchValue(name) === switchCopy.get(name)) continue;
+            try {
+                await game.settings.set(MODULE_ID, name, switchCopy.get(name));
+                held = true;
+            } catch (err) { error(`Could not put back the setting ${name} of the table's dice look`, err); }
+        }
+        if (held && Date.now() - toldSwitchAt > FUSE_WINDOW_MS) {
+            toldSwitchAt = Date.now();
+            const name = writer?.name ?? "?";
+            log(`${name} changed the table's dice look settings below full Gamemaster: put back.`);
+            try { ui.notifications?.warn(game.i18n.format("DRPG.DiceLook.settingBack", { name })); }
+            catch (err) { error("Could not tell the GM that the dice look settings were put back", err); }
+        }
+    })();
+    // Cleared once it has run, never before it is stored: a run with nothing to write ends before it is returned.
+    holdingSwitches = run;
+    void run.finally(() => { if (holdingSwitches === run) holdingSwitches = null; });
+    return run;
 }
 
 /** Below full Gamemaster: players, trusted players and, by the owner's Q3, Assistant GMs. */
@@ -302,6 +393,7 @@ function schedule(key) {
         timers.delete(key);
         if (key === SWEEP) void sweep();
         else if (key.startsWith(ACTOR)) void putBackActor(key.slice(ACTOR.length));
+        else if (key.startsWith(TOKEN)) void putBackToken(key.slice(TOKEN.length));
         else void putBack(key);
     }, PUT_BACK_WAIT_MS));
 }
@@ -316,7 +408,7 @@ function onUserUpdated(user, changes, _options, userId) {
     if (!touched) return;
     // The copy of the source's look, on every GM browser, so that the next primary holds it too.
     const look = touchesLook(changes.flags) || changes.color !== undefined;
-    if (look && game.user?.isGM && isSource(user) && (!enforcing() || isFullGm(game.users.get(userId)))) copySource(user);
+    if (look && game.user?.isGM && isSource(user) && (!enforcingAsHeld() || isFullGm(game.users.get(userId)))) copySource(user);
     if (!enforcing()) return;
     if (!isPrimaryGm()) return tellPlayer(user, changes, userId);
     // The sweep puts the source back to the copy before it spreads anything: a write below full Gamemaster spreads nothing.
@@ -345,7 +437,9 @@ function toldAfter(userId) {
 
 /** One sweep: every forced user whose look is not the source's, offline ones too, in one write. */
 async function sweep() {
-    if (!enforcing() || !isPrimaryGm()) return;
+    if (!isPrimaryGm()) return;
+    await holdSwitches();
+    if (!enforcing()) return;
     const source = lookSource({ write: true });
     if (!source || !(await holdSource(source))) return;
     const look = canonicalLook();
@@ -425,9 +519,15 @@ function heldOverlay(actorId) {
  * gives the copy none; and anyone else's write is put back, after the same wait as a user's.
  */
 function onActorWritten(actor, userId, touched, { created = false } = {}) {
-    // An unlinked token's actor carries its base actor's id: its overlay is not the base's (finding E16-C4-F5).
-    if (!actor?.id || actor.isToken) return;
+    if (!actor?.id) return;
     if (!isPrimaryGm()) return tellOwner(actor, touched, userId);
+    // An unlinked token's actor carries its base actor's id: its overlay is no row of the copy (finding E16-C4-F5),
+    // and one written below full Gamemaster goes back to its base's copy (finding sec-4).
+    if (actor.isToken) {
+        const ref = tokenRef(actor);
+        if (ref && touched && enforcing() && !isFullGm(game.users.get(userId))) schedule(TOKEN + ref);
+        return;
+    }
     if (isFullGm(game.users.get(userId))) {
         if (touched) void diceLookStore.patch(actor.id, { look: overlayOf(actor) });
         return;
@@ -444,7 +544,17 @@ function onActorWritten(actor, userId, touched, { created = false } = {}) {
 function takeUnseenOverlays() {
     const unseen = (game.actors?.contents ?? []).filter(actor => !diceLookStore.has(actor.id));
     if (!unseen.length) return Promise.resolve();
-    return diceLookStore.patchMany(Object.fromEntries(unseen.map(actor => [actor.id, { look: overlayOf(actor) }])), { weak: true, fillOnly: true });
+    const rows = unseen.map(actor => [actor.id, { look: ownedBelowGm(actor) ? null : overlayOf(actor) }]);
+    return diceLookStore.patchMany(Object.fromEntries(rows), { weak: true, fillOnly: true });
+}
+
+/**
+ * Whether a user below Assistant owns the actor (E16 fix r1b-G1, findings sec-5 and E16-COR-3): a player could have
+ * written its overlay while no GM watched, so a browser that never held the actor's row takes none for it. An
+ * Assistant owns every actor as a GM does, so it is not asked here (the family of fix r1-G2's Assistant-primary gap).
+ */
+function ownedBelowGm(actor) {
+    return game.users.some(user => !user.isGM && actor.testUserPermission?.(user, "OWNER"));
 }
 
 /**
@@ -483,12 +593,34 @@ export function ageFuses(ms) {
  */
 async function putBackActor(actorId, { count = true } = {}) {
     if (!isPrimaryGm()) return false;
-    const actor = game.actors?.get(actorId);
-    const key = ACTOR + actorId;
+    return putBackOverlay(game.actors?.get(actorId), ACTOR + actorId, { count });
+}
+
+/** Where an unlinked token's actor stands: `<sceneId>.<tokenId>`, or null where it names no token on a scene. */
+function tokenRef(actor) {
+    const token = actor?.token, scene = token?.parent;
+    return token?.id && scene?.id ? `${scene.id}.${token.id}` : null;
+}
+
+/**
+ * An unlinked token's own overlay put back to its base actor's copy, on the token's actor (E16 fix r1b-G1, finding
+ * sec-4). A linked token's actor is the base, which `putBackActor` holds. True when written.
+ */
+async function putBackToken(ref, { count = true } = {}) {
+    if (!isPrimaryGm()) return false;
+    const [sceneId, tokenId] = String(ref).split(".");
+    const actor = game.scenes?.get(sceneId)?.tokens?.get(tokenId)?.actor ?? null;
+    if (!actor?.isToken) return false;
+    return putBackOverlay(actor, TOKEN + ref, { count });
+}
+
+/** One actor's overlay held to the GMs' copy of its id (a token's actor carries its base's); `key` is the fuse's. */
+async function putBackOverlay(actor, key, { count = true } = {}) {
+    if (!isPrimaryGm()) return false;
     if (!actor || !enforcing() || stopped(key) || !diceLookStore.isHydrated()) return false;
     // A world with no full Gamemaster forces nothing (the stage's rule; `lookSource` says so once).
     if (!lookSource()) return false;
-    const held = heldOverlay(actorId);
+    const held = heldOverlay(actor.id);
     if (sameLook(overlayOf(actor), held)) return false;
     if (count && !fuseHolds(key, actor.name)) return false;
     const path = `flags.${DSN}.appearance`;
@@ -509,13 +641,22 @@ async function putBackActor(actorId, { count = true } = {}) {
 
 /**
  * A message posted, on the primary: the roller's look and the overlay of the actor it speaks as, held to the
- * GMs' at once, for what a `noHook` write left behind. Nothing is counted against the fuse.
+ * GMs' at once, for what a `noHook` write left behind - and, for a roller below full Gamemaster, the overlay of the
+ * unlinked token it speaks as (finding sec-4). Nothing is counted against the fuse.
  */
 function onMessage(message) {
     if (!isPrimaryGm()) return;
     if (!enforcing()) return;
-    void rollerOf(message).then(roller => { if (isForced(roller)) void putBack(roller.id, { count: false }); });
-    const actorId = message?.speaker?.actor;
+    const speaker = message?.speaker;
+    // A throw as an unlinked token is checked for a roller below full Gamemaster only: a GM's look on its NPC stands.
+    const ref = typeof speaker?.scene === "string" && typeof speaker?.token === "string" && speaker.scene && speaker.token
+        ? `${speaker.scene}.${speaker.token}` : null;
+    void rollerOf(message).then(roller => {
+        if (!isForced(roller)) return;
+        void putBack(roller.id, { count: false });
+        if (ref) void putBackToken(ref, { count: false });
+    });
+    const actorId = speaker?.actor;
     if (typeof actorId === "string" && actorId) void putBackActor(actorId, { count: false });
 }
 
