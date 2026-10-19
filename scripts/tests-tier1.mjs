@@ -18419,6 +18419,152 @@ const INVARIANTS = [
         "[whether a GM's track gives way] per case; [apply asks cueGivesWay], [a takeover clears the hold], [crossfade clears its own hold], "
             + "[out of the silence: a mapped state clears, an unmapped one resumes], [fadeNote in en and pl]");
     }],
+    ["R826 - Breakdown and Wounded are heard as the state arrives by every GM and by the student's own players (a co-owner too), each on their own browser: not by another player, not again while the state is held, not for a Monokuma, not on a write to the other track; the primary's pass plays nothing on its own screen", async () => {
+        /*
+         * E19 C6, 19.10.2026; audit S03-08. At Base the primary GM's `syncOnce` called `playSfx`, which plays on the
+         * browser that calls it: the player whose student broke down, and every other GM, heard nothing, while the
+         * Sound panel says "Heard by that student's player and by the GMs". Each browser now asks `stateSoundsFor`
+         * from its own `updateActor` hook, as sfx.mjs does for a Monocub; it is driven here on plain objects (the
+         * running browser is a GM, so a GM is online), and the two hooks are read in states.mjs with comments blanked.
+         */
+        const S = await import("./states.mjs");
+        const { STATES } = await import("./config.mjs");
+        ok(typeof S.stateSoundsFor === "function", "states.mjs exports no `stateSoundsFor`, so who hears a state arrive cannot be driven");
+        const user = (id, isGM = false) => ({ id, isGM });
+        const gm = user("R826GM0000000000", true), owner = user("R826OWNER0000000"), co = user("R826COOWNER00000"), other = user("R826OTHER0000000");
+        const actor = ({ stress = 6, hp = 0, held = [], monokuma = false, type = "character" } = {}) => ({
+            id: "R826ACTOR0000000", type,
+            system: { resources: { stress: { value: stress, max: 6 }, hitPoints: { value: hp, max: 6 } } },
+            statuses: new Set(held),
+            getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.monokuma && monokuma ? true : undefined),
+            testUserPermission: (u, level) => level === "OWNER" && (u.isGM || u.id === owner.id || u.id === co.id)
+        });
+        const write = (stress, hp) => ({ system: { resources: {
+            ...(stress === undefined ? {} : { stress: { value: stress } }), ...(hp === undefined ? {} : { hitPoints: { value: hp } }) } } });
+        const heard = [
+            ["Sanity full: a GM", S.stateSoundsFor(actor(), write(6), gm)],
+            ["Sanity full: the owner", S.stateSoundsFor(actor(), write(6), owner)],
+            ["Sanity full: a co-owner", S.stateSoundsFor(actor(), write(6), co)],
+            ["Sanity full: another player", S.stateSoundsFor(actor(), write(6), other)],
+            ["Sanity full, Breakdown already held", S.stateSoundsFor(actor({ held: [STATES.breakdown.id] }), write(6), owner)],
+            ["Sanity one short", S.stateSoundsFor(actor({ stress: 5 }), write(5), owner)],
+            ["Health written, Sanity full and not held yet", S.stateSoundsFor(actor({ hp: 2 }), write(undefined, 2), owner)],
+            ["both full in one write", S.stateSoundsFor(actor({ hp: 6 }), write(6, 6), gm)],
+            ["Health full: the owner", S.stateSoundsFor(actor({ stress: 0, hp: 6 }), write(undefined, 6), owner)],
+            ["a Monokuma", S.stateSoundsFor(actor({ monokuma: true, hp: 6 }), write(6, 6), gm)],
+            ["not a character", S.stateSoundsFor(actor({ type: "npc" }), write(6), gm)],
+            ["a write with no track", S.stateSoundsFor(actor(), { name: "R826" }, gm)]];
+        const states = stripComments((await moduleSources()).get("states.mjs") ?? "");
+        must(states.length, "states.mjs is not among the module's sources - this would measure nothing");
+        const register = fnSource(states, "registerStates");
+        const hook = register.match(/Hooks\.on\("updateActor",([\s\S]{0,300}?)stateSoundsFor\([\s\S]{0,160}?playSfx\(/);
+        const everyBrowser = Boolean(hook) && !/isPrimaryGm/.test(hook[1]);
+        const primaryPlays = /playSfx\(/.test(fnSource(states, "syncOnce"));
+        equal(stableJson([heard, ["each browser's own hook plays it", everyBrowser], ["the primary's pass plays it", primaryPlays]]), stableJson([[
+            ["Sanity full: a GM", ["breakdown"]], ["Sanity full: the owner", ["breakdown"]], ["Sanity full: a co-owner", ["breakdown"]],
+            ["Sanity full: another player", []], ["Sanity full, Breakdown already held", []], ["Sanity one short", []],
+            ["Health written, Sanity full and not held yet", []], ["both full in one write", ["breakdown", "wounded"]],
+            ["Health full: the owner", ["wounded"]], ["a Monokuma", []], ["not a character", []], ["a write with no track", []]],
+            ["each browser's own hook plays it", true], ["the primary's pass plays it", false]]),
+        "[the sounds `stateSoundsFor` gives] per case; [an `updateActor` hook not gated on the primary plays them]; [`syncOnce` calls no `playSfx`]");
+    }],
+
+    ["R827 - the sound layer reads the world for its \"what changed\" baseline at ready, not at init, and plays no turn, debate or objection sound before it has one (no false \"your turn\" after a reload mid-incident)", async () => {
+        /*
+         * E19 C6, 19.10.2026; audit S11-31. `registerSfx` runs at init (module.mjs), and its baseline read
+         * `game.actors`, which Foundry builds after init: the TypeError was swallowed, the baseline said "not my
+         * turn", and the next incident write played "your turn" to a player whose turn had not changed. Read in
+         * sfx.mjs with comments blanked: every call of the two readers inside `registerSfx` is on a hook's line, the
+         * baseline is `snapshotWorld` at ready, and both readers stay quiet until it has run.
+         */
+        const sources = await moduleSources();
+        const sfx = stripComments(sources.get("sfx.mjs") ?? "");
+        const boot = stripComments(sources.get("module.mjs") ?? "");
+        must(sfx.length && boot.length, "sfx.mjs or module.mjs is not among the module's sources - this would measure nothing");
+        const register = fnSource(sfx, "registerSfx");
+        const calls = [...register.matchAll(/on(?:Incident|Floor)Changed\(/g)].map(m => lineAround(register, m.index));
+        const atReady = /Hooks\.once\("ready",[^\n]{0,80}?snapshotWorld\(/.test(register);
+        const snapshot = topLevelFunction(sfx, "snapshotWorld") ?? "";
+        const reads = /onFloorChanged\(/.test(snapshot) && /onIncidentChanged\(/.test(snapshot) && /worldWas\.known = true/.test(snapshot);
+        const quiet = ["onFloorChanged", "onIncidentChanged"].map(name => {
+            const body = topLevelFunction(sfx, name) ?? "";
+            const plays = [...body.matchAll(/playSfx\(/g)].map(m => lineAround(body, m.index));
+            return [name, plays.length > 0 && plays.every(line => /worldWas\.known &&/.test(line))];
+        });
+        const initRegisters = /\bregisterSfx\b/.test(bodyOf(boot, 'Hooks.once("init"', { until: "\nHooks." }));
+        equal(stableJson([["registerSfx runs at init", initRegisters], ["every reader call is on a hook's line", calls.length > 0 && calls.every(line => /Hooks\.on(?:ce)?\(/.test(line))],
+            ["the baseline is taken at ready", atReady], ["the baseline reads both and marks itself", reads], ["quiet before the baseline", quiet]]),
+        stableJson([["registerSfx runs at init", true], ["every reader call is on a hook's line", true], ["the baseline is taken at ready", true],
+            ["the baseline reads both and marks itself", true], ["quiet before the baseline", [["onFloorChanged", true], ["onIncidentChanged", true]]]]),
+        "[module.mjs registers the sounds at init]; [no bare reader call in registerSfx]; [snapshotWorld at ready]; [it reads the floor and the incident and sets worldWas.known]; [each play waits on worldWas.known]");
+    }],
+
+    ["R828 - the safeword's promise is the one Foundry keeps (owner Q1, 19.10): heard by everyone whatever the module's Sound slider says, under Foundry's Interface volume and after the page's first click, in both languages; the Safety group does not repeat it", async () => {
+        /*
+         * E19 C6, 19.10.2026; audit S11-43, the owner's answer to Q1 ("poprawka"): keep Foundry's Interface slider and
+         * correct the promise. The sound still bypasses the Sound slider (`fire`), still plays on the "interface"
+         * channel, and a browser not yet clicked drops it: the Sound panel said "at full volume whatever the Sound
+         * slider says" (EN) and "na pełnej głośności" (PL). The EN text is config.mjs's literal, the PL text
+         * lang/pl.json's DRPG.Config row; the Safety group's own note repeated the row under it (S11-21).
+         */
+        const raw = (await moduleSources()).get("config.mjs") ?? "";
+        const sfx = stripComments((await moduleSources()).get("sfx.mjs") ?? "");
+        must(raw.length && sfx.length, "config.mjs or sfx.mjs is not among the module's sources - this would measure nothing");
+        const hintOf = block => (block.match(/hint: "([^"]*)"/) ?? [])[1] ?? "";
+        const enEvent = hintOf(bodyOf(raw, "    safeword: {", { until: "}," }));
+        const enGroup = hintOf(bodyOf(raw, "    safety: ", { until: "}," }));
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
+        const plEvent = pl.DRPG.Config.SFX_EVENTS.safeword.hint, plGroup = pl.DRPG.Config.SFX_CATEGORIES.safety.hint;
+        const fire = fnSource(sfx, "fire");
+        equal(stableJson([
+            ["en", !/full volume/i.test(enEvent), /Interface volume/i.test(enEvent), /first click/i.test(enEvent), /slider/i.test(enGroup)],
+            ["pl", !/pełnej głośności/i.test(plEvent), /głośności interfejsu/i.test(plEvent), /pierwsz\w* klikni/i.test(plEvent), /suwak/i.test(plGroup)],
+            ["fire", /ignoresVolume \? 1 : sfxVolume\("sound"\)/.test(fire), /channel: "interface"/.test(fire)]]),
+        stableJson([["en", true, true, true, false], ["pl", true, true, true, false], ["fire", true, true]]),
+        "[no full-volume promise, names the Interface volume, names the first click, the group repeats the slider] per language; [fire bypasses the Sound slider, on the interface channel]");
+    }],
+
+    ["R829 - the Sound window's Effects tab: each row's Choose, Test and Clear are icons with a tooltip and a name beside the file box, each group says how many of its events have a file, a legend says what \"varies\" means, and a sentence says the tab saves as you go", async () => {
+        /*
+         * E19 C6, 19.10.2026; audit S11-21 (the GM's screenshot gm3/03-sound-effects.png): 47 rows of three word
+         * buttons of the same weight in a column with no heading, VARIES explained only in a hover, and no Apply on
+         * this tab with nothing saying why - a GM closed it believing nothing was saved. Drawn here from
+         * `soundEffectsHtml` into a template (the world's own mapping, read), each group's count measured against
+         * `soundFor`.
+         */
+        const { soundEffectsHtml, soundFor } = await import("./sfx.mjs");
+        const tpl = document.createElement("template");
+        tpl.innerHTML = soundEffectsHtml();
+        const root = tpl.content;
+        const rows = [...root.querySelectorAll("tr[data-drpg-sfx]")];
+        must(rows.length === Object.keys(SFX_EVENTS).length, `the table drew ${rows.length} rows for ${Object.keys(SFX_EVENTS).length} events`);
+        const iconRows = rows.filter(row => {
+            const buttons = [...row.querySelectorAll("button")];
+            const cell = row.querySelector('input[type="text"]')?.closest("td");
+            return buttons.length === 3 && buttons.every(b => b.querySelector("i[class*='fa-']") && b.dataset.tooltip?.trim()
+                && b.getAttribute("aria-label")?.trim() && !b.textContent.trim() && b.closest("td") === cell);
+        }).length;
+        const heads = [...root.querySelectorAll("thead th")].map(th => th.textContent.trim().length > 0);
+        const groups = Object.entries(SFX_CATEGORIES).map(([category]) => {
+            const keys = Object.keys(SFX_EVENTS).filter(key => SFX_EVENTS[key].category === category);
+            const shown = root.querySelector(`[data-drpg-sfx-group-count="${category}"]`)?.textContent.trim() ?? null;
+            return [category, shown === game.i18n.format("DRPG.Sound.groupAssigned", { n: keys.filter(key => soundFor(key)).length, total: keys.length })];
+        });
+        const table = root.querySelector("table");
+        const before = node => Boolean(node && table && (node.compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING));
+        const legend = root.querySelector("[data-drpg-sfx-legend]");
+        const legendSays = Boolean(legend?.querySelector(".drpg-sfx-badge")) && legend.textContent.includes(game.i18n.localize("DRPG.Sound.variesHint"));
+        const autosave = [...root.querySelectorAll("p")].find(p => p.textContent.trim() === game.i18n.localize("DRPG.Sound.autosave"));
+        const varies = Object.values(SFX_EVENTS).some(event => event.vary);
+        const sfx = stripComments((await moduleSources()).get("sfx.mjs") ?? "");
+        const recounts = /data-drpg-sfx-group-count/.test(fnSource(sfx, "wireSoundPanel"));
+        equal(stableJson([["icon rows", iconRows], ["every heading has a name", heads], ["group counts", groups],
+            ["the legend above the table", varies && before(legend) && legendSays], ["the autosave sentence above it", before(autosave)], ["a change recounts the groups", recounts]]),
+        stableJson([["icon rows", rows.length], ["every heading has a name", heads.map(() => true)], ["group counts", groups.map(([c]) => [c, true])],
+            ["the legend above the table", true], ["the autosave sentence above it", true], ["a change recounts the groups", true]]),
+        "[rows whose three buttons are icons with a tooltip and an aria-label, in the file's cell]; [no empty heading]; [each group's count]; "
+            + "[the varies legend before the table]; [DRPG.Sound.autosave before the table]; [wireSoundPanel updates the group counts]");
+    }],
 ];
 
 /**

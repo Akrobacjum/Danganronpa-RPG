@@ -1238,7 +1238,12 @@
       "varyHint": "Zmienia tempo najczęstszych efektów o kilka procent przy każdym odtworzeniu, by czterdzieste kliknięcie nie brzmiało jak pierwsze. Wszystko inne - i safeword - zostaje dokładnie tak, jak przypisano.",
       "choose": "Wybierz",
       "test": "Test",
-      "clear": "Wyczyść"
+      "clear": "Wyczyść",
+      "chooseHint": "Wybierz plik. W wierszu, który już go ma, trafia obok, a za każdym razem losowany jest jeden z nich.",
+      "testHint": "Odtwórz tutaj, teraz.",
+      "clearHint": "Opróżnij ten wiersz: zdarzenie ucichnie.",
+      "groupAssigned": "przypisano {n} z {total}",
+      "autosave": "Zmiany zapisują się od razu: ta karta nie ma przycisku Zastosuj."
     },
     "Vote": {
       "openTitle": "Głosowanie",
@@ -5247,7 +5252,7 @@
       "SFX_CATEGORIES": {
         "safety": {
           "label": "Bezpieczeństwo",
-          "hint": "Safeword. Ignoruje suwak Dźwięk - patrz notatka przy zdarzeniu."
+          "hint": "Dźwięk zatrzymania sceny."
         },
         "ui": {
           "label": "Interfejs",
@@ -5279,7 +5284,7 @@
       "SFX_EVENTS": {
         "safeword": {
           "label": "Safeword",
-          "hint": "Ktoś zatrzymał scenę. Słyszą wszyscy, na pełnej głośności niezależnie od suwaka Dźwięk, i powinno brzmieć jak nic innego w grze."
+          "hint": "Ktoś zatrzymał scenę. Słyszą wszyscy niezależnie od suwaka Dźwięk, przy głośności interfejsu Foundry, od pierwszego kliknięcia w stronę po jej wczytaniu; kartę i tak widać na każdym ekranie. Niech brzmi jak nic innego w grze."
         },
         "windowOpen": {
           "label": "Okno się otwiera",

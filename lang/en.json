@@ -1243,7 +1243,12 @@
       "varyHint": "Bends the speed of the busiest effects by a few per cent on each play, so the fortieth button press is not identical to the first. Leaves everything else - and the safeword - exactly as you mapped it.",
       "choose": "Choose",
       "test": "Test",
-      "clear": "Clear"
+      "clear": "Clear",
+      "chooseHint": "Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time.",
+      "testHint": "Play it here, now.",
+      "clearHint": "Empty this row: the event goes silent.",
+      "groupAssigned": "{n} of {total} assigned",
+      "autosave": "Changes here save as you make them: this tab has no Apply button."
     },
     "Vote": {
       "openTitle": "The vote",

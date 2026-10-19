@@ -14415,13 +14415,13 @@ body:not(.drpg-theme-stained-glass) .drpg-handbook-toc {
        that, rather than the window being cut to the columns. */
 }
 
-/* Measured, not guessed. The three buttons come to 213px in this module's
-   pixel face - wider than the same words in a proportional font, which is what
-   made the first two attempts wrap "Clear" onto its own line. The actions
-   column is cut to hold them and the other two share what is left. */
-.drpg-sfx-table th:nth-child(1), .drpg-sfx-table td:nth-child(1) { width: 38%; }
-.drpg-sfx-table th:nth-child(2), .drpg-sfx-table td:nth-child(2) { width: 26%; }
-.drpg-sfx-table th:nth-child(3), .drpg-sfx-table td:nth-child(3) { width: 36%; }
+/* Two columns since E19 C6 (audit S11-21): the three word buttons, 213px in
+   this module's pixel face, had a column of their own with no heading and left
+   the event's hint about 250px, six lines for the safeword. They are icons now,
+   inside the file's cell, and the event takes the larger share. Not measured in
+   a browser here. */
+.drpg-sfx-table th:nth-child(1), .drpg-sfx-table td:nth-child(1) { width: 55%; }
+.drpg-sfx-table th:nth-child(2), .drpg-sfx-table td:nth-child(2) { width: 45%; }
 
 /* Wrapping, not scrolling. A fixed layout with `nowrap` still inherited from
    somewhere is how a table looks unchanged after being "fixed" - the cell is
@@ -14470,19 +14470,37 @@ body:not(.drpg-theme-stained-glass) .drpg-handbook-toc {
     margin: 2px 0 0;
 }
 
-/* Three small buttons in a row, inside the cell rather than instead of it: a
-   `<td>` given `display: flex` stops being a table cell, and a fixed layout
-   that has lost one of its cells is a layout with a hole in it. */
+/* The file box and its three icons in a row, inside the cell rather than
+   instead of it: a `<td>` given `display: flex` stops being a table cell, and a
+   fixed layout that has lost one of its cells is a layout with a hole in it. */
+.drpg-sfx-file {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.drpg-sfx-file input[type="text"] {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
 .drpg-sfx-actions {
     display: flex;
-    flex-wrap: wrap;
-    gap: 3px;
+    flex: 0 0 auto;
+    gap: 2px;
 }
 
 .drpg-sfx-actions .drpg-mini-button {
     flex: 0 0 auto;
-    padding: 2px 6px !important;
+    padding: 2px 5px !important;
     font-size: var(--drpg-text-xs, 0.72rem) !important;
+}
+
+/* "3 of 11 assigned" beside a group's name. */
+.drpg-sfx-group-count {
+    margin-left: 8px;
+    font-size: var(--drpg-text-xs, 0.72rem);
+    opacity: 0.75;
 }
 
 .drpg-messenger-bubble {

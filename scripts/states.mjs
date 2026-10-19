@@ -34,7 +34,7 @@
 import { STATES } from "./config.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { remaining } from "./character.mjs";
-import { isPrimaryGm, log, debug, error } from "./utils.mjs";
+import { isPrimaryGm, primaryGmId, log, debug, error } from "./utils.mjs";
 import { playSfx } from "./sfx.mjs";
 
 const DH = "daggerheart";
@@ -67,6 +67,17 @@ export function registerStates() {
         } catch (err) {
             error("Could not register the DRPG conditions", err);
         }
+    });
+
+    /*
+     * HEARD ON EACH BROWSER (E19 C6, audit S03-08). The sound used to be played by the primary's
+     * `syncOnce`, and `playSfx` plays on the browser that calls it: the player whose student broke
+     * down, and every other GM, heard nothing, while the Sound panel promises "that student's player
+     * and the GMs". Each browser now hears the same write and decides for itself, as sfx.mjs does
+     * for a Monocub. Before the sync below, so the primary reads the status as it was.
+     */
+    Hooks.on("updateActor", (actor, changes) => {
+        for (const key of stateSoundsFor(actor, changes)) playSfx(key);
     });
 
     // One client writes, or two GMs race on the same actor.
@@ -217,6 +228,33 @@ export async function syncStates(actor) {
 /** Which state announces itself, and with which sound. */
 const SFX_FOR_STATE = { [STATES.breakdown.id]: "breakdown", [STATES.wounded.id]: "wounded" };
 
+/**
+ * The state sounds one actor write makes on `user`'s browser (E19 C6, audit S03-08).
+ *
+ * ARRIVING ONLY, as `syncOnce` toggles: the write's own track is now full and the status is not
+ * on yet. Every browser runs this on the same `updateActor`, and the primary's pass puts the status
+ * on only in answer to that write, so "not held yet" is the arrival on all of them (read from the
+ * order of the two writes, not measured at a table). Coming back from Breakdown or
+ * Wounded is a relief and is not announced; a write to the other track does not repeat a state
+ * that is full and still on its way.
+ *
+ * Heard by every GM and by the players who own the student (a co-owned character has two), never
+ * by another player. A Monokuma is skipped as `syncStates` skips it, and with no GM online
+ * nothing puts the status on, so nothing is announced.
+ *
+ * @returns {string[]} keys of `SFX_EVENTS`, in `STATES` order
+ */
+export function stateSoundsFor(actor, changes, user = game.user) {
+    if (!actor || actor.type !== "character" || isMonokuma(actor)) return [];
+    if (!user || !(user.isGM || actor.testUserPermission?.(user, "OWNER"))) return [];
+    if (!primaryGmId()) return [];
+    const written = changes?.system?.resources ?? {};
+    return Object.values(STATES)
+        .filter(state => written[state.resource] !== undefined && SFX_FOR_STATE[state.id])
+        .filter(state => shouldHave(actor, state) && !(actor.statuses?.has?.(state.id) ?? false))
+        .map(state => SFX_FOR_STATE[state.id]);
+}
+
 async function syncOnce(actor) {
     await clearSystemConditions(actor);
 
@@ -229,12 +267,7 @@ async function syncOnce(actor) {
         try {
             await actor.toggleStatusEffect(state.id, { active: wanted });
             applied.push(`${state.label}: ${wanted ? "on" : "off"}`);
-
-            // ARRIVING ONLY. Coming back from Breakdown or Wounded is a relief
-            // and does not need announcing over whatever healed it. Keyed off
-            // the state's own id, so a third state added later either names a
-            // sound or stays silent rather than borrowing one.
-            if (wanted && SFX_FOR_STATE[state.id]) playSfx(SFX_FOR_STATE[state.id]);
+            // No sound here: `stateSoundsFor` plays it on every browser that should hear it.
         } catch (err) {
             error(`Could not toggle ${state.label} on ${actor.name}`, err);
         }
