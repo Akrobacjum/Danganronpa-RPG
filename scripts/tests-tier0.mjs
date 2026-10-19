@@ -13421,6 +13421,40 @@ const REGRESSIONS = [
         ok(sync.length > 400, "dice-sync.mjs has moved or gone - this would measure nothing");
         equal(JSON.stringify([found, sockets(sync)]), JSON.stringify([[], []]),
             "a module file reads Dice So Nice's client setting `settings`, or dice-sync.mjs talks over a socket of its own ([the reads, dice-sync's socket calls])");
+    }],
+
+    ["R803 - the GM's handbook names the setting that gives the table one dice look, and the player's handbook says the look is the GM's, in both languages (E16)", async () => {
+        /*
+         * E16 p1 C5, 19.10.2026 (E16-25). From C3 a player's change of its Dice So Nice look goes back to the GM's,
+         * and the player reads DRPG.DiceLook.setByGm once. At 9fdd7f7 neither book said so: the GM's settings list
+         * had no *One dice look for the table*, so a GM could not find what turns it off, and the player's
+         * handbook still said a GM-thrown die falls "in your colours". The names are read from lang/*.json, so a
+         * renamed setting or line fails here until the books follow; the GM's list is compared without case,
+         * since the Polish list names its settings in lower case inside the sentence.
+         */
+        const STALE = { en: "in your colours", pl: "w twoich kolorach" };
+        const measured = {}, expected = {};
+        for (const lang of ["en", "pl"]) {
+            const keys = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            const name = keys.DRPG?.Settings?.forceDiceLook?.name ?? "", told = keys.DRPG?.DiceLook?.setByGm ?? "";
+            ok(name.length > 0 && told.length > 0, `lang/${lang}.json has no DRPG.Settings.forceDiceLook.name or DRPG.DiceLook.setByGm - this test measured nothing`);
+            const text = {};
+            for (const book of ["gm-handbook", "player-handbook"]) {
+                const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${book}.${lang}.md`);
+                ok(res.ok, `docs/handbooks/${book}.${lang}.md did not load`);
+                text[book] = await res.text();
+                ok(text[book].split("\n").length > 10, `docs/handbooks/${book}.${lang}.md is empty - this test measured nothing`);
+            }
+            measured[lang] = {
+                gm: text["gm-handbook"].toLocaleLowerCase(lang).includes(`*${name.toLocaleLowerCase(lang)}*`),
+                player: text["player-handbook"].includes(told),
+                stale: text["player-handbook"].includes(STALE[lang])
+            };
+            expected[lang] = { gm: true, player: true, stale: false };
+        }
+        equal(JSON.stringify(measured), JSON.stringify(expected),
+            "[per language - the GM's handbook names DRPG.Settings.forceDiceLook.name in italics; the player's handbook says DRPG.DiceLook.setByGm; "
+            + "the player's handbook no longer says a die falls in the player's own colours]");
     }]
 ];
 
