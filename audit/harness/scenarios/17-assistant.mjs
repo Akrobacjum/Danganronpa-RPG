@@ -401,6 +401,25 @@ export async function run({ gm, ag, gm2, p1, p2, p3, check, settle, opLog, socke
     const frost = JSON.stringify({ global: { colorset: "frost" } });
     await gm.eval(`await game.actors.get("${IDS.botan}").update({ "flags.${DSN}.appearance": ${frost} }); return true;`);
     await settle(1500);
+    /* E16 fix r1-G1 of round r1d (finding fd2-1). The world's copy of the GMs' dice look store is put back when a user
+       below full Gamemaster writes it, and a full Gamemaster's load takes it only where a full Gamemaster wrote it
+       last. The put-back judged the rows, the load the writer: the Assistant's console wrote the same rows in another
+       key order, which the primary took for no change, so the Setting named the Assistant and H5's load below refused
+       the world's copy and put the GM's frost back to gm2's ice. H6: that write. Read: the writer the Setting names on
+       the GM's browser and on the Assistant's, and Botan's row in it. At d3979ab: the Assistant named, H5 red. */
+    const worldWriterOn = c => c.eval(`try { return game.settings.storage.get("world").getSetting("${MOD}.diceLookWorld")?._stats?.lastModifiedBy ?? null; }
+        catch (err) { return String(err?.message ?? err); }`);
+    const worldRowOn = c => c.eval(`try { return JSON.stringify(game.settings.get("${MOD}", "diceLookWorld")?.e?.["${IDS.botan}"]?.look ?? null); }
+        catch { return null; }`);
+    const reorderJs = noHook => `const v = game.settings.get("${MOD}", "diceLookWorld");
+        const r = Object.fromEntries(Object.keys(v).reverse().map(k => [k, v[k]]));
+        await game.settings.set("${MOD}", "diceLookWorld", r${noHook ? ", { noHook: true }" : ""}); return Object.keys(r).join(",");`;
+    const h6 = { before: await worldWriterOn(gm),
+        forged: await ag.eval(reorderJs(false)) };
+    await settle(1500);
+    Object.assign(h6, { writer: { gm: await worldWriterOn(gm), ag: await worldWriterOn(ag) }, row: await worldRowOn(gm) });
+    check("H6: an Assistant's write of the world's copy of the characters' dice looks with the same rows in another order is put back, so the copy names a full Gamemaster as its writer",
+        h6.before === IDS.gm && /,e$/.test(h6.forged) && Object.values(h6.writer).every(id => id === IDS.gm) && h6.row === frost, JSON.stringify(h6));
 
     /* ---------------------------- D. the full GM leaves ----------------------------- */
 
@@ -483,8 +502,35 @@ export async function run({ gm, ag, gm2, p1, p2, p3, check, settle, opLog, socke
     for (const c of [gm2, ag, p2]) h5.held[c.who] = await colourOn(c, IDS.botan);
     check("H5: a full Gamemaster's newer dice look on a character stands when another full Gamemaster's browser with an older copy loads while only an Assistant is at the table",
         Object.values(h5.held).every(colour => colour === "frost") && h5.writes.length === 0, JSON.stringify(h5));
+    /* E16 fix r1-G1 of round r1d (finding fd2-1). The same reordered write with `noHook`, which no listener hears, while
+       gm2 is the primary: the step that finds it is the next message. H8: the Assistant's console writes it, then p2
+       posts a message as Botan. Read: the writer the Setting names after each. At d3979ab: the Assistant after both. */
+    const h8 = { forged: await ag.eval(reorderJs(true)) };
+    await settle(600);
+    h8.named = await worldWriterOn(gm2);
+    await p2.eval(`await ChatMessage.create({ content: "E16 throw after a world copy no hook heard", speaker: { actor: "${IDS.botan}" } }); return true;`);
+    await settle(1500);
+    Object.assign(h8, { writer: await worldWriterOn(gm2), row: await worldRowOn(gm2) });
+    check("H8: an Assistant's write of the world's copy with the same rows in another order and no hook is put back at the next message",
+        /,e$/.test(h8.forged) && h8.named === IDS.ag && h8.writer === gm2Id && h8.row === frost, JSON.stringify(h8));
     await gm2.eval(`await game.actors.get("${IDS.botan}").update({ "flags.${DSN}.appearance": ${gmOverlay} }); return true;`);
     await settle(1500);
+    await gm2.eval(`const E = ${storesJs}; await E.gmStoresIdle(); return true;`);
+    await disconnect("gm2");
+    await settle(600);
+    /* E16 fix r1-G1 of round r1d (finding fd2-1). A world copy written below full Gamemaster while no full Gamemaster
+       is here is not taken at a full Gamemaster's load, and the loading primary wrote its own over it only where the
+       rows differed: where they were equal the Setting went on naming the Assistant, and every later load refused the
+       copy. H7: with gm2 gone the Assistant's console writes the rows in another order, and gm2 comes back on the
+       browser it left with, then leaves again. Read: the writer the Setting names before and after gm2's load, and
+       Botan's row. At d3979ab: the Assistant named after the load. */
+    const h7 = { forged: await ag.eval(reorderJs(false)) };
+    await settle(600);
+    h7.named = await worldWriterOn(ag);
+    await back();
+    Object.assign(h7, { writer: await worldWriterOn(gm2), row: await worldRowOn(gm2) });
+    check("H7: a world copy of the characters' dice looks an Assistant wrote with the same rows while no full Gamemaster was here is written again at the next full Gamemaster's load",
+        /,e$/.test(h7.forged) && h7.named === IDS.ag && h7.writer === gm2Id && h7.row === gmOverlay, JSON.stringify(h7));
     await gm2.eval(`const E = ${storesJs}; await E.gmStoresIdle(); return true;`);
     await disconnect("gm2");
     await settle(600);

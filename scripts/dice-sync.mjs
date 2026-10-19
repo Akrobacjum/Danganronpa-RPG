@@ -113,8 +113,11 @@
  * lowers a row). A copy whose last writer (the Setting's `_stats.lastModifiedBy`, v14's stamp, not a packet's)
  * is below full Gamemaster, or unknown, is not taken: the loading primary writes its own over it. A write of it
  * below full Gamemaster while a full Gamemaster's primary is here is put back as the switches are, heard or found
- * at the next step. A world setting reaches every client, players' too: what it holds is what every client already
- * holds on the actors themselves (their Dice So Nice overlays), with the stamps, so nothing of the GMs' is told.
+ * at the next step. Both judge the writer, not the rows (E16 fix r1-G1 of round r1d, finding fd2-1): the same rows
+ * in another key order are another string to v14 and name the Assistant, so they are written again too, with a
+ * write stamp `w` that makes every write a change. A world setting reaches every client, players' too: what it
+ * holds is what every client already holds on the actors themselves (their Dice So Nice overlays), with the
+ * stamps, so nothing of the GMs' is told.
  * Who wrote a Setting is modelled in the harness, not read on v14: LIVE-E16-04.
  *
  * A WRITE NO HOOK HEARS. An update with `noHook` reaches no listener (in the harness; on v14 LIVE-E16-04), so the
@@ -353,25 +356,52 @@ function rowsOfActors(section) {
         cleared: Number.isFinite(section.cleared) ? section.cleared : 0 };
 }
 
-/** Whether the world's copy is not what this full Gamemaster's browser last saw a full Gamemaster leave there. */
+/**
+ * Whether the world's copy is not what this full Gamemaster's browser last saw a full Gamemaster leave there, or
+ * names a writer below full Gamemaster - the writer is judged as the load judges it (`takeWorldCopy`), so the same
+ * rows in another key order, which v14 stores as another string, are moved too (E16 fix r1-G1 of round r1d, finding
+ * fd2-1). A writer nobody knows is judged by the rows only: a Foundry that keeps no writer must not rewrite at each step.
+ */
 function worldCopyMoved() {
-    if (worldCopyHeld === null || !isFullGm(game.user)) return false;
+    if (!isFullGm(game.user)) return false;
     const value = worldCopyValue();
-    return value !== undefined && stableJson(value) !== worldCopyHeld;
+    if (value === undefined) return false;
+    if (writtenBelowFullGm()) return true;
+    return worldCopyHeld !== null && stableJson(value) !== worldCopyHeld;
+}
+
+/** Whether the world's copy names its last writer, and that writer is below full Gamemaster. */
+function writtenBelowFullGm() {
+    const writer = worldCopyWriter();
+    return Boolean(writer) && !isFullGm(writer);
+}
+
+/** The world's copy without its write stamp `w`: the rows, as compared. */
+function rowsOfCopy(value) {
+    if (!value || typeof value !== "object") return value ?? null;
+    const { w: _stamp, ...rows } = value;
+    return rows;
 }
 
 /**
  * The world's copy written from this browser's store, one write at a time: by a full Gamemaster's primary only,
- * and only once its load took the copy there (a store older than the world's must not write over it first). True
- * when it wrote.
+ * and only once its load took the copy there (a store older than the world's must not write over it first). It is
+ * written where its rows differ, and also where its last writer is not a full Gamemaster, rows equal or not (E16
+ * fix r1-G1 of round r1d, finding fd2-1): the copy must name a full Gamemaster again, or every later load refuses
+ * it. The write stamp `w` makes each write a change of the value, so that it is never an empty diff that leaves
+ * the writer as it was; the rows are compared without it. True when it wrote.
  */
 function writeWorldCopy() {
     worldCopyChain = worldCopyChain.catch(() => false).then(async () => {
         if (!isPrimaryGm() || !isFullGm(game.user) || !worldCopyTaken || !diceLookStore.isHydrated()) return false;
-        const value = rowsOfActors(diceLookStore.section());
-        const wrote = stableJson(worldCopyValue() ?? null) !== stableJson(value);
-        if (wrote) await game.settings.set(MODULE_ID, WORLD_COPY, value);
-        worldCopyHeld = stableJson(worldCopyValue() ?? value);
+        const rows = rowsOfActors(diceLookStore.section());
+        const current = worldCopyValue();
+        const wrote = !isFullGm(worldCopyWriter()) || stableJson(rowsOfCopy(current)) !== stableJson(rows);
+        if (wrote) {
+            const w = Math.max(Date.now(), (Number.isFinite(current?.w) ? current.w : 0) + 1);
+            await game.settings.set(MODULE_ID, WORLD_COPY, { ...rows, w });
+        }
+        worldCopyHeld = stableJson(worldCopyValue() ?? rows);
         return wrote;
     });
     return worldCopyChain;

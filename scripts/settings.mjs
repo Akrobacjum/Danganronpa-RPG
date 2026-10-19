@@ -980,7 +980,8 @@ export function registerSettings() {
         default: ""
     });
 
-    // A section of the GM store's shape, `{ e, t, d, cleared }`: the overlays every client already holds on the actors.
+    // A section of the GM store's shape, `{ e, t, d, cleared }`, and the write stamp `w` (E16 fix r1-G1 of round r1d):
+    // the overlays every client already holds on the actors.
     game.settings.register(MODULE_ID, SETTINGS.diceLookWorld, {
         scope: "world",
         config: false,
