@@ -51,6 +51,13 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     const players = [p1, p2, p3];
     const utils = `(await import("${repoUrl}/scripts/utils.mjs"))`;
     const bridge = `(await import("${repoUrl}/scripts/gm-bridge.mjs"))`;
+    // A ruling card's closing lines in this browser's copy of its words: the one for everyone, then the GMs' own (E18 C1).
+    const CARD_LINES = `return (async id => { const S = await import("${repoUrl}/scripts/secret.mjs");
+        const m = game.messages.get(id); if (!m) return null;
+        const t = document.createElement("template"); t.innerHTML = S.contentOf(m);
+        const all = [...t.content.querySelectorAll(".drpg-call-settled")];
+        return [all.filter(e => !e.closest(".drpg-gm-only")).map(e => e.textContent).join(" | ") || null,
+            all.filter(e => e.closest(".drpg-gm-only")).map(e => e.textContent).join(" | ") || null]; })`;
     const projects = `(await import("${repoUrl}/scripts/projects.mjs"))`;
     const toGms = `{ recipients: game.users.filter(u => u.isGM && u.active).map(u => u.id) }`;
 
@@ -285,7 +292,9 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
        card goes up in p1's thread, and the Assistant - who is not the primary - says yes on it: the primary keeps
        the yes and sends it on, p1's browser asks for the arm, and the primary charges and arms it. Read: the
        Assistant's answer, p1's, Aiko's Hope and armed list, and the refusals logged on the GM and told to p1.
-       Aiko's Hope and armed list are put back after. */
+       Aiko's Hope and armed list are put back after. Since E18 C1 the primary writes "Approved by" the Assistant
+       on the card only on p1's receipt (`ruling.received`): read too, the card's lines on the GM, the one for
+       everyone and the GMs' own. */
     phase("an Assistant GM's yes to a Call", { flow: "hope-call" });
     const a13was = await gm.eval(`const a = game.actors.get("${IDS.aiko}");
         const was = { hope: a.system.resources.hope.value, calls: a.getFlag("${MOD}", "pendingCall") ?? null };
@@ -304,7 +313,7 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         const card = await gm.eval(`const S = await import("${repoUrl}/scripts/secret.mjs");
             for (const m of game.drpg.messengerThreadMessages("${IDS.p1}").slice().reverse()) {
                 const hit = S.contentOf(m).match(/data-drpg-call="approveCall"([^>]*)>/);
-                if (hit) return { rid: hit[1].match(/data-rid="([^"]+)"/)?.[1] ?? null, asker: hit[1].match(/data-asker="([^"]+)"/)?.[1] ?? null };
+                if (hit) return { id: m.id, rid: hit[1].match(/data-rid="([^"]+)"/)?.[1] ?? null, asker: hit[1].match(/data-asker="([^"]+)"/)?.[1] ?? null };
             }
             return null;`);
         const yes = card ? await ag.eval(`const U = ${utils};
@@ -317,7 +326,9 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         const after = await gm.eval(`await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
             const a = game.actors.get("${IDS.aiko}"), f = a.getFlag("${MOD}", "pendingCall");
             return { hope: a.system.resources.hope.value, armed: (Array.isArray(f) ? f : f ? [f] : []).map(e => e?.key ?? null) };`);
-        a13 = { card, yes, answer, after, logged: [...await refusalsLogged(gm, "call.yes"), ...await refusalsLogged(gm, "call.arm")],
+        const lines = card ? await gm.eval(`${CARD_LINES}("${card.id}")`) : null;
+        a13 = { card, yes, answer, after, lines, approved: await gm.eval(`return game.i18n.format("DRPG.Bridge.settledApproved", { name: game.users.get("${IDS.ag}")?.name ?? "?" });`),
+            logged: [...await refusalsLogged(gm, "call.yes"), ...await refusalsLogged(gm, "call.arm"), ...await refusalsLogged(gm, "ruling.received")],
             told: await refusedSince(p1, mark) };
     } finally {
         await gm.eval(`const a = game.actors.get("${IDS.aiko}"), was = ${JSON.stringify(a13was)};
@@ -329,7 +340,48 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     check("A13: an Assistant GM's yes to p1's Experience is kept by the primary, which arms it and charges it once - refused nowhere",
         Boolean(a13?.card?.rid) && a13.yes?.primary === false && a13.yes.sent === true && a13.answer === "object"
             && a13.after.hope === 2 && JSON.stringify(a13.after.armed) === JSON.stringify(["experience"])
+            && JSON.stringify(a13.lines) === JSON.stringify([a13.approved, null])
             && !a13.logged.length && !a13.told.length, JSON.stringify(a13), { flow: "hope-call" });
+
+    /* A17. AN ASK WHOSE PLAYER STOPPED WAITING ENDS ITS CARD (E18 C1, 19.10.2026; audits S10-25, S11-13). A Hope
+       Call's card stayed open after the asking browser's clock had run out, and a GM's yes then was kept and sent to
+       a browser that no longer waited. p1 asks for an Experience of Aiko's on the bridge's own road
+       (`requestHopeCallApproval`) with a clock of 4 seconds and nobody answers; p1's browser says its "no answer"
+       and sends `ruling.expired`, and the primary ends the card and drops the ask. The Assistant's yes after it is
+       then not kept: the primary refuses it (one `call.yes` refusal logged on the GM, measured on this scenario's
+       first run) and p1's own expiry is refused nowhere. Read: p1's answer, the card's lines on the GM (the one
+       for everyone, the GMs' own) and in p1's copy, the Assistant's yes, and the refusals logged on the GM.
+       Nothing is paid or armed: no yes stands. */
+    phase("an ask whose player stopped waiting", { flow: "hope-call" });
+    await clearFailures(gm);
+    let a17 = null;
+    {
+        const asking = p1.eval(`return await ${bridge}.requestHopeCallApproval({ actorId: "${IDS.aiko}", key: "experience",
+            note: "E18 C1: a clock that runs out", nonce: "E18C1A17" + Date.now() }, 4000);`, { timeout: 30000 });
+        await settle(1500);
+        const card = await gm.eval(`const S = await import("${repoUrl}/scripts/secret.mjs");
+            for (const m of game.drpg.messengerThreadMessages("${IDS.p1}").slice().reverse()) {
+                if (!S.contentOf(m).includes("E18 C1: a clock that runs out")) continue;
+                return { id: m.id, rid: S.contentOf(m).match(/data-rid="([^"]+)"/)?.[1] ?? null };
+            }
+            return null;`);
+        const asked = await asking;
+        await settle(1500);
+        const yes = card?.rid ? await ag.eval(`return await ${bridge}.answerHopeCall(${JSON.stringify(card.rid)}, "${IDS.p1}", true);`, { timeout: 30000 }) : null;
+        await settle(900);
+        a17 = { answer: asked?.reason ?? asked?.value ?? null, card, yes,
+            lines: card ? await gm.eval(`${CARD_LINES}("${card.id}")`) : null,
+            theirs: card ? await p1.eval(`${CARD_LINES}("${card.id}")`) : null,
+            expired: await gm.eval(`return [game.i18n.localize("DRPG.Bridge.settledExpired"), game.i18n.localize("DRPG.Bridge.settledGone")];`),
+            expiryRefused: await refusalsLogged(gm, "ruling.expired"), yesRefused: (await refusalsLogged(gm, "call.yes")).length };
+        for (const id of [card?.id].filter(Boolean)) await gm.eval(`await game.messages.get("${id}")?.delete(); return true;`);
+    }
+    check("A17: p1's ask whose clock ran out ends its card on the primary, for p1 and the GMs, and the Assistant's yes after it is not kept",
+        a17.answer === "noAnswer" && Boolean(a17.card?.id)
+            && JSON.stringify(a17.lines) === JSON.stringify(a17.expired)
+            && JSON.stringify(a17.theirs) === JSON.stringify([a17.expired[0], null])
+            && a17.yes === false && !a17.expiryRefused.length && a17.yesRefused === 1,
+        JSON.stringify(a17), { flow: "hope-call" });
 
     /* ------------------------------------- A. Daggerheart's own packets for a player */
 

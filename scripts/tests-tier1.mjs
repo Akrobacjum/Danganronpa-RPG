@@ -19191,6 +19191,54 @@ const INVARIANTS = [
             JSON.stringify([{ performDynamic: true, useCreatively: true }, false, true]),
             "[Dynamic and a Tier 0 item's use ask for words (`required: true`); the GM's Reply compares its text with \"cancel\"; its Send answers { text }]");
     }],
+    ["R839 - an ask's waiter tells the GMs when its clock runs out, and says when the answer reached it, once, with the ask's id; an answer after the clock gets no receipt (E18 C1; S10-25, S11-13)", async () => {
+        /*
+         * E18 C1, 19.10.2026; audits S10-25 and S11-13 (E18-05, E18-06). A Hope Call's and a Dynamic action's card
+         * stayed open after the player's clock had run out, and a GM's yes then was kept and sent to a browser that no
+         * longer waited. The waiter (bridge-guards.mjs `createWaiter`) now sends, for a request that names them, its
+         * `expired` action when a clock runs out and its `received` action when the answer reaches it, each to the GMs
+         * with the ask's id as `rid`; the primary acts on them (gm-bridge.mjs). Driven with fakes as R165 drives it - an
+         * emit that records, a clock of tens of milliseconds - so nothing leaves this client. Read: what was sent after
+         * the ask, for (1) a clock that runs out and an answer after it, (2) an answer in time and the same answer
+         * again, (3) the same two without the options.
+         */
+        const { createWaiter } = await import("./bridge-guards.mjs");
+        const make = () => {
+            const sent = [];
+            const waiter = createWaiter({
+                emit: (packet, to) => sent.push({ packet, to }),
+                gmIds: () => ["R839GM"],
+                me: () => ({ id: "R839ME", isGM: false, isPrimary: false }),
+                notify: () => {},
+                fromGm: id => id === "R839GM",
+                report: () => {}
+            });
+            return { waiter, sent };
+        };
+        const ends = { settle: "reply", patient: true, timeoutMs: 60, expired: "r839.expired", received: "r839.received" };
+        const after = (w, id) => w.sent.slice(1).map(({ packet, to }) => [packet.action, packet.rid === id, packet.userId, to.join()]);
+        const done = (w, id) => w.waiter.onReply({ action: "bridge.done", userId: "R839ME", requestId: id, value: true }, "R839GM");
+        const read = [];
+        for (const opts of [ends, { settle: "reply", patient: true, timeoutMs: 60 }]) {
+            let w = make();
+            const lost = await w.waiter.request("r839.ask", {}, opts);
+            const lostId = w.sent[0]?.packet.requestId;
+            done(w, lostId);
+            read.push([lost.reason ?? null, after(w, lostId)]);
+            w = make();
+            const asked = w.waiter.request("r839.ask", {}, opts);
+            const id = w.sent[0]?.packet.requestId;
+            done(w, id);
+            done(w, id);
+            read.push([(await asked).value ?? null, after(w, id)]);
+        }
+        equal(stableJson(read), stableJson([
+            ["noAnswer", [["r839.expired", true, "R839ME", "R839GM"]]],
+            [true, [["r839.received", true, "R839ME", "R839GM"]]],
+            ["noAnswer", []],
+            [true, []]
+        ]), "per request: its result and what was sent after it ([action, the ask's id, the asker, to]) - with the two options: an expiry once its clock ran out and nothing for the answer after it, one receipt for an answer in time; without them, nothing");
+    }],
 ];
 
 /**

@@ -636,6 +636,8 @@ export function wireCallActions(body, message = null) {
             hold(true);
             try {
                 const outcome = await runCallAction(button.dataset.drpgCall, { ...button.dataset });
+                // Sent on by the primary, which writes the card once the player has it (E18 C1): held till it redraws.
+                if (outcome?.held) return;
                 if (message && outcome?.settled) {
                     const { settleCall } = await import("./gm-bridge.mjs");
                     await settleCall(message, outcome.settled, outcome.ruling ?? null);
@@ -703,18 +705,21 @@ async function askItemEffect(item) {
     // to the asking client over the packet the old dialog used; the player's
     // own `spendHopeCall` asks the GM to arm it on a yes, and the GM charges the
     // Hope then. A yes goes by the primary, which keeps it for that arm (E29 fix
-    // r2-H4): one it could not keep leaves the card open.
+    // r2-H4): one it could not keep leaves the card open. The primary writes
+    // "Approved" on the card once the player's browser has the yes (E18 C1).
 async function ruleApproveCallOrRefuseCall(action, data) {
     const { answerHopeCall } = await import("./gm-bridge.mjs");
     const yes = action === "approveCall";
     if (!(await answerHopeCall(data.rid, data.asker, yes))) return null;
-    return settled(yes ? "DRPG.Bridge.settledApproved" : "DRPG.Bridge.settledDeclined");
+    return yes ? { held: true } : settled("DRPG.Bridge.settledDeclined");
 }
 
     // A Dynamic action: the difficulty editor is the old dialog, opened from
     // the card by whichever GM picks it up; "Refuse" tells the player so. The
     // difficulty is kept in the card's meta, where the GM who places the action's
-    // trace reads its band (gm-bridge.mjs `dynamicRulingOf`, E08+E28 C15).
+    // trace reads its band (gm-bridge.mjs `dynamicRulingOf`, E08+E28 C15). The
+    // ruling goes by the primary, which writes the card and its meta once the
+    // player's browser has it (E18 C1).
 async function ruleSetDifficulty(action, data) {
     const { askDynamicDifficulty } = await import("./action-rolls.mjs");
     const ruling = await askDynamicDifficulty({
@@ -722,14 +727,12 @@ async function ruleSetDifficulty(action, data) {
     });
     if (!ruling) return null;   // The editor was closed; the card stays open.
     const { answerDynamic } = await import("./gm-bridge.mjs");
-    if (!answerDynamic(data.rid, data.asker, ruling)) return null;
-    return { ...settled("DRPG.Bridge.settledAnswered"), ruling: { type: "dynamic", actorId: data.by, tier: ruling.tier } };
+    return (await answerDynamic(data.rid, data.asker, ruling)) ? { held: true } : null;
 }
 
 async function ruleRefuseDynamic(action, data) {
     const { answerDynamic } = await import("./gm-bridge.mjs");
-    if (!answerDynamic(data.rid, data.asker, false)) return null;
-    return settled("DRPG.Bridge.settledDeclined");
+    return (await answerDynamic(data.rid, data.asker, false)) ? { held: true } : null;
 }
 
     // The statistic of a roll that lists several (E32+E07 C11b; trait-ruling.mjs). The

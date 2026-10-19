@@ -62,8 +62,9 @@
  */
 
 export const FLOWS = Object.freeze([
+    // E18 C1 (19.10.2026): a Dynamic answer goes by the primary (`dynamic.answer`), which 40 drives from the card's button.
     { id: "action-roll", what: "A player's action roll: the tile, the roll window, and the difficulty a GM rules for a Dynamic action",
-        entry: { bridge: ["dynamic.difficulty"], api: ["performAction"] }, scenarios: ["40-flow"], status: "partial", stage: "E39" },
+        entry: { bridge: ["dynamic.difficulty", "dynamic.answer"], api: ["performAction"] }, scenarios: ["40-flow"], status: "partial", stage: "E39" },
     // E08+E28 C14 (04.10.2026): partial - 30 sends a console's Analyze and 40 throws a player's and rerolls it; what the
     // price does when the GM's side refuses is driven by 61 (keysNotOpen) and not tagged here.
     { id: "analyze", what: "Analyze: the price paid on the player's client, the analysis read on the GM's",
@@ -139,9 +140,11 @@ export const FLOWS = Object.freeze([
     { id: "gm-rolls-total", what: "The GM checks a roll's total against the roll message it can see",
         entry: { bridge: ["roll.draw", "roll.grant"] }, scenarios: ["40-flow", "30-security", "15-held", "13-murder-signals", "83-roll-integrity", "20-crit-hope"], status: "covered", stage: "1.2.67" },
     // E29 fix r2-H4 (05.10.2026): a GM's yes is kept on the primary for the arm it allows (`call.yes`) - 40 says it on
-    // the primary, 33 from an Assistant GM, 30 arms with none and says yes from p1's console.
+    // the primary, 33 from an Assistant GM, 30 arms with none and says yes from p1's console. E18 C1 (19.10.2026): the
+    // asker's reports that end the card (`ruling.expired`, `ruling.received`, a Dynamic action's too) - 33's A13 reads
+    // the card written on p1's receipt and A17 the card p1's clock ended.
     { id: "hope-call", what: "A Hope Call that waits for the GM: the card, the ruling, the Hope charged",
-        entry: { bridge: ["call.approve", "call.yes"] }, scenarios: ["40-flow", "30-security", "33-bridge-paths"], status: "covered", stage: "<=1.2.50" },
+        entry: { bridge: ["call.approve", "call.yes", "ruling.expired", "ruling.received"] }, scenarios: ["40-flow", "30-security", "33-bridge-paths"], status: "covered", stage: "<=1.2.50" },
     // E12 C0 (11.10.2026): 66-rooms drives the shim's floors (S) and a scene of two floors (G). E12 C9 (11.10.2026): G
     // judges a level-only move - a lock on the floor above refused, the stairs charged as a door, a stairwell's floors
     // free - on the mover's browser; partial until the GM judges the arrival (C12) and the fog is drawn by floor (C10).

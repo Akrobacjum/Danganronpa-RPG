@@ -27901,6 +27901,162 @@ const SCENARIOS = [
         }
     }],
 
+    ["an ask its player stopped waiting for ends its card once: only its asker's expiry ends it, the card says so, and a later yes is not kept (E18 C1)", async () => {
+        /*
+         * E18 C1, 19.10.2026; audits S10-25 and S11-13 (E18-05). Until C1 a Hope Call's card stayed open after its
+         * player's clock had run out: a GM's yes much later was kept on the primary and sent to a browser that had
+         * stopped waiting. The player's waiter now sends `ruling.expired` with the ask's id when its clock runs out, and
+         * the primary ends the card and drops the ask it holds, for that ask's own asker only. Each packet is handed to
+         * the bridge's runner as Foundry would name its sender: the ask (`call.approve`) from a connected player, an
+         * expiry and a receipt of that id from another player account, then the asker's own expiry. Read: whether the
+         * card is ended after the other account's two and after the asker's, its two closing lines in the GM's copy and
+         * in the asker's (the one for everyone, the GMs' own), and this GM's yes afterwards. The card is deleted and its
+         * popup dismissed after.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the ask is a player's, and Foundry names only a connected one");
+        needs(world.atLeast("playerAccounts", 2), "an expiry from another player account is the forgery read here");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which holds the asks - this would measure nothing");
+        const { player, theirs } = playerAndCharacters();
+        const stranger = game.users.find(u => !u.isGM && u.id !== player.id);
+        const G = await import("./bridge-guards.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const { contentOf, cardFlag, wordsFor } = await import("./secret.mjs");
+        const judged = (action, fields, from, requestId = null) =>
+            G.judge(B.BRIDGE_ACTIONS, { action, ...(requestId ? { requestId } : {}), ...fields }, from, { send: () => {} });
+        const lines = html => {
+            const wrap = document.createElement("template");
+            wrap.innerHTML = html;
+            const all = [...wrap.content.querySelectorAll(".drpg-call-settled")];
+            return [all.filter(el => !el.closest(".drpg-gm-only")).map(el => el.textContent).join(" | ") || null,
+                all.filter(el => el.closest(".drpg-gm-only")).map(el => el.textContent).join(" | ") || null];
+        };
+        const seen = new Set(game.messages.map(m => m.id));
+        const created = [];
+        const hook = Hooks.on("createChatMessage", m => { if (!seen.has(m.id)) created.push(m); });
+        const rid = foundry.utils.randomID(16);
+        const ended = () => Boolean(cardFlag(game.messages.get(created[0]?.id ?? ""), "settled"));
+        const read = [];
+        try {
+            await judged("call.approve", { actorId: theirs.id, key: "experience", note: "E18 C1 expiry", nonce: foundry.utils.randomID(16) }, player.id, rid);
+            must(await until(() => created.length > 0, 5000), "the ask put no card up - this would measure nothing");
+            await judged("ruling.expired", { rid }, stranger.id);
+            await judged("ruling.received", { rid }, stranger.id);
+            await settle(300);
+            read.push(ended());
+            await judged("ruling.expired", { rid }, player.id);
+            read.push(await until(ended, 3000));
+            const words = contentOf(game.messages.get(created[0].id));
+            read.push(lines(words), lines(wordsFor(player.id, words)));
+            read.push(await B.answerHopeCall(rid, player.id, true));
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            for (const node of [...document.querySelectorAll(".drpg-popup")]) node.dispatchEvent(new CustomEvent("drpg-dismiss"));
+            for (const message of created) await message.delete().catch(() => {});
+            await settle();
+        }
+        const EXPIRED = game.i18n.localize("DRPG.Bridge.settledExpired"), GONE = game.i18n.localize("DRPG.Bridge.settledGone");
+        equal(stableJson(read), stableJson([false, true, [EXPIRED, GONE], [EXPIRED, null], false]),
+            "another player's expiry or receipt ended the card or dropped its ask, its asker's expiry did not end it, the closing lines are not the expired ones (the GM's copy, then the asker's), or a yes after it was kept");
+    }],
+
+    ["a ruling reaches the card only once its asker said it arrived: 'Approved' on the receipt, the GMs' line without one, and the yes taken back (E18 C1)", async () => {
+        /*
+         * E18 C1, 19.10.2026; audit S11-13 (E18-06). Until C1 the GM who pressed a Hope Call's yes or a Dynamic action's
+         * difficulty wrote "Approved" or "Answered" on the card at once, whether the player was still waiting or not. Now
+         * the yes and the Dynamic answer go by the primary, which sends them on and writes the card only on the asker's
+         * `ruling.received`; with none within `TIMING.ackMs` it ends the card with the GMs' own line and takes the yes
+         * back, so no arm can use it. Read on this primary, each packet handed to the bridge's runner with the user
+         * Foundry would name: (1) this GM's yes naming another player as the asker (`answerHopeCall`), then a yes
+         * pressed on the card's own button (messenger-app.mjs `wireCallActions`): whether the first was sent on, whether
+         * the card is ended before any receipt, after another player's receipt and expiry, and its line after the
+         * asker's receipt; (2) a yes (`answerHopeCall`) no receipt follows - the card's lines after the wait, and whether
+         * the arm's guard still finds the yes; (3) a Dynamic action: its asker's own `dynamic.answer` (Trivial), then
+         * this GM's ruling of 2 (`answerDynamic`) and the asker's receipt - whether the GM's was sent, the card's line and
+         * the ruling kept in its meta. Cards are deleted and popups dismissed after; no Hope is paid (the arm's guard is
+         * asked, not the arm).
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the ask is a player's, and Foundry names only a connected one");
+        needs(world.atLeast("playerAccounts", 2), "a receipt from another player account is the forgery read here");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which holds the asks - this would measure nothing");
+        const { player, theirs } = playerAndCharacters();
+        const stranger = game.users.find(u => !u.isGM && u.id !== player.id);
+        const G = await import("./bridge-guards.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const { wireCallActions } = await import("./messenger-app.mjs");
+        const { contentOf, cardFlag } = await import("./secret.mjs");
+        const { TIMING } = await import("./config.mjs");
+        const judged = (action, fields, from, requestId = null) =>
+            G.judge(B.BRIDGE_ACTIONS, { action, ...(requestId ? { requestId } : {}), ...fields }, from, { send: () => {} });
+        const lines = html => {
+            const wrap = document.createElement("template");
+            wrap.innerHTML = html;
+            const all = [...wrap.content.querySelectorAll(".drpg-call-settled")];
+            return [all.filter(el => !el.closest(".drpg-gm-only")).map(el => el.textContent).join(" | ") || null,
+                all.filter(el => el.closest(".drpg-gm-only")).map(el => el.textContent).join(" | ") || null];
+        };
+        const seen = new Set(game.messages.map(m => m.id));
+        const created = [];
+        const hook = Hooks.on("createChatMessage", m => { if (!seen.has(m.id)) created.push(m); });
+        const cardOf = async n => {
+            must(await until(() => created.length > n, 5000), `ask ${n + 1} put no card up - this would measure nothing`);
+            return game.messages.get(created[n].id);
+        };
+        const ended = n => () => Boolean(cardFlag(game.messages.get(created[n]?.id ?? ""), "settled"));
+        const read = [];
+        try {
+            const [rid1, rid2, rid3, nonce2] = [1, 2, 3, 4].map(() => foundry.utils.randomID(16));
+            await judged("call.approve", { actorId: theirs.id, key: "experience", note: "E18 C1 receipt", nonce: foundry.utils.randomID(16) }, player.id, rid1);
+            const first = await cardOf(0);
+            const body = document.createElement("div");
+            body.innerHTML = contentOf(first);
+            wireCallActions(body, first);
+            const yes = body.querySelector('[data-drpg-call="approveCall"]');
+            must(yes, "the card carries no yes for a GM - this would measure nothing");
+            read.push(await B.answerHopeCall(rid1, stranger.id, true));
+            yes.click();
+            await settle(800);
+            read.push(ended(0)());
+            await judged("ruling.received", { rid: rid1 }, stranger.id);
+            await judged("ruling.expired", { rid: rid1 }, stranger.id);
+            await settle(300);
+            read.push(ended(0)());
+            await judged("ruling.received", { rid: rid1 }, player.id);
+            await until(ended(0), 3000);
+            read.push(lines(contentOf(game.messages.get(created[0].id))));
+
+            await judged("call.approve", { actorId: theirs.id, key: "experience", note: "E18 C1 no receipt", nonce: nonce2 }, player.id, rid2);
+            await cardOf(1);
+            read.push(await B.answerHopeCall(rid2, player.id, true));
+            await until(ended(1), TIMING.ackMs + 3000);
+            read.push(lines(contentOf(game.messages.get(created[1].id))));
+            read.push(G.guardArmGmYes(player, { actorId: theirs.id, call: { key: "experience", nonce: nonce2 } }, {}) !== null);
+
+            await judged("dynamic.difficulty", { actorId: theirs.id, description: "E18 C1 dynamic", actorName: theirs.name, room: null }, player.id, rid3);
+            await cardOf(2);
+            await judged("dynamic.answer", { rid: rid3, asker: player.id, tier: 0, trait: "agility", refuse: false }, player.id, foundry.utils.randomID(16));
+            read.push(Boolean(await B.answerDynamic(rid3, player.id, { tier: 2, trait: "agility" })));
+            await judged("ruling.received", { rid: rid3 }, player.id);
+            await until(ended(2), 3000);
+            const third = game.messages.get(created[2].id);
+            const ruling = cardFlag(third, "ruling");
+            read.push(lines(contentOf(third)), [ruling?.type ?? null, ruling?.actorId === theirs.id, ruling?.tier ?? null]);
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            for (const node of [...document.querySelectorAll(".drpg-popup")]) node.dispatchEvent(new CustomEvent("drpg-dismiss"));
+            for (const message of created) await message.delete().catch(() => {});
+            await settle();
+        }
+        const EXPIRED = game.i18n.localize("DRPG.Bridge.settledExpired"), GONE = game.i18n.localize("DRPG.Bridge.settledGone");
+        const by = key => game.i18n.format(key, { name: game.user.name });
+        equal(stableJson(read), stableJson([
+            false, false, false, [by("DRPG.Bridge.settledApproved"), null],
+            true, [EXPIRED, GONE], true,
+            true, [by("DRPG.Bridge.settledAnswered"), null], ["dynamic", true, 2]
+        ]), "a yes naming the wrong asker was sent on, a yes was written before its receipt or on another player's receipt or expiry, a yes with no receipt did not end the card with the GMs' line or was still kept, or a Dynamic ruling was taken from its asker or not written with its difficulty on its asker's receipt (in order: ended before a receipt, after another's receipt and expiry, the lines after the asker's; the yes sent, the lines after the wait, the yes gone; this GM's ruling sent after the asker's own, its lines, its meta)");
+    }],
+
     ["the GM's popup for a veiled ask", async () => {
         /*
          * E06 C8, 28.09.2026. A thread card that asks the GMs (`gmAsk`) raises a notice and
