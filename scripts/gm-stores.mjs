@@ -227,6 +227,24 @@ export const passageLogStore = defineGmStore({
 });
 
 /**
+ * FOUNDRY'S SECRET DOORS AS THE GMS LAST SET THEM (E80 fix r1-G1, 18.10.2026; the review's E80-SEC-3 and E80-COR-1):
+ * a row per `<sceneId>.<wallId>`, `{ ds }` - the state a GM last gave that secret door, written by the primary GM as
+ * it hears the change (passages-gm.mjs `putBackSecretDoor`, its GM branch) and dropped when the wall goes or the
+ * conversion makes it an ordinary wall. A door with no row is one no GM has changed: shut. A player's change is put
+ * back to it, and so is one made while no primary GM heard it, when a GM's browser becomes the primary
+ * (`settleSecretDoors`). No reset group (a door's state is the scene's, which no reset writes) and not in the case
+ * file: it follows the doors themselves.
+ */
+export const secretDoorStore = defineGmStore({
+    name: "secretDoors", key: SETTINGS.gmSecretDoors,
+    kind: "ledger", backup: false, sync: true,
+    exists: key => {
+        const [sceneId, wallId = ""] = String(key).split(".");
+        return Boolean(game.scenes?.get(sceneId)?.walls?.has(wallId));
+    }
+});
+
+/**
  * The upgrade day's clear, still undecided (H4): the store's pick is older than a
  * clear some GM's old store held. `{ pick, clearedAt, pickedAt }`, or null. The same
  * on every GM once the record has merged. While it stands, no player is told they

@@ -1686,7 +1686,8 @@ async function settleAnalyze(actor, bookmark, after, done) {
  * A Find Stash replayed on this GM (E80 C4, S16-19; the GMs' facts `findStash`, `stashFound`: gm-bridge.mjs
  * `handleFindStash`, action-rolls.mjs `locateStash`). A roll that opened a stash keeps it whatever the new dice say,
  * and opens no second one; one that did not searches again with the new dice (vault.mjs `resolveStashSearch`, its own
- * card to the finder and, on a find, to the GMs). A character with no room to search gives the Reroll back.
+ * card to the finder and, on a find, to the GMs) as a replay, which tells no trap a second hunt (E80 fix r1-G1). A
+ * character with no room to search gives the Reroll back.
  */
 async function settleStashFind(actor, bookmark, after, done) {
     if (bookmark.stashFound) {
@@ -1694,7 +1695,7 @@ async function settleStashFind(actor, bookmark, after, done) {
         return {};
     }
     const { resolveStashSearch } = await import("./vault.mjs");
-    const out = await resolveStashSearch({ actorId: actor.id, total: after.total, isCritical: after.isCritical });
+    const out = await resolveStashSearch({ actorId: actor.id, total: after.total, isCritical: after.isCritical, replay: true });
     if (!out || out.reason === "noRoom") return null;
     done.push(game.i18n.localize(out.found ? "DRPG.Reroll.stashFound" : "DRPG.Reroll.searchNothing"));
     return out.found ? { stashFound: true } : {};

@@ -4290,6 +4290,7 @@
         "passageMap": "The secret passages: where each one is and whether it is open",
         "passageAccess": "Who knows each secret passage, and how they learnt it",
         "passageLog": "What was done with the secret passages",
+        "secretDoors": "Foundry's secret doors, as the GMs last set them",
         "cast": "The incident's cast",
         "blackened": "The Blackened register",
         "trapLedger": "The traps' planted objects",

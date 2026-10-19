@@ -50550,6 +50550,12 @@ const SCENARIOS = [
          * E80 C3, 18.10.2026: a fifth trap, on a Find Passage (P1-10's trap), read as the stash hunt's - done here, as
          * the GM's browser raises it and as the player's browser relays it, and done there. Red at the parent (879d6d5):
          * no trap watches for one, so the two that should spring do not.
+         *
+         * E80 fix r1-G1, 18.10.2026 (the review's E80-SEC-1 and E80-SEC-2): the GM that judges a Find Passage or a stash
+         * hunt tells the trap (R604), so a player's browser's report of either is no road - a Find Passage's kind is read
+         * as nothing, a stash hunt's is refused from a player - and a GM's report of a stash hunt it judged still is. Read
+         * besides: the player's relayed stash hunt here, and the GM's. Red at the parent (4263c09): the player's relayed
+         * Find Passage and stash hunt both spring their trap.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 1), "the relayed crossing is a connected player's");
         const playerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
@@ -50608,7 +50614,11 @@ const SCENARIOS = [
                 await fires("enters", () => G.judge(T.TRAP_ACTIONS, { action: "trap.event", kind: "crossing", actorId: student.id, to: ROOM, sceneId: scene.id },
                     playerOf(student).id, { send: () => {} })),
                 await fires("passage", () => G.judge(T.TRAP_ACTIONS, { action: "trap.event", kind: "passage", actorId: student.id, room: ROOM },
-                    playerOf(student).id, { send: () => {} }))];
+                    playerOf(student).id, { send: () => {} })),
+                await fires("stash", () => G.judge(T.TRAP_ACTIONS, { action: "trap.event", kind: "stash", actorId: student.id, room: ROOM },
+                    playerOf(student).id, { send: () => {} })),
+                await fires("stash", () => G.judge(T.TRAP_ACTIONS, { action: "trap.event", kind: "stash", actorId: student.id, room: ROOM },
+                    game.user.id, { send: () => {} }))];
             await mine.update({ hidden: true });
             must(locateActor(student)?.scene === scene, `${student.name} is not placed on the suite's scene with the token here hidden - this would measure nothing`);
             read.push(...await standing());
@@ -50620,10 +50630,10 @@ const SCENARIOS = [
             await scene?.delete();
             await settle();
         }
-        equal(stableJson([armed, ...read]), stableJson([KINDS.length, true, true, true, true, true, false, false, true, false, false, false, false]),
+        equal(stableJson([armed, ...read]), stableJson([KINDS.length, true, true, true, true, true, false, false, false, false, true, false, false, false, false]),
             `[the traps armed, then whether each spoke] - the traps in "${ROOM}" on the scene on screen spoke for ${student.name}'s crossing, Search, Rest, stash hunt and Find Passage there; for a crossing into a room of that name `
-            + "on a scene of the suite's own, as the GM's browser raises it and as the player's browser relays it; for a Find Passage there as the player's browser relays it; "
-            + "and for a Search, a Rest, a stash hunt and a Find Passage there");
+            + "on a scene of the suite's own, as the GM's browser raises it and as the player's browser relays it; for a Find Passage and a stash hunt here as the player's browser relays them, "
+            + "and a stash hunt here as a GM's browser relays it; and for a Search, a Rest, a stash hunt and a Find Passage there");
     }],
 
     ["a secret project is a non-obvious Observe's find only in its room on its own scene", async () => {
@@ -52770,7 +52780,7 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson([[false, true, [OLD]], [true, true, [null, null]]]),
             "[the new name sealed, the old name sealed, the record on each piece of the new name] after the first piece's rename and after the second's");
     }],
-    ["A10-7 - Find Passage on the primary GM: the Analyze window offers it in every room, never greyed, with its 16 in the briefing, and not in a Class Trial, where one asked anyway is refused before the price; on a map of the suite's own a Head of 15 misses and 16 finds the tunnel whose end the student stands by, the cell 'found' with its roll, a card of one shape to the GMs, and the Reroll's lower dice take the find back; a student the GMs do not read where her token stands - a console's jump through a wall, noted or being put back - finds nothing there and shows nothing, and a Reroll still takes back its own roll's find", async () => {
+    ["A10-7 - Find Passage on the primary GM: the Analyze window offers it in every room, never greyed, with its 16 in the briefing, and not in a Class Trial, where one asked anyway is refused before the price; on a map of the suite's own a Head of 15 misses and 16 finds the tunnel whose end the student stands by, the cell 'found' with its roll, a card of one shape to the GMs, and the Reroll's lower dice take the find back; a student the GMs do not read where her token stands - a console's jump through a wall, noted or being put back - finds nothing there and shows nothing, and a Reroll still takes back its own roll's find; each first throw tells a trap watching for a search, in the room the GMs read her in, and the Reroll does not", async () => {
         /*
          * E80 C3 (18.10.2026; P1-10, P1-11, P1-13, the stage's write road "found cell"). The harms: a row that greys out
          * where there is no passage (a detector nobody rolls for), a row in the courtroom or a price paid for a search
@@ -52791,6 +52801,9 @@ const SCENARIOS = [
          * wall, lies a Hall whose list names the Gym alone, so the doors do not join it to the Dorm (scenario 76's
          * Kitchen); beside the Dorm, beyond another wall, a Bath the map joins to it. Red at 26b86cc: the jump from the
          * Hall found the tunnel and showed it to Botan, and the jump from the Bath being put back found it.
+         * E80 fix r1-G1 (18.10.2026; the review's E80-SEC-1): the trap's word on the first three searches, as this
+         * browser's hook hears it - the search raises it on the primary, where the roller's browser did until then (R604
+         * reads the order and the refusals). Red at the parent (4263c09): none.
          */
         const rolls = await import("./action-rolls.mjs");
         const ACT = await import("./actions.mjs");
@@ -52858,7 +52871,15 @@ const SCENARIOS = [
                     return [out?.refused ? B.reasonOf(out.refused) : out, P.PASSAGE_STORES.access.get(`${id}/${hana.id}`)?.how ?? null,
                         P.PASSAGE_STORES.access.get(`${id}/${hana.id}`)?.rollId ?? null];
                 };
-                const steps = [await search(15), await search(16), await search(10, { undo: true })];
+                // The trap's word on these three (E80 fix r1-G1), as the hook is heard here; no trap watches the suite's Dorm.
+                const hunts = [];
+                const hear = Hooks.on("drpgPassageHunted", event => { hunts.push([event?.actor?.id === hana.id, event?.room ?? null]); });
+                let steps = null;
+                try {
+                    steps = [await search(15), await search(16), await search(10, { undo: true })];
+                } finally {
+                    Hooks.off("drpgPassageHunted", hear);
+                }
                 // Where the GMs read her (the note above): each step [what, the answer, Hana's cell (Botan's for the show)].
                 const PLACE = { teleport: true, movementAction: "displace", animate: false }, asPlayer = { ...PLACE, [M.SENT_BACK]: asker.id };
                 const cell = actor => P.PASSAGE_STORES.access.get(`${id}/${actor.id}`)?.how ?? null;
@@ -52929,7 +52950,7 @@ const SCENARIOS = [
                 await hana.delete();
                 await botan.delete();
                 hana = botan = null;
-                return { here, there, briefed, inTrial, steps, cards, refused, unread, lawful, told: told.length };
+                return { here, there, briefed, inTrial, steps, cards, refused, unread, lawful, told: told.length, hunts };
             });
         } finally {
             if (own) Object.defineProperty(api, "wait", own); else delete api.wait;
@@ -52944,7 +52965,7 @@ const SCENARIOS = [
             await ACT.setActions(student, kept.actions);
             await settle();
         }
-        const { here, there, briefed, inTrial, steps, cards, refused, unread, lawful, told } = read;
+        const { here, there, briefed, inTrial, steps, cards, refused, unread, lawful, told, hunts } = read;
         equal(J([Boolean(here), here?.html === there?.html, here?.disabled, here?.unavailable, briefed, inTrial]),
             J([true, true, false, false, true, null]),
             "[the row offered where the student stands, the same by the tunnel's end, disabled, greyed, the briefing's 16, the row in a Class Trial] - the Analyze window tells where a passage is, or offers a search in the courtroom");
@@ -52952,6 +52973,8 @@ const SCENARIOS = [
         equal(J(steps), J([[{ searched: true, found: false }, null, null], [{ searched: true, found: true }, "found", "SUITEA107ROLL01"],
             [{ lost: true }, null, null], ["trialLocked", null, null]]),
             "[the answer, Hana's cell, its roll] at 15, 16, a Reroll to 10 and 20 in a Class Trial - the tunnel by her is not found on the real map, or its find is not her roll's");
+        equal(J(hunts), J([[true, DORM], [true, DORM]]),
+            "[the trap's word as [Hana's, the room]] for the miss, the find and the Reroll - the primary's search tells no trap, tells it of another room, or tells it of a replay");
         equal(J(cards), J([[true, `<p>${game.i18n.localize("DRPG.Analyze.passageNothing")}</p>`, { key: "searchNothing", gm: false }, cards[0]?.[3]],
             [true, `<p>${game.i18n.format("DRPG.Analyze.passageFound", { to: unexplored })}</p>`, { key: "passageFound", gm: true }, cards[0]?.[3]]]),
             "[Hana's card, its words, its sound, how many it went to] for the miss and the find (no Reroll card: the Reroll's lines say it) - the find names a room or reaches another number of people");
@@ -52972,6 +52995,9 @@ const SCENARIOS = [
          * 12 into 17, 17 into 12, 12 into 17. Read after each: whether it stood, how many of the two stashes the
          * character has found, and whether its lines say the find or that it stands. Red at the parent (34abae2): no
          * replay, 0 found each time.
+         * E80 fix r1-G1 (18.10.2026; the review's E80-SEC-1): the GM that judges the search tells a trap of the hunt -
+         * the finder's browser did until then - once for the first search and never for a replay. Read: the hunts this
+         * browser's hook hears, as [the character, the room]. Red at the parent (4263c09): none.
          */
         needs(world.atLeast("playerCharactersInRooms"), "the stashes are in the room the player's character stands in");
         needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
@@ -52991,8 +53017,11 @@ const SCENARIOS = [
         const hope = actor.system.resources.hope.value;
         const opened = () => owners.filter(o => V.hasFoundStash(actor, where.room, o.id, where.scene)).length;
         const said = (out, key) => Array.isArray(out?.lines) && out.lines.includes(game.i18n.localize(key));
+        const T = await import("./traps.mjs");
+        must(!T.diagnoseTraps().rooms.includes(where.room), `a trap is armed in ${where.room} - the search's hunt would spring it, and this test puts no trap back`);
         let F = null;
-        const read = [];
+        const read = [], hunts = [];
+        const hear = Hooks.on("drpgStashHunted", event => { hunts.push([event?.actor?.id ?? null, event?.room ?? null]); });
         try {
             await region.update({ [`flags.${MODULE_ID}.${V.VAULT_FLAGS.stashes}`]: owners.map(o => ({ actorId: o.id, concealed: true })),
                 [`flags.${MODULE_ID}.${V.VAULT_FLAGS.hinders}`]: [], [`flags.${MODULE_ID}.${V.VAULT_FLAGS.favours}`]: [] });
@@ -53010,6 +53039,7 @@ const SCENARIOS = [
                 read.push([Array.isArray(out?.lines), opened(), said(out, key)]);
             }
         } finally {
+            Hooks.off("drpgStashHunted", hear);
             await F?.putBack();
             await region.update(Object.fromEntries(keys.map((k, i) => [`flags.${MODULE_ID}.${k}`, before[i] === undefined ? forcedDeletion() : before[i]])));
             if (JSON.stringify(actor.getFlag(MODULE_ID, V.VAULT_FLAGS.found) ?? null) !== JSON.stringify(foundBefore)) {
@@ -53020,6 +53050,8 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson([[true, 1, true], [true, 1, true], [true, 1, true]]),
             "[stood, stashes found, its line] after a Find Stash's Rerolls 12 to 17, 17 to 12 and 12 to 17 again - the replay opened none, took the find back, or opened a second");
+        equal(stableJson(hunts), stableJson([[actor.id, where.room]]),
+            "[each stash hunt a trap was told of, as [the character, the room]] for the search at 12 and its three Rerolls - the GM's search told no trap, another room, or a replay as a second hunt");
     }],
 
     ["A10-18 - 'Go through' a tunnel is carried out on the primary GM at a door's price: the token lands by the far end with teleport, displace and no animation, the crossing is told to the traps, a crossing back pays again; a lock, a seal, the chain, the courtroom, no budget and a spent Eclipse refuse it in the doors' words with nothing written, paid or warned on the GM, as does a tunnel the character does not know; the Mastermind passes the lock, anybody another's bedroom; an Eclipse counts one crossing and costs nothing else; a write that fails gives back exactly what it took; a token the GMs are putting back, one they hold as standing where the rules refuse and one moved while the price is taken stand at no end", async () => {
@@ -53245,7 +53277,7 @@ const SCENARIOS = [
             "[the options of a crossing's write, how many kinds of options every crossing's write had, the first two crossings as the traps are told of them]");
         equal(stableJson(warned), "[]", "the GM's screen was warned of a player's refusal");
     }],
-    ["A10-15 - Foundry's secret doors and the players' rulers on the world: 'Convert to passages' turns a secret door in the wall two rooms of a scene share into an ordinary wall, shut, and a secret passage nobody knows, and one inside a room into a plain wall it names, with none left; a player's opening of a secret door is written shut again through Foundry; Hide and Show of the players' movement rulers write the world's permissions, the movement ruler alone, and the permissions are put back as they were", async () => {
+    ["A10-15 - Foundry's secret doors and the players' rulers on the world: 'Convert to passages' turns a secret door in the wall two rooms of a scene share into an ordinary wall, shut, and a secret passage nobody knows, and one inside a room into a plain wall it names, with none left, and forgets the GMs' record of each, as it does of a secret door deleted; a player's opening of a secret door is written shut again through Foundry, and so is one no primary heard, by the pass the primary's ready runs, which leaves open a door a GM opened; Hide and Show of the players' movement rulers write the world's permissions, the movement ruler alone, and the permissions are put back as they were", async () => {
         /*
          * E80 C5 (18.10.2026; S16-18, P1-17 to P1-19), R601's reading on Foundry's own documents: a scene of the suite's
          * own with two rooms and two secret doors, the passages in a world the stores have never opened
@@ -53253,6 +53285,14 @@ const SCENARIOS = [
          * opening is handed to the put-back as Foundry's hook would hand it (the sender a player): the suite runs on the
          * GM, and scenario 30 drives a console's opening from a player's page. v14's own SHOW_RULER, and what a table
          * sees once it is off, are LIVE-E80-02.
+         * E80 fix r1-G1 (18.10.2026; the review's E80-SEC-3 and E80-COR-1): a change of a door's state no primary heard,
+         * then the primary's ready. The inner door is opened by this GM (the GMs' record of it: open); the spare one is
+         * opened by a write the watch reads as none of the GMs' (the put-back's own mark, `DOOR_ASIDE`, as a change no
+         * primary heard leaves the record), and then the pass the ready runs (`settleSecretDoors`) is run on the scene.
+         * The player's opening is that stand-in too since this fix, as a GM's own write is now the GMs' state of the door.
+         * A fourth secret door this GM opens and then deletes: the record of it goes with the wall (`onWallDeleted`).
+         * A player's page with no GM connected, and the GM's coming back, is scenario 15's away and back. Red at the
+         * parent (4263c09): no pass - the spare door stays open - and the conversion keeps the record's rows.
          */
         const P = await import("./passages-gm.mjs");
         const D = await import("./fog-diagnostics.mjs");
@@ -53272,20 +53312,39 @@ const SCENARIOS = [
             scene = await Scene.create({ name: "SUITE E80 C5 doors", width: 1200, height: 600, grid: { size: 100 }, active: false, navigation: false });
             await scene.createEmbeddedDocuments("Region", [room("SUITE E80 C5 Hall", 0), room("SUITE E80 C5 Kitchen", 600)]);
             [shared, inner, spare] = await scene.createEmbeddedDocuments("Wall", [{ c: [600, 100, 600, 300], door: 2, ds: 0, move: 20 },
-                { c: [100, 300, 300, 300], door: 2, ds: 1, move: 20 }, { c: [700, 400, 900, 400], door: 2, ds: 0, move: 20 }]);
+                { c: [100, 300, 300, 300], door: 2, ds: 0, move: 20 }, { c: [700, 400, 900, 400], door: 2, ds: 0, move: 20 }]);
             await settle();
+            const ASIDE = { [P.DOOR_ASIDE ?? "drpgDoorAside"]: true };
             read = await E.withGmStoreWorld(`suite-e80-c5-${foundry.utils.randomID(8)}`, async () => {
+                // The GM opens the inner door; the spare one is opened as no primary heard it; the pass the primary's ready runs.
+                await inner.update({ ds: 1 });
+                await spare.update({ ds: 1 }, ASIDE);
+                await settle();
+                const was = [scene.walls.get(inner.id)?.ds, scene.walls.get(spare.id)?.ds];
+                const pass = typeof P.settleSecretDoors === "function" ? await P.settleSecretDoors({ scenes: [scene] }) : "no pass";
+                await settle();
+                const settled = [was, pass, scene.walls.get(inner.id)?.ds, scene.walls.get(spare.id)?.ds, P.secretDoorHeldShut(spare.id)];
                 // The spare door a player opens, put back, before the conversion takes it.
-                await spare.update({ ds: 1 });
+                await spare.update({ ds: 1 }, ASIDE);
                 const putBack = await P.putBackSecretDoor(spare, { ds: 1 }, "SUITEPLAYER", { sender: { id: "SUITEPLAYER", isGM: false, active: true } });
                 await settle();
                 const spareAfter = [scene.walls.get(spare.id)?.ds, P.secretDoorHeldShut(spare.id)];
+                // A secret door this GM opens, then deletes: the GMs' record of it goes with the wall.
+                const [gone] = await scene.createEmbeddedDocuments("Wall", [{ c: [1000, 100, 1000, 300], door: 2, ds: 0, move: 20 }]);
+                await gone.update({ ds: 1 });
+                await settle();
+                const goneKey = `${scene.id}.${gone.id}`, goneRecorded = S.secretDoorStore?.has(goneKey) ?? null;
+                await gone.delete();
+                await settle();
+                const deleted = [goneRecorded, S.secretDoorStore?.has(goneKey) ?? null];
                 const named = D.secretDoorRows(scene).length;
+                const kept = () => S.secretDoorStore?.has(`${scene.id}.${inner.id}`) ?? null;
+                const recorded = kept();
                 const out = await P.convertSecretDoors({ scenes: [scene] });
                 await settle();
                 const id = out?.passages?.find(p => S.passageMapStore.get(p)?.passageWallId === shared.id) ?? null;
                 const row = id ? S.passageMapStore.get(id) : null;
-                return { putBack, spareAfter, named, converted: out?.converted ?? null, plain: (out?.plain ?? []).map(p => p.wallId),
+                return { settled, putBack, spareAfter, deleted, named, record: [recorded, kept()], converted: out?.converted ?? null, plain: (out?.plain ?? []).map(p => p.wallId),
                     row: row && [row.passageWallId, row.passageSeg, row.rooms, row.state, row.startAccess],
                     knowers: Object.keys(S.passageAccessStore.entries()).filter(k => id && k.startsWith(`${id}/`)),
                     walls: [shared, inner].map(w => scene.walls.get(w.id)).map(w => [w?.door, w?.ds, w?.move]),
@@ -53302,10 +53361,10 @@ const SCENARIOS = [
             await game.settings.set("core", "permissions", before);
             await scene?.delete();
         }
-        equal(J(read), J({ putBack: true, spareAfter: [0, false], named: 3, converted: 3, plain: [inner?.id, spare?.id],
+        equal(J(read), J({ settled: [[1, 1], [spare?.id], 1, 0, false], putBack: true, spareAfter: [0, false], deleted: [true, false], named: 3, record: [true, false], converted: 3, plain: [inner?.id, spare?.id],
             row: [shared?.id, { x1: 600, y1: 100, x2: 600, y2: 300 }, ["SUITE E80 C5 Hall", "SUITE E80 C5 Kitchen"], "secret", []],
             knowers: [], walls: [[0, 0, 20], [0, 0, 20]], left: 0 }),
-        "[the player's opening put back, the spare door after it as [state, held shut], secret doors named, converted, the walls left plain, the passage as [wall, stretch, rooms, state, start access], who knows it, the two walls as [door, state, move], secret doors left]");
+        "[the pass as [the inner and spare doors before it, the doors it put back, the inner door after it, the spare one, the spare held shut], the player's opening put back, the spare door after it as [state, held shut], the GMs' record of a secret door a GM opened as [before, after it is deleted], secret doors named, the GMs' record of the inner door before and after the conversion, converted, the walls left plain, the passage as [wall, stretch, rooms, state, start access], who knows it, the two walls as [door, state, move], secret doors left]");
         equal(J(rulers), J([[true, [false, false], true, true], [true, [true, true], true, true]]),
             "[Hide, then Show, each as [it wrote, the Player and Trusted Player roles hold the ruler, both GM roles hold it, every other permission as it was]]");
         equal(rest(game.settings.get("core", "permissions")) + J(game.settings.get("core", "permissions")?.SHOW_RULER ?? null),

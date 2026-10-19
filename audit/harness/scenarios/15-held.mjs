@@ -31,6 +31,10 @@
  * reaction as well (roll-draw.mjs `throwUnwitnessed`), thrown with Fear over Hope, and A3's Grant all moves
  * neither its Hope nor the GMs' Despair for it - until then A3 read its Hope moved once, and no throw of
  * this scenario reached `grantRolls`' Despair guard.
+ * Since E80 fix r1-G1 (18.10.2026; the review's E80-SEC-3 and E80-COR-1) also: with no GM connected p1's
+ * console opens two secret doors, one by the wall's own update and one by the scene's embedded update, and
+ * shuts one the GM had opened - back, the primary puts the first two back shut and the third open again at
+ * its ready (D1).
  */
 export const layers = ["ci"];
 
@@ -433,6 +437,25 @@ async function awayAndBack({ gm, gm0, p1, check, phase, settle, connect, disconn
         await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
         return G.gmStoresHydrated() && S.sheetMarkStore.get(aiko.id)?.resources?.hitPoints?.value === aiko._source.system.resources.hitPoints.value;`);
 
+    /* D1 (E80 fix r1-G1, 18.10.2026; the review's E80-SEC-3 and E80-COR-1): THREE SECRET DOORS CHANGED WITH NO GM
+       CONNECTED. The GM draws three secret doors in the scene's far corner, all shut, and opens the third itself -
+       the GMs' record of the doors (gm-stores.mjs `secretDoorStore`) holds it open - its stores waited for, so the
+       record leaves in its browser. With no GM connected p1's console opens the first by the wall's own update
+       (E80-SEC-3's case) and the second by the scene's embedded update (E80-COR-1's case), and shuts the third,
+       which Foundry lets a player do and no primary hears; back, the primary puts each back as a GM last left it at
+       its ready (passages-gm.mjs `settleSecretDoors`): the first two shut, the third open. Red at the parent
+       (4263c09): all three stood as p1 left them. */
+    const doorsSet = await gm.eval(`const G = await import("${repoUrl}/scripts/gm-store.mjs"), S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        ${UNTIL}
+        const scene = game.scenes.get("${IDS.scene}");
+        const made = await scene.createEmbeddedDocuments("Wall", [3800, 3900, 4000].map(x => ({ c: [x, 2600, x, 2800], door: 2, ds: 0, move: 20, sight: 20 })));
+        const ids = made.map(d => d?.id ?? null);
+        await made[2].update({ ds: 1 });
+        const recorded = typeof S.secretDoorStore?.get === "function" ? await until(() => S.secretDoorStore.get(scene.id + "." + ids[2])?.ds === 1, 3000) : false;
+        await G.gmStoresIdle();
+        return { ids, ds: ids.map(id => scene.walls.get(id)?.ds ?? null), recorded };`, { timeout: 30000 });
+    const doorIds = J(Array.isArray(doorsSet?.ids) ? doorsSet.ids : []);
+
     /* G1 (E33 C6; its plan's A4): THE GM LEAVES WHILE p1'S SEARCH IS OPEN. p1 starts a Search with the GM
        here, so the action's own gate (A1's) lets it through, and the Search's first window is held open
        until the GM has gone; then it is answered as the harness answers any. The Search pays, throws, and
@@ -577,6 +600,19 @@ async function awayAndBack({ gm, gm0, p1, check, phase, settle, connect, disconn
         await aiko.update({ "system.traits.agility.value": was.agility + 1, "system.resources.hitPoints.value": was.hp - 1 }, { drpgAutomated: true });
         return { ...was, written: [src().traits.agility.value, src().resources.hitPoints.value] };`, { timeout: 30000 });
 
+    // D1, away: p1's console opens the first secret door by its own update, the second by the scene's embedded update,
+    // and shuts the third by its own, with no GM connected.
+    const readDoors = `const s = game.scenes.get("${IDS.scene}");
+        return ${doorIds}.map(id => s.walls.get(id)?.ds ?? null);`;
+    const doorsAway = await p1.eval(`const s = game.scenes.get("${IDS.scene}"), [d1, d2, d3] = ${doorIds}, written = [];
+        const gms = (await import("${repoUrl}/scripts/utils.mjs")).activeGmIds().length;
+        for (const write of [() => s.walls.get(d1).update({ ds: 1 }), () => s.updateEmbeddedDocuments("Wall", [{ _id: d2, ds: 1 }]),
+            () => s.walls.get(d3).update({ ds: 0 })]) {
+            try { await write(); written.push("written"); } catch (err) { written.push("denied: " + err.message); }
+        }
+        await new Promise(r => setTimeout(r, 500));
+        return { gms, written, ds: ${doorIds}.map(id => s.walls.get(id)?.ds ?? null) };`, { timeout: 30000 });
+
     // A3: a GM connects; the primary's card lists the two reactions, and Grant all - its button clicked, then asked again -
     // decides them as the GM's and moves nothing: not Aiko's Hope, and not the GMs' Despair for A2's Fear result
     // (`grantRolls`' guard, cor M1: "Rolls grant Despair" is switched on and Aiko's Monokuma's pool set to 0 for the
@@ -625,6 +661,27 @@ async function awayAndBack({ gm, gm0, p1, check, phase, settle, connect, disconn
     check("A3: back, the GM gets one card listing p1's stamped reaction, and Grant all decides it as the GM's, moving neither its Hope nor the GMs' Despair for its Fear result",
         a3?.primary === true && J((a3.listed ?? []).map(ids => [...ids].sort())) === J([[a2.id, g3.id].sort()]) && a3.button && !a3.buttonsLeft && a3.again === 0 && a3.after === a3.hope
         && typeof a3.monokuma === "string" && a3.despair === 0 && a3.despairAfter === 0 && a3.granted === true && a3.author === "USERGA0000000000", J(a3), { flow: "gm-rolls-total" });
+    // D1, back: the primary's ready puts the doors back as the GM left them; read on gm0 and on p1, then the doors go.
+    let doorsBack = null, doorsOnP1 = null;
+    try {
+        doorsBack = await gm0.eval(`${UNTIL} const s = game.scenes.get("${IDS.scene}");
+            const ds = () => ${doorIds}.map(id => s.walls.get(id)?.ds ?? null);
+            await until(() => JSON.stringify(ds()) === "[0,0,1]", 15000);
+            return { primary: (await import("${repoUrl}/scripts/utils.mjs")).isPrimaryGm(), ds: ds() };`, { timeout: 30000 });
+        await settle(800);
+        doorsOnP1 = await p1.eval(readDoors);
+    } catch (err) {
+        doorsBack = { error: String(err?.message ?? err) };
+    } finally {
+        await gm0.eval(`const s = game.scenes.get("${IDS.scene}");
+            const ids = ${doorIds}.filter(id => typeof id === "string" && s.walls.has(id));
+            if (ids.length) await s.deleteEmbeddedDocuments("Wall", ids);
+            return true;`, { timeout: 30000 }).catch(() => null);
+    }
+    check("D1: back, the primary puts the secret doors p1's console changed with no GM connected back as the GM left them: the two no GM had opened, opened by the wall's own update and by the scene's, shut, the one the GM had opened open again",
+        Array.isArray(doorsSet?.ids) && doorsSet.ids.every(id => typeof id === "string") && J(doorsSet.ds) === J([0, 0, 1]) && doorsSet.recorded === true
+        && doorsAway.gms === 0 && J(doorsAway.written) === J(["written", "written", "written"]) && J(doorsAway.ds) === J([1, 1, 0])
+        && doorsBack?.primary === true && J(doorsBack.ds) === J([0, 0, 1]) && J(doorsOnP1) === J([0, 0, 1]), J({ doorsSet, doorsAway, doorsBack, doorsOnP1 }), { flow: "secret-passages" });
     check("G3: with no GM connected, a statistic clicked on p1's sheet opens its window and is thrown as a reaction, stamped, moving nothing; back, Grant all decides it and moves nothing for it",
         typeof g3.id === "string" && g3.windows.length > 0 && g3.kind === "reaction" && g3.author === IDS.p1 && g3.stamp?.actorId === IDS.aiko
         && typeof g3.stamp?.nonce === "string" && g3.after === g3.hope && g3Sent.length === 0 && (a3?.listed ?? []).flat().includes(g3.id)

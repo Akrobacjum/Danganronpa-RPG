@@ -256,8 +256,10 @@ export const FLOWS = Object.freeze([
     // Foundry's own move backend) is LIVE-E79-01..25 in AUDIT section 9.2. E80 C2 (18.10.2026): 'Go through' a tunnel
     // (`passage.cross`), carried out by the primary GM: 76's phase U, 33's A16, and 30's forgeries of it. E80 C3 (18.10.2026):
     // Analyze's Find Passage (`passage.find`), judged on the primary GM from its record of the roll: 76's phase V, 30's forgeries.
+    // E80 fix r1-G1 (18.10.2026): a secret door a player changed while no GM was connected is put back when a GM comes: 15's
+    // away-and-back.
     { id: "secret-passages", what: "A secret passage: the GMs' records, and each player's copy of the ones their own characters know, sent to them alone",
-        entry: { sockets: ["passages.mjs", "passages-gm.mjs", "movement-audit.mjs"], bridge: ["passage.share", "passage.cross", "passage.find"] }, scenarios: ["76-passages", "33-bridge-paths", "30-security"], status: "covered", stage: "1.2.79" },
+        entry: { sockets: ["passages.mjs", "passages-gm.mjs", "movement-audit.mjs"], bridge: ["passage.share", "passage.cross", "passage.find"] }, scenarios: ["76-passages", "33-bridge-paths", "30-security", "15-held"], status: "covered", stage: "1.2.79" },
     { id: "sheet-audit", what: "A player's own write on their student: judged on the primary GM, put back, flagged or listed - at the write, or at the primary's ready for one made with no GM watching",
         entry: { calls: ["sheet-audit.mjs#judgeWrite", "sheet-audit.mjs#compareAtReady"], bridge: ["audit.decide"] },
         scenarios: ["30-security", "40-flow", "61-gmstore-case", "20-crit-hope", "10-murder", "15-held", "83-roll-integrity"], status: "covered", stage: "1.2.68" },

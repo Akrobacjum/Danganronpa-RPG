@@ -39,6 +39,10 @@
  * back any change of its state a player makes (`putBackSecretDoor`, on `updateWall`), the audit reading
  * it shut until that write lands (`secretDoorHeldShut`). The one Wall write here, and only of `door`
  * and `ds` on a wall that already is (R560 still holds: no wall is made a secret door or created).
+ * Since E80 fix r1-G1 the write is back to the state a GM last left the door in (`secretDoorStore`, shut
+ * where no GM has changed it), and the doors are gone over when a GM's browser takes the primary's place
+ * - at its ready, and when a GM leaves (`settleSecretDoors`) - so a change made with no primary to hear it
+ * is put back too.
  *
  * Since E80 C6 (18.10.2026; D4, the owner's A10 Q2) a GM makes a passage public and secret again from the tab
  * (`makePassagePublic`, `makePassageSecret`): every student knows a public one - in the copies, the client's cut
@@ -50,7 +54,7 @@
 import { MODULE_ID, ACTIONS } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { isPrimaryGm, serverNow, whisperToOwner, whisperToGms, ownerOf, warn, error, serialWrite } from "./utils.mjs";
-import { passageMapStore, passageAccessStore, passageLogStore, mastermindStore, mastermindUndecided } from "./gm-stores.mjs";
+import { passageMapStore, passageAccessStore, passageLogStore, mastermindStore, mastermindUndecided, secretDoorStore } from "./gm-stores.mjs";
 import { RECORD, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible } from "./gm-store.mjs";
 import { senderOf } from "./bridge-guards.mjs";
 import { isMonokuma } from "./monokuma.mjs";
@@ -557,23 +561,28 @@ function doorPassageRow(scene, wall, stores) {
  * that stands between no two rooms (one inside a room, at the map's edge, on a stretch another
  * passage holds) stays the plain wall it now is and is named in `plain` with the reason. Answers
  * `{ converted, passages, plain }`, or null on a player's browser. Run again it finds nothing to do.
+ * Since E80 fix r1-G1 the GMs' record of each converted door's state (`secretDoorStore`) goes with it:
+ * the wall is no secret door any more. `doors` is the suite's (R601).
  */
-export async function convertSecretDoors({ scenes = null, stores = PASSAGE_STORES } = {}) {
+export async function convertSecretDoors({ scenes = null, stores = PASSAGE_STORES, doors = secretDoorStore } = {}) {
     if (!game.user?.isGM) return refuse("only a GM converts the secret doors.");
     const out = { converted: 0, passages: [], plain: [] };
     for (const scene of scenes ?? Array.from(game.scenes ?? [])) {
         const ids = secretDoorsOn(scene).map(wall => wall.id);
         if (!ids.length) continue;
         await scene.updateEmbeddedDocuments("Wall", ids.map(_id => ({ _id, door: DOOR_NONE(), ds: DOOR_CLOSED() })));
+        const gone = [];
         for (const wallId of ids) {
             HELD_SHUT.delete(wallId);
             const wall = scene.walls?.get(wallId);
             if (isSecretDoor(wall)) continue;
             out.converted += 1;
+            if (doors.has(`${scene.id}.${wallId}`)) gone.push(`${scene.id}.${wallId}`);
             const { row, refused } = doorPassageRow(scene, wall, stores);
             if (row) out.passages.push(await writeNewPassage(scene, row, stores, { tell: false, origin: "door" }));
             else out.plain.push({ sceneId: scene.id, wallId, why: refused });
         }
+        if (gone.length) await doors.dropMany(gone);
     }
     if (out.passages.length) tellAfter(stores);
     if (out.converted) {
@@ -592,30 +601,68 @@ export function secretDoorHeldShut(wallId) {
     return HELD_SHUT.has(wallId);
 }
 
+const DOOR_LOCKED = () => globalThis.CONST?.WALL_DOOR_STATES?.LOCKED ?? 2;
+
 /**
- * The primary GM's answer to a change of a secret door's state (`updateWall`, E80 C5, P1-18): one a
- * GM made stands, and lets go of a hold; one anybody else made - a player, or a writer this world does
- * not know as an active user (`senderOf`) - is written back to the state before it (opened: shut;
- * shut: open), and the door held shut for the audit until that write lands, which lets go of it. On
- * the primary GM alone: another browser answers false and holds nothing. A
- * change of no state, or of any wall that is no secret door, is left alone. Answers whether it wrote
- * the put-back. A put-back that fails keeps the door held shut and is logged. The hold is taken before
- * the first await: a step the same player sends after the opening is judged against it. Read on
- * Foundry's documents by A10-15 and from a player's page by scenario 30 7e3; a console's change on v14
- * is LIVE-E80-03.
+ * An update option (E80 fix r1-G1): a GM's write of a secret door's state that is no choice of the GMs' - the
+ * put-back's own (`putBackSecretDoor`), or a stand-in the suite writes as a player's change - and so is not kept
+ * as the state the GMs last set (`secretDoorStore`).
  */
-export async function putBackSecretDoor(wall, change, userId, { sender = senderOf(userId) } = {}) {
-    if (!isPrimaryGm()) return false;
-    if (!isSecretDoor(wall) || !foundry.utils.hasProperty(change ?? {}, "ds")) return false;
+export const DOOR_ASIDE = "drpgDoorAside";
+
+/* A secret door's row in the GMs' record: `<sceneId>.<wallId>`, or null for a wall on no scene. */
+function secretDoorKey(wall) {
+    const sceneId = wall?.parent?.id;
+    return sceneId && wall?.id ? `${sceneId}.${wall.id}` : null;
+}
+
+const doorWord = ds => (ds === DOOR_OPEN() ? "open" : ds === DOOR_LOCKED() ? "locked" : "shut");
+
+/**
+ * The primary GM's answer to a change of a secret door's state (`updateWall`, E80 C5, P1-18). One a GM made
+ * stands, lets go of a hold, and since E80 fix r1-G1 is the state the GMs last set (`secretDoorStore`, written
+ * here and only here, unless the write is the put-back's own, `aside`); a GM's change of `door` alone keeps the
+ * state the door then has. One anybody else made - a player, or a writer this world does not know as an active
+ * user (`senderOf`) - is written back to the state a GM last left the door in: open if that was open, and shut
+ * otherwise, shut where no GM has changed it (no row); and the door held shut for the audit until that write
+ * lands, which lets go of it. Until that fix the put-back wrote the state before the change as the change's
+ * opposite (opened: shut; shut: open), so a player's "shut" of a shut door, sent whole (`diff: false`), opened it
+ * (the review's E80-SEC-3; R601, scenario 30 7e3). A door that stands as a GM left it is left alone and held by
+ * nothing; so is a locked one (only a GM locks a door, or changes a locked one); the put-back never locks. On
+ * a GM's browser alone (the gate R220's census reads), and there on the primary, asked without `leaving` - a GM
+ * the pass was told has gone (`settleSecretDoors`, reroll.mjs's rule): another browser answers false and holds
+ * nothing. A change of no state, or of any wall that is no secret door, is left alone.
+ * `unheard` is the pass's (`settleSecretDoors`): a state no primary heard change, which it words so. Answers
+ * whether it wrote the put-back. A put-back that fails keeps the door held shut and is logged. The hold is
+ * taken before the first await: a step the same player sends after the opening is judged against it. `sender`
+ * and `doors` are the suite's (R601, R605). Read on Foundry's documents by A10-15 and from a player's page by
+ * scenario 30 7e3; a console's change on v14 is LIVE-E80-03.
+ */
+export async function putBackSecretDoor(wall, change, userId, { sender = senderOf(userId), doors = secretDoorStore, aside = false, unheard = false, leaving = null } = {}) {
+    if (!game.user?.isGM) return false;
+    if (!isPrimaryGm({ leaving })) return false;
+    if (!isSecretDoor(wall)) return false;
+    const ds = foundry.utils.hasProperty(change ?? {}, "ds"), key = secretDoorKey(wall);
     if (sender?.isGM) {
+        if (ds) HELD_SHUT.delete(wall.id);
+        if ((ds || foundry.utils.hasProperty(change ?? {}, "door")) && !aside && key) await doors.patch(key, { ds: Number(ds ? change.ds : wall.ds) });
+        return false;
+    }
+    if (!ds) return false;
+    const now = Number(change.ds);
+    if (now === DOOR_LOCKED()) return false;
+    const want = (key ? doors.get(key)?.ds : null) === DOOR_OPEN() ? DOOR_OPEN() : DOOR_CLOSED();
+    if (now === want) {
         HELD_SHUT.delete(wall.id);
         return false;
     }
     HELD_SHUT.add(wall.id);
-    const back = Number(change.ds) === DOOR_CLOSED() ? DOOR_OPEN() : DOOR_CLOSED();
-    warn(`Secret doors: ${sender?.name ?? userId ?? "somebody"} changed the secret door ${wall.id}${wall.parent?.name ? ` on "${wall.parent.name}"` : ""}; it is put back.`);
+    const where = `${wall.id}${wall.parent?.name ? ` on "${wall.parent.name}"` : ""}`;
+    warn(unheard
+        ? `Secret doors: the secret door ${where} stands ${doorWord(now)}, which no GM left it - changed while no primary GM heard it; it is put back ${doorWord(want)}.`
+        : `Secret doors: ${sender?.name ?? userId ?? "somebody"} changed the secret door ${where}; it is put back ${doorWord(want)}.`);
     try {
-        await wall.update({ ds: back });
+        await wall.update({ ds: want }, { [DOOR_ASIDE]: true });
     } catch (err) {
         error(`Could not put the secret door ${wall.id} back; the audit reads it shut`, err);
     }
@@ -625,7 +672,51 @@ export async function putBackSecretDoor(wall, change, userId, { sender = senderO
 /* The primary GM's watch on the secret doors: the hold is taken in the hook's own turn. */
 function onSecretDoorChanged(wall, change, options, userId) {
     if (!isPrimaryGm()) return;
-    putBackSecretDoor(wall, change, userId).catch(err => error("Could not put a secret door back", err));
+    putBackSecretDoor(wall, change, userId, { aside: Boolean(options?.[DOOR_ASIDE]) }).catch(err => error("Could not put a secret door back", err));
+}
+
+/**
+ * THE CHANGES NO PRIMARY HEARD (E80 fix r1-G1, 18.10.2026; the review's E80-SEC-3 and E80-COR-1). The watch
+ * above answers a change as the primary GM hears it, and a change made while no GM was connected, or one the
+ * primary that heard it could not put back before another GM's browser took over (a hold is that browser's
+ * memory), reached no primary: until this fix the door stood as the player left it - open, a road through a
+ * wall - for good. Now, on the primary GM, each secret door of `scenes` (each world scene when none are given)
+ * that stands otherwise than a GM last left it is put back as the watch puts a player's change back
+ * (`putBackSecretDoor`, `unheard`): open where a GM last opened it, shut otherwise; a locked one is left alone.
+ * Run when this browser's stores are ready, and when a GM leaves (`onDoorsGmLeft`); it asks whether this browser is
+ * the primary without the one leaving (`isPrimaryGm({ leaving })`: null where that is this browser), and each
+ * put-back asks the same, so the pass does not wait on the leaving GM's `active` - which of that flag and
+ * `userConnected` v14 changes first is not measured (LIVE-E30-05; the harness flips the flag first). Where it is run
+ * it asks whether the suite holds the stores or stands them in another world (`gmStoresQuiet`): then it is not run.
+ * Answers the ids of the doors it put back, or null off the primary.
+ * The GMs' record is each GM's browser's, as every GM store is, and merged among the GMs connected: a GM who
+ * comes back alone puts back what another GM changed while it was away. `doors` and `leaving` are the suite's
+ * and the leaving GM's (R605, A10-15, scenario 15).
+ */
+export async function settleSecretDoors({ scenes = null, doors = secretDoorStore, leaving = null } = {}) {
+    if (!isPrimaryGm({ leaving })) return null;
+    const put = [];
+    for (const scene of scenes ?? Array.from(game.scenes ?? [])) {
+        for (const wall of secretDoorsOn(scene)) {
+            if (await putBackSecretDoor(wall, { ds: wall.ds }, null, { sender: null, doors, unheard: true, leaving })) put.push(wall.id);
+        }
+    }
+    return put;
+}
+
+/**
+ * A GM left (`userConnected`, E80 fix r1-G1): whoever is the primary after it - this browser, if the list less
+ * the one leaving names it (`isPrimaryGm({ leaving })`, reroll.mjs's rule) - runs the pass (`settleSecretDoors`),
+ * so a put-back the GM who left could not land is landed here. A player coming or going, or a GM coming, is not
+ * this watch's: a GM's coming is its own browser's pass. Registered on a GM's browser only (`registerPassagesGm`);
+ * the pass itself asks whether this browser is the primary. `settle` and `quiet` are the suite's (R605).
+ */
+export function onDoorsGmLeft(user, connected, { settle = settleSecretDoors, quiet = gmStoresQuiet } = {}) {
+    if (connected || !user?.isGM || quiet()) return null;
+    return Promise.resolve(settle({ leaving: user.id })).catch(err => {
+        error("Could not put the secret doors back", err);
+        return null;
+    });
 }
 
 /**
@@ -1203,12 +1294,16 @@ function passagesToFind(actor, place, facts, stores) {
  * to as that owner may name it, or "no hidden passage here" - so a miss, an empty room and the Mastermind read
  * alike - with the sound `passageFound` (the GMs hear it too) or `searchNothing`. The primary's screen says it
  * once; no card goes to the GMs alone. A replay writes no card - the Reroll's lines say it - and takes back only
- * the cell its own roll wrote. `asker` is the bridge's sender; `stores`, `users`, `world`, `whisper`, `toast`,
- * `note` and `primary` are the suite's (A10-7).
+ * the cell its own roll wrote. A trap watching for a passage search (traps.mjs `onPassageHunted`) is told here,
+ * once the search stands and before its outcome, on every first throw and never for a replay: since E80 fix r1-G1
+ * (the review's E80-SEC-1), where until then the roller's browser raised it, so a console that asked for the find
+ * without raising it searched past every trap, and the room the trap read was that browser's word. `asker` is the
+ * bridge's sender; `stores`, `users`, `world`, `whisper`, `toast`, `note`, `primary` and `hunted` are the suite's
+ * (A10-7, R604).
  */
 export async function resolvePassageSearch({ actorId, total = 0, isCritical = false, rollId = null, undo = false } = {}, { asker = null,
     stores = PASSAGE_STORES, users = game.users, world = null, whisper = whisperToOwner, toast = text => ui.notifications?.info(text),
-    note = noteFindFact, primary = isPrimaryGm } = {}) {
+    note = noteFindFact, primary = isPrimaryGm, hunted = event => Hooks.callAll("drpgPassageHunted", event) } = {}) {
     return serialWrite(`passage.find/${actorId}`, async () => {
         if (!primary()) return { refused: "nothing was carried out: a passage search is judged on the primary GM's browser" };
         const facts = world ?? await liveFindWorld();
@@ -1236,6 +1331,8 @@ export async function resolvePassageSearch({ actorId, total = 0, isCritical = fa
         // GMs' reading does not turn the replay into a refusal that gives the Reroll back and keeps the find.
         const place = facts.place(actor);
         if (!place?.room || !place.scene?.id) return { refused: "the character has no token on a scene" };
+        // The trap's word (E80 fix r1-G1): every first throw that stands, hit or miss, in the room the GMs read.
+        if (!undo) hunted({ actor, room: place.room });
 
         const pick = beat && !door ? passagesToFind(actor, place, facts, stores)[0] ?? null : null;
         let to = null;
@@ -1806,6 +1903,8 @@ function onWallMoved(wall, change) {
 
 function onWallDeleted(wall) {
     if (!isPrimaryGm()) return;
+    const key = secretDoorKey(wall);
+    if (key && secretDoorStore.has(key)) secretDoorStore.drop(key).catch(err => error("Could not forget a deleted secret door", err));
     wallChanged(wall, { gone: true }).catch(err => error("Could not mark a secret passage on a deleted wall", err));
 }
 
@@ -1826,7 +1925,9 @@ async function onRouteSettled({ tokenDoc, room, provisional = false } = {}) {
 /**
  * At ready, on a GM's browser: the ask's listener, the watches that tell the players what another
  * GM changed or who came, went or changed role, and the primary's watches on the walls and the routes (each asks `isPrimaryGm` when it
- * fires, so a GM who becomes the primary later takes them over).
+ * fires, so a GM who becomes the primary later takes them over). Since E80 fix r1-G1 also the secret doors' pass
+ * (`settleSecretDoors`): once this browser's record of them is ready, if it is the primary then, and when a GM
+ * leaves, on whoever is the primary after it (`onDoorsGmLeft`).
  */
 export function registerPassagesGm() {
     overlayDrawer("passages", layer => drawPassagesLayer(layer));
@@ -1849,8 +1950,11 @@ export function registerPassagesGm() {
         Hooks.on("updateWall", onWallMoved);
         Hooks.on("updateWall", onSecretDoorChanged);
         Hooks.on("deleteWall", onWallDeleted);
+        Hooks.on("userConnected", onDoorsGmLeft);
         Hooks.on("drpgRouteSettled", onRouteSettled);
         redrawGmOverlay("passages");
         passageMapStore.whenHydrated().then(() => redrawGmOverlay("passages")).catch(() => {});
+        secretDoorStore.whenHydrated().then(() => (gmStoresQuiet() ? null : settleSecretDoors()))
+            .catch(err => error("Could not put the secret doors back once the stores were ready", err));
     });
 }

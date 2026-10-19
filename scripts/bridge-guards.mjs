@@ -1213,6 +1213,18 @@ export function guardRelayActor(sender, payload, ctx) {
     return payload?.actorId && game.actors.get(payload.actorId) ? null : "no such character";
 }
 
+/*
+ * A STASH HUNT IS TOLD BY THE GM THAT JUDGED IT (E80 fix r1-G1, 18.10.2026; the review's E80-SEC-1).
+ * vault.mjs `resolveStashSearch` raises it on the GM that scores the search, and a GM's browser that is
+ * not the primary relays it as its own report; the finder's browser raised it until then, so a console
+ * that left it out hunted past every trap, and one that sent it alone set one off with no search. A
+ * player's report of a stash hunt is no road any more, and is refused. (A Find Passage is no report at
+ * all: the primary that judges it raises it, and the relay's kinds no longer name it.)
+ */
+export function guardRelayTeller(sender, payload, ctx) {
+    return payload?.kind === "stash" && !sender?.isGM ? "only a GM reports a stash hunt" : null;
+}
+
 /* ==========================================================================
  * THE BUILDING BLOCKS OF A DECLARATION (E31)
  * --------------------------------------------------------------------------

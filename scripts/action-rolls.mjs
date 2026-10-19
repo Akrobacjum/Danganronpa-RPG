@@ -5063,18 +5063,14 @@ async function locateStash(actor, def, roll, request = "", charge = null) {
     // division as Observe, and the same reason: this client must not be the one
     // that decides whether it found something.
     /*
-     * ANNOUNCED BEFORE THE ANSWER, and that is the rule rather than an
-     * accident of ordering. Dawid, 28.08: a trap watching for a stash hunt
-     * fires on EVERY attempt, including one that finds nothing. It answers
-     * somebody who is rummaging through other people's hiding places; whether
-     * they were any good at it is a different question.
-     *
-     * Putting it here rather than inside `resolveStashSearch` also keeps it
-     * out of the branch where the roll is judged, so it cannot drift into
-     * settling up with the dice later.
+     * NOT ANNOUNCED HERE ANY MORE (E80 fix r1-G1, 18.10.2026; the review's
+     * E80-SEC-1). Dawid, 28.08: a trap watching for a stash hunt fires on EVERY
+     * attempt, including one that finds nothing, before the dice are read. This
+     * client raised it, and its relay was the only thing that told the GM: a
+     * console that searched without raising it hunted past every trap. It is
+     * raised by the GM that judges the search now (vault.mjs
+     * `resolveStashSearch`), before the roll is scored.
      */
-    Hooks.callAll("drpgStashHunted", { actor, room, total: roll.total });
-
     const { requestStashSearch } = await import("./gm-bridge.mjs");
     const { gmOnline, sayNotDone } = await import("./bridge-guards.mjs");
 
@@ -5118,12 +5114,13 @@ async function locateStash(actor, def, roll, request = "", charge = null) {
  * the primary GM from its own record of the roll (passages-gm.mjs `resolvePassageSearch`), which tells
  * the character's owner on a card of its own what was found - one shape whatever came of it. Like the
  * stash's, the row is offered in every room and never greyed: one that dimmed where there is no passage
- * would answer the question for free. A trap watching for it fires on every attempt, hit or miss,
- * announced before the answer (`locateStash`'s rule). This card says only that the walls were gone over.
+ * would answer the question for free. A trap watching for it fires on every first throw, hit or miss, before
+ * the answer - raised since E80 fix r1-G1 on the primary GM that judges it (`resolvePassageSearch`, the review's
+ * E80-SEC-1), where until then this client raised it and a console that did not was hunted past every trap. This
+ * card says only that the walls were gone over.
  */
 async function locatePassage(actor, def, roll, request = "", charge = null) {
     const room = roomOfActor(actor);
-    Hooks.callAll("drpgPassageHunted", { actor, room, total: roll.total });
 
     const { requestPassageFind } = await import("./gm-bridge.mjs");
     const { gmOnline, sayNotDone } = await import("./bridge-guards.mjs");

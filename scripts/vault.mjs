@@ -2062,8 +2062,18 @@ export function stashesFoundBy(actor) {
  * else: "you found nothing" is what an action buys, and it is the same sentence
  * whether the room was empty or the dice were bad. Saying which would answer the
  * question the next attempt is for.
+ *
+ * THE HUNT IS TOLD HERE (E80 fix r1-G1, 18.10.2026; the review's E80-SEC-1). A trap
+ * watching for a stash hunt fires on every attempt, before the roll is scored
+ * (Dawid, 28.08); until that fix the finder's own browser raised it (action-rolls.mjs
+ * `locateStash`), so a console that asked for the search without raising it hunted
+ * past every trap. It is raised here, on the GM that judges the search, for the room
+ * this GM reads the finder in - a non-primary GM's own search relays it to the primary
+ * as a GM's report (traps.mjs). A Reroll's replay (`replay`, reroll.mjs
+ * `settleStashFind`) is the same attempt, and no second hunt. `hunted` is the suite's.
  */
-export async function resolveStashSearch({ actorId, total = 0, isCritical = false } = {}) {
+export async function resolveStashSearch({ actorId, total = 0, isCritical = false, replay = false } = {},
+    { hunted = event => Hooks.callAll("drpgStashHunted", event) } = {}) {
     if (!game.user.isGM) return null;
 
     const actor = game.actors.get(actorId);
@@ -2072,6 +2082,8 @@ export async function resolveStashSearch({ actorId, total = 0, isCritical = fals
     const { locateActor } = await import("./movement.mjs");
     const where = locateActor(actor);
     if (!where?.room) return { found: false, reason: "noRoom" };
+
+    if (!replay) hunted({ actor, room: where.room });
 
     const beat = Boolean(isCritical) || Number(total) >= (ACTIONS.analyze?.stashThreshold ?? 16);
     if (!beat) {

@@ -1388,9 +1388,20 @@ const REGRESSIONS = [
          * Only `createChatMessage` reaches everybody, which is exactly why the
          * item trigger was the one that worked. So every other one needs a relay,
          * and this is what says so.
+         *
+         * E80 fix r1-G1 (18.10.2026; the review's E80-SEC-1): two hooks are raised
+         * on the GM that judges the thing (`ON_GM`), and the file named is the one
+         * place that raises each - one raised on the roller's browser again is a
+         * trap a console can skip, or set off with no search. A Find Passage is
+         * judged on the primary (passages-gm.mjs `resolvePassageSearch`) and needs
+         * no relay; a stash hunt is judged on any GM (vault.mjs
+         * `resolveStashSearch`), and one who is not the primary relays it. Red at
+         * the parent (4263c09): both raised in action-rolls.mjs.
          */
         const src = await fetch(`/modules/${MODULE_ID}/scripts/traps.mjs`).then(r => r.text());
         const clean = stripComments(src);
+        // [the one file that raises it, relayed from a GM who is not the primary]
+        const ON_GM = { drpgPassageHunted: ["passages-gm.mjs", false], drpgStashHunted: ["vault.mjs", true] };
 
         const subscribed = [...clean.matchAll(/Hooks\.on\("(drpg\w+)"/g)].map(m => m[1]);
         ok(subscribed.length >= 4, `traps.mjs subscribes to only ${subscribed.length} module hooks`);
@@ -1401,6 +1412,7 @@ const REGRESSIONS = [
         for (let i = 0; i < marks.length; i++) {
             const name = marks[i][1];
             if (name === "createChatMessage") continue;   // reaches every client already
+            if (ON_GM[name] && !ON_GM[name][1]) continue;   // raised on the primary GM, which runs it
             const to = i + 1 < marks.length ? marks[i + 1].index : clean.length;
             if (!clean.slice(marks[i].index, to).includes("relay(")) unrelayed.push(name);
         }
@@ -1414,6 +1426,13 @@ const REGRESSIONS = [
         ok(!deaf.length, `the GM side ignores these relayed events: ${deaf.join(", ")}`);
         const orphan = [...handled].filter(kind => !sent.has(kind));
         ok(!orphan.length, `the GM side answers to events nothing sends: ${orphan.join(", ")}`);
+
+        // Each hook the GM that judges the thing raises is raised there, and nowhere else.
+        const sources = (await otherSources()).map(([file, raw]) => [file, stripComments(raw)]);
+        const raisedAt = Object.fromEntries(Object.keys(ON_GM).map(hook => [hook,
+            sources.filter(([, text]) => text.includes(`callAll("${hook}"`)).map(([file]) => file)]));
+        equal(JSON.stringify(raisedAt), JSON.stringify(Object.fromEntries(Object.entries(ON_GM).map(([hook, [file]]) => [hook, [file]]))),
+            "{ the hook: the files that raise it } - a hook the GM that judges it raises is raised on the acting client again, or by nothing");
     }],
 
     ["R14 - every setting listener waits on the hook its setting actually fires", async () => {
@@ -5895,8 +5914,10 @@ const REGRESSIONS = [
             ...E.gmCopyNames().map(name => [`the copy ${name}`, E.gmCopySpec(name)?.resetGroup])];
         ok(named.length >= 14, `only ${named.length} GM stores and copies are defined - the table was not read`);
         /* A store no reset cuts, on purpose, with its reason (E79 C1, 14.10.2026; the E79 plan's 1b.1): a secret passage
-           is the map's and stays from season to season - who knows it is the "passages" group's (passageAccess). */
-        const UNCUT = { "the store passageMap": "a secret passage stays; who knows it is cut with the passages group" };
+           is the map's and stays from season to season - who knows it is the "passages" group's (passageAccess). And
+           (E80 fix r1-G1) the GMs' record of Foundry's secret doors: a door's state is the scene's, which no reset writes. */
+        const UNCUT = { "the store passageMap": "a secret passage stays; who knows it is cut with the passages group",
+            "the store secretDoors": "a secret door's state is the scene's, which no reset writes: the GMs' record of it follows their own changes" };
         const strays = named.filter(([what, group]) => !groups.has(group) && !(group === undefined && Object.hasOwn(UNCUT, what)))
             .map(([what, group]) => `${what} (${group})`);
         ok(!strays.length, `a reset can never cut ${strays.join(", ")}: its reset group is none the window offers`);
@@ -8102,7 +8123,7 @@ const REGRESSIONS = [
             ["SOCKET search-tokens.mjs#registerSearchTokenSocket#-", "judged on the primary: `searchSpendRefusal` (search-tokens.mjs `guardSearchRoom`) - the sender owns the actor and the actor stands in the room by `locateActor(actor, { sceneId: payload.sceneId })`, over place scenes only since E12 C3; the packet's `sceneId` only picks among the actor's own tokens; `key`, `left`, `sealed`, `spend` and `setFor` take the scene the handler judged, with no camera default since E12 C6"],
             ["SOCKET sync.mjs#registerSync#kind", "judged: applied only from a GM sender (sync.mjs:137)"],
             ["SOCKET sync.mjs#registerSync#data", "judged: from a GM only (sync.mjs:137). E11 C3's gather broadcast rides it (`SYNC.gather`, call-world.mjs:396): `panToGathered` (436) pans only when the client's camera shows the broadcast scene - C5's scene from `locateActor(caller)` is the one broadcast (E12 C5)"],
-            ["SOCKET traps.mjs#registerTraps#-", "judged on the primary (`judge(TRAP_ACTIONS)`, the senderOf/ownsActor pair); the room a relay names (`to`, `room`) is checked by `guardRelayRoom` (bridge-guards.mjs) with `standsIn` (traps.mjs) over the character's tokens on the scene the sender views when the character has a token there (`User#viewedScene`, which only narrows among the character's own tokens), else on every scene (`placesOf`; read in the code, E12 C3); `roomOf` is `roomOfActor`, placed by `locateActor` since E12 C3, and a plant is keyed by the scene its caller names (`plantKey`), not the GM's viewed scene; an \"alone\" trap counts the room on the crossed token's scene, or the relay's `sceneId`, which only chooses among the character's own tokens (`isAlone`, `locateActor`; E12 fix r1-G4)"],
+            ["SOCKET traps.mjs#registerTraps#-", "judged on the primary (`judge(TRAP_ACTIONS)`, the senderOf/ownsActor pair); the room a relay names (`to`, `room`) is checked by `guardRelayRoom` (bridge-guards.mjs) with `standsIn` (traps.mjs) over the character's tokens on the scene the sender views when the character has a token there (`User#viewedScene`, which only narrows among the character's own tokens), else on every scene (`placesOf`; read in the code, E12 C3); `roomOf` is `roomOfActor`, placed by `locateActor` since E12 C3, and a plant is keyed by the scene its caller names (`plantKey`), not the GM's viewed scene; an \"alone\" trap counts the room on the crossed token's scene, or the relay's `sceneId`, which only chooses among the character's own tokens (`isAlone`, `locateActor`; E12 fix r1-G4); since E80 fix r1-G1 a stash hunt's report is a GM's alone (`guardRelayTeller`: the GM that judged the search raises it, vault.mjs `resolveStashSearch`), and a Find Passage is no report (the primary raises it in `resolvePassageSearch`; the kind is read as nothing; R600)"],
             ["SOCKET voice.mjs#onVoiceSocket#room", "judged: only about the sender's own voice (`userId = senderId`, voice.mjs:332-335) on the primary; `room` is the sender's claim about itself; no E12 commit reads it (C2a moves `sceneRoomWarnings`, voice.mjs:831)"],
             ["SOCKET voice.mjs#onVoiceSocket#state", "judged: only about the sender's own voice (`userId = senderId`, voice.mjs:332-335) on the primary; `room` is the sender's claim about itself; no E12 commit reads it (C2a moves `sceneRoomWarnings`, voice.mjs:831)"],
             ["SOCKET voice.mjs#onVoiceSocket#requestId", "judged: only about the sender's own voice (`userId = senderId`, voice.mjs:332-335) on the primary; `room` is the sender's claim about itself; no E12 commit reads it (C2a moves `sceneRoomWarnings`, voice.mjs:831)"],
@@ -9436,10 +9457,11 @@ const REGRESSIONS = [
             ["ACT gm-bridge.mjs#ACTION_PASSAGE_SHARE#passage.share -> *", "judged on the primary GM: `knownSender` and `owns(\"actorId\")`, then passages-gm.mjs `shareRefusal` - the phase, the giver alive, in no incident and no Monocub, the giver's own cell of a secret passage (a closed, unknown or made-up one refused alike), both in one room, scene and floor now, the one shown it alive; `sharePassage` writes the records and pushes the copies (R562; 76 G)"],
             // ---- the Passages tab's watch on a passage's wall (E79 C5)
             ["HOOK passages-gm.mjs#registerPassagesGm#updateWall/onWallMoved -> record", "the primary GM only (`isPrimaryGm`), and only when the change carries `c`: a passage whose stretch is no longer on its wall's segment is marked broken in the GMs' records and drops out of every copy; the wall is never written (R561; 76 E)"],
-            ["HOOK passages-gm.mjs#registerPassagesGm#deleteWall/onWallDeleted -> record", "the primary GM only: every passage of the deleted wall is marked broken in the GMs' records and drops out of every copy (R561; 76 E)"],
+            ["HOOK passages-gm.mjs#registerPassagesGm#deleteWall/onWallDeleted -> record", "the primary GM only: every passage of the deleted wall is marked broken in the GMs' records and drops out of every copy (R561; 76 E); and since E80 fix r1-G1 a deleted secret door's row goes from the GMs' record of the doors (`secretDoorStore`), a GM store"],
             // ---- Foundry's secret doors (E80 C5, S16-17)
-            ["HOOK passages-gm.mjs#registerPassagesGm#updateWall/onSecretDoorChanged -> record", "the primary GM only (`isPrimaryGm`), and only a change of a secret door's `ds`: a GM's stands; anybody else's - a player, or a writer `senderOf` does not know as an active user - is written back to the state before it and the door held shut for the audit (`secretDoorHeldShut`, movement-audit.mjs `firstWallCrossed`) until that write lands; no passage record is written (R601, A10-15; 30 7e3)"],
-            ["WALLS passages-gm.mjs#convertSecretDoors -> screen", "a GM's Season setup only (`game.user.isGM` first): each scene's secret doors are written an ordinary wall, shut (`door` and `ds` alone), and each read again to make its passage through `passageRowFor`, the console's create's rule, with no start access; nothing of a wall reaches a player's copy (R601, A10-15)"],
+            ["HOOK passages-gm.mjs#registerPassagesGm#updateWall/onSecretDoorChanged -> record", "the primary GM only (`isPrimaryGm`), and only a change of a secret door's `ds` (a GM's of `door` too): a GM's stands and, unless the write is the put-back's own (`DOOR_ASIDE`), is the GMs' state of the door in `secretDoorStore`, a GM store (E80 fix r1-G1); anybody else's - a player, or a writer `senderOf` does not know as an active user - is written back to how a GM last left the door, open if that was open and shut otherwise, and the door held shut for the audit (`secretDoorHeldShut`, movement-audit.mjs `firstWallCrossed`) until that write lands; a locked door is left alone; no passage record is written (R601, A10-15; 30 7e3)"],
+            ["HOOK passages-gm.mjs#registerPassagesGm#userConnected/onDoorsGmLeft -> copy", "a GM's browser only (the `ready` hook returns on a player's): a GM leaving hands the secret doors' pass to whoever is the primary after it (`settleSecretDoors` with `leaving`, E80 fix r1-G1; R605): each secret door standing otherwise than a GM last left it is written back as the watch above writes a player's change back; quiet while tier 2 holds the stores (`gmStoresQuiet`); no copy is told - the sink is the family's for the event"],
+            ["WALLS passages-gm.mjs#convertSecretDoors -> screen", "a GM's Season setup only (`game.user.isGM` first): each scene's secret doors are written an ordinary wall, shut (`door` and `ds` alone), and each read again to make its passage through `passageRowFor`, the console's create's rule, with no start access, and its row in the GMs' record of the doors (`secretDoorStore`) dropped (E80 fix r1-G1); nothing of a wall reaches a player's copy (R601, A10-15)"],
             ["WALLS passages.mjs#secretDoorsOn -> screen", "the secret doors of a scene this browser holds, read by the map check (fog-diagnostics.mjs `secretDoorRows`) and the Season setup's row: a GM's screens; it reads no passage and cuts nothing (R601, A10-15)"],
             // ---- the routes, the copies' retelling and what a copy redraws (E79 fix r1-G4, SEC S4)
             ["HOOK passages-gm.mjs#registerPassagesGm#drpgRouteSettled/onRouteSettled -> record", "the primary GM only (`isPrimaryGm`): a student whose route settles outside the passage's rooms on the map loses a cell held 'Revoke when they leave the room' (`revokeLeavers`, R561; 76 E), read in the room the announcement names (E79 C14), and for a route announced before it stood (`provisional`) only once it stands (E79 fix r3-G3; 76 E)"],
@@ -13218,7 +13240,10 @@ const REGRESSIONS = [
             secretDoors: /key: "secretDoors",[\s\S]{0,200}fix: convertDoorsStep,\s*doKey: "DRPG\.Season\.convertDoors"/.test(season)
                 && /convertSecretDoors\(/.test(fnSource(season, "convertDoorsStep"))
                 && /findings\.push\(\.\.\.secretDoorRows\(scene\)\);/.test(fnSource(code("fog-diagnostics.mjs"), "checkRegions"))
-                && /^\s*if \(!isPrimaryGm\(\)\) return false;/m.test(fnSource(gmSrc, "putBackSecretDoor")),
+                && /^\s*if \(!game\.user\?\.isGM\) return false;\s*if \(!isPrimaryGm\(\{ leaving \}\)\) return false;/m.test(fnSource(gmSrc, "putBackSecretDoor"))
+                && /const want = \(key \? doors\.get\(key\)\?\.ds : null\) === DOOR_OPEN\(\) \? DOOR_OPEN\(\) : DOOR_CLOSED\(\);/.test(fnSource(gmSrc, "putBackSecretDoor"))
+                && /secretDoorStore\.whenHydrated\(\)\.then\(\(\) => \(gmStoresQuiet\(\) \? null : settleSecretDoors\(\)\)\)/.test(fnSource(gmSrc, "registerPassagesGm"))
+                && /Hooks\.on\("userConnected", onDoorsGmLeft\);/.test(fnSource(gmSrc, "registerPassagesGm")),
             rulers: /const PLAYER_ROLES = \[CONST\.USER_ROLES\.PLAYER, CONST\.USER_ROLES\.TRUSTED\];/.test(season)
                 && /key: "rulers",[\s\S]{0,400}doKey: "DRPG\.Season\.hideRulers",[\s\S]{0,300}undoKey: "DRPG\.Season\.showRulers"/.test(season)
         };
@@ -13240,7 +13265,8 @@ const REGRESSIONS = [
                     public: ["**Make public**, beside Close, gives the passage to every student at once", "**Make secret** gives it back to the students listed in its row alone"],
                     columns: ["in the columns Rooms, Kind, Shape, Origin, Who knows, At season start and State"],
                     secretDoors: ["| No Foundry secret doors (recommended) |", "**Convert to passages** makes each one an ordinary wall, shut",
-                        "a secret door a player opens is shut again by the primary GM's browser"],
+                        "the primary GM's browser puts a secret door a player changed back as a GM last left it (shut, if no GM has changed it)",
+                        "and one changed while no GM was connected as soon as a GM connects"],
                     rulers: ["| The players' movement ruler is hidden (optional) |", "**Hide** takes the movement ruler from the Player and Trusted Player roles, and **Show** gives it back"]
                 },
                 player: {
@@ -13254,7 +13280,8 @@ const REGRESSIONS = [
                 brochure: {
                     findPassage: ["find a hidden stash (16+) or find a secret passage (16+)"]
                 },
-                stale: ["Three things behind one tile", "A secret passage is one stretch of a plain wall between two rooms of one floor:"]
+                stale: ["Three things behind one tile", "A secret passage is one stretch of a plain wall between two rooms of one floor:",
+                    "a secret door a player opens is shut again by the primary GM's browser"]
             },
             pl: {
                 gm: {
@@ -13273,7 +13300,8 @@ const REGRESSIONS = [
                     public: ["**Ujawnij**, obok Zamknij, daje przejście od razu każdemu uczniowi", "**Utajnij** oddaje je z powrotem tylko uczniom wymienionym w jego wierszu"],
                     columns: ["w kolumnach Pokoje, Rodzaj, Kształt, Pochodzenie, Kto zna, Na start sezonu i Stan"],
                     secretDoors: ["| Brak sekretnych drzwi Foundry (zalecane) |", "**Zamień na przejścia** robi z każdych zwykłą, zamkniętą ścianę",
-                        "sekretne drzwi otwarte przez gracza przeglądarka głównego GMa zamyka z powrotem"],
+                        "przeglądarka głównego GMa ustawia sekretne drzwi, które zmienił gracz, z powrotem tak, jak GM ostatnio je zostawił (zamknięte, jeśli żaden GM ich nie zmieniał)",
+                        "a te zmienione, kiedy nie był połączony żaden GM, zaraz po połączeniu się GMa"],
                     rulers: ["| Linijka ruchu graczy jest ukryta (opcjonalnie) |", "**Ukryj** zabiera linijkę ruchu rolom Gracz i Zaufany gracz, a **Pokaż** ją oddaje"]
                 },
                 player: {
@@ -13287,7 +13315,8 @@ const REGRESSIONS = [
                 brochure: {
                     findPassage: ["znajdź ukrytą skrytkę (16+) albo znajdź tajne przejście (16+)"]
                 },
-                stale: ["Trzy rzeczy za jednym kafelkiem", "Tajne przejście to odcinek zwykłej ściany między dwoma pokojami jednego piętra:"]
+                stale: ["Trzy rzeczy za jednym kafelkiem", "Tajne przejście to odcinek zwykłej ściany między dwoma pokojami jednego piętra:",
+                    "sekretne drzwi otwarte przez gracza przeglądarka głównego GMa zamyka z powrotem"]
             }
         };
         const BOOKS = { gm: "gm-handbook", player: "player-handbook", brochure: "player-brochure" };

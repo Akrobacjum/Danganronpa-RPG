@@ -90,6 +90,11 @@ export const SETTINGS = {
     gmPassageAccess: "gmPassageAccess",
     gmPassageLog: "gmPassageLog",
     /**
+     * Foundry's secret doors as the GMs last set them (E80 fix r1-G1): a GM store
+     * (gm-stores.mjs `secretDoorStore`), the state the primary GM puts a door back to.
+     */
+    gmSecretDoors: "gmSecretDoors",
+    /**
      * The live Despair Overflow: `{ active }` (Z10), the stamp of the ONE time of
      * day a darkening covers, or null - public, since the card that fires it is.
      *
@@ -2213,6 +2218,12 @@ export function registerSettings() {
         default: {}
     });
     game.settings.register(MODULE_ID, SETTINGS.gmPassageLog, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    game.settings.register(MODULE_ID, SETTINGS.gmSecretDoors, {
         scope: "client",
         config: false,
         type: Object,

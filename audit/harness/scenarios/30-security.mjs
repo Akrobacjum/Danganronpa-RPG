@@ -1591,7 +1591,10 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
        stands Aiko west of it and turns the audit to "sendBack" (the GM's own writes, not under test). From p1's
        console, its veto taken off as a console's client would not run it, Aiko's player opens the door and steps her
        through it in the same breath: the primary GM shuts the door again and sends her back. Then the GM opens the
-       door itself, and the same step stands. */
+       door itself, and the same step stands. E80 fix r1-G1 (18.10.2026; the review's E80-SEC-3): between the two, p1's
+       console "shuts" the shut door, the change sent whole (`diff: false`, so every browser is handed it as made): until
+       that fix the primary put a change back as its opposite, and this one opened the door; now it puts a door back to
+       the state a GM last left it in, and the door stays shut. */
     phase("a secret door a player opens", { flow: "secret-passages" });
     const door = await gm.eval(`const scene = canvas.scene, P = { teleport: true, movementAction: "displace", animate: false };
         const [wall] = await scene.createEmbeddedDocuments("Wall", [{ c: [1500, 200, 1500, 800], door: 2, ds: 0, move: 20, sight: 20 }]);
@@ -1621,6 +1624,12 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         door?.mode === "sendBack" && forcedDoor.vetoOff && forcedDoor.opened === "written"
             && JSON.stringify([doorOnGm, doorOnP1]) === JSON.stringify([{ door: 2, ds: 0, at: [1300, 400] }, { door: 2, ds: 0, at: [1300, 400] }]),
         JSON.stringify({ door, forcedDoor, doorOnGm, doorOnP1 }));
+    const shutWhole = await p1.eval(`try { await canvas.scene.walls.get("${door?.id}").update({ ds: 0 }, { diff: false }); return "written"; }
+        catch (err) { return "denied: " + err.message; }`, { timeout: 30000 });
+    await settle(1500);
+    const wholeOnGm = await gm.eval(readDoor), wholeOnP1 = await p1.eval(readDoor);
+    check("SECURITY: a player's console that shuts the shut secret door, the change sent whole, leaves it shut",
+        shutWhole === "written" && JSON.stringify([wholeOnGm.ds, wholeOnP1.ds]) === JSON.stringify([0, 0]), JSON.stringify({ shutWhole, wholeOnGm, wholeOnP1 }));
     await gm.eval(`await canvas.scene.walls.get("${door?.id}").update({ ds: 1 }); return true;`);
     await settle(1000);
     const lawfulDoor = await stepThrough(false);

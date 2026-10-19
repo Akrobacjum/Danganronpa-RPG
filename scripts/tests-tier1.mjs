@@ -16364,7 +16364,7 @@ const INVARIANTS = [
             const cards = said.cards.length;
             const out = await P.resolvePassageSearch({ actorId, total, isCritical: crit, rollId, undo }, { asker: by, stores, users: people, world: world(over),
                 whisper: async (to, content, extra) => said.cards.push({ to: to.id, content, extra }),
-                toast: text => said.toasts.push(text), note: n => said.notes.push(n), primary });
+                toast: text => said.toasts.push(text), note: n => said.notes.push(n), primary, hunted: () => {} });
             return { out, code: out?.refused ? B.reasonOf(out.refused) : null, cards: said.cards.slice(cards) };
         };
         const cellsOf = actorId => Object.entries(stores.access.entries()).filter(([key]) => key.endsWith(`/${actorId}`) && !key.startsWith("touch/") && !key.startsWith("door/"))
@@ -16523,7 +16523,7 @@ const INVARIANTS = [
         const cards = [];
         const whisper = async (to, content, extra) => cards.push({ to: to.id, sfx: extra?.flags?.[MODULE_ID]?.sfx ?? null, whisper: extra?.whisper ?? [] });
         const asker = people[1];
-        const opts = { asker, stores, users: people, world, whisper, toast: () => {}, note: () => {}, primary: () => true };
+        const opts = { asker, stores, users: people, world, whisper, toast: () => {}, note: () => {}, primary: () => true, hunted: () => {} };
         // Who hears a GM's card: its whisper's names, a GM of them only when the sound is marked for the GMs.
         const hears = c => {
             const asked = soundFromMessage({ author: { isGM: true }, flags: { [MODULE_ID]: { sfx: c.sfx } } });
@@ -16574,14 +16574,17 @@ const INVARIANTS = [
                 "Poznajesz tajne przejście", "Uczeń znajduje tajne przejście albo ktoś mu je pokazał. Słyszy go on, a przy znalezieniu także GM-owie."]),
             "[the sound's label and line in English, in Polish] - the GM's sound list still says a passage rings only at a show");
     }],
-    ["R600 - a passage search's trap report names the room the character stands in: the GM's side reads the kind and refuses a room the character is not in, as a stash hunt's", async () => {
+    ["R600 - a trap report is the GM's to judge: a Find Passage is no report - its kind reads as nothing, names no room and is no road a guard opens - a stash hunt's is refused from a player and heard from a GM, the GM's side refuses a room the character is not in, and the passage search's hook is heard where it is raised and relayed from nowhere", async () => {
         /*
-         * E80 C3, 18.10.2026; the stage's write road "trap event kind passage" (P1-10's trap). A trap watching for a
-         * Find Passage fires on every attempt, so a report is a claim about an event; the harm is a player's console
-         * that names a room their character is not in and springs, and spends, the trap a killer built there. Read on a
-         * student of this world standing in a room of the scene on screen: the relay's packet as the GM reads it, and
-         * its room guard for the room the student stands in, a room it is not in, and the stash hunt's the same way
-         * (the control). Red at the parent (879d6d5): the kind is read as nothing and its room is not asked.
+         * E80 C3, 18.10.2026; the stage's write road "trap event kind passage" (P1-10's trap), and since E80 fix r1-G1
+         * (18.10.2026; the review's E80-SEC-1 and E80-SEC-2) no road at all. A trap watching for a Find Passage or a stash
+         * hunt fires on every attempt; until that fix the searcher's browser told the GM of it, so its console chose
+         * whether a trap heard of a search - leaving the report out searched past every trap, and sending one alone, or
+         * naming a room of its own choosing, sprang one with no search. Now the GM that judges the search raises it
+         * (R604). Read on a student of this world standing in a room of the scene on screen: the relay's packet as the GM
+         * reads it, its guards' verdicts for a player and for a GM (passed as plain senders: nothing is sent), its room
+         * guard for the room the student stands in and one it is not in, and traps.mjs's watch on the hook. Red at the
+         * parent (4263c09): the kind "passage" is read, its room asked, a player's stash hunt heard.
          */
         needs(world.atLeast("studentsInRooms"), "a student standing in a room to report from");
         const T = await import("./traps.mjs");
@@ -16591,18 +16594,35 @@ const INVARIANTS = [
         const student = studentActors().find(a => locateActor(a)?.room && locateActor(a).scene === canvas?.scene) ?? null;
         must(student, "no student stands in a room of the scene on screen - this would measure nothing");
         const here = locateActor(student).room, AWAY = "R600 nowhere";
-        const clean = T.TRAP_ACTIONS["trap.event"].sanitize({ kind: "passage", actorId: student.id, room: AWAY, passageId: "R600P" });
+        const row = T.TRAP_ACTIONS["trap.event"];
+        const clean = row.sanitize({ kind: "passage", actorId: student.id, room: AWAY, passageId: "R600P" });
+        const kept = row.sanitize({ kind: "stash", actorId: student.id, room: AWAY });
+        equal(J([clean.kind ?? null, Object.hasOwn(clean, "passageId"), Object.hasOwn(T.RELAYED_ROOM, "passage"), kept.kind, kept.room, T.RELAYED_ROOM.stash]),
+            J([null, false, false, "stash", AWAY, "room"]),
+            "[a Find Passage's kind, a passage named, a room field for it, a stash hunt's kind and room, its room field] as the GM reads a trap report - a Find Passage is still a report a console sends");
+        const teller = typeof B.guardRelayTeller === "function" && row.guards.includes(B.guardRelayTeller) ? B.guardRelayTeller : null;
+        const player = { id: "R600U", isGM: false }, gm = { id: "R600G", isGM: true };
+        const verdicts = [["a player's stash hunt", player, "stash"], ["a GM's stash hunt", gm, "stash"], ["a player's crossing", player, "crossing"],
+            ["a player's rest", player, "rest"], ["a player's action", player, "action"]].map(([what, sender, kind]) =>
+            [what, teller ? teller(sender, { kind, actorId: student.id, room: here }, {}) : "no guard"]);
+        equal(J(verdicts), J([["a player's stash hunt", "only a GM reports a stash hunt"], ["a GM's stash hunt", null], ["a player's crossing", null],
+            ["a player's rest", null], ["a player's action", null]]),
+            "[the report, the trap row's teller guard's verdict] - a player's console still tells the GM of a stash hunt, or a report the player's own browser makes is refused");
+        equal(B.reasonOf("only a GM reports a stash hunt"), "gmOnly", "the refusal of a player's stash hunt reads as no reason of the bridge's list");
         const said = [];
-        for (const [kind, room] of [["passage", here], ["passage", AWAY], ["stash", here], ["stash", AWAY]]) {
+        for (const [kind, room] of [["stash", here], ["stash", AWAY], ["rest", here], ["rest", AWAY], ["passage", AWAY]]) {
             said.push([kind, room === here ? "here" : "away", await B.guardRelayRoom(game.user, { kind, actorId: student.id, room })]);
         }
-        equal(J([clean.kind, clean.room, Object.hasOwn(clean, "passageId"), T.RELAYED_ROOM.passage]), J(["passage", AWAY, false, "room"]),
-            "[the kind, the room, a passage named, the field the room is read from] as the GM reads a passage search's report");
-        equal(J(said), J([["passage", "here", null], ["passage", "away", `the character is not in "${AWAY}": ${student.name}`],
-            ["stash", "here", null], ["stash", "away", `the character is not in "${AWAY}": ${student.name}`]]),
-            "[the report, where, the GM's refusal] - a passage search's report springs a trap in a room the character is not in");
+        equal(J(said), J([["stash", "here", null], ["stash", "away", `the character is not in "${AWAY}": ${student.name}`],
+            ["rest", "here", null], ["rest", "away", `the character is not in "${AWAY}": ${student.name}`], ["passage", "away", null]]),
+            "[the report, where, the GM's refusal] - a stash hunt or a rest springs a trap in a room the character is not in (a Find Passage's names no room to ask)");
+        const traps = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/traps.mjs`).then(r => r.text()));
+        const registered = fnSource(traps, "registerTraps");
+        equal(J([/Hooks\.on\("drpgPassageHunted", event => onPassageHunted\(event\)\);/.test(registered), /relay\("passage"/.test(registered),
+            /case "passage"/.test(fnSource(traps, "handleTrapEvent"))]), J([true, false, false]),
+            "[traps.mjs hears a passage search where it is raised, relays one, carries a relayed one out] - a passage search is still a report a browser relays");
     }],
-    ["R601 - Foundry's secret doors and the players' rulers (A10-15): the map check names each secret door of a scene and no other door or wall; 'Convert to passages' leaves none on the scenes it is given - each an ordinary wall, shut, that still blocks a move, with a secret passage along its whole length that nobody knows, one that stands between no two rooms a plain wall it names - and run again changes nothing; a player's opening or closing of a secret door is put back the other way, a GM's stands and so does a player's change of any other door, and until the put-back lands the GMs' audit reads the door a player opened as shut; the Season setup offers both rows, Hide takes the movement ruler from the Player and Trusted Player roles and Show gives it back, every other permission and role as it was", async () => {
+    ["R601 - Foundry's secret doors and the players' rulers (A10-15): the map check names each secret door of a scene and no other door or wall; 'Convert to passages' leaves none on the scenes it is given - each an ordinary wall, shut, that still blocks a move, with a secret passage along its whole length that nobody knows, one that stands between no two rooms a plain wall it names - forgets the GMs' record of each, and run again changes nothing; a player's change of a secret door's state is put back to the state a GM last left it in - shut where no GM has changed it, so a player's close of a shut door writes nothing - a GM's change stands and is that state, and so does a player's change of any other door, and until the put-back lands the GMs' audit reads the door as shut; the Season setup offers both rows, Hide takes the movement ruler from the Player and Trusted Player roles and Show gives it back, every other permission and role as it was", async () => {
         /*
          * E80 C5 (18.10.2026; S16-18, P1-17 to P1-19). The harms: a secret door is world data, so every player's console
          * reads where it is and may open it (Foundry lets a player change a door's state), and once it stands open the
@@ -16612,7 +16632,12 @@ const INVARIANTS = [
          * door and a wall, whose `updateEmbeddedDocuments` records; stores of an engine of its own, as R594's; walls whose
          * `update` records; the audit as R559 reads it; and a settings object of its own - nothing of the world is
          * written. The road through a real Foundry is A10-15's tier-2 test and scenario 30; v14's own permission defaults
-         * and a console's change of a door on v14 are LIVE-E80-02 and LIVE-E80-03.
+         * and a console's change of a door on v14 are LIVE-E80-02 and LIVE-E80-03. Since E80 fix r1-G1 (18.10.2026; the
+         * review's E80-SEC-3) the put-back writes the state a GM last left the door in, kept in the GMs' record of the doors
+         * (gm-stores.mjs `secretDoorStore`, here a store of the same engine): until then it wrote the change's opposite,
+         * so a player's "shut" of a shut door, sent whole, opened it. Red at that fix's parent (4263c09): the close of the
+         * shut door is put back open, and the conversion keeps the record's rows. The pass over the doors no primary heard
+         * change is R605.
          */
         const G = await import("./gm-store.mjs");
         const S = await import("./gm-stores.mjs");
@@ -16636,6 +16661,9 @@ const INVARIANTS = [
         const def = (h, name) => eng.define({ ...h.spec, name: `r601${name}`, key: `r601${name}`, afterRestore: undefined, exists: undefined });
         const stores = { map: def(S.passageMapStore, "Map"), access: def(S.passageAccessStore, "Access"), log: def(S.passageLogStore, "Log"),
             mastermind: eng.define({ name: "r601mm", key: "r601mm", kind: "record", fields: ["actorId"], sync: false, backup: false }) };
+        // The GMs' record of the secret doors (E80 fix r1-G1), `<sceneId>.<wallId>` -> `{ ds }`, on the same engine.
+        const doors = eng.define({ ...(S.secretDoorStore?.spec ?? { kind: "ledger", sync: true, backup: false }), name: "r601Doors", key: "r601Doors",
+            afterRestore: undefined, exists: undefined });
         const region = (name, x, y, w, h) => ({ id: `R601R${name}`, name: `R601 ${name}`, levels: new Set(), behaviors: [],
             bounds: { x, y, width: w, height: h }, shapes: [{ type: "rectangle", x, y, width: w, height: h }],
             testPoint: p => p.x >= x && p.x <= x + w && p.y >= y && p.y <= y + h,
@@ -16657,12 +16685,15 @@ const INVARIANTS = [
         const rows = D.secretDoorRows(site);
         const problem = game.i18n.localize("DRPG.Fog.secretDoor.problem");
         const ofSite = () => Object.keys(stores.map.entries()).filter(k => k.startsWith(`${site.id}.`)).sort();
-        const first = await P.convertSecretDoors({ scenes: [site], stores });
+        // The record's rows of both secret doors, and one of a door on another scene the conversion is not given.
+        for (const [key, ds] of [[`${site.id}.R601WS1`, 0], [`${site.id}.R601WS2`, 1], ["R601ELSE.R601WS1", 1]]) await doors.patch(key, { ds });
+        const first = await P.convertSecretDoors({ scenes: [site], stores, doors });
+        const rowsAfter = Object.keys(doors.entries()).sort();
         const made = first?.passages?.[0] ?? null;
         const cells = Object.keys(stores.access.entries()).filter(k => made && k.startsWith(`${made}/`));
         const wallsAfter = walls.map(w => [w.id, w.door, w.ds, w.move]);
         const keys = ofSite();
-        const again = await P.convertSecretDoors({ scenes: [site], stores });
+        const again = await P.convertSecretDoors({ scenes: [site], stores, doors });
         equal(J([rows.map(r => [r.level, r.problem === problem, r.at]), problem !== "DRPG.Fog.secretDoor.problem"]),
             J([[["warning", true, { x: 600, y: 200 }], ["warning", true, { x: 200, y: 300 }]], true]),
             "[each row of the map check's secret doors as [level, the problem's words, where], the words localized] - an ordinary door or wall named, or a secret door missed");
@@ -16676,17 +16707,24 @@ const INVARIANTS = [
             "[the scene's passages, the row (its `origin` since E80 C6), who knows it, secret doors left] - the passage the shared wall's door became");
         equal(J([again?.converted, again?.passages, again?.plain, updates.length, ofSite()]), J([0, [], [], 1, [made]]),
             "[converted, passages, plain walls, writes, the scene's passages] when the conversion is run again");
+        equal(J([rowsAfter, Object.keys(doors.entries()).sort()]), J([["R601ELSE.R601WS1"], ["R601ELSE.R601WS1"]]),
+            "[the GMs' record of the doors after the conversion, after it is run again] - a wall that is no secret door any more keeps the state a GM gave it as one, or another scene's door lost its");
         const sources = new Map(await otherSources());
         must(sources.get("fog-diagnostics.mjs")?.length, "fog-diagnostics.mjs is not among the module's sources - this would measure nothing");
         ok(/\bsecretDoorRows\(scene\)/.test(fnSource(stripComments(sources.get("fog-diagnostics.mjs")), "checkRegions")),
             "checkRegions does not ask secretDoorRows of the scene it checks");
 
-        // 2. The put-back, and the audit's reading of a door a player opened.
+        // 2. The put-back, and the audit's reading of a door a player opened. Each put-back is written with the option that
+        // marks it the put-back's own (`DOOR_ASIDE`), and a landing is fed back with it, as the watch reads it from the update.
         const player = { id: "R601U", isGM: false, active: true }, gm = { id: "R601G", isGM: true, active: true };
         const writes = [];
-        const door = (id, more = {}) => ({ ...W(id, [1500, 0, 1500, 1000], { door: 2, ...more }), update: async data => { writes.push([id, J(data)]); return true; } });
-        const back = async (wall, change, sender) => [await P.putBackSecretDoor(wall, change, sender?.id ?? "R601NOBODY", { sender }), P.secretDoorHeldShut(wall.id)];
-        const S1 = door("R601D1", { ds: 1 }), S2 = door("R601D2"), S3 = door("R601D3", { ds: 1 }), OD = door("R601D4", { door: 1, ds: 1 }), S5 = door("R601D5", { ds: 1 });
+        const ASIDE = P.DOOR_ASIDE ?? "drpgDoorAside", home = { id: "R601S", name: "R601 scene" };
+        const door = (id, more = {}) => ({ ...W(id, [1500, 0, 1500, 1000], { door: 2, ...more }), parent: home,
+            update: async (data, options) => { writes.push([id, J(data), Boolean(options?.[ASIDE])]); return true; } });
+        const back = async (wall, change, sender, { aside = false } = {}) =>
+            [await P.putBackSecretDoor(wall, change, sender?.id ?? "R601NOBODY", { sender, doors, aside }), P.secretDoorHeldShut(wall.id)];
+        const S1 = door("R601D1", { ds: 1 }), S2 = door("R601D2"), S3 = door("R601D3", { ds: 1 }), OD = door("R601D4", { door: 1, ds: 1 }), S5 = door("R601D5", { ds: 1 }),
+            S6 = door("R601D6", { ds: 1 });
         const users = new Map([[player.id, player], [gm.id, gm]]);
         const student = { id: "R601A", name: "R601A", type: "character", items: [], getFlag: () => undefined, testUserPermission: (u, level) => level === "OWNER" && u?.id === player.id };
         const scene = { id: "R601S", name: "R601 scene", grid: { size: 100 }, dimensions: { width: 3000, height: 1000 }, levels: [], walls: [S1],
@@ -16702,21 +16740,27 @@ const INVARIANTS = [
         const steps = [];
         try {
             steps.push(["a player opens", ...(await back(S1, { ds: 1 }, player)), audit()]);
-            steps.push(["the put-back lands", ...(await back(S1, { ds: 0 }, gm))]);
+            steps.push(["the put-back lands", ...(await back(S1, { ds: 0 }, gm, { aside: true }))]);
             steps.push(["a GM opens it", ...(await back(S1, { ds: 1 }, gm)), audit()]);
-            steps.push(["a player closes", ...(await back(S2, { ds: 0 }, player))]);
-            steps.push(["the put-back lands", ...(await back(S2, { ds: 1 }, gm))]);
+            steps.push(["a player closes it", ...(await back(S1, { ds: 0 }, player))]);
+            steps.push(["the put-back lands", ...(await back(S1, { ds: 1 }, gm, { aside: true })), audit()]);
+            steps.push(["a player's close of a shut door no GM opened, sent whole", ...(await back(S2, { ds: 0 }, player))]);
             steps.push(["a GM's change of no state", ...(await back(S3, { sight: 0 }, gm))]);
             steps.push(["a player opens an ordinary door", ...(await back(OD, { ds: 1 }, player))]);
             steps.push(["somebody the GM does not know opens", ...(await back(S5, { ds: 1 }, null))]);
+            steps.push(["a GM makes an open door secret", ...(await back(S6, { door: 2 }, gm))]);
         } finally {
-            for (const wall of [S1, S2, S3, OD, S5]) await P.putBackSecretDoor(wall, { ds: wall.ds }, gm.id, { sender: gm });
+            for (const wall of [S1, S2, S3, OD, S5, S6]) await P.putBackSecretDoor(wall, { ds: wall.ds }, gm.id, { sender: gm, doors, aside: true });
         }
         equal(J([steps, writes]), J([[["a player opens", true, true, "crossed R601D1"], ["the put-back lands", false, false],
-            ["a GM opens it", false, false, "clear"], ["a player closes", true, true], ["the put-back lands", false, false],
-            ["a GM's change of no state", false, false], ["a player opens an ordinary door", false, false], ["somebody the GM does not know opens", true, true]],
-        [["R601D1", J({ ds: 0 })], ["R601D2", J({ ds: 1 })], ["R601D5", J({ ds: 0 })]]]),
-            "[each change as [what, put back, held shut, the audit of a step through the open door], the put-backs written]");
+            ["a GM opens it", false, false, "clear"], ["a player closes it", true, true], ["the put-back lands", false, false, "clear"],
+            ["a player's close of a shut door no GM opened, sent whole", false, false], ["a GM's change of no state", false, false],
+            ["a player opens an ordinary door", false, false], ["somebody the GM does not know opens", true, true], ["a GM makes an open door secret", false, false]],
+        [["R601D1", J({ ds: 0 }), true], ["R601D1", J({ ds: 1 }), true], ["R601D5", J({ ds: 0 }), true]]]),
+            "[each change as [what, put back, held shut, the audit of a step through the open door], the put-backs written as [door, change, the put-back's own]]");
+        equal(J(Object.entries(doors.entries()).filter(([key]) => key.startsWith(`${home.id}.`)).map(([key, r]) => [key, r?.ds ?? null]).sort()),
+            J([[`${home.id}.R601D1`, 1], [`${home.id}.R601D6`, 1]]),
+            "[each door of the scene in the GMs' record, its state] - a GM's change was not kept, the put-back's own landing was kept as a GM's, or a player's change was");
 
         // 3. The Season setup's two rows, and the rulers' Hide and Show on a settings object of the suite's own.
         const kept = { "core.permissions": { SHOW_CURSOR: [1, 2], FILES_BROWSE: [3, 4] } };
@@ -16881,6 +16925,162 @@ const INVARIANTS = [
             J([[...words, ""], 8, [word("kindPublic"), word("shapeWall"), word("originGm")], [word("kindSecret"), word("shapeWall"), word("originGm")],
                 [word("kindSecret"), word("shapeWall"), word("originDoor")], [word("kindSecret"), word("shapeTunnel"), word("originGm")]]),
             "[the table's heads, its columns with a width, the Kind, Shape and Origin of a public passage, a secret one, one made of a secret door, a tunnel]");
+    }],
+    ["R604 - a trap hears of a Find Passage from the primary GM that judges it: every first throw that stands, a miss as a find, in the room the GMs read the character in, before its card; a Reroll's replay, a refusal and a search off the primary tell it nothing; a stash hunt is told by the GM that judges it, once the room is read and before the roll is scored, and never for a replay; the roller's browser raises neither any more", async () => {
+        /*
+         * E80 fix r1-G1 (18.10.2026; the review's E80-SEC-1). The harm: a trap watching for a Find Passage or a stash hunt
+         * (traps.mjs triggers 8 and 9) heard of it from the roller's own browser (action-rolls.mjs `locatePassage`,
+         * `locateStash`), so a console that asked the GM for the search without raising the hook searched past every
+         * trap, and the room the trap read was that browser's word. Run on an engine of the suite's own (R598's), with
+         * characters, people and a world of its own, the search's card and the trap's word injected and logged in one
+         * list, so their order is read: nothing of this world is read or written but this browser's user, the names in
+         * its language file and the module's sources. The stash search on Foundry's own actors, and the hook it raises,
+         * is tier 2's "A10-7 stash"; the passage search's on the real map is its "A10-7 - Find Passage". Red at the
+         * parent (4263c09): the passage search tells no trap, and both rollers' browsers raise the hooks.
+         */
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const P = await import("./passages-gm.mjs");
+        const J = v => JSON.stringify(v);
+        ok(typeof P.resolvePassageSearch === "function", "passages-gm.mjs carries out no passage search - this would measure nothing");
+        if (typeof P.resolvePassageSearch !== "function") return;
+        let t = 9_950_000;
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R604GM", isGM: () => true, isPrimary: () => true, worldId: () => "R604WORLD",
+            activeGmIds: () => [], primaryGmId: () => "R604GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => ++t,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const def = (h, name) => eng.define({ ...h.spec, name: `r604${name}`, key: `r604${name}`, afterRestore: undefined, exists: undefined });
+        const stores = { map: def(S.passageMapStore, "Map"), access: def(S.passageAccessStore, "Access"), log: def(S.passageLogStore, "Log"),
+            mastermind: eng.define({ name: "r604mm", key: "r604mm", kind: "record", fields: ["actorId"], sync: false, backup: false }) };
+        const CAF = "R604 Cafeteria", KIT = "R604 Kitchen";
+        await stores.map.patch("R604SCENE.awall", { sceneId: "R604SCENE", level: null, shape: "wall", passageWallId: "R604WALL",
+            passageSeg: { x1: 5, y1: 0, x2: 5, y2: 100 }, rooms: [CAF, KIT], state: "secret", startAccess: [] });
+        const people = [{ id: "R604GM", isGM: true, active: true }, { id: "R604U", isGM: false, active: true }];
+        const cast = new Map(["R604A", "R604MK", "R604CUB", "R604DEAD"].map(id => [id, { id, name: id, type: "character",
+            testUserPermission: (u, level) => level === "OWNER" && u?.id === "R604U" }]));
+        const scene = { id: "R604SCENE" };
+        const world = (over = {}) => ({
+            actor: id => cast.get(id) ?? null, trial: () => false, monocub: a => a.id === "R604CUB", monokuma: a => a.id === "R604MK",
+            dead: a => a.id === "R604DEAD", place: () => ({ scene, room: CAF, level: null }),
+            sides: (r, seg) => (Number.isFinite(seg?.x1) ? [CAF, KIT] : []), knownRooms: () => new Set([CAF, KIT]), ...over });
+        const told = [];
+        const search = async (what, actorId, total, { rollId = null, undo = false, over = {}, primary = () => true } = {}) => {
+            const from = told.length;
+            const out = await P.resolvePassageSearch({ actorId, total, rollId, undo }, { asker: people[1], stores, users: people, world: world(over),
+                whisper: async to => { told.push(["card", to?.id ?? null]); }, toast: () => {}, note: () => {}, primary,
+                hunted: event => { told.push(["hunt", event?.actor?.id ?? null, event?.room ?? null]); } });
+            return [what, out?.refused ? "refused" : out, told.slice(from)];
+        };
+        const steps = [await search("a miss, 15", "R604A", 15, { rollId: "R604R0" }), await search("a find, 16", "R604A", 16, { rollId: "R604R1" }),
+            await search("the find's Reroll, 18", "R604A", 18, { rollId: "R604R1", undo: true }),
+            await search("the miss's Reroll, 16", "R604A", 16, { rollId: "R604R0", undo: true }),
+            await search("off the primary", "R604A", 20, { primary: () => false }), await search("in a Class Trial", "R604A", 20, { over: { trial: () => true } }),
+            await search("a Monokuma", "R604MK", 20), await search("a death", "R604DEAD", 20), await search("a Monocub", "R604CUB", 20),
+            await search("no such character", "R604NONE", 20), await search("no token", "R604A", 20, { over: { place: () => null } })];
+        const HUNT = ["hunt", "R604A", CAF], CARD = ["card", "R604A"];
+        equal(J(steps), J([["a miss, 15", { searched: true, found: false }, [HUNT, CARD]], ["a find, 16", { searched: true, found: true }, [HUNT, CARD]],
+            ["the find's Reroll, 18", { kept: true }, []], ["the miss's Reroll, 16", { nothing: true }, []],
+            ["off the primary", "refused", []], ["in a Class Trial", "refused", []], ["a Monokuma", "refused", []], ["a death", "refused", []],
+            ["a Monocub", "refused", []], ["no such character", "refused", []], ["no token", "refused", []]]),
+            "[the search, its answer, what the trap and the owner were told in order] - a search the GM judged told no trap, told it after the card or twice, or one that did not stand told it");
+
+        // The stash hunt, and the rollers' browsers: read in the module's sources (the hunt itself is tier 2's "A10-7 stash").
+        const code = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => r.text()));
+        const [rolls, vault, reroll] = [await code("action-rolls.mjs"), await code("vault.mjs"), await code("reroll.mjs")];
+        const stash = fnSource(vault, "resolveStashSearch");
+        const at = re => stash.search(re);
+        const [noRoom, hunt, scored] = [at(/reason: "noRoom"/), at(/if \(!replay\) hunted\(\{ actor, room: where\.room \}\);/), at(/const beat = /)];
+        equal(J([/drpgStashHunted/.test(fnSource(rolls, "locateStash")), /drpgPassageHunted/.test(fnSource(rolls, "locatePassage")),
+            noRoom >= 0 && hunt > noRoom && scored > hunt, /resolveStashSearch\(\{[^}]*\breplay: true\b[^}]*\}\)/.test(fnSource(reroll, "settleStashFind"))]),
+            J([false, false, true, true]),
+            "[the roller's browser raises a stash hunt, a passage search; the GM's stash search tells the trap once the room is read and before the roll is scored; a Reroll's replay of it is one]");
+    }],
+    ["R605 - the secret doors no primary heard change (E80-SEC-3, E80-COR-1): on the primary GM the pass puts each secret door that stands otherwise than a GM last left it back - open where a GM last opened it, shut otherwise, shut where no GM has changed it - with the put-back's own mark, and holds it shut for the audit until the write lands; a locked door, one as a GM left it and every other wall it leaves alone, and off the primary it writes nothing; a GM leaving hands it to the primary after it, the pass and each put-back asked without that GM, and a player, a GM coming or the suite's held stores do not", async () => {
+        /*
+         * E80 fix r1-G1 (18.10.2026; the review's E80-SEC-3 and E80-COR-1). The harm: the primary GM put back a player's
+         * change of a secret door as it heard it (`putBackSecretDoor`, R601), so a door a player opened while no GM was
+         * connected - or one whose put-back the primary that heard it could not land before another GM's browser took
+         * over, a hold being that browser's memory - stood open, a road through a wall, for good. Read on plain walls the
+         * suite holds, on a scene object of its own, whose `update` records, the GMs' record of the doors a store of an
+         * engine of the suite's own (R601's), and the watch on a GM leaving with its pass injected: nothing of this world
+         * is read or written but this browser's user and the module's hold, let go at the end. When it runs at the
+         * primary's ready is read in the source by R603; the pass on Foundry's own walls is tier 2's "A10-15", and a door
+         * a player opened and one it shut with no GM connected, then the GM's coming back, are scenario 15's away and back.
+         * The hand-over asks who is the primary without the GM leaving, in the pass and in each put-back (reroll.mjs's
+         * rule): which of `userConnected` and that GM's `active` v14 changes first is LIVE-E30-05, and the harness
+         * flips the flag first, so a put-back that asked `isPrimaryGm()` would pass here and fail where the hook comes
+         * first. Driven: a put-back told that this GM is the one leaving writes nothing; read in the source (R216's
+         * way): the pass hands its `leaving` to each put-back.
+         * Red at the parent (4263c09): no `settleSecretDoors`, no `onDoorsGmLeft`.
+         */
+        needs(env.primaryGm(), "the pass runs on the primary GM");
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const P = await import("./passages-gm.mjs");
+        const J = stableJson;
+        ok(typeof P.settleSecretDoors === "function" && typeof P.onDoorsGmLeft === "function",
+            "passages-gm.mjs has no pass over the secret doors, or no watch on a GM leaving - a door changed with no primary to hear it stands as it was left");
+        if (typeof P.settleSecretDoors !== "function" || typeof P.onDoorsGmLeft !== "function") return;
+        let now = 9_960_000;
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R605GM", isGM: () => true, isPrimary: () => true, worldId: () => "R605WORLD",
+            activeGmIds: () => [], primaryGmId: () => "R605GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => now++,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const doors = eng.define({ ...(S.secretDoorStore?.spec ?? { kind: "ledger", sync: true, backup: false }), name: "r605Doors", key: "r605Doors",
+            afterRestore: undefined, exists: undefined });
+        const writes = [];
+        const scene = { id: "R605S", name: "R605 scene" };
+        const W = (id, door, ds) => ({ id, door, ds, c: [0, 0, 0, 100], move: 20, sight: 20, parent: scene,
+            update: async (data, options) => { writes.push([id, J(data), Boolean(options?.[P.DOOR_ASIDE])]); return true; } });
+        // [the wall, its kind (2 a secret door, 1 a door, 0 a wall), its state now, the state a GM last left it in (none: no row)]
+        const LAYOUT = [["R605X1", 2, 1, 0], ["R605X2", 2, 0, 1], ["R605X3", 2, 1, null], ["R605X4", 2, 2, null], ["R605X5", 2, 1, 1],
+            ["R605X6", 1, 1, 0], ["R605X7", 2, 0, 2], ["R605X8", 2, 1, 2], ["R605X9", 0, 1, null]];
+        scene.walls = LAYOUT.map(([id, door, ds]) => W(id, door, ds));
+        for (const [id, , , last] of LAYOUT) if (last !== null) await doors.patch(`${scene.id}.${id}`, { ds: last });
+        const held = () => LAYOUT.map(([id]) => id).filter(id => P.secretDoorHeldShut(id));
+        let pass = null, off = null, holds = null, offWrites = null, gone = null, goneWrites = null;
+        try {
+            pass = await P.settleSecretDoors({ scenes: [scene], doors });
+            holds = held();
+            const before = writes.length;
+            off = await P.settleSecretDoors({ scenes: [scene], doors, leaving: game.user.id });
+            offWrites = writes.length - before;
+            gone = await P.putBackSecretDoor(scene.walls[0], { ds: 1 }, null, { sender: null, doors, unheard: true, leaving: game.user.id });
+            goneWrites = writes.length - before;
+        } finally {
+            for (const wall of scene.walls) await P.putBackSecretDoor(wall, { ds: wall.ds }, game.user.id, { sender: { id: game.user.id, isGM: true }, doors, aside: true });
+        }
+        equal(J([pass, writes, holds, off, offWrites, gone, goneWrites, held()]),
+            J([["R605X1", "R605X2", "R605X3", "R605X8"], [["R605X1", J({ ds: 0 }), true], ["R605X2", J({ ds: 1 }), true], ["R605X3", J({ ds: 0 }), true],
+                ["R605X8", J({ ds: 0 }), true]], ["R605X1", "R605X2", "R605X3", "R605X8"], null, 0, false, 0, []]),
+            "[the doors the pass put back, its writes as [door, change, the put-back's own], the doors held shut, the pass off the primary, its writes, a put-back told this GM is leaving, the writes of both, the holds after the landings] - a door a player opened or shut with no primary to hear it stands so, a locked door or one as a GM left it is written, a GM's last state is lost, or a put-back counts the GM leaving as the primary");
+
+        // The watch on a GM leaving, with the pass and the suite's quiet injected.
+        const asked = [];
+        const settle = o => { asked.push(J(o)); return Promise.resolve([]); };
+        const gmUser = { id: "R605G2", isGM: true }, playerUser = { id: "R605U", isGM: false };
+        const watch = [];
+        for (const [what, user, connected, quiet] of [["a GM leaves", gmUser, false, false], ["a GM comes", gmUser, true, false],
+            ["a player leaves", playerUser, false, false], ["a GM leaves while the suite holds the stores", gmUser, false, true]]) {
+            const from = asked.length;
+            await P.onDoorsGmLeft(user, connected, { settle, quiet: () => quiet });
+            watch.push([what, asked.slice(from)]);
+        }
+        equal(J(watch), J([["a GM leaves", [J({ leaving: "R605G2" })]], ["a GM comes", []], ["a player leaves", []], ["a GM leaves while the suite holds the stores", []]]),
+            "[who came or went, what the pass was asked] - a GM's leaving runs no pass on the primary after it, or a player's, a GM's coming or the suite's held stores do");
+
+        const gmSource = stripComments(new Map(await otherSources()).get("passages-gm.mjs") ?? "");
+        ok(gmSource.length > 0, "passages-gm.mjs was not read - the hand-over's reading measured nothing");
+        const passSource = fnSource(gmSource, "settleSecretDoors");
+        equal(J([/if \(!isPrimaryGm\(\{ leaving \}\)\) return null;/.test(passSource),
+            /putBackSecretDoor\(wall, \{ ds: wall\.ds \}, null, \{[^{}]*\bleaving\b[^{}]*\}\)/.test(passSource)]), J([true, true]),
+            "[the pass asks without the GM leaving, and hands it to each put-back] - where v14 calls `userConnected` before the leaving GM's `active` flips, the primary after it puts back nothing");
     }],
 ];
 
