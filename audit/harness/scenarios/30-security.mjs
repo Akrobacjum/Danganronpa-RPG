@@ -1383,6 +1383,14 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     await sendAs(p1, "analyze.resolve", { actorId: ids.aiko, itemId: consoleBullet.id, total: 30, isCritical: true });
     await settle(1200);
     const analyzeNoRoll = { state: await gm.eval(bulletState), reasons: await refusedFor("analyze.resolve") };
+    /* The road is the one the roller named before the dice (E80 fix r1-G7, E80-SEC-5): an Analyze the GM drew on 12 and 11
+       for a Find Passage is refused as a bullet's Analyze, which the GMs' record of it never was, and the bullet stays as
+       it was for the throw below. Red at 2b596ec: the bullet is analysed on it. */
+    const analyzePassageRoll = await drawnRoll(p1, ids.aiko, "analyze", "head", { hope: 12, fear: 11 }, { context: { findPassage: true } });
+    await clearFailures();
+    await sendAs(p1, "analyze.resolve", { actorId: ids.aiko, itemId: consoleBullet.id, total: 30, isCritical: true, rollId: analyzePassageRoll.messageId });
+    await settle(1500);
+    const analyzeOnPassage = { state: await gm.eval(bulletState), reasons: await refusedFor("analyze.resolve") };
     const analyzeRoll = await drawnRoll(p1, ids.aiko, "analyze", "head", { hope: 2, fear: 1 });
     await clearFailures();
     await sendAs(p1, "analyze.resolve", { actorId: ids.aiko, itemId: consoleBullet.id, total: 30, isCritical: true, rollId: analyzeRoll.messageId });
@@ -1399,6 +1407,10 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
             && !analyzeOnRecord.state.analyzed && analyzeOnRecord.state.locked === analyzeOnRecord.state.chapter
             && !analyzeOnRecord.reasons.length && analyzeOnRecord.said.length > 0,
         JSON.stringify({ consoleBullet, analyzeNoRoll, analyzeRoll, analyzeOnRecord }), { flow: "analyze" });
+    check("SECURITY: a console's Analyze of a bullet naming a roll the GM drew on 12 and 11 for a Find Passage is refused as thrown for another action - not analysed",
+        Boolean(analyzePassageRoll.messageId) && analyzePassageRoll.total >= consoleBullet.dc && !analyzeOnPassage.state.analyzed
+            && analyzeOnPassage.state.locked === null && analyzeOnPassage.reasons.some(r => /that roll was not thrown for that action/.test(r)),
+        JSON.stringify({ consoleBullet, analyzePassageRoll, analyzeOnPassage }), { flow: "analyze" });
 
     phase("a console's search for a hidden stash", { flow: "give-take-stash" });
     const consoleStash = await gm.eval(`
@@ -1425,6 +1437,12 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     await sendAs(p1, "vault.findStash", { actorId: ids.aiko, total: 30, isCritical: true, rollId: stashRoll.messageId });
     await settle(1500);
     const stashOnRecord = { found: await gm.eval(stashFound), reasons: await refusedFor("vault.findStash"), said: await recordSaid() };
+    // A Find Passage's roll on 12 and 11 named for a stash search (E80 fix r1-G7, E80-SEC-5). Red at 2b596ec: the stash is found on it.
+    const stashPassageRoll = await drawnRoll(p1, ids.aiko, "analyze", "head", { hope: 12, fear: 11 }, { context: { findPassage: true } });
+    await clearFailures();
+    await sendAs(p1, "vault.findStash", { actorId: ids.aiko, total: 30, isCritical: true, rollId: stashPassageRoll.messageId });
+    await settle(1500);
+    const stashOnPassage = { found: await gm.eval(stashFound), reasons: await refusedFor("vault.findStash") };
     await gm.eval(`const V = await import("${repoUrl}/scripts/vault.mjs");
         const { forcedDeletion } = await import("${repoUrl}/scripts/utils.mjs");
         const { room, keys, before, found } = globalThis.__c14Stash ?? {};
@@ -1440,6 +1458,10 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
             && Boolean(stashRoll.messageId) && stashRoll.total < consoleStash.threshold
             && stashOnRecord.found === false && !stashOnRecord.reasons.length && stashOnRecord.said.length > 0,
         JSON.stringify({ consoleStash, stashNoRoll, stashRoll, stashOnRecord }), { flow: "give-take-stash" });
+    check("SECURITY: a console's search for a hidden stash naming a roll the GM drew on 12 and 11 for a Find Passage is refused as thrown for another action - not found",
+        !consoleStash.err && Boolean(stashPassageRoll.messageId) && stashPassageRoll.total >= consoleStash.threshold && stashOnPassage.found === false
+            && stashOnPassage.reasons.some(r => /that roll was not thrown for that action/.test(r)),
+        JSON.stringify({ consoleStash, stashPassageRoll, stashOnPassage }), { flow: "give-take-stash" });
 
     /* A CONSOLE'S FIND PASSAGE (E80 C3, 18.10.2026; the stage's write road "found cell"). A search is scored on the GMs'
        record of the roll its packet names, and only a roll thrown as a Find Passage counts (gm-bridge.mjs

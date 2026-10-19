@@ -17297,6 +17297,32 @@ const INVARIANTS = [
             group.destroy();
         }
     }],
+    ["R612 - an Analyze thrown as a Find Passage settles only a passage search: the bridge's rows for a search for a hidden stash and an Analyze of a bullet refuse its roll in the words of a roll thrown for another action, and take an Analyze thrown for either as before", async () => {
+        /*
+         * E80 fix r1-G7, 19.10.2026; review finding E80-SEC-5 (STATUS's C3 gap). The harm: a player throws the Analyze
+         * window's Find Passage row, the GM draws a miss under 16, and the console then names that roll in
+         * `vault.findStash` or `analyze.resolve` instead of `passage.find` - picking the road after seeing the total, and
+         * the GMs' record pairing a Find Passage throw with a stash search or a bullet's analysis. `passage.find` held
+         * the other way since C3 (`findPassageRoll`). Read as the runner asks them (bridge-guards.mjs `rollsFor`): the
+         * record against the row's roll first, then the row's own reading of it. Nothing of the world is read or
+         * written. Red at the parent (2b596ec): neither row has a reading, so both take a Find Passage's roll.
+         */
+        const B = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const J = v => JSON.stringify(v);
+        const sender = { id: "R612U", isGM: false };
+        const record = over => ({ rollId: "R612ROLL", messageId: "R612ROLL", actorId: "R612A", userId: "R612U", actionKey: "analyze",
+            at: Date.now(), superseded: null, resolved: [], ...over });
+        const verdicts = action => {
+            const row = BRIDGE_ACTIONS[action];
+            const packet = { actorId: "R612A", rollId: "R612ROLL", itemId: "R612BULLET", total: 30, isCritical: true };
+            const asked = over => B.rollRefusal(record(over), row.rolled, packet, sender) ?? row.rolled.derive?.(record(over), packet)?.why ?? null;
+            return [row.rolled?.kind ?? null, asked({ findPassage: true }), asked({ findPassage: false }), asked({ findPassage: null }), asked({})];
+        };
+        const taken = ["analyze", "that roll was not thrown for that action", null, null, null];
+        equal(J([verdicts("vault.findStash"), verdicts("analyze.resolve")]), J([taken, taken]),
+            "[the row's action, an Analyze thrown as a Find Passage, one thrown for a bullet, a hint or a stash, one whose draw said null, a record of before C3] for a search for a hidden stash and for an Analyze of a bullet - a Find Passage's roll settles another road, or an Analyze thrown for that road is refused");
+    }],
 ];
 
 /**

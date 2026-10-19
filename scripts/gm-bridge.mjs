@@ -609,6 +609,13 @@ function findPassageRoll(record) {
     return record?.findPassage === true ? null : { why: "that roll was not thrown for that action" };
 }
 
+/* And the other way (E80 fix r1-G7, review E80-SEC-5): an Analyze thrown as a Find Passage settles no bullet and no stash
+   search, so a console cannot pick the road after it sees the total, against the road the GMs' record says it was thrown
+   for. A record that says nothing of it (drawn before C3, or `findPassage` false) is an Analyze for those roads. */
+function notFindPassageRoll(record) {
+    return record?.findPassage === true ? { why: "that roll was not thrown for that action" } : null;
+}
+
 /*
  * A PALM'S TWO ROLLS, EACH THE GMS' RECORD (E08+E28 C15, 04.10.2026; audit S10-06). A Steal and a
  * Plant were scored on the packet's two totals - the hand's against the action's bar, the unseen
@@ -1679,9 +1686,10 @@ export const BRIDGE_ACTIONS = table({
         sanitize: pick({ actorId: as.id, itemId: as.id, total: as.num, isCritical: as.bool, undo: as.gmFlag, rollId: as.id }),
         run: handleAnalyzeResolve,
         answer: "reply",
-        rolled: { field: "rollId", actor: "actorId", kind: "analyze" },
+        // An Analyze's roll, never one thrown as a Find Passage (`notFindPassageRoll`, E80 fix r1-G7).
+        rolled: { field: "rollId", actor: "actorId", kind: "analyze", derive: notFindPassageRoll },
         claims: { itemId: "looked up on that one character by resolveAnalyze (analyze.mjs), never across the world",
-            rollId: "the roll the result is read from (bridge-guards.mjs rollRefusal), and written on only by noteFactOfRoll (action-rolls.mjs): the sender's own row of that message, its character and an Analyze" }
+            rollId: "the roll the result is read from (bridge-guards.mjs rollRefusal), and written on only by noteFactOfRoll (action-rolls.mjs): the sender's own row of that message, its character and an Analyze not thrown as a Find Passage (`notFindPassageRoll`)" }
     },
     [ACTION_ADVANCEMENT]: {
         label: "DRPG.Bridge.what.advancement.apply",
@@ -1768,9 +1776,10 @@ export const BRIDGE_ACTIONS = table({
         sanitize: pick({ actorId: as.id, total: as.num, isCritical: as.bool, rollId: as.id }),
         run: handleFindStash,
         answer: "ack",
-        // An Analyze's roll: a search for a hidden stash is one of the Analyze's three roads (E08+E28 C14).
-        rolled: { field: "rollId", actor: "actorId", kind: "analyze" },
-        claims: { rollId: "the roll the result is read from (bridge-guards.mjs rollRefusal): one the GM drew for the sender's character's Analyze" }
+        // An Analyze's roll: a search for a hidden stash is one of the Analyze's roads (E08+E28 C14), and a roll thrown as
+        // a Find Passage, another of them, settles none of it (`notFindPassageRoll`, E80 fix r1-G7).
+        rolled: { field: "rollId", actor: "actorId", kind: "analyze", derive: notFindPassageRoll },
+        claims: { rollId: "the roll the result is read from (bridge-guards.mjs rollRefusal): one the GM drew for the sender's character's Analyze, not thrown as a Find Passage (`notFindPassageRoll`)" }
     },
     [ACTION_STEAL]: {
         label: "DRPG.Bridge.what.action.steal",
