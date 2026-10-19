@@ -30,7 +30,9 @@
  *      r1c-G1); last, `ag2`, a second Assistant declared late, comes back
  *      alone to such a look (H9, E16 fix r1-G2 of round r1d); then ag2 becomes the
  *      primary after loading beside gm2 (H12), and `ag3`, a third Assistant
- *      declared late, after loading beside ag2 alone (H13, E16 fix r1e-G1).
+ *      declared late, after loading beside ag2 alone (H13, E16 fix r1e-G1);
+ *      before D, a put-back of the world's copy another write overtook (H14,
+ *      H15, E16 fix r1f-G1).
  * What v14 itself allows an Assistant is modelled, not measured: LIVE-E30-04,
  * -05 and -06 in audit/AUDIT-1.2.42.md section 9.2.
  */
@@ -474,6 +476,50 @@ export async function run({ gm, ag, gm2, ag2, ag3, p1, p2, p3, check, settle, op
     check("H11: a put-back of the world's copy that does not land is not told as put back nor tried again at the next step, and one that lands is told",
         /,e$/.test(h11.forged) && JSON.stringify(h11.tried) === JSON.stringify([1, 1]) && JSON.stringify(h11.told) === JSON.stringify([0, 1])
         && h11.named === IDS.ag && h11.writer === IDS.gm && h11.row === frost, JSON.stringify(h11));
+
+    /* E16 fix r1f-G1 (finding fd4-1). The put-back counted as landed wherever the copy's value moved after its write,
+       and an Assistant's second write in flight moves it too: the Assistant writes the copy (X), and while the GM's
+       put-back of X is in its hand writes it again (P), which lands first - in a browser by knowing the put-back's JSON
+       beforehand, from a stamp of `w + 1`, so that v14 drops the GM's write as an empty diff. The GM read P after its
+       write, told "put back", and nothing wrote the copy again until its next step, the Setting naming the Assistant.
+       Here the GM's browser holds its first write of the copy until P is heard there, then drops it, as v14 drops an
+       empty diff (a stand-in; the fuses and the minute's notice forgotten). H14: every write of the copy dropped on the
+       GM's browser. H15: only the first. Read: the stamps of the GM's writes tried, the GM's notices naming the
+       Assistant, the writer the Setting names at the end, and Botan's row. At 728e24f: tried once, at the stamp the
+       Assistant knew (K + 1), told in both, and the Assistant named at the end of H15. */
+    const holdFirstJs = dropAll => `${syncJs}.forgetFuses(); const set = game.settings.set;
+        globalThis.__fd4 = { set, tried: [], entered: false, release: null };
+        game.settings.set = async function (ns, key, value, options) {
+            const held = globalThis.__fd4;
+            if (key !== "diceLookWorld" || !held) return set.call(this, ns, key, value, options);
+            held.tried.push(value?.w ?? null);
+            if (held.tried.length === 1) { held.entered = true; await new Promise(resolve => { held.release = resolve; }); return value; }
+            return ${dropAll ? "value" : "set.call(this, ns, key, value, options)"};
+        };
+        return true;`;
+    const until = async (c, js) => { for (let i = 0; i < 60; i++) { if (await c.eval(js)) return true; await settle(100); } return false; };
+    const overtaken = async dropAll => {
+        await gm.eval(holdFirstJs(dropAll));
+        const told = await gm.eval(toldAgOn);
+        const K = await ag.eval(`const { w: _w, ...rows } = game.settings.get("${MOD}", "diceLookWorld"); const K = Date.now() + 86400000;
+            await game.settings.set("${MOD}", "diceLookWorld", { ...rows, w: K }); return K;`);
+        const held = await until(gm, `return globalThis.__fd4?.entered === true;`);
+        await ag.eval(`const { w: _w, ...rows } = game.settings.get("${MOD}", "diceLookWorld");
+            await game.settings.set("${MOD}", "diceLookWorld", { ...rows, w: ${K} + 1 }); return true;`);
+        const heard = await until(gm, `return game.settings.get("${MOD}", "diceLookWorld")?.w === ${K} + 1;`);
+        await gm.eval(`globalThis.__fd4?.release?.(); return true;`);
+        await settle(1500);
+        const tried = await gm.eval(`const t = globalThis.__fd4?.tried ?? null; if (globalThis.__fd4) game.settings.set = globalThis.__fd4.set;
+            delete globalThis.__fd4; return t;`);
+        return { held, heard, tried: tried?.length ?? null, guessed: (tried ?? []).filter(w => w === K + 1 || w === K + 2).length,
+            told: await gm.eval(toldAgOn) - told, writer: await worldWriterOn(gm), row: await worldRowOn(gm) };
+    };
+    const h14 = await overtaken(true);
+    check("H14: a put-back of the world's copy that another write overtook and the server then dropped is tried once more and, not landed, is not told as put back",
+        h14.held && h14.heard && h14.tried === 2 && h14.guessed === 0 && h14.told === 0 && h14.writer === IDS.ag, JSON.stringify(h14));
+    const h15 = await overtaken(false);
+    check("H15: a put-back of the world's copy that another write overtook is written again in the same run, at a stamp the writer could not know, and told once it lands",
+        h15.held && h15.heard && h15.tried === 2 && h15.guessed === 0 && h15.told === 1 && h15.writer === IDS.gm && h15.row === frost, JSON.stringify(h15));
 
     /* ---------------------------- D. the full GM leaves ----------------------------- */
 

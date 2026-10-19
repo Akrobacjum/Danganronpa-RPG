@@ -303,24 +303,29 @@ function onSwitchWritten(setting, userId) {
 
 /**
  * On the primary, each switch that is not its copy written back to it, once at a time; a sweep awaits it before it
- * spreads anything. The GM reads one notice a minute at most, naming the writer where one is known.
+ * spreads anything. The GM reads one notice a minute at most, naming the writer where one is known, and only for a
+ * put-back that landed. A write below full Gamemaster heard while a run is in flight gets that same run, so the run
+ * reads the switches and the world's copy once more before its notice (E16 fix r1f-G1, finding fd4-1): a put-back of
+ * the copy that another write overtook, or that the server dropped, is tried again there, not at the primary's next step.
  */
 function holdSwitches(writer = null) {
     if (holdingSwitches) return holdingSwitches;
     const run = (async () => {
         if (!isPrimaryGm()) return;
         let held = false;
-        for (const name of SWITCHES) {
-            if (!switchCopy.has(name) || switchValue(name) === switchCopy.get(name)) continue;
-            try {
-                await game.settings.set(MODULE_ID, name, switchCopy.get(name));
-                held = true;
-            } catch (err) { error(`Could not put back the setting ${name} of the table's dice look`, err); }
-        }
-        if (worldCopyMoved()) {
-            try {
-                if (await writeWorldCopy()) held = true;
-            } catch (err) { error("Could not put back the world's copy of the characters' dice looks", err); }
+        for (let pass = 0; pass < 2 && (pass === 0 || switchesMoved()); pass++) {
+            for (const name of SWITCHES) {
+                if (!switchCopy.has(name) || switchValue(name) === switchCopy.get(name)) continue;
+                try {
+                    await game.settings.set(MODULE_ID, name, switchCopy.get(name));
+                    held = true;
+                } catch (err) { error(`Could not put back the setting ${name} of the table's dice look`, err); }
+            }
+            if (worldCopyMoved()) {
+                try {
+                    if (await writeWorldCopy()) held = true;
+                } catch (err) { error("Could not put back the world's copy of the characters' dice looks", err); }
+            }
         }
         if (held && Date.now() - toldSwitchAt > FUSE_WINDOW_MS) {
             toldSwitchAt = Date.now();
@@ -393,14 +398,20 @@ function rowsOfCopy(value) {
 
 /**
  * The write stamp of the world's copy: one that differs from the stamp `current` holds, so the write is a change of
- * the value (E16 fix r1e-G1, finding fd3-1). The stamp orders nothing - the rows carry their own stamps, and are
- * merged by those - so the stored one is read only where it is a safe integer, for which `+ 1` is exact: an
- * Assistant's console writes any `w`, and from 2**53 up `w + 1 === w`, which wrote back the very JSON stored, an
- * empty diff v14 drops. Anything else gives this clock's milliseconds, a safe integer, so not the stored value.
+ * the value (E16 fix r1e-G1, finding fd3-1), and one no other writer can know before it is written (E16 fix r1f-G1,
+ * finding fd4-1): this clock's milliseconds times a thousand and a random part, a safe integer, drawn again where it
+ * equals the stored one. It was the stored `w + 1` where that was ahead of the clock, so an Assistant who stored a
+ * `w` knew the JSON of the next put-back and could write it first, which made the put-back an empty diff v14 drops.
+ * The stamp orders nothing - the rows carry their own stamps, and are merged by those.
  */
 function nextStamp(current) {
-    const now = Date.now();
-    return Number.isSafeInteger(current?.w) ? Math.max(now, current.w + 1) : now;
+    const random = () => {
+        try { return globalThis.crypto.getRandomValues(new Uint32Array(1))[0] % 1000; }
+        catch { return Math.floor(Math.random() * 1000); }
+    };
+    let stamp;
+    do stamp = Date.now() * 1000 + random(); while (stamp === current?.w);
+    return stamp;
 }
 
 /**
@@ -409,10 +420,12 @@ function nextStamp(current) {
  * written where its rows differ, and also where its last writer is not a full Gamemaster, rows equal or not (E16
  * fix r1-G1 of round r1d, finding fd2-1): the copy must name a full Gamemaster again, or every later load refuses
  * it. The write stamp `w` (`nextStamp`) makes each write a change of the value, so that it is never an empty diff
- * that leaves the writer as it was; the rows are compared without it. True only when the write landed, the value
- * moved (E16 fix r1e-G1, finding fd3-1) - with the stamp a landed write always moves it, and the writer is not
- * asked, since a dropped write leaves a full Gamemaster who wrote before named too: a write that changed nothing
- * is no put-back to tell, and the copy it left is not tried again until it moves (`worldCopyStuck`).
+ * that leaves the writer as it was; the rows are compared without it. True only when the write landed: the value
+ * moved (E16 fix r1e-G1, finding fd3-1), and the Setting names no writer below full Gamemaster after it (E16 fix
+ * r1f-G1, finding fd4-1) - another's write in flight moves the value too, and a write the server dropped leaves the
+ * Setting naming whoever wrote before. A write that left the value as it was is no put-back to tell, and the copy it
+ * left is not tried again until it moves (`worldCopyStuck`); one that another's write overtook is read again by the
+ * run that asked for it (`holdSwitches`).
  */
 function writeWorldCopy() {
     worldCopyChain = worldCopyChain.catch(() => false).then(async () => {
@@ -424,8 +437,8 @@ function writeWorldCopy() {
             const before = JSON.stringify(current ?? null);
             await game.settings.set(MODULE_ID, WORLD_COPY, { ...rows, w: nextStamp(current) });
             const after = JSON.stringify(worldCopyValue() ?? null);
-            wrote = after !== before;
-            worldCopyStuck = wrote ? null : after;
+            wrote = after !== before && !writtenBelowFullGm();
+            worldCopyStuck = after === before ? after : null;
         }
         worldCopyHeld = stableJson(worldCopyValue() ?? rows);
         return wrote;

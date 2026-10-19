@@ -57132,42 +57132,64 @@ const SCENARIOS = [
             "the window hid a cost that is not an experience's, or kept the experience's (the cost rows, the config's costs)");
     }],
 
-    ["a Find Passage thrown through the roll window keeps its findPassage on the roll in hand that noteRollContext extends (A10)", async () => {
+    ["a Find Passage or a Frisk thrown through the roll window keeps its findPassage, or its direction and mode, on the roll in hand that noteRollContext extends (A10, A11)", async () => {
         /*
          * E16 p1 C1, 18.10.2026; the owner's A10 of 11.10 ("the roll window's rebuild keeps the findPassage
          * context in noteRollContext"), a guard: the context is the action's, handed to `rollTrait` and kept on
          * the roll in hand (`rememberRoll`), which `locatePassage`'s `noteRollContext` then extends; the window
          * is what C1 rebuilt. A student's Find Passage roll (`rollTrait` of Head with the Analyze's key and
          * `findPassage`, as action-rolls.mjs `performAnalyze` throws it) thrown through Daggerheart's window
-         * (the suite's rolls skip it, `suiteRolling`), the lock on, its faces set. Read: the roll in hand's
-         * action, its findPassage, and whether a total came back. Green at cfbbf60 as well. A11's `direction`
-         * and `mode` join this when E80 part 2 merges into line B.
+         * (the suite's rolls skip it, `suiteRolling`), the lock on, its faces set. Green at cfbbf60 as well.
+         * A11's half (E16-09, E16 fix r1f-G1, 19.10.2026, once E80 part 2 was on this line): a Frisk's two rolls
+         * thrown the same way, each with the key and context frisk.mjs throws it with and then extended by the
+         * `noteRollContext` it makes - the force (`frisk`, Body, `direction` and `mode` in its context,
+         * `performFriskOpenly`) and the unseen hand (`rummage`, Hand, `direction` only, its `mode` added by the
+         * extension, `performFrisk`). Read, each: the roll in hand's action, findPassage, direction and mode, and
+         * whether a total came back. Green at 728e24f as well.
          */
-        const [actor] = cast(1);
+        const [actor, target] = cast(2);
         const rolls = await import("./action-rolls.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const palm = ACTIONS.palm;
         const lockWas = game.settings.get(MODULE_ID, SETTINGS.lockRollDialog);
         const rolling = game.drpg.suiteRolling;
         const { gameSettings } = CONFIG.DH.SETTINGS;
         const fear = game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear);
         const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
-        let outcome = null;
+        const throws = [
+            ["findPassage", "head", { actionKey: "analyze", context: { findPassage: true } }, null],
+            ["friskForce", palm.frisk.trait, { actionKey: "frisk", dc: palm.frisk.threshold, title: palm.frisk.label,
+                context: { room: null, victimId: target.id, direction: "frisk", mode: "openly" } },
+                { direction: "frisk", mode: "openly", room: null, victimId: target.id, success: true }],
+            ["friskHand", palm.rummage.trait, { actionKey: "rummage", dc: palm.rummage.threshold, title: palm.rummage.label,
+                context: { room: null, victimId: target.id, unseenTotal: palm.rummage.unseen, direction: "frisk" } },
+                { direction: "frisk", mode: "unseen", room: null, victimId: target.id, seen: false, success: true }]];
+        const read = {}, outcomes = [];
         try {
             if (!lockWas) await game.settings.set(MODULE_ID, SETTINGS.lockRollDialog, true);
             game.drpg.suiteRolling = false;
             globalThis.__forceRoll = { hope: 9, fear: 4 };
-            outcome = await rolls.rollTrait(actor, "head", { actionKey: "analyze", context: { findPassage: true } });
+            for (const [name, trait, options, extend] of throws) {
+                const outcome = await rolls.rollTrait(actor, trait, options);
+                outcomes.push(outcome);
+                if (extend) await rolls.noteRollContext(actor, extend);
+                const hand = rolls.rollInHand(actor);
+                read[name] = [hand?.actionKey ?? null, hand?.findPassage ?? null, hand?.direction ?? null, hand?.mode ?? null, typeof outcome?.total];
+            }
         } finally {
             game.drpg.suiteRolling = rolling;
             if (hadForce) globalThis.__forceRoll = force;
             else delete globalThis.__forceRoll;
             await settle();
-            await (outcome?.raw?.message ?? null)?.delete?.();
+            for (const outcome of outcomes) await (outcome?.raw?.message ?? null)?.delete?.();
             if (game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear) !== fear) await game.settings.set(CONFIG.DH.id, gameSettings.Resources.Fear, fear);
             if (game.settings.get(MODULE_ID, SETTINGS.lockRollDialog) !== lockWas) await game.settings.set(MODULE_ID, SETTINGS.lockRollDialog, lockWas);
         }
-        const hand = rolls.rollInHand(actor);
-        equal(stableJson([hand?.actionKey ?? null, hand?.findPassage ?? null, typeof outcome?.total]), stableJson(["analyze", true, "number"]),
-            "a Find Passage thrown through the window lost its findPassage, its action, or its roll (the roll in hand's action and findPassage, the total's type)");
+        equal(stableJson(read), stableJson({
+            findPassage: ["analyze", true, null, null, "number"],
+            friskForce: ["frisk", null, "frisk", "openly", "number"],
+            friskHand: ["rummage", null, "frisk", "unseen", "number"]
+        }), "a roll thrown through the window lost its action, its findPassage, its direction or mode, or its roll (per throw: the roll in hand's action, findPassage, direction and mode, the total's type)");
     }],
 
     ["an opening or crisis throw holds its Reaction chip at action with its reason and another action leaves it alone (S02-23)", async () => {
