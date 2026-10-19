@@ -373,13 +373,13 @@ export const TIMING = {
      *  one trip after the clock started: an answer to an ask (frisk.mjs `sweepFriskAsks` ends an unanswered ask only
      *  then) and a force's draw (`friskForceOpen`, gm-bridge.mjs `friskForceRoll`). The windows themselves close at
      *  `friskAnswerMs` and `friskForceMs` after they open. Under `friskMarginMs`, so a late 'does not answer' still
-     *  reaches the searcher's wait (E80 fix r1-G1): chosen, not measured. */
+     *  reaches the searcher's wait (E80 fix r1-G1): chosen, not measured - a real round trip is LIVE-E80-05. */
     friskGraceMs: 5000,
     /** How long past the force's clock and its grace a force's roll may still be drawn (frisk.mjs `forceDrawnBy`, for
      *  `friskForceOpen` and gm-bridge.mjs `friskForceRoll`): 'Make them' pressed at the last second of its window opens
      *  Daggerheart's roll window, and the roll is drawn only when that is confirmed - the design counts the draw, so
      *  that what comes after the press does not take the force away. The sweep keeps the row `friskMarginMs` past that
-     *  for the follow (E80 fix r1-G2, the review's er-cor-8): chosen, not measured. */
+     *  for the follow (E80 fix r1-G2, the review's er-cor-8): chosen, not measured - a real roll window is LIVE-E80-05. */
     friskRollMs: 10000,
     /** How long an Observe waits for its ruling before the bookmark is swept. */
     pendingObserveTtlMs: 60 * 60 * 1000,
