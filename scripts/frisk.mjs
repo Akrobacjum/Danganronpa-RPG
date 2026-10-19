@@ -36,13 +36,17 @@ const FORCEABLE = Object.freeze(["refused", "noAnswer"]);
 
 /**
  * Whether `searcherId` may draw a Frisk's force now: the GMs' `friskForce` is on and an ask of theirs stands refused or
- * unanswered inside its window - `forceUntil` and the grace for a press in its last moment (`forceDrawnBy`). Asked by
- * roll-draw.mjs `drawRefusal` before a `frisk` roll takes its ticket.
+ * unanswered inside its window - `forceUntil`, the grace for a press in its last moment and the roll's window that press
+ * opened (`forceDrawnBy`) - with the two still standing as they stood when it was asked (`standing`: in its room, neither
+ * gone, no Eclipse, no Class Trial, no death or incident of either side). Asked by roll-draw.mjs `drawRefusal` before a
+ * `frisk` roll takes its ticket, so a gate that shut while 'Make them?' was open refuses the dice before they are thrown,
+ * and the force's follow, naming no roll, ends the ask `interrupted` with the action handed back (E80 fix r1-G2, the
+ * review's E80-C3-8).
  */
 export function friskForceOpen(searcherId, now = Date.now()) {
     if (!searcherId || getSetting(SETTINGS.friskForce) !== true) return false;
     for (const row of friskAsks.values()) {
-        if (row?.searcherId === searcherId && FORCEABLE.includes(row.state) && forceDrawnBy(row) > now) return true;
+        if (row?.searcherId === searcherId && FORCEABLE.includes(row.state) && forceDrawnBy(row) > now && !row.ending && !standing(row)) return true;
     }
     return false;
 }
@@ -54,9 +58,20 @@ export function friskForceOpen(searcherId, now = Date.now()) {
  */
 export const FRISK_GRACE_MS = TIMING.friskGraceMs;
 
-/** The last moment (epoch ms) a force of `row`'s may be drawn: its window and the grace. Also gm-bridge.mjs `friskForceRoll`'s. */
+/**
+ * How long past 'Make them?' closing the force's roll may still be drawn (`TIMING.friskRollMs`): 'Make them' pressed in
+ * the window's last second opens Daggerheart's roll window, and the roll is drawn only when that window is confirmed.
+ * The design counts the moment the roll is drawn, so that what comes after the press does not take the force away (its
+ * step 7; E80 fix r1-G2, the review's er-cor-8).
+ */
+export const FRISK_ROLL_MS = TIMING.friskRollMs;
+
+/**
+ * The last moment (epoch ms) a force of `row`'s may be drawn: its window, the grace and the roll's window. Also
+ * gm-bridge.mjs `friskForceRoll`'s; the sweep keeps the row `FRISK_MARGIN_MS` past it for the follow on its way.
+ */
 export function forceDrawnBy(row) {
-    return Number(row?.forceUntil) + FRISK_GRACE_MS;
+    return Number(row?.forceUntil) + FRISK_GRACE_MS + FRISK_ROLL_MS;
 }
 
 /**
@@ -414,7 +429,9 @@ function standing(row) {
  *   forceFailed    the searcher's neutral miss, the target shook them off, the room told;
  *   letGo          'Leave it', the force's clock, the searcher leaving, a refusal with `friskForce` off: the target and the room;
  *   gone           the target walked away: the searcher and the room;
- *   interrupted    nothing thrown: the searcher alone, whose browser hands the action back by what it paid (`FRISK_HANDED_BACK`).
+ *   interrupted    nothing thrown: the searcher alone, whose browser hands the action back by what it paid (`FRISK_HANDED_BACK`);
+ *   settled        no card: a force whose dice landed after the gate shut, or a shut gate the force's clock found with no
+ *                  follow from the searcher's browser, which alone could hand the action back (E80 fix r1-G2).
  * A target the GMs keep silent (a body nobody found, an incident's side) gets no card of its own; nor do the target and the
  * room of an ask that ended before it was asked (still "opening": `askToFrisk` reads where the two stand once its claim
  * has landed), as nobody there knew of it (E80 fix r1-G1, the review's E80-C3-2).
@@ -485,7 +502,8 @@ async function noYes(row, state) {
     if (force) {
         row.forceUntil = Date.now() + TIMING.friskForceMs;
         clearTimeout(row.timer);
-        row.timer = setTimeout(() => sweepFriskAsks().catch(err => error("Could not end a Frisk's ask", err)), TIMING.friskForceMs + FRISK_MARGIN_MS);
+        row.timer = setTimeout(() => sweepFriskAsks().catch(err => error("Could not end a Frisk's ask", err)),
+            forceDrawnBy(row) - Date.now() + FRISK_MARGIN_MS + 50);
     }
     const target = game.actors.get(row.targetId) ?? null;
     await cardTo(game.actors.get(row.searcherId) ?? null, say(state === "refused" ? "DRPG.Frisk.refused" : "DRPG.Frisk.noAnswer", { who: target?.name }));
@@ -497,10 +515,12 @@ async function noYes(row, state) {
 
 /**
  * Every ask whose clock has run out, ended: an unanswered one is 'does not answer' (`noYes`) once the grace for an answer
- * pressed in the window's last moment has passed too (`FRISK_GRACE_MS`), a force nobody took 'lets it go' a little past
- * its clock (`FRISK_MARGIN_MS`) for the follow already on its way. A row whose state is being changed (a refusal whose
- * force's clock is not set yet) is not read. The rows' timers call it; `now` is the suite's, to read an ask's end without
- * waiting a minute. Answers the ask ids it ended.
+ * pressed in the window's last moment has passed too (`FRISK_GRACE_MS`), a force nobody took 'lets it go' a little
+ * (`FRISK_MARGIN_MS`) past the last moment its roll could be drawn (`forceDrawnBy`), for the follow already on its way -
+ * or, where the gate has shut meanwhile (`standing`), ends with no card: the searcher's browser, which hands the action
+ * back on an `interrupted` follow, sent none, so no card may say the action is back (E80 fix r1-G2, E80-C3-8). A row
+ * whose state is being changed (a refusal whose force's clock is not set yet) is not read. The rows' timers call it;
+ * `now` is the suite's, to read an ask's end without waiting a minute. Answers the ask ids it ended.
  *
  * On a GM that is no longer the primary (`isPrimaryGm`) it ends nothing and posts nothing: it drops every ask it holds
  * (`dropFriskAsks`), as a reload of this GM would - the searcher's wait runs out and hands the action back, an answer
@@ -513,8 +533,9 @@ export async function sweepFriskAsks(now = Date.now()) {
         if (row.state === "asking" && now >= row.expiresAt + FRISK_GRACE_MS) {
             await noYes(row, "noAnswer");
             ended.push(row.askId);
-        } else if (FORCEABLE.includes(row.state) && Number.isFinite(row.forceUntil) && now >= row.forceUntil + FRISK_MARGIN_MS) {
-            await endAsk(row, standing(row) === "gone" ? "gone" : "letGo");
+        } else if (FORCEABLE.includes(row.state) && Number.isFinite(row.forceUntil) && now >= forceDrawnBy(row) + FRISK_MARGIN_MS) {
+            const moved = standing(row);
+            await endAsk(row, moved === "interrupted" ? "settled" : moved === "gone" ? "gone" : "letGo");
             ended.push(row.askId);
         }
     }
@@ -672,10 +693,14 @@ export async function answerFrisk({ askId, allow = false } = {}, sender = null) 
 /**
  * After a refusal or no answer, the searcher's 'Make them' or 'Leave it' (the design's step 7), on the primary:
  * `{ outcome }` or `{ refused }`. Only the searcher's own ask, and only while its force is open (a refused or unanswered
- * row; `friskForceOpen` held the draw to `forceUntil`, and gm-bridge.mjs `friskForceRoll` holds a player's roll to this
- * ask's window). No `rollId`: 'Leave it' - the target 'lets it go'. A roll: Body against `ACTIONS.palm.frisk` - the list
- * at the ask on a success or a critical, the neutral miss else - with the room told either way. The two are read where
- * they stand first; past the dice nothing is handed back, so a gate that shut meanwhile ends it with no card.
+ * row; `friskForceOpen` held the draw to `forceDrawnBy` and to the gate, and gm-bridge.mjs `friskForceRoll` holds a
+ * player's roll to this ask's window). No `rollId` - 'Leave it', a close, the clock, or a force whose draw was refused -
+ * is read where the two stand: the target 'lets it go', or walked away ('gone'), or, where the gate has shut since the
+ * refusal (an Eclipse, the Class Trial, a death or an incident), `interrupted`: no dice were thrown, and the searcher's
+ * browser hands the action back by what it paid (`FRISK_HANDED_BACK`; E80 fix r1-G2, the review's E80-C3-8). A roll:
+ * Body against `ACTIONS.palm.frisk` - the list at the ask on a success or a critical, the neutral miss else - with the
+ * room told either way. The two are read where they stand first; past the dice nothing is handed back, so a gate that
+ * shut between the draw and this follow ends it with no card.
  */
 export async function followFrisk({ searcherId, askId, rollId = null, total = 0, isCritical = false } = {}) {
     const row = friskAsks.get(askId ?? "");
@@ -683,8 +708,10 @@ export async function followFrisk({ searcherId, askId, rollId = null, total = 0,
     if (row.searcherId !== searcherId) return { refused: "not their character" };
     if (!FORCEABLE.includes(row.state)) return { refused: "that cannot be done now" };
     if (!rollId) {
-        await endAsk(row, standing(row) === "gone" ? "gone" : "letGo");
-        return { outcome: "letGo" };
+        const moved = standing(row);
+        const outcome = moved === "gone" || moved === "interrupted" ? moved : "letGo";
+        await endAsk(row, outcome);
+        return { outcome };
     }
     if (getSetting(SETTINGS.friskForce) !== true) return { refused: "that cannot be done now" };
     const moved = standing(row);
@@ -879,6 +906,8 @@ async function performFriskOpenly(actor, def, victim, { cost = def?.cost ?? 1, r
     }) : null;
     const follow = await requestFriskFollow({ searcherId: actor.id, askId: asked.askId,
         rollId: roll ? A.rollInHand(actor)?.messageId ?? null : null, total: roll?.total ?? 0, isCritical: Boolean(roll?.isCritical) });
+    // No roll thrown, and the primary read the gate shut ('interrupted'): the action back as it was paid (E80-C3-8).
+    if (!roll && follow.ok && FRISK_HANDED_BACK.includes(follow.value)) return A.abort(actor, paid);
     if (!roll) return base;
     const success = Boolean(roll.isCritical) || roll.total >= def.frisk.threshold;
     await A.noteRollContext(actor, { actionKey: "palm", direction: "frisk", mode: "openly", room, victimId: victim.id, success });

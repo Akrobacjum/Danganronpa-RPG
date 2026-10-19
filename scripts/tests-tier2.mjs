@@ -10730,14 +10730,18 @@ const SCENARIOS = [
          * C3 (19.10.2026) adds the ask's end: a claim then `endTicket` (an ask that ended), then a row left open, then a
          * Frisk and a Search, each refused for want of payment - the ended ask's ticket carries no force (C0's gap); and a
          * row still waiting for its answer with a window ahead written on it, then a Frisk refused as not now (the review's
-         * er-c0-1). Red at C2 (6810266): `endTicket` does not exist.
+         * er-c0-1). Red at C2 (6810266): `endTicket` does not exist. Since fix r1-G2 a force is drawn only while the two
+         * stand where the ask was made (frisk.mjs `standing`), so the rows name the other character and the room the two
+         * are stood alone in (`aloneTogether`); what a shut gate does to the draw is read in "an open Frisk's force waits".
          */
         needs(world.atLeast("connectedPlayersWithCharacter"), "the rolls are a connected player's, as Foundry names only those");
         const { trustedWrite } = await import("./resource-guard.mjs");
         const { actionsLeft } = await import("./actions.mjs");
         const D = await import("./roll-draw.mjs");
         const F = await import("./frisk.mjs").catch(() => null);
-        const { player, theirs } = playerAndCharacters();
+        const { gmPlaceOf } = await import("./movement.mjs");
+        const { player, theirs, other } = playerAndCharacters();
+        must(other, "the world has no character this player does not play");
         const ACT = "system.resources.actions.value", HOPE = "system.resources.hope.value";
         const left = actionsLeft(theirs), top = Math.max(1, left), hope = Number(theirs.system.resources.hope?.value) || 0;
         const forceKey = `${MODULE_ID}.friskForce`, force = game.settings.settings.has(forceKey) ? game.settings.get(MODULE_ID, "friskForce") : null;
@@ -10755,8 +10759,11 @@ const SCENARIOS = [
             await trustedWrite(theirs, { [ACT]: top - 1 }, { reason: "gmRuling", ...asPlayer });
         };
         const claim = async kind => (typeof D.claimTicket === "function" ? await D.claimTicket(theirs.id, kind) : "no claimTicket");
+        const stood = await aloneTogether(theirs, other);
+        const place = gmPlaceOf(theirs);
+        const where = { targetId: other.id, sceneId: place?.scene?.id ?? null, level: place?.level?.id ?? place?.level ?? null, room: place?.room ?? null };
         const ask = (askId, row) => {
-            if (F?.friskAsks instanceof Map) F.friskAsks.set(askId, { searcherId: theirs.id, targetId: "A114TARGET", state: "refused", ...row });
+            if (F?.friskAsks instanceof Map) F.friskAsks.set(askId, { searcherId: theirs.id, ...where, state: "refused", ...row });
         };
         const out = [];
         try {
@@ -10811,6 +10818,7 @@ const SCENARIOS = [
             if (force !== null && game.settings.get(MODULE_ID, "friskForce") !== force) await game.settings.set(MODULE_ID, "friskForce", force);
             await trustedWrite(theirs, { [ACT]: left, [HOPE]: hope }, { reason: "gmRuling" });
             D.forgetPayments?.(theirs.id);
+            await stood.back();
         }
         equal(stableJson(out), stableJson([true, true, "notPaid", "notPaid", true, true, "notPaid", true, true, "notPaid", true, "notPaid",
             true, true, true, true, "notPaid", "cannotNow", false, "cannotNow", true, true, true, "notPaid", "notPaid", "cannotNow",
@@ -11432,7 +11440,7 @@ const SCENARIOS = [
             const targetBusy = await judged("action.friskAsk", { searcherId: third.id, targetId: other.id }, thirdUser);
             const quiet = await F.sweepFriskAsks?.(Date.now() + TIMING.friskAnswerMs + TIMING.friskGraceMs + 1000);
             const forceMs = rowOf(theirs.id)?.forceUntil ? "open" : "none";
-            const closed = await F.sweepFriskAsks?.(Date.now() + TIMING.friskForceMs + TIMING.friskMarginMs + 1000);
+            const closed = await F.sweepFriskAsks?.(Date.now() + TIMING.friskForceMs + (TIMING.friskGraceMs ?? 0) + (TIMING.friskRollMs ?? 0) + TIMING.friskMarginMs + 1000);
             seen.silence = { ...a3, youBusy, targetBusy, ended: [quiet?.length ?? null, forceMs, closed?.length ?? null], ...read() };
             // The target walks to another room; the third, still there, sees it.
             F.forgetFriskAsks?.();
@@ -12019,6 +12027,186 @@ const SCENARIOS = [
             newPrimary: { held: false, orphans: 0, ...none },
             dropOpening: { opened: true, dropped: 1, out: [], held: false, orphans: 0, ...none }
         }), "[each phase: what the sweeps, answers and follows answered, what the primary holds, the tickets left claimed, the cards and the searcher's late answers]");
+    }],
+
+    ["an open Frisk's force waits on its gate and on its roll (E80 part 2 fix r1-G2): an Eclipse that starts while 'Make them?' is open refuses the force's draw before its dice, and the follow ends the ask interrupted with the action handed back as it was paid; a force drawn in the roll window its last-second press opened is taken, one drawn past that lets it go; the force's clock finding the gate shut posts no card", async () => {
+        /*
+         * E80 part 2 fix r1-G2, 19.10.2026; the review's E80-C3-8 and er-cor-8, the A11 design's step 7. The harms: a
+         * gate that shut while 'Make them?' was open (an Eclipse, the Class Trial, a death or an incident of a side) still
+         * let the Body roll be drawn - an armed Call eaten, the roll's Hope or Fear settled - and the follow then ended the
+         * ask with nothing, the action spent on a roll that could do nothing; 'Leave it' there told the target and the room
+         * 'lets it go' where the design ends it `interrupted`, the action back (C3-8). And 'Make them' pressed in the last
+         * seconds of its window opens Daggerheart's roll window, whose roll is drawn only when it is confirmed: the draw
+         * was refused once the force's clock and its grace had passed, and the follow, naming no roll, told the room that
+         * the searcher let it go, though they chose to force (er-cor-8). A player's character and another (whose
+         * connected player answers) alone in a room; each ask is the player's `action.friskAsk` judged as the bridge judges
+         * it after a payment written as the player's, refused by the target's player (`action.friskAnswer`), each force a
+         * Body roll drawn as from the player (`drawnForPlayer`), then `action.friskFollow` naming it where it was drawn,
+         * none where it was refused, as the searcher's browser sends it. The phases: an Eclipse started after the refusal,
+         * then a force; the same, then 'Leave it'; a GM's own open Frisk paid with a Burst, refused, an Eclipse started
+         * while its 'Make them?' is open and 'Leave it' pressed (the searcher's browser is this GM's, `performFrisk`); a
+         * force drawn 3 s past the force's clock and its grace (its roll window held open that long); the control, one
+         * drawn past the roll's window too; an Eclipse started after a refusal and the force's clock swept past its end
+         * with no follow. Read: the draws, the follows, the cards (as "an open Frisk's ask keeps its clocks" reads them),
+         * the searcher's late answers and the Burst. Red at the parent (10b7ea7): every phase but the control.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the ask is a connected player's, as Foundry names only those");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { TIMING, ACTIONS } = await import("./config.mjs");
+        const F = await import("./frisk.mjs");
+        const D = await import("./roll-draw.mjs");
+        const S = await import("./secret.mjs");
+        const { grantItem } = await import("./inventory.mjs");
+        const { ownerIdsOf } = await import("./utils.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { actionsLeft, freeActionsLeft } = await import("./actions.mjs");
+        const { player, theirs, other } = playerAndCharacters();
+        must(other, "the world has no character this player does not play");
+        const answerer = ownerIdsOf(other).find(id => game.users.get(id)?.active) ?? null;
+        must(answerer, `${other.name} has no connected player - this would measure nothing`);
+        const role = id => (id === player.id ? "searcher" : id === answerer ? "target" : game.users.get(id)?.isGM ? "gm" : `other ${id}`);
+        const part = ACTIONS.palm.frisk;
+        const HIGH = { hope: 12, fear: 11 };
+        const NAME = "Suite E80 G2 a brass button";
+        const ACT = "system.resources.actions.value", GRANTS = `flags.${MODULE_ID}.${FLAGS.freeActionGrants}`;
+        const putBack = sheetAsFound(theirs, [ACT, GRANTS]);
+        const left = actionsLeft(theirs), top = Math.max(1, left);
+        const asPlayer = { [D.PAID_AS_PLAYER]: true };
+        const pay = async () => {
+            await trustedWrite(theirs, { [ACT]: top }, { reason: "gmRuling", ...asPlayer });
+            await trustedWrite(theirs, { [ACT]: top - 1 }, { reason: "gmRuling", ...asPlayer });
+        };
+        const forceKey = `${MODULE_ID}.friskForce`, force = game.settings.settings.has(forceKey) ? game.settings.get(MODULE_ID, "friskForce") : null;
+        const clockWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.clock));
+        const eclipse = async on => {
+            await game.settings.set(MODULE_ID, SETTINGS.clock, on ? { ...clockWas, eclipse: true } : clockWas);
+            await settle();
+        };
+        const esc = value => foundry.utils.escapeHTML(String(value ?? ""));
+        const line = (key, data = {}) => game.i18n.format(key, Object.fromEntries(Object.entries(data).map(([k, v]) => [k, esc(v)])));
+        const KINDS = [
+            ["list", "DRPG.Frisk.listHeading", { who: other.name }], ["refused", "DRPG.Frisk.refused", { who: other.name }],
+            ["interrupted", "DRPG.Frisk.interrupted", {}], ["missed", "DRPG.Frisk.missed", { who: other.name }],
+            ["toTarget forced", "DRPG.Frisk.forced", { who: theirs.name }], ["toTarget letGo", "DRPG.Frisk.letGo", { who: theirs.name }]
+        ];
+        const kindOf = words => KINDS.find(([, key, data]) => words.includes(line(key, data)))?.[0] ?? `other: ${words.slice(0, 80)}`;
+        const packets = [], made = [], held = [];
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        socket.emit = function (event, packet, options, ...rest) {
+            if (["bridge.done", "secret.card"].includes(packet?.action)) packets.push({ ...packet, to: options?.recipients ?? [] });
+            return send.call(this, event, packet, options, ...rest);
+        };
+        const hook = Hooks.on("createChatMessage", message => made.push(message));
+        let marks = { packets: 0, made: 0 };
+        // Since the last read: each card that has words (a roll's own message has none) as [what it says, who its words
+        // went to besides the GMs], and the late answers to the searcher's wait.
+        const read = () => {
+            const fresh = packets.slice(marks.packets);
+            const cards = made.slice(marks.made).map(message => [message, S.secretHtml(message)]).filter(([, words]) => words !== null);
+            const out = {
+                cards: cards.map(([message, words]) => [kindOf(words),
+                    [...new Set(fresh.filter(p => p.action === "secret.card" && p.id === message.id).flatMap(p => p.to.map(role)))].filter(who => who !== "gm").sort()]),
+                done: fresh.filter(p => p.action === "bridge.done" && p.userId === player.id).map(p => p.value?.outcome ?? null)
+            };
+            marks = { packets: packets.length, made: made.length };
+            return out;
+        };
+        const judged = async (action, fields, from) => {
+            const out = [];
+            await G.judge(BRIDGE_ACTIONS, { action, requestId: `E80G2${foundry.utils.randomID(8)}`, ...fields }, from,
+                { send: (to, reply) => { if (reply?.action !== "bridge.ack") out.push(reply?.action === "bridge.refused" ? reply.reason : reply?.value?.outcome ?? reply?.value ?? null); } });
+            await settle();
+            return out;
+        };
+        const rowOf = searcherId => [...(F.friskAsks?.values?.() ?? [])].find(row => row.searcherId === searcherId) ?? null;
+        // A player's ask, refused by the target's player: the row, its refusal, the cards so far forgotten but the refusal's.
+        const refused = async () => {
+            F.forgetFriskAsks?.();
+            await pay();
+            await judged("action.friskAsk", { searcherId: theirs.id, targetId: other.id }, player.id);
+            read();
+            const row = rowOf(theirs.id);
+            return { row, no: await judged("action.friskAnswer", { askId: row?.askId ?? null, allow: false }, answerer) };
+        };
+        // A force as the searcher's browser makes it: the Body roll drawn, then the follow naming it, or none if refused.
+        const forced = async row => {
+            const R = await drawnForPlayer(player, theirs, { actionKey: "frisk", faces: HIGH, trait: part.trait, pay: false });
+            held.push(R);
+            return { draw: R.sent.find(r => r.action === "bridge.refused")?.reason ?? Boolean(R.record),
+                follow: await judged("action.friskFollow", { searcherId: theirs.id, askId: row?.askId ?? null, rollId: R.record ? R.message?.id ?? null : null,
+                    total: 0, isCritical: false }, player.id) };
+        };
+        const seen = {};
+        const stood = await aloneTogether(theirs, other);
+        try {
+            if (force !== null) await game.settings.set(MODULE_ID, "friskForce", true);
+            await grantItem(other, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
+            // C3-8: an Eclipse starts while 'Make them?' is open; the searcher forces.
+            const e1 = await refused();
+            await eclipse(true);
+            seen.eclipseForce = { no: e1.no, ...(await forced(e1.row)), ...read() };
+            await eclipse(false);
+            // C3-8: the same, and the searcher leaves it.
+            const e2 = await refused();
+            await eclipse(true);
+            seen.eclipseLeave = { no: e2.no, follow: await judged("action.friskFollow", { searcherId: theirs.id, askId: e2.row?.askId ?? null }, player.id), ...read() };
+            await eclipse(false);
+            // C3-8 on the searcher's browser: a GM's own open Frisk paid with a Burst; the Eclipse starts while its
+            // 'Make them?' is open, and 'Leave it' is pressed.
+            F.forgetFriskAsks?.();
+            await trustedWrite(theirs, { [ACT]: top, [GRANTS]: 1 }, { reason: "gmRuling" });
+            globalThis.__dialogAnswers.push(async () => {
+                await eclipse(true);
+                return "leave";
+            });
+            const run = F.performFrisk(theirs, ACTIONS.palm, other, "openly", { cost: 1 });
+            const asking = await until(() => rowOf(theirs.id)?.state === "asking");
+            const no = await judged("action.friskAnswer", { askId: rowOf(theirs.id)?.askId ?? null, allow: false }, answerer);
+            await run;
+            await eclipse(false);
+            seen.burst = { asking, no, budget: [actionsLeft(theirs), freeActionsLeft(theirs)], cards: read().cards };
+            globalThis.__dialogAnswers.length = 0;
+            await trustedWrite(theirs, { [ACT]: top, [GRANTS]: 0 }, { reason: "gmRuling" });
+            // er-cor-8: 'Make them' pressed at the last second; its roll window held open 3 s past the clock and its grace.
+            const late = await refused();
+            if (late.row) late.row.forceUntil = Date.now() - (TIMING.friskGraceMs ?? 0) - 3000;
+            seen.lateRoll = { no: late.no, ...(await forced(late.row)), ...read() };
+            // The control: drawn past the roll's window as well - the clock's, 'lets it go'.
+            const past = await refused();
+            if (past.row) past.row.forceUntil = Date.now() - (TIMING.friskGraceMs ?? 0) - (TIMING.friskRollMs ?? 0) - 1000;
+            seen.pastRoll = { no: past.no, ...(await forced(past.row)), ...read() };
+            // C3-8 at the force's clock: the gate shut and no follow came (the searcher's browser gone): nobody is told.
+            const s1 = await refused();
+            await eclipse(true);
+            const swept = await F.sweepFriskAsks(Date.now() + TIMING.friskForceMs + (TIMING.friskGraceMs ?? 0) + (TIMING.friskRollMs ?? 0) + TIMING.friskMarginMs + 1000);
+            seen.sweptShut = { no: s1.no, swept: swept.length, held: rowOf(theirs.id) !== null, ...read() };
+            await eclipse(false);
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            globalThis.__dialogAnswers.length = 0;
+            F.forgetFriskAsks?.();
+            for (const R of held.reverse()) await R.putBack();
+            if (stableJson(game.settings.get(MODULE_ID, SETTINGS.clock)) !== stableJson(clockWas)) await game.settings.set(MODULE_ID, SETTINGS.clock, clockWas);
+            if (force !== null && game.settings.get(MODULE_ID, "friskForce") !== force) await game.settings.set(MODULE_ID, "friskForce", force);
+            for (const a of [other, theirs]) for (const i of a.items.filter(i => i.name === NAME)) await i.delete();
+            await putBack();
+            D.forgetPayments?.(theirs.id);
+            await stood.back();
+        }
+        const refusal = [["refused", ["searcher"]]];
+        const expected = {
+            eclipseForce: { no: ["refused"], draw: "cannotNow", follow: ["interrupted"], cards: [...refusal, ["interrupted", ["searcher"]]], done: ["refused"] },
+            eclipseLeave: { no: ["refused"], follow: ["interrupted"], cards: [...refusal, ["interrupted", ["searcher"]]], done: ["refused"] },
+            burst: { asking: true, no: ["refused"], budget: [top, 1], cards: [...refusal, ["interrupted", ["searcher"]]] },
+            lateRoll: { no: ["refused"], draw: true, follow: ["forced"], cards: [...refusal, ["list", ["searcher"]], ["toTarget forced", ["target"]]], done: ["refused"] },
+            pastRoll: { no: ["refused"], draw: "cannotNow", follow: ["letGo"], cards: [...refusal, ["toTarget letGo", ["target"]]], done: ["refused"] },
+            sweptShut: { no: ["refused"], swept: 1, held: false, cards: refusal, done: ["refused"] }
+        };
+        for (const [phase, want] of Object.entries(expected)) {
+            equal(stableJson(seen[phase] ?? null), stableJson(want), `${phase}: what the draw, the follow and the sweep answered, the cards and the searcher's late answers`);
+        }
     }],
 
     ["a GM's own unseen Frisk opens one window, its cover eats no armed Call and its hand does, and it is told resolved once as a Palm's Frisk (A11-10)", async () => {

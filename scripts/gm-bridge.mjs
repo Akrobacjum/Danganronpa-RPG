@@ -753,8 +753,9 @@ async function handleFriskFollow(payload) {
 /*
  * A FORCE'S ROLL, FOR THE ASK IT NAMES (E80 part 2 C3). The runner holds the record to the searcher, to a `frisk` roll and
  * to one settlement (`rollRefusal`); this holds it to the ask: one the primary holds for that searcher, a roll drawn after
- * the ask was made and no later than its force's window and its grace (frisk.mjs `forceDrawnBy`, which `friskForceOpen`
- * held the draw to; E80 fix r1-G1), so a Body roll drawn for one ask settles no other. Its fields are the record's result.
+ * the ask was made and no later than its force's window, its grace and the roll's window (frisk.mjs `forceDrawnBy`, which
+ * `friskForceOpen` held the draw to; E80 fix r1-G1, r1-G2), so a Body roll drawn for one ask settles no other. Its fields
+ * are the record's result.
  */
 async function friskForceRoll(record, payload) {
     const { friskAsks, forceDrawnBy } = await import("./frisk.mjs");

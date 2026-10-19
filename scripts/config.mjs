@@ -365,8 +365,9 @@ export const TIMING = {
     friskAnswerMs: 60000,
     friskForceMs: 30000,
     /** How long the searcher's wait on an open Frisk's ask runs past the answer's clock (gm-bridge.mjs `action.friskAsk`,
-     *  its `timeoutMs` and `lateMs`), and how long past the force's clock the primary keeps a refused or unanswered ask
-     *  for the follow that names a force drawn in time (frisk.mjs `sweepFriskAsks`) (E80 part 2 C3): chosen, not measured. */
+     *  its `timeoutMs` and `lateMs`), and how long past the last moment a force may be drawn (frisk.mjs `forceDrawnBy`)
+     *  the primary keeps a refused or unanswered ask for the follow that names a force drawn in time (frisk.mjs
+     *  `sweepFriskAsks`) (E80 part 2 C3; fix r1-G2): chosen, not measured. */
     friskMarginMs: 15000,
     /** How long past either clock the primary still takes what was pressed at the last second on a window that opened
      *  one trip after the clock started: an answer to an ask (frisk.mjs `sweepFriskAsks` ends an unanswered ask only
@@ -374,6 +375,12 @@ export const TIMING = {
      *  `friskAnswerMs` and `friskForceMs` after they open. Under `friskMarginMs`, so a late 'does not answer' still
      *  reaches the searcher's wait (E80 fix r1-G1): chosen, not measured. */
     friskGraceMs: 5000,
+    /** How long past the force's clock and its grace a force's roll may still be drawn (frisk.mjs `forceDrawnBy`, for
+     *  `friskForceOpen` and gm-bridge.mjs `friskForceRoll`): 'Make them' pressed at the last second of its window opens
+     *  Daggerheart's roll window, and the roll is drawn only when that is confirmed - the design counts the draw, so
+     *  that what comes after the press does not take the force away. The sweep keeps the row `friskMarginMs` past that
+     *  for the follow (E80 fix r1-G2, the review's er-cor-8): chosen, not measured. */
+    friskRollMs: 10000,
     /** How long an Observe waits for its ruling before the bookmark is swept. */
     pendingObserveTtlMs: 60 * 60 * 1000,
     /** How many private cards' words a browser keeps; beyond this the oldest go. */
