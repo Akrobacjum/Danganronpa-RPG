@@ -3646,6 +3646,7 @@
       "held": {
         "eclipse": "Eclipse: no player is in a voice channel until the lights come back.",
         "eclipseHeard": "Eclipse: nobody hears you until the lights come back.",
+        "deadAlone": "Your character is dead: the living do not hear you, and you do not hear them.",
         "gmBlock": "The GM blocked your microphone.",
         "external": "Voice is in its own window - use the controls there.",
         "offline": "You are not connected to voice.",

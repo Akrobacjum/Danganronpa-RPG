@@ -48,7 +48,7 @@ import { SETTINGS, getSetting, getClock, isDeadForGm, isDeceased, isEclipse } fr
 import { allRooms } from "./movement.mjs";
 import { roomPieces, isMoveChange, isTrialScene } from "./rooms.mjs";
 import { isMonokuma, poolUserFor } from "./monokuma.mjs";
-import { VOICE, ROOM_PREFIX, applyLocally, forgetDesiredRoom, avclientActive, desiredRoom, externalAV } from "./voice-client.mjs";
+import { VOICE, ROOM_PREFIX, DEAD_ROOM, applyLocally, forgetDesiredRoom, avclientActive, desiredRoom, externalAV } from "./voice-client.mjs";
 import { isPrimaryGm, primaryGmId, debug, warn, error, plural, gmReport } from "./utils.mjs";
 import { alreadyOpen } from "./live.mjs";
 
@@ -71,6 +71,14 @@ const RETRY_MS = [2000, 6000, 12000];
 
 /** A slow re-assert, so nothing can be wrong for longer than this. */
 const HEARTBEAT_MS = 60000;
+
+/**
+ * How long a witness's assignment waits for the victim's own `voice.applied` before it is sent anyway (E19 C3; the
+ * owner's A9 of 11.10 names 1500 ms): long enough for a victim's browser that answers to have left the room, short
+ * enough that the witness does not stand in silence when the victim's browser never answers. A design number, not
+ * measured at a table.
+ */
+const WITNESS_WAIT_MS = 1500;
 
 export function registerVoice() {
     Hooks.on("updateToken", (doc, changes) => {
@@ -115,6 +123,12 @@ export function registerVoice() {
     Hooks.on("drpgDeathsChanged", () => {
         if (game.user?.isGM) scheduleReconcile({ immediate: true });
     });
+    // The dead channel's triggers that write no setting of the world (E19 C3; A9): the GMs' cast changed (a
+    // castStore write, or another GM's merged in - E67's `silencedDead` among its fields), and the cast arriving
+    // after a load or a change of primary, while which the dead keep their rooms (`deathVoiceGone`'s null).
+    Hooks.on("drpgCastChanged", () => {
+        if (isPrimaryGm()) scheduleReconcile();
+    });
     // Both edges, and both immediate. Starting an Eclipse takes every voice off
     // the rooms at once - a placement window that begins with the table still
     // mid-conversation is a placement window everybody can hear - and ending it
@@ -126,6 +140,12 @@ export function registerVoice() {
         suppressBreakoutToasts();
         startHeartbeat();
         warnIfMisconfigured();
+        if (game.user?.isGM) {
+            import("./gm-stores.mjs")
+                .then(({ castStore }) => castStore.whenHydrated())
+                .then(() => scheduleReconcile({ immediate: true }))
+                .catch(err => error("Could not place the voices once the cast arrived", err));
+        }
     });
 }
 
@@ -139,7 +159,9 @@ const RECONCILE_HOOKS = ["updateActor", "updateUser", "createRegion", "updateReg
  * S11-33 (d)) also, debounced like a token's move: an actor's ownership (whose voice a student is, `activeOwnerOf`),
  * a user's character or role, a Scene Region made, changed or deleted (the rooms a voice room is named for), and
  * the two settings that say whose voice a Monokuma is (monokuma.mjs `poolUserFor`: the Monokuma pools and the
- * Despair pools). Pure, so R813 asks it a table.
+ * Despair pools). Since C3 (A9) at once, the dead channel's triggers that are world settings: the incident's
+ * public half (`murderState`: an incident opened or closed) and the discoveries' stamps (`bodiesFound`). Pure, so
+ * R813 and R815 ask it a table.
  *
  * @param {string} hook
  * @param {object} doc
@@ -161,6 +183,7 @@ export function reconcileTrigger(hook, doc, changes) {
             return {};
         case "createSetting":
         case "updateSetting":
+            if ([SETTINGS.murderState, SETTINGS.bodiesFound].some(key => doc?.key === `${MODULE_ID}.${key}`)) return { immediate: true };
             return [SETTINGS.monokumaPools, SETTINGS.despairPools].some(key => doc?.key === `${MODULE_ID}.${key}`) ? {} : null;
         default:
             return null;
@@ -312,20 +335,57 @@ function followsVoice(tokenDoc) {
  * client, so the next pass sends again. A client is only ever unsettled by its own answer (`onVoiceSocket` keys
  * it by Foundry's sender).
  *
+ * A VICTIM'S ANSWER RELEASES A WITNESS (E19 C3; A9). `waitApplied` is how the reconcile holds a witness's room until
+ * the victim it would hear has left it (`sendInPasses`): it answers "applied" once that client's own answer settles
+ * it in the room it was sent, or "timeout" after `witnessMs`. An answer is only ever the sender's own (`onVoiceSocket`
+ * keys it by Foundry's sender), so one account's packet cannot release a witness on another's behalf.
+ *
  * @param {object} [io]
  * @param {Function} [io.emit]    Foundry's `game.socket.emit(event, packet, options)`
  * @param {Function} [io.later]   `setTimeout(fn, ms)`, its answer what `cancel` takes
  * @param {Function} [io.cancel]  `clearTimeout(id)`
  * @param {number[]} [io.steps]   the waits, `RETRY_MS`
+ * @param {number} [io.witnessMs] the longest `waitApplied` waits, `WITNESS_WAIT_MS`
  */
 export function createVoiceLedger({ emit = (event, packet, { recipients }) => game.socket.emit(event, packet, { recipients }),
     later = (fn, ms) => setTimeout(fn, ms),
-    cancel = id => clearTimeout(id), steps = RETRY_MS } = {}) {
+    cancel = id => clearTimeout(id), steps = RETRY_MS, witnessMs = WITNESS_WAIT_MS } = {}) {
     /** userId -> the room that client last confirmed. `null` is the main room. */
     const settled = new Map();
 
     /** userId -> { room, requestId, attempt, timer } for assignments in flight. */
     const inFlight = new Map();
+
+    /** userId -> the `waitApplied` calls still waiting on that client: { room, done }. */
+    const waiting = new Map();
+
+    /**
+     * Until `userId`'s own answer settles it in `room` (`null` the main room), or `witnessMs`.
+     *
+     * @returns {Promise<"applied"|"timeout">} "applied" at once when it is settled there already
+     */
+    function waitApplied(userId, room) {
+        const target = room ?? null;
+        if (settled.has(userId) && settled.get(userId) === target) return Promise.resolve("applied");
+        return new Promise(resolve => {
+            const entry = { room: target, done: null };
+            const timer = later(() => entry.done("timeout"), witnessMs);
+            entry.done = said => {
+                cancel(timer);
+                const list = waiting.get(userId) ?? [];
+                const left = list.filter(other => other !== entry);
+                if (left.length) waiting.set(userId, left);
+                else waiting.delete(userId);
+                resolve(said);
+            };
+            waiting.set(userId, [...(waiting.get(userId) ?? []), entry]);
+        });
+    }
+
+    /** `userId` settled in `room`: every wait on that client for that room is over. */
+    function release(userId, room) {
+        for (const entry of [...(waiting.get(userId) ?? [])]) if (entry.room === room) entry.done("applied");
+    }
 
     function forget(userId) {
         settled.delete(userId);
@@ -431,6 +491,7 @@ export function createVoiceLedger({ emit = (event, packet, { recipients }) => ga
             // room - so it is worth recording, and recording it is what makes the
             // next pass notice the mismatch and re-send.
             settled.set(userId, room);
+            release(userId, room);
             return "settled";
         }
 
@@ -447,15 +508,19 @@ export function createVoiceLedger({ emit = (event, packet, { recipients }) => ga
         return "retry";
     }
 
-    return { settled, inFlight, forget, forgetEveryone, assignUser, answer };
+    return { settled, inFlight, forget, forgetEveryone, assignUser, answer, waitApplied };
 }
 
-const { settled, forget, forgetEveryone, assignUser, answer } = createVoiceLedger();
+const voiceLedger = createVoiceLedger();
+const { settled, forget, forgetEveryone, assignUser, waitApplied } = voiceLedger;
 
 /**
  * A client answering. Only the primary GM keeps the record (`createVoiceLedger`).
+ *
+ * Exported with the ledger it answers into as a third argument (E19 C3), so R815 hands a packet from one account
+ * about another to a ledger of its own; Foundry calls it with two, and the module's ledger answers.
  */
-function onVoiceSocket(payload, senderId) {
+export function onVoiceSocket(payload, senderId, ledger = voiceLedger) {
     // A GM saying "I picked a room by hand" or "I have stopped".
     //
     if (payload?.action === VOICE.whoAmI) {
@@ -475,7 +540,7 @@ function onVoiceSocket(payload, senderId) {
     if (!user) return;
 
     const room = payload.room ?? null;
-    const did = answer(userId, { room, state: payload.state, requestId: payload.requestId ?? null });
+    const did = ledger.answer(userId, { room, state: payload.state, requestId: payload.requestId ?? null });
     if (did !== "waiting" && did !== "ignored") {
         debug(`Voice: ${user.name} answered "${room ?? "the main room"}" (${payload.state}): ${did}.`);
     }
@@ -496,6 +561,9 @@ async function onWhoAmI(userId) {
     if (userId === game.user.id) return;
 
     const room = await targetForUser(userId);
+    // A dead account's room kept while the cast is unknown here (`deathVoiceGone`'s null): no answer, and the
+    // pass after the cast arrives sends it.
+    if (room === undefined) return;
     assignUser(userId, room, { force: true });
 }
 
@@ -509,9 +577,12 @@ async function onWhoAmI(userId) {
  * drifted on a rule one of them had and the other lacked, so a GM who refreshed
  * was answered with a room they had not asked for. A promise in a comment is
  * not a shared implementation.
+ *
+ * `undefined` for an account whose room is kept (a row's `keep`, E19 C3): a death the cast cannot judge yet.
  */
 async function targetForUser(userId) {
     const { byUser } = await voiceTargets();
+    if (byUser.get(userId)?.keep) return undefined;
     return byUser.get(userId)?.target ?? null;
 }
 
@@ -538,19 +609,21 @@ async function targetForUser(userId) {
 /** How strong a claim on an account's voice each situation makes. */
 const CLAIM = {
     none: 0,      // nobody is holding this character
-    dead: 1,      // silenced - the main room, but a live character outranks it
+    dead: 1,      // silenced - the dead channel or the main room (D8), but a live character outranks it
     nowhere: 2,   // alive, no token, or standing outside every region
     inRoom: 3,    // alive and standing somewhere: the only claim with a room of its own
     trial: 4      // the Class Trial: the main room for everybody (D8); in a trial every connected account makes it
 };
 
 /**
- * @returns {Promise<{rows: Array, byUser: Map<string, object>, contested: Map<string, Array>, eclipse: boolean, trial: boolean}>}
+ * @returns {Promise<{rows: Array, byUser: Map<string, object>, contested: Map<string, Array>, eclipse: boolean, trial: boolean,
+ *   waits: Map<string, string[]>}>}
  *   `rows` is every character and what it wants, in actor order - for reporting.
  *   `byUser` is the decision: one entry per connected account.
  *   `contested` is the accounts whose characters disagreed, for the warning.
  *   `eclipse` and `trial` say which of the two rules that place nobody by their
  *   token is in force (`voiceClaim`).
+ *   `waits` is the witnesses whose rooms wait for the victims they would hear (`placeVoices`).
  */
 export async function voiceTargets() {
     const { locateActor } = await import("./movement.mjs");
@@ -558,29 +631,11 @@ export async function voiceTargets() {
     const eclipse = isEclipse();
     const trial = getClock().phase === "classTrial";
 
-    const rows = [];
-    for (const actor of game.actors.filter(a => a.type === "character")) {
-        const monokuma = isMonokuma(actor);
-        const user = voiceUserOf(actor, monokuma);
-        rows.push({
-            actor, monokuma, user: user ?? null,
-            ...voiceClaim({
-                user, monokuma, eclipse, trial,
-                silenced: () => !monokuma && silencedByDeath(actor),
-                locate: () => locateActor(actor)
-            })
-        });
-    }
-
-    const byUser = new Map();
-    const claims = new Map();
-    for (const row of rows) {
-        if (!row.user?.active) continue;
-        if (!claims.has(row.user.id)) claims.set(row.user.id, []);
-        claims.get(row.user.id).push(row);
-    }
-    // In the order each account's first row came, as the inline ranking this replaced filled it (E78 C2).
-    for (const userId of claims.keys()) byUser.set(userId, voiceRowFor(rows, userId));
+    const { rows, byUser, claims, waits } = await placeVoices({
+        actors: game.actors.filter(a => a.type === "character"), eclipse, trial,
+        death: eclipse || trial ? null : await deathFacts(),
+        locate: actor => locateActor(actor)
+    });
 
     // An Eclipse silences PEOPLE, not characters. Everyone else in this file is
     // reached through the character they own, so an account with no character -
@@ -604,7 +659,127 @@ export async function voiceTargets() {
         if (new Set(list.map(r => r.target ?? null)).size > 1) contested.set(userId, list);
     }
 
-    return { rows, byUser, contested, eclipse, trial };
+    return { rows, byUser, contested, eclipse, trial, waits };
+}
+
+/**
+ * The decision `voiceTargets` makes, from the facts it hands in (E19 C3, 19.10.2026; S11-26, D8, the owner's A9 of
+ * 11.10): each character's row (`voiceClaim`), each connected account's voice (`voiceRowFor`), and the dead channel.
+ * Asked of plain objects by R815, as `voiceClaim` is by R117.
+ *
+ * THE DEAD CHANNEL. A student dead in the GMs' records, and not back as a Monocub, keeps the voice of the room they
+ * lie in until the first of A9's triggers (`deathVoiceGone`): until then they play the scene out with the killer.
+ * After it a death kept secret (`!isDeceased`) talks in the dead channel (`DEAD_ROOM`), where the living hear nothing
+ * of it, and a public one in the main room, as before C3 every death did at once - which put a secret victim beside
+ * every player in the main room (known-leaks A9-K3, closed here). While the cast is unknown on this browser (null),
+ * the row is `keep`: the reconcile sends that account nothing, and the cast's arrival runs the pass again.
+ *
+ * THE WITNESS IS THE SECOND PASS. "A living student from outside the cast in the same room" can only be read once
+ * every account's room is known, and the actors come in no useful order; so after the ranking each dead row still in
+ * a room is asked again with `witnessed` when an account's voice row there is a player's living student who is not
+ * in the cast - no Monokuma (a GM's) and no Monocub (dead). The victim's account is ranked again, and each witness's
+ * account waits for it (`waits`: witness -> the victims whose room it shares), so that its room is sent only after
+ * the victim's (`sendInPasses`).
+ *
+ * @param {object} facts
+ * @param {Actor[]} facts.actors         the characters
+ * @param {boolean} [facts.eclipse]
+ * @param {boolean} [facts.trial]
+ * @param {object|null} [facts.death]    `deathFacts()`'s answer; read here when left out, never in an Eclipse or the trial
+ * @param {Function} [facts.locate]      actor -> `{ scene, room }` or null (movement.mjs `locateActor`)
+ * @param {Function} [facts.userOf]      actor -> the account whose voice it is (`voiceUserOf`)
+ * @param {Function} [facts.dead]        the GMs' record (`isDeadForGm`)
+ * @param {Function} [facts.monokumaOf]  `isMonokuma`
+ * @returns {Promise<{rows: Array, byUser: Map<string, object>, claims: Map<string, Array>, waits: Map<string, string[]>}>}
+ */
+export async function placeVoices({ actors = [], eclipse = false, trial = false, death, locate = () => null,
+    userOf = actor => voiceUserOf(actor, isMonokuma(actor)), dead = isDeadForGm, monokumaOf = isMonokuma } = {}) {
+    // Nobody's death is asked in an Eclipse or the trial (`voiceClaim`; R117), so nor are the facts of one.
+    const asked = !eclipse && !trial;
+    const facts = asked ? death ?? await deathFacts() : null;
+    const rowOf = (actor, monokuma, user, fallen, gone) => ({
+        actor, monokuma, user: user ?? null, fallen, gone, keep: fallen && gone === null,
+        ...voiceClaim({
+            user, monokuma, eclipse, trial,
+            silenced: () => gone === true,
+            secret: () => !isDeceased(actor),
+            locate: () => locate(actor)
+        })
+    });
+
+    const rows = [];
+    for (const actor of actors) {
+        const monokuma = monokumaOf(actor);
+        const user = userOf(actor);
+        const fallen = asked && !monokuma && silencedByDeath(actor, dead);
+        rows.push(rowOf(actor, monokuma, user, fallen, fallen ? await deathVoiceGone(actor, facts) : false));
+    }
+
+    const byUser = new Map();
+    const claims = new Map();
+    for (const row of rows) {
+        if (!row.user?.active) continue;
+        if (!claims.has(row.user.id)) claims.set(row.user.id, []);
+        claims.get(row.user.id).push(row);
+    }
+    // In the order each account's first row came, as the inline ranking this replaced filled it (E78 C2).
+    for (const userId of claims.keys()) byUser.set(userId, voiceRowFor(rows, userId));
+
+    const waits = new Map();
+    if (!asked) return { rows, byUser, claims, waits };
+    const cast = facts?.cast ?? new Set();
+    const witness = row => Boolean(row?.actor && row.user && !row.user.isGM && !row.monokuma
+        && !dead(row.actor) && !cast.has(row.actor.id));
+    for (const [index, row] of rows.entries()) {
+        if (!row.fallen || row.gone !== false || !row.target || !row.user?.active) continue;
+        const near = [...byUser].filter(([userId, other]) => userId !== row.user.id && other.target === row.target && witness(other));
+        if (!near.length) continue;
+        const gone = await deathVoiceGone(row.actor, { ...facts, witnessed: true });
+        if (gone !== true) continue;
+        const was = byUser.get(row.user.id)?.target ?? null;
+        rows[index] = rowOf(row.actor, row.monokuma, row.user, true, gone);
+        claims.set(row.user.id, claims.get(row.user.id).map(r => (r === row ? rows[index] : r)));
+        byUser.set(row.user.id, voiceRowFor(rows, row.user.id));
+        if (was !== row.target || byUser.get(row.user.id)?.target === row.target) continue;
+        for (const [userId] of near) waits.set(userId, [...new Set([...(waits.get(userId) ?? []), row.user.id])]);
+    }
+    return { rows, byUser, claims, waits };
+}
+
+/**
+ * What `deathVoiceGone` reads, read once for a pass (E19 C3): the running incident (`murderState`, null when none
+ * runs), whether this browser holds the GMs' cast (`castStore`), who is in it (`participantIds`) and the reader of a
+ * body's discovery (chapter.mjs `deathAnnounced`). Imported here, as `locateActor` is in `voiceTargets`.
+ */
+export async function deathFacts() {
+    const [{ murderState, participantIds }, { castStore }, { deathAnnounced }] = await Promise.all([
+        import("./incident-store.mjs"), import("./gm-stores.mjs"), import("./chapter.mjs")]);
+    const state = murderState();
+    return { state, hydrated: castStore.isHydrated(), cast: participantIds(state), announced: deathAnnounced };
+}
+
+/**
+ * Whether a dead student's voice has left the room they died in, on the primary GM (E19 C3, 19.10.2026; S11-26, the
+ * owner's A9 of 11.10): `null` while it cannot be told, else `true` from the first of A9's triggers, else `false`.
+ *   - null: an incident runs and this browser does not hold the GMs' cast yet (a load, a change of primary). The
+ *     cast is what says who is in the incident, and an empty one would read the victim as outside it;
+ *   - true: outside the running incident's cast (`participantIds`) - the incident it died in is over, or it died
+ *     outside one; its body found this chapter (`deathAnnounced`); a GM's "Silence now" (`silencedDead`, which E67
+ *     writes in the cast; read only); or a living student from outside the cast in the same room (`witnessed`,
+ *     `placeVoices`' second pass);
+ *   - false: in the cast of the incident that runs, and none of the above.
+ * Only the primary asks it, of the GMs' records: no player's browser reads or is told any of it, and the dead
+ * account is sent nothing but its own room (`send`). The facts are `deathFacts()`'s unless handed in.
+ *
+ * @param {Actor} actor
+ * @param {object} [facts]
+ * @returns {Promise<boolean|null>}
+ */
+export async function deathVoiceGone(actor, facts) {
+    const known = facts ?? await deathFacts();
+    const { state = null, hydrated = true, cast = new Set(), witnessed = false } = known;
+    if (state && !hydrated) return null;
+    return !cast.has(actor.id) || Boolean(await known.announced?.(actor)) || Boolean(state?.silencedDead?.[actor.id]) || witnessed === true;
 }
 
 /**
@@ -646,8 +821,9 @@ export function voiceRowFor(rows, userId) {
  *     held; the module's own reason is named first when both stand;
  *   - "eclipseHeard": a Monocub in its Eclipse room - alone there today too, so the tile must not pretend somebody
  *     hears it, but a Monocub is never held (the design's P6), so this is a line of information.
- * The dead are not held here: until the incident ends, the body is found or the GM says so, a dead student talks in
- * the room they died in (Q2), and E19 and E67 add "deadAlone" and "deadMuted" with that timing (plan D7).
+ *   - "deadAlone": HELD - the primary GM put this account in the dead channel (E19 C3; A9): its voice character's
+ *     death is not public, and the living neither hear it nor are heard there. Until A9's first trigger a dead
+ *     student talks in the room they died in, and nothing is held (Q2); E67 adds "deadMuted".
  *
  * From this browser's own facts only - the room the primary GM sent it (`desiredRoom`), its own A/V state, its own
  * characters and the flags on them - and never from GmStore: on a player `isDeadForGm` and `pendingDeath` read the
@@ -669,6 +845,7 @@ export function micHold({ user = game.user, room = desiredRoom(), external = ext
     const voice = eclipse ? accountRow(user, { actors, eclipse: true, silenced: () => false })?.actor : null;
     const monocub = Boolean(voice && isDeceased(voice) && voice.getFlag?.(MODULE_ID, FLAGS.monocub));
     if (eclipse && !monocub) return { reason: "eclipse", held: true };
+    if (!user.isGM && room === DEAD_ROOM) return { reason: "deadAlone", held: true };
     if (canBroadcastAudio === false) return { reason: "gmBlock", held: false };
     if (eclipse) return { reason: "eclipseHeard", held: false };
     return null;
@@ -735,10 +912,12 @@ function broadcastAllowed(user) {
  * holds - the living in two rooms, the dead, a Monocub, Monokuma, an account with
  * no character - without a world to write. `silenced` and `locate` are asked only
  * by the branch that needs them: nothing here asks where anybody stands, or who
- * is dead, during an Eclipse or the trial.
+ * is dead, during an Eclipse or the trial. `secret` (E19 C3) is asked of the
+ * silenced alone: a death the table has not been told of talks in the dead
+ * channel, a public one in the main room (D8).
  */
 export function voiceClaim({ user, monokuma = false, eclipse = false, trial = false,
-    silenced = () => false, locate = () => null }) {
+    silenced = () => false, secret = () => false, locate = () => null }) {
     const row = { scene: null, room: null, target: null, claim: CLAIM.none, why: "" };
 
     // Every reason for NOT placing somebody, said out loud - "nobody is in
@@ -798,8 +977,17 @@ export function voiceClaim({ user, monokuma = false, eclipse = false, trial = fa
         // lying in gives away everything an investigation is meant to
         // uncover. They get it back the moment they opt in as a Monocub,
         // which is the guide's own re-entry point (p. 16).
+        //
+        // Silenced is the dead channel's trigger since E19 C3 (`placeVoices`).
+        // Not the main room for a death kept secret (D8, S11-26): every player
+        // there would hear the victim, and the tile would name them (A9-K3).
         row.claim = CLAIM.dead;
-        row.why = "dead, and not back as a Monocub - the main room";
+        if (secret()) {
+            row.target = DEAD_ROOM;
+            row.why = "dead, the death not public - the dead channel";
+        } else {
+            row.why = "dead, and not back as a Monocub - the main room";
+        }
     } else {
         // Located without the canvas, per actor. Reading `canvas.scene`
         // instead only ever sees the scene the GM is LOOKING AT, so a GM
@@ -958,11 +1146,39 @@ async function reconcileNow({ force = false } = {}) {
         // produce a hundred passes that all decide the same thing and send
         // nothing. And the old behaviour left every group that was talking when
         // the lights went out still talking.
-        const { byUser, contested, eclipse } = await voiceTargets();
+        const { byUser, contested, waits } = await voiceTargets();
         reportContested(contested, byUser);
 
-        let changed = 0;
-        for (const [userId, row] of applyOrder(byUser, game.user.id)) {
+        const changed = await sendInPasses(applyOrder(byUser, game.user.id), waits, {
+            ownId: game.user.id,
+            assign: (userId, row) => assignUserToRoom(userId, row.target, { force }),
+            waitFor: (userId, room) => waitApplied(userId, room)
+        });
+        if (changed) debug(`Voice: reassigned ${changed} participant(s).`);
+    } catch (err) {
+        error("Voice reconcile failed", err);
+    }
+}
+
+/**
+ * Send the pass's rooms in their order (E19 C3; A9): every account but the witnesses and this GM's own, then - once
+ * each victim a witness would hear has answered from its new room, or `WITNESS_WAIT_MS` - the witnesses, then this
+ * GM's own (`applyOrder` keeps it last). An account whose room is kept (`keep`, a death the cast cannot judge yet) is
+ * sent nothing. Its ways in are handed in, so R815 reads the order on a ledger of its own.
+ *
+ * @param {Array<[string, object]>} order  `applyOrder`'s answer
+ * @param {Map<string, string[]>} waits    witness -> the victims it waits for (`placeVoices`)
+ * @param {object} io
+ * @param {string} io.ownId
+ * @param {(userId: string, row: object) => Promise<boolean>|boolean} io.assign  true when something was sent or applied
+ * @param {(userId: string, room: string|null) => Promise<unknown>} io.waitFor
+ * @returns {Promise<number>} how many were sent or applied
+ */
+export async function sendInPasses(order, waits, { ownId, assign, waitFor }) {
+    let changed = 0;
+    const send = async list => {
+        for (const [userId, row] of list) {
+            if (row?.keep) continue;
             // Isolated per user, on purpose. The primary GM's own assignment
             // runs a full LiveKit disconnect/reconnect - the one call in this
             // loop most likely to reject, whether from a slow server or a
@@ -970,7 +1186,7 @@ async function reconcileNow({ force = false } = {}) {
             // single rejection aborted everybody still left to process, and
             // nothing ran again until another token move scheduled a fresh pass.
             try {
-                const didChange = await assignUserToRoom(userId, row.target, { force });
+                const didChange = await assign(userId, row);
                 if (!didChange) continue;
                 changed += 1;
 
@@ -987,10 +1203,19 @@ async function reconcileNow({ force = false } = {}) {
                 error(`Voice reconcile failed for "${row.actor?.name ?? userId}"; continuing with the rest`, err);
             }
         }
-        if (changed) debug(`Voice: reassigned ${changed} participant(s).`);
-    } catch (err) {
-        error("Voice reconcile failed", err);
+    };
+    const own = order.filter(([userId]) => userId === ownId);
+    const others = order.filter(([userId]) => userId !== ownId);
+    await send(others.filter(([userId]) => !waits?.has(userId)));
+    const witnesses = others.filter(([userId]) => waits?.has(userId));
+    if (witnesses.length) {
+        const victims = [...new Set(witnesses.flatMap(([userId]) => waits.get(userId)))];
+        const rooms = new Map(order);
+        await Promise.all(victims.map(userId => waitFor(userId, rooms.get(userId)?.target ?? null)));
+        await send(witnesses);
     }
+    await send(own);
+    return changed;
 }
 
 /**

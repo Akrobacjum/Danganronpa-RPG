@@ -45552,6 +45552,53 @@ const SCENARIOS = [
         }
     }],
 
+    ["the dead channel opens when the body is found", async () => {
+        /*
+         * E19 C3; A9, audit S11-26 (E19-13). A death kept by the GMs keeps its voice in the room until something makes
+         * it known, and the body found is one of those things: `deathVoiceGone` asks chapter.mjs `deathAnnounced`, which
+         * reads this chapter's and season's discovery stamps (settings.mjs `bodiesFound`, E11) against the death's own
+         * record. The stamp is a world setting a tier-1 test cannot write, so the trigger is read here, on the GM's
+         * own road as the E11 test above: a death kept by the GMs, found in a room nobody stands in. The incident is
+         * handed to `deathVoiceGone` as a running one that holds the victim (the world's own incident is not opened),
+         * so the discovery is the only thing that changes between the two readings. Read before and after the
+         * discovery: `deathAnnounced`, and `deathVoiceGone` on those facts.
+         */
+        needs(env.primaryGm(), "a discovery runs on the primary GM alone (`discoverBody`)");
+        const [victim] = cast(1);
+        const { killCharacter, discoverBody, isDeadForGm, reviveCharacter, deathAnnounced } = await import("./chapter.mjs");
+        const { deathVoiceGone } = await import("./voice.mjs");
+        must(typeof deathAnnounced === "function" && typeof deathVoiceGone === "function",
+            "chapter.mjs has no `deathAnnounced` or voice.mjs no `deathVoiceGone`: a found body does not reach the voice");
+        const ROOM = "SUITE E19 C3 a room nobody stands in";
+        const facts = { state: { active: true, stage: "incident", victimId: victim.id }, hydrated: true, cast: new Set([victim.id]), announced: deathAnnounced };
+        const read = async () => [await deathAnnounced(victim), await deathVoiceGone(victim, facts)];
+        const foundBefore = game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {};
+        const stampsBefore = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.bodiesFound) ?? {});
+        const D = foundry.applications.api.DialogV2;
+        const own = { confirm: Object.getOwnPropertyDescriptor(D, "confirm"), wait: Object.getOwnPropertyDescriptor(D, "wait") };
+        try {
+            D.confirm = async () => false;
+            D.wait = async () => null;
+            must(await killCharacter(victim, { secret: true, keepBullets: true }), `${victim.name}'s death was not kept by the GMs`);
+            const before = await read();
+            await discoverBody({ room: ROOM, victim, scene: canvas.scene });
+            await settle();
+            const after = await read();
+            equal(stableJson([before, after]), stableJson([[false, false], [true, true]]),
+                "a death kept by the GMs read as known before its body was found, or still unknown after - the dead student "
+                + "talks to the room after the discovery, or leaves it before (before: announced, voice gone; after: the same)");
+        } finally {
+            for (const [name, desc] of Object.entries(own)) {
+                if (desc) Object.defineProperty(D, name, desc); else delete D[name];
+            }
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            if (stableJson(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {}) !== stableJson(foundBefore)) {
+                await game.settings.set(MODULE_ID, SETTINGS.bodyFound, foundBefore);
+            }
+            await game.settings.set(MODULE_ID, SETTINGS.bodiesFound, stampsBefore);
+        }
+    }],
+
     ["a body the verdict executed is not found again after the trial - a death the GMs held included", async () => {
         /*
          * E11 C1, 1.2.73; audit S06-03 (the plan's 1.x item 8: an execution is public at once and

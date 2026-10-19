@@ -8331,7 +8331,7 @@ const REGRESSIONS = [
             ["SHEET call-world.mjs#gatherEveryone", "held where its caller asks (E13 C3b): the filter reads each token's actor through an optional `held` reader, once, in one synchronous pass (H3); the return from the trial (trial-scene.mjs `returnTheLiving`) hands `flagsHeldNow` after `judgedFor`, so a `monokuma` or `monocub` flag a player wrote in the window moves nobody, and since E81 fix r1-D3 `only`, the hall's cast (`castActorIds`), so a student the GMs left unticked is not moved; every other caller - the body's gather, a Call's assembly - hands none and reads the documents, as before (the owner's item 6 of 10.10); `isDeadForGm` reads the GM's record either way. R346's SEASON_CENSUS row holds the same key and points here [1b.2]; R436"],
             ["SHEET trial-scene.mjs#leftBehind", "held: whom the return from the trial tries to carry over and, after, names to the GMs as not moved - the living on any scene but the chosen one and the hall, or played with no token outside the hall (E13 fix r1-F1), since E81 fix r1-D3 of the hall's cast alone when the return hands it (`only`) - `flagsHeldNow(actor)` once per student in one synchronous pass, after `returnTheLiving`'s `judgedFor`; it writes nothing, and the carry it chooses for is call-world.mjs `carryAcross`'s, outside this file (D7's line) [1b.2]; R436, scenario 41 i"],
             ["SHEET trial-scene.mjs#standingTwice", "held: whom the return from the trial names to the GMs, after its gather, as left with a token on another scene - apart when every token of theirs in the room is hidden (E13 fix r2-H1, review r2 cor A), since E81 fix r1-D3 of the hall's cast alone (`only`) - `flagsHeldNow(actor)` once per student in one synchronous pass, after `returnTheLiving`'s `judgedFor`; it writes nothing [1b.2]; tier 2 End the trial never leaves a living student without a token"],
-            ["SHEET voice.mjs#voiceTargets", "out of scope as a judgement: each client answers its own voice room (a claim, 1b.1); `isMonokuma` read from the document picks Monokuma's own room. C4 adds the trial branch (target `null` for every row) before the dead branch (R117) (E13 C4)"],
+            ["SHEET voice.mjs#placeVoices", "out of scope as a judgement: each client answers its own voice room (a claim, 1b.1); `isMonokuma` read from the document picks Monokuma's own room. C4 adds the trial branch (target `null` for every row) before the dead branch (R117) (E13 C4); E19 C3 moved the rows from `voiceTargets` here, and in the trial asks no death (R816)"],
             ["SHEET voice.mjs#silencedByDeath", "out of scope: each client's own mute; the dead listen and do not speak in the trial (D8): C4 keeps it (E13 C4)"],
             ["SHEET voice.mjs#micHold", "out of scope as a judgement: the viewer's own microphone state on its own client, from its own facts - `isDeceased` and the Monocub flag on its own voice character, read from the document in its own Eclipse room; it moves nothing and judges nobody (E78 C2)"],
             ["SHEET voice.mjs#moduleHoldsMic", "out of scope as a judgement: on a GM only (`null` elsewhere) - the GMs' own death record (`isDeadForGm`) beside the sheet's `isDeceased`, so that the GM's block of a microphone is not offered for a death kept secret; it moves nothing (E78 C2; C5 asks it)"],
@@ -9870,7 +9870,7 @@ const REGRESSIONS = [
         equal(JSON.stringify(missing), JSON.stringify({ en: [], pl: [] }), "section 9.6 of the GM's handbook does not say who acts as the Mastermind for a passage, what a GM's move of a Monokuma passes, or what a repeated show does");
     }],
 
-    ["R544 - nothing reads the table-wide speaking signal or moves a microphone on its own: no file of scripts/ reads `settings.activity` or names `setUserIsSpeaking`, `toggleAudio(` is called and a client `muted` key written only in `toggleOwnMic`, and there only the viewer's own, `micHold` and `moduleHoldsMic` are declared once each, exported, in voice.mjs, and an account's characters are ranked only in `voiceRowFor`, which `voiceTargets` asks", async () => {
+    ["R544 - nothing reads the table-wide speaking signal or moves a microphone on its own: no file of scripts/ reads `settings.activity` or names `setUserIsSpeaking`, `toggleAudio(` is called and a client `muted` key written only in `toggleOwnMic`, and there only the viewer's own, `micHold` and `moduleHoldsMic` are declared once each, exported, in voice.mjs, and an account's characters are ranked only in `voiceRowFor`, which `voiceTargets` asks, itself or through `placeVoices`", async () => {
         /*
          * E78 C2, 13.10.2026; the A9 design's R397 (T9; the E78 plan's D2 gave it this number), S16-10: "the module
          * never moves a microphone". Until C2 it did once: on a GM's own Monokuma walking into a room, reconcileNow called
@@ -9889,9 +9889,10 @@ const REGRESSIONS = [
          *     call inside `toggleOwnMic`, and scenario 75's B reads the shim's record of calls, which stays empty;
          *   - the declarations of `micHold` and `moduleHoldsMic` - one each, exported, in voice.mjs: the button (C4) and
          *     the GM's block (C5) ask the one answer, not a copy (R537 holds what it answers);
-         *   - every `.claim > <x>.claim` - only `voice.mjs#voiceRowFor`, and `voiceTargets` calls it: the account's voice
-         *     character is ranked in one place, so `micHold` and `moduleHoldsMic` ask of the character the reconcile
-         *     places.
+         *   - every `.claim > <x>.claim` - only `voice.mjs#voiceRowFor`, and `voiceTargets` calls it, itself or (since
+         *     E19 C3, which moved the ranking with the dead channel's witness pass) through `placeVoices`: the account's
+         *     voice character is ranked in one place, so `micHold` and `moduleHoldsMic` ask of the character the
+         *     reconcile places.
          * Red at the parent, measured: the toggle in `voice.mjs#reconcileNow` (voice.mjs:783 there), no `micHold` or
          * `moduleHoldsMic`, and the ranking inline in `voice.mjs#voiceTargets`; green on C2's working tree (a Node run of
          * this test's body on both trees, 13.10.2026). E78 C3 and C4 extend it (the prep's R544 row).
@@ -9903,6 +9904,7 @@ const REGRESSIONS = [
         const ALLOWED = "toggleOwnMic";
         const scan = sources => {
             const out = { activity: [], speaking: [], toggles: [], muted: [], own: [], holds: [], ranks: [], asks: false };
+            const calls = {};
             for (const [file, raw] of sources) {
                 if (!file.endsWith(".mjs")) continue;
                 const code = blankComments(raw), blank = blankLiterals(code);
@@ -9924,10 +9926,12 @@ const REGRESSIONS = [
                 }
                 for (const [i, top] of tops.entries()) {
                     if (top.name === "micHold" || top.name === "moduleHoldsMic") out.holds.push(`${file}#${top.name}#${top.exported ? "export" : "local"}`);
-                    if (file === "voice.mjs" && top.name === "voiceTargets") {
-                        out.asks = /(?<![\w$])voiceRowFor\s*\(/.test(blank.slice(top.at, tops[i + 1]?.at ?? blank.length));
+                    if (file === "voice.mjs" && (top.name === "voiceTargets" || top.name === "placeVoices")) {
+                        const body = blank.slice(top.at, tops[i + 1]?.at ?? blank.length);
+                        calls[top.name] = { rank: /(?<![\w$])voiceRowFor\s*\(/.test(body), place: /(?<![\w$])placeVoices\s*\(/.test(body) };
                     }
                 }
+                out.asks = Boolean(calls.voiceTargets?.rank || (calls.voiceTargets?.place && calls.placeVoices?.rank));
                 for (const m of blank.matchAll(/\.\s*claim\s*>\s*[\w$.]+\.\s*claim\b/g)) out.ranks.push(place(m.index));
             }
             return out;
@@ -9935,7 +9939,8 @@ const REGRESSIONS = [
         const planted = scan([
             ["voice.mjs", "export function micHold() {\n    return null;\n}\nfunction moduleHoldsMic() {\n    return null;\n}\n"
                 + "export function voiceRowFor(rows) {\n    let held = null;\n    for (const row of rows) if (!held || row.claim > held.claim) held = row;\n    return held;\n}\n"
-                + "export async function voiceTargets() {\n    return voiceRowFor([], \"id\");\n}\n"
+                + "export async function placeVoices() {\n    return voiceRowFor([], \"id\");\n}\n"
+                + "export async function voiceTargets() {\n    return placeVoices();\n}\n"
                 + "// game.webrtc.client.toggleAudio(true) in a comment moves nothing\nasync function reconcileNow() {\n    const said = \"toggleAudio(true)\";\n"
                 + "    await game.webrtc.client.toggleAudio(true);\n}\n"],
             ["voice-tile.mjs", "export async function toggleOwnMic(on) {\n    game.webrtc.settings.set(\"client\", `users.${game.user.id}.muted`, !on);\n"
@@ -9964,7 +9969,7 @@ const REGRESSIONS = [
             holds: ["voice.mjs#micHold#export", "voice.mjs#moduleHoldsMic#export"], ranks: ["voice.mjs#voiceRowFor"], asks: true }),
             "[a read of Foundry's table-wide speaking signal; a `toggleAudio(` call, or a client `muted` write, outside `toggleOwnMic` - the module moving "
             + "a microphone; a write there of a key that is not the viewer's own, or no write there at all; `micHold` and `moduleHoldsMic` not one export each in voice.mjs; an account's characters ranked anywhere but `voiceRowFor`; "
-            + "`voiceTargets` not asking it]");
+            + "`voiceTargets` not asking it, itself or through `placeVoices`]");
     }],
 
     ["R507 - Room Setup writes the picture: it draws and reads a picture field by the room's name, Apply compares it before writing and hands it on, setVaultRoom alone writes it and only through safeRoomImage, a renamed piece carries it, and roomImage checks it again", async () => {

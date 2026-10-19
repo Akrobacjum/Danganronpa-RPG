@@ -374,6 +374,14 @@ export function externalAV() {
 export const ROOM_PREFIX = "drpg-";
 
 /**
+ * The dead channel (E19 C3; S11-26, D8, the owner's A9 of 11.10): one room for every student whose death is not
+ * public, from the first of its triggers on (voice.mjs `deathVoiceGone`). One of ours by the prefix, so
+ * `landedCorrectly` reads it as a breakout; a room `liveKitRoomFor` names carries a scene id, a slug and a hash
+ * after the prefix, and an Eclipse room `eclipse-`, so none is named the same. `micHold` reads it off `desiredRoom()` for the tile's "deadAlone".
+ */
+export const DEAD_ROOM = `${ROOM_PREFIX}dead`;
+
+/**
  * Did this client end up where it was asked to?
  *
  * `LiveKitAVClient#connect()` sets `this.room` to the breakout room when one is

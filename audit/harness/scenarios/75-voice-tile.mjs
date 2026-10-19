@@ -59,12 +59,15 @@
  *   under the tray and `voice-left` open, the same after a speaker and the list, and none of it without the voice
  *   block. So the ci set carries the signature twice, here and in R545 (tier 1, in 01's suite); what neither can
  *   read without a layout - no recut on the screen - is the sweep's.
- * E (C7): a known leak, A9-K3 in known-leaks.json, until E19. p2's character, standing in the Cafeteria's room,
- *   killed in secret (`killCharacter`, revived quietly after): `voiceTargets` sends p2 to the main room at once,
- *   and p1, there with the roster's next Room, hears p2 in the list 'Who you hear' and its count, and (E78 fix r2-H3,
- *   review round 2's O7) sees p2's name and face on the voice tile, with no click, while p2 speaks. The check asks
- *   for what E19 will make true - the room kept, nobody in the main room hearing or seeing p2 - and stays an expected
- *   red while it measured the kill, the room before, the secret, p1's open list in the main room and p1's tile.
+ * E (C7; since E19 C3 the dead channel, A9): p2's character, standing in the Cafeteria's room, killed in secret
+ *   (`killCharacter`, revived quietly after) with no incident running: `voiceTargets` sends p2 to the dead channel
+ *   (`drpg-dead`) at once, not to the main room; p1, there with the roster's next Room, has no p2 in the list 'Who
+ *   you hear' or its count, and (E78 fix r2-H3, review round 2's O7) no p2 on the voice tile while p2 speaks. Then the
+ *   in-incident variant: p2's character the victim and p3's the killer of an incident opened for the phase
+ *   (incident-store.mjs `restoreState`, closed with `restoreState({})` and the setting put back), killed in secret
+ *   again: the room p2 stood in is kept while the incident runs, and the dead channel follows its close. Until E19
+ *   C3 this was A9-K3 of known-leaks.json, an expected red: the kill sent p2 to the main room, where p1 heard them.
+ *   Last, a packet from p3, a player, naming the dead channel for p1: p1 stays meant for the main room and in it.
  * F (E78 fix r1-G1; the review's SEC-R1-1 and the goal's S16-10 (d)): with the dock hidden. p1 in the main room with
  *   the GM and p2, nobody speaking: the number on the speaker, in the tiles' row and drawn without a click, says 2; a
  *   participant avclient-livekit maps to no user (put in p1's Room by hand) makes it 3, and their leaving 2. Then the
@@ -101,7 +104,9 @@ export const layers = ["ci"];
    green run on 14.10.2026, under the harness lock): 24 checks, 1 of them the expected red, in 8.5 s, 14 s of wall time - it stands.
    With phase G (E79 C15, one green run on 17.10.2026, under the harness lock): 26 checks, 1 of them the expected red, in 7.9 s,
    13 s of wall time - it stands. With phase H (E19 C2, one green run on 19.10.2026, under the harness lock): 28 checks, 1 of
-   them the expected red, in 25.5 s, 30.4 s of wall time - H waits out the reconnect's three steps, 15 s - it stands. */
+   them the expected red, in 25.5 s, 30.4 s of wall time - H waits out the reconnect's three steps, 15 s - it stands. With
+   E's dead channel and a player's packet (E19 C3, one green run on 19.10.2026, under the harness lock): 29 checks, none of
+   them an expected red since A9-K3 closed, in 27.3 s, 32.4 s of wall time - it stands. */
 export const timeoutMs = 60000;
 
 const J = value => JSON.stringify(value);
@@ -598,32 +603,52 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
     check("D: the GM's voiceTile off takes the tile out of p1's row; on builds it in the row again, not on the body",
         gone.tile === null && gone.room === "drpg-tile-row" && J(back) === J(want), J({ gone, back }));
 
-    phase("E: a known leak until E19 - a character killed in secret leaves the room they stood in for the main room at once, where p1 hears them in the list 'Who you hear' and its count, and sees them speak on the voice tile");
-    // The primary GM's own reading of where p2's voice goes, before and after a secret death (`voiceTargets`, the one
-    // the reconcile sends); the death is put back quietly at the end, as in C.
+    phase("E: the dead channel - a character killed in secret talks in the dead channel at once, never in the main room, where p1 neither hears nor sees them; in an incident they keep the room they stood in until it closes");
+    // The primary GM's own reading of where p2's voice goes (`voiceTargets`, the one the reconcile sends): before the
+    // kill, after it with no incident, and in the variant during an incident and after its close. Everything is put
+    // back at the end: the death quietly, the incident's setting as it was before the phase.
     const victim = await gm.eval(`
         const C = await import("${repoUrl}/scripts/chapter.mjs");
+        const I = await import("${repoUrl}/scripts/incident-store.mjs");
         const { voiceTargets } = await import("${repoUrl}/scripts/voice.mjs");
-        const { isDeadForGm, isDeceased } = await import("${repoUrl}/scripts/settings.mjs");
-        const p2 = game.users.get("${IDS.p2}");
-        const actor = p2.character ?? game.actors.find(x => x.type === "character" && x.testUserPermission(p2, "OWNER")) ?? null;
+        const { isDeadForGm, isDeceased, SETTINGS } = await import("${repoUrl}/scripts/settings.mjs");
+        const ownerOf = id => {
+            const user = game.users.get(id);
+            return user.character ?? game.actors.find(x => x.type === "character" && x.testUserPermission(user, "OWNER")) ?? null;
+        };
+        const actor = ownerOf("${IDS.p2}"), killer = ownerOf("${IDS.p3}");
         const targets = async () => {
             const { byUser } = await voiceTargets();
-            const row = byUser.get(p2.id);
+            const row = byUser.get("${IDS.p2}");
             return { p2: row ? { target: row.target ?? null, why: row.why } : null,
                 main: [...byUser].filter(([, r]) => (r.target ?? null) === null).map(([id]) => id).sort() };
         };
-        const out = { actor: Boolean(actor), before: await targets() };
-        if (!actor) return out;
+        const out = { actor: Boolean(actor), killer: Boolean(killer) && killer !== actor, idle: I.murderState() === null, before: await targets() };
+        if (!out.actor || !out.killer) return out;
         await C.killCharacter(actor, { secret: true, keepBullets: true });
         out.secret = isDeadForGm(actor) && !isDeceased(actor);
         out.after = await targets();
-        return out;`, { timeout: 15000 });
-    let heard = null;
+        await C.reviveCharacter(actor, { quiet: true });
+        if (!out.idle) return out;
+        const stored = foundry.utils.deepClone(game.settings.get("danganronpa-rpg", SETTINGS.murderState) ?? {});
+        await I.restoreState({ active: true, stage: "incident", killerId: killer.id, victimId: actor.id });
+        try {
+            await C.killCharacter(actor, { secret: true, keepBullets: true });
+            out.during = await targets();
+        } finally {
+            await I.restoreState({});
+            if (JSON.stringify(game.settings.get("danganronpa-rpg", SETTINGS.murderState) ?? {}) !== JSON.stringify(stored)) {
+                await game.settings.set("danganronpa-rpg", SETTINGS.murderState, stored);
+            }
+        }
+        out.closed = await targets();
+        out.idleAgain = I.murderState() === null;
+        return out;`, { timeout: 20000 });
+    let heard = null, forged = null;
     try {
         // p1 stands in the main room (the primary GM's packet, as in B), and the main room holds whom the GM's reading
         // sends there: p2 is in p1's Room only if the module put p2 in the main room.
-        const main = [...new Set([...(victim.after?.main ?? []), IDS.p1])];
+        const main = [...new Set([...(victim.closed?.main ?? []), IDS.p1])];
         await p1.eval(`__liveKit.setRoster({ [__liveKit.MAIN_ROOM]: ${J(main)} }); return true;`);
         await gm.eval(`game.socket.emit("module.danganronpa-rpg", { action: "voice.assign", target: "${IDS.p1}", room: null }); return true;`);
         heard = await p1.eval(`${micJs}
@@ -653,6 +678,14 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
             out.tile = t && { state: t.state, name: t.name, face: t.face, theirs: who !== null && t.name === who };
             __liveKit.speak([]);
             return out;`, { timeout: 15000 });
+        // A packet naming the dead channel for p1 from p3, a player: p1's client takes a room from the primary GM
+        // alone (voice-client.mjs `onVoiceSocket`), so p1 is still meant for the main room and in its Room. Read for
+        // 1000 ms, against the GM's own packet above, which p1 followed within `until`'s 3000.
+        await p3.eval(`game.socket.emit("module.danganronpa-rpg", { action: "voice.assign", target: "${IDS.p1}", room: "drpg-dead" }); return true;`);
+        forged = await p1.eval(`${micJs}
+            const VC = await import("${repoUrl}/scripts/voice-client.mjs");
+            const moved = await until(() => VC.desiredRoom() !== null || __liveKit.read().name !== __liveKit.MAIN_ROOM, 1000);
+            return { moved, desired: VC.desiredRoom() ?? null, room: __liveKit.read().name === __liveKit.MAIN_ROOM };`, { timeout: 15000 });
     } finally {
         await gm.eval(`
             const C = await import("${repoUrl}/scripts/chapter.mjs");
@@ -661,13 +694,17 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
             if (actor) await C.reviveCharacter(actor, { quiet: true });
             return true;`, { timeout: 15000 });
     }
-    const stoodInRoom = victim.before?.p2?.target !== null && victim.before?.p2?.target !== undefined;
-    check("E: a character killed in secret keeps the voice room they stood in, and nobody in the main room hears them in the list 'Who you hear' or its count, or sees them speak on the voice tile",
-        J(victim.after?.p2?.target) === J(victim.before?.p2?.target) && heard?.rows?.includes(IDS.p2) === false && heard?.count === String(heard?.rows?.length || "")
-            && heard?.tile?.theirs === false,
-        J({ victim, heard }),
-        { knownLeak: "A9-K3", measured: victim.actor === true && stoodInRoom && victim.secret === true && heard?.room === true && heard?.open === true
-            && typeof heard?.tile?.theirs === "boolean" });
+    const DEAD = "drpg-dead";
+    const stoodInRoom = typeof victim.before?.p2?.target === "string" && victim.before.p2.target !== DEAD;
+    check("E: a character killed in secret talks in the dead channel at once, never in the main room, where nobody hears them in the list 'Who you hear' or its count or sees them speak on the voice tile; in an incident the room they stood in is kept until it closes",
+        victim.actor === true && victim.killer === true && victim.idle === true && victim.secret === true && stoodInRoom
+            && victim.after?.p2?.target === DEAD && victim.after?.main?.includes(IDS.p2) === false
+            && J(victim.during?.p2?.target) === J(victim.before?.p2?.target) && victim.closed?.p2?.target === DEAD && victim.idleAgain === true
+            && heard?.room === true && heard?.open === true && heard?.rows?.includes(IDS.p2) === false
+            && heard?.count === String(heard?.rows?.length || "") && heard?.tile?.theirs === false,
+        J({ victim, heard }));
+    check("E: a player's packet naming the dead channel for p1 moves p1 nowhere - p1 is still meant for the main room and in its Room",
+        forged?.moved === false && forged?.desired === null && forged?.room === true, J(forged));
 
     phase("F: with the dock hidden, p1 sees who is in p1's Room without a click, and reaches p1's microphone, a volume, the microphone device and the mode from the tile and the gear");
     // E78 fix r1-G1 (the review's SEC-R1-1 and the goal's S16-10 (d)). p1 back in the main room with the GM and p2,

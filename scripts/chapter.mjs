@@ -863,6 +863,22 @@ function announcedAlready(actor, held, { clock = getClock(), epoch = seasonEpoch
     return announcedIn(clock.chapter, epoch)(actor.id, deathRecordFor(held(actor)));
 }
 
+/**
+ * Whether this chapter's discoveries announced `actor`'s present death (E19 C3; the owner's A9 of 11.10): the dead
+ * channel's trigger "the body found" (voice.mjs `deathVoiceGone`). A9's thin wrapper over `announcedAlready`, read
+ * with the primary's mark (`flagsHeldNow`), as the GM's list of bodies reads it. Not settings.mjs `bodyAnnounced`,
+ * which reads any discovery of the season by id: a student revived and killed again would read as found at once.
+ * Async because sheet-audit.mjs is imported where it is needed, as everywhere in this file.
+ *
+ * @param {Actor} actor
+ * @returns {Promise<boolean>}
+ */
+export async function deathAnnounced(actor) {
+    if (!actor?.id) return false;
+    const { flagsHeldNow } = await import("./sheet-audit.mjs");
+    return announcedAlready(actor, flagsHeldNow);
+}
+
 async function runDiscovery({ room, victim = null, scene = null, by = "gm" } = {}) {
     if (!game.user.isGM || !room) return null;
     // The chapter and season the discovery happens in, read before anything is awaited: the

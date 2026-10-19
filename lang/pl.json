@@ -3800,6 +3800,7 @@
       "held": {
         "eclipse": "Eclipse: do powrotu światła żaden gracz nie jest w kanale głosowym.",
         "eclipseHeard": "Eclipse: do powrotu światła nikt cię nie słyszy.",
+        "deadAlone": "Twoja postać nie żyje: żywi cię nie słyszą, a ty nie słyszysz ich.",
         "gmBlock": "GM zablokował twój mikrofon.",
         "external": "Głos jest w osobnym oknie - użyj jego przycisków.",
         "offline": "Brak połączenia z głosem.",
