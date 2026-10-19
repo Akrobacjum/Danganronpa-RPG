@@ -17281,7 +17281,7 @@ const INVARIANTS = [
             + "the box], [avclient-livekit off: the rows held, what the client store holds]");
     }],
 
-    ["R809 - the camera dock's row writes field by field: `rtcDock` sets `hideDock` and each user's `popout` through `game.webrtc.settings.set`, never the whole `core.rtcClientSettings` and never the dock's position; an expanded dock and a popout are put back with devices, volumes, `muted`, `blocked` and push-to-talk untouched, an `audioSrc` change 50 ms before the put-back kept, a user added mid-session held, and with `voiceTile` off nothing is written", async () => {
+    ["R809 - the camera dock's row writes field by field: `rtcDock` sets `hideDock` and each user's `popout` through `game.webrtc.settings.set`, never the whole `core.rtcClientSettings` and never the dock's position; an expanded dock and a popout are put back with devices, volumes, `muted`, `blocked` and push-to-talk untouched, an `audioSrc` change 50 ms before the put-back kept, a user added mid-session held, and with `voiceTile` off each held field given back once as this browser had it before the first hold, kept in a client setting of the module (E19 fix r1-G2)", async () => {
         /*
          * E19 C1, 19.10.2026; S16-04, the A9 note of 11.10. `core.rtcClientSettings` holds a player's own
          * microphone, speakers, volumes and push-to-talk as well as the dock: a hold that wrote the whole object
@@ -17296,6 +17296,13 @@ const INVARIANTS = [
          * writes through `.set("client", ...)`, nothing in enforced.mjs names `dockPosition`, and
          * `onClientSettingChanged` puts the dock back on `core.rtcClientSettings`. Whether Foundry v14's
          * AVSettings debounces as read here is LIVE-E19-07's.
+         * E19 fix r1-G2 (19.10.2026; the review's E19-COR-6, E19-04's "voiceTile off: the dock back"): until the fix
+         * the switch off wrote nothing and kept nothing, so every dock the row had folded stayed folded with no camera
+         * on any screen. Now the first hold keeps each held field as this browser had it (`rtcDockBefore`, a client
+         * setting of the module, handed in here as a record in memory so nothing of this browser's is written), a
+         * user's row first seen later is kept as it stood then, and the switch off writes each field back once where
+         * it differs, then forgets: the record after the first hold and after the added user, the writes off, the
+         * record then, off again, and the setting's registration. Red at the parent: off wrote nothing.
          */
         const E = await import("./enforced.mjs");
         ok(typeof E.holdRtcDock === "function" && typeof E.rtcDockWrites === "function",
@@ -17320,11 +17327,13 @@ const INVARIANTS = [
             for (const user of Object.values(copy.users ?? {})) delete user.popout;
             return copy;
         };
+        let stored = {};
+        const before = { get: () => stored, set: async value => { stored = foundry.utils.deepClone(value); } };
         const seen = [[row?.kind ?? null, row?.module ?? null, row?.key ?? null, row?.toggle ?? null]];
-        seen.push(["held", await E.holdRtcDock(row, { av, on: true }), calls()]);
+        seen.push(["held", await E.holdRtcDock(row, { av, on: true, before }), calls(), foundry.utils.deepClone(stored)]);
         await wait(150);
         seen.push(["saved", av.saved.hideDock, av.saved.users.R809A000000000000.popout, stableJson(others(av.saved)) === stableJson(others(start))]);
-        seen.push(["again", await E.holdRtcDock(row, { av, on: true }), calls()]);
+        seen.push(["again", await E.holdRtcDock(row, { av, on: true, before }), calls()]);
         av.set("client", "hideDock", false);
         av.set("client", "users.R809B000000000000.popout", true);
         calls();
@@ -17332,16 +17341,17 @@ const INVARIANTS = [
         av.set("client", "audioSrc", "mic-2");
         calls();
         await wait(50);
-        seen.push(["put back", await E.holdRtcDock(row, { av, on: true }), calls()]);
+        seen.push(["put back", await E.holdRtcDock(row, { av, on: true, before }), calls()]);
         await wait(150);
         seen.push(["saved", av.saved.audioSrc, av.saved.hideDock, av.saved.users.R809B000000000000.popout, av.saved.users.R809B000000000000.blocked,
             av.saved.users.R809A000000000000.volume, av.saved.users.R809A000000000000.muted, av.saved.voice.mode, av.saved.dockPosition]);
         av.client.users.R809C000000000000 = { popout: true, volume: 0.7, muted: false, blocked: false, hidden: false };
-        seen.push(["added", await E.holdRtcDock(row, { av, on: true }), calls()]);
-        av.set("client", "hideDock", false);
-        calls();
-        seen.push(["off", await E.holdRtcDock(row, { av, on: false }), calls(), av.client.hideDock]);
-        seen.push(["no AVSettings", await E.holdRtcDock(row, { av: null, on: true })]);
+        seen.push(["added", await E.holdRtcDock(row, { av, on: true, before }), calls(), stored.users?.R809C000000000000 ?? null]);
+        seen.push(["off", await E.holdRtcDock(row, { av, on: false, before }), calls(), av.client.hideDock, stableJson(stored)]);
+        seen.push(["off again", await E.holdRtcDock(row, { av, on: false, before }), calls()]);
+        seen.push(["no AVSettings", await E.holdRtcDock(row, { av: null, on: true, before })]);
+        const kept = game.settings.settings.get(`${MODULE_ID}.${SETTINGS.rtcDockBefore}`);
+        seen.push(["kept in", kept?.scope ?? null, kept?.config ?? null]);
         await wait(150);
         const sources = await moduleSources();
         const enforced = stripComments(sources.get("enforced.mjs") ?? "");
@@ -17350,19 +17360,23 @@ const INVARIANTS = [
             /"core\.rtcClientSettings"[\s\S]{0,200}?scheduleRtcDockPutBack\(/.test(fnSource(enforced, "onClientSettingChanged"))]);
         equal(stableJson(seen), stableJson([
             ["rtc", "core", "rtcClientSettings", SETTINGS.voiceTile],
-            ["held", true, ["client:hideDock=true", "client:users.R809A000000000000.popout=false"]],
+            ["held", true, ["client:hideDock=true", "client:users.R809A000000000000.popout=false"],
+                { fields: { hideDock: false }, users: { R809A000000000000: { popout: true }, R809B000000000000: { popout: false } } }],
             ["saved", true, false, true],
             ["again", true, []],
             ["put back", true, ["client:hideDock=true", "client:users.R809B000000000000.popout=false"]],
             ["saved", "mic-2", true, false, true, 0.4, true, "ptt", "left"],
-            ["added", true, ["client:users.R809C000000000000.popout=false"]],
-            ["off", false, [], false],
+            ["added", true, ["client:users.R809C000000000000.popout=false"], { popout: true }],
+            ["off", false, ["client:hideDock=false", "client:users.R809A000000000000.popout=true", "client:users.R809C000000000000.popout=true"], false, "{}"],
+            ["off again", false, []],
             ["no AVSettings", false],
+            ["kept in", "client", false],
             ["source", [], true, false, true]]),
         "[the row: kind, module, key, switch], [held over a player's settings: the answer, the writes], [the saved copy: hideDock, the "
             + "popout, everything else as it was], [again], [the dock expanded and a camera popped out, the microphone changed 50 ms before: "
             + "the put-back's writes], [the saved copy: microphone, hideDock, popout, blocked, a volume, muted, push-to-talk, dock position], "
-            + "[a user added mid-session], [voiceTile off: the answer, writes, hideDock], [no AVSettings], [source: files writing the whole "
+            + "[a user added mid-session: the writes, its record], [voiceTile off: the answer, the writes back, hideDock, the record], [off again], "
+            + "[no AVSettings], [the record's setting: scope, config], [source: files writing the whole "
             + "object, holdRtcDock's road, dockPosition named in enforced.mjs, the put-back on core.rtcClientSettings]");
     }],
 
@@ -17830,11 +17844,11 @@ const INVARIANTS = [
         const actor = (id, flags = {}) => ({ id, name: id, type: "character", getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined) });
         const A = {
             victim: actor("R815AVICTIM00000"), killer: actor("R815AKILLER00000"), witness: actor("R815AWITNESS0000"),
-            bystander: actor("R815ABYSTANDER00"), third: actor("R815ATHIRD000000"), spare: actor("R815ASPARE000000"),
+            bystander: actor("R815ABYSTANDER00"), third: actor("R815ATHIRD000000"), spare: actor("R815ASPARE000000"), late: actor("R815AZLATE000000"),
             cub: actor("R815ACUB00000000", { [FLAGS.deceased]: { chapter: 1 }, [FLAGS.monocub]: true }),
             monokuma: actor("R815AMONOKUMA000", { [FLAGS.monokuma]: true })
         };
-        const owner = { victim: "victim", killer: "killer", witness: "witness", bystander: "bystander", third: "third", spare: "victim", cub: "cub" };
+        const owner = { victim: "victim", killer: "killer", witness: "witness", bystander: "bystander", third: "third", spare: "victim", late: "victim", cub: "cub" };
         const userOf = a => (a === A.monokuma ? gm : users[owner[Object.keys(A).find(k => A[k] === a)]] ?? null);
         const label = target => (target === null ? "main" : target === DEAD ? "dead"
             : ["Kitchen", "Hall", "Dorm"].find(room => V.liveKitRoomFor(school.id, room) === target) ?? `?${target}`);
@@ -17846,7 +17860,7 @@ const INVARIANTS = [
             state = running, hydrated = true, found = [], silenced = null, reverse = false } = {}) => {
             const flagged = name => (deceased.includes(name) ? { ...A[name], getFlag: (s, k) => (s === MODULE_ID && k === FLAGS.deceased ? { chapter: 1 } : A[name].getFlag(s, k)) } : A[name]);
             const actors = cast.map(flagged);
-            const stands = { victim: "Kitchen", killer: "Kitchen", witness: "Hall", bystander: "Dorm", third: "Kitchen", spare: "Dorm", cub: "Kitchen", monokuma: "Hall", ...where };
+            const stands = { victim: "Kitchen", killer: "Kitchen", witness: "Hall", bystander: "Dorm", third: "Kitchen", spare: "Dorm", late: "Dorm", cub: "Kitchen", monokuma: "Hall", ...where };
             const nameOf = a => Object.keys(A).find(k => A[k].id === a.id);
             const withSilenced = state && silenced ? { ...state, silencedDead: Object.fromEntries(silenced.map(n => [A[n].id, Date.now()])) } : state;
             const placed = await V.placeVoices({
@@ -17885,6 +17899,13 @@ const INVARIANTS = [
         seen.push(["two victims", await rooms({ cast: ["victim", "killer", "third"], dead: ["victim", "third"], state: { ...running, thirdId: A.third.id } })]);
         seen.push(["two victims, after", await rooms({ cast: ["victim", "killer", "third"], dead: ["victim", "third"], state: null })]);
         seen.push(["a second character, after", await rooms({ cast: ["victim", "spare", "killer"], state: null })]);
+        // E19 fix r1-G2 (the review's E19-COR-2): in the incident the victim's row and its player's living spare were two
+        // rooms of one claim, and the lowest actor id chose; the spare's id sorts before the victim's, `late`'s after.
+        seen.push(["a second character, in the incident", await rooms({ cast: ["victim", "spare", "killer"] }),
+            await rooms({ cast: ["victim", "late", "killer"] }), await rooms({ cast: ["victim", "spare", "killer"], reverse: true })]);
+        seen.push(["a second character, cast not here", await rooms({ cast: ["victim", "spare", "killer"], hydrated: false }),
+            await rooms({ cast: ["victim", "late", "killer"], hydrated: false })]);
+        seen.push(["a second character sorting after, after", await rooms({ cast: ["victim", "late", "killer"], state: null })]);
 
         /* The passes, on a ledger of the test's own: the witness case above, the GM's Monokuma in the Hall. */
         const passes = async ({ answer, forged }) => {
@@ -17969,6 +17990,9 @@ const INVARIANTS = [
             ["two victims", { victim: "Kitchen", killer: "Kitchen", third: "Kitchen" }],
             ["two victims, after", { victim: "dead", killer: "Kitchen", third: "dead" }],
             ["a second character, after", { victim: "Dorm", killer: "Kitchen" }],
+            ["a second character, in the incident", { victim: "Kitchen", killer: "Kitchen" }, { victim: "Kitchen", killer: "Kitchen" }, { killer: "Kitchen", victim: "Kitchen" }],
+            ["a second character, cast not here", { victim: "kept", killer: "Kitchen" }, { victim: "kept", killer: "Kitchen" }],
+            ["a second character sorting after, after", { victim: "Dorm", killer: "Kitchen" }],
             ["the passes", { first: ["victim:dead", "killer:Kitchen", "bystander:Dorm"], waiting: [1500, 2000, 2000, 2000], forged: 3,
                 changed: 5, all: ["victim:dead", "killer:Kitchen", "bystander:Dorm", "witness:Kitchen", "gm:Hall"], alone: true }, true,
             ["victim:dead", "killer:Kitchen", "bystander:Dorm", "witness:Kitchen", "gm:Hall"]],

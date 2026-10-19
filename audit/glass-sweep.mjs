@@ -572,17 +572,25 @@ async function plantRow() {
 /* Runs in the page: the corner with a camera dock shown and hidden (E19 C7; THE CAMERA DOCK SHOWN AND HIDDEN, above).
    `plant` holds the lift at 0px with the dock shown (the control); `keep` leaves the page in "shown" or "hidden" for a
    screenshot, `restore` puts it back. camera-view.mjs is imported with the stand-ins drpgVoiceList lends voice-tile.mjs
-   (its imports reach Foundry's globals), each lent only where missing and taken back after. */
+   (its imports reach Foundry's globals), each lent only where missing and taken back after.
+   THE NOTICE TILE IS JUDGED TOO (E19 fix r1-G2, 19.10.2026; the review's E19-COR-7). Until the fix a Stained Glass desk's
+   tile stood where glass.mjs cut its pane, which read no dock, and its crossing was printed, not judged: 100, 125 and
+   130 px into a 200 px dock at the sweep's sizes, against the handbook's promise. glass.mjs now stands the pane's foot on
+   the lift and cuts the curtain again on camera-view.mjs's `drpg-av-lift` event (150 ms debounced), so each reading
+   after a change of the lift waits for that cut (`settle`), and the put-back sends the event too. */
 async function dockCheck({ plant = false, keep = null, restore = false } = {}) {
     const body = document.body, HIDDEN = "drpg-dock-hidden";
     const st = window.__dockState ??= { liftWas: body.style.getPropertyValue("--drpg-av-lift"), hiddenWas: body.classList.contains(HIDDEN) };
+    const frame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const settle = async () => { await new Promise(r => setTimeout(r, 600)); await frame(); };
     const putBack = () => {
         document.getElementById("camera-views")?.remove();
         body.classList.toggle(HIDDEN, st.hiddenWas);
         if (st.liftWas) body.style.setProperty("--drpg-av-lift", st.liftWas); else body.style.removeProperty("--drpg-av-lift");
+        window.dispatchEvent(new Event("drpg-av-lift"));
         delete window.__dockState;
     };
-    if (restore) { putBack(); return { ok: true }; }
+    if (restore) { putBack(); await settle(); return { ok: true }; }
     const added = [], lend = (owner, key, value) => { if (owner[key] === undefined) { owner[key] = value; added.push([owner, key]); } };
     const any = () => new Proxy(function () {}, { get: (t, k) => (k === "then" ? undefined : k === Symbol.toPrimitive ? () => "" : any()), construct: () => ({}), apply: () => undefined });
     const Base = class {};
@@ -601,7 +609,6 @@ async function dockCheck({ plant = false, keep = null, restore = false } = {}) {
     const parts = ids.map(id => document.getElementById(id)).filter(el => el && el.offsetWidth > 0 && el.offsetHeight > 0);
     const boxes = () => parts.map(el => { const b = el.getBoundingClientRect(); return { id: el.id, top: b.top, bottom: b.bottom, left: b.left }; });
     const lift = () => getComputedStyle(body).getPropertyValue("--drpg-av-lift").trim();
-    const frame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
     const height = Math.min(200, Math.floor(innerHeight / 2)), why = [];
     body.classList.remove(HIDDEN);
     body.style.setProperty("--drpg-av-lift", "0px");
@@ -612,19 +619,15 @@ async function dockCheck({ plant = false, keep = null, restore = false } = {}) {
     dock.style.cssText = `position: fixed; left: 0; right: 0; bottom: 0; height: ${height}px; background: rgba(40, 160, 220, 0.55); z-index: 1`;
     body.prepend(dock);
     if (plant) body.style.setProperty("--drpg-av-lift", "0px"); else CV.measureCameraDock();
-    await frame();
+    await settle();
     const top = dock.getBoundingClientRect().top, shown = { lift: lift(), boxes: boxes() };
-    /* On a Stained Glass desk the notice tile stands where glass.mjs cut its pane, which reads no dock: its crossing is
-       printed (`notes`), not judged (the gap E19 C7 names). */
-    const curtained = body.classList.contains("drpg-theme-stained-glass") && !body.classList.contains("drpg-stacked");
-    const notes = curtained ? shown.boxes.find(b => b.id === "drpg-popups") : null;
-    const crossing = shown.boxes.filter(b => b !== notes && b.bottom > top + 0.5).map(b => `${b.id} ${Math.round(b.bottom)}`);
+    const crossing = shown.boxes.filter(b => b.bottom > top + 0.5).map(b => `${b.id} ${Math.round(b.bottom)}`);
     if (shown.lift !== `${height}px`) why.push(`shown: the lift ${shown.lift}, not the dock's ${height}px`);
     if (crossing.length) why.push(`shown: past the dock's top at ${Math.round(top)}: ${crossing.join(", ")}`);
     if (keep === "shown") return { ok: !why.length, why: why.join("; ") };
     body.classList.add(HIDDEN);
     CV.measureCameraDock();
-    await frame();
+    await settle();
     const hidden = { lift: lift(), display: getComputedStyle(dock).display, boxes: boxes() };
     const moved = hidden.boxes.filter((b, i) => Math.abs(b.top - bare[i].top) > 0.5 || Math.abs(b.left - bare[i].left) > 0.5).map(b => b.id);
     if (hidden.display !== "none") why.push(`hidden: the dock computes display ${hidden.display}`);
@@ -633,10 +636,10 @@ async function dockCheck({ plant = false, keep = null, restore = false } = {}) {
     body.style.setProperty("--drpg-av-lift", "300px");
     const written = lift();
     if (written !== "0px") why.push(`hidden: 300px written inline reads ${written}`);
-    if (keep === "hidden") { CV.measureCameraDock(); return { ok: !why.length, why: why.join("; ") }; }
+    if (keep === "hidden") { CV.measureCameraDock(); await settle(); return { ok: !why.length, why: why.join("; ") }; }
     putBack();
-    return { ok: !why.length, why: why.join("; "), height, shown: shown.lift, hidden: hidden.lift, written, parts: parts.length,
-        notes: notes ? Math.max(0, Math.round(notes.bottom - top)) : null };
+    await settle();
+    return { ok: !why.length, why: why.join("; "), height, shown: shown.lift, hidden: hidden.lift, written, parts: parts.length };
 }
 
 /* Runs in the page after a resize to a desk: the stack taken down and the tile and the clock back (E77 C8). */
@@ -901,7 +904,7 @@ try {
             }
             if (docks) {
                 const dc = await page.evaluate(dockCheck, {});
-                line += ` | dock ${dc.ok ? `${dc.shown}/${dc.hidden}${dc.notes === null ? "" : ` notes ${dc.notes} px over it`}` : "NOT ok"}`;
+                line += ` | dock ${dc.ok ? `${dc.shown}/${dc.hidden}` : "NOT ok"}`;
                 if (!dc.ok) fails.push("dock: " + dc.why);
                 if (control && !dockControlled && dc.ok) {
                     dockControlled = true;

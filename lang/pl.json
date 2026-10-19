@@ -362,7 +362,7 @@
       },
       "voiceTile": {
         "name": "Kafel głosu zamiast doku kamer",
-        "hint": "Włączone zdejmuje dok kamer z każdego ekranu, a liczba na głośniku kafla głosu pokazuje, ile innych osób jest w twoim kanale, mówiących czy nie. Dok Foundry jest przy tym zwinięty, a żadna kamera nie otwiera się w osobnym oknie. Wyłączone przywraca wszystkim dok kamer Foundry: zwinięty dok otwiera się jego własnym przyciskiem."
+        "hint": "Włączone zdejmuje dok kamer z każdego ekranu, a liczba na głośniku kafla głosu pokazuje, ile innych osób jest w twoim kanale, mówiących czy nie. Dok Foundry jest przy tym zwinięty, a żadna kamera nie otwiera się w osobnym oknie. Wyłączone przywraca wszystkim dok kamer Foundry, zwinięty albo otwarty tak, jak każda przeglądarka miała go przed ukryciem przez kafel."
       },
       "highContrast": {
         "name": "Wysoki kontrast",

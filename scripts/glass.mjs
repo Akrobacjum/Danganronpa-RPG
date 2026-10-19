@@ -19,7 +19,7 @@
 
 import { SETTINGS, getSetting, shortScreen, BREAKPOINTS } from "./settings.mjs";
 import { narrowLayout, COLUMN_SEL } from "./narrow.mjs";
-import { log } from "./utils.mjs";
+import { log, AV_LIFT_EVENT } from "./utils.mjs";
 import { inFoundryWindow } from "./foundry-windows.mjs";
 
 /** Self-check results of the last geometry pass, for diagnostics. */
@@ -139,10 +139,21 @@ const noteTile = () => {
 };
 /* WHERE THE TILE'S FOOT STANDS, in screen pixels. The same body-level variable the stylesheet
    places `#drpg-popups` with, so the pane and the stack cannot stand at two heights; 100 px on
-   the geometry scale when nothing has been fitted, which is where it stood until 21.09. */
+   the geometry scale over the camera dock's lift when nothing has been fitted, which is where it
+   stood until 21.09. */
 const noteFoot = s => {
   const v = parseFloat(getComputedStyle(document.body).getPropertyValue("--drpg-note-foot"));
-  return Number.isFinite(v) && v > 0 ? v : 100 * s;
+  return Number.isFinite(v) && v > 0 ? v : avLift() + 100 * s;
+};
+/* THE CAMERA DOCK RAISES THE FLOOR (E19 fix r1-G2, 19.10.2026; the review's E19-COR-7). camera-view.mjs
+   measures the dock under the corner and writes `--drpg-av-lift` on the body (0 while the voice tile hides
+   the dock: danganronpa.css computes it 0 under `drpg-dock-hidden`). The corner's buttons and the stacked
+   screen add it; the notice tile's foot did not, so on a Stained Glass desk with Foundry's dock shown the
+   tile and its pane stood 100 to 130 px inside a 200 px dock, over the cameras, against the handbook's
+   promise. Read as the stylesheet computes it, so a hidden dock lifts nothing here either. */
+const avLift = () => {
+  const v = parseFloat(getComputedStyle(document.body).getPropertyValue("--drpg-av-lift"));
+  return Number.isFinite(v) && v > 0 ? v : 0;
 };
 
 /* THE NOTICE TILE TAKES WHAT THE SCENE RAIL LEAVES (Dawid, 21.09: "karta powiadomienia moze
@@ -182,8 +193,11 @@ function gaugeFoot(H, s) {
   const gauge = document.querySelector("#players");
   const g = gauge && gauge.offsetWidth > 0 && gauge.offsetHeight > 0 ? gauge.getBoundingClientRect() : null;
   /* The gauge only counts where it stands on the floor. In the glass harness it follows the
-     rail down the column instead, and a foot read off that would put the tile mid-screen. */
-  return g && g.bottom > H - 80 ? Math.round(H - g.top + 8) : Math.round(100 * s);
+     rail down the column instead, and a foot read off that would put the tile mid-screen.
+     The floor is the dock's top while a dock is shown (`avLift`): a gauge the dock lifted
+     still counts, and the foot never stands lower than 8 px over the dock. */
+  const lift = avLift();
+  return g && g.bottom > H - lift - 80 ? Math.round(Math.max(H - g.top + 8, lift + 8)) : Math.round(lift + 100 * s);
 }
 function fitNoteTile(H, railEnds, s) {
   const body = document.body;
@@ -2506,8 +2520,15 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
 
     /* the voice tile is not a column's member by its midpoint: it is the tray's column's tail */
     const voice = boxes.find(b => b.cls === "voice-block") ?? null, banded = boxes.filter(b => b !== voice);
-    const top = columnsOf(banded.filter(b => b.y + b.h / 2 < H / 2));
-    const bot = columnsOf(banded.filter(b => b.y + b.h / 2 >= H / 2));
+    /* THE BANDS SPLIT WHAT STANDS OVER THE CAMERA DOCK (E19 fix r1-G2, 19.10.2026). A shown dock lifts
+       the corner's buttons by its height (`--drpg-av-lift`, `avLift`), and on a short screen that put a
+       GM's corner over the screen's middle: at 1366x560 under a 200 px dock it joined the tray's column
+       in the top band, turned 8 degrees about that column's top corner, and the turn carried the gear
+       and the book 29 and 36 px back down into the dock (Chromium, the glass harness; the sweep's dock
+       check). The middle is the middle of the screen over the dock; with no dock it is H / 2, as before. */
+    const mid = (H - Math.min(avLift(), H / 2)) / 2;
+    const top = columnsOf(banded.filter(b => b.y + b.h / 2 < mid));
+    const bot = columnsOf(banded.filter(b => b.y + b.h / 2 >= mid));
 
     /* THE RAILS' BANDS ARE KNOWN BEFORE THE COLUMNS ARE CUT, AND THE COLUMNS RESPECT THEM.
        A column near a wall runs its pane INTO the wall so no bare wedge is left there
@@ -3754,6 +3775,10 @@ export function registerGlass() {
     if (!j || !j.painted || Math.abs(j.el.getBoundingClientRect().width - innerWidth) > 2) { log("curtain watchdog: rebuilding", glassReport()); if (j) j.placed = false; mount(); }
   }, ms);
   Hooks.on("canvasReady", schedule);
+  /* The camera dock's lift changed (camera-view.mjs `measureCameraDock`, E19 fix r1-G2): the
+     notice tile's foot stands on it (`gaugeFoot`), so the curtain is cut again; under Monokuma
+     Legacy the room tile's floor is read through the same foot (`flatPlacement`), so in both themes. */
+  addEventListener(AV_LIFT_EVENT, schedule);
   // the sidebar is deliberately NOT a signal: opening it moves nothing and recuts nothing
   // Debounced like everything else on resize: `rebuild` already pins the right column and
   // frees the board, and the raw handler did both on every event of a window drag.

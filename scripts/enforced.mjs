@@ -43,9 +43,9 @@
  *     `popout` false - one at a time through `game.webrtc.settings.set`
  *     (`holdRtcDock`), never the whole object, and never the dock's position. Its
  *     switch is the voice tile's (`voiceTile`), and it is held only where the
- *     tile hides the dock (`rtcDockOn`). Off, nothing is written: a dock this row
- *     folded stays folded until its owner opens it (Foundry's `dock` control, as
- *     fvtt-types 14.366 names it; not run here).
+ *     tile hides the dock (`rtcDockOn`). Off, each field is given back once as
+ *     this browser had it before the first hold (E19 fix r1-G2, below), and
+ *     nothing more is written.
  *
  * TWO ROWS THAT ARE NOT ANOTHER MODULE'S CLIENT SETTING, AND ONE WINDOW (E79 C9,
  * 16.10.2026; the owner's N1, N2 and N4 of 14.10.2026). Each says beside it what
@@ -64,7 +64,7 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
-import { SETTINGS } from "./settings.mjs";
+import { SETTINGS, getSetting } from "./settings.mjs";
 import { warn, error, isPrimaryGm, whisperToGms } from "./utils.mjs";
 
 /**
@@ -306,6 +306,70 @@ async function rtcDockOn(row) {
 }
 
 /**
+ * What this browser had in the fields the `rtc` row holds before the row first wrote them (E19 fix r1-G2,
+ * 19.10.2026; the review's E19-COR-6): `{ fields: { hideDock }, users: { <id>: { popout } } }`. Kept from the
+ * record handed in: a field already in it stays as it was taken, since the row puts back every change while it
+ * holds; a field not in it yet - the first hold, or a user's row first seen now - is taken as it stands, before
+ * this hold writes it. The same object back when nothing was added, so an unchanged record is not saved again.
+ *
+ * @param {object} client    `AVSettings#client`
+ * @param {EnforcedRow} row
+ * @param {object} [was]     the record so far (`rtcDockBefore`); `{}` or nothing before the first hold
+ * @returns {object}
+ */
+export function rtcDockRecord(client, row, was) {
+    const had = was && typeof was === "object" ? was : {};
+    const fields = { ...(had.fields ?? {}) }, users = { ...(had.users ?? {}) };
+    let added = false;
+    for (const key of Object.keys(row?.fields ?? {})) {
+        if (key in fields || client?.[key] === undefined) continue;
+        fields[key] = client[key];
+        added = true;
+    }
+    for (const [userId, user] of Object.entries(client?.users ?? {})) {
+        if (!user || typeof user !== "object") continue;
+        const kept = { ...(users[userId] ?? {}) };
+        for (const key of Object.keys(row?.userFields ?? {})) {
+            if (key in kept || user[key] === undefined) continue;
+            kept[key] = user[key];
+            added = true;
+        }
+        users[userId] = kept;
+    }
+    return added ? { fields, users } : had;
+}
+
+/**
+ * The writes that give a released `rtc` row's fields back (E19 fix r1-G2): each field of the record that differs
+ * from this browser's client settings now, in `AVSettings#set`'s dotted form, and nothing the record does not name.
+ * A user no longer in `users` is skipped.
+ *
+ * @returns {[string, *][]}
+ */
+export function rtcDockGiveBack(client, record) {
+    const out = [];
+    for (const [key, value] of Object.entries(record?.fields ?? {})) {
+        if (value !== null && value !== undefined && client?.[key] !== value) out.push([key, value]);
+    }
+    for (const [userId, kept] of Object.entries(record?.users ?? {})) {
+        const user = client?.users?.[userId];
+        if (!user || typeof user !== "object" || !kept || typeof kept !== "object") continue;
+        for (const [key, value] of Object.entries(kept)) {
+            if (value !== null && value !== undefined && user[key] !== value) out.push([`users.${userId}.${key}`, value]);
+        }
+    }
+    return out;
+}
+
+/** The record `holdRtcDock` keeps between sessions: this module's client setting `rtcDockBefore` (E19 fix r1-G2). */
+const dockRecordSetting = {
+    get: () => {
+        try { return getSetting(SETTINGS.rtcDockBefore) ?? {}; } catch { return {}; }
+    },
+    set: value => game.settings.set(MODULE_ID, SETTINGS.rtcDockBefore, value)
+};
+
+/**
  * Hold the `rtc` row on this browser (E19 C1, A9): each write one field, through
  * `AVSettings#set`, which merges it into the copy in memory and saves that copy
  * itself (100 ms later, as A9 reads Foundry's AVSettings; not measured here). A
@@ -313,15 +377,35 @@ async function rtcDockOn(row) {
  * over a microphone or a volume changed in between (R809). `av` is absent before
  * Foundry's A/V master exists (`setup`); the hold runs again at `ready`.
  *
+ * THE DOCK BACK AS IT WAS (E19 fix r1-G2, 19.10.2026; the review's E19-COR-6, E19-04's "voiceTile off: the dock
+ * back"). Until the fix the row let go by writing nothing and kept nothing, so every dock it had folded stayed
+ * folded, with no camera on any screen, after the GM switched the voice tile off - and after the module was
+ * disabled. Now each hold first keeps what this browser had in the fields it is about to write (`rtcDockRecord`,
+ * saved in this module's client setting `rtcDockBefore`, this browser's own), and a browser that does not hold the
+ * row writes each kept field back once where it differs (`rtcDockGiveBack`), through the same `set`, then forgets
+ * the record: after that nothing is written, as before. A dock its owner folded before the tile came stays folded.
+ * Disabling the module runs nothing, so the handbook asks for the switch off first.
+ *
  * @param {EnforcedRow} [row]
  * @param {object} [options]
  * @param {object|null} [options.av]  Foundry's AVSettings; handed in only by the suite (R809).
  * @param {boolean} [options.on]      Whether the row is held here; read when absent.
+ * @param {{get: () => object, set: (value: object) => Promise<unknown>}} [options.before]  the record's store;
+ *   `rtcDockBefore` unless the suite hands one in (R809)
  * @returns {Promise<boolean>} whether this browser holds the row.
  */
-export async function holdRtcDock(row = ENFORCED.find(r => r.kind === "rtc"), { av = game.webrtc?.settings, on } = {}) {
+export async function holdRtcDock(row = ENFORCED.find(r => r.kind === "rtc"), { av = game.webrtc?.settings, on, before = dockRecordSetting } = {}) {
     const held = on ?? await rtcDockOn(row);
-    if (!held || typeof av?.set !== "function" || !av.client) return false;
+    if (typeof av?.set !== "function" || !av.client) return false;
+    const was = before.get();
+    if (!held) {
+        const back = rtcDockGiveBack(av.client, was);
+        for (const [key, value] of back) av.set("client", key, value);
+        if (Object.keys(was ?? {}).length) await before.set({});
+        return false;
+    }
+    const record = rtcDockRecord(av.client, row, was);
+    if (record !== was) await before.set(record);
     for (const [key, value] of rtcDockWrites(av.client, row)) av.set("client", key, value);
     return true;
 }

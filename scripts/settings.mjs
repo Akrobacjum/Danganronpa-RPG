@@ -165,6 +165,7 @@ export const SETTINGS = {
      * writes it raw, so whatever reads it clamps: ids that are users, volumes 0..1.
      */
     voicePeerMutes: "voicePeerMutes",
+    rtcDockBefore: "rtcDockBefore",
     /** The playlist follows the game state - off by default, needs playlists. */
     musicEnabled: "musicEnabled",
     /** Which playlist each state uses: `{ stateKey: playlistId }`. */
@@ -1319,7 +1320,8 @@ export function registerSettings() {
         type: Boolean,
         default: true,
         // On every client that receives the change: the tile drawn or taken away, the dock hidden or given back,
-        // and Foundry's own dock folded with its cameras in it (enforced.mjs `rtcDock`, E19 C1; off writes nothing).
+        // and Foundry's own dock folded with its cameras in it (enforced.mjs `rtcDock`, E19 C1; off gives each browser's
+        // dock and camera windows back as they were before the first hold, E19 fix r1-G2).
         onChange: () => {
             import("./voice-tile.mjs").then(m => m.refreshVoiceTile()).catch(() => {});
             import("./enforced.mjs").then(m => m.holdRtcDock())
@@ -1328,6 +1330,15 @@ export function registerSettings() {
     });
 
     game.settings.register(MODULE_ID, SETTINGS.voicePeerMutes, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+
+    // What this browser had in the camera dock's fields before the `rtcDock` row first held them, given back once when
+    // the voice tile is switched off (enforced.mjs `holdRtcDock`; E19 fix r1-G2). This browser's own; `{}` when none.
+    game.settings.register(MODULE_ID, SETTINGS.rtcDockBefore, {
         scope: "client",
         config: false,
         type: Object,

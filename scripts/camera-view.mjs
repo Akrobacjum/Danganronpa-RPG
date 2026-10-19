@@ -37,7 +37,7 @@
 
 import { isMonokuma, poolUserFor } from "./monokuma.mjs";
 import { poolLabel } from "./despair.mjs";
-import { error } from "./utils.mjs";
+import { error, AV_LIFT_EVENT } from "./utils.mjs";
 
 export function registerCameraView() {
     Hooks.on("renderCameraViews", onRenderCameraViews);
@@ -143,7 +143,11 @@ export function measureCameraDock() {
             }
         }
 
+        const was = document.body.style.getPropertyValue("--drpg-av-lift");
         document.body.style.setProperty("--drpg-av-lift", `${lift}px`);
+        // The notice tile's foot on a Stained Glass desk stands on the lift (glass.mjs `gaugeFoot`, E19 fix r1-G2),
+        // and the curtain is cut only when told: said when the lift changes, never on a measure that found the same.
+        if (was !== `${lift}px`) window.dispatchEvent(new Event(AV_LIFT_EVENT));
     } catch (err) {
         // A measurement that fails must not take the corner with it: the
         // buttons keep whatever offset they had.

@@ -366,7 +366,7 @@
       },
       "voiceTile": {
         "name": "Voice tile instead of the camera dock",
-        "hint": "On, the camera dock leaves every screen and the number on the voice tile's speaker shows how many others are in your channel, speaking or not. Foundry's dock is also kept folded, and no camera opens in a window of its own. Off brings Foundry's camera dock back for everyone: a dock left folded opens with its own button."
+        "hint": "On, the camera dock leaves every screen and the number on the voice tile's speaker shows how many others are in your channel, speaking or not. Foundry's dock is also kept folded, and no camera opens in a window of its own. Off brings Foundry's camera dock back for everyone, folded or open as each browser had it before the tile hid it."
       }
     },
     "SearchTokens": {

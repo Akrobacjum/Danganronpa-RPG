@@ -21,6 +21,10 @@ import { viewedScene, placeScenes, roomNames } from "./rooms.mjs";
  */
 export const esc = value => foundry.utils.escapeHTML(String(value ?? ""));
 
+/** The window event camera-view.mjs `measureCameraDock` sends when the camera dock's lift (`--drpg-av-lift`) changes,
+ *  which glass.mjs cuts the curtain again on (E19 fix r1-G2). Here, so neither file imports the other. */
+export const AV_LIFT_EVENT = "drpg-av-lift";
+
 /** Console logging that stays quiet unless the client turned debug on. */
 export function log(...args) {
     console.log(`${MODULE_ID} |`, ...args);

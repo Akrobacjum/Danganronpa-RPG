@@ -840,7 +840,15 @@ export async function deathVoiceGone(actor, facts) {
 
 /**
  * Which of an account's characters speaks for it: of the `rows` whose user is `userId` and connected, the strongest
- * claim, ties to the lowest actor id; `null` when there is none (E78 C2, 13.10.2026).
+ * claim; of two equal claims a dead student whose voice is still in the room it died in (`stillThere`); then the
+ * lowest actor id; `null` when there is none (E78 C2, 13.10.2026).
+ *
+ * THE VICTIM'S ROOM BEFORE A SPARE'S (E19 fix r1-G2, 19.10.2026; the review's E19-COR-2). While the incident a
+ * student died in runs, their row keeps the crime room (`CLAIM.inRoom`, A9: "a victim in a running incident keeps the
+ * crime room", E19-15), and so does a kept row while the cast is not here (`keep`). A living spare of the same account
+ * standing in another room is the same claim, and until the fix the lowest actor id chose: the same table sent the
+ * player to the Dorm or left the killer to play A9's scene alone, by the ids Foundry generated. Until A9's trigger the
+ * victim's row wins; after it (`gone` true) its claim is `dead` and the living spare outranks it, as before.
  *
  * The ranking `voiceTargets` ran inline until E78, moved here unchanged, so that the two questions E78 asks about one
  * account - does the module hold this viewer's microphone (`micHold`), may a GM block this person (`moduleHoldsMic`) -
@@ -851,16 +859,20 @@ export function voiceRowFor(rows, userId) {
     let held = null;
     for (const row of rows) {
         if (!row.user?.active || row.user.id !== userId) continue;
-        // Strongest claim wins; ties go to the lowest actor id, so the answer is
-        // the same on every client and the same on every pass.
+        // Strongest claim wins; then a victim still in its room; then the lowest actor id, so the answer is the same on
+        // every client and the same on every pass.
         if (!held
             || row.claim > held.claim
-            || (row.claim === held.claim && row.actor.id < held.actor.id)) {
+            || (row.claim === held.claim && stillThere(row) !== stillThere(held) && stillThere(row))
+            || (row.claim === held.claim && stillThere(row) === stillThere(held) && row.actor.id < held.actor.id)) {
             held = row;
         }
     }
     return held;
 }
+
+/** A dead student's row whose voice has not left the room it died in yet (`placeVoices`: `gone` false, or null and kept). */
+const stillThere = row => Boolean(row?.fallen && row.gone !== true);
 
 /**
  * Whether the module holds THIS browser's own microphone, and why: `null`, or `{ reason, held }` (E78 C2, 13.10.2026;
