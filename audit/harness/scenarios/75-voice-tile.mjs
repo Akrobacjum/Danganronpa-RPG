@@ -79,6 +79,11 @@
  *   word while p2 speaks. The word's title and the live text say the sentence of each. p1 is put back in the main
  *   room with the room voice-client.mjs wanted before. What a real LiveKit Room says, in both themes, full and
  *   compact, is LIVE-E79-21; how late the first portrait comes at a table, LIVE-E79-20.
+ * H (E19 C2; S11-09, the owner's A7): a drop on p1. The Room dropped while every connect is refused: one card in
+ *   p1's notice history (an error of p1's own, the title and the reconnect text, on screen) and no toast; p1's own
+ *   reconnects start at voice-client.mjs RECONNECT_MS's steps - the times read here are written beside them - and
+ *   stop after the third; p1 brought back (`applyBreakout`), the card goes and its entry stays. A drop at a real
+ *   table is LIVE-E19-01.
  *
  * What the shim cannot settle - real audio, how late LiveKit says who speaks, the dock hidden at a
  * table, audio after F5 - is LIVE-E78-01, LIVE-E78-02 and the owner's T1, LIVE-E78-10 (lib/livekit.mjs's header).
@@ -95,7 +100,8 @@ export const layers = ["ci"];
    the harness lock): 23 checks, 1 of them the expected red, in 8.0 s - it stands. With D's cut signature (E78 fix r2-H2, one
    green run on 14.10.2026, under the harness lock): 24 checks, 1 of them the expected red, in 8.5 s, 14 s of wall time - it stands.
    With phase G (E79 C15, one green run on 17.10.2026, under the harness lock): 26 checks, 1 of them the expected red, in 7.9 s,
-   13 s of wall time - it stands. */
+   13 s of wall time - it stands. With phase H (E19 C2, one green run on 19.10.2026, under the harness lock): 28 checks, 1 of
+   them the expected red, in 25.5 s, 30.4 s of wall time - H waits out the reconnect's three steps, 15 s - it stands. */
 export const timeoutMs = 60000;
 
 const J = value => JSON.stringify(value);
@@ -829,4 +835,55 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
             && said(st.reconnecting, "connecting") && said(st.back, "connected") && said(st.dropped, "disconnected") && st.dropped.room === "disconnected"
             && said(st.home, "connected") && st.speaking?.shown === false && st.speaking.word === null && st.speaking.face === true,
         J({ result: st.result, moved: st.moved, reconnecting: st.reconnecting, back: st.back, dropped: st.dropped, home: st.home, speaking: st.speaking }));
+
+    phase("H: a voice drop on p1 - one card in p1's notice history and no toast, p1's own reconnect at its steps while the server refuses, the card gone once p1 is back and its entry kept");
+    // E19 C2 (S11-09, A7). p1's Room dropped while every connect is refused: the times at which p1's reconnects
+    // start (each builds a new Room) are voice-client.mjs RECONNECT_MS as this harness runs them, written there.
+    const dr = await p1.eval(`${tileJs}
+        if (globalThis.__liveKit?.installed !== true) return { installed: false };
+        const VC = await import("${repoUrl}/scripts/voice-client.mjs");
+        const NH = await import("${repoUrl}/scripts/notice-history.mjs");
+        const before = VC.desiredRoom(), had = new Set(NH.noticeEntries().map(entry => entry.id));
+        const fresh = () => NH.noticeEntries().filter(entry => !had.has(entry.id));
+        const toasts = globalThis.__notifications.length;
+        const out = { installed: true, title: game.i18n.localize("DRPG.Voice.drop.title"), text: game.i18n.localize("DRPG.Voice.drop.retry") };
+        await NH.holdNoticeHistory(true);
+        try {
+            await until(() => __liveKit.read().state === "connected", 1000);
+            __liveKit.fail("refuse");
+            const rooms = __liveKit.rooms, at = Date.now();
+            __liveKit.drop();
+            out.steps = [];
+            while (out.steps.length < 3 && Date.now() - at < 20000) {
+                if (__liveKit.rooms > rooms + out.steps.length) out.steps.push(Date.now() - at);
+                await sleep(20);
+            }
+            await until(() => VC.voiceDrop()?.waiting === false, 2000);
+            out.lost = VC.voiceDrop();
+            out.cards = fresh().map(entry => ({ kind: entry.kind, source: entry.source, title: entry.title, text: entry.text,
+                shown: Boolean(document.querySelector('.drpg-popup[data-drpg-notice="' + entry.id + '"]')) }));
+            await sleep(1500);
+            out.after = __liveKit.rooms - rooms;
+            __liveKit.fail(null);
+            out.back = await VC.applyBreakout(before ?? null);
+            const id = fresh()[0]?.id ?? "none";
+            await until(() => !document.querySelector('.drpg-popup[data-drpg-notice="' + id + '"]'), 2000);
+            out.home = { lost: VC.voiceDrop(), room: __liveKit.read().state, shown: Boolean(document.querySelector('.drpg-popup[data-drpg-notice="' + id + '"]')),
+                kept: NH.noticeEntries().some(entry => entry.id === id), cards: fresh().length };
+            out.toasts = globalThis.__notifications.length - toasts;
+        } finally {
+            __liveKit.fail(null);
+            NH.holdNoticeHistory(false);
+            if (before === undefined) VC.forgetDesiredRoom();
+        }
+        return out;`, { timeout: 30000 });
+    check("H: p1's dropped voice is one card in p1's notice history - an error of p1's own with the title and the reconnect text, on screen - and no toast",
+        dr.installed === true && dr.cards?.length === 1 && dr.cards[0].kind === "error" && dr.cards[0].source === "mine"
+            && dr.cards[0].title === dr.title && dr.cards[0].text === dr.text && dr.cards[0].shown === true && dr.toasts === 0,
+        J({ cards: dr.cards, toasts: dr.toasts }));
+    check("H: p1 reconnects on its own while the server refuses, at 1, 5 and 15 s after the drop (RECONNECT_MS 1000, 4000, 10000), then waits; back in voice the card goes and its entry stays",
+        dr.installed === true && dr.steps?.length === 3 && dr.steps[0] >= 990 && dr.steps[0] < 1500 && dr.steps[1] >= 4990 && dr.steps[1] < 5800
+            && dr.steps[2] >= 14990 && dr.steps[2] < 16000 && J(dr.lost) === J({ retry: true, step: 3, waiting: false }) && dr.after === 3
+            && dr.back === "applied" && dr.home?.lost === null && dr.home.room === "connected" && dr.home.shown === false && dr.home.kept === true && dr.home.cards === 1,
+        J({ steps: dr.steps, lost: dr.lost, after: dr.after, back: dr.back, home: dr.home }));
 }

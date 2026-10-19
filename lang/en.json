@@ -3612,6 +3612,11 @@
         "one": "{n} player sent back to the main voice room.",
         "other": "{n} players sent back to the main voice room."
       },
+      "drop": {
+        "title": "Voice disconnected",
+        "retry": "You are not connected to voice. Reconnecting you now; if you still hear nobody in a minute, reload the page (F5).",
+        "closed": "Your voice connection was closed by the voice server or by another window signed in as you. Reload this page (F5) to join again."
+      },
       "resetRefused": "Nothing to reset: regional voice is off, LiveKit is inactive, or another GM's client is running it.",
       "tile": {
         "label": "Voice",

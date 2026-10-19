@@ -6153,7 +6153,7 @@ const REGRESSIONS = [
          * only by settings.mjs's `deathRecord` and `isDeceased`, named only where config.mjs
          * defines it, written only by chapter.mjs's `markDeceased` and `reviveCharacter`
          * (the "dead" status likewise), and read as a change's key only by voice.mjs's
-         * updateActor hook, which reconciles on the change and asks the predicates after.
+         * updateActor hook (its `reconcileTrigger` since E19 C2), which reconciles on the change and asks the predicates after.
          * Attribution is by the top-level function or constant the mention sits in. A
          * planted read of each kind is found first.
          */
@@ -6169,7 +6169,8 @@ const REGRESSIONS = [
             "chapter.mjs markDeceased status": "the token's marker, written with the flag",
             "chapter.mjs reviveCharacter flag": "the one unwrite",
             "chapter.mjs reviveCharacter status": "the marker, taken off with it",
-            "voice.mjs registerVoice flag": "the updateActor hook reads the change's key, not the actor",
+            // E19 C2: the updateActor hook's test moved into `reconcileTrigger`, which the hook asks.
+            "voice.mjs reconcileTrigger flag": "the updateActor hook's trigger reads the change's key, not the actor",
             // E29 C3: the GMs' audit holds the GM-only flags in a student's mark and puts a player's write of one back;
             // it names the flag among the others and never asks whether a student is dead.
             "sheet-audit.mjs GM_FLAGS flag": "a GM-only flag, held in the GMs' mark and put back"
@@ -8612,6 +8613,7 @@ const REGRESSIONS = [
             ["SURFACE safeword.mjs#showGmDetail", "the GM's safeword card, who and the room escaped into an i18n sentence; kept in the GM's browser like every other notice - within the history's budgets, and in memory only when the history stops saving (`crowdedOut`, a failed write) - as a safeword entry (the owner's Q7, 07.10.2026; R297, 73-notice-history S1), and cleaned at save (R294); the tile's corner button counts it among the unread and shows none of its words (R298)"],
             ["SURFACE safeword.mjs#raiseCard", "frozen i18n text set with textContent; kept as first drawn and not followed (`observe: false`), so the same safeword entry on every browser whatever the caller's card adds, kept within the history's budgets and in memory only when it stops saving; nobody else's words (R297, 73-notice-history S2)"],
             ["SURFACE trial.mjs#registerTrial", "the evidence card, drawn only when authorised (a GM, or the speaker's owner holding the item); kept as evidence, one entry for its message, and cleaned at save (R297, R294); the tile's corner button counts it among the unread and shows none of its words (R298)"],
+            ["SURFACE voice-client.mjs#dropCard", "this browser's own dropped voice (E19 C2): frozen i18n text, nothing of anybody else's; kept as this client's own (`source` \"mine\"), and taken off the screen, not out of the history, once voice is back (R812, scenario 75's phase H)"],
             ["RECORD bridge-guards.mjs#sayNotDone", "after `notify(text)`, whoever `notify` is: kind error, source notDone, state read, the text this client composed from closed lists - a GM's reason chooses none of its words; a history error never stops the toast (R297)"],
             ["RECORD popup.mjs#showPopup", "the recorder: `recordNotice` in try/catch after the body is filled and before a host takes the card; the snapshot followed while the card is on screen and its state set by the close's reason; a history error never stops the card (R293); an entry the history cannot save is kept in memory until this page closes, the window's footer saying so (`status`, R292)"],
             ["RECORD popup.mjs#showPopup#updateNotice", "the card's close: its own entry's state only - read for its reader's close, unread for any other reason - in try/catch; no words (R293)"],

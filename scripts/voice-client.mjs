@@ -43,6 +43,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { activeGmIds, primaryGmId, debug, error } from "./utils.mjs";
+import { showPopup } from "./popup.mjs";
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 const AV_MODULE = "avclient-livekit";
@@ -111,6 +112,8 @@ export function registerVoiceClient() {
     // yet - asking then would be asking into a reply nobody could receive. The
     // `ready` handler does the asking in that case.
     Hooks.on("liveKitClientInitialized", () => {
+        // Every initialize builds a new Room, ours included: each is watched for a drop (E19 C2).
+        watchForDrops();
         if (applying) return;               // our own reconnect - see `applying`
         debug("Voice: A/V client initialised.");
         if (!game.ready) return;
@@ -139,13 +142,29 @@ export function registerVoiceClient() {
     Hooks.once("ready", () => {
         game.socket.on(SOCKET_EVENT, onVoiceSocket);
         startSelfCheck();
+        watchForDrops();
         if (!avclientActive()) return;
-        askWhereIBelong();
+        catchUpVoice();
     });
 }
 
 /**
- * Notice when this client has fallen out of the room it belongs in.
+ * What this browser does with its voice at `ready` (E19 C2, 19.10.2026; audit S11-33 (c)): a room parked before
+ * `ready` is applied now, else it asks where it belongs. The primary GM's own room is parked on `canvasReady`,
+ * which comes before `ready`; `liveKitClientInitialized` may have fired before `ready` too and returned without
+ * applying it, and the GM's own `whoAmI` is never answered (`onWhoAmI` skips the asker's own id), so until C2
+ * that room waited for the heartbeat, up to a minute. Returns the apply's answer, or null when it asked.
+ *
+ * @returns {Promise<string|null>}
+ */
+export function catchUpVoice() {
+    if (desired !== undefined && clientReady()) return enqueue(() => applyAndReport(desired, parkedRequestId));
+    askWhereIBelong();
+    return Promise.resolve(null);
+}
+
+/**
+ * Notice when this client has fallen out of the room it belongs in, or out of voice altogether.
  *
  * The GM's heartbeat cannot see this. It skips anyone whose room it has a
  * confirmation for, and a confirmation stays true right up until something
@@ -154,24 +173,40 @@ export function registerVoiceClient() {
  * not clear `breakoutRoom` and does not reconnect, so from the GM's side
  * everything still looks settled while the player hears nobody.
  *
- * This is the client noticing on its own behalf. It costs one property read a
+ * This is the client noticing on its own behalf. It costs a few property reads a
  * minute and sends nothing at all unless something is actually wrong; when
  * something is, it re-applies and tells the GM, so `settled` stops lying too.
+ * Until E19 C2 it read the room's NAME only (audit S11-09), and a drop keeps the
+ * name, so a dead connection passed as "in the right room" for as long as the
+ * page stayed open. Now a connection that is not live is a drop - the card, and
+ * a reconnect - whether or not anybody ever gave this browser a room; a Room
+ * livekit-client is still reconnecting on its own is left to it; and a drop the
+ * voice server or another window of the same account closed is not fought.
  */
 const SELF_CHECK_MS = 45000;
 let selfCheckTimer = null;
 
 function startSelfCheck() {
     if (selfCheckTimer) clearInterval(selfCheckTimer);
-    selfCheckTimer = setInterval(() => {
-        if (desired === undefined) return;      // nobody has told us anything
-        if (applying) return;                   // mid-switch; not a verdict yet
-        if (!avclientActive() || !clientReady()) return;
-        if (landedCorrectly(desired)) return;
+    selfCheckTimer = setInterval(selfCheck, SELF_CHECK_MS);
+}
 
-        debug(`Voice: drifted out of "${desired ?? "the main room"}" - re-applying.`);
-        enqueue(() => applyAndReport(desired, null));
-    }, SELF_CHECK_MS);
+function selfCheck() {
+    if (applying) return null;                  // mid-switch; not a verdict yet
+    if (!avclientActive() || !clientReady()) return null;
+    if (game.webrtc?.mode === foundry.av.AVSettings.AV_MODES.DISABLED || usingLiveKit() === false) return null;
+    if (lost && !lost.retry) return null;       // closed for us: the card says reload
+    if (PENDING_STATES.includes(roomState())) return null;
+    if (!externalAV() && !live()) {
+        voiceDropped(true);
+        if (lost?.timer) return null;           // a reconnect step is already waiting
+        return enqueue(reconnect);
+    }
+    if (desired === undefined) return null;     // nobody has told us anything
+    if (landedCorrectly(desired)) return null;
+
+    debug(`Voice: drifted out of "${desired ?? "the main room"}" - re-applying.`);
+    return enqueue(() => applyAndReport(desired, null));
 }
 
 /* ==========================================================================
@@ -298,6 +333,41 @@ function clientReady() {
 }
 
 /**
+ * The Room's own connection state: livekit-client's `Room#state` ("connected", "disconnected", "connecting",
+ * "reconnecting"; the names voice-tile.mjs `voiceWord` reads), else avclient-livekit's `connectionState`, else null
+ * when neither is a string - a client this file does not know, read as live, as it was before E19 C2.
+ *
+ * @returns {string|null}
+ */
+function roomState() {
+    const client = liveKitClient();
+    const state = client?.liveKitRoom?.state ?? client?.connectionState;
+    return typeof state === "string" ? state : null;
+}
+
+/** The states in which livekit-client is still getting there on its own: not a verdict yet. */
+const PENDING_STATES = ["connecting", "reconnecting", "signalReconnecting"];
+
+/** Whether this browser's voice is connected now (E19 C2): see `roomState`. */
+function live() {
+    const state = roomState();
+    return state === null || state === "connected";
+}
+
+/**
+ * avclient-livekit's own setting for a browser that sends its audio from the LiveKit web client (the design's
+ * reading). Here since E19 C2, so `landedCorrectly` can ask it; voice.mjs `micHold` imports it from here.
+ */
+export function externalAV() {
+    try {
+        return game.settings.settings?.has?.(`${AV_MODULE}.useExternalAV`) === true
+            && game.settings.get(AV_MODULE, "useExternalAV") === true;
+    } catch {
+        return false;
+    }
+}
+
+/**
  * Every room this module invents starts with this. Exported so voice.mjs builds
  * its names from the same constant `landedCorrectly` recognises them by.
  */
@@ -320,6 +390,11 @@ export const ROOM_PREFIX = "drpg-";
  * return-to-main a failure at exactly the moment a table is setting up.
  */
 function landedCorrectly(target) {
+    // A drop keeps the name (lib/livekit.mjs `drop`, as the module reads avclient-livekit's `onDisconnected`), so
+    // the name alone answered "unchanged" for a browser that hears nobody (E19 C2; audit S11-09). Not asked of a
+    // browser that joins voice in LiveKit's own page (`useExternalAV`): Foundry's Room never connects there, and
+    // a connect for it opens another Join window rather than a voice.
+    if (!externalAV() && !live()) return false;
     const room = game.webrtc?.client?.room ?? null;
     if (target) return room === target;
     return !String(room ?? "").startsWith(ROOM_PREFIX);
@@ -356,9 +431,12 @@ function currentRoomLabel() {
  *     `liveKitClientInitialized`. `applying` below keeps that from bouncing
  *     straight back into here.
  *
+ * `remember: false` is the reconnect of a browser nobody gave a room (`reconnect`): the room LiveKit had, applied
+ * without making it this browser's `desired`, which would say "the main room" where nobody said anything.
+ *
  * @returns {Promise<"applied"|"unchanged"|"deferred"|"unavailable"|"failed">}
  */
-export async function applyBreakout(room) {
+export async function applyBreakout(room, { remember = true } = {}) {
     if (!avclientActive()) return "unavailable";
 
     // A/V is switched off for the whole world. `AVMaster#connect()` returns
@@ -380,13 +458,16 @@ export async function applyBreakout(room) {
     if (!clientReady()) {
         // Not a failure - the client is still coming up. Remember it; the
         // `liveKitClientInitialized` listener above will finish the job.
-        desired = target;
+        if (remember) desired = target;
         debug(`Voice: A/V not ready, parking "${target ?? "the main room"}".`);
         return "deferred";
     }
 
-    desired = target;
-    if (landedCorrectly(target)) return "unchanged";
+    if (remember) desired = target;
+    if (landedCorrectly(target)) {
+        voiceBack();
+        return "unchanged";
+    }
 
     const client = liveKitClient();
     let connected = false;
@@ -416,6 +497,7 @@ export async function applyBreakout(room) {
     }
 
     debug(`Voice: now in "${target ?? "the main room"}".`);
+    voiceBack();
     return "applied";
 }
 
@@ -443,6 +525,128 @@ async function applyAndReport(room, requestId) {
 export async function applyLocally(room) {
     const state = await enqueue(() => applyBreakout(room));
     return state ?? "failed";
+}
+
+/* ==========================================================================
+ * A DROPPED CONNECTION (E19 C2, 19.10.2026; audit S11-09; the owner's A7 of 11.10)
+ * --------------------------------------------------------------------------
+ * Until C2 a drop was silent twice over: the self-check read the room's name, which a drop keeps, and voice.mjs
+ * filtered avclient-livekit's own "Disconnected from LiveKit" warning by its prefix, every reason of it. The
+ * player heard nobody until a reload and was never told. Now a drop is a card, through popup.mjs `showPopup`, so
+ * it is kept in this browser's notice history (A7: the cards E19 adds go there; toasts stay out of it), and this
+ * browser reconnects itself, with or without a GM connected.
+ *
+ * WHAT IS A DROP. The Room says `disconnected` and, a turn of the event loop later, is still this client's Room,
+ * still disconnected, and this file is not moving it (`applying`). A switch of rooms - ours, Foundry's own after
+ * an A/V settings change, avclient-livekit's breakout menu - disconnects the old Room and builds a new one, and
+ * Foundry's `AVMaster#connect` disconnects first: the reason livekit-client gives a leave this browser asked for,
+ * CLIENT_INITIATED, is no drop either. Two reasons are not fought: DUPLICATE_IDENTITY (the same account joined
+ * from another window, which a reconnect here would throw out in turn, and it us) and PARTICIPANT_REMOVED (the
+ * voice server's operator took this browser out). The reasons are livekit-client's DisconnectReason as this file
+ * reads it - CLIENT_INITIATED 1, DUPLICATE_IDENTITY 2, PARTICIPANT_REMOVED 4, or their names - not read off
+ * livekit-client's source on this machine (LIVE-E19-01 is a drop at a table).
+ * ========================================================================== */
+
+/**
+ * This browser's own reconnect after a drop, in ms: the first step after the drop's card, each next one after the
+ * step before failed. After the last one the self-check (45 s) and the GM's heartbeat keep trying. The steps are a
+ * choice, not a reading of LiveKit: a blip is back at the first, a server restart has fifteen seconds before the
+ * self-check takes over. Measured in scenario 75's phase H on the harness's LiveKit, every connect refused (one
+ * run, 19.10.2026): the three reconnects started 1103, 5101 and 15102 ms after the drop.
+ */
+const RECONNECT_MS = [1000, 4000, 10000];
+
+const OWN_LEAVE = [1, "CLIENT_INITIATED"];
+const NOT_FOUGHT = [2, "DUPLICATE_IDENTITY", 4, "PARTICIPANT_REMOVED"];
+
+/** The Room whose `disconnected` this file listens for. */
+let watchedRoom = null;
+
+/** The drop being told, or null: `{ retry, step, timer, dismiss }`. */
+let lost = null;
+
+function watchForDrops() {
+    const room = liveKitClient()?.liveKitRoom ?? null;
+    if (room === watchedRoom) return;
+    watchedRoom = room;
+    if (!room || typeof room.on !== "function") return;
+    room.on("disconnected", reason => onRoomDisconnected(room, reason));
+}
+
+function onRoomDisconnected(room, reason) {
+    if (applying || externalAV() || OWN_LEAVE.includes(reason)) return;
+    setTimeout(() => {
+        if (applying || liveKitClient()?.liveKitRoom !== room || room.state !== "disconnected") return;
+        voiceDropped(!NOT_FOUGHT.includes(reason));
+    }, 0);
+}
+
+/** The card, once per drop, and the reconnect's first step. A drop not fought stops the steps of one that was. */
+function voiceDropped(retry) {
+    if (!lost) {
+        lost = { retry, step: 0, timer: null, dismiss: dropCard(retry) };
+        debug(`Voice: the connection dropped${retry ? "; reconnecting" : ", closed by the server or another window"}.`);
+    } else if (!retry && lost.retry) {
+        lost.retry = false;
+        if (lost.timer) clearTimeout(lost.timer);
+        lost.timer = null;
+    }
+    if (lost.retry && lost.timer === null) nextReconnect();
+}
+
+function dropCard(retry) {
+    try {
+        return showPopup(`<p>${game.i18n.localize(retry ? "DRPG.Voice.drop.retry" : "DRPG.Voice.drop.closed")}</p>`, {
+            title: game.i18n.localize("DRPG.Voice.drop.title"), kind: "error", sticky: true
+        });
+    } catch (err) {
+        error("Could not show the card about the dropped voice connection", err);
+        return null;
+    }
+}
+
+function nextReconnect() {
+    if (!lost?.retry || lost.step >= RECONNECT_MS.length) return;
+    const wait = RECONNECT_MS[lost.step++];
+    const timer = setTimeout(() => {
+        if (lost?.timer !== timer) return;
+        lost.timer = null;
+        enqueue(reconnect).then(() => {
+            if (lost?.retry && lost.timer === null) nextReconnect();
+        });
+    }, wait);
+    lost.timer = timer;
+}
+
+/** Back where this browser was: its `desired` room (reported to the GMs), else the room LiveKit had. */
+function reconnect() {
+    if (!lost && live()) return Promise.resolve("unchanged");
+    if (desired !== undefined) return applyAndReport(desired, null);
+    return applyBreakout(liveKitClient()?.breakoutRoom ?? null, { remember: false });
+}
+
+/** Connected again: the card goes and the steps stop. Its entry stays in the history. */
+function voiceBack() {
+    if (!lost) return;
+    const { timer, dismiss } = lost;
+    lost = null;
+    if (timer) clearTimeout(timer);
+    try {
+        dismiss?.();
+    } catch (err) {
+        debug("The card about the dropped voice connection could not be closed", err);
+    }
+    debug("Voice: connected again.");
+}
+
+/**
+ * The drop being told, read-only, for the suite and a console: null, or whether this browser reconnects itself
+ * and how many of its steps have started.
+ *
+ * @returns {{retry: boolean, step: number, waiting: boolean}|null}
+ */
+export function voiceDrop() {
+    return lost ? { retry: lost.retry, step: lost.step, waiting: lost.timer !== null } : null;
 }
 
 /**

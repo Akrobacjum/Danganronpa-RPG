@@ -3764,6 +3764,11 @@
         "many": "{n} graczy odesłanych do głównego pokoju głosowego.",
         "other": "{n} graczy odesłanych do głównego pokoju głosowego."
       },
+      "drop": {
+        "title": "Głos rozłączony",
+        "retry": "Nie masz połączenia głosowego. Łączymy cię ponownie; jeśli za minutę nadal nikogo nie słyszysz, odśwież stronę (F5).",
+        "closed": "Połączenie głosowe zamknął serwer głosu albo inne okno zalogowane na twoje konto. Odśwież tę stronę (F5), żeby dołączyć ponownie."
+      },
       "resetRefused": "Nie ma czego resetować: głos per pokój jest wyłączony, LiveKit nieaktywny albo prowadzi go klient innego GM-a.",
       "tile": {
         "label": "Głos",

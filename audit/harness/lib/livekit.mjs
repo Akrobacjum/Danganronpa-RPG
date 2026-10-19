@@ -71,6 +71,12 @@
  *     writes one. client-entry.mjs's stub is the caller's to put back (`globalThis.__liveKit`).
  * avclient-livekit's real registration (its scope, `config`, any `onChange`) and its real failures
  * are not read on this machine, and a dropped connection at a real table is not measured here.
+ *
+ * WHY A ROOM SAYS IT LEFT (E19 C2, 19.10.2026). The Room's `disconnected` carries livekit-client's
+ * DisconnectReason, as voice-client.mjs reads it: a leave this browser asked for - a new `initialize()`,
+ * `disconnect()` - says CLIENT_INITIATED (1), and `drop(reason)` says what it is handed, null by default (a
+ * server gone or a network lost, which livekit-client names otherwise; the numbers are voice-client.mjs's
+ * reading, not livekit-client's source read here).
  */
 import { getProperty, setProperty } from "./futil.mjs";
 
@@ -82,6 +88,9 @@ const AV_MODULE = "avclient-livekit";
 
 /** The ways `fail` can make a connect fail (the header's list). */
 const FAILS = ["refuse", "throw", "main"];
+
+/** livekit-client's DisconnectReason for a leave the browser asked for, as voice-client.mjs reads it (the header). */
+const CLIENT_INITIATED = 1;
 
 /** livekit-client's Room is an EventEmitter: `on`, `once`, `off` (and its alias), `emit`, `listenerCount`. */
 class Emitter {
@@ -266,7 +275,7 @@ export function installLiveKit({ roster = {}, external = false, names = {} } = {
         attachAudioTrack
     };
 
-    function leaveRoom(room) {
+    function leaveRoom(room, reason = CLIENT_INITIATED) {
         if (!room || room.state === "disconnected") return;
         for (const id of room.remoteParticipants.keys()) hideRemote(id);
         room.remoteParticipants.clear();
@@ -274,7 +283,7 @@ export function installLiveKit({ roster = {}, external = false, names = {} } = {
         room.state = "disconnected";
         liveKitClient.connectionState = "disconnected";
         room.emit("connectionStateChanged", "disconnected");
-        room.emit("disconnected");
+        room.emit("disconnected", reason);
     }
 
     const client = webrtc.client;
@@ -362,8 +371,8 @@ export function installLiveKit({ roster = {}, external = false, names = {} } = {
             r.emit("activeSpeakersChanged", speakers);
             return speakers.map(p => p.fvttUserId);
         },
-        /** The connection is lost: the Room says so and empties; `client.room` and `breakoutRoom` keep their names; nothing reconnects until a connect. */
-        drop() { leaveRoom(room()); },
+        /** The connection is lost: the Room says so (with `reason`, the header's) and empties; `client.room` and `breakoutRoom` keep their names; nothing reconnects until a connect. */
+        drop(reason = null) { leaveRoom(room(), reason); },
         /** How every connect from now on fails: "refuse", "throw", "main" (lands in the main room), or null to let them through. */
         fail(mode) {
             if (mode !== null && !FAILS.includes(mode)) return false;

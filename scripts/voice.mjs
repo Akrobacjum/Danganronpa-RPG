@@ -48,7 +48,7 @@ import { SETTINGS, getSetting, getClock, isDeadForGm, isDeceased, isEclipse } fr
 import { allRooms } from "./movement.mjs";
 import { roomPieces, isMoveChange, isTrialScene } from "./rooms.mjs";
 import { isMonokuma, poolUserFor } from "./monokuma.mjs";
-import { VOICE, ROOM_PREFIX, applyLocally, forgetDesiredRoom, avclientActive, desiredRoom } from "./voice-client.mjs";
+import { VOICE, ROOM_PREFIX, applyLocally, forgetDesiredRoom, avclientActive, desiredRoom, externalAV } from "./voice-client.mjs";
 import { isPrimaryGm, primaryGmId, debug, warn, error, plural, gmReport } from "./utils.mjs";
 import { alreadyOpen } from "./live.mjs";
 
@@ -102,15 +102,14 @@ export function registerVoice() {
         if (!connected) return;
         scheduleReconcile({ force: true });
     });
-    // Dying takes a voice away and opting in as a Monocub gives it back, and
-    // neither of those moves a token - so without this the change would not
-    // land until the next time somebody happened to walk somewhere.
-    Hooks.on("updateActor", (actor, changes) => {
-        const flags = changes?.flags?.[MODULE_ID];
-        if (!flags) return;
-        if (!(FLAGS.deceased in flags) && !(FLAGS.monocub in flags)) return;
-        scheduleReconcile({ immediate: true });
-    });
+    // What changes whose voice goes where without moving a token (`reconcileTrigger`): without these the change
+    // would not land until the next time somebody happened to walk somewhere, or the heartbeat.
+    for (const hook of RECONCILE_HOOKS) {
+        Hooks.on(hook, (doc, changes) => {
+            const options = reconcileTrigger(hook, doc, changes);
+            if (options) scheduleReconcile(options);
+        });
+    }
     // A death kept by the GMs writes nothing on the actor (E05 C10): its store's change
     // is the one sign of it, on the GM that wrote it and on each that merged it.
     Hooks.on("drpgDeathsChanged", () => {
@@ -128,6 +127,44 @@ export function registerVoice() {
         startHeartbeat();
         warnIfMisconfigured();
     });
+}
+
+/** The document hooks `reconcileTrigger` answers. */
+const RECONCILE_HOOKS = ["updateActor", "updateUser", "createRegion", "updateRegion", "deleteRegion", "createSetting", "updateSetting"];
+
+/**
+ * Whether a document change moves somebody's voice, and how soon: the options for `scheduleReconcile`, or null.
+ *
+ * Dying takes a voice away and opting in as a Monocub gives it back (at once, as before E19 C2). Since C2 (audit
+ * S11-33 (d)) also, debounced like a token's move: an actor's ownership (whose voice a student is, `activeOwnerOf`),
+ * a user's character or role, a Scene Region made, changed or deleted (the rooms a voice room is named for), and
+ * the two settings that say whose voice a Monokuma is (monokuma.mjs `poolUserFor`: the Monokuma pools and the
+ * Despair pools). Pure, so R813 asks it a table.
+ *
+ * @param {string} hook
+ * @param {object} doc
+ * @param {object} [changes]  an update's changes; a create's or a delete's options, not read
+ * @returns {{immediate?: boolean}|null}
+ */
+export function reconcileTrigger(hook, doc, changes) {
+    switch (hook) {
+        case "updateActor": {
+            const flags = changes?.flags?.[MODULE_ID];
+            if (flags && (FLAGS.deceased in flags || FLAGS.monocub in flags)) return { immediate: true };
+            return changes && typeof changes === "object" && "ownership" in changes ? {} : null;
+        }
+        case "updateUser":
+            return changes && typeof changes === "object" && ("character" in changes || "role" in changes) ? {} : null;
+        case "createRegion":
+        case "updateRegion":
+        case "deleteRegion":
+            return {};
+        case "createSetting":
+        case "updateSetting":
+            return [SETTINGS.monokumaPools, SETTINGS.despairPools].some(key => doc?.key === `${MODULE_ID}.${key}`) ? {} : null;
+        default:
+            return null;
+    }
 }
 
 /**
@@ -167,7 +204,12 @@ function warnIfMisconfigured() {
  * module's own path can raise: switching rooms IS a disconnect and a reconnect,
  * so a perfectly healthy crossing announces itself as a failure in a warning
  * banner. `onDisconnected` appends the reason to the localized string, so it is
- * matched by PREFIX - an exact-match set would miss every variant of it.
+ * matched by PREFIX - an exact-match set would miss every variant of it. Until
+ * E19 C2 that prefix took every reason with it, a server gone and a network lost
+ * as well, and nothing else said so (audit S11-09). Since C2 a real drop is
+ * voice-client.mjs's card, kept in the notice history (A7: toasts stay out of
+ * it), so the warning is muted with the setting off too - the card is shown either
+ * way, and the toast would say it twice.
  *
  * The other two live inside avclient-livekit's `breakout()`, which this module
  * stopped calling when the transport moved to voice-client.mjs. They are still
@@ -181,43 +223,47 @@ function warnIfMisconfigured() {
 function suppressBreakoutToasts() {
     if (!avclientActive()) return;
 
-    const exact = new Set([
-        game.i18n.localize("LIVEKITAVCLIENT.joiningAVBreakout"),
-        game.i18n.localize("LIVEKITAVCLIENT.leavingAVBreakout")
-    ]);
-    // `${onDisconnected}: ${reason}` - see LiveKitAVClient#onDisconnected.
-    const prefixes = [game.i18n.localize("LIVEKITAVCLIENT.onDisconnected")];
-
-    const muted = message => {
-        // Only while THIS module is the thing causing the churn.
-        //
-        // The patch is installed once at `ready`, but the reason for it -
-        // "a room auto-follows every token crossing" - is only true when
-        // regional voice is switched on. Checked at call time rather than at
-        // install time so a table using avclient-livekit's own breakout menu
-        // with this feature off keeps its notifications, and so toggling the
-        // setting mid-session takes effect without a reload.
-        try {
-            if (!getSetting(SETTINGS.voiceEnabled)) return false;
-        } catch {
-            return false;
-        }
-        const text = String(message ?? "");
-        return exact.has(text) || prefixes.some(p => p && text.startsWith(p));
-    };
-
     for (const level of ["info", "warn"]) {
         const current = ui.notifications[level];
         if (current?.__drpgVoicePatched) continue;   // idempotent - safely() may retry
 
         const original = current.bind(ui.notifications);
         const patched = function drpgFilteredNotification(message, options) {
-            if (muted(message)) return;
+            if (breakoutToastMuted(message)) return;
             return original(message, options);
         };
         patched.__drpgVoicePatched = true;
         ui.notifications[level] = patched;
     }
+}
+
+/**
+ * Whether `suppressBreakoutToasts` keeps a notification off the screen: avclient-livekit's disconnect warning,
+ * any reason (`${onDisconnected}: ${reason}`, LiveKitAVClient#onDisconnected), always since E19 C2; its join and
+ * leave notices only while regional voice is on.
+ *
+ * @param {*} message
+ * @returns {boolean}
+ */
+export function breakoutToastMuted(message) {
+    const text = String(message ?? "");
+    const disconnected = game.i18n.localize("LIVEKITAVCLIENT.onDisconnected");
+    if (disconnected && text.startsWith(disconnected)) return true;
+    // The join and leave notices only while THIS module is the thing causing the churn.
+    //
+    // The patch is installed once at `ready`, but the reason for it -
+    // "a room auto-follows every token crossing" - is only true when
+    // regional voice is switched on. Checked at call time rather than at
+    // install time so a table using avclient-livekit's own breakout menu
+    // with this feature off keeps its notifications, and so toggling the
+    // setting mid-session takes effect without a reload.
+    try {
+        if (!getSetting(SETTINGS.voiceEnabled)) return false;
+    } catch {
+        return false;
+    }
+    return [game.i18n.localize("LIVEKITAVCLIENT.joiningAVBreakout"), game.i18n.localize("LIVEKITAVCLIENT.leavingAVBreakout")]
+        .includes(text);
 }
 
 /**
@@ -248,81 +294,166 @@ function followsVoice(tokenDoc) {
  * Module-level and deliberately not persisted: it describes this GM browser's
  * session, and a fresh session should re-assert everything rather than trust a
  * note left by a previous one.
+ *
+ * Built by `createVoiceLedger` since E19 C2 (19.10.2026), so R813 drives the
+ * conversation with a socket and timers of its own; the module holds one.
  * ========================================================================== */
 
-/** userId -> the room that client last confirmed. `null` is the main room. */
-const settled = new Map();
-
-/** userId -> { room, requestId, attempt, timer } for assignments in flight. */
-const inFlight = new Map();
-
-function forget(userId) {
-    settled.delete(userId);
-    const pending = inFlight.get(userId);
-    if (pending?.timer) clearTimeout(pending.timer);
-    inFlight.delete(userId);
-}
-
-function forgetEveryone() {
-    for (const userId of [...inFlight.keys()]) forget(userId);
-    settled.clear();
-}
-
 /**
- * Tell one client where its voice belongs, and keep saying it until it answers.
+ * The primary GM's record of each client's voice: what it confirmed (`settled`) and what is being asked of it
+ * (`inFlight`), with the asking and the answers.
  *
- * @returns {boolean} true if an assignment was actually sent.
+ * A FAILED ANSWER IS ASKED AGAIN (E19 C2; audit S11-33 (a)). Until C2 a "failed" closed the conversation it
+ * answered - its no-answer timer cancelled, nothing sent again - and left `settled` as it was, so a client whose
+ * reconnect failed waited for the heartbeat, up to a minute, and one whose `settled` still named the room was
+ * skipped by the heartbeat too. Now a failed answer to the room being asked is asked again after `steps[attempt]`,
+ * the same waits as an answer that never came, until the steps run out; and any "failed" - one answering an older
+ * request, or a client's own reconnect after a drop (voice-client.mjs `reconnect`, no request id) - unsettles that
+ * client, so the next pass sends again. A client is only ever unsettled by its own answer (`onVoiceSocket` keys
+ * it by Foundry's sender).
+ *
+ * @param {object} [io]
+ * @param {Function} [io.emit]    Foundry's `game.socket.emit(event, packet, options)`
+ * @param {Function} [io.later]   `setTimeout(fn, ms)`, its answer what `cancel` takes
+ * @param {Function} [io.cancel]  `clearTimeout(id)`
+ * @param {number[]} [io.steps]   the waits, `RETRY_MS`
  */
-function assignUser(userId, room, { force = false } = {}) {
-    const target = room ?? null;
+export function createVoiceLedger({ emit = (event, packet, { recipients }) => game.socket.emit(event, packet, { recipients }),
+    later = (fn, ms) => setTimeout(fn, ms),
+    cancel = id => clearTimeout(id), steps = RETRY_MS } = {}) {
+    /** userId -> the room that client last confirmed. `null` is the main room. */
+    const settled = new Map();
 
-    if (!force && settled.get(userId) === target) return false;
-    // Already asking this same client for this same room - do not stack a
-    // second conversation on top of the first.
-    if (!force && inFlight.get(userId)?.room === target) return false;
+    /** userId -> { room, requestId, attempt, timer } for assignments in flight. */
+    const inFlight = new Map();
 
-    forget(userId);
-    return send(userId, target, 0);
-}
-
-/** @returns {boolean} true if the message actually left this browser. */
-function send(userId, room, attempt) {
-    const requestId = foundry.utils.randomID();
-
-    try {
-        game.socket.emit(SOCKET_EVENT, {
-            action: VOICE.assign,
-            target: userId,
-            requestId,
-            room
-        }, { recipients: [userId] });
-    } catch (err) {
-        error(`Could not tell ${userId} which voice room to join`, err);
+    function forget(userId) {
+        settled.delete(userId);
+        const pending = inFlight.get(userId);
+        if (pending?.timer) cancel(pending.timer);
         inFlight.delete(userId);
-        return false;
     }
 
-    const timer = setTimeout(() => {
-        const pending = inFlight.get(userId);
-        if (!pending || pending.requestId !== requestId) return;
+    function forgetEveryone() {
+        for (const userId of [...inFlight.keys()]) forget(userId);
+        settled.clear();
+    }
 
-        if (attempt + 1 >= RETRY_MS.length) {
+    /**
+     * Tell one client where its voice belongs, and keep saying it until it answers.
+     *
+     * @returns {boolean} true if an assignment was actually sent.
+     */
+    function assignUser(userId, room, { force = false } = {}) {
+        const target = room ?? null;
+
+        if (!force && settled.get(userId) === target) return false;
+        // Already asking this same client for this same room - do not stack a
+        // second conversation on top of the first.
+        if (!force && inFlight.get(userId)?.room === target) return false;
+
+        forget(userId);
+        return send(userId, target, 0);
+    }
+
+    /** @returns {boolean} true if the message actually left this browser. */
+    function send(userId, room, attempt) {
+        const requestId = foundry.utils.randomID();
+
+        try {
+            emit(SOCKET_EVENT, {
+                action: VOICE.assign,
+                target: userId,
+                requestId,
+                room
+            }, { recipients: [userId] });
+        } catch (err) {
+            error(`Could not tell ${userId} which voice room to join`, err);
             inFlight.delete(userId);
-            debug(`Voice: ${game.users.get(userId)?.name ?? userId} never confirmed "${
-                room ?? "the main room"}"; leaving it to the heartbeat.`);
-            return;
+            return false;
         }
-        send(userId, room, attempt + 1);
-    }, RETRY_MS[attempt]);
 
-    inFlight.set(userId, { room, requestId, attempt, timer });
-    return true;
+        const timer = later(() => {
+            const pending = inFlight.get(userId);
+            if (!pending || pending.requestId !== requestId) return;
+
+            if (attempt + 1 >= steps.length) {
+                inFlight.delete(userId);
+                debug(`Voice: ${game.users.get(userId)?.name ?? userId} never confirmed "${
+                    room ?? "the main room"}"; leaving it to the heartbeat.`);
+                return;
+            }
+            send(userId, room, attempt + 1);
+        }, steps[attempt]);
+
+        inFlight.set(userId, { room, requestId, attempt, timer });
+        return true;
+    }
+
+    /**
+     * A client answering about its own voice. `deferred` is not an answer - the client is still coming up and
+     * will report again once its A/V is ready - so it neither settles nor cancels the retries.
+     *
+     * @returns {"waiting"|"settled"|"retry"|"gaveUp"|"unsettled"|"ignored"} what the answer did
+     */
+    function answer(userId, { room = null, state, requestId = null } = {}) {
+        if (state === "deferred") return "waiting";
+        if (!["applied", "unchanged", "unavailable", "failed"].includes(state)) return "ignored";
+
+        const pending = inFlight.get(userId);
+
+        /*
+         * Which conversation is this answering?
+         *
+         * Confirmations can arrive late - a client that was still loading applies a
+         * parked room seconds after we have already moved on and sent it somewhere
+         * else. Cancelling the in-flight retries on ANY confirmation meant that late
+         * answer silently killed the newer assignment's retries, and settling on the
+         * room it named told this browser the player was somewhere they had just
+         * been moved out of. The next pass corrects it, but the pass in between is a
+         * player sitting in the wrong room with a GM who believes otherwise.
+         *
+         * So: an answer only closes the conversation it belongs to. A request id
+         * that matches, or no id at all (an unsolicited re-report after a deferred
+         * apply, or a client's own reconnect) naming the room we are actually waiting on.
+         */
+        const answersCurrent = Boolean(pending)
+            && (requestId === pending.requestId
+                || (!requestId && room === pending.room));
+
+        if (answersCurrent) {
+            cancel(pending.timer);
+            inFlight.delete(userId);
+        }
+
+        if (state !== "failed") {
+            // A stale confirmation is still true - that client really is in that
+            // room - so it is worth recording, and recording it is what makes the
+            // next pass notice the mismatch and re-send.
+            settled.set(userId, room);
+            return "settled";
+        }
+
+        // "failed" - their reconnect did not take: not where `settled` says, whatever it says.
+        settled.delete(userId);
+        if (!answersCurrent) return "unsettled";
+        const next = pending.attempt + 1;
+        if (next >= steps.length) return "gaveUp";
+        const timer = later(() => {
+            if (inFlight.get(userId)?.timer !== timer) return;
+            send(userId, pending.room, next);
+        }, steps[pending.attempt]);
+        inFlight.set(userId, { room: pending.room, requestId: null, attempt: next, timer });
+        return "retry";
+    }
+
+    return { settled, inFlight, forget, forgetEveryone, assignUser, answer };
 }
 
+const { settled, forget, forgetEveryone, assignUser, answer } = createVoiceLedger();
+
 /**
- * A client answering. `deferred` is not an answer - the client is still coming
- * up and will report again once its A/V is ready - so it neither settles nor
- * cancels the retries.
+ * A client answering. Only the primary GM keeps the record (`createVoiceLedger`).
  */
 function onVoiceSocket(payload, senderId) {
     // A GM saying "I picked a room by hand" or "I have stopped".
@@ -344,51 +475,10 @@ function onVoiceSocket(payload, senderId) {
     if (!user) return;
 
     const room = payload.room ?? null;
-    const state = payload.state;
-
-    // Not an answer: the client is still coming up and will report again once
-    // its A/V is ready. Neither settles nor stops the retries.
-    if (state === "deferred") return;
-
-    const pending = inFlight.get(userId);
-
-    /*
-     * Which conversation is this answering?
-     *
-     * Confirmations can arrive late - a client that was still loading applies a
-     * parked room seconds after we have already moved on and sent it somewhere
-     * else. Cancelling the in-flight retries on ANY confirmation meant that late
-     * answer silently killed the newer assignment's retries, and settling on the
-     * room it named told this browser the player was somewhere they had just
-     * been moved out of. The next pass corrects it, but the pass in between is a
-     * player sitting in the wrong room with a GM who believes otherwise.
-     *
-     * So: an answer only closes the conversation it belongs to. A request id
-     * that matches, or no id at all (an unsolicited re-report after a deferred
-     * apply) naming the room we are actually waiting on.
-     */
-    const answersCurrent = pending
-        && (payload.requestId === pending.requestId
-            || (!payload.requestId && room === pending.room));
-
-    if (answersCurrent) {
-        clearTimeout(pending.timer);
-        inFlight.delete(userId);
+    const did = answer(userId, { room, state: payload.state, requestId: payload.requestId ?? null });
+    if (did !== "waiting" && did !== "ignored") {
+        debug(`Voice: ${user.name} answered "${room ?? "the main room"}" (${payload.state}): ${did}.`);
     }
-
-    if (state === "applied" || state === "unchanged" || state === "unavailable") {
-        // A stale confirmation is still true - that client really is in that
-        // room - so it is worth recording, and recording it is what makes the
-        // next pass notice the mismatch and re-send.
-        settled.set(userId, room);
-        debug(`Voice: ${user.name} confirmed "${room ?? "the main room"}" (${state})${
-            pending && !answersCurrent ? ", but we are waiting on another room" : ""}.`);
-        return;
-    }
-
-    // "failed" - their reconnect did not take. Leave `settled` alone so the next
-    // pass and the heartbeat both try again.
-    debug(`Voice: ${user.name} could not join "${room ?? "the main room"}".`);
 }
 
 /**
@@ -406,8 +496,7 @@ async function onWhoAmI(userId) {
     if (userId === game.user.id) return;
 
     const room = await targetForUser(userId);
-    forget(userId);
-    send(userId, room, 0);
+    assignUser(userId, room, { force: true });
 }
 
 /**
@@ -621,16 +710,6 @@ function accountRow(user, { actors, eclipse = false, trial = false, silenced }) 
             silenced: () => !monokuma && silenced(actor), locate: () => null }) };
     });
     return voiceRowFor(rows, user.id);
-}
-
-/** avclient-livekit's own setting for a browser that sends its audio from the LiveKit web client (the design's reading). */
-function externalAV() {
-    try {
-        return game.settings.settings?.has?.(`${AV_MODULE}.useExternalAV`) === true
-            && game.settings.get(AV_MODULE, "useExternalAV") === true;
-    } catch {
-        return false;
-    }
 }
 
 /** This browser's LiveKit Room, connected - the Room the voice tile (E78 C3) reads speakers from. */
@@ -883,7 +962,7 @@ async function reconcileNow({ force = false } = {}) {
         reportContested(contested, byUser);
 
         let changed = 0;
-        for (const [userId, row] of byUser) {
+        for (const [userId, row] of applyOrder(byUser, game.user.id)) {
             // Isolated per user, on purpose. The primary GM's own assignment
             // runs a full LiveKit disconnect/reconnect - the one call in this
             // loop most likely to reject, whether from a slow server or a
@@ -912,6 +991,21 @@ async function reconcileNow({ force = false } = {}) {
     } catch (err) {
         error("Voice reconcile failed", err);
     }
+}
+
+/**
+ * The order the reconcile applies its rows in: everybody else's first, this GM's own last (E19 C2; audit S11-33
+ * (b)). The GM's own apply is a full LiveKit disconnect and reconnect awaited in the loop, and a connect that hangs
+ * (a microphone prompt, a slow server) held back every player's assignment behind it; the others are only sent
+ * and answered later, so they lose nothing by going first.
+ *
+ * @param {Map<string, object>} byUser
+ * @param {string} ownId
+ * @returns {Array<[string, object]>}
+ */
+export function applyOrder(byUser, ownId) {
+    const rows = [...byUser];
+    return [...rows.filter(([userId]) => userId !== ownId), ...rows.filter(([userId]) => userId === ownId)];
 }
 
 /** The accounts we last complained about, so a standing conflict is said once. */
@@ -1042,13 +1136,18 @@ function sceneRoomWarnings() {
  * Watch a room you have no token in, and it is
  * zero for you specifically, while LiveKit, Foundry and this module all agree you
  * are correctly connected to the right room.
+ *
+ * Named FIRST in both diagnoses since E19 C2 (`voicePlan`, diagnostics.mjs
+ * `voiceDiagnosis`; the plan's risk: "proximity-voice-chat mutes everyone and is
+ * checked first"): until then it came after every room line, and the voice
+ * diagnosis did not reach it at all with LiveKit off. The lines start and end
+ * with text; a caller puts its own blank line after them.
  */
 export function competingModuleWarnings() {
     const lines = [];
 
     const proximity = game.modules.get("proximity-voice-chat");
     if (proximity?.active) {
-        lines.push("");
         lines.push("Proximity Voice Chat is also active.");
         lines.push("   It sets each participant's volume from token distance, on top of the room");
         lines.push("   this module puts them in. Unconfigured, that volume is zero for everyone.");
@@ -1068,12 +1167,14 @@ export function competingModuleWarnings() {
 
     // Anything else that sounds like it moves audio around. Named rather than
     // judged: this cannot know what an unfamiliar module does, only that it is
-    // worth looking at first when the audio is wrong and the rooms are right.
-    const others = game.modules.filter(m => m.active
+    // worth looking at first when the audio is wrong and the rooms are right. Read through `values()`, which
+    // Foundry's Collection and a plain Map both have: the headless harness's `game.modules` is a Map with no
+    // `filter`, and the voice diagnosis that now opens with these lines threw there (E19 C2).
+    const others = [...game.modules.values()].filter(m => m.active
         && !["proximity-voice-chat", AV_MODULE, MODULE_ID].includes(m.id)
         && /voice|webrtc|\bav\b|audio.?chat/i.test(`${m.id} ${m.title ?? ""}`));
     if (others.length) {
-        lines.push("");
+        if (lines.length) lines.push("");
         lines.push(`Other active modules that mention voice: ${others.map(m => m.title ?? m.id).join(", ")}.`);
         lines.push("   Worth ruling out first if the rooms below are right and the audio is not.");
     }
@@ -1139,7 +1240,9 @@ export async function voicePlan({ toChat = false } = {}) {
         return null;
     }
 
-    const lines = [];
+    // What mutes everybody whatever the rooms say, first (E19 C2; `competingModuleWarnings`).
+    const lines = competingModuleWarnings();
+    if (lines.length) lines.push("");
 
     lines.push(`Regional voice setting: ${getSetting(SETTINGS.voiceEnabled) ? "on" : "OFF - nothing is being applied"}`);
     lines.push(`A/V mode: ${game.webrtc?.mode === foundry.av.AVSettings.AV_MODES.DISABLED
@@ -1198,7 +1301,6 @@ export async function voicePlan({ toChat = false } = {}) {
     }
 
     for (const line of sceneRoomWarnings()) lines.push(line);
-    for (const line of competingModuleWarnings()) lines.push(line);
 
     lines.push("");
     lines.push("This is the decision, not the audio. Whether two of these rooms can actually");

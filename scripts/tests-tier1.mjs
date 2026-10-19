@@ -6216,8 +6216,8 @@ const INVARIANTS = [
             .test(bodyOf(season, "function steps(", { until: "\n}\n" })),
             "the season checklist does not ask the rule, or its row does not carry the warning's sentence");
         ok(/game\.user\.isGM \? liveKitSecretWarning\(liveKitConnectionSettings\(\)\) : null/
-            .test(bodyOf(diagnostics, "export function diagnoseVoice(", { until: "\n}\n" })),
-            "the voice diagnosis does not ask the rule, or asks it on a player's browser as well");
+            .test(bodyOf(diagnostics, "export function voiceDiagnosis(", { until: "\n}\n" })),
+            "the voice diagnosis does not ask the rule, or asks it on a player's browser as well (its lines are voiceDiagnosis's since E19 C2)");
         for (const lang of ["en", "pl"]) {
             const text = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
             const flat = foundry.utils.flattenObject(foundry.utils.expandObject(text));
@@ -17289,6 +17289,393 @@ const INVARIANTS = [
             true]),
         "[the A/V form: not held (count, disabled), held], [the two rows: id, kind, module, key, value, fields, user fields, switch], "
             + "[renderAVConfig hooked]");
+    }],
+
+    ["R811 - a dropped voice is not \"in the right room\": after a drop the same room is applied again, not answered unchanged; a browser that joins in LiveKit's own page is not asked for a live Room; a room parked before `ready` is applied at `ready` (S11-09, S11-33)", async () => {
+        /*
+         * E19 C2, 19.10.2026; audit S11-09, S11-33 (c). A drop keeps the room's name (avclient-livekit's
+         * `onDisconnected` clears neither `client.room` nor `breakoutRoom`, as the harness's stand-in reads it), and
+         * voice-client.mjs `landedCorrectly` read only the name: the GM's next assignment, the client's self-check and
+         * its own retry all answered "unchanged" to a browser that heard nobody, so it stayed dead until a reload.
+         * And a room parked before `ready` (the primary GM's own, parked on `canvasReady`) was not applied at `ready`:
+         * the hook may fire before `ready` and returns there, and the GM's own `whoAmI` is never answered, so it
+         * waited for the heartbeat. Read here on the harness's LiveKit (lib/livekit.mjs), through `applyBreakout`,
+         * `applyLocally` and `catchUpVoice` (what the `ready` handler runs): a room parked and brought up; the Room
+         * dropped and the same room asked again (the answer, client.room, the Room, the drop told); the same with
+         * `useExternalAV` on, where Foundry's Room never connects and a connect would open another Join window; a
+         * room parked, the client brought up while `game.ready` is false (the hook returns), then `ready`'s catch-up.
+         * Red at C2's parent: the drop answered "unchanged" with the Room disconnected, and there was no catch-up
+         * (the rows "drop" and "ready"). A drop at a real table is not measured here (LIVE-E19-01).
+         */
+        needs(env.liveKitShim(), "the harness's LiveKit stand-in, to drop a connection on purpose");
+        needs(world.moduleActive("avclient-livekit"), "avclient-livekit enabled, so the module reads LiveKit at all");
+        const VC = await import("./voice-client.mjs");
+        const { refreshVoiceTile } = await import("./voice-tile.mjs");
+        const stub = globalThis.__liveKit, before = VC.desiredRoom(), host = game.webrtc.client, wasReady = game.ready;
+        const A = `${VC.ROOM_PREFIX}r811-a`, B = `${VC.ROOM_PREFIX}r811-b`;
+        const where = () => [host.room ?? null, host._liveKitClient?.liveKitRoom?.state ?? null];
+        const told = () => VC.voiceDrop?.() ?? null;
+        let lk = null;
+        const install = async options => {
+            await stub.install(options);
+            lk = globalThis.__liveKit;
+            return lk;
+        };
+        const uninstall = () => {
+            const done = typeof lk?.uninstall === "function" ? lk.uninstall() : false;
+            lk = null;
+            globalThis.__liveKit = stub;
+            return done;
+        };
+        const seen = [];
+        try {
+            let ctl = await install({});
+            seen.push(["parked", await VC.applyBreakout(A)]);
+            await host.initialize();
+            seen.push(["up", await VC.applyLocally(A), ...where()]);
+            ctl.drop();
+            seen.push(["drop", await VC.applyBreakout(A), ...where()]);
+            await wait(50);
+            seen.push(["told", told()]);
+            uninstall();
+            ctl = await install({ external: true });
+            const parked = await VC.applyBreakout(A);
+            await host.initialize();
+            const up = await VC.applyLocally(A);
+            ctl.drop();
+            seen.push(["external", parked, up, await VC.applyBreakout(A), ...where()]);
+            await wait(50);
+            seen.push(["told", told()]);
+            uninstall();
+            await install({});
+            seen.push(["before ready", await VC.applyBreakout(B)]);
+            game.ready = false;
+            try {
+                await host.initialize();
+            } finally {
+                game.ready = wasReady;
+            }
+            seen.push(["hook", game.ready, ...where()]);
+            const caught = typeof VC.catchUpVoice === "function" ? await VC.catchUpVoice() : "no catch-up";
+            seen.push(["ready", caught, ...where(), told()]);
+        } finally {
+            game.ready = wasReady;
+            if (lk) uninstall();
+            if (before === undefined) VC.forgetDesiredRoom();
+            else {
+                await install();
+                await VC.applyBreakout(before);
+                uninstall();
+            }
+            Hooks.callAll("drpgVoiceApplying", false);
+            refreshVoiceTile();
+        }
+        equal(stableJson(seen), stableJson([
+            ["parked", "deferred"],
+            ["up", "unchanged", A, "connected"],
+            ["drop", "applied", A, "connected"],
+            ["told", null],
+            ["external", "deferred", "unchanged", "unchanged", A, "disconnected"],
+            ["told", null],
+            ["before ready", "deferred"],
+            ["hook", true, null, "disconnected"],
+            ["ready", "applied", B, "connected", null]]),
+        "[parked], [brought up: the answer, client.room, the Room], [dropped, the same room asked again: the answer, client.room, the Room], "
+            + "[the drop told], [useExternalAV on: parked, up, after a drop, client.room, the Room], [the drop told], [parked before ready], "
+            + "[brought up while not ready: ready again, client.room, the Room], [ready's catch-up: the answer, client.room, the Room, the drop told]");
+    }],
+
+    ["R812 - a voice disconnect is a card kept in the notice history, never a toast: a switch of rooms and a leave this browser asked for are none; a drop retries on its own, the card goes once voice is back and its entry stays; a drop the server or another window closed says to reload and is not fought (E19-08, A7)", async () => {
+        /*
+         * E19 C2, 19.10.2026; acceptance E19-08, the owner's A7 (11.10: the cards E19 adds go into the notice
+         * history; toasts stay out of it). Until C2 a drop was silent twice: nothing in the module listened for it,
+         * and voice.mjs `suppressBreakoutToasts` filtered avclient-livekit's own "Disconnected from LiveKit" warning by
+         * its prefix, every reason of it, so the player heard nobody and was told nothing. Read here on the harness's
+         * LiveKit with the history held (nothing reaches the setting): a switch of rooms (a disconnect of the old
+         * Room) and a leave with livekit-client's CLIENT_INITIATED (no card, nothing told); a drop while every
+         * connect is refused (one card: kind, source, title, text; this browser's reconnect at its first step), the
+         * first reconnect refused (the second step, at least RECONNECT_MS[0] = 1000 ms after the drop); the GM's
+         * apply bringing it back (the card goes, its entry stays); a drop that comes back by itself at the first
+         * step (one card; back between 1 and 2 s); a drop with DUPLICATE_IDENTITY (the "reload" card, no reconnect
+         * for 1.2 s); whether `breakoutToastMuted` keeps the disconnect warning and other text off the screen, and
+         * whether avclient-livekit's warning raised through the filtered `ui.notifications.warn` shows a toast (the
+         * harness counts them; a real Foundry reads 0 there); and how many toasts the drops raised. Red at C2's
+         * parent: no card, no reconnect, nothing told (the rows "refused" to "closed"), no `breakoutToastMuted`, and
+         * the disconnect warning shown as a toast (regional voice is off in the harness's world). A drop at a real
+         * table is not measured here (LIVE-E19-01); DisconnectReason's numbers are livekit-client's as
+         * voice-client.mjs reads them, not read off its source here.
+         */
+        needs(env.liveKitShim(), "the harness's LiveKit stand-in, to drop a connection on purpose");
+        needs(world.moduleActive("avclient-livekit"), "avclient-livekit enabled, so the module reads LiveKit at all");
+        const VC = await import("./voice-client.mjs");
+        const V = await import("./voice.mjs");
+        const NH = await import("./notice-history.mjs");
+        const { refreshVoiceTile } = await import("./voice-tile.mjs");
+        const stub = globalThis.__liveKit, before = VC.desiredRoom(), host = game.webrtc.client;
+        const A = `${VC.ROOM_PREFIX}r812-a`, B = `${VC.ROOM_PREFIX}r812-b`;
+        const t = key => game.i18n.localize(key);
+        const told = () => VC.voiceDrop?.() ?? null;
+        const ids = () => new Set(NH.noticeEntries().map(entry => entry.id));
+        const since = had => NH.noticeEntries().filter(entry => !had.has(entry.id));
+        const card = (entry, text) => [entry.kind, entry.source, entry.title === t("DRPG.Voice.drop.title"), entry.text === t(text)];
+        const toasts = () => globalThis.__notifications?.length ?? 0;
+        // voice-client.mjs RECONNECT_MS[0]: the first reconnect after a drop's card.
+        const RECONNECT_FIRST = 1000;
+        const found = ids(), toastsBefore = toasts();
+        let lk = null;
+        const install = async options => {
+            await stub.install(options);
+            lk = globalThis.__liveKit;
+            return lk;
+        };
+        const uninstall = () => {
+            const done = typeof lk?.uninstall === "function" ? lk.uninstall() : false;
+            lk = null;
+            globalThis.__liveKit = stub;
+            return done;
+        };
+        const seen = [];
+        await NH.holdNoticeHistory(true);
+        try {
+            const ctl = await install({});
+            await VC.applyBreakout(A);
+            await host.initialize();
+            seen.push(["up", await VC.applyLocally(A)]);
+            let had = ids();
+            const switched = await VC.applyBreakout(B);
+            await wait(50);
+            seen.push(["switch", switched, since(had).length, told()]);
+            ctl.drop(1);
+            await wait(50);
+            seen.push(["own leave", since(had).length, told(), await VC.applyBreakout(A)]);
+
+            ctl.fail("refuse");
+            had = ids();
+            let at = Date.now();
+            ctl.drop();
+            await until(() => since(had).length > 0, 1000);
+            const refused = since(had);
+            seen.push(["refused", refused.map(entry => card(entry, "DRPG.Voice.drop.retry")), told()]);
+            await until(() => told()?.step === 2, 3000);
+            seen.push(["step 2", Date.now() - at >= RECONNECT_FIRST - 10, told()]);
+            ctl.fail(null);
+            const back = await VC.applyBreakout(A);
+            const id = refused[0]?.id ?? "none";
+            const gone = await until(() => !document.querySelector(`.drpg-popup[data-drpg-notice="${id}"]`), 2000);
+            seen.push(["back", back, told(), gone, NH.noticeEntries().some(entry => entry.id === id)]);
+
+            had = ids();
+            at = Date.now();
+            ctl.drop();
+            await until(() => since(had).length > 0, 1000);
+            await until(() => told() === null && lk.read().state === "connected", 3000);
+            const took = Date.now() - at;
+            seen.push(["blip", since(had).length, took >= RECONNECT_FIRST - 10 && took < 2000, ...[host.room ?? null, lk.read().state]]);
+
+            had = ids();
+            ctl.drop(2);
+            await until(() => since(had).length > 0, 1000);
+            const rooms = lk.rooms;
+            await wait(1200);
+            seen.push(["closed", since(had).map(entry => card(entry, "DRPG.Voice.drop.closed")), told(), lk.rooms - rooms,
+                await VC.applyBreakout(A), told()]);
+        } finally {
+            for (const el of document.querySelectorAll(".drpg-popup")) {
+                if (el.dataset.drpgNotice && !found.has(el.dataset.drpgNotice)) el.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+            }
+            NH.holdNoticeHistory(false);
+            if (lk) uninstall();
+            if (before === undefined) VC.forgetDesiredRoom();
+            else {
+                await install();
+                await VC.applyBreakout(before);
+                uninstall();
+            }
+            Hooks.callAll("drpgVoiceApplying", false);
+            refreshVoiceTile();
+        }
+        const muted = typeof V.breakoutToastMuted === "function"
+            ? [V.breakoutToastMuted(`${t("LIVEKITAVCLIENT.onDisconnected")}: R812 a reason`), V.breakoutToastMuted("R812 a toast of somebody else's")]
+            : "no breakoutToastMuted";
+        const raised = toasts();
+        ui.notifications.warn(`${t("LIVEKITAVCLIENT.onDisconnected")}: R812 a reason`);
+        seen.push(["toasts", muted, ui.notifications.warn.__drpgVoicePatched === true, toasts() - raised, raised - toastsBefore]);
+        const retry = { retry: true, step: 1, waiting: true };
+        equal(stableJson(seen), stableJson([
+            ["up", "unchanged"],
+            ["switch", "applied", 0, null],
+            ["own leave", 0, null, "applied"],
+            ["refused", [["error", "mine", true, true]], retry],
+            ["step 2", true, { ...retry, step: 2 }],
+            ["back", "applied", null, true, true],
+            ["blip", 1, true, A, "connected"],
+            ["closed", [["error", "mine", true, true]], { retry: false, step: 0, waiting: false }, 0, "applied", null],
+            ["toasts", [true, false], true, 0, 0]]),
+        "[up], [a switch of rooms: the answer, cards, told], [a leave this browser asked for: cards, told, the room again], "
+            + "[a drop, connects refused: the card (kind, source, title, text), told], [the first reconnect refused: after the first step, told], "
+            + "[the GM's apply: the answer, told, the card gone, its entry kept], [a drop that comes back: cards, back between 1 and 2 s, "
+            + "client.room, the Room], [closed by another window: the card, told, reconnects in 1.2 s, the room again, told], "
+            + "[the disconnect warning and another toast muted, the toasts filtered, avclient-livekit's warning raised: toasts shown, toasts raised before]");
+    }],
+
+    ["R813 - the GM asks a failed voice again: a failed answer is retried after 2, 6 and 12 seconds, then left to the heartbeat; any failed answer unsettles its client; the GM's own room is applied last; ownership, a user's character, regions and the Monokuma pools re-run the rooms (S11-33)", async () => {
+        /*
+         * E19 C2, 19.10.2026; audit S11-33 (a, b, d). Until C2 the primary GM's ledger closed a conversation on a
+         * "failed" answer: its no-answer retry was cancelled and nothing was sent again, and `settled` kept the room,
+         * so a client whose reconnect failed waited for the heartbeat, a minute, or was skipped by it. The reconcile
+         * applied the GM's own room in the order the actors came, a full LiveKit reconnect awaited in the loop
+         * before every player after it; and only a death or a Monocub re-ran the rooms without a token move. Read
+         * here: voice.mjs `createVoiceLedger` with a socket and timers of the test's own (nothing leaves this
+         * browser), through an assignment failed three times, a fresh one applied, a failed answer nobody asked
+         * for, a stale one, an applied answer during a backoff, and answers that are none (each: what the answer
+         * did, the waits pending in ms, settled); `applyOrder` on a table, and the reconcile's loop asking it; the
+         * trigger `reconcileTrigger` answers for each document change, and the hooks `registerVoice` gives it. Red
+         * at C2's parent: none of the three existed (the ledger was module state with no seam).
+         */
+        const V = await import("./voice.mjs");
+        ok(typeof V.createVoiceLedger === "function" && typeof V.applyOrder === "function" && typeof V.reconcileTrigger === "function",
+            "voice.mjs has no ledger, order or trigger to read, so a failed voice answer is not asked again and the GM's own reconnect holds every player's room");
+        if (typeof V.createVoiceLedger !== "function") return;
+        const sent = [], timers = new Map();
+        let serial = 0;
+        const L = V.createVoiceLedger({
+            emit: (event, packet, options) => sent.push({ event, packet, to: options?.recipients ?? null }),
+            later: (fn, ms) => { timers.set(++serial, { fn, ms }); return serial; },
+            cancel: id => timers.delete(id)
+        });
+        const user = "R813U00000000000", room = `drpg-r813-room`;
+        const pending = () => [...timers.values()].map(timer => timer.ms);
+        const fire = () => {
+            const [[id, timer]] = [...timers];
+            timers.delete(id);
+            timer.fn();
+        };
+        const last = () => sent.at(-1)?.packet.requestId ?? null;
+        const say = (state, requestId = last(), to = room) => [state, L.answer(user, { room: to, state, requestId }), pending(), L.settled.get(user) ?? "none"];
+        const seen = [];
+        seen.push(["assign", L.assignUser(user, room), pending()]);
+        seen.push(say("failed"));
+        fire();
+        seen.push(["sent", sent.length, pending()]);
+        seen.push(say("failed"));
+        fire();
+        seen.push(["sent", sent.length, pending()]);
+        seen.push(say("failed"));
+        seen.push(["after", L.inFlight.has(user), sent.length]);
+        L.assignUser(user, room);
+        seen.push(say("applied"));
+        seen.push(["unasked", ...say("failed", null).slice(1)]);
+        L.assignUser(user, room);
+        const stale = sent.at(-2).packet.requestId;
+        seen.push(["stale", ...say("failed", stale).slice(1)]);
+        seen.push(say("failed"));
+        seen.push(["back by itself", ...say("applied", null).slice(1)]);
+        seen.push(say("deferred"), say("R813 not a state"));
+        seen.push(["packets", sent.every(s => s.to?.length === 1 && s.to[0] === user && s.packet.target === user && s.packet.room === room), sent.length]);
+
+        const gm = "R813G00000000000", p1 = "R813P00000000001", p2 = "R813P00000000002";
+        const byUser = new Map([[gm, { target: "g" }], [p1, { target: "a" }], [p2, { target: "b" }]]);
+        const voice = stripComments((await moduleSources()).get("voice.mjs") ?? "");
+        seen.push(["order", V.applyOrder(byUser, gm).map(([id]) => id), V.applyOrder(byUser, "R813 nobody").map(([id]) => id),
+            /\bapplyOrder\(\s*byUser\s*,\s*game\.user\.id\s*\)/.test(fnSource(voice, "reconcileNow"))]);
+
+        const key = name => ({ key: `${MODULE_ID}.${name}` });
+        const asks = [
+            ["updateActor", {}, { flags: { [MODULE_ID]: { [FLAGS.deceased]: true } } }],
+            ["updateActor", {}, { flags: { [MODULE_ID]: { [FLAGS.monocub]: true } } }],
+            ["updateActor", {}, { ownership: { [p1]: 3 } }],
+            ["updateActor", {}, { name: "R813 a new name" }],
+            ["updateUser", {}, { character: "R813A0000000000" }],
+            ["updateUser", {}, { role: 4 }],
+            ["updateUser", {}, { color: "#ff0000" }],
+            ["createRegion", {}, {}],
+            ["updateRegion", {}, { name: "R813 a room" }],
+            ["deleteRegion", {}, {}],
+            ["updateSetting", key(SETTINGS.monokumaPools), {}],
+            ["createSetting", key(SETTINGS.despairPools), {}],
+            ["updateSetting", key(SETTINGS.voiceEnabled), {}],
+            ["updateToken", {}, { x: 100 }]];
+        seen.push(["triggers", asks.map(([hook, doc, changes]) => V.reconcileTrigger(hook, doc, changes))]);
+        const hooks = bodyOf(voice, "const RECONCILE_HOOKS = [", { until: "];" });
+        const register = fnSource(voice, "registerVoice");
+        seen.push(["hooked", [...hooks.matchAll(/"(\w+)"/g)].map(m => m[1]),
+            /for \(const hook of RECONCILE_HOOKS\)[\s\S]{0,200}?reconcileTrigger\(hook, doc, changes\)/.test(register)]);
+        equal(stableJson(seen), stableJson([
+            ["assign", true, [2000]],
+            ["failed", "retry", [2000], "none"],
+            ["sent", 2, [6000]],
+            ["failed", "retry", [6000], "none"],
+            ["sent", 3, [12000]],
+            ["failed", "gaveUp", [], "none"],
+            ["after", false, 3],
+            ["applied", "settled", [], room],
+            ["unasked", "unsettled", [], "none"],
+            ["stale", "unsettled", [2000], "none"],
+            ["failed", "retry", [2000], "none"],
+            ["back by itself", "settled", [], room],
+            ["deferred", "waiting", [], room],
+            ["R813 not a state", "ignored", [], room],
+            ["packets", true, 5],
+            ["order", [p1, p2, gm], [gm, p1, p2], true],
+            ["triggers", [{ immediate: true }, { immediate: true }, {}, null, {}, {}, null, {}, {}, {}, {}, {}, null, null]],
+            ["hooked", ["updateActor", "updateUser", "createRegion", "updateRegion", "deleteRegion", "createSetting", "updateSetting"], true]]),
+        "[assigned: sent, the waits pending], [an answer: the state, what it did, the waits pending, settled] x3 with the resend between, "
+            + "[after the last: in flight, sent], [applied], [failed, unasked], [failed, stale], [failed], [applied during the backoff], "
+            + "[deferred], [not a state], [every packet to its user alone, sent], [the order: the GM's own last, a GM with no row, reconcileNow asks it], "
+            + "[the trigger for each document change], [the hooks and their wiring]");
+    }],
+
+    ["R814 - the voice diagnosis and the voice plan name Proximity Voice Chat first, before any room, also with LiveKit off (E19-11)", async () => {
+        /*
+         * E19 C2, 19.10.2026; acceptance E19-11, the plan's risk note: proximity-voice-chat sets every voice's
+         * volume from token distance and, unconfigured, mutes everyone while every room here is right. Until C2 the
+         * plan named it after every room line, and the console's voice diagnosis did not reach it at all with
+         * avclient-livekit off. Read here with Proximity Voice Chat active (the world's own module switched on, or a
+         * stand-in row in `game.modules` when it is not installed; put back as found): the first line of
+         * diagnostics.mjs `voiceDiagnosis` (what `diagnoseVoice` reports), with avclient-livekit as found and switched
+         * off, and of voice.mjs `voicePlan`; then the same three with it off. Red at C2's parent: no
+         * `voiceDiagnosis`, and the plan threw on the harness's `game.modules` (the competing-module lines, which it
+         * reached after every room line, read it with `filter`).
+         */
+        needs(env.primaryGm(), "the voice plan answers a GM only");
+        const D = await import("./diagnostics.mjs");
+        const V = await import("./voice.mjs");
+        const ID = "proximity-voice-chat", av = game.modules.get("avclient-livekit"), avWas = av?.active;
+        const had = game.modules.get(ID), wasActive = had?.active;
+        const first = lines => (Array.isArray(lines) ? lines : String(lines ?? "").split("\n")).find(line => line.trim()) ?? null;
+        // A throw is an answer here: the harness's `game.modules` is a Map with no `filter`, and until C2 the plan threw on it.
+        const said = run => {
+            try {
+                return first(run());
+            } catch (err) {
+                return `threw: ${err?.message ?? err}`;
+            }
+        };
+        const diagnosis = () => (typeof D.voiceDiagnosis === "function" ? said(() => D.voiceDiagnosis()) : "no voiceDiagnosis");
+        const read = async () => {
+            const rows = [diagnosis()];
+            if (av) av.active = false;
+            try {
+                rows.push(diagnosis());
+            } finally {
+                if (av) av.active = avWas;
+            }
+            rows.push(await V.voicePlan().then(first, err => `threw: ${err?.message ?? err}`));
+            return rows;
+        };
+        const seen = [];
+        try {
+            if (had) had.active = true;
+            else game.modules.set(ID, { id: ID, title: "Proximity Voice Chat", active: true });
+            seen.push(["on", await read()]);
+        } finally {
+            if (had) had.active = wasActive;
+            else game.modules.delete(ID);
+        }
+        seen.push(["off", (await read()).map(line => /proximity/i.test(line ?? ""))]);
+        const named = "Proximity Voice Chat is also active.";
+        equal(stableJson(seen), stableJson([["on", [named, named, named]], ["off", [false, false, false]]]),
+            "[on: the first line of the diagnosis, the same with avclient-livekit off, the plan], [off: whether those lines name it]");
     }],
 ];
 

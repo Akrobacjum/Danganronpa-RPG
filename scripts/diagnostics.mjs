@@ -1178,14 +1178,30 @@ export async function diagnoseGmStores() {
  * Run it on the client that is complaining, not only on the GM's.
  */
 export function diagnoseVoice() {
-    const lines = [];
+    return report("Voice diagnostics", voiceDiagnosis());
+}
+
+/**
+ * The lines `diagnoseVoice` reports, with nothing sent (E19 C2, so R814 reads them).
+ *
+ * Another module turning the volume down is named FIRST (E19 C2; the plan's risk, "proximity-voice-chat mutes
+ * everyone and is checked first"): until C2 it came last, after every LiveKit line, and not at all when the
+ * diagnosis stopped early at LiveKit off or another A/V client - a table muted by Proximity Voice Chat read every
+ * line of the room before the one that said why.
+ *
+ * @returns {string[]}
+ */
+export function voiceDiagnosis() {
+    // What can silence a table whatever this module decides - see `competingModuleWarnings` in voice.mjs.
+    const lines = competingModuleWarnings();
+    if (lines.length) lines.push("");
     const av = game.modules.get("avclient-livekit");
 
     lines.push(`Regional voice setting: ${game.settings.get(MODULE_ID, SETTINGS.voiceEnabled) ? "on" : "OFF"}`);
     lines.push(`avclient-livekit installed: ${av ? "yes" : "no"}${av ? `, active: ${av.active}` : ""}`);
     if (!av?.active) {
         lines.push("→ Nothing else matters until LiveKit AVClient is enabled.");
-        return report("Voice diagnostics", lines);
+        return lines;
     }
     // A self-hosted server's secret in a world setting (S11-59; voice.mjs
     // `liveKitSecretWarning`). Told to a GM only: on a player's screen the line would
@@ -1203,7 +1219,7 @@ export function diagnoseVoice() {
     lines.push(`A/V client class: ${client?.constructor?.name ?? "none"}`);
     if (!liveKit) {
         lines.push("→ This world is not using the LiveKit client, so no room switching is possible.");
-        return report("Voice diagnostics", lines);
+        return lines;
     }
 
     lines.push(`LiveKit init state: ${liveKit.initState}`);
@@ -1223,13 +1239,7 @@ export function diagnoseVoice() {
         lines.push("   ← and no GM is connected, so nobody is running it at all.");
     }
 
-    // Everything above answers "am I in the right room". None of it answers "can
-    // I hear anyone", and the commonest reason for the second to be no while the
-    // first is yes is another module turning the volume down. See
-    // `competingModuleWarnings` in voice.mjs.
-    for (const line of competingModuleWarnings()) lines.push(line);
-
-    return report("Voice diagnostics", lines);
+    return lines;
 }
 
 /**
