@@ -1715,7 +1715,9 @@ async function settleStashFind(actor, bookmark, after, done) {
  * Searched where the first throw was judged (the GMs' fact `findPlace`, passages-gm.mjs `noteFindFact`; E80 fix r1-G3, the
  * review's E80-C3-2), never where the character stands at the Reroll: a miss rerolled after a walk into another room found a
  * passage there, where no Analyze was paid or thrown. A row with no such fact, written before it was kept, still takes back
- * or keeps its own find, and gives the Reroll back whole rather than search somewhere its roll was not thrown.
+ * or keeps its own find, and gives the Reroll back whole rather than search somewhere its roll was not thrown. And it searches
+ * there only while the GMs still read the character in that room (E80 fix r1-G5, the review's E80-G-2), as `settleStashFind`
+ * does: a character who has left it is refused there, and the Reroll given back whole.
  */
 async function settlePassageFind(actor, bookmark, after, done) {
     const { resolvePassageSearch } = await import("./passages-gm.mjs");

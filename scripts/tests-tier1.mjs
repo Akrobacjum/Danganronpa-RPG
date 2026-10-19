@@ -17203,6 +17203,67 @@ const INVARIANTS = [
             /putBackSecretDoor\(wall, \{ ds: wall\.ds \}, null, \{[^{}]*\bleaving\b[^{}]*\}\)/.test(passSource)]), J([true, true]),
             "[the pass asks without the GM leaving, and hands it to each put-back] - where v14 calls `userConnected` before the leaving GM's `active` flips, the primary after it puts back nothing");
     }],
+    ["R609 - a user's change of role runs the secret doors' pass on whoever is the primary GM then: a GM made a player, or a player made a GM, can make another GM's browser the primary with no GM leaving and no ready; any other change of a user, and the suite's held stores, run none; the watch is registered on a GM's browser", async () => {
+        /*
+         * E80 fix r1-G5 (19.10.2026; the review's E80-G-10, "at the primary's ready, and at a change of primary"). Since
+         * fix r1-G1 the pass over the secret doors (passages-gm.mjs `settleSecretDoors`) runs at the primary's ready and
+         * when a GM leaves (`onDoorsGmLeft`, R605); a role change that makes another GM's browser the primary - the
+         * primary GM made a player - ran none there, so a secret door a player opened while no primary heard it stood open
+         * until the next ready. The watch is driven with the pass and the suite's quiet injected, so nothing of this world
+         * is read or written; its registration is read in the source (comments blanked). The pass asks itself whether
+         * this browser is the primary (R605). Red at the parent (fb6d1f1): no `onDoorsRoleChanged`.
+         */
+        const P = await import("./passages-gm.mjs");
+        const J = stableJson;
+        ok(typeof P.onDoorsRoleChanged === "function", "passages-gm.mjs has no watch on a change of role - a browser made the primary that way runs no pass over the secret doors");
+        if (typeof P.onDoorsRoleChanged !== "function") return;
+        const asked = [];
+        const settle = o => { asked.push(J(o ?? null)); return Promise.resolve([]); };
+        const watch = [];
+        for (const [what, change, quiet] of [["a GM made a player", { role: CONST.USER_ROLES.PLAYER }, false],
+            ["a player made a GM", { role: CONST.USER_ROLES.GAMEMASTER }, false], ["a name changed", { name: "R609 renamed" }, false],
+            ["a GM made a player while the suite holds the stores", { role: CONST.USER_ROLES.PLAYER }, true]]) {
+            const from = asked.length;
+            await P.onDoorsRoleChanged({ id: "R609U" }, change, {}, "R609GM", { settle, quiet: () => quiet });
+            watch.push([what, asked.slice(from)]);
+        }
+        equal(J(watch), J([["a GM made a player", [J(null)]], ["a player made a GM", [J(null)]], ["a name changed", []],
+            ["a GM made a player while the suite holds the stores", []]]),
+            "[what changed of a user, what the pass was asked] - a change of role runs no pass on the primary then, or another change, or the suite's held stores, run one");
+        const gmSource = stripComments(new Map(await otherSources()).get("passages-gm.mjs") ?? "");
+        ok(gmSource.length > 0, "passages-gm.mjs was not read - the watch's registration measured nothing");
+        ok(/Hooks\.on\("updateUser", onDoorsRoleChanged\);/.test(fnSource(gmSource, "registerPassagesGm")),
+            "registerPassagesGm does not hand a change of role to the secret doors' pass");
+    }],
+    ["R610 - a change of an actor's ownership or type tells the passages' copies, any other change of an actor does not: an actor made a student while a passage is public is named in its owners' copies", async () => {
+        /*
+         * E80 fix r1-G5 (19.10.2026; the review's E80-G-4: "touch a student when it is created, and on a type or ownership
+         * change that makes a new student"). Fix r1-G3 stamps a public part at least at the newest Make public (R608) and
+         * retells on a character created (`onActorCreated`); a change of ownership retold already, by an inline handler. A
+         * change of type that makes an actor a student, or no longer one, changes its owners' copies as a creation does,
+         * and told nothing. The handler, `onActorUpdated` now, is driven with the suite's retell; its registration is read
+         * in the source. Red at the parent (fb6d1f1): no `onActorUpdated`.
+         */
+        const P = await import("./passages-gm.mjs");
+        const J = stableJson;
+        ok(typeof P.onActorUpdated === "function", "passages-gm.mjs has no handler of an actor's change that a test can drive");
+        if (typeof P.onActorUpdated !== "function") return;
+        let told = 0;
+        const retell = () => { told += 1; return "told"; };
+        const read = [];
+        for (const [what, change] of [["its ownership", { ownership: { R610U: 3 } }], ["its type", { type: "character" }],
+            ["its name", { name: "R610 renamed" }], ["its Hope", { system: { resources: { hope: { value: 2 } } } }]]) {
+            const from = told;
+            P.onActorUpdated({ id: "R610A", type: "character" }, change, {}, "R610GM", { retell });
+            read.push([what, told - from]);
+        }
+        equal(J(read), J([["its ownership", 1], ["its type", 1], ["its name", 0], ["its Hope", 0]]),
+            "[what changed of an actor, the retells] - a change of type or ownership leaves the copies as they were, or another change retells them");
+        const gmSource = stripComments(new Map(await otherSources()).get("passages-gm.mjs") ?? "");
+        ok(gmSource.length > 0, "passages-gm.mjs was not read - the handler's registration measured nothing");
+        ok(/Hooks\.on\("updateActor", onActorUpdated\);/.test(fnSource(gmSource, "registerPassagesGm")),
+            "registerPassagesGm does not hand an actor's change to onActorUpdated");
+    }],
 ];
 
 /**

@@ -727,6 +727,23 @@ export function onDoorsGmLeft(user, connected, { settle = settleSecretDoors, qui
 }
 
 /**
+ * A user's role changed (`updateUser`, E80 fix r1-G5; the review's E80-G-10, "at a change of primary"): a GM made a
+ * player, or a player made a GM, can make another GM's browser the primary with no GM leaving (`onDoorsGmLeft`) and no
+ * ready, so the browser that is the primary now runs the pass (`settleSecretDoors`, which asks that itself) and lands
+ * what no primary heard. Any other change of a user, and the suite's held stores (`gmStoresQuiet`), run none. A
+ * player made a GM who becomes the primary runs it at that browser's next ready: its `ready` ran as a player's and
+ * registered nothing here. Registered on a GM's browser only (`registerPassagesGm`); `settle` and `quiet` are the
+ * suite's (R609).
+ */
+export function onDoorsRoleChanged(user, change, options, userId, { settle = settleSecretDoors, quiet = gmStoresQuiet } = {}) {
+    if (change?.role === undefined || quiet()) return null;
+    return Promise.resolve(settle()).catch(err => {
+        error("Could not put the secret doors back", err);
+        return null;
+    });
+}
+
+/**
  * A GM: a student learns a passage. `how` "gm" unless given; on this GM's browser the first `how`
  * and its time are kept (fill-only), and each GM's grant is added to `by` under its own key (`by`
  * is that GM's id; the suite names two). Two GMs granting at once each write `how`: the merge
@@ -1031,7 +1048,7 @@ async function liveShareWorld() {
         monokuma: actor => isMonokuma(actor),
         dead: actor => isDeadForGm(actor),
         published: actor => isDeceased(actor),
-        place: actor => gmPlaceOf(actor),
+        place: (actor, { sceneId = null } = {}) => gmPlaceOf(actor, { sceneId }),
         sides: (row, seg) => passageRooms(game.scenes?.get(row.sceneId), seg, row.level ?? null),
         knownRooms: (actor, sceneId) => {
             const known = new Set(discoveryLedger()[sceneId]?.[actor.id] ?? []);
@@ -1298,7 +1315,8 @@ function passagesToFind(actor, place, facts, stores) {
  * (a death nobody has found is `cannotNow`, never named), a Monocub, and - but for a replay's own find, and a replay
  * handed its first throw's place (`at`), which searches there, or with `at` null nowhere - one the GMs do not read standing in a room
  * (`world.place`: no token, a put-back on its way, a standing the rules refuse; never the room of the token's
- * document alone, which the player's own browser writes). A search
+ * document alone, which the player's own browser writes) - and a replay handed `at` whom the GMs no longer read in that
+ * room, on that scene and floor (E80 fix r1-G5). A search
  * beats `ACTIONS.analyze.passageThreshold` or is a critical; it finds the oldest open secret passage here the
  * character does not know (`passagesToFind`) - none for the asker acting as the Mastermind through it
  * (`actsAsMastermind`, the door's reading), who knows them all - and writes the cell `found` with the roll
@@ -1346,7 +1364,17 @@ export async function resolvePassageSearch({ actorId, total = 0, isCritical = fa
         // wrote; E80 fix r1-G3, the review's E80-C3-2), as a Search's replay draws from its roll's room: until then it
         // searched where the character stood at the Reroll, so a miss in an empty room rerolled after a walk found a
         // passage in a room where no Analyze was paid or thrown. A replay handed no such place (null: a row written before
-        // the fact was) searches nowhere, so its Reroll is given back whole.
+        // the fact was) searches nowhere, so its Reroll is given back whole. And it searches there only while the GMs still
+        // read the character in that room, on that scene and floor (E80 fix r1-G5, the review's E80-G-2), as a Find Stash's
+        // replay does (vault.mjs `resolveStashSearch`): until then a miss by a passage, rerolled after a walk away, found
+        // that passage in a room the character had left. A character no longer there is refused, and its Reroll given back.
+        if (undo && at !== undefined) {
+            const held = heldPlace(at);
+            const now = held ? facts.place(actor, { sceneId: held.scene.id }) : null;
+            if (!held || !now?.room || now.scene?.id !== held.scene.id || now.room !== held.room || floorKey(now.level) !== held.level) {
+                return { refused: "the character is not in that room" };
+            }
+        }
         const place = undo && at !== undefined ? heldPlace(at) : facts.place(actor);
         if (!place?.room || !place.scene?.id) return { refused: "the character has no token on a scene" };
         // The trap's word (E80 fix r1-G1): every first throw that stands, hit or miss, in the room the GMs read.
@@ -1933,6 +1961,16 @@ export function onActorCreated(actor, options, userId, { retell = retellSoon } =
     return actor?.type === "character" ? retell() : undefined;
 }
 
+/**
+ * An actor's ownership or type changed: a player who owns a student now, or no more, and an actor made a student or no
+ * longer one (a type change, E80 fix r1-G5; the review's E80-G-4: every public passage names each student, so one made a
+ * student while a passage is public changes its owners' copies), each change a player's copy - so the copies are told.
+ * Any other change of an actor is not the passages' business. `retell` is the suite's (R610).
+ */
+export function onActorUpdated(actor, change, options, userId, { retell = retellSoon } = {}) {
+    return change?.ownership !== undefined || change?.type !== undefined ? retell() : undefined;
+}
+
 /* The primary GM's watch on the walls (the plan's K11): a wall whose segment changed, or that went, may break a passage. */
 function onWallMoved(wall, change) {
     if (!isPrimaryGm() || !foundry.utils.hasProperty(change ?? {}, "c")) return;
@@ -1965,7 +2003,8 @@ async function onRouteSettled({ tokenDoc, room, provisional = false } = {}) {
  * GM changed or who came, went or changed role, and the primary's watches on the walls and the routes (each asks `isPrimaryGm` when it
  * fires, so a GM who becomes the primary later takes them over). Since E80 fix r1-G1 also the secret doors' pass
  * (`settleSecretDoors`): once this browser's record of them is ready, if it is the primary then, and when a GM
- * leaves, on whoever is the primary after it (`onDoorsGmLeft`).
+ * leaves, on whoever is the primary after it (`onDoorsGmLeft`) - since E80 fix r1-G5 also when a user's role changes
+ * (`onDoorsRoleChanged`).
  */
 export function registerPassagesGm() {
     overlayDrawer("passages", layer => drawPassagesLayer(layer));
@@ -1980,7 +2019,7 @@ export function registerPassagesGm() {
             if (key === `${MODULE_ID}.${SETTINGS.gmPassageMap}` || key === `${MODULE_ID}.${SETTINGS.gmPassageAccess}`
                 || key === `${MODULE_ID}.${SETTINGS.mastermind}`) retellSoon();
         });
-        Hooks.on("updateActor", (actor, change) => { if (change?.ownership !== undefined) retellSoon(); });
+        Hooks.on("updateActor", onActorUpdated);
         Hooks.on("createActor", onActorCreated);
         Hooks.on("deleteActor", () => retellSoon());
         Hooks.on("userConnected", onUserConnected);
@@ -1990,6 +2029,7 @@ export function registerPassagesGm() {
         Hooks.on("updateWall", onSecretDoorChanged);
         Hooks.on("deleteWall", onWallDeleted);
         Hooks.on("userConnected", onDoorsGmLeft);
+        Hooks.on("updateUser", onDoorsRoleChanged);
         Hooks.on("drpgRouteSettled", onRouteSettled);
         redrawGmOverlay("passages");
         passageMapStore.whenHydrated().then(() => redrawGmOverlay("passages")).catch(() => {});

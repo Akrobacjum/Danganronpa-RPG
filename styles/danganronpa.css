@@ -4047,11 +4047,15 @@ body.drpg-reduced-motion .application.sheet.actor .character-header-sheet .name-
    where C6's widths summed to 1540 and ran off the window's right edge. Every cell wraps (a Shape or Origin of
    two or three words on two lines) and the buttons wrap onto a second line rather than leaving the column.
    Choices, not readings: the tab at 1366x768 is the owner's to look at (the harness lays nothing out). The Kind
-   word in the inks the state lines use, the theme tokens `--drpg-red` and `--drpg-dim`. */
+   word in the inks the state lines use, the theme tokens `--drpg-red` and `--drpg-dim`.
+   E80 fix r1-G5 (the review's E80-G-5): Origin 100 -> 130 and Who knows 230 -> 200, still 1240. The table drawn
+   in Chromium with this stylesheet (not Foundry's) at 1366x768 and 1920x1080, both themes, EN and PL: 1240 px
+   wide in a 1284 or 1400 px window, no scroll, and the one cell whose text ran past its column was the Polish
+   header 'Pochodzenie' (112-120 px in a 99 px cell); at 130 none does. */
 .drpg-room-setup-table .drpg-col-kind { width: calc(80px * var(--drpg-legacy-scale, 1)); }
 .drpg-room-setup-table .drpg-col-shape { width: calc(110px * var(--drpg-legacy-scale, 1)); }
-.drpg-room-setup-table .drpg-col-origin { width: calc(100px * var(--drpg-legacy-scale, 1)); }
-.drpg-room-setup-table .drpg-col-knows { width: calc(230px * var(--drpg-legacy-scale, 1)); }
+.drpg-room-setup-table .drpg-col-origin { width: calc(130px * var(--drpg-legacy-scale, 1)); }
+.drpg-room-setup-table .drpg-col-knows { width: calc(200px * var(--drpg-legacy-scale, 1)); }
 .drpg-room-setup-table .drpg-col-knows-start { width: calc(140px * var(--drpg-legacy-scale, 1)); }
 .drpg-room-setup-table .drpg-col-state { width: calc(150px * var(--drpg-legacy-scale, 1)); }
 .drpg-room-setup-table .drpg-col-actions { width: calc(210px * var(--drpg-legacy-scale, 1)); }

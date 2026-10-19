@@ -53151,7 +53151,7 @@ const SCENARIOS = [
             `[the Reroll stood, the student's cell, its lines say a find] for the Mastermind's student's Find Passage rerolled from 12 to 17 by the owner the door does not name - the replay judged the GM as the Mastermind and found nothing: ${stableJson(read.lines)}`);
     }],
 
-    ["A10-7 Reroll where it was thrown - a Find Passage's Reroll searches the room its roll was thrown in, wherever the student stands by then: a miss in an empty room rerolled after a walk to a tunnel's end finds nothing, and a miss by the end rerolled after a walk away finds the tunnel there, its cell the roll's", async () => {
+    ["A10-7 Reroll where it was thrown - a Find Passage's Reroll searches the room its roll was thrown in, and only while the GMs still read the student there: a miss in an empty room rerolled after a walk to a tunnel's end, and a miss by the end rerolled after a walk away, are given back whole with nothing found; a miss by the end rerolled there after a walk out and back finds the tunnel, its cell the roll's", async () => {
         /*
          * E80 fix r1-G3 (19.10.2026; the review's E80-C3-2). The replay (reroll.mjs `settlePassageFind`) searched where the
          * character stood at the Reroll (`resolvePassageSearch`, `facts.place`), not where the roll was thrown: a miss in an
@@ -53165,11 +53165,18 @@ const SCENARIOS = [
          * other room (a GM's move stands lawful), then a Reroll made on this GM (`rerollAgain`, 12 into 17). Read: the
          * Reroll stood, the student's cell and its roll, whether its lines say a find. Red at 518c057: the Cafeteria's miss
          * found the Dorm's tunnel, and the Dorm's miss found nothing.
+         * E80 fix r1-G5 (19.10.2026; the review's E80-G-2): the replay searched the roll's room wherever the student stood by
+         * then, so a miss by the end rerolled from the Cafeteria still found the Dorm's tunnel, a room the student had left,
+         * where a Find Stash's Reroll (fix r1-G4) is given back. It now searches there only while the GMs still read the
+         * student in that room (movement.mjs `gmPlaceOf`), else is refused and the Reroll given back; a walk out and back
+         * before the Reroll searches again. Red at fb6d1f1: the first two steps stood ([.., true, null, ..] and
+         * [.., true, "found", true, true]).
          */
         needs(world.atLeast("connectedPlayersWithCharacter"), "a connected player whose roll the Reroll takes back");
         const P = await import("./passages-gm.mjs");
         const R = await import("./rooms.mjs");
         const E = await import("./gm-store.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
         const [thrower] = game.users.filter(u => !u.isGM && u.active);
         must(thrower, "no connected player is here - this would measure nothing");
         const DORM = "SUITE E80 G3 Dorm", CAFE = "SUITE E80 G3 Cafeteria", GYM = "SUITE E80 G3 Gym", mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
@@ -53194,11 +53201,13 @@ const SCENARIOS = [
                 const said = [lineFor(game.i18n.format("DRPG.Listen.unknownRoom", { n: 1 })), lineFor(GYM)];
                 const { meansHeld } = await import("./sheet-audit.mjs");
                 const steps = [];
-                // [what, where the roll is thrown, where Botan is moved before its Reroll]
-                for (const [what, from, to] of [["a miss in the Cafeteria, rerolled in the Dorm", { x: 700, y: 200 }, { x: 200, y: 200 }],
-                    ["a miss in the Dorm, rerolled in the Cafeteria", { x: 200, y: 200 }, { x: 700, y: 200 }]]) {
+                // [what, where the roll is thrown, where Botan is moved before its Reroll, a spot walked through on the way]
+                for (const [what, from, to, via = null] of [["a miss in the Cafeteria, rerolled in the Dorm", { x: 700, y: 200 }, { x: 200, y: 200 }],
+                    ["a miss in the Dorm, rerolled in the Cafeteria", { x: 200, y: 200 }, { x: 700, y: 200 }],
+                    ["a miss in the Dorm, rerolled there after a walk out and back", { x: 200, y: 200 }, { x: 200, y: 200 }, { x: 700, y: 200 }]]) {
                     await token.update(from, PLACE);
                     await settle();
+                    if (botan.system.resources.hope.value < 3) await trustedWrite(botan, { "system.resources.hope.value": 6 }, { reason: "gmRuling" });
                     F = await playerRollBookmark(thrower, botan, "analyze", {});
                     must(F.row()?.by === thrower.id, `the roll is not kept as the thrower's - this would measure nothing: ${stableJson(F.row())}`);
                     const first = await P.resolvePassageSearch({ actorId: botan.id, total: 12, rollId: F.message.id },
@@ -53206,6 +53215,11 @@ const SCENARIOS = [
                     await settle();
                     must(first?.searched === true && first.found === false && F.row()?.facts?.findPassage === true && !cell(),
                         `the first search at 12 was refused, found, or left no fact for its Reroll - this would measure nothing: ${stableJson([first, F.row()])}`);
+                    if (via) {
+                        await token.update(via, PLACE);
+                        await settle();
+                        must(token.x === via.x && token.y === via.y, "this GM's move of the token out of the room did not land - this would measure nothing");
+                    }
                     await token.update(to, PLACE);
                     await settle();
                     must(token.x === to.x && token.y === to.y, "this GM's move of the token did not land - this would measure nothing");
@@ -53229,9 +53243,10 @@ const SCENARIOS = [
             await scene?.delete();
             await settle();
         }
-        equal(stableJson(read.steps), stableJson([["a miss in the Cafeteria, rerolled in the Dorm", true, null, false, false],
-            ["a miss in the Dorm, rerolled in the Cafeteria", true, "found", true, true]]),
-            "[each step, the Reroll stood, Botan's cell, the cell the Reroll's roll's, its lines say a find] - a Find Passage's Reroll searched where Botan stands at the Reroll, not where the roll was thrown (E80-C3-2)");
+        equal(stableJson(read.steps), stableJson([["a miss in the Cafeteria, rerolled in the Dorm", false, null, false, false],
+            ["a miss in the Dorm, rerolled in the Cafeteria", false, null, false, false],
+            ["a miss in the Dorm, rerolled there after a walk out and back", true, "found", true, true]]),
+            "[each step, the Reroll stood, Botan's cell, the cell the Reroll's roll's, its lines say a find] - a Find Passage's Reroll searched where Botan stands at the Reroll, not where the roll was thrown (E80-C3-2), or searched the roll's room after Botan had left it (E80-G-2)");
     }],
 
     ["A10-7 stash where it was thrown - a Find Stash's Reroll searches the room its roll was thrown in, and only while the GMs still read the student there: a miss in an empty room rerolled after a walk into a room with a hidden stash, and a miss by the stash rerolled after a walk away, are given back whole with nothing opened; a miss by the stash rerolled where it was thrown opens it", async () => {
@@ -53342,6 +53357,10 @@ const SCENARIOS = [
          * the room walked into was posted as the crossing was counted, before the token was written, so a write that
          * failed gave the count back and left the card saying the student had crossed. Read: the chat messages made on
          * this browser during each Eclipse step. Red at b238929: the failing write's step made one.
+         * E80 fix r1-G5 (19.10.2026; the review's E80-G-7 = E80-C2-4): the budget banked no Sprint, so the road
+         * actions.mjs `giveMoveBack` takes for one ("sprint" -> `grantFreeMoves`) ran in no test. A banked Sprint now
+         * pays a write that fails and two that stand; read: the Sprints banked after each. Green at fb6d1f1 (the road
+         * gives it back), so a coverage step, not a fix.
          */
         const P = await import("./passages-gm.mjs");
         const M = await import("./movement.mjs");
@@ -53365,11 +53384,11 @@ const SCENARIOS = [
         const held = [SETTINGS.sealedRooms, SETTINGS.restrictions].map(key => [key, foundry.utils.deepClone(game.settings.get(MODULE_ID, key))]);
         const DORM = "SUITE E80 C2 Dorm", GYM = "SUITE E80 C2 Gym", mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
         const room = (name, x) => ({ name, shapes: [{ type: "rectangle", x, y: 0, width: 600, height: 600 }], flags: mark, behaviors: [] });
-        const budget = ({ actions = 2, free = false, burst = 0 } = {}) => student.update({ "system.resources.actions.value": actions,
-            [`flags.${MODULE_ID}.${FLAGS.freeMoveUsed}`]: !free, [`flags.${MODULE_ID}.${FLAGS.freeActionGrants}`]: burst, [`flags.${MODULE_ID}.${FLAGS.freeMoveGrants}`]: 0 });
+        const budget = ({ actions = 2, free = false, burst = 0, sprint = 0 } = {}) => student.update({ "system.resources.actions.value": actions,
+            [`flags.${MODULE_ID}.${FLAGS.freeMoveUsed}`]: !free, [`flags.${MODULE_ID}.${FLAGS.freeActionGrants}`]: burst, [`flags.${MODULE_ID}.${FLAGS.freeMoveGrants}`]: sprint });
         const purse = () => [ACT.actionsLeft(student), ACT.hasFreeMove(student), ACT.freeActionsLeft(student)];
         let scene = null, token = null, read = null, release = null, moved = false, paidWrites = 0;
-        const writes = [], crossed = [], warned = [], lawful = [], purseWrites = [], cards = [];
+        const writes = [], crossed = [], warned = [], lawful = [], purseWrites = [], cards = [], sprints = [];
         let made = 0;
         const onMessage = () => { made += 1; };
         const mode = game.settings.get(MODULE_ID, SETTINGS.moveAudit);
@@ -53402,6 +53421,7 @@ const SCENARIOS = [
                     const out = await P.crossTunnel({ actorId, passageId: id }, { asker, ...o });
                     await settle();
                     if (/Eclipse/.test(what)) cards.push([what, made - said]);
+                    if (/Sprint/.test(what)) sprints.push([what, ACT.freeMovesLeft(student)]);
                     steps.push([what, out?.refused ? G.reasonOf(out.refused) : out?.crossed ? "crossed" : stableJson(out), writes.length - before,
                         `${token.x},${token.y}`, ...purse(), S.eclipseMoveStore.get(student.id)?.used ?? 0]);
                 };
@@ -53495,6 +53515,12 @@ const SCENARIOS = [
                 await step("a Burst, the write failing", failing);
                 await budget({ actions: 2, free: true });
                 await step("the free Move, the write failing", failing);
+                // A banked Sprint (E80 fix r1-G5, the review's E80-G-7 = E80-C2-4): the road giveMoveBack's "sprint" takes.
+                await budget({ actions: 2, sprint: 1 });
+                await step("a Sprint, the write failing", failing);
+                await step("a Sprint");
+                await budget({ actions: 2, sprint: 1 });
+                await step("back, a Sprint");
                 await setClock({ timeOfDay: "morning" });
                 await EC.startEclipse();
                 await settle();
@@ -53507,7 +53533,7 @@ const SCENARIOS = [
                 await step("beyond the Eclipse's crossings");
                 if (EC.isEclipse()) await EC.endEclipse({ advance: false }).catch(() => {});
                 await S.eclipseMoveStore.drop(student.id);
-                return { steps, allowance };
+                return { steps, allowance, sprints };
             });
         } finally {
             Hooks.off("preUpdateToken", onPre);
@@ -53524,7 +53550,7 @@ const SCENARIOS = [
             await setClock(clock);
             await settle();
         }
-        const { steps, allowance } = read;
+        const { steps, allowance, sprints: banked } = read;
         const IN_GYM = "1400,200", IN_DORM = "200,200";
         const ends = allowance % 2 ? IN_DORM : IN_GYM;
         const tail = [];
@@ -53541,9 +53567,13 @@ const SCENARIOS = [
             ["a move while the price is taken", "notAtPassage", 0, "420,300", 2, false, 0, 0],
             ["an action, the write failing", "refused", 0, IN_GYM, 2, false, 0, 0], ["a Burst, the write failing", "refused", 0, IN_GYM, 2, false, 1, 0],
             ["the free Move, the write failing", "refused", 0, IN_GYM, 2, true, 0, 0],
+            ["a Sprint, the write failing", "refused", 0, IN_GYM, 2, false, 0, 0], ["a Sprint", "crossed", 1, IN_DORM, 2, false, 0, 0],
+            ["back, a Sprint", "crossed", 1, IN_GYM, 2, false, 0, 0],
             ["an Eclipse crossing", "crossed", 1, IN_DORM, 2, false, 0, 1], ["an Eclipse crossing, the write failing", "refused", 0, IN_DORM, 2, false, 0, 1],
             ...tail, ["beyond the Eclipse's crossings", "eclipseSpent", 0, ends, 2, false, 0, allowance]]),
         "each step as [what, the answer, token writes, where the token stands, actions, the free Move, Bursts, the Eclipse's count]");
+        equal(stableJson(banked), stableJson([["a Sprint, the write failing", 1], ["a Sprint", 0], ["back, a Sprint", 0]]),
+            "[each Sprint step, the Sprints banked after it] - a Sprint taken for a write that failed was not given back, or a crossing that stood paid none");
         equal(stableJson(purseWrites), stableJson([0, 0, 2]),
             "[the writes of the student's purse for the put-back on its way, the jump the doors refused, the move while the price was taken] - a refusal paid, or the price taken was not given back");
         equal(stableJson(lawful), stableJson([false, false]),
