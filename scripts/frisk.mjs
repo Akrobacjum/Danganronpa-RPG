@@ -21,6 +21,7 @@ import { flagsHeldNow } from "./sheet-audit.mjs";
 import { inClassTrial } from "./trial.mjs";
 import { esc, log, debug, error, whisperToOwner, announce, ownerIdsOf, gmIds, activeGmIds, primaryGmId, isPrimaryGm, dialogContent } from "./utils.mjs";
 import { knowsOfDeath } from "./incident-store.mjs";
+import { sayNotDone } from "./bridge-guards.mjs";
 
 /**
  * The asks this primary GM holds, by ask id (`askToFrisk` writes them): who asks whom, where (`sceneId`, `level`,
@@ -40,6 +41,13 @@ export const friskAsks = new Map();
  */
 const endedAsks = new Set();
 const ENDED_KEPT = 200;
+
+/**
+ * When each GM last left, by user id, as this browser heard it (`friskUserConnected`): a GM's own force reads whether the
+ * GM that held its ask has left since it asked - a reload of that GM forgot the ask (`gmForceShut`; E80 fix r2-G3, the
+ * review's r2fix-1). This browser's memory: only what it heard while it ran.
+ */
+const gmLeftAt = new Map();
 
 /** The states of an ask that open a force (the owner's 1 = a: after a refusal or no answer, never before). */
 const FORCEABLE = Object.freeze(["refused", "noAnswer"]);
@@ -550,7 +558,9 @@ async function noYes(row, state) {
  * On a GM that is no longer the primary (`isPrimaryGm`) it ends nothing and posts nothing: it drops every ask it holds
  * (`dropFriskAsks`), as a reload of this GM would - the searcher's wait runs out and hands the action back, an answer
  * goes to the new primary and is told `missing`, and 'Make them' finds no force open there (E80 fix r1-G1, E80-C3-6): its
- * follow, naming no roll of an ask the new primary never held, ends it `interrupted` (`followFrisk`, fx-2).
+ * follow, naming no roll of an ask the new primary never held, ends it `interrupted` (`followFrisk`, fx-2) - a player's
+ * draw is refused there before its dice, and a GM's own force reads the change of primary before its dice (`gmForceShut`,
+ * E80 fix r2-G3).
  */
 export async function sweepFriskAsks(now = Date.now()) {
     if (!isPrimaryGm()) return dropFriskAsks();
@@ -729,17 +739,21 @@ export async function answerFrisk({ askId, allow = false } = {}, sender = null) 
  * room told either way. The two are read where they stand first; past the dice nothing is handed back, so a gate that
  * shut between the draw and this follow ends it with no card.
  *
- * An ask this primary does not hold: one it ended (`endedAsks`) is `missing`, as is any follow naming a roll; one naming
- * no roll of an ask it neither holds nor ended was dropped by a reload of this GM or by the GM primary before it, while
- * 'Make them?' was open - no dice thrown, so `interrupted`, with no card (nobody here holds its people), and the
+ * An ask this primary does not hold: one it ended (`endedAsks`) is `missing`, as is a player's follow naming a roll; one
+ * naming no roll of an ask it neither holds nor ended was dropped by a reload of this GM or by the GM primary before it,
+ * while 'Make them?' was open - no dice thrown, so `interrupted`, with no card (nobody here holds its people), and the
  * searcher's browser hands the action back (STAGE's rule for a reload or a new primary; E80 fix r2-G1, the review's fx-2).
  * A console that names an ask nobody made is answered the same: its own browser's refund is all that follows, and that is
- * judged on the primary as any other (sheet-audit.mjs).
+ * judged on the primary as any other (sheet-audit.mjs). A GM's own force naming its roll (`sender` a GM: a GM's roll is
+ * thrown on its own browser, never drawn) of such an ask is `interrupted` too: that GM read the gate before its dice
+ * (`gmForceShut`), and the ask went while its roll window was open, so the roll counts for nothing and its browser hands
+ * the action back (E80 fix r2-G3, the review's r2fix-1). A player's never gets here: the bridge holds its roll to an ask
+ * this primary holds (gm-bridge.mjs `friskForceRoll`).
  */
-export async function followFrisk({ searcherId, askId, rollId = null, total = 0, isCritical = false } = {}) {
+export async function followFrisk({ searcherId, askId, rollId = null, total = 0, isCritical = false } = {}, sender = null) {
     const row = friskAsks.get(askId ?? "");
-    if (!row && askId && !rollId && !endedAsks.has(askId)) {
-        log(`A Frisk's follow named an ask this GM neither holds nor ended (dropped by a reload or by the primary before it): interrupted, no dice thrown.`);
+    if (!row && askId && (!rollId || sender?.isGM) && !endedAsks.has(askId)) {
+        log(`A Frisk's follow named an ask this GM neither holds nor ended (dropped by a reload or by the primary before it): interrupted, ${rollId ? "a GM's own roll counted for nothing" : "no dice thrown"}.`);
         return { outcome: "interrupted" };
     }
     if (!row || row.ending) return { refused: "no such Frisk ask" };
@@ -937,9 +951,15 @@ function keptSilent(target) {
  * itself; a GM that is not the primary holds no ask, and reads the same gate off what every GM holds: the GMs'
  * `friskForce`, the one gate (`personActionRefusal`), and a death or an incident of the target's that was not there at
  * the ask (`silentAtAsk`, as the primary's `standing` leaves a target kept silent at the ask as it was).
+ *
+ * E80 fix r2-G3 (the review's r2fix-1): first, where its ask went. The GM that was the primary as it asked (`heldBy`, at
+ * `askedAt`) held it in its memory alone; once another GM is the primary, or that GM has left since (a reload: `gmLeftAt`),
+ * the ask went with it, so no dice are thrown, the follow names no roll and the primary ends it `interrupted`, the action
+ * handed back. An ask that goes while the roll window is open is the primary's to read (`followFrisk`).
  */
-function gmForceShut(searcher, target, silentAtAsk) {
+function gmForceShut(searcher, target, silentAtAsk, heldBy = null, askedAt = 0) {
     if (isPrimaryGm()) return !friskForceOpen(searcher.id);
+    if (!heldBy || primaryGmId() !== heldBy || (gmLeftAt.get(heldBy) ?? -Infinity) >= askedAt) return true;
     if (getSetting(SETTINGS.friskForce) !== true || personActionRefusal(searcher, target)) return true;
     return !silentAtAsk && keptSilent(target);
 }
@@ -960,6 +980,12 @@ function gmForceShut(searcher, target, silentAtAsk) {
  * force's gate before its dice (`gmForceShut`), so a gate shut meanwhile throws nothing, eats no Call and ends the ask
  * `interrupted` (fx-3). A gate that shuts while that GM's own roll window is open is read again as the dice come back
  * (E80 fix r2-G2): the roll counts for nothing, though its dice were thrown and its window's Calls spent.
+ *
+ * E80 fix r2-G3: a GM that is not the primary reads where its ask went before its dice (`gmForceShut`: the GM that held
+ * it is not the primary any more, or has left since), and one whose ask went while its roll window was open is answered
+ * `interrupted` (`followFrisk`) - either way the action is handed back (r2fix-1). A force is reported and told resolved
+ * only once the primary judged it, `forced` or `forceFailed`: a roll the primary did not count is nobody's result. And a GM's
+ * own force the gate stopped or voided is told 'cannot be done now', as a player's draw refused is (r2fix-2).
  */
 async function performFriskOpenly(actor, def, victim, { cost = def?.cost ?? 1, room = null } = {}) {
     const A = await import("./action-rolls.mjs");
@@ -973,6 +999,8 @@ async function performFriskOpenly(actor, def, victim, { cost = def?.cost ?? 1, r
     };
     // What the GMs hold of the target as the ask is made: a GM's own force reads a death or an incident that came after.
     const silentAtAsk = game.user?.isGM ? keptSilent(victim) : false;
+    // Who holds the ask: the primary as it is asked (`gmForceShut`).
+    const heldBy = primaryGmId(), askedAt = Date.now();
     toast(game.i18n.format("DRPG.Frisk.waiting", { who: victim.name }));
     const { requestFriskAsk, requestFriskFollow } = await import("./gm-bridge.mjs");
     const res = await requestFriskAsk({ searcherId: actor.id, targetId: victim.id });
@@ -984,7 +1012,9 @@ async function performFriskOpenly(actor, def, victim, { cost = def?.cost ?? 1, r
 
     const pressed = await askToForce(def, asked.forceMs);
     const gmOwn = Boolean(game.user?.isGM);
-    let roll = pressed && !(gmOwn && gmForceShut(actor, victim, silentAtAsk)) ? await A.rollTrait(actor, def.frisk.trait, {
+    const shut = () => gmOwn && gmForceShut(actor, victim, silentAtAsk, heldBy, askedAt);
+    const stopped = pressed && shut();
+    let roll = pressed && !stopped ? await A.rollTrait(actor, def.frisk.trait, {
         actionKey: "frisk", dc: def.frisk.threshold, title: def.frisk.label,
         context: { room, victimId: victim.id, direction: "frisk", mode: "openly" }
     }) : null;
@@ -995,21 +1025,28 @@ async function performFriskOpenly(actor, def, victim, { cost = def?.cost ?? 1, r
     // draw refused before its dice. What stays: the dice were thrown on this GM's browser (Daggerheart's message,
     // claimed and never shown, and the GMs' Reroll row, which says `friskStands`), and the Calls its window applied,
     // spent as the window closed - a player's force keeps them, since the primary refuses its draw before spending.
-    if (roll && gmOwn && gmForceShut(actor, victim, silentAtAsk)) {
+    const voided = Boolean(roll) && shut();
+    if (voided) {
         log("A GM's own Frisk force came back from its roll window after the gate shut: the roll counts for nothing.");
         roll = null;
     }
     const follow = await requestFriskFollow({ searcherId: actor.id, askId: asked.askId,
         rollId: roll ? A.rollInHand(actor)?.messageId ?? null : null, total: roll?.total ?? 0, isCritical: Boolean(roll?.isCritical) });
-    // No roll thrown, and the primary read the gate shut or the ask dropped ('interrupted'): the action back as it was paid
-    // (E80-C3-8, fx-2, fx-3).
-    if (!roll && follow.ok && FRISK_HANDED_BACK.includes(follow.value)) return handBack();
+    // The primary read the gate shut or the ask dropped ('interrupted'): the action back as it was paid, a roll thrown or
+    // not (E80-C3-8, fx-2, fx-3, r2fix-1).
+    if (follow.ok && FRISK_HANDED_BACK.includes(follow.value)) return handBack();
+    // A GM's own force the gate stopped or voided, its follow carried out ('lets it go', 'gone'): said as a player's
+    // refused draw is (r2fix-2). A follow refused has been said by its request already.
+    if ((stopped || voided) && follow.ok) sayNotDone("action.friskFollow", "cannotNow");
     if (!roll) return base;
+    if (!follow.ok || !["forced", "forceFailed"].includes(follow.value)) {
+        log(`A Frisk force's roll was not judged a force on the primary (${follow.ok ? follow.value : follow.reason}): it counts for nothing.`);
+        return base;
+    }
     const success = Boolean(roll.isCritical) || roll.total >= def.frisk.threshold;
     // As the hand's: the force keeps the key it was thrown as (`frisk`, reroll.mjs `settleForce`).
     await A.noteRollContext(actor, { direction: "frisk", mode: "openly", room, victimId: victim.id, success });
-    const outcome = { ...base, success,
-        text: follow.ok && follow.value ? game.i18n.format("DRPG.Frisk.forceSent", { name: victim.name }) : "" };
+    const outcome = { ...base, success, text: game.i18n.format("DRPG.Frisk.forceSent", { name: victim.name }) };
     await A.report(actor, def, roll, outcome);
     Hooks.callAll("drpgActionResolved", { actor, actionKey: "palm", roll, outcome });
     return outcome;
@@ -1039,7 +1076,8 @@ export async function friskRouteSettled({ tokenDoc, provisional = false } = {}) 
 /**
  * Every browser: the `frisk.ask` and `frisk.cancel` listener; the primary: the watch on routes; a GM holding asks: when a
  * user connects or leaves and this GM is no longer the primary, it drops them at once (`dropFriskAsks`), not at the next
- * clock's sweep. Called once (gm-bridge.mjs).
+ * clock's sweep; every GM's browser: a GM that leaves is noted (`friskUserConnected`, E80 fix r2-G3). Called once
+ * (gm-bridge.mjs).
  */
 export function registerFrisk() {
     game.socket.on(SOCKET_EVENT, (payload, senderId) => {
@@ -1049,7 +1087,17 @@ export function registerFrisk() {
     Hooks.on("drpgRouteSettled", data => {
         friskRouteSettled(data).catch(err => error("Could not read a Frisk's ask after a move", err));
     });
-    Hooks.on("userConnected", () => {
-        if (game.user?.isGM && friskAsks.size && !isPrimaryGm()) dropFriskAsks().catch(err => error("Could not drop a Frisk's asks", err));
+    Hooks.on("userConnected", (user, connected) => {
+        friskUserConnected(user, connected).catch(err => error("Could not drop a Frisk's asks", err));
     });
+}
+
+/**
+ * A user connected or left, on this browser (`registerFrisk`'s `userConnected`): a GM that left is noted (`gmLeftAt`), and
+ * a GM holding asks that is no longer the primary drops them (`dropFriskAsks`). Answers the ask ids it dropped.
+ */
+export async function friskUserConnected(user, connected) {
+    if (user?.isGM && connected === false) gmLeftAt.set(user.id, Date.now());
+    if (game.user?.isGM && friskAsks.size && !isPrimaryGm()) return dropFriskAsks();
+    return [];
 }

@@ -742,10 +742,10 @@ async function handleFriskAnswer(payload, sender) {
 }
 
 /* A force or a 'Leave it' (frisk.mjs `followFrisk`), its roll's result read off the GMs' record (`friskForceRoll`). */
-async function handleFriskFollow(payload) {
+async function handleFriskFollow(payload, sender) {
     const { followFrisk } = await import("./frisk.mjs");
     const out = await followFrisk({ searcherId: payload.searcherId, askId: payload.askId, rollId: payload.rollId,
-        total: payload.total, isCritical: payload.isCritical });
+        total: payload.total, isCritical: payload.isCritical }, sender);
     if (out?.refused) return { refused: out.refused };
     return { reply: out?.outcome ?? null };
 }
@@ -1900,7 +1900,7 @@ export const BRIDGE_ACTIONS = table({
         // 'Leave it' names no roll and asks for none (`when`); a force's is the GMs' record, held to the ask (`friskForceRoll`).
         rolled: { field: "rollId", actor: "searcherId", kind: "frisk", when: "rollId", derive: friskForceRoll },
         claims: {
-            askId: "judged by followFrisk (frisk.mjs): the searcher's own ask, refused or unanswered, inside its force's window; with no roll named, one this primary neither holds nor ended (dropped by a reload or by the primary before it) ends interrupted, and only the searcher's own browser hands its action back",
+            askId: "judged by followFrisk (frisk.mjs): the searcher's own ask, refused or unanswered, inside its force's window; with no roll named, or a GM's own roll (never drawn, so never a record here), one this primary neither holds nor ended (dropped by a reload or by the primary before it) ends interrupted, and only the searcher's own browser hands its action back",
             rollId: "the force's roll the result is read from (bridge-guards.mjs rollRefusal): one the GM drew for the searcher's frisk, after the ask and before its window closed (friskForceRoll)"
         }
     },
@@ -3626,7 +3626,7 @@ export function requestFriskAnswer({ askId, allow = false }) {
 export function requestFriskFollow({ searcherId, askId, rollId = null, total = 0, isCritical = false }) {
     return ask(ACTION_FRISK_FOLLOW, { searcherId, askId, rollId, total, isCritical }, {
         onPrimary: true,
-        local: () => import("./frisk.mjs").then(m => m.followFrisk({ searcherId, askId, rollId, total, isCritical })).then(out => {
+        local: () => import("./frisk.mjs").then(m => m.followFrisk({ searcherId, askId, rollId, total, isCritical }, game.user)).then(out => {
             if (out?.refused) sayNotDone(ACTION_FRISK_FOLLOW, reasonOf(out.refused));
             return out?.refused ? null : out?.outcome ?? null;
         })

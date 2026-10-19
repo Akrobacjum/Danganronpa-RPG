@@ -12631,6 +12631,289 @@ const SCENARIOS = [
         equal(stableJson(seen), stableJson(expected), `[each phase: the answers and follows, the actions left of ${top}, each card (what it says, to whom, whether it says the action is back), the rolls thrown, the searcher's late answers, the browser's 'Your action is back.' lines, what was told resolved; and the Calls armed after the shut gate's force]`);
     }],
 
+    ["an open Frisk's force on a GM that is not the primary reads where its ask went, and a GM's own force the gate stops says so (E80 fix r2-G3, the fix-diff review's r2fix-1, r2fix-2 and r2fix-3): a GM whose ask a new primary never held, or one the primary dropped as it reloaded, throws no dice and has its action back; one whose ask the primary dropped while its roll window was open counts its roll for nothing - no report, nothing told resolved, the action back; a primary GM's own force stopped by the setting or past its window is told 'cannot be done now' as a player's draw is; and a follow naming no roll of an ask nobody made ends interrupted with nothing posted", async () => {
+        /*
+         * E80 fix r2-G3, 19.10.2026; the fix-diff review's r2fix-1 (fx-2's rest), r2fix-2 and r2fix-3, STAGE.md's rule "a
+         * reload or a new primary ends it with no dice thrown, the action refunded". The harms: a GM that is not the primary
+         * read its own force's gate off the setting, the one gate and the target's death alone (frisk.mjs `gmForceShut`), so
+         * once the primary had dropped the ask (another GM arrived and sorted first, or the primary reloaded) its 'Make them'
+         * threw the dice, ate an armed Call, posted the force's report, told `drpgActionResolved` and left the action spent,
+         * the primary refusing the follow as 'no such Frisk ask'; and a primary GM's own force stopped by the gate before or
+         * after its dice ended 'lets it go' with no line to that GM, where a player's draw is refused 'cannot be done now'.
+         * A player's character and another (whose connected player answers) alone in a room; the searcher's browser is this
+         * GM's, its own open Frisk (`performFrisk`). A second GM is a user set in the users' list (`A`, sorting first, so the
+         * primary while it is there), as fix r1-G1's and r2-G1's tests set one; while it is, the requests this GM sends it
+         * (`action.friskAsk`, `action.friskFollow`, read off the socket) are judged on this browser as the primary judges
+         * them, with `A` out of the list for the judgement (this browser then plays `A`: one memory, `friskAsks`), and the
+         * answers are handed to this browser's socket listeners as `A`'s. The phases: tookOver - this GM primary at the
+         * ask, refused; while 'Make them?' is open `A` arrives and this GM drops its asks as it does once it is no longer the
+         * primary (`sweepFriskAsks`); 'Make them'. reloaded - `A` primary from the start, the ask `A`'s, refused; while
+         * 'Make them?' is open `A` forgets its asks and leaves and comes back, as a reload does (`friskUserConnected`, this
+         * browser's `userConnected`); 'Make them'. inWindow - the same, but `A` forgets its asks as the roll window closes,
+         * before the dice, with no leave heard (the reload this GM has not heard of yet). settingOff - this GM primary, a
+         * GM turns `friskForce` off while 'Make them?' is open; 'Make them'. pastWindow - this GM primary, 'Make them' with
+         * the gate open, its roll window confirmed past the force's last moment (`forceUntil` moved back as the window
+         * closes). console - a player's follow naming no roll and an ask id nobody made (r2fix-3's measurement of the
+         * write-roads row). Read: the requests sent to `A` and its answers, the actions left of `top`, the cards (what they
+         * say, to whom), the rolls thrown, other messages (the force's report), the browser's 'Your action is back.' and
+         * not-done lines, what was told resolved. Red at the parent (12a0775): tookOver, reloaded and inWindow throw the dice,
+         * report the force, tell it resolved and leave the action spent with A's refusal said; settingOff and pastWindow say
+         * nothing to the GM.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the ask is answered by a connected player, as Foundry names only those");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const F = await import("./frisk.mjs");
+        const D = await import("./roll-draw.mjs");
+        const S = await import("./secret.mjs");
+        const { grantItem } = await import("./inventory.mjs");
+        const { ownerIdsOf } = await import("./utils.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { actionsLeft } = await import("./actions.mjs");
+        const { rerollBookmarkStore } = await import("./gm-stores.mjs");
+        const { player, theirs, other } = playerAndCharacters();
+        must(other, "the world has no character this player does not play");
+        const answerer = ownerIdsOf(other).find(id => game.users.get(id)?.active) ?? null;
+        must(answerer, `${other.name} has no connected player - this would measure nothing`);
+        const role = id => (id === player.id ? "searcher" : id === answerer ? "target" : game.users.get(id)?.isGM ? "gm" : `other ${id}`);
+        const HIGH = { hope: 12, fear: 11 };
+        const NAME = "Suite E80 r2g3 a folded map";
+        const EVENT = `module.${MODULE_ID}`;
+        const ACT = "system.resources.actions.value", GRANTS = `flags.${MODULE_ID}.${FLAGS.freeActionGrants}`, HOPE = "system.resources.hope.value";
+        const putBack = sheetAsFound(theirs, [ACT, GRANTS, HOPE]);
+        const top = Math.max(1, actionsLeft(theirs));
+        const budget = async () => trustedWrite(theirs, { [ACT]: top, [GRANTS]: 0 }, { reason: "gmRuling" });
+        const force = game.settings.settings.has(`${MODULE_ID}.friskForce`) ? game.settings.get(MODULE_ID, "friskForce") : null;
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), faces = globalThis.__forceRoll;
+        const { gameSettings } = CONFIG.DH.SETTINGS;
+        const fear = game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear);
+        const bookmark = rerollBookmarkStore.has(theirs.id) ? foundry.utils.deepClone(rerollBookmarkStore.get(theirs.id)) : null;
+        const seenMessages = new Set(game.messages.map(m => m.id));
+        const esc = value => foundry.utils.escapeHTML(String(value ?? ""));
+        const line = (key, data = {}) => game.i18n.format(key, Object.fromEntries(Object.entries(data).map(([k, v]) => [k, esc(v)])));
+        const BACK = "DRPG.Frisk.actionBack";
+        const back = game.i18n.has(BACK) ? game.i18n.localize(BACK) : null;
+        // The not-done lines this GM may read, by the reason the follow names (bridge-guards.mjs `sayNotDone`).
+        const notDone = Object.fromEntries(["cannotNow", "missing"].map(code => [game.i18n.format("DRPG.Bridge.notDone",
+            { what: G.requestLabel("action.friskFollow"), why: game.i18n.localize(`DRPG.Bridge.why.${code}`) }), code]));
+        const KINDS = [["refused", "DRPG.Frisk.refused", { who: other.name }], ["interrupted", "DRPG.Frisk.interrupted", {}],
+            ["toTarget letGo", "DRPG.Frisk.letGo", { who: theirs.name }]];
+        const kindOf = words => KINDS.find(([, key, data]) => words.includes(line(key, data)))?.[0] ?? `other: ${words.slice(0, 80)}`;
+        // The second GM, primary while it is in the users' list (its id sorts first).
+        const A = { id: "!E80R3primaryGM", name: "E80 r2g3 primary GM", role: CONST.USER_ROLES.GAMEMASTER, isGM: true, active: true };
+        const arrive = () => game.users.set(A.id, A);
+        const depart = () => game.users.delete(A.id);
+        let inPlay = false, playing = 0;
+        const queue = [], bridged = [], answers = [];
+        const flush = () => {
+            for (const reply of queue.splice(0)) {
+                if (reply?.action === "bridge.done") answers.push(reply.value?.outcome ?? reply.value ?? null);
+                if (reply?.action === "bridge.refused") answers.push(`refused: ${reply.reason}`);
+                for (const listener of [...game.socket.listeners(EVENT)]) listener(reply, A.id);
+            }
+        };
+        // This browser as `A`, the primary, for one judgement: `A` out of the list while it runs.
+        const asA = async work => {
+            playing += 1;
+            depart();
+            try {
+                return await work();
+            } finally {
+                playing -= 1;
+                if (inPlay && !playing) arrive();
+                if (!playing) flush();
+            }
+        };
+        const packets = [], made = [], said = [], warned = [], told = [];
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        socket.emit = function (event, packet, options, ...rest) {
+            const to = options?.recipients ?? [];
+            if (inPlay && event === EVENT && ["action.friskAsk", "action.friskFollow"].includes(packet?.action) && packet.requestId && to.includes(A.id)) {
+                bridged.push(`${packet.action}${packet.rollId ? " rolled" : ""}`);
+                asA(() => G.judge(BRIDGE_ACTIONS, packet, game.user.id, { send: (who, reply) => queue.push(reply) }))
+                    .catch(err => bridged.push(`judge failed: ${err?.message ?? err}`));
+                return socket;
+            }
+            if (inPlay && event === EVENT && String(packet?.action ?? "").startsWith("bridge.") && packet.userId === game.user.id) {
+                queue.push(packet);
+                if (!playing) setTimeout(flush, 0);
+                return socket;
+            }
+            if (packet?.action === "secret.card") packets.push({ ...packet, to });
+            return send.call(this, event, packet, options, ...rest);
+        };
+        const hook = Hooks.on("createChatMessage", message => made.push(message));
+        const resolved = Hooks.on("drpgActionResolved", data => {
+            if (data?.actor?.id === theirs.id) told.push([data.actionKey, data.outcome?.direction ?? null, data.outcome?.mode ?? null]);
+        });
+        const info = ui.notifications.info, warn = ui.notifications.warn;
+        ui.notifications.info = function (message, ...rest) {
+            said.push(String(message));
+            return info.call(this, message, ...rest);
+        };
+        ui.notifications.warn = function (message, ...rest) {
+            warned.push(String(message));
+            return warn.call(this, message, ...rest);
+        };
+        let marks = { packets: 0, made: 0, said: 0, warned: 0, told: 0, bridged: 0, answers: 0 };
+        const read = () => {
+            const fresh = packets.slice(marks.packets);
+            const messages = made.slice(marks.made);
+            const cards = messages.map(message => [message, S.secretHtml(message)]).filter(([, words]) => words !== null);
+            const out = {
+                bridged: bridged.slice(marks.bridged), answers: answers.slice(marks.answers),
+                cards: cards.map(([message, words]) => [kindOf(words),
+                    [...new Set(fresh.filter(p => p.id === message.id).flatMap(p => p.to.map(role)))].filter(who => who !== "gm").sort()]),
+                rolls: messages.filter(message => message.rolls?.length).length,
+                others: messages.filter(message => !message.rolls?.length && S.secretHtml(message) === null).length,
+                backs: said.slice(marks.said).filter(text => back !== null && text === back).length,
+                notDone: warned.slice(marks.warned).map(text => notDone[text] ?? `other: ${text.slice(0, 60)}`),
+                told: told.slice(marks.told)
+            };
+            marks = { packets: packets.length, made: made.length, said: said.length, warned: warned.length, told: told.length,
+                bridged: bridged.length, answers: answers.length };
+            return out;
+        };
+        const judged = async (action, fields, from) => {
+            const out = [];
+            await G.judge(BRIDGE_ACTIONS, { action, requestId: `E80R3${foundry.utils.randomID(8)}`, ...fields }, from,
+                { send: (to, reply) => { if (reply?.action !== "bridge.ack") out.push(reply?.action === "bridge.refused" ? reply.reason : reply?.value?.outcome ?? reply?.value ?? null); } });
+            await settle();
+            return out;
+        };
+        const rowOf = searcherId => [...(F.friskAsks?.values?.() ?? [])].find(row => row.searcherId === searcherId) ?? null;
+        // Shadows the next duality roll's `evaluate` so `then` runs as its window closes, before its dice (as fix r2-G2's test).
+        let inWindow = null, landed = 0;
+        const asWindowCloses = then => {
+            inWindow = Hooks.on("daggerheart.postDualityRollConfiguration", roll => {
+                const evaluate = roll?.evaluate;
+                if (typeof evaluate !== "function") return;
+                Object.defineProperty(roll, "evaluate", { configurable: true, writable: true, value: async function (...args) {
+                    delete this.evaluate;
+                    await then();
+                    landed += 1;
+                    return evaluate.apply(this, args);
+                } });
+            });
+        };
+        // This GM's own open Frisk of the target, paid one action; `A` the primary from the start where `aFirst`; the target's
+        // player refuses (judged by the primary); 'Make them?' answered by `pressed`.
+        const gmFrisk = async ({ aFirst = false, pressed }) => {
+            F.forgetFriskAsks?.();
+            await budget();
+            landed = 0;
+            if (aFirst) {
+                inPlay = true;
+                arrive();
+            }
+            read();
+            globalThis.__dialogAnswers.push(pressed);
+            const run = F.performFrisk(theirs, ACTIONS.palm, other, "openly", { cost: 1 });
+            const asking = await until(() => rowOf(theirs.id)?.state === "asking");
+            const refusal = async () => judged("action.friskAnswer", { askId: rowOf(theirs.id)?.askId ?? null, allow: false }, answerer);
+            const answered = aFirst ? await asA(refusal) : await refusal();
+            const out = await run;
+            await settle();
+            inPlay = false;
+            depart();
+            flush();
+            if (inWindow !== null) Hooks.off("daggerheart.postDualityRollConfiguration", inWindow);
+            inWindow = null;
+            globalThis.__dialogAnswers.length = 0;
+            return { asking, answered, asked: out?.asked ?? null, left: actionsLeft(theirs), landed, ...read() };
+        };
+        const seen = {};
+        const stood = await aloneTogether(theirs, other);
+        await (await import("./remnants.mjs")).flushTraceDigest();
+        await settle();
+        read();
+        try {
+            if (force !== null) await game.settings.set(MODULE_ID, "friskForce", true);
+            await grantItem(other, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
+            globalThis.__forceRoll = HIGH;
+            // r2fix-1, the review's first case: this GM primary at the ask; `A` arrives while 'Make them?' is open.
+            seen.tookOver = await gmFrisk({ pressed: async () => {
+                inPlay = true;
+                arrive();
+                await F.sweepFriskAsks();
+                await F.friskUserConnected?.(A, true);
+                return "force";
+            } });
+            // r2fix-1, the review's second case: `A` primary and holding the ask reloads while 'Make them?' is open.
+            seen.reloaded = await gmFrisk({ aFirst: true, pressed: async () => {
+                await asA(async () => F.forgetFriskAsks?.());
+                A.active = false;
+                await F.friskUserConnected?.(A, false);
+                A.active = true;
+                await F.friskUserConnected?.(A, true);
+                return "force";
+            } });
+            // r2fix-1, the race: `A` drops the ask as this GM's roll window closes, before the dice, with no leave heard.
+            asWindowCloses(async () => F.forgetFriskAsks?.());
+            seen.inWindow = await gmFrisk({ aFirst: true, pressed: "force" });
+            // r2fix-2 (a): this GM primary; a GM turns the force off while 'Make them?' is open.
+            seen.settingOff = await gmFrisk({ pressed: async () => {
+                await game.settings.set(MODULE_ID, "friskForce", false);
+                await settle();
+                return "force";
+            } });
+            if (force !== null) await game.settings.set(MODULE_ID, "friskForce", true);
+            // r2fix-2 (b): this GM primary; its roll window confirmed past the force's last moment.
+            asWindowCloses(async () => {
+                const row = rowOf(theirs.id);
+                if (row) row.forceUntil = Date.now() - F.FRISK_GRACE_MS - F.FRISK_ROLL_MS - 1;
+            });
+            seen.pastWindow = await gmFrisk({ pressed: "force" });
+            // r2fix-3: a player's follow naming no roll and an ask nobody made.
+            F.forgetFriskAsks?.();
+            read();
+            seen.console = { follow: await judged("action.friskFollow", { searcherId: theirs.id, askId: foundry.utils.randomID(16) }, player.id), ...read() };
+        } finally {
+            inPlay = false;
+            depart();
+            Hooks.off("createChatMessage", hook);
+            Hooks.off("drpgActionResolved", resolved);
+            if (inWindow !== null) Hooks.off("daggerheart.postDualityRollConfiguration", inWindow);
+            ui.notifications.info = info;
+            ui.notifications.warn = warn;
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            globalThis.__dialogAnswers.length = 0;
+            F.forgetFriskAsks?.();
+            if (hadForce) globalThis.__forceRoll = faces; else delete globalThis.__forceRoll;
+            if (force !== null && game.settings.get(MODULE_ID, "friskForce") !== force) await game.settings.set(MODULE_ID, "friskForce", force);
+            for (const a of [other, theirs]) for (const i of a.items.filter(i => i.name === NAME)) await i.delete();
+            for (const m of game.messages.filter(m => !seenMessages.has(m.id))) await m.delete();
+            if (bookmark) await rerollBookmarkStore.patch(theirs.id, bookmark);
+            else if (rerollBookmarkStore.has(theirs.id)) await rerollBookmarkStore.drop(theirs.id);
+            if (game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear) !== fear) await game.settings.set(CONFIG.DH.id, gameSettings.Resources.Fear, fear);
+            await putBack();
+            D.forgetPayments?.(theirs.id);
+            await stood.back();
+        }
+        const refusal = ["refused", ["searcher"]];
+        const letGo = ["toTarget letGo", ["target"]];
+        const nothing = { others: 0, told: [] };
+        const expected = {
+            // No dice: the GM that held the ask is not the primary any more; `A` never held it, so the follow naming no roll
+            // ends it interrupted and the action comes back here.
+            tookOver: { asking: true, answered: ["refused"], asked: null, left: top, landed: 0, bridged: ["action.friskFollow"], answers: ["interrupted"],
+                cards: [refusal], rolls: 0, ...nothing, backs: 1, notDone: [] },
+            reloaded: { asking: true, answered: ["refused"], asked: null, left: top, landed: 0, bridged: ["action.friskAsk", "action.friskFollow"],
+                answers: ["refused", "interrupted"], cards: [refusal], rolls: 0, ...nothing, backs: 1, notDone: [] },
+            // The dice were thrown (the ask went after the gate was read); `A` answers the GM's rolled follow interrupted.
+            inWindow: { asking: true, answered: ["refused"], asked: null, left: top, landed: 1, bridged: ["action.friskAsk", "action.friskFollow rolled"],
+                answers: ["refused", "interrupted"], cards: [refusal], rolls: 1, ...nothing, backs: 1, notDone: [] },
+            // As a player's draw refused: 'cannot be done now', then 'lets it go'; the action stays spent.
+            settingOff: { asking: true, answered: ["refused"], asked: "refused", left: top - 1, landed: 0, bridged: [], answers: [],
+                cards: [refusal, letGo], rolls: 0, ...nothing, backs: 0, notDone: ["cannotNow"] },
+            pastWindow: { asking: true, answered: ["refused"], asked: "refused", left: top - 1, landed: 1, bridged: [], answers: [],
+                cards: [refusal, letGo], rolls: 1, ...nothing, backs: 0, notDone: ["cannotNow"] },
+            console: { follow: ["interrupted"], bridged: [], answers: [], cards: [], rolls: 0, ...nothing, backs: 0, notDone: [] }
+        };
+        equal(stableJson(seen), stableJson(expected), `[each phase: the answers, the actions left of ${top}, the dice's window closing, the requests sent to the primary GM A and its answers, each card (what it says, to whom), the rolls thrown, other messages, the browser's 'Your action is back.' and not-done lines, what was told resolved]`);
+    }],
+
     ["an open Frisk's ends close its ticket to a force (E80 fix r1-G4, the review's goal-P2-06): an allow, 'Leave it', the clock and the target walking off each leave the ask's payment closed, so a force or a Search drawn on it later is refused, where a refused ask still open lets its force ride it; and a payment refunded before its ask leaves nothing to claim", async () => {
         /*
          * E80 fix r1-G4, 19.10.2026; the review's goal-P2-06, the A11 design's step 10. The harm: an ask's payment left
