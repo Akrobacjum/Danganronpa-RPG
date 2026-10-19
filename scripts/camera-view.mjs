@@ -103,9 +103,15 @@ export function measureCameraDock() {
         let lift = 0;
 
         if (dock && dock.isConnected) {
-            const box = dock.getBoundingClientRect();
+            const box = dock.getBoundingClientRect(), style = getComputedStyle(dock);
+            /*
+             * A HIDDEN DOCK LIFTS NOTHING, whatever its box reads (E19 C7, the owner's 14.10: the lift only with the
+             * dock shown). The voice tile hides it by a body class that computes `display: none` here, and a hidden
+             * dock's box reads 0 x 0 in a browser - but the box is layout and the display is the rule, so the rule is
+             * asked first (R830 lays a box out by hand and reads the lift 0 with the class on).
+             */
             const visible = box.height > 0 && box.width > 0
-                && getComputedStyle(dock).visibility !== "hidden";
+                && style.display !== "none" && style.visibility !== "hidden";
             /*
              * UNDER THE BUTTONS, not merely touching the same edge.
              *

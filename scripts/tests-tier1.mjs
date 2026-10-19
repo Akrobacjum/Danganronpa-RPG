@@ -3013,12 +3013,14 @@ const INVARIANTS = [
             FW.FOUNDRY_WINDOWS.forEach((r, i) => FW.setFoundryWindow(r.key, open0[i]));
         }
         const body = document.body;
-        const CLASSES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"], classWas = CLASSES.map(name => body.classList.contains(name));
+        /* `drpg-dock-hidden` off for the readings (E19 C7), as in R474: with it on the lift computes 0px (R830). */
+        const CLASSES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy", "drpg-dock-hidden"], classWas = CLASSES.map(name => body.classList.contains(name));
         const INLINE = ["--drpg-av-lift", "--drpg-launch-clear"], inlineWas = INLINE.map(name => body.style.getPropertyValue(name));
         const putBack = () => INLINE.forEach((name, i) => inlineWas[i] ? body.style.setProperty(name, inlineWas[i]) : body.style.removeProperty(name));
         const round = value => Number.isFinite(value) ? value.toFixed(2) : String(value);
         const seen = {}, want = {};
         try {
+            body.classList.remove(CLASSES[2]);
             for (const glass of [true, false]) {
                 body.classList.toggle(CLASSES[0], glass);
                 body.classList.toggle(CLASSES[1], !glass);
@@ -10461,7 +10463,7 @@ const INVARIANTS = [
         "[the window takes a road that shows, plays, sends or writes markup; draws a snapshot through the history's road; calls openMessenger once; "
             + "the keybinding noticeHistory, with no default key, opens it; game.drpg.openNotices opens it]");
     }],
-    ["R299 - the notice history window fits the screen it opens on: within the screen less 8 px a side, its foot in view with a full history, and no text under 11 px; and the tile's button is square, its focus ring round it, both within the Stained Glass tile, and the bottom card's text clear of it; under Monokuma Legacy on a desk the button stands alone under the clock, below the windows, and on a stacked screen only with a card; the corner's three buttons on their grid as drawn in both themes, the unread badge on the screen and clear of the book; and the GM's roster opened from its button 8 px over the upper row with the button's right edge, its top on the screen with the camera dock up, and over the notice cards on a stacked screen; and there the notice stack, in both themes, 8 px over the corner's buttons or beside them on a short screen, at narrow.mjs's insets, under the blocks' stack, and what does not fit parked", async () => {
+    ["R299 - the notice history window fits the screen it opens on: within the screen less 8 px a side, its foot in view with a full history, and no text under 11 px; and the tile's button is square, its focus ring round it, both within the Stained Glass tile, and the bottom card's text clear of it; under Monokuma Legacy on a desk the button stands alone under the clock, below the windows, and on a stacked screen only with a card; the corner's three buttons on their grid as drawn in both themes, the unread badge on the screen and clear of the book; and the GM's roster opened from its button 8 px over the upper row with the button's right edge, its top on the screen with the camera dock up, and over the notice cards on a stacked screen; and there the notice stack, in both themes, 8 px over the corner's buttons or beside them on a short screen, at narrow.mjs's insets, under the blocks' stack, and what does not fit parked; and with a camera dock at the bottom, in both themes, the corner's buttons clear of it while it is shown and standing where they stand with no dock while the voice tile hides it, the lift 0px then whatever is written", async () => {
         /*
          * E81 C7, 12.10.2026: clause (e) of the A7 design's A7-8; the corner button's clauses (a-d) come with C8-C13.
          * A window as long as its history would carry its foot - Clear, and what is kept where - off the bottom of the
@@ -10524,6 +10526,15 @@ const INVARIANTS = [
          * a table it is LIVE-E81-02. The same harms are measured in Chromium on the module's own sheets and popup.mjs
          * by the glass harness's `drpgNoticeCheck`, which audit/glass-sweep.mjs runs at every size in both themes -
          * red on the stylesheets before this fix, green on them after (the commit's numbers).
+         * (f), E19 C7, 19.10.2026 (the owner's 14.10: R299 with the dock hidden and shown, `--drpg-av-lift` only with it
+         * shown): a dock of the test's own, first in the document, fixed at the bottom across the screen, 200 px or half
+         * the screen, in both themes (the classes turned as in (a) and back). With the voice tile's class off,
+         * `measureCameraDock` writes its height and every corner button and the GM's upper row stand over its top; with
+         * the class on the dock computes `display: none`, the lift reads 0px - and still 0px with 300 px written inline -
+         * and the buttons stand where they stand with the lift written 0px and no dock. (c)'s lifted reading takes the
+         * class off for itself, since with it on the dock's lift computes 0px (R830, headless). The dock, the class and
+         * the inline lift are put back; nothing is measured again. NEVER RUN in a browser either: the same readings on
+         * the module's sheets in Chromium are glass-sweep.mjs's dock check, on the glass harness (the commit's numbers).
          */
         needs(env.layout(), "where a window stands and how large its text is drawn need a browser");
         const NH = await import("./notice-history.mjs");
@@ -10617,7 +10628,8 @@ const INVARIANTS = [
             const filler = document.createElement("ul");
             filler.innerHTML = "<li>R299 roster</li>".repeat(120);
             panel.append(filler);
-            const roster = {}, liftWas = document.body.style.getPropertyValue("--drpg-av-lift");
+            const roster = {}, liftWas = document.body.style.getPropertyValue("--drpg-av-lift"), dockHiddenWas = document.body.classList.contains("drpg-dock-hidden");
+            document.body.classList.remove("drpg-dock-hidden");
             try {
                 for (const [label, lift] of [["as it is", null], ["lifted", `${Math.min(300, Math.floor(innerHeight / 2))}px`]]) {
                     if (lift) document.body.style.setProperty("--drpg-av-lift", lift);
@@ -10633,6 +10645,7 @@ const INVARIANTS = [
                 }
                 roster.overCards = !document.body.classList.contains("drpg-stacked") || Number(getComputedStyle(panel).zIndex) > 99990;
             } finally {
+                document.body.classList.toggle("drpg-dock-hidden", dockHiddenWas);
                 filler.remove();
                 launchers[0].click();
                 await until(() => !document.getElementById("drpg-messenger-roster"), 2000);
@@ -10834,6 +10847,55 @@ const INVARIANTS = [
                 + "corner's highest button, or on the bottom line on a short screen; beside the buttons there, 24 px past the widest; its sides at narrow.mjs's insets; "
                 + "its top 8 px under the blocks' stack at least; the cards shown fitting in it; none of them a sliver; a card of 400 words inside it, scrolling]");
         }
+        /* (f) The camera dock shown and hidden (E19 C7), in both themes. */
+        {
+            const VT = await import("./voice-tile.mjs"), CV = await import("./camera-view.mjs");
+            const body = document.body, height = Math.min(200, Math.floor(innerHeight / 2));
+            const dockHiddenWas = body.classList.contains(VT.DOCK_HIDDEN_CLASS), liftWas = body.style.getPropertyValue("--drpg-av-lift");
+            const themeWas = CORNER_THEMES.map(name => body.classList.contains(name));
+            const row = ["drpg-messenger-launcher", "drpg-sound-launcher", "drpg-book-launcher", "drpg-gm-launcher", "drpg-foundry-tools"]
+                .map(id => document.getElementById(id)).filter(el => el && el.offsetWidth > 0);
+            const boxes = () => row.map(el => el.getBoundingClientRect());
+            const lift = () => getComputedStyle(body).getPropertyValue("--drpg-av-lift").trim();
+            const dock = document.createElement("section");
+            dock.id = "camera-views";
+            dock.style.cssText = `position: fixed !important; left: 0 !important; right: 0 !important; bottom: 0 !important; top: auto !important; width: auto !important; height: ${height}px !important; visibility: visible !important`;
+            const docked = {}, dockedWant = {};
+            try {
+                for (const toGlass of [true, false]) {
+                    body.classList.toggle(CORNER_THEMES[0], toGlass);
+                    body.classList.toggle(CORNER_THEMES[1], !toGlass);
+                    Hooks.callAll("drpgThemeApplied");
+                    const label = toGlass ? "Stained Glass" : "Monokuma Legacy";
+                    body.classList.remove(VT.DOCK_HIDDEN_CLASS);
+                    body.style.setProperty("--drpg-av-lift", "0px");
+                    const bare = boxes();
+                    body.prepend(dock);
+                    CV.measureCameraDock();
+                    const top = dock.getBoundingClientRect().top, shownLift = lift(), shown = boxes();
+                    body.classList.add(VT.DOCK_HIDDEN_CLASS);
+                    CV.measureCameraDock();
+                    const hiddenLift = lift(), hidden = boxes(), display = getComputedStyle(dock).display;
+                    body.style.setProperty("--drpg-av-lift", "300px");
+                    const written = lift();
+                    dock.remove();
+                    const same = (a, b) => a.every((box, i) => Math.abs(box.top - b[i].top) <= 0.5 && Math.abs(box.left - b[i].left) <= 0.5);
+                    docked[label] = { shown: shownLift, clear: shown.every(box => box.bottom <= top + 0.5), hidden: hiddenLift, display, written, unlifted: same(hidden, bare) };
+                    dockedWant[label] = { shown: `${height}px`, clear: true, hidden: "0px", display: "none", written: "0px", unlifted: true };
+                }
+            } finally {
+                dock.remove();
+                CORNER_THEMES.forEach((name, i) => body.classList.toggle(name, themeWas[i]));
+                body.classList.toggle(VT.DOCK_HIDDEN_CLASS, dockHiddenWas);
+                if (liftWas) body.style.setProperty("--drpg-av-lift", liftWas);
+                else body.style.removeProperty("--drpg-av-lift");
+                Hooks.callAll("drpgThemeApplied");
+            }
+            equal(stableJson(docked), stableJson(dockedWant),
+                `the corner with a ${innerWidth}x${height} camera dock at the bottom at ${innerWidth}x${innerHeight}, ${row.length} buttons [per theme: the lift with the dock shown; `
+                + "every button over its top; the lift with the voice tile's class on; the dock's display then; the lift with 300 px written then; the buttons where they stand "
+                + "with no dock]");
+        }
         /* (b) Under Monokuma Legacy on a desk the button stands alone under the clock (E81 C10). Not on a stacked screen,
            whose width this test cannot change: there the button hidden on the empty tile is the reading, above. */
         if (stacked) return;
@@ -10911,7 +10973,9 @@ const INVARIANTS = [
         const ids = ["drpg-messenger-launcher", "drpg-sound-launcher", "drpg-book-launcher"];
         must(ids.every(id => document.getElementById(id)), "a corner button is not on the page - there is nothing to read");
         const body = document.body;
-        const CLASSES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy", "drpg-stacked"], classWas = CLASSES.map(name => body.classList.contains(name));
+        /* `drpg-dock-hidden` off for the readings (E19 C7): with it on the lift computes 0px whatever is written (R830), and
+           the lifted reading would lift nothing. */
+        const CLASSES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy", "drpg-stacked", "drpg-dock-hidden"], classWas = CLASSES.map(name => body.classList.contains(name));
         const INLINE = ["--drpg-av-lift", "--drpg-launch-clear"], inlineWas = INLINE.map(name => body.style.getPropertyValue(name));
         const putBack = () => INLINE.forEach((name, i) => inlineWas[i] ? body.style.setProperty(name, inlineWas[i]) : body.style.removeProperty(name));
         let roster = document.getElementById("drpg-messenger-roster");
@@ -10926,6 +10990,7 @@ const INVARIANTS = [
         const seen = {}, want = {};
         let overCards = null;
         try {
+            body.classList.remove(CLASSES[3]);
             for (const glass of [true, false]) {
                 body.classList.toggle(CLASSES[0], glass);
                 body.classList.toggle(CLASSES[1], !glass);
@@ -10989,7 +11054,8 @@ const INVARIANTS = [
         const ids = ["drpg-messenger-launcher", "drpg-sound-launcher", "drpg-book-launcher"];
         must(host && ids.every(id => document.getElementById(id)), "the notice tile or a corner button is not on the page - there is nothing to read");
         const body = document.body;
-        const CLASSES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy", "drpg-stacked", "drpg-short"], classWas = CLASSES.map(name => body.classList.contains(name));
+        /* `drpg-dock-hidden` off for the readings (E19 C7), as in R474: with it on the 100 px lift computes 0px (R830). */
+        const CLASSES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy", "drpg-stacked", "drpg-short", "drpg-dock-hidden"], classWas = CLASSES.map(name => body.classList.contains(name));
         const BODY = ["--drpg-av-lift", "--drpg-launch-clear"], bodyWas = BODY.map(name => body.style.getPropertyValue(name));
         const HOST = ["--drpg-notices-left", "--drpg-notices-right", "top"], hostWas = HOST.map(name => [host.style.getPropertyValue(name), host.style.getPropertyPriority(name)]);
         const putBack = () => {
@@ -11012,6 +11078,7 @@ const INVARIANTS = [
         const round = value => Number.isFinite(value) ? value.toFixed(2) : String(value);
         const seen = {}, want = {};
         try {
+            body.classList.remove(CLASSES[4]);
             host.prepend(card);
             host.style.setProperty("top", "123px");
             for (const glass of [true, false]) {
@@ -13305,6 +13372,52 @@ const INVARIANTS = [
             + "it again], dockHiddenFor over (available, on), the voiceTile and voicePeerMutes registrations, refreshVoiceTile deciding with the setting, "
             + "[voiceAvailable and the dock hidden: DISABLED, AUDIO, VIDEO, AUDIO_VIDEO with avclient-livekit, AUDIO without], its facts read and asked, "
             + "[enforced.mjs rtcDockOn deciding with dockHiddenFor(voiceAvailable(), the row's switch), the rtcDock row's switch]");
+    }],
+    ["R830 - the camera dock lifts the corner only while it is shown: with `drpg-dock-hidden` on the body `--drpg-av-lift` computes 0px whatever is written inline, and `measureCameraDock` writes 0px for a dock the class hides however its box reads; with the class off the dock's height under the corner is written and an inline lift stands", async () => {
+        /*
+         * E19 C7, 19.10.2026: the owner's 14.10 rewrite of E19 ("`--drpg-av-lift` only with the dock shown"). Since E78 the
+         * voice tile hides the dock by a body class (voice-tile.mjs `applyDockHidden`), and the corner, the roster, the
+         * notice tile and the stack stood clear of a hidden dock only because `applyDockHidden` measured again right
+         * after the class and a `display: none` box reads 0 x 0 in a browser. Nothing tied the lift to the class: a lift
+         * left inline - `measureCameraDock`'s catch keeps "whatever offset they had" - floated every one of them over a
+         * dock nobody sees. Headless there is no layout, so the dock's box is laid out by hand here (its own
+         * `getBoundingClientRect`, the bottom of the screen, the screen's width, 200 px or half the screen) - the same
+         * box with the class off is the control that the measure reads it. The dock is put first in the document, as
+         * `measureCameraDock` takes the first; the class, the inline lift and the measured value are put back.
+         */
+        const V = await import("./voice-tile.mjs").catch(() => null);
+        const C = await import("./camera-view.mjs").catch(() => null);
+        ok(V && C, "voice-tile.mjs or camera-view.mjs did not load - nothing hides the dock or lifts the corner");
+        if (!V || !C) return;
+        const body = document.body, had = body.classList.contains(V.DOCK_HIDDEN_CLASS), liftWas = body.style.getPropertyValue("--drpg-av-lift");
+        const height = Math.min(200, Math.round(innerHeight / 2));
+        const dock = document.createElement("section");
+        dock.id = "camera-views";
+        dock.getBoundingClientRect = () => ({ left: 0, right: innerWidth, top: innerHeight - height, bottom: innerHeight, width: innerWidth, height, x: 0, y: innerHeight - height });
+        const lift = () => [body.style.getPropertyValue("--drpg-av-lift").trim(), getComputedStyle(body).getPropertyValue("--drpg-av-lift").trim()];
+        const seen = {};
+        body.prepend(dock);
+        try {
+            for (const [label, hidden] of [["shown", false], ["hidden", true], ["shown again", false]]) {
+                body.classList.toggle(V.DOCK_HIDDEN_CLASS, hidden);
+                C.measureCameraDock();
+                seen[label] = lift();
+            }
+            for (const [label, hidden] of [["300 px inline, shown", false], ["300 px inline, hidden", true]]) {
+                body.classList.toggle(V.DOCK_HIDDEN_CLASS, hidden);
+                body.style.setProperty("--drpg-av-lift", "300px");
+                seen[label] = lift()[1];
+            }
+        } finally {
+            dock.remove();
+            body.classList.toggle(V.DOCK_HIDDEN_CLASS, had);
+            if (liftWas) body.style.setProperty("--drpg-av-lift", liftWas);
+            else body.style.removeProperty("--drpg-av-lift");
+        }
+        equal(stableJson(seen), stableJson({ shown: [`${height}px`, `${height}px`], hidden: ["0px", "0px"], "shown again": [`${height}px`, `${height}px`],
+            "300 px inline, shown": "300px", "300 px inline, hidden": "0px" }),
+            `the lift with a ${innerWidth}x${height} dock at the bottom [written inline and computed on the body: shown, hidden by the class, shown again; `
+            + "300 px written inline, computed with the dock shown and hidden]");
     }],
     ["R554 - the passages' records: a row holds the map's fields with its shape and a stretch on its wall, two GMs' cells are merged cell by cell, a browser keeps a cell's first `how` and each GM's grant is added to `by`, the log keeps its newest 200, and the reset's passages group cuts who knows them and never the map, and gives each passage's start access back with every knower's copy stamped again", async () => {
         /*

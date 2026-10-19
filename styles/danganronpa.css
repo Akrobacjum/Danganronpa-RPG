@@ -6491,6 +6491,16 @@ body.drpg-dock-hidden .application[id^="camera-view-"] {
     display: none !important;
 }
 
+/* A HIDDEN DOCK LIFTS NOTHING (E19 C7, 19.10.2026; the owner's 14.10: `--drpg-av-lift` only with the dock
+   shown). camera-view.mjs writes the lift inline on `body` and keeps the last one when a measurement
+   throws, so with the class on a lift left there floated the corner, the roster, the notice tile and the
+   stack over a dock nobody sees; an important rule beats a plain inline value. R830 reads 300 px written
+   inline computing 0px with the class on and 300px with it off (jsdom); R299 (f) the same as drawn, in a
+   browser, and glass-sweep.mjs's dock check with a dock laid out on the glass harness (Chromium). */
+body.drpg-dock-hidden {
+    --drpg-av-lift: 0px !important;
+}
+
 /* ---- the voice tile ----------------------------------------------------- */
 
 /* THE VOICE TILE (E78 C3, 13.10.2026): the portrait and the name of whoever this player hears

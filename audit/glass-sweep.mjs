@@ -163,11 +163,23 @@
  * (`<theme>-player-<size>-objection-<state>.png`). The line prints `objection ok <button> chevron <chevron>`.
  * `--no-objection` leaves it out.
  *
+ * THE CAMERA DOCK SHOWN AND HIDDEN (E19 C7, 19.10.2026; the owner's 14.10: R299 and the screenshots with the dock
+ * hidden, the voice tile on, and shown, the voice tile off, `--drpg-av-lift` only with it shown). Every size, both
+ * roles, runs `dockCheck` below: the buttons of the corner (and the GM's upper row) and the notice tile read with the
+ * lift written 0px and no dock; then a dock laid on the page as Foundry's `#camera-views`, fixed at the bottom across
+ * the screen, min(200 px, half the screen) tall, measured by camera-view.mjs `measureCameraDock` itself. A size fails
+ * where, with the dock shown, the lift is not the dock's height or a button's or the tile's box reaches past the dock's
+ * top; and where, with the voice tile's class on (`drpg-dock-hidden`), the dock does not compute `display: none`, the
+ * lift is not 0px, 300 px written inline is not read 0px, or a box is not where it stood with no dock. Its control, once
+ * a run: the dock shown with the lift held at 0px, as a measure that forgot it would leave it, must read not ok. With
+ * `--shots` both states are kept (`<theme>-<role>-<size>-dock-shown.png`, `-dock-hidden.png`). The line prints
+ * `dock <lift shown>/<lift hidden>`. `--no-dock` leaves it out.
+ *
  * usage: node audit/glass-sweep.mjs [--root <tree>] [--base <url>] [--page <path?query>]
  *          [--themes stained,legacy] [--sizes 1920x1080,...] [--known <size>:<ov|nc|bf|eg>=<n>,...]
  *          [--sel <launcher selector>] [--wait <ms after the glass, 2500>] [--shots <dir>] [--corner]
  *          [--chromium <executable>] [--no-control] [--no-notices] [--roles gm,player] [--no-room]
- *          [--no-windows] [--no-voice] [--no-objection] [--idle <s>, 5]
+ *          [--no-windows] [--no-voice] [--no-objection] [--no-dock] [--idle <s>, 5]
  * `--corner` loads at twice the pixel density and `--shots` then keeps the bottom-right
  * 200x230 only; without it a shot is the full screen.
  */
@@ -187,7 +199,7 @@ const sel = opt("--sel");
 const waitMs = Number(opt("--wait") ?? 2500);
 const shots = opt("--shots"), corner = args.includes("--corner"), control = !args.includes("--no-control"), notices = !args.includes("--no-notices");
 const roles = (opt("--roles") ?? "gm,player").split(",").filter(Boolean), rooms = !args.includes("--no-room");
-const windows = !args.includes("--no-windows"), voices = !args.includes("--no-voice"), objections = !args.includes("--no-objection");
+const windows = !args.includes("--no-windows"), voices = !args.includes("--no-voice"), objections = !args.includes("--no-objection"), docks = !args.includes("--no-dock");
 const idleS = Number(opt("--idle") ?? 5);
 const known = Object.fromEntries((opt("--known") ?? "").split(",").filter(Boolean).map(k => {
     const [size, kv] = k.split(":"); const [key, v] = kv.split("=");
@@ -557,6 +569,76 @@ async function plantRow() {
     return { tall: { ok: r.ok, why: r.why, pass: !r.ok && /the row is 60 px/.test(r.why) } };
 }
 
+/* Runs in the page: the corner with a camera dock shown and hidden (E19 C7; THE CAMERA DOCK SHOWN AND HIDDEN, above).
+   `plant` holds the lift at 0px with the dock shown (the control); `keep` leaves the page in "shown" or "hidden" for a
+   screenshot, `restore` puts it back. camera-view.mjs is imported with the stand-ins drpgVoiceList lends voice-tile.mjs
+   (its imports reach Foundry's globals), each lent only where missing and taken back after. */
+async function dockCheck({ plant = false, keep = null, restore = false } = {}) {
+    const body = document.body, HIDDEN = "drpg-dock-hidden";
+    const st = window.__dockState ??= { liftWas: body.style.getPropertyValue("--drpg-av-lift"), hiddenWas: body.classList.contains(HIDDEN) };
+    const putBack = () => {
+        document.getElementById("camera-views")?.remove();
+        body.classList.toggle(HIDDEN, st.hiddenWas);
+        if (st.liftWas) body.style.setProperty("--drpg-av-lift", st.liftWas); else body.style.removeProperty("--drpg-av-lift");
+        delete window.__dockState;
+    };
+    if (restore) { putBack(); return { ok: true }; }
+    const added = [], lend = (owner, key, value) => { if (owner[key] === undefined) { owner[key] = value; added.push([owner, key]); } };
+    const any = () => new Proxy(function () {}, { get: (t, k) => (k === "then" ? undefined : k === Symbol.toPrimitive ? () => "" : any()), construct: () => ({}), apply: () => undefined });
+    const Base = class {};
+    lend(globalThis, "foundry", {});
+    const F = globalThis.foundry;
+    lend(F, "applications", { api: { DialogV2: Base, ApplicationV2: Base, HandlebarsApplicationMixin: c => c, DocumentSheetV2: Base }, ux: any(), handlebars: any(), sheets: any(), apps: any(), elements: any(), instances: new Map() });
+    for (const k of ["appv1", "documents", "canvas", "helpers", "dice", "data"]) lend(F, k, any());
+    for (const k of ["CONST", "Actor", "Item", "ChatMessage", "Roll", "Scene", "User", "JournalEntry", "Macro", "Playlist", "Folder", "TextEditor", "Dialog",
+      "Application", "FormApplication", "FilePicker", "canvas", "socket", "Handlebars", "loadTemplates", "renderTemplate", "fromUuid", "fromUuidSync",
+      "AudioHelper", "Token", "TokenDocument", "Combat"]) lend(globalThis, k, any());
+    let CV = null, loadError = null;
+    try { CV = await import("/scripts/camera-view.mjs"); } catch (err) { loadError = String(err); }
+    for (const [owner, key] of added.reverse()) delete owner[key];
+    if (!CV) { putBack(); return { ok: false, why: `camera-view.mjs did not load here: ${loadError}` }; }
+    const ids = ["drpg-messenger-launcher", "drpg-sound-launcher", "drpg-book-launcher", "drpg-gm-launcher", "drpg-foundry-tools", "drpg-popups"];
+    const parts = ids.map(id => document.getElementById(id)).filter(el => el && el.offsetWidth > 0 && el.offsetHeight > 0);
+    const boxes = () => parts.map(el => { const b = el.getBoundingClientRect(); return { id: el.id, top: b.top, bottom: b.bottom, left: b.left }; });
+    const lift = () => getComputedStyle(body).getPropertyValue("--drpg-av-lift").trim();
+    const frame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const height = Math.min(200, Math.floor(innerHeight / 2)), why = [];
+    body.classList.remove(HIDDEN);
+    body.style.setProperty("--drpg-av-lift", "0px");
+    await frame();
+    const bare = boxes();
+    const dock = document.createElement("section");
+    dock.id = "camera-views";
+    dock.style.cssText = `position: fixed; left: 0; right: 0; bottom: 0; height: ${height}px; background: rgba(40, 160, 220, 0.55); z-index: 1`;
+    body.prepend(dock);
+    if (plant) body.style.setProperty("--drpg-av-lift", "0px"); else CV.measureCameraDock();
+    await frame();
+    const top = dock.getBoundingClientRect().top, shown = { lift: lift(), boxes: boxes() };
+    /* On a Stained Glass desk the notice tile stands where glass.mjs cut its pane, which reads no dock: its crossing is
+       printed (`notes`), not judged (the gap E19 C7 names). */
+    const curtained = body.classList.contains("drpg-theme-stained-glass") && !body.classList.contains("drpg-stacked");
+    const notes = curtained ? shown.boxes.find(b => b.id === "drpg-popups") : null;
+    const crossing = shown.boxes.filter(b => b !== notes && b.bottom > top + 0.5).map(b => `${b.id} ${Math.round(b.bottom)}`);
+    if (shown.lift !== `${height}px`) why.push(`shown: the lift ${shown.lift}, not the dock's ${height}px`);
+    if (crossing.length) why.push(`shown: past the dock's top at ${Math.round(top)}: ${crossing.join(", ")}`);
+    if (keep === "shown") return { ok: !why.length, why: why.join("; ") };
+    body.classList.add(HIDDEN);
+    CV.measureCameraDock();
+    await frame();
+    const hidden = { lift: lift(), display: getComputedStyle(dock).display, boxes: boxes() };
+    const moved = hidden.boxes.filter((b, i) => Math.abs(b.top - bare[i].top) > 0.5 || Math.abs(b.left - bare[i].left) > 0.5).map(b => b.id);
+    if (hidden.display !== "none") why.push(`hidden: the dock computes display ${hidden.display}`);
+    if (hidden.lift !== "0px") why.push(`hidden: the lift ${hidden.lift}`);
+    if (moved.length) why.push(`hidden: not where they stand with no dock: ${moved.join(", ")}`);
+    body.style.setProperty("--drpg-av-lift", "300px");
+    const written = lift();
+    if (written !== "0px") why.push(`hidden: 300px written inline reads ${written}`);
+    if (keep === "hidden") { CV.measureCameraDock(); return { ok: !why.length, why: why.join("; ") }; }
+    putBack();
+    return { ok: !why.length, why: why.join("; "), height, shown: shown.lift, hidden: hidden.lift, written, parts: parts.length,
+        notes: notes ? Math.max(0, Math.round(notes.bottom - top)) : null };
+}
+
 /* Runs in the page after a resize to a desk: the stack taken down and the tile and the clock back (E77 C8). */
 function deskAgain() {
     const tile = document.getElementById("drpg-room-tile"), hud = document.getElementById("drpg-hud"), left = document.getElementById("ui-left-column-1");
@@ -569,7 +651,7 @@ function deskAgain() {
     return { ok, why: JSON.stringify(got), pass: ok };
 }
 
-let lines = 0, themeOff = 0, bad = 0, glassSizes = 0, controlled = false, roomControlled = new Set(), pinControlled = new Set(), unpinned = 0, unboxed = 0, rowControlled = false, paneControlled = false, stackedRead = false, placesControlled = false, placesRead = false, voiceRead = false, voiceControlled = false, voiceNoneControlled = false, idleRead = false, fillControlled = false, objectionControlled = false;
+let lines = 0, themeOff = 0, bad = 0, glassSizes = 0, controlled = false, roomControlled = new Set(), pinControlled = new Set(), unpinned = 0, unboxed = 0, rowControlled = false, paneControlled = false, stackedRead = false, placesControlled = false, placesRead = false, voiceRead = false, voiceControlled = false, voiceNoneControlled = false, idleRead = false, fillControlled = false, objectionControlled = false, dockControlled = false;
 try {
     for (const theme of themes) for (const role of roles) {
         const qs = [theme === "legacy" ? "theme=legacy" : "", role === "player" ? "role=player" : ""].filter(Boolean);
@@ -817,6 +899,18 @@ try {
                     }
                 }
             }
+            if (docks) {
+                const dc = await page.evaluate(dockCheck, {});
+                line += ` | dock ${dc.ok ? `${dc.shown}/${dc.hidden}${dc.notes === null ? "" : ` notes ${dc.notes} px over it`}` : "NOT ok"}`;
+                if (!dc.ok) fails.push("dock: " + dc.why);
+                if (control && !dockControlled && dc.ok) {
+                    dockControlled = true;
+                    const v = await page.evaluate(dockCheck, { plant: true });
+                    await page.evaluate(dockCheck, { restore: true });
+                    console.log(`  dock control  ${v.ok ? "MISSES IT" : "sees it"}: ${String(v.why).slice(0, 140)}`);
+                    if (v.ok) fails.push("dock control reads as a pass");
+                }
+            }
             if (!r.tile) fails.push("no #drpg-notices-corner");
             if (errs.length) line += " | pageerror " + errs[0].slice(0, 80);
             if (fails.length) { bad++; line += "  FAIL: " + fails.join("; "); }
@@ -824,6 +918,11 @@ try {
             if (shots) {
                 const file = `${shots}/${theme}-${role}-${size}${corner ? "-corner" : ""}.png`;
                 await page.screenshot(corner ? { path: file, clip: { x: W - 200, y: H - 230, width: 200, height: 230 } } : { path: file });
+                if (docks) for (const state of ["shown", "hidden"]) {
+                    await page.evaluate(dockCheck, { keep: state });
+                    await page.screenshot({ path: `${shots}/${theme}-${role}-${size}-dock-${state}.png` });
+                    await page.evaluate(dockCheck, { restore: true });
+                }
                 /* a player's trial row, idle, held and hovered for its preview: the clock and 12 px round it */
                 if (objections && role === "player") for (const state of ["idle", "held", "preview"]) {
                     await page.evaluate(s => window.drpgObjectionCheck?.({ keep: s }), state);
@@ -899,6 +998,7 @@ if (control && rooms && !opt("--sizes") && themes.some(t => !pinControlled.has(t
 if (control && rooms && !opt("--sizes") && themes.includes("stained") && !paneControlled) { bad++; console.log("FAIL: the pane controls never ran (no Stained Glass size placed the tile beside the notices)"); }
 if (control && notices && themes.includes("stained") && !fillControlled) { bad++; console.log("FAIL: the fill controls never ran (no Stained Glass desk read the card on its pane)"); }
 if (control && rooms && stackedRead && !rowControlled) { bad++; console.log("FAIL: the row controls never ran (no stacked size read a row)"); }
+if (control && docks && lines && !dockControlled) { bad++; console.log("FAIL: the dock's control never ran (no size read the dock ok)"); }
 if (control && objections && lines && !objectionControlled) { bad++; console.log("FAIL: the objection controls never ran (no size read the trial row ok)"); }
 if (windows && placesRead && !placesControlled) { bad++; console.log("FAIL: the places' control never read an unclamped place off the screen or on the cluster"); }
 console.log(`SWEEP ${bad ? "RED" : "GREEN"}: ${themes.length} theme(s) x ${roles.length} role(s) x ${SIZES.length} sizes, ${glassSizes} with glass, ${bad} failing`);
