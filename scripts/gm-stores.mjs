@@ -1077,10 +1077,15 @@ export const sheetWriteStore = defineGmStore({
  * with no row takes the world's at its next load. No reset group: a dice look is no season's, and a row goes with
  * its actor (dropped as the actor is deleted, its tombstone compacted once the actor is gone). No player copy -
  * R182 has nothing to ask of it - and no old key.
+ * FROM A FULL GAMEMASTER'S BROWSER ONLY (E16 fix r1-G2, finding sec-3): the owner's Q3 holds an Assistant GM to
+ * the copy as a player, but the stores merged any GM's delta, so an Assistant's console wrote a row and the primary
+ * put its look on the character. `fullGmOnly`: a full Gamemaster's browser refuses an Assistant's delta or state
+ * of this store (gm-store.mjs `gmsRefusal`), and an Assistant's browser sends none. An Assistant primary (no full
+ * Gamemaster connected) still writes its own browser's copy, which no full Gamemaster takes.
  */
 export const diceLookStore = defineGmStore({
     name: "diceLooks", key: SETTINGS.gmDiceLooks,
-    kind: "ledger", backup: false, sync: true,
+    kind: "ledger", backup: false, sync: true, fullGmOnly: true,
     exists: actorId => Boolean(game.actors?.has(actorId))
 });
 

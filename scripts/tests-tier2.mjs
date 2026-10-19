@@ -54345,6 +54345,94 @@ const SCENARIOS = [
             "with no full Gamemaster an overlay was put back (copy: the full Gamemaster's first; none: no full Gamemaster left; stood: the overlay written then)");
     }],
 
+    ["a full Gamemaster's dice look on an unlinked token is not taken for its base character's (S16-02)", async () => {
+        /*
+         * E16 fix r1-G2, 19.10.2026 (finding E16-C4-F5). An unlinked token's actor is a synthetic actor that carries
+         * its base actor's id (`isToken` true), and the GMs' copy of the overlays is keyed by the actor's id. Should
+         * v14 fire `updateActor` for a synthetic actor (LIVE-E16-03 asks), a full Gamemaster's overlay on one token
+         * became the base actor's copy, and the next check of the base actor - a throw that speaks as it - wrote the
+         * token's look on the base. The harness has no synthetic actor (lib/shim.mjs `TokenDocumentImpl.actor`
+         * answers the base), so one is stood in: the player's character with `isToken` true and an overlay of its
+         * own, handed to `updateActor`'s listeners with this GM's id. The GM gives the base an overlay first, then
+         * posts a message that speaks as it. Read: the GMs' copy of the base and the base's overlay 1.2 s on (three
+         * times the put-back's wait). At feb3be8: both the token's.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter"));
+        const gm = game.user;
+        const player = game.users.find(u => !u.isGM && u.active && game.actors.some(a => a.type === "character" && a.testUserPermission(u, "OWNER")));
+        const student = game.actors.find(a => a.type === "character" && a.testUserPermission(player, "OWNER"));
+        const { diceLookStore } = await import("./gm-stores.mjs");
+        const { gmStoresIdle } = await import("./gm-store.mjs");
+        const found = actorDiceFound([student]);
+        const TOKEN_OVERLAY = { global: { colorset: "emerald" } };
+        const read = {};
+        let card = null;
+        try {
+            await student.update(overlayWrite(GM_OVERLAY));
+            await wait(1200);
+            const synthetic = Object.create(student, { isToken: { value: true }, flags: { value: { [DSN_SCOPE]: { appearance: TOKEN_OVERLAY } } } });
+            read.same = synthetic.id === student.id;
+            Hooks.callAll("updateActor", synthetic, { flags: { [DSN_SCOPE]: { appearance: TOKEN_OVERLAY } } }, {}, gm.id);
+            await wait(600);
+            await gmStoresIdle();
+            read.copy = diceLookStore.get(student.id)?.look?.global?.colorset ?? null;
+            card = await ChatMessage.create({ content: "E16 a GM's throw as the base", speaker: ChatMessage.getSpeaker({ actor: student }) });
+            await wait(1200);
+            read.base = overlayOf(student)?.global?.colorset ?? null;
+        } finally {
+            if (card && game.messages.get(card.id)) await card.delete();
+            await putBackActorDice(found);
+        }
+        equal(stableJson(read), stableJson({ base: "ice", copy: "ice", same: true }),
+            "a full Gamemaster's overlay on an unlinked token became its base character's copy or overlay (same: the stand-in carries the base's id; copy: the GMs' copy of the base; base: the base's overlay after a throw as it)");
+    }],
+
+    ["a dice look written with no hook is put back when a GM gives the roller's message new dice, as a Reroll does (S16-02)", async () => {
+        /*
+         * E16 fix r1-G2, 19.10.2026 (finding E16-C4-F6; E16-22: a `noHook` look is one throw late at most). A Reroll
+         * rewrites the roll's message (reroll.mjs `makeReroll`: `message.update({ rolls }, { REROLL_SHOWN })`) and
+         * private-rolls.mjs `relayRerolledDice` plays the new dice on every reader's screen as the roller's, but the
+         * throw-time check listened to `createChatMessage` only, so each Reroll showed a look the player wrote with
+         * `noHook` until its next new message. A connected player's roll card is posted, the player writes its own
+         * look with `noHook` (no listener hears it), then the GM writes the card's rolls anew with the Reroll's
+         * option. Read: the player's look 1.2 s after the write (three times the put-back's wait), then after the
+         * rewrite. At feb3be8: its own after both.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter"));
+        const gm = game.user;
+        const player = game.users.find(u => !u.isGM && u.active && game.actors.some(a => a.type === "character" && a.testUserPermission(u, "OWNER")));
+        const student = game.actors.find(a => a.type === "character" && a.testUserPermission(player, "OWNER"));
+        const { REROLL_SHOWN } = await import("./private-rolls.mjs");
+        const found = diceFlagsFound();
+        const ownColour = user => diceScopeOf(user)?.appearance?.global?.colorset === OWN_DICE_LOOK.global.colorset;
+        const read = {};
+        let card = null;
+        try {
+            await gm.update(diceLookWrite(GM_DICE_LOOK, GM_DICE_SFX));
+            const look = await canonicalDiceLook();
+            await until(() => holdsLook(player, look), 3000);
+            card = await playerRollCard(player, student);
+            await wait(800);
+            await player.update(diceLookWrite(OWN_DICE_LOOK, OWN_DICE_SFX), { noHook: true });
+            await wait(1200);
+            read.quiet = ownColour(player);
+            const roll = { class: "DualityRoll", formula: "1d12 + 1d12", total: 15, evaluated: true, dHope: { total: 11 }, dFear: { total: 4 },
+                dice: [{ faces: 12, total: 11, results: [{ result: 11, active: true }] }, { faces: 12, total: 4, results: [{ result: 4, active: true }] }],
+                options: { actionType: "reaction" } };
+            await card.update({ rolls: [roll] }, { [REROLL_SHOWN]: true });
+            read.rerolled = await until(() => holdsLook(player, look), 3000);
+        } finally {
+            if (card && game.messages.get(card.id)) await card.delete();
+            await putBackDiceFlags(found);
+        }
+        equal(stableJson(read), stableJson({ quiet: true, rerolled: true }),
+            "a look written with no hook stood through a GM's rewrite of the roller's dice (quiet: the player's own colour before it; rerolled: the GM's look after it)");
+    }],
+
     ...GRID
 ];
 

@@ -16883,6 +16883,77 @@ const INVARIANTS = [
             "[the table's heads, its columns with a width, the Kind, Shape and Origin of a public passage, a secret one, one made of a secret door, a tunnel]");
     }],
 
+    ["R804 - the GMs' copy of the characters' dice looks takes a row from a full Gamemaster's browser only (S16-02)", async () => {
+        /*
+         * E16 fix r1-G2, 19.10.2026 (finding sec-3; the owner's Q3 of 19.10: Assistant GMs are forced too). The
+         * primary holds every character's Dice So Nice overlay to the GMs' copy (gm-stores.mjs `diceLookStore`), but
+         * the stores merged a delta from any GM (`gmsRefusal` asked `senderIsGM`, and an Assistant is a GM), so an
+         * Assistant's console wrote the copy and its look became the one the primary put back. Read: the receive
+         * gate on a delta and a state of a store that says `fullGmOnly`, from an Assistant and from a full
+         * Gamemaster, and on a store that does not; then two engines, a full Gamemaster's and an Assistant's:
+         * what the Assistant's patch sends, a delta forged on the Assistant's browser with the newest stamp, and
+         * the full Gamemaster's own patch, which the Assistant takes; and the real store's spec. At feb3be8: the
+         * Assistant's delta merged, and the spec has no such key.
+         */
+        const G = await import("./gm-store.mjs");
+        const { diceLookStore } = await import("./gm-stores.mjs");
+        const J = G.stableJson;
+        const tick = () => new Promise(r => setTimeout(r, 0));
+        const stores = new Map([["r804", { sync: true, fullGmOnly: true }], ["r804open", { sync: true }]]);
+        const ctx = { amGM: true, senderIsGM: true, senderIsFullGM: false, senderId: "R804S", selfId: "R804A", worldId: "R804WORLD", stores };
+        const section = { e: { k: { look: null } }, t: { k: 5 }, d: {}, cleared: 0 };
+        const packet = (action, store) => ({ action, world: "R804WORLD", store, ...(action === "gms.delta" ? { delta: section } : { section }) });
+        const verdicts = {
+            assistantDelta: G.gmsRefusal(packet("gms.delta", "r804"), ctx),
+            assistantState: G.gmsRefusal(packet("gms.state", "r804"), ctx),
+            assistantOpen: G.gmsRefusal(packet("gms.delta", "r804open"), ctx),
+            fullDelta: G.gmsRefusal(packet("gms.delta", "r804"), { ...ctx, senderIsFullGM: true })
+        };
+        const sent = [];
+        const users = { R804A: { gm: true, full: true }, R804S: { gm: true, full: false } };
+        const nodes = new Map();
+        const node = id => {
+            const store = new Map();
+            const eng = G.createGmStoreEngine({
+                selfId: () => id, isGM: () => true, isFullGM: () => users[id].full, isPrimary: () => id === "R804A", worldId: () => "R804WORLD",
+                activeGmIds: () => Object.keys(users), primaryGmId: () => "R804A",
+                senderIsGM: u => users[u]?.gm ?? false, senderIsFullGM: u => users[u]?.full ?? false, userName: u => u,
+                send: (p, to) => { for (const r of to) sent.push({ from: id, to: r, packet: structuredClone(p) }); },
+                storage: { read: k => store.get(k) ?? null, write: async (k, v) => { store.set(k, JSON.stringify(v)); } },
+                readLegacy: () => undefined, now: () => 1000 + sent.length, timers: { set: (fn, ms) => setTimeout(fn, ms), clear: h => clearTimeout(h) },
+                clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+            });
+            const handle = eng.define({ name: "r804", key: "r804Store", fullGmOnly: true });
+            nodes.set(id, { eng, handle });
+            return nodes.get(id);
+        };
+        const full = node("R804A"), assistant = node("R804S");
+        await full.eng.open();
+        await assistant.eng.open();
+        const pump = async () => {
+            for (let i = 0; i < 4; i++) await tick();
+            for (const { from, to, packet: p } of sent.splice(0)) nodes.get(to)?.eng.onPacket(p, from);
+            for (let i = 0; i < 4; i++) await tick();
+        };
+        await pump();
+        await full.handle.patch("botan", { look: { global: { colorset: "ice" } } });
+        await pump();
+        const read = { taken: J(assistant.handle.get("botan")?.look ?? null) };
+        await assistant.handle.patch("botan", { look: { global: { colorset: "emerald" } } });
+        for (let i = 0; i < 4; i++) await tick();
+        read.sent = sent.filter(s => s.from === "R804S" && s.packet.store === "r804").length;
+        await pump();
+        full.eng.onPacket({ action: "gms.delta", world: "R804WORLD", store: "r804",
+            delta: { e: { botan: { look: { global: { colorset: "emerald" } } } }, t: { botan: Number.MAX_SAFE_INTEGER - 1 }, d: {}, cleared: 0 } }, "R804S");
+        await pump();
+        read.held = J(full.handle.get("botan")?.look ?? null);
+        read.spec = diceLookStore.spec?.fullGmOnly === true;
+        const refused = ["assistantDelta", "assistantState"].every(k => typeof verdicts[k] === "string" && verdicts[k].length > 0);
+        equal(J({ ...read, open: verdicts.assistantOpen, fullDelta: verdicts.fullDelta, refused }),
+            J({ held: J({ global: { colorset: "ice" } }), open: null, fullDelta: null, refused: true, sent: 0, spec: true, taken: J({ global: { colorset: "ice" } }) }),
+            `an Assistant's row reached the GMs' copy of the dice looks, or a full Gamemaster's did not (verdicts ${J(verdicts)}; taken: the Assistant took the full GM's; sent: the Assistant's packets of that store; held: the full GM's copy after the Assistant's patch and forged delta; spec: diceLookStore says fullGmOnly)`);
+    }],
+
     ["R801 - a failure in the roll window is said on the console, with the module's name and the step it was at (S02-69)", async () => {
         /*
          * E16 p1 C1, 18.10.2026; audit S02-69. Every catch of roll-dialog.mjs swallowed what it caught, so a GM

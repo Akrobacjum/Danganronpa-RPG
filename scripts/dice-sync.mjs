@@ -45,10 +45,13 @@
  * store (gm-stores.mjs `diceLookStore`), which the primary writes at each write of a full Gamemaster's; the
  * primary puts an overlay a user below full Gamemaster wrote (Assistants too, Q3) back to that copy, with the
  * same wait, comparison and fuse. Here the writer is read, since the overlay has no canonical value of its own:
- * it is the one Foundry stamps on the update, never a packet's. In a world with no full Gamemaster no overlay is
+ * it is the one Foundry stamps on the update, never a packet's. The store takes rows from a full Gamemaster's
+ * browser only (`fullGmOnly`, E16 fix r1-G2, finding sec-3): an Assistant's console wrote it until then. In a world with no full Gamemaster no overlay is
  * put back, as no user's look is (E16 fix r1-G1, finding E16-C4-F3). An unlinked token's own overlay (its
  * ActorDelta's flags) is not watched: the harness has no synthetic actor to measure one on (lib/shim.mjs
- * `TokenDocumentImpl`), and which hook v14 fires for it is LIVE-E16-03. Daggerheart's GM relay, which writes as the GM,
+ * `TokenDocumentImpl`), and which hook v14 fires for it is LIVE-E16-03; so that a full Gamemaster's overlay on one
+ * token never becomes its base actor's copy, a synthetic actor (`isToken`, its base's id) is passed over
+ * (E16 fix r1-G2, finding E16-C4-F5). Daggerheart's GM relay, which writes as the GM,
  * carries no actor flag (relay-guard.mjs `actorRefusal` lets through resource values only). Which actor DSN lays
  * over a throw, and what the throw then looks like, is not drawn headless: LIVE-E16-03.
  *
@@ -66,7 +69,9 @@
  *
  * A WRITE NO HOOK HEARS. An update with `noHook` reaches no listener (in the harness; on v14 LIVE-E16-04), so the
  * primary also compares at each message a user posts - a throw's card is one - the author's look and the
- * overlay of the actor it speaks as, and at each connect the user's look: one throw late at most. A roll the GM
+ * overlay of the actor it speaks as, and at each connect the user's look: one throw late at most. A Reroll gives
+ * an old message new dice and shows them as the roller's, so a message's rolls rewritten are checked the same way
+ * (`updateChatMessage`; E16 fix r1-G2, finding E16-C4-F6). A roll the GM
  * draws for a player (roll-draw.mjs) is the GM's message, so there the roller is the user the GMs' record of
  * the roll names, the sender Foundry named to the draw. At a message the overlay is held to the GMs' copy
  * whoever wrote it, since nothing says who did: a full Gamemaster's own `noHook` overlay is put back there too.
@@ -120,9 +125,14 @@ export function registerDiceSync() {
     // The copy goes with its actor; the compaction takes the tombstone once the actor is gone (gm-stores.mjs `exists`).
     // Only a row the store holds, as sheet-audit.mjs drops a mark: a tombstone of no row is a write of nothing.
     Hooks.on("deleteActor", actor => {
-        if (actor?.id && isPrimaryGm() && gmStoresHydrated() && diceLookStore.has(actor.id)) void diceLookStore.drop(actor.id);
+        if (actor?.id && !actor.isToken && isPrimaryGm() && gmStoresHydrated() && diceLookStore.has(actor.id)) void diceLookStore.drop(actor.id);
     });
     Hooks.on("createChatMessage", onMessage);
+    // A Reroll gives a message new dice and shows them as the roller's (private-rolls.mjs `relayRerolledDice`):
+    // the same check as a new message (E16 fix r1-G2, finding E16-C4-F6), so a `noHook` look is one throw late at most.
+    Hooks.on("updateChatMessage", (message, changes) => {
+        if (changes && typeof changes === "object" && Object.hasOwn(changes, "rolls")) onMessage(message);
+    });
     // The deleted user is gone from `game.users` as the hook runs, so `lookSource` cannot name it: the setting is read raw.
     Hooks.on("deleteUser", user => {
         if (!user?.id) return;
@@ -415,7 +425,8 @@ function heldOverlay(actorId) {
  * gives the copy none; and anyone else's write is put back, after the same wait as a user's.
  */
 function onActorWritten(actor, userId, touched, { created = false } = {}) {
-    if (!actor?.id) return;
+    // An unlinked token's actor carries its base actor's id: its overlay is not the base's (finding E16-C4-F5).
+    if (!actor?.id || actor.isToken) return;
     if (!isPrimaryGm()) return tellOwner(actor, touched, userId);
     if (isFullGm(game.users.get(userId))) {
         if (touched) void diceLookStore.patch(actor.id, { look: overlayOf(actor) });

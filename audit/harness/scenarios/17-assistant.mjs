@@ -18,7 +18,8 @@
  *   F  a body's discovery is the primary's: two GMs announcing one body at once
  *      post one card (run before D, while the full GM is here; E11 fix r1-G2);
  *   G  one dice look, the GM's, on every user below full Gamemaster and on their
- *      characters (E16 p1 C3, C4);
+ *      characters (E16 p1 C3, C4), and an Assistant's write of the GMs' copy
+ *      of them refused (E16 fix r1-G2);
  *   H  a character's dice look with no GM watching: `gm2`, a second full
  *      Gamemaster declared late below, leaves before D and comes back to a table
  *      with no other GM (E16 fix early-C4-G1).
@@ -317,6 +318,27 @@ export async function run({ gm, ag, gm2, p1, p2, p3, check, settle, opLog, socke
     check("G3: a player's own dice look written with no hook stands until its next message, and the GM puts it back then",
         g3.quiet && JSON.stringify(g3.writesQuiet) === JSON.stringify(["p1 update"])
         && JSON.stringify(g3.writes) === JSON.stringify(["p1 update", "gm update"]) && g3.held.every(Boolean), JSON.stringify(g3));
+
+    /* E16 fix r1-G2, 19.10.2026 (finding sec-3). The GMs' copy of each character's overlay (gm-stores.mjs
+       `diceLookStore`) is what the primary holds Botan to, and the stores merged a delta from any GM, an Assistant
+       too. G4: the Assistant's console writes Botan's row through the store's handle, then sends a delta of its own
+       on the module's socket with the newest stamp, the road a console takes past the handle; then p2 posts a
+       message as Botan. Read: the GM's copy of Botan's row, Botan's overlay on the GM and who wrote Botan after the
+       Assistant's writes (opLog). At feb3be8: the row and the overlay the Assistant's, written by the GM. */
+    const lookStoreJs = `(await import("${repoUrl}/scripts/gm-stores.mjs")).diceLookStore`;
+    const emerald = JSON.stringify({ global: { colorset: "emerald" } });
+    mark = opLog.length;
+    await ag.eval(`await ${lookStoreJs}.patch("${IDS.botan}", { look: ${emerald} }); return true;`);
+    await ag.eval(`game.socket.emit("module.${MOD}", { action: "gms.delta", world: String(game.world.id), store: "diceLooks",
+        delta: { e: { "${IDS.botan}": { look: ${emerald} } }, t: { "${IDS.botan}": Math.floor(game.time.serverTime) + 1000 }, d: {}, cleared: 0 } },
+        { recipients: ["${IDS.gm}"] }); return true;`);
+    await settle(1500);
+    const g4 = { row: await gm.eval(`return JSON.stringify(${lookStoreJs}.get("${IDS.botan}")?.look ?? null);`) };
+    await p2.eval(`await ChatMessage.create({ content: "E16 throw as Botan", speaker: { actor: "${IDS.botan}" } }); return true;`);
+    await settle(1500);
+    Object.assign(g4, { held: await overlayOn(gm, IDS.botan), writes: actorWrites(mark, IDS.botan) });
+    check("G4: an Assistant's write of the GMs' copy of a character's dice look, through the store or its own packet, is refused, and the character keeps the GM's look at its player's next throw",
+        g4.row === gmOverlay && g4.held === gmOverlay && g4.writes.length === 0, JSON.stringify(g4));
 
     /* E16 fix early-C4-G1, 19.10.2026 (finding E16-C4-F1). gm2, a second full Gamemaster on a browser of its own, joins
        while the GM and the Assistant are here, takes the GMs' stores from them, and leaves with what they held - Botan's
