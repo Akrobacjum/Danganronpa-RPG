@@ -11744,6 +11744,9 @@ const SCENARIOS = [
             windows = await withFormAnswered(root => {
                 const row = root.querySelector('input[name="variant"][value="frisk"]');
                 if (row) row.checked = true;
+                // Openly is the checked way since C3 (action-rolls.mjs `friskModes`): this test is the unseen one's.
+                const unseen = root.querySelector('input[name="friskMode"][value="unseen"]');
+                if (unseen) unseen.checked = true;
                 const who = root.querySelector("select[name=who]");
                 if (who) who.value = target.id;
                 return true;
