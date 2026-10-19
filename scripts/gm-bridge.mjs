@@ -101,6 +101,12 @@ const ACTION_FIND_STASH = "vault.findStash";
 const ACTION_PLANT = "action.plant";
 /** player -> GM: my character went through a student's pockets unseen (E80 part 2 C2) - see frisk.mjs `friskPerson`. */
 const ACTION_FRISK_UNSEEN = "action.friskUnseen";
+/** player -> GM: my character asks a student to turn out their pockets (E80 part 2 C3) - see frisk.mjs `askToFrisk`. */
+const ACTION_FRISK_ASK = "action.friskAsk";
+/** player -> GM: my answer to that ask, for a character I answer for - see frisk.mjs `answerFrisk`. */
+const ACTION_FRISK_ANSWER = "action.friskAnswer";
+/** player -> GM: after a refusal or no answer, my character forces it or leaves it - see frisk.mjs `followFrisk`. */
+const ACTION_FRISK_FOLLOW = "action.friskFollow";
 const ACTION_CRISIS = "murder.crisis";
 /** GM -> player: "Stage 4 is yours to throw." */
 const ACTION_OPENING_ASK = "murder.openingAsk";
@@ -197,6 +203,8 @@ export function registerGmBridge() {
     // arrives before a newcomer can hear it (see the note at the top).
     game.socket.on(SOCKET_EVENT, onAdvancementOffers);
     askForOffers();
+    // An open Frisk's windows travel GM -> player too, and the primary watches its asks' rooms (E80 part 2 C3).
+    import("./frisk.mjs").then(m => m.registerFrisk()).catch(err => error("Could not set up the Frisk's windows", err));
 }
 
 /**
@@ -709,6 +717,53 @@ async function handleFriskUnseen(payload, sender) {
     }, { asker: sender });
     if (out?.refused) return { refused: out.refused };
     return { reply: out?.outcome ?? "settled" };
+}
+
+/* An open Frisk's ask (E80 part 2 C3): judged on the primary, which answers it later, when the target has answered or
+   the clock has run (frisk.mjs `askToFrisk`), with the request's own `bridge.done`. */
+async function handleFriskAsk(payload, sender, ctx) {
+    const { askToFrisk } = await import("./frisk.mjs");
+    const reply = value => {
+        if (!ctx?.requestId || !ctx.asker) return;
+        game.socket.emit(SOCKET_EVENT, { action: ACTION_DONE, requestId: ctx.requestId, userId: ctx.asker, value }, { recipients: [ctx.asker] });
+    };
+    const out = await askToFrisk({ searcherId: payload.searcherId, targetId: payload.targetId }, { asker: sender, reply });
+    if (out?.refused) return { refused: out.refused };
+    if (out?.later) return { later: true };
+    return { reply: out?.value ?? null };
+}
+
+/* An answer to that ask, judged by who sent it (frisk.mjs `answerFrisk`). */
+async function handleFriskAnswer(payload, sender) {
+    const { answerFrisk } = await import("./frisk.mjs");
+    const out = await answerFrisk({ askId: payload.askId, allow: payload.allow }, sender);
+    if (out?.refused) return { refused: out.refused };
+    return { reply: out?.outcome ?? null };
+}
+
+/* A force or a 'Leave it' (frisk.mjs `followFrisk`), its roll's result read off the GMs' record (`friskForceRoll`). */
+async function handleFriskFollow(payload) {
+    const { followFrisk } = await import("./frisk.mjs");
+    const out = await followFrisk({ searcherId: payload.searcherId, askId: payload.askId, rollId: payload.rollId,
+        total: payload.total, isCritical: payload.isCritical });
+    if (out?.refused) return { refused: out.refused };
+    return { reply: out?.outcome ?? null };
+}
+
+/*
+ * A FORCE'S ROLL, FOR THE ASK IT NAMES (E80 part 2 C3). The runner holds the record to the searcher, to a `frisk` roll and
+ * to one settlement (`rollRefusal`); this holds it to the ask: one the primary holds for that searcher, a roll drawn after
+ * the ask was made and no later than its force's window (`forceUntil`, which `friskForceOpen` held the draw to), so a Body
+ * roll drawn for one ask settles no other. Its fields are the record's result.
+ */
+async function friskForceRoll(record, payload) {
+    const { friskAsks } = await import("./frisk.mjs");
+    const row = friskAsks.get(typeof payload?.askId === "string" ? payload.askId : "") ?? null;
+    if (!row) return { why: "no such Frisk ask" };
+    if (row.searcherId !== record.actorId) return { why: "not their character" };
+    if (!(Number(record.at) >= Number(row.at))) return { why: "that roll was not thrown for that action" };
+    if (!(Number(record.at) <= Number(row.forceUntil))) return { why: "that roll is too old to settle anything" };
+    return { fields: { total: Number(record.total) || 0, isCritical: Boolean(record.isCritical) } };
 }
 
     // Taking something out of somebody else's stash writes to two sheets, one of
@@ -1809,6 +1864,43 @@ export const BRIDGE_ACTIONS = table({
             targetId: "judged by friskPerson (frisk.mjs): personActionRefusal on the primary - a student in the searcher's room as the GMs read it, outside an Eclipse, a Class Trial and the searcher's own incident - and a death the sender knows refused",
             rollId: "the hand's roll the result is read from (bridge-guards.mjs rollRefusal): one the GM drew for the searcher's Frisk, thrown as rummage",
             unseenRollId: "the cover's roll the result is read from (bridge-guards.mjs rollRefusal): one the GM drew for the searcher's Frisk, thrown as palm"
+        }
+    },
+    [ACTION_FRISK_ASK]: {
+        label: "DRPG.Bridge.what.action.friskAsk",
+        guards: [knownSender, owns("searcherId", "sender does not own the character searching")],
+        sanitize: pick({ searcherId: as.id, targetId: as.id }),
+        run: handleFriskAsk,
+        // "reply", answered later (`handleFriskAsk`): a person is deciding, so no clock for the "got it" (`patient`), and the
+        // wait runs past the answer's clock by the margin the primary keeps for the packet that ends the ask.
+        answer: "reply",
+        patient: true,
+        timeoutMs: TIMING.friskAnswerMs + TIMING.friskMarginMs,
+        claims: {
+            targetId: "judged by askToFrisk (frisk.mjs): personActionRefusal on the primary, a death the sender knows refused (isBody), one live ask a searcher, one a target, a pair once a time of day, and the sender's payment's ticket claimed"
+        }
+    },
+    [ACTION_FRISK_ANSWER]: {
+        label: "DRPG.Bridge.what.action.friskAnswer",
+        guards: [knownSender],
+        sanitize: pick({ askId: as.id, allow: as.bool }),
+        run: handleFriskAnswer,
+        answer: "reply",
+        claims: {
+            askId: "judged by answerFrisk (frisk.mjs): an ask the primary holds, open, and the sender one of the users it was sent to (answerUserIds; a GM for a character with no player)"
+        }
+    },
+    [ACTION_FRISK_FOLLOW]: {
+        label: "DRPG.Bridge.what.action.friskFollow",
+        guards: [knownSender, owns("searcherId", "sender does not own the character searching")],
+        sanitize: pick({ searcherId: as.id, askId: as.id, rollId: as.id, total: as.num, isCritical: as.bool }),
+        run: handleFriskFollow,
+        answer: "reply",
+        // 'Leave it' names no roll and asks for none (`when`); a force's is the GMs' record, held to the ask (`friskForceRoll`).
+        rolled: { field: "rollId", actor: "searcherId", kind: "frisk", when: "rollId", derive: friskForceRoll },
+        claims: {
+            askId: "judged by followFrisk (frisk.mjs): the searcher's own ask, refused or unanswered, inside its force's window",
+            rollId: "the force's roll the result is read from (bridge-guards.mjs rollRefusal): one the GM drew for the searcher's frisk, after the ask and before its window closed (friskForceRoll)"
         }
     },
     [ACTION_FIND_STASH]: {
@@ -3495,6 +3587,46 @@ export function requestFriskUnseen({
         local: () => import("./frisk.mjs").then(m => m.friskPerson({ searcherId, targetId, total, isCritical, unseenTotal, unseenCritical },
             { asker: game.user })).then(out => {
             if (out?.refused) sayNotDone(ACTION_FRISK_UNSEEN, reasonOf(out.refused));
+            return out?.refused ? null : out?.outcome ?? null;
+        })
+    });
+}
+
+/**
+ * An open Frisk's ask (E80 part 2 C3; frisk.mjs `performFriskOpenly`), judged and held on the primary GM (frisk.mjs
+ * `askToFrisk`). Its value is `{ askId, outcome, forceMs }` once the target has answered or the clock has run, or at once
+ * for an ask that ends before it is made. A GM's own browser asks here when it is the primary, and says a refusal as the
+ * bridge would; an answer that comes after this wait has ended changes nothing here (`late`).
+ */
+export function requestFriskAsk({ searcherId, targetId }) {
+    return ask(ACTION_FRISK_ASK, { searcherId, targetId }, {
+        onPrimary: true,
+        lateMs: TIMING.friskMarginMs,
+        late: value => debug("A Frisk's ask was answered after this browser stopped waiting", value),
+        local: () => import("./frisk.mjs").then(m => m.askToFriskHere({ searcherId, targetId }, game.user)).then(out => {
+            if (out?.refused) sayNotDone(ACTION_FRISK_ASK, reasonOf(out.refused));
+            return out?.refused ? null : out?.value ?? null;
+        })
+    });
+}
+
+/** The answer to a Frisk's ask from the window it opened (frisk.mjs `openAskWindow`), judged on the primary (`answerFrisk`). */
+export function requestFriskAnswer({ askId, allow = false }) {
+    return ask(ACTION_FRISK_ANSWER, { askId, allow: Boolean(allow) }, {
+        onPrimary: true,
+        local: () => import("./frisk.mjs").then(m => m.answerFrisk({ askId, allow: Boolean(allow) }, game.user)).then(out => {
+            if (out?.refused) sayNotDone(ACTION_FRISK_ANSWER, reasonOf(out.refused));
+            return out?.refused ? null : out?.outcome ?? null;
+        })
+    });
+}
+
+/** After a refusal or no answer: the force's roll named, or none for 'Leave it' (frisk.mjs `followFrisk`). */
+export function requestFriskFollow({ searcherId, askId, rollId = null, total = 0, isCritical = false }) {
+    return ask(ACTION_FRISK_FOLLOW, { searcherId, askId, rollId, total, isCritical }, {
+        onPrimary: true,
+        local: () => import("./frisk.mjs").then(m => m.followFrisk({ searcherId, askId, rollId, total, isCritical })).then(out => {
+            if (out?.refused) sayNotDone(ACTION_FRISK_FOLLOW, reasonOf(out.refused));
             return out?.refused ? null : out?.outcome ?? null;
         })
     });

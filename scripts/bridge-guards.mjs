@@ -294,6 +294,10 @@ export const REASON_PATTERNS = Object.freeze([
     ["cannotNow", /^an Eclipse is running$/],
     ["cannotNow", /^that waits until the Class Trial is over$/],
     ["cannotNow", /^the character is a side of the running incident$/],
+    // E80 part 2 C3: an open Frisk's ask, answer and force, judged by the primary GM (frisk.mjs `answerFrisk`, `followFrisk`):
+    // an ask this primary does not hold - ended, or held by a primary that reloaded - and an answer after the first.
+    ["missing", /^no such Frisk ask$/],
+    ["alreadyDone", /^that Frisk ask has been answered already$/],
     ["cannotFrame", /^that student cannot be framed$/],
     ["notThere", /^the body is not in the killer's room$/],
     ["notThere", /^the character has no token on a scene$/],

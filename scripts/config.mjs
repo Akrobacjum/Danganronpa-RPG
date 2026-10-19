@@ -364,6 +364,10 @@ export const TIMING = {
      *  not measured - short enough that the target does not hang in the window. */
     friskAnswerMs: 60000,
     friskForceMs: 30000,
+    /** How long past either clock the primary keeps an ask for the packet already on its way that ends it - an answer
+     *  pressed at the last second, a force drawn just before the window closed - and the searcher's wait runs past the
+     *  answer's clock (E80 part 2 C3): chosen, not measured. */
+    friskMarginMs: 15000,
     /** How long an Observe waits for its ruling before the bookmark is swept. */
     pendingObserveTtlMs: 60 * 60 * 1000,
     /** How many private cards' words a browser keeps; beyond this the oldest go. */

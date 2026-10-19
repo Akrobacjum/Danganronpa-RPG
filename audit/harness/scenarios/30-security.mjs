@@ -1578,6 +1578,59 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
             && stealOnRecord.kept === true && !stealOnRecord.reasons.length && stealOnRecord.said.length > 0,
         JSON.stringify({ consoleSteal, stealNoRoll, handRoll, unseenRoll, stealOnRecord }), { flow: "give-take-stash" });
 
+    /*
+     * AN OPEN FRISK'S ASK (E80 part 2 C3, 19.10.2026; P2-13, P2-19). The ask goes to the target's player, and only an
+     * answer from somebody it went to is taken (frisk.mjs `answerFrisk`): else a console presses 'Let them look' on an
+     * ask of its own and reads another student's pockets. The GM asks for Aiko of Botan (as `requestFriskAsk` does on
+     * the primary); p2's window is held open, p1 sends `action.friskAnswer` allowing it, then p2's window lets them look.
+     * And a `frisk.ask` sent by p1's browser to p3 opens no window there (frisk.mjs `friskPacketRefusal`: the primary
+     * GM's only). Read: the GM's refusals of the answer, the row and the ask's answer to the GM, p3's windows.
+     * Red at the parent (6810266): there is no ask (`askToFrisk`), so nothing is asked of p2.
+     */
+    phase("an open Frisk's ask", { flow: "frisk-openly" });
+    const askTitle = await p2.eval(`return game.i18n.localize("DRPG.Frisk.askTitle");`);
+    await p2.eval(`globalThis.__friskHold = true;
+        globalThis.__dialogAnswers.push(async config => {
+            const t = Date.now();
+            while (globalThis.__friskHold && Date.now() - t < 20000) await new Promise(r => setTimeout(r, 100));
+            return config.window?.title === "${askTitle}" ? "allow" : null;
+        });
+        return true;`);
+    await clearFailures();
+    const friskAsk = await gm.eval(`const F = await import("${repoUrl}/scripts/frisk.mjs").catch(() => null);
+        if (!F?.askToFrisk) return { row: null };
+        delete globalThis.__secFriskReply;
+        F.forgetFriskAsks?.();
+        const out = await F.askToFrisk({ searcherId: "${ids.aiko}", targetId: "${ids.botan}" }, { asker: game.user, reply: v => { globalThis.__secFriskReply = v; } });
+        const row = [...F.friskAsks.values()].find(r => r.searcherId === "${ids.aiko}") ?? null;
+        return { out, row: row ? { askId: row.askId, state: row.state, to: row.answerUserIds } : null };`);
+    await settle(1200);
+    await sendAs(p1, "action.friskAnswer", { askId: friskAsk.row?.askId ?? "none", allow: true });
+    await settle(1500);
+    const readAsk = `const F = await import("${repoUrl}/scripts/frisk.mjs").catch(() => null);
+        const row = F?.friskAsks?.get("${friskAsk.row?.askId ?? "none"}") ?? null;
+        return { state: row?.state ?? null, reply: globalThis.__secFriskReply?.outcome ?? null };`;
+    const outsiderAnswer = { reasons: await refusedFor("action.friskAnswer"), ...(await gm.eval(readAsk)) };
+    await p2.eval(`globalThis.__friskHold = false; return true;`);
+    let targetAnswer = await gm.eval(readAsk);
+    for (let i = 0; i < 40 && !targetAnswer.reply; i++) {
+        await settle(250);
+        targetAnswer = await gm.eval(readAsk);
+    }
+    await p2.eval(`globalThis.__dialogAnswers.length = 0; delete globalThis.__friskHold; return true;`);
+    const p3Asks = `return globalThis.__dialogLog.filter(e => e.title === game.i18n.localize("DRPG.Frisk.askTitle")).length;`;
+    const p3Before = await p3.eval(p3Asks);
+    await p1.eval(`game.socket.emit("${SOCKET}", { action: "frisk.ask", userId: "${p3.userId}", askId: "SECFORGEDASK0000", who: "Monokuma",
+        name: "Chie Mori", ms: 5000, force: true }, { recipients: ["${p3.userId}"] }); return true;`);
+    await settle(1500);
+    const forgedAsk = { before: p3Before, after: await p3.eval(p3Asks) };
+    await gm.eval(`(await import("${repoUrl}/scripts/frisk.mjs").catch(() => null))?.forgetFriskAsks?.(); delete globalThis.__secFriskReply; return true;`);
+    check("SECURITY: an open Frisk's ask is answered only by the target's player - a console's allow of its own ask is refused, the target's is taken, a player's forged ask opens no window",
+        Boolean(friskAsk.row) && friskAsk.row.state === "asking" && JSON.stringify(friskAsk.row.to) === JSON.stringify([p2.userId])
+            && outsiderAnswer.reasons.some(r => /sender does not own the character asked/.test(r)) && outsiderAnswer.state === "asking" && outsiderAnswer.reply === null
+            && targetAnswer.reply === "shown" && forgedAsk.before === forgedAsk.after,
+        JSON.stringify({ friskAsk, outsiderAnswer, targetAnswer, forgedAsk }), { flow: "frisk-openly" });
+
     // 7d. despair.adjust from a player, with no Reroll behind it and with a rewrite of a roll (a receipt until E08+E28 C8).
     phase("Despair corrections", { flow: "despair" });
     const readPool = `return { pool: game.drpg.getDespair(game.user.id) };`;

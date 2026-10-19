@@ -26,7 +26,7 @@ import { isEclipse } from "./eclipse.mjs";
 // The phase, from the file that owns the clock setting and imports nothing but
 // config.mjs. trial.mjs has `inClassTrial()`, and importing it here would drag
 // the whole trial floor into the action pipeline.
-import { getClock } from "./settings.mjs";
+import { getClock, getSetting, SETTINGS } from "./settings.mjs";
 // The chains, and the one payer (T-1). Static, and safe to be: price.mjs imports
 // nothing but leaves and never reaches back into the action pipeline.
 import { quotePrice, payPrice, refundPrice, priceLine } from "./price.mjs";
@@ -4170,24 +4170,33 @@ export async function choosePalm(actor, def, targets, mine) {
 }
 
 /**
- * The ways a Frisk can go, under its row of the Palm window (E80 part 2 C2): Unseen, with its two numbers read off
- * `ACTIONS.palm.rummage`. A `friskMode` radio, so the confirm button follows it (`followConfirmLabel`): a mode that
- * throws dice says 'Roll'.
+ * The ways a Frisk can go, under its row of the Palm window (E80 part 2 C2, C3): Openly, checked - the ask, which
+ * throws no dice, so two clicks never start an attempt that tells the target who tried - and Unseen, each with its
+ * numbers read off `ACTIONS.palm` (the force's Body, the cover's Shadow and the hand's). Openly's line says the force
+ * only while the GMs' `friskForce` is on. A `friskMode` radio, so the confirm button follows it (`followConfirmLabel`):
+ * 'Do it' for the ask, 'Roll' for a mode that throws dice.
  */
 function friskModes(def) {
     const part = def?.rummage ?? {};
+    const openHint = getSetting(SETTINGS.friskForce) === true
+        ? game.i18n.format("DRPG.Frisk.openHint", { force: def?.frisk?.threshold }) : game.i18n.localize("DRPG.Frisk.openHintAskOnly");
     return `<div class="drpg-frisk-modes">
             <label class="drpg-frisk-mode">
-                <input type="radio" name="friskMode" value="unseen" checked>
+                <input type="radio" name="friskMode" value="openly" checked>
+                <span><strong>${esc(game.i18n.localize("DRPG.Frisk.openLabel"))}</strong>
+                <small>${esc(openHint)}</small></span>
+            </label>
+            <label class="drpg-frisk-mode">
+                <input type="radio" name="friskMode" value="unseen">
                 <span><strong>${esc(game.i18n.localize("DRPG.Frisk.unseenLabel"))}</strong>
                 <small>${esc(game.i18n.format("DRPG.Frisk.unseenHint", { unseen: part.unseen, hand: part.threshold }))}</small></span>
             </label>
         </div>`;
 }
 
-/** The Frisk mode a drawn Palm window has checked (`friskModes`), "unseen" where it draws none. */
+/** The Frisk mode a drawn Palm window has checked (`friskModes`): "unseen" or, where it says neither, "openly" (the checked one). */
 function friskModeOf(root) {
-    return root?.querySelector?.('input[name="friskMode"]:checked')?.value ?? "unseen";
+    return root?.querySelector?.('input[name="friskMode"]:checked')?.value === "unseen" ? "unseen" : "openly";
 }
 
 /*

@@ -387,7 +387,9 @@ const REGRESSIONS = [
             // E79 C1 (1.2.79): `payload.userId` is the copy's address, compared with this user's own id; R555 holds the rule (`passageRowsRefusal`).
             "passages.mjs": "a player's copy of the secret passages: taken only from the primary GM, addressed to this user, and cut to the characters it stamps; acts on no actor",
             // E79 C4 (1.2.79): `payload.userId` is the address, `sceneId` and `tokenId` only name the room the line says; `sentBackRefusal` holds the rule.
-            "movement-audit.mjs": "the GMs' word that a token of this user's was put back from a wall: taken only from the primary GM, addressed to this user, with a code it knows; plays a sound and shows a line, and acts on no actor"
+            "movement-audit.mjs": "the GMs' word that a token of this user's was put back from a wall: taken only from the primary GM, addressed to this user, with a code it knows; plays a sound and shows a line, and acts on no actor",
+            // E80 part 2 C3: `payload.userId` is the address, `askId` names the window; `friskPacketRefusal` holds the rule.
+            "frisk.mjs": "an open Frisk's window and its withdrawal: taken only from the primary GM, addressed to this user; the window's answer goes back on the bridge (`action.friskAnswer`), judged there by its sender, and acts on no actor"
             // E10 C2 (1.2.71): vote.mjs is off the list. A ballot reaches the GMs on the bridge (`vote.cast`), and
             // the one packet its listener still takes, a GM's ballot, names no id.
         };
@@ -5657,6 +5659,9 @@ const REGRESSIONS = [
             resolvePassageSearch: "refused",
             // E80 part 2 C1: one student acting on another in their room, the primary's gate (frisk.mjs); C2 and C3 ask it.
             personActionRefusal: "returns",
+            // E80 part 2 C3: an open Frisk's ask, answer and force, judged on the primary (frisk.mjs), whose runs pass their
+            // `{ refused }` on, and a force's roll held to its ask (gm-bridge.mjs `friskForceRoll`, a `derive`).
+            askToFrisk: "refused", answerFrisk: "refused", followFrisk: "refused", friskForceRoll: "why",
             resolveObserve: "passes", hopeCallRefusal: "wraps"
         };
         const sources = [...await otherSources()].map(([file, raw]) => [file, stripComments(raw)]);
@@ -6792,9 +6797,9 @@ const REGRESSIONS = [
         const rolled = Object.entries(all).filter(([, decl]) => decl.rolled).map(([action]) => action).sort();
         log(`R218: ${rolled.length} declaration(s) read their roll's result from the GMs' record (${rolled.join(", ")}); `
             + `${WAITING.length} wait for a later commit; monocub.ability takes ${JSON.stringify(takes("monocub.ability", all["monocub.ability"] ?? {}))} from its packet`);
-        equal(JSON.stringify(["action.friskUnseen", "action.plant", "action.steal", "analyze.resolve", "murder.cleanup", "murder.crisis", "murder.openingResult", "observe.resolve",
+        equal(JSON.stringify(["action.friskFollow", "action.friskUnseen", "action.plant", "action.steal", "analyze.resolve", "murder.cleanup", "murder.crisis", "murder.openingResult", "observe.resolve",
             "project.progress", "project.sabotage", "remnant.place", "vault.findStash", "vault.steal"].filter(action => !rolled.includes(action))), "[]",
-            "Observe, Analyze, the search for a hidden stash, a Palm, an unseen Frisk, a project's progress or Sabotage, a theft from a stash, a trace, an opening, a crisis action or Stage 6 names no roll its result is read from");
+            "Observe, Analyze, the search for a hidden stash, a Palm, an unseen Frisk, an open Frisk's force, a project's progress or Sabotage, a theft from a stash, a trace, an opening, a crisis action or Stage 6 names no roll its result is read from");
         equal(JSON.stringify([Boolean(all["monocub.ability"]?.sanitize), takes("monocub.ability", all["monocub.ability"] ?? {})]), JSON.stringify([true, []]),
             "monocub.ability is no declaration of the bridge's, or a Monocub ability's packet carries a result the GM would read");
         const problems = problemsOf(all, WAITING);
@@ -8621,6 +8626,7 @@ const REGRESSIONS = [
             ["SURFACE safeword.mjs#raiseCard", "frozen i18n text set with textContent; kept as first drawn and not followed (`observe: false`), so the same safeword entry on every browser whatever the caller's card adds, kept within the history's budgets and in memory only when it stops saving; nobody else's words (R297, 73-notice-history S2)"],
             ["SURFACE trial.mjs#registerTrial", "the evidence card, drawn only when authorised (a GM, or the speaker's owner holding the item); kept as evidence, one entry for its message, and cleaned at save (R297, R294); the tile's corner button counts it among the unread and shows none of its words (R298)"],
             ["RECORD bridge-guards.mjs#sayNotDone", "after `notify(text)`, whoever `notify` is: kind error, source notDone, state read, the text this client composed from closed lists - a GM's reason chooses none of its words; a history error never stops the toast (R297)"],
+            ["RECORD frisk.mjs#toast", "an open Frisk's line beside its toast (E80 part 2 C3): kind info, source mine, state unread, the row's label as its title and text this client composed from its language file with names as text - the ask it waits on, a withdrawn window, or for a GM the notice that nobody was asked; no markup, and a history error never stops the toast"],
             ["RECORD popup.mjs#showPopup", "the recorder: `recordNotice` in try/catch after the body is filled and before a host takes the card; the snapshot followed while the card is on screen and its state set by the close's reason; a history error never stops the card (R293); an entry the history cannot save is kept in memory until this page closes, the window's footer saying so (`status`, R292)"],
             ["RECORD popup.mjs#showPopup#updateNotice", "the card's close: its own entry's state only - read for its reader's close, unread for any other reason - in try/catch; no words (R293)"],
             ["RECORD popup.mjs#watchCard#updateNotice", "the body of a card on screen followed after a change (`watchCard`, 250 ms), into its own entry only, in try/catch; the html cleaned as at `record` and the entry weighed again against its author's bound (R293, R294, R297)"],
@@ -8639,6 +8645,9 @@ const REGRESSIONS = [
             ["NOTDONE cleanup.mjs#attemptCleanup", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); a murder refusal kept like the rest (the owner's Q4), within the history's budgets, as a notDone entry (R297)"],
             ["NOTDONE cleanup.mjs#attemptStageSix", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); a murder refusal kept like the rest (the owner's Q4), within the history's budgets, as a notDone entry (R297)"],
             ["NOTDONE gm-bridge.mjs#requestFriskUnseen", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E80 C2)"],
+            ["NOTDONE gm-bridge.mjs#requestFriskAsk", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E80 part 2 C3)"],
+            ["NOTDONE gm-bridge.mjs#requestFriskAnswer", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E80 part 2 C3)"],
+            ["NOTDONE gm-bridge.mjs#requestFriskFollow", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E80 part 2 C3)"],
             ["NOTDONE gm-bridge.mjs#requestPassageShare", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E79 C7)"],
             ["NOTDONE gm-bridge.mjs#requestPassageCross", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E80 C2)"],
             ["NOTDONE gm-bridge.mjs#requestPassageFind", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E80 C3)"],
@@ -9486,6 +9495,7 @@ const REGRESSIONS = [
             ["WALLS passages.mjs#secretDoorsOn -> screen", "the secret doors of a scene this browser holds, read by the map check (fog-diagnostics.mjs `secretDoorRows`) and the Season setup's row: a GM's screens; it reads no passage and cuts nothing (R601, A10-15)"],
             // ---- the routes, the copies' retelling and what a copy redraws (E79 fix r1-G4, SEC S4)
             ["HOOK passages-gm.mjs#registerPassagesGm#drpgRouteSettled/onRouteSettled -> record", "the primary GM only (`isPrimaryGm`): a student whose route settles outside the passage's rooms on the map loses a cell held 'Revoke when they leave the room' (`revokeLeavers`, R561; 76 E), read in the room the announcement names (E79 C14), and for a route announced before it stood (`provisional`) only once it stands (E79 fix r3-G3; 76 E)"],
+            ["HOOK frisk.mjs#registerFrisk#drpgRouteSettled/inline -> record", "the primary GM only (`isPrimaryGm`, in `friskRouteSettled`): an open Frisk's ask whose target's route settled outside the ask's room ends 'gone' and one whose searcher's did 'lets it go', read where the GMs place both (`gmPlaceOf`); a route announced before it stood (`provisional`) only once it stands (E80 part 2 C3; A11-7)"],
             ["HOOK room-tile.mjs#registerRoomTile#drpgRouteSettled/inline -> record", "this file's own: the room tile repaints for the viewer's own token and writes no record; E79 adds no road through it"],
             ["HOOK passages-gm.mjs#registerPassagesGm#clientSettingChanged/inline -> copy", "a GM's browser only (the `ready` hook returns on a player's): a change of the map, the access list or the Mastermind retells every player's copy from the GMs' records (`retellSoon`), quiet while tier 2 holds the stores (`gmStoresQuiet`); and the map's redraws the GMs' overlay"],
             ["HOOK passages-gm.mjs#registerPassagesGm#updateActor/onActorUpdated -> copy", "a GM's browser only: a change of an actor's ownership, or of its type (E80 fix r1-G5; R610), retells the copies from the GMs' records; any other change of an actor is let be"],

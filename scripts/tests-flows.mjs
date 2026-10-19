@@ -113,6 +113,11 @@ export const FLOWS = Object.freeze([
     { id: "give-take-stash", what: "Things changing hands: a handover, a plant, a steal, a found stash, a body looted",
         entry: { bridge: ["handover.item", "handover.bullet", "action.plant", "vault.findStash", "action.steal", "action.friskUnseen", "vault.steal", "body.loot"] },
         scenarios: ["30-security", "33-bridge-paths", "40-flow"], status: "partial", stage: "E39" },
+    // E80 part 2 C3 (19.10.2026): an open Frisk - the ask, the answer from the window the primary opened, the force. The
+    // tier-2 tests A11-7 and A11-8 drive it on the primary; 30-security sends a player's frisk.ask and an outsider's answer.
+    { id: "frisk-openly", what: "An open Frisk: the ask, the target's answer on its own window, the force after a refusal or no answer",
+        entry: { bridge: ["action.friskAsk", "action.friskAnswer", "action.friskFollow"], sockets: ["frisk.mjs"] },
+        scenarios: ["30-security"], status: "partial", stage: "E39" },
     { id: "gm-store", what: "The GM store between GM clients: a late, empty browser, the exchange, tombstones, backup and restore, the reset's cuts",
         entry: { sockets: ["gm-store.mjs"], api: ["backupCase", "restoreCase"] }, scenarios: ["61-gmstore-case"], status: "covered", stage: "1.2.63" },
     // E08+E28 C12a (04.10.2026): a player's action roll is drawn on the primary GM (`roll.draw`,
