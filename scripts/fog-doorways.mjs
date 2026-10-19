@@ -692,8 +692,10 @@ export function viewerPassages(actor, region, scene, level = null, { gm = Boolea
 
 /**
  * The marks of the tunnel ends this character knows in `region`'s room on this floor (E80 C1; P1-04):
- * `[{ id, x, y, to }]`, `to` the room at the other end as this viewer may name it - a room it has not
- * found is "Unexplored room 1", as Listen says it (action-rolls.mjs `listenLabels`). Read from this
+ * `[{ id, x, y, to }]`, `to` the room at the other end as this viewer may name it - the rooms it has not
+ * found are "Unexplored room 1, 2...", numbered over the distinct far rooms of this room's marks in the order
+ * they come, so two marks to one such room share its number and two to two rooms do not, as Listen numbers
+ * its list (action-rolls.mjs `listenLabels`; E80 fix r1-G8, the review's E80-C1-03: every one was 1). Read from this
  * browser's copy (passages.mjs `tunnelEndsFor`), so a tunnel the GMs closed, deleted or never gave a
  * character of this player's has no mark, and the rooms are read off the map as the list reads them
  * (movement.mjs `passageRooms`). None on a GM's browser, as `viewerPassages` hands a GM none. `gm`,
@@ -704,11 +706,12 @@ export function tunnelMarks(actor, region, scene, level = null, { gm = Boolean(g
     const ends = tunnelEndsFor(actor, scene.id, level, { known });
     if (!ends.length) return [];
     const found = knownRooms(scene);
-    const marks = [];
+    const marks = [], unexplored = new Map();
     for (const end of ends) {
         const [here, far] = passageRooms(scene, { ends: [end, end.far] });
         if (here !== region.name || !far) continue;
-        marks.push({ id: end.id, x: end.x, y: end.y, to: !found || found.has(far) ? far : game.i18n.format("DRPG.Listen.unknownRoom", { n: 1 }) });
+        if (found && !found.has(far) && !unexplored.has(far)) unexplored.set(far, unexplored.size + 1);
+        marks.push({ id: end.id, x: end.x, y: end.y, to: unexplored.has(far) ? game.i18n.format("DRPG.Listen.unknownRoom", { n: unexplored.get(far) }) : far });
     }
     return marks;
 }

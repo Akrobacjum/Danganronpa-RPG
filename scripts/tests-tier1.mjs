@@ -17323,6 +17323,135 @@ const INVARIANTS = [
         equal(J([verdicts("vault.findStash"), verdicts("analyze.resolve")]), J([taken, taken]),
             "[the row's action, an Analyze thrown as a Find Passage, one thrown for a bullet, a hint or a stash, one whose draw said null, a record of before C3] for a search for a hidden stash and for an Analyze of a bullet - a Find Passage's roll settles another road, or an Analyze thrown for that road is refused");
     }],
+    ["R613 - a room's tunnel marks number the rooms its student has not found: one unfound room beyond is 'Unexplored room 1' at each end that leads there, a second is 'Unexplored room 2', and a found one keeps its name", async () => {
+        /*
+         * E80 fix r1-G8 (19.10.2026; the review's E80-C1-03). `tunnelMarks` (fog-doorways.mjs) named every unfound room
+         * beyond a tunnel 'Unexplored room 1', so two tunnels from one room to two rooms the student has not found looked
+         * like two ways into the same room - as the Listen labels (action-rolls.mjs `listenLabels`) and the sheet's rows
+         * (passages-gm.mjs `roomsAsKnown`) do not. Read here on a copy of the suite's own, handed to the marks; nothing of
+         * the world is read or written. Red at the parent (529e404): the Kitchen's mark reads 'Unexplored room 1' too.
+         */
+        const F = await import("./fog-doorways.mjs");
+        const J = stableJson;
+        const SC = "R613SCENE";
+        const region = (name, x, y) => ({ id: `R613R${name}`, name: `R613 ${name}`, behaviors: [], getFlag: (scope, key) => key === "room",
+            shapes: [{ x, y, width: 400, height: 400 }], levels: new Set() });
+        const dorm = region("Dorm", 0, 0), gym = region("Gym", 800, 0), kitchen = region("Kitchen", 1600, 0), hall = region("Hall", 0, 800);
+        const site = { id: SC, grid: { size: 100 }, levels: [], regions: [dorm, gym, kitchen, hall] };
+        const end = (x, y) => ({ x, y, level: null });
+        const tunnel = far => ({ sceneId: SC, shape: "tunnel", level: null, ends: [end(far[0], far[1]), far[2]], actorIds: ["R613A"] });
+        const known = {
+            [`${SC}.t1`]: tunnel([100, 100, end(900, 100)]), [`${SC}.t2`]: tunnel([150, 150, end(1700, 100)]),
+            [`${SC}.t3`]: tunnel([200, 200, end(1000, 200)]), [`${SC}.t4`]: tunnel([250, 250, end(100, 900)])
+        };
+        const marks = F.tunnelMarks({ id: "R613A" }, dorm, site, null, { gm: false, known, knownRooms: () => new Set(["R613 Dorm", "R613 Hall"]) });
+        const unexplored = n => game.i18n.format("DRPG.Listen.unknownRoom", { n });
+        ok(unexplored(1) !== unexplored(2), `the words of an unfound room do not carry its number (${unexplored(1)}) - this would measure nothing`);
+        equal(J(marks.map(m => [m.id, m.to]).sort()), J([[`${SC}.t1`, unexplored(1)], [`${SC}.t2`, unexplored(2)], [`${SC}.t3`, unexplored(1)], [`${SC}.t4`, "R613 Hall"]]),
+            "[each tunnel's mark in the Dorm, the room it names] to the Gym, the Kitchen, the Gym again and the Hall - two unfound rooms share a number, one room takes two, or a found room lost its name");
+    }],
+    ["R614 - the sheet's 'Go through' says a refusal in the bridge's words: each of the eight doors' codes and 'not known' is its DRPG.Bridge.why key ('that room' for the room), a code with no key keeps its own sentence, and the button says what this answers", async () => {
+        /*
+         * E80 fix r1-G8 (19.10.2026; the review's E80-C2-2, E80-COR-3, E80-G-6; STAGE: "the pre-check says the key").
+         * `goThrough` (sheet.mjs) warned the veto's own sentence: a spent Eclipse said "Your token has been put back."
+         * though nothing moved, and a sealed far room was named, the room the sheet hides as 'Unexplored room 1'.
+         * Read here: movement.mjs `tunnelRefusalText` on each code with a sentence of the suite's own, and the button's
+         * warning in goThrough's source; scenario 76 U clicks the button on a sealed room. Nothing of the world is read
+         * or written. Red at the parent (529e404): no `tunnelRefusalText`, and goThrough warns `verdict.text`.
+         */
+        const M = await import("./movement.mjs");
+        const J = stableJson;
+        ok(typeof M.tunnelRefusalText === "function", "movement.mjs has no `tunnelRefusalText` for the sheet's 'Go through' to say a refusal with");
+        if (typeof M.tunnelRefusalText !== "function") return;
+        const keyed = ["notKnown", "notAtPassage", "doorLocked", "roomSealed", "chained", "cannotLeave", "trialLocked", "noBudget", "eclipseSpent"];
+        const said = [...keyed, "cannotNow"].map(code => [code, M.tunnelRefusalText({ code, text: "R614 the veto's own sentence" })]);
+        equal(J(said), J([...keyed.map(code => [code, game.i18n.localize(`DRPG.Bridge.why.${code}`)]), ["cannotNow", "R614 the veto's own sentence"]]),
+            "[each refusal's code, what the sheet says] - a door's code says the veto's own sentence, or a code with no key lost it");
+        ok(game.i18n.localize("DRPG.Bridge.why.eclipseSpent") !== game.i18n.localize("DRPG.Eclipse.noMovesLeft")
+            && !game.i18n.localize("DRPG.Bridge.why.roomSealed").includes("{room}"),
+            "the bridge's words for a spent Eclipse are the drag veto's, or its sealed room names the room - this would measure nothing");
+        equal(J([M.tunnelRefusalText(null), M.tunnelRefusalText({ near: {}, far: {} })]), J(["", ""]), "[what is said of no verdict, of a crossing allowed] - a crossing allowed was said as a refusal");
+        const sheet = stripComments(new Map(await otherSources()).get("sheet.mjs") ?? "");
+        ok(sheet.length > 0, "sheet.mjs was not read - the button's warning measured nothing");
+        const body = fnSource(sheet, "goThrough");
+        ok(/ui\.notifications\.warn\(tunnelRefusalText\(verdict\)\)/.test(body) && !/warn\(verdict\.text\)/.test(body),
+            "goThrough does not warn `tunnelRefusalText(verdict)` - the sheet says a refusal in other words than the bridge");
+    }],
+    ["R615 - a revoke on a public passage says what it does: the cross asks whoever the student is and wherever they stand, says the passage stays known to every student until Make secret and the revoke decides only what they know then, offers no 'when they leave', and 'Revoke' takes the cell", async () => {
+        /*
+         * E80 fix r1-G8 (19.10.2026; the review's E80-C6-3). C6 keeps a public passage's chips and their cross; the
+         * cross asked, of a student in one of its rooms, "When does it close to them?" and "Revoke now: it is a wall to
+         * them from this moment" - false on a public passage, which every student keeps until Make secret. Run as R561
+         * is: an engine of the suite's own, a detached panel drawn and wired by passages-tab.mjs, its clicks writing to
+         * the suite's stores only, and the question read in passages-tab.mjs `revokeQuestion`. Red at the parent
+         * (529e404): no `revokeQuestion`, and the cross asks the room question on a public passage.
+         */
+        needs(world.atLeast("livingStudents", 1), "a student to give a passage to and take it back from");
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const P = await import("./passages-gm.mjs");
+        const T = await import("./passages-tab.mjs");
+        const J = stableJson;
+        let now = 9_500_000;
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R615GM", isGM: () => true, isPrimary: () => true, worldId: () => "R615WORLD",
+            activeGmIds: () => [], primaryGmId: () => "R615GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => now++,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const def = (h, name) => eng.define({ ...h.spec, name: `r615${name}`, key: `r615${name}`, afterRestore: undefined, exists: undefined });
+        const stores = { map: def(S.passageMapStore, "Map"), access: def(S.passageAccessStore, "Access"), log: def(S.passageLogStore, "Log"),
+            mastermind: eng.define({ name: "r615mm", key: "r615mm", kind: "record", fields: ["actorId"], sync: false, backup: false }) };
+        const [A] = studentActors();
+        const box = (id, name, x, y, width, height) => ({ id, name, behaviors: [], getFlag: () => true, shapes: [{ x, y, width, height }] });
+        const scene = { id: "R615SCENE", grid: { size: 100 }, levels: [],
+            regions: [box("R615RH", "R615 Hall", 1200, 200, 800, 200), box("R615RK", "R615 Kitchen", 1200, 400, 800, 400)] };
+        const PX = `${scene.id}.r615p1`;
+        await stores.map.patch(PX, { sceneId: scene.id, level: null, shape: "wall", passageWallId: "R615WALL",
+            passageSeg: { x1: 1300, y1: 400, x2: 1366, y2: 400 }, rooms: ["R615 Kitchen", "R615 Hall"], state: "secret", startAccess: [] });
+
+        const asked = [];
+        let answer = null;
+        const where = new Map();
+        const root = document.createElement("div");
+        root.innerHTML = T.passagesTabHtml(scene, { stores, students: [A] });
+        const tab = T.wirePassagesTab(root, scene, { stores, students: [A], ask: async q => { asked.push(q); return answer; },
+            roomOf: async actorId => where.get(actorId) ?? null });
+        const cross = async () => {
+            tab.draw();
+            root.querySelector(`[data-drpg-passage="${PX}"] [data-drpg-passage-act="revoke"][data-drpg-actor="${A.id}"]`)?.click();
+            await tab.settled();
+        };
+        const cell = () => Boolean(stores.access.get(`${PX}/${A.id}`));
+        const steps = [];
+        await P.grantPassage(PX, A.id, { stores });
+        await P.makePassagePublic(PX, { stores });
+        for (const [what, room, said] of [["in the Hall, cancelled", "R615 Hall", null], ["in the Hall, 'when they leave' sent", "R615 Hall", "leave"],
+            ["in no room of it, cancelled", null, null], ["in no room of it, 'Revoke'", null, "now"]]) {
+            where.set(A.id, room);
+            answer = said;
+            const from = asked.length;
+            await cross();
+            const q = asked[from] ?? null;
+            steps.push([what, asked.length - from, q?.isPublic ?? null, q?.room ?? null, cell()]);
+        }
+        equal(J(steps), J([["in the Hall, cancelled", 1, true, null, true], ["in the Hall, 'when they leave' sent", 1, true, null, true],
+            ["in no room of it, cancelled", 1, true, null, true], ["in no room of it, 'Revoke'", 1, true, null, false]]),
+            "[the step, the questions asked, asked as of a public passage, the room asked about, the cell kept] on a public passage - the cross asked of a room, revoked unasked, or a cancel or a 'when they leave' took the cell");
+
+        ok(typeof T.revokeQuestion === "function", "passages-tab.mjs has no `revokeQuestion` - what the cross asks cannot be read");
+        if (typeof T.revokeQuestion !== "function") return;
+        const name = A.name;
+        const pub = T.revokeQuestion({ name, room: "R615 Hall", isPublic: true });
+        const sec = T.revokeQuestion({ name, room: "R615 Hall" });
+        equal(J([pub.ask, pub.note, pub.buttons.map(([a]) => a), sec.ask, sec.buttons.map(([a]) => a)]),
+            J([game.i18n.format("DRPG.Passage.tab.revokePublicAsk", { name }), game.i18n.localize("DRPG.Passage.tab.revokePublicNote"), ["now", "cancel"],
+                game.i18n.format("DRPG.Passage.tab.revokeAsk", { name, room: "R615 Hall" }), ["now", "leave", "cancel"]]),
+            "[a public passage's question, its note, its buttons; a secret passage's question, its buttons]");
+        ok(!pub.ask.includes("R615 Hall") && pub.ask.includes(name) && !/\{|\}/.test(pub.ask + pub.note),
+            `the public passage's question names the room, leaves out the student, or keeps a placeholder: ${pub.ask} ${pub.note}`);
+    }],
 ];
 
 /**

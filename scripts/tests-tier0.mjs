@@ -9354,8 +9354,9 @@ const REGRESSIONS = [
          * updateWall and deleteWall (record), its field "<event>/<handler's name, or inline>"; OPT - every read of an
          * update's option a client sets: `x[REVERT]`, `x[SENT_BACK]` (a computed key of an object literal is a write, not
          * a read), a member `.teleport` or `.movementAction`, and the string "displace" (exempt); ACT - the strings
-         * "token.sendBack" (write), "move.sentBack" and "passage.rows" (screen), "passage.request" (copy) and
-         * "passage.share" (record and copy); IGN - a member or a key `ignoreWalls` (write); WALLS - a member `.walls` in
+         * "token.sendBack" and "passage.cross" (write), "move.sentBack" and "passage.rows" (screen), "passage.request" (copy),
+         * "passage.share" and "passage.find" (record and copy; "passage.cross" and "passage.find" since E80 fix r1-G8,
+         * the review's E80-SEC-6); IGN - a member or a key `ignoreWalls` (write); WALLS - a member `.walls` in
          * movement-audit.mjs (judge), passages.mjs and passages-gm.mjs (screen), and in those two a member `.edges` as
          * well, a move polygon's walls (E79 C2); SCENE - `canvas.scene` or `canvas.edges`
          * in movement-audit.mjs (judge), which has no row and fails by design: the audit reads the token's own scene;
@@ -9460,6 +9461,10 @@ const REGRESSIONS = [
             ["WALLS passages-gm.mjs#sceneWalls -> screen", "a GM's pick only (`startPassagePick` and `repickPassage` ask `game.user.isGM` first): the walls of the scene Room Setup was opened on, read to snap a click to one and to hold the stretch to it through `passageRowFor`; nothing is written to a wall and nothing of it reaches a player but through the copy (R561; 76 F)"],
             // ---- showing a passage (E79 C7)
             ["ACT gm-bridge.mjs#ACTION_PASSAGE_SHARE#passage.share -> *", "judged on the primary GM: `knownSender` and `owns(\"actorId\")`, then passages-gm.mjs `shareRefusal` - the phase, the giver alive, in no incident and no Monocub, the giver's own cell of a secret passage (a closed, unknown or made-up one refused alike), both in one room, scene and floor now, the one shown it alive; `sharePassage` writes the records and pushes the copies (R562; 76 G)"],
+            ["ACT gm-bridge.mjs#ACTION_PASSAGE_CROSS#passage.cross -> write", "E80 C2's 'Go through', judged on the primary GM: `knownSender` and `owns(\"actorId\")`, then passages-gm.mjs `crossTunnel` in its serial write - a secret tunnel of the GMs' records the character knows (the Mastermind's through `actsAsMastermind`), the token at an end where the GMs read it (movement.mjs `gmSpotOf`), the doors' rules (`tunnelVerdict`), the price taken first and given back on a failed write (`settleCrossingOnGm`); the packet names no end, room, floor or spot (R597, A10-18; 76 U)"],
+            ["ACT gm-bridge.mjs#ACTION_PASSAGE_FIND#passage.find -> *", "E80 C3's Find Passage, judged on the primary GM: `knownSender` and `owns(\"actorId\")`, the roll the GM drew for that character's Analyze thrown as a Find Passage (`rolled`, `findPassageRoll`; the packet's total and critical are the record's), then passages-gm.mjs `resolvePassageSearch` - the phase, the character, its room and floor where the GMs read it (`gmPlaceOf`), the passages it does not know - writes the found cell and pushes the copies (R598, R604, R612; A10-7)"],
+            ["ACT action-rolls.mjs#performAnalyze#passage.find -> *", "a label, no road: `sayNotDone` names the action in the roller's own refusal of a Find Passage in a Class Trial, before the price; nothing is sent (the primary refuses it again, `resolvePassageSearch`'s phase)"],
+            ["ACT action-rolls.mjs#locatePassage#passage.find -> *", "a label, no road: `sayNotDone` names the action in the roller's own word that no GM is online, after the price is given back; nothing is sent"],
             // ---- the Passages tab's watch on a passage's wall (E79 C5)
             ["HOOK passages-gm.mjs#registerPassagesGm#updateWall/onWallMoved -> record", "the primary GM only (`isPrimaryGm`), and only when the change carries `c`: a passage whose stretch is no longer on its wall's segment is marked broken in the GMs' records and drops out of every copy; the wall is never written (R561; 76 E)"],
             ["HOOK passages-gm.mjs#registerPassagesGm#deleteWall/onWallDeleted -> record", "the primary GM only: every passage of the deleted wall is marked broken in the GMs' records and drops out of every copy (R561; 76 E); and since E80 fix r1-G1 a deleted secret door's row goes from the GMs' record of the doors (`secretDoorStore`), a GM store"],
@@ -9492,7 +9497,8 @@ const REGRESSIONS = [
         const FAMILY_SINKS = { clientSettingChanged: ["copy"], updateActor: ["copy"], createActor: ["copy"], deleteActor: ["copy"], userConnected: ["copy"], updateUser: ["copy"],
             drpgPrimaryReady: ["copy"], gmStoresAudible: ["copy"], canvasReady: ["screen"] };
         const REGISTRATION = new Set(["ready", "init", "setup"]);
-        const ACT_SINKS = { "token.sendBack": ["write"], "move.sentBack": ["screen"], "passage.request": ["copy"], "passage.share": ["record", "copy"], "passage.rows": ["screen"] };
+        const ACT_SINKS = { "token.sendBack": ["write"], "move.sentBack": ["screen"], "passage.request": ["copy"], "passage.share": ["record", "copy"], "passage.rows": ["screen"],
+            "passage.cross": ["write"], "passage.find": ["record", "copy"] };
         const SET_SOURCES = { minePassages: [["primary", "console", "stale"], "screen"], moveAudit: [["gm"], "mode"] };
         const AUDIT_FILES = /^(?:movement-audit|passages|passages-gm)\.mjs$/;
         const KEYWORDS = new Set(["return", "typeof", "in", "of", "case", "else", "do", "yield", "await", "void", "delete", "new", "throw", "instanceof"]);
@@ -9536,7 +9542,7 @@ const REGRESSIONS = [
                 }
                 for (const m of blank.matchAll(/(?<!\.)\.\s*(teleport|movementAction)(?![\w$])/g)) add("OPT", file, declAt(m.index), m[1], ["exempt"]);
                 for (const m of strings(/(["'])displace\1/g)) add("OPT", file, declAt(m.index), "displace", ["exempt"]);
-                for (const m of strings(/(["'])(token\.sendBack|move\.sentBack|passage\.request|passage\.share|passage\.rows)\1/g)) {
+                for (const m of strings(/(["'])(token\.sendBack|move\.sentBack|passage\.request|passage\.share|passage\.rows|passage\.cross|passage\.find)\1/g)) {
                     add("ACT", file, declAt(m.index), m[2], ACT_SINKS[m[2]]);
                 }
                 for (const m of blank.matchAll(/(?<!\.)\.\s*ignoreWalls(?![\w$])|(?<![\w$.?]\s*)ignoreWalls\s*:(?!:)|[{,]\s*ignoreWalls\s*[,}]/g)) {
@@ -9594,7 +9600,8 @@ const REGRESSIONS = [
             ["passages-tab.mjs", "export function registerPassagesTab() {\n    Hooks.once(\"ready\", () => {\n        Hooks.on(\"updateActor\", retell);\n"
                 + "        Hooks.on(\"drpgSomethingNew\", () => retell());\n        onGmStoresAudible(() => retell());\n    });\n}\n"],
             ["sheet-audit.mjs", "export function registerSheetAudit() {\n    Hooks.on(\"updateActor\", audit);\n    onGmStoresAudible(audit);\n"
-                + "    Hooks.on(\"drpgRouteSettled\", paint);\n}\n"]
+                + "    Hooks.on(\"drpgRouteSettled\", paint);\n}\n"],
+            ["action-rolls.mjs", "async function locatePassage() {\n    sayNotDone(\"passage.find\", \"noGm\");\n}\nconst ACTION_PASSAGE_CROSS = 'passage.cross';\n"]
         ], { minePassages: "minePassages", moveAudit: "moveAudit" });
         equal(JSON.stringify(planted), JSON.stringify([
             "HOOK movement.mjs#registerMovement#updateToken/noteGmPosition -> judge", "HOOK movement.mjs#registerMovement#createToken/inline -> judge",
@@ -9609,12 +9616,19 @@ const REGRESSIONS = [
             "STORE gm-stores.mjs#passageMapStore#passageMap -> record", "STORE gm-stores.mjs#passageCopy#passages -> copy",
             "HOOK passages-tab.mjs#registerPassagesTab#updateActor/retell -> copy", "HOOK passages-tab.mjs#registerPassagesTab#drpgSomethingNew/inline -> unsorted",
             "HOOK passages-tab.mjs#registerPassagesTab#gmStoresAudible/inline -> copy", "HOOK sheet-audit.mjs#registerSheetAudit#drpgRouteSettled/paint -> record",
+            "ACT action-rolls.mjs#locatePassage#passage.find -> record", "ACT action-rolls.mjs#locatePassage#passage.find -> copy",
+            "ACT action-rolls.mjs#ACTION_PASSAGE_CROSS#passage.cross -> write",
             "SET settings.mjs#minePassages#primary -> screen", "SET settings.mjs#minePassages#console -> screen", "SET settings.mjs#minePassages#stale -> screen",
             "SET settings.mjs#moveAudit#gm -> mode"]),
             "the census reader does not read the planted fixture as planted - the live census below would measure the wrong roads");
         equal(JSON.stringify(judge(planted.slice(16, 19), [["ACT passages-gm.mjs#ACTION_PASSAGE_SHARE#passage.share -> *", ""], ["HOOK passages-gm.mjs#gone -> record", ""]])),
             JSON.stringify({ unclassified: ["STORE gm-stores.mjs#passageMapStore#passageMap -> record"], stale: ["HOOK passages-gm.mjs#gone -> record"] }),
             "the census judge does not tell a planted road without a row, a source's \"-> *\" row from its sinks, or a row without its road");
+        // E80 fix r1-G8 (the review's E80-SEC-6): a second road of `passage.cross` or `passage.find`, in a declaration the table has
+        // no row for, is a road without a row; the label of the roller's own refusal is its own row's.
+        const planted80 = planted.filter(key => key.startsWith("ACT action-rolls.mjs#"));
+        equal(JSON.stringify(judge(planted80, PASSAGE_CENSUS).unclassified), JSON.stringify(["ACT action-rolls.mjs#ACTION_PASSAGE_CROSS#passage.cross -> write"]),
+            "the census takes a second road of 'Go through' without a row, or refuses the row of Find Passage's label");
 
         const found = censusOf(await otherSources(), SETTINGS);
         const count = kind => found.filter(key => key.startsWith(`${kind} `)).length;

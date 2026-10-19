@@ -822,7 +822,9 @@ export const SETTINGS = {
     /**
      * The secret passages this user's own characters know, as the primary GM sent them
      * (E79 C1; gm-stores.mjs `passageCopy`): `{ passageId: { sceneId, shape, level,
-     * passageWallId, passageSeg, actorIds } }`, open rows only, no name and no room.
+     * passageWallId, passageSeg, actorIds } }` for a passage on a wall, and since E80 C1
+     * `{ sceneId, shape: "tunnel", level: null, ends: [{ x, y, level }, { x, y, level }], actorIds }`
+     * for a tunnel or stairs (passages.mjs `secretRowsFrom`), open rows only, no name and no room.
      */
     minePassages: "minePassages",
     /**

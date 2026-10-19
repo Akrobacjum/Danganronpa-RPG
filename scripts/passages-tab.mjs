@@ -13,7 +13,8 @@
  * The cross asks first only when the student stands in one of the passage's rooms on its scene -
  * the rooms on the map either side of its stretch (passages-gm.mjs `passageRoomsOnMap`), not the
  * names the row shows: 'Revoke now' or 'Revoke when they leave the room' (`revokeWhenLeaving`); a
- * student anywhere else forgets it at once. The Mastermind knows every passage (the owner's Q7)
+ * student anywhere else forgets it at once. On a public passage the cross always asks, and says what a revoke
+ * does there: nothing until Make secret, then whether the student still knows it (E80 fix r1-G8). The Mastermind knows every passage (the owner's Q7)
  * and is listed nowhere here.
  *
  * Nothing here names a passage's wall or stretch (R560: the records' files alone do); Show asks
@@ -168,20 +169,31 @@ export function passagesTabHtml(scene, options = {}) {
  * What the buttons ask, each replaceable by the suite (R561) and by scenario 76's real windows.
  * ------------------------------------------------------------------------------------------- */
 
-/** 'Revoke now' ("now"), 'Revoke when they leave the room' ("leave") or neither (null). */
-async function askRevoke({ name, room, title }) {
+/**
+ * What the cross asks the GM, `{ ask, note, buttons }` (each button `[action, label]`). A secret passage: when it
+ * closes to the student, now or when they leave `room`. A public one (`isPublic`, E80 fix r1-G8, the review's
+ * E80-C6-3): every student knows it until Make secret, so the revoke closes nothing now and the question says so -
+ * only whether `name` still knows it then, with no room question. Pure (R615).
+ */
+export function revokeQuestion({ name, room = null, isPublic = false }) {
+    const cancel = ["cancel", game.i18n.localize("DRPG.Advance.cancel")];
+    if (isPublic) return { ask: tf("DRPG.Passage.tab.revokePublicAsk", { name }), note: t("DRPG.Passage.tab.revokePublicNote"),
+        buttons: [["now", t("DRPG.Passage.tab.revoke")], cancel] };
+    return { ask: tf("DRPG.Passage.tab.revokeAsk", { name, room }), note: tf("DRPG.Passage.tab.revokeNote", { room }),
+        buttons: [["now", t("DRPG.Passage.tab.revokeNow")], ["leave", t("DRPG.Passage.tab.revokeLeave")], cancel] };
+}
+
+/** 'Revoke now' ("now"), 'Revoke when they leave the room' ("leave", a secret passage's only) or neither (null). */
+async function askRevoke({ name, room, title, isPublic = false }) {
+    const question = revokeQuestion({ name, room, isPublic });
     const answer = await foundry.applications.api.DialogV2.wait({
         window: { title: tf("DRPG.Passage.tab.revokeTitle", { passage: title }) },
         classes: ["drpg-panel"],
-        content: `<p>${esc(tf("DRPG.Passage.tab.revokeAsk", { name, room }))}</p><p class="notes">${esc(tf("DRPG.Passage.tab.revokeNote", { room }))}</p>`,
-        buttons: [
-            { action: "now", label: t("DRPG.Passage.tab.revokeNow"), default: true },
-            { action: "leave", label: t("DRPG.Passage.tab.revokeLeave") },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+        content: `<p>${esc(question.ask)}</p><p class="notes">${esc(question.note)}</p>`,
+        buttons: question.buttons.map(([action, label], i) => ({ action, label, ...(i === 0 ? { default: true } : {}) })),
         rejectClose: false
     });
-    return answer === "now" || answer === "leave" ? answer : null;
+    return question.buttons.some(([action]) => action === answer && action !== "cancel") ? answer : null;
 }
 
 async function confirmDelete({ title }) {
@@ -241,6 +253,11 @@ export function wirePassagesTab(root, scene, { dialog = null, stores = PASSAGE_S
             case "revoke": {
                 const cell = passage.access?.[actorId];
                 if (!cell) return false;
+                // A public passage: the revoke closes nothing until Make secret, and the GM is told so (E80-C6-3).
+                if (passage.public === true) {
+                    const choice = await ask({ name: nameOf(actorId, game.actors), room: null, title, isPublic: true });
+                    return choice === "now" ? revokePassage(passageId, actorId, { stores }) : false;
+                }
                 const room = typeof cell.leave === "string" ? null : await roomOf(actorId, passage.sceneId);
                 if (!room || !(await passageRoomsOnMap(passageId, { stores, scene })).includes(room)) return revokePassage(passageId, actorId, { stores });
                 const choice = await ask({ name: nameOf(actorId, game.actors), room, title });

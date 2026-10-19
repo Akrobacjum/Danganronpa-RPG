@@ -584,6 +584,8 @@
         "revokeNote": "Odbierz teraz: od tej chwili to dla tej postaci ściana. Odbierz po wyjściu z pokoju: zostaje otwarte, dopóki postać nie wyjdzie z pokoju {room}.",
         "revokeNow": "Odbierz teraz",
         "revokeLeave": "Odbierz po wyjściu z pokoju",
+        "revokePublicAsk": "{name} zna to przejście, tak jak każdy uczeń, dopóki jest jawne. Odebranie niczego teraz nie zamyka: decyduje tylko o tym, czy {name} będzie je znać, gdy je utajnisz.",
+        "revokePublicNote": "Odbierz: gdy utajnisz przejście, będzie dla tej postaci ścianą.",
         "deleteTitle": "Usuń tajne przejście",
         "deleteAsk": "Usunąć tajne przejście {passage}? Każdy uczeń, który je zna, zapomina je."
       },

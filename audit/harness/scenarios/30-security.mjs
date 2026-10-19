@@ -1646,6 +1646,13 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         door?.mode === "sendBack" && forcedDoor.vetoOff && forcedDoor.opened === "written"
             && JSON.stringify([doorOnGm, doorOnP1]) === JSON.stringify([{ door: 2, ds: 0, at: [1300, 400] }, { door: 2, ds: 0, at: [1300, 400] }]),
         JSON.stringify({ door, forcedDoor, doorOnGm, doorOnP1 }));
+    /* The known leak, a Foundry limit (E80 fix r1-G8, the review's E80-G-3 = P1-24): Foundry's own secret door is a wall on
+       p1's map, its type read there, and p1's console's change of its state is taken (the GMs' browser puts it back, as
+       the check above reads). Green when p1 reads no secret door or cannot write it; red, as known-leaks.json says, while
+       it can - measured only when the door was drawn with the audit on sendBack and the veto was off. */
+    check("a Foundry secret door is seen and opened from a player's console - on p1 the GM's secret door reads door type 2, and p1's console's write of ds 1 is taken",
+        !(doorOnP1.door === 2 && forcedDoor.opened === "written"), JSON.stringify({ doorOnP1, opened: forcedDoor.opened }),
+        { knownLeak: "foundry-secret-door-type", measured: door?.mode === "sendBack" && forcedDoor.vetoOff === true });
     const shutWhole = await p1.eval(`try { await canvas.scene.walls.get("${door?.id}").update({ ds: 0 }, { diff: false }); return "written"; }
         catch (err) { return "denied: " + err.message; }`, { timeout: 30000 });
     await settle(1500);

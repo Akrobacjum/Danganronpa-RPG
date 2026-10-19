@@ -57,7 +57,7 @@ import { isCleaner, tamperQuote, witnessesTo } from "./cleanup.mjs";
 // reads (T-1). Synchronous by design - this file calls it from a render path.
 import { quotePrice, priceLabel, stripeKindFor } from "./price.mjs";
 import { roomOfActor, neighbouringRooms, othersInRoom, locateActor, sceneOfActor, passageRooms, passageOpenFor,
-    roomsKnownToMe, tunnelVerdict } from "./movement.mjs";
+    roomsKnownToMe, tunnelVerdict, tunnelRefusalText } from "./movement.mjs";
 // The sheet's 'Known passages' (E79 C7): this browser's passages, the Mastermind as the GMs hold it, and the
 // rooms named as Listen names them - a room this viewer has not found is "Unexplored room n".
 import { passagesKnownBy, passageSpot, viewPassage } from "./passages.mjs";
@@ -2066,9 +2066,10 @@ async function showPassageDialog(actor, row) {
 
 /**
  * 'Go through' (E80 C2): a tunnel's row asks first on this browser, by the doors' rules as this browser holds them
- * (movement.mjs `tunnelVerdict`, the price included), and a refusal is said here in the veto's own words; then the
- * primary GM judges it again and moves the token (gm-bridge.mjs `passage.cross`), and says its refusal through the
- * bridge. The button waits for the answer, so one click asks once.
+ * (movement.mjs `tunnelVerdict`, the price included), and a refusal is said here in its key's words, as the bridge
+ * says it (`tunnelRefusalText`: `DRPG.Bridge.why.<code>`, "that room" for the room); then the primary GM judges it
+ * again and moves the token (gm-bridge.mjs `passage.cross`), and says its refusal through the bridge. The button
+ * waits for the answer, so one click asks once. Scenario 76 U clicks it.
  */
 async function goThrough(actor, row, button, mastermind) {
     const scene = game.scenes?.get(row.passage.sceneId) ?? null;
@@ -2078,7 +2079,7 @@ async function goThrough(actor, row, button, mastermind) {
     const verdicts = Array.from(scene?.tokens ?? []).filter(t => t.actorId === actor.id).map(ask);
     const verdict = verdicts.find(v => !v?.code) ?? verdicts[0] ?? ask(null);
     if (verdict?.code) {
-        ui.notifications.warn(verdict.text);
+        ui.notifications.warn(tunnelRefusalText(verdict));
         return;
     }
     button.disabled = true;

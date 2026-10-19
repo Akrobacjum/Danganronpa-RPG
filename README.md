@@ -283,7 +283,12 @@ name and position, to every browser. <!-- leak:foundry-hidden-tokens --> A
 secret passage, and who knows it, stay with the GMs and the students who know
 it, but every browser sees a token cross the wall where one runs
 <!-- leak:foundry-passage-crossing --> and sees a room whose only way in is a
-secret passage. <!-- leak:foundry-passage-only-room --> It is a curtain, not a
+secret passage. <!-- leak:foundry-passage-only-room --> Every browser also sees
+a token that goes through a tunnel or up its stairs leave one end and land at
+the other. <!-- leak:foundry-passage-tunnel --> Foundry's own secret doors are
+walls on every browser's map, and a player's console can open one; the GM's
+browser shuts it again, and Convert to passages turns them into secret
+passages. <!-- leak:foundry-secret-door-type --> It is a curtain, not a
 wall, and it works at a table that does not go looking behind it.
 
 **Several GMs.** The primary GM's browser writes the shared world state. The

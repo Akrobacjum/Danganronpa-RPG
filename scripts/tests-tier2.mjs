@@ -53151,7 +53151,7 @@ const SCENARIOS = [
             `[the Reroll stood, the student's cell, its lines say a find] for the Mastermind's student's Find Passage rerolled from 12 to 17 by the owner the door does not name - the replay judged the GM as the Mastermind and found nothing: ${stableJson(read.lines)}`);
     }],
 
-    ["A10-7 Reroll where it was thrown - a Find Passage's Reroll searches the room its roll was thrown in, and only while the GMs still read the student there: a miss in an empty room rerolled after a walk to a tunnel's end, and a miss by the end rerolled after a walk away, are given back whole with nothing found; a miss by the end rerolled there after a walk out and back finds the tunnel, its cell the roll's", async () => {
+    ["A10-7 Reroll where it was thrown - a Find Passage's Reroll searches the room its roll was thrown in, and only while the GMs still read the student there: a miss in an empty room rerolled after a walk to a tunnel's end, and a miss by the end rerolled after a walk away, are given back whole with nothing found; a miss by the end rerolled there after a walk out and back finds the tunnel, its cell the roll's; and a find by the end rerolled lower there takes the cell back, its line saying so", async () => {
         /*
          * E80 fix r1-G3 (19.10.2026; the review's E80-C3-2). The replay (reroll.mjs `settlePassageFind`) searched where the
          * character stood at the Reroll (`resolvePassageSearch`, `facts.place`), not where the roll was thrown: a miss in an
@@ -53171,6 +53171,11 @@ const SCENARIOS = [
          * student in that room (movement.mjs `gmPlaceOf`), else is refused and the Reroll given back; a walk out and back
          * before the Reroll searches again. Red at fb6d1f1: the first two steps stood ([.., true, null, ..] and
          * [.., true, "found", true, true]).
+         * E80 fix r1-G8 (19.10.2026; the review's E80-C3-7): R598 and A10-7 took a find back by calling
+         * `resolvePassageSearch({ undo: true })` themselves, so reroll.mjs's road for it (`settleAnalyze`'s Find Passage
+         * branch, `settlePassageFind`'s rollId, asker and line) ran in no test going down. A last step: a find at 17 by the
+         * end, rerolled to 12 there through `rerollOnGm`. Read: the Reroll stood, the cell left, the line
+         * DRPG.Reroll.passageLost. Green at the parent (529e404): coverage; red with `settlePassageFind`'s `undo: true` false.
          */
         needs(world.atLeast("connectedPlayersWithCharacter"), "a connected player whose roll the Reroll takes back");
         const P = await import("./passages-gm.mjs");
@@ -53232,6 +53237,24 @@ const SCENARIOS = [
                     await F.putBack();
                     F = null;
                 }
+                // A find taken back by a lower Reroll, where it was thrown (E80-C3-7): the down road through reroll.mjs.
+                await token.update({ x: 200, y: 200 }, PLACE);
+                await settle();
+                if (botan.system.resources.hope.value < 3) await trustedWrite(botan, { "system.resources.hope.value": 6 }, { reason: "gmRuling" });
+                F = await playerRollBookmark(thrower, botan, "analyze", {});
+                const found = await P.resolvePassageSearch({ actorId: botan.id, total: 17, rollId: F.message.id },
+                    { asker: thrower, whisper: async () => {}, toast: () => {} });
+                await settle();
+                must(found?.found === true && cell()?.how === "found" && cell()?.rollId === F.message.id,
+                    `the first search at 17 by the end found nothing, or not as this roll's - this would measure nothing: ${stableJson([found, cell()])}`);
+                must(meansHeld(botan).hope >= 3, `the GMs hold ${meansHeld(botan).hope} of Botan's Hope - the Reroll could not be bought, and this would measure nothing`);
+                const { out: down } = await rerollAgain(botan, F.message, { hope: 10, fear: 7 }, { hope: 7, fear: 5 });
+                const lost = game.i18n.localize("DRPG.Reroll.passageLost");
+                steps.push(["a find in the Dorm, rerolled lower there", Array.isArray(down?.lines), cell()?.how ?? null, false,
+                    Array.isArray(down?.lines) && down.lines.includes(lost)]);
+                if (cell()) await P.revokePassage(id, botan.id);
+                await F.putBack();
+                F = null;
                 await P.deletePassage(id);
                 await botan.delete();
                 botan = null;
@@ -53245,8 +53268,9 @@ const SCENARIOS = [
         }
         equal(stableJson(read.steps), stableJson([["a miss in the Cafeteria, rerolled in the Dorm", false, null, false, false],
             ["a miss in the Dorm, rerolled in the Cafeteria", false, null, false, false],
-            ["a miss in the Dorm, rerolled there after a walk out and back", true, "found", true, true]]),
-            "[each step, the Reroll stood, Botan's cell, the cell the Reroll's roll's, its lines say a find] - a Find Passage's Reroll searched where Botan stands at the Reroll, not where the roll was thrown (E80-C3-2), or searched the roll's room after Botan had left it (E80-G-2)");
+            ["a miss in the Dorm, rerolled there after a walk out and back", true, "found", true, true],
+            ["a find in the Dorm, rerolled lower there", true, null, false, true]]),
+            "[each step, the Reroll stood, Botan's cell, the cell the Reroll's roll's, its lines say a find (the last: the find gone)] - a Find Passage's Reroll searched where Botan stands at the Reroll, not where the roll was thrown (E80-C3-2), or searched the roll's room after Botan had left it (E80-G-2)");
     }],
 
     ["A10-7 stash where it was thrown - a Find Stash's Reroll searches the room its roll was thrown in, and only while the GMs still read the student there: a miss in an empty room rerolled after a walk into a room with a hidden stash, and a miss by the stash rerolled after a walk away, are given back whole with nothing opened; a miss by the stash rerolled where it was thrown opens it", async () => {
@@ -53361,6 +53385,11 @@ const SCENARIOS = [
          * actions.mjs `giveMoveBack` takes for one ("sprint" -> `grantFreeMoves`) ran in no test. A banked Sprint now
          * pays a write that fails and two that stand; read: the Sprints banked after each. Green at fb6d1f1 (the road
          * gives it back), so a coverage step, not a fix.
+         * E80 fix r1-G8 (19.10.2026; the review's E80-G-6 and E80-G-9): the incident's refusal was read only by its
+         * mapping (R597), never in a running incident - a step now crosses with the student the cast's killer and the
+         * murder state's stage "incident"; and nothing read that a crossing records the room it leads to - the GMs'
+         * ledger (fog.mjs `discoveredFor`) is read for the Gym before the first crossing and after. Both green at the
+         * parent (529e404): coverage; the ledger read is red with fog.mjs `onUpdateToken` skipping a teleport write.
          */
         const P = await import("./passages-gm.mjs");
         const M = await import("./movement.mjs");
@@ -53368,6 +53397,7 @@ const SCENARIOS = [
         const S = await import("./gm-stores.mjs");
         const E = await import("./gm-store.mjs");
         const EC = await import("./eclipse.mjs");
+        const F = await import("./fog.mjs");
         const V = await import("./vault.mjs");
         const CW = await import("./call-world.mjs");
         const G = await import("./bridge-guards.mjs");
@@ -53381,7 +53411,7 @@ const SCENARIOS = [
         const clock = getClock() ?? {};
         if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
         if (!game.settings.get(MODULE_ID, SETTINGS.chargeMovement)) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, true);
-        const held = [SETTINGS.sealedRooms, SETTINGS.restrictions].map(key => [key, foundry.utils.deepClone(game.settings.get(MODULE_ID, key))]);
+        const held = [SETTINGS.sealedRooms, SETTINGS.restrictions, SETTINGS.murderState].map(key => [key, foundry.utils.deepClone(game.settings.get(MODULE_ID, key))]);
         const DORM = "SUITE E80 C2 Dorm", GYM = "SUITE E80 C2 Gym", mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
         const room = (name, x) => ({ name, shapes: [{ type: "rectangle", x, y: 0, width: 600, height: 600 }], flags: mark, behaviors: [] });
         const budget = ({ actions = 2, free = false, burst = 0, sprint = 0 } = {}) => student.update({ "system.resources.actions.value": actions,
@@ -53427,7 +53457,10 @@ const SCENARIOS = [
                 };
                 const failing = { write: () => { throw new Error("SUITE E80 C2 a write that fails"); } };
                 await budget({ actions: 2 });
+                // What the GMs' ledger holds of the Gym for the student, before the first crossing and after (E80-G-9).
+                const discovered = [F.discoveredFor(scene.id, student.id).includes(GYM)];
                 await step("an action");
+                discovered.push(await until(() => F.discoveredFor(scene.id, student.id).includes(GYM), 3000));
                 await step("back, an action");
                 await step("no budget");
                 await budget({ actions: 2, free: true });
@@ -53455,6 +53488,14 @@ const SCENARIOS = [
                 await setClock({ phase: "dailyLife", eclipse: false });
                 await budget({ actions: 1 });
                 await step("another student, who does not know it", { actorId: other.id });
+                // A running incident the student is in (E80 fix r1-G8, the review's E80-G-6): the doors' `lockedInIncident`.
+                await S.castStore.patch("record", { killerId: student.id, victimId: other.id });
+                await game.settings.set(MODULE_ID, SETTINGS.murderState, { active: true, stage: "incident" });
+                await budget({ actions: 1 });
+                await step("in a running incident");
+                await game.settings.set(MODULE_ID, SETTINGS.murderState, held[2][1]);
+                await S.castStore.patch("record", { killerId: null, victimId: null });
+                await budget({ actions: 1 });
                 /* Where the GMs read the token, not where its document says (E80 fix early-C2-G1; the review's E80-C2-1).
                    A player's move as the primary hears it is a GM's write that names the player (`SENT_BACK`, the
                    bridge's send-back road), which the audit and the judge read as that player's (movement-audit.mjs
@@ -53533,7 +53574,7 @@ const SCENARIOS = [
                 await step("beyond the Eclipse's crossings");
                 if (EC.isEclipse()) await EC.endEclipse({ advance: false }).catch(() => {});
                 await S.eclipseMoveStore.drop(student.id);
-                return { steps, allowance, sprints };
+                return { steps, allowance, sprints, discovered };
             });
         } finally {
             Hooks.off("preUpdateToken", onPre);
@@ -53550,7 +53591,7 @@ const SCENARIOS = [
             await setClock(clock);
             await settle();
         }
-        const { steps, allowance, sprints: banked } = read;
+        const { steps, allowance, sprints: banked, discovered } = read;
         const IN_GYM = "1400,200", IN_DORM = "200,200";
         const ends = allowance % 2 ? IN_DORM : IN_GYM;
         const tail = [];
@@ -53563,6 +53604,7 @@ const SCENARIOS = [
             ["into another's bedroom", "crossed", 1, IN_GYM, 0, false, 0, 0],
             ["a seal", "roomSealed", 0, IN_GYM, 0, false, 0, 0], ["the chain", "chained", 0, IN_GYM, 0, false, 0, 0],
             ["the courtroom", "trialLocked", 0, IN_GYM, 1, false, 0, 0], ["another student, who does not know it", "notKnown", 0, IN_GYM, 1, false, 0, 0],
+            ["in a running incident", "cannotLeave", 0, IN_GYM, 1, false, 0, 0],
             ["a put-back on its way", "notAtPassage", 0, "1300,200", 2, false, 0, 0], ["a jump the doors refused", "notAtPassage", 0, "230,230", 2, false, 0, 0],
             ["a move while the price is taken", "notAtPassage", 0, "420,300", 2, false, 0, 0],
             ["an action, the write failing", "refused", 0, IN_GYM, 2, false, 0, 0], ["a Burst, the write failing", "refused", 0, IN_GYM, 2, false, 1, 0],
@@ -53572,6 +53614,8 @@ const SCENARIOS = [
             ["an Eclipse crossing", "crossed", 1, IN_DORM, 2, false, 0, 1], ["an Eclipse crossing, the write failing", "refused", 0, IN_DORM, 2, false, 0, 1],
             ...tail, ["beyond the Eclipse's crossings", "eclipseSpent", 0, ends, 2, false, 0, allowance]]),
         "each step as [what, the answer, token writes, where the token stands, actions, the free Move, Bursts, the Eclipse's count]");
+        equal(stableJson(discovered), stableJson([false, true]),
+            "[the Gym in the GMs' ledger for the student before the first crossing, after it] - a crossing did not record the room it led to (fog.mjs `recordDiscovery`)");
         equal(stableJson(banked), stableJson([["a Sprint, the write failing", 1], ["a Sprint", 0], ["back, a Sprint", 0]]),
             "[each Sprint step, the Sprints banked after it] - a Sprint taken for a write that failed was not given back, or a crossing that stood paid none");
         equal(stableJson(purseWrites), stableJson([0, 0, 2]),
@@ -53587,6 +53631,99 @@ const SCENARIOS = [
         for (let n = 2; n <= allowance; n++) told.push([`Eclipse crossing ${n}`, 1]);
         equal(stableJson(cards), stableJson([...told, ["beyond the Eclipse's crossings", 0]]),
             "[each Eclipse step, the chat messages it made] - a crossing whose write failed still told its owner, by the veiled card, that the student crossed, or one that stood told nothing");
+    }],
+    ["A10-18 floor jump - a player's move of a token onto a tunnel's end upstairs, through the GMs' own updateToken, is judged on the primary by the doors' floor rule: sent back to where the GMs saw it in \"sendBack\", its player told the code 'floor' alone and the GMs whispered; a row in \"log\" with the token left there; and clear with the token left there while crossing rooms costs nothing", async () => {
+        /*
+         * E80 fix r1-G8 (19.10.2026; the review's E80-C2-3 = E80-G-8, the stage's P1-09 "floor jump to an end: sent back
+         * (log: a row)"). R596 hands `auditMove` a floor rule of its own, so no test ran movement.mjs `floorJumpRefused`
+         * (the Eclipse's allowance and `chargeMovement` gate) or its hand-over in `noteGmPosition`'s ctx, and a change
+         * there left every test green. Here a scene of the suite's own with two floors, a Dorm and a Hall beside it
+         * downstairs and an Attic upstairs far from both, no wall and no stairs, and a tunnel from the Dorm to the Attic the
+         * student knows (made and given in a GM-store world of the suite's own, so no player's copy is sent). A player's
+         * move as the primary hears it is a GM's write that names the player (`SENT_BACK`, as A10-18's), each to a spot the
+         * token never stood on. Read: where the token stands, the audit's rows (`auditRows`), the `move.sentBack` packets
+         * this browser sent, and the GMs' whispers of the token (`data-drpg-wall`, in secret.mjs's words of the message).
+         * Red with either mutant: `floorJumpRefused` answering false, or the ctx without it (measured, the commit's body).
+         */
+        const P = await import("./passages-gm.mjs");
+        const M = await import("./movement.mjs");
+        const A = await import("./movement-audit.mjs");
+        const R = await import("./rooms.mjs");
+        const E = await import("./gm-store.mjs");
+        const SEC = await import("./secret.mjs");
+        const { ownerOf } = await import("./utils.mjs");
+        const [student] = cast(1);
+        needs(world.ownedByPlayer(student), "the move is a player's, and the audit names that player");
+        const asker = ownerOf(student);
+        const clock = getClock() ?? {};
+        if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+        const charge = game.settings.get(MODULE_ID, SETTINGS.chargeMovement), mode = game.settings.get(MODULE_ID, SETTINGS.moveAudit);
+        const [L1, L2] = ["suitee80f1", "suitee80f2"].map(k => `${k}${foundry.utils.randomID(6)}`.slice(0, 16));
+        const DORM = "SUITE E80 floor Dorm", ATTIC = "SUITE E80 floor Attic", mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
+        const room = (name, x, level) => ({ name, shapes: [{ type: "rectangle", x, y: 0, width: 600, height: 600 }], levels: [level], flags: mark, behaviors: [] });
+        const PLACE = { teleport: true, movementAction: "displace", animate: false }, asPlayer = { ...PLACE, [M.SENT_BACK]: asker.id };
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        const told = [], made = [];
+        const onMessage = message => { made.push(message.id); };
+        let scene = null, token = null, steps = null, refused = null;
+        try {
+            scene = await Scene.create({ name: "SUITE E80 floor jump", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false,
+                levels: [{ id: L1, name: "Ground", elevation: 0 }, { id: L2, name: "Upper", elevation: 10 }] });
+            await scene.createEmbeddedDocuments("Region", [room(DORM, 0, L1), room("SUITE E80 floor Hall", 600, L1), room(ATTIC, 1200, L2)]);
+            [token] = await scene.createEmbeddedDocuments("Token", [{ actorId: student.id, actorLink: true, name: student.name, x: 200, y: 200, level: L1, width: 1, height: 1 }]);
+            await settle();
+            refused = M.crossingRefused(scene, DORM, ATTIC, { from: L1, to: L2 });
+            must(typeof refused === "string" && R.levelOf(token) === L1,
+                `the map does not refuse the Dorm to the Attic upstairs (${refused}), or the token is not downstairs - this would measure nothing`);
+            socket.emit = function (event, packet, options, ...rest) {
+                if (packet?.action === "move.sentBack") told.push([packet.code ?? null, options?.recipients ?? []]);
+                return send.call(this, event, packet, options, ...rest);
+            };
+            Hooks.on("createChatMessage", onMessage);
+            steps = await E.withGmStoreWorld(`suite-e80-floor-${foundry.utils.randomID(8)}`, async () => {
+                const id = await P.createPassage({ sceneId: scene.id, shape: "tunnel", ends: [{ x: 250, y: 250, level: L1 }, { x: 1450, y: 250, level: L2 }] }, { scene });
+                must(typeof id === "string" && await P.grantPassage(id, student.id), "the tunnel was not made or given - this would measure nothing");
+                const out = [];
+                const unseen = spot => !M.recentPositions(token.id).some(h => h.x === spot.x && h.y === spot.y);
+                // [what, where the token stands, the audit's new rows as [floor, mode, verdict, the mover], the codes sent, the GMs' whispers of it]
+                const jump = async (what, spot, { audit, charged }) => {
+                    await game.settings.set(MODULE_ID, SETTINGS.moveAudit, audit);
+                    await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, charged);
+                    must(unseen(spot), `the token stood on ${spot.x},${spot.y} a minute ago - it would be honoured as a send-back`);
+                    const rows = A.auditRows().rows.length + A.auditRows().dropped, sent = told.length, said = made.length;
+                    await token.update({ x: spot.x, y: spot.y, level: L2 }, asPlayer);
+                    await settle();
+                    if (audit === "sendBack") await until(() => token.x === 200 && token.y === 200, 3000);
+                    await settle();
+                    const book = A.auditRows();
+                    const fresh = book.rows.slice(Math.max(0, rows - book.dropped)).filter(r => r.token === token.id);
+                    out.push([what, `${token.x},${token.y},${R.levelOf(token) === L2 ? "up" : R.levelOf(token) === L1 ? "down" : R.levelOf(token)}`,
+                        fresh.map(r => [r.floor ?? null, r.mode, r.verdict, r.user === asker.id]), told.slice(sent),
+                        made.slice(said).filter(id => String(SEC.secretHtml(game.messages.get(id)) ?? "").includes(`data-drpg-wall="${token.id}"`)).length]);
+                    // Back downstairs by a GM's own move, which the audit leaves alone.
+                    await token.update({ x: 200, y: 200, level: L1 }, PLACE);
+                    await settle();
+                };
+                await jump("sendBack, crossing rooms costs a Move", { x: 1300, y: 200 }, { audit: "sendBack", charged: true });
+                await jump("log, crossing rooms costs a Move", { x: 1400, y: 300 }, { audit: "log", charged: true });
+                await jump("sendBack, crossing rooms costs nothing", { x: 1500, y: 100 }, { audit: "sendBack", charged: false });
+                return out;
+            });
+        } finally {
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            Hooks.off("createChatMessage", onMessage);
+            if (game.settings.get(MODULE_ID, SETTINGS.moveAudit) !== mode) await game.settings.set(MODULE_ID, SETTINGS.moveAudit, mode);
+            if (game.settings.get(MODULE_ID, SETTINGS.chargeMovement) !== charge) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, charge);
+            for (const id of made) await game.messages.get(id)?.delete().catch(() => {});
+            await scene?.delete();
+            await setClock(clock);
+            await settle();
+        }
+        equal(stableJson(steps), stableJson([
+            ["sendBack, crossing rooms costs a Move", "200,200,down", [[true, "sendBack", "sent back", true]], [["floor", [asker.id]]], 1],
+            ["log, crossing rooms costs a Move", "1400,300,up", [[true, "log", "noted", true]], [], 0],
+            ["sendBack, crossing rooms costs nothing", "1500,100,up", [], [], 0]]),
+            "each jump as [what, where the token stands, the audit's rows for it as [a floor, the mode, the verdict, its player's], the codes its player was sent, the GMs' whispers of it] - a floor jump stood, was not noted, or one the rule does not ask now was put back");
     }],
     ["A10-15 - Foundry's secret doors and the players' rulers on the world: 'Convert to passages' turns a secret door in the wall two rooms of a scene share into an ordinary wall, shut, and a secret passage nobody knows, and one inside a room into a plain wall it names, with none left, and forgets the GMs' record of each, as it does of a secret door deleted; a player's opening of a secret door is written shut again through Foundry, and so is one no primary heard, by the pass the primary's ready runs, which leaves open a door a GM opened; Hide and Show of the players' movement rulers write the world's permissions, the movement ruler alone, and the permissions are put back as they were", async () => {
         /*

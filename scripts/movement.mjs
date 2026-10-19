@@ -1587,6 +1587,22 @@ export function tunnelVerdict(actor, passage, tokenDoc, { mover = null, known, p
     return verdict === true ? { near, far: near.far, from: here, to } : verdict;
 }
 
+/** The refusals of `tunnelVerdict` that the sheet's 'Go through' says in the bridge's words (`DRPG.Bridge.why.<code>`). */
+const TUNNEL_KEYED = Object.freeze(["notKnown", "notAtPassage", "doorLocked", "roomSealed", "chained", "cannotLeave",
+    "trialLocked", "noBudget", "eclipseSpent"]);
+
+/**
+ * What the sheet's 'Go through' says of a `tunnelVerdict` refusal before it asks the primary GM: the key's words,
+ * `DRPG.Bridge.why.<code>`, for the eight doors' codes and `notKnown` - the words the bridge answers with, "that room"
+ * for the room - and the verdict's own sentence only for a code with no such key (`cannotNow`, a corpse's
+ * `DRPG.Move.dead`). E80 fix r1-G8, the review's E80-C2-2, E80-COR-3 and E80-G-6: the veto's own sentence named the
+ * sealed room the sheet hides, and a spent Eclipse said the token "has been put back" when nothing moved. Pure (R614).
+ */
+export function tunnelRefusalText(verdict) {
+    if (!verdict?.code) return "";
+    return TUNNEL_KEYED.includes(verdict.code) ? game.i18n.localize(`DRPG.Bridge.why.${verdict.code}`) : String(verdict.text ?? "");
+}
+
 /**
  * Where a token that goes through lands, `{ x, y, level }` (its top-left corner): the far end's square, or else
  * the nearest square around it, ring by ring up to three out, whose centre is in `room` on the end's floor and

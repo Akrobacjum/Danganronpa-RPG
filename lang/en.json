@@ -603,6 +603,8 @@
         "revokeNote": "Revoke now: it is a wall to them from this moment. Revoke when they leave the room: it stays open to them until they leave the {room}.",
         "revokeNow": "Revoke now",
         "revokeLeave": "Revoke when they leave the room",
+        "revokePublicAsk": "{name} knows this passage, and so does every student, while it is public. Revoking closes nothing now: it decides only whether {name} still knows it once you make it secret.",
+        "revokePublicNote": "Revoke: after Make secret, the passage is a wall to them.",
         "deleteTitle": "Delete the secret passage",
         "deleteAsk": "Delete the secret passage {passage}? Every student who knows it forgets it."
       },
