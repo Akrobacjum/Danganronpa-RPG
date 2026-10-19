@@ -52,6 +52,12 @@
  * put-back it is put back again (E16 fix r1-G1, finding C3-C2: until then it stayed stopped until the primary
  * reloaded, so six writes in a minute bought a player its own look for the session).
  *
+ * PAST THE SOURCE'S FUSE (E16 fix r1c-G1, 19.10.2026; finding fd-1). The source's own put-back has a fuse of its
+ * own (`source:<id>`), and until this fix every user's waited for it: an Assistant who wrote the Gamemaster's look
+ * six times in a minute stopped every put-back of every user for that minute, and could again each minute. Now
+ * the fuse stops only the source's own write: while the source does not hold the GMs' copy, the users are held to
+ * the look the last sweep built while it did (or, on a primary that never built one, the look built from the copy).
+ *
  * AN ACTOR'S OWN LOOK (C4). DSN lays an actor's `flags.dice-so-nice.appearance` over its user's look
  * (`Dice3D.APPEARANCE(user, actor)`, the same design's reading; its header control on a sheet writes it), so an
  * owner could throw in a look of its own through its character. The GMs' copy of each actor's overlay is a GM
@@ -87,6 +93,21 @@
  * owns - its player, or the player who made it - is taken with none and put back to none; only an actor no
  * player owns is taken as found. A full Gamemaster's overlay on a player's character is lost the same way, once,
  * on such a browser.
+ *
+ * THE WORLD'S COPY (E16 fix r1c-G1, 19.10.2026; finding OWNER-DEFAULT-Q6b - the owner's Q6 run on its default (b) -
+ * closing E16-goal-06 and the fix-diff review's fd-2). The store is each GM browser's and synced only between GM
+ * browsers online together, and an Assistant's browser passes none of it on (`fullGmOnly`): a full Gamemaster who
+ * loads on another computer, or comes back while only an Assistant is at the table, put a newer overlay a full
+ * Gamemaster gave back to its own browser's older row. So the store's rows of this world's actors are kept in a
+ * world setting too (`diceLookWorld`), which only a full Gamemaster's primary writes - after each full
+ * Gamemaster's write of an overlay, and at its load - and every full Gamemaster's browser merges by stamp as its
+ * stores have the other GMs' copies, before the comparison at load, the same merge the sync makes (it never
+ * lowers a row). A copy whose last writer (the Setting's `_stats.lastModifiedBy`, v14's stamp, not a packet's)
+ * is below full Gamemaster, or unknown, is not taken: the loading primary writes its own over it. A write of it
+ * below full Gamemaster while a full Gamemaster's primary is here is put back as the switches are, heard or found
+ * at the next step. A world setting reaches every client, players' too: what it holds is what every client already
+ * holds on the actors themselves (their Dice So Nice overlays), with the stamps, so nothing of the GMs' is told.
+ * Who wrote a Setting is modelled in the harness, not read on v14: LIVE-E16-04.
  *
  * A WRITE NO HOOK HEARS. An update with `noHook` reaches no listener (in the harness; on v14 LIVE-E16-04), so the
  * primary also compares at each message a user posts - a throw's card is one - the author's look and the
@@ -135,6 +156,11 @@ let saidNoSource = false, saidRefused = false, toldPlayer = false, ownWriteAt = 
 /** This GM browser's copy of SWITCHES as a full Gamemaster left them, by name; the put-back in flight; its last notice. */
 const switchCopy = new Map();
 let holdingSwitches = null, toldSwitchAt = 0;
+/** The table's look the last sweep or put-back built while the source held the copy: `{ id, look }` (finding fd-1). */
+let heldTableLook = null;
+/** The world's copy of the store (E16 fix r1c-G1): its key; the value this browser last saw a full Gamemaster leave there, as JSON. */
+const WORLD_COPY = SETTINGS.diceLookWorld;
+let worldCopyHeld = null, worldCopyTaken = false, worldCopyChain = Promise.resolve(), saidWorldCopy = false;
 
 /**
  * Called from module.mjs's own `ready` hook, not from a `Hooks.once("ready")` registered here: Foundry does not
@@ -187,9 +213,16 @@ export function registerDiceSync() {
     else Hooks.once("diceSoNiceReady", ready);
 }
 
-/** Not while the suite holds the stores or stands them in another world: a hydration then is the suite's. */
+/**
+ * Not while the suite holds the stores or stands them in another world: a hydration then is the suite's. A full
+ * Gamemaster's browser that is not the primary takes the world's copy too, for when it is.
+ */
 function onStoresHydrated() {
-    if (!isPrimaryGm() || gmStoresQuiet()) return;
+    if (gmStoresQuiet()) return;
+    if (!isPrimaryGm()) {
+        if (isFullGm(game.user)) takeWorldCopy().catch(err => error("Could not take the world's copy of the characters' dice looks", err));
+        return;
+    }
     compareOverlays().catch(err => error("Could not hold the characters' dice looks to the GMs' copy", err));
 }
 
@@ -209,9 +242,9 @@ function switchValue(name) {
     try { return game.settings.get(MODULE_ID, name); } catch { return undefined; }
 }
 
-/** Whether a switch is not this browser's copy of it: a write no listener heard, where a step finds it. */
+/** Whether a switch is not this browser's copy of it, or the world's copy of the store moved: a write no listener heard, where a step finds it. */
 function switchesMoved() {
-    return SWITCHES.some(name => switchCopy.has(name) && switchValue(name) !== switchCopy.get(name));
+    return SWITCHES.some(name => switchCopy.has(name) && switchValue(name) !== switchCopy.get(name)) || worldCopyMoved();
 }
 
 /**
@@ -239,6 +272,7 @@ function copySwitches() {
  * Either switch moved may move the table's look: one sweep, which waits for the put-back first.
  */
 function onSwitchWritten(setting, userId) {
+    if (setting?.key === `${MODULE_ID}.${WORLD_COPY}`) return onWorldCopyWritten(userId);
     const name = SWITCHES.find(key => setting?.key === `${MODULE_ID}.${key}`);
     if (!name) return;
     if (game.user?.isGM) {
@@ -267,6 +301,11 @@ function holdSwitches(writer = null) {
                 held = true;
             } catch (err) { error(`Could not put back the setting ${name} of the table's dice look`, err); }
         }
+        if (worldCopyMoved()) {
+            try {
+                if (await writeWorldCopy()) held = true;
+            } catch (err) { error("Could not put back the world's copy of the characters' dice looks", err); }
+        }
         if (held && Date.now() - toldSwitchAt > FUSE_WINDOW_MS) {
             toldSwitchAt = Date.now();
             const name = writer?.name ?? null;
@@ -283,6 +322,106 @@ function holdSwitches(writer = null) {
     holdingSwitches = run;
     void run.finally(() => { if (holdingSwitches === run) holdingSwitches = null; });
     return run;
+}
+
+/** The world's copy as it stands, or undefined where it cannot be read. */
+function worldCopyValue() {
+    try { return game.settings.get(MODULE_ID, WORLD_COPY); } catch { return undefined; }
+}
+
+/** Who last wrote the world's copy: the user its Setting document names (v14's `_stats`, LIVE-E16-04), or null. */
+function worldCopyWriter() {
+    try {
+        const id = game.settings.storage?.get?.("world")?.getSetting?.(`${MODULE_ID}.${WORLD_COPY}`)?._stats?.lastModifiedBy ?? null;
+        return id ? game.users.get(id) ?? null : null;
+    } catch { return null; }
+}
+
+/** A section of the store's shape cut to the rows of actors this world has, or null for anything else. */
+function rowsOfActors(section) {
+    if (!section || typeof section !== "object") return null;
+    const part = value => Object.entries(value && typeof value === "object" ? value : {}).filter(([id]) => Boolean(game.actors?.has(id)));
+    return { e: Object.fromEntries(part(section.e)), t: Object.fromEntries(part(section.t)), d: Object.fromEntries(part(section.d)),
+        cleared: Number.isFinite(section.cleared) ? section.cleared : 0 };
+}
+
+/** Whether the world's copy is not what this full Gamemaster's browser last saw a full Gamemaster leave there. */
+function worldCopyMoved() {
+    if (worldCopyHeld === null || !isFullGm(game.user)) return false;
+    const value = worldCopyValue();
+    return value !== undefined && stableJson(value) !== worldCopyHeld;
+}
+
+/**
+ * The world's copy written from this browser's store, one write at a time: by a full Gamemaster's primary only,
+ * and only once its load took the copy there (a store older than the world's must not write over it first). True
+ * when it wrote.
+ */
+function writeWorldCopy() {
+    worldCopyChain = worldCopyChain.catch(() => false).then(async () => {
+        if (!isPrimaryGm() || !isFullGm(game.user) || !worldCopyTaken || !diceLookStore.isHydrated()) return false;
+        const value = rowsOfActors(diceLookStore.section());
+        const wrote = stableJson(worldCopyValue() ?? null) !== stableJson(value);
+        if (wrote) await game.settings.set(MODULE_ID, WORLD_COPY, value);
+        worldCopyHeld = stableJson(worldCopyValue() ?? value);
+        return wrote;
+    });
+    return worldCopyChain;
+}
+
+/** After a full Gamemaster's write of an overlay, on the primary. */
+function keepWorldCopy() {
+    writeWorldCopy().catch(err => error("Could not keep the world's copy of the characters' dice looks", err));
+}
+
+/** Suite only: the world copy's write in flight, awaited before tier 2 puts the settings back. */
+export function worldCopyIdle() {
+    return worldCopyChain.catch(() => undefined);
+}
+
+/**
+ * THE WORLD'S COPY TAKEN (E16 fix r1c-G1): on a full Gamemaster's browser once its stores have the other GMs'
+ * copies, before the comparison at load. A copy a full Gamemaster wrote last is merged by stamp, rows of actors this
+ * world has; one written below full Gamemaster, or by nobody known, is not. The primary then writes its own store
+ * there where the two differ.
+ */
+async function takeWorldCopy() {
+    if (!isFullGm(game.user) || !diceLookStore.isHydrated()) return;
+    const value = worldCopyValue();
+    const writer = worldCopyWriter();
+    if (value && typeof value === "object" && Object.keys(value).length) {
+        if (isFullGm(writer)) {
+            const rows = rowsOfActors(value);
+            if (rows) await diceLookStore.mergeIn(rows, { source: "restore" });
+            worldCopyHeld ??= stableJson(value);
+        } else if (!saidWorldCopy) {
+            saidWorldCopy = true;
+            log(`The world's copy of the characters' dice looks was last written ${writer ? `by ${writer.name}, below full Gamemaster` : "by nobody known"}: not taken.`);
+        }
+    }
+    worldCopyTaken = true;
+    if (isPrimaryGm()) await writeWorldCopy();
+}
+
+/**
+ * A write of the world's copy, on a GM's browser. A full Gamemaster's is the copy this browser holds it to from
+ * then on, and its rows are merged (they reach this store by the sync too, where both are here); on a full
+ * Gamemaster's primary anyone else's is put back, as a switch is. It moves no one's look: no sweep.
+ */
+function onWorldCopyWritten(userId) {
+    if (!game.user?.isGM) return;
+    const writer = game.users.get(userId);
+    if (isFullGm(writer)) {
+        const value = worldCopyValue();
+        if (value === undefined) return;
+        worldCopyHeld = stableJson(value);
+        if (writer.id !== game.user.id && isFullGm(game.user) && worldCopyTaken && diceLookStore.isHydrated()) {
+            const rows = rowsOfActors(value);
+            if (rows) diceLookStore.mergeIn(rows, { source: "sync" }).catch(err => error("Could not merge the world's copy of the characters' dice looks", err));
+        }
+        return;
+    }
+    if (isPrimaryGm() && isFullGm(game.user)) void holdSwitches(writer);
 }
 
 /** Below full Gamemaster: players, trusted players and, by the owner's Q3, Assistant GMs. */
@@ -383,8 +522,7 @@ const plain = value => (value && typeof value === "object" ? foundry.utils.deepC
  * its owner's library and a player's own would not hold it. Effects that run a macro are left out: the GM's
  * macro would run on every browser at a player's throw.
  */
-export function canonicalLook() {
-    const source = lookSource();
+export function canonicalLook(source = lookSource()) {
     if (!source) return null;
     let appearance = null;
     const all = game.dice3d?.constructor?.ALL_CUSTOMIZATION;
@@ -392,15 +530,36 @@ export function canonicalLook() {
         try { appearance = plain(all.call(game.dice3d.constructor, source, game.dice3d.DiceFactory)?.appearance); }
         catch (err) { error("Could not read the GM's dice look from Dice So Nice", err); }
     }
-    appearance ??= plain(source.getFlag(DSN, "appearance")) ?? {};
+    return lookFrom(source, appearance ?? source.getFlag(DSN, "appearance"), source.getFlag(DSN, "sfxList"));
+}
+
+/** A look as forced users hold it, from an appearance and effects: library dice owned by the source, no macro. */
+function lookFrom(source, rawAppearance, rawSfx) {
+    const appearance = plain(rawAppearance) ?? {};
     for (const scope of Object.values(appearance)) {
         if (scope && typeof scope === "object" && scope.libraryDieId && !scope.libraryDieOwner) scope.libraryDieOwner = source.id;
     }
-    const raw = plain(source.getFlag(DSN, "sfxList"));
+    const raw = plain(rawSfx);
     const keep = effect => effect?.specialEffect !== "PlayMacro";
     const sfxList = Array.isArray(raw) ? raw.filter(keep)
         : raw ? Object.fromEntries(Object.entries(raw).filter(([, effect]) => keep(effect))) : [];
     return { appearance, sfxList };
+}
+
+/**
+ * The look forced users are held to (finding fd-1): the source's own while it holds the GMs' copy, kept as the
+ * table's; while it does not - its put-back pending, or past its fuse - the one kept, or, where none was, the one
+ * built from the copy (its flags; Dice So Nice works a look out of the user as it stands, so not from there).
+ */
+function tableLook(source) {
+    if (!source) return null;
+    if (sourceHeld(source)) {
+        const look = canonicalLook(source);
+        heldTableLook = look ? { id: source.id, look } : null;
+        return look;
+    }
+    if (heldTableLook?.id === source.id) return foundry.utils.deepClone(heldTableLook.look);
+    return sourceCopy?.id === source.id ? lookFrom(source, sourceCopy.look.appearance, sourceCopy.look.sfxList) : null;
 }
 
 /** A user's look as its flags hold it; a missing flag reads as an empty one, as DSN's own default does. */
@@ -469,8 +628,10 @@ async function sweep() {
     await holdSwitches();
     if (!enforcing()) return;
     const source = lookSource({ write: true });
-    if (!source || !(await holdSource(source))) return;
-    const look = canonicalLook();
+    if (!source) return;
+    // The source put back first; past its fuse the users are still held to the table's look (finding fd-1).
+    await holdSource(source);
+    const look = tableLook(source);
     if (!look) return;
     const behind = game.users.filter(u => isForced(u))
         .filter(u => !stopped(u.id) && !sameLook(lookOf(u), look));
@@ -484,9 +645,11 @@ async function sweep() {
 async function putBack(userId, { count = true } = {}) {
     const user = game.users.get(userId);
     if (!enforcing() || !isPrimaryGm() || !isForced(user) || stopped(userId)) return;
-    // A source that does not hold the GMs' copy is the sweep's: it puts the source back, then reaches this user.
-    if (!sourceHeld(lookSource())) return schedule(SWEEP);
-    const look = canonicalLook();
+    // A source that does not hold the GMs' copy is the sweep's: it puts the source back, then reaches this user -
+    // unless the source's own put-back is past its fuse, which stops only that one (finding fd-1).
+    const source = lookSource();
+    if (source && !sourceHeld(source) && !stopped(SOURCE + source.id)) return schedule(SWEEP);
+    const look = tableLook(source);
     if (!look) return;
     if (sameLook(lookOf(user), look)) return;
     if (count && !fuseHolds(user.id, user.name)) return;
@@ -557,7 +720,10 @@ function onActorWritten(actor, userId, touched, { created = false } = {}) {
         return;
     }
     if (isFullGm(game.users.get(userId))) {
-        if (touched) void diceLookStore.patch(actor.id, { look: overlayOf(actor) });
+        if (!touched) return;
+        void diceLookStore.patch(actor.id, { look: overlayOf(actor) });
+        // Kept in the world too (E16 fix r1c-G1): a creation only where it carries an overlay, so a new actor writes nothing.
+        if (!created || overlayOf(actor) !== null) keepWorldCopy();
         return;
     }
     if (created) void diceLookStore.patch(actor.id, { look: null });
@@ -594,6 +760,8 @@ function ownedBelowGm(actor) {
  */
 export async function compareOverlays() {
     if (!isPrimaryGm() || !diceLookStore.isHydrated()) return null;
+    // The world's copy first (E16 fix r1c-G1): a newer row a full Gamemaster left there is the copy, not this browser's.
+    await takeWorldCopy();
     await takeUnseenOverlays();
     const back = [];
     for (const actor of game.actors?.contents ?? []) {

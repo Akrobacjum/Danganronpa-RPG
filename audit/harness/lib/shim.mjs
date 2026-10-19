@@ -1399,11 +1399,14 @@ export function buildApplications(ctx) {
         async minimize() {} async maximize() {}
         /*
          * Foundry writes the position inline and, on a first render with no left/top,
-         * centres the window. jsdom has no layout, so an "auto" height measures 0 here.
+         * centres the window. jsdom has no layout, so an "auto" height measures 0 here,
+         * and so does an "auto" width (E16 fix r1c-G1: Daggerheart's roll window asks for
+         * one, and until then its left read NaN here, as `(innerWidth - "auto") / 2`).
          */
         setPosition(pos = {}) {
             const el = this.element;
-            const width = typeof pos.width === "number" ? pos.width : (this.options.position?.width ?? 400);
+            const asked = typeof pos.width === "number" ? pos.width : (this.options.position?.width ?? 400);
+            const width = typeof asked === "number" ? asked : (el?.offsetWidth ?? 0);
             const height = typeof pos.height === "number" ? pos.height : (el?.offsetHeight ?? 0);
             const left = typeof pos.left === "number" ? pos.left : Math.max(0, (globalThis.innerWidth - width) / 2);
             const top = typeof pos.top === "number" ? pos.top : Math.max(0, (globalThis.innerHeight - height) / 2);

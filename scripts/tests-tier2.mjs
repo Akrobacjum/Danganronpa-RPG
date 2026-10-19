@@ -220,6 +220,9 @@ async function restore(snap) {
         if (strays.length) await scene.deleteEmbeddedDocuments("Token", strays);
     }
     await gmStoresIdle();
+    // The world's copy of the GMs' dice looks a full Gamemaster's overlay write has in flight (dice-sync.mjs, E16 fix
+    // r1c-G1) lands before the settings are compared and put back, as a store's write does above.
+    await (await import("./dice-sync.mjs")).worldCopyIdle?.();
 
     // Every other setting that moved, written back as it was recorded. Compared
     // first so a setting nothing touched is not written - several have `onChange`
@@ -44763,6 +44766,49 @@ const SCENARIOS = [
             "the locked bonus input kept a value, or the config did (the Meddle taken back and the window redrawn: value, disabled, config; opened with +3: the same)");
     }],
 
+    ["a Meddle's -1 is on the roll window's config before it is drawn with the lock off too, and a bonus no Call set stays the roller's", async () => {
+        /*
+         * E16 fix r1c-G1, 19.10.2026 (finding E16-COR-4; E16's Goal names Meddle among the effects forced on the
+         * config, with no exception for the lock). roll-dialog.mjs `forceConfig` imposed a Call's flat bonus only
+         * under `locking()`, so with `lockRollDialog` off a Meddle never reached `app.config` before Daggerheart's
+         * `_prepareContext`: the window showed a formula without it while the GM's drawn throw counted it
+         * (roll-draw.mjs `callBonus`). The glue window opened on a student's statistic with the lock off: with a
+         * Meddle of -1 armed; the Meddle taken back while it is open and the window redrawn on `updateActor` as the
+         * test above does; then one opened with `extraFormula` "+3" and no Call. Read, each: the input's value,
+         * read-only, disabled, and the config's extra formula. At 442f563: ["", false, false, null] with the Meddle.
+         */
+        const [actor] = cast(1);
+        const E = await import("./call-effects.mjs");
+        const lockWas = game.settings.get(MODULE_ID, SETTINGS.lockRollDialog);
+        const input = win => win?.element?.querySelector('input[name="extraFormula"]') ?? null;
+        const state = win => [input(win)?.value ?? null, input(win)?.readOnly ?? null, input(win)?.disabled ?? null, win?.app?.config?.extraFormula ?? null];
+        let meddle = null, win = null, win2 = null;
+        const read = {};
+        try {
+            if (lockWas) await game.settings.set(MODULE_ID, SETTINGS.lockRollDialog, false);
+            meddle = await c3Call(actor, { key: "meddle", grants: "bonus", amount: -1 });
+            win = await (await rollWindow(actor, { roll: { trait: "agility" } })).open();
+            must(input(win), "the window draws no bonus input - this would measure nothing");
+            read.meddle = state(win);
+            await meddle.spend();
+            must(!E.armedCallsShown(actor).some(c => c.nonce === meddle.nonce), "the Meddle was not taken back - this would measure nothing");
+            Hooks.callAll("updateActor", actor, { flags: { [MODULE_ID]: { [FLAGS.pendingCall]: actor.getFlag(MODULE_ID, FLAGS.pendingCall) ?? null } } }, {}, game.user.id);
+            await until(() => !win.app.config?.extraFormula, 3000);
+            await settle();
+            read.taken = state(win);
+            await win.cancel();
+            win2 = await (await rollWindow(actor, { roll: { trait: "agility" }, extraFormula: "+3" })).open();
+            read.own = state(win2);
+        } finally {
+            await win?.cancel();
+            await win2?.cancel();
+            await meddle?.undo();
+            if (game.settings.get(MODULE_ID, SETTINGS.lockRollDialog) !== lockWas) await game.settings.set(MODULE_ID, SETTINGS.lockRollDialog, lockWas);
+        }
+        equal(stableJson(read), stableJson({ meddle: ["-1", true, false, "-1"], own: ["+3", false, false, "+3"], taken: ["", false, false, null] }),
+            "with the lock off a Meddle's -1 was not on the window's config and input before it was drawn, stayed after it was taken back, or a bonus no Call set was not left to the roller (value, read-only, disabled, config: meddle; taken back and redrawn; opened with +3)");
+    }],
+
     ["each silence answers under its own name", async () => {
         /*
          * E33 C9 (D39). The crime-witness marker on a Monocub and the Despair Call
@@ -53743,6 +53789,59 @@ const SCENARIOS = [
             `the window's formula names no d12, or the Support's adds nothing to it (${formula}; ${supported})`);
     }],
 
+    ["a roll window opens below the curtain's edge, not over the glass at the top of the screen (S01-22)", async () => {
+        /*
+         * E16 fix r1c-G1, 19.10.2026 (findings E16-COR-5 and E16-goal-01; E16-12's last part). S01-22 found the roll
+         * window's title bar over the curtain's text ('A murder is under way', 'PLAYER B') and the sheet's tabs:
+         * nothing placed the window, so it opened where Daggerheart puts it. The harness cuts no glass (jsdom has
+         * no layout: the curtain's canvas is 0 wide and glass.mjs stands down), so the last cut is stood in on
+         * glass.mjs's `LAST`, with the body's `drpg-curtain-on`: two rows of panes across the top, the lower one's
+         * foot 60 % of the screen down (its middle in the top half: the top band, by the band rule the glass gives
+         * its blocks; the window, 0 high headless, is centred, so the band reaches below its top), a deeper one at
+         * the left edge that the window's columns do not cross, a rail over the window's columns 90 % of the screen
+         * deep (deeper than half of it: a side's rail, not the band), and a pane at the foot of the screen. The shim centres a window with no top (lib/shim.mjs `setPosition`; a width and a height of 0
+         * headless). Read: the window's top with the stood-in curtain, again after the roller moved it over the
+         * band and it was redrawn (placed once, so it stays), and with no curtain (the class off: Monokuma Legacy,
+         * or a screen too small for the glass). At 442f563: the centre each time (the shim's left read NaN for
+         * Daggerheart's "auto" width until this fix). Where the real band lies on a table at 1366x768 is LIVE-E16-02.
+         */
+        const G = await import("./glass.mjs");
+        const [actor] = cast(1);
+        const W = innerWidth, H = innerHeight;
+        const was = { panes: G.LAST.panes, frame: G.LAST.frame, on: document.body.classList.contains("drpg-curtain-on") };
+        const pane = (x0, y0, x1, y1) => ({ kind: "field", tone: null, poly: [[x0, y0], [x1, y0], [x1, y1], [x0, y1]], x0, y0, x1, y1 });
+        const band = Math.round(H * 0.6);
+        const read = {};
+        let win = null, win2 = null;
+        try {
+            G.LAST.frame = { W, H, left: 0, top: 0 };
+            G.LAST.panes = [pane(0, 0, W, Math.round(H * 0.25)), pane(100, Math.round(H * 0.25), W, band), pane(0, Math.round(H * 0.28), 100, Math.round(H * 0.68)),
+                pane(W / 2 - 50, 0, W / 2 + 50, Math.round(H * 0.9)), pane(0, H - 120, W, H)];
+            document.body.classList.add("drpg-curtain-on");
+            win = await (await rollWindow(actor, { roll: { trait: "agility" } })).open();
+            const left = win.app.position?.left ?? null, width = win.app.position?.width ?? null;
+            must(typeof left === "number" && typeof width === "number" && left > 100 && left + width < W,
+                `the window does not stand clear of the stood-in strip (left ${left}, width ${width}, screen ${W}) - this would measure nothing`);
+            read.glass = win.app.position.top;
+            win.app.setPosition({ top: 20 });
+            await win.app.render();
+            await settle();
+            read.redrawn = win.app.position.top;
+            await win.cancel();
+            document.body.classList.remove("drpg-curtain-on");
+            win2 = await (await rollWindow(actor, { roll: { trait: "agility" } })).open();
+            read.none = win2.app.position?.top ?? null;
+        } finally {
+            await win?.cancel();
+            await win2?.cancel();
+            G.LAST.panes = was.panes;
+            G.LAST.frame = was.frame;
+            document.body.classList.toggle("drpg-curtain-on", was.on);
+        }
+        equal(stableJson(read), stableJson({ glass: band + 8, none: Math.max(0, H / 2), redrawn: 20 }),
+            "the roll window did not open below the curtain's band, was moved again at a redraw, or was moved with no curtain (glass: its top under the stood-in band; redrawn: where it was put; none: the centre)");
+    }],
+
     ["a player's own dice look goes back to the GM's, whole, and the player's display settings stay theirs (S02-67 S16-02)", async () => {
         /*
          * E16 p1 C3, 19.10.2026; audits S02-67 and S16-02 (E16-15, E16-19). The GM wants one dice look at the
@@ -54616,6 +54715,129 @@ const SCENARIOS = [
         read.told = warned.filter(text => said.includes(text)).length;
         equal(stableJson(read), stableJson({ before: [true, true], heard: [true, true], thrown: [false, false, true], told: 1, written: [false, true] }),
             "an Assistant's switch of the table's dice look stood, heard or written with no hook, or the GM was told more than once (before: [the GM's look on the player, both switches the GM's]; heard: [both put back, the player still in the GM's look]; written: [the switch off as written, put back with the player's look at its next write]; thrown: [the switch off, the player's own look, both put back at its message]; told: the GM's warnings)");
+    }],
+
+    ["while the source Gamemaster's own look is past the fuse, a player's own dice look still goes back to the GM's (S16-02)", async () => {
+        /*
+         * E16 fix r1c-G1, 19.10.2026 (finding fd-1 of the fix-diff review). Since fix r1-G1 every user's put-back
+         * waits for the source's own (`putBack` schedules the sweep while the source does not hold the GMs' copy, and
+         * the sweep returns where `holdSource` answers false), and the source's put-back has a fuse of its own: an
+         * Assistant GM who wrote the Gamemaster's look six times in a minute stopped every put-back of every user for
+         * that minute, and could again each minute. The GM gives themself a look and it spreads; an Assistant made
+         * for the test writes a look of its own on the GM up to eight times as the primary hears it (`noHook`, then
+         * `updateUser` with the Assistant's id), each awaited until the GM's own is back or 1 s, stopping at the first
+         * that stands; then a connected player writes its own look. Read: each of the Assistant's writes put back or
+         * not, the player's look against the GM's 3 s on, and the GM still in the Assistant's look (the source's own
+         * put-back stopped for the minute, as the fuse says). At 442f563: the player keeps its own look.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter"));
+        const sync = await import("./dice-sync.mjs");
+        const gm = game.user;
+        const player = game.users.find(u => !u.isGM && u.active);
+        const found = diceFlagsFound();
+        const made = [];
+        const read = { source: [] };
+        try {
+            sync.forgetFuses?.();
+            made.push(...await CONFIG.User.documentClass.createDocuments([{ name: "E16 source fuse", role: CONST.USER_ROLES.ASSISTANT }]));
+            const [assistant] = made;
+            await gm.update(diceLookWrite(GM_DICE_LOOK, GM_DICE_SFX));
+            const look = await canonicalDiceLook();
+            const gms = diceScopeOf(gm);
+            const holdsGms = () => holdsLook(gm, { appearance: gms?.appearance, sfxList: gms?.sfxList });
+            must(await until(() => holdsLook(player, look), 3000), "the GM's look did not reach the player - this would measure nothing");
+            await wait(800);
+            for (let i = 0; i < 8 && !read.source.includes(false); i++) {
+                const write = diceLookWrite({ global: { colorset: `black-${i}` } }, OWN_DICE_SFX);
+                await gm.update(write, { noHook: true });
+                Hooks.callAll("updateUser", gm, foundry.utils.expandObject(write), {}, assistant.id);
+                read.source.push(await until(holdsGms, 1000));
+            }
+            await player.update(diceLookWrite(OWN_DICE_LOOK, OWN_DICE_SFX));
+            read.player = await until(() => holdsLook(player, look), 3000);
+            read.stopped = !holdsGms();
+        } finally {
+            sync.forgetFuses?.();
+            await putBackDiceFlags(found, made);
+        }
+        equal(stableJson(read), stableJson({ player: true, source: [true, true, true, true, true, false], stopped: true }),
+            "a player's own dice look stood while the source Gamemaster's own put-back was past its fuse (source: each Assistant write on the GM put back until one stands; player: the player back in the GM's look; stopped: the GM still in the Assistant's look)");
+    }],
+
+    ["a full Gamemaster's dice look on a character is kept in the world, and a stale GM browser's copy does not put it back at load (S16-02)", async () => {
+        /*
+         * E16 fix r1c-G1, 19.10.2026 (finding OWNER-DEFAULT-Q6b: the owner's Q6 runs on its default (b); it closes
+         * E16-goal-06 and the fix-diff review's fd-2). The GMs' copy of each character's overlay (gm-stores.mjs
+         * `diceLookStore`) is each GM browser's client setting, synced only between GM browsers online together, so
+         * a primary that loads with an older copy put a full Gamemaster's newer overlay back to its own - one GM on a
+         * second computer, or a full GM who comes back while only an Assistant (whose browser sends none of that
+         * store) is at the table. An NPC made for the test; the GM gives it an overlay; then this browser's row is
+         * made older than the GM's write (the row a browser that never heard it holds: none, stamped just before),
+         * and the comparison at load runs (`compareOverlays`, the fuse's counts forgotten). Then the world's copy is
+         * written over with another look - as an Assistant's console would, heard with the Assistant's id, and once
+         * with no hook, caught at a player's message. Read: the overlay after the load and this browser's row; the
+         * world copy's row after each write over it. At 442f563: the overlay put back to none, and no world copy.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter"));
+        const sync = await import("./dice-sync.mjs");
+        const { diceLookStore } = await import("./gm-stores.mjs");
+        const { gmStoresIdle } = await import("./gm-store.mjs");
+        const player = game.users.find(u => !u.isGM && u.active);
+        const WORLD_COPY = `${MODULE_ID}.diceLookWorld`;
+        const kept = game.settings.settings.has(WORLD_COPY);
+        const keptWas = kept ? foundry.utils.deepClone(game.settings.get(MODULE_ID, "diceLookWorld")) : null;
+        const made = [], cards = [];
+        const read = {};
+        try {
+            made.push(...await Actor.createDocuments([{ name: "E16 an NPC a GM gives a look", type: "adversary" }]));
+            const [npc] = made;
+            made.push(...await CONFIG.User.documentClass.createDocuments([{ name: "E16 world copy writer", role: CONST.USER_ROLES.ASSISTANT }]));
+            const assistant = made[1];
+            await wait(600);
+            await npc.update(overlayWrite(GM_OVERLAY));
+            await wait(1200);
+            await gmStoresIdle();
+            const stamp = diceLookStore.stampOf(npc.id, "look");
+            must(stableJson(diceLookStore.get(npc.id)?.look ?? null) === stableJson(GM_OVERLAY) && stamp > diceLookStore.cleared() + 1,
+                "the GMs' copy did not take the GM's overlay - this would measure nothing");
+            await diceLookStore.patch(npc.id, { look: null }, { stamp: stamp - 1 });
+            sync.forgetFuses?.();
+            await sync.compareOverlays?.();
+            await wait(1200);
+            read.load = [overlayOf(npc)?.global?.colorset ?? null, diceLookStore.get(npc.id)?.look?.global?.colorset ?? null];
+            const copied = () => (kept ? game.settings.get(MODULE_ID, "diceLookWorld")?.e?.[npc.id]?.look?.global?.colorset ?? null : null);
+            read.world = [copied()];
+            if (kept) {
+                const forged = () => {
+                    const value = foundry.utils.deepClone(game.settings.get(MODULE_ID, "diceLookWorld"));
+                    value.e[npc.id] = { look: OWN_OVERLAY };
+                    value.t[npc.id] = Math.floor(game.time.serverTime ?? Date.now()) + 60000;
+                    return value;
+                };
+                const value = forged();
+                await game.settings.set(MODULE_ID, "diceLookWorld", value, { noHook: true });
+                read.world.push(copied());
+                Hooks.callAll("updateSetting", { key: WORLD_COPY, value }, { value }, {}, assistant.id);
+                read.world.push(await until(() => copied() === "ice", 3000));
+                await wait(1200);
+                await game.settings.set(MODULE_ID, "diceLookWorld", forged(), { noHook: true });
+                read.world.push(copied());
+                cards.push(await ChatMessage.create({ author: player.id, content: "E16 a player's throw after the world copy was written with no hook" }));
+                read.world.push(await until(() => copied() === "ice", 3000));
+            }
+        } finally {
+            sync.forgetFuses?.();
+            for (const card of cards) if (card && game.messages.get(card.id)) await card.delete();
+            for (const doc of made) if (doc.documentName === "Actor" ? game.actors.get(doc.id) : game.users.get(doc.id)) await doc.delete();
+            await wait(600);
+            if (kept && stableJson(game.settings.get(MODULE_ID, "diceLookWorld")) !== stableJson(keptWas)) await game.settings.set(MODULE_ID, "diceLookWorld", keptWas);
+        }
+        equal(stableJson(read), stableJson({ load: ["ice", "ice"], world: ["ice", "black", true, "black", true] }),
+            "a full Gamemaster's overlay was put back by a stale GM browser's copy at load, or a write of the world's copy below full Gamemaster stood, heard or with no hook (load: [the NPC's colour, this browser's row]; world: [the world copy's row after the GM's write, after a write over it, put back as heard, after one with no hook, put back at a message])");
     }],
 
     ...GRID

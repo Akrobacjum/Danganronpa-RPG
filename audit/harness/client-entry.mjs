@@ -460,7 +460,12 @@ const settingsApi = {
 /* v14's world storage is a collection of Setting documents that answers `getSetting(key)`
    with the stored document, or nothing when the world never wrote that key (the E04
    design's LIVE-E04-10). The harness keeps world values in a Map; this reads it the same way. */
-worldValues.getSetting = key => (worldValues.has(key) ? { key, value: worldValues.get(key) } : undefined);
+/* With the document's `_stats.lastModifiedBy`, the user whose write the server last applied (E16 fix r1c-G1;
+   cluster.mjs `settingWriters`, null for a value the seed wrote): dice-sync.mjs reads who wrote the world's copy
+   of the GMs' dice looks from it. v14's own stamp on a Setting is not read here: LIVE-E16-04. */
+const worldWriters = new Map();
+worldValues.getSetting = key => (worldValues.has(key)
+    ? { key, value: worldValues.get(key), _stats: { lastModifiedBy: worldWriters.get(key) ?? null } } : undefined);
 function coerce(def, raw) {
     if (def.type === Number) return Number(raw);
     if (def.type === Boolean) return typeof raw === "string" ? raw === "true" : !!raw;
@@ -1523,6 +1528,7 @@ function applySnapshot(snap) {
         }
     }
     for (const [k, v] of Object.entries(snap.settings)) worldValues.set(k, v);
+    for (const [k, id] of Object.entries(snap.settingWriters ?? {})) worldWriters.set(k, id);
     // users wiring
     game.user = game.users.get(snap.you);
     game.userId = snap.you;
@@ -1696,6 +1702,7 @@ process.on("message", async msg => {
             }
             case "settingApplied": {
                 worldValues.set(msg.key, msg.value);
+                if (msg.userId) worldWriters.set(msg.key, msg.userId);
                 const def = settingDefs.get(msg.key);
                 if (def) { try { def.onChange?.(coerce(def, msg.value)); } catch (err) { logLine(`setting onChange ${msg.key}: ${err.stack}`); recordError(`setting onChange ${msg.key}`, err); } }
                 /* Foundry's shape, `(document, changed, options, userId)`: until E16 fix r1b-G1 (19.10.2026) the writer's

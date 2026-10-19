@@ -27,6 +27,8 @@ import { debug, plural, warn } from "./utils.mjs";
 import { DRPG_ACTION_ROLL, TRAIT_BY_GM } from "./action-rolls.mjs";
 import { LOADED_DIE } from "./forced-roll.mjs";
 import { ROLL_NONCE, noteWindowCalls, rollClaimOf } from "./private-rolls.mjs";
+// Where the curtain's glass was last cut: read at a render, nothing written. glass.mjs reaches nothing here.
+import { LAST } from "./glass.mjs";
 
 export function registerRollDialog() {
     Hooks.on("renderApplicationV2", onRenderApplication);
@@ -247,7 +249,7 @@ function contextForced(app) {
 
 /**
  * Everything the module writes on a roll window's config: the experiences' costs out, the
- * reaction held, the advantage imposed, the Call's bonus (with the lock on), one experience.
+ * reaction held, the advantage imposed, the Call's bonus (with the lock off too: E16-COR-4), one experience.
  * Returns whether something changed that a window already drawn would show stale.
  */
 function forceConfig(app) {
@@ -261,7 +263,7 @@ function forceConfig(app) {
     if (sign !== 0) redraw = forceAdvantage(app, sign, count);
 
     const armed = grantsFor(app, actor);
-    if (locking()) redraw = imposeBonus(app, actor, armed) || redraw;
+    redraw = (locking() ? imposeBonus(app, actor, armed) : imposeCallBonus(app, actor, armed)) || redraw;
     if (armed.has("experience")) redraw = capExperiences(app) || redraw;
     return redraw;
 }
@@ -272,6 +274,7 @@ export function onRenderApplication(app, element) {
 
     try {
         openWindows.add(app);
+        placeBelowCurtain(app, root);
         // The submit button's die. The system draws `fa-dice` - a d6 pair from
         // a game with no d6 in it. This one rolls two d12s and the module says
         // so; a class swap in the render hook because the glyph lives in the
@@ -352,6 +355,11 @@ export function onRenderApplication(app, element) {
                 }
             }
         }
+        // A Call's flat bonus is a term of the purchase too (E16 fix r1c-G1, finding E16-COR-4): drawn read-only, as
+        // with the lock on. A bonus no Call set stays the roller's.
+        const armed = grantsFor(app, actor);
+        if (bonusOf(app, actor, armed)) lockBonus(root, app, actor, armed);
+        else freeBonus(root, app);
     } catch (err) {
         failed("drawing", err);
         // Never break the roll dialog itself.
@@ -683,6 +691,79 @@ function imposeBonus(app, actor, armed) {
     if (!app.config.extraFormula) return false;
     app.config.extraFormula = undefined;
     return true;
+}
+
+/**
+ * The same with the lock off (E16 fix r1c-G1, 19.10.2026; finding E16-COR-4): only a Call's number is written,
+ * and the bonus box stays the roller's otherwise. Until this fix nothing was imposed with the lock off, so a
+ * Meddle never reached the config before Daggerheart's `_prepareContext`: the window showed a formula without
+ * it while the GM's drawn throw counted it (roll-draw.mjs `callBonus`). The number written is kept on the window,
+ * and taken out of the config when the Call goes only where the config still holds it. True when it changed.
+ */
+const IMPOSED_BONUS = new WeakMap();
+function imposeCallBonus(app, actor, armed) {
+    const bonus = bonusOf(app, actor, armed);
+    if (bonus) {
+        IMPOSED_BONUS.set(app, bonus);
+        if (app.config.extraFormula === bonus) return false;
+        app.config.extraFormula = bonus;
+        return true;
+    }
+    const had = IMPOSED_BONUS.get(app);
+    if (!had) return false;
+    IMPOSED_BONUS.delete(app);
+    if (app.config.extraFormula !== had) return false;
+    app.config.extraFormula = undefined;
+    return true;
+}
+
+/** With the lock off and no Call's number: an input a Call drew read-only, still on the window, given back. */
+function freeBonus(root, app) {
+    const extra = root.querySelector('input[name="extraFormula"]');
+    if (!extra?.classList.contains("drpg-call-unlocked")) return;
+    extra.readOnly = false;
+    extra.classList.remove("drpg-call-unlocked");
+    delete extra.dataset.tooltip;
+    extra.value = app.config?.extraFormula ?? "";
+}
+
+/**
+ * A ROLL WINDOW OPENS BELOW THE CURTAIN (E16 fix r1c-G1, 19.10.2026; findings E16-COR-5 and E16-goal-01, the
+ * last part of E16-12; audit S01-22). Nothing placed the window, so it opened where Daggerheart and Foundry put
+ * it - centred, its title bar over the curtain's text at the top of the screen ('A murder is under way', the
+ * players' names) and over the sheet's tabs. Once a window, at its first render, while the curtain is up
+ * (`drpg-curtain-on`): the foot of the glass at the top of the screen over the window's columns is read from the
+ * last cut (glass.mjs `LAST`) - the panes whose middle is in the top half and that are no deeper than half the
+ * screen, so a rail down a side is not one - and a window whose top is above it is moved just below it, kept on
+ * the screen. A window the roller moves later is left where it is put; with no curtain nothing is moved. The
+ * harness cuts no glass, so its test stands the cut in; where the band lies at a table is LIVE-E16-02.
+ */
+const PLACED = new WeakSet();
+const CURTAIN_GAP = 8;
+function placeBelowCurtain(app, root) {
+    if (PLACED.has(app)) return;
+    PLACED.add(app);
+    if (!document.body.classList.contains("drpg-curtain-on") || typeof app.setPosition !== "function") return;
+    const frame = LAST?.frame, panes = LAST?.panes;
+    if (!frame || !Number.isFinite(frame.H) || !Array.isArray(panes) || !panes.length) return;
+    const pos = app.position ?? {};
+    const rect = root.getBoundingClientRect?.();
+    const laidOut = Boolean(rect) && rect.width > 0;
+    const left = laidOut ? rect.left : pos.left;
+    const width = laidOut ? rect.width : (Number.isFinite(pos.width) ? pos.width : 0);
+    const top = laidOut ? rect.top : pos.top;
+    const height = laidOut ? rect.height : (Number.isFinite(pos.height) ? pos.height : 0);
+    if (!Number.isFinite(left) || !Number.isFinite(top)) return;
+    const ox = Number.isFinite(frame.left) ? frame.left : 0, oy = Number.isFinite(frame.top) ? frame.top : 0;
+    let edge = null;
+    for (const pane of panes) {
+        if (![pane?.x0, pane?.y0, pane?.x1, pane?.y1].every(Number.isFinite)) continue;
+        if ((pane.y0 + pane.y1) / 2 >= frame.H / 2 || pane.y1 - pane.y0 > frame.H / 2) continue;
+        if (ox + pane.x1 <= left || ox + pane.x0 >= left + width) continue;
+        edge = Math.max(edge ?? -Infinity, oy + pane.y1);
+    }
+    if (edge === null || top >= edge + CURTAIN_GAP) return;
+    app.setPosition({ top: Math.max(0, Math.min(edge + CURTAIN_GAP, innerHeight - height - CURTAIN_GAP)) });
 }
 
 function lockBonus(root, app, actor, armed) {

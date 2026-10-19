@@ -27,6 +27,12 @@ export const SETTINGS = {
     forceDiceLook: "forceDiceLook",
     /** The id of the full Gamemaster whose dice look is the table's; the primary GM writes it at its first sweep (dice-sync.mjs). */
     diceLookSource: "diceLookSource",
+    /**
+     * The world's copy of the GMs' dice look store (gm-stores.mjs `diceLookStore`), which only a full Gamemaster's
+     * browser writes and a loading primary merges by stamp (E16 fix r1c-G1, the owner's Q6 on its default (b) -
+     * see dice-sync.mjs).
+     */
+    diceLookWorld: "diceLookWorld",
     enforceAnonymity: "enforceAnonymity",
     searchTokensPerRoom: "searchTokensPerRoom",
     searchTokens: "searchTokens",
@@ -972,6 +978,14 @@ export function registerSettings() {
         config: false,
         type: String,
         default: ""
+    });
+
+    // A section of the GM store's shape, `{ e, t, d, cleared }`: the overlays every client already holds on the actors.
+    game.settings.register(MODULE_ID, SETTINGS.diceLookWorld, {
+        scope: "world",
+        config: false,
+        type: Object,
+        default: {}
     });
 
     game.settings.register(MODULE_ID, SETTINGS.enforceAnonymity, {

@@ -24,7 +24,9 @@
  *   H  a character's dice look with no GM watching: `gm2`, a second full
  *      Gamemaster declared late below, leaves before D and comes back to a table
  *      with no other GM (E16 fix early-C4-G1), last on a browser that never
- *      held the GMs' stores (E16 fix r1b-G1).
+ *      held the GMs' stores (E16 fix r1b-G1); first, with only the Assistant
+ *      at the table, to a character's look the GM gave after it left (E16 fix
+ *      r1c-G1).
  * What v14 itself allows an Assistant is modelled, not measured: LIVE-E30-04,
  * -05 and -06 in audit/AUDIT-1.2.42.md section 9.2.
  */
@@ -393,6 +395,11 @@ export async function run({ gm, ag, gm2, p1, p2, p3, check, settle, opLog, socke
     await gm2.eval(`const E = ${storesJs}; await E.whenGmStoresHydrated(); await E.gmStoresIdle(); return true;`);
     await disconnect("gm2");
     await settle(600);
+    /* E16 fix r1c-G1 (fd-2): with gm2 gone the GM gives Botan another look, which gm2's browser never hears. H5 brings
+       gm2 back to it with only the Assistant at the table. */
+    const frost = JSON.stringify({ global: { colorset: "frost" } });
+    await gm.eval(`await game.actors.get("${IDS.botan}").update({ "flags.${DSN}.appearance": ${frost} }); return true;`);
+    await settle(1500);
 
     /* ---------------------------- D. the full GM leaves ----------------------------- */
 
@@ -459,6 +466,36 @@ export async function run({ gm, ag, gm2, p1, p2, p3, check, settle, opLog, socke
         await settle(1500);
     };
     const colourOn = async (c, id) => JSON.parse(await overlayOn(c, id))?.global?.colorset ?? null;
+    const worldCopyOn = c => c.eval(`try { return JSON.stringify(game.settings.get("${MOD}", "diceLookWorld")?.e?.["${IDS.botan}"]?.look ?? null); }
+        catch { return null; }`);
+
+    /* E16 fix r1c-G1, 19.10.2026 (findings OWNER-DEFAULT-Q6b and the fix-diff review's fd-2; the owner's Q6 runs on its
+       default (b)). gm2 left before the GM gave Botan frost (above D), so its browser's copy of the GMs' store holds
+       Botan in ice; the Assistant's browser sends none of that store (`fullGmOnly`). H5: gm2 comes back on the browser
+       it left with while only the Assistant is here. Read: Botan's overlay on every client and who wrote Botan from
+       gm2's connect on (opLog). At 442f563: gm2 puts the full GM's frost back to its own ice. Then gm2 gives Botan
+       ice again and leaves, and the Assistant's console writes the world's copy of the store with Botan in emerald,
+       stamped a minute ahead (H1 reads it). */
+    mark = opLog.length;
+    await back();
+    const h5 = { writes: actorWrites(mark, IDS.botan), held: {} };
+    for (const c of [gm2, ag, p2]) h5.held[c.who] = await colourOn(c, IDS.botan);
+    check("H5: a full Gamemaster's newer dice look on a character stands when another full Gamemaster's browser with an older copy loads while only an Assistant is at the table",
+        Object.values(h5.held).every(colour => colour === "frost") && h5.writes.length === 0, JSON.stringify(h5));
+    await gm2.eval(`await game.actors.get("${IDS.botan}").update({ "flags.${DSN}.appearance": ${gmOverlay} }); return true;`);
+    await settle(1500);
+    await gm2.eval(`const E = ${storesJs}; await E.gmStoresIdle(); return true;`);
+    await disconnect("gm2");
+    await settle(600);
+    const forged = await ag.eval(`try {
+            const value = foundry.utils.deepClone(game.settings.get("${MOD}", "diceLookWorld") ?? {});
+            value.e ??= {}; value.t ??= {};
+            value.e["${IDS.botan}"] = { look: ${emerald} };
+            value.t["${IDS.botan}"] = Math.floor(game.time.serverTime) + 60000;
+            await game.settings.set("${MOD}", "diceLookWorld", value);
+            return true;
+        } catch (err) { return String(err?.message ?? err); }`);
+    await settle(600);
     await disconnect("ag");
     await settle(600);
     mark = opLog.length;
@@ -468,8 +505,10 @@ export async function run({ gm, ag, gm2, p1, p2, p3, check, settle, opLog, socke
     await back();
     Object.assign(h1, { writes: actorWrites(mark, IDS.botan), held: {} });
     for (const c of [gm2, p1, p2]) h1.held[c.who] = await overlayOn(c, IDS.botan) === gmOverlay;
-    check("H1: a character's dice look its player wrote while no GM was connected goes back to the GMs' when a full Gamemaster's browser that holds their copy loads",
-        h1.stood === "black" && Object.values(h1.held).every(Boolean)
+    // E16 fix r1c-G1 (OWNER-DEFAULT-Q6b): the world's copy the Assistant wrote above is not taken, and gm2 writes its own.
+    Object.assign(h1, { forged, world: await worldCopyOn(gm2) });
+    check("H1: a character's dice look its player wrote while no GM was connected goes back to the GMs' when a full Gamemaster's browser that holds their copy loads, and a world copy an Assistant wrote is not taken",
+        h1.stood === "black" && Object.values(h1.held).every(Boolean) && h1.forged === true && h1.world === gmOverlay
         && JSON.stringify(h1.writes) === JSON.stringify(["p2 update", "gm2 update"]), JSON.stringify(h1));
 
     mark = opLog.length;
@@ -495,8 +534,10 @@ export async function run({ gm, ag, gm2, p1, p2, p3, check, settle, opLog, socke
     /* E16 fix r1b-G1, 19.10.2026 (findings sec-5 and E16-COR-3). H1 holds only because gm2 comes back with the storage
        it left with: the GMs' copy is each GM browser's store, and a GM alone on a browser that never held it took
        every overlay as found. H4: gm2 leaves, p2 writes Botan's overlay with no GM at the table, and gm2 comes back on
-       an empty browser. Read: Botan's overlay on every client (p2 owns Botan: none), Daichi's (no player owns it: the
-       GM's from G2 stands) and who wrote Botan from p2's write on. At d0c7e6e: p2's black on Botan, written by p2 only. */
+       an empty browser. Read: Botan's overlay on every client, Daichi's (no player owns it: the GM's from G2 stands)
+       and who wrote Botan from p2's write on. At d0c7e6e: p2's black on Botan, written by p2 only. Until E16 fix
+       r1c-G1 Botan went back to none (p2 owns it, and the empty browser had no row); the world's copy a full
+       Gamemaster's browser writes (OWNER-DEFAULT-Q6b) gives the empty browser the GMs' ice. */
     await gm2.eval(`const E = ${storesJs}; await E.gmStoresIdle(); return true;`);
     await disconnect("gm2");
     await settle(600);
@@ -509,8 +550,8 @@ export async function run({ gm, ag, gm2, p1, p2, p3, check, settle, opLog, socke
     await settle(1500);
     Object.assign(h4, { writes: actorWrites(mark, IDS.botan), held: {} });
     for (const c of [gm2, p1, p2]) h4.held[c.who] = [await overlayOn(c, IDS.botan), await colourOn(c, IDS.daichi)];
-    check("H4: on a GM browser that never held the GMs' copy, a character's dice look its player wrote with no GM connected goes back to none, and a GM's look on a student no player owns stands",
-        h4.stood === "black" && Object.values(h4.held).every(([botan, daichi]) => botan === "null" && daichi === "fire")
+    check("H4: on a GM browser that never held the GMs' copy, a character's dice look its player wrote with no GM connected goes back to the GMs' from the world's copy, and a GM's look on a student no player owns stands",
+        h4.stood === "black" && Object.values(h4.held).every(([botan, daichi]) => botan === gmOverlay && daichi === "fire")
         && JSON.stringify(h4.writes) === JSON.stringify(["p2 update", "gm2 update"]), JSON.stringify(h4));
 
     const late = {};

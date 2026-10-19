@@ -386,7 +386,10 @@ roll at a table.
   `__savedFiles` on that client instead of downloading it, and
   `readTextFromFile` takes the text itself (or `{ text }`) as the chosen file;
   what a real browser does with either is LIVE-E04-05. v14's world storage
-  answers `getSetting(key)` with the stored value or nothing (LIVE-E04-10).
+  answers `getSetting(key)` with the stored value or nothing (LIVE-E04-10),
+  and since E16 fix r1c-G1 with `_stats.lastModifiedBy`: the user whose write
+  the server last applied (cluster.mjs `settingWriters`; null for a value the
+  seed wrote). That v14 stamps a Setting so is modelled, not read: LIVE-E16-04.
 - **The GM store at a real table** (E04). Late GM accounts (`connect`,
   `disconnect`, `storageOf`) are clients on one machine: `game.time.serverTime`
   is that machine's clock and a client's skew moves its `Date.now` alone

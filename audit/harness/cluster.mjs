@@ -447,7 +447,7 @@ function spawnClient(who, userId, { world = null, storage = null, clockSkewMs = 
 function snapshotFor(userId) {
     const collections = {};
     for (const [name, docs] of Object.entries(world.collections)) collections[name] = docs.map(U.deepClone);
-    return { t: "snapshot", collections, settings: { ...world.settings }, you: userId };
+    return { t: "snapshot", collections, settings: { ...world.settings }, settingWriters: { ...settingWriters }, you: userId };
 }
 
 function broadcast(msg, { except = null } = {}) {
@@ -510,6 +510,7 @@ function onClientMessage(who, entry, msg) {
                 permissionDenials.push({ who, op: `setting ${msg.key}`, error });
             } else {
                 world.settings[msg.key] = msg.value;
+                settingWriters[msg.key] = entry.userId;
                 settingLog.push({ who, key: msg.key, at: Date.now() });
                 broadcast({ t: "settingApplied", key: msg.key, value: msg.value, userId: entry.userId, ...(msg.noHook === true ? { noHook: true } : {}) });
             }
@@ -567,6 +568,10 @@ const socketTraffic = [];
    does, so a scenario can watch the other GM take over. */
 const opLog = [];
 const settingLog = [];
+/* The last writer of each world setting, by key (E16 fix r1c-G1): v14 stamps a Setting document's
+   `_stats.lastModifiedBy` as any document's, and a client reads it off `getSetting` (client-entry.mjs).
+   Modelled, not measured: LIVE-E16-04. A value the seed wrote has none. */
+const settingWriters = {};
 /* Each client's localStorage as it closed, by who (E04): a browser that closes keeps its store. */
 const keptStorage = new Map();
 /* The accounts a scenario declared `late: true`, by who: seeded inactive, not spawned until `connect`. */
