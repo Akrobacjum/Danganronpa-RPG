@@ -192,7 +192,7 @@ export const FLOWS = Object.freeze([
         entry: { bridge: ["note.save"], sockets: ["pre-session-note.mjs"] },
         scenarios: ["72-canary", "11-killer-secrecy", "33-bridge-paths", "30-security", "61-gmstore-case"], status: "covered", stage: "1.2.64" },
     { id: "private-rolls", what: "A roll made in private: whispered, and hidden from the other players' chat",
-        entry: { bridge: ["roll.subject"], sockets: ["dice-sync.mjs", "private-rolls.mjs"] },
+        entry: { bridge: ["roll.subject"], sockets: ["private-rolls.mjs"] },
         scenarios: ["12-social", "13-murder-signals", "20-crit-hope", "33-bridge-paths"], status: "covered", stage: "<=1.2.50" },
     // E12 C5 (11.10.2026): 66-rooms's phases A and E (the manager's room, what a player knows of a project) are tagged
     // with this flow and now named.

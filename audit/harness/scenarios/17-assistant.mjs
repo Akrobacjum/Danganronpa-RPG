@@ -245,6 +245,35 @@ export async function run({ gm, ag, p1, p2, p3, check, settle, opLog, socketTraf
         await settle(600);
     }
 
+    /* ------------------- G. one dice look: the GM's, on every user below it ------------------- */
+    /* E16 p1 C3, 19.10.2026 (E16-15, E16-19; the owner's Q3 of 19.10: Assistant GMs are forced too). The GM gives
+       themself a Dice So Nice look; then p1 and the Assistant each write a look of their own from their own console,
+       the road a player's browser takes past every hook of the module's (written by that user, as Foundry stamps it).
+       Read: each user's flags on every client against the GM's look as the GM's dice-sync.mjs gives it, who wrote
+       the User after the console's write (opLog), and the line p1 is told. D5 below asks the same of the Assistant
+       once it is the primary. */
+    const DSN = "dice-so-nice";
+    const syncJs = `(await import("${repoUrl}/scripts/dice-sync.mjs"))`;
+    const lookOn = (c, id) => c.eval(`const f = game.users.get("${id}")?.flags?.["${DSN}"] ?? {};
+        return JSON.stringify([f.appearance ?? null, f.sfxList ?? null]);`);
+    const canonOn = c => c.eval(`const l = ${syncJs}.canonicalLook(); return l ? JSON.stringify([l.appearance, l.sfxList]) : null;`);
+    const userWrites = (from, id) => opLog.slice(from).filter(w => w.coll === "User" && w.docId === id).map(w => `${w.who} ${w.action}`);
+    await gm.eval(`await game.user.update({ "flags.${DSN}.appearance": { global: { colorset: "fire" } }, "flags.${DSN}.sfxList": [] }); return true;`);
+    await settle(1500);
+    const canon = await canonOn(gm);
+    mark = opLog.length;
+    const p1Told = await p1.eval(`return globalThis.__notifications.length;`);
+    await p1.eval(`await game.user.setFlag("${DSN}", "appearance", { global: { colorset: "black" }, d6: { colorset: "bloodmoon" } }); return true;`);
+    await ag.eval(`await game.user.setFlag("${DSN}", "appearance", { global: { colorset: "emerald" } }); return true;`);
+    await settle(1500);
+    const g1 = { canon, writes: { p1: userWrites(mark, IDS.p1), ag: userWrites(mark, IDS.ag) }, held: {},
+        told: await p1.eval(`return globalThis.__notifications.slice(${p1Told}).map(n => n.msg);`) };
+    for (const c of [gm, ag, p1, p2]) g1.held[c.who] = [await lookOn(c, IDS.p1) === canon, await lookOn(c, IDS.ag) === canon];
+    check("G1: a player's and an Assistant's own dice look written from their consoles go back to the GM's on every client, written by the primary GM, and the player is told once",
+        Boolean(canon) && JSON.parse(canon)[0]?.global?.colorset === "fire" && Object.values(g1.held).every(([a, b]) => a && b)
+        && JSON.stringify(g1.writes) === JSON.stringify({ p1: ["p1 update", "gm update"], ag: ["ag update", "gm update"] })
+        && JSON.stringify(g1.told) === JSON.stringify(["Your dice look is set by the GM."]), JSON.stringify(g1));
+
     /* ---------------------------- D. the full GM leaves ----------------------------- */
 
     const gmErrors = await gm.eval(`return (globalThis.__errors ?? []).map(e => e.where + ": " + e.message);`);
@@ -281,6 +310,15 @@ export async function run({ gm, ag, p1, p2, p3, check, settle, opLog, socketTraf
     const d4 = fogRowsAfter(traffic);
     check("D4: a player's fog request is answered once, by the Assistant",
         d4.length === 1 && d4[0].from === "ag" && JSON.stringify(d4[0].to) === JSON.stringify([IDS.p2]), JSON.stringify(d4));
+
+    /* E16 p1 C3 (LIVE-E16-04 asks it of v14): with the full GM gone the Assistant is the primary and puts a player's
+       look back to the full GM's, which stays the source while that GM is offline. */
+    mark = opLog.length;
+    await p2.eval(`await game.user.setFlag("${DSN}", "appearance", { global: { colorset: "black" } }); return true;`);
+    await settle(1500);
+    const d5 = { writes: userWrites(mark, IDS.p2), held: await lookOn(ag, IDS.p2) === canon, canon: await canonOn(ag) === canon };
+    check("D5: with the GM gone a player's own dice look goes back to the GM's, written by the Assistant",
+        JSON.stringify(d5.writes) === JSON.stringify(["p2 update", "ag update"]) && d5.held && d5.canon, JSON.stringify(d5));
 
     const errors = {};
     for (const c of [ag, p1, p2, p3]) errors[c.who] = await c.eval(`return (globalThis.__errors ?? []).map(e => e.where + ": " + e.message);`);

@@ -23,6 +23,10 @@ export const SETTINGS = {
     /** Players and Trusted Players browse and upload no files (E79 C9, N4 - see enforced.mjs). */
     enforcePlayerFiles: "enforcePlayerFiles",
     forcePrivateRolls: "forcePrivateRolls",
+    /** Every user below full Gamemaster throws in one GM's Dice So Nice look (E16 p1 C3, D19a - see dice-sync.mjs). */
+    forceDiceLook: "forceDiceLook",
+    /** The id of the full Gamemaster whose dice look is the table's; the primary GM writes it at its first sweep (dice-sync.mjs). */
+    diceLookSource: "diceLookSource",
     enforceAnonymity: "enforceAnonymity",
     searchTokensPerRoom: "searchTokensPerRoom",
     searchTokens: "searchTokens",
@@ -944,6 +948,24 @@ export function registerSettings() {
         config: true,
         type: Boolean,
         default: true
+    });
+
+    // Read at every step of dice-sync.mjs; off writes nothing and gives nobody their old look back (the owner's Q4 of 19.10).
+    game.settings.register(MODULE_ID, SETTINGS.forceDiceLook, {
+        name: "DRPG.Settings.forceDiceLook.name",
+        hint: "DRPG.Settings.forceDiceLook.hint",
+        scope: "world",
+        config: true,
+        type: Boolean,
+        default: true,
+        requiresReload: true
+    });
+
+    game.settings.register(MODULE_ID, SETTINGS.diceLookSource, {
+        scope: "world",
+        config: false,
+        type: String,
+        default: ""
     });
 
     game.settings.register(MODULE_ID, SETTINGS.enforceAnonymity, {

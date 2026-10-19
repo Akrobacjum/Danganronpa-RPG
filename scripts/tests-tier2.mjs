@@ -3126,6 +3126,62 @@ async function clearObjections(floorMod, seen) {
     await settle();
 }
 
+/*
+ * THE TABLE'S DICE LOOK, ITS FIXTURES (E16 p1 C3, 19.10.2026; audits S02-67 and S16-02). Dice So Nice keeps a
+ * user's look in that User's flags `dice-so-nice.appearance` and `sfxList` (the 26.09 design's reading of DSN
+ * 6.2.9; DSN's source is not on this machine), which every browser reads to draw that user's throw. The tests
+ * below give the GM a look, write other looks on users, and put every user's Dice So Nice scope back as found
+ * - whole, or deleted where there was none - with the forcing off while they write, so that no put-back of the
+ * module's answers the put-back of the suite's.
+ */
+const DSN_SCOPE = "dice-so-nice";
+const DICE_FORCE = `${MODULE_ID}.${SETTINGS.forceDiceLook}`;
+/** The GM's look: a library die without its owner, and one effect that runs a macro. */
+const GM_DICE_LOOK = { global: { colorset: "fire", material: "metal" }, d20: { colorset: "ice", libraryDieId: "e16-d20" } };
+const GM_DICE_SFX = [{ diceType: "d20", onResult: ["20"], specialEffect: "PlayAnimationBright", options: {} },
+    { diceType: "d20", onResult: ["1"], specialEffect: "PlayMacro", options: { macroId: "e16-macro" } }];
+/** A look of a player's own: a scope the GM's has not (d6), and an effect of its own. */
+const OWN_DICE_LOOK = { global: { colorset: "black" }, d6: { colorset: "bloodmoon" } };
+const OWN_DICE_SFX = [{ diceType: "d12", onResult: ["12"], specialEffect: "PlayAnimationDark", options: {} }];
+const diceScopeOf = user => foundry.utils.deepClone(user?.toObject?.().flags?.[DSN_SCOPE] ?? null);
+const diceLookWrite = (look, sfx) => ({ [`flags.${DSN_SCOPE}.appearance`]: look, [`flags.${DSN_SCOPE}.sfxList`]: sfx });
+/** The module's canonical look, or null where the module has none to give. */
+async function canonicalDiceLook() {
+    const sync = await import("./dice-sync.mjs");
+    return typeof sync.canonicalLook === "function" ? sync.canonicalLook() : null;
+}
+/** Whether a user's flags hold this look, read as the module's own comparison would not be: key order aside, nothing else. */
+const holdsLook = (user, look) => Boolean(look) && stableJson(diceScopeOf(user)?.appearance ?? null) === stableJson(look.appearance)
+    && stableJson(diceScopeOf(user)?.sfxList ?? null) === stableJson(look.sfxList);
+/** What the GM's look must come out as on a player: its colours, the library die owned by the GM, no macro. */
+const isGmsLook = (look, gm) => {
+    const sfx = Object.values(look?.sfxList ?? {});
+    return look?.appearance?.global?.colorset === "fire" && look?.appearance?.d20?.libraryDieOwner === gm.id
+        && sfx.some(e => e?.specialEffect === "PlayAnimationBright") && !sfx.some(e => e?.specialEffect === "PlayMacro");
+};
+function diceFlagsFound() {
+    return new Map(game.users.map(u => [u.id, diceScopeOf(u)]));
+}
+async function putBackDiceFlags(found, made = []) {
+    const { forcedReplacement } = await import("./utils.mjs");
+    const registered = game.settings.settings.has(DICE_FORCE);
+    const was = registered ? game.settings.get(MODULE_ID, SETTINGS.forceDiceLook) : null;
+    try {
+        if (was) await game.settings.set(MODULE_ID, SETTINGS.forceDiceLook, false);
+        for (const user of made) if (game.users.get(user.id)) await user.delete();
+        for (const [id, scope] of found) {
+            const user = game.users.get(id);
+            if (!user || stableJson(diceScopeOf(user)) === stableJson(scope)) continue;
+            const whole = scope === null ? forcedDeletion() : (typeof forcedReplacement === "function" ? forcedReplacement(scope) : scope);
+            await user.update({ [`flags.${DSN_SCOPE}`]: whole });
+        }
+        // A put-back the module scheduled before the switch went off runs while it is off (its wait is 400 ms).
+        await wait(700);
+    } finally {
+        if (registered && game.settings.get(MODULE_ID, SETTINGS.forceDiceLook) !== was) await game.settings.set(MODULE_ID, SETTINGS.forceDiceLook, was);
+    }
+}
+
 const SCENARIOS = [
     ["a document keeps a given id only with keepId", async () => {
         /*
@@ -53656,6 +53712,212 @@ const SCENARIOS = [
         }), "a player's locked window kept a locked section or had no summary, a GM's lost one, the mode select or the title bar is not as S01-22 asks, or a title can set the width (see the comment for each key)");
         ok(/\dd12/.test(formula ?? "") && typeof supported === "string" && supported.length > formula.length,
             `the window's formula names no d12, or the Support's adds nothing to it (${formula}; ${supported})`);
+    }],
+
+    ["a player's own dice look goes back to the GM's, whole, and the player's display settings stay theirs (S02-67 S16-02)", async () => {
+        /*
+         * E16 p1 C3, 19.10.2026; audits S02-67 and S16-02 (E16-15, E16-19). The GM wants one dice look at the
+         * table (D19a), and until C3 the module pushed Dice So Nice's client setting `settings`, which DSN 6.x
+         * only migrates: every player kept and could change their own dice. Here the GM, who is the look's
+         * source, gives themself a look; it must reach a connected player; then the player's look is written
+         * past the player's client, through the server, as a console's would arrive at the primary GM (the
+         * put-back reads the state after the write, not who wrote it), with a die scope the GM's look has not
+         * and a display setting. Read: the player's flags against the module's canonical look after each step,
+         * that look against the GM's (its colours, the library die owned by the GM, the macro effect gone),
+         * the stray scope, and the `settings` flag (Q2: not forced). At 01c6739: the canonical look null and
+         * the player's flags the player's own.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter"));
+        const gm = game.user;
+        const player = game.users.find(u => !u.isGM && u.active);
+        const found = diceFlagsFound();
+        const read = {};
+        try {
+            await gm.update(diceLookWrite(GM_DICE_LOOK, GM_DICE_SFX));
+            const look = await canonicalDiceLook();
+            await until(() => holdsLook(player, look), 3000);
+            read.spread = [holdsLook(player, look), isGmsLook(look, gm)];
+            await player.update({ ...diceLookWrite(OWN_DICE_LOOK, OWN_DICE_SFX), [`flags.${DSN_SCOPE}.settings`]: { scale: 80 } });
+            await until(() => holdsLook(player, look), 3000);
+            const after = diceScopeOf(player);
+            read.after = [holdsLook(player, look), Object.hasOwn(after?.appearance ?? {}, "d6"), after?.settings ?? null];
+        } finally {
+            await putBackDiceFlags(found);
+        }
+        equal(stableJson(read), stableJson({ after: [true, false, { scale: 80 }], spread: [true, true] }),
+            "the GM's look did not reach the player, or the player's own look stayed, kept a scope of its own, or took the player's display settings with it ([holds the canonical look, which is the GM's] then [holds it, d6 kept, settings])");
+    }],
+
+    ["a user who joins after the GM's sweep has the GM's dice look as they connect (S16-02)", async () => {
+        /*
+         * E16 p1 C3, 19.10.2026 (E16-16). The primary GM writes the look on every user below full Gamemaster
+         * at its sweep, offline ones too; a user a GM makes afterwards holds whatever it was made with until
+         * it connects, and must throw in the GM's look from its first roll. A user is made with a look of its
+         * own after the GM's look has spread, read, then announced as connected the way the harness announces
+         * a client that joins (client-entry.mjs `userActivity`: `userConnected` with true), and read again.
+         * At 01c6739: its own look both times.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        const gm = game.user;
+        const found = diceFlagsFound();
+        const made = [];
+        const read = {};
+        try {
+            await gm.update(diceLookWrite(GM_DICE_LOOK, GM_DICE_SFX));
+            const look = await canonicalDiceLook();
+            await settle();
+            const [joiner] = await CONFIG.User.documentClass.createDocuments([{ name: "E16 joiner", role: CONST.USER_ROLES.PLAYER,
+                flags: { [DSN_SCOPE]: { appearance: OWN_DICE_LOOK, sfxList: OWN_DICE_SFX } } }]);
+            made.push(joiner);
+            await settle();
+            read.made = holdsLook(joiner, { appearance: OWN_DICE_LOOK, sfxList: OWN_DICE_SFX });
+            Hooks.callAll("userConnected", joiner, true);
+            await until(() => holdsLook(joiner, look), 3000);
+            read.connected = [holdsLook(joiner, look), isGmsLook(look, gm)];
+            Hooks.callAll("userConnected", joiner, false);
+        } finally {
+            await putBackDiceFlags(found, made);
+        }
+        equal(stableJson(read), stableJson({ connected: [true, true], made: true }),
+            "a user made after the sweep did not get the GM's look when it connected (made: still its own; connected: [holds the canonical look, which is the GM's])");
+    }],
+
+    ["with the table's dice look off a player's change of look is not written over (S16-02)", async () => {
+        /*
+         * E16 p1 C3, 19.10.2026 (E16-17; the owner's Q4 of 19.10: off restores nothing). With `forceDiceLook`
+         * off the module writes no user: a player's look written through the server is left as written, and
+         * no update of that user follows it. Counted: the `updateUser` hooks on the player after its own write
+         * had landed, over 1.2 s (three times the put-back's wait). At 01c6739 there is no switch to turn off.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter"));
+        ok(game.settings.settings.has(DICE_FORCE), "the module registers no switch for the table's dice look");
+        const player = game.users.find(u => !u.isGM && u.active);
+        const found = diceFlagsFound();
+        const was = game.settings.get(MODULE_ID, SETTINGS.forceDiceLook);
+        let after = 0;
+        const counting = Hooks.on("updateUser", user => { if (user.id === player.id) after++; });
+        let mark = null, kept = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.forceDiceLook, false);
+            await game.user.update(diceLookWrite(GM_DICE_LOOK, GM_DICE_SFX));
+            await player.update(diceLookWrite(OWN_DICE_LOOK, OWN_DICE_SFX));
+            mark = after;
+            await wait(1200);
+            kept = holdsLook(player, { appearance: OWN_DICE_LOOK, sfxList: OWN_DICE_SFX });
+            mark = after - mark;
+        } finally {
+            Hooks.off("updateUser", counting);
+            if (game.settings.get(MODULE_ID, SETTINGS.forceDiceLook) !== was) await game.settings.set(MODULE_ID, SETTINGS.forceDiceLook, was);
+            await putBackDiceFlags(found);
+        }
+        equal(stableJson([mark, kept]), stableJson([0, true]),
+            "with the switch off the player's look was written over ([updates of the player after its write, its own look kept])");
+    }],
+
+    ["a user's dice look written back again and again is put back five times in a minute, then left and the GM told once (S16-02)", async () => {
+        /*
+         * E16 p1 C3, 19.10.2026 (E16-18; the design's risk: "the write must not loop with Dice So Nice"). DSN's
+         * own save is six updates of the user's flags (DiceConfig `_onSubmit`: three unsets, three sets, the
+         * 26.09 design's reading of 6.2.9), and a module or a client that writes its look back after each
+         * put-back would trade writes with the primary GM forever. A user made for the test (so that no seeded
+         * player's limit is spent) gets DSN's six writes back to back, then nine single writes of its own
+         * look, each waited on until the GM's look is back or 1 s has passed. Counted: the GM's writes
+         * (every `updateUser` of that user less the test's own), whether each single write was put back, the
+         * console lines that say the limit was reached and the GM's warnings that name the user. At 01c6739:
+         * no write of the GM's at all.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        const gm = game.user;
+        const found = diceFlagsFound();
+        const made = [];
+        const NAME = "E16 looper";
+        let hooks = 0, mine = 0;
+        const counting = Hooks.on("updateUser", user => { if (user.name === NAME) hooks++; });
+        const warned = [], warn = ui.notifications.warn;
+        ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+        const log = watchLog();
+        const read = {};
+        try {
+            await gm.update(diceLookWrite(GM_DICE_LOOK, GM_DICE_SFX));
+            const look = await canonicalDiceLook();
+            await wait(1000);
+            const [looper] = await CONFIG.User.documentClass.createDocuments([{ name: NAME, role: CONST.USER_ROLES.PLAYER }]);
+            made.push(looper);
+            await wait(1000);
+            const before = hooks;
+            const own = async write => { mine++; await looper.update(write); };
+            await own({ [`flags.${DSN_SCOPE}.sfxList`]: forcedDeletion() });
+            await own({ [`flags.${DSN_SCOPE}.appearance`]: forcedDeletion() });
+            await own({ [`flags.${DSN_SCOPE}.settings`]: forcedDeletion() });
+            await own({ [`flags.${DSN_SCOPE}.settings`]: { scale: 75 } });
+            await own({ [`flags.${DSN_SCOPE}.appearance`]: OWN_DICE_LOOK });
+            await own({ [`flags.${DSN_SCOPE}.sfxList`]: OWN_DICE_SFX });
+            await until(() => holdsLook(looper, look), 3000);
+            await wait(800);
+            read.burst = [hooks - before - mine, holdsLook(looper, look)];
+            read.singles = [];
+            for (let i = 0; i < 9; i++) {
+                await own(diceLookWrite({ ...OWN_DICE_LOOK, global: { colorset: `black-${i}` } }, OWN_DICE_SFX));
+                read.singles.push(await until(() => holdsLook(looper, look), 1000));
+            }
+            await wait(600);
+            read.writes = hooks - before - mine;
+        } finally {
+            Hooks.off("updateUser", counting);
+            ui.notifications.warn = warn;
+            log.stop();
+            await putBackDiceFlags(found, made);
+        }
+        read.said = [log.count(NAME), warned.filter(text => text.includes(NAME)).length];
+        equal(stableJson(read), stableJson({ burst: [1, true], said: [1, 1], singles: [true, true, true, true, false, false, false, false, false], writes: 5 }),
+            "the put-back did not fold DSN's six writes into one, did not stop at five in a minute, or did not say so once on the console and once to the GM (burst: [the GM's writes, the GM's look back]; singles: each put back; writes: the GM's in all; said: [console lines, GM warnings])");
+    }],
+
+    ["an Assistant GM's and an offline player's dice look are the GM's and a full Gamemaster's own stays (Q3 S16-02)", async () => {
+        /*
+         * E16 p1 C3, 19.10.2026 (E16-19; the owner's Q3 of 19.10: "Tak", Assistant GMs are forced too). Three
+         * users are made offline, each with a look of its own: an Assistant GM (role 3), a second full
+         * Gamemaster (role 4) and a player. Then the GM, the look's source, changes its look: the sweep must
+         * reach the Assistant and the offline player and leave the full Gamemaster. Then the Assistant's and
+         * the full Gamemaster's looks are written once more through the server: the Assistant's is put back,
+         * the Gamemaster's is not (read 1.2 s after the write, three times the put-back's wait). At 01c6739:
+         * every one of them its own.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        const gm = game.user;
+        const found = diceFlagsFound();
+        const made = [];
+        const OWN = { appearance: OWN_DICE_LOOK, sfxList: OWN_DICE_SFX };
+        const read = {};
+        try {
+            made.push(...await CONFIG.User.documentClass.createDocuments([
+                { name: "E16 assistant", role: CONST.USER_ROLES.ASSISTANT, flags: { [DSN_SCOPE]: OWN } },
+                { name: "E16 second gamemaster", role: CONST.USER_ROLES.GAMEMASTER, flags: { [DSN_SCOPE]: OWN } },
+                { name: "E16 offline player", role: CONST.USER_ROLES.PLAYER, flags: { [DSN_SCOPE]: OWN } }]));
+            const [assistant, second, offline] = made;
+            await settle();
+            await gm.update(diceLookWrite(GM_DICE_LOOK, GM_DICE_SFX));
+            const look = await canonicalDiceLook();
+            await until(() => holdsLook(assistant, look) && holdsLook(offline, look), 3000);
+            await wait(600);
+            read.sweep = [holdsLook(assistant, look), holdsLook(offline, look), holdsLook(second, OWN), isGmsLook(look, gm)];
+            await assistant.update(diceLookWrite(OWN_DICE_LOOK, OWN_DICE_SFX));
+            await second.update(diceLookWrite({ ...OWN_DICE_LOOK, d8: { colorset: "emerald" } }, OWN_DICE_SFX));
+            await until(() => holdsLook(assistant, look), 3000);
+            await wait(1200);
+            read.after = [holdsLook(assistant, look), diceScopeOf(second)?.appearance?.d8?.colorset ?? null];
+        } finally {
+            await putBackDiceFlags(found, made);
+        }
+        equal(stableJson(read), stableJson({ after: [true, "emerald"], sweep: [true, true, true, true] }),
+            "the sweep or the put-back missed the Assistant or the offline player, or wrote over a full Gamemaster's own look (sweep: [Assistant, offline player, second Gamemaster's own, the look is the GM's]; after: [Assistant put back, the Gamemaster's d8])");
     }],
 
     ...GRID

@@ -378,7 +378,6 @@ const REGRESSIONS = [
             "fog.mjs": "fog.request answers the sender's own rows; fog.shared is taken only while the primary's question is open, cut to the characters the sender owns, weak and fill-only",
             "sync.mjs": "world-state fan-out from a GM; carries no actor id",
             "safeword.mjs": "trusts nothing from the packet but the room it shows the GMs as text; the name is the connected sender's, and the primary posts one public card per player per window, naming nobody",
-            "dice-sync.mjs": "dice appearance only; no actor anywhere in it",
             "sfx.mjs": "plays a sound; no actor anywhere in it",
             "voice.mjs": "room membership, keyed by the sender",
             "voice-client.mjs": "room membership, keyed by the sender",
@@ -1436,8 +1435,11 @@ const REGRESSIONS = [
          * kept answering "what did I leave in this room" from a cache that a
          * trace being erased, planted or swept could not touch. It looked
          * exactly like a working listener. dice-sync.mjs had found the same trap
-         * a fortnight earlier and written it down in a comment, which is the
-         * clearest possible argument for putting it in the suite instead.
+         * a fortnight earlier, listening for Dice So Nice's client setting, and
+         * written it down in a comment, which is the clearest possible argument
+         * for putting it in the suite instead. That listener went with E16 p1 C3,
+         * when the dice look moved to the users' flags (R802); enforced.mjs's
+         * `clientSettingChanged` put-back is the example left standing.
          *
          * Only listeners that NAME a setting are asked. A listener filtering on
          * the module prefix is a redraw-on-anything, and it is right about every
@@ -13379,6 +13381,46 @@ const REGRESSIONS = [
         const wrap = fnSource(src, "wrapPrepareContext");
         const forcedAt = wrap.search(/\bforceConfig\(this\)/), originalAt = wrap.search(/\boriginal\.apply\(this/);
         ok(forcedAt > 0 && originalAt > forcedAt, "the wrapper of the window's _prepareContext does not write what is forced before Daggerheart's own method runs");
+    }],
+
+    ["R802 - nothing reads Dice So Nice's client setting `settings`, and dice-sync.mjs opens no socket of its own (E16)", async () => {
+        /*
+         * E16 p1 C3, 19.10.2026; audits S02-67 and S16-02 (E16-20). Until C3 dice-sync.mjs read the primary GM's
+         * `dice-so-nice.settings`, a client setting Dice So Nice 6.x only migrates (the 26.09 design's reading
+         * of 6.2.9), sent it over the module's socket and wrote it on each player's browser: a look nobody
+         * drew, and a socket road a player's packet could ride. The look is the users' flags now, written by
+         * the primary GM, and the road is gone. Read on every module file, comments cut: a `settings.get`,
+         * `set` or `register` of that scope and key, by literal or by a constant holding it, and the
+         * "namespace.key" id in a string or a template; and in dice-sync.mjs a `game.socket.on` or `emit`. A
+         * planted source in Base's spelling is read first, so a detector that finds nothing is told from a
+         * module that reads nothing. At 01c6739: dice-sync.mjs's get, set and template, its listener and
+         * two emits.
+         */
+        const reads = text => {
+            const named = value => [`"${value}"`, `'${value}'`, `\`${value}\``,
+                ...[...text.matchAll(new RegExp(`\\bconst ([A-Z_$][\\w$]*) = ["'\`]${value}["'\`]`, "g"))].map(m => m[1])];
+            const alt = list => list.map(x => x.replace(/[$]/g, "\\$&")).join("|");
+            const scope = alt(named("dice-so-nice")), key = alt(named("settings"));
+            const found = [];
+            for (const m of text.matchAll(new RegExp(`settings\\.(?:get|set|register)\\(\\s*(?:${scope})\\s*,\\s*(?:${key})\\s*[,)]`, "g"))) found.push(m[0]);
+            for (const m of text.matchAll(/["'`]dice-so-nice\.settings["'`]/g)) found.push(m[0]);
+            const ids = text.matchAll(new RegExp(`\\$\\{(?:${alt(named("dice-so-nice").slice(3))})\\}\\.\\$\\{(?:${alt(named("settings").slice(3))})\\}`, "g"));
+            for (const m of ids) if (m[0] !== "${}.${}") found.push(m[0]);
+            return found;
+        };
+        const sockets = text => [...text.matchAll(/\bgame\.socket\.(?:on|emit)\(/g)].map(m => m[0]);
+        const PLANT = ['const AV = "dice-so-nice";', 'const KEY = "settings";', "function mine() { return game.settings.get(AV, KEY); }",
+            'function theirs(a) { return game.settings.set("dice-so-nice", "settings", a); }', "const id = `${AV}.${KEY}`;",
+            'Hooks.on("clientSettingChanged", k => k === "dice-so-nice.settings");', "game.socket.on(EVENT, onSocket);", ""].join("\n");
+        equal(JSON.stringify([reads(PLANT), sockets(PLANT)]),
+            JSON.stringify([["settings.get(AV, KEY)", 'settings.set("dice-so-nice", "settings",', '"dice-so-nice.settings"', "${AV}.${KEY}"], ["game.socket.on("]]),
+            "the detector does not read the planted source as written - it would find nothing in the module either");
+        const found = [];
+        for (const [file, raw] of await otherSources()) for (const hit of reads(stripComments(raw))) found.push(`${file}: ${hit}`);
+        const sync = stripComments(new Map(await otherSources()).get("dice-sync.mjs") ?? "");
+        ok(sync.length > 400, "dice-sync.mjs has moved or gone - this would measure nothing");
+        equal(JSON.stringify([found, sockets(sync)]), JSON.stringify([[], []]),
+            "a module file reads Dice So Nice's client setting `settings`, or dice-sync.mjs talks over a socket of its own ([the reads, dice-sync's socket calls])");
     }]
 ];
 

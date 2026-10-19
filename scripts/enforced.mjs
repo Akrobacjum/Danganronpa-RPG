@@ -20,8 +20,8 @@
  *      player would see a "Show Welcome Screen" box that springs back after
  *      every change - which reads as a bug, and D19 says the players have no say
  *      in these. A change made anyway (a macro, the console) is put back by the
- *      `clientSettingChanged` listener, the same hook `dice-sync.mjs` found is
- *      the one Foundry really fires for a client setting.
+ *      `clientSettingChanged` listener, the one hook Foundry really fires for
+ *      a client setting (R14 holds every such listener to it).
  *
  * WHAT IT WILL NOT DO. It writes only a setting that is registered - the module
  * enabled, the key present in the version installed - so a module that renames

@@ -232,6 +232,10 @@
   },
   "DRPG": {
     "Settings": {
+      "forceDiceLook": {
+        "name": "One dice look for the table",
+        "hint": "Every player and Assistant GM throws Dice So Nice dice and effects in the Gamemaster's look, and a change of their own goes back to it. Each keeps their own display and performance settings. Switching this off gives nobody their old look back."
+      },
       "forcePrivateRolls": {
         "name": "Force private player rolls",
         "hint": "Every player roll is whispered to that player and the GMs, and a GM's roll to the GMs. Nobody sees anyone else's dice. The one roll everybody sees is the GM panel's Public roll (game.drpg.publicRoll) - a vote's tie, Monokuma's lottery."
@@ -2817,6 +2821,10 @@
       "refused": "The GM turned the action down. Nothing was spent.",
       "openingKiller": "The GM is choosing the statistic for your opening. Tell them in your thread how you go about it.",
       "openingVictim": "The GM is setting up a roll for you."
+    },
+    "DiceLook": {
+      "setByGm": "Your dice look is set by the GM.",
+      "stopped": "{name}'s dice look keeps changing straight back, so it is left as it is until you reload."
     },
     "RollDialog": {
       "locked": "Not yours to choose. Advantage and experiences are Hope Calls - ask the GM.",

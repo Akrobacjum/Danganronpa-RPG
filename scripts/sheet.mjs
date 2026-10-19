@@ -116,8 +116,8 @@ export function registerSheetTweaks() {
      * `remnantSecrets` is client-scoped: Foundry writes it straight to
      * localStorage without ever creating a Setting document, so the hook never
      * fires. Measured - a world setting fired it twice for two writes, this one
-     * fired zero times for two. dice-sync.mjs found the same trap a fortnight
-     * ago and the knowledge did not travel, which is why there is now a tier-0
+     * fired zero times for two. dice-sync.mjs had found the same trap a fortnight
+     * earlier (its listener went in E16) and the knowledge did not travel, which is why there is now a tier-0
      * criterion (R14) standing over every listener of this shape.
      *
      * The argument is the full "namespace.key" id, not a document.

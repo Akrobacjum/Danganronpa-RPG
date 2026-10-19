@@ -644,6 +644,18 @@ export async function replaceFlag(doc, key, value) {
 }
 
 /**
+ * The value that writes `value` in place whole in a document write (v14's ForcedReplacement), or null in a
+ * Foundry without one. `replaceFlag`'s operator for a write it cannot make: another module's scope, several
+ * documents in one `updateDocuments` (dice-sync.mjs, E16 p1 C3). A caller handed null unsets and sets, as
+ * `replaceFlag` does.
+ */
+export function forcedReplacement(value) {
+    const Operator = foundry.data?.operators?.ForcedReplacement;
+    if (!Operator) return null;
+    return Operator.create ? Operator.create(value) : new Operator(value);
+}
+
+/**
  * The value that deletes a key in a document write, or null in a Foundry without one.
  *
  * `-=key` removes nothing in this Foundry (the measured notes in actions.mjs,
