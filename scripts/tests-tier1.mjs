@@ -17647,7 +17647,7 @@ const INVARIANTS = [
             + "[the disconnect warning and another toast muted, the toasts filtered, avclient-livekit's warning raised: toasts shown, toasts raised before]");
     }],
 
-    ["R813 - the GM asks a failed voice again: a failed answer is retried after 2, 6 and 12 seconds, then left to the heartbeat; any failed answer unsettles its client; the GM's own room is applied last; ownership, a user's character, regions and the Monokuma pools re-run the rooms (S11-33)", async () => {
+    ["R813 - the GM asks a failed voice again: a failed answer is asked again after 2 and then 6 seconds, and a third failure is left to the heartbeat; any failed answer unsettles its client; the GM's own room is applied last; ownership, a user's character, regions and the Monokuma pools re-run the rooms (S11-33)", async () => {
         /*
          * E19 C2, 19.10.2026; audit S11-33 (a, b, d). Until C2 the primary GM's ledger closed a conversation on a
          * "failed" answer: its no-answer retry was cancelled and nothing was sent again, and `settled` kept the room,
@@ -18064,6 +18064,10 @@ const INVARIANTS = [
          * its socket and timers the test's), the victim's own `voice.applied` handed to `onVoiceSocket` with that ledger;
          * and in the source, `onWhoAmI` answering through `answerWhoAmI` on the module's ledger.
          * Red at the fix's parent: no `answerWhoAmI`, no `held`, and the pass sent the witness the kept room.
+         * E19 fix r1-G4 (the review's sec-2): `voice.whoAmI` is a road to a user's voice room of its own (STAGE.md's
+         * Write roads), and nothing held that it asks about its sender alone - `onWhoAmI(payload?.userId ?? senderId)`
+         * left this test green (mut.sh, g4-w1-before). Now read in the source: `onVoiceSocket` hands `onWhoAmI`
+         * Foundry's `senderId`, and `onWhoAmI` takes that id alone and reads no packet.
          */
         needs(env.primaryGm(), "a client's voice answer is heard on the primary GM alone (`onVoiceSocket`)");
         needs(world.atLeast("playerAccounts", 2), "the victim's answer is a player's packet, the witness another player");
@@ -18150,7 +18154,9 @@ const INVARIANTS = [
 
         const voice = stripComments((await moduleSources()).get("voice.mjs") ?? "");
         seen.push(["onWhoAmI", /await answerWhoAmI\(userId, await voiceTargets\(\), \{\s*assign: \(id, room, force\) => assignUser\(id, room, \{ force \}\),\s*waitFor: \(id, room\) => waitApplied\(id, room\)/.test(fnSource(voice, "onWhoAmI")),
-            /ownId: game\.user\.id, held,/.test(fnSource(voice, "reconcileNow"))]);
+            /ownId: game\.user\.id, held,/.test(fnSource(voice, "reconcileNow")),
+            /payload\?\.action === VOICE\.whoAmI\)\s*\{[^}]*?\bonWhoAmI\(senderId\)\.catch\(/.test(fnSource(voice, "onVoiceSocket")),
+            /^async function onWhoAmI\(userId\)/.test(fnSource(voice, "onWhoAmI")) && !/payload/.test(fnSource(voice, "onWhoAmI"))]);
 
         equal(stableJson(seen), stableJson([
             ["the pass, the cast not here", ["bystander", "gm"]],
@@ -18162,11 +18168,12 @@ const INVARIANTS = [
             ["asked inside the wait, no answer", { first: ["victim:dead"], timers: [1500, 2000], said: "waited",
                 all: ["victim:dead", "witness:Kitchen"], alone: true }],
             ["asked, the victim settled", "waited", ["witness:Kitchen"]],
-            ["onWhoAmI", true, true]]),
+            ["onWhoAmI", true, true, true, true]]),
             "[the pass while the cast is not here: whom it sent], [each account asking then: what the answer did, the packets, each to its account alone], "
             + "[the witness's wait once the cast is here], [the witness asking inside the wait: sent before the victim answers, the timers, the answer, "
             + "all sent, each to its account alone - with the victim's answer and with none], [the victim already settled: the answer and the packets], "
-            + "[onWhoAmI answers through answerWhoAmI on the module's ledger; the reconcile hands its pass the held accounts]");
+            + "[onWhoAmI answers through answerWhoAmI on the module's ledger; the reconcile hands its pass the held accounts; "
+            + "voice.whoAmI asks about Foundry's sender alone, never a packet's userId (E19 fix r1-G4, sec-2)]");
     }],
 
     ["R833 - the GM's voice plan and the contested warning name the dead channel where a death kept secret is sent, never the main room (E19-12; E19 fix r1-G1)", async () => {
