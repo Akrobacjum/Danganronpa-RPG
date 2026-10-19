@@ -668,7 +668,12 @@ function paidCosts(costs) {
  * tickets are each GM's own memory, and a draw takes one on the GM that draws it: a payment made
  * before a GM loaded is not seen there, and its roll is refused as a closed window is - the
  * action hands the payment back (action-rolls.mjs `abort`) unless a roll of it has landed
- * already (`spentAfterRoll`), and the next try pays again.
+ * already (`spentAfterRoll`), and the next try pays again. A part that only rides (`RIDES_ONLY`)
+ * on a new primary whose GM before it drew the partner is the one exception (`handedOver`, E80
+ * fix r1-G3): the partner's record is the GMs' (`rolls`, its `drawnBy`), so the new primary reads
+ * the ride off it; that reading compares the old primary's clock (the record's `at`) with its own
+ * (the ticket's), and a new primary's clock ahead of the old one's by more than the time between
+ * the payment and the cover refuses the hand as before the fix.
  * ========================================================================== */
 
 /** How long a draw waits for its payment to reach this GM. The roller's browser pays before the roll's window opens, so this is a margin. Chosen, not measured. */
@@ -782,14 +787,44 @@ function paysFor(key) {
     return steps.map(step => step.pay);
 }
 
-/** The ticket a draw of `key` would take: one its partner was drawn on, else the oldest undrawn one it can be paid by; or null. */
+/**
+ * The ticket a draw of `key` would take: one its partner was drawn on, else the oldest undrawn one it can be paid by, else
+ * - for a part that only rides - the one a GM before this one drew its partner on (`handedOver`); or null.
+ */
 function ticketFor(actorId, key) {
     const tickets = ticketsOf(actorId);
     const partners = ROLLED_TOGETHER.find(set => set.includes(key)) ?? [];
     const riding = [...tickets].reverse().find(t => t.kinds.length && !t.kinds.includes(key) && t.kinds.every(k => partners.includes(k)));
     if (riding) return riding;
     const pays = paysFor(key);
-    return tickets.find(t => !t.kinds.length && pays.includes(t.pay)) ?? null;
+    return tickets.find(t => !t.kinds.length && pays.includes(t.pay)) ?? handedOver(actorId, key)?.ticket ?? null;
+}
+
+/**
+ * A GM HANDOVER BETWEEN A COVER AND ITS HAND (E80 fix r1-G3, 19.10.2026; the C0 early review's er-c0-2). The tickets are
+ * each GM's own memory, and a part that only rides (`RIDES_ONLY`) takes no undrawn ticket of its own - so when the
+ * primary changed between a Frisk's cover (`palm`) and its hand (`rummage`), the new primary held the payment undrawn,
+ * never saw the cover drawn, refused the hand for want of payment and left the action spent, where a Take's hand
+ * (`steal`) in the same place took that ticket. The records are the GMs' (`rolls`, synced): this answers, for such a
+ * part with no ticket to ride, the newest record of its character's drawn partner (a claimed one, `friskAsk`, has no
+ * record) that another GM drew (`drawnBy`), that settled nothing and that no part sharing that partner rode since, and
+ * the oldest undrawn ticket that pays for the partner and was paid before it was drawn (by each GM's clock: the note
+ * above): `{ ticket, cover }`, the ticket then stamped with both. A hand first stays refused (no record), and so does
+ * a hand on a cover this GM drew (its ticket is the one to ride) or on a Take's (`steal` rode it).
+ */
+function handedOver(actorId, key) {
+    if (!RIDES_ONLY.includes(key)) return null;
+    const drawn = (ROLLED_TOGETHER.find(set => set.includes(key)) ?? []).filter(k => k !== key && !CLAIMED_ONLY.includes(k));
+    const cover = Object.values(rollStore.entries() ?? {})
+        .filter(row => row?.actorId === actorId && drawn.includes(row.actionKey) && unsettled(row)
+            && typeof row.drawnBy === "string" && row.drawnBy !== game.user?.id && Number.isFinite(row.at))
+        .sort((a, b) => b.at - a.at)[0];
+    if (!cover) return null;
+    const riders = ROLLED_TOGETHER.filter(set => set.includes(cover.actionKey)).flat().filter(k => k !== cover.actionKey);
+    if (Object.values(rollStore.entries() ?? {}).some(row => row?.actorId === actorId && riders.includes(row.actionKey) && row.at >= cover.at)) return null;
+    const pays = paysFor(cover.actionKey);
+    const ticket = ticketsOf(actorId).find(t => !t.kinds.length && pays.includes(t.pay) && t.at <= cover.at) ?? null;
+    return ticket ? { ticket, cover: cover.actionKey } : null;
 }
 
 /** This character's records of `key`. */
@@ -837,6 +872,9 @@ async function drawRefusal(actor, key, context) {
     }
     const ticket = ticketFor(actor.id, key);
     if (!ticket) return "no payment of that character's stands for that roll";
+    // An undrawn ticket a riding part takes is one a GM before this one drew its partner on (`handedOver`): both are stamped.
+    const handed = !ticket.kinds.length && RIDES_ONLY.includes(key) ? handedOver(actor.id, key) : null;
+    if (handed) ticket.kinds.push(handed.cover);
     ticket.kinds.push(key);
     return null;
 }
@@ -1361,7 +1399,9 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
         goal: key === "search" ? told.context.goal ?? null : null,
         // Whether an Analyze was thrown as a Find Passage (E80 C3), which gm-bridge.mjs `passage.find` holds its roll to.
         findPassage: key === "analyze" ? told.context.findPassage === true : null,
-        incident, superseded: null, at: Date.now()
+        incident, superseded: null, at: Date.now(),
+        // The GM that drew it: a part that only rides reads a handover off it (`handedOver`, E80 fix r1-G3).
+        drawnBy: game.user?.id ?? null
     });
     if (flags.length) await tellUnexpected(actor, flags);
     await tellRoller(sender, legal);

@@ -10830,6 +10830,103 @@ const SCENARIOS = [
             + "friskForce off; the undrawn tickets left] - a part rode a ticket it may not, or found none it may");
     }],
 
+    ["a Frisk's hand rides the payment whose cover a GM before this one drew, and nothing else on that road (er-c0-2)", async () => {
+        /*
+         * E80 fix r1-G3, 19.10.2026; the C0 early review's er-c0-2. The tickets are each GM's own memory: when the primary
+         * changes between a Frisk's cover (`palm`) and its hand (`rummage`), the new primary holds the payment as an
+         * undrawn ticket and never saw the cover drawn, and a hand only rides (`RIDES_ONLY`) - so it was refused for want of
+         * payment and the action stayed spent, where a Take's hand (`steal`) in the same place takes that ticket and goes
+         * through. Now a hand with no ticket to ride takes the oldest undrawn one paid before a cover of its character's
+         * that another GM drew (the record's `drawnBy`), that settled nothing and that no hand rode since, in the GMs'
+         * synced store `rolls`; the ticket is stamped with both. Measured on one browser as the new primary is: the GM's
+         * tickets forgotten and one action paid as the player's (`PAID_AS_PLAYER`), then the cover's record put in the
+         * store by hand as the old primary wrote it, `drawnBy` another GM's id and drawn after the payment. Read, each from
+         * a fresh payment: the hand, the ticket's parts after it and a second hand; a Take's hand in the same place (the
+         * control the review named); and refused - a hand with no cover, with a cover this GM drew, with a cover another
+         * GM drew before the payment, with one that settled, with one another character's, with one a Take's hand rode
+         * since, and with one naming no GM (drawn before this fix). Red at the parent (e4b8d8c): the hand reads "notPaid".
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the rolls are a connected player's, as Foundry names only those");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { actionsLeft } = await import("./actions.mjs");
+        const { rollStore } = await import("./gm-stores.mjs");
+        const D = await import("./roll-draw.mjs");
+        const { player, theirs, other } = playerAndCharacters();
+        must(other, "the world has no character this player does not play");
+        const ACT = "system.resources.actions.value";
+        const left = actionsLeft(theirs), top = Math.max(1, left);
+        const asPlayer = { [D.PAID_AS_PLAYER]: true };
+        const planted = [];
+        const draw = async actionKey => {
+            const R = await drawnForPlayer(player, theirs, { actionKey, pay: false });
+            try {
+                return R.sent.find(r => r.action === "bridge.refused")?.reason ?? Boolean(R.record);
+            } finally {
+                await R.putBack();
+            }
+        };
+        const unplant = async () => {
+            for (const id of planted.splice(0)) if (rollStore.has(id)) await rollStore.drop(id);
+        };
+        // A fresh payment on a GM that holds no other ticket of the character's and no record planted before, and a record
+        // of the old primary's.
+        const paid = async () => {
+            await unplant();
+            D.forgetPayments?.(theirs.id);
+            await trustedWrite(theirs, { [ACT]: top }, { reason: "gmRuling", ...asPlayer });
+            await trustedWrite(theirs, { [ACT]: top - 1 }, { reason: "gmRuling", ...asPlayer });
+            await new Promise(resolve => setTimeout(resolve, 5));
+            return D.paymentsOf(theirs.id).at(-1)?.at ?? 0;
+        };
+        const cover = async (actionKey, over = {}) => {
+            const rollId = `G3HAND${foundry.utils.randomID(10)}`;
+            planted.push(rollId);
+            await rollStore.patch(rollId, { rollId, actorId: theirs.id, userId: player.id, actionKey, at: Date.now(),
+                drawnBy: "G3OTHERGM000000", superseded: null, resolved: [], ...over });
+            return rollId;
+        };
+        const parts = () => (D.paymentsOf?.(theirs.id) ?? []).map(ticket => ticket.kinds.join("+"));
+        const out = [];
+        try {
+            await paid();
+            await cover("palm");
+            out.push(await draw("rummage"), parts(), await draw("rummage"));
+            await paid();
+            await cover("palm");
+            out.push(await draw("steal"));
+            await paid();
+            out.push(await draw("rummage"));
+            await paid();
+            await cover("palm", { drawnBy: game.user.id });
+            out.push(await draw("rummage"));
+            const at = await paid();
+            await cover("palm", { at: at - 1000 });
+            out.push(await draw("rummage"));
+            await paid();
+            await cover("palm", { resolved: ["G3SETTLED"] });
+            out.push(await draw("rummage"));
+            await paid();
+            await cover("palm", { actorId: other.id });
+            out.push(await draw("rummage"));
+            await paid();
+            const was = await cover("palm");
+            await cover("steal", { at: (rollStore.get(was)?.at ?? Date.now()) + 1 });
+            out.push(await draw("rummage"));
+            await paid();
+            await cover("palm", { drawnBy: undefined });
+            out.push(await draw("rummage"));
+        } finally {
+            await unplant();
+            await trustedWrite(theirs, { [ACT]: left }, { reason: "gmRuling" });
+            D.forgetPayments?.(theirs.id);
+        }
+        equal(stableJson(out), stableJson([true, ["palm+rummage"], "notPaid", true, "notPaid", "notPaid", "notPaid", "notPaid", "notPaid",
+            "notPaid", "notPaid"]),
+            "[a hand on a cover another GM drew, the ticket's parts, a second hand; a Take's hand there; a hand with no cover, a cover "
+            + "of this GM's, a cover before the payment, a settled one, another character's, one a Take's hand rode, one naming no GM] "
+            + "- a Frisk's hand did not ride the payment a GM before this one drew its cover on, or rode one it may not");
+    }],
+
     ["one student acts on another only where the primary GM reads both in one room, outside an Eclipse, the Class Trial and the asker's own incident (A11-9)", async () => {
         /*
          * E80 part 2 C1, 19.10.2026; the A11 design's step 3 and its test A11-9 (the gates; the road of a death the
@@ -11413,6 +11510,13 @@ const SCENARIOS = [
         const answer = (askId, allow, from) => judged("action.friskAnswer", { askId, allow }, from);
         const seen = {};
         const stood = await aloneTogether(theirs, other);
+        // The GMs' trace digest (remnants.mjs `flushTraceDigest`) says every trace placed since the clock last turned at an
+        // Eclipse's end, and this test ends Eclipses inside its reads: said here first and its card left out of the reads, or
+        // another test's traces are read as a card of this one (E80 fix r1-G3: a "1 new trace" card read as "other" in shard
+        // 4/8 on CI at e4b8d8c and here). After `aloneTogether`, whose world probes come before the test's first write.
+        await (await import("./remnants.mjs")).flushTraceDigest();
+        await settle();
+        marks = { packets: packets.length, made: made.length };
         try {
             if (force !== null) await game.settings.set(MODULE_ID, "friskForce", true);
             F.forgetFriskAsks?.();
@@ -11925,6 +12029,13 @@ const SCENARIOS = [
         };
         const seen = {};
         const stood = await aloneTogether(theirs, other);
+        // The GMs' trace digest (remnants.mjs `flushTraceDigest`) says every trace placed since the clock last turned at an
+        // Eclipse's end, and this test ends Eclipses inside its reads: said here first and its card left out of the reads, or
+        // another test's traces are read as a card of this one (E80 fix r1-G3: a "1 new trace" card read as "other" in shard
+        // 4/8 on CI at e4b8d8c and here). After `aloneTogether`, whose world probes come before the test's first write.
+        await (await import("./remnants.mjs")).flushTraceDigest();
+        await settle();
+        marks = { packets: packets.length, made: made.length };
         try {
             if (force !== null) await game.settings.set(MODULE_ID, "friskForce", true);
             await grantItem(other, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
@@ -12139,6 +12250,13 @@ const SCENARIOS = [
         };
         const seen = {};
         const stood = await aloneTogether(theirs, other);
+        // The GMs' trace digest (remnants.mjs `flushTraceDigest`) says every trace placed since the clock last turned at an
+        // Eclipse's end, and this test ends Eclipses inside its reads: said here first and its card left out of the reads, or
+        // another test's traces are read as a card of this one (E80 fix r1-G3: a "1 new trace" card read as "other" in shard
+        // 4/8 on CI at e4b8d8c and here). After `aloneTogether`, whose world probes come before the test's first write.
+        await (await import("./remnants.mjs")).flushTraceDigest();
+        await settle();
+        marks = { packets: packets.length, made: made.length };
         try {
             if (force !== null) await game.settings.set(MODULE_ID, "friskForce", true);
             await grantItem(other, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
@@ -12742,10 +12860,16 @@ const SCENARIOS = [
          * Analyze, Listen and a Palm's two drew no flag. The draws are put back last first: each puts
          * back Daggerheart's Fear as it found it, and a Fear the roll it is cut from gave can land
          * after that roll's own check (seen once in eight runs, on 05.10.2026: Fear 0 -> 1 left).
+         * Since E80 fix r1-G2 a Frisk's force is drawn only while the searcher and the one asked stand where the ask was
+         * made (frisk.mjs `standing`), so the open ask the force rides names a character of somebody else's and the room
+         * the two are stood alone in (`aloneTogether`), as A11-4's rows do (E80 fix r1-G3: at e4b8d8c the row named no
+         * target, the force was refused as not now, and this test read "no record of a roll of palm.frisk" on CI).
          */
         needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
-        const { player, theirs } = playerAndCharacters();
+        const { player, theirs, other: asked } = playerAndCharacters();
+        must(asked, "the world has no character this player does not play");
         const D = await import("./roll-draw.mjs");
+        const { gmPlaceOf } = await import("./movement.mjs");
         const { ACTIONS, CRISIS_ACTIONS, CLEANUP, TRAITS } = await import("./config.mjs");
         const one = list => {
             const listed = (Array.isArray(list) ? list : []).filter(t => Object.hasOwn(TRAITS, t));
@@ -12785,12 +12909,15 @@ const SCENARIOS = [
         const drawnHere = cases.filter(c => c.told.actionKey && c.told.actionKey !== "crisis");
         const had = new Set(game.messages.contents.map(m => m.id));
         const drawn = [], flags = [];
+        const stood = await aloneTogether(theirs, asked);
+        const place = gmPlaceOf(theirs);
+        const where = { targetId: asked.id, sceneId: place?.scene?.id ?? null, level: place?.level?.id ?? place?.level ?? null, room: place?.room ?? null };
         try {
             for (const c of drawnHere) {
                 for (const trait of [other(c.trait), c.trait]) {
                     const ready = !c.told.ride ? null : async () => {
                         await D.claimTicket?.(theirs.id, c.told.ride);
-                        if (c.told.force) Fr?.friskAsks?.set("TOLDFORCE", { searcherId: theirs.id, targetId: "TOLDTARGET", state: "refused", forceUntil: Date.now() + 60_000 });
+                        if (c.told.force) Fr?.friskAsks?.set("TOLDFORCE", { searcherId: theirs.id, ...where, state: "refused", forceUntil: Date.now() + 60_000 });
                     };
                     const F = await drawnForPlayer(player, theirs, { actionKey: c.told.actionKey, trait, ready,
                         edit: p => ({ ...p, context: { ...(p.context ?? {}), ...(c.told.context ?? {}) } }) });
@@ -12805,6 +12932,7 @@ const SCENARIOS = [
             for (const F of [...drawn].reverse()) await F.putBack();
             D.forgetPayments?.(theirs.id);
             for (const m of game.messages.contents.filter(x => !had.has(x.id))) await m.delete();
+            await stood.back();
         }
         equal(stableJson([expected, variants, flags]), stableJson([
             cases.map(c => [c.name, c.trait, c.name === "search" ? "search" : "fixed"]),
