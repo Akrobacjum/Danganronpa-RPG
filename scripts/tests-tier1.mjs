@@ -17264,6 +17264,39 @@ const INVARIANTS = [
         ok(/Hooks\.on\("updateActor", onActorUpdated\);/.test(fnSource(gmSource, "registerPassagesGm")),
             "registerPassagesGm does not hand an actor's change to onActorUpdated");
     }],
+    ["R611 - a tunnel's mark turns with the room's outline: a change of the seam colour retints each ring and the words 'Secret passage to {room}' on the standing outline, as it restrokes the line and retints the glow", async () => {
+        /*
+         * E80 fix r1-G6 (19.10.2026; the review's E80-C1-02). Under Stained Glass the outline wears the state colour
+         * (fog-doorways.mjs `outlineColour`), and a change of the time of day or the Eclipse turns it (fog-reveal.mjs
+         * `recolourRoomOutline`, from fog.mjs's watch on the body) - the line and the glow, while the tunnel marks
+         * (`addTunnelMarks`) kept the colour they were drawn in until the outline was drawn again. Marks drawn here on a
+         * group of the suite's own, never put on the canvas, and a standing outline of the suite's own handed to the recolour
+         * with the colour it is to take; the ring's drawn colour is read off the shim's calls, or PIXI's line style on a
+         * real canvas. Red at the parent (eae5960): the recolour reads only the module's own standing outline, and the
+         * ring and the words keep the colour they were drawn in.
+         */
+        const FD = await import("./fog-doorways.mjs");
+        const FR = await import("./fog-reveal.mjs");
+        const J = stableJson;
+        const group = new PIXI.Container();
+        try {
+            const drawn = FD.addTunnelMarks(group, [{ id: "R611P", x: 300, y: 200, to: "R611 Gym" }], { x: 100, y: 100 });
+            ok(drawn === 1 && group.children.length === 2, `the mark was not drawn as a ring and its words (${drawn}, ${group.children.length}) - this would measure nothing`);
+            const was = FD.outlineColour();
+            const now = (was ^ 0x2468ac) & 0xffffff;
+            const restroked = [];
+            const standing = { group, colour: was, glass: false, recolour: colour => { restroked.push(colour); } };
+            FR.recolourRoomOutline({ standing, colourNow: () => now, glassNow: () => false });
+            const lineOf = g => (g?._calls ?? []).filter(([k]) => k === "lineStyle").map(([, a]) => a?.[0]?.color).pop() ?? g?.line?.color ?? null;
+            const ring = group.children.find(c => c instanceof PIXI.Graphics) ?? null;
+            const words = group.children.find(c => c instanceof PIXI.Text) ?? null;
+            // A tint multiplies the drawn colour: a white ring tinted is the tint, so the ring is drawn white.
+            equal(J([restroked, lineOf(ring), ring?.tint ?? null, words?.style?.fill ?? null]), J([[now], 0xffffff, now, now]),
+                "[the line restroked in, the ring's drawn colour, its tint, the words' fill] after the seam colour turned - a mark kept the colour it was drawn in");
+        } finally {
+            group.destroy();
+        }
+    }],
 ];
 
 /**

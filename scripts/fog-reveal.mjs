@@ -40,7 +40,7 @@ import { debug, error } from "./utils.mjs";
 import { BEAT, glassOn, SEAM_GLOW } from "./motion.mjs";
 import { traceRegionPathsAt, regionShapes, clamp01, largestPiece } from "./fog-geometry.mjs";
 import {
-    colourOf, GLOW_NAME, doorwayEdges, addDoorwayGlow, traceOutlineGapped, outlineColour, tunnelMarks, addTunnelMarks
+    colourOf, GLOW_NAME, doorwayEdges, addDoorwayGlow, traceOutlineGapped, outlineColour, tunnelMarks, addTunnelMarks, recolourTunnelMarks
 } from "./fog-doorways.mjs";
 
 const CanvasAnimation = foundry.canvas.animation.CanvasAnimation;
@@ -1132,22 +1132,24 @@ export function rezoomRoomOutline() {
  * accent interpolates on elements; the curtain is held out of that fade on purpose
  * because it paints a canvas and needs the target colour at once. This layer is a
  * canvas too, and it turns with the curtain rather than behind it.
+ *
+ * The tunnel marks turn with it (fog-doorways.mjs `recolourTunnelMarks`, E80 fix r1-G6). `standing`,
+ * `colourNow` and `glassNow` are the suite's (R611); fog.mjs's watch calls it with none.
  */
-export function recolourRoomOutline() {
-    const standing = roomOutline;
+export function recolourRoomOutline({ standing = roomOutline, colourNow = outlineColour, glassNow: glassIs = glassOn } = {}) {
     if (!standing || standing.group?.destroyed) return;
 
     /* A THEME CHANGE IS NOT A COLOUR CHANGE. The two themes draw different borders - Legacy
        the 26.08 pixel-art stroke, Stained Glass the curtain's hairline seam - so when the
        setting has moved the outline is drawn again from the room it was drawn from, rather
        than re-tinted. Everything else on this path is still one computed-style read. */
-    const glassNow = glassOn();
+    const glassNow = glassIs();
     if (standing.glass !== glassNow && standing.region && standing.fx && !standing.fx.destroyed) {
         flashOutline(standing.fx, standing.region, standing.rect, standing.level, { actor: standing.actor ?? null });
         return;
     }
 
-    const colour = outlineColour();
+    const colour = colourNow();
     // By far the commonest case: the body's class list changed for some other reason
     // entirely. One computed-style read, one integer compare, and out.
     if (colour === standing.colour) return;
@@ -1156,4 +1158,6 @@ export function recolourRoomOutline() {
     standing.recolour?.(colour);
     const glow = standing.group.children.find(c => c?.name === GLOW_NAME);
     if (glow && !glow.destroyed) glow.tint = colour;
+    // The tunnel ends' rings and words (E80 fix r1-G6, the review's E80-C1-02): until then they kept the old colour.
+    recolourTunnelMarks(standing.group, colour);
 }

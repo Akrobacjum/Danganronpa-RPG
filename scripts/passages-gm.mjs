@@ -561,9 +561,18 @@ function doorPassageRow(scene, wall, stores) {
 }
 
 /**
+ * What a converted secret door keeps of a door no more (E80 fix r1-G6; the review's E80-SEC-4): its sound and its
+ * animation, which only a door uses. Every player's browser holds the scene's walls, so a plain wall that kept either
+ * was the one place on the map a secret passage nobody knows stood (P1-17); until this fix the conversion wrote `door`
+ * and `ds` alone. A sound's empty value, as a wall drawn with none has it read; an animation's null, its schema's own
+ * initial. Not measured on v14's own WallDocument: read off its schema, the harness's wall is a plain record (A10-15).
+ */
+const DOOR_UNDRESSED = Object.freeze({ doorSound: "", animation: null });
+
+/**
  * A GM: every secret door of `scenes` (each world scene when none are given) made an ordinary wall,
- * shut - one Wall write per scene, of `door` and `ds` alone, so it blocks a move and sight as it was
- * drawn to - and a secret passage along each one that stands between two rooms (`passageRowFor`,
+ * shut - one Wall write per scene, of `door` and `ds` and a door's dress (`DOOR_UNDRESSED`), so it blocks a
+ * move and sight as it was drawn to - and a secret passage along each one that stands between two rooms (`passageRowFor`,
  * the console's create's rule), with no start access: nobody knows it until a GM grants it. A door
  * that stands between no two rooms (one inside a room, at the map's edge, on a stretch another
  * passage holds) stays the plain wall it now is and is named in `plain` with the reason. Answers
@@ -577,7 +586,7 @@ export async function convertSecretDoors({ scenes = null, stores = PASSAGE_STORE
     for (const scene of scenes ?? Array.from(game.scenes ?? [])) {
         const ids = secretDoorsOn(scene).map(wall => wall.id);
         if (!ids.length) continue;
-        await scene.updateEmbeddedDocuments("Wall", ids.map(_id => ({ _id, door: DOOR_NONE(), ds: DOOR_CLOSED() })));
+        await scene.updateEmbeddedDocuments("Wall", ids.map(_id => ({ _id, door: DOOR_NONE(), ds: DOOR_CLOSED(), ...DOOR_UNDRESSED })));
         const gone = [];
         for (const wallId of ids) {
             HELD_SHUT.delete(wallId);

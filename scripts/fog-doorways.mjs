@@ -713,12 +713,17 @@ export function tunnelMarks(actor, region, scene, level = null, { gm = Boolean(g
     return marks;
 }
 
+/** The name each tunnel mark's ring and words carry on a room's outline group, for `recolourTunnelMarks` to find. */
+export const TUNNEL_MARK_NAME = "drpgTunnelMark";
+
 /**
  * The marks `tunnelMarks` answers, on a room's outline group (fog-reveal.mjs `flashOutline`): a ring at
  * each end in the outline's colour, and 'Secret passage to {room}' under it, in the outline's space
- * (`rect` taken off, as `labelPoint` takes it). Answers how many it drew. Not measured: the harness draws
- * no outline for a player (scenario 66's header), so how a mark looks on a real canvas is not seen here;
- * R595 reads the marks, not the drawing.
+ * (`rect` taken off, as `labelPoint` takes it). Answers how many it drew. The ring is drawn white and
+ * tinted, and both carry `TUNNEL_MARK_NAME`, so a change of the seam colour turns them with the outline
+ * (`recolourTunnelMarks`; E80 fix r1-G6, the review's E80-C1-02: until then they kept the colour they were
+ * drawn in). Not measured: the harness draws no outline for a player (scenario 66's header), so how a mark
+ * looks on a real canvas is not seen here; R595 reads the marks, R611 the recolour, not the drawing.
  */
 export function addTunnelMarks(group, marks, rect = { x: 0, y: 0 }) {
     if (!group || !marks?.length) return 0;
@@ -727,8 +732,10 @@ export function addTunnelMarks(group, marks, rect = { x: 0, y: 0 }) {
     for (const mark of marks) {
         const x = mark.x - (rect?.x ?? 0), y = mark.y - (rect?.y ?? 0);
         const ring = new PIXI.Graphics();
-        ring.lineStyle({ width: Math.max(3, Math.round(grid * 0.05)), color: colour, alpha: 0.95 });
+        ring.lineStyle({ width: Math.max(3, Math.round(grid * 0.05)), color: 0xffffff, alpha: 0.95 });
         ring.drawCircle(x, y, grid * 0.3);
+        ring.tint = colour;
+        ring.name = TUNNEL_MARK_NAME;
         const text = new PIXI.Text(game.i18n.format("DRPG.Passage.mark.to", { room: mark.to }), {
             fontFamily: '"Special Elite", "Courier New", monospace',
             fontSize: Math.max(14, Math.round(grid * 0.22)),
@@ -740,9 +747,26 @@ export function addTunnelMarks(group, marks, rect = { x: 0, y: 0 }) {
         text.resolution = 2;
         text.anchor.set(0.5, 0);
         text.position.set(x, y + grid * 0.35);
+        text.name = TUNNEL_MARK_NAME;
         group.addChild(ring, text);
     }
     return marks.length;
+}
+
+/**
+ * The tunnel marks on a room's outline group in `colour` (E80 fix r1-G6): each ring's tint and each
+ * mark's words' fill - the ink keyline under the words stays ink. fog-reveal.mjs `recolourRoomOutline`
+ * calls it beside the glow's tint. Answers how many it turned.
+ */
+export function recolourTunnelMarks(group, colour) {
+    let turned = 0;
+    for (const child of group?.children ?? []) {
+        if (child?.name !== TUNNEL_MARK_NAME || child.destroyed) continue;
+        if (child instanceof PIXI.Text) child.style.fill = colour;
+        else child.tint = colour;
+        turned += 1;
+    }
+    return turned;
 }
 
 /**

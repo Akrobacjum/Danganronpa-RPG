@@ -53604,6 +53604,9 @@ const SCENARIOS = [
          * A fourth secret door this GM opens and then deletes: the record of it goes with the wall (`onWallDeleted`).
          * A player's page with no GM connected, and the GM's coming back, is scenario 15's away and back. Red at the
          * parent (4263c09): no pass - the spare door stays open - and the conversion keeps the record's rows.
+         * E80 fix r1-G6 (19.10.2026; the review's E80-SEC-4): the shared and the inner door carry a door's sound and
+         * animation, which a converted wall must not keep - every player's browser holds the walls, and a plain wall with
+         * a door's dress is where an unknown passage is. Red at the parent (eae5960): both walls keep both.
          */
         const P = await import("./passages-gm.mjs");
         const D = await import("./fog-diagnostics.mjs");
@@ -53622,8 +53625,10 @@ const SCENARIOS = [
         try {
             scene = await Scene.create({ name: "SUITE E80 C5 doors", width: 1200, height: 600, grid: { size: 100 }, active: false, navigation: false });
             await scene.createEmbeddedDocuments("Region", [room("SUITE E80 C5 Hall", 0), room("SUITE E80 C5 Kitchen", 600)]);
-            [shared, inner, spare] = await scene.createEmbeddedDocuments("Wall", [{ c: [600, 100, 600, 300], door: 2, ds: 0, move: 20 },
-                { c: [100, 300, 300, 300], door: 2, ds: 0, move: 20 }, { c: [700, 400, 900, 400], door: 2, ds: 0, move: 20 }]);
+            // A door's sound and animation on the two the conversion makes plain walls (E80 fix r1-G6, the review's E80-SEC-4).
+            const dressed = { doorSound: "futuristicFast", animation: { type: "swing", direction: 1, double: false, duration: 500, flip: false, strength: 1, texture: null } };
+            [shared, inner, spare] = await scene.createEmbeddedDocuments("Wall", [{ c: [600, 100, 600, 300], door: 2, ds: 0, move: 20, ...dressed },
+                { c: [100, 300, 300, 300], door: 2, ds: 0, move: 20, ...dressed }, { c: [700, 400, 900, 400], door: 2, ds: 0, move: 20 }]);
             await settle();
             const ASIDE = { [P.DOOR_ASIDE ?? "drpgDoorAside"]: true };
             read = await E.withGmStoreWorld(`suite-e80-c5-${foundry.utils.randomID(8)}`, async () => {
@@ -53658,7 +53663,7 @@ const SCENARIOS = [
                 return { settled, putBack, spareAfter, deleted, named, record: [recorded, kept()], converted: out?.converted ?? null, plain: (out?.plain ?? []).map(p => p.wallId),
                     row: row && [row.passageWallId, row.passageSeg, row.rooms, row.state, row.startAccess],
                     knowers: Object.keys(S.passageAccessStore.entries()).filter(k => id && k.startsWith(`${id}/`)),
-                    walls: [shared, inner].map(w => scene.walls.get(w.id)).map(w => [w?.door, w?.ds, w?.move]),
+                    walls: [shared, inner].map(w => scene.walls.get(w.id)).map(w => [w?.door, w?.ds, w?.move, w?.doorSound || null, w?.animation ?? null]),
                     left: D.secretDoorRows(scene).length };
             });
             rulers = [];
@@ -53674,8 +53679,8 @@ const SCENARIOS = [
         }
         equal(J(read), J({ settled: [[1, 1], [spare?.id], 1, 0, false], putBack: true, spareAfter: [0, false], deleted: [true, false], named: 3, record: [true, false], converted: 3, plain: [inner?.id, spare?.id],
             row: [shared?.id, { x1: 600, y1: 100, x2: 600, y2: 300 }, ["SUITE E80 C5 Hall", "SUITE E80 C5 Kitchen"], "secret", []],
-            knowers: [], walls: [[0, 0, 20], [0, 0, 20]], left: 0 }),
-        "[the pass as [the inner and spare doors before it, the doors it put back, the inner door after it, the spare one, the spare held shut], the player's opening put back, the spare door after it as [state, held shut], the GMs' record of a secret door a GM opened as [before, after it is deleted], secret doors named, the GMs' record of the inner door before and after the conversion, converted, the walls left plain, the passage as [wall, stretch, rooms, state, start access], who knows it, the two walls as [door, state, move], secret doors left]");
+            knowers: [], walls: [[0, 0, 20, null, null], [0, 0, 20, null, null]], left: 0 }),
+        "[the pass as [the inner and spare doors before it, the doors it put back, the inner door after it, the spare one, the spare held shut], the player's opening put back, the spare door after it as [state, held shut], the GMs' record of a secret door a GM opened as [before, after it is deleted], secret doors named, the GMs' record of the inner door before and after the conversion, converted, the walls left plain, the passage as [wall, stretch, rooms, state, start access], who knows it, the two walls as [door, state, move, a door's sound, a door's animation], secret doors left]");
         equal(J(rulers), J([[true, [false, false], true, true], [true, [true, true], true, true]]),
             "[Hide, then Show, each as [it wrote, the Player and Trusted Player roles hold the ruler, both GM roles hold it, every other permission as it was]]");
         equal(rest(game.settings.get("core", "permissions")) + J(game.settings.get("core", "permissions")?.SHOW_RULER ?? null),
