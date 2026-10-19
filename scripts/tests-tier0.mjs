@@ -5639,6 +5639,8 @@ const REGRESSIONS = [
             // E29 fix r2-H21: an item no GM has decided on, asked by the copy roads, whose runs pass their `{ refused }` on.
             creationRefusal: "returns", giveItem: "refused", lootBody: "refused", plantOnPerson: "refused",
             stealFromPerson: "refused", stealFromVault: "refused",
+            // E80 C2: an unseen Frisk, judged on the primary (frisk.mjs), whose run passes its `{ refused }` on.
+            friskPerson: "refused",
             // E33 C10: a Monocub's ability by key, the row, the Monocub and the choice (guardCubAbility asks it).
             cubAbilityRefusal: "returns",
             // E10 C2: a ballot, judged on the primary (vote.mjs), whose run passes its `{ refused }` on.
@@ -6790,9 +6792,9 @@ const REGRESSIONS = [
         const rolled = Object.entries(all).filter(([, decl]) => decl.rolled).map(([action]) => action).sort();
         log(`R218: ${rolled.length} declaration(s) read their roll's result from the GMs' record (${rolled.join(", ")}); `
             + `${WAITING.length} wait for a later commit; monocub.ability takes ${JSON.stringify(takes("monocub.ability", all["monocub.ability"] ?? {}))} from its packet`);
-        equal(JSON.stringify(["action.plant", "action.steal", "analyze.resolve", "murder.cleanup", "murder.crisis", "murder.openingResult", "observe.resolve",
+        equal(JSON.stringify(["action.friskUnseen", "action.plant", "action.steal", "analyze.resolve", "murder.cleanup", "murder.crisis", "murder.openingResult", "observe.resolve",
             "project.progress", "project.sabotage", "remnant.place", "vault.findStash", "vault.steal"].filter(action => !rolled.includes(action))), "[]",
-            "Observe, Analyze, the search for a hidden stash, a Palm, a project's progress or Sabotage, a theft from a stash, a trace, an opening, a crisis action or Stage 6 names no roll its result is read from");
+            "Observe, Analyze, the search for a hidden stash, a Palm, an unseen Frisk, a project's progress or Sabotage, a theft from a stash, a trace, an opening, a crisis action or Stage 6 names no roll its result is read from");
         equal(JSON.stringify([Boolean(all["monocub.ability"]?.sanitize), takes("monocub.ability", all["monocub.ability"] ?? {})]), JSON.stringify([true, []]),
             "monocub.ability is no declaration of the bridge's, or a Monocub ability's packet carries a result the GM would read");
         const problems = problemsOf(all, WAITING);
@@ -8636,6 +8638,7 @@ const REGRESSIONS = [
             ["NOTDONE calls.mjs#askReroll (3)", "a refusal in the GM's answer that carries no words of its own (`reasonOf(out.refused)`), composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE cleanup.mjs#attemptCleanup", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); a murder refusal kept like the rest (the owner's Q4), within the history's budgets, as a notDone entry (R297)"],
             ["NOTDONE cleanup.mjs#attemptStageSix", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); a murder refusal kept like the rest (the owner's Q4), within the history's budgets, as a notDone entry (R297)"],
+            ["NOTDONE gm-bridge.mjs#requestFriskUnseen", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E80 C2)"],
             ["NOTDONE gm-bridge.mjs#requestPassageShare", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E79 C7)"],
             ["NOTDONE gm-bridge.mjs#requestPassageCross", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E80 C2)"],
             ["NOTDONE gm-bridge.mjs#requestPassageFind", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E80 C3)"],

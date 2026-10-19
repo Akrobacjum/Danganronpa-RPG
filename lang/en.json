@@ -2875,6 +2875,7 @@
         "vault.findStash": "Find a stash",
         "passage.find": "Find a secret passage",
         "action.plant": "Plant",
+        "action.friskUnseen": "Frisk (unseen)",
         "murder.crisis": "Incident",
         "murder.openingResult": "Opening roll",
         "murder.cleanup": "Clean-up",
@@ -3414,6 +3415,18 @@
       "cardUnseen": "Nobody saw you do it.",
       "caughtTaking": "{who} took {item} from you, and you saw them do it.",
       "caughtTrying": "You catch {who} going through your pockets. They come away with nothing."
+    },
+    "Frisk": {
+      "rowLabel": "Frisk: see what they carry",
+      "rowHint": "Look through their pockets and take nothing.",
+      "unseenLabel": "Unseen",
+      "unseenHint": "Shadow {unseen}+ so they do not notice, then Hand {hand}+ to see everything.",
+      "sent": "You go for {name}'s pockets. What you see - and whether they felt it - settles in a moment.",
+      "listHeading": "{who} is carrying:",
+      "empty": "{who} has nothing in their pockets.",
+      "missed": "You do not get a proper look at what {who} is carrying.",
+      "caught": "You catch {who} going through your pockets. They saw what you carry.",
+      "caughtTrying": "You catch {who} trying to go through your pockets. They did not get a proper look."
     },
     "Reroll": {
       "searchNeverRan": "The room was never searched - the search token was refused - so there is nothing to draw again.",

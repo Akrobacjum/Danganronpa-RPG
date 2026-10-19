@@ -17652,6 +17652,70 @@ const INVARIANTS = [
         }
         equal(J(rows), J([]), `the pool of each of ${holders.length} characters holding a stashed item, against its documents`);
     }],
+    ["R619 - the Palm window offers a Frisk (A11-3): three rows, the Frisk's row and its Unseen way with the config's numbers, 'Roll' on the button whichever row is picked, and no name of anything the target carries", async () => {
+        /*
+         * E80 part 2 C2, 19.10.2026; the A11 design's step 1 and its A11-3. The harm: a Palm window that shows a
+         * player what the person they picked carries before any roll (the whole point of a Frisk is that the list comes
+         * from the GM after the verdict), or one that says a bar the GM does not judge. action-rolls.mjs `choosePalm`
+         * drawn for a character and, as its target, one holding a stashed item, with `DialogV2.wait` answered with
+         * nothing: its rows, the Frisk row's words, the Unseen line under it for the config's `ACTIONS.palm` and for a
+         * copy whose two numbers are moved (17 and 11), the confirm button's label after each row is picked as the
+         * window's own `render` follows it (`followConfirmLabel`), and every name the target's items carry against the
+         * window's HTML. Nothing is written: the window is never shown. Red at the parent (08f9c56): `choosePalm` is not
+         * exported, so nothing is read.
+         */
+        needs(world.atLeast("stashedItems", 1), "the target carries something, a stashed item among it");
+        const { choosePalm = null } = await import("./action-rolls.mjs");
+        const target = game.actors.find(a => a.type === "character" && a.items.some(i => i.getFlag(MODULE_ID, "location") === "vault"));
+        const actor = game.actors.find(a => a.type === "character" && a.id !== target?.id);
+        must(target && actor, "the world has no two characters, one of them holding a stashed item - this would measure nothing");
+        const mine = [{ id: "R619MINE", name: "R619 own thing", getFlag: () => undefined }];
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const drawn = [];
+        D.wait = async cfg => { drawn.push(cfg); return null; };
+        try {
+            await choosePalm?.(actor, ACTIONS.palm, [target], mine);
+            await choosePalm?.(actor, { ...ACTIONS.palm, rummage: { ...ACTIONS.palm.rummage, unseen: 17, threshold: 11 } }, [target], mine);
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+        }
+        must(!choosePalm || drawn.length === 2, `choosePalm drew ${drawn.length} window(s) of 2 - this would measure nothing`);
+        const read = cfg => {
+            const root = document.createElement("div");
+            root.append(cfg.content.cloneNode(true));
+            root.insertAdjacentHTML("beforeend", `<footer><button type="button" data-action="ok"><span>${foundry.utils.escapeHTML(cfg.buttons?.[0]?.label ?? "")}</span></button></footer>`);
+            cfg.render?.(null, { element: root });
+            const button = () => root.querySelector('footer button[data-action="ok"]').textContent;
+            const labels = [];
+            for (const radio of root.querySelectorAll('input[name="variant"]')) {
+                radio.checked = true;
+                radio.dispatchEvent(new Event("change", { bubbles: true }));
+                labels.push([radio.value, button()]);
+            }
+            const frisk = root.querySelector('input[name="variant"][value="frisk"]')?.closest("label");
+            return {
+                rows: [...root.querySelectorAll('input[name="variant"]')].map(r => r.value),
+                frisk: frisk ? [frisk.querySelector("strong")?.textContent, frisk.querySelector("small")?.textContent] : null,
+                modes: [...root.querySelectorAll('.drpg-choice-details[data-drpg-for="frisk"] input[name="friskMode"]')]
+                    .map(r => [r.value, r.checked, r.closest("label")?.querySelector("small")?.textContent ?? null]),
+                labels, html: root.innerHTML
+            };
+        };
+        const [first, moved] = choosePalm ? drawn.map(read) : [{ html: "" }, {}];
+        const hint = (unseen, hand) => game.i18n.format("DRPG.Frisk.unseenHint", { unseen, hand });
+        const roll = game.i18n.localize("DRPG.Action.roll");
+        equal(stableJson([first.rows, first.frisk, first.modes, moved.modes, first.labels]), stableJson([
+            ["steal", "plant", "frisk"],
+            [game.i18n.localize("DRPG.Frisk.rowLabel"), game.i18n.localize("DRPG.Frisk.rowHint")],
+            [["unseen", true, hint(ACTIONS.palm.rummage.unseen, ACTIONS.palm.rummage.threshold)]],
+            [["unseen", true, hint(17, 11)]],
+            [["steal", roll], ["plant", roll], ["frisk", roll]]
+        ]), "[the rows, the Frisk row's label and hint, its ways with the config's numbers, with the numbers moved, the button for each row]");
+        const names = [...new Set(target.items.map(i => i.name).filter(name => name && name.length > 2))];
+        equal(stableJson(names.filter(name => first.html.includes(foundry.utils.escapeHTML(name)) || first.html.includes(name))), "[]",
+            `a name of something ${target.name} carries is in the Palm window's HTML`);
+    }],
 ];
 
 /**

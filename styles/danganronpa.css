@@ -5635,6 +5635,38 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     margin-top: 0.15rem;
 }
 
+/* A Frisk's ways under its row (E80 part 2 C2, `friskModes` in action-rolls.mjs): one radio a way, each with its
+   bars, drawn as the Rest window's options are. C2 has Unseen alone; C3 adds Openly above it. Drawn in Chromium
+   with this stylesheet alone (19.10.2026, a 460 px window, both themes, EN and PL): the block opens under the
+   checked Frisk row, 74 px high, its hint on two lines. In Foundry's own window: not measured (no layout here). */
+.drpg-frisk-modes {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.drpg-frisk-mode {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid var(--drpg-line);
+    border-radius: 3px;
+    cursor: pointer;
+    line-height: 1.2;
+}
+
+.drpg-frisk-mode:has(input:checked) {
+    border-color: var(--drpg-gold);
+    background: rgba(var(--drpg-gold-rgb), 0.12);
+}
+
+.drpg-frisk-mode small {
+    display: block;
+    opacity: 0.7;
+    font-size: 0.82em;
+}
+
 /* A labelled field under a choice list.
    --------------------------------------------------------------------------
    TWO KINDS, and they used to be one. Some of these belong to the window (the

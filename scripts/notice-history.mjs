@@ -203,6 +203,7 @@ const CELL_SPAN = /^[1-9]\d{0,2}$/;
  * frames and Foundry's (`drpg-popup*`, `drpg-notices-*`, `drpg-corner-tail*`, `application`,
  * `window-*`, `inline-roll`, `content-link`, `fa-*`), which would dress a snapshot as a live card
  * or a window. 62 at E81 C2 (12.10.2026), 61 at E79 C16 (the Present dialog lost its Objection fieldset);
+ * 63 at E80 part 2 C2 (19.10.2026, counted in the list: 61 before it, and a Frisk's two ways under its Palm row);
  * R294 runs the same grep and fails on a difference, so a class a card body gains is either added here or
  * drawn bare in the window.
  */
@@ -212,7 +213,8 @@ export const NOTICE_CLASSES = Object.freeze([
     "drpg-duality", "drpg-duality-badge", "drpg-duality-die", "drpg-duality-formula", "drpg-duality-mod",
     "drpg-duality-op", "drpg-duality-result", "drpg-duality-stat", "drpg-duality-total",
     "drpg-evidence-card", "drpg-evidence-comment", "drpg-evidence-hint", "drpg-evidence-name",
-    "drpg-evidence-text", "drpg-evidence-who", "drpg-gm-reference", "drpg-gm-route", "drpg-item-effect",
+    "drpg-evidence-text", "drpg-evidence-who", "drpg-frisk-mode", "drpg-frisk-modes", "drpg-gm-reference",
+    "drpg-gm-route", "drpg-item-effect",
     "drpg-objection-banner", "drpg-objection-live", "drpg-objection-log",
     "drpg-safeword-heading", "drpg-specific-note",
     "drpg-sum-action", "drpg-sum-crit", "drpg-sum-found", "drpg-sum-head", "drpg-sum-lede", "drpg-sum-left",

@@ -11055,6 +11055,282 @@ const SCENARIOS = [
             `${owner.name}'s Tool a player made and no GM decided on, then decided (in the theft's pool, in the Frisk's list, log lines naming it)`);
     }],
 
+    ["an unseen Frisk is judged on the primary from a player's two drawn rolls (A11-5, A11-15): the list or a miss at the searcher alone, the target told only when it noticed, both criticals as the design words them, and a console's own totals or another action's roll refused", async () => {
+        /*
+         * E80 part 2 C2, 19.10.2026; the A11 design's steps 5 and 6, its A11-5 and A11-15. The harms: a target told of a
+         * Frisk it did not notice (or never told of one it did), a list read by anybody but the searcher and the GMs, and a
+         * console that names its own totals - 30 and two criticals - and reads everybody's pockets for one action. A
+         * player's character and another stood alone in a room (`aloneTogether`), the other handed an item named here;
+         * each Frisk is the cover (`palm`, Shadow, paying the Palm) and the hand (`rummage`, Hand, on the cover's ticket)
+         * drawn as from the player (`drawnForPlayer`) on set faces, then `action.friskUnseen` judged as the bridge judges
+         * that player's packet, which says 30 and a critical for both, naming the two records. The six: hand and cover
+         * high (12+11), hand high and cover low (2+1), hand low and cover high, both low, the hand a critical on 1+1 under a
+         * low cover, a low hand under a critical cover. Read for each: the cards the judgement posted, as this GM holds
+         * their words (secret.mjs `secretHtml`, `cardMeta` for the sound), told apart by the design's lines; whom the
+         * words went to over the socket (`wordsSent`: the player, a GM, the target's owner); whether a packet carrying
+         * the item's name went to anybody else, and whether a card's document carries it. Then two controls: the packet
+         * naming no roll, and one naming a Take's hand for its own: the code each was refused with and the cards posted.
+         * Red at the parent (08f9c56): `action.friskUnseen` is no declaration of the bridge's, no packet is answered and no
+         * card posted.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the rolls are a connected player's, as Foundry names only those");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const { grantItem } = await import("./inventory.mjs");
+        const { ownerOf } = await import("./utils.mjs");
+        const S = await import("./secret.mjs");
+        const D = await import("./roll-draw.mjs");
+        const { player, theirs, other } = playerAndCharacters();
+        must(other, "the world has no character this player does not play");
+        const part = ACTIONS.palm.rummage, cover = ACTIONS.palm.unseen;
+        const HIGH = { hope: 12, fear: 11 }, LOW = { hope: 2, fear: 1 }, CRIT = { hope: 1, fear: 1 };
+        const NAME = "Suite E80 C2 a pocket watch";
+        const targetOwner = ownerOf(other)?.id ?? null;
+        const role = id => (id === player.id ? "player" : id === targetOwner ? "target" : game.users.get(id)?.isGM ? "gm" : `other ${id}`);
+        const fixture = await aloneTogether(theirs, other);
+        const held = [];
+        const line = (key, who) => game.i18n.format(key, { who: foundry.utils.escapeHTML(who.name) });
+        const kindOf = words => {
+            if (words === null) return "no words";
+            if (words.includes(line("DRPG.Frisk.listHeading", other))) return "list";
+            if (words.includes(line("DRPG.Frisk.empty", other))) return "empty";
+            if (words.includes(line("DRPG.Frisk.missed", other))) return "missed";
+            if (words.includes(line("DRPG.Frisk.caughtTrying", theirs))) return "caughtTrying";
+            if (words.includes(line("DRPG.Frisk.caught", theirs))) return "caught";
+            return `other: ${words.slice(0, 80)}`;
+        };
+        const judged = async (rolls, out) => {
+            const made = [];
+            const hook = Hooks.on("createChatMessage", message => made.push(message));
+            let sent = [];
+            try {
+                sent = await wordsSent(async () => {
+                    await G.judge(BRIDGE_ACTIONS, { action: "action.friskUnseen", requestId: `E80C2${foundry.utils.randomID(8)}`,
+                        searcherId: theirs.id, targetId: other.id, total: 30, isCritical: true, unseenTotal: 30, unseenCritical: true, ...rolls },
+                    player.id, { send: (to, reply) => {
+                        if (reply?.action !== "bridge.ack") out.push(reply?.action === "bridge.refused" ? reply.reason : reply?.value ?? reply?.action ?? null);
+                    } });
+                    await settle();
+                });
+            } finally {
+                Hooks.off("createChatMessage", hook);
+            }
+            const cards = made.map(message => {
+                const words = S.secretHtml(message);
+                const seen = words === null ? null : words.includes(game.i18n.localize("DRPG.Steal.cardSeen")) ? "seen"
+                    : words.includes(game.i18n.localize("DRPG.Steal.cardUnseen")) ? "unseen" : null;
+                return [kindOf(words), seen, S.cardMeta(message, "sfx") ?? null, Boolean(words?.includes(NAME))];
+            });
+            const to = [...new Set(sent.flatMap(packet => packet.to.map(role)))].sort();
+            const needle = [...new Set(sent.filter(packet => packet.html.includes(NAME)).flatMap(packet => packet.to.map(role)))]
+                .filter(who => !["player", "gm"].includes(who));
+            const inData = made.filter(message => JSON.stringify(message.toObject()).includes(NAME)).length;
+            return { cards, to, needle, inData };
+        };
+        const frisk = async (hand, shade) => {
+            const c = await drawnForPlayer(player, theirs, { actionKey: "palm", faces: shade, trait: cover.trait });
+            held.push(c);
+            const h = await drawnForPlayer(player, theirs, { actionKey: "rummage", faces: hand, trait: part.trait, pay: false });
+            held.push(h);
+            must(c.record && h.record, `the GM kept no record of a Frisk's roll it drew - this would measure nothing: ${stableJson([c.value, h.value, c.sent, h.sent])}`);
+            const out = [];
+            const read = await judged({ rollId: h.message.id, unseenRollId: c.message.id }, out);
+            return { faces: [h.record.total, h.record.isCritical, c.record.total, c.record.isCritical], out, ...read };
+        };
+        let item = null;
+        const read = [];
+        try {
+            item = await grantItem(other, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
+            must(item, `${other.name} could not be handed an item - this would measure nothing`);
+            for (const [hand, shade] of [[HIGH, HIGH], [HIGH, LOW], [LOW, HIGH], [LOW, LOW], [CRIT, LOW], [LOW, CRIT]]) read.push(await frisk(hand, shade));
+            const [hh, , , ll, ch, lc] = read.map(r => r.faces);
+            must(hh[0] >= part.threshold && hh[2] >= part.unseen && !hh[1] && !hh[3] && ll[0] < part.threshold && ll[2] < part.unseen && !ll[1] && !ll[3]
+                && ch[1] && ch[0] < part.threshold && lc[3] && lc[2] < part.unseen,
+            `the GM's records do not stand where the faces put them (both high, both low, critical hand, critical cover) - this would measure nothing: ${stableJson([hh, ll, ch, lc])}`);
+            const bare = [];
+            const unnamed = await judged({}, bare);
+            const take = await drawnForPlayer(player, theirs, { actionKey: "steal", faces: HIGH });
+            held.push(take);
+            const shadow = await drawnForPlayer(player, theirs, { actionKey: "palm", faces: HIGH, trait: cover.trait });
+            held.push(shadow);
+            const mixed = [];
+            const wrongKind = await judged({ rollId: take.message.id, unseenRollId: shadow.message.id }, mixed);
+            const P = ["player"], PT = targetOwner ? ["player", "target"] : ["player"];
+            equal(stableJson(read.map(r => [r.out, r.cards, r.to.filter(who => who !== "gm"), r.needle, r.inData])), stableJson([
+                [["settled"], [["list", "unseen", null, true]], P, [], 0],
+                [["settled"], [["list", "seen", null, true], ["caught", null, "stolen", false]], PT, [], 0],
+                [["settled"], [["missed", "unseen", null, false]], P, [], 0],
+                [["settled"], [["missed", "seen", null, false], ["caughtTrying", null, "stolen", false]], PT, [], 0],
+                [["settled"], [["list", "seen", null, true], ["caught", null, "stolen", false]], PT, [], 0],
+                [["settled"], [["missed", "unseen", null, false]], P, [], 0]
+            ]), "[for each Frisk: the reply, the cards (what it says, seen or unseen, its sound, the item named), "
+                + "who the words went to besides the GMs, who else had the item's name, the cards' documents naming it]");
+            equal(stableJson([[bare, unnamed.cards.length], [mixed, wrongKind.cards.length]]), stableJson([[["rollUnknown"], 0], [["rollOtherAction"], 0]]),
+                "a packet naming no roll, or a Take's hand for its own, was not refused, or posted a card (code, cards)");
+        } finally {
+            for (const r of held.reverse()) await r.putBack();
+            D.forgetPayments?.(theirs.id);
+            for (const a of [other, theirs]) for (const i of a.items.filter(i => i.name === NAME)) await i.delete();
+            await fixture.back();
+        }
+    }],
+
+    ["a Frisk's list is what the target carries in the module's order, each line its name, count, category, tier and Broken as text, a trapped item's line its clean twin's, a stash never, and the Mastermind's the same as a student's (A11-6)", async () => {
+        /*
+         * E80 part 2 C2, 19.10.2026; the A11 design's step 5 and its A11-6. The harms: a list that shows a trap (a line
+         * the trapped item alone has), a stash, a GM's text or markup that was a name, or a Mastermind told apart by
+         * their pockets. A character and another stood alone in a room; the other handed, here: a Murder Weapon, a key
+         * named as a key is ('Key - {room}'), three of a usable, a broken Tool, two flasks alike but for their identity
+         * with one of the two the trap ledger's (`trapLedgerStore`, as a planted trap writes it), a name that is markup,
+         * and a stashed item. `friskPerson` run on this GM as a GM's own Frisk that saw and was not seen, then again with
+         * the target made the Mastermind. Read: the lines of the searcher's card (secret.mjs `secretHtml`) for the items
+         * made here, in order; the two flasks' lines; whether the markup stands as text; whether the stashed one is named;
+         * and whether the two cards are the same bytes. Red at the parent (08f9c56): frisk.mjs has no `friskPerson`.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 2), "the two are stood in one room by their tokens");
+        const F = await import("./frisk.mjs");
+        const INV = await import("./inventory.mjs");
+        const S = await import("./secret.mjs");
+        const { ITEM_CATEGORIES } = await import("./config.mjs");
+        const { trapLedgerStore, mastermindStore } = await import("./gm-stores.mjs");
+        const MM = await import("./mastermind.mjs");
+        const [searcher, target] = cast(2);
+        const fixture = await aloneTogether(searcher, target);
+        const TAG = "Suite E80 C2", trapId = `SUITEE80C2${foundry.utils.randomID(6)}`;
+        const pickBefore = mastermindStore.record()?.actorId ?? null;
+        const made = [];
+        let ledgerKey = null;
+        const card = async () => {
+            const posted = [];
+            const hook = Hooks.on("createChatMessage", message => posted.push(message));
+            try {
+                if (typeof F.friskPerson === "function") {
+                    await F.friskPerson({ searcherId: searcher.id, targetId: target.id, total: 30, isCritical: false, unseenTotal: 30, unseenCritical: false },
+                        { asker: game.user });
+                }
+                await settle();
+            } finally {
+                Hooks.off("createChatMessage", hook);
+            }
+            return posted.map(message => S.secretHtml(message));
+        };
+        const grant = async (name, category, extra = {}) => {
+            const item = await INV.grantItem(target, { name, category, tier: 1, override: true, quiet: true, ...extra });
+            must(item, `${target.name} could not be handed ${name} - this would measure nothing`);
+            made.push(item);
+            return item;
+        };
+        let first = null, second = null;
+        try {
+            const key = game.i18n.format("DRPG.Vault.keyName", { room: `${TAG} room` });
+            await grant(`${TAG} flask`, "tool");
+            await grant(`${TAG} weapon`, "crimeTool");
+            const three = await grant(`${TAG} bandage`, "usable");
+            await three.update({ "system.quantity": 3 });
+            await grant(key, "bedroomKey", { tier: null });
+            await grant(`${TAG} wrench`, "tool", { extraFlags: { [INV.ITEM_FLAGS.broken]: { at: 1 } } });
+            const twin = await grant(`${TAG} flask`, "tool");
+            await grant(`<b>${TAG} bold</b>`, "tool");
+            await grant(`${TAG} stashed`, "tool", { location: INV.LOCATIONS.vault, extraFlags: { [INV.ITEM_FLAGS.stashRoom]: fixture.room } });
+            ledgerKey = twin.getFlag(MODULE_ID, INV.ITEM_FLAGS.identity);
+            must(ledgerKey && made[0].getFlag(MODULE_ID, INV.ITEM_FLAGS.identity) !== ledgerKey,
+                "the second flask has no identity of its own for the trap ledger - this would measure nothing");
+            await trapLedgerStore.patch(ledgerKey, { projectId: trapId });
+            must(INV.isBroken(made[4]) && Number(three.system.quantity) === 3, "the wrench is not broken or the bandages are not three - this would measure nothing");
+            first = await card();
+            must(await MM.setMastermind(target), `${target.name} was not made the Mastermind - this would measure nothing`);
+            second = await card();
+        } finally {
+            if ((mastermindStore.record()?.actorId ?? null) !== pickBefore) await mastermindStore.patch("record", { actorId: pickBefore });
+            if (ledgerKey && trapLedgerStore.has(ledgerKey)) await trapLedgerStore.drop(ledgerKey);
+            for (const i of made) if (target.items.has(i.id)) await i.delete();
+            await fixture.back();
+        }
+        const words = first?.[0] ?? "";
+        const box = document.createElement("div");
+        box.innerHTML = words;
+        const lines = [...box.querySelectorAll("li")].map(li => li.textContent).filter(text => text.includes(TAG));
+        const label = c => ITEM_CATEGORIES[c].label;
+        const order = Object.keys(ITEM_CATEGORIES);
+        const expected = [
+            [`${TAG} bandage x3 - ${label("usable")} (T1)`, "usable"],
+            [`${game.i18n.format("DRPG.Vault.keyName", { room: `${TAG} room` })} - ${label("bedroomKey")}`, "bedroomKey"],
+            [`${TAG} weapon - ${label("crimeTool")} (T1)`, "crimeTool"],
+            [`${TAG} flask - ${label("tool")} (T1)`, "tool"],
+            [`${TAG} wrench - ${label("tool")} (T1) - ${game.i18n.localize("DRPG.Items.broken")}`, "tool"],
+            [`${TAG} flask - ${label("tool")} (T1)`, "tool"],
+            [`<b>${TAG} bold</b> - ${label("tool")} (T1)`, "tool"]
+        ];
+        const inOrder = expected.slice().sort((a, b) => order.indexOf(a[1]) - order.indexOf(b[1])).map(([text]) => text);
+        equal(stableJson([first?.length ?? null, lines.slice().sort(), words.includes(`<b>${TAG}`), words.includes(`${TAG} stashed`), first?.[0] === second?.[0] && second?.length === 1]),
+            stableJson([1, inOrder.slice().sort(), false, false, true]),
+            "[the cards posted to the searcher, its lines for the items made here, a name's markup drawn, the stashed item named, the Mastermind's card the same bytes]");
+        equal(stableJson(lines.map(text => order.indexOf(expected.find(([t]) => t === text)?.[1]))),
+            stableJson(lines.map(text => order.indexOf(expected.find(([t]) => t === text)?.[1])).slice().sort((a, b) => a - b)),
+            "the list is not in the order of the module's categories");
+    }],
+
+    ["a GM's own unseen Frisk opens one window, its cover eats no armed Call and its hand does, and it is told resolved once as a Palm's Frisk (A11-10)", async () => {
+        /*
+         * E80 part 2 C2, 19.10.2026; the A11 design's steps 2 and 9, its A11-10. The harms: a Frisk that tells the module's
+         * listeners nothing (a Palm's hook is what the traps and the GMs' bookmark hear), or tells it twice; a Call bought
+         * for the action eaten by the cover roll, which is a supporting roll. A character and another stood alone in a
+         * room, an Obstacle armed on the character; this GM takes a Palm for it, free, the window answered with the Frisk
+         * row and the other student, on dice forced to 12 and 11. Read: the Calls on the character's flag when the first
+         * of the two rolls was posted (the shield aside: `pendingCalls` reads none while a supporting roll runs) and after
+         * the action; each `drpgActionResolved` the action told, as its action, direction and mode; the
+         * windows it opened. Red at the parent (08f9c56): the window has no Frisk row, and the Palm's first row, a Take,
+         * is what is taken: it tells `palm` with no direction.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 2), "the two are stood in one room by their tokens");
+        const { performAction } = await import("./action-rolls.mjs");
+        const C = await import("./call-effects.mjs");
+        const { rerollBookmarkStore } = await import("./gm-stores.mjs");
+        const [actor, target] = cast(2);
+        const fixture = await aloneTogether(actor, target);
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        const { gameSettings } = CONFIG.DH.SETTINGS;
+        const fear = game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear);
+        const bookmark = rerollBookmarkStore.has(actor.id) ? foundry.utils.deepClone(rerollBookmarkStore.get(actor.id)) : null;
+        const seen = new Set(game.messages.map(m => m.id));
+        const told = [], calls = { atFirst: null, after: null };
+        const onFlag = () => [actor.getFlag(MODULE_ID, FLAGS.pendingCall) ?? []].flat().map(entry => entry?.key ?? null);
+        const resolved = Hooks.on("drpgActionResolved", data => {
+            if (data?.actor?.id === actor.id) told.push([data.actionKey, data.outcome?.direction ?? null, data.outcome?.mode ?? null]);
+        });
+        const first = Hooks.on("createChatMessage", message => {
+            if (calls.atFirst === null && message.rolls?.length) calls.atFirst = onFlag();
+        });
+        let windows = [];
+        try {
+            await actor.unsetFlag(MODULE_ID, FLAGS.pendingCall);
+            must(await C.armCall(actor, { key: "obstacle", kind: "despair", grants: "disadvantage" }), "the Obstacle could not be armed");
+            globalThis.__forceRoll = { hope: 12, fear: 11 };
+            windows = await withFormAnswered(root => {
+                const row = root.querySelector('input[name="variant"][value="frisk"]');
+                if (row) row.checked = true;
+                const who = root.querySelector("select[name=who]");
+                if (who) who.value = target.id;
+                return true;
+            }, () => performAction(actor, "palm", { free: true }));
+            await settle();
+            calls.after = onFlag();
+        } finally {
+            Hooks.off("drpgActionResolved", resolved);
+            Hooks.off("createChatMessage", first);
+            if (hadForce) globalThis.__forceRoll = force; else delete globalThis.__forceRoll;
+            await C.consumeCalls(actor);
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete();
+            if (bookmark) await rerollBookmarkStore.patch(actor.id, bookmark);
+            else if (rerollBookmarkStore.has(actor.id)) await rerollBookmarkStore.drop(actor.id);
+            if (game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear) !== fear) await game.settings.set(CONFIG.DH.id, gameSettings.Resources.Fear, fear);
+            await fixture.back();
+        }
+        equal(stableJson([windows.length, calls, told]), stableJson([1, { atFirst: ["obstacle"], after: [] }, [["palm", "frisk", "unseen"]]]),
+            "[the windows the Frisk opened, the Calls armed at its first roll and after it, what it told resolved (action, direction, mode)]");
+    }],
+
     ["an incident's roll is drawn only at its turn or stage, for what it names, once: an opening, a crisis action, a free clean-up attempt", async () => {
         /*
          * E08+E28 fix r2-H1, 04.10.2026; review S2-1: a console pre-drew crisis and opening rolls

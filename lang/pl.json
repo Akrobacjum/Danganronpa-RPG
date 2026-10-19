@@ -2989,6 +2989,7 @@
         "vault.findStash": "Szukanie skrytki",
         "passage.find": "Szukanie tajnego przejścia",
         "action.plant": "Podłożenie",
+        "action.friskUnseen": "Frisk (ukradkiem)",
         "murder.crisis": "Incydent",
         "murder.openingResult": "Rzut otwarcia",
         "murder.cleanup": "Sprzątanie",
@@ -3560,6 +3561,18 @@
       "cardUnseen": "Nikt nie widział.",
       "caughtTaking": "Widzisz to: {who} zabiera ci {item}.",
       "caughtTrying": "Łapiesz {who} na grzebaniu w twoich kieszeniach. Odchodzą z niczym."
+    },
+    "Frisk": {
+      "rowLabel": "Frisk: zobacz, co ktoś nosi",
+      "rowHint": "Przejrzyj czyjeś kieszenie i niczego nie bierz.",
+      "unseenLabel": "Ukradkiem",
+      "unseenHint": "Shadow {unseen}+, żeby nikt nie zauważył, potem Hand {hand}+, żeby zobaczyć wszystko.",
+      "sent": "Sięgasz do kieszeni: {name}. Co zobaczysz - i czy poczuli - rozstrzygnie się za chwilę.",
+      "listHeading": "{who} ma przy sobie:",
+      "empty": "{who} nie ma nic w kieszeniach.",
+      "missed": "Nie udaje się dobrze przyjrzeć temu, co nosi {who}.",
+      "caught": "Łapiesz na gorącym uczynku: {who}. Twoje kieszenie zostały przejrzane.",
+      "caughtTrying": "Łapiesz na gorącym uczynku: {who}. Nie udało się dobrze przyjrzeć twoim kieszeniom."
     },
     "Reroll": {
       "searchNeverRan": "Pokój nie został przeszukany - Search Token odmówiono - więc nie ma czego losować ponownie.",

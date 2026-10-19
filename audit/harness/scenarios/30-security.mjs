@@ -1524,7 +1524,8 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         const M = await import("${repoUrl}/scripts/movement.mjs");
         const item = await INV.grantItem(game.actors.get("${ids.botan}"), { name: "SEC pocket", category: "usable", tier: 1, override: true, quiet: true });
         return { itemId: item?.id ?? null, rooms: ["${ids.aiko}", "${ids.botan}"].map(id => M.locateActor(game.actors.get(id))?.room ?? null),
-            bar: (await import("${repoUrl}/scripts/config.mjs")).ACTIONS.palm.threshold };`, { timeout: 30000 });
+            bar: (await import("${repoUrl}/scripts/config.mjs")).ACTIONS.palm.threshold,
+            handBar: (await import("${repoUrl}/scripts/config.mjs")).ACTIONS.palm.rummage.threshold };`, { timeout: 30000 });
     await settle(600);
     const pocket = `return game.actors.get("${ids.botan}").items.has(${JSON.stringify(consoleSteal.itemId ?? "")});`;
     const stealFields = { thiefId: ids.aiko, victimId: ids.botan, itemId: consoleSteal.itemId, total: 30, isCritical: true, unseenTotal: 30, unseenCritical: true };
@@ -1538,6 +1539,36 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     await sendAs(p1, "action.steal", { ...stealFields, rollId: handRoll.messageId, unseenRollId: unseenRoll.messageId });
     await settle(1500);
     const stealOnRecord = { kept: await gm.eval(pocket), reasons: await refusedFor("action.steal"), said: await recordSaid() };
+
+    /*
+     * A CONSOLE'S FRISK (E80 part 2 C2, 19.10.2026; P2-11, P2-19). An unseen Frisk is judged on the primary on the GMs'
+     * record of its two rolls (gm-bridge.mjs `friskRolls`), and one that sees lists the target's pockets to the
+     * searcher. From p1's browser a Frisk of Botan by Aiko saying 30 and a critical for both rolls: first naming no
+     * roll - refused, no card - then naming a cover and a hand of Aiko's the GM drew on 2 and 1: no refusal, and the
+     * GM's card for Aiko is the miss, not the list. Read as the GM holds the cards' words (secret.mjs `secretHtml`).
+     * Red at the parent (08f9c56): no declaration answers the packet, no card is posted either time.
+     */
+    const friskCards = `const S = await import("${repoUrl}/scripts/secret.mjs");
+        const miss = game.i18n.format("DRPG.Frisk.missed", { who: foundry.utils.escapeHTML(game.actors.get("${ids.botan}").name) });
+        const words = game.messages.contents.map(m => S.secretHtml(m) ?? "");
+        return { listed: words.filter(h => h.includes("SEC pocket")).length, missed: words.filter(h => h.includes(miss)).length };`;
+    const friskFields = { searcherId: ids.aiko, targetId: ids.botan, total: 30, isCritical: true, unseenTotal: 30, unseenCritical: true };
+    const friskBefore = await gm.eval(friskCards);
+    await clearFailures();
+    await sendAs(p1, "action.friskUnseen", friskFields);
+    await settle(1200);
+    const friskNoRoll = { cards: await gm.eval(friskCards), reasons: await refusedFor("action.friskUnseen") };
+    const friskCover = await drawnRoll(p1, ids.aiko, "palm", "shadow", { hope: 2, fear: 1 });
+    const friskHand = await drawnRoll(p1, ids.aiko, "rummage", "hand", { hope: 2, fear: 1 }, { pay: false });
+    await clearFailures();
+    await sendAs(p1, "action.friskUnseen", { ...friskFields, rollId: friskHand.messageId, unseenRollId: friskCover.messageId });
+    await settle(1500);
+    const friskOnRecord = { cards: await gm.eval(friskCards), reasons: await refusedFor("action.friskUnseen") };
+    check("SECURITY: a console's unseen Frisk saying 30 and a critical is refused without its rolls, and judged on the GMs' record of the two it names - a miss, no list",
+        friskNoRoll.reasons.some(r => /no roll the GM drew is named/.test(r)) && JSON.stringify(friskNoRoll.cards) === JSON.stringify(friskBefore)
+            && Boolean(friskCover.messageId) && Boolean(friskHand.messageId) && friskHand.total < consoleSteal.handBar
+            && !friskOnRecord.reasons.length && friskOnRecord.cards.listed === friskBefore.listed && friskOnRecord.cards.missed === friskBefore.missed + 1,
+        JSON.stringify({ friskBefore, friskNoRoll, friskCover, friskHand, friskOnRecord }), { flow: "give-take-stash" });
     await gm.eval(`for (const id of ["${ids.botan}", "${ids.aiko}"]) for (const i of game.actors.get(id).items.filter(i => i.name === "SEC pocket")) await i.delete();
         return true;`, { timeout: 30000 });
     check("SECURITY: a console's Steal saying 30 and a critical is refused without its rolls, and scored on the GMs' record of the two it names - a miss",

@@ -943,7 +943,7 @@ function remnantRef(placed) {
  * is what carries the rest forward, so a caller passing `{itemId: null}` here
  * genuinely clears the field.
  */
-async function noteRollContext(actor, data) {
+export async function noteRollContext(actor, data) {
     try {
         const current = rollInHand(actor);
         if (!current) return;
@@ -1672,7 +1672,7 @@ async function chooseTrait(actor, actionKey, def, { intro = "" } = {}) {
  * window closed AFTER one of the action's own rolls has landed does not come
  * here: that is `spentAfterRoll`, below, and the action stays spent (ROLL-05).
  */
-async function abort(actor, paid) {
+export async function abort(actor, paid) {
     if (paid) await refundAction(actor, paid.amount, paid);
     return null;
 }
@@ -1684,7 +1684,7 @@ async function abort(actor, paid) {
  * generator of "throw the supporting roll, cancel the main one, repeat".
  * The first dialog of an action is the one a player may still back out of.
  */
-async function spentAfterRoll(actor, def) {
+export async function spentAfterRoll(actor, def) {
     ui.notifications.warn(game.i18n.format("DRPG.Action.spentAfterRoll", { action: def?.label ?? "" }));
     return null;
 }
@@ -2488,7 +2488,11 @@ export async function chooseVariant({
             ? `<div class="drpg-choice-details" data-drpg-for="${esc(o.value)}">${o.details}</div>` : ""}`).join("");
 
     const fallback = confirm ?? game.i18n.localize("DRPG.Action.proceed");
-    const confirmFor = value => options.find(o => o.value === value)?.confirm ?? fallback;
+    // A row's `confirm` is its label, or a function of the drawn window that reads the row's own fields (a Frisk's mode).
+    const confirmFor = (value, root = null) => {
+        const label = options.find(o => o.value === value)?.confirm;
+        return typeof label === "function" ? label(root) : label ?? fallback;
+    };
 
     const picked = await DialogV2.wait({
         window: { title },
@@ -2538,11 +2542,12 @@ function followConfirmLabel(dialog, confirmFor) {
     const button = root?.querySelector('footer button[data-action="ok"]');
     if (!button) return;
     const sync = () => {
-        const label = confirmFor(root.querySelector('input[name="variant"]:checked')?.value);
+        const label = confirmFor(root.querySelector('input[name="variant"]:checked')?.value, root);
         (button.querySelector("span") ?? button).textContent = label;
     };
+    // A row's own field can change what it does as well as the row (E80 part 2 C2: a Frisk's mode, `friskModes`).
     root.addEventListener("change", event => {
-        if (event.target?.name === "variant") sync();
+        if (["variant", "friskMode"].includes(event.target?.name)) sync();
     });
     sync();
 }
@@ -4122,7 +4127,7 @@ function crisisDetails(def, { free, brokenDown, youPick, traits }) {
  * they are yours - and choosing what to leave behind is the decision the
  * action is for.
  */
-async function choosePalm(actor, def, targets, mine) {
+export async function choosePalm(actor, def, targets, mine) {
     return chooseVariant({
         actor,
         title: def.label,
@@ -4141,6 +4146,15 @@ async function choosePalm(actor, def, targets, mine) {
                 hint: plural("DRPG.Steal.plantHint", { n: mine.length }),
                 disabled: !mine.length,
                 why: game.i18n.localize("DRPG.Steal.nothingToPlant")
+            },
+            {
+                // E80 part 2 C2: the third direction, which takes nothing and shows only the person's name here; what
+                // they carry comes from the GM after the verdict (frisk.mjs `friskPerson`), never into this window.
+                value: "frisk", icon: "fa-hand-pointer",
+                label: game.i18n.localize("DRPG.Frisk.rowLabel"),
+                hint: game.i18n.localize("DRPG.Frisk.rowHint"),
+                details: friskModes(def),
+                confirm: root => friskModeOf(root) === "unseen" ? game.i18n.localize("DRPG.Action.roll") : game.i18n.localize("DRPG.Action.proceed")
             }
         ],
         extra: `<label class="drpg-specific-note">
@@ -4153,6 +4167,27 @@ async function choosePalm(actor, def, targets, mine) {
                     `<option value="${i.id}">${esc(describeItem(i))}</option>`).join("")}</select>
             </label>` : ""}`
     });
+}
+
+/**
+ * The ways a Frisk can go, under its row of the Palm window (E80 part 2 C2): Unseen, with its two numbers read off
+ * `ACTIONS.palm.rummage`. A `friskMode` radio, so the confirm button follows it (`followConfirmLabel`): a mode that
+ * throws dice says 'Roll'.
+ */
+function friskModes(def) {
+    const part = def?.rummage ?? {};
+    return `<div class="drpg-frisk-modes">
+            <label class="drpg-frisk-mode">
+                <input type="radio" name="friskMode" value="unseen" checked>
+                <span><strong>${esc(game.i18n.localize("DRPG.Frisk.unseenLabel"))}</strong>
+                <small>${esc(game.i18n.format("DRPG.Frisk.unseenHint", { unseen: part.unseen, hand: part.threshold }))}</small></span>
+            </label>
+        </div>`;
+}
+
+/** The Frisk mode a drawn Palm window has checked (`friskModes`), "unseen" where it draws none. */
+function friskModeOf(root) {
+    return root?.querySelector?.('input[name="friskMode"]:checked')?.value ?? "unseen";
 }
 
 /*
@@ -4249,6 +4284,12 @@ async function performPalm(actor, def, options) {
 
     const victim = game.actors.get(picked.form?.querySelector("[name=who]")?.value ?? "");
     if (!victim) return null;
+
+    // A Frisk pays, throws and asks the GM on its own road (E80 part 2 C2, frisk.mjs).
+    if (picked.value === "frisk") {
+        const { performFrisk } = await import("./frisk.mjs");
+        return performFrisk(actor, def, victim, friskModeOf(picked.form), { cost, room });
+    }
 
     const planting = picked.value === "plant";
     const planted = planting

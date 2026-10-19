@@ -111,7 +111,7 @@ export const FLOWS = Object.freeze([
         entry: { bridge: ["eclipse.move"], sockets: ["eclipse.mjs"] }, scenarios: ["33-bridge-paths"], status: "partial", stage: "E39" },
     // E08+E28 C15 (04.10.2026): 40-flow drives a player's Plant end to end, both of its rolls on the GMs' record.
     { id: "give-take-stash", what: "Things changing hands: a handover, a plant, a steal, a found stash, a body looted",
-        entry: { bridge: ["handover.item", "handover.bullet", "action.plant", "vault.findStash", "action.steal", "vault.steal", "body.loot"] },
+        entry: { bridge: ["handover.item", "handover.bullet", "action.plant", "vault.findStash", "action.steal", "action.friskUnseen", "vault.steal", "body.loot"] },
         scenarios: ["30-security", "33-bridge-paths", "40-flow"], status: "partial", stage: "E39" },
     { id: "gm-store", what: "The GM store between GM clients: a late, empty browser, the exchange, tombstones, backup and restore, the reset's cuts",
         entry: { sockets: ["gm-store.mjs"], api: ["backupCase", "restoreCase"] }, scenarios: ["61-gmstore-case"], status: "covered", stage: "1.2.63" },
