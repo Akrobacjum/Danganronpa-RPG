@@ -2824,7 +2824,7 @@
     },
     "DiceLook": {
       "setByGm": "Your dice look is set by the GM.",
-      "stopped": "{name}'s dice look keeps changing straight back, so it is left as it is until you reload."
+      "stopped": "{name}'s dice look keeps changing straight back, so it is left as it is for a minute."
     },
     "RollDialog": {
       "locked": "Not yours to choose. Advantage and experiences are Hope Calls - ask the GM.",

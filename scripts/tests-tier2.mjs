@@ -54132,6 +54132,219 @@ const SCENARIOS = [
             "a character's dice look a player left with no GM watching, or past the fuse, was not put back at the next load (kept: the GMs' overlay in storage; away: [the unheard overlay landed, put back]; fuse: each player's write put back until one stands; reload: put back after the fuse; made: [an unheard overlay on the player's new actor landed, put back to none, its row gone with the actor])");
     }],
 
+    ["an Assistant GM's write of the source Gamemaster's own dice look goes back to the GM's and reaches no player (S16-02)", async () => {
+        /*
+         * E16 fix r1-G1, 19.10.2026 (finding C3-S1, its road (a)). The primary spread any change of the source
+         * Gamemaster's look, whoever wrote it, and an Assistant GM may write any User (cluster.mjs `canWrite`,
+         * LIVE-E30-04): by writing the source's look an Assistant, forced like a player since the owner's Q3, set
+         * the table's. The GM gives themself a look and it spreads; then an Assistant made for the test writes a
+         * look of its own on the GM, as the primary hears it (`asUserOverlayWrite`'s way: written with `noHook`,
+         * then `updateUser` with the Assistant's id, the id Foundry stamps on its update). Read: the GM's flags
+         * against what the GM wrote, and a connected player's look 1.2 s on (three times the put-back's wait).
+         * At 08305eb: the GM keeps the Assistant's look and the player throws in it.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter"));
+        const gm = game.user;
+        const player = game.users.find(u => !u.isGM && u.active);
+        const found = diceFlagsFound();
+        const made = [];
+        const read = {};
+        try {
+            made.push(...await CONFIG.User.documentClass.createDocuments([{ name: "E16 source writer", role: CONST.USER_ROLES.ASSISTANT }]));
+            const [assistant] = made;
+            await gm.update(diceLookWrite(GM_DICE_LOOK, GM_DICE_SFX));
+            const look = await canonicalDiceLook();
+            const gms = diceScopeOf(gm);
+            const holdsGms = () => holdsLook(gm, { appearance: gms?.appearance, sfxList: gms?.sfxList });
+            read.spread = await until(() => holdsLook(player, look), 3000);
+            await wait(800);
+            const write = diceLookWrite(OWN_DICE_LOOK, OWN_DICE_SFX);
+            await gm.update(write, { noHook: true });
+            read.landed = !holdsGms();
+            Hooks.callAll("updateUser", gm, foundry.utils.expandObject(write), {}, assistant.id);
+            read.gm = await until(holdsGms, 3000);
+            await wait(1200);
+            read.player = [holdsLook(player, look), diceScopeOf(player)?.appearance?.global?.colorset ?? null];
+        } finally {
+            await putBackDiceFlags(found, made);
+        }
+        equal(stableJson(read), stableJson({ gm: true, landed: true, player: [true, "fire"], spread: true }),
+            "an Assistant's write of the source Gamemaster's look stood or reached a player (spread: the GM's look on the player first; landed: the Assistant's write on the GM; gm: the GM's own back; player: [still the GM's look, its colour])");
+    }],
+
+    ["the dice look of a source Gamemaster who is deleted gives way to the next full Gamemaster's on every player (S16-02)", async () => {
+        /*
+         * E16 fix r1-G1, 19.10.2026 (finding C3-C1). The `deleteUser` listener asked whether the deleted user was
+         * the source through `lookSource`, which no longer finds it in `game.users` when the hook runs (Foundry
+         * and the harness's client-entry.mjs remove it first), so the deletion of the source swept nobody and the
+         * players kept the deleted Gamemaster's look. A second full Gamemaster made for the test, offline, with a
+         * look of its own, is named the source; its look reaches a connected player; then it is deleted. Read: the
+         * player's look before and after, against the look of this GM (the next full Gamemaster).
+         * At 08305eb: the deleted Gamemaster's look stays on the player.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter"));
+        const gm = game.user;
+        const player = game.users.find(u => !u.isGM && u.active);
+        const found = diceFlagsFound();
+        const wasSource = game.settings.get(MODULE_ID, SETTINGS.diceLookSource);
+        const made = [];
+        const OWN = { appearance: OWN_DICE_LOOK, sfxList: OWN_DICE_SFX };
+        const read = {};
+        try {
+            await gm.update(diceLookWrite(GM_DICE_LOOK, GM_DICE_SFX));
+            await wait(800);
+            const [other] = await CONFIG.User.documentClass.createDocuments([{ name: "E16 source to delete", role: CONST.USER_ROLES.GAMEMASTER,
+                flags: { [DSN_SCOPE]: OWN } }]);
+            made.push(other);
+            await game.settings.set(MODULE_ID, SETTINGS.diceLookSource, other.id);
+            read.other = await until(() => holdsLook(player, OWN), 3000);
+            await wait(800);
+            await other.delete();
+            read.after = await until(() => isGmsLook(diceScopeOf(player), gm), 3000);
+        } finally {
+            if (game.settings.get(MODULE_ID, SETTINGS.diceLookSource) !== wasSource) await game.settings.set(MODULE_ID, SETTINGS.diceLookSource, wasSource);
+            await putBackDiceFlags(found, made);
+        }
+        equal(stableJson(read), stableJson({ after: true, other: true }),
+            "the deletion of the source Gamemaster left the players in its look (other: the named source's look on the player; after: this GM's look on the player once the source is deleted)");
+    }],
+
+    ["a user's dice look past the fuse is put back again once a minute has passed since the last put-back (S16-02)", async () => {
+        /*
+         * E16 fix r1-G1, 19.10.2026 (finding C3-C2; E16-18 asks for at most five put-backs per user per minute).
+         * Once the fuse blew, the user was skipped by every put-back, connect and sweep until the primary's
+         * browser reloaded, so a player who wrote its look six times in a minute kept it for the session. A user
+         * made for the test writes its own look until one stands (each awaited until the GM's is back or 1 s);
+         * then the fuse's clock is moved a minute on (the suite's `ageFuses`, which stands in for the wait), and
+         * the user writes once more and again until one stands. Counted too: the console lines that say the
+         * limit was reached and the GM's warnings that name the user. At 08305eb: nothing is put back after the
+         * minute.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        const sync = await import("./dice-sync.mjs");
+        const gm = game.user;
+        const found = diceFlagsFound();
+        const made = [];
+        const NAME = "E16 rearmed";
+        const warned = [], warn = ui.notifications.warn;
+        ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+        const log = watchLog();
+        const read = { first: [], second: [] };
+        try {
+            await gm.update(diceLookWrite(GM_DICE_LOOK, GM_DICE_SFX));
+            const look = await canonicalDiceLook();
+            await wait(800);
+            const [user] = await CONFIG.User.documentClass.createDocuments([{ name: NAME, role: CONST.USER_ROLES.PLAYER }]);
+            made.push(user);
+            await wait(600);
+            const own = colour => user.update(diceLookWrite({ ...OWN_DICE_LOOK, global: { colorset: colour } }, OWN_DICE_SFX));
+            for (let i = 0; i < 8 && !read.first.includes(false); i++) {
+                await own(`black-${i}`);
+                read.first.push(await until(() => holdsLook(user, look), 1000));
+            }
+            sync.ageFuses?.(61000);
+            await own("black-again");
+            read.again = await until(() => holdsLook(user, look), 2000);
+            for (let i = 0; i < 8 && !read.second.includes(false); i++) {
+                await own(`black-${i + 10}`);
+                read.second.push(await until(() => holdsLook(user, look), 1000));
+            }
+        } finally {
+            ui.notifications.warn = warn;
+            log.stop();
+            await putBackDiceFlags(found, made);
+        }
+        read.said = [log.count(NAME), warned.filter(text => text.includes(NAME)).length];
+        equal(stableJson(read), stableJson({ again: true, first: [true, true, true, true, true, false], said: [1, 1], second: [true, true, true, true, false] }),
+            "the fuse did not put the user's look back again a minute after it blew, did not blow again at five, or said so more than once (first: each write put back until one stands; again: put back a minute on; second: the same again, counting the one before; said: [console lines, GM warnings])");
+    }],
+
+    ["a change of the source Gamemaster's colour reaches every player where Dice So Nice builds the look from it (S16-02)", async () => {
+        /*
+         * E16 fix r1-G1, 19.10.2026 (finding C3-C3). `canonicalLook` reads the source's look through Dice So Nice's
+         * `ALL_CUSTOMIZATION` where DSN is built (the 26.09 design's reading of 6.2.9: a GM with no look of their
+         * own has one from their user colour), but a change of the source swept the players only when its flags
+         * or role changed. The harness's `game.dice3d` has no such method, so one is stood in for the test that
+         * builds the look from the user's colour (an assumption of that reading, LIVE-E16-03); the GM's look
+         * spreads, then the GM's colour changes. Read: a connected player's look against the module's canonical
+         * look, before and 1.2 s after (three times the put-back's wait), and whether the colour moved the
+         * canonical look at all. At 08305eb: the player keeps the old colour.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter"));
+        ok(game.dice3d && typeof game.dice3d === "object", "this browser has no game.dice3d to stand a look builder on");
+        const gm = game.user;
+        const player = game.users.find(u => !u.isGM && u.active);
+        const found = diceFlagsFound();
+        const wasColour = gm.toObject().color ?? null;
+        const own = Object.getOwnPropertyDescriptor(game.dice3d, "constructor");
+        const background = user => String(user?.color?.css ?? user?.color ?? "");
+        const read = {};
+        try {
+            Object.defineProperty(game.dice3d, "constructor", { configurable: true, writable: true,
+                value: { ALL_CUSTOMIZATION: user => ({ appearance: { global: { colorset: "custom", background: background(user) } } }) } });
+            await gm.update({ ...diceLookWrite(GM_DICE_LOOK, GM_DICE_SFX), color: "#aa0000" });
+            const before = await canonicalDiceLook();
+            read.before = await until(() => holdsLook(player, before), 3000);
+            await wait(800);
+            await gm.update({ color: "#0000aa" });
+            await wait(1200);
+            const after = await canonicalDiceLook();
+            read.after = [after?.appearance?.global?.background === "#0000aa", holdsLook(player, after)];
+        } finally {
+            if (own) Object.defineProperty(game.dice3d, "constructor", own);
+            else delete game.dice3d.constructor;
+            if (wasColour !== null && gm.toObject().color !== wasColour) await gm.update({ color: wasColour });
+            await putBackDiceFlags(found);
+        }
+        equal(stableJson(read), stableJson({ after: [true, true], before: true }),
+            "a change of the source Gamemaster's colour did not reach the player (before: the look built from the first colour on the player; after: [the canonical look took the new colour, the player holds it])");
+    }],
+
+    ["with no full Gamemaster in the world a character's dice look is put back for nobody (S16-02)", async () => {
+        /*
+         * E16 fix r1-G1, 19.10.2026 (finding E16-C4-F3; the stage's rule: a world with no full Gamemaster forces
+         * nothing). The users' put-back asks for the source and stands down without one, but the actors' never
+         * asked: there no write is a full Gamemaster's, so every overlay anyone gave a character went back to the
+         * copy, and nobody could set one. The harness's world has a full Gamemaster, so for the length of one write
+         * every full Gamemaster reads as an Assistant (role 3 stood on each User, taken off after). The GM gives
+         * the player's character an overlay as a full Gamemaster (the GMs' copy), then, as an Assistant, another.
+         * Read: the overlay's colour 1.2 s on (three times the put-back's wait). At 08305eb: back to the copy.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter"));
+        const player = game.users.find(u => !u.isGM && u.active && game.actors.some(a => a.type === "character" && a.testUserPermission(u, "OWNER")));
+        const student = game.actors.find(a => a.type === "character" && a.testUserPermission(player, "OWNER"));
+        const found = actorDiceFound([student]);
+        const full = game.users.filter(u => u.role === CONST.USER_ROLES.GAMEMASTER);
+        const read = {};
+        try {
+            await student.update(overlayWrite(GM_OVERLAY));
+            await wait(1200);
+            read.copy = overlayOf(student)?.global?.colorset ?? null;
+            for (const user of full) Object.defineProperty(user, "role", { configurable: true, get: () => CONST.USER_ROLES.ASSISTANT });
+            try {
+                read.none = !game.users.some(u => u.role === CONST.USER_ROLES.GAMEMASTER);
+                await student.update(overlayWrite(OWN_OVERLAY));
+                await wait(1200);
+                read.stood = overlayOf(student)?.global?.colorset ?? null;
+            } finally {
+                for (const user of full) delete user.role;
+            }
+        } finally {
+            await putBackActorDice(found);
+        }
+        equal(stableJson(read), stableJson({ copy: "ice", none: true, stood: "black" }),
+            "with no full Gamemaster an overlay was put back (copy: the full Gamemaster's first; none: no full Gamemaster left; stood: the overlay written then)");
+    }],
+
     ...GRID
 ];
 

@@ -21,9 +21,23 @@
  * the same case. A change of the source's own look reaches everyone. Each write replaces both flags whole
  * (v14's ForcedReplacement), so a scope a player added goes too.
  *
+ * THE SOURCE'S OWN LOOK (E16 fix r1-G1, 19.10.2026; findings C3-S1 and C3-C3). An Assistant GM may write any
+ * User (LIVE-E30-04), the source's too, and until this fix the primary spread whatever the source's flags then
+ * held: an Assistant, forced like a player by the owner's Q3, set the table's look by writing it on the
+ * Gamemaster. So each GM browser keeps a copy of the source's look - its two flags and its colour, which DSN's
+ * `ALL_CUSTOMIZATION` builds a look from - taken as it loads and at each write of the source's by a full
+ * Gamemaster (and by anyone while the switch is off: then nothing is forced). A write of it by anyone below full
+ * Gamemaster, and one no hook heard that a sweep finds, is put back to that copy before anything spreads, with
+ * the users' wait and fuse. The copy is memory: an Assistant's write while no full Gamemaster's browser was
+ * there is the copy at the next load, the family of fix early-C4-G1's gap on the GMs' stores. The two world
+ * settings an Assistant may also change, `forceDiceLook` and `diceLookSource`, are not judged here: which roles
+ * may set them is the owner's to say.
+ *
  * NO LOOP. A put-back waits 400 ms after the user's last update (DSN's save is six updates in a row), compares
  * before it writes, and stops for that user after five in a minute, with one console error and one notice to
- * the GM: something else is writing that user's look back each time.
+ * the GM, once a session: something else is writing that user's look back each time. A minute after its last
+ * put-back it is put back again (E16 fix r1-G1, finding C3-C2: until then it stayed stopped until the primary
+ * reloaded, so six writes in a minute bought a player its own look for the session).
  *
  * AN ACTOR'S OWN LOOK (C4). DSN lays an actor's `flags.dice-so-nice.appearance` over its user's look
  * (`Dice3D.APPEARANCE(user, actor)`, the same design's reading; its header control on a sheet writes it), so an
@@ -31,7 +45,10 @@
  * store (gm-stores.mjs `diceLookStore`), which the primary writes at each write of a full Gamemaster's; the
  * primary puts an overlay a user below full Gamemaster wrote (Assistants too, Q3) back to that copy, with the
  * same wait, comparison and fuse. Here the writer is read, since the overlay has no canonical value of its own:
- * it is the one Foundry stamps on the update, never a packet's. Daggerheart's GM relay, which writes as the GM,
+ * it is the one Foundry stamps on the update, never a packet's. In a world with no full Gamemaster no overlay is
+ * put back, as no user's look is (E16 fix r1-G1, finding E16-C4-F3). An unlinked token's own overlay (its
+ * ActorDelta's flags) is not watched: the harness has no synthetic actor to measure one on (lib/shim.mjs
+ * `TokenDocumentImpl`), and which hook v14 fires for it is LIVE-E16-03. Daggerheart's GM relay, which writes as the GM,
  * carries no actor flag (relay-guard.mjs `actorRefusal` lets through resource values only). Which actor DSN lays
  * over a throw, and what the throw then looks like, is not drawn headless: LIVE-E16-03.
  *
@@ -64,7 +81,7 @@ import { diceLookStore } from "./gm-stores.mjs";
 const DSN = "dice-so-nice";
 /** The wait after a user's last update before its look is read and put back: DSN's save is six updates in a row. */
 const PUT_BACK_WAIT_MS = 400;
-/** At most this many put-backs of one user inside the window, then none for that user until reload. */
+/** At most this many put-backs of one user inside the window, then none until the window has passed since the last. */
 const FUSE_LIMIT = 5;
 const FUSE_WINDOW_MS = 60000;
 /** The key the source's own change and the source setting share in the debounce, so they fold into one sweep. */
@@ -74,10 +91,16 @@ const RECORD_TRIES = 10;
 const RECORD_WAIT_MS = 200;
 /** The debounce key of an actor's overlay, beside the users' ids. */
 const ACTOR = "actor:";
+/** The fuse's key of the source's own look, put back to the GMs' copy. */
+const SOURCE = "source:";
 
 const timers = new Map();
 const putBacks = new Map();
 const blown = new Set();
+/** The keys whose stop has been said: once a session each. */
+const saidStopped = new Set();
+/** This browser's copy of the source's look: `{ id, look }`, its flags and colour as a full Gamemaster left them. */
+let sourceCopy = null;
 let saidNoSource = false, saidRefused = false, toldPlayer = false, ownWriteAt = 0;
 
 /**
@@ -95,11 +118,17 @@ export function registerDiceSync() {
         if (changes?.flags !== undefined) onActorWritten(actor, userId, touchesLook(changes.flags));
     });
     // The copy goes with its actor; the compaction takes the tombstone once the actor is gone (gm-stores.mjs `exists`).
+    // Only a row the store holds, as sheet-audit.mjs drops a mark: a tombstone of no row is a write of nothing.
     Hooks.on("deleteActor", actor => {
-        if (actor?.id && isPrimaryGm()) void diceLookStore.drop(actor.id);
+        if (actor?.id && isPrimaryGm() && gmStoresHydrated() && diceLookStore.has(actor.id)) void diceLookStore.drop(actor.id);
     });
     Hooks.on("createChatMessage", onMessage);
-    Hooks.on("deleteUser", user => { if (isSource(user)) schedule(SWEEP); });
+    // The deleted user is gone from `game.users` as the hook runs, so `lookSource` cannot name it: the setting is read raw.
+    Hooks.on("deleteUser", user => {
+        if (!user?.id) return;
+        if (sourceCopy?.id === user.id) sourceCopy = null;
+        if (user.id === namedSourceId()) schedule(SWEEP);
+    });
     Hooks.on("updateSetting", setting => {
         if (setting?.key === `${MODULE_ID}.${SETTINGS.diceLookSource}`) schedule(SWEEP);
     });
@@ -108,6 +137,7 @@ export function registerDiceSync() {
         if (!connected || !isForced(user) || !isPrimaryGm()) return;
         void putBack(user.id, { count: false });
     });
+    if (game.user?.isGM) copySource();
     // The overlays wait for the other GMs' copies of the store, not for DSN: they are flags, read as they stand.
     if (gmStoresHydrated()) onStoresHydrated();
     else onGmStoresHydrated(onStoresHydrated);
@@ -142,8 +172,7 @@ const isFullGm = user => user?.role === CONST.USER_ROLES.GAMEMASTER;
  * the primary. Null in a world with no full Gamemaster.
  */
 function lookSource({ write = false } = {}) {
-    let named = null;
-    try { named = game.users.get(game.settings.get(MODULE_ID, SETTINGS.diceLookSource)) ?? null; } catch { named = null; }
+    const named = game.users.get(namedSourceId()) ?? null;
     if (isFullGm(named)) return named;
     const picked = isFullGm(game.user) ? game.user : game.users.filter(isFullGm).sort((a, b) => a.id.localeCompare(b.id))[0] ?? null;
     if (!picked) {
@@ -159,6 +188,63 @@ function lookSource({ write = false } = {}) {
 }
 
 const isSource = user => Boolean(user) && lookSource()?.id === user.id;
+
+/** The id `diceLookSource` holds, as written, or null. */
+function namedSourceId() {
+    try { return game.settings.get(MODULE_ID, SETTINGS.diceLookSource) || null; } catch { return null; }
+}
+
+/** A user's colour as a write takes it: v14's Color, a number in the harness, a CSS string either way. */
+function colourOf(user) {
+    const colour = user?.color;
+    if (colour === null || colour === undefined) return null;
+    return typeof colour === "string" ? colour : String(colour.css ?? colour);
+}
+
+/** What of the source's makes the table's look: its two flags as they are (null for none) and its colour. */
+function sourceLookOf(user) {
+    return { appearance: plain(user?.getFlag(DSN, "appearance")), sfxList: plain(user?.getFlag(DSN, "sfxList")), color: colourOf(user) };
+}
+
+/** The source's look as it stands taken as this browser's copy. */
+function copySource(source = lookSource()) {
+    sourceCopy = source ? { id: source.id, look: sourceLookOf(source) } : null;
+}
+
+/** Whether the source holds the copy; a copy of another user (the source changed) is taken anew first. */
+function sourceHeld(source) {
+    if (!source) return true;
+    if (sourceCopy?.id !== source.id) copySource(source);
+    return sameLook(sourceLookOf(source), sourceCopy.look);
+}
+
+/**
+ * The source's look put back to the copy, on the primary, counted against the fuse; true when the source holds
+ * it after. Both flags whole, a missing one deleted, and the colour where it moved.
+ */
+async function holdSource(source) {
+    if (!isPrimaryGm() || sourceHeld(source)) return true;
+    if (!fuseHolds(SOURCE + source.id, source.name)) return false;
+    const look = sourceCopy.look;
+    const whole = value => (value === null ? forcedDeletion() : forcedReplacement(foundry.utils.deepClone(value)));
+    const colour = look.color !== null && look.color !== colourOf(source) ? { color: look.color } : {};
+    try {
+        const appearance = whole(look.appearance), sfxList = whole(look.sfxList);
+        if (appearance !== null && sfxList !== null) {
+            await source.update({ [`flags.${DSN}.appearance`]: appearance, [`flags.${DSN}.sfxList`]: sfxList, ...colour });
+        } else {
+            for (const key of ["appearance", "sfxList"]) {
+                await source.unsetFlag(DSN, key);
+                if (look[key] !== null) await source.setFlag(DSN, key, foundry.utils.deepClone(look[key]));
+            }
+            if (colour.color) await source.update(colour);
+        }
+    } catch (err) {
+        refused(source, err);
+        return false;
+    }
+    return sourceHeld(source);
+}
 
 const plain = value => (value && typeof value === "object" ? foundry.utils.deepClone(value) : null);
 
@@ -216,10 +302,14 @@ function schedule(key) {
  * user's own browser the first put-back of its own change is said, once a session.
  */
 function onUserUpdated(user, changes, _options, userId) {
-    if (!enforcing()) return;
-    const touched = changes?.flags !== undefined || changes?.role !== undefined;
+    const touched = changes?.flags !== undefined || changes?.role !== undefined || changes?.color !== undefined;
     if (!touched) return;
+    // The copy of the source's look, on every GM browser, so that the next primary holds it too.
+    const look = touchesLook(changes.flags) || changes.color !== undefined;
+    if (look && game.user?.isGM && isSource(user) && (!enforcing() || isFullGm(game.users.get(userId)))) copySource(user);
+    if (!enforcing()) return;
     if (!isPrimaryGm()) return tellPlayer(user, changes, userId);
+    // The sweep puts the source back to the copy before it spreads anything: a write below full Gamemaster spreads nothing.
     if (changes.role !== undefined || isSource(user)) return schedule(SWEEP);
     if (isForced(user)) schedule(user.id);
 }
@@ -247,10 +337,11 @@ function toldAfter(userId) {
 async function sweep() {
     if (!enforcing() || !isPrimaryGm()) return;
     const source = lookSource({ write: true });
+    if (!source || !(await holdSource(source))) return;
     const look = canonicalLook();
-    if (!source || !look) return;
+    if (!look) return;
     const behind = game.users.filter(u => isForced(u))
-        .filter(u => !blown.has(u.id) && !sameLook(lookOf(u), look));
+        .filter(u => !stopped(u.id) && !sameLook(lookOf(u), look));
     await writeLooks(behind, look);
 }
 
@@ -260,7 +351,9 @@ async function sweep() {
  */
 async function putBack(userId, { count = true } = {}) {
     const user = game.users.get(userId);
-    if (!enforcing() || !isPrimaryGm() || !isForced(user) || blown.has(userId)) return;
+    if (!enforcing() || !isPrimaryGm() || !isForced(user) || stopped(userId)) return;
+    // A source that does not hold the GMs' copy is the sweep's: it puts the source back, then reaches this user.
+    if (!sourceHeld(lookSource())) return schedule(SWEEP);
     const look = canonicalLook();
     if (!look) return;
     if (sameLook(lookOf(user), look)) return;
@@ -269,21 +362,36 @@ async function putBack(userId, { count = true } = {}) {
 }
 
 /**
- * False once a look has been put back FUSE_LIMIT times inside the window: said once, then left. `key` is a
- * user's id or an actor's debounce key, `name` the one the GM reads.
+ * False once a look has been put back FUSE_LIMIT times inside the window, and until the window has passed since
+ * the last of them: said once a session, then left. `key` is a user's id, an actor's debounce key or the
+ * source's, `name` the one the GM reads.
  */
 function fuseHolds(key, name) {
+    if (stopped(key)) return false;
     const now = Date.now();
     const recent = (putBacks.get(key) ?? []).filter(at => now - at < FUSE_WINDOW_MS);
+    putBacks.set(key, recent);
     if (recent.length >= FUSE_LIMIT) {
         blown.add(key);
-        error(`The dice look of ${name} was put back ${FUSE_LIMIT} times in a minute and keeps changing: it is no longer put back until this browser reloads.`);
-        ui.notifications?.warn(game.i18n.format("DRPG.DiceLook.stopped", { name }));
+        if (!saidStopped.has(key)) {
+            saidStopped.add(key);
+            error(`The dice look of ${name} was put back ${FUSE_LIMIT} times in a minute and keeps changing: it is left as it is for a minute.`);
+            ui.notifications?.warn(game.i18n.format("DRPG.DiceLook.stopped", { name }));
+        }
         return false;
     }
     recent.push(now);
-    putBacks.set(key, recent);
     return true;
+}
+
+/** Whether the fuse holds `key` stopped: true until the window has passed since its last put-back, then re-armed. */
+function stopped(key) {
+    if (!blown.has(key)) return false;
+    const last = (putBacks.get(key) ?? []).at(-1) ?? 0;
+    if (Date.now() - last < FUSE_WINDOW_MS) return true;
+    blown.delete(key);
+    putBacks.delete(key);
+    return false;
 }
 
 /** An actor's overlay as its flags hold it, or null for none. */
@@ -351,6 +459,11 @@ export function forgetFuses() {
     blown.clear();
 }
 
+/** Suite only: the fuse's clock moved `ms` on, for tier 2's wait of a minute (E16 fix r1-G1, finding C3-C2). */
+export function ageFuses(ms) {
+    for (const [key, times] of putBacks) putBacks.set(key, times.map(at => at - ms));
+}
+
 /**
  * One actor's overlay read and put back to the GMs' copy (none where the copy has none); true when written.
  * `count` is false at a message and at load: the fuse counts the answers to writes, not the primary's checks.
@@ -361,7 +474,9 @@ async function putBackActor(actorId, { count = true } = {}) {
     if (!isPrimaryGm()) return false;
     const actor = game.actors?.get(actorId);
     const key = ACTOR + actorId;
-    if (!actor || !enforcing() || blown.has(key) || !diceLookStore.isHydrated()) return false;
+    if (!actor || !enforcing() || stopped(key) || !diceLookStore.isHydrated()) return false;
+    // A world with no full Gamemaster forces nothing (the stage's rule; `lookSource` says so once).
+    if (!lookSource()) return false;
     const held = heldOverlay(actorId);
     if (sameLook(overlayOf(actor), held)) return false;
     if (count && !fuseHolds(key, actor.name)) return false;
