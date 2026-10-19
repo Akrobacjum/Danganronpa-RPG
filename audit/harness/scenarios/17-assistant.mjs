@@ -274,6 +274,44 @@ export async function run({ gm, ag, p1, p2, p3, check, settle, opLog, socketTraf
         && JSON.stringify(g1.writes) === JSON.stringify({ p1: ["p1 update", "gm update"], ag: ["ag update", "gm update"] })
         && JSON.stringify(g1.told) === JSON.stringify(["Your dice look is set by the GM."]), JSON.stringify(g1));
 
+    /* E16 p1 C4, 19.10.2026 (E16-21, E16-22). DSN lays an actor's own `flags.dice-so-nice.appearance` over its
+       user's look, so G2: the GM gives p2's character an overlay; then p2 and the Assistant each write one of their
+       own on it from their own consoles (Foundry stamps each with its writer), and the GM gives Daichi, a student no
+       player owns, one of its own. Read: the overlays on every client, who wrote each actor after the GM's write
+       (opLog), and the line p2 is told. G3: p1 writes its own look with `noHook` from its console, which no hook
+       hears, then posts a message as its character: the GM puts the look back then. */
+    const overlayOn = (c, id) => c.eval(`return JSON.stringify(game.actors.get("${id}")?.flags?.["${DSN}"]?.appearance ?? null);`);
+    const actorWrites = (from, id) => opLog.slice(from).filter(w => w.coll === "Actor" && w.docId === id).map(w => `${w.who} ${w.action}`);
+    const gmOverlay = JSON.stringify({ global: { colorset: "ice" } });
+    await gm.eval(`await game.actors.get("${IDS.botan}").update({ "flags.${DSN}.appearance": ${gmOverlay} }); return true;`);
+    await settle(1200);
+    mark = opLog.length;
+    const p2Told = await p2.eval(`return globalThis.__notifications.length;`);
+    await p2.eval(`await game.actors.get("${IDS.botan}").setFlag("${DSN}", "appearance", { global: { colorset: "black" }, d6: { colorset: "bloodmoon" } }); return true;`);
+    await settle(1500);
+    await ag.eval(`await game.actors.get("${IDS.botan}").setFlag("${DSN}", "appearance", { global: { colorset: "emerald" } }); return true;`);
+    await settle(1500);
+    await gm.eval(`await game.actors.get("${IDS.daichi}").setFlag("${DSN}", "appearance", { global: { colorset: "fire" } }); return true;`);
+    await settle(1500);
+    const g2 = { writes: { botan: actorWrites(mark, IDS.botan), daichi: actorWrites(mark, IDS.daichi) }, held: {},
+        told: await p2.eval(`return globalThis.__notifications.slice(${p2Told}).map(n => n.msg);`) };
+    for (const c of [gm, ag, p1, p2]) g2.held[c.who] = [await overlayOn(c, IDS.botan) === gmOverlay, JSON.parse(await overlayOn(c, IDS.daichi))?.global?.colorset ?? null];
+    check("G2: a character's dice look written by its player or an Assistant goes back to the GM's on every client, written by the primary GM, the player told once, and a GM's own on a student no player owns stands",
+        Object.values(g2.held).every(([back, own]) => back && own === "fire")
+        && JSON.stringify(g2.writes) === JSON.stringify({ botan: ["p2 update", "gm update", "ag update", "gm update"], daichi: ["gm update"] })
+        && JSON.stringify(g2.told) === JSON.stringify(["Your dice look is set by the GM."]), JSON.stringify(g2));
+
+    mark = opLog.length;
+    await p1.eval(`await game.user.update({ "flags.${DSN}.appearance": { global: { colorset: "black" } } }, { noHook: true }); return true;`);
+    await settle(1500);
+    const g3 = { quiet: await lookOn(gm, IDS.p1) !== canon, writesQuiet: userWrites(mark, IDS.p1) };
+    await p1.eval(`await ChatMessage.create({ content: "E16 throw", speaker: { actor: "${IDS.aiko}" } }); return true;`);
+    await settle(1500);
+    Object.assign(g3, { writes: userWrites(mark, IDS.p1), held: [await lookOn(gm, IDS.p1) === canon, await lookOn(p1, IDS.p1) === canon] });
+    check("G3: a player's own dice look written with no hook stands until its next message, and the GM puts it back then",
+        g3.quiet && JSON.stringify(g3.writesQuiet) === JSON.stringify(["p1 update"])
+        && JSON.stringify(g3.writes) === JSON.stringify(["p1 update", "gm update"]) && g3.held.every(Boolean), JSON.stringify(g3));
+
     /* ---------------------------- D. the full GM leaves ----------------------------- */
 
     const gmErrors = await gm.eval(`return (globalThis.__errors ?? []).map(e => e.where + ": " + e.message);`);

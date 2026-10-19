@@ -24,11 +24,28 @@
  * NO LOOP. A put-back waits 400 ms after the user's last update (DSN's save is six updates in a row), compares
  * before it writes, and stops for that user after five in a minute, with one console error and one notice to
  * the GM: something else is writing that user's look back each time.
+ *
+ * AN ACTOR'S OWN LOOK (C4). DSN lays an actor's `flags.dice-so-nice.appearance` over its user's look
+ * (`Dice3D.APPEARANCE(user, actor)`, the same design's reading; its header control on a sheet writes it), so an
+ * owner could throw in a look of its own through its character. Every GM's browser keeps the GMs' copy of each
+ * actor's overlay, taken when DSN is ready and at each write of a full Gamemaster's; the primary puts an overlay
+ * a user below full Gamemaster wrote (Assistants too, Q3) back to that copy, with the same wait, comparison and
+ * fuse. Here the writer is read, since the overlay has no canonical value of its own: it is the one Foundry
+ * stamps on the update, never a packet's. Daggerheart's GM relay, which writes as the GM, carries no actor
+ * flag (relay-guard.mjs `actorRefusal` lets through resource values only). Which actor DSN lays over a throw, and
+ * what the throw then looks like, is not drawn headless: LIVE-E16-03.
+ *
+ * A WRITE NO HOOK HEARS. An update with `noHook` reaches no listener (in the harness; on v14 LIVE-E16-04), so the
+ * primary also compares at each message a user posts - a throw's card is one - the author's look and the
+ * overlay of the actor it speaks as, and at each connect the user's look: one throw late at most. A roll the GM
+ * draws for a player (roll-draw.mjs) is the GM's message, so there the roller is the user the GMs' record of
+ * the roll names, the sender Foundry named to the draw. At a message the overlay is held to the GMs' copy
+ * whoever wrote it, since nothing says who did: a full Gamemaster's own `noHook` overlay is put back there too.
  */
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { isPrimaryGm, log, error, forcedReplacement } from "./utils.mjs";
+import { isPrimaryGm, log, error, forcedReplacement, forcedDeletion } from "./utils.mjs";
 import { stableJson } from "./gm-store.mjs";
 
 const DSN = "dice-so-nice";
@@ -39,10 +56,17 @@ const FUSE_LIMIT = 5;
 const FUSE_WINDOW_MS = 60000;
 /** The key the source's own change and the source setting share in the debounce, so they fold into one sweep. */
 const SWEEP = "*";
+/** How often, and how far apart, a drawn roll's record is looked for: the draw keeps it after its message is written. */
+const RECORD_TRIES = 10;
+const RECORD_WAIT_MS = 200;
+/** The debounce key of an actor's overlay, beside the users' ids. */
+const ACTOR = "actor:";
 
 const timers = new Map();
 const putBacks = new Map();
 const blown = new Set();
+/** Actor id -> its overlay as the GMs hold it (null for none), on every GM's browser, so that a new primary has it. */
+const actorLooks = new Map();
 let saidNoSource = false, saidRefused = false, toldPlayer = false, ownWriteAt = 0;
 
 /**
@@ -55,6 +79,12 @@ export function registerDiceSync() {
         return;
     }
     Hooks.on("updateUser", onUserUpdated);
+    Hooks.on("createActor", (actor, _options, userId) => onActorWritten(actor, userId, true));
+    Hooks.on("updateActor", (actor, changes, _options, userId) => {
+        if (changes?.flags !== undefined) onActorWritten(actor, userId, touchesLook(changes.flags));
+    });
+    Hooks.on("deleteActor", actor => actorLooks.delete(actor?.id));
+    Hooks.on("createChatMessage", onMessage);
     Hooks.on("deleteUser", user => { if (isSource(user)) schedule(SWEEP); });
     Hooks.on("updateSetting", setting => {
         if (setting?.key === `${MODULE_ID}.${SETTINGS.diceLookSource}`) schedule(SWEEP);
@@ -64,8 +94,9 @@ export function registerDiceSync() {
         if (!connected || !isForced(user) || !isPrimaryGm()) return;
         void putBack(user.id, { count: false });
     });
-    if (game.dice3d) void sweep();
-    else Hooks.once("diceSoNiceReady", () => void sweep());
+    const ready = () => { takeActorLooks(); void sweep(); };
+    if (game.dice3d) ready();
+    else Hooks.once("diceSoNiceReady", ready);
 }
 
 /** The switch, read at each step: a world setting, and off writes nothing (Q4). */
@@ -150,7 +181,9 @@ function schedule(key) {
     clearTimeout(timers.get(key));
     timers.set(key, setTimeout(() => {
         timers.delete(key);
-        void (key === SWEEP ? sweep() : putBack(key));
+        if (key === SWEEP) void sweep();
+        else if (key.startsWith(ACTOR)) void putBackActor(key.slice(ACTOR.length));
+        else void putBack(key);
     }, PUT_BACK_WAIT_MS));
 }
 
@@ -171,6 +204,16 @@ function onUserUpdated(user, changes, _options, userId) {
 /** "Your dice look is set by the GM.", once a session, on the browser of a user whose own change a GM put back. */
 function tellPlayer(user, changes, userId) {
     if (user?.id !== game.user?.id || !isForced(user) || changes?.flags?.[DSN] === undefined) return;
+    toldAfter(userId);
+}
+
+/** The same line for an overlay on an actor this browser's user owns. */
+function tellOwner(actor, touched, userId) {
+    if (!touched || !actor?.isOwner || !isForced(game.user)) return;
+    toldAfter(userId);
+}
+
+function toldAfter(userId) {
     if (userId === game.user.id) { ownWriteAt = Date.now(); return; }
     if (toldPlayer || !game.users.get(userId)?.isGM || Date.now() - ownWriteAt > FUSE_WINDOW_MS) return;
     toldPlayer = true;
@@ -198,23 +241,114 @@ async function putBack(userId, { count = true } = {}) {
     const look = canonicalLook();
     if (!look) return;
     if (sameLook(lookOf(user), look)) return;
-    if (count && !fuseHolds(user)) return;
+    if (count && !fuseHolds(user.id, user.name)) return;
     await writeLooks([user], look);
 }
 
-/** False once a user's look has been put back FUSE_LIMIT times inside the window: said once, then left. */
-function fuseHolds(user) {
+/**
+ * False once a look has been put back FUSE_LIMIT times inside the window: said once, then left. `key` is a
+ * user's id or an actor's debounce key, `name` the one the GM reads.
+ */
+function fuseHolds(key, name) {
     const now = Date.now();
-    const recent = (putBacks.get(user.id) ?? []).filter(at => now - at < FUSE_WINDOW_MS);
+    const recent = (putBacks.get(key) ?? []).filter(at => now - at < FUSE_WINDOW_MS);
     if (recent.length >= FUSE_LIMIT) {
-        blown.add(user.id);
-        error(`The dice look of ${user.name} was put back ${FUSE_LIMIT} times in a minute and keeps changing: it is no longer put back until this browser reloads.`);
-        ui.notifications?.warn(game.i18n.format("DRPG.DiceLook.stopped", { name: user.name }));
+        blown.add(key);
+        error(`The dice look of ${name} was put back ${FUSE_LIMIT} times in a minute and keeps changing: it is no longer put back until this browser reloads.`);
+        ui.notifications?.warn(game.i18n.format("DRPG.DiceLook.stopped", { name }));
         return false;
     }
     recent.push(now);
-    putBacks.set(user.id, recent);
+    putBacks.set(key, recent);
     return true;
+}
+
+/** An actor's overlay as its flags hold it, or null for none. */
+function overlayOf(actor) {
+    return plain(actor?.flags?.[DSN]?.appearance);
+}
+
+/** Whether a write's flags name DSN's scope: v14 deletes a key with an operator under its own name. */
+function touchesLook(flags) {
+    return Boolean(flags) && typeof flags === "object" && Object.hasOwn(flags, DSN);
+}
+
+/** The GMs' copy, taken on a GM's browser when DSN is ready: every actor's overlay as the world holds it then. */
+function takeActorLooks() {
+    if (!game.user?.isGM) return;
+    for (const actor of game.actors ?? []) actorLooks.set(actor.id, overlayOf(actor));
+}
+
+/**
+ * An actor created, or its flags updated, as every browser hears it. A full Gamemaster's write of the overlay
+ * (or a creation) is the GMs' copy from then on, on each GM's browser; anyone else's is put back by the primary,
+ * after the same wait as a user's.
+ */
+function onActorWritten(actor, userId, touched) {
+    if (!actor?.id) return;
+    if (!isPrimaryGm()) tellOwner(actor, touched, userId);
+    if (!game.user?.isGM) return;
+    const byGamemaster = isFullGm(game.users.get(userId));
+    if (byGamemaster) {
+        if (touched) actorLooks.set(actor.id, overlayOf(actor));
+        return;
+    }
+    if (enforcing() && isPrimaryGm()) schedule(ACTOR + actor.id);
+}
+
+/**
+ * One actor's overlay read and put back to the GMs' copy (none where the copy has none). `count` is false at a
+ * message: the fuse counts the answers to writes, not the primary's check at a throw.
+ */
+async function putBackActor(actorId, { count = true } = {}) {
+    if (!isPrimaryGm()) return;
+    const actor = game.actors?.get(actorId);
+    const key = ACTOR + actorId;
+    if (!actor || !enforcing() || blown.has(key)) return;
+    const held = actorLooks.get(actorId) ?? null;
+    if (sameLook(overlayOf(actor), held)) return;
+    if (count && !fuseHolds(key, actor.name)) return;
+    const path = `flags.${DSN}.appearance`;
+    try {
+        const replaced = held === null ? null : forcedReplacement(foundry.utils.deepClone(held));
+        if (held === null) await actor.update({ [path]: forcedDeletion() });
+        else if (replaced !== null) await actor.update({ [path]: replaced });
+        else {
+            await actor.unsetFlag(DSN, "appearance");
+            await actor.setFlag(DSN, "appearance", foundry.utils.deepClone(held));
+        }
+    } catch (err) { refused(actor, err); }
+}
+
+/**
+ * A message posted, on the primary: the roller's look and the overlay of the actor it speaks as, held to the
+ * GMs' at once, for what a `noHook` write left behind. Nothing is counted against the fuse.
+ */
+function onMessage(message) {
+    if (!isPrimaryGm()) return;
+    if (!enforcing()) return;
+    void rollerOf(message).then(roller => { if (isForced(roller)) void putBack(roller.id, { count: false }); });
+    const actorId = message?.speaker?.actor;
+    if (typeof actorId === "string" && actorId) void putBackActor(actorId, { count: false });
+}
+
+/**
+ * Whose dice a message throws: its author, or, for a roll the GM drew, the user the GMs' record names
+ * (roll-draw.mjs `drawnRecordOf`, which answers only for a GM's message). The record is written after the
+ * message, so it is looked for a few times; null when none comes.
+ */
+async function rollerOf(message) {
+    const author = message?.author ?? null;
+    if (!author?.isGM || !message?.getFlag?.(MODULE_ID, "drawn")) return author;
+    try {
+        const { drawnRecordOf } = await import("./roll-draw.mjs");
+        for (let tries = 0; tries < RECORD_TRIES; tries++) {
+            const row = drawnRecordOf(message);
+            if (row) return game.users.get(row.userId) ?? null;
+            await new Promise(resolve => setTimeout(resolve, RECORD_WAIT_MS));
+        }
+    } catch (err) { error("Could not read whose roll the GM drew", err); }
+    return null;
 }
 
 /**
