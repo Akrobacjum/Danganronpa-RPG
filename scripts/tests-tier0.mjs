@@ -5914,10 +5914,9 @@ const REGRESSIONS = [
             ...E.gmCopyNames().map(name => [`the copy ${name}`, E.gmCopySpec(name)?.resetGroup])];
         ok(named.length >= 14, `only ${named.length} GM stores and copies are defined - the table was not read`);
         /* A store no reset cuts, on purpose, with its reason (E79 C1, 14.10.2026; the E79 plan's 1b.1): a secret passage
-           is the map's and stays from season to season - who knows it is the "passages" group's (passageAccess). And
-           (E80 fix r1-G1) the GMs' record of Foundry's secret doors: a door's state is the scene's, which no reset writes. */
-        const UNCUT = { "the store passageMap": "a secret passage stays; who knows it is cut with the passages group",
-            "the store secretDoors": "a secret door's state is the scene's, which no reset writes: the GMs' record of it follows their own changes" };
+           is the map's and stays from season to season - who knows it is the "passages" group's (passageAccess). E80 fix
+           r1-G1's store of Foundry's secret doors was listed here until E80 fix r2-G9 moved that state onto the door. */
+        const UNCUT = { "the store passageMap": "a secret passage stays; who knows it is cut with the passages group" };
         const strays = named.filter(([what, group]) => !groups.has(group) && !(group === undefined && Object.hasOwn(UNCUT, what)))
             .map(([what, group]) => `${what} (${group})`);
         ok(!strays.length, `a reset can never cut ${strays.join(", ")}: its reset group is none the window offers`);
@@ -9391,6 +9390,9 @@ const REGRESSIONS = [
          * E80 fix r1-G5 (19.10.2026, the review's E80-G-10 and E80-G-4) adds 1 and renames 1: updateUser's
          * `onDoorsRoleChanged`, the secret doors' pass at a change of role (R609), and updateActor's handler, inline
          * until then, is `onActorUpdated`, which also hears a change of type (R610).
+         * E80 fix r2-G9 (19.10.2026, the review's E80-FIX-R1-01) adds 3, read in the family alone: preUpdateWall and
+         * preCreateWall, a GM's own write of a secret door carrying the GMs' state on it (`stampSecretDoor`,
+         * `stampNewSecretDoor`), and createScene, the secret doors' pass on a scene made with its walls (`onSceneCreated`).
          * It reads names and text, not a syntax tree, as R534 does. Two places where it keys otherwise than the parse-only
          * census: a road inside a named inner function or a method (the census keys it by that name, this reader by the
          * top-level declaration), and a top-level declaration of several names (the census joins them, this reader takes
@@ -9467,11 +9469,14 @@ const REGRESSIONS = [
             ["ACT action-rolls.mjs#locatePassage#passage.find -> *", "a label, no road: `sayNotDone` names the action in the roller's own word that no GM is online, after the price is given back; nothing is sent"],
             // ---- the Passages tab's watch on a passage's wall (E79 C5)
             ["HOOK passages-gm.mjs#registerPassagesGm#updateWall/onWallMoved -> record", "the primary GM only (`isPrimaryGm`), and only when the change carries `c`: a passage whose stretch is no longer on its wall's segment is marked broken in the GMs' records and drops out of every copy; the wall is never written (R561; 76 E)"],
-            ["HOOK passages-gm.mjs#registerPassagesGm#deleteWall/onWallDeleted -> record", "the primary GM only: every passage of the deleted wall is marked broken in the GMs' records and drops out of every copy (R561; 76 E); and since E80 fix r1-G1 a deleted secret door's row goes from the GMs' record of the doors (`secretDoorStore`), a GM store"],
+            ["HOOK passages-gm.mjs#registerPassagesGm#deleteWall/onWallDeleted -> record", "the primary GM only: every passage of the deleted wall is marked broken in the GMs' records and drops out of every copy (R561; 76 E); a deleted secret door's state goes with the wall (E80 fix r2-G9: it is a flag on the door, `DOOR_SET`)"],
             // ---- Foundry's secret doors (E80 C5, S16-17)
-            ["HOOK passages-gm.mjs#registerPassagesGm#updateWall/onSecretDoorChanged -> record", "the primary GM only (`isPrimaryGm`), and only a change of a secret door's `ds` (a GM's of `door` too): a GM's stands and, unless the write is the put-back's own (`DOOR_ASIDE`), is the GMs' state of the door in `secretDoorStore`, a GM store (E80 fix r1-G1); anybody else's - a player, or a writer `senderOf` does not know as an active user - is written back to how a GM last left the door, open if that was open and shut otherwise, and the door held shut for the audit (`secretDoorHeldShut`, movement-audit.mjs `firstWallCrossed`) until that write lands; a locked door is left alone; no passage record is written (R601, A10-15; 30 7e3)"],
+            ["HOOK passages-gm.mjs#registerPassagesGm#updateWall/onSecretDoorChanged -> record", "the primary GM only (`isPrimaryGm`), and only a change of a secret door's `ds` (a GM's of `door` too): a GM's stands and, unless the write is the put-back's own (`DOOR_ASIDE`), is the GMs' state of the door - since E80 fix r2-G9 the flag `DOOR_SET` on the door, written with the GM's own change (`stampSecretDoor`) or here, as the put-back's own write, where the change came without it, and deleted when a GM makes the door an ordinary wall (R616); anybody else's - a player, or a writer `senderOf` does not know as an active user - is written back to how a GM last left the door, open if that was open and shut otherwise, and the door held shut for the audit (`secretDoorHeldShut`, movement-audit.mjs `firstWallCrossed`) until that write lands; a locked door is left alone; no passage record is written (R601, A10-15; 30 7e3)"],
             ["HOOK passages-gm.mjs#registerPassagesGm#userConnected/onDoorsGmLeft -> copy", "a GM's browser only (the `ready` hook returns on a player's): a GM leaving hands the secret doors' pass to whoever is the primary after it (`settleSecretDoors` with `leaving`, E80 fix r1-G1; R605): each secret door standing otherwise than a GM last left it is written back as the watch above writes a player's change back; quiet while tier 2 holds the stores (`gmStoresQuiet`); no copy is told - the sink is the family's for the event"],
-            ["WALLS passages-gm.mjs#convertSecretDoors -> screen", "a GM's Season setup only (`game.user.isGM` first): each scene's secret doors are written an ordinary wall, shut (`door`, `ds`, and a door's sound and animation cleared, E80 fix r1-G6), and each read again to make its passage through `passageRowFor`, the console's create's rule, with no start access, and its row in the GMs' record of the doors (`secretDoorStore`) dropped (E80 fix r1-G1); nothing of a wall reaches a player's copy (R601, A10-15)"],
+            ["HOOK passages-gm.mjs#registerPassagesGm#preUpdateWall/stampSecretDoor -> record", "a GM's browser only (the `ready` hook returns on a player's), and only that GM's own update: a change of a secret door's `ds`, or a wall made a secret door, carries that state on the door in the same write (`DOOR_SET`, E80 fix r2-G9; R616); the put-back's own write (`DOOR_ASIDE`) and every other change are left as they are. A player's wall update can carry `ds` alone (v14's BaseWall#canUpdate, the harness's server; 30 7e3 forges the flag)"],
+            ["HOOK passages-gm.mjs#registerPassagesGm#preCreateWall/stampNewSecretDoor -> record", "a GM's browser only, and only that GM's own create: a secret door drawn or pasted carries the state it is made in (`DOOR_SET`, E80 fix r2-G9; R616, A10-15); only a GM creates a wall"],
+            ["HOOK passages-gm.mjs#registerPassagesGm#createScene/onSceneCreated -> record", "a GM's browser only: a scene made with its walls (an import, a copy) runs the secret doors' pass on it (`settleSecretDoors`, which asks whether this browser is the primary; E80 fix r2-G9): a secret door with no state a GM set gets the one it stands in, one that stands otherwise than the state it brought is put back; quiet while tier 2 holds the stores"],
+            ["WALLS passages-gm.mjs#convertSecretDoors -> screen", "a GM's Season setup only (`game.user.isGM` first): each scene's secret doors are written an ordinary wall, shut (`door`, `ds`, and a door's sound and animation cleared, E80 fix r1-G6), and each read again to make its passage through `passageRowFor`, the console's create's rule, with no start access, and the GMs' state of the door on it (`DOOR_SET`) deleted in the same write (E80 fix r2-G9); nothing of a wall reaches a player's copy (R601, A10-15)"],
             ["WALLS passages.mjs#secretDoorsOn -> screen", "the secret doors of a scene this browser holds, read by the map check (fog-diagnostics.mjs `secretDoorRows`) and the Season setup's row: a GM's screens; it reads no passage and cuts nothing (R601, A10-15)"],
             // ---- the routes, the copies' retelling and what a copy redraws (E79 fix r1-G4, SEC S4)
             ["HOOK passages-gm.mjs#registerPassagesGm#drpgRouteSettled/onRouteSettled -> record", "the primary GM only (`isPrimaryGm`): a student whose route settles outside the passage's rooms on the map loses a cell held 'Revoke when they leave the room' (`revokeLeavers`, R561; 76 E), read in the room the announcement names (E79 C14), and for a route announced before it stood (`provisional`) only once it stands (E79 fix r3-G3; 76 E)"],
@@ -9495,7 +9500,7 @@ const REGRESSIONS = [
             drpgRouteSettled: ["record"], drpgPassagesChanged: ["screen"] };
         const FAMILY = /^(?:passages|passages-gm|passages-tab|gm-overlay|movement-audit)\.mjs$/;
         const FAMILY_SINKS = { clientSettingChanged: ["copy"], updateActor: ["copy"], createActor: ["copy"], deleteActor: ["copy"], userConnected: ["copy"], updateUser: ["copy"],
-            drpgPrimaryReady: ["copy"], gmStoresAudible: ["copy"], canvasReady: ["screen"] };
+            drpgPrimaryReady: ["copy"], gmStoresAudible: ["copy"], canvasReady: ["screen"], preUpdateWall: ["record"], preCreateWall: ["record"], createScene: ["record"] };
         const REGISTRATION = new Set(["ready", "init", "setup"]);
         const ACT_SINKS = { "token.sendBack": ["write"], "move.sentBack": ["screen"], "passage.request": ["copy"], "passage.share": ["record", "copy"], "passage.rows": ["screen"],
             "passage.cross": ["write"], "passage.find": ["record", "copy"] };
@@ -13297,8 +13302,9 @@ const REGRESSIONS = [
                 && /convertSecretDoors\(/.test(fnSource(season, "convertDoorsStep"))
                 && /findings\.push\(\.\.\.secretDoorRows\(scene\)\);/.test(fnSource(code("fog-diagnostics.mjs"), "checkRegions"))
                 && /^\s*if \(!game\.user\?\.isGM\) return false;\s*if \(!isPrimaryGm\(\{ leaving \}\)\) return false;/m.test(fnSource(gmSrc, "putBackSecretDoor"))
-                && /const want = \(key \? doors\.get\(key\)\?\.ds : null\) === DOOR_OPEN\(\) \? DOOR_OPEN\(\) : DOOR_CLOSED\(\);/.test(fnSource(gmSrc, "putBackSecretDoor"))
-                && /secretDoorStore\.whenHydrated\(\)\.then\(\(\) => \(gmStoresQuiet\(\) \? null : settleSecretDoors\(\)\)\)/.test(fnSource(gmSrc, "registerPassagesGm"))
+                && /const want = doorSetOf\(wall\) === DOOR_OPEN\(\) \? DOOR_OPEN\(\) : DOOR_CLOSED\(\);/.test(fnSource(gmSrc, "putBackSecretDoor"))
+                && /if \(doorSetOf\(wall\) === null\) \{[\s\S]{0,300}await wall\.update\(doorSetData\(ds\), \{ \[DOOR_ASIDE\]: true \}\);/.test(fnSource(gmSrc, "settleSecretDoors"))
+                && /if \(!gmStoresQuiet\(\)\) settleSecretDoors\(\)/.test(fnSource(gmSrc, "registerPassagesGm"))
                 && /Hooks\.on\("userConnected", onDoorsGmLeft\);/.test(fnSource(gmSrc, "registerPassagesGm")),
             rulers: /const PLAYER_ROLES = \[CONST\.USER_ROLES\.PLAYER, CONST\.USER_ROLES\.TRUSTED\];/.test(season)
                 && /key: "rulers",[\s\S]{0,400}doKey: "DRPG\.Season\.hideRulers",[\s\S]{0,300}undoKey: "DRPG\.Season\.showRulers"/.test(season)
@@ -13321,8 +13327,8 @@ const REGRESSIONS = [
                     public: ["**Make public**, beside Close, gives the passage to every student at once", "**Make secret** gives it back to the students listed in its row alone"],
                     columns: ["in the columns Rooms, Kind, Shape, Origin, Who knows, At season start and State"],
                     secretDoors: ["| No Foundry secret doors (recommended) |", "**Convert to passages** makes each one an ordinary wall, shut",
-                        "the primary GM's browser puts a secret door a player changed back as a GM last left it (shut, if no GM has changed it)",
-                        "and one changed while no GM was connected as soon as a GM connects"],
+                        "the primary GM's browser puts a secret door a player changed back as a GM last left it (the door itself keeps that; a door no GM has changed yet, as it stood when a GM's browser first found it)",
+                        "and one changed while no GM was connected as soon as a GM connects, naming its scene on the GM's screen"],
                     rulers: ["| The players' movement ruler is hidden (optional) |", "**Hide** takes the movement ruler from the Player and Trusted Player roles, and **Show** gives it back"]
                 },
                 player: {
@@ -13356,8 +13362,8 @@ const REGRESSIONS = [
                     public: ["**Ujawnij**, obok Zamknij, daje przejście od razu każdemu uczniowi", "**Utajnij** oddaje je z powrotem tylko uczniom wymienionym w jego wierszu"],
                     columns: ["w kolumnach Pokoje, Rodzaj, Kształt, Pochodzenie, Kto zna, Na start sezonu i Stan"],
                     secretDoors: ["| Brak sekretnych drzwi Foundry (zalecane) |", "**Zamień na przejścia** robi z każdych zwykłą, zamkniętą ścianę",
-                        "przeglądarka głównego GMa ustawia sekretne drzwi, które zmienił gracz, z powrotem tak, jak GM ostatnio je zostawił (zamknięte, jeśli żaden GM ich nie zmieniał)",
-                        "a te zmienione, kiedy nie był połączony żaden GM, zaraz po połączeniu się GMa"],
+                        "przeglądarka głównego GMa ustawia sekretne drzwi, które zmienił gracz, z powrotem tak, jak GM ostatnio je zostawił (to pamiętają same drzwi; drzwi, których żaden GM jeszcze nie zmieniał, tak, jak stały, kiedy przeglądarka GMa pierwszy raz je zastała)",
+                        "a te zmienione, kiedy nie był połączony żaden GM, zaraz po połączeniu się GMa, wymieniając ich scenę na ekranie GMa"],
                     rulers: ["| Linijka ruchu graczy jest ukryta (opcjonalnie) |", "**Ukryj** zabiera linijkę ruchu rolom Gracz i Zaufany gracz, a **Pokaż** ją oddaje"]
                 },
                 player: {

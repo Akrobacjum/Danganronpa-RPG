@@ -53725,7 +53725,7 @@ const SCENARIOS = [
             ["sendBack, crossing rooms costs nothing", "1500,100,up", [], [], 0]]),
             "each jump as [what, where the token stands, the audit's rows for it as [a floor, the mode, the verdict, its player's], the codes its player was sent, the GMs' whispers of it] - a floor jump stood, was not noted, or one the rule does not ask now was put back");
     }],
-    ["A10-15 - Foundry's secret doors and the players' rulers on the world: 'Convert to passages' turns a secret door in the wall two rooms of a scene share into an ordinary wall, shut, and a secret passage nobody knows, and one inside a room into a plain wall it names, with none left, and forgets the GMs' record of each, as it does of a secret door deleted; a player's opening of a secret door is written shut again through Foundry, and so is one no primary heard, by the pass the primary's ready runs, which leaves open a door a GM opened; Hide and Show of the players' movement rulers write the world's permissions, the movement ruler alone, and the permissions are put back as they were", async () => {
+    ["A10-15 - Foundry's secret doors and the players' rulers on the world: 'Convert to passages' turns a secret door in the wall two rooms of a scene share into an ordinary wall, shut, and a secret passage nobody knows, and one inside a room into a plain wall it names, with none left, and takes the GMs' state off each; a player's opening of a secret door is written shut again through Foundry, and so is one no primary heard, by the pass the primary's ready runs, which leaves open a door a GM opened and one left open with no GM's state on it, and tells the GM; Hide and Show of the players' movement rulers write the world's permissions, the movement ruler alone, and the permissions are put back as they were", async () => {
         /*
          * E80 C5 (18.10.2026; S16-18, P1-17 to P1-19), R601's reading on Foundry's own documents: a scene of the suite's
          * own with two rooms and two secret doors, the passages in a world the stores have never opened
@@ -53738,9 +53738,14 @@ const SCENARIOS = [
          * opened by a write the watch reads as none of the GMs' (the put-back's own mark, `DOOR_ASIDE`, as a change no
          * primary heard leaves the record), and then the pass the ready runs (`settleSecretDoors`) is run on the scene.
          * The player's opening is that stand-in too since this fix, as a GM's own write is now the GMs' state of the door.
-         * A fourth secret door this GM opens and then deletes: the record of it goes with the wall (`onWallDeleted`).
          * A player's page with no GM connected, and the GM's coming back, is scenario 15's away and back. Red at the
          * parent (4263c09): no pass - the spare door stays open - and the conversion keeps the record's rows.
+         * E80 fix r2-G9 (19.10.2026; the review's E80-FIX-R1-01): the GMs' state is a flag on the door (`DOOR_SET`), which
+         * this GM's own create and update write through Foundry's pre hooks. A fourth secret door is made open with the
+         * put-back's mark, so it carries no state, as a door left open before that fix does, or one a browser never heard
+         * a GM open: the pass leaves it open and writes its state, where at the parent (8713dc8) it shut it; the doors the
+         * pass put back are told to the GM (`tell`, the suite's). Until this fix a fourth door deleted read the record's
+         * row going with it; the flag goes with the wall.
          * E80 fix r1-G6 (19.10.2026; the review's E80-SEC-4): the shared and the inner door carry a door's sound and
          * animation, which a converted wall must not keep - every player's browser holds the walls, and a plain wall with
          * a door's dress is where an unknown passage is. Red at the parent (eae5960): both walls keep both.
@@ -53758,7 +53763,8 @@ const SCENARIOS = [
         const rest = value => J(Object.fromEntries(Object.entries(value ?? {}).filter(([k]) => k !== "SHOW_RULER")));
         const mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
         const room = (name, x) => ({ name, shapes: [{ type: "rectangle", x, y: 0, width: 600, height: 600 }], flags: mark, behaviors: [] });
-        let scene = null, read = null, rulers = null, shared = null, inner = null, spare = null;
+        let scene = null, read = null, rulers = null, shared = null, inner = null, spare = null, old = null;
+        const setOn = id => scene?.walls.get(id)?.flags?.[MODULE_ID]?.[P.DOOR_SET ?? "doorSet"] ?? null;
         try {
             scene = await Scene.create({ name: "SUITE E80 C5 doors", width: 1200, height: 600, grid: { size: 100 }, active: false, navigation: false });
             await scene.createEmbeddedDocuments("Region", [room("SUITE E80 C5 Hall", 0), room("SUITE E80 C5 Kitchen", 600)]);
@@ -53773,31 +53779,28 @@ const SCENARIOS = [
                 await inner.update({ ds: 1 });
                 await spare.update({ ds: 1 }, ASIDE);
                 await settle();
-                const was = [scene.walls.get(inner.id)?.ds, scene.walls.get(spare.id)?.ds];
-                const pass = typeof P.settleSecretDoors === "function" ? await P.settleSecretDoors({ scenes: [scene] }) : "no pass";
+                // A secret door left open with no GM's state on it (made with the put-back's mark, which the create's stamp skips).
+                [old] = await scene.createEmbeddedDocuments("Wall", [{ c: [800, 500, 1000, 500], door: 2, ds: 1, move: 20 }], ASIDE);
                 await settle();
-                const settled = [was, pass, scene.walls.get(inner.id)?.ds, scene.walls.get(spare.id)?.ds, P.secretDoorHeldShut(spare.id)];
+                const was = [scene.walls.get(inner.id)?.ds, scene.walls.get(spare.id)?.ds, scene.walls.get(old.id)?.ds, setOn(old.id)];
+                const told = [];
+                const pass = typeof P.settleSecretDoors === "function"
+                    ? await P.settleSecretDoors({ scenes: [scene], tell: walls => told.push(walls.map(w => w.id)) }) : "no pass";
+                await settle();
+                const settled = [was, pass, scene.walls.get(inner.id)?.ds, scene.walls.get(spare.id)?.ds, P.secretDoorHeldShut(spare.id), told,
+                    scene.walls.get(old.id)?.ds ?? null, setOn(old.id)];
                 // The spare door a player opens, put back, before the conversion takes it.
                 await spare.update({ ds: 1 }, ASIDE);
                 const putBack = await P.putBackSecretDoor(spare, { ds: 1 }, "SUITEPLAYER", { sender: { id: "SUITEPLAYER", isGM: false, active: true } });
                 await settle();
                 const spareAfter = [scene.walls.get(spare.id)?.ds, P.secretDoorHeldShut(spare.id)];
-                // A secret door this GM opens, then deletes: the GMs' record of it goes with the wall.
-                const [gone] = await scene.createEmbeddedDocuments("Wall", [{ c: [1000, 100, 1000, 300], door: 2, ds: 0, move: 20 }]);
-                await gone.update({ ds: 1 });
-                await settle();
-                const goneKey = `${scene.id}.${gone.id}`, goneRecorded = S.secretDoorStore?.has(goneKey) ?? null;
-                await gone.delete();
-                await settle();
-                const deleted = [goneRecorded, S.secretDoorStore?.has(goneKey) ?? null];
                 const named = D.secretDoorRows(scene).length;
-                const kept = () => S.secretDoorStore?.has(`${scene.id}.${inner.id}`) ?? null;
-                const recorded = kept();
+                const recorded = setOn(inner.id);
                 const out = await P.convertSecretDoors({ scenes: [scene] });
                 await settle();
                 const id = out?.passages?.find(p => S.passageMapStore.get(p)?.passageWallId === shared.id) ?? null;
                 const row = id ? S.passageMapStore.get(id) : null;
-                return { settled, putBack, spareAfter, deleted, named, record: [recorded, kept()], converted: out?.converted ?? null, plain: (out?.plain ?? []).map(p => p.wallId),
+                return { settled, putBack, spareAfter, named, record: [recorded, setOn(inner.id), setOn(old.id)], converted: out?.converted ?? null, plain: (out?.plain ?? []).map(p => p.wallId),
                     row: row && [row.passageWallId, row.passageSeg, row.rooms, row.state, row.startAccess],
                     knowers: Object.keys(S.passageAccessStore.entries()).filter(k => id && k.startsWith(`${id}/`)),
                     walls: [shared, inner].map(w => scene.walls.get(w.id)).map(w => [w?.door, w?.ds, w?.move, w?.doorSound || null, w?.animation ?? null]),
@@ -53814,10 +53817,11 @@ const SCENARIOS = [
             await game.settings.set("core", "permissions", before);
             await scene?.delete();
         }
-        equal(J(read), J({ settled: [[1, 1], [spare?.id], 1, 0, false], putBack: true, spareAfter: [0, false], deleted: [true, false], named: 3, record: [true, false], converted: 3, plain: [inner?.id, spare?.id],
+        equal(J(read), J({ settled: [[1, 1, 1, null], [spare?.id], 1, 0, false, [[spare?.id]], 1, 1], putBack: true, spareAfter: [0, false], named: 4, record: [1, null, null], converted: 4,
+            plain: [inner?.id, spare?.id, old?.id],
             row: [shared?.id, { x1: 600, y1: 100, x2: 600, y2: 300 }, ["SUITE E80 C5 Hall", "SUITE E80 C5 Kitchen"], "secret", []],
             knowers: [], walls: [[0, 0, 20, null, null], [0, 0, 20, null, null]], left: 0 }),
-        "[the pass as [the inner and spare doors before it, the doors it put back, the inner door after it, the spare one, the spare held shut], the player's opening put back, the spare door after it as [state, held shut], the GMs' record of a secret door a GM opened as [before, after it is deleted], secret doors named, the GMs' record of the inner door before and after the conversion, converted, the walls left plain, the passage as [wall, stretch, rooms, state, start access], who knows it, the two walls as [door, state, move, a door's sound, a door's animation], secret doors left]");
+        "[the pass as [the inner, spare and old doors before it and the old one's GMs' state, the doors it put back, the inner door after it, the spare one, the spare held shut, the doors told the GM, the old door after it and its GMs' state], the player's opening put back, the spare door after it as [state, held shut], secret doors named, the GMs' state on the inner door before and after the conversion and on the old one after it, converted, the walls left plain, the passage as [wall, stretch, rooms, state, start access], who knows it, the two walls as [door, state, move, a door's sound, a door's animation], secret doors left]");
         equal(J(rulers), J([[true, [false, false], true, true], [true, [true, true], true, true]]),
             "[Hide, then Show, each as [it wrote, the Player and Trusted Player roles hold the ruler, both GM roles hold it, every other permission as it was]]");
         equal(rest(game.settings.get("core", "permissions")) + J(game.settings.get("core", "permissions")?.SHOW_RULER ?? null),

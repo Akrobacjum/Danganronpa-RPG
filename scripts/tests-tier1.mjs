@@ -16634,11 +16634,12 @@ const INVARIANTS = [
          * `update` records; the audit as R559 reads it; and a settings object of its own - nothing of the world is
          * written. The road through a real Foundry is A10-15's tier-2 test and scenario 30; v14's own permission defaults
          * and a console's change of a door on v14 are LIVE-E80-02 and LIVE-E80-03. Since E80 fix r1-G1 (18.10.2026; the
-         * review's E80-SEC-3) the put-back writes the state a GM last left the door in, kept in the GMs' record of the doors
-         * (gm-stores.mjs `secretDoorStore`, here a store of the same engine): until then it wrote the change's opposite,
-         * so a player's "shut" of a shut door, sent whole, opened it. Red at that fix's parent (4263c09): the close of the
-         * shut door is put back open, and the conversion keeps the record's rows. The pass over the doors no primary heard
-         * change is R605.
+         * review's E80-SEC-3) the put-back writes the state a GM last left the door in: until then it wrote the change's
+         * opposite, so a player's "shut" of a shut door, sent whole, opened it. Red at that fix's parent (4263c09): the
+         * close of the shut door is put back open. Since E80 fix r2-G9 (19.10.2026; the review's E80-FIX-R1-01) that state
+         * is a flag on the door (passages-gm.mjs `DOOR_SET`), a GM's change carrying it as Foundry writes what a GM's
+         * `preUpdateWall` leaves (`stampSecretDoor`, applied here to the suite's wall), and the conversion deletes it. The
+         * pass over the doors no primary heard change is R605; a door with no state on it, R616.
          */
         const G = await import("./gm-store.mjs");
         const S = await import("./gm-stores.mjs");
@@ -16662,39 +16663,47 @@ const INVARIANTS = [
         const def = (h, name) => eng.define({ ...h.spec, name: `r601${name}`, key: `r601${name}`, afterRestore: undefined, exists: undefined });
         const stores = { map: def(S.passageMapStore, "Map"), access: def(S.passageAccessStore, "Access"), log: def(S.passageLogStore, "Log"),
             mastermind: eng.define({ name: "r601mm", key: "r601mm", kind: "record", fields: ["actorId"], sync: false, backup: false }) };
-        // The GMs' record of the secret doors (E80 fix r1-G1), `<sceneId>.<wallId>` -> `{ ds }`, on the same engine.
-        const doors = eng.define({ ...(S.secretDoorStore?.spec ?? { kind: "ledger", sync: true, backup: false }), name: "r601Doors", key: "r601Doors",
-            afterRestore: undefined, exists: undefined });
         const region = (name, x, y, w, h) => ({ id: `R601R${name}`, name: `R601 ${name}`, levels: new Set(), behaviors: [],
             bounds: { x, y, width: w, height: h }, shapes: [{ type: "rectangle", x, y, width: w, height: h }],
             testPoint: p => p.x >= x && p.x <= x + w && p.y >= y && p.y <= y + h,
             getFlag: (scope, key) => (scope === MODULE_ID && key === R.ROOM_FLAG ? true : undefined) });
-        const W = (id, c, more = {}) => ({ id, c, move: 20, sight: 20, door: 0, ds: 0, dir: 0, levels: new Set(), ...more });
+        const W = (id, c, more = {}) => ({ id, c, move: 20, sight: 20, door: 0, ds: 0, dir: 0, levels: new Set(), flags: {}, ...more });
+        const FLAG = P.DOOR_SET ?? "doorSet", setOn = wall => wall.flags?.[MODULE_ID]?.[FLAG] ?? null;
+        const withSet = ds => ({ flags: { [MODULE_ID]: { [FLAG]: ds } } });
 
         // 1. The map check and the conversion, on a scene of two rooms.
-        const walls = [W("R601WS1", [600, 100, 600, 300], { door: 2 }), W("R601WD", [600, 400, 600, 500], { door: 1 }),
-            W("R601WS2", [100, 300, 300, 300], { door: 2, ds: 1 }), W("R601WP", [0, 600, 1200, 600])];
+        // The GMs' state of each secret door (E80 fix r2-G9: on the door itself), which the conversion deletes.
+        const walls = [W("R601WS1", [600, 100, 600, 300], { door: 2, ...withSet(0) }), W("R601WD", [600, 400, 600, 500], { door: 1 }),
+            W("R601WS2", [100, 300, 300, 300], { door: 2, ds: 1, ...withSet(1) }), W("R601WP", [0, 600, 1200, 600])];
         const updates = [];
         const site = { id: "R601SCENE", name: "R601", grid: { size: 100 }, levels: [], dimensions: { width: 1200, height: 700 },
             regions: [region("Hall", 0, 0, 600, 600), region("Kitchen", 600, 0, 600, 600)],
             walls: Object.assign(walls, { get: id => walls.find(w => w.id === id) }),
             updateEmbeddedDocuments: async (name, list) => {
                 updates.push([name, J(list)]);
-                for (const u of list) Object.assign(walls.find(w => w.id === u._id) ?? {}, u);
+                for (const u of list) {
+                    const w = walls.find(x => x.id === u._id) ?? {};
+                    for (const [k, v] of Object.entries(u)) {
+                        if (k.startsWith("flags.")) {
+                            const [, scope, key] = k.split(".");
+                            if (v === null || typeof v === "object") delete w.flags?.[scope]?.[key];
+                            else w.flags = { ...w.flags, [scope]: { ...(w.flags?.[scope] ?? {}), [key]: v } };
+                        } else w[k] = v;
+                    }
+                }
                 return list;
             } };
         const rows = D.secretDoorRows(site);
         const problem = game.i18n.localize("DRPG.Fog.secretDoor.problem");
         const ofSite = () => Object.keys(stores.map.entries()).filter(k => k.startsWith(`${site.id}.`)).sort();
-        // The record's rows of both secret doors, and one of a door on another scene the conversion is not given.
-        for (const [key, ds] of [[`${site.id}.R601WS1`, 0], [`${site.id}.R601WS2`, 1], ["R601ELSE.R601WS1", 1]]) await doors.patch(key, { ds });
-        const first = await P.convertSecretDoors({ scenes: [site], stores, doors });
-        const rowsAfter = Object.keys(doors.entries()).sort();
+        const setBefore = walls.map(setOn);
+        const first = await P.convertSecretDoors({ scenes: [site], stores });
+        const setAfter = walls.map(setOn);
         const made = first?.passages?.[0] ?? null;
         const cells = Object.keys(stores.access.entries()).filter(k => made && k.startsWith(`${made}/`));
         const wallsAfter = walls.map(w => [w.id, w.door, w.ds, w.move]);
         const keys = ofSite();
-        const again = await P.convertSecretDoors({ scenes: [site], stores, doors });
+        const again = await P.convertSecretDoors({ scenes: [site], stores });
         equal(J([rows.map(r => [r.level, r.problem === problem, r.at]), problem !== "DRPG.Fog.secretDoor.problem"]),
             J([[["warning", true, { x: 600, y: 200 }], ["warning", true, { x: 200, y: 300 }]], true]),
             "[each row of the map check's secret doors as [level, the problem's words, where], the words localized] - an ordinary door or wall named, or a secret door missed");
@@ -16708,8 +16717,8 @@ const INVARIANTS = [
             "[the scene's passages, the row (its `origin` since E80 C6), who knows it, secret doors left] - the passage the shared wall's door became");
         equal(J([again?.converted, again?.passages, again?.plain, updates.length, ofSite()]), J([0, [], [], 1, [made]]),
             "[converted, passages, plain walls, writes, the scene's passages] when the conversion is run again");
-        equal(J([rowsAfter, Object.keys(doors.entries()).sort()]), J([["R601ELSE.R601WS1"], ["R601ELSE.R601WS1"]]),
-            "[the GMs' record of the doors after the conversion, after it is run again] - a wall that is no secret door any more keeps the state a GM gave it as one, or another scene's door lost its");
+        equal(J([setBefore, setAfter]), J([[0, null, 1, null], [null, null, null, null]]),
+            "[each wall's GMs' state before the conversion, after it] - a wall that is no secret door any more keeps the state a GM gave it as one, which tells every browser a secret door stood there");
         const sources = new Map(await otherSources());
         must(sources.get("fog-diagnostics.mjs")?.length, "fog-diagnostics.mjs is not among the module's sources - this would measure nothing");
         ok(/\bsecretDoorRows\(scene\)/.test(fnSource(stripComments(sources.get("fog-diagnostics.mjs")), "checkRegions")),
@@ -16722,8 +16731,16 @@ const INVARIANTS = [
         const ASIDE = P.DOOR_ASIDE ?? "drpgDoorAside", home = { id: "R601S", name: "R601 scene" };
         const door = (id, more = {}) => ({ ...W(id, [1500, 0, 1500, 1000], { door: 2, ...more }), parent: home,
             update: async (data, options) => { writes.push([id, J(data), Boolean(options?.[ASIDE])]); return true; } });
-        const back = async (wall, change, sender, { aside = false } = {}) =>
-            [await P.putBackSecretDoor(wall, change, sender?.id ?? "R601NOBODY", { sender, doors, aside }), P.secretDoorHeldShut(wall.id)];
+        // A GM's own change carries the state on the door, as its browser's `preUpdateWall` leaves it (`stampSecretDoor`).
+        const back = async (wall, change, sender, { aside = false } = {}) => {
+            if (sender?.isGM && !aside && typeof P.stampSecretDoor === "function") {
+                const stamped = foundry.utils.deepClone(change);
+                P.stampSecretDoor(wall, stamped, {});
+                const mine = stamped.flags?.[MODULE_ID];
+                if (mine) wall.flags = { ...wall.flags, [MODULE_ID]: { ...(wall.flags?.[MODULE_ID] ?? {}), ...mine } };
+            }
+            return [await P.putBackSecretDoor(wall, change, sender?.id ?? "R601NOBODY", { sender, aside }), P.secretDoorHeldShut(wall.id)];
+        };
         const S1 = door("R601D1", { ds: 1 }), S2 = door("R601D2"), S3 = door("R601D3", { ds: 1 }), OD = door("R601D4", { door: 1, ds: 1 }), S5 = door("R601D5", { ds: 1 }),
             S6 = door("R601D6", { ds: 1 });
         const users = new Map([[player.id, player], [gm.id, gm]]);
@@ -16751,7 +16768,7 @@ const INVARIANTS = [
             steps.push(["somebody the GM does not know opens", ...(await back(S5, { ds: 1 }, null))]);
             steps.push(["a GM makes an open door secret", ...(await back(S6, { door: 2 }, gm))]);
         } finally {
-            for (const wall of [S1, S2, S3, OD, S5, S6]) await P.putBackSecretDoor(wall, { ds: wall.ds }, gm.id, { sender: gm, doors, aside: true });
+            for (const wall of [S1, S2, S3, OD, S5, S6]) await P.putBackSecretDoor(wall, { ds: wall.ds }, gm.id, { sender: gm, aside: true });
         }
         equal(J([steps, writes]), J([[["a player opens", true, true, "crossed R601D1"], ["the put-back lands", false, false],
             ["a GM opens it", false, false, "clear"], ["a player closes it", true, true], ["the put-back lands", false, false, "clear"],
@@ -16759,9 +16776,9 @@ const INVARIANTS = [
             ["a player opens an ordinary door", false, false], ["somebody the GM does not know opens", true, true], ["a GM makes an open door secret", false, false]],
         [["R601D1", J({ ds: 0 }), true], ["R601D1", J({ ds: 1 }), true], ["R601D5", J({ ds: 0 }), true]]]),
             "[each change as [what, put back, held shut, the audit of a step through the open door], the put-backs written as [door, change, the put-back's own]]");
-        equal(J(Object.entries(doors.entries()).filter(([key]) => key.startsWith(`${home.id}.`)).map(([key, r]) => [key, r?.ds ?? null]).sort()),
-            J([[`${home.id}.R601D1`, 1], [`${home.id}.R601D6`, 1]]),
-            "[each door of the scene in the GMs' record, its state] - a GM's change was not kept, the put-back's own landing was kept as a GM's, or a player's change was");
+        equal(J([S1, S2, S3, OD, S5, S6].map(w => [w.id, setOn(w)]).filter(([, v]) => v !== null)),
+            J([["R601D1", 1], ["R601D6", 1]]),
+            "[each door with the GMs' state on it, that state] - a GM's change was not kept, the put-back's own landing was kept as a GM's, or a player's change was");
 
         // 3. The Season setup's two rows, and the rulers' Hide and Show on a settings object of the suite's own.
         const kept = { "core.permissions": { SHOW_CURSOR: [1, 2], FILES_BROWSE: [3, 4] } };
@@ -17119,7 +17136,7 @@ const INVARIANTS = [
         equal(J([told, calls]), J([[0, null], ["retell"]]),
             "[what a character's and an adversary's create answered, the retells asked] - a student created already owned waits for an unrelated change before their player's copy names them");
     }],
-    ["R605 - the secret doors no primary heard change (E80-SEC-3, E80-COR-1): on the primary GM the pass puts each secret door that stands otherwise than a GM last left it back - open where a GM last opened it, shut otherwise, shut where no GM has changed it - with the put-back's own mark, and holds it shut for the audit until the write lands; a locked door, one as a GM left it and every other wall it leaves alone, and off the primary it writes nothing; a GM leaving hands it to the primary after it, the pass and each put-back asked without that GM, and a player, a GM coming or the suite's held stores do not", async () => {
+    ["R605 - the secret doors no primary heard change (E80-SEC-3, E80-COR-1): on the primary GM the pass puts each secret door that stands otherwise than a GM last left it back - open where a GM last opened it, shut otherwise; one with no state a GM set on it is taken as it stands (R616) - with the put-back's own mark, and holds it shut for the audit until the write lands; a locked door, one as a GM left it and every other wall it leaves alone, and off the primary it writes nothing; a GM leaving hands it to the primary after it, the pass and each put-back asked without that GM, and a player, a GM coming or the suite's held stores do not", async () => {
         /*
          * E80 fix r1-G1 (18.10.2026; the review's E80-SEC-3 and E80-COR-1). The harm: the primary GM put back a player's
          * change of a secret door as it heard it (`putBackSecretDoor`, R601), so a door a player opened while no GM was
@@ -17135,52 +17152,45 @@ const INVARIANTS = [
          * flips the flag first, so a put-back that asked `isPrimaryGm()` would pass here and fail where the hook comes
          * first. Driven: a put-back told that this GM is the one leaving writes nothing; read in the source (R216's
          * way): the pass hands its `leaving` to each put-back.
-         * Red at the parent (4263c09): no `settleSecretDoors`, no `onDoorsGmLeft`.
+         * Red at the parent (4263c09): no `settleSecretDoors`, no `onDoorsGmLeft`. Since E80 fix r2-G9 (19.10.2026; the
+         * review's E80-FIX-R1-01) the state a GM last set is a flag on the door (`DOOR_SET`), no GM store, and a door with
+         * none is taken as it stands and the state written on it (R616): X3 and X4, put back shut and left until then.
          */
         needs(env.primaryGm(), "the pass runs on the primary GM");
-        const G = await import("./gm-store.mjs");
-        const S = await import("./gm-stores.mjs");
         const P = await import("./passages-gm.mjs");
         const J = stableJson;
         ok(typeof P.settleSecretDoors === "function" && typeof P.onDoorsGmLeft === "function",
             "passages-gm.mjs has no pass over the secret doors, or no watch on a GM leaving - a door changed with no primary to hear it stands as it was left");
         if (typeof P.settleSecretDoors !== "function" || typeof P.onDoorsGmLeft !== "function") return;
-        let now = 9_960_000;
-        const eng = G.createGmStoreEngine({
-            selfId: () => "R605GM", isGM: () => true, isPrimary: () => true, worldId: () => "R605WORLD",
-            activeGmIds: () => [], primaryGmId: () => "R605GM", senderIsGM: () => true, userName: u => u, send: () => {},
-            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => now++,
-            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
-            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
-        });
-        const doors = eng.define({ ...(S.secretDoorStore?.spec ?? { kind: "ledger", sync: true, backup: false }), name: "r605Doors", key: "r605Doors",
-            afterRestore: undefined, exists: undefined });
-        const writes = [];
+        const writes = [], told = [];
         const scene = { id: "R605S", name: "R605 scene" };
-        const W = (id, door, ds) => ({ id, door, ds, c: [0, 0, 0, 100], move: 20, sight: 20, parent: scene,
+        const FLAG = P.DOOR_SET ?? "doorSet";
+        const W = (id, door, ds, last) => ({ id, door, ds, c: [0, 0, 0, 100], move: 20, sight: 20, parent: scene,
+            flags: last === null ? {} : { [MODULE_ID]: { [FLAG]: last } },
             update: async (data, options) => { writes.push([id, J(data), Boolean(options?.[P.DOOR_ASIDE])]); return true; } });
-        // [the wall, its kind (2 a secret door, 1 a door, 0 a wall), its state now, the state a GM last left it in (none: no row)]
+        // [the wall, its kind (2 a secret door, 1 a door, 0 a wall), its state now, the state a GM last set on it (null: none)]
         const LAYOUT = [["R605X1", 2, 1, 0], ["R605X2", 2, 0, 1], ["R605X3", 2, 1, null], ["R605X4", 2, 2, null], ["R605X5", 2, 1, 1],
             ["R605X6", 1, 1, 0], ["R605X7", 2, 0, 2], ["R605X8", 2, 1, 2], ["R605X9", 0, 1, null]];
-        scene.walls = LAYOUT.map(([id, door, ds]) => W(id, door, ds));
-        for (const [id, , , last] of LAYOUT) if (last !== null) await doors.patch(`${scene.id}.${id}`, { ds: last });
+        scene.walls = LAYOUT.map(([id, door, ds, last]) => W(id, door, ds, last));
         const held = () => LAYOUT.map(([id]) => id).filter(id => P.secretDoorHeldShut(id));
+        const tell = walls => told.push(walls.map(w => w.id));
         let pass = null, off = null, holds = null, offWrites = null, gone = null, goneWrites = null;
         try {
-            pass = await P.settleSecretDoors({ scenes: [scene], doors });
+            pass = await P.settleSecretDoors({ scenes: [scene], tell });
             holds = held();
             const before = writes.length;
-            off = await P.settleSecretDoors({ scenes: [scene], doors, leaving: game.user.id });
+            off = await P.settleSecretDoors({ scenes: [scene], tell, leaving: game.user.id });
             offWrites = writes.length - before;
-            gone = await P.putBackSecretDoor(scene.walls[0], { ds: 1 }, null, { sender: null, doors, unheard: true, leaving: game.user.id });
+            gone = await P.putBackSecretDoor(scene.walls[0], { ds: 1 }, null, { sender: null, unheard: true, leaving: game.user.id });
             goneWrites = writes.length - before;
         } finally {
-            for (const wall of scene.walls) await P.putBackSecretDoor(wall, { ds: wall.ds }, game.user.id, { sender: { id: game.user.id, isGM: true }, doors, aside: true });
+            for (const wall of scene.walls) await P.putBackSecretDoor(wall, { ds: wall.ds }, game.user.id, { sender: { id: game.user.id, isGM: true }, aside: true });
         }
-        equal(J([pass, writes, holds, off, offWrites, gone, goneWrites, held()]),
-            J([["R605X1", "R605X2", "R605X3", "R605X8"], [["R605X1", J({ ds: 0 }), true], ["R605X2", J({ ds: 1 }), true], ["R605X3", J({ ds: 0 }), true],
-                ["R605X8", J({ ds: 0 }), true]], ["R605X1", "R605X2", "R605X3", "R605X8"], null, 0, false, 0, []]),
-            "[the doors the pass put back, its writes as [door, change, the put-back's own], the doors held shut, the pass off the primary, its writes, a put-back told this GM is leaving, the writes of both, the holds after the landings] - a door a player opened or shut with no primary to hear it stands so, a locked door or one as a GM left it is written, a GM's last state is lost, or a put-back counts the GM leaving as the primary");
+        const seed = n => J({ flags: { [MODULE_ID]: { [FLAG]: n } } });
+        equal(J([pass, writes, holds, off, offWrites, gone, goneWrites, held(), told]),
+            J([["R605X1", "R605X2", "R605X8"], [["R605X1", J({ ds: 0 }), true], ["R605X2", J({ ds: 1 }), true], ["R605X3", seed(1), true],
+                ["R605X4", seed(2), true], ["R605X8", J({ ds: 0 }), true]], ["R605X1", "R605X2", "R605X8"], null, 0, false, 0, [], [["R605X1", "R605X2", "R605X8"]]]),
+            "[the doors the pass put back, its writes as [door, change, the put-back's own], the doors held shut, the pass off the primary, its writes, a put-back told this GM is leaving, the writes of both, the holds after the landings, the doors told the GM] - a door a player opened or shut with no primary to hear it stands so, a locked door or one as a GM left it is written, a GM's last state is lost, or a put-back counts the GM leaving as the primary");
 
         // The watch on a GM leaving, with the pass and the suite's quiet injected.
         const asked = [];
@@ -17451,6 +17461,117 @@ const INVARIANTS = [
             "[a public passage's question, its note, its buttons; a secret passage's question, its buttons]");
         ok(!pub.ask.includes("R615 Hall") && pub.ask.includes(name) && !/\{|\}/.test(pub.ask + pub.note),
             `the public passage's question names the room, leaves out the student, or keeps a placeholder: ${pub.ask} ${pub.note}`);
+    }],
+    ["R616 - a secret door carries the state a GM last set on itself: a GM's change of its state, or a door made secret, writes it in the same update and a secret door drawn carries it, and a door made an ordinary wall loses it; the pass over the doors leaves a door with no such state as it stands and writes it there, puts back one that stands otherwise than its state - open where a GM opened it, on any GM's browser - and tells the GM on screen which scene it put doors back on; a player's change is put back to that state, and a GM's change it is missing from writes it", async () => {
+        /*
+         * E80 fix r2-G9 (19.10.2026; the review's E80-FIX-R1-01). Fix r1-G1 kept the state a GM last set in a GM store
+         * held in each GM's browser (a client setting, out of the case file) and read a door with no row there as one no
+         * GM had changed: shut. So the pass shut every open secret door the browser held no row for - one left open
+         * before that build, one a GM opened from another browser or while this GM was away, one on an imported scene,
+         * every door after a cleared browser or a restored backup - and said so in the console alone. Now the state is a
+         * flag on the wall (passages-gm.mjs `DOOR_SET`), which Foundry lets no player write (a player's wall update is
+         * `ds` alone; scenario 30 7e3 forges one). Read on plain walls the suite holds, whose `update` records and applies,
+         * on a scene object of its own, the pass's word to the GM injected (`tell`): nothing of this world is read or
+         * written but this browser's user and the module's hold, let go at the end. On Foundry's own documents: tier 2's
+         * "A10-15"; a door left open with no state on it, then a GM coming back: scenario 15's D1. Red at the parent
+         * (8713dc8): the pass shuts the open doors X1 and X2, a player's shut of X2 stands, and there is no `stampSecretDoor`.
+         */
+        needs(env.primaryGm(), "the pass runs on the primary GM");
+        const P = await import("./passages-gm.mjs");
+        const J = stableJson;
+        const FLAG = P.DOOR_SET ?? "doorSet", ASIDE = P.DOOR_ASIDE ?? "drpgDoorAside";
+        const writes = [], told = [];
+        const scene = { id: "R616S", name: "R616 scene" };
+        const setOn = wall => wall.flags?.[MODULE_ID]?.[FLAG] ?? null;
+        const W = (id, door, ds, last) => ({ id, door, ds, c: [0, 0, 0, 100], move: 20, sight: 20, parent: scene,
+            flags: last === null ? {} : { [MODULE_ID]: { [FLAG]: last } },
+            async update(data, options) {
+                writes.push([id, J(data), Boolean(options?.[ASIDE])]);
+                if (data.ds !== undefined) this.ds = data.ds;
+                const mine = data.flags?.[MODULE_ID];
+                if (mine) this.flags = { ...this.flags, [MODULE_ID]: { ...(this.flags?.[MODULE_ID] ?? {}), ...mine } };
+                return this;
+            } });
+        // [the wall, its kind (2 a secret door, 1 a door), its state now, the state a GM last set on it (null: none)]
+        const LAYOUT = [["R616X1", 2, 1, null], ["R616X2", 2, 1, 1], ["R616X3", 2, 1, 0], ["R616X4", 2, 0, 1], ["R616X5", 2, 2, null],
+            ["R616X6", 2, 0, null], ["R616X7", 1, 1, null]];
+        scene.walls = LAYOUT.map(([id, door, ds, last]) => W(id, door, ds, last));
+        const wall = id => scene.walls.find(w => w.id === id);
+        const gm = { id: game.user.id, isGM: true, active: true }, player = { id: "R616U", isGM: false, active: true };
+        let pass = null, passWrites = null, live = null;
+        try {
+            pass = await P.settleSecretDoors({ scenes: [scene], tell: walls => told.push(walls.map(w => w.id)) });
+            passWrites = writes.splice(0);
+            for (const id of pass ?? []) await P.putBackSecretDoor(wall(id), { ds: wall(id).ds }, gm.id, { sender: gm, aside: true });
+            // A player shuts the door a GM opened (X2), and "shuts" the shut door no GM changed (X6), sent whole.
+            const x2 = wall("R616X2"), x6 = wall("R616X6");
+            x2.ds = 0;
+            live = [await P.putBackSecretDoor(x2, { ds: 0 }, player.id, { sender: player }), x2.ds];
+            if (x2.ds !== 0) await P.putBackSecretDoor(x2, { ds: x2.ds }, gm.id, { sender: gm, aside: true });
+            live.push(await P.putBackSecretDoor(x6, { ds: 0 }, player.id, { sender: player }), x6.ds);
+        } finally {
+            for (const w of scene.walls) if (P.secretDoorHeldShut(w.id)) await P.putBackSecretDoor(w, { ds: w.ds }, gm.id, { sender: gm, aside: true });
+        }
+        const seed = n => J({ flags: { [MODULE_ID]: { [FLAG]: n } } });
+        equal(J([pass, passWrites, told, scene.walls.map(w => [w.id, w.ds, setOn(w)])]),
+            J([["R616X3", "R616X4"], [["R616X1", seed(1), true], ["R616X3", J({ ds: 0 }), true], ["R616X4", J({ ds: 1 }), true],
+                ["R616X5", seed(2), true], ["R616X6", seed(0), true]], [["R616X3", "R616X4"]],
+            [["R616X1", 1, 1], ["R616X2", 1, 1], ["R616X3", 0, 0], ["R616X4", 1, 1], ["R616X5", 2, 2], ["R616X6", 0, 0], ["R616X7", 1, null]]]),
+            "[the doors the pass put back, its writes as [door, change, the put-back's own], the doors it told the GM of, each wall after it as [id, state, the state a GM set]] - an open door with no GM's state on it, or one a GM opened, shut; a door a player changed left so; a GM not told");
+        equal(J(live?.splice(0, 2)), J([true, 1]),
+            "[a player's shut of the door a GM opened put back, its state after the put-back lands] - the player's change stands");
+        equal(J(live), J([false, 0]), "[a player's shut of a shut door no GM changed, sent whole, put back, its state] - it was opened");
+        equal(J(writes.filter(([id]) => id === "R616X6")), J([]), "the shut door no GM changed was written when a player shut it again");
+
+        ok(typeof P.stampSecretDoor === "function" && typeof P.stampNewSecretDoor === "function" && typeof P.doorsPutBackText === "function",
+            "passages-gm.mjs has no `stampSecretDoor` (a GM's update), `stampNewSecretDoor` (a GM's create) or `doorsPutBackText` (the GM's word) - a GM's state is not written on the door");
+        if (typeof P.stampSecretDoor !== "function" || typeof P.stampNewSecretDoor !== "function" || typeof P.doorsPutBackText !== "function") return;
+        // The stamp of a GM's update (`preUpdateWall` on a GM's browser): what it leaves in the change is what is written.
+        const stamped = [];
+        for (const [what, door, ds, last, change, options] of [["a GM opens a secret door", 2, 0, 0, { ds: 1 }, {}],
+            ["the put-back's own write", 2, 1, 0, { ds: 0 }, { [ASIDE]: true }], ["a GM opens an ordinary door", 1, 0, null, { ds: 1 }, {}],
+            ["a GM changes a secret door's sight", 2, 1, 1, { sight: 0 }, {}], ["a GM makes an open door secret", 1, 1, null, { door: 2 }, {}],
+            ["a GM locks a secret door", 2, 0, 0, { ds: 2 }, {}]]) {
+            const c = foundry.utils.deepClone(change);
+            P.stampSecretDoor(W("R616Y", door, ds, last), c, options, gm.id);
+            stamped.push([what, c.flags?.[MODULE_ID]?.[FLAG] ?? null]);
+        }
+        equal(J(stamped), J([["a GM opens a secret door", 1], ["the put-back's own write", null], ["a GM opens an ordinary door", null],
+            ["a GM changes a secret door's sight", null], ["a GM makes an open door secret", 1], ["a GM locks a secret door", 2]]),
+            "[each GM's update as [what, the state written on the door with it]]");
+        // A secret door a GM makes an ordinary wall: the primary's watch takes the state off it, which would tell every
+        // browser a secret door stood there (as a door's dress would, E80 fix r1-G6); an ordinary door with none is let be.
+        const unset = [];
+        const madePlain = (id, last) => Object.assign(W(id, 0, 0, last), { async unsetFlag(scope, key) { unset.push([id, scope === MODULE_ID, key]); delete this.flags?.[scope]?.[key]; return this; } });
+        const plainOnes = [madePlain("R616Z", 1), madePlain("R616Q", null)];
+        for (const w of plainOnes) await P.putBackSecretDoor(w, { door: 0 }, gm.id, { sender: gm });
+        equal(J([unset, plainOnes.map(setOn)]), J([[["R616Z", true, FLAG]], [null, null]]),
+            "[the state taken off as [wall, the module's, the key], each wall's state after] - a secret door made an ordinary wall keeps the GMs' state of it");
+        // The stamp of a GM's create (`preCreateWall`): a secret door drawn or pasted carries the state it is drawn in.
+        const made = [];
+        for (const [what, door, ds, last] of [["a secret door drawn open", 2, 1, null], ["a secret door pasted shut with another's state", 2, 0, 1],
+            ["an ordinary door", 1, 1, null]]) {
+            const doc = W("R616N", door, ds, last);
+            doc.updateSource = function (data) { const mine = data.flags?.[MODULE_ID]; if (mine) this.flags = { [MODULE_ID]: { ...(this.flags?.[MODULE_ID] ?? {}), ...mine } }; };
+            P.stampNewSecretDoor(doc, {}, {}, gm.id);
+            made.push([what, setOn(doc)]);
+        }
+        equal(J(made), J([["a secret door drawn open", 1], ["a secret door pasted shut with another's state", 0], ["an ordinary door", null]]),
+            "[each wall a GM creates as [what, the state written on it]]");
+        // A GM's change the stamp is missing from (a browser of an older build): the primary writes it, as the put-back's own.
+        const old = W("R616O", 2, 1, 0);
+        const missing = [await P.putBackSecretDoor(old, { ds: 1 }, gm.id, { sender: gm }), setOn(old), J(writes.filter(([id]) => id === "R616O"))];
+        equal(J(missing), J([false, 1, J([["R616O", seed(1), true]])]),
+            "[a GM's opening the stamp is missing from: put back, the state on the door after, the writes] - the GMs' state of the door is lost");
+        // The GM's word: the scenes and how many doors on each.
+        const text = P.doorsPutBackText([wall("R616X3"), wall("R616X4")]);
+        ok(text.includes("R616 scene") && text.includes("2") && !/\{|\}|DRPG\./.test(text), `the GM's word does not name the scene and the count: ${text}`);
+        const gmSource = stripComments(new Map(await otherSources()).get("passages-gm.mjs") ?? "");
+        ok(gmSource.length > 0, "passages-gm.mjs was not read - the registration measured nothing");
+        const reg = fnSource(gmSource, "registerPassagesGm");
+        equal(J([/Hooks\.on\("preUpdateWall", stampSecretDoor\);/.test(reg), /Hooks\.on\("preCreateWall", stampNewSecretDoor\);/.test(reg),
+            /Hooks\.on\("createScene", onSceneCreated\);/.test(reg), /secretDoorStore/.test(gmSource)]), J([true, true, true, false]),
+            "[a GM's update stamped, a GM's create stamped, a scene created settled, a browser's record of the doors read] in registerPassagesGm and passages-gm.mjs");
     }],
 ];
 

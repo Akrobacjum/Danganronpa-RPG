@@ -34,7 +34,8 @@
  * Since E80 fix r1-G1 (18.10.2026; the review's E80-SEC-3 and E80-COR-1) also: with no GM connected p1's
  * console opens two secret doors, one by the wall's own update and one by the scene's embedded update, and
  * shuts one the GM had opened - back, the primary puts the first two back shut and the third open again at
- * its ready (D1).
+ * its ready (D1). Since E80 fix r2-G9 (19.10.2026; the review's E80-FIX-R1-01) a fourth, left open with no GM's state
+ * on it, as one from before fix r1-G1 or one this browser never heard a GM open, stays open.
  */
 export const layers = ["ci"];
 
@@ -439,21 +440,26 @@ async function awayAndBack({ gm, gm0, p1, check, phase, settle, connect, disconn
 
     /* D1 (E80 fix r1-G1, 18.10.2026; the review's E80-SEC-3 and E80-COR-1): THREE SECRET DOORS CHANGED WITH NO GM
        CONNECTED. The GM draws three secret doors in the scene's far corner, all shut, and opens the third itself -
-       the GMs' record of the doors (gm-stores.mjs `secretDoorStore`) holds it open - its stores waited for, so the
-       record leaves in its browser. With no GM connected p1's console opens the first by the wall's own update
-       (E80-SEC-3's case) and the second by the scene's embedded update (E80-COR-1's case), and shuts the third,
-       which Foundry lets a player do and no primary hears; back, the primary puts each back as a GM last left it at
-       its ready (passages-gm.mjs `settleSecretDoors`): the first two shut, the third open. Red at the parent
-       (4263c09): all three stood as p1 left them. */
-    const doorsSet = await gm.eval(`const G = await import("${repoUrl}/scripts/gm-store.mjs"), S = await import("${repoUrl}/scripts/gm-stores.mjs");
+       the GMs' state of it, since E80 fix r2-G9 a flag on the door (passages-gm.mjs `DOOR_SET`), reads open. With no
+       GM connected p1's console opens the first by the wall's own update (E80-SEC-3's case) and the second by the
+       scene's embedded update (E80-COR-1's case), and shuts the third, which Foundry lets a player do and no primary
+       hears; back, the primary puts each back as a GM last left it at its ready (passages-gm.mjs `settleSecretDoors`):
+       the first two shut, the third open. Red at the parent (4263c09): all three stood as p1 left them. A fourth
+       (E80 fix r2-G9; the review's E80-FIX-R1-01) the GM makes open with the put-back's mark, so it carries no GM's
+       state, as a door left open before fix r1-G1 does: back, it stays open. Red at the parent (8713dc8): the pass
+       read it shut and shut it. */
+    const doorsSet = await gm.eval(`const G = await import("${repoUrl}/scripts/gm-store.mjs");
         ${UNTIL}
         const scene = game.scenes.get("${IDS.scene}");
         const made = await scene.createEmbeddedDocuments("Wall", [3800, 3900, 4000].map(x => ({ c: [x, 2600, x, 2800], door: 2, ds: 0, move: 20, sight: 20 })));
+        const [old] = await scene.createEmbeddedDocuments("Wall", [{ c: [4100, 2600, 4100, 2800], door: 2, ds: 1, move: 20, sight: 20 }], { drpgDoorAside: true });
+        made.push(old);
         const ids = made.map(d => d?.id ?? null);
         await made[2].update({ ds: 1 });
-        const recorded = typeof S.secretDoorStore?.get === "function" ? await until(() => S.secretDoorStore.get(scene.id + "." + ids[2])?.ds === 1, 3000) : false;
+        const setOn = id => scene.walls.get(id)?.flags?.["${MOD}"]?.doorSet ?? null;
+        const recorded = await until(() => setOn(ids[2]) === 1, 3000);
         await G.gmStoresIdle();
-        return { ids, ds: ids.map(id => scene.walls.get(id)?.ds ?? null), recorded };`, { timeout: 30000 });
+        return { ids, ds: ids.map(id => scene.walls.get(id)?.ds ?? null), recorded, set: ids.map(setOn) };`, { timeout: 30000 });
     const doorIds = J(Array.isArray(doorsSet?.ids) ? doorsSet.ids : []);
 
     /* G1 (E33 C6; its plan's A4): THE GM LEAVES WHILE p1'S SEARCH IS OPEN. p1 starts a Search with the GM
@@ -666,7 +672,7 @@ async function awayAndBack({ gm, gm0, p1, check, phase, settle, connect, disconn
     try {
         doorsBack = await gm0.eval(`${UNTIL} const s = game.scenes.get("${IDS.scene}");
             const ds = () => ${doorIds}.map(id => s.walls.get(id)?.ds ?? null);
-            await until(() => JSON.stringify(ds()) === "[0,0,1]", 15000);
+            await until(() => JSON.stringify(ds()) === "[0,0,1,1]", 15000);
             return { primary: (await import("${repoUrl}/scripts/utils.mjs")).isPrimaryGm(), ds: ds() };`, { timeout: 30000 });
         await settle(800);
         doorsOnP1 = await p1.eval(readDoors);
@@ -678,10 +684,11 @@ async function awayAndBack({ gm, gm0, p1, check, phase, settle, connect, disconn
             if (ids.length) await s.deleteEmbeddedDocuments("Wall", ids);
             return true;`, { timeout: 30000 }).catch(() => null);
     }
-    check("D1: back, the primary puts the secret doors p1's console changed with no GM connected back as the GM left them: the two no GM had opened, opened by the wall's own update and by the scene's, shut, the one the GM had opened open again",
-        Array.isArray(doorsSet?.ids) && doorsSet.ids.every(id => typeof id === "string") && J(doorsSet.ds) === J([0, 0, 1]) && doorsSet.recorded === true
-        && doorsAway.gms === 0 && J(doorsAway.written) === J(["written", "written", "written"]) && J(doorsAway.ds) === J([1, 1, 0])
-        && doorsBack?.primary === true && J(doorsBack.ds) === J([0, 0, 1]) && J(doorsOnP1) === J([0, 0, 1]), J({ doorsSet, doorsAway, doorsBack, doorsOnP1 }), { flow: "secret-passages" });
+    check("D1: back, the primary puts the secret doors p1's console changed with no GM connected back as the GM left them: the two no GM had opened, opened by the wall's own update and by the scene's, shut, the one the GM had opened open again, and the one left open with no GM's state on it open",
+        Array.isArray(doorsSet?.ids) && doorsSet.ids.length === 4 && doorsSet.ids.every(id => typeof id === "string") && J(doorsSet.ds) === J([0, 0, 1, 1])
+        && doorsSet.recorded === true && J(doorsSet.set) === J([0, 0, 1, null])
+        && doorsAway.gms === 0 && J(doorsAway.written) === J(["written", "written", "written"]) && J(doorsAway.ds) === J([1, 1, 0, 1])
+        && doorsBack?.primary === true && J(doorsBack.ds) === J([0, 0, 1, 1]) && J(doorsOnP1) === J([0, 0, 1, 1]), J({ doorsSet, doorsAway, doorsBack, doorsOnP1 }), { flow: "secret-passages" });
     check("G3: with no GM connected, a statistic clicked on p1's sheet opens its window and is thrown as a reaction, stamped, moving nothing; back, Grant all decides it and moves nothing for it",
         typeof g3.id === "string" && g3.windows.length > 0 && g3.kind === "reaction" && g3.author === IDS.p1 && g3.stamp?.actorId === IDS.aiko
         && typeof g3.stamp?.nonce === "string" && g3.after === g3.hope && g3Sent.length === 0 && (a3?.listed ?? []).flat().includes(g3.id)

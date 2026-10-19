@@ -4107,6 +4107,12 @@
         "many": "Drzwi, które nie stały między dwoma pokojami i są teraz zwykłymi ścianami: {n}.",
         "other": "Drzwi, które nie stały między dwoma pokojami i są teraz zwykłymi ścianami: {n}."
       },
+      "secretDoorsPutBack": {
+        "one": "Sekretne drzwi zmienione bez wiedzy GMa ({n}) wróciły do stanu, w jakim GM je zostawił: {scenes}.",
+        "few": "{n} sekretne drzwi zmienione bez wiedzy GMa wróciły do stanu, w jakim GM je zostawił: {scenes}.",
+        "many": "{n} sekretnych drzwi zmienionych bez wiedzy GMa wróciło do stanu, w jakim GM je zostawił: {scenes}.",
+        "other": "{n} sekretnych drzwi zmienionych bez wiedzy GMa wróciło do stanu, w jakim GM je zostawił: {scenes}."
+      },
       "hideRulers": "Ukryj",
       "showRulers": "Pokaż",
       "fixedRulers": {
@@ -5599,7 +5605,6 @@
         "passageMap": "Tajne przejścia: gdzie jest każde i czy jest otwarte",
         "passageAccess": "Kto zna które tajne przejście i skąd",
         "passageLog": "Co robiono z tajnymi przejściami",
-        "secretDoors": "Sekretne drzwi Foundry, tak jak GM-owie ostatnio je ustawili",
         "cast": "Obsada incydentu",
         "blackened": "Rejestr Blackened",
         "trapLedger": "Podłożone przedmioty pułapek",

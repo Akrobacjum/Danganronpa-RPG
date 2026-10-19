@@ -39,10 +39,11 @@
  * back any change of its state a player makes (`putBackSecretDoor`, on `updateWall`), the audit reading
  * it shut until that write lands (`secretDoorHeldShut`). The one Wall write here, and only of `door`
  * and `ds` on a wall that already is (R560 still holds: no wall is made a secret door or created).
- * Since E80 fix r1-G1 the write is back to the state a GM last left the door in (`secretDoorStore`, shut
- * where no GM has changed it), and the doors are gone over when a GM's browser takes the primary's place
- * - at its ready, and when a GM leaves (`settleSecretDoors`) - so a change made with no primary to hear it
- * is put back too.
+ * Since E80 fix r1-G1 the write is back to the state a GM last left the door in, and the doors are gone over
+ * when a GM's browser takes the primary's place - at its ready, and when a GM leaves (`settleSecretDoors`) - so
+ * a change made with no primary to hear it is put back too. Since E80 fix r2-G9 that state is a flag on the door
+ * itself (`DOOR_SET`), written with a GM's own change (`stampSecretDoor`, `stampNewSecretDoor`), which no
+ * player's wall update can carry, so every GM's browser reads the same; a door with none is taken as it stands.
  *
  * Since E80 C6 (18.10.2026; D4, the owner's A10 Q2) a GM makes a passage public and secret again from the tab
  * (`makePassagePublic`, `makePassageSecret`): every student knows a public one - in the copies, the client's cut
@@ -53,8 +54,8 @@
 
 import { MODULE_ID, ACTIONS } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { isPrimaryGm, serverNow, whisperToOwner, whisperToGms, ownerOf, warn, error, serialWrite } from "./utils.mjs";
-import { passageMapStore, passageAccessStore, passageLogStore, mastermindStore, mastermindUndecided, secretDoorStore } from "./gm-stores.mjs";
+import { isPrimaryGm, serverNow, whisperToOwner, whisperToGms, ownerOf, warn, error, serialWrite, plural, forcedDeletion } from "./utils.mjs";
+import { passageMapStore, passageAccessStore, passageLogStore, mastermindStore, mastermindUndecided } from "./gm-stores.mjs";
 import { RECORD, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible } from "./gm-store.mjs";
 import { senderOf } from "./bridge-guards.mjs";
 import { isMonokuma } from "./monokuma.mjs";
@@ -577,28 +578,28 @@ const DOOR_UNDRESSED = Object.freeze({ doorSound: "", animation: null });
  * that stands between no two rooms (one inside a room, at the map's edge, on a stretch another
  * passage holds) stays the plain wall it now is and is named in `plain` with the reason. Answers
  * `{ converted, passages, plain }`, or null on a player's browser. Run again it finds nothing to do.
- * Since E80 fix r1-G1 the GMs' record of each converted door's state (`secretDoorStore`) goes with it:
- * the wall is no secret door any more. `doors` is the suite's (R601).
+ * Since E80 fix r1-G1 the GMs' state of each converted door goes with it, since E80 fix r2-G9 the flag on the
+ * wall (`DOOR_SET`) deleted in the same write: a plain wall that carried it would tell every browser a secret
+ * door stood there, as a door's dress would (E80 fix r1-G6).
  */
-export async function convertSecretDoors({ scenes = null, stores = PASSAGE_STORES, doors = secretDoorStore } = {}) {
+export async function convertSecretDoors({ scenes = null, stores = PASSAGE_STORES } = {}) {
     if (!game.user?.isGM) return refuse("only a GM converts the secret doors.");
     const out = { converted: 0, passages: [], plain: [] };
     for (const scene of scenes ?? Array.from(game.scenes ?? [])) {
-        const ids = secretDoorsOn(scene).map(wall => wall.id);
-        if (!ids.length) continue;
-        await scene.updateEmbeddedDocuments("Wall", ids.map(_id => ({ _id, door: DOOR_NONE(), ds: DOOR_CLOSED(), ...DOOR_UNDRESSED })));
-        const gone = [];
+        const doorsHere = secretDoorsOn(scene);
+        if (!doorsHere.length) continue;
+        const ids = doorsHere.map(wall => wall.id);
+        await scene.updateEmbeddedDocuments("Wall", doorsHere.map(wall => ({ _id: wall.id, door: DOOR_NONE(), ds: DOOR_CLOSED(), ...DOOR_UNDRESSED,
+            ...(doorSetOf(wall) === null ? {} : { [`flags.${MODULE_ID}.${DOOR_SET}`]: forcedDeletion() ?? null }) })));
         for (const wallId of ids) {
             HELD_SHUT.delete(wallId);
             const wall = scene.walls?.get(wallId);
             if (isSecretDoor(wall)) continue;
             out.converted += 1;
-            if (doors.has(`${scene.id}.${wallId}`)) gone.push(`${scene.id}.${wallId}`);
             const { row, refused } = doorPassageRow(scene, wall, stores);
             if (row) out.passages.push(await writeNewPassage(scene, row, stores, { tell: false, origin: "door" }));
             else out.plain.push({ sceneId: scene.id, wallId, why: refused });
         }
-        if (gone.length) await doors.dropMany(gone);
     }
     if (out.passages.length) tellAfter(stores);
     if (out.converted) {
@@ -620,28 +621,79 @@ export function secretDoorHeldShut(wallId) {
 const DOOR_LOCKED = () => globalThis.CONST?.WALL_DOOR_STATES?.LOCKED ?? 2;
 
 /**
- * An update option (E80 fix r1-G1): a GM's write of a secret door's state that is no choice of the GMs' - the
- * put-back's own (`putBackSecretDoor`), or a stand-in the suite writes as a player's change - and so is not kept
- * as the state the GMs last set (`secretDoorStore`).
+ * An update option (E80 fix r1-G1): a GM's write of a secret door that is no choice of the GMs' - the put-back's
+ * own (`putBackSecretDoor`), the pass's or the watch's write of the state itself, or a stand-in the suite writes
+ * as a player's change, or as a door from before E80 fix r2-G9 - and so is not kept as the state the GMs last set
+ * (`DOOR_SET`). On a create it leaves the new door with no state (the suite's).
  */
 export const DOOR_ASIDE = "drpgDoorAside";
 
-/* A secret door's row in the GMs' record: `<sceneId>.<wallId>`, or null for a wall on no scene. */
-function secretDoorKey(wall) {
-    const sceneId = wall?.parent?.id;
-    return sceneId && wall?.id ? `${sceneId}.${wall.id}` : null;
+/**
+ * THE STATE A GM LAST SET, ON THE DOOR (E80 fix r2-G9, 19.10.2026; the review's E80-FIX-R1-01): the flag
+ * `flags.<module>.doorSet` on a secret door, the `ds` a GM last gave it. Until this fix it was a GM store held in
+ * each GM's browser (`secretDoorStore`, a client setting out of the case file), so a door that browser had heard
+ * no GM change - one left open before that build, one a GM opened from another browser or while this one was
+ * away, one on an imported scene, every door after a cleared browser or a restored backup - read as shut, and the
+ * pass shut it. On the wall it is world data, the same for every GM's browser, in the world's backup and in a
+ * scene's export. A player's wall update can change `ds` and nothing else (v14's BaseWall#canUpdate as design A10
+ * reads it; the harness's server holds the same, scenario 30 7e3 forges the flag; on v14 LIVE-E80-03), so a
+ * player cannot write it. It tells a player's browser nothing it does not hold already: the door's type and state
+ * are on every map (the known leak foundry-secret-door-type), and this is the state the door stood in before the
+ * player changed it. Written with a GM's own change (`stampSecretDoor`, `stampNewSecretDoor`); by the primary
+ * where a GM's change came without it (`putBackSecretDoor`) and on a door with none (`settleSecretDoors`, which
+ * takes such a door as it stands); deleted when the wall stops being a secret door.
+ */
+export const DOOR_SET = "doorSet";
+
+/** The state a GM last set on this secret door (`DOOR_SET`), a number, or null when none is written on it. */
+export function doorSetOf(wall) {
+    const value = wall?.flags?.[MODULE_ID]?.[DOOR_SET];
+    return value === null || value === undefined || value === "" || !Number.isFinite(Number(value)) ? null : Number(value);
+}
+
+/* The write of the state on the door, as the update's own data. */
+const doorSetData = ds => ({ flags: { [MODULE_ID]: { [DOOR_SET]: Number(ds) } } });
+
+/**
+ * A GM's own update of a wall (`preUpdateWall`, on a GM's browser; E80 fix r2-G9): a change of a secret door's
+ * state, or a wall made a secret door, carries that state on the door in the same write (`DOOR_SET`), so whichever
+ * GM's browser is the primary reads it. The put-back's own write (`DOOR_ASIDE`) and every other change are left as
+ * they are; a door made an ordinary wall loses the flag on the primary's watch (`putBackSecretDoor`). Answers
+ * nothing: the change is the write.
+ */
+export function stampSecretDoor(wall, change, options) {
+    if (!game.user?.isGM || options?.[DOOR_ASIDE] || !change || typeof change !== "object") return;
+    const hasDs = foundry.utils.hasProperty(change, "ds"), hasDoor = foundry.utils.hasProperty(change, "door");
+    if (!hasDs && !hasDoor) return;
+    if (!isSecretDoor({ door: hasDoor ? change.door : wall?.door })) return;
+    const ds = Number(hasDs ? change.ds : wall?.ds ?? DOOR_CLOSED());
+    if (!Number.isFinite(ds)) return;
+    foundry.utils.mergeObject(change, doorSetData(ds));
+}
+
+/**
+ * A GM's own create of a wall (`preCreateWall`, on a GM's browser; E80 fix r2-G9): a secret door drawn or pasted
+ * carries the state it is made in (`DOOR_SET`), the GM's choice, over any a pasted door brought along. A create
+ * marked `DOOR_ASIDE` is left with none (the suite's door from before this fix).
+ */
+export function stampNewSecretDoor(wall, data, options) {
+    if (!game.user?.isGM || options?.[DOOR_ASIDE] || !isSecretDoor(wall)) return;
+    const ds = Number(wall.ds ?? DOOR_CLOSED());
+    if (Number.isFinite(ds)) wall.updateSource?.(doorSetData(ds));
 }
 
 const doorWord = ds => (ds === DOOR_OPEN() ? "open" : ds === DOOR_LOCKED() ? "locked" : "shut");
 
 /**
  * The primary GM's answer to a change of a secret door's state (`updateWall`, E80 C5, P1-18). One a GM made
- * stands, lets go of a hold, and since E80 fix r1-G1 is the state the GMs last set (`secretDoorStore`, written
- * here and only here, unless the write is the put-back's own, `aside`); a GM's change of `door` alone keeps the
- * state the door then has. One anybody else made - a player, or a writer this world does not know as an active
- * user (`senderOf`) - is written back to the state a GM last left the door in: open if that was open, and shut
- * otherwise, shut where no GM has changed it (no row); and the door held shut for the audit until that write
- * lands, which lets go of it. Until that fix the put-back wrote the state before the change as the change's
+ * stands, lets go of a hold, and since E80 fix r1-G1 is the state the GMs last set - since E80 fix r2-G9 on the
+ * door (`DOOR_SET`), written with the GM's change on its own browser (`stampSecretDoor`) and here, as the
+ * put-back's own write, where the change came without it - unless the write is the put-back's own (`aside`); a
+ * GM's change of `door` alone keeps the state the door then has, and a GM's making it an ordinary wall deletes the
+ * flag. One anybody else made - a player, or a writer this world does not know as an active user (`senderOf`) -
+ * is written back to the state a GM last left the door in: open if that was open, and shut otherwise, shut where
+ * none is written on the door (a door no pass has gone over yet, `settleSecretDoors`); and the door held shut for
+ * the audit until that write lands, which lets go of it. Until that fix the put-back wrote the state before the change as the change's
  * opposite (opened: shut; shut: open), so a player's "shut" of a shut door, sent whole (`diff: false`), opened it
  * (the review's E80-SEC-3; R601, scenario 30 7e3). A door that stands as a GM left it is left alone and held by
  * nothing; so is a locked one (only a GM locks a door, or changes a locked one); the put-back never locks. On
@@ -651,23 +703,32 @@ const doorWord = ds => (ds === DOOR_OPEN() ? "open" : ds === DOOR_LOCKED() ? "lo
  * `unheard` is the pass's (`settleSecretDoors`): a state no primary heard change, which it words so. Answers
  * whether it wrote the put-back. A put-back that fails keeps the door held shut and is logged. The hold is
  * taken before the first await: a step the same player sends after the opening is judged against it. `sender`
- * and `doors` are the suite's (R601, R605). Read on Foundry's documents by A10-15 and from a player's page by
+ * is the suite's (R601, R605, R616). Read on Foundry's documents by A10-15 and from a player's page by
  * scenario 30 7e3; a console's change on v14 is LIVE-E80-03.
  */
-export async function putBackSecretDoor(wall, change, userId, { sender = senderOf(userId), doors = secretDoorStore, aside = false, unheard = false, leaving = null } = {}) {
+export async function putBackSecretDoor(wall, change, userId, { sender = senderOf(userId), aside = false, unheard = false, leaving = null } = {}) {
     if (!game.user?.isGM) return false;
     if (!isPrimaryGm({ leaving })) return false;
-    if (!isSecretDoor(wall)) return false;
-    const ds = foundry.utils.hasProperty(change ?? {}, "ds"), key = secretDoorKey(wall);
+    const door = foundry.utils.hasProperty(change ?? {}, "door");
+    if (!isSecretDoor(wall)) {
+        if (door && doorSetOf(wall) !== null) {
+            await wall.unsetFlag(MODULE_ID, DOOR_SET).catch(err => error(`Could not take the secret door's state off the wall ${wall.id}`, err));
+        }
+        return false;
+    }
+    const ds = foundry.utils.hasProperty(change ?? {}, "ds");
     if (sender?.isGM) {
         if (ds) HELD_SHUT.delete(wall.id);
-        if ((ds || foundry.utils.hasProperty(change ?? {}, "door")) && !aside && key) await doors.patch(key, { ds: Number(ds ? change.ds : wall.ds) });
+        const set = Number(ds ? change.ds : wall.ds);
+        if ((ds || door) && !aside && Number.isFinite(set) && doorSetOf(wall) !== set) {
+            await wall.update(doorSetData(set), { [DOOR_ASIDE]: true }).catch(err => error(`Could not write the GM's state on the secret door ${wall.id}`, err));
+        }
         return false;
     }
     if (!ds) return false;
     const now = Number(change.ds);
     if (now === DOOR_LOCKED()) return false;
-    const want = (key ? doors.get(key)?.ds : null) === DOOR_OPEN() ? DOOR_OPEN() : DOOR_CLOSED();
+    const want = doorSetOf(wall) === DOOR_OPEN() ? DOOR_OPEN() : DOOR_CLOSED();
     if (now === want) {
         HELD_SHUT.delete(wall.id);
         return false;
@@ -699,25 +760,86 @@ function onSecretDoorChanged(wall, change, options, userId) {
  * wall - for good. Now, on the primary GM, each secret door of `scenes` (each world scene when none are given)
  * that stands otherwise than a GM last left it is put back as the watch puts a player's change back
  * (`putBackSecretDoor`, `unheard`): open where a GM last opened it, shut otherwise; a locked one is left alone.
- * Run when this browser's stores are ready, and when a GM leaves (`onDoorsGmLeft`); it asks whether this browser is
+ * Run at this browser's ready, when a GM leaves (`onDoorsGmLeft`) and on a change of role; it asks whether this browser is
  * the primary without the one leaving (`isPrimaryGm({ leaving })`: null where that is this browser), and each
  * put-back asks the same, so the pass does not wait on the leaving GM's `active` - which of that flag and
  * `userConnected` v14 changes first is not measured (LIVE-E30-05; the harness flips the flag first). Where it is run
  * it asks whether the suite holds the stores or stands them in another world (`gmStoresQuiet`): then it is not run.
  * Answers the ids of the doors it put back, or null off the primary.
- * The GMs' record is each GM's browser's, as every GM store is, and merged among the GMs connected: a GM who
- * comes back alone puts back what another GM changed while it was away. `doors` and `leaving` are the suite's
- * and the leaving GM's (R605, A10-15, scenario 15).
+ * Since E80 fix r2-G9 (the review's E80-FIX-R1-01) the state a GM last set is the one on the door (`DOOR_SET`),
+ * the same on every GM's browser, and a secret door with none - one from before this fix, or from a scene made
+ * with its walls (an import, `onSceneCreated`) - is taken as it stands and that state written on it (the put-back's
+ * own mark), where until then it was read shut and shut. The doors it puts back are told on the GM's screen
+ * (`tell`, `doorsPutBackText`), not in the console alone. `leaving` is the leaving GM's, `tell` the suite's (R605,
+ * R616, A10-15, scenario 15).
  */
-export async function settleSecretDoors({ scenes = null, doors = secretDoorStore, leaving = null } = {}) {
+export async function settleSecretDoors({ scenes = null, leaving = null, tell = tellDoorsPutBack } = {}) {
+    if (!game.user?.isGM) return null;
     if (!isPrimaryGm({ leaving })) return null;
-    const put = [];
+    const put = [], putWalls = [], taken = [];
     for (const scene of scenes ?? Array.from(game.scenes ?? [])) {
         for (const wall of secretDoorsOn(scene)) {
-            if (await putBackSecretDoor(wall, { ds: wall.ds }, null, { sender: null, doors, unheard: true, leaving })) put.push(wall.id);
+            if (doorSetOf(wall) === null) {
+                if (!isPrimaryGm({ leaving })) continue;
+                const ds = Number(wall.ds ?? DOOR_CLOSED());
+                if (!Number.isFinite(ds)) continue;
+                try {
+                    await wall.update(doorSetData(ds), { [DOOR_ASIDE]: true });
+                    taken.push(`${wall.id} (${doorWord(ds)})`);
+                } catch (err) {
+                    error(`Could not write the state of the secret door ${wall.id}`, err);
+                }
+                continue;
+            }
+            if (await putBackSecretDoor(wall, { ds: wall.ds }, null, { sender: null, unheard: true, leaving })) {
+                put.push(wall.id);
+                putWalls.push(wall);
+            }
+        }
+    }
+    if (taken.length) warn(`Secret doors: ${taken.length} carried no state a GM set and are kept as they stand: ${taken.join(", ")}.`);
+    if (putWalls.length) {
+        try {
+            tell(putWalls);
+        } catch (err) {
+            error("Could not tell the GM which secret doors were put back", err);
         }
     }
     return put;
+}
+
+/**
+ * The GM's word on the doors the pass put back (`settleSecretDoors`; E80 fix r2-G9): how many, and on which scene
+ * each, in the module's language. The console names each wall (`putBackSecretDoor`).
+ */
+export function doorsPutBackText(walls) {
+    const counts = new Map();
+    for (const wall of walls ?? []) {
+        const name = wall?.parent?.name || wall?.parent?.id || "?";
+        counts.set(name, (counts.get(name) ?? 0) + 1);
+    }
+    const n = Array.from(counts.values()).reduce((a, b) => a + b, 0);
+    const scenes = Array.from(counts.entries()).map(([name, k]) => `${name} (${k})`).join(", ");
+    return plural("DRPG.Season.secretDoorsPutBack", { n, scenes });
+}
+
+/* The pass's word on the GM's screen, kept there until it is closed: at a ready it would go by unseen. */
+function tellDoorsPutBack(walls) {
+    ui.notifications?.warn(doorsPutBackText(walls), { permanent: true });
+}
+
+/**
+ * A scene created (`createScene`, E80 fix r2-G9): an import or a copy brings its walls with it and no GM's own
+ * create of each, so on the primary GM the pass is run on that scene (`settleSecretDoors`): a secret door with no
+ * state a GM set gets the one it stands in, and one whose state it brought along stands so. The suite's held
+ * stores run none. Registered on a GM's browser only; `settle` and `quiet` are the suite's.
+ */
+export function onSceneCreated(scene, options, userId, { settle = settleSecretDoors, quiet = gmStoresQuiet } = {}) {
+    if (quiet() || !secretDoorsOn(scene).length) return null;
+    return Promise.resolve(settle({ scenes: [scene] })).catch(err => {
+        error("Could not put the secret doors of a new scene back", err);
+        return null;
+    });
 }
 
 /**
@@ -1988,8 +2110,6 @@ function onWallMoved(wall, change) {
 
 function onWallDeleted(wall) {
     if (!isPrimaryGm()) return;
-    const key = secretDoorKey(wall);
-    if (key && secretDoorStore.has(key)) secretDoorStore.drop(key).catch(err => error("Could not forget a deleted secret door", err));
     wallChanged(wall, { gone: true }).catch(err => error("Could not mark a secret passage on a deleted wall", err));
 }
 
@@ -2011,9 +2131,10 @@ async function onRouteSettled({ tokenDoc, room, provisional = false } = {}) {
  * At ready, on a GM's browser: the ask's listener, the watches that tell the players what another
  * GM changed or who came, went or changed role, and the primary's watches on the walls and the routes (each asks `isPrimaryGm` when it
  * fires, so a GM who becomes the primary later takes them over). Since E80 fix r1-G1 also the secret doors' pass
- * (`settleSecretDoors`): once this browser's record of them is ready, if it is the primary then, and when a GM
- * leaves, on whoever is the primary after it (`onDoorsGmLeft`) - since E80 fix r1-G5 also when a user's role changes
- * (`onDoorsRoleChanged`).
+ * (`settleSecretDoors`): at the ready, if this browser is the primary then, and when a GM leaves, on whoever is
+ * the primary after it (`onDoorsGmLeft`) - since E80 fix r1-G5 also when a user's role changes
+ * (`onDoorsRoleChanged`), and since E80 fix r2-G9 on a scene created (`onSceneCreated`); and a GM's own change or
+ * create of a secret door writes the state on it (`stampSecretDoor`, `stampNewSecretDoor`).
  */
 export function registerPassagesGm() {
     overlayDrawer("passages", layer => drawPassagesLayer(layer));
@@ -2035,14 +2156,16 @@ export function registerPassagesGm() {
         Hooks.on("updateUser", onUserUpdated);
         onGmStoresAudible(() => retellSoon());
         Hooks.on("updateWall", onWallMoved);
+        Hooks.on("preUpdateWall", stampSecretDoor);
+        Hooks.on("preCreateWall", stampNewSecretDoor);
         Hooks.on("updateWall", onSecretDoorChanged);
         Hooks.on("deleteWall", onWallDeleted);
         Hooks.on("userConnected", onDoorsGmLeft);
         Hooks.on("updateUser", onDoorsRoleChanged);
+        Hooks.on("createScene", onSceneCreated);
         Hooks.on("drpgRouteSettled", onRouteSettled);
         redrawGmOverlay("passages");
         passageMapStore.whenHydrated().then(() => redrawGmOverlay("passages")).catch(() => {});
-        secretDoorStore.whenHydrated().then(() => (gmStoresQuiet() ? null : settleSecretDoors()))
-            .catch(err => error("Could not put the secret doors back once the stores were ready", err));
+        if (!gmStoresQuiet()) settleSecretDoors().catch(err => error("Could not put the secret doors back at the ready", err));
     });
 }

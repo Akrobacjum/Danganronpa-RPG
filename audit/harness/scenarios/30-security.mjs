@@ -1616,7 +1616,10 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
        door itself, and the same step stands. E80 fix r1-G1 (18.10.2026; the review's E80-SEC-3): between the two, p1's
        console "shuts" the shut door, the change sent whole (`diff: false`, so every browser is handed it as made): until
        that fix the primary put a change back as its opposite, and this one opened the door; now it puts a door back to
-       the state a GM last left it in, and the door stays shut. */
+       the state a GM last left it in, and the door stays shut. E80 fix r2-G9 (19.10.2026; the review's E80-FIX-R1-01):
+       that state is a flag on the door (passages-gm.mjs `DOOR_SET`), so p1's console then tries to write it "open", with
+       an opening and alone: the server refuses both (a player's wall update is `ds` alone, cluster.mjs as design A10
+       reads v14's BaseWall#canUpdate; on v14 LIVE-E80-03), and the door stays shut with the GM's state "shut". */
     phase("a secret door a player opens", { flow: "secret-passages" });
     const door = await gm.eval(`const scene = canvas.scene, P = { teleport: true, movementAction: "displace", animate: false };
         const [wall] = await scene.createEmbeddedDocuments("Wall", [{ c: [1500, 200, 1500, 800], door: 2, ds: 0, move: 20, sight: 20 }]);
@@ -1659,6 +1662,16 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     const wholeOnGm = await gm.eval(readDoor), wholeOnP1 = await p1.eval(readDoor);
     check("SECURITY: a player's console that shuts the shut secret door, the change sent whole, leaves it shut",
         shutWhole === "written" && JSON.stringify([wholeOnGm.ds, wholeOnP1.ds]) === JSON.stringify([0, 0]), JSON.stringify({ shutWhole, wholeOnGm, wholeOnP1 }));
+    const forgedSet = await p1.eval(`const w = canvas.scene.walls.get("${door?.id}"), out = [];
+        for (const data of [{ ds: 1, flags: { "${MOD}": { doorSet: 1 } } }, { flags: { "${MOD}": { doorSet: 1 } } }]) {
+            try { await w.update(data); out.push("written"); } catch (err) { out.push("denied"); }
+        }
+        return out;`, { timeout: 30000 });
+    await settle(1500);
+    const readSet = `const w = canvas.scene.walls.get("${door?.id}"); return [w?.ds ?? null, w?.flags?.["${MOD}"]?.doorSet ?? null];`;
+    const setOnGm = await gm.eval(readSet), setOnP1 = await p1.eval(readSet);
+    check("SECURITY: a player's console cannot write the state a GM left a secret door in - both writes refused, the door shut and its GMs' state shut on the GM and on p1",
+        JSON.stringify([forgedSet, setOnGm, setOnP1]) === JSON.stringify([["denied", "denied"], [0, 0], [0, 0]]), JSON.stringify({ forgedSet, setOnGm, setOnP1 }));
     await gm.eval(`await canvas.scene.walls.get("${door?.id}").update({ ds: 1 }); return true;`);
     await settle(1000);
     const lawfulDoor = await stepThrough(false);

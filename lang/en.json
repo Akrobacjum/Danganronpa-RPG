@@ -3820,6 +3820,10 @@
         "one": "{n} of them stood between no two rooms and is a plain wall now.",
         "other": "{n} of them stood between no two rooms and are plain walls now."
       },
+      "secretDoorsPutBack": {
+        "one": "{n} secret door changed with no GM watching was put back as a GM last left it: {scenes}.",
+        "other": "{n} secret doors changed with no GM watching were put back as a GM last left them: {scenes}."
+      },
       "hideRulers": "Hide",
       "showRulers": "Show",
       "fixedRulers": {
@@ -4292,7 +4296,6 @@
         "passageMap": "The secret passages: where each one is and whether it is open",
         "passageAccess": "Who knows each secret passage, and how they learnt it",
         "passageLog": "What was done with the secret passages",
-        "secretDoors": "Foundry's secret doors, as the GMs last set them",
         "cast": "The incident's cast",
         "blackened": "The Blackened register",
         "trapLedger": "The traps' planted objects",

@@ -1453,10 +1453,11 @@ const DUMP_RULES = [
             + "data, the last two hashed since the E30 review (25.09.2026); the message's other fields are not read" },
     { match: "Scene.*.lights|sounds|drawings|templates.*", idsOnly: true, until: "never",
         why: "the module never writes these (R159's census); they are most of a scene's size" },
-    { match: "Scene.*.walls.*", keep: ["door", "ds"], until: "never",
+    { match: "Scene.*.walls.*", keep: ["door", "ds", "flags"], until: "never",
         why: "a wall's door type and state are what the module writes (E80 C5: passages-gm.mjs `convertSecretDoors` and "
-            + "`putBackSecretDoor`); R159 read \"Wall at Scene.*.walls.* (ids only)\" on C5's tree (18.10.2026, at eedf9d7) "
-            + "while walls were ids only. The rest of a wall the module does not write, and walls are most of a scene's size" },
+            + "`putBackSecretDoor`), and since E80 fix r2-G9 the GMs' state of a secret door, a flag on it (`DOOR_SET`); R159 "
+            + "read \"Wall at Scene.*.walls.* (ids only)\" on C5's tree (18.10.2026, at eedf9d7) while walls were ids only. "
+            + "The rest of a wall the module does not write, and walls are most of a scene's size" },
     { match: "*", emptyFlagScopes: "absent", until: "never",
         why: "Foundry keeps a flag scope its last flag leaves as {}, and getFlag reads an empty scope and no scope alike; "
             + "measured 24.09.2026 on the dump's second run, after restore deleted the last grant a student had (Actor "
