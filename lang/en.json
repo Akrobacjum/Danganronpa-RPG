@@ -3390,7 +3390,7 @@
       "nobodyHere": "There is nobody in this room to reach.",
       "whichWay": "Which way is your hand going?",
       "takeLabel": "Take something",
-      "takeHint": "Go through their pockets. What comes out is whatever comes out - a critical lets you choose.",
+      "takeHint": "Lift one thing out of their pockets. What comes out is whatever comes out - a critical lets you choose.",
       "plantLabel": "Leave something",
       "plantHint": {
         "one": "Put the one thing you are carrying into their pocket.",

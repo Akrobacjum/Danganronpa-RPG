@@ -1560,9 +1560,9 @@ export const ACTIONS = {
         icon: "fa-hand-sparkles",
         traits: ["hand"],
         cost: 1,
-        hint: "Take something out of somebody's pocket, or leave something in it.",
+        hint: "Take something out of somebody's pocket, leave something in it, or see what they carry.",
         description: "You get a hand into somebody's pocket. One roll decides whether they "
-            + "notice, another whether it works.",
+            + "notice, another whether it works. Or you simply ask them to turn out their pockets.",
         /*
          * TWO NUMBERS NOW, AND THE OLD COMMENT'S ARGUMENT WAS WRONG (D10a).
          *

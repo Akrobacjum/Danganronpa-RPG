@@ -25,7 +25,7 @@
 | **Dynamiczna** | ustala GM | Opisz cokolwiek; GM ustala trudność. Łagodniejsze progi - nagroda za pomysł. |
 | **Rest** | - | Short: 1 akcja, wybierz 1, raz na porę dnia. Long: 2 akcje, wybierz 2, raz na sesję. Sen = Health, Posiłek = Sanity, Oddech = Hope. Tylko w oznaczonych pokojach. |
 | **Listen** | Shadow | 14+ ile osób za ścianą, 18+ kto, krytyk każdy sąsiedni pokój. Pokoje, w których nie byłeś, zostają bez nazwy (Nieodkryty pokój 1, 2...). |
-| **Palm** | Hand + Shadow | Weź (10+, niezauważony 15+) albo podłóż (8+, niezauważony 13+) coś w czyjejś kieszeni. |
+| **Palm** | Hand + Shadow | Weź (10+, niezauważony 15+) albo podłóż (8+, niezauważony 13+) coś w czyjejś kieszeni. Albo zobacz, co ktoś nosi: najpierw poproś, Body 12+ po odmowie; ukradkiem Shadow 15+, potem Hand 10+. |
 | **Tamper** | Shadow | Wymaż ślad w tym pokoju, o którym wiesz (Hidden 9 do Obvious 18), przerób go (o 3 niżej, nowe słowa zatwierdza GM) albo podłóż mylny trop (15). Gdy nie masz już akcji: zamiast niej 1 Sanity. Świadkowie to rzut maskowania (16), który może kosztować Sanity nawet wtedy, gdy się uda (1 przy Despair, 1-2, jeśli cię przyłapią). |
 | **Direct Murder** | GM | Tylko podczas Eclipse, uzgodnione z GMem, za zgodą gracza ofiary. Rozstrzyga się, gdy zapali się światło: musisz wtedy być <ins>w pokoju z dokładnie jedną inną osobą i nikim więcej</ins>. |
 

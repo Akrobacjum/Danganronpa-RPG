@@ -8,7 +8,8 @@
  * the Key Remnant plan, a trace's note and subject, a Truth Bullet's GM note, a
  * secret project and an indirect murder's condition, a player's pre-session note,
  * a Direct Murder parked in an Eclipse, a hidden token, the name the GM gives a
- * found trace - and one scan of every player's browser once the table is at rest.
+ * found trace, an item in a student's pockets that three Frisks list (E80 part 2
+ * C5) - and one scan of every player's browser once the table is at rest.
  * A marker found where it may not be
  * is a hit: one known-leaks.json describes is that leak, reproduced, and red until
  * its stage; any other fails this run. At rest p1's `game.drpg.keyPlan()` is asked
@@ -88,6 +89,53 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
     const note = canary.marker("note.player", { allowed: ["gm", "p3"] });
     const noteSaved = await p3.eval(`const { saveNote } = await import("${repoUrl}/scripts/pre-session-note.mjs");
         return await saveNote(game.user.id, "${note}");`, { timeout: 30000 });
+
+    /* A FRISK, BOTH WAYS (E80 part 2 C5, 19.10.2026; the A11 design's A11-15, P2-21). What a student carries is listed
+       by a Frisk to its searcher and the GMs, and to nobody else. An item named with the marker goes into the pockets
+       of Botan (p2's), who is set beside Aiko (p1's) in Dorm A; the GM's browser, the primary, then judges three Frisks
+       of Botan by Aiko as it judges a player's (frisk.mjs): unseen, a proper look nobody notices; openly, p2's window
+       lets her look; openly again, p2's window refuses and she forces it. Each lists the item on a veiled card. p3 is
+       the onlooker: its browser may hold the name only where Foundry sends every browser every character's items
+       (known-leaks.json `foundry-actor-items`), and the rest scan reads it there and nowhere else - no card's words,
+       no packet, no window. Before the Eclipse, which shuts every Frisk; Botan goes back to the Cafeteria after. */
+    const pocketName = canary.marker("item.name", { allowed: ["gm", "p1", "p2"] });
+    const pocketItem = await gm.eval(`const INV = await import("${repoUrl}/scripts/inventory.mjs");
+        const item = await INV.grantItem(game.actors.get("${IDS.botan}"), { name: "${pocketName}", category: "usable", tier: 1, override: true, quiet: true });
+        await canvas.scene.tokens.get("TOKBOTAN00000000").update({ x: 600, y: 600 });
+        return item?.id ?? null;`, { timeout: 60000 });
+    await settle(1000);
+    await p2.eval(`const title = game.i18n.localize("DRPG.Frisk.askTitle");
+        globalThis.__dialogAnswers.push(config => (config.window?.title === title ? "allow" : null), config => (config.window?.title === title ? "refuse" : null));
+        return true;`);
+    const frisked = await gm.eval(`const F = await import("${repoUrl}/scripts/frisk.mjs");
+        const S = await import("${repoUrl}/scripts/secret.mjs");
+        const from = game.messages.contents.length;
+        const fields = { searcherId: "${IDS.aiko}", targetId: "${IDS.botan}" };
+        F.forgetFriskAsks();
+        const unseen = await F.friskPerson({ ...fields, total: 20, unseenTotal: 20 }, { asker: game.user });
+        const ask = () => new Promise(resolve => {
+            F.askToFrisk(fields, { asker: game.user, reply: resolve }).then(out => { if (!out?.later) resolve(out); }, () => resolve(null));
+        });
+        const shown = await ask();
+        F.forgetFriskAsks();
+        const refused = await ask();
+        const forced = refused?.askId ? await F.followFrisk({ ...fields, askId: refused.askId, rollId: "CANARYFRISKROLL0", total: 20 }) : null;
+        F.forgetFriskAsks();
+        const cards = game.messages.contents.slice(from);
+        const name = ${JSON.stringify(pocketName)};
+        return { unseen: unseen?.outcome ?? unseen?.refused ?? null, shown: shown?.outcome ?? null, refused: refused?.outcome ?? null,
+            forced: forced?.outcome ?? forced?.refused ?? null, cards: cards.length, listing: cards.filter(m => (S.secretHtml(m) ?? "").includes(name)).length,
+            inContent: cards.filter(m => String(m._source?.content ?? "").includes(name)).length };`, { timeout: 150000 });
+    await settle(1000);
+    const friskOnP1 = await p1.eval(`const S = await import("${repoUrl}/scripts/secret.mjs");
+        return game.messages.contents.filter(m => (S.secretHtml(m) ?? "").includes(${JSON.stringify(pocketName)})).length;`);
+    await p2.eval(`globalThis.__dialogAnswers.length = 0; return true;`);
+    await gm.eval(`await canvas.scene.tokens.get("TOKBOTAN00000000").update({ x: 1300, y: 300 }); return true;`, { timeout: 60000 });
+    await settle(1000);
+    check("gm: three Frisks of Botan by Aiko - unseen, allowed, forced - each list his pockets on a veiled card, whose words Aiko's player holds",
+        Boolean(pocketItem) && frisked?.unseen === "settled" && frisked.shown === "shown" && frisked.refused === "refused" && frisked.forced === "forced"
+            && frisked.listing === 3 && frisked.inContent === 0 && friskOnP1 === 3,
+        JSON.stringify({ pocketItem, frisked, friskOnP1 }), { flow: "frisk-openly" });
 
     /* A Direct Murder parked during an Eclipse, by the killer's player (eclipse.mjs). */
     const park = canary.marker("park.note", { allowed: ["gm", "p3"] });

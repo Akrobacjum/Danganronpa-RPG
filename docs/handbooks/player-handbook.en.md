@@ -22,7 +22,7 @@ Daggerheart's six traits are renamed. Your sheet shows these:
 | Statistic | Short | What it is | Used for |
 |---|---|---|---|
 | **Leg** | LEG | Physical speed | Projects, running, crisis actions |
-| **Body** | BOD | Physical strength | Projects, fighting, moving heavy things |
+| **Body** | BOD | Physical strength | Projects, fighting, moving heavy things, making somebody turn out their pockets |
 | **Hand** | HAN | Dexterity and precise action | Search, Palm, Projects, crisis actions |
 | **Eye** | EYE | Perceptiveness and noticing things | Search, Observe, sensing a trap |
 | **Shadow** | SHA | Hiding and the sixth sense | Listen, Tamper, staying unseen, covering traces |
@@ -296,14 +296,16 @@ A neighbouring room you have never been in is listed as *Unexplored room 1*, *Un
 
 ### Palm - Hand, 1 action
 
-A hand in somebody's pocket, going either way. Two independent rolls: **Hand** decides whether it worked, **Shadow** decides whether they noticed.
+A hand in somebody's pocket, going either way, or just a look inside. Two independent rolls: **Hand** decides whether it worked, **Shadow** decides whether they noticed.
 
-| | Take something | Leave something |
-|---|---|---|
-| It works (Hand) | 10+ | 8+ |
-| Unseen (Shadow) | 15+ | 13+ |
+| | Take something | Leave something | Frisk (unseen) |
+|---|---|---|---|
+| It works (Hand) | 10+ | 8+ | 10+ |
+| Unseen (Shadow) | 15+ | 13+ | 15+ |
 
 Four outcomes, and the interesting ones are the mismatches: caught with nothing to show for it, or robbed by somebody you never noticed. What you take is whatever comes out; a critical lets you choose. Their carry limit still applies - what does not fit in a full pocket goes into their stash, and with no stash it stays with you. Palm never reaches into a stash.
+
+**Frisk: see what they carry** takes nothing. **Openly**, you ask them to turn out their pockets. If they let you, you see what they had on them when you asked: handing something on while they think it over does not hide it. If they refuse, or do not answer within a minute, you can make them, unless your GM has switched that off: **Body 12+**, and the room sees it either way. If their player is not here, nobody answers; the GM answers for a character without a player. **Unseen**, it is a theft's two rolls without the theft: Shadow first, 15+ so they do not notice, then Hand, 10+ to get a proper look; if they notice, they know it was you. It costs **1 action**; if the request cannot be put to them at all, you get it back. You see what is in their pockets: never a Truth Bullet, never a stash. A body is not frisked: look through it from its sheet.
 
 ### Tamper - Shadow, 1 action
 

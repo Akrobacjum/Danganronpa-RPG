@@ -22,7 +22,7 @@ Sześć cech Daggerheart nosi tu inne nazwy. Na arkuszu widzisz:
 | Statystyka | Skrót | Czym jest | Do czego służy |
 |---|---|---|---|
 | **Leg** | LEG | Szybkość | Projekty, bieg, akcje kryzysowe |
-| **Body** | BOD | Siła fizyczna | Projekty, walka, przenoszenie ciężarów |
+| **Body** | BOD | Siła fizyczna | Projekty, walka, przenoszenie ciężarów, zmuszanie kogoś do pokazania kieszeni |
 | **Hand** | HAN | Zręczność i precyzja | Search, Palm, Projekty, akcje kryzysowe |
 | **Eye** | EYE | Spostrzegawczość i zauważanie rzeczy | Search, Observe, wyczucie pułapki |
 | **Shadow** | SHA | Ukrywanie się i szósty zmysł | Listen, Tamper, pozostanie niezauważonym, zacieranie śladów |
@@ -296,14 +296,16 @@ Sąsiedni pokój, w którym nigdy nie byłeś, figuruje jako *Nieodkryty pokój 
 
 ### Palm - Hand, 1 akcja
 
-Ręka w czyjejś kieszeni, w obie strony. Dwa niezależne rzuty: **Hand** decyduje, czy się udało, **Shadow** - czy zauważyli.
+Ręka w czyjejś kieszeni, w jedną albo w drugą stronę, albo tylko spojrzenie do środka. Dwa niezależne rzuty: **Hand** decyduje, czy się udało, **Shadow** - czy zauważyli.
 
-| | Weź coś | Zostaw coś |
-|---|---|---|
-| Udaje się (Hand) | 10+ | 8+ |
-| Niezauważony (Shadow) | 15+ | 13+ |
+| | Weź coś | Zostaw coś | Frisk (ukradkiem) |
+|---|---|---|---|
+| Udaje się (Hand) | 10+ | 8+ | 10+ |
+| Niezauważony (Shadow) | 15+ | 13+ | 15+ |
 
 Cztery wyniki, a ciekawe są te niedopasowane: przyłapany z niczym albo okradziony przez kogoś, kogo nie zauważyłeś. Bierzesz, co wyjdzie; krytyk pozwala wybrać. Ich limit noszenia wciąż obowiązuje - to, co nie mieści się w pełnej kieszeni, trafia do ich skrytki, a gdy skrytki nie mają, zostaje u ciebie. Palm nigdy nie sięga do wnętrza skrytki.
+
+**Frisk: zobacz, co ktoś nosi** niczego nie zabiera. **Jawnie** prosisz, żeby pokazali kieszenie. Jeśli pozwolą, widzisz to, co mieli przy sobie w chwili prośby: przekazanie czegoś dalej w czasie namysłu tego nie ukryje. Jeśli odmówią albo nie odpowiedzą w ciągu minuty, możesz ich zmusić, chyba że GM to wyłączył: **Body 12+**, a pokój i tak to widzi. Jeśli ich gracza nie ma, nikt nie odpowiada; za postać bez gracza odpowiada GM. **Ukradkiem** to dwa rzuty kradzieży bez kradzieży: najpierw Shadow, 15+, żeby nikt nie zauważył, potem Hand, 10+, żeby dobrze się przyjrzeć; jeśli to zauważą, wiedzą, że to ty. Kosztuje **1 akcję**; jeśli prośba w ogóle nie może do nich trafić, akcja wraca. Widzisz to, co jest w kieszeniach: nigdy Truth Bullet, nigdy skrytkę. Ciała nie przeszukuje się przez Frisk: przejrzyj je z jego arkusza.
 
 ### Tamper - Shadow, 1 akcja
 

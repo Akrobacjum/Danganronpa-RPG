@@ -17737,6 +17737,102 @@ const INVARIANTS = [
         equal(stableJson(names.filter(name => first.html.includes(foundry.utils.escapeHTML(name)) || first.html.includes(name))), "[]",
             `a name of something ${target.name} carries is in the Palm window's HTML`);
     }],
+    ["R620 - a Frisk's words and its books (A11-17): every DRPG.Frisk key and the Frisk's keys outside that block in both languages, a number in them only by placeholder, no 'Consent', no dash and no inflected 'GM' in Polish; the one Polish form of the row in the window, the Palm hint and the brochure; the Palm passages of the handbooks and the brochure carry the config's numbers, and the Polish GM handbook's Palm says 'GM-a'", async () => {
+        /*
+         * E80 part 2 C5, 19.10.2026; the A11 design's steps 14 and 15 and its A11-17. The harm: a Frisk text with no
+         * Polish twin shows a Polish table its key; a number typed into a text, or a handbook that says Body 12 while the
+         * GMs judge another bar, tells players a bar the game does not hold; 'Consent' is the word T28 and TR8 retired;
+         * and the row, the Palm hint and the brochure saying the same move three ways in Polish is three moves to a reader.
+         * Read: lang/en.json and lang/pl.json fetched and flattened (as R1 reads them), ACTIONS.palm and TIMING off config,
+         * the six handbooks fetched as R125 fetches them, each Palm passage found by its heading or its table row. THE
+         * CONTROL: the same reading with every number one higher must miss each passage, so a passage is read for the
+         * config's numbers and not passed by being there. Red at the parent (b0a312b): no handbook names a Frisk or its
+         * numbers, the Polish Palm hint and the brochure have no 'zobacz, co ktoś nosi', and the GM handbook says 'GMa'.
+         */
+        const { TIMING } = await import("./config.mjs");
+        const J = stableJson;
+        const flats = {};
+        for (const lang of ["en", "pl"]) {
+            const text = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            flats[lang] = foundry.utils.flattenObject(foundry.utils.expandObject(text));
+        }
+        const frisk = lang => Object.keys(flats[lang]).filter(k => k.startsWith("DRPG.Frisk.")).sort();
+        must(frisk("en").length >= 40, `en.json has ${frisk("en").length} DRPG.Frisk keys - there is little to read`);
+        const outside = ["DRPG.Reroll.friskStands", "DRPG.Reroll.rummageStands", "DRPG.Reroll.rummageSeen", "DRPG.Reroll.rummageLate",
+            "DRPG.Bridge.what.action.friskUnseen", "DRPG.Bridge.what.action.friskAsk", "DRPG.Bridge.what.action.friskAnswer",
+            "DRPG.Bridge.what.action.friskFollow", "DRPG.Settings.friskForce.name", "DRPG.Settings.friskForce.hint", "DRPG.Steal.takeHint"];
+        const keys = [...new Set([...frisk("en"), ...frisk("pl"), ...outside])];
+        const wrong = [];
+        for (const key of keys) {
+            for (const lang of ["en", "pl"]) {
+                const words = flats[lang][key];
+                if (typeof words !== "string" || !words.trim()) { wrong.push(`${lang} ${key}: missing`); continue; }
+                if (/\d/.test(words.replace(/\{[^}]*\}/g, ""))) wrong.push(`${lang} ${key}: a number not by placeholder`);
+                if (/consent/i.test(words)) wrong.push(`${lang} ${key}: 'Consent'`);
+                if (/[\u2013\u2014]/.test(words)) wrong.push(`${lang} ${key}: a dash`);
+                if (lang === "pl" && /\bGM(?:a|ów|owie|em|om|ie)\b/.test(words)) wrong.push(`pl ${key}: an inflected GM`);
+            }
+        }
+        // 'Go through their pockets' was the Take's hint at the parent: a Frisk is the one that looks.
+        if (/go through/i.test(flats.en["DRPG.Steal.takeHint"] ?? "") || /przeszukaj/i.test(flats.pl["DRPG.Steal.takeHint"] ?? "")) wrong.push("DRPG.Steal.takeHint: the Take still says it looks through the pockets");
+        equal(J(wrong), J([]), `[what is wrong with ${keys.length} keys in either language]`);
+
+        const book = async name => {
+            const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${name}.md`);
+            must(res.ok, `docs/handbooks/${name}.md did not load`);
+            return res.text();
+        };
+        const books = {};
+        for (const name of ["player-handbook.en", "player-handbook.pl", "gm-handbook.en", "gm-handbook.pl", "player-brochure.en", "player-brochure.pl"]) books[name] = await book(name);
+        const section = (text, heading) => text.match(new RegExp(`^### ${heading}\\n([\\s\\S]*?)(?=^#{2,3} )`, "m"))?.[1] ?? "";
+        const rows = (text, start) => text.split("\n").filter(line => line.startsWith(start)).join("\n");
+        const passages = {
+            "player-handbook.en Palm": section(books["player-handbook.en"], "Palm - Hand, 1 action"),
+            "player-handbook.pl Palm": section(books["player-handbook.pl"], "Palm - Hand, 1 akcja"),
+            "player-handbook.en Body": rows(books["player-handbook.en"], "| **Body** |"),
+            "player-handbook.pl Body": rows(books["player-handbook.pl"], "| **Body** |"),
+            "gm-handbook.en Palm row": rows(books["gm-handbook.en"], "| Palm |"),
+            "gm-handbook.pl Palm row": rows(books["gm-handbook.pl"], "| Palm |"),
+            "gm-handbook.en Palm": rows(books["gm-handbook.en"], "**Palm** (section 5)"),
+            "gm-handbook.pl Palm": rows(books["gm-handbook.pl"], "**Palm** (sekcja 5)"),
+            "player-brochure.en Palm": rows(books["player-brochure.en"], "| **Palm** |"),
+            "player-brochure.pl Palm": rows(books["player-brochure.pl"], "| **Palm** |")
+        };
+        const palm = ACTIONS.palm;
+        const config = { take: palm.threshold, takeUnseen: palm.unseen?.threshold, plant: palm.plant?.threshold, plantUnseen: palm.plant?.unseen,
+            force: palm.frisk?.threshold, hand: palm.rummage?.threshold, cover: palm.rummage?.unseen, answer: Math.round(TIMING.friskAnswerMs / 1000) };
+        must(Object.values(config).every(Number.isFinite), `ACTIONS.palm or TIMING does not hold the Palm's numbers: ${J(config)}`);
+        const expected = n => ({
+            "player-handbook.en Palm": [`| It works (Hand) | ${n.take}+ | ${n.plant}+ | ${n.hand}+ |`, `| Unseen (Shadow) | ${n.takeUnseen}+ | ${n.plantUnseen}+ | ${n.cover}+ |`,
+                "**Frisk: see what they carry**", `**Body ${n.force}+**`, `Shadow first, ${n.cover}+`, `then Hand, ${n.hand}+`],
+            "player-handbook.pl Palm": [`| Udaje się (Hand) | ${n.take}+ | ${n.plant}+ | ${n.hand}+ |`, `| Niezauważony (Shadow) | ${n.takeUnseen}+ | ${n.plantUnseen}+ | ${n.cover}+ |`,
+                "**Frisk: zobacz, co ktoś nosi**", `**Body ${n.force}+**`, `najpierw Shadow, ${n.cover}+`, `potem Hand, ${n.hand}+`],
+            "player-handbook.en Body": ["making somebody turn out their pockets"],
+            "player-handbook.pl Body": ["zmuszanie kogoś do pokazania kieszeni"],
+            "gm-handbook.en Palm row": ["| Shadow, then Hand", `Take: ${n.take} to succeed, ${n.takeUnseen} on Shadow`, `Plant: ${n.plant}, unseen ${n.plantUnseen}`,
+                `within ${n.answer} s`, `Body ${n.force} after a refusal`, `unseen Shadow ${n.cover} then Hand ${n.hand}`],
+            "gm-handbook.pl Palm row": ["| Shadow, potem Hand", `Kradzież: ${n.take} na powodzenie, ${n.takeUnseen} na Shadow`, `Podłożenie: ${n.plant}, niezauważone ${n.plantUnseen}`,
+                `w ciągu ${n.answer} s`, `Body ${n.force} po odmowie`, `ukradkiem Shadow ${n.cover}, potem Hand ${n.hand}`],
+            "gm-handbook.en Palm": ["**Frisk**", `Body ${n.force} in front of the room`],
+            "gm-handbook.pl Palm": ["**Frisk**", `Body ${n.force} na oczach pokoju`, "klient GM-a"],
+            "player-brochure.en Palm": [`Take (${n.take}+, unseen ${n.takeUnseen}+)`, `plant (${n.plant}+, unseen ${n.plantUnseen}+)`, "see what they carry",
+                `Body ${n.force}+ after a refusal`, `unseen Shadow ${n.cover}+ then Hand ${n.hand}+`],
+            "player-brochure.pl Palm": [`Weź (${n.take}+, niezauważony ${n.takeUnseen}+)`, `podłóż (${n.plant}+, niezauważony ${n.plantUnseen}+)`, "zobacz, co ktoś nosi",
+                `Body ${n.force}+ po odmowie`, `ukradkiem Shadow ${n.cover}+, potem Hand ${n.hand}+`]
+        });
+        const missing = n => Object.entries(expected(n)).flatMap(([where, said]) => said.filter(s => !passages[where].includes(s)).map(s => `${where}: "${s}"`));
+        equal(J(missing(config)), J([]), "[what each handbook's Palm passage lacks of the config's numbers and the Frisk's words]");
+        const moved = Object.fromEntries(Object.entries(config).map(([k, v]) => [k, v + 1]));
+        const numbered = Object.entries(expected(moved)).filter(([, said]) => said.some(s => /\d/.test(s))).map(([where]) => where);
+        const missedMoved = new Set(missing(moved).map(line => line.split(":")[0]));
+        equal(J(numbered.filter(where => !missedMoved.has(where))), J([]), "[a passage that reads as the config's with every number one higher - the control]");
+
+        const pl = flats.pl["DRPG.Config.ACTIONS.palm.hint"] ?? "";
+        equal(J([flats.pl["DRPG.Frisk.rowLabel"] ?? null, pl.includes("zobacz, co ktoś nosi"), passages["player-brochure.pl Palm"].includes("zobacz, co ktoś nosi"),
+            /\bGMa\b/.test(passages["gm-handbook.pl Palm"])]),
+        J(["Frisk: zobacz, co ktoś nosi", true, true, false]),
+        "[the Polish row, the Polish Palm hint says it, the Polish brochure says it, the Polish GM handbook's Palm says 'GMa']");
+    }],
 ];
 
 /**

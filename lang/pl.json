@@ -3534,7 +3534,7 @@
       "nobodyHere": "W tym pokoju nie ma nikogo w zasięgu ręki.",
       "whichWay": "W którą stronę idzie twoja ręka?",
       "takeLabel": "Weź coś",
-      "takeHint": "Przeszukaj ich kieszenie. Wyjdzie, co wyjdzie - krytyk pozwala wybrać.",
+      "takeHint": "Wyjmij jedną rzecz z czyjejś kieszeni. Wyjdzie, co wyjdzie - krytyk pozwala wybrać.",
       "plantLabel": "Zostaw coś",
       "plantHint": {
         "one": "Włóż im do kieszeni tę jedną rzecz, którą nosisz.",
@@ -4732,8 +4732,8 @@
         },
         "palm": {
           "label": "Palm",
-          "hint": "Wyjmij coś z czyjejś kieszeni albo coś w niej zostaw.",
-          "description": "Wkładasz rękę do czyjejś kieszeni. Jeden rzut decyduje, czy zauważą, drugi - czy się uda.",
+          "hint": "Wyjmij coś z czyjejś kieszeni, zostaw coś w niej albo zobacz, co ktoś nosi.",
+          "description": "Wkładasz rękę do czyjejś kieszeni. Jeden rzut decyduje, czy ktoś zauważy, drugi, czy się uda. Albo po prostu prosisz, żeby pokazali kieszenie.",
           "unseen": {
             "label": "Trzymaj ręce poza zasięgiem wzroku"
           },

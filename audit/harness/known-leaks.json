@@ -58,6 +58,21 @@
       "measuredAt": "E30 C20 on 4a83b6b, 24.09.2026: the token.hidden marker, a hidden token's name, on p1, p2 and p3 at Scene *.tokens.*.name, wire and rest"
     },
     {
+      "id": "foundry-actor-items",
+      "class": "metadata",
+      "severity": "info",
+      "what": "Every item a character carries reaches every browser with its name and flags; another student's sheet only does not draw them, and a Frisk lists them on a card to its searcher and the GMs alone.",
+      "foundryLimit": "Foundry v14 sends every world document, the items embedded in each actor included, to every connected client.",
+      "match": [
+        {"seed": "item.name", "surface": "document", "where": "Actor", "path": "*.items.*.name"}
+      ],
+      "detectedBy": [
+        {"scenario": "72-canary", "seed": "item.name", "phase": "rest"}
+      ],
+      "readme": "leak:foundry-actor-items",
+      "measuredAt": "E80 part 2 C5, 19.10.2026, before its commit (parent b0a312b): the item.name marker, the name of an item in Botan's pockets, on p3 at Actor *.items.*.name, wire and rest, and on no other surface of p3 after three Frisks of Botan by Aiko listed it on cards to p1 and the GMs (72-canary, planted in phase plant, scanned at rest)"
+    },
+    {
       "id": "foundry-passage-crossing",
       "class": "metadata",
       "severity": "info",
