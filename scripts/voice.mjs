@@ -41,7 +41,7 @@
  */
 
 import { MODULE_ID, FLAGS } from "./config.mjs";
-import { SETTINGS, getSetting, getClock, isDeadForGm, isDeceased, isEclipse } from "./settings.mjs";
+import { SETTINGS, getSetting, getClock, isDeadForGm, isDeceased, isEclipse, deathRecordFor, seasonEpoch } from "./settings.mjs";
 // `allRooms` only - the per-actor lookup is `locateActor`, imported lazily in
 // `reconcileNow`, because it is the one that does not depend on which scene
 // this GM happens to be looking at.
@@ -125,7 +125,7 @@ export function registerVoice() {
     });
     // The dead channel's triggers that write no setting of the world (E19 C3; A9): the GMs' cast changed (a
     // castStore write, or another GM's merged in - E67's `silencedDead` among its fields), and the cast arriving
-    // after a load or a change of primary, while which the dead keep their rooms (`deathVoiceGone`'s null).
+    // after a load or a change of primary, while which the dead of this chapter keep their rooms (`deathVoiceGone`'s null).
     Hooks.on("drpgCastChanged", () => {
         if (isPrimaryGm()) scheduleReconcile();
     });
@@ -773,7 +773,8 @@ export async function placeVoices({ actors = [], eclipse = false, trial = false,
     const waits = new Map();
     const held = new Set();
     if (!asked) return { rows, byUser, claims, waits, held };
-    // WHILE THE CAST IS UNKNOWN, NOBODY JOINS A KEPT ROOM (E19 fix r1-G1; the review's sec-1). A kept dead account is
+    // WHILE THE CAST IS UNKNOWN, NOBODY JOINS A KEPT ROOM (E19 fix r1-G1; the review's sec-1). A kept dead account - a
+    // death of this chapter; one of an earlier chapter is placed at once (`olderDeath`, fix r2-G1) - is
     // sent nothing (`keep`), so its browser stays where it was - in the room it died in, beside the killer. Whether
     // a living player arriving there is a witness or the killer is the cast's to say, and this browser does not hold
     // it yet; so every player's account whose room is a kept account's is sent nothing either until the cast arrives
@@ -805,20 +806,43 @@ export async function placeVoices({ actors = [], eclipse = false, trial = false,
 /**
  * What `deathVoiceGone` reads, read once for a pass (E19 C3): the running incident (`murderState`, null when none
  * runs), whether this browser holds the GMs' cast (`castStore`), who is in it (`participantIds`) and the reader of a
- * body's discovery (chapter.mjs `deathAnnounced`). Imported here, as `locateActor` is in `voiceTargets`.
+ * body's discovery (chapter.mjs `deathAnnounced`). Imported here, as `locateActor` is in `voiceTargets`. Since E19
+ * fix r2-G1 also the clock's chapter and season (`getClock`, `seasonEpoch`) and the reader of a death's record
+ * (`deathRecordFor`: the flag, else the GMs' row), which tell a death older than the running incident without the cast.
  */
 export async function deathFacts() {
     const [{ murderState, participantIds }, { castStore }, { deathAnnounced }] = await Promise.all([
         import("./incident-store.mjs"), import("./gm-stores.mjs"), import("./chapter.mjs")]);
     const state = murderState();
-    return { state, hydrated: castStore.isHydrated(), cast: participantIds(state), announced: deathAnnounced };
+    return { state, hydrated: castStore.isHydrated(), cast: participantIds(state), announced: deathAnnounced,
+        chapter: getClock().chapter, epoch: seasonEpoch(), recordOf: deathRecordFor };
+}
+
+/**
+ * Whether a death's `record` is of another chapter or season than the clock's (`chapter`, `epoch`), so no death of
+ * the incident running now (E19 fix r2-G1, 19.10.2026; the review's E19-FIX1-1). A record with no chapter or no season
+ * is taken as this chapter's and this season's, as chapter.mjs `bodiesToDiscover` takes it; no record, or no clock
+ * handed in, is no answer (false). Pure.
+ *
+ * @param {object|null} record  `deathRecordFor`'s answer
+ * @param {{chapter?: number, epoch?: number}} clock
+ * @returns {boolean}
+ */
+export function olderDeath(record, { chapter = null, epoch = null } = {}) {
+    if (!record || chapter === null || chapter === undefined) return false;
+    if ((record.chapter ?? chapter) !== chapter) return true;
+    return epoch !== null && epoch !== undefined && (record.epoch ?? epoch) !== epoch;
 }
 
 /**
  * Whether a dead student's voice has left the room they died in, on the primary GM (E19 C3, 19.10.2026; S11-26, the
  * owner's A9 of 11.10): `null` while it cannot be told, else `true` from the first of A9's triggers, else `false`.
  *   - null: an incident runs and this browser does not hold the GMs' cast yet (a load, a change of primary). The
- *     cast is what says who is in the incident, and an empty one would read the victim as outside it;
+ *     cast is what says who is in the incident, and an empty one would read the victim as outside it. But a death
+ *     whose record is of an earlier chapter or season (`olderDeath`) is no death of this incident, cast or not, and
+ *     is true at once (E19 fix r2-G1; the review's E19-FIX1-1): until the fix it was null too, kept, so a student dead
+ *     since chapter 1 outranked its player's living character (`voiceRowFor`'s `stillThere`), sent that account its
+ *     own `standIn` (`answerWhoAmI`) and held back every living player walking into the room its token stands in;
  *   - true: outside the running incident's cast (`participantIds`) - the incident it died in is over, or it died
  *     outside one; its body found this chapter (`deathAnnounced`); a GM's "Silence now" (`silencedDead`, which E67
  *     writes in the cast; read only); or a living student from outside the cast in the same room (`witnessed`,
@@ -834,7 +858,7 @@ export async function deathFacts() {
 export async function deathVoiceGone(actor, facts) {
     const known = facts ?? await deathFacts();
     const { state = null, hydrated = true, cast = new Set(), witnessed = false } = known;
-    if (state && !hydrated) return null;
+    if (state && !hydrated) return olderDeath(known.recordOf?.(actor) ?? null, known) ? true : null;
     return !cast.has(actor.id) || Boolean(await known.announced?.(actor)) || Boolean(state?.silencedDead?.[actor.id]) || witnessed === true;
 }
 

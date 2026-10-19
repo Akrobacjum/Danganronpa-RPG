@@ -18253,6 +18253,96 @@ const INVARIANTS = [
             + "catchUpVoice joins the main room with no GM to answer]");
     }],
 
+    ["R835 - while the GMs' cast is not here, a student dead since an earlier chapter is placed as after its trigger at once: never kept, never ranked over its player's living character, and nobody walking into its room is held; the running incident's own dead stay kept (E19-13, E19-15; E19 fix r2-G1)", async () => {
+        /*
+         * E19 fix r2-G1, 19.10.2026; the review's E19-FIX1-1. While an incident ran and the primary's castStore was not
+         * hydrated, voice.mjs `deathVoiceGone` answered null for every dead character, before anything was read, so a
+         * student dead since chapter 1 was `keep` too: `voiceRowFor`'s tie-break (`stillThere`) ranked that kept row
+         * over the same player's living character in another room, `answerWhoAmI` sent the account the dead row's
+         * `standIn`, the pass sent it nothing, and `held` held back every living player walking into that body's room.
+         * Without the cast, a death whose record is of another chapter or season than the clock's is no death of the
+         * running incident, and is read as gone (`olderDeath`; `deathFacts` hands the clock and `deathRecordFor`).
+         * Read here on plain objects, nothing written and nothing sent, as R815 and R832 read: `placeVoices` with the
+         * facts handed in, `sendInPasses` over the pass, `answerWhoAmI` over a recorder; then the real `deathFacts`.
+         * Red at the fix's parent: P's account was kept (the main room on asking, nothing in the pass), Carol was held,
+         * and `deathFacts` named no chapter.
+         */
+        needs(env.primaryGm(), "the dead channel is decided on the primary GM alone (`voiceTargets`)");
+        const V = await import("./voice.mjs");
+        const VC = await import("./voice-client.mjs");
+        const { participantIds } = await import("./incident-store.mjs");
+        const DEAD = VC.DEAD_ROOM;
+        const school = { id: "R835SCHOOL000000", name: "R835 School" };
+        const account = (id, isGM = false) => ({ id, name: id, active: true, isGM });
+        const gm = account("R835GM0000000000", true);
+        const users = { p: account("R835PP0000000000"), carol: account("R835PC0000000000"), killer: account("R835PK0000000000"),
+            victim: account("R835PV0000000000") };
+        const actor = (id, flags = {}) => ({ id, name: id, type: "character", getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined) });
+        // Alice's id sorts after Bob's, so the lowest id alone (b99d9e8's tie-break) would pick Bob.
+        const A = { bob: actor("R835ABOB00000000"), alice: actor("R835AZALICE00000"), carol: actor("R835ACAROL000000"),
+            killer: actor("R835AKILLER00000"), victim: actor("R835AVICTIM00000") };
+        const owner = { bob: "p", alice: "p", carol: "carol", killer: "killer", victim: "victim" };
+        const nameOf = a => Object.keys(A).find(k => A[k].id === a.id);
+        const who = id => Object.keys(users).find(k => users[k].id === id) ?? (id === gm.id ? "gm" : id);
+        const label = target => (target === null ? "main" : target === DEAD ? "dead"
+            : ["Gym", "Library", "Hall", "Kitchen", "Dining"].find(room => V.liveKitRoomFor(school.id, room) === target) ?? `?${target}`);
+        const running = { active: true, stage: "incident", killerId: A.killer.id, victimId: A.victim.id };
+        const records = { alice: { chapter: 1, day: 3 }, victim: { chapter: 2, day: 1 } };
+        /* Chapter 2. Alice died in chapter 1 (public: the flag; secret: the GMs' row alone), her token in the Gym; Bob
+           alive in the Library; Carol alive, in the Hall or walked into the Gym; the incident's victim kept in the Kitchen. */
+        const place = ({ hydrated = false, secret = false, where = {}, chapter = 2, epoch = 7, recordOf } = {}) => V.placeVoices({
+            actors: Object.values(A).map(a => (nameOf(a) === "alice" && !secret ? actor(a.id, { [FLAGS.deceased]: records.alice }) : a)),
+            eclipse: false, trial: false,
+            death: { state: running, hydrated, cast: participantIds(running), announced: async () => false, chapter, epoch,
+                recordOf: recordOf ?? (a => records[nameOf(a)] ?? null) },
+            locate: a => ({ scene: school, room: { bob: "Library", alice: "Gym", carol: "Hall", killer: "Kitchen", victim: "Kitchen", ...where }[nameOf(a)] }),
+            userOf: a => users[owner[nameOf(a)]], dead: a => ["alice", "victim"].includes(nameOf(a)), monokumaOf: () => false
+        });
+        const rooms = placed => Object.fromEntries([...placed.byUser].map(([id, row]) => [who(id),
+            row.keep ? "kept" : placed.held.has(id) ? "held" : label(row.target ?? null)]));
+        const asked = async placed => {
+            const sent = [];
+            const io = { assign: (id, room) => { sent.push(`${who(id)}:${label(room)}`); return true; }, waitFor: async () => "applied" };
+            const said = {};
+            for (const name of ["p", "carol", "victim", "killer"]) said[name] = await V.answerWhoAmI(users[name].id, placed, io);
+            return [said, sent];
+        };
+        const pass = async placed => {
+            const sent = [];
+            await V.sendInPasses(V.applyOrder(placed.byUser, gm.id), placed.waits, { ownId: gm.id, held: placed.held,
+                assign: (userId, row) => { sent.push(`${who(userId)}:${label(row?.target ?? null)}`); return true; }, waitFor: async () => "applied" });
+            return sent;
+        };
+        const seen = [];
+        const cold = await place();
+        seen.push(["cold, P's two characters", rooms(cold), await asked(cold), await pass(cold)]);
+        const bobMoved = await place({ where: { bob: "Dining" } });
+        seen.push(["cold, Bob walks to the Dining Hall", rooms(bobMoved), await pass(bobMoved)]);
+        const carolIn = await place({ where: { carol: "Gym" } });
+        seen.push(["cold, Carol walks into the Gym", rooms(carolIn), await asked(carolIn), await pass(carolIn)]);
+        seen.push(["cold, Alice's death secret", rooms(await place({ secret: true, where: { carol: "Gym" } }))]);
+        seen.push(["cold, Alice of an earlier season", rooms(await place({ recordOf: a => (nameOf(a) === "alice" ? { chapter: 2, epoch: 3 } : null), where: { carol: "Gym" } }))]);
+        seen.push(["cold, a death of this chapter stays kept", rooms(await place({ recordOf: a => (nameOf(a) === "alice" ? { chapter: 2 } : null), where: { carol: "Gym" } }))]);
+        seen.push(["the cast here", rooms(await place({ hydrated: true, where: { carol: "Gym" } }))]);
+        const real = await V.deathFacts();
+        const { getClock } = await import("./settings.mjs");
+        seen.push(["deathFacts", real.chapter === getClock().chapter, typeof real.recordOf, typeof real.epoch]);
+
+        equal(stableJson(seen), stableJson([
+            ["cold, P's two characters", { p: "Library", carol: "Hall", killer: "held", victim: "kept" },
+                [{ p: "sent", carol: "sent", victim: "kept", killer: "held" }, ["p:Library", "carol:Hall", "victim:dead"]], ["p:Library", "carol:Hall"]],
+            ["cold, Bob walks to the Dining Hall", { p: "Dining", carol: "Hall", killer: "held", victim: "kept" }, ["p:Dining", "carol:Hall"]],
+            ["cold, Carol walks into the Gym", { p: "Library", carol: "Gym", killer: "held", victim: "kept" },
+                [{ p: "sent", carol: "sent", victim: "kept", killer: "held" }, ["p:Library", "carol:Gym", "victim:dead"]], ["p:Library", "carol:Gym"]],
+            ["cold, Alice's death secret", { p: "Library", carol: "Gym", killer: "held", victim: "kept" }],
+            ["cold, Alice of an earlier season", { p: "Library", carol: "Gym", killer: "held", victim: "kept" }],
+            ["cold, a death of this chapter stays kept", { p: "kept", carol: "held", killer: "held", victim: "kept" }],
+            ["the cast here", { p: "Library", carol: "Gym", killer: "Kitchen", victim: "Kitchen" }],
+            ["deathFacts", true, "function", "number"]]),
+            "[each case, the cast not here unless named: the room each account gets ('kept', 'held': nothing sent), what each account asking is answered "
+            + "and sent, what the pass sends], [the real deathFacts: the clock's chapter, the record's reader, the season]");
+    }],
+
     ["R816 - faza classTrial bez zmian: in the Class Trial every account is in the one room the trial has, the dead before discovery too, and nobody's death or place is asked (E19-17)", async () => {
         /*
          * E19 C3, 19.10.2026; the owner's session 0 (11.10): "wraca zdanie dopisku A9 'Gałąź Eclipse i faza classTrial
