@@ -20,7 +20,7 @@
  *   G  one dice look, the GM's, on every user below full Gamemaster and on their
  *      characters (E16 p1 C3, C4), and an Assistant's write of the GMs' copy
  *      of them refused (E16 fix r1-G2), or of the two switches put back (E16
- *      fix r1b-G1);
+ *      fix r1b-G1), heard or written with no hook (E16 fix r1b-G2);
  *   H  a character's dice look with no GM watching: `gm2`, a second full
  *      Gamemaster declared late below, leaves before D and comes back to a table
  *      with no other GM (E16 fix early-C4-G1), last on a browser that never
@@ -362,6 +362,28 @@ export async function run({ gm, ag, gm2, p1, p2, p3, check, settle, opLog, socke
     for (const c of [gm, ag, p1]) g5.held[c.who] = await switchesOn(c) === switches;
     check("G5: an Assistant's switch of the table's dice look off, or to another full Gamemaster's, is put back on every client, the players keep the GM's look, and the GM is told once",
         JSON.parse(switches)[0] === true && JSON.parse(switches)[1] === IDS.gm && Object.values(g5.held).every(Boolean) && g5.p1 && g5.told === 1, JSON.stringify(g5));
+
+    /* E16 fix r1b-G2, 19.10.2026 (finding OWNER-DEFAULT-a). A world setting written with `noHook` reaches no client's
+       `updateSetting` listener (the harness models it from this fix on, as a document's; v14: LIVE-E16-04), so G5's
+       put-back never heard the Assistant's console switch `forceDiceLook` off that way. G6: the Assistant's console does,
+       then p1's console writes its own look with `noHook`, then p1 posts a message as its character. Read: the switch on
+       every client after the write and after the message, p1's look against the GM's, and the GM's notices of a
+       put-back (none more: G5's came less than a minute before, and the GM reads one a minute).
+       At 857a51a: the switch stays off on every client and p1 keeps its own look. */
+    const gmToldG6 = await gm.eval(`return globalThis.__notifications.length;`);
+    await ag.eval(`await game.settings.set("${MOD}", "forceDiceLook", false, { noHook: true }); return true;`);
+    await settle(600);
+    const g6 = { landed: await gm.eval(`return game.settings.get("${MOD}", "forceDiceLook");`), held: {} };
+    await p1.eval(`await game.user.update({ "flags.${DSN}.appearance": { global: { colorset: "black" } } }, { noHook: true }); return true;`);
+    await settle(600);
+    await p1.eval(`await ChatMessage.create({ content: "E16 throw after a switch no hook heard", speaker: { actor: "${IDS.aiko}" } }); return true;`);
+    await settle(1500);
+    for (const c of [gm, ag, p1]) g6.held[c.who] = await switchesOn(c) === switches;
+    Object.assign(g6, { p1: await lookOn(gm, IDS.p1) === canon,
+        told: await gm.eval(`const said = [game.i18n.localize("DRPG.DiceLook.settingBackUnheard"), game.i18n.format("DRPG.DiceLook.settingBack", { name: game.users.get("${IDS.ag}").name })];
+            return globalThis.__notifications.slice(${gmToldG6}).filter(n => said.includes(n.msg)).length;`) });
+    check("G6: an Assistant's switch of the table's dice look written with no hook is put back on every client at the next message, and the player throws in the GM's look",
+        g6.landed === false && Object.values(g6.held).every(Boolean) && g6.p1 && g6.told === 0, JSON.stringify(g6));
 
     /* E16 fix early-C4-G1, 19.10.2026 (finding E16-C4-F1). gm2, a second full Gamemaster on a browser of its own, joins
        while the GM and the Assistant are here, takes the GMs' stores from them, and leaves with what they held - Botan's

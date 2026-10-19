@@ -38,7 +38,13 @@
  * primary writes a change by anyone below full Gamemaster back to that copy before a sweep spreads anything,
  * telling its GM once a minute. The primary's own write is its copy too: an Assistant primary (no full Gamemaster
  * connected) judges for itself, and its own console's change stands until a full Gamemaster's browser loads, which
- * takes the value it finds (the copy is memory, as the source's is).
+ * takes the value it finds (the copy is memory, as the source's is). A switch written with `noHook` reaches no
+ * listener (in the harness, as a document's does; on v14 LIVE-E16-04), so the primary also compares both switches with
+ * its copy before each step it takes - a user's or an actor's write it hears, a message, a connect - and puts them back
+ * first, as a user's own `noHook` look is: one throw late at most (E16 fix r1b-G2, finding OWNER-DEFAULT-a). The
+ * put-back is the primary's own write, which its own listener takes as the copy, so it cannot answer itself and no fuse
+ * is needed; a full Gamemaster's own `noHook` change of a switch is put back the same way, since nothing says who
+ * wrote it.
  *
  * NO LOOP. A put-back waits 400 ms after the user's last update (DSN's save is six updates in a row), compares
  * before it writes, and stops for that user after five in a minute, with one console error and one notice to
@@ -167,7 +173,7 @@ export function registerDiceSync() {
     // A user who joins gets the look before its first throw: this runs on the primary when the joiner's socket connects.
     Hooks.on("userConnected", (user, connected) => {
         if (!connected || !isForced(user) || !isPrimaryGm()) return;
-        void putBack(user.id, { count: false });
+        afterSwitchesHeld(() => putBack(user.id, { count: false }));
     });
     if (game.user?.isGM) {
         copySwitches();
@@ -201,6 +207,22 @@ function enforcingAsHeld() {
 /** One of SWITCHES as it stands, or undefined where it cannot be read. */
 function switchValue(name) {
     try { return game.settings.get(MODULE_ID, name); } catch { return undefined; }
+}
+
+/** Whether a switch is not this browser's copy of it: a write no listener heard, where a step finds it. */
+function switchesMoved() {
+    return SWITCHES.some(name => switchCopy.has(name) && switchValue(name) !== switchCopy.get(name));
+}
+
+/**
+ * A step of the primary's, taken once both switches hold the copy (E16 fix r1b-G2, finding OWNER-DEFAULT-a): a switch
+ * written with `noHook` is put back first, and the step runs only where the table's look is forced after it.
+ */
+function afterSwitchesHeld(step) {
+    if (!isPrimaryGm()) return;
+    const held = switchesMoved() ? holdSwitches() : Promise.resolve();
+    void held.then(() => (enforcing() ? step() : undefined))
+        .catch(err => error("Could not hold the table's dice look settings before a check", err));
 }
 
 /** Both switches as they stand taken as this GM browser's copy (at its load). */
@@ -247,9 +269,13 @@ function holdSwitches(writer = null) {
         }
         if (held && Date.now() - toldSwitchAt > FUSE_WINDOW_MS) {
             toldSwitchAt = Date.now();
-            const name = writer?.name ?? "?";
-            log(`${name} changed the table's dice look settings below full Gamemaster: put back.`);
-            try { ui.notifications?.warn(game.i18n.format("DRPG.DiceLook.settingBack", { name })); }
+            const name = writer?.name ?? null;
+            log(name ? `${name} changed the table's dice look settings below full Gamemaster: put back.`
+                : "The table's dice look settings were changed with no hook heard: put back.");
+            try {
+                ui.notifications?.warn(name ? game.i18n.format("DRPG.DiceLook.settingBack", { name })
+                    : game.i18n.localize("DRPG.DiceLook.settingBackUnheard"));
+            }
             catch (err) { error("Could not tell the GM that the dice look settings were put back", err); }
         }
     })();
@@ -409,6 +435,8 @@ function onUserUpdated(user, changes, _options, userId) {
     // The copy of the source's look, on every GM browser, so that the next primary holds it too.
     const look = touchesLook(changes.flags) || changes.color !== undefined;
     if (look && game.user?.isGM && isSource(user) && (!enforcingAsHeld() || isFullGm(game.users.get(userId)))) copySource(user);
+    // A switch written with no hook heard is the sweep's: it puts the switches back first, then reaches every user.
+    if (isPrimaryGm() && switchesMoved()) return schedule(SWEEP);
     if (!enforcing()) return;
     if (!isPrimaryGm()) return tellPlayer(user, changes, userId);
     // The sweep puts the source back to the copy before it spreads anything: a write below full Gamemaster spreads nothing.
@@ -525,7 +553,7 @@ function onActorWritten(actor, userId, touched, { created = false } = {}) {
     // and one written below full Gamemaster goes back to its base's copy (finding sec-4).
     if (actor.isToken) {
         const ref = tokenRef(actor);
-        if (ref && touched && enforcing() && !isFullGm(game.users.get(userId))) schedule(TOKEN + ref);
+        if (ref && touched && !isFullGm(game.users.get(userId))) afterSwitchesHeld(() => schedule(TOKEN + ref));
         return;
     }
     if (isFullGm(game.users.get(userId))) {
@@ -533,7 +561,7 @@ function onActorWritten(actor, userId, touched, { created = false } = {}) {
         return;
     }
     if (created) void diceLookStore.patch(actor.id, { look: null });
-    if (enforcing()) schedule(ACTOR + actor.id);
+    afterSwitchesHeld(() => schedule(ACTOR + actor.id));
 }
 
 /**
@@ -646,7 +674,11 @@ async function putBackOverlay(actor, key, { count = true } = {}) {
  */
 function onMessage(message) {
     if (!isPrimaryGm()) return;
-    if (!enforcing()) return;
+    afterSwitchesHeld(() => checkMessage(message));
+}
+
+/** The throw-time check itself, once the switches hold the copy and the look is forced. */
+function checkMessage(message) {
     const speaker = message?.speaker;
     // A throw as an unlinked token is checked for a roller below full Gamemaster only: a GM's look on its NPC stands.
     const ref = typeof speaker?.scene === "string" && typeof speaker?.token === "string" && speaker.scene && speaker.token

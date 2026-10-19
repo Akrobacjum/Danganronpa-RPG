@@ -54548,6 +54548,76 @@ const SCENARIOS = [
             "an unseen character a player owns kept the player's own dice look, or one no player owns lost the GM's (unseen: [the store held the player's, the GM's, the player owns them]; mine: the player's overlay gone; npc: the GM's colour kept; rows: the copy of each)");
     }],
 
+    ["an Assistant GM's switch of the table's dice look is put back, heard or written with no hook, and the GM is told once (S16-02)", async () => {
+        /*
+         * E16 fix r1b-G2, 19.10.2026 (finding OWNER-DEFAULT-a; the owner's Q5 runs on its default (a)). Foundry lets an
+         * Assistant GM write a world setting: fix r1b-G1 put back a switch `updateSetting` heard written below full
+         * Gamemaster, but one written with `noHook` reaches no listener (the harness models it as a document's, from
+         * this fix on; v14: LIVE-E16-04), so `forceDiceLook` stayed off and the table's look was no longer forced until
+         * a sweep. An Assistant made for the test, and an offline full Gamemaster with a look of its own; the GM gives
+         * themself a look. Heard: both switches written with `noHook`, then handed to `updateSetting`'s listeners with
+         * the Assistant's id, the id Foundry stamps on its write. Unheard (twice, the Assistant's console as it would be,
+         * written here by the GM with `noHook`): the switch off, then the player's look written as the primary hears it;
+         * the switch off, then the player's own look with `noHook` and a message the player posts. Read: both switches
+         * and the player's look after each, and the GM's warnings of the put-back (one for the minute).
+         * At 857a51a: heard put back; unheard the switch stays off and the player keeps its own look.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter"));
+        const gm = game.user;
+        const player = game.users.find(u => !u.isGM && u.active);
+        const found = diceFlagsFound();
+        const wasSource = game.settings.get(MODULE_ID, SETTINGS.diceLookSource);
+        const made = [];
+        const cards = [];
+        const said = [game.i18n.localize("DRPG.DiceLook.settingBackUnheard")];
+        const warned = [], warn = ui.notifications.warn;
+        ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+        const switches = () => [game.settings.get(MODULE_ID, SETTINGS.forceDiceLook), game.settings.get(MODULE_ID, SETTINGS.diceLookSource) === gm.id];
+        const held = () => stableJson(switches()) === stableJson([true, true]);
+        const read = {};
+        try {
+            made.push(...await CONFIG.User.documentClass.createDocuments([{ name: "E16 switch writer", role: CONST.USER_ROLES.ASSISTANT },
+                { name: "E16 another source", role: CONST.USER_ROLES.GAMEMASTER, flags: { [DSN_SCOPE]: { appearance: OWN_DICE_LOOK, sfxList: OWN_DICE_SFX } } }]));
+            const [assistant, other] = made;
+            said.push(game.i18n.format("DRPG.DiceLook.settingBack", { name: assistant.name }));
+            if (wasSource !== gm.id) await game.settings.set(MODULE_ID, SETTINGS.diceLookSource, gm.id);
+            await gm.update(diceLookWrite(GM_DICE_LOOK, GM_DICE_SFX));
+            const look = await canonicalDiceLook();
+            read.before = [await until(() => holdsLook(player, look), 3000), held()];
+            await wait(800);
+            for (const [key, value] of [[SETTINGS.forceDiceLook, false], [SETTINGS.diceLookSource, other.id]]) {
+                await game.settings.set(MODULE_ID, key, value, { noHook: true });
+                Hooks.callAll("updateSetting", { key: `${MODULE_ID}.${key}`, value }, { value }, {}, assistant.id);
+                await wait(600);
+            }
+            read.heard = [await until(held, 3000), holdsLook(player, look)];
+            await game.settings.set(MODULE_ID, SETTINGS.forceDiceLook, false, { noHook: true });
+            await wait(600);
+            read.written = [game.settings.get(MODULE_ID, SETTINGS.forceDiceLook)];
+            await player.update(diceLookWrite(OWN_DICE_LOOK, OWN_DICE_SFX));
+            read.written.push(await until(() => held() && holdsLook(player, look), 3000));
+            // The put-back's own write of the switch schedules a sweep (400 ms): it runs before the next write.
+            await wait(1200);
+            await game.settings.set(MODULE_ID, SETTINGS.forceDiceLook, false, { noHook: true });
+            await player.update(diceLookWrite(OWN_DICE_LOOK, OWN_DICE_SFX), { noHook: true });
+            await wait(1200);
+            read.thrown = [game.settings.get(MODULE_ID, SETTINGS.forceDiceLook), holdsLook(player, look)];
+            cards.push(await ChatMessage.create({ author: player.id, content: "E16 a player's throw after a switch no hook heard" }));
+            read.thrown.push(await until(() => held() && holdsLook(player, look), 3000));
+        } finally {
+            ui.notifications.warn = warn;
+            for (const card of cards) if (card && game.messages.get(card.id)) await card.delete();
+            if (game.settings.get(MODULE_ID, SETTINGS.forceDiceLook) !== true) await game.settings.set(MODULE_ID, SETTINGS.forceDiceLook, true);
+            if (game.settings.get(MODULE_ID, SETTINGS.diceLookSource) !== wasSource) await game.settings.set(MODULE_ID, SETTINGS.diceLookSource, wasSource);
+            await putBackDiceFlags(found, made);
+        }
+        read.told = warned.filter(text => said.includes(text)).length;
+        equal(stableJson(read), stableJson({ before: [true, true], heard: [true, true], thrown: [false, false, true], told: 1, written: [false, true] }),
+            "an Assistant's switch of the table's dice look stood, heard or written with no hook, or the GM was told more than once (before: [the GM's look on the player, both switches the GM's]; heard: [both put back, the player still in the GM's look]; written: [the switch off as written, put back with the player's look at its next write]; thrown: [the switch off, the player's own look, both put back at its message]; told: the GM's warnings)");
+    }],
+
     ...GRID
 ];
 

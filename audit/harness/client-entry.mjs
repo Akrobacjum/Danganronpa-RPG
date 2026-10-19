@@ -247,11 +247,11 @@ const bus = {
             else send({ t: "op", id, op });
         });
     },
-    setSetting(key, value) {
+    setSetting(key, value, { noHook = false } = {}) {
         return new Promise((resolve, reject) => {
             const id = `${WHO}-${++reqSeq}`;
             pending.set(id, { resolve, reject });
-            send({ t: "setting", id, key, value });
+            send({ t: "setting", id, key, value, ...(noHook ? { noHook: true } : {}) });
         });
     },
     socketEmit(channel, args) { send({ t: "socket", channel, args }); },
@@ -430,7 +430,7 @@ const settingsApi = {
         }
         return U.deepClone(def.default);
     },
-    async set(ns, key, value) {
+    async set(ns, key, value, options = {}) {
         const full = `${ns}.${key}`;
         let def = settingDefs.get(full);
         /* THE SAME FALLBACK `get` HAS, and it was missing here only because
@@ -445,7 +445,9 @@ const settingsApi = {
         }
         if (!def) throw new Error(`Setting ${full} is not registered`);
         if (def.scope === "world") {
-            await bus.setSetting(full, JSON.parse(JSON.stringify(value ?? null)));
+            /* `noHook` as Foundry's update operation takes it (E16 fix r1b-G2): the value lands and `onChange` runs on every
+               client, and no client's `updateSetting` listener hears it, as the harness's document writes do (applyRemote). */
+            await bus.setSetting(full, JSON.parse(JSON.stringify(value ?? null)), { noHook: options?.noHook === true });
         } else {
             clientValues.set(full, JSON.parse(JSON.stringify(value ?? null)));
             try { def.onChange?.(value); } catch (err) { logLine(`setting onChange ${full}: ${err.stack}`); recordError(`setting onChange ${full}`, err); }
@@ -1700,7 +1702,7 @@ process.on("message", async msg => {
                    id was handed third, where a listener reads the options, so no listener could tell who wrote a world
                    setting (dice-sync.mjs `onSwitchWritten`, tests-kit.mjs `watchWrites`, which took every write for
                    this client's own). */
-                hooks.callAll("updateSetting", { key: msg.key, value: msg.value }, { value: msg.value }, {}, msg.userId);
+                if (!msg.noHook) hooks.callAll("updateSetting", { key: msg.key, value: msg.value }, { value: msg.value }, {}, msg.userId);
                 break;
             }
             case "socketMsg": {
