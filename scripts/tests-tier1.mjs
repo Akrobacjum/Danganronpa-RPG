@@ -18165,6 +18165,260 @@ const INVARIANTS = [
         "[crossTunnel's token write, a move with and without a floor, the voice's updateToken hook], [before the crossing: who is sent where, "
             + "to them alone], [after it], [in the Eclipse: who is sent], [after the Eclipse: who is sent where, to them alone]");
     }],
+    ["R821 - the murder music's overlay: the room is held only once a track really plays, a track that arrives after the incident (a click that came late) or after a newer start is stopped, a file that will not load leaves the room alone and is not asked for again, and nothing mapped plays nothing (E19-25)", async () => {
+        /*
+         * E19 C5, 19.10.2026; audit S11-07. At Base `startMurderMusic` turned the room's music down before it asked for
+         * the track, so a 404 (`AudioHelper.play` answers a sound with `failed`, it does not throw) left a participant
+         * in silence, and a browser not clicked yet kept the room down while the track waited on the first click - and
+         * started it, looped, after the incident had ended, with nothing left to stop it. The overlay is now a small
+         * machine (music.mjs `createMurderOverlay`) driven here with its effects as lists: `play` answers a promise the
+         * test settles, so each case says when the track "starts".
+         */
+        const M = await import("./music.mjs");
+        ok(typeof M.createMurderOverlay === "function", "music.mjs has no overlay machine (`createMurderOverlay`), so none of S11-07's three cases can be driven");
+        const log = [];
+        let pending = [];
+        const sound = (src, failed = false) => ({ src, failed, stop() { log.push(["stop", src]); } });
+        const overlay = M.createMurderOverlay({
+            pick: key => (key === "none" ? null : { src: `R821-${key}.ogg`, volume: 0.6, name: `R821 ${key}`, playlist: "R821" }),
+            play: next => {
+                log.push(["play", next.src]);
+                return new Promise(resolve => pending.push(resolve));
+            },
+            holdRoom: () => log.push(["hold"]),
+            releaseRoom: () => log.push(["release"]),
+            unplayable: next => log.push(["unplayable", next.src])
+        });
+        const settle = async (i, s) => { pending[i](s); await new Promise(r => setTimeout(r, 0)); };
+        const take = () => log.splice(0, log.length);
+        const seen = [];
+
+        // A real start: nothing is held while the track is on its way; then it plays and the room is held.
+        let asked = overlay.want(true, "a");
+        seen.push(["asked", take(), overlay.state().playing]);
+        await settle(0, sound("R821-a.ogg")); await asked;
+        seen.push(["started", take(), overlay.state().playing, overlay.state().track]);
+        await overlay.want(true, "a");
+        seen.push(["asked again", take()]);
+        await overlay.want(false);
+        seen.push(["ended", take(), overlay.state().playing]);
+
+        // The click that never came: the incident ends while the track waits; the track arrives afterwards.
+        pending = [];
+        asked = overlay.want(true, "b");
+        await overlay.want(false);
+        await settle(0, sound("R821-b.ogg")); await asked;
+        seen.push(["late", take(), overlay.state().playing]);
+
+        // A file that will not load: nothing held, the GMs warned, the same file not asked for again.
+        pending = [];
+        asked = overlay.want(true, "c");
+        await settle(0, sound("R821-c.ogg", true)); await asked;
+        seen.push(["404", take(), overlay.state().playing]);
+        await overlay.want(true, "c");
+        seen.push(["404 again", take()]);
+        await overlay.want(false);
+        take();
+
+        // Two starts in flight: the older one, arriving last, is stopped; the newer one is held once.
+        pending = [];
+        const first = overlay.want(true, "d");
+        await overlay.want(false);
+        const second = overlay.want(true, "d");
+        await settle(1, sound("R821-d.ogg")); await second;
+        await settle(0, sound("R821-d.ogg")); await first;
+        seen.push(["two in flight", take(), overlay.state().playing]);
+        await overlay.want(false);
+        take();
+
+        // Nothing mapped: no track, the room left as it is.
+        await overlay.want(true, "none");
+        seen.push(["nothing mapped", take(), overlay.state().playing]);
+
+        equal(stableJson(seen), stableJson([
+            ["asked", [["play", "R821-a.ogg"]], false],
+            ["started", [["hold"]], true, "R821 a"],
+            ["asked again", []],
+            ["ended", [["stop", "R821-a.ogg"], ["release"]], false],
+            ["late", [["play", "R821-b.ogg"], ["release"], ["stop", "R821-b.ogg"]], false],
+            ["404", [["play", "R821-c.ogg"], ["unplayable", "R821-c.ogg"]], false],
+            ["404 again", []],
+            ["two in flight", [["play", "R821-d.ogg"], ["release"], ["play", "R821-d.ogg"], ["hold"], ["stop", "R821-d.ogg"]], true],
+            ["nothing mapped", [], false]]),
+        "[the overlay's effects and whether it plays] for: a start asked, the track started, asked again, the incident over; a track "
+            + "that arrives after the incident; a file that fails, asked again; two starts in flight; nothing mapped");
+    }],
+
+    ["R822 - after a reload mid-incident the room's music comes back at the volume it had before the incident: a volume an earlier version parked is put back at ready whether or not an incident runs, and nothing in the murder music writes the Music volume any more (E19-26)", async () => {
+        /*
+         * E19 C5, 19.10.2026; audit S11-07 (1). At Base a witness's F5 (a GM is always one) read the volume it had
+         * parked itself, 0, as "the volume before" and parked that over the real one: after the incident the room's
+         * music stayed at 0 on that browser for good. The overlay no longer moves the Music volume at all (the 04.10
+         * answer: the Music channel, the room's playlists held), so the parked number is only what an earlier version
+         * left: `restoreDuckedMusic` gives it back at ready, in an incident too, with its two writes as lists here.
+         * The writes are read in music.mjs with comments blanked: the one write of the Music volume
+         * (`core.globalPlaylistVolume`) and the one of the parked volume (`musicDuckedFrom`) are `restoreDuckedMusic`'s.
+         */
+        const M = await import("./music.mjs");
+        ok(typeof M.restoreDuckedMusic === "function", "music.mjs exports no `restoreDuckedMusic` that takes its reads and writes, so the reload cannot be driven");
+        const run = async parked => {
+            const writes = [];
+            await M.restoreDuckedMusic({ parked: () => parked, setVolume: v => writes.push(["volume", v]), park: v => writes.push(["park", v]) });
+            return writes;
+        };
+        const music = stripComments((await moduleSources()).get("music.mjs") ?? "");
+        must(music.length, "music.mjs is not among the module's sources - this would measure nothing");
+        const writes = pattern => [...music.matchAll(pattern)].map(m => lineAround(music, m.index).trim());
+        const restore = fnSource(music, "restoreDuckedMusic");
+        const volumeWrites = writes(/game\.settings\.set\("core", "globalPlaylistVolume"/g);
+        const parkWrites = writes(/game\.settings\.set\(MODULE_ID, SETTINGS\.musicDuckedFrom\b/g);
+        const seen = [
+            ["parked 0.8", await run(0.8)],
+            ["parked 0", await run(0)],
+            ["nothing parked", await run(-1)],
+            ["the restore asks no incident", /incidentWitness\(/.test(restore)],
+            ["the Music volume written", volumeWrites.length, volumeWrites.every(line => restore.includes(line))],
+            ["the volume parked", parkWrites.length, parkWrites.every(line => restore.includes(line))]
+        ];
+        equal(stableJson(seen), stableJson([
+            ["parked 0.8", [["volume", 0.8], ["park", -1]]],
+            ["parked 0", [["volume", 0], ["park", -1]]],
+            ["nothing parked", []],
+            ["the restore asks no incident", false],
+            ["the Music volume written", 1, true],
+            ["the volume parked", 1, true]]),
+        "[the restore's writes] for a parked 0.8, a parked 0 and nothing parked; [whether the restore waits for the incident to end]; "
+            + "[how many writes of the Music volume and of the parked volume music.mjs holds, and whether each is the restore's]");
+    }],
+
+    ["R823 - the murder music plays on the Music channel at its track's own volume, the same track for everybody in one incident (by the incident's opening time), and holds the room's music on that browser without touching a soundboard; a change of the murder playlist mid-incident is followed (E19-27)", async () => {
+        /*
+         * E19 C5, 19.10.2026; audit S11-42 and the owner's answer of 04.10 ("kanał music zamiast interface, playlisty
+         * pokoju pauzowane na czas incydentu"). At Base the track played on the Interface channel at the volume the
+         * room's music had (a player who had turned the clicks down heard no murder music), each browser drew its own
+         * track at random (killer and victim heard different ones), and the room's music was ducked by setting the
+         * Music volume to 0 - which on the Music channel would silence the murder track too. The room's sounds are now
+         * held on that browser alone (music.mjs `createRoomHold`): each playing sound's own volume to 0 and back,
+         * a sound that starts later held as it starts. Held in place rather than paused: a GM's browser is always in
+         * the incident, and a playlist moves to its next track when a GM's browser hears the last one end. Fakes here,
+         * no audio: the sandbox's audio is locked.
+         */
+        const M = await import("./music.mjs");
+        for (const name of ["murderTrackFor", "murderPlayData", "createRoomHold"]) {
+            ok(typeof M[name] === "function", `music.mjs exports no \`${name}\`, so this part of S11-42 cannot be measured`);
+        }
+        const tracks = ["R823C", "R823A", "R823B"].map((id, i) => ({ id, path: `R823-${i}.ogg`, name: id, volume: 0.25 * (i + 1) }));
+        const reversed = [...tracks].reverse();
+        const keys = Array.from({ length: 24 }, (_, i) => 1760000000000 + i * 7919);
+        const picks = keys.map(key => M.murderTrackFor(tracks, key)?.id ?? null);
+        const same = keys.every((key, i) => M.murderTrackFor(reversed, key)?.id === picks[i] && M.murderTrackFor(tracks, key)?.id === picks[i]);
+        const pick = M.murderTrackFor(tracks, keys[0]);
+        const data = M.murderPlayData({ src: pick.path, volume: pick.volume });
+
+        const listeners = new Map();
+        const local = (playing, volume) => {
+            const s = { playing, volume, addEventListener(type, fn) { if (!listeners.has(s)) listeners.set(s, []); listeners.get(s).push([type, fn]); } };
+            return s;
+        };
+        const fire = s => { for (const [type, fn] of listeners.get(s) ?? []) if (type === "play") fn(); };
+        const room = { mode: 0, sounds: [{ name: "now", volume: 0.5, playing: true, sound: local(true, 0.5) }, { name: "next", volume: 0.7, playing: true, sound: local(false, undefined) }] };
+        const board = { mode: -1, sounds: [{ name: "sting", volume: 1, playing: true, sound: local(true, 1) }] };
+        const [now, next] = room.sounds.map(s => s.sound), sting = board.sounds[0].sound;
+        const hold = M.createRoomHold();
+        hold.hold([room, board]);
+        const held = [now.volume, next.volume, sting.volume];
+        next.playing = true; next.volume = 0.7; fire(next);
+        const startedLater = next.volume;
+        hold.release();
+        const released = [now.volume, next.volume, sting.volume];
+        now.volume = 0.5; fire(now);
+        const afterRelease = now.volume;
+
+        const music = stripComments((await moduleSources()).get("music.mjs") ?? "");
+        must(music.length, "music.mjs is not among the module's sources - this would measure nothing");
+        const mapFollowed = /SETTINGS\.musicMap\}`\)[\s\S]{0,120}?applyMurderMusic\(/.test(fnSource(music, "registerMusic"));
+        equal(stableJson([
+            ["one track per incident on every browser", same, new Set(picks).size > 1, M.murderTrackFor([], keys[0]), M.murderTrackFor([{ id: "R823X", name: "no file" }], keys[0])],
+            ["played as", data],
+            ["held", held, startedLater],
+            ["given back", released, afterRelease],
+            ["the murder playlist's change followed", mapFollowed]]), stableJson([
+            ["one track per incident on every browser", true, true, null, null],
+            ["played as", { autoplay: true, channel: "music", loop: true, src: pick.path, volume: pick.volume }],
+            ["held", [0, null, 1], 0],
+            ["given back", [0.5, 0.7, 1], 0.5],
+            ["the murder playlist's change followed", true]]),
+        "[the same pick in either order for 24 incidents, more than one track used, an empty playlist, a track with no file], "
+            + "[what AudioHelper.play is handed], [the room held: playing, not started yet (no volume of its own yet), a soundboard; the later one as it starts], "
+            + "[given back; a start after the release], [registerMusic follows a musicMap write with the murder music]");
+    }],
+
+    ["R824 - the band under the clock names what this browser hears: the murder track while it plays, never a room track held at 0 or a Music volume at 0, and never a soundboard's one-shot (E19-28)", async () => {
+        /*
+         * E19 C5, 19.10.2026; audit S11-40. At Base `nowPlayingHere` skipped only the sounds not playing here: a room
+         * track ducked to 0 for the incident was named while the participant heard the murder track (not a playlist
+         * sound, so never named), and a soundboard's sting replaced the ambient's name for its two seconds. The reader
+         * takes what it reads as an argument (the live world when none is given); fakes here.
+         */
+        const M = await import("./music.mjs");
+        const local = (playing, volume) => ({ playing, volume });
+        const list = (id, name, mode, sounds) => ({ id, name, mode, sounds });
+        const board = list("R824BOARD", "R824 Stings", -1, [{ name: "R824 Gunshot", volume: 1, sound: local(true, 1) }]);
+        const held = list("R824HELD", "R824 Held", 0, [{ name: "R824 Held at 0", volume: 0.8, sound: local(true, 0) }]);
+        const room = list("R824ROOM", "R824 Afternoon", 0, [{ name: "R824 Ambient", volume: 0.5, sound: local(true, 0.5) }]);
+        const murder = { track: "R824 Killing", playlist: "R824 Murder", volume: 0.6 };
+        const read = seen => M.nowPlayingHere({ cueId: null, mine: [], channel: 1, murder: null, ...seen })?.track ?? null;
+        equal(stableJson([
+            ["a soundboard beside the room", read({ playlists: [board, room] })],
+            ["a track held at 0 beside the room", read({ playlists: [held, room] })],
+            ["the Music volume at 0", read({ playlists: [room], channel: 0 })],
+            ["the murder track over the room", read({ playlists: [held, room], murder })],
+            ["the murder track at a Music volume of 0", read({ playlists: [held], murder, channel: 0 })],
+            ["nothing", read({ playlists: [] })]]), stableJson([
+            ["a soundboard beside the room", "R824 Ambient"],
+            ["a track held at 0 beside the room", "R824 Ambient"],
+            ["the Music volume at 0", null],
+            ["the murder track over the room", "R824 Killing"],
+            ["the murder track at a Music volume of 0", null],
+            ["nothing", null]]),
+        "the track the band names for each case");
+    }],
+
+    ["R825 - the music's hand-offs leave nothing on hold: a GM's track cut off by a new state lets go of what it held, a mapped state taking over lets go of its own playlist, a mapped state after the body's silence takes the music without resuming what the silence held, and the body's silence stops a GM's track too (E19-29)", async () => {
+        /*
+         * E19 C5, 19.10.2026; audit S11-32 and S11-58 (the owner's D8: the silence after a body is found stops a GM's
+         * own track too). At Base a takeover stopped the GM's track and left what it held flagged `held` with its
+         * paused time, so a Reset in a later silence brought back music from hours before; leaving the body's silence
+         * for a mapped Investigation resumed the afternoon (a fade in) and then stopped it; and the silent state, having
+         * no playlist, was "nothing to take over with", so a GM's track played on through the announcement. Who gives
+         * way is `cueGivesWay`, driven here; the hand-offs are read in music.mjs with comments blanked; the Sound
+         * window's note says it in both languages.
+         */
+        const M = await import("./music.mjs");
+        ok(typeof M.cueGivesWay === "function", "music.mjs exports no `cueGivesWay`, so who a GM's track gives way to cannot be driven");
+        const gives = [
+            ["the same state", M.cueGivesWay("time.afternoon", "time.afternoon", { mapped: true, silent: false })],
+            ["a mapped state", M.cueGivesWay("trial.discussion", "time.afternoon", { mapped: true, silent: false })],
+            ["an unmapped state", M.cueGivesWay("time.evening", "time.afternoon", { mapped: false, silent: false })],
+            ["the body's silence", M.cueGivesWay("bodyFound", "time.afternoon", { mapped: false, silent: true })]];
+        const music = stripComments((await moduleSources()).get("music.mjs") ?? "");
+        must(music.length, "music.mjs is not among the module's sources - this would measure nothing");
+        const apply = fnSource(music, "apply"), crossfade = fnSource(music, "crossfade");
+        const takeover = /await stopInterruption\(\);[\s\S]{0,900}?clearHeld\(/.test(apply);
+        const asks = /cueGivesWay\(/.test(apply);
+        const ownLetGo = /next\.playAll\(\);[\s\S]{0,200}?clearHeld\(next\)/.test(crossfade);
+        const silenceOut = /if \(silenced\) \{[\s\S]{0,900}?if \(next\)[\s\S]{0,200}?clearHeld\([\s\S]{0,200}?else await resumeHeld\(held\)/.test(apply);
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`, { cache: "no-cache" }).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
+        const note = [/body is found[^.]*your own track/i.test(en.DRPG.Music.fadeNote), /znalezieni[ue] ciała[^.]*twój własny utwór/i.test(pl.DRPG.Music.fadeNote)];
+        equal(stableJson([gives, ["apply asks it", asks], ["the takeover lets go", takeover], ["the crossfade lets go of its own", ownLetGo],
+            ["out of the silence", silenceOut], ["the Sound window says so (en, pl)", note]]), stableJson([
+            [["the same state", false], ["a mapped state", true], ["an unmapped state", false], ["the body's silence", true]],
+            ["apply asks it", true], ["the takeover lets go", true], ["the crossfade lets go of its own", true],
+            ["out of the silence", true], ["the Sound window says so (en, pl)", [true, true]]]),
+        "[whether a GM's track gives way] per case; [apply asks cueGivesWay], [a takeover clears the hold], [crossfade clears its own hold], "
+            + "[out of the silence: a mapped state clears, an unmapped one resumes], [fadeNote in en and pl]");
+    }],
 ];
 
 /**

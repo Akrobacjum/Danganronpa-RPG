@@ -1444,20 +1444,32 @@ const REGRESSIONS = [
          * Only listeners that NAME a setting are asked. A listener filtering on
          * the module prefix is a redraw-on-anything, and it is right about every
          * world setting it sees.
+         *
+         * EVERY KEY A LISTENER BUILDS, not only the first name in it (E19 C5,
+         * 19.10.2026; audit S11-16). music.mjs's `updateSetting` listener named
+         * `murderState` first and the client-scoped cast further down, and this
+         * test read the first and passed while the second branch could never run.
+         * A listener runs to the next `Hooks.on`/`Hooks.once` or the end of its
+         * top-level function, and each `${SETTINGS.x}` in it - the key it compares
+         * the hook's argument with - is held to the hook as the first name is.
          */
         const wrong = [];
         for (const [file, raw] of await otherSources()) {
             const text = stripComments(raw);
             for (const m of text.matchAll(
-                /Hooks\.on\("(updateSetting|clientSettingChanged)"[\s\S]{0,400}?SETTINGS\.(\w+)/g)) {
-                const [, hook, name] = m;
-                const full = `${MODULE_ID}.${SETTINGS[name]}`;
-                const scope = game.settings.settings.get(full)?.scope;
-                if (!scope) continue;                    // R4 owns that failure
-                const wants = scope === "world" ? "updateSetting" : "clientSettingChanged";
-                if (hook !== wants) {
-                    wrong.push(`${file}:${lineAt(text, m.index)} - ${name} is ${scope}-scoped, `
-                        + `so ${hook} never fires for it (use ${wants})`);
+                /Hooks\.on\("(updateSetting|clientSettingChanged)"([\s\S]*?)(?=Hooks\.(?:on|once)\(|^\}|(?![\s\S]))/gm)) {
+                const [, hook, body] = m;
+                const names = new Set([body.match(/SETTINGS\.(\w+)/)?.[1],
+                    ...[...body.matchAll(/\$\{SETTINGS\.(\w+)\}/g)].map(k => k[1])].filter(Boolean));
+                for (const name of names) {
+                    const full = `${MODULE_ID}.${SETTINGS[name]}`;
+                    const scope = game.settings.settings.get(full)?.scope;
+                    if (!scope) continue;                    // R4 owns that failure
+                    const wants = scope === "world" ? "updateSetting" : "clientSettingChanged";
+                    if (hook !== wants) {
+                        wrong.push(`${file}:${lineAt(text, m.index)} - ${name} is ${scope}-scoped, `
+                            + `so ${hook} never fires for it (use ${wants})`);
+                    }
                 }
             }
         }

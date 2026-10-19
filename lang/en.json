@@ -1370,7 +1370,7 @@
       "orderNote": "The first state that applies wins, in the order listed. A Class Trial at night uses the trial's playlists; an Eclipse during one uses the Eclipse's.",
       "trialNote": "Objection beats the open debate, and the debate beats the trial merely being in session. A rebuttal has no row of its own: the Objection's music keeps playing through it. Each picks a random track when it takes over, never the one it played last. An Objection runs one minute, so give that playlist a short fade.",
       "incidentNote": "The murder row plays only in the browsers of the people in the incident and of the GMs, so nobody else learns from the music that a murder is happening. Leave it empty and whatever is playing keeps playing.",
-      "fadeNote": "Fades are the playlist's own - set Fade Duration on the playlist or on a track, and both directions use it. Put a track on and everything else pauses where it stands, then resumes from there.",
+      "fadeNote": "Fades are the playlist's own - set Fade Duration on the playlist or on a track, and both directions use it. Put a track on and everything else pauses where it stands, then resumes from there. When a body is found and nothing is mapped to it, the silence stops your own track too.",
       "when": "When",
       "playlist": "Plays",
       "saved": {

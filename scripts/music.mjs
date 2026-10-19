@@ -21,7 +21,7 @@
  *
  * It has music now, and only its own people hear it (Dawid, 15.09). Not a
  * state in the table below - an overlay on the browsers that are in it, built
- * out of a local sound and a ducked playlist volume. A bystander's client is
+ * out of a local sound and the room's music held on that browser. A bystander's client is
  * not told, does not play it and does not change. See THE MURDER MUSIC at the
  * bottom of this file for how it works and what it costs.
  *
@@ -52,7 +52,7 @@
  */
 
 import { MODULE_ID, TIMES_OF_DAY, TIME_OF_DAY_LABELS, SITUATIONAL_PLAYLIST } from "./config.mjs";
-import { SETTINGS, getSetting, bodyDiscoveryFresh, incidentWitness } from "./settings.mjs";
+import { SETTINGS, getSetting, bodyDiscoveryFresh, incidentWitness, incidentCast } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import { trialFloor, FLOOR_MODES } from "./trial-floor.mjs";
 import { isPrimaryGm, debug, log, warn, error, plural, gmReport } from "./utils.mjs";
@@ -131,7 +131,7 @@ export const MUSIC_STATES = [
      * afternoon exactly as before - so the objection the header raised does not
      * apply to it. See `applyMurderMusic` at the bottom of this file for how,
      * and for the two things that cost: the room's own playlist has to be
-     * ducked on those browsers, and a Foundry playlist cannot be played on one
+     * held on those browsers, and a Foundry playlist cannot be played on one
      * client, so what actually plays is one track off it.
      *
      * `test` is `false` on purpose. `currentState()` walks this list to decide
@@ -335,6 +335,12 @@ export function registerMusic() {
             applyMurderMusic().catch(err => error("Could not follow the incident with the music", err));
             return;
         }
+        /* THE MURDER PLAYLIST CHANGED (E19 C5; audit S11-42): one mapped, or changed, while an incident runs is
+           played from that write on, not from the next murder write. */
+        if (key === `${MODULE_ID}.${SETTINGS.musicMap}`) {
+            applyMurderMusic().catch(err => error("Could not follow the murder playlist", err));
+            return;
+        }
         if (key !== `${MODULE_ID}.${SETTINGS.trialQueue}`
             && key !== `${MODULE_ID}.${SETTINGS.clock}`
             && key !== `${MODULE_ID}.${SETTINGS.bodyFound}`) return;
@@ -344,6 +350,13 @@ export function registerMusic() {
     });
     Hooks.on("drpgEclipseChanged", () => schedule());
     Hooks.on("pauseGame", () => schedule());
+    /* A ROOM SOUND MADE OR STARTED WHILE THE MURDER MUSIC PLAYS HERE is held too (E19 C5): the primary moving
+       the room's playlist on mid-incident starts a sound this browser had not heard when the hold began. */
+    for (const hook of ["createPlaylistSound", "updatePlaylistSound", "updatePlaylist"]) {
+        Hooks.on(hook, () => {
+            if (murderOverlay.state().playing) roomHold.hold(game.playlists ?? []);
+        });
+    }
 
     Hooks.once("ready", () => {
         watchManualPlayback();
@@ -354,10 +367,10 @@ export function registerMusic() {
         // state that is about to change again.
         schedule();
 
-        // In that order: put back a volume an earlier session parked, THEN ask
+        // In that order: put back a volume an earlier version parked, THEN ask
         // whether this browser is in an incident right now. A client that
-        // reloaded mid-killing is both - the restore no-ops for it (the witness
-        // test refuses) and the second call starts the track again.
+        // reloaded mid-killing is both: its Music volume comes back first, and
+        // the second call starts the same track again (E19 C5).
         restoreDuckedMusic()
             .then(() => applyMurderMusic())
             .catch(err => error("Could not settle the murder music at ready", err));
@@ -519,10 +532,19 @@ async function apply() {
         const moved = currentState();
         // Nothing mapped for the new state means we have nothing to replace it
         // with, and cutting the GM off into silence is worse than letting a
-        // track outstay its scene. Same rule as the `!next` branch below.
-        if (moved === interrupted.state || !playlistFor(moved)) return;
+        // track outstay its scene. Same rule as the `!next` branch below - but
+        // for the body's silence, which is a decision (`cueGivesWay`).
+        if (!cueGivesWay(moved, interrupted.state, {
+            mapped: Boolean(playlistFor(moved)), silent: stateDef(moved)?.silence === true
+        })) return;
         log(`Music: the state moved to "${moved}" while the GM's track ran; taking over.`);
+        const heldForCue = interrupted.held ?? [];
         await stopInterruption();
+        /* WHAT THE CUT-OFF TRACK WAS HOLDING (E19 C5; audit S11-32). Left flagged, a Reset in some later silence
+           gave back music from hours before. A silent state takes it over as its own hold, so the end of the
+           silence gives it back as the silence's; any other state lets go of it. */
+        if (!playlistFor(moved) && stateDef(moved)?.silence === true) silenced = { held: heldForCue };
+        else for (const id of heldForCue) await clearHeld(game.playlists.get(id));
         interrupted = null;
         playingState = null;
     }
@@ -549,7 +571,11 @@ async function apply() {
     if (silenced) {
         const held = silenced.held;
         silenced = null;
-        await resumeHeld(held);
+        /* A MAPPED STATE AFTER THE SILENCE takes the music itself (E19 C5; audit S11-32): resuming what the silence
+           held first faded the afternoon back in for the moment before the crossfade stopped it, after a body was
+           found. What was held is let go instead; with nothing mapped, it comes back as before. */
+        if (next) for (const id of held) await clearHeld(game.playlists.get(id));
+        else await resumeHeld(held);
     }
 
     if (!next) {
@@ -607,10 +633,30 @@ function crossfade(next, { randomTrack = false } = {}) {
         try {
             if (randomTrack) await playRandomTrack(next);
             else await next.playAll();
+            // Playing for its state now, not holding for a cue or a silence (E19 C5; audit S11-32).
+            await clearHeld(next);
         } catch (err) {
             error(`Could not start "${next.name}"`, err);
         }
     });
+}
+
+/**
+ * Does a GM's own track give way to the state the music moved to?
+ *
+ * Not to its own state, and not to a state with nothing mapped - cutting the
+ * GM off into silence they did not choose is worse than a track outstaying its
+ * scene. Except the body's silence (the owner's D8; audit S11-58): silence is
+ * that state's music, and a GM's track played on through the announcement of
+ * a body. Exported for the suite.
+ *
+ * @param {string|null} moved  the state now
+ * @param {string|null} cueState  the state the GM's track was chosen for
+ * @param {{mapped: boolean, silent: boolean}} now  whether a playlist is mapped to `moved`, and whether it is a silent state
+ */
+export function cueGivesWay(moved, cueState, { mapped = false, silent = false } = {}) {
+    if (moved === cueState) return false;
+    return mapped || silent;
 }
 
 /**
@@ -1609,18 +1655,30 @@ export async function openSoundDialog() {
  *
  * @returns {{track: string, playlist: string}|null}
  */
-export function nowPlayingHere() {
+export function nowPlayingHere(seen = {}) {
     try {
-        const cueId = situationalPlaylist()?.id ?? null;
-        const mine = new Set(ours().map(p => p.id));
+        const cueId = "cueId" in seen ? seen.cueId : (situationalPlaylist()?.id ?? null);
+        const mine = new Set(seen.mine ?? ours().map(p => p.id));
+        const channel = Number(seen.channel ?? playlistVolume());
+        const murder = "murder" in seen ? seen.murder : murderMusicHere();
+        /* THE MURDER TRACK FIRST (E19 C5; audit S11-40): it is not a playlist sound, so the loop below never named
+           it, and the room's track it holds at 0 was named instead. Nothing is named at a Music volume of 0. */
+        if (!(channel > 0)) return null;
+        if (murder?.track && murder.playing !== false && Number(murder.volume ?? 1) > 0) {
+            return { track: murder.track, playlist: murder.playlist ?? "" };
+        }
         let best = null;
         let bestRank = -1;
 
-        for (const playlist of game.playlists ?? []) {
+        for (const playlist of seen.playlists ?? game.playlists ?? []) {
+            // A soundboard's one-shot is an effect, not what is playing (S11-40).
+            if (playlist.mode === soundboardMode()) continue;
             for (const sound of playlist.sounds ?? []) {
                 // `sound.sound` is this client's audio node; `sound.playing` is the
                 // document's opinion, which is the thing that can differ.
                 if (!sound.sound?.playing) continue;
+                // Held at 0 here (the murder music's hold, a fade's end): not heard, not named.
+                if (!(Number(sound.sound.volume ?? sound.volume ?? 1) > 0)) continue;
                 const rank = playlist.id === cueId ? 2 : (mine.has(playlist.id) ? 0 : 1);
                 if (rank > bestRank) {
                     bestRank = rank;
@@ -1720,7 +1778,7 @@ export function diagnoseMusic() {
            and answers a question this table does not ask - so a plain `false`
            in this column would read as a state that is broken. Says what it is
            instead, and says whether THIS browser is currently hearing it. */
-        if (state.local) applies = murderPlaying ? "playing here" : "per-client";
+        if (state.local) applies = murderMusicHere().playing ? "playing here" : "per-client";
         const mapped = map[state.key] ? game.playlists.get(map[state.key]) : null;
         // "Mapped to a playlist with nothing in it" is silence that looks
         // exactly like a correct mapping from every other angle.
@@ -1769,27 +1827,281 @@ export function diagnoseMusic() {
  *      on this browser and nowhere else, which is exactly the audience needed,
  *      but it is a file. So a track is drawn from the mapped playlist and
  *      looped. A playlist's own shuffle, fades and track order are Foundry's
- *      and do not come with it.
- *   2. THE ROOM'S MUSIC HAS TO BE DUCKED HERE. Otherwise a participant hears
- *      both at once. `globalPlaylistVolume` is a CLIENT setting - it is the
- *      one the module's own Music slider already proxies - so turning it down
- *      changes this browser and no other. It is put back on the way out, and
- *      what it was is parked in a setting rather than a variable so that a
- *      player who closes the tab mid-incident does not come back to silence
- *      with no explanation. See `SETTINGS.musicDuckedFrom`.
+ *      and do not come with it. The draw is the incident's, not the browser's
+ *      (`murderTrackFor`): everybody in one killing hears the same track.
+ *   2. THE ROOM'S MUSIC IS HELD HERE. Otherwise a participant hears both at
+ *      once. The track plays on the Music channel (the owner's answer of
+ *      04.10: "kanał music zamiast interface"), so it follows the player's own
+ *      Music slider - and for that very reason the room's music can no longer
+ *      be ducked by turning that slider down, as it was until E19: the channel's
+ *      volume is the slider (fvtt-types 14.366 `AudioHelper`, a gain per
+ *      channel; not measured here, the harness has no audio). So the room's
+ *      sounds are held on this browser instead (`createRoomHold`) and given
+ *      back when it is over.
  *
  * NOTHING MAPPED MEANS NOTHING HAPPENS, the same contract every other row in
  * the table has: a GM who has not chosen a murder playlist gets the behaviour
  * the module had before this existed, which is the room's own music carrying
- * on. The duck only ever runs when there is something to put over it.
+ * on. The room is held only while a murder track is really playing here.
  * ========================================================================== */
 
-/** The looping local track, while this browser is in a killing. */
-let murderTrack = null;
-/** What we last decided, so an unchanged answer costs nothing. */
-let murderPlaying = false;
+/** Foundry's soundboard mode (`CONST.PLAYLIST_MODES.DISABLED`, -1 in fvtt-types 14.366); the harness defines no PLAYLIST_MODES. */
+function soundboardMode() {
+    return globalThis.CONST?.PLAYLIST_MODES?.DISABLED ?? -1;
+}
 
-/** The volume the room's playlists had before this browser was ducked. */
+/**
+ * The track one incident plays, the same on every browser in it (audit S11-42).
+ *
+ * Until E19 each browser drew at random, so the killer and the victim heard two
+ * different tracks of the same killing. Now the draw is a hash of the incident's
+ * key - its opening time, which the GMs' record and every participant's copy hold
+ * alike - over the playlist's tracks in id order, which no browser can see
+ * differently. A track with no file is not a track.
+ *
+ * @param {Iterable<{id: string, path?: string}>} sounds
+ * @param {*} key   the incident's (`openedAt`)
+ * @returns {object|null}  the PlaylistSound
+ */
+export function murderTrackFor(sounds, key) {
+    const pool = [...(sounds ?? [])].filter(s => s?.path).sort((a, b) => String(a.id).localeCompare(String(b.id)));
+    if (!pool.length) return null;
+    // FNV-1a over the key's text: small, the same in every browser, and spread enough for a playlist's length.
+    let hash = 0x811c9dc5;
+    for (const ch of String(key ?? "")) {
+        hash ^= ch.codePointAt(0);
+        hash = Math.imul(hash, 0x01000193) >>> 0;
+    }
+    return pool[hash % pool.length];
+}
+
+/**
+ * What `AudioHelper.play` is handed for the murder track (audit S11-42).
+ *
+ * The Music channel, so the player's Music slider is the volume they hear it at;
+ * the track's own volume from the playlist, which a GM sets per track (until E19
+ * the track played at the Music volume the room had, on the Interface channel,
+ * so a player who had turned the clicks down heard no murder music at all).
+ */
+export function murderPlayData({ src, volume }) {
+    const level = Number(volume);
+    return { src, volume: Number.isFinite(level) ? Math.min(1, Math.max(0, level)) : 1, loop: true, autoplay: true, channel: "music" };
+}
+
+/**
+ * The room's music, held on this browser while a murder track plays.
+ *
+ * HELD IN PLACE, NOT PAUSED. Each sound playing here has its own volume set to 0
+ * and keeps running; given back, it is at the volume its track carries. A
+ * `Sound#pause` would be the plainer reading of "paused", and it is wrong on a
+ * GM's browser - always in the incident - because a playlist moves to its next
+ * track when a GM's browser hears the last one end (a player cannot write the
+ * playlist), and a paused sound never ends. Held in place, the table's playlist
+ * keeps its time and its order, and a participant comes back to the room where
+ * the room is now.
+ *
+ * A SOUND THAT STARTS LATER IS HELD AS IT STARTS: every sound of the room is
+ * listened to for "play" once, and while the hold is on, a start - a new track,
+ * a sync that set the volume again - is put back to 0. A soundboard is left
+ * alone: its one-shots are effects, not the room's music, as `holdEverything`
+ * reads them.
+ */
+export function createRoomHold() {
+    let holding = false;
+    const held = new Set();
+    const heard = new WeakSet();
+    const mute = sound => {
+        const local = sound?.sound;
+        if (!local?.playing) return;
+        local.volume = 0;
+        held.add(sound);
+    };
+    return {
+        hold(playlists) {
+            holding = true;
+            for (const playlist of playlists ?? []) {
+                if (playlist?.mode === soundboardMode()) continue;
+                for (const sound of playlist.sounds ?? []) {
+                    const local = sound?.sound;
+                    if (!local) continue;
+                    if (!heard.has(local) && typeof local.addEventListener === "function") {
+                        heard.add(local);
+                        local.addEventListener("play", () => { if (holding) mute(sound); });
+                    }
+                    mute(sound);
+                }
+            }
+        },
+        release() {
+            holding = false;
+            for (const sound of held) {
+                const level = Number(sound.volume);
+                if (sound.sound) sound.sound.volume = Number.isFinite(level) ? level : 1;
+            }
+            held.clear();
+        },
+        holding: () => holding
+    };
+}
+
+/**
+ * The overlay's states (audit S11-07), its effects handed in.
+ *
+ * Until E19 the overlay turned the room down BEFORE it asked for the track, and
+ * three things followed: a file that 404s comes back as a sound with `failed`
+ * (it does not throw), so the participant sat in silence; a browser not clicked
+ * yet waits in `AudioHelper.play` for the first click, so the room stayed down
+ * and the loop started after the incident had ended, with nothing to stop it;
+ * and a reload parked the Music volume the incident had already turned down.
+ *
+ *   - the room is held only once a track really plays (`playing`, which
+ *     `murderMusicHere` reads);
+ *   - every start and stop takes a new generation, and a track that arrives for
+ *     an older one is stopped as it arrives;
+ *   - a file that fails is said once (`unplayable`) and not asked for again
+ *     until the playlist gives another;
+ *   - asked again for the track it is playing or waiting for, it does nothing,
+ *     so every murder write can ask.
+ *
+ * @param {object} effects
+ * @param {(key: *) => ({src: string, volume: number, name: string, playlist: string}|null)} effects.pick
+ * @param {(pick: object) => Promise<object|null>} effects.play
+ * @param {() => void} effects.holdRoom
+ * @param {() => void} effects.releaseRoom
+ * @param {(pick: object) => void} [effects.unplayable]
+ * @param {(state: object) => void} [effects.changed]
+ */
+export function createMurderOverlay({ pick, play, holdRoom, releaseRoom, unplayable = () => {}, changed = () => {} }) {
+    let generation = 0;
+    let asked = null;
+    let track = null;
+    let heard = null;
+    let failed = null;
+    const state = () => ({
+        playing: Boolean(track), track: heard?.name ?? null, playlist: heard?.playlist ?? null,
+        volume: heard?.volume ?? null, failed
+    });
+    const stop = async () => {
+        generation++;
+        const was = track;
+        track = null;
+        heard = null;
+        asked = null;
+        try {
+            await was?.stop?.();
+        } catch (err) {
+            debug("Murder music: the track would not stop", err);
+        }
+        releaseRoom();
+        changed(state());
+    };
+    async function want(inIt, key = null) {
+        const next = inIt ? pick(key) : null;
+        if (!next) {
+            if (asked || track) await stop();
+            return state();
+        }
+        if (next.src === asked || next.src === failed) return state();
+        if (asked || track) await stop();
+        const mine = ++generation;
+        asked = next.src;
+        let sound = null;
+        try {
+            sound = await play(next);
+        } catch (err) {
+            debug("Murder music: the track would not start", err);
+        }
+        if (mine !== generation) {
+            // Asked for by an incident that has ended, or by a start a newer one replaced.
+            try {
+                await sound?.stop?.();
+            } catch (err) {
+                debug("Murder music: a late track would not stop", err);
+            }
+            return state();
+        }
+        if (!sound || sound.failed) {
+            asked = null;
+            failed = next.src;
+            unplayable(next);
+            return state();
+        }
+        failed = null;
+        track = sound;
+        heard = next;
+        holdRoom();
+        changed(state());
+        return state();
+    }
+    return { want, state };
+}
+
+/** This browser's room hold and overlay, wired to Foundry. */
+const roomHold = createRoomHold();
+const murderOverlay = createMurderOverlay({
+    pick: key => {
+        const playlist = playlistFor("murder");
+        const sound = murderTrackFor(playlist?.sounds, key);
+        return sound ? { src: sound.path, volume: sound.volume, name: sound.name ?? "", playlist: playlist.name ?? "" } : null;
+    },
+    play: next => foundry.audio.AudioHelper.play(murderPlayData(next), false),
+    holdRoom: () => roomHold.hold(game.playlists ?? []),
+    releaseRoom: () => roomHold.release(),
+    unplayable: next => warn(`Murder music: the track "${next.name}" (${next.src}) could not be played; the room's music carries on.`),
+    changed: state => Hooks.callAll("drpgMurderMusicChanged", state)
+});
+
+/** Whether the murder music is playing on this browser, and what: for the band under the clock and the diagnostics. */
+export function murderMusicHere() {
+    return murderOverlay.state();
+}
+
+/** The incident's key for the draw: its opening time, in the GMs' record and every participant's copy alike. */
+function incidentKey() {
+    return incidentCast()?.openedAt ?? null;
+}
+
+/**
+ * Is this browser in a killing, and is the music where that says it should be?
+ *
+ * Cheap and idempotent: the overlay compares the answer with what it is playing
+ * or waiting for, so every murder write, every cast copy and every change of the
+ * murder playlist can call it.
+ */
+export async function applyMurderMusic() {
+    if (!game.user) return;
+    const inIt = Boolean(incidentWitness().witness);
+    await murderOverlay.want(inIt, inIt ? incidentKey() : null);
+    // While it plays, a room sound created or started since is held too.
+    if (murderOverlay.state().playing) roomHold.hold(game.playlists ?? []);
+}
+
+/**
+ * A volume an earlier version parked, given back (E19-26).
+ *
+ * Until E19 the overlay ducked the room by setting the Music volume to 0 and
+ * parked what it had been in `musicDuckedFrom`; a reload mid-incident parked
+ * the 0 over it. Nothing parks now. Called once at `ready`, in an incident or
+ * not: a parked number is only ever an earlier version's, and the volume it
+ * names is the player's. Its reads and writes can be handed in (the suite).
+ */
+export async function restoreDuckedMusic({
+    parked = duckedFrom,
+    setVolume = level => game.settings.set("core", "globalPlaylistVolume", level),
+    park = level => game.settings.set(MODULE_ID, SETTINGS.musicDuckedFrom, level)
+} = {}) {
+    const was = parked();
+    if (!(was >= 0)) return;
+    log("Murder music: putting back the Music volume an earlier version left parked.");
+    try {
+        await setVolume(was);
+        await park(-1);
+    } catch (err) {
+        debug("Murder music: could not put the parked volume back", err);
+    }
+}
+
+/** The volume an earlier version parked, or -1. */
 function duckedFrom() {
     try {
         const v = Number(getSetting(SETTINGS.musicDuckedFrom));
@@ -1799,14 +2111,7 @@ function duckedFrom() {
     }
 }
 
-async function rememberDuck(level) {
-    try {
-        await game.settings.set(MODULE_ID, SETTINGS.musicDuckedFrom, level);
-    } catch (err) {
-        debug("Murder music: could not park the playlist volume", err);
-    }
-}
-
+/** This browser's Music volume, read (the band under the clock). */
 function playlistVolume() {
     try {
         const v = Number(game.settings.get("core", "globalPlaylistVolume"));
@@ -1814,96 +2119,4 @@ function playlistVolume() {
     } catch {
         return 1;
     }
-}
-
-async function setPlaylistVolume(level) {
-    try {
-        await game.settings.set("core", "globalPlaylistVolume", level);
-    } catch (err) {
-        debug("Murder music: could not move the playlist volume", err);
-    }
-}
-
-/** A file off the mapped playlist, or null when there is nothing to play. */
-function murderTrackSrc() {
-    const playlist = playlistFor("murder");
-    const sounds = [...(playlist?.sounds ?? [])].filter(s => s?.path);
-    if (!sounds.length) return null;
-    // A different one each incident, the same way the trial's states pick.
-    return sounds[Math.floor(Math.random() * sounds.length)].path;
-}
-
-async function startMurderMusic() {
-    const src = murderTrackSrc();
-    // Nothing mapped: leave the room alone, and above all do NOT duck - a GM
-    // who has not set this up must not find the music silently turned off.
-    if (!src) return;
-
-    const was = playlistVolume();
-    await rememberDuck(was);
-    await setPlaylistVolume(0);
-
-    try {
-        murderTrack = await foundry.audio.AudioHelper.play({
-            src,
-            // At the volume the room's music WAS, so the change reads as the
-            // scene turning rather than as somebody moving a slider.
-            volume: was,
-            loop: true,
-            autoplay: true
-        }, false);
-        log("Murder music: this browser is in the incident; the room's playlist is ducked.");
-    } catch (err) {
-        // Put the room back rather than leaving a client in silence over a
-        // sound that never started.
-        error("Could not start the murder music", err);
-        await stopMurderMusic();
-    }
-}
-
-async function stopMurderMusic() {
-    try {
-        await murderTrack?.stop?.();
-    } catch (err) {
-        debug("Murder music: the track would not stop", err);
-    }
-    murderTrack = null;
-
-    const was = duckedFrom();
-    if (was >= 0) {
-        await setPlaylistVolume(was);
-        await rememberDuck(-1);
-    }
-}
-
-/**
- * Is this browser in a killing, and is the music where that says it should be?
- *
- * Cheap and idempotent: the answer is compared with the last one, so the
- * settings watcher below can call it on every murder write without restarting
- * a track that is already playing.
- */
-export async function applyMurderMusic() {
-    if (!game.user) return;
-    const inIt = Boolean(incidentWitness().witness);
-    if (inIt === murderPlaying) return;
-    murderPlaying = inIt;
-    if (inIt) await startMurderMusic();
-    else await stopMurderMusic();
-}
-
-/**
- * A tab closed mid-incident leaves this browser ducked with nothing playing.
- *
- * Called once at `ready`. If the volume was parked and there is no incident to
- * park it for, it goes back - which is the state a player who reloaded during
- * a murder, or whose murder ended while they were away, comes back into. When
- * there IS still an incident, `applyMurderMusic` takes it from here and starts
- * the track again.
- */
-async function restoreDuckedMusic() {
-    if (duckedFrom() < 0) return;
-    if (incidentWitness().witness) return;
-    log("Murder music: the playlist volume was left parked by an incident that is over. Restoring it.");
-    await stopMurderMusic();
 }

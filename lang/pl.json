@@ -1383,7 +1383,7 @@
       "orderNote": "Wygrywa pierwszy pasujący stan, w podanej kolejności. Class Trial nocą używa playlist Class Trial; Eclipse w jego trakcie - playlist Eclipse.",
       "trialNote": "Objection ma pierwszeństwo przed otwartą debatą, a debata przed samym trwaniem Class Trial. Rebuttal nie ma własnego wiersza: przez cały Rebuttal gra dalej muzyka Objection. Każdy losuje utwór, gdy przejmuje grę, nigdy ten sam co ostatnio. Objection trwa minutę, więc daj tej playliście krótkie wyciszenie.",
       "incidentNote": "Wiersz morderstwa gra tylko w przeglądarkach osób, które są w incydencie, i GM-ów, więc nikt inny nie dowie się z muzyki, że trwa morderstwo. Zostaw go pustym, a to, co gra, będzie grać dalej.",
-      "fadeNote": "Wyciszenia należą do playlisty - ustaw Fade Duration na playliście albo na utworze, a użyją go oba kierunki. Włącz utwór, a wszystko inne zatrzymuje się w miejscu i stamtąd wraca.",
+      "fadeNote": "Wyciszenia należą do playlisty - ustaw Fade Duration na playliście albo na utworze, a użyją go oba kierunki. Włącz utwór, a wszystko inne zatrzymuje się w miejscu i stamtąd wraca. Po znalezieniu ciała, gdy nic nie jest do niego przypisane, cisza zatrzymuje też twój własny utwór.",
       "when": "Kiedy",
       "playlist": "Gra",
       "saved": {

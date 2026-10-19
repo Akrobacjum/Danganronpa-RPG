@@ -56,7 +56,9 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         daichi: game.actors.getName("Daichi Sato").id
     };`);
 
-    /* A playlist for the murder, and a room volume on every browser to duck. */
+    /* A playlist for the murder, and a room volume on every browser that the murder music must leave alone: since
+       E19 C5 (the owner's 04.10 answer) it plays on the Music channel and holds the room's sounds on that browser
+       instead of turning the Music volume down, so `roomVolume` stays 0.8 everywhere and `murder` says who hears it. */
     await gm.eval(`
         const pl = await Playlist.create({ name: "Suite murder playlist" });
         await pl.createEmbeddedDocuments("PlaylistSound", [{ name: "t1", path: "sounds/suite-murder.ogg" }]);
@@ -83,7 +85,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
                 const hud = await import("${repoUrl}/scripts/hud.mjs");
                 hud.renderHud();
                 await new Promise(r => setTimeout(r, 120));
-                await M.applyMurderMusic();
+                /* No call of applyMurderMusic here (E19 C5; audit S11-16): until C5 this read started the music by hand,
+                   so a browser whose hooks never did would pass. What the hooks did by now is what is read. */
                 // The leaf (E04): the GMs' record on a GM, a participant's own copy elsewhere.
                 const cast = S.incidentCast();
                 return {
@@ -92,7 +95,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
                     redEdges: document.body.classList.contains("drpg-incident-here"),
                     knowsCast: Boolean(cast.killerId || cast.victimId),
                     roomVolume: game.settings.get("core", "globalPlaylistVolume"),
-                    parked: game.settings.get("${MOD}", "musicDuckedFrom")
+                    parked: game.settings.get("${MOD}", "musicDuckedFrom"),
+                    murder: M.murderMusicHere?.().playing ?? null
                 };
             `);
         }
@@ -215,11 +219,11 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     const castsAtOpening = await p1.eval(CAST_NET);
     check("opening: the killer is in it - the cast, the edges, the music and the opening card",
         firstOpened === "openingRoll" && atOpening.killer?.witness === true && atOpening.killer?.knowsCast === true
-        && atOpening.killer?.redEdges === true && atOpening.killer?.roomVolume === 0 && openingCard.killer.card && openingCard.gm.card,
+        && atOpening.killer?.redEdges === true && atOpening.killer?.murder === true && atOpening.killer?.roomVolume === 0.8 && openingCard.killer.card && openingCard.gm.card,
         JSON.stringify({ firstOpened, killer: atOpening.killer, card: openingCard }));
     check("opening: a direct murder's victim holds no cast, no seat, no red edges, no murder music and no opening card (D6)",
         atOpening.victim?.witness === false && atOpening.victim?.seat === false && atOpening.victim?.knowsCast === false
-        && atOpening.victim?.redEdges === false && atOpening.victim?.roomVolume === 0.8 && atOpening.victim?.parked === -1
+        && atOpening.victim?.redEdges === false && atOpening.victim?.murder === false && atOpening.victim?.roomVolume === 0.8 && atOpening.victim?.parked === -1
         && openingCard.victim.stage === "openingRoll" && !openingCard.victim.card && castsAtOpening === castsAtStart,
         JSON.stringify({ victim: atOpening.victim, card: openingCard.victim, casts: castsAtOpening - castsAtStart }));
     check("opening: the victim is indistinguishable from a bystander",
@@ -249,7 +253,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     check("opening: a failed opening leaves the victim holding nothing, and sends them no cast, not even an empty one",
         heldFirst === 1 && failed.success === false && failed.running === false
         && afterFail.victim?.witness === false && afterFail.victim?.knowsCast === false && afterFail.victim?.redEdges === false
-        && afterFail.victim?.roomVolume === 0.8 && castsAfterFail === castsAtStart,
+        && afterFail.victim?.murder === false && afterFail.victim?.roomVolume === 0.8 && castsAfterFail === castsAtStart,
         JSON.stringify({ heldFirst, failed, victim: afterFail.victim, casts: castsAfterFail - castsAtStart }));
     const failWords = { killer: await p3.eval(OPEN_READ(1)), victim: await p1.eval(OPEN_READ(1)), bystander: await p2.eval(OPEN_READ(1)) };
     for (const c of [p1, p2, p3]) await c.eval(`game.dice3d = globalThis.__dice3dOff; delete globalThis.__dice3dOff; return true;`);
@@ -362,12 +366,29 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     check("direct: the bystander's edges do not",
         direct.bystander?.redEdges === false, String(direct.bystander?.redEdges));
 
-    check("direct: the murder music takes the participants and the GM",
-        direct.killer?.roomVolume === 0 && direct.victim?.roomVolume === 0 && direct.gm?.roomVolume === 0,
-        JSON.stringify({ killer: direct.killer?.roomVolume, victim: direct.victim?.roomVolume, gm: direct.gm?.roomVolume }));
+    check("direct: the murder music takes the participants and the GM, and leaves their Music volume where it was",
+        ["killer", "victim", "gm"].every(k => direct[k]?.murder === true && direct[k]?.roomVolume === 0.8 && direct[k]?.parked === -1),
+        JSON.stringify({ killer: direct.killer, victim: direct.victim, gm: direct.gm }));
     check("direct: the bystander keeps the room's own playlist",
-        direct.bystander?.roomVolume === 0.8 && direct.bystander?.parked === -1,
+        direct.bystander?.murder === false && direct.bystander?.roomVolume === 0.8 && direct.bystander?.parked === -1,
         JSON.stringify(direct.bystander));
+    /* A WITNESS'S F5 MID-INCIDENT (E19 C5; audit S11-07 (1), E19-26). Until C5 a reload read the Music volume the
+       incident had turned down (0) as the volume before and parked it: the room's music stayed at 0 for good after
+       the incident. Not a real reload - the harness reloads no page: the killer's browser is left as an earlier
+       version's duck left it (Music 0, 0.8 parked) and its ready path is run again (music.mjs `restoreDuckedMusic`,
+       then `applyMurderMusic`), as registerMusic's `ready` runs it. */
+    const reloaded = await p3.eval(`
+        const M = await import("${repoUrl}/scripts/music.mjs");
+        if (typeof M.restoreDuckedMusic !== "function") return { restore: "not exported" };
+        await game.settings.set("core", "globalPlaylistVolume", 0);
+        await game.settings.set("${MOD}", "musicDuckedFrom", 0.8);
+        await M.restoreDuckedMusic();
+        await M.applyMurderMusic();
+        return { roomVolume: game.settings.get("core", "globalPlaylistVolume"), parked: game.settings.get("${MOD}", "musicDuckedFrom"),
+            murder: M.murderMusicHere?.().playing ?? null };
+    `);
+    check("direct: a witness's ready path mid-incident gives back the volume an earlier version parked, and the murder music plays on",
+        reloaded.roomVolume === 0.8 && reloaded.parked === -1 && reloaded.murder === true, JSON.stringify(reloaded));
 
     /* ---- 1a. the clock moves in private (E05 C15, S01-11) --------------------
        The GM moves the time of day while the incident runs. The bystander's HUD keeps
@@ -1059,7 +1080,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         JSON.stringify(third.bystander));
     check("walk-in: the card, the edges and the music all follow",
         third.bystander?.knowsCast === true && third.bystander?.redEdges === true
-        && third.bystander?.roomVolume === 0,
+        && third.bystander?.murder === true && third.bystander?.roomVolume === 0.8,
         JSON.stringify(third.bystander));
 
     /* And walks out, and back in (E32+E07 C10, 02.10.2026; audit S04-21). Botan averts their
@@ -1096,7 +1117,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     check("walk-in: a third who averted their eyes is a bystander again, and walking back in seats nobody",
         Boolean(walkedBack.room) && walkedBack.left.third === null && JSON.stringify(walkedBack.left.departed) === JSON.stringify([ids.botan])
         && walkedBack.back.there === true && walkedBack.back.stage === "incident" && walkedBack.back.third === null
-        && leftSeen?.witness === false && leftSeen?.knowsCast === false && leftSeen?.redEdges === false,
+        && leftSeen?.witness === false && leftSeen?.knowsCast === false && leftSeen?.redEdges === false && leftSeen?.murder === false,
         JSON.stringify({ walkedBack, leftSeen }));
     check("walk-in: the next student in takes the empty seat, and the incident runs on",
         walkedBack.next.stage === "incident" && walkedBack.next.third === ids.daichi && JSON.stringify(walkedBack.next.departed) === JSON.stringify([ids.botan]),
@@ -1220,7 +1241,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     check("trap: the killer is not a witness", trap.killer?.witness === false, JSON.stringify(trap.killer));
     check("trap: the killer's edges stay as they were", trap.killer?.redEdges === false, String(trap.killer?.redEdges));
     check("trap: the killer hears the room, not the murder",
-        trap.killer?.roomVolume === 0.8 && trap.killer?.parked === -1, JSON.stringify(trap.killer));
+        trap.killer?.murder === false && trap.killer?.roomVolume === 0.8 && trap.killer?.parked === -1, JSON.stringify(trap.killer));
     check("trap: the killer is indistinguishable from a bystander",
         JSON.stringify(trap.killer) === JSON.stringify(trap.bystander),
         `killer ${JSON.stringify(trap.killer)} vs bystander ${JSON.stringify(trap.bystander)}`);
@@ -1427,9 +1448,9 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     await canary.chatScan({ who: ["p2"], actorIds: [ids.chie, ids.aiko], names: ["Chie Mori", "Aiko Hoshino"], userIds: [p1.userId, p3.userId] });
 
     const after = await readAll();
-    const volumes = Object.fromEntries(Object.entries(after).map(([k, v]) => [k, v.roomVolume]));
-    check("after: every browser has its own music back",
-        Object.values(after).every(v => v.roomVolume === 0.8 && v.parked === -1), JSON.stringify(volumes));
+    const volumes = Object.fromEntries(Object.entries(after).map(([k, v]) => [k, [v.roomVolume, v.parked, v.murder]]));
+    check("after: every browser has its own music back, and the murder music has stopped",
+        Object.values(after).every(v => v.roomVolume === 0.8 && v.parked === -1 && v.murder === false), JSON.stringify(volumes));
     check("after: nobody's edges are still red",
         Object.values(after).every(v => v.redEdges === false),
         JSON.stringify(Object.fromEntries(Object.entries(after).map(([k, v]) => [k, v.redEdges]))));
