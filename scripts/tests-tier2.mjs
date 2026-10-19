@@ -52936,6 +52936,28 @@ const SCENARIOS = [
                 delete token.update;
                 await forget(hana);
                 await game.settings.set(MODULE_ID, SETTINGS.moveAudit, mode);
+                // The attempt before its answer (E80 fix r1-G3, the review's E80-C3-5): a Find Passage Hana throws in the Bath on
+                // this GM, the primary, posts the Analyze card, then the primary's card of what came of it. Each message this
+                // browser hears created as [the attempt's card, the answer's], deleted after. Its dice are real: a Fear they
+                // settle is put back, which restore() does not do.
+                const { contentOf, cardFlag } = await import("./secret.mjs");
+                const { gameSettings } = CONFIG.DH.SETTINGS, fear = game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear);
+                const posted = [];
+                const heard = Hooks.on("createChatMessage", message => { posted.push(message); });
+                answer = { value: "passage", form: document.createElement("form"), trait: null };
+                let heardShown;
+                try {
+                    await rolls.performAction(hana, "analyze");
+                    await settle();
+                    heardShown = posted.map(message => [String(contentOf(message) ?? "").includes(game.i18n.localize("DRPG.Analyze.passageSent")),
+                        ["searchNothing", "passageFound"].includes(cardFlag(message, "sfx")?.key)]);
+                } finally {
+                    Hooks.off("createChatMessage", heard);
+                    answer = null;
+                    for (const message of posted) await game.messages.get(message.id)?.delete();
+                    if (game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear) !== fear) await game.settings.set(CONFIG.DH.id, gameSettings.Resources.Fear, fear);
+                }
+                const order = [heardShown.filter(m => m[0]).length, heardShown.filter(m => m[1]).length, heardShown.findIndex(m => m[0]) < heardShown.findIndex(m => m[1])];
                 await setClock({ phase: "classTrial" });
                 await ACT.setActions(student, 2);
                 const inTrial = rowOf(await windowFor(student));
@@ -52950,7 +52972,7 @@ const SCENARIOS = [
                 await hana.delete();
                 await botan.delete();
                 hana = botan = null;
-                return { here, there, briefed, inTrial, steps, cards, refused, unread, lawful, told: told.length, hunts };
+                return { here, there, briefed, inTrial, steps, cards, refused, unread, lawful, told: told.length, hunts, order };
             });
         } finally {
             if (own) Object.defineProperty(api, "wait", own); else delete api.wait;
@@ -52965,7 +52987,9 @@ const SCENARIOS = [
             await ACT.setActions(student, kept.actions);
             await settle();
         }
-        const { here, there, briefed, inTrial, steps, cards, refused, unread, lawful, told, hunts } = read;
+        const { here, there, briefed, inTrial, steps, cards, refused, unread, lawful, told, hunts, order } = read;
+        equal(J(order), J([1, 1, true]),
+            "[the Analyze cards, the answer's cards, the Analyze card first] for a Find Passage thrown on the primary - the chat shows what was found before the walls were gone over (E80-C3-5)");
         equal(J([Boolean(here), here?.html === there?.html, here?.disabled, here?.unavailable, briefed, inTrial]),
             J([true, true, false, false, true, null]),
             "[the row offered where the student stands, the same by the tunnel's end, disabled, greyed, the briefing's 16, the row in a Class Trial] - the Analyze window tells where a passage is, or offers a search in the courtroom");
@@ -53125,6 +53149,89 @@ const SCENARIOS = [
         }
         equal(stableJson([read.stood, read.how, read.found]), stableJson([true, "found", true]),
             `[the Reroll stood, the student's cell, its lines say a find] for the Mastermind's student's Find Passage rerolled from 12 to 17 by the owner the door does not name - the replay judged the GM as the Mastermind and found nothing: ${stableJson(read.lines)}`);
+    }],
+
+    ["A10-7 Reroll where it was thrown - a Find Passage's Reroll searches the room its roll was thrown in, wherever the student stands by then: a miss in an empty room rerolled after a walk to a tunnel's end finds nothing, and a miss by the end rerolled after a walk away finds the tunnel there, its cell the roll's", async () => {
+        /*
+         * E80 fix r1-G3 (19.10.2026; the review's E80-C3-2). The replay (reroll.mjs `settlePassageFind`) searched where the
+         * character stood at the Reroll (`resolvePassageSearch`, `facts.place`), not where the roll was thrown: a miss in an
+         * empty room, rerolled after a walk into another, found a passage in a room where no Analyze was paid or thrown, and
+         * one thrown by a passage and rerolled after a walk away found nothing. The first search now keeps where the GMs
+         * read the searcher with the GMs' fact on its roll (passages-gm.mjs `noteFindFact`, `findPlace`), and the replay
+         * searches there. Driven as "A10-7 Mastermind's Reroll": a student of the suite's own, owned by a connected player,
+         * in a GM-store world of the suite's own (`withGmStoreWorld`), on a scene of the suite's own - a Dorm holding a
+         * tunnel's end, a Cafeteria with none, a Gym at the far end. Each roll kept as that player's (`playerRollBookmark`),
+         * its first search carried out as the bridge carries it for that player, the token then moved by this GM to the
+         * other room (a GM's move stands lawful), then a Reroll made on this GM (`rerollAgain`, 12 into 17). Read: the
+         * Reroll stood, the student's cell and its roll, whether its lines say a find. Red at 518c057: the Cafeteria's miss
+         * found the Dorm's tunnel, and the Dorm's miss found nothing.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter"), "a connected player whose roll the Reroll takes back");
+        const P = await import("./passages-gm.mjs");
+        const R = await import("./rooms.mjs");
+        const E = await import("./gm-store.mjs");
+        const [thrower] = game.users.filter(u => !u.isGM && u.active);
+        must(thrower, "no connected player is here - this would measure nothing");
+        const DORM = "SUITE E80 G3 Dorm", CAFE = "SUITE E80 G3 Cafeteria", GYM = "SUITE E80 G3 Gym", mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
+        const room = (name, x) => ({ name, shapes: [{ type: "rectangle", x, y: 0, width: 600, height: 600 }], flags: mark, behaviors: [] });
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        let scene = null, botan = null, F = null, read = null;
+        try {
+            scene = await Scene.create({ name: "SUITE E80 G3 a tunnel", width: 2400, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [room(DORM, 0), room(CAFE, 600), room(GYM, 1800)]);
+            read = await E.withGmStoreWorld(`suite-e80-g3-${foundry.utils.randomID(8)}`, async () => {
+                const OWNER = CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
+                // A sheet as a student's holds one (the harness's seed): Hope for two Rerolls, and the traits a roll reads.
+                botan = await Actor.create({ name: "SUITE E80 G3 Botan", type: "character", ownership: { default: 0, [thrower.id]: OWNER },
+                    system: { resources: { hope: { value: 6, max: 6 }, stress: { value: 0, max: 6 }, hitPoints: { value: 0, max: 6 }, actions: { value: 3, max: 3 } },
+                        traits: { agility: { value: 1 }, strength: { value: 0 }, finesse: { value: 1 }, instinct: { value: 0 }, presence: { value: 1 }, knowledge: { value: 0 } } } });
+                const [token] = await scene.createEmbeddedDocuments("Token", [{ actorId: botan.id, actorLink: true, name: botan.name, x: 700, y: 200, width: 1, height: 1 }]);
+                await settle();
+                const id = await P.createPassage({ sceneId: scene.id, shape: "tunnel", ends: [{ x: 250, y: 250, level: null }, { x: 1950, y: 250, level: null }] }, { scene });
+                must(typeof id === "string", "the tunnel was not made - this would measure nothing");
+                const cell = () => P.PASSAGE_STORES.access.get(`${id}/${botan.id}`) ?? null;
+                const lineFor = to => game.i18n.format("DRPG.Reroll.passageFound", { to });
+                const said = [lineFor(game.i18n.format("DRPG.Listen.unknownRoom", { n: 1 })), lineFor(GYM)];
+                const { meansHeld } = await import("./sheet-audit.mjs");
+                const steps = [];
+                // [what, where the roll is thrown, where Botan is moved before its Reroll]
+                for (const [what, from, to] of [["a miss in the Cafeteria, rerolled in the Dorm", { x: 700, y: 200 }, { x: 200, y: 200 }],
+                    ["a miss in the Dorm, rerolled in the Cafeteria", { x: 200, y: 200 }, { x: 700, y: 200 }]]) {
+                    await token.update(from, PLACE);
+                    await settle();
+                    F = await playerRollBookmark(thrower, botan, "analyze", {});
+                    must(F.row()?.by === thrower.id, `the roll is not kept as the thrower's - this would measure nothing: ${stableJson(F.row())}`);
+                    const first = await P.resolvePassageSearch({ actorId: botan.id, total: 12, rollId: F.message.id },
+                        { asker: thrower, whisper: async () => {}, toast: () => {} });
+                    await settle();
+                    must(first?.searched === true && first.found === false && F.row()?.facts?.findPassage === true && !cell(),
+                        `the first search at 12 was refused, found, or left no fact for its Reroll - this would measure nothing: ${stableJson([first, F.row()])}`);
+                    await token.update(to, PLACE);
+                    await settle();
+                    must(token.x === to.x && token.y === to.y, "this GM's move of the token did not land - this would measure nothing");
+                    must(meansHeld(botan).hope >= 3, `the GMs hold ${meansHeld(botan).hope} of Botan's Hope - the Reroll could not be bought, and this would measure nothing`);
+                    const { out } = await rerollAgain(botan, F.message, { hope: 7, fear: 5 }, { hope: 10, fear: 7 });
+                    const held = cell();
+                    steps.push([what, Array.isArray(out?.lines), held?.how ?? null, held?.rollId === F.message.id,
+                        Array.isArray(out?.lines) && out.lines.some(line => said.includes(line))]);
+                    if (held) await P.revokePassage(id, botan.id);
+                    await F.putBack();
+                    F = null;
+                }
+                await P.deletePassage(id);
+                await botan.delete();
+                botan = null;
+                return { steps };
+            });
+        } finally {
+            await F?.putBack();
+            if (botan) await botan.delete().catch(() => {});
+            await scene?.delete();
+            await settle();
+        }
+        equal(stableJson(read.steps), stableJson([["a miss in the Cafeteria, rerolled in the Dorm", true, null, false, false],
+            ["a miss in the Dorm, rerolled in the Cafeteria", true, "found", true, true]]),
+            "[each step, the Reroll stood, Botan's cell, the cell the Reroll's roll's, its lines say a find] - a Find Passage's Reroll searched where Botan stands at the Reroll, not where the roll was thrown (E80-C3-2)");
     }],
 
     ["A10-18 - 'Go through' a tunnel is carried out on the primary GM at a door's price: the token lands by the far end with teleport, displace and no animation, the crossing is told to the traps, a crossing back pays again; a lock, a seal, the chain, the courtroom, no budget and a spent Eclipse refuse it in the doors' words with nothing written, paid or warned on the GM, as does a tunnel the character does not know; the Mastermind passes the lock, anybody another's bedroom; an Eclipse counts one crossing and costs nothing else; a write that fails gives back exactly what it took; a token the GMs are putting back, one they hold as standing where the rules refuse and one moved while the price is taken stand at no end", async () => {

@@ -5130,11 +5130,18 @@ async function locatePassage(actor, def, roll, request = "", charge = null) {
         return null;
     }
 
-    const res = await requestPassageFind({
+    /* THE ATTEMPT BEFORE ITS ANSWER (E80 fix r1-G3, the review's E80-C3-5). `passage.find` is answered "reply", once the
+       primary has judged the search and whispered its card, so this card, posted after the answer, came under the result:
+       the chat read the passage found, then the walls being gone over. It is posted once a GM is connected and before
+       the request; a refusal is said after it, in the player's words, as every refusal is. */
+    const rollId = rollInHand(actor)?.messageId ?? null;
+    await whisperToOwner(actor, `${rollHead(def, roll)}<p>${game.i18n.localize("DRPG.Analyze.passageSent")}</p>`, rollCardFlags(def, roll));
+
+    await requestPassageFind({
         actorId: actor.id,
         total: roll.total,
         isCritical: Boolean(roll.isCritical),
-        rollId: rollInHand(actor)?.messageId ?? null
+        rollId
     });
 
     // Not `gmRuled`: a Reroll replays it from a threshold (reroll.mjs `settleAnalyze`), on the GMs' fact
@@ -5142,9 +5149,6 @@ async function locatePassage(actor, def, roll, request = "", charge = null) {
     await noteRollContext(actor, {
         actionKey: "analyze", request, label: game.i18n.localize("DRPG.Analyze.findPassage"), room
     });
-
-    await whisperToOwner(actor, `${rollHead(def, roll)}${res.ok ? `<p>${
-        game.i18n.localize("DRPG.Analyze.passageSent")}</p>` : ""}`, rollCardFlags(def, roll));
 
     return { roll, subject: null };
 }

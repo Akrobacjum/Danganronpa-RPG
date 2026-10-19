@@ -162,7 +162,14 @@ export function passageCopyFor(user, { stores = PASSAGE_STORES, actors = game.ac
         if (mastermind && !actorIds.includes(mastermind)) actorIds.push(mastermind);
         if (actorIds.length) value[id] = { ...row, actorIds };
     }
-    const stamps = ids.size ? Object.fromEntries([...ids].map(a => [a, stores.access.newest(touchKey(a))]))
+    /* A public passage is known to every student (E80 C6), one who first appears after Make public as well, and that one
+       has no `touch` row: nothing wrote one, so its part was 0 in a world no reset has cut (gm-store.mjs `newest`), and the
+       copy naming it under the passage was refused by the player's engine - at `receiveCopy`'s gate where it is that
+       player's only student, by `offersCombine` (no part newer) where they own another - while TOLD read it delivered
+       (E80 fix r1-G3, the review's E80-C6-1). So each part is at least the newest Make public of a passage public now. */
+    let shared = 0;
+    for (const [id, row] of Object.entries(stores.map.entries())) if (row?.public === true) shared = Math.max(shared, stores.map.stampOf(id, "public"));
+    const stamps = ids.size ? Object.fromEntries([...ids].map(a => [a, Math.max(stores.access.newest(touchKey(a)), shared)]))
         : { "": stores.access.cleared() + 1 };
     /* The copy that takes the every-passage rows away from an owner the door named before carries the part as well, at
        the stamp `touchDoorChange` wrote for that owner as the door left them: newer than the part their copy holds, so
@@ -1288,9 +1295,10 @@ function passagesToFind(actor, place, facts, stores) {
  * (bridge-guards.mjs `REASON_PATTERNS`), else `{ searched: true, found }`, or for a Reroll's replay (`undo`,
  * reroll.mjs `settleAnalyze`) one of `{ found, to }`, `{ kept }`, `{ lost }`, `{ nothing }`. In `serialWrite`,
  * one search per character at a time. Refused: off the primary, in a Class Trial, for no student, a dead one
- * (a death nobody has found is `cannotNow`, never named), a Monocub, and - but for a replay's own find - one the
- * GMs do not read standing in a room (`world.place`: no token, a put-back on its way, a standing the rules
- * refuse; never the room of the token's document alone, which the player's own browser writes). A search
+ * (a death nobody has found is `cannotNow`, never named), a Monocub, and - but for a replay's own find, and a replay
+ * handed its first throw's place (`at`), which searches there, or with `at` null nowhere - one the GMs do not read standing in a room
+ * (`world.place`: no token, a put-back on its way, a standing the rules refuse; never the room of the token's
+ * document alone, which the player's own browser writes). A search
  * beats `ACTIONS.analyze.passageThreshold` or is a critical; it finds the oldest open secret passage here the
  * character does not know (`passagesToFind`) - none for the asker acting as the Mastermind through it
  * (`actsAsMastermind`, the door's reading), who knows them all - and writes the cell `found` with the roll
@@ -1306,7 +1314,7 @@ function passagesToFind(actor, place, facts, stores) {
  * bridge's sender; `stores`, `users`, `world`, `whisper`, `toast`, `note`, `primary` and `hunted` are the suite's
  * (A10-7, R604).
  */
-export async function resolvePassageSearch({ actorId, total = 0, isCritical = false, rollId = null, undo = false } = {}, { asker = null,
+export async function resolvePassageSearch({ actorId, total = 0, isCritical = false, rollId = null, undo = false, at = undefined } = {}, { asker = null,
     stores = PASSAGE_STORES, users = game.users, world = null, whisper = whisperToOwner, toast = text => ui.notifications?.info(text),
     note = noteFindFact, primary = isPrimaryGm, hunted = event => Hooks.callAll("drpgPassageHunted", event) } = {}) {
     return serialWrite(`passage.find/${actorId}`, async () => {
@@ -1333,8 +1341,13 @@ export async function resolvePassageSearch({ actorId, total = 0, isCritical = fa
         }
         // Where the GMs read the character (`facts.place`; E80 fix early-C3-G2, the review's E80-C3-1), asked after a
         // replay's own find: its Reroll takes that back or keeps it wherever the character stands, so a jump out of the
-        // GMs' reading does not turn the replay into a refusal that gives the Reroll back and keeps the find.
-        const place = facts.place(actor);
+        // GMs' reading does not turn the replay into a refusal that gives the Reroll back and keeps the find. A replay that
+        // searches again searches where its first throw was judged (`at`, the GMs' fact `findPlace` that `noteFindFact`
+        // wrote; E80 fix r1-G3, the review's E80-C3-2), as a Search's replay draws from its roll's room: until then it
+        // searched where the character stood at the Reroll, so a miss in an empty room rerolled after a walk found a
+        // passage in a room where no Analyze was paid or thrown. A replay handed no such place (null: a row written before
+        // the fact was) searches nowhere, so its Reroll is given back whole.
+        const place = undo && at !== undefined ? heldPlace(at) : facts.place(actor);
         if (!place?.room || !place.scene?.id) return { refused: "the character has no token on a scene" };
         // The trap's word (E80 fix r1-G1): every first throw that stands, hit or miss, in the room the GMs read.
         if (!undo) hunted({ actor, room: place.room });
@@ -1365,16 +1378,26 @@ export async function resolvePassageSearch({ actorId, total = 0, isCritical = fa
             const all = roomsAsKnown(stores.map.get(pick.id), facts, null);
             toast(game.i18n.format("DRPG.Passage.gm.found", { actor: actor.name, from: all.from, to: all.to }));
         } else toast(game.i18n.format("DRPG.Passage.gm.searched", { actor: actor.name, room: place.room }));
-        await note({ actorId: actor.id, rollId: roll, by: asker?.id ?? null });
+        await note({ actorId: actor.id, rollId: roll, by: asker?.id ?? null,
+            place: { sceneId: place.scene.id, room: place.room, level: floorKey(place.level) } });
         return { searched: true, found: Boolean(pick) };
     });
 }
 
-/** The GMs' fact on the roll a first search was thrown with (action-rolls.mjs `rollOfFact`): its Reroll replays a passage search. */
-async function noteFindFact({ actorId, rollId, by }) {
+/** A first search's place as `noteFindFact` keeps it, `{ sceneId, room, level }`, in `gmPlaceOf`'s shape; null for anything else. */
+function heldPlace(at) {
+    if (!at || typeof at.sceneId !== "string" || !at.sceneId || typeof at.room !== "string" || !at.room) return null;
+    return { scene: game.scenes?.get(at.sceneId) ?? { id: at.sceneId }, room: at.room, level: typeof at.level === "string" ? at.level : null };
+}
+
+/**
+ * The GMs' facts on the roll a first search was thrown with (action-rolls.mjs `rollOfFact`): its Reroll replays a passage
+ * search (`findPassage`), in the place the GMs read the searcher at that throw (`findPlace`: scene, room and floor ids).
+ */
+async function noteFindFact({ actorId, rollId, by, place = null }) {
     if (!rollId) return false;
     const rolls = await import("./action-rolls.mjs");
-    return rolls.noteFactOn(rolls.rollOfFact({ rollId, by, actorId, actions: ["analyze"] }), { findPassage: true });
+    return rolls.noteFactOn(rolls.rollOfFact({ rollId, by, actorId, actions: ["analyze"] }), { findPassage: true, ...(place ? { findPlace: place } : {}) });
 }
 
 /* ----------------------------------------------------------------------------------------- *
@@ -1900,6 +1923,16 @@ export function onUserUpdated(user, change, options, userId, { retell = retellSo
     return change?.role !== undefined ? retell() : undefined;
 }
 
+/**
+ * A student was created: one created already owned by a player (a duplicate, an import, a player's own) changes that
+ * player's copy - every public passage names it (E80 C6) - and no ownership update follows to tell them, so the copies
+ * are told (E80 fix r1-G3; the C6 gap "a character created while a passage is public reaches its owner's copy only on
+ * the next request or retell"). Any other actor is not the passages' business. `retell` is the suite's (R608).
+ */
+export function onActorCreated(actor, options, userId, { retell = retellSoon } = {}) {
+    return actor?.type === "character" ? retell() : undefined;
+}
+
 /* The primary GM's watch on the walls (the plan's K11): a wall whose segment changed, or that went, may break a passage. */
 function onWallMoved(wall, change) {
     if (!isPrimaryGm() || !foundry.utils.hasProperty(change ?? {}, "c")) return;
@@ -1948,6 +1981,7 @@ export function registerPassagesGm() {
                 || key === `${MODULE_ID}.${SETTINGS.mastermind}`) retellSoon();
         });
         Hooks.on("updateActor", (actor, change) => { if (change?.ownership !== undefined) retellSoon(); });
+        Hooks.on("createActor", onActorCreated);
         Hooks.on("deleteActor", () => retellSoon());
         Hooks.on("userConnected", onUserConnected);
         Hooks.on("updateUser", onUserUpdated);

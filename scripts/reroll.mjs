@@ -1709,12 +1709,16 @@ async function settleStashFind(actor, bookmark, after, done) {
  * r1-G2 (the review's E80-C3-3) this asked it of the primary GM making the Reroll, so the Mastermind's student's Reroll
  * found nothing for an owner the door does not name, whose first throw finds - a Reroll paid for nothing, and the difference
  * told that owner the student's role. A row with no thrower (before `by` was written) is judged for this GM, as it was.
+ * Searched where the first throw was judged (the GMs' fact `findPlace`, passages-gm.mjs `noteFindFact`; E80 fix r1-G3, the
+ * review's E80-C3-2), never where the character stands at the Reroll: a miss rerolled after a walk into another room found a
+ * passage there, where no Analyze was paid or thrown. A row with no such fact, written before it was kept, still takes back
+ * or keeps its own find, and gives the Reroll back whole rather than search somewhere its roll was not thrown.
  */
 async function settlePassageFind(actor, bookmark, after, done) {
     const { resolvePassageSearch } = await import("./passages-gm.mjs");
     const asker = (bookmark.by ? game.users?.get(bookmark.by) : null) ?? game.user;
     const out = await resolvePassageSearch({ actorId: actor.id, total: after.total, isCritical: after.isCritical,
-        rollId: bookmark.messageId ?? null, undo: true }, { asker });
+        rollId: bookmark.messageId ?? null, undo: true, at: bookmark.findPlace ?? null }, { asker });
     if (replayWasRefused(Boolean(out), out)) return null;
     if (out.found) done.push(game.i18n.format("DRPG.Reroll.passageFound", { to: out.to ?? "-" }));
     else if (out.kept) done.push(game.i18n.localize("DRPG.Reroll.passageStands"));

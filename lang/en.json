@@ -3412,7 +3412,7 @@
     "Reroll": {
       "searchNeverRan": "The room was never searched - the search token was refused - so there is nothing to draw again.",
       "searchStashStands": "The stash find stands: new dice do not open the stash twice.",
-      "passageFound": "The new result finds a secret passage in this room, to {to}. Where the way is open, your map shows it.",
+      "passageFound": "The new result finds a secret passage in that room, to {to}. Where the way is open, your map shows it.",
       "passageLost": "The new result finds no passage: the one the first roll found is gone from your map.",
       "passageStands": "The passage find stands: new dice do not open it twice.",
       "title": "Reroll",

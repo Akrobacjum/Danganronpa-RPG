@@ -9385,6 +9385,8 @@ const REGRESSIONS = [
          * E79 fix r2-G2 adds 1 (16.10.2026, review r2 O18): updateUser, a change of role, read in the family alone as the
          * four above - 4 files of scripts/ outside it listen to it (despair.mjs, own-ring.mjs, player-status.mjs and
          * voice-tile.mjs, counted that day) and none of them imports the family - so the 12 are 13.
+         * E80 fix r1-G3 adds 1 (19.10.2026, the review's E80-C6-1): createActor, a character created, retells the copies
+         * (passages-gm.mjs `onActorCreated`, R608); read in the family alone, as updateActor and deleteActor are.
          * It reads names and text, not a syntax tree, as R534 does. Two places where it keys otherwise than the parse-only
          * census: a road inside a named inner function or a method (the census keys it by that name, this reader by the
          * top-level declaration), and a top-level declaration of several names (the census joins them, this reader takes
@@ -9468,6 +9470,7 @@ const REGRESSIONS = [
             ["HOOK room-tile.mjs#registerRoomTile#drpgRouteSettled/inline -> record", "this file's own: the room tile repaints for the viewer's own token and writes no record; E79 adds no road through it"],
             ["HOOK passages-gm.mjs#registerPassagesGm#clientSettingChanged/inline -> copy", "a GM's browser only (the `ready` hook returns on a player's): a change of the map, the access list or the Mastermind retells every player's copy from the GMs' records (`retellSoon`), quiet while tier 2 holds the stores (`gmStoresQuiet`); and the map's redraws the GMs' overlay"],
             ["HOOK passages-gm.mjs#registerPassagesGm#updateActor/inline -> copy", "a GM's browser only: a change of an actor's ownership retells the copies from the GMs' records (read in the code)"],
+            ["HOOK passages-gm.mjs#registerPassagesGm#createActor/onActorCreated -> copy", "a GM's browser only: a character created retells the copies from the GMs' records, so one created already owned while a passage is public reaches its owner's copy; any other actor is let be (E80 fix r1-G3; R608)"],
             ["HOOK passages-gm.mjs#registerPassagesGm#deleteActor/inline -> copy", "a GM's browser only: a deleted actor retells the copies from the GMs' records (read in the code)"],
             ["HOOK passages-gm.mjs#registerPassagesGm#userConnected/onUserConnected -> copy", "a GM's browser only: a user coming or going retells the copies, since the Mastermind's door names its first connected owner (E79 fix r1-G2, SEC S2; R555)"],
             ["HOOK passages-gm.mjs#registerPassagesGm#updateUser/onUserUpdated -> copy", "a GM's browser only: a user's change of role, and nothing else of a user, retells the copies - a player made a GM, or a GM a player, moves the door and starts or stops a copy (E79 fix r2-G2, review r2 O18; R555)"],
@@ -9482,7 +9485,7 @@ const REGRESSIONS = [
         const HOOK_SINKS = { updateToken: ["judge"], createToken: ["judge"], preUpdateToken: ["veto"], updateWall: ["record"], deleteWall: ["record"],
             drpgRouteSettled: ["record"], drpgPassagesChanged: ["screen"] };
         const FAMILY = /^(?:passages|passages-gm|passages-tab|gm-overlay|movement-audit)\.mjs$/;
-        const FAMILY_SINKS = { clientSettingChanged: ["copy"], updateActor: ["copy"], deleteActor: ["copy"], userConnected: ["copy"], updateUser: ["copy"],
+        const FAMILY_SINKS = { clientSettingChanged: ["copy"], updateActor: ["copy"], createActor: ["copy"], deleteActor: ["copy"], userConnected: ["copy"], updateUser: ["copy"],
             drpgPrimaryReady: ["copy"], gmStoresAudible: ["copy"], canvasReady: ["screen"] };
         const REGISTRATION = new Set(["ready", "init", "setup"]);
         const ACT_SINKS = { "token.sendBack": ["write"], "move.sentBack": ["screen"], "passage.request": ["copy"], "passage.share": ["record", "copy"], "passage.rows": ["screen"] };
@@ -13264,7 +13267,8 @@ const REGRESSIONS = [
             findWhat: /row\.actorIds\.includes\(actor\.id\)\) continue;/.test(find) && /first\(a\.id\) - first\(b\.id\)/.test(find)
                 && /stores\.map\.stampOf\(id, "sceneId"\)/.test(find),
             reroll: /if \(bookmark\.findStash && !bookmark\.bulletId\) return settleStashFind\(actor, bookmark, after, done\);/.test(analyze)
-                && /resolvePassageSearch\(/.test(code("reroll.mjs")),
+                && /resolvePassageSearch\(/.test(code("reroll.mjs"))
+                && /undo: true, at: bookmark\.findPlace \?\? null \}/.test(fnSource(code("reroll.mjs"), "settlePassageFind")),
             sound: SFX_EVENTS.passageFound?.label === "A secret passage opens to you"
                 && /finds a secret passage/.test(SFX_EVENTS.passageFound?.hint ?? "") && /showed it to them/.test(SFX_EVENTS.passageFound?.hint ?? ""),
             public: /export const makePassagePublic = \(passageId, \{ stores = PASSAGE_STORES \} = \{\}\) => setPublic\(passageId, true, stores\);/.test(gmSrc)
@@ -13293,7 +13297,7 @@ const REGRESSIONS = [
                     findPassage: ["Locate a hidden stash: 16. Find Passage: 16", "**Find Passage.** Analyze's fourth choice, offered in every room and refused in a Class Trial before anything is paid: Head against 16"],
                     findWhat: ["16 or a critical finds the oldest open secret passage of the student's room on their floor that they do not know",
                         "The Mastermind finds none: they know them all."],
-                    reroll: ["A Reroll that beats 16 finds once; one that falls below takes back only what its own roll found."],
+                    reroll: ["A Reroll that beats 16 finds once, in the room its roll was thrown in, wherever the student stands by then;", "one that falls below takes back only what its own roll found."],
                     sound: ["a crossing refused, a secret passage opening to you,"],
                     public: ["**Make public**, beside Close, gives the passage to every student at once", "**Make secret** gives it back to the students listed in its row alone"],
                     columns: ["in the columns Rooms, Kind, Shape, Origin, Who knows, At season start and State"],
@@ -13328,7 +13332,7 @@ const REGRESSIONS = [
                     findPassage: ["Znajdź ukrytą skrytkę: 16. Znajdź tajne przejście: 16", "**Znajdź tajne przejście.** Czwarty wybór Analyze, dostępny w każdym pokoju i odrzucany w Class Trial, zanim cokolwiek zostanie zapłacone: Head przeciw 16"],
                     findWhat: ["16 albo krytyk znajduje najstarsze otwarte tajne przejście pokoju ucznia na jego piętrze, którego uczeń nie zna",
                         "Mastermind nie znajduje żadnego: zna wszystkie."],
-                    reroll: ["Reroll powyżej 16 znajduje raz; taki, który spada poniżej, zabiera tylko to, co znalazł jego własny rzut."],
+                    reroll: ["Reroll powyżej 16 znajduje raz, w pokoju, w którym padł jego rzut, gdziekolwiek uczeń stoi w tej chwili;", "taki, który spada poniżej, zabiera tylko to, co znalazł jego własny rzut."],
                     sound: ["odrzucone przejście, poznane tajne przejście,"],
                     public: ["**Ujawnij**, obok Zamknij, daje przejście od razu każdemu uczniowi", "**Utajnij** oddaje je z powrotem tylko uczniom wymienionym w jego wierszu"],
                     columns: ["w kolumnach Pokoje, Rodzaj, Kształt, Pochodzenie, Kto zna, Na start sezonu i Stan"],

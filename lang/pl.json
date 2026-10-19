@@ -3558,7 +3558,7 @@
     "Reroll": {
       "searchNeverRan": "Pokój nie został przeszukany - Search Token odmówiono - więc nie ma czego losować ponownie.",
       "searchStashStands": "Znalezisko ze skrytki zostaje: nowe kości nie otwierają skrytki drugi raz.",
-      "passageFound": "Nowy wynik znajduje w tym pokoju tajne przejście do: {to}. Gdzie droga jest otwarta, mapa ci je pokazuje.",
+      "passageFound": "Nowy wynik znajduje w tamtym pokoju tajne przejście do: {to}. Gdzie droga jest otwarta, mapa ci je pokazuje.",
       "passageLost": "Nowy wynik nie znajduje przejścia: to, które znalazł pierwszy rzut, znika z twojej mapy.",
       "passageStands": "Znalezione przejście zostaje: nowe kości nie otwierają go drugi raz.",
       "title": "Reroll",

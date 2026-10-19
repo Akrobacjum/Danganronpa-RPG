@@ -16392,8 +16392,9 @@ const INVARIANTS = [
             "[the total, the answer, the card (to, words, sound, whispered to), Aiko's cells] at 15, 16, a critical's 3 and 20 - the tunnel's end here first, the wall here next; never the passage she knows, the wall upstairs, the tunnel whose Cafeteria end is upstairs, the closed one or another scene's");
         const cellA = stores.access.get(`${TUN}/R598A`);
         equal(J([Object.keys(cellA?.by ?? {}), said.notes.slice(0, 2)]),
-            J([["R598A"], [{ actorId: "R598A", rollId: "R598ROLL0", by: "R598U" }, { actorId: "R598A", rollId: "R598ROLL1", by: "R598U" }]]),
-            "[who found the tunnel, the GMs' fact on the first two rolls] - the cell does not name the finder, or a Reroll cannot tell a Find Passage's roll");
+            J([["R598A"], [{ actorId: "R598A", rollId: "R598ROLL0", by: "R598U", place: { sceneId: "R598SCENE", room: CAF, level: DOWN } },
+                { actorId: "R598A", rollId: "R598ROLL1", by: "R598U", place: { sceneId: "R598SCENE", room: CAF, level: DOWN } }]]),
+            "[who found the tunnel, the GMs' fact on the first two rolls] - the cell does not name the finder, or a Reroll cannot tell a Find Passage's roll or where it was thrown (E80 fix r1-G3)");
 
         // An empty room, and the Mastermind through the door - both alike, and like a miss; the find's card of the same shape.
         const empty = await search("R598B", 20, { rollId: "R598ROLL4" });
@@ -17041,6 +17042,82 @@ const INVARIANTS = [
         const roads = [fnSource(sources.get("passages-tab.mjs") ?? "", "showPassage"), fnSource(sources.get("sheet.mjs") ?? "", "panToPassage")];
         equal(J(roads.map(src => [/\bviewPassage\(/.test(stripComments(src)), /animatePan|\.view\(/.test(stripComments(src))])), J([[true, false], [true, false]]),
             "[showPassage, panToPassage: ask viewPassage, move the camera themselves] - a road that pans on its own ignores the floor again");
+    }],
+    ["R608 - a student who first appears after Make public knows the public passage on their player's browser: the copy naming them under it is taken by the player's engine, where the player owns another student and where it is their only one, in a world no reset has cut; and a character created tells the copies, any other actor does not", async () => {
+        /*
+         * E80 fix r1-G3 (19.10.2026; the review's E80-C6-1). Make public touches the students the world holds at that moment
+         * (passages-gm.mjs `setPublic` -> `knowersOf`), and nothing writes a `touch` row for a student who appears later: in a
+         * world with no reset its part of the copy was 0 (gm-store.mjs `newest`), so the copy that names it under the public
+         * passage was refused by the player's engine - by `offersCombine` (no part newer) where the player owns another
+         * student, at `receiveCopy`'s gate (newest part 0, not past the cut 0) where it is their only one - while the GMs'
+         * TOLD read it delivered. Run as R555's Q8: stores of an engine of the suite's own, a public passage made public by
+         * the module's own road, and each player's engine with a storage of its own, the copy taken through `cleanCopy` and
+         * the copy's `receive` as the player's browser takes it. Aiko is a student of this world (Make public touches the
+         * world's students); Daichi and Emi are actors of the suite's own that appear after it, Daichi given to Aiko's player
+         * and Emi to a player who owns nobody else. The hook's own handler, `onActorCreated`, with the suite's retell. Red at
+         * 518c057: both copies refused, and no `onActorCreated`.
+         */
+        needs(world.atLeast("livingStudents", 1), "a student of this world, whom Make public touches");
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const P = await import("./passages-gm.mjs");
+        const L = await import("./passages.mjs");
+        const J = v => JSON.stringify(v);
+        let t = 7_200_000;
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R608GM", isGM: () => true, isPrimary: () => true, worldId: () => "R608WORLD",
+            activeGmIds: () => [], primaryGmId: () => "R608GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => t++,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const def = (h, name) => eng.define({ ...h.spec, name: `r608${name}`, key: `r608${name}`, afterRestore: undefined, exists: undefined });
+        const stores = { map: def(S.passageMapStore, "Map"), access: def(S.passageAccessStore, "Access"), log: def(S.passageLogStore, "Log"),
+            mastermind: eng.define({ name: "r608mm", key: "r608mm", kind: "record", fields: ["actorId"], sync: false, backup: false }) };
+        const [SA] = studentActors();
+        const owners = { [SA.id]: "R608U1", R608D: "R608U1", R608E: "R608U2" };
+        const fake = (id, name) => ({ id, name, type: "character", items: [], getFlag: () => undefined,
+            testUserPermission: (u, level) => level === "OWNER" && (u?.isGM || owners[id] === u?.id) });
+        const [FA, FD, FE] = [fake(SA.id, SA.name), fake("R608D", "R608 Daichi"), fake("R608E", "R608 Emi")];
+        const [U1, U2] = ["R608U1", "R608U2"].map(id => ({ id, isGM: false, active: true, name: id }));
+        const users = [U1, U2, { id: "R608GM", isGM: true, active: true }];
+        const PUB = "R608S.r608pub";
+        await stores.map.patch(PUB, { sceneId: "R608S", level: null, shape: "wall", passageWallId: "R608W",
+            passageSeg: { x1: 100, y1: 500, x2: 300, y2: 500 }, rooms: ["R608 Lab", "R608 Vault"], state: "secret", startAccess: [] });
+        // Each player's browser: an engine of its own, its storage its own, the copy taken by the module's rule.
+        const browserOf = user => {
+            const held = new Map();
+            return G.createGmStoreEngine({
+                selfId: () => user.id, isGM: () => false, isPrimary: () => false, worldId: () => "R608WORLD",
+                activeGmIds: () => [], primaryGmId: () => null, senderIsGM: () => false, userName: u => u, send: () => {},
+                storage: { read: k => held.get(k) ?? null, write: async (k, v) => { held.set(k, JSON.stringify(v)); } },
+                readLegacy: () => undefined, now: () => t, timers: { set: () => null, clear: () => {} }, clock: () => ({}),
+                log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+            }).defineCopy({ name: `r608${user.id}`, key: `r608copy${user.id}`, resetGroup: "passages", fallback: {}, combine: S.offersCombine });
+        };
+        const browsers = { [U1.id]: browserOf(U1), [U2.id]: browserOf(U2) };
+        const deliver = async (user, actors) => {
+            const c = P.passageCopyFor(user, { stores, actors, users });
+            const clean = L.cleanCopy(c.value, c.stamps, { actors: new Map(actors.map(a => [a.id, a])), scenes: new Map([["R608S", {}]]) });
+            const taken = await browsers[user.id].receive(clean.value, clean.stamps);
+            return [taken, Object.fromEntries(Object.entries(browsers[user.id].read() ?? {}).map(([id, r]) => [id, [...(r.actorIds ?? [])].sort()]))];
+        };
+        must(await P.makePassagePublic(PUB, { stores }), "the passage was not made public - this would measure nothing");
+        must(stores.access.cleared() === 0 && !stores.access.get("touch/R608D") && !stores.access.get("touch/R608E"),
+            "the suite's stores were cut, or hold a row of a student that has not appeared - this would measure nothing");
+        const before = await deliver(U1, [FA]);
+        // Daichi and Emi appear: given to Aiko's player, and to a player who owns nobody else.
+        const later = [FA, FD, FE];
+        const toU1 = await deliver(U1, later), toU2 = await deliver(U2, later);
+        equal(J([before, toU1, toU2]), J([[true, { [PUB]: [SA.id] }], [true, { [PUB]: [SA.id, "R608D"].sort() }], [true, { [PUB]: ["R608E"] }]]),
+            "[taken, what the browser holds as {passage: knowers}] for Aiko's player before Daichi appears, after, and for Emi's player - the copy naming a student who appeared after Make public is refused, so the player's browser does not know the public passage for them (E80-C6-1)");
+        const calls = [];
+        const retell = () => { calls.push("retell"); return 0; };
+        const told = typeof P.onActorCreated === "function"
+            ? [P.onActorCreated({ id: "R608N", type: "character" }, {}, "R608GM", { retell }), P.onActorCreated({ id: "R608X", type: "adversary" }, {}, "R608GM", { retell }) ?? null]
+            : "no onActorCreated";
+        equal(J([told, calls]), J([[0, null], ["retell"]]),
+            "[what a character's and an adversary's create answered, the retells asked] - a student created already owned waits for an unrelated change before their player's copy names them");
     }],
     ["R605 - the secret doors no primary heard change (E80-SEC-3, E80-COR-1): on the primary GM the pass puts each secret door that stands otherwise than a GM last left it back - open where a GM last opened it, shut otherwise, shut where no GM has changed it - with the put-back's own mark, and holds it shut for the audit until the write lands; a locked door, one as a GM left it and every other wall it leaves alone, and off the primary it writes nothing; a GM leaving hands it to the primary after it, the pass and each put-back asked without that GM, and a player, a GM coming or the suite's held stores do not", async () => {
         /*
