@@ -40,6 +40,8 @@ export const SETTINGS = {
     despairFromRolls: "despairFromRolls",
     projectMeta: "projectMeta",
     chargeMovement: "chargeMovement",
+    /** Whether an open Frisk may be forced after a refusal or no answer (E80 part 2; frisk.mjs `friskForceOpen`). */
+    friskForce: "friskForce",
     lockPlayerResources: "lockPlayerResources",
     roomVisibility: "roomVisibility",
     lockRollDialog: "lockRollDialog",
@@ -2118,6 +2120,17 @@ export function registerSettings() {
         default: true,
         // The stylesheet's half of the lock follows at once (E03; audit S01-40).
         onChange: value => document.body.classList.toggle("drpg-resources-locked", Boolean(value))
+    });
+
+    /* The GMs' switch on forcing a Frisk after a refusal (the A11 design's step 1; DA39, the family of
+       the refused Restrain): off, an open Frisk only asks. A world setting, which only a GM writes. */
+    game.settings.register(MODULE_ID, SETTINGS.friskForce, {
+        name: "DRPG.Settings.friskForce.name",
+        hint: "DRPG.Settings.friskForce.hint",
+        scope: "world",
+        config: true,
+        type: Boolean,
+        default: true
     });
 
     game.settings.register(MODULE_ID, SETTINGS.chargeMovement, {

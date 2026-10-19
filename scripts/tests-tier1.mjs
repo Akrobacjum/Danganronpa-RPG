@@ -17573,6 +17573,46 @@ const INVARIANTS = [
             /Hooks\.on\("createScene", onSceneCreated\);/.test(reg), /secretDoorStore/.test(gmSource)]), J([true, true, true, false]),
             "[a GM's update stamped, a GM's create stamped, a scene created settled, a browser's record of the doors read] in registerPassagesGm and passages-gm.mjs");
     }],
+    ["R617 - a Frisk's two rolls are a Palm's parts (A11-2): the force is Body 12, the hand Hand 10 under a Shadow 15 cover, and a roll told for either is expected at that statistic by the part it is told for (`fixed`), as the cover and a Take's hand are; an ask waits 60 s and a force 30 s; forcing after a refusal is a GMs' world setting, on", async () => {
+        /*
+         * E80 part 2 C0, 19.10.2026; the A11 design's steps 1 and 10, the owner's 2 = a (13.10: Body 12, Shadow 15 and Hand
+         * 10). The harm: a part the GMs do not hold to its statistic is a roll a console throws on its best one (E29 fix
+         * r1-G10, `fixed`), and a number kept anywhere but config is a second copy the books and the window drift from.
+         * Read off config, the ruling's reader (trait-ruling.mjs `listedTraits`, which reads a part's statistic one level
+         * down only) and what the GM expects of a roll told as each key (roll-draw.mjs `expectedFor`, through `TOLD_AS`);
+         * `plant`, a part with no statistic of its own, is the control that a part is not read as listing one by being
+         * there. That a roll on another statistic is flagged is tier 2's ("every definition and part that lists one
+         * statistic"). The two waits are chosen, not measured (the design's step 1). Red at the parent (0d6b033): Palm has
+         * neither part, `TIMING` neither wait, no `friskForce` is registered, and rolls told as `rummage` or `frisk` are
+         * expected at no statistic.
+         */
+        needs(world.atLeast("livingStudents", 1), "what the GM expects of a roll is read for a student");
+        const C = await import("./config.mjs");
+        const { listedTraits } = await import("./trait-ruling.mjs");
+        const D = await import("./roll-draw.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const J = stableJson;
+        const palm = C.ACTIONS.palm ?? {};
+        equal(J([palm.frisk?.trait ?? null, palm.frisk?.threshold ?? null, palm.rummage?.trait ?? null, palm.rummage?.threshold ?? null,
+            palm.rummage?.unseen ?? null, palm.unseen?.trait ?? null, typeof palm.frisk?.label, typeof palm.rummage?.label]),
+        J(["body", 12, "hand", 10, 15, "shadow", "string", "string"]),
+        "[the force's statistic and number, the hand's statistic, number and cover's number, the cover's statistic, the two labels] in ACTIONS.palm");
+        equal(J(["frisk", "rummage", "unseen", "plant"].map(part => listedTraits({ kind: "action", key: "palm", part }))),
+            J([["body"], ["hand"], ["shadow"], []]), "[the statistic the ruling reads for Palm's frisk, rummage, unseen and plant]");
+        const student = livingStudents()[0];
+        const expected = [];
+        for (const actionKey of ["frisk", "rummage", "palm", "steal"]) {
+            const e = await D.expectedFor(student, { actionKey });
+            expected.push([actionKey, e?.trait ?? null, e?.traitFrom ?? null]);
+        }
+        equal(J(expected), J([["frisk", "body", "fixed"], ["rummage", "hand", "fixed"], ["palm", "shadow", "fixed"], ["steal", "hand", "fixed"]]),
+            "[each key a roll is told as, the statistic the GM expects of it, the row that gave it]");
+        equal(J([C.TIMING.friskAnswerMs ?? null, C.TIMING.friskForceMs ?? null]), J([60000, 30000]), "[TIMING.friskAnswerMs, TIMING.friskForceMs]");
+        const reg = game.settings.settings.get(`${MODULE_ID}.${SETTINGS.friskForce ?? "friskForce"}`);
+        equal(J([SETTINGS.friskForce ?? null, reg?.scope ?? null, reg?.config ?? null, reg?.type === Boolean, reg?.default ?? null,
+            typeof reg?.name === "string" && reg.name.startsWith("DRPG.Settings.friskForce")]),
+        J(["friskForce", "world", true, true, true, true]), "[the key, its scope, in the settings window, a Boolean, its default, its name a key of the lang files]");
+    }],
 ];
 
 /**

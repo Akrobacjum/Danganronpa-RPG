@@ -6697,7 +6697,8 @@ const REGRESSIONS = [
          * `data.sourceActor`), judged by an `owns`-kind guard that covers the field; a `kind` may be a
          * list, with `kindAt` the path that names which; `when` is a field taken as a flag; `into`
          * names fields the declaration takes; a `derive` is a function. A Palm's hand is thrown as
-         * "steal", the Reroll's name for it (`THROWN_AS`). A sixth fixture is a list read clean.
+         * "steal", the Reroll's name for it (`THROWN_AS`); since E80 part 2 C0 a Frisk's hand as "rummage" and its force
+         * as "frisk", parts of Palm too. A sixth fixture is a list read clean.
          *
          * C16 (04.10.2026) took a project's progress and its Sabotage off WAITING. Progress that
          * names no roll is a Call's, so its `when` is the roll's own field - an id, not a flag -
@@ -6717,7 +6718,7 @@ const REGRESSIONS = [
         const DERIVED = { "project.progress": ["amount"], "project.sabotage": ["difficulty"], "remnant.place": ["data"],
             "vault.steal": ["viaSearch", "clumsy"] };
         const WAITING = [];
-        const THROWN_AS = { steal: "palm" };
+        const THROWN_AS = { steal: "palm", rummage: "palm", frisk: "palm" };
         const TABLES = { crisis: CRISIS_ACTIONS, cleanup: CLEANUP.actions, murderOpening: MURDER_OPENING };
         const takes = (action, decl) => Object.keys(decl.sanitize?.fields ?? {})
             .filter(field => RESULT.includes(field) || (DERIVED[action] ?? []).includes(field));

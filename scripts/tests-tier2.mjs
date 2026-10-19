@@ -10707,6 +10707,104 @@ const SCENARIOS = [
             + "unseen roll's payment, or a payment handed back still pays, or a second draw of the action is judged while the first is "
             + "under way (each draw in turn; the two at once; the tickets left)");
     }],
+    ["a Frisk's rolls ride a Palm's one payment (A11-4): the hand after the cover and never first, never beside a Take's hand; a Search and a Call's Hope keep payments of their own; an ask's ticket carries one force, only while the GMs leave that searcher a force open", async () => {
+        /*
+         * E80 part 2 C0, 19.10.2026; the A11 design's step 10 and its A11-4. A Frisk unseen is two rolls on the one action a
+         * Palm costs: the cover (`palm`, Shadow) and then the hand (`rummage`, Hand). At the parent `paysFor` answered
+         * "action" for every key with no price chain, so a hand drawn first took an undrawn ticket of its own - a Move's, a
+         * Rest's - and a console had a Hand roll it never paid a Palm for; and nothing let it ride the cover's ticket. An
+         * open Frisk's force (`frisk`, Body) rides the ticket the primary takes when it accepts the ask (roll-draw.mjs
+         * `claimTicket(actorId, "friskAsk")`), and only while frisk.mjs `friskForceOpen` finds a refused or unanswered ask of
+         * that searcher inside its window with the GMs' `friskForce` on: else a Body roll would be a free one. Judged as
+         * from a player (`drawnForPlayer`, its own payment off), the GM's tickets for the character forgotten first; a
+         * payment is the actions, or the Hope, written down by one as the player's browser writes them (`PAID_AS_PLAYER`).
+         * The ask's row is put in `friskAsks` by hand and taken out after (C3 writes them on the primary). In turn: a cover
+         * and its hand, and a second hand; a hand first, then the cover, a Take's hand on it, and a hand; a cover, its hand
+         * and a Take's hand; a cover and a Search; a Hope paid and an action, a cover, its hand and a Call taking the Hope;
+         * an ask's claim, a Search, a force with none open and a second claim with nothing paid; with no claim, an ask
+         * drawn as if it were a roll (only the primary claims one) and a Search;
+         * a claim with a force open, the force and a second; a force whose window closed, one of another searcher's ask,
+         * one with `friskForce` off. Read: the code each draw was refused with, else whether the GM kept its record; each
+         * answer of `claimTicket` and of the Call's payment; the undrawn tickets left. Red at the parent (0d6b033): the hand
+         * drawn first is kept, frisk.mjs and `claimTicket` do not exist, and the force rides nothing.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the rolls are a connected player's, as Foundry names only those");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { actionsLeft } = await import("./actions.mjs");
+        const D = await import("./roll-draw.mjs");
+        const F = await import("./frisk.mjs").catch(() => null);
+        const { player, theirs } = playerAndCharacters();
+        const ACT = "system.resources.actions.value", HOPE = "system.resources.hope.value";
+        const left = actionsLeft(theirs), top = Math.max(1, left), hope = Number(theirs.system.resources.hope?.value) || 0;
+        const forceKey = `${MODULE_ID}.friskForce`, force = game.settings.settings.has(forceKey) ? game.settings.get(MODULE_ID, "friskForce") : null;
+        const asPlayer = { [D.PAID_AS_PLAYER]: true };
+        const draw = async actionKey => {
+            const R = await drawnForPlayer(player, theirs, { actionKey, pay: false });
+            try {
+                return R.sent.find(r => r.action === "bridge.refused")?.reason ?? Boolean(R.record);
+            } finally {
+                await R.putBack();
+            }
+        };
+        const pay = async () => {
+            await trustedWrite(theirs, { [ACT]: top }, { reason: "gmRuling", ...asPlayer });
+            await trustedWrite(theirs, { [ACT]: top - 1 }, { reason: "gmRuling", ...asPlayer });
+        };
+        const claim = async kind => (typeof D.claimTicket === "function" ? await D.claimTicket(theirs.id, kind) : "no claimTicket");
+        const ask = (askId, row) => {
+            if (F?.friskAsks instanceof Map) F.friskAsks.set(askId, { searcherId: theirs.id, targetId: "A114TARGET", state: "refused", ...row });
+        };
+        const out = [];
+        try {
+            await trustedWrite(theirs, { [ACT]: top, [HOPE]: Math.max(1, hope) }, { reason: "gmRuling" });
+            D.forgetPayments?.(theirs.id);
+            await pay();
+            out.push(await draw("palm"), await draw("rummage"), await draw("rummage"));
+            await pay();
+            out.push(await draw("rummage"), await draw("palm"), await draw("steal"), await draw("rummage"));
+            await pay();
+            out.push(await draw("palm"), await draw("rummage"), await draw("steal"));
+            await pay();
+            out.push(await draw("palm"), await draw("search"));
+            await trustedWrite(theirs, { [HOPE]: Math.max(1, hope) - 1 }, { reason: "gmRuling", ...asPlayer });
+            await pay();
+            out.push(await draw("palm"), await draw("rummage"), await D.takeCallPayment(theirs.id, 1));
+            await pay();
+            out.push(await claim("friskAsk"), await draw("search"), await draw("frisk"), await claim("friskAsk"));
+            await pay();
+            out.push(await draw("friskAsk"), await draw("search"));
+            // The claim above is an ask that ended unforced: forgotten, so a second force below could ride only this ask's
+            // ticket. Closing an ended ask's ticket to a force is C3's (each end of an ask).
+            D.forgetPayments?.(theirs.id);
+            await pay();
+            out.push(await claim("friskAsk"));
+            ask("A114OPEN", { forceUntil: Date.now() + 60_000 });
+            out.push(await draw("frisk"), await draw("frisk"));
+            F?.friskAsks?.delete("A114OPEN");
+            await pay();
+            out.push(await claim("friskAsk"));
+            ask("A114LATE", { state: "noAnswer", forceUntil: Date.now() - 1 });
+            ask("A114OTHER", { searcherId: "A114SOMEBODY", forceUntil: Date.now() + 60_000 });
+            out.push(await draw("frisk"));
+            F?.friskAsks?.delete("A114LATE");
+            F?.friskAsks?.delete("A114OTHER");
+            ask("A114OFF", { forceUntil: Date.now() + 60_000 });
+            if (force !== null) await game.settings.set(MODULE_ID, "friskForce", false);
+            out.push(await draw("frisk"));
+            out.push((D.paymentsOf?.(theirs.id) ?? []).filter(ticket => !ticket.kinds.length).length);
+        } finally {
+            for (const id of ["A114OPEN", "A114LATE", "A114OTHER", "A114OFF"]) F?.friskAsks?.delete(id);
+            if (force !== null && game.settings.get(MODULE_ID, "friskForce") !== force) await game.settings.set(MODULE_ID, "friskForce", force);
+            await trustedWrite(theirs, { [ACT]: left, [HOPE]: hope }, { reason: "gmRuling" });
+            D.forgetPayments?.(theirs.id);
+        }
+        equal(stableJson(out), stableJson([true, true, "notPaid", "notPaid", true, true, "notPaid", true, true, "notPaid", true, "notPaid",
+            true, true, true, true, "notPaid", "cannotNow", false, "cannotNow", true, true, true, "notPaid", true, "cannotNow", "cannotNow", 0]),
+            "[a cover, its hand, a second hand; a hand first, the cover, a Take's hand, a hand; a cover, its hand, a Take's hand; a cover, "
+            + "a Search; a cover, its hand, a Call's Hope beside them; a claim, a Search, a force with none open, a claim with nothing paid; "
+            + "an ask drawn as a roll, a Search with no claim; a claim, a force open, a second force; a claim, a force closed or another's; a force with "
+            + "friskForce off; the undrawn tickets left] - a part rode a ticket it may not, or found none it may");
+    }],
 
     ["an incident's roll is drawn only at its turn or stage, for what it names, once: an opening, a crisis action, a free clean-up attempt", async () => {
         /*
@@ -11044,7 +11142,11 @@ const SCENARIOS = [
         };
         // How the module tells a roll of each: an action of the table under its own key unless named here.
         const TOLD = { palm: { actionKey: "steal" }, tamper: { actionKey: "cleanup", context: { cleanupVia: true, cleanupKey: "eraseTrace" } } };
-        const PARTS = { "palm.unseen": { actionKey: "palm" } };
+        // A Frisk's hand rides a Palm's cover and its force an ask's ticket with a force open (E80 part 2 C0; roll-draw.mjs
+        // `ROLLED_TOGETHER`): `ride` is the part claimed on the paid ticket first, `force` an open force of the roller's.
+        const PARTS = { "palm.unseen": { actionKey: "palm" }, "palm.rummage": { actionKey: "rummage", ride: "palm" },
+            "palm.frisk": { actionKey: "frisk", ride: "friskAsk", force: true } };
+        const Fr = await import("./frisk.mjs").catch(() => null);
         const cases = [];
         for (const [key, def] of Object.entries(ACTIONS)) {
             const trait = one(def?.traits);
@@ -11075,14 +11177,20 @@ const SCENARIOS = [
         try {
             for (const c of drawnHere) {
                 for (const trait of [other(c.trait), c.trait]) {
-                    const F = await drawnForPlayer(player, theirs, { actionKey: c.told.actionKey, trait,
+                    const ready = !c.told.ride ? null : async () => {
+                        await D.claimTicket?.(theirs.id, c.told.ride);
+                        if (c.told.force) Fr?.friskAsks?.set("TOLDFORCE", { searcherId: theirs.id, targetId: "TOLDTARGET", state: "refused", forceUntil: Date.now() + 60_000 });
+                    };
+                    const F = await drawnForPlayer(player, theirs, { actionKey: c.told.actionKey, trait, ready,
                         edit: p => ({ ...p, context: { ...(p.context ?? {}), ...(c.told.context ?? {}) } }) });
+                    Fr?.friskAsks?.delete("TOLDFORCE");
                     drawn.push(F);
                     must(F.record, `the GM kept no record of a roll of ${c.name} (${F.verdict}) - this would measure nothing`);
                     flags.push([c.name, trait, (F.record.flags ?? []).map(f => [f.kind, f.expected, f.claimed])]);
                 }
             }
         } finally {
+            Fr?.friskAsks?.delete("TOLDFORCE");
             for (const F of [...drawn].reverse()) await F.putBack();
             D.forgetPayments?.(theirs.id);
             for (const m of game.messages.contents.filter(x => !had.has(x.id))) await m.delete();

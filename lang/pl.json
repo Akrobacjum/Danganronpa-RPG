@@ -264,6 +264,10 @@
         "name": "Gracze nie edytują akcji, Hope, Health, Sanity ani statystyk",
         "hint": "Te zmieniają się przez grę - wydaj akcję, odpocznij, zdobądź Level Up. Włączone: ręczne zmiany gracza są cofane albo zgłaszane GM-om, a ich pola są dla graczy tylko do odczytu; wyłączone: są tylko odnotowywane dla GM-ów. Przedmioty i efekty są oceniane zawsze, tak samo jak to, co zmieniło się bez połączonego GM-a - gdy któryś wróci. GM-ów to nie dotyczy."
       },
+      "friskForce": {
+        "name": "Frisk: zmuszanie po odmowie",
+        "hint": "Wyłączone: jawny Frisk tylko prosi, a odmowa albo brak odpowiedzi go kończy."
+      },
       "chargeMovement": {
         "name": "Przejście między pokojami kosztuje Move",
         "hint": "Ruch wewnątrz pokoju jest darmowy. Przejście do innego regionu sceny zużywa Free Move tej pory dnia, a potem akcję. Wyłącz, by rozliczać ruch ręcznie."
@@ -4674,6 +4678,12 @@
           "description": "Wkładasz rękę do czyjejś kieszeni. Jeden rzut decyduje, czy zauważą, drugi - czy się uda.",
           "unseen": {
             "label": "Trzymaj ręce poza zasięgiem wzroku"
+          },
+          "frisk": {
+            "label": "Zmuś do pokazania kieszeni"
+          },
+          "rummage": {
+            "label": "Przejrzyj kieszenie ukradkiem"
           },
           "failure": "Twoja ręka wraca pusta."
         },

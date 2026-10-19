@@ -359,6 +359,11 @@ export const TIMING = {
      *  with no network in it. A real table's round trip is not measured here (LIVE-E06-05);
      *  three seconds is the review's figure, some forty times the slowest of those. */
     safewordAnswerMs: 3000,
+    /** How long an open Frisk's ask waits for the target's answer before it counts as none, and
+     *  how long the searcher then has to decide on forcing it (the A11 design, step 1): chosen,
+     *  not measured - short enough that the target does not hang in the window. */
+    friskAnswerMs: 60000,
+    friskForceMs: 30000,
     /** How long an Observe waits for its ruling before the bookmark is swept. */
     pendingObserveTtlMs: 60 * 60 * 1000,
     /** How many private cards' words a browser keeps; beyond this the oldest go. */
@@ -1585,6 +1590,18 @@ export const ACTIONS = {
         unseen: { trait: "shadow", threshold: 15, label: "Keep your hands out of sight" },
         /** Leaving something is easier than taking it - both axes (D10a). */
         plant: { threshold: 8, unseen: 13 },
+        /*
+         * A THIRD DIRECTION (Dawid, 13.10): Frisk, seeing what somebody carries.
+         * It looks and takes nothing, so a critical adds nothing and it never
+         * reaches into a stash. Openly it asks first, and only after a refusal or
+         * no answer may the searcher force it, at Body (`frisk`), in front of the
+         * room; unseen it is a Shadow cover at `rummage.unseen` - the `unseen`
+         * part's statistic - and then the hand at `rummage.threshold`. Both are
+         * parts at this level because the ruling reads a part one level down
+         * (trait-ruling.mjs `definitionOf`). The numbers are the owner's 2 = a.
+         */
+        frisk: { trait: "body", threshold: 12, label: "Make them turn out their pockets" },
+        rummage: { trait: "hand", threshold: 10, unseen: 15, label: "Look through their pockets unseen" },
         failure: "Your hand comes away empty."
     },
     /**

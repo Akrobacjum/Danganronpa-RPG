@@ -673,8 +673,16 @@ function paidCosts(costs) {
 
 /** How long a draw waits for its payment to reach this GM. The roller's browser pays before the roll's window opens, so this is a margin. Chosen, not measured. */
 const PAY_WAIT_MS = 1500;
-/** The rolls one payment buys together: a Palm's unseen roll and its hand (action-rolls.mjs `performPalm`). */
-const ROLLED_TOGETHER = Object.freeze([Object.freeze(["palm", "steal"])]);
+/**
+ * The rolls one payment buys together: a Palm's unseen roll and its hand (action-rolls.mjs `performPalm`); a Frisk's
+ * cover and its hand; an open Frisk's ask, which the primary claims (`claimTicket`), and its force. Two sets for the
+ * cover, not one: one set of three would let a Take's hand and a Frisk's ride the same payment (the A11 design, step 10).
+ */
+const ROLLED_TOGETHER = Object.freeze([Object.freeze(["palm", "steal"]), Object.freeze(["palm", "rummage"]), Object.freeze(["friskAsk", "frisk"])]);
+/** The parts that only ride a ticket their partner was drawn or claimed on, and are paid by nothing of their own (`paysFor`). */
+const RIDES_ONLY = Object.freeze(["rummage", "frisk"]);
+/** The parts only the GM claims (`claimTicket`), never drawn: a draw named so would make a second ask's ticket a force could ride. */
+const CLAIMED_ONLY = Object.freeze(["friskAsk"]);
 /** The price chain an action's roll is paid by, where it has one (PRICE_CHAINS; cleanup.mjs `chargeTamper`). */
 const CHAIN_OF = Object.freeze({ analyze: "analyze", cleanup: "tamper" });
 /** Each character's tickets on this GM: `{ at, pay, kinds, size }`, `kinds` the rolls drawn on it (or `call`, a Hope Call's progress: `takeCallPayment`), `size` how much it paid. */
@@ -761,8 +769,13 @@ function notePayments(actor, changes = null, options = null, userId = null) {
     else if (now.stress < was.stress) undo("stress", was.stress - now.stress);
 }
 
-/** What can pay for a roll of `key` now: an action, or a later step of its price chain where the chain offers it in this phase. */
+/**
+ * What can pay for a roll of `key` now: an action, or a later step of its price chain where the chain offers it in this
+ * phase; nothing for a part that only rides (`RIDES_ONLY`) - else a Frisk's hand drawn before its cover would take an
+ * undrawn ticket of its own, a Move's or a Rest's (E80 part 2 C0).
+ */
 function paysFor(key) {
+    if (RIDES_ONLY.includes(key)) return [];
     const chain = PRICE_CHAINS[CHAIN_OF[key]];
     if (!chain) return ["action"];
     const steps = chain.stepsBeyondFirst && getClock()?.phase !== chain.stepsBeyondFirst ? chain.steps.slice(0, 1) : chain.steps;
@@ -816,6 +829,9 @@ async function drawRefusal(actor, key, context) {
     if (key === "analyze" && context.findPassage === true && getClock()?.phase === "classTrial") return "the Class Trial is in session";
     if (key === "cleanup" && state?.active && state.freeCleanup === actor.id
         && !rowsOf(actor.id, key).some(row => unsettled(row) && row.incident?.openedAt === state.openedAt)) return null;
+    // An open Frisk's force only while that searcher has one open (E80 part 2 C0): else a Body roll on an ask's ticket is a
+    // free roll. frisk.mjs is imported here, late, as murder.mjs is above: it will import this file (the design's risk 14).
+    if (CLAIMED_ONLY.includes(key) || (key === "frisk" && !(await import("./frisk.mjs")).friskForceOpen(actor.id))) return "that cannot be done now";
     for (const end = Date.now() + PAY_WAIT_MS; !ticketFor(actor.id, key) && Date.now() < end;) {
         await new Promise(resolve => setTimeout(resolve, 100));
     }
@@ -823,6 +839,24 @@ async function drawRefusal(actor, key, context) {
     if (!ticket) return "no payment of that character's stands for that roll";
     ticket.kinds.push(key);
     return null;
+}
+
+/**
+ * Takes an undrawn ticket of `actorId`'s for `kind`, a part no roll is drawn for - an open Frisk's ask, which the
+ * primary claims when it accepts it - waiting for its payment as a draw waits; true when it took one. Its partner
+ * (`ROLLED_TOGETHER`) then rides that ticket, and nothing else does: no end of the ask leaves a payment a later
+ * Search would take (the A11 design, step 10). Called on the GM that judges the ask, whose memory the tickets are.
+ */
+export async function claimTicket(actorId, kind) {
+    const pays = paysFor(kind);
+    const find = () => ticketsOf(actorId).find(ticket => !ticket.kinds.length && pays.includes(ticket.pay)) ?? null;
+    for (const end = Date.now() + PAY_WAIT_MS; !find() && Date.now() < end;) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    const ticket = find();
+    if (!ticket) return false;
+    ticket.kinds.push(kind);
+    return true;
 }
 
 /** For the suite: the tickets this GM holds for a character (a copy), and forgetting them. */
@@ -1459,8 +1493,12 @@ function traitKeyOf(trait) {
  * expected as it stands (`fixed`) - see "WHERE A ROLL'S STATISTIC COMES FROM" below.
  */
 
-/** The parts of an action told under a key of their own (`rollTrait`'s `actionKey`): a Palm's cover as "palm", its hand as "steal" (action-rolls.mjs `performPalm`). */
-const TOLD_AS = Object.freeze({ palm: Object.freeze({ key: "palm", part: "unseen" }), steal: Object.freeze({ key: "palm" }) });
+/**
+ * The parts of an action told under a key of their own (`rollTrait`'s `actionKey`): a Palm's cover as "palm", its hand
+ * as "steal" (action-rolls.mjs `performPalm`); a Frisk's hand as "rummage" and its force as "frisk" (E80 part 2).
+ */
+const TOLD_AS = Object.freeze({ palm: Object.freeze({ key: "palm", part: "unseen" }), steal: Object.freeze({ key: "palm" }),
+    rummage: Object.freeze({ key: "palm", part: "rummage" }), frisk: Object.freeze({ key: "palm", part: "frisk" }) });
 
 /**
  * The statistics the definition a roll is told for lists, read from this GM's config as the

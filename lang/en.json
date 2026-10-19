@@ -264,6 +264,10 @@
         "name": "Players cannot edit Actions, Hope, Health, Sanity or statistics",
         "hint": "Those move through play - spend an action, take a rest, earn a Level Up. On, a player's own edits of them are put back or flagged to the GMs, and their pips are display-only for players; off, they are only listed for the GMs. Items and effects are judged either way, and so is what changed while no GM was connected, when one returns. GMs are unaffected."
       },
+      "friskForce": {
+        "name": "Frisk: forcing after a refusal",
+        "hint": "When off, an open Frisk only asks: a refusal or no answer ends it."
+      },
       "chargeMovement": {
         "name": "Crossing rooms costs a Move",
         "hint": "Moving inside a room is free. Crossing into another Scene Region spends the Free Move for that time of day, then an action. Turn off to handle movement by hand."
