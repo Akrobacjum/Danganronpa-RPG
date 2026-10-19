@@ -551,7 +551,7 @@ Jest dokładnie jeden, a rodzaj morderstwa decyduje, czyj.
 
 Ofiara nie widzi niczego, gdy zabójca rzuca - żadnej karty, muzyki ani niczego na panelu zdarzeń. Gdy rzut się uda, od razu dowiaduje się, że incydent się zaczął, i kto na nią rusza: Direct Murder to zabójstwo twarzą w twarz. Porażka nie zostawia jej niczego.
 
-**Morderstwo pośrednie (pułapka):** rzuca **ofiara** (Eye albo Head, przeciw **20**; utrudnienie nocą; którą, wybiera GM). Sama prośba o rzut jest ostrzeżeniem: słyszysz, że przygotowuje się dla ciebie rzut, a okno nosi tytuł "Coś tu nie gra - twój rzut".
+**Morderstwo pośrednie (pułapka):** rzuca **ofiara** (Eye albo Head, przeciw **20**; utrudnienie nocą; którą, wybiera GM). Sama prośba o rzut jest ostrzeżeniem: słyszysz, że przygotowuje się dla ciebie rzut, a okno nosi tytuł "Coś tu nie gra".
 
 | Rzut ofiary | Co się dzieje |
 |---|---|

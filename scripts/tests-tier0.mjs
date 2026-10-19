@@ -13463,6 +13463,66 @@ const REGRESSIONS = [
         equal(JSON.stringify(measured), JSON.stringify(expected),
             "[per language - the GM's handbook names DRPG.Settings.forceDiceLook.name in italics; the player's handbook says DRPG.DiceLook.setByGm; "
             + "the player's handbook no longer says a die falls in the player's own colours]");
+    }],
+    ["R805 - the opening's roll windows carry short titles, without \"your roll\", and the player's handbook quotes the victim's as it reads, in both languages (E16, S01-17)", async () => {
+        /*
+         * E16 fix r1-G2 of round r1d, 19.10.2026 (finding OWNER-DEFAULT-Q7a; the owner's Q7 runs on its default (a)).
+         * S01-17 asked a shorter title for the roll window, and the opening's three (DRPG.Roll.opening.killer,
+         * .victim, .selfInflicted, murder-rules.mjs) ended in " - your roll" / " - twój rzut". At 0cc7c80 all six
+         * did, and the player's handbook quoted the victim's with it. The words are Q7 (a)'s, read whole: another
+         * wording is the owner's and changes this test with it.
+         */
+        const WORDS = {
+            en: { killer: "Opening the murder", victim: "Something feels wrong", selfInflicted: "Going through with it" },
+            pl: { killer: "Otwarcie morderstwa", victim: "Coś tu nie gra", selfInflicted: "Decyzja" }
+        };
+        const STALE = { en: " - your roll", pl: " - twój rzut" };
+        const measured = {}, expected = {};
+        for (const lang of ["en", "pl"]) {
+            const keys = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            const opening = keys.DRPG?.Roll?.opening ?? {};
+            ok(Object.keys(opening).length > 0, `lang/${lang}.json has no DRPG.Roll.opening - this test measured nothing`);
+            const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/player-handbook.${lang}.md`);
+            ok(res.ok, `docs/handbooks/player-handbook.${lang}.md did not load`);
+            const book = await res.text();
+            ok(book.split("\n").length > 10, `docs/handbooks/player-handbook.${lang}.md is empty - this test measured nothing`);
+            measured[lang] = {
+                titles: Object.fromEntries(Object.keys(WORDS[lang]).map(key => [key, opening[key] ?? null])),
+                bookQuotesVictim: book.includes(`"${opening.victim}"`),
+                bookStale: book.includes(`${WORDS[lang].victim}${STALE[lang]}`)
+            };
+            expected[lang] = { titles: WORDS[lang], bookQuotesVictim: true, bookStale: false };
+        }
+        equal(JSON.stringify(measured), JSON.stringify(expected),
+            "[per language - the three opening titles as Q7 (a) words them; the player's handbook quotes the victim's title as lang has it, "
+            + "and no longer with \" - your roll\"]");
+    }],
+    ["R806 - the hint of the switch for one dice look says only what holds whoever opened the world first: the look is fixed the first time the game runs with it on, as the GM's handbook says, in both languages (E16)", async () => {
+        /*
+         * E16 fix r1-G2 of round r1d, 19.10.2026 (finding fd2-3). DRPG.Settings.forceDiceLook.hint named the full
+         * Gamemaster "whose browser first ran the game with this on as the primary GM". dice-sync.mjs `lookSource`
+         * names another where an Assistant was the first primary (the full Gamemaster with the lowest id) and where
+         * the named one is deleted or demoted, and a GM cannot read `diceLookSource` (hidden). At 0cc7c80 both hints
+         * said it. Measured: the hint carries the GM's handbook's own clause for when the look is fixed, read off the
+         * handbook's line on the setting, and names no primary GM.
+         */
+        const CLAUSE = { en: "fixed the first time the game runs with it on", pl: "ustalonym, gdy gra pierwszy raz działa z tym ustawieniem" };
+        const PRIMARY = { en: /primary GM/i, pl: /główny GM/i };
+        const measured = {}, expected = {};
+        for (const lang of ["en", "pl"]) {
+            const keys = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            const name = keys.DRPG?.Settings?.forceDiceLook?.name ?? "", hint = keys.DRPG?.Settings?.forceDiceLook?.hint ?? "";
+            ok(name.length > 0 && hint.length > 0, `lang/${lang}.json has no DRPG.Settings.forceDiceLook name or hint - this test measured nothing`);
+            const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/gm-handbook.${lang}.md`);
+            ok(res.ok, `docs/handbooks/gm-handbook.${lang}.md did not load`);
+            const book = await res.text();
+            const at = book.toLocaleLowerCase(lang).indexOf(`*${name.toLocaleLowerCase(lang)}*`);
+            ok(at >= 0, `docs/handbooks/gm-handbook.${lang}.md does not name *${name}* - this test measured nothing`);
+            measured[lang] = { bookSays: lineAround(book, at).includes(CLAUSE[lang]), hintSays: hint.includes(CLAUSE[lang]), primary: PRIMARY[lang].test(hint) };
+            expected[lang] = { bookSays: true, hintSays: true, primary: false };
+        }
+        equal(JSON.stringify(measured), JSON.stringify(expected),
+            "[per language - the GM's handbook's line on the setting says when the look is fixed; the hint says the same; the hint names no primary GM]");
     }]
 ];
 

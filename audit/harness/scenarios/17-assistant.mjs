@@ -27,18 +27,20 @@
  *      with no other GM (E16 fix early-C4-G1), last on a browser that never
  *      held the GMs' stores (E16 fix r1b-G1); first, with only the Assistant
  *      at the table, to a character's look the GM gave after it left (E16 fix
- *      r1c-G1).
+ *      r1c-G1); last, `ag2`, a second Assistant declared late, comes back
+ *      alone to such a look (H9, E16 fix r1-G2 of round r1d).
  * What v14 itself allows an Assistant is modelled, not measured: LIVE-E30-04,
  * -05 and -06 in audit/AUDIT-1.2.42.md section 9.2.
  */
 export const layers = ["ci"];
 export const accounts = [{ who: "ag", id: "USERAG0000000000", name: "Assistant", role: 3, character: null, color: "#aa66ff" },
-    { who: "gm2", id: "USERGM2000000000", name: "Second GM", role: 4, character: null, color: "#66aaff", late: true }];
+    { who: "gm2", id: "USERGM2000000000", name: "Second GM", role: 4, character: null, color: "#66aaff", late: true },
+    { who: "ag2", id: "USERAG2000000000", name: "Second Assistant", role: 3, character: null, color: "#cc88ff", late: true }];
 
 const MOD = "danganronpa-rpg";
 const DH = "system.daggerheart";
 
-export async function run({ gm, ag, gm2, p1, p2, p3, check, settle, opLog, socketTraffic, connect, disconnect, storageOf, IDS, repoUrl }) {
+export async function run({ gm, ag, gm2, ag2, p1, p2, p3, check, settle, opLog, socketTraffic, connect, disconnect, storageOf, IDS, repoUrl }) {
     const utils = `(await import("${repoUrl}/scripts/utils.mjs"))`;
     const scene = IDS.scene;
 
@@ -605,4 +607,36 @@ export async function run({ gm, ag, gm2, p1, p2, p3, check, settle, opLog, socke
     for (const c of [gm2, p1, p2, p3]) late[c.who] = await c.eval(`return (globalThis.__errors ?? []).map(e => e.where + ": " + e.message);`);
     check("H3: no exception escaped into Foundry on gm2's client or a player's after the GMs came back",
         Object.values(late).every(list => list.length === 0), JSON.stringify(late));
+
+    /* E16 fix r1-G2 of round r1d (finding fd2-2; the owner's Q6 on its default (b)). H5 with an Assistant loading in
+       gm2's place: `ag2`, a second Assistant declared late (the seeded `ag` cannot connect again), joins while gm2 is
+       the primary, so its browser's copy of the GMs' store holds Botan in ice, and leaves; gm2 gives Botan frost,
+       which the world's copy takes, and leaves; ag2 comes back alone on the browser it left with, so it is the
+       primary. Read: Botan's overlay on ag2's client and on p2's, who wrote Botan from ag2's return on (opLog), and
+       the world's copy after. At 0cc7c80: ag2's load skipped the world's copy (dice-sync.mjs `takeWorldCopy` answered
+       at once below full Gamemaster) and put Botan back to its own ice. */
+    await connect("ag2");
+    await ag2.eval(`const E = ${storesJs}; await E.whenGmStoresHydrated(); await E.gmStoresIdle(); return true;`);
+    const h9 = { row: await ag2.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        return S.diceLookStore.get("${IDS.botan}")?.look?.global?.colorset ?? null;`) };
+    await disconnect("ag2");
+    await settle(600);
+    await gm2.eval(`await game.actors.get("${IDS.botan}").update({ "flags.${DSN}.appearance": ${frost} }); return true;`);
+    await settle(1500);
+    await gm2.eval(`const E = ${storesJs}; await E.gmStoresIdle(); return true;`);
+    Object.assign(h9, { world: await worldRowOn(gm2), writer: await worldWriterOn(gm2) });
+    await disconnect("gm2");
+    await settle(600);
+    mark = opLog.length;
+    await connect("ag2", { storage: await storageOf("ag2") });
+    await ag2.eval(`const E = ${storesJs}; await E.whenGmStoresHydrated(); return true;`);
+    await settle(2500);
+    Object.assign(h9, { primary: await ag2.eval(`return ${utils}.primaryGmId();`), writes: actorWrites(mark, IDS.botan),
+        held: {}, worldAfter: await worldRowOn(ag2),
+        errors: await ag2.eval(`return (globalThis.__errors ?? []).map(e => e.where + ": " + e.message);`) });
+    for (const c of [ag2, p2]) h9.held[c.who] = await colourOn(c, IDS.botan);
+    check("H9: a full Gamemaster's newer dice look on a character stands when an Assistant's browser with an older copy loads alone as the primary",
+        h9.row === "ice" && h9.world === frost && h9.writer === gm2Id && h9.primary === "USERAG2000000000"
+        && Object.values(h9.held).every(colour => colour === "frost") && h9.writes.length === 0 && h9.worldAfter === frost
+        && h9.errors.length === 0, JSON.stringify(h9));
 }

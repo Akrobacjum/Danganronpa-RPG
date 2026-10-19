@@ -225,13 +225,14 @@ export function registerDiceSync() {
 }
 
 /**
- * Not while the suite holds the stores or stands them in another world: a hydration then is the suite's. A full
- * Gamemaster's browser that is not the primary takes the world's copy too, for when it is.
+ * Not while the suite holds the stores or stands them in another world: a hydration then is the suite's. A GM's
+ * browser that is not the primary takes the world's copy too, for when it is (an Assistant's since E16 fix r1-G2 of
+ * round r1d: its store takes rows from a full Gamemaster's browser only, and none may be here by then).
  */
 function onStoresHydrated() {
     if (gmStoresQuiet()) return;
     if (!isPrimaryGm()) {
-        if (isFullGm(game.user)) takeWorldCopy().catch(err => error("Could not take the world's copy of the characters' dice looks", err));
+        if (game.user?.isGM) takeWorldCopy().catch(err => error("Could not take the world's copy of the characters' dice looks", err));
         return;
     }
     compareOverlays().catch(err => error("Could not hold the characters' dice looks to the GMs' copy", err));
@@ -422,21 +423,25 @@ export function worldCopyIdle() {
  * copies, before the comparison at load. A copy a full Gamemaster wrote last is merged by stamp, rows of actors this
  * world has; one written below full Gamemaster, or by nobody known, is not. The primary then writes its own store
  * there where the two differ.
+ * On an Assistant's browser the same copy is merged too, before its comparison at load where it is the primary (E16
+ * fix r1-G2 of round r1d, finding fd2-2): a local merge only, since its store sends no rows (gm-stores.mjs
+ * `fullGmOnly`); the copy's write and its put-back stay a full Gamemaster's, so nothing else here runs for it.
  */
 async function takeWorldCopy() {
-    if (!isFullGm(game.user) || !diceLookStore.isHydrated()) return;
+    if (!game.user?.isGM || !diceLookStore.isHydrated()) return;
+    const full = isFullGm(game.user);
     const value = worldCopyValue();
     const writer = worldCopyWriter();
-    if (value && typeof value === "object" && Object.keys(value).length) {
-        if (isFullGm(writer)) {
-            const rows = rowsOfActors(value);
-            if (rows) await diceLookStore.mergeIn(rows, { source: "restore" });
-            worldCopyHeld ??= stableJson(value);
-        } else if (!saidWorldCopy) {
-            saidWorldCopy = true;
-            log(`The world's copy of the characters' dice looks was last written ${writer ? `by ${writer.name}, below full Gamemaster` : "by nobody known"}: not taken.`);
-        }
+    const given = Boolean(value) && typeof value === "object" && Object.keys(value).length > 0;
+    if (given && isFullGm(writer)) {
+        const rows = rowsOfActors(value);
+        if (rows) await diceLookStore.mergeIn(rows, { source: full ? "restore" : "sync" });
+        if (full) worldCopyHeld ??= stableJson(value);
+    } else if (given && full && !saidWorldCopy) {
+        saidWorldCopy = true;
+        log(`The world's copy of the characters' dice looks was last written ${writer ? `by ${writer.name}, below full Gamemaster` : "by nobody known"}: not taken.`);
     }
+    if (!full) return;
     worldCopyTaken = true;
     if (isPrimaryGm()) await writeWorldCopy();
 }

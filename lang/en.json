@@ -234,7 +234,7 @@
     "Settings": {
       "forceDiceLook": {
         "name": "One dice look for the table",
-        "hint": "Every player and Assistant GM throws Dice So Nice dice and effects in one full Gamemaster's look - the one whose browser first ran the game with this on as the primary GM - and a change of their own goes back to it. Another full Gamemaster's own look stays theirs and changes nothing for the table. Each keeps their own display and performance settings. Switching this off gives nobody their old look back."
+        "hint": "Every player and Assistant GM throws Dice So Nice dice and effects in the look of one full Gamemaster, fixed the first time the game runs with it on, and a change of their own goes back to it. Another full Gamemaster's own look stays theirs and changes nothing for the table. Each keeps their own display and performance settings. Switching this off gives nobody their old look back."
       },
       "forcePrivateRolls": {
         "name": "Force private player rolls",
@@ -3784,9 +3784,9 @@
     },
     "Roll": {
       "opening": {
-        "killer": "Opening the murder - your roll",
-        "victim": "Something feels wrong - your roll",
-        "selfInflicted": "Going through with it - your roll"
+        "killer": "Opening the murder",
+        "victim": "Something feels wrong",
+        "selfInflicted": "Going through with it"
       },
       "crisis": "Crisis action",
       "project": "Work on a project",
