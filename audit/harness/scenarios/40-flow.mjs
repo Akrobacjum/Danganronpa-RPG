@@ -1528,7 +1528,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
     await settle(400);
     await p1.eval(`const actor = game.actors.get("${ids.aiko}");
         globalThis.__forceRoll = { hope: 9, fear: 5 };
-        globalThis.__dialogAnswers.push("Scenario 40 H6: picks the archive's lock");
+        globalThis.__dialogAnswers.push({ text: "Scenario 40 H6: picks the archive's lock" });
         globalThis.__h6Dynamic = game.drpg.performAction(actor, "dynamic", {}).then(r => ({ r }), e => ({ err: String(e?.stack ?? e).slice(0, 300) }));
         return true;`, { timeout: 30000 });
     const ruled = await gm.eval(`const { contentOf, cardFlag } = await import("${REPO}/scripts/secret.mjs");

@@ -16910,7 +16910,7 @@ const SCENARIOS = [
                 await M.takeCrisisAction(victim, "useItem", { itemId: items.kit.id });
                 await settle();
                 if (!M.isTheirTurn(killer)) await M.passTurn();
-                globalThis.__dialogAnswers.push(true, "Suite: I wave it about");
+                globalThis.__dialogAnswers.push({ text: "Suite: I wave it about" });
                 try { await M.takeCrisisAction(killer, "useItem", { itemId: items.odd.id }); }
                 finally { globalThis.__dialogAnswers.length = 0; }
                 await settle();
