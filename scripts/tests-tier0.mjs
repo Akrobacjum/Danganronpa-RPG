@@ -5653,6 +5653,8 @@ const REGRESSIONS = [
             crossTunnel: "refused", crossingWhy: "returns",
             // E80 C3: a Find Passage, judged on the primary (passages-gm.mjs), its reasons by code.
             resolvePassageSearch: "refused",
+            // E80 part 2 C1: one student acting on another in their room, the primary's gate (frisk.mjs); C2 and C3 ask it.
+            personActionRefusal: "returns",
             resolveObserve: "passes", hopeCallRefusal: "wraps"
         };
         const sources = [...await otherSources()].map(([file, raw]) => [file, stripComments(raw)]);

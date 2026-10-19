@@ -286,6 +286,14 @@ export const REASON_PATTERNS = Object.freeze([
     ["cannotNow", /^no Eclipse is running$/],
     // E32+E07 C11b: a statistic ruling for a clean-up the character may not make now (guardTraitRuling).
     ["cannotNow", /^the character may not clean up now$/],
+    // E80 part 2 C1: one student acting on another in their room, judged by the primary GM (frisk.mjs
+    // `personActionRefusal`); each says what the GM's log needs, and the player is told only "That cannot be done now."
+    ["cannotNow", /^a character cannot do that to itself$/],
+    ["cannotNow", /^a Monokuma takes no part in that$/],
+    ["cannotNow", /^a Monocub takes no part in that$/],
+    ["cannotNow", /^an Eclipse is running$/],
+    ["cannotNow", /^that waits until the Class Trial is over$/],
+    ["cannotNow", /^the character is a side of the running incident$/],
     ["cannotFrame", /^that student cannot be framed$/],
     ["notThere", /^the body is not in the killer's room$/],
     ["notThere", /^the character has no token on a scene$/],

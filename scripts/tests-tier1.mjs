@@ -17613,6 +17613,45 @@ const INVARIANTS = [
             typeof reg?.name === "string" && reg.name.startsWith("DRPG.Settings.friskForce")]),
         J(["friskForce", "world", true, true, true, true]), "[the key, its scope, in the settings window, a Boolean, its default, its name a key of the lang files]");
     }],
+
+    ["R618 - a theft draws from and a Frisk lists one pool (A11-6's exclusions): what is carried, in the order of the module's categories, never a Truth Bullet, an item in a stash or one with no category of the module's, a broken item kept; and a Frisk's list, given what no GM has decided on, leaves that out too", async () => {
+        /*
+         * E80 part 2 C1, 19.10.2026; the A11 design's step 4 (S17-16: one pool, no further copy). The harm: a list that
+         * names a stashed item tells a frisker a stash exists and what is in it (the rule "a Palm does not reach a stash"
+         * broken); one that names a Truth Bullet hands over knowledge as a thing; and a theft whose pool drifted from the
+         * list takes what was never shown. vault.mjs `pocketsFrom` is the rule, read on items made here (each an id and
+         * its module flags): the categories out of order, a stashed one, a Truth Bullet, a broken one, one with no
+         * category, and one an `undecided` reader names. Then the world: each character holding a stashed item, read as
+         * `pocketsAsHeld` reads it on this GM, against its own items filtered here off the documents. Nothing is written.
+         * Red at the parent (05ee937): vault.mjs has neither function, and every reading is null.
+         */
+        needs(world.atLeast("stashedItems", 1), "an item in a stash is what the pool must leave out");
+        const V = await import("./vault.mjs");
+        const { ITEM_FLAGS } = await import("./inventory.mjs");
+        const J = stableJson;
+        const cats = Object.keys(ITEM_CATEGORIES).filter(c => c !== "truthBullet");
+        must(cats.length >= 3 && "truthBullet" in ITEM_CATEGORIES, "the module's categories are not the ones this reads - it would measure nothing");
+        const made = (id, flags) => ({ id, name: id, getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined) });
+        const category = ITEM_FLAGS.category, location = ITEM_FLAGS.location;
+        const items = [
+            made("last", { [category]: cats.at(-1) }), made("stashed", { [category]: cats[0], [location]: "vault" }),
+            made("bullet", { [category]: "truthBullet" }), made("broken", { [category]: cats[0], [ITEM_FLAGS.broken]: { at: 1 } }),
+            made("undecided", { [category]: cats[1] }), made("first", { [category]: cats[0], [location]: "carried" }), made("none", {})
+        ];
+        const ids = list => list.map(item => item.id);
+        const rule = typeof V.pocketsFrom === "function" ? V.pocketsFrom : null;
+        equal(J([rule ? ids(rule(items)) : null, rule ? ids(rule(items, { undecided: item => (item.id === "undecided" ? "a reason" : null) })) : null]),
+            J([["broken", "first", "undecided", "last"], ["broken", "first", "last"]]),
+            "[the pool of the items made here, the same with the undecided one named]");
+        const holders = game.actors.filter(a => a.type === "character" && a.items.some(i => i.getFlag(MODULE_ID, location) === "vault"));
+        const rows = [];
+        for (const holder of holders) {
+            const expected = cats.flatMap(c => holder.items.filter(i => i.getFlag(MODULE_ID, category) === c && i.getFlag(MODULE_ID, location) !== "vault"));
+            const pool = typeof V.pocketsAsHeld === "function" ? ids(await V.pocketsAsHeld(holder)) : null;
+            if (stableJson(pool) !== stableJson(ids(expected))) rows.push(`${holder.name}: ${stableJson(pool)}, expected ${stableJson(ids(expected))}`);
+        }
+        equal(J(rows), J([]), `the pool of each of ${holders.length} characters holding a stashed item, against its documents`);
+    }],
 ];
 
 /**

@@ -10806,6 +10806,255 @@ const SCENARIOS = [
             + "friskForce off; the undrawn tickets left] - a part rode a ticket it may not, or found none it may");
     }],
 
+    ["one student acts on another only where the primary GM reads both in one room, outside an Eclipse, the Class Trial and the asker's own incident (A11-9)", async () => {
+        /*
+         * E80 part 2 C1, 19.10.2026; the A11 design's step 3 and its test A11-9 (the gates; the road of a death the
+         * frisker does not know is C3's). The harm: a Frisk opens somebody's pockets, and the list of whom it may be
+         * aimed at is drawn by the frisker's own browser - a console names any student, on any scene, at any hour.
+         * frisk.mjs `personActionRefusal` is the primary's one gate, asked before the price, and each case is read as
+         * the code the player would be told (bridge-guards.mjs `reasonOf`), null where the gate lets it through.
+         * Three students stand alone in a room of the scene on screen. The control: the two, as they stand, pass; so do
+         * a Chained and Silenced pair (Chained pins a move, Silenced a Call) and a target the GMs alone hold dead (a
+         * refusal would tell the asker of a death nobody has found), and the victim of the asker's incident aimed at by
+         * its bystander (a refusal would tell of a secret incident), and the Mastermind on either side, a student as any
+         * other (the gate reads no Mastermind). Refused: oneself; nobody; a Monocub on either side;
+         * a Monokuma asking; a Monokuma and a hidden token asked (not in the room as the GMs count it); an asker the
+         * GMs alone hold dead; the Eclipse and the Class Trial (the clock written straight to its setting, so no card
+         * or refill runs); the asker and the victim of a running incident asking; and the target on a scene of the
+         * suite's own in a room named as the asker's, its tokens here hidden (in a GM-store world of the suite's own, as
+         * "a theft is refused across two scenes whose rooms share a name", for the token's seeded discovery). Red at the
+         * parent (05ee937): frisk.mjs has no gate, and every case reads "no gate". Mutants of the gate, 19.10.2026: with
+         * the hidden token's comparison taken out, "hidden" read null; with the scene's, "otherScene" read null; with
+         * the Eclipse's and the hidden token's both, the test was red.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 3), "the asker, the one asked and a third, each a token on the scene on screen");
+        needs(world.atLeast("namedRooms", 2), "one room is left to the three of them");
+        const F = await import("./frisk.mjs");
+        const { reasonOf } = await import("./bridge-guards.mjs");
+        const Mv = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const G = await import("./gm-store.mjs");
+        const M = await import("./murder.mjs");
+        const { deathStore, mastermindStore } = await import("./gm-stores.mjs");
+        const MM = await import("./mastermind.mjs");
+        const { livingStudents, isDeadForGm } = await import("./chapter.mjs");
+        const scene = canvas.scene;
+        const [asker, target, third] = livingStudents().filter(a => scene?.tokens?.some(t => t.actorId === a.id));
+        const pickBefore = mastermindStore.record()?.actorId ?? null;
+        const gate = (a, b) => {
+            if (typeof F.personActionRefusal !== "function") return "no gate";
+            const why = F.personActionRefusal(a, b);
+            return why === null ? null : reasonOf(why);
+        };
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const thirdToken = scene.tokens.find(t => t.actorId === third.id), targetToken = scene.tokens.find(t => t.actorId === target.id);
+        const thirdWas = { x: thirdToken.x, y: thirdToken.y };
+        const flagsWere = [asker, target].flatMap(who => [FLAGS.monocub, FLAGS.monokuma].map(key => [who, key, who.getFlag(MODULE_ID, key)]));
+        const putFlag = (who, key, was) => (was === undefined ? who.unsetFlag(MODULE_ID, key) : who.setFlag(MODULE_ID, key, was));
+        const clockWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.clock));
+        const restrictionsWere = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.restrictions) ?? {});
+        const read = {}, dead = new Set();
+        const stood = await aloneTogether(asker, target);
+        try {
+            await thirdToken.update(Mv.positionIn(stood.room, thirdToken), PLACE);
+            await settle();
+            read.control = gate(asker, target);
+            read.oneself = gate(asker, asker);
+            read.nobody = gate(asker, null);
+            const pinned = { chained: true, silenced: true, room: stood.room };
+            await game.settings.set(MODULE_ID, SETTINGS.restrictions, { ...restrictionsWere,
+                [asker.id]: { ...(restrictionsWere[asker.id] ?? {}), ...pinned }, [target.id]: { ...(restrictionsWere[target.id] ?? {}), ...pinned } });
+            await settle();
+            read.chainedSilenced = gate(asker, target);
+            await game.settings.set(MODULE_ID, SETTINGS.restrictions, restrictionsWere);
+            for (const [who, key, label] of [[target, FLAGS.monocub, "monocubAsked"], [asker, FLAGS.monocub, "monocubAsking"],
+                [asker, FLAGS.monokuma, "monokumaAsking"], [target, FLAGS.monokuma, "monokumaAsked"]]) {
+                const was = who.getFlag(MODULE_ID, key);
+                await who.setFlag(MODULE_ID, key, true);
+                await settle();
+                read[label] = gate(asker, target);
+                await putFlag(who, key, was);
+                await settle();
+            }
+            await targetToken.update({ hidden: true });
+            await settle();
+            read.hidden = gate(asker, target);
+            await targetToken.update({ hidden: false });
+            await settle();
+            for (const [who, label] of [[target, "deadForGmsAsked"], [asker, "deadForGmsAsking"]]) {
+                await deathStore.patch(who.id, { chapter: 99, day: 1, timeOfDay: "night", at: Date.now(), keepBullets: true, known: [] });
+                dead.add(who.id);
+                must(isDeadForGm(who), `the death of ${who.name} in the GMs' store is not read on this GM - this would measure nothing`);
+                read[label] = gate(asker, target);
+                await deathStore.drop(who.id);
+                dead.delete(who.id);
+            }
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clockWas, eclipse: true });
+            await settle();
+            read.eclipse = gate(asker, target);
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clockWas, eclipse: false, phase: "classTrial" });
+            await settle();
+            read.classTrial = gate(asker, target);
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clockWas);
+            await settle();
+            await M.openMurder({ killerId: asker.id, victimId: third.id, openingTrait: "body" });
+            await settle();
+            must(M.murderState()?.active, "the fixture's incident did not open - this would measure nothing");
+            read.incident = [gate(asker, target), gate(target, third), gate(third, target)];
+            await M.endMurder({ reason: "test", followUp: false });
+            await settle();
+            for (const who of [asker, target]) {
+                must(await MM.setMastermind(who), `${who.name} was not made the Mastermind - this would measure nothing`);
+                (read.mastermind ??= []).push(gate(asker, target));
+            }
+        } finally {
+            if ((mastermindStore.record()?.actorId ?? null) !== pickBefore) await mastermindStore.patch("record", { actorId: pickBefore });
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            for (const id of dead) if (deathStore.has(id)) await deathStore.drop(id);
+            for (const [who, key, was] of flagsWere) if (who.getFlag(MODULE_ID, key) !== was) await putFlag(who, key, was);
+            if (targetToken.hidden) await targetToken.update({ hidden: false });
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clockWas);
+            await game.settings.set(MODULE_ID, SETTINGS.restrictions, restrictionsWere);
+            if (scene.tokens.has(thirdToken.id)) await thirdToken.update(thirdWas, PLACE);
+            await stood.back();
+        }
+        const here = Mv.locateActor(asker);
+        const shown = Array.from(game.scenes).filter(s => R.isPlaceScene(s))
+            .flatMap(s => Array.from(s.tokens).filter(t => t.actorId === target.id && !t.hidden));
+        await G.withGmStoreWorld(`suite-e80c1-gate-${foundry.utils.randomID(8)}`, async () => {
+            let other = null;
+            try {
+                for (const t of shown) await t.update({ hidden: true });
+                other = await Scene.create({ name: "SUITE E80 C1 a room of the same name", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                await other.createEmbeddedDocuments("Region", [{ name: here.room, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                    flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+                await other.createEmbeddedDocuments("Token", [{ actorId: target.id, actorLink: true, name: target.name, x: 300, y: 300, width: 1, height: 1 }]);
+                await settle();
+                const there = Mv.locateActor(target);
+                read.otherScene = [there?.scene?.id === other.id, there?.room ?? null, gate(asker, target)];
+            } finally {
+                await other?.delete();
+                for (const t of shown) if (t.parent?.tokens?.has(t.id)) await t.update({ hidden: false });
+                await settle();
+            }
+        });
+        equal(stableJson(read), stableJson({ control: null, oneself: "cannotNow", nobody: "missing", chainedSilenced: null,
+            monocubAsked: "cannotNow", monocubAsking: "cannotNow", monokumaAsking: "cannotNow", monokumaAsked: "notThere", hidden: "notThere",
+            deadForGmsAsked: null, deadForGmsAsking: "cannotNow", eclipse: "cannotNow", classTrial: "cannotNow",
+            incident: ["cannotNow", null, "cannotNow"], mastermind: [null, null], otherScene: [true, here.room, "notThere"] }),
+        `what ${asker.name} is told aiming at ${target.name} in "${stood.room}" (incident: ${asker.name} the killer of ${third.name}; `
+            + `[${asker.name} at ${target.name}, ${target.name} at ${third.name}, ${third.name} at ${target.name}]; mastermind: ${asker.name}, then ${target.name}; `
+            + "otherScene: placed there, its room, the code)");
+    }],
+
+    ["the witnesses of what one student does to another are the students the GMs read in the room, a Monocub among them, less the two (A11-12's helper)", async () => {
+        /*
+         * E80 part 2 C1, 19.10.2026; the A11 design's step 9 (`roomWitnessesOnGm`, on chapter.mjs `witnessesOf`). The
+         * harm: an open Frisk is seen by whoever stands in the room, and a list of them that drifts from the rule a body
+         * found counts its witnesses by tells a hidden token, a Monokuma or a body of it, or forgets a Monocub (whose
+         * owner a Bounty or a Bribe pays). Three students stand alone in a room; read: the ids the helper names with the
+         * two left out, and with nobody left out (sorted); the third hidden; the third dead for the GMs alone; the same
+         * with the Monocub flag; the third a Monokuma. Red at the parent (05ee937): frisk.mjs has no such helper, and
+         * every reading is null.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 3), "the two and a third, each a token on the scene on screen");
+        needs(world.atLeast("namedRooms", 2), "one room is left to the three of them");
+        const F = await import("./frisk.mjs");
+        const Mv = await import("./movement.mjs");
+        const { deathStore } = await import("./gm-stores.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const scene = canvas.scene;
+        const [asker, target, third] = livingStudents().filter(a => scene?.tokens?.some(t => t.actorId === a.id));
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const thirdToken = scene.tokens.find(t => t.actorId === third.id);
+        const thirdWas = { x: thirdToken.x, y: thirdToken.y };
+        const flagsWere = [FLAGS.monocub, FLAGS.monokuma].map(key => [key, third.getFlag(MODULE_ID, key)]);
+        const putFlag = (key, was) => (was === undefined ? third.unsetFlag(MODULE_ID, key) : third.setFlag(MODULE_ID, key, was));
+        let room = null;
+        const seen = except => (typeof F.roomWitnessesOnGm === "function"
+            ? F.roomWitnessesOnGm(room, scene, { except }).map(a => a.id).sort() : null);
+        const read = {};
+        let dead = false;
+        const stood = await aloneTogether(asker, target);
+        try {
+            room = stood.room;
+            await thirdToken.update(Mv.positionIn(room, thirdToken), PLACE);
+            await settle();
+            read.lessTwo = seen([asker.id, target.id]);
+            read.all = seen([]);
+            await thirdToken.update({ hidden: true });
+            await settle();
+            read.hidden = seen([asker.id, target.id]);
+            await thirdToken.update({ hidden: false });
+            await deathStore.patch(third.id, { chapter: 99, day: 1, timeOfDay: "night", at: Date.now(), keepBullets: true, known: [] });
+            dead = true;
+            await settle();
+            read.deadForGms = seen([asker.id, target.id]);
+            await third.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await settle();
+            read.monocub = seen([asker.id, target.id]);
+            await deathStore.drop(third.id);
+            dead = false;
+            await putFlag(FLAGS.monocub, flagsWere[0][1]);
+            await third.setFlag(MODULE_ID, FLAGS.monokuma, true);
+            await settle();
+            read.monokuma = seen([asker.id, target.id]);
+        } finally {
+            if (dead && deathStore.has(third.id)) await deathStore.drop(third.id);
+            for (const [key, was] of flagsWere) if (third.getFlag(MODULE_ID, key) !== was) await putFlag(key, was);
+            if (thirdToken.hidden) await thirdToken.update({ hidden: false });
+            if (scene.tokens.has(thirdToken.id)) await thirdToken.update(thirdWas, PLACE);
+            await stood.back();
+        }
+        equal(stableJson(read), stableJson({ lessTwo: [third.id], all: [asker.id, target.id, third.id].sort(), hidden: [], deadForGms: [],
+            monocub: [third.id], monokuma: [] }),
+            `the witnesses in "${room}" of ${asker.name} and ${target.name}, ${third.name} the third (ids)`);
+    }],
+
+    ["a Frisk's list leaves out an item no GM has decided on, with a line in the GM's log, and a theft's draw keeps it (A11-6)", async () => {
+        /*
+         * E80 part 2 C1, 19.10.2026; the A11 design's step 4. An item a player's browser made on a student stands until a
+         * GM decides on it (E29 fix r2-H21, sheet-audit.mjs `creationRefusal`): a theft keeps it in its draw and is
+         * refused when the draw takes it, so a pocket holding only that is not told empty; a Frisk's list leaves it out
+         * silently, or the frisker would read a thing the GMs may undo, and the GM's log says so. The harm both ways: a
+         * list naming the undecided item, or a theft's pool that lost it. A Tool handed to a student by a GM, and a
+         * creation row of the GMs' writes store that says a player made it and no GM decided (as the audit writes one);
+         * read: whether the pool (`pocketsAsHeld`) and the list (`undecided: "drop"`) hold it and the log lines naming
+         * it, then the same once the row holds a decision (the control). Red at the parent (05ee937): no `pocketsAsHeld`.
+         */
+        const [owner] = cast(1);
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const { sheetWriteStore } = await import("./gm-stores.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const NAME = "Suite E80 C1 an undecided tool";
+        const rowId = foundry.utils.randomID();
+        const lines = [], kept = console.log;
+        let item = null, read = null;
+        const has = async options => (typeof V.pocketsAsHeld === "function"
+            ? (await V.pocketsAsHeld(owner, null, options)).some(i => i.id === item.id) : null);
+        try {
+            item = await INV.grantItem(owner, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
+            must(item, `${owner.name} could not be handed a Tool - this would measure nothing`);
+            await sheetAuditIdle();
+            await sheetWriteStore.patch(rowId, { actorId: owner.id, itemId: item.id, userId: null, reason: null, ref: null,
+                change: { [`items.${item.id}`]: [null, { name: NAME }] }, covered: null, verdict: "flagged", messageId: null, decided: null,
+                at: Date.now(), away: true, n: 0 });
+            console.log = (...args) => { lines.push(args.map(String).join(" ")); return kept.apply(console, args); };
+            const undecided = [await has({}), await has({ undecided: "drop" }), lines.filter(line => line.includes(NAME)).length];
+            await sheetWriteStore.patch(rowId, { decided: { kept: true, at: Date.now() } });
+            const decided = [await has({}), await has({ undecided: "drop" })];
+            read = { undecided, decided };
+        } finally {
+            console.log = kept;
+            if (sheetWriteStore.has(rowId)) await sheetWriteStore.drop(rowId);
+            for (const i of owner.items.filter(i => i.name === NAME)) await i.delete();
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson({ undecided: [true, false, 1], decided: [true, true] }),
+            `${owner.name}'s Tool a player made and no GM decided on, then decided (in the theft's pool, in the Frisk's list, log lines naming it)`);
+    }],
+
     ["an incident's roll is drawn only at its turn or stage, for what it names, once: an opening, a crisis action, a free clean-up attempt", async () => {
         /*
          * E08+E28 fix r2-H1, 04.10.2026; review S2-1: a console pre-drew crisis and opening rolls

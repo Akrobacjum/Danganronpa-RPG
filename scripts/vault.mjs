@@ -1637,6 +1637,39 @@ export async function stealFromVault({
  * ========================================================================== */
 
 /**
+ * What `victim` carries, as the GMs hold it: the one pool a theft draws from and a Frisk lists (E80 part 2 C1, the
+ * A11 design's step 4; S17-16, no further copy of it). Every write queued on the victim and on `asker` judged first
+ * (sheet-audit.mjs `judgedFor`), then the victim's items as the GMs' mark holds them (`itemsAsHeld`), in the order of
+ * the module's categories (`pocketsFrom`): no Truth Bullet, which is knowledge and not a thing in a pocket, and nothing
+ * in a stash, whose very existence a pocket does not tell. `undecided` "drop" leaves out an item a player's browser
+ * made that no GM has decided on yet (`creationRefusal`), with a line in the GM's log: a Frisk's list. A theft keeps it
+ * in the draw, and refuses the theft when the draw takes it, so a pocket that holds only that one is not told empty.
+ */
+export async function pocketsAsHeld(victim, asker = null, { undecided = "keep" } = {}) {
+    const { itemsAsHeld, creationRefusal } = await import("./sheet-audit.mjs");
+    await judgedFor(victim?.id, asker?.id);
+    const pockets = await itemsAsHeld(victim);
+    return pocketsFrom(pockets, undecided === "drop" ? { undecided: item => creationRefusal(victim, item.id) } : {});
+}
+
+/**
+ * The pool out of a list of items as held (`pocketsAsHeld`), with no read of its own: the module's categories in
+ * `ITEM_CATEGORIES` order, never a Truth Bullet, never a stashed item (inventory.mjs `isStashed`), and, given
+ * `undecided` (an item's reason or null), never an item it names, each such left out logged for the GM.
+ */
+export function pocketsFrom(items, { undecided = null } = {}) {
+    const pool = Object.keys(ITEM_CATEGORIES)
+        .filter(c => c !== "truthBullet")
+        .flatMap(c => items.filter(i => i.getFlag(MODULE_ID, ITEM_FLAGS.category) === c && !isStashed(i)));
+    if (!undecided) return pool;
+    return pool.filter(item => {
+        const why = undecided(item);
+        if (why) log(`Left out of a list of what somebody carries: ${why}.`);
+        return !why;
+    });
+}
+
+/**
  * Take something out of somebody's pockets. GM side.
  *
  * TWO NUMBERS ARRIVE, TWO VERDICTS ARE MADE HERE. The thief's client throws the
@@ -1718,16 +1751,13 @@ export async function stealFromPerson({
      * with no await between the read and the grant; the deletion is the
      * document's. The thief's hands are counted as the GMs hold them too,
      * read with them after one wait for both (fix r2-H18, handover.mjs
-     * `giveItem`).
+     * `giveItem`). The pool is `pocketsAsHeld`'s since E80 part 2 C1, the one a
+     * Frisk lists.
      */
     const { preservedFlags, grantItem } = await import("./inventory.mjs");
-    const { itemsAsHeld, actorAsHeld, judgedFor, creationRefusal } = await import("./sheet-audit.mjs");
-    await judgedFor(victim.id, thief.id);
-    const pockets = await itemsAsHeld(victim);
+    const { actorAsHeld, creationRefusal } = await import("./sheet-audit.mjs");
+    const pool = await pocketsAsHeld(victim, thief);
     const counted = await actorAsHeld(thief);
-    const pool = Object.keys(ITEM_CATEGORIES)
-        .filter(c => c !== "truthBullet")
-        .flatMap(c => pockets.filter(i => i.getFlag(MODULE_ID, ITEM_FLAGS.category) === c && !isStashed(i)));
 
     let item = null;
     if (success && pool.length) {
