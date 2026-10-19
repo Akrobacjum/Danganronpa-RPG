@@ -5853,7 +5853,10 @@ const REGRESSIONS = [
             // both lifts run one body, `liftIntoCast`.
             ["incident-store.mjs", "liftIntoCast", ["weak", "fillOnly"], true],
             // Which trace each bullet came from, out of its `remnantRef` flag into its row (E05 C13).
-            ["truth-bullets.mjs", "liftBulletRefs", ["weak", "fillOnly"], true]
+            ["truth-bullets.mjs", "liftBulletRefs", ["weak", "fillOnly"], true],
+            // The GMs' copy of a dice look the store has never held, taken from the world (E16 fix early-C4-G1): it
+            // runs from the stores' hydration through `compareOverlays`, which asks `isHydrated` itself.
+            ["dice-sync.mjs", "takeUnseenOverlays", ["weak", "fillOnly"], false]
         ];
         // The migrations that read a store through a function they call: they wait themselves.
         const WAITERS = [["remnants.mjs", "migrateRemnants"], ["remnants.mjs", "migrateRemnantToken"]];
@@ -5904,8 +5907,13 @@ const REGRESSIONS = [
             ...E.gmCopyNames().map(name => [`the copy ${name}`, E.gmCopySpec(name)?.resetGroup])];
         ok(named.length >= 14, `only ${named.length} GM stores and copies are defined - the table was not read`);
         /* A store no reset cuts, on purpose, with its reason (E79 C1, 14.10.2026; the E79 plan's 1b.1): a secret passage
-           is the map's and stays from season to season - who knows it is the "passages" group's (passageAccess). */
-        const UNCUT = { "the store passageMap": "a secret passage stays; who knows it is cut with the passages group" };
+           is the map's and stays from season to season - who knows it is the "passages" group's (passageAccess). The
+           GMs' copy of each character's dice look (E16 fix early-C4-G1, 19.10.2026) is no season's either: a row goes
+           with its actor, dropped as the actor is deleted. */
+        const UNCUT = {
+            "the store passageMap": "a secret passage stays; who knows it is cut with the passages group",
+            "the store diceLooks": "a character's dice look is the GMs' choice and no season's; its row goes with its actor"
+        };
         const strays = named.filter(([what, group]) => !groups.has(group) && !(group === undefined && Object.hasOwn(UNCUT, what)))
             .map(([what, group]) => `${what} (${group})`);
         ok(!strays.length, `a reset can never cut ${strays.join(", ")}: its reset group is none the window offers`);

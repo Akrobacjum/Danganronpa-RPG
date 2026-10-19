@@ -54061,6 +54061,77 @@ const SCENARIOS = [
             "a look written with no hook was not put back at the user's next throw or connect (quiet: [the player's own colour, the character's own overlay] before the card; thrown: [the player's look the GM's, the overlay as found] after it; drawn: [its own colour again, the message the GM's and the record the player's, the GM's look after the drawn roll]; joiner: [its own colour, the GM's look after connecting])");
     }],
 
+    ["a character's dice look left with no GM watching, or past the fuse, goes back to the GMs' at the primary's next load (S16-02)", async () => {
+        /*
+         * E16 fix early-C4-G1, 19.10.2026 (finding E16-C4-F1, a blocker of the review's). C4 kept the GMs' copy of
+         * each character's overlay in each GM browser's memory, taken from the world as Dice So Nice got ready, so an
+         * overlay a player wrote while no GM was connected, or one the fuse had stopped putting back, was the GMs'
+         * from the next load on. The copy is a GM store now, and the primary compares at its load
+         * (`compareOverlays`); here a reload is that comparison with the fuse's counts forgotten (`forgetFuses`), and
+         * scenario 17's H1 and H2 make the real one. The GM gives the player's character an overlay, read back from
+         * storage (what a reload reads); the overlay is then written with no hook (no GM hears it, as none would be
+         * connected) and the comparison run; then the player writes it up to eight times as the primary hears a
+         * write (`asUserOverlayWrite`), each awaited until the GMs' is back or 1 s, stopping at the first that
+         * stands, and the comparison runs again; then an actor made for the test with no overlay, its creation
+         * heard as the player's, gets one with no hook, the comparison runs, and the actor is deleted. At f26c3d7
+         * there is no store to read and no comparison to run: both overlays stand.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter"));
+        const player = game.users.find(u => !u.isGM && u.active && game.actors.some(a => a.type === "character" && a.testUserPermission(u, "OWNER")));
+        const student = game.actors.find(a => a.type === "character" && a.testUserPermission(player, "OWNER"));
+        const sync = await import("./dice-sync.mjs");
+        const { diceLookStore } = await import("./gm-stores.mjs");
+        const { gmStoresIdle } = await import("./gm-store.mjs");
+        const found = actorDiceFound([student]);
+        const made = [];
+        const isGms = () => stableJson(overlayOf(student)) === stableJson(GM_OVERLAY);
+        const reload = async () => {
+            sync.forgetFuses?.();
+            await sync.compareOverlays?.();
+        };
+        const read = {};
+        try {
+            sync.forgetFuses?.();
+            await student.update(overlayWrite(GM_OVERLAY));
+            await wait(1200);
+            await gmStoresIdle();
+            read.kept = stableJson(diceLookStore?.persisted(student.id)?.look ?? null) === stableJson(GM_OVERLAY);
+            // The write merges into the GMs' overlay, so its own colour is what says it landed.
+            await student.update(overlayWrite(OWN_OVERLAY), { noHook: true });
+            await wait(1200);
+            read.away = [overlayOf(student)?.global?.colorset === OWN_OVERLAY.global.colorset];
+            await reload();
+            read.away.push(await until(isGms, 3000));
+            read.fuse = [];
+            for (let i = 0; i < 8 && !read.fuse.includes(false); i++) {
+                await asUserOverlayWrite(student, player, { global: { colorset: `black-${i}` } });
+                read.fuse.push(await until(isGms, 1000));
+            }
+            await reload();
+            read.reload = await until(isGms, 3000);
+            const [npc] = await Actor.createDocuments([{ name: "E16 a player's own actor", type: "adversary" }], { noHook: true });
+            made.push(npc);
+            Hooks.callAll("createActor", npc, {}, player.id);
+            await wait(1200);
+            await npc.update(overlayWrite(OWN_OVERLAY), { noHook: true });
+            await wait(600);
+            read.made = [stableJson(overlayOf(npc)) === stableJson(OWN_OVERLAY)];
+            await reload();
+            read.made.push(await until(() => overlayOf(npc) === null, 3000));
+            await npc.delete();
+            await wait(600);
+            read.made.push(diceLookStore?.has(npc.id) ?? null);
+        } finally {
+            sync.forgetFuses?.();
+            for (const actor of made) if (game.actors.get(actor.id)) await actor.delete();
+            await putBackActorDice(found);
+        }
+        equal(stableJson(read), stableJson({ away: [true, true], fuse: [true, true, true, true, true, false], kept: true, made: [true, true, false], reload: true }),
+            "a character's dice look a player left with no GM watching, or past the fuse, was not put back at the next load (kept: the GMs' overlay in storage; away: [the unheard overlay landed, put back]; fuse: each player's write put back until one stands; reload: put back after the fuse; made: [an unheard overlay on the player's new actor landed, put back to none, its row gone with the actor])");
+    }],
+
     ...GRID
 ];
 

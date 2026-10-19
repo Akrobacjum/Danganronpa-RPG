@@ -5649,6 +5649,7 @@
         "usedTools": "Narzędzia do sprzątania użyte przy każdym sprzątaniu, niszczone przy odkryciu ciała",
         "sheetMarks": "Co zawierała karta każdej postaci, gdy GM-owie ostatnio ocenili zapis na niej",
         "sheetWrites": "Zapisy na kartach postaci cofnięte, zgłoszone lub odnotowane przez GM-ów, trzymane przez dobę",
+        "diceLooks": "Wygląd kości każdej postaci ustalony przez GM-ów, do którego wraca zmiana gracza",
         "ballots": "Karty głosowania w Class Trial, przechowywane u GM-ów",
         "verdict": "Blackened, z którymi wydano ostatni werdykt, przechowywani u GM-ów na jego dokończenie"
       },

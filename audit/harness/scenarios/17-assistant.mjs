@@ -16,17 +16,23 @@
  *      what B's GM did;
  *   E  no exception escaped into Foundry on any client;
  *   F  a body's discovery is the primary's: two GMs announcing one body at once
- *      post one card (run before D, while the full GM is here; E11 fix r1-G2).
+ *      post one card (run before D, while the full GM is here; E11 fix r1-G2);
+ *   G  one dice look, the GM's, on every user below full Gamemaster and on their
+ *      characters (E16 p1 C3, C4);
+ *   H  a character's dice look with no GM watching: `gm2`, a second full
+ *      Gamemaster declared late below, leaves before D and comes back to a table
+ *      with no other GM (E16 fix early-C4-G1).
  * What v14 itself allows an Assistant is modelled, not measured: LIVE-E30-04,
  * -05 and -06 in audit/AUDIT-1.2.42.md section 9.2.
  */
 export const layers = ["ci"];
-export const accounts = [{ who: "ag", id: "USERAG0000000000", name: "Assistant", role: 3, character: null, color: "#aa66ff" }];
+export const accounts = [{ who: "ag", id: "USERAG0000000000", name: "Assistant", role: 3, character: null, color: "#aa66ff" },
+    { who: "gm2", id: "USERGM2000000000", name: "Second GM", role: 4, character: null, color: "#66aaff", late: true }];
 
 const MOD = "danganronpa-rpg";
 const DH = "system.daggerheart";
 
-export async function run({ gm, ag, p1, p2, p3, check, settle, opLog, socketTraffic, disconnect, IDS, repoUrl }) {
+export async function run({ gm, ag, gm2, p1, p2, p3, check, settle, opLog, socketTraffic, connect, disconnect, storageOf, IDS, repoUrl }) {
     const utils = `(await import("${repoUrl}/scripts/utils.mjs"))`;
     const scene = IDS.scene;
 
@@ -312,6 +318,15 @@ export async function run({ gm, ag, p1, p2, p3, check, settle, opLog, socketTraf
         g3.quiet && JSON.stringify(g3.writesQuiet) === JSON.stringify(["p1 update"])
         && JSON.stringify(g3.writes) === JSON.stringify(["p1 update", "gm update"]) && g3.held.every(Boolean), JSON.stringify(g3));
 
+    /* E16 fix early-C4-G1, 19.10.2026 (finding E16-C4-F1). gm2, a second full Gamemaster on a browser of its own, joins
+       while the GM and the Assistant are here, takes the GMs' stores from them, and leaves with what they held - Botan's
+       overlay the GM's, from G2 - before D, so that the Assistant is the primary there. H brings it back. */
+    const storesJs = `(await import("${repoUrl}/scripts/gm-store.mjs"))`;
+    await connect("gm2");
+    await gm2.eval(`const E = ${storesJs}; await E.whenGmStoresHydrated(); await E.gmStoresIdle(); return true;`);
+    await disconnect("gm2");
+    await settle(600);
+
     /* ---------------------------- D. the full GM leaves ----------------------------- */
 
     const gmErrors = await gm.eval(`return (globalThis.__errors ?? []).map(e => e.where + ": " + e.message);`);
@@ -362,4 +377,56 @@ export async function run({ gm, ag, p1, p2, p3, check, settle, opLog, socketTraf
     for (const c of [ag, p1, p2, p3]) errors[c.who] = await c.eval(`return (globalThis.__errors ?? []).map(e => e.where + ": " + e.message);`);
     check("E: no exception escaped into Foundry on any client still at the table",
         Object.values(errors).every(list => list.length === 0), JSON.stringify(errors));
+
+    /* ------------------- H. a character's dice look with no GM watching ------------------- */
+    /* E16 fix early-C4-G1, 19.10.2026 (finding E16-C4-F1, a blocker of the review's). The GMs' copy of each character's
+       overlay lived in each GM browser's memory, taken from the world as Dice So Nice got ready (dice-sync.mjs
+       `takeActorLooks` at f26c3d7), so the next GM's load took whatever a player had left there for the GMs'. H1: the
+       Assistant leaves too, p2 writes Botan's overlay with no GM at the table, and gm2 comes back on the browser it left
+       with. H2: p2 writes it six times about a second apart - five put-backs are the fuse's, the sixth write stands -
+       and gm2 reloads. Read: Botan's overlay on every client, who wrote Botan from p2's first write on (opLog), and
+       gm2's warning. At f26c3d7 p2's overlay stood after both loads, and nothing wrote Botan. */
+    const back = async () => {
+        await connect("gm2", { storage: await storageOf("gm2") });
+        await gm2.eval(`const E = ${storesJs}; await E.whenGmStoresHydrated(); return true;`);
+        await settle(1500);
+    };
+    const colourOn = async (c, id) => JSON.parse(await overlayOn(c, id))?.global?.colorset ?? null;
+    await disconnect("ag");
+    await settle(600);
+    mark = opLog.length;
+    await p2.eval(`await game.actors.get("${IDS.botan}").setFlag("${DSN}", "appearance", { global: { colorset: "black" }, d4: { colorset: "bloodmoon" } }); return true;`);
+    await settle(1200);
+    const h1 = { stood: await colourOn(p2, IDS.botan) };
+    await back();
+    Object.assign(h1, { writes: actorWrites(mark, IDS.botan), held: {} });
+    for (const c of [gm2, p1, p2]) h1.held[c.who] = await overlayOn(c, IDS.botan) === gmOverlay;
+    check("H1: a character's dice look its player wrote while no GM was connected goes back to the GMs' when a full Gamemaster's browser that holds their copy loads",
+        h1.stood === "black" && Object.values(h1.held).every(Boolean)
+        && JSON.stringify(h1.writes) === JSON.stringify(["p2 update", "gm2 update"]), JSON.stringify(h1));
+
+    mark = opLog.length;
+    const gm2Told = await gm2.eval(`return globalThis.__notifications.length;`);
+    for (let i = 0; i < 6; i++) {
+        await p2.eval(`await game.actors.get("${IDS.botan}").setFlag("${DSN}", "appearance", { global: { colorset: "black-${i}" } }); return true;`);
+        await settle(1000);
+    }
+    const h2 = { stood: await colourOn(gm2, IDS.botan),
+        told: await gm2.eval(`const said = game.i18n.format("DRPG.DiceLook.stopped", { name: game.actors.get("${IDS.botan}").name });
+            return globalThis.__notifications.slice(${gm2Told}).filter(n => n.msg === said).length;`) };
+    await gm2.eval(`const E = ${storesJs}; await E.gmStoresIdle(); return true;`);
+    await disconnect("gm2");
+    await settle(600);
+    await back();
+    Object.assign(h2, { writes: actorWrites(mark, IDS.botan), held: {} });
+    for (const c of [gm2, p1, p2]) h2.held[c.who] = await overlayOn(c, IDS.botan) === gmOverlay;
+    const answered = ["p2 update", "gm2 update"];
+    check("H2: past the fuse a character's dice look stands, the GM is told once, and it goes back to the GMs' when the primary GM reloads",
+        h2.stood === "black-5" && h2.told === 1 && Object.values(h2.held).every(Boolean)
+        && JSON.stringify(h2.writes) === JSON.stringify([...answered, ...answered, ...answered, ...answered, ...answered, ...answered]), JSON.stringify(h2));
+
+    const late = {};
+    for (const c of [gm2, p1, p2, p3]) late[c.who] = await c.eval(`return (globalThis.__errors ?? []).map(e => e.where + ": " + e.message);`);
+    check("H3: no exception escaped into Foundry on gm2's client or a player's after the GMs came back",
+        Object.values(late).every(list => list.length === 0), JSON.stringify(late));
 }

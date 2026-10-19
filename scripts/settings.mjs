@@ -417,6 +417,12 @@ export const SETTINGS = {
      */
     gmSheetMarks: "gmSheetMarks",
     gmSheetWrites: "gmSheetWrites",
+    /**
+     * THE GMS' COPY OF EACH CHARACTER'S DICE LOOK (E16 fix early-C4-G1): a GM store (gm-stores.mjs
+     * `diceLookStore`), a row per actor - its Dice So Nice overlay as the GMs hold it, which the primary puts a
+     * player's back to (dice-sync.mjs). Synced, not backed up; no player copy.
+     */
+    gmDiceLooks: "gmDiceLooks",
     /** The Daggerheart version this GM was last told its rolls are not drawn by the GM on (E08+E28 C12a, roll-draw.mjs). */
     rollDrawWarned: "rollDrawWarned",
     /** The rolls the GM drew that this browser's user rolled, by world and user, read again after a reload (E08+E28 fix r2-H7, private-rolls.mjs). */
@@ -1600,6 +1606,14 @@ export function registerSettings() {
         default: {}
     });
     game.settings.register(MODULE_ID, SETTINGS.gmSheetWrites, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The GMs' copy of each character's dice look (E16 fix early-C4-G1): no `onChange` - shown nowhere, read by the
+    // primary's put-back (dice-sync.mjs).
+    game.settings.register(MODULE_ID, SETTINGS.gmDiceLooks, {
         scope: "client",
         config: false,
         type: Object,

@@ -27,13 +27,25 @@
  *
  * AN ACTOR'S OWN LOOK (C4). DSN lays an actor's `flags.dice-so-nice.appearance` over its user's look
  * (`Dice3D.APPEARANCE(user, actor)`, the same design's reading; its header control on a sheet writes it), so an
- * owner could throw in a look of its own through its character. Every GM's browser keeps the GMs' copy of each
- * actor's overlay, taken when DSN is ready and at each write of a full Gamemaster's; the primary puts an overlay
- * a user below full Gamemaster wrote (Assistants too, Q3) back to that copy, with the same wait, comparison and
- * fuse. Here the writer is read, since the overlay has no canonical value of its own: it is the one Foundry
- * stamps on the update, never a packet's. Daggerheart's GM relay, which writes as the GM, carries no actor
- * flag (relay-guard.mjs `actorRefusal` lets through resource values only). Which actor DSN lays over a throw, and
- * what the throw then looks like, is not drawn headless: LIVE-E16-03.
+ * owner could throw in a look of its own through its character. The GMs' copy of each actor's overlay is a GM
+ * store (gm-stores.mjs `diceLookStore`), which the primary writes at each write of a full Gamemaster's; the
+ * primary puts an overlay a user below full Gamemaster wrote (Assistants too, Q3) back to that copy, with the
+ * same wait, comparison and fuse. Here the writer is read, since the overlay has no canonical value of its own:
+ * it is the one Foundry stamps on the update, never a packet's. Daggerheart's GM relay, which writes as the GM,
+ * carries no actor flag (relay-guard.mjs `actorRefusal` lets through resource values only). Which actor DSN lays
+ * over a throw, and what the throw then looks like, is not drawn headless: LIVE-E16-03.
+ *
+ * WITH NO GM WATCHING (E16 fix early-C4-G1, 19.10.2026; finding E16-C4-F1). Until this fix the copy was each GM
+ * browser's memory, taken from the world as DSN got ready, so an overlay a player wrote while no GM was connected,
+ * or one the fuse had stopped putting back, was the GMs' copy from the next GM's load on. The store outlives a
+ * reload and a session and is synced between the GMs. Once the primary's stores have the other GMs' copies
+ * (`compareOverlays`), every actor whose overlay is not the copy is put back, and the world's overlay is taken
+ * only for an actor the store holds no row for - the first run, or an actor made while no GM was connected - and
+ * weakly, so that a copy another GM's browser holds wins as the two meet. An actor a user below full Gamemaster
+ * makes has none in the copy. So the comparison is as good as the copy the loading GM's browser holds, as the
+ * sheets' marks are (sheet-audit.mjs): a GM alone on a browser that never held it takes the overlays as it finds
+ * them, and one alone on a browser whose copy is older than another GM browser's puts an overlay a full Gamemaster
+ * gave since back to its own.
  *
  * A WRITE NO HOOK HEARS. An update with `noHook` reaches no listener (in the harness; on v14 LIVE-E16-04), so the
  * primary also compares at each message a user posts - a throw's card is one - the author's look and the
@@ -46,7 +58,8 @@
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { isPrimaryGm, log, error, forcedReplacement, forcedDeletion } from "./utils.mjs";
-import { stableJson } from "./gm-store.mjs";
+import { stableJson, onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet } from "./gm-store.mjs";
+import { diceLookStore } from "./gm-stores.mjs";
 
 const DSN = "dice-so-nice";
 /** The wait after a user's last update before its look is read and put back: DSN's save is six updates in a row. */
@@ -65,8 +78,6 @@ const ACTOR = "actor:";
 const timers = new Map();
 const putBacks = new Map();
 const blown = new Set();
-/** Actor id -> its overlay as the GMs hold it (null for none), on every GM's browser, so that a new primary has it. */
-const actorLooks = new Map();
 let saidNoSource = false, saidRefused = false, toldPlayer = false, ownWriteAt = 0;
 
 /**
@@ -79,11 +90,14 @@ export function registerDiceSync() {
         return;
     }
     Hooks.on("updateUser", onUserUpdated);
-    Hooks.on("createActor", (actor, _options, userId) => onActorWritten(actor, userId, true));
+    Hooks.on("createActor", (actor, _options, userId) => onActorWritten(actor, userId, true, { created: true }));
     Hooks.on("updateActor", (actor, changes, _options, userId) => {
         if (changes?.flags !== undefined) onActorWritten(actor, userId, touchesLook(changes.flags));
     });
-    Hooks.on("deleteActor", actor => actorLooks.delete(actor?.id));
+    // The copy goes with its actor; the compaction takes the tombstone once the actor is gone (gm-stores.mjs `exists`).
+    Hooks.on("deleteActor", actor => {
+        if (actor?.id && isPrimaryGm()) void diceLookStore.drop(actor.id);
+    });
     Hooks.on("createChatMessage", onMessage);
     Hooks.on("deleteUser", user => { if (isSource(user)) schedule(SWEEP); });
     Hooks.on("updateSetting", setting => {
@@ -94,9 +108,18 @@ export function registerDiceSync() {
         if (!connected || !isForced(user) || !isPrimaryGm()) return;
         void putBack(user.id, { count: false });
     });
-    const ready = () => { takeActorLooks(); void sweep(); };
+    // The overlays wait for the other GMs' copies of the store, not for DSN: they are flags, read as they stand.
+    if (gmStoresHydrated()) onStoresHydrated();
+    else onGmStoresHydrated(onStoresHydrated);
+    const ready = () => { void sweep(); };
     if (game.dice3d) ready();
     else Hooks.once("diceSoNiceReady", ready);
+}
+
+/** Not while the suite holds the stores or stands them in another world: a hydration then is the suite's. */
+function onStoresHydrated() {
+    if (!isPrimaryGm() || gmStoresQuiet()) return;
+    compareOverlays().catch(err => error("Could not hold the characters' dice looks to the GMs' copy", err));
 }
 
 /** The switch, read at each step: a world setting, and off writes nothing (Q4). */
@@ -273,41 +296,75 @@ function touchesLook(flags) {
     return Boolean(flags) && typeof flags === "object" && Object.hasOwn(flags, DSN);
 }
 
-/** The GMs' copy, taken on a GM's browser when DSN is ready: every actor's overlay as the world holds it then. */
-function takeActorLooks() {
-    if (!game.user?.isGM) return;
-    for (const actor of game.actors ?? []) actorLooks.set(actor.id, overlayOf(actor));
+/** The GMs' copy of an actor's overlay, as their store holds it: null for none, and for an actor it holds no row for. */
+function heldOverlay(actorId) {
+    return plain(diceLookStore.get(actorId)?.look);
 }
 
 /**
- * An actor created, or its flags updated, as every browser hears it. A full Gamemaster's write of the overlay
- * (or a creation) is the GMs' copy from then on, on each GM's browser; anyone else's is put back by the primary,
- * after the same wait as a user's.
+ * An actor created, or its flags updated, as every browser hears it. On the primary, a full Gamemaster's write of
+ * the overlay (or a creation) is the GMs' copy from then on, written to their store; a creation by anyone else
+ * gives the copy none; and anyone else's write is put back, after the same wait as a user's.
  */
-function onActorWritten(actor, userId, touched) {
+function onActorWritten(actor, userId, touched, { created = false } = {}) {
     if (!actor?.id) return;
-    if (!isPrimaryGm()) tellOwner(actor, touched, userId);
-    if (!game.user?.isGM) return;
-    const byGamemaster = isFullGm(game.users.get(userId));
-    if (byGamemaster) {
-        if (touched) actorLooks.set(actor.id, overlayOf(actor));
+    if (!isPrimaryGm()) return tellOwner(actor, touched, userId);
+    if (isFullGm(game.users.get(userId))) {
+        if (touched) void diceLookStore.patch(actor.id, { look: overlayOf(actor) });
         return;
     }
-    if (enforcing() && isPrimaryGm()) schedule(ACTOR + actor.id);
+    if (created) void diceLookStore.patch(actor.id, { look: null });
+    if (enforcing()) schedule(ACTOR + actor.id);
 }
 
 /**
- * One actor's overlay read and put back to the GMs' copy (none where the copy has none). `count` is false at a
- * message: the fuse counts the answers to writes, not the primary's check at a throw.
+ * THE FIRST RUN'S COPY (E16 fix early-C4-G1): every actor the GMs' store holds no row for, its overlay as the world
+ * has it now - weakly, and only where nothing is held, so that a copy another GM's browser holds wins as the two
+ * meet. Called by `compareOverlays`, which asks for the hydration itself.
+ */
+function takeUnseenOverlays() {
+    const unseen = (game.actors?.contents ?? []).filter(actor => !diceLookStore.has(actor.id));
+    if (!unseen.length) return Promise.resolve();
+    return diceLookStore.patchMany(Object.fromEntries(unseen.map(actor => [actor.id, { look: overlayOf(actor) }])), { weak: true, fillOnly: true });
+}
+
+/**
+ * THE COMPARISON AT LOAD (E16 fix early-C4-G1; exported for tier 2, which stands it in for a reload): on the
+ * primary, once its stores hold the other GMs' copies (`registerDiceSync`), the first run's copy is taken for
+ * every actor the store has never held, then every actor whose overlay is not the GMs' copy is put back - not
+ * counted against the fuse, as a connect is not. Answers the ids put back, or null where this is not the primary
+ * or its stores have not heard the other GMs.
+ */
+export async function compareOverlays() {
+    if (!isPrimaryGm() || !diceLookStore.isHydrated()) return null;
+    await takeUnseenOverlays();
+    const back = [];
+    for (const actor of game.actors?.contents ?? []) {
+        if (await putBackActor(actor.id, { count: false })) back.push(actor.id);
+    }
+    return back;
+}
+
+/** Suite only: what a reload forgets - the fuse's counts and the users and actors it stopped - for tier 2's reload. */
+export function forgetFuses() {
+    putBacks.clear();
+    blown.clear();
+}
+
+/**
+ * One actor's overlay read and put back to the GMs' copy (none where the copy has none); true when written.
+ * `count` is false at a message and at load: the fuse counts the answers to writes, not the primary's checks.
+ * Not before the primary's stores have the other GMs' copies, which may be ahead of this browser's: the
+ * comparison at load reads it then.
  */
 async function putBackActor(actorId, { count = true } = {}) {
-    if (!isPrimaryGm()) return;
+    if (!isPrimaryGm()) return false;
     const actor = game.actors?.get(actorId);
     const key = ACTOR + actorId;
-    if (!actor || !enforcing() || blown.has(key)) return;
-    const held = actorLooks.get(actorId) ?? null;
-    if (sameLook(overlayOf(actor), held)) return;
-    if (count && !fuseHolds(key, actor.name)) return;
+    if (!actor || !enforcing() || blown.has(key) || !diceLookStore.isHydrated()) return false;
+    const held = heldOverlay(actorId);
+    if (sameLook(overlayOf(actor), held)) return false;
+    if (count && !fuseHolds(key, actor.name)) return false;
     const path = `flags.${DSN}.appearance`;
     try {
         const replaced = held === null ? null : forcedReplacement(foundry.utils.deepClone(held));
@@ -317,7 +374,11 @@ async function putBackActor(actorId, { count = true } = {}) {
             await actor.unsetFlag(DSN, "appearance");
             await actor.setFlag(DSN, "appearance", foundry.utils.deepClone(held));
         }
-    } catch (err) { refused(actor, err); }
+        return true;
+    } catch (err) {
+        refused(actor, err);
+        return false;
+    }
 }
 
 /**

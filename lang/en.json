@@ -4338,6 +4338,7 @@
         "usedTools": "The Cleaning Tools each clean-up used, broken when the body is found",
         "sheetMarks": "What each character's sheet held when the GMs last judged a write on it",
         "sheetWrites": "The writes on a student's sheet the GMs put back, flagged or listed, kept a day",
+        "diceLooks": "Each character's dice look as the GMs set it, which a player's change of it goes back to",
         "ballots": "The ballots of the Class Trial's vote, kept by the GMs",
         "verdict": "The Blackened the last verdict was given with, kept by the GMs for its Finish"
       },
