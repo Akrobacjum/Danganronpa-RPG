@@ -11768,6 +11768,151 @@ const SCENARIOS = [
             "[the windows the Frisk opened, the Calls armed at its first roll and after it, what it told resolved (action, direction, mode)]");
     }],
 
+    ["a Frisk's Reroll on the primary keeps what the moment did (A11-11): a miss nobody felt rerolled to a success shows the list once and tells the target nothing, a list already seen stays seen, a Frisk the target felt or a force stands, a target gone is out of reach, and a hand with no fact of the GMs' is not replayed", async () => {
+        /*
+         * E80 part 2 C4, 19.10.2026; the A11 design's step 11 and its A11-11, the owner's 5 = b. The harms: a Reroll of a
+         * Frisk's hand that answered 'no lasting effect' while the first throw had shown the pockets or told the target, so
+         * the searcher paid 3 Hope for nothing or was told the moment could be undone; a Reroll that showed the list a
+         * second time, or to a target that had already felt the hand; and one that read a list out of a room the two no
+         * longer share. A player's character and another stood alone in a room (`aloneTogether`). Each step: the hand kept
+         * as the player's roll (`playerRollBookmark`, thrown as `rummage`, with the GMs' record of it at the hand's total)
+         * and a cover's record (`palm`) at the cover's total, judged as the bridge judges that player's
+         * `action.friskUnseen`; then that roll rerolled on this GM for the player (`rerollOnGm`) onto new faces. The
+         * steps, by the 2x2 (hand 5 or 14 against Hand 10, cover 5 or 20 against Shadow 15): (b) a miss nobody felt
+         * rerolled to 14, then the same roll rerolled again to 14; (b) rerolled to 5; (a) a success nobody felt rerolled
+         * to 5; (c) a success the target felt rerolled to 5; (d) a miss the target felt rerolled to 14; (b) rerolled to 14
+         * once the target's token stands in another room; a force (`frisk`) rerolled; and the control, a `rummage` roll
+         * with no Frisk judged on it, rerolled to 14. Read for each Reroll: the Reroll's lines among the design's (the
+         * rest is the 'replaced' line), the cards posted while it ran (a list, a target's card), who the words went to
+         * besides the GMs, and the GMs' fact on the hand's row after it. Red at the parent (5110ae2): no fact is written
+         * on the hand's row, and every step answers 'no lasting effect' with no card.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the rolls are a connected player's, as Foundry names only those");
+        needs(world.atLeast("namedRooms", 2), "the target walks out into another room");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const R = await import("./reroll.mjs");
+        const S = await import("./secret.mjs");
+        const { rerollBookmarkStore } = await import("./gm-stores.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { allRooms, positionIn } = await import("./movement.mjs");
+        const { ownerOf } = await import("./utils.mjs");
+        const { player, theirs, other } = playerAndCharacters();
+        must(other, "the world has no character this player does not play");
+        const targetOwner = ownerOf(other)?.id ?? null;
+        const role = id => (id === player.id ? "player" : id === targetOwner ? "target" : game.users.get(id)?.isGM ? "gm" : `other ${id}`);
+        const hope = theirs.system.resources.hope.value;
+        const bookmark = rerollBookmarkStore.has(theirs.id) ? foundry.utils.deepClone(rerollBookmarkStore.get(theirs.id)) : null;
+        const seenBefore = new Set(game.messages.map(m => m.id));
+        const fixture = await aloneTogether(theirs, other);
+        const token = canvas.scene.tokens.find(t => t.actorId === other.id);
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        // The cards' words name the target escaped; the Reroll's lines plainly (its card escapes them).
+        const who = foundry.utils.escapeHTML(other.name);
+        const LINES = {
+            rummageStands: game.i18n.localize("DRPG.Reroll.rummageStands"), rummageSeen: game.i18n.localize("DRPG.Reroll.rummageSeen"),
+            friskStands: game.i18n.localize("DRPG.Reroll.friskStands"), rummageLate: game.i18n.format("DRPG.Reroll.rummageLate", { who: other.name }),
+            missed: game.i18n.format("DRPG.Frisk.missed", { who: other.name }), replayFailed: game.i18n.localize("DRPG.Reroll.replayFailed"),
+            noReplay: game.i18n.localize("DRPG.Reroll.noReplay")
+        };
+        const kindOf = words => {
+            if (words === null) return "no words";
+            if (words.includes(game.i18n.format("DRPG.Frisk.listHeading", { who })) || words.includes(game.i18n.format("DRPG.Frisk.empty", { who }))) return "list";
+            if (words.includes(game.i18n.format("DRPG.Frisk.caught", { who: foundry.utils.escapeHTML(theirs.name) }))) return "caught";
+            return `other: ${words.slice(0, 60)}`;
+        };
+        const LOW = { hope: 3, fear: 2 }, HIGH = { hope: 9, fear: 5 };
+        const held = [];
+        const kept = [];
+        // The hand kept as the player's roll and a cover's record, judged as the player's `action.friskUnseen`; `judge` false
+        // keeps the roll with no Frisk judged on it (the control).
+        const hand = async (key, handTotal, coverTotal, { judge = true } = {}) => {
+            const F = await playerRollBookmark(player, theirs, key, {}, { record: { total: handTotal } });
+            held.push(F);
+            const out = [];
+            if (judge) {
+                const cover = await recordFor({ id: foundry.utils.randomID() }, player, theirs, "palm", { total: coverTotal });
+                kept.push(cover);
+                const coverId = (await import("./gm-stores.mjs")).rollStore.get(cover.rollId)?.messageId;
+                await G.judge(BRIDGE_ACTIONS, { action: "action.friskUnseen", requestId: `E80C4${foundry.utils.randomID(8)}`,
+                    searcherId: theirs.id, targetId: other.id, rollId: F.message.id, unseenRollId: coverId }, player.id,
+                { send: (to, reply) => { if (reply?.action !== "bridge.ack") out.push(reply?.action === "bridge.refused" ? reply.reason : reply?.value ?? null); } });
+                await settle();
+            }
+            must(F.row()?.messageId === F.message.id && F.row()?.actionKey === key && (!judge || stableJson(out) === stableJson(["settled"])),
+                `the hand is not the row the GMs keep, or its Frisk was not settled - this would measure nothing: ${stableJson([F.row()?.actionKey, out])}`);
+            return F;
+        };
+        const reroll = async (F, next) => {
+            await trustedWrite(theirs, { "system.resources.hope.value": 6 }, { reason: "gmRuling" });
+            const stand = rerollableRoll(F.message, { first: LOW, next });
+            const made = [];
+            const hook = Hooks.on("createChatMessage", message => made.push(message));
+            let out = null, sent = [];
+            try {
+                sent = await wordsSent(async () => {
+                    out = await R.rerollOnGm(theirs, player);
+                    await settle();
+                });
+            } finally {
+                Hooks.off("createChatMessage", hook);
+                stand.putBack();
+            }
+            const lines = Object.entries(LINES).filter(([, text]) => (out?.lines ?? []).includes(text)).map(([name]) => name);
+            const cards = made.map(message => S.secretHtml(message)).filter(words => words !== null).map(kindOf);
+            const to = [...new Set(sent.flatMap(packet => packet.to.map(role)))].filter(r => r !== "gm").sort();
+            const fact = F.row()?.facts?.frisk ?? null;
+            return [Array.isArray(out?.lines) ? lines : out, cards, to,
+                fact ? [fact.victimId === other.id, Boolean(fact.seen), Boolean(fact.shown), Boolean(fact.replayed)] : null];
+        };
+        const steps = [];
+        try {
+            let F = await hand("rummage", 5, 20);
+            steps.push(["(b) to 14", await reroll(F, HIGH)]);
+            steps.push(["(b) to 14, again", await reroll(F, HIGH)]);
+            F = await hand("rummage", 5, 20);
+            steps.push(["(b) to 5", await reroll(F, LOW)]);
+            F = await hand("rummage", 14, 20);
+            steps.push(["(a) to 5", await reroll(F, LOW)]);
+            F = await hand("rummage", 14, 5);
+            steps.push(["(c) to 5", await reroll(F, LOW)]);
+            F = await hand("rummage", 5, 5);
+            steps.push(["(d) to 14", await reroll(F, HIGH)]);
+            F = await hand("rummage", 5, 20);
+            const elsewhere = allRooms(canvas.scene).find(r => r !== fixture.room);
+            await token.update(positionIn(elsewhere, token), PLACE);
+            await settle();
+            steps.push(["(b) to 14, the target gone", await reroll(F, HIGH)]);
+            await token.update(positionIn(fixture.room, token), PLACE);
+            await settle();
+            F = await hand("frisk", 14, 0, { judge: false });
+            steps.push(["a force", await reroll(F, HIGH)]);
+            F = await hand("rummage", 5, 0, { judge: false });
+            steps.push(["no fact", await reroll(F, HIGH)]);
+        } finally {
+            for (const F of held.reverse()) await F.putBack();
+            for (const k of kept) await k.putBack();
+            for (const m of game.messages.filter(m => !seenBefore.has(m.id))) await m.delete();
+            if (bookmark) await rerollBookmarkStore.patch(theirs.id, bookmark);
+            else if (rerollBookmarkStore.has(theirs.id)) await rerollBookmarkStore.drop(theirs.id);
+            if (theirs.system.resources.hope.value !== hope) await trustedWrite(theirs, { "system.resources.hope.value": hope }, { reason: "gmRuling" });
+            await fixture.back();
+        }
+        const P = ["player"];
+        equal(stableJson(steps), stableJson([
+            ["(b) to 14", [[], ["list"], P, [true, false, true, true]]],
+            ["(b) to 14, again", [["rummageSeen"], [], [], [true, false, true, true]]],
+            ["(b) to 5", [["missed"], [], [], [true, false, false, false]]],
+            ["(a) to 5", [["rummageSeen"], [], [], [true, false, true, false]]],
+            ["(c) to 5", [["rummageStands"], [], [], [true, true, true, false]]],
+            ["(d) to 14", [["rummageStands"], [], [], [true, true, false, false]]],
+            ["(b) to 14, the target gone", [["rummageLate"], [], [], [true, false, false, true]]],
+            ["a force", [["friskStands"], [], [], null]],
+            ["no fact", [["replayFailed"], [], [], null]]
+        ]), "[for each Reroll: its lines among the design's, the cards it posted, who the words went to besides the GMs, "
+            + "the GMs' fact on the hand's row after it (the target named, felt, list shown, replayed)]");
+    }],
+
     ["an incident's roll is drawn only at its turn or stage, for what it names, once: an opening, a crisis action, a free clean-up attempt", async () => {
         /*
          * E08+E28 fix r2-H1, 04.10.2026; review S2-1: a console pre-drew crisis and opening rolls

@@ -1066,6 +1066,9 @@ async function replayAction(actor, bookmark, after, done, rerolled = null) {
             // it); the replay is the same as a Steal's.
             case "palm":
             case "steal": return await settleSteal(actor, bookmark, after, done);
+            // A Frisk's hand (E80 part 2 C4): the cover is a supporting roll and keeps no row.
+            case "rummage": return await settleRummage(actor, bookmark, after, done);
+            case "frisk": return settleForce(done);
             default:
                 // A trait rolled straight from the sheet, or an action from
                 // before this bookmark existed. The dice are the whole result.
@@ -1646,6 +1649,29 @@ async function settleSteal(actor, bookmark, after, done) {
     // refused there. A sentence that is true whether or not anything moved is
     // worth more than two that are each right half the time.
     done.push(game.i18n.localize("DRPG.Reroll.stealStands"));
+    return {};
+}
+
+/**
+ * A Frisk's hand replayed on the primary (E80 part 2 C4, S16-27; the A11 design's step 11, the owner's 5 = b): only a
+ * miss nobody felt can still turn into a look, once (frisk.mjs `replayRummage`, on the GMs' fact `frisk` its first
+ * judgement wrote). A row with no such fact - a hand no Frisk was judged on - is not replayed and says so: 'no lasting
+ * effect' would be untrue of a Frisk whose result never reached the GMs' row.
+ */
+async function settleRummage(actor, bookmark, after, done) {
+    const { replayRummage } = await import("./frisk.mjs");
+    const out = await replayRummage(actor, bookmark.frisk ?? null, { total: after.total, isCritical: after.isCritical, by: bookmark.by ?? null });
+    if (!out) {
+        done.push(game.i18n.localize("DRPG.Reroll.replayFailed"));
+        return {};
+    }
+    if (out.line) done.push(out.line);
+    return out.patch ?? {};
+}
+
+/** A Frisk's force rerolled: the target and the room saw how it went, so the moment stands (the design's step 11). */
+function settleForce(done) {
+    done.push(game.i18n.localize("DRPG.Reroll.friskStands"));
     return {};
 }
 

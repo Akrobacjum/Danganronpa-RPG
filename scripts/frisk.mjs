@@ -153,9 +153,10 @@ function listOfLines(target, lines, heading = "DRPG.Frisk.listHeading") {
  * Every card is veiled (utils.mjs `whisperToOwner(..., { veiled: true })`): its document is addressed to every
  * browser in nobody's voice, and its words go only to its readers. The list is the pockets as the GMs hold them now
  * (vault.mjs `pocketsAsHeld`, an undecided item left out with a line in the GM's log), never sent anywhere but that
- * card. Beside the cards it writes nothing: no flag, no item, no setting.
+ * card. Beside the cards it writes only the GMs' fact on the hand's roll (E80 part 2 C4, `replayRummage`), in their
+ * store: no flag, no item, no setting.
  */
-export async function friskPerson({ searcherId, targetId, total = 0, isCritical = false, unseenTotal = 0, unseenCritical = false } = {},
+export async function friskPerson({ searcherId, targetId, total = 0, isCritical = false, unseenTotal = 0, unseenCritical = false, rollId = null } = {},
     { asker = null } = {}) {
     const searcher = game.actors.get(searcherId) ?? null;
     const target = game.actors.get(targetId) ?? null;
@@ -175,16 +176,64 @@ export async function friskPerson({ searcherId, targetId, total = 0, isCritical 
     const { pocketsAsHeld } = await import("./vault.mjs");
     const pockets = sees ? await pocketsAsHeld(target, searcher, { undecided: "drop" }) : [];
 
-    const who = esc(target.name);
-    const seenLine = `<p><small>${game.i18n.localize(noticed ? "DRPG.Steal.cardSeen" : "DRPG.Steal.cardUnseen")}</small></p>`;
-    await whisperToOwner(searcher, `${sees ? friskListHtml(target, pockets) : `<p>${game.i18n.format("DRPG.Frisk.missed", { who })}</p>`}${seenLine}`,
-        { veiled: true });
+    await whisperToOwner(searcher, searcherCard(target, sees ? pockets : null, noticed), { veiled: true });
     if (noticed) {
         await whisperToOwner(target, `<p>${game.i18n.format(sees ? "DRPG.Frisk.caught" : "DRPG.Frisk.caughtTrying", { who: esc(searcher.name) })}</p>`,
             { veiled: true, flags: { [MODULE_ID]: { sfx: "stolen" } } });
     }
     log(`${searcher.name} frisked ${target.name} unseen: ${sees ? `saw ${pockets.length} item(s)` : "got no proper look"}, ${noticed ? "noticed" : "unnoticed"}.`);
+    // The GMs' fact on the hand's row (the design's step 11), which its Reroll replays from (`replayRummage`): written
+    // for the roll the packet named and the user who sent it, never claimed by the searcher's browser (action-rolls.mjs
+    // `ROLL_CLAIMS` has no Frisk). A Frisk that names no roll leaves none, and its Reroll replays nothing.
+    const here = gmPlaceOf(searcher);
+    const rolls = await import("./action-rolls.mjs");
+    await rolls.noteFactOn(rolls.rollOfFact({ rollId, by: asker?.id ?? null, actorId: searcher.id, actions: ["rummage"] }),
+        { frisk: { victimId: target.id, sceneId: here?.scene?.id ?? null, room: here?.room ?? null, seen: noticed, shown: sees } });
     return { outcome: "settled" };
+}
+
+/** The searcher's card of an unseen Frisk: the list of `pockets` (null: no proper look) and whether the target felt it. */
+function searcherCard(target, pockets, noticed) {
+    const seenLine = `<p><small>${game.i18n.localize(noticed ? "DRPG.Steal.cardSeen" : "DRPG.Steal.cardUnseen")}</small></p>`;
+    return `${pockets ? friskListHtml(target, pockets) : `<p>${game.i18n.format("DRPG.Frisk.missed", { who: esc(target?.name ?? "") })}</p>`}${seenLine}`;
+}
+
+/**
+ * A Frisk's hand rerolled on the primary (reroll.mjs `replayAction`, `case "rummage"`; the design's step 11 and the
+ * owner's 5 = b, 13.10): what the new dice change of the moment the GMs' fact `frisk` keeps, as `{ line, patch }` - the
+ * line for the Reroll's card (already worded) and the fact as it stands after. The new dice count in one cell only: a
+ * miss nobody felt, nobody told anything, now beating Hand 10 sends the list, once, on the card a success sends, read
+ * as the GMs hold the pockets now - while the two still stand in the room of the first throw as `personActionRefusal`
+ * reads it (and no death the thrower knows has made the target a body), else the moment has passed. The fact keeps
+ * `replayed`, so a second Reroll of the same roll sends nothing. A target that felt the hand already knows whether the
+ * searcher got a proper look, and that card cannot be taken back: the moment stands. What was shown stays seen. The
+ * cover is not rerolled (its roll is not the row's). Null `fact`: a hand no Frisk was judged on, nothing to replay.
+ */
+export async function replayRummage(searcher, fact, { total = 0, isCritical = false, by = null } = {}) {
+    if (!searcher || !fact?.victimId) return null;
+    const target = game.actors.get(fact.victimId) ?? null;
+    // Plain text: the Reroll's card escapes its lines (calls.mjs `postHopeCallCard`).
+    const who = target?.name ?? "";
+    const late = () => ({ line: game.i18n.format("DRPG.Reroll.rummageLate", { who }), patch: { frisk: { ...fact, replayed: true } } });
+    if (fact.seen) return { line: game.i18n.localize("DRPG.Reroll.rummageStands"), patch: {} };
+    if (fact.shown) return { line: game.i18n.localize("DRPG.Reroll.rummageSeen"), patch: {} };
+    if (fact.replayed) return { ...late(), patch: {} };
+    const { ACTIONS } = await import("./config.mjs");
+    if (!(Boolean(isCritical) || Number(total) >= ACTIONS.palm.rummage.threshold)) {
+        return { line: game.i18n.format("DRPG.Frisk.missed", { who }), patch: {} };
+    }
+    const here = gmPlaceOf(searcher);
+    const asker = (by ? game.users?.get(by) : null) ?? null;
+    if (!target || personActionRefusal(searcher, target) || here?.scene?.id !== fact.sceneId || here?.room !== fact.room
+        || (isDeadForGm(target) && knowsOfDeath(asker, target.id))) {
+        log(`A Reroll of ${searcher.name}'s Frisk of ${target?.name ?? "?"} found the moment passed.`);
+        return late();
+    }
+    const { pocketsAsHeld } = await import("./vault.mjs");
+    const pockets = await pocketsAsHeld(target, searcher, { undecided: "drop" });
+    await whisperToOwner(searcher, searcherCard(target, pockets, false), { veiled: true });
+    log(`A Reroll of ${searcher.name}'s Frisk of ${target.name} saw ${pockets.length} item(s), unnoticed.`);
+    return { line: null, patch: { frisk: { ...fact, shown: true, replayed: true } } };
 }
 
 /**

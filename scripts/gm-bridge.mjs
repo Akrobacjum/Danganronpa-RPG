@@ -713,7 +713,7 @@ async function handleFriskUnseen(payload, sender) {
     const { friskPerson } = await import("./frisk.mjs");
     const out = await friskPerson({
         searcherId: payload.searcherId, targetId: payload.targetId, total: payload.total, isCritical: payload.isCritical,
-        unseenTotal: payload.unseenTotal, unseenCritical: payload.unseenCritical
+        unseenTotal: payload.unseenTotal, unseenCritical: payload.unseenCritical, rollId: payload.rollId ?? null
     }, { asker: sender });
     if (out?.refused) return { refused: out.refused };
     return { reply: out?.outcome ?? "settled" };
@@ -3584,7 +3584,7 @@ export function requestFriskUnseen({
 }) {
     return ask(ACTION_FRISK_UNSEEN, { searcherId, targetId, total, isCritical, unseenTotal, unseenCritical, rollId, unseenRollId }, {
         onPrimary: true,
-        local: () => import("./frisk.mjs").then(m => m.friskPerson({ searcherId, targetId, total, isCritical, unseenTotal, unseenCritical },
+        local: () => import("./frisk.mjs").then(m => m.friskPerson({ searcherId, targetId, total, isCritical, unseenTotal, unseenCritical, rollId },
             { asker: game.user })).then(out => {
             if (out?.refused) sayNotDone(ACTION_FRISK_UNSEEN, reasonOf(out.refused));
             return out?.refused ? null : out?.outcome ?? null;
