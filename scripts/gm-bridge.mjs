@@ -23,7 +23,7 @@ import {
     guardArmCallGrants, guardArmLiving, guardArmNotHeld, guardArmBuyer, guardArmOtherCharacter, guardArmHopeCallAllowed,
     guardArmBuyerHope, guardArmGmYes, noteCallYes, guardDespairDelta, guardDespairPool, guardTraitRuling, guardRollAuthor, guardCallProgress, guardProjectFrozen,
     guardProjectRoom, guardSabotageRoom, guardCardSpeaker, guardCardReaders, table, tokenActorOf, remnantSourceOf, knownSender, owns, ownsActorAt, gmOnly,
-    playersOnly, canSeeProject, inRange, as, pick, judge, replyForMe, bridgeRequest, resendOnGmReady, sayNotDone, reasonOf
+    playersOnly, canSeeProject, inRange, as, pick, judge, replyForMe, bridgeRequest, resendOnGmReady, sayNotDone, reasonOf, gmOnline
 } from "./bridge-guards.mjs";
 // R148 and anything else that asked gm-bridge.mjs for it keep finding it here (E31).
 export { removalRefusal } from "./bridge-guards.mjs";
@@ -3487,6 +3487,64 @@ export function requestProjectShare(countdownId, userId) {
  * CALLING THE GM
  * ========================================================================== */
 
+/** The request a call on the GM names when its caller names none (`DRPG.Bridge.what.gm.call`). */
+export const CALL_GM_WHAT = "gm.call";
+
+/**
+ * The ruling card's words, as `callGm` posts them: the title, who and where, the roll, the
+ * player's own words quoted, the caller's body, the GM's reference, "awaiting a ruling"
+ * and the GM's buttons. Its own function so the card is read without posting one (R838).
+ */
+export function callCardHtml(actor, { title, body = "", roll = null, request = "", room = null, gmBody = "", actions = [] } = {}) {
+    const parts = [];
+    parts.push(`<h3>${esc(title)}</h3>`);
+    parts.push(`<p><strong>${esc(actor?.name ?? "?")}</strong>${room ? ` · ${esc(room)}` : ""}</p>`);
+
+    if (roll) {
+        const traitLabel = TRAITS[roll.trait]?.label ?? roll.trait ?? "";
+        parts.push(`<p>${traitLabel} · <strong>${roll.total}</strong>${
+            roll.isCritical ? ` · <em>${game.i18n.localize("DRPG.Action.critical")}</em>`
+            : roll.withHope ? ` · ${game.i18n.localize("DRPG.Explain.status.hopeTitle")}`
+            : roll.withFear ? ` · ${game.i18n.localize("DRPG.Despair.label")}` : ""
+        }</p>`);
+
+        // The guide owes the player a substantial hint on a critical Observe or
+        // Analyze. Say so loudly rather than leaving the GM to remember it.
+        if (roll.isCritical) {
+            parts.push(`<div class="drpg-gm-only"><p class="drpg-warning"><strong>${
+                game.i18n.localize("DRPG.Bridge.criticalHint")
+            }</strong></p></div>`);
+        }
+    }
+
+    // ORDER: what happened, then what they said, then the reference.
+    //
+    // It used to run name → roll → their words → the GM's reference table →
+    // "awaiting a ruling", which put the player's own sentence between two
+    // blocks of numbers. The GM reads this top to bottom while deciding: the
+    // roll is the fact, the quote is the request being ruled on, and the
+    // threshold table is the thing you look at last, to price the answer.
+    if (request) parts.push(`<blockquote>${esc(request)}</blockquote>`);
+    // One block for the caller's own HTML (E18 C0, S10-52): a body of paragraphs wrapped in
+    // a <p> was two empty paragraphs and the body's own, once the browser had parsed it.
+    if (body) parts.push(`<div class="drpg-call-body">${body}</div>`);
+    if (gmBody) parts.push(`<div class="drpg-gm-only">${gmBody}</div>`);
+    // Classed so `settleCall` can take it off again once the card is answered.
+    parts.push(`<p class="drpg-call-awaiting"><em>${
+        game.i18n.localize("DRPG.Bridge.awaitingRuling")}</em></p>`);
+
+    if (actions.length) {
+        parts.push(`<div class="drpg-call-actions">${actions.map(a => {
+            const attrs = Object.entries(a.data ?? {})
+                .map(([k, v]) => ` data-${esc(k)}="${esc(v)}"`).join("");
+            return `<button type="button" class="drpg-call-action" data-drpg-call="${
+                esc(a.action)}"${attrs}>${esc(a.label)}</button>`;
+        }).join("")}</div>`);
+    }
+
+    return parts.join("");
+}
+
 /**
  * Post a ruling request into the actor owner's messenger thread - one message,
  * visible to the player and every GM at once. An actor with no player owner
@@ -3554,56 +3612,30 @@ export async function callGm(actor, {
      * Posted veiled (messenger.mjs `postToThread`), the document names nobody and the
      * card's placement travels with its words. Ignored with no thread to post into.
      */
-    veiled = false
+    veiled = false,
+    /**
+     * What the refusal names when no GM is connected (`DRPG.Bridge.what.<what>`), and whether
+     * it may add "Nothing was spent.": a caller that took a price says true only once it hands
+     * the price back on a false answer.
+     */
+    what = CALL_GM_WHAT,
+    nothingSpent = false
 } = {}) {
-    const parts = [];
-
-    parts.push(`<h3>${esc(title)}</h3>`);
-    parts.push(`<p><strong>${esc(actor?.name ?? "?")}</strong>${room ? ` · ${esc(room)}` : ""}</p>`);
-
-    if (roll) {
-        const traitLabel = TRAITS[roll.trait]?.label ?? roll.trait ?? "";
-        parts.push(`<p>${traitLabel} · <strong>${roll.total}</strong>${
-            roll.isCritical ? ` · <em>${game.i18n.localize("DRPG.Action.critical")}</em>`
-            : roll.withHope ? ` · ${game.i18n.localize("DRPG.Explain.status.hopeTitle")}`
-            : roll.withFear ? ` · ${game.i18n.localize("DRPG.Despair.label")}` : ""
-        }</p>`);
-
-        // The guide owes the player a substantial hint on a critical Observe or
-        // Analyze. Say so loudly rather than leaving the GM to remember it.
-        if (roll.isCritical) {
-            parts.push(`<div class="drpg-gm-only"><p class="drpg-warning"><strong>${
-                game.i18n.localize("DRPG.Bridge.criticalHint")
-            }</strong></p></div>`);
-        }
+    /*
+     * NO GM, NO CARD (E18 C0, 19.10.2026; audit S10-26). With no GM connected this posted
+     * anyway and answered true: the player's caller said the request went and kept what it
+     * cost, and no GM was there to read it. False now, with nothing posted and the refusal
+     * said once, here, so a caller only hands back what it took. Asked before the first
+     * await, on the client that calls: a GM who connects later finds nothing waiting and
+     * the player asks again. Measured in tier 2's E18 C0 test and scenario 33's phase C.
+     */
+    if (!gmOnline()) {
+        sayNotDone(what, "noGm", { nothingSpent });
+        return false;
     }
-
-    // ORDER: what happened, then what they said, then the reference.
-    //
-    // It used to run name → roll → their words → the GM's reference table →
-    // "awaiting a ruling", which put the player's own sentence between two
-    // blocks of numbers. The GM reads this top to bottom while deciding: the
-    // roll is the fact, the quote is the request being ruled on, and the
-    // threshold table is the thing you look at last, to price the answer.
-    if (request) parts.push(`<blockquote>${esc(request)}</blockquote>`);
-    if (body) parts.push(`<p>${body}</p>`);
-    if (gmBody) parts.push(`<div class="drpg-gm-only">${gmBody}</div>`);
-    // Classed so `settleCall` can take it off again once the card is answered.
-    parts.push(`<p class="drpg-call-awaiting"><em>${
-        game.i18n.localize("DRPG.Bridge.awaitingRuling")}</em></p>`);
-
-    if (actions.length) {
-        parts.push(`<div class="drpg-call-actions">${actions.map(a => {
-            const attrs = Object.entries(a.data ?? {})
-                .map(([k, v]) => ` data-${esc(k)}="${esc(v)}"`).join("");
-            return `<button type="button" class="drpg-call-action" data-drpg-call="${
-                esc(a.action)}"${attrs}>${esc(a.label)}</button>`;
-        }).join("")}</div>`);
-    }
-
-    const content = parts.join("");
-
+    const content = callCardHtml(actor, { title, body, roll, request, room, gmBody, actions });
     const owner = gmOnly ? null : ownerOf(actor);
+
     if (!owner) {
         /*
          * NO THREAD TO LIVE IN, so the chat log - and the log has to behave
@@ -3718,8 +3750,46 @@ export async function settleCall(message, text, ruling = null) {
 }
 
 /**
+ * The window a request to the GM is typed in. Answers the words typed, trimmed (empty when
+ * nothing was), or null when the player pressed Cancel or closed the window.
+ *
+ * `{ text }`, NOT THE WORDS BARE (E18 C0, 19.10.2026; audit S10-52). Send answered the words
+ * and Cancel answered its action, "cancel" - so a request reading "cancel" was taken for the
+ * Cancel button and never sent. R838 types it.
+ *
+ * `required`: the caller has nothing to send without words (Dynamic, a Tier 0 item's use), so
+ * an empty request is not sent - the player is told so and the window opens again.
+ */
+export async function askForRequest({ title, prompt, placeholder = "", intro = "", required = false } = {}) {
+    const DialogV2 = foundry.applications.api.DialogV2;
+    for (;;) {
+        const answer = await DialogV2.wait({
+            classes: ["drpg-panel"],
+            window: { title },
+            content: dialogContent(`${intro}<form>
+                    <p>${prompt}</p>
+                    <textarea name="request" rows="3" placeholder="${foundry.utils.escapeHTML(placeholder)}"></textarea>
+                  </form>`),
+            buttons: [
+                {
+                    action: "send",
+                    label: game.i18n.localize("DRPG.Bridge.send"),
+                    default: true,
+                    callback: (event, button, dialog) => ({ text: dialog.element.querySelector("[name=request]").value.trim() })
+                },
+                { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
+            ],
+            rejectClose: false
+        });
+        if (typeof answer?.text !== "string") return null;
+        if (answer.text || !required) return answer.text;
+        ui.notifications.warn(game.i18n.localize("DRPG.Bridge.emptyRequest"));
+    }
+}
+
+/**
  * Ask the player what they want, then send it to the GM. Returns the text, or
- * null if they backed out.
+ * null if nothing was sent.
  */
 export async function promptAndCallGm(actor, {
     title, prompt, placeholder = "", roll = null, room = null,
@@ -3731,30 +3801,24 @@ export async function promptAndCallGm(actor, {
     // `intro` is what the player sees; this is what the GM sees.
     body = "",
     // Buttons for the GM on the card this produces. See `callGm`.
-    actions = []
+    actions = [],
+    // The caller sends nothing without words: an empty request is asked again. See `askForRequest`.
+    required = false,
+    // What a refusal names. See `callGm`.
+    what = CALL_GM_WHAT
 }) {
-    const DialogV2 = foundry.applications.api.DialogV2;
+    /*
+     * NO GM, NO WINDOW (E18 C0). The player would type a request only to be told it could
+     * not go. Every caller of this spends nothing before it, which is why the refusal may
+     * say so.
+     */
+    if (!gmOnline()) {
+        sayNotDone(what, "noGm", { nothingSpent: true });
+        return null;
+    }
 
-    const text = await DialogV2.wait({
-        classes: ["drpg-panel"],
-        window: { title },
-        content: dialogContent(`${intro}<form>
-                    <p>${prompt}</p>
-                    <textarea name="request" rows="3" placeholder="${foundry.utils.escapeHTML(placeholder)}"></textarea>
-                  </form>`),
-        buttons: [
-            {
-                action: "send",
-                label: game.i18n.localize("DRPG.Bridge.send"),
-                default: true,
-                callback: (event, button, dialog) => dialog.element.querySelector("[name=request]").value.trim()
-            },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
-        rejectClose: false
-    });
-
-    if (text === "cancel" || text === null || text === undefined) return null;
+    const text = await askForRequest({ title, prompt, placeholder, intro, required });
+    if (text === null) return null;
 
     /*
      * NULL MEANS NOTHING WAS SENT, AND IT HAS TO MEAN IT IN BOTH CASES (ACT-15,
@@ -3762,12 +3826,11 @@ export async function promptAndCallGm(actor, {
      *
      * This returned the text whatever `callGm` answered, so every caller had two
      * roads to "the request never went" and could only see one of them: the player
-     * closed the second window, or there was no GM connected to take it. Both left
-     * the caller going on to whisper "your proposal has been sent". `callGm` already
-     * answers false without throwing for the second - one caller in action-rolls.mjs
-     * checks it by hand, which is what made this worth fixing here rather than at
-     * three call sites.
+     * closed the second window, or the call was not posted. Both left the caller
+     * going on to whisper "your proposal has been sent". Since E18 C0 `callGm` also
+     * answers false when no GM is connected - the GM may have left while the window
+     * was open - and says so itself.
      */
-    const sent = await callGm(actor, { title, roll, request: text, room, body, actions });
+    const sent = await callGm(actor, { title, roll, request: text, room, body, actions, what, nothingSpent: true });
     return sent === false ? null : text;
 }

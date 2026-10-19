@@ -3032,7 +3032,8 @@
         "advancement": {
           "apply": "Level Up",
           "offer": "Oferta Level Up",
-          "ask": "Twoje oferty Level Up"
+          "ask": "Twoje oferty Level Up",
+          "offers": "Oferty Level Up do wyboru"
         },
         "call.arm": "Call kupiony na rzut",
         "daggerheart": "Zmiana w Daggerheart",
@@ -3064,10 +3065,18 @@
         "trial.object": "Wniesienie Objection",
         "trial.evidence": "Twój Truth Bullet do Objection",
         "trial.withdraw": "Wycofanie Twojego Objection",
-        "floor.repoint": "Przekierowanie Objection"
+        "floor.repoint": "Przekierowanie Objection",
+        "murder.openingAsk": "Twój rzut otwarcia",
+        "murder.openingCancel": "Odwołanie rzutu otwarcia",
+        "bridge.done": "Odpowiedź GM-a na twoją prośbę",
+        "bridge.gmReady": "Powrót GM-a do stołu",
+        "gm.call": "Pytanie do GM-a",
+        "bridge.refused": "Odmowa GM-a na twoją prośbę",
+        "bridge.ack": "Potwierdzenie GM-a, że prośba dotarła"
       },
       "notDone": "Prośba „{what}” nie została wykonana. {why}",
       "nothingSpent": "Nic nie wydano.",
+      "emptyRequest": "Nic nie wysłano - najpierw wpisz swoją prośbę.",
       "why": {
         "unknownSender": "Klient GM-a nie widzi cię jako połączonego. Przeładuj stronę i spróbuj ponownie.",
         "notYours": "Dotyczy postaci, którą nie grasz.",

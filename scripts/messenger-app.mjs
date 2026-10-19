@@ -940,7 +940,7 @@ async function ruleReply(action, data) {
     if (!actor) return null;
 
     const DialogV2 = foundry.applications.api.DialogV2;
-    const text = await DialogV2.wait({
+    const answer = await DialogV2.wait({
         classes: ["drpg-panel"],
         window: { title: game.i18n.format("DRPG.Bridge.replyTitle",
             { name: actor.name }) },
@@ -952,14 +952,17 @@ async function ruleReply(action, data) {
                 // which is the right label on the PLAYER's window and the
                 // wrong one here, where the GM is answering the player.
                 action: "send", label: game.i18n.localize("DRPG.Bridge.sendRuling"), default: true,
-                callback: (e, b, d) => d.element.querySelector("[name=reply]").value.trim()
+                callback: (e, b, d) => ({ text: d.element.querySelector("[name=reply]").value.trim() })
             },
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
         ],
         rejectClose: false
     });
 
-    if (!text || text === "cancel") return null;
+    // `{ text }`, so a ruling reading "cancel" is a ruling (E18 C0, S11-60): Cancel answers
+    // its action's name, and the words bare could not be told from it.
+    const text = typeof answer?.text === "string" ? answer.text : "";
+    if (!text) return null;
 
     const { postToThread } = await import("./messenger.mjs");
     const owner = ownerOf(actor);

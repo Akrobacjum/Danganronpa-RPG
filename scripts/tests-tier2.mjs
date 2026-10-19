@@ -27812,6 +27812,95 @@ const SCENARIOS = [
         }
     }],
 
+    ["a call on the GM with no GM connected posts nothing and says so once; with one, a request reading `cancel` is posted, its body in one div.drpg-call-body (E18 C0)", async () => {
+        /*
+         * E18 C0, 19.10.2026; audits S10-26 and S10-52 (E18-01, E18-02). Until C0 `callGm` posted with no GM connected and
+         * answered true, so its caller said "sent" and kept the price, while the card's words reached no GM; and the
+         * window of `promptAndCallGm` took a request reading "cancel" for its Cancel button. No GM is made here as
+         * `asConsole` makes a player: while each call starts, `game.user.isGM` reads false and the user list hides every
+         * GM, both put back as the call hands back its promise - the refusal stands before the call's first await. With
+         * no GM: `callGm` answers false, posts nothing and says "noGm" once; `promptAndCallGm` opens no window, answers
+         * null and says it once, with "Nothing was spent.". With this GM: "cancel" typed and sent is posted as the
+         * request, the caller's two paragraphs in one div.drpg-call-body and no empty paragraph. Windows are answered
+         * here and toasts caught, both put back; every card posted is deleted and every notice dismissed.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a call lives in its player's thread");
+        const B = await import("./gm-bridge.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { ownerOf } = await import("./utils.mjs");
+        const actor = livingStudents().find(a => ownerOf(a)?.active);
+        must(actor, "no living student has a connected player - this would measure nothing");
+        const users = game.users, ownFilter = Object.hasOwn(users, "filter"), realFilter = users.filter;
+        const noGm = call => {
+            Object.defineProperty(game.user, "isGM", { value: false, configurable: true });
+            users.filter = function (fn, ...rest) {
+                return realFilter.call(this, (u, ...more) => !u.isGM && fn(u, ...more), ...rest);
+            };
+            try {
+                return call();
+            } finally {
+                delete game.user.isGM;
+                if (ownFilter) users.filter = realFilter;
+                else delete users.filter;
+            }
+        };
+        const seen = new Set(game.messages.map(m => m.id));
+        const created = [];
+        const hook = Hooks.on("createChatMessage", m => { if (!seen.has(m.id)) created.push(m); });
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const warn = ui.notifications.warn;
+        const said = [];
+        let windows = 0, typed = null;
+        const TITLE = `E18 C0 call ${Date.now() % 100000}`;
+        const NO_GM = game.i18n.localize("DRPG.Bridge.why.noGm"), SPENT = game.i18n.localize("DRPG.Bridge.nothingSpent");
+        try {
+            D.wait = async cfg => {
+                windows++;
+                if (typed === null) return null;
+                // `dialogContent` hands the window an element, a caller's own markup a string.
+                const root = cfg?.content instanceof HTMLElement ? cfg.content : document.createElement("div");
+                if (!(cfg?.content instanceof HTMLElement)) root.innerHTML = String(cfg?.content ?? "");
+                const field = root.querySelector("[name=request]");
+                if (field) field.value = typed;
+                const button = (cfg?.buttons ?? []).find(b => b.default) ?? cfg?.buttons?.[0];
+                return button?.callback ? button.callback(null, null, { element: root }) : button?.action ?? null;
+            };
+            ui.notifications.warn = text => { said.push(String(text)); };
+
+            const called = await noGm(() => B.callGm(actor, { title: TITLE, request: "E18 C0 words" }));
+            await settle(300);
+            const alone = [called, created.length, said.length, said.filter(text => text.includes(NO_GM)).length];
+            said.length = 0;
+            const prompted = await noGm(() => B.promptAndCallGm(actor, { title: TITLE, prompt: "E18 C0" }));
+            await settle(300);
+            const opened = [prompted, windows, created.length, said.length, said.filter(text => text.includes(NO_GM) && text.includes(SPENT)).length];
+            equal(JSON.stringify([alone, opened]), JSON.stringify([[false, 0, 1, 1], [null, 0, 0, 1, 1]]),
+                "with no GM connected: [callGm's answer, cards posted, toasts, toasts naming no GM]; [promptAndCallGm's answer, windows opened, cards posted, toasts, toasts naming no GM and nothing spent]");
+
+            typed = "cancel";
+            windows = 0;
+            const asked = await B.promptAndCallGm(actor, { title: TITLE, prompt: "E18 C0", body: "<p>E18 C0 one</p><p>E18 C0 two</p>" });
+            await until(() => created.length > 0, 5000);
+            const card = document.createElement("template");
+            card.innerHTML = created[0] ? contentOf(created[0]) : "";
+            const bodies = card.content.querySelectorAll("div.drpg-call-body");
+            equal(JSON.stringify([asked, windows, created.length, card.content.querySelector("blockquote")?.textContent ?? null, bodies.length,
+                bodies[0]?.querySelectorAll(":scope > p").length ?? 0, card.content.querySelectorAll("p:empty").length]),
+            JSON.stringify(["cancel", 1, 1, "cancel", 1, 2, 0]),
+            "with this GM: [the answer, windows, cards posted, the quoted request, div.drpg-call-body, its paragraphs, empty paragraphs]");
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            if (own) Object.defineProperty(D, "wait", own);
+            else delete D.wait;
+            ui.notifications.warn = warn;
+            for (const node of [...document.querySelectorAll(".drpg-popup")]) node.dispatchEvent(new CustomEvent("drpg-dismiss"));
+            for (const message of created) await message.delete().catch(() => {});
+            await settle();
+        }
+    }],
+
     ["the GM's popup for a veiled ask", async () => {
         /*
          * E06 C8, 28.09.2026. A thread card that asks the GMs (`gmAsk`) raises a notice and

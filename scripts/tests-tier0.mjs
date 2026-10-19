@@ -8612,6 +8612,9 @@ const REGRESSIONS = [
          * `updateNotice` in one declaration, both deletions and a
          * `messages.get` that deletes nothing, a catch-all's flags beside another declaration's, a chat hook of the catch-all
          * beside another event's and one in a file that is neither, the store and the window, and a stale row.
+         * E18 C0 (19.10.2026): `callGm` and `promptAndCallGm` say a call's refusal with no GM connected themselves, and
+         * `askForHint` leaves its own to `callGm` - two NOTDONE rows more and one struck, none either side on the
+         * harness (this test by name, once).
          */
         const NOTICE_CENSUS = [
             ["SURFACE popup.mjs#onCreateChatMessage", "the catch-all: a card is drawn where the whisper list, a veiled card's words and the GM's diet allow it (`gmPopup`, `popupForce` from a GM writer only), and kept exactly there by `showPopup`'s recorder - public from a GM's document, a player's from its document's author, never `cardWriter` (R297, 73-notice-history); the body cleaned at save (R294); the tile's corner button counts it among the unread and shows none of its words (R298)"],
@@ -8633,7 +8636,6 @@ const REGRESSIONS = [
             ["NOTDONE action-rolls.mjs#performAnalyze", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE action-rolls.mjs#performAnalyze (2)", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE action-rolls.mjs#analyseBullet", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
-            ["NOTDONE action-rolls.mjs#askForHint", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE action-rolls.mjs#locateStash", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE action-rolls.mjs#locatePassage", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE action-rolls.mjs#performBetrayal", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); a murder refusal kept like the rest (the owner's Q4), within the history's budgets, as a notDone entry (R297)"],
@@ -8650,6 +8652,8 @@ const REGRESSIONS = [
             ["NOTDONE gm-bridge.mjs#requestObject", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the primary GM's refusal checked against `REASONS`); a refusal of an Objection kept like the rest, as a notDone entry (R297; E79 C16)"],
             ["NOTDONE gm-bridge.mjs#requestEvidence", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the primary GM's refusal checked against `REASONS`); a refusal of an Objection's Truth Bullet kept like the rest, as a notDone entry (R297; E79 C16)"],
             ["NOTDONE gm-bridge.mjs#requestRepoint", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the primary GM's refusal checked against `REASONS`); a GM's re-point refused kept like the rest, as a notDone entry (R297; E79 C16)"],
+            ["NOTDONE gm-bridge.mjs#callGm", "composed on this client from closed lists (`sayNotDone`: the action the caller names, `CALL_GM_WHAT` by default, read through `requestLabel`, the reason the literal noGm); a call on the GM with no GM connected, kept as a notDone entry: read, these words and no others (R297; E18 C0)"],
+            ["NOTDONE gm-bridge.mjs#promptAndCallGm", "composed on this client from closed lists (`sayNotDone`: the action the caller names, `CALL_GM_WHAT` by default, read through `requestLabel`, the reason the literal noGm); a call on the GM with no GM connected, kept as a notDone entry: read, these words and no others (R297; E18 C0)"],
             ["NOTDONE monocub.mjs#performCubAbility", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE trial-floor.mjs#advanceFloorNow", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE vote.mjs#sendBallot", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
@@ -13546,6 +13550,128 @@ const REGRESSIONS = [
         }
         equal(JSON.stringify(measured), JSON.stringify(expected),
             "[per language - the GM's handbook's line on the setting says when the look is fixed; the hint says the same; the hint names no primary GM]");
+    }],
+
+    ["R836 - every request the module names has its label in en and pl: each packet gm-bridge.mjs and bridge-guards.mjs name, and the call on the GM a player is told was not carried out (E18; S10-68)", async () => {
+        /*
+         * E18 C0, 19.10.2026; audit S10-68. `requestLabel` (bridge-guards.mjs) names a request by its
+         * `DRPG.Bridge.what.<action>`, and one the language files lack is said as an unnamed request. R1b holds the rows of
+         * the bridge's tables to their labels; the packets outside the tables were held by nothing, and at c02bdd5 five had
+         * no label in either language (advancement.offers, bridge.done, bridge.gmReady, murder.openingAsk,
+         * murder.openingCancel). From C0 `callGm` and `promptAndCallGm` refuse with no GM connected and name what was not
+         * carried out by the caller's `what`, by default the one `CALL_GM_WHAT` holds. Read: every
+         * `const ACTION_<name> = "<action>"` of the two files, and callGm's default `what`, against both language files
+         * flattened as Foundry merges them (pl nests `advancement.apply`).
+         */
+        const language = async lang => {
+            const res = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`);
+            ok(res.ok, `${lang}.json: HTTP ${res.status}`);
+            const flat = (o, p = "") => Object.entries(o ?? {}).flatMap(([k, v]) =>
+                typeof v === "object" && v !== null ? flat(v, p ? `${p}.${k}` : k) : [p ? `${p}.${k}` : k]);
+            return new Set(flat(foundry.utils.expandObject(await res.json())));
+        };
+        const keys = { en: await language("en"), pl: await language("pl") };
+        const sources = new Map(await otherSources());
+        const actions = [], problems = [];
+        for (const file of ["gm-bridge.mjs", "bridge-guards.mjs"]) {
+            const text = stripComments(sources.get(file) ?? "");
+            ok(text.length > 10000, `${file} did not load - this would measure nothing`);
+            for (const m of text.matchAll(/\bconst ACTION_\w+ = "([\w.]+)";/g)) actions.push(`${file} ${m[1]}`);
+        }
+        ok(actions.length >= 40, `the reader found ${actions.length} packet name(s) in the two files - it reads the wrong thing`);
+        const bridge = stripComments(sources.get("gm-bridge.mjs") ?? "");
+        const fallback = /\bwhat = ([A-Z_]+|"[\w.]+")/.exec(fnSource(bridge, "callGm"))?.[1] ?? null;
+        const named = fallback?.startsWith('"') ? fallback.slice(1, -1)
+            : fallback ? new RegExp(`\\bconst ${fallback} = "([\\w.]+)";`).exec(bridge)?.[1] ?? null : null;
+        if (named) actions.push(`gm-bridge.mjs callGm ${named}`);
+        else problems.push("callGm names no request by default for a call it does not carry out");
+        for (const entry of actions) {
+            const action = entry.split(" ").pop();
+            for (const lang of ["en", "pl"]) if (!keys[lang].has(`DRPG.Bridge.what.${action}`)) problems.push(`${entry}: DRPG.Bridge.what.${action} is missing in ${lang}.json`);
+        }
+        equal(JSON.stringify(problems), JSON.stringify([]), "a request the module names has no label, so a player is told of an unnamed request");
+    }],
+
+    ["R837 - every call on the GM has a census row: a player's reads its answer and, where it took a price, hands it back; a GM's runs where a GM is connected (E18; S10-26)", async () => {
+        /*
+         * E18 C0, 19.10.2026; audit S10-26. Until C0 `callGm` posted with no GM connected and answered true: a player's
+         * Search for something specific, an Observe the GM rules or a proposal said "sent", and the card waited for a GM
+         * who, back, found its words were never sent to them. From C0 `callGm` answers false with no GM connected and
+         * says so once (`sayNotDone`, "noGm"), and `promptAndCallGm` before its window opens. A false is the caller's to
+         * read: this census holds every call of the two, keyed by the top-level declaration it stands in ("(2)" for a
+         * second call there), to a row. A "player" row's call is assigned to a name, the declaration tests that name for
+         * false or null, and where the row names a refund that call stands within 400 characters after the test. A "gm"
+         * row says where it runs: on a GM's browser `gmOnline` counts that GM, so the call is never refused for want of
+         * one. Read on every module file with comments and literals blanked; a planted source is read first.
+         */
+        const CALL_CENSUS = [
+            ["action-rolls.mjs#searchSpecific", "player", "abort(", "a Search for something specific, after the dice: the action's price comes back (`abort`), and the roll is noted as no search made"],
+            ["action-rolls.mjs#startProject", "player", null, "a project proposal: nothing is spent before it, and null is no proposal - no 'sent' line follows"],
+            ["action-rolls.mjs#ruleObserve", "player", "abort(", "an Observe the GM rules, after the dice: the action's price comes back (`abort`)"],
+            ["action-rolls.mjs#askForHint", "player", "refundPrice(", "an Analyze hint, after the dice: the step that paid comes back (`refundPrice`)"],
+            ["action-rolls.mjs#performDynamic", "player", null, "a Dynamic action's description: nothing is spent before the GM sets the difficulty, and null ends the action"],
+            ["use-items.mjs#useCreatively", "player", null, "a Tier 0 item's creative use: the item is spent only on the GM's ruling, and null ends the use"],
+            ["gm-bridge.mjs#promptAndCallGm", "player", null, "the window's words handed to `callGm`: its false is answered as null, which each caller above reads"],
+            ["analyze.mjs#identify", "gm", null, "`resolveAnalyze` runs on a GM: the run of `analyze.resolve`, or a GM's own (`local`)"],
+            ["cleanup.mjs#proposeReshape", "gm", null, "`resolveCleanup` runs on a GM: the run of `murder.cleanup`, or a GM's own (`local`); its false is read"],
+            ["eclipse.mjs#askGmToAllow", "gm", null, "`writeParkedMurder` runs on a GM: the run of `murder.park`, or a GM's own (`local`)"],
+            ["projects.mjs#announceTrapReady", "gm", null, "`addProgress` asks a GM on a player's browser and runs this on a GM's"],
+            ["projects.mjs#announceTrapReady (2)", "gm", null, "the same, the manual trap's card"],
+            ["reroll.mjs#settleGmRuling", "gm", null, "a Reroll is replayed on a GM (`rerollOnGm`)"],
+            ["traps.mjs#alert", "gm", null, "the trap relay's alert, on a GM"],
+            ["gm-bridge.mjs#askHopeCallByCard", "gm", null, "the run of `call.approve`, on the primary GM"],
+            ["gm-bridge.mjs#askDynamicByCard", "gm", null, "the run of `dynamic.difficulty`, on the primary GM"],
+            ["gm-bridge.mjs#askTraitByCard", "gm", null, "the run of `trait.ruling`, on the primary GM"],
+            ["gm-bridge.mjs#askObserveByCard", "gm", null, "observe.mjs `chooseObserveTarget`, on a GM"]
+        ];
+        const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(?:const|let|var)\s+([\w$]+))?/gm;
+        const readCalls = sources => {
+            const found = [];
+            const sites = new Map();
+            for (const [file, raw] of sources) {
+                if (!file.endsWith(".mjs")) continue;
+                const code = blankComments(raw), blank = blankLiterals(code);
+                const tops = [...blank.matchAll(TOP)].map(m => ({ at: m.index, name: m[1] ?? m[2] ?? m[3] ?? null }));
+                for (const m of blank.matchAll(/\b(?:callGm|promptAndCallGm)\s*\(/g)) {
+                    if (/\bfunction\s*$/.test(blank.slice(Math.max(0, m.index - 24), m.index))) continue;
+                    const i = tops.findLastIndex(t => t.at <= m.index);
+                    const top = tops[i], end = tops[i + 1]?.at ?? blank.length;
+                    const key = `${file}#${top?.name ?? "(top level)"}`;
+                    const n = (sites.get(key) ?? 0) + 1;
+                    sites.set(key, n);
+                    const { close } = callArgs(blank, m.index + m[0].length - 1);
+                    const name = /(?:const|let)\s+(\w+)\s*=\s*await\s+(?:callGm|promptAndCallGm)\s*\(/.exec(lineAround(blank, m.index))?.[1] ?? null;
+                    const after = blank.slice(close, end);
+                    const test = name ? new RegExp(`!\\s*\\(?\\s*${name}\\b|\\b${name}\\s*===?\\s*(?:null|false)\\b`).exec(after) : null;
+                    found.push({ key: n === 1 ? key : `${key} (${n})`, name, read: Boolean(test), branch: test ? after.slice(test.index, test.index + 400) : "" });
+                }
+            }
+            return found;
+        };
+        const PLANT = "export async function callGm(actor) {\n    return true;\n}\nasync function asks(actor) {\n    const sent = await callGm(actor, { title: \"callGm(\" });\n"
+            + "    if (!sent) return abort(actor, paid);\n    await callGm(actor, {});\n}\n// callGm(a comment);\nasync function relays(actor) {\n"
+            + "    const text = await promptAndCallGm(actor, {});\n    if (text === null) return null;\n}\n";
+        const planted = readCalls([["planted.mjs", PLANT]]).map(({ key, name, read, branch }) => [key, name, read, branch.includes("abort(")]);
+        equal(JSON.stringify(planted), JSON.stringify([["planted.mjs#asks", "sent", true, true], ["planted.mjs#asks (2)", null, false, false],
+            ["planted.mjs#relays", "text", true, false]]),
+            "the census reader does not read the planted calls as planted - the live census below would measure the wrong calls");
+
+        const found = readCalls(await otherSources());
+        log(`R837: ${found.length} call(s) of callGm and promptAndCallGm against ${CALL_CENSUS.length} row(s)`);
+        const rows = new Map(CALL_CENSUS.map(([key, side, back]) => [key, { side, back }]));
+        const seen = new Set(found.map(f => f.key));
+        const problems = [
+            ...found.filter(f => !rows.has(f.key)).map(f => `${f.key}: a call with no census row`),
+            ...CALL_CENSUS.filter(([key]) => !seen.has(key)).map(([key]) => `${key}: a row whose call is gone`)
+        ];
+        for (const f of found) {
+            const row = rows.get(f.key);
+            if (row?.side !== "player") continue;
+            if (!f.read) problems.push(`${f.key}: a player's call whose answer is never tested for false or null`);
+            else if (row.back && !f.branch.includes(row.back)) problems.push(`${f.key}: a player's refused call does not hand back what it took (${row.back.slice(0, -1)})`);
+        }
+        equal(JSON.stringify(problems), JSON.stringify([]),
+            "a call on the GM with no census row, a row whose call is gone, or a player's call that does not read its answer or hand back its price");
     }]
 ];
 

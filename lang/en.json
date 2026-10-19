@@ -2944,10 +2944,19 @@
         "trial.object": "Raise an Objection",
         "trial.evidence": "Put your Truth Bullet on the Objection",
         "trial.withdraw": "Withdraw your Objection",
-        "floor.repoint": "Re-point the Objection"
+        "floor.repoint": "Re-point the Objection",
+        "advancement.offers": "Level Up offers to choose from",
+        "murder.openingAsk": "Your opening roll",
+        "murder.openingCancel": "The opening roll called off",
+        "bridge.done": "A GM's answer to your request",
+        "bridge.gmReady": "A GM back at the table",
+        "gm.call": "A question to the GM",
+        "bridge.refused": "A GM's refusal of your request",
+        "bridge.ack": "A GM's word that your request arrived"
       },
       "notDone": "“{what}” was not carried out. {why}",
       "nothingSpent": "Nothing was spent.",
+      "emptyRequest": "Nothing was sent - write your request first.",
       "why": {
         "unknownSender": "The GM's client does not see you as connected. Reload and try again.",
         "notYours": "It names a character you do not play.",

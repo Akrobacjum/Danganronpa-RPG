@@ -24,8 +24,9 @@
  *      refusal the player hears; a GM who is connected and silent is reported when the
  *      acknowledgement does not come; the trap relay reaches the GMs only; a refused search is told
  *      once.
- *   C  with no GM connected, three requests settle at once, send nothing and say the same thing; and
- *      a pre-session note, which is kept on the player's browser until a GM connects (E05).
+ *   C  with no GM connected, three requests settle at once, send nothing and say the same thing; a
+ *      call on the GM and its request window do the same and post no card (E18 C0); and a
+ *      pre-session note, which is kept on the player's browser until a GM connects (E05).
  *   D  no exception escaped into Foundry on any client (until E31's runner, the two B injects were excused).
  * The two exceptions are injected through world objects the handlers write - Aiko's token's
  * `update` for the send-back, `game.settings.set` for the sabotage - so the same injection works
@@ -1120,6 +1121,18 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     check("C: with no GM connected, p1's Resolve on its own character settles at once, sends nothing, arms and pays nothing, and says there is no GM",
         c5.answer === null && c5.ms < 1000 && c5.sent === 0 && c5After.hope === 3 && c5After.resolve === false
         && c5.said.some(m => m.includes(c5.label) && m.includes(c5After.noGm)), JSON.stringify({ c5, c5After }), { flow: "call-arm" });
+    /* E18 C0 (19.10.2026; audit S10-26, E18-01): a call on the GM from p1's browser with no GM connected settles at once,
+       posts and sends nothing, and says once that no GM is connected; the window a request is typed in does not open. Until
+       C0 `callGm` posted the card and answered true, and the window opened. */
+    const callsFrom = opLog.length;
+    const c6 = await offline("gm.call", `${bridge}.callGm(game.actors.get("${IDS.aiko}"), { title: "E18 C0 no GM", request: "E18 C0" })`);
+    const c7 = await offline("gm.call", `${bridge}.promptAndCallGm(game.actors.get("${IDS.aiko}"), { title: "E18 C0 no GM", prompt: "E18 C0" })`);
+    const c67 = { posted: opLog.slice(callsFrom).filter(w => w.coll === "ChatMessage").length,
+        noGm: await p1.eval(`return game.i18n.localize("DRPG.Bridge.why.noGm");`) };
+    check("C: with no GM connected, p1's call on the GM and its request window settle at once, post and send nothing, and each says once that no GM is connected",
+        c6.answer === false && c7.answer === null && c67.posted === 0
+        && [c6, c7].every(c => c.ms < 1000 && c.sent === 0 && c.said.length === 1 && c.said[0].includes(c.label) && c.said[0].includes(c67.noGm)),
+        JSON.stringify({ c6, c7, c67 }));
     const sentence = [c1, c2, c3].map(c => (c.said[0] ?? "").split(c.label).join("{what}"));
     check("C: the three say the same sentence apart from what they name", sentence.every(s => s && s === sentence[0]), JSON.stringify(sentence));
 

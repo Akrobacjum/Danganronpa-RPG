@@ -19114,6 +19114,83 @@ const INVARIANTS = [
         "[rows whose three buttons are icons with a tooltip and an aria-label, in the file's cell]; [no empty heading]; [each group's count]; "
             + "[the varies legend before the table]; [DRPG.Sound.autosave before the table]; [wireSoundPanel updates the group counts]");
     }],
+    ["R838 - a request to the GM is the words typed: `cancel` typed is sent, Cancel and a closed window send nothing, an empty one is asked again where the caller needs words (Dynamic, a Tier 0 item), and the card's body is one div.drpg-call-body; the GM's Reply takes `cancel` as words too (E18; S10-52, S11-60)", async () => {
+        /*
+         * E18 C0, 19.10.2026; audits S10-52 and S11-60. The window `promptAndCallGm` opened answered the typed text, and
+         * the text was then compared with the Cancel button's action, so a player who typed only "cancel" sent nothing and
+         * was told nothing; Enter on an empty box sent a Dynamic action with no words to price; and `callGm` wrapped the
+         * caller's `body` in a `<p>`, so a body of paragraphs (Hope Call's) parsed into empty ones around them. The GM's
+         * Reply on a ruling card (messenger-app.mjs `ruleReply`) compared its text with "cancel" the same way. From C0 the
+         * window's Send answers `{ text }` (`askForRequest`), an empty request is asked again where the caller says it
+         * needs words (`required`), and the body is a `div.drpg-call-body` (`callCardHtml`). Measured on this browser with
+         * DialogV2.wait answered here and the toasts caught, both put back; nothing is posted.
+         */
+        const B = await import("./gm-bridge.mjs");
+        ok(typeof B.askForRequest === "function" && typeof B.callCardHtml === "function",
+            "gm-bridge.mjs gives no window for a request's words (`askForRequest`) or no builder of a ruling card (`callCardHtml`)");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const warn = ui.notifications.warn;
+        let answers = [], windows = 0, warned = 0;
+        const measured = [];
+        try {
+            D.wait = async cfg => {
+                windows++;
+                // `dialogContent` hands the window an element, a caller's own markup a string.
+                const root = cfg?.content instanceof HTMLElement ? cfg.content : document.createElement("div");
+                if (!(cfg?.content instanceof HTMLElement)) root.innerHTML = String(cfg?.content ?? "");
+                const next = answers.shift() ?? { close: true };
+                if (next.close) return null;
+                const field = root.querySelector("[name=request]");
+                if (field) field.value = next.text ?? "";
+                const button = (cfg?.buttons ?? []).find(b => b.action === next.press);
+                return button?.callback ? button.callback(null, null, { element: root }) : button?.action ?? null;
+            };
+            ui.notifications.warn = () => { warned++; };
+            const CASES = [
+                ["`cancel` typed", false, [{ press: "send", text: "cancel" }]],
+                ["Cancel pressed", false, [{ press: "cancel" }]],
+                ["the window closed", false, [{ close: true }]],
+                ["nothing typed, words not needed", false, [{ press: "send", text: "  " }]],
+                ["nothing typed, then words", true, [{ press: "send", text: "" }, { press: "send", text: "I climb the fence" }]],
+                ["nothing typed, then Cancel", true, [{ press: "send", text: " " }, { press: "cancel" }]]
+            ];
+            for (const [what, required, list] of CASES) {
+                answers = [...list];
+                windows = 0;
+                warned = 0;
+                const text = await B.askForRequest({ title: "R838", prompt: "R838 prompt", required });
+                measured.push([what, text, windows, warned]);
+            }
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own);
+            else delete D.wait;
+            ui.notifications.warn = warn;
+        }
+        equal(JSON.stringify(measured), JSON.stringify([
+            ["`cancel` typed", "cancel", 1, 0], ["Cancel pressed", null, 1, 0], ["the window closed", null, 1, 0],
+            ["nothing typed, words not needed", "", 1, 0], ["nothing typed, then words", "I climb the fence", 2, 1],
+            ["nothing typed, then Cancel", null, 2, 1]]),
+            "[case, what the window answered, windows opened, warnings said]");
+
+        const card = document.createElement("template");
+        card.innerHTML = B.callCardHtml({ name: "R838 Student" }, { title: "R838", request: "cancel", body: "<p>R838 one</p><p>R838 two</p>" });
+        const bodies = card.content.querySelectorAll("div.drpg-call-body");
+        equal(JSON.stringify([bodies.length, bodies[0]?.querySelectorAll(":scope > p").length ?? 0, card.content.querySelectorAll("p:empty").length,
+            card.content.querySelector("blockquote")?.textContent ?? null]),
+            JSON.stringify([1, 2, 0, "cancel"]), "[div.drpg-call-body on the card, its paragraphs, empty paragraphs, the quoted request]");
+
+        const sources = await moduleSources();
+        const needsWords = {};
+        for (const [file, fn] of [["action-rolls.mjs", "performDynamic"], ["use-items.mjs", "useCreatively"]]) {
+            const call = bodyOf(fnSource(stripComments(sources.get(file) ?? ""), fn), "promptAndCallGm(", { until: "\n    });" });
+            needsWords[fn] = /\brequired: true\b/.test(call);
+        }
+        const reply = fnSource(stripComments(sources.get("messenger-app.mjs") ?? ""), "ruleReply");
+        equal(JSON.stringify([needsWords, /===\s*"cancel"/.test(reply), /callback: [^\n]*=> \(\{ text: /.test(reply)]),
+            JSON.stringify([{ performDynamic: true, useCreatively: true }, false, true]),
+            "[Dynamic and a Tier 0 item's use ask for words (`required: true`); the GM's Reply compares its text with \"cancel\"; its Send answers { text }]");
+    }],
 ];
 
 /**
