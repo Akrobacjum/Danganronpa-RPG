@@ -655,10 +655,11 @@ async function handleFindStash(payload, sender, ctx) {
         isCritical: payload.isCritical
     });
     // The GMs' fact on the roll the packet names (E80 C4, S16-19): it was a Find Stash, and whether it opened one. Its
-    // Reroll replays the search from these (reroll.mjs `settleStashFind`), never from the roller's word.
+    // Reroll replays the search from these (reroll.mjs `settleStashFind`), never from the roller's word - in the place
+    // this search was made (`findPlace`, E80 fix r1-G4; the review's E80-G-1), never where the student stands by then.
     const rolls = await import("./action-rolls.mjs");
     await rolls.noteFactOn(rolls.rollOfFact({ rollId: payload.rollId ?? null, by: sender?.id ?? null, actorId: payload.actorId,
-        actions: ["analyze"] }), { findStash: true, stashFound: Boolean(out?.found) });
+        actions: ["analyze"] }), { findStash: true, stashFound: Boolean(out?.found), ...(out?.place ? { findPlace: out.place } : {}) });
 }
 
     // And out of their pockets. Same reasoning as the stash below, plus one

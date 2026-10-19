@@ -53234,6 +53234,94 @@ const SCENARIOS = [
             "[each step, the Reroll stood, Botan's cell, the cell the Reroll's roll's, its lines say a find] - a Find Passage's Reroll searched where Botan stands at the Reroll, not where the roll was thrown (E80-C3-2)");
     }],
 
+    ["A10-7 stash where it was thrown - a Find Stash's Reroll searches the room its roll was thrown in, and only while the GMs still read the student there: a miss in an empty room rerolled after a walk into a room with a hidden stash, and a miss by the stash rerolled after a walk away, are given back whole with nothing opened; a miss by the stash rerolled where it was thrown opens it", async () => {
+        /*
+         * E80 fix r1-G4 (19.10.2026; the review's E80-G-1 = E80-COR-2, P1-16). The replay (reroll.mjs `settleStashFind`)
+         * searched where the character stood at the Reroll (vault.mjs `resolveStashSearch`, `locateActor` now): a miss in
+         * an empty room, rerolled after a walk into another student's bedroom, opened the stash hidden there, where no
+         * Analyze was paid or thrown and no stash-hunt trap was told, and a miss by the stash rerolled after a walk away
+         * searched the other room. The first search now keeps where it searched with the GMs' facts on its roll (gm-bridge.mjs
+         * `handleFindStash`, `findPlace`), and the replay searches there only while the GMs still read the student there
+         * (movement.mjs `gmPlaceOf`), else answers noRoom and the Reroll is given back. Driven as "A10-7 Reroll where it was
+         * thrown": a student of the suite's own owned by a connected player, and another whose stash is hidden in a Dorm, in a
+         * GM-store world of the suite's own (`withGmStoreWorld`), on a scene of the suite's own with a Cafeteria beside the
+         * Dorm. Each roll kept as that player's with the GMs' record of it at 12 (`playerRollBookmark`), its `vault.findStash`
+         * judged as the bridge judges that player's packet, the token then moved by this GM (a GM's move stands lawful), then
+         * a Reroll made on this GM (`rerollAgain`, 12 into 17). Read: the Reroll stood, the stash opened to the student, the
+         * Reroll's lines say it. Red at c8a2b38: the Cafeteria's miss opened the Dorm's stash, and the Dorm's miss rerolled in
+         * the Cafeteria stood and searched there.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter"), "a connected player whose roll the Reroll takes back");
+        const V = await import("./vault.mjs");
+        const R = await import("./rooms.mjs");
+        const E = await import("./gm-store.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const [thrower] = game.users.filter(u => !u.isGM && u.active);
+        must(thrower, "no connected player is here - this would measure nothing");
+        must((ACTIONS.analyze?.stashThreshold ?? 16) === 16, "the stash's threshold is not 16 - 12 and 17 would not straddle it");
+        const DORM = "SUITE E80 G4 Dorm", CAFE = "SUITE E80 G4 Cafeteria", mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
+        const room = (name, x) => ({ name, shapes: [{ type: "rectangle", x, y: 0, width: 600, height: 600 }], flags: mark, behaviors: [] });
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const IN_DORM = { x: 200, y: 200 }, IN_CAFE = { x: 800, y: 200 };
+        let scene = null, hana = null, botan = null, F = null, read = null;
+        try {
+            scene = await Scene.create({ name: "SUITE E80 G4 a stash", width: 1400, height: 800, grid: { size: 100 }, active: false, navigation: false });
+            const [dorm] = await scene.createEmbeddedDocuments("Region", [room(DORM, 0), room(CAFE, 600)]);
+            read = await E.withGmStoreWorld(`suite-e80-g4-${foundry.utils.randomID(8)}`, async () => {
+                const OWNER = CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
+                const sheet = { resources: { hope: { value: 6, max: 6 }, stress: { value: 0, max: 6 }, hitPoints: { value: 0, max: 6 }, actions: { value: 3, max: 3 } },
+                    traits: { agility: { value: 1 }, strength: { value: 0 }, finesse: { value: 1 }, instinct: { value: 0 }, presence: { value: 1 }, knowledge: { value: 0 } } };
+                hana = await Actor.create({ name: "SUITE E80 G4 Hana", type: "character", ownership: { default: 0, [thrower.id]: OWNER }, system: sheet });
+                botan = await Actor.create({ name: "SUITE E80 G4 Botan", type: "character", ownership: { default: 0 }, system: sheet });
+                await dorm.update({ [`flags.${MODULE_ID}.${V.VAULT_FLAGS.stashes}`]: [{ actorId: botan.id, concealed: true }] });
+                const [token] = await scene.createEmbeddedDocuments("Token", [{ actorId: hana.id, actorLink: true, name: hana.name, ...IN_CAFE, width: 1, height: 1 }]);
+                await settle();
+                const opened = () => V.hasFoundStash(hana, DORM, botan.id, scene);
+                const { meansHeld } = await import("./sheet-audit.mjs");
+                const steps = [];
+                // [what, where the roll is thrown, where Hana is moved before its Reroll]
+                for (const [what, from, to] of [["a miss in the Cafeteria, rerolled in the Dorm", IN_CAFE, IN_DORM],
+                    ["a miss in the Dorm, rerolled in the Cafeteria", IN_DORM, IN_CAFE],
+                    ["a miss in the Dorm, rerolled in the Dorm", IN_DORM, IN_DORM]]) {
+                    await token.update(from, PLACE);
+                    await settle();
+                    if (hana.system.resources.hope.value < 3) await trustedWrite(hana, { "system.resources.hope.value": 6 }, { reason: "gmRuling" });
+                    F = await playerRollBookmark(thrower, hana, "analyze", {}, { record: { total: 12 } });
+                    const asked = await F.ask({ action: "vault.findStash", requestId: `E80G4${foundry.utils.randomID(8)}`, actorId: hana.id,
+                        total: 12, isCritical: false, rollId: F.message.id });
+                    await settle();
+                    must(asked && !opened() && F.row()?.facts?.findStash === true,
+                        `the first search at 12 was refused, opened the stash, or left no fact for its Reroll - this would measure nothing: ${stableJson([asked, F.sent, F.row()])}`);
+                    if (to !== from) await token.update(to, PLACE);
+                    await settle();
+                    must(token.x === to.x && token.y === to.y, "this GM's move of the token did not land - this would measure nothing");
+                    must(meansHeld(hana).hope >= 3, `the GMs hold ${meansHeld(hana).hope} of Hana's Hope - the Reroll could not be bought, and this would measure nothing`);
+                    const { out } = await rerollAgain(hana, F.message, { hope: 7, fear: 5 }, { hope: 10, fear: 7 });
+                    steps.push([what, Array.isArray(out?.lines), opened(),
+                        Array.isArray(out?.lines) && out.lines.includes(game.i18n.localize("DRPG.Reroll.stashFound"))]);
+                    if (hana.getFlag(MODULE_ID, V.VAULT_FLAGS.found) !== undefined) await hana.unsetFlag(MODULE_ID, V.VAULT_FLAGS.found);
+                    await F.putBack();
+                    F = null;
+                }
+                await hana.delete();
+                await botan.delete();
+                hana = botan = null;
+                return { steps };
+            });
+        } finally {
+            await F?.putBack();
+            if (hana) await hana.delete().catch(() => {});
+            if (botan) await botan.delete().catch(() => {});
+            await scene?.delete();
+            await settle();
+        }
+        equal(stableJson(read.steps), stableJson([["a miss in the Cafeteria, rerolled in the Dorm", false, false, false],
+            ["a miss in the Dorm, rerolled in the Cafeteria", false, false, false],
+            ["a miss in the Dorm, rerolled in the Dorm", true, true, true]]),
+            "[each step, the Reroll stood, the Dorm's stash opened to Hana, its lines say so] - a Find Stash's Reroll searched where Hana stands at the Reroll, not where the roll was thrown (E80-G-1)");
+    }],
+
     ["A10-18 - 'Go through' a tunnel is carried out on the primary GM at a door's price: the token lands by the far end with teleport, displace and no animation, the crossing is told to the traps, a crossing back pays again; a lock, a seal, the chain, the courtroom, no budget and a spent Eclipse refuse it in the doors' words with nothing written, paid or warned on the GM, as does a tunnel the character does not know; the Mastermind passes the lock, anybody another's bedroom; an Eclipse counts one crossing and costs nothing else; a write that fails gives back exactly what it took; a token the GMs are putting back, one they hold as standing where the rules refuse and one moved while the price is taken stand at no end", async () => {
         /*
          * E80 C2 (18.10.2026; P1-05 to P1-08, the stage's write roads "token x, y, level" and "price"). The harms: a

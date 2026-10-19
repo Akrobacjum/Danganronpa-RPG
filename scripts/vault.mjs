@@ -2071,24 +2071,45 @@ export function stashesFoundBy(actor) {
  * this GM reads the finder in - a non-primary GM's own search relays it to the primary
  * as a GM's report (traps.mjs). A Reroll's replay (`replay`, reroll.mjs
  * `settleStashFind`) is the same attempt, and no second hunt. `hunted` is the suite's.
+ *
+ * THE REPLAY SEARCHES WHERE THE ROLL WAS THROWN (E80 fix r1-G4, 19.10.2026; the review's
+ * E80-G-1 = E80-COR-2). Every first search answers where it searched (`place`: scene, room
+ * and floor ids), which the GMs keep with their facts on its roll (`findPlace`: gm-bridge.mjs
+ * `handleFindStash`, a GM's own action-rolls.mjs `locateStash`). A replay handed that place
+ * (`at`) searches it only while the GMs still read the character there (movement.mjs
+ * `gmPlaceOf`), and answers noRoom otherwise - and for `at` null, a row written before the
+ * place was kept - so its Reroll is given back whole. Until then it searched wherever the
+ * character stood at the Reroll: a miss in an empty room, rerolled after a walk into another
+ * student's bedroom, opened the stash hidden there, where no Analyze was paid or thrown and
+ * no trap watching for a hunt was told.
  */
-export async function resolveStashSearch({ actorId, total = 0, isCritical = false, replay = false } = {},
+export async function resolveStashSearch({ actorId, total = 0, isCritical = false, replay = false, at = undefined } = {},
     { hunted = event => Hooks.callAll("drpgStashHunted", event) } = {}) {
     if (!game.user.isGM) return null;
 
     const actor = game.actors.get(actorId);
     if (!actor) return null;
 
-    const { locateActor } = await import("./movement.mjs");
-    const where = locateActor(actor);
+    const { locateActor, gmPlaceOf } = await import("./movement.mjs");
+    const floor = level => level?.id ?? level ?? null;
+    let where = null;
+    if (replay && at !== undefined) {
+        const held = at && typeof at.sceneId === "string" && at.sceneId && typeof at.room === "string" && at.room ? at : null;
+        const now = held ? gmPlaceOf(actor, { sceneId: held.sceneId }) : null;
+        const still = Boolean(now?.room) && now.scene?.id === held.sceneId && now.room === held.room
+            && floor(now.level) === (typeof held.level === "string" ? held.level : null);
+        if (!still) return { found: false, reason: "noRoom" };
+        where = now;
+    } else where = locateActor(actor);
     if (!where?.room) return { found: false, reason: "noRoom" };
+    const place = { sceneId: where.scene?.id ?? null, room: where.room, level: floor(where.level) };
 
     if (!replay) hunted({ actor, room: where.room });
 
     const beat = Boolean(isCritical) || Number(total) >= (ACTIONS.analyze?.stashThreshold ?? 16);
     if (!beat) {
         await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Analyze.stashNothing")}</p>`);
-        return { found: false, reason: "missed" };
+        return { found: false, reason: "missed", place };
     }
 
     // Yours is not a discovery, and one already found is not a second one.
@@ -2106,7 +2127,7 @@ export async function resolveStashSearch({ actorId, total = 0, isCritical = fals
 
     if (!target) {
         await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Analyze.stashNothing")}</p>`);
-        return { found: false, reason: "none" };
+        return { found: false, reason: "none", place };
     }
 
     const found = stashesFoundBy(actor);
@@ -2132,7 +2153,7 @@ export async function resolveStashSearch({ actorId, total = 0, isCritical = fals
     })}</p>`);
 
     log(`${actor.name} found ${target.owner.name}'s hidden stash in ${where.room} (rolled ${total}).`);
-    return { found: true, owner: target.owner.name, room: where.room };
+    return { found: true, owner: target.owner.name, room: where.room, place };
 }
 
 /* ==========================================================================
