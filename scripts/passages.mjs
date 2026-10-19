@@ -23,7 +23,7 @@
 import { MODULE_ID, FLAGS } from "./config.mjs";
 import { primaryGmId, warn, error } from "./utils.mjs";
 import { passageCopy, passageMapStore, passageAccessStore } from "./gm-stores.mjs";
-import { levelOf } from "./rooms.mjs";
+import { levelOf, viewedScene, viewedLevel } from "./rooms.mjs";
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 const isPlain = o => o !== null && typeof o === "object" && !Array.isArray(o);
@@ -189,6 +189,50 @@ export function passagesKnownBy(actor, { mastermind = false, known = knownPassag
         if (seg) out.push({ id, sceneId: row.sceneId, level: row.level ?? null, x1: seg.x1, y1: seg.y1, x2: seg.x2, y2: seg.y2 });
     }
     return out;
+}
+
+/**
+ * Where a passage is shown for a camera on floor `level` of its scene (null: not on its scene, or no floor),
+ * `{ sceneId, level, x, y }`, or null: a tunnel's end on that floor (one on no floor in particular is on each),
+ * else its first end; a stretch's middle, on its own floor. `passage` is a row as `passagesKnownBy` answers it
+ * (`ends`, or `x1`..`y2` and `level`). Pure; `viewPassage` moves the camera there (E80 fix r1-G2).
+ */
+export function passageSpot(passage, level = null) {
+    const sceneId = typeof passage?.sceneId === "string" ? passage.sceneId : null;
+    if (!sceneId) return null;
+    const ends = endsOf(passage);
+    if (ends) {
+        const here = level === null ? null : ends.find(end => end.level === level) ?? ends.find(end => end.level === null) ?? null;
+        const end = here ?? ends[0];
+        return { sceneId, level: end.level, x: end.x, y: end.y };
+    }
+    const xy = [passage.x1, passage.y1, passage.x2, passage.y2].map(Number);
+    if (!xy.every(Number.isFinite)) return null;
+    return { sceneId, level: typeof passage.level === "string" && passage.level ? passage.level : null, x: (xy[0] + xy[2]) / 2, y: (xy[1] + xy[3]) / 2 };
+}
+
+/**
+ * This browser's camera to a passage (E80 fix r1-G2; the review's E80-C1-01): the tab's Show (passages-tab.mjs
+ * `showPassage`) and the sheet's 'Known passages' click (sheet.mjs `panToPassage`). `spotOf(level)` answers where
+ * the passage is shown for a camera on that floor (`passageSpot`, or passages-gm.mjs `passageMiddle` for the GMs'
+ * row): asked first with no floor, for the scene, then - with the passage's scene on screen - with the floor on
+ * screen. The scene is viewed when another is on screen, and at the spot's floor when that is not the floor on
+ * screen, as the floor switcher views one (`scene.view({ level })`, fog.mjs); a floor the scene does not hold is not
+ * asked for. Until this fix both panned to a tunnel's first end over whatever floor was on screen, where nothing
+ * of it is drawn. Answers whether it panned. `scenes`, `onScreen`, `floor` and `pan` are the suite's (R607); it
+ * moves this canvas and decides nothing (rooms.mjs `CAMERA_READERS`).
+ */
+export async function viewPassage(spotOf, { scenes = game.scenes, onScreen = viewedScene(), floor = viewedLevel()?.id ?? viewedLevel() ?? null,
+    pan = to => canvas?.animatePan?.(to) } = {}) {
+    const first = spotOf(null);
+    const scene = first ? scenes?.get(first.sceneId) ?? null : null;
+    if (!scene) return false;
+    const here = onScreen?.id === scene.id ? floor : null;
+    const at = (here !== null ? spotOf(here) : null) ?? first;
+    const held = at.level !== null && [...(scene.levels ?? [])].some(l => (l?.id ?? l) === at.level);
+    if (onScreen?.id !== scene.id || (held && at.level !== here)) await (held ? scene.view({ level: at.level }) : scene.view());
+    await pan({ x: at.x, y: at.y });
+    return true;
 }
 
 /**

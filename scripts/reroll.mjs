@@ -324,13 +324,14 @@ const journalling = new Set();
 
 /**
  * The GMs' row as the replays read a bookmark: the roller's claims, with the GM's facts
- * over them, and the roll's own fields. Exported for the suite.
+ * over them, and the roll's own fields - `by` the user who threw it, as the GMs wrote it
+ * (never a claim: it is set after them). Exported for the suite.
  */
 export function replayBookmark(row) {
     if (!row) return null;
     return {
         room: row.room ?? null, ...(row.claims ?? {}), ...(row.facts ?? {}),
-        messageId: row.messageId ?? null, actionKey: row.actionKey ?? null, trait: row.trait ?? null,
+        messageId: row.messageId ?? null, actionKey: row.actionKey ?? null, trait: row.trait ?? null, by: row.by ?? null,
         experiences: Array.isArray(row.experiences) ? [...row.experiences] : [],
         total: row.total ?? null, withFear: Boolean(row.withFear), isCritical: Boolean(row.isCritical), at: row.at ?? null
     };
@@ -1701,11 +1702,19 @@ async function settleStashFind(actor, bookmark, after, done) {
     return out.found ? { stashFound: true } : {};
 }
 
-/** A Find Passage replayed on this primary (`settleAnalyze`): the roller's lines say what the new dice did; no card of its own. */
+/**
+ * A Find Passage replayed on this primary (`settleAnalyze`): the roller's lines say what the new dice did; no card of its own.
+ * Judged for the user who threw the roll (the GMs' row's `by`), as its first search was judged for the bridge's sender: who
+ * acts as the Mastermind through a passage is the door's reading (passages-gm.mjs `actsAsMastermind`), and until E80 fix
+ * r1-G2 (the review's E80-C3-3) this asked it of the primary GM making the Reroll, so the Mastermind's student's Reroll
+ * found nothing for an owner the door does not name, whose first throw finds - a Reroll paid for nothing, and the difference
+ * told that owner the student's role. A row with no thrower (before `by` was written) is judged for this GM, as it was.
+ */
 async function settlePassageFind(actor, bookmark, after, done) {
     const { resolvePassageSearch } = await import("./passages-gm.mjs");
+    const asker = (bookmark.by ? game.users?.get(bookmark.by) : null) ?? game.user;
     const out = await resolvePassageSearch({ actorId: actor.id, total: after.total, isCritical: after.isCritical,
-        rollId: bookmark.messageId ?? null, undo: true }, { asker: game.user });
+        rollId: bookmark.messageId ?? null, undo: true }, { asker });
     if (replayWasRefused(Boolean(out), out)) return null;
     if (out.found) done.push(game.i18n.format("DRPG.Reroll.passageFound", { to: out.to ?? "-" }));
     else if (out.kept) done.push(game.i18n.localize("DRPG.Reroll.passageStands"));

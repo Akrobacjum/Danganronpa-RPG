@@ -2411,13 +2411,17 @@ async function chargeForCrossing(actor, from, to, tokenDoc = null, previous = nu
  * move is not written (`refundCrossingOnGm`). Tier 2 "A10-18" reads each.
  */
 
-/** Take a tunnel crossing's price: `{ cost }` ("eclipse", "none", or `takeMove`'s answer), or `{ code }` refused. */
+/**
+ * Take a tunnel crossing's price: `{ cost }` ("eclipse", "none", or `takeMove`'s answer), or `{ code }` refused. An
+ * Eclipse's crossing also answers `tell`, its veiled card to the owner, which the caller posts once the token is
+ * written (E80 fix r1-G2): posted with the count, it stayed when the write failed.
+ */
 export async function settleCrossingOnGm(actor, to) {
     if (isEclipse()) {
         const { applyRecordedMove } = await import("./eclipse.mjs");
-        const out = await applyRecordedMove(actor.id, { to });
+        const out = await applyRecordedMove(actor.id, { to, card: false });
         if (!out) return { code: "cannotNow" };
-        return out.refused ? { code: "eclipseSpent" } : { cost: "eclipse" };
+        return out.refused ? { code: "eclipseSpent" } : { cost: "eclipse", tell: out.tell ?? null };
     }
     if (!game.settings.get(MODULE_ID, SETTINGS.chargeMovement)) return { cost: "none" };
     const cost = await takeMove(actor, { quiet: true });

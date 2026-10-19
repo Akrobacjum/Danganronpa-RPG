@@ -58,7 +58,7 @@ import { passageMapStore, passageAccessStore, passageLogStore, mastermindStore, 
 import { RECORD, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible } from "./gm-store.mjs";
 import { senderOf } from "./bridge-guards.mjs";
 import { isMonokuma } from "./monokuma.mjs";
-import { secretRowsFrom, studentIdsOf, sceneGone, endsOf, PASSAGE_TOLERANCE, DOOR_PART, isSecretDoor, secretDoorsOn } from "./passages.mjs";
+import { secretRowsFrom, studentIdsOf, sceneGone, endsOf, PASSAGE_TOLERANCE, DOOR_PART, isSecretDoor, secretDoorsOn, passageSpot } from "./passages.mjs";
 import { roomPieces, onLevel, floorsOf, isTrialScene, viewedScene, viewedLevel } from "./rooms.mjs";
 import { regionShapes, inFlatPolygons, distanceToSegment } from "./fog-geometry.mjs";
 import { overlayLayer, clearLayer, overlayColour, dashedLine, overlayDrawer, redrawGmOverlay } from "./gm-overlay.mjs";
@@ -930,15 +930,17 @@ export async function wallChanged(wall, { gone = false, stores = PASSAGE_STORES 
 
 /**
  * A GM: where the passage's stretch has its middle, `{ sceneId, level, x, y }`, for the tab's Show - a
- * tunnel's first end, on that end's floor (E80 C1); null for none.
+ * tunnel's end on `level`, the floor on screen, else its first end, on that end's floor (E80 C1; the end on
+ * screen since E80 fix r1-G2, passages.mjs `passageSpot`); null for none.
  */
-export function passageMiddle(passageId, { stores = PASSAGE_STORES } = {}) {
+export function passageMiddle(passageId, { stores = PASSAGE_STORES, level = null } = {}) {
     const row = game.user?.isGM ? stores.map.get(passageId) : null;
+    if (!row) return null;
     const ends = endsOf(row);
-    if (ends) return { sceneId: row.sceneId, level: ends[0].level, x: ends[0].x, y: ends[0].y };
-    const seg = row?.passageSeg;
+    if (ends) return passageSpot({ sceneId: row.sceneId, shape: "tunnel", ends }, level);
+    const seg = row.passageSeg;
     if (!seg) return null;
-    return { sceneId: row.sceneId, level: row.level ?? null, x: (seg.x1 + seg.x2) / 2, y: (seg.y1 + seg.y2) / 2 };
+    return passageSpot({ sceneId: row.sceneId, level: row.level ?? null, x1: seg.x1, y1: seg.y1, x2: seg.x2, y2: seg.y2 }, level);
 }
 
 /**
@@ -1184,7 +1186,8 @@ export function crossingWhy(code) {
  * `notAtPassage`, the price given back), the token written beside the far end (`tunnelLanding`) with
  * `teleport`, `displace` and no animation, and on a write that throws the price given back exactly
  * (`refundCrossingOnGm`). A crossing written is told as a door's is
- * (`announceCrossingOnGm`: the owner's card and the traps' `drpgRoomCrossed`). Refused, nothing is written,
+ * (`announceCrossingOnGm`: the owner's card and the traps' `drpgRoomCrossed`), and in an Eclipse by its veiled
+ * card, posted only then (`settleCrossingOnGm`'s `tell`, E80 fix r1-G2). Refused, nothing is written,
  * paid or counted, and nothing is said on the GM's screen: the bridge tells the player. `asker` is the
  * bridge's sender (the local road's own user); `stores`, `users` and `write` are the suite's (tier 2 "A10-18").
  */
@@ -1228,6 +1231,8 @@ export async function crossTunnel({ actorId, passageId } = {}, { asker = null, s
             await M.refundCrossingOnGm(actor, paid.cost).catch(back => error("Could not give a tunnel crossing's price back", back));
             return { refused: "nothing was carried out: the token could not be moved" };
         }
+        // An Eclipse's veiled card, once the token stands at the far end (E80 fix r1-G2): never for a write that failed.
+        if (paid.tell) await paid.tell().catch(err => error("Could not tell the owner of an Eclipse crossing", err));
         await M.announceCrossingOnGm(actor, verdict.from, verdict.to, token, paid.cost);
         return { crossed: true };
     });

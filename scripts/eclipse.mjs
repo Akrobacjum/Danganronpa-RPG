@@ -990,9 +990,16 @@ async function recordMove(actor, to = null) {
  * primary that came back after another GM counted crossings judged the allowance on its
  * own browser's rows and wrote a lower count over the peer's at a newer stamp.
  *
- * @returns {Promise<null|{refused: string}|{used: number, left: number|null}>}
+ * With `card: false` the card is not posted here but handed back as `tell`, for a crossing
+ * this GM has still to write (E80 fix r1-G2; the review's E80-C2-5 = E80-C3-9): a 'Go through'
+ * is counted before the primary moves the token (movement.mjs `settleCrossingOnGm`), and a
+ * card posted then stayed when the write failed and the count was taken back (`unrecordMove`),
+ * telling the owner the student had crossed into a room the token never reached. The caller
+ * calls `tell()` once the write stands (passages-gm.mjs `crossTunnel`).
+ *
+ * @returns {Promise<null|{refused: string}|{used: number, left: number|null, tell?: () => Promise<void>}>}
  */
-export async function applyRecordedMove(actorId, { to = null } = {}) {
+export async function applyRecordedMove(actorId, { to = null, card = true } = {}) {
     if (!game.user.isGM) return null;
     await eclipseMoveStore.whenHydrated();
     const actor = game.actors.get(actorId);
@@ -1009,23 +1016,27 @@ export async function applyRecordedMove(actorId, { to = null } = {}) {
     // the two crossings are worth one, and this card was the one place still counting
     // down from two - so a player was told "1 left" by the same window that had just
     // refused them.
-    const into = crossedInto(actor, to) ?? roomOfActor(actor);
-    const room = foundry.utils.escapeHTML(into ?? "-");
-    await whisperToOwnerOnly(actor, `${cardHead({ action: eclipseLabel(), room: into })}<p>${
-        allowance === null
-            ? game.i18n.format("DRPG.Eclipse.movedFree", { room })
-            : plural("DRPG.Eclipse.moved", { room, left: Math.max(0, allowance - used) }, "left")
-    }</p>`, { veiled: true });
+    const tell = async () => {
+        const into = crossedInto(actor, to) ?? roomOfActor(actor);
+        const room = foundry.utils.escapeHTML(into ?? "-");
+        await whisperToOwnerOnly(actor, `${cardHead({ action: eclipseLabel(), room: into })}<p>${
+            allowance === null
+                ? game.i18n.format("DRPG.Eclipse.movedFree", { room })
+                : plural("DRPG.Eclipse.moved", { room, left: Math.max(0, allowance - used) }, "left")
+        }</p>`, { veiled: true });
+    };
+    if (card) await tell();
 
     for (const userId of ownerIdsOf(actor)) sendMovesTo(userId);
-    return { used, left: allowance === null ? null : Math.max(0, allowance - used) };
+    const left = allowance === null ? null : Math.max(0, allowance - used);
+    return card ? { used, left } : { used, left, tell };
 }
 
 /**
  * Take one counted crossing back, GM side (E80 C2, 18.10.2026): a 'Go through' the primary counted
  * (`applyRecordedMove`, movement.mjs `settleCrossingOnGm`) and could not write, so the token never moved.
- * The owner is sent their copy again; the veiled card that crossing posted stays where it was sent, and is
- * the one thing not taken back (a gap of E80 C2). Answers whether a crossing was taken back.
+ * The owner is sent their copy again. That crossing's veiled card was never posted: it waits for the write
+ * (`applyRecordedMove`'s `card: false`, E80 fix r1-G2). Answers whether a crossing was taken back.
  */
 export async function unrecordMove(actorId) {
     if (!game.user.isGM) return false;

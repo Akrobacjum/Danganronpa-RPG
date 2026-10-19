@@ -60,7 +60,7 @@ import { roomOfActor, neighbouringRooms, othersInRoom, locateActor, sceneOfActor
     roomsKnownToMe, tunnelVerdict } from "./movement.mjs";
 // The sheet's 'Known passages' (E79 C7): this browser's passages, the Mastermind as the GMs hold it, and the
 // rooms named as Listen names them - a room this viewer has not found is "Unexplored room n".
-import { passagesKnownBy } from "./passages.mjs";
+import { passagesKnownBy, passageSpot, viewPassage } from "./passages.mjs";
 import { isMastermindActor } from "./passages-gm.mjs";
 import { listenLabels } from "./action-rolls.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
@@ -2040,16 +2040,12 @@ export function knownPassageRows(actor, { known, mastermind = false, sceneOf = i
 }
 
 /**
- * This browser's camera to a passage's middle, on its scene - viewed first when another is on screen; a
- * tunnel's first end (E80 C1), on whatever floor is on screen.
+ * This browser's camera to a passage, on its scene and floor (passages.mjs `viewPassage`, E80 fix r1-G2): a
+ * stretch's middle, or a tunnel's end on the floor on screen when it has one there, else its first end, that
+ * end's floor viewed.
  */
 async function panToPassage(passage) {
-    const scene = game.scenes?.get(passage.sceneId);
-    if (!scene) return false;
-    if (canvas?.scene?.id !== scene.id) await scene.view();
-    const end = Array.isArray(passage.ends) ? passage.ends[0] : null;
-    await canvas?.animatePan?.(end ? { x: end.x, y: end.y } : { x: (passage.x1 + passage.x2) / 2, y: (passage.y1 + passage.y2) / 2 });
-    return true;
+    return viewPassage(level => passageSpot(passage, level));
 }
 
 /** 'Show the passage': who in the room to show it to (handover.mjs `askWhoIsHere`), then the primary GM's judgement. */

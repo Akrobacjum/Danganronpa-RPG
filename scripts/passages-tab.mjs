@@ -42,6 +42,7 @@ import {
     closePassage, openPassage, deletePassage, isMastermindActor, undeliveredOf, passageMiddle, startPassagePick, passageRoomsOnMap,
     makePassagePublic, makePassageSecret
 } from "./passages-gm.mjs";
+import { viewPassage } from "./passages.mjs";
 
 const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
 const t = key => game.i18n.localize(key);
@@ -199,15 +200,12 @@ async function studentRoomOn(actorId, sceneId) {
     return place?.scene?.id === sceneId ? place.room : null;
 }
 
-/** The GM's camera to the passage's middle, on its scene (viewed first when another is on screen). */
+/**
+ * The GM's camera to the passage, on its scene and floor (passages.mjs `viewPassage`, E80 fix r1-G2): a
+ * tunnel's end on the floor on screen when it has one there, else its first end, that end's floor viewed.
+ */
 async function showPassage(passageId) {
-    const at = passageMiddle(passageId);
-    if (!at) return false;
-    const scene = game.scenes?.get(at.sceneId);
-    if (!scene) return false;
-    if (canvas?.scene?.id !== scene.id) await scene.view();
-    await canvas?.animatePan?.({ x: at.x, y: at.y });
-    return true;
+    return viewPassage(level => passageMiddle(passageId, { level }));
 }
 
 /**

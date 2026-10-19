@@ -16998,6 +16998,50 @@ const INVARIANTS = [
             J([false, false, true, true]),
             "[the roller's browser raises a stash hunt, a passage search; the GM's stash search tells the trap once the room is read and before the roll is scored; a Reroll's replay of it is one]");
     }],
+    ["R607 - Show and the sheet's pan take the camera to a passage on its floor: a tunnel's end on the floor in view, else its first end with that end's floor viewed, a stretch with its own floor viewed, and another scene viewed first; both roads go through the one function that does it", async () => {
+        /*
+         * E80 fix r1-G2, 19.10.2026 (the review's E80-C1-01 = E80-C2-6 = E80-C3-8; a C1 gap). The tab's Show
+         * (passages-tab.mjs `showPassage`, from `passageMiddle`) and the sheet's 'Known passages' click (sheet.mjs
+         * `panToPassage`) panned to a tunnel's first end on whatever floor was on screen: stairs from the Attic (L2, end 0)
+         * to the Kitchen (L1, end 1), shown by a GM viewing L1, put the camera on the Attic end's x and y over the
+         * Kitchen's floor, where nothing of the stairs is drawn. Now both ask passages.mjs `viewPassage` with what the
+         * row says (`passageMiddle` for the GMs' row, `passageSpot` for the copy's): the end on the floor in view where
+         * there is one, else the first end, and that end's floor viewed (`scene.view({ level })`, as the floor switcher
+         * views one) when it is not the floor in view. Read on plain objects: the scenes, the camera's scene and floor and
+         * the pan handed in. What v14 draws once the view has moved is LIVE-E12-02's. Red at b238929: no viewPassage.
+         */
+        const PS = await import("./passages.mjs");
+        const P = await import("./passages-gm.mjs");
+        const J = v => JSON.stringify(v);
+        ok(typeof PS.viewPassage === "function" && typeof PS.passageSpot === "function", "passages.mjs has no viewPassage or passageSpot - Show and the pan ignore the floor");
+        if (typeof PS.viewPassage !== "function" || typeof PS.passageSpot !== "function") return;
+        const views = [], pans = [];
+        const site = { id: "R607SCENE", levels: [{ id: "L1" }, { id: "L2" }, { id: "L3" }], view: async (options) => { views.push(options ?? null); } };
+        const scenes = new Map([[site.id, site]]);
+        const stairs = { sceneId: site.id, level: null, shape: "tunnel", ends: [{ x: 1450, y: 250, level: "L2" }, { x: 100, y: 100, level: "L1" }] };
+        const stretch = { sceneId: site.id, level: "L1", x1: 0, y1: 0, x2: 200, y2: 0 };
+        const flat = { sceneId: site.id, level: null, x1: 0, y1: 40, x2: 0, y2: 60 };
+        const show = async (passage, onScreen, floor) => {
+            views.length = 0;
+            pans.length = 0;
+            const out = await PS.viewPassage(level => PS.passageSpot(passage, level), { scenes, onScreen, floor, pan: async to => { pans.push(to); } });
+            return [out, [...views], [...pans]];
+        };
+        const steps = [await show(stairs, site, "L1"), await show(stairs, site, "L2"), await show(stairs, site, "L3"), await show(stairs, { id: "R607OTHER" }, "L1"),
+            await show(stretch, site, "L2"), await show(flat, site, "L2"), await show({ ...stairs, sceneId: "R607GONE" }, site, "L1")];
+        equal(J(steps), J([[true, [], [{ x: 100, y: 100 }]], [true, [], [{ x: 1450, y: 250 }]], [true, [{ level: "L2" }], [{ x: 1450, y: 250 }]],
+            [true, [{ level: "L2" }], [{ x: 1450, y: 250 }]], [true, [{ level: "L1" }], [{ x: 100, y: 0 }]], [true, [], [{ x: 0, y: 50 }]], [false, [], []]]),
+            "[shown, the views asked, the pans] for stairs seen from L1, L2 and L3, from another scene, a stretch on L1 seen from L2, one on no floor, and a scene gone");
+        // The GMs' row as the tab reads it: the end on the floor asked, else the first, as before.
+        const stores = { map: new Map([["R607SCENE.stairs", { sceneId: site.id, shape: "tunnel", level: null, ends: stairs.ends }]]) };
+        equal(J([P.passageMiddle("R607SCENE.stairs", { stores }), P.passageMiddle("R607SCENE.stairs", { stores, level: "L1" })]),
+            J([{ sceneId: site.id, level: "L2", x: 1450, y: 250 }, { sceneId: site.id, level: "L1", x: 100, y: 100 }]),
+            "[the GMs' Show of the stairs with no floor asked, with L1 asked]");
+        const sources = await moduleSources();
+        const roads = [fnSource(sources.get("passages-tab.mjs") ?? "", "showPassage"), fnSource(sources.get("sheet.mjs") ?? "", "panToPassage")];
+        equal(J(roads.map(src => [/\bviewPassage\(/.test(stripComments(src)), /animatePan|\.view\(/.test(stripComments(src))])), J([[true, false], [true, false]]),
+            "[showPassage, panToPassage: ask viewPassage, move the camera themselves] - a road that pans on its own ignores the floor again");
+    }],
     ["R605 - the secret doors no primary heard change (E80-SEC-3, E80-COR-1): on the primary GM the pass puts each secret door that stands otherwise than a GM last left it back - open where a GM last opened it, shut otherwise, shut where no GM has changed it - with the put-back's own mark, and holds it shut for the audit until the write lands; a locked door, one as a GM left it and every other wall it leaves alone, and off the primary it writes nothing; a GM leaving hands it to the primary after it, the pass and each put-back asked without that GM, and a player, a GM coming or the suite's held stores do not", async () => {
         /*
          * E80 fix r1-G1 (18.10.2026; the review's E80-SEC-3 and E80-COR-1). The harm: the primary GM put back a player's

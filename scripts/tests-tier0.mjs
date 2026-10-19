@@ -13194,6 +13194,39 @@ const REGRESSIONS = [
         ok(!/repaintPresentButtons/.test(stripComments(src("sync.mjs"))), "sync.mjs repaints no Present button");
     }],
 
+    ["R606 - the Passages tab fits Room Setup at 1366x768 (P1-22): its columns, as the stylesheet gives them at scale 1, sum to no more than the window leaves its table on that screen, and the buttons' cell wraps its buttons inside its width", async () => {
+        /*
+         * E80 fix r1-G2, 19.10.2026 (the review's E80-C6-2). The table is laid out fixed and 1 px wide
+         * (`.drpg-room-setup-table`), so it is as wide as its columns, and C6's eight summed to 1540 px - wider than the
+         * window can be: utils.mjs `windowWidthFor` caps Room Setup at 94% of the screen and `--drpg-window-max`, 1284 px
+         * on a 1366 px screen, and the content scrolls past it, so Make public, Make secret and Delete lay out of view.
+         * Read here: the classes of the tab's `<col>`s off passages-tab.mjs `passagesTabBody`, each one's width off the
+         * module's stylesheets (comments blanked), against 94% of 1366 or the cap, the lower, less 34 px for the window's
+         * frame, the content's padding and the fit's 2 px of slack - the 34 a choice, not a reading: the harness lays
+         * nothing out, and the frame is Foundry's (the theme's look and the window at a desk are the owner's, P1-22's
+         * screenshot). A Legacy scale above 1 widens every Room Setup table alike and is not read. Red at b238929: 1540.
+         */
+        const sources = await moduleSources();
+        const body = fnSource(sources.get("passages-tab.mjs") ?? "", "passagesTabBody");
+        const cols = [...body.matchAll(/<col class="(drpg-col-[\w-]+)"/g)].map(m => m[1]);
+        equal(cols.length, 8, "the Passages table's columns, read off passagesTabBody - the colgroup moved, and nothing below is read");
+        const css = await moduleStyles();
+        const widthOf = cls => {
+            const m = css.match(new RegExp(`\\.drpg-room-setup-table\\s+\\.${cls}\\s*\\{\\s*width:\\s*calc\\((\\d+)px\\s*\\*\\s*var\\(--drpg-legacy-scale,\\s*1\\)\\)`));
+            return m ? Number(m[1]) : null;
+        };
+        const widths = cols.map(widthOf);
+        equal(JSON.stringify(widths.map(w => Number.isFinite(w))), JSON.stringify(cols.map(() => true)),
+            `a width for each of ${cols.join(", ")} - a column with none takes nothing in a fixed table of 1 px`);
+        const cap = Number(css.match(/:root\s*\{[^}]*--drpg-window-max:\s*(\d+)px/)?.[1]);
+        ok(Number.isFinite(cap), "the stylesheet's --drpg-window-max was not read");
+        const room = Math.floor(Math.min(1366 * 0.94, cap)) - 34;
+        const sum = widths.reduce((a, b) => a + b, 0);
+        ok(sum <= room, `the Passages table is ${sum} px at scale 1 (${cols.map((c, i) => `${c.slice(9)} ${widths[i]}`).join(", ")}) and Room Setup leaves it ${room} px at 1366x768 - its last columns are out of view`);
+        const actions = css.match(/\.drpg-passage-actions\s*\{([^}]*)\}/)?.[1] ?? "";
+        ok(/flex-wrap:\s*wrap\b/.test(actions) && /display:\s*flex\b/.test(actions),
+            `the buttons' cell (.drpg-passage-actions { ${actions.trim()} }) does not wrap inside its column - four buttons on one line run past it`);
+    }],
     ["R603 - the handbooks say what E80 built - tunnels and stairs, 'Go through', Find Passage and its Reroll, a Find Stash's Reroll, Make public, the Passages tab's columns, Foundry's secret doors and the players' rulers - as the code does, with the texts the stage names, in English and in Polish", async () => {
         /*
          * E80 C7, 18.10.2026 (P1-23). E80 C1-C6 gave a GM tunnels and stairs, a student 'Go through' and Find Passage, a

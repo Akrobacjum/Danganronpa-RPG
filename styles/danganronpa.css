@@ -4042,16 +4042,19 @@ body.drpg-reduced-motion .application.sheet.actor .character-header-sheet .name-
    a chip per student that is the module's `.drpg-room-chip`, the way each learnt the passage dimmed after the name, the students '+' offers hidden until it is pressed, and the state's lines
    wrapping inside their column as a room's name does below. */
 /* E80 C6 (D4): Kind, Shape and Origin after Rooms, each a word or two, and a fourth button (Make public or
-   Make secret) in the last column; Who knows and the start narrowed to make room. Choices, not readings: the tab at
-   1366x768 was not laid out here (the harness lays nothing out). The Kind word in the inks the state lines use,
-   the theme tokens `--drpg-red` and `--drpg-dim`. */
-.drpg-room-setup-table .drpg-col-kind { width: calc(90px * var(--drpg-legacy-scale, 1)); }
-.drpg-room-setup-table .drpg-col-shape { width: calc(130px * var(--drpg-legacy-scale, 1)); }
-.drpg-room-setup-table .drpg-col-origin { width: calc(110px * var(--drpg-legacy-scale, 1)); }
-.drpg-room-setup-table .drpg-col-knows { width: calc(300px * var(--drpg-legacy-scale, 1)); }
-.drpg-room-setup-table .drpg-col-knows-start { width: calc(180px * var(--drpg-legacy-scale, 1)); }
-.drpg-room-setup-table .drpg-col-state { width: calc(170px * var(--drpg-legacy-scale, 1)); }
-.drpg-room-setup-table .drpg-col-actions { width: calc(340px * var(--drpg-legacy-scale, 1)); }
+   Make secret) in the last column. E80 fix r1-G2 (P1-22): the eight columns sum to 1240 px, inside the 1250 px
+   Room Setup's content has at 1366x768 (94% of the viewport, less the window's frame; R606 does the sum),
+   where C6's widths summed to 1540 and ran off the window's right edge. Every cell wraps (a Shape or Origin of
+   two or three words on two lines) and the buttons wrap onto a second line rather than leaving the column.
+   Choices, not readings: the tab at 1366x768 is the owner's to look at (the harness lays nothing out). The Kind
+   word in the inks the state lines use, the theme tokens `--drpg-red` and `--drpg-dim`. */
+.drpg-room-setup-table .drpg-col-kind { width: calc(80px * var(--drpg-legacy-scale, 1)); }
+.drpg-room-setup-table .drpg-col-shape { width: calc(110px * var(--drpg-legacy-scale, 1)); }
+.drpg-room-setup-table .drpg-col-origin { width: calc(100px * var(--drpg-legacy-scale, 1)); }
+.drpg-room-setup-table .drpg-col-knows { width: calc(230px * var(--drpg-legacy-scale, 1)); }
+.drpg-room-setup-table .drpg-col-knows-start { width: calc(140px * var(--drpg-legacy-scale, 1)); }
+.drpg-room-setup-table .drpg-col-state { width: calc(150px * var(--drpg-legacy-scale, 1)); }
+.drpg-room-setup-table .drpg-col-actions { width: calc(210px * var(--drpg-legacy-scale, 1)); }
 .drpg-passage-kind[data-kind="secret"] { color: var(--drpg-dim); }
 .drpg-passage-kind[data-kind="public"] { color: var(--drpg-red); font-weight: 600; }
 .drpg-passage-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
@@ -4075,11 +4078,11 @@ body.drpg-reduced-motion .application.sheet.actor .character-header-sheet .name-
 .drpg-passage-menu:not([hidden]) { display: flex; flex-wrap: wrap; gap: 4px; flex-basis: 100%; }
 .drpg-passage-none { color: var(--drpg-dim); font-style: italic; }
 .drpg-passage-state { display: block; }
-.application.dialog.drpg-room-setup .dialog-content .drpg-passage-table td.drpg-passage-state-cell { white-space: normal; }
+.application.dialog.drpg-room-setup .dialog-content .drpg-passage-table td { white-space: normal; overflow-wrap: anywhere; }
 .drpg-passage-state[data-state="closed"] { color: var(--drpg-dim); }
 .drpg-passage-state[data-state="broken"] { color: var(--drpg-red); }
 .drpg-passage-state:is([data-state="pending"], [data-state="shared"]) { color: var(--drpg-dim); font-size: 0.9em; }
-.drpg-passage-actions { display: inline-flex; gap: 4px; flex-wrap: nowrap; }
+.drpg-passage-actions { display: flex; flex-wrap: wrap; gap: 4px; }
 /* 'New passage' over the table, its line beside it, and the pick's window (E79 C6) with its one
    button at the right, as the mockup drew them; a refused click's line in red. */
 .drpg-passage-bar { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; }

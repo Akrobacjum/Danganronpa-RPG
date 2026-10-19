@@ -53054,6 +53054,79 @@ const SCENARIOS = [
             "[each stash hunt a trap was told of, as [the character, the room]] for the search at 12 and its three Rerolls - the GM's search told no trap, another room, or a replay as a second hunt");
     }],
 
+    ["A10-7 Mastermind's Reroll - a Find Passage's Reroll is judged for the player who threw it: the Mastermind's student, thrown by the owner the door does not name, misses at 12 and its Reroll to 17 finds the open passage the student does not know, as that player's first throw at 17 would", async () => {
+        /*
+         * E80 fix r1-G2 (19.10.2026; the review's E80-C3-3). Who acts as the Mastermind through a passage is the door's
+         * reading (passages-gm.mjs `actsAsMastermind`): a GM, or the one owner the door names. The first search judged
+         * the player who threw it (the bridge's sender), but the Reroll's replay (reroll.mjs `settlePassageFind`) asked
+         * it of `game.user`, the primary GM, so every Reroll of the Mastermind's student found nothing: a second owner
+         * paid Hope for dice that could not find, and the difference told that owner the student's role, the leak the
+         * copies, the shows and the audit close (the round-2 review's SEC M3). Driven here as the stash's Reroll is
+         * ("A10-7 stash"): a student of the suite's own owned by two connected players - the door names the first in the
+         * users' order (utils.mjs `ownerOf`), the other throws - made the Mastermind in a GM-store world of the suite's
+         * own (`withGmStoreWorld`), so no copy and no door reaches a player; her roll kept as that player's
+         * (`playerRollBookmark`), the first search carried out as the bridge carries it for that player, then a Reroll
+         * made on this GM (`rerollAgain`, 12 into 17). Red at b238929: the Reroll stood and found nothing.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 2), "two connected players: the one the door names and the one who throws");
+        const P = await import("./passages-gm.mjs");
+        const R = await import("./rooms.mjs");
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { ownerOf } = await import("./utils.mjs");
+        const [door, thrower] = game.users.filter(u => !u.isGM && u.active);
+        must(door && thrower, "two connected players are not here - this would measure nothing");
+        const DORM = "SUITE E80 G2 Dorm", mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
+        const room = (name, x) => ({ name, shapes: [{ type: "rectangle", x, y: 0, width: 600, height: 600 }], flags: mark, behaviors: [] });
+        let scene = null, botan = null, F = null, read = null;
+        try {
+            scene = await Scene.create({ name: "SUITE E80 G2 a tunnel", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [room(DORM, 0), room("SUITE E80 G2 Gym", 1200)]);
+            read = await E.withGmStoreWorld(`suite-e80-g2-${foundry.utils.randomID(8)}`, async () => {
+                const OWNER = CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
+                // A sheet as a student's holds one (the harness's seed): Hope to buy the Reroll with, and the traits a roll reads.
+                botan = await Actor.create({ name: "SUITE E80 G2 Botan", type: "character", ownership: { default: 0, [door.id]: OWNER, [thrower.id]: OWNER },
+                    system: { resources: { hope: { value: 6, max: 6 }, stress: { value: 0, max: 6 }, hitPoints: { value: 0, max: 6 }, actions: { value: 3, max: 3 } },
+                        traits: { agility: { value: 1 }, strength: { value: 0 }, finesse: { value: 1 }, instinct: { value: 0 }, presence: { value: 1 }, knowledge: { value: 0 } } } });
+                await scene.createEmbeddedDocuments("Token", [{ actorId: botan.id, actorLink: true, name: botan.name, x: 200, y: 200, width: 1, height: 1 }]);
+                await S.mastermindStore.patch("record", { actorId: botan.id, room: null });
+                await settle();
+                must(ownerOf(botan)?.id === door.id && P.actsAsMastermind(botan, door) && !P.actsAsMastermind(botan, thrower),
+                    "the door does not name the first owner alone - the thrower would act as the Mastermind and this would measure nothing");
+                const id = await P.createPassage({ sceneId: scene.id, shape: "tunnel", ends: [{ x: 250, y: 250, level: null }, { x: 1450, y: 250, level: null }] }, { scene });
+                must(typeof id === "string", "the tunnel was not made - this would measure nothing");
+                F = await playerRollBookmark(thrower, botan, "analyze", {});
+                must(F.row()?.by === thrower.id, `the roll is not kept as the thrower's - this would measure nothing: ${stableJson(F.row())}`);
+                const first = await P.resolvePassageSearch({ actorId: botan.id, total: 12, rollId: F.message.id },
+                    { asker: thrower, whisper: async () => {}, toast: () => {} });
+                await settle();
+                must(first?.searched === true && first.found === false && F.row()?.facts?.findPassage === true,
+                    `the first search at 12 was refused, found, or left no fact for its Reroll - this would measure nothing: ${stableJson([first, F.row()])}`);
+                const { meansHeld } = await import("./sheet-audit.mjs");
+                must(meansHeld(botan).hope >= 3, `the GMs hold ${meansHeld(botan).hope} of Botan's Hope - the Reroll could not be bought, and this would measure nothing`);
+                const { out } = await rerollAgain(botan, F.message, { hope: 7, fear: 5 }, { hope: 10, fear: 7 });
+                const cell = P.PASSAGE_STORES.access.get(`${id}/${botan.id}`) ?? null;
+                const lineFor = to => game.i18n.format("DRPG.Reroll.passageFound", { to });
+                const said = [lineFor(game.i18n.format("DRPG.Listen.unknownRoom", { n: 1 })), lineFor("SUITE E80 G2 Gym")];
+                const found = Array.isArray(out?.lines) && out.lines.some(line => said.includes(line));
+                await F.putBack();
+                F = null;
+                await P.deletePassage(id);
+                await S.mastermindStore.drop("record");
+                await botan.delete();
+                botan = null;
+                return { stood: Array.isArray(out?.lines), lines: out?.lines ?? out ?? null, how: cell?.how ?? null, found };
+            });
+        } finally {
+            await F?.putBack();
+            if (botan) await botan.delete().catch(() => {});
+            await scene?.delete();
+            await settle();
+        }
+        equal(stableJson([read.stood, read.how, read.found]), stableJson([true, "found", true]),
+            `[the Reroll stood, the student's cell, its lines say a find] for the Mastermind's student's Find Passage rerolled from 12 to 17 by the owner the door does not name - the replay judged the GM as the Mastermind and found nothing: ${stableJson(read.lines)}`);
+    }],
+
     ["A10-18 - 'Go through' a tunnel is carried out on the primary GM at a door's price: the token lands by the far end with teleport, displace and no animation, the crossing is told to the traps, a crossing back pays again; a lock, a seal, the chain, the courtroom, no budget and a spent Eclipse refuse it in the doors' words with nothing written, paid or warned on the GM, as does a tunnel the character does not know; the Mastermind passes the lock, anybody another's bedroom; an Eclipse counts one crossing and costs nothing else; a write that fails gives back exactly what it took; a token the GMs are putting back, one they hold as standing where the rules refuse and one moved while the price is taken stand at no end", async () => {
         /*
          * E80 C2 (18.10.2026; P1-05 to P1-08, the stage's write roads "token x, y, level" and "price"). The harms: a
@@ -53070,6 +53143,10 @@ const SCENARIOS = [
          * landing first in the price's round trip left the token past the wall; a jump the doors refused crossed, and
          * the GM's write made it lawful at the far end; a move landing while the price was taken was written over.
          * Red at 272db28: each of the three "crossed", one action paid.
+         * E80 fix r1-G2 (19.10.2026; the review's E80-C2-5 = E80-C3-9): in an Eclipse the veiled card that tells the owner
+         * the room walked into was posted as the crossing was counted, before the token was written, so a write that
+         * failed gave the count back and left the card saying the student had crossed. Read: the chat messages made on
+         * this browser during each Eclipse step. Red at b238929: the failing write's step made one.
          */
         const P = await import("./passages-gm.mjs");
         const M = await import("./movement.mjs");
@@ -53097,7 +53174,9 @@ const SCENARIOS = [
             [`flags.${MODULE_ID}.${FLAGS.freeMoveUsed}`]: !free, [`flags.${MODULE_ID}.${FLAGS.freeActionGrants}`]: burst, [`flags.${MODULE_ID}.${FLAGS.freeMoveGrants}`]: 0 });
         const purse = () => [ACT.actionsLeft(student), ACT.hasFreeMove(student), ACT.freeActionsLeft(student)];
         let scene = null, token = null, read = null, release = null, moved = false, paidWrites = 0;
-        const writes = [], crossed = [], warned = [], lawful = [], purseWrites = [];
+        const writes = [], crossed = [], warned = [], lawful = [], purseWrites = [], cards = [];
+        let made = 0;
+        const onMessage = () => { made += 1; };
         const mode = game.settings.get(MODULE_ID, SETTINGS.moveAudit);
         const onPre = (doc, changes, options) => {
             if (doc.id === token?.id) writes.push([changes.x ?? null, changes.y ?? null, options.teleport ?? null, options.movementAction ?? null, options.animate ?? null]);
@@ -53116,6 +53195,7 @@ const SCENARIOS = [
             Hooks.on("preUpdateToken", onPre);
             Hooks.on("drpgRoomCrossed", onCrossed);
             Hooks.on("preUpdateActor", onPurse);
+            Hooks.on("createChatMessage", onMessage);
             ui.notifications.warn = message => { warned.push(String(message)); };
             read = await E.withGmStoreWorld(`suite-e80-c2-${foundry.utils.randomID(8)}`, async () => {
                 const id = await P.createPassage({ sceneId: scene.id, shape: "tunnel", ends: [{ x: 250, y: 250, level: null }, { x: 1450, y: 250, level: null }] }, { scene });
@@ -53123,9 +53203,10 @@ const SCENARIOS = [
                 const steps = [];
                 // [what, the answer, writes, where the token is, what the student holds after: actions, the free Move, Bursts, the Eclipse's count]
                 const step = async (what, { actorId = student.id, ...o } = {}) => {
-                    const before = writes.length;
+                    const before = writes.length, said = made;
                     const out = await P.crossTunnel({ actorId, passageId: id }, { asker, ...o });
                     await settle();
+                    if (/Eclipse/.test(what)) cards.push([what, made - said]);
                     steps.push([what, out?.refused ? G.reasonOf(out.refused) : out?.crossed ? "crossed" : stableJson(out), writes.length - before,
                         `${token.x},${token.y}`, ...purse(), S.eclipseMoveStore.get(student.id)?.used ?? 0]);
                 };
@@ -53237,6 +53318,7 @@ const SCENARIOS = [
             Hooks.off("preUpdateToken", onPre);
             Hooks.off("drpgRoomCrossed", onCrossed);
             Hooks.off("preUpdateActor", onPurse);
+            Hooks.off("createChatMessage", onMessage);
             ui.notifications.warn = warn;
             release?.();
             if (token) delete token.update;
@@ -53276,6 +53358,10 @@ const SCENARIOS = [
             stableJson([[true, "displace", false], 1, [[DORM, GYM, "action"], [GYM, DORM, "action"]]]),
             "[the options of a crossing's write, how many kinds of options every crossing's write had, the first two crossings as the traps are told of them]");
         equal(stableJson(warned), "[]", "the GM's screen was warned of a player's refusal");
+        const told = [["an Eclipse crossing", 1], ["an Eclipse crossing, the write failing", 0]];
+        for (let n = 2; n <= allowance; n++) told.push([`Eclipse crossing ${n}`, 1]);
+        equal(stableJson(cards), stableJson([...told, ["beyond the Eclipse's crossings", 0]]),
+            "[each Eclipse step, the chat messages it made] - a crossing whose write failed still told its owner, by the veiled card, that the student crossed, or one that stood told nothing");
     }],
     ["A10-15 - Foundry's secret doors and the players' rulers on the world: 'Convert to passages' turns a secret door in the wall two rooms of a scene share into an ordinary wall, shut, and a secret passage nobody knows, and one inside a room into a plain wall it names, with none left, and forgets the GMs' record of each, as it does of a secret door deleted; a player's opening of a secret door is written shut again through Foundry, and so is one no primary heard, by the pass the primary's ready runs, which leaves open a door a GM opened; Hide and Show of the players' movement rulers write the world's permissions, the movement ruler alone, and the permissions are put back as they were", async () => {
         /*
