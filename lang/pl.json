@@ -292,6 +292,10 @@
         "name": "Bez przeglądarki plików dla graczy",
         "hint": "Gracze i zaufani gracze nie mogą przeglądać ani wysyłać plików, a kliknięcie portretu nic im nie otwiera. Obrazy, które już są w świecie, nadal się wyświetlają. Wyłączone: oba uprawnienia możesz znów nadać w uprawnieniach Foundry."
       },
+      "liveKitInFoundry": {
+        "name": "Głos w oknie Foundry u wszystkich",
+        "hint": "Włączone: każda przeglądarka łączy się z głosem w oknie Foundry i nigdy nie otwiera osobnego okna ani karty LiveKit, a przełącznik LiveKit od tego znika z ustawień wszystkich, także GM-a. Zmiana zaczyna działać po przeładowaniu strony. Ma znaczenie tylko z włączonym LiveKit AV Client."
+      },
       "pixelFont": {
         "name": "Czcionka pikselowa",
         "hint": "Tylko Monokuma Legacy, tam domyślnie włączona: Press Start 2P na elementach interfejsu - HUD, Despair, imię postaci, etykiety statystyk, zakładki. Dzienniki, czat i pola edycji zachowują zwykły krój, by długi tekst dało się czytać. Motyw Stained Glass ma własne dwa kroje i to ignoruje."
@@ -358,7 +362,7 @@
       },
       "voiceTile": {
         "name": "Kafel głosu zamiast doku kamer",
-        "hint": "Włączone zdejmuje dok kamer z każdego ekranu, a liczba na głośniku kafla głosu pokazuje, ile innych osób jest w twoim kanale, mówiących czy nie. Wyłączone przywraca wszystkim dok kamer Foundry."
+        "hint": "Włączone zdejmuje dok kamer z każdego ekranu, a liczba na głośniku kafla głosu pokazuje, ile innych osób jest w twoim kanale, mówiących czy nie. Dok Foundry jest przy tym zwinięty, a żadna kamera nie otwiera się w osobnym oknie. Wyłączone przywraca wszystkim dok kamer Foundry: zwinięty dok otwiera się jego własnym przyciskiem."
       },
       "highContrast": {
         "name": "Wysoki kontrast",

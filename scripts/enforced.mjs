@@ -34,6 +34,19 @@
  * E19 adds two rows here (the LiveKit tab and the camera dock, D19b); that is
  * why this is a table and not one function about Isometric Perspective.
  *
+ * THE TWO VOICE ROWS (E19 C1, 19.10.2026; S16-04, the owner's A9 note of 11.10.2026):
+ *   - `liveKitInFoundry`: avclient-livekit's client setting `useExternalAV` held
+ *     false by the road above, so no browser joins voice from a page of its own;
+ *   - `rtcDock`: Foundry's own `core.rtcClientSettings` holds a player's devices,
+ *     volumes and push-to-talk beside the dock, so this row (kind `rtc`) writes
+ *     two kinds of field and nothing else - `hideDock` true and each user's
+ *     `popout` false - one at a time through `game.webrtc.settings.set`
+ *     (`holdRtcDock`), never the whole object, and never the dock's position. Its
+ *     switch is the voice tile's (`voiceTile`), and it is held only where the
+ *     tile hides the dock (`rtcDockOn`). Off, nothing is written: a dock this row
+ *     folded stays folded until its owner opens it (Foundry's `dock` control, as
+ *     fvtt-types 14.366 names it; not run here).
+ *
  * TWO ROWS THAT ARE NOT ANOTHER MODULE'S CLIENT SETTING, AND ONE WINDOW (E79 C9,
  * 16.10.2026; the owner's N1, N2 and N4 of 14.10.2026). Each says beside it what
  * was read and what was not:
@@ -66,6 +79,8 @@ import { warn, error, isPrimaryGm, whisperToGms } from "./utils.mjs";
  * @property {string} [flag]   A `userFlag` row: the flag's key.
  * @property {string[]} [permissions] A `permissions` row: the permissions it holds.
  * @property {string[]} [roles]       A `permissions` row: the roles, by name, taken off them.
+ * @property {object} [fields]      An `rtc` row: the client AV fields it holds, by key (E19 C1).
+ * @property {object} [userFields]  An `rtc` row: the fields it holds in every user's row of `users`.
  * @property {string} toggle   This module's world setting that turns the row on.
  */
 
@@ -91,7 +106,17 @@ export const ENFORCED = [
        from the stored value alone (`heldPermissions`). LIVE-E79-11. */
     { id: "playerFiles", kind: "permissions", module: "core", key: "permissions",
       permissions: ["FILES_BROWSE", "FILES_UPLOAD"], roles: ["PLAYER", "TRUSTED"],
-      toggle: SETTINGS.enforcePlayerFiles }
+      toggle: SETTINGS.enforcePlayerFiles },
+    /* avclient-livekit's "separate window" (E19 C1, S16-04): `useExternalAV` true sends a browser's
+       voice from LiveKit's own web page instead of the Foundry window. Held at `setup`, before the A/V
+       client starts; avclient-livekit reads it as its client starts (the plan's reading of 0.6.8, not
+       re-read: its source is not on this machine), so the switch asks for a reload. Its registration
+       here (scope, `config`) is the harness stand-in's guess (lib/livekit.mjs): LIVE-E19-06. */
+    { id: "liveKitInFoundry", module: "avclient-livekit", key: "useExternalAV", value: false,
+      toggle: SETTINGS.liveKitInFoundry },
+    /* The camera dock folded and no camera popped out (E19 C1, A9): the header's second voice row. */
+    { id: "rtcDock", kind: "rtc", module: "core", key: "rtcClientSettings",
+      fields: { hideDock: true }, userFields: { popout: false }, toggle: SETTINGS.voiceTile }
 ];
 
 /** When this browser's `ready` ran; null before it. The permissions are held from then on (a world
@@ -119,7 +144,7 @@ const saidMissing = new Set();
  * switch on, while this file's header promised "a line in the console" (the review
  * of E27). A module that is simply not installed or not enabled is not news.
  */
-function entryOf(row) {
+export function entryOf(row) {
     if (!game.modules.get(row.module)?.active) return null;
     const entry = game.settings.settings.get(fullKey(row)) ?? null;
     if (!entry && !saidMissing.has(row.id)) {
@@ -194,6 +219,10 @@ export async function applyEnforced(rows = ENFORCED) {
     for (const row of rows) {
         if (row.kind === "userFlag") continue;
         try {
+            if (row.kind === "rtc") {
+                if (await holdRtcDock(row)) held.push(row.id);
+                continue;
+            }
             if (row.kind === "permissions") {
                 if (await holdPermissions(row)) held.push(row.id);
                 continue;
@@ -225,7 +254,11 @@ export async function applyEnforced(rows = ENFORCED) {
  * already right, and that is the first thing it checks.
  */
 function onClientSettingChanged(id) {
-    const row = ENFORCED.find(r => fullKey(r) === id);
+    if (id === "core.rtcClientSettings") {
+        scheduleRtcDockPutBack();
+        return;
+    }
+    const row = ENFORCED.find(r => fullKey(r) === id && r.kind !== "rtc");
     if (!row || !wanted(row) || !entryOf(row)) return;
     /* The stored value, read back - not the hook's argument (the review of E27):
        whatever form Foundry hands the listener, `get` answers in the setting's own
@@ -236,6 +269,93 @@ function onClientSettingChanged(id) {
     if (now === row.value) return;
     game.settings.set(row.module, row.key, row.value)
         .catch(err => error(`Could not put ${id} back for the table`, err));
+}
+
+/**
+ * What the `rtc` row writes into this browser's A/V client settings, field by
+ * field: each of its `fields` not already as held, and each of its `userFields`
+ * in every user's row of `users` that is not. Nothing else is named, so the
+ * devices, volumes, `muted`, `blocked`, the voice mode and the dock's position
+ * stay the player's.
+ *
+ * @returns {[string, *][]} the keys, in `AVSettings#set`'s dotted form, and values.
+ */
+export function rtcDockWrites(client, row = ENFORCED.find(r => r.kind === "rtc")) {
+    const out = [];
+    for (const [key, value] of Object.entries(row?.fields ?? {})) {
+        if (client?.[key] !== value) out.push([key, value]);
+    }
+    for (const [userId, user] of Object.entries(client?.users ?? {})) {
+        if (!user || typeof user !== "object") continue;
+        for (const [key, value] of Object.entries(row?.userFields ?? {})) {
+            if (user[key] !== value) out.push([`users.${userId}.${key}`, value]);
+        }
+    }
+    return out;
+}
+
+/**
+ * Whether this browser holds the `rtc` row: the voice tile hides the dock here
+ * (voice-tile.mjs `dockHiddenFor`, the same two facts as the body class) and the
+ * row's switch is on. Without avclient-livekit, or in a world sending no sound,
+ * Foundry's dock is the only voice surface and is left as its owner keeps it.
+ */
+async function rtcDockOn(row) {
+    const V = await import("./voice-tile.mjs");
+    return V.dockHiddenFor(V.voiceAvailable(), wanted(row));
+}
+
+/**
+ * Hold the `rtc` row on this browser (E19 C1, A9): each write one field, through
+ * `AVSettings#set`, which merges it into the copy in memory and saves that copy
+ * itself (100 ms later, as A9 reads Foundry's AVSettings; not measured here). A
+ * `game.settings.set` of the whole object from a copy taken earlier would save
+ * over a microphone or a volume changed in between (R809). `av` is absent before
+ * Foundry's A/V master exists (`setup`); the hold runs again at `ready`.
+ *
+ * @param {EnforcedRow} [row]
+ * @param {object} [options]
+ * @param {object|null} [options.av]  Foundry's AVSettings; handed in only by the suite (R809).
+ * @param {boolean} [options.on]      Whether the row is held here; read when absent.
+ * @returns {Promise<boolean>} whether this browser holds the row.
+ */
+export async function holdRtcDock(row = ENFORCED.find(r => r.kind === "rtc"), { av = game.webrtc?.settings, on } = {}) {
+    const held = on ?? await rtcDockOn(row);
+    if (!held || typeof av?.set !== "function" || !av.client) return false;
+    for (const [key, value] of rtcDockWrites(av.client, row)) av.set("client", key, value);
+    return true;
+}
+
+/* The put-back after a change to `core.rtcClientSettings` waits until Foundry's AVSettings has read
+   the change into its copy (its own 100 ms debounce, as A9 reads it): a choice past it, not a
+   measurement. One wait at a time; the put-back's own save comes back here and finds nothing to write. */
+const RTC_SETTLE_MS = 250;
+let rtcPutBack = null;
+
+function scheduleRtcDockPutBack() {
+    if (rtcPutBack) return;
+    rtcPutBack = setTimeout(() => {
+        rtcPutBack = null;
+        holdRtcDock().catch(err => error("Could not put the camera dock back for the table", err));
+    }, RTC_SETTLE_MS);
+}
+
+/* The A/V Config window's fields the `rtc` row holds, as a form of AVSettings' client schema names
+   them; Foundry v14's own template is not read here (LIVE-E19-06). */
+const HELD_AV_FIELDS = '[name="client.hideDock"], [name^="client.users."][name$=".popout"]';
+
+/**
+ * The fields of the A/V Config window the `rtc` row holds are disabled while it
+ * is held, so a player is not offered a choice that springs back (D19).
+ *
+ * @returns {number} how many fields were disabled.
+ */
+export function disableHeldAvFields(root, { on = false } = {}) {
+    const el = root?.querySelectorAll ? root : root?.[0];
+    if (!on || !el?.querySelectorAll) return 0;
+    const fields = [...el.querySelectorAll(HELD_AV_FIELDS)];
+    for (const field of fields) field.disabled = true;
+    return fields.length;
 }
 
 /**
@@ -437,8 +557,14 @@ export function registerEnforced() {
     Hooks.on("renderUserConfig", (app, _el, _context, options) => { closeUnaskedUserConfig(app, options); });
     Hooks.on("renderDocumentSheetV2", (_app, el) => { disarmPortraits(el); });
     Hooks.on("renderFilePicker", app => { closePlayerFilePicker(app); });
+    Hooks.on("renderAVConfig", (_app, el) => {
+        rtcDockOn(ENFORCED.find(r => r.kind === "rtc"))
+            .then(on => disableHeldAvFields(el, { on }))
+            .catch(err => error("Could not hold the A/V window's dock fields", err));
+    });
     Hooks.once("ready", () => {
         readyAt = Date.now();
+        holdRtcDock().catch(err => error("Could not hold the camera dock for the table", err));
         holdPermissions(ENFORCED.find(r => r.kind === "permissions"), { first: true })
             .catch(err => error("Could not hold the file permissions", err));
     });

@@ -13232,6 +13232,11 @@ const INVARIANTS = [
          * it with the tile on, and in the source its two facts read from `avMode()` and `avclientActive()` and
          * `refreshVoiceTile` asking it. Red at 90a9ebc: `voiceAvailable` took no facts, so each world read alike.
          * Red before C3: there was no voice-tile.mjs (the first assertion).
+         * E19 C1, 19.10.2026 (S16-04, A9): the dock's second hider, enforced.mjs's `rtcDock` row (Foundry's own
+         * `hideDock` and the cameras' popouts, R809), decides on the same two facts as the body class:
+         * `rtcDockOn` asks `dockHiddenFor(voiceAvailable(), ...)` with the row's switch, `voiceTile`, so the
+         * dock is folded only where the tile carries the voice and never where it is the only voice surface.
+         * Red at C0 (a5b75e8): there was no such row (the last reading).
          */
         const V = await import("./voice-tile.mjs").catch(() => null);
         ok(V, "there is no voice-tile.mjs - nothing shows who is speaking, and Foundry's dock is the only voice surface");
@@ -13281,18 +13286,23 @@ const INVARIANTS = [
             const available = V.voiceAvailable({ mode, livekit });
             return [available, V.dockHiddenFor(available, true)];
         });
+        const enforced = stripComments((await moduleSources()).get("enforced.mjs") ?? "");
+        const { ENFORCED } = await import("./enforced.mjs");
+        const rtcDock = [/\bdockHiddenFor\(\s*\w+\.voiceAvailable\(\),\s*wanted\(row\)\s*\)/.test(topLevelFunction(enforced, "rtcDockOn") ?? ""),
+            ENFORCED.find(r => r.id === "rtcDock")?.toggle ?? null];
         const facts = /function voiceAvailable\(\s*\{\s*mode\s*=\s*avMode\(\),\s*livekit\s*=\s*avclientActive\(\)\s*\}\s*=\s*\{\}\s*\)/.test(source)
             && /\bavailable\s*=\s*voiceAvailable\(\)/.test(fnSource(source, "refreshVoiceTile"));
         equal(JSON.stringify([seen, [[true, true], [true, false], [false, true], [false, false]].map(([a, b]) => V.dockHiddenFor(a, b)),
             setting(SETTINGS.voiceTile), setting(SETTINGS.voicePeerMutes),
             /applyDockHidden\(\s*dockHiddenFor\(\s*available,\s*on\s*\)\s*\)/.test(fnSource(source, "refreshVoiceTile"))
-                && /getSetting\(\s*SETTINGS\.voiceTile\s*\)/.test(fnSource(source, "refreshVoiceTile")), worlds, facts]),
+                && /getSetting\(\s*SETTINGS\.voiceTile\s*\)/.test(fnSource(source, "refreshVoiceTile")), worlds, facts, rtcDock]),
         JSON.stringify([[[false, false], [true, "none", "none", true, true, true, true], [false, false]], [true, false, false, false],
             ["world", true, "true", true], ["client", false, "{}", true], true,
-            [[false, false], [true, true], [false, false], [true, true], [false, false]], true]),
+            [[false, false], [true, true], [false, false], [true, true], [false, false]], true, [true, SETTINGS.voiceTile]]),
         "[the dock and a popout without the class; with it: the class, their display, the dock, the popout and their <audio> in the document; without "
             + "it again], dockHiddenFor over (available, on), the voiceTile and voicePeerMutes registrations, refreshVoiceTile deciding with the setting, "
-            + "[voiceAvailable and the dock hidden: DISABLED, AUDIO, VIDEO, AUDIO_VIDEO with avclient-livekit, AUDIO without], its facts read and asked");
+            + "[voiceAvailable and the dock hidden: DISABLED, AUDIO, VIDEO, AUDIO_VIDEO with avclient-livekit, AUDIO without], its facts read and asked, "
+            + "[enforced.mjs rtcDockOn deciding with dockHiddenFor(voiceAvailable(), the row's switch), the rtcDock row's switch]");
     }],
     ["R554 - the passages' records: a row holds the map's fields with its shape and a stretch on its wall, two GMs' cells are merged cell by cell, a browser keeps a cell's first `how` and each GM's grant is added to `by`, the log keeps its newest 200, and the reset's passages group cuts who knows them and never the map, and gives each passage's start access back with every knower's copy stamped again", async () => {
         /*
@@ -17095,6 +17105,190 @@ const INVARIANTS = [
             + "[the client up: the parked room applied], [the same room], [another], [a connect refused, thrown, landed in the main room: "
             + "the answer, desired, client.room, the Room], [the room again], [the drop: client.room, the Room, the client, breakoutRoom], "
             + "[the main room twice], [uninstalled: done, the client's field, the setting], [a renamed client and setting], [uninstalled again, the dock as found]");
+    }],
+    ["R808 - LiveKit runs inside the Foundry window: avclient-livekit's `useExternalAV` is held false on every browser by the `liveKitInFoundry` row (its world switch on by default and asking for a reload), its box leaves the settings, a true set from the console goes back to false, voice.mjs reads it as at Base, and with avclient-livekit off nothing is written", async () => {
+        /*
+         * E19 C1, 19.10.2026; S16-04, the A9 note of 11.10 (the plan's liveKitInFoundry). A player who once
+         * ticked LiveKit's "separate window" joined voice from a page of its own, outside the Foundry window,
+         * and the module's rooms and the voice tile never saw that browser. On the harness's LiveKit stand-in
+         * (lib/livekit.mjs, C0), installed with `useExternalAV` true as that player's browser holds it: the
+         * row in ENFORCED, the switch's registration, `entryOf` finding avclient-livekit's entry, the hold
+         * (`applyEnforced` with that row alone), the box's `config`, voice.mjs `micHold` before and after, a
+         * console's `game.settings.set(..., true)` and what the `clientSettingChanged` put-back leaves 50 ms
+         * later, and avclient-livekit switched off (nothing held, nothing written). The value the hold writes
+         * lands in this browser's client store and is taken out again, as found. avclient-livekit's real
+         * registration of the setting and its Join window are not read here: LIVE-E19-06 at a table.
+         */
+        needs(env.liveKitShim(), "the harness's LiveKit stand-in, to register useExternalAV");
+        needs(world.moduleActive("avclient-livekit"), "avclient-livekit enabled, so the module reads LiveKit at all");
+        const E = await import("./enforced.mjs");
+        const { micHold } = await import("./voice.mjs");
+        const AV = "avclient-livekit", KEY = "useExternalAV", FULL = `${AV}.${KEY}`;
+        const found = E.ENFORCED.find(r => r.id === "liveKitInFoundry") ?? null;
+        ok(found, "no row of enforced.mjs holds avclient-livekit's separate window, so a browser that once ticked it joins voice outside Foundry");
+        const row = found ?? { id: "liveKitInFoundry", module: AV, key: KEY, value: false, toggle: "liveKitInFoundry" };
+        const reg = game.settings.settings.get(`${MODULE_ID}.${SETTINGS.liveKitInFoundry ?? "liveKitInFoundry"}`);
+        const store = game.settings.storage.get("client");
+        const had = store.getItem(FULL);
+        const stub = globalThis.__liveKit, avModule = game.modules.get(AV), wasActive = avModule.active;
+        const value = () => game.settings.get(AV, KEY);
+        const entry = () => game.settings.settings.get(FULL);
+        const external = () => micHold({ user: game.user, room: null, connected: true, canBroadcastAudio: true })?.reason ?? null;
+        const seen = [[row.module, row.key, row.value, row.kind ?? null, row.toggle, reg?.scope ?? null, reg?.config ?? null,
+            reg?.default ?? null, reg?.requiresReload ?? null]];
+        let lk = null;
+        try {
+            await stub.install({ external: true });
+            lk = globalThis.__liveKit;
+            seen.push(["before", value(), entry()?.config, external(), typeof E.entryOf === "function" ? E.entryOf(row) === entry() : null]);
+            seen.push(["held", await E.applyEnforced([row]), value(), entry()?.config, external()]);
+            await game.settings.set(AV, KEY, true);
+            await wait(50);
+            seen.push(["console", value(), entry()?.config]);
+            avModule.active = false;
+            store.removeItem(FULL);
+            seen.push(["absent", await E.applyEnforced([row]), store.getItem(FULL)]);
+        } finally {
+            avModule.active = wasActive;
+            if (typeof lk?.uninstall === "function") lk.uninstall();
+            globalThis.__liveKit = stub;
+            if (had === null) store.removeItem(FULL);
+            else store.setItem(FULL, had);
+        }
+        equal(stableJson(seen), stableJson([
+            [AV, KEY, false, null, "liveKitInFoundry", "world", true, true, true],
+            ["before", true, true, "external", true],
+            ["held", ["liveKitInFoundry"], false, false, null],
+            ["console", false, false],
+            ["absent", [], null]]),
+        "[the row: module, key, value, kind, switch; the switch: scope, shown, default, reload], [before: the value, the box shown, "
+            + "micHold's reason, entryOf], [held: the rows, the value, the box, micHold's reason], [a console's true, 50 ms on: the value, "
+            + "the box], [avclient-livekit off: the rows held, what the client store holds]");
+    }],
+
+    ["R809 - the camera dock's row writes field by field: `rtcDock` sets `hideDock` and each user's `popout` through `game.webrtc.settings.set`, never the whole `core.rtcClientSettings` and never the dock's position; an expanded dock and a popout are put back with devices, volumes, `muted`, `blocked` and push-to-talk untouched, an `audioSrc` change 50 ms before the put-back kept, a user added mid-session held, and with `voiceTile` off nothing is written", async () => {
+        /*
+         * E19 C1, 19.10.2026; S16-04, the A9 note of 11.10. `core.rtcClientSettings` holds a player's own
+         * microphone, speakers, volumes and push-to-talk as well as the dock: a hold that wrote the whole object
+         * from a copy would put back a microphone the player had just chosen. A stand-in for Foundry's AVSettings
+         * as A9 reads it (not Foundry's own: its source is not on this machine): `set(scope, key, value)` writes
+         * one field into the copy in memory and saves the whole copy 100 ms after the last write. Over it,
+         * enforced.mjs `holdRtcDock` with the row: the keys it writes and how many; again (nothing); the player
+         * expanding the dock and popping out a camera, then changing the microphone 50 ms before the put-back;
+         * a user row added mid-session with its camera popped out; `voiceTile` off (`on` false) and no
+         * AVSettings (a browser before `ready`); each saved copy read 150 ms after the writes. In the source:
+         * nothing in the module writes `core.rtcClientSettings` through `game.settings.set`, `holdRtcDock`
+         * writes through `.set("client", ...)`, nothing in enforced.mjs names `dockPosition`, and
+         * `onClientSettingChanged` puts the dock back on `core.rtcClientSettings`. Whether Foundry v14's
+         * AVSettings debounces as read here is LIVE-E19-07's.
+         */
+        const E = await import("./enforced.mjs");
+        ok(typeof E.holdRtcDock === "function" && typeof E.rtcDockWrites === "function",
+            "enforced.mjs has no row for the camera dock, so a player can expand it or pop a camera out and the voice tile is not the only voice surface");
+        if (typeof E.holdRtcDock !== "function") return;
+        const row = E.ENFORCED.find(r => r.id === "rtcDock") ?? null;
+        const start = { audioSrc: "mic-1", videoSrc: "cam-1", audioSink: "out-1", dockPosition: "left", hideDock: false,
+            muteAll: false, disableVideo: true, voice: { mode: "ptt", pttName: "`", pttDelay: 100, activityThreshold: -45 },
+            users: { R809A000000000000: { popout: true, volume: 0.4, muted: true, blocked: false, hidden: false, left: 10, top: 20 },
+                R809B000000000000: { popout: false, volume: 1, muted: false, blocked: true, hidden: false, left: 100, top: 100 } } };
+        const av = { client: foundry.utils.deepClone(start), saved: foundry.utils.deepClone(start), calls: [], timer: null };
+        av.set = (scope, key, value) => {
+            av.calls.push(`${scope}:${key}=${JSON.stringify(value)}`);
+            foundry.utils.setProperty(av[scope], key, value);
+            clearTimeout(av.timer);
+            av.timer = setTimeout(() => { av.saved = foundry.utils.deepClone(av[scope]); }, 100);
+        };
+        const calls = () => av.calls.splice(0);
+        const others = saved => {
+            const copy = foundry.utils.deepClone(saved);
+            delete copy.hideDock;
+            for (const user of Object.values(copy.users ?? {})) delete user.popout;
+            return copy;
+        };
+        const seen = [[row?.kind ?? null, row?.module ?? null, row?.key ?? null, row?.toggle ?? null]];
+        seen.push(["held", await E.holdRtcDock(row, { av, on: true }), calls()]);
+        await wait(150);
+        seen.push(["saved", av.saved.hideDock, av.saved.users.R809A000000000000.popout, stableJson(others(av.saved)) === stableJson(others(start))]);
+        seen.push(["again", await E.holdRtcDock(row, { av, on: true }), calls()]);
+        av.set("client", "hideDock", false);
+        av.set("client", "users.R809B000000000000.popout", true);
+        calls();
+        await wait(150);
+        av.set("client", "audioSrc", "mic-2");
+        calls();
+        await wait(50);
+        seen.push(["put back", await E.holdRtcDock(row, { av, on: true }), calls()]);
+        await wait(150);
+        seen.push(["saved", av.saved.audioSrc, av.saved.hideDock, av.saved.users.R809B000000000000.popout, av.saved.users.R809B000000000000.blocked,
+            av.saved.users.R809A000000000000.volume, av.saved.users.R809A000000000000.muted, av.saved.voice.mode, av.saved.dockPosition]);
+        av.client.users.R809C000000000000 = { popout: true, volume: 0.7, muted: false, blocked: false, hidden: false };
+        seen.push(["added", await E.holdRtcDock(row, { av, on: true }), calls()]);
+        av.set("client", "hideDock", false);
+        calls();
+        seen.push(["off", await E.holdRtcDock(row, { av, on: false }), calls(), av.client.hideDock]);
+        seen.push(["no AVSettings", await E.holdRtcDock(row, { av: null, on: true })]);
+        await wait(150);
+        const sources = await moduleSources();
+        const enforced = stripComments(sources.get("enforced.mjs") ?? "");
+        const whole = [...sources].filter(([, text]) => /game\.settings\.set\(\s*["']core["']\s*,\s*["']rtcClientSettings["']/.test(stripComments(text))).map(([file]) => file);
+        seen.push(["source", whole, /\.set\(\s*"client"\s*,/.test(fnSource(enforced, "holdRtcDock")), /dockPosition/.test(enforced),
+            /"core\.rtcClientSettings"[\s\S]{0,200}?scheduleRtcDockPutBack\(/.test(fnSource(enforced, "onClientSettingChanged"))]);
+        equal(stableJson(seen), stableJson([
+            ["rtc", "core", "rtcClientSettings", SETTINGS.voiceTile],
+            ["held", true, ["client:hideDock=true", "client:users.R809A000000000000.popout=false"]],
+            ["saved", true, false, true],
+            ["again", true, []],
+            ["put back", true, ["client:hideDock=true", "client:users.R809B000000000000.popout=false"]],
+            ["saved", "mic-2", true, false, true, 0.4, true, "ptt", "left"],
+            ["added", true, ["client:users.R809C000000000000.popout=false"]],
+            ["off", false, [], false],
+            ["no AVSettings", false],
+            ["source", [], true, false, true]]),
+        "[the row: kind, module, key, switch], [held over a player's settings: the answer, the writes], [the saved copy: hideDock, the "
+            + "popout, everything else as it was], [again], [the dock expanded and a camera popped out, the microphone changed 50 ms before: "
+            + "the put-back's writes], [the saved copy: microphone, hideDock, popout, blocked, a volume, muted, push-to-talk, dock position], "
+            + "[a user added mid-session], [voiceTile off: the answer, writes, hideDock], [no AVSettings], [source: files writing the whole "
+            + "object, holdRtcDock's road, dockPosition named in enforced.mjs, the put-back on core.rtcClientSettings]");
+    }],
+
+    ["R810 - the player sees no imposed setting: both E19 rows stand in ENFORCED with their switches, the A/V window's dock and camera-popout fields are disabled while the dock is held and left alone otherwise, and the hook that disables them is registered", async () => {
+        /*
+         * E19 C1, 19.10.2026; S16-04, D19 ("the players have no say in these"), the plan's E19 risk note: a box
+         * that springs back after every change reads as a bug. `useExternalAV`'s box leaves Configure Settings
+         * by the table's generic road (R808 reads it); the dock's fold and the cameras' popouts are fields of
+         * Foundry's A/V Config window. A stand-in of that window's form, with the names a form of AVSettings'
+         * client schema gives its fields (Foundry v14's own template is not read here: LIVE-E19-06), read
+         * through enforced.mjs `disableHeldAvFields` held and not held. Then both rows of the table (E27's)
+         * as they stand, and in the source `registerEnforced` hooking `renderAVConfig` to it.
+         */
+        const E = await import("./enforced.mjs");
+        ok(typeof E.disableHeldAvFields === "function", "enforced.mjs leaves the A/V window's dock fields open, so a player changes what springs back");
+        const form = document.createElement("form");
+        for (const name of ["client.hideDock", "client.dockPosition", "client.audioSrc", "client.voice.mode",
+            "client.users.R810A000000000000.popout", "client.users.R810A000000000000.volume", "client.muteAll"]) {
+            const input = document.createElement("input");
+            input.name = name;
+            form.append(input);
+        }
+        const disabled = () => [...form.querySelectorAll("[name]")].filter(el => el.disabled).map(el => el.name);
+        const seen = [];
+        if (typeof E.disableHeldAvFields === "function") {
+            seen.push(["off", E.disableHeldAvFields(form, { on: false }), disabled()]);
+            seen.push(["on", E.disableHeldAvFields(form, { on: true }), disabled()]);
+        }
+        const rows = ["liveKitInFoundry", "rtcDock"].map(id => {
+            const row = E.ENFORCED.find(r => r.id === id);
+            return row ? [id, row.kind ?? null, row.module, row.key, row.value ?? null, row.fields ?? null, row.userFields ?? null, row.toggle] : [id];
+        });
+        const source = stripComments((await moduleSources()).get("enforced.mjs") ?? "");
+        const hooked = /Hooks\.on\(\s*"renderAVConfig"[\s\S]{0,200}?disableHeldAvFields/.test(fnSource(source, "registerEnforced"));
+        equal(stableJson([seen, rows, hooked]), stableJson([
+            [["off", 0, []], ["on", 2, ["client.hideDock", "client.users.R810A000000000000.popout"]]],
+            [["liveKitInFoundry", null, "avclient-livekit", "useExternalAV", false, null, null, SETTINGS.liveKitInFoundry ?? "liveKitInFoundry"],
+                ["rtcDock", "rtc", "core", "rtcClientSettings", null, { hideDock: true }, { popout: false }, SETTINGS.voiceTile]],
+            true]),
+        "[the A/V form: not held (count, disabled), held], [the two rows: id, kind, module, key, value, fields, user fields, switch], "
+            + "[renderAVConfig hooked]");
     }],
 ];
 

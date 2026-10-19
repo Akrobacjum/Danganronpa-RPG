@@ -9143,6 +9143,8 @@ const REGRESSIONS = [
          * census (S/e78-design/census.mjs) does not read it, so the key-by-key comparison holds for the other fourteen.
          * E79 C15 (16.10.2026, 1.2.79) added one HOLD row: the state word's hold, keyed `voiceWatch`, whose default asks
          * `micHold` as if connected - the word reads the connection off the Room the watch follows (R588).
+         * E19 C1 (19.10.2026) added one CLIENT row: enforced.mjs's camera dock hold (`holdRtcDock`, the `rtcDock` row
+         * of the held settings), which writes this browser's own `hideDock` and cameras' `popout` and nothing else (R809).
          * It reads names and text, not data flow, as the parse-only census does: a name handed to a helper the kinds
          * do not list is judged at the call, and which participant avclient-livekit maps to which user is no reading
          * of this module's source at all (only a table settles it: the owner's T1). One place where it reads more than the census: a template's
@@ -9193,6 +9195,8 @@ const REGRESSIONS = [
             ["LISTEN voice-tile.mjs#paintControls -> listeners", "the speaker button's number: every remote participant of the own Room, silent or speaking, mapped to a user of this world or not, the one who has just left not counted; on the button without a click, on the tile and in the stacked row, after every connect and disconnect (R550; scenario 75 F)"],
             ["LISTEN voice-tile.mjs#paintSpeaker -> listeners", "the same count, written only as the tile's `data-in-channel` (no text, nothing a stylesheet draws); what the table sees is the button's (R550)"],
             ["LISTEN voice-tile.mjs#paintList -> listeners", "'Nobody else is in your channel' is drawn only when the count is 0: a participant mapped to no user has no row and is still there (R550)"],
+            // ---- E19 C1: the camera dock folded with the voice tile on (enforced.mjs)
+            ["CLIENT enforced.mjs#holdRtcDock -> *", "this browser's own A/V client settings: `hideDock` true and `users.<id>.popout` false, one field at a time through `AVSettings#set`, and nothing else (`rtcDockWrites`: no device, volume, `muted`, `blocked`, voice mode or dock position); only where the voice tile hides the dock and `voiceTile` is on; off writes nothing (R809)"],
             ["WORLD settings.mjs#voiceTile#gm -> dock", "world scope, the GM's switch, on by default; off brings the dock back; the dock is hidden by a body class and `display: none`, never removed - its `<audio>` carries the sound (R541); this row judges the sound only: who is listening, which the dock's camera views showed, is the LISTEN rows' (E78 fix r1-G1)"]
         ];
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;

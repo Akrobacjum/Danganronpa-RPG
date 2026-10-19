@@ -22,6 +22,8 @@ export const SETTINGS = {
     enforceDhWelcome: "enforceDhWelcome",
     /** Players and Trusted Players browse and upload no files (E79 C9, N4 - see enforced.mjs). */
     enforcePlayerFiles: "enforcePlayerFiles",
+    /** Every browser joins voice inside the Foundry window, never in LiveKit's own (E19 C1, S16-04 - see enforced.mjs). */
+    liveKitInFoundry: "liveKitInFoundry",
     forcePrivateRolls: "forcePrivateRolls",
     /** Every user below full Gamemaster throws in one GM's Dice So Nice look (E16 p1 C3, D19a - see dice-sync.mjs). */
     forceDiceLook: "forceDiceLook",
@@ -1053,6 +1055,22 @@ export function registerSettings() {
             .catch(err => console.error("danganronpa-rpg | Could not re-apply the held settings", err))
     });
 
+    /* E19 C1 (S16-04): avclient-livekit's separate window held off on every browser, on by default
+       (D19b as changed on 25.09.2026). avclient-livekit reads its setting as its client starts, so a
+       change takes a reload; each client re-applies on change as above, which gives the box back. */
+    game.settings.register(MODULE_ID, SETTINGS.liveKitInFoundry, {
+        name: "DRPG.Settings.liveKitInFoundry.name",
+        hint: "DRPG.Settings.liveKitInFoundry.hint",
+        scope: "world",
+        config: true,
+        type: Boolean,
+        default: true,
+        requiresReload: true,
+        onChange: () => import("./enforced.mjs")
+            .then(m => m.applyEnforced())
+            .catch(err => console.error("danganronpa-rpg | Could not re-apply the held settings", err))
+    });
+
     game.settings.register(MODULE_ID, SETTINGS.hideSystemFear, {
         name: "DRPG.Settings.hideSystemFear.name",
         hint: "DRPG.Settings.hideSystemFear.hint",
@@ -1300,9 +1318,12 @@ export function registerSettings() {
         config: true,
         type: Boolean,
         default: true,
-        // On every client that receives the change: the tile drawn or taken away, the dock hidden or given back.
+        // On every client that receives the change: the tile drawn or taken away, the dock hidden or given back,
+        // and Foundry's own dock folded with its cameras in it (enforced.mjs `rtcDock`, E19 C1; off writes nothing).
         onChange: () => {
             import("./voice-tile.mjs").then(m => m.refreshVoiceTile()).catch(() => {});
+            import("./enforced.mjs").then(m => m.holdRtcDock())
+                .catch(err => console.error("danganronpa-rpg | Could not hold the camera dock", err));
         }
     });
 

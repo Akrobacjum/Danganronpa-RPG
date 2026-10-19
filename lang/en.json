@@ -292,6 +292,10 @@
         "name": "Keep players out of the file browser",
         "hint": "Players and Trusted Players can neither browse nor upload files, and clicking a portrait opens nothing for them. Pictures already in the world still show. Off, you can give both back in Foundry's permissions."
       },
+      "liveKitInFoundry": {
+        "name": "Voice inside the Foundry window for everyone",
+        "hint": "On, every browser joins voice inside the Foundry window and never opens LiveKit's separate window or tab, and LiveKit's box for that disappears from everyone's settings, the GM's included. A change takes effect after a reload. Only does anything with LiveKit AV Client enabled."
+      },
       "pixelFont": {
         "name": "Pixel font",
         "hint": "Monokuma Legacy only, and on by default there: Press Start 2P on interface chrome - HUD, Despair, character name, statistic labels, tabs. Journals, chat and editable fields keep the normal face so long text stays readable. The Stained Glass theme has its own two faces and ignores this."
@@ -362,7 +366,7 @@
       },
       "voiceTile": {
         "name": "Voice tile instead of the camera dock",
-        "hint": "On, the camera dock leaves every screen and the number on the voice tile's speaker shows how many others are in your channel, speaking or not. Off brings Foundry's camera dock back for everyone."
+        "hint": "On, the camera dock leaves every screen and the number on the voice tile's speaker shows how many others are in your channel, speaking or not. Foundry's dock is also kept folded, and no camera opens in a window of its own. Off brings Foundry's camera dock back for everyone: a dock left folded opens with its own button."
       }
     },
     "SearchTokens": {

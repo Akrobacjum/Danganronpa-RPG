@@ -1431,7 +1431,10 @@ function moduleSettingValues() {
  */
 
 /* Other namespaces' settings the module writes (R159 holds this list to the source). */
-const DUMP_FOREIGN_SETTINGS = ["core.globalPlaylistVolume", "core.permissions", "isometric-perspective.showWelcome"];
+/* E19 C1: the two voice rows of enforced.mjs (avclient-livekit's separate window, Foundry's own A/V
+   client settings); the harness registers neither at boot, so its dump reads them only where a shim did. */
+const DUMP_FOREIGN_SETTINGS = ["core.globalPlaylistVolume", "core.permissions", "isometric-perspective.showWelcome",
+    "avclient-livekit.useExternalAV", "core.rtcClientSettings"];
 
 /*
  * WHAT THE DUMP LEAVES OUT OR READS NARROWLY, each with why and until when. The

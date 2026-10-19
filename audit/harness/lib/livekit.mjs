@@ -174,6 +174,9 @@ export function installLiveKit({ roster = {}, external = false, names = {} } = {
        Foundry fires `rtcSettingsChanged` with these arguments is not read here: it is fired, so a
        listener is not starved of the change, and C5's readings say what they rely on. */
     if (!settings.client.users) put(settings.client, "users", {});
+    /* The camera dock's fold, which enforced.mjs's `rtcDock` row writes while the stand-in makes this an
+       audio world with LiveKit (E19 C1): put back as found, as `users` is. */
+    keep(settings.client, "hideDock");
     put(settings, "set", (scope, key, value) => {
         setProperty(settings[scope], key, value);
         Hooks.callAll("rtcSettingsChanged", settings, { [scope]: { [key]: value } });
