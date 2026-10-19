@@ -1900,7 +1900,7 @@ export const BRIDGE_ACTIONS = table({
         // 'Leave it' names no roll and asks for none (`when`); a force's is the GMs' record, held to the ask (`friskForceRoll`).
         rolled: { field: "rollId", actor: "searcherId", kind: "frisk", when: "rollId", derive: friskForceRoll },
         claims: {
-            askId: "judged by followFrisk (frisk.mjs): the searcher's own ask, refused or unanswered, inside its force's window",
+            askId: "judged by followFrisk (frisk.mjs): the searcher's own ask, refused or unanswered, inside its force's window; with no roll named, one this primary neither holds nor ended (dropped by a reload or by the primary before it) ends interrupted, and only the searcher's own browser hands its action back",
             rollId: "the force's roll the result is read from (bridge-guards.mjs rollRefusal): one the GM drew for the searcher's frisk, after the ask and before its window closed (friskForceRoll)"
         }
     },
