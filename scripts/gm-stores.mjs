@@ -1066,6 +1066,30 @@ export const sheetWriteStore = defineGmStore({
 });
 
 /**
+ * THE GMS' COPY OF EACH CHARACTER'S DICE LOOK (E16 fix early-C4-G1, 19.10.2026; finding E16-C4-F1). A row per
+ * actor, keyed by its id: `look`, the actor's Dice So Nice overlay (`flags.dice-so-nice.appearance`) as the GMs
+ * hold it, null for none. Written by the primary at each write of a full Gamemaster's on the overlay and, null,
+ * at an actor made by anyone else; for an actor it holds no row for, taken weakly from the world once the
+ * primary's stores hydrate (dice-sync.mjs `takeUnseenOverlays`). Read by the put-back at a write, at a message
+ * and at that hydration (`compareOverlays`). Until this fix it was each GM browser's memory, taken from the world
+ * as Dice So Nice got ready, so an overlay a player left while no GM watched became the copy at the next load.
+ * Synced, so the next primary puts back to the same copy; not backed up: the case holds no actor, and a browser
+ * with no row takes the world's at its next load. No reset group: a dice look is no season's, and a row goes with
+ * its actor (dropped as the actor is deleted, its tombstone compacted once the actor is gone). No player copy -
+ * R182 has nothing to ask of it - and no old key.
+ * FROM A FULL GAMEMASTER'S BROWSER ONLY (E16 fix r1-G2, finding sec-3): the owner's Q3 holds an Assistant GM to
+ * the copy as a player, but the stores merged any GM's delta, so an Assistant's console wrote a row and the primary
+ * put its look on the character. `fullGmOnly`: a full Gamemaster's browser refuses an Assistant's delta or state
+ * of this store (gm-store.mjs `gmsRefusal`), and an Assistant's browser sends none. An Assistant primary (no full
+ * Gamemaster connected) still writes its own browser's copy, which no full Gamemaster takes.
+ */
+export const diceLookStore = defineGmStore({
+    name: "diceLooks", key: SETTINGS.gmDiceLooks,
+    kind: "ledger", backup: false, sync: true, fullGmOnly: true,
+    exists: actorId => Boolean(game.actors?.has(actorId))
+});
+
+/**
  * THE KEY REMNANT PLAN (E05 C5; audit S01-01, S05-02). A row per chapter and slot,
  * `${chapter}:${slot}`: scale, name, text, analysis, note, tokenId, sceneId - the world
  * setting `keyRemnantPlan` until 1.2.64, which every browser held: one chapter's plan, the

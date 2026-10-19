@@ -253,7 +253,11 @@ part of a roll comes from:
   import: `applications/dialogs/d20RollDialog.mjs` (since E33 C2b a stand-in
   shaped as the window - its config, its roll, the markup the module's hooks
   read and its actions, the hooks fired through the shim's render and close;
-  its header says what it leaves out), `helpers/utils.mjs` (two of Daggerheart's helpers, and two that throw
+  its header says what it leaves out; since E16 p1 C0 its Roll is greyed out
+  from the costs and uses against the actor's resources, as 2.10.5's
+  `_prepareContext` greys it, by a wrap client-entry.mjs `wrapWindowCosts`
+  puts on the class at boot - an assumption about the table's Daggerheart that
+  LIVE-E16-01 checks), `helpers/utils.mjs` (two of Daggerheart's helpers, and two that throw
   if a copy ever calls them), `data/action/baseAction.mjs` (the
   `ResourceUpdateMap` of `lib/daggerheart.mjs`); in client-entry.mjs
   (`installDualityRoll`): the roll and the dice registered where Daggerheart
@@ -268,8 +272,9 @@ the summary its throw leaves in the config, `extraDice`, the resource step
 (critical.mjs's patch of it included) and a live reroll's settlement run for
 real, and the window's choices reach them as its actions make them (E33 C2b).
 Not run: the window's form (a select changed, a formula typed), its chat card,
-triggers and countdowns, anything read off the roll data's `parent` (no effect
-makes a critical certain, no rally die), and every roll at a table.
+triggers and countdowns, anything read off the roll data's `parent` but the
+window's costs (no effect makes a critical certain, no rally die), and every
+roll at a table.
 
 ## What the harness cannot do
 
@@ -381,7 +386,15 @@ makes a critical certain, no rally die), and every roll at a table.
   `__savedFiles` on that client instead of downloading it, and
   `readTextFromFile` takes the text itself (or `{ text }`) as the chosen file;
   what a real browser does with either is LIVE-E04-05. v14's world storage
-  answers `getSetting(key)` with the stored value or nothing (LIVE-E04-10).
+  answers `getSetting(key)` with the stored value or nothing (LIVE-E04-10),
+  and since E16 fix r1c-G1 with `_stats.lastModifiedBy`: the user whose write
+  the server last applied (cluster.mjs `settingWriters`; null for a value the
+  seed wrote). That v14 stamps a Setting so is modelled, not read: LIVE-E16-04.
+  Since E16 fix r1e-G1 a world setting written with the JSON it already holds
+  (key order too) is an empty diff: not applied, not broadcast, no
+  `updateSetting` or `onChange`, no `settingLog` row, and its writer stays the
+  last real one - v14 drops an update that changes nothing, recalled, not read
+  (LIVE-E30-03, LIVE-E16-04). A document's update is still not diffed here.
 - **The GM store at a real table** (E04). Late GM accounts (`connect`,
   `disconnect`, `storageOf`) are clients on one machine: `game.time.serverTime`
   is that machine's clock and a client's skew moves its `Date.now` alone

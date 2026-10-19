@@ -220,6 +220,9 @@ async function restore(snap) {
         if (strays.length) await scene.deleteEmbeddedDocuments("Token", strays);
     }
     await gmStoresIdle();
+    // The world's copy of the GMs' dice looks a full Gamemaster's overlay write has in flight (dice-sync.mjs, E16 fix
+    // r1c-G1) lands before the settings are compared and put back, as a store's write does above.
+    await (await import("./dice-sync.mjs")).worldCopyIdle?.();
 
     // Every other setting that moved, written back as it was recorded. Compared
     // first so a setting nothing touched is not written - several have `onChange`
@@ -3124,6 +3127,91 @@ async function clearObjections(floorMod, seen) {
         try { await message.delete(); } catch { /* already gone */ }
     }
     await settle();
+}
+
+/*
+ * THE TABLE'S DICE LOOK, ITS FIXTURES (E16 p1 C3, 19.10.2026; audits S02-67 and S16-02). Dice So Nice keeps a
+ * user's look in that User's flags `dice-so-nice.appearance` and `sfxList` (the 26.09 design's reading of DSN
+ * 6.2.9; DSN's source is not on this machine), which every browser reads to draw that user's throw. The tests
+ * below give the GM a look, write other looks on users, and put every user's Dice So Nice scope back as found
+ * - whole, or deleted where there was none - with the forcing off while they write, so that no put-back of the
+ * module's answers the put-back of the suite's.
+ */
+const DSN_SCOPE = "dice-so-nice";
+const DICE_FORCE = `${MODULE_ID}.${SETTINGS.forceDiceLook}`;
+/** The GM's look: a library die without its owner, and one effect that runs a macro. */
+const GM_DICE_LOOK = { global: { colorset: "fire", material: "metal" }, d20: { colorset: "ice", libraryDieId: "e16-d20" } };
+const GM_DICE_SFX = [{ diceType: "d20", onResult: ["20"], specialEffect: "PlayAnimationBright", options: {} },
+    { diceType: "d20", onResult: ["1"], specialEffect: "PlayMacro", options: { macroId: "e16-macro" } }];
+/** A look of a player's own: a scope the GM's has not (d6), and an effect of its own. */
+const OWN_DICE_LOOK = { global: { colorset: "black" }, d6: { colorset: "bloodmoon" } };
+const OWN_DICE_SFX = [{ diceType: "d12", onResult: ["12"], specialEffect: "PlayAnimationDark", options: {} }];
+const diceScopeOf = user => foundry.utils.deepClone(user?.toObject?.().flags?.[DSN_SCOPE] ?? null);
+const diceLookWrite = (look, sfx) => ({ [`flags.${DSN_SCOPE}.appearance`]: look, [`flags.${DSN_SCOPE}.sfxList`]: sfx });
+/** The module's canonical look, or null where the module has none to give. */
+async function canonicalDiceLook() {
+    const sync = await import("./dice-sync.mjs");
+    return typeof sync.canonicalLook === "function" ? sync.canonicalLook() : null;
+}
+/** Whether a user's flags hold this look, read as the module's own comparison would not be: key order aside, nothing else. */
+const holdsLook = (user, look) => Boolean(look) && stableJson(diceScopeOf(user)?.appearance ?? null) === stableJson(look.appearance)
+    && stableJson(diceScopeOf(user)?.sfxList ?? null) === stableJson(look.sfxList);
+/** What the GM's look must come out as on a player: its colours, the library die owned by the GM, no macro. */
+const isGmsLook = (look, gm) => {
+    const sfx = Object.values(look?.sfxList ?? {});
+    return look?.appearance?.global?.colorset === "fire" && look?.appearance?.d20?.libraryDieOwner === gm.id
+        && sfx.some(e => e?.specialEffect === "PlayAnimationBright") && !sfx.some(e => e?.specialEffect === "PlayMacro");
+};
+function diceFlagsFound() {
+    return new Map(game.users.map(u => [u.id, diceScopeOf(u)]));
+}
+async function putBackDiceFlags(found, made = []) {
+    const { forcedReplacement } = await import("./utils.mjs");
+    const registered = game.settings.settings.has(DICE_FORCE);
+    const was = registered ? game.settings.get(MODULE_ID, SETTINGS.forceDiceLook) : null;
+    try {
+        if (was) await game.settings.set(MODULE_ID, SETTINGS.forceDiceLook, false);
+        for (const user of made) if (game.users.get(user.id)) await user.delete();
+        for (const [id, scope] of found) {
+            const user = game.users.get(id);
+            if (!user || stableJson(diceScopeOf(user)) === stableJson(scope)) continue;
+            const whole = scope === null ? forcedDeletion() : (typeof forcedReplacement === "function" ? forcedReplacement(scope) : scope);
+            await user.update({ [`flags.${DSN_SCOPE}`]: whole });
+        }
+        // A put-back the module scheduled before the switch went off runs while it is off (its wait is 400 ms).
+        await wait(700);
+    } finally {
+        if (registered && game.settings.get(MODULE_ID, SETTINGS.forceDiceLook) !== was) await game.settings.set(MODULE_ID, SETTINGS.forceDiceLook, was);
+    }
+}
+
+/** A character's own Dice So Nice look (DSN's overlay on the user's), as the actor's source holds it, or null for none. */
+const overlayOf = actor => foundry.utils.deepClone(actor?.toObject?.().flags?.[DSN_SCOPE]?.appearance ?? null);
+const overlayWrite = look => ({ [`flags.${DSN_SCOPE}.appearance`]: look });
+/** A GM's overlay on a character: the GMs' copy the put-back must come back to. */
+const GM_OVERLAY = { global: { colorset: "ice", material: "glass" } };
+/** A player's or an Assistant's own: a colour of its own and a die scope the GM's has not. */
+const OWN_OVERLAY = { global: { colorset: "black" }, d6: { colorset: "bloodmoon" } };
+/**
+ * A write of a user below full Gamemaster on an actor, as the primary hears one (C4): made here by the GM with
+ * `noHook`, so that no hook on any browser takes it for the GM's, then handed to `updateActor`'s listeners with
+ * that user's id, the id Foundry stamps on a player's own update. Scenario 17's G2 makes the same write from the
+ * player's and the Assistant's own consoles.
+ */
+async function asUserOverlayWrite(actor, user, look) {
+    const write = overlayWrite(look);
+    await actor.update(write, { noHook: true });
+    Hooks.callAll("updateActor", actor, foundry.utils.expandObject(write), {}, user.id);
+}
+/** Every actor's Dice So Nice scope as found, and the road that puts each back whole (or deletes it where there was none). */
+const actorDiceFound = actors => new Map(actors.map(a => [a.id, foundry.utils.deepClone(a.toObject().flags?.[DSN_SCOPE] ?? null)]));
+async function putBackActorDice(found) {
+    const { forcedReplacement } = await import("./utils.mjs");
+    for (const [id, scope] of found) {
+        const actor = game.actors.get(id);
+        if (!actor || stableJson(actor.toObject().flags?.[DSN_SCOPE] ?? null) === stableJson(scope)) continue;
+        await actor.update({ [`flags.${DSN_SCOPE}`]: scope === null ? forcedDeletion() : (forcedReplacement(scope) ?? scope) });
+    }
 }
 
 const SCENARIOS = [
@@ -47695,6 +47783,49 @@ const SCENARIOS = [
             "the locked bonus input kept a value, or the config did (the Meddle taken back and the window redrawn: value, disabled, config; opened with +3: the same)");
     }],
 
+    ["a Meddle's -1 is on the roll window's config before it is drawn with the lock off too, and a bonus no Call set stays the roller's", async () => {
+        /*
+         * E16 fix r1c-G1, 19.10.2026 (finding E16-COR-4; E16's Goal names Meddle among the effects forced on the
+         * config, with no exception for the lock). roll-dialog.mjs `forceConfig` imposed a Call's flat bonus only
+         * under `locking()`, so with `lockRollDialog` off a Meddle never reached `app.config` before Daggerheart's
+         * `_prepareContext`: the window showed a formula without it while the GM's drawn throw counted it
+         * (roll-draw.mjs `callBonus`). The glue window opened on a student's statistic with the lock off: with a
+         * Meddle of -1 armed; the Meddle taken back while it is open and the window redrawn on `updateActor` as the
+         * test above does; then one opened with `extraFormula` "+3" and no Call. Read, each: the input's value,
+         * read-only, disabled, and the config's extra formula. At 442f563: ["", false, false, null] with the Meddle.
+         */
+        const [actor] = cast(1);
+        const E = await import("./call-effects.mjs");
+        const lockWas = game.settings.get(MODULE_ID, SETTINGS.lockRollDialog);
+        const input = win => win?.element?.querySelector('input[name="extraFormula"]') ?? null;
+        const state = win => [input(win)?.value ?? null, input(win)?.readOnly ?? null, input(win)?.disabled ?? null, win?.app?.config?.extraFormula ?? null];
+        let meddle = null, win = null, win2 = null;
+        const read = {};
+        try {
+            if (lockWas) await game.settings.set(MODULE_ID, SETTINGS.lockRollDialog, false);
+            meddle = await c3Call(actor, { key: "meddle", grants: "bonus", amount: -1 });
+            win = await (await rollWindow(actor, { roll: { trait: "agility" } })).open();
+            must(input(win), "the window draws no bonus input - this would measure nothing");
+            read.meddle = state(win);
+            await meddle.spend();
+            must(!E.armedCallsShown(actor).some(c => c.nonce === meddle.nonce), "the Meddle was not taken back - this would measure nothing");
+            Hooks.callAll("updateActor", actor, { flags: { [MODULE_ID]: { [FLAGS.pendingCall]: actor.getFlag(MODULE_ID, FLAGS.pendingCall) ?? null } } }, {}, game.user.id);
+            await until(() => !win.app.config?.extraFormula, 3000);
+            await settle();
+            read.taken = state(win);
+            await win.cancel();
+            win2 = await (await rollWindow(actor, { roll: { trait: "agility" }, extraFormula: "+3" })).open();
+            read.own = state(win2);
+        } finally {
+            await win?.cancel();
+            await win2?.cancel();
+            await meddle?.undo();
+            if (game.settings.get(MODULE_ID, SETTINGS.lockRollDialog) !== lockWas) await game.settings.set(MODULE_ID, SETTINGS.lockRollDialog, lockWas);
+        }
+        equal(stableJson(read), stableJson({ meddle: ["-1", true, false, "-1"], own: ["+3", false, false, "+3"], taken: ["", false, false, null] }),
+            "with the lock off a Meddle's -1 was not on the window's config and input before it was drawn, stayed after it was taken back, or a bonus no Call set was not left to the roller (value, read-only, disabled, config: meddle; taken back and redrawn; opened with +3)");
+    }],
+
     ["each silence answers under its own name", async () => {
         /*
          * E33 C9 (D39). The crime-witness marker on a Monocub and the Despair Call
@@ -56844,6 +56975,1500 @@ const SCENARIOS = [
         equal(rest(game.settings.get("core", "permissions")) + J(game.settings.get("core", "permissions")?.SHOW_RULER ?? null),
             rest(before) + J(before.SHOW_RULER ?? null), "the world's permissions after the test are not the ones it found");
     }],
+    ["a player at 0 Hope who bought an Experience Call clicks the experience: Roll stays on and it costs nothing, the lock on or off; with the lock off and no Call the free experience leaves no cost row for the next change to break (S02-04)", async () => {
+        /*
+         * E16 p1 C1, 18.10.2026; audit S02-04 (E16-01, E16-02). The Experience Call is paid before the roll, so
+         * a player who had 1 Hope has 0 when the window opens. Daggerheart's window adds an experience's Hope
+         * cost when it is clicked and greys Roll out from that cost in `_prepareContext`; the module took the
+         * cost out in the render hook, after the button was drawn, and the bought roll could not be thrown.
+         * With the lock off and no Call the experience is free (the module's rule), the cost was taken out of
+         * the config and its row left on the window, and Daggerheart's form handler merges the rows back on the
+         * next change (d20RollDialog.mjs `updateRollConfiguration`, 2.10.5, read: `mergeObject(this.config.costs,
+         * rest.costs)`) - a cost with no resource, which its `calcCosts` throws on. A student at Hope 0; for the
+         * lock on and off an Experience Call armed by a GM, Daggerheart's window (`rollWindow`, the harness's
+         * stand-in, whose Roll C0 greys from the costs) opened on its action roll and the first experience
+         * clicked; then the lock off with no Call, the same click, the handler's merge done here as written
+         * there (the stand-in's handler does not run it) and the window's context computed again. Read, each:
+         * Roll disabled, the Hope the config's costs ask, the cost rows on the window; and whether the context
+         * threw. At cfbbf60: [true, 0, 0] locked and unlocked, and [true, 0, 1, "TypeError"] free.
+         */
+        const [actor] = cast(1);
+        const { DRPG_ACTION_ROLL } = await import("./action-rolls.mjs");
+        const lockWas = game.settings.get(MODULE_ID, SETTINGS.lockRollDialog);
+        const settled = w => (typeof w.app.settled === "function" ? w.app.settled() : settle());
+        const chip = w => w.element?.querySelector('[data-action="selectExperience"]') ?? null;
+        const state = w => [w.element?.querySelector("button.submit-btn")?.disabled ?? null,
+            (w.app.config?.costs ?? []).filter(c => c?.key === "hope").reduce((sum, c) => sum + Number(c.value ?? 0), 0),
+            w.element?.querySelectorAll('input[name^="costs."]').length ?? null];
+        const hope = await c3Values(actor, { "system.resources.hope.value": 0 });
+        const read = {};
+        let call = null, win = null;
+        try {
+            for (const lock of [true, false]) {
+                await game.settings.set(MODULE_ID, SETTINGS.lockRollDialog, lock);
+                call = await c3Call(actor, { key: "experience", kind: "hope", grants: "experience" });
+                win = await (await rollWindow(actor, { [DRPG_ACTION_ROLL]: true })).open();
+                must(chip(win), `${actor.name}'s window offers no experience - this would measure nothing`);
+                chip(win).click();
+                await settled(win);
+                read[lock ? "locked" : "unlocked"] = state(win);
+                await win.cancel();
+                win = null;
+                await call.spend();
+                call = null;
+            }
+            win = await (await rollWindow(actor, { [DRPG_ACTION_ROLL]: true })).open();
+            must(chip(win), `${actor.name}'s window offers no experience - this would measure nothing`);
+            chip(win).click();
+            await settled(win);
+            const free = state(win);
+            const form = Object.fromEntries([...win.element.querySelectorAll("input, select")]
+                .filter(el => el.name && !el.disabled).map(el => [el.name, el.type === "checkbox" ? el.checked : el.value]));
+            const { costs } = foundry.utils.expandObject(form);
+            win.app.config.costs = foundry.utils.mergeObject(win.app.config.costs, costs ?? {});
+            let threw = null;
+            try {
+                await win.app._prepareContext({});
+                threw = false;
+            } catch (err) {
+                threw = err?.name ?? String(err);
+            }
+            read.free = [...free, threw];
+        } finally {
+            await win?.cancel();
+            await call?.spend();
+            if (game.settings.get(MODULE_ID, SETTINGS.lockRollDialog) !== lockWas) await game.settings.set(MODULE_ID, SETTINGS.lockRollDialog, lockWas);
+            await hope.undo();
+        }
+        equal(stableJson(read), stableJson({ free: [false, 0, 0, false], locked: [false, 0, 0], unlocked: [false, 0, 0] }),
+            "a bought or free experience at 0 Hope greyed Roll out, cost Hope, left its cost row, or broke the window on the next change (each: Roll disabled, the Hope asked, the cost rows; free: and what the context threw)");
+    }],
+
+    ["a roll window whose context the module could not wrap says so once on the console, and still gets what a Call forces from the render hook (E16-04)", async () => {
+        /*
+         * E16 p1 C1, 18.10.2026; the plan's risk for E16 (D1 does not stop a newer Daggerheart). The wrapper of
+         * the window's `_prepareContext` is put on a method of the shape read on 2.10.5 and 2.6.5; where the
+         * method is missing or of another shape the module is to say so once and work as at Base (4263c09), from the
+         * render hook. Read: the wrapper asked twice of a window class with no method of its own and once of one
+         * whose method computes no Roll from the costs - what it answered, the console's lines from the module
+         * naming `_prepareContext`, and whether either class was changed; then Daggerheart's window with the
+         * glue's own method put back for the test (the wrapper's mark keeps it), a Support armed by a GM:
+         * the roll's advantage and its number of dice, whether the advantage chip is selected and locked. At
+         * cfbbf60 the module had no wrapper to ask.
+         */
+        const RD = await import("./roll-dialog.mjs");
+        const MARK = Symbol.for("drpgRollContext");
+        const { ApplicationV2 } = foundry.applications.api;
+        const [actor] = cast(1);
+        const read = {};
+        if (typeof RD.wrapPrepareContext !== "function" || typeof RD.rollDialogClass !== "function") {
+            read.wrap = "roll-dialog.mjs has no wrapPrepareContext or rollDialogClass";
+        } else {
+            class Bare extends ApplicationV2 {}
+            class Odd extends ApplicationV2 {
+                async _prepareContext() { return {}; }
+            }
+            const odd = Odd.prototype._prepareContext;
+            const log = watchLog();
+            try {
+                read.wrap = [RD.wrapPrepareContext(Bare), RD.wrapPrepareContext(Bare), RD.wrapPrepareContext(Odd)];
+            } finally {
+                log.stop();
+            }
+            read.said = log.count(new RegExp(`^${MODULE_ID} \\| .*_prepareContext`));
+            read.untouched = [Object.hasOwn(Bare.prototype, "_prepareContext"), Odd.prototype._prepareContext === odd];
+            const proto = RD.rollDialogClass()?.prototype;
+            const ours = proto?._prepareContext;
+            must(typeof ours?.[MARK] === "function", "Daggerheart's roll window here is not the module's wrapped one - this would measure nothing");
+            const lockWas = game.settings.get(MODULE_ID, SETTINGS.lockRollDialog);
+            let support = null, win = null;
+            try {
+                if (!lockWas) await game.settings.set(MODULE_ID, SETTINGS.lockRollDialog, true);
+                proto._prepareContext = ours[MARK];
+                support = await c3Call(actor, C3_SUPPORT);
+                win = await (await rollWindow(actor, { roll: { trait: "agility" } })).open();
+                const chipEl = win.element.querySelector(".advantage-chip");
+                read.base = [win.app.config?.roll?.advantage ?? null, win.roll?.advantageNumber ?? null,
+                    Boolean(chipEl?.classList.contains("selected") && chipEl?.disabled)];
+            } finally {
+                await win?.cancel();
+                proto._prepareContext = ours;
+                await support?.spend();
+                if (game.settings.get(MODULE_ID, SETTINGS.lockRollDialog) !== lockWas) await game.settings.set(MODULE_ID, SETTINGS.lockRollDialog, lockWas);
+            }
+        }
+        equal(stableJson(read), stableJson({ base: [1, 1, true], said: 2, untouched: [false, true], wrap: [false, false, false] }),
+            "the wrapper took a missing or other-shaped method, said so more or less than once a class, changed a class it refused, or a window it could not wrap lost what a Support forces (wrap answers, lines, [Bare has a method, Odd's kept], [advantage, dice, the chip selected and locked])");
+    }],
+
+    ["the roll window hides only the experiences' cost rows: a cost Daggerheart will charge stays in sight (S02-71)", async () => {
+        /*
+         * E16 p1 C1, 18.10.2026; audit S02-71. `hideCostSection` took every cost row off a student's window, so
+         * a Daggerheart action a GM gave a student that costs Stress would charge it unseen. Only an
+         * experience's cost (`extKey`) is the Experience Call's, paid already. A student's window opened by a GM
+         * with a Stress cost of 1 on its config, the lock on, an Experience Call armed and the first experience
+         * clicked. Read: the cost rows on the window and the costs on the config. At cfbbf60: no row, ["stress"].
+         */
+        const [actor] = cast(1);
+        const { DRPG_ACTION_ROLL } = await import("./action-rolls.mjs");
+        const lockWas = game.settings.get(MODULE_ID, SETTINGS.lockRollDialog);
+        let call = null, win = null, read = null;
+        try {
+            if (!lockWas) await game.settings.set(MODULE_ID, SETTINGS.lockRollDialog, true);
+            call = await c3Call(actor, { key: "experience", kind: "hope", grants: "experience" });
+            win = await (await rollWindow(actor, { [DRPG_ACTION_ROLL]: true, costs: [{ key: "stress", value: 1 }] })).open();
+            const chip = win.element.querySelector('[data-action="selectExperience"]');
+            must(chip, `${actor.name}'s window offers no experience - this would measure nothing`);
+            chip.click();
+            if (typeof win.app.settled === "function") await win.app.settled();
+            else await settle();
+            read = [[...win.element.querySelectorAll('input[name^="costs."]')].map(input => input.name), (win.app.config?.costs ?? []).map(c => c.key)];
+        } finally {
+            await win?.cancel();
+            await call?.spend();
+            if (game.settings.get(MODULE_ID, SETTINGS.lockRollDialog) !== lockWas) await game.settings.set(MODULE_ID, SETTINGS.lockRollDialog, lockWas);
+        }
+        equal(stableJson(read), stableJson([["costs.0.enabled"], ["stress"]]),
+            "the window hid a cost that is not an experience's, or kept the experience's (the cost rows, the config's costs)");
+    }],
+
+    ["a Find Passage thrown through the roll window keeps its findPassage on the roll in hand that noteRollContext extends (A10)", async () => {
+        /*
+         * E16 p1 C1, 18.10.2026; the owner's A10 of 11.10 ("the roll window's rebuild keeps the findPassage
+         * context in noteRollContext"), a guard: the context is the action's, handed to `rollTrait` and kept on
+         * the roll in hand (`rememberRoll`), which `locatePassage`'s `noteRollContext` then extends; the window
+         * is what C1 rebuilt. A student's Find Passage roll (`rollTrait` of Head with the Analyze's key and
+         * `findPassage`, as action-rolls.mjs `performAnalyze` throws it) thrown through Daggerheart's window
+         * (the suite's rolls skip it, `suiteRolling`), the lock on, its faces set. Read: the roll in hand's
+         * action, its findPassage, and whether a total came back. Green at cfbbf60 as well. A11's `direction`
+         * and `mode` join this when E80 part 2 merges into line B.
+         */
+        const [actor] = cast(1);
+        const rolls = await import("./action-rolls.mjs");
+        const lockWas = game.settings.get(MODULE_ID, SETTINGS.lockRollDialog);
+        const rolling = game.drpg.suiteRolling;
+        const { gameSettings } = CONFIG.DH.SETTINGS;
+        const fear = game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear);
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        let outcome = null;
+        try {
+            if (!lockWas) await game.settings.set(MODULE_ID, SETTINGS.lockRollDialog, true);
+            game.drpg.suiteRolling = false;
+            globalThis.__forceRoll = { hope: 9, fear: 4 };
+            outcome = await rolls.rollTrait(actor, "head", { actionKey: "analyze", context: { findPassage: true } });
+        } finally {
+            game.drpg.suiteRolling = rolling;
+            if (hadForce) globalThis.__forceRoll = force;
+            else delete globalThis.__forceRoll;
+            await settle();
+            await (outcome?.raw?.message ?? null)?.delete?.();
+            if (game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear) !== fear) await game.settings.set(CONFIG.DH.id, gameSettings.Resources.Fear, fear);
+            if (game.settings.get(MODULE_ID, SETTINGS.lockRollDialog) !== lockWas) await game.settings.set(MODULE_ID, SETTINGS.lockRollDialog, lockWas);
+        }
+        const hand = rolls.rollInHand(actor);
+        equal(stableJson([hand?.actionKey ?? null, hand?.findPassage ?? null, typeof outcome?.total]), stableJson(["analyze", true, "number"]),
+            "a Find Passage thrown through the window lost its findPassage, its action, or its roll (the roll in hand's action and findPassage, the total's type)");
+    }],
+
+    ["an opening or crisis throw holds its Reaction chip at action with its reason and another action leaves it alone (S02-23)", async () => {
+        /*
+         * E16 p1 C2, 18.10.2026; audit S02-23 (E16-10). In the windows of a crisis action and of the murder's
+         * opening everything was locked but the Reaction chip, and those throws are decided by their Hope or
+         * Despair: a reaction earns neither, and a player could click the chip on a roll it does not fit. A
+         * student's three throws through Daggerheart's window (`rollTrait` with the key and context the module
+         * throws them with - murder-rules.mjs `resolveCrisisAction` and the opening; Analyze as the other
+         * action), the lock on, the suite's skip of the window off as in A10's test. At each window's first
+         * render the chip is read and then clicked as a player would. Read, each: the chip selected, locked,
+         * its tooltip, and whether the window's roll is a reaction after the click. At c952b92: the crisis
+         * and the opening as [false, false, null, true], as Analyze.
+         */
+        const [actor] = cast(1);
+        const rolls = await import("./action-rolls.mjs");
+        const lockWas = game.settings.get(MODULE_ID, SETTINGS.lockRollDialog);
+        const rolling = game.drpg.suiteRolling;
+        const { gameSettings } = CONFIG.DH.SETTINGS;
+        const fear = game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear);
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        const throws = [["crisis", { actionKey: "crisis", context: { crisis: "strike" } }],
+            ["murderOpening", { remember: false, actionKey: "murderOpening", context: { side: "killer" } }],
+            ["analyze", { actionKey: "analyze", context: {} }]];
+        const read = {}, outcomes = [];
+        let seen = null;
+        const hook = Hooks.on("renderApplicationV2", (app, element) => {
+            if (!seen || seen.done || !element?.classList?.contains?.("roll-selection")) return;
+            seen.done = true;
+            const chip = element.querySelector('[data-action="toggleReaction"]');
+            if (!chip) { seen.read = "no reaction chip"; return; }
+            const before = [chip.classList.contains("selected"), chip.classList.contains("drpg-locked"), chip.dataset.tooltip ?? null];
+            chip.click();
+            seen.read = [...before, app.config?.actionType === "reaction" || app.reactionOverride === true];
+        });
+        try {
+            if (!lockWas) await game.settings.set(MODULE_ID, SETTINGS.lockRollDialog, true);
+            game.drpg.suiteRolling = false;
+            globalThis.__forceRoll = { hope: 9, fear: 4 };
+            for (const [key, options] of throws) {
+                seen = { done: false, read: "no window" };
+                outcomes.push(await rolls.rollTrait(actor, "body", options));
+                read[key] = seen.read;
+            }
+        } finally {
+            Hooks.off("renderApplicationV2", hook);
+            game.drpg.suiteRolling = rolling;
+            if (hadForce) globalThis.__forceRoll = force;
+            else delete globalThis.__forceRoll;
+            await settle();
+            for (const outcome of outcomes) await (outcome?.raw?.message ?? null)?.delete?.();
+            if (game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear) !== fear) await game.settings.set(CONFIG.DH.id, gameSettings.Resources.Fear, fear);
+            if (game.settings.get(MODULE_ID, SETTINGS.lockRollDialog) !== lockWas) await game.settings.set(MODULE_ID, SETTINGS.lockRollDialog, lockWas);
+        }
+        const held = [false, true, game.i18n.localize("DRPG.RollDialog.actionLocked"), false];
+        equal(stableJson(read), stableJson({ analyze: [false, false, null, true], crisis: held, murderOpening: held }),
+            "a crisis or opening window let its Reaction chip be clicked or did not say why, or another action's chip was held (each: selected, locked, tooltip, a reaction after the click)");
+    }],
+
+    ["a player's locked roll window is one summary line and Roll while a GM's stays whole (S02-29 S01-17 S01-22)", async () => {
+        /*
+         * E16 p1 C2, 18.10.2026; audits S02-29, S01-17 and S01-22 (E16-11 to E16-13). With the lock on a
+         * student's window was a wall of greyed controls - dice, experiences, advantage, the trait, the bonus,
+         * the roll mode - and one live Roll; the locked mode select spilled over three lines and the title bar
+         * let what is under the window show through. Daggerheart's window (`rollWindow`, the harness's stand-in)
+         * opened by this GM for a student's Body action roll, the lock on: read as the GM drew it, then drawn
+         * again from its own context and handed to the render hook while this browser reads as a player
+         * (`asConsole`); the same with a Support armed, and with an Experience Call armed. A title bar and its
+         * title are planted in the window to read the stylesheet's answer for them (the stand-in draws no frame).
+         * Read, from the cascade jsdom computes (no layout headless; the look on a table is LIVE-E16-02): which
+         * of the dice, experiences and modifiers sections are not displayed, the summary line and its tooltip,
+         * the mode select displayed, the chip beside it, Roll disabled; for the GM the mode select's min-width
+         * and white-space; the title bar's alpha and the title's and the heading's `contain`. At c952b92 the
+         * player's window was the GM's (no section away, no line, the select shown, no chip), the select's
+         * min-width "auto" and white-space "", the bar at 0.7 (the glass's) and both `contain` "none".
+         */
+        const RD = await import("./roll-dialog.mjs");
+        const [actor] = cast(1);
+        const { DRPG_ACTION_ROLL } = await import("./action-rolls.mjs");
+        const lockWas = game.settings.get(MODULE_ID, SETTINGS.lockRollDialog);
+        const SECTIONS = [".dices-section", ".experience-container", ".modifier-container"];
+        const shown = el => Boolean(el) && getComputedStyle(el).display !== "none";
+        const view = root => {
+            const line = root.querySelector(".drpg-roll-summary-line");
+            const mode = root.querySelector('select[name="selectedMessageMode"]');
+            return {
+                away: SECTIONS.filter(sel => root.querySelector(sel) && !shown(root.querySelector(sel))),
+                line: line ? [line.textContent.trim(), line.dataset.tooltip ?? null] : null,
+                mode: [shown(mode), root.querySelector(".drpg-mode-chip")?.textContent?.trim() ?? null],
+                roll: root.querySelector("button.submit-btn")?.disabled ?? null
+            };
+        };
+        const formulaOf = root => root.querySelector(".formula-label")?.textContent?.trim() ?? null;
+        const asPlayer = async win => {
+            const context = await win.app._prepareContext({});
+            await win.app._replaceHTML(await win.app._renderHTML(context), win.app.element);
+            asConsole(() => RD.onRenderApplication(win.app, win.app.element));
+            return view(win.element);
+        };
+        const read = {};
+        let call = null, win = null, formula = null, supported = null;
+        try {
+            if (!lockWas) await game.settings.set(MODULE_ID, SETTINGS.lockRollDialog, true);
+            win = await (await rollWindow(actor, { [DRPG_ACTION_ROLL]: true, roll: { trait: "strength" } })).open();
+            must(win.element?.querySelector(".experience-container"), `${actor.name}'s window offers no experience - this would measure nothing`);
+            read.gm = view(win.element);
+            formula = formulaOf(win.element);
+            const mode = win.element.querySelector('select[name="selectedMessageMode"]');
+            read.gmMode = mode ? [getComputedStyle(mode).minWidth, getComputedStyle(mode).whiteSpace] : null;
+            const header = document.createElement("header");
+            header.className = "window-header";
+            header.innerHTML = '<h1 class="window-title">A title long enough to want the whole screen for itself</h1>';
+            win.element.prepend(header);
+            const alpha = Number(/,\s*([\d.]+)\s*\)\s*$/.exec(getComputedStyle(header).backgroundColor)?.[1] ?? 0);
+            const heading = document.createElement("h1");
+            win.element.querySelector(".dialog-header")?.append(heading);
+            read.title = [alpha >= 0.85, getComputedStyle(header.querySelector(".window-title")).contain || null,
+                getComputedStyle(heading).contain || null];
+            header.remove();
+            heading.remove();
+            read.player = await asPlayer(win);
+            await win.cancel();
+            win = null;
+            call = await c3Call(actor, C3_SUPPORT);
+            win = await (await rollWindow(actor, { [DRPG_ACTION_ROLL]: true, roll: { trait: "strength" } })).open();
+            read.support = await asPlayer(win);
+            supported = formulaOf(win.element);
+            await win.cancel();
+            win = null;
+            await call.spend();
+            call = await c3Call(actor, { key: "experience", kind: "hope", grants: "experience" });
+            win = await (await rollWindow(actor, { [DRPG_ACTION_ROLL]: true, roll: { trait: "strength" } })).open();
+            read.experience = (await asPlayer(win)).away;
+        } finally {
+            await win?.cancel();
+            await call?.spend();
+            if (game.settings.get(MODULE_ID, SETTINGS.lockRollDialog) !== lockWas) await game.settings.set(MODULE_ID, SETTINGS.lockRollDialog, lockWas);
+        }
+        const L = key => game.i18n.localize(key);
+        const { plural } = await import("./utils.mjs");
+        // The chip names who sees the roll (E16 fix r1-G2 of round r1c, finding E16-goal-07): the next test reads it.
+        const chip = L(game.settings.get(MODULE_ID, SETTINGS.forcePrivateRolls) ? "DRPG.RollDialog.modeGms" : "DRPG.RollDialog.modePublic");
+        // The Support's die is in the formula its window drew (`supported`), checked below to be more than the plain one.
+        equal(stableJson(read), stableJson({
+            experience: [".dices-section", ".modifier-container"],
+            gm: { away: [], line: null, mode: [true, null], roll: false },
+            gmMode: ["150px", "nowrap"],
+            player: { away: SECTIONS, line: [`Body, ${L("DRPG.RollDialog.summary.none")} - ${formula}`, null], mode: [false, chip], roll: false },
+            support: { away: SECTIONS, line: [`Body, ${plural("DRPG.RollDialog.summary.advantage", { n: 1 })} - ${supported}`, L("DRPG.RollDialog.forcedByCall")],
+                mode: [false, chip], roll: false },
+            title: [true, "inline-size", "inline-size"]
+        }), "a player's locked window kept a locked section or had no summary, a GM's lost one, the mode select or the title bar is not as S01-22 asks, or a title can set the width (see the comment for each key)");
+        ok(/\dd12/.test(formula ?? "") && typeof supported === "string" && supported.length > formula.length,
+            `the window's formula names no d12, or the Support's adds nothing to it (${formula}; ${supported})`);
+    }],
+
+    ["a player's locked roll window's mode chip names who sees the roll: the GMs and the player while rolls are forced private, a Monocub's room too (S01-22 ROLL-14)", async () => {
+        /*
+         * E16 fix r1-G2 of round r1c, 19.10.2026 (finding E16-goal-07). C2's chip said what the disabled mode select
+         * held - "Public" for a player whose chat bar is on the default - while `forcePrivateRolls` (on by default)
+         * whispers every student's roll to the GMs and its player (private-rolls.mjs `whisperRoll`), and a Monocub's
+         * to the room it stands in as well. Daggerheart's window (`rollWindow`) opened for a student's Body action
+         * roll with the lock on and drawn as a player reads it (`asConsole`, as the test above): with rolls forced
+         * private; with them not; and forced private again with the window's actor read as a Monocub (its `getFlag`
+         * answers the module's `monocub` flag on this instance only, nothing written). Read: the chip's text. At
+         * e10c60a: "Public" every time.
+         */
+        const RD = await import("./roll-dialog.mjs");
+        const [actor] = cast(1);
+        const { DRPG_ACTION_ROLL } = await import("./action-rolls.mjs");
+        const lockWas = game.settings.get(MODULE_ID, SETTINGS.lockRollDialog);
+        const privateWas = game.settings.get(MODULE_ID, SETTINGS.forcePrivateRolls);
+        const chipOf = async () => {
+            const win = await (await rollWindow(actor, { [DRPG_ACTION_ROLL]: true, roll: { trait: "strength" } })).open();
+            try {
+                await win.app._replaceHTML(await win.app._renderHTML(await win.app._prepareContext({})), win.app.element);
+                asConsole(() => RD.onRenderApplication(win.app, win.app.element));
+                return win.element.querySelector(".drpg-mode-chip")?.textContent?.trim() ?? null;
+            } finally {
+                await win.cancel();
+            }
+        };
+        const read = {};
+        const ownGetFlag = Object.hasOwn(actor, "getFlag");
+        try {
+            if (!lockWas) await game.settings.set(MODULE_ID, SETTINGS.lockRollDialog, true);
+            if (!privateWas) await game.settings.set(MODULE_ID, SETTINGS.forcePrivateRolls, true);
+            read.forced = await chipOf();
+            await game.settings.set(MODULE_ID, SETTINGS.forcePrivateRolls, false);
+            read.open = await chipOf();
+            await game.settings.set(MODULE_ID, SETTINGS.forcePrivateRolls, true);
+            const getFlag = actor.getFlag;
+            actor.getFlag = function (scope, key) { return scope === MODULE_ID && key === FLAGS.monocub ? true : getFlag.call(this, scope, key); };
+            read.monocub = await chipOf();
+        } finally {
+            if (!ownGetFlag) delete actor.getFlag;
+            if (game.settings.get(MODULE_ID, SETTINGS.forcePrivateRolls) !== privateWas) await game.settings.set(MODULE_ID, SETTINGS.forcePrivateRolls, privateWas);
+            if (game.settings.get(MODULE_ID, SETTINGS.lockRollDialog) !== lockWas) await game.settings.set(MODULE_ID, SETTINGS.lockRollDialog, lockWas);
+        }
+        const L = key => game.i18n.localize(key);
+        equal(stableJson(read), stableJson({ forced: L("DRPG.RollDialog.modeGms"), monocub: L("DRPG.RollDialog.modeRoom"), open: L("DRPG.RollDialog.modePublic") }),
+            "the locked window's chip does not name who sees the roll (forced: the GMs and you; monocub: the GMs, you and the room; open: Public, the select's own mode)");
+    }],
+
+    ["a roll window opens below the curtain's edge, not over the glass at the top of the screen (S01-22)", async () => {
+        /*
+         * E16 fix r1c-G1, 19.10.2026 (findings E16-COR-5 and E16-goal-01; E16-12's last part). S01-22 found the roll
+         * window's title bar over the curtain's text ('A murder is under way', 'PLAYER B') and the sheet's tabs:
+         * nothing placed the window, so it opened where Daggerheart puts it. The harness cuts no glass (jsdom has
+         * no layout: the curtain's canvas is 0 wide and glass.mjs stands down), so the last cut is stood in on
+         * glass.mjs's `LAST`, with the body's `drpg-curtain-on`: two rows of panes across the top, the lower one's
+         * foot 60 % of the screen down (its middle in the top half: the top band, by the band rule the glass gives
+         * its blocks; the window, 0 high headless, is centred, so the band reaches below its top), a deeper one at
+         * the left edge that the window's columns do not cross, a rail over the window's columns 90 % of the screen
+         * deep (deeper than half of it: a side's rail, not the band), and a pane at the foot of the screen. The shim centres a window with no top (lib/shim.mjs `setPosition`; a width and a height of 0
+         * headless). Read: the window's top with the stood-in curtain, again after the roller moved it over the
+         * band and it was redrawn (placed once, so it stays), and with no curtain (the class off: Monokuma Legacy,
+         * or a screen too small for the glass). At 442f563: the centre each time (the shim's left read NaN for
+         * Daggerheart's "auto" width until this fix). Where the real band lies on a table at 1366x768 is LIVE-E16-02.
+         */
+        const G = await import("./glass.mjs");
+        const [actor] = cast(1);
+        const W = innerWidth, H = innerHeight;
+        const was = { panes: G.LAST.panes, frame: G.LAST.frame, on: document.body.classList.contains("drpg-curtain-on") };
+        const pane = (x0, y0, x1, y1) => ({ kind: "field", tone: null, poly: [[x0, y0], [x1, y0], [x1, y1], [x0, y1]], x0, y0, x1, y1 });
+        const band = Math.round(H * 0.6);
+        const read = {};
+        let win = null, win2 = null;
+        try {
+            G.LAST.frame = { W, H, left: 0, top: 0 };
+            G.LAST.panes = [pane(0, 0, W, Math.round(H * 0.25)), pane(100, Math.round(H * 0.25), W, band), pane(0, Math.round(H * 0.28), 100, Math.round(H * 0.68)),
+                pane(W / 2 - 50, 0, W / 2 + 50, Math.round(H * 0.9)), pane(0, H - 120, W, H)];
+            document.body.classList.add("drpg-curtain-on");
+            win = await (await rollWindow(actor, { roll: { trait: "agility" } })).open();
+            const left = win.app.position?.left ?? null, width = win.app.position?.width ?? null;
+            must(typeof left === "number" && typeof width === "number" && left > 100 && left + width < W,
+                `the window does not stand clear of the stood-in strip (left ${left}, width ${width}, screen ${W}) - this would measure nothing`);
+            read.glass = win.app.position.top;
+            win.app.setPosition({ top: 20 });
+            await win.app.render();
+            await settle();
+            read.redrawn = win.app.position.top;
+            await win.cancel();
+            document.body.classList.remove("drpg-curtain-on");
+            win2 = await (await rollWindow(actor, { roll: { trait: "agility" } })).open();
+            read.none = win2.app.position?.top ?? null;
+        } finally {
+            await win?.cancel();
+            await win2?.cancel();
+            G.LAST.panes = was.panes;
+            G.LAST.frame = was.frame;
+            document.body.classList.toggle("drpg-curtain-on", was.on);
+        }
+        equal(stableJson(read), stableJson({ glass: band + 8, none: Math.max(0, H / 2), redrawn: 20 }),
+            "the roll window did not open below the curtain's band, was moved again at a redraw, or was moved with no curtain (glass: its top under the stood-in band; redrawn: where it was put; none: the centre)");
+    }],
+
+    ["a player's own dice look goes back to the GM's, whole, and the player's display settings stay theirs (S02-67 S16-02)", async () => {
+        /*
+         * E16 p1 C3, 19.10.2026; audits S02-67 and S16-02 (E16-15, E16-19). The GM wants one dice look at the
+         * table (D19a), and until C3 the module pushed Dice So Nice's client setting `settings`, which DSN 6.x
+         * only migrates: every player kept and could change their own dice. Here the GM, who is the look's
+         * source, gives themself a look; it must reach a connected player; then the player's look is written
+         * past the player's client, through the server, as a console's would arrive at the primary GM (the
+         * put-back reads the state after the write, not who wrote it), with a die scope the GM's look has not
+         * and a display setting. Read: the player's flags against the module's canonical look after each step,
+         * that look against the GM's (its colours, the library die owned by the GM, the macro effect gone),
+         * the stray scope, and the `settings` flag (Q2: not forced). At 01c6739: the canonical look null and
+         * the player's flags the player's own.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter"));
+        const gm = game.user;
+        const player = game.users.find(u => !u.isGM && u.active);
+        const found = diceFlagsFound();
+        const read = {};
+        try {
+            await gm.update(diceLookWrite(GM_DICE_LOOK, GM_DICE_SFX));
+            const look = await canonicalDiceLook();
+            await until(() => holdsLook(player, look), 3000);
+            read.spread = [holdsLook(player, look), isGmsLook(look, gm)];
+            await player.update({ ...diceLookWrite(OWN_DICE_LOOK, OWN_DICE_SFX), [`flags.${DSN_SCOPE}.settings`]: { scale: 80 } });
+            await until(() => holdsLook(player, look), 3000);
+            const after = diceScopeOf(player);
+            read.after = [holdsLook(player, look), Object.hasOwn(after?.appearance ?? {}, "d6"), after?.settings ?? null];
+        } finally {
+            await putBackDiceFlags(found);
+        }
+        equal(stableJson(read), stableJson({ after: [true, false, { scale: 80 }], spread: [true, true] }),
+            "the GM's look did not reach the player, or the player's own look stayed, kept a scope of its own, or took the player's display settings with it ([holds the canonical look, which is the GM's] then [holds it, d6 kept, settings])");
+    }],
+
+    ["a user who joins after the GM's sweep has the GM's dice look as they connect (S16-02)", async () => {
+        /*
+         * E16 p1 C3, 19.10.2026 (E16-16). The primary GM writes the look on every user below full Gamemaster
+         * at its sweep, offline ones too; a user a GM makes afterwards holds whatever it was made with until
+         * it connects, and must throw in the GM's look from its first roll. A user is made with a look of its
+         * own after the GM's look has spread, read, then announced as connected the way the harness announces
+         * a client that joins (client-entry.mjs `userActivity`: `userConnected` with true), and read again.
+         * At 01c6739: its own look both times.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        const gm = game.user;
+        const found = diceFlagsFound();
+        const made = [];
+        const read = {};
+        try {
+            await gm.update(diceLookWrite(GM_DICE_LOOK, GM_DICE_SFX));
+            const look = await canonicalDiceLook();
+            await settle();
+            const [joiner] = await CONFIG.User.documentClass.createDocuments([{ name: "E16 joiner", role: CONST.USER_ROLES.PLAYER,
+                flags: { [DSN_SCOPE]: { appearance: OWN_DICE_LOOK, sfxList: OWN_DICE_SFX } } }]);
+            made.push(joiner);
+            await settle();
+            read.made = holdsLook(joiner, { appearance: OWN_DICE_LOOK, sfxList: OWN_DICE_SFX });
+            Hooks.callAll("userConnected", joiner, true);
+            await until(() => holdsLook(joiner, look), 3000);
+            read.connected = [holdsLook(joiner, look), isGmsLook(look, gm)];
+            Hooks.callAll("userConnected", joiner, false);
+        } finally {
+            await putBackDiceFlags(found, made);
+        }
+        equal(stableJson(read), stableJson({ connected: [true, true], made: true }),
+            "a user made after the sweep did not get the GM's look when it connected (made: still its own; connected: [holds the canonical look, which is the GM's])");
+    }],
+
+    ["with the table's dice look off a player's change of look is not written over (S16-02)", async () => {
+        /*
+         * E16 p1 C3, 19.10.2026 (E16-17; the owner's Q4 of 19.10: off restores nothing). With `forceDiceLook`
+         * off the module writes no user: a player's look written through the server is left as written, and
+         * no update of that user follows it. Counted: the `updateUser` hooks on the player after its own write
+         * had landed, over 1.2 s (three times the put-back's wait). At 01c6739 there is no switch to turn off.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter"));
+        ok(game.settings.settings.has(DICE_FORCE), "the module registers no switch for the table's dice look");
+        const player = game.users.find(u => !u.isGM && u.active);
+        const found = diceFlagsFound();
+        const was = game.settings.get(MODULE_ID, SETTINGS.forceDiceLook);
+        let after = 0;
+        const counting = Hooks.on("updateUser", user => { if (user.id === player.id) after++; });
+        let mark = null, kept = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.forceDiceLook, false);
+            await game.user.update(diceLookWrite(GM_DICE_LOOK, GM_DICE_SFX));
+            await player.update(diceLookWrite(OWN_DICE_LOOK, OWN_DICE_SFX));
+            mark = after;
+            await wait(1200);
+            kept = holdsLook(player, { appearance: OWN_DICE_LOOK, sfxList: OWN_DICE_SFX });
+            mark = after - mark;
+        } finally {
+            Hooks.off("updateUser", counting);
+            if (game.settings.get(MODULE_ID, SETTINGS.forceDiceLook) !== was) await game.settings.set(MODULE_ID, SETTINGS.forceDiceLook, was);
+            await putBackDiceFlags(found);
+        }
+        equal(stableJson([mark, kept]), stableJson([0, true]),
+            "with the switch off the player's look was written over ([updates of the player after its write, its own look kept])");
+    }],
+
+    ["a user's dice look written back again and again is put back five times in a minute, then left and the GM told once (S16-02)", async () => {
+        /*
+         * E16 p1 C3, 19.10.2026 (E16-18; the design's risk: "the write must not loop with Dice So Nice"). DSN's
+         * own save is six updates of the user's flags (DiceConfig `_onSubmit`: three unsets, three sets, the
+         * 26.09 design's reading of 6.2.9), and a module or a client that writes its look back after each
+         * put-back would trade writes with the primary GM forever. A user made for the test (so that no seeded
+         * player's limit is spent) gets DSN's six writes back to back, then nine single writes of its own
+         * look, each waited on until the GM's look is back or 1 s has passed. Counted: the GM's writes
+         * (every `updateUser` of that user less the test's own), whether each single write was put back, the
+         * console lines that say the limit was reached and the GM's warnings that name the user. At 01c6739:
+         * no write of the GM's at all.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        const gm = game.user;
+        const found = diceFlagsFound();
+        const made = [];
+        const NAME = "E16 looper";
+        let hooks = 0, mine = 0;
+        const counting = Hooks.on("updateUser", user => { if (user.name === NAME) hooks++; });
+        const warned = [], warn = ui.notifications.warn;
+        ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+        const log = watchLog();
+        const read = {};
+        try {
+            await gm.update(diceLookWrite(GM_DICE_LOOK, GM_DICE_SFX));
+            const look = await canonicalDiceLook();
+            await wait(1000);
+            const [looper] = await CONFIG.User.documentClass.createDocuments([{ name: NAME, role: CONST.USER_ROLES.PLAYER }]);
+            made.push(looper);
+            await wait(1000);
+            const before = hooks;
+            const own = async write => { mine++; await looper.update(write); };
+            await own({ [`flags.${DSN_SCOPE}.sfxList`]: forcedDeletion() });
+            await own({ [`flags.${DSN_SCOPE}.appearance`]: forcedDeletion() });
+            await own({ [`flags.${DSN_SCOPE}.settings`]: forcedDeletion() });
+            await own({ [`flags.${DSN_SCOPE}.settings`]: { scale: 75 } });
+            await own({ [`flags.${DSN_SCOPE}.appearance`]: OWN_DICE_LOOK });
+            await own({ [`flags.${DSN_SCOPE}.sfxList`]: OWN_DICE_SFX });
+            await until(() => holdsLook(looper, look), 3000);
+            await wait(800);
+            read.burst = [hooks - before - mine, holdsLook(looper, look)];
+            read.singles = [];
+            for (let i = 0; i < 9; i++) {
+                await own(diceLookWrite({ ...OWN_DICE_LOOK, global: { colorset: `black-${i}` } }, OWN_DICE_SFX));
+                read.singles.push(await until(() => holdsLook(looper, look), 1000));
+            }
+            await wait(600);
+            read.writes = hooks - before - mine;
+        } finally {
+            Hooks.off("updateUser", counting);
+            ui.notifications.warn = warn;
+            log.stop();
+            await putBackDiceFlags(found, made);
+        }
+        read.said = [log.count(NAME), warned.filter(text => text.includes(NAME)).length];
+        equal(stableJson(read), stableJson({ burst: [1, true], said: [1, 1], singles: [true, true, true, true, false, false, false, false, false], writes: 5 }),
+            "the put-back did not fold DSN's six writes into one, did not stop at five in a minute, or did not say so once on the console and once to the GM (burst: [the GM's writes, the GM's look back]; singles: each put back; writes: the GM's in all; said: [console lines, GM warnings])");
+    }],
+
+    ["an Assistant GM's and an offline player's dice look are the GM's and a full Gamemaster's own stays (Q3 S16-02)", async () => {
+        /*
+         * E16 p1 C3, 19.10.2026 (E16-19; the owner's Q3 of 19.10: "Tak", Assistant GMs are forced too). Three
+         * users are made offline, each with a look of its own: an Assistant GM (role 3), a second full
+         * Gamemaster (role 4) and a player. Then the GM, the look's source, changes its look: the sweep must
+         * reach the Assistant and the offline player and leave the full Gamemaster. Then the Assistant's and
+         * the full Gamemaster's looks are written once more through the server: the Assistant's is put back,
+         * the Gamemaster's is not (read 1.2 s after the write, three times the put-back's wait). At 01c6739:
+         * every one of them its own.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        const gm = game.user;
+        const found = diceFlagsFound();
+        const made = [];
+        const OWN = { appearance: OWN_DICE_LOOK, sfxList: OWN_DICE_SFX };
+        const read = {};
+        try {
+            made.push(...await CONFIG.User.documentClass.createDocuments([
+                { name: "E16 assistant", role: CONST.USER_ROLES.ASSISTANT, flags: { [DSN_SCOPE]: OWN } },
+                { name: "E16 second gamemaster", role: CONST.USER_ROLES.GAMEMASTER, flags: { [DSN_SCOPE]: OWN } },
+                { name: "E16 offline player", role: CONST.USER_ROLES.PLAYER, flags: { [DSN_SCOPE]: OWN } }]));
+            const [assistant, second, offline] = made;
+            await settle();
+            await gm.update(diceLookWrite(GM_DICE_LOOK, GM_DICE_SFX));
+            const look = await canonicalDiceLook();
+            await until(() => holdsLook(assistant, look) && holdsLook(offline, look), 3000);
+            await wait(600);
+            read.sweep = [holdsLook(assistant, look), holdsLook(offline, look), holdsLook(second, OWN), isGmsLook(look, gm)];
+            await assistant.update(diceLookWrite(OWN_DICE_LOOK, OWN_DICE_SFX));
+            await second.update(diceLookWrite({ ...OWN_DICE_LOOK, d8: { colorset: "emerald" } }, OWN_DICE_SFX));
+            await until(() => holdsLook(assistant, look), 3000);
+            await wait(1200);
+            read.after = [holdsLook(assistant, look), diceScopeOf(second)?.appearance?.d8?.colorset ?? null];
+        } finally {
+            await putBackDiceFlags(found, made);
+        }
+        equal(stableJson(read), stableJson({ after: [true, "emerald"], sweep: [true, true, true, true] }),
+            "the sweep or the put-back missed the Assistant or the offline player, or wrote over a full Gamemaster's own look (sweep: [Assistant, offline player, second Gamemaster's own, the look is the GM's]; after: [Assistant put back, the Gamemaster's d8])");
+    }],
+
+    ["a player's or an Assistant's write of a character's dice look goes back to the GMs' and a full Gamemaster's own stands (S16-02)", async () => {
+        /*
+         * E16 p1 C3's put-back keeps a user's own look the GM's, but Dice So Nice draws a throw in the user's look
+         * with the actor's own `flags.dice-so-nice.appearance` laid over it (`Dice3D.APPEARANCE(user, actor)`, the
+         * 26.09 design's reading of DSN 6.2.9; its header control on the sheet writes it), so a player who owns a
+         * character still throws in a look of their own (E16 p1 C4, 19.10.2026; E16-21). Here the GM gives the
+         * player's character an overlay; then the player and an Assistant GM made for the test (offline, role 3:
+         * the owner's Q3, "Tak") each write one of their own on it, as the primary hears their write (the hook
+         * with their id, `asUserOverlayWrite`); then the GM gives a non-player actor made for the test an overlay
+         * of its own and the Assistant writes over it. Read: each actor's overlay after each step, the GM's own
+         * read 1.2 s after the write (three times the put-back's wait). At 9e693d8: every write stands.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter"));
+        const player = game.users.find(u => !u.isGM && u.active && game.actors.some(a => a.type === "character" && a.testUserPermission(u, "OWNER")));
+        const student = game.actors.find(a => a.type === "character" && a.testUserPermission(player, "OWNER"));
+        const found = actorDiceFound([student]);
+        const made = { users: [], actors: [] };
+        const read = {};
+        try {
+            made.users.push(...await CONFIG.User.documentClass.createDocuments([{ name: "E16 overlay assistant", role: CONST.USER_ROLES.ASSISTANT }]));
+            made.actors.push(...await Actor.createDocuments([{ name: "E16 overlay npc", type: "adversary", ownership: { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE } }]));
+            const [assistant] = made.users, [npc] = made.actors;
+            await settle();
+            await student.update(overlayWrite(GM_OVERLAY));
+            await wait(1200);
+            read.gm = stableJson(overlayOf(student)) === stableJson(GM_OVERLAY);
+            await asUserOverlayWrite(student, player, OWN_OVERLAY);
+            read.player = await until(() => stableJson(overlayOf(student)) === stableJson(GM_OVERLAY), 3000);
+            await asUserOverlayWrite(student, assistant, { ...OWN_OVERLAY, d8: { colorset: "emerald" } });
+            read.assistant = await until(() => stableJson(overlayOf(student)) === stableJson(GM_OVERLAY), 3000);
+            await npc.update(overlayWrite({ global: { colorset: "fire" } }));
+            await wait(1200);
+            read.npc = [overlayOf(npc)?.global?.colorset ?? null];
+            await asUserOverlayWrite(npc, assistant, OWN_OVERLAY);
+            await until(() => overlayOf(npc)?.global?.colorset === "fire", 3000);
+            read.npc.push(overlayOf(npc)?.global?.colorset ?? null, Object.hasOwn(overlayOf(npc) ?? {}, "d6"));
+        } finally {
+            for (const actor of made.actors) if (game.actors.get(actor.id)) await actor.delete();
+            for (const user of made.users) if (game.users.get(user.id)) await user.delete();
+            await putBackActorDice(found);
+        }
+        equal(stableJson(read), stableJson({ assistant: true, gm: true, npc: ["fire", "fire", false], player: true }),
+            "a character's dice look written by its player or an Assistant stayed, or a full Gamemaster's own was written over (gm: the GM's overlay stands; player, assistant: put back to the GM's; npc: [the GM's own, after the Assistant's write, the Assistant's d6 kept])");
+    }],
+
+    ["an actor an Assistant or a player makes with a dice look of its own has none, and one a full Gamemaster makes keeps its own (S16-02)", async () => {
+        /*
+         * E16 fix r1-G2 of round r1c, 19.10.2026 (finding E16-C4-F9). C4 puts back an overlay a user below full
+         * Gamemaster writes on an actor, and its `createActor` listener does the same for an actor such a user makes
+         * with one (dice-sync.mjs `onActorWritten`, `created`), but every test wrote by update, so a listener taken
+         * away was not missed. Here three actors are made carrying a Dice So Nice overlay: one as the primary hears an
+         * Assistant GM made for the test (offline, role 3) make it, one as it hears a player make it (each made by
+         * the GM with `noHook`, then handed to `createActor`'s listeners with that user's id, as
+         * `asUserOverlayWrite` does for an update), and one the GM makes. Read: each actor's overlay, the GM's 1.2 s
+         * after it was made (three times the put-back's wait). With the listener taken away: both stand.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter"));
+        const player = game.users.find(u => !u.isGM && u.active);
+        const made = { users: [], actors: [] };
+        const npcWith = (name, look) => ({ name, type: "adversary", ownership: { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE },
+            flags: { [DSN_SCOPE]: { appearance: look } } });
+        const madeAs = async (user, name, look) => {
+            const [actor] = await Actor.createDocuments([npcWith(name, look)], { noHook: true });
+            made.actors.push(actor);
+            Hooks.callAll("createActor", actor, {}, user.id);
+            return actor;
+        };
+        const read = {};
+        try {
+            made.users.push(...await CONFIG.User.documentClass.createDocuments([{ name: "E16 creating assistant", role: CONST.USER_ROLES.ASSISTANT }]));
+            const [assistant] = made.users;
+            await settle();
+            const byAssistant = await madeAs(assistant, "E16 overlay made by an Assistant", OWN_OVERLAY);
+            const byPlayer = await madeAs(player, "E16 overlay made by a player", { ...OWN_OVERLAY, d8: { colorset: "emerald" } });
+            made.actors.push(...await Actor.createDocuments([npcWith("E16 overlay made by the GM", GM_OVERLAY)]));
+            const byGm = made.actors.at(-1);
+            read.assistant = await until(() => overlayOf(byAssistant) === null, 3000);
+            read.player = await until(() => overlayOf(byPlayer) === null, 3000);
+            await wait(1200);
+            read.gm = stableJson(overlayOf(byGm)) === stableJson(GM_OVERLAY);
+        } finally {
+            for (const actor of made.actors) if (game.actors.get(actor.id)) await actor.delete();
+            for (const user of made.users) if (game.users.get(user.id)) await user.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ assistant: true, gm: true, player: true }),
+            "an actor made below full Gamemaster kept the dice look it was made with, or one a full Gamemaster made lost its own (assistant, player: put back to none; gm: the GM's overlay stands)");
+    }],
+
+    ["a dice look written with no hook is put back at the user's next throw or connect (S16-02)", async () => {
+        /*
+         * E16 p1 C4, 19.10.2026 (E16-22). An update with `options.noHook` fires `updateUser` and `updateActor` on
+         * no browser in the harness (lib/shim.mjs, client-entry.mjs; on v14 it is LIVE-E16-04), so C3's put-back
+         * never hears a look written that way from a console, and the player throws in it from then on. The
+         * primary must catch it at the user's next message - a throw's card is one - or at its next connect: one
+         * throw late at most. A connected player writes its own look and its character's overlay with `noHook`,
+         * read 1.2 s later (three times the put-back's wait), then a roll card of theirs is posted (the suite's
+         * `playerRollCard`) and both read again; then the player writes its look with `noHook` once more and
+         * throws a roll the GM draws (the suite's `drawnForPlayer`), whose message is the GM's, so its author
+         * does not name the roller - the GMs' record of the roll does; then a user made for the test writes its
+         * look with `noHook` and connects (as T10 announces one). At 9e693d8: both writes stand after the card
+         * and the drawn roll, the connect puts the user's look back (C3's `userConnected`).
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter"));
+        const gm = game.user;
+        const player = game.users.find(u => !u.isGM && u.active && game.actors.some(a => a.type === "character" && a.testUserPermission(u, "OWNER")));
+        const student = game.actors.find(a => a.type === "character" && a.testUserPermission(player, "OWNER"));
+        const found = diceFlagsFound();
+        const foundActors = actorDiceFound([student]);
+        const made = [];
+        // The write merges into the look the user held, so its own colour is what says it landed.
+        const ownColour = user => diceScopeOf(user)?.appearance?.global?.colorset === OWN_DICE_LOOK.global.colorset;
+        const was = stableJson(overlayOf(student));
+        const read = {};
+        let card = null, drawn = null;
+        try {
+            await gm.update(diceLookWrite(GM_DICE_LOOK, GM_DICE_SFX));
+            const look = await canonicalDiceLook();
+            await until(() => holdsLook(player, look), 3000);
+            // The primary's own write is an update the put-back hears too: its check, 400 ms on, is let pass first.
+            await wait(800);
+            await player.update(diceLookWrite(OWN_DICE_LOOK, OWN_DICE_SFX), { noHook: true });
+            await student.update(overlayWrite(OWN_OVERLAY), { noHook: true });
+            await wait(1200);
+            read.quiet = [ownColour(player), stableJson(overlayOf(student)) === stableJson(OWN_OVERLAY)];
+            card = await playerRollCard(player, student);
+            read.thrown = [await until(() => holdsLook(player, look), 3000), await until(() => stableJson(overlayOf(student)) === was, 3000)];
+            await wait(800);
+            await player.update(diceLookWrite(OWN_DICE_LOOK, OWN_DICE_SFX), { noHook: true });
+            await wait(1200);
+            read.drawn = [ownColour(player)];
+            drawn = await drawnForPlayer(player, student);
+            read.drawn.push(drawn.message?.author?.id === gm.id && drawn.record?.userId === player.id, await until(() => holdsLook(player, look), 3000));
+            const [joiner] = await CONFIG.User.documentClass.createDocuments([{ name: "E16 quiet joiner", role: CONST.USER_ROLES.PLAYER }]);
+            made.push(joiner);
+            await settle();
+            await joiner.update(diceLookWrite(OWN_DICE_LOOK, OWN_DICE_SFX), { noHook: true });
+            await wait(1200);
+            read.joiner = [ownColour(joiner)];
+            Hooks.callAll("userConnected", joiner, true);
+            read.joiner.push(await until(() => holdsLook(joiner, look), 3000));
+            Hooks.callAll("userConnected", joiner, false);
+        } finally {
+            if (card && game.messages.get(card.id)) await card.delete();
+            await drawn?.putBack();
+            await putBackActorDice(foundActors);
+            await putBackDiceFlags(found, made);
+        }
+        equal(stableJson(read), stableJson({ drawn: [true, true, true], joiner: [true, true], quiet: [true, true], thrown: [true, true] }),
+            "a look written with no hook was not put back at the user's next throw or connect (quiet: [the player's own colour, the character's own overlay] before the card; thrown: [the player's look the GM's, the overlay as found] after it; drawn: [its own colour again, the message the GM's and the record the player's, the GM's look after the drawn roll]; joiner: [its own colour, the GM's look after connecting])");
+    }],
+
+    ["a character's dice look left with no GM watching, or past the fuse, goes back to the GMs' at the primary's next load (S16-02)", async () => {
+        /*
+         * E16 fix early-C4-G1, 19.10.2026 (finding E16-C4-F1, a blocker of the review's). C4 kept the GMs' copy of
+         * each character's overlay in each GM browser's memory, taken from the world as Dice So Nice got ready, so an
+         * overlay a player wrote while no GM was connected, or one the fuse had stopped putting back, was the GMs'
+         * from the next load on. The copy is a GM store now, and the primary compares at its load
+         * (`compareOverlays`); here a reload is that comparison with the fuse's counts forgotten (`forgetFuses`), and
+         * scenario 17's H1 and H2 make the real one. The GM gives the player's character an overlay, read back from
+         * storage (what a reload reads); the overlay is then written with no hook (no GM hears it, as none would be
+         * connected) and the comparison run; then the player writes it up to eight times as the primary hears a
+         * write (`asUserOverlayWrite`), each awaited until the GMs' is back or 1 s, stopping at the first that
+         * stands, and the comparison runs again; then an actor made for the test with no overlay, its creation
+         * heard as the player's, gets one with no hook, the comparison runs, and the actor is deleted. At f26c3d7
+         * there is no store to read and no comparison to run: both overlays stand.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter"));
+        const player = game.users.find(u => !u.isGM && u.active && game.actors.some(a => a.type === "character" && a.testUserPermission(u, "OWNER")));
+        const student = game.actors.find(a => a.type === "character" && a.testUserPermission(player, "OWNER"));
+        const sync = await import("./dice-sync.mjs");
+        const { diceLookStore } = await import("./gm-stores.mjs");
+        const { gmStoresIdle } = await import("./gm-store.mjs");
+        const found = actorDiceFound([student]);
+        const made = [];
+        const isGms = () => stableJson(overlayOf(student)) === stableJson(GM_OVERLAY);
+        const reload = async () => {
+            sync.forgetFuses?.();
+            await sync.compareOverlays?.();
+        };
+        const read = {};
+        try {
+            sync.forgetFuses?.();
+            await student.update(overlayWrite(GM_OVERLAY));
+            await wait(1200);
+            await gmStoresIdle();
+            read.kept = stableJson(diceLookStore?.persisted(student.id)?.look ?? null) === stableJson(GM_OVERLAY);
+            // The write merges into the GMs' overlay, so its own colour is what says it landed.
+            await student.update(overlayWrite(OWN_OVERLAY), { noHook: true });
+            await wait(1200);
+            read.away = [overlayOf(student)?.global?.colorset === OWN_OVERLAY.global.colorset];
+            await reload();
+            read.away.push(await until(isGms, 3000));
+            read.fuse = [];
+            for (let i = 0; i < 8 && !read.fuse.includes(false); i++) {
+                await asUserOverlayWrite(student, player, { global: { colorset: `black-${i}` } });
+                read.fuse.push(await until(isGms, 1000));
+            }
+            await reload();
+            read.reload = await until(isGms, 3000);
+            const [npc] = await Actor.createDocuments([{ name: "E16 a player's own actor", type: "adversary" }], { noHook: true });
+            made.push(npc);
+            Hooks.callAll("createActor", npc, {}, player.id);
+            await wait(1200);
+            await npc.update(overlayWrite(OWN_OVERLAY), { noHook: true });
+            await wait(600);
+            read.made = [stableJson(overlayOf(npc)) === stableJson(OWN_OVERLAY)];
+            await reload();
+            read.made.push(await until(() => overlayOf(npc) === null, 3000));
+            await npc.delete();
+            await wait(600);
+            read.made.push(diceLookStore?.has(npc.id) ?? null);
+        } finally {
+            sync.forgetFuses?.();
+            for (const actor of made) if (game.actors.get(actor.id)) await actor.delete();
+            await putBackActorDice(found);
+        }
+        equal(stableJson(read), stableJson({ away: [true, true], fuse: [true, true, true, true, true, false], kept: true, made: [true, true, false], reload: true }),
+            "a character's dice look a player left with no GM watching, or past the fuse, was not put back at the next load (kept: the GMs' overlay in storage; away: [the unheard overlay landed, put back]; fuse: each player's write put back until one stands; reload: put back after the fuse; made: [an unheard overlay on the player's new actor landed, put back to none, its row gone with the actor])");
+    }],
+
+    ["an Assistant GM's write of the source Gamemaster's own dice look goes back to the GM's and reaches no player (S16-02)", async () => {
+        /*
+         * E16 fix r1-G1, 19.10.2026 (finding C3-S1, its road (a)). The primary spread any change of the source
+         * Gamemaster's look, whoever wrote it, and an Assistant GM may write any User (cluster.mjs `canWrite`,
+         * LIVE-E30-04): by writing the source's look an Assistant, forced like a player since the owner's Q3, set
+         * the table's. The GM gives themself a look and it spreads; then an Assistant made for the test writes a
+         * look of its own on the GM, as the primary hears it (`asUserOverlayWrite`'s way: written with `noHook`,
+         * then `updateUser` with the Assistant's id, the id Foundry stamps on its update). Read: the GM's flags
+         * against what the GM wrote, and a connected player's look 1.2 s on (three times the put-back's wait).
+         * At 08305eb: the GM keeps the Assistant's look and the player throws in it.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter"));
+        const gm = game.user;
+        const player = game.users.find(u => !u.isGM && u.active);
+        const found = diceFlagsFound();
+        const made = [];
+        const read = {};
+        try {
+            made.push(...await CONFIG.User.documentClass.createDocuments([{ name: "E16 source writer", role: CONST.USER_ROLES.ASSISTANT }]));
+            const [assistant] = made;
+            await gm.update(diceLookWrite(GM_DICE_LOOK, GM_DICE_SFX));
+            const look = await canonicalDiceLook();
+            const gms = diceScopeOf(gm);
+            const holdsGms = () => holdsLook(gm, { appearance: gms?.appearance, sfxList: gms?.sfxList });
+            read.spread = await until(() => holdsLook(player, look), 3000);
+            await wait(800);
+            const write = diceLookWrite(OWN_DICE_LOOK, OWN_DICE_SFX);
+            await gm.update(write, { noHook: true });
+            read.landed = !holdsGms();
+            Hooks.callAll("updateUser", gm, foundry.utils.expandObject(write), {}, assistant.id);
+            read.gm = await until(holdsGms, 3000);
+            await wait(1200);
+            read.player = [holdsLook(player, look), diceScopeOf(player)?.appearance?.global?.colorset ?? null];
+        } finally {
+            await putBackDiceFlags(found, made);
+        }
+        equal(stableJson(read), stableJson({ gm: true, landed: true, player: [true, "fire"], spread: true }),
+            "an Assistant's write of the source Gamemaster's look stood or reached a player (spread: the GM's look on the player first; landed: the Assistant's write on the GM; gm: the GM's own back; player: [still the GM's look, its colour])");
+    }],
+
+    ["the dice look of a source Gamemaster who is deleted gives way to the next full Gamemaster's on every player (S16-02)", async () => {
+        /*
+         * E16 fix r1-G1, 19.10.2026 (finding C3-C1). The `deleteUser` listener asked whether the deleted user was
+         * the source through `lookSource`, which no longer finds it in `game.users` when the hook runs (Foundry
+         * and the harness's client-entry.mjs remove it first), so the deletion of the source swept nobody and the
+         * players kept the deleted Gamemaster's look. A second full Gamemaster made for the test, offline, with a
+         * look of its own, is named the source; its look reaches a connected player; then it is deleted. Read: the
+         * player's look before and after, against the look of this GM (the next full Gamemaster).
+         * At 08305eb: the deleted Gamemaster's look stays on the player.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter"));
+        const gm = game.user;
+        const player = game.users.find(u => !u.isGM && u.active);
+        const found = diceFlagsFound();
+        const wasSource = game.settings.get(MODULE_ID, SETTINGS.diceLookSource);
+        const made = [];
+        const OWN = { appearance: OWN_DICE_LOOK, sfxList: OWN_DICE_SFX };
+        const read = {};
+        try {
+            await gm.update(diceLookWrite(GM_DICE_LOOK, GM_DICE_SFX));
+            await wait(800);
+            const [other] = await CONFIG.User.documentClass.createDocuments([{ name: "E16 source to delete", role: CONST.USER_ROLES.GAMEMASTER,
+                flags: { [DSN_SCOPE]: OWN } }]);
+            made.push(other);
+            await game.settings.set(MODULE_ID, SETTINGS.diceLookSource, other.id);
+            read.other = await until(() => holdsLook(player, OWN), 3000);
+            await wait(800);
+            await other.delete();
+            read.after = await until(() => isGmsLook(diceScopeOf(player), gm), 3000);
+        } finally {
+            if (game.settings.get(MODULE_ID, SETTINGS.diceLookSource) !== wasSource) await game.settings.set(MODULE_ID, SETTINGS.diceLookSource, wasSource);
+            await putBackDiceFlags(found, made);
+        }
+        equal(stableJson(read), stableJson({ after: true, other: true }),
+            "the deletion of the source Gamemaster left the players in its look (other: the named source's look on the player; after: this GM's look on the player once the source is deleted)");
+    }],
+
+    ["a user's dice look past the fuse is put back again once a minute has passed since the last put-back (S16-02)", async () => {
+        /*
+         * E16 fix r1-G1, 19.10.2026 (finding C3-C2; E16-18 asks for at most five put-backs per user per minute).
+         * Once the fuse blew, the user was skipped by every put-back, connect and sweep until the primary's
+         * browser reloaded, so a player who wrote its look six times in a minute kept it for the session. A user
+         * made for the test writes its own look until one stands (each awaited until the GM's is back or 1 s);
+         * then the fuse's clock is moved a minute on (the suite's `ageFuses`, which stands in for the wait), and
+         * the user writes once more and again until one stands. Counted too: the console lines that say the
+         * limit was reached and the GM's warnings that name the user. At 08305eb: nothing is put back after the
+         * minute.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        const sync = await import("./dice-sync.mjs");
+        const gm = game.user;
+        const found = diceFlagsFound();
+        const made = [];
+        const NAME = "E16 rearmed";
+        const warned = [], warn = ui.notifications.warn;
+        ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+        const log = watchLog();
+        const read = { first: [], second: [] };
+        try {
+            await gm.update(diceLookWrite(GM_DICE_LOOK, GM_DICE_SFX));
+            const look = await canonicalDiceLook();
+            await wait(800);
+            const [user] = await CONFIG.User.documentClass.createDocuments([{ name: NAME, role: CONST.USER_ROLES.PLAYER }]);
+            made.push(user);
+            await wait(600);
+            const own = colour => user.update(diceLookWrite({ ...OWN_DICE_LOOK, global: { colorset: colour } }, OWN_DICE_SFX));
+            for (let i = 0; i < 8 && !read.first.includes(false); i++) {
+                await own(`black-${i}`);
+                read.first.push(await until(() => holdsLook(user, look), 1000));
+            }
+            sync.ageFuses?.(61000);
+            await own("black-again");
+            read.again = await until(() => holdsLook(user, look), 2000);
+            for (let i = 0; i < 8 && !read.second.includes(false); i++) {
+                await own(`black-${i + 10}`);
+                read.second.push(await until(() => holdsLook(user, look), 1000));
+            }
+        } finally {
+            ui.notifications.warn = warn;
+            log.stop();
+            await putBackDiceFlags(found, made);
+        }
+        read.said = [log.count(NAME), warned.filter(text => text.includes(NAME)).length];
+        equal(stableJson(read), stableJson({ again: true, first: [true, true, true, true, true, false], said: [1, 1], second: [true, true, true, true, false] }),
+            "the fuse did not put the user's look back again a minute after it blew, did not blow again at five, or said so more than once (first: each write put back until one stands; again: put back a minute on; second: the same again, counting the one before; said: [console lines, GM warnings])");
+    }],
+
+    ["a change of the source Gamemaster's colour reaches every player where Dice So Nice builds the look from it (S16-02)", async () => {
+        /*
+         * E16 fix r1-G1, 19.10.2026 (finding C3-C3). `canonicalLook` reads the source's look through Dice So Nice's
+         * `ALL_CUSTOMIZATION` where DSN is built (the 26.09 design's reading of 6.2.9: a GM with no look of their
+         * own has one from their user colour), but a change of the source swept the players only when its flags
+         * or role changed. The harness's `game.dice3d` has no such method, so one is stood in for the test that
+         * builds the look from the user's colour (an assumption of that reading, LIVE-E16-03); the GM's look
+         * spreads, then the GM's colour changes. Read: a connected player's look against the module's canonical
+         * look, before and 1.2 s after (three times the put-back's wait), and whether the colour moved the
+         * canonical look at all. At 08305eb: the player keeps the old colour.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter"));
+        ok(game.dice3d && typeof game.dice3d === "object", "this browser has no game.dice3d to stand a look builder on");
+        const gm = game.user;
+        const player = game.users.find(u => !u.isGM && u.active);
+        const found = diceFlagsFound();
+        const wasColour = gm.toObject().color ?? null;
+        const own = Object.getOwnPropertyDescriptor(game.dice3d, "constructor");
+        const background = user => String(user?.color?.css ?? user?.color ?? "");
+        const read = {};
+        try {
+            Object.defineProperty(game.dice3d, "constructor", { configurable: true, writable: true,
+                value: { ALL_CUSTOMIZATION: user => ({ appearance: { global: { colorset: "custom", background: background(user) } } }) } });
+            await gm.update({ ...diceLookWrite(GM_DICE_LOOK, GM_DICE_SFX), color: "#aa0000" });
+            const before = await canonicalDiceLook();
+            read.before = await until(() => holdsLook(player, before), 3000);
+            await wait(800);
+            await gm.update({ color: "#0000aa" });
+            await wait(1200);
+            const after = await canonicalDiceLook();
+            read.after = [after?.appearance?.global?.background === "#0000aa", holdsLook(player, after)];
+        } finally {
+            if (own) Object.defineProperty(game.dice3d, "constructor", own);
+            else delete game.dice3d.constructor;
+            if (wasColour !== null && gm.toObject().color !== wasColour) await gm.update({ color: wasColour });
+            await putBackDiceFlags(found);
+        }
+        equal(stableJson(read), stableJson({ after: [true, true], before: true }),
+            "a change of the source Gamemaster's colour did not reach the player (before: the look built from the first colour on the player; after: [the canonical look took the new colour, the player holds it])");
+    }],
+
+    ["with no full Gamemaster in the world a character's dice look is put back for nobody (S16-02)", async () => {
+        /*
+         * E16 fix r1-G1, 19.10.2026 (finding E16-C4-F3; the stage's rule: a world with no full Gamemaster forces
+         * nothing). The users' put-back asks for the source and stands down without one, but the actors' never
+         * asked: there no write is a full Gamemaster's, so every overlay anyone gave a character went back to the
+         * copy, and nobody could set one. The harness's world has a full Gamemaster, so for the length of one write
+         * every full Gamemaster reads as an Assistant (role 3 stood on each User, taken off after). The GM gives
+         * the player's character an overlay as a full Gamemaster (the GMs' copy), then, as an Assistant, another.
+         * Read: the overlay's colour 1.2 s on (three times the put-back's wait). At 08305eb: back to the copy.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter"));
+        const player = game.users.find(u => !u.isGM && u.active && game.actors.some(a => a.type === "character" && a.testUserPermission(u, "OWNER")));
+        const student = game.actors.find(a => a.type === "character" && a.testUserPermission(player, "OWNER"));
+        const found = actorDiceFound([student]);
+        const full = game.users.filter(u => u.role === CONST.USER_ROLES.GAMEMASTER);
+        const read = {};
+        try {
+            await student.update(overlayWrite(GM_OVERLAY));
+            await wait(1200);
+            read.copy = overlayOf(student)?.global?.colorset ?? null;
+            for (const user of full) Object.defineProperty(user, "role", { configurable: true, get: () => CONST.USER_ROLES.ASSISTANT });
+            try {
+                read.none = !game.users.some(u => u.role === CONST.USER_ROLES.GAMEMASTER);
+                await student.update(overlayWrite(OWN_OVERLAY));
+                await wait(1200);
+                read.stood = overlayOf(student)?.global?.colorset ?? null;
+            } finally {
+                for (const user of full) delete user.role;
+            }
+        } finally {
+            await putBackActorDice(found);
+        }
+        equal(stableJson(read), stableJson({ copy: "ice", none: true, stood: "black" }),
+            "with no full Gamemaster an overlay was put back (copy: the full Gamemaster's first; none: no full Gamemaster left; stood: the overlay written then)");
+    }],
+
+    ["a full Gamemaster's dice look on an unlinked token is not taken for its base character's (S16-02)", async () => {
+        /*
+         * E16 fix r1-G2, 19.10.2026 (finding E16-C4-F5). An unlinked token's actor is a synthetic actor that carries
+         * its base actor's id (`isToken` true), and the GMs' copy of the overlays is keyed by the actor's id. Should
+         * v14 fire `updateActor` for a synthetic actor (LIVE-E16-03 asks), a full Gamemaster's overlay on one token
+         * became the base actor's copy, and the next check of the base actor - a throw that speaks as it - wrote the
+         * token's look on the base. The harness has no synthetic actor (lib/shim.mjs `TokenDocumentImpl.actor`
+         * answers the base), so one is stood in: the player's character with `isToken` true and an overlay of its
+         * own, handed to `updateActor`'s listeners with this GM's id. The GM gives the base an overlay first, then
+         * posts a message that speaks as it. Read: the GMs' copy of the base and the base's overlay 1.2 s on (three
+         * times the put-back's wait). At feb3be8: both the token's.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter"));
+        const gm = game.user;
+        const player = game.users.find(u => !u.isGM && u.active && game.actors.some(a => a.type === "character" && a.testUserPermission(u, "OWNER")));
+        const student = game.actors.find(a => a.type === "character" && a.testUserPermission(player, "OWNER"));
+        const { diceLookStore } = await import("./gm-stores.mjs");
+        const { gmStoresIdle } = await import("./gm-store.mjs");
+        const found = actorDiceFound([student]);
+        const TOKEN_OVERLAY = { global: { colorset: "emerald" } };
+        const read = {};
+        let card = null;
+        try {
+            await student.update(overlayWrite(GM_OVERLAY));
+            await wait(1200);
+            const synthetic = Object.create(student, { isToken: { value: true }, flags: { value: { [DSN_SCOPE]: { appearance: TOKEN_OVERLAY } } } });
+            read.same = synthetic.id === student.id;
+            Hooks.callAll("updateActor", synthetic, { flags: { [DSN_SCOPE]: { appearance: TOKEN_OVERLAY } } }, {}, gm.id);
+            await wait(600);
+            await gmStoresIdle();
+            read.copy = diceLookStore.get(student.id)?.look?.global?.colorset ?? null;
+            card = await ChatMessage.create({ content: "E16 a GM's throw as the base", speaker: ChatMessage.getSpeaker({ actor: student }) });
+            await wait(1200);
+            read.base = overlayOf(student)?.global?.colorset ?? null;
+        } finally {
+            if (card && game.messages.get(card.id)) await card.delete();
+            await putBackActorDice(found);
+        }
+        equal(stableJson(read), stableJson({ base: "ice", copy: "ice", same: true }),
+            "a full Gamemaster's overlay on an unlinked token became its base character's copy or overlay (same: the stand-in carries the base's id; copy: the GMs' copy of the base; base: the base's overlay after a throw as it)");
+    }],
+
+    ["a dice look written with no hook is put back when a GM gives the roller's message new dice, as a Reroll does (S16-02)", async () => {
+        /*
+         * E16 fix r1-G2, 19.10.2026 (finding E16-C4-F6; E16-22: a `noHook` look is one throw late at most). A Reroll
+         * rewrites the roll's message (reroll.mjs `makeReroll`: `message.update({ rolls }, { REROLL_SHOWN })`) and
+         * private-rolls.mjs `relayRerolledDice` plays the new dice on every reader's screen as the roller's, but the
+         * throw-time check listened to `createChatMessage` only, so each Reroll showed a look the player wrote with
+         * `noHook` until its next new message. A connected player's roll card is posted, the player writes its own
+         * look with `noHook` (no listener hears it), then the GM writes the card's rolls anew with the Reroll's
+         * option. Read: the player's look 1.2 s after the write (three times the put-back's wait), then after the
+         * rewrite. At feb3be8: its own after both.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter"));
+        const gm = game.user;
+        const player = game.users.find(u => !u.isGM && u.active && game.actors.some(a => a.type === "character" && a.testUserPermission(u, "OWNER")));
+        const student = game.actors.find(a => a.type === "character" && a.testUserPermission(player, "OWNER"));
+        const { REROLL_SHOWN } = await import("./private-rolls.mjs");
+        const found = diceFlagsFound();
+        const ownColour = user => diceScopeOf(user)?.appearance?.global?.colorset === OWN_DICE_LOOK.global.colorset;
+        const read = {};
+        let card = null;
+        try {
+            await gm.update(diceLookWrite(GM_DICE_LOOK, GM_DICE_SFX));
+            const look = await canonicalDiceLook();
+            await until(() => holdsLook(player, look), 3000);
+            card = await playerRollCard(player, student);
+            await wait(800);
+            await player.update(diceLookWrite(OWN_DICE_LOOK, OWN_DICE_SFX), { noHook: true });
+            await wait(1200);
+            read.quiet = ownColour(player);
+            const roll = { class: "DualityRoll", formula: "1d12 + 1d12", total: 15, evaluated: true, dHope: { total: 11 }, dFear: { total: 4 },
+                dice: [{ faces: 12, total: 11, results: [{ result: 11, active: true }] }, { faces: 12, total: 4, results: [{ result: 4, active: true }] }],
+                options: { actionType: "reaction" } };
+            await card.update({ rolls: [roll] }, { [REROLL_SHOWN]: true });
+            read.rerolled = await until(() => holdsLook(player, look), 3000);
+        } finally {
+            if (card && game.messages.get(card.id)) await card.delete();
+            await putBackDiceFlags(found);
+        }
+        equal(stableJson(read), stableJson({ quiet: true, rerolled: true }),
+            "a look written with no hook stood through a GM's rewrite of the roller's dice (quiet: the player's own colour before it; rerolled: the GM's look after it)");
+    }],
+
+    ["a player's own dice look on an unlinked token of their character goes back to the character's, at the write and at a throw as the token (S16-02)", async () => {
+        /*
+         * E16 fix r1b-G1, 19.10.2026 (finding sec-4; E16-21). An unlinked token's actor is a synthetic actor whose own
+         * overlay lives in its ActorDelta, and it carries its base actor's id: the put-back read `game.actors` only,
+         * at a write and at a message (`speaker.actor`, the base), so a player's overlay on its unlinked token was
+         * never put back and DSN drew every throw as that token in it. The harness has no synthetic actor (lib/shim.mjs
+         * `TokenDocumentImpl.actor` answers the base), so one is stood in: the player's character with `isToken` true,
+         * the seed token of that character as its `token`, an overlay of its own and an `update` that writes only it;
+         * the token answers it as its actor for the length of the test. The GM gives the base an overlay (the GMs'
+         * copy); then the player's write on the token is handed to `updateActor`'s listeners with the player's id;
+         * then the token's overlay changes with no hook and the player posts a message that speaks as the token; then
+         * the GM writes a look of its own on the token and posts as it. Read: the token's and the base's colours 1.2 s
+         * after each (three times the put-back's wait), and the GMs' copy of the base. At d0c7e6e: the player's
+         * colours stand on the token.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter"));
+        const gm = game.user;
+        const player = game.users.find(u => !u.isGM && u.active && game.actors.some(a => a.type === "character" && a.testUserPermission(u, "OWNER")));
+        const student = game.actors.find(a => a.type === "character" && a.testUserPermission(player, "OWNER"));
+        const scene = game.scenes.find(s => s.tokens?.some(t => t.actorId === student.id));
+        ok(scene, `no scene holds a token of ${student.name}, the player's character`);
+        const token = scene.tokens.find(t => t.actorId === student.id);
+        const { diceLookStore } = await import("./gm-stores.mjs");
+        const { gmStoresIdle } = await import("./gm-store.mjs");
+        const { ForcedDeletion, ForcedReplacement } = foundry.data.operators;
+        const path = `flags.${DSN_SCOPE}.appearance`;
+        const found = actorDiceFound([student]);
+        const own = { look: null };
+        const synthetic = Object.create(student, {
+            isToken: { value: true }, token: { value: token },
+            flags: { get: () => ({ [DSN_SCOPE]: { appearance: own.look } }) },
+            update: { value: async changes => {
+                const value = changes?.[path];
+                own.look = value instanceof ForcedDeletion ? null : value instanceof ForcedReplacement ? value.replacement : value;
+                return synthetic;
+            } }
+        });
+        const colours = () => [own.look?.global?.colorset ?? null, overlayOf(student)?.global?.colorset ?? null];
+        const asToken = { scene: scene.id, token: token.id, actor: student.id, alias: token.name };
+        const cards = [];
+        const read = {};
+        try {
+            await student.update(overlayWrite(GM_OVERLAY));
+            await wait(1200);
+            await gmStoresIdle();
+            Object.defineProperty(token, "actor", { configurable: true, get: () => synthetic });
+            read.same = game.scenes.get(scene.id)?.tokens?.get(token.id)?.actor === synthetic && synthetic.id === student.id;
+            own.look = foundry.utils.deepClone(OWN_OVERLAY);
+            Hooks.callAll("updateActor", synthetic, { flags: { [DSN_SCOPE]: { appearance: OWN_OVERLAY } } }, {}, player.id);
+            await wait(1200);
+            read.written = colours();
+            own.look = { global: { colorset: "emerald" } };
+            await wait(600);
+            cards.push(await ChatMessage.create({ author: player.id, speaker: asToken, content: "E16 a player's throw as an unlinked token" }));
+            await wait(1200);
+            read.thrown = colours();
+            own.look = { global: { colorset: "gold" } };
+            Hooks.callAll("updateActor", synthetic, { flags: { [DSN_SCOPE]: { appearance: own.look } } }, {}, gm.id);
+            cards.push(await ChatMessage.create({ speaker: asToken, content: "E16 a GM's throw as an unlinked token" }));
+            await wait(1200);
+            await gmStoresIdle();
+            read.gm = [...colours(), diceLookStore.get(student.id)?.look?.global?.colorset ?? null];
+        } finally {
+            delete token.actor;
+            for (const card of cards) if (card && game.messages.get(card.id)) await card.delete();
+            await putBackActorDice(found);
+        }
+        equal(stableJson(read), stableJson({ gm: ["gold", "ice", "ice"], same: true, thrown: ["ice", "ice"], written: ["ice", "ice"] }),
+            "a player's own overlay on an unlinked token stood, or the put-back wrote the base or took a GM's look on the token (same: the token answers the stand-in, which carries the base's id; written, thrown: [the token's colour, the base's] after the player's write and after its throw as the token; gm: the same after a GM's own look and throw as the token, then the GMs' copy of the base)");
+    }],
+
+    ["a character a player owns keeps no dice look of its own where the GMs' copy never held it, and one no player owns keeps the GM's (S16-02)", async () => {
+        /*
+         * E16 fix r1b-G1, 19.10.2026 (findings sec-5 and E16-COR-3; E16-21). At a primary's load the GMs' copy took
+         * the overlay as found for every actor its store held no row for - the first run, an actor a player made
+         * while no GM was connected, or every actor on a GM browser that never held the store (another machine,
+         * cleared site data) - so a player's own overlay written with no GM watching became the GMs' copy there.
+         * Two actors are made with no hook (no GM hears them, as none would be connected): one the player owns with
+         * the player's overlay, one no player owns with a GM's; then the comparison at load runs (`compareOverlays`,
+         * the fuse's counts forgotten as a reload forgets them). Read: whether the store held either before, each
+         * overlay after, and the copy's rows. At d0c7e6e: the player's overlay stands and is the copy.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter"));
+        const player = game.users.find(u => !u.isGM && u.active);
+        const sync = await import("./dice-sync.mjs");
+        const { diceLookStore } = await import("./gm-stores.mjs");
+        const { gmStoresIdle } = await import("./gm-store.mjs");
+        const made = [];
+        const read = {};
+        try {
+            made.push(...await Actor.createDocuments([
+                { name: "E16 a player's actor no GM saw", type: "adversary", ownership: { default: 0, [player.id]: CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER },
+                    flags: { [DSN_SCOPE]: { appearance: OWN_OVERLAY } } },
+                { name: "E16 a GM's actor no GM saw", type: "adversary", flags: { [DSN_SCOPE]: { appearance: GM_OVERLAY } } }], { noHook: true }));
+            const [mine, npc] = made;
+            read.unseen = [diceLookStore.has(mine.id), diceLookStore.has(npc.id), mine.testUserPermission(player, "OWNER"), npc.testUserPermission(player, "OWNER")];
+            sync.forgetFuses?.();
+            await sync.compareOverlays?.();
+            read.mine = await until(() => overlayOf(mine) === null, 3000);
+            await wait(600);
+            await gmStoresIdle();
+            read.npc = overlayOf(npc)?.global?.colorset ?? null;
+            read.rows = [stableJson(diceLookStore.get(mine.id)?.look ?? null), diceLookStore.get(npc.id)?.look?.global?.colorset ?? null];
+        } finally {
+            sync.forgetFuses?.();
+            for (const actor of made) if (game.actors.get(actor.id)) await actor.delete();
+        }
+        equal(stableJson(read), stableJson({ mine: true, npc: "ice", rows: ["null", "ice"], unseen: [false, false, true, false] }),
+            "an unseen character a player owns kept the player's own dice look, or one no player owns lost the GM's (unseen: [the store held the player's, the GM's, the player owns them]; mine: the player's overlay gone; npc: the GM's colour kept; rows: the copy of each)");
+    }],
+
+    ["an Assistant GM's switch of the table's dice look is put back, heard or written with no hook, and the GM is told once (S16-02)", async () => {
+        /*
+         * E16 fix r1b-G2, 19.10.2026 (finding OWNER-DEFAULT-a; the owner's Q5 runs on its default (a)). Foundry lets an
+         * Assistant GM write a world setting: fix r1b-G1 put back a switch `updateSetting` heard written below full
+         * Gamemaster, but one written with `noHook` reaches no listener (the harness models it as a document's, from
+         * this fix on; v14: LIVE-E16-04), so `forceDiceLook` stayed off and the table's look was no longer forced until
+         * a sweep. An Assistant made for the test, and an offline full Gamemaster with a look of its own; the GM gives
+         * themself a look. Heard: both switches written with `noHook`, then handed to `updateSetting`'s listeners with
+         * the Assistant's id, the id Foundry stamps on its write. Unheard (twice, the Assistant's console as it would be,
+         * written here by the GM with `noHook`): the switch off, then the player's look written as the primary hears it;
+         * the switch off, then the player's own look with `noHook` and a message the player posts. Read: both switches
+         * and the player's look after each, and the GM's warnings of the put-back (one for the minute).
+         * At 857a51a: heard put back; unheard the switch stays off and the player keeps its own look.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter"));
+        const gm = game.user;
+        const player = game.users.find(u => !u.isGM && u.active);
+        const found = diceFlagsFound();
+        const wasSource = game.settings.get(MODULE_ID, SETTINGS.diceLookSource);
+        const made = [];
+        const cards = [];
+        const said = [game.i18n.localize("DRPG.DiceLook.settingBackUnheard")];
+        const warned = [], warn = ui.notifications.warn;
+        ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+        const switches = () => [game.settings.get(MODULE_ID, SETTINGS.forceDiceLook), game.settings.get(MODULE_ID, SETTINGS.diceLookSource) === gm.id];
+        const held = () => stableJson(switches()) === stableJson([true, true]);
+        const read = {};
+        try {
+            made.push(...await CONFIG.User.documentClass.createDocuments([{ name: "E16 switch writer", role: CONST.USER_ROLES.ASSISTANT },
+                { name: "E16 another source", role: CONST.USER_ROLES.GAMEMASTER, flags: { [DSN_SCOPE]: { appearance: OWN_DICE_LOOK, sfxList: OWN_DICE_SFX } } }]));
+            const [assistant, other] = made;
+            said.push(game.i18n.format("DRPG.DiceLook.settingBack", { name: assistant.name }));
+            if (wasSource !== gm.id) await game.settings.set(MODULE_ID, SETTINGS.diceLookSource, gm.id);
+            await gm.update(diceLookWrite(GM_DICE_LOOK, GM_DICE_SFX));
+            const look = await canonicalDiceLook();
+            read.before = [await until(() => holdsLook(player, look), 3000), held()];
+            await wait(800);
+            for (const [key, value] of [[SETTINGS.forceDiceLook, false], [SETTINGS.diceLookSource, other.id]]) {
+                await game.settings.set(MODULE_ID, key, value, { noHook: true });
+                Hooks.callAll("updateSetting", { key: `${MODULE_ID}.${key}`, value }, { value }, {}, assistant.id);
+                await wait(600);
+            }
+            read.heard = [await until(held, 3000), holdsLook(player, look)];
+            await game.settings.set(MODULE_ID, SETTINGS.forceDiceLook, false, { noHook: true });
+            await wait(600);
+            read.written = [game.settings.get(MODULE_ID, SETTINGS.forceDiceLook)];
+            await player.update(diceLookWrite(OWN_DICE_LOOK, OWN_DICE_SFX));
+            read.written.push(await until(() => held() && holdsLook(player, look), 3000));
+            // The put-back's own write of the switch schedules a sweep (400 ms): it runs before the next write.
+            await wait(1200);
+            await game.settings.set(MODULE_ID, SETTINGS.forceDiceLook, false, { noHook: true });
+            await player.update(diceLookWrite(OWN_DICE_LOOK, OWN_DICE_SFX), { noHook: true });
+            await wait(1200);
+            read.thrown = [game.settings.get(MODULE_ID, SETTINGS.forceDiceLook), holdsLook(player, look)];
+            cards.push(await ChatMessage.create({ author: player.id, content: "E16 a player's throw after a switch no hook heard" }));
+            read.thrown.push(await until(() => held() && holdsLook(player, look), 3000));
+        } finally {
+            ui.notifications.warn = warn;
+            for (const card of cards) if (card && game.messages.get(card.id)) await card.delete();
+            if (game.settings.get(MODULE_ID, SETTINGS.forceDiceLook) !== true) await game.settings.set(MODULE_ID, SETTINGS.forceDiceLook, true);
+            if (game.settings.get(MODULE_ID, SETTINGS.diceLookSource) !== wasSource) await game.settings.set(MODULE_ID, SETTINGS.diceLookSource, wasSource);
+            await putBackDiceFlags(found, made);
+        }
+        read.told = warned.filter(text => said.includes(text)).length;
+        equal(stableJson(read), stableJson({ before: [true, true], heard: [true, true], thrown: [false, false, true], told: 1, written: [false, true] }),
+            "an Assistant's switch of the table's dice look stood, heard or written with no hook, or the GM was told more than once (before: [the GM's look on the player, both switches the GM's]; heard: [both put back, the player still in the GM's look]; written: [the switch off as written, put back with the player's look at its next write]; thrown: [the switch off, the player's own look, both put back at its message]; told: the GM's warnings)");
+    }],
+
+    ["while the source Gamemaster's own look is past the fuse, a player's own dice look still goes back to the GM's (S16-02)", async () => {
+        /*
+         * E16 fix r1c-G1, 19.10.2026 (finding fd-1 of the fix-diff review). Since fix r1-G1 every user's put-back
+         * waits for the source's own (`putBack` schedules the sweep while the source does not hold the GMs' copy, and
+         * the sweep returns where `holdSource` answers false), and the source's put-back has a fuse of its own: an
+         * Assistant GM who wrote the Gamemaster's look six times in a minute stopped every put-back of every user for
+         * that minute, and could again each minute. The GM gives themself a look and it spreads; an Assistant made
+         * for the test writes a look of its own on the GM up to eight times as the primary hears it (`noHook`, then
+         * `updateUser` with the Assistant's id), each awaited until the GM's own is back or 1 s, stopping at the first
+         * that stands; then a connected player writes its own look. Read: each of the Assistant's writes put back or
+         * not, the player's look against the GM's 3 s on, and the GM still in the Assistant's look (the source's own
+         * put-back stopped for the minute, as the fuse says). At 442f563: the player keeps its own look.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter"));
+        const sync = await import("./dice-sync.mjs");
+        const gm = game.user;
+        const player = game.users.find(u => !u.isGM && u.active);
+        const found = diceFlagsFound();
+        const made = [];
+        const read = { source: [] };
+        try {
+            sync.forgetFuses?.();
+            made.push(...await CONFIG.User.documentClass.createDocuments([{ name: "E16 source fuse", role: CONST.USER_ROLES.ASSISTANT }]));
+            const [assistant] = made;
+            await gm.update(diceLookWrite(GM_DICE_LOOK, GM_DICE_SFX));
+            const look = await canonicalDiceLook();
+            const gms = diceScopeOf(gm);
+            const holdsGms = () => holdsLook(gm, { appearance: gms?.appearance, sfxList: gms?.sfxList });
+            must(await until(() => holdsLook(player, look), 3000), "the GM's look did not reach the player - this would measure nothing");
+            await wait(800);
+            for (let i = 0; i < 8 && !read.source.includes(false); i++) {
+                const write = diceLookWrite({ global: { colorset: `black-${i}` } }, OWN_DICE_SFX);
+                await gm.update(write, { noHook: true });
+                Hooks.callAll("updateUser", gm, foundry.utils.expandObject(write), {}, assistant.id);
+                read.source.push(await until(holdsGms, 1000));
+            }
+            await player.update(diceLookWrite(OWN_DICE_LOOK, OWN_DICE_SFX));
+            read.player = await until(() => holdsLook(player, look), 3000);
+            read.stopped = !holdsGms();
+        } finally {
+            sync.forgetFuses?.();
+            await putBackDiceFlags(found, made);
+        }
+        equal(stableJson(read), stableJson({ player: true, source: [true, true, true, true, true, false], stopped: true }),
+            "a player's own dice look stood while the source Gamemaster's own put-back was past its fuse (source: each Assistant write on the GM put back until one stands; player: the player back in the GM's look; stopped: the GM still in the Assistant's look)");
+    }],
+
+    ["a full Gamemaster's dice look on a character is kept in the world, and a stale GM browser's copy does not put it back at load (S16-02)", async () => {
+        /*
+         * E16 fix r1c-G1, 19.10.2026 (finding OWNER-DEFAULT-Q6b: the owner's Q6 runs on its default (b); it closes
+         * E16-goal-06 and the fix-diff review's fd-2). The GMs' copy of each character's overlay (gm-stores.mjs
+         * `diceLookStore`) is each GM browser's client setting, synced only between GM browsers online together, so
+         * a primary that loads with an older copy put a full Gamemaster's newer overlay back to its own - one GM on a
+         * second computer, or a full GM who comes back while only an Assistant (whose browser sends none of that
+         * store) is at the table. An NPC made for the test; the GM gives it an overlay; then this browser's row is
+         * made older than the GM's write (the row a browser that never heard it holds: none, stamped just before),
+         * and the comparison at load runs (`compareOverlays`, the fuse's counts forgotten). Then the world's copy is
+         * written over with another look - as an Assistant's console would, heard with the Assistant's id, and once
+         * with no hook, caught at a player's message. Read: the overlay after the load and this browser's row; the
+         * world copy's row after each write over it. At 442f563: the overlay put back to none, and no world copy.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter"));
+        const sync = await import("./dice-sync.mjs");
+        const { diceLookStore } = await import("./gm-stores.mjs");
+        const { gmStoresIdle } = await import("./gm-store.mjs");
+        const player = game.users.find(u => !u.isGM && u.active);
+        const WORLD_COPY = `${MODULE_ID}.diceLookWorld`;
+        const kept = game.settings.settings.has(WORLD_COPY);
+        const keptWas = kept ? foundry.utils.deepClone(game.settings.get(MODULE_ID, "diceLookWorld")) : null;
+        const made = [], cards = [];
+        const read = {};
+        try {
+            made.push(...await Actor.createDocuments([{ name: "E16 an NPC a GM gives a look", type: "adversary" }]));
+            const [npc] = made;
+            made.push(...await CONFIG.User.documentClass.createDocuments([{ name: "E16 world copy writer", role: CONST.USER_ROLES.ASSISTANT }]));
+            const assistant = made[1];
+            await wait(600);
+            await npc.update(overlayWrite(GM_OVERLAY));
+            await wait(1200);
+            await gmStoresIdle();
+            const stamp = diceLookStore.stampOf(npc.id, "look");
+            must(stableJson(diceLookStore.get(npc.id)?.look ?? null) === stableJson(GM_OVERLAY) && stamp > diceLookStore.cleared() + 1,
+                "the GMs' copy did not take the GM's overlay - this would measure nothing");
+            await diceLookStore.patch(npc.id, { look: null }, { stamp: stamp - 1 });
+            sync.forgetFuses?.();
+            await sync.compareOverlays?.();
+            await wait(1200);
+            read.load = [overlayOf(npc)?.global?.colorset ?? null, diceLookStore.get(npc.id)?.look?.global?.colorset ?? null];
+            const copied = () => (kept ? game.settings.get(MODULE_ID, "diceLookWorld")?.e?.[npc.id]?.look?.global?.colorset ?? null : null);
+            read.world = [copied()];
+            if (kept) {
+                const forged = () => {
+                    const value = foundry.utils.deepClone(game.settings.get(MODULE_ID, "diceLookWorld"));
+                    value.e[npc.id] = { look: OWN_OVERLAY };
+                    value.t[npc.id] = Math.floor(game.time.serverTime ?? Date.now()) + 60000;
+                    return value;
+                };
+                const value = forged();
+                await game.settings.set(MODULE_ID, "diceLookWorld", value, { noHook: true });
+                read.world.push(copied());
+                Hooks.callAll("updateSetting", { key: WORLD_COPY, value }, { value }, {}, assistant.id);
+                read.world.push(await until(() => copied() === "ice", 3000));
+                await wait(1200);
+                await game.settings.set(MODULE_ID, "diceLookWorld", forged(), { noHook: true });
+                read.world.push(copied());
+                cards.push(await ChatMessage.create({ author: player.id, content: "E16 a player's throw after the world copy was written with no hook" }));
+                read.world.push(await until(() => copied() === "ice", 3000));
+            }
+        } finally {
+            sync.forgetFuses?.();
+            for (const card of cards) if (card && game.messages.get(card.id)) await card.delete();
+            for (const doc of made) if (doc.documentName === "Actor" ? game.actors.get(doc.id) : game.users.get(doc.id)) await doc.delete();
+            await wait(600);
+            if (kept && stableJson(game.settings.get(MODULE_ID, "diceLookWorld")) !== stableJson(keptWas)) await game.settings.set(MODULE_ID, "diceLookWorld", keptWas);
+        }
+        equal(stableJson(read), stableJson({ load: ["ice", "ice"], world: ["ice", "black", true, "black", true] }),
+            "a full Gamemaster's overlay was put back by a stale GM browser's copy at load, or a write of the world's copy below full Gamemaster stood, heard or with no hook (load: [the NPC's colour, this browser's row]; world: [the world copy's row after the GM's write, after a write over it, put back as heard, after one with no hook, put back at a message])");
+    }],
+
     ...GRID
 ];
 

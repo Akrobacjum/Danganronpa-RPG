@@ -378,7 +378,6 @@ const REGRESSIONS = [
             "fog.mjs": "fog.request answers the sender's own rows; fog.shared is taken only while the primary's question is open, cut to the characters the sender owns, weak and fill-only",
             "sync.mjs": "world-state fan-out from a GM; carries no actor id",
             "safeword.mjs": "trusts nothing from the packet but the room it shows the GMs as text; the name is the connected sender's, and the primary posts one public card per player per window, naming nobody",
-            "dice-sync.mjs": "dice appearance only; no actor anywhere in it",
             "sfx.mjs": "plays a sound; no actor anywhere in it",
             "voice.mjs": "room membership, keyed by the sender",
             "voice-client.mjs": "room membership, keyed by the sender",
@@ -1457,8 +1456,11 @@ const REGRESSIONS = [
          * kept answering "what did I leave in this room" from a cache that a
          * trace being erased, planted or swept could not touch. It looked
          * exactly like a working listener. dice-sync.mjs had found the same trap
-         * a fortnight earlier and written it down in a comment, which is the
-         * clearest possible argument for putting it in the suite instead.
+         * a fortnight earlier, listening for Dice So Nice's client setting, and
+         * written it down in a comment, which is the clearest possible argument
+         * for putting it in the suite instead. That listener went with E16 p1 C3,
+         * when the dice look moved to the users' flags (R802); enforced.mjs's
+         * `clientSettingChanged` put-back is the example left standing.
          *
          * Only listeners that NAME a setting are asked. A listener filtering on
          * the module prefix is a redraw-on-anything, and it is right about every
@@ -4111,9 +4113,15 @@ const REGRESSIONS = [
          * matching pair leaves the opposite one live, and one click on it makes
          * Daggerheart cancel the modifier the Call just bought - the same defect with
          * an extra step.
+         *
+         * Since E16 C1 the experience's cost leaves the config in `forceConfig`, run
+         * before the window's context (and from the hook where that could not be
+         * wrapped), ahead of any test of the lock; the hook takes off the rows drawn
+         * for it. Read in both.
          */
         const dialog = stripComments(new Map(await otherSources()).get("roll-dialog.mjs") ?? "");
         const open = bodyOf(dialog, "function onRenderApplication", { until: "function forceReaction" });
+        const force = bodyOf(dialog, "function forceConfig", { until: "isStudentRoll(actor)" });
         ok(open.length > 400, "the render hook has moved or gone");
         ok(/advantageSources\(app, actor\)/.test(open),
             "the unlocked road reads Breakdown alone again, so a bought die is lost");
@@ -4121,7 +4129,8 @@ const REGRESSIONS = [
             "the state-only reader is back");
         ok(/\[\.\.\.adv, \.\.\.dis\]/.test(open),
             "only one pair of chips is locked, so the other one can cancel the purchase");
-        ok(/stripExperienceCosts\(app\)/.test(open) && /hideCostSection\(root\)/.test(open),
+        ok(/^function forceConfig\(app\) \{\s*stripExperienceCosts\(app\);/.test(force) && !/locking\(\)/.test(force)
+            && /forceConfig\(app\)/.test(open) && /hideCostSection\(root, drawn\)/.test(open),
             "an experience a Call paid for is charged again when the lock is off");
         ok(open.indexOf("locking()") < open.indexOf("advantageSources(app, actor)"),
             "the unlocked branch now runs for everybody, including the locked road");
@@ -5872,7 +5881,10 @@ const REGRESSIONS = [
             // both lifts run one body, `liftIntoCast`.
             ["incident-store.mjs", "liftIntoCast", ["weak", "fillOnly"], true],
             // Which trace each bullet came from, out of its `remnantRef` flag into its row (E05 C13).
-            ["truth-bullets.mjs", "liftBulletRefs", ["weak", "fillOnly"], true]
+            ["truth-bullets.mjs", "liftBulletRefs", ["weak", "fillOnly"], true],
+            // The GMs' copy of a dice look the store has never held, taken from the world (E16 fix early-C4-G1): it
+            // runs from the stores' hydration through `compareOverlays`, which asks `isHydrated` itself.
+            ["dice-sync.mjs", "takeUnseenOverlays", ["weak", "fillOnly"], false]
         ];
         // The migrations that read a store through a function they call: they wait themselves.
         const WAITERS = [["remnants.mjs", "migrateRemnants"], ["remnants.mjs", "migrateRemnantToken"]];
@@ -5924,8 +5936,13 @@ const REGRESSIONS = [
         ok(named.length >= 14, `only ${named.length} GM stores and copies are defined - the table was not read`);
         /* A store no reset cuts, on purpose, with its reason (E79 C1, 14.10.2026; the E79 plan's 1b.1): a secret passage
            is the map's and stays from season to season - who knows it is the "passages" group's (passageAccess). E80 fix
-           r1-G1's store of Foundry's secret doors was listed here until E80 fix r2-G9 moved that state onto the door. */
-        const UNCUT = { "the store passageMap": "a secret passage stays; who knows it is cut with the passages group" };
+           r1-G1's store of Foundry's secret doors was listed here until E80 fix r2-G9 moved that state onto the door. The
+           GMs' copy of each character's dice look (E16 fix early-C4-G1, 19.10.2026) is no season's either: a row goes
+           with its actor, dropped as the actor is deleted. */
+        const UNCUT = {
+            "the store passageMap": "a secret passage stays; who knows it is cut with the passages group",
+            "the store diceLooks": "a character's dice look is the GMs' choice and no season's; its row goes with its actor"
+        };
         const strays = named.filter(([what, group]) => !groups.has(group) && !(group === undefined && Object.hasOwn(UNCUT, what)))
             .map(([what, group]) => `${what} (${group})`);
         ok(!strays.length, `a reset can never cut ${strays.join(", ")}: its reset group is none the window offers`);
@@ -13515,6 +13532,191 @@ const REGRESSIONS = [
         must(read.every(([, text]) => text.length > 1000), "action-rolls.mjs or frisk.mjs was not read - this would measure nothing");
         equal(JSON.stringify(read.flatMap(([file, text]) => found(text).map(key => `${file} ${key}`))), JSON.stringify([]),
             "an outcome's line formats an escaped name, and report escapes it again: the card shows the entity");
+    }],
+
+    ["R800 - the roll window's render hook writes nothing under the roll's config: what a Call or the lock forces is written before Daggerheart's context (E16)", async () => {
+        /*
+         * E16 p1 C1, 18.10.2026; audit S02-04. Daggerheart's roll window computes its Roll button, its costs and
+         * its formula in `_prepareContext` (d20RollDialog.mjs, 2.10.5 and 2.6.5, read), before the render hook
+         * runs; the module wrote the config in that hook, so a player at 0 Hope who bought an Experience Call
+         * and clicked the experience saw Roll greyed out by a cost the hook took out a moment too late. The
+         * writes moved into the wrapper of `_prepareContext` (`wrapPrepareContext`, through `forceConfig`); the
+         * render hook keeps one road to `forceConfig`, for a window whose method the module could not wrap
+         * (the warning mode), on the line that asks `contextForced`. Read: every top-level function of
+         * roll-dialog.mjs the hook names, and the ones they name, but `forceConfig`, for an assignment or an
+         * array write under a `config`; the line of each `forceConfig` the hook names; and the wrapper's call
+         * of `forceConfig` before the method it wraps. A planted source is read first, so a detector that
+         * finds nothing is told from a hook that writes nothing. At cfbbf60 the hook reached five writes, in
+         * `stripExperienceCosts`, `forceReaction`, `forceAdvantage`, `capExperiences` and `lockBonus`.
+         */
+        const WRITE = /(?:(?:\?\.|\.)config(?:\??\.[\w$]+|\[[^\]\n]*\])*|\bconfig(?:\??\.[\w$]+|\[[^\]\n]*\])+)\s*(?:[-+*/%]|\?\?|\|\||&&)?=(?![=>])|\bconfig(?:\??\.[\w$]+)+\.(?:push|splice|pop|shift|unshift|sort|reverse)\(|\b(?:assign|mergeObject)\(\s*[\w$.?]*config\b/g;
+        const hookWrites = text => {
+            const names = new Set([...text.matchAll(/^(?:export )?(?:async )?function (\w+)\(/gm)].map(m => m[1]));
+            const seen = [], writes = [], queue = ["onRenderApplication"];
+            while (queue.length) {
+                const name = queue.shift();
+                if (seen.includes(name) || name === "forceConfig") continue;
+                seen.push(name);
+                const body = fnSource(text, name);
+                for (const m of body.matchAll(WRITE)) writes.push([name, m[0].trim()]);
+                for (const m of body.matchAll(/(?<![.\w$])([A-Za-z_$][\w$]*)\b/g)) if (names.has(m[1]) && m[1] !== name) queue.push(m[1]);
+            }
+            const hook = fnSource(text, "onRenderApplication");
+            const roads = [...hook.matchAll(/\bforceConfig\(/g)].map(m => /!contextForced\(app\)/.test(lineAround(hook, m.index)));
+            return { seen, writes, roads };
+        };
+        const PLANT = [
+            "export function onRenderApplication(app, element) {", "    paint(app);", "    if (!contextForced(app) && forceConfig(app)) app.render();", "}",
+            "function paint(app) {", "    deeper(app);", "    const config = app.config;", "    if (config.roll.advantage === 1) return;", "}",
+            "function deeper(app) {", "    app.config.roll.advantage = 1;", "    app.config.experiences.push(\"x\");", "}",
+            "function forceConfig(app) {", "    app.config.costs = [];", "}",
+            "function contextForced(app) {", "    return false;", "}", ""].join("\n");
+        equal(JSON.stringify(hookWrites(PLANT)),
+            JSON.stringify({ seen: ["onRenderApplication", "paint", "contextForced", "deeper"], writes: [["deeper", ".config.roll.advantage ="], ["deeper", "config.experiences.push("]], roads: [true] }),
+            "the detector does not read the planted hook as written (what it read, the writes it found, whether each road to forceConfig is the warning mode's) - it would find nothing in the module either");
+        const src = stripComments(new Map(await otherSources()).get("roll-dialog.mjs") ?? "");
+        const real = hookWrites(src);
+        equal(JSON.stringify([real.writes, real.roads]), JSON.stringify([[], [true]]),
+            "the roll window's render hook writes under the roll's config, or reaches forceConfig on a line that is not the warning mode's ([the writes, each road to forceConfig on the contextForced line])");
+        ok(["lockControls", "lockBonus", "hideCostSection", "paintReaction"].every(name => real.seen.includes(name)),
+            `the render hook no longer reaches the functions that draw the lock (read: ${real.seen.join(", ")}) - this would measure nothing`);
+        const wrap = fnSource(src, "wrapPrepareContext");
+        const forcedAt = wrap.search(/\bforceConfig\(this\)/), originalAt = wrap.search(/\boriginal\.apply\(this/);
+        ok(forcedAt > 0 && originalAt > forcedAt, "the wrapper of the window's _prepareContext does not write what is forced before Daggerheart's own method runs");
+    }],
+
+    ["R802 - nothing reads Dice So Nice's client setting `settings`, and dice-sync.mjs opens no socket of its own (E16)", async () => {
+        /*
+         * E16 p1 C3, 19.10.2026; audits S02-67 and S16-02 (E16-20). Until C3 dice-sync.mjs read the primary GM's
+         * `dice-so-nice.settings`, a client setting Dice So Nice 6.x only migrates (the 26.09 design's reading
+         * of 6.2.9), sent it over the module's socket and wrote it on each player's browser: a look nobody
+         * drew, and a socket road a player's packet could ride. The look is the users' flags now, written by
+         * the primary GM, and the road is gone. Read on every module file, comments cut: a `settings.get`,
+         * `set` or `register` of that scope and key, by literal or by a constant holding it, and the
+         * "namespace.key" id in a string or a template; and in dice-sync.mjs a `game.socket.on` or `emit`. A
+         * planted source in Base's spelling is read first, so a detector that finds nothing is told from a
+         * module that reads nothing. At 01c6739: dice-sync.mjs's get, set and template, its listener and
+         * two emits.
+         */
+        const reads = text => {
+            const named = value => [`"${value}"`, `'${value}'`, `\`${value}\``,
+                ...[...text.matchAll(new RegExp(`\\bconst ([A-Z_$][\\w$]*) = ["'\`]${value}["'\`]`, "g"))].map(m => m[1])];
+            const alt = list => list.map(x => x.replace(/[$]/g, "\\$&")).join("|");
+            const scope = alt(named("dice-so-nice")), key = alt(named("settings"));
+            const found = [];
+            for (const m of text.matchAll(new RegExp(`settings\\.(?:get|set|register)\\(\\s*(?:${scope})\\s*,\\s*(?:${key})\\s*[,)]`, "g"))) found.push(m[0]);
+            for (const m of text.matchAll(/["'`]dice-so-nice\.settings["'`]/g)) found.push(m[0]);
+            const ids = text.matchAll(new RegExp(`\\$\\{(?:${alt(named("dice-so-nice").slice(3))})\\}\\.\\$\\{(?:${alt(named("settings").slice(3))})\\}`, "g"));
+            for (const m of ids) if (m[0] !== "${}.${}") found.push(m[0]);
+            return found;
+        };
+        const sockets = text => [...text.matchAll(/\bgame\.socket\.(?:on|emit)\(/g)].map(m => m[0]);
+        const PLANT = ['const AV = "dice-so-nice";', 'const KEY = "settings";', "function mine() { return game.settings.get(AV, KEY); }",
+            'function theirs(a) { return game.settings.set("dice-so-nice", "settings", a); }', "const id = `${AV}.${KEY}`;",
+            'Hooks.on("clientSettingChanged", k => k === "dice-so-nice.settings");', "game.socket.on(EVENT, onSocket);", ""].join("\n");
+        equal(JSON.stringify([reads(PLANT), sockets(PLANT)]),
+            JSON.stringify([["settings.get(AV, KEY)", 'settings.set("dice-so-nice", "settings",', '"dice-so-nice.settings"', "${AV}.${KEY}"], ["game.socket.on("]]),
+            "the detector does not read the planted source as written - it would find nothing in the module either");
+        const found = [];
+        for (const [file, raw] of await otherSources()) for (const hit of reads(stripComments(raw))) found.push(`${file}: ${hit}`);
+        const sync = stripComments(new Map(await otherSources()).get("dice-sync.mjs") ?? "");
+        ok(sync.length > 400, "dice-sync.mjs has moved or gone - this would measure nothing");
+        equal(JSON.stringify([found, sockets(sync)]), JSON.stringify([[], []]),
+            "a module file reads Dice So Nice's client setting `settings`, or dice-sync.mjs talks over a socket of its own ([the reads, dice-sync's socket calls])");
+    }],
+
+    ["R803 - the GM's handbook names the setting that gives the table one dice look, and the player's handbook says the look is the GM's, in both languages (E16)", async () => {
+        /*
+         * E16 p1 C5, 19.10.2026 (E16-25). From C3 a player's change of its Dice So Nice look goes back to the GM's,
+         * and the player reads DRPG.DiceLook.setByGm once. At 9fdd7f7 neither book said so: the GM's settings list
+         * had no *One dice look for the table*, so a GM could not find what turns it off, and the player's
+         * handbook still said a GM-thrown die falls "in your colours". The names are read from lang/*.json, so a
+         * renamed setting or line fails here until the books follow; the GM's list is compared without case,
+         * since the Polish list names its settings in lower case inside the sentence.
+         */
+        const STALE = { en: "in your colours", pl: "w twoich kolorach" };
+        const measured = {}, expected = {};
+        for (const lang of ["en", "pl"]) {
+            const keys = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            const name = keys.DRPG?.Settings?.forceDiceLook?.name ?? "", told = keys.DRPG?.DiceLook?.setByGm ?? "";
+            ok(name.length > 0 && told.length > 0, `lang/${lang}.json has no DRPG.Settings.forceDiceLook.name or DRPG.DiceLook.setByGm - this test measured nothing`);
+            const text = {};
+            for (const book of ["gm-handbook", "player-handbook"]) {
+                const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${book}.${lang}.md`);
+                ok(res.ok, `docs/handbooks/${book}.${lang}.md did not load`);
+                text[book] = await res.text();
+                ok(text[book].split("\n").length > 10, `docs/handbooks/${book}.${lang}.md is empty - this test measured nothing`);
+            }
+            measured[lang] = {
+                gm: text["gm-handbook"].toLocaleLowerCase(lang).includes(`*${name.toLocaleLowerCase(lang)}*`),
+                player: text["player-handbook"].includes(told),
+                stale: text["player-handbook"].includes(STALE[lang])
+            };
+            expected[lang] = { gm: true, player: true, stale: false };
+        }
+        equal(JSON.stringify(measured), JSON.stringify(expected),
+            "[per language - the GM's handbook names DRPG.Settings.forceDiceLook.name in italics; the player's handbook says DRPG.DiceLook.setByGm; "
+            + "the player's handbook no longer says a die falls in the player's own colours]");
+    }],
+    ["R805 - the opening's roll windows carry short titles, without \"your roll\", and the player's handbook quotes the victim's as it reads, in both languages (E16, S01-17)", async () => {
+        /*
+         * E16 fix r1-G2 of round r1d, 19.10.2026 (finding OWNER-DEFAULT-Q7a; the owner's Q7 runs on its default (a)).
+         * S01-17 asked a shorter title for the roll window, and the opening's three (DRPG.Roll.opening.killer,
+         * .victim, .selfInflicted, murder-rules.mjs) ended in " - your roll" / " - twój rzut". At 0cc7c80 all six
+         * did, and the player's handbook quoted the victim's with it. The words are Q7 (a)'s, read whole: another
+         * wording is the owner's and changes this test with it.
+         */
+        const WORDS = {
+            en: { killer: "Opening the murder", victim: "Something feels wrong", selfInflicted: "Going through with it" },
+            pl: { killer: "Otwarcie morderstwa", victim: "Coś tu nie gra", selfInflicted: "Decyzja" }
+        };
+        const STALE = { en: " - your roll", pl: " - twój rzut" };
+        const measured = {}, expected = {};
+        for (const lang of ["en", "pl"]) {
+            const keys = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            const opening = keys.DRPG?.Roll?.opening ?? {};
+            ok(Object.keys(opening).length > 0, `lang/${lang}.json has no DRPG.Roll.opening - this test measured nothing`);
+            const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/player-handbook.${lang}.md`);
+            ok(res.ok, `docs/handbooks/player-handbook.${lang}.md did not load`);
+            const book = await res.text();
+            ok(book.split("\n").length > 10, `docs/handbooks/player-handbook.${lang}.md is empty - this test measured nothing`);
+            measured[lang] = {
+                titles: Object.fromEntries(Object.keys(WORDS[lang]).map(key => [key, opening[key] ?? null])),
+                bookQuotesVictim: book.includes(`"${opening.victim}"`),
+                bookStale: book.includes(`${WORDS[lang].victim}${STALE[lang]}`)
+            };
+            expected[lang] = { titles: WORDS[lang], bookQuotesVictim: true, bookStale: false };
+        }
+        equal(JSON.stringify(measured), JSON.stringify(expected),
+            "[per language - the three opening titles as Q7 (a) words them; the player's handbook quotes the victim's title as lang has it, "
+            + "and no longer with \" - your roll\"]");
+    }],
+    ["R806 - the hint of the switch for one dice look says only what holds whoever opened the world first: the look is fixed the first time the game runs with it on, as the GM's handbook says, in both languages (E16)", async () => {
+        /*
+         * E16 fix r1-G2 of round r1d, 19.10.2026 (finding fd2-3). DRPG.Settings.forceDiceLook.hint named the full
+         * Gamemaster "whose browser first ran the game with this on as the primary GM". dice-sync.mjs `lookSource`
+         * names another where an Assistant was the first primary (the full Gamemaster with the lowest id) and where
+         * the named one is deleted or demoted, and a GM cannot read `diceLookSource` (hidden). At 0cc7c80 both hints
+         * said it. Measured: the hint carries the GM's handbook's own clause for when the look is fixed, read off the
+         * handbook's line on the setting, and names no primary GM.
+         */
+        const CLAUSE = { en: "fixed the first time the game runs with it on", pl: "ustalonym, gdy gra pierwszy raz działa z tym ustawieniem" };
+        const PRIMARY = { en: /primary GM/i, pl: /główny GM/i };
+        const measured = {}, expected = {};
+        for (const lang of ["en", "pl"]) {
+            const keys = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            const name = keys.DRPG?.Settings?.forceDiceLook?.name ?? "", hint = keys.DRPG?.Settings?.forceDiceLook?.hint ?? "";
+            ok(name.length > 0 && hint.length > 0, `lang/${lang}.json has no DRPG.Settings.forceDiceLook name or hint - this test measured nothing`);
+            const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/gm-handbook.${lang}.md`);
+            ok(res.ok, `docs/handbooks/gm-handbook.${lang}.md did not load`);
+            const book = await res.text();
+            const at = book.toLocaleLowerCase(lang).indexOf(`*${name.toLocaleLowerCase(lang)}*`);
+            ok(at >= 0, `docs/handbooks/gm-handbook.${lang}.md does not name *${name}* - this test measured nothing`);
+            measured[lang] = { bookSays: lineAround(book, at).includes(CLAUSE[lang]), hintSays: hint.includes(CLAUSE[lang]), primary: PRIMARY[lang].test(hint) };
+            expected[lang] = { bookSays: true, hintSays: true, primary: false };
+        }
+        equal(JSON.stringify(measured), JSON.stringify(expected),
+            "[per language - the GM's handbook's line on the setting says when the look is fixed; the hint says the same; the hint names no primary GM]");
     }]
 ];
 

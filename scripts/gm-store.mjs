@@ -616,8 +616,11 @@ export function sectionProblem(sec, spec = null) {
 }
 
 /**
- * Why a GM-to-GM packet is refused, or null. `ctx`: amGM, senderIsGM, senderId,
- * selfId, worldId, stores (a Map of name -> spec). Assistants (role 3) are GMs.
+ * Why a GM-to-GM packet is refused, or null. `ctx`: amGM, senderIsGM, senderIsFullGM,
+ * senderId, selfId, worldId, stores (a Map of name -> spec). Assistants (role 3) are GMs,
+ * except to a store whose spec says `fullGmOnly`: its rows come from a full Gamemaster's
+ * browser alone (E16 fix r1-G2, finding sec-3: the GMs' copy of the characters' dice looks,
+ * gm-stores.mjs `diceLookStore`, which the owner's Q3 holds Assistants to as players).
  */
 export function gmsRefusal(packet, ctx) {
     if (!isPlain(packet)) return "not a packet";
@@ -636,6 +639,7 @@ export function gmsRefusal(packet, ctx) {
         case GMS_ACTIONS.delta: {
             const spec = ctx.stores.get(packet.store);
             if (!spec || !spec.sync) return "a store this build does not sync";
+            if (spec.fullGmOnly && !ctx.senderIsFullGM) return "the store takes rows from a full Gamemaster only";
             const why = sectionProblem(packet.action === GMS_ACTIONS.state ? packet.section : packet.delta, spec);
             return why ? `a malformed section: ${why}` : null;
         }
@@ -652,7 +656,8 @@ export function gmsRefusal(packet, ctx) {
  * One engine over one environment.
  *
  * env: selfId(), isGM(), worldId(), activeGmIds(), primaryGmId(), senderIsGM(id),
- * userName(id), send(packet, recipients), storage { read(key) -> raw JSON text
+ * isFullGM() and senderIsFullGM(id) (optional: none answers no, read only by a store
+ * that says `fullGmOnly`), userName(id), send(packet, recipients), storage { read(key) -> raw JSON text
  * or null, write(key, value) -> Promise }, readLegacy(key), now(), timers { set,
  * clear }, clock() -> the campaign clock, log { warn, error, debug },
  * notify(level, text, opts), onHydrated(worldId) (optional), upgradeMark() ->
@@ -810,7 +815,7 @@ export function createGmStoreEngine(env) {
             }
         }
         for (const [w, keys] of sent) {
-            if (keys.size && st.spec.sync && !held && w.wid === env.worldId()) {
+            if (keys.size && st.spec.sync && sends(st) && !held && w.wid === env.worldId()) {
                 /* In parts no larger than a state's (the review's round-2 note): a restore's
                    changes, or a reset's, are one flush, and went out as one packet whatever
                    their size - the size a relay takes is LIVE-E04-02. Each part carries the
@@ -837,6 +842,10 @@ export function createGmStoreEngine(env) {
         const self = env.selfId();
         return env.activeGmIds().filter(id => id && id !== self);
     }
+
+    /* A store that takes rows from a full Gamemaster only is sent by one alone: the others would refuse it
+       (`gmsRefusal`), and say so once each. Its copy reaches this browser from theirs. */
+    const sends = st => !st.spec.fullGmOnly || Boolean(env.isFullGM?.());
 
     function sendTo(recipients, packet) {
         if (held || !recipients.length) return;
@@ -1124,7 +1133,7 @@ export function createGmStoreEngine(env) {
     function sendStates(to, names) {
         for (const name of names) {
             const st = stores.get(name);
-            if (!st?.spec.sync) continue;
+            if (!st?.spec.sync || !sends(st)) continue;
             const parts = partsOf(home(st).section);
             parts.forEach((section, i) => sendTo([to], {
                 action: GMS_ACTIONS.state, world: env.worldId(), store: name, section: clone(section), part: i + 1, parts: parts.length
@@ -1139,7 +1148,8 @@ export function createGmStoreEngine(env) {
     function onPacket(packet, senderId) {
         if (!isPlain(packet) || typeof packet.action !== "string" || !packet.action.startsWith("gms.")) return;
         const why = gmsRefusal(packet, {
-            amGM: env.isGM(), senderIsGM: env.senderIsGM(senderId), senderId, selfId: env.selfId(),
+            amGM: env.isGM(), senderIsGM: env.senderIsGM(senderId), senderIsFullGM: Boolean(env.senderIsFullGM?.(senderId)),
+            senderId, selfId: env.selfId(),
             worldId: env.worldId(), stores: specsByName()
         });
         if (why) {
@@ -1626,6 +1636,8 @@ const engine = createGmStoreEngine({
     activeGmIds: () => deps.activeGmIds(),
     primaryGmId: () => deps.primaryGmId(),
     senderIsGM: id => Boolean(game.users?.get(id)?.isGM),
+    isFullGM: () => game.user?.role === CONST.USER_ROLES.GAMEMASTER,
+    senderIsFullGM: id => game.users?.get(id)?.role === CONST.USER_ROLES.GAMEMASTER,
     userName: id => game.users?.get(id)?.name ?? String(id),
     send: (packet, recipients) => game.socket.emit(SOCKET_EVENT, packet, { recipients }),
     storage: {

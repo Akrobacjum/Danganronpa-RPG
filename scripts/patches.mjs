@@ -1,7 +1,7 @@
 /**
  * Danganronpa RPG - the register of every method this module overrides.
  * ---------------------------------------------------------------------------
- * Twelve places reach into Foundry's or Daggerheart's objects and put a
+ * Thirteen places reach into Foundry's or Daggerheart's objects and put a
  * function of ours where theirs was. Each has its reasons written beside it in
  * its own file; what none of them had was a list (audit A18), so a system
  * update that moved one of the targets was found by whichever feature stopped
@@ -20,6 +20,7 @@
 
 import { refreshStateParked } from "./iso-shield.mjs";
 import { chatLogClass } from "./secret.mjs";
+import { rollDialogClass } from "./roll-dialog.mjs";
 
 const AV_MODULE = "avclient-livekit";
 
@@ -55,6 +56,20 @@ export const PATCHES = [
             return {
                 present: typeof fn === "function",
                 ours: Boolean(fn?.[Symbol.for("drpgCriticalRule")])
+            };
+        }
+    },
+    {
+        target: "D20RollDialog.prototype._prepareContext",
+        owner: "daggerheart",
+        file: "roll-dialog.mjs",
+        why: "What a Call forces on a roll window (an experience's cost out, the reaction, the advantage, the bonus, one experience) is written before the window works out its Roll button and formula (E16 C1, audit S02-04).",
+        when: "always, from setup; on a method of another shape, never, and the console says so once",
+        probe: () => {
+            const fn = rollDialogClass()?.prototype?._prepareContext;
+            return {
+                present: typeof fn === "function",
+                ours: Boolean(fn?.[Symbol.for("drpgRollContext")])
             };
         }
     },
