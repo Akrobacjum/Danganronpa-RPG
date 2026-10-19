@@ -53775,18 +53775,68 @@ const SCENARIOS = [
         }
         const L = key => game.i18n.localize(key);
         const { plural } = await import("./utils.mjs");
+        // The chip names who sees the roll (E16 fix r1-G2 of round r1c, finding E16-goal-07): the next test reads it.
+        const chip = L(game.settings.get(MODULE_ID, SETTINGS.forcePrivateRolls) ? "DRPG.RollDialog.modeGms" : "DRPG.RollDialog.modePublic");
         // The Support's die is in the formula its window drew (`supported`), checked below to be more than the plain one.
         equal(stableJson(read), stableJson({
             experience: [".dices-section", ".modifier-container"],
             gm: { away: [], line: null, mode: [true, null], roll: false },
             gmMode: ["150px", "nowrap"],
-            player: { away: SECTIONS, line: [`Body, ${L("DRPG.RollDialog.summary.none")} - ${formula}`, null], mode: [false, L("DRPG.RollDialog.modePublic")], roll: false },
+            player: { away: SECTIONS, line: [`Body, ${L("DRPG.RollDialog.summary.none")} - ${formula}`, null], mode: [false, chip], roll: false },
             support: { away: SECTIONS, line: [`Body, ${plural("DRPG.RollDialog.summary.advantage", { n: 1 })} - ${supported}`, L("DRPG.RollDialog.forcedByCall")],
-                mode: [false, L("DRPG.RollDialog.modePublic")], roll: false },
+                mode: [false, chip], roll: false },
             title: [true, "inline-size", "inline-size"]
         }), "a player's locked window kept a locked section or had no summary, a GM's lost one, the mode select or the title bar is not as S01-22 asks, or a title can set the width (see the comment for each key)");
         ok(/\dd12/.test(formula ?? "") && typeof supported === "string" && supported.length > formula.length,
             `the window's formula names no d12, or the Support's adds nothing to it (${formula}; ${supported})`);
+    }],
+
+    ["a player's locked roll window's mode chip names who sees the roll: the GMs and the player while rolls are forced private, a Monocub's room too (S01-22 ROLL-14)", async () => {
+        /*
+         * E16 fix r1-G2 of round r1c, 19.10.2026 (finding E16-goal-07). C2's chip said what the disabled mode select
+         * held - "Public" for a player whose chat bar is on the default - while `forcePrivateRolls` (on by default)
+         * whispers every student's roll to the GMs and its player (private-rolls.mjs `whisperRoll`), and a Monocub's
+         * to the room it stands in as well. Daggerheart's window (`rollWindow`) opened for a student's Body action
+         * roll with the lock on and drawn as a player reads it (`asConsole`, as the test above): with rolls forced
+         * private; with them not; and forced private again with the window's actor read as a Monocub (its `getFlag`
+         * answers the module's `monocub` flag on this instance only, nothing written). Read: the chip's text. At
+         * e10c60a: "Public" every time.
+         */
+        const RD = await import("./roll-dialog.mjs");
+        const [actor] = cast(1);
+        const { DRPG_ACTION_ROLL } = await import("./action-rolls.mjs");
+        const lockWas = game.settings.get(MODULE_ID, SETTINGS.lockRollDialog);
+        const privateWas = game.settings.get(MODULE_ID, SETTINGS.forcePrivateRolls);
+        const chipOf = async () => {
+            const win = await (await rollWindow(actor, { [DRPG_ACTION_ROLL]: true, roll: { trait: "strength" } })).open();
+            try {
+                await win.app._replaceHTML(await win.app._renderHTML(await win.app._prepareContext({})), win.app.element);
+                asConsole(() => RD.onRenderApplication(win.app, win.app.element));
+                return win.element.querySelector(".drpg-mode-chip")?.textContent?.trim() ?? null;
+            } finally {
+                await win.cancel();
+            }
+        };
+        const read = {};
+        const ownGetFlag = Object.hasOwn(actor, "getFlag");
+        try {
+            if (!lockWas) await game.settings.set(MODULE_ID, SETTINGS.lockRollDialog, true);
+            if (!privateWas) await game.settings.set(MODULE_ID, SETTINGS.forcePrivateRolls, true);
+            read.forced = await chipOf();
+            await game.settings.set(MODULE_ID, SETTINGS.forcePrivateRolls, false);
+            read.open = await chipOf();
+            await game.settings.set(MODULE_ID, SETTINGS.forcePrivateRolls, true);
+            const getFlag = actor.getFlag;
+            actor.getFlag = function (scope, key) { return scope === MODULE_ID && key === FLAGS.monocub ? true : getFlag.call(this, scope, key); };
+            read.monocub = await chipOf();
+        } finally {
+            if (!ownGetFlag) delete actor.getFlag;
+            if (game.settings.get(MODULE_ID, SETTINGS.forcePrivateRolls) !== privateWas) await game.settings.set(MODULE_ID, SETTINGS.forcePrivateRolls, privateWas);
+            if (game.settings.get(MODULE_ID, SETTINGS.lockRollDialog) !== lockWas) await game.settings.set(MODULE_ID, SETTINGS.lockRollDialog, lockWas);
+        }
+        const L = key => game.i18n.localize(key);
+        equal(stableJson(read), stableJson({ forced: L("DRPG.RollDialog.modeGms"), monocub: L("DRPG.RollDialog.modeRoom"), open: L("DRPG.RollDialog.modePublic") }),
+            "the locked window's chip does not name who sees the roll (forced: the GMs and you; monocub: the GMs, you and the room; open: Public, the select's own mode)");
     }],
 
     ["a roll window opens below the curtain's edge, not over the glass at the top of the screen (S01-22)", async () => {
@@ -54093,6 +54143,52 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson({ assistant: true, gm: true, npc: ["fire", "fire", false], player: true }),
             "a character's dice look written by its player or an Assistant stayed, or a full Gamemaster's own was written over (gm: the GM's overlay stands; player, assistant: put back to the GM's; npc: [the GM's own, after the Assistant's write, the Assistant's d6 kept])");
+    }],
+
+    ["an actor an Assistant or a player makes with a dice look of its own has none, and one a full Gamemaster makes keeps its own (S16-02)", async () => {
+        /*
+         * E16 fix r1-G2 of round r1c, 19.10.2026 (finding E16-C4-F9). C4 puts back an overlay a user below full
+         * Gamemaster writes on an actor, and its `createActor` listener does the same for an actor such a user makes
+         * with one (dice-sync.mjs `onActorWritten`, `created`), but every test wrote by update, so a listener taken
+         * away was not missed. Here three actors are made carrying a Dice So Nice overlay: one as the primary hears an
+         * Assistant GM made for the test (offline, role 3) make it, one as it hears a player make it (each made by
+         * the GM with `noHook`, then handed to `createActor`'s listeners with that user's id, as
+         * `asUserOverlayWrite` does for an update), and one the GM makes. Read: each actor's overlay, the GM's 1.2 s
+         * after it was made (three times the put-back's wait). With the listener taken away: both stand.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter"));
+        const player = game.users.find(u => !u.isGM && u.active);
+        const made = { users: [], actors: [] };
+        const npcWith = (name, look) => ({ name, type: "adversary", ownership: { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE },
+            flags: { [DSN_SCOPE]: { appearance: look } } });
+        const madeAs = async (user, name, look) => {
+            const [actor] = await Actor.createDocuments([npcWith(name, look)], { noHook: true });
+            made.actors.push(actor);
+            Hooks.callAll("createActor", actor, {}, user.id);
+            return actor;
+        };
+        const read = {};
+        try {
+            made.users.push(...await CONFIG.User.documentClass.createDocuments([{ name: "E16 creating assistant", role: CONST.USER_ROLES.ASSISTANT }]));
+            const [assistant] = made.users;
+            await settle();
+            const byAssistant = await madeAs(assistant, "E16 overlay made by an Assistant", OWN_OVERLAY);
+            const byPlayer = await madeAs(player, "E16 overlay made by a player", { ...OWN_OVERLAY, d8: { colorset: "emerald" } });
+            made.actors.push(...await Actor.createDocuments([npcWith("E16 overlay made by the GM", GM_OVERLAY)]));
+            const byGm = made.actors.at(-1);
+            read.assistant = await until(() => overlayOf(byAssistant) === null, 3000);
+            read.player = await until(() => overlayOf(byPlayer) === null, 3000);
+            await wait(1200);
+            read.gm = stableJson(overlayOf(byGm)) === stableJson(GM_OVERLAY);
+        } finally {
+            for (const actor of made.actors) if (game.actors.get(actor.id)) await actor.delete();
+            for (const user of made.users) if (game.users.get(user.id)) await user.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ assistant: true, gm: true, player: true }),
+            "an actor made below full Gamemaster kept the dice look it was made with, or one a full Gamemaster made lost its own (assistant, player: put back to none; gm: the GM's overlay stands)");
     }],
 
     ["a dice look written with no hook is put back at the user's next throw or connect (S16-02)", async () => {

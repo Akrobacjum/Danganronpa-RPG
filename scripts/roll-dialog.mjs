@@ -14,7 +14,7 @@
  * name, so a system rename cannot quietly disable this.
  */
 
-import { MODULE_ID, TRAITS, TRAIT_BY_DH } from "./config.mjs";
+import { MODULE_ID, FLAGS, TRAITS, TRAIT_BY_DH } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 // Statically imported: the lock runs inside a synchronous render hook and has no
 // opportunity to await. Neither module reaches back here, so no cycle.
@@ -856,12 +856,12 @@ function lockControls(root, app) {
  * did something read a wall of controls it could not touch, and the locked mode select spilled over
  * three lines into the formula. So for a player every section with no control left to use is put away
  * (a Call that opens one - the experiences, the trait - keeps its section), the mode select becomes a
- * chip that says what it is, and one line says what the roll is: the trait, what modifies it, the
- * formula ('Body, no modifiers - 1d12 + 1d12'); where advantage is forced its reason is the line's
- * tooltip, as it was the chip's. The locks above stay on whatever is put away. A GM sees the whole
- * window. Read off the cascade jsdom computes (tier 2, "a player's locked roll window is one summary
- * line ..."; at c952b92 every section was shown, with no line and no chip); what a table's Daggerheart
- * draws in both themes at 1366x768 is LIVE-E16-02.
+ * chip that says who sees the roll (`audienceOf`, since E16 fix r1-G2 of round r1c), and one line
+ * says what the roll is: the trait, what modifies it, the formula ('Body, no modifiers - 1d12 + 1d12');
+ * where advantage is forced its reason is the line's tooltip, as it was the chip's. The locks above
+ * stay on whatever is put away. A GM sees the whole window. Read off the cascade jsdom computes (tier 2,
+ * "a player's locked roll window is one summary line ..."; at c952b92 every section was shown, with no
+ * line and no chip); what a table's Daggerheart draws in both themes at 1366x768 is LIVE-E16-02.
  */
 const PUT_AWAY = "drpg-locked-away";
 
@@ -880,9 +880,7 @@ function collapseLocked(root, app, actor, armed) {
     if (mode && !usable(mode) && !mode.parentElement?.querySelector(".drpg-mode-chip")) {
         const chip = document.createElement("span");
         chip.className = "drpg-mode-chip";
-        chip.textContent = mode.value === "public"
-            ? game.i18n.localize("DRPG.RollDialog.modePublic")
-            : (mode.selectedOptions?.[0]?.textContent?.trim() || mode.value);
+        chip.textContent = audienceOf(mode, actor);
         chip.dataset.tooltip = game.i18n.localize("DRPG.RollDialog.modeLocked");
         mode.classList.add(PUT_AWAY);
         mode.after(chip);
@@ -899,6 +897,29 @@ function collapseLocked(root, app, actor, armed) {
     if (anchor) anchor.before(line);
     else (root.querySelector(".roll-dialog-container") ?? root).append(line);
     formula?.classList.add(PUT_AWAY);
+}
+
+/**
+ * WHO SEES THIS ROLL, ON THE CHIP (E16 fix r1-G2 of round r1c, 19.10.2026; finding E16-goal-07). The chip said what
+ * the disabled select held - "Public" for a chat bar on its default - while with `forcePrivateRolls` on (its
+ * default) private-rolls.mjs `whisperRoll` sends a student's roll to the GMs and its player whatever that mode
+ * says (ROLL-14), and a Monocub's to the room it stands in too. So with rolls forced private the chip names that
+ * audience; with them not, the select's own mode, as at C2.
+ */
+function audienceOf(mode, actor) {
+    let forced = true;
+    try {
+        forced = game.settings.get(MODULE_ID, SETTINGS.forcePrivateRolls);
+    } catch (err) {
+        failed("reading the private rolls setting", err);
+    }
+    if (forced) {
+        const monocub = Boolean(actor?.getFlag?.(MODULE_ID, FLAGS.monocub));
+        return game.i18n.localize(monocub ? "DRPG.RollDialog.modeRoom" : "DRPG.RollDialog.modeGms");
+    }
+    return mode.value === "public"
+        ? game.i18n.localize("DRPG.RollDialog.modePublic")
+        : (mode.selectedOptions?.[0]?.textContent?.trim() || mode.value);
 }
 
 /** 'Body, no modifiers - 1d12 + 1d12': the trait, what modifies the roll, the formula the window drew. */

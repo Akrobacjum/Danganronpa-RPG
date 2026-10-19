@@ -13,7 +13,8 @@
  *   C  what an Assistant may do: a pool when granted one, and not the role or
  *      the users that belong to a Gamemaster;
  *   D  the full GM leaves: the Assistant becomes the primary and carries out
- *      what B's GM did;
+ *      what B's GM did, and puts a player's own dice look back to the GM's
+ *      (D5, E16 p1 C3: the Assistant primary of the owner's Q3);
  *   E  no exception escaped into Foundry on any client;
  *   F  a body's discovery is the primary's: two GMs announcing one body at once
  *      post one card (run before D, while the full GM is here; E11 fix r1-G2);

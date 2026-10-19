@@ -234,7 +234,7 @@
     "Settings": {
       "forceDiceLook": {
         "name": "Jeden wygląd kości przy stole",
-        "hint": "Każdy gracz i asystent GM-a rzuca kośćmi i efektami Dice So Nice w wyglądzie Gamemastera, a własna zmiana wraca do niego. Każdy zachowuje własne ustawienia wyświetlania i wydajności. Wyłączenie nikomu nie przywraca dawnego wyglądu."
+        "hint": "Każdy gracz i asystent GM-a rzuca kośćmi i efektami Dice So Nice w wyglądzie jednego pełnego Gamemastera - tego, którego przeglądarka pierwsza uruchomiła grę z tym ustawieniem jako główny GM - a własna zmiana wraca do niego. Własny wygląd innego pełnego Gamemastera zostaje jego i niczego przy stole nie zmienia. Każdy zachowuje własne ustawienia wyświetlania i wydajności. Wyłączenie nikomu nie przywraca dawnego wyglądu."
       },
       "forcePrivateRolls": {
         "name": "Wymuszaj prywatne rzuty graczy",
@@ -2940,7 +2940,7 @@
       "setByGm": "Twój wygląd kości ustala GM.",
       "settingBack": "{name}: zmiana ustawień wyglądu kości przy stole cofnięta - zmienić je może tylko pełny Gamemaster.",
       "settingBackUnheard": "Ustawienia wyglądu kości przy stole zmieniono, nie wiadomo przez kogo, a zmienić je może tylko pełny Gamemaster, więc je cofnięto.",
-      "stopped": "{name}: wygląd kości wciąż od razu zmienia się z powrotem, więc przez minutę zostaje taki, jaki jest."
+      "stopped": "{name}: wygląd kości wciąż od razu zmienia się z powrotem, więc przez minutę zostaje taki, jaki jest, a potem zostaje cofnięty przy najbliższej zmianie albo rzucie."
     },
     "RollDialog": {
       "locked": "Nie ty o tym decydujesz. Przewaga i doświadczenia to Hope Calls - zapytaj GM-a.",
@@ -2953,6 +2953,8 @@
       "bonusLocked": "Premie sytuacyjne to decyzja GM-a.",
       "modeLocked": "To, kto widzi ten rzut, ustala gra, nie to okno.",
       "modePublic": "Publiczny",
+      "modeGms": "GM-owie i ty",
+      "modeRoom": "GM-owie, ty i pokój",
       "actionLocked": "O tym, co stanie się dalej, decyduje Hope albo Despair tego rzutu, więc to akcja, nigdy reakcja.",
       "summary": {
         "none": "bez modyfikatorów",

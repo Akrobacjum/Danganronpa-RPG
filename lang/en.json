@@ -234,7 +234,7 @@
     "Settings": {
       "forceDiceLook": {
         "name": "One dice look for the table",
-        "hint": "Every player and Assistant GM throws Dice So Nice dice and effects in the Gamemaster's look, and a change of their own goes back to it. Each keeps their own display and performance settings. Switching this off gives nobody their old look back."
+        "hint": "Every player and Assistant GM throws Dice So Nice dice and effects in one full Gamemaster's look - the one whose browser first ran the game with this on as the primary GM - and a change of their own goes back to it. Another full Gamemaster's own look stays theirs and changes nothing for the table. Each keeps their own display and performance settings. Switching this off gives nobody their old look back."
       },
       "forcePrivateRolls": {
         "name": "Force private player rolls",
@@ -2826,7 +2826,7 @@
       "setByGm": "Your dice look is set by the GM.",
       "settingBack": "{name} changed the table's dice look settings, which only a full Gamemaster may change, so they were put back.",
       "settingBackUnheard": "The table's dice look settings were changed with no trace of who changed them, and only a full Gamemaster may change them, so they were put back.",
-      "stopped": "{name}'s dice look keeps changing straight back, so it is left as it is for a minute."
+      "stopped": "{name}'s dice look keeps changing straight back, so it is left as it is for a minute, then put back at its next change or throw."
     },
     "RollDialog": {
       "locked": "Not yours to choose. Advantage and experiences are Hope Calls - ask the GM.",
@@ -2839,6 +2839,8 @@
       "bonusLocked": "Situational bonuses are the GM's call.",
       "modeLocked": "Who sees this roll is set by the game, not here.",
       "modePublic": "Public",
+      "modeGms": "The GMs and you",
+      "modeRoom": "The GMs, you and the room",
       "actionLocked": "This roll's Hope or Despair decides what happens next, so it is an action, never a reaction.",
       "summary": {
         "none": "no modifiers",

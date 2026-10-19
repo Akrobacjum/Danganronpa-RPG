@@ -49,8 +49,11 @@
  * NO LOOP. A put-back waits 400 ms after the user's last update (DSN's save is six updates in a row), compares
  * before it writes, and stops for that user after five in a minute, with one console error and one notice to
  * the GM, once a session: something else is writing that user's look back each time. A minute after its last
- * put-back it is put back again (E16 fix r1-G1, finding C3-C2: until then it stayed stopped until the primary
- * reloaded, so six writes in a minute bought a player its own look for the session).
+ * put-back the fuse is re-armed (E16 fix r1-G1, finding C3-C2: until then it stayed stopped until the primary
+ * reloaded, so six writes in a minute bought a player its own look for the session). No timer runs it: the look is
+ * put back at the first step that reaches it after the minute - the user's next update, connect or throw, a sweep,
+ * an actor's next write or throw - so the first throw after the minute is drawn in the look the user holds then,
+ * and put back with that throw (the fix-diff review's fd-5).
  *
  * PAST THE SOURCE'S FUSE (E16 fix r1c-G1, 19.10.2026; finding fd-1). The source's own put-back has a fuse of its
  * own (`source:<id>`), and until this fix every user's waited for it: an Assistant who wrote the Gamemaster's look
@@ -77,6 +80,11 @@
  * answers the base), so tier 2 stands one in. Daggerheart's GM relay, which writes as the GM,
  * carries no actor flag (relay-guard.mjs `actorRefusal` lets through resource values only). Which actor DSN lays
  * over a throw, and what the throw then looks like, is not drawn headless: LIVE-E16-03.
+ *
+ * ONE THROW'S OWN LOOK (E16 fix r1-G2 of round r1c; findings docs-1 and E16-C4-F8). A roll's die terms can carry an
+ * appearance of their own in their options (DSN's API), and DSN draws that throw so on every screen that shows it:
+ * a user who posts a roll of its own from a console can still throw any look, one throw at a time. It is DSN's
+ * display of that one throw - nothing decides on it, no flag holds it - and nothing here puts it back: LIVE-E16-03.
  *
  * WITH NO GM WATCHING (E16 fix early-C4-G1, 19.10.2026; finding E16-C4-F1). Until this fix the copy was each GM
  * browser's memory, taken from the world as DSN got ready, so an overlay a player wrote while no GM was connected,
@@ -670,7 +678,7 @@ function fuseHolds(key, name) {
         blown.add(key);
         if (!saidStopped.has(key)) {
             saidStopped.add(key);
-            error(`The dice look of ${name} was put back ${FUSE_LIMIT} times in a minute and keeps changing: it is left as it is for a minute.`);
+            error(`The dice look of ${name} was put back ${FUSE_LIMIT} times in a minute and keeps changing: it is left as it is for a minute, then put back at its next change or throw.`);
             ui.notifications?.warn(game.i18n.format("DRPG.DiceLook.stopped", { name }));
         }
         return false;
