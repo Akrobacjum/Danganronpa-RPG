@@ -43,7 +43,7 @@
  */
 
 import { MODULE_ID, ACTIONS, DYNAMIC_THRESHOLDS, CRITICAL, TIMING, TRAITS, TRAIT_BY_DH, HOPE_CALLS, STARTING } from "./config.mjs";
-import { resolveThreshold, log, error, plural, esc, isPrimaryGm, gmIds, ownerOf, whisperToOwner, whisperToOwnerOnly, whisperToGms } from "./utils.mjs";
+import { resolveThreshold, log, error, plural, esc, isPrimaryGm, gmIds, ownerIdsOf, whisperToOwner, whisperToOwnerOnly, whisperToGms } from "./utils.mjs";
 import { searchTier, stashStepFor, stashText, rollTone, listenLabels, projectProgress, sabotageHit, sabotageRepairScale, projectExtrasHeld,
     sabotageExtrasHeld } from "./action-rolls.mjs";
 import { leavesTraceFor, ITEM_FLAGS } from "./inventory.mjs";
@@ -896,7 +896,8 @@ async function recoverOne(actorId, row) {
         await whisperToGms(`<h3>${esc(game.i18n.localize("DRPG.Reroll.title"))}</h3><p>${game.i18n.format(key, {
             name, cost: Number(row.hope) || HOPE_CALLS.reroll.cost
         })}</p>`);
-        if (ownerOf(actor)) await whisperToOwnerOnly(actor, `<p>${game.i18n.format("DRPG.Reroll.interruptedHope", { name })}</p>`);
+        // Every player who owns the student (E18 C5): whisperToOwnerOnly falls back to this GM with none.
+        if (ownerIdsOf(actor).length) await whisperToOwnerOnly(actor, `<p>${game.i18n.format("DRPG.Reroll.interruptedHope", { name })}</p>`);
         await rerollJournalStore.drop(actorId);
         log(`${actor.name}'s Reroll, cut short at "${row.phase}", is told to the GMs; its Hope is theirs to check.`);
         return "told";
@@ -912,7 +913,7 @@ async function recoverOne(actorId, row) {
     await whisperToGms(`<h3>${esc(game.i18n.localize("DRPG.Reroll.title"))}</h3><p>${game.i18n.format("DRPG.Reroll.interruptedGm", {
         name, action, first: esc(String(row.first ?? "?")), total: esc(String(row.total ?? "?"))
     })}</p>`);
-    if (ownerOf(actor)) await whisperToOwnerOnly(actor, `<p>${game.i18n.format("DRPG.Reroll.interruptedPending", { name })}</p>`);
+    if (ownerIdsOf(actor).length) await whisperToOwnerOnly(actor, `<p>${game.i18n.format("DRPG.Reroll.interruptedPending", { name })}</p>`);
     if (rerollBookmarkStore.get(actorId)?.messageId === row.messageId) await rerollBookmarkStore.drop(actorId);
     await rerollJournalStore.drop(actorId);
     log(`${actor.name}'s Reroll, cut short at "${row.phase}", is told to the GMs.`);

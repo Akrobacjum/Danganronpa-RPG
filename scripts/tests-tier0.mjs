@@ -13739,6 +13739,61 @@ const REGRESSIONS = [
             await label("en"), await label("pl")]),
         JSON.stringify(["ruledCards", "ledger", "actions", false, true, false, true, "client", true, true]),
         "[name, kind, reset group, backed up, synced, an old key or a migration, a SETTINGS key, its scope, the en label, the pl label]");
+    }],
+
+    ["R846 - a private card to a student's owners goes to every player who owns it: whisperToOwner and whisperToOwnerOnly read ownerIdsOf, and every caller that names its own readers is listed with its reason (E18 C5; S01-33, amend 2)", async () => {
+        /*
+         * E18 C5, 20.10.2026; audit S01-33, the owner's amend 2 (E18-22, E18-23). The two helpers addressed the card to
+         * `ownerOf`'s one player, so a co-owner read none of its student's private cards; they read `ownerIdsOf` now (tier
+         * 2's "a private card to a student's owners ..." drives them). A caller's own `whisper` in the helpers' `extra`
+         * wins over that list, so each such caller is a reader list of its own, kept here with its reason: a new one
+         * fails until it is listed, a listed one that is gone fails until it leaves. Read in the module's files with
+         * comments and literals blanked: every call of the two helpers, of a name they are imported as, and of a
+         * parameter that defaults to one of them (passages-gm.mjs hands its `whisper` in for the suite); a call's third
+         * argument names its own readers when it carries a `whisper` key, or is a name or a call whose own source in
+         * that file does. Red at the parent (0fac8a1): the helpers read `ownerOf`.
+         */
+        const REASONS = {
+            "passages-gm.mjs#sharePassage": "the one shown it's card, one to each of its owners alone, naming the rooms as that owner may know them (E79 fix r2-G4); the giver's card to the asker alone, so a first show and a repeat reach the same people (SEC m1)",
+            "passages-gm.mjs#resolvePassageSearch": "the asker, a player, and the GMs - not another owner, who did not search; a GM's search every owner (E18 C5)"
+        };
+        const sources = new Map(await otherSources());
+        const utils = stripComments(sources.get("utils.mjs") ?? "");
+        ok(utils.length > 10000, "utils.mjs did not load - this would measure nothing");
+        const helpers = ["whisperToOwner", "whisperToOwnerOnly"].map(name => {
+            const body = fnSource(utils, name) ?? "";
+            return [name, /\bownerIdsOf\(actor\)/.test(body), /\bownerOf\(/.test(body)];
+        });
+        const found = new Map();
+        let calls = 0;
+        for (const [file, raw] of sources) {
+            if (!file.endsWith(".mjs") || file.startsWith("tests")) continue;
+            const code = blankComments(raw), blank = blankLiterals(code);
+            const names = new Set(["whisperToOwner", "whisperToOwnerOnly"]);
+            for (const m of blank.matchAll(/\bwhisperToOwner(?:Only)?\s+as\s+([\w$]+)/g)) names.add(m[1]);
+            for (const m of blank.matchAll(/([\w$]+)\s*=\s*whisperToOwner(?:Only)?\b(?!\s*\()/g)) names.add(m[1]);
+            const own = text => {
+                const expr = text.trim();
+                if (/\bwhisper\s*:/.test(expr)) return true;
+                const bare = /^([\w$]+)$/.exec(expr)?.[1];
+                const callee = /^([\w$]+)\s*\(/.exec(expr)?.[1];
+                if (bare) return new RegExp(`\\b(?:const|let)\\s+${bare}\\s*=[^;]*\\bwhisper\\s*:`).test(blank);
+                if (callee) return /\bwhisper\s*:/.test(topLevelFunction(blank, callee) ?? "");
+                return false;
+            };
+            for (const m of blank.matchAll(new RegExp(`\\b(${[...names].join("|")})\\s*\\(`, "g"))) {
+                if (/\bfunction\s*$/.test(blank.slice(Math.max(0, m.index - 24), m.index))) continue;
+                calls += 1;
+                const { args } = callArgs(blank, m.index + m[0].length - 1);
+                if (!args[2] || !own(blank.slice(args[2].start, args[2].end))) continue;
+                const top = [...blank.slice(0, m.index).matchAll(/^(?:export\s+)?(?:async\s+)?function\s+([\w$]+)/gm)].at(-1)?.[1] ?? "(top level)";
+                found.set(`${file}#${top}`, (found.get(`${file}#${top}`) ?? 0) + 1);
+            }
+        }
+        ok(calls > 50, `${calls} calls of the two helpers read in the module - this would measure nothing`);
+        equal(JSON.stringify([helpers, [...found.keys()].sort(), Object.values(REASONS).every(r => r.length > 20)]),
+            JSON.stringify([[["whisperToOwner", true, false], ["whisperToOwnerOnly", true, false]], Object.keys(REASONS).sort(), true]),
+            `[each helper: reads ownerIdsOf, still reads ownerOf], the callers that name their own readers (${JSON.stringify([...found])}), each listed one has a reason - a co-owner is left out, or a reader list of its own is not listed here`);
     }]
 ];
 

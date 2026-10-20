@@ -1199,8 +1199,9 @@ function passagesToFind(actor, place, facts, stores) {
  * character does not know (`passagesToFind`) - none for the asker acting as the Mastermind through it
  * (`actsAsMastermind`, the door's reading), who knows them all - and writes the cell `found` with the roll
  * (`rollId`), the character's `touch` row, a log row, and the copies. One card tells the character's owner
- * (the asker, a player) and the GMs, of one shape whatever came of it: the passage found and the room it leads
- * to as that owner may name it, or "no hidden passage here" - so a miss, an empty room and the Mastermind read
+ * (the asker, a player; on a GM's ask every player who owns it, E18 C5) and the GMs, of one shape whatever
+ * came of it: the passage found and the room it leads to as that owner may name it, or "no hidden passage
+ * here" - so a miss, an empty room and the Mastermind read
  * alike - with the sound `passageFound` (the GMs hear it too) or `searchNothing`. The primary's screen says it
  * once; no card goes to the GMs alone. A replay writes no card - the Reroll's lines say it - and takes back only
  * the cell its own roll wrote. `asker` is the bridge's sender; `stores`, `users`, `world`, `whisper`, `toast`,
@@ -1253,10 +1254,11 @@ export async function resolvePassageSearch({ actorId, total = 0, isCritical = fa
         if (!pick) await logRow("searched", null, actor.id, stores);
         const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
         const people = peopleOf(users);
-        const owner = asker && !asker.isGM ? asker : ownerOf(actor, people);
+        // A player's search tells that player (the asker, not another owner of the character); a GM's, every owner (E18 C5).
+        const owners = asker && !asker.isGM ? [asker] : people.filter(u => !u.isGM && actor.testUserPermission?.(u, "OWNER"));
         const words = pick ? game.i18n.format("DRPG.Analyze.passageFound", { to: esc(to) }) : game.i18n.localize("DRPG.Analyze.passageNothing");
         await whisper(actor, `<p>${words}</p>`, {
-            whisper: [...new Set([...(owner ? [owner.id] : []), ...people.filter(u => u.isGM).map(u => u.id)])],
+            whisper: [...new Set([...owners.map(u => u.id), ...people.filter(u => u.isGM).map(u => u.id)])],
             flags: { [MODULE_ID]: { sfx: { key: pick ? "passageFound" : "searchNothing", gm: Boolean(pick) } } }
         });
         if (pick) {

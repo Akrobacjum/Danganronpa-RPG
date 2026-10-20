@@ -443,22 +443,25 @@ export async function announce(data = {}) {
  *
  * With no player owner the card goes to the acting user instead: somebody
  * moved that token, and a whisper list with nobody on it would post publicly.
+ *
+ * EVERY OWNER, NOT THE FIRST (E18 C5, audit S01-33): the card went to `ownerOf`'s one
+ * player, so a second account that owns the character - a co-owner, the same player on
+ * another account - never read its own student's private cards. An OBSERVER is not an
+ * owner and reads none. A caller's own `whisper` in `extra` still wins (R846 lists each).
  */
 export async function whisperToOwnerOnly(actor, content, extra = {}) {
-    const owner = ownerOf(actor);
+    const owners = ownerIdsOf(actor);
     return privately(stamped({
         content,
         speaker: actor ? ChatMessage.getSpeaker({ actor }) : undefined,
-        whisper: [owner?.id ?? game.user.id],
+        whisper: owners.length ? owners : [game.user.id],
         ...extra
     }));
 }
 
-/** Whisper to an actor's owner plus every GM. */
+/** Whisper to every player who owns an actor (`ownerIdsOf`, E18 C5) plus every GM. */
 export async function whisperToOwner(actor, content, extra = {}) {
-    const owner = ownerOf(actor);
-    const ids = gmIds();
-    if (owner) ids.push(owner.id);
+    const ids = [...gmIds(), ...ownerIdsOf(actor)];
     return privately(stamped({
         content,
         speaker: actor ? ChatMessage.getSpeaker({ actor }) : undefined,

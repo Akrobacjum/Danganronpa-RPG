@@ -28777,6 +28777,185 @@ const SCENARIOS = [
             `each wait: [the words it answered, within 1000 ms] (measured ${stableJson(ends.map(([, ms]) => Math.round(ms)))} ms) - a wait was pushed out and answered by the ceiling`);
     }],
 
+    ["a private card to a student's owners reaches every player who owns the student, and an observer of it none (E18 C5; S01-33)", async () => {
+        /*
+         * E18 C5, 20.10.2026; audit S01-33 (E18-22). `whisperToOwner` and `whisperToOwnerOnly` addressed a card to
+         * `ownerOf`'s one player, the first connected owner, else the first: a second account that owns the character -
+         * a co-owner, or the same player on another account - read none of its student's private cards, though the
+         * sheet is theirs too. They take `ownerIdsOf` now: every player account at OWNER. An OBSERVER is no owner and is
+         * sent nothing. Driven on this GM with two students of the suite's own: one owned by two players and observed by
+         * a third, one only observed. Read, for each card: whom its document is whispered to (a veiled card's goes to
+         * everybody, read as such) and whom its words are sent to - every `secret.card` packet this browser sends while
+         * the test runs is kept here and dropped, so nothing reaches a player. Red at the parent (0fac8a1): the
+         * co-owner on no card. The cards and the students are deleted, the store put back.
+         */
+        needs(world.atLeast("playerAccounts", 3), "an owner, a co-owner and an observer are three player accounts");
+        must(game.user.isGM, "this client is not a GM - this would measure nothing");
+        const U = await import("./utils.mjs");
+        const S = await import("./secret.mjs");
+        const [owner, co, watcher] = game.users.filter(u => !u.isGM);
+        const L = CONST.DOCUMENT_OWNERSHIP_LEVELS;
+        const was = foundry.utils.deepClone(getSetting(SETTINGS.secretCards) ?? {});
+        const stored = clientStored();
+        const socket = game.socket;
+        const own = Object.getOwnPropertyDescriptor(socket, "emit");
+        const send = socket.emit;
+        const sentTo = new Map();
+        socket.emit = function (event, packet, options, ...rest) {
+            if (packet?.action === "secret.card") {
+                sentTo.set(packet.id, [...(sentTo.get(packet.id) ?? []), ...(options?.recipients ?? ["(everybody)"])]);
+                return true;
+            }
+            return send.call(this, event, packet, options, ...rest);
+        };
+        const named = id => id === owner.id ? "owner" : id === co.id ? "co-owner" : id === watcher.id ? "observer"
+            : id === game.user.id ? "this GM" : game.users.get(id)?.isGM ? "another GM" : id;
+        const who = ids => [...new Set((ids ?? []).map(named))].sort();
+        const everybody = ids => ids.length === game.users.size && game.users.contents.every(u => ids.includes(u.id));
+        const read = card => [card ? (S.isVeiled(card) && everybody(card.whisper ?? []) ? "everybody" : who(card.whisper)) : null, who(sentTo.get(card?.id))];
+        const popups = new Set(document.querySelectorAll(".drpg-popup"));
+        const actors = [], cards = [];
+        const out = [];
+        try {
+            const both = await Actor.create({ name: "SUITE E18 C5 co-owned", type: "character",
+                ownership: { default: 0, [owner.id]: L.OWNER, [co.id]: L.OWNER, [watcher.id]: L.OBSERVER } });
+            const watched = await Actor.create({ name: "SUITE E18 C5 observed", type: "character", ownership: { default: 0, [watcher.id]: L.OBSERVER } });
+            actors.push(both, watched);
+            must(actors.every(Boolean), "a student of the suite's own was not made - this would measure nothing");
+            const post = [
+                () => U.whisperToOwner(both, "<p>E18C5 to the owners and the GMs</p>"),
+                () => U.whisperToOwnerOnly(both, "<p>E18C5 to the owners alone</p>"),
+                () => U.whisperToOwnerOnly(both, "<p>E18C5 to the owners alone, veiled</p>", { veiled: true }),
+                () => U.whisperToOwner(watched, "<p>E18C5 nobody owns it</p>"),
+                () => U.whisperToOwnerOnly(watched, "<p>E18C5 nobody owns it, alone</p>")
+            ];
+            for (const card of post) {
+                const message = await card();
+                cards.push(message);
+                out.push(read(message));
+            }
+        } finally {
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            for (const node of [...document.querySelectorAll(".drpg-popup")].filter(node => !popups.has(node))) node.dispatchEvent(new CustomEvent("drpg-dismiss"));
+            for (const message of cards) await message?.delete().catch(() => {});
+            for (const actor of actors) await actor?.delete().catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.secretCards, was);
+            S.forgetSecrets();
+            putBackStored(stored);
+            await settle();
+        }
+        const gms = U.gmIds(), others = gms.filter(id => id !== game.user.id);
+        equal(stableJson(out), stableJson([
+            [who([...gms, owner.id, co.id]), who([...others, owner.id, co.id])],
+            [who([owner.id, co.id]), who([owner.id, co.id])],
+            ["everybody", who([owner.id, co.id])],
+            [who(gms), who(others)],
+            [who([game.user.id]), []]
+        ]), "[whom the document is whispered to, whom its words are sent to] for: the co-owned student's card to its owners and the GMs, to its owners alone, "
+            + "to its owners alone veiled; the observed student's card to its owners and the GMs, to its owners alone - a co-owner was left out, or an observer was sent a card");
+    }],
+
+    ["A10's passage cards go by the private cards' road: a player's search tells that player and the GMs, a GM's every owner and the GMs; a show tells each owner of the one shown it, and the asker its own card (E18 C5; amend 2)", async () => {
+        /*
+         * E18 C5, 20.10.2026; the owner's amend 2 (A10's private cards go by "jego jedna droga kart prywatnych", E18-23).
+         * A passage search's card (`DRPG.Analyze.passageFound`, `passageNothing`) and a show's (`DRPG.Passage.card.shown`,
+         * `.done`) are posted through `whisperToOwner`, the private cards' road (a stub document, the words to the
+         * readers alone), each with a reader list of its own (R846 lists them). A GM's search for a student told
+         * `ownerOf`'s one player: a co-owner was told nothing. Driven on this GM with the real road (no `whisper` handed
+         * in), on a passage map of the suite's own (R598's engine) and two students of the suite's own: the finder,
+         * owned by two players and observed by a third, and the one shown it, owned by that third. Read, for each card
+         * in the order posted: whom its document is whispered to, whom its words are sent to (every `secret.card`
+         * packet this browser sends is kept here and dropped) and whether the document is the stub. Red at the parent
+         * (0fac8a1): the GM's search told the first owner alone. The cards and the students are deleted, the store put back.
+         */
+        needs(world.atLeast("playerAccounts", 3), "two owners of the finder and the owner of the one shown it are three player accounts");
+        must(game.user.isGM, "this client is not a GM - this would measure nothing");
+        const G = await import("./gm-store.mjs");
+        const GS = await import("./gm-stores.mjs");
+        const P = await import("./passages-gm.mjs");
+        const U = await import("./utils.mjs");
+        const S = await import("./secret.mjs");
+        const [owner, co, third] = game.users.filter(u => !u.isGM);
+        const L = CONST.DOCUMENT_OWNERSHIP_LEVELS;
+        let t = 11_000_000;
+        const eng = G.createGmStoreEngine({
+            selfId: () => game.user.id, isGM: () => true, isPrimary: () => true, worldId: () => "E18C5WORLD",
+            activeGmIds: () => [], primaryGmId: () => game.user.id, senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => ++t,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const def = (h, name) => eng.define({ ...h.spec, name: `e18c5${name}`, key: `e18c5${name}`, afterRestore: undefined, exists: undefined });
+        const stores = { map: def(GS.passageMapStore, "Map"), access: def(GS.passageAccessStore, "Access"), log: def(GS.passageLogStore, "Log"),
+            mastermind: eng.define({ name: "e18c5mm", key: "e18c5mm", kind: "record", fields: ["actorId"], sync: false, backup: false }) };
+        const CAF = "SUITE E18 C5 Cafeteria", KIT = "SUITE E18 C5 Kitchen", PASS = "E18C5SCENE.e18c5p1";
+        const was = foundry.utils.deepClone(getSetting(SETTINGS.secretCards) ?? {});
+        const stored = clientStored();
+        const socket = game.socket;
+        const own = Object.getOwnPropertyDescriptor(socket, "emit");
+        const send = socket.emit;
+        const sentTo = new Map();
+        socket.emit = function (event, packet, options, ...rest) {
+            if (packet?.action === "secret.card") {
+                sentTo.set(packet.id, [...(sentTo.get(packet.id) ?? []), ...(options?.recipients ?? ["(everybody)"])]);
+                return true;
+            }
+            return send.call(this, event, packet, options, ...rest);
+        };
+        const named = id => id === owner.id ? "owner" : id === co.id ? "co-owner" : id === third.id ? "third"
+            : id === game.user.id ? "this GM" : game.users.get(id)?.isGM ? "another GM" : id;
+        const who = ids => [...new Set((ids ?? []).map(named))].sort();
+        const posted = [];
+        const hook = Hooks.on("createChatMessage", message => posted.push(message));
+        const popups = new Set(document.querySelectorAll(".drpg-popup"));
+        const actors = [];
+        const out = [];
+        try {
+            const finder = await Actor.create({ name: "SUITE E18 C5 finder", type: "character",
+                ownership: { default: 0, [owner.id]: L.OWNER, [co.id]: L.OWNER, [third.id]: L.OBSERVER } });
+            const shown = await Actor.create({ name: "SUITE E18 C5 shown", type: "character", ownership: { default: 0, [third.id]: L.OWNER } });
+            actors.push(finder, shown);
+            must(actors.every(Boolean), "a student of the suite's own was not made - this would measure nothing");
+            await stores.map.patch(PASS, { sceneId: "E18C5SCENE", level: null, shape: "wall", passageWallId: "E18C5WALL",
+                passageSeg: { x1: 4321, y1: 0, x2: 4321, y2: 100 }, rooms: [CAF, KIT], state: "secret", startAccess: [] });
+            await stores.access.patch(`${PASS}/${finder.id}`, { how: "gm", at: 1, by: { [game.user.id]: 1 } });
+            await stores.mastermind.patch(G.RECORD, { actorId: "E18C5NOBODY00000" });
+            const facts = {
+                actor: id => actors.find(a => a.id === id) ?? null, locked: () => false, trial: () => false, inIncident: () => false,
+                monocub: () => false, monokuma: () => false, dead: () => false, published: () => false,
+                place: () => ({ scene: { id: "E18C5SCENE" }, room: CAF, level: null }), sides: () => [CAF, KIT], knownRooms: () => new Set([CAF])
+            };
+            const cardsOf = async run => {
+                const from = posted.length;
+                const answer = await run();
+                await settle();
+                return [answer, posted.slice(from).map(m => [who(m.whisper), who(sentTo.get(m.id)), Boolean(m.flags?.[MODULE_ID]?.secret) && S.isStub(m.content)])];
+            };
+            const search = asker => cardsOf(() => P.resolvePassageSearch({ actorId: finder.id, total: 1 }, { asker, stores, users: game.users, world: facts,
+                toast: () => {}, note: async () => false, primary: () => true }));
+            out.push(await search(owner), await search(game.user));
+            out.push(await cardsOf(() => P.sharePassage({ actorId: finder.id, targetId: shown.id, passageId: PASS }, { stores, world: facts, asker: owner,
+                users: game.users, gms: async () => {} })));
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            for (const node of [...document.querySelectorAll(".drpg-popup")].filter(node => !popups.has(node))) node.dispatchEvent(new CustomEvent("drpg-dismiss"));
+            for (const message of posted) await game.messages.get(message.id)?.delete().catch(() => {});
+            for (const actor of actors) await actor?.delete().catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.secretCards, was);
+            S.forgetSecrets();
+            putBackStored(stored);
+            await settle();
+        }
+        const gms = U.gmIds(), others = gms.filter(id => id !== game.user.id);
+        equal(stableJson(out), stableJson([
+            [{ searched: true, found: false }, [[who([owner.id, ...gms]), who([owner.id, ...others]), true]]],
+            [{ searched: true, found: false }, [[who([owner.id, co.id, ...gms]), who([owner.id, co.id, ...others]), true]]],
+            [{ shown: true }, [[who([third.id]), who([third.id]), true], [who([owner.id]), who([owner.id]), true]]]
+        ]), "[the answer, each card posted: whom its document is whispered to, whom its words are sent to, a private card's stub] for: the owner's search, "
+            + "a GM's search, the owner's show to the third player's student - a card left the private cards' road, or a GM's search missed a co-owner");
+    }],
+
     ["the GM's popup for a veiled ask", async () => {
         /*
          * E06 C8, 28.09.2026. A thread card that asks the GMs (`gmAsk`) raises a notice and
