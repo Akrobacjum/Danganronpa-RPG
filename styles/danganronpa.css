@@ -4102,6 +4102,15 @@ body.drpg-reduced-motion .application.sheet.actor .character-header-sheet .name-
 .drpg-passage-where { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; min-width: 0; }
 .drpg-passage-shut { font-style: italic; font-size: 0.9em; color: var(--drpg-dim); }
 .drpg-passage-show { white-space: nowrap; }
+/* What a player does with a passage, under its name (H81-04, H81-02; sheet.mjs `injectKnownPassages`): walk through the
+   gap of one in a wall, or which way a one-way tunnel goes. In the dim ink of 'the way is shut', not in italics, since
+   it is an instruction and not a state. Chosen, not measured: the harness lays nothing out. */
+.drpg-passage-note { font-size: 0.9em; color: var(--drpg-dim); }
+/* Which way a tunnel goes, under its Shape in the GMs' Passages tab (H81-02; passages-tab.mjs `wayPicker`): the column's
+   width at most, so a long room name does not widen the table (R606's sum). Chosen; in a Chromium mock-up with this
+   stylesheet alone (20.10.2026, the stage's shots) its words wrap inside the 110 px column, five lines for "Only from Gym
+   to Dorm A" under Legacy and four under Stained Glass. At a desk it is LIVE-E80-04's to see. */
+.drpg-passage-way { display: block; width: 100%; max-width: 100%; margin-top: 4px; font-size: 0.92em; }
 
 /* A room's name wraps inside its 220 px rather than running under the next
    column: the dialog-table rule keeps every cell on one line, and a fixed

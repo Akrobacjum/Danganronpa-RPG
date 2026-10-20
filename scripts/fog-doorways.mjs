@@ -698,8 +698,9 @@ export function viewerPassages(actor, region, scene, level = null, { gm = Boolea
  * its list (action-rolls.mjs `listenLabels`; E80 fix r1-G8, the review's E80-C1-03: every one was 1). Read from this
  * browser's copy (passages.mjs `tunnelEndsFor`), so a tunnel the GMs closed, deleted or never gave a
  * character of this player's has no mark, and the rooms are read off the map as the list reads them
- * (movement.mjs `passageRooms`). None on a GM's browser, as `viewerPassages` hands a GM none. `gm`,
- * `known` and `knownRooms` are the suite's (R595).
+ * (movement.mjs `passageRooms`). None on a GM's browser, as `viewerPassages` hands a GM none. The end of a one-way
+ * tunnel it is not entered from is marked too, with `exit: true` (H81-02): its knower sees where the way comes out,
+ * and its words say where from. `gm`, `known` and `knownRooms` are the suite's (R595).
  */
 export function tunnelMarks(actor, region, scene, level = null, { gm = Boolean(game.user?.isGM), known, knownRooms = roomsKnownToMe } = {}) {
     if (!actor || gm || !scene?.id || !region?.name) return [];
@@ -711,7 +712,8 @@ export function tunnelMarks(actor, region, scene, level = null, { gm = Boolean(g
         const [here, far] = passageRooms(scene, { ends: [end, end.far] });
         if (here !== region.name || !far) continue;
         if (found && !found.has(far) && !unexplored.has(far)) unexplored.set(far, unexplored.size + 1);
-        marks.push({ id: end.id, x: end.x, y: end.y, to: unexplored.has(far) ? game.i18n.format("DRPG.Listen.unknownRoom", { n: unexplored.get(far) }) : far });
+        marks.push({ id: end.id, x: end.x, y: end.y, to: unexplored.has(far) ? game.i18n.format("DRPG.Listen.unknownRoom", { n: unexplored.get(far) }) : far,
+            ...(end.exit ? { exit: true } : {}) });
     }
     return marks;
 }
@@ -721,12 +723,21 @@ export const TUNNEL_MARK_NAME = "drpgTunnelMark";
 
 /**
  * The marks `tunnelMarks` answers, on a room's outline group (fog-reveal.mjs `flashOutline`): a ring at
- * each end in the outline's colour, and 'Secret passage to {room}' under it, in the outline's space
+ * each end in the outline's colour, and 'Secret passage to {room}' under it - 'Secret passage from {room}' at a one-way
+ * tunnel's way out (`exit`, H81-02) - in the outline's space
  * (`rect` taken off, as `labelPoint` takes it). Answers how many it drew. The ring is drawn white and
  * tinted, and both carry `TUNNEL_MARK_NAME`, so a change of the seam colour turns them with the outline
  * (`recolourTunnelMarks`; E80 fix r1-G6, the review's E80-C1-02: until then they kept the colour they were
  * drawn in). Not measured: the harness draws no outline for a player (scenario 66's header), so how a mark
  * looks on a real canvas is not seen here; R595 reads the marks, R611 the recolour, not the drawing.
+ *
+ * THE WORDS AT A THIRD OF THE ROOM'S NAME (H81-06, 20.10.2026; the owner's 1.2.80 table smoke, item 7: the caption is
+ * too small). Until H81 they were `max(14, grid * 0.22)`, 22 px at grid 100, a fifth of the room's name (`roomLabel`,
+ * `max(28, grid * 1.1)`, 110) and under a token's nameplate (about 24 at grid 100: Foundry's `Token#_getTextStyle`
+ * from memory, not read in v14). Now `max(20, grid * 0.36)`, 36 at grid 100, its keyline `max(4, grid * 0.07)` and the
+ * words just under the ring (radius `grid * 0.3`) at `grid * 0.38`. The reading that chose 0.36 is that ratio
+ * (a third of the room's name, one and a half nameplates), not a canvas: how it reads at a table's zoom is the owner's
+ * to judge (LIVE-E80-01's canvas). R903 reads the style off a stub group.
  */
 export function addTunnelMarks(group, marks, rect = { x: 0, y: 0 }) {
     if (!group || !marks?.length) return 0;
@@ -739,17 +750,17 @@ export function addTunnelMarks(group, marks, rect = { x: 0, y: 0 }) {
         ring.drawCircle(x, y, grid * 0.3);
         ring.tint = colour;
         ring.name = TUNNEL_MARK_NAME;
-        const text = new PIXI.Text(game.i18n.format("DRPG.Passage.mark.to", { room: mark.to }), {
+        const text = new PIXI.Text(game.i18n.format(mark.exit ? "DRPG.Passage.mark.from" : "DRPG.Passage.mark.to", { room: mark.to }), {
             fontFamily: '"Special Elite", "Courier New", monospace',
-            fontSize: Math.max(14, Math.round(grid * 0.22)),
+            fontSize: Math.max(20, Math.round(grid * 0.36)),
             fill: colour,
             stroke: colourOf("--drpg-ink", 0x1a1620),
-            strokeThickness: Math.max(3, Math.round(grid * 0.05)),
+            strokeThickness: Math.max(4, Math.round(grid * 0.07)),
             align: "center"
         });
         text.resolution = 2;
         text.anchor.set(0.5, 0);
-        text.position.set(x, y + grid * 0.35);
+        text.position.set(x, y + grid * 0.38);
         text.name = TUNNEL_MARK_NAME;
         group.addChild(ring, text);
     }

@@ -2014,9 +2014,10 @@ function injectEquippedTools(app, element) {
  */
 
 /**
- * The list's rows, `[{ passage, label, shut }]` sorted by `label`: `passage` the stretch
+ * The list's rows, `[{ passage, label, shut, way }]` sorted by `label`: `passage` the stretch
  * (`passagesKnownBy`'s row), `label` "Room - Room" as `listenLabels` names them for this viewer, `shut`
- * whether the passage does not open for the character from where it stands. A passage on a scene this
+ * whether the passage does not open for the character from where it stands, `way` a one-way tunnel's
+ * `{ from, to }` named as the label names them, null for one that goes both ways (H81-02). A passage on a scene this
  * world no longer holds is left out. `deps` are the suite's (R562).
  */
 export function knownPassageRows(actor, { known, mastermind = false, sceneOf = id => game.scenes?.get(id) ?? null,
@@ -2030,11 +2031,14 @@ export function knownPassageRows(actor, { known, mastermind = false, sceneOf = i
         const rooms = sides(scene, passage, passage.level) ?? [];
         const names = listenLabels(rooms.filter(Boolean), knownRooms(scene));
         const label = [rooms[0], rooms[1]].map(room => (room ? names.get(room) : "-")).join(" - ");
+        // A one-way tunnel's two rooms in its direction, as the label names them (H81-02); null both ways.
+        const one = passage.oneWay === 0 || passage.oneWay === 1 ? passage.oneWay : null;
+        const way = one === null ? null : { from: rooms[one] ? names.get(rooms[one]) : "-", to: rooms[1 - one] ? names.get(rooms[1 - one]) : "-" };
         const from = here?.scene?.id === scene.id ? here.room : null;
         // The frame's own question, asked as the frame asks it (fog-doorways.mjs): no mover but on a GM's
         // browser for the Mastermind, whom only the GMs' record names there.
         const shut = !opens(actor, passage, scene, { from, level: passage.level, mover: mastermind ? { mastermind: true } : null, ...given });
-        rows.push({ passage, label, shut });
+        rows.push({ passage, label, shut, way });
     }
     return rows.sort((a, b) => a.label.localeCompare(b.label));
 }
@@ -2070,6 +2074,13 @@ async function showPassageDialog(actor, row) {
  * says it (`tunnelRefusalText`: `DRPG.Bridge.why.<code>`, "that room" for the room); then the primary GM judges it
  * again and moves the token (gm-bridge.mjs `passage.cross`), and says its refusal through the bridge. The button
  * waits for the answer, so one click asks once. Scenario 76 U clicks it.
+ *
+ * ENABLED WHEREVER THE TOKEN STANDS (H81-03, 20.10.2026; the owner's item 4b and the design A10's step 11, which
+ * disables it away from an end). A disabled button says the truth only while the row is drawn again as the token
+ * moves, and nothing draws it then: of this file's hooks (`registerSheetTweaks`) none hears a token's move - the list
+ * is drawn on the sheet's own render and on `drpgPassagesChanged` - and a linked token's move is no update of its
+ * actor, which is what renders an actor's sheet (Foundry's rule as this module reads it; Daggerheart's sheet is not on
+ * this machine). Read off the source, not a table. So the click says where to stand instead: `notAtPassage`'s words.
  */
 async function goThrough(actor, row, button, mastermind) {
     const scene = game.scenes?.get(row.passage.sceneId) ?? null;
@@ -2092,6 +2103,28 @@ async function goThrough(actor, row, button, mastermind) {
     }
 }
 
+/**
+ * One row of 'Known passages', `knownPassageRows`' `row` drawn, its buttons not yet wired (`injectKnownPassages` wires
+ * them): the rooms as a link, 'the way is shut' where it is, a line under them saying what a player does with it -
+ * walk through the gap of a passage in a wall, which has no button (H81-04), or which way a one-way tunnel goes
+ * (H81-02) - 'Go through' for a tunnel and 'Show the passage'. Each line holds while the row stands: which way a
+ * passage goes is in the copy, and a changed copy draws the list again (`drpgPassagesChanged`). R904 draws it.
+ */
+export function knownPassageItem(row) {
+    const t = key => foundry.utils.escapeHTML(game.i18n.localize(key));
+    const li = document.createElement("li");
+    li.className = `drpg-passage-row${row.shut ? " is-shut" : ""}`;
+    const tunnel = Array.isArray(row.passage?.ends);
+    const note = tunnel
+        ? (row.way ? `<span class="drpg-passage-note" data-drpg-passage-note="oneWay">${foundry.utils.escapeHTML(game.i18n.format("DRPG.Passage.list.oneWay", row.way))}</span>` : "")
+        : `<span class="drpg-passage-note" data-drpg-passage-note="walk">${t("DRPG.Passage.list.walk")}</span>`;
+    li.innerHTML = `<a class="drpg-passage-where" role="button" tabindex="0" title="${t("DRPG.Passage.list.where")}">${
+        foundry.utils.escapeHTML(row.label)}</a>${row.shut ? `<span class="drpg-passage-shut">${t("DRPG.Passage.list.shut")}</span>` : ""}${note}`
+        + (tunnel ? `<button type="button" class="drpg-mini-button drpg-passage-cross">${t("DRPG.Passage.list.cross")}</button>` : "")
+        + `<button type="button" class="drpg-mini-button drpg-passage-show">${t("DRPG.Passage.show.button")}</button>`;
+    return li;
+}
+
 /** The list, after the Experience, on an owner's sheet of a student that knows a passage; none for a Monokuma. */
 function injectKnownPassages(app, element) {
     const actor = app.document;
@@ -2111,12 +2144,7 @@ function injectKnownPassages(app, element) {
         + `<side-line-div></side-line-div></div><ul class="drpg-passage-list"></ul>`;
     const list = section.querySelector("ul");
     for (const row of rows) {
-        const li = document.createElement("li");
-        li.className = `drpg-passage-row${row.shut ? " is-shut" : ""}`;
-        li.innerHTML = `<a class="drpg-passage-where" role="button" tabindex="0" title="${t("DRPG.Passage.list.where")}">${
-            foundry.utils.escapeHTML(row.label)}</a>${row.shut ? `<span class="drpg-passage-shut">${t("DRPG.Passage.list.shut")}</span>` : ""}`
-            + (Array.isArray(row.passage.ends) ? `<button type="button" class="drpg-mini-button drpg-passage-cross">${t("DRPG.Passage.list.cross")}</button>` : "")
-            + `<button type="button" class="drpg-mini-button drpg-passage-show">${t("DRPG.Passage.show.button")}</button>`;
+        const li = knownPassageItem(row);
         const where = li.querySelector(".drpg-passage-where");
         const pan = event => {
             event.preventDefault();

@@ -555,11 +555,16 @@
         "origin": "Pochodzenie",
         "knows": "Kto zna",
         "start": "Na start sezonu",
+        "startHint": "Znają je znowu po każdym resecie sezonu. Dopisanie ucznia tutaj nie daje mu przejścia teraz.",
         "state": "Stan",
         "kindSecret": "Tajne",
         "kindPublic": "Jawne",
         "shapeWall": "W ścianie",
         "shapeTunnel": "Tunel lub schody",
+        "way": "W którą stronę prowadzi",
+        "wayBoth": "W obie strony",
+        "wayOnly": "Tylko z: {from}, do: {to}",
+        "wayHint": "Tunel lub schody mogą prowadzić tylko w jedną stronę: wybierz to pod ich kształtem. Przejście w ścianie zawsze prowadzi w obie strony.",
         "originGm": "GM",
         "originDoor": "Tajne drzwi",
         "noRooms": "Pokoje bez nazwy",
@@ -601,7 +606,9 @@
         "title": "Znane tajne przejścia",
         "where": "Pokaż na mapie",
         "shut": "droga zamknięta",
-        "cross": "Przejdź"
+        "cross": "Przejdź",
+        "oneWay": "Tylko w jedną stronę, z: {from}, do: {to}.",
+        "walk": "Przejdź przez przerwę w ścianie."
       },
       "show": {
         "button": "Pokaż tajne przejście",
@@ -654,7 +661,8 @@
         }
       },
       "mark": {
-        "to": "Tajne przejście do: {room}"
+        "to": "Tajne przejście do: {room}",
+        "from": "Tajne przejście z: {room}"
       }
     },
     "Room": {
@@ -3135,7 +3143,8 @@
         "noSpeaker": "W tym Class Trialu nikt jeszcze nie mówił, więc nie ma wobec kogo wnieść objection.",
         "noBullet": "Nie masz żadnego Truth Bulletu, którym można dowieść Objection.",
         "objectionOver": "To Objection nie czeka już na Truth Bullet.",
-        "notAtPassage": "Twoja postać nie stoi przy wylocie tego przejścia.",
+        "notAtPassage": "Najpierw stań na znaczniku przejścia albo na polu obok niego.",
+        "oneWay": "Tym przejściem nie da się przejść z tej strony.",
         "doorLocked": "Drzwi są zamknięte.",
         "roomSealed": "To pomieszczenie jest zapieczętowane na tę porę dnia. Nikt nie wchodzi.",
         "chained": "Jesteś tu przykuty do końca tej pory dnia.",

@@ -41,7 +41,7 @@ import { overflowCrossings } from "./overflow.mjs";
 // `neighbouringRooms` and `boundsOf` are defined further down this file.
 import { whisperToOwner, whisperToGms, isPrimaryGm, log, debug, error, esc, cardHead, plural } from "./utils.mjs";
 import { ROOM_FLAG, playerRegionIds, roomPieces, roomRegions, roomFlag, roomNames, isPlaceScene, homeScene, placeScenes,
-    isMoveChange, levelOf, onLevel, passageBehaviour, regionPatches } from "./rooms.mjs";
+    isMoveChange, levelOf, onLevel, passageBehaviour, regionPatches, floorElevation } from "./rooms.mjs";
 import { playSfx } from "./sfx.mjs";
 // The secret passages this browser may know (E79 C3), static for the veto's sake as the imports
 // above. passages.mjs is a leaf that never reads this file back (R560 holds its imports).
@@ -1463,28 +1463,40 @@ const PASSAGE_SIDES = [0.35, 0.6, 0.85, 1];
  * a stretch's sides are, so a room renamed since the tunnel was made is named as it is now. This names the
  * rooms a tunnel joins and nothing more: `reachableFrom` reads only the stretches a character may walk
  * through, so a token dragged from one end's room to the other's is a move between those rooms as ever.
+ *
+ * AT THE FLOOR'S HEIGHT, NOT AT 0 (H81-01, 20.10.2026; the owner's 1.2.80 table smoke: "tunele/schody sa
+ * jednostronne"). A v14 region asks a point's elevation before its shape (`roomAt`'s note), and every point here was
+ * asked at elevation 0 while a token is asked at its own (`roomOfToken`). On a floor whose rooms answer only above 0 -
+ * an upper floor's, over a room drawn before the floors and so on every one - an end read another room than its
+ * knower standing on it read, and `tunnelVerdict` refused the way back as "not at an end": R900's V14 map, red at
+ * f0ea429 (the Attic's end read as the Dorm under it, its mark not drawn, the way up judged into the Dorm). Each point
+ * is asked at its floor's height (rooms.mjs `floorElevation`), or at `elevation` when the caller holds the token's.
  */
-export function passageRooms(scene, passage, level = null) {
+export function passageRooms(scene, passage, level = null, { elevation = null } = {}) {
     if (Array.isArray(passage?.ends)) {
-        return [0, 1].map(i => {
-            const end = passage.ends[i], x = Number(end?.x), y = Number(end?.y);
-            if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
-            return piecesAt(scene, x, y, 0, end.level ?? null).map(region => region.name).sort()[0] ?? null;
-        });
+        return [0, 1].map(i => endRoom(scene, passage.ends[i], elevation ?? floorElevation(scene, passage.ends[i]?.level ?? null)));
     }
     const dx = passage.x2 - passage.x1, dy = passage.y2 - passage.y1, length = Math.hypot(dx, dy);
     if (!(length > 0)) return [null, null];
     const grid = scene?.grid?.size ?? 100;
     const mx = (passage.x1 + passage.x2) / 2, my = (passage.y1 + passage.y2) / 2;
     const nx = -dy / length, ny = dx / length;
+    const height = elevation ?? floorElevation(scene, level);
     return [1, -1].map(side => {
         for (const fraction of PASSAGE_SIDES) {
             const x = mx + side * nx * grid * fraction, y = my + side * ny * grid * fraction;
-            const room = piecesAt(scene, x, y, 0, level).map(region => region.name).sort()[0];
+            const room = piecesAt(scene, x, y, height, level).map(region => region.name).sort()[0];
             if (room) return room;
         }
         return null;
     });
+}
+
+/** The room a tunnel's end `{ x, y, level }` stands in on its own floor, asked at `elevation`, or null (`passageRooms`). */
+function endRoom(scene, end, elevation) {
+    const x = Number(end?.x), y = Number(end?.y);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+    return piecesAt(scene, x, y, elevation, end.level ?? null).map(region => region.name).sort()[0] ?? null;
 }
 
 /**
@@ -1558,9 +1570,11 @@ const TUNNEL_REACH = 1;
 /**
  * May this character go through this tunnel, `{ id, sceneId }`, from where `tokenDoc` stands? `{ near, far, from,
  * to }` - the two ends as `tunnelEndsFor` hands them and the rooms they stand in - or a refusal `{ code, text }`
- * (the keyed core's, and `notKnown`, `notAtPassage` and `cannotNow` of its own). The tunnel is one the character
- * knows (the Mastermind every one: `mover.mastermind`), the token is on its scene with its centre within
- * `TUNNEL_REACH` of an end on that end's floor and in that end's room, and the room at the other end is still on
+ * (the keyed core's, and `notKnown`, `notAtPassage`, `oneWay` and `cannotNow` of its own). The tunnel is one the
+ * character knows (the Mastermind every one: `mover.mastermind`), the token is on its scene with its centre within
+ * `TUNNEL_REACH` of an end on that end's floor and in that end's room - of a one-way tunnel the end it is entered
+ * from, else `oneWay` (H81-02; the Mastermind too: which way a tunnel goes is the map's, as a wall is), as the
+ * copy or the GMs' record in `known` says - and the room at the other end is still on
  * the map; then the doors' rules decide, the crossing joined as through a passage (`joined`, `via`). `mover` and
  * `pay` are `crossingVerdict`'s: the primary asks with the sender's role and `pay: false`, since the price is
  * taken when the crossing is carried out (`settleCrossingOnGm`). `known` is the suite's (R597).
@@ -1577,10 +1591,23 @@ export function tunnelVerdict(actor, passage, tokenDoc, { mover = null, known, p
     const [centre] = centresOf(tokenDoc, tokenDoc);
     const level = levelKey(levelOf(tokenDoc));
     const here = roomOfToken(tokenDoc);
-    const near = ends.find(end => Math.abs(centre.x - end.x) <= reach && Math.abs(centre.y - end.y) <= reach
-        && (end.level === null || end.level === level) && passageRooms(scene, { ends: [end, end.far] })[0] === here);
-    if (!near || !here) return away;
-    const to = passageRooms(scene, { ends: [near, near.far] })[1];
+    /* The end's room asked as the token's own is, at the token's height (H81-01, `passageRooms`' note): two readings of
+       one floor at two heights were what refused a knower standing on the Attic's end (R900). The far end's at the
+       height the token will stand at there (`landingElevation`). */
+    const height = ownElevation(tokenDoc);
+    const at = ends.filter(end => Math.abs(centre.x - end.x) <= reach && Math.abs(centre.y - end.y) <= reach
+        && (end.level === null || end.level === level) && endRoom(scene, end, height) === here);
+    // An end it may be entered from first: a one-way tunnel's other end is its way out (H81-02, `oneWayOf`).
+    const near = at.find(end => !end.exit) ?? at[0];
+    if (!near || !here) {
+        // What the table's check reads (LIVE-H81-01): with the Debug setting on, why no end was taken, end by end.
+        debug(`'Go through' ${passage.id}: no end taken for ${tokenDoc?.name ?? tokenDoc?.id ?? "no token"} in ${here ?? "no room"} on floor ${level ?? "none"} `
+            + `at height ${height}, centre ${Math.round(centre.x)},${Math.round(centre.y)}, reach ${reach}: `
+            + ends.map(end => `end ${end.x},${end.y} on floor ${end.level ?? "any"} in ${endRoom(scene, end, height) ?? "no room"}`).join("; "));
+        return away;
+    }
+    if (near.exit) return { code: "oneWay", text: game.i18n.localize("DRPG.Bridge.why.oneWay") };
+    const to = endRoom(scene, near.far, landingElevation(tokenDoc, near.far.level));
     if (!to || isCorpse(actor)) return { code: "cannotNow", text: game.i18n.localize(to ? "DRPG.Move.dead" : "DRPG.Bridge.why.cannotNow") };
     const verdict = crossingVerdict(actor, here, to, scene, { from: near.level, to: near.far.level },
         { mover, pay, via: "passage", known, joined: true, keyed: true });
@@ -1588,12 +1615,12 @@ export function tunnelVerdict(actor, passage, tokenDoc, { mover = null, known, p
 }
 
 /** The refusals of `tunnelVerdict` that the sheet's 'Go through' says in the bridge's words (`DRPG.Bridge.why.<code>`). */
-const TUNNEL_KEYED = Object.freeze(["notKnown", "notAtPassage", "doorLocked", "roomSealed", "chained", "cannotLeave",
+const TUNNEL_KEYED = Object.freeze(["notKnown", "notAtPassage", "oneWay", "doorLocked", "roomSealed", "chained", "cannotLeave",
     "trialLocked", "noBudget", "eclipseSpent"]);
 
 /**
  * What the sheet's 'Go through' says of a `tunnelVerdict` refusal before it asks the primary GM: the key's words,
- * `DRPG.Bridge.why.<code>`, for the eight doors' codes and `notKnown` - the words the bridge answers with, "that room"
+ * `DRPG.Bridge.why.<code>`, for the eight doors' codes, `notKnown` and `oneWay` (H81-02) - the words the bridge answers with, "that room"
  * for the room - and the verdict's own sentence only for a code with no such key (`cannotNow`, a corpse's
  * `DRPG.Move.dead`). E80 fix r1-G8, the review's E80-C2-2, E80-COR-3 and E80-G-6: the veto's own sentence named the
  * sealed room the sheet hides, and a spent Eclipse said the token "has been put back" when nothing moved. Pure (R614).
@@ -1608,12 +1635,14 @@ export function tunnelRefusalText(verdict) {
  * the nearest square around it, ring by ring up to three out, whose centre is in `room` on the end's floor and
  * which no other token on that floor covers - nearest first, then the higher, then the one further left. None
  * free: the end's square. Chosen, not measured (the stage's numbers: "the nearest free square of the end's room").
+ * A square's room is asked at the height the token will stand at there (`landingElevation`, H81-01).
  */
 export function tunnelLanding(tokenDoc, far, room) {
     const scene = tokenDoc?.parent ?? null;
     const grid = scene?.grid?.size ?? 100;
     const w = (tokenDoc?.width ?? 1) * grid, h = (tokenDoc?.height ?? 1) * grid;
     const level = far?.level ?? null;
+    const height = landingElevation(tokenDoc, level);
     const base = { x: Number(far?.x) - w / 2, y: Number(far?.y) - h / 2 };
     const others = Array.from(scene?.tokens ?? []).filter(t => t?.id !== tokenDoc?.id
         && (level === null || levelKey(levelOf(t)) === level));
@@ -1627,7 +1656,7 @@ export function tunnelLanding(tokenDoc, far, room) {
             for (let dx = -ring; dx <= ring; dx++) {
                 if (Math.max(Math.abs(dx), Math.abs(dy)) !== ring) continue;
                 const spot = { x: base.x + dx * grid, y: base.y + dy * grid };
-                const inside = piecesAt(scene, spot.x + w / 2, spot.y + h / 2, 0, level).map(region => region.name).sort()[0] === room;
+                const inside = piecesAt(scene, spot.x + w / 2, spot.y + h / 2, height, level).map(region => region.name).sort()[0] === room;
                 if (inside && free(spot)) spots.push({ ...spot, d: Math.hypot(dx, dy) });
             }
         }
@@ -1635,6 +1664,23 @@ export function tunnelLanding(tokenDoc, far, room) {
     spots.sort((a, b) => a.d - b.d || a.y - b.y || a.x - b.x);
     const [best] = spots;
     return { x: best?.x ?? base.x, y: best?.y ?? base.y, level };
+}
+
+/** A token's own height, as `regionsAt` asks a room at it: its elevation, 0 where it has none. */
+function ownElevation(tokenDoc) {
+    return Number.isFinite(tokenDoc?.elevation) ? tokenDoc.elevation : 0;
+}
+
+/**
+ * The height a token stands at once a tunnel puts it on `level` (H81-01, 20.10.2026): its own on its own floor, and on
+ * another the floor's (rooms.mjs `floorElevation`) - what passages-gm.mjs `crossTunnel` writes with the floor, so the
+ * token is asked its room upstairs as the end it lands on is (`passageRooms`). Until H81 the write named the floor
+ * alone and the token kept the height of the floor it left. Chosen, not measured: that v14 stands a token on a floor
+ * at its bottom, as this module reads it, is LIVE-H81-01.
+ */
+export function landingElevation(tokenDoc, level) {
+    if (level === null || level === undefined || levelKey(levelOf(tokenDoc)) === levelKey(level)) return ownElevation(tokenDoc);
+    return floorElevation(tokenDoc?.parent ?? null, level);
 }
 
 /** A token's centre at each spot `{ x, y }` (its top-left corner), measured with its own scene's grid as `regionsAt` measures it. */

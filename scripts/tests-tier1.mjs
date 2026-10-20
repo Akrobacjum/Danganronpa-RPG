@@ -16939,7 +16939,12 @@ const INVARIANTS = [
         tab.draw();
         const heads = [...root.querySelectorAll("thead th")].map(th => th.textContent.trim());
         const words = ["rooms", "kind", "shape", "origin", "knows", "start", "state"].map(k => game.i18n.localize(`DRPG.Passage.tab.${k}`));
-        const cellsOf = id => [...(root.querySelector(`tr[data-drpg-passage="${id}"]`)?.children ?? [])].slice(1, 4).map(td => td.textContent.trim());
+        // Each cell's words; a tunnel's way, the choice under its Shape since H81-02, is R902's and left out here.
+        const cellsOf = id => [...(root.querySelector(`tr[data-drpg-passage="${id}"]`)?.children ?? [])].slice(1, 4).map(td => {
+            const cell = td.cloneNode(true);
+            cell.querySelector("[data-drpg-passage-way]")?.remove();
+            return cell.textContent.trim();
+        });
         const word = k => game.i18n.localize(`DRPG.Passage.tab.${k}`);
         equal(J([heads, root.querySelectorAll("colgroup col").length, cellsOf(PUB), cellsOf(SEC), cellsOf(DOOR), cellsOf(TUN)]),
             J([[...words, ""], 8, [word("kindPublic"), word("shapeWall"), word("originGm")], [word("kindSecret"), word("shapeWall"), word("originGm")],
@@ -18020,6 +18025,333 @@ const INVARIANTS = [
         const said = step => log.count(new RegExp(`^${MODULE_ID} \\| The roll window failed at ${step}: SUITE R801 config$`));
         equal(stableJson([said("drawing"), said("forcing before its context"), said("its close")]), stableJson([1, 1, 1]),
             "the render hook, the wrapper of the window's context or the close hook said nothing of the failure, or said it without the module's name or the step (lines: drawing, forcing before its context, its close)");
+    }],
+    ["R900 - a tunnel or stairs is gone through from either end (H81-01): a knower at each end of a tunnel on one floor and of stairs between two floors crosses to the room at the other end, and back from where the crossing lands it, on a map whose rooms answer a point whatever its elevation (the harness's) and on one whose rooms answer by floor and elevation as v14's regions are read here; the room an end stands in is read as a token on that floor reads its own, and each end is marked for its knower in its own room, upstairs too", async () => {
+        /*
+         * H81-01 (20.10.2026; the owner's 1.2.80 table smoke, items 4b and 8: "tunele/schody sa jednostronne"). The harm:
+         * a knower goes through one way and at the far end is told it stands at no end, so the way back is gone, and the
+         * mark it should stand on is not drawn there. As read at f0ea429 the rule means two ways (`tunnelEndsFor` hands
+         * both ends, `tunnelVerdict` takes either), and on the harness's map - rooms that answer every point whatever its
+         * elevation - R597, tier 2 "A10-18" and scenario 76 U go back. What a table's map adds is elevation: a v14 region
+         * asks a point's elevation before its shape (movement.mjs `roomAt`'s note), and an end's room was read at
+         * elevation 0 (`passageRooms`) while the token's own room was read at the token's (`roomOfToken`). Two maps of
+         * the test's own, the same rooms on both, the tunnels known in the copy's shape as a player's browser keeps it
+         * (`cleanCopy`, candidate c): HARNESS, rooms blind to elevation; V14, the Kitchen, the Lab and the Dorm drawn
+         * before the floors (no `levels`: on every floor, at any elevation) and the Attic on the upper floor alone,
+         * answering only between that floor's bottom and top (10 to 20), over the Dorm's footprint. A token upstairs
+         * stands at 10, as one a GM drops there or a Change Level region moves (what v14 does is LIVE-H81-01). Read:
+         * each verdict from each end (candidate a), then from where the crossing puts the token - its spot
+         * (`tunnelLanding`), its floor and its height (candidate b) - and each end's mark in its room (candidate d). Red
+         * at f0ea429 (20.10.2026), on V14: the Attic's end refuses its knower standing on it ("notAtPassage": its room
+         * read at 0 is the Dorm), the way up is judged into the Dorm and lands at the Dorm's name, and the Attic has no
+         * mark; on both maps the way up lands at height 0 (the write named the floor alone). What c and d cut by floor
+         * held at f0ea429 on both maps. What v14 holds is not measured here: LIVE-H81-01.
+         */
+        const M = await import("./movement.mjs");
+        const L = await import("./passages.mjs");
+        const F = await import("./fog-doorways.mjs");
+        const R = await import("./rooms.mjs");
+        const J = v => JSON.stringify(v);
+        const [L1, L2] = ["R900L1", "R900L2"];
+        const mapOf = blind => {
+            const room = (name, x, levels, band = null) => ({ id: `R900R${name}`, name: `R900 ${name}`, levels: new Set(levels), behaviors: [],
+                bounds: { x, y: 0, width: 400, height: 400 }, shapes: [{ type: "rectangle", x, y: 0, width: 400, height: 400 }],
+                testPoint: p => p.x >= x && p.x <= x + 400 && p.y >= 0 && p.y <= 400
+                    && (blind || !band || (p.elevation >= band[0] && p.elevation < band[1])),
+                getFlag: (scope, key) => (scope === MODULE_ID && key === R.ROOM_FLAG ? true : undefined) });
+            const scene = { id: "R900S", name: "R900 scene", grid: { size: 100 }, tokens: [],
+                levels: [{ id: L1, name: "Ground", elevation: { bottom: 0, top: 10 } }, { id: L2, name: "Upper", elevation: { bottom: 10, top: 20 } }],
+                regions: new Set([room("Kitchen", 0, []), room("Lab", 500, []), room("Dorm", 1000, []), room("Attic", 1000, [L2], [10, 20])]) };
+            return { scene, rooms: Object.fromEntries([...scene.regions].map(r => [r.name.slice(5), r])) };
+        };
+        const A = { id: "R900A", name: "R900A", type: "character", items: [], getFlag: () => undefined };
+        const row = ends => ({ sceneId: "R900S", shape: "tunnel", level: null, ends, actorIds: ["R900A"] });
+        const copy = { R900T: row([{ x: 150, y: 150, level: L1 }, { x: 650, y: 150, level: L1 }]),
+            R900U: row([{ x: 250, y: 250, level: L1 }, { x: 1150, y: 150, level: L2 }]) };
+        const known = L.cleanCopy(copy, { R900A: 1 }, { actors: new Set(["R900A"]), scenes: new Set(["R900S"]) }).value;
+        equal(J(Object.keys(known).sort()), J(["R900T", "R900U"]), "the knower's browser keeps neither or one of the two tunnels - this would measure nothing");
+        const mover = { gm: false, mastermind: false };
+        const tok = (scene, x, y, level, elevation) => ({ id: "R900K", name: "R900K", x, y, width: 1, height: 1, elevation, level, parent: scene, actor: A });
+        // A verdict as the player's sheet and the primary read it, the price left out: "from > to on the far end's floor".
+        const said = (id, token) => {
+            const out = M.tunnelVerdict(A, { id, sceneId: "R900S" }, token, { mover, known, pay: false });
+            return out?.code ?? (out?.from ? `${out.from.slice(5)} > ${out.to.slice(5)} on ${out.far.level}` : J(out));
+        };
+        // Where the crossing puts the token: the landing's spot and floor, and the height the primary writes with them
+        // (`landingElevation`; at f0ea429 the write named no elevation, so the token kept its own).
+        const crossed = (id, token) => {
+            const out = M.tunnelVerdict(A, { id, sceneId: "R900S" }, token, { mover, known, pay: false });
+            if (!out?.far) return null;
+            const spot = M.tunnelLanding(token, out.far, out.to);
+            const elevation = typeof M.landingElevation === "function" ? M.landingElevation(token, spot.level) : token.elevation;
+            return tok(token.parent, spot.x, spot.y, spot.level ?? token.level, elevation);
+        };
+        const through = getClock()?.phase === "classTrial";
+        const reading = map => {
+            const { scene, rooms } = mapOf(map === "HARNESS");
+            const up = crossed("R900U", tok(scene, 200, 200, L1, 0));
+            const marks = (region, level) => F.tunnelMarks(A, region, scene, level, { gm: false, known, knownRooms: () => new Set(Object.keys(rooms).map(n => `R900 ${n}`)) })
+                .map(m => `${m.id} ${m.x},${m.y} > ${m.to.slice(5)}`);
+            return [said("R900T", tok(scene, 100, 100, L1, 0)), said("R900T", tok(scene, 600, 100, L1, 0)),
+                said("R900U", tok(scene, 200, 200, L1, 0)), said("R900U", tok(scene, 1100, 100, L2, 10)),
+                up ? [up.x, up.y, up.level, up.elevation, said("R900U", up)] : null,
+                said("R900U", tok(scene, 1100, 300, L2, 10)), said("R900U", tok(scene, 1100, 100, L1, 0)),
+                marks(rooms.Kitchen, L1), marks(rooms.Lab, L1), marks(rooms.Attic, L2)];
+        };
+        // In a Class Trial the courtroom refuses every crossing first (R597's note), whichever end it is asked from.
+        const go = text => (through ? "trialLocked" : text);
+        const want = [go("Kitchen > Lab on R900L1"), go("Lab > Kitchen on R900L1"), go("Kitchen > Attic on R900L2"), go("Attic > Kitchen on R900L1"),
+            through ? null : [1100, 100, L2, 10, "Attic > Kitchen on R900L1"], "notAtPassage", "notAtPassage",
+            ["R900T 150,150 > Lab", "R900U 250,250 > Attic"], ["R900T 650,150 > Kitchen"], ["R900U 1150,150 > Kitchen"]];
+        equal(J({ HARNESS: reading("HARNESS"), V14: reading("V14") }), J({ HARNESS: want, V14: want }),
+            "each map: [the tunnel from the Kitchen's end, from the Lab's; the stairs from the Kitchen's end, from the Attic's at the upper floor's height; "
+            + "where the way up lands (x, y, floor, height) and the way back from there; two squares off the Attic's end; on the Attic's square downstairs; "
+            + "the marks in the Kitchen, the Lab and the Attic]");
+    }],
+    ["R901 - a tunnel or stairs goes one way when a GM says so (H81-02): a knower goes in by the end its row names and is refused at the other in the bridge's words, and goes both ways once a GM sets it back; the direction is the GMs' record, which the primary judges and a player's packet does not carry; it reaches the copy of a player whose student knows the tunnel and no other, is kept by the player's browser, marks the way out 'Secret passage from', and outlives a season's reset; only a GM sets it, on a tunnel alone, each change logged", async () => {
+        /*
+         * H81-02 (20.10.2026; the owner's call C of 20.10: "Dajmy przelacznik w gm panel room setup passages, czy
+         * przejscie jest jedno czy dwustronne"). The harms: a one-way tunnel taken backwards; its direction read off a
+         * player's packet or copy where the primary judges; a player whose students do not know it told which way it
+         * goes; its way out drawn as a way in, so its knower stands there and is refused with no word of why; a player's
+         * browser writing it; a reset or a copy that drops it. Run on an engine of the suite's own (R595's), two players
+         * with a student each, and a scene of the suite's own with a Dorm and a Lab on one floor and a tunnel between them
+         * (R597's rooms) beside a passage in a wall. Read: the verdict at each end on the GMs' rows (`secretRowsFrom`, as
+         * the primary's `crossTunnel` builds `known`), the bridge's row for 'Go through', the copies cut for each player
+         * and kept as a player's browser keeps them, the ends and marks that browser reads, the log, the reset, a write on
+         * a player's engine and the GM's refusals. The tab's own control is R902's. Red at f0ea429: no `setPassageWay`.
+         */
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const P = await import("./passages-gm.mjs");
+        const L = await import("./passages.mjs");
+        const M = await import("./movement.mjs");
+        const F = await import("./fog-doorways.mjs");
+        const R = await import("./rooms.mjs");
+        const B = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const J = v => JSON.stringify(v);
+        ok(typeof P.setPassageWay === "function" && typeof L.oneWayOf === "function", "passages-gm.mjs sets no tunnel's way, or passages.mjs reads none - every tunnel goes both ways");
+        if (typeof P.setPassageWay !== "function" || typeof L.oneWayOf !== "function") return;
+        let t = 9_900_000;
+        const engine = (self, gm) => G.createGmStoreEngine({
+            selfId: () => self, isGM: () => gm, isPrimary: () => gm, worldId: () => "R901WORLD",
+            activeGmIds: () => [], primaryGmId: () => (gm ? self : null), senderIsGM: () => gm, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => t++,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const eng = engine("R901GM", true);
+        const def = (e, h, name) => e.define({ ...h.spec, name: `r901${name}`, key: `r901${name}`, afterRestore: undefined, exists: undefined });
+        const stores = { map: def(eng, S.passageMapStore, "Map"), access: def(eng, S.passageAccessStore, "Access"), log: def(eng, S.passageLogStore, "Log"),
+            mastermind: eng.define({ name: "r901mm", key: "r901mm", kind: "record", fields: ["actorId"], sync: false, backup: false }) };
+        const user = id => ({ id, isGM: false, active: true });
+        const users = [{ id: "R901GM", isGM: true, active: true }, user("R901U1"), user("R901U2")];
+        const actor = (id, owner) => ({ id, type: "character", name: id, items: [], getFlag: () => undefined,
+            testUserPermission: (u, level) => level === "OWNER" && (u?.isGM || u?.id === owner) });
+        const actors = [actor("R901A1", "R901U1"), actor("R901A2", "R901U2")];
+        const [, U1, U2] = users, [A1] = actors;
+        const room = (name, x) => ({ id: `R901R${name}`, name: `R901 ${name}`, levels: new Set(), behaviors: [],
+            bounds: { x, y: 0, width: 400, height: 400 }, shapes: [{ type: "rectangle", x, y: 0, width: 400, height: 400 }],
+            testPoint: p => p.x >= x && p.x <= x + 400 && p.y >= 0 && p.y <= 400,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === R.ROOM_FLAG ? true : undefined) });
+        const [dorm, lab] = [room("Dorm", 0), room("Lab", 500)];
+        const SC = "R901SCENE";
+        const scene = { id: SC, name: "R901 scene", grid: { size: 100 }, levels: [], tokens: [], regions: new Set([dorm, lab]) };
+        const [T, W] = [`${SC}.r901t`, `${SC}.r901w`];
+        await stores.map.patchMany({
+            [T]: { sceneId: SC, level: null, shape: "tunnel", ends: [{ x: 150, y: 150, level: null }, { x: 650, y: 150, level: null }],
+                rooms: ["R901 Dorm", "R901 Lab"], state: "secret", startAccess: [] },
+            [W]: { sceneId: SC, level: null, shape: "wall", passageWallId: "R901WALL", passageSeg: { x1: 400, y1: 100, x2: 400, y2: 200 },
+                rooms: ["R901 Dorm", "R901 Lab"], state: "secret", startAccess: [] } });
+        await stores.access.patchMany({ [`${T}/R901A1`]: { how: "gm", at: 1, by: { R901GM: 1 } }, "touch/R901A1": { at: 1 }, "touch/R901A2": { at: 1 } });
+
+        const mover = { gm: false, mastermind: false };
+        const tok = x => ({ id: "R901K", name: "R901K", x, y: 100, width: 1, height: 1, elevation: 0, level: null, parent: scene, actor: A1 });
+        const verdictAt = (x, known = L.secretRowsFrom(stores)) => M.tunnelVerdict(A1, { id: T, sceneId: SC }, tok(x), { mover, known, pay: false });
+        const said = x => { const out = verdictAt(x); return out?.code ?? (out?.from ? `${out.from.slice(5)} > ${out.to.slice(5)}` : J(out)); };
+        // In a Class Trial the courtroom refuses each crossing an end lets through (R597's note); the way out's refusal comes first.
+        const go = text => (getClock()?.phase === "classTrial" ? "trialLocked" : text);
+        const steps = [["both ways", said(100), said(600)]];
+        steps.push(["from the Dorm", await P.setPassageWay(T, 0, { stores }), stores.map.get(T)?.oneWay ?? null, said(100), said(600)]);
+        const away = verdictAt(600);
+        steps.push(["from the Lab", await P.setPassageWay(T, 1, { stores }), stores.map.get(T)?.oneWay ?? null, said(100), said(600)]);
+        steps.push(["from the Lab again", await P.setPassageWay(T, 1, { stores }), Object.keys(stores.log.entries()).length]);
+        equal(J(steps), J([["both ways", go("Dorm > Lab"), go("Lab > Dorm")], ["from the Dorm", true, 0, go("Dorm > Lab"), "oneWay"],
+            ["from the Lab", true, 1, "oneWay", go("Lab > Dorm")], ["from the Lab again", true, 2]]),
+            "[each step: what, the write's answer, the row's oneWay, the verdict at the Dorm's end, at the Lab's; the same way again: its answer, the log's rows]");
+        equal(J([M.tunnelRefusalText(away), B.reasonOf(P.crossingWhy("oneWay")), Object.keys(BRIDGE_ACTIONS["passage.cross"]?.sanitize?.fields ?? {})]),
+            J([game.i18n.localize("DRPG.Bridge.why.oneWay"), "oneWay", ["actorId", "passageId"]]),
+            "[what the sheet says at the way out, the bridge's code for the primary's refusal, what 'Go through' carries to the primary] - the refusal is said in other words, or the packet names a way");
+        // The primary's verdict reads the GMs' record whatever the asker's copy claims: `crossTunnel` builds `known` from its stores.
+        const sources = await moduleSources();
+        must(sources.get("passages-gm.mjs")?.length && sources.get("gm-bridge.mjs")?.length, "passages-gm.mjs or gm-bridge.mjs is not among the module's sources - this would measure nothing");
+        const cross = fnSource(stripComments(sources.get("passages-gm.mjs")), "crossTunnel");
+        ok(/const known = secretRowsFrom\(\{ map: stores\.map, access: stores\.access \}\);/.test(cross) && /M\.tunnelVerdict\(actor, passage, token, \{ mover, known, pay: false \}\)/.test(cross),
+            "the primary GM's 'Go through' judges the way from something other than the GMs' records");
+
+        // The copies: the knower's player's carries the way, the other's holds nothing; the knower's browser keeps it.
+        const c1 = P.passageCopyFor(U1, { stores, actors, users }), c2 = P.passageCopyFor(U2, { stores, actors, users });
+        const kept = L.cleanCopy(c1.value, c1.stamps, { actors: new Map(actors.map(a => [a.id, a])), scenes: new Map([[SC, scene]]) }).value;
+        const found = () => new Set(["R901 Dorm", "R901 Lab"]);
+        const marks = region => F.tunnelMarks(A1, region, scene, null, { gm: false, known: kept, knownRooms: found });
+        equal(J([c1.value[T]?.oneWay ?? null, Object.keys(c2.value), kept[T]?.oneWay ?? null, L.tunnelEndsFor(A1, SC, null, { known: kept }).map(e => [e.x, e.exit === true]),
+            marks(dorm), marks(lab), L.passagesKnownBy(A1, { known: kept }).map(p => p.oneWay ?? null), M.tunnelVerdict(A1, { id: T, sceneId: SC }, tok(100), { mover, known: kept, pay: false })?.code ?? null]),
+            J([1, [], 1, [[150, true], [650, false]], [{ id: T, x: 150, y: 150, to: "R901 Lab", exit: true }], [{ id: T, x: 650, y: 150, to: "R901 Dorm" }], [1], "oneWay"]),
+            "[the way in the knower's player's copy, the other player's copy, the way kept by the knower's browser, its ends as [x, the way out], "
+            + "the marks in the Dorm and the Lab, the way on the sheet's list, the sheet's verdict at the way out]");
+
+        // The reset takes who knows it and the log, never the row's way; both ways again is a write of its own.
+        const reset = await P.passagesAfterReset({ stores });
+        const afterReset = [reset, stores.map.get(T)?.oneWay ?? null, Object.keys(stores.access.entries()).filter(k => k.startsWith(`${T}/`)).length, Object.keys(stores.log.entries()).length];
+        const back = await P.setPassageWay(T, null, { stores });
+        const logged = Object.values(stores.log.entries()).map(r => [r.what, r.passageId === T, r.actorId ?? null]);
+        await stores.access.patch(`${T}/R901A1`, { how: "gm", at: 2, by: { R901GM: 2 } });
+        equal(J([afterReset, back, stores.map.get(T)?.oneWay, logged, said(100), said(600)]),
+            J([[0, 1, 0, 0], true, null, [["bothWays", true, null]], go("Dorm > Lab"), go("Lab > Dorm")]),
+            "[after the reset: its answer, the way, the tunnel's cells, the log's rows; both ways again: its answer, the way, the log, the verdict at each end]");
+
+        // Only a GM, on a tunnel alone: a player's engine writes nothing, a wall or a third end is refused, and no bridge row sets it.
+        const theirs = def(engine("R901U1", false), S.passageMapStore, "MapOfAPlayer");
+        await theirs.patch(T, { oneWay: 0 });
+        equal(J([theirs.get(T) ?? null, await P.setPassageWay(W, 0, { stores }), stores.map.get(W)?.oneWay ?? null, await P.setPassageWay(T, 2, { stores }),
+            stores.map.get(T)?.oneWay, /setPassageWay/.test(stripComments(sources.get("gm-bridge.mjs")))]),
+            J([null, false, null, false, null, false]),
+            "[a player's engine's write, a wall's way refused, the wall's row, a third end refused, the tunnel's row, a bridge road that sets a way]");
+    }],
+    ["R902 - the Passages tab says which way a tunnel goes and what 'At season start' does (H81-02, H81-05): a tunnel's row holds a choice under its Shape - both ways, or from either of its rooms to the other as the row names them - that writes the row's way at once, logs it and is drawn again with it chosen; a passage in a wall has none; the column 'At season start' carries a line saying it gives nothing now, and the footnote says that and which passages may go one way, in English and in Polish", async () => {
+        /*
+         * H81-02 and H81-05 (20.10.2026; the owner's calls C and E of 20.10: a switch in Room setup > Passages for one way
+         * or two, and keep the "At season start" column with a hint). The harms: a GM who cannot tell a tunnel's way, sets
+         * it on a passage in a wall, or sets it and finds it not kept; a GM who reads '+' under 'At season start' as giving
+         * the passage now (the owner's item 4a). Run as R561 runs the tab: an engine of the suite's own, two students of
+         * this world, and a detached panel drawn and wired by passages-tab.mjs itself, its change writing to the suite's
+         * stores only. Polish is lang/pl.json's DRPG block put in place of this browser's for the drawing alone and put
+         * back after. The real window is LIVE-E80-04's; how the choice looks is not laid out here. Red at f0ea429: no
+         * choice, no line on the column, the footnote without either sentence.
+         */
+        needs(world.atLeast("livingStudents", 2), "two students the tab offers");
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const T = await import("./passages-tab.mjs");
+        const J = v => JSON.stringify(v);
+        let now = 9_950_000;
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R902GM", isGM: () => true, isPrimary: () => true, worldId: () => "R902WORLD",
+            activeGmIds: () => [], primaryGmId: () => "R902GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => now++,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const def = (h, name) => eng.define({ ...h.spec, name: `r902${name}`, key: `r902${name}`, afterRestore: undefined, exists: undefined });
+        const stores = { map: def(S.passageMapStore, "Map"), access: def(S.passageAccessStore, "Access"), log: def(S.passageLogStore, "Log"),
+            mastermind: eng.define({ name: "r902mm", key: "r902mm", kind: "record", fields: ["actorId"], sync: false, backup: false }) };
+        const students = studentActors().slice(0, 2);
+        const scene = { id: "R902SCENE", grid: { size: 100 }, levels: [], regions: [] };
+        const [TUN, WALL] = ["R902SCENE.r902t", "R902SCENE.r902w"];
+        await stores.map.patchMany({
+            [TUN]: { sceneId: scene.id, level: null, shape: "tunnel", ends: [{ x: 150, y: 150, level: null }, { x: 650, y: 150, level: null }],
+                rooms: ["R902 Dorm", "R902 Lab"], state: "secret", startAccess: [] },
+            [WALL]: { sceneId: scene.id, level: null, shape: "wall", passageWallId: "R902WALL", passageSeg: { x1: 400, y1: 100, x2: 400, y2: 200 },
+                rooms: ["R902 Dorm", "R902 Lab"], state: "secret", startAccess: [] } });
+        const root = document.createElement("div");
+        root.innerHTML = T.passagesTabHtml(scene, { stores, students });
+        const tab = T.wirePassagesTab(root, scene, { stores, students, show: async () => true });
+        const inRow = (id, sel) => root.querySelector(`[data-drpg-passage="${id}"] ${sel}`);
+        const picker = () => {
+            const select = inRow(TUN, "select[data-drpg-passage-way]");
+            return select ? [...select.options].map(o => [o.value, o.textContent, o.selected]) : null;
+        };
+        const words = () => [root.querySelector("thead th:nth-child(6)")?.title ?? null, [...root.querySelectorAll("[data-drpg-passages] p.notes")].pop()?.textContent ?? null];
+        const drawn = [picker(), Boolean(inRow(WALL, "select[data-drpg-passage-way]")), ...words()];
+        const select = inRow(TUN, "select[data-drpg-passage-way]");
+        if (select) {
+            select.value = "1";
+            select.dispatchEvent(new Event("change", { bubbles: true }));
+            await tab.settled();
+        }
+        const written = [stores.map.get(TUN)?.oneWay ?? null, Object.values(stores.log.entries()).map(r => [r.what, r.passageId === TUN]), picker()?.map(o => o[2])];
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
+        const own = game.i18n.translations;
+        let polish = null;
+        try {
+            game.i18n.translations = { ...own, DRPG: pl.DRPG };
+            tab.draw();
+            polish = [picker(), ...words()];
+        } finally {
+            game.i18n.translations = own;
+            tab.draw();
+        }
+        const START = ["Known again after each season reset. Adding a student here does not give them the passage now.",
+            "Znają je znowu po każdym resecie sezonu. Dopisanie ucznia tutaj nie daje mu przejścia teraz."];
+        const WAY = ["A tunnel or stairs can go one way only: pick it under its Shape. A passage in a wall always goes both ways.",
+            "Tunel lub schody mogą prowadzić tylko w jedną stronę: wybierz to pod ich kształtem. Przejście w ścianie zawsze prowadzi w obie strony."];
+        const ends = (text, i) => typeof text === "string" && text.endsWith(`${START[i]} ${WAY[i]}`);
+        equal(J([drawn.slice(0, 3), ends(drawn[3], 0), written, polish?.slice(0, 2), ends(polish?.[2], 1)]),
+            J([[[["both", "Both ways", true], ["0", "Only from R902 Dorm to R902 Lab", false], ["1", "Only from R902 Lab to R902 Dorm", false]], false, START[0]], true,
+                [1, [["oneWay", true]], [false, false, true]],
+                [[["both", "W obie strony", false], ["0", "Tylko z: R902 Dorm, do: R902 Lab", false], ["1", "Tylko z: R902 Lab, do: R902 Dorm", true]], START[1]], true]),
+            "[drawn: the tunnel's choice as [value, words, chosen], a choice on the wall's row, the column's line; the footnote's two sentences; "
+            + "chosen 'from the Lab': the row's way, the log, the choice drawn again; in Polish: the choice, the column's line; the footnote's two sentences]");
+    }],
+    ["R903 - a tunnel end's words are a third of a room's name (H81-06): 'Secret passage to {room}' at max(20, grid x 0.36) over a keyline of max(4, grid x 0.07), just under its ring at grid x 0.38, and a one-way tunnel's way out says 'Secret passage from {room}'", async () => {
+        /*
+         * H81-06 (20.10.2026; the owner's 1.2.80 table smoke, item 7: the caption is too small). The harm: a mark nobody
+         * can read at a table's zoom, and a way out that reads as a way in. Read on an outline group of the test's own
+         * (fog-doorways.mjs `addTunnelMarks` with two marks), the words' text, size, keyline and place off the PIXI text it
+         * adds, at this canvas's grid. A PIXI text keeps its style in Foundry and in the harness's stub alike; how it looks
+         * on a real canvas is not seen here (LIVE-E80-01). Red at f0ea429: 22, 5 and 35 at grid 100, and "to" at the way out.
+         */
+        const F = await import("./fog-doorways.mjs");
+        const J = v => JSON.stringify(v);
+        const grid = canvas?.grid?.size ?? 100;
+        const group = new PIXI.Container();
+        const drew = F.addTunnelMarks(group, [{ id: "R903T", x: 150, y: 150, to: "R903 Lab" }, { id: "R903T", x: 650, y: 150, to: "R903 Dorm", exit: true }]);
+        const texts = group.children.filter(c => c instanceof PIXI.Text && c.name === F.TUNNEL_MARK_NAME)
+            .map(c => [c.text, c.style?.fontSize, c.style?.strokeThickness, Math.round((c.position?.y ?? 0) - 150)]);
+        const words = (key, room) => game.i18n.format(key, { room });
+        const size = [Math.max(20, Math.round(grid * 0.36)), Math.max(4, Math.round(grid * 0.07)), Math.round(grid * 0.38)];
+        const [en, pl] = await Promise.all(["en", "pl"].map(lang => fetch(`/modules/${MODULE_ID}/lang/${lang}.json`, { cache: "no-cache" }).then(r => r.json())));
+        equal(J([drew, texts, [en?.DRPG?.Passage?.mark?.from, pl?.DRPG?.Passage?.mark?.from]]),
+            J([2, [[words("DRPG.Passage.mark.to", "R903 Lab"), ...size], [words("DRPG.Passage.mark.from", "R903 Dorm"), ...size]], ["Secret passage from {room}", "Tajne przejście z: {room}"]]),
+            `[the marks drawn, each mark's words as [text, size, keyline, below its centre] at grid ${grid}, the way out's words in English and in Polish]`);
+    }],
+    ["R904 - 'Known passages' says what to do with each passage (H81-03, H81-04, H81-02): a passage in a wall is to be walked through its gap and has no button, a tunnel keeps 'Go through' enabled wherever the token stands, a one-way tunnel says which way in the rooms as the row names them, and a refusal away from an end says where to stand, in English and in Polish", async () => {
+        /*
+         * H81-03 and H81-04 (20.10.2026; the owner's items 4b and 8: "Your character is not at an end of that passage" in
+         * the tunnel's room, and no button for a passage in a wall, so nobody knew what to do). The design's step 11 has
+         * 'Go through' disabled away from an end; a disabled button is true only while the row is drawn again as the token
+         * moves, and nothing draws it then (sheet.mjs `goThrough`'s note: none of the sheet's hooks hears a move), so the
+         * button stays enabled and the click's refusal says where to stand. Read: rows of the list's reader with the copy,
+         * the map and the veto injected (R562's way), drawn by sheet.mjs `knownPassageItem`, and the refusal's words in both
+         * files. Red at f0ea429: no `knownPassageItem`, no line under a row, the old refusal.
+         */
+        const SH = await import("./sheet.mjs");
+        const J = v => JSON.stringify(v);
+        ok(typeof SH.knownPassageItem === "function", "sheet.mjs draws no row of 'Known passages' apart from the sheet - nothing below would be read");
+        if (typeof SH.knownPassageItem !== "function") return;
+        const scene = { id: "R904SCENE" };
+        const ends = [{ x: 150, y: 150, level: null }, { x: 650, y: 150, level: null }];
+        const known = {
+            "R904SCENE.w": { sceneId: "R904SCENE", level: null, shape: "wall", passageWallId: "R904WALL", passageSeg: { x1: 400, y1: 100, x2: 400, y2: 200 }, actorIds: ["R904A"] },
+            "R904SCENE.t": { sceneId: "R904SCENE", shape: "tunnel", level: null, ends, actorIds: ["R904A"] },
+            "R904SCENE.u": { sceneId: "R904SCENE", shape: "tunnel", level: null, ends: ends.map(e => ({ ...e, y: e.y + 100 })), oneWay: 1, actorIds: ["R904A"] } };
+        const names = { "R904SCENE.w": ["R904 Hall", "R904 Kitchen"], "R904SCENE.t": ["R904 Dorm", "R904 Lab"], "R904SCENE.u": ["R904 Gym", "R904 Pool"] };
+        const rows = SH.knownPassageRows({ id: "R904A" }, { known, sceneOf: id => (id === scene.id ? scene : null), sides: (s, p) => names[p.id],
+            knownRooms: () => new Set(Object.values(names).flat()), opens: () => true, place: () => null });
+        const drawn = rows.map(row => {
+            const li = SH.knownPassageItem(row);
+            const cross = li.querySelector(".drpg-passage-cross");
+            return [row.label, li.querySelector("[data-drpg-passage-note]")?.dataset.drpgPassageNote ?? null, li.querySelector("[data-drpg-passage-note]")?.textContent ?? null,
+                cross ? cross.disabled : null];
+        });
+        const [en, pl] = await Promise.all(["en", "pl"].map(lang => fetch(`/modules/${MODULE_ID}/lang/${lang}.json`, { cache: "no-cache" }).then(r => r.json())));
+        equal(J([drawn, en?.DRPG?.Bridge?.why?.notAtPassage, pl?.DRPG?.Bridge?.why?.notAtPassage, pl?.DRPG?.Passage?.list?.walk, pl?.DRPG?.Passage?.list?.oneWay]),
+            J([[["R904 Dorm - R904 Lab", null, null, false], ["R904 Gym - R904 Pool", "oneWay", "One way only: from R904 Pool to R904 Gym.", false],
+                ["R904 Hall - R904 Kitchen", "walk", "Walk through the gap in the wall.", null]],
+                "Stand on the passage's mark, or a square next to it, first.",
+                "Najpierw stań na znaczniku przejścia albo na polu obok niego.", "Przejdź przez przerwę w ścianie.", "Tylko w jedną stronę, z: {from}, do: {to}."]),
+            "[each row as [its rooms, its line's kind, its line, 'Go through' disabled (null: no button)], the refusal away from an end in English, in Polish, the walk line and the way line in Polish]");
     }],
 ];
 

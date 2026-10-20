@@ -57269,6 +57269,64 @@ const SCENARIOS = [
             ["sendBack, crossing rooms costs nothing", "1500,100,up", [], [], 0]]),
             "each jump as [what, where the token stands, the audit's rows for it as [a floor, the mode, the verdict, its player's], the codes its player was sent, the GMs' whispers of it] - a floor jump stood, was not noted, or one the rule does not ask now was put back");
     }],
+    ["H81-01 stairs - 'Go through' stairs takes a knower up and back down on the primary GM: the token lands by the far end on that end's floor at that floor's height, and the way back is taken from where it landed, each at a door's price", async () => {
+        /*
+         * H81-01 (20.10.2026; the owner's 1.2.80 table smoke: "tunele/schody sa jednostronne"). R900 reads the verdict
+         * and the landing on maps of its own, and A10-18 goes back on one floor; this drives the primary GM's own road
+         * (`crossTunnel`) up a floor and back down, on a scene of the suite's own with two floors (heights 0 and 10, the
+         * harness's model of a level: lib/shim.mjs `LevelList`), a Dorm downstairs and an Attic upstairs far from it, and
+         * a tunnel between them made and given in a GM-store world of the suite's own, so no player's copy is sent. Read:
+         * each answer, where the token stands - its spot, its floor and its height - and the actions left. Red at
+         * f0ea429: the token stood upstairs at height 0, the write naming the floor alone. The harness's regions ask no
+         * point its height, so the way back crossed at f0ea429 here too; what a v14 table does is LIVE-H81-01.
+         */
+        const P = await import("./passages-gm.mjs");
+        const R = await import("./rooms.mjs");
+        const E = await import("./gm-store.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const ACT = await import("./actions.mjs");
+        const { ownerOf } = await import("./utils.mjs");
+        const [student] = cast(1);
+        needs(world.ownedByPlayer(student), "the student goes through on its player's ask, and the door names that player");
+        const asker = ownerOf(student);
+        const clock = getClock() ?? {};
+        if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+        const charge = game.settings.get(MODULE_ID, SETTINGS.chargeMovement);
+        const [L1, L2] = ["suiteh81f1", "suiteh81f2"].map(k => `${k}${foundry.utils.randomID(6)}`.slice(0, 16));
+        const mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
+        const room = (name, x, level) => ({ name, shapes: [{ type: "rectangle", x, y: 0, width: 600, height: 600 }], levels: [level], flags: mark, behaviors: [] });
+        let scene = null, token = null, steps = null;
+        try {
+            if (!charge) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, true);
+            scene = await Scene.create({ name: "SUITE H81 stairs", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false,
+                levels: [{ id: L1, name: "Ground", elevation: 0 }, { id: L2, name: "Upper", elevation: 10 }] });
+            await scene.createEmbeddedDocuments("Region", [room("SUITE H81 Dorm", 0, L1), room("SUITE H81 Attic", 1200, L2)]);
+            [token] = await scene.createEmbeddedDocuments("Token", [{ actorId: student.id, actorLink: true, name: student.name, x: 200, y: 200, level: L1,
+                elevation: 0, width: 1, height: 1 }]);
+            await settle();
+            await student.update({ "system.resources.actions.value": 2, [`flags.${MODULE_ID}.${FLAGS.freeMoveUsed}`]: true });
+            steps = await E.withGmStoreWorld(`suite-h81-stairs-${foundry.utils.randomID(8)}`, async () => {
+                const id = await P.createPassage({ sceneId: scene.id, shape: "tunnel", ends: [{ x: 250, y: 250, level: L1 }, { x: 1450, y: 250, level: L2 }] }, { scene });
+                must(typeof id === "string" && await P.grantPassage(id, student.id), "the stairs were not made or given - this would measure nothing");
+                const out = [];
+                for (const what of ["up", "back down"]) {
+                    const answer = await P.crossTunnel({ actorId: student.id, passageId: id }, { asker });
+                    await settle();
+                    const floor = R.levelOf(token);
+                    out.push([what, answer?.refused ? G.reasonOf(answer.refused) : answer?.crossed ? "crossed" : stableJson(answer),
+                        `${token.x},${token.y}`, floor === L2 ? "up" : floor === L1 ? "down" : floor, token.elevation, ACT.actionsLeft(student)]);
+                }
+                return out;
+            });
+        } finally {
+            if (game.settings.get(MODULE_ID, SETTINGS.chargeMovement) !== charge) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, charge);
+            await scene?.delete();
+            await setClock(clock);
+            await settle();
+        }
+        equal(stableJson(steps), stableJson([["up", "crossed", "1400,200", "up", 10, 1], ["back down", "crossed", "200,200", "down", 0, 0]]),
+            "each crossing as [what, the answer, where the token stands, its floor, its height, the actions left]");
+    }],
     ["A10-15 - Foundry's secret doors and the players' rulers on the world: 'Convert to passages' turns a secret door in the wall two rooms of a scene share into an ordinary wall, shut, and a secret passage nobody knows, and one inside a room into a plain wall it names, with none left, and takes the GMs' state off each; a player's opening of a secret door is written shut again through Foundry, and so is one no primary heard, by the pass the primary's ready runs, which leaves open a door a GM opened and one left open with no GM's state on it, and tells the GM; Hide and Show of the players' movement rulers write the world's permissions, the movement ruler alone, and the permissions are put back as they were", async () => {
         /*
          * E80 C5 (18.10.2026; S16-18, P1-17 to P1-19), R601's reading on Foundry's own documents: a scene of the suite's

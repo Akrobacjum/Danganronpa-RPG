@@ -59,7 +59,7 @@ import { passageMapStore, passageAccessStore, passageLogStore, mastermindStore, 
 import { RECORD, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible } from "./gm-store.mjs";
 import { senderOf } from "./bridge-guards.mjs";
 import { isMonokuma } from "./monokuma.mjs";
-import { secretRowsFrom, studentIdsOf, sceneGone, endsOf, PASSAGE_TOLERANCE, DOOR_PART, isSecretDoor, secretDoorsOn, passageSpot } from "./passages.mjs";
+import { secretRowsFrom, studentIdsOf, sceneGone, endsOf, oneWayOf, PASSAGE_TOLERANCE, DOOR_PART, isSecretDoor, secretDoorsOn, passageSpot } from "./passages.mjs";
 import { roomPieces, onLevel, floorsOf, isTrialScene, viewedScene, viewedLevel } from "./rooms.mjs";
 import { regionShapes, inFlatPolygons, distanceToSegment } from "./fog-geometry.mjs";
 import { overlayLayer, clearLayer, overlayColour, dashedLine, overlayDrawer, redrawGmOverlay } from "./gm-overlay.mjs";
@@ -975,6 +975,30 @@ export async function setStartAccess(passageId, actorId, on, { stores = PASSAGE_
 }
 
 /**
+ * A GM: which way a tunnel or stairs goes (H81-02, 20.10.2026; the owner's call of 20.10, "przełącznik w gm panel room
+ * setup passages, czy przejście jest jedno czy dwustronne"): `from` the index of the one end it is entered from, 0 or
+ * 1, or null for both ways - the row's `oneWay` (passages.mjs `oneWayOf`), written null for both ways since a store's
+ * null is a value and reads as none. A tunnel only: a passage in a wall goes both ways. The tab's other edits' road:
+ * a GM's browser (the engine refuses a player's write), every knower's touch and the Mastermind's (the copies carry the
+ * field), a log row "oneWay" or "bothWays", the copies sent. The primary judges 'Go through' from this record
+ * (`crossTunnel`'s `known`), never from a packet. The season's reset and a room's rename write other fields of the
+ * row and keep it. Answers true, also when it already went that way; false refused.
+ */
+export async function setPassageWay(passageId, from, { stores = PASSAGE_STORES } = {}) {
+    if (!game.user?.isGM) return refuse("only a GM changes one.", false);
+    const row = stores.map.get(passageId);
+    if (!row) return refuse(`no passage "${passageId}".`, false);
+    if (!endsOf(row)) return refuse(`"${passageId}" is no tunnel: a passage in a wall goes both ways.`, false);
+    if (from !== null && from !== 0 && from !== 1) return refuse("a tunnel is entered from end 0, end 1 or both (null).", false);
+    if (oneWayOf(row) === from) return true;
+    await stores.map.patch(passageId, { oneWay: from });
+    await touch(knowersOf(passageId, stores), stores, { door: true });
+    await logRow(from === null ? "bothWays" : "oneWay", passageId, null, stores);
+    tellAfter(stores);
+    return true;
+}
+
+/**
  * A GM: the student keeps the passage until they leave `room`, the room they stand in now (the
  * mockup's 'Revoke when they leave the room'). The cell stays, and with it the passage in their
  * owners' copies; `leave` names the room, and `revokeLeavers` revokes it on the primary GM when
@@ -1317,6 +1341,7 @@ export function crossingWhy(code) {
     switch (code) {
         case "notKnown": return "the character does not know that passage";
         case "notAtPassage": return "the character is not at an end of that passage";
+        case "oneWay": return "the passage cannot be taken from that side";
         case "doorLocked": return "the room beyond is locked";
         case "roomSealed": return "the room beyond is sealed";
         case "chained": return "the character is chained where it stands";
@@ -1378,8 +1403,11 @@ export async function crossTunnel({ actorId, passageId } = {}, { asker = null, s
             return { refused: crossingWhy("notAtPassage") };
         }
         const spot = M.tunnelLanding(token, verdict.far, verdict.to);
+        // On another floor at that floor's height (movement.mjs `landingElevation`, H81-01): the room it is asked there is the end's.
+        const height = M.landingElevation(token, spot.level);
+        const rises = height !== (Number.isFinite(token.elevation) ? token.elevation : 0);
         try {
-            await write(token, { x: spot.x, y: spot.y, ...(spot.level ? { level: spot.level } : {}) },
+            await write(token, { x: spot.x, y: spot.y, ...(spot.level ? { level: spot.level } : {}), ...(rises ? { elevation: height } : {}) },
                 { teleport: true, movementAction: "displace", animate: false });
         } catch (err) {
             error(`Could not move "${token.name}" through a tunnel`, err);
