@@ -636,7 +636,7 @@ export function wireCallActions(body, message = null) {
             hold(true);
             try {
                 const outcome = await runCallAction(button.dataset.drpgCall, { ...button.dataset });
-                // Sent on by the primary, which writes the card once the player has it (E18 C1): held till it redraws.
+                // Sent on by the primary, which writes the card's line once the player has it (E18 C1): held till it redraws.
                 if (outcome?.held) return;
                 if (message && outcome?.settled) {
                     const { settleCall } = await import("./gm-bridge.mjs");
@@ -718,8 +718,9 @@ async function ruleApproveCallOrRefuseCall(action, data) {
     // the card by whichever GM picks it up; "Refuse" tells the player so. The
     // difficulty is kept in the card's meta, where the GM who places the action's
     // trace reads its band (gm-bridge.mjs `dynamicRulingOf`, E08+E28 C15). The
-    // ruling goes by the primary, which writes the card and its meta once the
-    // player's browser has it (E18 C1).
+    // ruling goes by the primary, which keeps it in the meta and takes the card's
+    // buttons off as it sends it on, and writes the card's line once the player's
+    // browser has it (E18 C1; gm-bridge.mjs `keepRuling`, fix early-C1-G1).
 async function ruleSetDifficulty(action, data) {
     const { askDynamicDifficulty } = await import("./action-rolls.mjs");
     const ruling = await askDynamicDifficulty({

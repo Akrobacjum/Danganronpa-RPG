@@ -28057,6 +28057,97 @@ const SCENARIOS = [
         ]), "a yes naming the wrong asker was sent on, a yes was written before its receipt or on another player's receipt or expiry, a yes with no receipt did not end the card with the GMs' line or was still kept, or a Dynamic ruling was taken from its asker or not written with its difficulty on its asker's receipt (in order: ended before a receipt, after another's receipt and expiry, the lines after the asker's; the yes sent, the lines after the wait, the yes gone; this GM's ruling sent after the asker's own, its lines, its meta)");
     }],
 
+    ["a Dynamic ruling is the GMs' record from the moment the primary sends it on: the newest ruling is read before any receipt, after none came and after its asker's expiry (E18 fix early-C1-G1)", async () => {
+        /*
+         * E18 fix early-C1-G1, 20.10.2026; the early review's E18-C1-1. Since C1 the primary sent a GM's Dynamic
+         * difficulty on and wrote it into the card's meta only on its asker's `ruling.received`. A card that ended
+         * with none - no receipt within `TIMING.ackMs`, or the asker's expiry after the ruling went - carried no
+         * ruling, so the record a trace's band and a Reroll's replay read (`dynamicRulingOf`: the newest ruling of
+         * the character within a Reroll's reach) was an older card's, while the asker's browser rolled on the new
+         * one: by withholding one packet it chose which of the GMs' rulings counted. Read on this primary, each
+         * packet handed to the bridge's runner with the user Foundry would name, the record read for this character
+         * now as a trace's band reads it: card A ruled 0 by this GM with its asker's receipt; card B ruled 3 with
+         * none - at once the record, B's lines and its buttons left (the line waits for the receipt, and no ask is
+         * left to rule on), then B's lines and the record once it ended; card C - the asker's own `dynamic.answer`
+         * of 0 (a GM's packet), this GM's 2, the asker's expiry - C's lines and the record; card D deleted before
+         * this GM's 1 - whether it was sent on with no card to keep it, and the record. Cards are deleted and popups
+         * dismissed after.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the ask is a player's, and Foundry names only a connected one");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which holds the asks - this would measure nothing");
+        const { player, theirs } = playerAndCharacters();
+        const G = await import("./bridge-guards.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const { contentOf, cardFlag } = await import("./secret.mjs");
+        const { TIMING } = await import("./config.mjs");
+        const judged = (action, fields, from, requestId = null) =>
+            G.judge(B.BRIDGE_ACTIONS, { action, ...(requestId ? { requestId } : {}), ...fields }, from, { send: () => {} });
+        const lines = html => {
+            const wrap = document.createElement("template");
+            wrap.innerHTML = html;
+            const all = [...wrap.content.querySelectorAll(".drpg-call-settled")];
+            return [all.filter(el => !el.closest(".drpg-gm-only")).map(el => el.textContent).join(" | ") || null,
+                all.filter(el => el.closest(".drpg-gm-only")).map(el => el.textContent).join(" | ") || null];
+        };
+        const seen = new Set(game.messages.map(m => m.id));
+        const created = [];
+        const hook = Hooks.on("createChatMessage", m => { if (!seen.has(m.id)) created.push(m); });
+        const askOn = async (n, rid) => {
+            await judged("dynamic.difficulty", { actorId: theirs.id, description: `E18 fix early-C1-G1 ${n}`, actorName: theirs.name, room: null }, player.id, rid);
+            must(await until(() => created.length > n, 5000), `ask ${n + 1} put no card up - this would measure nothing`);
+        };
+        const ended = n => () => Boolean(cardFlag(game.messages.get(created[n]?.id ?? ""), "settled"));
+        const record = () => B.dynamicRulingOf({ actorId: theirs.id, at: Date.now() })?.tier ?? null;
+        const buttons = html => {
+            const wrap = document.createElement("template");
+            wrap.innerHTML = html;
+            return wrap.content.querySelectorAll("[data-drpg-call]").length;
+        };
+        const read = [];
+        try {
+            const [ridA, ridB, ridC, ridD] = [1, 2, 3, 4].map(() => foundry.utils.randomID(16));
+            await askOn(0, ridA);
+            read.push(Boolean(await B.answerDynamic(ridA, player.id, { tier: 0, trait: "agility" })));
+            await judged("ruling.received", { rid: ridA }, player.id);
+            must(await until(ended(0), 3000), "card A was not written on its asker's receipt - this would measure nothing");
+            read.push(record());
+
+            await askOn(1, ridB);
+            must(buttons(contentOf(game.messages.get(created[1].id))) === 2, "card B carries no difficulty and refuse buttons - this would measure nothing");
+            read.push(Boolean(await B.answerDynamic(ridB, player.id, { tier: 3, trait: "agility" })));
+            await settle(300);
+            const sentOn = contentOf(game.messages.get(created[1].id));
+            read.push(ended(1)(), record(), lines(sentOn), buttons(sentOn));
+            await until(ended(1), TIMING.ackMs + 3000);
+            read.push(lines(contentOf(game.messages.get(created[1].id))), record());
+
+            await askOn(2, ridC);
+            await judged("dynamic.answer", { rid: ridC, asker: player.id, tier: 0, trait: "agility", refuse: false }, player.id, foundry.utils.randomID(16));
+            read.push(Boolean(await B.answerDynamic(ridC, player.id, { tier: 2, trait: "agility" })));
+            await judged("ruling.expired", { rid: ridC }, player.id);
+            await until(ended(2), 3000);
+            read.push(lines(contentOf(game.messages.get(created[2].id))), record());
+
+            await askOn(3, ridD);
+            await game.messages.get(created[3].id)?.delete();
+            must(await until(() => !game.messages.get(created[3].id), 3000), "card D was not deleted - this would measure nothing");
+            read.push(Boolean(await B.answerDynamic(ridD, player.id, { tier: 1, trait: "agility" })), record());
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            for (const node of [...document.querySelectorAll(".drpg-popup")]) node.dispatchEvent(new CustomEvent("drpg-dismiss"));
+            for (const message of created) await message.delete().catch(() => {});
+            await settle();
+        }
+        const EXPIRED = game.i18n.localize("DRPG.Bridge.settledExpired"), GONE = game.i18n.localize("DRPG.Bridge.settledGone");
+        equal(stableJson(read), stableJson([
+            true, 0,
+            true, false, 3, [null, null], 0, [EXPIRED, GONE], 3,
+            true, [EXPIRED, GONE], 2,
+            false, 2
+        ]), "the record a Dynamic trace's band and its Reroll read is not the ruling the primary sent on, its card's line did not wait for the receipt, or a ruling went with no card to keep it (in order: A sent, the record after A's receipt; B sent, B ended before the clock, the record before any receipt, B's lines and buttons then, B's lines after none came, the record then; C sent by this GM after the asker's own, C's lines after the asker's expiry, the record then; D sent after its card was deleted, the record then)");
+    }],
+
     ["a resent ask finds the card a GM posted for it by its mark and no other: one card for one ask, a player's card, a card posted at a player's asking or another player's mark stop nothing, and a ruled card refuses (E18 C2)", async () => {
         /*
          * E18 C2, 19.10.2026; audit S10-24 (E18-08). The primary knew which asks it had put on a card only in memory
