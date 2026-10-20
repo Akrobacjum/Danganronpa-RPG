@@ -13793,7 +13793,7 @@ const SCENARIOS = [
             + "the GMs' fact on the hand's row after it (the target named, felt, list shown, replayed)]");
     }],
 
-    ["an unseen Frisk at a body the GMs keep reads at the searcher as at a living target on the same dice (A11-5, A11-9, A11-11): a missed cover reads 'They noticed.', every browser gets the same card documents, the body's player reads nothing, and the hand's Reroll answers that the moment stands", async () => {
+    ["an unseen Frisk at a body the GMs keep reads at the searcher as at a living target on the same dice (A11-5, A11-9, A11-11): a missed cover reads 'They noticed.' and a made one 'Nobody saw you do it.', every browser gets the same card documents (whisper list, speaker), the body's player reads nothing, and the hand's Reroll answers as at the living", async () => {
         /*
          * E80 fix sec1-G1 (the review's sec-1; the owner's Q8, option A), 20.10.2026; the A11 design's step 8(d), whose
          * 'always unnoticed' Q8 overrode, and its resolved 16 (rule D of E05 C10: a death nobody has found is not to be felt).
@@ -13813,6 +13813,13 @@ const SCENARIOS = [
          * Red at the parent (82dee66): at the body the cover is never missed (`friskPerson`'s `noticed` is false for any
          * body), so the player reads 'Nobody saw you do it.' on one card document, and the Reroll answers 'what was seen
          * stays seen' or shows the list, where the living target's answers that the moment stands.
+         * E80 fix sec1-G2 (the fix-diff review's sfx-1), 20.10.2026: a count of documents passed a body's card posted
+         * un-veiled (its whisper list the GMs', not in nobody's voice: measured under sec1g2-a), so each document is read
+         * as the Palm cell below reads one - whisper list by role or "everyone", speaker, whether this GM holds its words -
+         * for the Frisk and for its Reroll; and two Frisks under a made cover (16) at each, the one cover no step read:
+         * 'Nobody saw you do it.' on one document, the fact not felt, so a body always noticed shows. Red before it: the
+         * cell as 22cc778 had it passed with the four mutants of sec1-G2 applied together (sec1g2-base); now mutant
+         * sec1g2-a (the body's card un-veiled in `friskPerson`) and sec1g2-c (a body always noticed) each turn it red.
          */
         needs(world.atLeast("connectedPlayersWithCharacter"), "the rolls are a connected player's, as Foundry names only those");
         const G = await import("./bridge-guards.mjs");
@@ -13850,6 +13857,12 @@ const SCENARIOS = [
         };
         const seenOf = words => (words.includes(game.i18n.localize("DRPG.Steal.cardSeen")) ? "seen"
             : words.includes(game.i18n.localize("DRPG.Steal.cardUnseen")) ? "unseen" : null);
+        // A card document as every browser holds it (as the Palm cell below reads one): its whisper list by role, or
+        // "everyone"; its speaker; whether this GM holds its words (E80 fix sec1-G2, the fix-diff review's sfx-1).
+        const everyone = game.users.size;
+        const documentOf = m => [m.whisper.length >= everyone ? "everyone" : [...new Set(m.whisper.map(role))].sort(),
+            m.speaker?.alias === game.i18n.localize("DRPG.Secret.speaker") ? "nobody's voice" : m.speaker?.alias ? "named" : null,
+            S.secretHtml(m) === null ? "no words here" : "words here"];
         const LOW = { hope: 3, fear: 2 }, HIGH = { hope: 9, fear: 5 };
         const held = [];
         const kept = [];
@@ -13868,10 +13881,10 @@ const SCENARIOS = [
             }
             return { made, sent, to: [...new Set(sent.flatMap(packet => packet.to.map(role)))].filter(r => r !== "gm").sort() };
         };
-        const frisk = async (handTotal, next) => {
+        const frisk = async (handTotal, next, coverTotal = 5) => {
             const F = await playerRollBookmark(player, theirs, "rummage", {}, { record: { total: handTotal } });
             held.push(F);
-            const cover = await recordFor({ id: foundry.utils.randomID() }, player, theirs, "palm", { total: 5 });
+            const cover = await recordFor({ id: foundry.utils.randomID() }, player, theirs, "palm", { total: coverTotal });
             kept.push(cover);
             const out = [];
             const judged = await watched(() => G.judge(BRIDGE_ACTIONS, { action: "action.friskUnseen", requestId: `E80S1${foundry.utils.randomID(8)}`,
@@ -13880,7 +13893,7 @@ const SCENARIOS = [
             must(F.row()?.messageId === F.message.id && F.row()?.actionKey === "rummage",
                 `the hand is not the row the GMs keep - this would measure nothing: ${stableJson([F.row()?.actionKey, out])}`);
             const fact = F.row()?.facts?.frisk ?? null;
-            const read = [out, judged.made.length, judged.sent.filter(packet => packet.to.includes(player.id)).map(packet => [kindOf(packet.html), seenOf(packet.html)]),
+            const read = [out, judged.made.map(documentOf), judged.sent.filter(packet => packet.to.includes(player.id)).map(packet => [kindOf(packet.html), seenOf(packet.html)]),
                 judged.to, fact ? [Boolean(fact.seen), Boolean(fact.shown)] : null];
             await trustedWrite(theirs, { "system.resources.hope.value": 6 }, { reason: "gmRuling" });
             const stand = rerollableRoll(F.message, { first: LOW, next });
@@ -13892,17 +13905,21 @@ const SCENARIOS = [
             }
             const after = F.row()?.facts?.frisk ?? null;
             return [read, [Array.isArray(answer?.lines) ? Object.entries(LINES).filter(([, text]) => answer.lines.includes(text)).map(([name]) => name) : answer,
-                again.made.map(message => S.secretHtml(message)).filter(words => words !== null).map(kindOf), again.to,
+                again.made.map(documentOf), again.made.map(message => S.secretHtml(message)).filter(words => words !== null).map(kindOf), again.to,
                 after ? [Boolean(after.seen), Boolean(after.shown), Boolean(after.replayed)] : null]];
         };
         const steps = [];
         try {
             steps.push(["alive: hand 14, cover 5; rerolled to 5", await frisk(14, LOW)]);
             steps.push(["alive: hand 5, cover 5; rerolled to 14", await frisk(5, HIGH)]);
+            steps.push(["alive: hand 14, cover 16; rerolled to 5", await frisk(14, LOW, 16)]);
+            steps.push(["alive: hand 5, cover 16; rerolled to 14", await frisk(5, HIGH, 16)]);
             await deathStore.patch(other.id, { chapter: 99, day: 1, timeOfDay: "night", at: Date.now(), keepBullets: true, known: [] });
             must(isDeadForGm(other) && !knowsOfDeath(player, other.id), `the GMs' row does not keep ${other.name} dead out of the player's knowing - this would measure nothing`);
             steps.push(["a body the GMs keep: hand 14, cover 5; rerolled to 5", await frisk(14, LOW)]);
             steps.push(["a body the GMs keep: hand 5, cover 5; rerolled to 14", await frisk(5, HIGH)]);
+            steps.push(["a body the GMs keep: hand 14, cover 16; rerolled to 5", await frisk(14, LOW, 16)]);
+            steps.push(["a body the GMs keep: hand 5, cover 16; rerolled to 14", await frisk(5, HIGH, 16)]);
         } finally {
             if (deathStore.has(other.id)) await deathStore.drop(other.id);
             for (const F of held.reverse()) await F.putBack();
@@ -13913,18 +13930,26 @@ const SCENARIOS = [
             if (theirs.system.resources.hope.value !== hope) await trustedWrite(theirs, { "system.resources.hope.value": hope }, { reason: "gmRuling" });
             await fixture.back();
         }
-        const P = ["player"], PT = ["player", "target"];
-        equal(stableJson(steps), stableJson([
-            ["alive: hand 14, cover 5; rerolled to 5", [[["settled"], 2, [["list", "seen"]], PT, [true, true]], [["rummageStands"], [], [], [true, true, false]]]],
-            ["alive: hand 5, cover 5; rerolled to 14", [[["settled"], 2, [["missed", "seen"]], PT, [true, false]], [["rummageStands"], [], [], [true, false, false]]]],
-            ["a body the GMs keep: hand 14, cover 5; rerolled to 5", [[["settled"], 2, [["list", "seen"]], P, [true, true]], [["rummageStands"], [], [], [true, true, false]]]],
-            ["a body the GMs keep: hand 5, cover 5; rerolled to 14", [[["settled"], 2, [["missed", "seen"]], P, [true, false]], [["rummageStands"], [], [], [true, false, false]]]]
-        ]), "[for each Frisk: (the reply, the card documents every browser got, what the words to the player say and their seen line, "
-            + "who else got words besides the GMs, the GMs' fact: felt, shown), (its Reroll's lines among the design's, the cards it posted, "
-            + "who got their words besides the GMs, the fact after: felt, shown, replayed)]");
+        // The same rows at the living target and at the body, but for the noticed target's words: its player's at the living, nobody's at the body.
+        const VEILED = ["everyone", "nobody's voice", "words here"];
+        const rows = (label, noticedTo) => [
+            [`${label}: hand 14, cover 5; rerolled to 5`, [[["settled"], [VEILED, VEILED], [["list", "seen"]], noticedTo, [true, true]],
+                [["rummageStands"], [], [], [], [true, true, false]]]],
+            [`${label}: hand 5, cover 5; rerolled to 14`, [[["settled"], [VEILED, VEILED], [["missed", "seen"]], noticedTo, [true, false]],
+                [["rummageStands"], [], [], [], [true, false, false]]]],
+            [`${label}: hand 14, cover 16; rerolled to 5`, [[["settled"], [VEILED], [["list", "unseen"]], ["player"], [false, true]],
+                [["rummageSeen"], [], [], [], [false, true, false]]]],
+            [`${label}: hand 5, cover 16; rerolled to 14`, [[["settled"], [VEILED], [["missed", "unseen"]], ["player"], [false, false]],
+                [[], [VEILED], ["list"], ["player"], [false, true, true]]]]
+        ];
+        equal(stableJson(steps), stableJson([...rows("alive", ["player", "target"]), ...rows("a body the GMs keep", ["player"])]),
+            "[for each Frisk: (the reply, each card document every browser got: whisper list by role or everyone, speaker, words on this GM; "
+            + "what the words to the player say and their seen line, who else got words besides the GMs, the GMs' fact: felt, shown), "
+            + "(its Reroll's lines among the design's, its card documents read so, the words of its cards, who got their words besides the GMs, "
+            + "the fact after: felt, shown, replayed)]");
     }],
 
-    ["an open Frisk at a body the GMs keep, unanswered and let go, posts the card documents a silent living target's end posts, the body's card read by the GMs alone (A11-7, A11-9)", async () => {
+    ["an open Frisk at a body the GMs keep, unanswered and let go, posts the card documents a silent living target's end posts and offers the same force, the body's card read by the GMs alone (A11-7, A11-9)", async () => {
         /*
          * E80 fix sec1-G1 (the review's sec-1, the same road elsewhere; the owner's Q8, option A), 20.10.2026; the A11
          * design's step 8(d), whose 'no card of the target's' Q8 overrode, and its risk 5: a body nobody found is asked of nobody and ends as a silent living target does. The harm: an end that posts a
@@ -13936,6 +13961,12 @@ const SCENARIOS = [
          * ended unanswered and let go, the card documents posted, and who got each card's words besides the GMs.
          * Red at the parent (82dee66): at the body the end posts one document, the searcher's, where the living target's
          * posts two.
+         * E80 fix sec1-G2 (the fix-diff review's sfx-1, sfx-2), 20.10.2026: each document is read as the Palm cell below
+         * reads one (whisper list by role or "everyone", speaker, whether this GM holds its words), and the ask's late
+         * `bridge.done` to the searcher's browser is kept off the socket and read as [to, outcome, forceMs]: the force a
+         * silent body offers is the force a silent living target offers. Red before it: the cell as 22cc778 had it passed
+         * with the four mutants of sec1-G2 applied together (sec1g2-base); now mutant sec1g2-b (`veiled` dropped in
+         * `cardToGms`) and sec1g2-d (`forceMs` null for a silent row in `noYes`) each turn it red.
          */
         needs(world.atLeast("connectedPlayersWithCharacter"), "the ask is a connected player's, as Foundry names only those");
         const G = await import("./bridge-guards.mjs");
@@ -13965,11 +13996,17 @@ const SCENARIOS = [
         const packets = [], made = [];
         const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
         socket.emit = function (event, packet, options, ...rest) {
-            if (packet?.action === "secret.card") packets.push({ ...packet, to: options?.recipients ?? [] });
+            if (["secret.card", "bridge.done"].includes(packet?.action)) packets.push({ ...packet, to: options?.recipients ?? [] });
             return send.call(this, event, packet, options, ...rest);
         };
         const hook = Hooks.on("createChatMessage", message => made.push(message));
         const seenBefore = new Set(game.messages.map(m => m.id));
+        // A card document as every browser holds it (as the Palm cell below reads one): its whisper list by role, or
+        // "everyone"; its speaker; whether this GM holds its words (E80 fix sec1-G2, the fix-diff review's sfx-1).
+        const everyone = game.users.size;
+        const documentOf = m => [m.whisper.length >= everyone ? "everyone" : [...new Set(m.whisper.map(role))].sort(),
+            m.speaker?.alias === game.i18n.localize("DRPG.Secret.speaker") ? "nobody's voice" : m.speaker?.alias ? "named" : null,
+            S.secretHtml(m) === null ? "no words here" : "words here"];
         const run = async () => {
             F.forgetFriskAsks?.();
             const [m0, p0] = [made.length, packets.length];
@@ -13983,8 +14020,12 @@ const SCENARIOS = [
             const closed = await F.sweepFriskAsks(Date.now() + TIMING.friskForceMs + TIMING.friskGraceMs + TIMING.friskRollMs + TIMING.friskMarginMs + 1000);
             await settle();
             const fresh = packets.slice(p0);
-            const cards = made.slice(m0).map(message => [...new Set(fresh.filter(p => p.id === message.id).flatMap(p => p.to.map(role)))].filter(r => r !== "gm").sort());
-            return [out, quiet?.length ?? null, closed?.length ?? null, made.length - m0, cards];
+            const cards = made.slice(m0).map(message => [...new Set(fresh.filter(p => p.action === "secret.card" && p.id === message.id)
+                .flatMap(p => p.to.map(role)))].filter(r => r !== "gm").sort());
+            // The ask's late answer to the searcher's browser, which offers the force by its `forceMs` (the review's sfx-2).
+            const done = fresh.filter(p => p.action === "bridge.done" && p.userId === player.id)
+                .map(p => [p.to.map(role), p.value?.outcome ?? null, p.value?.forceMs ?? null]);
+            return [out, quiet?.length ?? null, closed?.length ?? null, made.slice(m0).map(documentOf), cards, done];
         };
         const stood = await aloneTogether(theirs, other);
         const steps = [];
@@ -14004,11 +14045,12 @@ const SCENARIOS = [
             D.forgetPayments?.(theirs.id);
             await stood.back();
         }
-        equal(stableJson(steps), stableJson([
-            ["a silent living target", [[], 1, 1, 2, [["searcher"], ["target"]]]],
-            ["a body the GMs keep", [[], 1, 1, 2, [["searcher"], []]]]
-        ]), "[for each ask: its reply, the asks ended unanswered, the asks let go, the card documents every browser got, "
-            + "who got each card's words besides the GMs]");
+        // The same rows at the living target and at the body, but for the target's card's words: its player's at the living, the GMs' alone at the body.
+        const VEILED = ["everyone", "nobody's voice", "words here"];
+        const row = targetReads => [[], 1, 1, [VEILED, VEILED], [["searcher"], targetReads], [[["searcher"], "noAnswer", TIMING.friskForceMs]]];
+        equal(stableJson(steps), stableJson([["a silent living target", row(["target"])], ["a body the GMs keep", row([])]]),
+            "[for each ask: its reply, the asks ended unanswered, the asks let go, each card document every browser got (whisper list by role "
+            + "or everyone, speaker, words on this GM), who got each card's words besides the GMs, the late answer to the searcher (to, outcome, forceMs)]");
     }],
 
     ["a Palm's Take and Plant at a body the GMs keep read at the thief as at a living victim on the same dice: the same card documents every browser gets, the same words to the thief, the item moved, and the body's card read by the GMs alone", async () => {
