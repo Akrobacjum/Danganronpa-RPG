@@ -749,8 +749,9 @@ function wordless(message) {
 }
 
 /**
- * Give the cards until the end of a card's wait: any still without words then is drawn as such, its log card and
- * its thread's bubble redrawn. The cards are kept as handed, for a card object no collection holds (R844's).
+ * Give the cards until the end of a card's wait: any still without words then is drawn as such, its log card
+ * redrawn if the log draws it (`redrawIfDrawn`) and its thread's bubble redrawn. A card gone by then, or one no
+ * collection ever held (R844's), is marked and not drawn again: the log's `updateMessage` would post it anew.
  */
 function giveUpLater(messages) {
     const fresh = messages.filter(m => m?.id && !watching.has(m.id) && !unfilled.has(m.id));
@@ -761,10 +762,11 @@ function giveUpLater(messages) {
             watching.delete(handed.id);
             asked.delete(handed.id);
             noticeOnReturn.delete(handed.id);
-            const message = game.messages?.get(handed.id) ?? handed;
-            if (!wordless(message)) continue;
-            unfilled.add(message.id);
-            refresh(message);
+            const message = game.messages?.get(handed.id);
+            if (!wordless(message ?? handed)) continue;
+            unfilled.add(handed.id);
+            if (!message) continue;
+            redrawIfDrawn(message);
             const thread = cardFlag(message, "thread");
             if (thread) Hooks.callAll("drpgMessengerEdited", thread, message);
         }
@@ -1194,6 +1196,25 @@ function refresh(message) {
     }
 }
 
+/*
+ * ONLY A CARD THE LOG DRAWS IS DRAWN AGAIN (E18 fix early-C4-G3, 20.10.2026; review finding E18-C4-R1). The chat log
+ * draws its newest batch of cards, and Foundry's `ChatLog#updateMessage` does not pass over one it has not drawn: it
+ * posts it before the next visible message, and for an old card that one is not drawn either, so the card lands under
+ * the newest message, out of order, and is drawn a second time in its place when the log is scrolled up (the v12/v13
+ * source as the review read it; v14's is LIVE-E18-04). `refresh` asks it for a card whose words just came with the
+ * card, which is the newest; a card's wait ending (`giveUpLater`) and the words a GM gives back after a return come
+ * for any card in the chat, so they ask it only for a card that is still a document and whose li the log holds. One
+ * the log draws later reads the words, or `elsewhereHtml`, at its own render (`drawPrivateCard`).
+ */
+function redrawIfDrawn(message) {
+    const id = message?.id;
+    if (typeof id !== "string" || !/^[A-Za-z0-9]+$/.test(id) || !game.messages?.get(id)) return;
+    const root = ui.chat?.element;
+    const log = root instanceof HTMLElement ? root : root?.[0];
+    if (!log?.querySelector?.(`[data-message-id="${id}"]`)) return;
+    refresh(message);
+}
+
 /* ==========================================================================
  * WIRING
  * ========================================================================== */
@@ -1267,7 +1288,9 @@ export async function onSecretPacket(payload, senderId) {
         const readers = game.user.isGM && writtenByGm(arrived) ? readersOf(arrived, { quiet: true }) : undefined;
         await remember(payload.id, payload.html, payload.at, Boolean(payload.pin), true,
             payload.summary === undefined ? undefined : plainSummary(payload.summary), payload.meta, readers);
-        refresh(game.messages.get(payload.id));
+        // Words asked for after a return are mostly an old card's, which the log may not draw (`redrawIfDrawn`).
+        if (payload.requested === true) redrawIfDrawn(game.messages.get(payload.id));
+        else refresh(game.messages.get(payload.id));
         // Words this browser asked for after a return: the card's notice, once (E18 C4).
         if (payload.requested === true) await cardOnReturn(payload.id);
     } catch (err) {

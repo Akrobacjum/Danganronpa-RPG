@@ -28777,6 +28777,84 @@ const SCENARIOS = [
             `each wait: [the words it answered, within 1000 ms] (measured ${stableJson(ends.map(([, ms]) => Math.round(ms)))} ms) - a wait was pushed out and answered by the ceiling`);
     }],
 
+    ["a private card the chat log has not drawn is not drawn again under the newest card when its wait ends or a GM's words for it come; nor is one deleted in its wait; a card the log draws is (E18 fix early-C4-G3)", async () => {
+        /*
+         * E18 fix early-C4-G3, 20.10.2026 (review finding E18-C4-R1). C4 gave every wordless private card in the chat
+         * a wait (secret.mjs `askForWords`, `giveUpLater`), and at its end redrew it through the log's `updateMessage`;
+         * a GM's words given back after a return (`requested`) were redrawn the same way. Foundry's `ChatLog#updateMessage`
+         * does not pass over a card the log has not drawn - the log draws only its newest batch - but posts it, before
+         * the next visible message, which for an old card is not drawn either: so the card lands under the newest one
+         * (read in the v12/v13 source by the review; v14's is LIVE-E18-04). A card deleted in its wait was redrawn as
+         * handed. Now only a card that is still a document and whose li the log draws is redrawn. Driven on this GM,
+         * with the log said to be rendered (the harness's says nothing, so `refresh` would ask nothing of it) and asked
+         * of no other GM: three wordless cards, one drawn in the log (an li with its id), one not, one deleted in its
+         * wait; after the wait, two more, one drawn and one not, given words as a GM's answer to an ask. Read: which of
+         * them the log was asked to draw again, and which of those it had not drawn (the harness log's record of a card
+         * Foundry would post anew). The cards are deleted, the li taken out and the store put back.
+         */
+        must(game.user.isGM, "this client is not a GM - this would measure nothing");
+        const S = await import("./secret.mjs");
+        const was = foundry.utils.deepClone(getSetting(SETTINGS.secretCards) ?? {});
+        const stored = clientStored();
+        const log = ui.chat?.element?.querySelector?.("#chat-log") ?? ui.chat?.element;
+        must(log, "the chat log has no element to draw a card in - this would measure nothing");
+        const rendered = Object.getOwnPropertyDescriptor(ui.chat, "rendered");
+        const popups = new Set(document.querySelectorAll(".drpg-popup"));
+        const created = [];
+        const lis = [];
+        const names = new Map();
+        const stub = () => ChatMessage.create({ content: S.STUB, whisper: [game.user.id], flags: { [MODULE_ID]: { secret: true } } });
+        const draw = message => {
+            const li = document.createElement("li");
+            li.className = "chat-message message";
+            li.dataset.messageId = message.id;
+            log.append(li);
+            lis.push(li);
+        };
+        const asked = () => {
+            const redrawn = (globalThis.__chatRedrawn ?? []).filter(id => names.has(id)).map(id => names.get(id));
+            const anew = (globalThis.__chatPostedAnew ?? []).filter(id => names.has(id)).map(id => names.get(id));
+            globalThis.__chatRedrawn = [];
+            globalThis.__chatPostedAnew = [];
+            return [redrawn.sort(), anew.sort()];
+        };
+        const read = [];
+        try {
+            ui.chat.rendered = true;
+            const [drawn, old, gone] = [await stub(), await stub(), await stub()];
+            created.push(drawn, old, gone);
+            must(created.every(m => m && S.secretHtml(m) === null), "a card was not posted, or its words are here - this would measure nothing");
+            names.set(drawn.id, "drawn").set(old.id, "old").set(gone.id, "gone");
+            draw(drawn);
+            asked();
+            S.askForWords([]);
+            await gone.delete();
+            await new Promise(r => setTimeout(r, 4400));
+            read.push(asked());
+            const [shown, back] = [await stub(), await stub()];
+            created.push(shown, back);
+            must(shown && back, "a card was not posted - this would measure nothing");
+            names.set(shown.id, "answered, drawn").set(back.id, "answered, not drawn");
+            draw(shown);
+            asked();
+            for (const card of [shown, back]) {
+                await S.onSecretPacket({ action: "secret.card", id: card.id, html: "<p>E18 G3 words</p>", at: Date.now(), requested: true }, game.user.id);
+            }
+            read.push(asked(), [shown, back].map(card => String(S.secretHtml(card) ?? "").includes("E18 G3 words")));
+        } finally {
+            if (rendered) Object.defineProperty(ui.chat, "rendered", rendered); else delete ui.chat.rendered;
+            for (const li of lis) li.remove();
+            for (const node of [...document.querySelectorAll(".drpg-popup")].filter(node => !popups.has(node))) node.dispatchEvent(new CustomEvent("drpg-dismiss"));
+            for (const message of created) await message?.delete().catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.secretCards, was);
+            S.forgetSecrets();
+            putBackStored(stored);
+            await settle();
+        }
+        equal(stableJson(read), stableJson([[["drawn"], []], [["answered, drawn"], []], [true, true]]),
+            "[after the wait: the cards the log was asked to draw again, of those the ones it had not drawn], [the same after a GM's words for two cards], [each answered card holds its words] - a card the log had not drawn, or one deleted in its wait, was posted again under the newest card, or a drawn card was not redrawn");
+    }],
+
     ["a private card to a student's owners reaches every player who owns the student, and an observer of it none (E18 C5; S01-33)", async () => {
         /*
          * E18 C5, 20.10.2026; audit S01-33 (E18-22). `whisperToOwner` and `whisperToOwnerOnly` addressed a card to
