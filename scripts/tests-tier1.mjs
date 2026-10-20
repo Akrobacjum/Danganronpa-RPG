@@ -22,7 +22,7 @@ import { MUSIC_STATES, musicMap } from "./music.mjs";
 import {
     ok, needs, env, world, equal, must, wait, settle, until, cascadeAvailable, LIVE_PROBE,
     moduleSources, otherSources, stripComments, moduleStyles, bodyOf, fnSource, topLevelFunction, lineAround, STANDING, watchLog, stableJson,
-    worldDump, dumpDiff
+    worldDump, dumpDiff, lfText
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -666,7 +666,7 @@ const INVARIANTS = [
         let css = "";
         try {
             const res = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css?t=${Date.now()}`);
-            if (res.ok) css = await res.text();
+            if (res.ok) css = await lfText(res);
         } catch {
             // Reported by the length check below rather than swallowed.
         }
@@ -784,7 +784,7 @@ const INVARIANTS = [
         ok(REMNANT_TYPES[becomes], `a reshape turns traces into "${becomes}", which is not a type`);
 
         const src = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/cleanup.mjs`).then(r => r.text()));
+            await fetch(`/modules/${MODULE_ID}/scripts/cleanup.mjs`).then(lfText));
 
         // One writer, so the two roads cannot part company.
         const body = bodyOf(src, "async function reshapeTrace", { length: 1400 });
@@ -812,7 +812,7 @@ const INVARIANTS = [
          * rather than sharing a promise to stay in step.
          */
         const src = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/cleanup.mjs`).then(r => r.text()));
+            await fetch(`/modules/${MODULE_ID}/scripts/cleanup.mjs`).then(lfText));
 
         const body = bodyOf(src, "async function bodyDestinations", { length: 500 });
         ok(/neighbouringRooms/.test(body),
@@ -836,7 +836,7 @@ const INVARIANTS = [
          * they would have thought of it.
          */
         const src = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/murder-rules.mjs`).then(r => r.text()));
+            await fetch(`/modules/${MODULE_ID}/scripts/murder-rules.mjs`).then(lfText));
 
         // The whole function (E32 C5a): the Class Trial's refusal pushed the fight's past 2600 characters.
         const body = fnSource(src, "betrayalTarget");
@@ -881,7 +881,7 @@ const INVARIANTS = [
         // where it always had. A function ends at its own closing brace.
         // E34 C7a (1.2.70): the writer is incident-store.mjs's; the rest of this reads murder-rules.mjs (E34 C8).
         const writer = fnSource(stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/incident-store.mjs`).then(r => r.text())), "writeState");
+            await fetch(`/modules/${MODULE_ID}/scripts/incident-store.mjs`).then(lfText)), "writeState");
         ok(/armBetrayalWindow/.test(writer),
             "the window is armed somewhere other than the single state writer");
         ok(/before\.stage !== "resolution"/.test(writer),
@@ -906,7 +906,7 @@ const INVARIANTS = [
          * whose whole content is leaving and taking no part in it.
          */
         const src = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/movement.mjs`).then(r => r.text()));
+            await fetch(`/modules/${MODULE_ID}/scripts/movement.mjs`).then(lfText));
 
         const body = bodyOf(src, "function lockedInIncident", { length: 600 });
 
@@ -926,7 +926,7 @@ const INVARIANTS = [
         ok(/incidentParticipants\(\)/.test(body),
             "the lock no longer asks who is in the incident");
         const settingsSrc = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/settings.mjs`).then(r => r.text()));
+            await fetch(`/modules/${MODULE_ID}/scripts/settings.mjs`).then(lfText));
         const fnBody = bodyOf(settingsSrc, "function incidentParticipants", { length: 400 });
         for (const who of ["killerId", "victimId", "thirdId"]) {
             ok(new RegExp(`cast\\.${who}`).test(fnBody),
@@ -945,7 +945,7 @@ const INVARIANTS = [
          * accomplice's presence a penalty on the clean-up.
          */
         const src = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/cleanup.mjs`).then(r => r.text()));
+            await fetch(`/modules/${MODULE_ID}/scripts/cleanup.mjs`).then(lfText));
 
         const body = bodyOf(src, "function witnessesTo", { length: 400 });
         ok(/isCleaner\(actor\)/.test(body),
@@ -981,7 +981,7 @@ const INVARIANTS = [
          * player client to catch it, and the thing that must never be forgotten
          * is one word at one call site.
          */
-        const src = await fetch(`/modules/${MODULE_ID}/scripts/traps.mjs`).then(r => r.text());
+        const src = await fetch(`/modules/${MODULE_ID}/scripts/traps.mjs`).then(lfText);
         const call = bodyOf(src, "callGm(trap.killer", { length: 400 });
         ok(call.length > 20, "traps.mjs no longer calls callGm the way this test expects");
         ok(/gmOnly:\s*true/.test(call),
@@ -999,7 +999,7 @@ const INVARIANTS = [
          */
         const guilty = [];
         for (const file of ["traps", "projects", "projects-secrecy", "gm-panel", "sheet", "murder", "incident-store", "murder-rules", "murder-ui"]) {
-            const src = await fetch(`/modules/${MODULE_ID}/scripts/${file}.mjs`).then(r => r.text());
+            const src = await fetch(`/modules/${MODULE_ID}/scripts/${file}.mjs`).then(lfText);
             for (const m of src.matchAll(/game\.i18n\.localize\([^)]*\)\s*\|\|/g)) {
                 guilty.push(`${file}.mjs :: ${m[0].slice(0, 60)}`);
             }
@@ -1022,7 +1022,7 @@ const INVARIANTS = [
          * test changing the module's shape to suit itself. What must never
          * silently go missing is the clamp, and the clamp is one line.
          */
-        const src = await fetch(`/modules/${MODULE_ID}/scripts/roll-dialog.mjs`).then(r => r.text());
+        const src = await fetch(`/modules/${MODULE_ID}/scripts/roll-dialog.mjs`).then(lfText);
         const cap = src.match(/const ADVANTAGE_CAP\s*=\s*(\d+)/);
         ok(cap, "roll-dialog.mjs no longer declares ADVANTAGE_CAP");
         equal(Number(cap[1]), 3, "the advantage cap is not three dice");
@@ -1188,7 +1188,7 @@ const INVARIANTS = [
          * player's client looking at somebody else's sheet, which is not where
          * this suite runs; the stylesheet is the same everywhere.
          */
-        const raw = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => r.text());
+        const raw = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText);
         // COMMENTS OUT FIRST, and the first run of this test is why. The note
         // above the fixed rule QUOTES the broken one - "`.drpg-redacted-pane
         // { display: flex }` was written to…" - and a scanner reading prose as
@@ -1248,7 +1248,7 @@ const INVARIANTS = [
 
         const missing = [];
         for (const file of files) {
-            const text = await fetch(`/modules/${MODULE_ID}/scripts/${file}.mjs`).then(r => r.text());
+            const text = await fetch(`/modules/${MODULE_ID}/scripts/${file}.mjs`).then(lfText);
             // Every exported opener in the file, and what its body looks like
             // up to the next one. Crude on purpose: a regex that can only ever
             // report a window as unguarded is a regex that fails loudly.
@@ -1489,7 +1489,7 @@ const INVARIANTS = [
         const read = async name => {
             try {
                 const res = await fetch(`/modules/${MODULE_ID}/scripts/${name}?t=${Date.now()}`);
-                return res.ok ? await res.text() : "";
+                return res.ok ? await lfText(res) : "";
             } catch {
                 return "";
             }
@@ -1849,7 +1849,7 @@ const INVARIANTS = [
          * status strip stood on each other below 1224. Each fix is held by its source here;
          * the partition at this window's own size is "the curtain cuts a clean partition".
          */
-        const glass = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/glass.mjs`).then(r => r.text()));
+        const glass = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/glass.mjs`).then(lfText));
         ok(/cols\.find\(c => overOf\(c, b\) > 0\)\s*\?\?/.test(glass),
             "a block joins the first column near it again, not the one it stacks under");
         ok(/b\.w > W \* 0\.5 \|\| inStack\(b\)/.test(glass), "a narrow block in the stack is cut as a loose box again");
@@ -2028,7 +2028,7 @@ const INVARIANTS = [
         ok(/String\(token\.texture\?\.tint/.test(map), "the project sync compares a Color object with a string again");
 
         // The clock's button is on its line; the matrix names lie down; the track has notes.
-        const css = (await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => r.text()))
+        const css = (await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText))
             .replace(/\/\*[\s\S]*?\*\//g, " ");
         ok(/\.drpg-gmp-advance \{[^}]*display: inline-flex/.test(css),
             "the Next time of day button is a block of its own again");
@@ -13968,7 +13968,7 @@ const INVARIANTS = [
 
         // The redraw: one listener, no sound, nothing drawn for a room that is not outlined.
         const listeners = (Hooks.events?.drpgPassagesChanged ?? []).filter(entry => /redrawOutline/.test(String(entry.fn)));
-        const fog = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/fog.mjs`).then(r => r.text()));
+        const fog = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/fog.mjs`).then(lfText));
         const redraw = fnSource(fog, "redrawOutline");
         equal(J([listeners.length, /\bplaySfx\s*\(/.test(redraw), /flashOutline\s*\(/.test(redraw), F.redrawOutline("R557 no such room")]),
             J([1, false, true, false]), "[listeners of a passage change that redraw, a sound in the redraw, it draws the outline, a room not outlined]");
@@ -14030,7 +14030,7 @@ const INVARIANTS = [
         "[a GM's lock through the passage, another's bedroom by the map, through the passage, a claimed passage the character does not know] - refused");
 
         // `via` is read in one line of `restrictedFrom`, the bedroom's; the courtroom is asked after it, apart.
-        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/movement.mjs`).then(r => r.text()));
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/movement.mjs`).then(lfText));
         const restricted = fnSource(src, "restrictedFrom");
         const viaLines = restricted.split("\n").filter(line => /\bvia\b/.test(line));
         const verdict = fnSource(src, "crossingVerdict");
@@ -14039,7 +14039,7 @@ const INVARIANTS = [
             verdict.split("\n").filter(line => /classTrial/.test(line)).some(line => /\bvia\b|passage/.test(line))]),
         J([2, true, false, 2, false]),
         "[lines of restrictedFrom naming via (its signature and one rule), the bedroom's, a lock, seal or chain under via, both of the verdict's connected-rooms rules asking the passage, the courtroom under via]");
-        const eclipse = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/eclipse.mjs`).then(r => r.text()));
+        const eclipse = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/eclipse.mjs`).then(lfText));
         const judge = fnSource(eclipse, "judgeEclipseCrossing");
         ok(/passesThrough\(actor, from, to, scene, floors, \{ known \}\) \? false : crossingRefused\(scene, from, to, floors\)/.test(judge)
             && (judge.match(/\brecord\(/g) ?? []).length === 1 && /record = recordMove\b/.test(judge),
@@ -14303,7 +14303,7 @@ const INVARIANTS = [
         const setting = game.settings.settings.get(`${MODULE_ID}.moveAudit`);
         equal(J([setting?.scope, setting?.config, setting?.default, Object.keys(setting?.choices ?? {})]), J(["world", true, "log", ["log", "sendBack"]]),
             "[the setting's scope, shown in the settings, its default, its choices]");
-        const src = file => fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => r.text()).then(stripComments);
+        const src = file => fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText).then(stripComments);
         const [movement, bridge, own] = await Promise.all([src("movement.mjs"), src("gm-bridge.mjs"), src("movement-audit.mjs")]);
         const seen = fnSource(movement, "noteGmPosition");
         equal(J([/constrainOptions: \{ ignoreWalls: true \}/.test(fnSource(movement, "sendBack")), /constrainOptions: \{ ignoreWalls: true \}/.test(fnSource(bridge, "handleSendback")),
@@ -14698,7 +14698,7 @@ const INVARIANTS = [
         "[through `createPassage` and `repickPassage`: a passage made, one over it, one on a wall inside one room, a second beside the first, picked again over the first and over its own old stretch; the rooms written; passages on the scene] - the console's create must hold its stretch to the scene's other passages");
 
         // Only the primary acts on a wall's change, and only on its segment; the routes the same.
-        const gm = await fetch(`/modules/${MODULE_ID}/scripts/passages-gm.mjs`).then(r => r.text()).then(stripComments);
+        const gm = await fetch(`/modules/${MODULE_ID}/scripts/passages-gm.mjs`).then(lfText).then(stripComments);
         const register = fnSource(gm, "registerPassagesGm");
         equal(J([/Hooks\.on\("updateWall", onWallMoved\)/.test(register), /Hooks\.on\("deleteWall", onWallDeleted\)/.test(register),
             /Hooks\.on\("drpgRouteSettled", onRouteSettled\)/.test(register),
@@ -14708,7 +14708,7 @@ const INVARIANTS = [
         J([true, true, true, [true, true, true], true, true]),
         "[the wall's move watched, its deletion, the routes, each on the primary alone, a move read as a change of its segment, a route "
             + "announced before it stood read only once it stands (E79 fix r3-G3; scenario 76 E runs it)]");
-        const vault = await fetch(`/modules/${MODULE_ID}/scripts/vault.mjs`).then(r => r.text()).then(stripComments);
+        const vault = await fetch(`/modules/${MODULE_ID}/scripts/vault.mjs`).then(lfText).then(stripComments);
         const opener = fnSource(vault, "openRoomSetupDialog");
         ok(/passagesTab\.passagesTabHtml\(scene, \{ students \}\)/.test(opener) && /passagesTab\.wirePassagesTab\(root, scene, \{ dialog, students \}\)/.test(opener),
             "Room Setup does not draw and wire the Passages tab for the scene it was opened on");
@@ -14934,7 +14934,7 @@ const INVARIANTS = [
         equal(J([read({}, "MM"), read({ MM: [...rows.MM, "R563 Pool"] }, "MM"), read({ S1: [...rows.S1, "R563 Pool"] }, "MM"), read({}, null), read({}, "S1")]),
             J([["R563 Hall"], ["R563 Hall"], ["R563 Hall", "R563 Pool"], ["R563 Gym", "R563 Hall", "R563 Lab"], ["R563 Gym", "R563 Lab"]]),
             "[the Mastermind's old row, the Mastermind entering a new room, a student entering one, nobody the Mastermind, another student the Mastermind]");
-        const fog = await fetch(`/modules/${MODULE_ID}/scripts/fog.mjs`).then(r => r.text()).then(stripComments);
+        const fog = await fetch(`/modules/${MODULE_ID}/scripts/fog.mjs`).then(lfText).then(stripComments);
         const record = fnSource(fog, "recordDiscovery");
         ok(record.search(/if \(isMastermind\(actor\)\) return false;/) > 0 && record.search(/if \(isMastermind\(actor\)\) return false;/) < record.search(/await writeCells\(/),
             "recordDiscovery no longer refuses the Mastermind's walk before it writes");
@@ -14991,7 +14991,7 @@ const INVARIANTS = [
             [3, ["R573ALL:secret", "R573ONE:secret", "R573TWO:closed"]]]),
         "[drawn for the first floor, then for the second on the same layer, then for no floor] - the overlay must show the floor it is drawn for");
 
-        const source = file => fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => r.text()).then(stripComments);
+        const source = file => fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText).then(stripComments);
         const [overlay, gm, fog] = await Promise.all(["gm-overlay.mjs", "passages-gm.mjs", "fog.mjs"].map(source));
         equal(J([/Hooks\.on\("canvasReady", \(\) => redrawGmOverlay\(\)\)/.test(fnSource(overlay, "registerGmOverlay")),
             /overlayDrawer\("passages", layer => drawPassagesLayer\(layer\)\)/.test(fnSource(gm, "registerPassagesGm")),
@@ -16414,7 +16414,7 @@ const INVARIANTS = [
         equal(J(master.cards[0].extra.whisper.slice().sort()), J(["R598GM", "R598UM"]), "the Mastermind's card is not to its door owner and the GMs");
 
         // Every card went through the injected whisper, none to the GMs alone, and nothing was posted in this world.
-        const passagesSrc = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/passages-gm.mjs`).then(r => r.text()));
+        const passagesSrc = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/passages-gm.mjs`).then(lfText));
         equal(J([game.messages?.size ?? 0, /whisperToGms|\bgms\(/.test(fnSource(passagesSrc, "resolvePassageSearch")), said.toasts.length, said.cards.every(c => c.extra.whisper.includes("R598GM"))]),
             J([messages, false, 6, true]),
             "[this world's chat, the search's source naming the GMs' whisper, the primary's notes for 6 searches, every card to the GMs too]");
@@ -16619,7 +16619,7 @@ const INVARIANTS = [
         equal(J(said), J([["stash", "here", null], ["stash", "away", `the character is not in "${AWAY}": ${student.name}`],
             ["rest", "here", null], ["rest", "away", `the character is not in "${AWAY}": ${student.name}`], ["passage", "away", null]]),
             "[the report, where, the GM's refusal] - a stash hunt or a rest springs a trap in a room the character is not in (a Find Passage's names no room to ask)");
-        const traps = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/traps.mjs`).then(r => r.text()));
+        const traps = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/traps.mjs`).then(lfText));
         const registered = fnSource(traps, "registerTraps");
         equal(J([/Hooks\.on\("drpgPassageHunted", event => onPassageHunted\(event\)\);/.test(registered), /relay\("passage"/.test(registered),
             /case "passage"/.test(fnSource(traps, "handleTrapEvent"))]), J([true, false, false]),
@@ -17008,7 +17008,7 @@ const INVARIANTS = [
             "[the search, its answer, what the trap and the owner were told in order] - a search the GM judged told no trap, told it after the card or twice, or one that did not stand told it");
 
         // The stash hunt, and the rollers' browsers: read in the module's sources (the hunt itself is tier 2's "A10-7 stash").
-        const code = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => r.text()));
+        const code = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
         const [rolls, vault, reroll] = [await code("action-rolls.mjs"), await code("vault.mjs"), await code("reroll.mjs")];
         const stash = fnSource(vault, "resolveStashSearch");
         const at = re => stash.search(re);
@@ -17782,7 +17782,7 @@ const INVARIANTS = [
         const book = async name => {
             const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${name}.md`);
             must(res.ok, `docs/handbooks/${name}.md did not load`);
-            return res.text();
+            return lfText(res);
         };
         const books = {};
         for (const name of ["player-handbook.en", "player-handbook.pl", "gm-handbook.en", "gm-handbook.pl", "player-brochure.en", "player-brochure.pl"]) books[name] = await book(name);
@@ -17907,7 +17907,7 @@ const INVARIANTS = [
             return [...(call.match(/classes:\s*\[([^\]]*)\]/)?.[1] ?? "").matchAll(/"([^"]+)"/g)].map(m => m[1]);
         };
 
-        const css = await fetch(`/modules/${MODULE_ID}/styles/pixel-icons.css`).then(r => r.text());
+        const css = await fetch(`/modules/${MODULE_ID}/styles/pixel-icons.css`).then(lfText);
         const glyphless = names => names.filter(name => !new RegExp(`\\.${name}:is\\(i, span\\) \\{ --drpg-px-mask: var\\(--drpg-px-[\\w-]+\\); \\}`).test(css));
         const icons = [...palm.content.querySelectorAll(".drpg-choice i")].map(i => [...i.classList].find(c => c.startsWith("fa-") && c !== "fa-solid") ?? null);
 
@@ -17998,7 +17998,7 @@ const INVARIANTS = [
          * the open windows by the close hook it is handed last. At cfbbf60: no catch called anything, and the
          * three steps said nothing.
          */
-        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/roll-dialog.mjs`).then(r => r.text()));
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/roll-dialog.mjs`).then(lfText));
         const catches = [...src.matchAll(/\bcatch\s*(?:\(\s*\w*\s*\))?\s*\{[ \t]*\n/g)];
         ok(catches.length >= 8, `roll-dialog.mjs holds ${catches.length} catch blocks - the file moved and this would read nothing`);
         const silent = catches.map(m => lineAround(src, m.index + m[0].length).trim()).filter(line => !/^failed\("[^"]+", \w+\);/.test(line));

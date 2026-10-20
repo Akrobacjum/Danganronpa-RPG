@@ -10,7 +10,7 @@ import { SETTINGS } from "./settings.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { log } from "./utils.mjs";
 import {
-    ok, needs, env, world, equal, must, wait, moduleSources, otherSources, stripComments, moduleStyles, bodyOf,
+    ok, needs, env, world, equal, must, wait, lfText, moduleSources, otherSources, stripComments, moduleStyles, bodyOf,
     topLevelFunction, fnSource, lineAround, withGuards, lineAt, stripStrings, stringLiterals, STANDING, cast,
     markerProblem, runOne, stageLedger, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE,
     scanSuite, bareCuts, vacuousAsserts, needsArgs, LINT_FIXTURES, UNTIL_FIXTURE, untilProblem, DUMP_RULES,
@@ -394,7 +394,7 @@ const REGRESSIONS = [
         };
 
         const tableFiles = new Set(tables.map(t => t.file));
-        const leafSrc = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/bridge-guards.mjs`).then(r => r.text()));
+        const leafSrc = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/bridge-guards.mjs`).then(lfText));
         const blind = [], idle = [];
         for (const [file, raw] of await otherSources()) {
             const text = stripComments(raw);
@@ -1131,7 +1131,7 @@ const REGRESSIONS = [
          * listeners handle must be a trigger somebody can actually choose.
          */
         const { TRAP_TRIGGERS } = await import("./config.mjs");
-        const src = await fetch(`/modules/${MODULE_ID}/scripts/traps.mjs`).then(r => r.text());
+        const src = await fetch(`/modules/${MODULE_ID}/scripts/traps.mjs`).then(lfText);
 
         // Which events the file actually subscribes to.
         const hooks = new Set([...src.matchAll(/Hooks\.on\("(drpg\w+|createChatMessage)"/g)]
@@ -1236,7 +1236,7 @@ const REGRESSIONS = [
             `these use an item without asking whether a murder is happening: ${guilty.join(", ")}`);
 
         // And the check itself still means what the caller assumes.
-        const sheet = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/sheet.mjs`).then(r => r.text()));
+        const sheet = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/sheet.mjs`).then(lfText));
         const body = bodyOf(sheet, "function inCrisis", { length: 400 });
         ok(/stage\s*!==\s*"incident"/.test(body),
             "inCrisis no longer asks whether the incident has actually started");
@@ -1280,7 +1280,7 @@ const REGRESSIONS = [
         const dead = [];
         for (const [opener, file] of Object.entries(MUST_BE_LIVE)) {
             const text = stripComments(
-                await fetch(`/modules/${MODULE_ID}/scripts/${file}.mjs`).then(r => r.text()));
+                await fetch(`/modules/${MODULE_ID}/scripts/${file}.mjs`).then(lfText));
             // Up to the next top-level declaration, which is where its body ends (null: none).
             const body = topLevelFunction(text, opener);
             if (body === null) { dead.push(`${opener} is not in ${file}.mjs any more`); continue; }
@@ -1321,7 +1321,7 @@ const REGRESSIONS = [
         const blind = [];
         for (const file of new Set(Object.values(MUST_BE_LIVE))) {
             const text = stripComments(
-                await fetch(`/modules/${MODULE_ID}/scripts/${file}.mjs`).then(r => r.text()));
+                await fetch(`/modules/${MODULE_ID}/scripts/${file}.mjs`).then(lfText));
             if (!/\bbulletsOf\(|\bsecretOf\(/.test(text)) continue;
             const watches = [...text.matchAll(/keepLive\(/g)].some(m => {
                 const call = text.slice(m.index, m.index + 400);
@@ -1332,7 +1332,7 @@ const REGRESSIONS = [
         ok(!blind.length, blind.join("; "));
 
         // And the helper still carries the three things a rebuild would eat.
-        const live = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/live.mjs`).then(r => r.text()));
+        const live = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/live.mjs`).then(lfText));
         for (const carried of ["scrolls", "opens", "dirty", "tab"]) {
             ok(live.includes(carried),
                 `keepLive no longer carries "${carried}" across a rebuild`);
@@ -1399,7 +1399,7 @@ const REGRESSIONS = [
          * `resolveStashSearch`), and one who is not the primary relays it. Red at
          * the parent (4263c09): both raised in action-rolls.mjs.
          */
-        const src = await fetch(`/modules/${MODULE_ID}/scripts/traps.mjs`).then(r => r.text());
+        const src = await fetch(`/modules/${MODULE_ID}/scripts/traps.mjs`).then(lfText);
         const clean = stripComments(src);
         // [the one file that raises it, relayed from a GM who is not the primary]
         const ON_GM = { drpgPassageHunted: ["passages-gm.mjs", false], drpgStashHunted: ["vault.mjs", true] };
@@ -1811,7 +1811,7 @@ const REGRESSIONS = [
          * measured at 1017-1113 ms per close on 16.09, which is what made every GM panel tile
          * open its window a second late. This reads the rule back.
          */
-        const css = (await fetch(`/modules/${MODULE_ID}/styles/stained-glass.css`).then(r => r.text()))
+        const css = (await fetch(`/modules/${MODULE_ID}/styles/stained-glass.css`).then(lfText))
             .replace(/\/\*[\s\S]*?\*\//g, " ");
         const block = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
             .find(m => /transition-property:\s*--drpg-glass-accent\s*;/.test(m[2])
@@ -2151,7 +2151,7 @@ const REGRESSIONS = [
          * the paragraph that explains it.
          */
         const src = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/action-rolls.mjs`).then(r => r.text()));
+            await fetch(`/modules/${MODULE_ID}/scripts/action-rolls.mjs`).then(lfText));
         const body = bodyOf(src, "export async function performAction", { until: "\n}\n" });
 
         const gate = body.indexOf('"classTrial"');
@@ -2173,7 +2173,7 @@ const REGRESSIONS = [
         // The courtroom is locked ABOVE the movement economy: a GM who turned the
         // crossing cost off did not turn off the trial.
         const move = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/movement.mjs`).then(r => r.text()));
+            await fetch(`/modules/${MODULE_ID}/scripts/movement.mjs`).then(lfText));
         const cross = bodyOf(move, "function crossingVerdict");
         const locked = cross.indexOf('"classTrial"');
         const charged = cross.indexOf("SETTINGS.chargeMovement");
@@ -2188,7 +2188,7 @@ const REGRESSIONS = [
          * inconsistency by adding the branch it deliberately does not have.
          */
         const callsSrc = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/calls.mjs`).then(r => r.text()));
+            await fetch(`/modules/${MODULE_ID}/scripts/calls.mjs`).then(lfText));
         const hopeGate = bodyOf(callsSrc, "function hopeCallBarred", { until: "export async function spendHopeCall" });
         ok(hopeGate.length > 100 && !hopeGate.includes("classTrial"),
             "Hope Calls are barred during a trial now, which is the opposite of the decision");
@@ -2213,7 +2213,7 @@ const REGRESSIONS = [
          * not move the phase, refill nothing.
          */
         const clockSrc = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/clock.mjs`).then(r => r.text()));
+            await fetch(`/modules/${MODULE_ID}/scripts/clock.mjs`).then(lfText));
         const reconcile = bodyOf(clockSrc, "async function reconcilePhase(", { until: "async function reconcileEclipseEnded(" });
         ok(reconcile.length > 200, "reconcilePhase has moved or gone");
         const entering = bodyOf(reconcile, 'if (to === "classTrial")');
@@ -2224,9 +2224,9 @@ const REGRESSIONS = [
             + "second debate refills the budget again");
 
         const ui2 = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/trial-floor-ui.mjs`).then(r => r.text()));
+            await fetch(`/modules/${MODULE_ID}/scripts/trial-floor-ui.mjs`).then(lfText));
         const floor = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/trial-floor.mjs`).then(r => r.text()));
+            await fetch(`/modules/${MODULE_ID}/scripts/trial-floor.mjs`).then(lfText));
         ok(!ui2.includes("openTrialBudget(") && !floor.includes("openTrialBudget("),
             "a door into the trial pays the budget itself as well as the phase, so the table is paid twice");
     }],
@@ -2242,7 +2242,7 @@ const REGRESSIONS = [
          * 28.08.
          */
         const floorSrc = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/trial-floor.mjs`).then(r => r.text()));
+            await fetch(`/modules/${MODULE_ID}/scripts/trial-floor.mjs`).then(lfText));
         ok(/export function floorRefusal\(/.test(floorSrc), "floorRefusal is not exported any more");
         ok(/export function targetRefusal\(/.test(floorSrc), "targetRefusal is not exported any more");
 
@@ -2255,7 +2255,7 @@ const REGRESSIONS = [
             "openObjection lost its own isGM guard, which the player's window must not have");
 
         const trialSrc = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/trial.mjs`).then(r => r.text()));
+            await fetch(`/modules/${MODULE_ID}/scripts/trial.mjs`).then(lfText));
         ok(!trialSrc.includes("objectionBlockedReason("),
             "trial.mjs is carrying its own copy of the admission rule again");
         ok((trialSrc.match(/floorRefusal\(/g) ?? []).length >= 2,
@@ -2288,7 +2288,7 @@ const REGRESSIONS = [
         ok(trialSrc.includes("gmOnline("), "the Objection stopped asking whether a GM is connected");
         for (const file of ["trial", "sheet", "action-rolls", "cleanup"]) {
             const src = stripComments(
-                await fetch(`/modules/${MODULE_ID}/scripts/${file}.mjs`).then(r => r.text()));
+                await fetch(`/modules/${MODULE_ID}/scripts/${file}.mjs`).then(lfText));
             ok(!/[^A-Za-z]hasGm\(/.test(src),
                 `${file}.mjs calls hasGm to decide something, which toasts every reader`);
         }
@@ -2301,7 +2301,7 @@ const REGRESSIONS = [
          * this reads is the shape that makes that safe.
          */
         const src = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/trial.mjs`).then(r => r.text()));
+            await fetch(`/modules/${MODULE_ID}/scripts/trial.mjs`).then(lfText));
         const seize = bodyOf(src, "async function seizeFloor");
         ok(seize.length > 500, "seizeFloor is gone, so an objection is free again");
 
@@ -2332,7 +2332,7 @@ const REGRESSIONS = [
 
         // The charge is NOT in openObjection, which is what keeps the API free.
         const floorSrc = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/trial-floor.mjs`).then(r => r.text()));
+            await fetch(`/modules/${MODULE_ID}/scripts/trial-floor.mjs`).then(lfText));
         ok(!floorSrc.includes("payPrice("),
             "openObjection charges for itself, so every macro and fixture that calls it now pays");
     }],
@@ -2346,7 +2346,7 @@ const REGRESSIONS = [
          * an amount - because that card is authored on the player's own client.
          */
         const src = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/action-rolls.mjs`).then(r => r.text()));
+            await fetch(`/modules/${MODULE_ID}/scripts/action-rolls.mjs`).then(lfText));
         const analyze = bodyOf(src, "async function performAnalyze", { until: "async function analyseBullet" });
         ok(analyze.length > 500, "performAnalyze moved or vanished");
 
@@ -2380,7 +2380,7 @@ const REGRESSIONS = [
         }
 
         const messenger = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/messenger-app.mjs`).then(r => r.text()));
+            await fetch(`/modules/${MODULE_ID}/scripts/messenger-app.mjs`).then(lfText));
         const body = bodyOf(messenger, "function refundOnCard(", { until: "async function ruleCreateItem(" });
         ok(body.length > 300 && body.includes("async function ruleDecline("),
             "the refusal's refund has moved out of refundOnCard and ruleDecline");
@@ -2659,7 +2659,7 @@ const REGRESSIONS = [
          * a hand's width apart. A relative ceiling with no absolute one beside it is
          * the shape of that defect, so it is the shape this test hunts.
          */
-        const raw = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => r.text());
+        const raw = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText);
         /*
          * COMMENTS BLANKED, NOT DELETED, and both halves matter. Blanked, because
          * the notes beside these rules quote the shapes this test hunts - the one
@@ -2720,7 +2720,7 @@ const REGRESSIONS = [
          * meaning anything. A declaration in this block is the only way that promise
          * can be broken, so the block is read.
          */
-        const raw = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => r.text());
+        const raw = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText);
         const css = raw.replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, " "));
         const at = css.indexOf("body.drpg-high-contrast");
         ok(at > 0, "the high-contrast block is gone, so the switch changes nothing");
@@ -3078,7 +3078,7 @@ const REGRESSIONS = [
         let rungs = 0;
 
         for (const sheet of sheets) {
-            const raw = await fetch(`/modules/${MODULE_ID}/styles/${sheet}`).then(r => r.text());
+            const raw = await fetch(`/modules/${MODULE_ID}/styles/${sheet}`).then(lfText);
             // Comments blanked rather than deleted, so a reported line number still
             // points at the declaration - the rule R51 already follows.
             const css = raw.replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, " "));
@@ -3123,7 +3123,7 @@ const REGRESSIONS = [
          * one promise this makes: a client who never touched the slider sees no
          * change.
          */
-        const raw = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => r.text());
+        const raw = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText);
         const css = raw.replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, " "));
 
         const block = bodyOf(css, "body.drpg-theme-monokuma-legacy {", { until: "}" });
@@ -3188,7 +3188,7 @@ const REGRESSIONS = [
         }
 
         for (const sheet of ["danganronpa.css", "messenger.css"]) {
-            const css = await fetch(`/modules/${MODULE_ID}/styles/${sheet}`).then(r => r.text());
+            const css = await fetch(`/modules/${MODULE_ID}/styles/${sheet}`).then(lfText);
             ok(!css.includes("var(--drpg-type-scale"),
                 `${sheet} reads the screen-term factor, which has no business in a sheet drawn at one size`);
         }
@@ -3205,7 +3205,7 @@ const REGRESSIONS = [
          * 17px under the glass, and handing it to a pixel-font sheet opens a window
          * two thirds empty with its resize handle taken away.
          */
-        const raw = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => r.text());
+        const raw = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText);
         const css = raw.replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, " "));
         ok(/--drpg-popup: calc\(34rem \* var\(--drpg-legacy-scale/.test(css),
             "the prose window's width stopped following the slider");
@@ -3249,7 +3249,7 @@ const REGRESSIONS = [
         ok(sheets.length >= 5, `module.json lists ${sheets.length} stylesheets`);
 
         for (const href of sheets) {
-            const raw = await fetch(`/modules/${MODULE_ID}/${href}`).then(r => r.text());
+            const raw = await fetch(`/modules/${MODULE_ID}/${href}`).then(lfText);
             let open = 0;
             for (const m of raw.matchAll(/\/\*|\*\//g)) {
                 const line = raw.slice(0, m.index).split("\n").length;
@@ -3779,7 +3779,7 @@ const REGRESSIONS = [
          * rather than trusted, because moving it up is a one-line edit that would pin
          * every Stained Glass ring to whatever the last hour rule said.
          */
-        const css = (await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => r.text()))
+        const css = (await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText))
             .replace(/\/\*[\s\S]*?\*\//g, " ");
         for (const hour of ["morning", "noon", "afternoon", "evening", "night"]) {
             ok(css.includes(`body[data-drpg-time="${hour}"] { --drpg-own-ring:`),
@@ -3824,7 +3824,7 @@ const REGRESSIONS = [
             "a track change rebuilds the whole clock, which slides the time of day for "
             + "something neither it nor the room block can see");
 
-        const css = (await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => r.text()))
+        const css = (await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText))
             .replace(/\/\*[\s\S]*?\*\//g, " ");
         ok(/\.drpg-hud-track \{/.test(css), "the band has no rule of its own");
         ok(/drpg-reduced-motion .drpg-hud-track > span \{\s*animation: none/.test(css),
@@ -4567,10 +4567,10 @@ const REGRESSIONS = [
         const scale = bodyOf(settings, "function scaleWindow(", { until: "\n}" });
         ok(!/window-resize-handle.*remove\(\)|resizable = false/.test(scale),
             "the sheet's handle is removed by a one-way edit a theme switch cannot undo");
-        const glass = await fetch(`/modules/${MODULE_ID}/styles/stained-glass.css`).then(r => r.text());
+        const glass = await fetch(`/modules/${MODULE_ID}/styles/stained-glass.css`).then(lfText);
         ok(/body\.drpg-theme-stained-glass \.application\.sheet\.actor\.character > \.window-resize-handle\s*\{\s*display: none/.test(glass),
             "nothing hides the character sheet's handle under the glass");
-        const css = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => r.text());
+        const css = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText);
         const band = bodyOf(css, ".drpg-hud-track {", { until: "@keyframes drpg-track-scroll" });
         ok(/\.drpg-hud-track \{[^}]*width: 0;[^}]*min-width: 100%/.test(band),
             "the track band adds its text's width to the clock's");
@@ -4642,7 +4642,7 @@ const REGRESSIONS = [
          * a single 658px track and a 353px name row, where it had been 16px.
          */
         const css = stripComments(new Map(await otherSources()).get("danganronpa.css")
-            ?? await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => r.text()));
+            ?? await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText));
         const panel = css.match(/(^|\n)#drpg-events\s*\{[^}]*\}/);
         ok(panel, "the Event panel has no unscoped block, so Legacy has no panel structure");
         ok(/order:\s*15\s*;/.test(panel[0]),
@@ -4738,7 +4738,7 @@ const REGRESSIONS = [
         }
 
         /* And the frame both cards share: the title band in the flow, the size a frame late. */
-        const css = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => r.text());
+        const css = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText);
         ok(/\.application\.sheet:has\(\.drpg-remnant-card\)\s*>\s*\.window-header\s*\{[^}]*position:\s*relative/.test(css),
             "the NPC sheet's title band still lies over the card's own header");
         const ring = stripComments(sources.get("remnant-ring.mjs") ?? "");
@@ -4848,12 +4848,12 @@ const REGRESSIONS = [
         for (const name of HANDBOOKS) {
             const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${name}.md`);
             ok(res.ok, `docs/handbooks/${name}.md did not load`);
-            const head = (await res.text()).split("\n").slice(0, 5).join("\n");
+            const head = (await lfText(res)).split("\n").slice(0, 5).join("\n");
             if (!head.includes(version)) stale.push(`${name} (${head.match(/\d+\.\d+\.\d+/)?.[0] ?? "no version"})`);
         }
         const readme = await fetch(`/modules/${MODULE_ID}/README.md`);
         ok(readme.ok, "README.md did not load");
-        const said = (await readme.text()).match(/describe version (\d+\.\d+\.\d+)\./)?.[1] ?? "nothing";
+        const said = (await lfText(readme)).match(/describe version (\d+\.\d+\.\d+)\./)?.[1] ?? "nothing";
         if (said !== version) stale.push(`README (${said})`);
         ok(!stale.length, `module.json says ${version}, these say otherwise: ${stale.join(", ")}`);
     }],
@@ -5105,7 +5105,7 @@ const REGRESSIONS = [
          * the click on Hope and the traits, so the switch looked broken. The rules now
          * hang on a body class the setting stamps.
          */
-        const css = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => r.text());
+        const css = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText);
         const rules = stripComments(css);
         ok(!/body:not\(\.drpg-gm\)[^{]*(\.hope-value|trait-value|name\*="traits")/.test(rules),
             "a player lock still hangs on being not-a-GM rather than on the setting");
@@ -6311,7 +6311,7 @@ const REGRESSIONS = [
         // `.hint.<key>`) being every DRPG.Season string.
         const named = new Set();
         for (const file of ["gm-team-dialog.mjs", "season-setup.mjs"]) {
-            const src = await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => r.text());
+            const src = await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText);
             for (const m of src.matchAll(/["`](DRPG\.[A-Za-z0-9_.]*[A-Za-z0-9_])["`]/g)) named.add(m[1]);
         }
         const inScope = key => named.has(key) || key.startsWith("DRPG.Season.");
@@ -8564,7 +8564,7 @@ const REGRESSIONS = [
             "the census judge does not tell a planted reader without a row, or a row without its reader");
 
         const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
-        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.text());
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(lfText);
         const sources = [...await otherSources(), ["module.json", manifest]];
         const found = censusOf(BRIDGE_ACTIONS, sources);
         const count = kind => found.filter(key => key.startsWith(`${kind} `)).length;
@@ -9090,7 +9090,7 @@ const REGRESSIONS = [
          * the glass harness's `drpgVoiceParts`, in Chromium. THE CONTROL: a name with no sprite is found missing.
          */
         const src = stripComments(new Map(await otherSources()).get("voice-tile.mjs") ?? "");
-        const css = await fetch(`/modules/${MODULE_ID}/styles/pixel-icons.css`).then(r => r.text());
+        const css = await fetch(`/modules/${MODULE_ID}/styles/pixel-icons.css`).then(lfText);
         const names = [...src.matchAll(/\b(?:miniButton|rowButton)\(\s*"[^"]*",\s*"([\w-]+)"|\bglyph\(\s*"([\w-]+)"\s*\)/g)].map(m => m[1] ?? m[2]);
         const missing = list => list.filter(n => !new RegExp(`--drpg-px-${n}:\\s*url\\(`).test(css));
         equal(JSON.stringify([[...new Set(names)].sort(), missing(names), missing(["no-such-sprite"])]), JSON.stringify([["lock", "mic", "sound"], [], ["no-such-sprite"]]),
@@ -9943,7 +9943,7 @@ const REGRESSIONS = [
         for (const lang of ["en", "pl"]) {
             const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/gm-handbook.${lang}.md`);
             ok(res.ok, `docs/handbooks/gm-handbook.${lang}.md did not load`);
-            const text = await res.text();
+            const text = await lfText(res);
             const section = text.split(/^(?=#{2,3} )/m).find(part => part.startsWith("### 9.6 ")) ?? "";
             ok(section.split("\n").length > 3, `docs/handbooks/gm-handbook.${lang}.md has no section 9.6 - this test measured nothing`);
             missing[lang] = WANT[lang].filter(words => !section.includes(words));
@@ -10376,7 +10376,7 @@ const REGRESSIONS = [
         must((sources.get("hud.mjs") ?? "").length > 1000, "hud.mjs is not among the module's sources - this would measure nothing");
         const sheets = new Map();
         for (const name of ["danganronpa.css", "stained-glass.css", "narrow.css"])
-            sheets.set(name, stripComments(await fetch(`/modules/${MODULE_ID}/styles/${name}`).then(r => (r.ok ? r.text() : ""))));
+            sheets.set(name, stripComments(await fetch(`/modules/${MODULE_ID}/styles/${name}`).then(r => (r.ok ? lfText(r) : ""))));
         must([...sheets.values()].every(text => text.length > 1000), "a stylesheet did not load - this would measure nothing");
         equal(JSON.stringify(formula(new Map([...sources].map(([file, text]) => [file, stripComments(text)])), sheets)), JSON.stringify([true, [], []]),
             "[glass.mjs exports roomPlacement and writes --drpg-room-h; the other sources naming a room variable or a second formula; the sheets declaring one]");
@@ -11526,7 +11526,7 @@ const REGRESSIONS = [
             for (const book of ["player", "gm"]) {
                 const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${book}-handbook.${lang}.md`);
                 ok(res.ok, `docs/handbooks/${book}-handbook.${lang}.md did not load`);
-                lines[book] = (await res.text()).split("\n");
+                lines[book] = (await lfText(res)).split("\n");
             }
             const lineOf = (book, re) => {
                 const line = lines[book].find(l => re.test(l));
@@ -11754,7 +11754,7 @@ const REGRESSIONS = [
             for (const book of ["gm", "player"]) {
                 const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${book}-handbook.${lang}.md`);
                 ok(res.ok, `docs/handbooks/${book}-handbook.${lang}.md did not load`);
-                lines[book] = (await res.text()).split("\n");
+                lines[book] = (await lfText(res)).split("\n");
                 ok(lines[book].length > 1, `docs/handbooks/${book}-handbook.${lang}.md is empty - this test measured nothing`);
             }
             const said = (book, re) => lines[book].some(l => re.test(l));
@@ -12219,7 +12219,7 @@ const REGRESSIONS = [
             for (const book of ["gm", "player"]) {
                 const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${book}-handbook.${lang}.md`);
                 ok(res.ok, `docs/handbooks/${book}-handbook.${lang}.md did not load`);
-                lines[book] = (await res.text()).split("\n");
+                lines[book] = (await lfText(res)).split("\n");
                 ok(lines[book].length > 1, `docs/handbooks/${book}-handbook.${lang}.md is empty - this test measured nothing`);
             }
             const said = (book, re) => lines[book].some(l => re.test(l));
@@ -12423,7 +12423,7 @@ const REGRESSIONS = [
             for (const book of ["gm", "player"]) {
                 const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${book}-handbook.${lang}.md`);
                 ok(res.ok, `docs/handbooks/${book}-handbook.${lang}.md did not load`);
-                lines[book] = (await res.text()).split("\n");
+                lines[book] = (await lfText(res)).split("\n");
                 ok(lines[book].length > 1, `docs/handbooks/${book}-handbook.${lang}.md is empty - this test measured nothing`);
             }
             const said = (book, re) => lines[book].some(l => re.test(l));
@@ -12464,7 +12464,7 @@ const REGRESSIONS = [
         const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
         const rules = [];
         for (const href of manifest.styles ?? []) {
-            const css = stripComments(await fetch(`/modules/${MODULE_ID}/${href}`).then(r => r.text()));
+            const css = stripComments(await fetch(`/modules/${MODULE_ID}/${href}`).then(lfText));
             for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
                 for (const selector of m[1].split(/,(?![^(]*\))/)) {
                     const sel = selector.trim().replace(/\s+/g, " ");
@@ -12542,7 +12542,7 @@ const REGRESSIONS = [
             for (const book of ["gm", "player"]) {
                 const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${book}-handbook.${lang}.md`);
                 ok(res.ok, `docs/handbooks/${book}-handbook.${lang}.md did not load`);
-                text[book] = await res.text();
+                text[book] = await lfText(res);
                 ok(text[book].split("\n").length > 1, `docs/handbooks/${book}-handbook.${lang}.md is empty - this test measured nothing`);
             }
             const gm = text.gm.split("\n");
@@ -12742,7 +12742,7 @@ const REGRESSIONS = [
             for (const book of ["player-handbook", "player-brochure", "gm-handbook"]) {
                 const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${book}.${lang}.md`);
                 ok(res.ok, `docs/handbooks/${book}.${lang}.md did not load`);
-                text[book] = await res.text();
+                text[book] = await lfText(res);
                 ok(text[book].split("\n").length > 1, `docs/handbooks/${book}.${lang}.md is empty - this test measured nothing`);
             }
             const tips = section(text["player-handbook"], 16), look = section(text["gm-handbook"], 18), safeword = section(text["gm-handbook"], 19);
@@ -12778,7 +12778,7 @@ const REGRESSIONS = [
          * every stage the design names for it. At E81 C14 the `--drpg-corner*` tokens named none; C15 added it.
          */
         const sources = await moduleSources();
-        const sheet = name => fetch(`/modules/${MODULE_ID}/styles/${name}`).then(r => (r.ok ? r.text() : ""));
+        const sheet = name => fetch(`/modules/${MODULE_ID}/styles/${name}`).then(r => (r.ok ? lfText(r) : ""));
         const files = new Map(sources);
         for (const name of ["danganronpa.css", "stained-glass.css", "narrow.css"]) files.set(name, await sheet(name));
         const TAKE = ["E18", "E23", "E49", "E55", "E77", "E78"];
@@ -12863,10 +12863,10 @@ const REGRESSIONS = [
             for (const book of ["player-handbook", "gm-handbook"]) {
                 const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${book}.${lang}.md`);
                 ok(res.ok, `docs/handbooks/${book}.${lang}.md did not load`);
-                text[book] = await res.text();
+                text[book] = await lfText(res);
                 ok(text[book].split("\n").length > 100, `docs/handbooks/${book}.${lang}.md is nearly empty - this test measured nothing`);
             }
-            const brochure = await fetch(`/modules/${MODULE_ID}/docs/handbooks/player-brochure.${lang}.md`).then(r => (r.ok ? r.text() : ""));
+            const brochure = await fetch(`/modules/${MODULE_ID}/docs/handbooks/player-brochure.${lang}.md`).then(r => (r.ok ? lfText(r) : ""));
             ok(brochure.split("\n").length > 40, `docs/handbooks/player-brochure.${lang}.md did not load or is nearly empty - this test measured nothing`);
             const clockSection = section(text["gm-handbook"], 4);
             ok(clockSection.split("\n").filter(line => ON[lang].test(line)).length > 2, `the GM's section 4 (${lang}) names neither the HUD nor the clock - this test measured nothing`);
@@ -13082,7 +13082,7 @@ const REGRESSIONS = [
             return [hope, despair, either, [badge("hope"), badge("despair")], inks, ratios];
         };
         const css = stripComments(new Map(await otherSources()).get("stained-glass.css")
-            ?? await fetch(`/modules/${MODULE_ID}/styles/stained-glass.css`).then(r => r.text()));
+            ?? await fetch(`/modules/${MODULE_ID}/styles/stained-glass.css`).then(lfText));
         must(css.length > 10000 && css.includes(BASE), "stained-glass.css or its dice rule is not among the module's sources - this would measure nothing");
         const planted = (from, to) => { must(css.includes(from), `the sheet has no "${from}"`); return css.replace(from, to); };
         const base = bodyOf(css, `${BASE} {`, { until: "}" });
@@ -13121,7 +13121,7 @@ const REGRESSIONS = [
         const J = JSON.stringify;
         const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(res => res.json());
         const sheets = [];
-        for (const href of manifest.styles ?? []) sheets.push([href.split("/").at(-1), (await fetch(`/modules/${MODULE_ID}/${href}`).then(res => res.text())).replace(/\/\*[\s\S]*?\*\//g, " ")]);
+        for (const href of manifest.styles ?? []) sheets.push([href.split("/").at(-1), (await fetch(`/modules/${MODULE_ID}/${href}`).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, " ")]);
         must(sheets.length >= 5 && sheets.some(([name]) => name === "narrow.css"), `module.json loads ${sheets.map(([name]) => name).join(", ")} - not the module's sheets`);
         const split = list => {
             const out = [];
@@ -13444,7 +13444,7 @@ const REGRESSIONS = [
             for (const [book, file] of Object.entries(BOOKS)) {
                 const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${file}.${lc}.md`);
                 ok(res.ok, `docs/handbooks/${file}.${lc}.md did not load`);
-                text[book] = await res.text();
+                text[book] = await lfText(res);
                 ok(text[book].split("\n").length > 10, `docs/handbooks/${file}.${lc}.md is empty - this test measured nothing`);
             }
             const measured = {}, expected = {};
@@ -13644,7 +13644,7 @@ const REGRESSIONS = [
             for (const book of ["gm-handbook", "player-handbook"]) {
                 const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${book}.${lang}.md`);
                 ok(res.ok, `docs/handbooks/${book}.${lang}.md did not load`);
-                text[book] = await res.text();
+                text[book] = await lfText(res);
                 ok(text[book].split("\n").length > 10, `docs/handbooks/${book}.${lang}.md is empty - this test measured nothing`);
             }
             measured[lang] = {
@@ -13678,7 +13678,7 @@ const REGRESSIONS = [
             ok(Object.keys(opening).length > 0, `lang/${lang}.json has no DRPG.Roll.opening - this test measured nothing`);
             const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/player-handbook.${lang}.md`);
             ok(res.ok, `docs/handbooks/player-handbook.${lang}.md did not load`);
-            const book = await res.text();
+            const book = await lfText(res);
             ok(book.split("\n").length > 10, `docs/handbooks/player-handbook.${lang}.md is empty - this test measured nothing`);
             measured[lang] = {
                 titles: Object.fromEntries(Object.keys(WORDS[lang]).map(key => [key, opening[key] ?? null])),
@@ -13709,7 +13709,7 @@ const REGRESSIONS = [
             ok(name.length > 0 && hint.length > 0, `lang/${lang}.json has no DRPG.Settings.forceDiceLook name or hint - this test measured nothing`);
             const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/gm-handbook.${lang}.md`);
             ok(res.ok, `docs/handbooks/gm-handbook.${lang}.md did not load`);
-            const book = await res.text();
+            const book = await lfText(res);
             const at = book.toLocaleLowerCase(lang).indexOf(`*${name.toLocaleLowerCase(lang)}*`);
             ok(at >= 0, `docs/handbooks/gm-handbook.${lang}.md does not name *${name}* - this test measured nothing`);
             measured[lang] = { bookSays: lineAround(book, at).includes(CLAUSE[lang]), hintSays: hint.includes(CLAUSE[lang]), primary: PRIMARY[lang].test(hint) };

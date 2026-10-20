@@ -105,7 +105,8 @@ const stagesLib = await import(url.pathToFileURL(path.join(REPO, "tools", "stage
 const argv = process.argv.slice(2);
 const releaseAt = argv.indexOf("--release");
 const RELEASE = releaseAt >= 0 ? argv[releaseAt + 1] ?? "" : null;
-const read = rel => fs.readFileSync(path.join(REPO, rel), "utf8");
+/* LF line ends whatever the checkout has (lint.lf; 1.2.80 train, fix crlf-G1): every reader below matches "\n". */
+const read = rel => lint.lf(fs.readFileSync(path.join(REPO, rel), "utf8"));
 const exists = rel => fs.existsSync(path.join(REPO, rel));
 const EM = "\u2014", EN = "\u2013";
 const HANDBOOKS = ["gm-handbook", "player-handbook", "player-brochure"].flatMap(b => ["en", "pl"].map(l => `docs/handbooks/${b}.${l}.md`));
@@ -408,7 +409,7 @@ async function moves() {
 
 function contract() {
     const problems = [];
-    for (const name of ["bareCuts", "vacuousAsserts", "needsArgs", "vacuousChecks"]) {
+    for (const name of ["bareCuts", "vacuousAsserts", "needsArgs", "vacuousChecks", "rawTextReads"]) {
         const fx = lint.FIXTURES[name];
         const lines = lint[name](fx.text).found.map(f => f.line).sort((a, b) => a - b);
         if (JSON.stringify(lines) !== JSON.stringify(fx.flags)) {
@@ -416,9 +417,9 @@ function contract() {
         }
     }
     const tiers = fs.readdirSync(path.join(REPO, "scripts")).filter(f => lint.TEST_FILE.test(f)).sort();
-    const count = { tests: 0, cuts: 0, asserts: 0, needs: 0, checks: 0 };
+    const count = { tests: 0, cuts: 0, asserts: 0, needs: 0, checks: 0, reads: 0 };
     for (const file of tiers) {
-        const text = fs.readFileSync(path.join(REPO, "scripts", file), "utf8");
+        const text = read(`scripts/${file}`);
         count.tests += lint.testsIn(text).length;
         for (const [key, detector] of [["cuts", lint.bareCuts], ["asserts", lint.vacuousAsserts], ["needs", lint.needsArgs]]) {
             const r = detector(text);
@@ -428,10 +429,19 @@ function contract() {
     }
     const scenarios = fs.readdirSync(path.join(REPO, "audit", "harness", "scenarios")).filter(f => f.endsWith(".mjs")).sort();
     for (const file of scenarios) {
-        const r = lint.vacuousChecks(fs.readFileSync(path.join(REPO, "audit", "harness", "scenarios", file), "utf8"));
+        const r = lint.vacuousChecks(read(`audit/harness/scenarios/${file}`));
         count.checks += r.read;
         problems.push(...r.found.map(f => `audit/harness/scenarios/${file}:${f.line}: ${f.what}`));
     }
+    /* Every served file the suite reads, read with lf (1.2.80 train, fix crlf-G1): the kit, the runner and the
+       tiers - every suite file - not the tier files alone, since the kit's readers are the ones most tests use. */
+    const suiteFiles = fs.readdirSync(path.join(REPO, "scripts")).filter(f => /^tests(-[\w-]+)?\.mjs$/.test(f)).sort();
+    for (const file of suiteFiles) {
+        const r = lint.rawTextReads(read(`scripts/${file}`));
+        count.reads += r.read;
+        problems.push(...r.found.map(f => `scripts/${file}:${f.line}: ${f.what}`));
+    }
+    if (!count.reads) problems.push("no read of a served file was seen in the suite's files - rawTextReads read nothing");
     if (!tiers.length || !count.tests) problems.push("no tier file with tests was read");
     if (!scenarios.length || !count.checks) problems.push("no scenario with checks was read");
     /* R171's half over the harness scenarios (E04, 26.09.2026): no scenario reads or
@@ -449,7 +459,7 @@ function contract() {
     const allowed = new Set();
     let storeReads = 0, rawReads = 0;
     for (const file of scenarios) {
-        const r = lint.storeKeyAccess(fs.readFileSync(path.join(REPO, "audit", "harness", "scenarios", file), "utf8"), watched);
+        const r = lint.storeKeyAccess(read(`audit/harness/scenarios/${file}`), watched);
         storeReads += r.read;
         for (const f of r.found) {
             rawReads++;
@@ -462,7 +472,7 @@ function contract() {
         if (!allowed.has(row)) problems.push(`GM_STORE_SCENARIO_ALLOW (scripts/tests-lint.mjs) ${row}: no such raw read is left - take the row out`);
     }
     console.log(`contract: ${tiers.length} files of tests (the tiers and the grid), ${count.tests} tests, ${count.cuts} slice/split calls, `
-        + `${count.asserts} ok/equal/needs calls, ${count.needs} needs() calls; ${scenarios.length} scenarios, `
+        + `${count.asserts} ok/equal/needs calls, ${count.needs} needs() calls, ${count.reads} served-file reads in ${suiteFiles.length} suite files; ${scenarios.length} scenarios, `
         + `${count.checks} check() calls; R171: ${watched.keys.length} GM store keys, ${storeReads} settings reads in the scenarios, `
         + `${rawReads} raw on a store key (${allowed.size} allowed rows); ${problems.length} problem(s)`);
     return problems;

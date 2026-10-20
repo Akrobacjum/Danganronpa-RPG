@@ -51,6 +51,20 @@ export function stripComments(text) {
         .replace(/([^:\w])\/\/[^\n]*$/gm, "$1");
 }
 
+/**
+ * Text with its line ends made LF (1.2.80 train, fix crlf-G1). A checkout with
+ * Windows line ends (git's core.autocrlf true, which a Windows GM's clone has)
+ * serves and reads every file with CRLF, and the suite's markers are written with
+ * "\n": `until: "\n}\n"`, a line split on "\n" then matched to its `$`, a table row
+ * read up to its last "|". The first CRLF run (CI 39379871637, on 588c8dd) went red
+ * on that alone. So every read of a file the module ships goes through this once,
+ * where it is read - the kit's lfText (moduleSources, moduleStyles, bridgeTables and
+ * every fetch of the tier files), tools/check.mjs, tools/registry.mjs and
+ * tools/stages.mjs - and a test's patterns need not know.
+ * A lone "\r" is left as it is: no file here is written with one.
+ */
+export const lf = text => String(text).replace(/\r\n/g, "\n");
+
 /** Line number of an index, for a failure message somebody has to act on. */
 export const lineAt = (text, index) => text.slice(0, index).split("\n").length;
 
@@ -399,6 +413,27 @@ export function redMarkers(text) {
 }
 
 /**
+ * A served file's text read without `lf` (1.2.80 train, fix crlf-G1): a `.text()`
+ * call that is not `lf(await <name>.text())`. The kit's lfText is that form, and
+ * every other read in the kit and the tiers goes through it, so a test written
+ * with "\n" reads a CRLF checkout as it reads an LF one. A `.text()` in a string
+ * or a comment is not a read. `read` counts the `.text()` calls and the lfText
+ * uses seen. tools/check.mjs contract runs it over the tier files and the kit.
+ */
+export function rawTextReads(text) {
+    const code = blankComments(text), blank = blankLiterals(code);
+    const found = [];
+    let read = 0;
+    for (const m of blank.matchAll(/\.text\s*\(\s*\)|\blfText\b/g)) {
+        read++;
+        if (m[0] === "lfText") continue;
+        if (/\blf\(\s*await\s+[\w$]+$/.test(blank.slice(Math.max(0, m.index - 80), m.index))) continue;
+        found.push({ line: lineAt(code, m.index), what: "a .text() read without lf() - read a served file with the kit's lfText" });
+    }
+    return { found, read };
+}
+
+/**
  * A harness scenario's `check(name, true, ...)` - a line posing as a verdict,
  * which adds one to the passed count and measures nothing - and a `|| true` at
  * the top of a check's condition.
@@ -567,6 +602,18 @@ export const FIXTURES = Object.freeze({
             "    // [\"three\", async () => {}, expectedRed(\"E99\", \"a comment is not a marker\")],",
             "    [\"four\", async () => { ok(false, \"x\"); }, expectedRed('E31', \"why\", { failing: \"x\" })]",
             "];"
+        ].join("\n")
+    },
+    rawTextReads: {
+        flags: [2, 3, 5],
+        text: [
+            "const a = await fetch(url).then(lfText);",
+            "const b = await fetch(url).then(r => r.text());",
+            "const c = await res.text();",
+            "const d = lf(await res.text());",
+            "const e = (await readme.text()).split(\"\\n\");",
+            "// const f = await res.text();",
+            "const g = \"res.text()\";"
         ].join("\n")
     },
     storeKeyAccess: {

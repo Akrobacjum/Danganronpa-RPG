@@ -56,7 +56,7 @@ const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, "..");
 /* The suite's own reading of a marker (scripts/tests-lint.mjs, which imports nothing, so
    Node can load it): the suite and this tool cannot disagree about what a marker is. */
-const { redMarkers, blankComments, lineAt, TEST_FILE } = await import(url.pathToFileURL(path.join(REPO, "scripts", "tests-lint.mjs")).href);
+const { redMarkers, blankComments, lineAt, TEST_FILE, lf } = await import(url.pathToFileURL(path.join(REPO, "scripts", "tests-lint.mjs")).href);
 
 const VERSION_RE = /^\d+\.\d+\.\d+$/;
 const TOUCHES = ["sockets", "rolls", "scenes"];
@@ -141,7 +141,7 @@ export function stageMarkers(repoDir = REPO) {
     const out = [];
     const dir = path.join(repoDir, "scripts");
     for (const file of fs.readdirSync(dir).filter(f => TEST_FILE.test(f)).sort()) {
-        for (const m of redMarkers(fs.readFileSync(path.join(dir, file), "utf8")).found) {
+        for (const m of redMarkers(lf(fs.readFileSync(path.join(dir, file), "utf8"))).found) {
             out.push({ file: `scripts/${file}`, line: m.line, kind: "expectedRed", stage: m.stage });
         }
     }
@@ -150,7 +150,7 @@ export function stageMarkers(repoDir = REPO) {
        reported, so a renamed table is not read as one with nothing in it. */
     const kit = path.join(dir, "tests-kit.mjs");
     if (fs.existsSync(kit)) {
-        const code = blankComments(fs.readFileSync(kit, "utf8"));
+        const code = blankComments(lf(fs.readFileSync(kit, "utf8")));  // LF: the table ends at "\n];" (fix crlf-G1)
         const start = code.search(/^const DUMP_RULES = \[/m);
         if (start < 0) {
             out.push({ file: "scripts/tests-kit.mjs", line: 1, kind: "until", stage: null, missing: "no DUMP_RULES table" });

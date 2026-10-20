@@ -16,7 +16,7 @@ import { forcedDeletion } from "./utils.mjs";
 import { gmStoresIdle } from "./gm-store.mjs";
 import {
     ok, must, needs, env, world, equal, wait, settle, until, moduleSources, otherSources, stripComments, moduleStyles, bodyOf, fnSource,
-    STANDING, stableJson, moduleSettingValues, clientStored, putBackStored, watchLog, cast, systemSheetsAvailable
+    STANDING, stableJson, moduleSettingValues, clientStored, putBackStored, watchLog, cast, systemSheetsAvailable, lfText
 } from "./tests-kit.mjs";
 import { GRID } from "./tests-grid.mjs";
 
@@ -8595,14 +8595,17 @@ const SCENARIOS = [
                 : new Promise(resolve => setTimeout(() => { open = true; openedAt = Date.now(); resolve("answered"); }, opensIn)));
         };
         let first = null, second = null, refusedFrom = null;
+        const said = [], consoleWarn = console.warn;
         try {
             shut(1500);
             first = await drawnForPlayer(player, theirs);
             putBack();
             shut(null);
             refusedFrom = Date.now();
+            console.warn = (...args) => { said.push(args.map(String).join(" ")); return consoleWarn.apply(console, args); };
             second = await drawnForPlayer(player, theirs);
         } finally {
+            console.warn = consoleWarn;
             putBack();
             if (second) await second.putBack();
             if (first) await first.putBack();
@@ -8610,10 +8613,17 @@ const SCENARIOS = [
         }
         // The player is told the closed list's code; the GM's log keeps the reason (bridge-guards.mjs `reasonOf`) - one row a
         // repeat only re-dates (utils.mjs `record`), so a row from an earlier run in this session is not taken for this one's.
+        // THE LOG KEEPS ITS FIRST 60 ROWS (utils.mjs SESSION_LOG_CAP), and a new reason past them is said on the console
+        // only. The whole suite in one page fills them before this test (1.2.80 train, fix crlf-G1: the unsharded CRLF
+        // run, 63 different GM errors and warnings before this one), and CI's shards did not. So the reason is read where
+        // utils.mjs `warn` always says it (bridge-guards.mjs `refuse`), the GM's console, during the refused draw; and in
+        // the log as well whenever the log has a row left for it.
         const told = second?.sent?.find(r => r.action === "bridge.refused")?.reason ?? null;
         const { sessionFailures } = await import("./utils.mjs");
-        const logged = refusedFrom !== null && sessionFailures().some(e => String(e.message ?? "").includes("the GMs' marks of the characters are not open")
-            && e.at >= refusedFrom);
+        const reason = "the GMs' marks of the characters are not open";
+        const rows = sessionFailures();
+        const logged = refusedFrom !== null && said.some(line => line.includes(reason))
+            && (rows.some(e => String(e.message ?? "").includes(reason) && e.at >= refusedFrom) || rows.length >= 60);
         equal(stableJson([Boolean(first?.record), openedAt !== null && (first?.record?.at ?? 0) >= openedAt, second?.record ?? null,
             second?.value ?? null, told, logged]), stableJson([true, true, null, null, "cannotNow", true]),
             "a drawn roll was thrown before the GMs' marks opened, or with none open in time it was thrown or its player not told (the first thrown, after the opening; the second's record and answer, the code its player was told, the reason logged)");
@@ -31939,7 +31949,7 @@ const SCENARIOS = [
          * card with nothing to say.
          */
         const src = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/events.mjs`).then(r => r.text()));
+            await fetch(`/modules/${MODULE_ID}/scripts/events.mjs`).then(lfText));
 
         const body = fnSource(src, "incidentCard");
 
@@ -32113,7 +32123,7 @@ const SCENARIOS = [
             return { n: cards.length, alias: [by(player.id), by(game.user.id)].map(m => m?.speaker?.alias ?? null),
                 marked: [marked(by(player.id)), marked(by(game.user.id))] };
         });
-        const css = (await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => r.text())).replace(/\/\*[\s\S]*?\*\//g, "");
+        const css = (await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, "");
         const hides = /\.drpg-safeword-unsigned\s+\.message-header\s*\{[^}]*display:\s*none/.test(css);
         const banner = game.i18n.localize("DRPG.Safeword.banner");
         equal(stableJson([routes, run.n, run.alias, run.marked, hides]),
@@ -32166,7 +32176,7 @@ const SCENARIOS = [
          * looks, the new layout IS the baseline and no drift is ever seen.
          */
         const src = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/glass.mjs`).then(r => r.text()));
+            await fetch(`/modules/${MODULE_ID}/scripts/glass.mjs`).then(lfText));
         ok(/addEventListener\("visibilitychange"/.test(src),
             "nothing recuts the curtain when the document becomes visible, so a block "
             + "that left while the tab was hidden keeps its pane");
@@ -32479,7 +32489,7 @@ const SCENARIOS = [
             "the breakpoints moved without the measurements that chose them moving");
 
         const src = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/glass.mjs`).then(r => r.text()));
+            await fetch(`/modules/${MODULE_ID}/scripts/glass.mjs`).then(lfText));
         ok(/drpg-glass-flat/.test(src) && /function glassRoom\(\)/.test(src),
             "the curtain has no gate of its own, so a phone gets a partition cut for a desk");
         ok(/if \(narrowLayout\(\)\) return stackShapes\(/.test(src),
@@ -32524,7 +32534,7 @@ const SCENARIOS = [
         }
 
         const src = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/narrow.mjs`).then(r => r.text()));
+            await fetch(`/modules/${MODULE_ID}/scripts/narrow.mjs`).then(lfText));
         ok(/#ui-right-column-1/.test(src),
             "the right column is not moved whole, so the Projects tray - which "
             + "Daggerheart appends into it on every project it advances - is left behind");
@@ -32548,7 +32558,7 @@ const SCENARIOS = [
 
         for (const file of ["hud.mjs", "despair.mjs", "events.mjs"]) {
             const text = stripComments(
-                await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => r.text()));
+                await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
             ok(/narrowColumn\(\)/.test(text),
                 `${file} renders its block into a column of Foundry's without asking where `
                 + "the stack is, so a redraw takes it out of the stack and back into the pile");

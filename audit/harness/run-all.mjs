@@ -187,7 +187,9 @@ async function lint() {
        every tree. Its fixture is linted as a file of scripts/ (nothing written) and
        must be reported on exactly the lines it marks "reported", and nothing else. */
     const fixturePath = path.join(REPO, "audit", "harness", "lint-fixtures", "bridge-result.mjs");
-    const fixture = fs.existsSync(fixturePath) ? fs.readFileSync(fixturePath, "utf8") : "";
+    /* LF line ends: a CRLF checkout (core.autocrlf true) leaves a "\r" before each line's end, and `// reported$`
+       then matched no line (1.2.80 train, fix crlf-G1: the first CRLF run, CI 39379871637). */
+    const fixture = fs.existsSync(fixturePath) ? fs.readFileSync(fixturePath, "utf8").replace(/\r\n/g, "\n") : "";
     const marked = fixture.split("\n").flatMap((line, i) => (/\/\/ reported$/.test(line) ? [i + 1] : []));
     const [fx] = await eslint.lintText(fixture, { filePath: path.join(REPO, "scripts", "__bridge-result__.mjs") });
     const flagged = (fx?.messages ?? []).filter(m => m.ruleId === "drpg/bridge-result").map(m => m.line);

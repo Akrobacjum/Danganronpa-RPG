@@ -71,7 +71,9 @@ const RNAME = /^R(\d+)([a-z]?) - (.+)$/s;
 const LAYERS_RE = /export const layers = (\[[^\]]*\])/;
 const STATUSES = ["exists", "planned", "probe", "retired"];
 
-const read = (repo, rel) => fs.readFileSync(path.join(repo, rel), "utf8");
+/* LF line ends whatever the checkout has (lint.lf; 1.2.80 train, fix crlf-G1): the tables and blocks below are read by "\n". */
+const readFile = file => lint.lf(fs.readFileSync(file, "utf8"));
+const read = (repo, rel) => readFile(path.join(repo, rel));
 const cell = text => String(text).replace(/\|/g, "\\|");
 const uncell = text => String(text).replace(/\\\|/g, "|").trim();
 const between = (text, start, end) => {
@@ -421,13 +423,13 @@ async function leakProblems(repo) {
             const rel = `scenarios/${name}.mjs`;
             if (!rows.has(rel)) return null;
             const file = path.join(repo, "audit/harness", rel);
-            return fs.existsSync(file) ? fs.readFileSync(file, "utf8") : "";
+            return fs.existsSync(file) ? readFile(file) : "";
         }
     });
     const ids = new Set((doc.leaks ?? []).map(e => e.id));
     const dir = path.join(repo, "audit/harness/scenarios");
     for (const file of fs.readdirSync(dir).filter(f => f.endsWith(".mjs"))) {
-        const text = fs.readFileSync(path.join(dir, file), "utf8");
+        const text = readFile(path.join(dir, file));
         if (text.includes("[known leak")) errs.push(`scenarios/${file}: a "[known leak" bracket - a known leak is the check option knownLeak, with measured`);
         for (const m of text.matchAll(/knownLeak:\s*"([^"]+)"/g)) if (!ids.has(m[1])) errs.push(`scenarios/${file}: knownLeak "${m[1]}" is not an entry of known-leaks.json`);
     }
@@ -442,7 +444,7 @@ async function flowProblems(repo) {
     const errs = [];
     const file = path.join(repo, "scripts", "tests-flows.mjs");
     if (!fs.existsSync(file)) return ["scripts/tests-flows.mjs is missing"];
-    if (/(?:^|[^\w.])import\s*(?:[\w{*]|\()/m.test(lint.blankLiterals(lint.blankComments(fs.readFileSync(file, "utf8"))))) {
+    if (/(?:^|[^\w.])import\s*(?:[\w{*]|\()/m.test(lint.blankLiterals(lint.blankComments(readFile(file))))) {
         errs.push("scripts/tests-flows.mjs imports something - it must not, so Node and the suite can read it alike");
     }
     let flows, exempt;
