@@ -2054,6 +2054,7 @@
       "bodyNoteTraces": "Potem zobaczysz pytanie, które ślady zostawione, gdy ktoś zbierał narzędzia, należą do tego morderstwa.",
       "announce": "Ogłoś",
       "bodyBanner": "ZNALEZIONO CIAŁO",
+      "bodyTitle": "Znaleziono ciało",
       "bodyFound": "Znaleziono ciało w: {room}.",
       "bodyFoundNamed": "{name} znaleziony martwy w: {room}.",
       "bodyCalled": "Wszyscy wezwani na miejsce. Investigation jeszcze nie trwa.",

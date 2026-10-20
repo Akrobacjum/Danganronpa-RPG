@@ -523,6 +523,14 @@ function emptyNotice() {
     return p;
 }
 
+/**
+ * A bubble's time in the table's language (E18 C6; audit S11-61). It was `toLocaleTimeString([], ...)`, the
+ * browser's locale: a Polish table on an English system read "02:15 PM" in a Polish window (R850).
+ */
+export function bubbleTime(at) {
+    return new Date(at).toLocaleTimeString(game.i18n.lang, { hour: "2-digit", minute: "2-digit" });
+}
+
 function buildBubble(message) {
     const authorId = cardWriter(message)?.id;
     const author = game.users.get(authorId);
@@ -578,7 +586,7 @@ function buildBubble(message) {
 
     const time = document.createElement("div");
     time.className = "drpg-messenger-time";
-    time.textContent = new Date(message.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    time.textContent = bubbleTime(message.timestamp);
     bubble.append(time);
 
     return bubble;

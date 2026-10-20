@@ -9,6 +9,14 @@
 
    Reuses the theme tokens from danganronpa.css (--drpg-eye / --drpg-gold /
    --drpg-crimson) rather than declaring its own palette.
+
+   THE BUBBLES' LOOK IS THE THEMES' (E18 C6; audit S12-28). This sheet loads
+   after danganronpa.css and stated each bubble's ground, rule, corners and type
+   at the same weight, so it won: the GM's bubbles gold, yours violet, a ruling
+   card crimson, and under Stained Glass a gold ground in a red rule, the type
+   each theme's `--font-size-13` and not the module's. What stays here is where
+   a bubble stands and how wide it runs; how it looks is danganronpa.css's and
+   stained-glass.css's. E81's places for the button and the roster stay here.
    ========================================================================== */
 
 #drpg-messenger-launcher {
@@ -201,47 +209,30 @@
 .drpg-messenger-bubble {
     max-width: 82%;
     padding: 0.35rem 0.6rem;
-    border-radius: 8px;
-    font-size: var(--font-size-13, 0.82rem);
 }
 
 .drpg-messenger-bubble.mine {
     align-self: flex-end;
-    background: light-dark(rgba(var(--drpg-eye-rgb), 0.18), rgba(var(--drpg-eye-rgb), 0.28));
-    border: 1px solid rgba(var(--drpg-eye-rgb), 0.4);
 }
 
-.drpg-messenger-bubble.player {
-    align-self: flex-start;
-    background: light-dark(rgba(var(--drpg-shadow-rgb), 0.05), rgba(var(--drpg-bone-rgb), 0.06));
-    border: 1px solid rgba(var(--drpg-grey-rgb), 0.3);
-}
-
+.drpg-messenger-bubble.player,
 .drpg-messenger-bubble.gm {
     align-self: flex-start;
-    background: light-dark(rgba(var(--drpg-gold-rgb), 0.16), rgba(var(--drpg-gold-rgb), 0.14));
-    border: 1px solid rgba(var(--drpg-gold-rgb), 0.45);
 }
 
 /* A callGm() ruling card - a system note, not a chat line. Full width, no
-   author label (the card already names the action), visually distinct so it
-   never reads as something a person typed. */
+   author label (the card already names the action). */
 .drpg-messenger-bubble.action {
     align-self: stretch;
     max-width: 100%;
-    background: light-dark(rgba(var(--drpg-crimson-rgb), 0.08), rgba(var(--drpg-crimson-rgb), 0.14));
-    border: 1px solid rgba(var(--drpg-crimson-rgb), 0.35);
 }
 
 .drpg-messenger-bubble.action h3 {
-    margin: 0 0 0.2rem;
     border: none;
-    font-size: var(--font-size-13, 0.82rem);
 }
 
 .drpg-messenger-author {
     margin-bottom: 0.15rem;
-    font-size: var(--font-size-11, 0.7rem);
     font-weight: 600;
     opacity: 0.75;
 }
@@ -256,7 +247,6 @@
 
 .drpg-messenger-time {
     margin-top: 0.15rem;
-    font-size: var(--drpg-text-xs, 0.6875rem);
     text-align: right;
     opacity: 0.55;
     font-variant-numeric: tabular-nums;

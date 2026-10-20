@@ -21,7 +21,7 @@ import { voiceTargets, liveKitRoomFor } from "./voice.mjs";
 import { MUSIC_STATES, musicMap } from "./music.mjs";
 import {
     ok, needs, env, world, equal, must, wait, settle, until, cascadeAvailable, LIVE_PROBE,
-    moduleSources, otherSources, stripComments, moduleStyles, bodyOf, fnSource, topLevelFunction, lineAround, STANDING, watchLog, stableJson,
+    moduleSources, otherSources, stripComments, moduleStyles, styleCascade, bodyOf, fnSource, topLevelFunction, lineAround, STANDING, watchLog, stableJson,
     worldDump, dumpDiff
 } from "./tests-kit.mjs";
 
@@ -19402,6 +19402,285 @@ const INVARIANTS = [
         read.push(/showPopup\([\s\S]*messageId:\s*message\.id/.test(fnSource(popup, "onCreateChatMessage")));
         equal(stableJson(read), stableJson([true, true, true, true]),
             "[cardOnReturn exists, it takes the card off what was asked before it raises it through onCreateChatMessage, the listener hands it a GM's answer asked for, onCreateChatMessage's card carries the message's id]");
+    }],
+    ["R847 - the notice tile stands under the windows while every card it shows is a notice to the whole table, and over them with any other card shown: a card for this reader alone, a refusal or an objection keeps it at 99990, a parked card does not count, and the empty tile with its history button stands under them, in both themes and on a stacked screen (E18 C6; S11-17)", async () => {
+        /*
+         * E18 C6, 20.10.2026; audit S11-17 (a) as the owner's amend of 11.10 words it (E18-24): one host, its z-index
+         * worked out from what it shows, no second container. A restock or a new time of day landed at 99990 over the
+         * sheet's header and the GM's panel, and under Stained Glass over the Investigation dashboard's SAVE, until
+         * somebody closed it. Two halves. What a card is: the suite's own cards drawn by `showPopup` (not kept), each
+         * read for the `data-kind` the host's rule reads - "info" for a notice drawn from a card to the whole table
+         * (the history's sources "public" and "player"), "mine" for one to this reader alone (a whisper, a veiled card,
+         * a card of no document, the messenger's, the day summary), and the kind itself for a refusal or an objection.
+         * Where the host stands: the module's sheets as a cascade read from their text (`styleCascade`: jsdom has no
+         * layout and drops `!important` from a `var()` value), on a tile built on a body of its own for each theme and
+         * layout, holding those kinds as cards: the winning `z-index`, "under" for one below Foundry's `--z-index-app`.
+         * Not read here: the windows themselves over the tile in a browser (LIVE-E18-03).
+         */
+        const P = await import("./popup.mjs");
+        const tile = document.getElementById("drpg-popups");
+        must(tile, "the notice tile is not on this page - it is made at ready");
+        const drawn = [], kinds = {};
+        const newest = () => [...tile.querySelectorAll(".drpg-popup")].sort((a, b) => Number(b.dataset.drpgSeq) - Number(a.dataset.drpgSeq))[0] ?? null;
+        try {
+            for (const [name, options] of [
+                ["table", { source: "public" }], ["player", { source: "player" }], ["mine", {}], ["messenger", { source: "messenger" }],
+                ["summary", { source: "summary" }], ["unknown card", { messageId: "R847NoSuchCard01" }],
+                ["refusal", { kind: "error", source: "public" }], ["objection", { kind: "objection", source: "public" }]
+            ]) {
+                P.showPopup(`<p>R847 ${name}</p>`, { title: `R847 ${name}`, record: false, ...options });
+                const card = newest();
+                if (card?.textContent.includes(`R847 ${name}`)) drawn.push(card);
+                kinds[name] = card?.textContent.includes(`R847 ${name}`) ? card.dataset.kind ?? null : "not drawn";
+            }
+        } finally {
+            for (const card of drawn) card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+        }
+        equal(stableJson(kinds), stableJson({
+            table: "info", player: "info", mine: "mine", messenger: "mine", summary: "mine", "unknown card": "mine", refusal: "error", objection: "objection"
+        }), "[the data-kind of a card from a public card, from a player's public card, of no card, the messenger's, the day summary, of a card id this world lacks, a refusal, an objection]");
+
+        const C = await styleCascade();
+        const UNDER = "calc(var(--z-index-app, 30) - 1)";
+        const STACKS = [
+            ["empty", []], ["info", [[kinds.table]]], ["two info", [[kinds.table], [kinds.player]]], ["mine", [[kinds.mine]]],
+            ["info and mine", [[kinds.table], [kinds.mine]]], ["info, mine parked", [[kinds.table], [kinds.mine, true]]],
+            ["info and refusal", [[kinds.table], [kinds.refusal]]], ["objection", [[kinds.objection]]]
+        ];
+        const read = classes => STACKS.map(([name, cards]) => {
+            const html = document.createElement("html"), body = document.createElement("body"), host = document.createElement("section");
+            body.className = classes;
+            host.id = "drpg-popups";
+            html.append(body);
+            body.append(host);
+            for (const [kind, parked] of cards) {
+                const card = document.createElement("div");
+                card.className = `drpg-popup drpg-popup-info visible${parked ? " drpg-popup-parked" : ""}`;
+                card.dataset.kind = String(kind);
+                host.append(card);
+            }
+            const corner = document.createElement("button");
+            corner.id = "drpg-notices-corner";
+            host.append(corner);
+            const z = C.winner(host, "z-index")?.value ?? null;
+            return [name, z === UNDER ? "under" : z];
+        });
+        const LAYOUTS = ["drpg-theme-monokuma-legacy", "drpg-theme-stained-glass", "drpg-theme-monokuma-legacy drpg-stacked", "drpg-theme-stained-glass drpg-stacked"];
+        const want = [["empty", "under"], ["info", "under"], ["two info", "under"], ["mine", "99990"], ["info and mine", "99990"],
+            ["info, mine parked", "under"], ["info and refusal", "99990"], ["objection", "99990"]];
+        equal(stableJson(LAYOUTS.map(read)), stableJson(LAYOUTS.map(() => want)),
+            "[for Monokuma Legacy, Stained Glass and each stacked: the tile's winning z-index with no card, one and two notices to the table, a card for this reader, "
+            + "both, a notice with a card for this reader parked, a notice and a refusal, an objection]");
+    }],
+    ["R848 - a notice has one anatomy: its bar carries the event's title - the poster's, or the heading the words open with, taken out of them - and 'Notice' only with neither; the bar's type is each theme's floor, and the body's discovery is posted with its own title (E18 C6; S11-23)", async () => {
+        /*
+         * E18 C6, 20.10.2026; audit S11-23 (E18-25). One tile read three ways: a bar saying NOTICE over a red banner,
+         * NOTICE over a heading "Night Eclipse", NOTICE over "Night" and a line ending in Night, at about 8-9 px. Now a
+         * card with no title of its own whose words open with a heading (h1-h4, the time of day's and the Eclipse's
+         * cards) carries that heading in its bar and not again under it; a heading that does not open the words, or
+         * holds none, stays where it is. The history keeps such a card as it was posted, under its kind's word with
+         * the heading first, which is what its window titles a row by (notice-history-app.mjs `rowWords`, read by
+         * scenario 73 H2; a kept title of its own would turn that off, as `rowWords` reads such an entry as kept).
+         * Drawn by `showPopup` on this page with the history held (R473's hold: nothing reaches the setting), each
+         * card taken down at once. The
+         * bar's type by the sheets' cascade (`styleCascade`): Stained Glass's own rule at its text floor won only
+         * without the shared bar rule's `!important` (`var(--drpg-text-xs)`, 11 px in VT323, which draws small);
+         * Monokuma Legacy keeps the module's 11 px floor. What VT323 draws at 1366x768 is not measured here
+         * (LIVE-E18-03). The body's discovery (chapter.mjs `runDiscovery`) is posted as the assemblies are, its
+         * title in the bar and the banner kept, and loud: an objection's accent, over the windows (R847).
+         */
+        const NH = await import("./notice-history.mjs");
+        const P = await import("./popup.mjs");
+        const tile = document.getElementById("drpg-popups");
+        must(tile, "the notice tile is not on this page - it is made at ready");
+        const newest = () => [...document.querySelectorAll(".drpg-popup")].sort((a, b) => Number(b.dataset.drpgSeq) - Number(a.dataset.drpgSeq))[0] ?? null;
+        const drawn = [], read = {};
+        const squeeze = text => (text ?? "").replace(/\s+/g, " ").trim();
+        await NH.holdNoticeHistory(true);
+        try {
+            const draw = (name, html, options = {}) => {
+                const before = new Set(NH.noticeEntries().map(entry => entry.id));
+                P.showPopup(html, options);
+                const card = newest();
+                drawn.push(card);
+                const entry = NH.noticeEntries().find(each => !before.has(each.id)) ?? null;
+                const body = card?.querySelector(".drpg-popup-body");
+                read[name] = [squeeze(card?.querySelector(".drpg-popup-title")?.firstChild?.textContent), squeeze([...body?.childNodes ?? []].map(node => node.textContent).join(" ")),
+                    Boolean(body?.querySelector("h1, h2, h3, h4")), entry?.title ?? null, entry ? /<h[1-4]/.test(entry.html) : null];
+            };
+            draw("heading", "<h3>R848 Night</h3>\n<p>R848 Chapter 1</p>", { source: "public" });
+            draw("plain", "<p>R848 plain</p>");
+            draw("given", "<h3>R848 heading</h3><p>R848 kept</p>", { title: "R848 given" });
+            draw("refusal", "<p>R848 refused</p>", { kind: "error" });
+            draw("late heading", "<p>R848 first</p><h3>R848 later</h3>");
+            draw("empty heading", "<h3> </h3><p>R848 after</p>");
+        } finally {
+            for (const card of drawn) card?.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+            NH.holdNoticeHistory(false);
+        }
+        const notice = game.i18n.localize("DRPG.Popup.kind.info"), refused = game.i18n.localize("DRPG.Popup.kind.error");
+        equal(stableJson(read), stableJson({
+            heading: ["R848 Night", "R848 Chapter 1", false, notice, true],
+            plain: [notice, "R848 plain", false, notice, false],
+            given: ["R848 given", "R848 heading R848 kept", true, "R848 given", true],
+            refusal: [refused, "R848 refused", false, refused, false],
+            "late heading": [notice, "R848 first R848 later", true, notice, true],
+            "empty heading": [notice, "R848 after", true, notice, true]
+        }), "[per card: the bar's words, the body's words, a heading left in the body, the kept title, a heading in the kept html]");
+
+        const C = await styleCascade();
+        const bar = classes => {
+            const html = document.createElement("html"), body = document.createElement("body"), host = document.createElement("section");
+            const card = document.createElement("div"), title = document.createElement("div");
+            body.className = classes;
+            host.id = "drpg-popups";
+            card.className = "drpg-popup drpg-popup-info visible";
+            title.className = "drpg-popup-title";
+            html.append(body);
+            body.append(host);
+            host.append(card);
+            card.append(title);
+            const won = C.winner(title, "font-size");
+            return [classes, won?.value ?? null, won?.file ?? null];
+        };
+        const token = name => C.rules.filter(rule => rule.selector === ":root").flatMap(rule => rule.decls).filter(d => d.property === name).map(d => d.value).pop() ?? null;
+        const sources = new Map(await moduleSources());
+        const discovery = fnSource(stripComments(sources.get("chapter.mjs") ?? ""), "runDiscovery");
+        equal(stableJson([
+            bar("drpg-theme-monokuma-legacy"), bar("drpg-theme-monokuma-legacy drpg-pixel-font"), bar("drpg-theme-stained-glass"),
+            token("--drpg-text-xs"),
+            /popupKind:\s*"objection",\s*popupTitle:\s*game\.i18n\.localize\("DRPG\.Chapter\.bodyTitle"\)[\s\S]{0,400}DRPG\.Chapter\.bodyBanner/.test(discovery),
+            [game.i18n.has("DRPG.Chapter.bodyTitle"), game.i18n.localize("DRPG.Chapter.bodyTitle")]
+        ]), stableJson([
+            ["drpg-theme-monokuma-legacy", "var(--drpg-text-xs)", "styles/danganronpa.css"],
+            ["drpg-theme-monokuma-legacy drpg-pixel-font", "var(--drpg-text-xs)", "styles/danganronpa.css"],
+            ["drpg-theme-stained-glass", "max(var(--drpg-sg-floor), calc(14px * var(--drpg-sg-scale)))", "styles/stained-glass.css"],
+            "max(min(10px, 0.6875rem), calc(0.6875rem * var(--drpg-legacy-scale, 1)))",
+            true, [true, "Body found"]
+        ]), "[the bar's winning font-size and its sheet under Legacy, Legacy with the pixel face and Stained Glass; the module's floor token; "
+            + "the body's discovery posted as an objection with its title before the banner; the title's key]");
+    }],
+    ["R849 - in the messenger the bubbles take their ground, rule, corners and type from the theme's sheets and none from messenger.css, a card's buttons are at least the small text and 28 px tall, and E81's messenger button and roster keep their places from messenger.css, in both themes (E18 C6; S12-28, S11-24)", async () => {
+        /*
+         * E18 C6, 20.10.2026; audit S12-28 and S11-24 (E18-26, E18-27). messenger.css loads after danganronpa.css and
+         * stated the bubbles' ground, rule, corners and type at the same weight, so the later file won: the GM's bubbles
+         * gold, yours violet, a ruling card crimson, and under Stained Glass a gold ground in a red rule. And the GM's
+         * buttons on a card ('Reply', 'Allow it', 'Refuse') were drawn at 11 px in a 13 px bubble under Monokuma Legacy
+         * and a 21 px one under Stained Glass (Chromium on the sheets alone, 20.10.2026). Read by the sheets' cascade
+         * (`styleCascade`) on a messenger window built on a body of its own per theme: for each bubble - yours, a
+         * player's, a GM's, a ruling card - the sheet the winning ground, rule, corners and type come from, the author
+         * line's, the time's and a ruling card's heading's type; a card button's type and height; and the sheet the
+         * button's `bottom` and the roster's `bottom`, `right` and `max-height` come from - E81's places, which the
+         * owner's amend of 11.10 keeps in messenger.css (R474, R299 (a), (c) read where they put them). Under Stained
+         * Glass a window's buttons are as tall as `calc(28px * var(--drpg-sg-scale))`, and that factor carries the
+         * screen's term and the slider (settings.mjs `typeScale`: under 1 at 1080p), so a card button keeps 28 px as its
+         * floor. And that theme states its bubbles' type and a ruling card's heading's at its floor: they had it through
+         * messenger.css's `--font-size-13`, which the theme raises to the floor, and without that rule the shared ones
+         * drew them at 13 and 11 px (Chromium on the sheets alone, 20.10.2026; 21 px before); a card button's words, 11 px
+         * before, are at the floor too.
+         */
+        const C = await styleCascade();
+        const el = (tag, className, parent) => {
+            const node = document.createElement(tag);
+            if (className) node.className = className;
+            parent?.append(node);
+            return node;
+        };
+        const from = (node, names) => C.winner(node, names)?.file?.replace(/^styles\//, "") ?? null;
+        const read = theme => {
+            const html = document.createElement("html"), body = el("body", theme);
+            html.append(body);
+            const log = el("div", "drpg-messenger-log", el("div", "drpg-messenger-body", el("div", "window-content", el("div", "application drpg-messenger", body))));
+            const bubbles = {};
+            for (const kind of ["mine", "player", "gm", "action"]) {
+                const bubble = el("div", `drpg-messenger-bubble ${kind}`, log);
+                const author = kind === "action" ? null : el("div", "drpg-messenger-author", bubble);
+                const text = el("div", "drpg-messenger-text", bubble);
+                const heading = kind === "action" ? el("h3", null, text) : null;
+                const time = el("div", "drpg-messenger-time", bubble);
+                bubbles[kind] = [from(bubble, ["background", "background-color"]), from(bubble, ["border", "border-color"]), from(bubble, "border-radius"),
+                    from(bubble, "font-size"), author ? from(author, "font-size") : null, from(time, "font-size"), heading ? from(heading, "font-size") : null];
+                if (kind === "action") {
+                    const button = el("button", "drpg-call-action", el("div", "drpg-call-actions", text));
+                    bubbles.button = [C.winner(button, "font-size")?.value ?? null, C.winner(button, "min-height")?.value ?? null];
+                }
+            }
+            const launcher = el("button", null, body), roster = el("div", null, body);
+            launcher.id = "drpg-messenger-launcher";
+            roster.id = "drpg-messenger-roster";
+            bubbles.places = [from(launcher, "bottom"), from(roster, "bottom"), from(roster, "right"), from(roster, "max-height")];
+            return bubbles;
+        };
+        const D = "danganronpa.css", SG = "stained-glass.css", M = "messenger.css";
+        equal(stableJson([read("drpg-theme-monokuma-legacy"), read("drpg-theme-stained-glass")]), stableJson([{
+            mine: [D, D, D, D, D, D, null], player: [D, D, D, D, D, D, null], gm: [D, D, D, D, D, D, null], action: [D, D, D, D, null, D, D],
+            button: ["var(--drpg-text-sm)", "28px"], places: [M, M, M, M]
+        }, {
+            mine: [D, SG, SG, SG, SG, D, null], player: [D, D, SG, SG, SG, D, null], gm: [D, SG, SG, SG, SG, D, null], action: [D, D, SG, SG, null, D, SG],
+            button: ["max(var(--drpg-text-sm), var(--drpg-sg-floor))", "max(28px, calc(28px * var(--drpg-sg-scale)))"], places: [M, M, SG, M]
+        }]), "[Legacy, then Stained Glass: per bubble the sheet of its ground, rule, corners, type, author line, time and heading; a card button's "
+            + "font-size and min-height; the sheet of the messenger button's bottom and the roster's bottom, right and max-height]");
+    }],
+    ["R850 - the time on a messenger bubble is written in the table's language, not the browser's (E18 C6; S11-61)", async () => {
+        /*
+         * E18 C6, 20.10.2026; audit S11-61 (E18-28). The bubble's time was `toLocaleTimeString([], ...)`: the
+         * browser's locale, so a Polish table on an English system read "02:15 PM" in a Polish window. One hour, read
+         * by `bubbleTime` (messenger-app.mjs, `buildBubble`'s line) with Foundry's language set to Polish and to English
+         * for the reading and put back, against what that language writes for it. The two must differ in this
+         * browser, or the test could not see the fault.
+         */
+        const M = await import("./messenger-app.mjs");
+        const at = Date.UTC(2026, 9, 20, 14, 15);
+        const shape = lang => new Date(at).toLocaleTimeString(lang, { hour: "2-digit", minute: "2-digit" });
+        must(shape("pl") !== shape([]) || shape("en") !== shape([]), "this browser writes an hour in its own locale as it does in Polish and in English - nothing to tell apart");
+        must(typeof M.bubbleTime === "function", "messenger-app.mjs has no bubbleTime to read the bubble's time with");
+        const was = game.i18n.lang, read = {};
+        try {
+            for (const lang of ["pl", "en"]) {
+                game.i18n.lang = lang;
+                read[lang] = M.bubbleTime(at);
+            }
+        } finally {
+            game.i18n.lang = was;
+        }
+        equal(stableJson(read), stableJson({ pl: shape("pl"), en: shape("en") }), "[the bubble's time with Foundry's language Polish, then English]");
+    }],
+    ["R851 - showPopup hands the options it does not name on to the history: a card drawn with a state and words of its own is kept so, what showPopup names wins over a stray one, and an option nobody reads still draws the card (E18 C6; amend 4)", async () => {
+        /*
+         * E18 C6, 20.10.2026; the owner's amend of 11.10 for E70: "E18 zostawia w showPopup tylko przekazywanie
+         * nieznanych opcji dalej, zeby E70 nie przebudowywal lejka" (E18-29). Options `showPopup` did not name were
+         * dropped by its destructuring, so a later stage that needed one more had to rebuild the funnel. Now they
+         * go on to `recordNotice` beside the ones it names, which win. Drawn here with the history held (R473),
+         * each card taken down at once: `state` and `text` reach the entry, a stray `html` and `source` do not
+         * replace what was drawn and worked out, and an option no one reads draws the card.
+         */
+        const NH = await import("./notice-history.mjs");
+        const P = await import("./popup.mjs");
+        must(document.getElementById("drpg-popups"), "the notice tile is not on this page - it is made at ready");
+        const newest = () => [...document.querySelectorAll(".drpg-popup")].sort((a, b) => Number(b.dataset.drpgSeq) - Number(a.dataset.drpgSeq))[0] ?? null;
+        const drawn = [], read = [];
+        await NH.holdNoticeHistory(true);
+        try {
+            for (const options of [
+                { title: "R851 given", kind: "error", state: "read", text: "R851 words of its own" },
+                { title: "R851 stray", html: "<p>R851 not drawn</p>", r851NobodyReads: true }
+            ]) {
+                const before = new Set(NH.noticeEntries().map(entry => entry.id));
+                P.showPopup("<p>R851 drawn</p>", options);
+                const card = newest();
+                drawn.push(card);
+                const entry = NH.noticeEntries().find(each => !before.has(each.id)) ?? null;
+                read.push([card?.querySelector(".drpg-popup-title")?.firstChild?.textContent ?? null, entry?.title ?? null, entry?.kind ?? null,
+                    entry?.state ?? null, entry?.text ?? null, entry ? entry.html.includes("R851 drawn") && !entry.html.includes("not drawn") : null, entry?.source ?? null]);
+            }
+        } finally {
+            for (const card of drawn) card?.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+            NH.holdNoticeHistory(false);
+        }
+        equal(stableJson(read), stableJson([
+            ["R851 given", "R851 given", "error", "read", "R851 words of its own", true, "mine"],
+            ["R851 stray", "R851 stray", "info", "open", "R851 drawn", true, "mine"]
+        ]), "[per card: its bar, the kept title, kind, state, words, the kept html the drawn body's, the source]");
     }]
 ];
 

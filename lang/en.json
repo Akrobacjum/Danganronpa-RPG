@@ -2003,6 +2003,7 @@
       "bodyNoteTraces": "Then you are asked which traces left while somebody gathered tools belong to this murder.",
       "announce": "Announce it",
       "bodyBanner": "A BODY HAS BEEN DISCOVERED",
+      "bodyTitle": "Body found",
       "bodyFound": "A body has been found in {room}.",
       "bodyFoundNamed": "{name} has been found dead in {room}.",
       "bodyCalled": "Everyone is called to the scene. The Investigation has not started yet.",
