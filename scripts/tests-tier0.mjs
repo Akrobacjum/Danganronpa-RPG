@@ -8615,9 +8615,11 @@ const REGRESSIONS = [
          * E18 C0 (19.10.2026): `callGm` and `promptAndCallGm` say a call's refusal with no GM connected themselves, and
          * `askForHint` leaves its own to `callGm` - two NOTDONE rows more and one struck, none either side on the
          * harness (this test by name, once).
+         * E18 C4 (20.10.2026): a card a returning reader is given its words for is raised through the catch-all
+         * (secret.mjs `cardOnReturn` calls `onCreateChatMessage`, no `showPopup` of its own): no road more, its row says so.
          */
         const NOTICE_CENSUS = [
-            ["SURFACE popup.mjs#onCreateChatMessage", "the catch-all: a card is drawn where the whisper list, a veiled card's words and the GM's diet allow it (`gmPopup`, `popupForce` from a GM writer only), and kept exactly there by `showPopup`'s recorder - public from a GM's document, a player's from its document's author, never `cardWriter` (R297, 73-notice-history); the body cleaned at save (R294); the tile's corner button counts it among the unread and shows none of its words (R298)"],
+            ["SURFACE popup.mjs#onCreateChatMessage", "the catch-all: a card is drawn where the whisper list, a veiled card's words and the GM's diet allow it (`gmPopup`, `popupForce` from a GM writer only), and kept exactly there by `showPopup`'s recorder - public from a GM's document, a player's from its document's author, never `cardWriter` (R297, 73-notice-history); the body cleaned at save (R294); the tile's corner button counts it among the unread and shows none of its words (R298); since E18 C4 also raised for a card whose words a GM gave back to a reader who was away (secret.mjs `cardOnReturn`, the newest 8 of an ask), once a card and under its messageId, so one entry however many GMs answer (R845, 73-notice-history R1)"],
             ["SURFACE popup.mjs#showWaiting", "the sticky waiting card, the caller's own i18n; never kept - it passes `record: false` (R293)"],
             ["SURFACE action-rolls.mjs#performDynamic#showWaiting", "a waiting card of the module's own i18n and the action's label; never kept, as `showWaiting` keeps nothing (R293)"],
             ["SURFACE calls.mjs#showWaitingCard#showWaiting", "a waiting card of the module's own i18n and the Call's label; never kept, as `showWaiting` keeps nothing (R293)"],

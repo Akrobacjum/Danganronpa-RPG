@@ -3925,7 +3925,8 @@
     "Secret": {
       "speaker": "Monokuma",
       "storeFull": "Ta przeglądarka nie zdołała zapisać prywatnej karty - jej pamięć jest pewnie pełna. Od teraz prywatne karty przychodzą tu puste, a klucze odpowiedzi Truth Bulletów i Remnantów przestają się zapisywać w tej przeglądarce. Usunięcie starych wiadomości czatu zwalnia miejsce. Nie czyść danych gry w tej przeglądarce: klucze odpowiedzi też tam są.",
-      "tooLong": "Ta wiadomość jest za długa, żeby wysłać ją prywatnie - ponad {kb} KB. Podziel ją na krótsze."
+      "tooLong": "Ta wiadomość jest za długa, żeby wysłać ją prywatnie - ponad {kb} KB. Podziel ją na krótsze.",
+      "wordsElsewhere": "Prywatna karta - jej treść trafiła do innej przeglądarki i nie jest przechowywana na serwerze."
     },
     "Legacy": {
       "safeword": "MISIUBOMBO"

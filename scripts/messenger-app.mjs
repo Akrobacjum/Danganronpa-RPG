@@ -32,7 +32,7 @@ import { noteFor, noteStatus, noteTemplate, saveNote, whenNotesHeld } from "./pr
 import { markOutcome, rollOutcomeOf } from "./private-rolls.mjs";
 import { playSfx } from "./sfx.mjs";
 
-import { contentOf, wordsOf, cardFlag, cardWriter } from "./secret.mjs";
+import { contentOf, shownWordsOf, wordsOf, cardFlag, cardWriter } from "./secret.mjs";
 const LAUNCHER_ID = "drpg-messenger-launcher";
 
 export function registerMessengerUi() {
@@ -548,7 +548,8 @@ function buildBubble(message) {
     // GM-bridge's own escaped ruling cards - and that was the whole defence until
     // the audit sent the words by hand from a console (S11-01). `contentOf` now
     // reads them through secret.mjs, which cleans anything a GM did not write.
-    body.innerHTML = contentOf(message);
+    // A card whose words never came here says so rather than '-' (E18 C4, `shownWordsOf`).
+    body.innerHTML = shownWordsOf(message);
     // The GM's half of a ruling card - the reference table, the "score it
     // against" line - is not the player's to read (COMM-06). Removed, like
     // the buttons, rather than hidden. Since E06 C7b a player's words arrive

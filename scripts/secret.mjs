@@ -61,7 +61,7 @@
 
 import { MODULE_ID, TIMING } from "./config.mjs";
 import { SETTINGS, getSetting } from "./settings.mjs";
-import { debug, warn, error, isPrimaryGm, log, forcedDeletion, gmIds, MESSAGE_FLAG } from "./utils.mjs";
+import { debug, warn, error, isPrimaryGm, log, forcedDeletion, gmIds, activeGmIds, MESSAGE_FLAG } from "./utils.mjs";
 import { ownsActor } from "./bridge-guards.mjs";
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
@@ -98,11 +98,33 @@ function everyone() {
  *
  * Deliberately empty of information AND deliberately not empty of markup: a
  * message whose content is the empty string renders as a blank card, and a
- * blank card in the log looks like the module lost something. This never
- * reaches a recipient's screen - the render hook replaces it - so its only
- * audience is somebody reading the database, and what it tells them is nothing.
+ * blank card in the log looks like the module lost something. What it tells
+ * somebody reading the database is nothing.
+ *
+ * IT DID REACH READERS' SCREENS (E18 C4, 20.10.2026; audit S15-01, read on a GM's
+ * screenshot: two cards whose whole text was '-'). This comment said the render
+ * hook always replaced it; it replaced it only on a browser holding the words, and
+ * a reader who was away when the card was posted, or on another device, held none.
+ * Such a browser now asks the GMs for them (`askForWords`), and a card still without
+ * them once the wait a card's words get is over is drawn with
+ * DRPG.Secret.wordsElsewhere (`elsewhereHtml`, `drawPrivateCard`), never the dash.
  */
 export const STUB = '<p class="notes" data-drpg-secret>-</p>';
+
+/**
+ * How long a browser waits for a card's words before it gives up on them: `wordsOf`'s
+ * ceiling, and the time a card asked for at a return (`askForWords`) is given.
+ */
+const WORDS_CEILING_MS = 4000;
+
+/**
+ * What a card whose words never came here shows instead of the stub: the stub's own mark
+ * (so `isStub` still says no words are held) around DRPG.Secret.wordsElsewhere.
+ */
+function elsewhereHtml() {
+    const line = foundry.utils.escapeHTML(game.i18n?.localize("DRPG.Secret.wordsElsewhere") ?? "");
+    return `<p class="notes" data-drpg-secret>${line}</p>`;
+}
 
 /**
  * Is this card's document still clean?
@@ -576,7 +598,7 @@ const waiting = new Map();
  * @param {number} [ms]  How long to wait before giving up.
  * @returns {Promise<string>} the words, or the document's own content.
  */
-export function wordsOf(message, ms = 4000) {
+export function wordsOf(message, ms = WORDS_CEILING_MS) {
     const known = secretHtml(message);
     if (known !== undefined && known !== null) return Promise.resolve(known);
     if (!message?.id || !isStub(message.content)) {
@@ -589,7 +611,9 @@ export function wordsOf(message, ms = 4000) {
             const rest = (waiting.get(message.id) ?? []).filter(wake => wake !== done);
             if (rest.length) waiting.set(message.id, rest);
             else waiting.delete(message.id);
-            resolve(html ?? message.content ?? "");
+            /* A NOTICE THAT WAITED IN VAIN SAYS SO (E18 C4): it drew the stub's dash. Still the stub's mark, so a
+               reader asking `isStub` of the answer (the Chat pip's) reads that no words came. */
+            resolve(html ?? (isStub(message.content) ? elsewhereHtml() : message.content ?? ""));
         };
         const timer = setTimeout(() => {
             debug(`Secret cards: the words for ${message.id} never arrived; `
@@ -608,10 +632,13 @@ export function contentOf(message) {
  * @param {boolean} [trusted]  Written by a GM, as the GM wrote it. Anything else
  *   is cleaned before it is shown - see the note above `MAX_PLAYER_BYTES`.
  */
-async function remember(id, html, at, pin = false, trusted = false, summary = undefined, meta = undefined) {
+async function remember(id, html, at, pin = false, trusted = false, summary = undefined, meta = undefined, readers = undefined) {
     const words = trusted ? html : cleanCardHtml(html);
 
     cleaned.delete(id);
+    unfilled.delete(id);
+    // Who may be given these words again (`answerWordsRequest`): the readers held before, and the ones this write names.
+    const held = heldReadersAfter(read()[id]?.readers, readers);
     // New words for a card keep the facts it was posted with (`updateSecret` sends none).
     const facts = summary === undefined ? (read()[id]?.summary ?? null) : plainSummary(summary);
     // And its meta, with whatever the new packet adds to it - `settleCall`'s `settled`.
@@ -620,6 +647,7 @@ async function remember(id, html, at, pin = false, trusted = false, summary = un
         html: words, at: at ?? Date.now(), user: game.user?.id ?? null,
         ...(facts ? { summary: facts } : {}),
         ...(kept ? { meta: kept } : {}),
+        ...(held ? { readers: held } : {}),
         // Which world the card is in: the store is a CLIENT setting, one per
         // browser for every world it opens, and `pruneOrphans` must only ever
         // judge this world's cards against this world's chat log.
@@ -654,6 +682,215 @@ async function remember(id, html, at, pin = false, trusted = false, summary = un
        travel here and not on the document, so the notice history reads its marks after this, not on
        `updateChatMessage` (notice-history.mjs `noticeSecretStored`). */
     if (message) Hooks.callAll("drpgSecretStored", message);
+}
+
+/**
+ * The readers an entry keeps after a write: those it held, with the ones this write names added (a GM's
+ * `updateSecret` to a reader the card did not have, as a freed victim's line). Never fewer: who was given a
+ * card's words may be given them again. Null when neither names anybody. Pure.
+ */
+function heldReadersAfter(before, added) {
+    const ids = [...(Array.isArray(before) ? before : []), ...(Array.isArray(added) ? added : [])]
+        .filter(id => typeof id === "string" && /^[A-Za-z0-9]+$/.test(id));
+    return ids.length ? [...new Set(ids)] : null;
+}
+
+/** Written by a GM, as Foundry stamped it: a card whose whisper list no player could have changed. */
+function writtenByGm(message) {
+    return Boolean((message?.author ?? message?.user)?.isGM);
+}
+
+/* ==========================================================================
+ * WORDS AFTER A RETURN (E18 C4, 20.10.2026; audits S11-12, S01-33, S15-01)
+ * ==========================================================================
+ *
+ * The words travel once, to the browsers connected as the card is posted. A player who reloaded in
+ * that minute, lost the connection or opened the game on another device held the stub for good,
+ * though a GM's browser held the words: a ruling's card in the thread came back a dash. So a client
+ * asks: at its ready the GMs connected, and later each GM whose world has loaded (`bridge.gmReady`,
+ * gm-bridge.mjs's packet, which every GM sends as it can answer - not `userConnected`, which on a
+ * reload comes before the GM's listeners exist, as gm-bridge.mjs `registerGmBridge` says it was
+ * measured) - for the cards addressed to it that it holds no words of (`askForWords`).
+ *
+ * THE ASK IS A CLAIM, judged on each GM against what that GM holds (`answerWordsRequest`): this world's
+ * entry, a document that exists, and the asker among the readers the GM kept beside the words when it
+ * held them (`remember`'s `readers`). An entry kept before C4 has none; it stands for the card's readers
+ * (`readersOf`) only when a GM wrote the card, since a player's own card's whisper list is its author's
+ * to widen after the fact. A player is given the words as a player is sent them (`wordsFor`: without
+ * the GMs' prose), by an addressed `secret.card` to the asker alone. A GM answers only from its own
+ * store: a card whose readers had no GM among them, or whose GMs were all away, stays without words and
+ * says so (`elsewhereHtml`). Each GM connected answers; the first answer of each card asked raises its
+ * notice (`cardOnReturn`), the next ones find the words here and are passed over (`onSecretPacket`).
+ *
+ * NOT EVERY CARD OF A LONG ABSENCE IS A NOTICE. A browser that opens the game for the first time holds the
+ * words of none of its cards - up to `secretCardsKept` of them - and each would land in the middle of the
+ * screen and in the history at once. Only the newest `RETURN_NOTICES` of an ask raise one; the rest are
+ * read where they are, in the chat log and the messenger. A choice of this commit's, not a measurement.
+ */
+const ACTION_REQUEST = "secret.request";
+/** gm-bridge.mjs's "a GM's world has loaded" (`ACTION_GM_READY`), spelled here: that file imports this one. */
+const ACTION_GM_READY = "bridge.gmReady";
+/** Card ids in one ask, and the most one ask is answered for: a long absence is asked in several. */
+const REQUEST_BATCH = 100;
+/** The newest cards of one ask whose words raise a notice when they come: two stacks of the notice tile's four. */
+const RETURN_NOTICES = 8;
+/** Cards this browser asked the GMs for whose words have not come yet. */
+const asked = new Set();
+/** Of those, the ones whose words raise a notice when they come (`RETURN_NOTICES`). */
+const noticeOnReturn = new Set();
+/** Cards whose words did not come by the end of their wait: drawn with `elsewhereHtml`. */
+const unfilled = new Set();
+/** Cards a wait is running for, so a card drawn again starts no second one. */
+const watching = new Set();
+
+/** A private card whose words this browser holds none of, and which its document still says nothing in. */
+function wordless(message) {
+    return Boolean(message?.id && message.flags?.[MODULE_ID]?.[SECRET_FLAG] && isStub(message.content) && secretHtml(message) === null);
+}
+
+/**
+ * Give the cards until the end of a card's wait: any still without words then is drawn as such, its log card and
+ * its thread's bubble redrawn. The cards are kept as handed, for a card object no collection holds (R844's).
+ */
+function giveUpLater(messages) {
+    const fresh = messages.filter(m => m?.id && !watching.has(m.id) && !unfilled.has(m.id));
+    if (!fresh.length) return;
+    for (const m of fresh) watching.add(m.id);
+    setTimeout(() => {
+        for (const handed of fresh) {
+            watching.delete(handed.id);
+            asked.delete(handed.id);
+            noticeOnReturn.delete(handed.id);
+            const message = game.messages?.get(handed.id) ?? handed;
+            if (!wordless(message)) continue;
+            unfilled.add(message.id);
+            refresh(message);
+            const thread = cardFlag(message, "thread");
+            if (thread) Hooks.callAll("drpgMessengerEdited", thread, message);
+        }
+    }, WORDS_CEILING_MS);
+}
+
+/**
+ * Ask the GMs for the words of every private card addressed to this user that this browser holds none
+ * of. `gmUserIds`: the GMs to ask, by default every GM connected but this user. Answers how many cards
+ * were asked for and of how many GMs. Every wordless card, asked for or not (a GM sees cards it was not
+ * sent), is given the wait before it reads as such.
+ */
+export function askForWords(gmUserIds = null) {
+    const me = game.user?.id ?? null;
+    const gms = [...new Set((gmUserIds ?? activeGmIds())
+        .filter(id => id && id !== me && game.users.get(id)?.isGM))];
+    const stubs = (game.messages?.contents ?? [...(game.messages ?? [])]).filter(wordless);
+    const mine = stubs.filter(m => (m.whisper ?? []).includes(me)).map(m => m.id);
+    if (gms.length && mine.length) {
+        for (const id of mine) asked.add(id);
+        const newest = stubs.filter(m => mine.includes(m.id)).sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
+        for (const m of newest.slice(0, RETURN_NOTICES)) noticeOnReturn.add(m.id);
+        for (let i = 0; i < mine.length; i += REQUEST_BATCH) {
+            game.socket.emit(SOCKET_EVENT, { action: ACTION_REQUEST, ids: mine.slice(i, i + REQUEST_BATCH) }, { recipients: gms });
+        }
+    }
+    giveUpLater(stubs);
+    return { cards: gms.length ? mine.length : 0, gms: gms.length };
+}
+
+/**
+ * A GM's answer to `secret.request`: the words of each card asked for that this GM holds for this world, whose
+ * document exists and whose readers, as this GM holds them, name the sender - each sent to the sender alone, cut
+ * for them (`wordsFor`). Anything else in the ask is passed over and named in this GM's log. Answers the ids sent.
+ */
+export function answerWordsRequest(payload, senderId) {
+    if (!game.user?.isGM) return [];
+    /* Who Foundry says sent the ask; the packet names nobody. Not bridge-guards.mjs `senderOf`, which also wants the
+       user connected as this GM sees it: with it here, scenario 73's R1 (20.10.2026, once) read no words given back to
+       the player who asked at its own ready, and green without it. Who the words go to is the readers' check below. */
+    const sender = game.users.get(senderId ?? "");
+    if (!sender || sender.id === game.user.id) return [];
+    const ids = Array.isArray(payload?.ids)
+        ? [...new Set(payload.ids.filter(id => typeof id === "string" && /^[A-Za-z0-9]{16}$/.test(id)))].slice(0, REQUEST_BATCH) : [];
+    const here = game.world?.id ?? null;
+    const store = read();
+    const sent = [];
+    for (const id of ids) {
+        const entry = store[id];
+        if (!here || entry?.world !== here || typeof entry.html !== "string") continue;
+        if (entry.user && entry.user !== game.user.id) continue;
+        const message = game.messages?.get(id);
+        if (!message?.flags?.[MODULE_ID]?.[SECRET_FLAG]) continue;
+        const readers = Array.isArray(entry.readers) ? entry.readers : (writtenByGm(message) ? readersOf(message, { quiet: true }) : []);
+        if (!readers.includes(sender.id)) continue;
+        // The asker keeps a GM's answer as a GM's words, as written: words this browser did not write are cleaned first.
+        const words = entry.trusted ? entry.html : cleanCardHtml(entry.html);
+        game.socket.emit(SOCKET_EVENT, {
+            action: ACTION_SECRET, id, html: wordsFor(sender.id, words), at: entry.at ?? message.timestamp ?? Date.now(),
+            pin: Boolean(entry.pin), requested: true,
+            ...(entry.summary ? { summary: entry.summary } : {}), ...(entry.meta ? { meta: entry.meta } : {})
+        }, { recipients: [sender.id] });
+        sent.push(id);
+    }
+    if (sent.length < ids.length) debug(`Gave ${sender.name} the words of ${sent.length} of the ${ids.length} private card(s) asked for: the rest are not theirs or not held here.`);
+    return sent;
+}
+
+/**
+ * The words of a card this browser asked for have come: its notice is raised as it would have been when the card
+ * arrived (popup.mjs `onCreateChatMessage`, which carries its `messageId`, so the notice history keeps one entry
+ * per card). Once a card: a second GM's answer finds it no longer asked for. Answers whether a notice was asked.
+ */
+async function cardOnReturn(id) {
+    if (!asked.delete(id)) return false;
+    if (!noticeOnReturn.delete(id)) return false;
+    const message = game.messages?.get(id);
+    if (!message) return false;
+    // Imported here: popup.mjs imports this file, and a static import back is the cycle R161 fails.
+    const { onCreateChatMessage } = await import("./popup.mjs");
+    await onCreateChatMessage(message);
+    return true;
+}
+
+/**
+ * THE SWAP, on one drawn card: the words this browser holds for it, a veiled card it holds none of hidden, a card
+ * still without words after its wait drawn with `elsewhereHtml` (one whose wait is running keeps the stub until it
+ * ends), and the GMs' prose off a player's drawing. The render hook's body; exported for R844.
+ */
+export function drawPrivateCard(message, element) {
+    const html = secretHtml(message);
+    const body = element.querySelector(".message-content") ?? element;
+    /* THE BELT (E06 C7b): a player's words arrive without the GMs' prose and the
+       ruling's buttons (`playerWords`), but words kept from before 1.2.65, and a
+       card whose document still carries them, would draw both in the Chat tab -
+       so a player's client takes them off whatever it draws, as the messenger's
+       bubbles do. Whether v14's log draws anything around them is LIVE-E06-08. */
+    const trim = () => {
+        if (!game.user.isGM) body.querySelectorAll(GM_PROSE).forEach(el => el.remove());
+    };
+    if (!html) {
+        // A veiled card this client was not sent the words of is not
+        // this client's card: hidden, not blanked, so the log shows
+        // neither a dash nor a gap where somebody else's secret sits.
+        if (isVeiled(message)) {
+            element.classList.add("drpg-veiled");
+            element.style.display = "none";
+        } else if (wordless(message)) {
+            if (unfilled.has(message.id)) body.innerHTML = elsewhereHtml();
+            else giveUpLater([message]);
+        }
+        trim();
+        return;
+    }
+    element.classList.remove("drpg-veiled");
+    element.style.display = "";
+    body.innerHTML = html;
+    trim();
+}
+
+/**
+ * What a messenger bubble draws of a card: `contentOf`, or `elsewhereHtml` for a card whose words did not come.
+ * Not `contentOf` itself, whose callers rewrite a card from what it reads (gm-bridge.mjs `keepRuling`).
+ */
+export function shownWordsOf(message) {
+    return unfilled.has(message?.id) && wordless(message) ? elsewhereHtml() : contentOf(message);
 }
 
 /** A card the store must never age out: a messenger thread's. */
@@ -787,7 +1024,9 @@ async function post(data, { clean = false } = {}) {
     // read what they just wrote.
     if (recipients.includes(game.user.id)) {
         const own = wordsFor(game.user.id, html);
-        await remember(message.id, clean ? cleanCardHtml(own) : own, at, pin, game.user.isGM, summary, meta);
+        // A GM keeps who the card is for beside its words, to give them again to a reader who was away (E18 C4).
+        await remember(message.id, clean ? cleanCardHtml(own) : own, at, pin, game.user.isGM, summary, meta,
+            game.user.isGM ? recipients : undefined);
         refresh(message);
     }
 
@@ -895,7 +1134,10 @@ export async function updateSecret(message, html, recipients = null, meta = unde
     // A veiled thread card's thread is in its meta, not its document (E06 C8): still pinned.
     const pin = Boolean(cardFlag(message, "thread"));
     if (readers.includes(game.user.id) || !readers.length) {
-        await remember(message.id, wordsFor(game.user.id, html), at, pin, game.user.isGM, undefined, more);
+        /* A GM keeps the readers its own code named, or a GM-written card's; a player's card's whisper list is its
+           author's to widen, so its readers stay those held when its words first came (E18 C4). */
+        const keep = game.user.isGM && (recipients || writtenByGm(message)) ? readers : undefined;
+        await remember(message.id, wordsFor(game.user.id, html), at, pin, game.user.isGM, undefined, more, keep);
         refresh(message);
     }
     const others = readers.filter(id => id !== game.user.id);
@@ -918,11 +1160,11 @@ export async function updateSecret(message, html, recipients = null, meta = unde
  * browser holds. A veiled card that is no thread's names nobody here, and its new
  * words stay on this browser.
  */
-function readersOf(message) {
+function readersOf(message, { quiet = false } = {}) {
     if (!isVeiled(message)) return message.whisper ?? [];
     const thread = cardFlag(message, "thread");
     if (thread) return [thread, ...gmIds()];
-    warn(`The new words of veiled card ${message.id} stay on this browser: nothing here says who else reads it.`);
+    if (!quiet) warn(`The new words of veiled card ${message.id} stay on this browser: nothing here says who else reads it.`);
     return [];
 }
 
@@ -956,57 +1198,86 @@ function refresh(message) {
  * WIRING
  * ========================================================================== */
 
-export function registerSecrets() {
-    game.socket.on(SOCKET_EVENT, async (payload, senderId) => {
-        if (payload?.action !== ACTION_SECRET) return;
-        if (!payload.id || typeof payload.html !== "string") return;
-        try {
-            /*
-             * WHO MAY PUT WORDS ON A CARD (CASE-13): a GM, or the card's own
-             * author. Anybody else sending `secret.card` for somebody else's
-             * message was writing spoofed narration - "the GM ruled..." -
-             * into a real card on another player's screen. The document
-             * usually lands before its words; when it has not yet, the check
-             * waits for it rather than trusting the packet.
-             */
-            const sender = game.users.get(senderId ?? "");
-            if (!sender?.isGM) {
-                const message = game.messages.get(payload.id) ?? await messageArrives(payload.id);
-                const author = message?.author?.id ?? message?.user?.id ?? null;
-                if (!message || author !== senderId) {
-                    debug(`Refused private words for ${payload.id} from ${sender?.name ?? senderId}: not the author.`);
-                    return;
-                }
-                /* A PLAYER'S WORDS: bounded, cleaned, and pinned only if the card
-                   really is a thread's - read off the document, not the packet
-                   (S11-28). `remember` cleans them, because `trusted` is false. */
-                if (packetBytes(payload.html, payload.meta) > MAX_PLAYER_BYTES) {
-                    // A warning, not a debug line (E02 review): the sender's own
-                    // browser refuses this before posting (`postSecret`), so a
-                    // packet this size came from somewhere else.
-                    warn(`Refused private words for ${payload.id} from ${sender?.name ?? senderId}: over ${MAX_PLAYER_BYTES} bytes.`);
-                    return;
-                }
-                // A player's facts about somebody else's character are not theirs to give.
-                // A packet with none (`updateSecret`'s) keeps what the card already has.
-                const facts = plainSummary(payload.summary);
-                const given = payload.summary === undefined ? undefined
-                    : (facts && (!facts.actorId || ownsActor(sender, facts.actorId)) ? facts : null);
-                /* A player's meta without what only the module may ask of the GMs (E06 C7a),
-                   and a pin only for the sender's own thread - the one a player writes in. */
-                const meta = plainMeta(Object.fromEntries(Object.entries(plainMeta(payload.meta) ?? {})
-                    .filter(([key]) => !GM_META.includes(key))));
-                const pin = pinned(message.flags) || meta?.thread === senderId;
-                await remember(payload.id, payload.html, payload.at, pin, false, given, meta ?? undefined);
-                refresh(game.messages.get(payload.id));
+/**
+ * Every packet of this file's on the module's socket, as Foundry names its sender: a GM's ask for a returning
+ * reader (`secret.request`), a GM's world loaded (`bridge.gmReady`), and a card's words (`secret.card`). Exported
+ * for the suite, which hands it a packet as from a player (E18 C4).
+ */
+export async function onSecretPacket(payload, senderId) {
+    // A returning reader's ask, judged on each GM against its own store (E18 C4).
+    if (payload?.action === ACTION_REQUEST) {
+        if (game.user.isGM) answerWordsRequest(payload, senderId);
+        return;
+    }
+    // A GM whose world has loaded can answer: ask it for what this browser holds no words of.
+    if (payload?.action === ACTION_GM_READY) {
+        if (game.users.get(senderId ?? "")?.isGM) askForWords([senderId]);
+        return;
+    }
+    if (payload?.action !== ACTION_SECRET) return;
+    if (!payload.id || typeof payload.html !== "string") return;
+    try {
+        /*
+         * WHO MAY PUT WORDS ON A CARD (CASE-13): a GM, or the card's own
+         * author. Anybody else sending `secret.card` for somebody else's
+         * message was writing spoofed narration - "the GM ruled..." -
+         * into a real card on another player's screen. The document
+         * usually lands before its words; when it has not yet, the check
+         * waits for it rather than trusting the packet.
+         */
+        const sender = game.users.get(senderId ?? "");
+        if (!sender?.isGM) {
+            const message = game.messages.get(payload.id) ?? await messageArrives(payload.id);
+            const author = message?.author?.id ?? message?.user?.id ?? null;
+            if (!message || author !== senderId) {
+                debug(`Refused private words for ${payload.id} from ${sender?.name ?? senderId}: not the author.`);
                 return;
             }
-            await remember(payload.id, payload.html, payload.at, Boolean(payload.pin), true,
-                payload.summary === undefined ? undefined : plainSummary(payload.summary), payload.meta);
+            /* A PLAYER'S WORDS: bounded, cleaned, and pinned only if the card
+               really is a thread's - read off the document, not the packet
+               (S11-28). `remember` cleans them, because `trusted` is false. */
+            if (packetBytes(payload.html, payload.meta) > MAX_PLAYER_BYTES) {
+                // A warning, not a debug line (E02 review): the sender's own
+                // browser refuses this before posting (`postSecret`), so a
+                // packet this size came from somewhere else.
+                warn(`Refused private words for ${payload.id} from ${sender?.name ?? senderId}: over ${MAX_PLAYER_BYTES} bytes.`);
+                return;
+            }
+            // A player's facts about somebody else's character are not theirs to give.
+            // A packet with none (`updateSecret`'s) keeps what the card already has.
+            const facts = plainSummary(payload.summary);
+            const given = payload.summary === undefined ? undefined
+                : (facts && (!facts.actorId || ownsActor(sender, facts.actorId)) ? facts : null);
+            /* A player's meta without what only the module may ask of the GMs (E06 C7a),
+               and a pin only for the sender's own thread - the one a player writes in. */
+            const meta = plainMeta(Object.fromEntries(Object.entries(plainMeta(payload.meta) ?? {})
+                .filter(([key]) => !GM_META.includes(key))));
+            const pin = pinned(message.flags) || meta?.thread === senderId;
+            /* A GM keeps the readers of a player's card as they stand when its words first come: the author's
+               list then, not one widened after (E18 C4). */
+            const first = game.user.isGM && !read()[payload.id]?.readers ? readersOf(message, { quiet: true }) : undefined;
+            await remember(payload.id, payload.html, payload.at, pin, false, given, meta ?? undefined, first);
             refresh(game.messages.get(payload.id));
-        } catch (err) {
-            error("Could not keep a private card that arrived", err);
+            return;
         }
+        // A GM keeps a GM-written card's readers as its document names them (`readersOf`); another's stay as held.
+        const arrived = game.messages.get(payload.id);
+        // A second GM's answer to the same ask: the words are here already (E18 C4).
+        if (payload.requested === true && secretHtml(arrived) !== null) return;
+        const readers = game.user.isGM && writtenByGm(arrived) ? readersOf(arrived, { quiet: true }) : undefined;
+        await remember(payload.id, payload.html, payload.at, Boolean(payload.pin), true,
+            payload.summary === undefined ? undefined : plainSummary(payload.summary), payload.meta, readers);
+        refresh(game.messages.get(payload.id));
+        // Words this browser asked for after a return: the card's notice, once (E18 C4).
+        if (payload.requested === true) await cardOnReturn(payload.id);
+    } catch (err) {
+        error("Could not keep a private card that arrived", err);
+    }
+}
+
+export function registerSecrets() {
+    game.socket.on(SOCKET_EVENT, (payload, senderId) => {
+        void onSecretPacket(payload, senderId);
     });
 
     /*
@@ -1015,31 +1286,7 @@ export function registerSecrets() {
      */
     Hooks.on("renderChatMessageHTML", (message, element) => {
         try {
-            const html = secretHtml(message);
-            const body = element.querySelector(".message-content") ?? element;
-            /* THE BELT (E06 C7b): a player's words arrive without the GMs' prose and the
-               ruling's buttons (`playerWords`), but words kept from before 1.2.65, and a
-               card whose document still carries them, would draw both in the Chat tab -
-               so a player's client takes them off whatever it draws, as the messenger's
-               bubbles do. Whether v14's log draws anything around them is LIVE-E06-08. */
-            const trim = () => {
-                if (!game.user.isGM) body.querySelectorAll(GM_PROSE).forEach(el => el.remove());
-            };
-            if (!html) {
-                // A veiled card this client was not sent the words of is not
-                // this client's card: hidden, not blanked, so the log shows
-                // neither a dash nor a gap where somebody else's secret sits.
-                if (isVeiled(message)) {
-                    element.classList.add("drpg-veiled");
-                    element.style.display = "none";
-                }
-                trim();
-                return;
-            }
-            element.classList.remove("drpg-veiled");
-            element.style.display = "";
-            body.innerHTML = html;
-            trim();
+            drawPrivateCard(message, element);
         } catch (err) {
             debug("Could not show a private card", err);
         }
@@ -1059,6 +1306,13 @@ export function registerSecrets() {
     quietVeiledPip();
 
     pruneOrphans().catch(err => debug("Could not tidy the private-card store", err));
+
+    // The words of what this browser missed while it was away, from the GMs here now (E18 C4).
+    try {
+        askForWords();
+    } catch (err) {
+        debug("Could not ask the GMs for the words of private cards", err);
+    }
 }
 
 /*

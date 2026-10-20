@@ -28641,6 +28641,142 @@ const SCENARIOS = [
             "[after the player's claim and the two clicks: thread lines, the card ended, what this GM was told], [after the reopened card's click: thread lines, what was told, the row's GM], the row after the card is deleted - a card was ruled twice, a player's claim held it, the second click was not told who is ruling, or the reopened card's click was not told who ruled");
     }],
 
+    ["a GM answers a returning reader's ask for a private card's words: to a reader the GM holds alone, this world's cards alone, a player's copy without the GMs' prose, and a card kept from before only when a GM wrote it (E18 C4)", async () => {
+        /*
+         * E18 C4, 20.10.2026; audits S11-12, S01-33 (E18-17, E18-18). A private card's words reach the browsers that
+         * are connected when it is posted, and no other: a player who reloaded, lost the connection or changed devices
+         * held its stub for good, though a GM held the words. Now a returning client asks the GMs (`secret.request`)
+         * and each GM answers from its own store (secret.mjs `answerWordsRequest`) - a claim judged on that GM: the
+         * card must be this world's, its document must exist, and the asker must be among the readers the GM kept
+         * beside the words when it held them (`remember`'s `readers`); an entry kept before C4 has none, and stands
+         * for the card's readers only when a GM wrote the card, because a player's own card's whisper list is its
+         * author's to widen (`readersOf`). Driven on this GM, the asks handed to the answer as Foundry names their
+         * sender: a card to a reader and the GMs with a line for the GMs; a veiled card of the reader's thread whose
+         * entry is made old (its readers taken off); a player's card with an old entry, widened by its author to the
+         * other player; a player's card whose words its author sends, widens to the other player, and sends again (the
+         * socket's own handler, `onSecretPacket`, as from the author); the first card's twin moved to another world; the
+         * thread card's entry also made one a GM had not marked as its own words, with an `onerror` handler in it (the
+         * answer goes out as a GM's words, which the asker keeps as written, so it is cleaned first); an
+         * entry whose card does not exist. Read: the
+         * answers each player's ask sent (whose card, to whom, its words, the GMs' line in them), what an ask that is no
+         * list sends, and the readers the GM kept for the first card. Nothing reaches a player: every `secret.card`
+         * this browser sends while the test runs is kept here and dropped. The cards are deleted and the store put back.
+         */
+        needs(world.atLeast("playerAccounts", 2), "a reader and a player who is not one are two player accounts");
+        must(game.user.isGM, "this client is not a GM, which holds the words - this would measure nothing");
+        const S = await import("./secret.mjs");
+        const [reader, other] = game.users.filter(u => !u.isGM);
+        const here = game.world.id;
+        const was = foundry.utils.deepClone(getSetting(SETTINGS.secretCards) ?? {});
+        const stored = clientStored();
+        const socket = game.socket;
+        const own = Object.getOwnPropertyDescriptor(socket, "emit");
+        const send = socket.emit;
+        const out = [];
+        socket.emit = function (event, packet, options, ...rest) {
+            if (packet?.action === "secret.card") {
+                out.push({ id: packet.id ?? null, to: options?.recipients ?? [], html: String(packet.html ?? "") });
+                return true;
+            }
+            return send.call(this, event, packet, options, ...rest);
+        };
+        const created = [];
+        const names = new Map();
+        // The socket's own handler, as Foundry hands it a packet from `from` (absent before E18 C4: nothing is kept then).
+        const packet = async (payload, from) => {
+            if (typeof S.onSecretPacket === "function") await S.onSecretPacket(payload, from);
+        };
+        const ask = (payload, from) => {
+            out.length = 0;
+            if (typeof S.answerWordsRequest === "function") S.answerWordsRequest(payload, from);
+            return out.map(p => [names.get(p.id) ?? p.id, p.to, p.html.includes("E18C4 words"), p.html.includes("E18C4 GM prose"), p.html.includes("onerror")]);
+        };
+        const restore = async entries => {
+            await game.settings.set(MODULE_ID, SETTINGS.secretCards, entries);
+            S.forgetSecrets();
+        };
+        const popups = new Set(document.querySelectorAll(".drpg-popup"));
+        const read = [];
+        try {
+            const words = '<p>E18C4 words</p><div class="drpg-gm-only">E18C4 GM prose</div>';
+            const card = await S.postSecret({ content: words, whisper: [reader.id, game.user.id] });
+            const thread = await S.postSecret({ content: "<p>E18C4 words in a thread</p>", whisper: [reader.id, game.user.id], veiled: true,
+                flags: { [MODULE_ID]: { thread: reader.id } } });
+            const twin = await S.postSecret({ content: words, whisper: [reader.id, game.user.id] });
+            const theirs = await ChatMessage.create({ author: reader.id, content: S.STUB, whisper: [reader.id, game.user.id],
+                flags: { [MODULE_ID]: { secret: true } } });
+            const mine = await ChatMessage.create({ author: reader.id, content: S.STUB, whisper: [reader.id, game.user.id],
+                flags: { [MODULE_ID]: { secret: true } } });
+            created.push(card, thread, twin, theirs, mine);
+            must(created.every(Boolean), "a card was not posted - this would measure nothing");
+            names.set(card.id, "card").set(thread.id, "thread").set(twin.id, "twin").set(theirs.id, "theirs").set(mine.id, "mine");
+            // The author's words come, the author widens the whisper, the words come again: the readers stay the first list.
+            await packet({ action: "secret.card", id: mine.id, html: "<p>E18C4 words of mine</p>", at: Date.now() }, reader.id);
+            await mine.update({ whisper: [reader.id, game.user.id, other.id] });
+            await packet({ action: "secret.card", id: mine.id, html: "<p>E18C4 words of mine, again</p>", at: Date.now() }, reader.id);
+            const ghost = "E18C4GHOSTCARD01";
+            read.push([...(getSetting(SETTINGS.secretCards)?.[card.id]?.readers ?? [])].sort());
+            const now = foundry.utils.deepClone(getSetting(SETTINGS.secretCards) ?? {});
+            // Kept as an entry from before was: no readers, not marked as a GM's words, and as it came - here with a handler in it.
+            const { readers: dropped, trusted: _trusted, ...old } = now[thread.id] ?? {};
+            must(Array.isArray(dropped) || dropped === undefined, "the thread card's entry is not an entry - this would measure nothing");
+            await restore({
+                ...now,
+                [thread.id]: { ...old, html: `${old.html ?? ""}<img src="x" onerror="globalThis.__e18c4 = 1">` },
+                [twin.id]: { ...now[twin.id], world: "E18C4OTHERWORLD" },
+                [theirs.id]: { html: "<p>E18C4 words of a player</p>", at: Date.now(), user: game.user.id, world: here },
+                [ghost]: { html: "<p>E18C4 words of no card</p>", at: Date.now(), user: game.user.id, world: here, readers: [reader.id] }
+            });
+            await theirs.update({ whisper: [reader.id, game.user.id, other.id] });
+            const ids = [card.id, thread.id, twin.id, theirs.id, mine.id, ghost, "not an id", 7];
+            read.push(ask({ action: "secret.request", ids }, reader.id));
+            read.push(ask({ action: "secret.request", ids }, other.id));
+            read.push(ask({ action: "secret.request", ids: card.id }, reader.id));
+        } finally {
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            for (const node of [...document.querySelectorAll(".drpg-popup")].filter(node => !popups.has(node))) node.dispatchEvent(new CustomEvent("drpg-dismiss"));
+            for (const message of created) await message?.delete().catch(() => {});
+            await restore(was);
+            putBackStored(stored);
+            await settle();
+        }
+        equal(stableJson(read), stableJson([
+            [game.user.id, reader.id].sort(),
+            [["card", [reader.id], true, false, false], ["thread", [reader.id], true, false, false], ["mine", [reader.id], true, false, false]],
+            [],
+            []
+        ]), "[the readers the GM kept beside the first card's words], [the reader's ask: each answer's card, recipients, its words, the GMs' line, a handler], [the other player's ask], [an ask that is no list] - a non-reader was answered, another world's card, a card that does not exist or a player's old card was answered, the GMs' line reached a player, or an old entry's handler was sent on as a GM's words");
+    }],
+
+    ["two waits for one private card's words both end when the words land, not at the wait's ceiling (E18 C4; S11-08)", async () => {
+        /*
+         * E18 C4, 20.10.2026; audit S11-08 (E18-21). A popup, a sound and the Chat pip wait for one card's words; a single
+         * waiter per card let the last one push the others out, to be answered only by `wordsOf`'s 4 s ceiling. E06 C6
+         * made the waiters a list per card (secret.mjs `waiting`), and C4 measures it, with no change to the code: a card
+         * whose words this GM does not hold yet, two waits on it, and the words given to this GM (`updateSecret` to this
+         * GM alone). Read: what each wait answered and how long after it began, against the 4000 ms ceiling. Tier 2,
+         * not tier 1 as the stage's ledger guessed: the words land in this browser's store, which tier 1 may not write.
+         * The card is deleted, which takes its words with it.
+         */
+        must(game.user.isGM, "this client is not a GM - this would measure nothing");
+        const S = await import("./secret.mjs");
+        let card = null;
+        const ends = [];
+        try {
+            card = await ChatMessage.create({ content: S.STUB, whisper: [game.user.id], flags: { [MODULE_ID]: { secret: true } } });
+            must(card && S.secretHtml(card) === null, "the card was not posted, or its words are here already - this would measure nothing");
+            const began = performance.now();
+            const waits = [S.wordsOf(card), S.wordsOf(card)].map(p => p.then(html => ends.push([String(html).includes("E18C4 two waits"), performance.now() - began])));
+            await S.updateSecret(card, "<p>E18C4 two waits</p>", [game.user.id]);
+            await Promise.all(waits);
+        } finally {
+            await card?.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(ends.map(([words, ms]) => [words, ms < 1000])), stableJson([[true, true], [true, true]]),
+            `each wait: [the words it answered, within 1000 ms] (measured ${stableJson(ends.map(([, ms]) => Math.round(ms)))} ms) - a wait was pushed out and answered by the ceiling`);
+    }],
+
     ["the GM's popup for a veiled ask", async () => {
         /*
          * E06 C8, 28.09.2026. A thread card that asks the GMs (`gmAsk`) raises a notice and

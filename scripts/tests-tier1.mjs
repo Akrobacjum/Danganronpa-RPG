@@ -19331,6 +19331,76 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson([[true, 4, 1], [false, 1, 1], [true, true, false, false, true, false, false], true]),
             "[resent: sends, ids] per request, then primaryLeft for A with B here (active, gone), B, the Assistant, A with only the Assistant, A alone, a player, then whether the listener asks again on that hook - a request was not asked again three times at most under its one id, one that did not ask for it was, a new primary was not told apart from a GM who was not the primary, or the listener does not ask again when the primary leaves");
     }],
+
+    ["R844 - a private card whose words never came says so instead of a bare '-': in the chat log once its wait is over, and in a notice that waited for them; the stub's comment says it (E18 C4; S15-01)", async () => {
+        /*
+         * E18 C4, 20.10.2026; audit S15-01 (E18-19). A private card's document holds a stub, '-', and the chat log
+         * drew it for every reader whose browser never got the words - a GM who was away, a player on another device:
+         * a card of the module's that looks broken. The stub's comment said it never reaches a reader's screen. Now
+         * the log draws a card whose words did not come by the end of the wait a card's words get (`wordsOf`'s 4 s)
+         * with DRPG.Secret.wordsElsewhere (secret.mjs `drawPrivateCard`, the render hook's body), and a notice that
+         * waited for them gets the same line. Read on a card object of this test's own, no document of the world: its
+         * drawing at once and after 4.4 s, what a 50 ms wait for its words answers and whether that is still marked as
+         * no words (`isStub`), the line in both language files, and the stub's comment.
+         */
+        const S = await import("./secret.mjs");
+        const card = { id: "R844CARD00000001", flags: { [MODULE_ID]: { secret: true } }, content: S.STUB, whisper: [game.user.id] };
+        const drawn = () => {
+            if (typeof S.drawPrivateCard !== "function") return null;
+            const li = document.createElement("li");
+            const body = document.createElement("div");
+            body.className = "message-content";
+            body.innerHTML = S.STUB;
+            li.append(body);
+            S.drawPrivateCard(card, li);
+            return body.textContent.trim();
+        };
+        const lang = async code => {
+            const res = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`);
+            ok(res.ok, `${code}.json: HTTP ${res.status}`);
+            const text = foundry.utils.getProperty(foundry.utils.expandObject(await res.json()), "DRPG.Secret.wordsElsewhere");
+            return typeof text === "string" && text.length > 0;
+        };
+        const line = game.i18n.localize("DRPG.Secret.wordsElsewhere");
+        const read = [drawn()];
+        const waited = await S.wordsOf(card, 50);
+        const box = document.createElement("div");
+        box.innerHTML = waited;
+        read.push(box.textContent.trim() === line, S.isStub(waited));
+        await wait(4400);
+        read.push(drawn() === line, await lang("en"), await lang("pl"));
+        const comment = bodyOf(new Map(await otherSources()).get("secret.mjs") ?? "", "export const STUB", { back: 900 });
+        read.push(/wordsElsewhere/.test(comment) && !/never reaches a recipient/.test(comment));
+        equal(stableJson(read), stableJson(["-", true, true, true, true, true, true]),
+            "[the drawing at once, a notice's 50 ms wait answers the line, still marked as no words, the drawing after the wait, the line in en, in pl, the stub's comment names it]");
+    }],
+
+    ["R845 - the card a returning reader is given its words for is shown as the chat card it is, once, with its messageId: one history entry however many GMs answer (E18 C4; A7)", async () => {
+        /*
+         * E18 C4, 20.10.2026; the owner's amend 1 (A7): "secret.request wystawia karte po powrocie gracza z messageId
+         * (upsert w historii)" (E18-20). A reader away when a card was posted never had its notice: the popup is raised
+         * as the document arrives (popup.mjs `onCreateChatMessage`), and the document had arrived before the page was
+         * there. Now the words a GM gives back for a card this browser asked for (`cardOnReturn`) raise the card through
+         * the same function, so it is shown by the same rules and carries `messageId`, which the history keeps one
+         * entry per card by; only the first answer of each card asked raises it, so a second GM's answer shows nothing
+         * more, and only the newest of an ask do (`RETURN_NOTICES`, not read here). Read in the source, since showing a card writes this browser's history, which tier 1 may not: that
+         * `cardOnReturn` takes the card off what was asked before it raises anything and raises it through
+         * `onCreateChatMessage`; that the socket listener hands it a GM's answer marked as asked for; and that
+         * `onCreateChatMessage`'s card carries the message's id. Scenario 73's phase R drives it on a player's reload.
+         */
+        const sources = new Map(await otherSources());
+        const secret = stripComments(sources.get("secret.mjs") ?? "");
+        const popup = stripComments(sources.get("popup.mjs") ?? "");
+        const back = topLevelFunction(secret, "cardOnReturn");
+        const read = [back !== null];
+        const off = back?.search(/\basked\.delete\(/) ?? -1, raise = back?.search(/\bonCreateChatMessage\(/) ?? -1;
+        read.push(off >= 0 && raise > off);
+        const listener = topLevelFunction(secret, "onSecretPacket") ?? "";
+        read.push(/payload\.requested\s*===\s*true[\s\S]{0,200}cardOnReturn\(/.test(listener));
+        read.push(/showPopup\([\s\S]*messageId:\s*message\.id/.test(fnSource(popup, "onCreateChatMessage")));
+        equal(stableJson(read), stableJson([true, true, true, true]),
+            "[cardOnReturn exists, it takes the card off what was asked before it raises it through onCreateChatMessage, the listener hands it a GM's answer asked for, onCreateChatMessage's card carries the message's id]");
+    }]
 ];
 
 /**
