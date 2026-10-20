@@ -18,7 +18,8 @@
  *      an empty browser holds them rewritten, as a player does.
  *   C2 the cards 1.2.64 posted about an incident's people (E06 fix r2-G1): a trap's receipt,
  *      Confusion's card and a fight's roll name nobody on a bystander after the rewrite, and the
- *      receipt keeps its thread on its player's browser and the primary's.
+ *      receipt keeps its thread on its player's browser and the primary's - and, since E18 C4, on a
+ *      second GM that joins after, which asks the primary for the words it missed (secret.request).
  *   B  the Truth Bullet answer key survives a second GM joining with an empty
  *      browser (S05-01, the brief's verify, headless): on 1.2.62 the joining GM
  *      rebuilt a row for every bullet from its item's Faint flag and the newer,
@@ -304,14 +305,21 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
     const onGmC2 = await gm.eval(DIGEST_C2), onP1C2 = await p1.eval(DIGEST_C2), onP3C2 = await p3.eval(DIGEST_C2);
     await connect("gm2");
     await settle(1500);
-    const onGm2C2 = await gm2.eval(DIGEST_C2);
+    /* E18 C4 (20.10.2026): gm2, away when the receipt was posted, asks the GMs for the words it missed at its ready and
+       is given them with the GMs' marks, so it places the receipt in p3's thread as the primary does. Until C4 this read
+       that gm2 held neither (CI on 3e02fa7 read placed and inThread on gm2; red there). Waited for up to 8 s more. */
+    let onGm2C2 = await gm2.eval(DIGEST_C2);
+    for (const t0 = Date.now(); !onGm2C2.words && Date.now() - t0 < 8000;) {
+        await settle(250);
+        onGm2C2 = await gm2.eval(DIGEST_C2);
+    }
     const veilC2 = { veiled: true, all: true, actor: null, thread: null };
     const askedC2 = [...c2.gms, IDS.p3].sort();
-    check("C2: after the rewrite a bystander's copy of a 1.2.64 receipt, Confusion's card and a fight's roll names nobody of the incident, and the receipt keeps its thread on p3 and the primary",
+    check("C2: after the rewrite a bystander's copy of a 1.2.64 receipt, Confusion's card and a fight's roll names nobody of the incident, and the receipt keeps its thread on p3, the primary and a GM that joins after",
         c2.planted.every(Boolean) && J(c2.failed) === "[]" && c2.done?.cards >= 2 && c2.done?.rolls >= 1
         && [onGmC2, onP1C2, onP3C2, onGm2C2].every(d => J(d.receipt) === J(veilC2) && J(d.meddle) === J(veilC2) && J(d.asked) === J(askedC2))
         && !onP1C2.placed && !onP1C2.inThread && !onP1C2.words && onP3C2.placed === IDS.p3 && onP3C2.inThread && onP3C2.words
-        && onGmC2.placed === IDS.p3 && onGmC2.inThread && !onGm2C2.placed && !onGm2C2.inThread,
+        && onGmC2.placed === IDS.p3 && onGmC2.inThread && onGm2C2.placed === IDS.p3 && onGm2C2.inThread && onGm2C2.words,
         J({ c2, onGmC2, onP1C2, onP3C2, onGm2C2 }), { flow: "gm-store" });
     await gm.eval(`for (const id of ${J(c2.ids)}) await game.messages.get(id)?.delete(); return true;`);
     await disconnect("gm2");

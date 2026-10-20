@@ -19344,7 +19344,9 @@ const INVARIANTS = [
          * no words (`isStub`), the line in both language files, and the stub's comment.
          */
         const S = await import("./secret.mjs");
-        const card = { id: "R844CARD00000001", flags: { [MODULE_ID]: { secret: true } }, content: S.STUB, whisper: [game.user.id] };
+        // An id of this run's own: the suite runs tier 1 three times in one page (01-runtests' A1-A3), and the second run
+        // found the first's card in `unfilled` and drew the line at once (CI on 3e02fa7: red in A2 and A3, green in A1).
+        const card = { id: foundry.utils.randomID(16), flags: { [MODULE_ID]: { secret: true } }, content: S.STUB, whisper: [game.user.id] };
         const drawn = () => {
             if (typeof S.drawPrivateCard !== "function") return null;
             const li = document.createElement("li");
