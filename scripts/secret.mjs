@@ -214,7 +214,8 @@ const ASKED_BY = "askedBy";
  * "Ruled on by the GM"). No test or scenario sends either in a player's meta (read 12.10.2026).
  * Nor an ask's mark (`rid`, gm-bridge.mjs `callGm`, E18 C2): the primary takes a card carrying it for the card
  * it posted for that ask, and posts none when the player asks again, so a player's card carrying it would
- * stand in for the GMs' (tier 2's "a resent ask finds the card a GM posted for it").
+ * stand in for the GMs' (tier 2's "a resent ask finds the card a GM posted for it") - and since fix early-C2-G2
+ * it says what that ask was for, which the ask held again is (gm-bridge.mjs `sameAsk`).
  */
 const GM_META = Object.freeze(["gmPopup", "popupForce", "callCard", "safeword", "ruling", ASKED_BY, "settled", "rerolled", "rid"]);
 

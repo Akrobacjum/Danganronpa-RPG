@@ -638,7 +638,7 @@ export function wireCallActions(body, message = null) {
                 // Claimed on the primary GM first (E18 C3, gm-bridge.mjs `claimCard`): a card another GM has, or
                 // ruled, is not ruled again here, and this GM is told who has it. No card, no claim and no ruling.
                 const { claimCard, settleCall } = await import("./gm-bridge.mjs");
-                const outcome = await claimCard(message, () => runCallAction(button.dataset.drpgCall, { ...button.dataset }));
+                const outcome = await claimCard(message, () => runCallAction(button.dataset.drpgCall, { ...button.dataset }, message));
                 // Sent on by the primary, which writes the card's line once the player has it (E18 C1): held till it redraws.
                 if (outcome?.held) return;
                 if (outcome?.settled) {
@@ -708,11 +708,13 @@ async function askItemEffect(item) {
     // own `spendHopeCall` asks the GM to arm it on a yes, and the GM charges the
     // Hope then. A yes goes by the primary, which keeps it for that arm (E29 fix
     // r2-H4): one it could not keep leaves the card open. The primary writes
-    // "Approved" on the card once the player's browser has the yes (E18 C1).
-async function ruleApproveCallOrRefuseCall(action, data) {
+    // "Approved" on the card once the player's browser has the yes (E18 C1). The
+    // card pressed goes with it: the primary keeps a yes only for the ask held on
+    // that card (gm-bridge.mjs `yesOnPrimary`, fix early-C2-G2).
+async function ruleApproveCallOrRefuseCall(action, data, message = null) {
     const { answerHopeCall } = await import("./gm-bridge.mjs");
     const yes = action === "approveCall";
-    if (!(await answerHopeCall(data.rid, data.asker, yes))) return null;
+    if (!(await answerHopeCall(data.rid, data.asker, yes, message?.id ?? null))) return null;
     return yes ? { held: true } : settled("DRPG.Bridge.settledDeclined");
 }
 
@@ -722,20 +724,21 @@ async function ruleApproveCallOrRefuseCall(action, data) {
     // trace reads its band (gm-bridge.mjs `dynamicRulingOf`, E08+E28 C15). The
     // ruling goes by the primary, which keeps it in the meta and takes the card's
     // buttons off as it sends it on, and writes the card's line once the player's
-    // browser has it (E18 C1; gm-bridge.mjs `keepRuling`, fix early-C1-G1).
-async function ruleSetDifficulty(action, data) {
+    // browser has it (E18 C1; gm-bridge.mjs `keepRuling`, fix early-C1-G1) - for
+    // the ask held on the card pressed alone (`dynamicOnPrimary`, fix early-C2-G2).
+async function ruleSetDifficulty(action, data, message = null) {
     const { askDynamicDifficulty } = await import("./action-rolls.mjs");
     const ruling = await askDynamicDifficulty({
         description: data.desc ?? "", actorName: data.name ?? "?", room: data.room || null
     });
     if (!ruling) return null;   // The editor was closed; the card stays open.
     const { answerDynamic } = await import("./gm-bridge.mjs");
-    return (await answerDynamic(data.rid, data.asker, ruling)) ? { held: true } : null;
+    return (await answerDynamic(data.rid, data.asker, ruling, message?.id ?? null)) ? { held: true } : null;
 }
 
-async function ruleRefuseDynamic(action, data) {
+async function ruleRefuseDynamic(action, data, message = null) {
     const { answerDynamic } = await import("./gm-bridge.mjs");
-    return (await answerDynamic(data.rid, data.asker, false)) ? { held: true } : null;
+    return (await answerDynamic(data.rid, data.asker, false, message?.id ?? null)) ? { held: true } : null;
 }
 
     // The statistic of a roll that lists several (E32+E07 C11b; trait-ruling.mjs). The
@@ -1206,10 +1209,11 @@ const CARD_ACTIONS = {
     declineMurder: ruleDeclineMurder,
 };
 
-async function runCallAction(action, data) {
+/** The rule of the button pressed, handed the card it is on (`message`, fix early-C2-G2), or null for none. */
+async function runCallAction(action, data, message = null) {
     const rule = CARD_ACTIONS[action];
     if (!rule) return null;
-    return rule(action, data);
+    return rule(action, data, message);
 }
 
 /* ==========================================================================

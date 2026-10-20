@@ -28156,7 +28156,9 @@ const SCENARIOS = [
          * asker, in the meta its words travel with, which a player's meta may not carry - secret.mjs `GM_META`), and
          * the primary looks for a GM's card with it before posting. Each ask is handed to the bridge's runner as
          * Foundry would name its sender. Read, as new cards after each ask: (1) a card this primary holds no ask for -
-         * as after its reload - marked for the ask, then whether this GM's yes is kept for the ask the card holds; (2) a
+         * as after its reload - marked for the ask (since fix early-C2-G2 the mark says what the ask was for as well,
+         * as the primary writes it, and the ask is asked again as it was), then whether this GM's yes is kept for the
+         * ask the card holds; (2) a
          * chat message the player wrote carrying the mark on its document; (3) a card the GM posted at the player's
          * asking (`card.post`, an incident running) whose flags carry the mark; (4) a GM's card whose mark names
          * another player as the asker; (5) a GM's marked card already ruled, and what the runner sent for its ask. The
@@ -28174,7 +28176,7 @@ const SCENARIOS = [
         const replies = [];
         const judged = (action, fields, from, requestId) => G.judge(B.BRIDGE_ACTIONS, { action, requestId, ...fields }, from,
             { send: (to, reply) => replies.push([requestId, reply?.action ?? null, reply?.reason ?? null]) });
-        const ask = rid => judged("call.approve", { actorId: theirs.id, key: "experience", note: "E18 C2 resend", nonce: foundry.utils.randomID(16) }, player.id, rid);
+        const ask = (rid, nonce = foundry.utils.randomID(16)) => judged("call.approve", { actorId: theirs.id, key: "experience", note: "E18 C2 resend", nonce }, player.id, rid);
         const seen = new Set(game.messages.map(m => m.id));
         const created = [];
         const hook = Hooks.on("createChatMessage", m => { if (!seen.has(m.id)) created.push(m); });
@@ -28185,15 +28187,16 @@ const SCENARIOS = [
             must(await until(() => created.length > before, 5000), `${what} was not posted - this would measure nothing`);
             return game.messages.get(created.at(-1).id);
         };
-        const newCards = async (rid, before) => { await ask(rid); await settle(); return created.length - before; };
+        const newCards = async (rid, before, nonce) => { await ask(rid, nonce); await settle(); return created.length - before; };
         const murder = foundry.utils.deepClone(getSetting(SETTINGS.murderState));
         const read = [];
         try {
-            const [r1, r2, r3, r4, r5] = [1, 2, 3, 4, 5].map(() => foundry.utils.randomID(16));
+            const [r1, r2, r3, r4, r5, n1] = [1, 2, 3, 4, 5, 6].map(() => foundry.utils.randomID(16));
             const actions = rid => [{ action: "approveCall", label: "yes", data: { rid, asker: player.id, by: theirs.id } }];
-            await posted(() => B.callGm(theirs, { title: "E18 C2 posted before a reload", rid: marked(r1), expires: serverNow() + 600000, actions: actions(r1) }),
+            const asked = { kind: "call", actorId: theirs.id, key: "experience", nonce: n1 };
+            await posted(() => B.callGm(theirs, { title: "E18 C2 posted before a reload", rid: { ...marked(r1), ...asked }, expires: serverNow() + 600000, actions: actions(r1) }),
                 "the marked card");
-            read.push(await newCards(r1, created.length), await B.answerHopeCall(r1, player.id, true));
+            read.push(await newCards(r1, created.length, n1), await B.answerHopeCall(r1, player.id, true));
 
             await posted(() => ChatMessage.create({ author: player.id, content: "<p>E18 C2 a player's card</p>", whisper: [player.id, ...gmIds()],
                 flags: { [MODULE_ID]: { rid: marked(r2) } } }), "the player's card");
@@ -28223,6 +28226,218 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson([0, true, 1, 1, 1, 0, [["bridge.ack", null], ["bridge.refused", "alreadyDone"]]]),
             "new cards per ask: the GM's marked card (then the yes kept), a player's card with the mark, a card asked by a player with it, a mark naming another asker, a ruled card (then what its ask was sent) - an ask found by its mark posted a second card, a card a player wrote or asked for stood in for a GM's, another player's ask was taken as this one's, or a ruled card's ask was not refused");
+    }],
+
+    ["a resent ask is held again only as its card's mark says: a resend naming another Call or purchase or character or kind is refused and the yes or ruling goes to the ask the card was posted for (E18 fix early-C2-G2)", async () => {
+        /*
+         * E18 fix early-C2-G2, 20.10.2026; the early review's C2-F1. Since C2 a primary that reloaded mid-question and
+         * was asked again by the waiting player found the ask's card by its mark (`rid`: the ask's id and its asker)
+         * and held the ask again with the resent packet's own character, Call and purchase. A resend from the player's
+         * console naming the Ultimate and another purchase under an Experience card's id had a GM's yes on that card
+         * kept for the Ultimate, and one naming another character the player owns had a Dynamic card's difficulty kept
+         * for that character. The mark says what the card was posted for now, and a resend that differs from it is
+         * refused. Each ask is handed to the bridge's runner as Foundry would name its sender, and the yes and the
+         * difficulty name the card they are given on (gm-bridge.mjs `answerHopeCall`, `answerDynamic`). Read: (1) the
+         * marks the real road writes, on a Call's card and on a Dynamic action's; (2) a Call's card for an Experience,
+         * posted with such a mark and held by no ask - as after this primary's reload - then a resend naming the
+         * Ultimate and another purchase: what the runner sent, the cards it posted, whether this GM's yes is kept, and
+         * whether the arm the resend named is let through; then the ask as it was made: what the runner sent, the yes,
+         * and the Experience's arm; (3) a Dynamic action's card for the player's character, then a resend naming a
+         * student the player is made an owner of for this test: what the runner sent and whether this GM's difficulty
+         * of 2 is sent on; then the ask as it was made, the difficulty, and the ruling kept on the card; (4) a Call's
+         * card asked again as a Dynamic action: what the runner sent. The ownership is put back, the cards deleted and
+         * popups dismissed after; no Hope is paid (the arm's guard is asked, not the arm).
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the ask is a player's, and Foundry names only a connected one");
+        needs(world.atLeast("studentsWithoutPlayer", 1), "a resend naming another character the player owns is read here, and a student no player owns is lent for it");
+        const { isPrimaryGm, serverNow } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which holds the asks - this would measure nothing");
+        const { player, theirs } = playerAndCharacters();
+        const { livingStudents } = await import("./chapter.mjs");
+        const lent = livingStudents().find(a => !game.users.some(u => !u.isGM && a.testUserPermission(u, "OWNER")));
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const { cardFlag } = await import("./secret.mjs");
+        const replies = [];
+        const judged = (action, fields, from, requestId) => G.judge(B.BRIDGE_ACTIONS, { action, requestId, ...fields }, from,
+            { send: (to, reply) => replies.push([requestId, reply?.action ?? null, reply?.reason ?? null]) });
+        const sentSince = (rid, from) => replies.slice(from).filter(([id]) => id === rid).map(([, action, reason]) => [action, reason]);
+        const callAsk = (rid, key, nonce) => judged("call.approve", { actorId: theirs.id, key, note: "E18 fix early-C2-G2", nonce }, player.id, rid);
+        const dynamicAsk = (rid, actor) => judged("dynamic.difficulty", { actorId: actor.id, description: "E18 fix early-C2-G2", actorName: actor.name, room: null }, player.id, rid);
+        const armed = (key, nonce) => G.guardArmGmYes(player, { actorId: theirs.id, call: { key, nonce } }, {}) === null;
+        const seen = new Set(game.messages.map(m => m.id));
+        const created = [];
+        const hook = Hooks.on("createChatMessage", m => { if (!seen.has(m.id)) created.push(m); });
+        const newCard = async (post, what) => {
+            const before = created.length;
+            await post();
+            must(await until(() => created.length > before, 5000), `${what} was not posted - this would measure nothing`);
+            return game.messages.get(created.at(-1).id);
+        };
+        const whose = actorId => actorId === theirs.id ? "theirs" : actorId === lent.id ? "lent" : actorId ?? null;
+        const ownership = foundry.utils.deepClone(lent.ownership ?? {});
+        let granted = false;
+        const [r1, r2, rX, rY, rZ, n1, nX, nU, nZ] = [1, 2, 3, 4, 5, 6, 7, 8, 9].map(() => foundry.utils.randomID(16));
+        const read = [];
+        try {
+            const expires = serverNow() + 600000;
+            const callCard = await newCard(() => callAsk(r1, "experience", n1), "the Call's card");
+            const dynamicCard = await newCard(() => dynamicAsk(r2, theirs), "the Dynamic action's card");
+            read.push(cardFlag(callCard, "rid"), cardFlag(dynamicCard, "rid"));
+
+            const X = await newCard(() => B.callGm(theirs, { title: "E18 fix early-C2-G2 Experience", expires,
+                rid: { id: rX, asker: player.id, kind: "call", actorId: theirs.id, key: "experience", nonce: nX },
+                actions: [{ action: "approveCall", label: "yes", data: { rid: rX, asker: player.id, by: theirs.id } }] }), "the Call's card held by no ask");
+            let from = replies.length, before = created.length;
+            await callAsk(rX, "ultimate", nU);
+            await settle();
+            read.push(sentSince(rX, from), created.length - before, await B.answerHopeCall(rX, player.id, true, X.id), armed("ultimate", nU));
+            from = replies.length;
+            await callAsk(rX, "experience", nX);
+            await settle();
+            read.push(sentSince(rX, from), await B.answerHopeCall(rX, player.id, true, X.id), armed("experience", nX));
+
+            await lent.update({ [`ownership.${player.id}`]: CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER });
+            granted = true;
+            await sheetAuditIdle();
+            const Y = await newCard(() => B.callGm(theirs, { title: "E18 fix early-C2-G2 Dynamic", expires,
+                rid: { id: rY, asker: player.id, kind: "dynamic", actorId: theirs.id },
+                actions: [{ action: "setDifficulty", label: "set", data: { rid: rY, asker: player.id, by: theirs.id } }] }), "the Dynamic action's card held by no ask");
+            from = replies.length;
+            await dynamicAsk(rY, lent);
+            await settle();
+            read.push(sentSince(rY, from), Boolean(await B.answerDynamic(rY, player.id, { tier: 2, trait: "agility" }, Y.id)));
+            from = replies.length;
+            await dynamicAsk(rY, theirs);
+            await settle();
+            read.push(sentSince(rY, from), Boolean(await B.answerDynamic(rY, player.id, { tier: 2, trait: "agility" }, Y.id)));
+            await settle(300);
+            const ruling = cardFlag(game.messages.get(Y.id), "ruling");
+            read.push([ruling?.type ?? null, whose(ruling?.actorId), ruling?.tier ?? null]);
+
+            await newCard(() => B.callGm(theirs, { title: "E18 fix early-C2-G2 a Call asked again as a Dynamic action", expires,
+                rid: { id: rZ, asker: player.id, kind: "call", actorId: theirs.id, key: "experience", nonce: nZ },
+                actions: [{ action: "approveCall", label: "yes", data: { rid: rZ, asker: player.id, by: theirs.id } }] }), "the Call's card asked again as a Dynamic action");
+            from = replies.length;
+            await dynamicAsk(rZ, theirs);
+            await settle();
+            read.push(sentSince(rZ, from));
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            if (granted) await lent.update({ [`ownership.${player.id}`]: player.id in ownership ? ownership[player.id] : forcedDeletion() });
+            await sheetAuditIdle();
+            for (const node of [...document.querySelectorAll(".drpg-popup")]) node.dispatchEvent(new CustomEvent("drpg-dismiss"));
+            for (const message of created) await message.delete().catch(() => {});
+            await settle();
+        }
+        const ACK = ["bridge.ack", null], REFUSED = [ACK, ["bridge.refused", "badRequest"]];
+        equal(stableJson(read), stableJson([
+            { id: r1, asker: player.id, kind: "call", actorId: theirs.id, key: "experience", nonce: n1 },
+            { id: r2, asker: player.id, kind: "dynamic", actorId: theirs.id },
+            REFUSED, 0, false, false,
+            [ACK], true, true,
+            REFUSED, false,
+            [ACK], true, ["dynamic", "theirs", 2],
+            REFUSED
+        ]), "the mark does not say what its card was posted for, or a resend that differs from it was held again: a GM's yes on an Experience's card was kept for the Ultimate and another purchase, a difficulty set on a card for one character was kept for another, or a Call's card was held as a Dynamic action's (in order: the two marks; the Ultimate's resend - what was sent, the cards posted, the yes kept, its arm let through; the Experience asked again - what was sent, the yes, its arm; the other character's resend - what was sent, the difficulty sent on; the character's own - what was sent, the difficulty, the ruling on the card; the Call's card asked as a Dynamic action)");
+    }],
+
+    ["a GM's yes or ruling goes to the ask held on the card it was pressed on: a first card whose mark the primary could not read is refused once a resend has a card of its own (E18 fix early-C2-G2)", async () => {
+        /*
+         * E18 fix early-C2-G2, 20.10.2026; the early review's C2-F1, the other road to its harm. A primary that cannot
+         * read an ask's card's mark - a GM that became the primary without the card's words - finds no card when the
+         * player asks again and posts a second one for the resend, while the first card's buttons name the same
+         * request. A GM's yes or difficulty pressed on the first card went to the ask held on the second: a resend
+         * from the player's console naming the Ultimate and another purchase had a yes pressed on an Experience's card
+         * kept for the Ultimate, and one naming another character the player owns had a difficulty set on a card for
+         * one character kept for the other. A GM's press names the card it was pressed on now (messenger-app.mjs
+         * `runCallAction`), and the primary acts only for the ask held on that card. Each ask is handed to the
+         * bridge's runner as Foundry would name its sender; the presses on the first cards are clicks on their own
+         * buttons (`wireCallActions`), the difficulty's window answered with 2. Read: (1) a Call's card for an
+         * Experience posted with no mark, then a resend naming the Ultimate and another purchase, which puts up a card
+         * of its own; this GM's yes pressed on the first card - whether the Ultimate's arm is let through; then this
+         * GM's yes on the second card, and that arm again; (2) a Dynamic action's card for the player's character
+         * posted with no mark, then a resend naming a student the player is made an owner of for this test, which puts
+         * up a card of its own; a difficulty and a refusal pressed on the first card - the ruling kept on the second
+         * card; then this GM's difficulty of 1 on the second card, and the ruling kept on it. The ownership is put
+         * back, the cards deleted and popups dismissed after; no Hope is paid (the arm's guard is asked, not the arm).
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the ask is a player's, and Foundry names only a connected one");
+        needs(world.atLeast("studentsWithoutPlayer", 1), "a resend naming another character the player owns is read here, and a student no player owns is lent for it");
+        const { isPrimaryGm, serverNow } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which holds the asks - this would measure nothing");
+        const { player, theirs } = playerAndCharacters();
+        const { livingStudents } = await import("./chapter.mjs");
+        const lent = livingStudents().find(a => !game.users.some(u => !u.isGM && a.testUserPermission(u, "OWNER")));
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const { wireCallActions } = await import("./messenger-app.mjs");
+        const { contentOf, cardFlag } = await import("./secret.mjs");
+        const judged = (action, fields, from, requestId) => G.judge(B.BRIDGE_ACTIONS, { action, requestId, ...fields }, from, { send: () => {} });
+        const armed = (key, nonce) => G.guardArmGmYes(player, { actorId: theirs.id, call: { key, nonce } }, {}) === null;
+        const seen = new Set(game.messages.map(m => m.id));
+        const created = [];
+        const hook = Hooks.on("createChatMessage", m => { if (!seen.has(m.id)) created.push(m); });
+        const newCard = async (post, what) => {
+            const before = created.length;
+            await post();
+            must(await until(() => created.length > before, 5000), `${what} was not posted - this would measure nothing`);
+            return game.messages.get(created.at(-1).id);
+        };
+        // A click on the card's own button, as a GM's chat log draws it; done once its buttons are let go again.
+        const press = async (card, action) => {
+            const body = document.createElement("div");
+            body.innerHTML = contentOf(card);
+            wireCallActions(body, card);
+            const button = body.querySelector(`[data-drpg-call="${action}"]`);
+            must(button, `the first card carries no ${action} for a GM - this would measure nothing`);
+            button.click();
+            await until(() => !button.disabled, 5000);
+            await settle(300);
+        };
+        const kept = card => {
+            const ruling = cardFlag(game.messages.get(card.id), "ruling");
+            return ruling ? [ruling.type ?? null, ruling.actorId === lent.id ? "lent" : ruling.actorId === theirs.id ? "theirs" : ruling.actorId ?? null, ruling.tier ?? null] : null;
+        };
+        const ownership = foundry.utils.deepClone(lent.ownership ?? {});
+        let granted = false;
+        const [rW, rV, nU] = [1, 2, 3].map(() => foundry.utils.randomID(16));
+        const read = [];
+        try {
+            const expires = serverNow() + 600000;
+            const W = await newCard(() => B.callGm(theirs, { title: "E18 fix early-C2-G2 Experience, its mark unread", expires,
+                actions: [{ action: "approveCall", label: "yes", data: { rid: rW, asker: player.id, by: theirs.id } }] }), "the Call's first card");
+            const W2 = await newCard(() => judged("call.approve", { actorId: theirs.id, key: "ultimate", note: "E18 fix early-C2-G2", nonce: nU }, player.id, rW),
+                "the resend's card");
+            await press(W, "approveCall");
+            read.push(armed("ultimate", nU), await B.answerHopeCall(rW, player.id, true, W2.id), armed("ultimate", nU));
+
+            await lent.update({ [`ownership.${player.id}`]: CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER });
+            granted = true;
+            await sheetAuditIdle();
+            const data = { rid: rV, asker: player.id, by: theirs.id };
+            const V = await newCard(() => B.callGm(theirs, { title: "E18 fix early-C2-G2 Dynamic, its mark unread", request: "E18 fix early-C2-G2", expires,
+                actions: [{ action: "setDifficulty", label: "set", data: { ...data, room: "", desc: "E18 fix early-C2-G2", name: theirs.name } },
+                    { action: "refuseDynamic", label: "refuse", data }] }), "the Dynamic action's first card");
+            const V2 = await newCard(() => judged("dynamic.difficulty", { actorId: lent.id, description: "E18 fix early-C2-G2", actorName: lent.name, room: null }, player.id, rV),
+                "the resend's card");
+            await withAnsweredWindows(() => ({ tier: 2, trait: "agility" }), () => press(V, "setDifficulty"));
+            await press(V, "refuseDynamic");
+            read.push(kept(V2), Boolean(await B.answerDynamic(rV, player.id, { tier: 1, trait: "agility" }, V2.id)));
+            await settle(300);
+            read.push(kept(V2));
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            if (granted) await lent.update({ [`ownership.${player.id}`]: player.id in ownership ? ownership[player.id] : forcedDeletion() });
+            await sheetAuditIdle();
+            for (const node of [...document.querySelectorAll(".drpg-popup")]) node.dispatchEvent(new CustomEvent("drpg-dismiss"));
+            for (const message of created) await message.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson([false, true, true, null, true, ["dynamic", "lent", 1]]),
+            "a GM's yes or ruling pressed on a card went to the ask held on another card under the same request: the yes on an Experience's card let the Ultimate's arm through, or the difficulty set on a card for the player's character was kept for another, or the second card's own press was not taken (in order: the Ultimate's arm after the first card's yes, the second card's yes, the arm then; the ruling on the second card after the first card's difficulty and refusal, the second card's difficulty, the ruling then)");
     }],
 
     ["the primary ends an ask's card at the time the card shows: a card past it ends as expired, one before it stays open, and a player's card is not touched (E18 C2)", async () => {

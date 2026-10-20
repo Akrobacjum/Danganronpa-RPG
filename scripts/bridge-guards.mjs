@@ -273,6 +273,9 @@ export const REASON_PATTERNS = Object.freeze([
     ["alreadyDone", /^that betrayal is already declared$/],
     // E18 C2: an ask asked again whose card a GM has ruled or ended meanwhile (gm-bridge.mjs `askAgain`).
     ["alreadyDone", /^that ask's card has already been settled$/],
+    // E18 fix early-C2-G2: an ask asked again whose card's mark names another Call, purchase, character or kind
+    // (gm-bridge.mjs `askAgain`, `sameAsk`).
+    ["badRequest", /^that ask's card was posted for another ask$/],
     ["nothingToUndo", /^that Observe has no result to take back$/],
     // E08+E28 fix r1-G2: a crisis row whose fact never reached it (reroll.mjs `replayRefusal`).
     ["nothingToUndo", /^that crisis action has no result to take back$/],

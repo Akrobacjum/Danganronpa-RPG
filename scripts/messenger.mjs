@@ -203,8 +203,9 @@ export async function sendMessage(playerUserId, text, { kind = THREAD_KIND.dm } 
  * Post pre-built HTML - the callGm() ruling cards - into a player's thread.
  * The caller is responsible for escaping anything it interpolated. `veiled`: a
  * card whose place in this thread is itself the secret (see the header). `rid`:
- * the mark of the ask the card was posted for, `{ id, asker }` (gm-bridge.mjs
- * `callGm`, E18 C2) - in the meta its words travel with, never on the document.
+ * the mark of the ask the card was posted for - its id and asker, its kind and
+ * what it was asked for (gm-bridge.mjs `callGm`, E18 C2; `askMark`, fix
+ * early-C2-G2) - in the meta its words travel with, never on the document.
  */
 export async function postToThread(playerUserId, html, { kind = THREAD_KIND.action, gmAsk = false, veiled = false, rid = null } = {}) {
     if (!isThreadUser(playerUserId)) return null;
