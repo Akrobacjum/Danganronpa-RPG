@@ -16,7 +16,7 @@ import {
     MODULE_ID, TRAITS, HOPE_CALLS, DESPAIR_CALLS, STARTING, PROJECT_SCALE, TIMING,
     LEVEL_UP, LEVEL_UP_OPTIONS, ACTIONS, DYNAMIC_THRESHOLDS
 } from "./config.mjs";
-import { announce, whisperToGms, whisperToOwner, ownerOf, isPrimaryGm, primaryGmId, dialogContent, debug, warn, error, cardHead, esc } from "./utils.mjs";
+import { announce, whisperToGms, whisperToOwner, ownerOf, isPrimaryGm, primaryGmId, dialogContent, debug, warn, error, cardHead, esc, serverNow } from "./utils.mjs";
 import {
     firstRefusal, guardUndoIsTheGms, guardCrisisAction, guardCrisisRoll, guardShareSecret,
     guardShareGuest, guardTieTraceHolder, guardSendbackPlace, armBuyerId, guardArmCharacter, guardArmPlayerCall, guardCubAbility,
@@ -180,6 +180,13 @@ export function registerGmBridge() {
     // After the secret swap: the import is a microtask, and the swap ran in
     // this same hook dispatch.
     if (game.user.isGM) {
+        // The asks' cards left open by an asker who left or a primary that reloaded end at their time (E18 C2):
+        // swept once this world is up, and again by the GM who becomes the primary when the primary leaves.
+        sweepAskCards().catch(err => debug("Could not sweep the asks' cards", err));
+        Hooks.on("userConnected", (user, connected) => {
+            if (connected || !user?.isGM || !isPrimaryGm({ leaving: user.id })) return;
+            sweepAskCards({ leaving: user.id }).catch(err => debug("Could not sweep the asks' cards", err));
+        });
         Hooks.on("renderChatMessageHTML", (message, element) => {
             // From the words' meta (E06 C7a): the card is drawn again when they land.
             if (!cardFlag(message, "callCard")) return;
@@ -1914,7 +1921,9 @@ export const BRIDGE_ACTIONS = table({
         // yes is kept for (E29 fix r2-H4; `yesOnPrimary`).
         sanitize: pick({ actorId: as.id, key: as.text, callLabel: as.text, effect: as.text, note: as.text, nonce: as.text }),
         run: handleHopeCall,
-        answer: "reply", patient: true, resend: true, timeoutMs: TIMING.hopeCallRulingMs
+        // Not patient (E18 C2, S10-51): the primary's "got it" comes as the card goes up, so none within
+        // TIMING.ackMs is an ask no GM's listener took, said at once rather than after the ruling's clock (R840).
+        answer: "reply", resend: true, timeoutMs: TIMING.hopeCallRulingMs
     },
     /*
      * A GM'S YES IS KEPT ON THE PRIMARY (E29 fix r2-H4, 05.10.2026; the round-2 reviews' sec M4
@@ -1937,7 +1946,8 @@ export const BRIDGE_ACTIONS = table({
         guards: [knownSender, owns("actorId", "sender does not own that character")],
         sanitize: pick({ actorId: as.id, description: as.text, actorName: as.text, room: as.maybeText }),
         run: handleDifficulty,
-        answer: "reply", patient: true, resend: true
+        // Not patient, as the Hope Call's (E18 C2, R840).
+        answer: "reply", resend: true
     },
     /*
      * AN ASK FROM A CARD ENDS ONCE, ON THE PRIMARY (E18 C1, 19.10.2026; audits S10-25, S11-13). A Hope
@@ -2877,19 +2887,127 @@ const CALL_ASKS_KEPT = 100;
  */
 const dynamicAsks = new Map();
 
-/** Keep an ask, and the card it was put on once it is posted (`messageId`, E18 C1); the oldest go first. */
-function holdAsk(asks, requestId, held) {
+/**
+ * Keep an ask, and the card it was put on once it is posted (`messageId`, E18 C1); the oldest go first. With
+ * `expires`, the card ends at that time if nothing ended it before (`endAtExpiry`, E18 C2).
+ */
+function holdAsk(asks, requestId, held, expires = null) {
     asks.set(requestId, { ...held, messageId: null });
     while (asks.size > CALL_ASKS_KEPT) asks.delete(asks.keys().next().value);
-    return message => { const kept = asks.get(requestId); if (kept && message?.id) kept.messageId = message.id; };
+    return message => {
+        const kept = asks.get(requestId);
+        if (kept && message?.id) kept.messageId = message.id;
+        if (message?.id && expires) endAtExpiry(message.id, expires);
+    };
+}
+
+/*
+ * AN ASK ASKED AGAIN FINDS ITS CARD (E18 C2, 19.10.2026; audit S10-24). `askedByCard` is in memory, so a primary
+ * that reloaded mid-question, or a GM that became the primary, was asked again by the waiting player (bridge-guards.mjs
+ * `resendOnGmReady`) and posted a second card for the same ask. The card a GM posts for an ask carries its mark,
+ * `rid` - the ask's id and its asker - in the meta its words travel with (`callGm`), and before posting the primary
+ * looks for it: found, the ask is held again on that card, and nothing is posted; found and settled, the ask is
+ * refused, since its card is ruled or ended. Only a GM's card counts: a player's own message can carry any flag on
+ * its document, and a card a GM posted at a player's asking has the GM for its author, so a player's meta may not
+ * carry the mark (secret.mjs `GM_META`). Tier 2's "a resent ask finds the card a GM posted for it" reads each road;
+ * scenario 61's phase Y drives the primary's reload and a handover.
+ */
+
+/** The card a GM posted for this ask, by its mark, the newest first; null when there is none. */
+function cardOfAsk(requestId, asker) {
+    const messages = game.messages?.contents ?? [];
+    for (let i = messages.length - 1; i >= 0; i--) {
+        const message = messages[i];
+        if (!(message.author ?? message.user)?.isGM) continue;
+        const mark = cardFlag(message, "rid");
+        if (mark?.id === requestId && mark.asker === asker) return message;
+    }
+    return null;
+}
+
+/** The time an ask's card is open until, as its words say (`data-expires`), or null. */
+function askCardExpiry(message) {
+    const wrap = document.createElement("template");
+    wrap.innerHTML = contentOf(message);
+    const at = Number(wrap.content.querySelector("[data-expires]")?.getAttribute("data-expires"));
+    return Number.isFinite(at) && at > 0 ? at : null;
+}
+
+/**
+ * An ask arriving that this primary may have seen before: `{ later }` for one it holds or is posting, or whose
+ * card it found and holds again; `{ refused }` for one whose card is settled; null for a new ask, to be posted.
+ */
+async function askAgain(asks, ctx, held) {
+    if (!ctx.requestId) return { later: true };
+    const card = cardOfAsk(ctx.requestId, ctx.asker);
+    if (card) {
+        const { MESSENGER_FLAGS } = await import("./messenger.mjs");
+        if (cardFlag(card, MESSENGER_FLAGS.settled)) return { refused: "that ask's card has already been settled" };
+    }
+    if (askedByCard.has(ctx.requestId)) return { later: true };
+    if (!card) return null;
+    askedByCard.add(ctx.requestId);
+    holdAsk(asks, ctx.requestId, held, askCardExpiry(card))(card);
+    return { later: true };
+}
+
+/*
+ * AN ASK'S CARD ENDS AT THE TIME IT SHOWS (E18 C2, 19.10.2026; the stage's doneWhen "in a time the card shows"). The
+ * card says until when it is open ("Open until 21:35.", `data-expires`, on the server's clock), the time its asker's
+ * clock runs out. A player whose browser closed sends no expiry (E18 C1's `ruling.expired`), and a primary that
+ * reloaded holds no ask, so such a card stayed open: the primary now ends each card at its time and `TIMING.ackMs`
+ * after, the asker's own expiry having come first when there was one (`endAtExpiry`), and at its ready, or when it
+ * becomes the primary, ends a GM's open marked card whose time has passed and sets the rest (`sweepAskCards`).
+ */
+const expiryTimers = new Map();
+
+function endAtExpiry(messageId, expires) {
+    if (!messageId || !Number.isFinite(expires)) return;
+    clearTimeout(expiryTimers.get(messageId));
+    const left = expires - serverNow();
+    expiryTimers.set(messageId, setTimeout(() => void expireAskCard(messageId), left > 0 ? left + TIMING.ackMs : 0));
+}
+
+/** A card's time ran out: what this primary holds for it is dropped, a yes not yet received taken back, and it ends as expired. */
+async function expireAskCard(messageId, leaving = null) {
+    expiryTimers.delete(messageId);
+    if (!isPrimaryGm({ leaving })) return;
+    for (const asks of [callAsks, dynamicAsks]) {
+        for (const [rid, held] of asks) if (held.messageId === messageId) asks.delete(rid);
+    }
+    for (const [rid, sent] of answeredAsks) {
+        if (sent.messageId !== messageId) continue;
+        clearTimeout(sent.timer);
+        answeredAsks.delete(rid);
+        if (sent.yes) forgetCallYes(sent.yes);
+    }
+    await endExpired(messageId);
+}
+
+/**
+ * The primary's pass over the GMs' open marked cards: past their time ended now, the rest ended at it. `leaving`
+ * names the GM whose leaving made this client the primary, as `isPrimaryGm` takes it.
+ */
+export async function sweepAskCards({ leaving = null } = {}) {
+    if (!isPrimaryGm({ leaving })) return;
+    const { MESSENGER_FLAGS } = await import("./messenger.mjs");
+    const now = serverNow();
+    for (const message of game.messages?.contents ?? []) {
+        if (!(message.author ?? message.user)?.isGM || !cardFlag(message, "rid") || cardFlag(message, MESSENGER_FLAGS.settled)) continue;
+        const expires = askCardExpiry(message);
+        if (expires === null) continue;
+        if (expires <= now) await expireAskCard(message.id, leaving);
+        else endAtExpiry(message.id, expires);
+    }
 }
 
 async function askHopeCallByCard(payload, ctx) {
-    if (!ctx.requestId || askedByCard.has(ctx.requestId)) return { later: true };
+    const held = { userId: ctx.asker, actorId: payload.actorId ?? "", key: payload.key ?? "", nonce: payload.nonce ?? "" };
+    const again = await askAgain(callAsks, ctx, held);
+    if (again) return again;
     askedByCard.add(ctx.requestId);
-    const onPosted = holdAsk(callAsks, ctx.requestId, {
-        userId: ctx.asker, actorId: payload.actorId ?? "", key: payload.key ?? "", nonce: payload.nonce ?? ""
-    });
+    const expires = serverNow() + TIMING.hopeCallRulingMs;
+    const onPosted = holdAsk(callAsks, ctx.requestId, held, expires);
     const actor = game.actors.get(payload.actorId ?? "");
     const data = { rid: ctx.requestId, asker: ctx.asker, by: payload.actorId ?? "" };
     /*
@@ -2912,7 +3030,9 @@ async function askHopeCallByCard(payload, ctx) {
             { action: "approveCall", label: game.i18n.localize("DRPG.Calls.approveYes"), data },
             { action: "refuseCall", label: game.i18n.localize("DRPG.Calls.approveNo"), data }
         ],
-        onPosted
+        onPosted,
+        rid: { id: ctx.requestId, asker: ctx.asker },
+        expires
     });
     // A card that could not be posted is a ruling nobody can give: said now,
     // rather than after the player's clock (map-gmSide 3, E31).
@@ -2920,9 +3040,12 @@ async function askHopeCallByCard(payload, ctx) {
 }
 
 async function askDynamicByCard(payload, ctx) {
-    if (!ctx.requestId || askedByCard.has(ctx.requestId)) return { later: true };
+    const held = { userId: ctx.asker, actorId: payload.actorId ?? "" };
+    const again = await askAgain(dynamicAsks, ctx, held);
+    if (again) return again;
     askedByCard.add(ctx.requestId);
-    const onPosted = holdAsk(dynamicAsks, ctx.requestId, { userId: ctx.asker, actorId: payload.actorId ?? "" });
+    const expires = serverNow() + TIMING.rulingMs;
+    const onPosted = holdAsk(dynamicAsks, ctx.requestId, held, expires);
     const actor = game.actors.get(payload.actorId ?? "");
     const data = {
         rid: ctx.requestId, asker: ctx.asker, by: payload.actorId ?? "",
@@ -2936,7 +3059,9 @@ async function askDynamicByCard(payload, ctx) {
             { action: "setDifficulty", label: game.i18n.localize("DRPG.Action.dynamicSet"), data },
             { action: "refuseDynamic", label: game.i18n.localize("DRPG.Action.dynamicRefuse"), data }
         ],
-        onPosted
+        onPosted,
+        rid: { id: ctx.requestId, asker: ctx.asker },
+        expires
     });
     return posted === false ? { refused: "the ruling card could not be posted" } : { later: true };
 }
@@ -3267,9 +3392,9 @@ async function receivedOnPrimary(requestId, senderId) {
  * "May I spend this, and here is what for." Waits for a human (Dawid, 29.08).
  *
  * The same shape as `requestDynamicDifficulty` below, and for the same reason:
- * a question only a person can answer, so the clock is generous, there is no
- * clock for the "got it" (`patient`), and the question is asked again when a
- * GM's world has loaded. Nothing is charged on this side - see `spendHopeCall`,
+ * a question only a person can answer, so the clock is generous, the "got it"
+ * comes as the card goes up (not `patient`, E18 C2), and the question is asked
+ * again when a GM's world has loaded or the primary has left. Nothing is charged on this side - see `spendHopeCall`,
  * which pays only against a yes - so a failure says "Nothing was spent." `nonce`
  * names the purchase: the primary keeps a GM's yes for it, and the arm that follows
  * names it again (E29 fix r2-H4; bridge-guards.mjs `guardArmGmYes`).
@@ -3679,7 +3804,7 @@ export const CALL_GM_WHAT = "gm.call";
  * player's own words quoted, the caller's body, the GM's reference, "awaiting a ruling"
  * and the GM's buttons. Its own function so the card is read without posting one (R838).
  */
-export function callCardHtml(actor, { title, body = "", roll = null, request = "", room = null, gmBody = "", actions = [] } = {}) {
+export function callCardHtml(actor, { title, body = "", roll = null, request = "", room = null, gmBody = "", actions = [], expires = null } = {}) {
     const parts = [];
     parts.push(`<h3>${esc(title)}</h3>`);
     parts.push(`<p><strong>${esc(actor?.name ?? "?")}</strong>${room ? ` · ${esc(room)}` : ""}</p>`);
@@ -3713,9 +3838,9 @@ export function callCardHtml(actor, { title, body = "", roll = null, request = "
     // a <p> was two empty paragraphs and the body's own, once the browser had parsed it.
     if (body) parts.push(`<div class="drpg-call-body">${body}</div>`);
     if (gmBody) parts.push(`<div class="drpg-gm-only">${gmBody}</div>`);
-    // Classed so `settleCall` can take it off again once the card is answered.
+    // Classed so `settleCall` can take it off again once the card is answered - its time with it (E18 C2).
     parts.push(`<p class="drpg-call-awaiting"><em>${
-        game.i18n.localize("DRPG.Bridge.awaitingRuling")}</em></p>`);
+        game.i18n.localize("DRPG.Bridge.awaitingRuling")}</em>${expiresHtml(expires)}</p>`);
 
     if (actions.length) {
         parts.push(`<div class="drpg-call-actions">${actions.map(a => {
@@ -3727,6 +3852,17 @@ export function callCardHtml(actor, { title, body = "", roll = null, request = "
     }
 
     return parts.join("");
+}
+
+/**
+ * "Open until 21:35." on an ask's card (E18 C2): the time its asker stops waiting, in the posting GM's clock and
+ * language, and `data-expires` (the server's milliseconds) for the primary that ends the card at it (`sweepAskCards`).
+ */
+function expiresHtml(expires) {
+    if (!Number.isFinite(expires) || expires <= 0) return "";
+    const time = new Date(expires).toLocaleTimeString(game.i18n.lang, { hour: "2-digit", minute: "2-digit" });
+    return ` <span class="drpg-call-expires" data-expires="${Math.round(expires)}">${
+        esc(game.i18n.format("DRPG.Bridge.openUntil", { time }))}</span>`;
 }
 
 /**
@@ -3805,7 +3941,15 @@ export async function callGm(actor, {
     what = CALL_GM_WHAT,
     nothingSpent = false,
     /** Handed the card once it is posted (E18 C1): the primary keeps which card an ask it holds is on. */
-    onPosted = null
+    onPosted = null,
+    /**
+     * The ask the card is posted for, `{ id, asker }` (E18 C2): kept in the meta its words travel with, where
+     * the primary looks for it when the player asks again (`askAgain`). A player's meta may not carry it
+     * (secret.mjs `GM_META`), and a card a player wrote is never taken for it (`cardOfAsk`).
+     */
+    rid = null,
+    /** When the ask's clock runs out, on the server's clock (`serverNow`): shown on the card, and the card ends then. */
+    expires = null
 } = {}) {
     /*
      * NO GM, NO CARD (E18 C0, 19.10.2026; audit S10-26). With no GM connected this posted
@@ -3819,7 +3963,7 @@ export async function callGm(actor, {
         sayNotDone(what, "noGm", { nothingSpent });
         return false;
     }
-    const content = callCardHtml(actor, { title, body, roll, request, room, gmBody, actions });
+    const content = callCardHtml(actor, { title, body, roll, request, room, gmBody, actions, expires });
     const owner = gmOnly ? null : ownerOf(actor);
 
     if (!owner) {
@@ -3849,7 +3993,8 @@ export async function callGm(actor, {
                 flags: { [MODULE_ID]: {
                     callCard: true, gmPopup: true,
                     popupTitle: gmOnly ? game.i18n.localize("DRPG.Action.murderRulingTitle") : title,
-                    sfx: { key: "gmAsk", gm: true }
+                    sfx: { key: "gmAsk", gm: true },
+                    ...(rid ? { rid } : {})
                 } }
             });
             if (whispered) onPosted?.(whispered);
@@ -3865,7 +4010,7 @@ export async function callGm(actor, {
         // Every callGm card is, by definition, a call ON the GM - the flag is
         // what tells the messenger's notifier to interrupt them for it. See
         // MESSENGER_FLAGS.gmAsk for why this cannot be derived from the author.
-        const posted = await postToThread(owner.id, content, { gmAsk: true, veiled });
+        const posted = await postToThread(owner.id, content, { gmAsk: true, veiled, rid });
         if (posted) onPosted?.(posted);
         return Boolean(posted);
     } catch (err) {

@@ -212,8 +212,11 @@ const ASKED_BY = "askedBy";
  * reroll.mjs `markReplacedCard`): both are a GM's to write, and every browser's notice history marks its
  * entry by them (E81 fix r1-G3, 12.10.2026; review round 1's O14 - a player's own card could carry
  * "Ruled on by the GM"). No test or scenario sends either in a player's meta (read 12.10.2026).
+ * Nor an ask's mark (`rid`, gm-bridge.mjs `callGm`, E18 C2): the primary takes a card carrying it for the card
+ * it posted for that ask, and posts none when the player asks again, so a player's card carrying it would
+ * stand in for the GMs' (tier 2's "a resent ask finds the card a GM posted for it").
  */
-const GM_META = Object.freeze(["gmPopup", "popupForce", "callCard", "safeword", "ruling", ASKED_BY, "settled", "rerolled"]);
+const GM_META = Object.freeze(["gmPopup", "popupForce", "callCard", "safeword", "ruling", ASKED_BY, "settled", "rerolled", "rid"]);
 
 /** A card's meta as a plain object without the document's own flags, or null. Pure. */
 function plainMeta(raw) {

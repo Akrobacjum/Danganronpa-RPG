@@ -3038,6 +3038,7 @@
       "criticalHint": "Critical - this player is owed a substantial hint.",
       "send": "Send to GM",
       "awaitingRuling": "Awaiting a ruling.",
+      "openUntil": "Open until {time}.",
       "declined": "{name} turned the attempt down. Your action is back.",
       "declinedGm": "Turned down. {name} has the action back.",
       "settledAnswered": "Answered by {name}.",

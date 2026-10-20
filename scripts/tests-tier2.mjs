@@ -28057,6 +28057,207 @@ const SCENARIOS = [
         ]), "a yes naming the wrong asker was sent on, a yes was written before its receipt or on another player's receipt or expiry, a yes with no receipt did not end the card with the GMs' line or was still kept, or a Dynamic ruling was taken from its asker or not written with its difficulty on its asker's receipt (in order: ended before a receipt, after another's receipt and expiry, the lines after the asker's; the yes sent, the lines after the wait, the yes gone; this GM's ruling sent after the asker's own, its lines, its meta)");
     }],
 
+    ["a resent ask finds the card a GM posted for it by its mark and no other: one card for one ask, a player's card, a card posted at a player's asking or another player's mark stop nothing, and a ruled card refuses (E18 C2)", async () => {
+        /*
+         * E18 C2, 19.10.2026; audit S10-24 (E18-08). The primary knew which asks it had put on a card only in memory
+         * (`askedByCard`), so a primary that reloaded mid-question and was asked again by the waiting player posted a
+         * second card for the same ask. The card a GM posts for an ask now carries its mark (`rid`: the ask's id and its
+         * asker, in the meta its words travel with, which a player's meta may not carry - secret.mjs `GM_META`), and
+         * the primary looks for a GM's card with it before posting. Each ask is handed to the bridge's runner as
+         * Foundry would name its sender. Read, as new cards after each ask: (1) a card this primary holds no ask for -
+         * as after its reload - marked for the ask, then whether this GM's yes is kept for the ask the card holds; (2) a
+         * chat message the player wrote carrying the mark on its document; (3) a card the GM posted at the player's
+         * asking (`card.post`, an incident running) whose flags carry the mark; (4) a GM's card whose mark names
+         * another player as the asker; (5) a GM's marked card already ruled, and what the runner sent for its ask. The
+         * messages are deleted, popups dismissed and the murder state put back after.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the ask is a player's, and Foundry names only a connected one");
+        needs(world.atLeast("playerAccounts", 2), "a mark naming another player's ask is read here");
+        const { isPrimaryGm, gmIds, serverNow } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which posts the asks' cards - this would measure nothing");
+        const { player, theirs } = playerAndCharacters();
+        const stranger = game.users.find(u => !u.isGM && u.id !== player.id);
+        const G = await import("./bridge-guards.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const { cardFlag } = await import("./secret.mjs");
+        const replies = [];
+        const judged = (action, fields, from, requestId) => G.judge(B.BRIDGE_ACTIONS, { action, requestId, ...fields }, from,
+            { send: (to, reply) => replies.push([requestId, reply?.action ?? null, reply?.reason ?? null]) });
+        const ask = rid => judged("call.approve", { actorId: theirs.id, key: "experience", note: "E18 C2 resend", nonce: foundry.utils.randomID(16) }, player.id, rid);
+        const seen = new Set(game.messages.map(m => m.id));
+        const created = [];
+        const hook = Hooks.on("createChatMessage", m => { if (!seen.has(m.id)) created.push(m); });
+        const marked = (rid, asker = player.id) => ({ id: rid, asker });
+        const posted = async (post, what) => {
+            const before = created.length;
+            await post();
+            must(await until(() => created.length > before, 5000), `${what} was not posted - this would measure nothing`);
+            return game.messages.get(created.at(-1).id);
+        };
+        const newCards = async (rid, before) => { await ask(rid); await settle(); return created.length - before; };
+        const murder = foundry.utils.deepClone(getSetting(SETTINGS.murderState));
+        const read = [];
+        try {
+            const [r1, r2, r3, r4, r5] = [1, 2, 3, 4, 5].map(() => foundry.utils.randomID(16));
+            const actions = rid => [{ action: "approveCall", label: "yes", data: { rid, asker: player.id, by: theirs.id } }];
+            await posted(() => B.callGm(theirs, { title: "E18 C2 posted before a reload", rid: marked(r1), expires: serverNow() + 600000, actions: actions(r1) }),
+                "the marked card");
+            read.push(await newCards(r1, created.length), await B.answerHopeCall(r1, player.id, true));
+
+            await posted(() => ChatMessage.create({ author: player.id, content: "<p>E18 C2 a player's card</p>", whisper: [player.id, ...gmIds()],
+                flags: { [MODULE_ID]: { rid: marked(r2) } } }), "the player's card");
+            read.push(await newCards(r2, created.length));
+
+            await game.settings.set(MODULE_ID, SETTINGS.murderState, { active: true, stage: "incident" });
+            await posted(() => judged("card.post", { content: "<p>E18 C2 asked</p>", whisper: [player.id, ...gmIds()], veiled: false, flags: { rid: marked(r3) } },
+                player.id, foundry.utils.randomID(16)), "the card a player asked for");
+            await game.settings.set(MODULE_ID, SETTINGS.murderState, murder);
+            read.push(await newCards(r3, created.length));
+
+            await posted(() => B.callGm(theirs, { title: "E18 C2 another's ask", rid: marked(r4, stranger.id), expires: serverNow() + 600000, actions: actions(r4) }),
+                "the card marked for another player");
+            read.push(await newCards(r4, created.length));
+
+            const ruled = await posted(() => B.callGm(theirs, { title: "E18 C2 ruled", rid: marked(r5), expires: serverNow() + 600000, actions: actions(r5) }),
+                "the card to rule");
+            await B.settleCall(ruled, "E18 C2 ruled already");
+            must(await until(() => cardFlag(ruled, "settled"), 3000), "the card was not ruled - this would measure nothing");
+            read.push(await newCards(r5, created.length), replies.filter(([rid]) => rid === r5).map(([, action, reason]) => [action, reason]));
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            await game.settings.set(MODULE_ID, SETTINGS.murderState, murder);
+            for (const node of [...document.querySelectorAll(".drpg-popup")]) node.dispatchEvent(new CustomEvent("drpg-dismiss"));
+            for (const message of created) await message.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson([0, true, 1, 1, 1, 0, [["bridge.ack", null], ["bridge.refused", "alreadyDone"]]]),
+            "new cards per ask: the GM's marked card (then the yes kept), a player's card with the mark, a card asked by a player with it, a mark naming another asker, a ruled card (then what its ask was sent) - an ask found by its mark posted a second card, a card a player wrote or asked for stood in for a GM's, another player's ask was taken as this one's, or a ruled card's ask was not refused");
+    }],
+
+    ["the primary ends an ask's card at the time the card shows: a card past it ends as expired, one before it stays open, and a player's card is not touched (E18 C2)", async () => {
+        /*
+         * E18 C2, 19.10.2026; the stage's doneWhen "in a time the card shows" (E18-11). An ask's card stayed open after
+         * its player had stopped waiting when nothing told the primary - the player's browser reloaded, or the primary
+         * reloaded between a yes and its receipt (E18 C1's two gaps). The card shows its time now (`data-expires`, "Open
+         * until ..."), and the primary ends the GMs' open marked cards past it (`sweepAskCards`, at its ready and when it
+         * becomes the primary). Read: a marked card whose time has passed and one whose time has not, the player's
+         * copy of the second (the time shown, as it was posted), and a chat message the player wrote carrying the mark
+         * and a past time in its words; after the sweep, which of the three are ended and the first one's lines; and,
+         * in the source, that the GM's bridge sweeps at its ready. The messages are deleted after.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the ask is a player's, and its card lives in that player's thread");
+        const { isPrimaryGm, gmIds, serverNow } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which ends the asks' cards - this would measure nothing");
+        const { player, theirs } = playerAndCharacters();
+        const B = await import("./gm-bridge.mjs");
+        const { contentOf, cardFlag, wordsFor } = await import("./secret.mjs");
+        const lines = html => {
+            const wrap = document.createElement("template");
+            wrap.innerHTML = html;
+            const all = [...wrap.content.querySelectorAll(".drpg-call-settled")];
+            return [all.filter(el => !el.closest(".drpg-gm-only")).map(el => el.textContent).join(" | ") || null,
+                all.filter(el => el.closest(".drpg-gm-only")).map(el => el.textContent).join(" | ") || null];
+        };
+        const shown = html => {
+            const wrap = document.createElement("template");
+            wrap.innerHTML = html;
+            const at = wrap.content.querySelector("[data-expires]");
+            return at ? [Number(at.dataset.expires), /\d/.test(at.textContent)] : null;
+        };
+        const seen = new Set(game.messages.map(m => m.id));
+        const created = [];
+        const hook = Hooks.on("createChatMessage", m => { if (!seen.has(m.id)) created.push(m); });
+        const ended = m => Boolean(cardFlag(m, "settled"));
+        const past = Math.round(serverNow()) - 1000, later = Math.round(serverNow()) + 600000;
+        const read = [];
+        try {
+            const mark = () => ({ id: foundry.utils.randomID(16), asker: player.id });
+            await B.callGm(theirs, { title: "E18 C2 past its time", rid: mark(), expires: past });
+            must(await until(() => created.length >= 1, 5000), "the first card was not posted - this would measure nothing");
+            await B.callGm(theirs, { title: "E18 C2 before its time", rid: mark(), expires: later });
+            must(await until(() => created.length >= 2, 5000), "the second card was not posted - this would measure nothing");
+            await ChatMessage.create({ author: player.id, whisper: [player.id, ...gmIds()], flags: { [MODULE_ID]: { rid: mark() } },
+                content: `<p class="drpg-call-awaiting">E18 C2 a player's card <span data-expires="${past}">1</span></p>` });
+            must(await until(() => created.length >= 3, 5000), "the player's card was not posted - this would measure nothing");
+            const [first, second, theirCard] = created.map(m => game.messages.get(m.id));
+            read.push(shown(wordsFor(player.id, contentOf(second))));
+            ok(typeof B.sweepAskCards === "function", "gm-bridge.mjs has no sweepAskCards - the primary ends no card at its time");
+            if (typeof B.sweepAskCards === "function") await B.sweepAskCards();
+            await until(() => ended(first), 3000);
+            await settle();
+            read.push([ended(first), ended(second), ended(theirCard)], lines(contentOf(first)));
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            for (const node of [...document.querySelectorAll(".drpg-popup")]) node.dispatchEvent(new CustomEvent("drpg-dismiss"));
+            for (const message of created) await message.delete().catch(() => {});
+            await settle();
+        }
+        const ready = fnSource(stripComments(new Map(await otherSources()).get("gm-bridge.mjs") ?? ""), "registerGmBridge");
+        ok(ready.length > 100, "registerGmBridge is gone - the read below would measure nothing");
+        read.push(/sweepAskCards\(\)/.test(ready));
+        equal(stableJson(read), stableJson([[later, true], [true, false, false],
+            [game.i18n.localize("DRPG.Bridge.settledExpired"), game.i18n.localize("DRPG.Bridge.settledGone")], true]),
+            "the time the player's copy shows, then [past, before, the player's] ended after the sweep, the first card's lines, and whether the bridge sweeps at its ready - a card does not show its time, one past it stayed open, one before it or a player's own was ended, or the GM's bridge does not sweep at its ready");
+    }],
+
+    ["a refusal after the GM's 'got it' ends a player's wait at once, on the window's own clock: measured (E18 C2, S10-27)", async () => {
+        /*
+         * E18 C2, 19.10.2026; audit S10-27 (E18-12). The audit's player waited out the ruling's clock after the GM's
+         * client had refused the ask; E31's waiter ends the wait on the refusal whenever it comes, and this measures it
+         * on the real clock. The player's waiter is built here as the module builds it (bridge-guards.mjs
+         * `createWaiter`, the window's own timers) with the primary's runner for its socket: its packets are judged
+         * here as from the connected player, and the runner's replies go straight back to it. The ask is a Hope Call's
+         * whose card is ruled already, which the runner refuses after its "got it" (E18 C2). Read: the result, what
+         * was said, the replies in order, whether the result came within 50 ms of the refusal and within 1000 ms of
+         * the ask, against a ruling clock of 4000 ms. The card is deleted after.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the ask is a player's, and Foundry names only a connected one");
+        const { isPrimaryGm, serverNow } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose runner answers the ask - this would measure nothing");
+        const { player, theirs } = playerAndCharacters();
+        const G = await import("./bridge-guards.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const { cardFlag } = await import("./secret.mjs");
+        const seen = new Set(game.messages.map(m => m.id));
+        const created = [];
+        const hook = Hooks.on("createChatMessage", m => { if (!seen.has(m.id)) created.push(m); });
+        const rid = foundry.utils.randomID(16);
+        const heard = [], said = [];
+        let read = null;
+        try {
+            await B.callGm(theirs, { title: "E18 C2 timed", rid: { id: rid, asker: player.id }, expires: serverNow() + 600000 });
+            must(await until(() => created.length >= 1, 5000), "the card was not posted - this would measure nothing");
+            const card = game.messages.get(created[0].id);
+            await B.settleCall(card, "E18 C2 ruled already");
+            must(await until(() => cardFlag(card, "settled"), 3000), "the card was not ruled - this would measure nothing");
+            let waiter = null;
+            const send = (to, reply) => { heard.push([reply?.action ?? null, performance.now()]); waiter.onReply(reply, game.user.id); };
+            waiter = G.createWaiter({
+                emit: packet => { void G.judge(B.BRIDGE_ACTIONS, packet, player.id, { send }); },
+                gmIds: () => [game.user.id],
+                me: () => ({ id: player.id, isGM: false, isPrimary: false }),
+                notify: (what, reason) => said.push(`${what} ${reason}`),
+                fromGm: id => id === game.user.id,
+                newId: () => rid
+            });
+            const decl = B.BRIDGE_ACTIONS["call.approve"];
+            const t0 = performance.now();
+            const res = await waiter.request("call.approve", { actorId: theirs.id, key: "experience", note: "E18 C2 timed", nonce: foundry.utils.randomID(16) },
+                { settle: decl.answer, patient: Boolean(decl.patient), resend: Boolean(decl.resend), timeoutMs: 4000 });
+            const t1 = performance.now();
+            const refusedAt = heard.find(([action]) => action === "bridge.refused")?.[1] ?? null;
+            read = [res, said, heard.map(([action]) => action), refusedAt !== null && t1 - refusedAt < 50, t1 - t0 < 1000];
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            for (const node of [...document.querySelectorAll(".drpg-popup")]) node.dispatchEvent(new CustomEvent("drpg-dismiss"));
+            for (const message of created) await message.delete().catch(() => {});
+            await settle();
+        }
+        equal(stableJson(read), stableJson([{ ok: false, refused: true, reason: "alreadyDone" }, ["call.approve alreadyDone"],
+            ["bridge.ack", "bridge.refused"], true, true]),
+            "[the result, what was said, the replies, within 50 ms of the refusal, within 1000 ms of the ask] - a refusal after the 'got it' did not end the wait at once, or was said other than once");
+    }],
+
     ["the GM's popup for a veiled ask", async () => {
         /*
          * E06 C8, 28.09.2026. A thread card that asks the GMs (`gmAsk`) raises a notice and

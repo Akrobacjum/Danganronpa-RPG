@@ -3158,6 +3158,7 @@
       "criticalHint": "Krytyk - temu graczowi należy się solidna podpowiedź.",
       "send": "Wyślij do GM-a",
       "awaitingRuling": "Czeka na decyzję.",
+      "openUntil": "Otwarta do {time}.",
       "declined": "{name} - próba odrzucona. Twoja akcja wraca.",
       "declinedGm": "Odrzucono. {name} odzyskuje akcję.",
       "settledAnswered": "Odpowiedział: {name}.",

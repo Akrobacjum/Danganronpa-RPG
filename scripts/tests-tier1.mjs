@@ -4328,7 +4328,7 @@ const INVARIANTS = [
          * it", and a refusal after it is still said, once; a "reply" request
          * settles on its answer; a refusal settles it, with the code; no "got it"
          * in time is `noAnswer`; a patient request has no clock for the "got it"
-         * and is asked again once, with the same id, when a GM's world has loaded;
+         * and is asked again, with the same id, when a GM's world has loaded;
          * an answer after the clock goes to `late` for as long as the request's
          * `lateMs` says, and says nothing, and is dropped after it; an emit that
          * throws is `failed`; a GM's own client does the work itself; and the
@@ -4413,8 +4413,8 @@ const INVARIANTS = [
         await wait(60);
         equal(settled, null, "a patient request gave up on the clock for the acknowledgement");
         w.waiter.resendOnGmReady();
-        w.waiter.resendOnGmReady();
-        equal(w.sent.length, 2, "a patient request was not asked again exactly once when a GM's world loaded");
+        // How many times it is asked again is R841's (E18 C2: three at most).
+        equal(w.sent.length, 2, "a patient request was not asked again when a GM's world loaded");
         equal(w.sent[1]?.packet.requestId, w.sent[0]?.packet.requestId, "the request was asked again under another id");
         w.reply("bridge.done", { value: true });
         equal(JSON.stringify(await asked), JSON.stringify({ ok: true, value: true }), "a patient request did not settle with its answer");
@@ -19238,6 +19238,98 @@ const INVARIANTS = [
             ["noAnswer", []],
             [true, []]
         ]), "per request: its result and what was sent after it ([action, the ask's id, the asker, to]) - with the two options: an expiry once its clock ran out and nothing for the answer after it, one receipt for an answer in time; without them, nothing");
+    }],
+    ["R840 - a Hope Call's and a Dynamic action's ask waits for the GM's 'got it': with none in time it is noAnswer, said once, and its card is told it expired", async () => {
+        /*
+         * E18 C2, 19.10.2026; audit S10-51 (E18-10). The two rows were `patient`: no clock for the "got it", so a
+         * player whose ask reached no GM's listener (the primary mid-reload, a socket that dropped it) looked at
+         * "Awaiting a ruling." until the ruling's own clock - five minutes for a Hope Call. Now each waits
+         * `TIMING.ackMs` for the "got it", as every request that is not a ballot does. Driven as R165 drives the
+         * waiter - fakes, nothing leaves this client - with each row's own policy as `ask` (gm-bridge.mjs) reads it,
+         * a "got it" clock of 40 ms for TIMING.ackMs and a ruling clock of 3000 ms. Read per row: whether it is patient,
+         * the result, whether it came before half the ruling's clock, what was said, and what was sent after the ask.
+         */
+        const { createWaiter } = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const read = [];
+        for (const action of ["call.approve", "dynamic.difficulty"]) {
+            const decl = BRIDGE_ACTIONS[action];
+            ok(decl, `the bridge has no ${action} row - this would measure nothing`);
+            const sent = [], said = [];
+            const waiter = createWaiter({
+                emit: (packet, to) => sent.push({ packet, to }),
+                gmIds: () => ["R840GM"],
+                me: () => ({ id: "R840ME", isGM: false, isPrimary: false }),
+                notify: (what, reason) => said.push(`${what} ${reason}`),
+                fromGm: id => id === "R840GM",
+                report: () => {}
+            });
+            const t0 = Date.now();
+            const res = await waiter.request(action, {}, {
+                settle: decl.answer, patient: Boolean(decl.patient), resend: Boolean(decl.resend),
+                ackMs: 40, timeoutMs: 3000, expired: "ruling.expired"
+            });
+            read.push([action, Boolean(decl.patient), res.reason ?? null, Date.now() - t0 < 1500, said, sent.slice(1).map(({ packet }) => packet.action)]);
+        }
+        equal(stableJson(read), stableJson([
+            ["call.approve", false, "noAnswer", true, ["call.approve noAnswer"], ["ruling.expired"]],
+            ["dynamic.difficulty", false, "noAnswer", true, ["dynamic.difficulty noAnswer"], ["ruling.expired"]]
+        ]), "per row: [the action, patient, the result, before half the ruling's clock, what was said, what was sent after the ask] - an ask with no 'got it' waited for the ruling's clock, was said other than once, or did not tell the GMs it expired");
+    }],
+
+    ["R841 - a request still waiting is asked again of a new primary GM, three times at most: when a primary's world loads, and when the primary leaves for another GM who is here", async () => {
+        /*
+         * E18 C2, 19.10.2026; audit S10-43 part 1 (E18-09). The waiter asked again once, and only when a primary's
+         * world had loaded (`bridge.gmReady`). An Assistant who became the primary because the primary closed its
+         * browser has a loaded world and sends no such packet, so a player's ask to the GM who left waited out its
+         * clock. Now the waiter counts its asks again up to three, and `registerBridgeReplies` asks again when the GM
+         * who leaves was the primary and another GM is here (`primaryLeft`). Read: (1) a request that asks to be resent,
+         * after five loads - how many times it was sent and under how many ids - and one that does not; (2)
+         * `primaryLeft` over a list of users built here (full GMs A and B, an Assistant C, a player P): the primary A
+         * leaving with B here, its `active` still true and already false; B leaving while A is the primary; the
+         * Assistant leaving; A leaving with only the Assistant here; A leaving alone; P leaving; (3) in the source,
+         * that the replies' listener asks again on that hook.
+         */
+        const G = await import("./bridge-guards.mjs");
+        const make = () => {
+            const sent = [];
+            const waiter = G.createWaiter({
+                emit: (packet, to) => sent.push({ packet, to }),
+                gmIds: () => ["R841GM"],
+                me: () => ({ id: "R841ME", isGM: false, isPrimary: false }),
+                notify: () => {},
+                fromGm: id => id === "R841GM",
+                report: () => {}
+            });
+            return { waiter, sent };
+        };
+        const read = [];
+        for (const resend of [true, false]) {
+            const w = make();
+            const asked = w.waiter.request("r841.ask", {}, { settle: "reply", patient: true, resend, timeoutMs: 400 });
+            for (let i = 0; i < 5; i++) w.waiter.resendOnGmReady();
+            read.push([resend, w.sent.length, new Set(w.sent.map(({ packet }) => packet.requestId)).size]);
+            await asked;
+        }
+        const ROLE = CONST.USER_ROLES;
+        const user = (id, role, active = true) => ({ id, role, isGM: role >= ROLE.ASSISTANT, active });
+        // The two calls `primaryGmId` makes of `game.users`: `get` and an Array-answering `filter`.
+        const users = list => Object.assign(new Map(list.map(u => [u.id, u])), { filter: fn => list.filter(fn) });
+        const left = typeof G.primaryLeft === "function" ? G.primaryLeft : () => "no primaryLeft";
+        const A = user("R841A0000000000A", ROLE.GAMEMASTER), B = user("R841B0000000000B", ROLE.GAMEMASTER);
+        const C = user("R841C0000000000C", ROLE.ASSISTANT), P = user("R841P0000000000P", ROLE.PLAYER);
+        const gone = u => ({ ...u, active: false });
+        read.push([
+            left(A, users([A, B, C, P])), left(gone(A), users([gone(A), B, C, P])),
+            left(B, users([A, B, C, P])), left(C, users([A, B, C, P])),
+            left(gone(A), users([gone(A), C, P])), left(gone(A), users([gone(A), P])), left(P, users([A, B, P]))
+        ]);
+        const leaf = stripComments(new Map(await otherSources()).get("bridge-guards.mjs") ?? "");
+        const listener = fnSource(leaf, "registerBridgeReplies");
+        ok(listener.length > 50, "registerBridgeReplies is gone - the read below would measure nothing");
+        read.push(/Hooks\.on\("userConnected"[\s\S]*primaryLeft\([\s\S]*resendOnGmReady\(\)/.test(listener));
+        equal(stableJson(read), stableJson([[true, 4, 1], [false, 1, 1], [true, true, false, false, true, false, false], true]),
+            "[resent: sends, ids] per request, then primaryLeft for A with B here (active, gone), B, the Assistant, A with only the Assistant, A alone, a player, then whether the listener asks again on that hook - a request was not asked again three times at most under its one id, one that did not ask for it was, a new primary was not told apart from a GM who was not the primary, or the listener does not ask again when the primary leaves");
     }],
 ];
 

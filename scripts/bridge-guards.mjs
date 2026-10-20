@@ -30,7 +30,7 @@
  */
 
 import { MODULE_ID, HOPE_CALLS, DESPAIR_CALLS, STARTING, TIMING, CRISIS_ACTIONS } from "./config.mjs";
-import { activeGmIds, isPrimaryGm, debug, warn, error, pause } from "./utils.mjs";
+import { activeGmIds, isPrimaryGm, primaryGmId, debug, warn, error, pause } from "./utils.mjs";
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 /** GM -> player: "your request arrived and was refused" - see `refuse`. */
@@ -271,6 +271,8 @@ export const REASON_PATTERNS = Object.freeze([
     ["notWhereItStood", /^the token did not stand there a moment ago$/],
     ["alreadyDone", /^that Observe has already been resolved$/],
     ["alreadyDone", /^that betrayal is already declared$/],
+    // E18 C2: an ask asked again whose card a GM has ruled or ended meanwhile (gm-bridge.mjs `askAgain`).
+    ["alreadyDone", /^that ask's card has already been settled$/],
     ["nothingToUndo", /^that Observe has no result to take back$/],
     // E08+E28 fix r1-G2: a crisis row whose fact never reached it (reroll.mjs `replayRefusal`).
     ["nothingToUndo", /^that crisis action has no result to take back$/],
@@ -1686,7 +1688,8 @@ export const WINDOW_CLOCK = Object.freeze({ set: (fn, ms) => setTimeout(fn, ms),
 
 /**
  * A waiter: `request` asks, `onReply` takes the GM's answers, `resendOnGmReady`
- * asks once more for what is still waiting when a GM's world has loaded.
+ * asks once more for what is still waiting when a new primary can answer (three
+ * times at most, `RESENDS`).
  *
  * @param {object} deps
  * @param {(packet: object, recipients: string[]) => void} deps.emit  may throw
@@ -1730,7 +1733,7 @@ export function createWaiter({ emit, gmIds, me, notify, fromGm, clock = WINDOW_C
         timeoutMs = TIMING.rulingMs, local = null, onPrimary = false, quiet = false, nothingSpent = false, late = null, lateRefused = null,
         lateMs = 0, expired = null, received = null } = {}) {
         return new Promise(resolve => {
-            const entry = { id: null, action, kind, patient, resend, resent: false, quiet, nothingSpent, late, lateRefused, lateMs, timeoutMs,
+            const entry = { id: null, action, kind, patient, resend, resent: 0, quiet, nothingSpent, late, lateRefused, lateMs, timeoutMs,
                 expired, received, resolve, settled: false, ackTimer: null, answerTimer: null, packet: null };
             try {
                 const self = me();
@@ -1832,11 +1835,11 @@ export function createWaiter({ emit, gmIds, me, notify, fromGm, clock = WINDOW_C
         return true;
     }
 
-    /** 8. Ask once more, with the same id, for every request still waiting that asked for it. */
+    /** 8. Ask once more, with the same id, for every request still waiting that asked for it, `RESENDS` times at most. */
     function resendOnGmReady() {
         for (const entry of pending.values()) {
-            if (!entry.resend || entry.resent || entry.settled) continue;
-            entry.resent = true;
+            if (!entry.resend || entry.resent >= RESENDS || entry.settled) continue;
+            entry.resent += 1;
             try {
                 const to = gmIds();
                 if (to.length) emit(entry.packet, to);
@@ -1866,6 +1869,29 @@ export function createWaiter({ emit, gmIds, me, notify, fromGm, clock = WINDOW_C
     }
 
     return { request, onReply, resendOnGmReady, waiting: () => pending.size };
+}
+
+/*
+ * ASKED AGAIN OF EVERY NEW PRIMARY, THREE TIMES AT MOST (E18 C2, 19.10.2026; audit S10-43 part 1). A request
+ * still waiting was asked again once, and only when a primary's world had loaded (`bridge.gmReady`). A GM
+ * who becomes the primary because the primary closed its browser has its world loaded already and sends
+ * no such packet, so the ask went to a GM who had left and waited out its clock. Now the waiter asks
+ * again on either, with the same id, and counts: three times covers a primary's reload, a handover to
+ * another GM and a second reload within one ruling's clock, and bounds a GM whose world keeps reloading.
+ * The primary finds the card it posted for an ask by its mark (gm-bridge.mjs `askAgain`). R841.
+ */
+const RESENDS = 3;
+
+/**
+ * Was the GM who just left the primary, with another GM here to take it (`userConnected(user, false)`)?
+ * Counted both ways whatever `user.active` says yet: as here before it left, as gone after. Pure over
+ * `users` (R841 hands its own list).
+ */
+export function primaryLeft(user, users = game.users) {
+    if (!user?.isGM) return false;
+    const before = primaryGmId({ arriving: user.id, users });
+    const after = primaryGmId({ leaving: user.id, users });
+    return before === user.id && after !== null && after !== user.id;
 }
 
 /* The module's one waiter. Addressed to the GMs connected and to nobody else - no
@@ -1902,6 +1928,8 @@ export function bridgeRequest(action, payload = {}, opts = {}) {
 /** The GMs' answers to this client's requests, on every client: one listener, registered once (module.mjs). */
 export function registerBridgeReplies() {
     game.socket.on(SOCKET_EVENT, (packet, senderId) => { waiter.onReply(packet, senderId); });
+    // A new primary whose world is loaded already says nothing: what still waits is asked again of it here (E18 C2).
+    Hooks.on("userConnected", (user, connected) => { if (!connected && primaryLeft(user)) waiter.resendOnGmReady(); });
 }
 
 /** A primary GM's world has loaded: ask again what is still waiting (gm-bridge.mjs's `onGmReady`). */
