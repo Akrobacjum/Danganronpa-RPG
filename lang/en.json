@@ -2937,6 +2937,7 @@
         "keys.charge": "The Key fee charged as a Class Trial opens",
         "reroll.ask": "Reroll",
         "card.post": "A card for the GM to post",
+        "card.claim": "A GM's ruling on a card sent to the GMs",
         "searchTokens.spend": "Spend a search token",
         "searchTokens.takePlant": "Look for a planted item",
         "searchTokens.returnPlant": "Put a planted item back",
@@ -3047,6 +3048,9 @@
       "settledHandled": "Handled by {name}.",
       "settledExpired": "Nobody answered in time - ask again.",
       "settledGone": "The player was no longer waiting.",
+      "alreadyRuled": "{gm} already ruled on this card.",
+      "claimBusy": "{gm} is ruling on this card right now.",
+      "alreadySettled": "This card has already been answered.",
       "replyTitle": "Reply to {name}",
       "replyPrompt": "Your ruling, in your own words. It goes into their thread.",
       "rulingBy": "{name} rules:",
@@ -4377,7 +4381,8 @@
         "sheetWrites": "The writes on a student's sheet the GMs put back, flagged or listed, kept a day",
         "diceLooks": "Each character's dice look as the GMs set it, which a player's change of it goes back to",
         "ballots": "The ballots of the Class Trial's vote, kept by the GMs",
-        "verdict": "The Blackened the last verdict was given with, kept by the GMs for its Finish"
+        "verdict": "The Blackened the last verdict was given with, kept by the GMs for its Finish",
+        "ruledCards": "Who ruled each card sent to the GMs, so a card is ruled once"
       },
       "row": {
         "traces": {

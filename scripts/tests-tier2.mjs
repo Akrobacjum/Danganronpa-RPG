@@ -28349,6 +28349,83 @@ const SCENARIOS = [
             "[the result, what was said, the replies, within 50 ms of the refusal, within 1000 ms of the ask] - a refusal after the 'got it' did not end the wait at once, or was said other than once");
     }],
 
+    ["two clicks on one card to the GMs rule it once: the second reads who is ruling, a player's claim takes nothing, and a card its author reopened reads who ruled (E18 C3)", async () => {
+        /*
+         * E18 C3, 19.10.2026; audits S11-14, S17-22 (E18-13, E18-14). Each GM's click on a card's button ran its ruling
+         * on that GM's browser, held only against a second click on the same drawing of the card: two GMs - or one GM's
+         * chat log and messenger window - each ruled, and each told the player. A card is a player's own message, so its
+         * author could take `settled` off it and have it ruled again. Now every click is claimed on the primary first
+         * (gm-bridge.mjs `card.claim`): one ruling at a time per card, and the GMs' row of who ruled (`ruledCardStore`),
+         * which a card's own flags do not decide. Driven on this primary: a card whose button is a Decline with nothing
+         * paid, which posts one line to its player's thread. A connected player's claim and its "done" handed to the
+         * bridge's runner as Foundry names its sender; then two drawings of the card clicked at once; then the card
+         * reopened as its author could (its words back, `settled` false on the document) and clicked again. Read: the
+         * thread lines posted, whether the card ended, what this GM was told, the row's GM, and the row after the card
+         * is deleted. The card, its lines and their popups are taken away after.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the claim forged is a connected player's, and the line goes to a player's thread");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which holds the claims - this would measure nothing");
+        const { player, theirs } = playerAndCharacters();
+        const G = await import("./bridge-guards.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { wireCallActions } = await import("./messenger-app.mjs");
+        const { contentOf, cardFlag } = await import("./secret.mjs");
+        const judged = (action, fields, from) =>
+            G.judge(B.BRIDGE_ACTIONS, { action, requestId: foundry.utils.randomID(16), ...fields }, from, { send: () => {} });
+        const content = `<p>E18 C3 claim</p><div class="drpg-call-actions"><button type="button" data-drpg-call="decline" data-by="${
+            theirs.id}" data-paid="none" data-words="there">E18 C3</button></div>`;
+        const seen = new Set(game.messages.map(m => m.id));
+        const created = [];
+        const hook = Hooks.on("createChatMessage", m => { if (!seen.has(m.id)) created.push(m); });
+        const warned = [];
+        const realWarn = ui.notifications.warn;
+        ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return realWarn.call(ui.notifications, text, ...rest); };
+        let card = null;
+        const read = [];
+        const lines = () => created.filter(m => m.id !== card?.id).length;
+        const drawn = () => {
+            const message = game.messages.get(card.id);
+            const body = document.createElement("div");
+            body.innerHTML = contentOf(message);
+            wireCallActions(body, message);
+            return body.querySelector('[data-drpg-call="decline"]');
+        };
+        try {
+            card = await ChatMessage.create({ content, whisper: [game.user.id], flags: { [MODULE_ID]: { callCard: true } } });
+            must(card, "the card was not posted - this would measure nothing");
+            await judged("card.claim", { messageId: card.id, step: "take" }, player.id);
+            await judged("card.claim", { messageId: card.id, step: "done" }, player.id);
+            const [one, two] = [drawn(), drawn()];
+            must(one && two, "the card's drawing carries no button for a GM - this would measure nothing");
+            one.click();
+            two.click();
+            await until(() => Boolean(cardFlag(game.messages.get(card.id), "settled")), 5000);
+            await settle(800);
+            read.push([lines(), Boolean(cardFlag(game.messages.get(card.id), "settled")), [...warned]]);
+            await game.messages.get(card.id).update({ content, [`flags.${MODULE_ID}.settled`]: false });
+            const three = drawn();
+            must(three, "the reopened card's drawing carries no button - this would measure nothing");
+            three.click();
+            await settle(1200);
+            read.push([lines(), [...warned], S.ruledCardStore?.get(card.id)?.by ?? null]);
+            await game.messages.get(card.id).delete();
+            await settle(300);
+            read.push(S.ruledCardStore?.has(card.id) ?? null);
+        } finally {
+            ui.notifications.warn = realWarn;
+            Hooks.off("createChatMessage", hook);
+            for (const node of [...document.querySelectorAll(".drpg-popup")]) node.dispatchEvent(new CustomEvent("drpg-dismiss"));
+            for (const message of created) await message.delete().catch(() => {});
+            await settle();
+        }
+        const busy = game.i18n.format("DRPG.Bridge.claimBusy", { gm: game.user.name });
+        const ruled = game.i18n.format("DRPG.Bridge.alreadyRuled", { gm: game.user.name });
+        equal(stableJson(read), stableJson([[1, true, [busy]], [1, [busy, ruled], game.user.id], false]),
+            "[after the player's claim and the two clicks: thread lines, the card ended, what this GM was told], [after the reopened card's click: thread lines, what was told, the row's GM], the row after the card is deleted - a card was ruled twice, a player's claim held it, the second click was not told who is ruling, or the reopened card's click was not told who ruled");
+    }],
+
     ["the GM's popup for a veiled ask", async () => {
         /*
          * E06 C8, 28.09.2026. A thread card that asks the GMs (`gmAsk`) raises a notice and

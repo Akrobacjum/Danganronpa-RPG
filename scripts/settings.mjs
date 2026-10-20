@@ -413,6 +413,12 @@ export const SETTINGS = {
      */
     gmCleanupAttempts: "gmCleanupAttempts",
     /**
+     * WHO RULED EACH CARD TO THE GMS (E18 C3, 1.2.84; audits S11-14, S17-22): a GM store (gm-stores.mjs
+     * `ruledCardStore`), a row per card a GM ruled on - the GM and when. Synced, not backed up; no
+     * player copy.
+     */
+    gmRuledCards: "gmRuledCards",
+    /**
      * THE ROLLS THE GM DREW (E08+E28 C12a, 1.2.67; audit S16-05): a GM store (gm-stores.mjs
      * `rollStore`), a row per roll a player threw and the primary GM drew - its dice, its
      * total, its roller and its character. Synced, not backed up; no player copy.
@@ -1631,6 +1637,14 @@ export function registerSettings() {
     // A clean-up's receipt on the GMs (E08+E28 C3): no `onChange` - shown nowhere, read by
     // the Reroll's replay of a clean-up (cleanup.mjs `undoLastCleanup`).
     game.settings.register(MODULE_ID, SETTINGS.gmCleanupAttempts, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // Who ruled each card to the GMs (E18 C3): no `onChange` - shown nowhere, read by the claim on a
+    // card (gm-bridge.mjs `claimOnPrimary`).
+    game.settings.register(MODULE_ID, SETTINGS.gmRuledCards, {
         scope: "client",
         config: false,
         type: Object,

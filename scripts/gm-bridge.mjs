@@ -28,7 +28,7 @@ import {
 // R148 and anything else that asked gm-bridge.mjs for it keep finding it here (E31).
 export { removalRefusal } from "./bridge-guards.mjs";
 
-import { contentOf, cardFlag, cardWriter } from "./secret.mjs";
+import { contentOf, cardFlag, cardMeta, cardWriter } from "./secret.mjs";
 import { gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 const ACTION_PROGRESS = "project.progress";
@@ -127,6 +127,8 @@ const ACTION_ROLL_BOOKMARK = "roll.bookmark";
 const ACTION_REROLL = "reroll.ask";
 /** player -> GM: post the private card my browser would post while an incident runs (E08+E28 fix r2-H5) - see secret.mjs `askGm`. */
 const ACTION_CARD = "card.post";
+/** GM -> primary GM: a GM's click on a card to the GMs, claimed before it rules and marked ruled after (E18 C3; `claimCard`). */
+const ACTION_CARD_CLAIM = "card.claim";
 
 /**
  * A primary GM has finished loading and can answer questions again.
@@ -184,8 +186,18 @@ export function registerGmBridge() {
         // swept once this world is up, and again by the GM who becomes the primary when the primary leaves.
         sweepAskCards().catch(err => debug("Could not sweep the asks' cards", err));
         Hooks.on("userConnected", (user, connected) => {
+            // A GM who left in the middle of a ruling holds no card any more (E18 C3).
+            if (!connected && user?.id) releaseClaimsOf(user.id);
             if (connected || !user?.isGM || !isPrimaryGm({ leaving: user.id })) return;
             sweepAskCards({ leaving: user.id }).catch(err => debug("Could not sweep the asks' cards", err));
+        });
+        // A card deleted takes the GMs' row of who ruled it with it (E18 C3): the primary writes the rows, and drops them.
+        Hooks.on("deleteChatMessage", message => {
+            if (!isPrimaryGm() || !message?.id) return;
+            claimsInProgress.delete(message.id);
+            import("./gm-stores.mjs")
+                .then(({ ruledCardStore }) => (ruledCardStore.has(message.id) ? ruledCardStore.drop(message.id) : null))
+                .catch(err => debug("Could not drop a deleted card's ruling row", err));
         });
         Hooks.on("renderChatMessageHTML", (message, element) => {
             // From the words' meta (E06 C7a): the card is drawn again when they land.
@@ -1629,6 +1641,12 @@ async function handleObservePick(payload, sender) {
         refuse: payload.refuse }, sender.id) };
 }
 
+/** The run of `card.claim` (E18 C3): a GM's claim of a card, decided on this primary (`claimOnPrimary`). */
+async function handleCardClaim(payload, sender) {
+    if (!payload.step) return { refused: "nothing was carried out: a claim names no step it knows" };
+    return { reply: await claimOnPrimary(payload.messageId, payload.step, sender.id) };
+}
+
 /** The run of `card.post` (E08+E28 fix r2-H5): the sender's card, posted by this GM (secret.mjs `postAsked`), or why not. */
 async function handleCardPost(payload, sender) {
     const { postAsked, cardTooLong } = await import("./secret.mjs");
@@ -2519,6 +2537,23 @@ export const BRIDGE_ACTIONS = table({
             speaker: guardCardSpeaker,
             flags: "the card's own module flags, judged by postAsked (secret.mjs): none of GM_META, a thread only the sender's own, who asked written by this GM",
             summary: "the card's facts, judged by postAsked (secret.mjs) as secret.card judges a player's: plain fields, and none about a character the sender does not own"
+        }
+    },
+    /*
+     * ONE RULING PER CARD (E18 C3, 19.10.2026; audits S11-14, S17-22). Every GM's click on a card's
+     * button is claimed here first, and the primary decides in one step whether that card is free
+     * (`claimOnPrimary`). A GM's alone: the buttons are drawn for GMs, and a player's claim would
+     * hold a card away from them.
+     */
+    [ACTION_CARD_CLAIM]: {
+        label: "DRPG.Bridge.what.card.claim",
+        guards: [gmOnly("only a GM rules on a card sent to the GMs")],
+        sanitize: pick({ messageId: as.id, step: as.oneOf("take", "done", "drop") }),
+        run: handleCardClaim,
+        answer: "reply",
+        claims: {
+            messageId: "read on the primary by claimOnPrimary: a card that exists, with no row in the GMs' ruledCardStore, not settled and not held by another click",
+            step: "\"take\" before the ruling runs, \"done\" once it was made (the row is written), \"drop\" when it was not; done and drop end only the sender's own claim"
         }
     }
 });
@@ -4059,6 +4094,106 @@ export async function callGm(actor, {
         error("Could not reach the GM", err);
         return false;
     }
+}
+
+/* ==========================================================================
+ * ONE RULING PER CARD (E18 C3, 19.10.2026; audits S11-14, S17-22)
+ * --------------------------------------------------------------------------
+ * A card sent to the GMs is drawn for every GM, in the chat log and in the
+ * messenger, and each drawing's buttons ruled on the browser that clicked them,
+ * held only against a second click on that same drawing. Measured on the code
+ * before this commit (tier 2, "two clicks on one card to the GMs rule it once"):
+ * two drawings of one Decline clicked at once posted two lines to the player's
+ * thread, and the card reopened by its author - a player's card is that
+ * player's document, `settled` included - posted a third. Every click is claimed
+ * on the primary GM now: the primary holds which cards a click is ruling on, and
+ * a row per card a ruling was made on in the GMs' store (`ruledCardStore`),
+ * which no player's browser holds; a card with either is not taken, and the GM
+ * who clicked is told who has it.
+ * ========================================================================== */
+
+/** On the primary: the cards a GM's click is ruling on now, messageId -> that GM's user id. */
+const claimsInProgress = new Map();
+
+/** A GM who left holds nothing: their claims end as a backed-out ruling's do. */
+function releaseClaimsOf(userId) {
+    for (const [messageId, by] of claimsInProgress) if (by === userId) claimsInProgress.delete(messageId);
+}
+
+/**
+ * The primary's half of a claim (`card.claim`, or this GM's own click). `step` "take" before a
+ * ruling runs: the card must exist, have no row in `ruledCardStore`, not be settled in its document
+ * or in the GMs' meta, and not be held by another click; then it is held for `by`. "done" once the
+ * ruling was made: the row `{ by, at }` is written unless one is there, and the claim ends. "drop"
+ * when it was not: `by`'s claim ends. Answers `{ taken, why?, by }` - `why` "ruled", "busy",
+ * "settled" or "gone", `by` the GM who has the card.
+ *
+ * READ AFTER THE LAST AWAIT. The store's hydration is the only wait, and everything from the
+ * card's lookup to holding it runs in one synchronous step, so of two takes of one card that
+ * arrive together exactly one finds it free.
+ */
+export async function claimOnPrimary(messageId, step, by) {
+    if (!game.user?.isGM) return { taken: false, why: "gone", by: null };
+    const { ruledCardStore } = await import("./gm-stores.mjs");
+    await ruledCardStore.whenHydrated();
+    const message = game.messages.get(messageId ?? "") ?? null;
+    const holder = claimsInProgress.get(messageId) ?? null;
+    if (step !== "take") {
+        if (holder === by) claimsInProgress.delete(messageId);
+        if (step !== "done" || !message) return { taken: false, why: message ? "dropped" : "gone", by };
+        if (!ruledCardStore.has(messageId)) await ruledCardStore.patch(messageId, { by, at: serverNow() });
+        return { taken: true, by: ruledCardStore.get(messageId)?.by ?? by };
+    }
+    if (!message) return { taken: false, why: "gone", by: null };
+    const row = ruledCardStore.get(messageId);
+    if (row) return { taken: false, why: "ruled", by: row.by ?? null };
+    if (holder) return { taken: false, why: "busy", by: holder };
+    if (cardFlag(message, "settled") || cardMeta(message, "settled")) return { taken: false, why: "settled", by: null };
+    claimsInProgress.set(messageId, by);
+    return { taken: true, by };
+}
+
+/** One step of a claim, asked of the primary - or run here when this GM is the primary. The answer of `claimOnPrimary`, or null. */
+async function askCardClaim(messageId, step) {
+    const res = await ask(ACTION_CARD_CLAIM, { messageId, step }, {
+        onPrimary: true,
+        local: () => claimOnPrimary(messageId, step, game.user.id)
+    });
+    return res.ok ? res.value ?? null : null;
+}
+
+/**
+ * A GM's ruling on a card sent to the GMs, made once (E18 C3). The card is claimed on the primary
+ * GM (`card.claim`), `work` runs while it is held, and the primary is told how it ended: a work
+ * that answers `{ settled }` or `{ held }` made a ruling, and the card's row is written before this
+ * answers; anything else, or a throw, lets the card go for the next click. A card another GM has,
+ * or had, is not ruled: this GM is told who, and null is answered without `work` running.
+ *
+ * The one road for every ruling on a card: the card's buttons (messenger-app.mjs `wireCallActions`)
+ * today, and the cards E67 (the gmAsk card's 'Give 1/2'), E68 (the trait card) and E72 (Accept and
+ * Refuse) put on it. Overrule and the Closing's approve are not claimed (E18 amend 3).
+ *
+ * @param {ChatMessage} message  The card.
+ * @param {() => Promise<object|null>} work  The ruling, run on this GM's browser.
+ * @returns {Promise<object|null>} What `work` answered, or null when the card was not this GM's to rule.
+ */
+export async function claimCard(message, work) {
+    if (!message?.id || !game.user?.isGM) return null;
+    const taken = await askCardClaim(message.id, "take");
+    if (!taken?.taken) {
+        const gm = game.users.get(taken?.by ?? "")?.name ?? String(taken?.by ?? "");
+        if (taken?.why === "ruled") ui.notifications.warn(game.i18n.format("DRPG.Bridge.alreadyRuled", { gm }));
+        else if (taken?.why === "busy") ui.notifications.warn(game.i18n.format("DRPG.Bridge.claimBusy", { gm }));
+        else if (taken?.why === "settled") ui.notifications.warn(game.i18n.localize("DRPG.Bridge.alreadySettled"));
+        return null;
+    }
+    let outcome = null;
+    try {
+        outcome = await work();
+    } finally {
+        await askCardClaim(message.id, outcome?.settled || outcome?.held ? "done" : "drop");
+    }
+    return outcome;
 }
 
 /**

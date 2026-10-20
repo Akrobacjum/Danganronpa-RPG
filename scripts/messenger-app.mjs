@@ -635,11 +635,13 @@ export function wireCallActions(body, message = null) {
             busy = true;
             hold(true);
             try {
-                const outcome = await runCallAction(button.dataset.drpgCall, { ...button.dataset });
+                // Claimed on the primary GM first (E18 C3, gm-bridge.mjs `claimCard`): a card another GM has, or
+                // ruled, is not ruled again here, and this GM is told who has it. No card, no claim and no ruling.
+                const { claimCard, settleCall } = await import("./gm-bridge.mjs");
+                const outcome = await claimCard(message, () => runCallAction(button.dataset.drpgCall, { ...button.dataset }));
                 // Sent on by the primary, which writes the card's line once the player has it (E18 C1): held till it redraws.
                 if (outcome?.held) return;
-                if (message && outcome?.settled) {
-                    const { settleCall } = await import("./gm-bridge.mjs");
+                if (outcome?.settled) {
                     await settleCall(message, outcome.settled, outcome.ruling ?? null);
                     return; // The card redraws itself; these buttons are gone.
                 }

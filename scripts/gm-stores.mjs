@@ -986,6 +986,23 @@ export const cleanupAttemptStore = defineGmStore({
 });
 
 /**
+ * WHO RULED EACH CARD TO THE GMS (E18 C3, 19.10.2026; audits S11-14, S17-22). A row per card a GM
+ * ruled on, keyed by its message id: `{ by, at }` - the GM whose click ruled it and when. Each GM's
+ * click used to rule on that GM's browser, so two GMs - or one GM's chat log and messenger window -
+ * both ruled one card; and a card a player posted is that player's document, whose `settled` its
+ * author can take off. The primary claims every click first (gm-bridge.mjs `claimOnPrimary`) and
+ * writes the row once the ruling is made; a card with a row is not ruled again, whatever its own
+ * flags say. Synced between the GMs, so a primary that reloads, or the next one, reads it; not
+ * backed up: a row is worth one card. Dropped when its card is deleted, and cut by the reset's
+ * "actions" group. No player copy and no old key.
+ */
+export const ruledCardStore = defineGmStore({
+    name: "ruledCards", key: SETTINGS.gmRuledCards,
+    kind: "ledger", resetGroup: "actions", backup: false, sync: true,
+    exists: messageId => Boolean(game.messages?.has(messageId))
+});
+
+/**
  * THE ROLLS THE GM DREW (E08+E28 C12a, 04.10.2026; audit S16-05; the plan's 3.3). A row per
  * roll, keyed by its `rollId`: `actorId`, `userId` (the roller), `actionKey`, `messageId`,
  * `claimed`, `formula`, `trait` and `experiences` (as the roll was thrown with them, which a

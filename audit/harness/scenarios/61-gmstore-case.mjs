@@ -126,6 +126,8 @@
  *      try once the notice history gave its room back, and the case's health counts the history apart.
  *   Y  a player's Hope Call asked while the primary leaves or reloads (E18 C2): it is asked again, the
  *      card the GM posted before is the ask's, and the yes reaches the player.
+ *   CL two GMs' clicks on one card to the GMs (E18 C3): one ruling, the other GM told who ruled, a
+ *      player's forged claim refused, and the card its author reopened not ruled again.
  */
 export const layers = ["ci"];
 /* Its own bound, not a raise of run-all's shared five minutes (E29 C1, 05.10.2026): this
@@ -2383,5 +2385,83 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
     check("Y2: the primary reloads while a player's Hope Call waits: its ready has the ask asked again, it holds the card it posted before, and its yes reaches the player",
         Boolean(y2?.card?.rid) && y2.yes === true && y2.answer === true && y2.cards === 1, J(y2), { flow: "hope-call" });
 
-    return { phases: ["A", "C", "C2", "B", "D", "E", "F", "F9", "G", "I", "H1", "K", "J1", "J2", "J3", "H2", "H3", "J4", "Z", "M", "N", "O", "Q", "R", "S", "T", "U", "V", "W", "X", "Y"], gm: IDS.gm };
+    phase("CL: two GMs' clicks on one card to the GMs rule it once, the second reads who ruled, and a player's claim takes nothing", { flow: "card-claim" });
+    /* E18 C3 (19.10.2026; audits S11-14, S17-22; E18-13, E18-14). gma, the primary, posts a card for the GMs whose button
+       is a Decline with nothing paid: it posts one line to the thread of Aiko's player. p1's console sends `card.claim`
+       for it, "take" then "done", as a forged packet. Then gma and gmb each draw the card and wire its buttons
+       (messenger-app.mjs `wireCallActions`, the chat log's and the messenger's road), and both click at once: gmb's claim
+       asks the primary, gma's is made there. Then the card is reopened as its author could (its words back, `settled`
+       false on the document), and gmb draws and clicks it again. Read: what p1 was told, the lines posted, what each GM
+       was told, the GMs' row of who ruled as gmb holds it, and the lines after the reopened click. Before C3 nothing
+       answered p1 and both clicks ruled. The card and its lines are deleted, and gmb leaves, after. */
+    const CL_CONTENT = `<p>E18 C3 61 CL</p><div class="drpg-call-actions"><button type="button" data-drpg-call="decline" data-by="${IDS.aiko}" data-paid="none" data-words="there">E18 C3</button></div>`;
+    const wireCL = (client, id) => client.eval(`${untilP} const M = await import("${repoUrl}/scripts/messenger-app.mjs");
+        const S = await import("${repoUrl}/scripts/secret.mjs");
+        await until(() => Boolean(game.messages.get("${id}")) && !S.cardFlag(game.messages.get("${id}"), "settled"), 8000);
+        const message = game.messages.get("${id}");
+        const body = document.createElement("div");
+        body.innerHTML = S.contentOf(message);
+        M.wireCallActions(body, message);
+        globalThis.__clButton = body.querySelector('[data-drpg-call="decline"]');
+        return Boolean(globalThis.__clButton);`, { timeout: 20000 });
+    const clickCL = client => client.eval(`const told = [], real = ui.notifications.warn;
+        ui.notifications.warn = (text, ...rest) => { told.push(String(text)); return real.call(ui.notifications, text, ...rest); };
+        try {
+            globalThis.__clButton?.click();
+            await new Promise(r => setTimeout(r, 4000));
+        } finally {
+            ui.notifications.warn = real;
+            delete globalThis.__clButton;
+        }
+        return told;`, { timeout: 30000 });
+    const linesCL = id => gma.eval(`return game.messages.contents.filter(m => !globalThis.__clBefore.includes(m.id) && m.id !== "${id}").length;`);
+    let cl = null;
+    await connect("gmb", { storage: await storageOf("gmb") });
+    const clId = await gma.eval(`globalThis.__clBefore = game.messages.contents.map(m => m.id);
+        const card = await ChatMessage.create({ content: ${JSON.stringify(CL_CONTENT)}, whisper: game.users.filter(u => u.isGM).map(u => u.id),
+            flags: { "${MOD}": { callCard: true } } });
+        return card?.id ?? null;`);
+    try {
+        const forged = await p1.eval(`globalThis.__clTold = [];
+            if (!globalThis.__clHook) {
+                globalThis.__clHook = true;
+                game.socket.on("module.${MOD}", payload => {
+                    if (payload?.userId === game.user.id && String(payload?.requestId ?? "").startsWith("SECCL")) globalThis.__clTold.push([payload.requestId, payload.action, payload.reason ?? null]);
+                });
+            }
+            for (const [step, rid] of [["take", "SECCLTAKE"], ["done", "SECCLDONE"]]) {
+                game.socket.emit("module.${MOD}", { action: "card.claim", userId: game.user.id, requestId: rid, messageId: "${clId}", step },
+                    { recipients: game.users.filter(u => u.isGM && u.active).map(u => u.id) });
+            }
+            await new Promise(r => setTimeout(r, 1500));
+            return globalThis.__clTold;`);
+        const wired = [await wireCL(gma, clId), await wireCL(gmb, clId)];
+        const [toldA, toldB] = await Promise.all([clickCL(gma), clickCL(gmb)]);
+        await settle(1000);
+        const lines = await linesCL(clId);
+        const row = await gmb.eval(`${untilP} const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+            await until(() => Boolean(S.ruledCardStore?.get?.("${clId}")), 8000);
+            return S.ruledCardStore?.get?.("${clId}")?.by ?? null;`, { timeout: 20000 });
+        await gma.eval(`await game.messages.get("${clId}").update({ content: ${JSON.stringify(CL_CONTENT)}, "flags.${MOD}.settled": false }); return true;`);
+        const rewired = await wireCL(gmb, clId);
+        const toldAgain = await clickCL(gmb);
+        await settle(500);
+        cl = { forged, wired, toldA, toldB, lines, row, rewired, toldAgain, linesAfter: await linesCL(clId) };
+    } finally {
+        await gma.eval(`for (const m of game.messages.contents.filter(m => !globalThis.__clBefore.includes(m.id))) await m.delete();
+            delete globalThis.__clBefore; return true;`);
+        await disconnect("gmb");
+    }
+    const winner = cl?.row === "USERGMA000000000" ? "GM A" : cl?.row === "USERGMB000000000" ? "GM B" : null;
+    const loserTold = cl ? (winner === "GM A" ? cl.toldB : cl.toldA) : null, winnerTold = cl ? (winner === "GM A" ? cl.toldA : cl.toldB) : null;
+    check("CL1: p1's forged claim of a card to the GMs, and its forged \"done\", are refused (gmOnly) and told",
+        J(cl?.forged?.map(t => t.slice(1))) === J([["bridge.refused", "gmOnly"], ["bridge.refused", "gmOnly"]]), J(cl), { flow: "card-claim" });
+    check("CL2: two GMs' clicks on one card at once rule it once: one line to the player, the row names the GM who ruled on both GMs, and only the other GM is told, by that GM's name",
+        J(cl?.wired) === J([true, true]) && cl.lines === 1 && winner !== null && J(winnerTold) === "[]" && loserTold?.length === 1 && loserTold[0].includes(winner),
+        J(cl), { flow: "card-claim" });
+    check("CL3: the card reopened by its author is not ruled again: the second GM's click reads who ruled, and no line is posted",
+        cl?.rewired === true && cl.toldAgain.length === 1 && winner !== null && cl.toldAgain[0].includes(winner) && cl.toldAgain[0].includes("already ruled") && cl.linesAfter === 1,
+        J(cl), { flow: "card-claim" });
+
+    return { phases: ["A", "C", "C2", "B", "D", "E", "F", "F9", "G", "I", "H1", "K", "J1", "J2", "J3", "H2", "H3", "J4", "Z", "M", "N", "O", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "CL"], gm: IDS.gm };
 }

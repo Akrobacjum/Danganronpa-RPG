@@ -379,8 +379,10 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
             const had = globalThis.__notifications.length;
             button?.click();
             await until(() => button && !button.disabled, 10000);
-            const ruled = game.i18n.format("DRPG.Cleanup.alreadyRuled", { name: game.users.get("USERGM2000000000")?.name ?? "" });
-            return { pressed: Boolean(button), told: globalThis.__notifications.slice(had).filter(n => n.level === "warn" && n.msg === ruled).length };`,
+            // E18 C3: the card's claim on the primary refuses the click before the reshape's own ledger does, and names gm2.
+            const ruled = game.i18n.format("DRPG.Bridge.alreadyRuled", { gm: game.users.get("USERGM2000000000")?.name ?? "" });
+            const warned = globalThis.__notifications.slice(had).filter(n => n.level === "warn").map(n => n.msg);
+            return { pressed: Boolean(button), told: warned.filter(msg => msg === ruled).length, warned };`,
         { timeout: 30000 });
         await settle(800);
         const toldAfter = await toldP2();

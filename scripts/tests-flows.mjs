@@ -162,6 +162,10 @@ export const FLOWS = Object.freeze([
     // it (`card.post`, secret.mjs `askGm`): 13-murder-signals' fight sends the players' cards and a word in the messenger.
     { id: "messenger", what: "The messenger and every private card: the words travel only to the people on the card",
         entry: { bridge: ["card.post"], sockets: ["secret.mjs"] }, scenarios: ["40-flow", "30-security", "13-murder-signals"], status: "covered", stage: "<=1.2.50" },
+    // E18 C3 (19.10.2026): a GM's click on a card sent to the GMs is claimed on the primary (`card.claim`, gm-bridge.mjs
+    // `claimCard`) - 61's CL clicks one card on two GMs at once, reopens it, and forges p1's claim.
+    { id: "card-claim", what: "A GM's ruling on a card sent to the GMs, made once whichever GM clicks",
+        entry: { bridge: ["card.claim"] }, scenarios: ["61-gmstore-case"], status: "covered", stage: "1.2.84" },
     // E06 fix r2-G4 (28.09.2026): a Confusion's armed Call is the GMs' store and its owner's copy, whose socket
     // is call-effects.mjs's; 40-flow drives the arming on the GM, the copy and a spend on the owner's browser,
     // not the Monocub's own ask. E08+E28 C17 (04.10.2026): the GM throws the Meddle's dice; tier 2 judges a Monocub's

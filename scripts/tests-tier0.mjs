@@ -13672,6 +13672,71 @@ const REGRESSIONS = [
         }
         equal(JSON.stringify(problems), JSON.stringify([]),
             "a call on the GM with no census row, a row whose call is gone, or a player's call that does not read its answer or hand back its price");
+    }],
+
+    ["R842 - a click on a card to the GMs is claimed on the primary: `card.claim` is a GM's alone and names only the card, `claimCard` is its one export, and only the card's buttons ask it (E18 C3; amend 3)", async () => {
+        /*
+         * E18 C3, 19.10.2026; audits S11-14, S17-22 (E18-15, E18-16). The packet a non-primary GM's click sends the
+         * primary rules a card, so its row asks `gmOnly` first and takes the card's id and the step, nothing else; a
+         * `claims` line says who judges the id (the claim reads the card and the GMs' row of it on the primary).
+         * `claimCard` is the one export later stages call for their own cards (E67, E68, E72): its doc comment names
+         * them. Amend 3: the claim does not take over Overrule or the Closing's approve - neither stands on this line at
+         * 19.10.2026 (no `Overrule` and no Closing button in scripts/ or lang/), so what is read is that the card's
+         * buttons (messenger-app.mjs `wireCallActions`) are the claim's only caller, and that they claim before the
+         * ruling runs. Read in the module's files with comments and literals blanked.
+         */
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const row = BRIDGE_ACTIONS["card.claim"] ?? null;
+        const read = [];
+        read.push(row ? [row.guards?.[0]?.factory ?? null, row.sanitize?.fields ?? null, Object.keys(row.claims ?? {}), row.answer] : null);
+        const sources = new Map(await otherSources());
+        const raw = sources.get("gm-bridge.mjs") ?? "";
+        ok(raw.length > 10000, "gm-bridge.mjs did not load - this would measure nothing");
+        const doc = /\/\*\*((?:(?!\*\/)[\s\S])*)\*\/\s*export async function claimCard\(/.exec(raw)?.[1] ?? "";
+        read.push(["E67", "E68", "E72"].filter(stage => doc.includes(stage)));
+        const callers = [];
+        for (const [file, text] of sources) {
+            if (!file.endsWith(".mjs")) continue;
+            const blank = blankLiterals(blankComments(text));
+            for (const m of blank.matchAll(/\bclaimCard\s*\(/g)) {
+                if (/\bfunction\s*$/.test(blank.slice(Math.max(0, m.index - 24), m.index))) continue;
+                const top = [...blank.slice(0, m.index).matchAll(/^(?:export\s+)?(?:async\s+)?function\s+([\w$]+)/gm)].at(-1)?.[1] ?? "(top level)";
+                callers.push(`${file}#${top}`);
+            }
+        }
+        read.push(callers);
+        const wire = blankLiterals(blankComments(fnSource(sources.get("messenger-app.mjs") ?? "", "wireCallActions")));
+        const claimAt = wire.search(/\bclaimCard\s*\(/), runAt = wire.search(/\brunCallAction\s*\(/);
+        read.push(claimAt >= 0 && runAt > claimAt);
+        equal(JSON.stringify(read), JSON.stringify([
+            ["gmOnly", { messageId: "id", step: "oneOf" }, ["messageId", "step"], "reply"],
+            ["E67", "E68", "E72"],
+            ["messenger-app.mjs#wireCallActions"],
+            true
+        ]), "[the row's first guard, its fields, its claims, its answer], the stages claimCard's doc names, who calls claimCard, whether the card's buttons claim before the ruling runs");
+    }],
+
+    ["R843 - the GMs' row of who ruled each card is a GM store of its own: a ledger, synced, not backed up, cut with the actions, its key registered and named in en and pl (E18 C3)", async () => {
+        /*
+         * E18 C3, 19.10.2026 (E18-14). A card a player posted is that player's document: its `settled` flag is theirs to
+         * write, so the claim reads the GMs' row (gm-stores.mjs `ruledCardStore`), which no player's browser holds. Read:
+         * the store's spec as defined, whether its key is a SETTINGS key registered on this client in the client scope,
+         * and its line for the case window in both language files.
+         */
+        const S = await import("./gm-stores.mjs");
+        const store = S.ruledCardStore ?? null;
+        const spec = store?.spec ?? {};
+        const def = spec.key ? game.settings.settings.get(`${MODULE_ID}.${spec.key}`) : null;
+        const label = async lang => {
+            const res = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`);
+            ok(res.ok, `${lang}.json: HTTP ${res.status}`);
+            return typeof foundry.utils.getProperty(foundry.utils.expandObject(await res.json()), `DRPG.Case.store.${spec.name}`) === "string";
+        };
+        equal(JSON.stringify([spec.name ?? null, spec.kind ?? null, spec.resetGroup ?? null, spec.backup ?? null, spec.sync ?? null,
+            Boolean(spec.legacyKey || spec.claim || spec.migrate), Object.values(SETTINGS).includes(spec.key), def?.scope ?? null,
+            await label("en"), await label("pl")]),
+        JSON.stringify(["ruledCards", "ledger", "actions", false, true, false, true, "client", true, true]),
+        "[name, kind, reset group, backed up, synced, an old key or a migration, a SETTINGS key, its scope, the en label, the pl label]");
     }]
 ];
 

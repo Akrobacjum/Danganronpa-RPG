@@ -3058,6 +3058,7 @@
         "keys.charge": "Opłata za Key Remnants pobierana przy otwarciu Class Trial",
         "reroll.ask": "Reroll",
         "card.post": "Karta do wystawienia przez GM-a",
+        "card.claim": "Decyzja GM-a na karcie wysłanej do GM-ów",
         "searchTokens.spend": "Wydanie Search Tokena",
         "searchTokens.takePlant": "Szukanie podłożonego przedmiotu",
         "searchTokens.returnPlant": "Zwrot podłożonego przedmiotu",
@@ -3167,6 +3168,9 @@
       "settledHandled": "Załatwił: {name}.",
       "settledExpired": "Nikt nie odpowiedział na czas - zapytaj jeszcze raz.",
       "settledGone": "Gracz już nie czekał.",
+      "alreadyRuled": "Tę kartę już rozstrzygnięto (przez: {gm}).",
+      "claimBusy": "Tę kartę rozstrzyga właśnie: {gm}.",
+      "alreadySettled": "Ta karta ma już odpowiedź.",
       "replyTitle": "Odpowiedz: {name}",
       "replyPrompt": "Twoja decyzja, własnymi słowami. Trafi do wątku tej osoby.",
       "rulingBy": "{name} orzeka:",
@@ -5688,7 +5692,8 @@
         "sheetWrites": "Zapisy na kartach postaci cofnięte, zgłoszone lub odnotowane przez GM-ów, trzymane przez dobę",
         "diceLooks": "Wygląd kości każdej postaci ustalony przez GM-ów, do którego wraca zmiana gracza",
         "ballots": "Karty głosowania w Class Trial, przechowywane u GM-ów",
-        "verdict": "Blackened, z którymi wydano ostatni werdykt, przechowywani u GM-ów na jego dokończenie"
+        "verdict": "Blackened, z którymi wydano ostatni werdykt, przechowywani u GM-ów na jego dokończenie",
+        "ruledCards": "Kto rozstrzygnął każdą kartę wysłaną do GM-ów, by każdą rozstrzygnąć raz"
       },
       "row": {
         "traces": {
