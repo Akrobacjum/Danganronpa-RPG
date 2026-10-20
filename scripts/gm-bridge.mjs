@@ -660,6 +660,7 @@ function palmRolls(actor) {
     // or a stash theft is the GM's log, as it was.
 async function handlePlant(payload, sender, ctx) {
     const { plantOnPerson } = await import("./vault.mjs");
+    // The sender: a body the GMs keep from them is planted on as a living victim is (E80 fix sec1-G1, `bodyKeptFrom`).
     const out = await plantOnPerson({
         plannerId: payload.plannerId,
         victimId: payload.victimId,
@@ -668,7 +669,7 @@ async function handlePlant(payload, sender, ctx) {
         isCritical: payload.isCritical,
         unseenTotal: payload.unseenTotal,
         unseenCritical: payload.unseenCritical
-    });
+    }, { asker: sender });
     if (out?.refused) return { refused: out.refused };
 }
 
@@ -696,6 +697,7 @@ async function handleFindStash(payload, sender, ctx) {
     // arithmetic wrong, so it does none of it.
 async function handleSteal(payload, sender, ctx) {
     const { stealFromPerson } = await import("./vault.mjs");
+    // The sender: a body the GMs keep from them is robbed as a living victim is (E80 fix sec1-G1, `bodyKeptFrom`).
     const out = await stealFromPerson({
         thiefId: payload.thiefId,
         victimId: payload.victimId,
@@ -704,7 +706,7 @@ async function handleSteal(payload, sender, ctx) {
         isCritical: payload.isCritical,
         unseenTotal: payload.unseenTotal,
         unseenCritical: payload.unseenCritical
-    });
+    }, { asker: sender });
     if (out?.refused) return { refused: out.refused };
 }
 
@@ -1845,7 +1847,7 @@ export const BRIDGE_ACTIONS = table({
         // Both of the Palm's rolls, each on the GMs' record of it (E08+E28 C15; `palmRolls`).
         rolled: palmRolls("plannerId"),
         claims: {
-            victimId: "judged by plantOnPerson (vault.mjs): a living victim in the planter's room",
+            victimId: "judged by plantOnPerson (vault.mjs): a living victim in the planter's room, or a body the GMs keep from the sender, planted on as a living one (bodyKeptFrom)",
             itemId: "judged by plantOnPerson (vault.mjs): an item in the planter's own hands",
             rollId: "the hand's roll the result is read from (bridge-guards.mjs rollRefusal): one the GM drew for the planter's Palm",
             unseenRollId: "the unseen roll the result is read from (bridge-guards.mjs rollRefusal): one the GM drew for the planter's Palm"
@@ -1924,7 +1926,7 @@ export const BRIDGE_ACTIONS = table({
         answer: "ack",
         rolled: palmRolls("thiefId"),
         claims: {
-            victimId: "judged by stealFromPerson (vault.mjs): a living victim in the thief's room",
+            victimId: "judged by stealFromPerson (vault.mjs): a living victim in the thief's room, or a body the GMs keep from the sender, robbed as a living one (bodyKeptFrom)",
             itemId: "honoured by stealFromPerson (vault.mjs) only on a critical, and only if it is in the victim's pockets",
             rollId: "the hand's roll the result is read from (bridge-guards.mjs rollRefusal): one the GM drew for the thief's Palm",
             unseenRollId: "the unseen roll the result is read from (bridge-guards.mjs rollRefusal): one the GM drew for the thief's Palm"

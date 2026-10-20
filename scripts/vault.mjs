@@ -1670,6 +1670,34 @@ export function pocketsFrom(items, { undecided = null } = {}) {
 }
 
 /**
+ * Whether `victim` of a Palm is a body the GMs keep from `asker` (E80 fix sec1-G1, the review's sec-1, the same class on
+ * Base's Palm roads; the owner's Q8, option A, 20.10.2026): dead for the GMs (`isDeadForGm`), not published
+ * (`isDeceased`), and a death `asker` may not know (incident-store.mjs `knowsOfDeath`: not a GM, not in the row's
+ * `known`, not the body's owner). Such a victim is taken from and planted on as a living one is, on the same dice, so the
+ * thief's or planter's side reads as at a living victim; only the victim's card changes, its words to the GMs alone
+ * (`tellPalmVictim`). With no asker (a GM's own Palm, a test calling here directly) nobody is kept from it: a body is
+ * refused as before.
+ */
+async function bodyKeptFrom(asker, victim) {
+    if (!asker || asker.isGM) return false;
+    const { isDeceased } = await import("./chapter.mjs");
+    if (isDeceased(victim)) return false;
+    const { knowsOfDeath } = await import("./incident-store.mjs");
+    return !knowsOfDeath(asker, victim.id);
+}
+
+/**
+ * The card a Palm's victim reads when it noticed (`seen`): veiled (utils.mjs `whisperToOwner(..., { veiled: true })`),
+ * so its document is addressed to every browser in nobody's voice, with the `stolen` sound for its reader. At a body the
+ * GMs keep (`bodyKeptFrom`) the same document is posted, its words to the GMs alone (`whisperToGms`): the body feels
+ * nothing and no player reads it, and every browser gets the documents a living victim's Palm posts (E80 fix sec1-G1).
+ */
+async function tellPalmVictim(victim, html, { body = false } = {}) {
+    const card = { veiled: true, flags: { [MODULE_ID]: { sfx: "stolen" } } };
+    return body ? whisperToGms(html, card) : whisperToOwner(victim, html, card);
+}
+
+/**
  * Take something out of somebody's pockets. GM side.
  *
  * TWO NUMBERS ARRIVE, TWO VERDICTS ARE MADE HERE. The thief's client throws the
@@ -1687,11 +1715,14 @@ export function pocketsFrom(items, { undecided = null } = {}) {
  * @param {boolean} [options.isCritical]
  * @param {number} options.unseenTotal     The Shadow roll.
  * @param {boolean} [options.unseenCritical]
+ * @param {object} [context]
+ * @param {User|null} [context.asker]     The user whose packet asked (gm-bridge.mjs `handleSteal`): a body the GMs keep
+ *   from that user is robbed as a living victim is (`bodyKeptFrom`).
  */
 export async function stealFromPerson({
     thiefId, victimId, itemId = null,
     total = 0, isCritical = false, unseenTotal = 0, unseenCritical = false
-} = {}) {
+} = {}, { asker = null } = {}) {
     if (!game.user.isGM) return null;
 
     const thief = game.actors.get(thiefId);
@@ -1706,9 +1737,13 @@ export async function stealFromPerson({
     // The dead neither rob nor are robbed. Looting a body is a different action
     // with different rules - see `requestBodyLoot` - and routing it through here
     // would let a corpse be picked over from the far side of a Shadow roll.
+    // Save a body the GMs keep from the asker (E80 fix sec1-G1; the owner's Q8,
+    // option A): its thief reads what a living victim's reads, as anything else
+    // would tell that player the body is one (`bodyKeptFrom`).
     const { isDeadForGm } = await import("./chapter.mjs");
     if (isDeadForGm(thief)) return refuse("they are dead");
-    if (isDeadForGm(victim)) return refuse(`${victim.name} is dead; that is looting, not theft`);
+    const body = isDeadForGm(victim);
+    if (body && !(await bodyKeptFrom(asker, victim))) return refuse(`${victim.name} is dead; that is looting, not theft`);
 
     /*
      * AND YOU HAVE TO BE STANDING NEXT TO THEM.
@@ -1855,13 +1890,16 @@ export async function stealFromPerson({
      * Both failures are worth telling. Being caught trying is one of the better
      * scenes this action produces, and a Shadow roll that answers "did they
      * notice you" has to be allowed to answer it about an attempt.
+     *
+     * Veiled since E80 fix sec1-G1, and at a body the GMs keep its words go to
+     * the GMs alone (`tellPalmVictim`).
      */
     if (seen) {
         try {
-            await whisperToOwner(victim, `<p>${game.i18n.format(
+            await tellPalmVictim(victim, `<p>${game.i18n.format(
                 took ? "DRPG.Steal.caughtTaking" : "DRPG.Steal.caughtTrying",
                 { who: esc(thief.name), item: esc(item?.name ?? "") }
-            )}</p>`, { flags: { [MODULE_ID]: { sfx: "stolen" } } });
+            )}</p>`, { body });
         } catch (err) {
             error("Could not tell the victim of a theft", err);
         }
@@ -1869,7 +1907,7 @@ export async function stealFromPerson({
 
     log(`${thief.name} ${took ? "took" : "failed to take"} `
         + `${took ? `"${item.name}" ` : ""}from ${victim.name}`
-        + `${seen ? " and was seen" : " unseen"}.`);
+        + `${seen ? " and was seen" : " unseen"}${body ? ", a body the GMs keep, as a living victim (its card's words to the GMs alone)" : ""}.`);
 
     return { took, seen, item: item?.name ?? null, handsFull, empty };
 }
@@ -1894,11 +1932,14 @@ export async function stealFromPerson({
  *   pockets - no critical branch, because there is nothing left to choose.
  * @param {number} options.total        The Hand roll.
  * @param {number} options.unseenTotal  The Shadow roll.
+ * @param {object} [context]
+ * @param {User|null} [context.asker]   The user whose packet asked (gm-bridge.mjs `handlePlant`): a body the GMs keep
+ *   from that user is planted on as a living victim is (`bodyKeptFrom`).
  */
 export async function plantOnPerson({
     plannerId, victimId, itemId = null,
     total = 0, isCritical = false, unseenTotal = 0, unseenCritical = false
-} = {}) {
+} = {}, { asker = null } = {}) {
     if (!game.user.isGM) return null;
 
     const planter = game.actors.get(plannerId);
@@ -1916,8 +1957,11 @@ export async function plantOnPerson({
     // Planting evidence on a corpse is a real thing somebody will want to do,
     // and it is not this action: a body is not carrying anything any more, and
     // the crime scene has its own rules. Refused here rather than silently
-    // allowed, so the reason exists in one place.
-    if (isDeadForGm(victim)) return refuse(`${victim.name} is dead`);
+    // allowed, so the reason exists in one place - save a body the GMs keep
+    // from the asker (E80 fix sec1-G1; the owner's Q8, option A): its planter
+    // reads what a living victim's reads (`bodyKeptFrom`).
+    const body = isDeadForGm(victim);
+    if (body && !(await bodyKeptFrom(asker, victim))) return refuse(`${victim.name} is dead`);
 
     // `sameRoom`, as a theft's (E12 C3): the same scene and floor as well as the room's name.
     const { locateActor, sameRoom } = await import("./movement.mjs");
@@ -2023,17 +2067,18 @@ export async function plantOnPerson({
      */
     if (seen) {
         try {
-            await whisperToOwner(victim, `<p>${game.i18n.format(
+            await tellPalmVictim(victim, `<p>${game.i18n.format(
                 done ? "DRPG.Steal.caughtPlanting" : "DRPG.Steal.caughtTryingPlant",
                 { who: esc(planter.name), item: esc(item.name) }
-            )}</p>`, { flags: { [MODULE_ID]: { sfx: "stolen" } } });
+            )}</p>`, { body });
         } catch (err) {
             error("Could not tell the victim of a plant", err);
         }
     }
 
     log(`${planter.name} ${done ? "planted" : "failed to plant"} `
-        + `"${item.name}" on ${victim.name}${seen ? " and was seen" : " unseen"}.`);
+        + `"${item.name}" on ${victim.name}${seen ? " and was seen" : " unseen"}${
+            body ? ", a body the GMs keep, as a living victim (its card's words to the GMs alone)" : ""}.`);
 
     return { done, seen, item: item.name, handsFull };
 }

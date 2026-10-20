@@ -13793,6 +13793,350 @@ const SCENARIOS = [
             + "the GMs' fact on the hand's row after it (the target named, felt, list shown, replayed)]");
     }],
 
+    ["an unseen Frisk at a body the GMs keep reads at the searcher as at a living target on the same dice (A11-5, A11-9, A11-11): a missed cover reads 'They noticed.', every browser gets the same card documents, the body's player reads nothing, and the hand's Reroll answers that the moment stands", async () => {
+        /*
+         * E80 fix sec1-G1 (the review's sec-1; the owner's Q8, option A), 20.10.2026; the A11 design's step 8(d), whose
+         * 'always unnoticed' Q8 overrode, and its resolved 16 (rule D of E05 C10: a death nobody has found is not to be felt).
+         * The harm: a Frisk that answers whether somebody is dead.
+         * The searcher's own browser holds the cover's total and its bar (Shadow 15 on the roll's window), so a card
+         * that says 'Nobody saw you do it.' under a missed cover, where a living target would have noticed, tells the
+         * searcher's player that the GMs keep that target dead, and so does a card document fewer than a living
+         * target's, or a Reroll answered otherwise. A player's character and another, the other another player's,
+         * stood alone in a room (`aloneTogether`). Each Frisk: the hand kept as the player's roll (`playerRollBookmark`,
+         * `rummage`, the GMs' record at 14 or 5) and a cover's record (`palm`) at 5, under Shadow 15, judged as the
+         * bridge judges that player's `action.friskUnseen`; then the hand rerolled on this GM for the player
+         * (`rerollOnGm`) to 5 or to 14. Twice at the other living, then twice once the GMs keep its death (a row of
+         * `deathStore` the player is not in, as A11-7's kept phase). Read for each: the reply, the card documents posted
+         * (every browser gets each one), what the words to the player say (the list or the miss, and the seen line),
+         * who else got words besides the GMs, the GMs' fact (felt, shown); and for its Reroll, the Reroll's lines among
+         * the design's, the cards it posted, who got their words, and the fact after (felt, shown, replayed).
+         * Red at the parent (82dee66): at the body the cover is never missed (`friskPerson`'s `noticed` is false for any
+         * body), so the player reads 'Nobody saw you do it.' on one card document, and the Reroll answers 'what was seen
+         * stays seen' or shows the list, where the living target's answers that the moment stands.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the rolls are a connected player's, as Foundry names only those");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const R = await import("./reroll.mjs");
+        const S = await import("./secret.mjs");
+        const { rerollBookmarkStore, rollStore, deathStore } = await import("./gm-stores.mjs");
+        const { isDeadForGm } = await import("./settings.mjs");
+        const { knowsOfDeath } = await import("./incident-store.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { ownerOf } = await import("./utils.mjs");
+        const { player, theirs, other } = playerAndCharacters();
+        must(other, "the world has no character this player does not play");
+        const targetOwner = ownerOf(other)?.id ?? null;
+        must(targetOwner && targetOwner !== player.id, `${other.name} has no player of its own - this would measure nothing`);
+        must(!deathStore.has(other.id), `the GMs keep ${other.name}'s death already - this would measure nothing`);
+        const role = id => (id === player.id ? "player" : id === targetOwner ? "target" : game.users.get(id)?.isGM ? "gm" : `other ${id}`);
+        const hope = theirs.system.resources.hope.value;
+        const bookmark = rerollBookmarkStore.has(theirs.id) ? foundry.utils.deepClone(rerollBookmarkStore.get(theirs.id)) : null;
+        const seenBefore = new Set(game.messages.map(m => m.id));
+        const fixture = await aloneTogether(theirs, other);
+        const who = foundry.utils.escapeHTML(other.name);
+        const LINES = {
+            rummageStands: game.i18n.localize("DRPG.Reroll.rummageStands"), rummageSeen: game.i18n.localize("DRPG.Reroll.rummageSeen"),
+            rummageLate: game.i18n.format("DRPG.Reroll.rummageLate", { who: other.name }),
+            missed: game.i18n.format("DRPG.Frisk.missed", { who: other.name }), replayFailed: game.i18n.localize("DRPG.Reroll.replayFailed")
+        };
+        const kindOf = words => {
+            if (words === null) return "no words";
+            if (words.includes(game.i18n.format("DRPG.Frisk.listHeading", { who })) || words.includes(game.i18n.format("DRPG.Frisk.empty", { who }))) return "list";
+            if (words.includes(game.i18n.format("DRPG.Frisk.missed", { who }))) return "missed";
+            if (words.includes(game.i18n.format("DRPG.Frisk.caughtTrying", { who: foundry.utils.escapeHTML(theirs.name) }))) return "caughtTrying";
+            if (words.includes(game.i18n.format("DRPG.Frisk.caught", { who: foundry.utils.escapeHTML(theirs.name) }))) return "caught";
+            return `other: ${words.slice(0, 60)}`;
+        };
+        const seenOf = words => (words.includes(game.i18n.localize("DRPG.Steal.cardSeen")) ? "seen"
+            : words.includes(game.i18n.localize("DRPG.Steal.cardUnseen")) ? "unseen" : null);
+        const LOW = { hope: 3, fear: 2 }, HIGH = { hope: 9, fear: 5 };
+        const held = [];
+        const kept = [];
+        // Run `step` and read the card documents it posted, and the words this GM sent with them.
+        const watched = async step => {
+            const made = [];
+            const hook = Hooks.on("createChatMessage", message => made.push(message));
+            let sent = [];
+            try {
+                sent = await wordsSent(async () => {
+                    await step();
+                    await settle();
+                });
+            } finally {
+                Hooks.off("createChatMessage", hook);
+            }
+            return { made, sent, to: [...new Set(sent.flatMap(packet => packet.to.map(role)))].filter(r => r !== "gm").sort() };
+        };
+        const frisk = async (handTotal, next) => {
+            const F = await playerRollBookmark(player, theirs, "rummage", {}, { record: { total: handTotal } });
+            held.push(F);
+            const cover = await recordFor({ id: foundry.utils.randomID() }, player, theirs, "palm", { total: 5 });
+            kept.push(cover);
+            const out = [];
+            const judged = await watched(() => G.judge(BRIDGE_ACTIONS, { action: "action.friskUnseen", requestId: `E80S1${foundry.utils.randomID(8)}`,
+                searcherId: theirs.id, targetId: other.id, rollId: F.message.id, unseenRollId: rollStore.get(cover.rollId)?.messageId }, player.id,
+            { send: (to, reply) => { if (reply?.action !== "bridge.ack") out.push(reply?.action === "bridge.refused" ? reply.reason : reply?.value ?? null); } }));
+            must(F.row()?.messageId === F.message.id && F.row()?.actionKey === "rummage",
+                `the hand is not the row the GMs keep - this would measure nothing: ${stableJson([F.row()?.actionKey, out])}`);
+            const fact = F.row()?.facts?.frisk ?? null;
+            const read = [out, judged.made.length, judged.sent.filter(packet => packet.to.includes(player.id)).map(packet => [kindOf(packet.html), seenOf(packet.html)]),
+                judged.to, fact ? [Boolean(fact.seen), Boolean(fact.shown)] : null];
+            await trustedWrite(theirs, { "system.resources.hope.value": 6 }, { reason: "gmRuling" });
+            const stand = rerollableRoll(F.message, { first: LOW, next });
+            let answer = null, again = null;
+            try {
+                again = await watched(async () => { answer = await R.rerollOnGm(theirs, player); });
+            } finally {
+                stand.putBack();
+            }
+            const after = F.row()?.facts?.frisk ?? null;
+            return [read, [Array.isArray(answer?.lines) ? Object.entries(LINES).filter(([, text]) => answer.lines.includes(text)).map(([name]) => name) : answer,
+                again.made.map(message => S.secretHtml(message)).filter(words => words !== null).map(kindOf), again.to,
+                after ? [Boolean(after.seen), Boolean(after.shown), Boolean(after.replayed)] : null]];
+        };
+        const steps = [];
+        try {
+            steps.push(["alive: hand 14, cover 5; rerolled to 5", await frisk(14, LOW)]);
+            steps.push(["alive: hand 5, cover 5; rerolled to 14", await frisk(5, HIGH)]);
+            await deathStore.patch(other.id, { chapter: 99, day: 1, timeOfDay: "night", at: Date.now(), keepBullets: true, known: [] });
+            must(isDeadForGm(other) && !knowsOfDeath(player, other.id), `the GMs' row does not keep ${other.name} dead out of the player's knowing - this would measure nothing`);
+            steps.push(["a body the GMs keep: hand 14, cover 5; rerolled to 5", await frisk(14, LOW)]);
+            steps.push(["a body the GMs keep: hand 5, cover 5; rerolled to 14", await frisk(5, HIGH)]);
+        } finally {
+            if (deathStore.has(other.id)) await deathStore.drop(other.id);
+            for (const F of held.reverse()) await F.putBack();
+            for (const k of kept) await k.putBack();
+            for (const m of game.messages.filter(m => !seenBefore.has(m.id))) await m.delete();
+            if (bookmark) await rerollBookmarkStore.patch(theirs.id, bookmark);
+            else if (rerollBookmarkStore.has(theirs.id)) await rerollBookmarkStore.drop(theirs.id);
+            if (theirs.system.resources.hope.value !== hope) await trustedWrite(theirs, { "system.resources.hope.value": hope }, { reason: "gmRuling" });
+            await fixture.back();
+        }
+        const P = ["player"], PT = ["player", "target"];
+        equal(stableJson(steps), stableJson([
+            ["alive: hand 14, cover 5; rerolled to 5", [[["settled"], 2, [["list", "seen"]], PT, [true, true]], [["rummageStands"], [], [], [true, true, false]]]],
+            ["alive: hand 5, cover 5; rerolled to 14", [[["settled"], 2, [["missed", "seen"]], PT, [true, false]], [["rummageStands"], [], [], [true, false, false]]]],
+            ["a body the GMs keep: hand 14, cover 5; rerolled to 5", [[["settled"], 2, [["list", "seen"]], P, [true, true]], [["rummageStands"], [], [], [true, true, false]]]],
+            ["a body the GMs keep: hand 5, cover 5; rerolled to 14", [[["settled"], 2, [["missed", "seen"]], P, [true, false]], [["rummageStands"], [], [], [true, false, false]]]]
+        ]), "[for each Frisk: (the reply, the card documents every browser got, what the words to the player say and their seen line, "
+            + "who else got words besides the GMs, the GMs' fact: felt, shown), (its Reroll's lines among the design's, the cards it posted, "
+            + "who got their words besides the GMs, the fact after: felt, shown, replayed)]");
+    }],
+
+    ["an open Frisk at a body the GMs keep, unanswered and let go, posts the card documents a silent living target's end posts, the body's card read by the GMs alone (A11-7, A11-9)", async () => {
+        /*
+         * E80 fix sec1-G1 (the review's sec-1, the same road elsewhere; the owner's Q8, option A), 20.10.2026; the A11
+         * design's step 8(d), whose 'no card of the target's' Q8 overrode, and its risk 5: a body nobody found is asked of nobody and ends as a silent living target does. The harm: an end that posts a
+         * card document fewer at a body - its target's card left out - so a console that counts the veiled documents every
+         * browser gets tells a body the GMs keep from a living target who did not answer. A player's character and another,
+         * another connected player's, stood alone in a room; each ask the player's `action.friskAsk` after a payment
+         * written as the player's browser writes one, then its answer's clock and its force's clock run out
+         * (`sweepFriskAsks`): once at the living target, once the GMs keep its death. Read: the ask's reply, the asks
+         * ended unanswered and let go, the card documents posted, and who got each card's words besides the GMs.
+         * Red at the parent (82dee66): at the body the end posts one document, the searcher's, where the living target's
+         * posts two.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the ask is a connected player's, as Foundry names only those");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { TIMING } = await import("./config.mjs");
+        const F = await import("./frisk.mjs");
+        const D = await import("./roll-draw.mjs");
+        const S = await import("./secret.mjs");
+        const { ownerIdsOf } = await import("./utils.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { actionsLeft } = await import("./actions.mjs");
+        const { deathStore } = await import("./gm-stores.mjs");
+        const { player, theirs, other } = playerAndCharacters();
+        must(other, "the world has no character this player does not play");
+        const answerer = ownerIdsOf(other).find(id => game.users.get(id)?.active) ?? null;
+        must(answerer, `${other.name} has no connected player - this would measure nothing`);
+        must(!deathStore.has(other.id), `the GMs keep ${other.name}'s death already - this would measure nothing`);
+        const role = id => (id === player.id ? "searcher" : id === answerer ? "target" : game.users.get(id)?.isGM ? "gm" : `other ${id}`);
+        const ACT = "system.resources.actions.value";
+        const left = actionsLeft(theirs), top = Math.max(1, left);
+        const asPlayer = { [D.PAID_AS_PLAYER]: true };
+        const pay = async () => {
+            await trustedWrite(theirs, { [ACT]: top }, { reason: "gmRuling", ...asPlayer });
+            await trustedWrite(theirs, { [ACT]: top - 1 }, { reason: "gmRuling", ...asPlayer });
+        };
+        const force = game.settings.settings.has(`${MODULE_ID}.friskForce`) ? game.settings.get(MODULE_ID, "friskForce") : null;
+        const packets = [], made = [];
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        socket.emit = function (event, packet, options, ...rest) {
+            if (packet?.action === "secret.card") packets.push({ ...packet, to: options?.recipients ?? [] });
+            return send.call(this, event, packet, options, ...rest);
+        };
+        const hook = Hooks.on("createChatMessage", message => made.push(message));
+        const seenBefore = new Set(game.messages.map(m => m.id));
+        const run = async () => {
+            F.forgetFriskAsks?.();
+            const [m0, p0] = [made.length, packets.length];
+            await pay();
+            const out = [];
+            await G.judge(BRIDGE_ACTIONS, { action: "action.friskAsk", requestId: `S1O${foundry.utils.randomID(8)}`, searcherId: theirs.id, targetId: other.id }, player.id,
+                { send: (to, reply) => { if (reply?.action !== "bridge.ack") out.push(reply?.action === "bridge.refused" ? reply.reason : reply?.value?.outcome ?? null); } });
+            await settle();
+            const quiet = await F.sweepFriskAsks(Date.now() + TIMING.friskAnswerMs + TIMING.friskGraceMs + 1000);
+            await settle();
+            const closed = await F.sweepFriskAsks(Date.now() + TIMING.friskForceMs + TIMING.friskGraceMs + TIMING.friskRollMs + TIMING.friskMarginMs + 1000);
+            await settle();
+            const fresh = packets.slice(p0);
+            const cards = made.slice(m0).map(message => [...new Set(fresh.filter(p => p.id === message.id).flatMap(p => p.to.map(role)))].filter(r => r !== "gm").sort());
+            return [out, quiet?.length ?? null, closed?.length ?? null, made.length - m0, cards];
+        };
+        const stood = await aloneTogether(theirs, other);
+        const steps = [];
+        try {
+            if (force !== null) await game.settings.set(MODULE_ID, "friskForce", true);
+            steps.push(["a silent living target", await run()]);
+            await deathStore.patch(other.id, { chapter: 99, day: 1, timeOfDay: "night", at: Date.now(), keepBullets: true, known: [] });
+            steps.push(["a body the GMs keep", await run()]);
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            F.forgetFriskAsks?.();
+            if (deathStore.has(other.id)) await deathStore.drop(other.id);
+            if (force !== null && game.settings.get(MODULE_ID, "friskForce") !== force) await game.settings.set(MODULE_ID, "friskForce", force);
+            for (const m of game.messages.filter(m => !seenBefore.has(m.id))) await m.delete();
+            await trustedWrite(theirs, { [ACT]: left }, { reason: "gmRuling" });
+            D.forgetPayments?.(theirs.id);
+            await stood.back();
+        }
+        equal(stableJson(steps), stableJson([
+            ["a silent living target", [[], 1, 1, 2, [["searcher"], ["target"]]]],
+            ["a body the GMs keep", [[], 1, 1, 2, [["searcher"], []]]]
+        ]), "[for each ask: its reply, the asks ended unanswered, the asks let go, the card documents every browser got, "
+            + "who got each card's words besides the GMs]");
+    }],
+
+    ["a Palm's Take and Plant at a body the GMs keep read at the thief as at a living victim on the same dice: the same card documents every browser gets, the same words to the thief, the item moved, and the body's card read by the GMs alone", async () => {
+        /*
+         * E80 fix sec1-G1 (the review's sec-1, the same class on Base's Palm roads; the owner's Q8, option A), 20.10.2026.
+         * The harm: a Take or a Plant that answers whether somebody is dead. vault.mjs `stealFromPerson` and
+         * `plantOnPerson` refused any body the GMs hold (`isDeadForGm`), so at a body the GMs keep from the player the
+         * bridge acked and nothing came: no card, nothing taken or left, where a living victim's thief reads 'You lift
+         * ...' - which tells that player the GMs keep the victim dead. A player's character and another, another
+         * player's, stood alone in a room (`aloneTogether`); each Palm two rolls drawn for the player as the player's
+         * browser asks for them (`drawnForPlayer`: the cover `palm`, the hand `steal`), the hand high, the cover low (the
+         * victim notices) or high (it does not), then the player's `action.steal` or `action.plant` judged as the bridge
+         * judges it. Four Palms at the living victim, the same four once the GMs keep its death (a row of `deathStore` the
+         * player is not in); then a Take at a death the player knows (the row naming the player) and at one the table knows
+         * (published on the actor), each refused as before: a body is looted, not robbed. Read for each: the bridge's
+         * answers, each card document posted as every browser holds it
+         * (its whisper list by role, or "everyone", and its speaker's alias), what the words to each reader but the GMs
+         * say (by the lang key's text), and where the item went. Red at the parent (82dee66): at the body the bridge acks
+         * and nothing else happens (measured at f78d70d: scratchpad e80p2-sec1/take-measure.log).
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the rolls are a connected player's, as Foundry names only those");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { ACTIONS, FLAGS } = await import("./config.mjs");
+        const { grantItem } = await import("./inventory.mjs");
+        const { ownerOf } = await import("./utils.mjs");
+        const { isDeadForGm, isDeceased } = await import("./settings.mjs");
+        const { knowsOfDeath } = await import("./incident-store.mjs");
+        const S = await import("./secret.mjs");
+        const D = await import("./roll-draw.mjs");
+        const { deathStore } = await import("./gm-stores.mjs");
+        const { player, theirs, other } = playerAndCharacters();
+        must(other, "the world has no character this player does not play");
+        const targetOwner = ownerOf(other)?.id ?? null;
+        must(targetOwner && targetOwner !== player.id, `${other.name} has no player of its own - this would measure nothing`);
+        must(!deathStore.has(other.id) && !isDeceased(other), `${other.name} is dead already - this would measure nothing`);
+        const wasDeceased = other.getFlag(MODULE_ID, FLAGS.deceased);
+        const role = id => (id === player.id ? "player" : id === targetOwner ? "target" : game.users.get(id)?.isGM ? "gm" : `other ${id}`);
+        const everyone = game.users.size;
+        const HIGH = { hope: 12, fear: 11 }, LOW = { hope: 3, fear: 2 };
+        const NAME = "Suite sec1-G1 a pocket watch";
+        const KEYS = ["cardTook", "cardMissed", "cardEmpty", "cardHandsFull", "cardPlanted", "cardPlantMissed", "cardTheirHandsFull",
+            "caughtTaking", "caughtTrying", "caughtPlanting", "caughtTryingPlant", "cardSeen", "cardUnseen"];
+        const strip = html => String(html ?? "").replace(/<[^>]+>/g, "");
+        const kindsOf = words => KEYS.filter(key => {
+            const victimLine = strip(game.i18n.format(`DRPG.Steal.${key}`, { item: NAME, who: theirs.name }));
+            const thiefLine = strip(game.i18n.format(`DRPG.Steal.${key}`, { item: NAME, who: other.name }));
+            return strip(words).includes(victimLine) || strip(words).includes(thiefLine);
+        });
+        const fixture = await aloneTogether(theirs, other);
+        const held = [];
+        const seenBefore = new Set(game.messages.map(m => m.id));
+        const palm = async (kind, cover) => {
+            for (const a of [theirs, other]) for (const i of a.items.filter(i => i.name === NAME)) await i.delete();
+            await grantItem(kind === "take" ? other : theirs, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
+            const c = await drawnForPlayer(player, theirs, { actionKey: "palm", faces: cover, trait: ACTIONS.palm.unseen.trait });
+            held.push(c);
+            const h = await drawnForPlayer(player, theirs, { actionKey: "steal", faces: HIGH, pay: false });
+            held.push(h);
+            must(c.record && h.record, `no records: ${stableJson([c.value, h.value, c.sent, h.sent])}`);
+            const item = theirs.items.find(i => i.name === NAME) ?? null;
+            const fields = kind === "take"
+                ? { action: "action.steal", thiefId: theirs.id, victimId: other.id }
+                : { action: "action.plant", plannerId: theirs.id, victimId: other.id, itemId: item?.id ?? null };
+            const out = [], made = [];
+            const hook = Hooks.on("createChatMessage", message => made.push(message));
+            let sent = [];
+            try {
+                sent = await wordsSent(async () => {
+                    await G.judge(BRIDGE_ACTIONS, { ...fields, requestId: `S1P${foundry.utils.randomID(8)}`, total: 30, isCritical: false,
+                        unseenTotal: 0, unseenCritical: false, rollId: h.message.id, unseenRollId: c.message.id }, player.id,
+                    { send: (to, reply) => out.push(reply?.action === "bridge.refused" ? `refused ${reply.reason}` : reply?.action ?? null) });
+                    await settle();
+                });
+            } finally {
+                Hooks.off("createChatMessage", hook);
+            }
+            const documents = made.map(m => [m.whisper.length >= everyone ? "everyone" : [...new Set(m.whisper.map(role))].sort(),
+                m.speaker?.alias === game.i18n.localize("DRPG.Secret.speaker") ? "nobody's voice" : m.speaker?.alias ? "named" : null,
+                S.secretHtml(m) === null ? "no words here" : "words here"]);
+            const words = sent.map(p => [p.to.map(role).filter(r => r !== "gm").sort(), kindsOf(p.html)]).filter(([to]) => to.length);
+            return [out, documents, words, [theirs.items.filter(i => i.name === NAME).length, other.items.filter(i => i.name === NAME).length]];
+        };
+        const run = async label => [
+            [`${label}: take, noticed`, await palm("take", LOW)],
+            [`${label}: take, unnoticed`, await palm("take", HIGH)],
+            [`${label}: plant, noticed`, await palm("plant", LOW)],
+            [`${label}: plant, unnoticed`, await palm("plant", HIGH)]
+        ];
+        const steps = [];
+        try {
+            steps.push(...await run("alive"));
+            await deathStore.patch(other.id, { chapter: 99, day: 1, timeOfDay: "night", at: Date.now(), keepBullets: true, known: [] });
+            must(isDeadForGm(other) && !knowsOfDeath(player, other.id), `the GMs' row does not keep ${other.name} dead out of the player's knowing - this would measure nothing`);
+            steps.push(...await run("a body the GMs keep"));
+            await deathStore.patch(other.id, { known: [player.id] });
+            must(knowsOfDeath(player, other.id), `the GMs' row does not name the player - this would measure nothing`);
+            steps.push(["a death the player knows: take, noticed", await palm("take", LOW)]);
+            await deathStore.drop(other.id);
+            await other.update({ [`flags.${MODULE_ID}.${FLAGS.deceased}`]: true });
+            must(isDeceased(other) && !deathStore.has(other.id), `${other.name}'s death is not the table's - this would measure nothing`);
+            steps.push(["a death the table knows: take, noticed", await palm("take", LOW)]);
+        } finally {
+            if (deathStore.has(other.id)) await deathStore.drop(other.id);
+            if (wasDeceased === undefined) {
+                if (other.getFlag(MODULE_ID, FLAGS.deceased) !== undefined) await other.unsetFlag(MODULE_ID, FLAGS.deceased);
+            } else if (other.getFlag(MODULE_ID, FLAGS.deceased) !== wasDeceased) await other.setFlag(MODULE_ID, FLAGS.deceased, wasDeceased);
+            for (const r of held.reverse()) await r.putBack();
+            D.forgetPayments?.(theirs.id);
+            for (const a of [other, theirs]) for (const i of a.items.filter(i => i.name === NAME)) await i.delete();
+            for (const m of game.messages.filter(m => !seenBefore.has(m.id))) await m.delete();
+            await fixture.back();
+        }
+        const thiefCard = [["gm", "player"], "named", "words here"], victimCard = ["everyone", "nobody's voice", "words here"];
+        const A = ["bridge.ack"];
+        const expected = (label, victimReads) => [
+            [`${label}: take, noticed`, [A, [thiefCard, victimCard], [[["player"], ["cardTook", "cardSeen"]], ...victimReads(["caughtTaking"])], [1, 0]]],
+            [`${label}: take, unnoticed`, [A, [thiefCard], [[["player"], ["cardTook", "cardUnseen"]]], [1, 0]]],
+            [`${label}: plant, noticed`, [A, [thiefCard, victimCard], [[["player"], ["cardPlanted", "cardSeen"]], ...victimReads(["caughtPlanting"])], [0, 1]]],
+            [`${label}: plant, unnoticed`, [A, [thiefCard], [[["player"], ["cardPlanted", "cardUnseen"]]], [0, 1]]]
+        ];
+        const refused = [A, [], [], [0, 1]];
+        equal(stableJson(steps), stableJson([...expected("alive", keys => [[["target"], keys]]), ...expected("a body the GMs keep", () => []),
+            ["a death the player knows: take, noticed", refused], ["a death the table knows: take, noticed", refused]]),
+            "[for each Palm: the bridge's answers, the card documents (whisper list by role or everyone, speaker, words on this GM), "
+            + "the words to each reader but the GMs (by lang key), the item (with the thief, with the victim)]");
+    }],
+
     ["an incident's roll is drawn only at its turn or stage, for what it names, once: an opening, a crisis action, a free clean-up attempt", async () => {
         /*
          * E08+E28 fix r2-H1, 04.10.2026; review S2-1: a console pre-drew crisis and opening rolls

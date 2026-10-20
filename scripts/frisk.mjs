@@ -19,7 +19,7 @@ import { witnessesOf } from "./chapter.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { flagsHeldNow } from "./sheet-audit.mjs";
 import { inClassTrial } from "./trial.mjs";
-import { esc, log, debug, error, whisperToOwner, announce, ownerIdsOf, gmIds, activeGmIds, primaryGmId, isPrimaryGm, dialogContent } from "./utils.mjs";
+import { esc, log, debug, error, whisperToOwner, whisperToGms, announce, ownerIdsOf, gmIds, activeGmIds, primaryGmId, isPrimaryGm, dialogContent } from "./utils.mjs";
 import { knowsOfDeath } from "./incident-store.mjs";
 import { sayNotDone } from "./bridge-guards.mjs";
 
@@ -204,8 +204,13 @@ function listOfLines(target, lines, heading = "DRPG.Frisk.listHeading") {
  * the GMs: the list (or that they got no proper look) and 'Nobody saw you do it.' or 'They noticed.'. The target is
  * told only when it noticed, on its own card with the `stolen` sound, by name: caught looking, or caught trying. No
  * witness is told (as a Palm and Tail Someone). Unnoticed, no card and no card's words reach the target (tier 2 "A11-5").
- * A target the GMs alone know dead feels nothing: it is never noticed and is told nothing, so the searcher's card
- * reads as at a living, unaware target.
+ * A TARGET THE GMS ALONE KNOW DEAD (E80 fix sec1-G1, the review's sec-1; the owner's Q8, option A, 20.10.2026, over the
+ * design's step 8(d), which had such a Frisk always come out unnoticed and post no card of the target's): the searcher's
+ * side is judged as at a living target on the same dice. Its card says 'They noticed.' under a missed cover, and the
+ * GMs' fact keeps it felt, so its Reroll answers as a living target's (`replayRummage`). The searcher's own browser
+ * holds the cover's total and its bar, so 'Nobody saw you do it.' under a miss would tell its player that the GMs keep
+ * that target dead. The body feels nothing: its card is posted as a living target's is, the same veiled document every
+ * browser gets, but its words go to the GMs alone (`whisperToGms`), so no player reads it and no sound plays.
  *
  * Every card is veiled (utils.mjs `whisperToOwner(..., { veiled: true })`): its document is addressed to every
  * browser in nobody's voice, and its words go only to its readers. The list is the pockets as the GMs hold them now
@@ -229,16 +234,18 @@ export async function friskPerson({ searcherId, targetId, total = 0, isCritical 
     const { ACTIONS } = await import("./config.mjs");
     const part = ACTIONS.palm.rummage;
     const sees = Boolean(isCritical) || Number(total) >= part.threshold;
-    const noticed = !body && !(Boolean(unseenCritical) || Number(unseenTotal) >= part.unseen);
+    const noticed = !(Boolean(unseenCritical) || Number(unseenTotal) >= part.unseen);
     const { pocketsAsHeld } = await import("./vault.mjs");
     const pockets = sees ? await pocketsAsHeld(target, searcher, { undecided: "drop" }) : [];
 
     await whisperToOwner(searcher, searcherCard(target, sees ? pockets : null, noticed), { veiled: true });
     if (noticed) {
-        await whisperToOwner(target, `<p>${game.i18n.format(sees ? "DRPG.Frisk.caught" : "DRPG.Frisk.caughtTrying", { who: esc(searcher.name) })}</p>`,
-            { veiled: true, flags: { [MODULE_ID]: { sfx: "stolen" } } });
+        const words = `<p>${game.i18n.format(sees ? "DRPG.Frisk.caught" : "DRPG.Frisk.caughtTrying", { who: esc(searcher.name) })}</p>`;
+        const card = { veiled: true, flags: { [MODULE_ID]: { sfx: "stolen" } } };
+        await (body ? whisperToGms(words, card) : whisperToOwner(target, words, card));
     }
-    log(`${searcher.name} frisked ${target.name} unseen: ${sees ? `saw ${pockets.length} item(s)` : "got no proper look"}, ${noticed ? "noticed" : "unnoticed"}.`);
+    log(`${searcher.name} frisked ${target.name} unseen: ${sees ? `saw ${pockets.length} item(s)` : "got no proper look"}, ${
+        noticed ? (body ? "noticed as a living target would be, a body the GMs keep (its card's words to the GMs alone)" : "noticed") : "unnoticed"}.`);
     // The GMs' fact on the hand's row (the design's step 11), which its Reroll replays from (`replayRummage`): written
     // for the roll the packet named and the user who sent it, never claimed by the searcher's browser (action-rolls.mjs
     // `ROLL_CLAIMS` has no Frisk). A Frisk that names no roll leaves none, and its Reroll replays nothing.
@@ -398,6 +405,21 @@ async function cardTo(actor, html, extra = {}) {
 }
 
 /**
+ * A veiled card whose words go to the GMs alone (utils.mjs `whisperToGms`): the card of a target the GMs keep silent - a
+ * body nobody found, an incident's side - which nobody else reads. Its document is the one a living target's card posts,
+ * the same stub every browser gets (E80 fix sec1-G1, the review's sec-1; the owner's Q8, option A), so the documents a
+ * searcher's browser counts are a living target's. A failure is logged, never thrown.
+ */
+async function cardToGms(html, extra = {}) {
+    try {
+        return await whisperToGms(html, { veiled: true, ...extra });
+    } catch (err) {
+        error("Could not post a Frisk's card", err);
+        return null;
+    }
+}
+
+/**
  * One veiled card to the students who saw it happen in the ask's room (`roomWitnessesOnGm`, the two left out) - each
  * owner of each, a Monocub's among them - and the GMs; none where nobody saw it. No item is ever named on it.
  */
@@ -458,7 +480,9 @@ function standing(row) {
  *                  browser, where it still waits, hands it back by what it paid and says so (`FRISK_HANDED_BACK`, fx-1);
  *   settled        no card: a force whose dice landed after the gate shut, or a shut gate the force's clock found with no
  *                  follow from the searcher's browser, which alone could hand the action back (E80 fix r1-G2).
- * A target the GMs keep silent (a body nobody found, an incident's side) gets no card of its own; nor do the target and the
+ * A target the GMs keep silent (a body nobody found, an incident's side) reads no card of its own: its card's words go to
+ * the GMs alone (`cardToGms`), so every browser gets the documents a living target's end posts (E80 fix sec1-G1, the
+ * owner's Q8, option A, over the design's step 8(d), 'no card of the target's'). Nor do the target and the
  * room of an ask that ended before it was asked (still "opening": `askToFrisk` reads where the two stand once its claim
  * has landed), as nobody there knew of it (E80 fix r1-G1, the review's E80-C3-2).
  */
@@ -488,7 +512,10 @@ async function endAsk(row, outcome) {
     // A target who refused and then walked away did answer: 'before answering' is for an ask still waiting (E80-C3-5).
     else if (outcome === "gone") await cardTo(searcher, say(row.state === "refused" ? "DRPG.Frisk.goneAfterNo" : "DRPG.Frisk.gone", { who: them }));
     else if (outcome === "interrupted") await cardTo(searcher, say("DRPG.Frisk.interrupted"));
-    if (forTarget[outcome] && asked && !row.silent && target) await cardTo(target, say(forTarget[outcome], { who }));
+    if (forTarget[outcome] && asked && target) {
+        const words = say(forTarget[outcome], { who });
+        await (row.silent ? cardToGms(words) : cardTo(target, words));
+    }
     if (forRoom[outcome] && asked) await tellWitnesses(row, say(forRoom[outcome], { who, target: them }));
     log(`${who} frisked ${them} openly: ${outcome}${["shown", "forced"].includes(outcome) ? `, ${row.lines.length} item(s) listed` : ""}.`);
     answerSearcher(row, { askId: row.askId, outcome, forceMs: null });
