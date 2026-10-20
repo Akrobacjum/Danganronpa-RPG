@@ -59,22 +59,29 @@ export const LAYER_NAME = "drpgFog";
 export const VEIL_ALPHA = 0.6;
 
 /**
- * The reveal, slowed down on Dawid's call after watching it on a live map.
- * 450ms was quick enough to register as a flicker rather than as a gesture; the
- * outline and the name run alongside it rather than after it, so the whole
- * thing has to breathe for about as long as it takes to look at the room.
+ * The reveal: the lines cut in, stand, and open like a curtain over the room.
+ *
+ * AS SHORT AS IT CAN BE (the owner, 20.10.2026, on 1.2.80 at the table: the room's
+ * "door" opened late; answer D, "Jak najbardziej skrócić"). This overrides the two
+ * calls before it - Dawid's, after watching it on a live map, that 450 ms read as a
+ * flicker and two seconds as a transition, which slowed it to 650 + 2500 + 2250 =
+ * 5400 ms with the room shut until 3150 ms. At the table the owner saw the wait, not
+ * the gesture. Now 250 + 150 + 700: the curtain starts opening at 400 ms and the
+ * room is open at 1100 ms (the stage's bounds: opening by 450, open by 1100; R905).
+ * The cut and the hold are kept, short, so the gesture still says "a room you never
+ * saw"; whether 400 ms of it reads as one at a table is not measured here. The sound
+ * plays as the reveal starts (fog.mjs `playDiscoveryAnimation`, its first line).
+ *
+ * THE NAME KEEPS ITS 5.4 s. It ran over DISCOVERY_MS when that was 5400; over 1100 ms
+ * it would stand full for 715 ms, and the room's name is drawn on every room entered,
+ * found or not (`flashOutline`). It holds nothing shut - the room under it is open by
+ * 1100 ms - so OUTLINE_MS is a number of its own, 1.2.80's.
  */
-/*
- * Slowed two and a half times after watching it land, on Dawid's call. A reveal
- * is the one moment the fog is allowed to be the centre of attention - it says
- * "you have never been here before", and at two seconds flat that read as a
- * transition rather than as an announcement.
- */
-export const REVEAL_SLASH_MS = 650;      // the lines cut in
-export const REVEAL_HOLD_MS = 2500;      // and stand there
-const REVEAL_PART_MS = 2250;      // before opening like a curtain
+export const REVEAL_SLASH_MS = 250;      // the lines cut in
+export const REVEAL_HOLD_MS = 150;       // and stand there
+const REVEAL_PART_MS = 700;       // before opening like a curtain
 export const DISCOVERY_MS = REVEAL_SLASH_MS + REVEAL_HOLD_MS + REVEAL_PART_MS;
-const OUTLINE_MS = DISCOVERY_MS;
+const OUTLINE_MS = 5400;
 
 /**
  * Free the render textures a transient overlay built for itself.
@@ -868,8 +875,8 @@ function fadeLabel(label) {
         duration: OUTLINE_MS,
         ontick: () => {
             if (label.destroyed) return;
-            // Full through the cut and the pause, fading only as the curtain
-            // opens - the name should be readable while the room is still shut.
+            // Full for the first two thirds (3.5 s), then fading: it was full while the
+            // room was still shut, and since H81-08 it is read over the room, open by 1.1 s.
             label.alpha = clamp01((1 - labelState.t) / 0.35);
         }
     });

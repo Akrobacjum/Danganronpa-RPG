@@ -3605,8 +3605,9 @@
       "caughtTrying": "Łapiesz {who} na grzebaniu w twoich kieszeniach. Odchodzą z niczym."
     },
     "Frisk": {
-      "rowLabel": "Frisk: zobacz, co ktoś nosi",
+      "rowLabel": "Zobacz, co nosi",
       "rowHint": "Przejrzyj czyjeś kieszenie i niczego nie bierz.",
+      "noticeTitle": "Frisk",
       "unseenLabel": "Ukradkiem",
       "unseenHint": "Shadow {unseen}+, żeby nikt nie zauważył, potem Hand {hand}+, żeby zobaczyć wszystko.",
       "sent": "Sięgasz do kieszeni: {name}. Co zobaczysz - i czy poczuli - rozstrzygnie się za chwilę.",
@@ -3871,7 +3872,8 @@
         "gmBlock": "GM zablokował twój mikrofon.",
         "external": "Głos jest w osobnym oknie - użyj jego przycisków.",
         "offline": "Brak połączenia z głosem.",
-        "connecting": "Trwa dołączanie do kanału głosowego."
+        "connecting": "Trwa dołączanie do kanału głosowego.",
+        "connected": "Połączono z kanałem głosowym."
       },
       "list": {
         "open": "Kogo słyszysz",

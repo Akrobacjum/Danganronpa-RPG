@@ -3455,8 +3455,9 @@
       "caughtTrying": "You catch {who} going through your pockets. They come away with nothing."
     },
     "Frisk": {
-      "rowLabel": "Frisk: see what they carry",
+      "rowLabel": "See what they carry",
       "rowHint": "Look through their pockets and take nothing.",
+      "noticeTitle": "Frisk",
       "unseenLabel": "Unseen",
       "unseenHint": "Shadow {unseen}+ so they do not notice, then Hand {hand}+ to see everything.",
       "sent": "You go for {name}'s pockets. What you see - and whether they felt it - settles in a moment.",
@@ -3717,7 +3718,8 @@
         "gmBlock": "The GM blocked your microphone.",
         "external": "Voice is in its own window - use the controls there.",
         "offline": "You are not connected to voice.",
-        "connecting": "Joining your voice channel."
+        "connecting": "Joining your voice channel.",
+        "connected": "Connected to your voice channel."
       },
       "list": {
         "open": "Who you hear",

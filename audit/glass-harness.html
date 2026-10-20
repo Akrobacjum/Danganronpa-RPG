@@ -878,13 +878,16 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
      screen's right edge and under the pane's top edge straight above it, which the sweep pins per size (PIN_CORNER);
      the microphone's must be within 28 px of both and the speaker's straight under it, or the buttons have moved back
      in - at 60741cf they read 66/69 and 31/69 at 1366x768, side by side.
-     THE STATE WORD (E79 C15, 1.2.79; the owner's N10, N12 and N15): shown in place of the face for the reading and
-     put back before anything is drawn - the longest of the six English words, "Disconnected", in the module's two
-     runs - it must stand inside the tile with 2 px to spare, clear of the buttons and, in the full form on the wall,
-     of the name plate's box (the compact form and Monokuma Legacy give it the plate's place, empty while nobody
-     speaks), in type of 11 px or more, at opacity 1 and in an ink of
+     THE STATE WORD (E79 C15, 1.2.79; the owner's N10, N12 and N15): shown for the reading and put back before
+     anything is drawn - the longest of the six English words, "Disconnected", in the module's two runs - it must
+     stand inside the tile with 2 px to spare, clear of the buttons and of the name plate's box in every form, in
+     type of 11 px or more, at opacity 1 and in an ink of
      alpha 1, at 4.5:1 or more against its own backing laid over white and over black (the picture under it is
      anybody's), and the tile's box the same with it as without. `word` in `read`: its box, size, opacity and ratio.
+     Since H81-10 (the owner's 1.2.80 table, 20.10.2026: the word at the top, kept while somebody speaks) it is read
+     beside the face as it is drawn, not in its place: until then the compact form and Monokuma Legacy gave it the
+     plate's place, empty while nobody spoke, and only the full form on the wall was held off the plate. The sweep's
+     `plantVoice` `onPlate` stands it on the plate and must fail.
      Answers { read, why }. */
   window.drpgVoiceParts = (tile = document.getElementById("drpg-voice-tile")) => {
     const why = [], W = tile.offsetWidth, H = tile.offsetHeight;
@@ -926,9 +929,8 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     const word = tile.querySelector(".drpg-voice-tile-state");
     if (!word) why.push("the tile has no state word");
     else {
-      const was = { face: face?.hidden, word: word.hidden, kids: [...word.childNodes] }, run = document.createElement("span");
+      const was = { word: word.hidden, kids: [...word.childNodes] }, run = document.createElement("span");
       run.textContent = Array(6).fill("Disconnected").join(" · ") + " · ";
-      if (face) face.hidden = true;
       word.hidden = false;
       word.replaceChildren(run, run.cloneNode(true));
       const r = at(word), cw = getComputedStyle(word), cr = getComputedStyle(run), size = parseFloat(cr.fontSize);
@@ -940,14 +942,13 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
       read.word = { box: r, size, opacity: [cw.opacity, cr.opacity].map(Number), ink: ink[3], ratio: Math.round(worst * 10) / 10 };
       if (!r || out(r)) why.push(`the state word at ${r} is outside the tile ${W}x${H}`);
       else if (read.buttons.some(b => b && meet(b, r))) why.push(`the state word at ${r} is under the buttons at ${read.buttons.join(" / ")}`);
-      else if (corner && read.plate && meet(r, read.plate)) why.push(`the state word at ${r} is over the name plate's box at ${read.plate}`);
+      else if (read.plate && meet(r, read.plate)) why.push(`the state word at ${r} is over the name plate's box at ${read.plate}`);
       if (!(size >= 11)) why.push(`the state word is set at ${size} px`);
       if (read.word.opacity.some(o => o !== 1) || ink[3] !== 1) why.push(`the state word is drawn at opacity ${read.word.opacity.join("/")} in an ink of alpha ${ink[3]}`);
       if (!(worst >= 4.5)) why.push(`the state word reads ${read.word.ratio}:1 on its backing`);
       if (tile.offsetWidth !== W || tile.offsetHeight !== H) why.push(`the tile is ${tile.offsetWidth}x${tile.offsetHeight} with the word and ${W}x${H} without`);
       word.replaceChildren(...was.kids);
       word.hidden = was.word;
-      if (face) face.hidden = was.face;
     }
     return { read, why };
   };

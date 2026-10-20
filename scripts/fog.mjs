@@ -3771,7 +3771,7 @@ function roomEnteredByMe(tokenDoc) {
     const key = `${scene.id}.${actor.id}.${room}`;
     // Nothing is ever new to a GM - they know every room on the map, so a
     // Monokuma walking into one gets the outline and the name and none of the
-    // five seconds of curtain that discovering a room is worth.
+    // curtain that discovering a room is worth.
     // The Mastermind's rows are never written to the ledger (their walks are
     // nobody's business), so for them "discovered" would read empty in every
     // room and the curtain would play in rooms their own fog already shows.
@@ -3893,7 +3893,7 @@ function playDiscoveryAnimation(room, tokenDoc) {
     /* The reveal's own lines take the seam colour too, because `flashOutline` runs INSIDE the
        reveal rather than after it - the file's rule for itself here is one gesture in one
        colour rather than three things taking turns. Left at bone these would be white lines
-       with an accent-coloured border drawn straight across them for five seconds, which is
+       with an accent-coloured border drawn straight across them for the reveal's run, which is
        exactly what that rule forbids. Unlike the standing outline this is baked into a render
        texture and destroyed when the reveal ends, so it is deliberately NOT wired into
        `recolourRoomOutline`: it has no handle to recolour and never lives long enough to go

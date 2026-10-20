@@ -15507,7 +15507,7 @@ const INVARIANTS = [
             bare.remove();
         }
     }],
-    ["R588 - the voice tile names its state in one word, as the Room says it: Connecting while LiveKit connects or reconnects or the module moves the Room, Disconnected with no Room or a lost one, Connected only when the Room says connected and nobody speaks, Eclipsed in either Eclipse hold, Blocked, Own window; the word runs in two aria-hidden copies, the sentence is the word's title and a visually hidden live text, and the word stays, still, under reduced motion and with the ticker off, in English and in Polish", async () => {
+    ["R588 - the voice tile names its state in one word, as the Room says it: Connecting while LiveKit connects or reconnects or the module moves the Room, Disconnected with no Room or a lost one, Connected only when the Room says connected, Eclipsed in either Eclipse hold, Blocked, Own window, whether or not a speaker is drawn (H81-10), and while one is, a connected Room's sentence is not 'Nobody is speaking' and the live text is hidden; the word runs in two aria-hidden copies, the sentence is the word's title and a visually hidden live text, and the word stays, still, under reduced motion and with the ticker off, in English and in Polish", async () => {
         /*
          * E79 C15 (16.10.2026; the prep's R585, renumbered: R585 and R586 were C12's by then). The owner's N10 of
          * 14.10: "switching rooms shows an error ... instead 'Pending...' while switching", N12 and N15 of 15.10: the
@@ -15522,7 +15522,14 @@ const INVARIANTS = [
          * either Eclipse hold, connected or not; avclient-livekit's own window while the module moves the Room;
          * a speaker (no word); the speaker gone (Connected at once); under reduced motion and with the ticker off,
          * the Room lost. Then the runs' shape, the live text's roles, `voiceWord`'s order on its own, and the words and
-         * the two new or rewritten sentences in lang/en.json and lang/pl.json as the owner settled them. That the
+         * the two new or rewritten sentences in lang/en.json and lang/pl.json as the owner settled them.
+         * H81-10, 20.10.2026 (the owner's 1.2.80 table and answer B: the word stands at the top and does not vanish
+         * while somebody speaks): the speaker's reading is the word, its run, its title, the live text, the
+         * speaker's name and whether the live text is hidden; `voiceWord` with a face answers the word as without
+         * one, and a connected Room's sentence with a face is DRPG.Voice.held.connected, without one
+         * DRPG.Voice.tile.nobody. The live text, hidden while the face is drawn, keeps what it said (it is not
+         * rewritten for a speaker); with the speaker gone it says the state again. Red at 9dcf331: the word hidden
+         * with a face ("-"), and no such key. That the
          * word runs only with the ticker on and motion allowed is the stylesheets' (R589); the real switch of rooms on
          * the harness's LiveKit is scenario 75's phase G.
          * Red at C15's parent: there was no word (the first assertion).
@@ -15588,7 +15595,7 @@ const INVARIANTS = [
         applying = false;
         repaint();
         rig.speak(room, [b.id]);
-        seen.push([...read(), rig.read().name]);
+        seen.push([...read(), rig.read().name, said.hidden]);
         rig.leave(room, b.id);
         seen.push(read());
         const classes = ["drpg-reduced-motion", "drpg-no-ticker"], had = classes.map(name => document.body.classList.contains(name));
@@ -15610,10 +15617,12 @@ const INVARIANTS = [
             { hold: { reason: "gmBlock" }, applying: true, state: "connected" }, { hold: { reason: "gmBlock" }, state: "reconnecting" },
             { hold: { reason: "gmBlock" }, state: "disconnected" }, { state: "R588-unknown" }, { state: "connected", applying: "yes" }, {}
         ].map(word);
+        const lines = [{ face: true, state: "connected" }, { state: "connected" }, { face: true, hold: { reason: "gmBlock" }, state: "connected" }]
+            .map(facts => V.voiceWord(facts)?.line ?? "-");
         const [en, pl] = await Promise.all(["en", "pl"].map(lang => fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(res => res.json())));
         const texts = file => [...["connecting", "disconnected", "connected", "eclipsed", "blocked", "external"].map(key => file.DRPG.Voice.tile.state?.[key]),
-            file.DRPG.Voice.held.connecting, file.DRPG.Voice.held.offline];
-        equal(JSON.stringify([seen, shape, order, texts(en), texts(pl)]), JSON.stringify([
+            file.DRPG.Voice.held.connecting, file.DRPG.Voice.held.offline, file.DRPG.Voice.held.connected];
+        equal(JSON.stringify([seen, shape, order, lines, texts(en), texts(pl)]), JSON.stringify([
             [want("disconnected", "DRPG.Voice.held.offline"), want("connecting", "DRPG.Voice.held.connecting"),
                 want("connected", "DRPG.Voice.tile.nobody"), want("connecting", "DRPG.Voice.held.connecting"),
                 want("connecting", "DRPG.Voice.held.connecting"), want("connected", "DRPG.Voice.tile.nobody"),
@@ -15621,16 +15630,21 @@ const INVARIANTS = [
                 want("blocked", "DRPG.Voice.held.gmBlock"), want("disconnected", "DRPG.Voice.held.offline"),
                 want("eclipsed", "DRPG.Voice.held.eclipse"), want("eclipsed", "DRPG.Voice.held.eclipseHeard"),
                 want("external", "DRPG.Voice.held.external"), want("connected", "DRPG.Voice.tile.nobody"),
-                ["-", "-", voiceIdentity(b)?.name ?? null], want("connected", "DRPG.Voice.tile.nobody"),
+                ["connected", L("DRPG.Voice.tile.state.connected"), L("DRPG.Voice.held.connected"), L("DRPG.Voice.tile.nobody"), voiceIdentity(b)?.name ?? null, true],
+                want("connected", "DRPG.Voice.tile.nobody"),
                 [...want("disconnected", "DRPG.Voice.held.offline"), 2]],
             ["true", ["SPAN true", "SPAN true"], "status", "polite"],
-            ["-", "external", "eclipsed", "eclipsed", "connecting", "connecting", "disconnected", "disconnected", "connected", "disconnected"],
-            ["Connecting", "Disconnected", "Connected", "Eclipsed", "Blocked", "Own window", "Joining your voice channel.", "You are not connected to voice."],
-            ["Łączenie", "Rozłączono", "Połączono", "Eclipsed", "Zablokowano", "Osobne okno", "Trwa dołączanie do kanału głosowego.", "Brak połączenia z głosem."]]),
+            ["external", "external", "eclipsed", "eclipsed", "connecting", "connecting", "disconnected", "disconnected", "connected", "disconnected"],
+            ["DRPG.Voice.held.connected", "DRPG.Voice.tile.nobody", "DRPG.Voice.held.gmBlock"],
+            ["Connecting", "Disconnected", "Connected", "Eclipsed", "Blocked", "Own window", "Joining your voice channel.", "You are not connected to voice.",
+                "Connected to your voice channel."],
+            ["Łączenie", "Rozłączono", "Połączono", "Eclipsed", "Zablokowano", "Osobne okno", "Trwa dołączanie do kanału głosowego.", "Brak połączenia z głosem.",
+                "Połączono z kanałem głosowym."]]),
         "[the word, its run, title and live text: no Room; connecting; connected; reconnecting; signalReconnecting; connected; the module moving "
             + "the Room (the hook); the move over; a GM's block; the block, lost; the Eclipse, lost; the Eclipse heard; own window while moving; "
-            + "a speaker (hidden, the name); gone; reduced motion and no ticker, lost, with its runs], [aria-hidden, the two runs, the live text's "
-            + "role and politeness], [voiceWord's order], [the English and the Polish words and sentences]");
+            + "a speaker (the word kept, its sentence, the name, the live text hidden); gone; reduced motion and no ticker, lost, with its runs], "
+            + "[aria-hidden, the two runs, the live text's role and politeness], [voiceWord's order], [the sentence with a face connected, without "
+            + "one, with a face blocked], [the English and the Polish words and sentences]");
     }],
 
     ["R590 - an Objection is aimed at the speaker the Room counts: somebody listed by LiveKit for 1000 ms without a break is speaking now, loudest first, else the newest run that counted is the last who spoke; a shorter run, the objector and whoever the reader turns down are passed over; a new Room ends the old Room's runs, keeps what counted and hears nothing of the old Room; and the record holds nothing outside a Class Trial and starts empty in each; a record follows its own client's Room by itself on the way into a trial, at a read and when the module has moved the Room", async () => {
@@ -17744,7 +17758,7 @@ const INVARIANTS = [
         equal(stableJson(names.filter(name => first.html.includes(foundry.utils.escapeHTML(name)) || first.html.includes(name))), "[]",
             `a name of something ${target.name} carries is in the Palm window's HTML`);
     }],
-    ["R620 - a Frisk's words and its books (A11-17): every DRPG.Frisk key and the Frisk's keys outside that block in both languages, a number in them only by placeholder, no 'Consent', no dash and no inflected 'GM' in Polish; the one Polish form of the row in the window, the Palm hint and the brochure; the Palm passages of the handbooks and the brochure carry the config's numbers, and the Polish GM handbook's Palm says 'GM-a'", async () => {
+    ["R620 - a Frisk's words and its books (A11-17): every DRPG.Frisk key and the Frisk's keys outside that block in both languages, a number in them only by placeholder, no 'Consent', no dash and no inflected 'GM' in Polish; the one Polish form of the row in the window, the Palm hint and the brochure; the Palm passages of the handbooks and the brochure carry the config's numbers, and the Polish GM handbook's Palm says 'GM-a'; the row says what to do as the Palm's other two rows do, 'See what they carry' / 'Zobacz, co nosi', and a Frisk's notice is titled by a key of its own, 'Frisk' (H81-11)", async () => {
         /*
          * E80 part 2 C5, 19.10.2026; the A11 design's steps 14 and 15 and its A11-17. The harm: a Frisk text with no
          * Polish twin shows a Polish table its key; a number typed into a text, or a handbook that says Body 12 while the
@@ -17755,6 +17769,10 @@ const INVARIANTS = [
          * CONTROL: the same reading with every number one higher must miss each passage, so a passage is read for the
          * config's numbers and not passed by being there. Red at the parent (b0a312b): no handbook names a Frisk or its
          * numbers, the Polish Palm hint and the brochure have no 'zobacz, co ktoś nosi', and the GM handbook says 'GMa'.
+         * H81-11, 20.10.2026 (the owner's 1.2.80 table, item 5): the row was "Frisk: see what they carry", the one
+         * Palm row with a name and a colon beside "Take something" and "Leave something"; and frisk.mjs's notice took
+         * the row's words as its title. Read too: the row's words in both languages, DRPG.Frisk.noticeTitle in both,
+         * and frisk.mjs `toast` titling its notice with it. Red at 9dcf331: the old words, no key, the row's key.
          */
         const { TIMING } = await import("./config.mjs");
         const J = stableJson;
@@ -17811,9 +17829,9 @@ const INVARIANTS = [
         must(Object.values(config).every(Number.isFinite), `ACTIONS.palm or TIMING does not hold the Palm's numbers: ${J(config)}`);
         const expected = n => ({
             "player-handbook.en Palm": [`| It works (Hand) | ${n.take}+ | ${n.plant}+ | ${n.hand}+ |`, `| Unseen (Shadow) | ${n.takeUnseen}+ | ${n.plantUnseen}+ | ${n.cover}+ |`,
-                "**Frisk: see what they carry**", `**Body ${n.force}+**`, `Shadow first, ${n.cover}+`, `then Hand, ${n.hand}+`],
+                "**See what they carry**", `**Body ${n.force}+**`, `Shadow first, ${n.cover}+`, `then Hand, ${n.hand}+`],
             "player-handbook.pl Palm": [`| Udaje się (Hand) | ${n.take}+ | ${n.plant}+ | ${n.hand}+ |`, `| Niezauważony (Shadow) | ${n.takeUnseen}+ | ${n.plantUnseen}+ | ${n.cover}+ |`,
-                "**Frisk: zobacz, co ktoś nosi**", `**Body ${n.force}+**`, `najpierw Shadow, ${n.cover}+`, `potem Hand, ${n.hand}+`],
+                "**Zobacz, co nosi**", `**Body ${n.force}+**`, `najpierw Shadow, ${n.cover}+`, `potem Hand, ${n.hand}+`],
             "player-handbook.en Body": ["making somebody turn out their pockets"],
             "player-handbook.pl Body": ["zmuszanie kogoś do pokazania kieszeni"],
             "gm-handbook.en Palm row": ["| Shadow, then Hand", `Take: ${n.take} to succeed, ${n.takeUnseen} on Shadow`, `Plant: ${n.plant}, unseen ${n.plantUnseen}`,
@@ -17837,8 +17855,13 @@ const INVARIANTS = [
         const pl = flats.pl["DRPG.Config.ACTIONS.palm.hint"] ?? "";
         equal(J([flats.pl["DRPG.Frisk.rowLabel"] ?? null, pl.includes("zobacz, co ktoś nosi"), passages["player-brochure.pl Palm"].includes("zobacz, co ktoś nosi"),
             /\bGMa\b/.test(passages["gm-handbook.pl Palm"])]),
-        J(["Frisk: zobacz, co ktoś nosi", true, true, false]),
+        J(["Zobacz, co nosi", true, true, false]),
         "[the Polish row, the Polish Palm hint says it, the Polish brochure says it, the Polish GM handbook's Palm says 'GMa']");
+        const toast = stripComments(fnSource((await moduleSources()).get("frisk.mjs") ?? "", "toast"));
+        equal(J([flats.en["DRPG.Frisk.rowLabel"] ?? null, flats.en["DRPG.Frisk.noticeTitle"] ?? null, flats.pl["DRPG.Frisk.noticeTitle"] ?? null,
+            /title:\s*game\.i18n\.localize\("DRPG\.Frisk\.noticeTitle"\)/.test(toast), toast.includes("DRPG.Frisk.rowLabel")]),
+        J(["See what they carry", "Frisk", "Frisk", true, false]),
+        "[the English row; the notice's title in English and in Polish; frisk.mjs's notice titled by its own key; and not by the row's]");
     }],
     ["R623 - the Frisk's windows are drawn as the module's (the mock-up pass's mk-1, mk-3, mk-4): the Palm window with its Frisk ways pins its footer to the foot of its scrolling box, as a table window does and a short module dialog does not; the target's ask and 'Make them?' open as module panels; and every Palm row's icon is a pixel glyph under Stained Glass", async () => {
         /*

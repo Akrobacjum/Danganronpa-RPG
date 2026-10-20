@@ -57719,6 +57719,12 @@ const SCENARIOS = [
          * and white-space; the title bar's alpha and the title's and the heading's `contain`. At c952b92 the
          * player's window was the GM's (no section away, no line, the select shown, no chip), the select's
          * min-width "auto" and white-space "", the bar at 0.7 (the glass's) and both `contain` "none".
+         * H81-07, 20.10.2026 (the owner's 1.2.80 table: the roll's title stood on end): a box of
+         * `contain: inline-size` is 0 wide wherever its width comes from its content, so in a parent that
+         * centres it (a flex column, a grid) the heading broke one letter a line (Chromium, 0 px and 17 lines
+         * for "Duality Roll: Kaito"). Read too: each title's `width` (the parent's whole width) and the
+         * heading's header's `align-self` and `justify-self` (stretched, so a header that centres no wider
+         * content is the window's width too). At 9dcf331 both widths "auto" and the header's two "auto".
          */
         const RD = await import("./roll-dialog.mjs");
         const [actor] = cast(1);
@@ -57759,9 +57765,13 @@ const SCENARIOS = [
             win.element.prepend(header);
             const alpha = Number(/,\s*([\d.]+)\s*\)\s*$/.exec(getComputedStyle(header).backgroundColor)?.[1] ?? 0);
             const heading = document.createElement("h1");
-            win.element.querySelector(".dialog-header")?.append(heading);
-            read.title = [alpha >= 0.85, getComputedStyle(header.querySelector(".window-title")).contain || null,
-                getComputedStyle(heading).contain || null];
+            const hostEl = win.element.querySelector(".dialog-header");
+            must(hostEl, "the roll window draws no .dialog-header - its heading would be read nowhere");
+            hostEl.append(heading);
+            const cut = el => { const cs = getComputedStyle(el); return [cs.contain || null, cs.width || null]; };
+            const host = getComputedStyle(hostEl);
+            read.title = [alpha >= 0.85, cut(header.querySelector(".window-title")), cut(heading),
+                [host.alignSelf || null, host.justifySelf || null]];
             header.remove();
             heading.remove();
             read.player = await asPlayer(win);
@@ -57794,8 +57804,8 @@ const SCENARIOS = [
             player: { away: SECTIONS, line: [`Body, ${L("DRPG.RollDialog.summary.none")} - ${formula}`, null], mode: [false, chip], roll: false },
             support: { away: SECTIONS, line: [`Body, ${plural("DRPG.RollDialog.summary.advantage", { n: 1 })} - ${supported}`, L("DRPG.RollDialog.forcedByCall")],
                 mode: [false, chip], roll: false },
-            title: [true, "inline-size", "inline-size"]
-        }), "a player's locked window kept a locked section or had no summary, a GM's lost one, the mode select or the title bar is not as S01-22 asks, or a title can set the width (see the comment for each key)");
+            title: [true, ["inline-size", "100%"], ["inline-size", "100%"], ["stretch", "stretch"]]
+        }), "a player's locked window kept a locked section or had no summary, a GM's lost one, the mode select or the title bar is not as S01-22 asks, a title can set the width, or a title can stand on end in a parent that centres it (see the comment for each key)");
         ok(/\dd12/.test(formula ?? "") && typeof supported === "string" && supported.length > formula.length,
             `the window's formula names no d12, or the Support's adds nothing to it (${formula}; ${supported})`);
     }],

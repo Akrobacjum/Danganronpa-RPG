@@ -5677,6 +5677,13 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     line-height: 1.2;
 }
 
+/* The Rest option's hover (H81-12; the owner's 1.2.80 table, 20.10.2026: the ways did not look like the other
+   choice rows): under Monokuma Legacy that was all they lacked. Before the checked rule, which outranks it. */
+.drpg-frisk-mode:hover {
+    border-color: var(--drpg-eye);
+    background: rgba(var(--drpg-eye-rgb), 0.12);
+}
+
 .drpg-frisk-mode:has(input:checked) {
     border-color: var(--drpg-gold);
     background: rgba(var(--drpg-gold-rgb), 0.12);
@@ -6766,21 +6773,28 @@ body.drpg-dock-hidden .application[id^="camera-view-"] {
 }
 .drpg-voice-tile-note { margin: 0; }
 
-/* THE STATE WORD (E79 C15, 1.2.79; the owner's N10, N12 and N15): while nobody speaks, one word of the
+/* THE STATE WORD (E79 C15, 1.2.79; the owner's N10, N12 and N15; H81-10 below): one word of the
    tile's state - Connecting, Disconnected, Connected, Eclipsed, Blocked, Own window - on the note's dark
    plate and in its full ink: not the clock's ticker, which is an outline at 22 %. It runs as the clock's
    does (utils.mjs `tickerRuns`: two copies, the pair moved by one copy's width), and stands still under
    reduced motion, with the ticker switched off and on a stacked screen - never hidden by any of them
-   (R589). Under Monokuma Legacy it stands at the tile's foot, in the name plate's place, which is empty
-   while nobody speaks: the band left of the buttons in the top corner (the owner, 14.10.2026: "text in a
-   corner of the tile") is 69 px wide inside its padding there, and the six words in this font measured
-   86-143 px in Chromium on 16.10.2026 - cut, when still, to their first letters; at the foot it has 139.
-   stained-glass.css stands it in the top corner of its pane, where the words measured 41-65 px. */
+   (R589). AT THE TOP, OVER THE PICTURE, WHETHER OR NOT SOMEBODY SPEAKS (H81-10; the owner's 1.2.80 table and
+   answer B, 20.10.2026: the word stood too low, and went while somebody spoke). Until then it stood at the
+   tile's foot under Monokuma Legacy, in the name plate's place, empty only while nobody speaks. Now it stands
+   in the top corner left of the two buttons (6 px a side and between them: right 6 + 30 + 6 + 30, and 4 px
+   to the first), where the band is 69 px wide inside its padding (the owner, 14.10.2026: "text in a corner of
+   the tile"): the six words in this font measured 86-143 px in Chromium on 16.10.2026, so a word is cut there
+   and runs as the ticker does, and is cut to its first letters when still. Its z-index draws it over the face
+   and its picture, on its own ink band; the name plate stays at the foot. Read in Chromium on 20.10.2026 (a
+   scratch probe: the six sheets, the glass harness's tile, 163 x 188): the word at 6..87 x 6..36, clear of the
+   buttons (91..157) and of the plate (139..177). stained-glass.css stands it in the top corner of its pane,
+   where the words measured 41-65 px. */
 .drpg-voice-tile-state {
     position: absolute;
-    bottom: 10px;
+    top: 6px;
+    bottom: auto;
     left: 6px;
-    right: 6px;
+    right: 76px;
     z-index: 1;
     box-sizing: border-box;
     height: 30px;
@@ -6824,6 +6838,27 @@ body.drpg-stacked #drpg-tile-row .drpg-voice-tile-state {
     min-width: 0;
     max-width: 132px;
     margin-right: 6px;
+}
+/* WITH A FACE, OVER THE FACE'S TOP BAND (H81-10): since the word stays while somebody speaks, in the row it would
+   stand between the face and the buttons and take its 132 px from the row. Read in Chromium on 20.10.2026 (a
+   scratch probe: the six sheets, the glass harness's room and voice tiles, the face shown, rows 345, 377 and
+   500 px): standing there it took the room tile from 45, 77 and 200 px to 18, 20 and 62 (Monokuma Legacy; 109,
+   141 and 264 to 21, 23 and 126 under Stained Glass) and the speaker's name from 162 px to 51 and 81 (78 to 28
+   and 58). Over the face it takes nothing: the word in a 16 px band 2 px under the row's top, from the portrait
+   (6 + 32 + 6 px) to the buttons, the name plate at the row's foot - every width as without the word, the word
+   at 2..18 and the plate at 27..44, clear of each other and of the buttons. With no face it stands where it did. */
+body.drpg-stacked #drpg-tile-row .drpg-voice-tile-face:not([hidden]) ~ .drpg-voice-tile-state {
+    position: absolute;
+    top: 2px;
+    left: 44px;
+    right: calc(var(--drpg-tile-row-h, 44px) * 2);
+    height: 16px;
+    max-width: none;
+    margin: 0;
+}
+body.drpg-stacked #drpg-tile-row .drpg-voice-tile-plate {
+    align-self: flex-end;
+    padding-bottom: 3px;
 }
 
 /* THE LIST 'WHO YOU HEAR' (E78 C5, 14.10.2026; the owner's Q0): the speaker button's dialog,
@@ -6960,6 +6995,19 @@ fieldset.drpg-voice-panel { margin-top: 8px; }
     font-size: var(--font-size-11, 0.72rem);
     line-height: 1.35;
     opacity: 0.65;
+}
+
+/* THE TWO SECTIONS UNDER IT STAND IN AS FAR (H81-09; the owner's 1.2.80 table, 20.10.2026: 'Known passages'
+   and the Experience had no left margin under the Equipped block). Daggerheart's Experience and the module's
+   'Known passages' (sheet.mjs `injectKnownPassages`, after the Experience) take the inline padding of the
+   Equipped block's one line of the module's own, the 10 px above, on what they hold under their heading: the
+   heading stays where Equipped's stands (padding the whole section moved both headings 10 px off it in a
+   Chromium mock-up, 20.10.2026). Chosen, not measured: Daggerheart's CSS is not on this machine, so how far in
+   its own Equipped rows and Experience rows stand is not read, and a row Daggerheart already pads stands that
+   much further in. Above `.drpg-passage-list`'s `padding: 0` by specificity. R906 holds both to the line. */
+.application.sheet.actor .character-sidebar-sheet :is(.experience-section, .drpg-passages-section) > :not(.title) {
+    padding-inline: 10px;
+    box-sizing: border-box;
 }
 
 /* Daggerheart's Short/Long Rest sit in the header with different rules from
@@ -7108,11 +7156,33 @@ body.drpg-pixel-font .drpg-action-button .drpg-action-cost {
    of `width: auto` takes from its content: a long title widened the window up to its ceiling.
    `contain: inline-size` takes their text out of that sum, and the flex growth gives them the
    room the rest of the window makes. Only the computed `contain` is read here (tier 2, "a
-   player's locked roll window ..."); what a table's window does with a long title is LIVE-E16-02. */
+   player's locked roll window ..."); what a table's window does with a long title is LIVE-E16-02.
+
+   AND NO TITLE STANDS ON END (H81-07, the owner's 1.2.80 table, 20.10.2026: "the roll's title is
+   vertical"). The contain made each title 0 wide wherever its own width is taken from its content:
+   in a parent that centres it - a flex column with align-items: center, a grid with justify-items:
+   center, a header shrunk round it - or under a `width: fit-content` of another sheet, the heading
+   broke one letter a line. Measured in Chromium (a scratch probe: the six sheets, a stand-in for
+   Foundry's frame, no Foundry or Daggerheart CSS, both themes): at 1.2.80 the heading was 0 px
+   wide and 17 lines tall for "Duality Roll: Kaito" in those parents, on one line in a block or a
+   flex row; at 1.2.79 one line everywhere but a long title widened the window 584 -> 722 px. So
+   each title takes its parent's whole width (`width: 100%`, a flex row's shrink sharing it with the
+   chip or the buttons beside it) and the header stretches where its parent would centre it: in all
+   seven parents tried and three title-bar shapes the heading is one line, 550 px over a 550 px dice
+   row, and the window 584 px for a short title and a long one alike. `!important` against a width a
+   heading's own sheet may give it (Daggerheart's CSS is not on this machine; the fit-content case is
+   the probe's, not read off Daggerheart). Which parent Daggerheart's window has: not read here. */
 .application.roll-selection .window-header .window-title,
 .application.roll-selection .dialog-header h1 {
     contain: inline-size;
     flex: 1 1 auto;
+    width: 100% !important;
+    box-sizing: border-box;
+}
+
+.application.roll-selection .dialog-header {
+    align-self: stretch;
+    justify-self: stretch;
 }
 
 /* THE TITLE BAR IS A BAR, NOT A PANE (audit S01-22; E16 C2). At 70% (stained-glass.css,
@@ -12202,13 +12272,14 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
     border-bottom: 1px solid var(--drpg-line);
 }
 
-/* A field's name steps under the field's value. `.drpg-choice` and
-   `.drpg-rest-option` are excluded: those labels ARE the control. */
+/* A field's name steps under the field's value. `.drpg-choice`,
+   `.drpg-rest-option` and a Frisk's ways (`.drpg-frisk-mode`, H81-12) are
+   excluded: those labels ARE the control. */
 .application.dialog:is(
     .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
-) .dialog-form label:not(.drpg-choice):not(.drpg-rest-option):not(:has(.drpg-choice)) {
+) .dialog-form label:not(.drpg-choice):not(.drpg-rest-option):not(.drpg-frisk-mode):not(:has(.drpg-choice)) {
     font-size: var(--drpg-text-sm);
 }
 

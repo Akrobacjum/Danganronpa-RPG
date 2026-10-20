@@ -132,7 +132,8 @@
  * Since E78 fix r2-H1 (14.10.2026; review round 2's cor F1) it also fails a tile drawn in another form than the cut
  * settled (`data-fit`) and a tile whose buttons or name plate leave it, whose plate lies under the buttons, whose name
  * shows less than 64 px of itself, or whose buttons have no glyph (the page's `drpgVoiceParts`). `plantVoice` is the
- * control, once per run: the tile forced 15 px tall, and the speaker's glyph stripped of its mask. 1366x600 and
+ * control, once per run: the tile forced 15 px tall, the speaker's glyph stripped of its mask, and (H81-10) the state
+ * word stood on the name plate at the tile's foot. 1366x600 and
  * 1366x560 are two short desks: at af5eb69 the GM's tile was 181x55 and 181x15 there and every reading said "ok".
  * Since E78 fix r2-H2 (14.10.2026; the verify ledger's E78-8, E78-13, doneWhen E78-3 and E78-9) every size also opens
  * the list 'Who you hear' (the page's `drpgVoiceList`: voice-tile.mjs's own list, eight rows) and fails it outside the
@@ -482,6 +483,14 @@ async function plantVoice() {
         const r = await window.drpgVoiceCheck({ cuts: false });
         for (const k of Object.keys(put)) c.style.removeProperty(k);
         res.inward = { ok: r.ok, why: r.why, pass: !r.ok && /not at its corner/.test(r.why) };
+    }
+    {   // onPlate (H81-10): the state word stood on the name plate at the tile's foot, where 9dcf331 put it under
+        // Monokuma Legacy and the compact form, while a face shows (the word is kept with one since H81-10)
+        const word = tile.querySelector(".drpg-voice-tile-state"), put = { top: "calc(100% - 30px)", bottom: "auto" };
+        for (const [k, v] of Object.entries(put)) word?.style.setProperty(k, v, "important");
+        const r = await window.drpgVoiceCheck({ cuts: false });
+        for (const k of Object.keys(put)) word?.style.removeProperty(k);
+        res.onPlate = { ok: r.ok, why: r.why, pass: !r.ok && /over the name plate/.test(r.why) };
     }
     {   // brush (E78 fix r2-H2): the caption's brush another colour than the game state's
         const plate = tile.querySelector(".drpg-voice-tile-plate");

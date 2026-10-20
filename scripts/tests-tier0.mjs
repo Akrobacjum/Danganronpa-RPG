@@ -13101,7 +13101,7 @@ const REGRESSIONS = [
         ok(ratios.length === 2 && ratios.every(r => r !== null && r >= 4.5), `the letters' ink on the two plates reads ${J(ratios)}, under 4.5:1 or unread`);
     }],
 
-    ["R589 - the voice tile's state word is read at full ink in both themes, and the ticker switch, reduced motion and a stacked screen only stop it: no rule of the module's stylesheets hides the word or its runs but its own `hidden`, none sets it at an opacity, its colour is a full ink in each theme, and each of the three switches stops its runs", async () => {
+    ["R589 - the voice tile's state word is read at full ink in both themes, and the ticker switch, reduced motion and a stacked screen only stop it: no rule of the module's stylesheets hides the word or its runs but its own `hidden`, none sets it at an opacity, its colour is a full ink in each theme, and each of the three switches stops its runs; and it stands at the tile's top edge on its ink band, over the face, under Monokuma Legacy and on Stained Glass's wall in both fits (H81-10)", async () => {
         /*
          * E79 C15 (16.10.2026; the prep's R586, renumbered: R586 was C12's by then). The owner's N12 and N15: the
          * state word is the tile's caption; the clock's ticker, which the word runs like, is hidden by
@@ -13117,6 +13117,14 @@ const REGRESSIONS = [
          * the stacked screen's stop taken out. What the word looks like on the tile's picture is the glass
          * harness's voice clause (Chromium); at a table, LIVE-E79-21.
          * Red at C15's parent: there was no word (no rule names it).
+         * H81-10, 20.10.2026 (the owner's 1.2.80 table and answer B: the word too low, and to stand at the top, over
+         * the picture, while somebody speaks): the last value each placing rule declares, comments out, outside any
+         * at-rule - Monokuma Legacy's own rule (`.drpg-voice-tile-state`: top, bottom, right, z-index, background),
+         * Stained Glass's wall in the full form and in the compact one (top, bottom) - and every rule that gives the
+         * face a z-index (none may: the word's 1 then draws over the face and its picture). Placed in Chromium on
+         * the module's sheets (a scratch probe, both themes, 163x188 and 181 x 150 to 42): the word clear of the
+         * buttons and of the name plate in each. Red at 9dcf331: Legacy's word at the foot (bottom 10px), the
+         * compact one at the middle (calc(50% - 15px)).
          */
         const J = JSON.stringify;
         const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(res => res.json());
@@ -13185,6 +13193,17 @@ const REGRESSIONS = [
         equal(J(reading(sheets)), J([true, [], [], ["var(--color-text-primary, #efe6d8)", "var(--drpg-glass-accent)"],
             { "no ticker": true, "reduced motion": true, stacked: true, "prefers-reduced-motion": true }, true]),
         "[rules name the word; rules that hide it; rules that set it faint; its colours; its runs stopped by each switch; its runs running otherwise]");
+        const all = sheets.flatMap(([name, css]) => rulesOf(css).map(rule => ({ ...rule, name, sel: rule.sel.replace(/\s+/g, " ") })));
+        const last = (sel, prop) => all.filter(rule => rule.sel === sel && !rule.within)
+            .map(rule => new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;!]+)`).exec(rule.decl)?.[1].trim()).filter(Boolean).at(-1) ?? null;
+        const WALL = 'body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"]';
+        const FULL = `${WALL}:not([data-fit="compact"]) .drpg-voice-tile-state`, COMPACT = `${WALL}[data-fit="compact"] .drpg-voice-tile-state`;
+        equal(J({
+            legacy: ["top", "bottom", "right", "z-index", "background"].map(prop => last(".drpg-voice-tile-state", prop)),
+            full: ["top", "bottom"].map(prop => last(FULL, prop)), compact: ["top", "bottom"].map(prop => last(COMPACT, prop)),
+            faceRaised: all.filter(({ sel, decl }) => /\.drpg-voice-tile-face$/.test(sel) && /(?:^|;)\s*z-index\s*:/.test(decl)).map(({ name, sel }) => `${name} ${sel}`)
+        }), J({ legacy: ["6px", "auto", "76px", "1", "rgba(var(--drpg-deep-rgb), 0.85)"], full: ["6px", "auto"], compact: ["2px", "auto"], faceRaised: [] }),
+        "[Legacy's word: top, bottom, right (left of the two buttons), z-index, its ink band; the wall's full form: top, bottom; its compact form: top, bottom; rules that raise the face]");
     }],
     ["R591 - the Objection's target and evidence are the primary GM's: LiveKit's speaker list is read in voice-tile.mjs and trial-speakers.mjs alone, the record and its two reads are declared once, exported, there; objectOnPrimary reads the packet's target only with no Room, the filled card is drawn from the holder's view, a player's own Objection card is refused, the trial bar does not load the trial at start, and the sheet's row raises no Objection", async () => {
         /*
@@ -13717,6 +13736,137 @@ const REGRESSIONS = [
         }
         equal(JSON.stringify(measured), JSON.stringify(expected),
             "[per language - the GM's handbook's line on the setting says when the look is fixed; the hint says the same; the hint names no primary GM]");
+    }],
+    ["R905 - a room found opens at once (H81-08): the reveal's curtain starts opening within 450 ms of the reveal and is open by 1100 ms, its sound plays as the reveal starts, and the room's name stays up for its 5.4 s", async () => {
+        /*
+         * H81 C2, 20.10.2026; the owner's 1.2.80 table (item 1: the room's "door" opened late) and answer D,
+         * "Jak najbardziej skrócić" - as short as possible - which overrides the earlier call to slow the reveal
+         * down. At 9dcf331 the room stayed shut 650 + 2500 = 3150 ms after the reveal began and opened until
+         * 5400 ms. Read: fog-reveal.mjs's exported timings (time to opening: the cut and the hold; the whole:
+         * DISCOVERY_MS), each part above 0; fog.mjs `playDiscoveryAnimation` plays `roomDiscovered` as its first
+         * statement, takes no wait (no `async`, `await` or timer), and runs the curtain over DISCOVERY_MS; the
+         * name's fade (`fadeLabel`) runs over `OUTLINE_MS`, a number of its own, 5400 - the name is read over
+         * the room, it holds nothing shut, so it keeps 1.2.80's time. How long the token takes to come to rest
+         * before this starts (movement.mjs `whenAtRest`) is not read here; whether it feels right: a table.
+         */
+        const J = JSON.stringify;
+        const R = await import("./fog-reveal.mjs");
+        const sources = await moduleSources();
+        const fog = sources.get("fog.mjs"), reveal = sources.get("fog-reveal.mjs");
+        must(fog && reveal, "fog.mjs or fog-reveal.mjs did not load - this test reads nothing");
+        const play = stripComments(fnSource(fog, "playDiscoveryAnimation"));
+        const fade = stripComments(fnSource(reveal, "fadeLabel"));
+        const parts = [R.REVEAL_SLASH_MS, R.REVEAL_HOLD_MS, R.DISCOVERY_MS - R.REVEAL_SLASH_MS - R.REVEAL_HOLD_MS];
+        const opening = R.REVEAL_SLASH_MS + R.REVEAL_HOLD_MS;
+        equal(J({
+            parts: parts.every(n => Number.isFinite(n) && n > 0),
+            opening: opening <= 450, whole: R.DISCOVERY_MS <= 1100,
+            sound: play.split("\n").slice(1).map(line => line.trim()).find(Boolean) ?? null,
+            waits: /^async |\bawait\b|setTimeout|\bpause\(/.test(play),
+            curtain: /duration:\s*DISCOVERY_MS\b/.test(play),
+            name: [/duration:\s*OUTLINE_MS\b/.test(fade), /^const OUTLINE_MS = (\d+);/m.exec(reveal)?.[1] ?? null]
+        }), J({ parts: true, opening: true, whole: true, sound: 'playSfx("roomDiscovered");', waits: false, curtain: true, name: [true, "5400"] }),
+        `[each part above 0; opening by 450 ms (read ${opening}); open by 1100 ms (read ${R.DISCOVERY_MS}); the reveal's first statement; a wait before the curtain; the curtain over DISCOVERY_MS; the name over OUTLINE_MS of its own 5400 ms]`);
+    }],
+    ["R906 - the sheet's 'Known passages' and Experience stand in from the rail as the Equipped block's line does (H81-09): one rule gives what both sections hold under their heading the inline padding of `.drpg-equipped-empty`, and no other rule of the module's sheets gives either section or its content another", async () => {
+        /*
+         * H81 C2, 20.10.2026; the owner's 1.2.80 table (item 2): 'Known passages' and Daggerheart's Experience have
+         * no left margin under the Equipped block. Every stylesheet module.json loads, comments out, is cut into its
+         * rules (each with the at-rules around it); a rule counts for a section where the section, or what it holds but
+         * its heading (`> :not(.title)`), is its subject (the selector ends with the class, or with an `:is()` naming
+         * it, either then `> :not(.title)`). Read: the inline padding each such rule gives
+         * (`padding-inline`, or a `padding` shorthand's second value), and the inline padding of `.drpg-equipped-empty`,
+         * the module's one line in the Equipped block. Daggerheart's CSS is not on this machine: its own inset of the
+         * Equipped rows is not read, so the value is the module's own line's, chosen. Red at 9dcf331: no rule names
+         * `.drpg-passages-section` or `.experience-section` as its subject.
+         */
+        const J = JSON.stringify;
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(res => res.json());
+        const sheets = [];
+        for (const href of manifest.styles ?? []) sheets.push([href.split("/").at(-1), (await fetch(`/modules/${MODULE_ID}/${href}`).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, " ")]);
+        must(sheets.length >= 5, `module.json loads ${sheets.length} stylesheets - not the module's sheets`);
+        const rules = [];
+        for (const [name, css] of sheets) {
+            const open = [];
+            let from = 0;
+            for (let i = 0; i < css.length; i++) {
+                if (css[i] === "{") { open.push({ prelude: css.slice(from, i).split(";").at(-1).trim(), at: i + 1 }); from = i + 1; }
+                else if (css[i] === "}") {
+                    const rule = open.pop();
+                    if (rule && !css.slice(rule.at, i).includes("{")) rules.push({ name, prelude: rule.prelude.replace(/\s+/g, " "), decl: css.slice(rule.at, i), within: open.map(o => o.prelude).join(" ") });
+                    from = i + 1;
+                }
+            }
+        }
+        must(rules.length > 1000, `the module's sheets cut into ${rules.length} rules - the cutter read nothing`);
+        const inline = decl => {
+            const own = /(?:^|;)\s*padding-inline\s*:\s*([^;!]+)/.exec(decl)?.[1].trim();
+            if (own) return own;
+            const short = /(?:^|;)\s*padding\s*:\s*([^;!]+)/.exec(decl)?.[1].trim().split(/\s+/);
+            return short ? (short[1] ?? short[0]) : null;
+        };
+        const selectors = list => {
+            const out = [];
+            let depth = 0, from = 0;
+            for (let i = 0; i < list.length; i++) {
+                if (list[i] === "(") depth++;
+                else if (list[i] === ")") depth--;
+                else if (list[i] === "," && depth === 0) { out.push(list.slice(from, i).trim()); from = i + 1; }
+            }
+            return [...out, list.slice(from).trim()].filter(Boolean);
+        };
+        const subjectOf = cls => {
+            const re = new RegExp(`(?:\\${cls}|:is\\([^()]*\\${cls}(?![\\w-])[^()]*\\))(?: > :not\\(\\.title\\))?$`);
+            return rules.filter(rule => selectors(rule.prelude).some(sel => re.test(sel)) && inline(rule.decl) !== null)
+                .map(rule => `${rule.name}${rule.within ? ` ${rule.within}` : ""}: ${inline(rule.decl)}`);
+        };
+        const both = rules.filter(rule => /\.drpg-passages-section(?![\w-])/.test(rule.prelude) && /\.experience-section(?![\w-])/.test(rule.prelude) && inline(rule.decl) !== null);
+        const equipped = subjectOf(".drpg-equipped-empty");
+        must(equipped.length === 1, `the Equipped block's line has ${equipped.length} rules giving it an inline padding - there is no one inset to read`);
+        const value = equipped[0].split(": ").at(-1);
+        equal(J({ passages: subjectOf(".drpg-passages-section"), experience: subjectOf(".experience-section"), oneRule: both.length }),
+            J({ passages: [`danganronpa.css: ${value}`], experience: [`danganronpa.css: ${value}`], oneRule: 1 }),
+            `[the rules giving 'Known passages' an inline padding; the Experience's; how many rules name both - the Equipped block's line stands ${value} in]`);
+    }],
+    ["R907 - a Frisk's Openly and Unseen are drawn as the module's other choice rows (H81-12): every Stained Glass rule of the choice row that names the Rest picker's option names `.drpg-frisk-mode` too, Monokuma Legacy gives it the Rest option's hover, and the field-label rule leaves it its own size as it leaves the choice rows theirs", async () => {
+        /*
+         * H81 C2, 20.10.2026; the owner's 1.2.80 table (item 6): Frisk's Openly / Unseen did not look like the
+         * other choice rows - under Stained Glass the rows of `:is(.drpg-choice, .drpg-rest-option)` are a dark cut
+         * row with the kind's edge strip, the brush behind the chosen one and `accent-color` on the radio, and the
+         * Frisk's ways kept Monokuma Legacy's gold fill and the browser's radio; under Legacy they had no hover. The
+         * Rest picker's precedent (danganronpa.css: "Built like a .drpg-choice row but declared separately"): its
+         * class is named beside `.drpg-choice` in each rule, so the Frisk's is named there too, and the labels do
+         * not take `drpg-choice` (chooseVariant's `.drpg-choice:has(input:checked) + .drpg-choice-details` would
+         * read them). Every stylesheet module.json loads, comments out, cut into its rules; read: the Stained Glass
+         * rules whose selector names `.drpg-rest-option` and lack `.drpg-frisk-mode`; the declarations of
+         * `.drpg-frisk-mode:hover` against `.drpg-rest-option:hover`'s; the rules that leave `.drpg-rest-option`
+         * out with `:not()` and do not leave the Frisk's out. The look: Chromium shots of a mock-up (no Foundry
+         * CSS); a table. Red at 9dcf331: 13 rules without it, no hover, the label rule.
+         */
+        const J = JSON.stringify;
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(res => res.json());
+        const rules = [];
+        for (const href of manifest.styles ?? []) {
+            const name = href.split("/").at(-1), css = (await fetch(`/modules/${MODULE_ID}/${href}`).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, " ");
+            const open = [];
+            let from = 0;
+            for (let i = 0; i < css.length; i++) {
+                if (css[i] === "{") { open.push({ prelude: css.slice(from, i).split(";").at(-1).trim(), at: i + 1 }); from = i + 1; }
+                else if (css[i] === "}") {
+                    const rule = open.pop();
+                    if (rule && !css.slice(rule.at, i).includes("{")) rules.push({ name, prelude: rule.prelude.replace(/\s+/g, " "), decl: css.slice(rule.at, i) });
+                    from = i + 1;
+                }
+            }
+        }
+        const glass = rules.filter(rule => /body\.drpg-theme-stained-glass/.test(rule.prelude) && /\.drpg-rest-option(?![\w-])/.test(rule.prelude));
+        must(glass.length >= 10, `${glass.length} Stained Glass rules name the Rest option - the choice row's family is not where this test looks`);
+        const decls = sel => rules.filter(rule => rule.prelude === sel).map(rule => rule.decl.split(";").map(d => d.trim()).filter(Boolean).sort().join("; "));
+        const left = rules.filter(rule => /:not\(\.drpg-rest-option\)/.test(rule.prelude) && !/:not\(\.drpg-frisk-mode\)/.test(rule.prelude));
+        equal(J({ glass: glass.filter(rule => !/\.drpg-frisk-mode(?![\w-])/.test(rule.prelude)).length, hover: decls(".drpg-frisk-mode:hover"), label: left.length }),
+            J({ glass: 0, hover: decls(".drpg-rest-option:hover"), label: 0 }),
+            `[of ${glass.length} Stained Glass rules naming the Rest option, those without the Frisk's way; the Frisk's way's hover as the Rest option's; rules that keep their own size for the Rest option and not for the Frisk's way]`);
+        ok(decls(".drpg-rest-option:hover").length === 1, "the Rest option has no one hover rule to read");
     }]
 ];
 
