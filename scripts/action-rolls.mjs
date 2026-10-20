@@ -26,7 +26,7 @@ import { isEclipse } from "./eclipse.mjs";
 // The phase, from the file that owns the clock setting and imports nothing but
 // config.mjs. trial.mjs has `inClassTrial()`, and importing it here would drag
 // the whole trial floor into the action pipeline.
-import { getClock } from "./settings.mjs";
+import { getClock, getSetting, SETTINGS } from "./settings.mjs";
 // The chains, and the one payer (T-1). Static, and safe to be: price.mjs imports
 // nothing but leaves and never reaches back into the action pipeline.
 import { quotePrice, payPrice, refundPrice, priceLine } from "./price.mjs";
@@ -541,6 +541,7 @@ function thresholdFacts(actor, actionKey, def) {
             const [a, b] = mins(def.hintThresholds);
             if (a !== undefined) f("DRPG.Action.dcHint", { a, b: b ?? a });
             if (def.stashThreshold) f("DRPG.Action.dcStash", { n: def.stashThreshold });
+            if (def.passageThreshold) f("DRPG.Action.dcPassage", { n: def.passageThreshold });
             break;
         }
         case "project": {
@@ -942,7 +943,7 @@ function remnantRef(placed) {
  * is what carries the rest forward, so a caller passing `{itemId: null}` here
  * genuinely clears the field.
  */
-async function noteRollContext(actor, data) {
+export async function noteRollContext(actor, data) {
     try {
         const current = rollInHand(actor);
         if (!current) return;
@@ -1067,7 +1068,10 @@ export function rollClaims(actionKey, context) {
  * A Dynamic action's band is one since fix r2-H3: a GM's own picks it in its own window (`askDynamicDifficulty`)
  * and leaves no ruling on a card, where a player's band is read (gm-bridge.mjs `dynamicRulingOf`).
  */
-const OWN_FACTS = ["remnantId", "remnantScene", "repairId", "targetProjectId", "projectId", "progress", "bandIndex"];
+// A GM's own Find Stash (E80 C4): what a player's is given by gm-bridge.mjs `handleFindStash`, for its Reroll's replay;
+// `findPlace` the place it searched (E80 fix r1-G4).
+const OWN_FACTS = ["remnantId", "remnantScene", "repairId", "targetProjectId", "projectId", "progress", "bandIndex", "findStash", "stashFound",
+    "findPlace"];
 function ownFacts(data) {
     return Object.fromEntries(OWN_FACTS.filter(f => data?.[f] !== undefined).map(f => [f, data[f]]));
 }
@@ -1173,9 +1177,12 @@ export async function keepGmBookmark({ actorId, messageId, actionKey = null, tra
         // The same roll again: its claims, and its card once named. The action is the first
         // one told (fix r1-G1; the review's S2): it chooses which replay reads the GM's facts,
         // and a packet sent again for the same message within `guardRollAuthor`'s minute
-        // could rename it. Palm's hand roll is told as "steal" and renamed "palm" by its
-        // context - one replay (reroll.mjs `settleSteal`), and no claims under either; every
-        // other action names its key as it throws (`rollTrait`), so the first is the action's.
+        // could rename it. Palm's Take is told as "steal" and renamed "palm" by its context -
+        // one replay (reroll.mjs `settleSteal`), and no claims under either. A Frisk's hand
+        // ("rummage") and its force ("frisk") keep their keys: no context renames them, as
+        // each names a replay of its own (`settleRummage`, `settleForce`; the review's
+        // er-cor-5). Every other action names its key as it throws (`rollTrait`), so the
+        // first is the action's.
         const again = { claims: rollClaims(held.actionKey ?? null, context), ...(card ? { reportMessageId: card } : {}) };
         const facts = takeFactsAwaiting(message.id, actor.id, held);
         if (Object.keys(facts).length) again.facts = { ...(held.facts ?? {}), ...facts };
@@ -1668,7 +1675,7 @@ async function chooseTrait(actor, actionKey, def, { intro = "" } = {}) {
  * window closed AFTER one of the action's own rolls has landed does not come
  * here: that is `spentAfterRoll`, below, and the action stays spent (ROLL-05).
  */
-async function abort(actor, paid) {
+export async function abort(actor, paid) {
     if (paid) await refundAction(actor, paid.amount, paid);
     return null;
 }
@@ -1680,7 +1687,7 @@ async function abort(actor, paid) {
  * generator of "throw the supporting roll, cancel the main one, repeat".
  * The first dialog of an action is the one a player may still back out of.
  */
-async function spentAfterRoll(actor, def) {
+export async function spentAfterRoll(actor, def) {
     ui.notifications.warn(game.i18n.format("DRPG.Action.spentAfterRoll", { action: def?.label ?? "" }));
     return null;
 }
@@ -2484,7 +2491,11 @@ export async function chooseVariant({
             ? `<div class="drpg-choice-details" data-drpg-for="${esc(o.value)}">${o.details}</div>` : ""}`).join("");
 
     const fallback = confirm ?? game.i18n.localize("DRPG.Action.proceed");
-    const confirmFor = value => options.find(o => o.value === value)?.confirm ?? fallback;
+    // A row's `confirm` is its label, or a function of the drawn window that reads the row's own fields (a Frisk's mode).
+    const confirmFor = (value, root = null) => {
+        const label = options.find(o => o.value === value)?.confirm;
+        return typeof label === "function" ? label(root) : label ?? fallback;
+    };
 
     const picked = await DialogV2.wait({
         window: { title },
@@ -2534,11 +2545,12 @@ function followConfirmLabel(dialog, confirmFor) {
     const button = root?.querySelector('footer button[data-action="ok"]');
     if (!button) return;
     const sync = () => {
-        const label = confirmFor(root.querySelector('input[name="variant"]:checked')?.value);
+        const label = confirmFor(root.querySelector('input[name="variant"]:checked')?.value, root);
         (button.querySelector("span") ?? button).textContent = label;
     };
+    // A row's own field can change what it does as well as the row (E80 part 2 C2: a Frisk's mode, `friskModes`).
     root.addEventListener("change", event => {
-        if (event.target?.name === "variant") sync();
+        if (["variant", "friskMode"].includes(event.target?.name)) sync();
     });
     sync();
 }
@@ -4118,7 +4130,7 @@ function crisisDetails(def, { free, brokenDown, youPick, traits }) {
  * they are yours - and choosing what to leave behind is the decision the
  * action is for.
  */
-async function choosePalm(actor, def, targets, mine) {
+export async function choosePalm(actor, def, targets, mine) {
     return chooseVariant({
         actor,
         title: def.label,
@@ -4137,6 +4149,15 @@ async function choosePalm(actor, def, targets, mine) {
                 hint: plural("DRPG.Steal.plantHint", { n: mine.length }),
                 disabled: !mine.length,
                 why: game.i18n.localize("DRPG.Steal.nothingToPlant")
+            },
+            {
+                // E80 part 2 C2: the third direction, which takes nothing and shows only the person's name here; what
+                // they carry comes from the GM after the verdict (frisk.mjs `friskPerson`), never into this window.
+                value: "frisk", icon: "fa-hand-pointer",
+                label: game.i18n.localize("DRPG.Frisk.rowLabel"),
+                hint: game.i18n.localize("DRPG.Frisk.rowHint"),
+                details: friskModes(def),
+                confirm: root => friskModeOf(root) === "unseen" ? game.i18n.localize("DRPG.Action.roll") : game.i18n.localize("DRPG.Action.proceed")
             }
         ],
         extra: `<label class="drpg-specific-note">
@@ -4149,6 +4170,36 @@ async function choosePalm(actor, def, targets, mine) {
                     `<option value="${i.id}">${esc(describeItem(i))}</option>`).join("")}</select>
             </label>` : ""}`
     });
+}
+
+/**
+ * The ways a Frisk can go, under its row of the Palm window (E80 part 2 C2, C3): Openly, checked - the ask, which
+ * throws no dice, so two clicks never start an attempt that tells the target who tried - and Unseen, each with its
+ * numbers read off `ACTIONS.palm` (the force's Body, the cover's Shadow and the hand's). Openly's line says the force
+ * only while the GMs' `friskForce` is on. A `friskMode` radio, so the confirm button follows it (`followConfirmLabel`):
+ * 'Do it' for the ask, 'Roll' for a mode that throws dice.
+ */
+function friskModes(def) {
+    const part = def?.rummage ?? {};
+    const openHint = getSetting(SETTINGS.friskForce) === true
+        ? game.i18n.format("DRPG.Frisk.openHint", { force: def?.frisk?.threshold }) : game.i18n.localize("DRPG.Frisk.openHintAskOnly");
+    return `<div class="drpg-frisk-modes">
+            <label class="drpg-frisk-mode">
+                <input type="radio" name="friskMode" value="openly" checked>
+                <span><strong>${esc(game.i18n.localize("DRPG.Frisk.openLabel"))}</strong>
+                <small>${esc(openHint)}</small></span>
+            </label>
+            <label class="drpg-frisk-mode">
+                <input type="radio" name="friskMode" value="unseen">
+                <span><strong>${esc(game.i18n.localize("DRPG.Frisk.unseenLabel"))}</strong>
+                <small>${esc(game.i18n.format("DRPG.Frisk.unseenHint", { unseen: part.unseen, hand: part.threshold }))}</small></span>
+            </label>
+        </div>`;
+}
+
+/** The Frisk mode a drawn Palm window has checked (`friskModes`): "unseen" or, where it says neither, "openly" (the checked one). */
+function friskModeOf(root) {
+    return root?.querySelector?.('input[name="friskMode"]:checked')?.value === "unseen" ? "unseen" : "openly";
 }
 
 /*
@@ -4182,9 +4233,7 @@ async function resolvePlant(actor, def, { victim, planted, hand, shadow, room, s
     // "Sent" only when it was (E31): a request not carried out has been said once already.
     const plantOutcome = {
         success, seen, target: victim.name,
-        text: res.ok ? game.i18n.format("DRPG.Steal.plantSent", {
-            name: foundry.utils.escapeHTML(victim.name)
-        }) : ""
+        text: res.ok ? game.i18n.format("DRPG.Steal.plantSent", { name: victim.name }) : ""
     };
     await report(actor, def, hand, plantOutcome);
     Hooks.callAll("drpgActionResolved", { actor, actionKey: "palm", roll: hand, outcome: plantOutcome });
@@ -4245,6 +4294,12 @@ async function performPalm(actor, def, options) {
 
     const victim = game.actors.get(picked.form?.querySelector("[name=who]")?.value ?? "");
     if (!victim) return null;
+
+    // A Frisk pays, throws and asks the GM on its own road (E80 part 2 C2, frisk.mjs).
+    if (picked.value === "frisk") {
+        const { performFrisk } = await import("./frisk.mjs");
+        return performFrisk(actor, def, victim, friskModeOf(picked.form), { cost, room });
+    }
 
     const planting = picked.value === "plant";
     const planted = planting
@@ -4342,9 +4397,7 @@ async function performPalm(actor, def, options) {
         seen,
         target: victim.name,
         // "Sent" only when it was (E31), as for a plant.
-        text: res.ok ? game.i18n.format("DRPG.Steal.sent", {
-            name: foundry.utils.escapeHTML(victim.name)
-        }) : ""
+        text: res.ok ? game.i18n.format("DRPG.Steal.sent", { name: victim.name }) : ""
     };
 
     await report(actor, def, hand, outcome);
@@ -4868,9 +4921,9 @@ async function performAnalyze(actor, def, options) {
     const choice = asked?.choice ?? null;
     if (!choice || choice === "cancel") return null;
 
-    // "hint" and "stash" are literal action ids; anything else is the bullet id
-    // the "bullet" row's own select returned above.
-    const ruled = choice === "hint" || choice === "stash";
+    // "hint", "stash" and "passage" are literal action ids; anything else is the
+    // bullet id the "bullet" row's own select returned above.
+    const ruled = choice === "hint" || choice === "stash" || choice === "passage";
     const subject = ruled ? null : (bullets.find(b => b.id === choice) ?? null);
     if (!ruled && !subject) return null;
 
@@ -4880,6 +4933,12 @@ async function performAnalyze(actor, def, options) {
      * paid for, the dice were thrown, and the packet was dropped on the way out.
      */
     const { gmOnline, sayNotDone } = await import("./bridge-guards.mjs");
+    // Find Passage is no road in a Class Trial (E80 C3): its row is not offered there, and an
+    // Analyze that names it anyway is refused here, before the price - the GM refuses it too.
+    if (choice === "passage" && getClock().phase === "classTrial") {
+        sayNotDone("passage.find", "trialLocked", { nothingSpent: true });
+        return null;
+    }
     if (!gmOnline()) {
         // The bridge's own sentence for a request with no GM (E31), and nothing was paid.
         sayNotDone("analyze.resolve", "noGm", { nothingSpent: true });
@@ -4896,7 +4955,10 @@ async function performAnalyze(actor, def, options) {
         // A bullet's own difficulty is read off its REAL type, which is the
         // answer the roll exists to find - so only the two ruled routes show one.
         dc: choice === "hint" ? (def.hintThresholds ?? []).map(t => t.min).join(" / ")
-            : choice === "stash" ? def.stashThreshold : null
+            : choice === "stash" ? def.stashThreshold
+            : choice === "passage" ? def.passageThreshold : null,
+        // What the GMs' record of the roll keeps for gm-bridge.mjs `passage.find` (roll-draw.mjs `CONTEXT_SENT`).
+        ...(choice === "passage" ? { context: { findPassage: true } } : {})
     });
     if (!roll) {
         // The window was closed. Whatever the chain took, it gives back - the
@@ -4906,6 +4968,7 @@ async function performAnalyze(actor, def, options) {
     }
 
     if (choice === "stash") return locateStash(actor, def, roll, asked?.request ?? "", charge);
+    if (choice === "passage") return locatePassage(actor, def, roll, asked?.request ?? "", charge);
     return subject
         ? analyseBullet(actor, def, roll, subject, charge)
         : askForHint(actor, def, roll, asked?.request ?? "", charge);
@@ -5051,18 +5114,14 @@ async function locateStash(actor, def, roll, request = "", charge = null) {
     // division as Observe, and the same reason: this client must not be the one
     // that decides whether it found something.
     /*
-     * ANNOUNCED BEFORE THE ANSWER, and that is the rule rather than an
-     * accident of ordering. Dawid, 28.08: a trap watching for a stash hunt
-     * fires on EVERY attempt, including one that finds nothing. It answers
-     * somebody who is rummaging through other people's hiding places; whether
-     * they were any good at it is a different question.
-     *
-     * Putting it here rather than inside `resolveStashSearch` also keeps it
-     * out of the branch where the roll is judged, so it cannot drift into
-     * settling up with the dice later.
+     * NOT ANNOUNCED HERE ANY MORE (E80 fix r1-G1, 18.10.2026; the review's
+     * E80-SEC-1). Dawid, 28.08: a trap watching for a stash hunt fires on EVERY
+     * attempt, including one that finds nothing, before the dice are read. This
+     * client raised it, and its relay was the only thing that told the GM: a
+     * console that searched without raising it hunted past every trap. It is
+     * raised by the GM that judges the search now (vault.mjs
+     * `resolveStashSearch`), before the roll is scored.
      */
-    Hooks.callAll("drpgStashHunted", { actor, room, total: roll.total });
-
     const { requestStashSearch } = await import("./gm-bridge.mjs");
     const { gmOnline, sayNotDone } = await import("./bridge-guards.mjs");
 
@@ -5082,12 +5141,13 @@ async function locateStash(actor, def, roll, request = "", charge = null) {
         rollId: rollInHand(actor)?.messageId ?? null
     });
 
-    // NOT `gmRuled`. A Reroll can genuinely replay this - the outcome follows
-    // from a threshold, not from a person - and the replay is idempotent
-    // because `resolveStashSearch` skips a stash this character has already
-    // found. Rerolling a success and succeeding again opens nothing new.
+    // NOT `gmRuled`. A Reroll replays this from a threshold (reroll.mjs `settleStashFind`, E80 C4), on the GMs'
+    // facts that this roll was a Find Stash and whether it opened one: a player's written by gm-bridge.mjs
+    // `handleFindStash`, a GM's own here (`OWN_FACTS`, from the answer of its own search). A roll that opened
+    // one opens no second, however often it is rerolled.
     await noteRollContext(actor, {
-        actionKey: "analyze", findStash: true, request, label: title, room
+        actionKey: "analyze", findStash: true, request, label: title, room,
+        ...(game.user?.isGM ? { stashFound: Boolean(res.value?.found), ...(res.value?.place ? { findPlace: res.value.place } : {}) } : {})
     });
 
     // Silent on the outcome, like `analyseBullet`: this client does not know
@@ -5101,7 +5161,51 @@ async function locateStash(actor, def, roll, request = "", charge = null) {
 }
 
 /**
- * Which bullet, a hint, or somebody's hiding place.
+ * Find Passage (E80 C3; the owner's A10, proposal 13): Head against `def.passageThreshold`, judged on
+ * the primary GM from its own record of the roll (passages-gm.mjs `resolvePassageSearch`), which tells
+ * the character's owner on a card of its own what was found - one shape whatever came of it. Like the
+ * stash's, the row is offered in every room and never greyed: one that dimmed where there is no passage
+ * would answer the question for free. A trap watching for it fires on every first throw, hit or miss, before
+ * the answer - raised since E80 fix r1-G1 on the primary GM that judges it (`resolvePassageSearch`, the review's
+ * E80-SEC-1), where until then this client raised it and a console that did not was hunted past every trap. This
+ * card says only that the walls were gone over.
+ */
+async function locatePassage(actor, def, roll, request = "", charge = null) {
+    const room = roomOfActor(actor);
+
+    const { requestPassageFind } = await import("./gm-bridge.mjs");
+    const { gmOnline, sayNotDone } = await import("./bridge-guards.mjs");
+    if (!gmOnline()) {
+        if (charge) await refundPrice(actor, charge);
+        sayNotDone("passage.find", "noGm", { nothingSpent: true });
+        return null;
+    }
+
+    /* THE ATTEMPT BEFORE ITS ANSWER (E80 fix r1-G3, the review's E80-C3-5). `passage.find` is answered "reply", once the
+       primary has judged the search and whispered its card, so this card, posted after the answer, came under the result:
+       the chat read the passage found, then the walls being gone over. It is posted once a GM is connected and before
+       the request; a refusal is said after it, in the player's words, as every refusal is. */
+    const rollId = rollInHand(actor)?.messageId ?? null;
+    await whisperToOwner(actor, `${rollHead(def, roll)}<p>${game.i18n.localize("DRPG.Analyze.passageSent")}</p>`, rollCardFlags(def, roll));
+
+    await requestPassageFind({
+        actorId: actor.id,
+        total: roll.total,
+        isCritical: Boolean(roll.isCritical),
+        rollId
+    });
+
+    // Not `gmRuled`: a Reroll replays it from a threshold (reroll.mjs `settleAnalyze`), on the GMs' fact
+    // that this roll was a Find Passage (passages-gm.mjs `noteFindFact`).
+    await noteRollContext(actor, {
+        actionKey: "analyze", request, label: game.i18n.localize("DRPG.Analyze.findPassage"), room
+    });
+
+    return { roll, subject: null };
+}
+
+/**
+ * Which bullet, a hint, somebody's hiding place, or a secret passage.
  *
  * The bullet picker used to be its own dialog, shown only after choosing
  * "Analyze a bullet" - two windows every time there was a bullet to analyze.
@@ -5146,7 +5250,13 @@ async function askWhatToAnalyze(actor, def, bullets) {
                 hint: game.i18n.format("DRPG.Analyze.findStashHint", {
                     n: def.stashThreshold
                 })
-            }
+            },
+            // Never disabled either (`locatePassage`), and in every room; not offered in a Class Trial (E80 C3).
+            ...(getClock().phase === "classTrial" ? [] : [{
+                value: "passage", icon: "fa-dungeon",
+                label: game.i18n.localize("DRPG.Analyze.findPassage"),
+                hint: game.i18n.format("DRPG.Analyze.findPassageHint", { n: def.passageThreshold })
+            }])
         ],
         extra: `${bullets.length
             ? `<label>${game.i18n.localize("DRPG.Analyze.whichBullet")}
@@ -5166,7 +5276,7 @@ async function askWhatToAnalyze(actor, def, bullets) {
     // the line below reads an element that is not there and comes back `null`,
     // which `performAnalyze` treats as "cancelled" - measured: picking "Locate
     // a hidden stash" spent nothing, rolled nothing and closed in silence.
-    if (picked.value === "hint" || picked.value === "stash") {
+    if (picked.value === "hint" || picked.value === "stash" || picked.value === "passage") {
         return { choice: picked.value, request };
     }
     return { choice: picked.form.querySelector("[name=bullet]")?.value ?? null, request };
@@ -5870,6 +5980,7 @@ export async function report(actor, def, roll, outcome) {
             lines.push(`<p><em>${game.i18n.localize("DRPG.Action.substitute")}</em></p>`);
         }
     } else if (outcome.text) {
+        // Plain text, escaped here once: a name formatted into it goes in raw (an escaped one showed "D&#x27;Arcy").
         lines.push(`<p>${esc(outcome.text)}</p>`);
     }
 

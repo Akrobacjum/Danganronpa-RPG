@@ -57,10 +57,10 @@ import { isCleaner, tamperQuote, witnessesTo } from "./cleanup.mjs";
 // reads (T-1). Synchronous by design - this file calls it from a render path.
 import { quotePrice, priceLabel, stripeKindFor } from "./price.mjs";
 import { roomOfActor, neighbouringRooms, othersInRoom, locateActor, sceneOfActor, passageRooms, passageOpenFor,
-    roomsKnownToMe } from "./movement.mjs";
+    roomsKnownToMe, tunnelVerdict, tunnelRefusalText } from "./movement.mjs";
 // The sheet's 'Known passages' (E79 C7): this browser's passages, the Mastermind as the GMs hold it, and the
 // rooms named as Listen names them - a room this viewer has not found is "Unexplored room n".
-import { passagesKnownBy } from "./passages.mjs";
+import { passagesKnownBy, passageSpot, viewPassage } from "./passages.mjs";
 import { isMastermindActor } from "./passages-gm.mjs";
 import { listenLabels } from "./action-rolls.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
@@ -116,8 +116,8 @@ export function registerSheetTweaks() {
      * `remnantSecrets` is client-scoped: Foundry writes it straight to
      * localStorage without ever creating a Setting document, so the hook never
      * fires. Measured - a world setting fired it twice for two writes, this one
-     * fired zero times for two. dice-sync.mjs found the same trap a fortnight
-     * ago and the knowledge did not travel, which is why there is now a tier-0
+     * fired zero times for two. dice-sync.mjs had found the same trap a fortnight
+     * earlier (its listener went in E16) and the knowledge did not travel, which is why there is now a tier-0
      * criterion (R14) standing over every listener of this shape.
      *
      * The argument is the full "namespace.key" id, not a document.
@@ -2039,13 +2039,13 @@ export function knownPassageRows(actor, { known, mastermind = false, sceneOf = i
     return rows.sort((a, b) => a.label.localeCompare(b.label));
 }
 
-/** This browser's camera to a passage's middle, on its scene - viewed first when another is on screen. */
+/**
+ * This browser's camera to a passage, on its scene and floor (passages.mjs `viewPassage`, E80 fix r1-G2): a
+ * stretch's middle, or a tunnel's end on the floor on screen when it has one there, else its first end, that
+ * end's floor viewed.
+ */
 async function panToPassage(passage) {
-    const scene = game.scenes?.get(passage.sceneId);
-    if (!scene) return false;
-    if (canvas?.scene?.id !== scene.id) await scene.view();
-    await canvas?.animatePan?.({ x: (passage.x1 + passage.x2) / 2, y: (passage.y1 + passage.y2) / 2 });
-    return true;
+    return viewPassage(level => passageSpot(passage, level));
 }
 
 /** 'Show the passage': who in the room to show it to (handover.mjs `askWhoIsHere`), then the primary GM's judgement. */
@@ -2064,6 +2064,34 @@ async function showPassageDialog(actor, row) {
     if (!res.ok) debug("A secret passage was not shown", res.reason);
 }
 
+/**
+ * 'Go through' (E80 C2): a tunnel's row asks first on this browser, by the doors' rules as this browser holds them
+ * (movement.mjs `tunnelVerdict`, the price included), and a refusal is said here in its key's words, as the bridge
+ * says it (`tunnelRefusalText`: `DRPG.Bridge.why.<code>`, "that room" for the room); then the primary GM judges it
+ * again and moves the token (gm-bridge.mjs `passage.cross`), and says its refusal through the bridge. The button
+ * waits for the answer, so one click asks once. Scenario 76 U clicks it.
+ */
+async function goThrough(actor, row, button, mastermind) {
+    const scene = game.scenes?.get(row.passage.sceneId) ?? null;
+    const ask = token => tunnelVerdict(actor, { id: row.passage.id, sceneId: row.passage.sceneId }, token,
+        { mover: mastermind ? { gm: game.user.isGM, mastermind: true } : null });
+    // As the primary picks it (passages-gm.mjs `crossTunnel`): of two tokens on the scene, the one at an end.
+    const verdicts = Array.from(scene?.tokens ?? []).filter(t => t.actorId === actor.id).map(ask);
+    const verdict = verdicts.find(v => !v?.code) ?? verdicts[0] ?? ask(null);
+    if (verdict?.code) {
+        ui.notifications.warn(tunnelRefusalText(verdict));
+        return;
+    }
+    button.disabled = true;
+    try {
+        const { requestPassageCross } = await import("./gm-bridge.mjs");
+        const res = await requestPassageCross({ actorId: actor.id, passageId: row.passage.id });
+        if (!res.ok) debug("A tunnel was not gone through", res.reason);
+    } finally {
+        button.disabled = false;
+    }
+}
+
 /** The list, after the Experience, on an owner's sheet of a student that knows a passage; none for a Monokuma. */
 function injectKnownPassages(app, element) {
     const actor = app.document;
@@ -2072,7 +2100,8 @@ function injectKnownPassages(app, element) {
     if (!host) return;
     host.querySelector(".drpg-passages-section")?.remove();
     if (isMonokuma(actor) || !actor?.isOwner) return;
-    const rows = knownPassageRows(actor, { mastermind: game.user.isGM && isMastermindActor(actor) });
+    const mastermind = game.user.isGM && isMastermindActor(actor);
+    const rows = knownPassageRows(actor, { mastermind });
     if (!rows.length) return;
 
     const t = key => foundry.utils.escapeHTML(game.i18n.localize(key));
@@ -2086,6 +2115,7 @@ function injectKnownPassages(app, element) {
         li.className = `drpg-passage-row${row.shut ? " is-shut" : ""}`;
         li.innerHTML = `<a class="drpg-passage-where" role="button" tabindex="0" title="${t("DRPG.Passage.list.where")}">${
             foundry.utils.escapeHTML(row.label)}</a>${row.shut ? `<span class="drpg-passage-shut">${t("DRPG.Passage.list.shut")}</span>` : ""}`
+            + (Array.isArray(row.passage.ends) ? `<button type="button" class="drpg-mini-button drpg-passage-cross">${t("DRPG.Passage.list.cross")}</button>` : "")
             + `<button type="button" class="drpg-mini-button drpg-passage-show">${t("DRPG.Passage.show.button")}</button>`;
         const where = li.querySelector(".drpg-passage-where");
         const pan = event => {
@@ -2099,6 +2129,12 @@ function injectKnownPassages(app, element) {
             event.preventDefault();
             event.stopPropagation();
             showPassageDialog(actor, row).catch(err => error("Could not show a secret passage", err));
+        });
+        const cross = li.querySelector(".drpg-passage-cross");
+        cross?.addEventListener("click", event => {
+            event.preventDefault();
+            event.stopPropagation();
+            goThrough(actor, row, cross, mastermind).catch(err => error("Could not go through a secret passage", err));
         });
         list.append(li);
     }

@@ -23,6 +23,16 @@ export const SETTINGS = {
     /** Players and Trusted Players browse and upload no files (E79 C9, N4 - see enforced.mjs). */
     enforcePlayerFiles: "enforcePlayerFiles",
     forcePrivateRolls: "forcePrivateRolls",
+    /** Every user below full Gamemaster throws in one GM's Dice So Nice look (E16 p1 C3, D19a - see dice-sync.mjs). */
+    forceDiceLook: "forceDiceLook",
+    /** The id of the full Gamemaster whose dice look is the table's; the primary GM writes it at its first sweep (dice-sync.mjs). */
+    diceLookSource: "diceLookSource",
+    /**
+     * The world's copy of the GMs' dice look store (gm-stores.mjs `diceLookStore`), which only a full Gamemaster's
+     * browser writes and a loading primary merges by stamp (E16 fix r1c-G1, the owner's Q6 on its default (b) -
+     * see dice-sync.mjs).
+     */
+    diceLookWorld: "diceLookWorld",
     enforceAnonymity: "enforceAnonymity",
     searchTokensPerRoom: "searchTokensPerRoom",
     searchTokens: "searchTokens",
@@ -40,6 +50,8 @@ export const SETTINGS = {
     despairFromRolls: "despairFromRolls",
     projectMeta: "projectMeta",
     chargeMovement: "chargeMovement",
+    /** Whether an open Frisk may be forced after a refusal or no answer (E80 part 2; frisk.mjs `friskForceOpen`). */
+    friskForce: "friskForce",
     lockPlayerResources: "lockPlayerResources",
     roomVisibility: "roomVisibility",
     lockRollDialog: "lockRollDialog",
@@ -413,6 +425,12 @@ export const SETTINGS = {
      */
     gmSheetMarks: "gmSheetMarks",
     gmSheetWrites: "gmSheetWrites",
+    /**
+     * THE GMS' COPY OF EACH CHARACTER'S DICE LOOK (E16 fix early-C4-G1): a GM store (gm-stores.mjs
+     * `diceLookStore`), a row per actor - its Dice So Nice overlay as the GMs hold it, which the primary puts a
+     * player's back to (dice-sync.mjs). Synced, not backed up; no player copy.
+     */
+    gmDiceLooks: "gmDiceLooks",
     /** The Daggerheart version this GM was last told its rolls are not drawn by the GM on (E08+E28 C12a, roll-draw.mjs). */
     rollDrawWarned: "rollDrawWarned",
     /** The rolls the GM drew that this browser's user rolled, by world and user, read again after a reload (E08+E28 fix r2-H7, private-rolls.mjs). */
@@ -817,7 +835,9 @@ export const SETTINGS = {
     /**
      * The secret passages this user's own characters know, as the primary GM sent them
      * (E79 C1; gm-stores.mjs `passageCopy`): `{ passageId: { sceneId, shape, level,
-     * passageWallId, passageSeg, actorIds } }`, open rows only, no name and no room.
+     * passageWallId, passageSeg, actorIds } }` for a passage on a wall, and since E80 C1
+     * `{ sceneId, shape: "tunnel", level: null, ends: [{ x, y, level }, { x, y, level }], actorIds }`
+     * for a tunnel or stairs (passages.mjs `secretRowsFrom`), open rows only, no name and no room.
      */
     minePassages: "minePassages",
     /**
@@ -944,6 +964,33 @@ export function registerSettings() {
         config: true,
         type: Boolean,
         default: true
+    });
+
+    // Read at every step of dice-sync.mjs; off writes nothing and gives nobody their old look back (the owner's Q4 of 19.10).
+    game.settings.register(MODULE_ID, SETTINGS.forceDiceLook, {
+        name: "DRPG.Settings.forceDiceLook.name",
+        hint: "DRPG.Settings.forceDiceLook.hint",
+        scope: "world",
+        config: true,
+        type: Boolean,
+        default: true,
+        requiresReload: true
+    });
+
+    game.settings.register(MODULE_ID, SETTINGS.diceLookSource, {
+        scope: "world",
+        config: false,
+        type: String,
+        default: ""
+    });
+
+    // A section of the GM store's shape, `{ e, t, d, cleared }`, and the write stamp `w` (E16 fix r1-G1 of round r1d):
+    // the overlays every client already holds on the actors.
+    game.settings.register(MODULE_ID, SETTINGS.diceLookWorld, {
+        scope: "world",
+        config: false,
+        type: Object,
+        default: {}
     });
 
     game.settings.register(MODULE_ID, SETTINGS.enforceAnonymity, {
@@ -1583,6 +1630,14 @@ export function registerSettings() {
         type: Object,
         default: {}
     });
+    // The GMs' copy of each character's dice look (E16 fix early-C4-G1): no `onChange` - shown nowhere, read by the
+    // primary's put-back (dice-sync.mjs).
+    game.settings.register(MODULE_ID, SETTINGS.gmDiceLooks, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
     /* The Daggerheart version this browser's GM was told its players' rolls are not drawn
        by the GM on (E08+E28 C12a, roll-draw.mjs `announceRollDraw`): once per version, as
        the relay warning above. */
@@ -2116,6 +2171,17 @@ export function registerSettings() {
         default: true,
         // The stylesheet's half of the lock follows at once (E03; audit S01-40).
         onChange: value => document.body.classList.toggle("drpg-resources-locked", Boolean(value))
+    });
+
+    /* The GMs' switch on forcing a Frisk after a refusal (the A11 design's step 1; DA39, the family of
+       the refused Restrain): off, an open Frisk only asks. A world setting, which only a GM writes. */
+    game.settings.register(MODULE_ID, SETTINGS.friskForce, {
+        name: "DRPG.Settings.friskForce.name",
+        hint: "DRPG.Settings.friskForce.hint",
+        scope: "world",
+        config: true,
+        type: Boolean,
+        default: true
     });
 
     game.settings.register(MODULE_ID, SETTINGS.chargeMovement, {

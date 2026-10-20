@@ -26,15 +26,17 @@
  * are utils.mjs (`debug`), fog-geometry.mjs and the rooms.mjs leaf (`roomPieces`,
  * E12 C2b) - and, since E79 C3 (14.10.2026), the passages.mjs leaf (`openSegmentsFor`,
  * `cutSegment`) and movement.mjs (`passageOpenFor`), for the secret passages a viewer's
- * character may take; neither reaches a fog file back (R161). `ADRIFT_WARN_RUN` is read only by
+ * character may take; neither reaches a fog file back (R161). Since E80 C1 (18.10.2026) the marks of
+ * the tunnel ends a viewer's character knows in its room (`tunnelMarks`, `addTunnelMarks`), read
+ * from the same copy (passages.mjs `tunnelEndsFor`). `ADRIFT_WARN_RUN` is read only by
  * fog-diagnostics.mjs's `adriftCheck`; it stays among the doorway constants it
  * was written beside.
  */
 
 import { debug } from "./utils.mjs";
 import { roomPieces, onLevel } from "./rooms.mjs";
-import { openSegmentsFor, cutSegment } from "./passages.mjs";
-import { passageOpenFor } from "./movement.mjs";
+import { openSegmentsFor, cutSegment, tunnelEndsFor } from "./passages.mjs";
+import { passageOpenFor, passageRooms, roomsKnownToMe } from "./movement.mjs";
 import {
     regionShapes, polylineLength, inPolygons, resamplePolyline, smoothPolyline, trimPolyline, innerStretches
 } from "./fog-geometry.mjs";
@@ -686,6 +688,88 @@ export function viewerPassages(actor, region, scene, level = null, { gm = Boolea
     if (!actor || gm || !scene?.id) return [];
     return openSegmentsFor(actor, scene.id, level, { known })
         .filter(passage => passage.wallId && passageOpenFor(actor, passage, scene, { from: region?.name ?? null, level, known }));
+}
+
+/**
+ * The marks of the tunnel ends this character knows in `region`'s room on this floor (E80 C1; P1-04):
+ * `[{ id, x, y, to }]`, `to` the room at the other end as this viewer may name it - the rooms it has not
+ * found are "Unexplored room 1, 2...", numbered over the distinct far rooms of this room's marks in the order
+ * they come, so two marks to one such room share its number and two to two rooms do not, as Listen numbers
+ * its list (action-rolls.mjs `listenLabels`; E80 fix r1-G8, the review's E80-C1-03: every one was 1). Read from this
+ * browser's copy (passages.mjs `tunnelEndsFor`), so a tunnel the GMs closed, deleted or never gave a
+ * character of this player's has no mark, and the rooms are read off the map as the list reads them
+ * (movement.mjs `passageRooms`). None on a GM's browser, as `viewerPassages` hands a GM none. `gm`,
+ * `known` and `knownRooms` are the suite's (R595).
+ */
+export function tunnelMarks(actor, region, scene, level = null, { gm = Boolean(game.user?.isGM), known, knownRooms = roomsKnownToMe } = {}) {
+    if (!actor || gm || !scene?.id || !region?.name) return [];
+    const ends = tunnelEndsFor(actor, scene.id, level, { known });
+    if (!ends.length) return [];
+    const found = knownRooms(scene);
+    const marks = [], unexplored = new Map();
+    for (const end of ends) {
+        const [here, far] = passageRooms(scene, { ends: [end, end.far] });
+        if (here !== region.name || !far) continue;
+        if (found && !found.has(far) && !unexplored.has(far)) unexplored.set(far, unexplored.size + 1);
+        marks.push({ id: end.id, x: end.x, y: end.y, to: unexplored.has(far) ? game.i18n.format("DRPG.Listen.unknownRoom", { n: unexplored.get(far) }) : far });
+    }
+    return marks;
+}
+
+/** The name each tunnel mark's ring and words carry on a room's outline group, for `recolourTunnelMarks` to find. */
+export const TUNNEL_MARK_NAME = "drpgTunnelMark";
+
+/**
+ * The marks `tunnelMarks` answers, on a room's outline group (fog-reveal.mjs `flashOutline`): a ring at
+ * each end in the outline's colour, and 'Secret passage to {room}' under it, in the outline's space
+ * (`rect` taken off, as `labelPoint` takes it). Answers how many it drew. The ring is drawn white and
+ * tinted, and both carry `TUNNEL_MARK_NAME`, so a change of the seam colour turns them with the outline
+ * (`recolourTunnelMarks`; E80 fix r1-G6, the review's E80-C1-02: until then they kept the colour they were
+ * drawn in). Not measured: the harness draws no outline for a player (scenario 66's header), so how a mark
+ * looks on a real canvas is not seen here; R595 reads the marks, R611 the recolour, not the drawing.
+ */
+export function addTunnelMarks(group, marks, rect = { x: 0, y: 0 }) {
+    if (!group || !marks?.length) return 0;
+    const grid = canvas?.grid?.size ?? 100;
+    const colour = outlineColour();
+    for (const mark of marks) {
+        const x = mark.x - (rect?.x ?? 0), y = mark.y - (rect?.y ?? 0);
+        const ring = new PIXI.Graphics();
+        ring.lineStyle({ width: Math.max(3, Math.round(grid * 0.05)), color: 0xffffff, alpha: 0.95 });
+        ring.drawCircle(x, y, grid * 0.3);
+        ring.tint = colour;
+        ring.name = TUNNEL_MARK_NAME;
+        const text = new PIXI.Text(game.i18n.format("DRPG.Passage.mark.to", { room: mark.to }), {
+            fontFamily: '"Special Elite", "Courier New", monospace',
+            fontSize: Math.max(14, Math.round(grid * 0.22)),
+            fill: colour,
+            stroke: colourOf("--drpg-ink", 0x1a1620),
+            strokeThickness: Math.max(3, Math.round(grid * 0.05)),
+            align: "center"
+        });
+        text.resolution = 2;
+        text.anchor.set(0.5, 0);
+        text.position.set(x, y + grid * 0.35);
+        text.name = TUNNEL_MARK_NAME;
+        group.addChild(ring, text);
+    }
+    return marks.length;
+}
+
+/**
+ * The tunnel marks on a room's outline group in `colour` (E80 fix r1-G6): each ring's tint and each
+ * mark's words' fill - the ink keyline under the words stays ink. fog-reveal.mjs `recolourRoomOutline`
+ * calls it beside the glow's tint. Answers how many it turned.
+ */
+export function recolourTunnelMarks(group, colour) {
+    let turned = 0;
+    for (const child of group?.children ?? []) {
+        if (child?.name !== TUNNEL_MARK_NAME || child.destroyed) continue;
+        if (child instanceof PIXI.Text) child.style.fill = colour;
+        else child.tint = colour;
+        turned += 1;
+    }
+    return turned;
 }
 
 /**

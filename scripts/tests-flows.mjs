@@ -111,8 +111,17 @@ export const FLOWS = Object.freeze([
         entry: { bridge: ["eclipse.move"], sockets: ["eclipse.mjs"] }, scenarios: ["33-bridge-paths"], status: "partial", stage: "E39" },
     // E08+E28 C15 (04.10.2026): 40-flow drives a player's Plant end to end, both of its rolls on the GMs' record.
     { id: "give-take-stash", what: "Things changing hands: a handover, a plant, a steal, a found stash, a body looted",
-        entry: { bridge: ["handover.item", "handover.bullet", "action.plant", "vault.findStash", "action.steal", "vault.steal", "body.loot"] },
-        scenarios: ["30-security", "33-bridge-paths", "40-flow"], status: "partial", stage: "E39" },
+        entry: { bridge: ["handover.item", "handover.bullet", "action.plant", "vault.findStash", "action.steal", "action.friskUnseen", "vault.steal", "body.loot"] },
+        scenarios: ["30-security", "33-bridge-paths", "40-flow", "83-roll-integrity"], status: "partial", stage: "E39" },
+    // E80 part 2 C3 (19.10.2026): an open Frisk - the ask, the answer from the window the primary opened, the force. The
+    // tier-2 tests A11-7 and A11-8 drive it on the primary; 30-security sends a player's frisk.ask and an outsider's answer.
+    // E80 fix r1-G4 (19.10.2026; the review's goal-P2-18 and goal-P2-20): 40-flow drives it in three players' browsers -
+    // an allow, a force won and lost, silence, the target walking out, a Monocub witness; 30-security sends a stranger's
+    // ask and follows. A Frisk's Unseen road (above, in give-take-stash) is 30's console packet, 33's refusal with no GM
+    // connected and 83's card with the draw's flags, named as a hand and as a force.
+    { id: "frisk-openly", what: "An open Frisk: the ask, the target's answer on its own window, the force after a refusal or no answer",
+        entry: { bridge: ["action.friskAsk", "action.friskAnswer", "action.friskFollow"], sockets: ["frisk.mjs"] },
+        scenarios: ["30-security", "40-flow"], status: "partial", stage: "E39" },
     { id: "gm-store", what: "The GM store between GM clients: a late, empty browser, the exchange, tombstones, backup and restore, the reset's cuts",
         entry: { sockets: ["gm-store.mjs"], api: ["backupCase", "restoreCase"] }, scenarios: ["61-gmstore-case"], status: "covered", stage: "1.2.63" },
     // E08+E28 C12a (04.10.2026): a player's action roll is drawn on the primary GM (`roll.draw`,
@@ -192,7 +201,7 @@ export const FLOWS = Object.freeze([
         entry: { bridge: ["note.save"], sockets: ["pre-session-note.mjs"] },
         scenarios: ["72-canary", "11-killer-secrecy", "33-bridge-paths", "30-security", "61-gmstore-case"], status: "covered", stage: "1.2.64" },
     { id: "private-rolls", what: "A roll made in private: whispered, and hidden from the other players' chat",
-        entry: { bridge: ["roll.subject"], sockets: ["dice-sync.mjs", "private-rolls.mjs"] },
+        entry: { bridge: ["roll.subject"], sockets: ["private-rolls.mjs"] },
         scenarios: ["12-social", "13-murder-signals", "20-crit-hope", "33-bridge-paths"], status: "covered", stage: "<=1.2.50" },
     // E12 C5 (11.10.2026): 66-rooms's phases A and E (the manager's room, what a player knows of a project) are tagged
     // with this flow and now named.
@@ -253,9 +262,13 @@ export const FLOWS = Object.freeze([
     // (15.10.2026): a player shows a passage their character knows to a student beside it (`passage.share`), 76's phase G.
     // Covered at the 1.2.79 release (17.10.2026) on what a harness can read: 76's phases A to G, on the k4t run of 770b06c
     // 71 of 71 checks, seven of them tagged with this flow; what it cannot (a real table's walls, floors, LiveKit and
-    // Foundry's own move backend) is LIVE-E79-01..25 in AUDIT section 9.2.
+    // Foundry's own move backend) is LIVE-E79-01..25 in AUDIT section 9.2. E80 C2 (18.10.2026): 'Go through' a tunnel
+    // (`passage.cross`), carried out by the primary GM: 76's phase U, 33's A16, and 30's forgeries of it. E80 C3 (18.10.2026):
+    // Analyze's Find Passage (`passage.find`), judged on the primary GM from its record of the roll: 76's phase V, 30's forgeries.
+    // E80 fix r1-G1 (18.10.2026): a secret door a player changed while no GM was connected is put back when a GM comes: 15's
+    // away-and-back.
     { id: "secret-passages", what: "A secret passage: the GMs' records, and each player's copy of the ones their own characters know, sent to them alone",
-        entry: { sockets: ["passages.mjs", "passages-gm.mjs", "movement-audit.mjs"], bridge: ["passage.share"] }, scenarios: ["76-passages"], status: "covered", stage: "1.2.79" },
+        entry: { sockets: ["passages.mjs", "passages-gm.mjs", "movement-audit.mjs"], bridge: ["passage.share", "passage.cross", "passage.find"] }, scenarios: ["76-passages", "33-bridge-paths", "30-security", "15-held"], status: "covered", stage: "1.2.79" },
     { id: "sheet-audit", what: "A player's own write on their student: judged on the primary GM, put back, flagged or listed - at the write, or at the primary's ready for one made with no GM watching",
         entry: { calls: ["sheet-audit.mjs#judgeWrite", "sheet-audit.mjs#compareAtReady"], bridge: ["audit.decide"] },
         scenarios: ["30-security", "40-flow", "61-gmstore-case", "20-crit-hope", "10-murder", "15-held", "83-roll-integrity"], status: "covered", stage: "1.2.68" },

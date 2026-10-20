@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json - the suite fails if it does not. */
-    --drpg-css-version: "1.2.79";
+    --drpg-css-version: "1.2.80";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -4041,10 +4041,26 @@ body.drpg-reduced-motion .application.sheet.actor .character-header-sheet .name-
    width a kind, as the others' are (choices of the mockup, not readings; the tab at a desk is LIVE-E79-06),
    a chip per student that is the module's `.drpg-room-chip`, the way each learnt the passage dimmed after the name, the students '+' offers hidden until it is pressed, and the state's lines
    wrapping inside their column as a room's name does below. */
-.drpg-room-setup-table .drpg-col-knows { width: calc(360px * var(--drpg-legacy-scale, 1)); }
-.drpg-room-setup-table .drpg-col-knows-start { width: calc(220px * var(--drpg-legacy-scale, 1)); }
-.drpg-room-setup-table .drpg-col-state { width: calc(190px * var(--drpg-legacy-scale, 1)); }
-.drpg-room-setup-table .drpg-col-actions { width: calc(260px * var(--drpg-legacy-scale, 1)); }
+/* E80 C6 (D4): Kind, Shape and Origin after Rooms, each a word or two, and a fourth button (Make public or
+   Make secret) in the last column. E80 fix r1-G2 (P1-22): the eight columns sum to 1240 px, inside the 1250 px
+   Room Setup's content has at 1366x768 (94% of the viewport, less the window's frame; R606 does the sum),
+   where C6's widths summed to 1540 and ran off the window's right edge. Every cell wraps (a Shape or Origin of
+   two or three words on two lines) and the buttons wrap onto a second line rather than leaving the column.
+   Choices, not readings: the tab at 1366x768 is the owner's to look at (the harness lays nothing out). The Kind
+   word in the inks the state lines use, the theme tokens `--drpg-red` and `--drpg-dim`.
+   E80 fix r1-G5 (the review's E80-G-5): Origin 100 -> 130 and Who knows 230 -> 200, still 1240. The table drawn
+   in Chromium with this stylesheet (not Foundry's) at 1366x768 and 1920x1080, both themes, EN and PL: 1240 px
+   wide in a 1284 or 1400 px window, no scroll, and the one cell whose text ran past its column was the Polish
+   header 'Pochodzenie' (112-120 px in a 99 px cell); at 130 none does. */
+.drpg-room-setup-table .drpg-col-kind { width: calc(80px * var(--drpg-legacy-scale, 1)); }
+.drpg-room-setup-table .drpg-col-shape { width: calc(110px * var(--drpg-legacy-scale, 1)); }
+.drpg-room-setup-table .drpg-col-origin { width: calc(130px * var(--drpg-legacy-scale, 1)); }
+.drpg-room-setup-table .drpg-col-knows { width: calc(200px * var(--drpg-legacy-scale, 1)); }
+.drpg-room-setup-table .drpg-col-knows-start { width: calc(140px * var(--drpg-legacy-scale, 1)); }
+.drpg-room-setup-table .drpg-col-state { width: calc(150px * var(--drpg-legacy-scale, 1)); }
+.drpg-room-setup-table .drpg-col-actions { width: calc(210px * var(--drpg-legacy-scale, 1)); }
+.drpg-passage-kind[data-kind="secret"] { color: var(--drpg-dim); }
+.drpg-passage-kind[data-kind="public"] { color: var(--drpg-red); font-weight: 600; }
 .drpg-passage-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 .drpg-passage-chip { align-items: center; white-space: nowrap; }
 .drpg-passage-chip b { font-weight: 400; color: var(--drpg-dim); font-size: 0.92em; }
@@ -4066,11 +4082,11 @@ body.drpg-reduced-motion .application.sheet.actor .character-header-sheet .name-
 .drpg-passage-menu:not([hidden]) { display: flex; flex-wrap: wrap; gap: 4px; flex-basis: 100%; }
 .drpg-passage-none { color: var(--drpg-dim); font-style: italic; }
 .drpg-passage-state { display: block; }
-.application.dialog.drpg-room-setup .dialog-content .drpg-passage-table td.drpg-passage-state-cell { white-space: normal; }
+.application.dialog.drpg-room-setup .dialog-content .drpg-passage-table td { white-space: normal; overflow-wrap: anywhere; }
 .drpg-passage-state[data-state="closed"] { color: var(--drpg-dim); }
 .drpg-passage-state[data-state="broken"] { color: var(--drpg-red); }
 .drpg-passage-state:is([data-state="pending"], [data-state="shared"]) { color: var(--drpg-dim); font-size: 0.9em; }
-.drpg-passage-actions { display: inline-flex; gap: 4px; flex-wrap: nowrap; }
+.drpg-passage-actions { display: flex; flex-wrap: wrap; gap: 4px; }
 /* 'New passage' over the table, its line beside it, and the pick's window (E79 C6) with its one
    button at the right, as the mockup drew them; a refused click's line in red. */
 .drpg-passage-bar { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; }
@@ -5231,9 +5247,17 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    enough to need that scroll, the buttons (Save, Confirm, Close) were exactly
    what disappeared first, off the bottom edge. `position: sticky` keeps the
    footer pinned to the bottom of that same scrolling box instead. Scoped to
-   `:has(.dialog-content table)`: every other module dialog is short enough
-   that this was never the problem, and giving every footer its own opaque
-   background would repaint plenty of windows that do not need it.
+   `:has(.dialog-content table)` and to the Palm window with its Frisk ways
+   (`.drpg-frisk-modes`, action-rolls.mjs `friskModes`): giving every footer its
+   own opaque background would repaint plenty of windows that do not need it.
+   The Palm window is the one short dialog measured to need it (E80 fix r2-G2,
+   19.10.2026, the mock-up kit c2mock/p2/make.mjs in Chromium, the module's
+   sheets in a stand-in of Foundry's frame): at 1366x768 with Frisk picked its
+   content scrolled by 92 px under Stained Glass and 66 px (EN) / 53 px (PL)
+   under Monokuma Legacy, with 'Do it' and 'Cancel' wholly below the visible
+   box; with Take picked, and at 1920x1080, it fits. Pinned, both buttons stay
+   on screen while the Frisk ways scroll under them. Foundry's own frame at
+   that size is the owner's live check (A11-16).
 
    THE BAR HAS TO COVER THE WHOLE BOTTOM OF THE BOX, not most of it.
    ------------------------------------------------------------------------
@@ -5288,7 +5312,7 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
-):has(.dialog-content table) footer.form-footer {
+):has(.dialog-content table, .dialog-content .drpg-frisk-modes) footer.form-footer {
     position: sticky;
     bottom: calc(-1 * var(--drpg-window-pad));
     left: 0;
@@ -5617,6 +5641,42 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
 
 .drpg-choice-details .drpg-briefing-facts {
     margin-top: 0.15rem;
+}
+
+/* A Frisk's ways under its row (E80 part 2 C2, `friskModes` in action-rolls.mjs): one radio a way, each with its
+   bars, drawn as the Rest window's options are. C2 has Unseen alone; C3 adds Openly above it. Measured 19.10.2026
+   with the mock-up kit (c2mock/p2/make.mjs: Chromium, the module's six sheets on a stand-in of Foundry's frame,
+   the Palm window at 544 px, Openly checked, EN and PL; E80 fix r2-G2): the block opens under the checked Frisk row
+   116-129 px high with no theme class, 175 px under Stained Glass and 141-154 px under Monokuma Legacy. C2's first
+   note here (74 px "in both themes") came from shots whose theme class never reached the page, so no theme was
+   drawn. The window's footer stays on screen through the sticky rule above (`.drpg-frisk-modes`). In Foundry's own
+   window: not measured (no layout here; A11-16). */
+.drpg-frisk-modes {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.drpg-frisk-mode {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid var(--drpg-line);
+    border-radius: 3px;
+    cursor: pointer;
+    line-height: 1.2;
+}
+
+.drpg-frisk-mode:has(input:checked) {
+    border-color: var(--drpg-gold);
+    background: rgba(var(--drpg-gold-rgb), 0.12);
+}
+
+.drpg-frisk-mode small {
+    display: block;
+    opacity: 0.7;
+    font-size: 0.82em;
 }
 
 /* A labelled field under a choice list.
@@ -7032,6 +7092,73 @@ body.drpg-pixel-font .drpg-action-button .drpg-action-cost {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+/* NO TITLE SETS THE WINDOW'S WIDTH (the owner, 04.10; E16 C2, 18.10.2026). The rules above
+   bound the heading and truncate the title bar, and both still counted toward the width a window
+   of `width: auto` takes from its content: a long title widened the window up to its ceiling.
+   `contain: inline-size` takes their text out of that sum, and the flex growth gives them the
+   room the rest of the window makes. Only the computed `contain` is read here (tier 2, "a
+   player's locked roll window ..."); what a table's window does with a long title is LIVE-E16-02. */
+.application.roll-selection .window-header .window-title,
+.application.roll-selection .dialog-header h1 {
+    contain: inline-size;
+    flex: 1 1 auto;
+}
+
+/* THE TITLE BAR IS A BAR, NOT A PANE (audit S01-22; E16 C2). At 70% (stained-glass.css,
+   Foundry's windows) the roll window's title read over what lay under it - a sheet's numbers,
+   the incident card's names. 92% here: under the glass its own ground's colour written out, as
+   the same `background` shorthand on a selector one class above that rule's (stained-glass.css
+   loads later; in the harness's jsdom a `background-color` with `!important` lost to it at 0.7,
+   at that rule's specificity and at this one's); elsewhere the module's Ink. Tier 2 reads the
+   glass's, the theme the harness runs; the bar on a table, in both themes, is LIVE-E16-02. */
+.application.roll-selection > .window-header {
+    background: rgba(var(--drpg-ink-rgb), 0.92) !important;
+}
+
+body.drpg-theme-stained-glass .application.roll-selection:not(.drpg-panel) > .window-header {
+    background: rgba(5, 4, 9, 0.92) !important;
+}
+
+/* The mode select on one line (S01-22: at 70-75 px 'Public as User' spilled over three). */
+.application.roll-selection select[name="selectedMessageMode"] {
+    min-width: 150px;
+    white-space: nowrap;
+}
+
+/* A PLAYER'S LOCKED WINDOW (E16 C2; audits S02-29, S01-17): what the render hook put away is
+   not drawn (roll-dialog.mjs `collapseLocked`), the mode is a chip, one line says what the
+   roll is, and Roll - the one thing left to press - is full Bone. A Free Critical keeps its red. */
+.application.roll-selection .drpg-locked-away {
+    display: none !important;
+}
+
+.application.roll-selection .drpg-mode-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.15rem 0.6rem;
+    border: 1px solid var(--drpg-line-strong);
+    border-radius: 2px;
+    color: var(--drpg-bone);
+    font-size: var(--drpg-text-xs);
+    white-space: nowrap;
+}
+
+.application.roll-selection .drpg-roll-summary-line {
+    margin: 0.5rem 0;
+    color: var(--drpg-bone);
+    text-align: center;
+}
+
+.application.roll-selection.drpg-roll-summary:not(.drpg-forced-critical) button.submit-btn {
+    background: var(--drpg-bone) !important;
+    border-color: var(--drpg-bone) !important;
+    color: var(--drpg-ink) !important;
+}
+
+.application.roll-selection.drpg-roll-summary:not(.drpg-forced-critical) button.submit-btn:hover:not(:disabled) {
+    background: rgba(var(--drpg-bone-rgb), 0.85) !important;
 }
 
 /* THE ROLL DIALOG SPEAKS BONE, NOT DAGGERHEART'S AMBER.

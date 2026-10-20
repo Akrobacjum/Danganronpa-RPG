@@ -173,7 +173,12 @@ export const mastermindStore = defineGmStore({
  *
  * THE MAP: a row per passage, keyed `<sceneId>.<random id>` so that `exists` answers by the
  * scene alone - `{ sceneId, level, shape, passageWallId, passageSeg: { x1, y1, x2, y2 }, rooms,
- * state, startAccess }`. `shape` is "wall" in E79 ("tunnel" is E80's, the owner's Q4); `state`
+ * state, startAccess }`. `shape` is "wall" in E79; since E80 C1 (the owner's Q4) it may be "tunnel",
+ * a tunnel or stairs - `{ sceneId, level: null, shape: "tunnel", ends: [{ x, y, level }, { x, y,
+ * level }], rooms, state, startAccess }`, no wall and no stretch, each end on its own floor. Since E80
+ * C6 (D4) a row may hold `public` (true: every student knows it, passages.mjs `secretRowsFrom`; the GMs'
+ * 'Make public', which writes no cell and no world data) and `origin` ("gm", or "door" for a converted
+ * secret door; a row written before C6 has none and is the GM's). `state`
  * is secret, closed (the GMs' Close, the owner's Q5: who knows it is kept, and the copies leave
  * it out) or broken (its wall moved or went: C5). No reset group: a season's reset takes who
  * knows a passage, never the passage.
@@ -849,7 +854,8 @@ export const offerCopy = defineGmCopy({
 
 /**
  * A PLAYER'S SECRET PASSAGES (E79 C1): `{ passageId: { sceneId, shape, level, passageWallId,
- * passageSeg, actorIds } }`, the open passages this user's own characters know (the Mastermind's
+ * passageSeg, actorIds } }` - a tunnel's `{ sceneId, shape: "tunnel", level: null, ends, actorIds }`
+ * since E80 C1 -, the open passages this user's own characters know (the Mastermind's
  * player: every open passage, the owner's Q7), `actorIds` only this user's own - no name, no room
  * and nothing of who else knows it. Sent by the primary GM alone, addressed to this user, and
  * taken by the offers' rule (`offersCombine`): a stamp per character this user owns, so a copy
@@ -1057,6 +1063,30 @@ export const sheetWriteStore = defineGmStore({
     name: "sheetWrites", key: SETTINGS.gmSheetWrites,
     kind: "ledger", resetGroup: "actions", backup: false, sync: true,
     exists: () => false
+});
+
+/**
+ * THE GMS' COPY OF EACH CHARACTER'S DICE LOOK (E16 fix early-C4-G1, 19.10.2026; finding E16-C4-F1). A row per
+ * actor, keyed by its id: `look`, the actor's Dice So Nice overlay (`flags.dice-so-nice.appearance`) as the GMs
+ * hold it, null for none. Written by the primary at each write of a full Gamemaster's on the overlay and, null,
+ * at an actor made by anyone else; for an actor it holds no row for, taken weakly from the world once the
+ * primary's stores hydrate (dice-sync.mjs `takeUnseenOverlays`). Read by the put-back at a write, at a message
+ * and at that hydration (`compareOverlays`). Until this fix it was each GM browser's memory, taken from the world
+ * as Dice So Nice got ready, so an overlay a player left while no GM watched became the copy at the next load.
+ * Synced, so the next primary puts back to the same copy; not backed up: the case holds no actor, and a browser
+ * with no row takes the world's at its next load. No reset group: a dice look is no season's, and a row goes with
+ * its actor (dropped as the actor is deleted, its tombstone compacted once the actor is gone). No player copy -
+ * R182 has nothing to ask of it - and no old key.
+ * FROM A FULL GAMEMASTER'S BROWSER ONLY (E16 fix r1-G2, finding sec-3): the owner's Q3 holds an Assistant GM to
+ * the copy as a player, but the stores merged any GM's delta, so an Assistant's console wrote a row and the primary
+ * put its look on the character. `fullGmOnly`: a full Gamemaster's browser refuses an Assistant's delta or state
+ * of this store (gm-store.mjs `gmsRefusal`), and an Assistant's browser sends none. An Assistant primary (no full
+ * Gamemaster connected) still writes its own browser's copy, which no full Gamemaster takes.
+ */
+export const diceLookStore = defineGmStore({
+    name: "diceLooks", key: SETTINGS.gmDiceLooks,
+    kind: "ledger", backup: false, sync: true, fullGmOnly: true,
+    exists: actorId => Boolean(game.actors?.has(actorId))
 });
 
 /**

@@ -4,8 +4,9 @@ A release passes two layers (decision D47, E30):
 
 1. **ci** - `npm test` in `audit/harness`: lint, `tools/check.mjs`, this
    folder's verifier self-test, the suite and every scenario whose layers
-   include `ci`, headless. `.github/workflows/ci.yml` runs it on every push and
-   pull request to `main`, and `release.yml` calls it before it builds.
+   include `ci`, headless. `.github/workflows/ci.yml` runs it, spread over
+   parallel jobs, on every push to `main` or a `claude/**` branch, and
+   `release.yml` calls it before it builds.
 2. **local-gate** - what the headless harness cannot do: the suite's tier 2 in
    both themes on a real Foundry v14, the whole-world diff around it, the
    scenarios whose layers include `local-gate`, and the drills a stage names in

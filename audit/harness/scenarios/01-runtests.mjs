@@ -6,10 +6,27 @@
 import fs from "node:fs";
 import path from "node:path";
 import url from "node:url";
+import { listHash } from "../suite-merge.mjs";
 
 export const layers = ["ci"];
 
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
+
+/*
+ * DRPG_SUITE_SHARD=i/n (INFRA I2, 18.10.2026): this run is shard i of n - tiers 0-1 and parts
+ * A and B in shard 1 alone, tier 2's tests at positions k with 2 + k % (n - 1) = i, none in
+ * shard 1 (tests.mjs `runTests({ shard })` and `shardOfPosition`, INFRA I3). Unset, the run is 1/1, the whole suite, as before. Each shard's
+ * results file keeps its part (evidence.shard: the shard, the tier-2 names it ran, the whole
+ * tier-2 list with its length and hash) for suite-merge.mjs, which holds the parts to that
+ * list, each name once.
+ */
+function shardFromEnv(value) {
+    if (value === undefined || value === "") return { index: 1, count: 1 };
+    const m = /^(\d+)\/(\d+)$/.exec(String(value).trim());
+    const index = m ? Number(m[1]) : NaN, count = m ? Number(m[2]) : NaN;
+    return count >= 1 && index >= 1 && index <= count ? { index, count } : { index: 1, count: 1, problem: `DRPG_SUITE_SHARD=${value} is not i/n with 1 <= i <= n` };
+}
+const SHARD = shardFromEnv(process.env.DRPG_SUITE_SHARD);
 
 /* Where two readings of the harness's own state differ, as paths (for a check's details). */
 function stateDiff(a, b, at = "", out = []) {
@@ -76,27 +93,8 @@ async function readOnlyRun(gm, check, label, repoUrl) {
     check(`gm: ${label} - nothing failed`, out?.failed === 0, (out?.fails ?? []).join(" | ").slice(0, 1200));
 }
 
-export async function run({ gm, p1, p2, p3, check, note, settle, socketTraffic, IDS, repoUrl }) {
-    // The suite drives the whole table from the GM's client and measures state
-    // between its own steps; a player client auto-answering a dialog it was sent
-    // (an opening roll, a ballot) would race those measurements.
-    // ...and the module's own socket listeners on those clients are silenced, so a
-    // victim's client does not answer an opening roll the suite is about to score itself.
-    for (const c of [p1, p2, p3]) await c.eval(`globalThis.__dialogAuto = false; (game.socket._handlers.get("module.danganronpa-rpg") ?? []).length = 0; return true;`);
-
-    /* REAL WINDOWS ON THE GM (E01, 24.09.2026). The suite opens windows and reads
-       them: the Item tables, the trial console, the murder window. Headless, the
-       shim's DialogV2 used to answer `wait` from a queue and draw nothing, so eleven
-       tests failed on "the window did not open" - a fact about the shim, which the
-       suite could not tell from a broken module. With this flag the GM's DialogV2
-       builds a window that stays open until something presses one of its buttons,
-       as Foundry's does. Players keep the auto-answering dialogs they had. */
-    await gm.eval(`globalThis.__dialogWindows = true; return true;`);
-
-    // players must NOT be able to run it
-    const asPlayer = await p1.eval(`const r = await game.drpg.runTests({ tier: 0 }); return r;`, { timeout: 60000 });
-    check("p1: suite refuses non-GM", asPlayer === null, JSON.stringify(asPlayer));
-
+/* A1, A2, A3 and B: tiers 0 and 1 read-only mid-game, the default, and the tier-2 window (shard 1 only). */
+async function readOnlyParts({ gm, check, settle, repoUrl }) {
     // A1: an incident open - Chie on Daichi, past the opening roll, as 10-murder opens one.
     await gm.eval(`
         await game.drpg.openMurder({ killerId: "ACTORCHIE0000000", victimId: "ACTORDAICHI00000", openingTrait: "body" });
@@ -124,9 +122,6 @@ export async function run({ gm, p1, p2, p3, check, note, settle, socketTraffic, 
     `, { timeout: 60000 });
     await settle(500);
 
-    /* The text is cut at 30,000 characters for the log; the suite's own list of
-       results is kept whole and written into this run's results file
-       (evidence.suite), which is what `suite-diff --json` compares (E30). */
     /* A3: no argument reads (E30, D25). runTests() runs tiers 0 and 1 and opens no
        incident - the default used to be tier 2, which opens several. */
     const a3 = await gm.eval(`
@@ -166,7 +161,44 @@ export async function run({ gm, p1, p2, p3, check, note, settle, socketTraffic, 
         b?.plain?.refused === "cancelled" && b.plain.passed === 0 && b.plain.results === 0 && b.murder === null, JSON.stringify(b?.plain ?? null));
     check("gm: B - confirmed: true is not this world's id, and asks",
         b?.seen?.length === 2 && b.asTrue.refused === "cancelled" && b.asTrue.results === 0, JSON.stringify({ seen: b?.seen?.length, asTrue: b?.asTrue }));
+}
 
+export async function run({ gm, p1, p2, p3, check, note, settle, socketTraffic, IDS, repoUrl }) {
+    // The suite drives the whole table from the GM's client and measures state
+    // between its own steps; a player client auto-answering a dialog it was sent
+    // (an opening roll, a ballot) would race those measurements.
+    // ...and the module's own socket listeners on those clients are silenced, so a
+    // victim's client does not answer an opening roll the suite is about to score itself.
+    for (const c of [p1, p2, p3]) await c.eval(`globalThis.__dialogAuto = false; (game.socket._handlers.get("module.danganronpa-rpg") ?? []).length = 0; return true;`);
+
+    /* REAL WINDOWS ON THE GM (E01, 24.09.2026). The suite opens windows and reads
+       them: the Item tables, the trial console, the murder window. Headless, the
+       shim's DialogV2 used to answer `wait` from a queue and draw nothing, so eleven
+       tests failed on "the window did not open" - a fact about the shim, which the
+       suite could not tell from a broken module. With this flag the GM's DialogV2
+       builds a window that stays open until something presses one of its buttons,
+       as Foundry's does. Players keep the auto-answering dialogs they had. */
+    await gm.eval(`globalThis.__dialogWindows = true; return true;`);
+
+    if (SHARD.problem) {
+        check("the shard is one part of its count", false, SHARD.problem);
+        return { suite: null };
+    }
+
+    // players must NOT be able to run it
+    const asPlayer = await p1.eval(`const r = await game.drpg.runTests({ tier: 0 }); return r;`, { timeout: 60000 });
+    check("p1: suite refuses non-GM", asPlayer === null, JSON.stringify(asPlayer));
+
+    /* PARTS A AND B IN SHARD 1 ALONE (INFRA I2, 18.10.2026). They hold the suite's promises about
+       itself - read-only in an incident and in a trial, the default, the window - which one run
+       answers; in every shard they would run tiers 0-1 three times over again for no new answer - about
+       640 s on 18.10.2026 (4 cores): A1 205.5 s and A2 211.9 s by their own readings, and the run's
+       3000 s of wall less C's 2360 s for the boot, A and B together. */
+    if (SHARD.index === 1) await readOnlyParts({ gm, check, settle, repoUrl });
+
+    /* The text is cut at 30,000 characters for the log; the suite's own list of
+       results is kept whole and written into this run's results file
+       (evidence.suite), which is what `suite-diff --json` compares (E30). */
     /* C: the full run, tier 2 confirmed with this world's id. 1500 s, not 240 (E30), 600
        (until E32+E07 fix r1-G4) or 900 (until E08+E28 C18): a hang detector, not a
        benchmark. The whole-world dump after every restore brought the run near the first
@@ -183,14 +215,40 @@ export async function run({ gm, p1, p2, p3, check, note, settle, socketTraffic, 
        run 19 on main, 06.10.2026). So 3600, about twice k1c's reading (fix r1-G3), beside
        run-all's 72 minutes (E33 fix r2-G4: 60 until then, which ended a hung run before
        this bound could name the test). The time is recorded as a note. */
+    /* THE LOAD'S ANSWERS BEFORE THE WINDOW OPENS (INFRA I2, 18.10.2026). Every player asks the GM
+       for its copies as it loads - the fog, its cast, the door, its offers, twice each - and the GM
+       answers from the world as it found it. Unsharded, A and B ran for about 640 s before C and the
+       answers were long sent; a later shard starts C a second or two after the boot, and shard 2/8's
+       first run counted 21 of those answers (fog.rows, incident.myCast, mastermind.door: the replies to
+       asks all three players had sent before C began, packets 74-94 of its traffic) as tier 2's. So C waits for the
+       load's own writes, as each A reading does, and then for 5 s with no copy sent to a player
+       (bounded at 60 s) before it counts; the wait is noted. */
+    const COPIES = ["mastermind.door", "incident.myCast", "fog.rows", "advancement.offers"];
+    const players = [IDS.p1, IDS.p2, IDS.p3];
+    const copyToPlayer = t => t.from === "gm" && COPIES.includes(t.action)
+        && (t.to === "all" || (Array.isArray(t.to) && t.to.some(id => players.includes(id))));
+    const quietFrom = Date.now();
+    const loadSettled = await gm.eval(`
+        const [{ whenGmStoresLoaded }, { migrationOnLoad }] = await Promise.all([import("${repoUrl}/scripts/gm-stores.mjs"), import("${repoUrl}/scripts/migrate.mjs")]);
+        return await Promise.race([Promise.all([whenGmStoresLoaded(), migrationOnLoad()]).then(() => true),
+            new Promise(res => setTimeout(() => res(false), 30000))]);
+    `, { timeout: 40000 });
+    let lastCopy = Date.now(), copies = socketTraffic.filter(copyToPlayer).length;
+    while (Date.now() - lastCopy < 5000 && Date.now() - quietFrom < 60000) {
+        await new Promise(res => setTimeout(res, 250));
+        const now = socketTraffic.filter(copyToPlayer).length;
+        if (now !== copies) { copies = now; lastCopy = Date.now(); }
+    }
+    note("gm: before C, the load settled and no copy went to a player for 5 s",
+        `${Math.round((Date.now() - quietFrom) / 100) / 10} s${loadSettled === false ? "; the load had not settled in 30 s" : ""}${Date.now() - lastCopy < 5000 ? "; still sending at 60 s" : ""}`);
     const started = Date.now();
     const trafficBefore = socketTraffic.length;
     const res = await gm.eval(`
-        const r = await game.drpg.runTests({ tier: 2, confirmed: game.world.id });
+        const r = await game.drpg.runTests({ tier: 2, confirmed: game.world.id, shard: ${JSON.stringify({ index: SHARD.index, count: SHARD.count })} });
         return { passed: r?.passed, failed: r?.failed, skipped: r?.skipped, red: r?.red, results: r?.results ?? null,
-            text: (r?.text ?? "").slice(0, 30000) };
+            shard: r?.shard ?? null, text: (r?.text ?? "").slice(0, 30000) };
     `, { timeout: 3600000 });
-    note("gm: the full suite's run", `${Math.round((Date.now() - started) / 1000)} s`);
+    note(`gm: the full suite's run${SHARD.count > 1 ? `, shard ${SHARD.index}/${SHARD.count}` : ""}`, `${Math.round((Date.now() - started) / 1000)} s`);
 
     check("gm: suite ran", res && typeof res.passed === "number", JSON.stringify(res).slice(0, 300));
     const counted = (res?.passed ?? 0) + (res?.failed ?? 0) + (res?.skipped ?? 0) + (res?.red ?? 0);
@@ -208,10 +266,7 @@ export async function run({ gm, p1, p2, p3, check, note, settle, socketTraffic, 
        packets the GM's client sent the three players while tier 2 ran: the door, a cast, the
        fog's cells, the offers. The players' own copies cannot say it here: their module
        listeners are silenced above, so nothing they are sent is taken. */
-    const COPIES = ["mastermind.door", "incident.myCast", "fog.rows", "advancement.offers"];
-    const players = [IDS.p1, IDS.p2, IDS.p3];
-    const toPlayers = socketTraffic.slice(trafficBefore).filter(t => t.from === "gm" && COPIES.includes(t.action)
-        && (t.to === "all" || (Array.isArray(t.to) && t.to.some(id => players.includes(id)))));
+    const toPlayers = socketTraffic.slice(trafficBefore).filter(copyToPlayer);
     check("gm: tier 2 sent no player a copy of a GM store", toPlayers.length === 0,
         JSON.stringify(toPlayers.slice(0, 8).map(t => [t.action, t.to])) + (toPlayers.length > 8 ? ` and ${toPlayers.length - 8} more` : ""));
     /* THE SKIPS, EXACTLY (E30, 24.09.2026; audit S14-24). The skipped count is
@@ -231,8 +286,20 @@ export async function run({ gm, p1, p2, p3, check, note, settle, socketTraffic, 
     const key = r => `${r.probe} | ${r.test ?? r.name}`;
     const listed = new Set(baseline.skips.map(key)), seen = new Set(skips.map(key));
     const unlisted = [...seen].filter(k => !listed.has(k)), answering = [...listed].filter(k => !seen.has(k));
-    check("gm: the skips are exactly the ones skip-baseline.json lists", Array.isArray(res?.results) && !unlisted.length && !answering.length,
-        `${skips.length} skipped, ${baseline.skips.length} listed; not listed: ${unlisted.join("; ") || "none"}; listed and now answering: ${answering.join("; ") || "none"}`);
+    /* In a shard a listed skip may be another shard's: only "every skip seen is listed" is this
+       run's to say, and suite-merge.mjs holds the shards' skips together to the list, both ways. */
+    if (SHARD.count > 1) {
+        check(`gm: every skip of shard ${SHARD.index}/${SHARD.count} is one skip-baseline.json lists`, Array.isArray(res?.results) && !unlisted.length,
+            `${skips.length} skipped, ${baseline.skips.length} listed; not listed: ${unlisted.join("; ") || "none"}`);
+    } else {
+        check("gm: the skips are exactly the ones skip-baseline.json lists", Array.isArray(res?.results) && !unlisted.length && !answering.length,
+            `${skips.length} skipped, ${baseline.skips.length} listed; not listed: ${unlisted.join("; ") || "none"}; listed and now answering: ${answering.join("; ") || "none"}`);
+    }
+    const list = res?.shard?.list ?? [];
+    check("gm: the suite says which tier-2 tests this run took of which list", Array.isArray(res?.shard?.ran) && list.length > 0
+        && res.shard.index === SHARD.index && res.shard.count === SHARD.count,
+        JSON.stringify({ shard: res?.shard ? { index: res.shard.index, count: res.shard.count, ran: res.shard.ran?.length, list: list.length } : null }));
     await settle(300);
-    return { suite: { passed: res?.passed, failed: res?.failed, skipped: res?.skipped, red: res?.red, results: res?.results ?? null } };
+    return { suite: { passed: res?.passed, failed: res?.failed, skipped: res?.skipped, red: res?.red, results: res?.results ?? null },
+        shard: { index: SHARD.index, count: SHARD.count, names: res?.shard?.ran ?? [], total: list.length, hash: listHash(list), list } };
 }

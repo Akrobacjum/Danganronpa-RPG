@@ -68,7 +68,8 @@ export function perfBodySha(text) {
  * own, before its commit - must name the body it would measure with, not the one the last commit had.
  */
 export function perfBodyShaHere() {
-    try { return perfBodySha(fs.readFileSync(path.join(REPO, "scripts", "diagnostics.mjs"), "utf8")); }
+    // LF line ends (fix crlf-G1): perfBodySha cuts at "\n}\n", and a CRLF checkout would hash nothing, or another body.
+    try { return perfBodySha(fs.readFileSync(path.join(REPO, "scripts", "diagnostics.mjs"), "utf8").replace(/\r\n/g, "\n")); }
     catch (err) { return `error: ${String(err.message).trim().split("\n")[0]}`; }
 }
 

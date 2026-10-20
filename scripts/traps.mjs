@@ -17,9 +17,9 @@
  * `fireTrap` is untouched. The only thing that changes is WHEN the card comes.
  *
  * ---------------------------------------------------------------------------
- * FIVE LISTENERS FOR EIGHT TRIGGERS, AND THAT IS THE POINT OF DOING IT HERE.
+ * SIX LISTENERS FOR NINE TRIGGERS, AND THAT IS THE POINT OF DOING IT HERE.
  *
- * The plan called it eight listeners on hot paths. It is five, because three of
+ * The plan called it eight listeners on hot paths. It was five, because three of
  * the triggers are the same event asked three questions (`drpgActionResolved`
  * for Search, project and sabotage) and two more are the same crossing:
  *
@@ -27,6 +27,7 @@
  *   action     → search, project, sabotage
  *   rest       → rest
  *   stash      → stash
+ *   passage    → passage (a Find Passage, E80 C3: the sixth; raised on the primary GM, E80 fix r1-G1)
  *   item       → item
  *
  * A room crossing and an action resolution happen several hundred times in a
@@ -63,7 +64,7 @@ import { SETTINGS, getSetting, isDeadForGm } from "./settings.mjs";
 import { isPrimaryGm, debug, log, warn, error, esc, pause, placeRoomOptions } from "./utils.mjs";
 import { trapLedgerStore, trapPlantStore } from "./gm-stores.mjs";
 // Statically: the leaf imports config.mjs and utils.mjs only, so this edge closes no cycle (E31).
-import { ownsActor, guardRelayOwner, guardRelayActor, guardRelayRoom, judge, table, pick, as, knownSender, bridgeRequest } from "./bridge-guards.mjs";
+import { ownsActor, guardRelayOwner, guardRelayActor, guardRelayRoom, guardRelayTeller, judge, table, pick, as, knownSender, bridgeRequest } from "./bridge-guards.mjs";
 // Statically, because `trapProjects` has to answer synchronously. The
 // dependency only goes this way at load time - projects.mjs reaches back
 // into this file through dynamic imports, which is not a cycle.
@@ -675,7 +676,7 @@ export function itemTrapsWithoutPlant() {
 }
 
 /* ==========================================================================
- * THE FIVE LISTENERS
+ * THE SIX LISTENERS
  * ========================================================================== */
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
@@ -710,10 +711,16 @@ export function registerTraps() {
      * is never called - the trap stays armed and nothing happens, which looks
      * exactly like a trap nobody walked into.
      *
-     * Four of the five hooks are raised by the client that DID the thing: a
+     * Five of the six hooks were raised by the client that DID the thing: a
      * crossing is charged on the mover's client, an action resolves on the
-     * roller's, a rest and a stash hunt likewise. Only `createChatMessage`
-     * reaches everybody, which is why the item trigger was the one that worked.
+     * roller's, a rest likewise. Only `createChatMessage` reaches everybody,
+     * which is why the item trigger was the one that worked. Since E80 fix r1-G1
+     * (the review's E80-SEC-1) a stash hunt and a passage search are raised by
+     * the GM that judges them (vault.mjs `resolveStashSearch`, passages-gm.mjs
+     * `resolvePassageSearch`): the searcher's console no longer decides whether
+     * a trap hears of it. A stash hunt a GM who is not the primary judged is
+     * still relayed, as that GM's report; a player's is refused
+     * (`guardRelayTeller`), and a Find Passage is never relayed.
      *
      * So the acting client says "this happened" and the GM decides what it
      * means. The packet carries ids and a room name and nothing else: the GM
@@ -766,9 +773,12 @@ export function registerTraps() {
         if (relay("stash", { actorId: event?.actor?.id, room: event?.room ?? null })) return;
         onStashHunted(event);
     });
+    // Raised on the primary GM that judges the search (passages-gm.mjs `resolvePassageSearch`, E80 fix r1-G1):
+    // nothing to relay, and no player's report of one is heard.
+    Hooks.on("drpgPassageHunted", event => onPassageHunted(event));
 
     // Raised on every client already, so it needs no relay - and it is the only
-    // one of the five that was ever working.
+    // one of the first five that was ever working.
     Hooks.on("createChatMessage", onChatMessage);
 
     // The primary GM judges it, by the declaration below; nobody waits on a report,
@@ -788,7 +798,7 @@ export function registerTraps() {
 export const TRAP_ACTIONS = table({
     [TRAP_EVENT]: {
         label: "DRPG.Bridge.what.trap.event",
-        guards: [knownSender, guardRelayOwner, guardRelayActor, guardRelayRoom],
+        guards: [knownSender, guardRelayTeller, guardRelayOwner, guardRelayActor, guardRelayRoom],
         sanitize: pick({ kind: as.oneOf("crossing", "action", "rest", "stash"), actorId: as.id, to: as.maybeText,
             room: as.maybeText, actionKey: as.text, hit: as.bool, projectId: as.id, sceneId: as.id }),
         run: handleTrapEvent,
@@ -821,7 +831,7 @@ async function handleTrapEvent(payload, sender, ctx) {
     }
 }
 
-/** Which field of each relayed event names a room: a crossing's destination, the rest's and the stash's room. */
+/** Which field of each relayed event names a room: a crossing's destination, the rest's and the stash's room (a Find Passage is relayed no more, E80 fix r1-G1). */
 export const RELAYED_ROOM = { crossing: "to", rest: "room", stash: "room" };
 
 /**
@@ -988,7 +998,8 @@ async function onRested({ actor, room } = {}) {
  *
  * Dawid, 28.08. The trap answers somebody who is rummaging through other
  * people's hiding places; whether they were any good at it is a different
- * question and not this one.
+ * question and not this one. Raised by the GM that judges the search (vault.mjs
+ * `resolveStashSearch`) since E80 fix r1-G1, before it scores the roll.
  */
 async function onStashHunted({ actor, room } = {}) {
     try {
@@ -1001,6 +1012,25 @@ async function onStashHunted({ actor, room } = {}) {
         }
     } catch (err) {
         error("A trap could not react to a stash hunt", err);
+    }
+}
+
+/**
+ * Trigger 9 (E80 C3): a Find Passage in the trap's room, every attempt, as the stash hunt's - before the GM judges the
+ * roll. Raised on the primary GM by passages-gm.mjs `resolvePassageSearch` since E80 fix r1-G1, on each first throw that
+ * stands, in the room the GMs read the character in; never relayed.
+ */
+async function onPassageHunted({ actor, room } = {}) {
+    try {
+        if (!isPrimaryGm() || !armed().byRoom.has(room)) return;
+        const scene = await sceneOfEvent(actor);
+        for (const trap of armedIn(room, scene)) {
+            if (trap.trigger.kind !== "passage") continue;
+            if (!passesModifiers(trap, actor)) continue;
+            await alert(trap, actor, game.i18n.localize("DRPG.Trap.why.passage"), scene);
+        }
+    } catch (err) {
+        error("A trap could not react to a passage search", err);
     }
 }
 

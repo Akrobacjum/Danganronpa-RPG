@@ -17,7 +17,7 @@ import { narrowScreen } from "./settings.mjs";
 import { allVaults } from "./vault.mjs";
 import { isPrimaryGm } from "./utils.mjs";
 import {
-    stripComments, lineAt, blankComments, blankLiterals, callArgs, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
+    lf, stripComments, lineAt, blankComments, blankLiterals, callArgs, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
     storeKeyAccess, GM_STORE_PENDING, FIXTURES as LINT_FIXTURES, TEST_FILE
 } from "./tests-lint.mjs";
 import { FLOWS, FLOW_EXEMPT } from "./tests-flows.mjs";
@@ -651,6 +651,15 @@ const until = async (check, ms = 4000) => {
 };
 
 /**
+ * A fetched file's text with its line ends made LF (`lf`, tests-lint.mjs; 1.2.80
+ * train, fix crlf-G1): `fetch(url).then(lfText)`, or `lfText(res)` where a test reads
+ * `res.ok` first. Every read of a served file in the kit and the tiers is one of
+ * these or `lf(await res.text())`, and `node tools/check.mjs contract` holds them to it
+ * (rawTextReads, tests-lint.mjs).
+ */
+const lfText = async res => lf(await res.text());
+
+/**
  * Fetched once per page load and kept: a second run in the same page reads the
  * same text, so reload after editing a file.
  */
@@ -677,7 +686,7 @@ async function moduleSources() {
         let text = null;
         try {
             const res = await fetch(`/modules/${MODULE_ID}/scripts/${file}`);
-            if (res.ok) text = await res.text();
+            if (res.ok) text = await lfText(res);
         } catch { /* a file that will not load is the module's problem, not this test's */ }
         if (text === null) continue;
         out.set(file, text);
@@ -732,7 +741,7 @@ async function moduleStyles() {
     const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
     const parts = [];
     for (const href of manifest.styles ?? []) {
-        parts.push(await fetch(`/modules/${MODULE_ID}/${href}`).then(r => r.text()));
+        parts.push(await fetch(`/modules/${MODULE_ID}/${href}`).then(lfText));
     }
     return parts.join("\n").replace(/\/\*[\s\S]*?\*\//g, " ");
 }
@@ -918,7 +927,7 @@ async function bridgeTables() {
             `${file} no longer exports ${name} - the bridge's tables cannot be read until it does`);
         const res = await fetch(`/modules/${MODULE_ID}/scripts/${file}`);
         must(res.ok, `${file} is not served (HTTP ${res.status})`);
-        out.push({ file, name, table: module[name], module, text: stripComments(await res.text()) });
+        out.push({ file, name, table: module[name], module, text: stripComments(await lfText(res)) });
     }
     return out;
 }
@@ -1451,8 +1460,13 @@ const DUMP_RULES = [
         why: "a card is kilobytes of HTML a report cannot print; restore deletes the new ones, and an old card the suite edited shows as "
             + "a changed hash - its words, its rolls (reroll.mjs rewrites them on the card: `message.update({ rolls })`) and its system "
             + "data, the last two hashed since the E30 review (25.09.2026); the message's other fields are not read" },
-    { match: "Scene.*.walls|lights|sounds|drawings|templates.*", idsOnly: true, until: "never",
+    { match: "Scene.*.lights|sounds|drawings|templates.*", idsOnly: true, until: "never",
         why: "the module never writes these (R159's census); they are most of a scene's size" },
+    { match: "Scene.*.walls.*", keep: ["door", "ds", "flags"], until: "never",
+        why: "a wall's door type and state are what the module writes (E80 C5: passages-gm.mjs `convertSecretDoors` and "
+            + "`putBackSecretDoor`), and since E80 fix r2-G9 the GMs' state of a secret door, a flag on it (`DOOR_SET`); R159 "
+            + "read \"Wall at Scene.*.walls.* (ids only)\" on C5's tree (18.10.2026, at eedf9d7) while walls were ids only. "
+            + "The rest of a wall the module does not write, and walls are most of a scene's size" },
     { match: "*", emptyFlagScopes: "absent", until: "never",
         why: "Foundry keeps a flag scope its last flag leaves as {}, and getFlag reads an empty scope and no scope alike; "
             + "measured 24.09.2026 on the dump's second run, after restore deleted the last grant a student had (Actor "
@@ -1777,7 +1791,7 @@ export {
     runOne, registerSuite, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE, UNTIL_FIXTURE, untilProblem, env, world, worldCensus,
     wait, settle, until,
     layoutAvailable, cascadeAvailable, LIVE_PROBE, glassTheme, canvasAvailable, systemSheetsAvailable, dialogsDrawn,
-    moduleSources, otherSources, suiteSources, scanSuite, stripComments, moduleStyles, bodyOf, topLevelFunction, fnSource, lineAround,
+    lf, lfText, moduleSources, otherSources, suiteSources, scanSuite, stripComments, moduleStyles, bodyOf, topLevelFunction, fnSource, lineAround,
     withGuards, staticImports, importCycles, bridgeTables, bridgeTableProblems, payloadReads, refusalProblems, lineAt, stripStrings, blankComments, blankLiterals, callArgs, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
     LINT_FIXTURES, FLOWS, FLOW_EXEMPT, storeKeyAccess, GM_STORE_PENDING,
     stringLiterals, STANDING, stableJson, moduleSettingValues, clientStored, putBackStored, watchWrites, watchLog, cast,

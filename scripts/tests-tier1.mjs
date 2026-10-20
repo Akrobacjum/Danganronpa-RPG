@@ -21,8 +21,8 @@ import { voiceTargets, liveKitRoomFor } from "./voice.mjs";
 import { MUSIC_STATES, musicMap } from "./music.mjs";
 import {
     ok, needs, env, world, equal, must, wait, settle, until, cascadeAvailable, LIVE_PROBE,
-    moduleSources, otherSources, stripComments, moduleStyles, bodyOf, fnSource, topLevelFunction, STANDING, watchLog, stableJson,
-    worldDump, dumpDiff
+    moduleSources, otherSources, stripComments, moduleStyles, bodyOf, fnSource, topLevelFunction, lineAround, STANDING, watchLog, stableJson,
+    worldDump, dumpDiff, lfText
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -666,7 +666,7 @@ const INVARIANTS = [
         let css = "";
         try {
             const res = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css?t=${Date.now()}`);
-            if (res.ok) css = await res.text();
+            if (res.ok) css = await lfText(res);
         } catch {
             // Reported by the length check below rather than swallowed.
         }
@@ -784,7 +784,7 @@ const INVARIANTS = [
         ok(REMNANT_TYPES[becomes], `a reshape turns traces into "${becomes}", which is not a type`);
 
         const src = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/cleanup.mjs`).then(r => r.text()));
+            await fetch(`/modules/${MODULE_ID}/scripts/cleanup.mjs`).then(lfText));
 
         // One writer, so the two roads cannot part company.
         const body = bodyOf(src, "async function reshapeTrace", { length: 1400 });
@@ -812,7 +812,7 @@ const INVARIANTS = [
          * rather than sharing a promise to stay in step.
          */
         const src = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/cleanup.mjs`).then(r => r.text()));
+            await fetch(`/modules/${MODULE_ID}/scripts/cleanup.mjs`).then(lfText));
 
         const body = bodyOf(src, "async function bodyDestinations", { length: 500 });
         ok(/neighbouringRooms/.test(body),
@@ -836,7 +836,7 @@ const INVARIANTS = [
          * they would have thought of it.
          */
         const src = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/murder-rules.mjs`).then(r => r.text()));
+            await fetch(`/modules/${MODULE_ID}/scripts/murder-rules.mjs`).then(lfText));
 
         // The whole function (E32 C5a): the Class Trial's refusal pushed the fight's past 2600 characters.
         const body = fnSource(src, "betrayalTarget");
@@ -881,7 +881,7 @@ const INVARIANTS = [
         // where it always had. A function ends at its own closing brace.
         // E34 C7a (1.2.70): the writer is incident-store.mjs's; the rest of this reads murder-rules.mjs (E34 C8).
         const writer = fnSource(stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/incident-store.mjs`).then(r => r.text())), "writeState");
+            await fetch(`/modules/${MODULE_ID}/scripts/incident-store.mjs`).then(lfText)), "writeState");
         ok(/armBetrayalWindow/.test(writer),
             "the window is armed somewhere other than the single state writer");
         ok(/before\.stage !== "resolution"/.test(writer),
@@ -906,7 +906,7 @@ const INVARIANTS = [
          * whose whole content is leaving and taking no part in it.
          */
         const src = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/movement.mjs`).then(r => r.text()));
+            await fetch(`/modules/${MODULE_ID}/scripts/movement.mjs`).then(lfText));
 
         const body = bodyOf(src, "function lockedInIncident", { length: 600 });
 
@@ -926,7 +926,7 @@ const INVARIANTS = [
         ok(/incidentParticipants\(\)/.test(body),
             "the lock no longer asks who is in the incident");
         const settingsSrc = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/settings.mjs`).then(r => r.text()));
+            await fetch(`/modules/${MODULE_ID}/scripts/settings.mjs`).then(lfText));
         const fnBody = bodyOf(settingsSrc, "function incidentParticipants", { length: 400 });
         for (const who of ["killerId", "victimId", "thirdId"]) {
             ok(new RegExp(`cast\\.${who}`).test(fnBody),
@@ -945,7 +945,7 @@ const INVARIANTS = [
          * accomplice's presence a penalty on the clean-up.
          */
         const src = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/cleanup.mjs`).then(r => r.text()));
+            await fetch(`/modules/${MODULE_ID}/scripts/cleanup.mjs`).then(lfText));
 
         const body = bodyOf(src, "function witnessesTo", { length: 400 });
         ok(/isCleaner\(actor\)/.test(body),
@@ -981,7 +981,7 @@ const INVARIANTS = [
          * player client to catch it, and the thing that must never be forgotten
          * is one word at one call site.
          */
-        const src = await fetch(`/modules/${MODULE_ID}/scripts/traps.mjs`).then(r => r.text());
+        const src = await fetch(`/modules/${MODULE_ID}/scripts/traps.mjs`).then(lfText);
         const call = bodyOf(src, "callGm(trap.killer", { length: 400 });
         ok(call.length > 20, "traps.mjs no longer calls callGm the way this test expects");
         ok(/gmOnly:\s*true/.test(call),
@@ -999,7 +999,7 @@ const INVARIANTS = [
          */
         const guilty = [];
         for (const file of ["traps", "projects", "projects-secrecy", "gm-panel", "sheet", "murder", "incident-store", "murder-rules", "murder-ui"]) {
-            const src = await fetch(`/modules/${MODULE_ID}/scripts/${file}.mjs`).then(r => r.text());
+            const src = await fetch(`/modules/${MODULE_ID}/scripts/${file}.mjs`).then(lfText);
             for (const m of src.matchAll(/game\.i18n\.localize\([^)]*\)\s*\|\|/g)) {
                 guilty.push(`${file}.mjs :: ${m[0].slice(0, 60)}`);
             }
@@ -1022,7 +1022,7 @@ const INVARIANTS = [
          * test changing the module's shape to suit itself. What must never
          * silently go missing is the clamp, and the clamp is one line.
          */
-        const src = await fetch(`/modules/${MODULE_ID}/scripts/roll-dialog.mjs`).then(r => r.text());
+        const src = await fetch(`/modules/${MODULE_ID}/scripts/roll-dialog.mjs`).then(lfText);
         const cap = src.match(/const ADVANTAGE_CAP\s*=\s*(\d+)/);
         ok(cap, "roll-dialog.mjs no longer declares ADVANTAGE_CAP");
         equal(Number(cap[1]), 3, "the advantage cap is not three dice");
@@ -1188,7 +1188,7 @@ const INVARIANTS = [
          * player's client looking at somebody else's sheet, which is not where
          * this suite runs; the stylesheet is the same everywhere.
          */
-        const raw = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => r.text());
+        const raw = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText);
         // COMMENTS OUT FIRST, and the first run of this test is why. The note
         // above the fixed rule QUOTES the broken one - "`.drpg-redacted-pane
         // { display: flex }` was written to…" - and a scanner reading prose as
@@ -1248,7 +1248,7 @@ const INVARIANTS = [
 
         const missing = [];
         for (const file of files) {
-            const text = await fetch(`/modules/${MODULE_ID}/scripts/${file}.mjs`).then(r => r.text());
+            const text = await fetch(`/modules/${MODULE_ID}/scripts/${file}.mjs`).then(lfText);
             // Every exported opener in the file, and what its body looks like
             // up to the next one. Crude on purpose: a regex that can only ever
             // report a window as unguarded is a regex that fails loudly.
@@ -1489,7 +1489,7 @@ const INVARIANTS = [
         const read = async name => {
             try {
                 const res = await fetch(`/modules/${MODULE_ID}/scripts/${name}?t=${Date.now()}`);
-                return res.ok ? await res.text() : "";
+                return res.ok ? await lfText(res) : "";
             } catch {
                 return "";
             }
@@ -1849,7 +1849,7 @@ const INVARIANTS = [
          * status strip stood on each other below 1224. Each fix is held by its source here;
          * the partition at this window's own size is "the curtain cuts a clean partition".
          */
-        const glass = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/glass.mjs`).then(r => r.text()));
+        const glass = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/glass.mjs`).then(lfText));
         ok(/cols\.find\(c => overOf\(c, b\) > 0\)\s*\?\?/.test(glass),
             "a block joins the first column near it again, not the one it stacks under");
         ok(/b\.w > W \* 0\.5 \|\| inStack\(b\)/.test(glass), "a narrow block in the stack is cut as a loose box again");
@@ -2028,7 +2028,7 @@ const INVARIANTS = [
         ok(/String\(token\.texture\?\.tint/.test(map), "the project sync compares a Color object with a string again");
 
         // The clock's button is on its line; the matrix names lie down; the track has notes.
-        const css = (await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => r.text()))
+        const css = (await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText))
             .replace(/\/\*[\s\S]*?\*\//g, " ");
         ok(/\.drpg-gmp-advance \{[^}]*display: inline-flex/.test(css),
             "the Next time of day button is a block of its own again");
@@ -6885,7 +6885,9 @@ const INVARIANTS = [
             [["r219.primary", "r219.anyGm"], [], ["here", "here"]]
         ]), "a request only the primary may decide was done on another GM, or not sent to the primary (each: run here, sent, answers)");
         const sources = new Map(await otherSources());
-        const named = [["gm-bridge.mjs", "requestReroll"], ["roll-draw.mjs", "askToDecide"]]
+        // E80 fix r1-G4 (the review's goal-P2-02): a Frisk's four requests, whose asks the primary alone holds (R621).
+        const named = [["gm-bridge.mjs", "requestReroll"], ["roll-draw.mjs", "askToDecide"], ["gm-bridge.mjs", "requestFriskUnseen"],
+            ["gm-bridge.mjs", "requestFriskAsk"], ["gm-bridge.mjs", "requestFriskAnswer"], ["gm-bridge.mjs", "requestFriskFollow"]]
             .filter(([file, fn]) => !/\bonPrimary:\s*true\b/.test(fnSource(stripComments(sources.get(file) ?? ""), fn)));
         ok(!named.length, `these are decided on whichever GM asks, not on the primary: ${named.map(([f, fn]) => `${f} ${fn}`).join(", ")}`);
         const feeAsk = topLevelFunction(stripComments(sources.get("investigation.mjs") ?? ""), "askToChargeForUnfoundKeys") ?? "";
@@ -13966,7 +13968,7 @@ const INVARIANTS = [
 
         // The redraw: one listener, no sound, nothing drawn for a room that is not outlined.
         const listeners = (Hooks.events?.drpgPassagesChanged ?? []).filter(entry => /redrawOutline/.test(String(entry.fn)));
-        const fog = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/fog.mjs`).then(r => r.text()));
+        const fog = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/fog.mjs`).then(lfText));
         const redraw = fnSource(fog, "redrawOutline");
         equal(J([listeners.length, /\bplaySfx\s*\(/.test(redraw), /flashOutline\s*\(/.test(redraw), F.redrawOutline("R557 no such room")]),
             J([1, false, true, false]), "[listeners of a passage change that redraw, a sound in the redraw, it draws the outline, a room not outlined]");
@@ -14028,7 +14030,7 @@ const INVARIANTS = [
         "[a GM's lock through the passage, another's bedroom by the map, through the passage, a claimed passage the character does not know] - refused");
 
         // `via` is read in one line of `restrictedFrom`, the bedroom's; the courtroom is asked after it, apart.
-        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/movement.mjs`).then(r => r.text()));
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/movement.mjs`).then(lfText));
         const restricted = fnSource(src, "restrictedFrom");
         const viaLines = restricted.split("\n").filter(line => /\bvia\b/.test(line));
         const verdict = fnSource(src, "crossingVerdict");
@@ -14037,7 +14039,7 @@ const INVARIANTS = [
             verdict.split("\n").filter(line => /classTrial/.test(line)).some(line => /\bvia\b|passage/.test(line))]),
         J([2, true, false, 2, false]),
         "[lines of restrictedFrom naming via (its signature and one rule), the bedroom's, a lock, seal or chain under via, both of the verdict's connected-rooms rules asking the passage, the courtroom under via]");
-        const eclipse = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/eclipse.mjs`).then(r => r.text()));
+        const eclipse = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/eclipse.mjs`).then(lfText));
         const judge = fnSource(eclipse, "judgeEclipseCrossing");
         ok(/passesThrough\(actor, from, to, scene, floors, \{ known \}\) \? false : crossingRefused\(scene, from, to, floors\)/.test(judge)
             && (judge.match(/\brecord\(/g) ?? []).length === 1 && /record = recordMove\b/.test(judge),
@@ -14301,7 +14303,7 @@ const INVARIANTS = [
         const setting = game.settings.settings.get(`${MODULE_ID}.moveAudit`);
         equal(J([setting?.scope, setting?.config, setting?.default, Object.keys(setting?.choices ?? {})]), J(["world", true, "log", ["log", "sendBack"]]),
             "[the setting's scope, shown in the settings, its default, its choices]");
-        const src = file => fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => r.text()).then(stripComments);
+        const src = file => fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText).then(stripComments);
         const [movement, bridge, own] = await Promise.all([src("movement.mjs"), src("gm-bridge.mjs"), src("movement-audit.mjs")]);
         const seen = fnSource(movement, "noteGmPosition");
         equal(J([/constrainOptions: \{ ignoreWalls: true \}/.test(fnSource(movement, "sendBack")), /constrainOptions: \{ ignoreWalls: true \}/.test(fnSource(bridge, "handleSendback")),
@@ -14696,7 +14698,7 @@ const INVARIANTS = [
         "[through `createPassage` and `repickPassage`: a passage made, one over it, one on a wall inside one room, a second beside the first, picked again over the first and over its own old stretch; the rooms written; passages on the scene] - the console's create must hold its stretch to the scene's other passages");
 
         // Only the primary acts on a wall's change, and only on its segment; the routes the same.
-        const gm = await fetch(`/modules/${MODULE_ID}/scripts/passages-gm.mjs`).then(r => r.text()).then(stripComments);
+        const gm = await fetch(`/modules/${MODULE_ID}/scripts/passages-gm.mjs`).then(lfText).then(stripComments);
         const register = fnSource(gm, "registerPassagesGm");
         equal(J([/Hooks\.on\("updateWall", onWallMoved\)/.test(register), /Hooks\.on\("deleteWall", onWallDeleted\)/.test(register),
             /Hooks\.on\("drpgRouteSettled", onRouteSettled\)/.test(register),
@@ -14706,7 +14708,7 @@ const INVARIANTS = [
         J([true, true, true, [true, true, true], true, true]),
         "[the wall's move watched, its deletion, the routes, each on the primary alone, a move read as a change of its segment, a route "
             + "announced before it stood read only once it stands (E79 fix r3-G3; scenario 76 E runs it)]");
-        const vault = await fetch(`/modules/${MODULE_ID}/scripts/vault.mjs`).then(r => r.text()).then(stripComments);
+        const vault = await fetch(`/modules/${MODULE_ID}/scripts/vault.mjs`).then(lfText).then(stripComments);
         const opener = fnSource(vault, "openRoomSetupDialog");
         ok(/passagesTab\.passagesTabHtml\(scene, \{ students \}\)/.test(opener) && /passagesTab\.wirePassagesTab\(root, scene, \{ dialog, students \}\)/.test(opener),
             "Room Setup does not draw and wire the Passages tab for the scene it was opened on");
@@ -14932,7 +14934,7 @@ const INVARIANTS = [
         equal(J([read({}, "MM"), read({ MM: [...rows.MM, "R563 Pool"] }, "MM"), read({ S1: [...rows.S1, "R563 Pool"] }, "MM"), read({}, null), read({}, "S1")]),
             J([["R563 Hall"], ["R563 Hall"], ["R563 Hall", "R563 Pool"], ["R563 Gym", "R563 Hall", "R563 Lab"], ["R563 Gym", "R563 Lab"]]),
             "[the Mastermind's old row, the Mastermind entering a new room, a student entering one, nobody the Mastermind, another student the Mastermind]");
-        const fog = await fetch(`/modules/${MODULE_ID}/scripts/fog.mjs`).then(r => r.text()).then(stripComments);
+        const fog = await fetch(`/modules/${MODULE_ID}/scripts/fog.mjs`).then(lfText).then(stripComments);
         const record = fnSource(fog, "recordDiscovery");
         ok(record.search(/if \(isMastermind\(actor\)\) return false;/) > 0 && record.search(/if \(isMastermind\(actor\)\) return false;/) < record.search(/await writeCells\(/),
             "recordDiscovery no longer refuses the Mastermind's walk before it writes");
@@ -14989,7 +14991,7 @@ const INVARIANTS = [
             [3, ["R573ALL:secret", "R573ONE:secret", "R573TWO:closed"]]]),
         "[drawn for the first floor, then for the second on the same layer, then for no floor] - the overlay must show the floor it is drawn for");
 
-        const source = file => fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => r.text()).then(stripComments);
+        const source = file => fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText).then(stripComments);
         const [overlay, gm, fog] = await Promise.all(["gm-overlay.mjs", "passages-gm.mjs", "fog.mjs"].map(source));
         equal(J([/Hooks\.on\("canvasReady", \(\) => redrawGmOverlay\(\)\)/.test(fnSource(overlay, "registerGmOverlay")),
             /overlayDrawer\("passages", layer => drawPassagesLayer\(layer\)\)/.test(fnSource(gm, "registerPassagesGm")),
@@ -15884,6 +15886,2141 @@ const INVARIANTS = [
             + "[the preview on the pointer's arrival: tooltip, label, held; on focus with held words; a held press: raises, held; "
             + "two presses on a fresh button: raises, previews asked, the viewer's own student raised, the button held down while it waits]");
     }],
+    ["R593 - serialWrite runs one key's steps one after another in the order they were asked, each reading what the one before wrote; a step that throws or rejects fails only its own caller and the steps behind it run; another key never waits; the call returns before its step starts", async () => {
+        /*
+         * E80 C0 (18.10.2026; the owner's decision of 11.10: E80 builds E36's queue, E36 takes it over). The
+         * harm: two read-modify-write steps on one setting that start within a server round trip both read the
+         * old value, and the second overwrites the first. Ten steps that read a value, yield to the timer queue
+         * and write it plus one end at 10 through one key; the same ten unqueued end at 1, so the count can see
+         * a lost write. Then one key's steps behind a gate held shut: nothing of that key runs past the gate
+         * while another key's step runs and settles, a synchronous throw and a rejection fail their own callers
+         * only, and the steps behind them run in order. Nothing here touches the world: the keys are this
+         * test's own and the values live in this closure.
+         */
+        const J = stableJson;
+        const U = await import("./utils.mjs");
+        ok(typeof U.serialWrite === "function", "utils.mjs has no `serialWrite` - two writes of one setting on the primary GM still read the same old value");
+        if (typeof U.serialWrite !== "function") return;
+        const key = `r593-${foundry.utils.randomID()}`, other = `${key}-other`;
+        const yieldToTimers = () => new Promise(resolve => setTimeout(resolve, 0));
+        const store = { queued: 0, bare: 0 };
+        const bump = field => async () => { const v = store[field]; await yieldToTimers(); store[field] = v + 1; return v + 1; };
+        const counted = await Promise.all(Array.from({ length: 10 }, () => U.serialWrite(`${key}-count`, bump("queued"))));
+        await Promise.all(Array.from({ length: 10 }, () => bump("bare")()));
+        equal(J([store.queued, counted, store.bare]), J([10, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 1]),
+            "[ten steps through one key: the value, what each step answered; the same ten unqueued: the value]");
+
+        const seen = [];
+        let open;
+        const gate = new Promise(resolve => { open = resolve; });
+        const first = U.serialWrite(key, async () => { seen.push("first starts"); await gate; seen.push("first ends"); return "first"; });
+        const thrown = U.serialWrite(key, () => { seen.push("thrown"); throw new Error("r593 a step threw"); });
+        const rejected = U.serialWrite(key, async () => { seen.push("rejected"); await yieldToTimers(); throw new Error("r593 a step rejected"); });
+        const after = U.serialWrite(key, async () => { seen.push("after"); return "after"; });
+        seen.push(`the call returned ${first instanceof Promise}`);
+        // Bounded, so a queue shared by every key answers "still waiting" here instead of hanging the suite behind
+        // the shut gate: 1000 ms is a ceiling for one timer turn, not a time this step was measured to take.
+        const elsewhere = await Promise.race([
+            U.serialWrite(other, async () => { seen.push("another key"); await yieldToTimers(); return "elsewhere"; }),
+            new Promise(resolve => setTimeout(() => resolve("still waiting"), 1000))
+        ]);
+        seen.push(`another key settled: ${elsewhere}`);
+        open();
+        const answers = list => list.map(r => (r.status === "fulfilled" ? r.value : `rejected: ${r.reason?.message}`));
+        const settled = answers(await Promise.allSettled([first, thrown, rejected, after]));
+        const [later] = answers(await Promise.allSettled([U.serialWrite(key, () => "a step asked after all of them")]));
+        equal(J(seen), J(["the call returned true", "first starts", "another key", "another key settled: elsewhere",
+            "first ends", "thrown", "rejected", "after"]), "[what ran, in order, around a gate held shut and then opened]");
+        equal(J([settled, later]), J([["first", "rejected: r593 a step threw", "rejected: r593 a step rejected", "after"],
+            "a step asked after all of them"]), "[what each caller got: the gated step, the throw, the rejection, the one behind them; a step asked afterwards]");
+    }],
+    ["R594 - a tunnel or stairs between two rooms: each end a click, snapped to the middle of the square, in a room of the floor on screen at that click; refused in no room, with both ends in one room, on another tunnel's end and on a floor the scene has not; the pick from the tab's 'Tunnel or stairs' across two floors, the console's create by the same rule, and the GMs' overlay drawing the ends of the floor drawn", async () => {
+        /*
+         * E80 C1 (18.10.2026; P1-03). The harms: a tunnel whose end lies in no room, so whoever comes through it stands
+         * nowhere; one that joins a room to itself; two tunnels ending on one square; stairs a GM cannot make because the
+         * pick reads one floor for both clicks; and a console create that writes what the pick refuses. A scene of the
+         * suite's own with two floors - the Kitchen and the Hall on the first, the Attic on the second - and stores of an
+         * engine of its own, as R561's pick has them; the pick runs through the tab's own button with a board, a window and
+         * a floor on screen that the suite hands it. The pointer and the floor switch on a real v14 canvas are not measured
+         * here: a table's to see, with C2's live item. Red at the parent (d64618e): `createPassage` read no `shape` and refused every tunnel as a
+         * wall it could not find.
+         */
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const P = await import("./passages-gm.mjs");
+        const T = await import("./passages-tab.mjs");
+        const J = stableJson;
+        let now = 9_700_000;
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R594GM", isGM: () => true, isPrimary: () => true, worldId: () => "R594WORLD",
+            activeGmIds: () => [], primaryGmId: () => "R594GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => now++,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const def = (h, name) => eng.define({ ...h.spec, name: `r594${name}`, key: `r594${name}`, afterRestore: undefined, exists: undefined });
+        const stores = { map: def(S.passageMapStore, "Map"), access: def(S.passageAccessStore, "Access"), log: def(S.passageLogStore, "Log"),
+            mastermind: eng.define({ name: "r594mm", key: "r594mm", kind: "record", fields: ["actorId"], sync: false, backup: false }) };
+        const [L1, L2] = ["R594L1", "R594L2"];
+        const region = (id, name, x, y, width, height, levels) => ({ id, name, behaviors: [], getFlag: () => true, shapes: [{ x, y, width, height }],
+            levels: new Set(levels) });
+        const site = { id: "R594SCENE", name: "R594", grid: { size: 100 }, levels: [{ id: L1, elevation: 0 }, { id: L2, elevation: 10 }], view: async () => true,
+            regions: [region("R594RK", "R594 Kitchen", 1200, 800, 800, 300, [L1]), region("R594RH", "R594 Hall", 1200, 200, 800, 600, [L1]),
+                region("R594RA", "R594 Attic", 2000, 200, 600, 600, [L2])],
+            walls: Object.assign([], { get: () => undefined }) };
+        const ofSite = () => Object.keys(stores.map.entries()).filter(k => k.startsWith(`${site.id}.`)).sort();
+        const create = (ends, more = {}) => P.createPassage({ sceneId: site.id, shape: "tunnel", ends, ...more }, { stores, scene: site });
+        const end = (x, y, level) => ({ x, y, level });
+
+        // The console's road: stairs from the Kitchen to the Attic, a tunnel from the Kitchen to the Hall on one floor.
+        const stairs = await create([end(1234.5, 950, L1), end(2100, 300, L2)]);
+        const flat = await create([end(1300, 1000, L1), end(1300, 300, L1)]);
+        equal(J([Boolean(stairs), Boolean(flat), stores.map.get(stairs) ?? null, stores.map.get(flat)?.ends ?? null, stores.map.get(flat)?.rooms ?? null]),
+            J([true, true, { sceneId: site.id, level: null, shape: "tunnel", ends: [end(1250, 950, L1), end(2150, 350, L2)], rooms: ["R594 Kitchen", "R594 Attic"],
+                state: "secret", startAccess: [], origin: "gm" }, [end(1350, 1050, L1), end(1350, 350, L1)], ["R594 Kitchen", "R594 Hall"]]),
+            "[stairs made, a tunnel on one floor made, the stairs' row (its `origin` since E80 C6), the tunnel's ends, its rooms] - a tunnel's end is the middle of the square clicked, each on its own floor");
+        ok(typeof P.tunnelEndAt === "function" && typeof P.tunnelRowFor === "function" && typeof P.passageTunnels === "function",
+            "passages-gm.mjs has no `tunnelEndAt`, `tunnelRowFor` or `passageTunnels`");
+        if (typeof P.tunnelEndAt !== "function" || typeof P.tunnelRowFor !== "function" || typeof P.passageTunnels !== "function") return;
+
+        // Each end alone, and every refusal its own code.
+        const at = (x, y, level, o) => P.tunnelEndAt(site, { x, y }, level, o);
+        const taken = [end(1250, 950, L1)];
+        equal(J([at(1234.5, 950, L1), at(2100, 300, L2), [at(2100, 300, L1), at(500, 500, L1), at(1300, 900, null), at(1300, 900, "R594L9"),
+            at(1210, 910, L1, { taken }), at(1210, 910, L2, { taken })].map(r => r.refused ?? r.room)]),
+        J([{ x: 1250, y: 950, level: L1, room: "R594 Kitchen" }, { x: 2150, y: 350, level: L2, room: "R594 Attic" },
+            ["offRoom", "offRoom", "floor", "floor", "endTaken", "offRoom"]]),
+        "[a click in the Kitchen, one in the Attic; the Attic's square on the first floor, a square in no room, no floor, a floor the scene has not, "
+            + "a square another end holds, that square on the other floor]");
+
+        // The console's road refuses what the pick refuses, and writes nothing for it.
+        const before = ofSite().length;
+        const refusedRows = [[end(1260, 960, L1), end(1500, 300, L1)], [end(1300, 850, L1), end(1900, 1050, L1)], [end(100, 100, L1), end(1300, 300, L1)],
+            [end(1700, 1000, null), end(1700, 300, L1)], [end(1700, 1000, L1)]].map(ends => P.tunnelRowFor(site, ends, { taken: [...taken, end(1350, 1050, L1)] }).refused);
+        const named = P.tunnelRowFor(site, [end(1700, 1000, L1), end(2400, 700, L2)], { rooms: ["R594 Hall", "R594 Attic"] }).refused;
+        const madeNot = [await create([end(1260, 960, L1), end(1500, 300, L1)]), await create([end(1300, 850, L1), end(1900, 1050, L1)]),
+            await create([end(1700, 1000, L1), end(2400, 700, L2)], { rooms: ["R594 Hall", "R594 Attic"] }), await create([end(1700, 1000, L1), end(2400, 700, L2)], { shape: "pit" })];
+        equal(J([refusedRows, named, madeNot, ofSite().length - before]),
+            J([["an end stands on the square of another passage's end.", "both ends are in one room.", "an end is in no room on its floor.",
+                "name one of the scene's floors for each end (none on a scene with no floors).", "a tunnel needs two ends, [{ x, y, level }, { x, y, level }]."],
+                "the ends stand in R594 Kitchen and R594 Attic, not the rooms named.", [null, null, null, null], 0]),
+            "[the console's words for an end on another's, one room, no room, no floor, one end; rooms named that are not the ends'; four creates refused; rows written]");
+
+        // From the tab: 'Tunnel or stairs', a click on the first floor, one refused in the same room, the floor switched, one off every room, one in the Attic.
+        let board = null, floor = L1;
+        const said = [];
+        const pickWith = (scene2, options) => P.startPassagePick(scene2, { ...options, preview: () => {}, notify: kind => said.push(kind), floorNow: () => floor,
+            board: handlers => { board = handlers; return () => { board = null; }; },
+            prompt: ({ tunnel }) => ({ step: (n, r) => said.push(`${tunnel ? "tunnel" : "wall"} step ${n}: ${r.join(" - ")}`), refuse: code => said.push(code),
+                close: () => said.push("closed") }),
+            dialog: { options: { window: { minimizable: true } }, minimize: () => said.push("minimized"), maximize: () => said.push("back") } });
+        const root = document.createElement("div");
+        root.innerHTML = T.passagesTabHtml(site, { stores, students: [] });
+        const tab = T.wirePassagesTab(root, site, { stores, students: [], pick: pickWith });
+        const onBoard = async () => { for (let i = 0; i < 100 && !board; i++) await new Promise(r => setTimeout(r, 5)); return board; };
+        const button = root.querySelector("[data-drpg-passage-tunnel]");
+        button?.click();
+        await (await onBoard())?.click({ x: 1550, y: 1050 });
+        await board?.click({ x: 1650, y: 1050 });
+        floor = L2;
+        await board?.click({ x: 500, y: 500 });
+        await board?.click({ x: 2450, y: 650 });
+        await tab?.settled();
+        const picked = ofSite().find(id => id !== stairs && id !== flat);
+        const pickedRow = picked ? stores.map.get(picked) : null;
+        equal(J([Boolean(button), ofSite().length, pickedRow?.ends ?? null, pickedRow?.rooms ?? null, said.splice(0)]),
+            J([true, 3, [end(1550, 1050, L1), end(2450, 650, L2)], ["R594 Kitchen", "R594 Attic"],
+                ["minimized", "tunnel step 2: R594 Kitchen", "oneRoom", "offRoom", "info", "closed", "back"]]),
+            "[the tab's button, passages on the scene, the picked ends, their rooms, what the pick asked of the window and the GM] - stairs need each click read on the floor on screen at that click");
+        floor = L1;
+        button?.click();
+        await (await onBoard())?.click({ x: 1510, y: 1010 });
+        board?.cancel();
+        await tab?.settled();
+        equal(J([ofSite().length, said.splice(0)]), J([3, ["minimized", "endTaken", "closed", "back"]]),
+            "[passages after a click on a square another tunnel's end holds and a cancel, what the pick asked]");
+
+        // The GMs' overlay: on each floor that floor's ends - both for the tunnel on one floor, one of each pair of stairs.
+        const layer = new PIXI.Container();
+        const drawn = level => [P.drawPassagesLayer(layer, { stores, scene: site, level }), layer.children.map(g => `${g.name === stairs ? "stairs" : g.name === flat ? "flat" : "picked"}`).sort(),
+            P.passageTunnels(site.id, level, { stores }).map(t => t.ends.length).sort()];
+        const first = drawn(L1), second = drawn(L2);
+        layer.destroy({ children: true });
+        equal(J([first, second, P.passageMiddle(stairs, { stores }), await P.passageRoomsOnMap(stairs, { stores, scene: site })]),
+            J([[3, ["flat", "picked", "stairs"], [1, 1, 2]], [2, ["picked", "stairs"], [1, 1]], { sceneId: site.id, level: L1, x: 1250, y: 950 }, ["R594 Kitchen", "R594 Attic"]]),
+            "[drawn on the first floor: count, passages, ends each; on the second; where Show pans for stairs; the rooms the tab's revoke asks about]");
+    }],
+    ["R595 - a tunnel's ends reach its knowers alone: the copy of a player whose character knows a tunnel carries its two ends, every other player's holds neither, the player's browser keeps them, its knower's room marks the end there with the room beyond as that player may name it, and Close takes the ends and the mark away; a tunnel on a deleted scene leaves every copy; a show of a tunnel by somebody who does not know it is refused", async () => {
+        /*
+         * E80 C1 (18.10.2026; P1-04, the stage's write roads "copy rows"). A tunnel is the GMs' until a character learns
+         * it; its ends are where a knower goes through (C2). The harms: the ends in the copy of a player whose characters
+         * do not know it (a third client that learns where a secret way comes out); a knower's own browser dropping the
+         * tunnel its copy carries, so nothing marks it; a tunnel the GMs closed, or one whose scene is gone, still marked;
+         * a mark naming a room the player has not found; a show that teaches a tunnel the giver does not know. Stores of an
+         * engine of its own, two players with a student each, and a scene of the suite's own with two floors; the copy
+         * cut by `passageCopyFor` and kept by `cleanCopy` as a player's browser keeps it. Three real clients are scenario
+         * 76's tunnel phase; how a mark looks on a real canvas is not measured here. Red at the parent (d64618e): the
+         * copy of the knower's player held no tunnel (`secretRowsFrom` kept only rows with a stretch).
+         */
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const P = await import("./passages-gm.mjs");
+        const L = await import("./passages.mjs");
+        const M = await import("./movement.mjs");
+        const F = await import("./fog-doorways.mjs");
+        const J = v => JSON.stringify(v);
+        let t = 9_800_000;
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R595GM", isGM: () => true, isPrimary: () => true, worldId: () => "R595WORLD",
+            activeGmIds: () => [], primaryGmId: () => "R595GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => t++,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const def = (h, name) => eng.define({ ...h.spec, name: `r595${name}`, key: `r595${name}`, afterRestore: undefined, exists: undefined });
+        const SC = "R595SCENE", [L1, L2] = ["R595L1", "R595L2"];
+        const stores = { map: def(S.passageMapStore, "Map"), access: def(S.passageAccessStore, "Access"), log: def(S.passageLogStore, "Log"),
+            mastermind: eng.define({ name: "r595mm", key: "r595mm", kind: "record", fields: ["actorId"], sync: false, backup: false }),
+            scenes: new Set([SC]) };
+        const user = id => ({ id, isGM: false, active: true });
+        const users = [{ id: "R595GM", isGM: true, active: true }, user("R595U1"), user("R595U2")];
+        const actor = (id, owner) => ({ id, type: "character", name: id, getFlag: () => undefined,
+            testUserPermission: (u, level) => level === "OWNER" && (u?.isGM || u?.id === owner) });
+        const actors = [actor("R595A1", "R595U1"), actor("R595A2", "R595U2")];
+        const [, U1, U2] = users;
+        const [A1, A2] = actors;
+        // Rooms that carry the room flag alone: no lock or seal for `passageOpenFor` to read.
+        const region = (id, name, x, y, width, height, levels) => ({ id, name, behaviors: [], getFlag: (scope, key) => key === "room",
+            shapes: [{ x, y, width, height }], levels: new Set(levels) });
+        const kitchen = region("R595RK", "R595 Kitchen", 1200, 800, 800, 300, [L1]), hall = region("R595RH", "R595 Hall", 1200, 200, 800, 600, [L1]);
+        const attic = region("R595RA", "R595 Attic", 2000, 200, 600, 600, [L2]);
+        const site = { id: SC, grid: { size: 100 }, levels: [{ id: L1, elevation: 0 }, { id: L2, elevation: 10 }], regions: [kitchen, hall, attic] };
+        const end = (x, y, level) => ({ x, y, level });
+        const tunnel = (sceneId, ends, state = "secret") => ({ sceneId, level: null, shape: "tunnel", ends, rooms: [], state, startAccess: [] });
+        const [T1, T2, T4] = ["r595t1", "r595t2", "r595t4"].map(k => `${SC}.${k}`), T3 = "R595GONE.r595t3";
+        const stairs = [end(1250, 950, L1), end(2150, 350, L2)];
+        await stores.map.patchMany({ [T1]: tunnel(SC, stairs), [T2]: tunnel(SC, [end(1350, 1050, L1), end(1350, 350, L1)]),
+            [T3]: tunnel("R595GONE", [end(1250, 950, null), end(1250, 350, null)]), [T4]: { ...tunnel(SC, [end(1450, 950, L1)]) } });
+        const cell = { how: "gm", at: 1, by: { R595GM: 1 } };
+        await stores.access.patchMany({ [`${T1}/R595A1`]: cell, [`${T2}/R595A2`]: cell, [`${T3}/R595A1`]: cell, [`${T4}/R595A1`]: cell,
+            "touch/R595A1": { at: 1 }, "touch/R595A2": { at: 1 } });
+        const copy = u => P.passageCopyFor(u, { stores, actors, users });
+        const ids = c => Object.keys(c.value).sort();
+
+        const c1 = copy(U1), c2 = copy(U2);
+        equal(J([ids(c1), c1.value[T1] ?? null, ids(c2), J(c2).includes(T1), J(c2).includes("2150")]),
+            J([[T1], { sceneId: SC, shape: "tunnel", level: null, ends: stairs, actorIds: ["R595A1"] }, [T2], false, false]),
+            "[the knower's player's passages, the tunnel in that copy, the other player's passages, the tunnel's id in theirs, its far end in theirs] "
+                + "- a tunnel on a deleted scene, one with one end, or the ends in a copy of a player who does not know it");
+
+        // What the knower's browser keeps (`cleanCopy`): the tunnel and its two ends; a forged row with one end, or naming a student not of this copy, is left out.
+        const thisWorld = { actors: new Map(actors.map(a => [a.id, a])), scenes: new Map([[SC, site]]) };
+        const forged = { ...c1.value, [`${SC}.forged1`]: { sceneId: SC, shape: "tunnel", ends: [end(1, 2, null)], actorIds: ["R595A1"] },
+            [`${SC}.forged2`]: { sceneId: SC, shape: "tunnel", ends: stairs, actorIds: ["R595A2"] } };
+        const kept = L.cleanCopy(forged, c1.stamps, thisWorld).value;
+        equal(J([Object.keys(kept).sort(), kept[T1] ?? null]), J([[T1], { sceneId: SC, shape: "tunnel", level: null, ends: stairs, actorIds: ["R595A1"] }]),
+            "[what the knower's browser keeps, the tunnel kept] - the browser drops a tunnel, or keeps a forged one");
+        ok(typeof L.tunnelEndsFor === "function" && typeof F.tunnelMarks === "function", "passages.mjs has no `tunnelEndsFor` or fog-doorways.mjs no `tunnelMarks`");
+        if (typeof L.tunnelEndsFor !== "function" || typeof F.tunnelMarks !== "function") return;
+
+        // The ends on each floor, the list's rooms, and the marks: the knower's in the end's room, as the player may name the room beyond.
+        const unexplored = game.i18n.format("DRPG.Listen.unknownRoom", { n: 1 });
+        const found = rooms => () => new Set(rooms);
+        const marks = (who, room, level, o = {}) => F.tunnelMarks(who, room, site, level, { gm: false, known: kept, knownRooms: found(["R595 Kitchen"]), ...o });
+        const [listed] = L.passagesKnownBy(A1, { known: kept });
+        equal(J([L.tunnelEndsFor(A1, SC, L1, { known: kept }), L.tunnelEndsFor(A1, SC, L2, { known: kept }).map(e => [e.x, e.y]), L.tunnelEndsFor(A2, SC, null, { known: kept }),
+            listed ?? null, M.passageRooms(site, listed ?? {})]),
+        J([[{ id: T1, x: 1250, y: 950, level: L1, far: end(2150, 350, L2) }], [[2150, 350]], [],
+            { id: T1, sceneId: SC, level: null, shape: "tunnel", ends: stairs }, ["R595 Kitchen", "R595 Attic"]]),
+        "[the knower's ends on the first floor, on the second, another student's, the sheet's row, the rooms it names]");
+        equal(J([M.passageOpenFor(A1, listed ?? {}, site, { from: "R595 Kitchen", known: kept }), M.passageOpenFor(A1, listed ?? {}, site, { from: "R595 Attic", known: kept }),
+            M.passageOpenFor(A2, listed ?? {}, site, { from: "R595 Kitchen", known: kept })]), J([true, true, false]),
+            "[the sheet's 'the way is shut' for the tunnel: its knower from the Kitchen, from the Attic, a student who does not know it]");
+        equal(J([marks(A1, kitchen, L1), marks(A1, kitchen, L1, { knownRooms: found(["R595 Kitchen", "R595 Attic"]) }), marks(A1, attic, L2), marks(A1, hall, L1),
+            marks(A2, kitchen, L1), marks(A1, kitchen, L1, { gm: true }), marks(A1, kitchen, L1, { knownRooms: () => null })]),
+        J([[{ id: T1, x: 1250, y: 950, to: unexplored }], [{ id: T1, x: 1250, y: 950, to: "R595 Attic" }], [{ id: T1, x: 2150, y: 350, to: "R595 Kitchen" }], [], [], [],
+            [{ id: T1, x: 1250, y: 950, to: "R595 Attic" }]]),
+        "[the Kitchen's mark for the knower, once the Attic is found, the Attic's, the Hall's, for another student, on a GM's browser, for a viewer who names every room]");
+
+        // Closed: neither the ends nor the mark, and the copy that takes them away is taken; Open gives both back.
+        await P.closePassage(T1, { stores });
+        const shut = copy(U1);
+        const shutKept = L.cleanCopy(shut.value, shut.stamps, thisWorld).value;
+        const shutMarks = F.tunnelMarks(A1, kitchen, site, L1, { gm: false, known: shutKept, knownRooms: found([]) });
+        await P.openPassage(T1, { stores });
+        equal(J([ids(shut), shutMarks, S.offersCombine(c1, shut) !== null, ids(copy(U1)), ids(copy(U2))]), J([[], [], true, [T1], [T2]]),
+            "[the knower's passages once closed, the marks, that copy taken over the one held; reopened, theirs and the other player's]");
+
+        // The scene deleted: the tunnel leaves the copy.
+        const gone = { ...stores, scenes: new Set(["R595OTHER"]) };
+        equal(J([ids(P.passageCopyFor(U1, { stores: gone, actors, users })), Object.keys(L.secretRowsFrom(gone))]), J([[], []]),
+            "[the knower's passages once the tunnel's scene is gone, the GMs' open rows]");
+
+        // A show (`passage.share`): refused to a giver who does not know the tunnel, in the words an unknown passage gets; the knower's names the rooms off the map.
+        const cards = [];
+        const world = { locked: () => false, actor: id => actors.find(a => a.id === id) ?? null, dead: () => false, inIncident: () => false,
+            monocub: () => false, monokuma: () => false, published: () => false, place: () => ({ scene: site, room: "R595 Kitchen", level: L1 }),
+            sides: (row, seg) => M.passageRooms(site, seg, row.level ?? null), knownRooms: () => new Set(["R595 Kitchen"]) };
+        const share = (actorId, targetId, asker) => P.sharePassage({ actorId, targetId, passageId: T1 }, { stores, world, asker, users,
+            whisper: async (who, html, o) => cards.push([who.id, o?.whisper ?? null, html.includes("R595 Kitchen"), html.includes(unexplored)]), gms: async html => cards.push(["gms", html.includes("R595 Attic")]) });
+        const refused = await share("R595A2", "R595A1", U2);
+        const shown = await share("R595A1", "R595A2", U1);
+        equal(J([refused, shown, Boolean(stores.access.get(`${T1}/R595A2`)), ids(copy(U2)), cards]),
+            J([{ refused: "the character does not know that passage" }, { shown: true }, true, [T1, T2],
+                [["R595A2", ["R595U2"], true, true], ["gms", true], ["R595A1", ["R595U1"], false, false]]]),
+            "[a show by a student who does not know the tunnel, by its knower, the one shown it now knows it, their player's passages, the cards: theirs, the GMs', the giver's]");
+
+        // The receiver's rule holds for a packet that carries a tunnel: from another player, or from a GM who is not the primary, it is not taken.
+        const people = new Map([["R595GM", { isGM: true }], ["R595GM2", { isGM: true }], ["R595U2", { isGM: false }]]);
+        const packet = { action: "passage.rows", userId: "R595U1", passages: c1.value, stamps: c1.stamps };
+        equal(J(["R595U2", "R595GM2", "R595GM"].map(sender => L.passageRowsRefusal(packet, sender, { me: { id: "R595U1", isGM: false }, users: people, primary: "R595GM" }))),
+            J(["not sent by a GM", "not sent by the primary GM", null]), "[a tunnel's packet from another player, from a GM who is not the primary, from the primary]");
+    }],
+    ["R596 - a player's change of floor where the doors' rules join no two rooms is put back on the primary GM: a console's jump to a tunnel's far end on another floor, with no wall on the way, is a row in \"log\" and sent back in \"sendBack\", its mover told alone; the stairs, rooms stacked on a scene with no stairs, a GM's move, a step on one floor and a rule that is not asked now stand", async () => {
+        /*
+         * E80 C2 (18.10.2026; P1-09, the stage's write roads "token own update ... floor rule"). The harm: a player's
+         * console writes its token's `level` and position to the far end of a tunnel two floors up, and on a map with no
+         * wall between the two spots the GMs' wall audit read the step as clear - the tunnel crossed for nothing, the
+         * price unpaid. The rule is the doors' connected-rooms rule (movement.mjs `crossingRefused`, handed in as
+         * `floorRefused`, and asked only where the movement economy asks it - movement.mjs `floorJumpRefused`); a scene
+         * with no stairs reads rooms drawn over each other as joined, so the stairless climb scenario 66 G3 keeps stands.
+         * Plain objects as R559's: two floors, a Lab with an Attic drawn over it, a Hall beside the Lab and a Tower far off
+         * upstairs, no walls; every act a recorder. Red at the parent (917280b): the jump to the Tower "clear", no row.
+         */
+        const A = await import("./movement-audit.mjs");
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const J = v => JSON.stringify(v);
+        const [L1, L2] = ["R596L1", "R596L2"];
+        const region = (name, x, levels) => ({ id: `R596R${name}`, name: `R596 ${name}`, levels: new Set(levels), behaviors: [],
+            bounds: { x, y: 0, width: 400, height: 400 }, shapes: [{ type: "rectangle", x, y: 0, width: 400, height: 400 }],
+            testPoint: p => p.x >= x && p.x <= x + 400 && p.y >= 0 && p.y <= 400,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === R.ROOM_FLAG ? true : undefined) });
+        const scene = { id: "R596S", name: "R596 scene", grid: { size: 100 }, dimensions: { width: 3000, height: 1000 }, walls: [],
+            levels: [{ id: L1, name: "Ground" }, { id: L2, name: "Upper" }],
+            regions: new Set([region("Lab", 0, [L1]), region("Attic", 0, [L2]), region("Hall", 500, [L1]), region("Tower", 2000, [L2])]) };
+        const SA = { id: "R596A", name: "R596A", type: "character", items: [], getFlag: () => undefined,
+            testUserPermission: (u, level) => level === "OWNER" && u?.id === "R596U" };
+        const users = new Map([["R596U", { id: "R596U", isGM: false, active: true }], ["R596G", { id: "R596G", isGM: true, active: true }]]);
+        const tok = (x, level) => ({ id: "R596T", name: "R596 token", x, y: 100, width: 1, height: 1, elevation: 0, level, parent: scene, actor: SA });
+        const was = { x: 100, y: 100, elevation: 0, level: L1 };
+        const rule = (s, a, b, floors) => M.crossingRefused(s, a, b, floors);
+        const audit = (token, { user = "R596U", mode = "log", stairs = [], floorRefused = rule } = {}) => {
+            const acts = [];
+            const out = A.auditMove(token, { x: token.x, y: token.y, level: token.level }, {}, user, was, {
+                REVERT: M.REVERT, SENT_BACK: M.SENT_BACK, sendBackRefusal: M.sendBackRefusal, roomAt: M.roomAt, stairLinks: () => stairs, floorRefused,
+                history: [], held: a => a, users, known: {}, mode, mastermind: { get: () => null }, book: { rows: [], told: new Map(), lines: new Map(), dropped: 0 },
+                warn: (text, row) => acts.push(["warn", row.wall, row.passage, row.mode]),
+                sendBack: (doc, spot, how) => { acts.push(["sendBack", spot.x, spot.level, how.sound, how.audited]); how.landed(true); },
+                socket: { emit: (event, packet, opts) => acts.push(["emit", packet.code, opts.recipients]) },
+                whisper: html => { acts.push(["whisper", html.includes(foundry.utils.escapeHTML(game.i18n.format("DRPG.Movement.floorJumped", { name: "R596A", scene: "R596 scene" })))]); return Promise.resolve(); }
+            });
+            const said = out.verdict === "crossed" ? `crossed ${out.floor ? "floor" : out.wall}` : out.verdict;
+            return { said, acts };
+        };
+        ok(typeof M.crossingRefused(scene, "R596 Lab", "R596 Tower", { from: L1, to: L2 }) === "string"
+            && M.crossingRefused(scene, "R596 Lab", "R596 Attic", { from: L1, to: L2 }) === false,
+            "the map itself does not refuse the Lab to the Tower, or refuses the Lab to the Attic over it - the audit would be measured against nothing");
+        equal(J([audit(tok(2100, L2)).said, audit(tok(2100, L2), { stairs: [["R596 Lab", "R596 Tower"]] }).said, audit(tok(100, L2)).said,
+            audit(tok(2100, L2), { user: "R596G" }).said, audit(tok(600, L1)).said, audit(tok(2100, L2), { floorRefused: () => false }).said]),
+        J(["crossed floor", "exempt", "clear", "exempt", "clear", "clear"]),
+        "[a jump from the Lab to the Tower upstairs, the same up stairs that link them, up into the Attic over the Lab on a scene with no stairs, a GM's jump, a step to the Hall on the floor, a jump the rule does not ask now]");
+        const logged = audit(tok(2100, L2)), sent = audit(tok(2100, L2), { mode: "sendBack" });
+        equal(J([logged.acts, sent.acts]), J([[["warn", null, null, "log"]],
+            [["warn", null, null, "sendBack"], ["sendBack", 100, L1, false, true], ["emit", "floor", ["R596U"]], ["whisper", true]]]),
+        "[\"log\" mode, \"sendBack\" mode] - the row, the put-back to the floor and spot the GMs saw, the mover told alone, the GMs told of the floor");
+        equal(A.sentBackRefusal({ action: "move.sentBack", userId: "R596U", code: "floor" }, "R596G", { me: { id: "R596U", isGM: false }, users, primary: "R596G" }), null,
+            "the mover's browser does not take the primary GM's put-back from a floor");
+    }],
+    ["R597 - 'Go through' is judged by the doors' rules: a knower standing at an end crosses to the room at the other end, on that end's floor; a character that does not know the tunnel, stands away from its ends or on another floor or scene is refused, as is a lock beyond, while the Mastermind passes the lock and anybody passes another's bedroom; each refusal has its own reason and words, and the token lands on the free square nearest the far end, in its room", async () => {
+        /*
+         * E80 C2 (18.10.2026; P1-05, P1-06, P1-07, the stage's D2 row for `passage.cross`). The harms: a crossing judged
+         * by rules of its own rather than the doors' (a lock or a seal a tunnel walks past), a character crossing a tunnel
+         * it does not know or from across the map, a refusal no player can read, and a landing on another student or in
+         * the next room. Read on plain objects as R558's, never on screen: two floors, a Dorm downstairs, a Gym upstairs
+         * and a Lab, a tunnel from the Dorm to the Gym known to A in the copy's shape (`known`); the price and the
+         * settings-held rules (a seal, the chain, the incident, the courtroom, the Eclipse's count, the budget) are asked
+         * by tier 2's "A10-18" on the primary GM, which writes. Red at the parent (917280b): movement.mjs has no
+         * `tunnelVerdict`, and the bridge has no reason for a tunnel refused.
+         */
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const P = await import("./passages-gm.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const { ROOM_OWNER_FLAG } = await import("./config.mjs");
+        const J = v => JSON.stringify(v);
+        const CODES = ["notAtPassage", "doorLocked", "roomSealed", "chained", "cannotLeave", "trialLocked", "noBudget", "eclipseSpent"];
+        equal(J(CODES.filter(code => !G.REASONS.includes(code))), "[]", "the bridge's closed list of reasons lacks a tunnel's refusal");
+        ok(typeof M.tunnelVerdict === "function" && typeof M.tunnelLanding === "function" && typeof P.crossingWhy === "function",
+            "movement.mjs judges no tunnel crossing, or passages-gm.mjs says no reason for one - 'Go through' is judged by nothing");
+        if (typeof M.tunnelVerdict !== "function" || typeof P.crossingWhy !== "function") return;
+        equal(J([...CODES, "notKnown", "cannotNow"].map(code => G.reasonOf(P.crossingWhy(code)))), J([...CODES, "notKnown", "cannotNow"]),
+            "a tunnel's refusal reaches the player under another reason's words");
+
+        const [L1, L2] = ["R597L1", "R597L2"];
+        const region = (name, x, levels, flags = {}) => ({ id: `R597R${name}`, name: `R597 ${name}`, levels: new Set(levels), behaviors: [],
+            bounds: { x, y: 0, width: 400, height: 400 }, shapes: [{ type: "rectangle", x, y: 0, width: 400, height: 400 }],
+            testPoint: p => p.x >= x && p.x <= x + 400 && p.y >= 0 && p.y <= 400,
+            getFlag: (scope, key) => (scope !== MODULE_ID ? undefined : key === R.ROOM_FLAG ? true : flags[key]) });
+        const sceneWith = (gym = {}, tokens = []) => {
+            const scene = { id: "R597S", name: "R597 scene", grid: { size: 100 }, levels: [{ id: L1, name: "Ground" }, { id: L2, name: "Upper" }], tokens,
+                regions: new Set([region("Dorm", 0, [L1]), region("Lab", 500, [L1]), region("Gym", 1000, [L2], gym)]) };
+            for (const token of tokens) token.parent = scene;
+            return scene;
+        };
+        const student = id => ({ id, name: id, type: "character", items: [], getFlag: () => undefined });
+        const A = student("R597A"), B = student("R597B");
+        const ends = [{ x: 150, y: 150, level: L1 }, { x: 1150, y: 150, level: L2 }];
+        const known = { R597T: { sceneId: "R597S", shape: "tunnel", level: null, ends, actorIds: ["R597A"] } };
+        const passage = { id: "R597T", sceneId: "R597S" };
+        const mover = { gm: false, mastermind: false }, mastermind = { gm: false, mastermind: true };
+        const tok = (x, y, level, scene, actor = A, id = "R597K") => ({ id, x, y, width: 1, height: 1, elevation: 0, level, parent: scene, actor });
+        const said = (actor, token, who = mover) => {
+            const out = M.tunnelVerdict(actor, passage, token, { mover: who, known, pay: false });
+            return out?.code ?? (out?.from ? `${out.from} > ${out.to} on ${out.far.level}` : J(out));
+        };
+        const plain = sceneWith(), other = { ...sceneWith(), id: "R597X" };
+        // A crossing every other rule lets through meets the courtroom's in a Class Trial (movement.mjs `crossingVerdict`),
+        // as a door's does: scenario 01's A2 runs this tier inside one, where CI read the crossing refused (879d6d5).
+        const through = getClock()?.phase === "classTrial" ? "trialLocked" : "R597 Dorm > R597 Gym on R597L2";
+        equal(J([said(A, tok(100, 100, L1, plain)), said(B, tok(100, 100, L1, plain)), said(B, tok(100, 100, L1, plain), mastermind),
+            said(A, tok(300, 300, L1, plain)), said(A, tok(100, 100, L2, plain)), said(A, tok(100, 100, L1, other)), said(A, null)]),
+        J([through, "notKnown", through, "notAtPassage", "notAtPassage", "notAtPassage", "notAtPassage"]),
+        "[the knower at the Dorm's end, a student who does not know it, the Mastermind, the knower two squares off, at the end's spot upstairs, on another scene, with no token]");
+        const locked = sceneWith({ [M.ROOM_FLAGS.locked]: true }), bedroom = sceneWith({ [ROOM_OWNER_FLAG]: "R597OWNER" });
+        equal(J([said(A, tok(100, 100, L1, locked)), said(A, tok(100, 100, L1, locked), mastermind), said(A, tok(100, 100, L1, bedroom))]),
+        J(["doorLocked", through, through]),
+        "[a GM's lock on the Gym, the Mastermind through it, another student's bedroom the tunnel leads into]");
+        const lockedText = M.tunnelVerdict(A, passage, tok(100, 100, L1, locked), { mover, known, pay: false })?.text;
+        equal(lockedText, game.i18n.localize("DRPG.Move.locked"), "a tunnel's lock is not said in the door's words");
+
+        // The landing: the far end's square when free; else the nearest free square of the Gym on its floor.
+        const far = ends[1], GYM = "R597 Gym";
+        const land = tokens => { const scene = sceneWith({}, tokens); const me = tok(100, 100, L1, scene); return J(M.tunnelLanding(me, far, GYM)); };
+        equal(J([land([]), land([tok(1100, 100, L2, null, B, "R597O")]), land([tok(1100, 100, L1, null, B, "R597O")]),
+            land([tok(1100, 100, L2, null, B, "R597O"), tok(1100, 0, L2, null, B, "R597P")])]),
+        J([J({ x: 1100, y: 100, level: L2 }), J({ x: 1100, y: 0, level: L2 }), J({ x: 1100, y: 100, level: L2 }), J({ x: 1000, y: 100, level: L2 })]),
+        "[the far end free, another student on it, another student on that square downstairs, two squares taken]");
+    }],
+    ["R598 - Find Passage is judged on the primary GM from the GMs' records: 15 misses and 16 or a critical finds the oldest open secret passage of this room on this floor the character does not know - a tunnel's end here, never one upstairs, a closed one, another scene's or one it knows - writing the cell 'found' with its roll; the Mastermind finds none; a miss, an empty room and the Mastermind get one card, the same, and a find a card of the same shape, to the owner and the GMs alone; a refusal names its reason and writes nothing; a Reroll's new dice find once, keep a find, and take back only the cell their own roll wrote; the bridge's row holds the roll to an Analyze thrown as a Find Passage", async () => {
+        /*
+         * E80 C3, 18.10.2026; the stage's A10-7 (P1-10, P1-11, P1-12, P1-13) and its D2 row for `passage.find`. The
+         * harms: a search that finds what another floor or another scene holds, or one the character knows already, so
+         * a player maps the building for free; a passage found by an Analyze thrown for a bullet or by a Search's roll;
+         * a card whose shape tells a miss from an empty room or from the Mastermind; a card to the GMs alone, or a find
+         * the owner is not told of; a Reroll that opens a second passage, or takes back one the GMs gave. Run on an
+         * engine of the suite's own (R562's), with characters, people and a world of its own: nothing of this world is
+         * read or written but this browser's user, the names in its language file and its clock. The rows are made one
+         * at a time so their first stamps run in that order, and their ids run the other way, so "oldest" is the stamp's.
+         * The phase, the price, the picker and the real map are tier 2's "A10-7"; the bridge's runner on three clients
+         * is scenario 76's phase V and 30-security's forgeries. Red at the parent (879d6d5): no `resolvePassageSearch`.
+         */
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const P = await import("./passages-gm.mjs");
+        const B = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const J = v => JSON.stringify(v);
+        const row = BRIDGE_ACTIONS["passage.find"];
+        ok(typeof P.resolvePassageSearch === "function" && Boolean(row), "passages-gm.mjs carries out no passage search, or the bridge has no `passage.find` - Find Passage finds nothing");
+        if (typeof P.resolvePassageSearch !== "function" || !row) return;
+        let t = 7_000_000;
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R598GM", isGM: () => true, isPrimary: () => true, worldId: () => "R598WORLD",
+            activeGmIds: () => [], primaryGmId: () => "R598GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => ++t,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const def = (h, name) => eng.define({ ...h.spec, name: `r598${name}`, key: `r598${name}`, afterRestore: undefined, exists: undefined });
+        const stores = { map: def(S.passageMapStore, "Map"), access: def(S.passageAccessStore, "Access"), log: def(S.passageLogStore, "Log"),
+            mastermind: eng.define({ name: "r598mm", key: "r598mm", kind: "record", fields: ["actorId"], sync: false, backup: false }) };
+        const CAF = "R598 Cafeteria", KIT = "R598 Kitchen", GYM = "R598 Gym", LAB = "R598 Lab", DOWN = "R598DOWN", UP = "R598UP";
+        const wall = (x, { level = null, state = "secret", sceneId = "R598SCENE" } = {}) => ({ sceneId, level, shape: "wall", passageWallId: `R598WALL${x}`,
+            passageSeg: { x1: x, y1: 0, x2: x, y2: 100 }, rooms: [CAF, KIT], state, startAccess: [] });
+        const tunnel = (a, b) => ({ sceneId: "R598SCENE", level: null, shape: "tunnel", ends: [a, b], rooms: [], state: "secret", startAccess: [] });
+        const ROOM_AT = { 13: CAF, 14: GYM, 17: GYM, 18: CAF };
+        // Made in this order, oldest first; the ids run the other way.
+        const ROWS = [["R598SCENE.zknown", wall(11)], ["R598SCENE.yupstairs", wall(12, { level: UP })],
+            ["R598SCENE.xtunnelup", tunnel({ x: 13, y: 0, level: UP }, { x: 14, y: 0, level: DOWN })], ["R598SCENE.wclosed", wall(15, { state: "closed" })],
+            ["R598OTHER.vother", wall(16, { sceneId: "R598OTHER" })], ["R598SCENE.ttunnel", tunnel({ x: 17, y: 0, level: DOWN }, { x: 18, y: 0, level: DOWN })],
+            ["R598SCENE.awall", wall(19)]];
+        for (const [id, r] of ROWS) await stores.map.patch(id, r);
+        const [KNOWN, , , , , TUN, WALL] = ROWS.map(([id]) => id);
+        await stores.access.patch(`${KNOWN}/R598A`, { how: "gm", at: 1, by: { R598GM: 1 } });
+        await stores.mastermind.patch(G.RECORD, { actorId: "R598MM" });
+        const people = [{ id: "R598GM", isGM: true, active: true }, { id: "R598U", isGM: false, active: true }, { id: "R598UM", isGM: false, active: true }];
+        const [, asker, door] = people;
+        const IDS = ["R598A", "R598B", "R598C", "R598D", "R598MM", "R598MK", "R598CUB", "R598NPC", "R598DEAD"];
+        const cast = new Map(IDS.map(id => [id, { id, name: id === "R598A" ? "R598 <b>Aiko</b>" : id, type: id === "R598NPC" ? "adversary" : "character",
+            testUserPermission: (u, level) => level === "OWNER" && (id === "R598MM" ? ["R598UM"] : ["R598U"]).includes(u?.id) }]));
+        const scene = { id: "R598SCENE" };
+        const spot = id => ({ scene, room: id === "R598B" ? LAB : CAF, level: DOWN });
+        const world = (over = {}) => ({
+            actor: id => cast.get(id) ?? null, trial: () => false, monocub: a => a.id === "R598CUB", monokuma: a => a.id === "R598MK",
+            dead: a => a.id === "R598DEAD", place: a => spot(a.id),
+            sides: (r, seg) => (seg?.ends ? seg.ends.map(e => ROOM_AT[e.x] ?? null) : Number.isFinite(seg?.x1) ? [CAF, KIT] : []),
+            knownRooms: () => new Set([CAF, KIT]), ...over });
+        const said = { cards: [], toasts: [], notes: [] };
+        const search = async (actorId, total, { crit = false, rollId = null, undo = false, by = asker, over = {}, primary = () => true } = {}) => {
+            const cards = said.cards.length;
+            const out = await P.resolvePassageSearch({ actorId, total, isCritical: crit, rollId, undo }, { asker: by, stores, users: people, world: world(over),
+                whisper: async (to, content, extra) => said.cards.push({ to: to.id, content, extra }),
+                toast: text => said.toasts.push(text), note: n => said.notes.push(n), primary, hunted: () => {} });
+            return { out, code: out?.refused ? B.reasonOf(out.refused) : null, cards: said.cards.slice(cards) };
+        };
+        const cellsOf = actorId => Object.entries(stores.access.entries()).filter(([key]) => key.endsWith(`/${actorId}`) && !key.startsWith("touch/") && !key.startsWith("door/"))
+            .map(([key, cell]) => [key.slice(0, -(actorId.length + 1)), cell.how, cell.rollId ?? null]).sort((a, b) => (a[0] < b[0] ? -1 : 1));
+        const NOTHING = game.i18n.localize("DRPG.Analyze.passageNothing");
+        const foundTo = to => game.i18n.format("DRPG.Analyze.passageFound", { to });
+        const unexplored = game.i18n.format("DRPG.Listen.unknownRoom", { n: 1 });
+        const card = c => [c.to, c.content, c.extra?.flags?.[MODULE_ID]?.sfx ?? null, [...(c.extra?.whisper ?? [])].sort()];
+        const messages = game.messages?.size ?? 0;
+
+        // Aiko in the Cafeteria downstairs: a miss, two finds (16, then a critical's 3), and nothing left to find.
+        const steps = [];
+        for (const [total, o] of [[15, { rollId: "R598ROLL0" }], [16, { rollId: "R598ROLL1" }], [3, { crit: true, rollId: "R598ROLL2" }], [20, { rollId: "R598ROLL3" }]]) {
+            const s = await search("R598A", total, o);
+            steps.push([total, s.out, s.cards.map(card), cellsOf("R598A")]);
+        }
+        const toB = ["R598GM", "R598U"];
+        equal(J(steps), J([
+            [15, { searched: true, found: false }, [["R598A", `<p>${NOTHING}</p>`, { key: "searchNothing", gm: false }, toB]], [[KNOWN, "gm", null]]],
+            [16, { searched: true, found: true }, [["R598A", `<p>${foundTo(unexplored)}</p>`, { key: "passageFound", gm: true }, toB]], [[TUN, "found", "R598ROLL1"], [KNOWN, "gm", null]]],
+            [3, { searched: true, found: true }, [["R598A", `<p>${foundTo("R598 Kitchen")}</p>`, { key: "passageFound", gm: true }, toB]],
+                [[WALL, "found", "R598ROLL2"], [TUN, "found", "R598ROLL1"], [KNOWN, "gm", null]]],
+            [20, { searched: true, found: false }, [["R598A", `<p>${NOTHING}</p>`, { key: "searchNothing", gm: false }, toB]],
+                [[WALL, "found", "R598ROLL2"], [TUN, "found", "R598ROLL1"], [KNOWN, "gm", null]]]]),
+            "[the total, the answer, the card (to, words, sound, whispered to), Aiko's cells] at 15, 16, a critical's 3 and 20 - the tunnel's end here first, the wall here next; never the passage she knows, the wall upstairs, the tunnel whose Cafeteria end is upstairs, the closed one or another scene's");
+        const cellA = stores.access.get(`${TUN}/R598A`);
+        equal(J([Object.keys(cellA?.by ?? {}), said.notes.slice(0, 2)]),
+            J([["R598A"], [{ actorId: "R598A", rollId: "R598ROLL0", by: "R598U", place: { sceneId: "R598SCENE", room: CAF, level: DOWN } },
+                { actorId: "R598A", rollId: "R598ROLL1", by: "R598U", place: { sceneId: "R598SCENE", room: CAF, level: DOWN } }]]),
+            "[who found the tunnel, the GMs' fact on the first two rolls] - the cell does not name the finder, or a Reroll cannot tell a Find Passage's roll or where it was thrown (E80 fix r1-G3)");
+
+        // An empty room, and the Mastermind through the door - both alike, and like a miss; the find's card of the same shape.
+        const empty = await search("R598B", 20, { rollId: "R598ROLL4" });
+        const master = await search("R598MM", 20, { by: door, rollId: "R598ROLL5" });
+        const shape = c => [Object.keys(c.extra ?? {}).sort(), c.extra?.whisper?.length ?? null, (c.content.match(/<p>/g) ?? []).length,
+            Object.keys(c.extra?.flags?.[MODULE_ID] ?? {}), Object.keys(c.extra?.flags?.[MODULE_ID]?.sfx ?? {}).sort()];
+        const miss = steps[0][2][0];
+        equal(J([empty.out, master.out, cellsOf("R598B"), cellsOf("R598MM"), [miss, card(empty.cards[0]), card(master.cards[0])].map(c => [c[1], J(c[2])])]),
+            J([{ searched: true, found: false }, { searched: true, found: false }, [], [], [[`<p>${NOTHING}</p>`, J({ key: "searchNothing", gm: false })],
+                [`<p>${NOTHING}</p>`, J({ key: "searchNothing", gm: false })], [`<p>${NOTHING}</p>`, J({ key: "searchNothing", gm: false })]]]),
+            "[an empty room's answer, the Mastermind's, their cells, the words and sound of a miss, an empty room and the Mastermind] - they do not read alike");
+        const found = said.cards.find(c => c.content.includes(unexplored));
+        equal(J([found, empty.cards[0], master.cards[0], said.cards[0]].map(shape)), J(Array(4).fill(shape(said.cards[0]))),
+            "[a find's card, an empty room's, the Mastermind's, a miss's] ([its fields, how many it is whispered to, paragraphs, flags, the sound's fields]) - the shape tells them apart");
+        equal(J(master.cards[0].extra.whisper.slice().sort()), J(["R598GM", "R598UM"]), "the Mastermind's card is not to its door owner and the GMs");
+
+        // Every card went through the injected whisper, none to the GMs alone, and nothing was posted in this world.
+        const passagesSrc = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/passages-gm.mjs`).then(lfText));
+        equal(J([game.messages?.size ?? 0, /whisperToGms|\bgms\(/.test(fnSource(passagesSrc, "resolvePassageSearch")), said.toasts.length, said.cards.every(c => c.extra.whisper.includes("R598GM"))]),
+            J([messages, false, 6, true]),
+            "[this world's chat, the search's source naming the GMs' whisper, the primary's notes for 6 searches, every card to the GMs too]");
+
+        // Refused, by its reason: nothing written, nothing said.
+        const before = J(stores.access.entries());
+        const refusals = [];
+        for (const [what, actorId, o] of [
+            ["off the primary", "R598D", { primary: () => false }], ["in a Class Trial", "R598D", { over: { trial: () => true } }],
+            ["no such character", "R598NONE", {}], ["not a student", "R598NPC", {}], ["a Monokuma", "R598MK", {}],
+            ["a death", "R598DEAD", {}], ["a Monocub", "R598CUB", {}], ["no token", "R598D", { over: { place: () => null } }]]) {
+            const s = await search(actorId, 20, o);
+            refusals.push([what, s.code, s.cards.length]);
+        }
+        equal(J(refusals), J([["off the primary", "refused", 0], ["in a Class Trial", "trialLocked", 0], ["no such character", "missing", 0], ["not a student", "missing", 0],
+            ["a Monokuma", "missing", 0], ["a death", "cannotNow", 0], ["a Monocub", "actionDenied", 0], ["no token", "notThere", 0]]),
+            "[what was refused, its reason, cards] - a passage search was carried out where it may not be, or under another reason");
+        equal(J(stores.access.entries()), before, "a refused search wrote to the GMs' records");
+
+        // A Reroll's replay: Chie misses, the new dice find once, a second Reroll keeps it, lower dice take it back - and only the cell their roll wrote.
+        const replays = [];
+        const step = async (what, total, o) => { const s = await search("R598C", total, o); replays.push([what, s.out?.refused ? s.code : s.out, s.cards.length, cellsOf("R598C")]); };
+        await step("the first roll, 15", 15, { rollId: "R598R1" });
+        await step("its Reroll to 16", 16, { rollId: "R598R1", undo: true });
+        await step("again, 18", 18, { rollId: "R598R1", undo: true });
+        await step("again, 10", 10, { rollId: "R598R1", undo: true });
+        await stores.access.patch(`${WALL}/R598C`, { how: "gm", at: 2, by: { R598GM: 2 } });
+        await step("a new roll, 16", 16, { rollId: "R598R2" });
+        await step("the first roll's Reroll, 10", 10, { rollId: "R598R1", undo: true });
+        await step("the new roll's Reroll, 10", 10, { rollId: "R598R2", undo: true });
+        equal(J(replays), J([
+            ["the first roll, 15", { searched: true, found: false }, 1, []],
+            ["its Reroll to 16", { found: true, to: KIT }, 0, [[KNOWN, "found", "R598R1"]]],
+            ["again, 18", { kept: true }, 0, [[KNOWN, "found", "R598R1"]]],
+            ["again, 10", { lost: true }, 0, []],
+            ["a new roll, 16", { searched: true, found: true }, 1, [[WALL, "gm", null], [KNOWN, "found", "R598R2"]]],
+            ["the first roll's Reroll, 10", { nothing: true }, 0, [[WALL, "gm", null], [KNOWN, "found", "R598R2"]]],
+            ["the new roll's Reroll, 10", { lost: true }, 0, [[WALL, "gm", null]]]]),
+            "[the step, the answer, cards, Chie's cells] - a Reroll found twice, took back a passage another roll found or the GMs gave, or wrote a card");
+
+        // What a roller's browser tells the GM it threw the roll for (roll-draw.mjs `drawPacketOf`): a Find Passage, as a plain flag, and nothing of a passage or a room.
+        const D = await import("./roll-draw.mjs");
+        const told = context => D.drawPacketOf({ toJSON: () => ({ class: "Roll", formula: "1d12", terms: [], options: {} }) }, {},
+            { subject: { id: "R598A" }, actionKey: "analyze", facts: { context } }).context;
+        equal(J([told({ findPassage: true, passageId: TUN, sides: [CAF, KIT] }), told({ findPassage: "yes" }), told({})]), J([{ findPassage: true }, {}, {}]),
+            "[a Find Passage's context with a passage and its rooms, one whose flag is no boolean, none] as the GM is sent it - the GM cannot tell a Find Passage's roll, or is sent more");
+
+        // The bridge's row: the sender's own character, four fields, and the roll an Analyze thrown as a Find Passage.
+        const clean = row.sanitize({ actorId: "R598A", total: "16", isCritical: 1, rollId: "R598ROLL1", undo: true, passageId: TUN, room: CAF });
+        equal(J([row.answer, row.guards.length, row.guards[0] === B.knownSender, row.rolled?.field, row.rolled?.actor, row.rolled?.kind, clean]),
+            J(["reply", 2, true, "rollId", "actorId", "analyze", { actorId: "R598A", total: 16, isCritical: true, rollId: "R598ROLL1" }]),
+            "[the answer, the guards, the first the known sender, the roll's field, its character, its action, the packet as the GM reads it] - the row takes a passage, a room or an undo from the packet, or no roll");
+        const sender = { id: "R598U", isGM: false }, packet = { actorId: "R598A", rollId: "R598ROLL1" };
+        const record = over => ({ rollId: "R598ROLL1", actorId: "R598A", userId: "R598U", actionKey: "analyze", at: Date.now(), superseded: null, resolved: [], ...over });
+        // As the runner asks them (bridge-guards.mjs `rollsFor`): the record against the row's roll first, then the row's own reading of it.
+        const derived = over => row.rolled.derive?.(record(over), packet)?.why ?? null;
+        equal(J([B.rollRefusal(record({ findPassage: true }), row.rolled, packet, sender), derived({ findPassage: true }),
+            B.rollRefusal(record({ actionKey: "search", findPassage: null }), row.rolled, packet, sender),
+            derived({ findPassage: false }), derived({})]),
+            J([null, null, "that roll was not thrown for that action", "that roll was not thrown for that action", "that roll was not thrown for that action"]),
+            "[an Analyze thrown as a Find Passage (the record, the row's reading), a Search's roll, an Analyze for a bullet or a hint, a record of before C3] - a passage was found on another action's roll");
+    }],
+    ["R599 - the sound of a secret passage: a find rings passageFound for the finder's owner and the GMs, a miss searchNothing for the owner alone, a show passageFound for the owner of the one shown it alone; a revoke, a Close and the season's reset write no card and ring nothing - the reset takes every cell a find wrote and keeps the tunnel; the sound's line names a find and a show in English and in Polish", async () => {
+        /*
+         * E80 C3, 18.10.2026; the stage's A10-14 (P1-14, P1-15). The harms: a find nobody hears, a sound that tells the
+         * GMs of every miss or a third player of a show, a sound or a card at a GM's revoke or Close that tells the
+         * table a passage existed, and a reset that keeps a season's finds or loses the GMs' map. Run on an engine of
+         * the suite's own (R562's): the search and the show with their whispers injected, each card's sound read as
+         * sfx.mjs `soundFromMessage` reads a GM's card, its hearers by that file's audience rule (a whisper reaches its
+         * names; a GM of them only for a sound marked for the GMs). The revoke, the Close and the reset on the same
+         * stores, with this browser's chat and its sounds watched. Make public is not built (the stage's
+         * C6). Red at the parent (879d6d5): no `resolvePassageSearch`.
+         */
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const P = await import("./passages-gm.mjs");
+        const { soundFromMessage } = await import("./sfx.mjs");
+        const J = v => JSON.stringify(v);
+        ok(typeof P.resolvePassageSearch === "function", "passages-gm.mjs carries out no passage search - a find rings nothing");
+        if (typeof P.resolvePassageSearch !== "function") return;
+        let t = 8_000_000;
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R599GM", isGM: () => true, isPrimary: () => true, worldId: () => "R599WORLD",
+            activeGmIds: () => [], primaryGmId: () => "R599GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => ++t,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const def = (h, name) => eng.define({ ...h.spec, name: `r599${name}`, key: `r599${name}`, afterRestore: undefined, exists: undefined });
+        const stores = { map: def(S.passageMapStore, "Map"), access: def(S.passageAccessStore, "Access"), log: def(S.passageLogStore, "Log"),
+            mastermind: eng.define({ name: "r599mm", key: "r599mm", kind: "record", fields: ["actorId"], sync: false, backup: false }) };
+        const CAF = "R599 Cafeteria", KIT = "R599 Kitchen", GYM = "R599 Gym";
+        const [start] = studentActors();
+        const WALL = "R599SCENE.wall", TUN = "R599SCENE.tunnel";
+        await stores.map.patch(WALL, { sceneId: "R599SCENE", level: null, shape: "wall", passageWallId: "R599WALL", passageSeg: { x1: 5, y1: 0, x2: 5, y2: 100 },
+            rooms: [CAF, KIT], state: "secret", startAccess: [] });
+        await stores.map.patch(TUN, { sceneId: "R599SCENE", level: null, shape: "tunnel", ends: [{ x: 1, y: 0, level: null }, { x: 2, y: 0, level: null }],
+            rooms: [CAF, GYM], state: "secret", startAccess: start ? [start.id] : [] });
+        const people = [{ id: "R599GM", isGM: true, active: true }, { id: "R599U", isGM: false, active: true }, { id: "R599U2", isGM: false, active: true },
+            { id: "R599U3", isGM: false, active: true }];
+        const cast = new Map(["R599A", "R599B", "R599E"].map(id => [id, { id, name: id, type: "character",
+            testUserPermission: (u, level) => level === "OWNER" && (id === "R599B" ? ["R599U2"] : ["R599U"]).includes(u?.id) }]));
+        const scene = { id: "R599SCENE" };
+        const world = {
+            actor: id => cast.get(id) ?? null, trial: () => false, locked: () => false, inIncident: () => false, monocub: () => false, monokuma: () => false,
+            dead: () => false, published: () => false, place: () => ({ scene, room: CAF, level: null }),
+            sides: (r, seg) => (seg?.ends ? [CAF, GYM] : Number.isFinite(seg?.x1) ? [CAF, KIT] : []), knownRooms: () => new Set([CAF])
+        };
+        const cards = [];
+        const whisper = async (to, content, extra) => cards.push({ to: to.id, sfx: extra?.flags?.[MODULE_ID]?.sfx ?? null, whisper: extra?.whisper ?? [] });
+        const asker = people[1];
+        const opts = { asker, stores, users: people, world, whisper, toast: () => {}, note: () => {}, primary: () => true, hunted: () => {} };
+        // Who hears a GM's card: its whisper's names, a GM of them only when the sound is marked for the GMs.
+        const hears = c => {
+            const asked = soundFromMessage({ author: { isGM: true }, flags: { [MODULE_ID]: { sfx: c.sfx } } });
+            return asked ? [asked.key, people.filter(u => c.whisper.includes(u.id) && (!u.isGM || asked.forGm)).map(u => u.id)] : [null, []];
+        };
+
+        await P.resolvePassageSearch({ actorId: "R599A", total: 16, rollId: "R599ROLL1" }, opts);
+        await P.resolvePassageSearch({ actorId: "R599E", total: 15, rollId: "R599ROLL2" }, opts);
+        await P.sharePassage({ actorId: "R599A", targetId: "R599B", passageId: WALL }, { stores, world, whisper, gms: async () => {}, asker, users: people });
+        equal(J(cards.map(c => [c.to, ...hears(c)])), J([["R599A", "passageFound", ["R599GM", "R599U"]], ["R599E", "searchNothing", ["R599U"]],
+            ["R599B", "passageFound", ["R599U2"]], ["R599A", null, []]]),
+            "[whose card, its sound, who hears it] for Aiko's find, Eiji's miss, Aiko's show to Botan and her own word on it - a sound reaches somebody it should not, or misses one");
+
+        // A GM's revoke and Close, and the season's reset: no card, no sound. Eiji finds the wall first, so the reset has a find to take.
+        await P.resolvePassageSearch({ actorId: "R599E", total: 18, rollId: "R599ROLL3" }, opts);
+        const held = [];
+        const watch = (owner, name) => {
+            const original = owner?.[name];
+            if (typeof original !== "function") return;
+            const own = Object.hasOwn(owner, name);
+            owner[name] = function (...args) { held.push(name); return original.apply(this, args); };
+            return () => { if (own) owner[name] = original; else delete owner[name]; };
+        };
+        const undo = [watch(foundry.audio?.AudioHelper, "play"), watch(foundry.audio?.Sound?.prototype, "play"),
+            watch(globalThis.HTMLMediaElement?.prototype, "play")].filter(Boolean);
+        const posted = Hooks.on("preCreateChatMessage", () => { held.push("chat"); });
+        const before = cards.length, mapBefore = J(stores.map.get(TUN));
+        const cellsBefore = Object.entries(stores.access.entries()).filter(([k]) => !k.startsWith("touch/")).map(([k, c]) => `${k} ${c.how}`).sort();
+        let did = null;
+        try {
+            did = [await P.revokePassage(WALL, "R599A", { stores }), await P.closePassage(WALL, { stores }), await P.passagesAfterReset({ stores })];
+        } finally {
+            Hooks.off("preCreateChatMessage", posted);
+            for (const put of undo) put();
+        }
+        const cellsAfter = Object.entries(stores.access.entries()).map(([k, c]) => `${k} ${c.how}`).sort();
+        equal(J([did.slice(0, 2), cards.length - before, held]), J([[true, true], 0, []]),
+            "[the revoke and the Close carried out, cards written, what was posted or played] - a GM's revoke, Close or reset tells the table");
+        equal(J([cellsBefore, cellsAfter, J(stores.map.get(TUN)) === mapBefore, Object.keys(stores.log.entries()).length]),
+            J([[`${WALL}/R599A found`, `${WALL}/R599B shown`, `${WALL}/R599E found`], start ? [`${TUN}/${start.id} start`] : [], true, 0]),
+            "[the cells before the reset, after it, the tunnel's row kept, the log's rows] - the reset kept a season's finds or lost the GMs' map");
+
+        // The line a GM reads beside the sound: a find and a show, in both languages.
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
+        const plRow = pl?.DRPG?.Config?.SFX_EVENTS?.passageFound ?? {};
+        equal(J([SFX_EVENTS.passageFound?.label, SFX_EVENTS.passageFound?.hint, plRow.label, plRow.hint]),
+            J(["A secret passage opens to you", "A student finds a secret passage, or another student showed it to them. Heard by them, and by the GMs at a find.",
+                "Poznajesz tajne przejście", "Uczeń znajduje tajne przejście albo ktoś mu je pokazał. Słyszy go on, a przy znalezieniu także GM-owie."]),
+            "[the sound's label and line in English, in Polish] - the GM's sound list still says a passage rings only at a show");
+    }],
+    ["R600 - a trap report is the GM's to judge: a Find Passage is no report - its kind reads as nothing, names no room and is no road a guard opens - a stash hunt's is refused from a player and heard from a GM, the GM's side refuses a room the character is not in, and the passage search's hook is heard where it is raised and relayed from nowhere", async () => {
+        /*
+         * E80 C3, 18.10.2026; the stage's write road "trap event kind passage" (P1-10's trap), and since E80 fix r1-G1
+         * (18.10.2026; the review's E80-SEC-1 and E80-SEC-2) no road at all. A trap watching for a Find Passage or a stash
+         * hunt fires on every attempt; until that fix the searcher's browser told the GM of it, so its console chose
+         * whether a trap heard of a search - leaving the report out searched past every trap, and sending one alone, or
+         * naming a room of its own choosing, sprang one with no search. Now the GM that judges the search raises it
+         * (R604). Read on a student of this world standing in a room of the scene on screen: the relay's packet as the GM
+         * reads it, its guards' verdicts for a player and for a GM (passed as plain senders: nothing is sent), its room
+         * guard for the room the student stands in and one it is not in, and traps.mjs's watch on the hook. Red at the
+         * parent (4263c09): the kind "passage" is read, its room asked, a player's stash hunt heard.
+         */
+        needs(world.atLeast("studentsInRooms"), "a student standing in a room to report from");
+        const T = await import("./traps.mjs");
+        const B = await import("./bridge-guards.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const J = v => JSON.stringify(v);
+        const student = studentActors().find(a => locateActor(a)?.room && locateActor(a).scene === canvas?.scene) ?? null;
+        must(student, "no student stands in a room of the scene on screen - this would measure nothing");
+        const here = locateActor(student).room, AWAY = "R600 nowhere";
+        const row = T.TRAP_ACTIONS["trap.event"];
+        const clean = row.sanitize({ kind: "passage", actorId: student.id, room: AWAY, passageId: "R600P" });
+        const kept = row.sanitize({ kind: "stash", actorId: student.id, room: AWAY });
+        equal(J([clean.kind ?? null, Object.hasOwn(clean, "passageId"), Object.hasOwn(T.RELAYED_ROOM, "passage"), kept.kind, kept.room, T.RELAYED_ROOM.stash]),
+            J([null, false, false, "stash", AWAY, "room"]),
+            "[a Find Passage's kind, a passage named, a room field for it, a stash hunt's kind and room, its room field] as the GM reads a trap report - a Find Passage is still a report a console sends");
+        const teller = typeof B.guardRelayTeller === "function" && row.guards.includes(B.guardRelayTeller) ? B.guardRelayTeller : null;
+        const player = { id: "R600U", isGM: false }, gm = { id: "R600G", isGM: true };
+        const verdicts = [["a player's stash hunt", player, "stash"], ["a GM's stash hunt", gm, "stash"], ["a player's crossing", player, "crossing"],
+            ["a player's rest", player, "rest"], ["a player's action", player, "action"]].map(([what, sender, kind]) =>
+            [what, teller ? teller(sender, { kind, actorId: student.id, room: here }, {}) : "no guard"]);
+        equal(J(verdicts), J([["a player's stash hunt", "only a GM reports a stash hunt"], ["a GM's stash hunt", null], ["a player's crossing", null],
+            ["a player's rest", null], ["a player's action", null]]),
+            "[the report, the trap row's teller guard's verdict] - a player's console still tells the GM of a stash hunt, or a report the player's own browser makes is refused");
+        equal(B.reasonOf("only a GM reports a stash hunt"), "gmOnly", "the refusal of a player's stash hunt reads as no reason of the bridge's list");
+        const said = [];
+        for (const [kind, room] of [["stash", here], ["stash", AWAY], ["rest", here], ["rest", AWAY], ["passage", AWAY]]) {
+            said.push([kind, room === here ? "here" : "away", await B.guardRelayRoom(game.user, { kind, actorId: student.id, room })]);
+        }
+        equal(J(said), J([["stash", "here", null], ["stash", "away", `the character is not in "${AWAY}": ${student.name}`],
+            ["rest", "here", null], ["rest", "away", `the character is not in "${AWAY}": ${student.name}`], ["passage", "away", null]]),
+            "[the report, where, the GM's refusal] - a stash hunt or a rest springs a trap in a room the character is not in (a Find Passage's names no room to ask)");
+        const traps = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/traps.mjs`).then(lfText));
+        const registered = fnSource(traps, "registerTraps");
+        equal(J([/Hooks\.on\("drpgPassageHunted", event => onPassageHunted\(event\)\);/.test(registered), /relay\("passage"/.test(registered),
+            /case "passage"/.test(fnSource(traps, "handleTrapEvent"))]), J([true, false, false]),
+            "[traps.mjs hears a passage search where it is raised, relays one, carries a relayed one out] - a passage search is still a report a browser relays");
+    }],
+    ["R601 - Foundry's secret doors and the players' rulers (A10-15): the map check names each secret door of a scene and no other door or wall; 'Convert to passages' leaves none on the scenes it is given - each an ordinary wall, shut, that still blocks a move, with a secret passage along its whole length that nobody knows, one that stands between no two rooms a plain wall it names - forgets the GMs' record of each, and run again changes nothing; a player's change of a secret door's state is put back to the state a GM last left it in - shut where no GM has changed it, so a player's close of a shut door writes nothing - a GM's change stands and is that state, and so does a player's change of any other door, and until the put-back lands the GMs' audit reads the door as shut; the Season setup offers both rows, Hide takes the movement ruler from the Player and Trusted Player roles and Show gives it back, every other permission and role as it was", async () => {
+        /*
+         * E80 C5 (18.10.2026; S16-18, P1-17 to P1-19). The harms: a secret door is world data, so every player's console
+         * reads where it is and may open it (Foundry lets a player change a door's state), and once it stands open the
+         * GMs' audit let a token through it; a GM who wants them gone had no road but each door by hand; and a player's
+         * ruler, shown to the table, draws the route of a move through a passage. Read on plain objects the suite holds:
+         * a scene of two rooms with two secret doors (one in their shared wall, one inside a room, open), an ordinary
+         * door and a wall, whose `updateEmbeddedDocuments` records; stores of an engine of its own, as R594's; walls whose
+         * `update` records; the audit as R559 reads it; and a settings object of its own - nothing of the world is
+         * written. The road through a real Foundry is A10-15's tier-2 test and scenario 30; v14's own permission defaults
+         * and a console's change of a door on v14 are LIVE-E80-02 and LIVE-E80-03. Since E80 fix r1-G1 (18.10.2026; the
+         * review's E80-SEC-3) the put-back writes the state a GM last left the door in: until then it wrote the change's
+         * opposite, so a player's "shut" of a shut door, sent whole, opened it. Red at that fix's parent (4263c09): the
+         * close of the shut door is put back open. Since E80 fix r2-G9 (19.10.2026; the review's E80-FIX-R1-01) that state
+         * is a flag on the door (passages-gm.mjs `DOOR_SET`), a GM's change carrying it as Foundry writes what a GM's
+         * `preUpdateWall` leaves (`stampSecretDoor`, applied here to the suite's wall), and the conversion deletes it. The
+         * pass over the doors no primary heard change is R605; a door with no state on it, R616.
+         */
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const P = await import("./passages-gm.mjs");
+        const D = await import("./fog-diagnostics.mjs");
+        const SS = await import("./season-setup.mjs");
+        const A = await import("./movement-audit.mjs");
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const J = stableJson;
+        ok([D.secretDoorRows, P.convertSecretDoors, P.putBackSecretDoor, P.secretDoorHeldShut, SS.setPlayerRulers, SS.rulerRoles].every(f => typeof f === "function"),
+            "the map check's secret door rows, the conversion, the put-back, its hold, and the rulers' Hide and Show are not there");
+        let now = 9_800_000;
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R601GM", isGM: () => true, isPrimary: () => true, worldId: () => "R601WORLD",
+            activeGmIds: () => [], primaryGmId: () => "R601GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => now++,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const def = (h, name) => eng.define({ ...h.spec, name: `r601${name}`, key: `r601${name}`, afterRestore: undefined, exists: undefined });
+        const stores = { map: def(S.passageMapStore, "Map"), access: def(S.passageAccessStore, "Access"), log: def(S.passageLogStore, "Log"),
+            mastermind: eng.define({ name: "r601mm", key: "r601mm", kind: "record", fields: ["actorId"], sync: false, backup: false }) };
+        const region = (name, x, y, w, h) => ({ id: `R601R${name}`, name: `R601 ${name}`, levels: new Set(), behaviors: [],
+            bounds: { x, y, width: w, height: h }, shapes: [{ type: "rectangle", x, y, width: w, height: h }],
+            testPoint: p => p.x >= x && p.x <= x + w && p.y >= y && p.y <= y + h,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === R.ROOM_FLAG ? true : undefined) });
+        const W = (id, c, more = {}) => ({ id, c, move: 20, sight: 20, door: 0, ds: 0, dir: 0, levels: new Set(), flags: {}, ...more });
+        const FLAG = P.DOOR_SET ?? "doorSet", setOn = wall => wall.flags?.[MODULE_ID]?.[FLAG] ?? null;
+        const withSet = ds => ({ flags: { [MODULE_ID]: { [FLAG]: ds } } });
+
+        // 1. The map check and the conversion, on a scene of two rooms.
+        // The GMs' state of each secret door (E80 fix r2-G9: on the door itself), which the conversion deletes.
+        const walls = [W("R601WS1", [600, 100, 600, 300], { door: 2, ...withSet(0) }), W("R601WD", [600, 400, 600, 500], { door: 1 }),
+            W("R601WS2", [100, 300, 300, 300], { door: 2, ds: 1, ...withSet(1) }), W("R601WP", [0, 600, 1200, 600])];
+        const updates = [];
+        const site = { id: "R601SCENE", name: "R601", grid: { size: 100 }, levels: [], dimensions: { width: 1200, height: 700 },
+            regions: [region("Hall", 0, 0, 600, 600), region("Kitchen", 600, 0, 600, 600)],
+            walls: Object.assign(walls, { get: id => walls.find(w => w.id === id) }),
+            updateEmbeddedDocuments: async (name, list) => {
+                updates.push([name, J(list)]);
+                for (const u of list) {
+                    const w = walls.find(x => x.id === u._id) ?? {};
+                    for (const [k, v] of Object.entries(u)) {
+                        if (k.startsWith("flags.")) {
+                            const [, scope, key] = k.split(".");
+                            if (v === null || typeof v === "object") delete w.flags?.[scope]?.[key];
+                            else w.flags = { ...w.flags, [scope]: { ...(w.flags?.[scope] ?? {}), [key]: v } };
+                        } else w[k] = v;
+                    }
+                }
+                return list;
+            } };
+        const rows = D.secretDoorRows(site);
+        const problem = game.i18n.localize("DRPG.Fog.secretDoor.problem");
+        const ofSite = () => Object.keys(stores.map.entries()).filter(k => k.startsWith(`${site.id}.`)).sort();
+        const setBefore = walls.map(setOn);
+        const first = await P.convertSecretDoors({ scenes: [site], stores });
+        const setAfter = walls.map(setOn);
+        const made = first?.passages?.[0] ?? null;
+        const cells = Object.keys(stores.access.entries()).filter(k => made && k.startsWith(`${made}/`));
+        const wallsAfter = walls.map(w => [w.id, w.door, w.ds, w.move]);
+        const keys = ofSite();
+        const again = await P.convertSecretDoors({ scenes: [site], stores });
+        equal(J([rows.map(r => [r.level, r.problem === problem, r.at]), problem !== "DRPG.Fog.secretDoor.problem"]),
+            J([[["warning", true, { x: 600, y: 200 }], ["warning", true, { x: 200, y: 300 }]], true]),
+            "[each row of the map check's secret doors as [level, the problem's words, where], the words localized] - an ordinary door or wall named, or a secret door missed");
+        equal(J([first?.converted, first?.passages?.length, (first?.plain ?? []).map(p => [p.sceneId, p.wallId, typeof p.why]), updates.map(u => u[0]), wallsAfter]),
+            J([2, 1, [[site.id, "R601WS2", "string"]], ["Wall"],
+                [["R601WS1", 0, 0, 20], ["R601WD", 1, 0, 20], ["R601WS2", 0, 0, 20], ["R601WP", 0, 0, 20]]]),
+            "[converted, passages made, the walls left plain, the writes, each wall as [id, door, state, move]] after 'Convert to passages'");
+        equal(J([keys, stores.map.get(made) ?? null, cells, D.secretDoorRows(site).length]),
+            J([[made], { sceneId: site.id, level: null, shape: "wall", passageWallId: "R601WS1", passageSeg: { x1: 600, y1: 100, x2: 600, y2: 300 },
+                rooms: ["R601 Hall", "R601 Kitchen"], state: "secret", startAccess: [], origin: "door" }, [], 0]),
+            "[the scene's passages, the row (its `origin` since E80 C6), who knows it, secret doors left] - the passage the shared wall's door became");
+        equal(J([again?.converted, again?.passages, again?.plain, updates.length, ofSite()]), J([0, [], [], 1, [made]]),
+            "[converted, passages, plain walls, writes, the scene's passages] when the conversion is run again");
+        equal(J([setBefore, setAfter]), J([[0, null, 1, null], [null, null, null, null]]),
+            "[each wall's GMs' state before the conversion, after it] - a wall that is no secret door any more keeps the state a GM gave it as one, which tells every browser a secret door stood there");
+        const sources = new Map(await otherSources());
+        must(sources.get("fog-diagnostics.mjs")?.length, "fog-diagnostics.mjs is not among the module's sources - this would measure nothing");
+        ok(/\bsecretDoorRows\(scene\)/.test(fnSource(stripComments(sources.get("fog-diagnostics.mjs")), "checkRegions")),
+            "checkRegions does not ask secretDoorRows of the scene it checks");
+
+        // 2. The put-back, and the audit's reading of a door a player opened. Each put-back is written with the option that
+        // marks it the put-back's own (`DOOR_ASIDE`), and a landing is fed back with it, as the watch reads it from the update.
+        const player = { id: "R601U", isGM: false, active: true }, gm = { id: "R601G", isGM: true, active: true };
+        const writes = [];
+        const ASIDE = P.DOOR_ASIDE ?? "drpgDoorAside", home = { id: "R601S", name: "R601 scene" };
+        const door = (id, more = {}) => ({ ...W(id, [1500, 0, 1500, 1000], { door: 2, ...more }), parent: home,
+            update: async (data, options) => { writes.push([id, J(data), Boolean(options?.[ASIDE])]); return true; } });
+        // A GM's own change carries the state on the door, as its browser's `preUpdateWall` leaves it (`stampSecretDoor`).
+        const back = async (wall, change, sender, { aside = false } = {}) => {
+            if (sender?.isGM && !aside && typeof P.stampSecretDoor === "function") {
+                const stamped = foundry.utils.deepClone(change);
+                P.stampSecretDoor(wall, stamped, {});
+                const mine = stamped.flags?.[MODULE_ID];
+                if (mine) wall.flags = { ...wall.flags, [MODULE_ID]: { ...(wall.flags?.[MODULE_ID] ?? {}), ...mine } };
+            }
+            return [await P.putBackSecretDoor(wall, change, sender?.id ?? "R601NOBODY", { sender, aside }), P.secretDoorHeldShut(wall.id)];
+        };
+        const S1 = door("R601D1", { ds: 1 }), S2 = door("R601D2"), S3 = door("R601D3", { ds: 1 }), OD = door("R601D4", { door: 1, ds: 1 }), S5 = door("R601D5", { ds: 1 }),
+            S6 = door("R601D6", { ds: 1 });
+        const users = new Map([[player.id, player], [gm.id, gm]]);
+        const student = { id: "R601A", name: "R601A", type: "character", items: [], getFlag: () => undefined, testUserPermission: (u, level) => level === "OWNER" && u?.id === player.id };
+        const scene = { id: "R601S", name: "R601 scene", grid: { size: 100 }, dimensions: { width: 3000, height: 1000 }, levels: [], walls: [S1],
+            regions: new Set([region("Lab", 0, 0, 3000, 1000)]) };
+        const audit = () => {
+            const token = { id: "R601T", name: "R601 token", x: 1700, y: 400, width: 1, height: 1, elevation: 0, level: undefined, parent: scene, actor: student };
+            const out = A.auditMove(token, { x: token.x, y: token.y }, {}, player.id, { x: 1200, y: 400, elevation: 0 }, {
+                REVERT: M.REVERT, SENT_BACK: M.SENT_BACK, sendBackRefusal: M.sendBackRefusal, roomAt: M.roomAt, stairLinks: () => [],
+                history: [], held: a => a, users, known: {}, mode: "log", mastermind: { get: () => null }, book: { rows: [], told: new Map(), lines: new Map(), dropped: 0 },
+                now: Date.now(), warn: () => {}, sendBack: () => {}, socket: { emit: () => {} }, whisper: () => Promise.resolve() });
+            return out.verdict === "crossed" ? `crossed ${out.wall}` : out.verdict;
+        };
+        const steps = [];
+        try {
+            steps.push(["a player opens", ...(await back(S1, { ds: 1 }, player)), audit()]);
+            steps.push(["the put-back lands", ...(await back(S1, { ds: 0 }, gm, { aside: true }))]);
+            steps.push(["a GM opens it", ...(await back(S1, { ds: 1 }, gm)), audit()]);
+            steps.push(["a player closes it", ...(await back(S1, { ds: 0 }, player))]);
+            steps.push(["the put-back lands", ...(await back(S1, { ds: 1 }, gm, { aside: true })), audit()]);
+            steps.push(["a player's close of a shut door no GM opened, sent whole", ...(await back(S2, { ds: 0 }, player))]);
+            steps.push(["a GM's change of no state", ...(await back(S3, { sight: 0 }, gm))]);
+            steps.push(["a player opens an ordinary door", ...(await back(OD, { ds: 1 }, player))]);
+            steps.push(["somebody the GM does not know opens", ...(await back(S5, { ds: 1 }, null))]);
+            steps.push(["a GM makes an open door secret", ...(await back(S6, { door: 2 }, gm))]);
+        } finally {
+            for (const wall of [S1, S2, S3, OD, S5, S6]) await P.putBackSecretDoor(wall, { ds: wall.ds }, gm.id, { sender: gm, aside: true });
+        }
+        equal(J([steps, writes]), J([[["a player opens", true, true, "crossed R601D1"], ["the put-back lands", false, false],
+            ["a GM opens it", false, false, "clear"], ["a player closes it", true, true], ["the put-back lands", false, false, "clear"],
+            ["a player's close of a shut door no GM opened, sent whole", false, false], ["a GM's change of no state", false, false],
+            ["a player opens an ordinary door", false, false], ["somebody the GM does not know opens", true, true], ["a GM makes an open door secret", false, false]],
+        [["R601D1", J({ ds: 0 }), true], ["R601D1", J({ ds: 1 }), true], ["R601D5", J({ ds: 0 }), true]]]),
+            "[each change as [what, put back, held shut, the audit of a step through the open door], the put-backs written as [door, change, the put-back's own]]");
+        equal(J([S1, S2, S3, OD, S5, S6].map(w => [w.id, setOn(w)]).filter(([, v]) => v !== null)),
+            J([["R601D1", 1], ["R601D6", 1]]),
+            "[each door with the GMs' state on it, that state] - a GM's change was not kept, the put-back's own landing was kept as a GM's, or a player's change was");
+
+        // 3. The Season setup's two rows, and the rulers' Hide and Show on a settings object of the suite's own.
+        const kept = { "core.permissions": { SHOW_CURSOR: [1, 2], FILES_BROWSE: [3, 4] } };
+        const wrote = [];
+        const settings = { get: (ns, key) => foundry.utils.deepClone(kept[`${ns}.${key}`]),
+            set: async (ns, key, value) => { wrote.push(`${ns}.${key}`); kept[`${ns}.${key}`] = foundry.utils.deepClone(value); return value; } };
+        const ruler = [];
+        const step = async (what, show, inForce = {}) => ruler.push([what, await SS.setPlayerRulers(show, { settings, inForce }), J(kept["core.permissions"])]);
+        await step("hide, nothing stored", false);
+        await step("hide again", false);
+        await step("show", true);
+        kept["core.permissions"] = { SHOW_CURSOR: [1, 2] };
+        await step("hide, the roles in force", false, { SHOW_RULER: [2, 3, 4] });
+        await step("show, stored", true, { SHOW_RULER: [2, 3, 4] });
+        equal(J([ruler, wrote.length]), J([[
+            ["hide, nothing stored", 2, J({ SHOW_CURSOR: [1, 2], FILES_BROWSE: [3, 4], SHOW_RULER: [3, 4] })],
+            ["hide again", 0, J({ SHOW_CURSOR: [1, 2], FILES_BROWSE: [3, 4], SHOW_RULER: [3, 4] })],
+            ["show", 2, J({ SHOW_CURSOR: [1, 2], FILES_BROWSE: [3, 4], SHOW_RULER: [1, 2, 3, 4] })],
+            ["hide, the roles in force", 1, J({ SHOW_CURSOR: [1, 2], SHOW_RULER: [3, 4] })],
+            ["show, stored", 2, J({ SHOW_CURSOR: [1, 2], SHOW_RULER: [1, 2, 3, 4] })]], 4]),
+        "[each press as [what, roles changed, the permissions after], the writes] - Hide and Show of the players' movement rulers");
+        const offered = SS.steps().filter(r => ["secretDoors", "rulers"].includes(r.key))
+            .map(r => [r.key, Boolean(r.optional), typeof r.fix, typeof r.undo, [`DRPG.Season.step.${r.key}`, `DRPG.Season.hint.${r.key}`, r.fixedKey, r.doKey, r.undoKey, r.undoneKey]
+                .filter(Boolean).every(k => game.i18n.has(k) || game.i18n.has(`${k}.other`))]);
+        equal(J(offered), J([["secretDoors", true, "function", "undefined", true], ["rulers", true, "function", "function", true]]),
+            "[each new row of the Season setup as [key, optional, its fix, its undo, every one of its words in the language file]]");
+    }],
+    ["R602 - Make public and Make secret (D4): a public passage is in the copy of every student's owner, each copy naming the player's own students alone, and the GMs' audit lets any student through it while a secret one beside it still stops a stranger; Make secret gives it back to those who knew it; neither writes a cell or a chat message, and the reset keeps it public; the Passages tab's columns are Rooms, Kind, Shape, Origin and then the rest", async () => {
+        /*
+         * E80 C6 (18.10.2026; D4, the owner's A10 Q2: no world data, every student a knower in the copies, the cut and the
+         * audit, no lock lifted, kept by the reset; P1-21, P1-22). The harms: a GM who wants a passage known to the whole
+         * class had no road but a grant per student, each told with a card and a sound; a public passage that reaches a
+         * player's browser naming somebody else's students (the copy's cut), or that the GMs' audit still sends a student
+         * back from; one that stays public after Make secret, or that forgets who knew it before; and a tab with no word of
+         * what a passage is, how it is made or where it came from. On stores of an engine of the suite's own, as R555's and
+         * R561's, with two students of this world (`touch` stamps the world's students) seen through actors of the suite's
+         * own whose owners are users of its own; the audit as R559 reads it, on a scene of plain objects; the tab drawn and
+         * wired by passages-tab.mjs on a detached element. Nothing of the world is written: tellAfter sends no copy for
+         * stores that are not the module's, and every chat message asked for while the buttons are pressed is counted and
+         * refused. The real records, the four clients' copies and the sockets are scenario 76's phase W. Red at 5cb86d3:
+         * no 'Make public' in the tab, so no copy, cut or audit moved; the tab's heads Rooms, Who knows, At season start, State.
+         */
+        needs(world.atLeast("livingStudents", 2), "two students whose owners' copies a public passage reaches");
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const P = await import("./passages-gm.mjs");
+        const L = await import("./passages.mjs");
+        const T = await import("./passages-tab.mjs");
+        const A = await import("./movement-audit.mjs");
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const J = v => JSON.stringify(v);
+        let now = 9_500_000;
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R602GM", isGM: () => true, isPrimary: () => true, worldId: () => "R602WORLD",
+            activeGmIds: () => [], primaryGmId: () => "R602GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => now++,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const def = (h, name) => eng.define({ ...h.spec, name: `r602${name}`, key: `r602${name}`, afterRestore: undefined, exists: undefined });
+        const stores = { map: def(S.passageMapStore, "Map"), access: def(S.passageAccessStore, "Access"), log: def(S.passageLogStore, "Log"),
+            mastermind: eng.define({ name: "r602mm", key: "r602mm", kind: "record", fields: ["actorId"], sync: false, backup: false }) };
+        const [SA, SB] = studentActors();
+        const owners = { [SA.id]: "R602U1", [SB.id]: "R602U2", R602MK: "R602U3" };
+        const fake = (id, name, { monokuma = false } = {}) => ({ id, name, type: "character", items: [],
+            getFlag: (scope, key) => (monokuma && scope === MODULE_ID && key === FLAGS.monokuma ? true : undefined),
+            testUserPermission: (u, level) => level === "OWNER" && (u?.isGM || owners[id] === u?.id) });
+        const [FA, FB, MK] = [fake(SA.id, SA.name), fake(SB.id, SB.name), fake("R602MK", "R602 Monokuma", { monokuma: true })];
+        const actors = [FA, FB, MK];
+        const U = ["R602U1", "R602U2", "R602U3"].map(id => ({ id, isGM: false, active: true, name: id }));
+        const users = new Map([...U.map(u => [u.id, u]), ["R602GM", { id: "R602GM", isGM: true, active: true }]]);
+
+        // A scene of two rooms, the Lab over the Vault, with one wall between them and two passages along it.
+        const region = (name, x, y, w, h) => ({ id: `R602R${name}`, name: `R602 ${name}`, levels: new Set(), behaviors: [],
+            bounds: { x, y, width: w, height: h }, shapes: [{ type: "rectangle", x, y, width: w, height: h }],
+            testPoint: p => p.x >= x && p.x <= x + w && p.y >= y && p.y <= y + h,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === R.ROOM_FLAG ? true : undefined) });
+        const scene = { id: "R602S", name: "R602 scene", grid: { size: 100 }, dimensions: { width: 2000, height: 1200 }, levels: [],
+            walls: [{ id: "R602W", c: [0, 500, 1400, 500], move: 20, door: 0, ds: 0, dir: 0, levels: new Set() }],
+            regions: new Set([region("Lab", 0, 0, 1400, 480), region("Vault", 0, 520, 1400, 480)]) };
+        const row = (x, more = {}) => ({ sceneId: scene.id, level: null, shape: "wall", passageWallId: "R602W",
+            passageSeg: { x1: x, y1: 500, x2: x + 200, y2: 500 }, rooms: ["R602 Lab", "R602 Vault"], state: "secret", startAccess: [], ...more });
+        const [PUB, SEC, DOOR, TUN] = ["pub", "sec", "door", "tun"].map(n => `${scene.id}.r602${n}`);
+        await stores.map.patchMany({ [PUB]: row(100), [SEC]: row(900), [DOOR]: row(1200, { origin: "door", state: "closed" }),
+            [TUN]: { sceneId: scene.id, level: null, shape: "tunnel", ends: [{ x: 250, y: 250, level: null }, { x: 1250, y: 750, level: null }],
+                rooms: ["R602 Lab", "R602 Vault"], state: "closed", startAccess: [] } });
+        const at = 1;
+        await stores.access.patchMany({ [`${PUB}/${SB.id}`]: { how: "gm", at, by: { R602GM: at } }, [`${SEC}/${SA.id}`]: { how: "gm", at, by: { R602GM: at } } });
+
+        const copy = u => P.passageCopyFor(u, { stores, actors, users: [...users.values()] });
+        const look = u => Object.fromEntries(Object.entries(copy(u).value).map(([id, r]) => [id.slice(`${scene.id}.r602`.length), r.actorIds]));
+        const copies = () => U.map(look);
+        const cells = () => Object.keys(stores.access.entries()).filter(k => !k.startsWith("touch/") && !k.startsWith("door/")).sort();
+        // The audit of a move from the Lab to the Vault across the wall at `x`, by the student's owner, in "log" mode.
+        const tok = (actor, x, y) => ({ id: "R602T", name: "R602 token", x, y, width: 1, height: 1, elevation: 0, level: undefined, parent: scene, actor });
+        const audit = (actor, x) => {
+            const out = A.auditMove(tok(actor, x, 700), { x, y: 700 }, {}, owners[actor.id], { x, y: 100, elevation: 0, level: undefined }, {
+                REVERT: M.REVERT, SENT_BACK: M.SENT_BACK, sendBackRefusal: M.sendBackRefusal, roomAt: M.roomAt, stairLinks: () => [],
+                history: [], held: a => a, users, known: L.secretRowsFrom({ map: stores.map, access: stores.access, actors }), mode: "log",
+                mastermind: { get: () => null }, book: { rows: [], told: new Map(), lines: new Map(), dropped: 0 }, now: Date.now(),
+                warn: () => {}, sendBack: () => {}, socket: { emit: () => {} }, whisper: () => Promise.resolve()
+            });
+            return out.verdict === "crossed" ? `crossed ${out.passage ?? out.wall}` : out.verdict;
+        };
+        const audits = () => [audit(FA, 200), audit(FB, 200), audit(FA, 1000), audit(FB, 1000)];
+        const pubCut = () => L.openSegmentsFor(FA, scene.id, null, { known: L.secretRowsFrom({ map: stores.map, access: stores.access, actors }) }).map(s => s.id).sort();
+
+        const root = document.createElement("div");
+        root.innerHTML = T.passagesTabHtml(scene, { stores, students: [SA, SB], actors: new Map(actors.map(a => [a.id, a])), users: [...users.values()] });
+        const tab = T.wirePassagesTab(root, scene, { stores, students: [SA, SB], actors: new Map(actors.map(a => [a.id, a])), users: [...users.values()] });
+        const inRow = (id, sel) => root.querySelector(`[data-drpg-passage="${id}"] ${sel}`);
+        let said = 0;
+        const hush = () => { said += 1; return false; };
+        const press = async (id, act) => {
+            const button = inRow(id, `[data-drpg-passage-act="${act}"]`);
+            if (!button) return false;
+            button.click();
+            await tab.settled();
+            return true;
+        };
+
+        const before = { copies: copies(), cells: cells(), audits: audits(), cut: pubCut() };
+        const first = copy(U[0]);
+        const hook = Hooks.on("preCreateChatMessage", hush);
+        let made, madeSecret, again;
+        try {
+            made = await press(PUB, "public");
+            const opened = { copies: copies(), cells: cells(), audits: audits(), cut: pubCut(), stored: stores.map.get(PUB)?.public ?? null,
+                taken: S.offersCombine(first, copy(U[0])) !== null, kind: inRow(PUB, ".drpg-passage-kind")?.dataset.kind ?? null,
+                offered: Boolean(inRow(PUB, '[data-drpg-passage-act="secret"]')) };
+            madeSecret = await press(PUB, "secret");
+            const shut = { copies: copies(), cells: cells(), audits: audits(), stored: stores.map.get(PUB)?.public ?? null, log: P.passageLog({ stores }).map(r => r.what) };
+            equal(J([before, [made, opened], [madeSecret, shut]]), J([
+                { copies: [{ sec: [SA.id] }, { pub: [SB.id] }, {}], cells: [`${PUB}/${SB.id}`, `${SEC}/${SA.id}`],
+                    audits: ["crossed " + PUB, "clear", "clear", "crossed " + SEC], cut: [SEC] },
+                [true, { copies: [{ pub: [SA.id], sec: [SA.id] }, { pub: [SB.id] }, {}], cells: [`${PUB}/${SB.id}`, `${SEC}/${SA.id}`],
+                    audits: ["clear", "clear", "clear", "crossed " + SEC], cut: [PUB, SEC], stored: true, taken: true, kind: "public", offered: true }],
+                [true, { copies: [{ sec: [SA.id] }, { pub: [SB.id] }, {}], cells: [`${PUB}/${SB.id}`, `${SEC}/${SA.id}`],
+                    audits: ["crossed " + PUB, "clear", "clear", "crossed " + SEC], stored: false, log: ["secret", "public"] }]]),
+                "[before: each player's copy as {passage: knowers}, the cells, the audit of A and B across the public-to-be and the secret passage, A's cut; "
+                    + "'Make public' pressed: the same and the row's flag, A's copy taken, the Kind drawn, 'Make secret' offered; 'Make secret' pressed: the same, and the GMs' log newest first]"
+                    + " - a public passage missing from a student's copy, a copy naming another player's student, the audit sending a student back, or Make secret not giving back who knew it");
+
+            // The reset keeps a public passage public: who knew it is cut, every student still knows it.
+            again = await press(PUB, "public");
+            await P.passagesAfterReset({ stores });
+            const reset = { copies: copies(), cells: cells(), stored: stores.map.get(PUB)?.public ?? null };
+            equal(J([again, reset, said]), J([true, { copies: [{ pub: [SA.id] }, { pub: [SB.id] }, {}], cells: [], stored: true }, 0]),
+                "[Make public again, then the season's reset: the copies, the cells, the row's flag; the chat messages asked for by every press and the reset]");
+        } finally {
+            Hooks.off("preCreateChatMessage", hook);
+        }
+
+        // The tab's columns: Rooms, Kind, Shape, Origin, then the rest, each with a width; a row's three new cells.
+        tab.draw();
+        const heads = [...root.querySelectorAll("thead th")].map(th => th.textContent.trim());
+        const words = ["rooms", "kind", "shape", "origin", "knows", "start", "state"].map(k => game.i18n.localize(`DRPG.Passage.tab.${k}`));
+        const cellsOf = id => [...(root.querySelector(`tr[data-drpg-passage="${id}"]`)?.children ?? [])].slice(1, 4).map(td => td.textContent.trim());
+        const word = k => game.i18n.localize(`DRPG.Passage.tab.${k}`);
+        equal(J([heads, root.querySelectorAll("colgroup col").length, cellsOf(PUB), cellsOf(SEC), cellsOf(DOOR), cellsOf(TUN)]),
+            J([[...words, ""], 8, [word("kindPublic"), word("shapeWall"), word("originGm")], [word("kindSecret"), word("shapeWall"), word("originGm")],
+                [word("kindSecret"), word("shapeWall"), word("originDoor")], [word("kindSecret"), word("shapeTunnel"), word("originGm")]]),
+            "[the table's heads, its columns with a width, the Kind, Shape and Origin of a public passage, a secret one, one made of a secret door, a tunnel]");
+    }],
+    ["R604 - a trap hears of a Find Passage from the primary GM that judges it: every first throw that stands, a miss as a find, in the room the GMs read the character in, before its card; a Reroll's replay, a refusal and a search off the primary tell it nothing; a stash hunt is told by the GM that judges it, once the room is read and before the roll is scored, and never for a replay; the roller's browser raises neither any more", async () => {
+        /*
+         * E80 fix r1-G1 (18.10.2026; the review's E80-SEC-1). The harm: a trap watching for a Find Passage or a stash hunt
+         * (traps.mjs triggers 8 and 9) heard of it from the roller's own browser (action-rolls.mjs `locatePassage`,
+         * `locateStash`), so a console that asked the GM for the search without raising the hook searched past every
+         * trap, and the room the trap read was that browser's word. Run on an engine of the suite's own (R598's), with
+         * characters, people and a world of its own, the search's card and the trap's word injected and logged in one
+         * list, so their order is read: nothing of this world is read or written but this browser's user, the names in
+         * its language file and the module's sources. The stash search on Foundry's own actors, and the hook it raises,
+         * is tier 2's "A10-7 stash"; the passage search's on the real map is its "A10-7 - Find Passage". Red at the
+         * parent (4263c09): the passage search tells no trap, and both rollers' browsers raise the hooks.
+         */
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const P = await import("./passages-gm.mjs");
+        const J = v => JSON.stringify(v);
+        ok(typeof P.resolvePassageSearch === "function", "passages-gm.mjs carries out no passage search - this would measure nothing");
+        if (typeof P.resolvePassageSearch !== "function") return;
+        let t = 9_950_000;
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R604GM", isGM: () => true, isPrimary: () => true, worldId: () => "R604WORLD",
+            activeGmIds: () => [], primaryGmId: () => "R604GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => ++t,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const def = (h, name) => eng.define({ ...h.spec, name: `r604${name}`, key: `r604${name}`, afterRestore: undefined, exists: undefined });
+        const stores = { map: def(S.passageMapStore, "Map"), access: def(S.passageAccessStore, "Access"), log: def(S.passageLogStore, "Log"),
+            mastermind: eng.define({ name: "r604mm", key: "r604mm", kind: "record", fields: ["actorId"], sync: false, backup: false }) };
+        const CAF = "R604 Cafeteria", KIT = "R604 Kitchen";
+        await stores.map.patch("R604SCENE.awall", { sceneId: "R604SCENE", level: null, shape: "wall", passageWallId: "R604WALL",
+            passageSeg: { x1: 5, y1: 0, x2: 5, y2: 100 }, rooms: [CAF, KIT], state: "secret", startAccess: [] });
+        const people = [{ id: "R604GM", isGM: true, active: true }, { id: "R604U", isGM: false, active: true }];
+        const cast = new Map(["R604A", "R604MK", "R604CUB", "R604DEAD"].map(id => [id, { id, name: id, type: "character",
+            testUserPermission: (u, level) => level === "OWNER" && u?.id === "R604U" }]));
+        const scene = { id: "R604SCENE" };
+        const world = (over = {}) => ({
+            actor: id => cast.get(id) ?? null, trial: () => false, monocub: a => a.id === "R604CUB", monokuma: a => a.id === "R604MK",
+            dead: a => a.id === "R604DEAD", place: () => ({ scene, room: CAF, level: null }),
+            sides: (r, seg) => (Number.isFinite(seg?.x1) ? [CAF, KIT] : []), knownRooms: () => new Set([CAF, KIT]), ...over });
+        const told = [];
+        const search = async (what, actorId, total, { rollId = null, undo = false, over = {}, primary = () => true } = {}) => {
+            const from = told.length;
+            const out = await P.resolvePassageSearch({ actorId, total, rollId, undo }, { asker: people[1], stores, users: people, world: world(over),
+                whisper: async to => { told.push(["card", to?.id ?? null]); }, toast: () => {}, note: () => {}, primary,
+                hunted: event => { told.push(["hunt", event?.actor?.id ?? null, event?.room ?? null]); } });
+            return [what, out?.refused ? "refused" : out, told.slice(from)];
+        };
+        const steps = [await search("a miss, 15", "R604A", 15, { rollId: "R604R0" }), await search("a find, 16", "R604A", 16, { rollId: "R604R1" }),
+            await search("the find's Reroll, 18", "R604A", 18, { rollId: "R604R1", undo: true }),
+            await search("the miss's Reroll, 16", "R604A", 16, { rollId: "R604R0", undo: true }),
+            await search("off the primary", "R604A", 20, { primary: () => false }), await search("in a Class Trial", "R604A", 20, { over: { trial: () => true } }),
+            await search("a Monokuma", "R604MK", 20), await search("a death", "R604DEAD", 20), await search("a Monocub", "R604CUB", 20),
+            await search("no such character", "R604NONE", 20), await search("no token", "R604A", 20, { over: { place: () => null } })];
+        const HUNT = ["hunt", "R604A", CAF], CARD = ["card", "R604A"];
+        equal(J(steps), J([["a miss, 15", { searched: true, found: false }, [HUNT, CARD]], ["a find, 16", { searched: true, found: true }, [HUNT, CARD]],
+            ["the find's Reroll, 18", { kept: true }, []], ["the miss's Reroll, 16", { nothing: true }, []],
+            ["off the primary", "refused", []], ["in a Class Trial", "refused", []], ["a Monokuma", "refused", []], ["a death", "refused", []],
+            ["a Monocub", "refused", []], ["no such character", "refused", []], ["no token", "refused", []]]),
+            "[the search, its answer, what the trap and the owner were told in order] - a search the GM judged told no trap, told it after the card or twice, or one that did not stand told it");
+
+        // The stash hunt, and the rollers' browsers: read in the module's sources (the hunt itself is tier 2's "A10-7 stash").
+        const code = async file => stripComments(await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText));
+        const [rolls, vault, reroll] = [await code("action-rolls.mjs"), await code("vault.mjs"), await code("reroll.mjs")];
+        const stash = fnSource(vault, "resolveStashSearch");
+        const at = re => stash.search(re);
+        const [noRoom, hunt, scored] = [at(/reason: "noRoom"/), at(/if \(!replay\) hunted\(\{ actor, room: where\.room \}\);/), at(/const beat = /)];
+        equal(J([/drpgStashHunted/.test(fnSource(rolls, "locateStash")), /drpgPassageHunted/.test(fnSource(rolls, "locatePassage")),
+            noRoom >= 0 && hunt > noRoom && scored > hunt, /resolveStashSearch\(\{[^}]*\breplay: true\b[^}]*\}\)/.test(fnSource(reroll, "settleStashFind"))]),
+            J([false, false, true, true]),
+            "[the roller's browser raises a stash hunt, a passage search; the GM's stash search tells the trap once the room is read and before the roll is scored; a Reroll's replay of it is one]");
+    }],
+    ["R607 - Show and the sheet's pan take the camera to a passage on its floor: a tunnel's end on the floor in view, else its first end with that end's floor viewed, a stretch with its own floor viewed, and another scene viewed first; both roads go through the one function that does it", async () => {
+        /*
+         * E80 fix r1-G2, 19.10.2026 (the review's E80-C1-01 = E80-C2-6 = E80-C3-8; a C1 gap). The tab's Show
+         * (passages-tab.mjs `showPassage`, from `passageMiddle`) and the sheet's 'Known passages' click (sheet.mjs
+         * `panToPassage`) panned to a tunnel's first end on whatever floor was on screen: stairs from the Attic (L2, end 0)
+         * to the Kitchen (L1, end 1), shown by a GM viewing L1, put the camera on the Attic end's x and y over the
+         * Kitchen's floor, where nothing of the stairs is drawn. Now both ask passages.mjs `viewPassage` with what the
+         * row says (`passageMiddle` for the GMs' row, `passageSpot` for the copy's): the end on the floor in view where
+         * there is one, else the first end, and that end's floor viewed (`scene.view({ level })`, as the floor switcher
+         * views one) when it is not the floor in view. Read on plain objects: the scenes, the camera's scene and floor and
+         * the pan handed in. What v14 draws once the view has moved is LIVE-E12-02's. Red at b238929: no viewPassage.
+         */
+        const PS = await import("./passages.mjs");
+        const P = await import("./passages-gm.mjs");
+        const J = v => JSON.stringify(v);
+        ok(typeof PS.viewPassage === "function" && typeof PS.passageSpot === "function", "passages.mjs has no viewPassage or passageSpot - Show and the pan ignore the floor");
+        if (typeof PS.viewPassage !== "function" || typeof PS.passageSpot !== "function") return;
+        const views = [], pans = [];
+        const site = { id: "R607SCENE", levels: [{ id: "L1" }, { id: "L2" }, { id: "L3" }], view: async (options) => { views.push(options ?? null); } };
+        const scenes = new Map([[site.id, site]]);
+        const stairs = { sceneId: site.id, level: null, shape: "tunnel", ends: [{ x: 1450, y: 250, level: "L2" }, { x: 100, y: 100, level: "L1" }] };
+        const stretch = { sceneId: site.id, level: "L1", x1: 0, y1: 0, x2: 200, y2: 0 };
+        const flat = { sceneId: site.id, level: null, x1: 0, y1: 40, x2: 0, y2: 60 };
+        const show = async (passage, onScreen, floor) => {
+            views.length = 0;
+            pans.length = 0;
+            const out = await PS.viewPassage(level => PS.passageSpot(passage, level), { scenes, onScreen, floor, pan: async to => { pans.push(to); } });
+            return [out, [...views], [...pans]];
+        };
+        const steps = [await show(stairs, site, "L1"), await show(stairs, site, "L2"), await show(stairs, site, "L3"), await show(stairs, { id: "R607OTHER" }, "L1"),
+            await show(stretch, site, "L2"), await show(flat, site, "L2"), await show({ ...stairs, sceneId: "R607GONE" }, site, "L1")];
+        equal(J(steps), J([[true, [], [{ x: 100, y: 100 }]], [true, [], [{ x: 1450, y: 250 }]], [true, [{ level: "L2" }], [{ x: 1450, y: 250 }]],
+            [true, [{ level: "L2" }], [{ x: 1450, y: 250 }]], [true, [{ level: "L1" }], [{ x: 100, y: 0 }]], [true, [], [{ x: 0, y: 50 }]], [false, [], []]]),
+            "[shown, the views asked, the pans] for stairs seen from L1, L2 and L3, from another scene, a stretch on L1 seen from L2, one on no floor, and a scene gone");
+        // The GMs' row as the tab reads it: the end on the floor asked, else the first, as before.
+        const stores = { map: new Map([["R607SCENE.stairs", { sceneId: site.id, shape: "tunnel", level: null, ends: stairs.ends }]]) };
+        equal(J([P.passageMiddle("R607SCENE.stairs", { stores }), P.passageMiddle("R607SCENE.stairs", { stores, level: "L1" })]),
+            J([{ sceneId: site.id, level: "L2", x: 1450, y: 250 }, { sceneId: site.id, level: "L1", x: 100, y: 100 }]),
+            "[the GMs' Show of the stairs with no floor asked, with L1 asked]");
+        const sources = await moduleSources();
+        const roads = [fnSource(sources.get("passages-tab.mjs") ?? "", "showPassage"), fnSource(sources.get("sheet.mjs") ?? "", "panToPassage")];
+        equal(J(roads.map(src => [/\bviewPassage\(/.test(stripComments(src)), /animatePan|\.view\(/.test(stripComments(src))])), J([[true, false], [true, false]]),
+            "[showPassage, panToPassage: ask viewPassage, move the camera themselves] - a road that pans on its own ignores the floor again");
+    }],
+    ["R608 - a student who first appears after Make public knows the public passage on their player's browser: the copy naming them under it is taken by the player's engine, where the player owns another student and where it is their only one, in a world no reset has cut; and a character created tells the copies, any other actor does not", async () => {
+        /*
+         * E80 fix r1-G3 (19.10.2026; the review's E80-C6-1). Make public touches the students the world holds at that moment
+         * (passages-gm.mjs `setPublic` -> `knowersOf`), and nothing writes a `touch` row for a student who appears later: in a
+         * world with no reset its part of the copy was 0 (gm-store.mjs `newest`), so the copy that names it under the public
+         * passage was refused by the player's engine - by `offersCombine` (no part newer) where the player owns another
+         * student, at `receiveCopy`'s gate (newest part 0, not past the cut 0) where it is their only one - while the GMs'
+         * TOLD read it delivered. Run as R555's Q8: stores of an engine of the suite's own, a public passage made public by
+         * the module's own road, and each player's engine with a storage of its own, the copy taken through `cleanCopy` and
+         * the copy's `receive` as the player's browser takes it. Aiko is a student of this world (Make public touches the
+         * world's students); Daichi and Emi are actors of the suite's own that appear after it, Daichi given to Aiko's player
+         * and Emi to a player who owns nobody else. The hook's own handler, `onActorCreated`, with the suite's retell. Red at
+         * 518c057: both copies refused, and no `onActorCreated`.
+         */
+        needs(world.atLeast("livingStudents", 1), "a student of this world, whom Make public touches");
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const P = await import("./passages-gm.mjs");
+        const L = await import("./passages.mjs");
+        const J = v => JSON.stringify(v);
+        let t = 7_200_000;
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R608GM", isGM: () => true, isPrimary: () => true, worldId: () => "R608WORLD",
+            activeGmIds: () => [], primaryGmId: () => "R608GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => t++,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const def = (h, name) => eng.define({ ...h.spec, name: `r608${name}`, key: `r608${name}`, afterRestore: undefined, exists: undefined });
+        const stores = { map: def(S.passageMapStore, "Map"), access: def(S.passageAccessStore, "Access"), log: def(S.passageLogStore, "Log"),
+            mastermind: eng.define({ name: "r608mm", key: "r608mm", kind: "record", fields: ["actorId"], sync: false, backup: false }) };
+        const [SA] = studentActors();
+        const owners = { [SA.id]: "R608U1", R608D: "R608U1", R608E: "R608U2" };
+        const fake = (id, name) => ({ id, name, type: "character", items: [], getFlag: () => undefined,
+            testUserPermission: (u, level) => level === "OWNER" && (u?.isGM || owners[id] === u?.id) });
+        const [FA, FD, FE] = [fake(SA.id, SA.name), fake("R608D", "R608 Daichi"), fake("R608E", "R608 Emi")];
+        const [U1, U2] = ["R608U1", "R608U2"].map(id => ({ id, isGM: false, active: true, name: id }));
+        const users = [U1, U2, { id: "R608GM", isGM: true, active: true }];
+        const PUB = "R608S.r608pub";
+        await stores.map.patch(PUB, { sceneId: "R608S", level: null, shape: "wall", passageWallId: "R608W",
+            passageSeg: { x1: 100, y1: 500, x2: 300, y2: 500 }, rooms: ["R608 Lab", "R608 Vault"], state: "secret", startAccess: [] });
+        // Each player's browser: an engine of its own, its storage its own, the copy taken by the module's rule.
+        const browserOf = user => {
+            const held = new Map();
+            return G.createGmStoreEngine({
+                selfId: () => user.id, isGM: () => false, isPrimary: () => false, worldId: () => "R608WORLD",
+                activeGmIds: () => [], primaryGmId: () => null, senderIsGM: () => false, userName: u => u, send: () => {},
+                storage: { read: k => held.get(k) ?? null, write: async (k, v) => { held.set(k, JSON.stringify(v)); } },
+                readLegacy: () => undefined, now: () => t, timers: { set: () => null, clear: () => {} }, clock: () => ({}),
+                log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+            }).defineCopy({ name: `r608${user.id}`, key: `r608copy${user.id}`, resetGroup: "passages", fallback: {}, combine: S.offersCombine });
+        };
+        const browsers = { [U1.id]: browserOf(U1), [U2.id]: browserOf(U2) };
+        const deliver = async (user, actors) => {
+            const c = P.passageCopyFor(user, { stores, actors, users });
+            const clean = L.cleanCopy(c.value, c.stamps, { actors: new Map(actors.map(a => [a.id, a])), scenes: new Map([["R608S", {}]]) });
+            const taken = await browsers[user.id].receive(clean.value, clean.stamps);
+            return [taken, Object.fromEntries(Object.entries(browsers[user.id].read() ?? {}).map(([id, r]) => [id, [...(r.actorIds ?? [])].sort()]))];
+        };
+        must(await P.makePassagePublic(PUB, { stores }), "the passage was not made public - this would measure nothing");
+        must(stores.access.cleared() === 0 && !stores.access.get("touch/R608D") && !stores.access.get("touch/R608E"),
+            "the suite's stores were cut, or hold a row of a student that has not appeared - this would measure nothing");
+        const before = await deliver(U1, [FA]);
+        // Daichi and Emi appear: given to Aiko's player, and to a player who owns nobody else.
+        const later = [FA, FD, FE];
+        const toU1 = await deliver(U1, later), toU2 = await deliver(U2, later);
+        equal(J([before, toU1, toU2]), J([[true, { [PUB]: [SA.id] }], [true, { [PUB]: [SA.id, "R608D"].sort() }], [true, { [PUB]: ["R608E"] }]]),
+            "[taken, what the browser holds as {passage: knowers}] for Aiko's player before Daichi appears, after, and for Emi's player - the copy naming a student who appeared after Make public is refused, so the player's browser does not know the public passage for them (E80-C6-1)");
+        const calls = [];
+        const retell = () => { calls.push("retell"); return 0; };
+        const told = typeof P.onActorCreated === "function"
+            ? [P.onActorCreated({ id: "R608N", type: "character" }, {}, "R608GM", { retell }), P.onActorCreated({ id: "R608X", type: "adversary" }, {}, "R608GM", { retell }) ?? null]
+            : "no onActorCreated";
+        equal(J([told, calls]), J([[0, null], ["retell"]]),
+            "[what a character's and an adversary's create answered, the retells asked] - a student created already owned waits for an unrelated change before their player's copy names them");
+    }],
+    ["R605 - the secret doors no primary heard change (E80-SEC-3, E80-COR-1): on the primary GM the pass puts each secret door that stands otherwise than a GM last left it back - open where a GM last opened it, shut otherwise; one with no state a GM set on it is taken as it stands (R616) - with the put-back's own mark, and holds it shut for the audit until the write lands; a locked door, one as a GM left it and every other wall it leaves alone, and off the primary it writes nothing; a GM leaving hands it to the primary after it, the pass and each put-back asked without that GM, and a player, a GM coming or the suite's held stores do not", async () => {
+        /*
+         * E80 fix r1-G1 (18.10.2026; the review's E80-SEC-3 and E80-COR-1). The harm: the primary GM put back a player's
+         * change of a secret door as it heard it (`putBackSecretDoor`, R601), so a door a player opened while no GM was
+         * connected - or one whose put-back the primary that heard it could not land before another GM's browser took
+         * over, a hold being that browser's memory - stood open, a road through a wall, for good. Read on plain walls the
+         * suite holds, on a scene object of its own, whose `update` records, the GMs' record of the doors a store of an
+         * engine of the suite's own (R601's), and the watch on a GM leaving with its pass injected: nothing of this world
+         * is read or written but this browser's user and the module's hold, let go at the end. When it runs at the
+         * primary's ready is read in the source by R603; the pass on Foundry's own walls is tier 2's "A10-15", and a door
+         * a player opened and one it shut with no GM connected, then the GM's coming back, are scenario 15's away and back.
+         * The hand-over asks who is the primary without the GM leaving, in the pass and in each put-back (reroll.mjs's
+         * rule): which of `userConnected` and that GM's `active` v14 changes first is LIVE-E30-05, and the harness
+         * flips the flag first, so a put-back that asked `isPrimaryGm()` would pass here and fail where the hook comes
+         * first. Driven: a put-back told that this GM is the one leaving writes nothing; read in the source (R216's
+         * way): the pass hands its `leaving` to each put-back.
+         * Red at the parent (4263c09): no `settleSecretDoors`, no `onDoorsGmLeft`. Since E80 fix r2-G9 (19.10.2026; the
+         * review's E80-FIX-R1-01) the state a GM last set is a flag on the door (`DOOR_SET`), no GM store, and a door with
+         * none is taken as it stands and the state written on it (R616): X3 and X4, put back shut and left until then.
+         */
+        needs(env.primaryGm(), "the pass runs on the primary GM");
+        const P = await import("./passages-gm.mjs");
+        const J = stableJson;
+        ok(typeof P.settleSecretDoors === "function" && typeof P.onDoorsGmLeft === "function",
+            "passages-gm.mjs has no pass over the secret doors, or no watch on a GM leaving - a door changed with no primary to hear it stands as it was left");
+        if (typeof P.settleSecretDoors !== "function" || typeof P.onDoorsGmLeft !== "function") return;
+        const writes = [], told = [];
+        const scene = { id: "R605S", name: "R605 scene" };
+        const FLAG = P.DOOR_SET ?? "doorSet";
+        const W = (id, door, ds, last) => ({ id, door, ds, c: [0, 0, 0, 100], move: 20, sight: 20, parent: scene,
+            flags: last === null ? {} : { [MODULE_ID]: { [FLAG]: last } },
+            update: async (data, options) => { writes.push([id, J(data), Boolean(options?.[P.DOOR_ASIDE])]); return true; } });
+        // [the wall, its kind (2 a secret door, 1 a door, 0 a wall), its state now, the state a GM last set on it (null: none)]
+        const LAYOUT = [["R605X1", 2, 1, 0], ["R605X2", 2, 0, 1], ["R605X3", 2, 1, null], ["R605X4", 2, 2, null], ["R605X5", 2, 1, 1],
+            ["R605X6", 1, 1, 0], ["R605X7", 2, 0, 2], ["R605X8", 2, 1, 2], ["R605X9", 0, 1, null]];
+        scene.walls = LAYOUT.map(([id, door, ds, last]) => W(id, door, ds, last));
+        const held = () => LAYOUT.map(([id]) => id).filter(id => P.secretDoorHeldShut(id));
+        const tell = walls => told.push(walls.map(w => w.id));
+        let pass = null, off = null, holds = null, offWrites = null, gone = null, goneWrites = null;
+        try {
+            pass = await P.settleSecretDoors({ scenes: [scene], tell });
+            holds = held();
+            const before = writes.length;
+            off = await P.settleSecretDoors({ scenes: [scene], tell, leaving: game.user.id });
+            offWrites = writes.length - before;
+            gone = await P.putBackSecretDoor(scene.walls[0], { ds: 1 }, null, { sender: null, unheard: true, leaving: game.user.id });
+            goneWrites = writes.length - before;
+        } finally {
+            for (const wall of scene.walls) await P.putBackSecretDoor(wall, { ds: wall.ds }, game.user.id, { sender: { id: game.user.id, isGM: true }, aside: true });
+        }
+        const seed = n => J({ flags: { [MODULE_ID]: { [FLAG]: n } } });
+        equal(J([pass, writes, holds, off, offWrites, gone, goneWrites, held(), told]),
+            J([["R605X1", "R605X2", "R605X8"], [["R605X1", J({ ds: 0 }), true], ["R605X2", J({ ds: 1 }), true], ["R605X3", seed(1), true],
+                ["R605X4", seed(2), true], ["R605X8", J({ ds: 0 }), true]], ["R605X1", "R605X2", "R605X8"], null, 0, false, 0, [], [["R605X1", "R605X2", "R605X8"]]]),
+            "[the doors the pass put back, its writes as [door, change, the put-back's own], the doors held shut, the pass off the primary, its writes, a put-back told this GM is leaving, the writes of both, the holds after the landings, the doors told the GM] - a door a player opened or shut with no primary to hear it stands so, a locked door or one as a GM left it is written, a GM's last state is lost, or a put-back counts the GM leaving as the primary");
+
+        // The watch on a GM leaving, with the pass and the suite's quiet injected.
+        const asked = [];
+        const settle = o => { asked.push(J(o)); return Promise.resolve([]); };
+        const gmUser = { id: "R605G2", isGM: true }, playerUser = { id: "R605U", isGM: false };
+        const watch = [];
+        for (const [what, user, connected, quiet] of [["a GM leaves", gmUser, false, false], ["a GM comes", gmUser, true, false],
+            ["a player leaves", playerUser, false, false], ["a GM leaves while the suite holds the stores", gmUser, false, true]]) {
+            const from = asked.length;
+            await P.onDoorsGmLeft(user, connected, { settle, quiet: () => quiet });
+            watch.push([what, asked.slice(from)]);
+        }
+        equal(J(watch), J([["a GM leaves", [J({ leaving: "R605G2" })]], ["a GM comes", []], ["a player leaves", []], ["a GM leaves while the suite holds the stores", []]]),
+            "[who came or went, what the pass was asked] - a GM's leaving runs no pass on the primary after it, or a player's, a GM's coming or the suite's held stores do");
+
+        const gmSource = stripComments(new Map(await otherSources()).get("passages-gm.mjs") ?? "");
+        ok(gmSource.length > 0, "passages-gm.mjs was not read - the hand-over's reading measured nothing");
+        const passSource = fnSource(gmSource, "settleSecretDoors");
+        equal(J([/if \(!isPrimaryGm\(\{ leaving \}\)\) return null;/.test(passSource),
+            /putBackSecretDoor\(wall, \{ ds: wall\.ds \}, null, \{[^{}]*\bleaving\b[^{}]*\}\)/.test(passSource)]), J([true, true]),
+            "[the pass asks without the GM leaving, and hands it to each put-back] - where v14 calls `userConnected` before the leaving GM's `active` flips, the primary after it puts back nothing");
+    }],
+    ["R609 - a user's change of role runs the secret doors' pass on whoever is the primary GM then: a GM made a player, or a player made a GM, can make another GM's browser the primary with no GM leaving and no ready; any other change of a user, and the suite's held stores, run none; the watch is registered on a GM's browser", async () => {
+        /*
+         * E80 fix r1-G5 (19.10.2026; the review's E80-G-10, "at the primary's ready, and at a change of primary"). Since
+         * fix r1-G1 the pass over the secret doors (passages-gm.mjs `settleSecretDoors`) runs at the primary's ready and
+         * when a GM leaves (`onDoorsGmLeft`, R605); a role change that makes another GM's browser the primary - the
+         * primary GM made a player - ran none there, so a secret door a player opened while no primary heard it stood open
+         * until the next ready. The watch is driven with the pass and the suite's quiet injected, so nothing of this world
+         * is read or written; its registration is read in the source (comments blanked). The pass asks itself whether
+         * this browser is the primary (R605). Red at the parent (fb6d1f1): no `onDoorsRoleChanged`.
+         */
+        const P = await import("./passages-gm.mjs");
+        const J = stableJson;
+        ok(typeof P.onDoorsRoleChanged === "function", "passages-gm.mjs has no watch on a change of role - a browser made the primary that way runs no pass over the secret doors");
+        if (typeof P.onDoorsRoleChanged !== "function") return;
+        const asked = [];
+        const settle = o => { asked.push(J(o ?? null)); return Promise.resolve([]); };
+        const watch = [];
+        for (const [what, change, quiet] of [["a GM made a player", { role: CONST.USER_ROLES.PLAYER }, false],
+            ["a player made a GM", { role: CONST.USER_ROLES.GAMEMASTER }, false], ["a name changed", { name: "R609 renamed" }, false],
+            ["a GM made a player while the suite holds the stores", { role: CONST.USER_ROLES.PLAYER }, true]]) {
+            const from = asked.length;
+            await P.onDoorsRoleChanged({ id: "R609U" }, change, {}, "R609GM", { settle, quiet: () => quiet });
+            watch.push([what, asked.slice(from)]);
+        }
+        equal(J(watch), J([["a GM made a player", [J(null)]], ["a player made a GM", [J(null)]], ["a name changed", []],
+            ["a GM made a player while the suite holds the stores", []]]),
+            "[what changed of a user, what the pass was asked] - a change of role runs no pass on the primary then, or another change, or the suite's held stores, run one");
+        const gmSource = stripComments(new Map(await otherSources()).get("passages-gm.mjs") ?? "");
+        ok(gmSource.length > 0, "passages-gm.mjs was not read - the watch's registration measured nothing");
+        ok(/Hooks\.on\("updateUser", onDoorsRoleChanged\);/.test(fnSource(gmSource, "registerPassagesGm")),
+            "registerPassagesGm does not hand a change of role to the secret doors' pass");
+    }],
+    ["R610 - a change of an actor's ownership or type tells the passages' copies, any other change of an actor does not: an actor made a student while a passage is public is named in its owners' copies", async () => {
+        /*
+         * E80 fix r1-G5 (19.10.2026; the review's E80-G-4: "touch a student when it is created, and on a type or ownership
+         * change that makes a new student"). Fix r1-G3 stamps a public part at least at the newest Make public (R608) and
+         * retells on a character created (`onActorCreated`); a change of ownership retold already, by an inline handler. A
+         * change of type that makes an actor a student, or no longer one, changes its owners' copies as a creation does,
+         * and told nothing. The handler, `onActorUpdated` now, is driven with the suite's retell; its registration is read
+         * in the source. Red at the parent (fb6d1f1): no `onActorUpdated`.
+         */
+        const P = await import("./passages-gm.mjs");
+        const J = stableJson;
+        ok(typeof P.onActorUpdated === "function", "passages-gm.mjs has no handler of an actor's change that a test can drive");
+        if (typeof P.onActorUpdated !== "function") return;
+        let told = 0;
+        const retell = () => { told += 1; return "told"; };
+        const read = [];
+        for (const [what, change] of [["its ownership", { ownership: { R610U: 3 } }], ["its type", { type: "character" }],
+            ["its name", { name: "R610 renamed" }], ["its Hope", { system: { resources: { hope: { value: 2 } } } }]]) {
+            const from = told;
+            P.onActorUpdated({ id: "R610A", type: "character" }, change, {}, "R610GM", { retell });
+            read.push([what, told - from]);
+        }
+        equal(J(read), J([["its ownership", 1], ["its type", 1], ["its name", 0], ["its Hope", 0]]),
+            "[what changed of an actor, the retells] - a change of type or ownership leaves the copies as they were, or another change retells them");
+        const gmSource = stripComments(new Map(await otherSources()).get("passages-gm.mjs") ?? "");
+        ok(gmSource.length > 0, "passages-gm.mjs was not read - the handler's registration measured nothing");
+        ok(/Hooks\.on\("updateActor", onActorUpdated\);/.test(fnSource(gmSource, "registerPassagesGm")),
+            "registerPassagesGm does not hand an actor's change to onActorUpdated");
+    }],
+    ["R611 - a tunnel's mark turns with the room's outline: a change of the seam colour retints each ring and the words 'Secret passage to {room}' on the standing outline, as it restrokes the line and retints the glow", async () => {
+        /*
+         * E80 fix r1-G6 (19.10.2026; the review's E80-C1-02). Under Stained Glass the outline wears the state colour
+         * (fog-doorways.mjs `outlineColour`), and a change of the time of day or the Eclipse turns it (fog-reveal.mjs
+         * `recolourRoomOutline`, from fog.mjs's watch on the body) - the line and the glow, while the tunnel marks
+         * (`addTunnelMarks`) kept the colour they were drawn in until the outline was drawn again. Marks drawn here on a
+         * group of the suite's own, never put on the canvas, and a standing outline of the suite's own handed to the recolour
+         * with the colour it is to take; the ring's drawn colour is read off the shim's calls, or PIXI's line style on a
+         * real canvas. Red at the parent (eae5960): the recolour reads only the module's own standing outline, and the
+         * ring and the words keep the colour they were drawn in.
+         */
+        const FD = await import("./fog-doorways.mjs");
+        const FR = await import("./fog-reveal.mjs");
+        const J = stableJson;
+        const group = new PIXI.Container();
+        try {
+            const drawn = FD.addTunnelMarks(group, [{ id: "R611P", x: 300, y: 200, to: "R611 Gym" }], { x: 100, y: 100 });
+            ok(drawn === 1 && group.children.length === 2, `the mark was not drawn as a ring and its words (${drawn}, ${group.children.length}) - this would measure nothing`);
+            const was = FD.outlineColour();
+            const now = (was ^ 0x2468ac) & 0xffffff;
+            const restroked = [];
+            const standing = { group, colour: was, glass: false, recolour: colour => { restroked.push(colour); } };
+            FR.recolourRoomOutline({ standing, colourNow: () => now, glassNow: () => false });
+            const lineOf = g => (g?._calls ?? []).filter(([k]) => k === "lineStyle").map(([, a]) => a?.[0]?.color).pop() ?? g?.line?.color ?? null;
+            const ring = group.children.find(c => c instanceof PIXI.Graphics) ?? null;
+            const words = group.children.find(c => c instanceof PIXI.Text) ?? null;
+            // A tint multiplies the drawn colour: a white ring tinted is the tint, so the ring is drawn white.
+            equal(J([restroked, lineOf(ring), ring?.tint ?? null, words?.style?.fill ?? null]), J([[now], 0xffffff, now, now]),
+                "[the line restroked in, the ring's drawn colour, its tint, the words' fill] after the seam colour turned - a mark kept the colour it was drawn in");
+        } finally {
+            group.destroy();
+        }
+    }],
+    ["R612 - an Analyze thrown as a Find Passage settles only a passage search: the bridge's rows for a search for a hidden stash and an Analyze of a bullet refuse its roll in the words of a roll thrown for another action, and take an Analyze thrown for either as before", async () => {
+        /*
+         * E80 fix r1-G7, 19.10.2026; review finding E80-SEC-5 (STATUS's C3 gap). The harm: a player throws the Analyze
+         * window's Find Passage row, the GM draws a miss under 16, and the console then names that roll in
+         * `vault.findStash` or `analyze.resolve` instead of `passage.find` - picking the road after seeing the total, and
+         * the GMs' record pairing a Find Passage throw with a stash search or a bullet's analysis. `passage.find` held
+         * the other way since C3 (`findPassageRoll`). Read as the runner asks them (bridge-guards.mjs `rollsFor`): the
+         * record against the row's roll first, then the row's own reading of it. Nothing of the world is read or
+         * written. Red at the parent (2b596ec): neither row has a reading, so both take a Find Passage's roll.
+         */
+        const B = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const J = v => JSON.stringify(v);
+        const sender = { id: "R612U", isGM: false };
+        const record = over => ({ rollId: "R612ROLL", messageId: "R612ROLL", actorId: "R612A", userId: "R612U", actionKey: "analyze",
+            at: Date.now(), superseded: null, resolved: [], ...over });
+        const verdicts = action => {
+            const row = BRIDGE_ACTIONS[action];
+            const packet = { actorId: "R612A", rollId: "R612ROLL", itemId: "R612BULLET", total: 30, isCritical: true };
+            const asked = over => B.rollRefusal(record(over), row.rolled, packet, sender) ?? row.rolled.derive?.(record(over), packet)?.why ?? null;
+            return [row.rolled?.kind ?? null, asked({ findPassage: true }), asked({ findPassage: false }), asked({ findPassage: null }), asked({})];
+        };
+        const taken = ["analyze", "that roll was not thrown for that action", null, null, null];
+        equal(J([verdicts("vault.findStash"), verdicts("analyze.resolve")]), J([taken, taken]),
+            "[the row's action, an Analyze thrown as a Find Passage, one thrown for a bullet, a hint or a stash, one whose draw said null, a record of before C3] for a search for a hidden stash and for an Analyze of a bullet - a Find Passage's roll settles another road, or an Analyze thrown for that road is refused");
+    }],
+    ["R613 - a room's tunnel marks number the rooms its student has not found: one unfound room beyond is 'Unexplored room 1' at each end that leads there, a second is 'Unexplored room 2', and a found one keeps its name", async () => {
+        /*
+         * E80 fix r1-G8 (19.10.2026; the review's E80-C1-03). `tunnelMarks` (fog-doorways.mjs) named every unfound room
+         * beyond a tunnel 'Unexplored room 1', so two tunnels from one room to two rooms the student has not found looked
+         * like two ways into the same room - as the Listen labels (action-rolls.mjs `listenLabels`) and the sheet's rows
+         * (passages-gm.mjs `roomsAsKnown`) do not. Read here on a copy of the suite's own, handed to the marks; nothing of
+         * the world is read or written. Red at the parent (529e404): the Kitchen's mark reads 'Unexplored room 1' too.
+         */
+        const F = await import("./fog-doorways.mjs");
+        const J = stableJson;
+        const SC = "R613SCENE";
+        const region = (name, x, y) => ({ id: `R613R${name}`, name: `R613 ${name}`, behaviors: [], getFlag: (scope, key) => key === "room",
+            shapes: [{ x, y, width: 400, height: 400 }], levels: new Set() });
+        const dorm = region("Dorm", 0, 0), gym = region("Gym", 800, 0), kitchen = region("Kitchen", 1600, 0), hall = region("Hall", 0, 800);
+        const site = { id: SC, grid: { size: 100 }, levels: [], regions: [dorm, gym, kitchen, hall] };
+        const end = (x, y) => ({ x, y, level: null });
+        const tunnel = far => ({ sceneId: SC, shape: "tunnel", level: null, ends: [end(far[0], far[1]), far[2]], actorIds: ["R613A"] });
+        const known = {
+            [`${SC}.t1`]: tunnel([100, 100, end(900, 100)]), [`${SC}.t2`]: tunnel([150, 150, end(1700, 100)]),
+            [`${SC}.t3`]: tunnel([200, 200, end(1000, 200)]), [`${SC}.t4`]: tunnel([250, 250, end(100, 900)])
+        };
+        const marks = F.tunnelMarks({ id: "R613A" }, dorm, site, null, { gm: false, known, knownRooms: () => new Set(["R613 Dorm", "R613 Hall"]) });
+        const unexplored = n => game.i18n.format("DRPG.Listen.unknownRoom", { n });
+        ok(unexplored(1) !== unexplored(2), `the words of an unfound room do not carry its number (${unexplored(1)}) - this would measure nothing`);
+        equal(J(marks.map(m => [m.id, m.to]).sort()), J([[`${SC}.t1`, unexplored(1)], [`${SC}.t2`, unexplored(2)], [`${SC}.t3`, unexplored(1)], [`${SC}.t4`, "R613 Hall"]]),
+            "[each tunnel's mark in the Dorm, the room it names] to the Gym, the Kitchen, the Gym again and the Hall - two unfound rooms share a number, one room takes two, or a found room lost its name");
+    }],
+    ["R614 - the sheet's 'Go through' says a refusal in the bridge's words: each of the eight doors' codes and 'not known' is its DRPG.Bridge.why key ('that room' for the room), a code with no key keeps its own sentence, and the button says what this answers", async () => {
+        /*
+         * E80 fix r1-G8 (19.10.2026; the review's E80-C2-2, E80-COR-3, E80-G-6; STAGE: "the pre-check says the key").
+         * `goThrough` (sheet.mjs) warned the veto's own sentence: a spent Eclipse said "Your token has been put back."
+         * though nothing moved, and a sealed far room was named, the room the sheet hides as 'Unexplored room 1'.
+         * Read here: movement.mjs `tunnelRefusalText` on each code with a sentence of the suite's own, and the button's
+         * warning in goThrough's source; scenario 76 U clicks the button on a sealed room. Nothing of the world is read
+         * or written. Red at the parent (529e404): no `tunnelRefusalText`, and goThrough warns `verdict.text`.
+         */
+        const M = await import("./movement.mjs");
+        const J = stableJson;
+        ok(typeof M.tunnelRefusalText === "function", "movement.mjs has no `tunnelRefusalText` for the sheet's 'Go through' to say a refusal with");
+        if (typeof M.tunnelRefusalText !== "function") return;
+        const keyed = ["notKnown", "notAtPassage", "doorLocked", "roomSealed", "chained", "cannotLeave", "trialLocked", "noBudget", "eclipseSpent"];
+        const said = [...keyed, "cannotNow"].map(code => [code, M.tunnelRefusalText({ code, text: "R614 the veto's own sentence" })]);
+        equal(J(said), J([...keyed.map(code => [code, game.i18n.localize(`DRPG.Bridge.why.${code}`)]), ["cannotNow", "R614 the veto's own sentence"]]),
+            "[each refusal's code, what the sheet says] - a door's code says the veto's own sentence, or a code with no key lost it");
+        ok(game.i18n.localize("DRPG.Bridge.why.eclipseSpent") !== game.i18n.localize("DRPG.Eclipse.noMovesLeft")
+            && !game.i18n.localize("DRPG.Bridge.why.roomSealed").includes("{room}"),
+            "the bridge's words for a spent Eclipse are the drag veto's, or its sealed room names the room - this would measure nothing");
+        equal(J([M.tunnelRefusalText(null), M.tunnelRefusalText({ near: {}, far: {} })]), J(["", ""]), "[what is said of no verdict, of a crossing allowed] - a crossing allowed was said as a refusal");
+        const sheet = stripComments(new Map(await otherSources()).get("sheet.mjs") ?? "");
+        ok(sheet.length > 0, "sheet.mjs was not read - the button's warning measured nothing");
+        const body = fnSource(sheet, "goThrough");
+        ok(/ui\.notifications\.warn\(tunnelRefusalText\(verdict\)\)/.test(body) && !/warn\(verdict\.text\)/.test(body),
+            "goThrough does not warn `tunnelRefusalText(verdict)` - the sheet says a refusal in other words than the bridge");
+    }],
+    ["R615 - a revoke on a public passage says what it does: the cross asks whoever the student is and wherever they stand, says the passage stays known to every student until Make secret and the revoke decides only what they know then, offers no 'when they leave', and 'Revoke' takes the cell", async () => {
+        /*
+         * E80 fix r1-G8 (19.10.2026; the review's E80-C6-3). C6 keeps a public passage's chips and their cross; the
+         * cross asked, of a student in one of its rooms, "When does it close to them?" and "Revoke now: it is a wall to
+         * them from this moment" - false on a public passage, which every student keeps until Make secret. Run as R561
+         * is: an engine of the suite's own, a detached panel drawn and wired by passages-tab.mjs, its clicks writing to
+         * the suite's stores only, and the question read in passages-tab.mjs `revokeQuestion`. Red at the parent
+         * (529e404): no `revokeQuestion`, and the cross asks the room question on a public passage.
+         */
+        needs(world.atLeast("livingStudents", 1), "a student to give a passage to and take it back from");
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const P = await import("./passages-gm.mjs");
+        const T = await import("./passages-tab.mjs");
+        const J = stableJson;
+        let now = 9_500_000;
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R615GM", isGM: () => true, isPrimary: () => true, worldId: () => "R615WORLD",
+            activeGmIds: () => [], primaryGmId: () => "R615GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => now++,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const def = (h, name) => eng.define({ ...h.spec, name: `r615${name}`, key: `r615${name}`, afterRestore: undefined, exists: undefined });
+        const stores = { map: def(S.passageMapStore, "Map"), access: def(S.passageAccessStore, "Access"), log: def(S.passageLogStore, "Log"),
+            mastermind: eng.define({ name: "r615mm", key: "r615mm", kind: "record", fields: ["actorId"], sync: false, backup: false }) };
+        const [A] = studentActors();
+        const box = (id, name, x, y, width, height) => ({ id, name, behaviors: [], getFlag: () => true, shapes: [{ x, y, width, height }] });
+        const scene = { id: "R615SCENE", grid: { size: 100 }, levels: [],
+            regions: [box("R615RH", "R615 Hall", 1200, 200, 800, 200), box("R615RK", "R615 Kitchen", 1200, 400, 800, 400)] };
+        const PX = `${scene.id}.r615p1`;
+        await stores.map.patch(PX, { sceneId: scene.id, level: null, shape: "wall", passageWallId: "R615WALL",
+            passageSeg: { x1: 1300, y1: 400, x2: 1366, y2: 400 }, rooms: ["R615 Kitchen", "R615 Hall"], state: "secret", startAccess: [] });
+
+        const asked = [];
+        let answer = null;
+        const where = new Map();
+        const root = document.createElement("div");
+        root.innerHTML = T.passagesTabHtml(scene, { stores, students: [A] });
+        const tab = T.wirePassagesTab(root, scene, { stores, students: [A], ask: async q => { asked.push(q); return answer; },
+            roomOf: async actorId => where.get(actorId) ?? null });
+        const cross = async () => {
+            tab.draw();
+            root.querySelector(`[data-drpg-passage="${PX}"] [data-drpg-passage-act="revoke"][data-drpg-actor="${A.id}"]`)?.click();
+            await tab.settled();
+        };
+        const cell = () => Boolean(stores.access.get(`${PX}/${A.id}`));
+        const steps = [];
+        await P.grantPassage(PX, A.id, { stores });
+        await P.makePassagePublic(PX, { stores });
+        for (const [what, room, said] of [["in the Hall, cancelled", "R615 Hall", null], ["in the Hall, 'when they leave' sent", "R615 Hall", "leave"],
+            ["in no room of it, cancelled", null, null], ["in no room of it, 'Revoke'", null, "now"]]) {
+            where.set(A.id, room);
+            answer = said;
+            const from = asked.length;
+            await cross();
+            const q = asked[from] ?? null;
+            steps.push([what, asked.length - from, q?.isPublic ?? null, q?.room ?? null, cell()]);
+        }
+        equal(J(steps), J([["in the Hall, cancelled", 1, true, null, true], ["in the Hall, 'when they leave' sent", 1, true, null, true],
+            ["in no room of it, cancelled", 1, true, null, true], ["in no room of it, 'Revoke'", 1, true, null, false]]),
+            "[the step, the questions asked, asked as of a public passage, the room asked about, the cell kept] on a public passage - the cross asked of a room, revoked unasked, or a cancel or a 'when they leave' took the cell");
+
+        ok(typeof T.revokeQuestion === "function", "passages-tab.mjs has no `revokeQuestion` - what the cross asks cannot be read");
+        if (typeof T.revokeQuestion !== "function") return;
+        const name = A.name;
+        const pub = T.revokeQuestion({ name, room: "R615 Hall", isPublic: true });
+        const sec = T.revokeQuestion({ name, room: "R615 Hall" });
+        equal(J([pub.ask, pub.note, pub.buttons.map(([a]) => a), sec.ask, sec.buttons.map(([a]) => a)]),
+            J([game.i18n.format("DRPG.Passage.tab.revokePublicAsk", { name }), game.i18n.localize("DRPG.Passage.tab.revokePublicNote"), ["now", "cancel"],
+                game.i18n.format("DRPG.Passage.tab.revokeAsk", { name, room: "R615 Hall" }), ["now", "leave", "cancel"]]),
+            "[a public passage's question, its note, its buttons; a secret passage's question, its buttons]");
+        ok(!pub.ask.includes("R615 Hall") && pub.ask.includes(name) && !/\{|\}/.test(pub.ask + pub.note),
+            `the public passage's question names the room, leaves out the student, or keeps a placeholder: ${pub.ask} ${pub.note}`);
+    }],
+    ["R616 - a secret door carries the state a GM last set on itself: a GM's change of its state, or a door made secret, writes it in the same update and a secret door drawn carries it, and a door made an ordinary wall loses it; the pass over the doors leaves a door with no such state as it stands and writes it there, puts back one that stands otherwise than its state - open where a GM opened it, on any GM's browser - and tells the GM on screen which scene it put doors back on; a player's change is put back to that state, and a GM's change it is missing from writes it", async () => {
+        /*
+         * E80 fix r2-G9 (19.10.2026; the review's E80-FIX-R1-01). Fix r1-G1 kept the state a GM last set in a GM store
+         * held in each GM's browser (a client setting, out of the case file) and read a door with no row there as one no
+         * GM had changed: shut. So the pass shut every open secret door the browser held no row for - one left open
+         * before that build, one a GM opened from another browser or while this GM was away, one on an imported scene,
+         * every door after a cleared browser or a restored backup - and said so in the console alone. Now the state is a
+         * flag on the wall (passages-gm.mjs `DOOR_SET`), which Foundry lets no player write (a player's wall update is
+         * `ds` alone; scenario 30 7e3 forges one). Read on plain walls the suite holds, whose `update` records and applies,
+         * on a scene object of its own, the pass's word to the GM injected (`tell`): nothing of this world is read or
+         * written but this browser's user and the module's hold, let go at the end. On Foundry's own documents: tier 2's
+         * "A10-15"; a door left open with no state on it, then a GM coming back: scenario 15's D1. Red at the parent
+         * (8713dc8): the pass shuts the open doors X1 and X2, a player's shut of X2 stands, and there is no `stampSecretDoor`.
+         */
+        needs(env.primaryGm(), "the pass runs on the primary GM");
+        const P = await import("./passages-gm.mjs");
+        const J = stableJson;
+        const FLAG = P.DOOR_SET ?? "doorSet", ASIDE = P.DOOR_ASIDE ?? "drpgDoorAside";
+        const writes = [], told = [];
+        const scene = { id: "R616S", name: "R616 scene" };
+        const setOn = wall => wall.flags?.[MODULE_ID]?.[FLAG] ?? null;
+        const W = (id, door, ds, last) => ({ id, door, ds, c: [0, 0, 0, 100], move: 20, sight: 20, parent: scene,
+            flags: last === null ? {} : { [MODULE_ID]: { [FLAG]: last } },
+            async update(data, options) {
+                writes.push([id, J(data), Boolean(options?.[ASIDE])]);
+                if (data.ds !== undefined) this.ds = data.ds;
+                const mine = data.flags?.[MODULE_ID];
+                if (mine) this.flags = { ...this.flags, [MODULE_ID]: { ...(this.flags?.[MODULE_ID] ?? {}), ...mine } };
+                return this;
+            } });
+        // [the wall, its kind (2 a secret door, 1 a door), its state now, the state a GM last set on it (null: none)]
+        const LAYOUT = [["R616X1", 2, 1, null], ["R616X2", 2, 1, 1], ["R616X3", 2, 1, 0], ["R616X4", 2, 0, 1], ["R616X5", 2, 2, null],
+            ["R616X6", 2, 0, null], ["R616X7", 1, 1, null]];
+        scene.walls = LAYOUT.map(([id, door, ds, last]) => W(id, door, ds, last));
+        const wall = id => scene.walls.find(w => w.id === id);
+        const gm = { id: game.user.id, isGM: true, active: true }, player = { id: "R616U", isGM: false, active: true };
+        let pass = null, passWrites = null, live = null;
+        try {
+            pass = await P.settleSecretDoors({ scenes: [scene], tell: walls => told.push(walls.map(w => w.id)) });
+            passWrites = writes.splice(0);
+            for (const id of pass ?? []) await P.putBackSecretDoor(wall(id), { ds: wall(id).ds }, gm.id, { sender: gm, aside: true });
+            // A player shuts the door a GM opened (X2), and "shuts" the shut door no GM changed (X6), sent whole.
+            const x2 = wall("R616X2"), x6 = wall("R616X6");
+            x2.ds = 0;
+            live = [await P.putBackSecretDoor(x2, { ds: 0 }, player.id, { sender: player }), x2.ds];
+            if (x2.ds !== 0) await P.putBackSecretDoor(x2, { ds: x2.ds }, gm.id, { sender: gm, aside: true });
+            live.push(await P.putBackSecretDoor(x6, { ds: 0 }, player.id, { sender: player }), x6.ds);
+        } finally {
+            for (const w of scene.walls) if (P.secretDoorHeldShut(w.id)) await P.putBackSecretDoor(w, { ds: w.ds }, gm.id, { sender: gm, aside: true });
+        }
+        const seed = n => J({ flags: { [MODULE_ID]: { [FLAG]: n } } });
+        equal(J([pass, passWrites, told, scene.walls.map(w => [w.id, w.ds, setOn(w)])]),
+            J([["R616X3", "R616X4"], [["R616X1", seed(1), true], ["R616X3", J({ ds: 0 }), true], ["R616X4", J({ ds: 1 }), true],
+                ["R616X5", seed(2), true], ["R616X6", seed(0), true]], [["R616X3", "R616X4"]],
+            [["R616X1", 1, 1], ["R616X2", 1, 1], ["R616X3", 0, 0], ["R616X4", 1, 1], ["R616X5", 2, 2], ["R616X6", 0, 0], ["R616X7", 1, null]]]),
+            "[the doors the pass put back, its writes as [door, change, the put-back's own], the doors it told the GM of, each wall after it as [id, state, the state a GM set]] - an open door with no GM's state on it, or one a GM opened, shut; a door a player changed left so; a GM not told");
+        equal(J(live?.splice(0, 2)), J([true, 1]),
+            "[a player's shut of the door a GM opened put back, its state after the put-back lands] - the player's change stands");
+        equal(J(live), J([false, 0]), "[a player's shut of a shut door no GM changed, sent whole, put back, its state] - it was opened");
+        equal(J(writes.filter(([id]) => id === "R616X6")), J([]), "the shut door no GM changed was written when a player shut it again");
+
+        ok(typeof P.stampSecretDoor === "function" && typeof P.stampNewSecretDoor === "function" && typeof P.doorsPutBackText === "function",
+            "passages-gm.mjs has no `stampSecretDoor` (a GM's update), `stampNewSecretDoor` (a GM's create) or `doorsPutBackText` (the GM's word) - a GM's state is not written on the door");
+        if (typeof P.stampSecretDoor !== "function" || typeof P.stampNewSecretDoor !== "function" || typeof P.doorsPutBackText !== "function") return;
+        // The stamp of a GM's update (`preUpdateWall` on a GM's browser): what it leaves in the change is what is written.
+        const stamped = [];
+        for (const [what, door, ds, last, change, options] of [["a GM opens a secret door", 2, 0, 0, { ds: 1 }, {}],
+            ["the put-back's own write", 2, 1, 0, { ds: 0 }, { [ASIDE]: true }], ["a GM opens an ordinary door", 1, 0, null, { ds: 1 }, {}],
+            ["a GM changes a secret door's sight", 2, 1, 1, { sight: 0 }, {}], ["a GM makes an open door secret", 1, 1, null, { door: 2 }, {}],
+            ["a GM locks a secret door", 2, 0, 0, { ds: 2 }, {}]]) {
+            const c = foundry.utils.deepClone(change);
+            P.stampSecretDoor(W("R616Y", door, ds, last), c, options, gm.id);
+            stamped.push([what, c.flags?.[MODULE_ID]?.[FLAG] ?? null]);
+        }
+        equal(J(stamped), J([["a GM opens a secret door", 1], ["the put-back's own write", null], ["a GM opens an ordinary door", null],
+            ["a GM changes a secret door's sight", null], ["a GM makes an open door secret", 1], ["a GM locks a secret door", 2]]),
+            "[each GM's update as [what, the state written on the door with it]]");
+        // A secret door a GM makes an ordinary wall: the primary's watch takes the state off it, which would tell every
+        // browser a secret door stood there (as a door's dress would, E80 fix r1-G6); an ordinary door with none is let be.
+        const unset = [];
+        const madePlain = (id, last) => Object.assign(W(id, 0, 0, last), { async unsetFlag(scope, key) { unset.push([id, scope === MODULE_ID, key]); delete this.flags?.[scope]?.[key]; return this; } });
+        const plainOnes = [madePlain("R616Z", 1), madePlain("R616Q", null)];
+        for (const w of plainOnes) await P.putBackSecretDoor(w, { door: 0 }, gm.id, { sender: gm });
+        equal(J([unset, plainOnes.map(setOn)]), J([[["R616Z", true, FLAG]], [null, null]]),
+            "[the state taken off as [wall, the module's, the key], each wall's state after] - a secret door made an ordinary wall keeps the GMs' state of it");
+        // The stamp of a GM's create (`preCreateWall`): a secret door drawn or pasted carries the state it is drawn in.
+        const made = [];
+        for (const [what, door, ds, last] of [["a secret door drawn open", 2, 1, null], ["a secret door pasted shut with another's state", 2, 0, 1],
+            ["an ordinary door", 1, 1, null]]) {
+            const doc = W("R616N", door, ds, last);
+            doc.updateSource = function (data) { const mine = data.flags?.[MODULE_ID]; if (mine) this.flags = { [MODULE_ID]: { ...(this.flags?.[MODULE_ID] ?? {}), ...mine } }; };
+            P.stampNewSecretDoor(doc, {}, {}, gm.id);
+            made.push([what, setOn(doc)]);
+        }
+        equal(J(made), J([["a secret door drawn open", 1], ["a secret door pasted shut with another's state", 0], ["an ordinary door", null]]),
+            "[each wall a GM creates as [what, the state written on it]]");
+        // A GM's change the stamp is missing from (a browser of an older build): the primary writes it, as the put-back's own.
+        const old = W("R616O", 2, 1, 0);
+        const missing = [await P.putBackSecretDoor(old, { ds: 1 }, gm.id, { sender: gm }), setOn(old), J(writes.filter(([id]) => id === "R616O"))];
+        equal(J(missing), J([false, 1, J([["R616O", seed(1), true]])]),
+            "[a GM's opening the stamp is missing from: put back, the state on the door after, the writes] - the GMs' state of the door is lost");
+        // The GM's word: the scenes and how many doors on each.
+        const text = P.doorsPutBackText([wall("R616X3"), wall("R616X4")]);
+        ok(text.includes("R616 scene") && text.includes("2") && !/\{|\}|DRPG\./.test(text), `the GM's word does not name the scene and the count: ${text}`);
+        const gmSource = stripComments(new Map(await otherSources()).get("passages-gm.mjs") ?? "");
+        ok(gmSource.length > 0, "passages-gm.mjs was not read - the registration measured nothing");
+        const reg = fnSource(gmSource, "registerPassagesGm");
+        equal(J([/Hooks\.on\("preUpdateWall", stampSecretDoor\);/.test(reg), /Hooks\.on\("preCreateWall", stampNewSecretDoor\);/.test(reg),
+            /Hooks\.on\("createScene", onSceneCreated\);/.test(reg), /secretDoorStore/.test(gmSource)]), J([true, true, true, false]),
+            "[a GM's update stamped, a GM's create stamped, a scene created settled, a browser's record of the doors read] in registerPassagesGm and passages-gm.mjs");
+    }],
+    ["R617 - a Frisk's two rolls are a Palm's parts (A11-2): the force is Body 12, the hand Hand 10 under a Shadow 15 cover, and a roll told for either is expected at that statistic by the part it is told for (`fixed`), as the cover and a Take's hand are; an ask waits 60 s and a force 30 s; forcing after a refusal is a GMs' world setting, on", async () => {
+        /*
+         * E80 part 2 C0, 19.10.2026; the A11 design's steps 1 and 10, the owner's 2 = a (13.10: Body 12, Shadow 15 and Hand
+         * 10). The harm: a part the GMs do not hold to its statistic is a roll a console throws on its best one (E29 fix
+         * r1-G10, `fixed`), and a number kept anywhere but config is a second copy the books and the window drift from.
+         * Read off config, the ruling's reader (trait-ruling.mjs `listedTraits`, which reads a part's statistic one level
+         * down only) and what the GM expects of a roll told as each key (roll-draw.mjs `expectedFor`, through `TOLD_AS`);
+         * `plant`, a part with no statistic of its own, is the control that a part is not read as listing one by being
+         * there. That a roll on another statistic is flagged is tier 2's ("every definition and part that lists one
+         * statistic"). The two waits are chosen, not measured (the design's step 1). Red at the parent (0d6b033): Palm has
+         * neither part, `TIMING` neither wait, no `friskForce` is registered, and rolls told as `rummage` or `frisk` are
+         * expected at no statistic.
+         */
+        needs(world.atLeast("livingStudents", 1), "what the GM expects of a roll is read for a student");
+        const C = await import("./config.mjs");
+        const { listedTraits } = await import("./trait-ruling.mjs");
+        const D = await import("./roll-draw.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const J = stableJson;
+        const palm = C.ACTIONS.palm ?? {};
+        equal(J([palm.frisk?.trait ?? null, palm.frisk?.threshold ?? null, palm.rummage?.trait ?? null, palm.rummage?.threshold ?? null,
+            palm.rummage?.unseen ?? null, palm.unseen?.trait ?? null, typeof palm.frisk?.label, typeof palm.rummage?.label]),
+        J(["body", 12, "hand", 10, 15, "shadow", "string", "string"]),
+        "[the force's statistic and number, the hand's statistic, number and cover's number, the cover's statistic, the two labels] in ACTIONS.palm");
+        equal(J(["frisk", "rummage", "unseen", "plant"].map(part => listedTraits({ kind: "action", key: "palm", part }))),
+            J([["body"], ["hand"], ["shadow"], []]), "[the statistic the ruling reads for Palm's frisk, rummage, unseen and plant]");
+        const student = livingStudents()[0];
+        const expected = [];
+        for (const actionKey of ["frisk", "rummage", "palm", "steal"]) {
+            const e = await D.expectedFor(student, { actionKey });
+            expected.push([actionKey, e?.trait ?? null, e?.traitFrom ?? null]);
+        }
+        equal(J(expected), J([["frisk", "body", "fixed"], ["rummage", "hand", "fixed"], ["palm", "shadow", "fixed"], ["steal", "hand", "fixed"]]),
+            "[each key a roll is told as, the statistic the GM expects of it, the row that gave it]");
+        equal(J([C.TIMING.friskAnswerMs ?? null, C.TIMING.friskForceMs ?? null]), J([60000, 30000]), "[TIMING.friskAnswerMs, TIMING.friskForceMs]");
+        const reg = game.settings.settings.get(`${MODULE_ID}.${SETTINGS.friskForce ?? "friskForce"}`);
+        equal(J([SETTINGS.friskForce ?? null, reg?.scope ?? null, reg?.config ?? null, reg?.type === Boolean, reg?.default ?? null,
+            typeof reg?.name === "string" && reg.name.startsWith("DRPG.Settings.friskForce")]),
+        J(["friskForce", "world", true, true, true, true]), "[the key, its scope, in the settings window, a Boolean, its default, its name a key of the lang files]");
+    }],
+
+    ["R618 - a theft draws from and a Frisk lists one pool (A11-6's exclusions): what is carried, in the order of the module's categories, never a Truth Bullet, an item in a stash or one with no category of the module's, a broken item kept; and a Frisk's list, given what no GM has decided on, leaves that out too", async () => {
+        /*
+         * E80 part 2 C1, 19.10.2026; the A11 design's step 4 (S17-16: one pool, no further copy). The harm: a list that
+         * names a stashed item tells a frisker a stash exists and what is in it (the rule "a Palm does not reach a stash"
+         * broken); one that names a Truth Bullet hands over knowledge as a thing; and a theft whose pool drifted from the
+         * list takes what was never shown. vault.mjs `pocketsFrom` is the rule, read on items made here (each an id and
+         * its module flags): the categories out of order, a stashed one, a Truth Bullet, a broken one, one with no
+         * category, and one an `undecided` reader names. Then the world: each character holding a stashed item, read as
+         * `pocketsAsHeld` reads it on this GM, against its own items filtered here off the documents. Nothing is written.
+         * Red at the parent (05ee937): vault.mjs has neither function, and every reading is null.
+         */
+        needs(world.atLeast("stashedItems", 1), "an item in a stash is what the pool must leave out");
+        const V = await import("./vault.mjs");
+        const { ITEM_FLAGS } = await import("./inventory.mjs");
+        const J = stableJson;
+        const cats = Object.keys(ITEM_CATEGORIES).filter(c => c !== "truthBullet");
+        must(cats.length >= 3 && "truthBullet" in ITEM_CATEGORIES, "the module's categories are not the ones this reads - it would measure nothing");
+        const made = (id, flags) => ({ id, name: id, getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined) });
+        const category = ITEM_FLAGS.category, location = ITEM_FLAGS.location;
+        const items = [
+            made("last", { [category]: cats.at(-1) }), made("stashed", { [category]: cats[0], [location]: "vault" }),
+            made("bullet", { [category]: "truthBullet" }), made("broken", { [category]: cats[0], [ITEM_FLAGS.broken]: { at: 1 } }),
+            made("undecided", { [category]: cats[1] }), made("first", { [category]: cats[0], [location]: "carried" }), made("none", {})
+        ];
+        const ids = list => list.map(item => item.id);
+        const rule = typeof V.pocketsFrom === "function" ? V.pocketsFrom : null;
+        equal(J([rule ? ids(rule(items)) : null, rule ? ids(rule(items, { undecided: item => (item.id === "undecided" ? "a reason" : null) })) : null]),
+            J([["broken", "first", "undecided", "last"], ["broken", "first", "last"]]),
+            "[the pool of the items made here, the same with the undecided one named]");
+        const holders = game.actors.filter(a => a.type === "character" && a.items.some(i => i.getFlag(MODULE_ID, location) === "vault"));
+        const rows = [];
+        for (const holder of holders) {
+            const expected = cats.flatMap(c => holder.items.filter(i => i.getFlag(MODULE_ID, category) === c && i.getFlag(MODULE_ID, location) !== "vault"));
+            const pool = typeof V.pocketsAsHeld === "function" ? ids(await V.pocketsAsHeld(holder)) : null;
+            if (stableJson(pool) !== stableJson(ids(expected))) rows.push(`${holder.name}: ${stableJson(pool)}, expected ${stableJson(ids(expected))}`);
+        }
+        equal(J(rows), J([]), `the pool of each of ${holders.length} characters holding a stashed item, against its documents`);
+    }],
+    ["R619 - the Palm window offers a Frisk (A11-3): three rows, the Frisk's row with Openly checked and Unseen under it, each with the config's numbers, Openly's force said only while the GMs leave it on, 'Do it' on the button for the ask and 'Roll' for every way that throws dice, and no name of anything the target carries", async () => {
+        /*
+         * E80 part 2 C2, 19.10.2026; the A11 design's step 1 and its A11-3. The harm: a Palm window that shows a
+         * player what the person they picked carries before any roll (the whole point of a Frisk is that the list comes
+         * from the GM after the verdict), or one that says a bar the GM does not judge. action-rolls.mjs `choosePalm`
+         * drawn for a character and, as its target, one holding a stashed item, with `DialogV2.wait` answered with
+         * nothing: its rows, the Frisk row's words, the Unseen line under it for the config's `ACTIONS.palm` and for a
+         * copy whose two numbers are moved (17 and 11), the confirm button's label after each row is picked as the
+         * window's own `render` follows it (`followConfirmLabel`), and every name the target's items carry against the
+         * window's HTML. Nothing is written: the window is never shown. Red at the parent (08f9c56): `choosePalm` is not
+         * exported, so nothing is read.
+         * E80 part 2 C3, 19.10.2026: the open Frisk's way, Openly, is checked first - two clicks start the ask, which
+         * throws no dice and tells nobody who tried, never an unseen attempt the target may catch - and its line says the
+         * force's Body only while the GMs' `friskForce` is on (read here off a stub of the setting's getter, nothing
+         * written). The button says 'Do it' for the ask and 'Roll' once Unseen is picked. Red at the parent (6810266): the
+         * Frisk's only way is Unseen, checked, and the button says 'Roll'.
+         */
+        needs(world.atLeast("stashedItems", 1), "the target carries something, a stashed item among it");
+        const { choosePalm = null } = await import("./action-rolls.mjs");
+        const target = game.actors.find(a => a.type === "character" && a.items.some(i => i.getFlag(MODULE_ID, "location") === "vault"));
+        const actor = game.actors.find(a => a.type === "character" && a.id !== target?.id);
+        must(target && actor, "the world has no two characters, one of them holding a stashed item - this would measure nothing");
+        const mine = [{ id: "R619MINE", name: "R619 own thing", getFlag: () => undefined }];
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const drawn = [];
+        D.wait = async cfg => { drawn.push(cfg); return null; };
+        const settings = game.settings, get = settings.get;
+        try {
+            await choosePalm?.(actor, ACTIONS.palm, [target], mine);
+            await choosePalm?.(actor, { ...ACTIONS.palm, frisk: { ...ACTIONS.palm.frisk, threshold: 14 }, rummage: { ...ACTIONS.palm.rummage, unseen: 17, threshold: 11 } }, [target], mine);
+            settings.get = function (scope, key, ...rest) {
+                return scope === MODULE_ID && key === "friskForce" ? false : get.call(this, scope, key, ...rest);
+            };
+            await choosePalm?.(actor, ACTIONS.palm, [target], mine);
+        } finally {
+            settings.get = get;
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+        }
+        must(!choosePalm || drawn.length === 3, `choosePalm drew ${drawn.length} window(s) of 3 - this would measure nothing`);
+        must(get.call(settings, MODULE_ID, "friskForce") === true, "the GMs' friskForce is off in this world - Openly's force line would measure nothing");
+        const read = cfg => {
+            const root = document.createElement("div");
+            root.append(cfg.content.cloneNode(true));
+            root.insertAdjacentHTML("beforeend", `<footer><button type="button" data-action="ok"><span>${foundry.utils.escapeHTML(cfg.buttons?.[0]?.label ?? "")}</span></button></footer>`);
+            cfg.render?.(null, { element: root });
+            const button = () => root.querySelector('footer button[data-action="ok"]').textContent;
+            // The ways as drawn, before a radio below is pressed.
+            const modes = [...root.querySelectorAll('.drpg-choice-details[data-drpg-for="frisk"] input[name="friskMode"]')]
+                .map(r => [r.value, r.checked, r.closest("label")?.querySelector("small")?.textContent ?? null]);
+            const labels = [];
+            for (const radio of root.querySelectorAll('input[name="variant"]')) {
+                radio.checked = true;
+                radio.dispatchEvent(new Event("change", { bubbles: true }));
+                labels.push([radio.value, button()]);
+            }
+            const unseen = root.querySelector('input[name="friskMode"][value="unseen"]');
+            if (unseen) {
+                unseen.checked = true;
+                unseen.dispatchEvent(new Event("change", { bubbles: true }));
+                labels.push(["frisk unseen", button()]);
+            }
+            const frisk = root.querySelector('input[name="variant"][value="frisk"]')?.closest("label");
+            return {
+                rows: [...root.querySelectorAll('input[name="variant"]')].map(r => r.value),
+                frisk: frisk ? [frisk.querySelector("strong")?.textContent, frisk.querySelector("small")?.textContent] : null,
+                modes, labels, html: root.innerHTML
+            };
+        };
+        const [first, moved, askOnly] = choosePalm ? drawn.map(read) : [{ html: "" }, {}, {}];
+        const hint = (unseen, hand) => game.i18n.format("DRPG.Frisk.unseenHint", { unseen, hand });
+        const open = force => game.i18n.format("DRPG.Frisk.openHint", { force });
+        const roll = game.i18n.localize("DRPG.Action.roll"), proceed = game.i18n.localize("DRPG.Action.proceed");
+        equal(stableJson([first.rows, first.frisk, first.modes, moved.modes, askOnly.modes, first.labels]), stableJson([
+            ["steal", "plant", "frisk"],
+            [game.i18n.localize("DRPG.Frisk.rowLabel"), game.i18n.localize("DRPG.Frisk.rowHint")],
+            [["openly", true, open(ACTIONS.palm.frisk.threshold)], ["unseen", false, hint(ACTIONS.palm.rummage.unseen, ACTIONS.palm.rummage.threshold)]],
+            [["openly", true, open(14)], ["unseen", false, hint(17, 11)]],
+            [["openly", true, game.i18n.localize("DRPG.Frisk.openHintAskOnly")], ["unseen", false, hint(ACTIONS.palm.rummage.unseen, ACTIONS.palm.rummage.threshold)]],
+            [["steal", roll], ["plant", roll], ["frisk", proceed], ["frisk unseen", roll]]
+        ]), "[the rows, the Frisk row's label and hint, its ways with the config's numbers, with the numbers moved, with friskForce off, the button for each row and for Unseen]");
+        const names = [...new Set(target.items.map(i => i.name).filter(name => name && name.length > 2))];
+        equal(stableJson(names.filter(name => first.html.includes(foundry.utils.escapeHTML(name)) || first.html.includes(name))), "[]",
+            `a name of something ${target.name} carries is in the Palm window's HTML`);
+    }],
+    ["R620 - a Frisk's words and its books (A11-17): every DRPG.Frisk key and the Frisk's keys outside that block in both languages, a number in them only by placeholder, no 'Consent', no dash and no inflected 'GM' in Polish; the one Polish form of the row in the window, the Palm hint and the brochure; the Palm passages of the handbooks and the brochure carry the config's numbers, and the Polish GM handbook's Palm says 'GM-a'", async () => {
+        /*
+         * E80 part 2 C5, 19.10.2026; the A11 design's steps 14 and 15 and its A11-17. The harm: a Frisk text with no
+         * Polish twin shows a Polish table its key; a number typed into a text, or a handbook that says Body 12 while the
+         * GMs judge another bar, tells players a bar the game does not hold; 'Consent' is the word T28 and TR8 retired;
+         * and the row, the Palm hint and the brochure saying the same move three ways in Polish is three moves to a reader.
+         * Read: lang/en.json and lang/pl.json fetched and flattened (as R1 reads them), ACTIONS.palm and TIMING off config,
+         * the six handbooks fetched as R125 fetches them, each Palm passage found by its heading or its table row. THE
+         * CONTROL: the same reading with every number one higher must miss each passage, so a passage is read for the
+         * config's numbers and not passed by being there. Red at the parent (b0a312b): no handbook names a Frisk or its
+         * numbers, the Polish Palm hint and the brochure have no 'zobacz, co ktoś nosi', and the GM handbook says 'GMa'.
+         */
+        const { TIMING } = await import("./config.mjs");
+        const J = stableJson;
+        const flats = {};
+        for (const lang of ["en", "pl"]) {
+            const text = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            flats[lang] = foundry.utils.flattenObject(foundry.utils.expandObject(text));
+        }
+        const frisk = lang => Object.keys(flats[lang]).filter(k => k.startsWith("DRPG.Frisk.")).sort();
+        must(frisk("en").length >= 40, `en.json has ${frisk("en").length} DRPG.Frisk keys - there is little to read`);
+        const outside = ["DRPG.Reroll.friskStands", "DRPG.Reroll.rummageStands", "DRPG.Reroll.rummageSeen", "DRPG.Reroll.rummageLate",
+            "DRPG.Bridge.what.action.friskUnseen", "DRPG.Bridge.what.action.friskAsk", "DRPG.Bridge.what.action.friskAnswer",
+            "DRPG.Bridge.what.action.friskFollow", "DRPG.Settings.friskForce.name", "DRPG.Settings.friskForce.hint", "DRPG.Steal.takeHint"];
+        const keys = [...new Set([...frisk("en"), ...frisk("pl"), ...outside])];
+        const wrong = [];
+        for (const key of keys) {
+            for (const lang of ["en", "pl"]) {
+                const words = flats[lang][key];
+                if (typeof words !== "string" || !words.trim()) { wrong.push(`${lang} ${key}: missing`); continue; }
+                if (/\d/.test(words.replace(/\{[^}]*\}/g, ""))) wrong.push(`${lang} ${key}: a number not by placeholder`);
+                if (/consent/i.test(words)) wrong.push(`${lang} ${key}: 'Consent'`);
+                if (/[\u2013\u2014]/.test(words)) wrong.push(`${lang} ${key}: a dash`);
+                if (lang === "pl" && /\bGM(?:a|ów|owie|em|om|ie)\b/.test(words)) wrong.push(`pl ${key}: an inflected GM`);
+            }
+        }
+        // 'Go through their pockets' was the Take's hint at the parent: a Frisk is the one that looks.
+        if (/go through/i.test(flats.en["DRPG.Steal.takeHint"] ?? "") || /przeszukaj/i.test(flats.pl["DRPG.Steal.takeHint"] ?? "")) wrong.push("DRPG.Steal.takeHint: the Take still says it looks through the pockets");
+        equal(J(wrong), J([]), `[what is wrong with ${keys.length} keys in either language]`);
+
+        const book = async name => {
+            const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${name}.md`);
+            must(res.ok, `docs/handbooks/${name}.md did not load`);
+            return lfText(res);
+        };
+        const books = {};
+        for (const name of ["player-handbook.en", "player-handbook.pl", "gm-handbook.en", "gm-handbook.pl", "player-brochure.en", "player-brochure.pl"]) books[name] = await book(name);
+        const section = (text, heading) => text.match(new RegExp(`^### ${heading}\\n([\\s\\S]*?)(?=^#{2,3} )`, "m"))?.[1] ?? "";
+        const rows = (text, start) => text.split("\n").filter(line => line.startsWith(start)).join("\n");
+        const passages = {
+            "player-handbook.en Palm": section(books["player-handbook.en"], "Palm - Hand, 1 action"),
+            "player-handbook.pl Palm": section(books["player-handbook.pl"], "Palm - Hand, 1 akcja"),
+            "player-handbook.en Body": rows(books["player-handbook.en"], "| **Body** |"),
+            "player-handbook.pl Body": rows(books["player-handbook.pl"], "| **Body** |"),
+            "gm-handbook.en Palm row": rows(books["gm-handbook.en"], "| Palm |"),
+            "gm-handbook.pl Palm row": rows(books["gm-handbook.pl"], "| Palm |"),
+            "gm-handbook.en Palm": rows(books["gm-handbook.en"], "**Palm** (section 5)"),
+            "gm-handbook.pl Palm": rows(books["gm-handbook.pl"], "**Palm** (sekcja 5)"),
+            "player-brochure.en Palm": rows(books["player-brochure.en"], "| **Palm** |"),
+            "player-brochure.pl Palm": rows(books["player-brochure.pl"], "| **Palm** |")
+        };
+        const palm = ACTIONS.palm;
+        const config = { take: palm.threshold, takeUnseen: palm.unseen?.threshold, plant: palm.plant?.threshold, plantUnseen: palm.plant?.unseen,
+            force: palm.frisk?.threshold, hand: palm.rummage?.threshold, cover: palm.rummage?.unseen, answer: Math.round(TIMING.friskAnswerMs / 1000) };
+        must(Object.values(config).every(Number.isFinite), `ACTIONS.palm or TIMING does not hold the Palm's numbers: ${J(config)}`);
+        const expected = n => ({
+            "player-handbook.en Palm": [`| It works (Hand) | ${n.take}+ | ${n.plant}+ | ${n.hand}+ |`, `| Unseen (Shadow) | ${n.takeUnseen}+ | ${n.plantUnseen}+ | ${n.cover}+ |`,
+                "**Frisk: see what they carry**", `**Body ${n.force}+**`, `Shadow first, ${n.cover}+`, `then Hand, ${n.hand}+`],
+            "player-handbook.pl Palm": [`| Udaje się (Hand) | ${n.take}+ | ${n.plant}+ | ${n.hand}+ |`, `| Niezauważony (Shadow) | ${n.takeUnseen}+ | ${n.plantUnseen}+ | ${n.cover}+ |`,
+                "**Frisk: zobacz, co ktoś nosi**", `**Body ${n.force}+**`, `najpierw Shadow, ${n.cover}+`, `potem Hand, ${n.hand}+`],
+            "player-handbook.en Body": ["making somebody turn out their pockets"],
+            "player-handbook.pl Body": ["zmuszanie kogoś do pokazania kieszeni"],
+            "gm-handbook.en Palm row": ["| Shadow, then Hand", `Take: ${n.take} to succeed, ${n.takeUnseen} on Shadow`, `Plant: ${n.plant}, unseen ${n.plantUnseen}`,
+                `within ${n.answer} s`, `Body ${n.force} after a refusal`, `unseen Shadow ${n.cover} then Hand ${n.hand}`],
+            "gm-handbook.pl Palm row": ["| Shadow, potem Hand", `Kradzież: ${n.take} na powodzenie, ${n.takeUnseen} na Shadow`, `Podłożenie: ${n.plant}, niezauważone ${n.plantUnseen}`,
+                `w ciągu ${n.answer} s`, `Body ${n.force} po odmowie`, `ukradkiem Shadow ${n.cover}, potem Hand ${n.hand}`],
+            "gm-handbook.en Palm": ["**Frisk**", `Body ${n.force} in front of the room`],
+            "gm-handbook.pl Palm": ["**Frisk**", `Body ${n.force} na oczach pokoju`, "klient GM-a"],
+            "player-brochure.en Palm": [`Take (${n.take}+, unseen ${n.takeUnseen}+)`, `plant (${n.plant}+, unseen ${n.plantUnseen}+)`, "see what they carry",
+                `Body ${n.force}+ after a refusal`, `unseen Shadow ${n.cover}+ then Hand ${n.hand}+`],
+            "player-brochure.pl Palm": [`Weź (${n.take}+, niezauważony ${n.takeUnseen}+)`, `podłóż (${n.plant}+, niezauważony ${n.plantUnseen}+)`, "zobacz, co ktoś nosi",
+                `Body ${n.force}+ po odmowie`, `ukradkiem Shadow ${n.cover}+, potem Hand ${n.hand}+`]
+        });
+        const missing = n => Object.entries(expected(n)).flatMap(([where, said]) => said.filter(s => !passages[where].includes(s)).map(s => `${where}: "${s}"`));
+        equal(J(missing(config)), J([]), "[what each handbook's Palm passage lacks of the config's numbers and the Frisk's words]");
+        const moved = Object.fromEntries(Object.entries(config).map(([k, v]) => [k, v + 1]));
+        const numbered = Object.entries(expected(moved)).filter(([, said]) => said.some(s => /\d/.test(s))).map(([where]) => where);
+        const missedMoved = new Set(missing(moved).map(line => line.split(":")[0]));
+        equal(J(numbered.filter(where => !missedMoved.has(where))), J([]), "[a passage that reads as the config's with every number one higher - the control]");
+
+        const pl = flats.pl["DRPG.Config.ACTIONS.palm.hint"] ?? "";
+        equal(J([flats.pl["DRPG.Frisk.rowLabel"] ?? null, pl.includes("zobacz, co ktoś nosi"), passages["player-brochure.pl Palm"].includes("zobacz, co ktoś nosi"),
+            /\bGMa\b/.test(passages["gm-handbook.pl Palm"])]),
+        J(["Frisk: zobacz, co ktoś nosi", true, true, false]),
+        "[the Polish row, the Polish Palm hint says it, the Polish brochure says it, the Polish GM handbook's Palm says 'GMa']");
+    }],
+    ["R623 - the Frisk's windows are drawn as the module's (the mock-up pass's mk-1, mk-3, mk-4): the Palm window with its Frisk ways pins its footer to the foot of its scrolling box, as a table window does and a short module dialog does not; the target's ask and 'Make them?' open as module panels; and every Palm row's icon is a pixel glyph under Stained Glass", async () => {
+        /*
+         * E80 fix r2-G2, 19.10.2026; the fx-4 mock-up pass (scratchpad c2mock/p2: make.mjs, Chromium, the module's six
+         * sheets on a stand-in of Foundry's frame). The harms: at 1366x768 with Frisk picked the Palm window's content
+         * scrolled by 92 px under Stained Glass and 66 px (EN) / 53 px (PL) under Monokuma Legacy, and its footer - 'Do it'
+         * and 'Cancel' - lay wholly below the visible box, because the sticky footer held only windows with a table (mk-1);
+         * the target's 'Turn out your pockets?' and the searcher's 'Make them?' opened with no module class, as Foundry's
+         * bare 400 px dialog beside the Palm window's 544 and without Glass's frame (mk-3); and the Frisk row's
+         * `fa-hand-pointer` had no pixel glyph, the one Palm row Stained Glass would draw in Font Awesome's style (mk-4).
+         * jsdom has no layout, so this reads what decides each, as the cascade test of the room tile does: the Palm
+         * window as action-rolls.mjs `choosePalm` draws it (`DialogV2.wait` answered with nothing, nothing shown) set in
+         * Foundry's DialogV2 frame (window-content > dialog-form > dialog-content + form-footer) on a document of its
+         * own, and for its footer the `position` of every style rule of module.json's sheets whose selector the footer
+         * matches by its own `matches`; the same frame round a table and round a short paragraph, the two controls; the
+         * `classes` of the two DialogV2 calls in frisk.mjs; and each row icon of that window against the mask rule
+         * pixel-icons.css states for its name, with a name no sprite has as the control. What only a screen shows - that
+         * the pinned footer is reachable in Foundry's own frame at 1366x768, both themes, EN and PL - is the owner's
+         * A11-16. Red at the parent (aa58b22): the Palm window's footer matches no sticky rule, both frisk.mjs windows
+         * have no classes, and `fa-hand-pointer` has no mask rule.
+         */
+        needs(world.atLeast("stashedItems", 1), "the target carries something, a stashed item among it");
+        const { choosePalm } = await import("./action-rolls.mjs");
+        const target = game.actors.find(a => a.type === "character" && a.items.some(i => i.getFlag(MODULE_ID, "location") === "vault"));
+        const actor = game.actors.find(a => a.type === "character" && a.id !== target?.id);
+        must(target && actor, "the world has no two characters, one of them holding a stashed item - this would measure nothing");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const drawn = [];
+        D.wait = async cfg => { drawn.push(cfg); return null; };
+        try {
+            await choosePalm(actor, ACTIONS.palm, [target], [{ id: "R623MINE", name: "R623 own thing", getFlag: () => undefined }]);
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+        }
+        must(drawn.length === 1, `choosePalm drew ${drawn.length} window(s) of 1 - this would measure nothing`);
+        const palm = drawn[0];
+
+        const sheet = new document.defaultView.CSSStyleSheet();
+        sheet.replaceSync(await moduleStyles());
+        const rules = [...sheet.cssRules].filter(rule => typeof rule.selectorText === "string" && rule.style);
+        ok(rules.length > 1000, `only ${rules.length} style rules were read - the stylesheets did not load`);
+        const page = document.implementation.createHTMLDocument("R623");
+        // The `position` each matching rule gives the footer of a DialogV2 frame of `classes` round `content`.
+        const footerPositions = (classes, content) => {
+            const frame = page.createElement("div");
+            frame.className = ["application", "dialog", ...classes].join(" ");
+            frame.innerHTML = `<section class="window-content"><form class="dialog-form standard-form"><div class="dialog-content standard-form"></div>`
+                + `<footer class="form-footer"><button type="submit" data-action="ok">ok</button></footer></form></section>`;
+            const slot = frame.querySelector(".dialog-content");
+            if (typeof content === "string") slot.innerHTML = content; else slot.append(content.cloneNode(true));
+            page.body.replaceChildren(frame);
+            const footer = frame.querySelector("footer.form-footer");
+            const found = [];
+            for (const rule of rules) {
+                if (!rule.style.getPropertyValue("position")) continue;
+                let hit = false;
+                try { hit = footer.matches(rule.selectorText); } catch { hit = false; }
+                if (hit) found.push(rule.style.getPropertyValue("position"));
+            }
+            return found;
+        };
+        must(palm.content?.querySelector?.(".drpg-frisk-modes"), "the Palm window has no Frisk ways - this would measure nothing");
+        const positions = [footerPositions(palm.classes ?? [], palm.content),
+            footerPositions(["drpg-panel"], "<table><tr><td>R623</td></tr></table>"),
+            footerPositions(["drpg-panel"], "<p>R623 a short dialog</p>")];
+
+        const frisk = stripComments(new Map(await otherSources()).get("frisk.mjs") ?? "");
+        const classesOf = name => {
+            const call = bodyOf(fnSource(frisk, name), "DialogV2.wait({", { until: "buttons:" });
+            return [...(call.match(/classes:\s*\[([^\]]*)\]/)?.[1] ?? "").matchAll(/"([^"]+)"/g)].map(m => m[1]);
+        };
+
+        const css = await fetch(`/modules/${MODULE_ID}/styles/pixel-icons.css`).then(lfText);
+        const glyphless = names => names.filter(name => !new RegExp(`\\.${name}:is\\(i, span\\) \\{ --drpg-px-mask: var\\(--drpg-px-[\\w-]+\\); \\}`).test(css));
+        const icons = [...palm.content.querySelectorAll(".drpg-choice i")].map(i => [...i.classList].find(c => c.startsWith("fa-") && c !== "fa-solid") ?? null);
+
+        equal(stableJson([palm.classes ?? [], positions, classesOf("openAskWindow"), classesOf("askToForce"), icons.length, glyphless(icons), glyphless(["fa-r623-no-sprite"])]),
+            stableJson([["drpg-panel"], [["sticky"], ["sticky"], []], ["drpg-panel"], ["drpg-panel"], 3, [], ["fa-r623-no-sprite"]]),
+            "[the Palm window's classes; the footer's position by each rule it matches: the Palm window with its Frisk ways, a table window, a short dialog (the controls); the classes of the target's ask and of 'Make them?'; the Palm rows' icons, those with no pixel glyph, and a name no sprite has (the control)]");
+    }],
+
+    ["R804 - the GMs' copy of the characters' dice looks takes a row from a full Gamemaster's browser only (S16-02)", async () => {
+        /*
+         * E16 fix r1-G2, 19.10.2026 (finding sec-3; the owner's Q3 of 19.10: Assistant GMs are forced too). The
+         * primary holds every character's Dice So Nice overlay to the GMs' copy (gm-stores.mjs `diceLookStore`), but
+         * the stores merged a delta from any GM (`gmsRefusal` asked `senderIsGM`, and an Assistant is a GM), so an
+         * Assistant's console wrote the copy and its look became the one the primary put back. Read: the receive
+         * gate on a delta and a state of a store that says `fullGmOnly`, from an Assistant and from a full
+         * Gamemaster, and on a store that does not; then two engines, a full Gamemaster's and an Assistant's:
+         * what the Assistant's patch sends, a delta forged on the Assistant's browser with the newest stamp, and
+         * the full Gamemaster's own patch, which the Assistant takes; and the real store's spec. At feb3be8: the
+         * Assistant's delta merged, and the spec has no such key.
+         */
+        const G = await import("./gm-store.mjs");
+        const { diceLookStore } = await import("./gm-stores.mjs");
+        const J = G.stableJson;
+        const tick = () => new Promise(r => setTimeout(r, 0));
+        const stores = new Map([["r804", { sync: true, fullGmOnly: true }], ["r804open", { sync: true }]]);
+        const ctx = { amGM: true, senderIsGM: true, senderIsFullGM: false, senderId: "R804S", selfId: "R804A", worldId: "R804WORLD", stores };
+        const section = { e: { k: { look: null } }, t: { k: 5 }, d: {}, cleared: 0 };
+        const packet = (action, store) => ({ action, world: "R804WORLD", store, ...(action === "gms.delta" ? { delta: section } : { section }) });
+        const verdicts = {
+            assistantDelta: G.gmsRefusal(packet("gms.delta", "r804"), ctx),
+            assistantState: G.gmsRefusal(packet("gms.state", "r804"), ctx),
+            assistantOpen: G.gmsRefusal(packet("gms.delta", "r804open"), ctx),
+            fullDelta: G.gmsRefusal(packet("gms.delta", "r804"), { ...ctx, senderIsFullGM: true })
+        };
+        const sent = [];
+        const users = { R804A: { gm: true, full: true }, R804S: { gm: true, full: false } };
+        const nodes = new Map();
+        const node = id => {
+            const store = new Map();
+            const eng = G.createGmStoreEngine({
+                selfId: () => id, isGM: () => true, isFullGM: () => users[id].full, isPrimary: () => id === "R804A", worldId: () => "R804WORLD",
+                activeGmIds: () => Object.keys(users), primaryGmId: () => "R804A",
+                senderIsGM: u => users[u]?.gm ?? false, senderIsFullGM: u => users[u]?.full ?? false, userName: u => u,
+                send: (p, to) => { for (const r of to) sent.push({ from: id, to: r, packet: structuredClone(p) }); },
+                storage: { read: k => store.get(k) ?? null, write: async (k, v) => { store.set(k, JSON.stringify(v)); } },
+                readLegacy: () => undefined, now: () => 1000 + sent.length, timers: { set: (fn, ms) => setTimeout(fn, ms), clear: h => clearTimeout(h) },
+                clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+            });
+            const handle = eng.define({ name: "r804", key: "r804Store", fullGmOnly: true });
+            nodes.set(id, { eng, handle });
+            return nodes.get(id);
+        };
+        const full = node("R804A"), assistant = node("R804S");
+        await full.eng.open();
+        await assistant.eng.open();
+        const pump = async () => {
+            for (let i = 0; i < 4; i++) await tick();
+            for (const { from, to, packet: p } of sent.splice(0)) nodes.get(to)?.eng.onPacket(p, from);
+            for (let i = 0; i < 4; i++) await tick();
+        };
+        await pump();
+        await full.handle.patch("botan", { look: { global: { colorset: "ice" } } });
+        await pump();
+        const read = { taken: J(assistant.handle.get("botan")?.look ?? null) };
+        await assistant.handle.patch("botan", { look: { global: { colorset: "emerald" } } });
+        for (let i = 0; i < 4; i++) await tick();
+        read.sent = sent.filter(s => s.from === "R804S" && s.packet.store === "r804").length;
+        await pump();
+        full.eng.onPacket({ action: "gms.delta", world: "R804WORLD", store: "r804",
+            delta: { e: { botan: { look: { global: { colorset: "emerald" } } } }, t: { botan: Number.MAX_SAFE_INTEGER - 1 }, d: {}, cleared: 0 } }, "R804S");
+        await pump();
+        read.held = J(full.handle.get("botan")?.look ?? null);
+        read.spec = diceLookStore.spec?.fullGmOnly === true;
+        const refused = ["assistantDelta", "assistantState"].every(k => typeof verdicts[k] === "string" && verdicts[k].length > 0);
+        equal(J({ ...read, open: verdicts.assistantOpen, fullDelta: verdicts.fullDelta, refused }),
+            J({ held: J({ global: { colorset: "ice" } }), open: null, fullDelta: null, refused: true, sent: 0, spec: true, taken: J({ global: { colorset: "ice" } }) }),
+            `an Assistant's row reached the GMs' copy of the dice looks, or a full Gamemaster's did not (verdicts ${J(verdicts)}; taken: the Assistant took the full GM's; sent: the Assistant's packets of that store; held: the full GM's copy after the Assistant's patch and forged delta; spec: diceLookStore says fullGmOnly)`);
+    }],
+
+    ["R801 - a failure in the roll window is said on the console, with the module's name and the step it was at (S02-69)", async () => {
+        /*
+         * E16 p1 C1, 18.10.2026; audit S02-69. Every catch of roll-dialog.mjs swallowed what it caught, so a GM
+         * told "the Call did nothing" found an empty console after a Daggerheart update moved the window's
+         * markup. Read: the first line of every catch block of roll-dialog.mjs, which is to call `failed` (the
+         * module's `warn` with the step); then the render hook, the wrapper of the window's `_prepareContext`
+         * and the close hook handed a window whose config throws, and the console's lines from the module that
+         * name the step and the error. Nothing is written: the window is an object of this test's, taken out of
+         * the open windows by the close hook it is handed last. At cfbbf60: no catch called anything, and the
+         * three steps said nothing.
+         */
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/roll-dialog.mjs`).then(lfText));
+        const catches = [...src.matchAll(/\bcatch\s*(?:\(\s*\w*\s*\))?\s*\{[ \t]*\n/g)];
+        ok(catches.length >= 8, `roll-dialog.mjs holds ${catches.length} catch blocks - the file moved and this would read nothing`);
+        const silent = catches.map(m => lineAround(src, m.index + m[0].length).trim()).filter(line => !/^failed\("[^"]+", \w+\);/.test(line));
+        equal(stableJson(silent), stableJson([]), "a catch block of roll-dialog.mjs does not say what failed (the first line of each that does not)");
+        const RD = await import("./roll-dialog.mjs");
+        const Dialog = typeof RD.rollDialogClass === "function" ? RD.rollDialogClass() : game.system?.api?.dice?.DualityRoll?.DefaultDialog;
+        ok(typeof Dialog?.prototype?._prepareContext === "function", "Daggerheart's roll window class names no _prepareContext here - the wrapper's catch would not be read");
+        const root = document.createElement("form");
+        root.classList.add("roll-selection");
+        const broken = { element: root, options: { classes: ["roll-selection"] }, get config() { throw new Error("SUITE R801 config"); } };
+        const log = watchLog();
+        try {
+            RD.onRenderApplication(broken, root);
+            await Dialog.prototype._prepareContext.call(broken, {}).catch(() => null);
+            await RD.onCloseApplication(broken);
+        } finally {
+            log.stop();
+        }
+        const said = step => log.count(new RegExp(`^${MODULE_ID} \\| The roll window failed at ${step}: SUITE R801 config$`));
+        equal(stableJson([said("drawing"), said("forcing before its context"), said("its close")]), stableJson([1, 1, 1]),
+            "the render hook, the wrapper of the window's context or the close hook said nothing of the failure, or said it without the module's name or the step (lines: drawing, forcing before its context, its close)");
+    }],
 ];
 
 /**
@@ -15919,6 +18056,8 @@ const LITERAL_KEYS = [
     "DRPG.Season.step.roomsMarked", "DRPG.Season.hint.roomsMarked",
     // E13 C5: the row that says whether the school and the trial hall are linked.
     "DRPG.Season.step.scenes", "DRPG.Season.hint.scenes",
+    // E80 C5: the rows of Foundry's secret doors and of the players' rulers.
+    "DRPG.Season.step.secretDoors", "DRPG.Season.hint.secretDoors", "DRPG.Season.step.rulers", "DRPG.Season.hint.rulers",
     "DRPG.Roll.opening.killer", "DRPG.Roll.opening.victim",
     // monocub.mjs labels a row's choices `DRPG.Monocub.<choice>` (E33 C10): the two the table has.
     "DRPG.Monocub.help", "DRPG.Monocub.hinder",

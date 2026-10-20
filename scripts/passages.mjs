@@ -1,7 +1,9 @@
 /**
  * Danganronpa RPG - the secret passages, as this browser may know them (E79, 1.2.79).
  * ---------------------------------------------------------------------------
- * A secret passage is a stretch of a wall that a character who knows it may pass. Where it
+ * A secret passage is a stretch of a wall that a character who knows it may pass - or, since E80
+ * C1 (18.10.2026), a tunnel or stairs: two ends in two rooms of one scene, on one floor or two,
+ * which no wall is cut for (a knower goes through by the GM's hand, E80 C2). Where it
  * is and who knows it are the GMs' (gm-stores.mjs `passageMapStore`, `passageAccessStore`);
  * a player's browser holds only its copy (`passageCopy`): the open passages this user's own
  * characters know, sent by the primary GM to this user alone (passages-gm.mjs
@@ -21,13 +23,29 @@
 import { MODULE_ID, FLAGS } from "./config.mjs";
 import { primaryGmId, warn, error } from "./utils.mjs";
 import { passageCopy, passageMapStore, passageAccessStore } from "./gm-stores.mjs";
-import { levelOf } from "./rooms.mjs";
+import { levelOf, viewedScene, viewedLevel } from "./rooms.mjs";
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 const isPlain = o => o !== null && typeof o === "object" && !Array.isArray(o);
 
 /** How far, in pixels, a route may miss a passage's segment and still go through it (the plan's 1 px). */
 export const PASSAGE_TOLERANCE = 1;
+
+/**
+ * Whether a wall is one of Foundry's secret doors (E80 C5, S16): a wall every player's browser holds
+ * as world data, where it stands and that it is a door, and whose state Foundry lets a player change.
+ * The module's passages are the road the map check (fog-diagnostics.mjs `secretDoorRows`) and the
+ * Season setup's 'Convert to passages' (passages-gm.mjs `convertSecretDoors`) point a GM to. Read
+ * against Foundry's constant, the number 2 where the constant is not there (the harness's).
+ */
+export function isSecretDoor(wall) {
+    return Number(wall?.door ?? 0) === (globalThis.CONST?.WALL_DOOR_TYPES?.SECRET ?? 2);
+}
+
+/** A scene's secret doors (`isSecretDoor`), as its walls hold them. */
+export function secretDoorsOn(scene) {
+    return Array.from(scene?.walls ?? []).filter(isSecretDoor);
+}
 
 /** A row's segment, `{ id, wallId, x1, y1, x2, y2 }`, or null when its four numbers are not all finite. */
 function segmentOf(id, row) {
@@ -36,6 +54,16 @@ function segmentOf(id, row) {
     if (!xy.every(Number.isFinite)) return null;
     const [x1, y1, x2, y2] = xy;
     return { id, wallId: typeof row.passageWallId === "string" ? row.passageWallId : null, x1, y1, x2, y2 };
+}
+
+/**
+ * A tunnel's two ends, `[{ x, y, level }, { x, y, level }]` - each a point of the scene and the floor it is on
+ * (null on a scene with none) - or null when the row is no tunnel or an end is not two finite numbers (E80 C1).
+ */
+export function endsOf(row) {
+    if (row?.shape !== "tunnel" || !Array.isArray(row.ends) || row.ends.length !== 2) return null;
+    const ends = row.ends.map(end => ({ x: Number(end?.x), y: Number(end?.y), level: typeof end?.level === "string" && end.level ? end.level : null }));
+    return ends.every(end => Number.isFinite(end.x) && Number.isFinite(end.y)) ? ends : null;
 }
 
 /** Whether a row is on this floor: no floor asked, a row on no floor in particular, or the floor's own id (rooms.mjs `onLevel`'s rule). */
@@ -55,7 +83,8 @@ export function sceneGone(row, { map = passageMapStore, scenes } = {}) {
 
 /**
  * The open passages of the GMs' records, `{ passageId: { sceneId, shape, level, passageWallId,
- * passageSeg, actorIds } }`, each with every character that knows it: what a GM's browser reads
+ * passageSeg, actorIds } }` - a tunnel's `{ sceneId, shape: "tunnel", level: null, ends, actorIds }`
+ * (E80 C1: its row is on no floor in particular, each end on its own) -, each with every character that knows it: what a GM's browser reads
  * where a player's reads its copy, and what passages-gm.mjs cuts each copy from. `stores` is the
  * suite's (R554, R555): two handles of an engine of its own, and `scenes` beside them when it asks.
  *
@@ -63,11 +92,25 @@ export function sceneGone(row, { map = passageMapStore, scenes } = {}) {
  * nothing watches a scene's deletion, so its rows stayed secret, were sent to their knowers for ever
  * and came back live with a Restore. Read here, on the reading side, a restored row needs nothing
  * more; the GMs still list it (passages-gm.mjs `listPassages`, marked `sceneGone`) and may delete it.
+ *
+ * A public passage (E80 C6, D4: the GMs' 'Make public', the owner's A10 Q2) is known to every student:
+ * each one `actors` holds (the world's when none are given; a Monokuma is no student) is among its
+ * knowers, after the cells. So the one reading serves all three - each copy, cut to its player's own
+ * students (passages-gm.mjs `passageCopyFor`), the client's cut and the GMs' audit - and nothing is
+ * written for it but the row's `public`: Make secret leaves the cells as they were, and their knowers
+ * alone know it again.
  */
-export function secretRowsFrom({ map = passageMapStore, access = passageAccessStore, scenes } = {}) {
-    const rows = {};
+export function secretRowsFrom({ map = passageMapStore, access = passageAccessStore, scenes, actors } = {}) {
+    const rows = {}, open = [];
     for (const [id, row] of Object.entries(map.entries())) {
-        if (row?.state !== "secret" || !segmentOf(id, row) || sceneGone(row, { map, scenes })) continue;
+        if (row?.state !== "secret" || sceneGone(row, { map, scenes })) continue;
+        if (row.public === true) open.push(id);
+        const ends = endsOf(row);
+        if (ends) {
+            rows[id] = { sceneId: row.sceneId, shape: "tunnel", level: null, ends, actorIds: [] };
+            continue;
+        }
+        if (row.shape === "tunnel" || !segmentOf(id, row)) continue;
         rows[id] = { sceneId: row.sceneId, shape: row.shape, level: row.level ?? null, passageWallId: row.passageWallId ?? null,
             passageSeg: { ...row.passageSeg }, actorIds: [] };
     }
@@ -75,7 +118,19 @@ export function secretRowsFrom({ map = passageMapStore, access = passageAccessSt
         const [passageId, actorId] = key.split("/");
         if (actorId && Object.hasOwn(rows, passageId)) rows[passageId].actorIds.push(actorId);
     }
+    const everyone = open.length ? studentIdsOf(actors) : [];
+    for (const id of open.filter(id => Object.hasOwn(rows, id))) {
+        for (const actorId of everyone) if (!rows[id].actorIds.includes(actorId)) rows[id].actorIds.push(actorId);
+    }
     return rows;
+}
+
+/**
+ * The ids of the students among `actors` (the world's when none are given): every character that is no Monokuma,
+ * read by the flag monokuma.mjs `isMonokuma` reads - this leaf imports no file beyond its own (R560).
+ */
+export function studentIdsOf(actors = game.actors) {
+    return [...(actors ?? game.actors ?? [])].filter(a => a?.type === "character" && !a.getFlag?.(MODULE_ID, FLAGS.monokuma)).map(a => a.id);
 }
 
 /** The secret passages this browser may know: on a GM's the GMs' open rows, on a player's its copy. */
@@ -114,7 +169,9 @@ export function openSegmentsFor(actor, sceneId, level = null, { mastermind = fal
  * sheet's 'Known passages' (E79 C7, sheet.mjs `knownPassageRows`). The rows that name it, or every row for the
  * Mastermind (`mastermind`, as `openSegmentsFor` takes it). The stretch is handed out so the list can ask which
  * rooms a passage joins, whether it is open and where to pan; the wall's id is not, and neither is anything
- * else of the row (R560: only the records' files name a passage's geometry). `known` is the suite's (R562).
+ * else of the row (R560: only the records' files name a passage's geometry). A tunnel (E80 C1) is
+ * `{ id, sceneId, level: null, shape: "tunnel", ends }`: its two ends, which the list names by their rooms
+ * and the mark of an end is drawn at. `known` is the suite's (R562).
  */
 export function passagesKnownBy(actor, { mastermind = false, known = knownPassages() } = {}) {
     const actorId = typeof actor === "string" ? actor : actor?.id;
@@ -123,8 +180,79 @@ export function passagesKnownBy(actor, { mastermind = false, known = knownPassag
     for (const [id, row] of Object.entries(isPlain(known) ? known : {})) {
         if (typeof row?.sceneId !== "string") continue;
         if (!mastermind && !(Array.isArray(row.actorIds) && row.actorIds.includes(actorId))) continue;
-        const seg = segmentOf(id, row);
+        const ends = endsOf(row);
+        if (ends) {
+            out.push({ id, sceneId: row.sceneId, level: null, shape: "tunnel", ends });
+            continue;
+        }
+        const seg = row.shape === "tunnel" ? null : segmentOf(id, row);
         if (seg) out.push({ id, sceneId: row.sceneId, level: row.level ?? null, x1: seg.x1, y1: seg.y1, x2: seg.x2, y2: seg.y2 });
+    }
+    return out;
+}
+
+/**
+ * Where a passage is shown for a camera on floor `level` of its scene (null: not on its scene, or no floor),
+ * `{ sceneId, level, x, y }`, or null: a tunnel's end on that floor (one on no floor in particular is on each),
+ * else its first end; a stretch's middle, on its own floor. `passage` is a row as `passagesKnownBy` answers it
+ * (`ends`, or `x1`..`y2` and `level`). Pure; `viewPassage` moves the camera there (E80 fix r1-G2).
+ */
+export function passageSpot(passage, level = null) {
+    const sceneId = typeof passage?.sceneId === "string" ? passage.sceneId : null;
+    if (!sceneId) return null;
+    const ends = endsOf(passage);
+    if (ends) {
+        const here = level === null ? null : ends.find(end => end.level === level) ?? ends.find(end => end.level === null) ?? null;
+        const end = here ?? ends[0];
+        return { sceneId, level: end.level, x: end.x, y: end.y };
+    }
+    const xy = [passage.x1, passage.y1, passage.x2, passage.y2].map(Number);
+    if (!xy.every(Number.isFinite)) return null;
+    return { sceneId, level: typeof passage.level === "string" && passage.level ? passage.level : null, x: (xy[0] + xy[2]) / 2, y: (xy[1] + xy[3]) / 2 };
+}
+
+/**
+ * This browser's camera to a passage (E80 fix r1-G2; the review's E80-C1-01): the tab's Show (passages-tab.mjs
+ * `showPassage`) and the sheet's 'Known passages' click (sheet.mjs `panToPassage`). `spotOf(level)` answers where
+ * the passage is shown for a camera on that floor (`passageSpot`, or passages-gm.mjs `passageMiddle` for the GMs'
+ * row): asked first with no floor, for the scene, then - with the passage's scene on screen - with the floor on
+ * screen. The scene is viewed when another is on screen, and at the spot's floor when that is not the floor on
+ * screen, as the floor switcher views one (`scene.view({ level })`, fog.mjs); a floor the scene does not hold is not
+ * asked for. Until this fix both panned to a tunnel's first end over whatever floor was on screen, where nothing
+ * of it is drawn. Answers whether it panned. `scenes`, `onScreen`, `floor` and `pan` are the suite's (R607); it
+ * moves this canvas and decides nothing (rooms.mjs `CAMERA_READERS`).
+ */
+export async function viewPassage(spotOf, { scenes = game.scenes, onScreen = viewedScene(), floor = viewedLevel()?.id ?? viewedLevel() ?? null,
+    pan = to => canvas?.animatePan?.(to) } = {}) {
+    const first = spotOf(null);
+    const scene = first ? scenes?.get(first.sceneId) ?? null : null;
+    if (!scene) return false;
+    const here = onScreen?.id === scene.id ? floor : null;
+    const at = (here !== null ? spotOf(here) : null) ?? first;
+    const held = at.level !== null && [...(scene.levels ?? [])].some(l => (l?.id ?? l) === at.level);
+    if (onScreen?.id !== scene.id || (held && at.level !== here)) await (held ? scene.view({ level: at.level }) : scene.view());
+    await pan({ x: at.x, y: at.y });
+    return true;
+}
+
+/**
+ * Each end of a tunnel this character knows on this scene that is on `level` (an end on no floor in particular
+ * is on each, and no floor asked is every floor), `[{ id, x, y, level, far: { x, y, level } }]` with the end
+ * at the other side: where the mark of an end is drawn for its knowers (fog-doorways.mjs `tunnelMarks`, E80
+ * C1) and where 'Go through' stands (C2). The rows that name it, or every tunnel for the Mastermind
+ * (`mastermind`, as `openSegmentsFor` takes it). `known` is the suite's (R595).
+ */
+export function tunnelEndsFor(actor, sceneId, level = null, { mastermind = false, known = knownPassages() } = {}) {
+    const actorId = typeof actor === "string" ? actor : actor?.id;
+    if (!actorId || typeof sceneId !== "string") return [];
+    const out = [];
+    for (const row of secretRowsOn(sceneId, null, { known })) {
+        if (!mastermind && !(Array.isArray(row.actorIds) && row.actorIds.includes(actorId))) continue;
+        const ends = endsOf(row);
+        if (!ends) continue;
+        ends.forEach((end, i) => {
+            if (onLevelOf(end, level)) out.push({ id: row.id, ...end, far: { ...ends[1 - i] } });
+        });
     }
     return out;
 }
@@ -350,8 +478,9 @@ export function engineOffNotice({ cut = movementCut, user = game.user } = {}) {
 export const DOOR_PART = "door";
 
 /**
- * A packet's copy, kept to what a copy may hold: rows of this world's scenes with a whole segment,
- * the shape "wall" (a tunnel is E80's), and only characters the packet's stamps name - each of
+ * A packet's copy, kept to what a copy may hold: rows of this world's scenes with a whole segment
+ * and the shape "wall", or the shape "tunnel" and two whole ends (E80 C1; until then a tunnel was
+ * dropped here), and only characters the packet's stamps name - each of
  * this world - so a row naming nobody of this user is left out. Two parts that are no character
  * are kept, and no row can name either: "", the stamp of a copy for a user who owns no student, and
  * `DOOR_PART` (passages-gm.mjs `passageCopyFor`). Until review round 3 (17.10.2026, cor A, run by
@@ -366,10 +495,15 @@ export function cleanCopy(passages, stamps, { actors = game.actors, scenes = gam
         if (actorId === "" || actorId === DOOR_PART || actors?.has(actorId)) own[actorId] = Number(s) || 0;
     }
     for (const [id, row] of Object.entries(isPlain(passages) ? passages : {})) {
-        const seg = segmentOf(id, row);
-        if (!seg || row.shape !== "wall" || typeof row.sceneId !== "string" || !scenes?.has(row.sceneId)) continue;
+        const ends = endsOf(row);
+        const seg = ends || row?.shape !== "wall" ? null : segmentOf(id, row);
+        if ((!ends && !seg) || typeof row.sceneId !== "string" || !scenes?.has(row.sceneId)) continue;
         const actorIds = Array.isArray(row.actorIds) ? [...new Set(row.actorIds.filter(a => typeof a === "string" && a && a !== DOOR_PART && Object.hasOwn(own, a)))] : [];
         if (!actorIds.length) continue;
+        if (ends) {
+            value[id] = { sceneId: row.sceneId, shape: "tunnel", level: null, ends, actorIds };
+            continue;
+        }
         value[id] = { sceneId: row.sceneId, shape: "wall", level: typeof row.level === "string" ? row.level : null,
             passageWallId: seg.wallId, passageSeg: { x1: seg.x1, y1: seg.y1, x2: seg.x2, y2: seg.y2 }, actorIds };
     }

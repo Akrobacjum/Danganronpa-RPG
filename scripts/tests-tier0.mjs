@@ -10,7 +10,7 @@ import { SETTINGS } from "./settings.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { log } from "./utils.mjs";
 import {
-    ok, needs, env, world, equal, must, wait, moduleSources, otherSources, stripComments, moduleStyles, bodyOf,
+    ok, needs, env, world, equal, must, wait, lfText, moduleSources, otherSources, stripComments, moduleStyles, bodyOf,
     topLevelFunction, fnSource, lineAround, withGuards, lineAt, stripStrings, stringLiterals, STANDING, cast,
     markerProblem, runOne, stageLedger, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE,
     scanSuite, bareCuts, vacuousAsserts, needsArgs, LINT_FIXTURES, UNTIL_FIXTURE, untilProblem, DUMP_RULES,
@@ -378,7 +378,6 @@ const REGRESSIONS = [
             "fog.mjs": "fog.request answers the sender's own rows; fog.shared is taken only while the primary's question is open, cut to the characters the sender owns, weak and fill-only",
             "sync.mjs": "world-state fan-out from a GM; carries no actor id",
             "safeword.mjs": "trusts nothing from the packet but the room it shows the GMs as text; the name is the connected sender's, and the primary posts one public card per player per window, naming nobody",
-            "dice-sync.mjs": "dice appearance only; no actor anywhere in it",
             "sfx.mjs": "plays a sound; no actor anywhere in it",
             "voice.mjs": "room membership, keyed by the sender",
             "voice-client.mjs": "room membership, keyed by the sender",
@@ -387,13 +386,15 @@ const REGRESSIONS = [
             // E79 C1 (1.2.79): `payload.userId` is the copy's address, compared with this user's own id; R555 holds the rule (`passageRowsRefusal`).
             "passages.mjs": "a player's copy of the secret passages: taken only from the primary GM, addressed to this user, and cut to the characters it stamps; acts on no actor",
             // E79 C4 (1.2.79): `payload.userId` is the address, `sceneId` and `tokenId` only name the room the line says; `sentBackRefusal` holds the rule.
-            "movement-audit.mjs": "the GMs' word that a token of this user's was put back from a wall: taken only from the primary GM, addressed to this user, with a code it knows; plays a sound and shows a line, and acts on no actor"
+            "movement-audit.mjs": "the GMs' word that a token of this user's was put back from a wall: taken only from the primary GM, addressed to this user, with a code it knows; plays a sound and shows a line, and acts on no actor",
+            // E80 part 2 C3: `payload.userId` is the address, `askId` names the window; `friskPacketRefusal` holds the rule.
+            "frisk.mjs": "an open Frisk's window and its withdrawal: taken only from the primary GM, addressed to this user; the window's answer goes back on the bridge (`action.friskAnswer`), judged there by its sender, and acts on no actor"
             // E10 C2 (1.2.71): vote.mjs is off the list. A ballot reaches the GMs on the bridge (`vote.cast`), and
             // the one packet its listener still takes, a GM's ballot, names no id.
         };
 
         const tableFiles = new Set(tables.map(t => t.file));
-        const leafSrc = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/bridge-guards.mjs`).then(r => r.text()));
+        const leafSrc = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/bridge-guards.mjs`).then(lfText));
         const blind = [], idle = [];
         for (const [file, raw] of await otherSources()) {
             const text = stripComments(raw);
@@ -1130,7 +1131,7 @@ const REGRESSIONS = [
          * listeners handle must be a trigger somebody can actually choose.
          */
         const { TRAP_TRIGGERS } = await import("./config.mjs");
-        const src = await fetch(`/modules/${MODULE_ID}/scripts/traps.mjs`).then(r => r.text());
+        const src = await fetch(`/modules/${MODULE_ID}/scripts/traps.mjs`).then(lfText);
 
         // Which events the file actually subscribes to.
         const hooks = new Set([...src.matchAll(/Hooks\.on\("(drpg\w+|createChatMessage)"/g)]
@@ -1140,6 +1141,7 @@ const REGRESSIONS = [
             action: "drpgActionResolved",
             rest: "drpgRested",
             stash: "drpgStashHunted",
+            passage: "drpgPassageHunted",
             item: "createChatMessage"
         };
 
@@ -1234,7 +1236,7 @@ const REGRESSIONS = [
             `these use an item without asking whether a murder is happening: ${guilty.join(", ")}`);
 
         // And the check itself still means what the caller assumes.
-        const sheet = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/sheet.mjs`).then(r => r.text()));
+        const sheet = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/sheet.mjs`).then(lfText));
         const body = bodyOf(sheet, "function inCrisis", { length: 400 });
         ok(/stage\s*!==\s*"incident"/.test(body),
             "inCrisis no longer asks whether the incident has actually started");
@@ -1278,7 +1280,7 @@ const REGRESSIONS = [
         const dead = [];
         for (const [opener, file] of Object.entries(MUST_BE_LIVE)) {
             const text = stripComments(
-                await fetch(`/modules/${MODULE_ID}/scripts/${file}.mjs`).then(r => r.text()));
+                await fetch(`/modules/${MODULE_ID}/scripts/${file}.mjs`).then(lfText));
             // Up to the next top-level declaration, which is where its body ends (null: none).
             const body = topLevelFunction(text, opener);
             if (body === null) { dead.push(`${opener} is not in ${file}.mjs any more`); continue; }
@@ -1319,7 +1321,7 @@ const REGRESSIONS = [
         const blind = [];
         for (const file of new Set(Object.values(MUST_BE_LIVE))) {
             const text = stripComments(
-                await fetch(`/modules/${MODULE_ID}/scripts/${file}.mjs`).then(r => r.text()));
+                await fetch(`/modules/${MODULE_ID}/scripts/${file}.mjs`).then(lfText));
             if (!/\bbulletsOf\(|\bsecretOf\(/.test(text)) continue;
             const watches = [...text.matchAll(/keepLive\(/g)].some(m => {
                 const call = text.slice(m.index, m.index + 400);
@@ -1330,7 +1332,7 @@ const REGRESSIONS = [
         ok(!blind.length, blind.join("; "));
 
         // And the helper still carries the three things a rebuild would eat.
-        const live = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/live.mjs`).then(r => r.text()));
+        const live = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/live.mjs`).then(lfText));
         for (const carried of ["scrolls", "opens", "dirty", "tab"]) {
             ok(live.includes(carried),
                 `keepLive no longer carries "${carried}" across a rebuild`);
@@ -1387,9 +1389,20 @@ const REGRESSIONS = [
          * Only `createChatMessage` reaches everybody, which is exactly why the
          * item trigger was the one that worked. So every other one needs a relay,
          * and this is what says so.
+         *
+         * E80 fix r1-G1 (18.10.2026; the review's E80-SEC-1): two hooks are raised
+         * on the GM that judges the thing (`ON_GM`), and the file named is the one
+         * place that raises each - one raised on the roller's browser again is a
+         * trap a console can skip, or set off with no search. A Find Passage is
+         * judged on the primary (passages-gm.mjs `resolvePassageSearch`) and needs
+         * no relay; a stash hunt is judged on any GM (vault.mjs
+         * `resolveStashSearch`), and one who is not the primary relays it. Red at
+         * the parent (4263c09): both raised in action-rolls.mjs.
          */
-        const src = await fetch(`/modules/${MODULE_ID}/scripts/traps.mjs`).then(r => r.text());
+        const src = await fetch(`/modules/${MODULE_ID}/scripts/traps.mjs`).then(lfText);
         const clean = stripComments(src);
+        // [the one file that raises it, relayed from a GM who is not the primary]
+        const ON_GM = { drpgPassageHunted: ["passages-gm.mjs", false], drpgStashHunted: ["vault.mjs", true] };
 
         const subscribed = [...clean.matchAll(/Hooks\.on\("(drpg\w+)"/g)].map(m => m[1]);
         ok(subscribed.length >= 4, `traps.mjs subscribes to only ${subscribed.length} module hooks`);
@@ -1400,6 +1413,7 @@ const REGRESSIONS = [
         for (let i = 0; i < marks.length; i++) {
             const name = marks[i][1];
             if (name === "createChatMessage") continue;   // reaches every client already
+            if (ON_GM[name] && !ON_GM[name][1]) continue;   // raised on the primary GM, which runs it
             const to = i + 1 < marks.length ? marks[i + 1].index : clean.length;
             if (!clean.slice(marks[i].index, to).includes("relay(")) unrelayed.push(name);
         }
@@ -1413,6 +1427,13 @@ const REGRESSIONS = [
         ok(!deaf.length, `the GM side ignores these relayed events: ${deaf.join(", ")}`);
         const orphan = [...handled].filter(kind => !sent.has(kind));
         ok(!orphan.length, `the GM side answers to events nothing sends: ${orphan.join(", ")}`);
+
+        // Each hook the GM that judges the thing raises is raised there, and nowhere else.
+        const sources = (await otherSources()).map(([file, raw]) => [file, stripComments(raw)]);
+        const raisedAt = Object.fromEntries(Object.keys(ON_GM).map(hook => [hook,
+            sources.filter(([, text]) => text.includes(`callAll("${hook}"`)).map(([file]) => file)]));
+        equal(JSON.stringify(raisedAt), JSON.stringify(Object.fromEntries(Object.entries(ON_GM).map(([hook, [file]]) => [hook, [file]]))),
+            "{ the hook: the files that raise it } - a hook the GM that judges it raises is raised on the acting client again, or by nothing");
     }],
 
     ["R14 - every setting listener waits on the hook its setting actually fires", async () => {
@@ -1435,8 +1456,11 @@ const REGRESSIONS = [
          * kept answering "what did I leave in this room" from a cache that a
          * trace being erased, planted or swept could not touch. It looked
          * exactly like a working listener. dice-sync.mjs had found the same trap
-         * a fortnight earlier and written it down in a comment, which is the
-         * clearest possible argument for putting it in the suite instead.
+         * a fortnight earlier, listening for Dice So Nice's client setting, and
+         * written it down in a comment, which is the clearest possible argument
+         * for putting it in the suite instead. That listener went with E16 p1 C3,
+         * when the dice look moved to the users' flags (R802); enforced.mjs's
+         * `clientSettingChanged` put-back is the example left standing.
          *
          * Only listeners that NAME a setting are asked. A listener filtering on
          * the module prefix is a redraw-on-anything, and it is right about every
@@ -1787,7 +1811,7 @@ const REGRESSIONS = [
          * measured at 1017-1113 ms per close on 16.09, which is what made every GM panel tile
          * open its window a second late. This reads the rule back.
          */
-        const css = (await fetch(`/modules/${MODULE_ID}/styles/stained-glass.css`).then(r => r.text()))
+        const css = (await fetch(`/modules/${MODULE_ID}/styles/stained-glass.css`).then(lfText))
             .replace(/\/\*[\s\S]*?\*\//g, " ");
         const block = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
             .find(m => /transition-property:\s*--drpg-glass-accent\s*;/.test(m[2])
@@ -2127,7 +2151,7 @@ const REGRESSIONS = [
          * the paragraph that explains it.
          */
         const src = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/action-rolls.mjs`).then(r => r.text()));
+            await fetch(`/modules/${MODULE_ID}/scripts/action-rolls.mjs`).then(lfText));
         const body = bodyOf(src, "export async function performAction", { until: "\n}\n" });
 
         const gate = body.indexOf('"classTrial"');
@@ -2149,7 +2173,7 @@ const REGRESSIONS = [
         // The courtroom is locked ABOVE the movement economy: a GM who turned the
         // crossing cost off did not turn off the trial.
         const move = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/movement.mjs`).then(r => r.text()));
+            await fetch(`/modules/${MODULE_ID}/scripts/movement.mjs`).then(lfText));
         const cross = bodyOf(move, "function crossingVerdict");
         const locked = cross.indexOf('"classTrial"');
         const charged = cross.indexOf("SETTINGS.chargeMovement");
@@ -2164,7 +2188,7 @@ const REGRESSIONS = [
          * inconsistency by adding the branch it deliberately does not have.
          */
         const callsSrc = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/calls.mjs`).then(r => r.text()));
+            await fetch(`/modules/${MODULE_ID}/scripts/calls.mjs`).then(lfText));
         const hopeGate = bodyOf(callsSrc, "function hopeCallBarred", { until: "export async function spendHopeCall" });
         ok(hopeGate.length > 100 && !hopeGate.includes("classTrial"),
             "Hope Calls are barred during a trial now, which is the opposite of the decision");
@@ -2189,7 +2213,7 @@ const REGRESSIONS = [
          * not move the phase, refill nothing.
          */
         const clockSrc = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/clock.mjs`).then(r => r.text()));
+            await fetch(`/modules/${MODULE_ID}/scripts/clock.mjs`).then(lfText));
         const reconcile = bodyOf(clockSrc, "async function reconcilePhase(", { until: "async function reconcileEclipseEnded(" });
         ok(reconcile.length > 200, "reconcilePhase has moved or gone");
         const entering = bodyOf(reconcile, 'if (to === "classTrial")');
@@ -2200,9 +2224,9 @@ const REGRESSIONS = [
             + "second debate refills the budget again");
 
         const ui2 = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/trial-floor-ui.mjs`).then(r => r.text()));
+            await fetch(`/modules/${MODULE_ID}/scripts/trial-floor-ui.mjs`).then(lfText));
         const floor = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/trial-floor.mjs`).then(r => r.text()));
+            await fetch(`/modules/${MODULE_ID}/scripts/trial-floor.mjs`).then(lfText));
         ok(!ui2.includes("openTrialBudget(") && !floor.includes("openTrialBudget("),
             "a door into the trial pays the budget itself as well as the phase, so the table is paid twice");
     }],
@@ -2218,7 +2242,7 @@ const REGRESSIONS = [
          * 28.08.
          */
         const floorSrc = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/trial-floor.mjs`).then(r => r.text()));
+            await fetch(`/modules/${MODULE_ID}/scripts/trial-floor.mjs`).then(lfText));
         ok(/export function floorRefusal\(/.test(floorSrc), "floorRefusal is not exported any more");
         ok(/export function targetRefusal\(/.test(floorSrc), "targetRefusal is not exported any more");
 
@@ -2231,7 +2255,7 @@ const REGRESSIONS = [
             "openObjection lost its own isGM guard, which the player's window must not have");
 
         const trialSrc = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/trial.mjs`).then(r => r.text()));
+            await fetch(`/modules/${MODULE_ID}/scripts/trial.mjs`).then(lfText));
         ok(!trialSrc.includes("objectionBlockedReason("),
             "trial.mjs is carrying its own copy of the admission rule again");
         ok((trialSrc.match(/floorRefusal\(/g) ?? []).length >= 2,
@@ -2264,7 +2288,7 @@ const REGRESSIONS = [
         ok(trialSrc.includes("gmOnline("), "the Objection stopped asking whether a GM is connected");
         for (const file of ["trial", "sheet", "action-rolls", "cleanup"]) {
             const src = stripComments(
-                await fetch(`/modules/${MODULE_ID}/scripts/${file}.mjs`).then(r => r.text()));
+                await fetch(`/modules/${MODULE_ID}/scripts/${file}.mjs`).then(lfText));
             ok(!/[^A-Za-z]hasGm\(/.test(src),
                 `${file}.mjs calls hasGm to decide something, which toasts every reader`);
         }
@@ -2277,7 +2301,7 @@ const REGRESSIONS = [
          * this reads is the shape that makes that safe.
          */
         const src = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/trial.mjs`).then(r => r.text()));
+            await fetch(`/modules/${MODULE_ID}/scripts/trial.mjs`).then(lfText));
         const seize = bodyOf(src, "async function seizeFloor");
         ok(seize.length > 500, "seizeFloor is gone, so an objection is free again");
 
@@ -2308,7 +2332,7 @@ const REGRESSIONS = [
 
         // The charge is NOT in openObjection, which is what keeps the API free.
         const floorSrc = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/trial-floor.mjs`).then(r => r.text()));
+            await fetch(`/modules/${MODULE_ID}/scripts/trial-floor.mjs`).then(lfText));
         ok(!floorSrc.includes("payPrice("),
             "openObjection charges for itself, so every macro and fixture that calls it now pays");
     }],
@@ -2322,7 +2346,7 @@ const REGRESSIONS = [
          * an amount - because that card is authored on the player's own client.
          */
         const src = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/action-rolls.mjs`).then(r => r.text()));
+            await fetch(`/modules/${MODULE_ID}/scripts/action-rolls.mjs`).then(lfText));
         const analyze = bodyOf(src, "async function performAnalyze", { until: "async function analyseBullet" });
         ok(analyze.length > 500, "performAnalyze moved or vanished");
 
@@ -2356,7 +2380,7 @@ const REGRESSIONS = [
         }
 
         const messenger = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/messenger-app.mjs`).then(r => r.text()));
+            await fetch(`/modules/${MODULE_ID}/scripts/messenger-app.mjs`).then(lfText));
         const body = bodyOf(messenger, "function refundOnCard(", { until: "async function ruleCreateItem(" });
         ok(body.length > 300 && body.includes("async function ruleDecline("),
             "the refusal's refund has moved out of refundOnCard and ruleDecline");
@@ -2635,7 +2659,7 @@ const REGRESSIONS = [
          * a hand's width apart. A relative ceiling with no absolute one beside it is
          * the shape of that defect, so it is the shape this test hunts.
          */
-        const raw = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => r.text());
+        const raw = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText);
         /*
          * COMMENTS BLANKED, NOT DELETED, and both halves matter. Blanked, because
          * the notes beside these rules quote the shapes this test hunts - the one
@@ -2696,7 +2720,7 @@ const REGRESSIONS = [
          * meaning anything. A declaration in this block is the only way that promise
          * can be broken, so the block is read.
          */
-        const raw = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => r.text());
+        const raw = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText);
         const css = raw.replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, " "));
         const at = css.indexOf("body.drpg-high-contrast");
         ok(at > 0, "the high-contrast block is gone, so the switch changes nothing");
@@ -3054,7 +3078,7 @@ const REGRESSIONS = [
         let rungs = 0;
 
         for (const sheet of sheets) {
-            const raw = await fetch(`/modules/${MODULE_ID}/styles/${sheet}`).then(r => r.text());
+            const raw = await fetch(`/modules/${MODULE_ID}/styles/${sheet}`).then(lfText);
             // Comments blanked rather than deleted, so a reported line number still
             // points at the declaration - the rule R51 already follows.
             const css = raw.replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, " "));
@@ -3099,7 +3123,7 @@ const REGRESSIONS = [
          * one promise this makes: a client who never touched the slider sees no
          * change.
          */
-        const raw = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => r.text());
+        const raw = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText);
         const css = raw.replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, " "));
 
         const block = bodyOf(css, "body.drpg-theme-monokuma-legacy {", { until: "}" });
@@ -3164,7 +3188,7 @@ const REGRESSIONS = [
         }
 
         for (const sheet of ["danganronpa.css", "messenger.css"]) {
-            const css = await fetch(`/modules/${MODULE_ID}/styles/${sheet}`).then(r => r.text());
+            const css = await fetch(`/modules/${MODULE_ID}/styles/${sheet}`).then(lfText);
             ok(!css.includes("var(--drpg-type-scale"),
                 `${sheet} reads the screen-term factor, which has no business in a sheet drawn at one size`);
         }
@@ -3181,7 +3205,7 @@ const REGRESSIONS = [
          * 17px under the glass, and handing it to a pixel-font sheet opens a window
          * two thirds empty with its resize handle taken away.
          */
-        const raw = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => r.text());
+        const raw = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText);
         const css = raw.replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, " "));
         ok(/--drpg-popup: calc\(34rem \* var\(--drpg-legacy-scale/.test(css),
             "the prose window's width stopped following the slider");
@@ -3225,7 +3249,7 @@ const REGRESSIONS = [
         ok(sheets.length >= 5, `module.json lists ${sheets.length} stylesheets`);
 
         for (const href of sheets) {
-            const raw = await fetch(`/modules/${MODULE_ID}/${href}`).then(r => r.text());
+            const raw = await fetch(`/modules/${MODULE_ID}/${href}`).then(lfText);
             let open = 0;
             for (const m of raw.matchAll(/\/\*|\*\//g)) {
                 const line = raw.slice(0, m.index).split("\n").length;
@@ -3755,7 +3779,7 @@ const REGRESSIONS = [
          * rather than trusted, because moving it up is a one-line edit that would pin
          * every Stained Glass ring to whatever the last hour rule said.
          */
-        const css = (await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => r.text()))
+        const css = (await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText))
             .replace(/\/\*[\s\S]*?\*\//g, " ");
         for (const hour of ["morning", "noon", "afternoon", "evening", "night"]) {
             ok(css.includes(`body[data-drpg-time="${hour}"] { --drpg-own-ring:`),
@@ -3800,7 +3824,7 @@ const REGRESSIONS = [
             "a track change rebuilds the whole clock, which slides the time of day for "
             + "something neither it nor the room block can see");
 
-        const css = (await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => r.text()))
+        const css = (await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText))
             .replace(/\/\*[\s\S]*?\*\//g, " ");
         ok(/\.drpg-hud-track \{/.test(css), "the band has no rule of its own");
         ok(/drpg-reduced-motion .drpg-hud-track > span \{\s*animation: none/.test(css),
@@ -4089,9 +4113,15 @@ const REGRESSIONS = [
          * matching pair leaves the opposite one live, and one click on it makes
          * Daggerheart cancel the modifier the Call just bought - the same defect with
          * an extra step.
+         *
+         * Since E16 C1 the experience's cost leaves the config in `forceConfig`, run
+         * before the window's context (and from the hook where that could not be
+         * wrapped), ahead of any test of the lock; the hook takes off the rows drawn
+         * for it. Read in both.
          */
         const dialog = stripComments(new Map(await otherSources()).get("roll-dialog.mjs") ?? "");
         const open = bodyOf(dialog, "function onRenderApplication", { until: "function forceReaction" });
+        const force = bodyOf(dialog, "function forceConfig", { until: "isStudentRoll(actor)" });
         ok(open.length > 400, "the render hook has moved or gone");
         ok(/advantageSources\(app, actor\)/.test(open),
             "the unlocked road reads Breakdown alone again, so a bought die is lost");
@@ -4099,7 +4129,8 @@ const REGRESSIONS = [
             "the state-only reader is back");
         ok(/\[\.\.\.adv, \.\.\.dis\]/.test(open),
             "only one pair of chips is locked, so the other one can cancel the purchase");
-        ok(/stripExperienceCosts\(app\)/.test(open) && /hideCostSection\(root\)/.test(open),
+        ok(/^function forceConfig\(app\) \{\s*stripExperienceCosts\(app\);/.test(force) && !/locking\(\)/.test(force)
+            && /forceConfig\(app\)/.test(open) && /hideCostSection\(root, drawn\)/.test(open),
             "an experience a Call paid for is charged again when the lock is off");
         ok(open.indexOf("locking()") < open.indexOf("advantageSources(app, actor)"),
             "the unlocked branch now runs for everybody, including the locked road");
@@ -4536,10 +4567,10 @@ const REGRESSIONS = [
         const scale = bodyOf(settings, "function scaleWindow(", { until: "\n}" });
         ok(!/window-resize-handle.*remove\(\)|resizable = false/.test(scale),
             "the sheet's handle is removed by a one-way edit a theme switch cannot undo");
-        const glass = await fetch(`/modules/${MODULE_ID}/styles/stained-glass.css`).then(r => r.text());
+        const glass = await fetch(`/modules/${MODULE_ID}/styles/stained-glass.css`).then(lfText);
         ok(/body\.drpg-theme-stained-glass \.application\.sheet\.actor\.character > \.window-resize-handle\s*\{\s*display: none/.test(glass),
             "nothing hides the character sheet's handle under the glass");
-        const css = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => r.text());
+        const css = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText);
         const band = bodyOf(css, ".drpg-hud-track {", { until: "@keyframes drpg-track-scroll" });
         ok(/\.drpg-hud-track \{[^}]*width: 0;[^}]*min-width: 100%/.test(band),
             "the track band adds its text's width to the clock's");
@@ -4611,7 +4642,7 @@ const REGRESSIONS = [
          * a single 658px track and a 353px name row, where it had been 16px.
          */
         const css = stripComments(new Map(await otherSources()).get("danganronpa.css")
-            ?? await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => r.text()));
+            ?? await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText));
         const panel = css.match(/(^|\n)#drpg-events\s*\{[^}]*\}/);
         ok(panel, "the Event panel has no unscoped block, so Legacy has no panel structure");
         ok(/order:\s*15\s*;/.test(panel[0]),
@@ -4707,7 +4738,7 @@ const REGRESSIONS = [
         }
 
         /* And the frame both cards share: the title band in the flow, the size a frame late. */
-        const css = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => r.text());
+        const css = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText);
         ok(/\.application\.sheet:has\(\.drpg-remnant-card\)\s*>\s*\.window-header\s*\{[^}]*position:\s*relative/.test(css),
             "the NPC sheet's title band still lies over the card's own header");
         const ring = stripComments(sources.get("remnant-ring.mjs") ?? "");
@@ -4817,12 +4848,12 @@ const REGRESSIONS = [
         for (const name of HANDBOOKS) {
             const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${name}.md`);
             ok(res.ok, `docs/handbooks/${name}.md did not load`);
-            const head = (await res.text()).split("\n").slice(0, 5).join("\n");
+            const head = (await lfText(res)).split("\n").slice(0, 5).join("\n");
             if (!head.includes(version)) stale.push(`${name} (${head.match(/\d+\.\d+\.\d+/)?.[0] ?? "no version"})`);
         }
         const readme = await fetch(`/modules/${MODULE_ID}/README.md`);
         ok(readme.ok, "README.md did not load");
-        const said = (await readme.text()).match(/describe version (\d+\.\d+\.\d+)\./)?.[1] ?? "nothing";
+        const said = (await lfText(readme)).match(/describe version (\d+\.\d+\.\d+)\./)?.[1] ?? "nothing";
         if (said !== version) stale.push(`README (${said})`);
         ok(!stale.length, `module.json says ${version}, these say otherwise: ${stale.join(", ")}`);
     }],
@@ -5074,7 +5105,7 @@ const REGRESSIONS = [
          * the click on Hope and the traits, so the switch looked broken. The rules now
          * hang on a body class the setting stamps.
          */
-        const css = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => r.text());
+        const css = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(lfText);
         const rules = stripComments(css);
         ok(!/body:not\(\.drpg-gm\)[^{]*(\.hope-value|trait-value|name\*="traits")/.test(rules),
             "a player lock still hangs on being not-a-GM rather than on the setting");
@@ -5619,6 +5650,8 @@ const REGRESSIONS = [
             // E29 fix r2-H21: an item no GM has decided on, asked by the copy roads, whose runs pass their `{ refused }` on.
             creationRefusal: "returns", giveItem: "refused", lootBody: "refused", plantOnPerson: "refused",
             stealFromPerson: "refused", stealFromVault: "refused",
+            // E80 C2: an unseen Frisk, judged on the primary (frisk.mjs), whose run passes its `{ refused }` on.
+            friskPerson: "refused",
             // E33 C10: a Monocub's ability by key, the row, the Monocub and the choice (guardCubAbility asks it).
             cubAbilityRefusal: "returns",
             // E10 C2: a ballot, judged on the primary (vote.mjs), whose run passes its `{ refused }` on.
@@ -5629,6 +5662,15 @@ const REGRESSIONS = [
             objectOnPrimary: "refused", evidenceOnPrimary: "refused", repointOnPrimary: "refused",
             // E79 fix r4-G2: the objector's pending Objection taken back, on the primary (trial.mjs).
             withdrawOnPrimary: "refused",
+            // E80 C2: 'Go through' a tunnel, carried out on the primary (passages-gm.mjs), its reasons by code.
+            crossTunnel: "refused", crossingWhy: "returns",
+            // E80 C3: a Find Passage, judged on the primary (passages-gm.mjs), its reasons by code.
+            resolvePassageSearch: "refused",
+            // E80 part 2 C1: one student acting on another in their room, the primary's gate (frisk.mjs); C2 and C3 ask it.
+            personActionRefusal: "returns",
+            // E80 part 2 C3: an open Frisk's ask, answer and force, judged on the primary (frisk.mjs), whose runs pass their
+            // `{ refused }` on, and a force's roll held to its ask (gm-bridge.mjs `friskForceRoll`, a `derive`).
+            askToFrisk: "refused", answerFrisk: "refused", followFrisk: "refused", friskForceRoll: "why",
             resolveObserve: "passes", hopeCallRefusal: "wraps"
         };
         const sources = [...await otherSources()].map(([file, raw]) => [file, stripComments(raw)]);
@@ -5839,7 +5881,10 @@ const REGRESSIONS = [
             // both lifts run one body, `liftIntoCast`.
             ["incident-store.mjs", "liftIntoCast", ["weak", "fillOnly"], true],
             // Which trace each bullet came from, out of its `remnantRef` flag into its row (E05 C13).
-            ["truth-bullets.mjs", "liftBulletRefs", ["weak", "fillOnly"], true]
+            ["truth-bullets.mjs", "liftBulletRefs", ["weak", "fillOnly"], true],
+            // The GMs' copy of a dice look the store has never held, taken from the world (E16 fix early-C4-G1): it
+            // runs from the stores' hydration through `compareOverlays`, which asks `isHydrated` itself.
+            ["dice-sync.mjs", "takeUnseenOverlays", ["weak", "fillOnly"], false]
         ];
         // The migrations that read a store through a function they call: they wait themselves.
         const WAITERS = [["remnants.mjs", "migrateRemnants"], ["remnants.mjs", "migrateRemnantToken"]];
@@ -5890,8 +5935,14 @@ const REGRESSIONS = [
             ...E.gmCopyNames().map(name => [`the copy ${name}`, E.gmCopySpec(name)?.resetGroup])];
         ok(named.length >= 14, `only ${named.length} GM stores and copies are defined - the table was not read`);
         /* A store no reset cuts, on purpose, with its reason (E79 C1, 14.10.2026; the E79 plan's 1b.1): a secret passage
-           is the map's and stays from season to season - who knows it is the "passages" group's (passageAccess). */
-        const UNCUT = { "the store passageMap": "a secret passage stays; who knows it is cut with the passages group" };
+           is the map's and stays from season to season - who knows it is the "passages" group's (passageAccess). E80 fix
+           r1-G1's store of Foundry's secret doors was listed here until E80 fix r2-G9 moved that state onto the door. The
+           GMs' copy of each character's dice look (E16 fix early-C4-G1, 19.10.2026) is no season's either: a row goes
+           with its actor, dropped as the actor is deleted. */
+        const UNCUT = {
+            "the store passageMap": "a secret passage stays; who knows it is cut with the passages group",
+            "the store diceLooks": "a character's dice look is the GMs' choice and no season's; its row goes with its actor"
+        };
         const strays = named.filter(([what, group]) => !groups.has(group) && !(group === undefined && Object.hasOwn(UNCUT, what)))
             .map(([what, group]) => `${what} (${group})`);
         ok(!strays.length, `a reset can never cut ${strays.join(", ")}: its reset group is none the window offers`);
@@ -6260,7 +6311,7 @@ const REGRESSIONS = [
         // `.hint.<key>`) being every DRPG.Season string.
         const named = new Set();
         for (const file of ["gm-team-dialog.mjs", "season-setup.mjs"]) {
-            const src = await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => r.text());
+            const src = await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(lfText);
             for (const m of src.matchAll(/["`](DRPG\.[A-Za-z0-9_.]*[A-Za-z0-9_])["`]/g)) named.add(m[1]);
         }
         const inScope = key => named.has(key) || key.startsWith("DRPG.Season.");
@@ -6672,7 +6723,8 @@ const REGRESSIONS = [
          * `data.sourceActor`), judged by an `owns`-kind guard that covers the field; a `kind` may be a
          * list, with `kindAt` the path that names which; `when` is a field taken as a flag; `into`
          * names fields the declaration takes; a `derive` is a function. A Palm's hand is thrown as
-         * "steal", the Reroll's name for it (`THROWN_AS`). A sixth fixture is a list read clean.
+         * "steal", the Reroll's name for it (`THROWN_AS`); since E80 part 2 C0 a Frisk's hand as "rummage" and its force
+         * as "frisk", parts of Palm too. A sixth fixture is a list read clean.
          *
          * C16 (04.10.2026) took a project's progress and its Sabotage off WAITING. Progress that
          * names no roll is a Call's, so its `when` is the roll's own field - an id, not a flag -
@@ -6692,7 +6744,7 @@ const REGRESSIONS = [
         const DERIVED = { "project.progress": ["amount"], "project.sabotage": ["difficulty"], "remnant.place": ["data"],
             "vault.steal": ["viaSearch", "clumsy"] };
         const WAITING = [];
-        const THROWN_AS = { steal: "palm" };
+        const THROWN_AS = { steal: "palm", rummage: "palm", frisk: "palm" };
         const TABLES = { crisis: CRISIS_ACTIONS, cleanup: CLEANUP.actions, murderOpening: MURDER_OPENING };
         const takes = (action, decl) => Object.keys(decl.sanitize?.fields ?? {})
             .filter(field => RESULT.includes(field) || (DERIVED[action] ?? []).includes(field));
@@ -6762,9 +6814,9 @@ const REGRESSIONS = [
         const rolled = Object.entries(all).filter(([, decl]) => decl.rolled).map(([action]) => action).sort();
         log(`R218: ${rolled.length} declaration(s) read their roll's result from the GMs' record (${rolled.join(", ")}); `
             + `${WAITING.length} wait for a later commit; monocub.ability takes ${JSON.stringify(takes("monocub.ability", all["monocub.ability"] ?? {}))} from its packet`);
-        equal(JSON.stringify(["action.plant", "action.steal", "analyze.resolve", "murder.cleanup", "murder.crisis", "murder.openingResult", "observe.resolve",
+        equal(JSON.stringify(["action.friskFollow", "action.friskUnseen", "action.plant", "action.steal", "analyze.resolve", "murder.cleanup", "murder.crisis", "murder.openingResult", "observe.resolve",
             "project.progress", "project.sabotage", "remnant.place", "vault.findStash", "vault.steal"].filter(action => !rolled.includes(action))), "[]",
-            "Observe, Analyze, the search for a hidden stash, a Palm, a project's progress or Sabotage, a theft from a stash, a trace, an opening, a crisis action or Stage 6 names no roll its result is read from");
+            "Observe, Analyze, the search for a hidden stash, a Palm, an unseen Frisk, an open Frisk's force, a project's progress or Sabotage, a theft from a stash, a trace, an opening, a crisis action or Stage 6 names no roll its result is read from");
         equal(JSON.stringify([Boolean(all["monocub.ability"]?.sanitize), takes("monocub.ability", all["monocub.ability"] ?? {})]), JSON.stringify([true, []]),
             "monocub.ability is no declaration of the bridge's, or a Monocub ability's packet carries a result the GM would read");
         const problems = problemsOf(all, WAITING);
@@ -7145,6 +7197,7 @@ const REGRESSIONS = [
             ["music.mjs", "stopPlaylistDead", "playlist", "a playlist stopped"],
             ["music.mjs", "wireSoundPlay", "Playlist", "the situational playlist, made from the sound window"],
             ["notice-history.mjs", "updateNotice", "engine", "the notice history's own engine, not a document: a kept entry's state or snapshot, in this browser's setting (E81 C3; R293)"],
+            ["passages-gm.mjs", "crossTunnel", "doc", "a token moved through a tunnel by the primary GM: 'Go through', its default write, the crossing judged and paid before it (E80 C2; a bridge run, gated on the primary)"],
             ["projects-tray.mjs", "leaveIconOnly", "game.user", "the user's own view of the projects tray"],
             ["remnants.mjs", "placeRemnant", "target", "a Remnant's token, placed on a scene"],
             ["remnants.mjs", "propagatePublic", "tokenDoc", "a Remnant token's public half"],
@@ -8020,6 +8073,10 @@ const REGRESSIONS = [
          * since E12 fix k3-K2): it decides whether a rename carries a room or joins one, as the room flag decides
          * what a room is. 118 places - 53 PACKET, 21 SOCKET, 26 HOOK, 8 SHEET, 10 STORE - against 118 rows
          * (harness, 12.10.2026, once).
+         * E80 fix r1-G4 (19.10.2026; the review's rc2-5 and goal-P2-02) added nineteen: the Frisk's four declarations
+         * (FAMILIES names `action\.frisk\w+`; `action.friskUnseen#targetId` and `action.friskAsk#targetId` are judged by
+         * `personActionRefusal`, as `action.steal#victimId` by `stealFromPerson`), 18 PACKET rows, and frisk.mjs's socket
+         * (SOCKET_FILES), one SOCKET row. Red before the rows: those 19 places without a row (harness, this test alone).
          * The reader is run first on a fixture: a packet of a family and of none, an inline socket
          * arrow with a field named only in a comment, a token listener beside another event's, a
          * sheet reader of movement.mjs beside one whose flag is only in a comment, a reader in a
@@ -8048,6 +8105,24 @@ const REGRESSIONS = [
             ["PACKET gm-bridge.mjs#action.steal#unseenCritical", "out of scope: a steal's rolls and ids (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
             ["PACKET gm-bridge.mjs#action.steal#rollId", "out of scope: a steal's rolls and ids (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
             ["PACKET gm-bridge.mjs#action.steal#unseenRollId", "out of scope: a steal's rolls and ids (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
+            ["PACKET gm-bridge.mjs#action.friskUnseen#searcherId", "out of scope: a Frisk's rolls and ids (E80 part 2: knownSender + owns(searcherId), the rolls by their receipt - `rolled`); no room field"],
+            ["PACKET gm-bridge.mjs#action.friskUnseen#targetId", "judged on the primary: knownSender + owns(searcherId); frisk.mjs `personActionRefusal` (movement.mjs `sameRoom`: both placed by `gmPlaceOf`, the same scene, floor and room, the target's token not hidden) in `friskPerson`, before the price (E80 fix r1-G4, the review's rc2-5)"],
+            ["PACKET gm-bridge.mjs#action.friskUnseen#total", "out of scope: a Frisk's rolls and ids (E80 part 2: knownSender + owns(searcherId), the rolls by their receipt - `rolled`); no room field"],
+            ["PACKET gm-bridge.mjs#action.friskUnseen#isCritical", "out of scope: a Frisk's rolls and ids (E80 part 2: knownSender + owns(searcherId), the rolls by their receipt - `rolled`); no room field"],
+            ["PACKET gm-bridge.mjs#action.friskUnseen#unseenTotal", "out of scope: a Frisk's rolls and ids (E80 part 2: knownSender + owns(searcherId), the rolls by their receipt - `rolled`); no room field"],
+            ["PACKET gm-bridge.mjs#action.friskUnseen#unseenCritical", "out of scope: a Frisk's rolls and ids (E80 part 2: knownSender + owns(searcherId), the rolls by their receipt - `rolled`); no room field"],
+            ["PACKET gm-bridge.mjs#action.friskUnseen#rollId", "out of scope: a Frisk's rolls and ids (E80 part 2: knownSender + owns(searcherId), the rolls by their receipt - `rolled`); no room field"],
+            ["PACKET gm-bridge.mjs#action.friskUnseen#unseenRollId", "out of scope: a Frisk's rolls and ids (E80 part 2: knownSender + owns(searcherId), the rolls by their receipt - `rolled`); no room field"],
+            ["PACKET gm-bridge.mjs#action.friskAsk#searcherId", "out of scope: a Frisk's rolls and ids (E80 part 2: knownSender + owns(searcherId), the rolls by their receipt - `rolled`); no room field"],
+            ["PACKET gm-bridge.mjs#action.friskAsk#targetId", "judged on the primary: knownSender + owns(searcherId); frisk.mjs `personActionRefusal` (movement.mjs `sameRoom`: both placed by `gmPlaceOf`, the same scene, floor and room, the target's token not hidden) in `askToFrisk`, before the price (E80 fix r1-G4, the review's rc2-5); where the two stand is read again at each answer, follow, sweep and settled route (`standing`, `friskRouteSettled`): a target gone is 'gone', a searcher gone 'lets it go'"],
+            ["PACKET gm-bridge.mjs#action.friskAnswer#askId", "judged on the primary by `answerFrisk`: an ask it holds, the sender one it was sent to; the room is the ask row's, read again by `standing` before the answer is taken"],
+            ["PACKET gm-bridge.mjs#action.friskAnswer#allow", "out of scope: an answer's yes or no; no room field"],
+            ["PACKET gm-bridge.mjs#action.friskFollow#searcherId", "out of scope: a Frisk's rolls and ids (E80 part 2: knownSender + owns(searcherId), the rolls by their receipt - `rolled`); no room field"],
+            ["PACKET gm-bridge.mjs#action.friskFollow#askId", "judged on the primary by `followFrisk`: the searcher's own refused or unanswered ask; the room is the ask row's, read again by `standing` before a force is taken"],
+            ["PACKET gm-bridge.mjs#action.friskFollow#rollId", "out of scope: a Frisk's rolls and ids (E80 part 2: knownSender + owns(searcherId), the rolls by their receipt - `rolled`); no room field"],
+            ["PACKET gm-bridge.mjs#action.friskFollow#total", "out of scope: a Frisk's rolls and ids (E80 part 2: knownSender + owns(searcherId), the rolls by their receipt - `rolled`); no room field"],
+            ["PACKET gm-bridge.mjs#action.friskFollow#isCritical", "out of scope: a Frisk's rolls and ids (E80 part 2: knownSender + owns(searcherId), the rolls by their receipt - `rolled`); no room field"],
+            ["SOCKET frisk.mjs#registerFrisk#-", "out of scope: `frisk.ask` and `frisk.cancel`, taken on a browser only from the primary GM and addressed to that user (`friskPacketRefusal`); names and an ask id, no room field (E80 fix r1-G4)"],
             ["PACKET gm-bridge.mjs#vault.steal#thiefId", "out of scope: a vault steal's rolls and ids; the vault's room is the GM document's (`vaultOwnerOf`, C2a reads every piece) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
             ["PACKET gm-bridge.mjs#vault.steal#ownerId", "out of scope: a vault steal's rolls and ids; the vault's room is the GM document's (`vaultOwnerOf`, C2a reads every piece) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
             ["PACKET gm-bridge.mjs#vault.steal#itemId", "out of scope: a vault steal's rolls and ids; the vault's room is the GM document's (`vaultOwnerOf`, C2a reads every piece) (E28/E29: knownSender + owns, the roll by its receipt); no E12 commit reads the field"],
@@ -8096,7 +8171,7 @@ const REGRESSIONS = [
             ["SOCKET search-tokens.mjs#registerSearchTokenSocket#-", "judged on the primary: `searchSpendRefusal` (search-tokens.mjs `guardSearchRoom`) - the sender owns the actor and the actor stands in the room by `locateActor(actor, { sceneId: payload.sceneId })`, over place scenes only since E12 C3; the packet's `sceneId` only picks among the actor's own tokens; `key`, `left`, `sealed`, `spend` and `setFor` take the scene the handler judged, with no camera default since E12 C6"],
             ["SOCKET sync.mjs#registerSync#kind", "judged: applied only from a GM sender (sync.mjs:137)"],
             ["SOCKET sync.mjs#registerSync#data", "judged: from a GM only (sync.mjs:137). E11 C3's gather broadcast rides it (`SYNC.gather`, call-world.mjs:396): `panToGathered` (436) pans only when the client's camera shows the broadcast scene - C5's scene from `locateActor(caller)` is the one broadcast (E12 C5)"],
-            ["SOCKET traps.mjs#registerTraps#-", "judged on the primary (`judge(TRAP_ACTIONS)`, the senderOf/ownsActor pair); the room a relay names (`to`, `room`) is checked by `guardRelayRoom` (bridge-guards.mjs) with `standsIn` (traps.mjs) over the character's tokens on the scene the sender views when the character has a token there (`User#viewedScene`, which only narrows among the character's own tokens), else on every scene (`placesOf`; read in the code, E12 C3); `roomOf` is `roomOfActor`, placed by `locateActor` since E12 C3, and a plant is keyed by the scene its caller names (`plantKey`), not the GM's viewed scene; an \"alone\" trap counts the room on the crossed token's scene, or the relay's `sceneId`, which only chooses among the character's own tokens (`isAlone`, `locateActor`; E12 fix r1-G4)"],
+            ["SOCKET traps.mjs#registerTraps#-", "judged on the primary (`judge(TRAP_ACTIONS)`, the senderOf/ownsActor pair); the room a relay names (`to`, `room`) is checked by `guardRelayRoom` (bridge-guards.mjs) with `standsIn` (traps.mjs) over the character's tokens on the scene the sender views when the character has a token there (`User#viewedScene`, which only narrows among the character's own tokens), else on every scene (`placesOf`; read in the code, E12 C3); `roomOf` is `roomOfActor`, placed by `locateActor` since E12 C3, and a plant is keyed by the scene its caller names (`plantKey`), not the GM's viewed scene; an \"alone\" trap counts the room on the crossed token's scene, or the relay's `sceneId`, which only chooses among the character's own tokens (`isAlone`, `locateActor`; E12 fix r1-G4); since E80 fix r1-G1 a stash hunt's report is a GM's alone (`guardRelayTeller`: the GM that judged the search raises it, vault.mjs `resolveStashSearch`), and a Find Passage is no report (the primary raises it in `resolvePassageSearch`; the kind is read as nothing; R600)"],
             ["SOCKET voice.mjs#onVoiceSocket#room", "judged: only about the sender's own voice (`userId = senderId`, voice.mjs:332-335) on the primary; `room` is the sender's claim about itself; no E12 commit reads it (C2a moves `sceneRoomWarnings`, voice.mjs:831)"],
             ["SOCKET voice.mjs#onVoiceSocket#state", "judged: only about the sender's own voice (`userId = senderId`, voice.mjs:332-335) on the primary; `room` is the sender's claim about itself; no E12 commit reads it (C2a moves `sceneRoomWarnings`, voice.mjs:831)"],
             ["SOCKET voice.mjs#onVoiceSocket#requestId", "judged: only about the sender's own voice (`userId = senderId`, voice.mjs:332-335) on the primary; `room` is the sender's claim about itself; no E12 commit reads it (C2a moves `sceneRoomWarnings`, voice.mjs:831)"],
@@ -8151,9 +8226,9 @@ const REGRESSIONS = [
             ["STORE settings.mjs#bodiesFound", "not a source: a world setting only a GM writes (E11 C1 `recordBodyFound`); its `sceneId` is the body's scene since E12 C5 - `runDiscovery` takes the scene it is given, else the room's own (`sceneOfRoom`), and the body window sends the scene of the room picked - never the camera's (R118) (E12 C5); since E12 fix k3-K2 a GM's rename of the room moves a stamp's `room` on the primary (`carryBodyRooms`, R349)"],
             ["STORE Item#keyRoom", "item flags: a key on a player's sheet is the owner's own document (class 1; whether a write to these flags is put back: not read by the prep), read held on the GM's branch (`keysHeldBy`); since E12 C8 a GM's rename rewrites the key's and the stashed item's room on the primary, read held after `judgedFor`, one `trustedWrite` per item (vault.mjs `carryRoomOnSheets`)"],
         ];
-        const FAMILIES = /^(?:token\.sendBack|eclipse\.move|action\.steal|action\.plant|vault\.steal|vault\.findStash|call\.arm|project\.\w+|remnant\.place)$/;
+        const FAMILIES = /^(?:token\.sendBack|eclipse\.move|action\.steal|action\.plant|action\.frisk\w+|vault\.steal|vault\.findStash|call\.arm|project\.\w+|remnant\.place)$/;
         const SOCKET_FILES = ["movement.mjs", "fog.mjs", "eclipse.mjs", "search-tokens.mjs", "traps.mjs", "call-effects.mjs", "mastermind.mjs",
-            "voice.mjs", "bridge-guards.mjs", "sync.mjs", "call-world.mjs", "chapter.mjs", "vault.mjs", "projects-map.mjs"];
+            "voice.mjs", "bridge-guards.mjs", "sync.mjs", "call-world.mjs", "chapter.mjs", "vault.mjs", "projects-map.mjs", "frisk.mjs"];
         // The declarations whose reads of a student's sheet the crossing and the witness judge rest on; null = every one in the file.
         const SHEET_NAMED = { "movement.mjs": null, "chapter.mjs": ["witnessesOf", "checkBodyFound"], "murder-rules.mjs": ["registerMurder"],
             "vault.mjs": ["keysHeldBy"] };
@@ -8489,7 +8564,7 @@ const REGRESSIONS = [
             "the census judge does not tell a planted reader without a row, or a row without its reader");
 
         const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
-        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.text());
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(lfText);
         const sources = [...await otherSources(), ["module.json", manifest]];
         const found = censusOf(BRIDGE_ACTIONS, sources);
         const count = kind => found.filter(key => key.startsWith(`${kind} `)).length;
@@ -8590,13 +8665,16 @@ const REGRESSIONS = [
             ["SURFACE safeword.mjs#raiseCard", "frozen i18n text set with textContent; kept as first drawn and not followed (`observe: false`), so the same safeword entry on every browser whatever the caller's card adds, kept within the history's budgets and in memory only when it stops saving; nobody else's words (R297, 73-notice-history S2)"],
             ["SURFACE trial.mjs#registerTrial", "the evidence card, drawn only when authorised (a GM, or the speaker's owner holding the item); kept as evidence, one entry for its message, and cleaned at save (R297, R294); the tile's corner button counts it among the unread and shows none of its words (R298)"],
             ["RECORD bridge-guards.mjs#sayNotDone", "after `notify(text)`, whoever `notify` is: kind error, source notDone, state read, the text this client composed from closed lists - a GM's reason chooses none of its words; a history error never stops the toast (R297)"],
+            ["RECORD frisk.mjs#toast", "an open Frisk's line beside its toast (E80 part 2 C3): kind info, source mine, state unread, the row's label as its title and text this client composed from its language file with names as text - the ask it waits on, a withdrawn window, or for a GM the notice that nobody was asked; no markup, and a history error never stops the toast"],
             ["RECORD popup.mjs#showPopup", "the recorder: `recordNotice` in try/catch after the body is filled and before a host takes the card; the snapshot followed while the card is on screen and its state set by the close's reason; a history error never stops the card (R293); an entry the history cannot save is kept in memory until this page closes, the window's footer saying so (`status`, R292)"],
             ["RECORD popup.mjs#showPopup#updateNotice", "the card's close: its own entry's state only - read for its reader's close, unread for any other reason - in try/catch; no words (R293)"],
             ["RECORD popup.mjs#watchCard#updateNotice", "the body of a card on screen followed after a change (`watchCard`, 250 ms), into its own entry only, in try/catch; the html cleaned as at `record` and the entry weighed again against its author's bound (R293, R294, R297)"],
             ["NOTDONE action-rolls.mjs#performAnalyze", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
+            ["NOTDONE action-rolls.mjs#performAnalyze (2)", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE action-rolls.mjs#analyseBullet", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE action-rolls.mjs#askForHint", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE action-rolls.mjs#locateStash", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
+            ["NOTDONE action-rolls.mjs#locatePassage", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE action-rolls.mjs#performBetrayal", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); a murder refusal kept like the rest (the owner's Q4), within the history's budgets, as a notDone entry (R297)"],
             ["NOTDONE action-rolls.mjs#performDirectMurder", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); a murder refusal kept like the rest (the owner's Q4), within the history's budgets, as a notDone entry (R297)"],
             ["NOTDONE bridge-guards.mjs#waiter", "composed on this client from closed lists (`sayNotDone`: the waiter's action, or for a refusal it is not waiting on the GM's packet's `what`, named only by a label the language file holds and else as an unnamed request (`requestLabel`, E81 fix r1-G3); the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
@@ -8605,7 +8683,14 @@ const REGRESSIONS = [
             ["NOTDONE calls.mjs#askReroll (3)", "a refusal in the GM's answer that carries no words of its own (`reasonOf(out.refused)`), composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE cleanup.mjs#attemptCleanup", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); a murder refusal kept like the rest (the owner's Q4), within the history's budgets, as a notDone entry (R297)"],
             ["NOTDONE cleanup.mjs#attemptStageSix", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); a murder refusal kept like the rest (the owner's Q4), within the history's budgets, as a notDone entry (R297)"],
+            ["NOTDONE frisk.mjs#performFriskOpenly", "composed on this client from closed lists (`sayNotDone`: the action a literal here, `action.friskFollow`, and the reason a literal, `cannotNow`): a GM's own Frisk force the gate stopped or voided before the primary judged it, said as a player's refused draw is (E80 fix r2-G3, the review's r2fix-2); kept as a notDone entry: read, these words and no others (R297)"],
+            ["NOTDONE gm-bridge.mjs#requestFriskUnseen", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E80 C2)"],
+            ["NOTDONE gm-bridge.mjs#requestFriskAsk", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E80 part 2 C3)"],
+            ["NOTDONE gm-bridge.mjs#requestFriskAnswer", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E80 part 2 C3)"],
+            ["NOTDONE gm-bridge.mjs#requestFriskFollow", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E80 part 2 C3)"],
             ["NOTDONE gm-bridge.mjs#requestPassageShare", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E79 C7)"],
+            ["NOTDONE gm-bridge.mjs#requestPassageCross", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E80 C2)"],
+            ["NOTDONE gm-bridge.mjs#requestPassageFind", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E80 C3)"],
             ["NOTDONE gm-bridge.mjs#requestObject", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the primary GM's refusal checked against `REASONS`); a refusal of an Objection kept like the rest, as a notDone entry (R297; E79 C16)"],
             ["NOTDONE gm-bridge.mjs#requestEvidence", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the primary GM's refusal checked against `REASONS`); a refusal of an Objection's Truth Bullet kept like the rest, as a notDone entry (R297; E79 C16)"],
             ["NOTDONE gm-bridge.mjs#requestRepoint", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the primary GM's refusal checked against `REASONS`); a GM's re-point refused kept like the rest, as a notDone entry (R297; E79 C16)"],
@@ -9005,7 +9090,7 @@ const REGRESSIONS = [
          * the glass harness's `drpgVoiceParts`, in Chromium. THE CONTROL: a name with no sprite is found missing.
          */
         const src = stripComments(new Map(await otherSources()).get("voice-tile.mjs") ?? "");
-        const css = await fetch(`/modules/${MODULE_ID}/styles/pixel-icons.css`).then(r => r.text());
+        const css = await fetch(`/modules/${MODULE_ID}/styles/pixel-icons.css`).then(lfText);
         const names = [...src.matchAll(/\b(?:miniButton|rowButton)\(\s*"[^"]*",\s*"([\w-]+)"|\bglyph\(\s*"([\w-]+)"\s*\)/g)].map(m => m[1] ?? m[2]);
         const missing = list => list.filter(n => !new RegExp(`--drpg-px-${n}:\\s*url\\(`).test(css));
         equal(JSON.stringify([[...new Set(names)].sort(), missing(names), missing(["no-such-sprite"])]), JSON.stringify([["lock", "mic", "sound"], [], ["no-such-sprite"]]),
@@ -9323,8 +9408,9 @@ const REGRESSIONS = [
          * updateWall and deleteWall (record), its field "<event>/<handler's name, or inline>"; OPT - every read of an
          * update's option a client sets: `x[REVERT]`, `x[SENT_BACK]` (a computed key of an object literal is a write, not
          * a read), a member `.teleport` or `.movementAction`, and the string "displace" (exempt); ACT - the strings
-         * "token.sendBack" (write), "move.sentBack" and "passage.rows" (screen), "passage.request" (copy) and
-         * "passage.share" (record and copy); IGN - a member or a key `ignoreWalls` (write); WALLS - a member `.walls` in
+         * "token.sendBack" and "passage.cross" (write), "move.sentBack" and "passage.rows" (screen), "passage.request" (copy),
+         * "passage.share" and "passage.find" (record and copy; "passage.cross" and "passage.find" since E80 fix r1-G8,
+         * the review's E80-SEC-6); IGN - a member or a key `ignoreWalls` (write); WALLS - a member `.walls` in
          * movement-audit.mjs (judge), passages.mjs and passages-gm.mjs (screen), and in those two a member `.edges` as
          * well, a move polygon's walls (E79 C2); SCENE - `canvas.scene` or `canvas.edges`
          * in movement-audit.mjs (judge), which has no row and fails by design: the audit reads the token's own scene;
@@ -9354,6 +9440,14 @@ const REGRESSIONS = [
          * E79 fix r2-G2 adds 1 (16.10.2026, review r2 O18): updateUser, a change of role, read in the family alone as the
          * four above - 4 files of scripts/ outside it listen to it (despair.mjs, own-ring.mjs, player-status.mjs and
          * voice-tile.mjs, counted that day) and none of them imports the family - so the 12 are 13.
+         * E80 fix r1-G3 adds 1 (19.10.2026, the review's E80-C6-1): createActor, a character created, retells the copies
+         * (passages-gm.mjs `onActorCreated`, R608); read in the family alone, as updateActor and deleteActor are.
+         * E80 fix r1-G5 (19.10.2026, the review's E80-G-10 and E80-G-4) adds 1 and renames 1: updateUser's
+         * `onDoorsRoleChanged`, the secret doors' pass at a change of role (R609), and updateActor's handler, inline
+         * until then, is `onActorUpdated`, which also hears a change of type (R610).
+         * E80 fix r2-G9 (19.10.2026, the review's E80-FIX-R1-01) adds 3, read in the family alone: preUpdateWall and
+         * preCreateWall, a GM's own write of a secret door carrying the GMs' state on it (`stampSecretDoor`,
+         * `stampNewSecretDoor`), and createScene, the secret doors' pass on a scene made with its walls (`onSceneCreated`).
          * It reads names and text, not a syntax tree, as R534 does. Two places where it keys otherwise than the parse-only
          * census: a road inside a named inner function or a method (the census keys it by that name, this reader by the
          * top-level declaration), and a top-level declaration of several names (the census joins them, this reader takes
@@ -9392,6 +9486,7 @@ const REGRESSIONS = [
             ["OPT movement.mjs#noteGmPosition#SENT_BACK -> exempt", "a claim, judged as REVERT is: it marks a move the GM sent back itself; on a GM's write the player it names is handed the witness judge as the one who asked (`askerOf`, E79 fix r3-G2), who acts as the Mastermind or not as that player does (R560; 76 G)"],
             ["OPT movement.mjs#onPreUpdateToken#REVERT -> exempt", "advisory: the mover's own client lets its own revert past its own veto; nothing on the GM reads the client's veto"],
             ["OPT movement.mjs#judgeMove#REVERT -> exempt", "this file's own: the mover's client charges nothing for its own revert; no judge takes it as an exemption"],
+            ["OPT passages-gm.mjs#crossTunnel#displace -> exempt", "the primary GM's own write of a 'Go through' (E80 C2: `teleport`, `displace`, no animation): a GM's move is let through because a GM made it (the hook's user), not because of these options; the crossing was judged before it by the doors' rules (`tunnelVerdict`; A10-18)"],
             ["OPT call-world.mjs#fallbackGather#displace -> exempt", "a GM's own write (`updateEmbeddedDocuments` with REVERT, `teleport` and `displace`): a GM's move is let through because a GM made it (the hook's user), not because of these options"],
             // ---- the packets
             ["ACT gm-bridge.mjs#ACTION_SENDBACK#token.sendBack -> write", "the bridge row judges the sender's ownership and the place (`guardSendbackPlace`) against the GMs' record of the token, which holds no spot the audit put it back from (`sightingsAfter`, E79 fix r1-G1: 76 D asks for that spot and is refused, the token where it was put back, nothing written); `handleSendback` writes REVERT and SENT_BACK on the GM, with walls ignored (the IGN row below), SENT_BACK naming the player who asked, and the GMs' audit judges the landing as that player's move (E79 fix r2-G1: a room's centre across a wall is put back, or a row in log mode; R559, 76 D)"],
@@ -9423,16 +9518,31 @@ const REGRESSIONS = [
             ["WALLS passages-gm.mjs#sceneWalls -> screen", "a GM's pick only (`startPassagePick` and `repickPassage` ask `game.user.isGM` first): the walls of the scene Room Setup was opened on, read to snap a click to one and to hold the stretch to it through `passageRowFor`; nothing is written to a wall and nothing of it reaches a player but through the copy (R561; 76 F)"],
             // ---- showing a passage (E79 C7)
             ["ACT gm-bridge.mjs#ACTION_PASSAGE_SHARE#passage.share -> *", "judged on the primary GM: `knownSender` and `owns(\"actorId\")`, then passages-gm.mjs `shareRefusal` - the phase, the giver alive, in no incident and no Monocub, the giver's own cell of a secret passage (a closed, unknown or made-up one refused alike), both in one room, scene and floor now, the one shown it alive; `sharePassage` writes the records and pushes the copies (R562; 76 G)"],
+            ["ACT gm-bridge.mjs#ACTION_PASSAGE_CROSS#passage.cross -> write", "E80 C2's 'Go through', judged on the primary GM: `knownSender` and `owns(\"actorId\")`, then passages-gm.mjs `crossTunnel` in its serial write - a secret tunnel of the GMs' records the character knows (the Mastermind's through `actsAsMastermind`), the token at an end where the GMs read it (movement.mjs `gmSpotOf`), the doors' rules (`tunnelVerdict`), the price taken first and given back on a failed write (`settleCrossingOnGm`); the packet names no end, room, floor or spot (R597, A10-18; 76 U)"],
+            ["ACT gm-bridge.mjs#ACTION_PASSAGE_FIND#passage.find -> *", "E80 C3's Find Passage, judged on the primary GM: `knownSender` and `owns(\"actorId\")`, the roll the GM drew for that character's Analyze thrown as a Find Passage (`rolled`, `findPassageRoll`; the packet's total and critical are the record's), then passages-gm.mjs `resolvePassageSearch` - the phase, the character, its room and floor where the GMs read it (`gmPlaceOf`), the passages it does not know - writes the found cell and pushes the copies (R598, R604, R612; A10-7)"],
+            ["ACT action-rolls.mjs#performAnalyze#passage.find -> *", "a label, no road: `sayNotDone` names the action in the roller's own refusal of a Find Passage in a Class Trial, before the price; nothing is sent (the primary refuses it again, `resolvePassageSearch`'s phase)"],
+            ["ACT action-rolls.mjs#locatePassage#passage.find -> *", "a label, no road: `sayNotDone` names the action in the roller's own word that no GM is online, after the price is given back; nothing is sent"],
             // ---- the Passages tab's watch on a passage's wall (E79 C5)
             ["HOOK passages-gm.mjs#registerPassagesGm#updateWall/onWallMoved -> record", "the primary GM only (`isPrimaryGm`), and only when the change carries `c`: a passage whose stretch is no longer on its wall's segment is marked broken in the GMs' records and drops out of every copy; the wall is never written (R561; 76 E)"],
-            ["HOOK passages-gm.mjs#registerPassagesGm#deleteWall/onWallDeleted -> record", "the primary GM only: every passage of the deleted wall is marked broken in the GMs' records and drops out of every copy (R561; 76 E)"],
+            ["HOOK passages-gm.mjs#registerPassagesGm#deleteWall/onWallDeleted -> record", "the primary GM only: every passage of the deleted wall is marked broken in the GMs' records and drops out of every copy (R561; 76 E); a deleted secret door's state goes with the wall (E80 fix r2-G9: it is a flag on the door, `DOOR_SET`)"],
+            // ---- Foundry's secret doors (E80 C5, S16-17)
+            ["HOOK passages-gm.mjs#registerPassagesGm#updateWall/onSecretDoorChanged -> record", "the primary GM only (`isPrimaryGm`), and only a change of a secret door's `ds` (a GM's of `door` too): a GM's stands and, unless the write is the put-back's own (`DOOR_ASIDE`), is the GMs' state of the door - since E80 fix r2-G9 the flag `DOOR_SET` on the door, written with the GM's own change (`stampSecretDoor`) or here, as the put-back's own write, where the change came without it, and deleted when a GM makes the door an ordinary wall (R616); anybody else's - a player, or a writer `senderOf` does not know as an active user - is written back to how a GM last left the door, open if that was open and shut otherwise, and the door held shut for the audit (`secretDoorHeldShut`, movement-audit.mjs `firstWallCrossed`) until that write lands; a locked door is left alone; no passage record is written (R601, A10-15; 30 7e3)"],
+            ["HOOK passages-gm.mjs#registerPassagesGm#userConnected/onDoorsGmLeft -> copy", "a GM's browser only (the `ready` hook returns on a player's): a GM leaving hands the secret doors' pass to whoever is the primary after it (`settleSecretDoors` with `leaving`, E80 fix r1-G1; R605): each secret door standing otherwise than a GM last left it is written back as the watch above writes a player's change back; quiet while tier 2 holds the stores (`gmStoresQuiet`); no copy is told - the sink is the family's for the event"],
+            ["HOOK passages-gm.mjs#registerPassagesGm#preUpdateWall/stampSecretDoor -> record", "a GM's browser only (the `ready` hook returns on a player's), and only that GM's own update: a change of a secret door's `ds`, or a wall made a secret door, carries that state on the door in the same write (`DOOR_SET`, E80 fix r2-G9; R616); the put-back's own write (`DOOR_ASIDE`) and every other change are left as they are. A player's wall update can carry `ds` alone (v14's BaseWall#canUpdate, the harness's server; 30 7e3 forges the flag)"],
+            ["HOOK passages-gm.mjs#registerPassagesGm#preCreateWall/stampNewSecretDoor -> record", "a GM's browser only, and only that GM's own create: a secret door drawn or pasted carries the state it is made in (`DOOR_SET`, E80 fix r2-G9; R616, A10-15); only a GM creates a wall"],
+            ["HOOK passages-gm.mjs#registerPassagesGm#createScene/onSceneCreated -> record", "a GM's browser only: a scene made with its walls (an import, a copy) runs the secret doors' pass on it (`settleSecretDoors`, which asks whether this browser is the primary; E80 fix r2-G9): a secret door with no state a GM set gets the one it stands in, one that stands otherwise than the state it brought is put back; quiet while tier 2 holds the stores"],
+            ["WALLS passages-gm.mjs#convertSecretDoors -> screen", "a GM's Season setup only (`game.user.isGM` first): each scene's secret doors are written an ordinary wall, shut (`door`, `ds`, and a door's sound and animation cleared, E80 fix r1-G6), and each read again to make its passage through `passageRowFor`, the console's create's rule, with no start access, and the GMs' state of the door on it (`DOOR_SET`) deleted in the same write (E80 fix r2-G9); nothing of a wall reaches a player's copy (R601, A10-15)"],
+            ["WALLS passages.mjs#secretDoorsOn -> screen", "the secret doors of a scene this browser holds, read by the map check (fog-diagnostics.mjs `secretDoorRows`) and the Season setup's row: a GM's screens; it reads no passage and cuts nothing (R601, A10-15)"],
             // ---- the routes, the copies' retelling and what a copy redraws (E79 fix r1-G4, SEC S4)
             ["HOOK passages-gm.mjs#registerPassagesGm#drpgRouteSettled/onRouteSettled -> record", "the primary GM only (`isPrimaryGm`): a student whose route settles outside the passage's rooms on the map loses a cell held 'Revoke when they leave the room' (`revokeLeavers`, R561; 76 E), read in the room the announcement names (E79 C14), and for a route announced before it stood (`provisional`) only once it stands (E79 fix r3-G3; 76 E)"],
+            ["HOOK frisk.mjs#registerFrisk#drpgRouteSettled/inline -> record", "the primary GM only (`isPrimaryGm`, in `friskRouteSettled`): an open Frisk's ask whose target's route settled outside the ask's room ends 'gone' and one whose searcher's did 'lets it go', read where the GMs place both (`gmPlaceOf`); a route announced before it stood (`provisional`) only once it stands (E80 part 2 C3; A11-7)"],
             ["HOOK room-tile.mjs#registerRoomTile#drpgRouteSettled/inline -> record", "this file's own: the room tile repaints for the viewer's own token and writes no record; E79 adds no road through it"],
             ["HOOK passages-gm.mjs#registerPassagesGm#clientSettingChanged/inline -> copy", "a GM's browser only (the `ready` hook returns on a player's): a change of the map, the access list or the Mastermind retells every player's copy from the GMs' records (`retellSoon`), quiet while tier 2 holds the stores (`gmStoresQuiet`); and the map's redraws the GMs' overlay"],
-            ["HOOK passages-gm.mjs#registerPassagesGm#updateActor/inline -> copy", "a GM's browser only: a change of an actor's ownership retells the copies from the GMs' records (read in the code)"],
+            ["HOOK passages-gm.mjs#registerPassagesGm#updateActor/onActorUpdated -> copy", "a GM's browser only: a change of an actor's ownership, or of its type (E80 fix r1-G5; R610), retells the copies from the GMs' records; any other change of an actor is let be"],
+            ["HOOK passages-gm.mjs#registerPassagesGm#createActor/onActorCreated -> copy", "a GM's browser only: a character created retells the copies from the GMs' records, so one created already owned while a passage is public reaches its owner's copy; any other actor is let be (E80 fix r1-G3; R608)"],
             ["HOOK passages-gm.mjs#registerPassagesGm#deleteActor/inline -> copy", "a GM's browser only: a deleted actor retells the copies from the GMs' records (read in the code)"],
             ["HOOK passages-gm.mjs#registerPassagesGm#userConnected/onUserConnected -> copy", "a GM's browser only: a user coming or going retells the copies, since the Mastermind's door names its first connected owner (E79 fix r1-G2, SEC S2; R555)"],
+            ["HOOK passages-gm.mjs#registerPassagesGm#updateUser/onDoorsRoleChanged -> copy", "a GM's browser only: a user's change of role, which can make another GM's browser the primary with no GM leaving, runs the secret doors' pass there (`settleSecretDoors`, which asks whether this browser is the primary; E80 fix r1-G5; R609); quiet while tier 2 holds the stores; no copy is told - the sink is the family's for the event"],
             ["HOOK passages-gm.mjs#registerPassagesGm#updateUser/onUserUpdated -> copy", "a GM's browser only: a user's change of role, and nothing else of a user, retells the copies - a player made a GM, or a GM a player, moves the door and starts or stops a copy (E79 fix r2-G2, review r2 O18; R555)"],
             ["HOOK passages-gm.mjs#registerPassagesGm#gmStoresAudible/inline -> copy", "a GM's browser only: when tier 2 lets the stores speak again the copies are retold from the records (`onGmStoresAudible`, R184's rule)"],
             ["HOOK passages.mjs#registerPassages#drpgPrimaryReady/inline -> copy", "a player's browser only: the copy is asked again of a primary GM whose world has loaded, and only that GM's answer is taken (`onPassageRows`, R555)"],
@@ -9445,10 +9555,11 @@ const REGRESSIONS = [
         const HOOK_SINKS = { updateToken: ["judge"], createToken: ["judge"], preUpdateToken: ["veto"], updateWall: ["record"], deleteWall: ["record"],
             drpgRouteSettled: ["record"], drpgPassagesChanged: ["screen"] };
         const FAMILY = /^(?:passages|passages-gm|passages-tab|gm-overlay|movement-audit)\.mjs$/;
-        const FAMILY_SINKS = { clientSettingChanged: ["copy"], updateActor: ["copy"], deleteActor: ["copy"], userConnected: ["copy"], updateUser: ["copy"],
-            drpgPrimaryReady: ["copy"], gmStoresAudible: ["copy"], canvasReady: ["screen"] };
+        const FAMILY_SINKS = { clientSettingChanged: ["copy"], updateActor: ["copy"], createActor: ["copy"], deleteActor: ["copy"], userConnected: ["copy"], updateUser: ["copy"],
+            drpgPrimaryReady: ["copy"], gmStoresAudible: ["copy"], canvasReady: ["screen"], preUpdateWall: ["record"], preCreateWall: ["record"], createScene: ["record"] };
         const REGISTRATION = new Set(["ready", "init", "setup"]);
-        const ACT_SINKS = { "token.sendBack": ["write"], "move.sentBack": ["screen"], "passage.request": ["copy"], "passage.share": ["record", "copy"], "passage.rows": ["screen"] };
+        const ACT_SINKS = { "token.sendBack": ["write"], "move.sentBack": ["screen"], "passage.request": ["copy"], "passage.share": ["record", "copy"], "passage.rows": ["screen"],
+            "passage.cross": ["write"], "passage.find": ["record", "copy"] };
         const SET_SOURCES = { minePassages: [["primary", "console", "stale"], "screen"], moveAudit: [["gm"], "mode"] };
         const AUDIT_FILES = /^(?:movement-audit|passages|passages-gm)\.mjs$/;
         const KEYWORDS = new Set(["return", "typeof", "in", "of", "case", "else", "do", "yield", "await", "void", "delete", "new", "throw", "instanceof"]);
@@ -9492,7 +9603,7 @@ const REGRESSIONS = [
                 }
                 for (const m of blank.matchAll(/(?<!\.)\.\s*(teleport|movementAction)(?![\w$])/g)) add("OPT", file, declAt(m.index), m[1], ["exempt"]);
                 for (const m of strings(/(["'])displace\1/g)) add("OPT", file, declAt(m.index), "displace", ["exempt"]);
-                for (const m of strings(/(["'])(token\.sendBack|move\.sentBack|passage\.request|passage\.share|passage\.rows)\1/g)) {
+                for (const m of strings(/(["'])(token\.sendBack|move\.sentBack|passage\.request|passage\.share|passage\.rows|passage\.cross|passage\.find)\1/g)) {
                     add("ACT", file, declAt(m.index), m[2], ACT_SINKS[m[2]]);
                 }
                 for (const m of blank.matchAll(/(?<!\.)\.\s*ignoreWalls(?![\w$])|(?<![\w$.?]\s*)ignoreWalls\s*:(?!:)|[{,]\s*ignoreWalls\s*[,}]/g)) {
@@ -9550,7 +9661,8 @@ const REGRESSIONS = [
             ["passages-tab.mjs", "export function registerPassagesTab() {\n    Hooks.once(\"ready\", () => {\n        Hooks.on(\"updateActor\", retell);\n"
                 + "        Hooks.on(\"drpgSomethingNew\", () => retell());\n        onGmStoresAudible(() => retell());\n    });\n}\n"],
             ["sheet-audit.mjs", "export function registerSheetAudit() {\n    Hooks.on(\"updateActor\", audit);\n    onGmStoresAudible(audit);\n"
-                + "    Hooks.on(\"drpgRouteSettled\", paint);\n}\n"]
+                + "    Hooks.on(\"drpgRouteSettled\", paint);\n}\n"],
+            ["action-rolls.mjs", "async function locatePassage() {\n    sayNotDone(\"passage.find\", \"noGm\");\n}\nconst ACTION_PASSAGE_CROSS = 'passage.cross';\n"]
         ], { minePassages: "minePassages", moveAudit: "moveAudit" });
         equal(JSON.stringify(planted), JSON.stringify([
             "HOOK movement.mjs#registerMovement#updateToken/noteGmPosition -> judge", "HOOK movement.mjs#registerMovement#createToken/inline -> judge",
@@ -9565,12 +9677,19 @@ const REGRESSIONS = [
             "STORE gm-stores.mjs#passageMapStore#passageMap -> record", "STORE gm-stores.mjs#passageCopy#passages -> copy",
             "HOOK passages-tab.mjs#registerPassagesTab#updateActor/retell -> copy", "HOOK passages-tab.mjs#registerPassagesTab#drpgSomethingNew/inline -> unsorted",
             "HOOK passages-tab.mjs#registerPassagesTab#gmStoresAudible/inline -> copy", "HOOK sheet-audit.mjs#registerSheetAudit#drpgRouteSettled/paint -> record",
+            "ACT action-rolls.mjs#locatePassage#passage.find -> record", "ACT action-rolls.mjs#locatePassage#passage.find -> copy",
+            "ACT action-rolls.mjs#ACTION_PASSAGE_CROSS#passage.cross -> write",
             "SET settings.mjs#minePassages#primary -> screen", "SET settings.mjs#minePassages#console -> screen", "SET settings.mjs#minePassages#stale -> screen",
             "SET settings.mjs#moveAudit#gm -> mode"]),
             "the census reader does not read the planted fixture as planted - the live census below would measure the wrong roads");
         equal(JSON.stringify(judge(planted.slice(16, 19), [["ACT passages-gm.mjs#ACTION_PASSAGE_SHARE#passage.share -> *", ""], ["HOOK passages-gm.mjs#gone -> record", ""]])),
             JSON.stringify({ unclassified: ["STORE gm-stores.mjs#passageMapStore#passageMap -> record"], stale: ["HOOK passages-gm.mjs#gone -> record"] }),
             "the census judge does not tell a planted road without a row, a source's \"-> *\" row from its sinks, or a row without its road");
+        // E80 fix r1-G8 (the review's E80-SEC-6): a second road of `passage.cross` or `passage.find`, in a declaration the table has
+        // no row for, is a road without a row; the label of the roller's own refusal is its own row's.
+        const planted80 = planted.filter(key => key.startsWith("ACT action-rolls.mjs#"));
+        equal(JSON.stringify(judge(planted80, PASSAGE_CENSUS).unclassified), JSON.stringify(["ACT action-rolls.mjs#ACTION_PASSAGE_CROSS#passage.cross -> write"]),
+            "the census takes a second road of 'Go through' without a row, or refuses the row of Find Passage's label");
 
         const found = censusOf(await otherSources(), SETTINGS);
         const count = kind => found.filter(key => key.startsWith(`${kind} `)).length;
@@ -9824,7 +9943,7 @@ const REGRESSIONS = [
         for (const lang of ["en", "pl"]) {
             const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/gm-handbook.${lang}.md`);
             ok(res.ok, `docs/handbooks/gm-handbook.${lang}.md did not load`);
-            const text = await res.text();
+            const text = await lfText(res);
             const section = text.split(/^(?=#{2,3} )/m).find(part => part.startsWith("### 9.6 ")) ?? "";
             ok(section.split("\n").length > 3, `docs/handbooks/gm-handbook.${lang}.md has no section 9.6 - this test measured nothing`);
             missing[lang] = WANT[lang].filter(words => !section.includes(words));
@@ -10257,7 +10376,7 @@ const REGRESSIONS = [
         must((sources.get("hud.mjs") ?? "").length > 1000, "hud.mjs is not among the module's sources - this would measure nothing");
         const sheets = new Map();
         for (const name of ["danganronpa.css", "stained-glass.css", "narrow.css"])
-            sheets.set(name, stripComments(await fetch(`/modules/${MODULE_ID}/styles/${name}`).then(r => (r.ok ? r.text() : ""))));
+            sheets.set(name, stripComments(await fetch(`/modules/${MODULE_ID}/styles/${name}`).then(r => (r.ok ? lfText(r) : ""))));
         must([...sheets.values()].every(text => text.length > 1000), "a stylesheet did not load - this would measure nothing");
         equal(JSON.stringify(formula(new Map([...sources].map(([file, text]) => [file, stripComments(text)])), sheets)), JSON.stringify([true, [], []]),
             "[glass.mjs exports roomPlacement and writes --drpg-room-h; the other sources naming a room variable or a second formula; the sheets declaring one]");
@@ -11407,7 +11526,7 @@ const REGRESSIONS = [
             for (const book of ["player", "gm"]) {
                 const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${book}-handbook.${lang}.md`);
                 ok(res.ok, `docs/handbooks/${book}-handbook.${lang}.md did not load`);
-                lines[book] = (await res.text()).split("\n");
+                lines[book] = (await lfText(res)).split("\n");
             }
             const lineOf = (book, re) => {
                 const line = lines[book].find(l => re.test(l));
@@ -11635,7 +11754,7 @@ const REGRESSIONS = [
             for (const book of ["gm", "player"]) {
                 const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${book}-handbook.${lang}.md`);
                 ok(res.ok, `docs/handbooks/${book}-handbook.${lang}.md did not load`);
-                lines[book] = (await res.text()).split("\n");
+                lines[book] = (await lfText(res)).split("\n");
                 ok(lines[book].length > 1, `docs/handbooks/${book}-handbook.${lang}.md is empty - this test measured nothing`);
             }
             const said = (book, re) => lines[book].some(l => re.test(l));
@@ -12100,7 +12219,7 @@ const REGRESSIONS = [
             for (const book of ["gm", "player"]) {
                 const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${book}-handbook.${lang}.md`);
                 ok(res.ok, `docs/handbooks/${book}-handbook.${lang}.md did not load`);
-                lines[book] = (await res.text()).split("\n");
+                lines[book] = (await lfText(res)).split("\n");
                 ok(lines[book].length > 1, `docs/handbooks/${book}-handbook.${lang}.md is empty - this test measured nothing`);
             }
             const said = (book, re) => lines[book].some(l => re.test(l));
@@ -12304,7 +12423,7 @@ const REGRESSIONS = [
             for (const book of ["gm", "player"]) {
                 const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${book}-handbook.${lang}.md`);
                 ok(res.ok, `docs/handbooks/${book}-handbook.${lang}.md did not load`);
-                lines[book] = (await res.text()).split("\n");
+                lines[book] = (await lfText(res)).split("\n");
                 ok(lines[book].length > 1, `docs/handbooks/${book}-handbook.${lang}.md is empty - this test measured nothing`);
             }
             const said = (book, re) => lines[book].some(l => re.test(l));
@@ -12345,7 +12464,7 @@ const REGRESSIONS = [
         const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
         const rules = [];
         for (const href of manifest.styles ?? []) {
-            const css = stripComments(await fetch(`/modules/${MODULE_ID}/${href}`).then(r => r.text()));
+            const css = stripComments(await fetch(`/modules/${MODULE_ID}/${href}`).then(lfText));
             for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
                 for (const selector of m[1].split(/,(?![^(]*\))/)) {
                     const sel = selector.trim().replace(/\s+/g, " ");
@@ -12423,7 +12542,7 @@ const REGRESSIONS = [
             for (const book of ["gm", "player"]) {
                 const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${book}-handbook.${lang}.md`);
                 ok(res.ok, `docs/handbooks/${book}-handbook.${lang}.md did not load`);
-                text[book] = await res.text();
+                text[book] = await lfText(res);
                 ok(text[book].split("\n").length > 1, `docs/handbooks/${book}-handbook.${lang}.md is empty - this test measured nothing`);
             }
             const gm = text.gm.split("\n");
@@ -12623,7 +12742,7 @@ const REGRESSIONS = [
             for (const book of ["player-handbook", "player-brochure", "gm-handbook"]) {
                 const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${book}.${lang}.md`);
                 ok(res.ok, `docs/handbooks/${book}.${lang}.md did not load`);
-                text[book] = await res.text();
+                text[book] = await lfText(res);
                 ok(text[book].split("\n").length > 1, `docs/handbooks/${book}.${lang}.md is empty - this test measured nothing`);
             }
             const tips = section(text["player-handbook"], 16), look = section(text["gm-handbook"], 18), safeword = section(text["gm-handbook"], 19);
@@ -12659,7 +12778,7 @@ const REGRESSIONS = [
          * every stage the design names for it. At E81 C14 the `--drpg-corner*` tokens named none; C15 added it.
          */
         const sources = await moduleSources();
-        const sheet = name => fetch(`/modules/${MODULE_ID}/styles/${name}`).then(r => (r.ok ? r.text() : ""));
+        const sheet = name => fetch(`/modules/${MODULE_ID}/styles/${name}`).then(r => (r.ok ? lfText(r) : ""));
         const files = new Map(sources);
         for (const name of ["danganronpa.css", "stained-glass.css", "narrow.css"]) files.set(name, await sheet(name));
         const TAKE = ["E18", "E23", "E49", "E55", "E77", "E78"];
@@ -12744,10 +12863,10 @@ const REGRESSIONS = [
             for (const book of ["player-handbook", "gm-handbook"]) {
                 const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${book}.${lang}.md`);
                 ok(res.ok, `docs/handbooks/${book}.${lang}.md did not load`);
-                text[book] = await res.text();
+                text[book] = await lfText(res);
                 ok(text[book].split("\n").length > 100, `docs/handbooks/${book}.${lang}.md is nearly empty - this test measured nothing`);
             }
-            const brochure = await fetch(`/modules/${MODULE_ID}/docs/handbooks/player-brochure.${lang}.md`).then(r => (r.ok ? r.text() : ""));
+            const brochure = await fetch(`/modules/${MODULE_ID}/docs/handbooks/player-brochure.${lang}.md`).then(r => (r.ok ? lfText(r) : ""));
             ok(brochure.split("\n").length > 40, `docs/handbooks/player-brochure.${lang}.md did not load or is nearly empty - this test measured nothing`);
             const clockSection = section(text["gm-handbook"], 4);
             ok(clockSection.split("\n").filter(line => ON[lang].test(line)).length > 2, `the GM's section 4 (${lang}) names neither the HUD nor the clock - this test measured nothing`);
@@ -12963,7 +13082,7 @@ const REGRESSIONS = [
             return [hope, despair, either, [badge("hope"), badge("despair")], inks, ratios];
         };
         const css = stripComments(new Map(await otherSources()).get("stained-glass.css")
-            ?? await fetch(`/modules/${MODULE_ID}/styles/stained-glass.css`).then(r => r.text()));
+            ?? await fetch(`/modules/${MODULE_ID}/styles/stained-glass.css`).then(lfText));
         must(css.length > 10000 && css.includes(BASE), "stained-glass.css or its dice rule is not among the module's sources - this would measure nothing");
         const planted = (from, to) => { must(css.includes(from), `the sheet has no "${from}"`); return css.replace(from, to); };
         const base = bodyOf(css, `${BASE} {`, { until: "}" });
@@ -13002,7 +13121,7 @@ const REGRESSIONS = [
         const J = JSON.stringify;
         const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(res => res.json());
         const sheets = [];
-        for (const href of manifest.styles ?? []) sheets.push([href.split("/").at(-1), (await fetch(`/modules/${MODULE_ID}/${href}`).then(res => res.text())).replace(/\/\*[\s\S]*?\*\//g, " ")]);
+        for (const href of manifest.styles ?? []) sheets.push([href.split("/").at(-1), (await fetch(`/modules/${MODULE_ID}/${href}`).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, " ")]);
         must(sheets.length >= 5 && sheets.some(([name]) => name === "narrow.css"), `module.json loads ${sheets.map(([name]) => name).join(", ")} - not the module's sheets`);
         const split = list => {
             const out = [];
@@ -13155,6 +13274,449 @@ const REGRESSIONS = [
         ok(!/objection/i.test(stripComments(fnSource(src("sheet.mjs"), "addPresentButton"))),
             "the sheet's Present button names no objection");
         ok(!/repaintPresentButtons/.test(stripComments(src("sync.mjs"))), "sync.mjs repaints no Present button");
+    }],
+
+    ["R606 - the Passages tab fits Room Setup at 1366x768 (P1-22): its columns, as the stylesheet gives them at scale 1, sum to no more than the window leaves its table on that screen, and the buttons' cell wraps its buttons inside its width", async () => {
+        /*
+         * E80 fix r1-G2, 19.10.2026 (the review's E80-C6-2). The table is laid out fixed and 1 px wide
+         * (`.drpg-room-setup-table`), so it is as wide as its columns, and C6's eight summed to 1540 px - wider than the
+         * window can be: utils.mjs `windowWidthFor` caps Room Setup at 94% of the screen and `--drpg-window-max`, 1284 px
+         * on a 1366 px screen, and the content scrolls past it, so Make public, Make secret and Delete lay out of view.
+         * Read here: the classes of the tab's `<col>`s off passages-tab.mjs `passagesTabBody`, each one's width off the
+         * module's stylesheets (comments blanked), against 94% of 1366 or the cap, the lower, less 34 px for the window's
+         * frame, the content's padding and the fit's 2 px of slack - the 34 a choice, not a reading: the harness lays
+         * nothing out, and the frame is Foundry's (the theme's look and the window at a desk are the owner's, P1-22's
+         * screenshot). A Legacy scale above 1 widens every Room Setup table alike and is not read. Red at b238929: 1540.
+         */
+        const sources = await moduleSources();
+        const body = fnSource(sources.get("passages-tab.mjs") ?? "", "passagesTabBody");
+        const cols = [...body.matchAll(/<col class="(drpg-col-[\w-]+)"/g)].map(m => m[1]);
+        equal(cols.length, 8, "the Passages table's columns, read off passagesTabBody - the colgroup moved, and nothing below is read");
+        const css = await moduleStyles();
+        const widthOf = cls => {
+            const m = css.match(new RegExp(`\\.drpg-room-setup-table\\s+\\.${cls}\\s*\\{\\s*width:\\s*calc\\((\\d+)px\\s*\\*\\s*var\\(--drpg-legacy-scale,\\s*1\\)\\)`));
+            return m ? Number(m[1]) : null;
+        };
+        const widths = cols.map(widthOf);
+        equal(JSON.stringify(widths.map(w => Number.isFinite(w))), JSON.stringify(cols.map(() => true)),
+            `a width for each of ${cols.join(", ")} - a column with none takes nothing in a fixed table of 1 px`);
+        const cap = Number(css.match(/:root\s*\{[^}]*--drpg-window-max:\s*(\d+)px/)?.[1]);
+        ok(Number.isFinite(cap), "the stylesheet's --drpg-window-max was not read");
+        const room = Math.floor(Math.min(1366 * 0.94, cap)) - 34;
+        const sum = widths.reduce((a, b) => a + b, 0);
+        ok(sum <= room, `the Passages table is ${sum} px at scale 1 (${cols.map((c, i) => `${c.slice(9)} ${widths[i]}`).join(", ")}) and Room Setup leaves it ${room} px at 1366x768 - its last columns are out of view`);
+        const actions = css.match(/\.drpg-passage-actions\s*\{([^}]*)\}/)?.[1] ?? "";
+        ok(/flex-wrap:\s*wrap\b/.test(actions) && /display:\s*flex\b/.test(actions),
+            `the buttons' cell (.drpg-passage-actions { ${actions.trim()} }) does not wrap inside its column - four buttons on one line run past it`);
+    }],
+    ["R603 - the handbooks say what E80 built - tunnels and stairs, 'Go through', Find Passage and its Reroll, a Find Stash's Reroll, Make public, the Passages tab's columns, Foundry's secret doors and the players' rulers - as the code does, with the texts the stage names, in English and in Polish", async () => {
+        /*
+         * E80 C7, 18.10.2026 (P1-23). E80 C1-C6 gave a GM tunnels and stairs, a student 'Go through' and Find Passage, a
+         * Reroll that replays a Find Passage or a Find Stash, Make public, three new columns and two Season setup rows,
+         * and the handbooks said none of it: section 9.6 still called a passage "one stretch of a plain wall", and a
+         * player's Analyze still had "three things behind one tile". Each claim is a pair, as R387's: what the code does,
+         * read from its function with comments blanked, and the sentences that say it, one per book that says it. A code
+         * fact that changes fails here with its sentences; a sentence rewritten without the code fails too; and the
+         * stale sentences fail wherever they come back. The texts the stage names (its "Text" rule) are read from both
+         * language files and config.mjs. Each book is asserted to have loaded and each function to have been cut
+         * (`fnSource` fails on a renamed one), so nothing passes on an empty read. What a reader understands of it is
+         * not read here.
+         */
+        const sources = await moduleSources();
+        const code = file => {
+            const text = stripComments(sources.get(file) ?? "");
+            ok(text.length > 0, `${file} was not read - this test measured nothing`);
+            return text;
+        };
+        const gmSrc = code("passages-gm.mjs"), movement = code("movement.mjs"), season = code("season-setup.mjs");
+        const cross = fnSource(gmSrc, "crossTunnel"), verdict = fnSource(movement, "tunnelVerdict"), landing = fnSource(movement, "tunnelLanding");
+        const find = fnSource(gmSrc, "passagesToFind"), analyze = fnSource(code("reroll.mjs"), "settleAnalyze");
+        const facts = {
+            tunnel: /tunnelEndAt\(scene, end, end\?\.level \?\? null, \{ taken \}\)/.test(fnSource(gmSrc, "tunnelRowFor"))
+                && /if \(at\[0\]\.room === at\[1\]\.room\) return \{ refused: TUNNEL_REFUSALS\.oneRoom \};/.test(fnSource(gmSrc, "tunnelRowFor")),
+            goThrough: /requestPassageCross\(\{ actorId: actor\.id, passageId: row\.passage\.id \}\)/.test(fnSource(code("sheet.mjs"), "goThrough"))
+                && /M\.tunnelVerdict\(actor, passage, token,/.test(cross) && /M\.settleCrossingOnGm\(actor, verdict\.to\)/.test(cross)
+                && /M\.refundCrossingOnGm\(actor, paid\.cost\)/.test(cross)
+                && /\{ teleport: true, movementAction: "displace", animate: false \}/.test(cross),
+            doors: /crossingVerdict\(actor, here, to, scene, \{ from: near\.level, to: near\.far\.level \},/.test(verdict)
+                && /via: "passage", known, joined: true, keyed: true/.test(verdict)
+                && /if \(to && !\(mover \? mover\.mastermind : iAmTheMastermind\(\)\)\) \{\s*if \(isLocked\(scene, to\)\)/.test(fnSource(movement, "restrictedFrom")),
+            landing: /for \(let ring = 0; ring <= 3; ring\+\+\)/.test(landing) && /=== room;/.test(landing) && /inside && free\(spot\)/.test(landing),
+            findPassage: ACTIONS.analyze?.passageThreshold === 16,
+            findWhat: /row\.actorIds\.includes\(actor\.id\)\) continue;/.test(find) && /first\(a\.id\) - first\(b\.id\)/.test(find)
+                && /stores\.map\.stampOf\(id, "sceneId"\)/.test(find),
+            reroll: /if \(bookmark\.findStash && !bookmark\.bulletId\) return settleStashFind\(actor, bookmark, after, done\);/.test(analyze)
+                && /resolvePassageSearch\(/.test(code("reroll.mjs"))
+                && /undo: true, at: bookmark\.findPlace \?\? null \}/.test(fnSource(code("reroll.mjs"), "settlePassageFind"))
+                && /now\.room !== held\.room[^\n]*\) \{\s*return \{ refused: "the character is not in that room" \};/.test(fnSource(gmSrc, "resolvePassageSearch")),
+            sound: SFX_EVENTS.passageFound?.label === "A secret passage opens to you"
+                && /finds a secret passage/.test(SFX_EVENTS.passageFound?.hint ?? "") && /showed it to them/.test(SFX_EVENTS.passageFound?.hint ?? ""),
+            public: /export const makePassagePublic = \(passageId, \{ stores = PASSAGE_STORES \} = \{\}\) => setPublic\(passageId, true, stores\);/.test(gmSrc)
+                && /export const makePassageSecret = \(passageId, \{ stores = PASSAGE_STORES \} = \{\}\) => setPublic\(passageId, false, stores\);/.test(gmSrc),
+            columns: /\["rooms", "kind", "shape", "origin", "knows", "start", "state"\]/.test(code("passages-tab.mjs")),
+            secretDoors: /key: "secretDoors",[\s\S]{0,200}fix: convertDoorsStep,\s*doKey: "DRPG\.Season\.convertDoors"/.test(season)
+                && /convertSecretDoors\(/.test(fnSource(season, "convertDoorsStep"))
+                && /findings\.push\(\.\.\.secretDoorRows\(scene\)\);/.test(fnSource(code("fog-diagnostics.mjs"), "checkRegions"))
+                && /^\s*if \(!game\.user\?\.isGM\) return false;\s*if \(!isPrimaryGm\(\{ leaving \}\)\) return false;/m.test(fnSource(gmSrc, "putBackSecretDoor"))
+                && /const want = doorSetOf\(wall\) === DOOR_OPEN\(\) \? DOOR_OPEN\(\) : DOOR_CLOSED\(\);/.test(fnSource(gmSrc, "putBackSecretDoor"))
+                && /if \(doorSetOf\(wall\) === null\) \{[\s\S]{0,300}await wall\.update\(doorSetData\(ds\), \{ \[DOOR_ASIDE\]: true \}\);/.test(fnSource(gmSrc, "settleSecretDoors"))
+                && /if \(!gmStoresQuiet\(\)\) settleSecretDoors\(\)/.test(fnSource(gmSrc, "registerPassagesGm"))
+                && /Hooks\.on\("userConnected", onDoorsGmLeft\);/.test(fnSource(gmSrc, "registerPassagesGm")),
+            rulers: /const PLAYER_ROLES = \[CONST\.USER_ROLES\.PLAYER, CONST\.USER_ROLES\.TRUSTED\];/.test(season)
+                && /key: "rulers",[\s\S]{0,400}doKey: "DRPG\.Season\.hideRulers",[\s\S]{0,300}undoKey: "DRPG\.Season\.showRulers"/.test(season)
+        };
+        const SAYS = {
+            en: {
+                gm: {
+                    tunnel: ["or a tunnel or stairs between two rooms on one floor or two", "**+ Tunnel or stairs**, then a click in each of two rooms",
+                        "An end in no room, both ends in one room, or an end on a square where another tunnel already ends is refused."],
+                    goThrough: ["presses **Go through** beside it under **Known passages** on their sheet",
+                        "if the token cannot be moved there, the price is given back"],
+                    doors: ["somebody else's bedroom is passed, while a locked door, a sealed room, Chained, a running incident, a Class Trial",
+                        "The Mastermind passes a locked door and a sealed room this way too."],
+                    landing: ["lands on the far end's square, or the nearest free square of that end's room, on that end's floor"],
+                    findPassage: ["Locate a hidden stash: 16. Find Passage: 16", "**Find Passage.** Analyze's fourth choice, offered in every room and refused in a Class Trial before anything is paid: Head against 16"],
+                    findWhat: ["16 or a critical finds the oldest open secret passage of the student's room on their floor that they do not know",
+                        "The Mastermind finds none: they know them all."],
+                    reroll: ["A Reroll that beats 16 finds once, in the room its roll was thrown in, and only while the student still stands there - else the Reroll is given back whole;", "one that falls below takes back only what its own roll found."],
+                    sound: ["a crossing refused, a secret passage opening to you,"],
+                    public: ["**Make public**, beside Close, gives the passage to every student at once", "**Make secret** gives it back to the students listed in its row alone"],
+                    columns: ["in the columns Rooms, Kind, Shape, Origin, Who knows, At season start and State"],
+                    secretDoors: ["| No Foundry secret doors (recommended) |", "**Convert to passages** makes each one an ordinary wall, shut",
+                        "the primary GM's browser puts a secret door a player changed back as a GM last left it (the door itself keeps that; a door no GM has changed yet, as it stood when a GM's browser first found it)",
+                        "and one changed while no GM was connected as soon as a GM connects, naming its scene on the GM's screen"],
+                    rulers: ["| The players' movement ruler is hidden (optional) |", "**Hide** takes the movement ruler from the Player and Trusted Player roles, and **Show** gives it back"]
+                },
+                player: {
+                    tunnel: ["Some passages are a tunnel or stairs between two rooms, on one floor or two"],
+                    goThrough: ["press **Go through** beside it under **Known passages**"],
+                    landing: ["you come out by the far end, on its floor"],
+                    findPassage: ["Four things behind one tile:", "**Find Passage.** 16+ or a critical opens to you one secret passage of this room you do not know yet"],
+                    reroll: ["A Reroll of a Find Passage or a Find Stash searches again with the new dice"],
+                    public: ["When a GM makes a passage public, every student knows it"]
+                },
+                brochure: {
+                    findPassage: ["find a hidden stash (16+) or find a secret passage (16+)"]
+                },
+                stale: ["Three things behind one tile", "wherever the student stands by then", "a Find Stash only while you still stand there", "A secret passage is one stretch of a plain wall between two rooms of one floor:",
+                    "a secret door a player opens is shut again by the primary GM's browser"]
+            },
+            pl: {
+                gm: {
+                    tunnel: ["albo tunel lub schody między dwoma pokojami, na jednym piętrze lub dwóch", "**+ Tunel lub schody**, potem kliknięcie w każdym z dwóch pokoi",
+                        "Koniec poza pokojem, oba końce w jednym pokoju albo koniec na polu, na którym kończy się już inny tunel, są odrzucane."],
+                    goThrough: ["naciska **Przejdź** obok niego pod **Znane tajne przejścia** na karcie postaci",
+                        "jeśli tokenu nie da się tam przesunąć, cena wraca"],
+                    doors: ["cudzą sypialnię przechodzi, a zamknięte drzwi, zapieczętowany pokój, Chained, trwający incydent, Class Trial",
+                        "Mastermind przechodzi tak też przez zamknięte drzwi i zapieczętowany pokój."],
+                    landing: ["ląduje na polu dalszego końca albo na najbliższym wolnym polu pokoju tego końca, na jego piętrze"],
+                    findPassage: ["Znajdź ukrytą skrytkę: 16. Znajdź tajne przejście: 16", "**Znajdź tajne przejście.** Czwarty wybór Analyze, dostępny w każdym pokoju i odrzucany w Class Trial, zanim cokolwiek zostanie zapłacone: Head przeciw 16"],
+                    findWhat: ["16 albo krytyk znajduje najstarsze otwarte tajne przejście pokoju ucznia na jego piętrze, którego uczeń nie zna",
+                        "Mastermind nie znajduje żadnego: zna wszystkie."],
+                    reroll: ["Reroll powyżej 16 znajduje raz, w pokoju, w którym padł jego rzut, i tylko wtedy, gdy uczeń wciąż tam stoi - inaczej Reroll wraca w całości;", "taki, który spada poniżej, zabiera tylko to, co znalazł jego własny rzut."],
+                    sound: ["odrzucone przejście, poznane tajne przejście,"],
+                    public: ["**Ujawnij**, obok Zamknij, daje przejście od razu każdemu uczniowi", "**Utajnij** oddaje je z powrotem tylko uczniom wymienionym w jego wierszu"],
+                    columns: ["w kolumnach Pokoje, Rodzaj, Kształt, Pochodzenie, Kto zna, Na start sezonu i Stan"],
+                    secretDoors: ["| Brak sekretnych drzwi Foundry (zalecane) |", "**Zamień na przejścia** robi z każdych zwykłą, zamkniętą ścianę",
+                        "przeglądarka głównego GMa ustawia sekretne drzwi, które zmienił gracz, z powrotem tak, jak GM ostatnio je zostawił (to pamiętają same drzwi; drzwi, których żaden GM jeszcze nie zmieniał, tak, jak stały, kiedy przeglądarka GMa pierwszy raz je zastała)",
+                        "a te zmienione, kiedy nie był połączony żaden GM, zaraz po połączeniu się GMa, wymieniając ich scenę na ekranie GMa"],
+                    rulers: ["| Linijka ruchu graczy jest ukryta (opcjonalnie) |", "**Ukryj** zabiera linijkę ruchu rolom Gracz i Zaufany gracz, a **Pokaż** ją oddaje"]
+                },
+                player: {
+                    tunnel: ["Niektóre przejścia to tunel lub schody między dwoma pokojami, na jednym piętrze lub dwóch"],
+                    goThrough: ["naciśnij **Przejdź** obok niego pod **Znane tajne przejścia**"],
+                    landing: ["wychodzisz przy dalszym końcu, na jego piętrze"],
+                    findPassage: ["Cztery rzeczy za jednym kafelkiem:", "**Znajdź tajne przejście.** 16+ albo krytyk otwiera przed tobą jedno tajne przejście tego pokoju, którego jeszcze nie znasz"],
+                    reroll: ["Reroll Znajdź tajne przejście albo Znajdź ukrytą skrytkę szuka jeszcze raz nowymi kośćmi"],
+                    public: ["Gdy GM ujawni przejście, zna je każdy uczeń"]
+                },
+                brochure: {
+                    findPassage: ["znajdź ukrytą skrytkę (16+) albo znajdź tajne przejście (16+)"]
+                },
+                stale: ["Trzy rzeczy za jednym kafelkiem", "gdziekolwiek uczeń stoi w tej chwili", "Znajdź ukrytą skrytkę tylko wtedy, gdy wciąż tam stoisz", "Tajne przejście to odcinek zwykłej ściany między dwoma pokojami jednego piętra:",
+                    "sekretne drzwi otwarte przez gracza przeglądarka głównego GMa zamyka z powrotem"]
+            }
+        };
+        const BOOKS = { gm: "gm-handbook", player: "player-handbook", brochure: "player-brochure" };
+        const lang = {};
+        for (const [lc, says] of Object.entries(SAYS)) {
+            const text = {};
+            for (const [book, file] of Object.entries(BOOKS)) {
+                const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${file}.${lc}.md`);
+                ok(res.ok, `docs/handbooks/${file}.${lc}.md did not load`);
+                text[book] = await lfText(res);
+                ok(text[book].split("\n").length > 10, `docs/handbooks/${file}.${lc}.md is empty - this test measured nothing`);
+            }
+            const measured = {}, expected = {};
+            for (const book of Object.keys(BOOKS)) {
+                for (const [claim, sentences] of Object.entries(says[book])) {
+                    measured[`${book}.${claim}`] = [facts[claim], ...sentences.map(s => text[book].includes(s))];
+                    expected[`${book}.${claim}`] = sentences.map(() => true).concat(true);
+                }
+            }
+            measured.stale = says.stale.map(s => Object.values(text).some(t => t.includes(s)));
+            expected.stale = says.stale.map(() => false);
+            equal(JSON.stringify(measured), JSON.stringify(expected),
+                `the ${lc} handbooks say what E80's code does not do, or leave out what it does, or a stale sentence is back (each claim: [the code, ...its sentences])`);
+            lang[lc] = await fetch(`/modules/${MODULE_ID}/lang/${lc}.json`).then(r => r.json()).then(j => j.DRPG);
+        }
+        const texts = l => [l?.Passage?.list?.cross, l?.Passage?.mark?.to, l?.Analyze?.passageNothing, l?.Analyze?.findPassage, l?.Passage?.pick?.tunnel,
+            l?.Passage?.tab?.makePublic, l?.Passage?.tab?.makeSecret, l?.Season?.convertDoors, l?.Season?.hideRulers, l?.Season?.showRulers];
+        equal(JSON.stringify([texts(lang.en), texts(lang.pl), lang.pl?.Config?.SFX_EVENTS?.passageFound?.label,
+            /znajduje tajne przejście/.test(lang.pl?.Config?.SFX_EVENTS?.passageFound?.hint ?? "") && /pokazał/.test(lang.pl?.Config?.SFX_EVENTS?.passageFound?.hint ?? "")]),
+            JSON.stringify([["Go through", "Secret passage to {room}", "You find no hidden passage here.", "Find Passage", "+ Tunnel or stairs", "Make public", "Make secret", "Convert to passages", "Hide", "Show"],
+                ["Przejdź", "Tajne przejście do: {room}", "Nie znajdujesz tu tajnego przejścia.", "Znajdź tajne przejście", "+ Tunel lub schody", "Ujawnij", "Utajnij", "Zamień na przejścia", "Ukryj", "Pokaż"],
+                "Poznajesz tajne przejście", true]),
+            "the texts the stage names, and the words the handbooks quote ([en], [pl], the Polish Sound row's label, its hint naming a find and a show)");
+    }],
+    ["R621 - a Frisk is judged where its asks are held (A11-1): the four Frisk requests are asked of the primary GM (onPrimary) and run on it alone when the asker is a GM, each declaration answers 'reply', and the ask waits for a person (patient) for its answer's clock and margin, with its late answer read for that margin", async () => {
+        /*
+         * E80 fix r1-G4, 19.10.2026; the review's goal-P2-02, er-cor-7 and E80-C3-7 (a). The harm: an open Frisk's ask is
+         * a row in the primary GM's memory (frisk.mjs `friskAsks`), and the target's window takes `frisk.ask` only from
+         * the primary (`friskPacketRefusal`). A request asked without `onPrimary` runs its `local` on whichever GM asks:
+         * a second GM's own Frisk then holds its row where no answer is judged, sends a `frisk.ask` every target's
+         * browser drops, and the clock ends it as 'does not answer' with the force open against a player never asked;
+         * a second GM's 'You answer for' runs `answerFrisk` where no ask is held, and the NPC's answer is lost. The
+         * harness has one GM, who is the primary, so no tier and no scenario turns red on that edit: the waiter's
+         * `onPrimary` road is R219's (driven with fakes), and this reads that each Frisk request takes it.
+         * Read: gm-bridge.mjs's source with its comments blanked, each `requestFrisk*` cut with `fnSource`, and the live
+         * `BRIDGE_ACTIONS` rows with TIMING. THE CONTROL: the same reader on each request with `onPrimary: true` taken out
+         * must miss it, so the reading is of the option and not of the name. Red at 42b684b with `onPrimary: true` taken
+         * out of requestFriskAnswer (the review's mutant), green at 42b684b as it stands.
+         */
+        const { TIMING } = await import("./config.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const bridge = stripComments(new Map(await otherSources()).get("gm-bridge.mjs") ?? "");
+        const REQUESTS = { requestFriskUnseen: ["ACTION_FRISK_UNSEEN", "friskPerson"], requestFriskAsk: ["ACTION_FRISK_ASK", "askToFriskHere"],
+            requestFriskAnswer: ["ACTION_FRISK_ANSWER", "answerFrisk"], requestFriskFollow: ["ACTION_FRISK_FOLLOW", "followFrisk"] };
+        const readOf = (fn, [action, here]) => ({
+            asks: new RegExp(`\\bask\\(\\s*${action}\\s*,`).test(fn),
+            onPrimary: /\bonPrimary:\s*true\b/.test(fn),
+            local: new RegExp(`\\blocal:\\s*\\(\\)\\s*=>\\s*import\\("\\./frisk\\.mjs"\\)\\.then\\(m\\s*=>\\s*m\\.${here}\\(`).test(fn)
+        });
+        const measured = {}, control = {};
+        for (const [name, row] of Object.entries(REQUESTS)) {
+            const fn = fnSource(bridge, name);
+            must(fn.length > 100, `gm-bridge.mjs has no ${name} - the reads below would measure nothing`);
+            measured[name] = readOf(fn, row);
+            control[name] = readOf(fn.replace(/\bonPrimary:\s*true\s*,?/, ""), row).onPrimary;
+        }
+        equal(JSON.stringify(control), JSON.stringify(Object.fromEntries(Object.keys(REQUESTS).map(name => [name, false]))),
+            "the reader finds `onPrimary` in a request it was taken out of - it reads the name, not the option");
+        equal(JSON.stringify(measured), JSON.stringify(Object.fromEntries(Object.keys(REQUESTS).map(name => [name, { asks: true, onPrimary: true, local: true }]))),
+            "a Frisk request is not asked of the primary GM, or a GM's own runs somewhere other than its frisk.mjs judge (each: asks its action, onPrimary, local)");
+        const ask = fnSource(bridge, "requestFriskAsk");
+        ok(/\blateMs:\s*TIMING\.friskMarginMs\b/.test(ask), "requestFriskAsk does not read an answer that lands after its wait for the margin the primary keeps");
+        const rows = ["action.friskUnseen", "action.friskAsk", "action.friskAnswer", "action.friskFollow"].map(action => BRIDGE_ACTIONS[action]);
+        equal(JSON.stringify(rows.map(row => [row?.answer ?? null, Boolean(row?.patient), row?.timeoutMs ?? null])),
+            JSON.stringify([["reply", false, null], ["reply", true, TIMING.friskAnswerMs + TIMING.friskMarginMs], ["reply", false, null], ["reply", false, null]]),
+            "a Frisk's declaration does not hand back the primary's reply, or the ask's wait is not a person's for the answer's clock and its margin (each: answer, patient, timeoutMs)");
+    }],
+    ["R622 - a roll card's outcome line is plain text, escaped once by report: no outcome's `text` formats an escaped name into it (the review's rc2-2: a Frisk's and a Take's 'sent' line read \"D&#x27;Arcy\")", async () => {
+        /*
+         * E80 fix r1-G4, 19.10.2026; the review's rc2-2. action-rolls.mjs `report` writes `outcome.text` as
+         * `<p>${esc(outcome.text)}</p>`: a name escaped before it was formatted into the line is escaped twice, and the
+         * searcher's card shows the entity ("D&#x27;Arcy", "Kyoko &amp; Co"). The class: every `text:` of an outcome in the
+         * files whose outcomes `report` prints (action-rolls.mjs, frisk.mjs) that formats a key with an `esc(` or an
+         * `escapeHTML(` among its arguments. Read in the source with comments blanked; tier 2 "a GM's own unseen Frisk
+         * opens one window ..." reads the card itself. THE CONTROL: the reader finds the planted double escape. Red at
+         * 42b684b: frisk.mjs `performFrisk` (DRPG.Frisk.sent), `performFriskOpenly` (DRPG.Frisk.forceSent), action-rolls.mjs
+         * `performPalm`'s plant (DRPG.Steal.plantSent) and its Take (DRPG.Steal.sent).
+         */
+        const DOUBLE = /\btext:\s*[^;]*?game\.i18n\.format\(\s*"([\w.]+)"\s*,\s*\{[^}]*\b(?:esc|foundry\.utils\.escapeHTML)\(/g;
+        const found = text => [...stripComments(text).matchAll(DOUBLE)].map(m => m[1]);
+        equal(JSON.stringify(found('const outcome = { text: res.ok ? game.i18n.format("DRPG.Planted.sent", { name: esc(victim.name) }) : "" };')),
+            JSON.stringify(["DRPG.Planted.sent"]), "the reader misses a planted double escape - it would measure nothing");
+        const sources = new Map(await otherSources());
+        const read = ["action-rolls.mjs", "frisk.mjs"].map(file => [file, sources.get(file) ?? ""]);
+        must(read.every(([, text]) => text.length > 1000), "action-rolls.mjs or frisk.mjs was not read - this would measure nothing");
+        equal(JSON.stringify(read.flatMap(([file, text]) => found(text).map(key => `${file} ${key}`))), JSON.stringify([]),
+            "an outcome's line formats an escaped name, and report escapes it again: the card shows the entity");
+    }],
+
+    ["R800 - the roll window's render hook writes nothing under the roll's config: what a Call or the lock forces is written before Daggerheart's context (E16)", async () => {
+        /*
+         * E16 p1 C1, 18.10.2026; audit S02-04. Daggerheart's roll window computes its Roll button, its costs and
+         * its formula in `_prepareContext` (d20RollDialog.mjs, 2.10.5 and 2.6.5, read), before the render hook
+         * runs; the module wrote the config in that hook, so a player at 0 Hope who bought an Experience Call
+         * and clicked the experience saw Roll greyed out by a cost the hook took out a moment too late. The
+         * writes moved into the wrapper of `_prepareContext` (`wrapPrepareContext`, through `forceConfig`); the
+         * render hook keeps one road to `forceConfig`, for a window whose method the module could not wrap
+         * (the warning mode), on the line that asks `contextForced`. Read: every top-level function of
+         * roll-dialog.mjs the hook names, and the ones they name, but `forceConfig`, for an assignment or an
+         * array write under a `config`; the line of each `forceConfig` the hook names; and the wrapper's call
+         * of `forceConfig` before the method it wraps. A planted source is read first, so a detector that
+         * finds nothing is told from a hook that writes nothing. At cfbbf60 the hook reached five writes, in
+         * `stripExperienceCosts`, `forceReaction`, `forceAdvantage`, `capExperiences` and `lockBonus`.
+         */
+        const WRITE = /(?:(?:\?\.|\.)config(?:\??\.[\w$]+|\[[^\]\n]*\])*|\bconfig(?:\??\.[\w$]+|\[[^\]\n]*\])+)\s*(?:[-+*/%]|\?\?|\|\||&&)?=(?![=>])|\bconfig(?:\??\.[\w$]+)+\.(?:push|splice|pop|shift|unshift|sort|reverse)\(|\b(?:assign|mergeObject)\(\s*[\w$.?]*config\b/g;
+        const hookWrites = text => {
+            const names = new Set([...text.matchAll(/^(?:export )?(?:async )?function (\w+)\(/gm)].map(m => m[1]));
+            const seen = [], writes = [], queue = ["onRenderApplication"];
+            while (queue.length) {
+                const name = queue.shift();
+                if (seen.includes(name) || name === "forceConfig") continue;
+                seen.push(name);
+                const body = fnSource(text, name);
+                for (const m of body.matchAll(WRITE)) writes.push([name, m[0].trim()]);
+                for (const m of body.matchAll(/(?<![.\w$])([A-Za-z_$][\w$]*)\b/g)) if (names.has(m[1]) && m[1] !== name) queue.push(m[1]);
+            }
+            const hook = fnSource(text, "onRenderApplication");
+            const roads = [...hook.matchAll(/\bforceConfig\(/g)].map(m => /!contextForced\(app\)/.test(lineAround(hook, m.index)));
+            return { seen, writes, roads };
+        };
+        const PLANT = [
+            "export function onRenderApplication(app, element) {", "    paint(app);", "    if (!contextForced(app) && forceConfig(app)) app.render();", "}",
+            "function paint(app) {", "    deeper(app);", "    const config = app.config;", "    if (config.roll.advantage === 1) return;", "}",
+            "function deeper(app) {", "    app.config.roll.advantage = 1;", "    app.config.experiences.push(\"x\");", "}",
+            "function forceConfig(app) {", "    app.config.costs = [];", "}",
+            "function contextForced(app) {", "    return false;", "}", ""].join("\n");
+        equal(JSON.stringify(hookWrites(PLANT)),
+            JSON.stringify({ seen: ["onRenderApplication", "paint", "contextForced", "deeper"], writes: [["deeper", ".config.roll.advantage ="], ["deeper", "config.experiences.push("]], roads: [true] }),
+            "the detector does not read the planted hook as written (what it read, the writes it found, whether each road to forceConfig is the warning mode's) - it would find nothing in the module either");
+        const src = stripComments(new Map(await otherSources()).get("roll-dialog.mjs") ?? "");
+        const real = hookWrites(src);
+        equal(JSON.stringify([real.writes, real.roads]), JSON.stringify([[], [true]]),
+            "the roll window's render hook writes under the roll's config, or reaches forceConfig on a line that is not the warning mode's ([the writes, each road to forceConfig on the contextForced line])");
+        ok(["lockControls", "lockBonus", "hideCostSection", "paintReaction"].every(name => real.seen.includes(name)),
+            `the render hook no longer reaches the functions that draw the lock (read: ${real.seen.join(", ")}) - this would measure nothing`);
+        const wrap = fnSource(src, "wrapPrepareContext");
+        const forcedAt = wrap.search(/\bforceConfig\(this\)/), originalAt = wrap.search(/\boriginal\.apply\(this/);
+        ok(forcedAt > 0 && originalAt > forcedAt, "the wrapper of the window's _prepareContext does not write what is forced before Daggerheart's own method runs");
+    }],
+
+    ["R802 - nothing reads Dice So Nice's client setting `settings`, and dice-sync.mjs opens no socket of its own (E16)", async () => {
+        /*
+         * E16 p1 C3, 19.10.2026; audits S02-67 and S16-02 (E16-20). Until C3 dice-sync.mjs read the primary GM's
+         * `dice-so-nice.settings`, a client setting Dice So Nice 6.x only migrates (the 26.09 design's reading
+         * of 6.2.9), sent it over the module's socket and wrote it on each player's browser: a look nobody
+         * drew, and a socket road a player's packet could ride. The look is the users' flags now, written by
+         * the primary GM, and the road is gone. Read on every module file, comments cut: a `settings.get`,
+         * `set` or `register` of that scope and key, by literal or by a constant holding it, and the
+         * "namespace.key" id in a string or a template; and in dice-sync.mjs a `game.socket.on` or `emit`. A
+         * planted source in Base's spelling is read first, so a detector that finds nothing is told from a
+         * module that reads nothing. At 01c6739: dice-sync.mjs's get, set and template, its listener and
+         * two emits.
+         */
+        const reads = text => {
+            const named = value => [`"${value}"`, `'${value}'`, `\`${value}\``,
+                ...[...text.matchAll(new RegExp(`\\bconst ([A-Z_$][\\w$]*) = ["'\`]${value}["'\`]`, "g"))].map(m => m[1])];
+            const alt = list => list.map(x => x.replace(/[$]/g, "\\$&")).join("|");
+            const scope = alt(named("dice-so-nice")), key = alt(named("settings"));
+            const found = [];
+            for (const m of text.matchAll(new RegExp(`settings\\.(?:get|set|register)\\(\\s*(?:${scope})\\s*,\\s*(?:${key})\\s*[,)]`, "g"))) found.push(m[0]);
+            for (const m of text.matchAll(/["'`]dice-so-nice\.settings["'`]/g)) found.push(m[0]);
+            const ids = text.matchAll(new RegExp(`\\$\\{(?:${alt(named("dice-so-nice").slice(3))})\\}\\.\\$\\{(?:${alt(named("settings").slice(3))})\\}`, "g"));
+            for (const m of ids) if (m[0] !== "${}.${}") found.push(m[0]);
+            return found;
+        };
+        const sockets = text => [...text.matchAll(/\bgame\.socket\.(?:on|emit)\(/g)].map(m => m[0]);
+        const PLANT = ['const AV = "dice-so-nice";', 'const KEY = "settings";', "function mine() { return game.settings.get(AV, KEY); }",
+            'function theirs(a) { return game.settings.set("dice-so-nice", "settings", a); }', "const id = `${AV}.${KEY}`;",
+            'Hooks.on("clientSettingChanged", k => k === "dice-so-nice.settings");', "game.socket.on(EVENT, onSocket);", ""].join("\n");
+        equal(JSON.stringify([reads(PLANT), sockets(PLANT)]),
+            JSON.stringify([["settings.get(AV, KEY)", 'settings.set("dice-so-nice", "settings",', '"dice-so-nice.settings"', "${AV}.${KEY}"], ["game.socket.on("]]),
+            "the detector does not read the planted source as written - it would find nothing in the module either");
+        const found = [];
+        for (const [file, raw] of await otherSources()) for (const hit of reads(stripComments(raw))) found.push(`${file}: ${hit}`);
+        const sync = stripComments(new Map(await otherSources()).get("dice-sync.mjs") ?? "");
+        ok(sync.length > 400, "dice-sync.mjs has moved or gone - this would measure nothing");
+        equal(JSON.stringify([found, sockets(sync)]), JSON.stringify([[], []]),
+            "a module file reads Dice So Nice's client setting `settings`, or dice-sync.mjs talks over a socket of its own ([the reads, dice-sync's socket calls])");
+    }],
+
+    ["R803 - the GM's handbook names the setting that gives the table one dice look, and the player's handbook says the look is the GM's, in both languages (E16)", async () => {
+        /*
+         * E16 p1 C5, 19.10.2026 (E16-25). From C3 a player's change of its Dice So Nice look goes back to the GM's,
+         * and the player reads DRPG.DiceLook.setByGm once. At 9fdd7f7 neither book said so: the GM's settings list
+         * had no *One dice look for the table*, so a GM could not find what turns it off, and the player's
+         * handbook still said a GM-thrown die falls "in your colours". The names are read from lang/*.json, so a
+         * renamed setting or line fails here until the books follow; the GM's list is compared without case,
+         * since the Polish list names its settings in lower case inside the sentence.
+         */
+        const STALE = { en: "in your colours", pl: "w twoich kolorach" };
+        const measured = {}, expected = {};
+        for (const lang of ["en", "pl"]) {
+            const keys = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            const name = keys.DRPG?.Settings?.forceDiceLook?.name ?? "", told = keys.DRPG?.DiceLook?.setByGm ?? "";
+            ok(name.length > 0 && told.length > 0, `lang/${lang}.json has no DRPG.Settings.forceDiceLook.name or DRPG.DiceLook.setByGm - this test measured nothing`);
+            const text = {};
+            for (const book of ["gm-handbook", "player-handbook"]) {
+                const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${book}.${lang}.md`);
+                ok(res.ok, `docs/handbooks/${book}.${lang}.md did not load`);
+                text[book] = await lfText(res);
+                ok(text[book].split("\n").length > 10, `docs/handbooks/${book}.${lang}.md is empty - this test measured nothing`);
+            }
+            measured[lang] = {
+                gm: text["gm-handbook"].toLocaleLowerCase(lang).includes(`*${name.toLocaleLowerCase(lang)}*`),
+                player: text["player-handbook"].includes(told),
+                stale: text["player-handbook"].includes(STALE[lang])
+            };
+            expected[lang] = { gm: true, player: true, stale: false };
+        }
+        equal(JSON.stringify(measured), JSON.stringify(expected),
+            "[per language - the GM's handbook names DRPG.Settings.forceDiceLook.name in italics; the player's handbook says DRPG.DiceLook.setByGm; "
+            + "the player's handbook no longer says a die falls in the player's own colours]");
+    }],
+    ["R805 - the opening's roll windows carry short titles, without \"your roll\", and the player's handbook quotes the victim's as it reads, in both languages (E16, S01-17)", async () => {
+        /*
+         * E16 fix r1-G2 of round r1d, 19.10.2026 (finding OWNER-DEFAULT-Q7a; the owner's Q7 runs on its default (a)).
+         * S01-17 asked a shorter title for the roll window, and the opening's three (DRPG.Roll.opening.killer,
+         * .victim, .selfInflicted, murder-rules.mjs) ended in " - your roll" / " - twój rzut". At 0cc7c80 all six
+         * did, and the player's handbook quoted the victim's with it. The words are Q7 (a)'s, read whole: another
+         * wording is the owner's and changes this test with it.
+         */
+        const WORDS = {
+            en: { killer: "Opening the murder", victim: "Something feels wrong", selfInflicted: "Going through with it" },
+            pl: { killer: "Otwarcie morderstwa", victim: "Coś tu nie gra", selfInflicted: "Decyzja" }
+        };
+        const STALE = { en: " - your roll", pl: " - twój rzut" };
+        const measured = {}, expected = {};
+        for (const lang of ["en", "pl"]) {
+            const keys = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            const opening = keys.DRPG?.Roll?.opening ?? {};
+            ok(Object.keys(opening).length > 0, `lang/${lang}.json has no DRPG.Roll.opening - this test measured nothing`);
+            const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/player-handbook.${lang}.md`);
+            ok(res.ok, `docs/handbooks/player-handbook.${lang}.md did not load`);
+            const book = await lfText(res);
+            ok(book.split("\n").length > 10, `docs/handbooks/player-handbook.${lang}.md is empty - this test measured nothing`);
+            measured[lang] = {
+                titles: Object.fromEntries(Object.keys(WORDS[lang]).map(key => [key, opening[key] ?? null])),
+                bookQuotesVictim: book.includes(`"${opening.victim}"`),
+                bookStale: book.includes(`${WORDS[lang].victim}${STALE[lang]}`)
+            };
+            expected[lang] = { titles: WORDS[lang], bookQuotesVictim: true, bookStale: false };
+        }
+        equal(JSON.stringify(measured), JSON.stringify(expected),
+            "[per language - the three opening titles as Q7 (a) words them; the player's handbook quotes the victim's title as lang has it, "
+            + "and no longer with \" - your roll\"]");
+    }],
+    ["R806 - the hint of the switch for one dice look says only what holds whoever opened the world first: the look is fixed the first time the game runs with it on, as the GM's handbook says, in both languages (E16)", async () => {
+        /*
+         * E16 fix r1-G2 of round r1d, 19.10.2026 (finding fd2-3). DRPG.Settings.forceDiceLook.hint named the full
+         * Gamemaster "whose browser first ran the game with this on as the primary GM". dice-sync.mjs `lookSource`
+         * names another where an Assistant was the first primary (the full Gamemaster with the lowest id) and where
+         * the named one is deleted or demoted, and a GM cannot read `diceLookSource` (hidden). At 0cc7c80 both hints
+         * said it. Measured: the hint carries the GM's handbook's own clause for when the look is fixed, read off the
+         * handbook's line on the setting, and names no primary GM.
+         */
+        const CLAUSE = { en: "fixed the first time the game runs with it on", pl: "ustalonym, gdy gra pierwszy raz działa z tym ustawieniem" };
+        const PRIMARY = { en: /primary GM/i, pl: /główny GM/i };
+        const measured = {}, expected = {};
+        for (const lang of ["en", "pl"]) {
+            const keys = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            const name = keys.DRPG?.Settings?.forceDiceLook?.name ?? "", hint = keys.DRPG?.Settings?.forceDiceLook?.hint ?? "";
+            ok(name.length > 0 && hint.length > 0, `lang/${lang}.json has no DRPG.Settings.forceDiceLook name or hint - this test measured nothing`);
+            const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/gm-handbook.${lang}.md`);
+            ok(res.ok, `docs/handbooks/gm-handbook.${lang}.md did not load`);
+            const book = await lfText(res);
+            const at = book.toLocaleLowerCase(lang).indexOf(`*${name.toLocaleLowerCase(lang)}*`);
+            ok(at >= 0, `docs/handbooks/gm-handbook.${lang}.md does not name *${name}* - this test measured nothing`);
+            measured[lang] = { bookSays: lineAround(book, at).includes(CLAUSE[lang]), hintSays: hint.includes(CLAUSE[lang]), primary: PRIMARY[lang].test(hint) };
+            expected[lang] = { bookSays: true, hintSays: true, primary: false };
+        }
+        equal(JSON.stringify(measured), JSON.stringify(expected),
+            "[per language - the GM's handbook's line on the setting says when the look is fixed; the hint says the same; the hint names no primary GM]");
     }]
 ];
 

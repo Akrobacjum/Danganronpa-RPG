@@ -26,16 +26,40 @@
  * judged by `shareRefusal` on the primary GM, asked as gm-bridge.mjs `passage.share`).
  *
  * The season's reset gives back each passage's start access (`passagesAfterReset`, since C8).
+ *
+ * Since E80 C1 (18.10.2026) a passage may be a tunnel or stairs (`shape: "tunnel"`): two ends, a click
+ * each, in two rooms of the scene on one floor or two, with no wall under either (`tunnelEndAt`,
+ * `tunnelRowFor`); the pick takes it from the tab's 'Tunnel or stairs', the console's create from
+ * `shape` and `ends`. A knower's copy carries both ends as it carries a stretch, and the GMs' overlay
+ * draws the ends on the floor on screen.
+ *
+ * Since E80 C5 (18.10.2026; S16-17) Foundry's secret doors have a road out: the Season setup's
+ * 'Convert to passages' (`convertSecretDoors`) makes each an ordinary wall, shut, and a passage along
+ * it that nobody knows where it stands between two rooms; and while one stands, the primary GM writes
+ * back any change of its state a player makes (`putBackSecretDoor`, on `updateWall`), the audit reading
+ * it shut until that write lands (`secretDoorHeldShut`). The one Wall write here, and only of `door`
+ * and `ds` on a wall that already is (R560 still holds: no wall is made a secret door or created).
+ * Since E80 fix r1-G1 the write is back to the state a GM last left the door in, and the doors are gone over
+ * when a GM's browser takes the primary's place - at its ready, and when a GM leaves (`settleSecretDoors`) - so
+ * a change made with no primary to hear it is put back too. Since E80 fix r2-G9 that state is a flag on the door
+ * itself (`DOOR_SET`), written with a GM's own change (`stampSecretDoor`, `stampNewSecretDoor`), which no
+ * player's wall update can carry, so every GM's browser reads the same; a door with none is taken as it stands.
+ *
+ * Since E80 C6 (18.10.2026; D4, the owner's A10 Q2) a GM makes a passage public and secret again from the tab
+ * (`makePassagePublic`, `makePassageSecret`): every student knows a public one - in the copies, the client's cut
+ * and the GMs' audit alike (passages.mjs `secretRowsFrom`) - and the row's `public` is all that is written: no
+ * cell, no card, no sound, no world data, no lock lifted; the reset keeps it. A new row carries its `origin`,
+ * "gm" or, for a converted secret door, "door", which the tab names.
  */
 
-import { MODULE_ID } from "./config.mjs";
+import { MODULE_ID, ACTIONS } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { isPrimaryGm, serverNow, whisperToOwner, whisperToGms, ownerOf, warn, error } from "./utils.mjs";
+import { isPrimaryGm, serverNow, whisperToOwner, whisperToGms, ownerOf, warn, error, serialWrite, plural, forcedDeletion } from "./utils.mjs";
 import { passageMapStore, passageAccessStore, passageLogStore, mastermindStore, mastermindUndecided } from "./gm-stores.mjs";
 import { RECORD, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible } from "./gm-store.mjs";
 import { senderOf } from "./bridge-guards.mjs";
 import { isMonokuma } from "./monokuma.mjs";
-import { secretRowsFrom, sceneGone, PASSAGE_TOLERANCE, DOOR_PART } from "./passages.mjs";
+import { secretRowsFrom, studentIdsOf, sceneGone, endsOf, PASSAGE_TOLERANCE, DOOR_PART, isSecretDoor, secretDoorsOn, passageSpot } from "./passages.mjs";
 import { roomPieces, onLevel, floorsOf, isTrialScene, viewedScene, viewedLevel } from "./rooms.mjs";
 import { regionShapes, inFlatPolygons, distanceToSegment } from "./fog-geometry.mjs";
 import { overlayLayer, clearLayer, overlayColour, dashedLine, overlayDrawer, redrawGmOverlay } from "./gm-overlay.mjs";
@@ -133,12 +157,20 @@ export function passageCopyFor(user, { stores = PASSAGE_STORES, actors = game.ac
     const ids = new Set(own.map(a => a.id));
     const mastermind = own.find(a => actsAsMastermind(a, user, { mastermindId, users }))?.id ?? null;
     const value = {};
-    for (const [id, row] of Object.entries(secretRowsFrom(stores))) {
+    // `actors` beside the stores: a public passage's knowers are the students the caller holds (E80 C6).
+    for (const [id, row] of Object.entries(secretRowsFrom({ ...stores, actors }))) {
         const actorIds = row.actorIds.filter(a => ids.has(a));
         if (mastermind && !actorIds.includes(mastermind)) actorIds.push(mastermind);
         if (actorIds.length) value[id] = { ...row, actorIds };
     }
-    const stamps = ids.size ? Object.fromEntries([...ids].map(a => [a, stores.access.newest(touchKey(a))]))
+    /* A public passage is known to every student (E80 C6), one who first appears after Make public as well, and that one
+       has no `touch` row: nothing wrote one, so its part was 0 in a world no reset has cut (gm-store.mjs `newest`), and the
+       copy naming it under the passage was refused by the player's engine - at `receiveCopy`'s gate where it is that
+       player's only student, by `offersCombine` (no part newer) where they own another - while TOLD read it delivered
+       (E80 fix r1-G3, the review's E80-C6-1). So each part is at least the newest Make public of a passage public now. */
+    let shared = 0;
+    for (const [id, row] of Object.entries(stores.map.entries())) if (row?.public === true) shared = Math.max(shared, stores.map.stampOf(id, "public"));
+    const stamps = ids.size ? Object.fromEntries([...ids].map(a => [a, Math.max(stores.access.newest(touchKey(a)), shared)]))
         : { "": stores.access.cleared() + 1 };
     /* The copy that takes the every-passage rows away from an owner the door named before carries the part as well, at
        the stamp `touchDoorChange` wrote for that owner as the door left them: newer than the part their copy holds, so
@@ -371,10 +403,11 @@ function onWall(x, y, [x1, y1, x2, y2]) {
  * Every character a cell of this passage names: whose copies change with the row. The Mastermind's
  * copy changes with every open passage, and is stamped by `touch`'s `door` (the round-2 review's
  * SEC M3: until 16.10.2026 the Mastermind was a knower here, and every owner of its student was
- * sent a copy for a passage only the door owner holds).
+ * sent a copy for a passage only the door owner holds). A public passage's are every student of the world
+ * besides (E80 C6): a Close, an Open or a Delete of one changes every student's owners' copies.
  */
 function knowersOf(passageId, stores) {
-    const out = new Set();
+    const out = new Set(stores.map.get(passageId)?.public === true ? studentIdsOf() : []);
     for (const key of Object.keys(stores.access.entries())) {
         const [pid, actorId] = key.split("/");
         if (pid === passageId && actorId) out.add(actorId);
@@ -462,26 +495,383 @@ export function passageRowFor(scene, wall, { seg = null, rooms = [], level = nul
 }
 
 /**
- * A GM: a new passage on a wall of a scene (`passageRowFor`). Answers the passage's id, or null.
- * `scene` is the document in hand (the pick's; the suite's own in R561), else the world's by `sceneId`.
+ * A GM: a new passage on a wall of a scene (`passageRowFor`), or with `shape` "tunnel" a tunnel or
+ * stairs between its two `ends`, `[{ x, y, level }, { x, y, level }]` (`tunnelRowFor`, E80 C1). Answers
+ * the passage's id, or null. `scene` is the document in hand (the pick's; the suite's own in R561 and
+ * R594), else the world's by `sceneId`.
  */
-export async function createPassage({ sceneId, wallId, seg = null, rooms = [], level = null, startAccess = [] } = {}, { stores = PASSAGE_STORES, scene: given = null } = {}) {
+export async function createPassage({ sceneId, wallId, seg = null, rooms = [], level = null, startAccess = [], shape = "wall", ends = null } = {},
+    { stores = PASSAGE_STORES, scene: given = null } = {}) {
     if (!game.user?.isGM) return refuse("only a GM creates one.");
     const scene = given ?? game.scenes?.get(sceneId);
     if (!scene || scene.id !== sceneId) return refuse(`no scene "${sceneId}".`);
     if ((startAccess ?? []).some(a => !studentOf(a))) return refuse("a start access names no student of this world.");
-    const { row, refused } = passageRowFor(scene, scene.walls?.get(wallId), { seg, rooms, level, startAccess, taken: takenOn(scene.id, null, stores) });
+    if (shape !== "wall" && shape !== "tunnel") return refuse(`a passage is "wall" or "tunnel", not "${shape}".`);
+    const { row, refused } = shape === "tunnel"
+        ? tunnelRowFor(scene, ends, { rooms, startAccess, taken: endsTakenOn(scene.id, null, stores) })
+        : passageRowFor(scene, scene.walls?.get(wallId), { seg, rooms, level, startAccess, taken: takenOn(scene.id, null, stores) });
     if (!row) return refuse(refused);
+    return writeNewPassage(scene, row, stores);
+}
+
+/**
+ * A new passage's write, its row as `passageRowFor` or `tunnelRowFor` made it: the row with its `origin`
+ * (E80 C6: "gm", or "door" for a converted secret door, which the tab's Origin names), its start
+ * access, the knowers' touch, the log's "create" row, and with `tell` the copies sent. Answers its id.
+ * `createPassage`'s, and since E80 C5 `convertSecretDoors`', which sends the copies once for all.
+ */
+async function writeNewPassage(scene, row, stores, { tell = true, origin = "gm" } = {}) {
     const id = `${scene.id}.${foundry.utils.randomID()}`;
-    await stores.map.patch(id, row);
+    await stores.map.patch(id, { ...row, origin });
     const at = serverNow(), who = game.user.id;
     if (row.startAccess.length) {
         await stores.access.patchMany(Object.fromEntries(row.startAccess.map(a => [`${id}/${a}`, { how: "start", at, by: { [who]: at } }])), { fillOnly: true });
     }
     await touch(knowersOf(id, stores), stores, { door: true });
     await logRow("create", id, null, stores);
-    tellAfter(stores);
+    if (tell) tellAfter(stores);
     return id;
+}
+
+/* -----------------------------------------------------------------------------------------
+ * Foundry's secret doors (E80 C5, 18.10.2026; S16-17, P1-17, P1-18). A secret door is a wall every
+ * player's browser holds - where it stands and that it is a door - and Foundry lets a player change
+ * its state (open or shut; never to or from locked), so a console opens it and a token walks
+ * through. The module's own road is a passage; these are the GM's way from one to the other.
+ * ----------------------------------------------------------------------------------------- */
+
+const DOOR_NONE = () => globalThis.CONST?.WALL_DOOR_TYPES?.NONE ?? 0;
+const DOOR_OPEN = () => globalThis.CONST?.WALL_DOOR_STATES?.OPEN ?? 1;
+const DOOR_CLOSED = () => globalThis.CONST?.WALL_DOOR_STATES?.CLOSED ?? 0;
+
+/**
+ * A wall the conversion made ordinary, as a passage: the whole wall, on the first of the scene's
+ * floors it stands on whose row `passageRowFor` makes (on a scene with no floors, `level` null).
+ * `{ row }` or `{ refused }` with the last floor's reason.
+ */
+function doorPassageRow(scene, wall, stores) {
+    const floors = floorsOf(scene);
+    const levels = floors.length ? floors.filter(f => onLevel(wall, f.id)).map(f => f.id) : [null];
+    let refused = "that wall is on none of the scene's floors.";
+    for (const level of levels) {
+        const made = passageRowFor(scene, wall, { level, taken: takenOn(scene.id, null, stores) });
+        if (made.row) return made;
+        refused = made.refused;
+    }
+    return { refused };
+}
+
+/**
+ * What a converted secret door keeps of a door no more (E80 fix r1-G6; the review's E80-SEC-4): its sound and its
+ * animation, which only a door uses. Every player's browser holds the scene's walls, so a plain wall that kept either
+ * was the one place on the map a secret passage nobody knows stood (P1-17); until this fix the conversion wrote `door`
+ * and `ds` alone. A sound's empty value, as a wall drawn with none has it read; an animation's null, its schema's own
+ * initial. Not measured on v14's own WallDocument: read off its schema, the harness's wall is a plain record (A10-15).
+ */
+const DOOR_UNDRESSED = Object.freeze({ doorSound: "", animation: null });
+
+/**
+ * A GM: every secret door of `scenes` (each world scene when none are given) made an ordinary wall,
+ * shut - one Wall write per scene, of `door` and `ds` and a door's dress (`DOOR_UNDRESSED`), so it blocks a
+ * move and sight as it was drawn to - and a secret passage along each one that stands between two rooms (`passageRowFor`,
+ * the console's create's rule), with no start access: nobody knows it until a GM grants it. A door
+ * that stands between no two rooms (one inside a room, at the map's edge, on a stretch another
+ * passage holds) stays the plain wall it now is and is named in `plain` with the reason. Answers
+ * `{ converted, passages, plain }`, or null on a player's browser. Run again it finds nothing to do.
+ * Since E80 fix r1-G1 the GMs' state of each converted door goes with it, since E80 fix r2-G9 the flag on the
+ * wall (`DOOR_SET`) deleted in the same write: a plain wall that carried it would tell every browser a secret
+ * door stood there, as a door's dress would (E80 fix r1-G6).
+ */
+export async function convertSecretDoors({ scenes = null, stores = PASSAGE_STORES } = {}) {
+    if (!game.user?.isGM) return refuse("only a GM converts the secret doors.");
+    const out = { converted: 0, passages: [], plain: [] };
+    for (const scene of scenes ?? Array.from(game.scenes ?? [])) {
+        const doorsHere = secretDoorsOn(scene);
+        if (!doorsHere.length) continue;
+        const ids = doorsHere.map(wall => wall.id);
+        await scene.updateEmbeddedDocuments("Wall", doorsHere.map(wall => ({ _id: wall.id, door: DOOR_NONE(), ds: DOOR_CLOSED(), ...DOOR_UNDRESSED,
+            ...(doorSetOf(wall) === null ? {} : { [`flags.${MODULE_ID}.${DOOR_SET}`]: forcedDeletion() ?? null }) })));
+        for (const wallId of ids) {
+            HELD_SHUT.delete(wallId);
+            const wall = scene.walls?.get(wallId);
+            if (isSecretDoor(wall)) continue;
+            out.converted += 1;
+            const { row, refused } = doorPassageRow(scene, wall, stores);
+            if (row) out.passages.push(await writeNewPassage(scene, row, stores, { tell: false, origin: "door" }));
+            else out.plain.push({ sceneId: scene.id, wallId, why: refused });
+        }
+    }
+    if (out.passages.length) tellAfter(stores);
+    if (out.converted) {
+        warn(`Secret doors: ${out.converted} converted, ${out.passages.length} as secret passages nobody knows yet; `
+            + `${out.plain.length} stand between no two rooms and are plain walls now`
+            + (out.plain.length ? ` (${out.plain.map(p => `${p.sceneId}/${p.wallId}: ${p.why}`).join("; ")}).` : "."));
+    }
+    return out;
+}
+
+/* The secret doors a player changed whose put-back has not landed: the audit reads each shut. */
+const HELD_SHUT = new Set();
+
+/** Whether the primary GM holds this wall shut for the audit (`putBackSecretDoor`): a player's change of it not yet undone. */
+export function secretDoorHeldShut(wallId) {
+    return HELD_SHUT.has(wallId);
+}
+
+const DOOR_LOCKED = () => globalThis.CONST?.WALL_DOOR_STATES?.LOCKED ?? 2;
+
+/**
+ * An update option (E80 fix r1-G1): a GM's write of a secret door that is no choice of the GMs' - the put-back's
+ * own (`putBackSecretDoor`), the pass's or the watch's write of the state itself, or a stand-in the suite writes
+ * as a player's change, or as a door from before E80 fix r2-G9 - and so is not kept as the state the GMs last set
+ * (`DOOR_SET`). On a create it leaves the new door with no state (the suite's).
+ */
+export const DOOR_ASIDE = "drpgDoorAside";
+
+/**
+ * THE STATE A GM LAST SET, ON THE DOOR (E80 fix r2-G9, 19.10.2026; the review's E80-FIX-R1-01): the flag
+ * `flags.<module>.doorSet` on a secret door, the `ds` a GM last gave it. Until this fix it was a GM store held in
+ * each GM's browser (`secretDoorStore`, a client setting out of the case file), so a door that browser had heard
+ * no GM change - one left open before that build, one a GM opened from another browser or while this one was
+ * away, one on an imported scene, every door after a cleared browser or a restored backup - read as shut, and the
+ * pass shut it. On the wall it is world data, the same for every GM's browser, in the world's backup and in a
+ * scene's export. A player's wall update can change `ds` and nothing else (v14's BaseWall#canUpdate as design A10
+ * reads it; the harness's server holds the same, scenario 30 7e3 forges the flag; on v14 LIVE-E80-03), so a
+ * player cannot write it. It tells a player's browser nothing it does not hold already: the door's type and state
+ * are on every map (the known leak foundry-secret-door-type), and this is the state the door stood in before the
+ * player changed it. Written with a GM's own change (`stampSecretDoor`, `stampNewSecretDoor`); by the primary
+ * where a GM's change came without it (`putBackSecretDoor`) and on a door with none (`settleSecretDoors`, which
+ * takes such a door as it stands); deleted when the wall stops being a secret door.
+ */
+export const DOOR_SET = "doorSet";
+
+/** The state a GM last set on this secret door (`DOOR_SET`), a number, or null when none is written on it. */
+export function doorSetOf(wall) {
+    const value = wall?.flags?.[MODULE_ID]?.[DOOR_SET];
+    return value === null || value === undefined || value === "" || !Number.isFinite(Number(value)) ? null : Number(value);
+}
+
+/* The write of the state on the door, as the update's own data. */
+const doorSetData = ds => ({ flags: { [MODULE_ID]: { [DOOR_SET]: Number(ds) } } });
+
+/**
+ * A GM's own update of a wall (`preUpdateWall`, on a GM's browser; E80 fix r2-G9): a change of a secret door's
+ * state, or a wall made a secret door, carries that state on the door in the same write (`DOOR_SET`), so whichever
+ * GM's browser is the primary reads it. The put-back's own write (`DOOR_ASIDE`) and every other change are left as
+ * they are; a door made an ordinary wall loses the flag on the primary's watch (`putBackSecretDoor`). Answers
+ * nothing: the change is the write.
+ */
+export function stampSecretDoor(wall, change, options) {
+    if (!game.user?.isGM || options?.[DOOR_ASIDE] || !change || typeof change !== "object") return;
+    const hasDs = foundry.utils.hasProperty(change, "ds"), hasDoor = foundry.utils.hasProperty(change, "door");
+    if (!hasDs && !hasDoor) return;
+    if (!isSecretDoor({ door: hasDoor ? change.door : wall?.door })) return;
+    const ds = Number(hasDs ? change.ds : wall?.ds ?? DOOR_CLOSED());
+    if (!Number.isFinite(ds)) return;
+    foundry.utils.mergeObject(change, doorSetData(ds));
+}
+
+/**
+ * A GM's own create of a wall (`preCreateWall`, on a GM's browser; E80 fix r2-G9): a secret door drawn or pasted
+ * carries the state it is made in (`DOOR_SET`), the GM's choice, over any a pasted door brought along. A create
+ * marked `DOOR_ASIDE` is left with none (the suite's door from before this fix).
+ */
+export function stampNewSecretDoor(wall, data, options) {
+    if (!game.user?.isGM || options?.[DOOR_ASIDE] || !isSecretDoor(wall)) return;
+    const ds = Number(wall.ds ?? DOOR_CLOSED());
+    if (Number.isFinite(ds)) wall.updateSource?.(doorSetData(ds));
+}
+
+const doorWord = ds => (ds === DOOR_OPEN() ? "open" : ds === DOOR_LOCKED() ? "locked" : "shut");
+
+/**
+ * The primary GM's answer to a change of a secret door's state (`updateWall`, E80 C5, P1-18). One a GM made
+ * stands, lets go of a hold, and since E80 fix r1-G1 is the state the GMs last set - since E80 fix r2-G9 on the
+ * door (`DOOR_SET`), written with the GM's change on its own browser (`stampSecretDoor`) and here, as the
+ * put-back's own write, where the change came without it - unless the write is the put-back's own (`aside`); a
+ * GM's change of `door` alone keeps the state the door then has, and a GM's making it an ordinary wall deletes the
+ * flag. One anybody else made - a player, or a writer this world does not know as an active user (`senderOf`) -
+ * is written back to the state a GM last left the door in: open if that was open, and shut otherwise, shut where
+ * none is written on the door (a door no pass has gone over yet, `settleSecretDoors`); and the door held shut for
+ * the audit until that write lands, which lets go of it. Until that fix the put-back wrote the state before the change as the change's
+ * opposite (opened: shut; shut: open), so a player's "shut" of a shut door, sent whole (`diff: false`), opened it
+ * (the review's E80-SEC-3; R601, scenario 30 7e3). A door that stands as a GM left it is left alone and held by
+ * nothing; so is a locked one (only a GM locks a door, or changes a locked one); the put-back never locks. On
+ * a GM's browser alone (the gate R220's census reads), and there on the primary, asked without `leaving` - a GM
+ * the pass was told has gone (`settleSecretDoors`, reroll.mjs's rule): another browser answers false and holds
+ * nothing. A change of no state, or of any wall that is no secret door, is left alone.
+ * `unheard` is the pass's (`settleSecretDoors`): a state no primary heard change, which it words so. Answers
+ * whether it wrote the put-back. A put-back that fails keeps the door held shut and is logged. The hold is
+ * taken before the first await: a step the same player sends after the opening is judged against it. `sender`
+ * is the suite's (R601, R605, R616). Read on Foundry's documents by A10-15 and from a player's page by
+ * scenario 30 7e3; a console's change on v14 is LIVE-E80-03.
+ */
+export async function putBackSecretDoor(wall, change, userId, { sender = senderOf(userId), aside = false, unheard = false, leaving = null } = {}) {
+    if (!game.user?.isGM) return false;
+    if (!isPrimaryGm({ leaving })) return false;
+    const door = foundry.utils.hasProperty(change ?? {}, "door");
+    if (!isSecretDoor(wall)) {
+        if (door && doorSetOf(wall) !== null) {
+            await wall.unsetFlag(MODULE_ID, DOOR_SET).catch(err => error(`Could not take the secret door's state off the wall ${wall.id}`, err));
+        }
+        return false;
+    }
+    const ds = foundry.utils.hasProperty(change ?? {}, "ds");
+    if (sender?.isGM) {
+        if (ds) HELD_SHUT.delete(wall.id);
+        const set = Number(ds ? change.ds : wall.ds);
+        if ((ds || door) && !aside && Number.isFinite(set) && doorSetOf(wall) !== set) {
+            await wall.update(doorSetData(set), { [DOOR_ASIDE]: true }).catch(err => error(`Could not write the GM's state on the secret door ${wall.id}`, err));
+        }
+        return false;
+    }
+    if (!ds) return false;
+    const now = Number(change.ds);
+    if (now === DOOR_LOCKED()) return false;
+    const want = doorSetOf(wall) === DOOR_OPEN() ? DOOR_OPEN() : DOOR_CLOSED();
+    if (now === want) {
+        HELD_SHUT.delete(wall.id);
+        return false;
+    }
+    HELD_SHUT.add(wall.id);
+    const where = `${wall.id}${wall.parent?.name ? ` on "${wall.parent.name}"` : ""}`;
+    warn(unheard
+        ? `Secret doors: the secret door ${where} stands ${doorWord(now)}, which no GM left it - changed while no primary GM heard it; it is put back ${doorWord(want)}.`
+        : `Secret doors: ${sender?.name ?? userId ?? "somebody"} changed the secret door ${where}; it is put back ${doorWord(want)}.`);
+    try {
+        await wall.update({ ds: want }, { [DOOR_ASIDE]: true });
+    } catch (err) {
+        error(`Could not put the secret door ${wall.id} back; the audit reads it shut`, err);
+    }
+    return true;
+}
+
+/* The primary GM's watch on the secret doors: the hold is taken in the hook's own turn. */
+function onSecretDoorChanged(wall, change, options, userId) {
+    if (!isPrimaryGm()) return;
+    putBackSecretDoor(wall, change, userId, { aside: Boolean(options?.[DOOR_ASIDE]) }).catch(err => error("Could not put a secret door back", err));
+}
+
+/**
+ * THE CHANGES NO PRIMARY HEARD (E80 fix r1-G1, 18.10.2026; the review's E80-SEC-3 and E80-COR-1). The watch
+ * above answers a change as the primary GM hears it, and a change made while no GM was connected, or one the
+ * primary that heard it could not put back before another GM's browser took over (a hold is that browser's
+ * memory), reached no primary: until this fix the door stood as the player left it - open, a road through a
+ * wall - for good. Now, on the primary GM, each secret door of `scenes` (each world scene when none are given)
+ * that stands otherwise than a GM last left it is put back as the watch puts a player's change back
+ * (`putBackSecretDoor`, `unheard`): open where a GM last opened it, shut otherwise; a locked one is left alone.
+ * Run at this browser's ready, when a GM leaves (`onDoorsGmLeft`) and on a change of role; it asks whether this browser is
+ * the primary without the one leaving (`isPrimaryGm({ leaving })`: null where that is this browser), and each
+ * put-back asks the same, so the pass does not wait on the leaving GM's `active` - which of that flag and
+ * `userConnected` v14 changes first is not measured (LIVE-E30-05; the harness flips the flag first). Where it is run
+ * it asks whether the suite holds the stores or stands them in another world (`gmStoresQuiet`): then it is not run.
+ * Answers the ids of the doors it put back, or null off the primary.
+ * Since E80 fix r2-G9 (the review's E80-FIX-R1-01) the state a GM last set is the one on the door (`DOOR_SET`),
+ * the same on every GM's browser, and a secret door with none - one from before this fix, or from a scene made
+ * with its walls (an import, `onSceneCreated`) - is taken as it stands and that state written on it (the put-back's
+ * own mark), where until then it was read shut and shut. The doors it puts back are told on the GM's screen
+ * (`tell`, `doorsPutBackText`), not in the console alone. `leaving` is the leaving GM's, `tell` the suite's (R605,
+ * R616, A10-15, scenario 15).
+ */
+export async function settleSecretDoors({ scenes = null, leaving = null, tell = tellDoorsPutBack } = {}) {
+    if (!game.user?.isGM) return null;
+    if (!isPrimaryGm({ leaving })) return null;
+    const put = [], putWalls = [], taken = [];
+    for (const scene of scenes ?? Array.from(game.scenes ?? [])) {
+        for (const wall of secretDoorsOn(scene)) {
+            if (doorSetOf(wall) === null) {
+                if (!isPrimaryGm({ leaving })) continue;
+                const ds = Number(wall.ds ?? DOOR_CLOSED());
+                if (!Number.isFinite(ds)) continue;
+                try {
+                    await wall.update(doorSetData(ds), { [DOOR_ASIDE]: true });
+                    taken.push(`${wall.id} (${doorWord(ds)})`);
+                } catch (err) {
+                    error(`Could not write the state of the secret door ${wall.id}`, err);
+                }
+                continue;
+            }
+            if (await putBackSecretDoor(wall, { ds: wall.ds }, null, { sender: null, unheard: true, leaving })) {
+                put.push(wall.id);
+                putWalls.push(wall);
+            }
+        }
+    }
+    if (taken.length) warn(`Secret doors: ${taken.length} carried no state a GM set and are kept as they stand: ${taken.join(", ")}.`);
+    if (putWalls.length) {
+        try {
+            tell(putWalls);
+        } catch (err) {
+            error("Could not tell the GM which secret doors were put back", err);
+        }
+    }
+    return put;
+}
+
+/**
+ * The GM's word on the doors the pass put back (`settleSecretDoors`; E80 fix r2-G9): how many, and on which scene
+ * each, in the module's language. The console names each wall (`putBackSecretDoor`).
+ */
+export function doorsPutBackText(walls) {
+    const counts = new Map();
+    for (const wall of walls ?? []) {
+        const name = wall?.parent?.name || wall?.parent?.id || "?";
+        counts.set(name, (counts.get(name) ?? 0) + 1);
+    }
+    const n = Array.from(counts.values()).reduce((a, b) => a + b, 0);
+    const scenes = Array.from(counts.entries()).map(([name, k]) => `${name} (${k})`).join(", ");
+    return plural("DRPG.Season.secretDoorsPutBack", { n, scenes });
+}
+
+/* The pass's word on the GM's screen, kept there until it is closed: at a ready it would go by unseen. */
+function tellDoorsPutBack(walls) {
+    ui.notifications?.warn(doorsPutBackText(walls), { permanent: true });
+}
+
+/**
+ * A scene created (`createScene`, E80 fix r2-G9): an import or a copy brings its walls with it and no GM's own
+ * create of each, so on the primary GM the pass is run on that scene (`settleSecretDoors`): a secret door with no
+ * state a GM set gets the one it stands in, and one whose state it brought along stands so. The suite's held
+ * stores run none. Registered on a GM's browser only; `settle` and `quiet` are the suite's.
+ */
+export function onSceneCreated(scene, options, userId, { settle = settleSecretDoors, quiet = gmStoresQuiet } = {}) {
+    if (quiet() || !secretDoorsOn(scene).length) return null;
+    return Promise.resolve(settle({ scenes: [scene] })).catch(err => {
+        error("Could not put the secret doors of a new scene back", err);
+        return null;
+    });
+}
+
+/**
+ * A GM left (`userConnected`, E80 fix r1-G1): whoever is the primary after it - this browser, if the list less
+ * the one leaving names it (`isPrimaryGm({ leaving })`, reroll.mjs's rule) - runs the pass (`settleSecretDoors`),
+ * so a put-back the GM who left could not land is landed here. A player coming or going, or a GM coming, is not
+ * this watch's: a GM's coming is its own browser's pass. Registered on a GM's browser only (`registerPassagesGm`);
+ * the pass itself asks whether this browser is the primary. `settle` and `quiet` are the suite's (R605).
+ */
+export function onDoorsGmLeft(user, connected, { settle = settleSecretDoors, quiet = gmStoresQuiet } = {}) {
+    if (connected || !user?.isGM || quiet()) return null;
+    return Promise.resolve(settle({ leaving: user.id })).catch(err => {
+        error("Could not put the secret doors back", err);
+        return null;
+    });
+}
+
+/**
+ * A user's role changed (`updateUser`, E80 fix r1-G5; the review's E80-G-10, "at a change of primary"): a GM made a
+ * player, or a player made a GM, can make another GM's browser the primary with no GM leaving (`onDoorsGmLeft`) and no
+ * ready, so the browser that is the primary now runs the pass (`settleSecretDoors`, which asks that itself) and lands
+ * what no primary heard. Any other change of a user, and the suite's held stores (`gmStoresQuiet`), run none. A
+ * player made a GM who becomes the primary runs it at that browser's next ready: its `ready` ran as a player's and
+ * registered nothing here. Registered on a GM's browser only (`registerPassagesGm`); `settle` and `quiet` are the
+ * suite's (R609).
+ */
+export function onDoorsRoleChanged(user, change, options, userId, { settle = settleSecretDoors, quiet = gmStoresQuiet } = {}) {
+    if (change?.role === undefined || quiet()) return null;
+    return Promise.resolve(settle()).catch(err => {
+        error("Could not put the secret doors back", err);
+        return null;
+    });
 }
 
 /**
@@ -528,6 +918,29 @@ async function setState(passageId, state, from, stores) {
 
 export const closePassage = (passageId, { stores = PASSAGE_STORES } = {}) => setState(passageId, "closed", ["secret"], stores);
 export const openPassage = (passageId, { stores = PASSAGE_STORES } = {}) => setState(passageId, "secret", ["closed"], stores);
+
+/**
+ * A GM: the passage public (`on`) - every student knows it (passages.mjs `secretRowsFrom`) - or secret again, known
+ * to the students its cells name, as before (E80 C6; D4, the owner's A10 Q2). The row's `public` alone is written,
+ * then every student's `touch` (each owner's copy gains or loses the row) and a log row "public" or "secret", and
+ * the copies sent. Nobody is told: no card and no sound; a lock, a seal or a Close stays as it is; the season's reset,
+ * which takes the cells, keeps the row and with it `public`. Answers true, also when it already was; false refused.
+ */
+async function setPublic(passageId, on, stores) {
+    if (!game.user?.isGM) return refuse("only a GM changes one.", false);
+    const row = stores.map.get(passageId);
+    if (!row) return refuse(`no passage "${passageId}".`, false);
+    if ((row.public === true) === on) return true;
+    const before = knowersOf(passageId, stores);
+    await stores.map.patch(passageId, { public: on });
+    await touch(new Set([...before, ...knowersOf(passageId, stores)]), stores);
+    await logRow(on ? "public" : "secret", passageId, null, stores);
+    tellAfter(stores);
+    return true;
+}
+
+export const makePassagePublic = (passageId, { stores = PASSAGE_STORES } = {}) => setPublic(passageId, true, stores);
+export const makePassageSecret = (passageId, { stores = PASSAGE_STORES } = {}) => setPublic(passageId, false, stores);
 
 /** A GM: the passage is gone, and every cell of it. */
 export async function deletePassage(passageId, { stores = PASSAGE_STORES } = {}) {
@@ -613,9 +1026,10 @@ export async function revokeLeavers(tokenDoc, { stores = PASSAGE_STORES, roomOf 
 export async function passageRoomsOnMap(passageId, { stores = PASSAGE_STORES, scene = null } = {}) {
     const row = game.user?.isGM ? stores.map.get(passageId) : null;
     const on = scene ?? game.scenes?.get(row?.sceneId);
-    if (!row?.passageSeg || !on || on.id !== row.sceneId) return [];
+    const ends = endsOf(row);
+    if ((!row?.passageSeg && !ends) || !on || on.id !== row.sceneId) return [];
     const { passageRooms } = await import("./movement.mjs");
-    return [...new Set(passageRooms(on, row.passageSeg, row.level ?? null).filter(Boolean))];
+    return [...new Set(passageRooms(on, ends ? { ends } : row.passageSeg, row.level ?? null).filter(Boolean))];
 }
 
 /**
@@ -669,12 +1083,19 @@ export async function wallChanged(wall, { gone = false, stores = PASSAGE_STORES 
     return marked;
 }
 
-/** A GM: where the passage's stretch has its middle, `{ sceneId, level, x, y }`, for the tab's Show; null for none. */
-export function passageMiddle(passageId, { stores = PASSAGE_STORES } = {}) {
+/**
+ * A GM: where the passage's stretch has its middle, `{ sceneId, level, x, y }`, for the tab's Show - a
+ * tunnel's end on `level`, the floor on screen, else its first end, on that end's floor (E80 C1; the end on
+ * screen since E80 fix r1-G2, passages.mjs `passageSpot`); null for none.
+ */
+export function passageMiddle(passageId, { stores = PASSAGE_STORES, level = null } = {}) {
     const row = game.user?.isGM ? stores.map.get(passageId) : null;
-    const seg = row?.passageSeg;
+    if (!row) return null;
+    const ends = endsOf(row);
+    if (ends) return passageSpot({ sceneId: row.sceneId, shape: "tunnel", ends }, level);
+    const seg = row.passageSeg;
     if (!seg) return null;
-    return { sceneId: row.sceneId, level: row.level ?? null, x: (seg.x1 + seg.x2) / 2, y: (seg.y1 + seg.y2) / 2 };
+    return passageSpot({ sceneId: row.sceneId, level: row.level ?? null, x1: seg.x1, y1: seg.y1, x2: seg.x2, y2: seg.y2 }, level);
 }
 
 /**
@@ -741,13 +1162,15 @@ const floorKey = level => level?.id ?? level ?? null;
 
 /**
  * What a show reads of the world, on this browser now: the suite hands a world of its own (R562).
- * `place` is `locateActor`'s `{ scene, room, level }`; `sides` the rooms a passage joins on the map
- * (movement.mjs `passageRooms`); `knownRooms` the rooms this character has found on that scene, from
- * the discovery ledger and the room it stands in.
+ * `place` is where the GMs read the character (movement.mjs `gmPlaceOf`: `locateActor`'s `{ scene, room,
+ * level }`, null for a token they are putting back or hold as standing where the rules refuse - E80 fix
+ * early-C3-G2, where it read the token's document, which the player's own browser writes); `sides` the
+ * rooms a passage joins on the map (movement.mjs `passageRooms`); `knownRooms` the rooms this character
+ * has found on that scene, from the discovery ledger and the room the GMs read it in.
  */
 async function liveShareWorld() {
     const [{ isEclipse, isDeadForGm, isDeceased, incidentParticipants, discoveryLedger }, { inClassTrial }, { isMonocub },
-        { locateActor, passageRooms }] = await Promise.all([import("./settings.mjs"), import("./trial.mjs"), import("./monocub.mjs"), import("./movement.mjs")]);
+        { gmPlaceOf, passageRooms }] = await Promise.all([import("./settings.mjs"), import("./trial.mjs"), import("./monocub.mjs"), import("./movement.mjs")]);
     return {
         actor: id => game.actors?.get(id) ?? null,
         locked: () => isEclipse() || inClassTrial(),
@@ -756,11 +1179,11 @@ async function liveShareWorld() {
         monokuma: actor => isMonokuma(actor),
         dead: actor => isDeadForGm(actor),
         published: actor => isDeceased(actor),
-        place: actor => locateActor(actor),
+        place: (actor, { sceneId = null } = {}) => gmPlaceOf(actor, { sceneId }),
         sides: (row, seg) => passageRooms(game.scenes?.get(row.sceneId), seg, row.level ?? null),
         knownRooms: (actor, sceneId) => {
             const known = new Set(discoveryLedger()[sceneId]?.[actor.id] ?? []);
-            const here = locateActor(actor, { sceneId });
+            const here = gmPlaceOf(actor, { sceneId });
             if (here?.scene?.id === sceneId && here.room) known.add(here.room);
             return known;
         }
@@ -775,7 +1198,9 @@ async function liveShareWorld() {
  * the door's reading, so another owner of the Mastermind's student is held to what the student was
  * given or shown, the round-2 review's SEC M3; `asker` null, as a caller that names nobody, is
  * nobody's door), then the one shown it (a student who is not the giver and no Monokuma, in the
- * giver's room on the same scene and floor, alive). A passage that does not exist, one that is
+ * giver's room on the same scene and floor, alive - both where `world.place` reads them, on the live
+ * world the GMs' reading, so a giver they read nowhere has no token on a scene and a student shown it
+ * they read nowhere is not in that room). A passage that does not exist, one that is
  * closed or broken, and one the giver does not know get one answer, so the reason says nothing of
  * which. A death nobody has found is `cannotNow`, never named. Pure but for `world`, `stores` and
  * `users` (the suite's).
@@ -787,8 +1212,8 @@ export function shareRefusal({ actorId, targetId, passageId } = {}, world, store
     if (world.dead(giver) || world.inIncident(giver)) return "that cannot be done now";
     if (world.monocub(giver)) return "that action is not open to that character now";
     const row = typeof passageId === "string" ? stores.map.get(passageId) : null;
-    const knows = row?.state === "secret"
-        && (Boolean(stores.access.get(`${passageId}/${giver.id}`)) || actsAsMastermind(giver, asker, { mastermind: stores.mastermind, users }));
+    const knows = row?.state === "secret" && (row.public === true
+        || Boolean(stores.access.get(`${passageId}/${giver.id}`)) || actsAsMastermind(giver, asker, { mastermind: stores.mastermind, users }));
     if (!knows) return "the character does not know that passage";
     const target = world.actor(targetId);
     if (!target || target.id === giver.id || target.type !== "character" || world.monokuma(target)) return "no such character";
@@ -809,8 +1234,8 @@ export function shareRefusal({ actorId, targetId, passageId } = {}, world, store
  * who acts as the Mastermind through the character - `actsAsMastermind`).
  */
 function roomsAsKnown(row, world, known) {
-    const seg = row.passageSeg ?? {};
-    const sides = world.sides(row, { x1: seg.x1, y1: seg.y1, x2: seg.x2, y2: seg.y2 }) ?? [];
+    const seg = row.passageSeg ?? {}, ends = endsOf(row);
+    const sides = world.sides(row, ends ? { ends } : { x1: seg.x1, y1: seg.y1, x2: seg.x2, y2: seg.y2 }) ?? [];
     const names = [0, 1].map(i => sides[i] ?? row.rooms?.[i] ?? null);
     let unexplored = 0;
     const said = names.map(room => !room ? "-" : !known || known.has(room) ? room
@@ -856,7 +1281,8 @@ export async function sharePassage({ actorId, targetId, passageId } = {}, { stor
     const row = stores.map.get(passageId);
     const cellKey = `${passageId}/${target.id}`;
     const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
-    if (!stores.access.get(cellKey)) {
+    // A public passage is known to the one shown it already (E80 C6): no cell, which would outlast a Make secret.
+    if (!stores.access.get(cellKey) && row.public !== true) {
         const at = serverNow();
         await stores.access.patch(cellKey, { how: "shown", at, by: { [giver.id]: at } }, { fillOnly: true });
         await touch([target.id], stores);
@@ -874,6 +1300,263 @@ export async function sharePassage({ actorId, targetId, passageId } = {}, { stor
     }
     await whisper(giver, `<p>${game.i18n.format("DRPG.Passage.card.done", { target: esc(target.name) })}</p>`, asker?.id ? { whisper: [asker.id] } : {});
     return { shown: true };
+}
+
+/* ----------------------------------------------------------------------------------------- *
+ * 'Go through' a tunnel (E80 C2, 18.10.2026; the stage's P1-05 to P1-08): the primary GM carries out
+ * gm-bridge.mjs `passage.cross` - the sender owns the character (the row's guard), and the rest is
+ * judged here against the GMs' records and the world as it stands now, never the packet.
+ * ----------------------------------------------------------------------------------------- */
+
+/**
+ * The English reason of the bridge's closed list (bridge-guards.mjs `REASON_PATTERNS`) for a refusal's code
+ * (movement.mjs `tunnelVerdict`, `settleCrossingOnGm`). The player reads the code's own words
+ * (`DRPG.Bridge.why.<code>`), which are the words the door's veto says.
+ */
+export function crossingWhy(code) {
+    switch (code) {
+        case "notKnown": return "the character does not know that passage";
+        case "notAtPassage": return "the character is not at an end of that passage";
+        case "doorLocked": return "the room beyond is locked";
+        case "roomSealed": return "the room beyond is sealed";
+        case "chained": return "the character is chained where it stands";
+        case "cannotLeave": return "the character is held in the incident";
+        case "trialLocked": return "the Class Trial is in session";
+        case "noBudget": return "the character has no Move and no action left";
+        case "eclipseSpent": return "the character's Eclipse crossings are used up";
+        default: return "that cannot be done now";
+    }
+}
+
+/**
+ * Carry out a 'Go through': answers `{ crossed: true }` or `{ refused }` (`crossingWhy`'s reason, or the
+ * runner's "nothing was carried out" when the write fails). In `serialWrite`, one step per character at a
+ * time, so two asks in one breath read the price and the count each after the other's write. The tunnel is
+ * a secret tunnel of the GMs' records on a scene that still exists, the same answer as one the character
+ * does not know (`notKnown`) otherwise; the token is the character's on that scene, standing where the GMs
+ * read it (movement.mjs `gmSpotOf`: none they are putting back or hold as standing where the rules refuse -
+ * `notAtPassage`; E80 fix early-C2-G1). Then the doors' rules (`tunnelVerdict`, with the GMs' rows as `known`,
+ * the sender's role as the door's reading - `actsAsMastermind` - and the price left to the next step), the
+ * price taken (`settleCrossingOnGm`), the token read again (a move that landed in the price's round trip:
+ * `notAtPassage`, the price given back), the token written beside the far end (`tunnelLanding`) with
+ * `teleport`, `displace` and no animation, and on a write that throws the price given back exactly
+ * (`refundCrossingOnGm`). A crossing written is told as a door's is
+ * (`announceCrossingOnGm`: the owner's card and the traps' `drpgRoomCrossed`), and in an Eclipse by its veiled
+ * card, posted only then (`settleCrossingOnGm`'s `tell`, E80 fix r1-G2). Refused, nothing is written,
+ * paid or counted, and nothing is said on the GM's screen: the bridge tells the player. `asker` is the
+ * bridge's sender (the local road's own user); `stores`, `users` and `write` are the suite's (tier 2 "A10-18").
+ */
+export async function crossTunnel({ actorId, passageId } = {}, { asker = null, stores = PASSAGE_STORES, users = game.users,
+    write = (doc, data, options) => doc.update(data, options) } = {}) {
+    return serialWrite(`passage.cross/${actorId}`, async () => {
+        // The bridge runs it on the primary GM alone, and the local road only there.
+        if (!isPrimaryGm()) return { refused: "nothing was carried out: the token is moved on the primary GM's browser" };
+        const actor = typeof actorId === "string" ? game.actors?.get(actorId) ?? null : null;
+        const row = typeof passageId === "string" ? stores.map.get(passageId) : null;
+        const scene = row ? game.scenes?.get(row.sceneId) ?? null : null;
+        if (!actor || row?.state !== "secret" || !endsOf(row) || !scene) return { refused: crossingWhy("notKnown") };
+        const M = await import("./movement.mjs");
+        const mover = { gm: Boolean(asker?.isGM), mastermind: actsAsMastermind(actor, asker, { mastermind: stores.mastermind, users }) };
+        const known = secretRowsFrom({ map: stores.map, access: stores.access });
+        const passage = { id: passageId, sceneId: row.sceneId };
+        // A character with two tokens on the scene goes through with the one at an end. Where a token stands is the
+        // GMs' reading (movement.mjs `gmSpotOf`, E80 fix early-C2-G1): one they are putting back, or hold as standing
+        // where the rules refuse, stands at no end.
+        const judged = Array.from(scene.tokens ?? []).filter(t => t.actorId === actor.id).map(token => {
+            const at = M.gmSpotOf(token), verdict = M.tunnelVerdict(actor, passage, token, { mover, known, pay: false });
+            return { token, at, verdict: verdict?.code || at ? verdict : { code: "notAtPassage" } };
+        });
+        const { token, at, verdict } = judged.find(j => !j.verdict?.code) ?? judged[0]
+            ?? { token: null, at: null, verdict: M.tunnelVerdict(actor, passage, null, { mover, known, pay: false }) };
+        if (verdict?.code) return { refused: crossingWhy(verdict.code) };
+        const paid = await M.settleCrossingOnGm(actor, verdict.to);
+        if (paid.code) return { refused: crossingWhy(paid.code) };
+        // The price is a round trip, and a move can land in it - a put-back, a jump, a GM's hand. A token the GMs no
+        // longer read where it was judged is not moved from there, and the price goes back.
+        if (!M.gmSpotOf(token, at)) {
+            await M.refundCrossingOnGm(actor, paid.cost).catch(back => error("Could not give a tunnel crossing's price back", back));
+            return { refused: crossingWhy("notAtPassage") };
+        }
+        const spot = M.tunnelLanding(token, verdict.far, verdict.to);
+        try {
+            await write(token, { x: spot.x, y: spot.y, ...(spot.level ? { level: spot.level } : {}) },
+                { teleport: true, movementAction: "displace", animate: false });
+        } catch (err) {
+            error(`Could not move "${token.name}" through a tunnel`, err);
+            await M.refundCrossingOnGm(actor, paid.cost).catch(back => error("Could not give a tunnel crossing's price back", back));
+            return { refused: "nothing was carried out: the token could not be moved" };
+        }
+        // An Eclipse's veiled card, once the token stands at the far end (E80 fix r1-G2): never for a write that failed.
+        if (paid.tell) await paid.tell().catch(err => error("Could not tell the owner of an Eclipse crossing", err));
+        await M.announceCrossingOnGm(actor, verdict.from, verdict.to, token, paid.cost);
+        return { crossed: true };
+    });
+}
+
+/* ----------------------------------------------------------------------------------------- *
+ * Find Passage (E80 C3, 18.10.2026; the stage's P1-10 to P1-15, the owner's A10 proposal 13): Analyze's
+ * fourth road. The roller's browser throws Head and asks gm-bridge.mjs `passage.find`; the total is the
+ * GMs' record of the roll, and what it finds is judged here, on the primary, against the GMs' records and
+ * the world as it stands now - never the packet's room, floor or passage.
+ * ----------------------------------------------------------------------------------------- */
+
+/**
+ * What a passage search reads of the world, on this browser now: the suite hands a world of its own (A10-7).
+ * `place` is where the GMs read the character (movement.mjs `gmPlaceOf`, null where they read it nowhere),
+ * `sides` the two rooms of a row (movement.mjs `passageRooms`: a tunnel's each at its own end and floor),
+ * `knownRooms` the rooms this character has found on that scene - `liveShareWorld`'s readings, with the trial
+ * alone for the phase.
+ */
+async function liveFindWorld() {
+    const share = await liveShareWorld();
+    const { inClassTrial } = await import("./trial.mjs");
+    return { ...share, trial: () => inClassTrial() };
+}
+
+/**
+ * The open secret passages of `place` this character does not know, oldest first, each `{ id, row, here }`
+ * with `here` the index of the side (a tunnel's end) in this room: a wall's on this floor (or on none) whose
+ * map sides name the room, and a tunnel's end on this floor whose room is this one. Oldest is the map row's
+ * first stamp (the store's stamp of `sceneId`, written once at its create), then the id.
+ */
+function passagesToFind(actor, place, facts, stores) {
+    const floor = floorKey(place.level), out = [];
+    for (const [id, row] of Object.entries(secretRowsFrom({ map: stores.map, access: stores.access }))) {
+        if (row.sceneId !== place.scene.id || row.actorIds.includes(actor.id)) continue;
+        if (row.shape === "tunnel") {
+            const sides = facts.sides(row, { ends: row.ends }) ?? [];
+            const here = [0, 1].find(i => sides[i] === place.room && (floor === null || row.ends[i].level === null || row.ends[i].level === floor));
+            if (here !== undefined) out.push({ id, row, here });
+            continue;
+        }
+        if (floor !== null && row.level !== null && row.level !== floor) continue;
+        const seg = row.passageSeg ?? {};
+        const here = (facts.sides(row, { x1: seg.x1, y1: seg.y1, x2: seg.x2, y2: seg.y2 }) ?? []).indexOf(place.room);
+        if (here >= 0) out.push({ id, row, here });
+    }
+    const first = id => stores.map.stampOf(id, "sceneId");
+    return out.sort((a, b) => first(a.id) - first(b.id) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+}
+
+/**
+ * Carry out a Find Passage on the primary GM: answers `{ refused }` with a reason of the bridge's closed list
+ * (bridge-guards.mjs `REASON_PATTERNS`), else `{ searched: true, found }`, or for a Reroll's replay (`undo`,
+ * reroll.mjs `settleAnalyze`) one of `{ found, to }`, `{ kept }`, `{ lost }`, `{ nothing }`. In `serialWrite`,
+ * one search per character at a time. Refused: off the primary, in a Class Trial, for no student, a dead one
+ * (a death nobody has found is `cannotNow`, never named), a Monocub, and - but for a replay's own find, and a replay
+ * handed its first throw's place (`at`), which searches there, or with `at` null nowhere - one the GMs do not read standing in a room
+ * (`world.place`: no token, a put-back on its way, a standing the rules refuse; never the room of the token's
+ * document alone, which the player's own browser writes) - and a replay handed `at` whom the GMs no longer read in that
+ * room, on that scene and floor (E80 fix r1-G5). A search
+ * beats `ACTIONS.analyze.passageThreshold` or is a critical; it finds the oldest open secret passage here the
+ * character does not know (`passagesToFind`) - none for the asker acting as the Mastermind through it
+ * (`actsAsMastermind`, the door's reading), who knows them all - and writes the cell `found` with the roll
+ * (`rollId`), the character's `touch` row, a log row, and the copies. One card tells the character's owner
+ * (the asker, a player) and the GMs, of one shape whatever came of it: the passage found and the room it leads
+ * to as that owner may name it, or "no hidden passage here" - so a miss, an empty room and the Mastermind read
+ * alike - with the sound `passageFound` (the GMs hear it too) or `searchNothing`. The primary's screen says it
+ * once; no card goes to the GMs alone. A replay writes no card - the Reroll's lines say it - and takes back only
+ * the cell its own roll wrote. A trap watching for a passage search (traps.mjs `onPassageHunted`) is told here,
+ * once the search stands and before its outcome, on every first throw and never for a replay: since E80 fix r1-G1
+ * (the review's E80-SEC-1), where until then the roller's browser raised it, so a console that asked for the find
+ * without raising it searched past every trap, and the room the trap read was that browser's word. `asker` is the
+ * bridge's sender; `stores`, `users`, `world`, `whisper`, `toast`, `note`, `primary` and `hunted` are the suite's
+ * (A10-7, R604).
+ */
+export async function resolvePassageSearch({ actorId, total = 0, isCritical = false, rollId = null, undo = false, at = undefined } = {}, { asker = null,
+    stores = PASSAGE_STORES, users = game.users, world = null, whisper = whisperToOwner, toast = text => ui.notifications?.info(text),
+    note = noteFindFact, primary = isPrimaryGm, hunted = event => Hooks.callAll("drpgPassageHunted", event) } = {}) {
+    return serialWrite(`passage.find/${actorId}`, async () => {
+        if (!primary()) return { refused: "nothing was carried out: a passage search is judged on the primary GM's browser" };
+        const facts = world ?? await liveFindWorld();
+        if (facts.trial()) return { refused: "the Class Trial is in session" };
+        const actor = typeof actorId === "string" ? facts.actor(actorId) : null;
+        if (!actor || actor.type !== "character" || facts.monokuma(actor)) return { refused: "no such character" };
+        if (facts.dead(actor)) return { refused: "that cannot be done now" };
+        if (facts.monocub(actor)) return { refused: "that action is not open to that character now" };
+
+        const beat = Boolean(isCritical) || Number(total) >= ACTIONS.analyze.passageThreshold;
+        const door = actsAsMastermind(actor, asker, { mastermind: stores.mastermind, users });
+        const roll = typeof rollId === "string" && rollId ? rollId : null;
+        const mine = undo && roll ? Object.entries(stores.access.entries())
+            .find(([key, cell]) => key.endsWith(`/${actor.id}`) && cell?.how === "found" && cell.rollId === roll)?.[0] ?? null : null;
+        if (mine && beat) return { kept: true };
+        if (mine) {
+            await stores.access.drop(mine);
+            await touch([actor.id], stores);
+            await logRow("lost", mine.slice(0, -(actor.id.length + 1)), actor.id, stores);
+            tellAfter(stores);
+            return { lost: true };
+        }
+        // Where the GMs read the character (`facts.place`; E80 fix early-C3-G2, the review's E80-C3-1), asked after a
+        // replay's own find: its Reroll takes that back or keeps it wherever the character stands, so a jump out of the
+        // GMs' reading does not turn the replay into a refusal that gives the Reroll back and keeps the find. A replay that
+        // searches again searches where its first throw was judged (`at`, the GMs' fact `findPlace` that `noteFindFact`
+        // wrote; E80 fix r1-G3, the review's E80-C3-2), as a Search's replay draws from its roll's room: until then it
+        // searched where the character stood at the Reroll, so a miss in an empty room rerolled after a walk found a
+        // passage in a room where no Analyze was paid or thrown. A replay handed no such place (null: a row written before
+        // the fact was) searches nowhere, so its Reroll is given back whole. And it searches there only while the GMs still
+        // read the character in that room, on that scene and floor (E80 fix r1-G5, the review's E80-G-2), as a Find Stash's
+        // replay does (vault.mjs `resolveStashSearch`): until then a miss by a passage, rerolled after a walk away, found
+        // that passage in a room the character had left. A character no longer there is refused, and its Reroll given back.
+        if (undo && at !== undefined) {
+            const held = heldPlace(at);
+            const now = held ? facts.place(actor, { sceneId: held.scene.id }) : null;
+            if (!held || !now?.room || now.scene?.id !== held.scene.id || now.room !== held.room || floorKey(now.level) !== held.level) {
+                return { refused: "the character is not in that room" };
+            }
+        }
+        const place = undo && at !== undefined ? heldPlace(at) : facts.place(actor);
+        if (!place?.room || !place.scene?.id) return { refused: "the character has no token on a scene" };
+        // The trap's word (E80 fix r1-G1): every first throw that stands, hit or miss, in the room the GMs read.
+        if (!undo) hunted({ actor, room: place.room });
+
+        const pick = beat && !door ? passagesToFind(actor, place, facts, stores)[0] ?? null : null;
+        let to = null;
+        if (pick) {
+            const at = serverNow();
+            await stores.access.patch(`${pick.id}/${actor.id}`, { how: "found", at, by: { [actor.id]: at }, ...(roll ? { rollId: roll } : {}) }, { fillOnly: true });
+            await touch([actor.id], stores);
+            await logRow("found", pick.id, actor.id, stores);
+            tellAfter(stores);
+            const named = roomsAsKnown(stores.map.get(pick.id), facts, facts.knownRooms(actor, pick.row.sceneId));
+            to = pick.here === 0 ? named.to : named.from;
+        }
+        if (undo) return pick ? { found: true, to } : { nothing: true };
+
+        if (!pick) await logRow("searched", null, actor.id, stores);
+        const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
+        const people = peopleOf(users);
+        const owner = asker && !asker.isGM ? asker : ownerOf(actor, people);
+        const words = pick ? game.i18n.format("DRPG.Analyze.passageFound", { to: esc(to) }) : game.i18n.localize("DRPG.Analyze.passageNothing");
+        await whisper(actor, `<p>${words}</p>`, {
+            whisper: [...new Set([...(owner ? [owner.id] : []), ...people.filter(u => u.isGM).map(u => u.id)])],
+            flags: { [MODULE_ID]: { sfx: { key: pick ? "passageFound" : "searchNothing", gm: Boolean(pick) } } }
+        });
+        if (pick) {
+            const all = roomsAsKnown(stores.map.get(pick.id), facts, null);
+            toast(game.i18n.format("DRPG.Passage.gm.found", { actor: actor.name, from: all.from, to: all.to }));
+        } else toast(game.i18n.format("DRPG.Passage.gm.searched", { actor: actor.name, room: place.room }));
+        await note({ actorId: actor.id, rollId: roll, by: asker?.id ?? null,
+            place: { sceneId: place.scene.id, room: place.room, level: floorKey(place.level) } });
+        return { searched: true, found: Boolean(pick) };
+    });
+}
+
+/** A first search's place as `noteFindFact` keeps it, `{ sceneId, room, level }`, in `gmPlaceOf`'s shape; null for anything else. */
+function heldPlace(at) {
+    if (!at || typeof at.sceneId !== "string" || !at.sceneId || typeof at.room !== "string" || !at.room) return null;
+    return { scene: game.scenes?.get(at.sceneId) ?? { id: at.sceneId }, room: at.room, level: typeof at.level === "string" ? at.level : null };
+}
+
+/**
+ * The GMs' facts on the roll a first search was thrown with (action-rolls.mjs `rollOfFact`): its Reroll replays a passage
+ * search (`findPassage`), in the place the GMs read the searcher at that throw (`findPlace`: scene, room and floor ids).
+ */
+async function noteFindFact({ actorId, rollId, by, place = null }) {
+    if (!rollId) return false;
+    const rolls = await import("./action-rolls.mjs");
+    return rolls.noteFactOn(rolls.rollOfFact({ rollId, by, actorId, actions: ["analyze"] }), { findPassage: true, ...(place ? { findPlace: place } : {}) });
 }
 
 /* ----------------------------------------------------------------------------------------- *
@@ -1000,6 +1683,72 @@ function takenOn(sceneId, except, stores) {
         .map(([, row]) => ({ wallId: row.passageWallId, ...row.passageSeg }));
 }
 
+/**
+ * Where one end of a tunnel or stairs lands for a click at `point` on `level` (E80 C1): the middle of the
+ * grid square clicked, `{ x, y, level, room }` with the room it stands in on that floor (the first by name
+ * where rooms overlap, as movement.mjs `passageRooms` names it), or `{ refused }` - "floor" for a floor the
+ * scene has not (none on a scene with no floors), "offRoom" for a square in no room of that floor,
+ * "endTaken" for a square another passage's end holds on that floor (`taken`, `[{ x, y, level }]`). The
+ * middle of a square because the token that comes through stands on one; a room is read where a stretch's
+ * sides are (`pickRooms`). Pure but for `scene`.
+ */
+export function tunnelEndAt(scene, point, level = null, { taken = [] } = {}) {
+    const cell = Number(scene?.grid?.size) || 100;
+    const px = Number(point?.x), py = Number(point?.y);
+    const floors = floorsOf(scene);
+    const floor = typeof level === "string" && level ? level : null;
+    if (floors.length ? !floors.some(f => f.id === floor) : floor !== null) return { refused: "floor" };
+    if (!Number.isFinite(px) || !Number.isFinite(py)) return { refused: "offRoom" };
+    const x = (Math.floor(px / cell) + 0.5) * cell, y = (Math.floor(py / cell) + 0.5) * cell;
+    const room = pickRooms(scene, floor).filter(r => r.here && inFlatPolygons(r.polygons, x, y)).map(r => r.name).sort()[0];
+    if (!room) return { refused: "offRoom" };
+    if ((taken ?? []).some(end => end.x === x && end.y === y && (end.level ?? null) === floor)) return { refused: "endTaken" };
+    return { x, y, level: floor, room };
+}
+
+/* The console's words for a tunnel's codes (`tunnelRowFor`): English, as every refusal here is. */
+const TUNNEL_REFUSALS = Object.freeze({
+    floor: "name one of the scene's floors for each end (none on a scene with no floors).",
+    offRoom: "an end is in no room on its floor.",
+    endTaken: "an end stands on the square of another passage's end.",
+    oneRoom: "both ends are in one room.",
+    trial: "the trial hall has no secret passages."
+});
+
+/**
+ * The row of a new tunnel or stairs between `ends` on `scene` (E80 C1): `{ row }`, or `{ refused }` in
+ * the console's words. Each end judged by `tunnelEndAt` on its own floor, the two in two rooms, on a
+ * scene that is no trial's, and `rooms`, when the caller names them, the two the ends stand in. The row
+ * is on no floor in particular (`level` null): each end carries its own. The pick and the console ask
+ * this one rule, as `passageRowFor` is the one rule of a stretch.
+ */
+export function tunnelRowFor(scene, ends, { rooms = [], startAccess = [], taken = [] } = {}) {
+    if (!scene?.id) return { refused: "no such scene." };
+    if (isTrialScene(scene)) return { refused: TUNNEL_REFUSALS.trial };
+    if (!Array.isArray(ends) || ends.length !== 2) return { refused: "a tunnel needs two ends, [{ x, y, level }, { x, y, level }]." };
+    const at = [];
+    for (const end of ends) {
+        const one = tunnelEndAt(scene, end, end?.level ?? null, { taken });
+        if (one.refused) return { refused: TUNNEL_REFUSALS[one.refused] };
+        at.push(one);
+    }
+    if (at[0].room === at[1].room) return { refused: TUNNEL_REFUSALS.oneRoom };
+    const named = (rooms ?? []).filter(r => typeof r === "string");
+    const found = at.map(end => end.room);
+    if (named.length && named.slice().sort().join("\n") !== found.slice().sort().join("\n")) {
+        return { refused: `the ends stand in ${found.join(" and ")}, not the rooms named.` };
+    }
+    return { row: { sceneId: scene.id, level: null, shape: "tunnel", ends: at.map(({ x, y, level }) => ({ x, y, level })),
+        rooms: found, state: "secret", startAccess: [...new Set(startAccess ?? [])] } };
+}
+
+/** The ends of a scene's tunnels, `[{ x, y, level }]`, but the passage `except`'s, whatever their state: what a new end may not land on. */
+function endsTakenOn(sceneId, except, stores) {
+    return Object.entries(stores.map.entries())
+        .filter(([id, row]) => id !== except && row?.sceneId === sceneId)
+        .flatMap(([, row]) => endsOf(row) ?? []);
+}
+
 /** A scene's walls as documents: the pick's and the repick's one read of them. */
 function sceneWalls(scene) {
     return Array.from(scene?.walls ?? []);
@@ -1035,14 +1784,15 @@ const escp = text => foundry.utils.escapeHTML(String(text ?? ""));
  * The pick's window, `{ step(n, rooms), refuse(code), close() }`: which click is next, the rooms the
  * first one found, a refusal's line; closing it (Cancel, Esc, its cross) is `cancel`.
  */
-function pickPrompt({ again, cancel }) {
+function pickPrompt({ again, tunnel = false, cancel }) {
     let closing = false;
+    const say = n => tp(tunnel ? (n === 1 ? "tunnelFirst" : "tunnelSecond") : n === 1 ? "first" : "second");
     const dialog = new foundry.applications.api.DialogV2({
-        window: { title: tp(again ? "retitle" : "title") },
+        window: { title: tp(tunnel ? "tunnelTitle" : again ? "retitle" : "title") },
         classes: ["drpg-panel", "drpg-passage-pick"],
         position: { width: 360, top: 80 },
         content: `<p data-drpg-pick-step>${escp(game.i18n.format("DRPG.Passage.pick.step", { n: 1 }))}</p>
-            <p data-drpg-pick-say>${escp(tp("first"))}</p><p class="notes" data-drpg-pick-where hidden></p>
+            <p data-drpg-pick-say>${escp(say(1))}</p><p class="notes" data-drpg-pick-where hidden></p>
             <p class="notes drpg-passage-pick-why" data-drpg-pick-why hidden></p>`,
         buttons: [{ action: "cancel", label: tp("cancel"), default: true }],
         rejectClose: false
@@ -1059,7 +1809,7 @@ function pickPrompt({ again, cancel }) {
     return {
         step(n, rooms) {
             set("[data-drpg-pick-step]", game.i18n.format("DRPG.Passage.pick.step", { n }));
-            set("[data-drpg-pick-say]", tp(n === 1 ? "first" : "second"));
+            set("[data-drpg-pick-say]", say(n));
             set("[data-drpg-pick-where]", (rooms ?? []).join(" - "));
             set("[data-drpg-pick-why]", "");
         },
@@ -1131,25 +1881,37 @@ export function drawPickLayer({ first = null, at = null, ok = true } = {}) {
  * viewed first when another is on screen, and the floor is the one on screen. Each click is snapped
  * (`snapToWall`, `stretchBetween`) and a refused one is said in the pick's window and asked again;
  * the second writes through `createPassage` or `repickPassage`. Answers the passage's id, or null
- * when it was cancelled or refused. `board`, `prompt`, `preview` and `notify` are the suite's to replace.
+ * when it was cancelled or refused. `board`, `prompt`, `preview`, `notify` and `floorNow` (the floor on
+ * screen, by id) are the suite's to replace.
+ *
+ * With `shape` "tunnel" (E80 C1) the two clicks are a tunnel's or stairs' two ends: each the middle of
+ * the square clicked, in a room of the floor on screen at that click (`tunnelEndAt`), so the GM switches
+ * the floor between the clicks for stairs; the second in another room than the first. A tunnel is never
+ * picked again: no wall moves under it.
  */
-export async function startPassagePick(scene, { dialog = null, passageId = null, stores = PASSAGE_STORES, board = canvasBoard,
-    prompt = pickPrompt, preview = drawPickLayer, notify = (kind, text) => ui.notifications?.[kind]?.(text) } = {}) {
+export async function startPassagePick(scene, { dialog = null, passageId = null, shape = "wall", stores = PASSAGE_STORES, board = canvasBoard,
+    prompt = pickPrompt, preview = drawPickLayer, notify = (kind, text) => ui.notifications?.[kind]?.(text),
+    floorNow = () => viewedLevel()?.id ?? null } = {}) {
     if (!game.user?.isGM) return refuse("only a GM picks one.");
     if (!scene?.id) return null;
     const warnWhy = code => { notify("warn", tp(`why.${code}`)); return null; };
     if (isTrialScene(scene)) return warnWhy("trial");
+    const tunnel = shape === "tunnel";
+    if (tunnel && passageId) return refuse("a tunnel is never picked again.");
     const again = passageId ? stores.map.get(passageId) : null;
     if (passageId && (again?.state !== "broken" || again.sceneId !== scene.id)) return refuse(`"${passageId}" is not a broken passage of this scene.`);
     if (viewedScene()?.id !== scene.id) await scene.view();
     const floors = floorsOf(scene);
-    const viewed = viewedLevel();
-    const level = again ? again.level ?? null
-        : floors.length ? (floors.some(f => f.id === viewed?.id) ? viewed.id : floors[0].id) : null;
+    const floorOf = () => {
+        const viewed = floorNow();
+        return floors.length ? (floors.some(f => f.id === viewed) ? viewed : floors[0].id) : null;
+    };
+    const level = again ? again.level ?? null : floorOf();
     const walls = sceneWalls(scene).filter(w => onLevel(w, level));
     const rooms = pickRooms(scene, level);
     const cell = Number(scene.grid?.size) || 100;
     const reachOf = { radius: PICK_RADIUS * cell / 100, reach: PICK_REACH * cell / 100, taken: takenOn(scene.id, passageId, stores) };
+    const endsTaken = tunnel ? endsTakenOn(scene.id, null, stores) : [];
 
     return new Promise(resolve => {
         let first = null, done = false, writing = false, stop = null, ask = null;
@@ -1163,12 +1925,18 @@ export async function startPassagePick(scene, { dialog = null, passageId = null,
             resolve(value);
         };
         const cancel = () => (writing ? null : end(null));
-        ask = prompt({ again: Boolean(again), cancel });
-        const snap = point => snapToWall(point, walls, rooms, { ...reachOf, only: first?.wallId ?? null });
+        ask = prompt({ again: Boolean(again), tunnel, cancel });
+        const endAt = point => {
+            const at = tunnelEndAt(scene, point, floorOf(), { taken: endsTaken });
+            return !at.refused && first && at.room === first.room ? { refused: "oneRoom" } : at;
+        };
+        const snap = tunnel ? endAt : point => snapToWall(point, walls, rooms, { ...reachOf, only: first?.wallId ?? null });
         const move = point => {
             if (done) return;
             const at = snap(point);
-            preview({ first, at: at.refused ? point : at, ok: !at.refused });
+            // A tunnel's first end on another floor than the one on screen is not drawn there (stairs).
+            const from = tunnel && first && first.level !== floorOf() ? null : first;
+            preview({ first: from, at: at.refused ? point : at, ok: !at.refused });
         };
         const click = async point => {
             if (done || writing) return null;
@@ -1177,22 +1945,24 @@ export async function startPassagePick(scene, { dialog = null, passageId = null,
             if (!first) {
                 first = at;
                 preview({ first });
-                return ask.step(2, at.rooms);
+                return ask.step(2, tunnel ? [at.room] : at.rooms);
             }
-            const stretch = stretchBetween(first, at, { taken: reachOf.taken });
+            const stretch = tunnel ? { rooms: [first.room, at.room] } : stretchBetween(first, at, { taken: reachOf.taken });
             if (stretch.refused) return ask.refuse(stretch.refused);
             writing = true;
             let made = null;
             try {
-                made = again
-                    ? (await repickPassage(passageId, stretch, { stores, scene })) && passageId
-                    : await createPassage({ sceneId: scene.id, wallId: stretch.wallId, seg: stretch.seg, rooms: stretch.rooms, level }, { stores, scene });
+                made = tunnel
+                    ? await createPassage({ sceneId: scene.id, shape: "tunnel", ends: [first, at].map(({ x, y, level: floor }) => ({ x, y, level: floor })) }, { stores, scene })
+                    : again
+                        ? (await repickPassage(passageId, stretch, { stores, scene })) && passageId
+                        : await createPassage({ sceneId: scene.id, wallId: stretch.wallId, seg: stretch.seg, rooms: stretch.rooms, level }, { stores, scene });
             } catch (err) {
                 error("Could not write the secret passage the pick made", err);
             } finally {
                 writing = false;
             }
-            if (made) notify("info", game.i18n.format(`DRPG.Passage.pick.${again ? "moved" : "made"}`, { passage: stretch.rooms.join(" - ") }));
+            if (made) notify("info", game.i18n.format(`DRPG.Passage.pick.${tunnel ? "tunnelMade" : again ? "moved" : "made"}`, { passage: stretch.rooms.join(" - ") }));
             return end(made || null);
         };
         stop = board({ click, move, cancel });
@@ -1211,6 +1981,21 @@ export function passageStretches(sceneId, level = null, { stores = PASSAGE_STORE
     return Object.entries(stores.map.entries())
         .filter(([, row]) => row?.sceneId === sceneId && row.passageSeg && (!level || !row.level || row.level === level))
         .map(([id, row]) => ({ id, state: row.state, ...row.passageSeg }));
+}
+
+/**
+ * A GM: the tunnels of a scene with an end on a floor (or every floor, `level` null), `[{ id, state, ends }]`,
+ * `ends` only those on that floor - both for one floor's tunnel, one for stairs (E80 C1); [] elsewhere.
+ */
+export function passageTunnels(sceneId, level = null, { stores = PASSAGE_STORES } = {}) {
+    if (!game.user?.isGM) return [];
+    const out = [];
+    for (const [id, row] of Object.entries(stores.map.entries())) {
+        const ends = row?.sceneId === sceneId ? endsOf(row) : null;
+        const here = (ends ?? []).filter(end => !level || !end.level || end.level === level);
+        if (here.length) out.push({ id, state: row.state, ends: here });
+    }
+    return out;
 }
 
 /* Each state's look: a secret one dashed in the passage colour, a closed one dashed grey, a broken one dotted red. */
@@ -1242,7 +2027,20 @@ export function drawPassagesLayer(layer = overlayLayer("passages"), { stores = P
         dashedLine(g, s.x1, s.y1, s.x2, s.y2, look.dash, look.gap);
         layer.addChild(g);
     }
-    return stretches.length;
+    // A tunnel's ends on this floor, a ring each, joined by the dashed line when both are here (E80 C1).
+    const tunnels = passageTunnels(scene.id, level, { stores });
+    const ring = (Number(scene.grid?.size) || 100) * 0.3;
+    for (const t of tunnels) {
+        const look = LOOK[t.state] ?? LOOK.secret;
+        const g = new PIXI.Graphics();
+        g.name = t.id;
+        g.drpgState = t.state;
+        g.lineStyle(look.width, overlayColour(look.token, look.fallback), 0.95);
+        for (const end of t.ends) g.drawCircle(end.x, end.y, ring);
+        if (t.ends.length === 2) dashedLine(g, t.ends[0].x, t.ends[0].y, t.ends[1].x, t.ends[1].y, look.dash, look.gap);
+        layer.addChild(g);
+    }
+    return stretches.length + tunnels.length;
 }
 
 /* A change the primary merged, or a student given to another player: the copies are told, once, a moment later. */
@@ -1284,6 +2082,26 @@ export function onUserUpdated(user, change, options, userId, { retell = retellSo
     return change?.role !== undefined ? retell() : undefined;
 }
 
+/**
+ * A student was created: one created already owned by a player (a duplicate, an import, a player's own) changes that
+ * player's copy - every public passage names it (E80 C6) - and no ownership update follows to tell them, so the copies
+ * are told (E80 fix r1-G3; the C6 gap "a character created while a passage is public reaches its owner's copy only on
+ * the next request or retell"). Any other actor is not the passages' business. `retell` is the suite's (R608).
+ */
+export function onActorCreated(actor, options, userId, { retell = retellSoon } = {}) {
+    return actor?.type === "character" ? retell() : undefined;
+}
+
+/**
+ * An actor's ownership or type changed: a player who owns a student now, or no more, and an actor made a student or no
+ * longer one (a type change, E80 fix r1-G5; the review's E80-G-4: every public passage names each student, so one made a
+ * student while a passage is public changes its owners' copies), each change a player's copy - so the copies are told.
+ * Any other change of an actor is not the passages' business. `retell` is the suite's (R610).
+ */
+export function onActorUpdated(actor, change, options, userId, { retell = retellSoon } = {}) {
+    return change?.ownership !== undefined || change?.type !== undefined ? retell() : undefined;
+}
+
 /* The primary GM's watch on the walls (the plan's K11): a wall whose segment changed, or that went, may break a passage. */
 function onWallMoved(wall, change) {
     if (!isPrimaryGm() || !foundry.utils.hasProperty(change ?? {}, "c")) return;
@@ -1312,7 +2130,11 @@ async function onRouteSettled({ tokenDoc, room, provisional = false } = {}) {
 /**
  * At ready, on a GM's browser: the ask's listener, the watches that tell the players what another
  * GM changed or who came, went or changed role, and the primary's watches on the walls and the routes (each asks `isPrimaryGm` when it
- * fires, so a GM who becomes the primary later takes them over).
+ * fires, so a GM who becomes the primary later takes them over). Since E80 fix r1-G1 also the secret doors' pass
+ * (`settleSecretDoors`): at the ready, if this browser is the primary then, and when a GM leaves, on whoever is
+ * the primary after it (`onDoorsGmLeft`) - since E80 fix r1-G5 also when a user's role changes
+ * (`onDoorsRoleChanged`), and since E80 fix r2-G9 on a scene created (`onSceneCreated`); and a GM's own change or
+ * create of a secret door writes the state on it (`stampSecretDoor`, `stampNewSecretDoor`).
  */
 export function registerPassagesGm() {
     overlayDrawer("passages", layer => drawPassagesLayer(layer));
@@ -1327,15 +2149,23 @@ export function registerPassagesGm() {
             if (key === `${MODULE_ID}.${SETTINGS.gmPassageMap}` || key === `${MODULE_ID}.${SETTINGS.gmPassageAccess}`
                 || key === `${MODULE_ID}.${SETTINGS.mastermind}`) retellSoon();
         });
-        Hooks.on("updateActor", (actor, change) => { if (change?.ownership !== undefined) retellSoon(); });
+        Hooks.on("updateActor", onActorUpdated);
+        Hooks.on("createActor", onActorCreated);
         Hooks.on("deleteActor", () => retellSoon());
         Hooks.on("userConnected", onUserConnected);
         Hooks.on("updateUser", onUserUpdated);
         onGmStoresAudible(() => retellSoon());
         Hooks.on("updateWall", onWallMoved);
+        Hooks.on("preUpdateWall", stampSecretDoor);
+        Hooks.on("preCreateWall", stampNewSecretDoor);
+        Hooks.on("updateWall", onSecretDoorChanged);
         Hooks.on("deleteWall", onWallDeleted);
+        Hooks.on("userConnected", onDoorsGmLeft);
+        Hooks.on("updateUser", onDoorsRoleChanged);
+        Hooks.on("createScene", onSceneCreated);
         Hooks.on("drpgRouteSettled", onRouteSettled);
         redrawGmOverlay("passages");
         passageMapStore.whenHydrated().then(() => redrawGmOverlay("passages")).catch(() => {});
+        if (!gmStoresQuiet()) settleSecretDoors().catch(err => error("Could not put the secret doors back at the ready", err));
     });
 }

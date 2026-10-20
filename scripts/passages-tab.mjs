@@ -13,7 +13,8 @@
  * The cross asks first only when the student stands in one of the passage's rooms on its scene -
  * the rooms on the map either side of its stretch (passages-gm.mjs `passageRoomsOnMap`), not the
  * names the row shows: 'Revoke now' or 'Revoke when they leave the room' (`revokeWhenLeaving`); a
- * student anywhere else forgets it at once. The Mastermind knows every passage (the owner's Q7)
+ * student anywhere else forgets it at once. On a public passage the cross always asks, and says what a revoke
+ * does there: nothing until Make secret, then whether the student still knows it (E80 fix r1-G8). The Mastermind knows every passage (the owner's Q7)
  * and is listed nowhere here.
  *
  * Nothing here names a passage's wall or stretch (R560: the records' files alone do); Show asks
@@ -24,19 +25,30 @@
  * start the pick on the board (passages-gm.mjs `startPassagePick`, E79 C6): Room Setup is minimized
  * for the two clicks and the table redrawn after them. E44 and E46 take the tab's table with the
  * other Room Setup tables when they rebuild them.
+ *
+ * 'Tunnel or stairs' beside it (E80 C1) starts the same pick for a tunnel's two ends, a click in each
+ * room (`startPassagePick` with `shape` "tunnel"); its row is a row as any passage's, named by the two
+ * rooms its ends stand in.
+ *
+ * Since E80 C6 (18.10.2026; D4) the columns are Rooms, Kind (secret or public), Shape (in a wall, or a tunnel or
+ * stairs), Origin (the GM's, or a converted secret door), then who knows it, the start, the state and the buttons,
+ * where 'Make public' and 'Make secret' stand beside Close (passages-gm.mjs `makePassagePublic`, `makePassageSecret`).
+ * A public passage's chips stay the students who knew it before, whom Make secret leaves knowing it.
  */
 
 import { error } from "./utils.mjs";
 import { keepFresh } from "./live.mjs";
 import {
     PASSAGE_STORES, listPassages, grantPassage, revokePassage, revokeWhenLeaving, setStartAccess,
-    closePassage, openPassage, deletePassage, isMastermindActor, undeliveredOf, passageMiddle, startPassagePick, passageRoomsOnMap
+    closePassage, openPassage, deletePassage, isMastermindActor, undeliveredOf, passageMiddle, startPassagePick, passageRoomsOnMap,
+    makePassagePublic, makePassageSecret
 } from "./passages-gm.mjs";
+import { viewPassage } from "./passages.mjs";
 
 const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
 const t = key => game.i18n.localize(key);
 const tf = (key, data) => game.i18n.format(key, data);
-const HOW = { gm: "DRPG.Passage.tab.howGm", start: "DRPG.Passage.tab.howStart", shown: "DRPG.Passage.tab.howShown" };
+const HOW = { gm: "DRPG.Passage.tab.howGm", start: "DRPG.Passage.tab.howStart", shown: "DRPG.Passage.tab.howShown", found: "DRPG.Passage.tab.howFound" };
 
 /** A passage's rooms as the tab and its windows name it: "Kitchen - Dining Hall", or that none is named. */
 export function passageTitle(passage) {
@@ -102,9 +114,16 @@ function rowHtml(passage, { stores, students, actors, users, told }) {
     }
     const stateWord = { secret: "DRPG.Passage.tab.stateSecret", closed: "DRPG.Passage.tab.stateClosed", broken: "DRPG.Passage.tab.stateBroken" }[state];
     const toggle = state === "closed" ? "open" : "close";
+    const kind = passage.public === true ? "public" : "secret";
+    const shape = passage.shape === "tunnel" ? "shapeTunnel" : "shapeWall";
+    const origin = passage.origin === "door" ? "originDoor" : "originGm";
+    const reveal = kind === "public" ? "secret" : "public";
 
     return `<tr data-drpg-passage="${esc(passage.id)}">
         <td>${esc(passageTitle(passage))}</td>
+        <td><span class="drpg-passage-kind" data-kind="${kind}">${esc(t(kind === "public" ? "DRPG.Passage.tab.kindPublic" : "DRPG.Passage.tab.kindSecret"))}</span></td>
+        <td>${esc(t(`DRPG.Passage.tab.${shape}`))}</td>
+        <td>${esc(t(`DRPG.Passage.tab.${origin}`))}</td>
         <td><span class="drpg-passage-chips">${knowsCell}</span></td>
         <td><span class="drpg-passage-chips">${startCell}</span></td>
         <td class="drpg-passage-state-cell"><span class="drpg-passage-state" data-state="${state}">${esc(t(stateWord))}</span>${notes.join("")}</td>
@@ -113,6 +132,7 @@ function rowHtml(passage, { stores, students, actors, users, told }) {
                 state === "broken" ? `
             <button type="button" class="drpg-mini-button" data-drpg-passage-act="repick">${esc(t("DRPG.Passage.pick.repick"))}</button>` : ""}
             <button type="button" class="drpg-mini-button" data-drpg-passage-act="${toggle}"${state === "broken" ? " disabled" : ""}>${esc(t(toggle === "open" ? "DRPG.Passage.tab.open" : "DRPG.Passage.tab.close"))}</button>
+            <button type="button" class="drpg-mini-button" data-drpg-passage-act="${reveal}">${esc(t(reveal === "public" ? "DRPG.Passage.tab.makePublic" : "DRPG.Passage.tab.makeSecret"))}</button>
             <button type="button" class="drpg-mini-button" data-drpg-passage-act="delete">${esc(t("DRPG.Passage.tab.delete"))}</button>
         </span></td>
     </tr>`;
@@ -128,8 +148,8 @@ export function passagesTabBody(scene, { stores = PASSAGE_STORES, students = [],
     const passages = listPassages({ stores }).filter(p => p.sceneId === scene?.id)
         .sort((a, b) => passageTitle(a).localeCompare(passageTitle(b)) || a.id.localeCompare(b.id));
     const table = passages.length ? `<table class="drpg-vault-table drpg-room-setup-table drpg-passage-table">
-        <colgroup><col class="drpg-col-room" /><col class="drpg-col-knows" /><col class="drpg-col-knows-start" /><col class="drpg-col-state" /><col class="drpg-col-actions" /></colgroup>
-        <thead><tr><th>${esc(t("DRPG.Passage.tab.rooms"))}</th><th>${esc(t("DRPG.Passage.tab.knows"))}</th><th>${esc(t("DRPG.Passage.tab.start"))}</th><th>${esc(t("DRPG.Passage.tab.state"))}</th><th></th></tr></thead>
+        <colgroup><col class="drpg-col-room" /><col class="drpg-col-kind" /><col class="drpg-col-shape" /><col class="drpg-col-origin" /><col class="drpg-col-knows" /><col class="drpg-col-knows-start" /><col class="drpg-col-state" /><col class="drpg-col-actions" /></colgroup>
+        <thead><tr>${["rooms", "kind", "shape", "origin", "knows", "start", "state"].map(k => `<th>${esc(t(`DRPG.Passage.tab.${k}`))}</th>`).join("")}<th></th></tr></thead>
         <tbody>${passages.map(p => rowHtml(p, { stores, students, actors, users, told })).join("")}</tbody></table>`
         : `<p class="drpg-passage-none" data-drpg-passage-empty>${esc(t("DRPG.Passage.tab.empty"))}</p>`;
     return `${table}<p class="notes">${esc(t("DRPG.Passage.tab.footnote"))}</p>`;
@@ -139,7 +159,9 @@ export function passagesTabBody(scene, { stores = PASSAGE_STORES, students = [],
 export function passagesTabHtml(scene, options = {}) {
     if (!game.user?.isGM) return "";
     return `<p>${esc(t("DRPG.Passage.tab.intro"))}</p><div class="drpg-passage-bar"><button type="button" class="drpg-mini-button"
-        data-drpg-passage-new>${esc(t("DRPG.Passage.pick.new"))}</button><span class="notes">${esc(t("DRPG.Passage.pick.newHint"))}</span></div>
+        data-drpg-passage-new>${esc(t("DRPG.Passage.pick.new"))}</button><button type="button" class="drpg-mini-button"
+        data-drpg-passage-tunnel>${esc(t("DRPG.Passage.pick.tunnel"))}</button><span class="notes">${esc(t("DRPG.Passage.pick.newHint"))} ${
+        esc(t("DRPG.Passage.pick.tunnelHint"))}</span></div>
         <div data-drpg-passages>${passagesTabBody(scene, options)}</div>`;
 }
 
@@ -147,20 +169,31 @@ export function passagesTabHtml(scene, options = {}) {
  * What the buttons ask, each replaceable by the suite (R561) and by scenario 76's real windows.
  * ------------------------------------------------------------------------------------------- */
 
-/** 'Revoke now' ("now"), 'Revoke when they leave the room' ("leave") or neither (null). */
-async function askRevoke({ name, room, title }) {
+/**
+ * What the cross asks the GM, `{ ask, note, buttons }` (each button `[action, label]`). A secret passage: when it
+ * closes to the student, now or when they leave `room`. A public one (`isPublic`, E80 fix r1-G8, the review's
+ * E80-C6-3): every student knows it until Make secret, so the revoke closes nothing now and the question says so -
+ * only whether `name` still knows it then, with no room question. Pure (R615).
+ */
+export function revokeQuestion({ name, room = null, isPublic = false }) {
+    const cancel = ["cancel", game.i18n.localize("DRPG.Advance.cancel")];
+    if (isPublic) return { ask: tf("DRPG.Passage.tab.revokePublicAsk", { name }), note: t("DRPG.Passage.tab.revokePublicNote"),
+        buttons: [["now", t("DRPG.Passage.tab.revoke")], cancel] };
+    return { ask: tf("DRPG.Passage.tab.revokeAsk", { name, room }), note: tf("DRPG.Passage.tab.revokeNote", { room }),
+        buttons: [["now", t("DRPG.Passage.tab.revokeNow")], ["leave", t("DRPG.Passage.tab.revokeLeave")], cancel] };
+}
+
+/** 'Revoke now' ("now"), 'Revoke when they leave the room' ("leave", a secret passage's only) or neither (null). */
+async function askRevoke({ name, room, title, isPublic = false }) {
+    const question = revokeQuestion({ name, room, isPublic });
     const answer = await foundry.applications.api.DialogV2.wait({
         window: { title: tf("DRPG.Passage.tab.revokeTitle", { passage: title }) },
         classes: ["drpg-panel"],
-        content: `<p>${esc(tf("DRPG.Passage.tab.revokeAsk", { name, room }))}</p><p class="notes">${esc(tf("DRPG.Passage.tab.revokeNote", { room }))}</p>`,
-        buttons: [
-            { action: "now", label: t("DRPG.Passage.tab.revokeNow"), default: true },
-            { action: "leave", label: t("DRPG.Passage.tab.revokeLeave") },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+        content: `<p>${esc(question.ask)}</p><p class="notes">${esc(question.note)}</p>`,
+        buttons: question.buttons.map(([action, label], i) => ({ action, label, ...(i === 0 ? { default: true } : {}) })),
         rejectClose: false
     });
-    return answer === "now" || answer === "leave" ? answer : null;
+    return question.buttons.some(([action]) => action === answer && action !== "cancel") ? answer : null;
 }
 
 async function confirmDelete({ title }) {
@@ -179,15 +212,12 @@ async function studentRoomOn(actorId, sceneId) {
     return place?.scene?.id === sceneId ? place.room : null;
 }
 
-/** The GM's camera to the passage's middle, on its scene (viewed first when another is on screen). */
+/**
+ * The GM's camera to the passage, on its scene and floor (passages.mjs `viewPassage`, E80 fix r1-G2): a
+ * tunnel's end on the floor on screen when it has one there, else its first end, that end's floor viewed.
+ */
 async function showPassage(passageId) {
-    const at = passageMiddle(passageId);
-    if (!at) return false;
-    const scene = game.scenes?.get(at.sceneId);
-    if (!scene) return false;
-    if (canvas?.scene?.id !== scene.id) await scene.view();
-    await canvas?.animatePan?.({ x: at.x, y: at.y });
-    return true;
+    return viewPassage(level => passageMiddle(passageId, { level }));
 }
 
 /**
@@ -215,12 +245,19 @@ export function wirePassagesTab(root, scene, { dialog = null, stores = PASSAGE_S
             case "start-off": return setStartAccess(passageId, actorId, false, { stores });
             case "close": return closePassage(passageId, { stores });
             case "open": return openPassage(passageId, { stores });
+            case "public": return makePassagePublic(passageId, { stores });
+            case "secret": return makePassageSecret(passageId, { stores });
             case "show": return show(passageId);
             case "repick": return pick(scene, { dialog, passageId, stores });
             case "delete": return (await confirm({ title })) ? deletePassage(passageId, { stores }) : false;
             case "revoke": {
                 const cell = passage.access?.[actorId];
                 if (!cell) return false;
+                // A public passage: the revoke closes nothing until Make secret, and the GM is told so (E80-C6-3).
+                if (passage.public === true) {
+                    const choice = await ask({ name: nameOf(actorId, game.actors), room: null, title, isPublic: true });
+                    return choice === "now" ? revokePassage(passageId, actorId, { stores }) : false;
+                }
                 const room = typeof cell.leave === "string" ? null : await roomOf(actorId, passage.sceneId);
                 if (!room || !(await passageRoomsOnMap(passageId, { stores, scene })).includes(room)) return revokePassage(passageId, actorId, { stores });
                 const choice = await ask({ name: nameOf(actorId, game.actors), room, title });
@@ -253,6 +290,12 @@ export function wirePassagesTab(root, scene, { dialog = null, stores = PASSAGE_S
         event.preventDefault();
         busy = busy.then(() => pick(scene, { dialog, stores }))
             .catch(err => error("The pick of a new secret passage failed", err))
+            .then(draw);
+    });
+    root.querySelector("[data-drpg-passage-tunnel]")?.addEventListener("click", event => {
+        event.preventDefault();
+        busy = busy.then(() => pick(scene, { dialog, stores, shape: "tunnel" }))
+            .catch(err => error("The pick of a new tunnel failed", err))
             .then(draw);
     });
     if (dialog) keepFresh(dialog, { run: draw, watch: { stores: [stores.map, stores.access, stores.mastermind], hooks: ["userConnected", "drpgPassagesTold"] } });

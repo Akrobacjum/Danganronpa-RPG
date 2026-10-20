@@ -1041,7 +1041,10 @@ ${perIcon.join("\n\n")}
 const css = buildCss();
 const here = dirname(fileURLToPath(import.meta.url));
 const sheet = join(here, "..", "styles", "danganronpa.css");
-const text = await readFile(sheet, "utf8");
+// LF line ends (1.2.80 train, fix crlf-G1): START holds a "\n", and on a CRLF checkout indexOf(START) was -1 while END
+// was found - the splice below then kept the whole sheet, the old block in it, cut its last character and appended the
+// new block and the sheet's tail a second time (measured on a small CRLF text).
+const text = (await readFile(sheet, "utf8")).replace(/\r\n/g, "\n");
 
 const START = "/* ==========================================================================\n   CHROME PIXEL ICONS - GENERATED";
 const END = "/* == /CHROME PIXEL ICONS == */";

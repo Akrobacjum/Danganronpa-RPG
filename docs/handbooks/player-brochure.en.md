@@ -1,6 +1,6 @@
 # Danganronpa RPG - Student Brochure
 
-*One page. Module 1.2.79 on Daggerheart. The names stay English: Hope, Despair, Sanity, Truth Bullet, Remnant, Blackened, Class Trial, Daily Life, Eclipse, Monokuma.*
+*One page. Module 1.2.80 on Daggerheart. The names stay English: Hope, Despair, Sanity, Truth Bullet, Remnant, Blackened, Class Trial, Daily Life, Eclipse, Monokuma.*
 
 **You are:** an Ultimate. Leg, Body, Hand, Eye, Shadow, Head. **Health 4, Sanity 6, Hope 2 (max 6)**. Sanity at zero = **Breakdown** (disadvantage on every roll). Health at zero = **Wounded** (one action fewer). Rolls with Hope give you 1 Hope; rolls with Despair feed Monokuma; a critical gives 2 Hope.
 
@@ -20,12 +20,12 @@
 |---|---|---|
 | **Search** | Eye | Name what you want. 8+ Tier 0, 12+ Tier 1, 18+ Tier 2, crit +1 tier. Spends a search token. Taking a weapon or a cleaning tool leaves a trace. |
 | **Observe** | Eye | Copies a Remnant into your inventory as a Neutral Truth Bullet. A miss costs 1 Sanity. |
-| **Analyze** | Head | Identify a Truth Bullet (a miss locks it until the chapter ends), ask the GM for a hint (14+ / 18+), or find a hidden stash (16+). |
+| **Analyze** | Head | Identify a Truth Bullet (a miss locks it until the chapter ends), ask the GM for a hint (14+ / 18+), find a hidden stash (16+) or find a secret passage (16+). |
 | **Projects** | The project's | 12+ = +1 progress, 18+ = +2, crit = +2 and the action back. Propose new ones to the GM. Sabotage lives here too and always leaves a trace. |
 | **Dynamic** | GM picks | Describe anything; the GM sets the difficulty. Gentler thresholds - the reward for inventing something. |
 | **Rest** | - | Short: 1 action, pick 1, once per time of day. Long: 2 actions, pick 2, once per session. Sleep = Health, Meal = Sanity, Breath = Hope. Only in rooms marked for it. |
 | **Listen** | Shadow | 14+ how many are next door, 18+ who, crit every adjacent room. Rooms you have not been in stay unnamed (Unexplored room 1, 2...). |
-| **Palm** | Hand + Shadow | Take (10+, unseen 15+) or plant (8+, unseen 13+) something in somebody's pocket. |
+| **Palm** | Hand + Shadow | Take (10+, unseen 15+) or plant (8+, unseen 13+) something in somebody's pocket. Or see what they carry: ask first, Body 12+ after a refusal; unseen Shadow 15+ then Hand 10+. |
 | **Tamper** | Shadow | Erase a trace you know of in this room (Hidden 9 to Obvious 18), reshape it (3 lower, the GM approves the new words) or plant a misleading trail (15). No action left: 1 Sanity instead. Witnesses mean a cover roll (16) that can cost Sanity even when it works (1 on Despair, 1-2 if you are caught). |
 | **Direct Murder** | GM | Only during an Eclipse, agreed with the GM, with the victim's player's consent. Judged when the lights come up: you must then be <ins>alone with exactly one other person</ins>. |
 

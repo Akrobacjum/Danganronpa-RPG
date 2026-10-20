@@ -1454,8 +1454,10 @@ export const DrpgApi = {
     /* ---- secret passages (E79) ------------------------------------------- */
 
     /** A GM's, from the console until the GMs' tab (C5): a passage on a wall, who knows it, Close and Open, and the
-     *  log. `create({ sceneId, wallId, seg, rooms, level, startAccess })` answers the id; the rest answer whether it
-     *  was done, and a refusal says why in the console. Kept by the GMs alone and sent to a player only as the
+     *  log. `create({ sceneId, wallId, seg, rooms, level, startAccess })` answers the id; since E80 C1 `create({ sceneId,
+     *  shape: "tunnel", ends: [{ x, y, level }, { x, y, level }], rooms, startAccess })` makes a tunnel or stairs, its
+     *  ends refused as the tab's pick refuses them (passages-gm.mjs `tunnelRowFor`). The rest answer whether it was
+     *  done, and a refusal says why in the console. Kept by the GMs alone and sent to a player only as the
      *  passages their own characters know. `audit()` (E79 fix r1-G1, 1.2.79) answers the rows of the moves through a
      *  wall the audit judged on this browser since it loaded - the primary GM's (movement-audit.mjs `auditRows`). */
     passages: {

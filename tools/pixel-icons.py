@@ -311,7 +311,7 @@ FA = {
     'lock': 'lock', 'box': 'box', 'box-open': 'box-open', 'heart': 'support', 'plus': 'plus', 'minus': 'minus',
     'chevron-left': 'left', 'chevron-right': 'right', 'chevron-down': 'down', 'down-long': 'down', 'arrow-up': 'arrow-up',
     'play': 'play', 'pen-to-square': 'edit', 'gear': 'gear', 'shield-halved': 'shield', 'user-slash': 'user-slash',
-    'eye-slash': 'eye-slash', 'moon': 'moon', 'comments': 'chat', 'hand': 'palm', 'hand-holding': 'palm', 'circle': 'dot',
+    'eye-slash': 'eye-slash', 'moon': 'moon', 'comments': 'chat', 'hand': 'palm', 'hand-holding': 'palm', 'hand-pointer': 'palm', 'circle': 'dot',
     'arrows-left-right': 'swap', 'khanda': 'murder', 'handshake': 'support', 'bell': 'bell', 'dice': 'dice', 'key': 'key',
     'xmark': 'close', 'check': 'check', 'sort': 'sort', 'hourglass': 'hourglass', 'sun': 'sun', 'note-sticky': 'note',
     'music': 'music', 'microphone': 'mic'

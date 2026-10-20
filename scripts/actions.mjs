@@ -282,9 +282,13 @@ export function hasFreeMove(actor) {
 
 /**
  * Take a Move. Uses the free one if it is still available, otherwise spends an
- * action. Returns what it ended up costing, or null when it could not happen.
+ * action. Returns what it ended up costing, or null when it could not happen:
+ * "free", "sprint", "burst" (a Burst paid for the action, since E80 C2, so that
+ * `giveMoveBack` hands back the same thing) or "action". `quiet` is
+ * `spendAction`'s: the primary GM paying for a player's 'Go through' (movement.mjs
+ * `settleCrossingOnGm`) plays and says nothing on the GM's screen.
  */
-export async function takeMove(actor) {
+export async function takeMove(actor, { quiet = false } = {}) {
     if (!actor) return null;
 
     /*
@@ -306,8 +310,25 @@ export async function takeMove(actor) {
         return "sprint";
     }
 
-    const paid = await spendAction(actor, 1);
-    return paid ? "action" : null;
+    const paid = await spendAction(actor, 1, { quiet });
+    return paid ? (paid.grant ? "burst" : "action") : null;
+}
+
+/**
+ * Give back what `takeMove` took, `cost` its answer (E80 C2): a 'Go through' the primary paid for and could not
+ * write (movement.mjs `refundCrossingOnGm`). Each on the road named `refund`, which the GMs' audit covers
+ * (sheet-audit.mjs); tier 2 "A10-18" reads the purse after a failed write for each.
+ */
+export async function giveMoveBack(actor, cost) {
+    if (!actor) return false;
+    if (cost === "free") {
+        await restoreFreeMove(actor);
+        return true;
+    }
+    if (cost === "sprint") return grantFreeMoves(actor, 1, { reason: "refund" });
+    if (cost === "burst") return refundAction(actor, 1, { grant: true });
+    if (cost === "action") return refundAction(actor, 1, { grant: false });
+    return false;
 }
 
 /**

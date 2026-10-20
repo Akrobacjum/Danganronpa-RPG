@@ -359,6 +359,28 @@ export const TIMING = {
      *  with no network in it. A real table's round trip is not measured here (LIVE-E06-05);
      *  three seconds is the review's figure, some forty times the slowest of those. */
     safewordAnswerMs: 3000,
+    /** How long an open Frisk's ask waits for the target's answer before it counts as none, and
+     *  how long the searcher then has to decide on forcing it (the A11 design, step 1): chosen,
+     *  not measured - short enough that the target does not hang in the window. */
+    friskAnswerMs: 60000,
+    friskForceMs: 30000,
+    /** How long the searcher's wait on an open Frisk's ask runs past the answer's clock (gm-bridge.mjs `action.friskAsk`,
+     *  its `timeoutMs` and `lateMs`), and how long past the last moment a force may be drawn (frisk.mjs `forceDrawnBy`)
+     *  the primary keeps a refused or unanswered ask for the follow that names a force drawn in time (frisk.mjs
+     *  `sweepFriskAsks`) (E80 part 2 C3; fix r1-G2): chosen, not measured. */
+    friskMarginMs: 15000,
+    /** How long past either clock the primary still takes what was pressed at the last second on a window that opened
+     *  one trip after the clock started: an answer to an ask (frisk.mjs `sweepFriskAsks` ends an unanswered ask only
+     *  then) and a force's draw (`friskForceOpen`, gm-bridge.mjs `friskForceRoll`). The windows themselves close at
+     *  `friskAnswerMs` and `friskForceMs` after they open. Under `friskMarginMs`, so a late 'does not answer' still
+     *  reaches the searcher's wait (E80 fix r1-G1): chosen, not measured - a real round trip is LIVE-E80-05. */
+    friskGraceMs: 5000,
+    /** How long past the force's clock and its grace a force's roll may still be drawn (frisk.mjs `forceDrawnBy`, for
+     *  `friskForceOpen` and gm-bridge.mjs `friskForceRoll`): 'Make them' pressed at the last second of its window opens
+     *  Daggerheart's roll window, and the roll is drawn only when that is confirmed - the design counts the draw, so
+     *  that what comes after the press does not take the force away. The sweep keeps the row `friskMarginMs` past that
+     *  for the follow (E80 fix r1-G2, the review's er-cor-8): chosen, not measured - a real roll window is LIVE-E80-05. */
+    friskRollMs: 10000,
     /** How long an Observe waits for its ruling before the bookmark is swept. */
     pendingObserveTtlMs: 60 * 60 * 1000,
     /** How many private cards' words a browser keeps; beyond this the oldest go. */
@@ -1424,7 +1446,13 @@ export const ACTIONS = {
          * result goes to the GM and they decide what it bought. See
          * `locateStash` in action-rolls.mjs for why nothing is modelled.
          */
-        stashThreshold: 16
+        stashThreshold: 16,
+        /**
+         * The fourth: Find Passage (E80 C3; the owner's A10, proposal 13). Head against a flat
+         * 16, as the stash, and a critical finds too; what it finds is the GMs' records' to say,
+         * on the primary GM (passages-gm.mjs `resolvePassageSearch`), never this number's.
+         */
+        passageThreshold: 16
     },
     project: {
         kind: "universal",
@@ -1545,9 +1573,9 @@ export const ACTIONS = {
         icon: "fa-hand-sparkles",
         traits: ["hand"],
         cost: 1,
-        hint: "Take something out of somebody's pocket, or leave something in it.",
+        hint: "Take something out of somebody's pocket, leave something in it, or see what they carry.",
         description: "You get a hand into somebody's pocket. One roll decides whether they "
-            + "notice, another whether it works.",
+            + "notice, another whether it works. Or you simply ask them to turn out their pockets.",
         /*
          * TWO NUMBERS NOW, AND THE OLD COMMENT'S ARGUMENT WAS WRONG (D10a).
          *
@@ -1579,6 +1607,18 @@ export const ACTIONS = {
         unseen: { trait: "shadow", threshold: 15, label: "Keep your hands out of sight" },
         /** Leaving something is easier than taking it - both axes (D10a). */
         plant: { threshold: 8, unseen: 13 },
+        /*
+         * A THIRD DIRECTION (Dawid, 13.10): Frisk, seeing what somebody carries.
+         * It looks and takes nothing, so a critical adds nothing and it never
+         * reaches into a stash. Openly it asks first, and only after a refusal or
+         * no answer may the searcher force it, at Body (`frisk`), in front of the
+         * room; unseen it is a Shadow cover at `rummage.unseen` - the `unseen`
+         * part's statistic - and then the hand at `rummage.threshold`. Both are
+         * parts at this level because the ruling reads a part one level down
+         * (trait-ruling.mjs `definitionOf`). The numbers are the owner's 2 = a.
+         */
+        frisk: { trait: "body", threshold: 12, label: "Make them turn out their pockets" },
+        rummage: { trait: "hand", threshold: 10, unseen: 15, label: "Look through their pockets unseen" },
         failure: "Your hand comes away empty."
     },
     /**
@@ -2719,6 +2759,16 @@ export const TRAP_TRIGGERS = {
         hint: "Any attempt, hit or miss. It answers the looking, not the finding.",
         icon: "fa-box-archive",
         watch: "stash"
+    },
+    /*
+     * FIND PASSAGE, EVERY ATTEMPT (E80 C3; the owner's A10, proposal 13): the stash's rule for a
+     * search of the walls - it answers the looking, so a miss and an empty room set it off too.
+     */
+    passage: {
+        label: "Somebody hunts for a secret passage here",
+        hint: "Any Find Passage in this room, hit or miss.",
+        icon: "fa-dungeon",
+        watch: "passage"
     },
     /*
      * TODAY'S BEHAVIOUR, WRITTEN DOWN. No `watch`, so nothing listens and the
@@ -4313,8 +4363,8 @@ export const SFX_EVENTS = {
         vary: true
     },
     passageFound: {
-        label: "Secret passage shown",
-        hint: "Another student shows somebody a secret passage. Heard by the one shown it.",
+        label: "A secret passage opens to you",
+        hint: "A student finds a secret passage, or another student showed it to them. Heard by them, and by the GMs at a find.",
         category: "world"
     },
     actionSpent: {

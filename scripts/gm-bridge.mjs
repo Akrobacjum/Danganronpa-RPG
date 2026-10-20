@@ -91,10 +91,22 @@ const ACTION_SHARE_BULLET = "handover.bullet";
 const ACTION_GIVE_ITEM = "handover.item";
 /** player -> GM: my character shows a secret passage it knows to a student beside it (E79 C7) - see passages-gm.mjs `sharePassage`. */
 const ACTION_PASSAGE_SHARE = "passage.share";
+/** player -> GM: my character at a tunnel's end goes through it (E80 C2) - see passages-gm.mjs `crossTunnel`. */
+const ACTION_PASSAGE_CROSS = "passage.cross";
+/** player -> GM: my character's Analyze was a Find Passage (E80 C3) - see passages-gm.mjs `resolvePassageSearch`. */
+const ACTION_PASSAGE_FIND = "passage.find";
 const ACTION_VAULT_STEAL = "vault.steal";
 const ACTION_STEAL = "action.steal";
 const ACTION_FIND_STASH = "vault.findStash";
 const ACTION_PLANT = "action.plant";
+/** player -> GM: my character went through a student's pockets unseen (E80 part 2 C2) - see frisk.mjs `friskPerson`. */
+const ACTION_FRISK_UNSEEN = "action.friskUnseen";
+/** player -> GM: my character asks a student to turn out their pockets (E80 part 2 C3) - see frisk.mjs `askToFrisk`. */
+const ACTION_FRISK_ASK = "action.friskAsk";
+/** player -> GM: my answer to that ask, for a character I answer for - see frisk.mjs `answerFrisk`. */
+const ACTION_FRISK_ANSWER = "action.friskAnswer";
+/** player -> GM: after a refusal or no answer, my character forces it or leaves it - see frisk.mjs `followFrisk`. */
+const ACTION_FRISK_FOLLOW = "action.friskFollow";
 const ACTION_CRISIS = "murder.crisis";
 /** GM -> player: "Stage 4 is yours to throw." */
 const ACTION_OPENING_ASK = "murder.openingAsk";
@@ -191,6 +203,8 @@ export function registerGmBridge() {
     // arrives before a newcomer can hear it (see the note at the top).
     game.socket.on(SOCKET_EVENT, onAdvancementOffers);
     askForOffers();
+    // An open Frisk's windows travel GM -> player too, and the primary watches its asks' rooms (E80 part 2 C3).
+    import("./frisk.mjs").then(m => m.registerFrisk()).catch(err => error("Could not set up the Frisk's windows", err));
 }
 
 /**
@@ -578,6 +592,52 @@ async function handlePassageShare(payload, sender) {
     if (out?.refused) return { refused: out.refused };
 }
 
+// 'Go through' a tunnel (E80 C2): the token moved by the primary, which alone writes it for a player. Every check
+// past the sender's ownership of the character is `crossTunnel`'s, against the GMs' records and the map as it is now.
+async function handlePassageCross(payload, sender) {
+    const { crossTunnel } = await import("./passages-gm.mjs");
+    const out = await crossTunnel({ actorId: payload.actorId, passageId: payload.passageId }, { asker: sender });
+    if (out?.refused) return { refused: out.refused };
+    return { reply: true };
+}
+
+// Find Passage (E80 C3): a `found` cell in the GMs' records, which only the primary writes. Every check past the sender's
+// ownership of the character is `resolvePassageSearch`'s - the phase, the character, its room and floor where the GMs read
+// it (movement.mjs `gmPlaceOf`), the passages it does not know - and the total is the GMs' record of the roll (`rolled`,
+// `findPassageRoll`), never the packet's.
+async function handlePassageFind(payload, sender) {
+    const { resolvePassageSearch } = await import("./passages-gm.mjs");
+    const out = await resolvePassageSearch({ actorId: payload.actorId, total: payload.total, isCritical: payload.isCritical, rollId: payload.rollId },
+        { asker: sender });
+    if (out?.refused) return { refused: out.refused };
+    return { reply: true };
+}
+
+/*
+ * A FRISK'S TWO ROLLS, EACH THE GMS' RECORD (E80 part 2 C2; the A11 design's step 10), as a Palm's (`palmRolls`): the
+ * hand's (`rollId`, thrown as "rummage") and the cover's (`unseenRollId`, thrown as "palm"), whose result goes in
+ * `unseenTotal` and `unseenCritical`.
+ */
+function friskRolls(actor) {
+    return [
+        { field: "rollId", actor, kind: "rummage" },
+        { field: "unseenRollId", actor, kind: "palm", into: { total: "unseenTotal", isCritical: "unseenCritical" } }
+    ];
+}
+
+/* A Find Passage's roll is an Analyze thrown as one (roll-draw.mjs keeps `findPassage` on its record): an Analyze for a
+   hint or a bullet settles no passage search. Read off the GMs' record by the runner (bridge-guards.mjs `rollsFor`). */
+function findPassageRoll(record) {
+    return record?.findPassage === true ? null : { why: "that roll was not thrown for that action" };
+}
+
+/* And the other way (E80 fix r1-G7, review E80-SEC-5): an Analyze thrown as a Find Passage settles no bullet and no stash
+   search, so a console cannot pick the road after it sees the total, against the road the GMs' record says it was thrown
+   for. A record that says nothing of it (drawn before C3, or `findPassage` false) is an Analyze for those roads. */
+function notFindPassageRoll(record) {
+    return record?.findPassage === true ? { why: "that roll was not thrown for that action" } : null;
+}
+
 /*
  * A PALM'S TWO ROLLS, EACH THE GMS' RECORD (E08+E28 C15, 04.10.2026; audit S10-06). A Steal and a
  * Plant were scored on the packet's two totals - the hand's against the action's bar, the unseen
@@ -600,6 +660,7 @@ function palmRolls(actor) {
     // or a stash theft is the GM's log, as it was.
 async function handlePlant(payload, sender, ctx) {
     const { plantOnPerson } = await import("./vault.mjs");
+    // The sender: a body the GMs keep from them is planted on as a living victim is (E80 fix sec1-G1, `bodyKeptFrom`).
     const out = await plantOnPerson({
         plannerId: payload.plannerId,
         victimId: payload.victimId,
@@ -608,7 +669,7 @@ async function handlePlant(payload, sender, ctx) {
         isCritical: payload.isCritical,
         unseenTotal: payload.unseenTotal,
         unseenCritical: payload.unseenCritical
-    });
+    }, { asker: sender });
     if (out?.refused) return { refused: out.refused };
 }
 
@@ -618,11 +679,17 @@ async function handlePlant(payload, sender, ctx) {
     // stashes, so it happens where the threshold is checked.
 async function handleFindStash(payload, sender, ctx) {
     const { resolveStashSearch } = await import("./vault.mjs");
-    await resolveStashSearch({
+    const out = await resolveStashSearch({
         actorId: payload.actorId,
         total: payload.total,
         isCritical: payload.isCritical
     });
+    // The GMs' fact on the roll the packet names (E80 C4, S16-19): it was a Find Stash, and whether it opened one. Its
+    // Reroll replays the search from these (reroll.mjs `settleStashFind`), never from the roller's word - in the place
+    // this search was made (`findPlace`, E80 fix r1-G4; the review's E80-G-1), never where the student stands by then.
+    const rolls = await import("./action-rolls.mjs");
+    await rolls.noteFactOn(rolls.rollOfFact({ rollId: payload.rollId ?? null, by: sender?.id ?? null, actorId: payload.actorId,
+        actions: ["analyze"] }), { findStash: true, stashFound: Boolean(out?.found), ...(out?.place ? { findPlace: out.place } : {}) });
 }
 
     // And out of their pockets. Same reasoning as the stash below, plus one
@@ -630,6 +697,7 @@ async function handleFindStash(payload, sender, ctx) {
     // arithmetic wrong, so it does none of it.
 async function handleSteal(payload, sender, ctx) {
     const { stealFromPerson } = await import("./vault.mjs");
+    // The sender: a body the GMs keep from them is robbed as a living victim is (E80 fix sec1-G1, `bodyKeptFrom`).
     const out = await stealFromPerson({
         thiefId: payload.thiefId,
         victimId: payload.victimId,
@@ -638,8 +706,67 @@ async function handleSteal(payload, sender, ctx) {
         isCritical: payload.isCritical,
         unseenTotal: payload.unseenTotal,
         unseenCritical: payload.unseenCritical
-    });
+    }, { asker: sender });
     if (out?.refused) return { refused: out.refused };
+}
+
+/* An unseen Frisk (E80 part 2 C2): judged and its cards posted on the primary, on the two rolls' records (`friskRolls`). */
+async function handleFriskUnseen(payload, sender) {
+    const { friskPerson } = await import("./frisk.mjs");
+    const out = await friskPerson({
+        searcherId: payload.searcherId, targetId: payload.targetId, total: payload.total, isCritical: payload.isCritical,
+        unseenTotal: payload.unseenTotal, unseenCritical: payload.unseenCritical, rollId: payload.rollId ?? null
+    }, { asker: sender });
+    if (out?.refused) return { refused: out.refused };
+    return { reply: out?.outcome ?? "settled" };
+}
+
+/* An open Frisk's ask (E80 part 2 C3): judged on the primary, which answers it later, when the target has answered or
+   the clock has run (frisk.mjs `askToFrisk`), with the request's own `bridge.done`. */
+async function handleFriskAsk(payload, sender, ctx) {
+    const { askToFrisk } = await import("./frisk.mjs");
+    const reply = value => {
+        if (!ctx?.requestId || !ctx.asker) return;
+        game.socket.emit(SOCKET_EVENT, { action: ACTION_DONE, requestId: ctx.requestId, userId: ctx.asker, value }, { recipients: [ctx.asker] });
+    };
+    const out = await askToFrisk({ searcherId: payload.searcherId, targetId: payload.targetId }, { asker: sender, reply });
+    if (out?.refused) return { refused: out.refused };
+    if (out?.later) return { later: true };
+    return { reply: out?.value ?? null };
+}
+
+/* An answer to that ask, judged by who sent it (frisk.mjs `answerFrisk`). */
+async function handleFriskAnswer(payload, sender) {
+    const { answerFrisk } = await import("./frisk.mjs");
+    const out = await answerFrisk({ askId: payload.askId, allow: payload.allow }, sender);
+    if (out?.refused) return { refused: out.refused };
+    return { reply: out?.outcome ?? null };
+}
+
+/* A force or a 'Leave it' (frisk.mjs `followFrisk`), its roll's result read off the GMs' record (`friskForceRoll`). */
+async function handleFriskFollow(payload, sender) {
+    const { followFrisk } = await import("./frisk.mjs");
+    const out = await followFrisk({ searcherId: payload.searcherId, askId: payload.askId, rollId: payload.rollId,
+        total: payload.total, isCritical: payload.isCritical }, sender);
+    if (out?.refused) return { refused: out.refused };
+    return { reply: out?.outcome ?? null };
+}
+
+/*
+ * A FORCE'S ROLL, FOR THE ASK IT NAMES (E80 part 2 C3). The runner holds the record to the searcher, to a `frisk` roll and
+ * to one settlement (`rollRefusal`); this holds it to the ask: one the primary holds for that searcher, a roll drawn after
+ * the ask was made and no later than its force's window, its grace and the roll's window (frisk.mjs `forceDrawnBy`, which
+ * `friskForceOpen` held the draw to; E80 fix r1-G1, r1-G2), so a Body roll drawn for one ask settles no other. Its fields
+ * are the record's result.
+ */
+async function friskForceRoll(record, payload) {
+    const { friskAsks, forceDrawnBy } = await import("./frisk.mjs");
+    const row = friskAsks.get(typeof payload?.askId === "string" ? payload.askId : "") ?? null;
+    if (!row) return { why: "no such Frisk ask" };
+    if (row.searcherId !== record.actorId) return { why: "not their character" };
+    if (!(Number(record.at) >= Number(row.at))) return { why: "that roll was not thrown for that action" };
+    if (!(Number(record.at) <= forceDrawnBy(row))) return { why: "that roll is too old to settle anything" };
+    return { fields: { total: Number(record.total) || 0, isCritical: Boolean(record.isCritical) } };
 }
 
     // Taking something out of somebody else's stash writes to two sheets, one of
@@ -1102,7 +1229,7 @@ async function worksOwnMurder(payload, actor, action, sender) {
  * A roll that leaves no trace is refused, and a packet whose visibility differs is placed at the
  * GM's band and logged (bridge-guards.mjs `onRecord`). Whether a trace is placed at all is still
  * the roller's browser's: a console that sends no `remnant.place` leaves none, and a Work's trace
- * (`project`, not in `TRACE_OF_ROLL`) takes the band its packet names - CLAUDE.md's "What stays
+ * (`project`, not in `TRACE_OF_ROLL`) takes the band its packet names - .claude/rules/trust-model.md's "What stays
  * open" (the round-2 review's S2-8; fix r2-H7).
  */
 async function traceBandOf(record) {
@@ -1642,9 +1769,10 @@ export const BRIDGE_ACTIONS = table({
         sanitize: pick({ actorId: as.id, itemId: as.id, total: as.num, isCritical: as.bool, undo: as.gmFlag, rollId: as.id }),
         run: handleAnalyzeResolve,
         answer: "reply",
-        rolled: { field: "rollId", actor: "actorId", kind: "analyze" },
+        // An Analyze's roll, never one thrown as a Find Passage (`notFindPassageRoll`, E80 fix r1-G7).
+        rolled: { field: "rollId", actor: "actorId", kind: "analyze", derive: notFindPassageRoll },
         claims: { itemId: "looked up on that one character by resolveAnalyze (analyze.mjs), never across the world",
-            rollId: "the roll the result is read from (bridge-guards.mjs rollRefusal), and written on only by noteFactOfRoll (action-rolls.mjs): the sender's own row of that message, its character and an Analyze" }
+            rollId: "the roll the result is read from (bridge-guards.mjs rollRefusal), and written on only by noteFactOfRoll (action-rolls.mjs): the sender's own row of that message, its character and an Analyze not thrown as a Find Passage (`notFindPassageRoll`)" }
     },
     [ACTION_ADVANCEMENT]: {
         label: "DRPG.Bridge.what.advancement.apply",
@@ -1683,8 +1811,30 @@ export const BRIDGE_ACTIONS = table({
         run: handlePassageShare,
         answer: "ack",
         claims: {
-            targetId: "passages-gm.mjs shareRefusal: a student who is not the giver and no Monokuma, in the giver's room on its scene and floor, alive",
+            targetId: "passages-gm.mjs shareRefusal: a student who is not the giver and no Monokuma, in the giver's room on its scene and floor where the GMs read both (movement.mjs `gmPlaceOf`), alive",
             passageId: "passages-gm.mjs shareRefusal: a secret passage the giver knows in the GMs' records (or the sender acts as the Mastermind through the giver, `actsAsMastermind`), else the one notKnown"
+        }
+    },
+    [ACTION_PASSAGE_CROSS]: {
+        label: "DRPG.Bridge.what.passage.cross",
+        guards: [knownSender, owns("actorId", "sender does not own that character")],
+        sanitize: pick({ actorId: as.id, passageId: as.id }),
+        run: handlePassageCross,
+        answer: "reply",
+        claims: {
+            passageId: "passages-gm.mjs crossTunnel: a secret tunnel of the GMs' records the character knows (or the sender acts as the Mastermind through it, `actsAsMastermind`), else the one notKnown; the token at an end of it where the GMs read it, the doors' rules and the price judged on the primary (movement.mjs `gmSpotOf`, `tunnelVerdict`, `settleCrossingOnGm`)"
+        }
+    },
+    [ACTION_PASSAGE_FIND]: {
+        label: "DRPG.Bridge.what.passage.find",
+        guards: [knownSender, owns("actorId", "sender does not own that character")],
+        sanitize: pick({ actorId: as.id, total: as.num, isCritical: as.bool, rollId: as.id }),
+        run: handlePassageFind,
+        answer: "reply",
+        // An Analyze's roll, thrown as a Find Passage (`findPassageRoll`): its total and critical are the GMs' record's.
+        rolled: { field: "rollId", actor: "actorId", kind: "analyze", derive: findPassageRoll },
+        claims: {
+            rollId: "the roll the result is read from (bridge-guards.mjs rollRefusal): one the GM drew for the sender's character's Analyze, thrown as a Find Passage (`findPassageRoll`)"
         }
     },
     [ACTION_PLANT]: {
@@ -1697,10 +1847,63 @@ export const BRIDGE_ACTIONS = table({
         // Both of the Palm's rolls, each on the GMs' record of it (E08+E28 C15; `palmRolls`).
         rolled: palmRolls("plannerId"),
         claims: {
-            victimId: "judged by plantOnPerson (vault.mjs): a living victim in the planter's room",
+            victimId: "judged by plantOnPerson (vault.mjs): a living victim in the planter's room, or a body the GMs keep from the sender, planted on as a living one (bodyKeptFrom)",
             itemId: "judged by plantOnPerson (vault.mjs): an item in the planter's own hands",
             rollId: "the hand's roll the result is read from (bridge-guards.mjs rollRefusal): one the GM drew for the planter's Palm",
             unseenRollId: "the unseen roll the result is read from (bridge-guards.mjs rollRefusal): one the GM drew for the planter's Palm"
+        }
+    },
+    [ACTION_FRISK_UNSEEN]: {
+        label: "DRPG.Bridge.what.action.friskUnseen",
+        guards: [knownSender, owns("searcherId", "sender does not own the character searching")],
+        sanitize: pick({ searcherId: as.id, targetId: as.id, total: as.num, isCritical: as.bool,
+            unseenTotal: as.num, unseenCritical: as.bool, rollId: as.id, unseenRollId: as.id }),
+        run: handleFriskUnseen,
+        // "reply": the searcher's card says the hand went in only once the primary has judged it, and every refusal,
+        // the run's after the guards included, reaches the searcher (S10-27).
+        answer: "reply",
+        rolled: friskRolls("searcherId"),
+        claims: {
+            targetId: "judged by friskPerson (frisk.mjs): personActionRefusal on the primary - a student in the searcher's room as the GMs read it, outside an Eclipse, a Class Trial and the searcher's own incident - and a death the sender knows refused",
+            rollId: "the hand's roll the result is read from (bridge-guards.mjs rollRefusal): one the GM drew for the searcher's Frisk, thrown as rummage",
+            unseenRollId: "the cover's roll the result is read from (bridge-guards.mjs rollRefusal): one the GM drew for the searcher's Frisk, thrown as palm"
+        }
+    },
+    [ACTION_FRISK_ASK]: {
+        label: "DRPG.Bridge.what.action.friskAsk",
+        guards: [knownSender, owns("searcherId", "sender does not own the character searching")],
+        sanitize: pick({ searcherId: as.id, targetId: as.id }),
+        run: handleFriskAsk,
+        // "reply", answered later (`handleFriskAsk`): a person is deciding, so no clock for the "got it" (`patient`), and the
+        // wait runs past the answer's clock by the margin the primary keeps for the packet that ends the ask.
+        answer: "reply",
+        patient: true,
+        timeoutMs: TIMING.friskAnswerMs + TIMING.friskMarginMs,
+        claims: {
+            targetId: "judged by askToFrisk (frisk.mjs): personActionRefusal on the primary, a death the sender knows refused (isBody), one live ask a searcher, one a target, a pair once a time of day, and the sender's payment's ticket claimed"
+        }
+    },
+    [ACTION_FRISK_ANSWER]: {
+        label: "DRPG.Bridge.what.action.friskAnswer",
+        guards: [knownSender],
+        sanitize: pick({ askId: as.id, allow: as.bool }),
+        run: handleFriskAnswer,
+        answer: "reply",
+        claims: {
+            askId: "judged by answerFrisk (frisk.mjs): an ask the primary holds, open, and the sender one of the users it was sent to (answerUserIds; a GM for a character with no player)"
+        }
+    },
+    [ACTION_FRISK_FOLLOW]: {
+        label: "DRPG.Bridge.what.action.friskFollow",
+        guards: [knownSender, owns("searcherId", "sender does not own the character searching")],
+        sanitize: pick({ searcherId: as.id, askId: as.id, rollId: as.id, total: as.num, isCritical: as.bool }),
+        run: handleFriskFollow,
+        answer: "reply",
+        // 'Leave it' names no roll and asks for none (`when`); a force's is the GMs' record, held to the ask (`friskForceRoll`).
+        rolled: { field: "rollId", actor: "searcherId", kind: "frisk", when: "rollId", derive: friskForceRoll },
+        claims: {
+            askId: "judged by followFrisk (frisk.mjs): the searcher's own ask, refused or unanswered, inside its force's window; with no roll named, or a GM's own roll (never drawn, so never a record here), one this primary neither holds nor ended (dropped by a reload or by the primary before it) ends interrupted, and only the searcher's own browser hands its action back",
+            rollId: "the force's roll the result is read from (bridge-guards.mjs rollRefusal): one the GM drew for the searcher's frisk, after the ask and before its window closed (friskForceRoll)"
         }
     },
     [ACTION_FIND_STASH]: {
@@ -1709,9 +1912,10 @@ export const BRIDGE_ACTIONS = table({
         sanitize: pick({ actorId: as.id, total: as.num, isCritical: as.bool, rollId: as.id }),
         run: handleFindStash,
         answer: "ack",
-        // An Analyze's roll: a search for a hidden stash is one of the Analyze's three roads (E08+E28 C14).
-        rolled: { field: "rollId", actor: "actorId", kind: "analyze" },
-        claims: { rollId: "the roll the result is read from (bridge-guards.mjs rollRefusal): one the GM drew for the sender's character's Analyze" }
+        // An Analyze's roll: a search for a hidden stash is one of the Analyze's roads (E08+E28 C14), and a roll thrown as
+        // a Find Passage, another of them, settles none of it (`notFindPassageRoll`, E80 fix r1-G7).
+        rolled: { field: "rollId", actor: "actorId", kind: "analyze", derive: notFindPassageRoll },
+        claims: { rollId: "the roll the result is read from (bridge-guards.mjs rollRefusal): one the GM drew for the sender's character's Analyze, not thrown as a Find Passage (`notFindPassageRoll`)" }
     },
     [ACTION_STEAL]: {
         label: "DRPG.Bridge.what.action.steal",
@@ -1722,7 +1926,7 @@ export const BRIDGE_ACTIONS = table({
         answer: "ack",
         rolled: palmRolls("thiefId"),
         claims: {
-            victimId: "judged by stealFromPerson (vault.mjs): a living victim in the thief's room",
+            victimId: "judged by stealFromPerson (vault.mjs): a living victim in the thief's room, or a body the GMs keep from the sender, robbed as a living one (bodyKeptFrom)",
             itemId: "honoured by stealFromPerson (vault.mjs) only on a critical, and only if it is in the victim's pockets",
             rollId: "the hand's roll the result is read from (bridge-guards.mjs rollRefusal): one the GM drew for the thief's Palm",
             unseenRollId: "the unseen roll the result is read from (bridge-guards.mjs rollRefusal): one the GM drew for the thief's Palm"
@@ -2491,6 +2695,37 @@ export function requestPassageShare({ actorId, targetId, passageId }) {
         local: () => import("./passages-gm.mjs").then(m => m.sharePassage({ actorId, targetId, passageId }, { asker: game.user })).then(out => {
             if (out?.refused) sayNotDone(ACTION_PASSAGE_SHARE, reasonOf(out.refused));
             return Boolean(out?.shown);
+        })
+    });
+}
+
+/**
+ * 'Go through' a tunnel my character stands at an end of (E80 C2; sheet.mjs). The primary GM judges it and moves
+ * the token; a GM's own browser does it here when it is the primary, and says a refusal as the bridge would.
+ * Its value is true once the token was moved.
+ */
+export function requestPassageCross({ actorId, passageId }) {
+    return ask(ACTION_PASSAGE_CROSS, { actorId, passageId }, {
+        onPrimary: true,
+        local: () => import("./passages-gm.mjs").then(m => m.crossTunnel({ actorId, passageId }, { asker: game.user })).then(out => {
+            if (out?.refused) sayNotDone(ACTION_PASSAGE_CROSS, reasonOf(out.refused));
+            return Boolean(out?.crossed);
+        })
+    });
+}
+
+/**
+ * Find Passage (E80 C3; action-rolls.mjs `locatePassage`): the roll `rollId` names goes to the primary GM, which reads the
+ * total off its record and judges the rest from the GMs' records (passages-gm.mjs `resolvePassageSearch`); a GM's own
+ * browser does it here when it is the primary, and says a refusal as the bridge would. Its value is true once judged:
+ * what was found the character's owner is told on a card of its own, a miss in the same shape.
+ */
+export function requestPassageFind({ actorId, total = 0, isCritical = false, rollId = null }) {
+    return ask(ACTION_PASSAGE_FIND, { actorId, total, isCritical, rollId }, {
+        onPrimary: true,
+        local: () => import("./passages-gm.mjs").then(m => m.resolvePassageSearch({ actorId, total, isCritical, rollId }, { asker: game.user })).then(out => {
+            if (out?.refused) sayNotDone(ACTION_PASSAGE_FIND, reasonOf(out.refused));
+            return !out?.refused;
         })
     });
 }
@@ -3338,6 +3573,65 @@ export function requestSteal({
         local: () => import("./vault.mjs").then(m => m.stealFromPerson({
             thiefId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical
         }))
+    });
+}
+
+/**
+ * An unseen Frisk (E80 part 2 C2; frisk.mjs `performFrisk`): the two rolls named, judged on the primary GM against the
+ * GMs' records of them, which posts the cards (frisk.mjs `friskPerson`); the totals travel for the GM's log and for a
+ * GM's own Frisk. A GM's own browser does it here when it is the primary, and says a refusal as the bridge would.
+ * Its value is the primary's outcome, "settled".
+ */
+export function requestFriskUnseen({
+    searcherId, targetId, total = 0, isCritical = false, unseenTotal = 0, unseenCritical = false, rollId = null, unseenRollId = null
+}) {
+    return ask(ACTION_FRISK_UNSEEN, { searcherId, targetId, total, isCritical, unseenTotal, unseenCritical, rollId, unseenRollId }, {
+        onPrimary: true,
+        local: () => import("./frisk.mjs").then(m => m.friskPerson({ searcherId, targetId, total, isCritical, unseenTotal, unseenCritical, rollId },
+            { asker: game.user })).then(out => {
+            if (out?.refused) sayNotDone(ACTION_FRISK_UNSEEN, reasonOf(out.refused));
+            return out?.refused ? null : out?.outcome ?? null;
+        })
+    });
+}
+
+/**
+ * An open Frisk's ask (E80 part 2 C3; frisk.mjs `performFriskOpenly`), judged and held on the primary GM (frisk.mjs
+ * `askToFrisk`). Its value is `{ askId, outcome, forceMs }` once the target has answered or the clock has run, or at once
+ * for an ask that ends before it is made. A GM's own browser asks here when it is the primary, and says a refusal as the
+ * bridge would; an answer that comes after this wait has ended changes nothing here (`late`).
+ */
+export function requestFriskAsk({ searcherId, targetId }) {
+    return ask(ACTION_FRISK_ASK, { searcherId, targetId }, {
+        onPrimary: true,
+        lateMs: TIMING.friskMarginMs,
+        late: value => debug("A Frisk's ask was answered after this browser stopped waiting", value),
+        local: () => import("./frisk.mjs").then(m => m.askToFriskHere({ searcherId, targetId }, game.user)).then(out => {
+            if (out?.refused) sayNotDone(ACTION_FRISK_ASK, reasonOf(out.refused));
+            return out?.refused ? null : out?.value ?? null;
+        })
+    });
+}
+
+/** The answer to a Frisk's ask from the window it opened (frisk.mjs `openAskWindow`), judged on the primary (`answerFrisk`). */
+export function requestFriskAnswer({ askId, allow = false }) {
+    return ask(ACTION_FRISK_ANSWER, { askId, allow: Boolean(allow) }, {
+        onPrimary: true,
+        local: () => import("./frisk.mjs").then(m => m.answerFrisk({ askId, allow: Boolean(allow) }, game.user)).then(out => {
+            if (out?.refused) sayNotDone(ACTION_FRISK_ANSWER, reasonOf(out.refused));
+            return out?.refused ? null : out?.outcome ?? null;
+        })
+    });
+}
+
+/** After a refusal or no answer: the force's roll named, or none for 'Leave it' (frisk.mjs `followFrisk`). */
+export function requestFriskFollow({ searcherId, askId, rollId = null, total = 0, isCritical = false }) {
+    return ask(ACTION_FRISK_FOLLOW, { searcherId, askId, rollId, total, isCritical }, {
+        onPrimary: true,
+        local: () => import("./frisk.mjs").then(m => m.followFrisk({ searcherId, askId, rollId, total, isCritical }, game.user)).then(out => {
+            if (out?.refused) sayNotDone(ACTION_FRISK_FOLLOW, reasonOf(out.refused));
+            return out?.refused ? null : out?.outcome ?? null;
+        })
     });
 }
 

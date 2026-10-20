@@ -1,6 +1,6 @@
 # Danganronpa RPG - Podręcznik gracza
 
-*Dla uczniów killing game. Moduł w wersji 1.2.79, zbudowany na Daggerheart dla Foundry VTT v14.*
+*Dla uczniów killing game. Moduł w wersji 1.2.80, zbudowany na Daggerheart dla Foundry VTT v14.*
 
 To cała gra widziana z twojego krzesła: co znaczą liczby na arkuszu, ile kosztuje akcja, co kupuje Hope, co się dzieje, gdy ktoś ginie, i co kliknąć. Każda liczba tutaj jest liczbą modułu; tam, gdzie decyzja należy do człowieka, napisano "GM decyduje".
 
@@ -22,7 +22,7 @@ Sześć cech Daggerheart nosi tu inne nazwy. Na arkuszu widzisz:
 | Statystyka | Skrót | Czym jest | Do czego służy |
 |---|---|---|---|
 | **Leg** | LEG | Szybkość | Projekty, bieg, akcje kryzysowe |
-| **Body** | BOD | Siła fizyczna | Projekty, walka, przenoszenie ciężarów |
+| **Body** | BOD | Siła fizyczna | Projekty, walka, przenoszenie ciężarów, zmuszanie kogoś do pokazania kieszeni |
 | **Hand** | HAN | Zręczność i precyzja | Search, Palm, Projekty, akcje kryzysowe |
 | **Eye** | EYE | Spostrzegawczość i zauważanie rzeczy | Search, Observe, wyczucie pułapki |
 | **Shadow** | SHA | Ukrywanie się i szósty zmysł | Listen, Tamper, pozostanie niezauważonym, zacieranie śladów |
@@ -62,7 +62,7 @@ Każda akcja to rzut dwoistości z Daggerheart: kość Hope i kość Despair (ob
 - Rzut **z Despair** zasila pulę Despair Monokumy, który cię pilnuje. Stąd bierze się jego waluta - z twojego pecha i twojego ryzyka.
 - **Krytyk** daje 2 Hope i nic więcej (nie oczyszcza tu Sanity, inaczej niż w czystym Daggerheart).
 
-Okno rzutu jest dla graczy zablokowane: kości, statystyka, przewaga, doświadczenia i premie biorą się z akcji, z Calla, za który zapłaciłeś, z miejsca, w którym stoisz, albo od GMa. Ruszasz tylko to, co akcja pozwala ci wybrać. Gdy połączony jest GM, kości rzutu akcji i statystyki klikniętej na arkuszu rzuca przeglądarka GMa: spadają na twoim ekranie, w twoich kolorach, jako twój rzut, a wynik czytasz jak dotąd. To, co dodaje się do kości, też jest GMa: przeglądarka GMa liczy statystykę, doświadczenia, premie i kości przewagi, które dają twoja akcja, twoje Calle i miejsce, w którym stoisz, więc suma na twojej karcie jest sumą GMa. Tego, co okno dołożyło ponad to, nie liczy się, a twoja własna karta mówi, co GM policzył, a czego nie. Kości, którą okno pokazuje o innych ściankach albo w innej liczbie, też nikt nie rzuca; rzucana jest kość GMa.
+Okno rzutu jest dla graczy zablokowane: kości, statystyka, przewaga, doświadczenia i premie biorą się z akcji, z Calla, za który zapłaciłeś, z miejsca, w którym stoisz, albo od GMa. Ruszasz tylko to, co akcja pozwala ci wybrać. Gdy połączony jest GM, kości rzutu akcji i statystyki klikniętej na arkuszu rzuca przeglądarka GMa: spadają na twoim ekranie jako twój rzut, a wynik czytasz jak dotąd. Twój wygląd kości ustala GM. Wygląd, który wybierzesz w Dice So Nice, dla siebie albo na swojej postaci, wraca do wyglądu GMa; ustawienia wyświetlania i wydajności zostają twoje. Dopiero gdy GM to wyłączy, wygląd znów ustawiasz sam. To, co dodaje się do kości, też jest GMa: przeglądarka GMa liczy statystykę, doświadczenia, premie i kości przewagi, które dają twoja akcja, twoje Calle i miejsce, w którym stoisz, więc suma na twojej karcie jest sumą GMa. Tego, co okno dołożyło ponad to, nie liczy się, a twoja własna karta mówi, co GM policzył, a czego nie. Kości, którą okno pokazuje o innych ściankach albo w innej liczbie, też nikt nie rzuca; rzucana jest kość GMa.
 
 **Gdy nie jest połączony żaden GM**, akcja czeka: po jej wciśnięciu dowiadujesz się, że rzut akcji czeka na GMa, i nic nie płacisz. Każdy inny rzut - statystyka z arkusza, która liczy się wtedy jako reakcja, albo reakcja - nadal się wykonuje, a jego karta mówi, że rzucono go bez połączonego GMa i że GM go zobaczy. Nie rusza Hope, Sanity ani Despair, dopóki GM, gdy wróci do stołu, go nie przyzna, a reakcja - statystyka też - nie rusza niczego nawet wtedy.
 
@@ -130,7 +130,7 @@ Zawraca cię:
 
 GM może wyłączyć cenę przejść; wtedy to, które pokoje się łączą, razem ze schodami, ocenia sam poza Eclipse.
 
-**Tajne przejścia.** Niektóre ściany kryją tajne przejście. Gdy twoja postać je zna, twój token przechodzi przez ten odcinek ściany jak przez drzwi, a krok to przejście jak każde inne; dla wszystkich innych to ściana. Tajne przejście prowadzi do cudzej sypialni bez klucza; zamknięte drzwi, zapieczętowany pokój, Chained i Class Trial nadal cię zawracają. Karta postaci wypisuje znane ci przejścia pod **Znane tajne przejścia**: nazwa pokazuje przejście na mapie, a **droga zamknięta** obok niej znaczy, że z miejsca, w którym stoisz, się nie otwiera. **Pokaż tajne przejście** pokazuje je innemu uczniowi w tym samym pokoju, który od tej chwili też może nim przechodzić: nie kosztuje akcji, musi być połączony GM, a GM-owie się o tym dowiedzą. GM może też dać ci tajne przejście, a niektóre znasz od startu sezonu; reset sezonu zostawia ci tylko te. Wszyscy widzą, jak twój token przechodzi, tak jak widzą każdy ruch tokenu.
+**Tajne przejścia.** Niektóre ściany kryją tajne przejście. Gdy twoja postać je zna, twój token przechodzi przez ten odcinek ściany jak przez drzwi, a krok to przejście jak każde inne; dla wszystkich innych to ściana. Tajne przejście prowadzi do cudzej sypialni bez klucza; zamknięte drzwi, zapieczętowany pokój, Chained i Class Trial nadal cię zawracają. Karta postaci wypisuje znane ci przejścia pod **Znane tajne przejścia**: nazwa pokazuje przejście na mapie, a **droga zamknięta** obok niej znaczy, że z miejsca, w którym stoisz, się nie otwiera. **Pokaż tajne przejście** pokazuje je innemu uczniowi w tym samym pokoju, który od tej chwili też może nim przechodzić: nie kosztuje akcji, musi być połączony GM, a GM-owie się o tym dowiedzą. GM może też dać ci tajne przejście, a niektóre znasz od startu sezonu; reset sezonu zostawia ci tylko te. Gdy GM ujawni przejście, zna je każdy uczeń, dopóki GM go nie utajni. Niektóre przejścia to tunel lub schody między dwoma pokojami, na jednym piętrze lub dwóch: koniec w twoim pokoju jest oznaczony "Tajne przejście do:" i pokojem, do którego prowadzi. Stań przy tym końcu i naciśnij **Przejdź** obok niego pod **Znane tajne przejścia**: kosztuje tyle, co drzwi, a wychodzisz przy dalszym końcu, na jego piętrze. Musi być połączony GM. To, co zawraca cię przy drzwiach, zawraca cię i tu, tymi samymi słowami, i nic nie kosztuje. Wszyscy widzą, jak twój token przechodzi, tak jak widzą każdy ruch tokenu.
 
 ### Co widzisz
 
@@ -214,11 +214,12 @@ Dowiadujesz się, co znalazłeś, nigdy jak trudne to było. Ślady powiązane z
 
 ### Analyze - Head, 1 akcja
 
-Trzy rzeczy za jednym kafelkiem:
+Cztery rzeczy za jednym kafelkiem:
 
 - **Zidentyfikuj Truth Bullet.** Zamienia Neutral Truth Bullet w jego prawdziwą kategorię. **Porażka blokuje ten bullet dla ciebie do końca rozdziału** - przekaż kopię komuś innemu, jego kopii twoja porażka nie wiąże.
 - **Poproś o wskazówkę.** Brak dowodów w ręku? Poproś GMa, by cię gdzieś skierował. 14+ kupuje subtelną podpowiedź ("jesteś daleko od celu"), 18+ bezpośrednią ("przeszukaj pomieszczenie z basenem"), krytyk pozwala im zadać ci jedno pytanie ("czy ofiara naprawdę zginęła w tym pokoju?"). Poniżej 14 - bez pomocy.
 - **Znajdź ukrytą skrytkę.** 16+ otwiera przed tobą jedną skrytkę w tym pokoju. GM się dowiaduje; właściciel nie.
+- **Znajdź tajne przejście.** 16+ albo krytyk otwiera przed tobą jedno tajne przejście tego pokoju, którego jeszcze nie znasz: odcinek jego ściany albo koniec tunelu, na twoim piętrze. Poniżej 16 albo gdy żadnego nie ma, twoja karta mówi "Nie znajdujesz tu tajnego przejścia." GMowie widzą tę samą kartę. Nie w Class Trial.
 
 ### Projekty - statystyka projektu, 1 akcja
 
@@ -295,14 +296,16 @@ Sąsiedni pokój, w którym nigdy nie byłeś, figuruje jako *Nieodkryty pokój 
 
 ### Palm - Hand, 1 akcja
 
-Ręka w czyjejś kieszeni, w obie strony. Dwa niezależne rzuty: **Hand** decyduje, czy się udało, **Shadow** - czy zauważyli.
+Ręka w czyjejś kieszeni, w jedną albo w drugą stronę, albo tylko spojrzenie do środka. Dwa niezależne rzuty: **Hand** decyduje, czy się udało, **Shadow** - czy zauważyli.
 
-| | Weź coś | Zostaw coś |
-|---|---|---|
-| Udaje się (Hand) | 10+ | 8+ |
-| Niezauważony (Shadow) | 15+ | 13+ |
+| | Weź coś | Zostaw coś | Frisk (ukradkiem) |
+|---|---|---|---|
+| Udaje się (Hand) | 10+ | 8+ | 10+ |
+| Niezauważony (Shadow) | 15+ | 13+ | 15+ |
 
 Cztery wyniki, a ciekawe są te niedopasowane: przyłapany z niczym albo okradziony przez kogoś, kogo nie zauważyłeś. Bierzesz, co wyjdzie; krytyk pozwala wybrać. Ich limit noszenia wciąż obowiązuje - to, co nie mieści się w pełnej kieszeni, trafia do ich skrytki, a gdy skrytki nie mają, zostaje u ciebie. Palm nigdy nie sięga do wnętrza skrytki.
+
+**Frisk: zobacz, co ktoś nosi** niczego nie zabiera. **Jawnie** prosisz, żeby pokazali kieszenie. Jeśli pozwolą, widzisz to, co mieli przy sobie w chwili prośby: przekazanie czegoś dalej w czasie namysłu tego nie ukryje. Jeśli odmówią albo nie odpowiedzą w ciągu minuty, możesz ich zmusić, chyba że GM to wyłączył: **Body 12+**, a pokój i tak to widzi. Jeśli ich gracza nie ma, nikt nie odpowiada; za postać bez gracza odpowiada GM. **Ukradkiem** to dwa rzuty kradzieży bez kradzieży: najpierw Shadow, 15+, żeby nikt nie zauważył, potem Hand, 10+, żeby dobrze się przyjrzeć; jeśli to zauważą, wiedzą, że to ty. Kosztuje **1 akcję**; jeśli prośba w ogóle nie może do nich trafić, akcja wraca. Widzisz to, co jest w kieszeniach: nigdy Truth Bullet, nigdy skrytkę. Ciała nie przeszukuje się przez Frisk: przejrzyj je z jego arkusza.
 
 ### Tamper - Shadow, 1 akcja
 
@@ -356,7 +359,7 @@ Hope jest twój. Masz najwyżej **6**. Wraca, gdy rzuty idą po twojej myśli (+
 | **Ultimate** | 1 | Przewaga na rzut, do którego twój Ultimate naprawdę się stosuje. Czeka na GMa tak samo. |
 | **Contribution** | 2 | +1 postępu do projektu, nad którym trwa praca w pokoju, w którym jesteś. |
 | **Sprint** | 2 | Jeszcze jedno przejście między pokojami o tej porze dnia, bez płacenia akcją. |
-| **Reroll** | 3 | Przerzuć ostatnią akcję. Cofa poprzedni wynik - ślad, przedmiot, Sanity idą razem z nim. Stara karta zostaje, z przekreślonym wynikiem i linią pod nagłówkiem, która podaje stary i nowy wynik. Niektóre rzeczy zostają: ręka, która już była w kieszeni, trop, który już podłożono, ślad, na którym GM coś zapisał albo który ktoś już znalazł. Reroll sprzątania albo Analyze, których pierwszej próby nie da się już cofnąć, jest odrzucany i nic nie zostaje wydane. Akcji kryzysowej, która kogoś zabiła, nie da się przerzucić: śmierć zostaje. Reroll robi przeglądarka GM-a i to ona pobiera Hope; bez podłączonego GM-a Reroll się nie odbywa i nic nie zostaje wydane. Jeśli rzutu nie ma już na czacie, Reroll jest odrzucany i nic nie zostaje wydane. Przerzucony rzut liczy to, co GM policzył za pierwszym razem. |
+| **Reroll** | 3 | Przerzuć ostatnią akcję. Cofa poprzedni wynik - ślad, przedmiot, Sanity idą razem z nim. Stara karta zostaje, z przekreślonym wynikiem i linią pod nagłówkiem, która podaje stary i nowy wynik. Niektóre rzeczy zostają: ręka, która już była w kieszeni, trop, który już podłożono, ślad, na którym GM coś zapisał albo który ktoś już znalazł. Reroll sprzątania albo Analyze, których pierwszej próby nie da się już cofnąć, jest odrzucany i nic nie zostaje wydane. Akcji kryzysowej, która kogoś zabiła, nie da się przerzucić: śmierć zostaje. Reroll robi przeglądarka GM-a i to ona pobiera Hope; bez podłączonego GM-a Reroll się nie odbywa i nic nie zostaje wydane. Jeśli rzutu nie ma już na czacie, Reroll jest odrzucany i nic nie zostaje wydane. Przerzucony rzut liczy to, co GM policzył za pierwszym razem. Reroll Znajdź tajne przejście albo Znajdź ukrytą skrytkę szuka jeszcze raz nowymi kośćmi (w pokoju, w którym padł rzut, i tylko wtedy, gdy wciąż tam stoisz - inaczej Reroll wraca w całości): w górę znajduje raz; w dół skrytka, którą otworzył, zostaje otwarta, a przejście, które znalazł tylko ten rzut, przepada. |
 | **Resolve** | 3 | Na jeden rzut sam wybierz, którą statystykę dodać. |
 | **Burst** | 4 | Twoja następna akcja nic nie kosztuje - cała akcja, ile by nie kosztowała. |
 | **Relief** | 4 | Weź Short Rest od razu: bez akcji, bez oznaczonego pokoju i nie zużywa tego z tej pory dnia. |
@@ -550,7 +553,7 @@ Jest dokładnie jeden, a rodzaj morderstwa decyduje, czyj.
 
 Ofiara nie widzi niczego, gdy zabójca rzuca - żadnej karty, muzyki ani niczego na panelu zdarzeń. Gdy rzut się uda, od razu dowiaduje się, że incydent się zaczął, i kto na nią rusza: Direct Murder to zabójstwo twarzą w twarz. Porażka nie zostawia jej niczego.
 
-**Morderstwo pośrednie (pułapka):** rzuca **ofiara** (Eye albo Head, przeciw **20**; utrudnienie nocą; którą, wybiera GM). Sama prośba o rzut jest ostrzeżeniem: słyszysz, że przygotowuje się dla ciebie rzut, a okno nosi tytuł "Coś tu nie gra - twój rzut".
+**Morderstwo pośrednie (pułapka):** rzuca **ofiara** (Eye albo Head, przeciw **20**; utrudnienie nocą; którą, wybiera GM). Sama prośba o rzut jest ostrzeżeniem: słyszysz, że przygotowuje się dla ciebie rzut, a okno nosi tytuł "Coś tu nie gra".
 
 | Rzut ofiary | Co się dzieje |
 |---|---|

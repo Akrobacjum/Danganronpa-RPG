@@ -49,8 +49,8 @@
  *   api       a facade, and every family file that was there and received nothing, exports at the head exactly its
  *             names at the base, re-exports and `export *` included; every name a family file exported at both ends
  *             resolves, through `export ... from`, to the declaration it resolved to at the base (m1); and no
- *             target imports a facade, statically or through `import()` - the facade rule (CLAUDE.md, "Where the
- *             code lives"). A name a target that was there at the base stops exporting (a demotion) is imported by
+ *             target imports a facade, statically or through `import()` - the facade rule (.claude/rules/code.md,
+ *             "Where the code lives"). A name a target that was there at the base stops exporting (a demotion) is imported by
  *             no file under scripts/ or audit/harness: `import` and `export ... from`, and the import() forms
  *             `importsOf` reads (round 2, m2; it says which it does not).
  *   cuts      tests-kit's `topLevelFunction` cut of every function of every family file of the base equals its cut

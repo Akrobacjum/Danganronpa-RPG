@@ -205,7 +205,7 @@ Player Handbook and a one-page Student Brochure for the table. They ship with
 the module. The small book button in the bottom-right corner opens them in the
 game, in the language you picked for the module, and only GMs see the GM
 Handbook. You can also read them here, in [docs/handbooks](docs/handbooks).
-They describe version 1.2.79. If a later version and a handbook ever disagree,
+They describe version 1.2.80. If a later version and a handbook ever disagree,
 trust the module.
 
 ## Installation
@@ -276,14 +276,22 @@ rest is hidden on screen rather than locked away. Rolls are whispered, so other
 players never see them, but like every chat message they reach every browser.
 Another student's sheet shows their name, face, Ultimate, Health, Sanity and
 what is in their hands, and hides their traits, Hope and the rest of their
-inventory. Where the traces lie, the GM's plan for the key clues and, until the
-lights come up, a murder declared during the Eclipse are all world data. A
+inventory. Every character's items, with their names, still reach every
+browser; a Frisk lists another student's pockets only to the searcher and the
+GMs. <!-- leak:foundry-actor-items --> Where the traces lie, the GM's plan for
+the key clues and, until the lights come up, a murder declared during the
+Eclipse are all world data. A
 token the GM hides is hidden from view only: Foundry sends every token, with its
 name and position, to every browser. <!-- leak:foundry-hidden-tokens --> A
 secret passage, and who knows it, stay with the GMs and the students who know
 it, but every browser sees a token cross the wall where one runs
 <!-- leak:foundry-passage-crossing --> and sees a room whose only way in is a
-secret passage. <!-- leak:foundry-passage-only-room --> It is a curtain, not a
+secret passage. <!-- leak:foundry-passage-only-room --> Every browser also sees
+a token that goes through a tunnel or up its stairs leave one end and land at
+the other. <!-- leak:foundry-passage-tunnel --> Foundry's own secret doors are
+walls on every browser's map, and a player's console can open one; the GM's
+browser shuts it again, and Convert to passages turns them into secret
+passages. <!-- leak:foundry-secret-door-type --> It is a curtain, not a
 wall, and it works at a table that does not go looking behind it.
 
 **Several GMs.** The primary GM's browser writes the shared world state. The

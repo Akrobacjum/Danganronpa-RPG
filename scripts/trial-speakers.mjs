@@ -39,7 +39,7 @@
  * `voiceActorFor`), never a token. THE TABLE'S DEAD, NOT THE GMS' (the orchestrator, round 4, 17.10.2026): until
  * fix r4-G1 a death the GMs keep unpublished (`isDeadForGm`) was skipped on the primary, so a refusal for nobody, or
  * the card naming somebody other than the speaker the button previewed, told the objector of a death the table has
- * not been told - and the card goes to every browser, which CLAUDE.md's death rule gives to `isDeceased`. For the
+ * not been told - and the card goes to every browser, which .claude/rules/code.md's death rule gives to `isDeceased`. For the
  * table such a student is alive, and may be objected to.
  *
  * WHAT IS EXTERNAL: avclient-livekit's private Room (`game.webrtc.client._liveKitClient.liveKitRoom`) and its

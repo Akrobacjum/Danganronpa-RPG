@@ -58,6 +58,21 @@
       "measuredAt": "E30 C20 on 4a83b6b, 24.09.2026: the token.hidden marker, a hidden token's name, on p1, p2 and p3 at Scene *.tokens.*.name, wire and rest"
     },
     {
+      "id": "foundry-actor-items",
+      "class": "metadata",
+      "severity": "info",
+      "what": "Every item a character carries reaches every browser with its name and flags; another student's sheet only does not draw them, and a Frisk lists them on a card to its searcher and the GMs alone.",
+      "foundryLimit": "Foundry v14 sends every world document, the items embedded in each actor included, to every connected client.",
+      "match": [
+        {"seed": "item.name", "surface": "document", "where": "Actor", "path": "*.items.*.name"}
+      ],
+      "detectedBy": [
+        {"scenario": "72-canary", "seed": "item.name", "phase": "rest"}
+      ],
+      "readme": "leak:foundry-actor-items",
+      "measuredAt": "E80 part 2 C5, 19.10.2026, before its commit (parent b0a312b): the item.name marker, the name of an item in Botan's pockets, on p3 at Actor *.items.*.name, wire and rest, and on no other surface of p3 after three Frisks of Botan by Aiko listed it on cards to p1 and the GMs (72-canary, planted in phase plant, scanned at rest)"
+    },
+    {
       "id": "foundry-passage-crossing",
       "class": "metadata",
       "severity": "info",
@@ -80,6 +95,36 @@
       ],
       "readme": "leak:foundry-passage-only-room",
       "measuredAt": "E79 C8, 15.10.2026, before its commit: on p3 neighbouringRooms of the Closet read [] and Aiko's token stood in the Closet (65-season X2b)"
+    },
+    {
+      "id": "foundry-passage-tunnel",
+      "class": "metadata",
+      "severity": "info",
+      "what": "A token that goes through a tunnel or up its stairs is seen to go by every browser: it leaves one end and lands at the other, which says where the tunnel's two ends are to a player whose characters do not know it. The tunnel itself and who knows it stay on the GMs' browsers and the knowers'.",
+      "foundryLimit": "Foundry v14 sends every Token document's position, and each of its moves, to every connected client.",
+      "detectedBy": [
+        {
+          "scenario": "76-passages",
+          "check": "U: a tunnel crossing is seen - p3, whose Chie does not know the tunnel, is sent Aiko's token landing at the Gym's end square, 1900,1700"
+        }
+      ],
+      "readme": "leak:foundry-passage-tunnel",
+      "measuredAt": "E80 fix r1-G8, 19.10.2026, before its commit (parent 529e404): p3, whose Chie does not know the tunnel, was sent Aiko's token update to [1900,1700] (teleport, displace) when she went through from Dorm A at [700,700] on p1's 'Go through' (76-passages U)"
+    },
+    {
+      "id": "foundry-secret-door-type",
+      "class": "metadata",
+      "severity": "info",
+      "what": "Foundry's own secret doors (a wall of door type secret) are walls on every browser's map, with their type and state, so a player's console reads where they are; and a player's console can open one, which the primary GM's browser shuts again and sends a token that stepped through back. The module's secret passages are not such walls: Convert to passages turns these doors into them.",
+      "foundryLimit": "Foundry v14 sends every Scene's walls, with their door type and state, to every connected client, and lets a player change a door's state.",
+      "detectedBy": [
+        {
+          "scenario": "30-security",
+          "check": "a Foundry secret door is seen and opened from a player's console - on p1 the GM's secret door reads door type 2, and p1's console's write of ds 1 is taken"
+        }
+      ],
+      "readme": "leak:foundry-secret-door-type",
+      "measuredAt": "E80 fix r1-G8, 19.10.2026, before its commit (parent 529e404): on p1 the GM's secret door read door 2, and p1's console wrote ds 1 to it (\"written\"); the primary GM shut it again (ds 0 on the GM and on p1) and sent Aiko back to [1300,400] (30-security, phase 'a secret door a player opens')"
     }
   ]
 }

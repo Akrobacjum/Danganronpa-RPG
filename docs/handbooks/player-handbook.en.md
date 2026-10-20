@@ -1,6 +1,6 @@
 # Danganronpa RPG - Player Handbook
 
-*For students of the killing game. Module version 1.2.79, built on Daggerheart for Foundry VTT v14.*
+*For students of the killing game. Module version 1.2.80, built on Daggerheart for Foundry VTT v14.*
 
 This is the whole game from your chair: what the numbers on your sheet mean, what an action costs, what Hope buys, what happens when somebody dies, and what to press. Every number in here is the module's own; where a decision belongs to a human, it says "the GM decides".
 
@@ -22,7 +22,7 @@ Daggerheart's six traits are renamed. Your sheet shows these:
 | Statistic | Short | What it is | Used for |
 |---|---|---|---|
 | **Leg** | LEG | Physical speed | Projects, running, crisis actions |
-| **Body** | BOD | Physical strength | Projects, fighting, moving heavy things |
+| **Body** | BOD | Physical strength | Projects, fighting, moving heavy things, making somebody turn out their pockets |
 | **Hand** | HAN | Dexterity and precise action | Search, Palm, Projects, crisis actions |
 | **Eye** | EYE | Perceptiveness and noticing things | Search, Observe, sensing a trap |
 | **Shadow** | SHA | Hiding and the sixth sense | Listen, Tamper, staying unseen, covering traces |
@@ -62,7 +62,7 @@ Every action is a Daggerheart duality roll: a Hope die and a Despair die (both d
 - A roll **with Despair** feeds the Despair pool of the Monokuma who watches you. That is where Monokuma's money comes from - your bad luck and your risks.
 - A **critical** earns 2 Hope and nothing else (it does not clear Sanity here, unlike plain Daggerheart).
 
-The roll window is locked for players: dice, statistic, advantage, experiences and bonuses come from the action, from a Call you paid for, from where you are standing, or from the GM. What you can touch is what the action lets you choose. While a GM is connected, the dice of an action roll and of a statistic you click on your sheet are thrown by the GM's browser: they fall on your screen, in your colours, as your throw, and you read the result as before. What is added to the dice is the GM's too: the GM's browser counts the statistic, the experiences, the bonuses and the advantage dice your action, your Calls and where you stand give, so the total on your card is the GM's. Anything the window put on beyond that is not counted, and a card of your own says what the GM counted and what it did not. A die the window shows at other faces or in another number is not thrown either; the GM's is.
+The roll window is locked for players: dice, statistic, advantage, experiences and bonuses come from the action, from a Call you paid for, from where you are standing, or from the GM. What you can touch is what the action lets you choose. While a GM is connected, the dice of an action roll and of a statistic you click on your sheet are thrown by the GM's browser: they fall on your screen as your throw, and you read the result as before. Your dice look is set by the GM. A look you pick in Dice So Nice, for yourself or on your character, goes back to the GM's; your display and performance settings stay yours. Only if the GM switches this off is your look yours to set again. What is added to the dice is the GM's too: the GM's browser counts the statistic, the experiences, the bonuses and the advantage dice your action, your Calls and where you stand give, so the total on your card is the GM's. Anything the window put on beyond that is not counted, and a card of your own says what the GM counted and what it did not. A die the window shows at other faces or in another number is not thrown either; the GM's is.
 
 **With no GM connected** an action waits: pressing it tells you that an action roll waits for a GM, and nothing is paid. Any other roll - a statistic from your sheet, which counts as a reaction then, or a reaction - is still thrown, and its card says that it was thrown with no GM connected and that the GM will see it. It moves no Hope, Sanity or Despair until a GM, back at the table, grants it, and a reaction - the statistic included - moves nothing even then.
 
@@ -130,7 +130,7 @@ You are turned back by:
 
 Your GM may turn off the price of crossings; then which rooms connect, the stairs included, is theirs to judge outside an Eclipse.
 
-**Secret passages.** Some walls hide a secret passage. When your character knows one, your token goes through that stretch of wall as through a door, and the step is a crossing like any other; to everybody else it is a wall. A passage takes you into somebody else's bedroom without a key; a locked door, a sealed room, being Chained and a Class Trial still turn you back. Your sheet lists the passages you know under **Known passages**: a name shows its passage on the map, and **the way is shut** beside it means it does not open for you from where you stand. **Show the passage** shows it to another student in the same room, who can walk through it from then on: it costs no action, a GM has to be connected, and the GMs are told. A GM may also give you a passage, and some you know from the season's start; a season's reset leaves you only those. Everybody sees your token go through, as they see any token move.
+**Secret passages.** Some walls hide a secret passage. When your character knows one, your token goes through that stretch of wall as through a door, and the step is a crossing like any other; to everybody else it is a wall. A passage takes you into somebody else's bedroom without a key; a locked door, a sealed room, being Chained and a Class Trial still turn you back. Your sheet lists the passages you know under **Known passages**: a name shows its passage on the map, and **the way is shut** beside it means it does not open for you from where you stand. **Show the passage** shows it to another student in the same room, who can walk through it from then on: it costs no action, a GM has to be connected, and the GMs are told. A GM may also give you a passage, and some you know from the season's start; a season's reset leaves you only those. When a GM makes a passage public, every student knows it, until the GM makes it secret again. Some passages are a tunnel or stairs between two rooms, on one floor or two: the end in your room is marked "Secret passage to" the room it leads to. Stand at that end and press **Go through** beside it under **Known passages**: it costs what a door costs, and you come out by the far end, on its floor. A GM has to be connected. What turns you back at a door turns you back here, in the same words, and costs nothing. Everybody sees your token go through, as they see any token move.
 
 ### What you can see
 
@@ -214,11 +214,12 @@ You are told what you found, never the difficulty. Traces tied to the crime are 
 
 ### Analyze - Head, 1 action
 
-Three things behind one tile:
+Four things behind one tile:
 
 - **Identify a Truth Bullet.** Turns a Neutral Truth Bullet into its real category. **A failure locks that bullet for you until the chapter ends** - hand a copy to somebody else and their copy is not bound by your failure.
 - **Ask for a hint.** No evidence in hand? Ask the GM to point you somewhere. 14+ buys a subtle hint ("you are far from the target"), 18+ a direct one ("search the pool room"), a critical lets them ask you one question ("did the victim really die in this room?"). Below 14, no help.
 - **Locate a hidden stash.** 16+ opens one hiding place in this room to you. The GM is told; the owner is not.
+- **Find Passage.** 16+ or a critical opens to you one secret passage of this room you do not know yet: a stretch of its wall or a tunnel's end, on your floor. Below 16, or when there is none, your card says "You find no hidden passage here." The GMs see the same card. Not in a Class Trial.
 
 ### Projects - the project's statistic, 1 action
 
@@ -295,14 +296,16 @@ A neighbouring room you have never been in is listed as *Unexplored room 1*, *Un
 
 ### Palm - Hand, 1 action
 
-A hand in somebody's pocket, going either way. Two independent rolls: **Hand** decides whether it worked, **Shadow** decides whether they noticed.
+A hand in somebody's pocket, going either way, or just a look inside. Two independent rolls: **Hand** decides whether it worked, **Shadow** decides whether they noticed.
 
-| | Take something | Leave something |
-|---|---|---|
-| It works (Hand) | 10+ | 8+ |
-| Unseen (Shadow) | 15+ | 13+ |
+| | Take something | Leave something | Frisk (unseen) |
+|---|---|---|---|
+| It works (Hand) | 10+ | 8+ | 10+ |
+| Unseen (Shadow) | 15+ | 13+ | 15+ |
 
 Four outcomes, and the interesting ones are the mismatches: caught with nothing to show for it, or robbed by somebody you never noticed. What you take is whatever comes out; a critical lets you choose. Their carry limit still applies - what does not fit in a full pocket goes into their stash, and with no stash it stays with you. Palm never reaches into a stash.
+
+**Frisk: see what they carry** takes nothing. **Openly**, you ask them to turn out their pockets. If they let you, you see what they had on them when you asked: handing something on while they think it over does not hide it. If they refuse, or do not answer within a minute, you can make them, unless your GM has switched that off: **Body 12+**, and the room sees it either way. If their player is not here, nobody answers; the GM answers for a character without a player. **Unseen**, it is a theft's two rolls without the theft: Shadow first, 15+ so they do not notice, then Hand, 10+ to get a proper look; if they notice, they know it was you. It costs **1 action**; if the request cannot be put to them at all, you get it back. You see what is in their pockets: never a Truth Bullet, never a stash. A body is not frisked: look through it from its sheet.
 
 ### Tamper - Shadow, 1 action
 
@@ -356,7 +359,7 @@ Hope is yours. You hold at most **6**. It comes back when rolls go your way (+1 
 | **Ultimate** | 1 | Advantage on a roll your Ultimate genuinely applies to. Waits for the GM the same way. |
 | **Contribution** | 2 | +1 progress to a project being worked on in the room you are in. |
 | **Sprint** | 2 | One more room crossing this time of day without paying an action for it. |
-| **Reroll** | 3 | Reroll your last action. It reverts the previous outcome - the trace, the item, the Sanity go with it. The old card stays, its total struck through and a line under its header with the old and the new total. Some things stand: a hand already in a pocket, a trail already planted, a trace the GM has written on or somebody has already found. A clean-up or an Analyze whose first attempt can no longer be taken back is refused, and nothing is spent. A crisis action that killed somebody cannot be rerolled: the death stands. The GM's browser makes the Reroll and takes the Hope; with no GM connected it is not made, and nothing is spent. If the roll is gone from the chat, it is refused and nothing is spent. A rolled-again roll counts what the GM counted the first time. |
+| **Reroll** | 3 | Reroll your last action. It reverts the previous outcome - the trace, the item, the Sanity go with it. The old card stays, its total struck through and a line under its header with the old and the new total. Some things stand: a hand already in a pocket, a trail already planted, a trace the GM has written on or somebody has already found. A clean-up or an Analyze whose first attempt can no longer be taken back is refused, and nothing is spent. A crisis action that killed somebody cannot be rerolled: the death stands. The GM's browser makes the Reroll and takes the Hope; with no GM connected it is not made, and nothing is spent. If the roll is gone from the chat, it is refused and nothing is spent. A rolled-again roll counts what the GM counted the first time. A Reroll of a Find Passage or a Find Stash searches again with the new dice (in the room its roll was thrown in, and only while you still stand there - else the Reroll is given back whole): going up, it finds once; going down, a stash it opened stays open, and a passage only that roll found is taken back. |
 | **Resolve** | 3 | For one roll, choose which statistic to add yourself. |
 | **Burst** | 4 | Your next action costs nothing - the whole action, however many it would have cost. |
 | **Relief** | 4 | Take a Short Rest right now: no action, no marked room, and it does not use up this time of day's. |
@@ -550,7 +553,7 @@ There is exactly one, and the kind of murder decides whose it is.
 
 The victim sees nothing while the killer rolls - no card, no music, nothing on the Event panel. When the roll succeeds they are told at once that the incident has begun, and who is moving on them: a direct murder is face to face. A failure leaves them nothing at all.
 
-**Indirect murder (a trap):** the **victim** rolls (Eye or Head, against **20**; disadvantage at Night; the GM picks which). Being asked to roll is itself the warning: you are told that a roll is being set up for you, and the window reads "Something feels wrong - your roll".
+**Indirect murder (a trap):** the **victim** rolls (Eye or Head, against **20**; disadvantage at Night; the GM picks which). Being asked to roll is itself the warning: you are told that a roll is being set up for you, and the window reads "Something feels wrong".
 
 | Victim's roll | What happens |
 |---|---|

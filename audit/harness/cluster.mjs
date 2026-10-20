@@ -148,6 +148,23 @@ function canWrite(userId, op) {
          */
         if (action.startsWith("embedded-") && op.embeddedName === "Region") return true;
         /*
+         * A PLAYER'S DOOR (E80 C5, 18.10.2026; S16-18). Foundry lets a player open and close a door that is not
+         * locked - a change of the wall's `ds` alone, from and to no locked state (2) - and refuses every other write
+         * of a wall: v14's BaseWall#canUpdate as design A10 reads it (common/documents/wall.mjs:122-129 on 14.365),
+         * not read here. Refusing it, as this did, hid the road the module answers (passages-gm.mjs
+         * `putBackSecretDoor`); scenario 30 drives a console's opening of a secret door. Whether v14 lets a player
+         * change a secret door's state at a table is LIVE-E80-03.
+         */
+        if (action === "embedded-update" && op.embeddedName === "Wall") {
+            const scene = world.collections.Scene.find(s => s._id === op.docId);
+            if (!scene || roleOf(userId) < 1) return false;
+            return (op.payload ?? []).every(u => {
+                const wall = (scene.walls ?? []).find(w => w._id === u?._id);
+                const keys = Object.keys(u ?? {}).filter(k => k !== "_id");
+                return Boolean(wall) && keys.length === 1 && keys[0] === "ds" && Number(wall.ds ?? 0) !== 2 && Number(u.ds) !== 2;
+            });
+        }
+        /*
          * A PLAYER'S TOKEN (E13 fix r1-F2, 12.10.2026; review r1 sec B). Foundry lets a user whose role
          * the world grants "Create New Tokens" (TOKEN_CREATE) make a token - a drag from the Actors
          * tab - and this harness does not model that permission (lib/shim.mjs `can`). Refusing every
@@ -430,7 +447,7 @@ function spawnClient(who, userId, { world = null, storage = null, clockSkewMs = 
 function snapshotFor(userId) {
     const collections = {};
     for (const [name, docs] of Object.entries(world.collections)) collections[name] = docs.map(U.deepClone);
-    return { t: "snapshot", collections, settings: { ...world.settings }, you: userId };
+    return { t: "snapshot", collections, settings: { ...world.settings }, settingWriters: { ...settingWriters }, you: userId };
 }
 
 function broadcast(msg, { except = null } = {}) {
@@ -491,10 +508,20 @@ function onClientMessage(who, entry, msg) {
             if (!isGM(entry.userId)) {
                 error = "User lacks permission to update world Setting";
                 permissionDenials.push({ who, op: `setting ${msg.key}`, error });
+            } else if (Object.hasOwn(world.settings, msg.key) && JSON.stringify(world.settings[msg.key]) === JSON.stringify(msg.value)) {
+                /* An empty diff (E16 fix r1e-G1, finding fd3-1): v14 keeps a world setting as its JSON string and
+                   updates its Setting document with that string, and an update that changes nothing is dropped
+                   before it is sent - no write, no `updateSetting`, no `onChange`, and `_stats.lastModifiedBy` stays
+                   the last real writer's. Until this fix the harness applied and stamped it, so a put-back that
+                   wrote the very JSON stored looked like a write here. Recalled, not read: LIVE-E30-03 (the empty
+                   update) and LIVE-E16-04 (the Setting's stamp). Same JSON means same key order too: v14 compares
+                   the strings, so the same rows in another order are a change. Nothing is logged: `settingLog`
+                   holds the writes the server applied. */
             } else {
                 world.settings[msg.key] = msg.value;
+                settingWriters[msg.key] = entry.userId;
                 settingLog.push({ who, key: msg.key, at: Date.now() });
-                broadcast({ t: "settingApplied", key: msg.key, value: msg.value, userId: entry.userId });
+                broadcast({ t: "settingApplied", key: msg.key, value: msg.value, userId: entry.userId, ...(msg.noHook === true ? { noHook: true } : {}) });
             }
             entry.proc.send({ t: "ack", id: msg.id, ok: !error, result: msg.value, error });
             break;
@@ -550,6 +577,10 @@ const socketTraffic = [];
    does, so a scenario can watch the other GM take over. */
 const opLog = [];
 const settingLog = [];
+/* The last writer of each world setting, by key (E16 fix r1c-G1): v14 stamps a Setting document's
+   `_stats.lastModifiedBy` as any document's, and a client reads it off `getSetting` (client-entry.mjs).
+   Modelled, not measured: LIVE-E16-04. A value the seed wrote has none. */
+const settingWriters = {};
 /* Each client's localStorage as it closed, by who (E04): a browser that closes keeps its store. */
 const keptStorage = new Map();
 /* The accounts a scenario declared `late: true`, by who: seeded inactive, not spawned until `connect`. */

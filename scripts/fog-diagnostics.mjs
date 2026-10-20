@@ -4,7 +4,7 @@
  * The console's two questions about a scene, which read the map and the drawn
  * layer and change neither: `checkRegions`, every room checked against the rules
  * the fog layer depends on (`roomsToCheck`, `overlapCheck`, `adriftCheck`,
- * `noWayOutCheck`, `latticeCheck`, with `pointOf`, `commonestOffset`,
+ * `noWayOutCheck`, `latticeCheck`, `secretDoorRows` since E80 C5, with `pointOf`, `commonestOffset`,
  * `gridOffset` and `overlapArea`), and `whatIsHere`, which of the outline, the
  * glow and the raster drew a point (`findNamed`, `nearestOutline`,
  * `glowAlphaAt`, `nearestBorderTo`, `nearestWallTo`, `printWhatIsHere`); and
@@ -27,7 +27,8 @@
  * would see the cycle). Below it are config.mjs (`MODULE_ID`), movement.mjs
  * (`boundsOf`), the rooms.mjs leaf (what a room is, E12 C2b), fog-geometry.mjs,
  * fog-doorways.mjs (the wall test, the openings, the `DOORWAY_*` numbers the
- * checks measure with and `ADRIFT_WARN_RUN`) and fog-reveal.mjs (`roomOutline`).
+ * checks measure with and `ADRIFT_WARN_RUN`), fog-reveal.mjs (`roomOutline`) and
+ * the passages.mjs leaf (`secretDoorsOn`, E80 C5).
  */
 
 import { MODULE_ID } from "./config.mjs";
@@ -39,6 +40,7 @@ import {
     doorwayEdges
 } from "./fog-doorways.mjs";
 import { roomOutline } from "./fog-reveal.mjs";
+import { secretDoorsOn } from "./passages.mjs";
 
 /** Depth-first, by display-object name. */
 function findNamed(node, name) {
@@ -569,6 +571,9 @@ export function checkRegions() {
 
     for (const { region, polys } of named) latticeCheck(region, polys, lattice, latticeOrigin, add);
 
+    // 5. Foundry's secret doors (E80 C5, S16), once per map as the lattice is: each a warning row.
+    findings.push(...secretDoorRows(scene));
+
     const order = { error: 0, warning: 1, info: 2 };
     findings.sort((a, b) => order[a.level] - order[b.level]);
 
@@ -580,6 +585,22 @@ export function checkRegions() {
     if (findings.length) console.table(findings);
     else console.log(`${MODULE_ID} | region check: nothing to report - the rooms on this scene are clean.`);
     return findings;
+}
+
+/**
+ * The map check's rows for a scene's secret doors (passages.mjs `isSecretDoor`; E80 C5, S16, P1-17): one
+ * warning per door, at the middle of its wall, and no row for an ordinary door or wall. A secret door
+ * is world data every player's browser holds, and Foundry lets a player open it; the row points the GM
+ * to the Season setup's 'Convert to passages' (passages-gm.mjs `convertSecretDoors`). R601 reads the
+ * rows on a scene of the suite's own, A10-15 on a scene of the world.
+ */
+export function secretDoorRows(scene) {
+    return secretDoorsOn(scene).map(wall => {
+        const [x1, y1, x2, y2] = (wall.c ?? []).map(Number);
+        const at = [x1, y1, x2, y2].every(Number.isFinite) ? { x: Math.round((x1 + x2) / 2), y: Math.round((y1 + y2) / 2) } : null;
+        return { level: "warning", room: "", floor: null, problem: game.i18n.localize("DRPG.Fog.secretDoor.problem"),
+            detail: game.i18n.localize("DRPG.Fog.secretDoor.detail"), at };
+    });
 }
 
 /** A point to steer somebody at: the middle of the region's own box. */

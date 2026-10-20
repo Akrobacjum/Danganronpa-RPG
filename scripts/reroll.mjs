@@ -324,13 +324,14 @@ const journalling = new Set();
 
 /**
  * The GMs' row as the replays read a bookmark: the roller's claims, with the GM's facts
- * over them, and the roll's own fields. Exported for the suite.
+ * over them, and the roll's own fields - `by` the user who threw it, as the GMs wrote it
+ * (never a claim: it is set after them). Exported for the suite.
  */
 export function replayBookmark(row) {
     if (!row) return null;
     return {
         room: row.room ?? null, ...(row.claims ?? {}), ...(row.facts ?? {}),
-        messageId: row.messageId ?? null, actionKey: row.actionKey ?? null, trait: row.trait ?? null,
+        messageId: row.messageId ?? null, actionKey: row.actionKey ?? null, trait: row.trait ?? null, by: row.by ?? null,
         experiences: Array.isArray(row.experiences) ? [...row.experiences] : [],
         total: row.total ?? null, withFear: Boolean(row.withFear), isCritical: Boolean(row.isCritical), at: row.at ?? null
     };
@@ -429,7 +430,9 @@ async function replayRefusal(actor, row) {
 function ruledByHand(bookmark) {
     if (!bookmark?.gmRuled) return false;
     if (bookmark.actionKey === "observe") return !bookmark.observeKey;
-    if (bookmark.actionKey === "analyze") return !bookmark.bulletId;
+    // A Find Passage and a Find Stash leave their facts too (E80 C3, passages-gm.mjs `noteFindFact`; C4, gm-bridge.mjs
+    // `handleFindStash`), and are replayed by them.
+    if (bookmark.actionKey === "analyze") return !bookmark.bulletId && !bookmark.findPassage && !bookmark.findStash;
     return bookmark.actionKey === "search";
 }
 
@@ -1063,6 +1066,9 @@ async function replayAction(actor, bookmark, after, done, rerolled = null) {
             // it); the replay is the same as a Steal's.
             case "palm":
             case "steal": return await settleSteal(actor, bookmark, after, done);
+            // A Frisk's hand (E80 part 2 C4): the cover is a supporting roll and keeps no row.
+            case "rummage": return await settleRummage(actor, bookmark, after, done);
+            case "frisk": return settleForce(done);
             default:
                 // A trait rolled straight from the sheet, or an action from
                 // before this bookmark existed. The dice are the whole result.
@@ -1647,6 +1653,29 @@ async function settleSteal(actor, bookmark, after, done) {
 }
 
 /**
+ * A Frisk's hand replayed on the primary (E80 part 2 C4, S16-27; the A11 design's step 11, the owner's 5 = b): only a
+ * miss nobody felt can still turn into a look, once (frisk.mjs `replayRummage`, on the GMs' fact `frisk` its first
+ * judgement wrote). A row with no such fact - a hand no Frisk was judged on - is not replayed and says so: 'no lasting
+ * effect' would be untrue of a Frisk whose result never reached the GMs' row.
+ */
+async function settleRummage(actor, bookmark, after, done) {
+    const { replayRummage } = await import("./frisk.mjs");
+    const out = await replayRummage(actor, bookmark.frisk ?? null, { total: after.total, isCritical: after.isCritical, by: bookmark.by ?? null });
+    if (!out) {
+        done.push(game.i18n.localize("DRPG.Reroll.replayFailed"));
+        return {};
+    }
+    if (out.line) done.push(out.line);
+    return out.patch ?? {};
+}
+
+/** A Frisk's force rerolled: the target and the room saw how it went, so the moment stands (the design's step 11). */
+function settleForce(done) {
+    done.push(game.i18n.localize("DRPG.Reroll.friskStands"));
+    return {};
+}
+
+/**
  * Take back an Analyze and score it again.
  *
  * Only the evidence branch reaches this: asking the GM for a hint is a ruling,
@@ -1655,6 +1684,11 @@ async function settleSteal(actor, bookmark, after, done) {
  * which also means a Reroll can lift a lock the first roll had just stamped on.
  */
 async function settleAnalyze(actor, bookmark, after, done) {
+    // A Find Passage (E80 C3; the GMs' fact `findPassage`, passages-gm.mjs `noteFindFact`): the new dice find once
+    // and take back only the cell this roll wrote (its `rollId`), never a passage found or given otherwise.
+    if (bookmark.findPassage && !bookmark.bulletId) return settlePassageFind(actor, bookmark, after, done);
+    // A Find Stash (E80 C4; the GMs' facts `findStash`, `stashFound`): one find per roll, kept on lower dice.
+    if (bookmark.findStash && !bookmark.bulletId) return settleStashFind(actor, bookmark, after, done);
     if (!bookmark.bulletId) {
         done.push(game.i18n.localize("DRPG.Reroll.noReplay"));
         return {};
@@ -1673,6 +1707,55 @@ async function settleAnalyze(actor, bookmark, after, done) {
     if (replayWasRefused(res.ok, res.value)) return null;
     done.push(game.i18n.localize("DRPG.Reroll.analyzeReplayed"));
     return { bulletId: bookmark.bulletId };
+}
+
+/**
+ * A Find Stash replayed on this GM (E80 C4, S16-19; the GMs' facts `findStash`, `stashFound`: gm-bridge.mjs
+ * `handleFindStash`, action-rolls.mjs `locateStash`). A roll that opened a stash keeps it whatever the new dice say,
+ * and opens no second one; one that did not searches again with the new dice (vault.mjs `resolveStashSearch`, its own
+ * card to the finder and, on a find, to the GMs) as a replay, which tells no trap a second hunt (E80 fix r1-G1). It
+ * searches the room its roll was thrown in (the GMs' fact `findPlace`), and only while the GMs still read the character
+ * there (E80 fix r1-G4; the review's E80-G-1); a character no longer there, or with no room to search, gives the Reroll
+ * back whole.
+ */
+async function settleStashFind(actor, bookmark, after, done) {
+    if (bookmark.stashFound) {
+        done.push(game.i18n.localize("DRPG.Reroll.searchStashStands"));
+        return {};
+    }
+    const { resolveStashSearch } = await import("./vault.mjs");
+    const out = await resolveStashSearch({ actorId: actor.id, total: after.total, isCritical: after.isCritical, replay: true,
+        at: bookmark.findPlace ?? null });
+    if (!out || out.reason === "noRoom") return null;
+    done.push(game.i18n.localize(out.found ? "DRPG.Reroll.stashFound" : "DRPG.Reroll.searchNothing"));
+    return out.found ? { stashFound: true } : {};
+}
+
+/**
+ * A Find Passage replayed on this primary (`settleAnalyze`): the roller's lines say what the new dice did; no card of its own.
+ * Judged for the user who threw the roll (the GMs' row's `by`), as its first search was judged for the bridge's sender: who
+ * acts as the Mastermind through a passage is the door's reading (passages-gm.mjs `actsAsMastermind`), and until E80 fix
+ * r1-G2 (the review's E80-C3-3) this asked it of the primary GM making the Reroll, so the Mastermind's student's Reroll
+ * found nothing for an owner the door does not name, whose first throw finds - a Reroll paid for nothing, and the difference
+ * told that owner the student's role. A row with no thrower (before `by` was written) is judged for this GM, as it was.
+ * Searched where the first throw was judged (the GMs' fact `findPlace`, passages-gm.mjs `noteFindFact`; E80 fix r1-G3, the
+ * review's E80-C3-2), never where the character stands at the Reroll: a miss rerolled after a walk into another room found a
+ * passage there, where no Analyze was paid or thrown. A row with no such fact, written before it was kept, still takes back
+ * or keeps its own find, and gives the Reroll back whole rather than search somewhere its roll was not thrown. And it searches
+ * there only while the GMs still read the character in that room (E80 fix r1-G5, the review's E80-G-2), as `settleStashFind`
+ * does: a character who has left it is refused there, and the Reroll given back whole.
+ */
+async function settlePassageFind(actor, bookmark, after, done) {
+    const { resolvePassageSearch } = await import("./passages-gm.mjs");
+    const asker = (bookmark.by ? game.users?.get(bookmark.by) : null) ?? game.user;
+    const out = await resolvePassageSearch({ actorId: actor.id, total: after.total, isCritical: after.isCritical,
+        rollId: bookmark.messageId ?? null, undo: true, at: bookmark.findPlace ?? null }, { asker });
+    if (replayWasRefused(Boolean(out), out)) return null;
+    if (out.found) done.push(game.i18n.format("DRPG.Reroll.passageFound", { to: out.to ?? "-" }));
+    else if (out.kept) done.push(game.i18n.localize("DRPG.Reroll.passageStands"));
+    else if (out.lost) done.push(game.i18n.localize("DRPG.Reroll.passageLost"));
+    else done.push(game.i18n.localize("DRPG.Reroll.searchNothing"));
+    return {};
 }
 
 /**

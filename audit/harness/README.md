@@ -41,6 +41,38 @@ reason changed, the order changed. The log keeps the first 30,000 characters of
 the suite's text; `--json` compares the two runs' results files instead, where
 01-runtests keeps the suite's whole list of results (`evidence.suite`).
 
+`node run-tests.mjs [--tier 0|1|2] [--only <R number or piece of a name>]...
+[--verbose]` (INFRA I1) runs the suite's tiers once, on the cluster 01-runtests
+boots, without 01's other steps: `game.drpg.runTests({ tier, only, confirmed })`
+on the GM, `--tier` 1 when not given, every `--only` handed over as one list, of
+which each entry has to name a test in the tiers asked for. It prints the
+runner's whole text between the lines suite-diff reads and ends on
+`run-tests: P passed, F failed, S skipped, R red`; exit 0 only with nothing
+failed and at least one test run, 1 otherwise, 2 on a usage error, 3 when the
+cluster left no results file of this run (`results/run-tests.json`, the suite's
+list as `evidence.suite`, as 01 keeps it). Measured 18.10.2026 on 4 cores:
+`--tier 1` 200-212 s wall in two runs, 449 tests; `--only R553` 11 s, one test.
+
+The suite in shards (INFRA I2): `DRPG_SUITE_SHARD=i/n` before `run-all.mjs
+suite` or `cluster.mjs scenarios/01-runtests.mjs` makes the run shard i of n.
+`runTests({ shard })` runs tiers 0 and 1 in shard 1 alone, and tier 2's tests
+at positions k with 2 + k % (n - 1) = i of the list (after `only`), none in
+shard 1 (tests.mjs `shardOfPosition`; INFRA I3, 18.10.2026);
+01-runtests runs its parts A and B (tiers 0-1 mid-game, the default, the tier-2
+window) in shard 1 alone, asks of its skips only that each is listed in
+`skip-baseline.json`, and writes `evidence.shard`: the shard, the tier-2 names it
+ran, and the whole list with its length and hash. `node suite-merge.mjs <dir>`
+reads every `01-runtests.json` under `<dir>` (CI's verdict job: one folder per
+shard, `shards/results-suite-<i>/`) and holds them to the whole suite once: one
+list and hash, each name in the shard its position gives it, tiers 0-1 in
+shard 1, the skips together exactly the baseline's, nothing failed; exit 1 with
+what is missing or doubled, 2 when there is nothing to read. Unset, the run is
+1/1, and suite-merge reads its folder as a set of one. Measured 18.10.2026 on 4
+cores, at 47a8f4a: shard 1/8 880 s wall, 450 tests of tiers 0-1 with parts A and
+B, shard 2/8 336 s wall, 136 of tier 2's 950. With tier 2 dealt over all eight
+(k % n = i - 1, until this dealing) shard 1/8 took 1116 s and 2/8 331 s, 119 each;
+on CI's first five runs suite 1/8 took 647-952 s and the others 251-365 s.
+
 ## Layers
 
 Every file declares `export const layers = [...]`, written out as a JSON array
@@ -221,7 +253,11 @@ part of a roll comes from:
   import: `applications/dialogs/d20RollDialog.mjs` (since E33 C2b a stand-in
   shaped as the window - its config, its roll, the markup the module's hooks
   read and its actions, the hooks fired through the shim's render and close;
-  its header says what it leaves out), `helpers/utils.mjs` (two of Daggerheart's helpers, and two that throw
+  its header says what it leaves out; since E16 p1 C0 its Roll is greyed out
+  from the costs and uses against the actor's resources, as 2.10.5's
+  `_prepareContext` greys it, by a wrap client-entry.mjs `wrapWindowCosts`
+  puts on the class at boot - an assumption about the table's Daggerheart that
+  LIVE-E16-01 checks), `helpers/utils.mjs` (two of Daggerheart's helpers, and two that throw
   if a copy ever calls them), `data/action/baseAction.mjs` (the
   `ResourceUpdateMap` of `lib/daggerheart.mjs`); in client-entry.mjs
   (`installDualityRoll`): the roll and the dice registered where Daggerheart
@@ -236,8 +272,9 @@ the summary its throw leaves in the config, `extraDice`, the resource step
 (critical.mjs's patch of it included) and a live reroll's settlement run for
 real, and the window's choices reach them as its actions make them (E33 C2b).
 Not run: the window's form (a select changed, a formula typed), its chat card,
-triggers and countdowns, anything read off the roll data's `parent` (no effect
-makes a critical certain, no rally die), and every roll at a table.
+triggers and countdowns, anything read off the roll data's `parent` but the
+window's costs (no effect makes a critical certain, no rally die), and every
+roll at a table.
 
 ## What the harness cannot do
 
@@ -349,7 +386,15 @@ makes a critical certain, no rally die), and every roll at a table.
   `__savedFiles` on that client instead of downloading it, and
   `readTextFromFile` takes the text itself (or `{ text }`) as the chosen file;
   what a real browser does with either is LIVE-E04-05. v14's world storage
-  answers `getSetting(key)` with the stored value or nothing (LIVE-E04-10).
+  answers `getSetting(key)` with the stored value or nothing (LIVE-E04-10),
+  and since E16 fix r1c-G1 with `_stats.lastModifiedBy`: the user whose write
+  the server last applied (cluster.mjs `settingWriters`; null for a value the
+  seed wrote). That v14 stamps a Setting so is modelled, not read: LIVE-E16-04.
+  Since E16 fix r1e-G1 a world setting written with the JSON it already holds
+  (key order too) is an empty diff: not applied, not broadcast, no
+  `updateSetting` or `onChange`, no `settingLog` row, and its writer stays the
+  last real one - v14 drops an update that changes nothing, recalled, not read
+  (LIVE-E30-03, LIVE-E16-04). A document's update is still not diffed here.
 - **The GM store at a real table** (E04). Late GM accounts (`connect`,
   `disconnect`, `storageOf`) are clients on one machine: `game.time.serverTime`
   is that machine's clock and a client's skew moves its `Date.now` alone

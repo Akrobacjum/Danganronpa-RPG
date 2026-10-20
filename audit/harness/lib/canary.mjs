@@ -74,6 +74,8 @@ export const SEEDS = Object.freeze({
     "note.player": { cls: "plan", field: "a player's pre-session note", plantedBy: "72-canary, 11-killer-secrecy" },
     "park.note": { cls: "plan", field: "a Direct Murder parked during an Eclipse: its note", plantedBy: "72-canary" },
     "token.hidden": { cls: "metadata", field: "a hidden token's name", plantedBy: "72-canary" },
+    // E80 part 2 C5 (A11-15): the name of an item a student carries, which a Frisk lists to its searcher and the GMs.
+    "item.name": { cls: "metadata", field: "the name of an item a student carries", plantedBy: "72-canary" },
     // A found trace's public name as the GM names it: the GM's and its finder's (planted since E05 C13).
     "remnant.publicName": { cls: "answer-key", field: "a found trace's public name, as the GM names it", plantedBy: "72-canary" },
     // No marker: what `worldScan` finds (E05 C2).

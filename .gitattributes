@@ -6,12 +6,15 @@
 docs/img/ export-ignore
 docs/design/ export-ignore
 docs/changelog-1.2.0.md export-ignore
+# docs/dev is the working papers' generated half: the R-number registry (INFRA I4).
+docs/dev/ export-ignore
 .gitattributes export-ignore
 .gitignore export-ignore
 
 # How the project is worked on, not how it is played: useful in the repository,
 # nothing a module installed in a Data folder has any use for.
 CLAUDE.md export-ignore
+.claude/ export-ignore
 CONTRIBUTING.md export-ignore
 eslint.config.mjs export-ignore
 

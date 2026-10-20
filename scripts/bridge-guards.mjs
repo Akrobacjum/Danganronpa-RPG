@@ -161,6 +161,7 @@ export const REASONS = Object.freeze([
     "rollMissed", "projectFrozen", "rollReplaced", "notPaid", "rollThrown", "callNotPaid", "callNotApproved", "itemNotDecided",
     "notEligible", "sameTwice", "wrongCount", "notKnown", "recipientDead", "floorClosed", "noSpeaker", "noBullet",
     "objectionOver", "relay", "sheetPutBack", "failed",
+    "notAtPassage", "doorLocked", "roomSealed", "chained", "cannotLeave", "trialLocked", "noBudget", "eclipseSpent",
     "refused", "noGm", "noAnswer"
 ]);
 
@@ -285,6 +286,18 @@ export const REASON_PATTERNS = Object.freeze([
     ["cannotNow", /^no Eclipse is running$/],
     // E32+E07 C11b: a statistic ruling for a clean-up the character may not make now (guardTraitRuling).
     ["cannotNow", /^the character may not clean up now$/],
+    // E80 part 2 C1: one student acting on another in their room, judged by the primary GM (frisk.mjs
+    // `personActionRefusal`); each says what the GM's log needs, and the player is told only "That cannot be done now."
+    ["cannotNow", /^a character cannot do that to itself$/],
+    ["cannotNow", /^a Monokuma takes no part in that$/],
+    ["cannotNow", /^a Monocub takes no part in that$/],
+    ["cannotNow", /^an Eclipse is running$/],
+    ["cannotNow", /^that waits until the Class Trial is over$/],
+    ["cannotNow", /^the character is a side of the running incident$/],
+    // E80 part 2 C3: an open Frisk's ask, answer and force, judged by the primary GM (frisk.mjs `answerFrisk`, `followFrisk`):
+    // an ask this primary does not hold - ended, or held by a primary that reloaded - and an answer after the first.
+    ["missing", /^no such Frisk ask$/],
+    ["alreadyDone", /^that Frisk ask has been answered already$/],
     ["cannotFrame", /^that student cannot be framed$/],
     ["notThere", /^the body is not in the killer's room$/],
     ["notThere", /^the character has no token on a scene$/],
@@ -357,6 +370,16 @@ export const REASON_PATTERNS = Object.freeze([
     // `shareRefusal`). One reason for a passage that does not exist, is closed or the giver does not know (R562).
     ["notKnown", /^the character does not know that passage$/],
     ["recipientDead", /^the character shown it is dead$/],
+    // E80 C2: 'Go through' a tunnel, judged by the primary GM by the doors' rules (gm-bridge.mjs `passage.cross`,
+    // passages-gm.mjs `crossTunnel`, `crossingWhy`); each code's words are the door's veto's (R597).
+    ["notAtPassage", /^the character is not at an end of that passage$/],
+    ["doorLocked", /^the room beyond is locked$/],
+    ["roomSealed", /^the room beyond is sealed$/],
+    ["chained", /^the character is chained where it stands$/],
+    ["cannotLeave", /^the character is held in the incident$/],
+    ["trialLocked", /^the Class Trial is in session$/],
+    ["noBudget", /^the character has no Move and no action left$/],
+    ["eclipseSpent", /^the character's Eclipse crossings are used up$/],
     // E79 C16: an Objection raised from the trial bar and proved after, judged by the primary GM (gm-bridge.mjs
     // `trial.object`, `trial.evidence`, `floor.repoint`; trial.mjs `objectOnPrimary`, `evidenceOnPrimary`,
     // `repointOnPrimary`). The four new codes are the four a player at the table can act on: wait for the debate,
@@ -1200,6 +1223,18 @@ export async function remnantSourceOf(payload) {
  */
 export function guardRelayActor(sender, payload, ctx) {
     return payload?.actorId && game.actors.get(payload.actorId) ? null : "no such character";
+}
+
+/*
+ * A STASH HUNT IS TOLD BY THE GM THAT JUDGED IT (E80 fix r1-G1, 18.10.2026; the review's E80-SEC-1).
+ * vault.mjs `resolveStashSearch` raises it on the GM that scores the search, and a GM's browser that is
+ * not the primary relays it as its own report; the finder's browser raised it until then, so a console
+ * that left it out hunted past every trap, and one that sent it alone set one off with no search. A
+ * player's report of a stash hunt is no road any more, and is refused. (A Find Passage is no report at
+ * all: the primary that judges it raises it, and the relay's kinds no longer name it.)
+ */
+export function guardRelayTeller(sender, payload, ctx) {
+    return payload?.kind === "stash" && !sender?.isGM ? "only a GM reports a stash hunt" : null;
 }
 
 /* ==========================================================================

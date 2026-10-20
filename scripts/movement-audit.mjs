@@ -26,15 +26,16 @@ import { SETTINGS } from "./settings.mjs";
 import { warn, error, esc, whisperToGms, primaryGmId } from "./utils.mjs";
 import { isMoveChange, levelOf, onLevel, isPlaceScene } from "./rooms.mjs";
 import { openSegmentsFor, cutSegment, stepCrosses, arrivingPrimary } from "./passages.mjs";
-import { actsAsMastermind } from "./passages-gm.mjs";
+import { actsAsMastermind, secretDoorHeldShut } from "./passages-gm.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { playSfx } from "./sfx.mjs";
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 
-/** The codes a `move.sentBack` may carry: a wall, the one thing the audit sends a token back for. E17 takes the
- *  packet over with `auditMove` (A10-9) and adds its codes here rather than writing a second send-back. */
-const SENT_BACK_CODES = new Set(["wall"]);
+/** The codes a `move.sentBack` may carry: a wall, and since E80 C2 a floor the doors' rules do not join, the two things
+ *  the audit sends a token back for. E17 takes the packet over with `auditMove` (A10-9) and adds its codes here rather
+ *  than writing a second send-back. */
+const SENT_BACK_CODES = new Set(["wall", "floor"]);
 
 /*
  * WHAT THE AUDIT KEEPS, on the primary GM, in this page's memory (E79 fix r1-G1, 1.2.79). The Debug log was its
@@ -129,7 +130,9 @@ function firstWallCrossed(tokenDoc, route, level, open, secret, carried = null) 
         const c = Array.isArray(wall?.c) ? wall.c.map(Number) : [];
         if (c.length < 4 || !c.every(Number.isFinite)) continue;
         if (Number(wall.move ?? 20) === 0) continue;
-        if (Number(wall.door ?? 0) > 0 && Number(wall.ds) === 1) continue;
+        // A secret door a player opened is read shut until the primary GM's put-back lands (E80 C5, P1-18;
+        // passages-gm.mjs `putBackSecretDoor`): the step that follows the opening is judged against it. R601.
+        if (Number(wall.door ?? 0) > 0 && Number(wall.ds) === 1 && !secretDoorHeldShut(wall.id)) continue;
         const whole = { x1: c[0], y1: c[1], x2: c[2], y2: c[3] };
         const pieces = cutSegment(whole, open.filter(seg => seg.wallId === wall.id)) ?? [whole];
         const ends = [{ x: c[0], y: c[1] }, { x: c[2], y: c[3] }];
@@ -287,15 +290,23 @@ export function auditMove(tokenDoc, changes, options, userId, was, ctx = {}) {
         const secret = openSegmentsFor(actor, scene.id, from, { mastermind: true, ...known });
         const { found, lines } = firstWallCrossed(tokenDoc, routeOf(tokenDoc, was), from, open, secret, kept?.sides ?? null);
         const landed = { scene: scene.id, x: tokenDoc.x, y: tokenDoc.y, level: tokenDoc.level ?? null, sides: lines };
-        if (!found) {
+        /* THE FLOOR RULE (E80 C2, 18.10.2026; the stage's write road "token own update ... floor rule"). A change of
+           floor no wall stands in the way of - a console's jump to a tunnel's far end upstairs - is the doors' to judge:
+           `ctx.floorRefused` (movement.mjs `floorJumpRefused`) asks their connected-rooms rule, the stairs. Read after
+           the wall rule, which names the wall when there is one; the stairs that link the two rooms are exempt above. */
+        const floor = !found && from !== to && typeof ctx.floorRefused === "function" && (() => {
+            const a = ctx.roomAt(was.x, was.y, tokenDoc, from), b = ctx.roomAt(tokenDoc.x, tokenDoc.y, tokenDoc, to);
+            return Boolean(a && b && a !== b && ctx.floorRefused(scene, a, b, { from, to }));
+        })();
+        if (!found && !floor) {
             keepLines(ledger, tokenDoc, landed);
             return { verdict: "clear" };
         }
 
         const mode = ctx.mode ?? game.settings.get(MODULE_ID, SETTINGS.moveAudit);
         const sending = mode === "sendBack";
-        const crossing = { wall: found.wall, passage: found.passage };
-        (ctx.warn ?? warn)(`A player's move took a token through a wall (${sending ? "sent back" : "noted"})`,
+        const crossing = floor ? { wall: null, passage: null, floor: true } : { wall: found.wall, passage: found.passage };
+        (ctx.warn ?? warn)(`A player's move took a token ${floor ? "to another floor" : "through a wall"} (${sending ? "sent back" : "noted"})`,
             { token: tokenDoc.id, actor: actor.id, user: mover, scene: scene.id, ...crossing, mode: sending ? "sendBack" : "log" });
         // "not sent back" until the put-back is written (`landed`, below): review r2, cor F4.
         const row = noteRow(ledger, { token: tokenDoc.id, actor: actor.id, user: mover, scene: scene.id, ...crossing,
@@ -320,7 +331,7 @@ export function auditMove(tokenDoc, changes, options, userId, was, ctx = {}) {
                 row.verdict = row.sent >= row.times ? "sent back" : "not sent back";
                 if (!wrote) return;
                 keepLines(ledger, tokenDoc, kept);
-                if (mover) socket.emit(SOCKET_EVENT, { action: "move.sentBack", userId: mover, sceneId: scene.id, tokenId: tokenDoc.id, code: "wall" }, { recipients: [mover] });
+                if (mover) socket.emit(SOCKET_EVENT, { action: "move.sentBack", userId: mover, sceneId: scene.id, tokenId: tokenDoc.id, code: floor ? "floor" : "wall" }, { recipients: [mover] });
             }
         });
         const told = `${tokenDoc.id} ${mover ?? ""}`, last = ledger.told.get(told);
@@ -328,7 +339,8 @@ export function auditMove(tokenDoc, changes, options, userId, was, ctx = {}) {
         else {
             ledger.told.set(told, now);
             const name = actor.name ?? tokenDoc.name ?? "";
-            (ctx.whisper ?? whisperToGms)(`<p class="drpg-warning" data-drpg-wall="${esc(tokenDoc.id)}">${esc(game.i18n.format("DRPG.Movement.wallCrossed", { name, scene: scene.name ?? "" }))}</p>`)
+            const said = game.i18n.format(floor ? "DRPG.Movement.floorJumped" : "DRPG.Movement.wallCrossed", { name, scene: scene.name ?? "" });
+            (ctx.whisper ?? whisperToGms)(`<p class="drpg-warning" data-drpg-wall="${esc(tokenDoc.id)}">${esc(said)}</p>`)
                 ?.catch?.(err => error("Could not tell the GMs of a token sent back through a wall", err));
         }
         // `back`: where the token is sent, which the GMs' sighting becomes at once (movement.mjs `noteGmPosition`).

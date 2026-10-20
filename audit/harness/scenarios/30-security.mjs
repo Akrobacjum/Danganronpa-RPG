@@ -4,7 +4,8 @@ export const layers = ["ci"];
    E33 run from C2a on (e33run/<c>/s30.res, three harness lanes at once: C5b 286.9 s, C6 290.7 s, fix
    r1-G1 286.8 s) and 288.7 s in k1's ci set (e33run/k1/cmp.txt, beside the suite's lane) - 3-6% under
    run-all's shared five minutes. Seven minutes is a hang detector with room for a slower runner; the
-   scenario is not shortened. */
+   scenario is not shortened. E80 C3 (18.10.2026) adds a console's Find Passage: 235 checks in 319.9 s by run-all's
+   line, one run alone under the harness lock - seven minutes stands. */
 export const timeoutMs = 420000;
 
 const MOD = "danganronpa-rpg";
@@ -1382,6 +1383,14 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     await sendAs(p1, "analyze.resolve", { actorId: ids.aiko, itemId: consoleBullet.id, total: 30, isCritical: true });
     await settle(1200);
     const analyzeNoRoll = { state: await gm.eval(bulletState), reasons: await refusedFor("analyze.resolve") };
+    /* The road is the one the roller named before the dice (E80 fix r1-G7, E80-SEC-5): an Analyze the GM drew on 12 and 11
+       for a Find Passage is refused as a bullet's Analyze, which the GMs' record of it never was, and the bullet stays as
+       it was for the throw below. Red at 2b596ec: the bullet is analysed on it. */
+    const analyzePassageRoll = await drawnRoll(p1, ids.aiko, "analyze", "head", { hope: 12, fear: 11 }, { context: { findPassage: true } });
+    await clearFailures();
+    await sendAs(p1, "analyze.resolve", { actorId: ids.aiko, itemId: consoleBullet.id, total: 30, isCritical: true, rollId: analyzePassageRoll.messageId });
+    await settle(1500);
+    const analyzeOnPassage = { state: await gm.eval(bulletState), reasons: await refusedFor("analyze.resolve") };
     const analyzeRoll = await drawnRoll(p1, ids.aiko, "analyze", "head", { hope: 2, fear: 1 });
     await clearFailures();
     await sendAs(p1, "analyze.resolve", { actorId: ids.aiko, itemId: consoleBullet.id, total: 30, isCritical: true, rollId: analyzeRoll.messageId });
@@ -1398,6 +1407,10 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
             && !analyzeOnRecord.state.analyzed && analyzeOnRecord.state.locked === analyzeOnRecord.state.chapter
             && !analyzeOnRecord.reasons.length && analyzeOnRecord.said.length > 0,
         JSON.stringify({ consoleBullet, analyzeNoRoll, analyzeRoll, analyzeOnRecord }), { flow: "analyze" });
+    check("SECURITY: a console's Analyze of a bullet naming a roll the GM drew on 12 and 11 for a Find Passage is refused as thrown for another action - not analysed",
+        Boolean(analyzePassageRoll.messageId) && analyzePassageRoll.total >= consoleBullet.dc && !analyzeOnPassage.state.analyzed
+            && analyzeOnPassage.state.locked === null && analyzeOnPassage.reasons.some(r => /that roll was not thrown for that action/.test(r)),
+        JSON.stringify({ consoleBullet, analyzePassageRoll, analyzeOnPassage }), { flow: "analyze" });
 
     phase("a console's search for a hidden stash", { flow: "give-take-stash" });
     const consoleStash = await gm.eval(`
@@ -1424,6 +1437,12 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     await sendAs(p1, "vault.findStash", { actorId: ids.aiko, total: 30, isCritical: true, rollId: stashRoll.messageId });
     await settle(1500);
     const stashOnRecord = { found: await gm.eval(stashFound), reasons: await refusedFor("vault.findStash"), said: await recordSaid() };
+    // A Find Passage's roll on 12 and 11 named for a stash search (E80 fix r1-G7, E80-SEC-5). Red at 2b596ec: the stash is found on it.
+    const stashPassageRoll = await drawnRoll(p1, ids.aiko, "analyze", "head", { hope: 12, fear: 11 }, { context: { findPassage: true } });
+    await clearFailures();
+    await sendAs(p1, "vault.findStash", { actorId: ids.aiko, total: 30, isCritical: true, rollId: stashPassageRoll.messageId });
+    await settle(1500);
+    const stashOnPassage = { found: await gm.eval(stashFound), reasons: await refusedFor("vault.findStash") };
     await gm.eval(`const V = await import("${repoUrl}/scripts/vault.mjs");
         const { forcedDeletion } = await import("${repoUrl}/scripts/utils.mjs");
         const { room, keys, before, found } = globalThis.__c14Stash ?? {};
@@ -1439,6 +1458,56 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
             && Boolean(stashRoll.messageId) && stashRoll.total < consoleStash.threshold
             && stashOnRecord.found === false && !stashOnRecord.reasons.length && stashOnRecord.said.length > 0,
         JSON.stringify({ consoleStash, stashNoRoll, stashRoll, stashOnRecord }), { flow: "give-take-stash" });
+    check("SECURITY: a console's search for a hidden stash naming a roll the GM drew on 12 and 11 for a Find Passage is refused as thrown for another action - not found",
+        !consoleStash.err && Boolean(stashPassageRoll.messageId) && stashPassageRoll.total >= consoleStash.threshold && stashOnPassage.found === false
+            && stashOnPassage.reasons.some(r => /that roll was not thrown for that action/.test(r)),
+        JSON.stringify({ consoleStash, stashPassageRoll, stashOnPassage }), { flow: "give-take-stash" });
+
+    /* A CONSOLE'S FIND PASSAGE (E80 C3, 18.10.2026; the stage's write road "found cell"). A search is scored on the GMs'
+       record of the roll its packet names, and only a roll thrown as a Find Passage counts (gm-bridge.mjs
+       `findPassageRoll`). The GM makes a tunnel with an end in Aiko's room (the GM's API, not under test); from p1's
+       browser, Aiko's search saying 30 and a critical names no roll, then a Find Passage roll the GM drew on 2 and 1,
+       then a Search's roll and a hint Analyze's on 12 and 11: Aiko's cell stays empty each time. The control, a Find
+       Passage roll on 12 and 11 with a packet saying 0, writes it 'found' with that roll. Red at 879d6d5: the bridge has
+       no `passage.find`, so every packet is refused as unknown and the control writes nothing. */
+    phase("a console's Find Passage", { flow: "secret-passages" });
+    const findSet = await gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs"), t = canvas.scene.tokens.get("TOKAIKO000000000");
+        const room = M.roomOfToken(t), far = room === "Dorm A" ? { x: 1930, y: 1760, level: null } : { x: 720, y: 730, level: null };
+        const id = await game.drpg.passages.create({ sceneId: canvas.scene.id, shape: "tunnel", ends: [{ x: t.x + 50, y: t.y + 50, level: null }, far] });
+        globalThis.__s30find = id;
+        return { id, room };`, { timeout: 30000 });
+    await settle(800);
+    const findCell = `const S = await import("${repoUrl}/scripts/gm-stores.mjs"), c = S.passageAccessStore.get(${JSON.stringify(String(findSet?.id) + "/" + ids.aiko)});
+        return c ? [c.how ?? null, c.rollId ?? null] : null;`;
+    const findAsk = async rollId => {
+        await clearFailures();
+        await sendAs(p1, "passage.find", { actorId: ids.aiko, total: 30, isCritical: true, ...(rollId ? { rollId } : {}) });
+        await settle(1500);
+        return { cell: await gm.eval(findCell), reasons: await refusedFor("passage.find") };
+    };
+    const findNoRoll = await findAsk(null);
+    const findLow = await drawnRoll(p1, ids.aiko, "analyze", "head", { hope: 2, fear: 1 }, { context: { findPassage: true } });
+    const findOnLow = await findAsk(findLow.messageId);
+    const findSearch = await drawnRoll(p1, ids.aiko, "search", "eye", { hope: 12, fear: 11 });
+    const findOnSearch = await findAsk(findSearch.messageId);
+    const findHint = await drawnRoll(p1, ids.aiko, "analyze", "head", { hope: 12, fear: 11 });
+    const findOnHint = await findAsk(findHint.messageId);
+    const findHigh = await drawnRoll(p1, ids.aiko, "analyze", "head", { hope: 12, fear: 11 }, { context: { findPassage: true } });
+    await clearFailures();
+    await sendAs(p1, "passage.find", { actorId: ids.aiko, total: 0, isCritical: false, rollId: findHigh.messageId });
+    await settle(1500);
+    const findControl = { cell: await gm.eval(findCell), reasons: await refusedFor("passage.find") };
+    await gm.eval(`const id = globalThis.__s30find; delete globalThis.__s30find; if (id) await game.drpg.passages.delete(id); return true;`, { timeout: 30000 });
+    await settle(800);
+    check("SECURITY: a console's Find Passage saying 30 and a critical is refused without its roll, scored on the record of a Find Passage roll of 2 and 1, and refused on a Search's roll and a hint's - no cell",
+        typeof findSet?.id === "string" && findNoRoll.cell === null && findNoRoll.reasons.some(r => /no roll the GM drew is named/.test(r))
+            && Boolean(findLow.messageId) && findLow.total < 16 && findOnLow.cell === null && !findOnLow.reasons.length
+            && [findSearch, findHint].every(r => Boolean(r.messageId)) && [findOnSearch, findOnHint].every(r => r.cell === null
+                && r.reasons.some(text => /that roll was not thrown for that action/.test(text))),
+        JSON.stringify({ findSet, findNoRoll, findLow, findOnLow, findSearch, findOnSearch, findHint, findOnHint }), { flow: "secret-passages" });
+    check("control: a console's Find Passage on the record of a Find Passage roll of 12 and 11, its packet saying 0, writes Aiko's cell 'found' with that roll",
+        Boolean(findHigh.messageId) && findHigh.total >= 16 && JSON.stringify(findControl.cell) === JSON.stringify(["found", findHigh.messageId]) && !findControl.reasons.length,
+        JSON.stringify({ findHigh, findControl }), { flow: "secret-passages" });
 
     /*
      * A CONSOLE'S STEAL (E08+E28 C15, 04.10.2026; audit S10-06). A Palm was scored on the two
@@ -1455,7 +1524,8 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         const M = await import("${repoUrl}/scripts/movement.mjs");
         const item = await INV.grantItem(game.actors.get("${ids.botan}"), { name: "SEC pocket", category: "usable", tier: 1, override: true, quiet: true });
         return { itemId: item?.id ?? null, rooms: ["${ids.aiko}", "${ids.botan}"].map(id => M.locateActor(game.actors.get(id))?.room ?? null),
-            bar: (await import("${repoUrl}/scripts/config.mjs")).ACTIONS.palm.threshold };`, { timeout: 30000 });
+            bar: (await import("${repoUrl}/scripts/config.mjs")).ACTIONS.palm.threshold,
+            handBar: (await import("${repoUrl}/scripts/config.mjs")).ACTIONS.palm.rummage.threshold };`, { timeout: 30000 });
     await settle(600);
     const pocket = `return game.actors.get("${ids.botan}").items.has(${JSON.stringify(consoleSteal.itemId ?? "")});`;
     const stealFields = { thiefId: ids.aiko, victimId: ids.botan, itemId: consoleSteal.itemId, total: 30, isCritical: true, unseenTotal: 30, unseenCritical: true };
@@ -1469,6 +1539,36 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     await sendAs(p1, "action.steal", { ...stealFields, rollId: handRoll.messageId, unseenRollId: unseenRoll.messageId });
     await settle(1500);
     const stealOnRecord = { kept: await gm.eval(pocket), reasons: await refusedFor("action.steal"), said: await recordSaid() };
+
+    /*
+     * A CONSOLE'S FRISK (E80 part 2 C2, 19.10.2026; P2-11, P2-19). An unseen Frisk is judged on the primary on the GMs'
+     * record of its two rolls (gm-bridge.mjs `friskRolls`), and one that sees lists the target's pockets to the
+     * searcher. From p1's browser a Frisk of Botan by Aiko saying 30 and a critical for both rolls: first naming no
+     * roll - refused, no card - then naming a cover and a hand of Aiko's the GM drew on 2 and 1: no refusal, and the
+     * GM's card for Aiko is the miss, not the list. Read as the GM holds the cards' words (secret.mjs `secretHtml`).
+     * Red at the parent (08f9c56): no declaration answers the packet, no card is posted either time.
+     */
+    const friskCards = `const S = await import("${repoUrl}/scripts/secret.mjs");
+        const miss = game.i18n.format("DRPG.Frisk.missed", { who: foundry.utils.escapeHTML(game.actors.get("${ids.botan}").name) });
+        const words = game.messages.contents.map(m => S.secretHtml(m) ?? "");
+        return { listed: words.filter(h => h.includes("SEC pocket")).length, missed: words.filter(h => h.includes(miss)).length };`;
+    const friskFields = { searcherId: ids.aiko, targetId: ids.botan, total: 30, isCritical: true, unseenTotal: 30, unseenCritical: true };
+    const friskBefore = await gm.eval(friskCards);
+    await clearFailures();
+    await sendAs(p1, "action.friskUnseen", friskFields);
+    await settle(1200);
+    const friskNoRoll = { cards: await gm.eval(friskCards), reasons: await refusedFor("action.friskUnseen") };
+    const friskCover = await drawnRoll(p1, ids.aiko, "palm", "shadow", { hope: 2, fear: 1 });
+    const friskHand = await drawnRoll(p1, ids.aiko, "rummage", "hand", { hope: 2, fear: 1 }, { pay: false });
+    await clearFailures();
+    await sendAs(p1, "action.friskUnseen", { ...friskFields, rollId: friskHand.messageId, unseenRollId: friskCover.messageId });
+    await settle(1500);
+    const friskOnRecord = { cards: await gm.eval(friskCards), reasons: await refusedFor("action.friskUnseen") };
+    check("SECURITY: a console's unseen Frisk saying 30 and a critical is refused without its rolls, and judged on the GMs' record of the two it names - a miss, no list",
+        friskNoRoll.reasons.some(r => /no roll the GM drew is named/.test(r)) && JSON.stringify(friskNoRoll.cards) === JSON.stringify(friskBefore)
+            && Boolean(friskCover.messageId) && Boolean(friskHand.messageId) && friskHand.total < consoleSteal.handBar
+            && !friskOnRecord.reasons.length && friskOnRecord.cards.listed === friskBefore.listed && friskOnRecord.cards.missed === friskBefore.missed + 1,
+        JSON.stringify({ friskBefore, friskNoRoll, friskCover, friskHand, friskOnRecord }), { flow: "give-take-stash" });
     await gm.eval(`for (const id of ["${ids.botan}", "${ids.aiko}"]) for (const i of game.actors.get(id).items.filter(i => i.name === "SEC pocket")) await i.delete();
         return true;`, { timeout: 30000 });
     check("SECURITY: a console's Steal saying 30 and a critical is refused without its rolls, and scored on the GMs' record of the two it names - a miss",
@@ -1477,6 +1577,108 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
             && Boolean(handRoll.messageId) && Boolean(unseenRoll.messageId) && handRoll.total < consoleSteal.bar
             && stealOnRecord.kept === true && !stealOnRecord.reasons.length && stealOnRecord.said.length > 0,
         JSON.stringify({ consoleSteal, stealNoRoll, handRoll, unseenRoll, stealOnRecord }), { flow: "give-take-stash" });
+
+    /*
+     * AN OPEN FRISK'S ASK (E80 part 2 C3, 19.10.2026; P2-13, P2-19). The ask goes to the target's player, and only an
+     * answer from somebody it went to is taken (frisk.mjs `answerFrisk`): else a console presses 'Let them look' on an
+     * ask of its own and reads another student's pockets. The GM asks for Aiko of Botan (as `requestFriskAsk` does on
+     * the primary); p2's window is held open, p1 sends `action.friskAnswer` allowing it, then p2's window lets them look.
+     * And a `frisk.ask` sent by p1's browser to p3 opens no window there (frisk.mjs `friskPacketRefusal`: the primary
+     * GM's only). Read: the GM's refusals of the answer, the row and the ask's answer to the GM, p3's windows.
+     * Red at the parent (6810266): there is no ask (`askToFrisk`), so nothing is asked of p2.
+     */
+    phase("an open Frisk's ask", { flow: "frisk-openly" });
+    const askTitle = await p2.eval(`return game.i18n.localize("DRPG.Frisk.askTitle");`);
+    await p2.eval(`globalThis.__friskHold = true;
+        globalThis.__dialogAnswers.push(async config => {
+            const t = Date.now();
+            while (globalThis.__friskHold && Date.now() - t < 20000) await new Promise(r => setTimeout(r, 100));
+            return config.window?.title === "${askTitle}" ? "allow" : null;
+        });
+        return true;`);
+    await clearFailures();
+    const friskAsk = await gm.eval(`const F = await import("${repoUrl}/scripts/frisk.mjs").catch(() => null);
+        if (!F?.askToFrisk) return { row: null };
+        delete globalThis.__secFriskReply;
+        F.forgetFriskAsks?.();
+        const out = await F.askToFrisk({ searcherId: "${ids.aiko}", targetId: "${ids.botan}" }, { asker: game.user, reply: v => { globalThis.__secFriskReply = v; } });
+        const row = [...F.friskAsks.values()].find(r => r.searcherId === "${ids.aiko}") ?? null;
+        return { out, row: row ? { askId: row.askId, state: row.state, to: row.answerUserIds } : null };`);
+    await settle(1200);
+    await sendAs(p1, "action.friskAnswer", { askId: friskAsk.row?.askId ?? "none", allow: true });
+    await settle(1500);
+    const readAsk = `const F = await import("${repoUrl}/scripts/frisk.mjs").catch(() => null);
+        const row = F?.friskAsks?.get("${friskAsk.row?.askId ?? "none"}") ?? null;
+        return { state: row?.state ?? null, reply: globalThis.__secFriskReply?.outcome ?? null };`;
+    const outsiderAnswer = { reasons: await refusedFor("action.friskAnswer"), ...(await gm.eval(readAsk)) };
+    await p2.eval(`globalThis.__friskHold = false; return true;`);
+    let targetAnswer = await gm.eval(readAsk);
+    for (let i = 0; i < 40 && !targetAnswer.reply; i++) {
+        await settle(250);
+        targetAnswer = await gm.eval(readAsk);
+    }
+    await p2.eval(`globalThis.__dialogAnswers.length = 0; delete globalThis.__friskHold; return true;`);
+    const p3Asks = `return globalThis.__dialogLog.filter(e => e.title === game.i18n.localize("DRPG.Frisk.askTitle")).length;`;
+    const p3Before = await p3.eval(p3Asks);
+    await p1.eval(`game.socket.emit("${SOCKET}", { action: "frisk.ask", userId: "${p3.userId}", askId: "SECFORGEDASK0000", who: "Monokuma",
+        name: "Chie Mori", ms: 5000, force: true }, { recipients: ["${p3.userId}"] }); return true;`);
+    await settle(1500);
+    const forgedAsk = { before: p3Before, after: await p3.eval(p3Asks) };
+    await gm.eval(`(await import("${repoUrl}/scripts/frisk.mjs").catch(() => null))?.forgetFriskAsks?.(); delete globalThis.__secFriskReply; return true;`);
+    check("SECURITY: an open Frisk's ask is answered only by the target's player - a console's allow of its own ask is refused, the target's is taken, a player's forged ask opens no window",
+        Boolean(friskAsk.row) && friskAsk.row.state === "asking" && JSON.stringify(friskAsk.row.to) === JSON.stringify([p2.userId])
+            && outsiderAnswer.reasons.some(r => /sender does not own the character asked/.test(r)) && outsiderAnswer.state === "asking" && outsiderAnswer.reply === null
+            && targetAnswer.reply === "shown" && forgedAsk.before === forgedAsk.after,
+        JSON.stringify({ friskAsk, outsiderAnswer, targetAnswer, forgedAsk }), { flow: "frisk-openly" });
+
+    /*
+     * AN OPEN FRISK'S OTHER PACKETS FROM A CONSOLE (E80 fix r1-G4, 19.10.2026; the review's goal-P2-19 and E80-C3-7 (b)).
+     * p3's console asks for Aiko (p1's) of Botan (`action.friskAsk`): refused, p3 does not own the character searching, and
+     * no ask is held. Then the GM asks for Aiko of Botan and p2's window refuses, so Aiko's force is open; p3's console
+     * follows that ask (`action.friskFollow`) naming its own Chie and then Aiko as the searcher, and p1's names a Search
+     * roll of Aiko's the GM drew on 12 and 11 as the force: each refused (not their character; the sender does not own
+     * the character searching; that roll was not thrown for that action), and the ask still refused and open after all
+     * three. The control: p1's follow naming no roll, 'Leave it', ends it.
+     */
+    const friskRows = `const F = await import("${repoUrl}/scripts/frisk.mjs");
+        return [...F.friskAsks.values()].filter(r => r.searcherId === "${ids.aiko}").map(r => [r.state, r.searcherId === "${ids.aiko}"]);`;
+    await clearFailures();
+    await sendAs(p3, "action.friskAsk", { searcherId: ids.aiko, targetId: ids.botan });
+    await settle(1200);
+    const strangerAsk = { reasons: await refusedFor("action.friskAsk"), rows: await gm.eval(friskRows) };
+    await p2.eval(`globalThis.__dialogAnswers.push("refuse"); return true;`);
+    const heldAsk = await gm.eval(`const F = await import("${repoUrl}/scripts/frisk.mjs");
+        F.forgetFriskAsks();
+        await F.askToFrisk({ searcherId: "${ids.aiko}", targetId: "${ids.botan}" }, { asker: game.user });
+        return [...F.friskAsks.values()].find(r => r.searcherId === "${ids.aiko}")?.askId ?? null;`, { timeout: 30000 });
+    let heldState = await gm.eval(friskRows);
+    for (let i = 0; i < 40 && heldState[0]?.[0] !== "refused"; i++) {
+        await settle(250);
+        heldState = await gm.eval(friskRows);
+    }
+    const follow = async (client, fields) => {
+        await clearFailures();
+        await sendAs(client, "action.friskFollow", { askId: heldAsk ?? "none", ...fields });
+        await settle(1200);
+        return { reasons: await refusedFor("action.friskFollow"), rows: await gm.eval(friskRows) };
+    };
+    const ownFollow = await follow(p3, { searcherId: ids.chie });
+    const strangerFollow = await follow(p3, { searcherId: ids.aiko });
+    const searchRoll = await drawnRoll(p1, ids.aiko, "search", "eye", { hope: 12, fear: 11 });
+    const searchFollow = await follow(p1, { searcherId: ids.aiko, rollId: searchRoll.messageId ?? "none", total: 30, isCritical: true });
+    const leaveFollow = await follow(p1, { searcherId: ids.aiko });
+    await p2.eval(`globalThis.__dialogAnswers.length = 0; return true;`);
+    await gm.eval(`(await import("${repoUrl}/scripts/frisk.mjs")).forgetFriskAsks(); return true;`);
+    const stillOpen = [["refused", true]];
+    check("SECURITY: an open Frisk is asked and followed only for the sender's own character - p3's ask for Aiko holds nothing, p3's follows of Aiko's ask and p1's naming a Search roll are refused, the ask still open; 'Leave it' from p1 ends it",
+        strangerAsk.reasons.some(r => /sender does not own the character searching/.test(r)) && JSON.stringify(strangerAsk.rows) === "[]"
+            && Boolean(heldAsk) && JSON.stringify(heldState) === JSON.stringify(stillOpen)
+            && ownFollow.reasons.some(r => /not their character/.test(r)) && JSON.stringify(ownFollow.rows) === JSON.stringify(stillOpen)
+            && strangerFollow.reasons.some(r => /sender does not own the character searching/.test(r)) && JSON.stringify(strangerFollow.rows) === JSON.stringify(stillOpen)
+            && Boolean(searchRoll.messageId) && searchFollow.reasons.some(r => /that roll was not thrown for that action/.test(r))
+            && JSON.stringify(searchFollow.rows) === JSON.stringify(stillOpen)
+            && !leaveFollow.reasons.length && JSON.stringify(leaveFollow.rows) === "[]",
+        JSON.stringify({ strangerAsk, heldAsk, heldState, ownFollow, strangerFollow, searchRoll, searchFollow, leaveFollow }), { flow: "frisk-openly" });
 
     // 7d. despair.adjust from a player, with no Reroll behind it and with a rewrite of a roll (a receipt until E08+E28 C8).
     phase("Despair corrections", { flow: "despair" });
@@ -1506,6 +1708,118 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     const back = await gm.eval(readToken);
     check("control: a send-back to where the token stood a moment ago puts it there",
         back.x === start.x && back.y === start.y, JSON.stringify({ start, back }));
+
+    /* 7e2. passage.cross (E80 C2, 18.10.2026): 'Go through' carried out on the primary GM. The GM makes a tunnel from
+       Dorm A to the Gym, grants it to Botan alone and stands Botan and Aiko at its Dorm A end (the GM's API, not under
+       test). p1 forges the request for Botan, who is p2's, and then for its own Aiko, who does not know the tunnel:
+       neither token moves, nobody's actions change, and the GM's record names why. 76-passages U drives the legal road. */
+    phase("a tunnel nobody of the sender's knows", { flow: "secret-passages" });
+    const tunnel = await gm.eval(`const scene = canvas.scene, P = { teleport: true, movementAction: "displace", animate: false };
+        const id = await game.drpg.passages.create({ sceneId: scene.id, shape: "tunnel", ends: [{ x: 720, y: 730, level: null }, { x: 1930, y: 1760, level: null }] });
+        const granted = await game.drpg.passages.grant(id, "${ids.botan}");
+        const toks = ["TOKBOTAN00000000", "TOKAIKO000000000"].map(t => scene.tokens.get(t));
+        globalThis.__s30tunnel = { id, at: toks.map(t => ({ x: t.x, y: t.y })) };
+        await toks[0].update({ x: 700, y: 700 }, P);
+        await toks[1].update({ x: 760, y: 700 }, P);
+        return { id, granted };`, { timeout: 30000 });
+    await settle(800);
+    const readCross = `const s = canvas.scene; return ["TOKBOTAN00000000", "TOKAIKO000000000"].map(t => s.tokens.get(t))
+        .map(t => ({ x: t.x, y: t.y, actions: game.drpg.actionsLeft(t.actor) }));`;
+    const crossOther = await forge("passage.cross", { actorId: ids.botan, passageId: tunnel?.id ?? "" }, readCross);
+    check("SECURITY: a player's 'Go through' for another player's character moves nothing",
+        tunnel?.granted === true && crossOther.unchanged && crossOther.forOwnership, JSON.stringify({ tunnel, crossOther }));
+    const crossUnknown = await forge("passage.cross", { actorId: ids.aiko, passageId: tunnel?.id ?? "" }, readCross);
+    check("SECURITY: a player's 'Go through' for its own character, of a tunnel that character does not know, moves nothing",
+        crossUnknown.unchanged && crossUnknown.reasons.some(r => /does not know that passage/.test(r)), JSON.stringify(crossUnknown));
+    await gm.eval(`const scene = canvas.scene, was = globalThis.__s30tunnel, P = { teleport: true, movementAction: "displace", animate: false };
+        if (!was) return null;
+        await scene.tokens.get("TOKBOTAN00000000").update(was.at[0], P);
+        await scene.tokens.get("TOKAIKO000000000").update(was.at[1], P);
+        await game.drpg.passages.delete(was.id);
+        delete globalThis.__s30tunnel;
+        return true;`, { timeout: 30000 });
+    await settle(800);
+
+    /* 7e3. A SECRET DOOR A PLAYER OPENS (E80 C5, 18.10.2026; S16-18, P1-18; the stage's write road "door ds"). Foundry
+       lets a player change a door's state from a console (the harness's server as design A10 reads v14, cluster.mjs),
+       and the GMs' audit lets a token through an open door. The GM draws a secret door across the Cafeteria at x 1500,
+       stands Aiko west of it and turns the audit to "sendBack" (the GM's own writes, not under test). From p1's
+       console, its veto taken off as a console's client would not run it, Aiko's player opens the door and steps her
+       through it in the same breath: the primary GM shuts the door again and sends her back. Then the GM opens the
+       door itself, and the same step stands. E80 fix r1-G1 (18.10.2026; the review's E80-SEC-3): between the two, p1's
+       console "shuts" the shut door, the change sent whole (`diff: false`, so every browser is handed it as made): until
+       that fix the primary put a change back as its opposite, and this one opened the door; now it puts a door back to
+       the state a GM last left it in, and the door stays shut. E80 fix r2-G9 (19.10.2026; the review's E80-FIX-R1-01):
+       that state is a flag on the door (passages-gm.mjs `DOOR_SET`), so p1's console then tries to write it "open", with
+       an opening and alone: the server refuses both (a player's wall update is `ds` alone, cluster.mjs as design A10
+       reads v14's BaseWall#canUpdate; on v14 LIVE-E80-03), and the door stays shut with the GM's state "shut". */
+    phase("a secret door a player opens", { flow: "secret-passages" });
+    const door = await gm.eval(`const scene = canvas.scene, P = { teleport: true, movementAction: "displace", animate: false };
+        const [wall] = await scene.createEmbeddedDocuments("Wall", [{ c: [1500, 200, 1500, 800], door: 2, ds: 0, move: 20, sight: 20 }]);
+        const t = scene.tokens.get("TOKAIKO000000000");
+        globalThis.__s30door = { id: wall.id, at: { x: t.x, y: t.y }, mode: game.settings.get("${MOD}", "moveAudit") };
+        await t.update({ x: 1300, y: 400 }, P);
+        await game.settings.set("${MOD}", "moveAudit", "sendBack");
+        return { id: wall.id, mode: game.settings.get("${MOD}", "moveAudit") };`, { timeout: 30000 });
+    await settle(1000);
+    const stepThrough = open => p1.eval(`
+        const list = Hooks._hooks.get("preUpdateToken") ?? [], at = list.findIndex(e => e.fn.name === "onPreUpdateToken");
+        const [veto] = at >= 0 ? list.splice(at, 1) : [];
+        let opened = null;
+        try {
+            if (${open}) {
+                try { await canvas.scene.walls.get("${door?.id}").update({ ds: 1 }); opened = "written"; } catch (err) { opened = "denied: " + err.message; }
+            }
+            await canvas.scene.tokens.get("TOKAIKO000000000").update({ x: 1600, y: 400 });
+        } finally { if (veto) list.splice(at, 0, veto); }
+        return { vetoOff: Boolean(veto), opened };`, { timeout: 30000 });
+    const readDoor = `const s = canvas.scene, t = s.tokens.get("TOKAIKO000000000"), w = s.walls.get("${door?.id}");
+        return { door: w?.door ?? null, ds: w?.ds ?? null, at: [t.x, t.y] };`;
+    const forcedDoor = await stepThrough(true);
+    await settle(2000);
+    const doorOnGm = await gm.eval(readDoor), doorOnP1 = await p1.eval(readDoor);
+    check("SECURITY: a player who opens a secret door from the console and steps through it at once finds the door shut again and the token sent back",
+        door?.mode === "sendBack" && forcedDoor.vetoOff && forcedDoor.opened === "written"
+            && JSON.stringify([doorOnGm, doorOnP1]) === JSON.stringify([{ door: 2, ds: 0, at: [1300, 400] }, { door: 2, ds: 0, at: [1300, 400] }]),
+        JSON.stringify({ door, forcedDoor, doorOnGm, doorOnP1 }));
+    /* The known leak, a Foundry limit (E80 fix r1-G8, the review's E80-G-3 = P1-24): Foundry's own secret door is a wall on
+       p1's map, its type read there, and p1's console's change of its state is taken (the GMs' browser puts it back, as
+       the check above reads). Green when p1 reads no secret door or cannot write it; red, as known-leaks.json says, while
+       it can - measured only when the door was drawn with the audit on sendBack and the veto was off. */
+    check("a Foundry secret door is seen and opened from a player's console - on p1 the GM's secret door reads door type 2, and p1's console's write of ds 1 is taken",
+        !(doorOnP1.door === 2 && forcedDoor.opened === "written"), JSON.stringify({ doorOnP1, opened: forcedDoor.opened }),
+        { knownLeak: "foundry-secret-door-type", measured: door?.mode === "sendBack" && forcedDoor.vetoOff === true });
+    const shutWhole = await p1.eval(`try { await canvas.scene.walls.get("${door?.id}").update({ ds: 0 }, { diff: false }); return "written"; }
+        catch (err) { return "denied: " + err.message; }`, { timeout: 30000 });
+    await settle(1500);
+    const wholeOnGm = await gm.eval(readDoor), wholeOnP1 = await p1.eval(readDoor);
+    check("SECURITY: a player's console that shuts the shut secret door, the change sent whole, leaves it shut",
+        shutWhole === "written" && JSON.stringify([wholeOnGm.ds, wholeOnP1.ds]) === JSON.stringify([0, 0]), JSON.stringify({ shutWhole, wholeOnGm, wholeOnP1 }));
+    const forgedSet = await p1.eval(`const w = canvas.scene.walls.get("${door?.id}"), out = [];
+        for (const data of [{ ds: 1, flags: { "${MOD}": { doorSet: 1 } } }, { flags: { "${MOD}": { doorSet: 1 } } }]) {
+            try { await w.update(data); out.push("written"); } catch (err) { out.push("denied"); }
+        }
+        return out;`, { timeout: 30000 });
+    await settle(1500);
+    const readSet = `const w = canvas.scene.walls.get("${door?.id}"); return [w?.ds ?? null, w?.flags?.["${MOD}"]?.doorSet ?? null];`;
+    const setOnGm = await gm.eval(readSet), setOnP1 = await p1.eval(readSet);
+    check("SECURITY: a player's console cannot write the state a GM left a secret door in - both writes refused, the door shut and its GMs' state shut on the GM and on p1",
+        JSON.stringify([forgedSet, setOnGm, setOnP1]) === JSON.stringify([["denied", "denied"], [0, 0], [0, 0]]), JSON.stringify({ forgedSet, setOnGm, setOnP1 }));
+    await gm.eval(`await canvas.scene.walls.get("${door?.id}").update({ ds: 1 }); return true;`);
+    await settle(1000);
+    const lawfulDoor = await stepThrough(false);
+    await settle(2000);
+    const lawfulOnGm = await gm.eval(readDoor);
+    check("control: through a secret door the GM opened, the same step stands and the door stays open",
+        lawfulDoor.vetoOff && JSON.stringify(lawfulOnGm) === JSON.stringify({ door: 2, ds: 1, at: [1600, 400] }), JSON.stringify({ lawfulDoor, lawfulOnGm }));
+    await gm.eval(`const scene = canvas.scene, was = globalThis.__s30door, P = { teleport: true, movementAction: "displace", animate: false };
+        if (!was) return null;
+        await scene.deleteEmbeddedDocuments("Wall", [was.id]);
+        await scene.tokens.get("TOKAIKO000000000").update(was.at, P);
+        await game.settings.set("${MOD}", "moveAudit", was.mode);
+        delete globalThis.__s30door;
+        return true;`, { timeout: 30000 });
+    await settle(800);
 
     // 7f. remnant.place: who left it, where, and what it points at, rebuilt on the GM. A discarded
     //     item's trace: a Search's names its roll since E08+E28 C15, and is measured below.

@@ -318,6 +318,9 @@ body.drpg-theme-stained-glass [class*="drpg-"] .fa-hand:is(i, span),
 body.drpg-theme-stained-glass [class*="drpg-"] i.fa-hand-holding,
 body.drpg-theme-stained-glass i.drpg-action-icon.fa-hand-holding,
 body.drpg-theme-stained-glass [class*="drpg-"] .fa-hand-holding:is(i, span),
+body.drpg-theme-stained-glass [class*="drpg-"] i.fa-hand-pointer,
+body.drpg-theme-stained-glass i.drpg-action-icon.fa-hand-pointer,
+body.drpg-theme-stained-glass [class*="drpg-"] .fa-hand-pointer:is(i, span),
 body.drpg-theme-stained-glass [class*="drpg-"] i.fa-circle,
 body.drpg-theme-stained-glass i.drpg-action-icon.fa-circle,
 body.drpg-theme-stained-glass [class*="drpg-"] .fa-circle:is(i, span),
@@ -593,6 +596,9 @@ body.drpg-theme-stained-glass [class*="drpg-"] .fa-hand:is(i, span)::before,
 body.drpg-theme-stained-glass [class*="drpg-"] i.fa-hand-holding::before,
 body.drpg-theme-stained-glass i.drpg-action-icon.fa-hand-holding::before,
 body.drpg-theme-stained-glass [class*="drpg-"] .fa-hand-holding:is(i, span)::before,
+body.drpg-theme-stained-glass [class*="drpg-"] i.fa-hand-pointer::before,
+body.drpg-theme-stained-glass i.drpg-action-icon.fa-hand-pointer::before,
+body.drpg-theme-stained-glass [class*="drpg-"] .fa-hand-pointer:is(i, span)::before,
 body.drpg-theme-stained-glass [class*="drpg-"] i.fa-circle::before,
 body.drpg-theme-stained-glass i.drpg-action-icon.fa-circle::before,
 body.drpg-theme-stained-glass [class*="drpg-"] .fa-circle:is(i, span)::before,
@@ -711,6 +717,7 @@ body.drpg-theme-stained-glass [class*="drpg-"] i.fa-moon, body.drpg-theme-staine
 body.drpg-theme-stained-glass [class*="drpg-"] i.fa-comments, body.drpg-theme-stained-glass i.drpg-action-icon.fa-comments, body.drpg-theme-stained-glass [class*="drpg-"] .fa-comments:is(i, span) { --drpg-px-mask: var(--drpg-px-chat); }
 body.drpg-theme-stained-glass [class*="drpg-"] i.fa-hand, body.drpg-theme-stained-glass i.drpg-action-icon.fa-hand, body.drpg-theme-stained-glass [class*="drpg-"] .fa-hand:is(i, span) { --drpg-px-mask: var(--drpg-px-palm); }
 body.drpg-theme-stained-glass [class*="drpg-"] i.fa-hand-holding, body.drpg-theme-stained-glass i.drpg-action-icon.fa-hand-holding, body.drpg-theme-stained-glass [class*="drpg-"] .fa-hand-holding:is(i, span) { --drpg-px-mask: var(--drpg-px-palm); }
+body.drpg-theme-stained-glass [class*="drpg-"] i.fa-hand-pointer, body.drpg-theme-stained-glass i.drpg-action-icon.fa-hand-pointer, body.drpg-theme-stained-glass [class*="drpg-"] .fa-hand-pointer:is(i, span) { --drpg-px-mask: var(--drpg-px-palm); }
 body.drpg-theme-stained-glass [class*="drpg-"] i.fa-circle, body.drpg-theme-stained-glass i.drpg-action-icon.fa-circle, body.drpg-theme-stained-glass [class*="drpg-"] .fa-circle:is(i, span) { --drpg-px-mask: var(--drpg-px-dot); }
 body.drpg-theme-stained-glass [class*="drpg-"] i.fa-arrows-left-right, body.drpg-theme-stained-glass i.drpg-action-icon.fa-arrows-left-right, body.drpg-theme-stained-glass [class*="drpg-"] .fa-arrows-left-right:is(i, span) { --drpg-px-mask: var(--drpg-px-swap); }
 body.drpg-theme-stained-glass [class*="drpg-"] i.fa-khanda, body.drpg-theme-stained-glass i.drpg-action-icon.fa-khanda, body.drpg-theme-stained-glass [class*="drpg-"] .fa-khanda:is(i, span) { --drpg-px-mask: var(--drpg-px-murder); }

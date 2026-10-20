@@ -232,6 +232,10 @@
   },
   "DRPG": {
     "Settings": {
+      "forceDiceLook": {
+        "name": "One dice look for the table",
+        "hint": "Every player and Assistant GM throws Dice So Nice dice and effects in the look of one full Gamemaster, fixed the first time the game runs with it on, and a change of their own goes back to it. Another full Gamemaster's own look stays theirs and changes nothing for the table. Each keeps their own display and performance settings. Switching this off gives nobody their old look back."
+      },
       "forcePrivateRolls": {
         "name": "Force private player rolls",
         "hint": "Every player roll is whispered to that player and the GMs, and a GM's roll to the GMs. Nobody sees anyone else's dice. The one roll everybody sees is the GM panel's Public roll (game.drpg.publicRoll) - a vote's tie, Monokuma's lottery."
@@ -263,6 +267,10 @@
       "lockPlayerResources": {
         "name": "Players cannot edit Actions, Hope, Health, Sanity or statistics",
         "hint": "Those move through play - spend an action, take a rest, earn a Level Up. On, a player's own edits of them are put back or flagged to the GMs, and their pips are display-only for players; off, they are only listed for the GMs. Items and effects are judged either way, and so is what changed while no GM was connected, when one returns. GMs are unaffected."
+      },
+      "friskForce": {
+        "name": "Frisk: forcing after a refusal",
+        "hint": "When off, an open Frisk only asks: a refusal or no answer ends it."
       },
       "chargeMovement": {
         "name": "Crossing rooms costs a Move",
@@ -561,9 +569,18 @@
       "tab": {
         "intro": "A secret passage is one stretch of wall between two rooms that only the students who know it can walk through, at a door's price. To everybody else it is a wall. Each button here takes effect at once; Apply and Cancel do not change it.",
         "rooms": "Rooms",
+        "kind": "Kind",
+        "shape": "Shape",
+        "origin": "Origin",
         "knows": "Who knows",
         "start": "At season start",
         "state": "State",
+        "kindSecret": "Secret",
+        "kindPublic": "Public",
+        "shapeWall": "In a wall",
+        "shapeTunnel": "Tunnel or stairs",
+        "originGm": "GM",
+        "originDoor": "Secret door",
         "noRooms": "Rooms not named",
         "unknown": "a student no longer here",
         "none": "nobody",
@@ -571,12 +588,13 @@
         "howGm": "GM",
         "howStart": "start",
         "howShown": "shown",
+        "howFound": "found",
         "leaving": "until they leave the {room}",
         "revoke": "Revoke",
         "grant": "Give a student this passage",
         "startAdd": "Known at season start",
         "startRemove": "Take off the season's start",
-        "stateSecret": "Secret",
+        "stateSecret": "Open",
         "stateClosed": "Closed",
         "stateBroken": "The wall moved - pick it again",
         "pending": "Not yet delivered: {names}",
@@ -584,20 +602,25 @@
         "show": "Show",
         "close": "Close",
         "open": "Open",
+        "makePublic": "Make public",
+        "makeSecret": "Make secret",
         "delete": "Delete",
-        "footnote": "The Mastermind knows every secret passage and is not listed. Closed keeps who knows it, and the passage is a wall to all of them until it is opened again. Delete forgets the passage and who knew it.",
+        "footnote": "The Mastermind knows every secret passage and is not listed. Closed keeps who knows it, and the passage is a wall to all of them until it is opened again. Delete forgets the passage and who knew it. Make public: every student knows the passage, and nobody is told; Make secret: only the students listed here know it again.",
         "revokeTitle": "Revoke - {passage}",
         "revokeAsk": "{name} is in the {room}, one of the rooms this passage joins. When does it close to them?",
         "revokeNote": "Revoke now: it is a wall to them from this moment. Revoke when they leave the room: it stays open to them until they leave the {room}.",
         "revokeNow": "Revoke now",
         "revokeLeave": "Revoke when they leave the room",
+        "revokePublicAsk": "{name} knows this passage, and so does every student, while it is public. Revoking closes nothing now: it decides only whether {name} still knows it once you make it secret.",
+        "revokePublicNote": "Revoke: after Make secret, the passage is a wall to them.",
         "deleteTitle": "Delete the secret passage",
         "deleteAsk": "Delete the secret passage {passage}? Every student who knows it forgets it."
       },
       "list": {
         "title": "Known passages",
         "where": "Show it on the map",
-        "shut": "the way is shut"
+        "shut": "the way is shut",
+        "cross": "Go through"
       },
       "show": {
         "button": "Show the passage",
@@ -610,6 +633,8 @@
         "done": "You show {target} the secret passage."
       },
       "gm": {
+        "found": "{actor} finds the secret passage {from} - {to}.",
+        "searched": "{actor} looks for a secret passage in {room} and finds none.",
         "shown": "{giver} showed {target} the secret passage {from} - {to}."
       },
       "pick": {
@@ -624,6 +649,12 @@
         "repick": "Pick again",
         "made": "Secret passage {passage} made. Give it to a student in the Passages tab.",
         "moved": "Secret passage {passage} is on its wall again.",
+        "tunnel": "+ Tunnel or stairs",
+        "tunnelHint": "A tunnel or stairs: a click in each of two rooms, on one floor or two.",
+        "tunnelTitle": "New tunnel or stairs",
+        "tunnelFirst": "Click the square where the tunnel begins, inside a room. For stairs, switch to the other floor before the second click. Esc cancels.",
+        "tunnelSecond": "Click the square where it comes out, inside another room, on this floor or another. Esc cancels.",
+        "tunnelMade": "Tunnel {passage} made. Give it to a student in the Passages tab.",
         "why": {
           "noWall": "No wall there. Click on a wall between two rooms.",
           "door": "That is a door. A secret passage goes on a plain wall.",
@@ -635,8 +666,14 @@
           "otherRooms": "The end must join the same two rooms as the start.",
           "short": "The two ends are too close together. Click further along the wall.",
           "trial": "The trial hall has no rooms, so it has no secret passages.",
-          "board": "The map is not shown on this screen. Open the scene and try again."
+          "board": "The map is not shown on this screen. Open the scene and try again.",
+          "offRoom": "That square is in no room of this floor. Click inside a room.",
+          "oneRoom": "Both ends would be in the same room. Click in another room.",
+          "endTaken": "Another tunnel already ends on that square."
         }
+      },
+      "mark": {
+        "to": "Secret passage to {room}"
       }
     },
     "Room": {
@@ -666,6 +703,7 @@
       "dcAnalyze": "Identifying a bullet, by how visible its trace was - of the crime: {rows}; faint: {faint}; Key and Final: {key}.",
       "dcHint": "A hint: {a}+ for a subtle one, {b}+ for a direct one.",
       "dcStash": "Finding a stash: {n}+.",
+      "dcPassage": "Finding a secret passage: {n}+.",
       "dcProject": "Work: {a}+ for +1 progress, {b}+ for +2{relief}.",
       "dcSabotage": "Sabotage: {a}+ leaves a simple repair, {b}+ a complex one{relief}.",
       "dcRelief": " (your tool in hand takes {n} off)",
@@ -826,6 +864,11 @@
       "findStash": "Locate a hidden stash",
       "findStashHint": "Work out whether somebody has hidden something in this room. {n}+ opens one stash to you.",
       "stashNothing": "You go over the room and find nothing anybody has tried to hide.",
+      "findPassage": "Find Passage",
+      "findPassageHint": "Go over the walls of this room for a way through that nobody shows. {n}+ opens one secret passage here to you.",
+      "passageSent": "You go over the walls of the room, looking for a way through.",
+      "passageNothing": "You find no hidden passage here.",
+      "passageFound": "There is a secret passage in this room, to {to}. Where the way is open, your map shows it.",
       "stashFound": "There is a stash here, and it is {who}'s. You can get into it now - the panel on your Inventory tab lists what is in it.",
       "stashFoundGm": "{finder} rolled {total} and found {who}'s hidden stash in {room}. {who} has not been told.",
       "stashSent": "You go over the room looking for anything that does not belong."
@@ -2592,6 +2635,7 @@
       "unlawfulArrival": "{name} reached {room} by a crossing the rules refuse. Until they stand somewhere they could have walked to from {from}, they are no witness to a body and no third party to a murder. Nothing was put back: a GM's move makes the spot they stand on lawful.",
       "outsideRooms": "outside the rooms",
       "wallCrossed": "{name}'s token was moved through a wall on {scene} and was sent back where it stood.",
+      "floorJumped": "{name}'s token was moved to another floor on {scene} where no stairs lead, and was sent back where it stood.",
       "droppedFromNowhere": "A player placed a token of {name} in {room} on {scene}, where {name} had stood nowhere before. It was judged as an arrival from outside the rooms, so no rule about which rooms connect applied, and it counts as a witness there. Move the token if it should not be there."
     },
     "Move": {
@@ -2784,6 +2828,12 @@
       "openingKiller": "The GM is choosing the statistic for your opening. Tell them in your thread how you go about it.",
       "openingVictim": "The GM is setting up a roll for you."
     },
+    "DiceLook": {
+      "setByGm": "Your dice look is set by the GM.",
+      "settingBack": "{name} changed the table's dice look settings, which only a full Gamemaster may change, so they were put back.",
+      "settingBackUnheard": "The table's dice look settings were changed with no trace of who changed them, and only a full Gamemaster may change them, so they were put back.",
+      "stopped": "{name}'s dice look keeps changing straight back, so it is left as it is for a minute, then put back at its next change or throw."
+    },
     "RollDialog": {
       "locked": "Not yours to choose. Advantage and experiences are Hope Calls - ask the GM.",
       "diceFixed": "Fixed at d12 by the rules.",
@@ -2793,7 +2843,23 @@
       "pickOneExperience": "Pick the one experience this roll relates to. Clicking another moves the choice.",
       "experienceLocked": "Using an experience is the Experience Hope Call - ask the GM to spend it.",
       "bonusLocked": "Situational bonuses are the GM's call.",
-      "modeLocked": "Roll privacy is enforced by the module.",
+      "modeLocked": "Who sees this roll is set by the game, not here.",
+      "modePublic": "Public",
+      "modeGms": "The GMs and you",
+      "modeRoom": "The GMs, you and the room",
+      "actionLocked": "This roll's Hope or Despair decides what happens next, so it is an action, never a reaction.",
+      "summary": {
+        "none": "no modifiers",
+        "advantage": {
+          "one": "advantage",
+          "other": "advantage ×{n}"
+        },
+        "disadvantage": {
+          "one": "disadvantage",
+          "other": "disadvantage ×{n}"
+        },
+        "bonus": "{bonus} from a Call"
+      },
       "reactionLocked": "A statistic rolled on its own is a reaction: it costs nothing and earns nothing. Hope and Despair come from actions.",
       "unlockedByCall": "Unlocked by a Call you paid for.",
       "freeCritArmed": "Loaded Die is armed. One die is set to 12 and the other is thrown - a very high total, and a critical only if that one comes up 12 as well.",
@@ -2829,10 +2895,16 @@
         "handover.bullet": "Share a Truth Bullet",
         "handover.item": "Hand over an item",
         "passage.share": "Show a secret passage",
+        "passage.cross": "Go through a secret passage",
         "vault.steal": "Stash",
         "action.steal": "Palm",
         "vault.findStash": "Find a stash",
+        "passage.find": "Find a secret passage",
         "action.plant": "Plant",
+        "action.friskUnseen": "Frisk (unseen)",
+        "action.friskAsk": "Frisk (asking)",
+        "action.friskAnswer": "Your answer to a Frisk",
+        "action.friskFollow": "Frisk (after the answer)",
         "murder.crisis": "Incident",
         "murder.openingResult": "Opening roll",
         "murder.cleanup": "Clean-up",
@@ -2942,7 +3014,15 @@
         "floorClosed": "The debate is not open to an Objection now.",
         "noSpeaker": "Nobody has spoken in this trial yet, so there is nobody to object to.",
         "noBullet": "You hold no Truth Bullet to prove an Objection with.",
-        "objectionOver": "That Objection is no longer waiting for a Truth Bullet."
+        "objectionOver": "That Objection is no longer waiting for a Truth Bullet.",
+        "notAtPassage": "Your character is not at an end of that passage.",
+        "doorLocked": "The door is locked.",
+        "roomSealed": "That room is sealed for this time of day. Nobody gets in.",
+        "chained": "You are chained here until this time of day ends.",
+        "cannotLeave": "You are in an incident. The only way out is a crisis action - Survive, Escape together, or, if you only walked in on it, Averted eyes.",
+        "trialLocked": "The Class Trial is in session. Nobody leaves the courtroom until it ends.",
+        "noBudget": "No Free Move and no actions left.",
+        "eclipseSpent": "Your Eclipse crossings are used up."
       },
       "criticalHint": "Critical - this player is owed a substantial hint.",
       "send": "Send to GM",
@@ -3336,7 +3416,7 @@
       "nobodyHere": "There is nobody in this room to reach.",
       "whichWay": "Which way is your hand going?",
       "takeLabel": "Take something",
-      "takeHint": "Go through their pockets. What comes out is whatever comes out - a critical lets you choose.",
+      "takeHint": "Lift one thing out of their pockets. What comes out is whatever comes out - a critical lets you choose.",
       "plantLabel": "Leave something",
       "plantHint": {
         "one": "Put the one thing you are carrying into their pocket.",
@@ -3365,9 +3445,66 @@
       "caughtTaking": "{who} took {item} from you, and you saw them do it.",
       "caughtTrying": "You catch {who} going through your pockets. They come away with nothing."
     },
+    "Frisk": {
+      "rowLabel": "Frisk: see what they carry",
+      "rowHint": "Look through their pockets and take nothing.",
+      "unseenLabel": "Unseen",
+      "unseenHint": "Shadow {unseen}+ so they do not notice, then Hand {hand}+ to see everything.",
+      "sent": "You go for {name}'s pockets. What you see - and whether they felt it - settles in a moment.",
+      "listHeading": "{who} is carrying:",
+      "empty": "{who} has nothing in their pockets.",
+      "missed": "You do not get a proper look at what {who} is carrying.",
+      "caught": "You catch {who} going through your pockets. They saw what you carry.",
+      "caughtTrying": "You catch {who} trying to go through your pockets. They did not get a proper look.",
+      "openLabel": "Openly",
+      "openHint": "Ask them to turn out their pockets. If they refuse or do not answer, you can make them: Body {force}+, in front of the room.",
+      "openHintAskOnly": "Ask them to turn out their pockets.",
+      "forceSent": "You make a grab for {name}'s pockets. How it went settles in a moment.",
+      "waiting": "You ask {who} to turn out their pockets. Waiting for an answer.",
+      "refused": "{who} will not show you.",
+      "noAnswer": "{who} does not answer.",
+      "gone": "{who} walks away before answering.",
+      "goneAfterNo": "{who} walks away.",
+      "interrupted": "The moment has passed: this cannot be done now.",
+      "actionBack": "Your action is back.",
+      "isBody": "That is a body now. Look through it from its sheet. Your action is back.",
+      "askedAlready": "You have already asked {who} this time of day. Your action is back.",
+      "targetBusy": "{who} is answering somebody else. Your action is back.",
+      "youBusy": "You are already waiting for an answer. Your action is back.",
+      "forceTitle": "Make them?",
+      "forceText": "Body {force}+. The whole room will see it. You have {s} seconds to decide.",
+      "force": "Make them",
+      "leave": "Leave it",
+      "shownHeading": "{who} turns out their pockets for you:",
+      "asAsked": "This is what they had on them when you asked.",
+      "askTitle": "Turn out your pockets?",
+      "askText": "{who} asks to see what {name} is carrying. If you refuse, they may try to make you.",
+      "askTextAskOnly": "{who} asks to see what {name} is carrying.",
+      "askClock": "No answer in {s} seconds counts as a refusal.",
+      "allow": "Let them look",
+      "refuse": "Refuse",
+      "withdrawn": "The request is withdrawn.",
+      "shown": "You turn out your pockets for {who}. They see what you had on you when they asked.",
+      "forced": "{who} forces you to turn out your pockets and sees what you had on you when they asked.",
+      "forcedFailed": "{who} tries to force you to turn out your pockets. You shake them off.",
+      "letGo": "{who} lets it go.",
+      "wShown": "{target} turns out their pockets for {who}.",
+      "wForced": "{who} forces {target} to turn out their pockets.",
+      "wForcedFailed": "{who} tries to force {target} to turn out their pockets, and fails.",
+      "wLetGo": "{who} asks {target} to turn out their pockets, and lets it go.",
+      "wWalkedAway": "{who} asks {target} to turn out their pockets, and {target} walks away.",
+      "gmFor": "You answer for {name}, who has no player.",
+      "gmKept": "{who} asks {target} to turn out their pockets. {target} is a body you keep, so nobody is asked: in {s} seconds {who} hears that there is no answer. You may open the discovery yourself.",
+      "gmIncident": "{who} asks {target} to turn out their pockets. {target} is in the incident, so nobody is asked: in {s} seconds {who} hears that there is no answer.",
+      "gmKeptNow": "{who} asks {target} to turn out their pockets. {target} is a body you keep, and their player is not here, so nobody is asked: {who} hears at once that there is no answer. You may open the discovery yourself.",
+      "gmIncidentNow": "{who} asks {target} to turn out their pockets. {target} is in the incident, and their player is not here, so nobody is asked: {who} hears at once that there is no answer."
+    },
     "Reroll": {
       "searchNeverRan": "The room was never searched - the search token was refused - so there is nothing to draw again.",
       "searchStashStands": "The stash find stands: new dice do not open the stash twice.",
+      "passageFound": "The new result finds a secret passage in that room, to {to}. Where the way is open, your map shows it.",
+      "passageLost": "The new result finds no passage: the one the first roll found is gone from your map.",
+      "passageStands": "The passage find stands: new dice do not open it twice.",
       "title": "Reroll",
       "nothingToReroll": "You have not rolled anything, so there is nothing to take back.",
       "notARoll": "Your last message carries no dice.",
@@ -3398,11 +3535,16 @@
       "diceChanged": "This roll's dice are not the ones the GMs kept: a change to them is being put back. Reroll it in a moment. Nothing was spent.",
       "trailStands": "The dice are rewritten, but what you planted is already lying in the room - a reroll cannot pick it back up. Ask the GM if it should come out.",
       "stealStands": "The dice are rewritten, but the moment is not. Your hand has already been in their pocket, and putting something back is something they would watch you do.",
+      "friskStands": "The dice are rewritten, but the moment is not. The whole room saw how it went.",
+      "rummageStands": "The dice are rewritten, but the moment is not. They already know whether you got a proper look.",
+      "rummageSeen": "The dice are rewritten, but what you saw stays seen.",
+      "rummageLate": "The moment has passed: {who} is no longer within reach.",
       "cleanupReplayed": "The clean-up is taken back and attempted again. The trace comes back, anything the botched wipe left is removed, and the Sanity is refunded first.",
       "itemTakenBack": "{item} is taken back out of your inventory.",
       "itemStuck": "{item} could not be removed automatically - ask the GM to take it.",
       "itemDrawn": "You find {item} instead (Tier {tier}).",
       "searchNothing": "The new result finds nothing.",
+      "stashFound": "The new result opens a hidden stash: its card says whose.",
       "tokenKept": "The room's search token stays spent - the room was searched either way.",
       "remnantRetuned": "The trace you left has been adjusted to match.",
       "remnantLeft": "The new result leaves a trace behind.",
@@ -3710,9 +3852,9 @@
     },
     "Roll": {
       "opening": {
-        "killer": "Opening the murder - your roll",
-        "victim": "Something feels wrong - your roll",
-        "selfInflicted": "Going through with it - your roll"
+        "killer": "Opening the murder",
+        "victim": "Something feels wrong",
+        "selfInflicted": "Going through with it"
       },
       "crisis": "Crisis action",
       "project": "Work on a project",
@@ -3761,6 +3903,29 @@
         "one": "Stopped sharing the cursor for {n} role.",
         "other": "Stopped sharing the cursor for {n} roles."
       },
+      "convertDoors": "Convert to passages",
+      "fixedSecretDoors": {
+        "one": "Converted {n} secret door. A door that stood between two rooms is a secret passage now, and nobody knows it until you give it to a student in the Passages tab.",
+        "other": "Converted {n} secret doors. Each door that stood between two rooms is a secret passage now, and nobody knows it until you give it to a student in the Passages tab."
+      },
+      "secretDoorsPlain": {
+        "one": "{n} of them stood between no two rooms and is a plain wall now.",
+        "other": "{n} of them stood between no two rooms and are plain walls now."
+      },
+      "secretDoorsPutBack": {
+        "one": "{n} secret door changed with no GM watching was put back as a GM last left it: {scenes}.",
+        "other": "{n} secret doors changed with no GM watching were put back as a GM last left them: {scenes}."
+      },
+      "hideRulers": "Hide",
+      "showRulers": "Show",
+      "fixedRulers": {
+        "one": "The movement ruler is hidden for {n} role.",
+        "other": "The movement ruler is hidden for {n} roles."
+      },
+      "undoneRulers": {
+        "one": "The movement ruler is shown for {n} role again.",
+        "other": "The movement ruler is shown for {n} roles again."
+      },
       "fixed": {
         "one": "Set up {n} character with the starting resources.",
         "other": "Set up {n} characters with the starting resources."
@@ -3796,6 +3961,10 @@
       "hint.scenes": "Room Setup's Scenes tab links the scene the season is played on and the scene the Class Trial is held in. Optional: with none linked the trial is held wherever the table is.",
       "step.cursor": "The GM's pointer is private (recommended)",
       "hint.cursor": "Foundry shows every cursor to the table with a name on it - a live feed of what you are looking at. This turns it off for the two GM roles and leaves the players' pointers alone.",
+      "step.secretDoors": "No Foundry secret doors (recommended)",
+      "hint.secretDoors": "Any player can open a Foundry secret door, and their character walks through it. Convert to passages makes each one an ordinary wall, shut; where it stands between two rooms it is also a secret passage nobody knows yet - give it to a student in the Passages tab. One that stands between no two rooms is a plain wall.",
+      "step.rulers": "The players' movement ruler is hidden (optional)",
+      "hint.rulers": "While a player drags a token, the whole table sees the route it takes - through a secret passage too. Hide takes the ruler from the Player and Trusted Player roles, and Show gives it back. The GM roles keep theirs.",
       "step.mastermind": "The Mastermind (optional)",
       "hint.mastermind": "Who is hiding among the students, and the Final Truth Remnants that prove it. A season without a Mastermind is a legal season - this row never turns red.",
       "resetTitle": "Reset the season",
@@ -4009,6 +4178,10 @@
         "one": "{n} named region is not a room",
         "other": "{n} named regions are not rooms"
       },
+      "secretDoor": {
+        "problem": "A Foundry secret door",
+        "detail": "Any player can open it. In Season setup, the No Foundry secret doors row's Convert to passages makes it a wall, and a secret passage where it stands between two rooms."
+      },
       "notRoom": {
         "problem": "Named, but not a room",
         "passage": "It carries a {type} behaviour, so it is a passage, not a room: the fog draws no outline or reveal for it and no doorway leads into it.",
@@ -4076,6 +4249,7 @@
         "project": "Somebody works on a named project",
         "sabotage": "Somebody sabotages a named project",
         "stash": "Somebody hunts for a hidden stash here",
+        "passage": "Somebody hunts for a secret passage here",
         "manual": "My own condition, and I will watch for it"
       },
       "why": {
@@ -4084,6 +4258,7 @@
         "search": "They searched the room and found something.",
         "rest": "They took a Rest here.",
         "stash": "They went looking for somebody's hidden stash here - whether they found one or not.",
+        "passage": "They looked for a secret passage here - whether they found one or not.",
         "project": "They pushed the project the trap was watching.",
         "sabotage": "They sabotaged the project the trap was watching.",
         "item": "They used {item}."
@@ -4239,6 +4414,7 @@
         "usedTools": "The Cleaning Tools each clean-up used, broken when the body is found",
         "sheetMarks": "What each character's sheet held when the GMs last judged a write on it",
         "sheetWrites": "The writes on a student's sheet the GMs put back, flagged or listed, kept a day",
+        "diceLooks": "Each character's dice look as the GMs set it, which a player's change of it goes back to",
         "ballots": "The ballots of the Class Trial's vote, kept by the GMs",
         "verdict": "The Blackened the last verdict was given with, kept by the GMs for its Finish"
       },
