@@ -4777,7 +4777,7 @@
         },
         "palm": {
           "label": "Palm",
-          "hint": "Wyjmij coś z czyjejś kieszeni, zostaw coś w niej albo zobacz, co ktoś nosi.",
+          "hint": "Wyjmij coś z czyjejś kieszeni, zostaw coś w niej albo zobacz, co nosi.",
           "description": "Wkładasz rękę do czyjejś kieszeni. Jeden rzut decyduje, czy ktoś zauważy, drugi, czy się uda. Albo po prostu prosisz, żeby pokazali kieszenie.",
           "unseen": {
             "label": "Trzymaj ręce poza zasięgiem wzroku"

@@ -859,7 +859,8 @@ function arrivalVerdict(student, last, tokenDoc, mover, via = null) {
     const from = last?.room ?? null;
     const to = roomOfToken(tokenDoc);
     if (from === to) return true;                      // the same room, a stairwell's floors too
-    return crossingVerdict(student, from, to, tokenDoc.parent, { from: last?.level ?? null, to: levelOf(tokenDoc) }, { mover, pay: false, via });
+    return crossingVerdict(student, from, to, tokenDoc.parent, { from: last?.level ?? null, to: levelOf(tokenDoc) },
+        { mover, pay: false, via, elevation: ownElevation(tokenDoc) });
 }
 
 /** The GMs' notice, once per turn to unlawful; and the GM's console. */
@@ -920,9 +921,21 @@ export function lawfulRoomOf(tokenDoc) {
  * `judgeMove` lets go of the token only in a hook that writes a new sighting. On the primary GM.
  */
 export function gmSpotOf(tokenDoc, was = null) {
-    if (!tokenDoc?.id || putBack.has(tokenDoc.id) || standingOf(tokenDoc)?.lawful === false) return null;
-    const here = positionOf(tokenDoc);
-    return was && !samePlace(was, here) ? null : here;
+    return gmSpotWhy(tokenDoc, was) ? null : positionOf(tokenDoc);
+}
+
+/**
+ * Why `gmSpotOf` reads this token nowhere, or null where it reads it: "noToken", "putBack" (a put-back this browser
+ * sent is on its way), "unlawful" (the judge holds it as standing where the rules refuse) or, given `was`, "moved" (it
+ * no longer stands there). Asked in that order, as `gmSpotOf` always asked them. H81 fix r1 (20.10.2026; the review's
+ * H81-C1-R1 and H81-C1-R5): passages-gm.mjs `crossTunnel` refused all three as "not at an end", logged none of them,
+ * and the player standing on the mark was told to stand on it; now it says which, in the GM's log and the Debug line.
+ */
+export function gmSpotWhy(tokenDoc, was = null) {
+    if (!tokenDoc?.id) return "noToken";
+    if (putBack.has(tokenDoc.id)) return "putBack";
+    if (standingOf(tokenDoc)?.lawful === false) return "unlawful";
+    return was && !samePlace(was, positionOf(tokenDoc)) ? "moved" : null;
 }
 
 /**
@@ -1004,7 +1017,7 @@ function onPreUpdateToken(tokenDoc, changes, options) {
         // which can miss a passage the waypoints went through; then the bedroom beyond is shut, as a door's.
         const via = crossingVia(centresOf(tokenDoc, tokenDoc, { x: changes.x ?? tokenDoc.x, y: changes.y ?? tokenDoc.y }),
             actor, tokenDoc.parent?.id, here);
-        const allowed = crossingVerdict(actor, from, to, tokenDoc.parent, { from: here, to: there }, { via });
+        const allowed = crossingVerdict(actor, from, to, tokenDoc.parent, { from: here, to: there }, { via, elevation: ownElevation(tokenDoc) });
         if (allowed === true) return;
 
         ui.notifications.warn(allowed);
@@ -1076,9 +1089,12 @@ function isCorpse(actor) {
  * `REASONS`), `text` the sentence this function gives the veto - so the primary GM can tell the player
  * which rule stopped it without sending a sentence of its own. Unkeyed, every answer is as before.
  *
+ * `elevation` is the height of the token that crosses, where `from` was read: a passage in a wall is read at it
+ * (`passesThrough`; H81 fix r1, `passageRooms`' note). None, the floor's bottom.
+ *
  * @returns {true|string|{code: string, text: string}} true, or the reason it is refused.
  */
-export function crossingVerdict(actor, from, to, scene, floors = null, { mover = null, pay = true, via = null, known, joined = false, keyed = false } = {}) {
+export function crossingVerdict(actor, from, to, scene, floors = null, { mover = null, pay = true, via = null, known, joined = false, keyed = false, elevation = null } = {}) {
     // Monokumas are not bound by any of this.
     if (actor.getFlag(MODULE_ID, FLAGS.monokuma)) return true;
 
@@ -1094,7 +1110,7 @@ export function crossingVerdict(actor, from, to, scene, floors = null, { mover =
 
     // Despair Calls that physically stop you. Checked before the action economy
     // because they are absolute: no amount of actions buys past a locked door.
-    const passage = joined || passesThrough(actor, from, to, scene, floors, { mover, known });
+    const passage = joined || passesThrough(actor, from, to, scene, floors, { mover, known, elevation });
     const blocked = restrictedFrom(actor, to, scene, mover, { via: passage && via === "passage" ? "passage" : null, keyed });
     if (blocked) return blocked;
 
@@ -1471,6 +1487,15 @@ const PASSAGE_SIDES = [0.35, 0.6, 0.85, 1];
  * knower standing on it read, and `tunnelVerdict` refused the way back as "not at an end": R900's V14 map, red at
  * f0ea429 (the Attic's end read as the Dorm under it, its mark not drawn, the way up judged into the Dorm). Each point
  * is asked at its floor's height (rooms.mjs `floorElevation`), or at `elevation` when the caller holds the token's.
+ *
+ * AT THE TOKEN'S HEIGHT WHERE A TOKEN ASKS (H81 fix r1, 20.10.2026; the review's H81-C1-R3). A token upstairs that is
+ * not at its floor's bottom - one 1.2.80's stairs left there at 0 (the write named the floor alone), or one a GM
+ * dropped there - reads its own room at its own height (`roomOfToken`), and a read at the floor's bottom answered
+ * another room for the same spot: 'Go through' let it through (`tunnelVerdict` reads the near end at the token's
+ * height) while its end's mark was not drawn (fog-doorways.mjs `tunnelMarks`), and a passage in a wall upstairs was
+ * judged from a side the token is not in (`reachableFrom`, `passageOpenFor`). So each read made for a token is at its
+ * height: the veto's, the judge's and the Eclipse's crossings (`crossingVerdict`'s `elevation`), the outline drawn
+ * for it (fog-reveal.mjs `flashOutline`'s) and its marks (`tunnelEndRooms`). R900's V14 map holds one at 0 upstairs.
  */
 export function passageRooms(scene, passage, level = null, { elevation = null } = {}) {
     if (Array.isArray(passage?.ends)) {
@@ -1500,16 +1525,31 @@ function endRoom(scene, end, elevation) {
 }
 
 /**
+ * The rooms of a tunnel's end `{ x, y, level, far }` as a viewer standing at it reads them, `[here, far]` (H81 fix r1,
+ * the review's H81-C1-R3; fog-doorways.mjs `tunnelMarks`): the end's at `elevation`, the viewer's token's height, and
+ * the far end's at the height the token would land at there - that same height on the viewer's floor (`level`, else
+ * the end's), the far floor's bottom on another (`landingElevation`, as `tunnelVerdict` reads them). No `elevation`:
+ * each at its floor's bottom, as `passageRooms` reads a tunnel for no token.
+ */
+export function tunnelEndRooms(scene, end, { elevation = null, level = null } = {}) {
+    const far = end?.far ?? null;
+    if (elevation === null || !Number.isFinite(elevation)) return passageRooms(scene, { ends: [end, far] });
+    const sameFloor = far?.level === null || far?.level === undefined || levelKey(far.level) === levelKey(level ?? end?.level ?? null);
+    return [endRoom(scene, end, elevation), far ? endRoom(scene, far, sameFloor ? elevation : floorElevation(scene, far.level)) : null];
+}
+
+/**
  * The rooms this character reaches from `room` through the secret passages it knows on this scene and
  * floor, sorted: none for a character that knows none, which is nearly every crossing. On a GM's
  * browser the GMs' records name the knowers, and `mover.mastermind` passes every passage (the owner's
- * Q7). `known` is the suite's (R558).
+ * Q7). `known` is the suite's (R558). `elevation` is the height of the token whose crossing is asked, where its
+ * `room` was read (H81 fix r1, `passageRooms`' note); none, the floor's bottom.
  */
-export function reachableFrom(actor, room, scene, { level = null, mover = null, known } = {}) {
+export function reachableFrom(actor, room, scene, { level = null, mover = null, known, elevation = null } = {}) {
     if (!room || !scene?.id) return [];
     const far = new Set();
     for (const passage of openSegmentsFor(actor, scene.id, level, { mastermind: Boolean(mover?.mastermind), known })) {
-        const sides = passageRooms(scene, passage, level);
+        const sides = passageRooms(scene, passage, level, { elevation });
         if (!sides.includes(room)) continue;
         for (const other of sides) if (other && other !== room) far.add(other);
     }
@@ -1521,10 +1561,10 @@ export function reachableFrom(actor, room, scene, { level = null, mover = null, 
  * rule then lets through (`crossingVerdict`, eclipse.mjs `judgeEclipseCrossing`). A change of floor is the
  * stairs' (`crossingRefused`), never a passage's.
  */
-export function passesThrough(actor, from, to, scene, floors = null, { mover = null, known } = {}) {
+export function passesThrough(actor, from, to, scene, floors = null, { mover = null, known, elevation = null } = {}) {
     if (!from || !to || from === to) return false;
     if (floors && levelKey(floors.from) !== levelKey(floors.to)) return false;
-    return reachableFrom(actor, from, scene, { level: floors?.from ?? null, mover, known }).includes(to);
+    return reachableFrom(actor, from, scene, { level: floors?.from ?? null, mover, known, elevation }).includes(to);
 }
 
 /**
@@ -1533,9 +1573,11 @@ export function passesThrough(actor, from, to, scene, floors = null, { mover = n
  * seal, the chain (`restrictedFrom` with `via: "passage"`) - stop none into the room beyond `from`, or into
  * either room when `from` is neither. The doorway glow draws a gap only where this is true (fog-doorways.mjs
  * `doorwayEdges`), so the frame says what the veto would answer. E51 generalises it to every door and takes
- * it over (the E79 plan's A10-9); R560 holds that it is written once. `known` is the suite's (R557).
+ * it over (the E79 plan's A10-9); R560 holds that it is written once. `known` is the suite's (R557). `elevation`
+ * is the viewer's token's height, where `from` was read, for a passage in a wall (H81 fix r1, `passageRooms`' note);
+ * a tunnel's ends are read at their floors' bottoms here, which end is the viewer's being no question this answers.
  */
-export function passageOpenFor(actor, passage, scene, { from = null, level = null, mover = null, known } = {}) {
+export function passageOpenFor(actor, passage, scene, { from = null, level = null, mover = null, known, elevation = null } = {}) {
     if (!passage?.id || !scene?.id) return false;
     /* A tunnel (E80 C1): known among the tunnels of the scene, and the room at an end other than `from` open to the
        character by the same rules - the bedroom passed, as through a passage (design A10 Q1 = b). */
@@ -1548,7 +1590,7 @@ export function passageOpenFor(actor, passage, scene, { from = null, level = nul
     const knows = openSegmentsFor(actor, scene.id, level, { mastermind: Boolean(mover?.mastermind), known })
         .some(seg => seg.id === passage.id);
     if (!knows) return false;
-    const beyond = passageRooms(scene, passage, level).filter(room => room && room !== from);
+    const beyond = passageRooms(scene, passage, level, { elevation }).filter(room => room && room !== from);
     return beyond.length > 0 && beyond.every(room => !restrictedFrom(actor, room, scene, mover, { via: "passage" }));
 }
 
@@ -1906,7 +1948,7 @@ async function settleRoute(tokenDoc, actor, { before, previous, crossings }) {
         // CROSSINGS, and settling a whole route as one would have let a
         // multi-waypoint drag walk the map on a single allowance.
         for (const [from, to, floors] of crossings) {
-            const allowed = await judgeEclipseCrossing(actor, from, to, tokenDoc.parent, floors);
+            const allowed = await judgeEclipseCrossing(actor, from, to, tokenDoc.parent, floors, { elevation: ownElevation(tokenDoc) });
             if (!allowed) {
                 await sendBack(tokenDoc, previous, before);
                 return false;

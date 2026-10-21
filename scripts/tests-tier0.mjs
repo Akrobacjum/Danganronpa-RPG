@@ -13101,7 +13101,7 @@ const REGRESSIONS = [
         ok(ratios.length === 2 && ratios.every(r => r !== null && r >= 4.5), `the letters' ink on the two plates reads ${J(ratios)}, under 4.5:1 or unread`);
     }],
 
-    ["R589 - the voice tile's state word is read at full ink in both themes, and the ticker switch, reduced motion and a stacked screen only stop it: no rule of the module's stylesheets hides the word or its runs but its own `hidden`, none sets it at an opacity, its colour is a full ink in each theme, and each of the three switches stops its runs; and it stands at the tile's top edge on its ink band, over the face, under Monokuma Legacy and on Stained Glass's wall in both fits (H81-10)", async () => {
+    ["R589 - the voice tile's state word is read at full ink in both themes, and the ticker switch, reduced motion and a stacked screen only stop it: no rule of the module's stylesheets hides the word or its runs but its own `hidden`, none sets it at an opacity, its colour is a full ink in each theme, and each of the three switches stops its runs; and it stands at the tile's top edge on its ink band, over the face, under Monokuma Legacy and on Stained Glass's wall in both fits (H81-10); standing still on a Legacy desk it stands under the buttons, and over a face in the row a short name leaves it its band (H81 fix r1)", async () => {
         /*
          * E79 C15 (16.10.2026; the prep's R586, renumbered: R586 was C12's by then). The owner's N12 and N15: the
          * state word is the tile's caption; the clock's ticker, which the word runs like, is hidden by
@@ -13125,6 +13125,13 @@ const REGRESSIONS = [
          * the module's sheets (a scratch probe, both themes, 163x188 and 181 x 150 to 42): the word clear of the
          * buttons and of the name plate in each. Red at 9dcf331: Legacy's word at the foot (bottom 10px), the
          * compact one at the middle (calc(50% - 15px)).
+         * H81 fix r1, 20.10.2026 (the review's H81C2-02 and H81C2-03): a still word in the 69 px left of Legacy's
+         * buttons read "CONNECT" for Connecting and Connected alike, and on a stacked screen a three-letter speaker's
+         * name left the band over the face a letter or two. Read too: the top and right the still word takes with
+         * the ticker off and under reduced motion (the module's switch and the system's), and the least width the
+         * face keeps in the row while it shows, under Legacy and under Stained Glass. Placed in Chromium (the glass
+         * harness's checks, which read each band against the widest of the words in both languages): 139 px still
+         * on a Legacy desk, 140 and 68 over a face named "Mai". Red at dc35104: none of the five declared.
          */
         const J = JSON.stringify;
         const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(res => res.json());
@@ -13201,9 +13208,16 @@ const REGRESSIONS = [
         equal(J({
             legacy: ["top", "bottom", "right", "z-index", "background"].map(prop => last(".drpg-voice-tile-state", prop)),
             full: ["top", "bottom"].map(prop => last(FULL, prop)), compact: ["top", "bottom"].map(prop => last(COMPACT, prop)),
-            faceRaised: all.filter(({ sel, decl }) => /\.drpg-voice-tile-face$/.test(sel) && /(?:^|;)\s*z-index\s*:/.test(decl)).map(({ name, sel }) => `${name} ${sel}`)
-        }), J({ legacy: ["6px", "auto", "76px", "1", "rgba(var(--drpg-deep-rgb), 0.85)"], full: ["6px", "auto"], compact: ["2px", "auto"], faceRaised: [] }),
-        "[Legacy's word: top, bottom, right (left of the two buttons), z-index, its ink band; the wall's full form: top, bottom; its compact form: top, bottom; rules that raise the face]");
+            faceRaised: all.filter(({ sel, decl }) => /\.drpg-voice-tile-face$/.test(sel) && /(?:^|;)\s*z-index\s*:/.test(decl)).map(({ name, sel }) => `${name} ${sel}`),
+            still: ["body.drpg-no-ticker .drpg-voice-tile-state", "body.drpg-reduced-motion .drpg-voice-tile-state"].map(sel => ["top", "right"].map(prop => last(sel, prop))),
+            stillSystem: ["top", "right"].map(prop => all.filter(rule => rule.sel === ".drpg-voice-tile-state" && /prefers-reduced-motion\s*:\s*reduce/.test(rule.within))
+                .map(rule => new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;!]+)`).exec(rule.decl)?.[1].trim()).filter(Boolean).at(-1) ?? null),
+            rowFace: ["body.drpg-stacked #drpg-tile-row .drpg-voice-tile-face:not([hidden])", "body.drpg-theme-stained-glass.drpg-stacked #drpg-tile-row .drpg-voice-tile-face:not([hidden])"]
+                .map(sel => last(sel, "min-width"))
+        }), J({ legacy: ["6px", "auto", "76px", "1", "rgba(var(--drpg-deep-rgb), 0.85)"], full: ["6px", "auto"], compact: ["2px", "auto"], faceRaised: [],
+            still: [["40px", "6px"], ["40px", "6px"]], stillSystem: ["40px", "6px"], rowFace: ["196px", "124px"] }),
+        "[Legacy's word: top, bottom, right (left of the two buttons), z-index, its ink band; the wall's full form: top, bottom; its compact form: top, bottom; rules that raise the face; "
+        + "the still word's top and right with the ticker off and under reduced motion, and under the system's; the least width of a face shown in the row, Legacy and Stained Glass]");
     }],
     ["R591 - the Objection's target and evidence are the primary GM's: LiveKit's speaker list is read in voice-tile.mjs and trial-speakers.mjs alone, the record and its two reads are declared once, exported, there; objectOnPrimary reads the packet's target only with no Room, the filled card is drawn from the holder's view, a player's own Objection card is refused, the trial bar does not load the trial at start, and the sheet's row raises no Objection", async () => {
         /*

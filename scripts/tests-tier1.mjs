@@ -14041,7 +14041,8 @@ const INVARIANTS = [
         "[lines of restrictedFrom naming via (its signature and one rule), the bedroom's, a lock, seal or chain under via, both of the verdict's connected-rooms rules asking the passage, the courtroom under via]");
         const eclipse = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/eclipse.mjs`).then(lfText));
         const judge = fnSource(eclipse, "judgeEclipseCrossing");
-        ok(/passesThrough\(actor, from, to, scene, floors, \{ known \}\) \? false : crossingRefused\(scene, from, to, floors\)/.test(judge)
+        // `elevation` since H81 fix r1: a passage in a wall is read at the crossing token's height (movement.mjs `passageRooms`' note).
+        ok(/passesThrough\(actor, from, to, scene, floors, \{ known, elevation \}\) \? false : crossingRefused\(scene, from, to, floors\)/.test(judge)
             && (judge.match(/\brecord\(/g) ?? []).length === 1 && /record = recordMove\b/.test(judge),
         "the Eclipse's own judge does not ask the passage before the map in one place, or counts a crossing other than once");
         // The Eclipse's verdicts, with a running Eclipse that is no free placement (the morning's, `eclipseAllowance`).
@@ -14065,9 +14066,10 @@ const INVARIANTS = [
         const neighbours = fnSource(src, "neighbourAnswer") + fnSource(src, "neighbouringRooms");
         ok(!/passesThrough|reachableFrom|openSegmentsFor|knownPassages/.test(neighbours), "the neighbours Listen and the body read ask the secret passages");
         // The route's caller hands the Eclipse's judge the floors of each crossing (review r2, goal O19): five arguments,
-        // `floors` the crossing's own, as `crossingVerdict` is asked.
+        // `floors` the crossing's own, as `crossingVerdict` is asked; and since H81 fix r1 the crossing token's height, at
+        // which a passage in a wall is read (movement.mjs `passageRooms`' note), as its sixth.
         const settle = fnSource(src, "settleRoute");
-        ok(/for \(const \[from, to, floors\] of crossings\) \{\s*const allowed = await judgeEclipseCrossing\(actor, from, to, tokenDoc\.parent, floors\);/.test(settle),
+        ok(/for \(const \[from, to, floors\] of crossings\) \{\s*const allowed = await judgeEclipseCrossing\(actor, from, to, tokenDoc\.parent, floors, \{ elevation: ownElevation\(tokenDoc\) \}\);/.test(settle),
             "the route's Eclipse judge is not handed each crossing's floors as its fifth argument");
     }],
     ["R559 - one wall rule on the primary GM: a move through an ordinary wall and through a passage's wall is judged alike, the knower and the Mastermind pass the passage, doors, one-way walls, floors and the start are the GM's, a forged revert, teleport and displace are judged like any move, a send-back the GM accepts, the stairs, a GM and a Monokuma the GMs hold pass; \"log\" writes a row and moves nothing, \"sendBack\" puts the token back and tells its mover alone, from the primary GM; a route through a point on a wall's line crosses it, the spot a put-back leaves is in no GM's record of the token, and the audit keeps a counted row of every crossing with one whisper per token and mover in 30 s; a GM's send-back for a player is judged as that player's move, an exempt landing on a wall's line keeps its side, a move before the put-back lands is judged from where the token is sent, and a row says sent back only once it is written", async () => {
@@ -17758,7 +17760,7 @@ const INVARIANTS = [
         equal(stableJson(names.filter(name => first.html.includes(foundry.utils.escapeHTML(name)) || first.html.includes(name))), "[]",
             `a name of something ${target.name} carries is in the Palm window's HTML`);
     }],
-    ["R620 - a Frisk's words and its books (A11-17): every DRPG.Frisk key and the Frisk's keys outside that block in both languages, a number in them only by placeholder, no 'Consent', no dash and no inflected 'GM' in Polish; the one Polish form of the row in the window, the Palm hint and the brochure; the Palm passages of the handbooks and the brochure carry the config's numbers, and the Polish GM handbook's Palm says 'GM-a'; the row says what to do as the Palm's other two rows do, 'See what they carry' / 'Zobacz, co nosi', and a Frisk's notice is titled by a key of its own, 'Frisk' (H81-11)", async () => {
+    ["R620 - a Frisk's words and its books (A11-17): every DRPG.Frisk key and the Frisk's keys outside that block in both languages, a number in them only by placeholder, no 'Consent', no dash and no inflected 'GM' in Polish; one form of the row's words in each language, in the window, the Palm hint, the brochure and the GM handbook's Palm row; the Palm passages of the handbooks and the brochure carry the config's numbers, and the Polish GM handbook's Palm says 'GM-a'; the row says what to do as the Palm's other two rows do, 'See what they carry' / 'Zobacz, co nosi', and a Frisk's notice is titled by a key of its own, 'Frisk' (H81-11)", async () => {
         /*
          * E80 part 2 C5, 19.10.2026; the A11 design's steps 14 and 15 and its A11-17. The harm: a Frisk text with no
          * Polish twin shows a Polish table its key; a number typed into a text, or a handbook that says Body 12 while the
@@ -17773,6 +17775,12 @@ const INVARIANTS = [
          * Palm row with a name and a colon beside "Take something" and "Leave something"; and frisk.mjs's notice took
          * the row's words as its title. Read too: the row's words in both languages, DRPG.Frisk.noticeTitle in both,
          * and frisk.mjs `toast` titling its notice with it. Red at 9dcf331: the old words, no key, the row's key.
+         * H81 fix r1, 20.10.2026 (the review's H81C2-04): the Polish row became "Zobacz, co nosi" while the Polish Palm
+         * hint and brochure kept "zobacz, co ktoś nosi", and this test, edited for the row, still asked those two for
+         * the old words - two Polish forms, under a title promising one; the GM handbooks' Palm rows said a third
+         * ("see what somebody carries", "zobacz, co ktoś nosi"). Read now: the row's own words in each language, its
+         * first letter lowered, in the Palm hint (config.mjs in English, pl.json in Polish), the brochure's Palm row
+         * and the GM handbook's. Red at dc35104: the Polish hint, the Polish brochure and both GM handbook rows lack them.
          */
         const { TIMING } = await import("./config.mjs");
         const J = stableJson;
@@ -17842,7 +17850,7 @@ const INVARIANTS = [
             "gm-handbook.pl Palm": ["**Frisk**", `Body ${n.force} na oczach pokoju`, "klient GM-a"],
             "player-brochure.en Palm": [`Take (${n.take}+, unseen ${n.takeUnseen}+)`, `plant (${n.plant}+, unseen ${n.plantUnseen}+)`, "see what they carry",
                 `Body ${n.force}+ after a refusal`, `unseen Shadow ${n.cover}+ then Hand ${n.hand}+`],
-            "player-brochure.pl Palm": [`Weź (${n.take}+, niezauważony ${n.takeUnseen}+)`, `podłóż (${n.plant}+, niezauważony ${n.plantUnseen}+)`, "zobacz, co ktoś nosi",
+            "player-brochure.pl Palm": [`Weź (${n.take}+, niezauważony ${n.takeUnseen}+)`, `podłóż (${n.plant}+, niezauważony ${n.plantUnseen}+)`, "zobacz, co nosi",
                 `Body ${n.force}+ po odmowie`, `ukradkiem Shadow ${n.cover}+, potem Hand ${n.hand}+`]
         });
         const missing = n => Object.entries(expected(n)).flatMap(([where, said]) => said.filter(s => !passages[where].includes(s)).map(s => `${where}: "${s}"`));
@@ -17852,11 +17860,16 @@ const INVARIANTS = [
         const missedMoved = new Set(missing(moved).map(line => line.split(":")[0]));
         equal(J(numbered.filter(where => !missedMoved.has(where))), J([]), "[a passage that reads as the config's with every number one higher - the control]");
 
-        const pl = flats.pl["DRPG.Config.ACTIONS.palm.hint"] ?? "";
-        equal(J([flats.pl["DRPG.Frisk.rowLabel"] ?? null, pl.includes("zobacz, co ktoś nosi"), passages["player-brochure.pl Palm"].includes("zobacz, co ktoś nosi"),
-            /\bGMa\b/.test(passages["gm-handbook.pl Palm"])]),
-        J(["Zobacz, co nosi", true, true, false]),
-        "[the Polish row, the Polish Palm hint says it, the Polish brochure says it, the Polish GM handbook's Palm says 'GMa']");
+        // One form of the row's words wherever the Palm's three ways are listed (H81 fix r1): the row's own, first letter lowered.
+        const lowered = text => (typeof text === "string" && text ? text[0].toLowerCase() + text.slice(1) : null);
+        const hints = { en: palm.hint ?? "", pl: flats.pl["DRPG.Config.ACTIONS.palm.hint"] ?? "" };
+        const oneForm = lang => {
+            const words = lowered(flats[lang]["DRPG.Frisk.rowLabel"]);
+            return [words, ...[hints[lang], passages[`player-brochure.${lang} Palm`], passages[`gm-handbook.${lang} Palm row`]].map(text => Boolean(words) && text.includes(words))];
+        };
+        equal(J([flats.pl["DRPG.Frisk.rowLabel"] ?? null, oneForm("en"), oneForm("pl"), /\bGMa\b/.test(passages["gm-handbook.pl Palm"])]),
+            J(["Zobacz, co nosi", ["see what they carry", true, true, true], ["zobacz, co nosi", true, true, true], false]),
+            "[the Polish row; in English and in Polish the row's words and whether the Palm hint, the brochure's Palm row and the GM handbook's Palm row say them; the Polish GM handbook's Palm says 'GMa']");
         const toast = stripComments(fnSource((await moduleSources()).get("frisk.mjs") ?? "", "toast"));
         equal(J([flats.en["DRPG.Frisk.rowLabel"] ?? null, flats.en["DRPG.Frisk.noticeTitle"] ?? null, flats.pl["DRPG.Frisk.noticeTitle"] ?? null,
             /title:\s*game\.i18n\.localize\("DRPG\.Frisk\.noticeTitle"\)/.test(toast), toast.includes("DRPG.Frisk.rowLabel")]),
@@ -18049,7 +18062,7 @@ const INVARIANTS = [
         equal(stableJson([said("drawing"), said("forcing before its context"), said("its close")]), stableJson([1, 1, 1]),
             "the render hook, the wrapper of the window's context or the close hook said nothing of the failure, or said it without the module's name or the step (lines: drawing, forcing before its context, its close)");
     }],
-    ["R900 - a tunnel or stairs is gone through from either end (H81-01): a knower at each end of a tunnel on one floor and of stairs between two floors crosses to the room at the other end, and back from where the crossing lands it, on a map whose rooms answer a point whatever its elevation (the harness's) and on one whose rooms answer by floor and elevation as v14's regions are read here; the room an end stands in is read as a token on that floor reads its own, and each end is marked for its knower in its own room, upstairs too", async () => {
+    ["R900 - a tunnel or stairs is gone through from either end (H81-01): a knower at each end of a tunnel on one floor and of stairs between two floors crosses to the room at the other end, and back from where the crossing lands it, on a map whose rooms answer a point whatever its elevation (the harness's) and on one whose rooms answer by floor and elevation as v14's regions are read here, with the upper room's name sorting before the room under it and after it; the room an end stands in is read as a token on that floor reads its own, each end is marked for its knower in its own room, upstairs too, and a token upstairs that is not at its floor's height reads its tunnel's end, its mark and a passage in a wall at its own height", async () => {
         /*
          * H81-01 (20.10.2026; the owner's 1.2.80 table smoke, items 4b and 8: "tunele/schody sa jednostronne"). The harm:
          * a knower goes through one way and at the far end is told it stands at no end, so the way back is gone, and the
@@ -18057,8 +18070,8 @@ const INVARIANTS = [
          * both ends, `tunnelVerdict` takes either), and on the harness's map - rooms that answer every point whatever its
          * elevation - R597, tier 2 "A10-18" and scenario 76 U go back. What a table's map adds is elevation: a v14 region
          * asks a point's elevation before its shape (movement.mjs `roomAt`'s note), and an end's room was read at
-         * elevation 0 (`passageRooms`) while the token's own room was read at the token's (`roomOfToken`). Two maps of
-         * the test's own, the same rooms on both, the tunnels known in the copy's shape as a player's browser keeps it
+         * elevation 0 (`passageRooms`) while the token's own room was read at the token's (`roomOfToken`). Maps of the
+         * test's own, the same rooms on each, the tunnels known in the copy's shape as a player's browser keeps it
          * (`cleanCopy`, candidate c): HARNESS, rooms blind to elevation; V14, the Kitchen, the Lab and the Dorm drawn
          * before the floors (no `levels`: on every floor, at any elevation) and the Attic on the upper floor alone,
          * answering only between that floor's bottom and top (10 to 20), over the Dorm's footprint. A token upstairs
@@ -18069,6 +18082,21 @@ const INVARIANTS = [
          * read at 0 is the Dorm), the way up is judged into the Dorm and lands at the Dorm's name, and the Attic has no
          * mark; on both maps the way up lands at height 0 (the write named the floor alone). What c and d cut by floor
          * held at f0ea429 on both maps. What v14 holds is not measured here: LIVE-H81-01.
+         *
+         * H81 fix r1 (20.10.2026). The review's H81-C1-R4: V14 is red at f0ea429 only because "R900 Attic" sorts before
+         * "R900 Dorm" - where two rooms answer a point, `piecesAt` keeps the name that sorts first (`.sort()[0]`), so a
+         * room drawn with no floor under a floor's room is the one the names pick. ZOLDER is V14 with the upper room
+         * named after the Dorm: the token upstairs reads the Dorm at 10 as at 0, the way up lands in the Dorm, and
+         * f0ea429 goes back too (only the landing's height differs there). The room names a table's map gives are the
+         * owner's (LIVE-H81-01 asks for the regions' `levels`). The review's H81-C1-R3: a token upstairs at 0 - one
+         * 1.2.80's stairs left there, the write naming the floor alone, or one a GM dropped there - reads its own room
+         * at 0, and 'Go through' read its end at 0 too while its mark (fog-doorways.mjs `tunnelMarks`) and a passage in a
+         * wall upstairs (`passesThrough`, `viewerPassages`) were read at the floor's bottom: on V14 it was let through
+         * the end it stood on and drew no mark there, and the passage R900W from the Dorm to the Lab upstairs was read
+         * from the Attic. Read now, for that token and for one at 10: the verdict, the room it reads with the marks
+         * drawn for it there at its height, whether the veto lets it through R900W into the Lab, and whether its outline
+         * opens R900W with the room over the Dorm locked (the gap is drawn only where every room beyond is open). Red
+         * at dc35104, on V14: no mark in the Dorm at 0, R900W shut both ways for it.
          */
         const M = await import("./movement.mjs");
         const L = await import("./passages.mjs");
@@ -18076,23 +18104,26 @@ const INVARIANTS = [
         const R = await import("./rooms.mjs");
         const J = v => JSON.stringify(v);
         const [L1, L2] = ["R900L1", "R900L2"];
-        const mapOf = blind => {
+        const mapOf = (blind, upper = "Attic", { locked = false } = {}) => {
             const room = (name, x, levels, band = null) => ({ id: `R900R${name}`, name: `R900 ${name}`, levels: new Set(levels), behaviors: [],
                 bounds: { x, y: 0, width: 400, height: 400 }, shapes: [{ type: "rectangle", x, y: 0, width: 400, height: 400 }],
                 testPoint: p => p.x >= x && p.x <= x + 400 && p.y >= 0 && p.y <= 400
                     && (blind || !band || (p.elevation >= band[0] && p.elevation < band[1])),
-                getFlag: (scope, key) => (scope === MODULE_ID && key === R.ROOM_FLAG ? true : undefined) });
+                getFlag: (scope, key) => (scope !== MODULE_ID ? undefined : key === R.ROOM_FLAG ? true
+                    : key === M.ROOM_FLAGS.locked && locked && name === upper ? true : undefined) });
             const scene = { id: "R900S", name: "R900 scene", grid: { size: 100 }, tokens: [],
                 levels: [{ id: L1, name: "Ground", elevation: { bottom: 0, top: 10 } }, { id: L2, name: "Upper", elevation: { bottom: 10, top: 20 } }],
-                regions: new Set([room("Kitchen", 0, []), room("Lab", 500, []), room("Dorm", 1000, []), room("Attic", 1000, [L2], [10, 20])]) };
+                regions: new Set([room("Kitchen", 0, []), room("Lab", 500, []), room("Dorm", 1000, []), room(upper, 1000, [L2], [10, 20])]) };
             return { scene, rooms: Object.fromEntries([...scene.regions].map(r => [r.name.slice(5), r])) };
         };
         const A = { id: "R900A", name: "R900A", type: "character", items: [], getFlag: () => undefined };
         const row = ends => ({ sceneId: "R900S", shape: "tunnel", level: null, ends, actorIds: ["R900A"] });
+        // R900W: a passage in a wall upstairs, between the Lab's east side and the Dorm's west (x 950, y 100 to 300).
         const copy = { R900T: row([{ x: 150, y: 150, level: L1 }, { x: 650, y: 150, level: L1 }]),
-            R900U: row([{ x: 250, y: 250, level: L1 }, { x: 1150, y: 150, level: L2 }]) };
+            R900U: row([{ x: 250, y: 250, level: L1 }, { x: 1150, y: 150, level: L2 }]),
+            R900W: { sceneId: "R900S", shape: "wall", level: L2, passageWallId: "R900WW", passageSeg: { x1: 950, y1: 100, x2: 950, y2: 300 }, actorIds: ["R900A"] } };
         const known = L.cleanCopy(copy, { R900A: 1 }, { actors: new Set(["R900A"]), scenes: new Set(["R900S"]) }).value;
-        equal(J(Object.keys(known).sort()), J(["R900T", "R900U"]), "the knower's browser keeps neither or one of the two tunnels - this would measure nothing");
+        equal(J(Object.keys(known).sort()), J(["R900T", "R900U", "R900W"]), "the knower's browser keeps not all three passages - this would measure nothing");
         const mover = { gm: false, mastermind: false };
         const tok = (scene, x, y, level, elevation) => ({ id: "R900K", name: "R900K", x, y, width: 1, height: 1, elevation, level, parent: scene, actor: A });
         // A verdict as the player's sheet and the primary read it, the price left out: "from > to on the far end's floor".
@@ -18110,26 +18141,43 @@ const INVARIANTS = [
             return tok(token.parent, spot.x, spot.y, spot.level ?? token.level, elevation);
         };
         const through = getClock()?.phase === "classTrial";
-        const reading = map => {
-            const { scene, rooms } = mapOf(map === "HARNESS");
+        const reading = (map, upper = "Attic") => {
+            const { scene, rooms } = mapOf(map === "HARNESS", upper);
+            const locked = mapOf(map === "HARNESS", upper, { locked: true });
             const up = crossed("R900U", tok(scene, 200, 200, L1, 0));
-            const marks = (region, level) => F.tunnelMarks(A, region, scene, level, { gm: false, known, knownRooms: () => new Set(Object.keys(rooms).map(n => `R900 ${n}`)) })
+            const found = () => new Set(Object.keys(rooms).map(n => `R900 ${n}`));
+            const marks = (region, level, elevation = null) => F.tunnelMarks(A, region, scene, level, { gm: false, known, knownRooms: found, elevation })
                 .map(m => `${m.id} ${m.x},${m.y} > ${m.to.slice(5)}`);
+            // For a token upstairs (H81 fix r1): its tunnel's verdict, the room it reads and the marks drawn for it there at
+            // its height (fog-reveal.mjs `flashOutline` hands the height on), the veto through R900W from that room into
+            // the Lab, and R900W in that room's outline with the upper room locked.
+            const upstairs = height => {
+                const token = tok(scene, 1100, 100, L2, height);
+                const here = M.roomOfToken(token)?.slice(5) ?? null;
+                const wall = F.viewerPassages(A, locked.rooms[here], locked.scene, L2, { gm: false, known, elevation: height }).map(p => p.id);
+                return [said("R900U", token), here, marks(rooms[here], L2, height),
+                    M.passesThrough(A, `R900 ${here}`, "R900 Lab", scene, { from: L2, to: L2 }, { known, elevation: height }), wall];
+            };
             return [said("R900T", tok(scene, 100, 100, L1, 0)), said("R900T", tok(scene, 600, 100, L1, 0)),
                 said("R900U", tok(scene, 200, 200, L1, 0)), said("R900U", tok(scene, 1100, 100, L2, 10)),
                 up ? [up.x, up.y, up.level, up.elevation, said("R900U", up)] : null,
                 said("R900U", tok(scene, 1100, 300, L2, 10)), said("R900U", tok(scene, 1100, 100, L1, 0)),
-                marks(rooms.Kitchen, L1), marks(rooms.Lab, L1), marks(rooms.Attic, L2)];
+                marks(rooms.Kitchen, L1), marks(rooms.Lab, L1), upstairs(10), upstairs(0)];
         };
         // In a Class Trial the courtroom refuses every crossing first (R597's note), whichever end it is asked from.
         const go = text => (through ? "trialLocked" : text);
-        const want = [go("Kitchen > Lab on R900L1"), go("Lab > Kitchen on R900L1"), go("Kitchen > Attic on R900L2"), go("Attic > Kitchen on R900L1"),
-            through ? null : [1100, 100, L2, 10, "Attic > Kitchen on R900L1"], "notAtPassage", "notAtPassage",
-            ["R900T 150,150 > Lab", "R900U 250,250 > Attic"], ["R900T 650,150 > Kitchen"], ["R900U 1150,150 > Kitchen"]];
-        equal(J({ HARNESS: reading("HARNESS"), V14: reading("V14") }), J({ HARNESS: want, V14: want }),
-            "each map: [the tunnel from the Kitchen's end, from the Lab's; the stairs from the Kitchen's end, from the Attic's at the upper floor's height; "
-            + "where the way up lands (x, y, floor, height) and the way back from there; two squares off the Attic's end; on the Attic's square downstairs; "
-            + "the marks in the Kitchen, the Lab and the Attic]");
+        // What each map must read: `top` the room a token upstairs at 10 reads, `low` the one at 0.
+        const want = (top, low) => [go("Kitchen > Lab on R900L1"), go("Lab > Kitchen on R900L1"), go(`Kitchen > ${top} on R900L2`), go(`${top} > Kitchen on R900L1`),
+            through ? null : [1100, 100, L2, 10, `${top} > Kitchen on R900L1`], "notAtPassage", "notAtPassage",
+            ["R900T 150,150 > Lab", `R900U 250,250 > ${top}`], ["R900T 650,150 > Kitchen"],
+            [go(`${top} > Kitchen on R900L1`), top, ["R900U 1150,150 > Kitchen"], true, ["R900W"]],
+            [go(`${low} > Kitchen on R900L1`), low, ["R900U 1150,150 > Kitchen"], true, ["R900W"]]];
+        equal(J({ HARNESS: reading("HARNESS"), V14: reading("V14"), ZOLDER: reading("V14", "Zolder") }),
+            J({ HARNESS: want("Attic", "Attic"), V14: want("Attic", "Dorm"), ZOLDER: want("Dorm", "Dorm") }),
+            "each map: [the tunnel from the Kitchen's end, from the Lab's; the stairs from the Kitchen's end, from the upper end at the upper floor's height; "
+            + "where the way up lands (x, y, floor, height) and the way back from there; two squares off the upper end; on its square downstairs; "
+            + "the marks in the Kitchen and the Lab; then a token on the upper end at 10 and at 0: the way down, the room it reads, the marks drawn for it "
+            + "there, the veto through R900W into the Lab, R900W open in its outline with the upper room locked]");
     }],
     ["R901 - a tunnel or stairs goes one way when a GM says so (H81-02): a knower goes in by the end its row names and is refused at the other in the bridge's words, and goes both ways once a GM sets it back; the direction is the GMs' record, which the primary judges and a player's packet does not carry; it reaches the copy of a player whose student knows the tunnel and no other, is kept by the player's browser, marks the way out 'Secret passage from', and outlives a season's reset; only a GM sets it, on a tunnel alone, each change logged", async () => {
         /*

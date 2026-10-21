@@ -886,8 +886,10 @@ function fadeLabel(label) {
 /* `level` is the floor drawn (E12 C10): the doorways it glows open onto rooms on that floor only
    (fog-doorways.mjs `doorwayEdges`), and a redraw for a theme change keeps it. `actor` (E79 C3,
    14.10.2026) is the character it is drawn for: the secret passages it may take open as doorways
-   (`doorwayEdges`), and a redraw keeps it as it keeps the floor. */
-export function flashOutline(fx, region, rect, level = null, { actor = null } = {}) {
+   (`doorwayEdges`), and a redraw keeps it as it keeps the floor. `elevation` (H81 fix r1, 20.10.2026; the review's
+   H81-C1-R3) is that character's token's height, where `region` was read as its room: its passages' sides and its
+   tunnel ends' rooms are read there too, as its 'Go through' reads them (movement.mjs `passageRooms`' note). */
+export function flashOutline(fx, region, rect, level = null, { actor = null, elevation = null } = {}) {
     if (!fx || fx.destroyed) return;
 
     // Whatever was outlined before, take it down - see `fadeRoomOutline`.
@@ -913,7 +915,7 @@ export function flashOutline(fx, region, rect, level = null, { actor = null } = 
     group.eventMode = "none";
 
     // Measured once; the outline skips these and the glow marks them.
-    const edges = doorwayEdges(region, level, { actor });
+    const edges = doorwayEdges(region, level, { actor, elevation });
 
     const { boneWidth, inkWidth, stubFloor, gapPad } = outlineWidths(glass, grid);
 
@@ -966,7 +968,7 @@ export function flashOutline(fx, region, rect, level = null, { actor = null } = 
     // Under the outline and the name, so neither is softened by it.
     addDoorwayGlow(group, region, edges, rect);
     // The tunnel ends this character knows in the room, marked for it alone (E80 C1); a redraw keeps them.
-    addTunnelMarks(group, tunnelMarks(actor, region, region?.parent, level), rect);
+    addTunnelMarks(group, tunnelMarks(actor, region, region?.parent, level, { elevation }), rect);
     group.setChildIndex(outline, group.children.length - 1);
     group.setChildIndex(label, group.children.length - 1);
     fx.addChild(group);
@@ -980,7 +982,7 @@ export function flashOutline(fx, region, rect, level = null, { actor = null } = 
            pixel-art stroke stayed. Two different borders, each in the wrong theme, which is
            exactly what Dawid described on 07.09. The three arguments are kept so the outline
            can simply be drawn again. */
-        glass, fx, region, rect, level, actor,
+        glass, fx, region, rect, level, actor, elevation,
         /*
          * RE-STROKE IN A NEW SEAM COLOUR WITHOUT MEASURING THE ROOM AGAIN.
          *
@@ -1152,7 +1154,7 @@ export function recolourRoomOutline({ standing = roomOutline, colourNow = outlin
        than re-tinted. Everything else on this path is still one computed-style read. */
     const glassNow = glassIs();
     if (standing.glass !== glassNow && standing.region && standing.fx && !standing.fx.destroyed) {
-        flashOutline(standing.fx, standing.region, standing.rect, standing.level, { actor: standing.actor ?? null });
+        flashOutline(standing.fx, standing.region, standing.rect, standing.level, { actor: standing.actor ?? null, elevation: standing.elevation ?? null });
         return;
     }
 

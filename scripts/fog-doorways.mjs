@@ -36,7 +36,7 @@
 import { debug } from "./utils.mjs";
 import { roomPieces, onLevel } from "./rooms.mjs";
 import { openSegmentsFor, cutSegment, tunnelEndsFor } from "./passages.mjs";
-import { passageOpenFor, passageRooms, roomsKnownToMe } from "./movement.mjs";
+import { passageOpenFor, tunnelEndRooms, roomsKnownToMe } from "./movement.mjs";
 import {
     regionShapes, polylineLength, inPolygons, resamplePolyline, smoothPolyline, trimPolyline, innerStretches
 } from "./fog-geometry.mjs";
@@ -516,9 +516,10 @@ export function neighbourBeyond(mx, my, nx, ny, others, reach) {
  * passages it may take out of this room now (`viewerPassages`) are cut out of the walls this reads
  * and handed to the collision test, so its outline opens where the veto would let it through and
  * nowhere else. No actor, a character that knows no passage here, or a GM's browser: the walls and
- * the test as they were, so the outline is the map's (R557 compares the two).
+ * the test as they were, so the outline is the map's (R557 compares the two). `elevation` is the height of the
+ * token the outline is drawn for, at which a passage's sides are read (`viewerPassages`; H81 fix r1).
  */
-export function doorwayEdges(region, level = null, { actor = null } = {}) {
+export function doorwayEdges(region, level = null, { actor = null, elevation = null } = {}) {
     try {
         const scene = region?.parent ?? canvas?.scene;
         if (!scene) return [];
@@ -544,7 +545,7 @@ export function doorwayEdges(region, level = null, { actor = null } = {}) {
 
         // Read once. A scene with several hundred walls is asked about at every
         // sample of every edge, and `scene.walls` is a collection, not an array.
-        const passages = viewerPassages(actor, region, scene, level);
+        const passages = viewerPassages(actor, region, scene, level, { elevation });
         const walls = passageWalls(Array.from(scene.walls ?? []).filter(wall => onLevel(wall, level)), passages);
         const ray = passages.length ? { level, passages } : undefined;
 
@@ -682,12 +683,14 @@ export function doorwayEdges(region, level = null, { actor = null } = {}) {
  * floor now: those it knows (passages.mjs `openSegmentsFor`, this browser's copy) that
  * movement.mjs `passageOpenFor` - the veto's own rules - leaves open. None on a GM's browser and
  * none for no character (`doorwayEdges`). `gm` and `known` are the suite's (R557): a player's
- * browser and rows of its own in the copy's shape.
+ * browser and rows of its own in the copy's shape. `elevation` is the viewer's token's height, where its room
+ * `region` was read: each passage's sides are read there too (H81 fix r1, the review's H81-C1-R3; movement.mjs
+ * `passageRooms`' note), none at the floor's bottom.
  */
-export function viewerPassages(actor, region, scene, level = null, { gm = Boolean(game.user?.isGM), known } = {}) {
+export function viewerPassages(actor, region, scene, level = null, { gm = Boolean(game.user?.isGM), known, elevation = null } = {}) {
     if (!actor || gm || !scene?.id) return [];
     return openSegmentsFor(actor, scene.id, level, { known })
-        .filter(passage => passage.wallId && passageOpenFor(actor, passage, scene, { from: region?.name ?? null, level, known }));
+        .filter(passage => passage.wallId && passageOpenFor(actor, passage, scene, { from: region?.name ?? null, level, known, elevation }));
 }
 
 /**
@@ -700,16 +703,19 @@ export function viewerPassages(actor, region, scene, level = null, { gm = Boolea
  * character of this player's has no mark, and the rooms are read off the map as the list reads them
  * (movement.mjs `passageRooms`). None on a GM's browser, as `viewerPassages` hands a GM none. The end of a one-way
  * tunnel it is not entered from is marked too, with `exit: true` (H81-02): its knower sees where the way comes out,
- * and its words say where from. `gm`, `known` and `knownRooms` are the suite's (R595).
+ * and its words say where from. `gm`, `known` and `knownRooms` are the suite's (R595). `elevation` is the viewer's
+ * token's height, where `region` was read as its room: an end's room is read there, as 'Go through' reads it
+ * (movement.mjs `tunnelEndRooms`, `tunnelVerdict`; H81 fix r1, the review's H81-C1-R3: a token upstairs at 0 was let
+ * through at the end it stood on and saw no mark there); none, each end at its floor's bottom.
  */
-export function tunnelMarks(actor, region, scene, level = null, { gm = Boolean(game.user?.isGM), known, knownRooms = roomsKnownToMe } = {}) {
+export function tunnelMarks(actor, region, scene, level = null, { gm = Boolean(game.user?.isGM), known, knownRooms = roomsKnownToMe, elevation = null } = {}) {
     if (!actor || gm || !scene?.id || !region?.name) return [];
     const ends = tunnelEndsFor(actor, scene.id, level, { known });
     if (!ends.length) return [];
     const found = knownRooms(scene);
     const marks = [], unexplored = new Map();
     for (const end of ends) {
-        const [here, far] = passageRooms(scene, { ends: [end, end.far] });
+        const [here, far] = tunnelEndRooms(scene, end, { elevation, level });
         if (here !== region.name || !far) continue;
         if (found && !found.has(far) && !unexplored.has(far)) unexplored.set(far, unexplored.size + 1);
         marks.push({ id: end.id, x: end.x, y: end.y, to: unexplored.has(far) ? game.i18n.format("DRPG.Listen.unknownRoom", { n: unexplored.get(far) }) : far,

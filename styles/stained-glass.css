@@ -1369,6 +1369,13 @@ body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="co
     overflow-wrap: normal;
     letter-spacing: 0.06em;
 }
+/* A short name keeps the word's band on a stacked screen (H81 fix r1; danganronpa.css's rule of the same name): this
+   theme's words are narrower - 59 px of text at most, "Disconnected", at the row's 11 px (Chromium, the glass
+   harness's row, 20.10.2026) - so the portrait's 44 px, the word and its 6 px paddings: 115, and 9 to spare. The
+   row check reads 68 px of band with a three-letter name. */
+body.drpg-theme-stained-glass.drpg-stacked #drpg-tile-row .drpg-voice-tile-face:not([hidden]) {
+    min-width: 124px;
+}
 body.drpg-theme-stained-glass > #drpg-voice-art {
     pointer-events: none;
     opacity: 1;

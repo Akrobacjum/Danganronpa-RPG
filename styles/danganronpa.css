@@ -6829,6 +6829,26 @@ body.drpg-stacked .drpg-voice-tile-state > span { animation: none; }
 @media (prefers-reduced-motion: reduce) {
     .drpg-voice-tile-state > span { animation: none; }
 }
+/* STILL, UNDER THE BUTTONS (H81 fix r1, 20.10.2026; the review's H81C2-02). Standing still in the band left of the
+   buttons, a word is cut: "Connecting" and "Connected" both read "CONNECT", so the one word that tells a Room
+   reconnecting from a Room connected said the same of both. While it stands still - the ticker off, reduced motion
+   asked here or by the system - it stands under the buttons' row (top 40: 6 + 30 + 4) across the tile, 6 px from
+   each side, its last fifth fading as ever (the run goes on past the word: "Word · Word · ..."). Read in Chromium on
+   20.10.2026 (a scratch probe and the glass harness's Legacy check: its tile, 163 x 188, its fonts): the English
+   words 77-132 px of text, the Polish 80-121; the band 69 px inside its padding at the top before, 139 here, the
+   word at 40..70 clear of the buttons (6..36) and of the name plate. Stained Glass's wall keeps its own corner
+   (123 px there, its words 59 at most); on a stacked screen the row's rules place it. */
+body.drpg-no-ticker .drpg-voice-tile-state,
+body.drpg-reduced-motion .drpg-voice-tile-state {
+    top: 40px;
+    right: 6px;
+}
+@media (prefers-reduced-motion: reduce) {
+    .drpg-voice-tile-state {
+        top: 40px;
+        right: 6px;
+    }
+}
 /* On a stacked screen, in the tiles' row between the face (hidden while nobody speaks) and the buttons.
    Here and not in narrow.css, which E79 leaves untouched (the stage's glass check); narrow.css states no
    rule of this element for it to lose a tie with. */
@@ -6859,6 +6879,20 @@ body.drpg-stacked #drpg-tile-row .drpg-voice-tile-face:not([hidden]) ~ .drpg-voi
 body.drpg-stacked #drpg-tile-row .drpg-voice-tile-plate {
     align-self: flex-end;
     padding-bottom: 3px;
+}
+/* A SHORT NAME KEEPS THE WORD'S BAND (H81 fix r1, 20.10.2026; the review's H81C2-03). Over the face the word's band
+   is the name plate's width and 6 px, so a short name left it a letter or two: "Mai" gave it 35 px inside its
+   padding under Monokuma Legacy and 34 under Stained Glass, "Al" 21 and 27 (Chromium, the glass harness's row at
+   393 x 852 and 844 x 390). While the face shows it is at least the portrait's 44 px and a band that holds the
+   widest word, "Disconnected", 132 px of text at the row's 11 px under Legacy (the Polish ones 121 at most), in its
+   6 px paddings: 184, and 12 to spare - 196 px, less than "Aiko Hoshino" takes already (212), so only a short name
+   takes more of the row than it did. The glass harness's row check reads it with a three-letter name: 140 px of
+   band. stained-glass.css sets its own, for its narrower words. The portrait and the name keep the face's left
+   end (the face's own rule ends them at its right, which a face as wide as its content never showed): the band
+   starts at the portrait's right edge, as the rule above stands it. */
+body.drpg-stacked #drpg-tile-row .drpg-voice-tile-face:not([hidden]) {
+    min-width: 196px;
+    justify-content: flex-start;
 }
 
 /* THE LIST 'WHO YOU HEAR' (E78 C5, 14.10.2026; the owner's Q0): the speaker button's dialog,
@@ -6988,8 +7022,10 @@ fieldset.drpg-voice-panel { margin-top: 8px; }
 
 /* The empty state that replaces it. Without this, hiding the system rows left
    a titled box with nothing in it. */
-/* 10 px in from the rail's edge, where the Experience rows under it stand (7 px) and a
-   little more - at 2 px the sentence ran against the window's own frame (22.09). */
+/* 10 px in from the rail's edge - at 2 px the sentence ran against the window's own frame (22.09). That note
+   also read the Experience rows under it at 7 px from the rail; the owner's 1.2.80 table (20.10.2026) saw them
+   with no margin, and since H81-09 the module pads what they hold by these 10 px (below), so which reading holds
+   is the table's (LIVE-H81-02): at 7 they stand 17 in now. */
 .drpg-equipped-empty {
     padding: 4px 10px;
     font-size: var(--font-size-11, 0.72rem);
@@ -7004,7 +7040,10 @@ fieldset.drpg-voice-panel { margin-top: 8px; }
    heading stays where Equipped's stands (padding the whole section moved both headings 10 px off it in a
    Chromium mock-up, 20.10.2026). Chosen, not measured: Daggerheart's CSS is not on this machine, so how far in
    its own Equipped rows and Experience rows stand is not read, and a row Daggerheart already pads stands that
-   much further in. Above `.drpg-passage-list`'s `padding: 0` by specificity. R906 holds both to the line. */
+   much further in - the note on `.drpg-equipped-empty` read the Experience rows at 7 px from the rail on
+   22.09.2026, which would put them at 17 here, 7 past 'Known passages'; the owner saw no margin at 1.2.80. The
+   table's reading decides (LIVE-H81-02, H81 fix r1). Above `.drpg-passage-list`'s `padding: 0` by specificity.
+   R906 holds both to the line. */
 .application.sheet.actor .character-sidebar-sheet :is(.experience-section, .drpg-passages-section) > :not(.title) {
     padding-inline: 10px;
     box-sizing: border-box;

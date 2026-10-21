@@ -2036,8 +2036,10 @@ export function knownPassageRows(actor, { known, mastermind = false, sceneOf = i
         const way = one === null ? null : { from: rooms[one] ? names.get(rooms[one]) : "-", to: rooms[1 - one] ? names.get(rooms[1 - one]) : "-" };
         const from = here?.scene?.id === scene.id ? here.room : null;
         // The frame's own question, asked as the frame asks it (fog-doorways.mjs): no mover but on a GM's
-        // browser for the Mastermind, whom only the GMs' record names there.
-        const shut = !opens(actor, passage, scene, { from, level: passage.level, mover: mastermind ? { mastermind: true } : null, ...given });
+        // browser for the Mastermind, whom only the GMs' record names there; at the token's height, where `from`
+        // was read (H81 fix r1, movement.mjs `passageRooms`' note). The label's rooms are the map's, for no token.
+        const elevation = from !== null && Number.isFinite(here?.tokenDoc?.elevation) ? here.tokenDoc.elevation : null;
+        const shut = !opens(actor, passage, scene, { from, level: passage.level, mover: mastermind ? { mastermind: true } : null, elevation, ...given });
         rows.push({ passage, label, shut, way });
     }
     return rows.sort((a, b) => a.label.localeCompare(b.label));

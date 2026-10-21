@@ -56905,7 +56905,7 @@ const SCENARIOS = [
             "[each step, the Reroll stood, the Dorm's stash opened to Hana, its lines say so] - a Find Stash's Reroll searched where Hana stands at the Reroll, not where the roll was thrown (E80-G-1)");
     }],
 
-    ["A10-18 - 'Go through' a tunnel is carried out on the primary GM at a door's price: the token lands by the far end with teleport, displace and no animation, the crossing is told to the traps, a crossing back pays again; a lock, a seal, the chain, the courtroom, no budget and a spent Eclipse refuse it in the doors' words with nothing written, paid or warned on the GM, as does a tunnel the character does not know; the Mastermind passes the lock, anybody another's bedroom; an Eclipse counts one crossing and costs nothing else; a write that fails gives back exactly what it took; a token the GMs are putting back, one they hold as standing where the rules refuse and one moved while the price is taken stand at no end", async () => {
+    ["A10-18 - 'Go through' a tunnel is carried out on the primary GM at a door's price: the token lands by the far end with teleport, displace and no animation, the crossing is told to the traps, a crossing back pays again; a lock, a seal, the chain, the courtroom, no budget and a spent Eclipse refuse it in the doors' words with nothing written, paid or warned on the GM, as does a tunnel the character does not know; the Mastermind passes the lock, anybody another's bedroom; an Eclipse counts one crossing and costs nothing else; a write that fails gives back exactly what it took; a token the GMs are putting back, one they hold as standing where the rules refuse and one moved while the price is taken are refused as what cannot be done now, each cause named in the GM's log and its Debug line", async () => {
         /*
          * E80 C2 (18.10.2026; P1-05 to P1-08, the stage's write roads "token x, y, level" and "price"). The harms: a
          * crossing judged by other rules than a door's, a refusal that still moves, charges or counts, a GM's screen
@@ -56934,6 +56934,12 @@ const SCENARIOS = [
          * murder state's stage "incident"; and nothing read that a crossing records the room it leads to - the GMs'
          * ledger (fog.mjs `discoveredFor`) is read for the Gym before the first crossing and after. Both green at the
          * parent (529e404): coverage; the ledger read is red with fog.mjs `onUpdateToken` skipping a teleport write.
+         * H81 fix r1 (20.10.2026; the review's H81-C1-R1 and H81-C1-R5): the put-back on its way, the jump the doors
+         * refused and the move while the price is taken were each refused as "not at an end" - the player standing on
+         * the mark told "Stand on the passage's mark, or a square next to it, first." - and logged nowhere, on any
+         * browser. Read now: each one's code, the English reason the GM's log keeps, and this browser's Debug lines
+         * (the setting on for those three steps, put back after) naming which of putBack, unlawful and moved it was.
+         * Red at dc35104: the three "notAtPassage", the reason "the character is not at an end of that passage", no line.
          */
         const P = await import("./passages-gm.mjs");
         const M = await import("./movement.mjs");
@@ -56961,8 +56967,9 @@ const SCENARIOS = [
         const budget = ({ actions = 2, free = false, burst = 0, sprint = 0 } = {}) => student.update({ "system.resources.actions.value": actions,
             [`flags.${MODULE_ID}.${FLAGS.freeMoveUsed}`]: !free, [`flags.${MODULE_ID}.${FLAGS.freeActionGrants}`]: burst, [`flags.${MODULE_ID}.${FLAGS.freeMoveGrants}`]: sprint });
         const purse = () => [ACT.actionsLeft(student), ACT.hasFreeMove(student), ACT.freeActionsLeft(student)];
-        let scene = null, token = null, read = null, release = null, moved = false, paidWrites = 0;
-        const writes = [], crossed = [], warned = [], lawful = [], purseWrites = [], cards = [], sprints = [];
+        let scene = null, token = null, read = null, release = null, moved = false, paidWrites = 0, lastOut = null;
+        const writes = [], crossed = [], warned = [], lawful = [], purseWrites = [], cards = [], sprints = [], unread = [], debugLines = [];
+        const debugWas = game.settings.get(MODULE_ID, SETTINGS.debug), consoleDebug = console.debug;
         let made = 0;
         const onMessage = () => { made += 1; };
         const mode = game.settings.get(MODULE_ID, SETTINGS.moveAudit);
@@ -56993,6 +57000,7 @@ const SCENARIOS = [
                 const step = async (what, { actorId = student.id, ...o } = {}) => {
                     const before = writes.length, said = made;
                     const out = await P.crossTunnel({ actorId, passageId: id }, { asker, ...o });
+                    lastOut = out;
                     await settle();
                     if (/Eclipse/.test(what)) cards.push([what, made - said]);
                     if (/Sprint/.test(what)) sprints.push([what, ACT.freeMovesLeft(student)]);
@@ -57048,7 +57056,19 @@ const SCENARIOS = [
                 const PLACE = { teleport: true, movementAction: "displace", animate: false }, asPlayer = { ...PLACE, [M.SENT_BACK]: asker.id };
                 const aside = async fn => { const n = writes.length; await fn(); await settle(); writes.splice(n); };
                 const unseen = spot => !M.recentPositions(token.id).some(h => h.x === spot.x && h.y === spot.y);
-                const counted = async what => { const n = paidWrites; await step(what); purseWrites.push(paidWrites - n); };
+                // [what, the English reason the GM's log keeps, the codes this browser's Debug lines name] (H81 fix r1).
+                const counted = async what => {
+                    const n = paidWrites, d = debugLines.length;
+                    await step(what);
+                    purseWrites.push(paidWrites - n);
+                    unread.push([what, lastOut?.refused ?? null, debugLines.slice(d).map(line => /: (putBack|unlawful|moved) \(/.exec(line)?.[1] ?? line)]);
+                };
+                if (!debugWas) await game.settings.set(MODULE_ID, SETTINGS.debug, true);
+                console.debug = function (...args) {
+                    const line = args.map(String).join(" ");
+                    if (line.includes("'Go through'")) debugLines.push(line);
+                    return consoleDebug.apply(this, args);
+                };
                 must(scene.tokens.get(token.id) === token && game.actors.get(student.id) === student,
                     "the token or the student the suite holds is not the one the hooks hand on - nothing below would be held");
                 const [inner] = await scene.createEmbeddedDocuments("Wall", [{ c: [1550, 0, 1550, 600] }]);
@@ -57090,6 +57110,8 @@ const SCENARIOS = [
                 } });
                 await counted("a move while the price is taken");
                 delete student.update;
+                console.debug = consoleDebug;
+                if (game.settings.get(MODULE_ID, SETTINGS.debug) !== debugWas) await game.settings.set(MODULE_ID, SETTINGS.debug, debugWas);
                 must(moved, "nothing moved the token while the price was taken - this would measure nothing");
                 await scene.deleteEmbeddedDocuments("Wall", [inner.id]);
                 if (game.settings.get(MODULE_ID, SETTINGS.moveAudit) !== mode) await game.settings.set(MODULE_ID, SETTINGS.moveAudit, mode);
@@ -57126,6 +57148,8 @@ const SCENARIOS = [
             Hooks.off("preUpdateActor", onPurse);
             Hooks.off("createChatMessage", onMessage);
             ui.notifications.warn = warn;
+            console.debug = consoleDebug;
+            if (game.settings.get(MODULE_ID, SETTINGS.debug) !== debugWas) await game.settings.set(MODULE_ID, SETTINGS.debug, debugWas);
             release?.();
             if (token) delete token.update;
             delete student.update;
@@ -57149,8 +57173,8 @@ const SCENARIOS = [
             ["a seal", "roomSealed", 0, IN_GYM, 0, false, 0, 0], ["the chain", "chained", 0, IN_GYM, 0, false, 0, 0],
             ["the courtroom", "trialLocked", 0, IN_GYM, 1, false, 0, 0], ["another student, who does not know it", "notKnown", 0, IN_GYM, 1, false, 0, 0],
             ["in a running incident", "cannotLeave", 0, IN_GYM, 1, false, 0, 0],
-            ["a put-back on its way", "notAtPassage", 0, "1300,200", 2, false, 0, 0], ["a jump the doors refused", "notAtPassage", 0, "230,230", 2, false, 0, 0],
-            ["a move while the price is taken", "notAtPassage", 0, "420,300", 2, false, 0, 0],
+            ["a put-back on its way", "cannotNow", 0, "1300,200", 2, false, 0, 0], ["a jump the doors refused", "cannotNow", 0, "230,230", 2, false, 0, 0],
+            ["a move while the price is taken", "cannotNow", 0, "420,300", 2, false, 0, 0],
             ["an action, the write failing", "refused", 0, IN_GYM, 2, false, 0, 0], ["a Burst, the write failing", "refused", 0, IN_GYM, 2, false, 1, 0],
             ["the free Move, the write failing", "refused", 0, IN_GYM, 2, true, 0, 0],
             ["a Sprint, the write failing", "refused", 0, IN_GYM, 2, false, 0, 0], ["a Sprint", "crossed", 1, IN_DORM, 2, false, 0, 0],
@@ -57162,6 +57186,11 @@ const SCENARIOS = [
             "[the Gym in the GMs' ledger for the student before the first crossing, after it] - a crossing did not record the room it led to (fog.mjs `recordDiscovery`)");
         equal(stableJson(banked), stableJson([["a Sprint, the write failing", 1], ["a Sprint", 0], ["back, a Sprint", 0]]),
             "[each Sprint step, the Sprints banked after it] - a Sprint taken for a write that failed was not given back, or a crossing that stood paid none");
+        equal(stableJson(unread), stableJson([
+            ["a put-back on its way", "the GMs are putting the character's token back", ["putBack"]],
+            ["a jump the doors refused", "the GMs hold the character's token as standing where the rules refuse", ["unlawful"]],
+            ["a move while the price is taken", "the character's token moved while the price was taken", ["moved"]]]),
+            "[each step the GMs read nowhere, the GM's log's reason, the codes of this browser's Debug lines] - a refusal of the GMs' reading said 'not at an end' or named no cause in the log or the Debug line (H81-C1-R1, H81-C1-R5)");
         equal(stableJson(purseWrites), stableJson([0, 0, 2]),
             "[the writes of the student's purse for the put-back on its way, the jump the doors refused, the move while the price was taken] - a refusal paid, or the price taken was not given back");
         equal(stableJson(lawful), stableJson([false, false]),
@@ -57725,6 +57754,13 @@ const SCENARIOS = [
          * for "Duality Roll: Kaito"). Read too: each title's `width` (the parent's whole width) and the
          * heading's header's `align-self` and `justify-self` (stretched, so a header that centres no wider
          * content is the window's width too). At 9dcf331 both widths "auto" and the header's two "auto".
+         * H81 fix r1 (20.10.2026; the review's H81C2-01): the width was read as `getComputedStyle().width`, which
+         * jsdom answers with the declared "100%" and a browser with the used width - measured in Chromium on the
+         * module's six sheets (a scratch probe, both themes): "584px" for both titles in a 584 px window - so tier 2
+         * on a real v14 (the local gate, both themes) would fail with the rule in force. Now the width is the one the
+         * module's own sheets declare for the element, read off the page's style rules that match it (the sheets
+         * attached as v14 attaches them, `@import ... layer(modules)`): ["100% !important"] for each title in jsdom
+         * and in that Chromium probe alike. `contain` and the two alignments are keywords in both, read as before.
          */
         const RD = await import("./roll-dialog.mjs");
         const [actor] = cast(1);
@@ -57768,7 +57804,30 @@ const SCENARIOS = [
             const hostEl = win.element.querySelector(".dialog-header");
             must(hostEl, "the roll window draws no .dialog-header - its heading would be read nowhere");
             hostEl.append(heading);
-            const cut = el => { const cs = getComputedStyle(el); return [cs.contain || null, cs.width || null]; };
+            // The width declarations of the module's sheets whose selector matches `el`, with their priority (H81 fix r1):
+            // a sheet or an import whose address names the module, so another package's sheet on a table's page is not read.
+            const declaredWidth = el => {
+                const found = [];
+                const ours = href => String(href ?? "").includes(`modules/${MODULE_ID}/`);
+                const walk = (rules, mine) => {
+                    for (const rule of rules ?? []) {
+                        if (rule.styleSheet) { walk(rule.styleSheet.cssRules, mine || ours(rule.href) || ours(rule.styleSheet.href)); continue; }
+                        if (!rule.selectorText) { if (rule.cssRules) walk(rule.cssRules, mine); continue; }
+                        if (!mine) continue;
+                        let hit = false;
+                        try { hit = el.matches(rule.selectorText); } catch { hit = false; }
+                        const value = hit ? rule.style.getPropertyValue("width") : "";
+                        if (value) found.push(`${value}${rule.style.getPropertyPriority("width") ? " !important" : ""}`);
+                    }
+                };
+                for (const sheet of document.styleSheets) {
+                    let rules = null;
+                    try { rules = sheet.cssRules; } catch { rules = null; }
+                    walk(rules, ours(sheet.href));
+                }
+                return found;
+            };
+            const cut = el => [getComputedStyle(el).contain || null, declaredWidth(el)];
             const host = getComputedStyle(hostEl);
             read.title = [alpha >= 0.85, cut(header.querySelector(".window-title")), cut(heading),
                 [host.alignSelf || null, host.justifySelf || null]];
@@ -57804,7 +57863,7 @@ const SCENARIOS = [
             player: { away: SECTIONS, line: [`Body, ${L("DRPG.RollDialog.summary.none")} - ${formula}`, null], mode: [false, chip], roll: false },
             support: { away: SECTIONS, line: [`Body, ${plural("DRPG.RollDialog.summary.advantage", { n: 1 })} - ${supported}`, L("DRPG.RollDialog.forcedByCall")],
                 mode: [false, chip], roll: false },
-            title: [true, ["inline-size", "100%"], ["inline-size", "100%"], ["stretch", "stretch"]]
+            title: [true, ["inline-size", ["100% !important"]], ["inline-size", ["100% !important"]], ["stretch", "stretch"]]
         }), "a player's locked window kept a locked section or had no summary, a GM's lost one, the mode select or the title bar is not as S01-22 asks, a title can set the width, or a title can stand on end in a parent that centres it (see the comment for each key)");
         ok(/\dd12/.test(formula ?? "") && typeof supported === "string" && supported.length > formula.length,
             `the window's formula names no d12, or the Support's adds nothing to it (${formula}; ${supported})`);
