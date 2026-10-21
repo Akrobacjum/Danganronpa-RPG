@@ -1679,6 +1679,38 @@ export function tunnelRefusalText(verdict) {
  */
 export const TUNNEL_CROSSING = "drpgTunnelCrossing";
 
+/*
+ * The tokens this browser is placing itself through Foundry's own region teleport, by id, with how many such placings
+ * of each are under way (H81 fix C3, 21.10.2026; the review's H81-C3-R1). The gather (call-world.mjs `gatherEveryone`),
+ * the cast's placing at a season's start and on the return from the trial (`teleportInto`) and a Clean-up's body
+ * (cleanup.mjs) hand `region.teleportTokens` no option of the module's, and whether v14's puts `teleport` or a displace
+ * into the update it writes is not read (LIVE-H81-03). So the writer's own browser marks the tokens around the call,
+ * and the sheet's trigger (sheet.mjs `onTunnelStep`) reads no move of a marked token as a step onto a tunnel's end. The
+ * mark is read in the update's own hooks, which Foundry runs on the writer's browser before its update answers; a
+ * teleport that answers before its update is written would not be covered - not read on v14 either.
+ */
+const placing = new Map();
+
+/** Run `place` with `tokens` marked as placed by this browser (`placing`), and answer what it answers. */
+export async function whilePlacing(tokens, place) {
+    const ids = Array.from(tokens ?? [], token => token?.id).filter(Boolean);
+    for (const id of ids) placing.set(id, (placing.get(id) ?? 0) + 1);
+    try {
+        return await place();
+    } finally {
+        for (const id of ids) {
+            const left = (placing.get(id) ?? 1) - 1;
+            if (left > 0) placing.set(id, left);
+            else placing.delete(id);
+        }
+    }
+}
+
+/** Whether this browser is placing this token itself just now (`whilePlacing`). */
+export function isPlacing(tokenDoc) {
+    return Boolean(tokenDoc?.id) && placing.has(tokenDoc.id);
+}
+
 /**
  * Which tunnel a move of a token goes through, `{ id, end }`, or null (H81-13 and H81-14, 21.10.2026; the owner's call
  * of 21.10: "zeby przechodzenie przez tunele/passages/schody robilo sie zetonem na mapie lub klikiem na znacznik
@@ -1688,9 +1720,12 @@ export const TUNNEL_CROSSING = "drpgTunnelCrossing";
  * token back - and it ends with an end's point inside the token's centre square (a grid square about the token's
  * centre: not the one square of slack 'Go through' allows, `TUNNEL_REACH`, so a token dropped beside the mark goes
  * nowhere) on that end's floor, having started off that square or on another floor. Never a step: a write that places a
- * token - the crossing's own (`TUNNEL_CROSSING`), a put-back (`REVERT`, which the GMs' gather writes too), Foundry's
- * teleport and a displace, which every placing write of the module and of the harness's scenarios is (read off the
- * source, 21.10.2026; which options a GM's own drag at a v14 table carries is not read: LIVE-H81-03). `ends` are
+ * token - the crossing's own (`TUNNEL_CROSSING`), a put-back (`REVERT`, which the gather's own fallback writes too),
+ * and an update that says it is a teleport or a displace. The module's region teleports (the gather, the cast's
+ * placing, a Clean-up's body) say neither: their writer's browser marks their tokens instead (`whilePlacing`, read in
+ * sheet.mjs `onTunnelStep`; H81 fix C3, the review's H81-C3-R1, which found the claim "every placing write of the
+ * module is one" false for those three). Which options v14's region teleport and a GM's own drag or teleport at a v14
+ * table carry is not read: LIVE-H81-03. `ends` are
  * passages.mjs `tunnelEndsFor`'s for the token's character (none: it knows no tunnel); `from` and `to` are
  * `{ x, y, level, width, height }`, the token's top-left before the move and where it came to rest. Of two ends on the
  * square, one it may be entered from first; a one-way tunnel's way out is still named, and 'Go through' refuses it in

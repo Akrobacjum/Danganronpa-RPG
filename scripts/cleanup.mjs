@@ -71,7 +71,7 @@ import { usedToolStore, blackenedStore, cleanupAttemptStore, caseMark } from "./
 import {
     remnantsInRoom, remnantData, removeRemnant, dropRemnant, setRemnantPublic, tieState
 } from "./remnants.mjs";
-import { locateActor, sameRoom } from "./movement.mjs";
+import { locateActor, sameRoom, whilePlacing } from "./movement.mjs";
 import { roomRegions } from "./rooms.mjs";
 import { equippedFor, breakOnDespair } from "./use-items.mjs";
 import { isMonokuma } from "./monokuma.mjs";
@@ -2532,7 +2532,9 @@ async function applyMoveBody(actor, def, success, band, done, chosenRoom = null)
     let moved = false;
     if (region && tokenDoc) {
         try {
-            await region.teleportTokens([tokenDoc], { placement: "random", snap: true, pan: false });
+            // This browser's own placing (movement.mjs `whilePlacing`, H81 fix C3): a body dropped on a tunnel's end is
+            // not asked through it, which the GM would read as the corpse's refusal.
+            await whilePlacing([tokenDoc], () => region.teleportTokens([tokenDoc], { placement: "random", snap: true, pan: false }));
             moved = true;
         } catch (err) {
             error("Could not move the body", err);

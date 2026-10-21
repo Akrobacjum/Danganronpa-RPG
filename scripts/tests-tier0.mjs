@@ -8693,7 +8693,7 @@ const REGRESSIONS = [
             ["NOTDONE gm-bridge.mjs#requestFriskAnswer", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E80 part 2 C3)"],
             ["NOTDONE gm-bridge.mjs#requestFriskFollow", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E80 part 2 C3)"],
             ["NOTDONE gm-bridge.mjs#requestPassageShare", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E79 C7)"],
-            ["NOTDONE gm-bridge.mjs#requestPassageCross", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E80 C2)"],
+            ["NOTDONE gm-bridge.mjs#requestPassageCross", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter, or here from the waiter's quiet result where the drag's road hushes `cannotNow`, H81 fix C3); kept as a notDone entry: read, these words and no others (R297; E80 C2)"],
             ["NOTDONE gm-bridge.mjs#requestPassageFind", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E80 C3)"],
             ["NOTDONE gm-bridge.mjs#requestObject", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the primary GM's refusal checked against `REASONS`); a refusal of an Objection kept like the rest, as a notDone entry (R297; E79 C16)"],
             ["NOTDONE gm-bridge.mjs#requestEvidence", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the primary GM's refusal checked against `REASONS`); a refusal of an Objection's Truth Bullet kept like the rest, as a notDone entry (R297; E79 C16)"],
@@ -13352,6 +13352,42 @@ const REGRESSIONS = [
         ok(/flex-wrap:\s*wrap\b/.test(actions) && /display:\s*flex\b/.test(actions),
             `the buttons' cell (.drpg-passage-actions { ${actions.trim()} }) does not wrap inside its column - four buttons on one line run past it`);
     }],
+    ["R909 - every region teleport of the module is made inside movement.mjs `whilePlacing`, and the sheet's step onto a tunnel's end skips a token this browser is placing (H81 fix C3): the gather, the cast's placing and a Clean-up's body land a knower on a tunnel's end without taking it through", async () => {
+        /*
+         * H81 fix C3 (21.10.2026; the review's H81-C3-R1). Foundry's `region.teleportTokens` is handed no option of the
+         * module's, and whether v14 writes `teleport` or a displace into its update is not read (LIVE-H81-03), so the
+         * three callers - call-world.mjs `gatherEveryone` and `teleportInto`, cleanup.mjs's body - mark their tokens on
+         * the writer's browser, and sheet.mjs `noteStepStart` and `onTunnelStep` read the mark. Read off the source with
+         * comments blanked: each `.teleportTokens(` of the module's files, by file, and whether its line is the marked
+         * form; a new caller fails here until it is marked. Tier 2 "H81 C3 drag" drives `teleportInto` with a teleport
+         * that writes no option. Red at 32de17e: no caller marked, no `isPlacing` read.
+         */
+        const sources = await moduleSources();
+        const code = file => {
+            const text = stripComments(sources.get(file) ?? "");
+            ok(text.length > 0, `${file} was not read - this test measured nothing`);
+            return text;
+        };
+        code("call-world.mjs");
+        code("cleanup.mjs");
+        const sites = [];
+        for (const [file, raw] of sources) {
+            if (/^tests/.test(file)) continue;
+            const text = stripComments(raw ?? "");
+            for (const line of text.split("\n")) {
+                const calls = line.match(/\.teleportTokens\(/g)?.length ?? 0;
+                for (let i = 0; i < calls; i++) {
+                    sites.push(`${file}:${/await whilePlacing\((\w+|\[\w+\]), \(\) => region\.teleportTokens\(\1, /.test(line) ? "marked" : "unmarked"}`);
+                }
+            }
+        }
+        sites.sort();
+        equal(JSON.stringify(sites), JSON.stringify(["call-world.mjs:marked", "call-world.mjs:marked", "cleanup.mjs:marked"]),
+            "the module's region teleports, each as file:marked|unmarked");
+        const sheet = code("sheet.mjs");
+        ok(/isPlacing\(tokenDoc\)/.test(fnSource(sheet, "noteStepStart")) && /isPlacing\(tokenDoc\)/.test(fnSource(sheet, "onTunnelStep")),
+            "sheet.mjs reads no placing mark before its step onto a tunnel's end");
+    }],
     ["R603 - the handbooks say what E80 built - tunnels and stairs, 'Go through', Find Passage and its Reroll, a Find Stash's Reroll, Make public, the Passages tab's columns, Foundry's secret doors and the players' rulers - as the code does, with the texts the stage names, in English and in Polish", async () => {
         /*
          * E80 C7, 18.10.2026 (P1-23). E80 C1-C6 gave a GM tunnels and stairs, a student 'Go through' and Find Passage, a
@@ -13377,9 +13413,9 @@ const REGRESSIONS = [
         const facts = {
             tunnel: /tunnelEndAt\(scene, end, end\?\.level \?\? null, \{ taken \}\)/.test(fnSource(gmSrc, "tunnelRowFor"))
                 && /if \(at\[0\]\.room === at\[1\]\.room\) return \{ refused: TUNNEL_REFUSALS\.oneRoom \};/.test(fnSource(gmSrc, "tunnelRowFor")),
-            goThrough: /requestPassageCross\(\{ actorId: actor\.id, passageId: row\.passage\.id \}\)/.test(fnSource(code("sheet.mjs"), "goThrough"))
+            goThrough: /requestPassageCross\(\{ actorId: actor\.id, passageId: row\.passage\.id \}, \{ hush \}\)/.test(fnSource(code("sheet.mjs"), "goThrough"))
                 // H81-13: a token moved onto an end takes the button's road (sheet.mjs `onTunnelStep`).
-                && /if \(step\) await goThrough\(actor, \{ passage: \{ id: step\.id, sceneId: scene\.id \} \}, null, mastermind\);/.test(fnSource(code("sheet.mjs"), "onTunnelStep"))
+                && /if \(step\) await goThrough\(actor, \{ passage: \{ id: step\.id, sceneId: scene\.id \} \}, null, mastermind, \{ hush: \["cannotNow"\] \}\);/.test(fnSource(code("sheet.mjs"), "onTunnelStep"))
                 && /M\.tunnelVerdict\(actor, passage, token,/.test(cross) && /M\.settleCrossingOnGm\(actor, verdict\.to\)/.test(cross)
                 && /M\.refundCrossingOnGm\(actor, paid\.cost\)/.test(cross)
                 && /\{ teleport: true, movementAction: "displace", animate: false, \[M\.TUNNEL_CROSSING\]: true \}/.test(cross),

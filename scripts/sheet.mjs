@@ -57,7 +57,7 @@ import { isCleaner, tamperQuote, witnessesTo } from "./cleanup.mjs";
 // reads (T-1). Synchronous by design - this file calls it from a render path.
 import { quotePrice, priceLabel, stripeKindFor } from "./price.mjs";
 import { roomOfActor, neighbouringRooms, othersInRoom, locateActor, sceneOfActor, passageRooms, passageOpenFor,
-    roomsKnownToMe, tunnelVerdict, tunnelRefusalText, tunnelStepTarget, whenAtRest } from "./movement.mjs";
+    roomsKnownToMe, tunnelVerdict, tunnelRefusalText, tunnelStepTarget, whenAtRest, isPlacing, gmSpotWhy } from "./movement.mjs";
 import { isMoveChange, levelOf } from "./rooms.mjs";
 // The sheet's 'Known passages' (E79 C7): this browser's passages, the Mastermind as the GMs hold it, and the
 // rooms named as Listen names them - a room this viewer has not found is "Unexplored room n".
@@ -2090,9 +2090,18 @@ async function showPassageDialog(actor, row) {
  * goes through, but draws nothing - and a linked token's move is no update of its
  * actor, which is what renders an actor's sheet (Foundry's rule as this module reads it; Daggerheart's sheet is not on
  * this machine). Read off the source, not a table. So the click says where to stand instead: `notAtPassage`'s words.
- * A token moved onto an end takes this road too, with no button (`onTunnelStep`).
+ * A token moved onto an end takes this road too, with no button (`onTunnelStep`), and the bridge's `hush` for it.
+ *
+ * ONE ASK PER CHARACTER AT A TIME, FROM EITHER ROAD (H81 fix C3, 21.10.2026; the review's H81-C3-R2). The button stopped
+ * a second ask only for itself; a drag asks with no button, and the primary judges each ask from where the token stands
+ * when its turn comes (`crossTunnel`'s `serialWrite`), so a click while a drag's ask was on its way went through twice -
+ * two prices, and back where she started. While `crossingsAsked` holds the character, another ask here, a drag's or a
+ * click's from any open sheet, is not sent.
  */
-async function goThrough(actor, row, button, mastermind) {
+const crossingsAsked = new Set();
+
+async function goThrough(actor, row, button, mastermind, { hush = [] } = {}) {
+    if (crossingsAsked.has(actor.id)) return;
     const scene = game.scenes?.get(row.passage.sceneId) ?? null;
     const ask = token => tunnelVerdict(actor, { id: row.passage.id, sceneId: row.passage.sceneId }, token,
         { mover: mastermind ? { gm: game.user.isGM, mastermind: true } : null });
@@ -2103,12 +2112,14 @@ async function goThrough(actor, row, button, mastermind) {
         ui.notifications.warn(tunnelRefusalText(verdict));
         return;
     }
+    crossingsAsked.add(actor.id);
     if (button) button.disabled = true;
     try {
         const { requestPassageCross } = await import("./gm-bridge.mjs");
-        const res = await requestPassageCross({ actorId: actor.id, passageId: row.passage.id });
+        const res = await requestPassageCross({ actorId: actor.id, passageId: row.passage.id }, { hush });
         if (!res.ok) debug("A tunnel was not gone through", res.reason);
     } finally {
+        crossingsAsked.delete(actor.id);
         if (button) button.disabled = false;
     }
 }
@@ -2124,6 +2135,16 @@ async function goThrough(actor, row, button, mastermind) {
  * kept through the updates of one move until it rests; a move vetoed before it is written leaves nothing waiting, and
  * the next one reads its start again. Only for a student whose sheet shows 'Known passages' to this user
  * (`injectKnownPassages`: its owner, never a Monokuma), the Mastermind as the sheet asks for it. Scenario 76 U drags one.
+ *
+ * WHAT IS NOT THIS USER'S STEP (H81 fix C3, 21.10.2026; the review's H81-C3-R1 and H81-C3-R3). A token this browser
+ * places itself through Foundry's region teleport (movement.mjs `isPlacing`: the gather, the cast's placing, a
+ * Clean-up's body) is never a step, whatever options Foundry writes. A move of the token by anybody else - the
+ * primary's landing, the GMs' put-back, a GM's hand - while this browser's move comes to rest ends that move's wait:
+ * where the token rests is no longer where this user put it, and a click's landing read as a drag onto the far end was a
+ * second crossing. At rest, a put-back this browser sent is on its way (`gmSpotWhy` = "putBack", filled in the
+ * refusing hook, before its write): the refusal has said its words, and the drag asks nothing. One the GMs send that
+ * lands after the ask is refused by the primary as `cannotNow`, which the drag's road keeps quiet (`hush`): the
+ * put-back says its own line. Tier 2 "H81 C3 drag" and scenario 76 U.
  */
 const tunnelSteps = new Map();
 
@@ -2131,13 +2152,17 @@ const stepSpot = tokenDoc => ({ x: tokenDoc.x, y: tokenDoc.y, level: levelOf(tok
 
 /** Before this browser writes a token's move: where it starts, unless a move of the same token is still coming to rest. */
 function noteStepStart(tokenDoc, changes) {
-    if (!tokenDoc?.id || !isMoveChange(changes) || tunnelSteps.get(tokenDoc.id)?.waiting) return;
+    if (!tokenDoc?.id || !isMoveChange(changes) || isPlacing(tokenDoc) || tunnelSteps.get(tokenDoc.id)?.waiting) return;
     tunnelSteps.set(tokenDoc.id, { from: stepSpot(tokenDoc), turn: 0, waiting: false });
 }
 
 /** After it: once the token rests, the newest update of the move decides whether it goes through a tunnel. */
 async function onTunnelStep(tokenDoc, changes, options, userId) {
-    if (userId !== game.user?.id || !isMoveChange(changes)) return;
+    if (!isMoveChange(changes)) return;
+    if (userId !== game.user?.id || isPlacing(tokenDoc)) {
+        tunnelSteps.delete(tokenDoc?.id);
+        return;
+    }
     const entry = tunnelSteps.get(tokenDoc?.id);
     if (!entry) return;
     const scene = tokenDoc.parent ?? null;
@@ -2151,10 +2176,11 @@ async function onTunnelStep(tokenDoc, changes, options, userId) {
     await whenAtRest(tokenDoc);
     if (tunnelSteps.get(tokenDoc.id) !== entry || entry.turn !== turn) return;
     tunnelSteps.delete(tokenDoc.id);
+    if (gmSpotWhy(tokenDoc) === "putBack") return;
     const mastermind = game.user.isGM && isMastermindActor(actor);
     const step = tunnelStepTarget({ changes, options, from: entry.from, to: stepSpot(tokenDoc), ends: tunnelEndsFor(actor, scene.id, null, { mastermind }),
         grid: scene.grid?.size ?? 100, userId, me: game.user.id });
-    if (step) await goThrough(actor, { passage: { id: step.id, sceneId: scene.id } }, null, mastermind);
+    if (step) await goThrough(actor, { passage: { id: step.id, sceneId: scene.id } }, null, mastermind, { hush: ["cannotNow"] });
 }
 
 /**

@@ -1959,6 +1959,77 @@ async function phaseU({ gm, p1, p2, p3, check, phase, settle, dump, socketTraffi
             && stopped.room === "Gym" && J(stopped.at) === J([1900, 1700]) && stopped.actions === 0 && J(stopped.told) === J([noBudget]) && stopped.asked === 0,
         J({ dragged, stopped, noBudget }));
 
+    /* H81 fix C3 (21.10.2026; the review's H81-C3-R2): a drag and a click ask once. Two actions again; p1 drags Aiko off
+       the Gym's end and onto it again and, in the same breath, presses 'Go through' on her open sheet - as a player does
+       when nothing seems to happen for a second. One ask leaves p1: she lands at the Dorm A end, one action paid, p1
+       told nothing. Red at 32de17e: the drag asked too once she was at rest - the click's landing read as a move onto
+       the Dorm A end, or the token still on the Gym's - and the second crossing took her back to the Gym, both prices
+       paid. */
+    await gm.eval(`await game.drpg.setActions(game.actors.get(${J(IDS.aiko)}), 2); return true;`);
+    await settle(600);
+    const where = () => gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
+        const t = game.scenes.get(${J(IDS.scene)}).tokens.get(${J(AIKO)});
+        return { room: M.roomOfToken(t), at: [t.x, t.y], actions: game.drpg.actionsLeft(t.actor) };`);
+    const both = await (async () => {
+        const mark = socketTraffic.length;
+        const c0 = await p1.eval("return globalThis.__notifications.length;");
+        await p1.eval(`await canvas.scene.tokens.get(${J(AIKO)}).update({ x: 1600, y: 1500 }); return true;`, { timeout: 30000 });
+        await settle(700);
+        const buttons = await p1.eval(`await canvas.scene.tokens.get(${J(AIKO)}).update({ x: 1900, y: 1700 });
+            const root = document.createElement("div");
+            root.innerHTML = '<div class="character-sidebar-sheet"><div class="shortcut-items-section"><div class="experience-section"></div></div></div>';
+            Hooks.callAll("renderCharacterSheet", { document: game.actors.get(${J(IDS.aiko)}), isEditable: true }, root, {}, { isFirstRender: true });
+            const found = [...root.querySelectorAll(".drpg-passage-cross")];
+            found[0]?.click();
+            return found.length;`, { timeout: 30000 });
+        const t0 = Date.now();
+        while ((await where()).room !== "Dorm A" && Date.now() - t0 < 8000) await settle(250);
+        await settle(2500);
+        return { buttons, ...(await where()), told: await p1.eval(`return globalThis.__notifications.slice(${c0}).map(n => n.msg);`),
+            asked: socketTraffic.slice(mark).filter(t => t.action === "passage.cross" && t.from === "p1").length };
+    })();
+    check("U: p1 drags Aiko onto the Gym's end and presses 'Go through' on her sheet at once - one ask leaves p1, she lands at the Dorm A end, one action paid, p1 told nothing",
+        both.buttons === 1 && both.asked === 1 && both.room === "Dorm A" && both.actions === 1 && both.told.length === 0, J({ both }));
+
+    /* H81 fix C3 (the review's H81-C3-R3): a drag onto an end that this browser is putting back asks nothing, and the
+       refusal is said once. No action left: p1 drags Aiko from the Dorm A end straight onto the Gym's, and p1's own
+       judge cannot charge the crossing and puts her back (movement.mjs `chargeForCrossing`), its put-back written 1.5 s
+       late, as on a server slower than the at-rest wait (the owner plays on Forge). p1's veto is lifted for that one
+       move, as the console's jump above lifts it, which stands for a route the veto let through on a budget the second
+       crossing did not have (MAP-11); the GMs' audit only logs, so the put-back is p1's alone. Read: the refusal's words
+       once, nothing asked, Aiko back where she stood. Red at 32de17e: at rest she still read on the Gym's end, and the
+       drag's pre-check said the same refusal a second time. */
+    // Placed on the Dorm A end's square by the GM first, so this step does not lean on where the one above left her.
+    await gm.eval(`await game.scenes.get(${J(IDS.scene)}).tokens.get(${J(AIKO)}).update({ x: 700, y: 700 }, ${J(PLACE)});
+        await game.drpg.setActions(game.actors.get(${J(IDS.aiko)}), 0); await game.settings.set("${MOD}", "moveAudit", "log"); return true;`);
+    await settle(600);
+    const parked = await where();
+    const late = await (async () => {
+        const mark = socketTraffic.length;
+        const c0 = await p1.eval("return globalThis.__notifications.length;");
+        await p1.eval(`
+            const t = canvas.scene.tokens.get(${J(AIKO)}), proto = Object.getPrototypeOf(t), own = Object.prototype.hasOwnProperty.call(proto, "update");
+            const update = proto.update;
+            proto.update = async function (data, options) {
+                if (options?.drpgRevert && this.id === ${J(AIKO)}) await new Promise(r => setTimeout(r, 1500));
+                return update.call(this, data, options);
+            };
+            globalThis.__s76uSlow = () => { if (own) proto.update = update; else delete proto.update; };
+            const list = Hooks._hooks.get("preUpdateToken") ?? [], at = list.findIndex(e => e.fn.name === "onPreUpdateToken");
+            const [veto] = at >= 0 ? list.splice(at, 1) : [];
+            try { await t.update({ x: 1900, y: 1700 }); }
+            finally { if (veto) list.splice(at, 0, veto); }
+            return Boolean(veto);`, { timeout: 30000 });
+        await settle(4000);
+        await p1.eval("globalThis.__s76uSlow?.(); delete globalThis.__s76uSlow; return true;");
+        return { ...(await where()), told: await p1.eval(`return globalThis.__notifications.slice(${c0}).map(n => n.msg);`),
+            asked: socketTraffic.slice(mark).filter(t => t.action === "passage.cross" && t.from === "p1").length };
+    })();
+    const cannotNow = await p1.eval(`return game.i18n.localize("DRPG.Bridge.why.cannotNow");`);
+    check("U: with no action left p1 drags Aiko from the Dorm A end onto the Gym's, and p1's own put-back lands late - the refusal said once, nothing asked of the GM, Aiko back where she stood",
+        parked.room === "Dorm A" && J(parked.at) === J([700, 700]) && late.told[0] === noBudget && late.told.filter(t => t === noBudget || t === cannotNow).length === 1 && late.asked === 0
+            && J(late.at) === J(parked.at) && late.actions === 0, J({ parked, late, noBudget }));
+
     /* Put back: the wall, the audit's mode, the movement cost, the seal, Aiko's token, actions and free Move, the tunnel, p3's hook. */
     const restored = await gm.eval(`
         const scene = game.scenes.get(${J(IDS.scene)}), was = globalThis.__s76u, t = scene.tokens.get(${J(AIKO)}), aiko = t.actor;

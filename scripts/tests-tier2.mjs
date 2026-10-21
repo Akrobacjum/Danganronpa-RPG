@@ -57356,6 +57356,82 @@ const SCENARIOS = [
         equal(stableJson(steps), stableJson([["up", "crossed", "1400,200", "up", 10, 1], ["back down", "crossed", "200,200", "down", 0, 0]]),
             "each crossing as [what, the answer, where the token stands, its floor, its height, the actions left]");
     }],
+    ["H81 C3 drag - a GM's drag of a student's token onto a stairs' end downstairs takes it to the far end upstairs as 'Go through' does, at a door's price, through the bridge's road on the primary GM; the season's placing of the token back on that end through the room's own teleport, which writes no option of the module's, takes it nowhere and costs nothing", async () => {
+        /*
+         * H81 fix C3 (21.10.2026; the review's H81-C3-R1 and H81-C3-R4). R908 holds the decision, pure, and scenario 76 U
+         * a player's drag on one floor; this drives the owner's own road ("Z GMa") between two floors: on a scene of the
+         * suite's own (two floors, heights 0 and 10, as "H81-01 stairs"), the suite's GM moves the student's token as a
+         * drag writes it - x and y, no option - from beside the stairs' end downstairs onto it, and the sheet's trigger
+         * on this browser (sheet.mjs `onTunnelStep`) takes it up through `passage.cross`, the primary's own road here
+         * (gm-bridge.mjs `requestPassageCross`'s local), judged and written by `crossTunnel`. Then the season's placing
+         * (call-world.mjs `teleportInto`) puts the token back on that end through the room's own teleport, given here
+         * as a Foundry that writes the spot with no option of the module's (the harness's regions have none, and which
+         * options v14's writes is LIVE-H81-03). Read after each: where the token stands, its floor, its height, the
+         * actions left. Red at 32de17e: the placing took the token upstairs again and an action was paid. A second GM's
+         * drag (asked over the socket) is not driven: the suite runs on one GM.
+         */
+        const P = await import("./passages-gm.mjs");
+        const R = await import("./rooms.mjs");
+        const E = await import("./gm-store.mjs");
+        const CW = await import("./call-world.mjs");
+        const ACT = await import("./actions.mjs");
+        const [student] = cast(1);
+        const clock = getClock() ?? {};
+        if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+        const charge = game.settings.get(MODULE_ID, SETTINGS.chargeMovement);
+        const [L1, L2] = ["suiteh81c3f1", "suiteh81c3f2"].map(k => `${k}${foundry.utils.randomID(4)}`.slice(0, 16));
+        const mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
+        const room = (name, x, level) => ({ name, shapes: [{ type: "rectangle", x, y: 0, width: 600, height: 600 }], levels: [level], flags: mark, behaviors: [] });
+        const rest = async (done, ms = 6000) => {
+            const until = Date.now() + ms;
+            while (!done() && Date.now() < until) await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise(resolve => setTimeout(resolve, 1200));
+            await settle();
+        };
+        let scene = null, token = null, steps = null;
+        try {
+            if (!charge) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, true);
+            scene = await Scene.create({ name: "SUITE H81 C3 drag", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false,
+                levels: [{ id: L1, name: "Ground", elevation: 0 }, { id: L2, name: "Upper", elevation: 10 }] });
+            await scene.createEmbeddedDocuments("Region", [room("SUITE H81 C3 Dorm", 0, L1), room("SUITE H81 C3 Attic", 1200, L2)]);
+            [token] = await scene.createEmbeddedDocuments("Token", [{ actorId: student.id, actorLink: true, name: student.name, x: 400, y: 200, level: L1,
+                elevation: 0, width: 1, height: 1 }]);
+            await settle();
+            await student.update({ "system.resources.actions.value": 2, [`flags.${MODULE_ID}.${FLAGS.freeMoveUsed}`]: true });
+            steps = await E.withGmStoreWorld(`suite-h81-c3-${foundry.utils.randomID(8)}`, async () => {
+                const id = await P.createPassage({ sceneId: scene.id, shape: "tunnel", ends: [{ x: 250, y: 250, level: L1 }, { x: 1450, y: 250, level: L2 }] }, { scene });
+                must(typeof id === "string" && await P.grantPassage(id, student.id), "the stairs were not made or given - this would measure nothing");
+                const out = [];
+                const read = what => {
+                    const floor = R.levelOf(token);
+                    out.push([what, `${token.x},${token.y}`, floor === L2 ? "up" : floor === L1 ? "down" : floor, token.elevation, ACT.actionsLeft(student)]);
+                };
+                await token.update({ x: 200, y: 200 });
+                await rest(() => R.levelOf(token) === L2);
+                read("dragged onto the end downstairs");
+                const dorm = scene.regions.find(r => r.name === "SUITE H81 C3 Dorm");
+                must(Boolean(dorm), "the Dorm's region is not on the suite's scene - the placing below would measure nothing");
+                dorm.teleportTokens = async tokens => {
+                    for (const placed of tokens) await placed.update({ x: 200, y: 200, level: L1, elevation: 0 });
+                };
+                try {
+                    await CW.teleportInto(scene, dorm, [token]);
+                } finally {
+                    delete dorm.teleportTokens;
+                }
+                await rest(() => R.levelOf(token) === L2, 1500);
+                read("placed on the end by the season's placing");
+                return out;
+            });
+        } finally {
+            if (game.settings.get(MODULE_ID, SETTINGS.chargeMovement) !== charge) await game.settings.set(MODULE_ID, SETTINGS.chargeMovement, charge);
+            await scene?.delete();
+            await setClock(clock);
+            await settle();
+        }
+        equal(stableJson(steps), stableJson([["dragged onto the end downstairs", "1400,200", "up", 10, 1], ["placed on the end by the season's placing", "200,200", "down", 0, 1]]),
+            "each step as [what, where the token stands, its floor, its height, the actions left]");
+    }],
     ["A10-15 - Foundry's secret doors and the players' rulers on the world: 'Convert to passages' turns a secret door in the wall two rooms of a scene share into an ordinary wall, shut, and a secret passage nobody knows, and one inside a room into a plain wall it names, with none left, and takes the GMs' state off each; a player's opening of a secret door is written shut again through Foundry, and so is one no primary heard, by the pass the primary's ready runs, which leaves open a door a GM opened and one left open with no GM's state on it, and tells the GM; Hide and Show of the players' movement rulers write the world's permissions, the movement ruler alone, and the permissions are put back as they were", async () => {
         /*
          * E80 C5 (18.10.2026; S16-18, P1-17 to P1-19), R601's reading on Foundry's own documents: a scene of the suite's
