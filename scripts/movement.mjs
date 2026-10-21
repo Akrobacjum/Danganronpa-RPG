@@ -1673,6 +1673,45 @@ export function tunnelRefusalText(verdict) {
 }
 
 /**
+ * The mark a tunnel crossing's own write carries (passages-gm.mjs `crossTunnel`, H81-14): `tunnelStepTarget` never
+ * reads that write as a move onto an end. The landing may stand the token on the far end's square, and the write is
+ * the primary GM's own - so where a GM moved the token, the primary would throw it straight back.
+ */
+export const TUNNEL_CROSSING = "drpgTunnelCrossing";
+
+/**
+ * Which tunnel a move of a token goes through, `{ id, end }`, or null (H81-13 and H81-14, 21.10.2026; the owner's call
+ * of 21.10: "zeby przechodzenie przez tunele/passages/schody robilo sie zetonem na mapie lub klikiem na znacznik
+ * tunelu", the token chosen - a GM's browser draws no mark, and a click on one cannot be measured headless). The move is
+ * this browser's user's own (`userId`, Foundry's, is `me`) and changes x or y - a climb, a turn or a change of floor
+ * alone is no step, so Foundry's own change of floor on stairs, whose two ends share an x and a y, never throws the
+ * token back - and it ends with an end's point inside the token's centre square (a grid square about the token's
+ * centre: not the one square of slack 'Go through' allows, `TUNNEL_REACH`, so a token dropped beside the mark goes
+ * nowhere) on that end's floor, having started off that square or on another floor. Never a step: a write that places a
+ * token - the crossing's own (`TUNNEL_CROSSING`), a put-back (`REVERT`, which the GMs' gather writes too), Foundry's
+ * teleport and a displace, which every placing write of the module and of the harness's scenarios is (read off the
+ * source, 21.10.2026; which options a GM's own drag at a v14 table carries is not read: LIVE-H81-03). `ends` are
+ * passages.mjs `tunnelEndsFor`'s for the token's character (none: it knows no tunnel); `from` and `to` are
+ * `{ x, y, level, width, height }`, the token's top-left before the move and where it came to rest. Of two ends on the
+ * square, one it may be entered from first; a one-way tunnel's way out is still named, and 'Go through' refuses it in
+ * its own words. Pure (R908).
+ */
+export function tunnelStepTarget({ changes = {}, options = {}, from = null, to = null, ends = [], grid = 100, userId = null, me = null } = {}) {
+    if (!userId || userId !== me || !from || !to) return null;
+    if (changes?.x === undefined && changes?.y === undefined) return null;
+    if (options?.[TUNNEL_CROSSING] || options?.[REVERT] || options?.teleport === true || options?.movementAction === "displace") return null;
+    const size = Number(grid) > 0 ? Number(grid) : 100;
+    const centre = spot => ({ x: Number(spot.x) + (Number(spot.width) || 1) * size / 2, y: Number(spot.y) + (Number(spot.height) || 1) * size / 2,
+        level: levelKey(spot.level ?? null) });
+    const was = centre(from), now = centre(to);
+    const on = (at, end) => Math.abs(end.x - at.x) <= size / 2 && Math.abs(end.y - at.y) <= size / 2
+        && (end.level === null || end.level === undefined || end.level === at.level);
+    const hit = (Array.isArray(ends) ? ends : []).filter(end => end?.id && on(now, end) && !on(was, end));
+    const end = hit.find(e => !e.exit) ?? hit[0];
+    return end ? { id: end.id, end } : null;
+}
+
+/**
  * Where a token that goes through lands, `{ x, y, level }` (its top-left corner): the far end's square, or else
  * the nearest square around it, ring by ring up to three out, whose centre is in `room` on the end's floor and
  * which no other token on that floor covers - nearest first, then the higher, then the one further left. None

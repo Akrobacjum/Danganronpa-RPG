@@ -1924,6 +1924,41 @@ async function phaseU({ gm, p1, p2, p3, check, phase, settle, dump, socketTraffi
             && clicked.buttons === 1 && clicked.asked > 0 && clicked.room === "Dorm A" && clicked.actions === 1 && clicked.told.length === 0,
         J({ sealedNow, shutOut, clicked, why }));
 
+    /* H81-13/14 (21.10.2026; the owner: "przechodzenie przez tunele ... zetonem na mapie"): p1 drags Aiko onto the
+       tunnel's mark. The click above landed her by the Dorm A end through the primary GM's own write, which the GM's
+       browser must not take for a move onto the end (she would be thrown back: `clicked.room` reads Dorm A). Off the
+       end's square and onto it again, two plain moves of p1's own inside Dorm A: once she is at rest p1's browser asks
+       as the button does - she lands at the Gym's end, her last action paid, p1 told nothing. Then, with no action left,
+       off the Gym's end and onto it again: the button's words for no Move and no action, once, nothing asked of the GM,
+       and she stays where the move put her. Red at 50b8321: nothing on p1 reads a move onto an end. */
+    const drag = async (spots, done) => {
+        const mark = socketTraffic.length;
+        const c0 = await p1.eval("return globalThis.__notifications.length;");
+        for (const spot of spots) {
+            await p1.eval(`await canvas.scene.tokens.get(${J(AIKO)}).update(${J(spot)}); return true;`, { timeout: 30000 });
+            await settle(700);
+        }
+        const read = () => gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
+            const t = game.scenes.get(${J(IDS.scene)}).tokens.get(${J(AIKO)});
+            return { room: M.roomOfToken(t), at: [t.x, t.y], actions: game.drpg.actionsLeft(t.actor) };`);
+        const told = () => p1.eval(`return globalThis.__notifications.slice(${c0}).map(n => n.msg);`);
+        const t0 = Date.now();
+        let now = await read();
+        while (!(await done(now, await told())) && Date.now() - t0 < 8000) {
+            await settle(250);
+            now = await read();
+        }
+        await settle(1000);
+        return { ...(await read()), told: await told(), asked: socketTraffic.slice(mark).filter(t => t.action === "passage.cross" && t.from === "p1").length };
+    };
+    const noBudget = await p1.eval(`return game.i18n.localize("DRPG.Bridge.why.noBudget");`);
+    const dragged = await drag([{ x: 400, y: 400 }, { x: 700, y: 700 }], now => now.room === "Gym");
+    const stopped = await drag([{ x: 1600, y: 1500 }, { x: 1900, y: 1700 }], (now, told) => told.length > 0);
+    check("U: p1 drags Aiko off the Dorm A end and onto it again - she goes through to the Gym's end, her last action paid, p1 told nothing; with none left, off the Gym's end and onto it again says the button's 'no Move and no action' once, asks the GM nothing and leaves her on the end",
+        dragged.room === "Gym" && J(dragged.at) === J([1900, 1700]) && dragged.actions === 0 && dragged.told.length === 0 && dragged.asked > 0
+            && stopped.room === "Gym" && J(stopped.at) === J([1900, 1700]) && stopped.actions === 0 && J(stopped.told) === J([noBudget]) && stopped.asked === 0,
+        J({ dragged, stopped, noBudget }));
+
     /* Put back: the wall, the audit's mode, the movement cost, the seal, Aiko's token, actions and free Move, the tunnel, p3's hook. */
     const restored = await gm.eval(`
         const scene = game.scenes.get(${J(IDS.scene)}), was = globalThis.__s76u, t = scene.tokens.get(${J(AIKO)}), aiko = t.actor;

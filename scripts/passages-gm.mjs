@@ -1373,7 +1373,8 @@ export function crossingWhy(code) {
  * which sent a knower standing on the mark to stand on it, and each is a Debug line on this browser naming which
  * (H81 fix r1, 20.10.2026; the review's H81-C1-R1 and H81-C1-R5: until then they were "not at an end" and logged
  * nowhere). The token is then written beside the far end (`tunnelLanding`) with
- * `teleport`, `displace` and no animation, and on a write that throws the price given back exactly
+ * `teleport`, `displace`, no animation and movement.mjs `TUNNEL_CROSSING` (H81-14: a GM's browser that moved the token
+ * onto the near end never reads its own landing as another move onto an end), and on a write that throws the price given back exactly
  * (`refundCrossingOnGm`). A crossing written is told as a door's is
  * (`announceCrossingOnGm`: the owner's card and the traps' `drpgRoomCrossed`), and in an Eclipse by its veiled
  * card, posted only then (`settleCrossingOnGm`'s `tell`, E80 fix r1-G2). Refused, nothing is written,
@@ -1428,7 +1429,7 @@ export async function crossTunnel({ actorId, passageId } = {}, { asker = null, s
         const rises = height !== (Number.isFinite(token.elevation) ? token.elevation : 0);
         try {
             await write(token, { x: spot.x, y: spot.y, ...(spot.level ? { level: spot.level } : {}), ...(rises ? { elevation: height } : {}) },
-                { teleport: true, movementAction: "displace", animate: false });
+                { teleport: true, movementAction: "displace", animate: false, [M.TUNNEL_CROSSING]: true });
         } catch (err) {
             error(`Could not move "${token.name}" through a tunnel`, err);
             await M.refundCrossingOnGm(actor, paid.cost).catch(back => error("Could not give a tunnel crossing's price back", back));

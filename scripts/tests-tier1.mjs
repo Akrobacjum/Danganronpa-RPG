@@ -18424,6 +18424,55 @@ const INVARIANTS = [
                 "Najpierw stań na znaczniku przejścia albo na polu obok niego.", "Przejdź przez przerwę w ścianie.", "Tylko w jedną stronę, z: {from}, do: {to}."]),
             "[each row as [its rooms, its line's kind, its line, 'Go through' disabled (null: no button)], the refusal away from an end in English, in Polish, the walk line and the way line in Polish]");
     }],
+    ["R908 - a token moved onto a tunnel's end goes through it as 'Go through' does (H81-13, H81-14, H81-16): a knower's own move - a player's of their student or a GM's - that ends with the token's centre square on an end, on one floor or onto stairs to another, having started off it, names that tunnel, a one-way tunnel's way out included (its refusal is the button's); the crossing's own landing on the far end, a put-back, a teleport or a displace, a move that ends beside the end or runs across it, one that only climbs, turns or changes floor, another user's move and a character that knows no tunnel name none; the primary GM's landing write carries the crossing's mark", async () => {
+        /*
+         * H81-13/14 (21.10.2026; the owner: "zeby przechodzenie przez tunele/passages/schody robilo sie zetonem na mapie
+         * lub klikiem na znacznik tunelu"). Chosen: the token, since a GM's browser draws no mark and a PIXI click cannot be
+         * measured headless. The harm read here is the trigger's decision, pure (movement.mjs `tunnelStepTarget`): a drag
+         * onto an end that does nothing, and a move that throws a token through a tunnel nobody asked for - the crossing's
+         * own landing on the far end's square (a ping-pong on the primary GM, whose write it is), the GMs' put-back, a GM's
+         * placing teleport, and Foundry's own floor change on stairs, whose end is on the other floor at the same x and y.
+         * The ends are passages.mjs `tunnelEndsFor`'s from rows in the copy's shape, a passage in a wall among them. The
+         * road it then takes is the sheet's 'Go through' (scenario 76 U drags one). Red at 50b8321: no `tunnelStepTarget`.
+         */
+        const M = await import("./movement.mjs");
+        const P = await import("./passages.mjs");
+        const J = v => JSON.stringify(v);
+        ok(typeof M.tunnelStepTarget === "function" && typeof M.TUNNEL_CROSSING === "string",
+            "movement.mjs has no decision for a move onto a tunnel's end, or no mark for the crossing's own write - nothing below would be read");
+        if (typeof M.tunnelStepTarget !== "function" || typeof M.TUNNEL_CROSSING !== "string") return;
+        const SC = "R908S", L1 = "R908L1", L2 = "R908L2", A = "R908A", C = "R908C", PL = "R908PL", GM = "R908GM";
+        const known = {
+            "R908S.t": { sceneId: SC, shape: "tunnel", level: null, ends: [{ x: 150, y: 150, level: L1 }, { x: 650, y: 150, level: L1 }], actorIds: [A] },
+            "R908S.s": { sceneId: SC, shape: "tunnel", level: null, ends: [{ x: 150, y: 550, level: L1 }, { x: 150, y: 550, level: L2 }], actorIds: [A] },
+            "R908S.u": { sceneId: SC, shape: "tunnel", level: null, ends: [{ x: 650, y: 350, level: L1 }, { x: 650, y: 750, level: L1 }], oneWay: 1, actorIds: [A] },
+            "R908S.w": { sceneId: SC, shape: "wall", level: L1, passageWallId: "R908W", passageSeg: { x1: 400, y1: 0, x2: 400, y2: 300 }, actorIds: [A, C] } };
+        const endsOf = who => P.tunnelEndsFor(who, SC, null, { known });
+        // A 1x1 token at grid 100: its top-left at x, y puts its centre at x + 50, y + 50.
+        const step = (to, { from = { x: 300, y: 200, level: L1 }, changes = { x: to.x, y: to.y }, options = {}, who = A, userId = PL, me = PL, size = 1 } = {}) =>
+            M.tunnelStepTarget({ changes, options, from: { width: size, height: size, ...from }, to: { width: size, height: size, level: L1, ...to },
+                ends: endsOf(who), grid: 100, userId, me })?.id ?? null;
+        const walked = [
+            step({ x: 100, y: 100 }), step({ x: 600, y: 100 }), step({ x: 130, y: 80 }), step({ x: 50, y: 50 }, { size: 2 }),
+            step({ x: 100, y: 500 }, { from: { x: 300, y: 500, level: L1 } }), step({ x: 100, y: 500, level: L2 }, { from: { x: 300, y: 500, level: L2 } }),
+            step({ x: 600, y: 300 }), step({ x: 600, y: 700 }), step({ x: 100, y: 100 }, { userId: GM, me: GM })];
+        const none = [
+            step({ x: 200, y: 100 }), step({ x: 110, y: 100 }, { from: { x: 100, y: 100, level: L1 } }), step({ x: 300, y: 100 }, { from: { x: 0, y: 100, level: L1 } }),
+            step({ x: 100, y: 100, level: L2 }),
+            step({ x: 600, y: 100 }, { from: { x: 100, y: 100, level: L1 }, options: { [M.TUNNEL_CROSSING]: true, teleport: false } }),
+            step({ x: 100, y: 100 }, { options: { [M.REVERT]: true } }), step({ x: 100, y: 100 }, { options: { teleport: true } }),
+            step({ x: 100, y: 100 }, { options: { movementAction: "displace" } }),
+            step({ x: 100, y: 500, level: L2 }, { from: { x: 100, y: 500, level: L1 }, changes: { level: L2 } }),
+            step({ x: 100, y: 100 }, { changes: { elevation: 10 } }), step({ x: 100, y: 100 }, { changes: { rotation: 90 } }),
+            step({ x: 100, y: 100 }, { userId: GM, me: PL }), step({ x: 100, y: 100 }, { userId: PL, me: GM }),
+            step({ x: 350, y: 100 }, { who: C }), step({ x: 100, y: 100 }, { who: C }), step({ x: 100, y: 100 }, { who: "R908NOBODY" })];
+        equal(J({ walked, none }), J({ walked: ["R908S.t", "R908S.t", "R908S.t", "R908S.t", "R908S.s", "R908S.s", "R908S.u", "R908S.u", "R908S.t"],
+            none: Array(none.length).fill(null) }),
+            "[onto each end of a tunnel on one floor, onto one off its square's centre, a 2x2 token onto it, onto the stairs' end on each floor, onto a one-way tunnel's way out and its way in, a GM's own move] and [a square beside, a move inside the end's square, a move across it, the end's x and y on another floor, the crossing's landing, a put-back, a teleport, a displace, a floor change on the stairs, a climb, a turn, a GM's move read on a player's browser, a player's on a GM's, a knower of a wall passage alone onto its wall and onto a tunnel's end, a stranger]");
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/passages-gm.mjs`).then(lfText));
+        ok(/\[M\.TUNNEL_CROSSING\]:\s*true/.test(fnSource(src, "crossTunnel")),
+            "passages-gm.mjs crossTunnel's landing write does not carry movement.mjs TUNNEL_CROSSING: on the primary GM, a GM's own crossing onto the far end's square would be taken for a move onto it");
+    }],
 ];
 
 /**

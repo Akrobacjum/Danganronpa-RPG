@@ -8183,6 +8183,8 @@ const REGRESSIONS = [
             ["HOOK room-tile.mjs#registerRoomTile#deleteRegion:onRegionChanged", "out of scope: repaints this client's room tile (E77 C3); the paint reads `viewerRoom` and decides no rule"],
             ["HOOK movement.mjs#registerMovement#preUpdateToken:onPreUpdateToken", "a claim, judged again: the veto runs on the mover's browser (a GM returns early); since E12 C9 it sees a `level`-only move (`isMoveChange`), reads each end on its own floor (`roomAt` per level) and links floors by the stairs alone where a scene has them (`stairLinks`); since E12 C12 the primary judges every arrival again from the last lawful room (`judgeArrival`), and one it refuses is no witness and no third party until it stands somewhere lawful (Q3 a); scenario 66 I [1b.1 a token's room / floor] MARKED"],
             ["HOOK movement.mjs#registerMovement#updateToken:onUpdateToken", "the charge on one client (`settleRoute`: the owning player's, else the primary's) - a player's own budget; since E12 C9 it gates on `isMoveChange` and prices a step by `crossingCost`: the stairs a door, a stairwell's floors free (Q1 a) [1b.1 a token's floor]"],
+            ["HOOK sheet.mjs#registerSheetTweaks#preUpdateToken:noteStepStart", "out of scope as a judge: notes where this browser's own move of a token starts, for the step onto a tunnel's end (H81-13); vetoes nothing and writes nothing"],
+            ["HOOK sheet.mjs#registerSheetTweaks#updateToken:inline", "a claim, judged again: the mover's browser reads its own move at rest (movement.mjs `tunnelStepTarget`) and asks the primary as 'Go through' does (`passage.cross`, passages-gm.mjs `crossTunnel`, H81-13); writes nothing"],
             ["HOOK movement.mjs#registerMovement#updateToken:noteGmPosition", "judged: the record of positions `sendBackRefusal` compares against, `level` in it (`positionOf`), kept on every GM and primed by each at ready since E12 fix r2-H3 (before, the primary's alone); since E12 C12 the primary judges the arrival first (`judgeArrival`, the hook's `userId`), the last lawful room kept beside the record (`standings`, 3.4)"],
             ["HOOK movement.mjs#registerMovement#createRegion:inline", "judged on the primary: records a non-GM's region in `playerRegions` (`noteRegionCreated`); every GM remembers a GM's room flag"],
             ["HOOK movement.mjs#registerMovement#updateRegion:inline", "put back on the primary: a non-GM's change to the room flag (`judgeRoomFlagChange`, `keepRoomFlag`), logged and told to the GMs"],
@@ -8407,6 +8409,8 @@ const REGRESSIONS = [
             ["SHEET monocub.mjs#isMonocub", "out of scope as a judgement: reads the flag of the actor it is handed; since E13 C3b the gather's filter and `leftBehind` hand it the held flags on the return from the trial (`flagsHeldNow`, after `judgedFor`), and the body's gather and every other reader hand the document, as before (the owner's item 6 of 10.10). C2 reads no Monocub flag: under Q-E13-1 (a) a Monocub a player owns is shown as any student a player owns (`readCast` reads only `monokuma`, held) [1b.2]"],
             ["HOOK despair.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK fog.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
+            ["HOOK sheet.mjs#preUpdateToken#noteStepStart", "out of scope: notes where this browser's own move starts (H81-13); the courtroom holds no tunnel, and the crossing is the primary's (`crossTunnel`)"],
+            ["HOOK sheet.mjs#updateToken#arrow1", "out of scope: a move onto a tunnel's end asks the primary as 'Go through' does (H81-13); the courtroom holds no tunnel, and the Class Trial refuses one there (`trialLocked`)"],
             ["HOOK fog.mjs#updateToken#onUpdateToken", "judged on the primary: a move records discovery through rooms; the hall holds none after C1, so a hall move records nothing (41 b: 0 fog writes). E12 C2b/C10 change the readers"],
             ["HOOK fog.mjs#createToken#arrow1", "out of scope: recomputes this client's own draw on a token write; E13's reveal and hide, and since E81 DZ6 the stage's one create, trigger it on every client, as any GM's write does [1b.1 a hall token's hidden]"],
             ["HOOK fog.mjs#deleteToken#arrow1", "out of scope: recomputes this client's own draw on a token write; E13's reveal and hide, and since E81 DZ6 the stage's one delete, trigger it on every client, as any GM's write does [1b.1 a hall token's hidden]"],
@@ -9485,6 +9489,10 @@ const REGRESSIONS = [
             ["OPT movement.mjs#noteGmPosition#REVERT -> exempt", "a claim, judged: handed to `judgeArrival` as `revert`, which takes it only where `sendBackRefusal` does; the wall rule reads the option itself (below), by the same rule"],
             ["OPT movement.mjs#noteGmPosition#SENT_BACK -> exempt", "a claim, judged as REVERT is: it marks a move the GM sent back itself; on a GM's write the player it names is handed the witness judge as the one who asked (`askerOf`, E79 fix r3-G2), who acts as the Mastermind or not as that player does (R560; 76 G)"],
             ["OPT movement.mjs#onPreUpdateToken#REVERT -> exempt", "advisory: the mover's own client lets its own revert past its own veto; nothing on the GM reads the client's veto"],
+            ["OPT movement.mjs#tunnelStepTarget#REVERT -> exempt", "this file's own: a put-back is never read as a step onto a tunnel's end (H81-14); no judge takes it as an exemption - the primary judges a crossing (`crossTunnel`) whatever the mover's browser read"],
+            ["OPT movement.mjs#tunnelStepTarget#teleport -> exempt", "this file's own: a placing teleport is never read as a step onto a tunnel's end (H81-14); it exempts nothing on the GM, which judges a crossing asked as any other"],
+            ["OPT movement.mjs#tunnelStepTarget#movementAction -> exempt", "this file's own: a displace is never read as a step onto a tunnel's end (H81-14); it exempts nothing on the GM"],
+            ["OPT movement.mjs#tunnelStepTarget#displace -> exempt", "this file's own: as `movementAction` above (H81-14)"],
             ["OPT movement.mjs#judgeMove#REVERT -> exempt", "this file's own: the mover's client charges nothing for its own revert; no judge takes it as an exemption"],
             ["OPT passages-gm.mjs#crossTunnel#displace -> exempt", "the primary GM's own write of a 'Go through' (E80 C2: `teleport`, `displace`, no animation): a GM's move is let through because a GM made it (the hook's user), not because of these options; the crossing was judged before it by the doors' rules (`tunnelVerdict`; A10-18)"],
             ["OPT call-world.mjs#fallbackGather#displace -> exempt", "a GM's own write (`updateEmbeddedDocuments` with REVERT, `teleport` and `displace`): a GM's move is let through because a GM made it (the hook's user), not because of these options"],
@@ -9549,7 +9557,9 @@ const REGRESSIONS = [
             ["HOOK passages.mjs#registerPassages#userConnected/inline -> copy", "a player's browser only: an arriving primary GM that leaves is forgotten; it names whom a copy is taken from and nothing more"],
             ["HOOK gm-overlay.mjs#registerGmOverlay#canvasReady/inline -> screen", "every browser asks, only a GM's draws: `gmOverlay` asks for a GM before it makes a layer (R560)"],
             ["HOOK fog.mjs#registerFog#drpgPassagesChanged/inline -> screen", "this browser's outline redrawn from its own copy when the copy changes, with no sound (`redrawOutline`, R557)"],
-            ["HOOK sheet.mjs#registerSheetTweaks#drpgPassagesChanged/redrawPassageSheets -> screen", "the 'Known passages' page drawn again from this browser's own copy (R562)"]
+            ["HOOK sheet.mjs#registerSheetTweaks#drpgPassagesChanged/redrawPassageSheets -> screen", "the 'Known passages' page drawn again from this browser's own copy (R562)"],
+            ["HOOK sheet.mjs#registerSheetTweaks#preUpdateToken/noteStepStart -> veto", "advisory, and no veto: notes where this browser's own move starts (H81-13), returns nothing, writes nothing"],
+            ["HOOK sheet.mjs#registerSheetTweaks#updateToken/inline -> judge", "a claim: the mover's browser reads its own move at rest (`tunnelStepTarget`) and asks `passage.cross` as 'Go through' does; the primary judges it (`crossTunnel`, every guard of the bridge's row) and writes the landing (H81-13)"]
         ];
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
         const HOOK_SINKS = { updateToken: ["judge"], createToken: ["judge"], preUpdateToken: ["veto"], updateWall: ["record"], deleteWall: ["record"],
@@ -13368,9 +13378,11 @@ const REGRESSIONS = [
             tunnel: /tunnelEndAt\(scene, end, end\?\.level \?\? null, \{ taken \}\)/.test(fnSource(gmSrc, "tunnelRowFor"))
                 && /if \(at\[0\]\.room === at\[1\]\.room\) return \{ refused: TUNNEL_REFUSALS\.oneRoom \};/.test(fnSource(gmSrc, "tunnelRowFor")),
             goThrough: /requestPassageCross\(\{ actorId: actor\.id, passageId: row\.passage\.id \}\)/.test(fnSource(code("sheet.mjs"), "goThrough"))
+                // H81-13: a token moved onto an end takes the button's road (sheet.mjs `onTunnelStep`).
+                && /if \(step\) await goThrough\(actor, \{ passage: \{ id: step\.id, sceneId: scene\.id \} \}, null, mastermind\);/.test(fnSource(code("sheet.mjs"), "onTunnelStep"))
                 && /M\.tunnelVerdict\(actor, passage, token,/.test(cross) && /M\.settleCrossingOnGm\(actor, verdict\.to\)/.test(cross)
                 && /M\.refundCrossingOnGm\(actor, paid\.cost\)/.test(cross)
-                && /\{ teleport: true, movementAction: "displace", animate: false \}/.test(cross),
+                && /\{ teleport: true, movementAction: "displace", animate: false, \[M\.TUNNEL_CROSSING\]: true \}/.test(cross),
             doors: /crossingVerdict\(actor, here, to, scene, \{ from: near\.level, to: near\.far\.level \},/.test(verdict)
                 && /via: "passage", known, joined: true, keyed: true/.test(verdict)
                 && /if \(to && !\(mover \? mover\.mastermind : iAmTheMastermind\(\)\)\) \{\s*if \(isLocked\(scene, to\)\)/.test(fnSource(movement, "restrictedFrom")),
@@ -13403,7 +13415,7 @@ const REGRESSIONS = [
                 gm: {
                     tunnel: ["or a tunnel or stairs between two rooms on one floor or two", "**+ Tunnel or stairs**, then a click in each of two rooms",
                         "An end in no room, both ends in one room, or an end on a square where another tunnel already ends is refused."],
-                    goThrough: ["presses **Go through** beside it under **Known passages** on their sheet",
+                    goThrough: ["goes through it when their token is dragged onto one of its ends", "press **Go through** beside it under **Known passages** on their sheet",
                         "if the token cannot be moved there, the price is given back"],
                     doors: ["somebody else's bedroom is passed, while a locked door, a sealed room, Chained, a running incident, a Class Trial",
                         "The Mastermind passes a locked door and a sealed room this way too."],
@@ -13422,7 +13434,7 @@ const REGRESSIONS = [
                 },
                 player: {
                     tunnel: ["Some passages are a tunnel or stairs between two rooms, on one floor or two"],
-                    goThrough: ["press **Go through** beside it under **Known passages**"],
+                    goThrough: ["Drag your token onto that end's mark to go through", "press **Go through** beside it under **Known passages**"],
                     landing: ["you come out by the far end, on its floor"],
                     findPassage: ["Four things behind one tile:", "**Find Passage.** 16+ or a critical opens to you one secret passage of this room you do not know yet"],
                     reroll: ["A Reroll of a Find Passage or a Find Stash searches again with the new dice"],
@@ -13438,7 +13450,7 @@ const REGRESSIONS = [
                 gm: {
                     tunnel: ["albo tunel lub schody między dwoma pokojami, na jednym piętrze lub dwóch", "**+ Tunel lub schody**, potem kliknięcie w każdym z dwóch pokoi",
                         "Koniec poza pokojem, oba końce w jednym pokoju albo koniec na polu, na którym kończy się już inny tunel, są odrzucane."],
-                    goThrough: ["naciska **Przejdź** obok niego pod **Znane tajne przejścia** na karcie postaci",
+                    goThrough: ["przechodzi nim, gdy jego token zostanie przeciągnięty na jeden z jego końców", "naciska **Przejdź** obok niego pod **Znane tajne przejścia** na karcie postaci",
                         "jeśli tokenu nie da się tam przesunąć, cena wraca"],
                     doors: ["cudzą sypialnię przechodzi, a zamknięte drzwi, zapieczętowany pokój, Chained, trwający incydent, Class Trial",
                         "Mastermind przechodzi tak też przez zamknięte drzwi i zapieczętowany pokój."],
@@ -13457,7 +13469,7 @@ const REGRESSIONS = [
                 },
                 player: {
                     tunnel: ["Niektóre przejścia to tunel lub schody między dwoma pokojami, na jednym piętrze lub dwóch"],
-                    goThrough: ["naciśnij **Przejdź** obok niego pod **Znane tajne przejścia**"],
+                    goThrough: ["Przeciągnij token na znacznik tego końca, żeby przejść", "naciśnij **Przejdź** obok niego pod **Znane tajne przejścia**"],
                     landing: ["wychodzisz przy dalszym końcu, na jego piętrze"],
                     findPassage: ["Cztery rzeczy za jednym kafelkiem:", "**Znajdź tajne przejście.** 16+ albo krytyk otwiera przed tobą jedno tajne przejście tego pokoju, którego jeszcze nie znasz"],
                     reroll: ["Reroll Znajdź tajne przejście albo Znajdź ukrytą skrytkę szuka jeszcze raz nowymi kośćmi"],

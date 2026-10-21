@@ -57,10 +57,11 @@ import { isCleaner, tamperQuote, witnessesTo } from "./cleanup.mjs";
 // reads (T-1). Synchronous by design - this file calls it from a render path.
 import { quotePrice, priceLabel, stripeKindFor } from "./price.mjs";
 import { roomOfActor, neighbouringRooms, othersInRoom, locateActor, sceneOfActor, passageRooms, passageOpenFor,
-    roomsKnownToMe, tunnelVerdict, tunnelRefusalText } from "./movement.mjs";
+    roomsKnownToMe, tunnelVerdict, tunnelRefusalText, tunnelStepTarget, whenAtRest } from "./movement.mjs";
+import { isMoveChange, levelOf } from "./rooms.mjs";
 // The sheet's 'Known passages' (E79 C7): this browser's passages, the Mastermind as the GMs hold it, and the
 // rooms named as Listen names them - a room this viewer has not found is "Unexplored room n".
-import { passagesKnownBy, passageSpot, viewPassage } from "./passages.mjs";
+import { passagesKnownBy, passageSpot, viewPassage, tunnelEndsFor } from "./passages.mjs";
 import { isMastermindActor } from "./passages-gm.mjs";
 import { listenLabels } from "./action-rolls.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
@@ -88,6 +89,11 @@ export function registerSheetTweaks() {
     Hooks.on("renderCharacterSheet", onRenderCharacterSheet);
     // The sheet's 'Known passages' follows this browser's copy of the passages (E79 C7).
     Hooks.on("drpgPassagesChanged", redrawPassageSheets);
+    // A token moved onto a tunnel's end goes through it as 'Go through' does (H81-13; `onTunnelStep`'s note).
+    Hooks.on("preUpdateToken", noteStepStart);
+    Hooks.on("updateToken", (tokenDoc, changes, options, userId) => {
+        onTunnelStep(tokenDoc, changes, options, userId).catch(err => error("Could not go through a secret passage", err));
+    });
     // The tile-fit observer dies with its sheet (UI-14): ApplicationV2 builds
     // a new root on every open, so an observer left on the old root watched a
     // detached element for the rest of the session, one per open/close.
@@ -2079,10 +2085,12 @@ async function showPassageDialog(actor, row) {
  *
  * ENABLED WHEREVER THE TOKEN STANDS (H81-03, 20.10.2026; the owner's item 4b and the design A10's step 11, which
  * disables it away from an end). A disabled button says the truth only while the row is drawn again as the token
- * moves, and nothing draws it then: of this file's hooks (`registerSheetTweaks`) none hears a token's move - the list
- * is drawn on the sheet's own render and on `drpgPassagesChanged` - and a linked token's move is no update of its
+ * moves, and nothing draws it then: of this file's hooks (`registerSheetTweaks`) none draws the list on a token's move -
+ * the list is drawn on the sheet's own render and on `drpgPassagesChanged`; `onTunnelStep` hears a move (H81-13), and
+ * goes through, but draws nothing - and a linked token's move is no update of its
  * actor, which is what renders an actor's sheet (Foundry's rule as this module reads it; Daggerheart's sheet is not on
  * this machine). Read off the source, not a table. So the click says where to stand instead: `notAtPassage`'s words.
+ * A token moved onto an end takes this road too, with no button (`onTunnelStep`).
  */
 async function goThrough(actor, row, button, mastermind) {
     const scene = game.scenes?.get(row.passage.sceneId) ?? null;
@@ -2095,14 +2103,58 @@ async function goThrough(actor, row, button, mastermind) {
         ui.notifications.warn(tunnelRefusalText(verdict));
         return;
     }
-    button.disabled = true;
+    if (button) button.disabled = true;
     try {
         const { requestPassageCross } = await import("./gm-bridge.mjs");
         const res = await requestPassageCross({ actorId: actor.id, passageId: row.passage.id });
         if (!res.ok) debug("A tunnel was not gone through", res.reason);
     } finally {
-        button.disabled = false;
+        if (button) button.disabled = false;
     }
+}
+
+/*
+ * A TOKEN MOVED ONTO A TUNNEL'S END GOES THROUGH IT (H81-13 and H81-14, 21.10.2026; the owner's call of 21.10, the
+ * token chosen over a click on the mark: a GM's browser draws no mark, and a click on one cannot be measured headless).
+ * The mover's browser alone reads the move - the user whose update it is, Foundry's `userId` - once the token is at rest
+ * (movement.mjs `whenAtRest`, as fog.mjs reads a room, so the landing does not race the drag's animation), decides it
+ * with movement.mjs `tunnelStepTarget`, and takes the button's road: `goThrough`'s own check and words, then the
+ * bridge's `passage.cross`, judged and written on the primary GM. Nothing new goes on the wire and nothing is written
+ * here. Where the move started is read before it is written (`preUpdateToken` runs on the writer's browser alone) and
+ * kept through the updates of one move until it rests; a move vetoed before it is written leaves nothing waiting, and
+ * the next one reads its start again. Only for a student whose sheet shows 'Known passages' to this user
+ * (`injectKnownPassages`: its owner, never a Monokuma), the Mastermind as the sheet asks for it. Scenario 76 U drags one.
+ */
+const tunnelSteps = new Map();
+
+const stepSpot = tokenDoc => ({ x: tokenDoc.x, y: tokenDoc.y, level: levelOf(tokenDoc), width: tokenDoc.width ?? 1, height: tokenDoc.height ?? 1 });
+
+/** Before this browser writes a token's move: where it starts, unless a move of the same token is still coming to rest. */
+function noteStepStart(tokenDoc, changes) {
+    if (!tokenDoc?.id || !isMoveChange(changes) || tunnelSteps.get(tokenDoc.id)?.waiting) return;
+    tunnelSteps.set(tokenDoc.id, { from: stepSpot(tokenDoc), turn: 0, waiting: false });
+}
+
+/** After it: once the token rests, the newest update of the move decides whether it goes through a tunnel. */
+async function onTunnelStep(tokenDoc, changes, options, userId) {
+    if (userId !== game.user?.id || !isMoveChange(changes)) return;
+    const entry = tunnelSteps.get(tokenDoc?.id);
+    if (!entry) return;
+    const scene = tokenDoc.parent ?? null;
+    const actor = tokenDoc.actorId ? game.actors?.get(tokenDoc.actorId) ?? null : null;
+    if (!scene || !actor || actor.type !== "character" || isMonokuma(actor) || !actor.isOwner) {
+        tunnelSteps.delete(tokenDoc.id);
+        return;
+    }
+    const turn = ++entry.turn;
+    entry.waiting = true;
+    await whenAtRest(tokenDoc);
+    if (tunnelSteps.get(tokenDoc.id) !== entry || entry.turn !== turn) return;
+    tunnelSteps.delete(tokenDoc.id);
+    const mastermind = game.user.isGM && isMastermindActor(actor);
+    const step = tunnelStepTarget({ changes, options, from: entry.from, to: stepSpot(tokenDoc), ends: tunnelEndsFor(actor, scene.id, null, { mastermind }),
+        grid: scene.grid?.size ?? 100, userId, me: game.user.id });
+    if (step) await goThrough(actor, { passage: { id: step.id, sceneId: scene.id } }, null, mastermind);
 }
 
 /**
