@@ -81,12 +81,13 @@
  *   while somebody spoke). The word's title and the live text say the sentence of each. p1 is put back in the main
  *   room with the room voice-client.mjs wanted before. What a real LiveKit Room says, in both themes, full and
  *   compact, is LIVE-E79-21; how late the first portrait comes at a table, LIVE-E79-20.
- * H (H82 C2; the owner's 21.10.2026 "Delay przy laczeniu z nowym pokojem"): the voice switch on entering a room, with
- *   voice switched on and the GM moving Aiko. A settled crossing has p1's room sent within 200 ms of the GM's update and
- *   p1 standing there, once; so it is while Botan steps inside the Cafeteria every second; a move inside a room and a
- *   drag's step with waypoints pending send nothing, the drag's last step sends at once; the trailing pass sends nothing
- *   more. With p1's connect held 2000 ms, two rooms 1700 ms apart end in the second after two reconnects, and p1's Debug
- *   log says how long each connect took (H82-03). The real reconnect's time is LIVE-H82-02.
+ * I (H82 C2, a letter after line B's H, E19 C2's, for the day the two lines meet; the owner's 21.10.2026 "Delay przy
+ *   laczeniu z nowym pokojem"): the voice switch on entering a room, with voice switched on and the GM moving Aiko. A
+ *   settled crossing has p1's room sent within 200 ms of the GM's update and p1 standing there, once; so it is while
+ *   Botan steps inside the Cafeteria every second; a move inside a room and a drag's step with waypoints pending send
+ *   nothing, the drag's last step sends at once; the trailing pass sends nothing more. With p1's connect held 2000 ms,
+ *   two rooms 1700 ms apart end in the second after two reconnects, and p1's Debug log says how long each connect took
+ *   (H82-03). The real reconnect's time is LIVE-H82-02.
  *
  * What the shim cannot settle - real audio, how late LiveKit says who speaks, the dock hidden at a
  * table, audio after F5 - is LIVE-E78-01, LIVE-E78-02 and the owner's T1, LIVE-E78-10 (lib/livekit.mjs's header).
@@ -103,8 +104,8 @@ export const layers = ["ci"];
    the harness lock): 23 checks, 1 of them the expected red, in 8.0 s - it stands. With D's cut signature (E78 fix r2-H2, one
    green run on 14.10.2026, under the harness lock): 24 checks, 1 of them the expected red, in 8.5 s, 14 s of wall time - it stands.
    With phase G (E79 C15, one green run on 17.10.2026, under the harness lock): 26 checks, 1 of them the expected red, in 7.9 s,
-   13 s of wall time - it stands. With phase H (H82 C2, two green runs on 23.10.2026, under the harness lock): 31 checks, 1 of
-   them the expected red, in 31.1 s and 30.2 s, 36.6 s and 36.0 s of wall time; H waits 21.4 s on its own clock by design
+   13 s of wall time - it stands. With phase I (H82 C2, two green runs on 23.10.2026, under the harness lock): 31 checks, 1 of
+   them the expected red, in 31.1 s and 30.2 s, 36.6 s and 36.0 s of wall time; I waits 21.4 s on its own clock by design
    (the trailing pass three times, Botan's four steps, the drag's 600 ms, the held connects), so the bound goes to 90 s,
    a margin chosen for a loaded runner, not measured on one. */
 export const timeoutMs = 90000;
@@ -843,7 +844,7 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
             && J([st.speaking.run, st.speaking.title]) === J(st.texts.speaking) && st.speaking.live === st.texts.connected[1],
         J({ result: st.result, moved: st.moved, reconnecting: st.reconnecting, back: st.back, dropped: st.dropped, home: st.home, speaking: st.speaking }));
 
-    phase("H: a settled crossing moves p1's voice at once - the primary GM sends p1's room within 200 ms of the move, not 1500 ms after, and another student walking postpones nothing; a move inside a room and a drag's pending step send nothing; the trailing pass sends nothing more; p1's debug log says how long each connect took");
+    phase("I: a settled crossing moves p1's voice at once - the primary GM sends p1's room within 200 ms of the move, not 1500 ms after, and another student walking postpones nothing; a move inside a room and a drag's pending step send nothing; the trailing pass sends nothing more; p1's debug log says how long each connect took");
     /* H82-02 and H82-03 (the owner's 21.10.2026 "Delay przy laczeniu z nowym pokojem"; STAGE H82 C2). Until H82 the
        primary GM's updateToken hook only re-armed one module-wide timer (voice.mjs RECONCILE_DEBOUNCE_MS, 1500 ms), so a
        settled crossing waited 1500 ms before anybody's room was decided, and each other character token's move started
@@ -943,24 +944,24 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
         return { room: game.webrtc.client.room ?? null, main: __liveKit.MAIN_ROOM, debug: game.settings.get("${MOD}", "debug") };`, { timeout: 10000 });
     const once = (r, room, within, from = 0) => r.toP1.length === 1 && r.toP1[0].room === room && r.toP1[0].ms >= from && r.toP1[0].ms - from < within
         && r.applied.length === 1 && r.applied[0].room === room;
-    check("H: a settled crossing - the GM moving Aiko from Dorm A into Dorm B - sends p1 Dorm B's room within 200 ms of the GM's update, once, and p1 stands there; the trailing pass 1500 ms later sends nothing more, and a move inside Dorm B sends nothing",
+    check("I: a settled crossing - the GM moving Aiko from Dorm A into Dorm B - sends p1 Dorm B's room within 200 ms of the GM's update, once, and p1 stands there; the trailing pass 1500 ms later sends nothing more, and a move inside Dorm B sends nothing",
         hOn.installed === true && gmOn.plan === gmOn.want && landed === gmOn.want && once(cross, cross.want, 200)
             && inside.here === "Dorm B" && inside.toP1.length === 0 && inside.applied.length === 0,
         J({ gmOn, landed, cross, inside }));
-    check("H: another student walking postpones nothing - Botan stepping inside the Cafeteria every second, four times, after Aiko crosses back into Dorm A: p1's room is still sent within 200 ms, once, and Botan's steps send p1 nothing",
+    check("I: another student walking postpones nothing - Botan stepping inside the Cafeteria every second, four times, after Aiko crosses back into Dorm A: p1's room is still sent within 200 ms, once, and Botan's steps send p1 nothing",
         walk.botan === "Cafeteria" && walk.gm.filter(e => e.k === "hook" && e.id === "TOKBOTAN00000000").length === 4 && once(walk, walk.want, 200),
         J(walk));
-    check("H: a drag's step still in flight sends nothing - Aiko's pending step through Dorm B sends p1 no room; the drag's last step into the Gym sends the Gym's room within 200 ms of it, once, and the trailing pass nothing more",
+    check("I: a drag's step still in flight sends nothing - Aiko's pending step through Dorm B sends p1 no room; the drag's last step into the Gym sends the Gym's room within 200 ms of it, once, and the trailing pass nothing more",
         drag.toP1.every(e => e.ms >= drag.last) && once(drag, drag.want, 200, drag.last),
         J(drag));
     const took = r => r.logs.map(line => /took (\d+) ms/.exec(line)).filter(Boolean).map(m => Number(m[1]));
-    check("H: two rooms 1700 ms apart with p1's connect held 2000 ms - p1 ends in the second room after two reconnects and no third; p1's debug log says each connect took its 2000 ms, and each quicker one before took under 200 ms",
+    check("I: two rooms 1700 ms apart with p1's connect held 2000 ms - p1 ends in the second room after two reconnects and no third; p1's debug log says each connect took its 2000 ms, and each quicker one before took under 200 ms",
         chained.p1.filter(e => e.k === "applying").length === 2 && chained.applied.length === 2 && chained.applied[1].room === chained.want
             && after.room === chained.want
             && took(chained).length === 2 && took(chained).every(n => n >= 1990 && n < 3000)
             && [cross, walk, drag].every(r => took(r).length === 1 && took(r)[0] < 200),
         J({ chained, after, took: [cross, walk, drag, chained].map(took) }));
-    check("H: put back - voice off, Aiko and Botan where the seed stands them, p1 in the main room with its debug setting as it was",
+    check("I: put back - voice off, Aiko and Botan where the seed stands them, p1 in the main room with its debug setting as it was",
         gmOff.voice === false && J(gmOff.aiko) === J([300, 300]) && J(gmOff.botan) === J([1300, 300]) && hOff.room === hOff.main && hOff.debug === hOn.debugWas,
         J({ gmOff, hOff }));
 }

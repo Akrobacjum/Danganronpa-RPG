@@ -83,7 +83,7 @@ export function registerVoice() {
         // for a move that has ended - is decided at once (H82-02; the owner's 21.10.2026 "Delay przy laczeniu z nowym
         // pokojem"). Until H82 every move only re-armed the one module-wide debounce below, so a crossing waited
         // RECONCILE_DEBOUNCE_MS before anybody's room was decided, and any other character's step started the wait
-        // again: scenario 75 H measured the GM's voice.assign at +1507 ms after the GM's update, and at +5518 ms with
+        // again: scenario 75 I measured the GM's voice.assign at +1507 ms after the GM's update, and at +5518 ms with
         // Botan stepping inside the Cafeteria every second (896f6bf); decided here, +8 ms and +3-5 ms (two runs). The
         // pass sends only the accounts whose room changed (`assignUser`'s `settled` and `inFlight`). The debounced
         // pass stays after it as a backstop that reads the token where it stands, and a step of a drag still in flight
