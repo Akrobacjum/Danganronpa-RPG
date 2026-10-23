@@ -13987,7 +13987,50 @@ const REGRESSIONS = [
             /setTimeout\([\s\S]*redrawGmOverlay\("passages"\)[\s\S]*,\s*250\s*\)/.test(soon)]),
         JSON.stringify([true, true, true, true, true, true, true, true]),
             "[the drawing hands `gm` to the stretches and to the tunnels; the words say 'Secret passage from' and 'Secret passage to'; the room beyond is movement.mjs `passageRooms`; the overlay drawn again once it has loaded; drawn again on a region created, changed and deleted; that redraw a quarter second after the last]");
-    }]
+   }],
+    ["R945 - a GM's frame is cut on a GM's own board from the GMs' own rows (H82-05): fog-doorways.mjs `gmPassageGaps` takes `gm` from `game.user?.isGM` and asks it first; it, `withPassageGhosts`, `traceGhostStretches`, fog-reveal.mjs `ghostStyle` and `flashOutline` and fog.mjs `redrawFrameSoon` emit nothing, write no flag, setting, store, document or chat message and read no player's copy; `flashOutline` cuts its edges as `withPassageGhosts(doorwayEdges(...), gmPassageGaps(...))`, `traceOutlineGapped` leaves the cut out, and `doorwayEdges` reads none of it, so the map's checks and a player's frame read the map as before; and fog.mjs draws a GM's frame again from one `clientSettingChanged` listener, on the GMs' passage rows, behind a GM's gate, a quarter second after the last change", async () => {
+        /*
+         * H82-05 (23.10.2026). A secret passage is the GMs' and its knowers' (D2, D38): a frame cut by every passage would be
+         * the whole map of them on any browser that drew it, and a Mastermind player's copy names every passage, so the gate
+         * is the user's role, never what the rows hold; and the cut is the GMs' own drawing, so nothing of it may reach the
+         * wire or the world. Read off the three files with comments blanked: the six functions' bodies (the gate in
+         * `gmPassageGaps`' parameters, before its body's brace), `flashOutline`'s edges, `doorwayEdges` and
+         * `traceOutlineGapped`, and fog.mjs's listeners. Each reader is shown a planted fault first. R943 and R944 run the cut
+         * and the gate; scenario 76 C reads the GM's frame and Aiko's on one map, and the redraw on a close and an open.
+         */
+        const WRITES = /\bsocket\s*\.\s*emit\s*\(|\.\s*(?:setFlag|unsetFlag|patch|patchMany|update|createEmbeddedDocuments|updateEmbeddedDocuments|deleteEmbeddedDocuments)\s*\(|\bsettings\s*\.\s*set\s*\(|\bChatMessage\b/;
+        const COPY = /\b(?:knownPassages|passageCopy|passageCopyFor|minePassages|secretRowsFrom|tunnelEndsFor|openSegmentsFor)\b/;
+        const GATE = /^(?:(?!\)\s*\{\s*\n)[\s\S])*?\bgm\s*=\s*Boolean\(\s*game\s*\.\s*user\s*\?\.\s*isGM\s*\)/;
+        const ASKS = /\bif\s*\(\s*!gm\b/;
+        const WIRED = /\bwithPassageGhosts\(\s*doorwayEdges\([^)]*\)\s*,\s*gmPassageGaps\(/;
+        const LISTEN = /Hooks\.on\(\s*"clientSettingChanged"/g;
+        // The listener whole, from the ready hook it is added in: a GM's gate, then the GMs' passage rows, then the redraw.
+        const GATED = /Hooks\.once\(\s*"ready"\s*,\s*\(\)\s*=>\s*\{\s*if\s*\(\s*!game\.user\??\.isGM\s*\)\s*return;\s*Hooks\.on\(\s*"clientSettingChanged"\s*,\s*key\s*=>\s*\{\s*if\s*\(\s*key\s*===\s*`\$\{MODULE_ID\}\.\$\{SETTINGS\.gmPassageMap\}`\s*\)\s*redrawFrameSoon\(\);/;
+        equal(JSON.stringify([WRITES.test("const x = 1;\n    game.socket.emit(EVENT, {});"), WRITES.test("await scene.update({ x: 1 });"), COPY.test("return knownPassages();"),
+            GATE.test("function f(scene, { known } = {}) {\n    const gm = Boolean(game.user?.isGM);\n"), GATE.test("function f(scene, { gm = Boolean(game.user?.isGM), known } = {}) {\n"),
+            ASKS.test("if (!scene) return [];"), WIRED.test("const edges = doorwayEdges(region, level);\n    const gaps = gmPassageGaps(scene);"),
+            WIRED.test("const edges = withPassageGhosts(doorwayEdges(region, level, { actor }), gmPassageGaps(scene, level), { grid });"),
+            ("Hooks.on(\"clientSettingChanged\", a);\nHooks.on(\"updateUser\", b);".match(LISTEN) ?? []).length,
+            GATED.test("Hooks.once(\"ready\", () => {\n        Hooks.on(\"clientSettingChanged\", key => { if (key === `${MODULE_ID}.${SETTINGS.gmPassageMap}`) redrawFrameSoon(); });")]),
+        JSON.stringify([true, true, true, false, true, false, false, true, 1, false]),
+            "the readers do not find the faults planted for them (an emit, a document update, a copy read, a gate read in the body, one in the parameters, a missing ask, edges cut apart from the passages, edges cut by them, one listener of two, a listener with no GM's gate) - they would read the frame wrong too");
+        const sources = await moduleSources();
+        const [doorways, reveal, fog] = ["fog-doorways.mjs", "fog-reveal.mjs", "fog.mjs"].map(file => stripComments(sources.get(file) ?? ""));
+        ok(doorways.length > 0 && reveal.length > 0 && fog.length > 0, "fog-doorways.mjs, fog-reveal.mjs or fog.mjs was not read - this test measured nothing");
+        const functions = [[doorways, "gmPassageGaps"], [doorways, "withPassageGhosts"], [doorways, "traceGhostStretches"], [reveal, "ghostStyle"], [reveal, "flashOutline"],
+            [fog, "redrawFrameSoon"]];
+        equal(JSON.stringify(functions.map(([src, name]) => { const body = topLevelFunction(src, name) ?? ""; return [name, body.length > 0, WRITES.test(body), COPY.test(body)]; })),
+            JSON.stringify(functions.map(([, name]) => [name, true, false, false])),
+            "[each function of the GM's cut: declared, writes or emits, reads a player's copy] - the cut must be drawn from the GMs' rows on this canvas alone");
+        const gaps = fnSource(doorways, "gmPassageGaps"), edges = fnSource(doorways, "doorwayEdges"), trace = fnSource(doorways, "traceOutlineGapped");
+        const flash = fnSource(reveal, "flashOutline"), register = fnSource(fog, "registerFog"), soon = fnSource(fog, "redrawFrameSoon");
+        const listeners = fog.match(LISTEN) ?? [];
+        equal(JSON.stringify([GATE.test(gaps), ASKS.test(gaps), WIRED.test(flash), /\b(?:gmPassageGaps|withPassageGhosts|ghost)\b/.test(edges), /\bedge\.ghost\b/.test(trace),
+            listeners.length, GATED.test(register),
+            /setTimeout\([\s\S]*\bredrawOutline\(\)[\s\S]*,\s*250\s*\)/.test(soon)]),
+        JSON.stringify([true, true, true, false, true, 1, true, true]),
+            "[`gmPassageGaps` takes `gm` from `game.user?.isGM`, asks it first; `flashOutline` cuts doorwayEdges' edges by it; doorwayEdges names the cut; the frame's trace leaves the cut out; fog.mjs's clientSettingChanged listeners; the one in registerFog behind a GM's gate, on the GMs' passage rows, redrawing soon; that redraw a quarter second after the last change]");
+    }],
 ];
 
 export { REGRESSIONS };

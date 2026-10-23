@@ -13912,7 +13912,8 @@ const INVARIANTS = [
          * browser (`gm: false`); nothing of this world is read but the module's own listener table and its source. What
          * the outline then looks like is a look at a table (LIVE-E79-05): the harness's polygons contain no point, so `doorwayEdges` opens no
          * doorway headless (E12 C2b) and its two outlines are compared as measured, not as drawn; scenario 76 C reads the
-         * same comparison on the players' browsers.
+         * same comparison on the players' browsers. Since H82 C4 (23.10.2026) a GM's frame is cut where every passage is
+         * (fog-doorways.mjs `withPassageGhosts`, R943), outside `doorwayEdges`: what this reads of `doorwayEdges` is unchanged.
          */
         const D = await import("./fog-doorways.mjs");
         const M = await import("./movement.mjs");
@@ -18623,6 +18624,131 @@ const INVARIANTS = [
             "[each tunnel the overlay draws: its state, the end it is entered from, and each end on the floor with its index and the end beyond]");
         equal(J([player?.[0], player?.[1], player?.[2]]), J([[0, 0, {}], [], []]),
             "[drawn as a player: passages, Graphics, words; the tunnels and stretches a player's browser is given] - the GMs' overlay drew on a player's browser because the rows were there");
+    }],
+    ["R943 - a GM's frame is cut where a secret passage runs in its wall, where a knower's is (H82-05): on R557's Lab the cut is the passage's 100-200, on a Cafeteria like scenario 76's 1225-1325 for a passage at 1234.5-1334.5, the knower's gap there; a stretch 0.7 squares off the border, one across it, one a single sample long and one on the room's own inner stretch cut nothing, and an opening already there is not cut twice; the frame's line stops a margin either side of the cut and the dimmed stroke fills exactly that margin to margin; with no passage the edges and the line are the ones they were; the dimmed stroke is the bone line's width at 0.35 under Monokuma Legacy and the seam's hairline at 0.6 under Stained Glass", async () => {
+        /*
+         * H82-05 (23.10.2026; the owner's 21.10 "dopiszmy gma widzacego przerwy", the stage's defaults: every passage,
+         * dimmed, on a GM's browser alone). The harm: a GM looking at the frame of the room their Monokuma stands in sees
+         * a solid line across a secret passage, where the student who knows it sees the way out, and cannot tell from the
+         * board where the knower's frame opens. Read on the edges fog-doorways.mjs `doorwayEdges` measures for two scenes
+         * of plain objects (R557's Lab over a Vault, wall y 400, passage 100-200; scenario 76's Cafeteria over a Kitchen,
+         * wall y 800, passage 1234.5-1334.5) and on edges written by hand for an inner stretch and an opening, each cut at
+         * grid 100 by `withPassageGhosts`; the line traced on a recorder of the test's own (`traceOutlineGapped`,
+         * `traceGhostStretches` call moveTo and lineTo and read `line.width`). The knower's gap is not measured here: with
+         * the harness's polygons `doorwayEdges` opens no doorway (E12 C2b), and on a real canvas its ray asks the scene on
+         * screen, not these; scenario 76 C reads both frames on one map, the GM's and Aiko's. How the dimmed cut reads on a
+         * real floor is LIVE-H82-04.
+         */
+        const D = await import("./fog-doorways.mjs");
+        const FR = await import("./fog-reveal.mjs");
+        const R = await import("./rooms.mjs");
+        const J = v => JSON.stringify(v);
+        const region = (tag, name, x, y, w, h) => ({ id: `${tag}R${name}`, name: `${tag} ${name}`, levels: new Set(), behaviors: [],
+            bounds: { x, y, width: w, height: h }, shapes: [{ type: "rectangle", x, y, width: w, height: h }],
+            testPoint: p => p.x >= x && p.x <= x + w && p.y >= y && p.y <= y + h,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === R.ROOM_FLAG ? true : undefined) });
+        const edgesOf = (tag, rooms, wall) => {
+            const scene = { id: `${tag}S`, name: `${tag} scene`, grid: { size: 100 }, levels: [], walls: [{ id: `${tag}W`, c: wall, move: 20, door: 0, ds: 0 }] };
+            for (const r of rooms) r.parent = scene;
+            scene.regions = new Set(rooms);
+            return D.doorwayEdges(rooms[0], null);
+        };
+        equal(J([typeof D.withPassageGhosts, typeof D.traceGhostStretches, typeof FR.ghostStyle]), J(["function", "function", "function"]),
+            "[the cut of a GM's frame, its dimmed stroke, the stroke's style] - not there: a GM's frame runs solid across every passage");
+        const lab = edgesOf("R943L", [region("R943L", "Lab", 0, 0, 400, 400), region("R943L", "Vault", 0, 400, 400, 200)], [0, 400, 400, 400]);
+        const cafe = edgesOf("R943C", [region("R943C", "Cafeteria", 1200, 200, 800, 600), region("R943C", "Kitchen", 1200, 800, 800, 300)], [1200, 800, 2000, 800]);
+        ok(lab.length === 4 && cafe.length === 4, `doorwayEdges measured ${lab.length} and ${cafe.length} edges, not a rectangle's four - this would measure nothing`);
+        const seg = (x1, y1, x2, y2) => ({ id: "R943P", wallId: "R943W", x1, y1, x2, y2 });
+        const round = v => Math.round(v * 10) / 10;
+        // Each cut as [from x, y, to x, y], read off the edge it is on.
+        const cuts = (edges, segments) => D.withPassageGhosts(edges, segments, { grid: 100 }).flatMap(e => (e.ghost ?? []).map(([a, b]) => {
+            const [x1, y1, x2, y2] = [e.ax + e.dx * a, e.ay + e.dy * a, e.ax + e.dx * b, e.ay + e.dy * b].map(round);
+            return x1 <= x2 && y1 <= y2 ? [x1, y1, x2, y2] : [x2, y2, x1, y1];
+        })).sort((p, q) => p[0] - q[0] || p[1] - q[1]);
+        const passage = seg(1234.5, 800, 1334.5, 800);
+        equal(J([cuts(lab, [seg(100, 400, 200, 400)]), cuts(cafe, [passage]), cuts(cafe, [seg(1234.5, 870, 1334.5, 870)]), cuts(cafe, [seg(1600, 760, 1600, 840)]),
+            cuts(cafe, [seg(1236, 800, 1250, 800)])]),
+        J([[[100, 400, 200, 400]], [[1225, 800, 1325, 800]], [], [], []]),
+            "[R557's Lab, the Cafeteria's passage, a stretch 70 px off its border, one across it, one 14 px long] - where a GM's frame is cut");
+        const edge = (over = {}) => ({ ax: 0, ay: 0, dx: 400, dy: 0, length: 400, nx: 0, ny: -1, ring: 0, open: [], inner: [], trend: null, ...over });
+        equal(J([cuts([edge({ inner: [[0, 0.5]] })], [seg(50, 0, 350, 0)]), cuts([edge({ open: [[0.5, 0.625]] })], [seg(50, 0, 350, 0)]), cuts([edge()], [seg(50, 0, 350, 0)])]),
+            J([[[200, 0, 350, 0]], [[50, 0, 200, 0], [250, 0, 350, 0]], [[50, 0, 350, 0]]]),
+            "[a passage half on the room's own inner stretch, one across an opening at 200-250, the same with neither] - a cut where no border is, or an opening cut twice");
+        const none = D.withPassageGhosts(cafe, [], { grid: 100 }), far = D.withPassageGhosts(cafe, [seg(1234.5, 870, 1334.5, 870)], { grid: 100 });
+        equal(J([none === cafe, J(far) === J(cafe), far.every((e, i) => e === cafe[i])]), J([true, true, true]),
+            "[no passage: the same edges; a passage nowhere on the border: edges equal to them, each the same object] - a frame with no passage cut is not the one it was");
+
+        // The line: a recorder of moveTo and lineTo, and the stretches it draws along y 800 (the Cafeteria's border with the Kitchen).
+        const recorder = () => ({ calls: [], line: { width: 0 }, moveTo(x, y) { this.calls.push(["moveTo", round(x), round(y)]); return this; },
+            lineTo(x, y) { this.calls.push(["lineTo", round(x), round(y)]); return this; } });
+        // Every line a recorder drew, [x1, y1, x2, y2] with the smaller end first, and those along y 800 as [from x, to x];
+        // a line of no length (a closed ring's seam, `traceOutlineGapped`'s wrap) is no line of the frame.
+        const lines = calls => {
+            const out = [];
+            let at = null;
+            for (const [k, x, y] of calls) {
+                if (k === "lineTo" && at && (at[0] !== x || at[1] !== y)) out.push(at[0] < x || (at[0] === x && at[1] <= y) ? [...at, x, y] : [x, y, ...at]);
+                at = [x, y];
+            }
+            return out.sort((p, q) => p[0] - q[0] || p[1] - q[1] || p[2] - q[2] || p[3] - q[3]);
+        };
+        const along = calls => lines(calls).filter(l => l[1] === 800 && l[3] === 800).map(l => [l[0], l[2]]);
+        const rest = calls => lines(calls).filter(l => !(l[1] === 800 && l[3] === 800));
+        const ghosted = D.withPassageGhosts(cafe, [passage], { grid: 100 });
+        const [plain, cut, dim] = [recorder(), recorder(), recorder()];
+        D.traceOutlineGapped(plain, cafe, { x: 0, y: 0 }, 10.5, 16);
+        D.traceOutlineGapped(cut, ghosted, { x: 0, y: 0 }, 10.5, 16);
+        const drew = [D.traceGhostStretches(dim, ghosted, { x: 0, y: 0 }, 10.5), D.traceGhostStretches(recorder(), cafe, { x: 0, y: 0 }, 10.5)];
+        equal(J([plain.calls.filter(([k]) => k === "moveTo").length, plain.calls.filter(([k]) => k === "lineTo").length, along(plain.calls), along(cut.calls),
+            J(rest(cut.calls)) === J(rest(plain.calls)), rest(plain.calls).length, drew, along(dim.calls), dim.calls.map(([k]) => k)]),
+        J([1, 5, [[1200, 2000]], [[1200, 1214.5], [1335.5, 2000]], true, 3, [1, 0], [[1214.5, 1335.5]], ["moveTo", "lineTo"]]),
+            "[the frame with no passage: paths, lines, along y 800; cut for the passage, along y 800; the other three sides the same, how many; dimmed strokes drawn for the cut and for no cut; the dimmed stroke along y 800, its calls] - the frame must stop 10.5 px either side of 1225-1325 and the dimmed line fill that and no more");
+
+        const grid = 100;
+        equal(J([FR.ghostStyle(false, grid), FR.ghostStyle(false, 40), FR.ghostStyle(true, grid)]),
+            J([{ width: 11, alpha: 0.35 }, { width: 7, alpha: 0.35 }, { width: FR.seamWidth(), alpha: 0.6 }]),
+            "[Monokuma Legacy at grid 100 and 40, Stained Glass] - the dimmed cut's width and alpha");
+    }],
+    ["R944 - a GM's frame is cut by every secret passage in a wall of its floor, and a player's by none (H82-05): `gmPassageGaps` answers a GM's browser the wall stretches of this scene and this floor, whoever knows them, and no tunnel, another floor's or another scene's; a player's browser, the Mastermind's player's whose copy names every passage, nothing, so its frame is a knower's; the default asks this browser's role", async () => {
+        /*
+         * H82-05 (23.10.2026). A secret passage is the GMs' and its knowers' (D2, D38): a frame cut by every passage on a
+         * player's browser would draw the whole map of them, and a Mastermind player's copy names every passage, so the
+         * gate is the user's role, never what the rows hold. Read with rows of the test's own in the copy's shape
+         * (`known`), on scenes of no world; the floor is read as passages.mjs `secretRowsOn` reads it (a row on no floor
+         * in particular is on each). On a GM's browser the rows are the GMs' open ones (`knownPassages`, `secretRowsFrom`,
+         * R554), so a closed or broken passage cuts nothing: that reading is R554's, and scenario 76 C closes the
+         * Cafeteria's passage and reads the GM's frame drawn again whole.
+         */
+        const D = await import("./fog-doorways.mjs");
+        const L = await import("./passages.mjs");
+        const J = v => JSON.stringify(v);
+        const [SC, L1, L2] = ["R944SCENE", "R944L1", "R944L2"];
+        const wall = (sceneId, level, x, actorIds = []) => ({ sceneId, shape: "wall", level, passageWallId: `R944W${x}`,
+            passageSeg: { x1: x, y1: 800, x2: x + 100, y2: 800 }, actorIds });
+        const known = {
+            R944A: wall(SC, L1, 100, ["R944MASTERMIND"]), R944B: wall(SC, null, 300), R944C: wall(SC, L2, 500, ["R944MASTERMIND"]),
+            R944D: wall("R944OTHER", L1, 700, ["R944MASTERMIND"]),
+            R944T: { sceneId: SC, shape: "tunnel", level: null, ends: [{ x: 150, y: 150, level: L1 }, { x: 650, y: 150, level: L1 }], actorIds: ["R944MASTERMIND"] }
+        };
+        equal(J([typeof D.gmPassageGaps, typeof L.secretSegmentsOn]), J(["function", "function"]),
+            "[the stretches a GM's frame is cut by, the floor's stretches whoever knows them] - not there: a GM's frame is cut by no passage");
+        const ids = list => list.map(s => s.id).sort();
+        const scene = { id: SC };
+        equal(J([ids(D.gmPassageGaps(scene, L1, { gm: true, known })), ids(D.gmPassageGaps(scene, L2, { gm: true, known })), ids(D.gmPassageGaps(scene, null, { gm: true, known })),
+            ids(D.gmPassageGaps({ id: "R944OTHER" }, L1, { gm: true, known })), ids(D.gmPassageGaps(null, L1, { gm: true, known }))]),
+        J([["R944A", "R944B"], ["R944B", "R944C"], ["R944A", "R944B", "R944C"], ["R944D"], []]),
+            "[a GM on the first floor, on the second, on every floor, on another scene, with no scene] - the stretches a GM's frame is cut by");
+        equal(J([D.gmPassageGaps(scene, L1, { gm: true, known }).find(s => s.id === "R944A") ?? null, L.secretSegmentsOn(SC, L1, { known }).length]),
+            J([{ id: "R944A", wallId: "R944W100", x1: 100, y1: 800, x2: 200, y2: 800 }, 2]),
+            "[the stretch as the cut reads it, the floor's stretches as passages.mjs reads them]");
+        const edges = [{ ax: 0, ay: 800, dx: 400, dy: 0, length: 400, nx: 0, ny: -1, ring: 0, open: [], inner: [], trend: null }];
+        equal(J([D.gmPassageGaps(scene, L1, { gm: false, known }), D.gmPassageGaps(scene, null, { gm: false, known }),
+            D.withPassageGhosts(edges, D.gmPassageGaps(scene, L1, { gm: false, known }), { grid: 100 }) === edges,
+            (D.withPassageGhosts(edges, D.gmPassageGaps(scene, L1, { gm: true, known }), { grid: 100 })[0].ghost ?? []).length]),
+        J([[], [], true, 2]),
+            "[a player's browser, the Mastermind's player's copy naming every passage, on the floor and on every floor; its frame's edges; a GM's frame's cuts on the same edges] - a player's frame cut by passages its character does not know");
+        must(game.user.isGM, "the suite runs on a GM's browser - the default would read a player's role");
+        equal(J(ids(D.gmPassageGaps(scene, L1, { known }))), J(["R944A", "R944B"]), "the default, on this GM's browser - the role was not read");
     }],
 ];
 

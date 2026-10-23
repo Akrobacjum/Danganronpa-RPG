@@ -355,6 +355,16 @@ export function registerFog() {
     // The passages this browser knows changed (settings.mjs, the copy's onChange): the standing
     // outline is drawn again with the gaps its character may take now (E79 C3).
     Hooks.on("drpgPassagesChanged", () => { try { redrawOutline(); } catch (err) { debug("Fog: could not redraw the outline", err); } });
+    /* A GM's frame is cut by every secret passage of its floor, read from the GMs' own rows (fog-reveal.mjs `flashOutline`,
+       fog-doorways.mjs `gmPassageGaps`; H82-05), and a change of those rows fires no `drpgPassagesChanged` there - only a
+       player's copy does (settings.mjs). So on a GM's browser the frame is drawn again a quarter second after the GMs'
+       passage rows last changed (`redrawFrameSoon`): one redraw for the create, the grant and the way a GM sets in one
+       go, its hop and name replayed as a player's are on a change of the copy (the stage's default of 23.10). Whether v14
+       fires `clientSettingChanged` for a store merged from another GM is the harness's model only (LIVE-H82-03 (c)). */
+    Hooks.once("ready", () => {
+        if (!game.user?.isGM) return;
+        Hooks.on("clientSettingChanged", key => { if (key === `${MODULE_ID}.${SETTINGS.gmPassageMap}`) redrawFrameSoon(); });
+    });
 
     /*
      * THE SEAM COLOUR IS A DOM FACT, SO IT IS WATCHED IN THE DOM.
@@ -3821,6 +3831,16 @@ export function redrawOutline(room = null) {
     if (room !== null && standing.room !== room) return false;
     flashOutline(standing.fx, standing.region, standing.rect, standing.level, { actor: standing.actor ?? null, elevation: standing.elevation ?? null });
     return true;
+}
+
+/* The GM's frame drawn again 250 ms after the GMs' passage rows last changed (H82-05; `registerFog`'s listener). */
+let frameTimer = null;
+function redrawFrameSoon() {
+    clearTimeout(frameTimer);
+    frameTimer = setTimeout(() => {
+        frameTimer = null;
+        try { redrawOutline(); } catch (err) { debug("Fog: could not redraw the GM's frame", err); }
+    }, 250);
 }
 
 /**
