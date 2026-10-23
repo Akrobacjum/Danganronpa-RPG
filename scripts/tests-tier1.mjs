@@ -18473,6 +18473,60 @@ const INVARIANTS = [
         ok(/\[M\.TUNNEL_CROSSING\]:\s*true/.test(fnSource(src, "crossTunnel")),
             "passages-gm.mjs crossTunnel's landing write does not carry movement.mjs TUNNEL_CROSSING: on the primary GM, a GM's own crossing onto the far end's square would be taken for a move onto it");
     }],
+    ["R940 - a player's and an Assistant GM's dice look is the GM's appearance with no special effects (H82-01): from a GM who holds effects - one marked for everyone, one not, one that runs a macro - the look a forced user is held to has the GM's appearance, its library die owned by the GM, and no effect; a player or an Assistant who holds that appearance with the GM's effects, as 1.2.80 wrote them, or with effects of its own, is put back to none, and one with none is left; the GM's own copy keeps every effect, and nothing else in dice-sync.mjs reads an effects list off a user", async () => {
+        /*
+         * H82-01 (23.10.2026; the owner, 21.10: "Jest tez delay przy rzucaniu koscmi czego nie bylo"). E16 C3 (1.2.80) wrote the
+         * GM's whole special-effects list on every player and Assistant GM, and Dice So Nice 6.2.9 does not mark a throw finished
+         * until each effect matched on its dice has started, 100 ms plus 0-750 ms at random each (DiceSFXManager.js
+         * `playDelayBase`, `playDelayJitter`, read in DSN's 6.2.9 source by the H82 investigation, not measured at a table). The
+         * module's drawn roll and Daggerheart's own roll wait for that finish (in the investigation's harness probe, holding Dice So
+         * Nice 600 ms moved a player's drawn roll from 13.7 to 614.5 ms). Now a forced user holds the GM's appearance and no effect
+         * at all; an effect the GM marks for everyone reaches a throw through Dice So Nice's own merge (Dice3D.js
+         * `ALL_CUSTOMIZATION`: every other GM's effects with `options.isGlobal`, where the browser showing the throw has DSN's
+         * `showOthersSFX` on - read, not tried), as in 1.2.79. Read on stubs, pure (dice-sync.mjs
+         * `sourceLookOf`, `lookFrom`, `holdsTableLook`, `isForced`): no user is written. The source check reads every
+         * `getFlag(DSN, "sfxList")` outside the copy (`sourceLookOf`) and a user's own (`lookOf`), so that no other road builds a
+         * forced user's look from the GM's effects. Red at 9d6e675 (with only the exports and `lookFrom`'s one argument for the
+         * source's look, which change nothing): the look carries the GM's two effects with no macro, a player holding them is left,
+         * and `canonicalLook` reads the GM's list.
+         */
+        const S = await import("./dice-sync.mjs");
+        const J = v => stableJson(v);
+        const parts = ["sourceLookOf", "lookFrom", "holdsTableLook", "isForced"];
+        ok(parts.every(name => typeof S[name] === "function"),
+            "dice-sync.mjs has no copy of the source's look, look builder, comparison or forced test to read - nothing below would be read");
+        if (!parts.every(name => typeof S[name] === "function")) return;
+        const DSN = "dice-so-nice", GM = "R940GM";
+        const appearance = { global: { colorset: "fire", material: "metal" }, d20: { colorset: "ice", libraryDieId: "r940-d20" } };
+        const owned = { global: { colorset: "fire", material: "metal" }, d20: { colorset: "ice", libraryDieId: "r940-d20", libraryDieOwner: GM } };
+        const effects = [
+            { diceType: "d12", onResult: ["12"], specialEffect: "PlayAnimationBright", options: {} },
+            { diceType: "d20", onResult: ["20"], specialEffect: "PlaySoundEpicWin", options: { isGlobal: true } },
+            { diceType: "d20", onResult: ["1"], specialEffect: "PlayMacro", options: { macroId: "r940-macro" } }];
+        // What 1.2.80 wrote on every forced user: the GM's effects but the macro.
+        const asWritten = effects.filter(effect => effect.specialEffect !== "PlayMacro");
+        const own = [{ diceType: "d6", onResult: ["6"], specialEffect: "PlayAnimationDark", options: {} }];
+        const stub = (id, role, flags, color = null) => ({ id, name: id, role, color,
+            getFlag: (scope, key) => (scope === DSN ? flags[key] : undefined) });
+        const gmFlags = { appearance: foundry.utils.deepClone(appearance), sfxList: foundry.utils.deepClone(effects) };
+        const gm = stub(GM, CONST.USER_ROLES.GAMEMASTER, gmFlags, "#aa0000");
+        const copy = S.sourceLookOf(gm);
+        const look = S.lookFrom(gm, copy);
+        const holding = (id, role, sfxList) => stub(id, role, sfxList === undefined ? { appearance: owned } : { appearance: owned, sfxList });
+        const users = [holding("R940P1", CONST.USER_ROLES.PLAYER, asWritten), holding("R940P2", CONST.USER_ROLES.PLAYER),
+            holding("R940P3", CONST.USER_ROLES.TRUSTED, own), holding("R940A1", CONST.USER_ROLES.ASSISTANT, asWritten)];
+        equal(J({ look, copy: [J(copy.appearance) === J(appearance), J(copy.sfxList) === J(effects), copy.color], gm: J(gmFlags) === J({ appearance, sfxList: effects }) }),
+            J({ look: { appearance: owned, sfxList: [] }, copy: [true, true, "#aa0000"], gm: true }),
+            "the look a forced user is held to is not the GM's appearance with no effect, or the GM's own copy lost an effect or its appearance, or building the look changed the GM's flags (look: { appearance, sfxList }; copy: [its appearance the GM's, its effects all three, its colour]; gm: the GM's flags as found)");
+        equal(J(users.map(user => [S.isForced(user), S.holdsTableLook(user, look)])), J([[true, false], [true, true], [true, false], [true, false]]),
+            "a player or an Assistant holding the GM's effects or its own is not put back to none, or one holding none is written again ([forced, holds the table's look] for: a player with the GM's effects as 1.2.80 wrote them, a player with none, a trusted player with its own, an Assistant with the GM's)");
+        ok(!S.isForced(gm), "the GM the look comes from is taken for a forced user: its own look would be written over");
+        const src = stripComments(new Map(await otherSources()).get("dice-sync.mjs") ?? "");
+        const reads = text => (text.match(/getFlag\(\s*DSN\s*,\s*"sfxList"\s*\)/g) ?? []).length;
+        const rest = src.replace(fnSource(src, "sourceLookOf"), "").replace(fnSource(src, "lookOf"), "");
+        equal(J([reads(src) >= 2, reads(rest)]), J([true, 0]),
+            "dice-sync.mjs reads a user's effects list somewhere other than the source's copy (`sourceLookOf`) and a user's own look (`lookOf`): a forced user's look may be built from the GM's effects there ([the copy and a user's own read, reads elsewhere])");
+    }],
 ];
 
 /**

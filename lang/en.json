@@ -234,7 +234,7 @@
     "Settings": {
       "forceDiceLook": {
         "name": "One dice look for the table",
-        "hint": "Every player and Assistant GM throws Dice So Nice dice and effects in the look of one full Gamemaster, fixed the first time the game runs with it on, and a change of their own goes back to it. Another full Gamemaster's own look stays theirs and changes nothing for the table. Each keeps their own display and performance settings. Switching this off gives nobody their old look back."
+        "hint": "Every player and Assistant GM throws Dice So Nice dice in the look of one full Gamemaster, fixed the first time the game runs with it on, with no special effects but those that Gamemaster marks as global, and a change of their own goes back to it. Another full Gamemaster's own look stays theirs and changes nothing for the table. Each keeps their own display and performance settings. Switching this off gives nobody their old look back."
       },
       "forcePrivateRolls": {
         "name": "Force private player rolls",
