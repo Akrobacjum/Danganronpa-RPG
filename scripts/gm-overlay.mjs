@@ -53,11 +53,15 @@ export function overlayLayer(name) {
     return layer;
 }
 
-/** Everything a layer holds, taken off and destroyed. */
+/**
+ * Everything a layer holds, taken off and destroyed, with what each holds: since H82 C3 a tunnel's Graphics on
+ * the layer "passages" holds the words under its ends (passages-gm.mjs `endWords`), and PIXI's own `destroy`
+ * leaves a child's text and its texture alive unless asked for the children too.
+ */
 export function clearLayer(layer) {
     for (const child of [...(layer?.children ?? [])]) {
         layer.removeChild(child);
-        child.destroy?.();
+        child.destroy?.({ children: true });
     }
 }
 

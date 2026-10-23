@@ -1736,6 +1736,29 @@ async function phaseT({ gm, p1, p2, p3, check, phase, settle, dump, socketTraffi
             && worldPrint(d3) === found && worldScan(d3).length === 0,
         J({ on2, on3, others, rows: rows.map(t => ({ to: t.to, from: t.from })), diff: printDiff(found, worldPrint(d3)) }));
 
+    /* H82-04 (23.10.2026): the GMs' overlay says where each end leads - the room beyond by its own name, which no knower's
+       mark gives a GM - and, made one way, where the way out comes from, with an arrowhead on the link. Read off the GM's
+       own overlay as the store's change drew it again, nothing asked of it; the arrow as the polygons the tunnel's
+       Graphics drew (lib/shim.mjs records the calls). How it reads on a real canvas is LIVE-H82-03. Not run at 4e20bf6:
+       R941 is this commit's red first. Measured with it: 98 checks, 97 passed and 1 expected red, in 189.9 s by run-all's
+       line, one run alone under the harness lock (23.10.2026) - the bound of 250 s stands. */
+    const overlayOf = () => gm.eval(`const box = canvas.interface.children.find(c => c.name === "drpgGmOverlay");
+        const g = (box?.children.find(c => c.name === "passages")?.children ?? []).find(c => c.name === ${J(id)});
+        return g ? { words: g.children.filter(c => c instanceof PIXI.Text).map(c => [c.text, c.alpha, c.position.x, c.position.y]),
+            arrows: (g._calls ?? []).filter(([k]) => k === "drawPolygon").length } : null;`);
+    const both = await overlayOf();
+    const oneWay = await gm.eval(`const G = await import("${repoUrl}/scripts/passages-gm.mjs"); return await G.setPassageWay(${J(id)}, 0);`, { timeout: 30000 });
+    let one = await overlayOf();
+    for (const t0 = Date.now(); one?.arrows !== 1 && Date.now() - t0 < 4000;) {
+        await settle(200);
+        one = await overlayOf();
+    }
+    const say = await gm.eval(`return [["to", "Gym"], ["to", "Dorm A"], ["from", "Dorm A"]].map(([k, room]) => game.i18n.format("DRPG.Passage.mark." + k, { room }));`);
+    check("T (H82-04): the GM's overlay names under each ring the room that end leads to, dimmed - the Gym at Dorm A's end, Dorm A at the Gym's - with no arrow; made one way from Dorm A, the Gym's end says where it comes from and the link carries one arrowhead",
+        J(both) === J({ words: [[say[0], 0.7, 750, 788], [say[1], 0.7, 1950, 1788]], arrows: 0 })
+            && oneWay === true && J(one) === J({ words: [[say[0], 0.7, 750, 788], [say[2], 0.7, 1950, 1788]], arrows: 1 }),
+        J({ both, oneWay, one, say }));
+
     const closed = await gm.eval(`return await game.drpg.passages.close(${J(id)});`);
     const shut = await until(p1, held => !held?.[id]);
     const shutMarks = await markOf(p1, IDS.aiko);

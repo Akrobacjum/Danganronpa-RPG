@@ -18527,6 +18527,103 @@ const INVARIANTS = [
         equal(J([reads(src) >= 2, reads(rest)]), J([true, 0]),
             "dice-sync.mjs reads a user's effects list somewhere other than the source's copy (`sourceLookOf`) and a user's own look (`lookOf`): a forced user's look may be built from the GM's effects there ([the copy and a user's own read, reads elsewhere])");
     }],
+    ["R941 - the GMs' overlay says where each secret tunnel and stairs end leads (H82-04): under each end's ring on a GM's board, 'Secret passage to {room}' with the room beyond as the map names it, 'Secret passage from {room}' at a one-way tunnel's way out, at a knower's mark's size (max(20, grid x 0.36), keyline max(4, grid x 0.07), grid x 0.38 under the end) and dimmed to 0.7; a one-way tunnel's link carries an arrowhead pointing to its way out, a two-way tunnel and stairs none; a closed tunnel and a stretch in a wall keep their dashes alone, one Graphics a passage as before; and drawn as a player, whose copy may name every passage as the Mastermind's does, nothing", async () => {
+        /*
+         * H82-04 (23.10.2026; the owner's 21.10 "dopiszmy gma widzacego przerwy", the stage's defaults: every passage,
+         * dimmed, on a GM's browser alone, Assistant GMs too). The harm: a GM looking at the board sees two rings joined by a
+         * dashed line and cannot tell where a stairs end comes out, which room a knower's mark names, or which way a
+         * one-way tunnel goes, without opening the Passages tab. Read on a layer of the test's own with a store of an
+         * engine of its own on R594's scene (the Kitchen and the Hall on the first floor, the Attic on the second): each
+         * tunnel's Graphics, the words it holds (text, size, keyline, alpha, place) and the polygon it draws (the harness's
+         * stub records the call, PIXI's own keeps it in `geometry.graphicsData`). The room beyond is read by the knower's
+         * own reading, movement.mjs `passageRooms`, loaded through `loadTunnelRooms`. A player's browser is `gm: false`:
+         * the gate is the role, never what the rows hold. How the words and the arrow read on a real canvas, at a table's
+         * zoom and in both themes, is not seen here (LIVE-H82-03). Red at 4e20bf6 on its first assertion, no words drawn
+         * under any ring; the later ones were not reached there.
+         */
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const P = await import("./passages-gm.mjs");
+        const O = await import("./gm-overlay.mjs");
+        const J = stableJson;
+        let now = 9_941_000;
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R941GM", isGM: () => true, isPrimary: () => true, worldId: () => "R941WORLD",
+            activeGmIds: () => [], primaryGmId: () => "R941GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => now++,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const map = eng.define({ ...S.passageMapStore.spec, name: "r941Map", key: "r941Map", afterRestore: undefined, exists: undefined });
+        const [L1, L2] = ["R941L1", "R941L2"];
+        const region = (id, name, x, y, width, height, levels) => ({ id, name, behaviors: [], getFlag: () => true, shapes: [{ x, y, width, height }],
+            levels: new Set(levels) });
+        const site = { id: "R941SCENE", name: "R941", grid: { size: 100 }, levels: [{ id: L1, elevation: 0 }, { id: L2, elevation: 10 }],
+            regions: [region("R941RK", "R941 Kitchen", 1200, 800, 800, 300, [L1]), region("R941RH", "R941 Hall", 1200, 200, 800, 600, [L1]),
+                region("R941RA", "R941 Attic", 2000, 200, 600, 600, [L2])],
+            walls: Object.assign([], { get: () => undefined }) };
+        const end = (x, y, level) => ({ x, y, level });
+        const tunnel = (ends, rooms, more = {}) => ({ sceneId: site.id, level: null, shape: "tunnel", ends, rooms, state: "secret", startAccess: [], ...more });
+        const [TWO, ONE, STAIRS, SHUT, WALL] = ["two", "one", "stairs", "shut", "wall"].map(k => `${site.id}.r941${k}`);
+        await map.patchMany({
+            [TWO]: tunnel([end(1250, 950, L1), end(1350, 350, L1)], ["R941 Kitchen", "R941 Hall"]),
+            [ONE]: tunnel([end(1550, 1050, L1), end(1650, 450, L1)], ["R941 Kitchen", "R941 Hall"], { oneWay: 0 }),
+            [STAIRS]: tunnel([end(1850, 950, L1), end(2150, 350, L2)], ["R941 Kitchen", "R941 Attic"], { oneWay: 1 }),
+            [SHUT]: tunnel([end(1450, 950, L1), end(1450, 350, L1)], ["R941 Kitchen", "R941 Hall"], { oneWay: 0, state: "closed" }),
+            [WALL]: { sceneId: site.id, level: L1, shape: "wall", passageWallId: "R941W", passageSeg: { x1: 1700, y1: 800, x2: 1800, y2: 800 },
+                rooms: ["R941 Hall", "R941 Kitchen"], state: "secret", startAccess: [] }
+        });
+        if (typeof P.loadTunnelRooms === "function") await P.loadTunnelRooms();
+        const polygonsOf = g => (g?._calls
+            ? g._calls.filter(([k]) => k === "drawPolygon").map(([, a]) => [...(Array.isArray(a[0]) ? a[0] : a)])
+            : (g?.geometry?.graphicsData ?? []).filter(d => d?.shape instanceof PIXI.Polygon).map(d => [...d.shape.points]));
+        const secret = O.overlayColour("--drpg-passage-secret", 0xff3d8b);
+        const layer = new PIXI.Container();
+        const drawn = (level, o = {}) => {
+            const count = P.drawPassagesLayer(layer, { stores: { map }, scene: site, level, ...o });
+            const out = {};
+            for (const g of layer.children) {
+                out[String(g.name).replace(`${site.id}.r941`, "")] = {
+                    words: (g.children ?? []).filter(c => c instanceof PIXI.Text)
+                        .map(c => [c.text, c.style?.fontSize, c.style?.strokeThickness, c.alpha, c.position?.x, c.position?.y, c.style?.fill === secret]),
+                    polygons: polygonsOf(g)
+                };
+            }
+            return [count, layer.children.length, out];
+        };
+        let first, second, player, tunnels;
+        try {
+            first = drawn(L1);
+            second = drawn(L2);
+            tunnels = P.passageTunnels(site.id, L1, { stores: { map } }).filter(t => t.id === STAIRS || t.id === ONE).sort((a, b) => (a.id < b.id ? -1 : 1));
+            player = [drawn(L1, { gm: false }), P.passageTunnels(site.id, L1, { stores: { map }, gm: false }), P.passageStretches(site.id, L1, { stores: { map }, gm: false })];
+        } finally {
+            layer.destroy({ children: true });
+        }
+        const to = room => game.i18n.format("DRPG.Passage.mark.to", { room }), from = room => game.i18n.format("DRPG.Passage.mark.from", { room });
+        const size = [36, 7, 0.7];
+        const at = (text, x, y) => [text, ...size, x, y + 38, true];
+        const arrow = first?.[2]?.one?.polygons ?? [];
+        equal(J([first?.[0], first?.[1], Object.fromEntries(Object.entries(first?.[2] ?? {}).map(([k, v]) => [k, v.words])), second?.[2]?.stairs?.words ?? null]),
+            J([5, 5, { one: [at(to("R941 Hall"), 1550, 1050), at(from("R941 Kitchen"), 1650, 450)], shut: [], stairs: [at(from("R941 Attic"), 1850, 950)],
+                two: [at(to("R941 Hall"), 1250, 950), at(to("R941 Kitchen"), 1350, 350)], wall: [] }, [at(to("R941 Kitchen"), 2150, 350)]]),
+            "[drawn on the first floor: passages, Graphics, each passage's words as [text, size, keyline, alpha, x, y, in the passage colour]; the stairs' words on the second floor] - each end must say where it leads, the way out where it comes from");
+        // The arrowhead: three points, read along the link from the way in (1550, 1050) to the way out (1650, 450).
+        const ux = 100 / Math.hypot(100, 600), uy = -600 / Math.hypot(100, 600), round = v => Math.round(v * 100) / 100;
+        const along = (arrow[0] ?? []).length === 6 ? [0, 1, 2].map(i => round((arrow[0][2 * i] - 1600) * ux + (arrow[0][2 * i + 1] - 750) * uy)).sort((a, b) => a - b) : null;
+        const tip = (arrow[0] ?? []).length === 6 ? [0, 1, 2].map(i => [arrow[0][2 * i], arrow[0][2 * i + 1]])
+            .reduce((best, p) => ((p[0] - 1600) * ux + (p[1] - 750) * uy > (best[0] - 1600) * ux + (best[1] - 750) * uy ? p : best)) : null;
+        const nearer = tip ? Math.hypot(tip[0] - 1650, tip[1] - 450) < Math.hypot(tip[0] - 1550, tip[1] - 1050) : null;
+        equal(J([arrow.length, along, nearer, ["two", "stairs", "shut", "wall"].map(k => first?.[2]?.[k]?.polygons?.length ?? null), second?.[2]?.stairs?.polygons?.length ?? null]),
+            J([1, [-15, -15, 15], true, [0, 0, 0, 0], 0]),
+            "[the one-way tunnel's polygons, its three points along the link from its middle, its tip nearer the way out; polygons of the two-way tunnel, the stairs, the closed tunnel and the wall stretch; the stairs' upstairs] - only a one-way tunnel's link may carry an arrow, and it must point to the way out");
+        equal(J(tunnels.map(t => [t.id === ONE ? "one" : "stairs", t.state, t.oneWay, t.ends])),
+            J([["one", "secret", 0, [{ x: 1550, y: 1050, level: L1, index: 0, far: end(1650, 450, L1) }, { x: 1650, y: 450, level: L1, index: 1, far: end(1550, 1050, L1) }]],
+                ["stairs", "secret", 1, [{ x: 1850, y: 950, level: L1, index: 0, far: end(2150, 350, L2) }]]]),
+            "[each tunnel the overlay draws: its state, the end it is entered from, and each end on the floor with its index and the end beyond]");
+        equal(J([player?.[0], player?.[1], player?.[2]]), J([[0, 0, {}], [], []]),
+            "[drawn as a player: passages, Graphics, words; the tunnels and stretches a player's browser is given] - the GMs' overlay drew on a player's browser because the rows were there");
+    }],
 ];
 
 /**
