@@ -389,6 +389,10 @@ export async function applyBreakout(room) {
     if (landedCorrectly(target)) return "unchanged";
 
     const client = liveKitClient();
+    // How long the switch itself took (H82-03): avclient-livekit's disconnect, new tracks, token and connect - the part
+    // the tile shows as "Connecting", which no harness can time (its shim connects at once). Said in the Debug log on
+    // every connect, whatever its outcome, for a table to read (LIVE-H82-02).
+    const startedAt = performance.now();
     let connected = false;
     setApplying(true);
     try {
@@ -403,6 +407,7 @@ export async function applyBreakout(room) {
         return "failed";
     } finally {
         setApplying(false);
+        debug(`Voice: the connect for "${target ?? "the main room"}" took ${Math.round(performance.now() - startedAt)} ms.`);
     }
 
     if (connected === false) {

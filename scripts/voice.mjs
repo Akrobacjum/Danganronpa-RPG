@@ -56,7 +56,9 @@ const AV_MODULE = "avclient-livekit";
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 
 /** Coalesces a burst of token moves (a drag, several players placing at once)
- *  into a single reassignment pass rather than reconnecting mid-drag. */
+ *  into a single reassignment pass rather than reconnecting mid-drag. A settled
+ *  move is decided at once besides (the updateToken hook, H82-02), and this pass
+ *  after it is the backstop. */
 const RECONCILE_DEBOUNCE_MS = 1500;
 
 /**
@@ -76,7 +78,19 @@ export function registerVoice() {
     Hooks.on("updateToken", (doc, changes) => {
         if (!followsVoice(doc)) return;
         // A change of floor is a move (rooms.mjs `isMoveChange`, E12 C9): x and y alone missed a climb.
-        if (isMoveChange(changes)) scheduleReconcile();
+        if (!isMoveChange(changes)) return;
+        // A settled move - no waypoints pending, the test fog.mjs `onUpdateToken` and movement.mjs `judgeMove` read
+        // for a move that has ended - is decided at once (H82-02; the owner's 21.10.2026 "Delay przy laczeniu z nowym
+        // pokojem"). Until H82 every move only re-armed the one module-wide debounce below, so a crossing waited
+        // RECONCILE_DEBOUNCE_MS before anybody's room was decided, and any other character's step started the wait
+        // again: scenario 75 H measured the GM's voice.assign at +1507 ms after the GM's update, and at +5518 ms with
+        // Botan stepping inside the Cafeteria every second (896f6bf); decided here, +8 ms and +3-5 ms (two runs). The
+        // pass sends only the accounts whose room changed (`assignUser`'s `settled` and `inFlight`). The debounced
+        // pass stays after it as a backstop that reads the token where it stands, and a step of a drag still in flight
+        // waits for it alone, so no voice is reconnected mid-drag - as far as v14 marks a drag's steps pending
+        // (LIVE-E78-14, LIVE-E79-19).
+        if (!doc.movement?.pending?.waypoints?.length) scheduleReconcile({ immediate: true });
+        scheduleReconcile();
     });
     // A token dragged onto the map from the sidebar is a `createToken`, not an
     // `updateToken`, and placing one during an Eclipse is the single most common
