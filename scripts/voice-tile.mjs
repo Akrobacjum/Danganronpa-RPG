@@ -95,8 +95,8 @@
  * The tile and the list send no socket and no packet, write no world setting and no document but the GM's block,
  * and set an element's volume only in `setPeerVolume`.
  *
- * THE STATE WORD (E79 C15, 1.2.79; the owner's N10 of 14.10.2026, N12 and N15 of 15.10.2026). While nobody is drawn
- * the tile says in one word how this browser's voice stands, running as the clock's ticker does (utils.mjs
+ * THE STATE WORD (E79 C15, 1.2.79; the owner's N10 of 14.10.2026, N12 and N15 of 15.10.2026). The tile says in one
+ * word how this browser's voice stands, running as the clock's ticker does (utils.mjs
  * `tickerRuns`, two aria-hidden copies): Own window (avclient-livekit's own window), Eclipsed (either hold of the
  * Eclipse), Connecting (this module moving the Room - voice-client.mjs `voiceApplying` - or the Room connecting or
  * reconnecting), Disconnected (no Room, or a Room in any other state than connected), Blocked (a GM's block, while
@@ -105,7 +105,12 @@
  * voice." (the owner's "error"). The sentence each word stands for is the word's `title` and the tile's polite
  * live text (`.drpg-voice-tile-nobody`, read by a screen reader, never seen); the note under the buttons no longer
  * shows (the stylesheets hide it as the live text is hidden; `paintMic` still writes it, the microphone's
- * description). The Room's state is read off the Room the watch follows, and is "connected" only when the Room says
+ * description). Since H81-10 (the owner's 1.2.80 table and answer B, 20.10.2026) the word stays while a speaker is
+ * drawn, at the tile's top over the picture (both stylesheets): until then `voiceWord` answered none with a face, and
+ * the word went while somebody spoke. With a face a connected Room's sentence (the word's `title`) is
+ * DRPG.Voice.held.connected, not "Nobody is speaking"; the live text is hidden while a face is drawn, as it was, and
+ * is written only while none is, so a speaker's coming and going writes nothing into it, as before.
+ * The Room's state is read off the Room the watch follows, and is "connected" only when the Room says
  * so; the names of livekit-client's states other than "connected" and "disconnected" ("connecting",
  * "reconnecting", "signalReconnecting") are the prep's reading of livekit-client, not read here (LIVE-E79-21).
  *
@@ -158,7 +163,8 @@ const WORDS = {
     connecting: { word: "DRPG.Voice.tile.state.connecting", line: "DRPG.Voice.held.connecting" },
     disconnected: { word: "DRPG.Voice.tile.state.disconnected", line: "DRPG.Voice.held.offline" },
     blocked: { word: "DRPG.Voice.tile.state.blocked", line: "DRPG.Voice.held.gmBlock" },
-    connected: { word: "DRPG.Voice.tile.state.connected", line: "DRPG.Voice.tile.nobody" }
+    connected: { word: "DRPG.Voice.tile.state.connected", line: "DRPG.Voice.tile.nobody" },
+    speaking: { word: "DRPG.Voice.tile.state.connected", line: "DRPG.Voice.held.connected" }
 };
 
 /** A Room's states that are on the way to "connected" (livekit-client's names, as the prep read them; LIVE-E79-21). */
@@ -356,7 +362,7 @@ export function buildVoiceTile({ onMic = () => toggleOwnMic(), onSpeaker = tile 
     controls.append(mic, speaker);
 
     /* The state word (E79 C15): two runs of the word, read by nobody (the sentence is the live text after it, and the
-       word's own `title`); hidden while a speaker is drawn. The live text was the "nobody" line, which a screen
+       word's own `title`); kept while a speaker is drawn since H81-10. The live text was the "nobody" line, which a screen
        reader read while nobody spoke; it now says the sentence of the state, politely, as it changes. */
     const word = textNode("div", "drpg-voice-tile-state", "");
     word.hidden = true;
@@ -782,27 +788,28 @@ function channelCount(watch, gone = null) {
 }
 
 /**
- * The tile's state word while nobody is drawn, or `null` while somebody is (E79 C15, 1.2.79; the owner's N10, N12
- * and N15): `{ word, line }`, the keys of the word and of the sentence it stands for (`WORDS`). In this order:
+ * The tile's state word (E79 C15, 1.2.79; the owner's N10, N12 and N15), whether or not a speaker is drawn (H81-10):
+ * `{ word, line }`, the keys of the word and of the sentence it stands for (`WORDS`). In this order:
  * avclient-livekit's own window; either hold of the Eclipse (N12: "only 'Eclipsed' in an Eclipse", whether or not
  * the Room is up yet); this module moving the Room, or the Room on its way; any Room that is not connected, and no
  * Room at all; a GM's block, only while connected (with no connection the player hears nobody anyway); connected.
  * Never connected before the Room says so: `state` is the Room's own, and "connected" is the one value that is.
+ * Connected with a face drawn stands for DRPG.Voice.held.connected, since somebody is speaking (`WORDS.speaking`).
  *
  * @param {object} [facts]
  * @param {boolean} [facts.face]      whether a speaker is drawn
  * @param {object|null} [facts.hold]  `micHold`'s answer, asked as if connected
  * @param {string|null} [facts.state] the watch's Room's `state`, `null` with no Room
  * @param {boolean} [facts.applying]  voice-client.mjs `voiceApplying()`
- * @returns {{word: string, line: string}|null}
+ * @returns {{word: string, line: string}}
  */
 export function voiceWord({ face = false, hold = null, state = null, applying = false } = {}) {
-    if (face) return null;
     const reason = hold?.reason;
     if (reason === "external" || reason === "eclipse" || reason === "eclipseHeard") return WORDS[reason];
     if (applying === true || CONNECTING.includes(state)) return WORDS.connecting;
     if (state !== "connected") return WORDS.disconnected;
-    return reason === "gmBlock" ? WORDS.blocked : WORDS.connected;
+    if (reason === "gmBlock") return WORDS.blocked;
+    return face ? WORDS.speaking : WORDS.connected;
 }
 
 /** What each tile's state word shows now, as `painted` holds the speaker's. */
@@ -810,7 +817,7 @@ const paintedWord = new WeakMap();
 
 /**
  * Draw the state word on the watch's tile: the two runs (`tickerRuns`) of the word, its sentence as their `title`
- * and as the tile's live text, `data-word` for the stylesheets; nothing while a speaker is drawn. Writes only what
+ * and as the tile's live text, `data-word` for the stylesheets; a speaker drawn keeps it (H81-10). Writes only what
  * differs from what the tile shows, so a speaker's pauses write nothing (R536). A hold that throws reads as none.
  *
  * @param {object} watch
@@ -827,9 +834,9 @@ function paintWord(watch, face) {
         hold = null;
     }
     const now = voiceWord({ face, hold, state: watch.room?.state ?? null, applying: watch.applying?.() === true });
-    const next = { word: now ? game.i18n.localize(now.word) : "", line: now ? game.i18n.localize(now.line) : "" };
+    const next = { word: now ? game.i18n.localize(now.word) : "", line: now ? game.i18n.localize(now.line) : "", face: face === true };
     const last = paintedWord.get(tile) ?? {};
-    if (last.word === next.word && last.line === next.line) return false;
+    if (last.word === next.word && last.line === next.line && last.face === next.face) return false;
     paintedWord.set(tile, next);
     if (last.word !== next.word) {
         box.replaceChildren(...(next.word ? tickerRuns(next.word) : []));
@@ -839,7 +846,9 @@ function paintWord(watch, face) {
     }
     if (next.line) {
         box.title = next.line;
-        if (said.textContent !== next.line) said.textContent = next.line;
+        // The live text is hidden while a face is drawn (`paint`): written then, a polite live region would change
+        // with every speaker (H81-10). With the face gone `next.face` differs from `last`'s, so it is written then.
+        if (!next.face && said.textContent !== next.line) said.textContent = next.line;
     } else box.removeAttribute("title");
     return true;
 }

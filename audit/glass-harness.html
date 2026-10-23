@@ -878,13 +878,16 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
      screen's right edge and under the pane's top edge straight above it, which the sweep pins per size (PIN_CORNER);
      the microphone's must be within 28 px of both and the speaker's straight under it, or the buttons have moved back
      in - at 60741cf they read 66/69 and 31/69 at 1366x768, side by side.
-     THE STATE WORD (E79 C15, 1.2.79; the owner's N10, N12 and N15): shown in place of the face for the reading and
-     put back before anything is drawn - the longest of the six English words, "Disconnected", in the module's two
-     runs - it must stand inside the tile with 2 px to spare, clear of the buttons and, in the full form on the wall,
-     of the name plate's box (the compact form and Monokuma Legacy give it the plate's place, empty while nobody
-     speaks), in type of 11 px or more, at opacity 1 and in an ink of
+     THE STATE WORD (E79 C15, 1.2.79; the owner's N10, N12 and N15): shown for the reading and put back before
+     anything is drawn - the longest of the six English words, "Disconnected", in the module's two runs - it must
+     stand inside the tile with 2 px to spare, clear of the buttons and of the name plate's box in every form, in
+     type of 11 px or more, at opacity 1 and in an ink of
      alpha 1, at 4.5:1 or more against its own backing laid over white and over black (the picture under it is
      anybody's), and the tile's box the same with it as without. `word` in `read`: its box, size, opacity and ratio.
+     Since H81-10 (the owner's 1.2.80 table, 20.10.2026: the word at the top, kept while somebody speaks) it is read
+     beside the face as it is drawn, not in its place: until then the compact form and Monokuma Legacy gave it the
+     plate's place, empty while nobody spoke, and only the full form on the wall was held off the plate. The sweep's
+     `plantVoice` `onPlate` stands it on the plate and must fail.
      Answers { read, why }. */
   window.drpgVoiceParts = (tile = document.getElementById("drpg-voice-tile")) => {
     const why = [], W = tile.offsetWidth, H = tile.offsetHeight;
@@ -926,9 +929,8 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
     const word = tile.querySelector(".drpg-voice-tile-state");
     if (!word) why.push("the tile has no state word");
     else {
-      const was = { face: face?.hidden, word: word.hidden, kids: [...word.childNodes] }, run = document.createElement("span");
+      const was = { word: word.hidden, kids: [...word.childNodes] }, run = document.createElement("span");
       run.textContent = Array(6).fill("Disconnected").join(" · ") + " · ";
-      if (face) face.hidden = true;
       word.hidden = false;
       word.replaceChildren(run, run.cloneNode(true));
       const r = at(word), cw = getComputedStyle(word), cr = getComputedStyle(run), size = parseFloat(cr.fontSize);
@@ -940,14 +942,13 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
       read.word = { box: r, size, opacity: [cw.opacity, cr.opacity].map(Number), ink: ink[3], ratio: Math.round(worst * 10) / 10 };
       if (!r || out(r)) why.push(`the state word at ${r} is outside the tile ${W}x${H}`);
       else if (read.buttons.some(b => b && meet(b, r))) why.push(`the state word at ${r} is under the buttons at ${read.buttons.join(" / ")}`);
-      else if (corner && read.plate && meet(r, read.plate)) why.push(`the state word at ${r} is over the name plate's box at ${read.plate}`);
+      else if (read.plate && meet(r, read.plate)) why.push(`the state word at ${r} is over the name plate's box at ${read.plate}`);
       if (!(size >= 11)) why.push(`the state word is set at ${size} px`);
       if (read.word.opacity.some(o => o !== 1) || ink[3] !== 1) why.push(`the state word is drawn at opacity ${read.word.opacity.join("/")} in an ink of alpha ${ink[3]}`);
       if (!(worst >= 4.5)) why.push(`the state word reads ${read.word.ratio}:1 on its backing`);
       if (tile.offsetWidth !== W || tile.offsetHeight !== H) why.push(`the tile is ${tile.offsetWidth}x${tile.offsetHeight} with the word and ${W}x${H} without`);
       word.replaceChildren(...was.kids);
       word.hidden = was.word;
-      if (face) face.hidden = was.face;
     }
     return { read, why };
   };
@@ -1048,6 +1049,33 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
      (S12-95; the sweep's control takes the rail away). With `cuts`: a long name, the face hidden and shown and the
      fade, then a pass, fire no drpgGlassCut - and the control, the tile taken away and put back, fires one each way. Stacked: the tile in `#drpg-tile-row` with the room tile, its portrait inside
      it, nothing of it on the body, the row inside the screen. Without glass: no place stamped, no portrait moved. */
+  /* THE STILL WORD'S BAND (H81 fix r1, 20.10.2026; the review's H81C2-02 and H81C2-03): a word that stands still is
+     read only as far as its band holds it - under Monokuma Legacy "Connecting" and "Connected" both read "CONNECT" in
+     the 69 px left of the buttons, and on a stacked screen a three-letter speaker's name left the band a letter or
+     two. The tile's words in English and Polish (lang/*.json, DRPG.Voice.tile.state) are set still in the word's own
+     font, the text alone measured (not the run's gap), and the band inside its padding is read against the widest.
+     Answers { band, need, word } or null where the tile has no word; the word is put back as it was. */
+  const voiceStillBand = async tile => {
+    const word = tile?.querySelector(".drpg-voice-tile-state");
+    if (!word) return null;
+    const langs = await Promise.all(["en", "pl"].map(l => fetch(`/lang/${l}.json`).then(r => r.json()).catch(() => null)));
+    const words = langs.flatMap(d => Object.values(d?.DRPG?.Voice?.tile?.state ?? {}));
+    const was = { hidden: word.hidden, kids: [...word.childNodes] }, run = document.createElement("span"), range = document.createRange();
+    run.style.setProperty("animation", "none", "important");
+    word.hidden = false;
+    word.replaceChildren(run);
+    let need = 0, widest = null;
+    for (const w of words) {
+      run.textContent = w;
+      range.selectNodeContents(run);
+      const width = Math.ceil(range.getBoundingClientRect().width);
+      if (width > need) { need = width; widest = w; }
+    }
+    const cs = getComputedStyle(word), band = Math.floor(word.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight));
+    word.replaceChildren(...was.kids);
+    word.hidden = was.hidden;
+    return words.length >= 12 ? { band, need, word: widest } : { band, need: null, word: `${words.length} words read off lang/en.json and lang/pl.json` };
+  };
   window.drpgVoiceCheck = async ({ cuts = true, list = cuts } = {}) => {
     const g = window.__glass, body = document.body, tile = document.getElementById("drpg-voice-tile"), W = innerWidth;
     const frame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
@@ -1076,6 +1104,19 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
       if (loose || !own) out.why.push("the portrait is not inside the tile");
       if (t.left < 0 || t.right > W + 0.5 || t.width < 44 || t.height < 44) out.why.push(`the tile is at ${out.row.box} on a screen ${W} wide`);
       if (row && row.getBoundingClientRect().right > W + 0.5) out.why.push("the row runs off the screen");
+      /* while somebody with a three-letter name speaks, the word over the face holds its widest word (H81 fix r1) */
+      const face = tile.querySelector(".drpg-voice-tile-face"), name = tile.querySelector(".drpg-voice-tile-name");
+      if (face && !face.hidden && name) {
+        const said = name.textContent;
+        name.textContent = "Mai";
+        const still = await voiceStillBand(tile);
+        if (row && row.getBoundingClientRect().right > W + 0.5) out.why.push("with a three-letter name the row runs off the screen");
+        name.textContent = said;
+        out.row.still = still && [still.band, still.need];
+        if (!still) out.why.push("the tile has no state word");
+        else if (!(still.need > 0)) out.why.push(`the state word's band was read against nothing: ${still.word}`);
+        else if (still.band < still.need) out.why.push(`with a three-letter name the state word's band holds ${still.band} px, its widest word ("${still.word}") ${still.need}`);
+      }
       return done();
     }
     if (out.expect === "none") {
@@ -1094,6 +1135,16 @@ A second paragraph.</p><button type="button" class="drpg-room-tile-thumb" aria-l
       const over = ["drpg-room-tile", "drpg-notices-corner", "drpg-hud", "drpg-player-status", "drpg-messenger-launcher", "drpg-sound-launcher", "drpg-book-launcher",
         "drpg-gm-launcher", "drpg-foundry-tools"].filter(id => { const e = document.getElementById(id), b = e?.getBoundingClientRect(); return b && b.width > 1 && b.height > 1 && meet(t, b); });
       if (over.length) out.why.push(`the tile lies over ${over.join(", ")}`);
+      /* and standing still - the ticker off - its band holds its widest word (H81 fix r1): read with the switch's class
+         on the body for the reading alone (no curtain is cut here to recut), and put back */
+      const off = body.classList.contains("drpg-no-ticker");
+      if (!off) body.classList.add("drpg-no-ticker");
+      const still = await voiceStillBand(tile);
+      if (!off) body.classList.remove("drpg-no-ticker");
+      out.still = still && [still.band, still.need];
+      if (!still) out.why.push("the tile has no state word");
+      else if (!(still.need > 0)) out.why.push(`the state word's band was read against nothing: ${still.word}`);
+      else if (still.band < still.need) out.why.push(`standing still the state word's band holds ${still.band} px, its widest word ("${still.word}") ${still.need}`);
       return done();
     }
     const v = g.LAST.voice, pane = g.LAST.panes.find(p => p.tone === "voice-block"), check = g.CHECKS.at(-1);

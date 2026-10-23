@@ -438,7 +438,10 @@ export async function gatherEveryone(room, onScene = null, { held = null, box = 
     // movement.mjs exempts GM-initiated moves outright.
     let moved;
     try {
-        await region.teleportTokens(tokens, { placement: "random", snap: true, pan: false });
+        // This browser's own placing (movement.mjs `whilePlacing`, H81 fix C3): a knower it lands on a tunnel's end
+        // does not go through, whatever options Foundry's teleport writes (LIVE-H81-03).
+        const { whilePlacing } = await import("./movement.mjs");
+        await whilePlacing(tokens, () => region.teleportTokens(tokens, { placement: "random", snap: true, pan: false }));
         moved = tokens.length;
     } catch (err) {
         error("Region teleport failed; falling back to a direct placement", err);
@@ -479,7 +482,9 @@ export async function gatherEveryone(room, onScene = null, { held = null, box = 
  */
 export async function teleportInto(scene, region, tokens) {
     try {
-        await region.teleportTokens(tokens, { placement: "random", snap: true, pan: false });
+        // As the gather's (movement.mjs `whilePlacing`, H81 fix C3): a knower placed on a tunnel's end does not go through.
+        const { whilePlacing } = await import("./movement.mjs");
+        await whilePlacing(tokens, () => region.teleportTokens(tokens, { placement: "random", snap: true, pan: false }));
         return tokens.length;
     } catch (err) {
         error("Region teleport failed; falling back to a direct placement", err);

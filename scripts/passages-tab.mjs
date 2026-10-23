@@ -34,16 +34,20 @@
  * stairs), Origin (the GM's, or a converted secret door), then who knows it, the start, the state and the buttons,
  * where 'Make public' and 'Make secret' stand beside Close (passages-gm.mjs `makePassagePublic`, `makePassageSecret`).
  * A public passage's chips stay the students who knew it before, whom Make secret leaves knowing it.
+ *
+ * Since H81 (20.10.2026; the owner's calls C and E of 20.10) a tunnel's Shape holds which way it goes - both ways, or
+ * from one of its rooms to the other (`wayPicker`, passages-gm.mjs `setPassageWay`) - and 'At season start' carries a
+ * line, and the footnote a sentence, saying it gives the passage at the next season's reset and nothing now.
  */
 
 import { error } from "./utils.mjs";
 import { keepFresh } from "./live.mjs";
 import {
-    PASSAGE_STORES, listPassages, grantPassage, revokePassage, revokeWhenLeaving, setStartAccess,
+    PASSAGE_STORES, listPassages, grantPassage, revokePassage, revokeWhenLeaving, setStartAccess, setPassageWay,
     closePassage, openPassage, deletePassage, isMastermindActor, undeliveredOf, passageMiddle, startPassagePick, passageRoomsOnMap,
     makePassagePublic, makePassageSecret
 } from "./passages-gm.mjs";
-import { viewPassage } from "./passages.mjs";
+import { viewPassage, oneWayOf } from "./passages.mjs";
 
 const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
 const t = key => game.i18n.localize(key);
@@ -78,6 +82,21 @@ function adder(menu, act, offer, label) {
         aria-label="${esc(label)}" title="${esc(label)}" aria-expanded="false">+</button><span class="drpg-passage-menu" data-drpg-menu-of="${menu}" hidden>${
         offer.map(a => `<button type="button" class="drpg-mini-button" data-drpg-passage-act="${act}" data-drpg-actor="${esc(a.id)}">${
             esc(a.name)}</button>`).join("")}</span>`;
+}
+
+/**
+ * Which way a tunnel or stairs goes, under its Shape (H81-02, 20.10.2026; the owner's call of 20.10): 'Both ways', or
+ * only from one end's room to the other's, each room as the row names it (`rooms`, in the order of the ends). Its change
+ * writes through passages-gm.mjs `setPassageWay`, as every button here writes at once. None for a passage in a wall.
+ */
+function wayPicker(passage) {
+    if (passage.shape !== "tunnel" || !Array.isArray(passage.ends)) return "";
+    const rooms = [0, 1].map(i => (typeof passage.rooms?.[i] === "string" && passage.rooms[i] ? passage.rooms[i] : t("DRPG.Passage.tab.noRooms")));
+    const now = String(oneWayOf(passage) ?? "both");
+    const option = (value, label) => `<option value="${value}"${now === value ? " selected" : ""}>${esc(label)}</option>`;
+    return `<select class="drpg-passage-way" data-drpg-passage-way aria-label="${esc(t("DRPG.Passage.tab.way"))}" title="${esc(t("DRPG.Passage.tab.way"))}">${
+        option("both", t("DRPG.Passage.tab.wayBoth"))}${option("0", tf("DRPG.Passage.tab.wayOnly", { from: rooms[0], to: rooms[1] }))}${
+        option("1", tf("DRPG.Passage.tab.wayOnly", { from: rooms[1], to: rooms[0] }))}</select>`;
 }
 
 /** The players (no GM) who own a student - every one of them is sent the passages it knows (the plan's K12). */
@@ -122,7 +141,7 @@ function rowHtml(passage, { stores, students, actors, users, told }) {
     return `<tr data-drpg-passage="${esc(passage.id)}">
         <td>${esc(passageTitle(passage))}</td>
         <td><span class="drpg-passage-kind" data-kind="${kind}">${esc(t(kind === "public" ? "DRPG.Passage.tab.kindPublic" : "DRPG.Passage.tab.kindSecret"))}</span></td>
-        <td>${esc(t(`DRPG.Passage.tab.${shape}`))}</td>
+        <td>${esc(t(`DRPG.Passage.tab.${shape}`))}${wayPicker(passage)}</td>
         <td>${esc(t(`DRPG.Passage.tab.${origin}`))}</td>
         <td><span class="drpg-passage-chips">${knowsCell}</span></td>
         <td><span class="drpg-passage-chips">${startCell}</span></td>
@@ -149,10 +168,12 @@ export function passagesTabBody(scene, { stores = PASSAGE_STORES, students = [],
         .sort((a, b) => passageTitle(a).localeCompare(passageTitle(b)) || a.id.localeCompare(b.id));
     const table = passages.length ? `<table class="drpg-vault-table drpg-room-setup-table drpg-passage-table">
         <colgroup><col class="drpg-col-room" /><col class="drpg-col-kind" /><col class="drpg-col-shape" /><col class="drpg-col-origin" /><col class="drpg-col-knows" /><col class="drpg-col-knows-start" /><col class="drpg-col-state" /><col class="drpg-col-actions" /></colgroup>
-        <thead><tr>${["rooms", "kind", "shape", "origin", "knows", "start", "state"].map(k => `<th>${esc(t(`DRPG.Passage.tab.${k}`))}</th>`).join("")}<th></th></tr></thead>
+        <thead><tr>${["rooms", "kind", "shape", "origin", "knows", "start", "state"].map(k => `<th${
+            k === "start" ? ` title="${esc(t("DRPG.Passage.tab.startHint"))}"` : ""}>${esc(t(`DRPG.Passage.tab.${k}`))}</th>`).join("")}<th></th></tr></thead>
         <tbody>${passages.map(p => rowHtml(p, { stores, students, actors, users, told })).join("")}</tbody></table>`
         : `<p class="drpg-passage-none" data-drpg-passage-empty>${esc(t("DRPG.Passage.tab.empty"))}</p>`;
-    return `${table}<p class="notes">${esc(t("DRPG.Passage.tab.footnote"))}</p>`;
+    // What "At season start" does (H81-05) and which way a passage goes (H81-02), after the rest of the footnote.
+    return `${table}<p class="notes">${esc(t("DRPG.Passage.tab.footnote"))} ${esc(t("DRPG.Passage.tab.startHint"))} ${esc(t("DRPG.Passage.tab.wayHint"))}</p>`;
 }
 
 /** The Passages panel's inside, for Room Setup (vault.mjs `roomSetupContent`): nothing on a player's browser. */
@@ -243,6 +264,7 @@ export function wirePassagesTab(root, scene, { dialog = null, stores = PASSAGE_S
             case "grant": return grantPassage(passageId, actorId, { stores });
             case "start-on": return setStartAccess(passageId, actorId, true, { stores });
             case "start-off": return setStartAccess(passageId, actorId, false, { stores });
+            case "way": return setPassageWay(passageId, actorId === "0" ? 0 : actorId === "1" ? 1 : null, { stores });
             case "close": return closePassage(passageId, { stores });
             case "open": return openPassage(passageId, { stores });
             case "public": return makePassagePublic(passageId, { stores });
@@ -269,6 +291,15 @@ export function wirePassagesTab(root, scene, { dialog = null, stores = PASSAGE_S
         }
     };
 
+    // Which way a tunnel goes (H81-02): its select's value in the place of a student, through the same queue as a button.
+    box.addEventListener("change", event => {
+        const select = event.target?.closest?.("[data-drpg-passage-way]");
+        if (!select || !box.contains(select)) return;
+        const passageId = select.closest("[data-drpg-passage]")?.dataset.drpgPassage;
+        busy = busy.then(() => work("way", passageId, select.value))
+            .catch(err => error("The way of a tunnel could not be set", err))
+            .then(draw);
+    });
     box.addEventListener("click", event => {
         const button = event.target?.closest?.("[data-drpg-passage-act]");
         if (!button || !box.contains(button) || button.disabled) return;

@@ -1822,7 +1822,7 @@ export const BRIDGE_ACTIONS = table({
         run: handlePassageCross,
         answer: "reply",
         claims: {
-            passageId: "passages-gm.mjs crossTunnel: a secret tunnel of the GMs' records the character knows (or the sender acts as the Mastermind through it, `actsAsMastermind`), else the one notKnown; the token at an end of it where the GMs read it, the doors' rules and the price judged on the primary (movement.mjs `gmSpotOf`, `tunnelVerdict`, `settleCrossingOnGm`)"
+            passageId: "passages-gm.mjs crossTunnel: a secret tunnel of the GMs' records the character knows (or the sender acts as the Mastermind through it, `actsAsMastermind`), else the one notKnown; the token at an end of it where the GMs read it - of a one-way tunnel the end the GMs' row enters it by (H81-02) -, the doors' rules and the price judged on the primary (movement.mjs `gmSpotOf`, `tunnelVerdict`, `settleCrossingOnGm`)"
         }
     },
     [ACTION_PASSAGE_FIND]: {
@@ -2702,16 +2702,26 @@ export function requestPassageShare({ actorId, targetId, passageId }) {
 /**
  * 'Go through' a tunnel my character stands at an end of (E80 C2; sheet.mjs). The primary GM judges it and moves
  * the token; a GM's own browser does it here when it is the primary, and says a refusal as the bridge would.
- * Its value is true once the token was moved.
+ * Its value is true once the token was moved. `hush` names reasons this browser does not say (H81 fix C3, the review's
+ * H81-C3-R3): the drag's road keeps `cannotNow` quiet - the primary reading the token elsewhere than the drag left it,
+ * a put-back of the GMs on its way, which says its own line - and says every other refusal as the bridge would. The
+ * packet is the same; only this browser's words change.
  */
-export function requestPassageCross({ actorId, passageId }) {
-    return ask(ACTION_PASSAGE_CROSS, { actorId, passageId }, {
+export async function requestPassageCross({ actorId, passageId }, { hush = [] } = {}) {
+    const say = reason => {
+        if (!hush.includes(reason)) sayNotDone(ACTION_PASSAGE_CROSS, reason);
+    };
+    const res = await ask(ACTION_PASSAGE_CROSS, { actorId, passageId }, {
         onPrimary: true,
+        ...(hush.length ? { quiet: true } : {}),
         local: () => import("./passages-gm.mjs").then(m => m.crossTunnel({ actorId, passageId }, { asker: game.user })).then(out => {
-            if (out?.refused) sayNotDone(ACTION_PASSAGE_CROSS, reasonOf(out.refused));
+            if (out?.refused) say(reasonOf(out.refused));
             return Boolean(out?.crossed);
         })
     });
+    // Quiet, the waiter said nothing of a refusal or a failure: said here, but for the hushed.
+    if (hush.length && !res.ok && res.reason) say(res.reason);
+    return res;
 }
 
 /**

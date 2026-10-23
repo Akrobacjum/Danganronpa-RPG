@@ -894,9 +894,11 @@ function placingActors(dead) {
  *
  * The last argument is the suite's (R558, E79 fix r1-G4): tier 1 writes nothing, so it hands in a
  * running Eclipse's clock, its own passage rows in the copy's shape (`known`), and a recorder for the
- * warning and the count in place of the notice and `recordMove`. Every road of the module passes none.
+ * warning and the count in place of the notice and `recordMove`. Every road of the module passes none,
+ * but `elevation`: movement.mjs `settleRoute` hands the crossing token's height, at which a passage in a wall
+ * is read (H81 fix r1; movement.mjs `passageRooms`' note).
  */
-export async function judgeEclipseCrossing(actor, from, to, scene = null, floors = null, { clock = null, known, warn = null, record = recordMove } = {}) {
+export async function judgeEclipseCrossing(actor, from, to, scene = null, floors = null, { clock = null, known, warn = null, record = recordMove, elevation = null } = {}) {
     if (!(clock ? clock.eclipse === true : isEclipse())) return true;
     const say = warn ?? (text => ui.notifications.warn(text));
 
@@ -932,7 +934,7 @@ export async function judgeEclipseCrossing(actor, from, to, scene = null, floors
         // A secret passage the character knows joins its two rooms as a door would (E79 C3,
         // 14.10.2026; movement.mjs `passesThrough`, on the floor the crossing starts on): the step
         // through it is one crossing, counted once by `recordMove` below like any other.
-        const refused = passesThrough(actor, from, to, scene, floors, { known }) ? false : crossingRefused(scene, from, to, floors);
+        const refused = passesThrough(actor, from, to, scene, floors, { known, elevation }) ? false : crossingRefused(scene, from, to, floors);
         if (refused) {
             say(refused);
             return false;

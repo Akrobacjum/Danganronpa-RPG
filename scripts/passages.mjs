@@ -66,6 +66,19 @@ export function endsOf(row) {
     return ends.every(end => Number.isFinite(end.x) && Number.isFinite(end.y)) ? ends : null;
 }
 
+/**
+ * The one end a tunnel is entered from, 0 or 1 (an index of `ends`), or null when it is entered from either (H81-02,
+ * 20.10.2026; the owner's call of 20.10: "przełącznik ... czy przejście jest jedno czy dwustronne"): the row's `oneWay`,
+ * which the GMs' Passages tab sets (passages-gm.mjs `setPassageWay`). A row with none, every row before H81, goes both
+ * ways; anything but 0 or 1 is read as none.
+ */
+export function oneWayOf(row) {
+    return row?.oneWay === 0 || row?.oneWay === 1 ? row.oneWay : null;
+}
+
+/** A tunnel row's `oneWay` as the copies and the lists carry it: the field when it is one way, nothing when both. */
+const wayOf = row => (oneWayOf(row) === null ? {} : { oneWay: oneWayOf(row) });
+
 /** Whether a row is on this floor: no floor asked, a row on no floor in particular, or the floor's own id (rooms.mjs `onLevel`'s rule). */
 function onLevelOf(row, level) {
     if (level === null || level === undefined || row?.level === null || row?.level === undefined) return true;
@@ -83,8 +96,9 @@ export function sceneGone(row, { map = passageMapStore, scenes } = {}) {
 
 /**
  * The open passages of the GMs' records, `{ passageId: { sceneId, shape, level, passageWallId,
- * passageSeg, actorIds } }` - a tunnel's `{ sceneId, shape: "tunnel", level: null, ends, actorIds }`
- * (E80 C1: its row is on no floor in particular, each end on its own) -, each with every character that knows it: what a GM's browser reads
+ * passageSeg, actorIds } }` - a tunnel's `{ sceneId, shape: "tunnel", level: null, ends, oneWay?, actorIds }`
+ * (E80 C1: its row is on no floor in particular, each end on its own; `oneWay` the end it is entered from when it is
+ * one way, H81-02) -, each with every character that knows it: what a GM's browser reads
  * where a player's reads its copy, and what passages-gm.mjs cuts each copy from. `stores` is the
  * suite's (R554, R555): two handles of an engine of its own, and `scenes` beside them when it asks.
  *
@@ -107,7 +121,7 @@ export function secretRowsFrom({ map = passageMapStore, access = passageAccessSt
         if (row.public === true) open.push(id);
         const ends = endsOf(row);
         if (ends) {
-            rows[id] = { sceneId: row.sceneId, shape: "tunnel", level: null, ends, actorIds: [] };
+            rows[id] = { sceneId: row.sceneId, shape: "tunnel", level: null, ends, ...wayOf(row), actorIds: [] };
             continue;
         }
         if (row.shape === "tunnel" || !segmentOf(id, row)) continue;
@@ -171,7 +185,8 @@ export function openSegmentsFor(actor, sceneId, level = null, { mastermind = fal
  * rooms a passage joins, whether it is open and where to pan; the wall's id is not, and neither is anything
  * else of the row (R560: only the records' files name a passage's geometry). A tunnel (E80 C1) is
  * `{ id, sceneId, level: null, shape: "tunnel", ends }`: its two ends, which the list names by their rooms
- * and the mark of an end is drawn at. `known` is the suite's (R562).
+ * and the mark of an end is drawn at, and `oneWay` when it is entered from one end alone (H81-02), so the list can say
+ * which. `known` is the suite's (R562).
  */
 export function passagesKnownBy(actor, { mastermind = false, known = knownPassages() } = {}) {
     const actorId = typeof actor === "string" ? actor : actor?.id;
@@ -182,7 +197,7 @@ export function passagesKnownBy(actor, { mastermind = false, known = knownPassag
         if (!mastermind && !(Array.isArray(row.actorIds) && row.actorIds.includes(actorId))) continue;
         const ends = endsOf(row);
         if (ends) {
-            out.push({ id, sceneId: row.sceneId, level: null, shape: "tunnel", ends });
+            out.push({ id, sceneId: row.sceneId, level: null, shape: "tunnel", ends, ...wayOf(row) });
             continue;
         }
         const seg = row.shape === "tunnel" ? null : segmentOf(id, row);
@@ -240,7 +255,8 @@ export async function viewPassage(spotOf, { scenes = game.scenes, onScreen = vie
  * is on each, and no floor asked is every floor), `[{ id, x, y, level, far: { x, y, level } }]` with the end
  * at the other side: where the mark of an end is drawn for its knowers (fog-doorways.mjs `tunnelMarks`, E80
  * C1) and where 'Go through' stands (C2). The rows that name it, or every tunnel for the Mastermind
- * (`mastermind`, as `openSegmentsFor` takes it). `known` is the suite's (R595).
+ * (`mastermind`, as `openSegmentsFor` takes it). An end a one-way tunnel is not entered from carries `exit: true`
+ * (`oneWayOf`, H81-02): its mark says where it comes from, and 'Go through' is refused there. `known` is the suite's (R595).
  */
 export function tunnelEndsFor(actor, sceneId, level = null, { mastermind = false, known = knownPassages() } = {}) {
     const actorId = typeof actor === "string" ? actor : actor?.id;
@@ -250,8 +266,9 @@ export function tunnelEndsFor(actor, sceneId, level = null, { mastermind = false
         if (!mastermind && !(Array.isArray(row.actorIds) && row.actorIds.includes(actorId))) continue;
         const ends = endsOf(row);
         if (!ends) continue;
+        const entry = oneWayOf(row);
         ends.forEach((end, i) => {
-            if (onLevelOf(end, level)) out.push({ id: row.id, ...end, far: { ...ends[1 - i] } });
+            if (onLevelOf(end, level)) out.push({ id: row.id, ...end, far: { ...ends[1 - i] }, ...(entry === null || entry === i ? {} : { exit: true }) });
         });
     }
     return out;
@@ -501,7 +518,7 @@ export function cleanCopy(passages, stamps, { actors = game.actors, scenes = gam
         const actorIds = Array.isArray(row.actorIds) ? [...new Set(row.actorIds.filter(a => typeof a === "string" && a && a !== DOOR_PART && Object.hasOwn(own, a)))] : [];
         if (!actorIds.length) continue;
         if (ends) {
-            value[id] = { sceneId: row.sceneId, shape: "tunnel", level: null, ends, actorIds };
+            value[id] = { sceneId: row.sceneId, shape: "tunnel", level: null, ends, ...wayOf(row), actorIds };
             continue;
         }
         value[id] = { sceneId: row.sceneId, shape: "wall", level: typeof row.level === "string" ? row.level : null,

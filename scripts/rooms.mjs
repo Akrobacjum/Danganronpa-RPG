@@ -446,6 +446,23 @@ export function floorsOf(scene) {
     return [...(scene?.levels ?? [])].sort((a, b) => height(a) - height(b));
 }
 
+/**
+ * The height a floor stands at - `level` its id or the level itself: the bottom of its elevation, as `floorsOf` reads
+ * it - or 0 for no floor and for one the scene does not hold (H81-01, 20.10.2026). It is where a point of that floor is
+ * asked its room when no token stands there to give its own height (movement.mjs `passageRooms`, a tunnel's end), and
+ * the height the primary GM writes for a token a tunnel takes to another floor (movement.mjs `landingElevation`). That
+ * a v14 token on a floor stands at its bottom is this module's reading, not read off a table (LIVE-H81-01). A bottom
+ * that is no finite number - a floor open below, if v14 writes one so - reads 0, the height every point was asked at
+ * before H81, so a scene of one floor asks as it did.
+ */
+export function floorElevation(scene, level) {
+    const id = level?.id ?? level ?? null;
+    if (id === null) return 0;
+    const floor = floorsOf(scene).find(f => (f?.id ?? f) === id);
+    const height = Number(floor?.elevation?.bottom ?? floor?.elevation);
+    return Number.isFinite(height) ? height : 0;
+}
+
 /*
  * THE CAMERA (E12 C6, 11.10.2026; plan-E12 3.3, audit S08-15). The scene a browser has on
  * screen is a fact about that browser, and a rule judged on it answers differently on two

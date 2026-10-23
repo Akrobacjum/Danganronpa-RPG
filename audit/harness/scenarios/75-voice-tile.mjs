@@ -75,8 +75,10 @@
  * G (E79 C15; the owner's N10, N12 and N15): the state word on p1's tile, with nobody speaking. Connected in the
  *   main room; Connecting while voice-client.mjs moves p1 to another room (`applyBreakout`, its `game.webrtc.connect`
  *   held at a gate for the reading) though the old Room still says "connected"; Connected once the move is over;
- *   Connecting while the Room says "reconnecting"; Disconnected when the server goes (`__liveKit.drop()`); and no
- *   word while p2 speaks. The word's title and the live text say the sentence of each. p1 is put back in the main
+ *   Connecting while the Room says "reconnecting"; Disconnected when the server goes (`__liveKit.drop()`); and,
+ *   since H81-10 (the owner's 1.2.80 table and answer B, 20.10.2026), Connected kept while p2 speaks, its title
+ *   DRPG.Voice.held.connected and the live text, hidden with the face, not rewritten (until H81-10 the word went
+ *   while somebody spoke). The word's title and the live text say the sentence of each. p1 is put back in the main
  *   room with the room voice-client.mjs wanted before. What a real LiveKit Room says, in both themes, full and
  *   compact, is LIVE-E79-21; how late the first portrait comes at a table, LIVE-E79-20.
  *
@@ -757,7 +759,7 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
         J(f.reached) === J({ mute: true, volume: true, device: true, mode: true }) && J(fAfter) === J(fBefore),
         J({ reached: f.reached, used: f.used, before: f.before, othersBefore: fBefore, othersAfter: fAfter }));
 
-    phase("G: the state word on p1's tile while nobody speaks - Connected, Connecting while the module moves the Room and while LiveKit reconnects, Disconnected when the server goes, none while somebody speaks");
+    phase("G: the state word on p1's tile while nobody speaks - Connected, Connecting while the module moves the Room and while LiveKit reconnects, Disconnected when the server goes, Connected kept while somebody speaks");
     // E79 C15. p1's `game.webrtc.connect` is held at a gate while voice-client.mjs moves p1 to another room, so
     // the reading between the start of the move and the new Room is taken while the old Room still says
     // "connected": only voice-client.mjs's `drpgVoiceApplying` can tell the tile then.
@@ -774,7 +776,8 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
         const out = { installed: true, texts: {
             connected: [L("DRPG.Voice.tile.state.connected"), L("DRPG.Voice.tile.nobody")],
             connecting: [L("DRPG.Voice.tile.state.connecting"), L("DRPG.Voice.held.connecting")],
-            disconnected: [L("DRPG.Voice.tile.state.disconnected"), L("DRPG.Voice.held.offline")] } };
+            disconnected: [L("DRPG.Voice.tile.state.disconnected"), L("DRPG.Voice.held.offline")],
+            speaking: [L("DRPG.Voice.tile.state.connected"), L("DRPG.Voice.held.connected")] } };
         __liveKit.setRoster({ [__liveKit.MAIN_ROOM]: ${J([IDS.gm, IDS.p1, IDS.p2])} });
         __liveKit.speak([]);
         await until(() => __liveKit.read().state === "connected" && word().face === false, 1500 + 840 + 1500);
@@ -824,9 +827,10 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
     check("G: p1's tile says Connected while nobody speaks in the main room, and Connecting while voice-client.mjs moves p1 to another room though the old Room still says connected - the word, its title and the live text the sentence of each",
         st.installed === true && said(st.silent, "connected") && said(st.moving, "connecting") && st.moving.room === "connected" && st.moving.applying === true,
         J({ silent: st.silent, moving: st.moving, texts: st.texts }));
-    check("G: once the move is over p1's tile says Connected in the new room; Connecting while the Room says reconnecting, Connected again when it is back, Disconnected when the server goes, Connected back home, and no word while p2 speaks",
+    check("G: once the move is over p1's tile says Connected in the new room; Connecting while the Room says reconnecting, Connected again when it is back, Disconnected when the server goes, Connected back home, and Connected still while p2 speaks, the live text hidden and not rewritten",
         st.installed === true && st.result === "applied" && said(st.moved, "connected") && st.moved.room === "drpg-s75-word" && st.moved.applying === false
             && said(st.reconnecting, "connecting") && said(st.back, "connected") && said(st.dropped, "disconnected") && st.dropped.room === "disconnected"
-            && said(st.home, "connected") && st.speaking?.shown === false && st.speaking.word === null && st.speaking.face === true,
+            && said(st.home, "connected") && st.speaking?.shown === true && st.speaking.word === "connected" && st.speaking.face === true
+            && J([st.speaking.run, st.speaking.title]) === J(st.texts.speaking) && st.speaking.live === st.texts.connected[1],
         J({ result: st.result, moved: st.moved, reconnecting: st.reconnecting, back: st.back, dropped: st.dropped, home: st.home, speaking: st.speaking }));
 }

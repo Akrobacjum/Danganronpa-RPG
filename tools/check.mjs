@@ -596,7 +596,8 @@ function gatecode() {
    an item); C9 wrote items 205-217, and this part then read 193 items and 335 citations in 247 files, all
    written. LIVE-REOPEN-01, a reading of 20.09 older than the numbered list, is not of that form and not
    asked here. audit/AUDIT-1.2.42.md does not
-   ship (.gitattributes), so this is the repository's check and not the suite's. */
+   ship (.gitattributes), so this is the repository's check and not the suite's. The table smoke's stages (H81,
+   20.10.2026) write theirs as LIVE-H<stage>-<n>, read here as the E ids are. */
 function live() {
     const problems = [];
     const audit = exists("audit/AUDIT-1.2.42.md") ? read("audit/AUDIT-1.2.42.md") : "";
@@ -604,7 +605,7 @@ function live() {
     if (from < 0) return ["audit/AUDIT-1.2.42.md has no section 9.2 - nothing was read"];
     const rest = audit.slice(audit.indexOf("\n", from) + 1), next = rest.search(/^#{2,3} /m);
     const items = new Map();
-    for (const m of (next < 0 ? rest : rest.slice(0, next)).matchAll(/^(\d+)\. \*\*(LIVE-E\d+-\d+) - /gm)) {
+    for (const m of (next < 0 ? rest : rest.slice(0, next)).matchAll(/^(\d+)\. \*\*(LIVE-[EH]\d+-\d+) - /gm)) {
         if (items.has(m[2])) problems.push(`AUDIT 9.2 writes ${m[2]} twice: items ${items.get(m[2])} and ${m[1]}`);
         items.set(m[2], m[1]);
     }
@@ -613,7 +614,7 @@ function live() {
     let cites = 0;
     for (const f of files) {
         read(f).split("\n").forEach((line, i) => {
-            for (const [id] of line.matchAll(/\bLIVE-E\d+-\d+\b/g)) {
+            for (const [id] of line.matchAll(/\bLIVE-[EH]\d+-\d+\b/g)) {
                 cites++;
                 if (!items.has(id)) problems.push(`${f}:${i + 1}: ${id} is cited, and AUDIT 9.2 has no item of it`);
             }

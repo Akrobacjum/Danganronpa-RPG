@@ -162,7 +162,7 @@ export const REASONS = Object.freeze([
     "notEligible", "sameTwice", "wrongCount", "notKnown", "recipientDead", "floorClosed", "noSpeaker", "noBullet",
     "objectionOver", "relay", "sheetPutBack", "failed",
     "notAtPassage", "doorLocked", "roomSealed", "chained", "cannotLeave", "trialLocked", "noBudget", "eclipseSpent",
-    "refused", "noGm", "noAnswer"
+    "oneWay", "refused", "noGm", "noAnswer"
 ]);
 
 /**
@@ -373,6 +373,13 @@ export const REASON_PATTERNS = Object.freeze([
     // E80 C2: 'Go through' a tunnel, judged by the primary GM by the doors' rules (gm-bridge.mjs `passage.cross`,
     // passages-gm.mjs `crossTunnel`, `crossingWhy`); each code's words are the door's veto's (R597).
     ["notAtPassage", /^the character is not at an end of that passage$/],
+    // H81-02: a one-way tunnel asked from its way out, as the GMs' record of it says (passages-gm.mjs `setPassageWay`).
+    ["oneWay", /^the passage cannot be taken from that side$/],
+    // H81 fix r1 (the review's H81-C1-R5): a token the GMs do not read where it stands (movement.mjs `gmSpotWhy`), told as
+    // "That cannot be done now." - not notAtPassage's "Stand on the passage's mark...", which a knower may be doing.
+    ["cannotNow", /^the GMs are putting the character's token back$/],
+    ["cannotNow", /^the GMs hold the character's token as standing where the rules refuse$/],
+    ["cannotNow", /^the character's token moved while the price was taken$/],
     ["doorLocked", /^the room beyond is locked$/],
     ["roomSealed", /^the room beyond is sealed$/],
     ["chained", /^the character is chained where it stands$/],

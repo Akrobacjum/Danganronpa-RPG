@@ -1326,7 +1326,8 @@ body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"]:not([data-fi
 }
 /* COMPACT, ON A SHORT DESK (E78 fix r2-H1, 14.10.2026; review round 2's cor F1): a tile glass.mjs
    `settleVoice` left under VOICE_FULL (114 px since E78 fix r2-H3; 91 at H1) is one row, as narrow.css draws it in the tiles' row - the
-   buttons centred down its right end, the name with '+N' on one line at its left, cut short with an
+   buttons centred down its right end, the name with '+N' on one line at its left foot (the state word over
+   it since H81-10), cut short with an
    ellipsis, and 'Speaking' and the microphone's line not drawn (the buttons' labels say them). The
    face keeps 82 px clear at the right: the two 30 px buttons, the 6 px between them and at the wall,
    and 4 px to the plate. The speaker's count stays on its button. */
@@ -1334,18 +1335,24 @@ body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="co
     top: calc(50% - 15px);
 }
 body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"] .drpg-voice-tile-face {
-    justify-content: center;
+    justify-content: flex-end;
     align-items: flex-start;
-    padding: 4px 82px 4px 6px;
+    padding: 22px 82px 2px 6px;
 }
 body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"] :is(.drpg-voice-tile-speaking, .drpg-voice-tile-note) {
     display: none;
 }
-/* The state word takes the name plate's place when nobody speaks (E79 C15): one row, left of the buttons. */
+/* The state word at the top, the name plate at the foot (H81-10; the owner's answer B, 20.10.2026: the word at the
+   top of the tile, over the picture, kept while somebody speaks). Until then the word took the plate's place, in
+   the middle of the row, while nobody spoke. Now both stand at once: the word in an 18 px band 2 px under the top,
+   the plate (16 px on one line) 2 px over the foot, both left of the buttons' 82 px. Read in Chromium on
+   20.10.2026 (a scratch probe: the six sheets, the glass harness's tile, no curtain cut): at 181 x 42, VOICE_MIN,
+   the word at 2..20 and the plate at 23..39; at 55 and 93 the plate lower still; neither under the buttons. */
 body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"] .drpg-voice-tile-state {
-    top: calc(50% - 15px);
+    top: 2px;
     bottom: auto;
     right: 82px;
+    height: 18px;
 }
 body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="compact"] .drpg-voice-tile-plate {
     flex-direction: row;
@@ -1361,6 +1368,13 @@ body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"][data-fit="co
     text-overflow: ellipsis;
     overflow-wrap: normal;
     letter-spacing: 0.06em;
+}
+/* A short name keeps the word's band on a stacked screen (H81 fix r1; danganronpa.css's rule of the same name): this
+   theme's words are narrower - 59 px of text at most, "Disconnected", at the row's 11 px (Chromium, the glass
+   harness's row, 20.10.2026) - so the portrait's 44 px, the word and its 6 px paddings: 115, and 9 to spare. The
+   row check reads 68 px of band with a three-letter name. */
+body.drpg-theme-stained-glass.drpg-stacked #drpg-tile-row .drpg-voice-tile-face:not([hidden]) {
+    min-width: 124px;
 }
 body.drpg-theme-stained-glass > #drpg-voice-art {
     pointer-events: none;
@@ -1957,8 +1971,11 @@ body.drpg-theme-stained-glass .character-header-sheet .drpg-calls-panel h4 { bac
    the GM panel's sections, the chip and the stamp.
    ========================================================================== */
 /* 1. the choice row: a dark row, the chosen one a brush in the kind's colour, an indicator on the
-   left edge in that colour. Variants of an action, the Rest picker, and every list that picks. */
-body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option) {
+   left edge in that colour. Variants of an action, the Rest picker, and every list that picks; a
+   Frisk's two ways too (H81-12, the owner's 1.2.80 table, 20.10.2026: they kept the base sheet's gold
+   fill and the browser's radio inside rows drawn this way), named here as the Rest option is, not
+   given `drpg-choice` (chooseVariant's details rule reads that class's next sibling). R907. */
+body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode) {
     --kind: var(--drpg-glass-accent);
     position: relative;
     isolation: isolate;
@@ -1972,9 +1989,9 @@ body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option) {
     clip-path: polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px);
     transition: border-color var(--drpg-t-snap, 120ms), color var(--drpg-t-snap, 120ms);
 }
-body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option).drpg-gm-route { --kind: var(--drpg-sg-gm); }
+body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode).drpg-gm-route { --kind: var(--drpg-sg-gm); }
 /* the indicator: a 4 px strip along the left edge in the kind's colour */
-body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option)::after {
+body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode)::after {
     content: "";
     position: absolute;
     left: 0;
@@ -1986,7 +2003,7 @@ body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option)::after {
     transition: opacity var(--drpg-t-snap, 120ms);
 }
 /* the brush behind the chosen row */
-body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option)::before {
+body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode)::before {
     content: "";
     position: absolute;
     inset: 1px -5px;
@@ -1997,22 +2014,22 @@ body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option)::before {
     clip-path: none;
     transition: opacity var(--drpg-t-snap, 120ms);
 }
-body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option):hover:not(.unavailable) {
+body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode):hover:not(.unavailable) {
     border-color: color-mix(in srgb, var(--kind) 70%, transparent);
     background: rgba(7, 7, 10, 0.55);
 }
-body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option):hover:not(.unavailable)::after { opacity: 1; }
-body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option):has(input:checked) {
+body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode):hover:not(.unavailable)::after { opacity: 1; }
+body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode):has(input:checked) {
     border-color: var(--kind);
     background: rgba(7, 7, 10, 0.55);
     color: var(--drpg-sg-ink);
 }
-body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option):has(input:checked)::before { opacity: 1; }
-body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option):has(input:checked)::after { opacity: 1; background: var(--drpg-sg-ink); }
-body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option):has(input:checked) :is(i, small, strong, span) { color: inherit; }
-body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option) > i { color: var(--kind); }
-body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option) small { opacity: 0.75; }
-body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option) input:is([type="radio"], [type="checkbox"]) {
+body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode):has(input:checked)::before { opacity: 1; }
+body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode):has(input:checked)::after { opacity: 1; background: var(--drpg-sg-ink); }
+body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode):has(input:checked) :is(i, small, strong, span) { color: inherit; }
+body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode) > i { color: var(--kind); }
+body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode) small { opacity: 0.75; }
+body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option, .drpg-frisk-mode) input:is([type="radio"], [type="checkbox"]) {
     accent-color: var(--kind);
     margin: 0;
 }

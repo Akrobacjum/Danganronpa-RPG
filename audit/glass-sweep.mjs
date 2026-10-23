@@ -132,7 +132,8 @@
  * Since E78 fix r2-H1 (14.10.2026; review round 2's cor F1) it also fails a tile drawn in another form than the cut
  * settled (`data-fit`) and a tile whose buttons or name plate leave it, whose plate lies under the buttons, whose name
  * shows less than 64 px of itself, or whose buttons have no glyph (the page's `drpgVoiceParts`). `plantVoice` is the
- * control, once per run: the tile forced 15 px tall, and the speaker's glyph stripped of its mask. 1366x600 and
+ * control, once per run: the tile forced 15 px tall, the speaker's glyph stripped of its mask, and (H81-10) the state
+ * word stood on the name plate at the tile's foot. 1366x600 and
  * 1366x560 are two short desks: at af5eb69 the GM's tile was 181x55 and 181x15 there and every reading said "ok".
  * Since E78 fix r2-H2 (14.10.2026; the verify ledger's E78-8, E78-13, doneWhen E78-3 and E78-9) every size also opens
  * the list 'Who you hear' (the page's `drpgVoiceList`: voice-tile.mjs's own list, eight rows) and fails it outside the
@@ -141,6 +142,11 @@
  * tile's box and what it holds, which until then read "voice ok none" and measured nothing. Their controls, once per
  * run: the list 40 px past the right edge, the tile taken away and back while the list is open, the brush another
  * colour (with `plantVoice`), and the Legacy tile 150 px under the screen's foot (`plantVoiceNone`).
+ * Since H81 fix r1 (20.10.2026; the review's H81C2-02 and H81C2-03) the page also fails a still word whose band holds
+ * less than its widest word (the six of lang/en.json and lang/pl.json, set still in its font): a Legacy desk with the
+ * ticker off, and a stacked row while a speaker of three letters ("Mai") speaks. Their controls, once per run: the
+ * still word stood where dc35104 stood it, in the 69 px left of the buttons (`plantVoiceNone`'s `cramped`), and the
+ * face let shrink round the short name (`plantVoiceRow`).
  *
  * STANDING STILL (E78 fix h76-HF2, 14.10.2026). The owner saw the status strip jump about once a second on 1.2.76, and
  * this sweep came out GREEN on 1.2.76 at four sizes: every reading here is of a moment, and the fault was a loop. Each
@@ -483,6 +489,14 @@ async function plantVoice() {
         for (const k of Object.keys(put)) c.style.removeProperty(k);
         res.inward = { ok: r.ok, why: r.why, pass: !r.ok && /not at its corner/.test(r.why) };
     }
+    {   // onPlate (H81-10): the state word stood on the name plate at the tile's foot, where 9dcf331 put it under
+        // Monokuma Legacy and the compact form, while a face shows (the word is kept with one since H81-10)
+        const word = tile.querySelector(".drpg-voice-tile-state"), put = { top: "calc(100% - 30px)", bottom: "auto" };
+        for (const [k, v] of Object.entries(put)) word?.style.setProperty(k, v, "important");
+        const r = await window.drpgVoiceCheck({ cuts: false });
+        for (const k of Object.keys(put)) word?.style.removeProperty(k);
+        res.onPlate = { ok: r.ok, why: r.why, pass: !r.ok && /over the name plate/.test(r.why) };
+    }
     {   // brush (E78 fix r2-H2): the caption's brush another colour than the game state's
         const plate = tile.querySelector(".drpg-voice-tile-plate");
         plate.style.setProperty("--brush", "rgb(1, 2, 3)");
@@ -499,13 +513,32 @@ async function plantVoice() {
 }
 
 /* Runs in the page: where no curtain is cut (Monokuma Legacy), the tile 150 px under the screen's foot must fail
-   (E78 fix r2-H2). */
+   (E78 fix r2-H2); and (H81 fix r1, the review's H81C2-02) the still word stood where dc35104 stood it, in the 69 px
+   left of the buttons, must fail on its band. */
 async function plantVoiceNone() {
-    const tile = document.getElementById("drpg-voice-tile"), was = tile.style.getPropertyValue("bottom");
+    const tile = document.getElementById("drpg-voice-tile"), was = tile.style.getPropertyValue("bottom"), res = {};
     tile.style.setProperty("bottom", "-150px");
     const r = await window.drpgVoiceCheck({ cuts: false });
     if (was) tile.style.setProperty("bottom", was); else tile.style.removeProperty("bottom");
-    return { off: { ok: r.ok, why: r.why, pass: !r.ok && /on a screen/.test(r.why) } };
+    res.off = { ok: r.ok, why: r.why, pass: !r.ok && /on a screen/.test(r.why) };
+    const style = document.createElement("style");
+    style.textContent = "body.drpg-no-ticker #drpg-voice-tile .drpg-voice-tile-state { top: 6px !important; right: 76px !important; }";
+    document.head.append(style);
+    const c = await window.drpgVoiceCheck({ cuts: false });
+    style.remove();
+    res.cramped = { ok: c.ok, why: c.why, pass: !c.ok && /standing still the state word's band holds/.test(c.why) };
+    return res;
+}
+
+/* Runs in the page: on a stacked screen, the face let shrink round a short name as dc35104 let it (H81 fix r1, the
+   review's H81C2-03) must fail on the word's band. */
+async function plantVoiceRow() {
+    const style = document.createElement("style");
+    style.textContent = "body.drpg-stacked #drpg-tile-row .drpg-voice-tile-face { min-width: 0 !important; }";
+    document.head.append(style);
+    const r = await window.drpgVoiceCheck({ cuts: false });
+    style.remove();
+    return { shortName: { ok: r.ok, why: r.why, pass: !r.ok && /with a three-letter name the state word's band holds/.test(r.why) } };
 }
 
 /* Runs in the page: the pin's control (E77 fix r1-M1) - the clock made `px` taller (its own min-height, which wins
@@ -569,7 +602,7 @@ function deskAgain() {
     return { ok, why: JSON.stringify(got), pass: ok };
 }
 
-let lines = 0, themeOff = 0, bad = 0, glassSizes = 0, controlled = false, roomControlled = new Set(), pinControlled = new Set(), unpinned = 0, unboxed = 0, rowControlled = false, paneControlled = false, stackedRead = false, placesControlled = false, placesRead = false, voiceRead = false, voiceControlled = false, voiceNoneControlled = false, idleRead = false, fillControlled = false, objectionControlled = false;
+let lines = 0, themeOff = 0, bad = 0, glassSizes = 0, controlled = false, roomControlled = new Set(), pinControlled = new Set(), unpinned = 0, unboxed = 0, rowControlled = false, paneControlled = false, stackedRead = false, placesControlled = false, placesRead = false, voiceRead = false, voiceControlled = false, voiceNoneControlled = false, voiceRowControlled = false, idleRead = false, fillControlled = false, objectionControlled = false;
 try {
     for (const theme of themes) for (const role of roles) {
         const qs = [theme === "legacy" ? "theme=legacy" : "", role === "player" ? "role=player" : ""].filter(Boolean);
@@ -749,6 +782,7 @@ try {
                     line += ` | voice ${vc.ok ? "ok" : "NOT ok"} ${vc.expect}` + (vc.box && vc.expect === "wall" ? ` ${vc.box} ${vc.fit} open ${vc.open} shards ${vc.shards}` : "")
                         + (pr ? ` plate ${pr.plate?.join(",") ?? "-"} name ${pr.name?.join("/") ?? "-"} buttons ${pr.buttons.map(b => b?.join(",") ?? "-").join(" ")}` : "")
                         + (vc.cuts ? ` cuts ${vc.cuts.speech}/${vc.cuts.control.join("+")}` : "") + (vc.row ? ` row ${vc.row.box.join(",")}` : "")
+                        + (vc.row?.still ? ` short-name band ${vc.row.still.join("/")}` : "") + (vc.still ? ` still band ${vc.still.join("/")}` : "")
                         + (vc.expect === "none" && vc.box ? ` box ${vc.box}` : "")
                         + ` brush ${vc.brush && typeof vc.brush === "object" ? (vc.brush.got === vc.brush.want ? "state" : vc.brush.got) : vc.brush ?? "-"}`
                         + (vc.list ? ` list ${vc.list.box?.join(",") ?? "-"} rows ${vc.list.rows} cuts ${vc.list.cuts}` : "");
@@ -765,6 +799,14 @@ try {
                     if (control && !voiceNoneControlled && vc.expect === "none" && theme === "legacy" && !r.stacked) {
                         voiceNoneControlled = true;
                         const ctl = await page.evaluate(plantVoiceNone);
+                        for (const [k, v] of Object.entries(ctl)) {
+                            console.log(`  voice control ${k.padEnd(6)} ${v.pass ? "sees it" : "MISSES IT"}: ok ${v.ok} - ${String(v.why).slice(0, 110)}`);
+                            if (!v.pass) fails.push("voice control " + k + " reads as a pass");
+                        }
+                    }
+                    if (control && !voiceRowControlled && vc.expect === "row" && vc.row?.still) {
+                        voiceRowControlled = true;
+                        const ctl = await page.evaluate(plantVoiceRow);
                         for (const [k, v] of Object.entries(ctl)) {
                             console.log(`  voice control ${k.padEnd(6)} ${v.pass ? "sees it" : "MISSES IT"}: ok ${v.ok} - ${String(v.why).slice(0, 110)}`);
                             if (!v.pass) fails.push("voice control " + k + " reads as a pass");
@@ -883,6 +925,7 @@ try {
     }
 } finally { await browser.close(); srv?.kill(); }
 if (voices && !opt("--sizes") && !voiceRead) { bad++; console.log("FAIL: the voice check never read a tile at the wall (no desk drew glass)"); }
+if (control && voices && stackedRead && !voiceRowControlled) { bad++; console.log("FAIL: the voice row's control never ran (no stacked size read the word over a face)"); }
 /* THE LAUNCHERS' CONTROLS UNDER MONOKUMA LEGACY (E77 fix r2-H3, 13.10.2026; fix r1-M1's open line). They plant faults
    on the launch pane, and under Legacy no curtain is mounted, so there is no pane to plant them on: a Legacy-only sweep
    ended red here on every run since r1-M1 for a reason nobody was going to fix. Not applicable is now an answer read off

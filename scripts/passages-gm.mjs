@@ -54,12 +54,12 @@
 
 import { MODULE_ID, ACTIONS } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { isPrimaryGm, serverNow, whisperToOwner, whisperToGms, ownerOf, warn, error, serialWrite, plural, forcedDeletion } from "./utils.mjs";
+import { isPrimaryGm, serverNow, whisperToOwner, whisperToGms, ownerOf, warn, error, debug, serialWrite, plural, forcedDeletion } from "./utils.mjs";
 import { passageMapStore, passageAccessStore, passageLogStore, mastermindStore, mastermindUndecided } from "./gm-stores.mjs";
 import { RECORD, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible } from "./gm-store.mjs";
 import { senderOf } from "./bridge-guards.mjs";
 import { isMonokuma } from "./monokuma.mjs";
-import { secretRowsFrom, studentIdsOf, sceneGone, endsOf, PASSAGE_TOLERANCE, DOOR_PART, isSecretDoor, secretDoorsOn, passageSpot } from "./passages.mjs";
+import { secretRowsFrom, studentIdsOf, sceneGone, endsOf, oneWayOf, PASSAGE_TOLERANCE, DOOR_PART, isSecretDoor, secretDoorsOn, passageSpot } from "./passages.mjs";
 import { roomPieces, onLevel, floorsOf, isTrialScene, viewedScene, viewedLevel } from "./rooms.mjs";
 import { regionShapes, inFlatPolygons, distanceToSegment } from "./fog-geometry.mjs";
 import { overlayLayer, clearLayer, overlayColour, dashedLine, overlayDrawer, redrawGmOverlay } from "./gm-overlay.mjs";
@@ -975,6 +975,30 @@ export async function setStartAccess(passageId, actorId, on, { stores = PASSAGE_
 }
 
 /**
+ * A GM: which way a tunnel or stairs goes (H81-02, 20.10.2026; the owner's call of 20.10, "przełącznik w gm panel room
+ * setup passages, czy przejście jest jedno czy dwustronne"): `from` the index of the one end it is entered from, 0 or
+ * 1, or null for both ways - the row's `oneWay` (passages.mjs `oneWayOf`), written null for both ways since a store's
+ * null is a value and reads as none. A tunnel only: a passage in a wall goes both ways. The tab's other edits' road:
+ * a GM's browser (the engine refuses a player's write), every knower's touch and the Mastermind's (the copies carry the
+ * field), a log row "oneWay" or "bothWays", the copies sent. The primary judges 'Go through' from this record
+ * (`crossTunnel`'s `known`), never from a packet. The season's reset and a room's rename write other fields of the
+ * row and keep it. Answers true, also when it already went that way; false refused.
+ */
+export async function setPassageWay(passageId, from, { stores = PASSAGE_STORES } = {}) {
+    if (!game.user?.isGM) return refuse("only a GM changes one.", false);
+    const row = stores.map.get(passageId);
+    if (!row) return refuse(`no passage "${passageId}".`, false);
+    if (!endsOf(row)) return refuse(`"${passageId}" is no tunnel: a passage in a wall goes both ways.`, false);
+    if (from !== null && from !== 0 && from !== 1) return refuse("a tunnel is entered from end 0, end 1 or both (null).", false);
+    if (oneWayOf(row) === from) return true;
+    await stores.map.patch(passageId, { oneWay: from });
+    await touch(knowersOf(passageId, stores), stores, { door: true });
+    await logRow(from === null ? "bothWays" : "oneWay", passageId, null, stores);
+    tellAfter(stores);
+    return true;
+}
+
+/**
  * A GM: the student keeps the passage until they leave `room`, the room they stand in now (the
  * mockup's 'Revoke when they leave the room'). The cell stays, and with it the passage in their
  * owners' copies; `leave` names the room, and `revokeLeavers` revokes it on the primary GM when
@@ -1317,6 +1341,12 @@ export function crossingWhy(code) {
     switch (code) {
         case "notKnown": return "the character does not know that passage";
         case "notAtPassage": return "the character is not at an end of that passage";
+        case "oneWay": return "the passage cannot be taken from that side";
+        // A token the GMs do not read where it stands (movement.mjs `gmSpotWhy`; H81 fix r1, the review's H81-C1-R5): each
+        // its own line in the GM's log, and "That cannot be done now." for the player, who may be standing on the mark.
+        case "putBack": return "the GMs are putting the character's token back";
+        case "unlawful": return "the GMs hold the character's token as standing where the rules refuse";
+        case "moved": return "the character's token moved while the price was taken";
         case "doorLocked": return "the room beyond is locked";
         case "roomSealed": return "the room beyond is sealed";
         case "chained": return "the character is chained where it stands";
@@ -1335,11 +1365,16 @@ export function crossingWhy(code) {
  * a secret tunnel of the GMs' records on a scene that still exists, the same answer as one the character
  * does not know (`notKnown`) otherwise; the token is the character's on that scene, standing where the GMs
  * read it (movement.mjs `gmSpotOf`: none they are putting back or hold as standing where the rules refuse -
- * `notAtPassage`; E80 fix early-C2-G1). Then the doors' rules (`tunnelVerdict`, with the GMs' rows as `known`,
+ * `putBack`, `unlawful`; E80 fix early-C2-G1). Then the doors' rules (`tunnelVerdict`, with the GMs' rows as `known`,
  * the sender's role as the door's reading - `actsAsMastermind` - and the price left to the next step), the
  * price taken (`settleCrossingOnGm`), the token read again (a move that landed in the price's round trip:
- * `notAtPassage`, the price given back), the token written beside the far end (`tunnelLanding`) with
- * `teleport`, `displace` and no animation, and on a write that throws the price given back exactly
+ * `moved`, or a put-back or an unlawful standing begun in it, the price given back). Those three are told to the
+ * player as "That cannot be done now." (`cannotNow`), never as `notAtPassage`'s "Stand on the passage's mark...",
+ * which sent a knower standing on the mark to stand on it, and each is a Debug line on this browser naming which
+ * (H81 fix r1, 20.10.2026; the review's H81-C1-R1 and H81-C1-R5: until then they were "not at an end" and logged
+ * nowhere). The token is then written beside the far end (`tunnelLanding`) with
+ * `teleport`, `displace`, no animation and movement.mjs `TUNNEL_CROSSING` (H81-14: a GM's browser that moved the token
+ * onto the near end never reads its own landing as another move onto an end), and on a write that throws the price given back exactly
  * (`refundCrossingOnGm`). A crossing written is told as a door's is
  * (`announceCrossingOnGm`: the owner's card and the traps' `drpgRoomCrossed`), and in an Eclipse by its veiled
  * card, posted only then (`settleCrossingOnGm`'s `tell`, E80 fix r1-G2). Refused, nothing is written,
@@ -1362,25 +1397,39 @@ export async function crossTunnel({ actorId, passageId } = {}, { asker = null, s
         // A character with two tokens on the scene goes through with the one at an end. Where a token stands is the
         // GMs' reading (movement.mjs `gmSpotOf`, E80 fix early-C2-G1): one they are putting back, or hold as standing
         // where the rules refuse, stands at no end.
+        // One the doors' rules let through but the GMs read nowhere is refused with the reason `gmSpotWhy` names.
         const judged = Array.from(scene.tokens ?? []).filter(t => t.actorId === actor.id).map(token => {
             const at = M.gmSpotOf(token), verdict = M.tunnelVerdict(actor, passage, token, { mover, known, pay: false });
-            return { token, at, verdict: verdict?.code || at ? verdict : { code: "notAtPassage" } };
+            return { token, at, verdict: verdict?.code || at ? verdict : { code: M.gmSpotWhy(token) ?? "cannotNow", unread: true } };
         });
         const { token, at, verdict } = judged.find(j => !j.verdict?.code) ?? judged[0]
             ?? { token: null, at: null, verdict: M.tunnelVerdict(actor, passage, null, { mover, known, pay: false }) };
-        if (verdict?.code) return { refused: crossingWhy(verdict.code) };
+        if (verdict?.code) {
+            // What the table's check reads (LIVE-H81-01): the GMs' reading that refused a token the doors let through.
+            if (verdict.unread) debug(`'Go through' ${passageId}: ${token.name ?? token.id} stands at ${token.x},${token.y} on floor ${token.level ?? "none"} `
+                + `at height ${token.elevation ?? 0}, which the doors let through, but the primary GM does not read it there: ${verdict.code} `
+                + `(${verdict.code === "putBack" ? "a put-back of the GMs is on its way" : "the GMs' judge holds its standing as lawful=false"}); nothing taken`);
+            return { refused: crossingWhy(verdict.code) };
+        }
         const paid = await M.settleCrossingOnGm(actor, verdict.to);
         if (paid.code) return { refused: crossingWhy(paid.code) };
         // The price is a round trip, and a move can land in it - a put-back, a jump, a GM's hand. A token the GMs no
         // longer read where it was judged is not moved from there, and the price goes back.
-        if (!M.gmSpotOf(token, at)) {
+        const after = M.gmSpotWhy(token, at);
+        if (after) {
             await M.refundCrossingOnGm(actor, paid.cost).catch(back => error("Could not give a tunnel crossing's price back", back));
-            return { refused: crossingWhy("notAtPassage") };
+            debug(`'Go through' ${passageId}: ${token.name ?? token.id} was judged at ${at.x},${at.y} and the primary GM no longer reads it there `
+                + `once the price was taken: ${after} (${after === "moved" ? `it stands at ${token.x},${token.y} now`
+                    : after === "putBack" ? "a put-back of the GMs is on its way" : "the GMs' judge holds its standing as lawful=false"}); the price given back`);
+            return { refused: crossingWhy(after) };
         }
         const spot = M.tunnelLanding(token, verdict.far, verdict.to);
+        // On another floor at that floor's height (movement.mjs `landingElevation`, H81-01): the room it is asked there is the end's.
+        const height = M.landingElevation(token, spot.level);
+        const rises = height !== (Number.isFinite(token.elevation) ? token.elevation : 0);
         try {
-            await write(token, { x: spot.x, y: spot.y, ...(spot.level ? { level: spot.level } : {}) },
-                { teleport: true, movementAction: "displace", animate: false });
+            await write(token, { x: spot.x, y: spot.y, ...(spot.level ? { level: spot.level } : {}), ...(rises ? { elevation: height } : {}) },
+                { teleport: true, movementAction: "displace", animate: false, [M.TUNNEL_CROSSING]: true });
         } catch (err) {
             error(`Could not move "${token.name}" through a tunnel`, err);
             await M.refundCrossingOnGm(actor, paid.cost).catch(back => error("Could not give a tunnel crossing's price back", back));

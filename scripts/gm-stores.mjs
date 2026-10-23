@@ -178,7 +178,8 @@ export const mastermindStore = defineGmStore({
  * level }], rooms, state, startAccess }`, no wall and no stretch, each end on its own floor. Since E80
  * C6 (D4) a row may hold `public` (true: every student knows it, passages.mjs `secretRowsFrom`; the GMs'
  * 'Make public', which writes no cell and no world data) and `origin` ("gm", or "door" for a converted
- * secret door; a row written before C6 has none and is the GM's). `state`
+ * secret door; a row written before C6 has none and is the GM's). Since H81 (20.10.2026) a tunnel's row may hold `oneWay`,
+ * 0 or 1, the one end it is entered from (passages-gm.mjs `setPassageWay`; none or null: both ways). `state`
  * is secret, closed (the GMs' Close, the owner's Q5: who knows it is kept, and the copies leave
  * it out) or broken (its wall moved or went: C5). No reset group: a season's reset takes who
  * knows a passage, never the passage.
@@ -215,7 +216,8 @@ export const passageAccessStore = defineGmStore({
 /**
  * WHAT WAS DONE WITH THE PASSAGES: the GMs' log, a row per create, grant, revoke, close, open and
  * delete, and since C5 per start access set or taken off (start, unstart), revoke put off until
- * a room is left (leave) and passage its wall broke (broken) - `{ at, what, passageId, actorId,
+ * a room is left (leave) and passage its wall broke (broken), and since H81 a tunnel set one way or both ways again
+ * (oneWay, bothWays) - `{ at, what, passageId, actorId,
  * by }` - the newest 200 kept (passages-gm.mjs
  * `PASSAGE_LOG_ROWS`). Its `exists` answers no for every key, as the rolls' does: a row's key is
  * no document. Cut by the reset's "passages" group.

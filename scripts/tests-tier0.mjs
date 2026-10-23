@@ -8183,6 +8183,8 @@ const REGRESSIONS = [
             ["HOOK room-tile.mjs#registerRoomTile#deleteRegion:onRegionChanged", "out of scope: repaints this client's room tile (E77 C3); the paint reads `viewerRoom` and decides no rule"],
             ["HOOK movement.mjs#registerMovement#preUpdateToken:onPreUpdateToken", "a claim, judged again: the veto runs on the mover's browser (a GM returns early); since E12 C9 it sees a `level`-only move (`isMoveChange`), reads each end on its own floor (`roomAt` per level) and links floors by the stairs alone where a scene has them (`stairLinks`); since E12 C12 the primary judges every arrival again from the last lawful room (`judgeArrival`), and one it refuses is no witness and no third party until it stands somewhere lawful (Q3 a); scenario 66 I [1b.1 a token's room / floor] MARKED"],
             ["HOOK movement.mjs#registerMovement#updateToken:onUpdateToken", "the charge on one client (`settleRoute`: the owning player's, else the primary's) - a player's own budget; since E12 C9 it gates on `isMoveChange` and prices a step by `crossingCost`: the stairs a door, a stairwell's floors free (Q1 a) [1b.1 a token's floor]"],
+            ["HOOK sheet.mjs#registerSheetTweaks#preUpdateToken:noteStepStart", "out of scope as a judge: notes where this browser's own move of a token starts, for the step onto a tunnel's end (H81-13); vetoes nothing and writes nothing"],
+            ["HOOK sheet.mjs#registerSheetTweaks#updateToken:inline", "a claim, judged again: the mover's browser reads its own move at rest (movement.mjs `tunnelStepTarget`) and asks the primary as 'Go through' does (`passage.cross`, passages-gm.mjs `crossTunnel`, H81-13); writes nothing"],
             ["HOOK movement.mjs#registerMovement#updateToken:noteGmPosition", "judged: the record of positions `sendBackRefusal` compares against, `level` in it (`positionOf`), kept on every GM and primed by each at ready since E12 fix r2-H3 (before, the primary's alone); since E12 C12 the primary judges the arrival first (`judgeArrival`, the hook's `userId`), the last lawful room kept beside the record (`standings`, 3.4)"],
             ["HOOK movement.mjs#registerMovement#createRegion:inline", "judged on the primary: records a non-GM's region in `playerRegions` (`noteRegionCreated`); every GM remembers a GM's room flag"],
             ["HOOK movement.mjs#registerMovement#updateRegion:inline", "put back on the primary: a non-GM's change to the room flag (`judgeRoomFlagChange`, `keepRoomFlag`), logged and told to the GMs"],
@@ -8407,6 +8409,8 @@ const REGRESSIONS = [
             ["SHEET monocub.mjs#isMonocub", "out of scope as a judgement: reads the flag of the actor it is handed; since E13 C3b the gather's filter and `leftBehind` hand it the held flags on the return from the trial (`flagsHeldNow`, after `judgedFor`), and the body's gather and every other reader hand the document, as before (the owner's item 6 of 10.10). C2 reads no Monocub flag: under Q-E13-1 (a) a Monocub a player owns is shown as any student a player owns (`readCast` reads only `monokuma`, held) [1b.2]"],
             ["HOOK despair.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK fog.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
+            ["HOOK sheet.mjs#preUpdateToken#noteStepStart", "out of scope: notes where this browser's own move starts (H81-13); the courtroom holds no tunnel, and the crossing is the primary's (`crossTunnel`)"],
+            ["HOOK sheet.mjs#updateToken#arrow1", "out of scope: a move onto a tunnel's end asks the primary as 'Go through' does (H81-13); the courtroom holds no tunnel, and the Class Trial refuses one there (`trialLocked`)"],
             ["HOOK fog.mjs#updateToken#onUpdateToken", "judged on the primary: a move records discovery through rooms; the hall holds none after C1, so a hall move records nothing (41 b: 0 fog writes). E12 C2b/C10 change the readers"],
             ["HOOK fog.mjs#createToken#arrow1", "out of scope: recomputes this client's own draw on a token write; E13's reveal and hide, and since E81 DZ6 the stage's one create, trigger it on every client, as any GM's write does [1b.1 a hall token's hidden]"],
             ["HOOK fog.mjs#deleteToken#arrow1", "out of scope: recomputes this client's own draw on a token write; E13's reveal and hide, and since E81 DZ6 the stage's one delete, trigger it on every client, as any GM's write does [1b.1 a hall token's hidden]"],
@@ -8689,7 +8693,7 @@ const REGRESSIONS = [
             ["NOTDONE gm-bridge.mjs#requestFriskAnswer", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E80 part 2 C3)"],
             ["NOTDONE gm-bridge.mjs#requestFriskFollow", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E80 part 2 C3)"],
             ["NOTDONE gm-bridge.mjs#requestPassageShare", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E79 C7)"],
-            ["NOTDONE gm-bridge.mjs#requestPassageCross", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E80 C2)"],
+            ["NOTDONE gm-bridge.mjs#requestPassageCross", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter, or here from the waiter's quiet result where the drag's road hushes `cannotNow`, H81 fix C3); kept as a notDone entry: read, these words and no others (R297; E80 C2)"],
             ["NOTDONE gm-bridge.mjs#requestPassageFind", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E80 C3)"],
             ["NOTDONE gm-bridge.mjs#requestObject", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the primary GM's refusal checked against `REASONS`); a refusal of an Objection kept like the rest, as a notDone entry (R297; E79 C16)"],
             ["NOTDONE gm-bridge.mjs#requestEvidence", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the primary GM's refusal checked against `REASONS`); a refusal of an Objection's Truth Bullet kept like the rest, as a notDone entry (R297; E79 C16)"],
@@ -9485,6 +9489,10 @@ const REGRESSIONS = [
             ["OPT movement.mjs#noteGmPosition#REVERT -> exempt", "a claim, judged: handed to `judgeArrival` as `revert`, which takes it only where `sendBackRefusal` does; the wall rule reads the option itself (below), by the same rule"],
             ["OPT movement.mjs#noteGmPosition#SENT_BACK -> exempt", "a claim, judged as REVERT is: it marks a move the GM sent back itself; on a GM's write the player it names is handed the witness judge as the one who asked (`askerOf`, E79 fix r3-G2), who acts as the Mastermind or not as that player does (R560; 76 G)"],
             ["OPT movement.mjs#onPreUpdateToken#REVERT -> exempt", "advisory: the mover's own client lets its own revert past its own veto; nothing on the GM reads the client's veto"],
+            ["OPT movement.mjs#tunnelStepTarget#REVERT -> exempt", "this file's own: a put-back is never read as a step onto a tunnel's end (H81-14); no judge takes it as an exemption - the primary judges a crossing (`crossTunnel`) whatever the mover's browser read"],
+            ["OPT movement.mjs#tunnelStepTarget#teleport -> exempt", "this file's own: a placing teleport is never read as a step onto a tunnel's end (H81-14); it exempts nothing on the GM, which judges a crossing asked as any other"],
+            ["OPT movement.mjs#tunnelStepTarget#movementAction -> exempt", "this file's own: a displace is never read as a step onto a tunnel's end (H81-14); it exempts nothing on the GM"],
+            ["OPT movement.mjs#tunnelStepTarget#displace -> exempt", "this file's own: as `movementAction` above (H81-14)"],
             ["OPT movement.mjs#judgeMove#REVERT -> exempt", "this file's own: the mover's client charges nothing for its own revert; no judge takes it as an exemption"],
             ["OPT passages-gm.mjs#crossTunnel#displace -> exempt", "the primary GM's own write of a 'Go through' (E80 C2: `teleport`, `displace`, no animation): a GM's move is let through because a GM made it (the hook's user), not because of these options; the crossing was judged before it by the doors' rules (`tunnelVerdict`; A10-18)"],
             ["OPT call-world.mjs#fallbackGather#displace -> exempt", "a GM's own write (`updateEmbeddedDocuments` with REVERT, `teleport` and `displace`): a GM's move is let through because a GM made it (the hook's user), not because of these options"],
@@ -9549,7 +9557,9 @@ const REGRESSIONS = [
             ["HOOK passages.mjs#registerPassages#userConnected/inline -> copy", "a player's browser only: an arriving primary GM that leaves is forgotten; it names whom a copy is taken from and nothing more"],
             ["HOOK gm-overlay.mjs#registerGmOverlay#canvasReady/inline -> screen", "every browser asks, only a GM's draws: `gmOverlay` asks for a GM before it makes a layer (R560)"],
             ["HOOK fog.mjs#registerFog#drpgPassagesChanged/inline -> screen", "this browser's outline redrawn from its own copy when the copy changes, with no sound (`redrawOutline`, R557)"],
-            ["HOOK sheet.mjs#registerSheetTweaks#drpgPassagesChanged/redrawPassageSheets -> screen", "the 'Known passages' page drawn again from this browser's own copy (R562)"]
+            ["HOOK sheet.mjs#registerSheetTweaks#drpgPassagesChanged/redrawPassageSheets -> screen", "the 'Known passages' page drawn again from this browser's own copy (R562)"],
+            ["HOOK sheet.mjs#registerSheetTweaks#preUpdateToken/noteStepStart -> veto", "advisory, and no veto: notes where this browser's own move starts (H81-13), returns nothing, writes nothing"],
+            ["HOOK sheet.mjs#registerSheetTweaks#updateToken/inline -> judge", "a claim: the mover's browser reads its own move at rest (`tunnelStepTarget`) and asks `passage.cross` as 'Go through' does; the primary judges it (`crossTunnel`, every guard of the bridge's row) and writes the landing (H81-13)"]
         ];
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
         const HOOK_SINKS = { updateToken: ["judge"], createToken: ["judge"], preUpdateToken: ["veto"], updateWall: ["record"], deleteWall: ["record"],
@@ -13101,7 +13111,7 @@ const REGRESSIONS = [
         ok(ratios.length === 2 && ratios.every(r => r !== null && r >= 4.5), `the letters' ink on the two plates reads ${J(ratios)}, under 4.5:1 or unread`);
     }],
 
-    ["R589 - the voice tile's state word is read at full ink in both themes, and the ticker switch, reduced motion and a stacked screen only stop it: no rule of the module's stylesheets hides the word or its runs but its own `hidden`, none sets it at an opacity, its colour is a full ink in each theme, and each of the three switches stops its runs", async () => {
+    ["R589 - the voice tile's state word is read at full ink in both themes, and the ticker switch, reduced motion and a stacked screen only stop it: no rule of the module's stylesheets hides the word or its runs but its own `hidden`, none sets it at an opacity, its colour is a full ink in each theme, and each of the three switches stops its runs; and it stands at the tile's top edge on its ink band, over the face, under Monokuma Legacy and on Stained Glass's wall in both fits (H81-10); standing still on a Legacy desk it stands under the buttons, and over a face in the row a short name leaves it its band (H81 fix r1)", async () => {
         /*
          * E79 C15 (16.10.2026; the prep's R586, renumbered: R586 was C12's by then). The owner's N12 and N15: the
          * state word is the tile's caption; the clock's ticker, which the word runs like, is hidden by
@@ -13117,6 +13127,21 @@ const REGRESSIONS = [
          * the stacked screen's stop taken out. What the word looks like on the tile's picture is the glass
          * harness's voice clause (Chromium); at a table, LIVE-E79-21.
          * Red at C15's parent: there was no word (no rule names it).
+         * H81-10, 20.10.2026 (the owner's 1.2.80 table and answer B: the word too low, and to stand at the top, over
+         * the picture, while somebody speaks): the last value each placing rule declares, comments out, outside any
+         * at-rule - Monokuma Legacy's own rule (`.drpg-voice-tile-state`: top, bottom, right, z-index, background),
+         * Stained Glass's wall in the full form and in the compact one (top, bottom) - and every rule that gives the
+         * face a z-index (none may: the word's 1 then draws over the face and its picture). Placed in Chromium on
+         * the module's sheets (a scratch probe, both themes, 163x188 and 181 x 150 to 42): the word clear of the
+         * buttons and of the name plate in each. Red at 9dcf331: Legacy's word at the foot (bottom 10px), the
+         * compact one at the middle (calc(50% - 15px)).
+         * H81 fix r1, 20.10.2026 (the review's H81C2-02 and H81C2-03): a still word in the 69 px left of Legacy's
+         * buttons read "CONNECT" for Connecting and Connected alike, and on a stacked screen a three-letter speaker's
+         * name left the band over the face a letter or two. Read too: the top and right the still word takes with
+         * the ticker off and under reduced motion (the module's switch and the system's), and the least width the
+         * face keeps in the row while it shows, under Legacy and under Stained Glass. Placed in Chromium (the glass
+         * harness's checks, which read each band against the widest of the words in both languages): 139 px still
+         * on a Legacy desk, 140 and 68 over a face named "Mai". Red at dc35104: none of the five declared.
          */
         const J = JSON.stringify;
         const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(res => res.json());
@@ -13185,6 +13210,24 @@ const REGRESSIONS = [
         equal(J(reading(sheets)), J([true, [], [], ["var(--color-text-primary, #efe6d8)", "var(--drpg-glass-accent)"],
             { "no ticker": true, "reduced motion": true, stacked: true, "prefers-reduced-motion": true }, true]),
         "[rules name the word; rules that hide it; rules that set it faint; its colours; its runs stopped by each switch; its runs running otherwise]");
+        const all = sheets.flatMap(([name, css]) => rulesOf(css).map(rule => ({ ...rule, name, sel: rule.sel.replace(/\s+/g, " ") })));
+        const last = (sel, prop) => all.filter(rule => rule.sel === sel && !rule.within)
+            .map(rule => new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;!]+)`).exec(rule.decl)?.[1].trim()).filter(Boolean).at(-1) ?? null;
+        const WALL = 'body.drpg-theme-stained-glass > #drpg-voice-tile[data-place="wall"]';
+        const FULL = `${WALL}:not([data-fit="compact"]) .drpg-voice-tile-state`, COMPACT = `${WALL}[data-fit="compact"] .drpg-voice-tile-state`;
+        equal(J({
+            legacy: ["top", "bottom", "right", "z-index", "background"].map(prop => last(".drpg-voice-tile-state", prop)),
+            full: ["top", "bottom"].map(prop => last(FULL, prop)), compact: ["top", "bottom"].map(prop => last(COMPACT, prop)),
+            faceRaised: all.filter(({ sel, decl }) => /\.drpg-voice-tile-face$/.test(sel) && /(?:^|;)\s*z-index\s*:/.test(decl)).map(({ name, sel }) => `${name} ${sel}`),
+            still: ["body.drpg-no-ticker .drpg-voice-tile-state", "body.drpg-reduced-motion .drpg-voice-tile-state"].map(sel => ["top", "right"].map(prop => last(sel, prop))),
+            stillSystem: ["top", "right"].map(prop => all.filter(rule => rule.sel === ".drpg-voice-tile-state" && /prefers-reduced-motion\s*:\s*reduce/.test(rule.within))
+                .map(rule => new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;!]+)`).exec(rule.decl)?.[1].trim()).filter(Boolean).at(-1) ?? null),
+            rowFace: ["body.drpg-stacked #drpg-tile-row .drpg-voice-tile-face:not([hidden])", "body.drpg-theme-stained-glass.drpg-stacked #drpg-tile-row .drpg-voice-tile-face:not([hidden])"]
+                .map(sel => last(sel, "min-width"))
+        }), J({ legacy: ["6px", "auto", "76px", "1", "rgba(var(--drpg-deep-rgb), 0.85)"], full: ["6px", "auto"], compact: ["2px", "auto"], faceRaised: [],
+            still: [["40px", "6px"], ["40px", "6px"]], stillSystem: ["40px", "6px"], rowFace: ["196px", "124px"] }),
+        "[Legacy's word: top, bottom, right (left of the two buttons), z-index, its ink band; the wall's full form: top, bottom; its compact form: top, bottom; rules that raise the face; "
+        + "the still word's top and right with the ticker off and under reduced motion, and under the system's; the least width of a face shown in the row, Legacy and Stained Glass]");
     }],
     ["R591 - the Objection's target and evidence are the primary GM's: LiveKit's speaker list is read in voice-tile.mjs and trial-speakers.mjs alone, the record and its two reads are declared once, exported, there; objectOnPrimary reads the packet's target only with no Room, the filled card is drawn from the holder's view, a player's own Objection card is refused, the trial bar does not load the trial at start, and the sheet's row raises no Objection", async () => {
         /*
@@ -13309,6 +13352,42 @@ const REGRESSIONS = [
         ok(/flex-wrap:\s*wrap\b/.test(actions) && /display:\s*flex\b/.test(actions),
             `the buttons' cell (.drpg-passage-actions { ${actions.trim()} }) does not wrap inside its column - four buttons on one line run past it`);
     }],
+    ["R909 - every region teleport of the module is made inside movement.mjs `whilePlacing`, and the sheet's step onto a tunnel's end skips a token this browser is placing (H81 fix C3): the gather, the cast's placing and a Clean-up's body land a knower on a tunnel's end without taking it through", async () => {
+        /*
+         * H81 fix C3 (21.10.2026; the review's H81-C3-R1). Foundry's `region.teleportTokens` is handed no option of the
+         * module's, and whether v14 writes `teleport` or a displace into its update is not read (LIVE-H81-03), so the
+         * three callers - call-world.mjs `gatherEveryone` and `teleportInto`, cleanup.mjs's body - mark their tokens on
+         * the writer's browser, and sheet.mjs `noteStepStart` and `onTunnelStep` read the mark. Read off the source with
+         * comments blanked: each `.teleportTokens(` of the module's files, by file, and whether its line is the marked
+         * form; a new caller fails here until it is marked. Tier 2 "H81 C3 drag" drives `teleportInto` with a teleport
+         * that writes no option. Red at 32de17e: no caller marked, no `isPlacing` read.
+         */
+        const sources = await moduleSources();
+        const code = file => {
+            const text = stripComments(sources.get(file) ?? "");
+            ok(text.length > 0, `${file} was not read - this test measured nothing`);
+            return text;
+        };
+        code("call-world.mjs");
+        code("cleanup.mjs");
+        const sites = [];
+        for (const [file, raw] of sources) {
+            if (/^tests/.test(file)) continue;
+            const text = stripComments(raw ?? "");
+            for (const line of text.split("\n")) {
+                const calls = line.match(/\.teleportTokens\(/g)?.length ?? 0;
+                for (let i = 0; i < calls; i++) {
+                    sites.push(`${file}:${/await whilePlacing\((\w+|\[\w+\]), \(\) => region\.teleportTokens\(\1, /.test(line) ? "marked" : "unmarked"}`);
+                }
+            }
+        }
+        sites.sort();
+        equal(JSON.stringify(sites), JSON.stringify(["call-world.mjs:marked", "call-world.mjs:marked", "cleanup.mjs:marked"]),
+            "the module's region teleports, each as file:marked|unmarked");
+        const sheet = code("sheet.mjs");
+        ok(/isPlacing\(tokenDoc\)/.test(fnSource(sheet, "noteStepStart")) && /isPlacing\(tokenDoc\)/.test(fnSource(sheet, "onTunnelStep")),
+            "sheet.mjs reads no placing mark before its step onto a tunnel's end");
+    }],
     ["R603 - the handbooks say what E80 built - tunnels and stairs, 'Go through', Find Passage and its Reroll, a Find Stash's Reroll, Make public, the Passages tab's columns, Foundry's secret doors and the players' rulers - as the code does, with the texts the stage names, in English and in Polish", async () => {
         /*
          * E80 C7, 18.10.2026 (P1-23). E80 C1-C6 gave a GM tunnels and stairs, a student 'Go through' and Find Passage, a
@@ -13334,10 +13413,12 @@ const REGRESSIONS = [
         const facts = {
             tunnel: /tunnelEndAt\(scene, end, end\?\.level \?\? null, \{ taken \}\)/.test(fnSource(gmSrc, "tunnelRowFor"))
                 && /if \(at\[0\]\.room === at\[1\]\.room\) return \{ refused: TUNNEL_REFUSALS\.oneRoom \};/.test(fnSource(gmSrc, "tunnelRowFor")),
-            goThrough: /requestPassageCross\(\{ actorId: actor\.id, passageId: row\.passage\.id \}\)/.test(fnSource(code("sheet.mjs"), "goThrough"))
+            goThrough: /requestPassageCross\(\{ actorId: actor\.id, passageId: row\.passage\.id \}, \{ hush \}\)/.test(fnSource(code("sheet.mjs"), "goThrough"))
+                // H81-13: a token moved onto an end takes the button's road (sheet.mjs `onTunnelStep`).
+                && /if \(step\) await goThrough\(actor, \{ passage: \{ id: step\.id, sceneId: scene\.id \} \}, null, mastermind, \{ hush: \["cannotNow"\] \}\);/.test(fnSource(code("sheet.mjs"), "onTunnelStep"))
                 && /M\.tunnelVerdict\(actor, passage, token,/.test(cross) && /M\.settleCrossingOnGm\(actor, verdict\.to\)/.test(cross)
                 && /M\.refundCrossingOnGm\(actor, paid\.cost\)/.test(cross)
-                && /\{ teleport: true, movementAction: "displace", animate: false \}/.test(cross),
+                && /\{ teleport: true, movementAction: "displace", animate: false, \[M\.TUNNEL_CROSSING\]: true \}/.test(cross),
             doors: /crossingVerdict\(actor, here, to, scene, \{ from: near\.level, to: near\.far\.level \},/.test(verdict)
                 && /via: "passage", known, joined: true, keyed: true/.test(verdict)
                 && /if \(to && !\(mover \? mover\.mastermind : iAmTheMastermind\(\)\)\) \{\s*if \(isLocked\(scene, to\)\)/.test(fnSource(movement, "restrictedFrom")),
@@ -13370,7 +13451,7 @@ const REGRESSIONS = [
                 gm: {
                     tunnel: ["or a tunnel or stairs between two rooms on one floor or two", "**+ Tunnel or stairs**, then a click in each of two rooms",
                         "An end in no room, both ends in one room, or an end on a square where another tunnel already ends is refused."],
-                    goThrough: ["presses **Go through** beside it under **Known passages** on their sheet",
+                    goThrough: ["goes through it when their token is dragged onto one of its ends", "press **Go through** beside it under **Known passages** on their sheet",
                         "if the token cannot be moved there, the price is given back"],
                     doors: ["somebody else's bedroom is passed, while a locked door, a sealed room, Chained, a running incident, a Class Trial",
                         "The Mastermind passes a locked door and a sealed room this way too."],
@@ -13389,7 +13470,7 @@ const REGRESSIONS = [
                 },
                 player: {
                     tunnel: ["Some passages are a tunnel or stairs between two rooms, on one floor or two"],
-                    goThrough: ["press **Go through** beside it under **Known passages**"],
+                    goThrough: ["Drag your token onto that end's mark to go through", "press **Go through** beside it under **Known passages**"],
                     landing: ["you come out by the far end, on its floor"],
                     findPassage: ["Four things behind one tile:", "**Find Passage.** 16+ or a critical opens to you one secret passage of this room you do not know yet"],
                     reroll: ["A Reroll of a Find Passage or a Find Stash searches again with the new dice"],
@@ -13405,7 +13486,7 @@ const REGRESSIONS = [
                 gm: {
                     tunnel: ["albo tunel lub schody między dwoma pokojami, na jednym piętrze lub dwóch", "**+ Tunel lub schody**, potem kliknięcie w każdym z dwóch pokoi",
                         "Koniec poza pokojem, oba końce w jednym pokoju albo koniec na polu, na którym kończy się już inny tunel, są odrzucane."],
-                    goThrough: ["naciska **Przejdź** obok niego pod **Znane tajne przejścia** na karcie postaci",
+                    goThrough: ["przechodzi nim, gdy jego token zostanie przeciągnięty na jeden z jego końców", "naciska **Przejdź** obok niego pod **Znane tajne przejścia** na karcie postaci",
                         "jeśli tokenu nie da się tam przesunąć, cena wraca"],
                     doors: ["cudzą sypialnię przechodzi, a zamknięte drzwi, zapieczętowany pokój, Chained, trwający incydent, Class Trial",
                         "Mastermind przechodzi tak też przez zamknięte drzwi i zapieczętowany pokój."],
@@ -13424,7 +13505,7 @@ const REGRESSIONS = [
                 },
                 player: {
                     tunnel: ["Niektóre przejścia to tunel lub schody między dwoma pokojami, na jednym piętrze lub dwóch"],
-                    goThrough: ["naciśnij **Przejdź** obok niego pod **Znane tajne przejścia**"],
+                    goThrough: ["Przeciągnij token na znacznik tego końca, żeby przejść", "naciśnij **Przejdź** obok niego pod **Znane tajne przejścia**"],
                     landing: ["wychodzisz przy dalszym końcu, na jego piętrze"],
                     findPassage: ["Cztery rzeczy za jednym kafelkiem:", "**Znajdź tajne przejście.** 16+ albo krytyk otwiera przed tobą jedno tajne przejście tego pokoju, którego jeszcze nie znasz"],
                     reroll: ["Reroll Znajdź tajne przejście albo Znajdź ukrytą skrytkę szuka jeszcze raz nowymi kośćmi"],
@@ -13717,6 +13798,137 @@ const REGRESSIONS = [
         }
         equal(JSON.stringify(measured), JSON.stringify(expected),
             "[per language - the GM's handbook's line on the setting says when the look is fixed; the hint says the same; the hint names no primary GM]");
+    }],
+    ["R905 - a room found opens at once (H81-08): the reveal's curtain starts opening within 450 ms of the reveal and is open by 1100 ms, its sound plays as the reveal starts, and the room's name stays up for its 5.4 s", async () => {
+        /*
+         * H81 C2, 20.10.2026; the owner's 1.2.80 table (item 1: the room's "door" opened late) and answer D,
+         * "Jak najbardziej skrócić" - as short as possible - which overrides the earlier call to slow the reveal
+         * down. At 9dcf331 the room stayed shut 650 + 2500 = 3150 ms after the reveal began and opened until
+         * 5400 ms. Read: fog-reveal.mjs's exported timings (time to opening: the cut and the hold; the whole:
+         * DISCOVERY_MS), each part above 0; fog.mjs `playDiscoveryAnimation` plays `roomDiscovered` as its first
+         * statement, takes no wait (no `async`, `await` or timer), and runs the curtain over DISCOVERY_MS; the
+         * name's fade (`fadeLabel`) runs over `OUTLINE_MS`, a number of its own, 5400 - the name is read over
+         * the room, it holds nothing shut, so it keeps 1.2.80's time. How long the token takes to come to rest
+         * before this starts (movement.mjs `whenAtRest`) is not read here; whether it feels right: a table.
+         */
+        const J = JSON.stringify;
+        const R = await import("./fog-reveal.mjs");
+        const sources = await moduleSources();
+        const fog = sources.get("fog.mjs"), reveal = sources.get("fog-reveal.mjs");
+        must(fog && reveal, "fog.mjs or fog-reveal.mjs did not load - this test reads nothing");
+        const play = stripComments(fnSource(fog, "playDiscoveryAnimation"));
+        const fade = stripComments(fnSource(reveal, "fadeLabel"));
+        const parts = [R.REVEAL_SLASH_MS, R.REVEAL_HOLD_MS, R.DISCOVERY_MS - R.REVEAL_SLASH_MS - R.REVEAL_HOLD_MS];
+        const opening = R.REVEAL_SLASH_MS + R.REVEAL_HOLD_MS;
+        equal(J({
+            parts: parts.every(n => Number.isFinite(n) && n > 0),
+            opening: opening <= 450, whole: R.DISCOVERY_MS <= 1100,
+            sound: play.split("\n").slice(1).map(line => line.trim()).find(Boolean) ?? null,
+            waits: /^async |\bawait\b|setTimeout|\bpause\(/.test(play),
+            curtain: /duration:\s*DISCOVERY_MS\b/.test(play),
+            name: [/duration:\s*OUTLINE_MS\b/.test(fade), /^const OUTLINE_MS = (\d+);/m.exec(reveal)?.[1] ?? null]
+        }), J({ parts: true, opening: true, whole: true, sound: 'playSfx("roomDiscovered");', waits: false, curtain: true, name: [true, "5400"] }),
+        `[each part above 0; opening by 450 ms (read ${opening}); open by 1100 ms (read ${R.DISCOVERY_MS}); the reveal's first statement; a wait before the curtain; the curtain over DISCOVERY_MS; the name over OUTLINE_MS of its own 5400 ms]`);
+    }],
+    ["R906 - the sheet's 'Known passages' and Experience stand in from the rail as the Equipped block's line does (H81-09): one rule gives what both sections hold under their heading the inline padding of `.drpg-equipped-empty`, and no other rule of the module's sheets gives either section or its content another", async () => {
+        /*
+         * H81 C2, 20.10.2026; the owner's 1.2.80 table (item 2): 'Known passages' and Daggerheart's Experience have
+         * no left margin under the Equipped block. Every stylesheet module.json loads, comments out, is cut into its
+         * rules (each with the at-rules around it); a rule counts for a section where the section, or what it holds but
+         * its heading (`> :not(.title)`), is its subject (the selector ends with the class, or with an `:is()` naming
+         * it, either then `> :not(.title)`). Read: the inline padding each such rule gives
+         * (`padding-inline`, or a `padding` shorthand's second value), and the inline padding of `.drpg-equipped-empty`,
+         * the module's one line in the Equipped block. Daggerheart's CSS is not on this machine: its own inset of the
+         * Equipped rows is not read, so the value is the module's own line's, chosen. Red at 9dcf331: no rule names
+         * `.drpg-passages-section` or `.experience-section` as its subject.
+         */
+        const J = JSON.stringify;
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(res => res.json());
+        const sheets = [];
+        for (const href of manifest.styles ?? []) sheets.push([href.split("/").at(-1), (await fetch(`/modules/${MODULE_ID}/${href}`).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, " ")]);
+        must(sheets.length >= 5, `module.json loads ${sheets.length} stylesheets - not the module's sheets`);
+        const rules = [];
+        for (const [name, css] of sheets) {
+            const open = [];
+            let from = 0;
+            for (let i = 0; i < css.length; i++) {
+                if (css[i] === "{") { open.push({ prelude: css.slice(from, i).split(";").at(-1).trim(), at: i + 1 }); from = i + 1; }
+                else if (css[i] === "}") {
+                    const rule = open.pop();
+                    if (rule && !css.slice(rule.at, i).includes("{")) rules.push({ name, prelude: rule.prelude.replace(/\s+/g, " "), decl: css.slice(rule.at, i), within: open.map(o => o.prelude).join(" ") });
+                    from = i + 1;
+                }
+            }
+        }
+        must(rules.length > 1000, `the module's sheets cut into ${rules.length} rules - the cutter read nothing`);
+        const inline = decl => {
+            const own = /(?:^|;)\s*padding-inline\s*:\s*([^;!]+)/.exec(decl)?.[1].trim();
+            if (own) return own;
+            const short = /(?:^|;)\s*padding\s*:\s*([^;!]+)/.exec(decl)?.[1].trim().split(/\s+/);
+            return short ? (short[1] ?? short[0]) : null;
+        };
+        const selectors = list => {
+            const out = [];
+            let depth = 0, from = 0;
+            for (let i = 0; i < list.length; i++) {
+                if (list[i] === "(") depth++;
+                else if (list[i] === ")") depth--;
+                else if (list[i] === "," && depth === 0) { out.push(list.slice(from, i).trim()); from = i + 1; }
+            }
+            return [...out, list.slice(from).trim()].filter(Boolean);
+        };
+        const subjectOf = cls => {
+            const re = new RegExp(`(?:\\${cls}|:is\\([^()]*\\${cls}(?![\\w-])[^()]*\\))(?: > :not\\(\\.title\\))?$`);
+            return rules.filter(rule => selectors(rule.prelude).some(sel => re.test(sel)) && inline(rule.decl) !== null)
+                .map(rule => `${rule.name}${rule.within ? ` ${rule.within}` : ""}: ${inline(rule.decl)}`);
+        };
+        const both = rules.filter(rule => /\.drpg-passages-section(?![\w-])/.test(rule.prelude) && /\.experience-section(?![\w-])/.test(rule.prelude) && inline(rule.decl) !== null);
+        const equipped = subjectOf(".drpg-equipped-empty");
+        must(equipped.length === 1, `the Equipped block's line has ${equipped.length} rules giving it an inline padding - there is no one inset to read`);
+        const value = equipped[0].split(": ").at(-1);
+        equal(J({ passages: subjectOf(".drpg-passages-section"), experience: subjectOf(".experience-section"), oneRule: both.length }),
+            J({ passages: [`danganronpa.css: ${value}`], experience: [`danganronpa.css: ${value}`], oneRule: 1 }),
+            `[the rules giving 'Known passages' an inline padding; the Experience's; how many rules name both - the Equipped block's line stands ${value} in]`);
+    }],
+    ["R907 - a Frisk's Openly and Unseen are drawn as the module's other choice rows (H81-12): every Stained Glass rule of the choice row that names the Rest picker's option names `.drpg-frisk-mode` too, Monokuma Legacy gives it the Rest option's hover, and the field-label rule leaves it its own size as it leaves the choice rows theirs", async () => {
+        /*
+         * H81 C2, 20.10.2026; the owner's 1.2.80 table (item 6): Frisk's Openly / Unseen did not look like the
+         * other choice rows - under Stained Glass the rows of `:is(.drpg-choice, .drpg-rest-option)` are a dark cut
+         * row with the kind's edge strip, the brush behind the chosen one and `accent-color` on the radio, and the
+         * Frisk's ways kept Monokuma Legacy's gold fill and the browser's radio; under Legacy they had no hover. The
+         * Rest picker's precedent (danganronpa.css: "Built like a .drpg-choice row but declared separately"): its
+         * class is named beside `.drpg-choice` in each rule, so the Frisk's is named there too, and the labels do
+         * not take `drpg-choice` (chooseVariant's `.drpg-choice:has(input:checked) + .drpg-choice-details` would
+         * read them). Every stylesheet module.json loads, comments out, cut into its rules; read: the Stained Glass
+         * rules whose selector names `.drpg-rest-option` and lack `.drpg-frisk-mode`; the declarations of
+         * `.drpg-frisk-mode:hover` against `.drpg-rest-option:hover`'s; the rules that leave `.drpg-rest-option`
+         * out with `:not()` and do not leave the Frisk's out. The look: Chromium shots of a mock-up (no Foundry
+         * CSS); a table. Red at 9dcf331: 13 rules without it, no hover, the label rule.
+         */
+        const J = JSON.stringify;
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(res => res.json());
+        const rules = [];
+        for (const href of manifest.styles ?? []) {
+            const name = href.split("/").at(-1), css = (await fetch(`/modules/${MODULE_ID}/${href}`).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, " ");
+            const open = [];
+            let from = 0;
+            for (let i = 0; i < css.length; i++) {
+                if (css[i] === "{") { open.push({ prelude: css.slice(from, i).split(";").at(-1).trim(), at: i + 1 }); from = i + 1; }
+                else if (css[i] === "}") {
+                    const rule = open.pop();
+                    if (rule && !css.slice(rule.at, i).includes("{")) rules.push({ name, prelude: rule.prelude.replace(/\s+/g, " "), decl: css.slice(rule.at, i) });
+                    from = i + 1;
+                }
+            }
+        }
+        const glass = rules.filter(rule => /body\.drpg-theme-stained-glass/.test(rule.prelude) && /\.drpg-rest-option(?![\w-])/.test(rule.prelude));
+        must(glass.length >= 10, `${glass.length} Stained Glass rules name the Rest option - the choice row's family is not where this test looks`);
+        const decls = sel => rules.filter(rule => rule.prelude === sel).map(rule => rule.decl.split(";").map(d => d.trim()).filter(Boolean).sort().join("; "));
+        const left = rules.filter(rule => /:not\(\.drpg-rest-option\)/.test(rule.prelude) && !/:not\(\.drpg-frisk-mode\)/.test(rule.prelude));
+        equal(J({ glass: glass.filter(rule => !/\.drpg-frisk-mode(?![\w-])/.test(rule.prelude)).length, hover: decls(".drpg-frisk-mode:hover"), label: left.length }),
+            J({ glass: 0, hover: decls(".drpg-rest-option:hover"), label: 0 }),
+            `[of ${glass.length} Stained Glass rules naming the Rest option, those without the Frisk's way; the Frisk's way's hover as the Rest option's; rules that keep their own size for the Rest option and not for the Frisk's way]`);
+        ok(decls(".drpg-rest-option:hover").length === 1, "the Rest option has no one hover rule to read");
     }]
 ];
 

@@ -574,11 +574,16 @@
         "origin": "Origin",
         "knows": "Who knows",
         "start": "At season start",
+        "startHint": "Known again after each season reset. Adding a student here does not give them the passage now.",
         "state": "State",
         "kindSecret": "Secret",
         "kindPublic": "Public",
         "shapeWall": "In a wall",
         "shapeTunnel": "Tunnel or stairs",
+        "way": "Which way it goes",
+        "wayBoth": "Both ways",
+        "wayOnly": "Only from {from} to {to}",
+        "wayHint": "A tunnel or stairs can go one way only: pick it under its Shape. A passage in a wall always goes both ways.",
         "originGm": "GM",
         "originDoor": "Secret door",
         "noRooms": "Rooms not named",
@@ -620,7 +625,9 @@
         "title": "Known passages",
         "where": "Show it on the map",
         "shut": "the way is shut",
-        "cross": "Go through"
+        "cross": "Go through",
+        "oneWay": "One way only: from {from} to {to}.",
+        "walk": "Walk through the gap in the wall."
       },
       "show": {
         "button": "Show the passage",
@@ -673,7 +680,8 @@
         }
       },
       "mark": {
-        "to": "Secret passage to {room}"
+        "to": "Secret passage to {room}",
+        "from": "Secret passage from {room}"
       }
     },
     "Room": {
@@ -3015,7 +3023,8 @@
         "noSpeaker": "Nobody has spoken in this trial yet, so there is nobody to object to.",
         "noBullet": "You hold no Truth Bullet to prove an Objection with.",
         "objectionOver": "That Objection is no longer waiting for a Truth Bullet.",
-        "notAtPassage": "Your character is not at an end of that passage.",
+        "notAtPassage": "Stand on the passage's mark, or a square next to it, first.",
+        "oneWay": "This passage cannot be taken from this side.",
         "doorLocked": "The door is locked.",
         "roomSealed": "That room is sealed for this time of day. Nobody gets in.",
         "chained": "You are chained here until this time of day ends.",
@@ -3446,8 +3455,9 @@
       "caughtTrying": "You catch {who} going through your pockets. They come away with nothing."
     },
     "Frisk": {
-      "rowLabel": "Frisk: see what they carry",
+      "rowLabel": "See what they carry",
       "rowHint": "Look through their pockets and take nothing.",
+      "noticeTitle": "Frisk",
       "unseenLabel": "Unseen",
       "unseenHint": "Shadow {unseen}+ so they do not notice, then Hand {hand}+ to see everything.",
       "sent": "You go for {name}'s pockets. What you see - and whether they felt it - settles in a moment.",
@@ -3708,7 +3718,8 @@
         "gmBlock": "The GM blocked your microphone.",
         "external": "Voice is in its own window - use the controls there.",
         "offline": "You are not connected to voice.",
-        "connecting": "Joining your voice channel."
+        "connecting": "Joining your voice channel.",
+        "connected": "Connected to your voice channel."
       },
       "list": {
         "open": "Who you hear",

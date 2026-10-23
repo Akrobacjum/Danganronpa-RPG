@@ -555,11 +555,16 @@
         "origin": "Pochodzenie",
         "knows": "Kto zna",
         "start": "Na start sezonu",
+        "startHint": "Znają je znowu po każdym resecie sezonu. Dopisanie ucznia tutaj nie daje mu przejścia teraz.",
         "state": "Stan",
         "kindSecret": "Tajne",
         "kindPublic": "Jawne",
         "shapeWall": "W ścianie",
         "shapeTunnel": "Tunel lub schody",
+        "way": "W którą stronę prowadzi",
+        "wayBoth": "W obie strony",
+        "wayOnly": "Tylko z: {from}, do: {to}",
+        "wayHint": "Tunel lub schody mogą prowadzić tylko w jedną stronę: wybierz to pod ich kształtem. Przejście w ścianie zawsze prowadzi w obie strony.",
         "originGm": "GM",
         "originDoor": "Tajne drzwi",
         "noRooms": "Pokoje bez nazwy",
@@ -601,7 +606,9 @@
         "title": "Znane tajne przejścia",
         "where": "Pokaż na mapie",
         "shut": "droga zamknięta",
-        "cross": "Przejdź"
+        "cross": "Przejdź",
+        "oneWay": "Tylko w jedną stronę, z: {from}, do: {to}.",
+        "walk": "Przejdź przez przerwę w ścianie."
       },
       "show": {
         "button": "Pokaż tajne przejście",
@@ -654,7 +661,8 @@
         }
       },
       "mark": {
-        "to": "Tajne przejście do: {room}"
+        "to": "Tajne przejście do: {room}",
+        "from": "Tajne przejście z: {room}"
       }
     },
     "Room": {
@@ -3135,7 +3143,8 @@
         "noSpeaker": "W tym Class Trialu nikt jeszcze nie mówił, więc nie ma wobec kogo wnieść objection.",
         "noBullet": "Nie masz żadnego Truth Bulletu, którym można dowieść Objection.",
         "objectionOver": "To Objection nie czeka już na Truth Bullet.",
-        "notAtPassage": "Twoja postać nie stoi przy wylocie tego przejścia.",
+        "notAtPassage": "Najpierw stań na znaczniku przejścia albo na polu obok niego.",
+        "oneWay": "Tym przejściem nie da się przejść z tej strony.",
         "doorLocked": "Drzwi są zamknięte.",
         "roomSealed": "To pomieszczenie jest zapieczętowane na tę porę dnia. Nikt nie wchodzi.",
         "chained": "Jesteś tu przykuty do końca tej pory dnia.",
@@ -3596,8 +3605,9 @@
       "caughtTrying": "Łapiesz {who} na grzebaniu w twoich kieszeniach. Odchodzą z niczym."
     },
     "Frisk": {
-      "rowLabel": "Frisk: zobacz, co ktoś nosi",
+      "rowLabel": "Zobacz, co nosi",
       "rowHint": "Przejrzyj czyjeś kieszenie i niczego nie bierz.",
+      "noticeTitle": "Frisk",
       "unseenLabel": "Ukradkiem",
       "unseenHint": "Shadow {unseen}+, żeby nikt nie zauważył, potem Hand {hand}+, żeby zobaczyć wszystko.",
       "sent": "Sięgasz do kieszeni: {name}. Co zobaczysz - i czy poczuli - rozstrzygnie się za chwilę.",
@@ -3862,7 +3872,8 @@
         "gmBlock": "GM zablokował twój mikrofon.",
         "external": "Głos jest w osobnym oknie - użyj jego przycisków.",
         "offline": "Brak połączenia z głosem.",
-        "connecting": "Trwa dołączanie do kanału głosowego."
+        "connecting": "Trwa dołączanie do kanału głosowego.",
+        "connected": "Połączono z kanałem głosowym."
       },
       "list": {
         "open": "Kogo słyszysz",
@@ -4766,7 +4777,7 @@
         },
         "palm": {
           "label": "Palm",
-          "hint": "Wyjmij coś z czyjejś kieszeni, zostaw coś w niej albo zobacz, co ktoś nosi.",
+          "hint": "Wyjmij coś z czyjejś kieszeni, zostaw coś w niej albo zobacz, co nosi.",
           "description": "Wkładasz rękę do czyjejś kieszeni. Jeden rzut decyduje, czy ktoś zauważy, drugi, czy się uda. Albo po prostu prosisz, żeby pokazali kieszenie.",
           "unseen": {
             "label": "Trzymaj ręce poza zasięgiem wzroku"

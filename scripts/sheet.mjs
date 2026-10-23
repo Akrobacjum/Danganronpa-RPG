@@ -57,10 +57,11 @@ import { isCleaner, tamperQuote, witnessesTo } from "./cleanup.mjs";
 // reads (T-1). Synchronous by design - this file calls it from a render path.
 import { quotePrice, priceLabel, stripeKindFor } from "./price.mjs";
 import { roomOfActor, neighbouringRooms, othersInRoom, locateActor, sceneOfActor, passageRooms, passageOpenFor,
-    roomsKnownToMe, tunnelVerdict, tunnelRefusalText } from "./movement.mjs";
+    roomsKnownToMe, tunnelVerdict, tunnelRefusalText, tunnelStepTarget, whenAtRest, isPlacing, gmSpotWhy } from "./movement.mjs";
+import { isMoveChange, levelOf } from "./rooms.mjs";
 // The sheet's 'Known passages' (E79 C7): this browser's passages, the Mastermind as the GMs hold it, and the
 // rooms named as Listen names them - a room this viewer has not found is "Unexplored room n".
-import { passagesKnownBy, passageSpot, viewPassage } from "./passages.mjs";
+import { passagesKnownBy, passageSpot, viewPassage, tunnelEndsFor } from "./passages.mjs";
 import { isMastermindActor } from "./passages-gm.mjs";
 import { listenLabels } from "./action-rolls.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
@@ -88,6 +89,11 @@ export function registerSheetTweaks() {
     Hooks.on("renderCharacterSheet", onRenderCharacterSheet);
     // The sheet's 'Known passages' follows this browser's copy of the passages (E79 C7).
     Hooks.on("drpgPassagesChanged", redrawPassageSheets);
+    // A token moved onto a tunnel's end goes through it as 'Go through' does (H81-13; `onTunnelStep`'s note).
+    Hooks.on("preUpdateToken", noteStepStart);
+    Hooks.on("updateToken", (tokenDoc, changes, options, userId) => {
+        onTunnelStep(tokenDoc, changes, options, userId).catch(err => error("Could not go through a secret passage", err));
+    });
     // The tile-fit observer dies with its sheet (UI-14): ApplicationV2 builds
     // a new root on every open, so an observer left on the old root watched a
     // detached element for the rest of the session, one per open/close.
@@ -2014,9 +2020,10 @@ function injectEquippedTools(app, element) {
  */
 
 /**
- * The list's rows, `[{ passage, label, shut }]` sorted by `label`: `passage` the stretch
+ * The list's rows, `[{ passage, label, shut, way }]` sorted by `label`: `passage` the stretch
  * (`passagesKnownBy`'s row), `label` "Room - Room" as `listenLabels` names them for this viewer, `shut`
- * whether the passage does not open for the character from where it stands. A passage on a scene this
+ * whether the passage does not open for the character from where it stands, `way` a one-way tunnel's
+ * `{ from, to }` named as the label names them, null for one that goes both ways (H81-02). A passage on a scene this
  * world no longer holds is left out. `deps` are the suite's (R562).
  */
 export function knownPassageRows(actor, { known, mastermind = false, sceneOf = id => game.scenes?.get(id) ?? null,
@@ -2030,11 +2037,16 @@ export function knownPassageRows(actor, { known, mastermind = false, sceneOf = i
         const rooms = sides(scene, passage, passage.level) ?? [];
         const names = listenLabels(rooms.filter(Boolean), knownRooms(scene));
         const label = [rooms[0], rooms[1]].map(room => (room ? names.get(room) : "-")).join(" - ");
+        // A one-way tunnel's two rooms in its direction, as the label names them (H81-02); null both ways.
+        const one = passage.oneWay === 0 || passage.oneWay === 1 ? passage.oneWay : null;
+        const way = one === null ? null : { from: rooms[one] ? names.get(rooms[one]) : "-", to: rooms[1 - one] ? names.get(rooms[1 - one]) : "-" };
         const from = here?.scene?.id === scene.id ? here.room : null;
         // The frame's own question, asked as the frame asks it (fog-doorways.mjs): no mover but on a GM's
-        // browser for the Mastermind, whom only the GMs' record names there.
-        const shut = !opens(actor, passage, scene, { from, level: passage.level, mover: mastermind ? { mastermind: true } : null, ...given });
-        rows.push({ passage, label, shut });
+        // browser for the Mastermind, whom only the GMs' record names there; at the token's height, where `from`
+        // was read (H81 fix r1, movement.mjs `passageRooms`' note). The label's rooms are the map's, for no token.
+        const elevation = from !== null && Number.isFinite(here?.tokenDoc?.elevation) ? here.tokenDoc.elevation : null;
+        const shut = !opens(actor, passage, scene, { from, level: passage.level, mover: mastermind ? { mastermind: true } : null, elevation, ...given });
+        rows.push({ passage, label, shut, way });
     }
     return rows.sort((a, b) => a.label.localeCompare(b.label));
 }
@@ -2070,8 +2082,26 @@ async function showPassageDialog(actor, row) {
  * says it (`tunnelRefusalText`: `DRPG.Bridge.why.<code>`, "that room" for the room); then the primary GM judges it
  * again and moves the token (gm-bridge.mjs `passage.cross`), and says its refusal through the bridge. The button
  * waits for the answer, so one click asks once. Scenario 76 U clicks it.
+ *
+ * ENABLED WHEREVER THE TOKEN STANDS (H81-03, 20.10.2026; the owner's item 4b and the design A10's step 11, which
+ * disables it away from an end). A disabled button says the truth only while the row is drawn again as the token
+ * moves, and nothing draws it then: of this file's hooks (`registerSheetTweaks`) none draws the list on a token's move -
+ * the list is drawn on the sheet's own render and on `drpgPassagesChanged`; `onTunnelStep` hears a move (H81-13), and
+ * goes through, but draws nothing - and a linked token's move is no update of its
+ * actor, which is what renders an actor's sheet (Foundry's rule as this module reads it; Daggerheart's sheet is not on
+ * this machine). Read off the source, not a table. So the click says where to stand instead: `notAtPassage`'s words.
+ * A token moved onto an end takes this road too, with no button (`onTunnelStep`), and the bridge's `hush` for it.
+ *
+ * ONE ASK PER CHARACTER AT A TIME, FROM EITHER ROAD (H81 fix C3, 21.10.2026; the review's H81-C3-R2). The button stopped
+ * a second ask only for itself; a drag asks with no button, and the primary judges each ask from where the token stands
+ * when its turn comes (`crossTunnel`'s `serialWrite`), so a click while a drag's ask was on its way went through twice -
+ * two prices, and back where she started. While `crossingsAsked` holds the character, another ask here, a drag's or a
+ * click's from any open sheet, is not sent.
  */
-async function goThrough(actor, row, button, mastermind) {
+const crossingsAsked = new Set();
+
+async function goThrough(actor, row, button, mastermind, { hush = [] } = {}) {
+    if (crossingsAsked.has(actor.id)) return;
     const scene = game.scenes?.get(row.passage.sceneId) ?? null;
     const ask = token => tunnelVerdict(actor, { id: row.passage.id, sceneId: row.passage.sceneId }, token,
         { mover: mastermind ? { gm: game.user.isGM, mastermind: true } : null });
@@ -2082,14 +2112,97 @@ async function goThrough(actor, row, button, mastermind) {
         ui.notifications.warn(tunnelRefusalText(verdict));
         return;
     }
-    button.disabled = true;
+    crossingsAsked.add(actor.id);
+    if (button) button.disabled = true;
     try {
         const { requestPassageCross } = await import("./gm-bridge.mjs");
-        const res = await requestPassageCross({ actorId: actor.id, passageId: row.passage.id });
+        const res = await requestPassageCross({ actorId: actor.id, passageId: row.passage.id }, { hush });
         if (!res.ok) debug("A tunnel was not gone through", res.reason);
     } finally {
-        button.disabled = false;
+        crossingsAsked.delete(actor.id);
+        if (button) button.disabled = false;
     }
+}
+
+/*
+ * A TOKEN MOVED ONTO A TUNNEL'S END GOES THROUGH IT (H81-13 and H81-14, 21.10.2026; the owner's call of 21.10, the
+ * token chosen over a click on the mark: a GM's browser draws no mark, and a click on one cannot be measured headless).
+ * The mover's browser alone reads the move - the user whose update it is, Foundry's `userId` - once the token is at rest
+ * (movement.mjs `whenAtRest`, as fog.mjs reads a room, so the landing does not race the drag's animation), decides it
+ * with movement.mjs `tunnelStepTarget`, and takes the button's road: `goThrough`'s own check and words, then the
+ * bridge's `passage.cross`, judged and written on the primary GM. Nothing new goes on the wire and nothing is written
+ * here. Where the move started is read before it is written (`preUpdateToken` runs on the writer's browser alone) and
+ * kept through the updates of one move until it rests; a move vetoed before it is written leaves nothing waiting, and
+ * the next one reads its start again. Only for a student whose sheet shows 'Known passages' to this user
+ * (`injectKnownPassages`: its owner, never a Monokuma), the Mastermind as the sheet asks for it. Scenario 76 U drags one.
+ *
+ * WHAT IS NOT THIS USER'S STEP (H81 fix C3, 21.10.2026; the review's H81-C3-R1 and H81-C3-R3). A token this browser
+ * places itself through Foundry's region teleport (movement.mjs `isPlacing`: the gather, the cast's placing, a
+ * Clean-up's body) is never a step, whatever options Foundry writes. A move of the token by anybody else - the
+ * primary's landing, the GMs' put-back, a GM's hand - while this browser's move comes to rest ends that move's wait:
+ * where the token rests is no longer where this user put it, and a click's landing read as a drag onto the far end was a
+ * second crossing. At rest, a put-back this browser sent is on its way (`gmSpotWhy` = "putBack", filled in the
+ * refusing hook, before its write): the refusal has said its words, and the drag asks nothing. One the GMs send that
+ * lands after the ask is refused by the primary as `cannotNow`, which the drag's road keeps quiet (`hush`): the
+ * put-back says its own line. Tier 2 "H81 C3 drag" and scenario 76 U.
+ */
+const tunnelSteps = new Map();
+
+const stepSpot = tokenDoc => ({ x: tokenDoc.x, y: tokenDoc.y, level: levelOf(tokenDoc), width: tokenDoc.width ?? 1, height: tokenDoc.height ?? 1 });
+
+/** Before this browser writes a token's move: where it starts, unless a move of the same token is still coming to rest. */
+function noteStepStart(tokenDoc, changes) {
+    if (!tokenDoc?.id || !isMoveChange(changes) || isPlacing(tokenDoc) || tunnelSteps.get(tokenDoc.id)?.waiting) return;
+    tunnelSteps.set(tokenDoc.id, { from: stepSpot(tokenDoc), turn: 0, waiting: false });
+}
+
+/** After it: once the token rests, the newest update of the move decides whether it goes through a tunnel. */
+async function onTunnelStep(tokenDoc, changes, options, userId) {
+    if (!isMoveChange(changes)) return;
+    if (userId !== game.user?.id || isPlacing(tokenDoc)) {
+        tunnelSteps.delete(tokenDoc?.id);
+        return;
+    }
+    const entry = tunnelSteps.get(tokenDoc?.id);
+    if (!entry) return;
+    const scene = tokenDoc.parent ?? null;
+    const actor = tokenDoc.actorId ? game.actors?.get(tokenDoc.actorId) ?? null : null;
+    if (!scene || !actor || actor.type !== "character" || isMonokuma(actor) || !actor.isOwner) {
+        tunnelSteps.delete(tokenDoc.id);
+        return;
+    }
+    const turn = ++entry.turn;
+    entry.waiting = true;
+    await whenAtRest(tokenDoc);
+    if (tunnelSteps.get(tokenDoc.id) !== entry || entry.turn !== turn) return;
+    tunnelSteps.delete(tokenDoc.id);
+    if (gmSpotWhy(tokenDoc) === "putBack") return;
+    const mastermind = game.user.isGM && isMastermindActor(actor);
+    const step = tunnelStepTarget({ changes, options, from: entry.from, to: stepSpot(tokenDoc), ends: tunnelEndsFor(actor, scene.id, null, { mastermind }),
+        grid: scene.grid?.size ?? 100, userId, me: game.user.id });
+    if (step) await goThrough(actor, { passage: { id: step.id, sceneId: scene.id } }, null, mastermind, { hush: ["cannotNow"] });
+}
+
+/**
+ * One row of 'Known passages', `knownPassageRows`' `row` drawn, its buttons not yet wired (`injectKnownPassages` wires
+ * them): the rooms as a link, 'the way is shut' where it is, a line under them saying what a player does with it -
+ * walk through the gap of a passage in a wall, which has no button (H81-04), or which way a one-way tunnel goes
+ * (H81-02) - 'Go through' for a tunnel and 'Show the passage'. Each line holds while the row stands: which way a
+ * passage goes is in the copy, and a changed copy draws the list again (`drpgPassagesChanged`). R904 draws it.
+ */
+export function knownPassageItem(row) {
+    const t = key => foundry.utils.escapeHTML(game.i18n.localize(key));
+    const li = document.createElement("li");
+    li.className = `drpg-passage-row${row.shut ? " is-shut" : ""}`;
+    const tunnel = Array.isArray(row.passage?.ends);
+    const note = tunnel
+        ? (row.way ? `<span class="drpg-passage-note" data-drpg-passage-note="oneWay">${foundry.utils.escapeHTML(game.i18n.format("DRPG.Passage.list.oneWay", row.way))}</span>` : "")
+        : `<span class="drpg-passage-note" data-drpg-passage-note="walk">${t("DRPG.Passage.list.walk")}</span>`;
+    li.innerHTML = `<a class="drpg-passage-where" role="button" tabindex="0" title="${t("DRPG.Passage.list.where")}">${
+        foundry.utils.escapeHTML(row.label)}</a>${row.shut ? `<span class="drpg-passage-shut">${t("DRPG.Passage.list.shut")}</span>` : ""}${note}`
+        + (tunnel ? `<button type="button" class="drpg-mini-button drpg-passage-cross">${t("DRPG.Passage.list.cross")}</button>` : "")
+        + `<button type="button" class="drpg-mini-button drpg-passage-show">${t("DRPG.Passage.show.button")}</button>`;
+    return li;
 }
 
 /** The list, after the Experience, on an owner's sheet of a student that knows a passage; none for a Monokuma. */
@@ -2111,12 +2224,7 @@ function injectKnownPassages(app, element) {
         + `<side-line-div></side-line-div></div><ul class="drpg-passage-list"></ul>`;
     const list = section.querySelector("ul");
     for (const row of rows) {
-        const li = document.createElement("li");
-        li.className = `drpg-passage-row${row.shut ? " is-shut" : ""}`;
-        li.innerHTML = `<a class="drpg-passage-where" role="button" tabindex="0" title="${t("DRPG.Passage.list.where")}">${
-            foundry.utils.escapeHTML(row.label)}</a>${row.shut ? `<span class="drpg-passage-shut">${t("DRPG.Passage.list.shut")}</span>` : ""}`
-            + (Array.isArray(row.passage.ends) ? `<button type="button" class="drpg-mini-button drpg-passage-cross">${t("DRPG.Passage.list.cross")}</button>` : "")
-            + `<button type="button" class="drpg-mini-button drpg-passage-show">${t("DRPG.Passage.show.button")}</button>`;
+        const li = knownPassageItem(row);
         const where = li.querySelector(".drpg-passage-where");
         const pan = event => {
             event.preventDefault();

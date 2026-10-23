@@ -3693,7 +3693,7 @@ async function reactToMove(tokenDoc) {
             if (changedRoom) {
                 repaintFog();
                 if (entered?.isNew) playDiscoveryAnimation(entered.room, tokenDoc);
-                else if (entered) announceRoom(entered.room, tokenDoc.actor);
+                else if (entered) announceRoom(entered.room, tokenDoc.actor, tokenDoc.elevation);
             }
         }
     } catch (err) {
@@ -3734,7 +3734,7 @@ function revealStartingRooms() {
         // saying "you are in this one", and it has to be there from the moment
         // the scene appears rather than waiting for a step.
         if (entered.isNew) playDiscoveryAnimation(entered.room, token.document);
-        else announceRoom(entered.room, token.document.actor);
+        else announceRoom(entered.room, token.document.actor, token.document.elevation);
     }
 }
 
@@ -3771,7 +3771,7 @@ function roomEnteredByMe(tokenDoc) {
     const key = `${scene.id}.${actor.id}.${room}`;
     // Nothing is ever new to a GM - they know every room on the map, so a
     // Monokuma walking into one gets the outline and the name and none of the
-    // five seconds of curtain that discovering a room is worth.
+    // curtain that discovering a room is worth.
     // The Mastermind's rows are never written to the ledger (their walks are
     // nobody's business), so for them "discovered" would read empty in every
     // room and the curtain would play in rooms their own fog already shows.
@@ -3787,9 +3787,10 @@ function roomEnteredByMe(tokenDoc) {
 /**
  * The outline and the name, without the reveal - what walking back into a room
  * you already know looks like. `actor` is the character that walked in: its
- * secret passages open in the outline (E79 C3; fog-doorways.mjs `doorwayEdges`).
+ * secret passages open in the outline (E79 C3; fog-doorways.mjs `doorwayEdges`), read at
+ * `elevation`, its token's height (H81 fix r1; fog-reveal.mjs `flashOutline`).
  */
-function announceRoom(room, actor = null) {
+function announceRoom(room, actor = null, elevation = null) {
     // BEFORE THE EARLY RETURNS. Crossing into a room you already know is the
     // event; whether this client can draw the outline for it is a separate
     // question, and a scene without a usable region should not also go silent.
@@ -3804,7 +3805,7 @@ function announceRoom(room, actor = null) {
     if (!region) return;
 
     const dims = canvas.dimensions;
-    flashOutline(fx, region, dims?.rect ?? { x: 0, y: 0 }, level, { actor });
+    flashOutline(fx, region, dims?.rect ?? { x: 0, y: 0 }, level, { actor, elevation: Number.isFinite(elevation) ? elevation : null });
 }
 
 /**
@@ -3818,7 +3819,7 @@ export function redrawOutline(room = null) {
     const standing = roomOutline;
     if (!standing || standing.group?.destroyed || !standing.fx || standing.fx.destroyed || !standing.region) return false;
     if (room !== null && standing.room !== room) return false;
-    flashOutline(standing.fx, standing.region, standing.rect, standing.level, { actor: standing.actor ?? null });
+    flashOutline(standing.fx, standing.region, standing.rect, standing.level, { actor: standing.actor ?? null, elevation: standing.elevation ?? null });
     return true;
 }
 
@@ -3877,7 +3878,7 @@ function playDiscoveryAnimation(room, tokenDoc) {
     // No measurable shape, no renderer, or a viewer who has asked for no
     // motion: the room is already clear underneath, so just name it.
     if (!bounds || !renderer || motionOff()) {
-        flashOutline(fx, region, rect, level, { actor: tokenDoc?.actor ?? null });
+        flashOutline(fx, region, rect, level, { actor: tokenDoc?.actor ?? null, elevation: tokenDoc?.elevation ?? null });
         return;
     }
 
@@ -3893,7 +3894,7 @@ function playDiscoveryAnimation(room, tokenDoc) {
     /* The reveal's own lines take the seam colour too, because `flashOutline` runs INSIDE the
        reveal rather than after it - the file's rule for itself here is one gesture in one
        colour rather than three things taking turns. Left at bone these would be white lines
-       with an accent-coloured border drawn straight across them for five seconds, which is
+       with an accent-coloured border drawn straight across them for the reveal's run, which is
        exactly what that rule forbids. Unlike the standing outline this is baked into a render
        texture and destroyed when the reveal ends, so it is deliberately NOT wired into
        `recolourRoomOutline`: it has no handle to recolour and never lives long enough to go
@@ -3941,7 +3942,7 @@ function playDiscoveryAnimation(room, tokenDoc) {
 
     const L = buildRevealLayers(fx, { region, bounds, rect, glass, ink, bone, lineWidth, width, height, resolution, stains });
     if (!L) {
-        flashOutline(fx, region, rect, level, { actor: tokenDoc?.actor ?? null });
+        flashOutline(fx, region, rect, level, { actor: tokenDoc?.actor ?? null, elevation: tokenDoc?.elevation ?? null });
         return;
     }
     const { fogScratch, lineScratch, fogTex, lineTex, fogSprite, lineSprite, lineLayer } = L;
@@ -3975,7 +3976,7 @@ function playDiscoveryAnimation(room, tokenDoc) {
 
     // The outline and the name run WITH the lines, not after them: one gesture
     // in one colour rather than three things taking turns.
-    flashOutline(fx, region, rect, level, { actor: tokenDoc?.actor ?? null });
+    flashOutline(fx, region, rect, level, { actor: tokenDoc?.actor ?? null, elevation: tokenDoc?.elevation ?? null });
 
     const state = { t: 0 };
     const done = () => destroyRevealLayers(L, stains);

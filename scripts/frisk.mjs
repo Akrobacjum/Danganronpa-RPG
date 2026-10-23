@@ -872,12 +872,13 @@ export async function onFriskPacket(payload, senderId) {
 
 /**
  * A line of a Frisk's on this browser's toast, kept in its notice history (notice-history.mjs `recordNotice`) so a GM
- * who missed the toast still reads why nobody was asked. Text only: the toast and the entry draw no markup.
+ * who missed the toast still reads why nobody was asked. Text only: the toast and the entry draw no markup. Titled
+ * "Frisk" by a key of its own (H81-11): the Palm window's row, whose words it took until then, says what to do now.
  */
 function toast(text) {
     ui.notifications.info(text);
     import("./notice-history.mjs")
-        .then(({ recordNotice }) => recordNotice({ kind: "info", source: "mine", state: "unread", title: game.i18n.localize("DRPG.Frisk.rowLabel"), text }))
+        .then(({ recordNotice }) => recordNotice({ kind: "info", source: "mine", state: "unread", title: game.i18n.localize("DRPG.Frisk.noticeTitle"), text }))
         .catch(err => debug("A Frisk's line could not be kept in this browser's history", err));
 }
 
