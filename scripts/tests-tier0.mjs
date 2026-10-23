@@ -8081,6 +8081,10 @@ const REGRESSIONS = [
          * which only draw the GMs' overlay again. Red before the rows: those 3 places without a row (the quick gate at
          * 4e20bf6 with the commit's edits); with them 145 places - 70 PACKET, 22 SOCKET, 34 HOOK, 9 SHEET, 10 STORE -
          * against 145 rows (harness, 23.10.2026, once).
+         * H82 fix r1 (23.10.2026; finding H82-C3-R2) added three HOOK rows more, the overlay's redraw on a behaviour made or
+         * deleted on a region and on a scene's update of its regions. Red without the rows: those 3 places unclassified (the
+         * harness, R379 alone with the rows taken out, once); with them three more places and rows than C3's - 148 and 37
+         * HOOK, by arithmetic: the test prints no count when it passes.
          * The reader is run first on a fixture: a packet of a family and of none, an inline socket
          * arrow with a field named only in a comment, a token listener beside another event's, a
          * sheet reader of movement.mjs beside one whose flag is only in a comment, a reader in a
@@ -8200,6 +8204,9 @@ const REGRESSIONS = [
             ["HOOK passages-gm.mjs#registerPassagesGm#createRegion:inline", "out of scope: on a GM's browser alone the GMs' overlay is drawn again a quarter second after the last region change, its words naming the room beyond each tunnel end off the map (`redrawPassagesSoon`, H82-04; R942); it decides no rule and writes nothing"],
             ["HOOK passages-gm.mjs#registerPassagesGm#updateRegion:inline", "out of scope: on a GM's browser alone the GMs' overlay is drawn again a quarter second after the last region change, its words naming the room beyond each tunnel end off the map (`redrawPassagesSoon`, H82-04; R942); it decides no rule and writes nothing"],
             ["HOOK passages-gm.mjs#registerPassagesGm#deleteRegion:inline", "out of scope: on a GM's browser alone the GMs' overlay is drawn again a quarter second after the last region change, its words naming the room beyond each tunnel end off the map (`redrawPassagesSoon`, H82-04; R942); it decides no rule and writes nothing"],
+            ["HOOK passages-gm.mjs#registerPassagesGm#createRegionBehavior:inline", "out of scope: on a GM's browser alone the GMs' overlay is drawn again a quarter second after the last region change (a behaviour made on a region, which can unmake a room, H82 fix r1, finding H82-C3-R2), its words naming the room beyond each tunnel end off the map (`redrawPassagesSoon`, H82-04; R942); it decides no rule and writes nothing"],
+            ["HOOK passages-gm.mjs#registerPassagesGm#deleteRegionBehavior:inline", "out of scope: on a GM's browser alone the GMs' overlay is drawn again a quarter second after the last region change (a behaviour taken off a region, which can make one, H82 fix r1, finding H82-C3-R2), its words naming the room beyond each tunnel end off the map (`redrawPassagesSoon`, H82-04; R942); it decides no rule and writes nothing"],
+            ["HOOK passages-gm.mjs#registerPassagesGm#updateScene:inline", "out of scope: on a GM's browser alone the GMs' overlay is drawn again a quarter second after the last region change (a scene's own update that changes its regions, `changes.regions`, H82 fix r1, finding H82-C3-R2), its words naming the room beyond each tunnel end off the map (`redrawPassagesSoon`, H82-04; R942); it decides no rule and writes nothing"],
             // E12 fix r2-S2 (review EARLY-C7-3, O6): a behaviour added to or taken off a region, and regions a scene's own update hands in.
             ["HOOK fog.mjs#registerFog#createRegionBehavior:inline", "out of scope: as createRegion, for the behaviour's region - a Teleport added unmakes a room (rooms.mjs `canBeRoom`); every client repaints the scene on screen (scenario 66 X4) (E12 fix r2-S2)"],
             ["HOOK fog.mjs#registerFog#deleteRegionBehavior:inline", "out of scope: as createRegion, for the behaviour's region - a Teleport taken off a marked region makes a room, and a GM's that gives the scene its first room prepares it on the primary (scenario 66 X3) (E12 fix r2-S2)"],
@@ -9464,6 +9471,10 @@ const REGRESSIONS = [
          * tunnel end off the map (passages-gm.mjs `redrawPassagesSoon`; screen). Red before the rows: the three read
          * "unsorted" (the quick gate at 4e20bf6 with the commit's edits); with them 87 roads (43 HOOK, 12 OPT, 16 ACT,
          * 2 IGN, 6 WALLS, 0 SCENE, 4 STORE, 4 SET) against 83 rows, none either side (harness, 23.10.2026, once).
+         * H82 fix r1 (23.10.2026; finding H82-C3-R2) adds 3 more, read in the family alone: createRegionBehavior,
+         * deleteRegionBehavior and updateScene, the same redraw (`redrawPassagesSoon`; screen). Red without the rows: the
+         * three unclassified (the harness, R553 alone with the rows taken out, once); with them 90 roads and 86 rows by
+         * arithmetic, none either side - the test prints no count when it passes.
          * It reads names and text, not a syntax tree, as R534 does. Two places where it keys otherwise than the parse-only
          * census: a road inside a named inner function or a method (the census keys it by that name, this reader by the
          * top-level declaration), and a top-level declaration of several names (the census joins them, this reader takes
@@ -9571,6 +9582,9 @@ const REGRESSIONS = [
             ["HOOK passages-gm.mjs#registerPassagesGm#createRegion/inline -> screen", "a GM's browser only (the `ready` hook returns on a player's): the GMs' overlay drawn again a quarter second after the last region change, its words reading the room beyond each tunnel end off the map (`redrawPassagesSoon`, H82-04; R942); nothing written or sent"],
             ["HOOK passages-gm.mjs#registerPassagesGm#updateRegion/inline -> screen", "a GM's browser only (the `ready` hook returns on a player's): the GMs' overlay drawn again a quarter second after the last region change, its words reading the room beyond each tunnel end off the map (`redrawPassagesSoon`, H82-04; R942); nothing written or sent"],
             ["HOOK passages-gm.mjs#registerPassagesGm#deleteRegion/inline -> screen", "a GM's browser only (the `ready` hook returns on a player's): the GMs' overlay drawn again a quarter second after the last region change, its words reading the room beyond each tunnel end off the map (`redrawPassagesSoon`, H82-04; R942); nothing written or sent"],
+            ["HOOK passages-gm.mjs#registerPassagesGm#createRegionBehavior/inline -> screen", "a GM's browser only (the `ready` hook returns on a player's): the GMs' overlay drawn again a quarter second after the last region change (a behaviour made on a region, which can unmake a room, H82 fix r1, finding H82-C3-R2), its words reading the room beyond each tunnel end off the map (`redrawPassagesSoon`, H82-04; R942); nothing written or sent"],
+            ["HOOK passages-gm.mjs#registerPassagesGm#deleteRegionBehavior/inline -> screen", "a GM's browser only (the `ready` hook returns on a player's): the GMs' overlay drawn again a quarter second after the last region change (a behaviour taken off a region, which can make one, H82 fix r1, finding H82-C3-R2), its words reading the room beyond each tunnel end off the map (`redrawPassagesSoon`, H82-04; R942); nothing written or sent"],
+            ["HOOK passages-gm.mjs#registerPassagesGm#updateScene/inline -> screen", "a GM's browser only (the `ready` hook returns on a player's): the GMs' overlay drawn again a quarter second after the last region change (a scene's own update that changes its regions, `changes.regions`, H82 fix r1, finding H82-C3-R2), its words reading the room beyond each tunnel end off the map (`redrawPassagesSoon`, H82-04; R942); nothing written or sent"],
             ["HOOK fog.mjs#registerFog#drpgPassagesChanged/inline -> screen", "this browser's outline redrawn from its own copy when the copy changes, with no sound (`redrawOutline`, R557)"],
             ["HOOK sheet.mjs#registerSheetTweaks#drpgPassagesChanged/redrawPassageSheets -> screen", "the 'Known passages' page drawn again from this browser's own copy (R562)"],
             ["HOOK sheet.mjs#registerSheetTweaks#preUpdateToken/noteStepStart -> veto", "advisory, and no veto: notes where this browser's own move starts (H81-13), returns nothing, writes nothing"],
@@ -9582,7 +9596,8 @@ const REGRESSIONS = [
         const FAMILY = /^(?:passages|passages-gm|passages-tab|gm-overlay|movement-audit)\.mjs$/;
         const FAMILY_SINKS = { clientSettingChanged: ["copy"], updateActor: ["copy"], createActor: ["copy"], deleteActor: ["copy"], userConnected: ["copy"], updateUser: ["copy"],
             drpgPrimaryReady: ["copy"], gmStoresAudible: ["copy"], canvasReady: ["screen"], preUpdateWall: ["record"], preCreateWall: ["record"], createScene: ["record"],
-            createRegion: ["screen"], updateRegion: ["screen"], deleteRegion: ["screen"] };
+            createRegion: ["screen"], updateRegion: ["screen"], deleteRegion: ["screen"], createRegionBehavior: ["screen"], deleteRegionBehavior: ["screen"],
+            updateScene: ["screen"] };
         const REGISTRATION = new Set(["ready", "init", "setup"]);
         const ACT_SINKS = { "token.sendBack": ["write"], "move.sentBack": ["screen"], "passage.request": ["copy"], "passage.share": ["record", "copy"], "passage.rows": ["screen"],
             "passage.cross": ["write"], "passage.find": ["record", "copy"] };
@@ -13983,12 +13998,13 @@ const REGRESSIONS = [
             /"DRPG\.Passage\.mark\.from"/.test(words), /"DRPG\.Passage\.mark\.to"/.test(words),
             /import\(\s*"\.\/movement\.mjs"\s*\)/.test(rooms) && /\bpassageRooms\b/.test(rooms),
             /loadTunnelRooms\(\)\s*\.then\(\s*\(\)\s*=>\s*redrawGmOverlay\("passages"\)\)/.test(ready),
-            ["createRegion", "updateRegion", "deleteRegion"].every(hook => new RegExp(`Hooks\\.on\\("${hook}", \\(\\) => redrawPassagesSoon\\(\\)\\)`).test(ready)),
+            ["createRegion", "updateRegion", "deleteRegion", "createRegionBehavior", "deleteRegionBehavior"].every(hook => new RegExp(`Hooks\\.on\\("${hook}", \\(\\) => redrawPassagesSoon\\(\\)\\)`).test(ready))
+                && /Hooks\.on\("updateScene", \(scene, changes\) => \{ if \(changes\?\.regions\) redrawPassagesSoon\(\); \}\)/.test(ready),
             /setTimeout\([\s\S]*redrawGmOverlay\("passages"\)[\s\S]*,\s*250\s*\)/.test(soon)]),
         JSON.stringify([true, true, true, true, true, true, true, true]),
-            "[the drawing hands `gm` to the stretches and to the tunnels; the words say 'Secret passage from' and 'Secret passage to'; the room beyond is movement.mjs `passageRooms`; the overlay drawn again once it has loaded; drawn again on a region created, changed and deleted; that redraw a quarter second after the last]");
+            "[the drawing hands `gm` to the stretches and to the tunnels; the words say 'Secret passage from' and 'Secret passage to'; the room beyond is movement.mjs `passageRooms`; the overlay drawn again once it has loaded; drawn again on a region created, changed and deleted, a behaviour made or taken off one, and a scene's update of its regions (H82 fix r1); that redraw a quarter second after the last]");
    }],
-    ["R945 - a GM's frame is cut on a GM's own board from the GMs' own rows (H82-05): fog-doorways.mjs `gmPassageGaps` takes `gm` from `game.user?.isGM` and asks it first; it, `withPassageGhosts`, `traceGhostStretches`, fog-reveal.mjs `ghostStyle` and `flashOutline` and fog.mjs `redrawFrameSoon` emit nothing, write no flag, setting, store, document or chat message and read no player's copy; `flashOutline` cuts its edges as `withPassageGhosts(doorwayEdges(...), gmPassageGaps(...))`, `traceOutlineGapped` leaves the cut out, and `doorwayEdges` reads none of it, so the map's checks and a player's frame read the map as before; and fog.mjs draws a GM's frame again from one `clientSettingChanged` listener, on the GMs' passage rows, behind a GM's gate, a quarter second after the last change", async () => {
+    ["R945 - a GM's frame is cut on a GM's own board from the GMs' own rows (H82-05): fog-doorways.mjs `gmPassageGaps` takes `gm` from `game.user?.isGM` and asks it first; in their own bodies it, `withPassageGhosts`, `traceGhostStretches`, fog-reveal.mjs `ghostStyle` and `flashOutline` and fog.mjs `redrawFrameSoon` name no emit, no write of a flag, setting, store, document or chat message and no reader of a player's copy (what they call is not read: on a player's browser `flashOutline` reaches the copy through a knower's `doorwayEdges` and `tunnelMarks`), and passages.mjs `secretSegmentsOn`, the GM's cut's one read of rows, names no emit or write and reads `knownPassages()`, the GMs' open rows on a GM's browser (R554); `flashOutline` cuts its edges as `withPassageGhosts(doorwayEdges(...), gaps)` with `gaps` its `gmPassageGaps(...)`, `traceOutlineGapped` leaves the cut out, and `doorwayEdges` reads none of it, so the map's checks and a player's frame read the map as before; and fog.mjs draws a GM's frame again from one `clientSettingChanged` listener, on the GMs' passage rows, behind a GM's gate, a quarter second after the last change", async () => {
         /*
          * H82-05 (23.10.2026). A secret passage is the GMs' and its knowers' (D2, D38): a frame cut by every passage would be
          * the whole map of them on any browser that drew it, and a Mastermind player's copy names every passage, so the gate
@@ -14002,21 +14018,28 @@ const REGRESSIONS = [
         const COPY = /\b(?:knownPassages|passageCopy|passageCopyFor|minePassages|secretRowsFrom|tunnelEndsFor|openSegmentsFor)\b/;
         const GATE = /^(?:(?!\)\s*\{\s*\n)[\s\S])*?\bgm\s*=\s*Boolean\(\s*game\s*\.\s*user\s*\?\.\s*isGM\s*\)/;
         const ASKS = /\bif\s*\(\s*!gm\b/;
-        const WIRED = /\bwithPassageGhosts\(\s*doorwayEdges\([^)]*\)\s*,\s*gmPassageGaps\(/;
+        // Since H82 fix r1 the stretches are read once (`gaps`), so the frame keeps their key (H82-05-R1) and its walls go with them.
+        const WIRED = /\bconst\s+gaps\s*=\s*gmPassageGaps\([^;]*;\s*const\s+edges\s*=\s*withPassageGhosts\(\s*doorwayEdges\([^)]*\)\s*,\s*gaps\b/;
         const LISTEN = /Hooks\.on\(\s*"clientSettingChanged"/g;
         // The listener whole, from the ready hook it is added in: a GM's gate, then the GMs' passage rows, then the redraw.
         const GATED = /Hooks\.once\(\s*"ready"\s*,\s*\(\)\s*=>\s*\{\s*if\s*\(\s*!game\.user\??\.isGM\s*\)\s*return;\s*Hooks\.on\(\s*"clientSettingChanged"\s*,\s*key\s*=>\s*\{\s*if\s*\(\s*key\s*===\s*`\$\{MODULE_ID\}\.\$\{SETTINGS\.gmPassageMap\}`\s*\)\s*redrawFrameSoon\(\);/;
         equal(JSON.stringify([WRITES.test("const x = 1;\n    game.socket.emit(EVENT, {});"), WRITES.test("await scene.update({ x: 1 });"), COPY.test("return knownPassages();"),
             GATE.test("function f(scene, { known } = {}) {\n    const gm = Boolean(game.user?.isGM);\n"), GATE.test("function f(scene, { gm = Boolean(game.user?.isGM), known } = {}) {\n"),
             ASKS.test("if (!scene) return [];"), WIRED.test("const edges = doorwayEdges(region, level);\n    const gaps = gmPassageGaps(scene);"),
-            WIRED.test("const edges = withPassageGhosts(doorwayEdges(region, level, { actor }), gmPassageGaps(scene, level), { grid });"),
+            WIRED.test("const gaps = gmPassageGaps(scene, level);\n    const edges = withPassageGhosts(doorwayEdges(region, level, { actor }), gaps,\n        { grid });"),
             ("Hooks.on(\"clientSettingChanged\", a);\nHooks.on(\"updateUser\", b);".match(LISTEN) ?? []).length,
             GATED.test("Hooks.once(\"ready\", () => {\n        Hooks.on(\"clientSettingChanged\", key => { if (key === `${MODULE_ID}.${SETTINGS.gmPassageMap}`) redrawFrameSoon(); });")]),
         JSON.stringify([true, true, true, false, true, false, false, true, 1, false]),
             "the readers do not find the faults planted for them (an emit, a document update, a copy read, a gate read in the body, one in the parameters, a missing ask, edges cut apart from the passages, edges cut by them, one listener of two, a listener with no GM's gate) - they would read the frame wrong too");
         const sources = await moduleSources();
-        const [doorways, reveal, fog] = ["fog-doorways.mjs", "fog-reveal.mjs", "fog.mjs"].map(file => stripComments(sources.get(file) ?? ""));
-        ok(doorways.length > 0 && reveal.length > 0 && fog.length > 0, "fog-doorways.mjs, fog-reveal.mjs or fog.mjs was not read - this test measured nothing");
+        const [doorways, reveal, fog, rows] = ["fog-doorways.mjs", "fog-reveal.mjs", "fog.mjs", "passages.mjs"].map(file => stripComments(sources.get(file) ?? ""));
+        ok(doorways.length > 0 && reveal.length > 0 && fog.length > 0 && rows.length > 0, "fog-doorways.mjs, fog-reveal.mjs, fog.mjs or passages.mjs was not read - this test measured nothing");
+        // The cut's one read of rows (H82 fix r1, finding H82-05-R4): passages.mjs `secretSegmentsOn`, whose default reads
+        // `knownPassages()` - the GMs' open rows on a GM's browser (R554) - so its body is read for an emit or a write too.
+        const segments = topLevelFunction(rows, "secretSegmentsOn") ?? "";
+        equal(JSON.stringify([segments.length > 0, WRITES.test(segments), /\bknownPassages\(\)/.test(segments),
+            WRITES.test(segments.replace("{", "{\n    game.socket.emit(\"module.x\", {});"))]), JSON.stringify([true, false, true, true]),
+            "[passages.mjs `secretSegmentsOn` declared, writes or emits, reads `knownPassages()`; the same with an emit planted in it] - the GM's cut reads its rows where they may be sent or written");
         const functions = [[doorways, "gmPassageGaps"], [doorways, "withPassageGhosts"], [doorways, "traceGhostStretches"], [reveal, "ghostStyle"], [reveal, "flashOutline"],
             [fog, "redrawFrameSoon"]];
         equal(JSON.stringify(functions.map(([src, name]) => { const body = topLevelFunction(src, name) ?? ""; return [name, body.length > 0, WRITES.test(body), COPY.test(body)]; })),

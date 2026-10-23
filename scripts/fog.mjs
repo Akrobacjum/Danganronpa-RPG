@@ -74,7 +74,7 @@ import { newestIn, gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
 import { traceRegionPathsAt, regionShapes, clamp01, distanceToSegment, inPolygons, inFlatPolygons, piecesAsOne } from "./fog-geometry.mjs";
 import {
     MAX_FOG_TEXTURE, colourOf, lastGlow, DOORWAY_PROBE_IN, DOORWAY_PROBE_OUT, DOORWAY_OVERLAP_INSET,
-    DOORWAY_WALL_NEAR, wallAlongEdge, nothingInTheWay, neighbourBeyond, doorwayEdges, outlineColour
+    DOORWAY_WALL_NEAR, wallAlongEdge, nothingInTheWay, neighbourBeyond, doorwayEdges, outlineColour, gmPassageGaps, passageCutKey
 } from "./fog-doorways.mjs";
 import {
     LAYER_NAME, VEIL_ALPHA, REVEAL_SLASH_MS, REVEAL_HOLD_MS, DISCOVERY_MS, freeOwned, clearTransient, watchdog,
@@ -358,9 +358,11 @@ export function registerFog() {
     /* A GM's frame is cut by every secret passage of its floor, read from the GMs' own rows (fog-reveal.mjs `flashOutline`,
        fog-doorways.mjs `gmPassageGaps`; H82-05), and a change of those rows fires no `drpgPassagesChanged` there - only a
        player's copy does (settings.mjs). So on a GM's browser the frame is drawn again a quarter second after the GMs'
-       passage rows last changed (`redrawFrameSoon`): one redraw for the create, the grant and the way a GM sets in one
-       go, its hop and name replayed as a player's are on a change of the copy (the stage's default of 23.10). Whether v14
-       fires `clientSettingChanged` for a store merged from another GM is the harness's model only (LIVE-H82-03 (c)). */
+       passage rows last changed (`redrawFrameSoon`): one redraw for the create, the close and the open a GM makes in one
+       go, its hop and name replayed as a player's are on a change of the copy - and only when the stretches that cut this
+       frame are not the ones it was drawn with (H82 fix r1, finding H82-05-R1: a tunnel's way, Make public, a start
+       access or another scene's passage replayed it on every GM's browser). Whether v14 fires `clientSettingChanged` for
+       a store merged from another GM is the harness's model only (LIVE-H82-03 (c)). */
     Hooks.once("ready", () => {
         if (!game.user?.isGM) return;
         Hooks.on("clientSettingChanged", key => { if (key === `${MODULE_ID}.${SETTINGS.gmPassageMap}`) redrawFrameSoon(); });
@@ -3833,13 +3835,18 @@ export function redrawOutline(room = null) {
     return true;
 }
 
-/* The GM's frame drawn again 250 ms after the GMs' passage rows last changed (H82-05; `registerFog`'s listener). */
+/* The GM's frame drawn again 250 ms after the GMs' passage rows last changed (H82-05; `registerFog`'s listener), when the
+   stretches that cut it (fog-doorways.mjs `gmPassageGaps`, `passageCutKey`) are not the ones it was drawn with. */
 let frameTimer = null;
 function redrawFrameSoon() {
     clearTimeout(frameTimer);
     frameTimer = setTimeout(() => {
         frameTimer = null;
-        try { redrawOutline(); } catch (err) { debug("Fog: could not redraw the GM's frame", err); }
+        try {
+            const standing = roomOutline;
+            if (standing && passageCutKey(gmPassageGaps(standing.region?.parent, standing.level)) === standing.cut) return;
+            redrawOutline();
+        } catch (err) { debug("Fog: could not redraw the GM's frame", err); }
     }, 250);
 }
 

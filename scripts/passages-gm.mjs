@@ -2135,7 +2135,8 @@ export function drawPassagesLayer(layer = overlayLayer("passages"), { stores = P
  * it is entered from to its way out, in the passage's colour, on the tunnel's own Graphics (the line style the dashes set
  * edges it). Stairs, and a tunnel with one end here, have no link to put it on: their words say which way. grid x 0.3 long
  * and grid x 0.24 wide, against the ring's grid x 0.3 radius: chosen, as the investigation chose them, not read at a table
- * (LIVE-H82-03).
+ * (LIVE-H82-03). The points are kept on the Graphics as `drpgArrow` (H82 fix r1, finding H82-C3-R1): R941 reads them on a
+ * real canvas, where PIXI keeps every dash of the link as a polygon of its own in `geometry.graphicsData` beside this one.
  */
 function wayArrow(g, tunnel, grid, colour) {
     const into = tunnel.ends.find(end => end.index === tunnel.oneWay), out = tunnel.ends.find(end => end.index !== tunnel.oneWay);
@@ -2144,9 +2145,11 @@ function wayArrow(g, tunnel, grid, colour) {
     if (!length) return false;
     const ux = (out.x - into.x) / length, uy = (out.y - into.y) / length;
     const mx = (into.x + out.x) / 2, my = (into.y + out.y) / 2, half = grid * 0.15, wide = grid * 0.12;
+    const points = [mx + ux * half, my + uy * half, mx - ux * half - uy * wide, my - uy * half + ux * wide, mx - ux * half + uy * wide, my - uy * half - ux * wide];
     g.beginFill(colour, 0.95);
-    g.drawPolygon([mx + ux * half, my + uy * half, mx - ux * half - uy * wide, my - uy * half + ux * wide, mx - ux * half + uy * wide, my - uy * half - ux * wide]);
+    g.drawPolygon(points);
     g.endFill();
+    g.drpgArrow = [...points];
     return true;
 }
 
@@ -2189,7 +2192,11 @@ function endWords(g, scene, tunnel, end, { grid, colour, rooms }) {
  * A region made, changed or deleted, on a GM's browser (H82-04): the words read the room beyond off the map, so the
  * overlay is drawn again - a quarter second after the last of a burst, as H82-04 asks of a redraw on a signal the overlay
  * did not listen to before. A rename reaches the rows as well (`carryRename`, on the primary), and their change draws it
- * again at once.
+ * again at once. Since H82 fix r1 (finding H82-C3-R2) also a behaviour made or deleted on a region - a Teleport Token or
+ * Change Level unmakes a room and taking it off makes one (rooms.mjs `canBeRoom`), and neither is a Region event - and a
+ * scene's own update that changes its regions (`changes.regions`, which fires no `updateRegion`), the three fog.mjs
+ * `registerFog` repaints every browser on. A player region (settings.mjs `playerRegions`) is no room either, and its
+ * change is not heard here: the overlay reads it at the next redraw.
  */
 let wordsTimer = null;
 function redrawPassagesSoon() {
@@ -2324,6 +2331,9 @@ export function registerPassagesGm() {
         Hooks.on("createRegion", () => redrawPassagesSoon());
         Hooks.on("updateRegion", () => redrawPassagesSoon());
         Hooks.on("deleteRegion", () => redrawPassagesSoon());
+        Hooks.on("createRegionBehavior", () => redrawPassagesSoon());
+        Hooks.on("deleteRegionBehavior", () => redrawPassagesSoon());
+        Hooks.on("updateScene", (scene, changes) => { if (changes?.regions) redrawPassagesSoon(); });
         redrawGmOverlay("passages");
         passageMapStore.whenHydrated().then(() => redrawGmOverlay("passages")).catch(() => {});
         loadTunnelRooms().then(() => redrawGmOverlay("passages")).catch(err => error("Could not read the rooms of the tunnels' ends for the GMs' overlay", err));

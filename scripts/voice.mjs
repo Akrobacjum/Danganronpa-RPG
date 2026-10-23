@@ -45,7 +45,7 @@ import { SETTINGS, getSetting, getClock, isDeadForGm, isDeceased, isEclipse } fr
 // `allRooms` only - the per-actor lookup is `locateActor`, imported lazily in
 // `reconcileNow`, because it is the one that does not depend on which scene
 // this GM happens to be looking at.
-import { allRooms } from "./movement.mjs";
+import { allRooms, moveRefused, whenAtRest } from "./movement.mjs";
 import { roomPieces, isMoveChange, isTrialScene } from "./rooms.mjs";
 import { isMonokuma, poolUserFor } from "./monokuma.mjs";
 import { VOICE, ROOM_PREFIX, applyLocally, forgetDesiredRoom, avclientActive, desiredRoom } from "./voice-client.mjs";
@@ -74,6 +74,48 @@ const RETRY_MS = [2000, 6000, 12000];
 /** A slow re-assert, so nothing can be wrong for longer than this. */
 const HEARTBEAT_MS = 60000;
 
+/**
+ * The character tokens whose last move update this browser heard was a step of a drag still in flight (waypoints
+ * pending), by token id, each with the timer that drops it (H82 fix r1, 23.10.2026; finding H82-C2-R1). While one is
+ * here no immediate pass is asked: a pass reads every token as it stands, a dragged one on its pending step, so until
+ * this fix another character's settled move during a drag sent the dragger the room the drag was only passing, and the
+ * drag's end then queued a second reconnect behind it (scenario 75 I, red with this hook as 4e20bf6b left it, once: Botan's
+ * step 209 ms into Aiko's pending step through Dorm A sent p1 Dorm A at +211 ms, and the drag's end Dorm B at +616). The
+ * drag's own settled last step takes its token out and asks the pass,
+ * which places everybody who settled meanwhile. An entry is dropped RECONCILE_DEBOUNCE_MS after its step - a drag that
+ * never settles holds the immediate passes no longer than the backstop waits - and when its token is deleted.
+ */
+const draggedNow = new Map();
+/** Each character token's move updates as this browser heard them, so a pass asked late knows whether a newer one came. */
+const moveTurns = new Map();
+
+function markDragged(tokenId, pending) {
+    clearTimeout(draggedNow.get(tokenId));
+    if (!pending) {
+        draggedNow.delete(tokenId);
+        return;
+    }
+    draggedNow.set(tokenId, setTimeout(() => draggedNow.delete(tokenId), RECONCILE_DEBOUNCE_MS));
+}
+
+/**
+ * The immediate pass for a settled move (H82-02), asked from the updateToken hook and once more at rest; true when it
+ * was asked. Not while a drag is in flight (`draggedNow`), not once a newer move of the token came, and not for a route
+ * this browser reads as refused (movement.mjs `moveRefused`; H82 fix r1, finding H82-C2-R2): its put-back is its own
+ * settled move and asks the pass for the room paid for, and the backstop it re-arms covers a put-back that never comes.
+ * Read a tick after the hook, when every updateToken listener has run, movement.mjs's judge among them. The backstop is
+ * armed again after the pass, so it still follows the last pass asked by RECONCILE_DEBOUNCE_MS.
+ */
+async function passForSettledMove(doc, turn) {
+    await null;
+    if (draggedNow.size || moveTurns.get(doc.id) !== turn) return false;
+    const refused = await moveRefused(doc).catch(() => false);
+    if (refused || draggedNow.size || moveTurns.get(doc.id) !== turn) return false;
+    scheduleReconcile({ immediate: true });
+    scheduleReconcile();
+    return true;
+}
+
 export function registerVoice() {
     Hooks.on("updateToken", (doc, changes) => {
         if (!followsVoice(doc)) return;
@@ -86,10 +128,26 @@ export function registerVoice() {
         // again: scenario 75 I measured the GM's voice.assign at +1507 ms after the GM's update, and at +5518 ms with
         // Botan stepping inside the Cafeteria every second (896f6bf); decided here, +8 ms and +3-5 ms (two runs). The
         // pass sends only the accounts whose room changed (`assignUser`'s `settled` and `inFlight`). The debounced
-        // pass stays after it as a backstop that reads the token where it stands, and a step of a drag still in flight
-        // waits for it alone, so no voice is reconnected mid-drag - as far as v14 marks a drag's steps pending
-        // (LIVE-E78-14, LIVE-E79-19).
-        if (!doc.movement?.pending?.waypoints?.length) scheduleReconcile({ immediate: true });
+        // pass stays after it as a backstop that reads the token where it stands. A step of a drag still in flight asks
+        // no pass, and while one is in flight nobody's settled move asks one either (`draggedNow`), so no voice is
+        // reconnected mid-drag - as far as v14 marks a drag's steps pending on the primary's copy (LIVE-E78-14,
+        // LIVE-E79-19, LIVE-H82-02 (c)). Nor does a route the primary reads as refused (`passForSettledMove`).
+        // At rest the pass is asked once more (H82 fix r1, finding H82-C2-R3), as fog.mjs and movement.mjs read the room
+        // again then: the owner's v14 report of 14.10.2026 (movement.mjs `whenAtRest`) has the hook reading the room
+        // before the drag ended, and a pass that finds every room placed sends nothing. A last step v14 still marks
+        // pending (the report's other reading) asks none and waits for the backstop, as in 1.2.81 - LIVE-H82-02 (b) asks
+        // the primary's "read again at rest" Debug line to tell the two apart.
+        const pending = Boolean(doc.movement?.pending?.waypoints?.length);
+        const turn = (moveTurns.get(doc.id) ?? 0) + 1;
+        moveTurns.set(doc.id, turn);
+        markDragged(doc.id, pending);
+        if (!pending) {
+            passForSettledMove(doc, turn).catch(err => error("Could not decide the voice rooms after a move", err));
+            if (isPrimaryGm() && getSetting(SETTINGS.voiceEnabled)) {
+                whenAtRest(doc).then(() => passForSettledMove(doc, turn))
+                    .catch(err => error("Could not decide the voice rooms after a move came to rest", err));
+            }
+        }
         scheduleReconcile();
     });
     // A token dragged onto the map from the sidebar is a `createToken`, not an
@@ -97,7 +155,11 @@ export function registerVoice() {
     // way a character arrives in a room. Removing one likewise has to release
     // whoever was following it.
     Hooks.on("createToken", doc => { if (followsVoice(doc)) scheduleReconcile(); });
-    Hooks.on("deleteToken", doc => { if (followsVoice(doc)) scheduleReconcile(); });
+    Hooks.on("deleteToken", doc => {
+        markDragged(doc.id, false);
+        moveTurns.delete(doc.id);
+        if (followsVoice(doc)) scheduleReconcile();
+    });
     Hooks.on("canvasReady", () => scheduleReconcile({ immediate: true, force: true }));
     Hooks.on("drpgTimeOfDayChanged", () => scheduleReconcile({ immediate: true }));
 

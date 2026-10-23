@@ -177,6 +177,33 @@ export async function whenAtRest(tokenDoc) {
 const moveTurns = new Map();
 
 /**
+ * Whether this browser reads a token's latest move update as a route that will be put back (H82 fix r1, 23.10.2026;
+ * finding H82-C2-R2), by token id: `{ turn, refused }`, `refused` a promise of true only for a route the primary reads
+ * as refused (`refusedOnPrimary`) or one this browser charged and refused (`settleRoute` false, its put-back sent), and
+ * of false for every other update, a put-back's own landing among them. It settles as soon as the judge knows, before a
+ * route that had steps pending waits for quiet, and false when the judge ends without saying. Read by voice.mjs's
+ * updateToken hook, which asks an immediate pass only for a move this answers false: a route of two crossings on one
+ * crossing's budget passes both vetoes (MAP-11), its last step lands in the room it is refused, and an immediate pass
+ * sent the mover that room and then, on the put-back, the room paid for - two reconnects (scenario 75 I, red with voice.mjs
+ * as 4e20bf6b left it, once: the refused Cafeteria sent 5 ms after p1's last step, the Gym 208 ms after it).
+ * The at-rest re-judge (`recheckAtRest`) is no new update and changes no answer here; nor is a refusal the primary
+ * cannot read (an Eclipse's cap, a budget that moved between the veto and the charge) answered true.
+ */
+const refusals = new Map();
+
+function readRefusal(tokenId, turn) {
+    let say = null;
+    const refused = new Promise(resolve => { say = resolve; });
+    refusals.set(tokenId, { turn, refused });
+    return value => say(value === true);
+}
+
+/** This browser's reading of a token's latest move update as refused (`refusals`): a promise of a boolean, false when none. */
+export function moveRefused(tokenDoc) {
+    return refusals.get(tokenDoc?.id)?.refused ?? Promise.resolve(false);
+}
+
+/**
  * The room each token's last announcement named, with the move update it was for (`{ turn, room }`), and the
  * spot that announcement read it at while its token has not yet come to rest (`landing`, `{ turn, spot }`):
  * the at-rest read announces again only for another room than the one announced (E79 C14), and until then
@@ -2120,12 +2147,14 @@ async function onUpdateToken(tokenDoc, changes, options, userId, { atRest = fals
         landing.delete(tokenDoc.id);
     }
     const route = {}, sent = putBacksSent.get(tokenDoc.id) ?? 0;
+    if (turn) route.refused = readRefusal(tokenDoc.id, turn);
     let accepted;
     try {
         accepted = await judgeMove(tokenDoc, changes, options, userId, route, { atRest });
     } catch (err) {
         error("Movement charge failed", err);
     } finally {
+        route.refused?.(false);
         if (unsettled.get(tokenDoc.id) === route && !putBack.has(tokenDoc.id)) unsettled.delete(tokenDoc.id);
     }
     if (turn) recheckAtRest(tokenDoc, changes, options, userId, turn).catch(err => error("Movement re-read at rest failed", err));
@@ -2290,6 +2319,7 @@ async function judgeMove(tokenDoc, changes, options, userId, route = {}, { atRes
     lastRoom.set(tokenDoc.id, after);
 
     const settled = await settleRoute(tokenDoc, actor, { before, previous, crossings });
+    if (settled !== undefined) route.refused?.(settled === false);
     if (settled !== undefined || !actor.isOwner) return settled;
     // Another browser settles it. A route of one update stands where it names, at once (E79 C14; the owner's
     // "entering a room reads too late": the GM's browser announced such a route 1500 ms after it, waiting for
@@ -2307,6 +2337,7 @@ async function judgeMove(tokenDoc, changes, options, userId, route = {}, { atRes
     // On the primary GM a route it reads as refused (`refusedOnPrimary`, E79 fix r4-G4) settles false at once,
     // whenever its put-back lands; the quiet bound is kept for every other reading and every other browser.
     const refused = refusedOnPrimary(tokenDoc, actor, crossings);
+    route.refused?.(refused);
     if (!path.length) {
         lastPosition.set(tokenDoc.id, landed);
         route.stands = refused ? Promise.resolve(false) : untilQuiet(tokenDoc).then(quiet => quiet === true);

@@ -23,9 +23,10 @@
  * in the investigation's harness probe, Dice So Nice held 600 ms moved a player's drawn roll from 13.7 to 614.5 ms. So a
  * forced user's `sfxList` is written empty (`lookFrom`), and a player's own effects go back to none as a colour of its own
  * does. An effect the GM marks for everyone (`options.isGlobal`) still reaches a forced user's throw as it did in 1.2.79:
- * Dice So Nice adds every other GM's global effects to a throw itself (Dice3D.js `ALL_CUSTOMIZATION`, 6.2.9, which reads
- * another user's list through `SFX`, and that answers it only where the browser showing the throw has DSN's
- * `showOthersSFX` on - read, not tried). The source's own list is never touched: the GMs' copy (`sourceLookOf`) and its
+ * Dice So Nice adds every other GM's global effects to a throw itself (Dice3D.js `ALL_CUSTOMIZATION`, 6.2.9: every user with
+ * `isGM` but the thrower, so a second full Gamemaster's, and an Assistant's in the minute its fuse leaves its own list
+ * standing, as well as the source's; it reads that user's list through `SFX`, which answers it only where the browser
+ * showing the throw is that GM's own, or has DSN's `showOthersSFX` on - Dice3D.js:140, read, not tried). The source's own list is never touched: the GMs' copy (`sourceLookOf`) and its
  * put-back (`holdSource`) keep it whole. Whether this was the owner's delay, and what a drawn roll costs at the table
  * before and after, is LIVE-H82-01.
  *

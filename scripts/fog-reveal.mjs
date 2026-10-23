@@ -41,7 +41,7 @@ import { BEAT, glassOn, SEAM_GLOW } from "./motion.mjs";
 import { traceRegionPathsAt, regionShapes, clamp01, largestPiece } from "./fog-geometry.mjs";
 import {
     colourOf, GLOW_NAME, doorwayEdges, addDoorwayGlow, traceOutlineGapped, outlineColour, tunnelMarks, addTunnelMarks, recolourTunnelMarks,
-    gmPassageGaps, withPassageGhosts, traceGhostStretches
+    gmPassageGaps, withPassageGhosts, traceGhostStretches, passageCutKey, floorWalls
 } from "./fog-doorways.mjs";
 
 const CanvasAnimation = foundry.canvas.animation.CanvasAnimation;
@@ -930,7 +930,11 @@ export function flashOutline(fx, region, rect, level = null, { actor = null, ele
     // floor's walls are cut too, as a knower's are, and drawn again dimmed (`ghostPass`; H82-05) - no glow, which reads
     // `open` alone; on any other browser `gmPassageGaps` is [] and these are `doorwayEdges`' own. The region's own scene,
     // never the one on screen (rooms.mjs CAMERA_READERS, R382): a room's shape keeps its scene (fog-geometry `piecesAsOne`).
-    const edges = withPassageGhosts(doorwayEdges(region, level, { actor, elevation }), gmPassageGaps(region?.parent, level), { grid });
+    // The floor's walls go with them, so a ghost is cut where a knower's wall test cuts (H82 fix r1, H82-05-R3), and the
+    // stretches' key is kept on the frame for fog.mjs `redrawFrameSoon` (H82-05-R1).
+    const gaps = gmPassageGaps(region?.parent, level);
+    const edges = withPassageGhosts(doorwayEdges(region, level, { actor, elevation }), gaps,
+        { grid, walls: gaps.length ? floorWalls(region?.parent, level) : null });
 
     const { boneWidth, inkWidth, stubFloor, gapPad } = outlineWidths(glass, grid);
 
@@ -1000,7 +1004,7 @@ export function flashOutline(fx, region, rect, level = null, { actor = null, ele
     fx.addChild(group);
 
     roomOutline = {
-        group, outline, room: region.name, colour: bone,
+        group, outline, room: region.name, colour: bone, cut: passageCutKey(gaps),
         /* WHICH THEME DREW IT, AND WHAT FROM.
            Switching theme recoloured the standing outline and nothing else, so the line kept
            the WIDTH of the theme it was drawn under until the player walked into another
