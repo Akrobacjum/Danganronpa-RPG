@@ -28350,6 +28350,98 @@ const SCENARIOS = [
             "[the statistic's card: its mark's kind, a time shown, ended, as expired], the answers sent after its expiry and a later Leg, [the Observe's card: the same], what a pick after its expiry answered, the answers sent to its asker - an ask stayed open past its asker's clock, or a pick after it was taken");
     }],
 
+    ["a Search for something specific and an Observe of anything whose last GM left during the roll post nothing, hand the action back and take none of the room's search tokens (E18 fix e1-G5)", async () => {
+        /*
+         * E18 fix e1-G5, 24.10.2026; the end review's E18-END-6, E18-END-2, E18-END-7 and F8 (STATUS's C0 gaps 1 and 2).
+         * E18-01's refund was read in the source alone (R837): no test ran an action whose call on the GM went unposted,
+         * so `abort(actor, null)` in place of `abort(actor, paid)` stayed green; and a Search for something specific took
+         * the room's search token after the roll, before the call that found no GM, and nothing gave it back. A student
+         * with a player, stood alone in a room (`standAlone`), with at least the action each costs, searches for
+         * something specific and then observes "anything", each paid, the windows answered as the player would; the
+         * roll is answered by `rollTrait`, and while it is thrown every GM leaves as `asConsole` hides them (the user
+         * list's `filter`), so the call after it finds none. Read per action: the actions left before and after, the
+         * room's tokens before and after (the Search's), the cards posted, and the toasts naming no GM.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "an action of a student with a player");
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the student alone");
+        const rolls = await import("./action-rolls.mjs");
+        const { ACTIONS, ACTIONS_RESOURCE, MODULE_ID } = await import("./config.mjs");
+        const { SETTINGS } = await import("./settings.mjs");
+        const { actionsLeft } = await import("./actions.mjs");
+        const { SearchTokens } = await import("./search-tokens.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const student = livingStudents().find(a => player(a) && canvas?.scene?.tokens?.some(t => t.actorId === a.id));
+        must(student, "no living student with a connected player has a token on the scene on screen");
+        const users = game.users, ownFilter = Object.hasOwn(users, "filter"), realFilter = users.filter;
+        const putGmsBack = () => { if (ownFilter) users.filter = realFilter; else delete users.filter; };
+        const NO_GM = game.i18n.localize("DRPG.Bridge.why.noGm");
+        const ACTS = `system.resources.${ACTIONS_RESOURCE}.value`;
+        const had = foundry.utils.getProperty(student, ACTS);
+        const tokens = foundry.utils.duplicate(game.settings.get(MODULE_ID, SETTINGS.searchTokens) ?? {});
+        const seen = new Set(game.messages.map(m => m.id));
+        const created = [];
+        const hook = Hooks.on("createChatMessage", m => { if (!seen.has(m.id)) created.push(m); });
+        const warn = ui.notifications.warn;
+        const said = [];
+        let variant = null;
+        const windows = answerWindows((cfg, root) => {
+            const pick = root.querySelector(`input[name="variant"][value="${variant}"]`);
+            if (pick) {
+                for (const each of root.querySelectorAll('input[name="variant"]')) each.checked = each === pick;
+                const request = root.querySelector('[name="request"]');
+                if (request) request.value = "SUITE E18 e1-G5 a spare key";
+            }
+            return press(cfg, root);
+        });
+        const stood = await standAlone(student);
+        const read = [];
+        try {
+            ui.notifications.warn = text => { said.push(String(text)); };
+            // At least the one action each costs, and no more than they had: a refund stops at the maximum (actions.mjs `refundAction`).
+            await student.update({ [ACTS]: Math.max(Number(had) || 0, 1) });
+            const total = Math.min(...ACTIONS.search.thresholds.map(t => t.min)) + 1;
+            student.rollTrait = async () => {
+                // Every GM leaves while the dice are thrown: what follows the roll finds none connected.
+                users.filter = function (fn, ...rest) {
+                    return realFilter.call(this, (u, ...more) => !u.isGM && fn(u, ...more), ...rest);
+                };
+                return { roll: { total, isCritical: false, result: { duality: 1, total }, options: { roll: { trait: "eye" } } } };
+            };
+            for (const [action, choice] of [["search", "specific"], ["observe", "anything"]]) {
+                variant = choice;
+                const where = locateActor(student);
+                const left = SearchTokens.left(where?.room ?? null, where?.scene ?? null);
+                const before = actionsLeft(student);
+                said.length = 0;
+                created.length = 0;
+                try {
+                    await rolls.performAction(student, action);
+                } finally {
+                    putGmsBack();
+                }
+                await settle(300);
+                read.push([action, before - actionsLeft(student), left - SearchTokens.left(where?.room ?? null, where?.scene ?? null),
+                    created.length, said.filter(text => text.includes(NO_GM)).length]);
+            }
+        } finally {
+            putGmsBack();
+            Hooks.off("createChatMessage", hook);
+            ui.notifications.warn = warn;
+            windows.restore();
+            delete student.rollTrait;
+            for (const message of created) await message.delete().catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.searchTokens, tokens);
+            await student.update({ [ACTS]: had });
+            await stood.back();
+        }
+        equal(stableJson(read), stableJson([["search", 0, 0, 0, 1], ["observe", 0, 0, 0, 1]]),
+            "per action: [the action, actions it kept spent, the room's search tokens it took, cards posted, toasts naming no GM] - "
+            + "an action whose GM left during the roll kept its price, took a search token, posted, or was not told once");
+    }],
+
     ["a resent ask finds the card a GM posted for it by its mark and no other: one card for one ask, a player's card, a card posted at a player's asking or another player's mark stop nothing, and a ruled card refuses (E18 C2)", async () => {
         /*
          * E18 C2, 19.10.2026; audit S10-24 (E18-08). The primary knew which asks it had put on a card only in memory

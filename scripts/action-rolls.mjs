@@ -2000,9 +2000,11 @@ async function searchSpecific(actor, def, roll, { room, scene, category, request
     /*
      * NOT POSTED, NOT PAID FOR (E18 C0, 19.10.2026; audit S10-26). No GM to rule - the
      * last one left after the action started - so the player gets the action back, as
-     * with a window closed before the dice. The room's search token taken on the GM is
-     * not handed back: no road gives one back from a player's client. Reroll is offered
-     * nothing to re-ask (`claimed: false`, as `searchUnclaimed` notes it).
+     * with a window closed before the dice. A GM gone before the dice or during them is
+     * found before the room's search token is taken (`performSearch`, E18 fix e1-G5); one
+     * who left during the token's own write leaves it taken: no road gives one back from a
+     * player's client. Reroll is offered nothing to re-ask (`claimed: false`, as
+     * `searchUnclaimed` notes it).
      */
     if (!sent) {
         await noteRollContext(actor, { actionKey: "search", room, category, goal: "specific", tier: null, claimed: false });
@@ -2288,6 +2290,23 @@ async function performSearch(actor, def, options) {
 
     const { situational, stashDie, stashOwner, stashLoot } = searchOdds(actor, room, category, await import("./vault.mjs"));
 
+    /*
+     * SOMETHING SPECIFIC ENDS WITH A HUMAN, SO NO GM, NO TOKEN (E18 fix e1-G5, 24.10.2026; the end review's E18-END-7
+     * and F8, STATUS's C0 gap 1). The room's search token was taken after the dice and before the call on the GM
+     * (`searchSpecific`); with the last GM gone by then the call posted nothing and the action came back, but the token
+     * did not - no road gives one back from a player's client - so the room read "exhausted" for a search that never
+     * happened. Such a Search is refused now before the price and the dice when no GM is connected, as an Analyze is
+     * (`performAnalyze`), and again after the dice, before the token is spent, for a GM who left during the roll: the
+     * action comes back (`abort`) and the room keeps its token. What is left is a GM leaving between the spend and the
+     * post, the length of the spend's own write. Tier 2's "a Search for something specific and an Observe of anything
+     * whose last GM left during the roll" reads it; at 42c0e0d9 the token was taken.
+     */
+    const { gmOnline, sayNotDone } = await import("./bridge-guards.mjs");
+    if (goalKey === "specific" && !gmOnline()) {
+        sayNotDone("gm.call", "noGm", { nothingSpent: true });
+        return null;
+    }
+
     const paid = cost > 0 ? await spendAction(actor, cost) : null;
     if (cost > 0 && !paid) return null;
 
@@ -2316,6 +2335,13 @@ async function performSearch(actor, def, options) {
         calls.clearSituational();
     }
     if (!roll) return abort(actor, paid);
+
+    // A GM who left during the roll (above): the action back, the room's token not taken, nothing noted for Reroll to re-ask.
+    if (goalKey === "specific" && !gmOnline()) {
+        sayNotDone("gm.call", "noGm", { nothingSpent: true });
+        await noteRollContext(actor, { actionKey: "search", room, category, goal: "specific", tier: null, claimed: false });
+        return abort(actor, paid);
+    }
 
     // The token is claimed only once the dice are actually on the table.
     // Spending it up front meant backing out of the trait picker or the roll
