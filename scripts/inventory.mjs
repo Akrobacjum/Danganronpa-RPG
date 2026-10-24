@@ -625,6 +625,41 @@ export function carriedFor(actor, role) {
  *   still created on `actor`.
  * @returns {Promise<Item|null>}
  */
+/**
+ * THE OLD TIER 3 WORDING ON ITEMS ALREADY MADE (E14 fix e1-G5, 24.10.2026; the review's E14R-08). C5 changed what a tier
+ * 3 usable does (3 of its kind, no choice and no Hope: the owner of 15.10), and `grantItem` writes the effect into an
+ * item's description once, when it is made - so a world upgraded with tier 3 usables made before C5 kept "Restores 2
+ * Health or 2 Sanity - your choice - plus 2 Hope." over a use that restores 3 of the item's kind. Run once at the
+ * primary GM's ready (module.mjs, beside the tables' `refreshTableCopy`): every tier 3 usable, on a sheet or in the sidebar, whose description is the module's own old sentence as `grantItem` wrote
+ * it, in English or in Polish (`OLD_TIER_THREE`), is given today's for its kind (`USABLE_KIND_EFFECTS`, else
+ * `TIER_EFFECTS`), by a GM's ruling. Any other text - a GM's, a table's - is left. Answers how many were rewritten.
+ */
+export const OLD_TIER_THREE = Object.freeze([
+    "Restores 2 Health or 2 Sanity - your choice - plus 2 Hope.",
+    "Przywraca 2 Health albo 2 Sanity - do wyboru - plus 2 Hope."
+]);
+
+export async function refreshTierThreeWording() {
+    if (!game.user?.isGM) return 0;
+    const stale = new Set(OLD_TIER_THREE.map(text => `<p>Tier 3. ${text}</p>`));
+    let rewritten = 0;
+    for (const items of [game.items, ...Array.from(game.actors ?? [], actor => actor.items)]) {
+        for (const item of items ?? []) {
+            if (item.getFlag(MODULE_ID, ITEM_FLAGS.category) !== "usable" || Number(item.getFlag(MODULE_ID, ITEM_FLAGS.tier)) !== 3) continue;
+            if (!stale.has(item.system?.description)) continue;
+            const effect = USABLE_KIND_EFFECTS[item.getFlag(MODULE_ID, ITEM_FLAGS.kind)]?.[3] ?? TIER_EFFECTS.usable?.[3] ?? "";
+            try {
+                await trustedWrite(item, { "system.description": `<p>Tier 3. ${effect}</p>` }, { reason: "gmRuling" });
+                rewritten++;
+            } catch (err) {
+                error(`Could not bring "${item.name}"'s tier 3 wording up to date`, err);
+            }
+        }
+    }
+    if (rewritten) log(`Brought ${rewritten} tier 3 usable(s) up to today's wording.`);
+    return rewritten;
+}
+
 export async function grantItem(actor, {
     name, category, tier, goal = null, description = "", override = false, img = null,
     roles = null, extraFlags = {}, location = LOCATIONS.carried, quiet = false, reason = "gmRuling", ref = null,

@@ -28753,16 +28753,30 @@ const SCENARIOS = [
         const murder = await import("./murder.mjs");
         const running = Boolean(murder.murderState()?.active);
 
-        const now = await discardRemnantType();
         /* The world the suite runs in decides which answer is correct, so the
-           test asks the same two questions the function does rather than
-           assuming a quiet world - a suite run during an incident must not fail
-           for being right. */
-        const expected = (running || hadBody)
-            ? BROKEN_ITEMS.remnantTypeAfter : BROKEN_ITEMS.remnantTypeBefore;
-        ok(now === expected,
-            `a discard right now should leave "${expected}" and leaves "${now}"`
-            + ` (incident: ${running}, body found: ${Boolean(hadBody)})`);
+           test asks the questions the function does rather than assuming a quiet
+           world - a suite run during an incident must not fail for being right.
+           E14 fix e1-G5 (the review's E14R-03): since E14 part 1 C5 the phase
+           answers first (an Investigation or a Class Trial is after) and a running
+           incident counts only for its sides, so asked with no actor it counts for
+           nobody; this test still expected C5's predecessor (an incident, or a body,
+           is after for everyone). Driven in each phase, the clock put back. Red at
+           b355cb03 with the old expectation (g5-red.log): an Investigation and a
+           Class Trial with no body found answered "resolution", expected "prep". */
+        const clockWas = getClock().phase;
+        const answers = {};
+        try {
+            for (const phase of ["dailyLife", "investigation", "classTrial"]) {
+                if (getClock().phase !== phase) await setClock({ phase });
+                const expected = (phase !== "dailyLife" || hadBody) ? BROKEN_ITEMS.remnantTypeAfter : BROKEN_ITEMS.remnantTypeBefore;
+                answers[phase] = [await discardRemnantType(), expected];
+            }
+        } finally {
+            if (getClock().phase !== clockWas) await setClock({ phase: clockWas });
+        }
+        equal(stableJson(Object.values(answers).map(([now]) => now)), stableJson(Object.values(answers).map(([, expected]) => expected)),
+            `a discard with no actor leaves the wrong type in Daily Life, an Investigation or a Class Trial (incident: ${running}, `
+            + `body found: ${Boolean(hadBody)}; [answered, expected] per phase: ${stableJson(answers)})`);
     }],
 
     ["Faint stays in the ledger until the bullet has been analysed", async () => {
@@ -63249,7 +63263,7 @@ const SCENARIOS = [
             + "[and the whispers in rifledAgain's words], the thief in no room)");
     }],
 
-    ["a discard's trace is filed by the GM: Tamper in an Investigation, or for a side of the running incident, preparation for anyone else, whatever type the packet names (E14-T7, S08-13)", async () => {
+    ["a discard's trace is filed by the GM: Tamper in an Investigation or a Class Trial, or for a side of the running incident, preparation for anyone else, whatever type the packet names (E14-T7, S08-13)", async () => {
         /*
          * E14 part 1 C5, 24.10.2026; E14-16, audit S08-13. The harm: the type of a broken thing's trace was the packet's
          * (remnants.mjs `narrowPlayerRemnant` kept Preparation or Tamper as sent), chosen on the discarder's browser by
@@ -63260,6 +63274,10 @@ const SCENARIOS = [
          * fight (`swingFixture`) the killer's naming Preparation and the bystander's naming Tamper - each judged as the
          * bridge judges that player's `remnant.place`. Read: the verdict and the type of the trace placed. Red at 38d4f7ba
          * (c5-t7-red.log): every trace the packet's type.
+         *
+         * E14 fix e1-G5 (the review's E14R-10, E14R-05): E14-16 names a Class Trial beside the Investigation, and only the
+         * Investigation was driven, so `discardRemnantType`'s list could lose "classTrial" with this test green. The
+         * bystander's discard naming Preparation in a Class Trial is read too.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and a bystander, each with a player");
         const { isPrimaryGm } = await import("./utils.mjs");
@@ -63295,6 +63313,8 @@ const SCENARIOS = [
             read.quiet = await discard(bystander, "resolution");
             await setClock({ phase: "investigation" });
             read.investigation = await discard(bystander, "prep");
+            await setClock({ phase: "classTrial" });
+            read.classTrial = await discard(bystander, "prep");
             await setClock({ phase: "dailyLife" });
             fight = await swingFixture();
             must(![fight.killer.id, fight.victim.id].includes(bystander.id) && locateActor(fight.killer)?.tokenDoc,
@@ -63307,10 +63327,11 @@ const SCENARIOS = [
             if (getClock().phase !== phaseWas) await setClock({ phase: phaseWas });
             await settle();
         }
-        equal(stableJson(read), stableJson({ quiet: [true, ["prep"]], investigation: [true, ["resolution"]], killer: [true, ["resolution"]],
-            bystander: [true, ["prep"]] }),
+        equal(stableJson(read), stableJson({ quiet: [true, ["prep"]], investigation: [true, ["resolution"]], classTrial: [true, ["resolution"]],
+            killer: [true, ["resolution"]], bystander: [true, ["prep"]] }),
         "a discard's trace was filed by the packet's type, not the GM's reading ([verdict, the types placed]: a bystander's in Daily Life naming "
-            + "Tamper, in an Investigation naming Preparation, the killer's in the fight naming Preparation, the bystander's in it naming Tamper)");
+            + "Tamper, in an Investigation naming Preparation, in a Class Trial naming Preparation, the killer's in the fight naming Preparation, "
+            + "the bystander's in it naming Tamper)");
     }],
 
     ["a usable's kind is the item tables' where they know its name, and its description, the Give window's warning and the receipt say so; a tier 3 restores 3 of its kind with no window, no choice and no Hope, and the GMs judge a player's use by that 3 (E14-T7, S08-14, the owner 15.10)", async () => {
@@ -63429,6 +63450,43 @@ const SCENARIOS = [
             use: [{ hitPoints: 3 }, 0, 1, { wait: 0, confirm: 1 }], judged: ["stands", "flagged"] }),
         "a usable's kind or a tier 3's use is not the tables' and the owner's: made [kind, description]; Give [done, kind, the warning, the "
             + "receipt's effect, its kind]; a tier 3 use [restored, Health marks, Hope, windows]; a player's use healing 3 [tier 3, tier 1]");
+    }],
+
+    ["a tier 3 usable made before the owner's ruling of 15.10 is given today's wording: the module's own old sentence, in English or in Polish, rewritten for its kind, and a GM's own text kept (E14 fix e1-G5, E14-20)", async () => {
+        /*
+         * E14 fix e1-G5, 24.10.2026; the review's E14R-08. `grantItem` writes a usable's effect into its description once,
+         * when it is made, and C5 changed what a tier 3 does without touching the items a world already held: they kept
+         * "Restores 2 Health or 2 Sanity - your choice - plus 2 Hope." over a use that restores 3 of their kind. Three tier 3
+         * usables made by the GMs' road on one student, with the module's own pre-C5 sentence in English (healing), in
+         * Polish (sanity relief), and a GM's own text; then the pass the primary runs at its ready
+         * (inventory.mjs `refreshTierThreeWording`). Read: whether each description is today's for its kind, or kept.
+         * Red at b355cb03 (g5-red.log): no such pass, both old sentences stood.
+         */
+        const INV = await import("./inventory.mjs");
+        const C = await import("./config.mjs");
+        const [actor] = cast(1);
+        const NAME = "SUITE E14 fix e1-G5", OWN = "<p>SUITE E14 fix e1-G5 a GM's own words</p>";
+        const OLD = { en: "Restores 2 Health or 2 Sanity - your choice - plus 2 Hope.", pl: "Przywraca 2 Health albo 2 Sanity - do wyboru - plus 2 Hope." };
+        const read = {};
+        try {
+            const make = (label, goal, description) => INV.grantItem(actor, { name: `${NAME} ${label}`, category: "usable", tier: 3, goal, description,
+                override: true, quiet: true });
+            const en = await make("en", "healing", `<p>Tier 3. ${OLD.en}</p>`), pl = await make("pl", "stress", `<p>Tier 3. ${OLD.pl}</p>`);
+            const own = await make("own", "healing", OWN);
+            must(en && pl && own && en.system.description.includes(OLD.en) && pl.system.description.includes(OLD.pl),
+                "the old tier 3 usables were not made with the old sentence - this would measure nothing");
+            await INV.refreshTierThreeWording?.();
+            await settle();
+            const text = item => actor.items.get(item.id)?.system?.description ?? null;
+            read.texts = [text(en) === `<p>Tier 3. ${C.USABLE_KIND_EFFECTS.healing[3]}</p>`, text(pl) === `<p>Tier 3. ${C.USABLE_KIND_EFFECTS.stress[3]}</p>`,
+                text(own) === OWN];
+        } finally {
+            for (const item of actor.items.filter(i => i.name.startsWith(NAME))) await item.delete();
+            await settle();
+        }
+        equal(stableJson(read.texts), stableJson([true, true, true]),
+            "a tier 3 usable made before 15.10 kept its old wording, or a GM's own text was rewritten ([the English old sentence now today's healing "
+            + "one, the Polish old sentence now today's sanity relief one, the GM's text kept])");
     }],
 
     ["one creative ruling at a time on an item, held on the GM: a second card's Works while the first's window is open is turned away, and a card whose thing was used up, or put away while its window was open, gives nothing (E14-T7, S08-35)", async () => {
