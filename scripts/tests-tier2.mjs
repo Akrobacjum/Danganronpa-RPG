@@ -28269,6 +28269,87 @@ const SCENARIOS = [
             "[this GM's take, the row], the row after its drop, [another GM's take of a card this GM's pending row holds: taken, why, by this GM], [this GM's take of a card a GM not here holds, the row], the row after the drop - a claim under way was not the GMs' row, or a pending row of a GM not here held the card");
     }],
 
+    ["a statistic's ask and an Observe's end as the other asks do: each card shows its time and carries its ask's mark, its asker's expiry ends it, and a pick after that is not taken (E18 fix e1-G4)", async () => {
+        /*
+         * E18 fix e1-G4, 24.10.2026; the end review's F1 and E18-END-5 (STATUS's C1 and C2 gaps). A statistic's card
+         * (`trait.ruling`) and an Observe's (`observe.target`, a focused gaze) were on no ask's road: no time on the card,
+         * no mark, nothing ended them, so a GM's pick after the player's browser had given up was sent and written as
+         * ruled. Driven on this primary, each packet handed to the bridge's runner as Foundry names its sender: (1) the
+         * killer's player asks which statistic its Attack with a weapon rolls (`swingFixture`); the card drawn as a GM's
+         * messenger draws it; the asker's expiry; then that drawing's Leg pressed - the card's mark and time, whether it
+         * ended and its line, and the answers sent to the asker; (2) a player's focused gaze (`focusedGazeFixture`), its
+         * expiry, then a GM's pick of the near trace on the primary - the mark and time, the end, what the pick answered
+         * and what was sent to the asker. Fixtures and cards are put back after.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which holds the asks - this would measure nothing");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { contentOf, cardFlag } = await import("./secret.mjs");
+        const { wireCallActions } = await import("./messenger-app.mjs");
+        const EXPIRED = game.i18n.localize("DRPG.Bridge.settledExpired");
+        // Before its end: the mark's kind and the time shown (an end takes the time off with the "awaiting" line).
+        const posted = card => [cardFlag(card, "rid")?.kind ?? null, /data-expires="\d+"/.test(contentOf(card) ?? "")];
+        const ended = card => [Boolean(cardFlag(card, "settled")), (contentOf(card) ?? "").includes(EXPIRED)];
+        const read = [];
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const had = new Set(game.messages.contents.map(m => m.id));
+        {
+            const { killer, putBack } = await swingFixture();
+            const mine = player(killer);
+            const rid = `E18G4T${foundry.utils.randomID(10)}`;
+            const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+            const done = [];
+            socket.emit = function (event, packet, options, ...rest) {
+                if (packet?.action === "bridge.done" && packet.requestId === rid) { done.push(packet.value ?? null); return undefined; }
+                return send.call(this, event, packet, options, ...rest);
+            };
+            try {
+                await G.judge(BRIDGE_ACTIONS, { action: "trait.ruling", requestId: rid, actorId: killer.id, kind: "crisis", key: "weaponAttack", variant: null },
+                    mine.id, { send: () => null });
+                await settle();
+                const card = game.messages.contents.find(m => !had.has(m.id) && String(contentOf(m) ?? "").includes('data-drpg-call="pickTrait"'));
+                must(card, "no statistic card was posted for the fixture's request - this would measure nothing");
+                const body = document.createElement("div");
+                body.innerHTML = contentOf(card);
+                wireCallActions(body, card);
+                const leg = [...body.querySelectorAll('[data-drpg-call="pickTrait"]')].find(b => b.dataset.trait === "leg");
+                must(leg, "the card's drawing carries no Leg - this would measure nothing");
+                const before = posted(card);
+                await G.judge(BRIDGE_ACTIONS, { action: "ruling.expired", rid }, mine.id, { send: () => null });
+                await until(() => Boolean(cardFlag(game.messages.get(card.id), "settled")), 3000);
+                leg.click();
+                await settle(800);
+                read.push([...before, ...ended(game.messages.get(card.id))], [...done]);
+            } finally {
+                if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+                await putBack();
+            }
+        }
+        {
+            const F = await focusedGazeFixture();
+            try {
+                const rid = await F.ask();
+                const card = F.card();
+                must(card, "no Observe card was posted for the gaze - this would measure nothing");
+                const before = posted(card);
+                await G.judge(BRIDGE_ACTIONS, { action: "ruling.expired", rid }, F.player.id, { send: () => null });
+                await until(() => F.settled(card), 3000);
+                const picked = await F.pickOf(rid, F.traces.near.id);
+                await settle();
+                read.push([...before, ...ended(game.messages.get(card.id))], picked, F.sent.length);
+            } finally {
+                await F.putBack();
+            }
+        }
+        for (const message of game.messages.contents.filter(m => !had.has(m.id))) await message.delete().catch(() => {});
+        for (const node of [...document.querySelectorAll(".drpg-popup")]) node.dispatchEvent(new CustomEvent("drpg-dismiss"));
+        await settle();
+        equal(stableJson(read), stableJson([["trait", true, true, true], [], ["observe", true, true, true], "gone", 0]),
+            "[the statistic's card: its mark's kind, a time shown, ended, as expired], the answers sent after its expiry and a later Leg, [the Observe's card: the same], what a pick after its expiry answered, the answers sent to its asker - an ask stayed open past its asker's clock, or a pick after it was taken");
+    }],
+
     ["a resent ask finds the card a GM posted for it by its mark and no other: one card for one ask, a player's card, a card posted at a player's asking or another player's mark stop nothing, and a ruled card refuses (E18 C2)", async () => {
         /*
          * E18 C2, 19.10.2026; audit S10-24 (E18-08). The primary knew which asks it had put on a card only in memory

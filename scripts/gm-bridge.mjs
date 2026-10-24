@@ -2935,8 +2935,8 @@ const dynamicAsks = new Map();
  * Keep an ask, and the card it was put on once it is posted (`messageId`, E18 C1); the oldest go first. With
  * `expires`, the card ends at that time if nothing ended it before (`endAtExpiry`, E18 C2).
  */
-function holdAsk(asks, requestId, held, expires = null) {
-    asks.set(requestId, { ...held, messageId: null });
+function holdAsk(asks, requestId, held, expires = null, extra = {}) {
+    asks.set(requestId, { ...held, ...extra, messageId: null, expires: Number.isFinite(expires) ? expires : null });
     while (asks.size > CALL_ASKS_KEPT) asks.delete(asks.keys().next().value);
     return message => {
         const kept = asks.get(requestId);
@@ -3007,7 +3007,7 @@ function askCardExpiry(message) {
  * card it found and holds again; `{ refused }` for one whose card is settled, or whose card's mark says it was posted
  * for another ask (fix early-C2-G2); null for a new ask, to be posted.
  */
-async function askAgain(asks, ctx, kind, held) {
+async function askAgain(asks, ctx, kind, held, extra = {}) {
     if (!ctx.requestId) return { later: true };
     const card = cardOfAsk(ctx.requestId, ctx.asker);
     if (card) {
@@ -3018,7 +3018,7 @@ async function askAgain(asks, ctx, kind, held) {
     if (askedByCard.has(ctx.requestId)) return { later: true };
     if (!card) return null;
     askedByCard.add(ctx.requestId);
-    holdAsk(asks, ctx.requestId, held, askCardExpiry(card))(card);
+    holdAsk(asks, ctx.requestId, held, askCardExpiry(card), extra)(card);
     return { later: true };
 }
 
@@ -3046,7 +3046,7 @@ function endAtExpiry(messageId, expires) {
 async function expireAskCard(messageId, leaving = null) {
     expiryTimers.delete(messageId);
     if (!isPrimaryGm({ leaving })) return;
-    for (const asks of [callAsks, dynamicAsks]) {
+    for (const asks of heldAskMaps()) {
         for (const [rid, held] of asks) if (held.messageId === messageId) asks.delete(rid);
     }
     let sentOn = null;
@@ -3151,12 +3151,19 @@ async function askDynamicByCard(payload, ctx) {
  * GM's config for the definition the guard checked, never from the packet.
  */
 async function askTraitByCard(payload, ctx) {
-    if (!ctx.requestId || askedByCard.has(ctx.requestId)) return { later: true };
+    if (!ctx.requestId) return { later: true };
     const { listedTraits, rulingLabel, traitWithValue } = await import("./trait-ruling.mjs");
     const spec = { kind: payload.kind, key: payload.key, variant: payload.variant ?? null };
     const listed = listedTraits(spec);
     if (listed.length < 2) return { refused: "nothing was carried out: the roll lists one statistic or none" };
+    // On the one road since E18 fix e1-G4: held, marked, timed and ended as a Call's and a Dynamic action's are.
+    // The roll's kind as `rollKind`: the mark's own `kind` is the ask's ("trait", `askMark`).
+    const held = { userId: ctx.asker, actorId: payload.actorId ?? "", rollKind: spec.kind ?? "", key: spec.key ?? "", variant: spec.variant ?? "" };
+    const again = await askAgain(traitAsks, ctx, "trait", held);
+    if (again) return again;
     askedByCard.add(ctx.requestId);
+    const expires = serverNow() + TIMING.rulingMs;
+    const onPosted = holdAsk(traitAsks, ctx.requestId, held, expires);
     const actor = game.actors.get(payload.actorId ?? "");
     const data = trait => ({
         rid: ctx.requestId, asker: ctx.asker, by: payload.actorId ?? "", kind: spec.kind, key: spec.key,
@@ -3171,20 +3178,51 @@ async function askTraitByCard(payload, ctx) {
             ...listed.map(trait => ({ action: "pickTrait", label: traitWithValue(actor, trait), data: data(trait) })),
             { action: "refuseTrait", label: game.i18n.localize("DRPG.Action.dynamicRefuse"), data: data(null) }
         ],
-        veiled: true
+        veiled: true,
+        onPosted,
+        rid: askMark(ctx, "trait", held),
+        expires
     });
     return posted === false ? { refused: "the ruling card could not be posted" } : { later: true };
 }
 
 /**
  * The Observes this primary put on a card, by request (E09 C12): who asked, for which
- * character, in which room, with what words and when - what a GM's pick is held to
+ * character, in which room, with what words and until when - what a GM's pick is held to
  * (`observePickOnPrimary`), read from the ask as it arrived and never from the card. The
- * oldest go first. Kept in memory: a primary that reloads keeps none, so a pick on a card it
- * put up before is refused and told, and the player's browser asks again (`resend`).
+ * oldest go first. Kept in memory: a primary that reloads keeps none, and the player's browser
+ * asks again (`resend`), which finds the card by its mark (`askAgain`, E18 fix e1-G4).
  */
 const observeAsks = new Map();
-const OBSERVE_ASKS_KEPT = 100;
+
+/*
+ * THE STATISTIC'S ASK AND THE OBSERVE'S ON THE ONE ROAD (E18 fix e1-G4, 24.10.2026; the end review's F1 and E18-END-5;
+ * STATUS's C1 and C2 gaps). The stage's goal is that every question to the GM ends one way within a time its card shows,
+ * and only a Hope Call's and a Dynamic action's asks were on that road: a statistic's card (`trait.ruling`) and an
+ * Observe aimed at a point of interest (`observe.target`) showed no time, carried no mark and were ended by nothing, so
+ * a GM's pick minutes after the player's browser had given up was written as ruled, and a resend to a primary that had
+ * reloaded put up a second card. Both are held now as the other two are (`traitAsks`, `observeAsks`, `holdAsk`), their
+ * cards carry the ask's mark and its time (`askMark`, `expires`), a resend finds its card (`askAgain`), the asker's
+ * expiry and receipt end or close them (`expiredOnPrimary`, `receivedOnPrimary`) and the primary ends each at its time
+ * (`endAtExpiry`, `sweepAskCards`). A pick on a statistic's card is still sent to its asker by the GM who pressed it
+ * (`answerTraitRuling`); a pick on an Observe's card was the primary's already (`observePickOnPrimary`). Tier 2's "a
+ * statistic's ask and an Observe's end as the other asks do" reads it.
+ */
+const traitAsks = new Map();
+
+/** Every map of asks this primary holds on a card: what an asker's expiry and receipt, and a card's end, are read against. */
+function heldAskMaps() {
+    return [callAsks, dynamicAsks, traitAsks, observeAsks];
+}
+
+/** The ask this primary holds under `requestId` for `userId`, with its map, or null. */
+function heldAskOf(requestId, userId) {
+    for (const asks of heldAskMaps()) {
+        const held = asks.get(requestId ?? "");
+        if (held && held.userId === userId) return { asks, held };
+    }
+    return null;
+}
 
 /**
  * A player's focused gaze, put to every GM as a card in the player's thread (E09 C12; shaped
@@ -3193,10 +3231,14 @@ const OBSERVE_ASKS_KEPT = 100;
  * who presses "Pick a trace" (observe.mjs `pickFromCard`).
  */
 export async function askObserveByCard({ actor, room, request = "", userId = null }, ctx) {
-    if (!ctx?.requestId || askedByCard.has(ctx.requestId)) return { later: true };
+    if (!ctx?.requestId) return { later: true };
+    // `userId` is the account the key is minted for (null for a GM's); the asker is who is answered.
+    const held = { userId: ctx.asker, actorId: actor.id, room: room ?? "", request: request ?? "" };
+    const again = await askAgain(observeAsks, ctx, "observe", held, { observer: userId, at: Date.now() });
+    if (again) return again;
     askedByCard.add(ctx.requestId);
-    observeAsks.set(ctx.requestId, { asker: ctx.asker, userId, actorId: actor.id, room, request, at: Date.now() });
-    while (observeAsks.size > OBSERVE_ASKS_KEPT) observeAsks.delete(observeAsks.keys().next().value);
+    const expires = serverNow() + TIMING.rulingMs;
+    const onPosted = holdAsk(observeAsks, ctx.requestId, held, expires, { observer: userId, at: Date.now() });
     const data = { rid: ctx.requestId, by: actor.id, desc: request };
     const posted = await callGm(actor, {
         title: game.i18n.localize("DRPG.Observe.cardTitle"),
@@ -3206,7 +3248,10 @@ export async function askObserveByCard({ actor, room, request = "", userId = nul
         actions: [
             { action: "pickObserveTrace", label: game.i18n.localize("DRPG.Observe.cardPick"), data },
             { action: "refuseObserveTrace", label: game.i18n.localize("DRPG.Observe.pickRefuse"), data }
-        ]
+        ],
+        onPosted,
+        rid: askMark(ctx, "observe", held),
+        expires
     });
     if (posted !== false) return { later: true };
     observeAsks.delete(ctx.requestId);
@@ -3215,9 +3260,9 @@ export async function askObserveByCard({ actor, room, request = "", userId = nul
 
 /**
  * A GM's pick (`tokenId`) or Refuse (`refuse`) on an Observe card, on the primary (E09 C12).
- * Held to the ask kept under `rid`: none kept, another character's, or one past the asker's
- * clock (`TIMING.rulingMs` from its arrival here, a little later than the asker's own) is
- * "gone". The ask is marked as being answered before anything waits, so of two GMs' picks at
+ * Held to the ask kept under `rid`: none kept, another character's, one answered already, or one
+ * past the time its card shows (`expires`, E18 fix e1-G4; `TIMING.rulingMs` from its arrival here)
+ * is "gone". An answered ask stays held until its asker's receipt (`receivedOnPrimary`) or its card's end. The ask is marked as being answered before anything waits, so of two GMs' picks at
  * once the second is "gone" too. A pick the primary does not find among the traces the
  * character could be shown now is "notThere", and the card stays open. Answers `{ value, told }`:
  * value "picked", "refused", "gone" or "notThere"; told, the notice for the GM who pressed.
@@ -3227,28 +3272,28 @@ export async function askObserveByCard({ actor, room, request = "", userId = nul
 async function observePickOnPrimary({ rid, actorId, tokenId = null, refuse = false }, by) {
     const asked = observeAsks.get(rid ?? "");
     const who = game.users.get(by ?? "")?.name ?? by;
-    if (!asked || asked.answering || asked.actorId !== actorId || Date.now() - asked.at > TIMING.rulingMs) {
+    const late = (asked?.expires != null && serverNow() > asked.expires) || Date.now() - (asked?.at ?? 0) > TIMING.rulingMs;
+    if (!asked || asked.answering || asked.answered || asked.actorId !== actorId || late) {
         warn(`An Observe card's ${refuse ? "refusal" : "pick"} by ${who} was not taken: this primary GM keeps no Observe waiting under that request for that character.`);
-        if (asked && !asked.answering && asked.actorId === actorId) observeAsks.delete(rid);
+        if (asked && !asked.answering && !asked.answered && asked.actorId === actorId) observeAsks.delete(rid);
         return { value: "gone", told: "DRPG.Observe.pickGone" };
     }
     asked.answering = true;
-    const answer = value => game.socket.emit(SOCKET_EVENT, {
-        action: ACTION_DONE, requestId: rid, userId: asked.asker, value
-    }, { recipients: [asked.asker] });
+    const answer = value => {
+        asked.answered = true;
+        game.socket.emit(SOCKET_EVENT, { action: ACTION_DONE, requestId: rid, userId: asked.userId, value }, { recipients: [asked.userId] });
+    };
     try {
         if (refuse) {
-            observeAsks.delete(rid);
             answer({ ok: false, reason: "refused" });
             return { value: "refused", told: null };
         }
         const { pickObserveTarget } = await import("./observe.mjs");
-        const picked = await pickObserveTarget({ actorId, room: asked.room, tokenId, userId: asked.userId, request: asked.request });
+        const picked = await pickObserveTarget({ actorId, room: asked.room, tokenId, userId: asked.observer ?? null, request: asked.request });
         if (!picked.ok) {
             warn(`An Observe card's pick by ${who} was not taken: that trace is not one ${game.actors.get(actorId)?.name ?? actorId} could be shown in ${asked.room} now (${picked.reason}).`);
             return { value: "notThere", told: "DRPG.Observe.pickNotThere" };
         }
-        observeAsks.delete(rid);
         answer({ ok: true, key: picked.key });
         return { value: "picked", told: null };
     } finally {
@@ -3519,11 +3564,10 @@ async function unreceivedOnPrimary(requestId) {
  * did not follow is taken back. Either card ends as expired. False for anything else: nothing is done.
  */
 async function expiredOnPrimary(requestId, senderId) {
-    const stillAsked = callAsks.get(requestId ?? "") ?? dynamicAsks.get(requestId ?? "");
-    if (stillAsked && stillAsked.userId === senderId) {
-        callAsks.delete(requestId);
-        dynamicAsks.delete(requestId);
-        await endExpired(stillAsked.messageId);
+    const stillAsked = heldAskOf(requestId, senderId);
+    if (stillAsked) {
+        stillAsked.asks.delete(requestId);
+        await endExpired(stillAsked.held.messageId);
         return true;
     }
     const sentOn = answeredAsks.get(requestId ?? "");
@@ -3552,10 +3596,9 @@ async function receivedOnPrimary(requestId, senderId) {
         await endAskCard(reached.messageId, { key: reached.text, name });
         return true;
     }
-    const answeredElsewhere = callAsks.get(requestId ?? "") ?? dynamicAsks.get(requestId ?? "");
-    if (answeredElsewhere && answeredElsewhere.userId === senderId) {
-        callAsks.delete(requestId);
-        dynamicAsks.delete(requestId);
+    const answeredElsewhere = heldAskOf(requestId, senderId);
+    if (answeredElsewhere) {
+        answeredElsewhere.asks.delete(requestId);
         return true;
     }
     return false;
@@ -3609,7 +3652,8 @@ export function requestDynamicDifficulty({ description, actorName, room, actorId
  * @returns {Promise<object>} the bridge's result; `value` the trait, or false when the GM refused.
  */
 export function requestTraitRuling({ actorId, kind, key, variant = null }) {
-    return ask(ACTION_TRAIT_RULING, { actorId, kind, key, variant }, { nothingSpent: true });
+    return ask(ACTION_TRAIT_RULING, { actorId, kind, key, variant }, { nothingSpent: true,
+        expired: ACTION_RULING_EXPIRED, received: ACTION_RULING_RECEIVED });
 }
 
 /**
@@ -3633,8 +3677,11 @@ export function requestTraitRuling({ actorId, kind, key, variant = null }) {
  * @returns {Promise<{ok: boolean, key?: string, reason?: string}|null>}
  */
 export async function requestObserveTarget({ actorId, declaration, request = "" }, timeoutMs = TIMING.rulingMs) {
+    // Only a focused gaze is put on a card (`askObserveByCard`), so only its wait reports how it ended (E18 fix e1-G4).
+    const { DECLARATIONS } = await import("./observe.mjs");
+    const onCard = declaration === DECLARATIONS.specific ? { expired: ACTION_RULING_EXPIRED, received: ACTION_RULING_RECEIVED } : {};
     const res = await ask(ACTION_OBSERVE_TARGET, { actorId, declaration, request }, {
-        timeoutMs, nothingSpent: true,
+        timeoutMs, nothingSpent: true, ...onCard,
         local: () => import("./observe.mjs").then(m => m.chooseObserveTarget({ actorId, declaration, request }))
     });
     return res.ok ? res.value ?? null : null;

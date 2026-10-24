@@ -2412,7 +2412,11 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
         M.wireCallActions(body, message);
         globalThis.__clButton = body.querySelector('[data-drpg-call="decline"]');
         return Boolean(globalThis.__clButton);`, { timeout: 20000 });
+    /* What the GM who clicked is told: a refusal card (gm-bridge.mjs `sayRefusedHere`, a showPopup of kind error since
+       E18 fix e1-G3, which left this read on the toasts alone and CL2/CL3 red at 89095263), or a toast where no card could
+       be shown - each in the order shown. */
     const clickCL = client => client.eval(`const told = [], real = ui.notifications.warn;
+        const shownBefore = new Set(document.querySelectorAll(".drpg-popup"));
         ui.notifications.warn = (text, ...rest) => { told.push(String(text)); return real.call(ui.notifications, text, ...rest); };
         try {
             globalThis.__clButton?.click();
@@ -2421,7 +2425,10 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
             ui.notifications.warn = real;
             delete globalThis.__clButton;
         }
-        return told;`, { timeout: 30000 });
+        const cards = [...document.querySelectorAll(".drpg-popup.drpg-popup-error")].filter(c => !shownBefore.has(c))
+            .sort((a, b) => Number(a.dataset.drpgSeq) - Number(b.dataset.drpgSeq))
+            .map(c => c.querySelector(".drpg-popup-body")?.textContent.trim() ?? "");
+        return [...cards, ...told];`, { timeout: 30000 });
     const linesCL = id => gma.eval(`return game.messages.contents.filter(m => !globalThis.__clBefore.includes(m.id) && m.id !== "${id}").length;`);
     let cl = null;
     await connect("gmb", { storage: await storageOf("gmb") });
