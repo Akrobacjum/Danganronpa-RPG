@@ -36,7 +36,7 @@ import { locateActor, sceneOfActor, neighbouringRooms, ROOM_FLAGS } from "./move
 // Static because the reader is synchronous. From settings.mjs, which is a leaf
 // - this is one client-scoped boolean, and the note above the function there
 // explains why it stopped living in mastermind.mjs.
-import { iAmTheMastermind, SETTINGS, isDeceased, getClock } from "./settings.mjs";
+import { iAmTheMastermind, SETTINGS, isDeceased, isDeadForGm, getClock } from "./settings.mjs";
 import { SEARCH_FLAGS } from "./search-tokens.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 // Static is safe: tables.mjs only reaches back into this file lazily.
@@ -1233,6 +1233,11 @@ export async function atOwnVault(actor) {
  */
 export async function stow(actor, item) {
     if (!actor || !item) return false;
+    // The dead keep their hands still (E14 part 1 C3; audit S08-12, D15): what is on
+    // the body stays there to be found, a Monocub's too. A death this browser may know
+    // (`isDeadForGm`: the victim's own player knows it before the table); the GMs judge
+    // a write past this as they judge any (sheet-audit.mjs `placeStands`).
+    if (refuseTheDead(actor)) return false;
 
     if (item.getFlag(MODULE_ID, ITEM_FLAGS.category) === "truthBullet") {
         ui.notifications.warn(game.i18n.localize("DRPG.Vault.noBullets"));
@@ -1291,9 +1296,17 @@ export async function stow(actor, item) {
     return true;
 }
 
+/** True, and the player told, when `actor` is dead as this browser may know it (`stow`, `retrieve`). */
+function refuseTheDead(actor) {
+    if (!isDeadForGm(actor)) return false;
+    ui.notifications.warn(game.i18n.format("DRPG.Items.deadHands", { name: actor.name }));
+    return true;
+}
+
 /** Take something back out. The carry limit has a say on the way out. */
 export async function retrieve(actor, item) {
     if (!actor || !item || !isStashed(item)) return false;
+    if (refuseTheDead(actor)) return false;
 
     // In the room this particular thing is in - not merely in one of yours.
     // Two stashes and a shared "am I at a stash" test would let a player pull

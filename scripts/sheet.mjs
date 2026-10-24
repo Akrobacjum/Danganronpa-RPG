@@ -2714,7 +2714,9 @@ function groupInventory(app, element) {
  */
 function buildOpenStashSection(box, actor, app) {
     if (!app.isEditable || isMonokuma(actor)) return;
-    if (deadToViewer(actor) && !isMonocub(actor)) return;
+    // The dead rifle nothing, a Monocub included (D15, S08-30): it offered a
+    // Rifle the GM's side then refused (vault.mjs `stealFromVault`).
+    if (deadToViewer(actor)) return;
 
     /*
      * ONE HEADING PER STASH, ONE BUTTON FOR THE ROOM.
@@ -2844,7 +2846,9 @@ function buildOneStashSection(box, actor, app, room, scene) {
 function addUseButton(li, item, app) {
     if (!app.isEditable || isMonokuma(app.document)) return;
     if (!isUsable(item)) return;
-    if (deadToViewer(app.document) && !isMonocub(app.document)) return;
+    // A Monocub too (D15, S08-30): what they carried in life is on the body,
+    // the body's to be found - `useItem` refuses the dead as well.
+    if (deadToViewer(app.document)) return;
 
     // SHOWN, AND DEAD. An opened kit keeps its button so the row does not
     // quietly change shape when it is spent - the player looks at the same
@@ -2920,6 +2924,8 @@ function inCrisis(actor) {
 function addEquipButton(li, item, app) {
     if (!app.isEditable || isMonokuma(app.document)) return;
     if (!isEquippable(item)) return;
+    // The dead ready nothing (E14 part 1 C3, S08-12): `toggleEquipped` refuses them too.
+    if (deadToViewer(app.document)) return;
 
     const ready = isEquipped(item);
     const broken = isBroken(item);
@@ -2962,9 +2968,9 @@ function addEquipButton(li, item, app) {
 function addDiscardButton(li, item, app) {
     if (!app.isEditable || isMonokuma(app.document)) return;
     if (!isBroken(item)) return;
-    // A corpse throws nothing away. Same gate as the Use button, and a Monocub
-    // is on the other side of it for the same reason.
-    if (deadToViewer(app.document) && !isMonocub(app.document)) return;
+    // A corpse throws nothing away. Same gate as the Use button, a Monocub
+    // included: the trace was laid at the Monocub's token, not at the body (S08-30).
+    if (deadToViewer(app.document)) return;
     // The stash is the OTHER answer, not a place to act from: something already
     // put away has to be taken back out before it can be thrown away.
     if (isStashed(item)) return;
@@ -2994,6 +3000,9 @@ function addDiscardButton(li, item, app) {
  */
 function addStashButton(li, item, app, { stowing }) {
     if (!app.isEditable || isMonokuma(app.document)) return;
+    // The dead put nothing away and take nothing out, a Monocub included (S08-12,
+    // D15): a thing put away is off the body, and a body's loot takes none of those.
+    if (deadToViewer(app.document)) return;
 
     const tip = game.i18n.localize(stowing ? "DRPG.Vault.stowTooltip" : "DRPG.Vault.takeTooltip");
 

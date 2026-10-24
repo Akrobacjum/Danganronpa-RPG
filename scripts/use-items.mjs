@@ -38,7 +38,7 @@ import { resourceValue, resourceMax } from "./character.mjs";
 // Only to answer "is there a murder to be tidying up after" - see
 // `discardRemnantType`. `murder.mjs` imports this file back, so it is reached
 // dynamically inside the function; `settings.mjs` does not and can be static.
-import { bodyDiscovery, bodyFoundSinceTrial } from "./settings.mjs";
+import { bodyDiscovery, bodyFoundSinceTrial, isDeadForGm } from "./settings.mjs";
 import { trustedWrite, trustedDelete } from "./resource-guard.mjs";
 import { overflowBlocksHope } from "./overflow.mjs";
 import { dialogContent, whisperToOwner, resolveThreshold, log, error } from "./utils.mjs";
@@ -284,6 +284,20 @@ export async function breakOnDespair(actor, tool, roll, held = tool) {
     return tool.name;
 }
 
+/*
+ * THE DEAD KEEP THEIR HANDS STILL (E14 part 1 C3; audit S08-12, S08-30, decision D15).
+ * A dead student readies, uses and throws away nothing, a Monocub included: what they
+ * carried is on the body, the body's to be found. A death this browser may know
+ * (`isDeadForGm`), so the victim's own player is stopped before the table learns of it;
+ * the sheet's buttons are gone by the same reading (sheet.mjs `deadToViewer`). True, and
+ * the clicker told, when `actor` is dead.
+ */
+function deadHands(actor) {
+    if (!isDeadForGm(actor)) return false;
+    ui.notifications.warn(game.i18n.format("DRPG.Items.deadHands", { name: actor.name }));
+    return true;
+}
+
 /**
  * Hold this one ready, putting away whatever was.
  *
@@ -304,6 +318,7 @@ export async function breakOnDespair(actor, tool, roll, held = tool) {
  */
 export async function toggleEquipped(actor, item) {
     if (!actor || !item || !isEquippable(item)) return false;
+    if (deadHands(actor)) return false;
 
     if (isStashed(item)) {
         ui.notifications.warn(game.i18n.localize("DRPG.Items.equipStashed"));
@@ -449,6 +464,11 @@ function usedStamp(actor, item) {
  */
 export async function useItem(actor, item, { again = null, held = item } = {}) {
     if (!actor || !isUsable(held)) return null;
+    // Not a replay's (`again`): that is the GMs' own road, re-applying a use a roll
+    // already made, and the judge of a use (sheet-audit.mjs `itemCovers`) asks the
+    // death for every write a player's browser sends either way. A creative use
+    // (`useCreatively`, reached only from here) is refused with the rest.
+    if (!again && deadHands(actor)) return null;
 
     // An opened kit is an empty box. It is still in the bag, and it still takes
     // up the slot - see `consume` below and BROKEN_ITEMS in config.mjs.
@@ -804,6 +824,7 @@ export async function discardRemnantType() {
 
 export async function discardBroken(actor, item) {
     if (!actor || !item) return null;
+    if (deadHands(actor)) return null;
 
     if (!isBroken(item)) {
         ui.notifications.warn(game.i18n.localize("DRPG.Items.discardOnlyBroken"));

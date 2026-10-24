@@ -61039,7 +61039,8 @@ const SCENARIOS = [
 
     ["a dead student puts nothing in their stash and takes nothing out, on their sheet's road and when the GMs judge a player's write (S08-12)", async () => {
         /*
-         * E35 C0, 24.10.2026; audit S08-12, S17-17: a skeleton of E14's, red until E14 lands. The harm: a dead
+         * E35 C0, 24.10.2026; audit S08-12, S17-17: a skeleton of E14's, plain since E14 part 1 C3 (vault.mjs
+         * `stow`, `retrieve` and sheet-audit.mjs `placeStands` refuse the dead; E14-T4 reads the rest). The harm: a dead
          * student's player clicks "Put this in your stash" on the body's things, and an item put away is no longer on
          * the body for anyone to loot (handover.mjs `lootBody` refuses a stashed one), against the handbook's
          * "Everything else stays on the body to be found"; and takes things out the same way. vault.mjs `stow` and
@@ -61102,11 +61103,12 @@ const SCENARIOS = [
         });
         equal(stableJson(read), stableJson([false, false, false, [true, false, false]]),
             "a dead student's things moved in or out of their stash: [stow's answer, retrieve's, a player's stash write stood, [the first still stashed, the second, the third]]");
-    }, expectedRed("E14", "S08-12: stow, retrieve and the GMs' placeStands ask no death; E14 part 1 refuses each for a dead student, a Monocub too (D15)")],
+    }],
 
     ["a Monocub's sheet offers no Use, no Discard and no open stash: what they carried stays on the body (S08-30)", async () => {
         /*
-         * E35 C0, 24.10.2026; audit S08-30, S17-17, decision D15 option 1: a skeleton of E14's, red until E14 lands.
+         * E35 C0, 24.10.2026; audit S08-30, S17-17, decision D15 option 1: a skeleton of E14's, plain since E14 part 1
+         * C3 (the three gates read `deadToViewer` alone; a Monocub's body is looted as any body is: E14-T2).
          * The harm: a Monocub uses and throws away what is on their own body, the discard's trace lands at their token
          * and not at the body, and the open stash section offers a Rifle the GM's side then refuses in silence
          * (vault.mjs `stealFromVault` asks `isDeceased`). sheet.mjs `addUseButton`, `addDiscardButton` and
@@ -61167,7 +61169,7 @@ const SCENARIOS = [
         });
         equal(stableJson(read[1]), stableJson([false, false, false]),
             "a Monocub's drawn sheet offered what is on the body: [Use on the usable row, Discard on the broken row, the open stash section]");
-    }, expectedRed("E14", "S08-30: addUseButton, addDiscardButton and buildOpenStashSection keep a Monocub's exception; E14 part 1 closes them for every dead student (D15)")],
+    }],
 
     ["retrieving a broken Gear beside one stowed never leaves two stowed (S08-36)", async () => {
         /*
@@ -62756,6 +62758,141 @@ const SCENARIOS = [
             stableJson([[[1, 0, 0], [2, 0, 0], [0, 1, 0], [0, 0, 1]], third.id, false]),
             "a new bedroom owner set in Room Setup left the old owner a key: [the keys to the room of the owner, the holder and the third after each Apply "
             + "(the owner's second, stashed key made before the second)], the owner, whether the holder opens the door");
+    }],
+
+    ["the dead keep their hands still: a dead student's sheet offers no Use, Ready, Discard, Put away or Take out, on a death the GMs keep too; useItem, toggleEquipped, discardBroken, stow and retrieve refuse before any question; the GMs do not count a dead one's use, nor let a retrieve stand (E14-T4, S08-12, S08-30)", async () => {
+        /*
+         * E14 part 1 C3, 24.10.2026; E14-12, E14-13, D15 ("the things on a Monocub's body are the body's"). The harm: a
+         * dead student's player readies, uses, throws away, puts away or takes out what is on the body, and the body is
+         * found with less on it than the victim died with (the handbook's "Everything else stays on the body to be
+         * found"); a console that writes the use or the retrieve by hand had it stand on the GMs' side. One student with a
+         * connected player, in a room with a stash of theirs: three tier-1 healing kits, a tool, a broken tool, two usables
+         * in the stash. Alive (the controls): the sheet drawn by the module's own render hook (`drawnSheet`) offers the five
+         * buttons, and a player's use of one kit, its consumption heard, stands. Then killed on a death the GMs keep (the
+         * table not told: the sheet is drawn on this GM, who may know it) and read again: the five buttons; a player's use of the
+         * second kit as the GMs judge it (lockPlayerResources on, as the harness world has it); the five calls a click
+         * makes on the third, each window they would open answered "no" and counted; a player's retrieve of a stashed
+         * thing as the GMs judge it. Red at f278a660 (c3-red-all.log): Ready, Put away and Take out drawn (Use and Discard
+         * were gone already for a dead student not a Monocub); toggleEquipped readied the tool, stow and retrieve moved
+         * their things, useItem and discardBroken each asked their question (2 windows); the use stood, the retrieve too.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer"), "a student whose write a player's id can stand for");
+        needs(world.atLeast("studentTokensOnScreen"), "the student stands in a room by its token");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose judgement of a player's write this reads - this would measure nothing");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const U = await import("./use-items.mjs");
+        const { roomOfActor } = await import("./movement.mjs");
+        const { killCharacter, reviveCharacter } = await import("./chapter.mjs");
+        const { judgeWrite, onItemWrite, sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { isDeceased, isDeadForGm } = await import("./settings.mjs");
+        const { VAULT_LIMIT } = await import("./config.mjs");
+        const playerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [actor] = cast(1).filter(a => playerOf(a));
+        must(actor, "no student cast has a connected player - this would measure nothing");
+        const player = playerOf(actor);
+        const room = roomOfActor(actor);
+        must(room, `${actor.name} is not standing in a room - this would measure nothing`);
+        must(Number(actor.system?.resources?.hitPoints?.max) >= 2, `${actor.name} cannot hold two Health marks - this would measure nothing`);
+        const NAME = "SUITE E14-T4", HP = "system.resources.hitPoints.value", place = key => `flags.${MODULE_ID}.${INV.ITEM_FLAGS[key]}`;
+        const had = new Set(actor.items.map(i => i.id));
+        const [hpWas, lock] = [foundry.utils.getProperty(actor._source, HP), getSetting(SETTINGS.lockPlayerResources)];
+        const DialogV2 = foundry.applications.api.DialogV2;
+        const asked = { n: 0 };
+        const read = {};
+        let dead = false;
+        await withStashIn(room, actor, async scene => {
+            let sheet = null;
+            // The windows' own descriptors, put back as they were (scenario 83's way): an inherited one by deleting the stand-in.
+            const own = { confirm: Object.getOwnPropertyDescriptor(DialogV2, "confirm"), wait: Object.getOwnPropertyDescriptor(DialogV2, "wait") };
+            const answer = () => {
+                for (const [key, was] of Object.entries(own)) {
+                    if (was) Object.defineProperty(DialogV2, key, was);
+                    else delete DialogV2[key];
+                }
+            };
+            try {
+                await game.settings.set(MODULE_ID, SETTINGS.lockPlayerResources, true);
+                const make = (label, data = {}) => INV.grantItem(actor, { name: `${NAME} ${label}`, category: "usable", tier: 1, goal: "healing",
+                    override: true, quiet: true, ...data });
+                const tools = { category: "tool", goal: undefined };
+                const stashed = { location: INV.LOCATIONS.vault, extraFlags: { [INV.ITEM_FLAGS.stashRoom]: room } };
+                const kit = await make("kit"), control = await make("control kit"), spent = await make("spent kit"), tool = await make("tool", tools);
+                const broken = await make("broken", { ...tools, extraFlags: { [INV.ITEM_FLAGS.broken]: true } });
+                const kept = await make("kept", stashed), taken = await make("taken", stashed);
+                must(kit && control && spent && tool && broken && kept && taken && INV.isStashed(kept) && INV.isStashed(taken),
+                    "the fixture's items were not made, or not put in the stash - this would measure nothing");
+                await settle();
+                const drawn = () => {
+                    sheet?.remove();
+                    sheet = drawnSheet(actor);
+                    const on = (item, act) => Boolean(sheet.element.querySelector(`[data-item-uuid="${item.uuid}"] [data-drpg-row-action="${act}"]`));
+                    return [on(kit, "use"), on(tool, "equip"), on(broken, "discard"), on(kit, "stash"), on(kept, "stash")];
+                };
+                // A player's use of `item` as the GMs judge it: Health 2 -> 1 written aside, the kit spent as the
+                // player's browser writes it, its consumption heard (the busy-queue test's road). Answers the verdict.
+                const playersUse = async item => {
+                    await actor.update({ [HP]: 2 });
+                    await sheetAuditIdle();
+                    await auditFromScratch(actor);
+                    await actor.update({ [HP]: 1 }, { [AUDIT_ASIDE]: true });
+                    const use = judgeWrite("updateActor", actor, foundry.utils.expandObject({ [HP]: 1 }), player.id, { drpgWrite: { reason: "itemUse", ref: item.id } });
+                    await item.update({ "system.quantity": 0 }, { [AUDIT_ASIDE]: true });
+                    onItemWrite(item, { system: { quantity: 0 } }, {}, player.id, { primary: true });
+                    const verdict = (await use)?.verdict ?? null;
+                    await sheetAuditIdle();
+                    return verdict;
+                };
+                read.alive = [drawn(), await playersUse(control)];
+                await actor.items.get(control.id)?.delete();
+                await sheetAuditIdle();
+                must(stableJson(read.alive) === stableJson([[true, true, true, true, true], "stands"]),
+                    `alive, the sheet did not offer the five buttons, or a player's use did not stand (${stableJson(read.alive)}) - this would measure nothing`);
+                dead = Boolean(await killCharacter(actor, { secret: true, keepBullets: true }));
+                must(dead && isDeadForGm(actor) && !isDeceased(actor), `${actor.name}'s death was not kept by the GMs - this would measure nothing`);
+                await settle();
+                read.buttons = drawn();
+                read.use = await playersUse(spent);
+                await actor.items.get(spent.id)?.delete();
+                await sheetAuditIdle();
+                // Whatever else would refuse them, measured away: a stash with room for one more, a hand free for the
+                // kept thing, the tool not yet readied.
+                must(V.stashItemsIn(actor, room, scene).length < VAULT_LIMIT && INV.canCarry(actor, "usable").ok && !U.isEquipped(tool),
+                    "the stash is full, or no hand is free for a usable, or the tool is readied - this would measure nothing");
+                DialogV2.confirm = async () => { asked.n += 1; return false; };
+                DialogV2.wait = async () => { asked.n += 1; return null; };
+                read.calls = [await U.useItem(actor, kit), await U.toggleEquipped(actor, tool), await U.discardBroken(actor, broken),
+                    await V.stow(actor, kit), await V.retrieve(actor, kept)];
+                answer();
+                const now = id => actor.items.get(id);
+                read.after = [asked.n, Number(now(kit.id)?.system?.quantity ?? 0), U.isEquipped(now(tool.id)), Boolean(now(broken.id)),
+                    INV.isStashed(now(kit.id)), INV.isStashed(now(kept.id))];
+                await asPlayerItemWrite("updateItem", actor, now(taken.id), player, { reason: "retrieve" },
+                    { [place("location")]: INV.LOCATIONS.carried, [place("stashRoom")]: null });
+                await sheetAuditIdle();
+                read.retrieve = INV.isStashed(now(taken.id));
+            } finally {
+                answer();
+                sheet?.remove();
+                if (dead) await reviveCharacter(actor, { quiet: true });
+                await sheetAuditIdle();
+                for (const item of actor.items.filter(i => !had.has(i.id))) {
+                    try { await item.delete(); } catch { /* already gone */ }
+                }
+                await actor.update({ [HP]: hpWas });
+                await game.settings.set(MODULE_ID, SETTINGS.lockPlayerResources, lock);
+                await sheetAuditIdle();
+                await settle();
+            }
+        });
+        equal(stableJson(read.buttons), stableJson([false, false, false, false, false]),
+            "a dead student's sheet offered what is on the body: [Use on the kit, Ready on the tool, Discard on the broken tool, Put away on the kit, Take out on the stashed thing]");
+        equal(stableJson([read.calls, read.after]), stableJson([[null, false, null, false, false], [0, 1, false, true, false, true]]),
+            "a dead student's hands moved: [useItem, toggleEquipped, discardBroken, stow, retrieve answered], "
+            + "[the windows opened, the kit's count, the tool readied, the broken tool still there, the kit stashed, the kept thing still stashed]");
+        equal(stableJson([read.use, read.retrieve]), stableJson(["flagged", true]),
+            "the GMs let a dead student's write stand: [a player's use of a kit (its Health flagged, not covered), the stashed thing still in the stash after a player's retrieve]");
     }],
 
     ...GRID

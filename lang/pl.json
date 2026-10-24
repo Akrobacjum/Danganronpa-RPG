@@ -929,6 +929,7 @@
       "usedNothing": "Nie ma czego przywracać. Nic ci nie brakowało.",
       "useStashed": "To leży w twojej skrytce. Najpierw to wyjmij.",
       "stowShape": "Tylko jeden {group} może być schowany. Najpierw weź drugi do ręki albo go wyrzuć.",
+      "deadHands": "{name} nie żyje. To, co jest przy ciele, zostaje tam, do znalezienia.",
       "equipStashed": "To leży w twojej skrytce. Wyjmij to, zanim weźmiesz do ręki.",
       "equipTooltip": "Weź do ręki.",
       "unequipTooltip": "Odłóż.",

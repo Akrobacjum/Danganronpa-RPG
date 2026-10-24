@@ -940,6 +940,7 @@
       "usedNothing": "Nothing to restore. You were already whole.",
       "useStashed": "That is in your stash. Take it out first.",
       "stowShape": "Only one {group} may be stowed. Ready the other one first, or drop it.",
+      "deadHands": "{name} is dead. What is on the body stays there, to be found.",
       "equipStashed": "That is in your stash. Take it out before holding it ready.",
       "equipTooltip": "Hold this ready.",
       "unequipTooltip": "Put this away.",

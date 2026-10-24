@@ -137,7 +137,7 @@
  */
 
 import { MODULE_ID, FLAGS, STATES, ACTIONS_RESOURCE, TIMING, REST, HOPE_CALLS, USABLE_EFFECTS, USABLE_KINDS, CRITICAL, VAULT_LIMIT, BEDROOM_KEY_FLAG } from "./config.mjs";
-import { SETTINGS, getSetting, getClock } from "./settings.mjs";
+import { SETTINGS, getSetting, getClock, isDeadForGm } from "./settings.mjs";
 import { isPrimaryGm, primaryGmId, whisperToGms, esc, error, debug, forcedDeletion } from "./utils.mjs";
 import { onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet, stableJson } from "./gm-store.mjs";
 import { sheetMarkStore, sheetWriteStore, rollStore } from "./gm-stores.mjs";
@@ -1722,7 +1722,7 @@ async function coverOf(actor, mark, credit, gains, moves, stamp, user, seen) {
         const covers = await restCovers(actor, mark, credit, gains, moves, stamp.ref, seen);
         return covers ? { ...none, covers, rest: true } : none;
     }
-    if (stamp.reason === "itemUse") return { ...none, covers: (await itemCovers(gains, stamp.ref, user, seen, mark)) ?? {} };
+    if (stamp.reason === "itemUse") return { ...none, covers: (await itemCovers(actor, gains, stamp.ref, user, seen, mark)) ?? {} };
     if (stamp.reason === "call") return { ...none, covers: callCovers(credit, gains, stamp.ref) };
     return none;
 }
@@ -1777,9 +1777,12 @@ async function restCovers(actor, mark, credit, gains, moves, ref, seen) {
  * a use's 2 Hope and both Health marks, and a kind, a mend and a stash undone there each covered its use; in scenario
  * 30 p1's tier and at once the use left Hope 4 on every client, the use's row covered.
  */
-async function itemCovers(gains, ref, user, seen, mark) {
+async function itemCovers(actor, gains, ref, user, seen, mark) {
     const src = seen.item;
     if (!src || src._id !== ref || !user) return null;
+    // The dead use nothing (E14 part 1 C3; audit S08-12, D15), a Monocub included: a death the GMs hold,
+    // published or not - the victim's own player knows it, and `useItem` refuses it on their browser.
+    if (isDeadForGm(actor)) return null;
     const copy = mark?.items?.[ref] ?? null;
     const item = itemLike(copy ? withPaths(src, copy, ITEM_JUDGED) : withPaths(src, {}, ITEM_UNHELD));
     const { isUsable, tierOf, usableKindOf } = await import("./use-items.mjs");
@@ -2158,6 +2161,9 @@ async function placeStands(actor, item, before, now) {
     const stashOf = data => isStashed(itemLike(data)) ? V.stashRoomOfItem(itemLike(data), actor, scene) : null;
     const was = stashOf(before), is = stashOf(now);
     if (was === is) return true;
+    // The dead put nothing away and take nothing out (E14 part 1 C3; audit S08-12, D15): a death the GMs
+    // hold, published or not, as `itemCovers` reads it; vault.mjs `stow` and `retrieve` refuse it first.
+    if (isDeadForGm(actor)) return false;
     const room = await V.myStashHere(actor);
     if (!room) return false;
     const category = foundry.utils.getProperty(now, `flags.${MODULE_ID}.${ITEM_FLAGS.category}`);
