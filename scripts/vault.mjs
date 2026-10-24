@@ -1529,21 +1529,16 @@ export async function stealFromVault({
         }
     }
 
-    const { grantItem, preservedFlags } = await import("./inventory.mjs");
-
     /*
      * THE ITEM AS THE GMS HOLD IT (E29 fix r2-H17, 06.10.2026): once every write queued on the owner has been judged,
      * its place, category, tier, roles, kind, broken and wear as the sheet audit's mark holds them (sheet-audit.mjs
      * `itemsAsHeld`, which says why the wait is enough here) - so neither a place nor roles, a tier or a mend the
-     * owner's console wrote a moment before decide the theft or ride on the thief's copy. Read once, last, with no
-     * await between the read and the grant: the two checks of where it lies moved down to it. The deletion is the
-     * document's. The thief's hands are counted as the GMs hold them too, read with it after one wait for both
-     * (fix r2-H18, handover.mjs `giveItem`).
+     * owner's console wrote a moment before decide the theft. The gates below read it so; what moves, and the thief's
+     * hands it is counted against (fix r2-H18), are read again by inventory.mjs `transferItem` after its own wait.
      */
-    const { itemAsHeld, actorAsHeld, judgedFor, creationRefusal } = await import("./sheet-audit.mjs");
+    const { itemAsHeld, judgedFor, creationRefusal } = await import("./sheet-audit.mjs");
     await judgedFor(owner.id, thief.id);
     const held = await itemAsHeld(owner, item.id);
-    const counted = await actorAsHeld(thief);
     if (!held || !isStashed(held)) return null;
 
     // And the thing has to be in THAT stash, not merely in one of theirs
@@ -1559,34 +1554,31 @@ export async function stealFromVault({
         return { refused: undecided };
     }
 
-    const copy = await grantItem(thief, {
-        reason: "gmRuling",
-        name: held.name,
-        category: held.getFlag(MODULE_ID, ITEM_FLAGS.category),
-        tier: held.getFlag(MODULE_ID, ITEM_FLAGS.tier) ?? null,
-        description: held.system?.description ?? "",
-        img: held.img,
-        // Stealing a ruined thing out of somebody's drawer does not mend it -
-        // and hiding one there and having it lifted was the obvious way to
-        // launder a broken murder weapon back into a working one.
-        extraFlags: preservedFlags(held),
-        counted
-    });
-    if (!copy) {
-        // The thief is told, or the Search card that follows says "what comes
-        // out settles in a moment" and nothing ever does (ROLL-10).
+    /*
+     * ON THE ONE ROAD (E35 C3; S17-16, S08-37, S08-34, S08-38): the copy, the count, the flags it carries - a ruined
+     * thing lifted out of a drawer stays ruined, or hiding one there and having it lifted would launder a broken
+     * murder weapon - and the hands it lands in are inventory.mjs `transferItem`'s. Full hands put it in the thief's
+     * own stash (TRANSFER_POLICY.rifle), and only a thief with none is refused; one piece of a stack leaves the
+     * stash; a key to a room the thief already holds leaves it and is not copied, the thief told; a piece the stash
+     * keeps after the thief has its copy is told to the GMs. Unseen unless clumsy (`quiet`): the owner's open sheet
+     * does not redraw for the piece leaving, as a Palm's unseen steal's does not (S08-34).
+     */
+    const { transferItem } = await import("./inventory.mjs");
+    const name = held.name;
+    const moved = await transferItem(owner, thief, held, { mode: "rifle", quiet: !clumsy });
+    // Gone by its turn - a second reach for the same piece: nothing to say that the first did not.
+    if (moved?.missing) return null;
+    if (!moved?.ok) {
+        // Full hands and no stash of their own, or not written: the thief is told, or the Search card that follows
+        // says "what comes out settles in a moment" and nothing ever does (ROLL-10).
         await whisperToOwner(thief, `<p>${game.i18n.localize("DRPG.Vault.handsFull")}</p>`).catch(() => {});
         return null;
     }
-
-    try {
-        await item.delete();
-    } catch (err) {
-        error("Could not remove the stolen item from the stash", err);
-    }
+    // What the thief holds of it now: the copy, or under the key rule the key they already had.
+    const copy = moved.copy ?? thief.items.find(i => i.getFlag(MODULE_ID, BEDROOM_KEY_FLAG) === moved.keyHeld) ?? null;
 
     await whisperToOwner(thief, `<p>${game.i18n.format("DRPG.Vault.stole", {
-        item: foundry.utils.escapeHTML(item.name),
+        item: foundry.utils.escapeHTML(name),
         who: foundry.utils.escapeHTML(owner.name)
     })}</p>`);
 
@@ -1620,9 +1612,9 @@ export async function stealFromVault({
         }
     }
 
-    log(`${thief.name} took "${item.name}" from ${owner.name}'s stash`
+    log(`${thief.name} took "${name}" from ${owner.name}'s stash`
         + `${clumsy ? " and was clumsy enough to leave it showing" : ""}.`);
-    return copy;
+    return copy ?? true;
 }
 
 
@@ -1782,17 +1774,15 @@ export async function stealFromPerson({
      * victim's items once every write queued on them has been judged, each with
      * its place, category, tier, roles, kind, broken and wear as the sheet
      * audit's mark holds them (sheet-audit.mjs `itemsAsHeld`, which says why the
-     * wait is enough here), in the order `carriedInCategory` gave. Read once,
-     * with no await between the read and the grant; the deletion is the
-     * document's. The thief's hands are counted as the GMs hold them too,
-     * read with them after one wait for both (fix r2-H18, handover.mjs
-     * `giveItem`). The pool is `pocketsAsHeld`'s since E80 part 2 C1, the one a
-     * Frisk lists.
+     * wait is enough here), in the order `carriedInCategory` gave. The pool is
+     * `pocketsAsHeld`'s since E80 part 2 C1, the one a Frisk lists, and the
+     * only one a theft reads: what moves and the thief's hands it is counted
+     * against (fix r2-H18) are read again, by id, by inventory.mjs
+     * `transferItem` after its own wait (E35 C3; the owner, 13.10: no further
+     * copy of the pool).
      */
-    const { preservedFlags, grantItem } = await import("./inventory.mjs");
-    const { actorAsHeld, creationRefusal } = await import("./sheet-audit.mjs");
+    const { creationRefusal } = await import("./sheet-audit.mjs");
     const pool = await pocketsAsHeld(victim, thief);
-    const counted = await actorAsHeld(thief);
 
     let item = null;
     if (success && pool.length) {
@@ -1815,57 +1805,38 @@ export async function stealFromPerson({
     // it was noticed is still a live question. The two whispers below say so.
     const empty = success && !pool.length;
 
-    let copy = null;
-    let handsFull = false;
+    /*
+     * ON THE ONE ROAD (E35 C3; S17-16, S08-37, S08-38): the copy, the count, the
+     * flags it carries - a stolen broken thing stays broken, a stolen crowbar
+     * is still a weapon - and the hands it lands in are inventory.mjs
+     * `transferItem`'s. Full hands put it in the thief's own stash
+     * (TRANSFER_POLICY.steal), and only a thief with none comes away with
+     * nothing, the item staying where it is; one piece of a stack moves; a key
+     * to a room the thief already holds leaves the victim and is not copied.
+     *
+     * THE QUIET HALF IS STILL ONE OPTION (`quiet`, unseen): the piece leaves
+     * the victim with `render: false`, which travels with the write over
+     * Foundry's own socket, so their open sheet does not redraw for THIS
+     * change. The item has really gone - they cannot use it, give it away or
+     * find it again - and what is suppressed is the redraw, not the fact. A
+     * sheet redraws for a great many other reasons (a resource moving,
+     * Despair, an incident starting), so the row can come off the screen a
+     * moment later: not "they will never see", but "they will not see because
+     * of this" - trap 90. Clicking the stale row is handled where the rows are
+     * drawn (trap 91). When they ARE told, the render goes ahead: a suppressed
+     * refresh next to a whisper naming the thief is a way of losing one of the
+     * two messages.
+     */
+    let moved = null;
     if (item) {
-        copy = await grantItem(thief, {
-            reason: "gmRuling",
-            name: item.name,
-            category: item.getFlag(MODULE_ID, ITEM_FLAGS.category),
-            tier: item.getFlag(MODULE_ID, ITEM_FLAGS.tier) ?? null,
-            description: item.system?.description ?? "",
-            img: item.img,
-            // A stolen broken thing stays broken, and a stolen crowbar is still
-            // a weapon. Same reasoning as the stash theft directly above.
-            extraFlags: preservedFlags(item),
-            counted
-        });
-
-        if (copy) {
-            try {
-                /*
-                 * THE QUIET HALF, AND IT IS ONE OPTION ON ONE CALL.
-                 *
-                 * `render: false` travels with the deletion over Foundry's own
-                 * socket, so the victim's open sheet does not redraw for THIS
-                 * change. The item has really gone - they cannot use it, give
-                 * it away or find it again - and what is suppressed is the
-                 * redraw, not the fact.
-                 *
-                 * A sheet redraws for a great many other reasons (a resource
-                 * moving, Despair, an incident starting), so the row can come
-                 * off the screen a moment later. That is the promise being made
-                 * and it is the honest one: not "they will never see", but
-                 * "they will not see because of this" - trap 90. Clicking the
-                 * stale row is handled where the rows are drawn (trap 91).
-                 *
-                 * When they ARE told, there is nothing to hide and the render
-                 * goes ahead: a suppressed refresh next to a whisper naming the
-                 * thief is just a way of losing one of the two messages.
-                 */
-                await victim.items.get(item.id).delete({ render: seen });
-            } catch (err) {
-                error("Could not take the stolen item off its owner", err);
-            }
-        } else {
-            // The carry limit refused it. The item stays where it is - the
-            // alternative is deleting somebody's property to make room for a
-            // copy that was never created.
-            handsFull = true;
-        }
+        const { transferItem } = await import("./inventory.mjs");
+        moved = await transferItem(victim, thief, item, { mode: "steal", quiet: !seen });
     }
+    // Not written (`failed`) is read as full hands, as a refused copy was before: the item stays where it is. Gone by
+    // its turn (`missing`, a second hand after the same piece) comes away empty.
+    const handsFull = Boolean(moved?.handsFull || moved?.failed);
 
-    const took = Boolean(copy);
+    const took = Boolean(moved?.ok);
 
     // The thief always learns what happened to them, including whether they
     // were noticed - that is what the Shadow roll was for.
@@ -1976,18 +1947,13 @@ export async function plantOnPerson({
      * and something in a stash cannot be planted because it is not in a hand.
      * Out of the pockets as the GMs hold them, as a theft's (E29 fix r2-H17):
      * what lands on the victim is never roles, a tier or a mend the planter's
-     * console wrote a moment before asking - and into the victim's as the GMs
-     * hold them, read with them after one wait for both (fix r2-H18,
-     * handover.mjs `giveItem`).
+     * console wrote a moment before asking. The pool is `pocketsAsHeld`'s, a
+     * theft's read the other way (E35 C3; the copy of it written here went, the
+     * owner's 13.10: no further copy); the victim's hands, as the GMs hold them
+     * (fix r2-H18), are inventory.mjs `transferItem`'s to count.
      */
-    const { preservedFlags, grantItem } = await import("./inventory.mjs");
-    const { itemsAsHeld, actorAsHeld, judgedFor, creationRefusal } = await import("./sheet-audit.mjs");
-    await judgedFor(planter.id, victim.id);
-    const pockets = await itemsAsHeld(planter);
-    const counted = await actorAsHeld(victim);
-    const pool = Object.keys(ITEM_CATEGORIES)
-        .filter(c => c !== "truthBullet")
-        .flatMap(c => pockets.filter(i => i.getFlag(MODULE_ID, ITEM_FLAGS.category) === c && !isStashed(i)));
+    const { creationRefusal } = await import("./sheet-audit.mjs");
+    const pool = await pocketsAsHeld(planter, victim);
     const held = pool.find(i => i.id === item.id);
     if (!held) {
         return refuse(`"${item.name}" is not something they are carrying`);
@@ -2011,42 +1977,36 @@ export async function plantOnPerson({
     const success = Boolean(isCritical) || Number(total) >= bar;
     const seen = !(Boolean(unseenCritical) || Number(unseenTotal) >= unseenBar);
 
-    let landed = null;
-    let handsFull = false;
+    /*
+     * ON THE ONE ROAD (E35 C3; S17-16, S08-37): the copy, the count and the flags
+     * it carries are inventory.mjs `transferItem`'s - a planted broken thing
+     * stays broken, which is most of the point: the best use of this action is
+     * getting a ruined murder weapon out of your own pocket and into somebody
+     * else's, worth nothing if the transfer mended it. One piece of a stack.
+     *
+     * FULL POCKETS REFUSE IT (D42, the owner's option 1; S17-15, S08-41). It went
+     * into the victim's stash and whispered them that their hands were full, so
+     * an unseen Plant told its victim what it was, and the planter read that it
+     * was in their pocket. Now the item stays with the planter, who is told so,
+     * and the victim is told nothing - seen or not, stash or none: no card, no
+     * write, nothing to redraw (TRANSFER_POLICY.plant).
+     *
+     * The quiet half, and the mirror of the silent Steal (`quiet`, unseen): the
+     * victim's sheet does not redraw FOR THIS, and nothing on the way in speaks
+     * to them - not a key they hold already, not the Gear shape (inventory.mjs
+     * `keepGearShape`, S08-02).
+     */
+    let moved = null;
     if (success) {
-        landed = await grantItem(victim, {
-            reason: "gmRuling",
-            name: held.name,
-            category: held.getFlag(MODULE_ID, ITEM_FLAGS.category),
-            tier: held.getFlag(MODULE_ID, ITEM_FLAGS.tier) ?? null,
-            description: held.system?.description ?? "",
-            img: held.img,
-            // A planted broken thing stays broken - which is most of the point.
-            // The best use of this action is getting a ruined murder weapon out
-            // of your own pocket and into somebody else's, and it would be
-            // worth nothing if the transfer mended it.
-            extraFlags: preservedFlags(held),
-            counted,
-            // The quiet half, and the mirror of the silent Steal: the victim's
-            // sheet does not redraw FOR THIS. See `grantItem`.
-            quiet: !seen
-        });
-
-        if (landed) {
-            try {
-                await item.delete();
-            } catch (err) {
-                error("Could not take the planted item off the person planting it", err);
-            }
-        } else {
-            // Their pockets are full. The item stays where it was - the
-            // alternative is deleting somebody's property into a copy that was
-            // never created.
-            handsFull = true;
-        }
+        const { transferItem } = await import("./inventory.mjs");
+        moved = await transferItem(planter, victim, held, { mode: "plant", quiet: !seen });
     }
+    // Not written (`failed`) is read as full pockets, as a refused copy was before: the item stays with the planter.
+    // Gone by its turn (`missing`, a second Plant of the same piece) did not go in.
+    const handsFull = Boolean(moved?.handsFull || moved?.failed);
+    const landed = Boolean(moved?.ok);
 
-    const done = Boolean(landed);
+    const done = landed;
 
     await whisperToOwner(planter, `<p>${game.i18n.format(
         done ? "DRPG.Steal.cardPlanted"
@@ -2064,8 +2024,10 @@ export async function plantOnPerson({
      * none - nobody audits their own pockets for things that should not be
      * there - which is exactly what makes the unnoticed plant worth an action,
      * and exactly why the noticed one has to be unambiguous.
+     *
+     * NOT WHEN THEIR POCKETS WERE FULL (D42): the owner's answer gives that victim no whisper, seen or not.
      */
-    if (seen) {
+    if (seen && !handsFull) {
         try {
             await tellPalmVictim(victim, `<p>${game.i18n.format(
                 done ? "DRPG.Steal.caughtPlanting" : "DRPG.Steal.caughtTryingPlant",

@@ -2346,6 +2346,52 @@ async function withStashIn(room, owner, run) {
 }
 
 /**
+ * What this client put out while `run` ran (E35 C3), to be read per student by `reachedPlayersOf`: each packet it
+ * emitted - its action, its recipients (null: every browser) and a private card's words - each card document made, with
+ * its whisper list (empty: every reader), and each write of an item, the actor it is on and whether it redraws a sheet
+ * (`render` not false, as Foundry's own socket carries it). The cards are deleted after. Answers { packets, cards, writes }.
+ */
+async function sentDuring(run) {
+    const socket = game.socket;
+    const own = Object.getOwnPropertyDescriptor(socket, "emit");
+    const send = socket.emit;
+    const packets = [], cards = [], writes = [];
+    socket.emit = function (event, packet, options, ...rest) {
+        packets.push({ action: packet?.action ?? null, to: options?.recipients ?? null, html: String(packet?.html ?? "") });
+        return send.call(this, event, packet, options, ...rest);
+    };
+    const write = kind => (item, ...args) => {
+        const options = kind === "update" ? args[1] : args[0];
+        writes.push({ actorId: item?.parent?.id ?? null, kind, render: options?.render !== false });
+    };
+    const hooks = [["createChatMessage", message => cards.push({ id: message.id, whisper: [...(message.whisper ?? [])] })],
+        ["createItem", write("create")], ["updateItem", write("update")], ["deleteItem", write("delete")]].map(([name, fn]) => [name, Hooks.on(name, fn)]);
+    try {
+        await run();
+    } finally {
+        if (own) Object.defineProperty(socket, "emit", own);
+        else delete socket.emit;
+        for (const [name, id] of hooks) Hooks.off(name, id);
+        for (const card of cards) await game.messages.get(card.id)?.delete();
+    }
+    return { packets, cards, writes };
+}
+
+/**
+ * What of `sent` (`sentDuring`) reached `actor`'s players: [the packets addressed to one of them or to every browser,
+ * the card documents whispered to one of them or to every reader, the writes of the actor's items that redraw its
+ * sheet]. The players are `ownerIdsOf`'s, the GMs left out; an actor with none would measure nothing.
+ */
+async function reachedPlayersOf(actor, sent) {
+    const { ownerIdsOf } = await import("./utils.mjs");
+    const players = ownerIdsOf(actor);
+    must(players.length, `${actor.name} has no player of its own - what reaches them would measure nothing`);
+    const theirs = list => !list?.length || list.some(id => players.includes(id));
+    return [sent.packets.filter(p => p.to === null || theirs(p.to)).length, sent.cards.filter(c => theirs(c.whisper)).length,
+        sent.writes.filter(w => w.actorId === actor.id && w.render).length];
+}
+
+/**
  * A verdict run with its windows answered (E05 C11): every `DialogV2.wait` for the length
  * of `run` is recorded - its classes, title and how many picks a Level Up window offers -
  * and a Level Up window is answered by `answer(entry)`, any other closed. The GM's Level Up
@@ -61571,6 +61617,316 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson({ give: [1, true, 1], loot: [1, 0, true, 1, true], steal: [1, 2, 1, true, 2] }),
             "a piece the giver kept after the taker had its copy was not told to the GMs once, in its mode's words ([the mode's lines, the give's (loot), whether the giver holds it or its count, the pieces that arrived, the result's stuck, its left])");
+    }],
+
+    ["a Palm's steal, a stash rifled and a Plant on transferItem keep what the GMs hold of the item and move one piece of a stack; a key to a room the thief already holds, lifted or rifled, is not copied; the GMs' audit records nothing (E35-T2, steal, rifle, plant)", async () => {
+        /*
+         * E35 C3, 24.10.2026; E35-05, E35-09 (the Palm's and the rifle's roads, C0's S08-38 gap), E35-11, S08-37. The
+         * harm: a stack of three kits lifted by one hand or taken out of a stash by one reach left nothing behind -
+         * two pieces gone from the game - a thief who holds the key to a room and lifts a second holds two rows under
+         * Room Keys, and a theft or a Plant off the trusted writes would raise a row of the GMs' audit. Two students
+         * stood alone together, a stash of the first's in their room and the second's hands free for a Tool and a
+         * kit; by a GM's own call of each road (the functions the bridge's runs call), on a critical where it is
+         * rolled: a broken Tool of tier 3, worn twice and a weapon besides, lifted from the first, then one out of the
+         * stash, then one planted on the second; a stack of three kits lifted, then one out of the stash; a key to a
+         * room the second holds one to, lifted, then one out of the stash; and a stack out of the stash once its owner
+         * has concealed it from a thief who never found it (the free route's gate, vault.mjs `stealFromVault`, stays
+         * before the one road: mutant e3c). Read: each Tool copy's category, tier,
+         * broken, wear, roles, kind and identity against the original's, and whether the first still holds it; the
+         * kits left with the first and those that arrived; the keys to the room on each sheet; the rows the GMs'
+         * audit kept of either since. Red at 97437b3 (C2): each stack moved whole, and each key was copied.
+         */
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the roads read - this would measure nothing");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const { BEDROOM_KEY_FLAG } = await import("./config.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { sheetWriteStore } = await import("./gm-stores.mjs");
+        const [owner, thief] = cast(2);
+        const fixture = await aloneTogether(owner, thief);
+        const F = INV.ITEM_FLAGS, TOOL = "SUITE E35-T2 C3 a crowbar", KIT = "SUITE E35-T2 C3 kits", KEY = "SUITE E35-T2 C3 a key",
+            ROOM = "SUITE E35-T2 C3 a room", COUNT = "system.quantity";
+        const carried = item => item ? [item.getFlag(MODULE_ID, F.category), item.getFlag(MODULE_ID, F.tier), item.getFlag(MODULE_ID, F.broken) ?? null,
+            item.getFlag(MODULE_ID, F.wear) ?? null, INV.rolesOf(item), item.getFlag(MODULE_ID, F.kind) ?? null, item.getFlag(MODULE_ID, F.identity) ?? null] : null;
+        const pieces = actor => actor.items.filter(i => i.name === KIT).reduce((sum, i) => sum + Number(i.system?.quantity ?? 1), 0);
+        const keys = actor => actor.items.filter(i => i.getFlag(MODULE_ID, BEDROOM_KEY_FLAG) === ROOM).length;
+        const stash = { location: INV.LOCATIONS.vault, extraFlags: { [F.stashRoom]: fixture.room } };
+        const from = Date.now();
+        const tool = (stashed = false) => INV.grantItem(owner, { name: TOOL, category: "tool", tier: 3, roles: ["crimeTool"], override: true, quiet: true,
+            ...(stashed ? stash : {}), extraFlags: { [F.wear]: 2, [F.broken]: { at: from }, ...(stashed ? stash.extraFlags : {}) } });
+        const kits = async (stashed = false) => {
+            const item = await INV.grantItem(owner, { name: KIT, category: "usable", tier: 1, goal: "healing", override: true, quiet: true, ...(stashed ? stash : {}) });
+            if (item) await item.update({ [COUNT]: 3 });
+            return item;
+        };
+        const key = (actor, stashed = false) => INV.grantItem(actor, { name: KEY, category: "bedroomKey", tier: null, override: true, quiet: true,
+            ...(stashed ? stash : {}), extraFlags: { [BEDROOM_KEY_FLAG]: ROOM, ...(stashed ? stash.extraFlags : {}) } });
+        const critical = { total: 30, isCritical: true, unseenTotal: 30, unseenCritical: true };
+        const steal = item => V.stealFromPerson({ thiefId: thief.id, victimId: owner.id, itemId: item.id, ...critical });
+        const rifle = item => V.stealFromVault({ thiefId: thief.id, ownerId: owner.id, itemId: item.id });
+        const clear = async (...names) => {
+            await settle();
+            for (const a of [owner, thief]) for (const i of a.items.filter(i => names.includes(i.name))) await i.delete();
+        };
+        const backs = [], read = {}, want = {};
+        try {
+            await withStashIn(fixture.room, owner, async () => {
+                backs.push(await handFreeFor(thief, "tool"), await handFreeFor(thief, "usable"));
+                for (const [road, run, stashed] of [["steal", steal, false], ["rifle", rifle, true], ["plant", null, false]]) {
+                    const item = await tool(stashed);
+                    await sheetAuditIdle();
+                    want[road] = carried(item);
+                    must(item && INV.isBroken(item) && want[road][3] === 2 && want[road][4].includes("crimeTool") && want[road][6] && INV.isStashed(item) === stashed,
+                        "the fixture's Tool is not broken, worn, a weapon and identified, or not where it was put - this would measure nothing");
+                    if (run) await run(item);
+                    else await V.plantOnPerson({ plannerId: owner.id, victimId: thief.id, itemId: item.id, ...critical });
+                    await settle();
+                    await sheetAuditIdle();
+                    read[road] = [carried(thief.items.find(i => i.name === TOOL)), owner.items.some(i => i.name === TOOL)];
+                    await clear(TOOL);
+                }
+                for (const [road, run, stashed] of [["stealStack", steal, false], ["rifleStack", rifle, true]]) {
+                    const item = await kits(stashed);
+                    await sheetAuditIdle();
+                    must(item && pieces(owner) === 3 && INV.isStashed(item) === stashed, "the fixture's kits are no stack of three where they were put - this would measure nothing");
+                    await run(item);
+                    await settle();
+                    read[road] = [pieces(owner), pieces(thief)];
+                    await clear(KIT);
+                }
+                // The drawer's free route at a stash its owner concealed, which the thief never found: nothing moves (the
+                // gate stays the caller's, before the one road).
+                const { isMastermind } = await import("./mastermind.mjs");
+                must(await V.setStash(fixture.room, owner.id, { concealed: true, scene: canvas?.scene }) !== null
+                    && V.stashIn(fixture.room, owner.id, canvas?.scene)?.concealed && !V.hasFoundStash(thief, fixture.room, owner.id, canvas?.scene)
+                    && !isMastermind(thief),
+                    "the stash could not be concealed from a thief who never found it and is no Mastermind - this would measure nothing");
+                const hidden = await kits(true);
+                await sheetAuditIdle();
+                await rifle(hidden);
+                await settle();
+                read.concealed = [pieces(owner), pieces(thief)];
+                await clear(KIT);
+                await V.setStash(fixture.room, owner.id, { concealed: false, scene: canvas?.scene });
+                const mine = await key(thief);
+                for (const [road, run, stashed] of [["stealKey", steal, false], ["rifleKey", rifle, true]]) {
+                    const theirs = await key(owner, stashed);
+                    await sheetAuditIdle();
+                    must(mine && theirs && keys(thief) === 1 && keys(owner) === 1, "the two do not each hold one key to the room - this would measure nothing");
+                    await run(theirs);
+                    await settle();
+                    read[road] = [keys(thief), keys(owner)];
+                    for (const i of owner.items.filter(i => i.name === KEY)) await i.delete();
+                    for (const i of thief.items.filter(i => i.name === KEY && i.id !== mine.id)) await i.delete();
+                }
+                await sheetAuditIdle();
+                read.rows = Object.values(sheetWriteStore.entries() ?? {}).filter(row => [owner.id, thief.id].includes(row?.actorId) && row.at >= from)
+                    .map(row => `${row.verdict}:${Object.keys(row.change ?? {}).join(",")}`);
+            });
+        } finally {
+            await clear(TOOL, KIT, KEY);
+            for (const back of backs.reverse()) await back();
+            await fixture.back();
+            await sheetAuditIdle();
+        }
+        const moved = road => [want[road], false];
+        equal(stableJson(read), stableJson({ steal: moved("steal"), rifle: moved("rifle"), plant: moved("plant"), stealStack: [2, 1], rifleStack: [2, 1], concealed: [3, 0],
+            stealKey: [1, 0], rifleKey: [1, 0], rows: [] }),
+            "a steal, a rifle or a Plant did not carry what the GMs hold of the item, did not move one piece of a stack, copied a key the thief held, or raised a row of the GMs' audit (per road: the Tool's copy's [category, tier, broken, wear, roles, kind, identity] and the first still holds it; the kits left and arrived, a concealed stash's too; the thief's keys to the room and the first's; the rows)");
+    }],
+
+    ["a Plant into full pockets is refused, seen or unseen, with a stash or none: the item stays with the planter, who reads that it does, and nothing reaches the victim - no card, no packet, no redraw (E35-T6, D42)", async () => {
+        /*
+         * E35 C3, 24.10.2026; decision D42 (the owner's option 1), E35-08, E35-14, E35-15, S17-15, S08-41. The harm: a
+         * Plant into full pockets went into the victim's stash and whispered them that their hands were full, so an
+         * unseen Plant told its victim what it was (S17-15), and the planter read "You leave it in their pocket" for
+         * an item that went to a stash in another room (S08-41); a seen one into full pockets and no stash told the
+         * victim they had caught a hand that left nothing. Two students alone together, the second with no stash on
+         * the scene on screen and every Tool slot filled with the suite's, each player's own; a Tool of the first's
+         * planted on a critical, seen and unseen, with no stash and then with one of the second's in the room. Read,
+         * per Plant: its answer's done and handsFull, whether the planter still holds the Tool, the second's copies
+         * of it (stash too), the planter's lines that it stays with them, and what reached the second's player: the
+         * packets, the card documents and the redraws of their sheet (`reachedPlayersOf`). Red at 97437b3 (C2): with
+         * a stash the Plant went in and its whisper reached the victim; seen and with none the victim was told.
+         */
+        const { isPrimaryGm, ownerIdsOf } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the Plant reads - this would measure nothing");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const { ITEM_CATEGORIES } = await import("./config.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const scene = canvas?.scene;
+        const trio = cast(3);
+        const victim = trio.find(a => !V.primaryStashRoom(a, scene)) ?? null;
+        must(victim, "every student of the cast keeps a stash on the scene on screen - the Plant with none would measure nothing");
+        const planter = trio.find(a => a.id !== victim.id);
+        const players = [ownerIdsOf(planter), ownerIdsOf(victim)];
+        must(players[0].length && players[1].length && !players[0].some(id => players[1].includes(id)),
+            "the planter and the victim are not each another player's - what reaches whom would measure nothing");
+        const fixture = await aloneTogether(planter, victim);
+        const NAME = "SUITE E35-T6 a planted knife", FULL = "SUITE E35-T6 a full hand", flag = key => `flags.${MODULE_ID}.${INV.ITEM_FLAGS[key]}`;
+        const text = html => String(html ?? "").replace(/<[^>]+>/g, "");
+        const stays = text(game.i18n.format("DRPG.Steal.cardTheirHandsFull", { item: NAME, who: victim.name }));
+        const group = ITEM_CATEGORIES.tool?.limitGroup ?? null;
+        const slot = i => [i.getFlag(MODULE_ID, INV.ITEM_FLAGS.category)].some(c => c === "tool" || (group !== null && ITEM_CATEGORIES[c]?.limitGroup === group));
+        const stowed = [], read = {};
+        const plant = async seen => {
+            const item = await INV.grantItem(planter, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
+            await sheetAuditIdle();
+            must(item && !INV.canCarry(victim, "tool").ok, "the planter holds no Tool, or the victim's hands are not full - this would measure nothing");
+            let out = null;
+            const sent = await sentDuring(async () => {
+                out = await V.plantOnPerson({ plannerId: planter.id, victimId: victim.id, itemId: item.id, total: 30, isCritical: true,
+                    ...(seen ? { unseenTotal: 0, unseenCritical: false } : { unseenTotal: 30, unseenCritical: true }) });
+                await settle();
+            });
+            const told = sent.packets.filter(p => p.to?.some(id => players[0].includes(id)) && text(p.html).includes(stays)).length;
+            const row = [out?.done ?? null, out?.handsFull ?? null, planter.items.has(item.id), victim.items.filter(i => i.name === NAME).length, told,
+                await reachedPlayersOf(victim, sent)];
+            for (const a of [planter, victim]) for (const i of a.items.filter(i => i.name === NAME)) await i.delete();
+            return row;
+        };
+        try {
+            for (const i of victim.items.filter(i => slot(i) && !INV.isStashed(i))) {
+                stowed.push([i, i.getFlag(MODULE_ID, INV.ITEM_FLAGS.location)]);
+                await i.update({ [flag("location")]: INV.LOCATIONS.vault });
+            }
+            const { limit } = INV.canCarry(victim, "tool");
+            must(Number.isInteger(limit) && limit > 0, `a Tool's slots have no limit to fill (${limit}) - this would measure nothing`);
+            for (let n = 0; n < limit; n++) await INV.grantItem(victim, { name: FULL, category: "tool", tier: 1, override: true, quiet: true });
+            await sheetAuditIdle();
+            read.none = { seen: await plant(true), unseen: await plant(false) };
+            read.stash = await withStashIn(fixture.room, victim, async () => ({ seen: await plant(true), unseen: await plant(false) }));
+        } finally {
+            for (const a of [planter, victim]) for (const i of a.items.filter(i => i.name === NAME || i.name === FULL)) await i.delete();
+            for (const [i, was] of stowed) if (victim.items.has(i.id)) await i.update({ [flag("location")]: was ?? forcedDeletion() });
+            await fixture.back();
+            await sheetAuditIdle();
+        }
+        const refused = [false, true, true, 0, 1, [0, 0, 0]];
+        equal(stableJson(read), stableJson({ none: { seen: refused, unseen: refused }, stash: { seen: refused, unseen: refused } }),
+            "a Plant into full pockets landed, left the planter's item, was not told to the planter as staying with them, or reached the victim (per Plant: [done, handsFull, the planter holds it, the victim's copies, the planter's lines, [packets, cards, redraws] at the victim's player])");
+    }],
+
+    ["an unseen Plant of a Gear into pockets that hold one stowed tells the victim nothing and does not put it in their hand, and an item given quietly to full hands goes to their stash with no word (E35-T7, S08-02)", async () => {
+        /*
+         * E35 C3, 24.10.2026; audit S08-02, S17-15, E35-16 (E14's verify). The harm: an unseen Plant of a knife into
+         * pockets holding one stowed Gear and an empty hand went straight into the victim's hand (inventory.mjs
+         * `keepGearShape`), redrew their sheet and whispered them its name (`DRPG.Items.autoReadied`), and from then
+         * the incident read it as the weapon in their hand; and an item `grantItem` puts in a stash for full hands
+         * whispered `DRPG.Vault.overflowed` whatever its `quiet` said. Two students alone together, the second's
+         * Gear put in a stash by a GM and one Tool of the suite's left stowed in their pockets, each student another
+         * player's; a knife of the first's planted unseen on a critical; then, the second's slots full and a stash of
+         * theirs in the room, a Tool given to them by `grantItem` with `quiet`. Read: the Plant's done, where the
+         * knife is and whether it is in a hand, the victim's stowed Gear, and what reached the victim's player
+         * (`reachedPlayersOf`); the quiet grant's place and what reached them. Red at 97437b3 (C2): the knife was
+         * readied, and both told the victim.
+         */
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the Plant reads - this would measure nothing");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const { isEquipped, stowedInGroup } = await import("./use-items.mjs");
+        const { ITEM_CATEGORIES } = await import("./config.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { ownerIdsOf } = await import("./utils.mjs");
+        const [planter, victim] = cast(2);
+        const players = [ownerIdsOf(planter), ownerIdsOf(victim)];
+        must(players[0].length && players[1].length && !players[0].some(id => players[1].includes(id)),
+            "the planter and the victim are not each another player's - what reaches whom would measure nothing");
+        const fixture = await aloneTogether(planter, victim);
+        const KNIFE = "SUITE E35-T7 a planted knife", STOWED = "SUITE E35-T7 a stowed Tool", GIVEN = "SUITE E35-T7 a quiet grant";
+        const NAMES = [KNIFE, STOWED, GIVEN], flag = key => `flags.${MODULE_ID}.${INV.ITEM_FLAGS[key]}`;
+        const group = ITEM_CATEGORIES.tool?.limitGroup ?? null;
+        must(group, "a Tool shares no group of slots - the shape this reads is not there");
+        const inGroup = i => ITEM_CATEGORIES[i.getFlag(MODULE_ID, INV.ITEM_FLAGS.category)]?.limitGroup === group;
+        const stowed = [], read = {};
+        try {
+            for (const i of victim.items.filter(i => inGroup(i) && !INV.isStashed(i))) {
+                stowed.push([i, i.getFlag(MODULE_ID, INV.ITEM_FLAGS.location)]);
+                await i.update({ [flag("location")]: INV.LOCATIONS.vault });
+            }
+            const one = await INV.grantItem(victim, { name: STOWED, category: "tool", tier: 1, override: true, quiet: true });
+            const knife = await INV.grantItem(planter, { name: KNIFE, category: "crimeTool", tier: 1, override: true, quiet: true });
+            await sheetAuditIdle();
+            must(one && knife && stowedInGroup(victim, group).length === 1 && !isEquipped(one) && INV.canCarry(victim, "crimeTool").ok,
+                "the victim does not hold exactly one stowed Gear with a slot free, or the planter no knife - this would measure nothing");
+            let out = null;
+            const sent = await sentDuring(async () => {
+                out = await V.plantOnPerson({ plannerId: planter.id, victimId: victim.id, itemId: knife.id, total: 30, isCritical: true, unseenTotal: 30, unseenCritical: true });
+                await settle();
+            });
+            const landed = victim.items.find(i => i.name === KNIFE) ?? null;
+            read.plant = [out?.done ?? null, out?.seen ?? null, landed ? INV.isStashed(landed) : null, landed ? isEquipped(landed) : null,
+                stowedInGroup(victim, group).length, await reachedPlayersOf(victim, sent)];
+            must(!INV.canCarry(victim, "tool").ok, "the victim's slots are not full after the Plant - the quiet grant would measure nothing");
+            read.grant = await withStashIn(fixture.room, victim, async () => {
+                let given = null;
+                const quiet = await sentDuring(async () => {
+                    given = await INV.grantItem(victim, { name: GIVEN, category: "tool", tier: 1, quiet: true });
+                    await settle();
+                });
+                return [given ? INV.isStashed(given) : null, await reachedPlayersOf(victim, quiet)];
+            });
+        } finally {
+            for (const a of [planter, victim]) for (const i of a.items.filter(i => NAMES.includes(i.name))) await i.delete();
+            for (const [i, was] of stowed) if (victim.items.has(i.id)) await i.update({ [flag("location")]: was ?? forcedDeletion() });
+            await fixture.back();
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson({ plant: [true, false, false, false, 2, [0, 0, 0]], grant: [true, [0, 0, 0]] }),
+            "an unseen Plant or a quiet grant reached the victim, or the planted knife went into their hand ([done, seen, the knife stashed, in a hand, the victim's stowed Gear, [packets, cards, redraws] at the victim's player]; [the grant stashed, what reached them])");
+    }],
+
+    ["a stash rifled unseen does not redraw its owner's sheet, for a whole item or a piece of a stack; a clumsy hand's does (E35-T8, S08-34)", async () => {
+        /*
+         * E35 C3, 24.10.2026; audit S08-34, E35-17. The harm: somebody helping themselves from a stash is not
+         * announced (the player handbook), but vault.mjs `stealFromVault` deleted the item with a bare `delete()`, so
+         * an owner with their sheet open watched it leave the stash - where a Palm's unseen steal deletes with
+         * `render: false`. Two students alone together, a stash of the first's in their room and the second's hands
+         * free; a Tool rifled, a stack of two kits rifled (one piece: the count's write), and a Tool rifled by a
+         * clumsy hand (the Search's Despair, whose owner is told), each by a GM's own call. Read, per rifle: whether
+         * each write of the owner's items redraws their sheet, and the pieces that arrived. Red at 97437b3 (C2): the
+         * unseen rifles redrew it.
+         */
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the rifle reads - this would measure nothing");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const [owner, thief] = cast(2);
+        const fixture = await aloneTogether(owner, thief);
+        const NAME = "SUITE E35-T8 a stashed thing", COUNT = "system.quantity";
+        const stashed = { location: INV.LOCATIONS.vault, extraFlags: { [INV.ITEM_FLAGS.stashRoom]: fixture.room }, override: true, quiet: true };
+        const backs = [], read = {};
+        try {
+            await withStashIn(fixture.room, owner, async () => {
+                backs.push(await handFreeFor(thief, "tool"), await handFreeFor(thief, "usable"));
+                const cases = [["whole", { name: NAME, category: "tool", tier: 1 }, 1, false], ["piece", { name: NAME, category: "usable", tier: 1, goal: "healing" }, 2, false],
+                    ["clumsy", { name: NAME, category: "tool", tier: 1 }, 1, true]];
+                for (const [label, data, count, clumsy] of cases) {
+                    const item = await INV.grantItem(owner, { ...data, ...stashed });
+                    if (item && count !== 1) await item.update({ [COUNT]: count });
+                    await sheetAuditIdle();
+                    must(item && INV.isStashed(item), "the fixture's item is not in the stash - this would measure nothing");
+                    const sent = await sentDuring(async () => {
+                        await V.stealFromVault({ thiefId: thief.id, ownerId: owner.id, itemId: item.id, clumsy });
+                        await settle();
+                    });
+                    read[label] = [sent.writes.filter(w => w.actorId === owner.id).map(w => `${w.kind}:${w.render ? "redraws" : "quiet"}`),
+                        thief.items.filter(i => i.name === NAME).length];
+                    for (const a of [owner, thief]) for (const i of a.items.filter(i => i.name === NAME)) await i.delete();
+                }
+            });
+        } finally {
+            for (const a of [owner, thief]) for (const i of a.items.filter(i => i.name === NAME)) await i.delete();
+            for (const back of backs.reverse()) await back();
+            await fixture.back();
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson({ whole: [["delete:quiet"], 1], piece: [["update:quiet"], 1], clumsy: [["delete:redraws"], 1] }),
+            "an unseen rifle redrew its owner's sheet, a clumsy one did not, or nothing arrived (per rifle: each write of the owner's items and whether it redraws; the thief's pieces)");
     }],
 
     ...GRID

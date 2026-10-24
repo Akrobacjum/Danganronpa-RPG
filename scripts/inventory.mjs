@@ -681,11 +681,16 @@ export async function grantItem(actor, {
             overflowRoom = primaryStashRoom(actor, locateActor(actor)?.scene ?? homeScene());
             if (overflowRoom) {
                 location = LOCATIONS.vault;
-                await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Vault.overflowed", {
-                    item: foundry.utils.escapeHTML(name),
-                    category: foundry.utils.escapeHTML(
-                        ITEM_CATEGORIES[category]?.plural ?? category)
-                })}</p>`);
+                // Not to a receiver who must not know (`quiet`, E35 C3; audit S17-15): the whisper went out whatever
+                // `quiet` said, so an unseen Plant into full pockets named itself to its victim. No road passes
+                // `quiet` here since D42 refuses that Plant (inventory.mjs `transferItem`), and the rule holds for any.
+                if (!quiet) {
+                    await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Vault.overflowed", {
+                        item: foundry.utils.escapeHTML(name),
+                        category: foundry.utils.escapeHTML(
+                            ITEM_CATEGORIES[category]?.plural ?? category)
+                    })}</p>`);
+                }
             } else {
                 ui.notifications.warn(game.i18n.format("DRPG.Inventory.full", {
                     category: capacityLabel(category),
@@ -740,7 +745,9 @@ export async function grantItem(actor, {
             [CAP_OVERRIDE]: override,
             /*
              * `quiet` SUPPRESSES THE RECEIVER'S RE-RENDER, and it exists for
-             * exactly one caller: a Plant nobody noticed (`plantOnPerson`).
+             * exactly one caller: a Plant nobody noticed (`plantOnPerson`, by
+             * `transferItem` since E35 C3, which also keeps the overflow's
+             * whisper above and `keepGearShape` below from telling them).
              * Foundry carries this option over its own socket, so the sheet on
              * the victim's screen does not redraw FOR THIS CHANGE - the item is
              * really there, and what is suppressed is the refresh.
@@ -753,7 +760,7 @@ export async function grantItem(actor, {
         });
 
         log(`${actor.name} gained ${name} (${category}${hasTier ? `, Tier ${tier}` : ""}).`);
-        if (item && location === LOCATIONS.carried) await keepGearShape(actor, item);
+        if (item && location === LOCATIONS.carried) await keepGearShape(actor, item, { quiet });
         return item ?? null;
     } catch (err) {
         warn("Could not create the item", err);
@@ -774,8 +781,15 @@ export async function grantItem(actor, {
  * So the arriving item goes into the hand when the shape needs it, and the
  * owner is told which - it changes what the incident engine reads as "the
  * weapon in hand" (`equippedFor`), and that is not a thing to change quietly.
+ *
+ * AND SO NOT AT ALL WHEN IT ARRIVED UNSEEN (`quiet`, E35 C3; audit S08-02). An unseen Plant of a knife into pockets
+ * holding one stowed Gear and an empty hand put the knife in the victim's hand, redrew their sheet and whispered its
+ * name - the Plant told on itself, and the incident read the knife as the weapon they hold. Readying it without the
+ * whisper would still be a hand the victim never moved, and what the incident reads; so the piece stays stowed, the
+ * victim carrying two stowed until they ready one (read in use-items.mjs: `toggleEquipped` readies one and puts the
+ * rest down, `mayStow` stops only a readied one being put away), and the GM's log says so.
  */
-export async function keepGearShape(actor, item) {
+export async function keepGearShape(actor, item, { quiet = false } = {}) {
     try {
         const category = item?.getFlag(MODULE_ID, ITEM_FLAGS.category);
         const group = ITEM_CATEGORIES[category]?.limitGroup;
@@ -784,6 +798,10 @@ export async function keepGearShape(actor, item) {
         const { stowedInGroup, isEquipped, toggleEquipped } = await import("./use-items.mjs");
         if (isEquipped(item)) return false;
         if (stowedInGroup(actor, group).length <= max) return false;
+        if (quiet) {
+            log(`${actor.name} now carries "${item.name}" stowed beside other ${LIMIT_GROUPS[group].label}, unseen: not put in a hand.`);
+            return false;
+        }
         if (!await toggleEquipped(actor, item)) return false;
         await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Items.autoReadied", {
             item: foundry.utils.escapeHTML(item.name), group: LIMIT_GROUPS[group].label
@@ -832,10 +850,11 @@ export const TRANSFER_STUCK = Object.freeze({
 /**
  * Move one piece of `item` from `from` to `to`, on a GM, as `mode` (a key of TRANSFER_POLICY).
  *
- * `quiet` is an unseen Plant's or steal's: the victim's sheet - the taker's on a Plant, the giver's on a steal or a
- * rifle - is not redrawn for this write (`render: false`, the mirror of what `grantItem`'s `quiet` does), and the key
- * rule tells nobody. `grantItem`'s overflow whisper and `keepGearShape`'s still speak until C3 hands them `quiet`
- * (S08-02): no road that passes `quiet` is on this function before C3.
+ * `quiet` is an unseen Plant's, steal's or rifle's: the victim's sheet - the taker's on a Plant, the giver's on a
+ * steal or a rifle - is not redrawn for this write (`render: false`, the mirror of what `grantItem`'s `quiet` does).
+ * On a Plant the victim is the taker, so `grantItem` has it too, which since E35 C3 keeps its overflow whisper and
+ * `keepGearShape` from telling them (S08-02, S17-15), and the key rule tells them nothing; a thief or a rifler is told
+ * of the key they already hold, unseen or not.
  *
  * One piece of a stack carries the stack's identity (`preservedFlags`), so the piece moved and the pieces left share
  * one `drpgItemId` - read in the code, not decided by a test: a trap's plant is found by `grantItem`, which writes a
@@ -893,13 +912,14 @@ export async function transferItem(from, to, item, { mode, quiet = false } = {})
         };
 
         // THE KEY RULE (S08-38, E35-09): a key to a room the taker already holds is not copied - two rows under Room
-        // Keys open one door - and leaves the giver all the same; the taker is told once, unless this is unseen.
+        // Keys open one door - and leaves the giver all the same; the taker is told once, unless they are the one who
+        // must not know (an unseen Plant's victim).
         const keyRoom = held.getFlag(MODULE_ID, BEDROOM_KEY_FLAG);
         if (keyRoom) {
             const { keysHeldBy } = await import("./vault.mjs");
             if (keysHeldBy(to).has(keyRoom)) {
                 if (!await takeOne()) return { failed: true };
-                if (!quiet) {
+                if (!hushTo) {
                     await whisperToOwner(to, `<p>${game.i18n.format("DRPG.Handover.keyAlreadyHeld", {
                         room: foundry.utils.escapeHTML(keyRoom)
                     })}</p>`);

@@ -1922,9 +1922,11 @@ function paintResourceBars(app, element) {
 /**
  * A row about something that has stopped existing (trap 91).
  *
- * A SILENT STEAL LEAVES ONE. `stealFromPerson` deletes the item with
- * `render: false` so the victim's open sheet does not redraw for it - the thing
- * has really gone, and what is suppressed is the refresh. Until something else
+ * A SILENT STEAL LEAVES ONE. An unseen steal or rifle (vault.mjs
+ * `stealFromPerson`, `stealFromVault`, through inventory.mjs `transferItem`
+ * since E35 C3) deletes the item with `render: false` so the victim's open
+ * sheet does not redraw for it - the thing has really gone, and what is
+ * suppressed is the refresh. Until something else
  * redraws the sheet the row is still on screen, and every control on it is
  * pointing at a document that is not there: readying it, using it, handing it
  * over, opening its sheet. An exception in the victim's console is a worse
