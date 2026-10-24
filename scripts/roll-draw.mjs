@@ -305,10 +305,11 @@ async function drawAndPlay(cls, config, message) {
  * 162-166 ms from Roll to dice for 1.2.50-1.2.66, 490-500 ms from 1.2.67, 580-650 ms for an action's roll whose GM
  * writes a resource first; its probe at 952a2d9 read 495.1 ms for a statistic from the sheet and 545.8 ms for an
  * action's roll, the message in at 327.1 and 327.7 (medians of 10). So the dice start as the message arrives, on that
- * message's rolls - what the GM's screen and the roll's audience throw (private-rolls.mjs `relayDrawnDice`,
- * `showRelayedDice`) - and the answer, when it comes, settles the rest as before: the roller's copy of the roll the
- * config carries (`rollerCopyOf`), the record's id, what is readable here, the subject; a draw refused or failed
- * before its message throws nothing, as before. The same probe with this change (23.10.2026, medians of 10 at 80 ms
+ * message's rolls - what the roll's audience throws (private-rolls.mjs `relayDrawnDice`, `showRelayedDice`); the
+ * primary's own screen throws its evaluated roll at its throw, before any message, since H82 C6 (`throwOnThisScreen`;
+ * whether the two look the same is LIVE-H82-05 (b) and LIVE-H82-06 (b)) - and the answer, when it comes, settles the
+ * rest as before: the roller's copy of the roll the config carries (`rollerCopyOf`), the record's id, what is readable
+ * here, the subject; a draw refused or failed before its message throws nothing, as before. The same probe with this change (23.10.2026, medians of 10 at 80 ms
  * each way): 327.8 ms for a statistic from the sheet (324.7-330.7) and 326.9 ms for an action's roll (325.6-329.3), the
  * message's own time; with no delay added 12.2 -> 6.6 ms and 65.5 -> 5.9 ms, the GM's work after its message off the
  * path. Scenario 33's A17 holds the order (the dice before the answer) and the hop (within one of the message), not
