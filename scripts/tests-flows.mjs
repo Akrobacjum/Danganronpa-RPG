@@ -176,7 +176,7 @@ export const FLOWS = Object.freeze([
     // `claimCard`) - 61's CL clicks one card on two GMs at once, reopens it, and forges p1's claim; 30-security's 4b2e forges
     // p2's take and done of p1's card (E18 fix e1-G2).
     { id: "card-claim", what: "A GM's ruling on a card sent to the GMs, made once whichever GM clicks",
-        entry: { bridge: ["card.claim"] }, scenarios: ["61-gmstore-case", "30-security"], status: "covered", stage: "1.2.84" },
+        entry: { bridge: ["card.claim"] }, scenarios: ["61-gmstore-case", "30-security"], status: "covered", stage: "1.2.83" },
     // E06 fix r2-G4 (28.09.2026): a Confusion's armed Call is the GMs' store and its owner's copy, whose socket
     // is call-effects.mjs's; 40-flow drives the arming on the GM, the copy and a spend on the owner's browser,
     // not the Monocub's own ask. E08+E28 C17 (04.10.2026): the GM throws the Meddle's dice; tier 2 judges a Monocub's

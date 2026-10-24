@@ -415,7 +415,7 @@ export const SETTINGS = {
      */
     gmCleanupAttempts: "gmCleanupAttempts",
     /**
-     * WHO RULED EACH CARD TO THE GMS (E18 C3, 1.2.84; audits S11-14, S17-22): a GM store (gm-stores.mjs
+     * WHO RULED EACH CARD TO THE GMS (E18 C3, 1.2.83; audits S11-14, S17-22): a GM store (gm-stores.mjs
      * `ruledCardStore`), a row per card a GM ruled on - the GM and when. Synced, not backed up; no
      * player copy.
      */
