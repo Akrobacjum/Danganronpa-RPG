@@ -62416,7 +62416,7 @@ const SCENARIOS = [
         }), "a move was not judged by the one gate as the GMs read the two (per case, give, steal, Plant: the code each refusal is told with, or moved; the roads across two rooms: the code each hands on, or what it answered)");
     }],
 
-    ["a Palm the gate refuses before its rolls are read gives its action back, as it was paid; a Plant into full pockets, tried, does not (E14-T1, Q3)", async () => {
+    ["a Palm the gate refuses before its rolls are read gives its action back, as it was paid, a steal and a Plant alike, and its card does not say it was sent; a Plant into full pockets, tried, does not (E14-T1, Q3)", async () => {
         /*
          * E14 part 1 C1, 24.10.2026; E14-07, the owner's Q3 of 18.10 ("a refusal before the rolls are read refunds; a
          * full-pockets Plant (D42) does not"). The harm: a Palm is paid before its first roll, and one the GMs' gate then
@@ -62426,6 +62426,12 @@ const SCENARIOS = [
          * frisk.mjs `personActionRefusal`), once as a Plant of a Tool into the second's hands full of Tools (D42: the Plant
          * was tried). Read: the first's actions before and after each. Red at 7f002130: the steal's refusal is the GM's
          * log alone, and the action stays spent ([3, 2] for both).
+         *
+         * E14 fix e1-G4 (the review's E14R-04 and E14R-05): a Plant the gate refuses gives its action back by its own
+         * line (action-rolls.mjs `resolvePlant`), which nothing drove - a Plant of a knife at the second marked a Monocub
+         * is read too. And on a GM's own Palm the refusal settles as done with `{ refused }` as its value, so the card
+         * said "sent" beside the refusal already told: each Palm's card text is read (`drpgActionResolved`'s outcome, the
+         * card's line). Red at b355cb03 (g4-red.log): both refused Palms' cards said sent.
          */
         needs(world.atLeast("studentTokensOnScreen", 2), "the two are stood in one room by their tokens");
         const { performAction } = await import("./action-rolls.mjs");
@@ -62445,7 +62451,10 @@ const SCENARIOS = [
         const { ITEM_CATEGORIES } = await import("./config.mjs");
         const group = ITEM_CATEGORIES.tool?.limitGroup ?? null;
         const slot = i => { const c = i.getFlag(MODULE_ID, INV.ITEM_FLAGS.category); return c === "tool" || (group !== null && ITEM_CATEGORIES[c]?.limitGroup === group); };
+        let said = null;
+        const heard = Hooks.on("drpgActionResolved", ({ actor: who, actionKey, outcome }) => { if (who?.id === actor.id && actionKey === "palm") said = outcome?.text ?? null; });
         const palm = async (way, what = null) => {
+            said = null;
             await actionsReach(actor, 3);
             await setActions(actor, 3);
             await sheetAuditIdle();
@@ -62461,14 +62470,18 @@ const SCENARIOS = [
             }, () => performAction(actor, "palm", {}));
             await settle();
             await sheetAuditIdle();
-            return [before, actionsLeft(actor)];
+            return [before, actionsLeft(actor), Boolean(said)];
         };
         const stowed = [], read = {};
         try {
             globalThis.__forceRoll = { hope: 12, fear: 11 };
+            const spare = await INV.grantItem(actor, { name: KNIFE, category: "tool", tier: 1, override: true, quiet: true });
+            must(spare, "the knife to Plant at a Monocub was not made - this would measure nothing");
             await target.setFlag(MODULE_ID, FLAGS.monocub, true);
             await settle();
             read.refused = await palm("steal");
+            read.refusedPlant = await palm("plant", spare.id);
+            await spare.delete();
             if (monocubWas === undefined) await target.unsetFlag(MODULE_ID, FLAGS.monocub); else await target.setFlag(MODULE_ID, FLAGS.monocub, monocubWas);
             await settle();
             for (const i of target.items.filter(i => slot(i) && !INV.isStashed(i))) {
@@ -62484,6 +62497,7 @@ const SCENARIOS = [
             read.fullPockets = await palm("plant", knife.id);
             read.knifeStays = actor.items.has(knife.id);
         } finally {
+            Hooks.off("drpgActionResolved", heard);
             if (hadForce) globalThis.__forceRoll = force; else delete globalThis.__forceRoll;
             if (target.getFlag(MODULE_ID, FLAGS.monocub) !== monocubWas) {
                 if (monocubWas === undefined) await target.unsetFlag(MODULE_ID, FLAGS.monocub); else await target.setFlag(MODULE_ID, FLAGS.monocub, monocubWas);
@@ -62497,8 +62511,9 @@ const SCENARIOS = [
             await fixture.back();
             await sheetAuditIdle();
         }
-        equal(stableJson(read), stableJson({ refused: [3, 3], fullPockets: [3, 2], knifeStays: true }),
-            "[the actions before and after a Palm's steal the gate refused; before and after a Plant into full pockets; the knife stays with the planter]");
+        equal(stableJson(read), stableJson({ refused: [3, 3, false], refusedPlant: [3, 3, false], fullPockets: [3, 2, true], knifeStays: true }),
+            "[the actions before and after, and whether the card said it was sent: a Palm's steal the gate refused; a Plant the gate refused; a Plant "
+            + "into full pockets; the knife stays with the planter]");
     }],
 
     ["a body is looted only by a living student in its room, who knows of the death, outside an Eclipse and a Class Trial, its token not hidden; an unknown death is refused as a living body is; a side of the running incident loots and a Monocub's body is looted; the loot window greys a take the gate refuses, with its reason (E14-T2, S08-01, S11-06, 26.09)", async () => {

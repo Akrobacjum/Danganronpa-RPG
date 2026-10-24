@@ -4266,7 +4266,8 @@ async function resolvePlant(actor, def, { victim, planted, hand, shadow, room, s
         ...rolls
     });
     // Refused by the one gate before the rolls were read: the action back (`palmBack`; Q3). A Plant into full pockets
-    // was tried, and is no refusal (D42): it stays paid.
+    // was tried, and is no refusal (D42): it stays paid; so does one the gate refused on its second asking, after the
+    // rolls (told as nothing carried out, vault.mjs `plantOnPerson`; fix e1-G4).
     if (TRANSFER_REFUSED.includes(res.ok ? (res.value?.refused ? (await import("./bridge-guards.mjs")).reasonOf(res.value.refused) : null)
         : (res.refused ? res.reason : null))) await palmBack(actor, paid);
 
@@ -4278,7 +4279,8 @@ async function resolvePlant(actor, def, { victim, planted, hand, shadow, room, s
     // "Sent" only when it was (E31): a request not carried out has been said once already.
     const plantOutcome = {
         success, seen, target: victim.name,
-        text: res.ok ? game.i18n.format("DRPG.Steal.plantSent", { name: victim.name }) : ""
+        // On a GM's own Palm a refusal settles as done with `{ refused }` as its value, told already (fix e1-G4).
+        text: res.ok && !res.value?.refused ? game.i18n.format("DRPG.Steal.plantSent", { name: victim.name }) : ""
     };
     await report(actor, def, hand, plantOutcome);
     Hooks.callAll("drpgActionResolved", { actor, actionKey: "palm", roll: hand, outcome: plantOutcome });
@@ -4428,6 +4430,8 @@ async function performPalm(actor, def, options) {
      * free Palm nothing), and not by the primary, which cannot tell a Burst from an action - as a Frisk's ask is (frisk.mjs
      * `FRISK_HANDED_BACK`). A GM's own Palm reads the refusal off its own answer (gm-bridge.mjs `requestSteal`'s `local`).
      * The dice were thrown and paid out their Hope and Despair all the same: that is what the owner's answer accepts.
+     * One the gate refused on its second asking, inside the move after the rolls were read, comes back as nothing carried
+     * out (`refused`, vault.mjs `stealFromPerson`) and stays paid, as Q3 reads (E14 fix e1-G4; the review's E14R-07).
      */
     if (TRANSFER_REFUSED.includes(res.ok ? (res.value?.refused ? (await import("./bridge-guards.mjs")).reasonOf(res.value.refused) : null)
         : (res.refused ? res.reason : null))) await palmBack(actor, paid);
@@ -4459,8 +4463,8 @@ async function performPalm(actor, def, options) {
         success,
         seen,
         target: victim.name,
-        // "Sent" only when it was (E31), as for a plant.
-        text: res.ok ? game.i18n.format("DRPG.Steal.sent", { name: victim.name }) : ""
+        // "Sent" only when it was (E31), as for a plant - and a GM's own refused Palm settles as done with `{ refused }` (fix e1-G4).
+        text: res.ok && !res.value?.refused ? game.i18n.format("DRPG.Steal.sent", { name: victim.name }) : ""
     };
 
     await report(actor, def, hand, outcome);
@@ -5104,7 +5108,8 @@ async function analyseBullet(actor, def, roll, subject, charge = null) {
     // Silent on the outcome on purpose: this client does not know the number it
     // was measured against, and must not be told. "The GM is working it out" only
     // when the GM's client has done so (E31 review); a refusal has been said.
-    await whisperToOwner(actor, `${rollHead(def, roll)}${res.ok ? `<p><small>${
+    // A GM's own refused Analyze settles as done with `{ refused }` as its value, said already (E14 fix e1-G4, the class of E14R-05).
+    await whisperToOwner(actor, `${rollHead(def, roll)}${res.ok && !res.value?.refused ? `<p><small>${
         game.i18n.format("DRPG.Analyze.sent", {
             name: foundry.utils.escapeHTML(subject.name)
         })}</small></p>` : ""}`, rollCardFlags(def, roll));

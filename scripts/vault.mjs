@@ -2012,9 +2012,13 @@ export async function stealFromPerson({
     if (item) {
         const { transferItem } = await import("./inventory.mjs");
         moved = await transferItem(victim, thief, item, { mode: "steal", quiet: !seen, asker });
-        // The one gate asked again by the move refused it: the two parted, or the phase moved on, while the dice were
-        // read. Nothing moved and nobody is told of a hand; the thief is told why, by its code.
-        if (moved?.refused) return { refused: moved.refused };
+        /* The one gate asked again by the move refused it: the two parted, or the phase moved on, while the dice were
+           read. Nothing moved and nobody is told of a hand. AFTER THE ROLLS (E14 fix e1-G4; the review's E14R-07): the
+           owner's Q3 gives the action back for a refusal before the rolls are read, and this one comes after - the dice
+           were read and paid out. Told as nothing carried out (the closed list's `refused`), not by the gate's code, so
+           the thief's browser, which refunds on the gate's codes (action-rolls.mjs `TRANSFER_REFUSED`), keeps it spent;
+           the GM's log keeps why. Read in the code: no test parts the two between the two askings. */
+        if (moved?.refused) return { refused: `nothing was carried out: ${moved.refused}` };
     }
     // Not written (`failed`) is read as full hands, as a refused copy was before: the item stays where it is. Gone by
     // its turn (`missing`, a second hand after the same piece) comes away empty.
@@ -2180,8 +2184,8 @@ export async function plantOnPerson({
     if (success) {
         const { transferItem } = await import("./inventory.mjs");
         moved = await transferItem(planter, victim, held, { mode: "plant", quiet: !seen, asker });
-        // As a theft's: the gate asked again by the move, nothing moved, the planter told why.
-        if (moved?.refused) return { refused: moved.refused };
+        // As a theft's: the gate asked again by the move, after the rolls, nothing moved, the action kept spent (Q3; fix e1-G4).
+        if (moved?.refused) return { refused: `nothing was carried out: ${moved.refused}` };
     }
     // Not written (`failed`) is read as full pockets, as a refused copy was before: the item stays with the planter.
     // Gone by its turn (`missing`, a second Plant of the same piece) did not go in.
