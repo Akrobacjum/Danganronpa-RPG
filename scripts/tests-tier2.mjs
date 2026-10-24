@@ -16,7 +16,7 @@ import { forcedDeletion } from "./utils.mjs";
 import { gmStoresIdle } from "./gm-store.mjs";
 import {
     ok, must, needs, env, world, equal, wait, settle, until, moduleSources, otherSources, stripComments, moduleStyles, bodyOf, fnSource,
-    STANDING, stableJson, moduleSettingValues, clientStored, putBackStored, watchLog, cast, systemSheetsAvailable, lfText
+    STANDING, stableJson, moduleSettingValues, clientStored, putBackStored, watchLog, cast, systemSheetsAvailable, lfText, expectedRed
 } from "./tests-kit.mjs";
 import { GRID } from "./tests-grid.mjs";
 
@@ -2300,6 +2300,28 @@ function drawnSheet(actor) {
     document.body.append(element);
     Hooks.callAll("renderCharacterSheet", { document: actor, isEditable: true, element, rendered: true }, element, {}, { isFirstRender: true });
     return { element, remove: () => element.remove() };
+}
+
+/**
+ * A stash of `owner`'s in `room` on the scene on screen for the length of `run(scene)` (E35 C0): made where the room
+ * holds none of theirs, and the room's list put back as it was after - an absent list is not an empty one (the note
+ * in "a stash with something in it cannot be taken away"). Answers what `run` answers.
+ */
+async function withStashIn(room, owner, run) {
+    const V = await import("./vault.mjs");
+    const scene = canvas?.scene;
+    const region = V.regionsByName(scene).get(room);
+    const listBefore = foundry.utils.deepClone(region?.getFlag(MODULE_ID, V.VAULT_FLAGS.stashes));
+    try {
+        if (!V.stashIn(room, owner.id, scene)) await V.setStash(room, owner.id, { present: true, scene });
+        await settle();
+        must(V.stashIn(room, owner.id, scene), `no stash of ${owner.name}'s could be put in ${room} - this would measure nothing`);
+        return await run(scene);
+    } finally {
+        if (listBefore === undefined) await region?.update({ [`flags.${MODULE_ID}.${V.VAULT_FLAGS.stashes}`]: forcedDeletion() });
+        else await region?.update({ [`flags.${MODULE_ID}.${V.VAULT_FLAGS.stashes}`]: listBefore });
+        await settle();
+    }
 }
 
 /**
@@ -60874,6 +60896,303 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({ load: ["ice", "ice"], world: ["ice", "black", true, "black", true] }),
             "a full Gamemaster's overlay was put back by a stale GM browser's copy at load, or a write of the world's copy below full Gamemaster stood, heard or with no hook (load: [the NPC's colour, this browser's row]; world: [the world copy's row after the GM's write, after a write over it, put back as heard, after one with no hook, put back at a message])");
     }],
+
+    ["a dead student puts nothing in their stash and takes nothing out, on their sheet's road and when the GMs judge a player's write (S08-12)", async () => {
+        /*
+         * E35 C0, 24.10.2026; audit S08-12, S17-17: a skeleton of E14's, red until E14 lands. The harm: a dead
+         * student's player clicks "Put this in your stash" on the body's things, and an item put away is no longer on
+         * the body for anyone to loot (handover.mjs `lootBody` refuses a stashed one), against the handbook's
+         * "Everything else stays on the body to be found"; and takes things out the same way. vault.mjs `stow` and
+         * `retrieve` ask no death, nor does the GMs' judgement of a player's stash write (sheet-audit.mjs `placeStands`).
+         * A student stood in a room with a stash of theirs: alive, one thing put away by `stow` and one by a player's
+         * write the GMs judge (the controls, each must stand); then killed with the table told, and asked to put a
+         * second away, to take the first out, and to put a third away by a player's write as the GMs judge it. Read:
+         * each answer and where each thing is. Red at f2cfc2d: [true, true, true] - all three stood.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer"), "a student whose write a player's id can stand for");
+        needs(world.atLeast("studentTokensOnScreen"), "the student stands in a room by its token");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose judgement of a player's write this reads - this would measure nothing");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const { roomOfActor } = await import("./movement.mjs");
+        const { killCharacter, reviveCharacter } = await import("./chapter.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { VAULT_LIMIT } = await import("./config.mjs");
+        const playerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [actor] = cast(1).filter(a => playerOf(a));
+        must(actor, "no student cast has a connected player - this would measure nothing");
+        const room = roomOfActor(actor);
+        must(room, `${actor.name} is not standing in a room - this would measure nothing`);
+        const NAME = "SUITE S08-12", place = key => `flags.${MODULE_ID}.${INV.ITEM_FLAGS[key]}`;
+        const had = new Set(actor.items.map(i => i.id));
+        let read = null, dead = false;
+        await withStashIn(room, actor, async scene => {
+            try {
+                const make = async label => {
+                    const item = await INV.grantItem(actor, { name: `${NAME} ${label}`, category: "usable", tier: 1, override: true, quiet: true });
+                    must(item, `${actor.name} could not be handed the ${label} - this would measure nothing`);
+                    return item;
+                };
+                const first = await make("first"), second = await make("second"), third = await make("third"), control = await make("control");
+                await sheetAuditIdle();
+                const playersStash = async item => {
+                    await asPlayerItemWrite("updateItem", actor, item, playerOf(actor), { reason: "stash" },
+                        { [place("location")]: INV.LOCATIONS.vault, [`flags.${MODULE_ID}.equipped`]: false, [place("stashRoom")]: room });
+                    await sheetAuditIdle();
+                    return INV.isStashed(actor.items.get(item.id));
+                };
+                must(await V.stow(actor, first) && await playersStash(control),
+                    `alive, ${actor.name} could not put a thing away, by stow or by a player's write the GMs judge - this would measure nothing`);
+                await control.update({ [place("location")]: INV.LOCATIONS.carried, [place("stashRoom")]: null });
+                await sheetAuditIdle();
+                must(V.stashItemsIn(actor, room, scene).length < VAULT_LIMIT, "the stash is full - this would measure nothing");
+                dead = Boolean(await killCharacter(actor, { secret: false, keepBullets: true }));
+                must(dead, `${actor.name}'s death was not recorded - this would measure nothing`);
+                await settle();
+                read = [await V.stow(actor, second), await V.retrieve(actor, first), await playersStash(third)];
+                read.push([first, second, third].map(i => INV.isStashed(actor.items.get(i.id))));
+            } finally {
+                if (dead) await reviveCharacter(actor, { quiet: true });
+                for (const item of actor.items.filter(i => !had.has(i.id))) {
+                    try { await item.delete(); } catch { /* already gone */ }
+                }
+                await settle();
+            }
+        });
+        equal(stableJson(read), stableJson([false, false, false, [true, false, false]]),
+            "a dead student's things moved in or out of their stash: [stow's answer, retrieve's, a player's stash write stood, [the first still stashed, the second, the third]]");
+    }, expectedRed("E14", "S08-12: stow, retrieve and the GMs' placeStands ask no death; E14 part 1 refuses each for a dead student, a Monocub too (D15)")],
+
+    ["a Monocub's sheet offers no Use, no Discard and no open stash: what they carried stays on the body (S08-30)", async () => {
+        /*
+         * E35 C0, 24.10.2026; audit S08-30, S17-17, decision D15 option 1: a skeleton of E14's, red until E14 lands.
+         * The harm: a Monocub uses and throws away what is on their own body, the discard's trace lands at their token
+         * and not at the body, and the open stash section offers a Rifle the GM's side then refuses in silence
+         * (vault.mjs `stealFromVault` asks `isDeceased`). sheet.mjs `addUseButton`, `addDiscardButton` and
+         * `buildOpenStashSection` close for the dead except a Monocub (`!isMonocub`). Drawn by the module's own
+         * render hook on a stand-in sheet (`drawnSheet`): a student holding a usable thing and a broken one, in a room
+         * where another student's open stash holds something; read alive (the control: all three drawn), then dead
+         * and made a Monocub. Read: the Use button on the usable row, the Discard on the broken row, the open stash
+         * section. Red at f2cfc2d: all three drawn for the Monocub.
+         */
+        needs(world.atLeast("studentTokensOnScreen"), "the student stands in a room by its token");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const { roomOfActor } = await import("./movement.mjs");
+        const { killCharacter, reviveCharacter } = await import("./chapter.mjs");
+        const [who, other] = cast(2);
+        const room = roomOfActor(who);
+        must(room && other, `${who?.name} is not standing in a room, or nobody else is cast - this would measure nothing`);
+        const NAME = "SUITE S08-30";
+        const had = new Map([[who.id, new Set(who.items.map(i => i.id))], [other.id, new Set(other.items.map(i => i.id))]]);
+        const monoWas = who._source.flags?.[MODULE_ID]?.[FLAGS.monocub];
+        const read = [];
+        let dead = false;
+        await withStashIn(room, other, async scene => {
+            let sheet = null;
+            try {
+                await V.setStash(room, other.id, { present: true, concealed: false, scene });
+                const theirs = await INV.grantItem(other, { name: `${NAME} theirs`, category: "usable", tier: 1, override: true, quiet: true,
+                    location: INV.LOCATIONS.vault, extraFlags: { [INV.ITEM_FLAGS.stashRoom]: room } });
+                const usable = await INV.grantItem(who, { name: `${NAME} usable`, category: "usable", tier: 1, override: true, quiet: true });
+                const broken = await INV.grantItem(who, { name: `${NAME} broken`, category: "usable", tier: 1, override: true, quiet: true,
+                    extraFlags: { [INV.ITEM_FLAGS.broken]: true } });
+                must(theirs && usable && broken, "the fixture's items were not made - this would measure nothing");
+                await settle();
+                const drawn = () => {
+                    sheet?.remove();
+                    sheet = drawnSheet(who);
+                    const on = (item, act) => Boolean(sheet.element.querySelector(`[data-item-uuid="${item.uuid}"] [data-drpg-row-action="${act}"]`));
+                    return [on(usable, "use"), on(broken, "discard"), Boolean(sheet.element.querySelector(".drpg-open-stash-group"))];
+                };
+                read.push(drawn());
+                must(stableJson(read[0]) === stableJson([true, true, true]),
+                    `alive, the drawn sheet did not offer Use, Discard and the open stash (${stableJson(read[0])}) - this would measure nothing`);
+                dead = Boolean(await killCharacter(who, { secret: false, keepBullets: true }));
+                must(dead, `${who.name}'s death was not recorded - this would measure nothing`);
+                await who.setFlag(MODULE_ID, FLAGS.monocub, true);
+                await settle();
+                read.push(drawn());
+            } finally {
+                sheet?.remove();
+                if (monoWas === undefined) await who.unsetFlag(MODULE_ID, FLAGS.monocub);
+                else await who.setFlag(MODULE_ID, FLAGS.monocub, monoWas);
+                if (dead) await reviveCharacter(who, { quiet: true });
+                for (const actor of [who, other]) for (const item of actor.items.filter(i => !had.get(actor.id).has(i.id))) {
+                    try { await item.delete(); } catch { /* already gone */ }
+                }
+                await settle();
+            }
+        });
+        equal(stableJson(read[1]), stableJson([false, false, false]),
+            "a Monocub's drawn sheet offered what is on the body: [Use on the usable row, Discard on the broken row, the open stash section]");
+    }, expectedRed("E14", "S08-30: addUseButton, addDiscardButton and buildOpenStashSection keep a Monocub's exception; E14 part 1 closes them for every dead student (D15)")],
+
+    ["retrieving a broken Gear beside one stowed never leaves two stowed (S08-36)", async () => {
+        /*
+         * E35 C0, 24.10.2026; audit S08-36, S17-17, decision D4: a skeleton of E14's, red until E14 lands. The harm:
+         * D4's "one in a hand, one stowed, never two stowed" broken by the stash. A broken knife taken out beside one
+         * stowed tool and an empty hand passes `canCarry`; inventory.mjs `keepGearShape` tries to ready it, use-items.mjs
+         * `toggleEquipped` refuses a broken thing, and two Gear stand stowed. A student in a room with a stash of
+         * theirs, every Gear they hold put in the stash for the length of the test (their places put back after), one
+         * working tool carried and stowed, a broken one in the stash; then `retrieve`. Read: its answer, how many Gear
+         * stand stowed, whether the broken one is still in the stash. E14 may refuse the retrieve or ready the working
+         * tool - either leaves one stowed. Red at f2cfc2d: [true, 2, false].
+         */
+        needs(world.atLeast("studentTokensOnScreen"), "the student stands in a room by its token");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const { LIMIT_GROUPS, ITEM_CATEGORIES } = await import("./config.mjs");
+        const { roomOfActor } = await import("./movement.mjs");
+        const { stowedInGroup } = await import("./use-items.mjs");
+        const [actor] = cast(1);
+        const room = roomOfActor(actor);
+        must(room, `${actor.name} is not standing in a room - this would measure nothing`);
+        const NAME = "SUITE S08-36", flag = key => `flags.${MODULE_ID}.${INV.ITEM_FLAGS[key]}`, EQUIPPED = `flags.${MODULE_ID}.equipped`;
+        const max = LIMIT_GROUPS.gear.maxStowed;
+        const had = new Set(actor.items.map(i => i.id));
+        const gear = actor.items.filter(i => ITEM_CATEGORIES[i.getFlag(MODULE_ID, INV.ITEM_FLAGS.category)]?.limitGroup === "gear" && !INV.isStashed(i));
+        const places = gear.map(i => [i, foundry.utils.getProperty(i._source, flag("location")) ?? null, foundry.utils.getProperty(i._source, EQUIPPED) ?? null]);
+        let read = null;
+        await withStashIn(room, actor, async () => {
+            try {
+                for (const [item] of places) await item.update({ [flag("location")]: INV.LOCATIONS.vault, [EQUIPPED]: false });
+                const tool = await INV.grantItem(actor, { name: `${NAME} a working tool`, category: "tool", tier: 1, override: true, quiet: true });
+                const knife = await INV.grantItem(actor, { name: `${NAME} a broken tool`, category: "tool", tier: 1, override: true, quiet: true,
+                    location: INV.LOCATIONS.vault, extraFlags: { [INV.ITEM_FLAGS.broken]: true, [INV.ITEM_FLAGS.stashRoom]: room } });
+                await settle();
+                must(tool && knife && stowedInGroup(actor, "gear").length === 1 && INV.isStashed(knife) && INV.canCarry(actor, "tool").ok,
+                    `${actor.name} does not hold one stowed Gear, an empty hand and a broken one in the stash - this would measure nothing`);
+                const answer = await V.retrieve(actor, knife);
+                await settle();
+                read = [answer, stowedInGroup(actor, "gear").length, INV.isStashed(actor.items.get(knife.id))];
+            } finally {
+                for (const item of actor.items.filter(i => !had.has(i.id))) {
+                    try { await item.delete(); } catch { /* already gone */ }
+                }
+                for (const [item, location, equipped] of places) {
+                    await item.update({ [flag("location")]: location ?? forcedDeletion(), [EQUIPPED]: equipped ?? forcedDeletion() });
+                }
+                await settle();
+            }
+        });
+        ok(read && read[1] <= max,
+            `a broken Gear taken out of the stash left ${read?.[1]} Gear stowed, more than ${max} (D4): [retrieve's answer, Gear stowed, the broken one still stashed] ${stableJson(read)}`);
+    }, expectedRed("E14", "S08-36: keepGearShape cannot ready a broken Gear and retrieve lets it out anyway; E14 part 1 refuses it or readies the working one")],
+
+    ["a key looted off a body by a taker who holds one to the same room leaves the taker one key and the body none (S08-38)", async () => {
+        /*
+         * E35 C0, 24.10.2026; audit S08-38, S17-17: a skeleton of E14's that E35 C3 makes plain (the key rule, E35-09),
+         * red until then. The harm: a taker who holds the key to a room and takes a second one to the same room - off
+         * a body (handover.mjs `lootBody`), by a Palm (vault.mjs `stealFromPerson`) or out of a stash
+         * (`stealFromVault`) - has two identical rows under Room Keys. The loot is driven here, a GM's own (`local`),
+         * as the H17 test above drives it, its trace and Truth Bullet put back as it puts them back. Read: the taker's
+         * keys to the room and the body's. Red at f2cfc2d: [2, 0].
+         */
+        needs(world.atLeast("studentTokensOnScreen"), "a body with no token leaves no trace (trap 142), and the loot writes one");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the loot reads - this would measure nothing");
+        const [taker, body] = cast(2);
+        const { killCharacter, reviveCharacter } = await import("./chapter.mjs");
+        const { lootBody } = await import("./handover.mjs");
+        const { lootTraceStore } = await import("./gm-stores.mjs");
+        const { grantItem } = await import("./inventory.mjs");
+        const { BEDROOM_KEY_FLAG } = await import("./config.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const remnants = await import("./remnants.mjs");
+        const ROOM = "SUITE S08-38 a room", NAME = "SUITE S08-38 a key";
+        const had = new Set(taker.items.map(i => i.id));
+        const keys = actor => actor.items.filter(i => i.getFlag(MODULE_ID, BEDROOM_KEY_FLAG) === ROOM).length;
+        const key = actor => grantItem(actor, { name: NAME, category: "bedroomKey", tier: null, override: true, quiet: true, extraFlags: { [BEDROOM_KEY_FLAG]: ROOM } });
+        let read = null, dead = false;
+        try {
+            const mine = await key(taker);
+            dead = Boolean(await killCharacter(body, { secret: false, keepBullets: true }));
+            const theirs = await key(body);
+            await sheetAuditIdle();
+            must(mine && theirs && dead && keys(taker) === 1 && keys(body) === 1,
+                "the taker and the body do not each hold one key to the room on a recorded death - this would measure nothing");
+            ok(await lootBody({ takerId: taker.id, bodyId: body.id, itemId: theirs.id }), "the loot took nothing");
+            await settle();
+            read = [keys(taker), keys(body)];
+        } finally {
+            for (const item of taker.items.filter(i => !had.has(i.id))) {
+                try { await item.delete(); } catch { /* already gone */ }
+            }
+            const row = lootTraceStore.get(body.id);
+            const trace = row?.tokenId ? game.scenes.get(row.sceneId)?.tokens?.get(row.tokenId) ?? null : null;
+            if (trace) {
+                try { await remnants.dropRemnantSecret(trace); } catch { /* nothing filed */ }
+                try { await trace.delete(); } catch { /* already gone */ }
+            }
+            if (lootTraceStore.has(body.id)) await lootTraceStore.drop(body.id);
+            for (const item of body.items.filter(i => i.name === NAME)) {
+                try { await item.delete(); } catch { /* already gone */ }
+            }
+            if (dead) await reviveCharacter(body, { quiet: true });
+            await settle();
+        }
+        equal(stableJson(read), stableJson([1, 0]), "a looted key to a room the taker holds left two: [the taker's keys to it, the body's]");
+    }, expectedRed("E14", "S08-38: a looted, Palmed or rifled key the taker already holds is copied; E35 C3's key rule (E35-09) leaves one")],
+
+    ["in Investigation a dead student's bedroom opens without its key, and shuts again outside it (S08-55)", async () => {
+        /*
+         * E35 C0, 24.10.2026; audit S08-55, S17-17, decision D15 option 1: a skeleton of E14's, red until E14 lands.
+         * The harm: a victim killed outside their room, and searching their bedroom - the classic of the genre - is shut
+         * to everyone without the key until a GM clears its owner in Room Setup. D15: it opens by itself in
+         * Investigation and shuts again after. The door (movement.mjs `bedroomShut`, asked by `crossingVerdict`) and
+         * game.drpg's answer (vault.mjs `mayEnterBedroom`) read on a scene of plain objects, a Hall whose list names a
+         * Bedroom the cast student owns, for a plain mover with no key who is neither a GM nor the Mastermind; the
+         * owner dead with the table told, the clock in Investigation, then in Daily Life (the control: shut), then the
+         * owner alive again in Investigation (the control: shut). Clock and death put back. Red at f2cfc2d: shut in
+         * Investigation too.
+         */
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const V = await import("./vault.mjs");
+        const { ROOM_OWNER_FLAG } = await import("./config.mjs");
+        const { killCharacter, reviveCharacter } = await import("./chapter.mjs");
+        const [owner] = cast(1);
+        const HALL = "SUITE S08-55 Hall", BEDROOM = "SUITE S08-55 Bedroom";
+        const region = (name, x, flags = {}) => ({ id: `S0855R${x}`, name, levels: new Set(), behaviors: [],
+            bounds: { x, y: 0, width: 400, height: 400 }, shapes: [{ type: "rectangle", x, y: 0, width: 400, height: 400 }],
+            testPoint: p => p.x >= x && p.x <= x + 400 && p.y >= 0 && p.y <= 400,
+            getFlag: (scope, key) => (scope !== MODULE_ID ? undefined : key === R.ROOM_FLAG ? true : flags[key]) });
+        const scene = { id: "S0855S", name: "SUITE S08-55 scene", grid: { size: 100 }, levels: [],
+            regions: new Set([region(HALL, 0, { [M.ROOM_FLAGS.neighbours]: BEDROOM }), region(BEDROOM, 500, { [ROOM_OWNER_FLAG]: owner.id })]) };
+        const keyless = { id: "S0855MOVER", name: "SUITE S08-55 mover", items: Object.assign([], { contents: [] }), getFlag: () => undefined };
+        const shut = game.i18n.format("DRPG.Vault.keyMissing", { room: BEDROOM });
+        const door = () => [M.crossingVerdict(keyless, HALL, BEDROOM, scene, null, { mover: { gm: false, mastermind: false }, pay: false, known: {} }) === shut,
+            V.mayEnterBedroom(keyless, BEDROOM, scene)];
+        const clock = foundry.utils.deepClone(getClock());
+        const read = {};
+        let dead = false;
+        try {
+            dead = Boolean(await killCharacter(owner, { secret: false, keepBullets: true }));
+            must(dead, `${owner.name}'s death was not recorded - this would measure nothing`);
+            await setClock({ ...clock, phase: "investigation" });
+            await settle();
+            read.investigation = door();
+            await setClock({ ...clock, phase: "dailyLife" });
+            await settle();
+            read.dailyLife = door();
+            await reviveCharacter(owner, { quiet: true });
+            dead = false;
+            await setClock({ ...clock, phase: "investigation" });
+            await settle();
+            read.alive = door();
+        } finally {
+            if (dead) await reviveCharacter(owner, { quiet: true });
+            await setClock(clock);
+            await settle();
+        }
+        equal(stableJson([read.dailyLife, read.alive]), stableJson([[true, false], [true, false]]),
+            "the controls: a dead student's bedroom was not shut outside Investigation, or a living one's in it ([the door refuses with the key's words, game.drpg lets the mover in])");
+        equal(stableJson(read.investigation), stableJson([false, true]),
+            "in Investigation a dead student's bedroom stayed shut to a mover with no key: [the door refuses with the key's words, game.drpg lets the mover in]");
+    }, expectedRed("E14", "S08-55: bedroomShut and mayEnterBedroom ask no death or phase; E14 part 1 opens a dead owner's bedroom in Investigation (D15)",
+        { failing: "in Investigation a dead student's bedroom stayed shut" })],
 
     ...GRID
 ];

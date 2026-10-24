@@ -22,7 +22,7 @@ import { MUSIC_STATES, musicMap } from "./music.mjs";
 import {
     ok, needs, env, world, equal, must, wait, settle, until, cascadeAvailable, LIVE_PROBE,
     moduleSources, otherSources, stripComments, moduleStyles, styleCascade, bodyOf, fnSource, topLevelFunction, lineAround, STANDING, watchLog, stableJson,
-    worldDump, dumpDiff, lfText
+    worldDump, dumpDiff, lfText, expectedRed
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -21645,7 +21645,50 @@ const INVARIANTS = [
             /key:\s*"DRPG\.Bridge\.settledExpired"/.test(fn("gm-bridge.mjs", "endExpired"))
         ]), stableJson([[shape("pl"), ...rest], [shape("en"), ...rest], true, true, true, true, true]),
             "[the drawn lines with Foundry's language Polish, then English: the time, the end, the GMs' line, another key's line; the chat log, the bubble and its notice draw through readersLines; settleCall writes the key; the expired end is a key]");
-    }]
+    }],
+    ["R950 - a key put away in a stash opens no door: another's bedroom stays shut to a character whose only key to it is stashed, at the door and in game.drpg's answer (S08-31)", async () => {
+        /*
+         * E35 C0, 24.10.2026; audit S08-31, S17-17: a skeleton of E14's, red until E14 lands. The harm: a key in a stash
+         * on the far side of the building opens its bedroom door, against the handbook's "A key opens its door whoever
+         * holds it". The door (movement.mjs `bedroomShut`, asked by `crossingVerdict` through `restrictedFrom`) counts
+         * every item with the key's flag, and so does vault.mjs `keysHeldBy`, which `mayEnterBedroom` asks for
+         * game.drpg. Read on a scene of plain objects, a Hall whose list names a Bedroom some other character owns,
+         * with three plain movers who are neither a GM nor the Mastermind: one carrying the key, one whose key is in a
+         * stash, one with no key - so the two controls hold the reading to the door and the key itself. Nothing of this
+         * world is read but its seals and restrictions under names no world holds. Red at f2cfc2d: the stashed key let
+         * its holder in at the door and in the answer.
+         */
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const { ROOM_OWNER_FLAG, BEDROOM_KEY_FLAG } = await import("./config.mjs");
+        const HALL = "R950 Hall", BEDROOM = "R950 Bedroom";
+        const region = (name, x, flags = {}) => ({ id: `R950R${name.slice(5)}`, name, levels: new Set(), behaviors: [],
+            bounds: { x, y: 0, width: 400, height: 400 }, shapes: [{ type: "rectangle", x, y: 0, width: 400, height: 400 }],
+            testPoint: p => p.x >= x && p.x <= x + 400 && p.y >= 0 && p.y <= 400,
+            getFlag: (scope, key) => (scope !== MODULE_ID ? undefined : key === R.ROOM_FLAG ? true : flags[key]) });
+        const scene = { id: "R950S", name: "R950 scene", grid: { size: 100 }, levels: [],
+            regions: new Set([region(HALL, 0, { [M.ROOM_FLAGS.neighbours]: BEDROOM }), region(BEDROOM, 500, { [ROOM_OWNER_FLAG]: "R950OWNER" })]) };
+        const key = location => {
+            const flags = { [MODULE_ID]: { [BEDROOM_KEY_FLAG]: BEDROOM, [INV.ITEM_FLAGS.category]: "bedroomKey", [INV.ITEM_FLAGS.location]: location } };
+            return { _id: `R950K${location}`, id: `R950K${location}`, name: "R950 a key", flags,
+                getFlag: (scope, flag) => flags[scope]?.[flag] };
+        };
+        const mover = (id, items) => ({ id, name: id, items: Object.assign(items, { contents: items }), getFlag: () => undefined });
+        const carrying = mover("R950CARRY", [key(INV.LOCATIONS.carried)]);
+        const stashing = mover("R950STASH", [key(INV.LOCATIONS.vault)]);
+        const keyless = mover("R950NONE", []);
+        must(INV.isStashed(stashing.items[0]) && !INV.isStashed(carrying.items[0]),
+            "the stashed key does not read as stashed, or the carried one does - this would measure nothing");
+        const keyText = game.i18n.format("DRPG.Vault.keyMissing", { room: BEDROOM });
+        const door = who => M.crossingVerdict(who, HALL, BEDROOM, scene, null, { mover: { gm: false, mastermind: false }, pay: false, known: {} });
+        equal(stableJson([door(carrying), door(keyless) === keyText, V.mayEnterBedroom(carrying, BEDROOM, scene), V.mayEnterBedroom(keyless, BEDROOM, scene)]),
+            stableJson([true, true, true, false]),
+            "the controls do not read as the door does: [the carried key's walk let through, the keyless walk refused with the key's words, game.drpg lets the carried key in, keeps the keyless out]");
+        equal(stableJson([door(stashing) === keyText, V.mayEnterBedroom(stashing, BEDROOM, scene)]), stableJson([true, false]),
+            "a key in a stash opened its bedroom: [the door refuses with the key's words, game.drpg keeps the holder out]");
+    }, expectedRed("E14", "S08-31: a stashed key still opens its bedroom (movement.mjs bedroomShut, vault.mjs keysHeldBy count it); E14 part 1 filters it", { failing: "a key in a stash opened its bedroom" })]
 ];
 
 /**
