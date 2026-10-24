@@ -2295,8 +2295,6 @@
       "shareNote": "Druga osoba dostaje własną kopię, ty zachowujesz swoją, a tamtej kopii nie wiąże żadna twoja nieudana analiza. Nie kosztuje akcji.",
       "giveNote": "To opuszcza twój ekwipunek na dobre. Limit noszenia odbiorcy wciąż obowiązuje. Bez akcji.",
       "nobodyHere": "Nie ma nikogo innego w: {room}, komu dałoby się cokolwiek przekazać.",
-      "tooFar": "{name} nie jest już z tobą w pokoju. Nic nie zmieniło właściciela.",
-      "recipientDead": "{name} nie żyje. Nic nie zmieniło właściciela.",
       "theirHandsFull": "{who} nosi już najwięcej, ile może ({category}: {limit}).",
       "failed": "To przekazanie nie doszło do skutku. Powiedz GM-owi.",
       "stuckFor": {

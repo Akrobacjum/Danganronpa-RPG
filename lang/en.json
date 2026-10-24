@@ -2213,8 +2213,6 @@
       "shareNote": "They get their own copy, you keep yours, and their copy is not bound by any failed analysis of yours. Costs no action.",
       "giveNote": "This leaves your inventory for good. Their carry limit still applies. No action.",
       "nobodyHere": "Nobody else in {room} to hand anything to.",
-      "tooFar": "{name} is no longer in the room with you. Nothing changed hands.",
-      "recipientDead": "{name} is dead. Nothing changed hands.",
       "theirHandsFull": "{who} already carries the most {category} they can ({limit}).",
       "failed": "That handover did not go through. Tell the GM.",
       "stuckFor": {

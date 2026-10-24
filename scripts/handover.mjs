@@ -21,7 +21,7 @@
  */
 
 import { MODULE_ID, FLAGS, BEDROOM_KEY_FLAG } from "./config.mjs";
-import { capacityLabel, isStashed, transferItem } from "./inventory.mjs";
+import { capacityLabel, isStashed, transferItem, transferRefusal } from "./inventory.mjs";
 import { createTruthBullet, truthBulletData, secretOf, isTruthBullet, bulletAsHeld } from "./truth-bullets.mjs";
 import { dialogContent, whisperToOwner, log, warn, error, isPrimaryGm, forcedDeletion, plural } from "./utils.mjs";
 import { answerKeysRefusal, lootTraceStore, deathStore } from "./gm-stores.mjs";
@@ -171,7 +171,17 @@ async function shareKey({ from, to, item }) {
  * GM SIDE - THE PART THAT ACTUALLY WRITES
  * ========================================================================== */
 
-/** Shared preflight: everyone exists, the item is real, and they are together. */
+/**
+ * Shared preflight: everyone exists, the item is real, and the one gate lets the two through (E14 part 1 C1).
+ *
+ * The gates this asked itself - the Eclipse (E03; audit S08-33: a dialog opened before the lights went out and
+ * confirmed after), the room, a dead receiver (a socket message naming a corpse, or the receiver dying between the
+ * pick and this; rule D, E05 C10: one nobody has found is not named) and a dead giver (a sheet left open, a death that
+ * kept its items) - are inventory.mjs `transferRefusal`'s, mode "give", asked here for the copies that take no road of
+ * `transferItem` (a Truth Bullet's, a key's) and again by `transferItem` for a move. Answers `{ from, to, item }`,
+ * `{ refused }` with the gate's reason, which the bridge's run hands on and tells the giver by its code (S08-20), or
+ * null where nothing names a real pair and item.
+ */
 async function verify(fromId, toId, itemId) {
     const from = game.actors.get(fromId);
     const to = game.actors.get(toId);
@@ -180,54 +190,11 @@ async function verify(fromId, toId, itemId) {
     const item = from.items.get(itemId);
     if (!item) return null;
 
-    // Not during an Eclipse, on this side too (E03; audit S08-33). The dialog
-    // checks it, and a dialog opened a moment before the lights went out and
-    // confirmed after still went through.
-    const { isEclipse } = await import("./eclipse.mjs");
-    if (isEclipse()) {
-        await whisperToOwner(from, `<p>${game.i18n.localize("DRPG.Eclipse.actionsLocked")}</p>`);
-        return null;
+    const why = await transferRefusal(from, to, { mode: "give" });
+    if (why) {
+        warn(`Handover refused: ${from.name} to ${to.name}: ${why}.`);
+        return { refused: why };
     }
-
-    const { sameRoom } = await import("./movement.mjs");
-    if (!sameRoom(from, to)) {
-        warn(`Handover refused: ${from.name} and ${to.name} are not in the same room.`);
-        await whisperToOwner(from, `<p>${game.i18n.format("DRPG.Handover.tooFar", {
-            name: foundry.utils.escapeHTML(to.name)
-        })}</p>`);
-        return null;
-    }
-
-    // The dead take nothing. `askRecipient` already leaves them out of the
-    // picker, because it builds the list from `othersInRoom` - but this side is
-    // the one that decides, and it was asking `sameRoom`, which counts a body
-    // as an occupant. Two ways past that: a socket message naming a corpse
-    // directly, and the ordinary race where the recipient dies between the
-    // giver choosing them and this running. Either way the item would land on
-    // an actor whose inventory has already been destroyed, and stay there.
-    const { isDeadForGm, isDeceased } = await import("./chapter.mjs");
-    if (isDeadForGm(to)) {
-        warn(`Handover refused: ${to.name} is dead${isDeceased(to) ? "" : " (nobody has found the body)"}.`);
-        /* Rule D (E05 C10): a body nobody has found is not named to the giver, who may not
-           know of it - they are told it cannot be done now, and the reason stays here. */
-        await whisperToOwner(from, `<p>${isDeceased(to)
-            ? game.i18n.format("DRPG.Handover.recipientDead", { name: foundry.utils.escapeHTML(to.name) })
-            : game.i18n.localize("DRPG.Bridge.why.cannotNow")}</p>`);
-        return null;
-    }
-
-    // And the dead give nothing either.
-    //
-    // Normally moot, because `killCharacter` destroys the inventory - but not
-    // when the GM ticked "keep their items" for a death that is not a
-    // killing-game murder, and not for the window between a sheet being left
-    // open and the body being found. A corpse quietly passing its Truth Bullets
-    // around the room is the same leak as one that can still be heard on voice.
-    if (isDeadForGm(from)) {
-        warn(`Handover refused: ${from.name} is dead.`);
-        return null;
-    }
-
     return { from, to, item };
 }
 
@@ -244,6 +211,7 @@ export async function shareBullet({ fromId, toId, itemId } = {}) {
     if (!game.user.isGM) return null;
 
     const checked = await verify(fromId, toId, itemId);
+    if (checked?.refused) return { refused: checked.refused };
     if (!checked) return null;
     const { from, to, item } = checked;
 
@@ -405,20 +373,21 @@ export async function lootBody({ takerId, bodyId, itemId, askedBy = null } = {})
     const item = body?.items?.get(itemId);
     if (!taker || !body || !item) return null;
 
-    /* BEFORE THE DISCOVERY, BY THOSE WHO KNOW (E05 C10; the owner's Q2, 26.09.2026). A body
-       nobody has found may be searched by whoever knows of the death - the incident's
-       players, the victim's own, a GM - asked of the GMs' record by the user who sent the
-       request (`askedBy`, Foundry's sender; a GM's own button sends none), never of the
-       public fact. The item moving between two sheets is world data every console reads,
-       which the owner chose knowing it. */
-    const { isDeceased, isDeadForGm } = await import("./chapter.mjs");
-    if (!isDeceased(body)) {
-        const { knowsOfDeath } = await import("./murder.mjs");
-        const asker = askedBy ? game.users.get(askedBy) : game.user;
-        if (!isDeadForGm(body) || !knowsOfDeath(asker, body.id)) {
-            warn(`Refused to loot ${body.name}: ${isDeadForGm(body) ? "the asker does not know of the death" : "they are not dead"}.`);
-            return null;
-        }
+    /* BEFORE THE DISCOVERY, BY THOSE WHO KNOW (E05 C10; the owner's Q2, 26.09.2026), AND ONLY FROM BESIDE IT (E14 part 1
+       C1; audit S08-01, S11-06). A body nobody has found may be searched by whoever knows of the death - the incident's
+       players, the victim's own, a student alone with it, a GM - asked of the GMs' record by the user who sent the
+       request (`askedBy`, Foundry's sender; a GM's own button sends none), never of the public fact. That rule and the
+       rest - the taker alive and standing in the body's room as the GMs read both, the body's token not hidden, no
+       Eclipse, no Class Trial, the taker not the body - are the one gate's (inventory.mjs `transferRefusal`, mode
+       "loot": frisk.mjs `personActionRefusal(taker, body, { body: true })`), asked here before the trace and again by
+       `transferItem`. An unknown death is refused in the words a living body is. The item moving between two sheets is
+       world data every console reads, which the owner chose knowing it. */
+    const { isDeceased } = await import("./chapter.mjs");
+    const asker = askedBy ? game.users.get(askedBy) ?? null : game.user;
+    const why = asker ? await transferRefusal(body, taker, { mode: "loot", asker }) : "no such character";
+    if (why) {
+        warn(`Refused to loot ${body.name} for ${taker.name}: ${why}.`);
+        return { refused: why };
     }
     // As the GMs hold it, for the gates below (E29 fix r2-H17, `giveItem`): a body's owner can still write it. The
     // move, and the taker's hands it is counted against (fix r2-H18), are read again by `transferItem` after its wait.
@@ -454,7 +423,7 @@ export async function lootBody({ takerId, bodyId, itemId, askedBy = null } = {})
        body's stack moves; a key to a room the taker already holds leaves the body and is not copied, the taker
        told; a piece the body keeps after the taker has its copy is told to the GMs in a body's words. */
     const name = held.name;
-    const moved = await transferItem(body, taker, held, { mode: "loot" });
+    const moved = await transferItem(body, taker, held, { mode: "loot", asker });
     if (moved?.refused) return moved;
     // Nothing changed hands: full hands and no stash (`grantItem` warns the GM, as at Base), gone by its turn, or not
     // written.
@@ -750,6 +719,7 @@ export async function giveItem({ fromId, toId, itemId } = {}) {
     if (!game.user.isGM) return null;
 
     const checked = await verify(fromId, toId, itemId);
+    if (checked?.refused) return { refused: checked.refused };
     if (!checked) return null;
     const { from, to, item } = checked;
 

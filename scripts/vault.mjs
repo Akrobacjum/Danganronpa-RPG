@@ -1446,12 +1446,14 @@ export async function stealFromVault({
     // Whether it is stashed, and where, is asked below of the item as the GMs hold it (fix r2-H17).
     if (!thief || !owner || !item) return null;
 
-    // The dead rob nobody. A socket payload is a claim, and this side is the
-    // one that decides - the same reasoning `handover.mjs` applies to a gift.
-    const { isDeadForGm } = await import("./chapter.mjs");
-    if (isDeadForGm(thief)) {
-        error(`Refused a stash theft: ${thief.name} is dead.`);
-        return null;
+    // The dead rob nobody, and nobody rifles a stash in an Eclipse or a Class Trial. A socket payload is a claim, and
+    // this side is the one that decides: the one gate (inventory.mjs `transferRefusal`, mode "rifle"; E14 part 1 C1),
+    // its refusal told to the thief by its code. The stash's own conditions are below.
+    const { transferRefusal } = await import("./inventory.mjs");
+    const barred = await transferRefusal(owner, thief, { mode: "rifle" });
+    if (barred) {
+        error(`Refused a stash theft by ${thief.name}: ${barred}.`);
+        return { refused: barred };
     }
 
     /*
@@ -1566,6 +1568,8 @@ export async function stealFromVault({
     const { transferItem } = await import("./inventory.mjs");
     const name = held.name;
     const moved = await transferItem(owner, thief, held, { mode: "rifle", quiet: !clumsy });
+    // Refused by the one gate on its second asking (the lights went out meanwhile): told by its code, not as full hands.
+    if (moved?.refused) return { refused: moved.refused };
     // Gone by its turn - a second reach for the same piece: nothing to say that the first did not.
     if (moved?.missing) return null;
     if (!moved?.ok) {
@@ -1662,27 +1666,18 @@ export function pocketsFrom(items, { undecided = null } = {}) {
 }
 
 /**
- * Whether `victim` of a Palm is a body the GMs keep from `asker` (E80 fix sec1-G1, the review's sec-1, the same class on
- * Base's Palm roads; the owner's Q8, option A, 20.10.2026): dead for the GMs (`isDeadForGm`), not published
- * (`isDeceased`), and a death `asker` may not know (incident-store.mjs `knowsOfDeath`: not a GM, not in the row's
- * `known`, not the body's owner). Such a victim is taken from and planted on as a living one is, on the same dice, so the
- * thief's or planter's side reads as at a living victim; only the victim's card changes, its words to the GMs alone
- * (`tellPalmVictim`). With no asker (a GM's own Palm, a test calling here directly) nobody is kept from it: a body is
- * refused as before.
- */
-async function bodyKeptFrom(asker, victim) {
-    if (!asker || asker.isGM) return false;
-    const { isDeceased } = await import("./chapter.mjs");
-    if (isDeceased(victim)) return false;
-    const { knowsOfDeath } = await import("./incident-store.mjs");
-    return !knowsOfDeath(asker, victim.id);
-}
-
-/**
  * The card a Palm's victim reads when it noticed (`seen`): veiled (utils.mjs `whisperToOwner(..., { veiled: true })`),
  * so its document is addressed to every browser in nobody's voice, with the `stolen` sound for its reader. At a body the
- * GMs keep (`bodyKeptFrom`) the same document is posted, its words to the GMs alone (`whisperToGms`): the body feels
+ * GMs keep from the asker the same document is posted, its words to the GMs alone (`whisperToGms`): the body feels
  * nothing and no player reads it, and every browser gets the documents a living victim's Palm posts (E80 fix sec1-G1).
+ *
+ * A BODY THE GMS KEEP FROM THE ASKER (E80 fix sec1-G1, the review's sec-1; the owner's Q8, option A, 20.10.2026): dead
+ * for the GMs, not published, and a death the asking user may not know (incident-store.mjs `knowsOfDeath`: not a GM,
+ * not in the row's `known`, not the body's owner). Such a victim is taken from and planted on as a living one is, on
+ * the same dice, so the thief's or planter's side reads as at a living victim; only the victim's card changes. Since
+ * E14 part 1 C1 that is the one gate's reading (inventory.mjs `transferRefusal`, frisk.mjs `knownDeath`): a dead victim
+ * it lets through is one kept from the asker, and one the asker knows dead - a GM's own Palm, with no asker, knows
+ * every death - is refused, its road being the loot.
  */
 async function tellPalmVictim(victim, html, { body = false } = {}) {
     const card = { veiled: true, flags: { [MODULE_ID]: { sfx: "stolen" } } };
@@ -1709,7 +1704,7 @@ async function tellPalmVictim(victim, html, { body = false } = {}) {
  * @param {boolean} [options.unseenCritical]
  * @param {object} [context]
  * @param {User|null} [context.asker]     The user whose packet asked (gm-bridge.mjs `handleSteal`): a body the GMs keep
- *   from that user is robbed as a living victim is (`bodyKeptFrom`).
+ *   from that user is robbed as a living victim is (inventory.mjs `transferRefusal`).
  */
 export async function stealFromPerson({
     thiefId, victimId, itemId = null,
@@ -1726,32 +1721,24 @@ export async function stealFromPerson({
         return null;
     };
 
-    // The dead neither rob nor are robbed. Looting a body is a different action
-    // with different rules - see `requestBodyLoot` - and routing it through here
-    // would let a corpse be picked over from the far side of a Shadow roll.
-    // Save a body the GMs keep from the asker (E80 fix sec1-G1; the owner's Q8,
-    // option A): its thief reads what a living victim's reads, as anything else
-    // would tell that player the body is one (`bodyKeptFrom`).
-    const { isDeadForGm } = await import("./chapter.mjs");
-    if (isDeadForGm(thief)) return refuse("they are dead");
-    const body = isDeadForGm(victim);
-    if (body && !(await bodyKeptFrom(asker, victim))) return refuse(`${victim.name} is dead; that is looting, not theft`);
-
     /*
-     * AND YOU HAVE TO BE STANDING NEXT TO THEM.
-     *
-     * Both placed by `locateActor`, never by the camera: this runs on a GM's
-     * client, which is usually looking at a different scene from the theft.
-     * `sameRoom` since E12 C3 (11.10.2026; audit S08-39): the names alone were
-     * compared, so a victim in another scene's room of the same name could be
-     * robbed from here.
+     * THE ONE GATE, BEFORE THE ROLLS ARE READ (E14 part 1 C1; audit S16-30, S08-20; the owner's Q3). The dead neither
+     * rob nor are robbed - looting a body is a different action with different rules, see `requestBodyLoot` - save a
+     * body the GMs keep from the asker, whose thief reads what a living victim's reads (`tellPalmVictim`); and you
+     * have to be standing next to them, as the GMs read both (scene, floor and room: E12 C3, audit S08-39), neither a
+     * Monocub nor a Monokuma, the victim on a token the GMs have not hidden, no Eclipse, no Class Trial, the thief no
+     * side of the running incident: inventory.mjs `transferRefusal`, mode "steal", which `transferItem` asks again. Its
+     * refusal is handed back to be told by its code, and the thief's browser gives back the action it paid (action-rolls
+     * `performPalm`): nothing was read of the rolls. Until C1 each refusal here was the GM's log alone.
      */
-    const { locateActor, sameRoom } = await import("./movement.mjs");
-    const here = locateActor(thief);
-    if (!here?.room) return refuse("they are not standing in any room");
-    if (!sameRoom(thief, victim)) {
-        return refuse(`${victim.name} is not in "${here.room}"`);
+    const { isDeadForGm } = await import("./chapter.mjs");
+    const { transferRefusal } = await import("./inventory.mjs");
+    const why = await transferRefusal(victim, thief, { mode: "steal", asker });
+    if (why) {
+        refuse(why);
+        return { refused: why };
     }
+    const body = isDeadForGm(victim);
 
     const def = ACTIONS.palm;
     const success = Boolean(isCritical) || Number(total) >= def.threshold;
@@ -1830,7 +1817,10 @@ export async function stealFromPerson({
     let moved = null;
     if (item) {
         const { transferItem } = await import("./inventory.mjs");
-        moved = await transferItem(victim, thief, item, { mode: "steal", quiet: !seen });
+        moved = await transferItem(victim, thief, item, { mode: "steal", quiet: !seen, asker });
+        // The one gate asked again by the move refused it: the two parted, or the phase moved on, while the dice were
+        // read. Nothing moved and nobody is told of a hand; the thief is told why, by its code.
+        if (moved?.refused) return { refused: moved.refused };
     }
     // Not written (`failed`) is read as full hands, as a refused copy was before: the item stays where it is. Gone by
     // its turn (`missing`, a second hand after the same piece) comes away empty.
@@ -1905,7 +1895,7 @@ export async function stealFromPerson({
  * @param {number} options.unseenTotal  The Shadow roll.
  * @param {object} [context]
  * @param {User|null} [context.asker]   The user whose packet asked (gm-bridge.mjs `handlePlant`): a body the GMs keep
- *   from that user is planted on as a living victim is (`bodyKeptFrom`).
+ *   from that user is planted on as a living victim is (inventory.mjs `transferRefusal`).
  */
 export async function plantOnPerson({
     plannerId, victimId, itemId = null,
@@ -1923,22 +1913,18 @@ export async function plantOnPerson({
         return null;
     };
 
+    // Planting evidence on a corpse is a real thing somebody will want to do, and it is not this action: a body is not
+    // carrying anything any more, and the crime scene has its own rules - save a body the GMs keep from the asker, whose
+    // planter reads what a living victim's reads. That, the room and the person are the one gate's, mode "plant", as a
+    // theft's (E14 part 1 C1: inventory.mjs `transferRefusal`), asked before the rolls are read and told by its code.
     const { isDeadForGm } = await import("./chapter.mjs");
-    if (isDeadForGm(planter)) return refuse("they are dead");
-    // Planting evidence on a corpse is a real thing somebody will want to do,
-    // and it is not this action: a body is not carrying anything any more, and
-    // the crime scene has its own rules. Refused here rather than silently
-    // allowed, so the reason exists in one place - save a body the GMs keep
-    // from the asker (E80 fix sec1-G1; the owner's Q8, option A): its planter
-    // reads what a living victim's reads (`bodyKeptFrom`).
+    const { transferRefusal } = await import("./inventory.mjs");
+    const why = await transferRefusal(planter, victim, { mode: "plant", asker });
+    if (why) {
+        refuse(why);
+        return { refused: why };
+    }
     const body = isDeadForGm(victim);
-    if (body && !(await bodyKeptFrom(asker, victim))) return refuse(`${victim.name} is dead`);
-
-    // `sameRoom`, as a theft's (E12 C3): the same scene and floor as well as the room's name.
-    const { locateActor, sameRoom } = await import("./movement.mjs");
-    const here = locateActor(planter);
-    if (!here?.room) return refuse("they are not standing in any room");
-    if (!sameRoom(planter, victim)) return refuse(`${victim.name} is not in "${here.room}"`);
 
     /*
      * THE POOL IS REBUILT HERE, exactly as it is for a theft (trap 92) - and
@@ -1999,7 +1985,9 @@ export async function plantOnPerson({
     let moved = null;
     if (success) {
         const { transferItem } = await import("./inventory.mjs");
-        moved = await transferItem(planter, victim, held, { mode: "plant", quiet: !seen });
+        moved = await transferItem(planter, victim, held, { mode: "plant", quiet: !seen, asker });
+        // As a theft's: the gate asked again by the move, nothing moved, the planter told why.
+        if (moved?.refused) return { refused: moved.refused };
     }
     // Not written (`failed`) is read as full pockets, as a refused copy was before: the item stays with the planter.
     // Gone by its turn (`missing`, a second Plant of the same piece) did not go in.
@@ -2142,7 +2130,12 @@ export async function resolveStashSearch({ actorId, total = 0, isCritical = fals
         if (!still) return { found: false, reason: "noRoom" };
         where = now;
     } else where = locateActor(actor);
-    if (!where?.room) return { found: false, reason: "noRoom" };
+    // A finder standing in no room paid an Analyze and was told nothing (S08-20; E14 part 1 C1): told what a search that
+    // finds nothing is told. A Reroll's replay of a search made elsewhere is given back whole by its caller instead.
+    if (!where?.room) {
+        if (!replay) await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Analyze.stashNothing")}</p>`);
+        return { found: false, reason: "noRoom" };
+    }
     const place = { sceneId: where.scene?.id ?? null, room: where.room, level: floor(where.level) };
 
     if (!replay) hunted({ actor, room: where.room });

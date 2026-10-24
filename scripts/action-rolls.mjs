@@ -21,7 +21,7 @@ import {
     PRICE_CHAINS, MONOCUB
 } from "./config.mjs";
 import { actionsLeft, spendAction, refundAction, hasFreeMove, canPayFor } from "./actions.mjs";
-import { leavesTraceFor, carriedFor } from "./inventory.mjs";
+import { leavesTraceFor, carriedFor, TRANSFER_REFUSED } from "./inventory.mjs";
 import { isEclipse } from "./eclipse.mjs";
 // The phase, from the file that owns the clock setting and imports nothing but
 // config.mjs. trial.mjs has `inClassTrial()`, and importing it here would drag
@@ -4252,7 +4252,7 @@ function friskModeOf(root) {
  * branch below is "and what does a critical do here", and the answer is
  * "nothing, on purpose".
  */
-async function resolvePlant(actor, def, { victim, planted, hand, shadow, room, seen, success, rolls }) {
+async function resolvePlant(actor, def, { victim, planted, hand, shadow, room, seen, success, rolls, paid = null }) {
     const { requestPlant } = await import("./gm-bridge.mjs");
     const res = await requestPlant({
         plannerId: actor.id,
@@ -4264,6 +4264,10 @@ async function resolvePlant(actor, def, { victim, planted, hand, shadow, room, s
         unseenCritical: Boolean(shadow.isCritical),
         ...rolls
     });
+    // Refused by the one gate before the rolls were read: the action back (`palmBack`; Q3). A Plant into full pockets
+    // was tried, and is no refusal (D42): it stays paid.
+    if (TRANSFER_REFUSED.includes(res.ok ? (res.value?.refused ? (await import("./bridge-guards.mjs")).reasonOf(res.value.refused) : null)
+        : (res.refused ? res.reason : null))) await palmBack(actor, paid);
 
     await noteRollContext(actor, {
         actionKey: "palm", planting: true, room, victimId: victim.id,
@@ -4278,6 +4282,12 @@ async function resolvePlant(actor, def, { victim, planted, hand, shadow, room, s
     await report(actor, def, hand, plantOutcome);
     Hooks.callAll("drpgActionResolved", { actor, actionKey: "palm", roll: hand, outcome: plantOutcome });
     return plantOutcome;
+}
+
+/** The action a Palm paid, handed back by its receipt, and said where something was paid (E14 part 1 C1, Q3). */
+async function palmBack(actor, paid) {
+    await abort(actor, paid);
+    if (paid) ui.notifications.info(game.i18n.localize("DRPG.Frisk.actionBack"));
 }
 
 /*
@@ -4393,7 +4403,7 @@ async function performPalm(actor, def, options) {
 
     // The two rolls the GM scores, by their messages: the hand's is the one this browser keeps (`rollInHand`).
     const rolls = { rollId: rollInHand(actor)?.messageId ?? null, unseenRollId: shadow.raw?.message?.id ?? shadow.raw?.message?._id ?? null };
-    if (planting) return resolvePlant(actor, def, { victim, planted, hand, shadow, room, seen, success, rolls });
+    if (planting) return resolvePlant(actor, def, { victim, planted, hand, shadow, room, seen, success, rolls, paid });
 
     const chosenId = await chooseStolen(victim, hand, success);
 
@@ -4408,6 +4418,18 @@ async function performPalm(actor, def, options) {
         unseenCritical: Boolean(shadow.isCritical),
         ...rolls
     });
+    /*
+     * A PALM THE ONE GATE REFUSED GIVES ITS ACTION BACK (E14 part 1 C1; the owner's Q3 of 18.10.2026: "a refusal before
+     * the rolls are read refunds; a full-pockets Plant does not"). The primary asks inventory.mjs `transferRefusal` -
+     * the room, both lives, the person, the Eclipse, the Class Trial - before it reads either roll (vault.mjs
+     * `stealFromPerson`, `plantOnPerson`), and its refusal comes back with one of the gate's codes (`TRANSFER_REFUSED`;
+     * the bridge has said why already). Handed back here, by what was paid (`abort`, its receipt: a Burst as a Burst, a
+     * free Palm nothing), and not by the primary, which cannot tell a Burst from an action - as a Frisk's ask is (frisk.mjs
+     * `FRISK_HANDED_BACK`). A GM's own Palm reads the refusal off its own answer (gm-bridge.mjs `requestSteal`'s `local`).
+     * The dice were thrown and paid out their Hope and Despair all the same: that is what the owner's answer accepts.
+     */
+    if (TRANSFER_REFUSED.includes(res.ok ? (res.value?.refused ? (await import("./bridge-guards.mjs")).reasonOf(res.value.refused) : null)
+        : (res.refused ? res.reason : null))) await palmBack(actor, paid);
 
     // What Reroll would have to unpick, and the honest answer is that it cannot
     // - see `case "steal"` in reroll.mjs. Recorded anyway so the branch there

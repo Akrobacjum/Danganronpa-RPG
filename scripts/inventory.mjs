@@ -834,8 +834,9 @@ export async function keepGearShape(actor, item, { quiet = false } = {}) {
  * same sheet waits for the first, then reads the item gone (`missing`), and one into the same sheet waits too, then
  * counts the hands the first filled (E35 fix e1-G1). Two GMs on two browsers are not chained (E36, E38).
  *
- * The callers keep their gates and their words (who may ask, a body, a roll, a room); this function decides nothing
- * a gate decides, and adds no reason of WRITE_REASONS: every write here names "gmRuling".
+ * The callers keep their words and what only they can judge (who may ask, a roll, a stash, an item a player made); the
+ * room, both lives, the phase, the Eclipse and the person are the one gate's since E14 part 1 C1 (`transferRefusal`,
+ * asked first). It adds no reason of WRITE_REASONS: every write here names "gmRuling".
  * ========================================================================== */
 
 /**
@@ -850,6 +851,63 @@ export const TRANSFER_STUCK = Object.freeze({
     give: "DRPG.Handover.stuckFor.give", loot: "DRPG.Handover.stuckFor.loot", rifle: "DRPG.Handover.stuckFor.rifle",
     steal: "DRPG.Handover.stuckFor.steal", plant: "DRPG.Handover.stuckFor.plant"
 });
+
+/**
+ * The codes of the closed list the one gate's refusals are told with (`transferRefusal`'s reasons, R164): a Palm's
+ * browser gives back the action it paid on one of them (action-rolls.mjs `performPalm`; the owner's Q3), since the gate
+ * is asked before the rolls are read. A roll's own refusal, an item no GM decided on and a Plant into full pockets are
+ * none of them.
+ */
+export const TRANSFER_REFUSED = Object.freeze(["cannotNow", "notThere", "missing"]);
+
+/*
+ * THE ONE GATE (E14 part 1 C1, 24.10.2026; audit S08-01, S11-06, S16-30, S08-20; the owner's p10change and 13.10).
+ * Each road kept its own gates until here, and the roads differed: a hand-over asked the room, the Eclipse and both
+ * lives (handover.mjs `verify`), a Palm the room and both lives (vault.mjs), and a body's loot only that the body was
+ * dead (handover.mjs `lootBody`) - a player in their bedroom took the knife off a body across the school, in a Class
+ * Trial or as a dead spectator. Now every move asks this, first in `transferItem` and again where a road must answer
+ * before its own work (a Palm before its rolls are read, Q3; a hand-over's copies, `verify`; a loot before its
+ * trace); the display that greys a body's Take asks it too (anonymity.mjs `buildBodyLoot`). It changes nothing.
+ *
+ * Who acts: the giver of a give and a Plant, the taker of the rest. In every mode, the Eclipse and the Class Trial
+ * refuse, and so does an actor dead for the GMs (settings.mjs `isDeadForGm`, as `stealFromPerson` and `verify` read at
+ * Base). Then per mode:
+ *   give   both in one room (movement.mjs `sameRoom`) and a living receiver - one the GMs alone hold dead refused in
+ *          the words of anything else that cannot be done now (rule D, E05 C10);
+ *   steal, plant  the person gate (frisk.mjs `personActionRefusal`: a Monocub, a Monokuma, a hidden token, oneself,
+ *          a room of the same name on another scene, the asker a side of the running incident), and a target whose
+ *          death `asker` knows refused, a body's road being the loot: one the GMs keep from that player is robbed and
+ *          planted on as a living one (E80 fix sec1-G1; frisk.mjs `knownDeath`);
+ *   loot   the person gate's `{ body: true }`: a dead target, its death known to `asker`, the taker not the body;
+ *   rifle  the stash's own gates are `stealFromVault`'s (the thief stands where the stash is; its owner need not).
+ * `asker` is the user whose request it is (Foundry's sender on the primary), the GM's own when none is named.
+ * Answers an English reason of the bridge's closed list (bridge-guards.mjs `REASON_PATTERNS`, R164), or null; every
+ * one maps to cannotNow, notThere or missing, and none names a death the asker may not know.
+ */
+export async function transferRefusal(from, to, { mode, asker = null } = {}) {
+    if (!TRANSFER_POLICY[mode] || !from?.id || !to?.id) return "no such character";
+    const user = asker ?? game.user;
+    const actor = mode === "give" || mode === "plant" ? from : to;
+    const other = actor === from ? to : from;
+    const { personActionRefusal, knownDeath } = await import("./frisk.mjs");
+    if (mode === "loot") return personActionRefusal(actor, other, { body: true, user });
+    if (mode === "steal" || mode === "plant") {
+        const why = personActionRefusal(actor, other);
+        if (why) return why;
+        return knownDeath(user, other) ? "that cannot be done now" : null;
+    }
+    const { isEclipse, isDeadForGm } = await import("./settings.mjs");
+    const { inClassTrial } = await import("./trial.mjs");
+    if (isEclipse()) return "an Eclipse is running";
+    if (inClassTrial()) return "that waits until the Class Trial is over";
+    if (isDeadForGm(actor)) return "that cannot be done now";
+    if (mode === "give") {
+        const { sameRoom } = await import("./movement.mjs");
+        if (!sameRoom(from, to)) return "the character is not in that room";
+        if (isDeadForGm(to)) return "that cannot be done now";
+    }
+    return null;
+}
 
 /**
  * Move one piece of `item` from `from` to `to`, on a GM, as `mode` (a key of TRANSFER_POLICY).
@@ -875,10 +933,11 @@ export const TRANSFER_STUCK = Object.freeze({
  *     taken back, the GMs told);
  *   `{ failed: true }` - the copy or the key's removal was not made, or the piece no longer carried what its copy
  *     carried by the time it was taken off (the copy taken back, the GMs told); nothing changed hands;
- *   `{ refused }` - asked of no mode, or of one sheet to itself;
+ *   `{ refused }` - asked of no mode, or of one sheet to itself, or refused by the one gate (`transferRefusal`, `asker`
+ *     the user whose request it is);
  *   null on a player's browser.
  */
-export async function transferItem(from, to, item, { mode, quiet = false } = {}) {
+export async function transferItem(from, to, item, { mode, quiet = false, asker = null } = {}) {
     if (!game.user.isGM) return null;
     const policy = TRANSFER_POLICY[mode];
     const id = typeof item === "string" ? item : item?.id;
@@ -887,6 +946,12 @@ export async function transferItem(from, to, item, { mode, quiet = false } = {})
     // by its code (bridge-guards.mjs `REASON_PATTERNS`: "refused"); R164 holds it to the closed list (`DELEGATES`).
     if (!policy || !from?.id || !to?.id || from.id === to.id || !id) {
         return { refused: `nothing was carried out: no transfer of that kind (${String(mode)}) between those two` };
+    }
+    // The one gate, before anything is read or written (E14 part 1 C1): whichever road asked, and however it asked.
+    const why = await transferRefusal(from, to, { mode, asker });
+    if (why) {
+        warn(`Refused to move an item from ${from.name} to ${to.name} (${mode}): ${why}.`);
+        return { refused: why };
     }
     // BOTH SHEETS CHAINED, in one order (E35 fix e1-G1; the review's E35-R5): on the giver's chain alone two Plants
     // from two planters into one free hand each read it free, and both went in (E35-T6's "at once": [ok, ok], one over

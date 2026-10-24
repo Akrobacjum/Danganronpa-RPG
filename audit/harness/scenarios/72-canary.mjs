@@ -655,6 +655,11 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, dump, 
     const torch = await gm.eval(`const INV = await import("${repoUrl}/scripts/inventory.mjs");
         const item = await INV.grantItem(game.actors.get("${IDS.botan}"), { name: "72: Botan's torch", category: "tool", tier: 1, override: true, quiet: true });
         return item?.id ?? null;`, { timeout: 60000 });
+    /* Aiko walks back to the body first (E14 part 1 C1: a body is looted only from its room, inventory.mjs
+       `transferRefusal`): the discovery's gathering left her outside every room here (measured 24.10.2026: no room at
+       x 2120, y 1500, the harness's fallback placement), Botan in Dorm B. */
+    await gm.eval(`await canvas.scene.tokens.get("TOKAIKO000000000").update({ x: 600, y: 1300 }); return true;`, { timeout: 60000 });
+    await settle(500);
     const looted = await p1.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
         return await B.requestBodyLoot({ takerId: "${IDS.aiko}", bodyId: "${IDS.botan}", itemId: "${torch ?? "none"}" });`, { timeout: 60000 });
     const lootRow = await settled("discovery", () => gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");

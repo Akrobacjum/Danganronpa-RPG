@@ -685,7 +685,8 @@ function palmRolls(actor) {
     // or a stash theft is the GM's log, as it was.
 async function handlePlant(payload, sender, ctx) {
     const { plantOnPerson } = await import("./vault.mjs");
-    // The sender: a body the GMs keep from them is planted on as a living victim is (E80 fix sec1-G1, `bodyKeptFrom`).
+    // The sender: a body the GMs keep from them is planted on as a living victim is (E80 fix sec1-G1; the one gate,
+    // inventory.mjs `transferRefusal`, reads it so since E14 part 1 C1).
     const out = await plantOnPerson({
         plannerId: payload.plannerId,
         victimId: payload.victimId,
@@ -722,7 +723,8 @@ async function handleFindStash(payload, sender, ctx) {
     // arithmetic wrong, so it does none of it.
 async function handleSteal(payload, sender, ctx) {
     const { stealFromPerson } = await import("./vault.mjs");
-    // The sender: a body the GMs keep from them is robbed as a living victim is (E80 fix sec1-G1, `bodyKeptFrom`).
+    // The sender: a body the GMs keep from them is robbed as a living victim is (E80 fix sec1-G1; the one gate,
+    // inventory.mjs `transferRefusal`, reads it so since E14 part 1 C1).
     const out = await stealFromPerson({
         thiefId: payload.thiefId,
         victimId: payload.victimId,
@@ -1891,11 +1893,13 @@ export const BRIDGE_ACTIONS = table({
         sanitize: pick({ plannerId: as.id, victimId: as.id, itemId: as.id, total: as.num, isCritical: as.bool,
             unseenTotal: as.num, unseenCritical: as.bool, rollId: as.id, unseenRollId: as.id }),
         run: handlePlant,
-        answer: "ack",
+        // "reply" since E14 part 1 C1 (the owner's Q3): the Palm's browser gives back the action it paid when the one
+        // gate refused the Palm before its rolls were read, so it waits for the verdict, not for the "got it".
+        answer: "reply",
         // Both of the Palm's rolls, each on the GMs' record of it (E08+E28 C15; `palmRolls`).
         rolled: palmRolls("plannerId"),
         claims: {
-            victimId: "judged by plantOnPerson (vault.mjs): a living victim in the planter's room, or a body the GMs keep from the sender, planted on as a living one (bodyKeptFrom)",
+            victimId: "judged by plantOnPerson (vault.mjs), before the rolls are read, on the one gate (inventory.mjs transferRefusal, frisk.mjs personActionRefusal): a student in the planter's room as the GMs read both, no Monocub, Monokuma or hidden token, outside an Eclipse, a Class Trial and the planter's own incident; a body the GMs keep from the sender is planted on as a living one",
             itemId: "judged by plantOnPerson (vault.mjs): an item in the planter's own hands",
             rollId: "the hand's roll the result is read from (bridge-guards.mjs rollRefusal): one the GM drew for the planter's Palm",
             unseenRollId: "the unseen roll the result is read from (bridge-guards.mjs rollRefusal): one the GM drew for the planter's Palm"
@@ -1971,10 +1975,12 @@ export const BRIDGE_ACTIONS = table({
         sanitize: pick({ thiefId: as.id, victimId: as.id, itemId: as.id, total: as.num, isCritical: as.bool,
             unseenTotal: as.num, unseenCritical: as.bool, rollId: as.id, unseenRollId: as.id }),
         run: handleSteal,
-        answer: "ack",
+        // "reply" since E14 part 1 C1 (the owner's Q3): the Palm's browser gives back the action it paid when the one
+        // gate refused the Palm before its rolls were read, so it waits for the verdict, not for the "got it".
+        answer: "reply",
         rolled: palmRolls("thiefId"),
         claims: {
-            victimId: "judged by stealFromPerson (vault.mjs): a living victim in the thief's room, or a body the GMs keep from the sender, robbed as a living one (bodyKeptFrom)",
+            victimId: "judged by stealFromPerson (vault.mjs), before the rolls are read, on the one gate (inventory.mjs transferRefusal, frisk.mjs personActionRefusal): a student in the thief's room as the GMs read both, no Monocub, Monokuma or hidden token, outside an Eclipse, a Class Trial and the thief's own incident; a body the GMs keep from the sender is robbed as a living one",
             itemId: "honoured by stealFromPerson (vault.mjs) only on a critical, and only if it is in the victim's pockets",
             rollId: "the hand's roll the result is read from (bridge-guards.mjs rollRefusal): one the GM drew for the thief's Palm",
             unseenRollId: "the unseen roll the result is read from (bridge-guards.mjs rollRefusal): one the GM drew for the thief's Palm"
@@ -2342,10 +2348,10 @@ export const BRIDGE_ACTIONS = table({
         sanitize: pick({ takerId: as.id, bodyId: as.id, itemId: as.id }),
         run: handleLoot,
         answer: "reply",
-        // Where the taker stands is not asked (the E31 design's map of the GM side,
-        // row 30) - written down here, not added: E31 adds no check.
+        // Where the taker stands is asked since E14 part 1 C1 (audit S08-01, S11-06): until then it was not (the E31
+        // design's map of the GM side, row 30), and a body across the school was looted from a bedroom.
         claims: {
-            bodyId: "lootBody (handover.mjs) takes only from a body that is dead, and refuses otherwise",
+            bodyId: "lootBody (handover.mjs) on the one gate (inventory.mjs transferRefusal, mode loot; frisk.mjs personActionRefusal with { body: true }): a dead body whose death the sender knows, its token not hidden, in the room the GMs read the taker in, a living taker that is not the body, outside an Eclipse and a Class Trial; an unknown death is refused as a living body is",
             itemId: "lootBody (handover.mjs) takes only an item on that body that is not a Truth Bullet"
         }
     },
@@ -2721,8 +2727,8 @@ function handover(label) {
         run: handleShareBulletOrGiveItem,
         answer: "ack",
         claims: {
-            toId: "handover's verify (handover.mjs): a living recipient, not the giver, in the giver's room",
-            itemId: "handover's verify (handover.mjs): an item of the giver's, not an Eclipse"
+            toId: "handover's verify (handover.mjs) on the one gate (inventory.mjs transferRefusal, mode give): a living recipient, not the giver, in the giver's room as the GMs read both, outside an Eclipse and a Class Trial, by a living giver",
+            itemId: "handover's verify (handover.mjs): an item of the giver's"
         }
     };
 }
@@ -3934,14 +3940,21 @@ export async function requestAdvancement({ actorId, picks, kind, offerId = null 
  */
 export function requestShareBullet({ fromId, toId, itemId }) {
     return ask(ACTION_SHARE_BULLET, { fromId, toId, itemId }, {
-        local: () => import("./handover.mjs").then(m => m.shareBullet({ fromId, toId, itemId }))
+        local: () => import("./handover.mjs").then(m => m.shareBullet({ fromId, toId, itemId })).then(out => {
+            // A GM's own copy refused is said as the bridge would say it to a player (E14 part 1 C1).
+            if (out?.refused) sayNotDone(ACTION_SHARE_BULLET, reasonOf(out.refused));
+            return out?.refused ? null : out;
+        })
     });
 }
 
 /** Move one of my items onto somebody else's sheet, and off mine. */
 export function requestGiveItem({ fromId, toId, itemId }) {
     return ask(ACTION_GIVE_ITEM, { fromId, toId, itemId }, {
-        local: () => import("./handover.mjs").then(m => m.giveItem({ fromId, toId, itemId }))
+        local: () => import("./handover.mjs").then(m => m.giveItem({ fromId, toId, itemId })).then(out => {
+            if (out?.refused) sayNotDone(ACTION_GIVE_ITEM, reasonOf(out.refused));
+            return out?.refused ? null : out;
+        })
     });
 }
 
@@ -4113,9 +4126,14 @@ export function requestSteal({
     total = 0, isCritical = false, unseenTotal = 0, unseenCritical = false, rollId = null, unseenRollId = null
 }) {
     return ask(ACTION_STEAL, { thiefId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical, rollId, unseenRollId }, {
+        // A GM's own Palm refused is said as the bridge would say it, and its answer keeps the refusal, which the Palm
+        // reads to give its action back (action-rolls.mjs `performPalm`; E14 part 1 C1, Q3).
         local: () => import("./vault.mjs").then(m => m.stealFromPerson({
             thiefId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical
-        }))
+        })).then(out => {
+            if (out?.refused) sayNotDone(ACTION_STEAL, reasonOf(out.refused));
+            return out;
+        })
     });
 }
 
@@ -4194,7 +4212,10 @@ export function requestPlant({
     return ask(ACTION_PLANT, { plannerId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical, rollId, unseenRollId }, {
         local: () => import("./vault.mjs").then(m => m.plantOnPerson({
             plannerId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical
-        }))
+        })).then(out => {
+            if (out?.refused) sayNotDone(ACTION_PLANT, reasonOf(out.refused));
+            return out;
+        })
     });
 }
 

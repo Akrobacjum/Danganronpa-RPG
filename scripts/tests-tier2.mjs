@@ -2324,6 +2324,24 @@ async function handFreeFor(actor, category) {
 }
 
 /**
+ * `actor` a body on a published death for the length of `run()` (E14 part 1 C1): a body's loot is the one gate's since
+ * then (inventory.mjs `transferRefusal`, mode "loot": a dead target whose death the asker knows), so a test of a loot's
+ * mechanics stands its giver dead for it, its items kept, and alive again after. Answers what `run` answers.
+ */
+async function whileDead(actor, run) {
+    const { killCharacter, reviveCharacter } = await import("./chapter.mjs");
+    const dead = Boolean(await killCharacter(actor, { secret: false, keepBullets: true }));
+    must(dead, `${actor.name} could not be stood dead on a published death for a loot - this would measure nothing`);
+    try {
+        await settle();
+        return await run();
+    } finally {
+        await reviveCharacter(actor, { quiet: true });
+        await settle();
+    }
+}
+
+/**
  * A stash of `owner`'s in `room` on the scene on screen for the length of `run(scene)` (E35 C0): made where the room
  * holds none of theirs, and the room's list put back as it was after - an absent list is not an empty one (the note
  * in "a stash with something in it cannot be taken away"). Answers what `run` answers.
@@ -14244,7 +14262,8 @@ const SCENARIOS = [
          * victim notices) or high (it does not), then the player's `action.steal` or `action.plant` judged as the bridge
          * judges it. Four Palms at the living victim, the same four once the GMs keep its death (a row of `deathStore` the
          * player is not in); then a Take at a death the player knows (the row naming the player) and at one the table knows
-         * (published on the actor), each refused as before: a body is looted, not robbed. Read for each: the bridge's
+         * (published on the actor), each refused as before - told by its code since E14 part 1 C1: a body is looted, not
+         * robbed. Read for each: the bridge's
          * answers, each card document posted as every browser holds it
          * (its whisper list by role, or "everyone", and its speaker's alias), what the words to each reader but the GMs
          * say (by the lang key's text), and where the item went. Red at the parent (82dee66): at the body the bridge acks
@@ -14344,14 +14363,16 @@ const SCENARIOS = [
             await fixture.back();
         }
         const thiefCard = [["gm", "player"], "named", "words here"], victimCard = ["everyone", "nobody's voice", "words here"];
-        const A = ["bridge.ack"];
+        // "reply" since E14 part 1 C1 (the Palm waits for the verdict, Q3): acknowledged, then answered done.
+        const A = ["bridge.ack", "bridge.done"];
         const expected = (label, victimReads) => [
             [`${label}: take, noticed`, [A, [thiefCard, victimCard], [[["player"], ["cardTook", "cardSeen"]], ...victimReads(["caughtTaking"])], [1, 0]]],
             [`${label}: take, unnoticed`, [A, [thiefCard], [[["player"], ["cardTook", "cardUnseen"]]], [1, 0]]],
             [`${label}: plant, noticed`, [A, [thiefCard, victimCard], [[["player"], ["cardPlanted", "cardSeen"]], ...victimReads(["caughtPlanting"])], [0, 1]]],
             [`${label}: plant, unnoticed`, [A, [thiefCard], [[["player"], ["cardPlanted", "cardUnseen"]]], [0, 1]]]
         ];
-        const refused = [A, [], [], [0, 1]];
+        // Refused by the one gate (inventory.mjs `transferRefusal`), and told by its code since E14 part 1 C1.
+        const refused = [["bridge.ack", "refused cannotNow"], [], [], [0, 1]];
         equal(stableJson(steps), stableJson([...expected("alive", keys => [[["target"], keys]]), ...expected("a body the GMs keep", () => []),
             ["a death the player knows: take, noticed", refused], ["a death the table knows: take, noticed", refused]]),
             "[for each Palm: the bridge's answers, the card documents (whisper list by role or everyone, speaker, words on this GM), "
@@ -29097,6 +29118,9 @@ const SCENARIOS = [
          */
         needs(world.atLeast("studentTokensOnScreen"), "a body with no token leaves no trace (trap 142), and the row names the trace");
         const [taker, body] = cast(2);
+        // A body is looted only from beside it since E14 part 1 C1 (inventory.mjs `transferRefusal`, mode "loot"): the
+        // two stood together before the death, as a walk-in on a body afterwards is its discovery.
+        const beside = await aloneTogether(taker, body);
         const { killCharacter, reviveCharacter } = await import("./chapter.mjs");
         const { lootBody } = await import("./handover.mjs");
         const { lootTraceStore } = await import("./gm-stores.mjs");
@@ -29135,6 +29159,7 @@ const SCENARIOS = [
             }
             await reviveCharacter(body, { quiet: true });
             await settle();
+            await beside.back();
         }
     }],
 
@@ -29152,6 +29177,9 @@ const SCENARIOS = [
         const { isPrimaryGm } = await import("./utils.mjs");
         must(isPrimaryGm(), "this client is not the primary GM, whose mark the loot reads - this would measure nothing");
         const [taker, body] = cast(2);
+        // A body is looted only from beside it since E14 part 1 C1 (inventory.mjs `transferRefusal`, mode "loot"): the
+        // two stood together before the death, as a walk-in on a body afterwards is its discovery.
+        const beside = await aloneTogether(taker, body);
         const { killCharacter, reviveCharacter } = await import("./chapter.mjs");
         const { lootBody } = await import("./handover.mjs");
         const { lootTraceStore, sheetMarkStore } = await import("./gm-stores.mjs");
@@ -29191,6 +29219,7 @@ const SCENARIOS = [
             }
             await reviveCharacter(body, { quiet: true });
             await settle();
+            await beside.back();
         }
         equal(stableJson(read), stableJson([[], 1]),
             "a loot's copy took roles or a tier a write had left on the item outside the GMs' mark (the copy's roles, its tier)");
@@ -29215,6 +29244,9 @@ const SCENARIOS = [
         const { isPrimaryGm } = await import("./utils.mjs");
         must(isPrimaryGm(), "this client is not the primary GM, whose rows and mark the loot reads - this would measure nothing");
         const [taker, body] = cast(2);
+        // A body is looted only from beside it since E14 part 1 C1 (inventory.mjs `transferRefusal`, mode "loot"): the
+        // two stood together before the death, as a walk-in on a body afterwards is its discovery.
+        const beside = await aloneTogether(taker, body);
         const player = game.users.find(u => !u.isGM && body.testUserPermission(u, "OWNER")) ?? game.users.find(u => !u.isGM);
         const { killCharacter, reviveCharacter } = await import("./chapter.mjs");
         const { lootBody } = await import("./handover.mjs");
@@ -29281,6 +29313,7 @@ const SCENARIOS = [
             await reviveCharacter(body, { quiet: true });
             await settle();
             await sheetAuditIdle();
+            await beside.back();
         }
         equal(stableJson(read), stableJson({ made: ["itemNotDecided", 0, true], hands: 0 }),
             "a loot took a Tool no GM had decided on, or carried a copy into hands a write had emptied outside the GMs' mark (the made Tool: the refusal's "
@@ -29307,6 +29340,9 @@ const SCENARIOS = [
          */
         needs(world.atLeast("studentTokensOnScreen"), "a body with no token leaves no trace and warns the GMs instead (trap 142)");
         const [taker, body] = cast(2);
+        // A body is looted only from beside it since E14 part 1 C1 (inventory.mjs `transferRefusal`, mode "loot"): the
+        // two stood together before the death, as a walk-in on a body afterwards is its discovery.
+        const beside = await aloneTogether(taker, body);
         const { killCharacter, reviveCharacter, publishDeath, isDeceased } = await import("./chapter.mjs");
         const { lootBody, owedLoot } = await import("./handover.mjs");
         const { lootTraceStore, deathStore } = await import("./gm-stores.mjs");
@@ -29369,6 +29405,7 @@ const SCENARIOS = [
             }
             await reviveCharacter(body, { quiet: true });
             await settle();
+            await beside.back();
         }
     }],
 
@@ -29386,6 +29423,9 @@ const SCENARIOS = [
          */
         needs(world.atLeast("studentTokensOnScreen"), "a body with no token leaves no trace and warns the GMs instead (trap 142)");
         const [taker, body] = cast(2);
+        // A body is looted only from beside it since E14 part 1 C1 (inventory.mjs `transferRefusal`, mode "loot"): the
+        // two stood together before the death, as a walk-in on a body afterwards is its discovery.
+        const beside = await aloneTogether(taker, body);
         const { killCharacter, reviveCharacter, publishDeath } = await import("./chapter.mjs");
         const { lootBody } = await import("./handover.mjs");
         const { lootTraceStore } = await import("./gm-stores.mjs");
@@ -29434,6 +29474,7 @@ const SCENARIOS = [
             }
             await reviveCharacter(body, { quiet: true });
             await settle();
+            await beside.back();
         }
     }],
 
@@ -42837,6 +42878,9 @@ const SCENARIOS = [
         const { lootTraceStore } = await import("./gm-stores.mjs");
         const { grantItem } = await import("./inventory.mjs");
         const [killer, victim, holder] = cast(3);
+        // A body is looted only from beside it since E14 part 1 C1 (inventory.mjs `transferRefusal`, mode "loot"): the
+        // two stood together before the death, as a walk-in on a body afterwards is its discovery.
+        const beside = await aloneTogether(killer, victim);
         const had = new Map([killer, holder].map(a => [a.id, new Set(a.items.map(i => i.id))]));
         const D = foundry.applications.api.DialogV2;
         const own = { confirm: Object.getOwnPropertyDescriptor(D, "confirm"), wait: Object.getOwnPropertyDescriptor(D, "wait") };
@@ -42890,6 +42934,7 @@ const SCENARIOS = [
             for (const item of victim.items.filter(i => i.name.startsWith("SUITE E09 r2-G4"))) await item.delete().catch(() => {});
             if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
             await settle();
+            await beside.back();
         }
     }],
 
@@ -53874,7 +53919,9 @@ const SCENARIOS = [
                 await settle();
             }
         });
-        equal(stableJson(read), stableJson([true, here.room, false, null]),
+        // Since E14 part 1 C1 the refusal is the one gate's (inventory.mjs `transferRefusal`, frisk.mjs `personActionRefusal`:
+        // scene, floor and room as the GMs read them), handed back to be told by its code (notThere) where it was null.
+        equal(stableJson(read), stableJson([true, here.room, false, { refused: "the character is not in that room" }]),
             `${victim.name} on a scene of the suite's own, in a room named as ${thief.name}'s "${here.room}" `
             + "(placed there, the room, the same room, what the theft answered)");
     }],
@@ -61189,6 +61236,9 @@ const SCENARIOS = [
         const { isPrimaryGm } = await import("./utils.mjs");
         must(isPrimaryGm(), "this client is not the primary GM, whose mark the loot reads - this would measure nothing");
         const [taker, body] = cast(2);
+        // A body is looted only from beside it since E14 part 1 C1 (inventory.mjs `transferRefusal`, mode "loot"): the
+        // two stood together before the death, as a walk-in on a body afterwards is its discovery.
+        const beside = await aloneTogether(taker, body);
         const { killCharacter, reviveCharacter } = await import("./chapter.mjs");
         const { lootBody } = await import("./handover.mjs");
         const { lootTraceStore } = await import("./gm-stores.mjs");
@@ -61227,6 +61277,7 @@ const SCENARIOS = [
             }
             if (dead) await reviveCharacter(body, { quiet: true });
             await settle();
+            await beside.back();
         }
         equal(stableJson(read), stableJson([1, 0]), "a looted key to a room the taker holds left two: [the taker's keys to it, the body's]");
     }],
@@ -61358,6 +61409,9 @@ const SCENARIOS = [
         const { isPrimaryGm } = await import("./utils.mjs");
         must(isPrimaryGm(), "this client is not the primary GM, whose mark the loot reads - this would measure nothing");
         const [taker, body] = cast(2);
+        // A body is looted only from beside it since E14 part 1 C1 (inventory.mjs `transferRefusal`, mode "loot"): the
+        // two stood together before the death, as a walk-in on a body afterwards is its discovery.
+        const beside = await aloneTogether(taker, body);
         const { killCharacter, reviveCharacter } = await import("./chapter.mjs");
         const { lootBody } = await import("./handover.mjs");
         const { lootTraceStore, sheetWriteStore } = await import("./gm-stores.mjs");
@@ -61412,6 +61466,7 @@ const SCENARIOS = [
             if (dead) await reviveCharacter(body, { quiet: true });
             await settle();
             await sheetAuditIdle();
+            await beside.back();
         }
         equal(stableJson(read), stableJson({ flags: want, left: [false, 2], arrived: 1, rows: [], roads: [true, []] }),
             "a loot did not carry what the GMs hold of the item, did not move one piece of the body's stack, raised a row of the GMs' audit, or wrote an item past the trusted roads (the Tool's copy's [category, tier, broken, wear, roles, kind, identity]; [the body holds the Tool, the kits it keeps]; the kits that arrived; the rows; [an item write heard, the bare ones])");
@@ -61626,7 +61681,7 @@ const SCENARIOS = [
             let steal = null, loot = null, plant = null;
             sent = await wordsSent(async () => {
                 steal = await INV.transferItem(giver, taker, stolen, { mode: "steal" });
-                loot = await INV.transferItem(giver, taker, looted, { mode: "loot" });
+                loot = await whileDead(giver, () => INV.transferItem(giver, taker, looted, { mode: "loot" }));
                 plant = await INV.transferItem(giver, taker, planted, { mode: "plant", quiet: true });
                 await H.giveItem({ fromId: giver.id, toId: taker.id, itemId: given.id });
                 await settle();
@@ -61704,7 +61759,7 @@ const SCENARIOS = [
             read.give = [toGms("give"), giver.items.has(given.id), await arrived()];
             if (typeof INV.transferItem === "function") {
                 const looted = await kit(1);
-                const loot = await INV.transferItem(giver, taker, looted, { mode: "loot" });
+                const loot = await whileDead(giver, () => INV.transferItem(giver, taker, looted, { mode: "loot" }));
                 read.loot = [toGms("loot"), toGms("give") - read.give[0], giver.items.has(looted.id), await arrived(), loot?.stuck ?? null];
                 const stack = await kit(2);
                 const steal = await INV.transferItem(giver, taker, stack, { mode: "steal" });
@@ -61880,6 +61935,7 @@ const SCENARIOS = [
         const group = ITEM_CATEGORIES.tool?.limitGroup ?? null;
         const slot = i => [i.getFlag(MODULE_ID, INV.ITEM_FLAGS.category)].some(c => c === "tool" || (group !== null && ITEM_CATEGORIES[c]?.limitGroup === group));
         const stowed = [], read = {};
+        let otherBack = null;
         const plant = async seen => {
             const item = await INV.grantItem(planter, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
             await sheetAuditIdle();
@@ -61911,6 +61967,15 @@ const SCENARIOS = [
 
             // E35 fix e1-G1 (E35-R5): one hand free, and two planters on two chains at the same moment - one goes in.
             const other = trio.find(a => a.id !== victim.id && a.id !== planter.id);
+            // The second planter stood beside the victim too: a Plant is the one gate's since E14 part 1 C1 (inventory.mjs
+            // `transferRefusal`, the person in the planter's room).
+            const { positionIn } = await import("./movement.mjs");
+            const otherToken = canvas.scene?.tokens?.find(t => t.actorId === other.id) ?? null;
+            must(otherToken, `${other.name} has no token on the scene on screen - this would measure nothing`);
+            const otherWas = { x: otherToken.x, y: otherToken.y }, PLACE = { teleport: true, movementAction: "displace", animate: false };
+            otherBack = async () => { if (otherToken.parent?.tokens?.has(otherToken.id)) await otherToken.update(otherWas, PLACE); await settle(); };
+            await otherToken.update(positionIn(fixture.room, otherToken), PLACE);
+            await settle();
             await victim.items.find(i => i.name === FULL)?.delete();
             const knives = [await INV.grantItem(planter, { name: NAME, category: "tool", tier: 1, override: true, quiet: true }),
                 await INV.grantItem(other, { name: NAME, category: "tool", tier: 1, override: true, quiet: true })];
@@ -61924,6 +61989,7 @@ const SCENARIOS = [
         } finally {
             for (const a of trio) for (const i of a.items.filter(i => i.name === NAME || i.name === FULL)) await i.delete();
             for (const [i, was] of stowed) if (victim.items.has(i.id)) await i.update({ [flag("location")]: was ?? forcedDeletion() });
+            if (otherBack) await otherBack();
             await fixture.back();
             await sheetAuditIdle();
         }
@@ -62175,6 +62241,386 @@ const SCENARIOS = [
             stash: { give: stays(["DRPG.Handover.theirHandsFull"]), rifle: lands(["DRPG.Vault.overflowed", "DRPG.Vault.stole"]),
                 steal: lands(["DRPG.Vault.overflowed", "DRPG.Steal.cardTook"]), plant: stays(["DRPG.Steal.cardTheirHandsFull"]), loot: lands(["DRPG.Vault.overflowed"]) }
         }), "a road into full hands moved what its policy keeps, kept what it moves, or told its asker another road's line, or none (per road, with no stash of the taker's and with one: [the taker's copies, of them in a stash, the giver still holds it, the lines the asker's players read, the lines the other student's read])");
+    }],
+
+    ["one gate in transferItem: a give, a Palm's steal and a Plant are refused across rooms, by or to the dead, in an Eclipse and a Class Trial, and a steal or a Plant at a Monocub, by a Monokuma or at a hidden token, each with a code of the closed list; a body the GMs keep from a player is robbed as a living one; the roads hand the refusal on to be told (E14-T1, S08-01, S16-30, S08-20)", async () => {
+        /*
+         * E14 part 1 C1, 24.10.2026; E14-01, E14-02, E14-05. The harm: inventory.mjs `transferItem`, the one road an item
+         * changes owner by since E35, judged nothing of where the two stood or whether they lived - each caller kept its
+         * own gates, and a road that forgot one (lootBody kept none of them, S08-01) moved an item across the school, off
+         * the dead or into a Class Trial. And a Palm's or a hand-over's refusal went to the GM's log alone: the player who
+         * paid for it read "sent" and never a verdict (S08-20). Two students alone together, the second's hands free for a
+         * Tool; a Tool of the first's moved by `transferItem` as a give (first to second), a steal (the second lifts it)
+         * and a Plant (the first leaves it on the second), by a GM's own call, in each case below. Read: the code of the
+         * closed list each refusal is told with (bridge-guards.mjs `reasonOf`), or "moved". Then the roads themselves
+         * across two rooms - `giveItem` of the Tool and of a key, `stealFromPerson` and `plantOnPerson` on a critical - and what
+         * each answers.
+         * Red at 7f002130 (E35 closed): `transferItem` asks no gate, so every case reads "moved", and the three roads
+         * answer null (a hand-over's whisper of its own, a Palm's line in the GM's log), which the bridge tells by no code.
+         * Mutants of 24.10.2026, each red here: sameRoom always true (g1a), the loot's knowledge read as a death alone
+         * (g1b), verify's ask of the gate dropped - a key copied across the rooms (g1c), transferItem's own ask dropped (g1d).
+         * The same-named room on another scene is the same predicate's (frisk.mjs `personActionRefusal`, A11-9 reads it).
+         */
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose reading the gate is - this would measure nothing");
+        needs(world.atLeast("namedRooms", 3), "a room for the two and another to stand one of them in");
+        const INV = await import("./inventory.mjs");
+        const V = await import("./vault.mjs");
+        const H = await import("./handover.mjs");
+        const Mv = await import("./movement.mjs");
+        const { reasonOf } = await import("./bridge-guards.mjs");
+        const { deathStore } = await import("./gm-stores.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const [giver, taker] = cast(2);
+        const player = game.users.find(u => !u.isGM && !giver.testUserPermission(u, "OWNER") && !taker.testUserPermission(u, "OWNER")) ?? null;
+        must(player, "no player owns neither student - a body kept from a player would measure nothing");
+        const fixture = await aloneTogether(giver, taker);
+        const scene = canvas.scene, PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const takerToken = scene.tokens.find(t => t.actorId === taker.id), giverToken = scene.tokens.find(t => t.actorId === giver.id);
+        const elsewhere = Mv.allRooms(scene).find(r => r !== fixture.room);
+        const NAME = "SUITE E14-T1 a crowbar", KEY_ROOM = "SUITE E14-T1 a room";
+        const { BEDROOM_KEY_FLAG } = await import("./config.mjs");
+        const clockWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.clock));
+        const flagsWere = [giver, taker].flatMap(who => [FLAGS.monocub, FLAGS.monokuma].map(key => [who, key, who.getFlag(MODULE_ID, key)]));
+        const putFlag = (who, key, was) => (was === undefined ? who.unsetFlag(MODULE_ID, key) : who.setFlag(MODULE_ID, key, was));
+        const verdict = out => out?.refused ? reasonOf(out.refused) : out?.ok ? "moved" : stableJson(out ?? null);
+        const clear = async () => {
+            for (const a of [giver, taker]) for (const i of a.items.filter(i => i.name === NAME || i.getFlag(MODULE_ID, BEDROOM_KEY_FLAG) === KEY_ROOM)) await i.delete();
+        };
+        const modes = async ({ asker = null } = {}) => {
+            const row = [];
+            for (const mode of ["give", "steal", "plant"]) {
+                const item = await INV.grantItem(giver, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
+                await sheetAuditIdle();
+                must(item, "the fixture's Tool was not made - this would measure nothing");
+                row.push(verdict(await INV.transferItem(giver, taker, item, { mode, ...(asker ? { asker } : {}) })));
+                await settle();
+                await clear();
+            }
+            return row;
+        };
+        const dead = new Set(), read = {};
+        let back = null;
+        try {
+            back = await handFreeFor(taker, "tool");
+            read.control = await modes();
+            await takerToken.update(Mv.positionIn(elsewhere, takerToken), PLACE);
+            await settle();
+            must(!Mv.sameRoom(giver, taker), "the second could not be stood in another room - this would measure nothing");
+            read.apart = await modes();
+            // The roads across the two rooms: what each answers is what its bridge run hands on to be told.
+            const roads = [];
+            for (const road of ["give", "key", "steal", "plant"]) {
+                // A key is copied, not moved (handover.mjs `shareKey`): no road of `transferItem`, `verify`'s gate alone.
+                const item = road === "key"
+                    ? await INV.grantItem(giver, { name: NAME, category: "bedroomKey", tier: null, override: true, quiet: true, extraFlags: { [BEDROOM_KEY_FLAG]: KEY_ROOM } })
+                    : await INV.grantItem(giver, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
+                await sheetAuditIdle();
+                const critical = { total: 30, isCritical: true, unseenTotal: 30, unseenCritical: true };
+                const out = road === "give" || road === "key" ? await H.giveItem({ fromId: giver.id, toId: taker.id, itemId: item.id })
+                    : road === "steal" ? await V.stealFromPerson({ thiefId: taker.id, victimId: giver.id, itemId: item.id, ...critical })
+                    : await V.plantOnPerson({ plannerId: giver.id, victimId: taker.id, itemId: item.id, ...critical });
+                await settle();
+                roads.push(out?.refused ? reasonOf(out.refused) : out ? "done" : "null");
+                await clear();
+            }
+            read.roads = roads;
+            await takerToken.update(Mv.positionIn(fixture.room, takerToken), PLACE);
+            await settle();
+            must(Mv.sameRoom(giver, taker), "the second could not be stood back beside the first - this would measure nothing");
+            for (const [who, label] of [[taker, "takerDead"], [giver, "giverDead"]]) {
+                await deathStore.patch(who.id, { chapter: 99, day: 1, timeOfDay: "night", at: Date.now(), keepBullets: true, known: [] });
+                dead.add(who.id);
+                read[label] = await modes();
+                if (who === giver) read.keptFromPlayer = (await modes({ asker: player }))[1];
+                await deathStore.drop(who.id);
+                dead.delete(who.id);
+            }
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clockWas, eclipse: true });
+            await settle();
+            read.eclipse = await modes();
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clockWas, eclipse: false, phase: "classTrial" });
+            await settle();
+            read.classTrial = await modes();
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clockWas);
+            await settle();
+            for (const [who, key, label] of [[giver, FLAGS.monocub, "monocubGiver"], [taker, FLAGS.monokuma, "monokumaTaker"]]) {
+                const was = who.getFlag(MODULE_ID, key);
+                await who.setFlag(MODULE_ID, key, true);
+                await settle();
+                read[label] = await modes();
+                await putFlag(who, key, was);
+                await settle();
+            }
+            await takerToken.update({ hidden: true });
+            await settle();
+            read.hiddenTaker = await modes();
+            await takerToken.update({ hidden: false });
+            await settle();
+        } finally {
+            await clear();
+            for (const id of dead) if (deathStore.has(id)) await deathStore.drop(id);
+            if (stableJson(game.settings.get(MODULE_ID, SETTINGS.clock)) !== stableJson(clockWas)) await game.settings.set(MODULE_ID, SETTINGS.clock, clockWas);
+            for (const [who, key, was] of flagsWere) if (who.getFlag(MODULE_ID, key) !== was) await putFlag(who, key, was);
+            for (const t of [takerToken, giverToken]) if (t?.hidden) await t.update({ hidden: false });
+            if (back) await back();
+            await fixture.back();
+            await sheetAuditIdle();
+        }
+        const all = code => [code, code, code];
+        equal(stableJson(read), stableJson({
+            control: all("moved"), apart: all("notThere"), roads: [...all("notThere"), "notThere"],
+            takerDead: all("cannotNow"), giverDead: all("cannotNow"), keptFromPlayer: "moved",
+            eclipse: all("cannotNow"), classTrial: all("cannotNow"),
+            monocubGiver: ["moved", "cannotNow", "cannotNow"], monokumaTaker: ["moved", "cannotNow", "notThere"],
+            hiddenTaker: ["moved", "moved", "notThere"]
+        }), "a move was not judged by the one gate as the GMs read the two (per case, give, steal, Plant: the code each refusal is told with, or moved; the roads across two rooms: the code each hands on, or what it answered)");
+    }],
+
+    ["a Palm the gate refuses before its rolls are read gives its action back, as it was paid; a Plant into full pockets, tried, does not (E14-T1, Q3)", async () => {
+        /*
+         * E14 part 1 C1, 24.10.2026; E14-07, the owner's Q3 of 18.10 ("a refusal before the rolls are read refunds; a
+         * full-pockets Plant (D42) does not"). The harm: a Palm is paid before its first roll, and one the GMs' gate then
+         * refused - the target a Monocub, gone from the room, the Class Trial begun - cost the action for nothing done.
+         * Two students alone together; this GM takes a Palm for the first, paid with an action, its window answered as a
+         * Steal from the second, on dice forced to 12 and 11: once with the second marked a Monocub (the gate's refusal,
+         * frisk.mjs `personActionRefusal`), once as a Plant of a Tool into the second's hands full of Tools (D42: the Plant
+         * was tried). Read: the first's actions before and after each. Red at 7f002130: the steal's refusal is the GM's
+         * log alone, and the action stays spent ([3, 2] for both).
+         */
+        needs(world.atLeast("studentTokensOnScreen", 2), "the two are stood in one room by their tokens");
+        const { performAction } = await import("./action-rolls.mjs");
+        const { actionsLeft, setActions } = await import("./actions.mjs");
+        const INV = await import("./inventory.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { rerollBookmarkStore } = await import("./gm-stores.mjs");
+        const [actor, target] = cast(2);
+        const fixture = await aloneTogether(actor, target);
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        const { gameSettings } = CONFIG.DH.SETTINGS;
+        const fear = game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear);
+        const bookmark = rerollBookmarkStore.has(actor.id) ? foundry.utils.deepClone(rerollBookmarkStore.get(actor.id)) : null;
+        const seen = new Set(game.messages.map(m => m.id));
+        const monocubWas = target.getFlag(MODULE_ID, FLAGS.monocub);
+        const KNIFE = "SUITE E14-T1 Q3 a knife", FULL = "SUITE E14-T1 Q3 a full hand", flag = `flags.${MODULE_ID}.${INV.ITEM_FLAGS.location}`;
+        const { ITEM_CATEGORIES } = await import("./config.mjs");
+        const group = ITEM_CATEGORIES.tool?.limitGroup ?? null;
+        const slot = i => { const c = i.getFlag(MODULE_ID, INV.ITEM_FLAGS.category); return c === "tool" || (group !== null && ITEM_CATEGORIES[c]?.limitGroup === group); };
+        const palm = async (way, what = null) => {
+            await actionsReach(actor, 3);
+            await setActions(actor, 3);
+            await sheetAuditIdle();
+            const before = actionsLeft(actor);
+            await withFormAnswered(root => {
+                const row = root.querySelector(`input[name="variant"][value="${way}"]`);
+                if (row) row.checked = true;
+                const who = root.querySelector("select[name=who]");
+                if (who) who.value = target.id;
+                const item = root.querySelector("select[name=what]");
+                if (item && what) item.value = what;
+                return true;
+            }, () => performAction(actor, "palm", {}));
+            await settle();
+            await sheetAuditIdle();
+            return [before, actionsLeft(actor)];
+        };
+        const stowed = [], read = {};
+        try {
+            globalThis.__forceRoll = { hope: 12, fear: 11 };
+            await target.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await settle();
+            read.refused = await palm("steal");
+            if (monocubWas === undefined) await target.unsetFlag(MODULE_ID, FLAGS.monocub); else await target.setFlag(MODULE_ID, FLAGS.monocub, monocubWas);
+            await settle();
+            for (const i of target.items.filter(i => slot(i) && !INV.isStashed(i))) {
+                stowed.push([i, i.getFlag(MODULE_ID, INV.ITEM_FLAGS.location)]);
+                await i.update({ [flag]: INV.LOCATIONS.vault });
+            }
+            const { limit } = INV.canCarry(target, "tool");
+            must(Number.isInteger(limit) && limit > 0, `a Tool's slots have no limit to fill (${limit}) - this would measure nothing`);
+            for (let n = 0; n < limit; n++) await INV.grantItem(target, { name: FULL, category: "tool", tier: 1, override: true, quiet: true });
+            const knife = await INV.grantItem(actor, { name: KNIFE, category: "tool", tier: 1, override: true, quiet: true });
+            await sheetAuditIdle();
+            must(knife && !INV.canCarry(target, "tool").ok, "the knife was not made, or the second's hands are not full - this would measure nothing");
+            read.fullPockets = await palm("plant", knife.id);
+            read.knifeStays = actor.items.has(knife.id);
+        } finally {
+            if (hadForce) globalThis.__forceRoll = force; else delete globalThis.__forceRoll;
+            if (target.getFlag(MODULE_ID, FLAGS.monocub) !== monocubWas) {
+                if (monocubWas === undefined) await target.unsetFlag(MODULE_ID, FLAGS.monocub); else await target.setFlag(MODULE_ID, FLAGS.monocub, monocubWas);
+            }
+            for (const a of [actor, target]) for (const i of a.items.filter(i => i.name === KNIFE || i.name === FULL)) await i.delete();
+            for (const [i, was] of stowed) if (target.items.has(i.id)) await i.update({ [flag]: was ?? forcedDeletion() });
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete();
+            if (bookmark) await rerollBookmarkStore.patch(actor.id, bookmark);
+            else if (rerollBookmarkStore.has(actor.id)) await rerollBookmarkStore.drop(actor.id);
+            if (game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear) !== fear) await game.settings.set(CONFIG.DH.id, gameSettings.Resources.Fear, fear);
+            await fixture.back();
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson({ refused: [3, 3], fullPockets: [3, 2], knifeStays: true }),
+            "[the actions before and after a Palm's steal the gate refused; before and after a Plant into full pockets; the knife stays with the planter]");
+    }],
+
+    ["a body is looted only by a living student in its room, who knows of the death, outside an Eclipse and a Class Trial, its token not hidden; an unknown death is refused as a living body is; a side of the running incident loots and a Monocub's body is looted; the loot window greys a take the gate refuses, with its reason (E14-T2, S08-01, S11-06, 26.09)", async () => {
+        /*
+         * E14 part 1 C1, 24.10.2026; E14-03, E14-04, E14-06, the owner's 26.09 ("before the discovery the body may be
+         * searched by those who know of the death: the incident's sides, a student alone with the body, a GM") and the
+         * 13.10 amend (`personActionRefusal(asker, body, { body: true })`). The harm (S08-01, S11-06): handover.mjs
+         * `lootBody` asked whether the body was dead and nothing else - a player in their bedroom opened a victim's sheet
+         * from the Actors panel and took the knife off a body across the school, in a Class Trial, in the dark, or as a
+         * dead spectator. Two students and a third, the first and the second alone together; the second a body (a
+         * published death, then one the GMs keep), a Tool of its put on it, looted by the first through `lootBody` as the
+         * bridge's run calls it (`askedBy`: a player's id, or none for a GM). Read: "taken", or the code of the refusal.
+         * Then the loot window (anonymity.mjs `buildBodyLoot`, drawn for the first) on a body in the room and on one in
+         * another: whether its Take is pressable, and the words on it. Red at 7f002130 (measured on a copy of this tree with
+         * the commit's scripts put back): every case reads "taken" but three - a living body and an unknown death read null
+         * (told as "refused"), the body itself "refused" - and `buildBodyLoot` is not exported ([null, null]).
+         */
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose reading the gate is - this would measure nothing");
+        needs(world.atLeast("studentTokensOnScreen", 3), "the taker, the body and a third, each a token on the scene on screen");
+        needs(world.atLeast("namedRooms", 3), "a room for the two and another to stand the body in");
+        const INV = await import("./inventory.mjs");
+        const H = await import("./handover.mjs");
+        const A = await import("./anonymity.mjs");
+        const Mv = await import("./movement.mjs");
+        const M = await import("./murder.mjs");
+        const { reasonOf } = await import("./bridge-guards.mjs");
+        const { killCharacter, reviveCharacter, livingStudents } = await import("./chapter.mjs");
+        const { deathStore, lootTraceStore } = await import("./gm-stores.mjs");
+        const remnants = await import("./remnants.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const scene = canvas.scene, PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const [taker, body, third] = livingStudents().filter(a => scene?.tokens?.some(t => t.actorId === a.id));
+        const player = game.users.find(u => !u.isGM && !body.testUserPermission(u, "OWNER") && !taker.testUserPermission(u, "OWNER")) ?? null;
+        must(taker && body && third && player, "no three students on the scene, or no player who owns neither the taker nor the body - this would measure nothing");
+        const fixture = await aloneTogether(taker, body);
+        const bodyToken = scene.tokens.find(t => t.actorId === body.id), thirdToken = scene.tokens.find(t => t.actorId === third.id);
+        const thirdWas = { x: thirdToken.x, y: thirdToken.y };
+        const elsewhere = Mv.allRooms(scene).find(r => r !== fixture.room);
+        const NAME = "SUITE E14-T2 a crowbar";
+        const clockWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.clock));
+        const monocubWas = body.getFlag(MODULE_ID, FLAGS.monocub);
+        const had = new Set(taker.items.map(i => i.id));
+        const verdict = out => out?.refused ? reasonOf(out.refused) : out ? "taken" : "null";
+        const loot = async ({ askedBy = null, takerId = taker.id } = {}) => {
+            const item = await INV.grantItem(body, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
+            await sheetAuditIdle();
+            must(item, "the fixture's Tool was not made - this would measure nothing");
+            const out = verdict(await H.lootBody({ takerId, bodyId: body.id, itemId: item.id, askedBy }));
+            await settle();
+            for (const a of [taker, body]) for (const i of a.items.filter(i => i.name === NAME)) await i.delete();
+            return out;
+        };
+        const drawn = async () => {
+            const root = document.createElement("div");
+            root.innerHTML = `<a data-tab="inventory"></a><section class="tab" data-tab="inventory"></section>`;
+            const item = await INV.grantItem(body, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
+            await sheetAuditIdle();
+            await A.buildBodyLoot?.(root, body, taker);
+            const take = root.querySelector(".drpg-loot-take");
+            const row = take ? [take.disabled, take.dataset.tooltip ?? ""] : null;
+            if (item) await item.delete();
+            return row;
+        };
+        let published = false, kept = false, back = null;
+        const read = {};
+        try {
+            back = await handFreeFor(taker, "tool");
+            read.living = await loot({ askedBy: player.id });
+            // A side of the running incident, at a body whose death the GMs' row lets its player know (26.09): the third
+            // stood in while the body is still alive, as a walk-in on a body is a discovery that gathers every token.
+            await thirdToken.update(Mv.positionIn(fixture.room, thirdToken), PLACE);
+            await settle();
+            await M.openMurder({ killerId: taker.id, victimId: third.id, openingTrait: "body" });
+            await settle();
+            const { incidentParticipants } = await import("./settings.mjs");
+            must(M.murderState()?.active && incidentParticipants().includes(taker.id), "the fixture's incident did not open with the taker a side of it - this would measure nothing");
+            await deathStore.patch(body.id, { chapter: 99, day: 1, timeOfDay: "night", at: Date.now(), keepBullets: true, known: [player.id] });
+            read.incidentSide = await loot({ askedBy: player.id });
+            await deathStore.drop(body.id);
+            await M.endMurder({ reason: "test", followUp: false });
+            await settle();
+            await thirdToken.update(thirdWas, PLACE);
+            await settle();
+            published = Boolean(await killCharacter(body, { secret: false, keepBullets: true }));
+            must(published, "the body could not be stood dead on a published death - this would measure nothing");
+            await settle();
+            read.control = await loot({ askedBy: player.id });
+            read.byGm = await loot();
+            read.itself = await loot({ takerId: body.id });
+            read.window = [await drawn()];
+            await bodyToken.update(Mv.positionIn(elsewhere, bodyToken), PLACE);
+            await settle();
+            must(!Mv.sameRoom(taker, body), "the body could not be stood in another room - this would measure nothing");
+            read.apart = await loot({ askedBy: player.id });
+            read.window.push(await drawn());
+            await bodyToken.update(Mv.positionIn(fixture.room, bodyToken), PLACE);
+            await settle();
+            await bodyToken.update({ hidden: true });
+            await settle();
+            read.hidden = await loot({ askedBy: player.id });
+            await bodyToken.update({ hidden: false });
+            await settle();
+            await deathStore.patch(taker.id, { chapter: 99, day: 1, timeOfDay: "night", at: Date.now(), keepBullets: true, known: [] });
+            read.deadTaker = await loot({ askedBy: player.id });
+            await deathStore.drop(taker.id);
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clockWas, eclipse: true });
+            await settle();
+            read.eclipse = await loot({ askedBy: player.id });
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clockWas, eclipse: false, phase: "classTrial" });
+            await settle();
+            read.classTrial = await loot({ askedBy: player.id });
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clockWas);
+            await settle();
+            await body.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await settle();
+            read.monocubBody = await loot({ askedBy: player.id });
+            if (monocubWas === undefined) await body.unsetFlag(MODULE_ID, FLAGS.monocub); else await body.setFlag(MODULE_ID, FLAGS.monocub, monocubWas);
+            await settle();
+            await reviveCharacter(body, { quiet: true });
+            published = false;
+            await settle();
+            kept = Boolean(await killCharacter(body, { secret: true, keepBullets: true }));
+            must(kept && deathStore.has(body.id), "the body's death could not be kept by the GMs - this would measure nothing");
+            await settle();
+            read.unknown = await loot({ askedBy: player.id });
+            const row = deathStore.get(body.id);
+            await deathStore.patch(body.id, { ...row, known: [...(row?.known ?? []), player.id] });
+            read.known = await loot({ askedBy: player.id });
+            read.keptByGm = await loot();
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (deathStore.has(taker.id)) await deathStore.drop(taker.id);
+            if (stableJson(game.settings.get(MODULE_ID, SETTINGS.clock)) !== stableJson(clockWas)) await game.settings.set(MODULE_ID, SETTINGS.clock, clockWas);
+            if (body.getFlag(MODULE_ID, FLAGS.monocub) !== monocubWas) {
+                if (monocubWas === undefined) await body.unsetFlag(MODULE_ID, FLAGS.monocub); else await body.setFlag(MODULE_ID, FLAGS.monocub, monocubWas);
+            }
+            if (bodyToken.hidden) await bodyToken.update({ hidden: false });
+            await thirdToken.update(thirdWas, PLACE);
+            const trace = lootTraceStore.get(body.id);
+            const token = trace?.tokenId ? game.scenes.get(trace.sceneId)?.tokens?.get(trace.tokenId) ?? null : null;
+            if (token) {
+                try { await remnants.dropRemnantSecret(token); } catch { /* nothing filed */ }
+                try { await token.delete(); } catch { /* already gone */ }
+            }
+            if (lootTraceStore.has(body.id)) await lootTraceStore.drop(body.id);
+            for (const item of taker.items.filter(i => !had.has(i.id))) {
+                try { await item.delete(); } catch { /* already gone */ }
+            }
+            for (const i of body.items.filter(i => i.name === NAME)) await i.delete();
+            if (published || kept || deathStore.has(body.id)) await reviveCharacter(body, { quiet: true });
+            if (back) await back();
+            await fixture.back();
+            await sheetAuditIdle();
+        }
+        const notThere = game.i18n.localize("DRPG.Bridge.why.notThere");
+        equal(stableJson(read), stableJson({
+            living: "cannotNow", control: "taken", byGm: "taken", itself: "cannotNow", window: [[false, game.i18n.localize("DRPG.Loot.takeTooltip")], [true, notThere]],
+            apart: "notThere", hidden: "notThere", deadTaker: "cannotNow", eclipse: "cannotNow", classTrial: "cannotNow",
+            monocubBody: "taken", incidentSide: "taken", unknown: "cannotNow", known: "taken", keptByGm: "taken"
+        }), "a body's loot was not judged by the one gate as the GMs read the two and the asker's knowledge (per case: taken, or the code of the refusal; the loot window's Take in the room and from another: [greyed, its words])");
     }],
 
     ...GRID

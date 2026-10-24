@@ -589,7 +589,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
        so a Palm's hand finds one thing; Aiko's Hand and Shadow and Chie's are raised to 13 for the two Palms (a Steal's
        hand needs 10 and its unseen 15, a Plant's 8 and 13: config.mjs ACTIONS.palm), so neither roll can miss, and put
        back after. The window of each Palm is answered on the player's page as a player answers it - the way, the
-       person and the item. L12 p1 hands Botan one of two kits (requestGiveItem); L13 p2 takes a Tool out of Chie's
+       person and the item; Daichi stands there too, his body looted from beside it (E14 part 1 C1). L12 p1 hands Botan one of two kits (requestGiveItem); L13 p2 takes a Tool out of Chie's
        stash in the room, not concealed (requestVaultSteal); L14 p1's Palm plants a note on Botan; L15 p3's Palm lifts
        Aiko's last kit, all her pockets hold by then; L16 p3 takes a lockpick off Daichi, dead on a recorded death for
        it and alive again after (requestBodyLoot). */
@@ -602,7 +602,8 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
         const tok = a => scene.tokens.find(t => t.actorId === a.id);
         const g = globalThis.drpg83e35 = { at: {}, stowed: [], traits: {}, actions: {}, items: {}, region: null, stashes: undefined, dead: false };
         const at = tok(aiko);
-        for (const a of [botan, chie]) { const t = tok(a); if (!t || !at) continue; g.at[a.id] = { x: t.x, y: t.y }; await t.update({ x: at.x, y: at.y }, PLACE); }
+        // Daichi too since E14 part 1 C1: a body is looted only from its room (inventory.mjs \`transferRefusal\`, mode "loot").
+        for (const a of [botan, chie, daichi]) { const t = tok(a); if (!t || !at) continue; g.at[a.id] = { x: t.x, y: t.y }; await t.update({ x: at.x, y: at.y }, PLACE); }
         await new Promise(r => setTimeout(r, 300));
         const room = M.locateActor(aiko)?.room ?? null;
         for (const a of [aiko, botan, chie, daichi]) {
@@ -626,7 +627,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
         const note = await INV.grantItem(aiko, { name: "${E35} note", category: "usable", tier: 1, override: true, quiet: true });
         const pick = await INV.grantItem(daichi, { name: "${E35} lockpick", category: "tool", tier: 1, override: true, quiet: true });
         await A.sheetAuditIdle();
-        return { room, together: [botan, chie].every(a => M.sameRoom(aiko, a)), kits: kits?.id ?? null, tool: tool?.id ?? null, note: note?.id ?? null,
+        return { room, together: [botan, chie, daichi].every(a => M.sameRoom(aiko, a)), kits: kits?.id ?? null, tool: tool?.id ?? null, note: note?.id ?? null,
             pick: pick?.id ?? null, stash: Boolean(room && V.stashIn(room, chie.id, scene)), traits: [aiko, chie].map(a => [a.system.traits.finesse.value, a.system.traits.presence.value]),
             stowed: g.stowed.length, room3: ["usable", "tool"].map(c => [botan, chie].map(a => INV.canCarry(a, c).ok)) };`, { timeout: 60000 });
     check("L12-L16 set up: the three stand in one room, the kits, the stashed Tool, the note and the lockpick are made, Chie's stash is in the room, the Palms' traits are 13",

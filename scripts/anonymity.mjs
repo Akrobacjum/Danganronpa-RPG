@@ -101,7 +101,8 @@ function onRenderSheet(app, element) {
         disarmSheet(root);
         redactTabs(root);
         redactValues(root);
-        buildBodyLoot(root, actor);
+        // The greying of a refused Take lands a moment after the draw (`greyRefused`): a sheet it finds gone is left be.
+        buildBodyLoot(root, actor)?.catch?.(err => error("Could not read whether the body's Take is open", err));
         root.classList.add("drpg-redacted-sheet");
     } catch (err) {
         error("Could not redact a character sheet - closing it instead", err);
@@ -191,8 +192,16 @@ function redactTabs(root) {
  * would be wrong, but because it holds the Truth Bullet rows, the stash, the
  * use buttons and the handover buttons, none of which belong to somebody
  * standing over a body.
+ *
+ * A TAKE THE GATE REFUSES IS GREYED, WITH ITS REASON (E14 part 1 C1; audit S11-06). The Take showed on every row of a
+ * body this browser knows dead, wherever the viewer's character stood: from a bedroom across the school, in a Class
+ * Trial, as a dead spectator. Each row's Take now asks the one gate the GMs judge the loot by (inventory.mjs
+ * `transferRefusal`, mode "loot"), read on this browser, and one it refuses is shut with the sentence the player would
+ * be told (`DRPG.Bridge.why.<code>`). A display: the GMs' gate judges the request again, and the window is not redrawn
+ * when the character walks in - the sheet opened again is. `taker` is the viewer's character (`myCharacter`); a test
+ * hands its own. Answers the greying's promise, or undefined where there is no Take.
  */
-function buildBodyLoot(root, actor) {
+export function buildBodyLoot(root, actor, taker = myCharacter()) {
     // A body this browser knows of (E05 C10, the owner's Q2): the table's, or one nobody has
     // found that this player was in the incident of - the GMs judge the taking again.
     if (!isDeadForGm(actor)) return;
@@ -244,6 +253,21 @@ function buildBodyLoot(root, actor) {
 
     box.append(list);
     pane.replaceChildren(box);
+    return taker ? greyRefused(list, actor, taker) : undefined;
+}
+
+/** Shut every Take in `list` the one gate refuses `taker` off `body` now, with the reason's sentence (`buildBodyLoot`). */
+async function greyRefused(list, body, taker) {
+    const { transferRefusal } = await import("./inventory.mjs");
+    const why = await transferRefusal(body, taker, { mode: "loot", asker: game.user });
+    if (!why) return;
+    const { reasonOf } = await import("./bridge-guards.mjs");
+    const said = game.i18n.localize(`DRPG.Bridge.why.${reasonOf(why)}`);
+    for (const take of list.querySelectorAll(".drpg-loot-take")) {
+        take.disabled = true;
+        take.setAttribute("aria-disabled", "true");
+        take.dataset.tooltip = said;
+    }
 }
 
 /**
@@ -264,7 +288,7 @@ async function takeFromBody(body, item) {
     const res = await requestBodyLoot({ takerId: taker.id, bodyId: body.id, itemId: item.id });
     // Only what the GM has: a refusal has been said, and "you took it" beside it would be two answers.
     // Off a body nobody has found, the Truth Bullet waits for the death to be known (E05 fix r2-F0b).
-    if (res.ok) ui.notifications.info(game.i18n.format(isDeceased(body) ? "DRPG.Loot.took" : "DRPG.Loot.tookUnfound", { item: item.name }));
+    if (res.ok && !res.value?.refused) ui.notifications.info(game.i18n.format(isDeceased(body) ? "DRPG.Loot.took" : "DRPG.Loot.tookUnfound", { item: item.name }));
 }
 
 /**

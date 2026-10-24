@@ -906,18 +906,20 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     }
 
     // B12: a request whose resolver carried out nothing is not answered as done (E31 review). Botan is alive, so
-    // lootBody takes nothing off him; p1 must be told once, with the generic code, and the wrench stays where it is.
+    // lootBody takes nothing off him; p1 must be told once, and the wrench stays where it is. Since E14 part 1 C1 the
+    // one gate refuses it (inventory.mjs `transferRefusal`, mode "loot") with the code a body whose death p1 does not
+    // know gets too, cannotNow (S08-20: a refusal told by its code); until then it was the generic "refused".
     phase("a loot the GM's client carried out nothing of", { flow: "give-take-stash" });
     const n12 = await noticeCount(p1);
     const looted = await p1.eval(`return await ${bridge}.requestBodyLoot({ takerId: "${IDS.aiko}", bodyId: "${IDS.botan}", itemId: "${wrench}" });`,
         { timeout: 30000 });
     await settle(1200);
     const b12 = { looted, said: (await noticesSince(p1, n12)).map(x => x.msg),
-        why: await p1.eval(`return game.i18n.localize("DRPG.Bridge.why.refused");`),
+        why: await p1.eval(`return game.i18n.localize("DRPG.Bridge.why.cannotNow");`),
         held: await gm.eval(`return { botan: game.actors.get("${IDS.botan}").items.has("${wrench}"),
             aiko: game.actors.get("${IDS.aiko}").items.some(i => i.name === "E31 wrench") };`) };
-    check("B12: a loot off a living character is answered as not carried out, with the generic code, once, and moves nothing",
-        Boolean(wrench) && looted?.ok === false && looted?.refused === true && looted?.reason === "refused" && b12.said.length === 1
+    check("B12: a loot off a living character is refused by the one gate, told once with a living target's code, and moves nothing",
+        Boolean(wrench) && looted?.ok === false && looted?.refused === true && looted?.reason === "cannotNow" && b12.said.length === 1
         && !b12.why.startsWith("DRPG.") && b12.said[0].includes(b12.why) && b12.held.botan === true && b12.held.aiko === false,
         JSON.stringify(b12));
 

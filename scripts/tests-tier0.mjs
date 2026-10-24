@@ -5079,7 +5079,11 @@ const REGRESSIONS = [
         ok(/return Boolean\(await writeWorld\(/.test(fnSource(world, "sealRoom")),
             "sealRoom says it sealed whether or not it wrote");
         const handover = stripComments(sources.get("handover.mjs") ?? "");
-        ok(/isEclipse\(\)/.test(bodyOf(handover, "async function verify(", { until: "\n}\n" })), "a handover is not refused during an Eclipse on the GM's side");
+        // Since E14 part 1 C1 the Eclipse is the one gate's (inventory.mjs `transferRefusal`), which `verify` asks.
+        const inventory = stripComments(sources.get("inventory.mjs") ?? "");
+        ok(/transferRefusal\(from, to, \{ mode: "give" \}\)/.test(bodyOf(handover, "async function verify(", { until: "\n}\n" }))
+            && /if \(isEclipse\(\)\) return /.test(bodyOf(inventory, "export async function transferRefusal(", { until: "\n}\n" })),
+            "a handover is not refused during an Eclipse on the GM's side");
         const give = bodyOf(handover, "export async function giveItem(", { until: "\n}\n" });
         ok(give.indexOf("isStashed(held)") >= 0 && give.indexOf("isStashed(held)") < give.indexOf("BEDROOM_KEY_FLAG"),
             "a key lying in a stash can still be handed over");
@@ -5664,6 +5668,8 @@ const REGRESSIONS = [
             stealFromPerson: "refused", stealFromVault: "refused",
             // E35 fix e1-G2 (the review's SEC-2): the one road an item changes owner by, whose `{ refused }` give and loot pass on.
             transferItem: "refused",
+            // E14 part 1 C1: the one gate of every move (inventory.mjs), which verify, lootBody and the Palm's roads ask too.
+            transferRefusal: "returns",
             // E80 C2: an unseen Frisk, judged on the primary (frisk.mjs), whose run passes its `{ refused }` on.
             friskPerson: "refused",
             // E33 C10: a Monocub's ability by key, the row, the Monocub and the choice (guardCubAbility asks it).
@@ -8729,6 +8735,10 @@ const REGRESSIONS = [
             ["NOTDONE gm-bridge.mjs#requestFriskAsk", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E80 part 2 C3)"],
             ["NOTDONE gm-bridge.mjs#requestFriskAnswer", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E80 part 2 C3)"],
             ["NOTDONE gm-bridge.mjs#requestFriskFollow", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E80 part 2 C3)"],
+            ["NOTDONE gm-bridge.mjs#requestShareBullet", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E14 part 1 C1)"],
+            ["NOTDONE gm-bridge.mjs#requestGiveItem", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E14 part 1 C1)"],
+            ["NOTDONE gm-bridge.mjs#requestSteal", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E14 part 1 C1)"],
+            ["NOTDONE gm-bridge.mjs#requestPlant", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E14 part 1 C1)"],
             ["NOTDONE gm-bridge.mjs#requestPassageShare", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E79 C7)"],
             ["NOTDONE gm-bridge.mjs#requestPassageCross", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter, or here from the waiter's quiet result where the drag's road hushes `cannotNow`, H81 fix C3); kept as a notDone entry: read, these words and no others (R297; E80 C2)"],
             ["NOTDONE gm-bridge.mjs#requestPassageFind", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E80 C3)"],
