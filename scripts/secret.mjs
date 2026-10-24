@@ -346,10 +346,25 @@ function playerWords(html) {
  * else by name, and the two are one card. The card carries both, each marked with the
  * users it is for (`youOrThem`), and every copy of its words is cut for its reader before
  * it leaves: sent over the socket, kept by the poster, rewritten by `updateSecret`. No
- * browser holds the line that was not written for it, and a line that is kept keeps no
- * marker - the words a reader holds name no user.
+ * player's browser holds the line that was not written for it, and a line a player keeps
+ * keeps no marker - the words a player holds name no user.
+ *
+ * A GM'S BROWSER KEEPS THE UNCUT WORDS BESIDE ITS OWN (E18 fix e1-G6, 24.10.2026; the end review's E18-END-6 and F5,
+ * STATUS's C4 gap 1). A reader who was away is given a card's words by a GM when they return (`answerWordsRequest`),
+ * and the GM held only its own copy, the "them" line: the player whose Health it was read "Kaito loses 1 Health."
+ * where "You lose 1 Health." was written for them, and a "you" line with no twin not at all. A GM keeps the words
+ * with their markers too (`lines`, in its own store, beside `html`, which it draws) - from its own post and rewrite,
+ * and from another GM's packet, which carries them to GMs alone (`sendWords`) - and cuts them for each returning
+ * reader. A GM may read every line of a card; what a GM keeps is in that GM's browser alone. Tier 2's "a returning
+ * reader is given the line written for them" reads it.
  */
 const YOU = "data-drpg-you", NOT_YOU = "data-drpg-not-you";
+
+/** Do these words carry a line for some readers and another for the rest (`youOrThem`)? */
+function hasLines(html) {
+    const text = String(html ?? "");
+    return text.includes(YOU) || text.includes(NOT_YOU);
+}
 
 /**
  * One line for the users in `userIds` and another for everyone else, as a card's words
@@ -425,13 +440,22 @@ export function wordsFor(userId, html) {
  */
 function sendWords(readers, packet, { clean = false } = {}) {
     const html = String(packet.html ?? "");
+    // A GM's copy also carries the uncut words, for the readers who were away (`lines`, above); a player's never does.
+    const lines = game.user?.isGM && hasLines(html) ? (clean ? cleanCardHtml(html) : html) : null;
     const byWords = new Map();
     for (const id of readers) {
         const words = clean ? cleanCardHtml(wordsFor(id, html)) : wordsFor(id, html);
-        byWords.set(words, [...(byWords.get(words) ?? []), id]);
+        const gm = Boolean(lines) && Boolean(game.users.get(id ?? "")?.isGM);
+        const key = `${gm ? "gm" : "player"}\u0000${words}`;
+        const group = byWords.get(key) ?? { words, gm, recipients: [] };
+        group.recipients.push(id);
+        byWords.set(key, group);
     }
-    for (const [words, recipients] of byWords) {
-        game.socket.emit(SOCKET_EVENT, words === html ? packet : { ...packet, html: words }, { recipients });
+    for (const { words, gm, recipients } of byWords.values()) {
+        const sent = words === html ? { ...packet } : { ...packet, html: words };
+        delete sent.lines;
+        if (gm) sent.lines = lines;
+        game.socket.emit(SOCKET_EVENT, sent, { recipients });
     }
 }
 
@@ -664,8 +688,10 @@ export function contentOf(message) {
  * @param {boolean} [trusted]  Written by a GM, as the GM wrote it. Anything else
  *   is cleaned before it is shown - see the note above `MAX_PLAYER_BYTES`.
  */
-async function remember(id, html, at, pin = false, trusted = false, summary = undefined, meta = undefined, readers = undefined) {
+async function remember(id, html, at, pin = false, trusted = false, summary = undefined, meta = undefined, readers = undefined, lines = undefined) {
     const words = trusted ? html : cleanCardHtml(html);
+    // A GM's uncut words, from a GM (above): kept with these words, and gone with words that carry none.
+    const uncut = trusted && game.user?.isGM && typeof lines === "string" && hasLines(lines) ? lines : null;
 
     cleaned.delete(id);
     unfilled.delete(id);
@@ -680,6 +706,7 @@ async function remember(id, html, at, pin = false, trusted = false, summary = un
         ...(facts ? { summary: facts } : {}),
         ...(kept ? { meta: kept } : {}),
         ...(held ? { readers: held } : {}),
+        ...(uncut ? { lines: uncut } : {}),
         // Which world the card is in: the store is a CLIENT setting, one per
         // browser for every world it opens, and `pruneOrphans` must only ever
         // judge this world's cards against this world's chat log.
@@ -855,7 +882,9 @@ export function answerWordsRequest(payload, senderId) {
         const readers = Array.isArray(entry.readers) ? entry.readers : (writtenByGm(message) ? readersOf(message, { quiet: true }) : []);
         if (!readers.includes(sender.id)) continue;
         // The asker keeps a GM's answer as a GM's words, as written: words this browser did not write are cleaned first.
-        const words = entry.trusted ? entry.html : cleanCardHtml(entry.html);
+        // Cut from the uncut words where this GM keeps them, so the asker reads the line written for them (`lines`, above).
+        const source = typeof entry.lines === "string" ? entry.lines : entry.html;
+        const words = entry.trusted ? source : cleanCardHtml(source);
         game.socket.emit(SOCKET_EVENT, {
             action: ACTION_SECRET, id, html: wordsFor(sender.id, words), at: entry.at ?? message.timestamp ?? Date.now(),
             pin: Boolean(entry.pin), requested: true,
@@ -1061,7 +1090,7 @@ async function post(data, { clean = false } = {}) {
         const own = wordsFor(game.user.id, html);
         // A GM keeps who the card is for beside its words, to give them again to a reader who was away (E18 C4).
         await remember(message.id, clean ? cleanCardHtml(own) : own, at, pin, game.user.isGM, summary, meta,
-            game.user.isGM ? recipients : undefined);
+            game.user.isGM ? recipients : undefined, game.user.isGM ? (clean ? cleanCardHtml(html) : html) : undefined);
         refresh(message);
     }
 
@@ -1172,7 +1201,8 @@ export async function updateSecret(message, html, recipients = null, meta = unde
         /* A GM keeps the readers its own code named, or a GM-written card's; a player's card's whisper list is its
            author's to widen, so its readers stay those held when its words first came (E18 C4). */
         const keep = game.user.isGM && (recipients || writtenByGm(message)) ? readers : undefined;
-        await remember(message.id, wordsFor(game.user.id, html), at, pin, game.user.isGM, undefined, more, keep);
+        await remember(message.id, wordsFor(game.user.id, html), at, pin, game.user.isGM, undefined, more, keep,
+            game.user.isGM ? html : undefined);
         refresh(message);
     }
     const others = readers.filter(id => id !== game.user.id);
@@ -1320,7 +1350,8 @@ export async function onSecretPacket(payload, senderId) {
         if (payload.requested === true && secretHtml(arrived) !== null) return;
         const readers = game.user.isGM && writtenByGm(arrived) ? readersOf(arrived, { quiet: true }) : undefined;
         await remember(payload.id, payload.html, payload.at, Boolean(payload.pin), true,
-            payload.summary === undefined ? undefined : plainSummary(payload.summary), payload.meta, readers);
+            payload.summary === undefined ? undefined : plainSummary(payload.summary), payload.meta, readers,
+            typeof payload.lines === "string" ? payload.lines : undefined);
         // Words asked for after a return are mostly an old card's, which the log may not draw (`redrawIfDrawn`).
         if (payload.requested === true) redrawIfDrawn(game.messages.get(payload.id));
         else refresh(game.messages.get(payload.id));

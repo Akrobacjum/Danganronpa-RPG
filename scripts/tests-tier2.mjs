@@ -28442,6 +28442,66 @@ const SCENARIOS = [
             + "an action whose GM left during the roll kept its price, took a search token, posted, or was not told once");
     }],
 
+    ["a returning reader is given the line written for them: a GM keeps a card's uncut words beside its own and cuts them for each asker, at its post and at its rewrite (E18 fix e1-G6)", async () => {
+        /*
+         * E18 fix e1-G6, 24.10.2026; the end review's E18-END-6 and F5 (STATUS's C4 gap 1). A GM gave a returning reader
+         * a card's words from its own copy, cut for the GM (`wordsFor`): a `youOrThem` line read in the third person to
+         * the player it was written for, and a "you" line with no twin was missing. Driven on this GM: a card to two
+         * players and this GM, with a line for the first player and another for the rest, then the same card rewritten
+         * (`updateSecret`) with new lines; after each, the asks of both players handed to the answer as Foundry names
+         * their sender (`answerWordsRequest`), every `secret.card` this browser sends kept here and dropped. Read per
+         * step: the words this GM draws (the "them" line alone), and per asker the line their answer holds and whether
+         * it holds a marker. The card is deleted and the store put back.
+         */
+        needs(world.atLeast("playerAccounts", 2), "a player the line is written for and one it is not");
+        must(game.user.isGM, "this client is not a GM, which holds the words - this would measure nothing");
+        const S = await import("./secret.mjs");
+        const [you, them] = game.users.filter(u => !u.isGM);
+        const was = foundry.utils.deepClone(getSetting(SETTINGS.secretCards) ?? {});
+        const stored = clientStored();
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        const out = [];
+        socket.emit = function (event, packet, options, ...rest) {
+            if (packet?.action === "secret.card") {
+                out.push(String(packet.html ?? ""));
+                return true;
+            }
+            return send.call(this, event, packet, options, ...rest);
+        };
+        const lineOf = html => ["E18G6 you", "E18G6 them", "E18G6 you again", "E18G6 them again"]
+            .filter(words => html.includes(`<b>${words}</b>`)).join("+") || null;
+        const marked = html => html.includes("data-drpg-you") || html.includes("data-drpg-not-you");
+        const ask = (card, from) => {
+            out.length = 0;
+            S.answerWordsRequest({ action: "secret.request", ids: [card.id] }, from.id);
+            return out.map(html => [lineOf(html), marked(html)]);
+        };
+        const words = (y, t) => `<p>${S.youOrThem([you.id], { you: `<b>${y}</b>`, them: `<b>${t}</b>` })}</p>`;
+        const popups = new Set(document.querySelectorAll(".drpg-popup"));
+        let card = null;
+        const read = [];
+        try {
+            card = await S.postSecret({ content: words("E18G6 you", "E18G6 them"), whisper: [you.id, them.id, game.user.id] });
+            must(card, "the card was not posted - this would measure nothing");
+            read.push([lineOf(S.contentOf(card)), ask(card, you), ask(card, them)]);
+            await S.updateSecret(card, words("E18G6 you again", "E18G6 them again"));
+            await settle();
+            read.push([lineOf(S.contentOf(game.messages.get(card.id))), ask(card, you), ask(card, them)]);
+        } finally {
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            for (const node of [...document.querySelectorAll(".drpg-popup")].filter(node => !popups.has(node))) node.dispatchEvent(new CustomEvent("drpg-dismiss"));
+            await card?.delete().catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.secretCards, was);
+            S.forgetSecrets();
+            putBackStored(stored);
+            await settle();
+        }
+        equal(stableJson(read), stableJson([
+            ["E18G6 them", [["E18G6 you", false]], [["E18G6 them", false]]],
+            ["E18G6 them again", [["E18G6 you again", false]], [["E18G6 them again", false]]]
+        ]), "per step (posted, rewritten): [the line this GM draws, [the first player's answer: its line, a marker in it], [the other player's: the same]] - a returning reader was given another reader's line, or a marker naming users");
+    }],
+
     ["a resent ask finds the card a GM posted for it by its mark and no other: one card for one ask, a player's card, a card posted at a player's asking or another player's mark stop nothing, and a ruled card refuses (E18 C2)", async () => {
         /*
          * E18 C2, 19.10.2026; audit S10-24 (E18-08). The primary knew which asks it had put on a card only in memory
