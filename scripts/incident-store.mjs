@@ -83,7 +83,7 @@ import { SETTINGS, incidentCast, incidentIndirect, incidentSeats, seasonEpoch, i
 import { castStore, blackenedStore, castCopy, deathStore, deathCopy, CAST_FIELDS, CAST_SEATS, INCIDENT_METHOD, INCIDENT_FIGHT } from "./gm-stores.mjs";
 import { RECORD, onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible, gmStoreStamp, stableJson } from "./gm-store.mjs";
 import { getClock } from "./clock.mjs";
-import { ownerOf, isPrimaryGm, primaryGmId, log, warn, error, debug } from "./utils.mjs";
+import { ownerOf, ownerIdsOf, isPrimaryGm, primaryGmId, log, warn, error, debug } from "./utils.mjs";
 
 /* ==========================================================================
  * STATE
@@ -389,10 +389,10 @@ export function incidentAudienceIds(state = murderState(), { stage = state?.stag
         ...(betrayal ? [state?.betrayal?.thirdId] : []),
         ...also.map(a => (typeof a === "string" ? a : a?.id))
     ];
+    // Every player who owns a seat's character (`ownerIdsOf`, E18 fix e1-G7), not the first owner alone.
     const out = new Set();
     for (const id of ids) {
-        const owner = ownerOf(game.actors.get(id ?? ""));
-        if (owner && !owner.isGM) out.add(owner.id);
+        for (const userId of ownerIdsOf(game.actors.get(id ?? ""))) out.add(userId);
     }
     return [...out];
 }

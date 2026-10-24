@@ -49,7 +49,7 @@
 import { MODULE_ID, FLAGS, TIMING } from "./config.mjs";
 import { SETTINGS, getSetting, isDeadForGm, incidentSeats } from "./settings.mjs";
 import { locateActor, occupantsOf } from "./movement.mjs";
-import { gmIds, ownerOf, error, warn, debug, isPrimaryGm, MESSAGE_FLAG } from "./utils.mjs";
+import { gmIds, ownerIdsOf, error, warn, debug, isPrimaryGm, MESSAGE_FLAG } from "./utils.mjs";
 import { judge, table, pick, as, knownSender, owns, gmOnly, guardRollAuthor, guardDrawnRoll, guardDrawnCosts, bridgeRequest } from "./bridge-guards.mjs";
 import { play, ENTER, ARRIVE } from "./motion.mjs";
 // Who is in the incident, read on the primary GM for the incident's dice (E06 C6). Static
@@ -578,14 +578,13 @@ function subjectActor(message, author) {
  * scene the actor stands on (E12 fix r1-G4, 11.10.2026; review round 1 EARLY-C6-1).
  * `occupantsOf` counted the canvas's tokens, so a Monocub's roll went to whoever stood
  * in a room of that name on the map the posting browser had on screen. Exported for the suite.
+ * Every player who owns one of them (`ownerIdsOf`, E18 fix e1-G7), not the first owner alone.
  */
 export function sameRoomAudience(actor) {
     try {
         const place = locateActor(actor);
         if (!place?.room) return [];
-        return occupantsOf(place.room, actor, place.scene)
-            .map(other => ownerOf(other)?.id)
-            .filter(Boolean);
+        return [...new Set(occupantsOf(place.room, actor, place.scene).flatMap(other => ownerIdsOf(other)))];
     } catch {
         return [];
     }
@@ -1047,12 +1046,12 @@ function whisperRoll(message, data, options, userId, claimed) {
         for (const id of sameRoomAudience(subject)) recipients.push(id);
     }
 
-    // The subject's own player, whoever authored the message. Skipped for a
-    // Monokuma: their "owner" is a GM already, and a Monokuma actor handed
+    // The subject's own players, whoever authored the message - every player who
+    // owns the subject (`ownerIdsOf`, E18 fix e1-G7), not the first one alone. Skipped
+    // for a Monokuma: their "owner" is a GM already, and a Monokuma actor handed
     // to a player must not turn Monokuma's dice public.
     if (!isMonokuma) {
-        const owner = ownerOf(subject);
-        if (owner) recipients.push(owner.id);
+        for (const id of ownerIdsOf(subject)) recipients.push(id);
     }
 
     // The author sees their own dice - EXCEPT when they are a GM rolling
@@ -1098,8 +1097,7 @@ export function oldRollReaders(message) {
     if (subject?.getFlag(MODULE_ID, FLAGS.monocub)) return null;
     const readers = new Set(gmIds());
     if (!subject?.getFlag(MODULE_ID, FLAGS.monokuma)) {
-        const owner = ownerOf(subject);
-        if (owner) readers.add(owner.id);
+        for (const id of ownerIdsOf(subject)) readers.add(id);
     }
     if (author?.id && !author.isGM) readers.add(author.id);
     return readers;

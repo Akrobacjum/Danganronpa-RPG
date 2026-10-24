@@ -28502,6 +28502,69 @@ const SCENARIOS = [
         ]), "per step (posted, rewritten): [the line this GM draws, [the first player's answer: its line, a marker in it], [the other player's: the same]] - a returning reader was given another reader's line, or a marker naming users");
     }],
 
+    ["a co-owner's question lands in the co-owner's thread, and a co-owner is among a student's roll's readers and the incident's audience (E18 fix e1-G7)", async () => {
+        /*
+         * E18 fix e1-G7, 24.10.2026; the end review's E18-END-4 and F6 (STATUS's C5 gaps 1 and 2). A card about a student
+         * went to its first owner's thread (`ownerOf`) whoever had asked, and the reader lists of the student's private
+         * rolls, its room and an incident named that one owner. A student with a player is given a second owner for the
+         * test (ownership put back after); the owner `ownerOf` does not name asks a Dynamic action's difficulty, the
+         * packet handed to the bridge's runner as Foundry names its sender, and its expiry after. Read: the thread the
+         * card went to (asker or not), and whether both owners are among an old roll's readers (private-rolls.mjs
+         * `oldRollReaders`, whisperRoll's rule) and an incident's audience for that student (`incidentAudienceIds`).
+         */
+        needs(world.atLeast("playerAccounts", 2), "a second player to share the student");
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student with a player");
+        const { isPrimaryGm, ownerOf, forcedDeletion } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which posts the card - this would measure nothing");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { cardFlag } = await import("./secret.mjs");
+        const { oldRollReaders } = await import("./private-rolls.mjs");
+        const { incidentAudienceIds } = await import("./incident-store.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const student = livingStudents().find(a => ownerOf(a)?.active);
+        must(student, "no living student has a connected player - this would measure nothing");
+        const first = ownerOf(student);
+        const second = game.users.find(u => !u.isGM && u.id !== first.id && u.active);
+        must(second, "no second connected player - this would measure nothing");
+        const ownership = foundry.utils.deepClone(student.ownership ?? {});
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const socket = game.socket, own = Object.getOwnPropertyDescriptor(socket, "emit"), send = socket.emit;
+        const rid = `E18G7${foundry.utils.randomID(10)}`;
+        socket.emit = function (event, packet, options, ...rest) {
+            if (packet?.requestId === rid || packet?.rid === rid) return undefined;
+            return send.call(this, event, packet, options, ...rest);
+        };
+        const read = [];
+        let granted = false;
+        try {
+            await student.update({ [`ownership.${second.id}`]: CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER });
+            granted = true;
+            await settle();
+            const named = ownerOf(student);
+            const asker = [first, second].find(u => u.id !== named?.id);
+            await G.judge(BRIDGE_ACTIONS, { action: "dynamic.difficulty", requestId: rid, actorId: student.id,
+                description: "E18 G7 a question", actorName: student.name, room: null }, asker.id, { send: () => null });
+            await settle();
+            const card = game.messages.contents.find(m => !had.has(m.id) && cardFlag(m, "rid")?.id === rid);
+            must(card, "no card was posted for the question - this would measure nothing");
+            read.push(cardFlag(card, "thread") === asker.id);
+            await G.judge(BRIDGE_ACTIONS, { action: "ruling.expired", rid }, asker.id, { send: () => null });
+            await settle();
+            const readers = oldRollReaders({ author: game.user, user: game.user, speaker: { actor: student.id } }) ?? new Set();
+            const audience = incidentAudienceIds({}, { also: [student.id] });
+            read.push([first, second].map(u => readers.has(u.id)), [first, second].map(u => audience.includes(u.id)));
+        } finally {
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            for (const message of game.messages.contents.filter(m => !had.has(m.id))) await message.delete().catch(() => {});
+            if (granted) await student.update({ [`ownership.${second.id}`]: second.id in ownership ? ownership[second.id] : forcedDeletion() });
+            await (await import("./sheet-audit.mjs")).sheetAuditIdle();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([true, [true, true], [true, true]]),
+            "[the card went to the asker's thread], [each owner among an old roll's readers], [each owner in the incident's audience] - a co-owner's question went to the other owner's thread, or a co-owner was left off a reader list");
+    }],
+
     ["a resent ask finds the card a GM posted for it by its mark and no other: one card for one ask, a player's card, a card posted at a player's asking or another player's mark stop nothing, and a ruled card refuses (E18 C2)", async () => {
         /*
          * E18 C2, 19.10.2026; audit S10-24 (E18-08). The primary knew which asks it had put on a card only in memory

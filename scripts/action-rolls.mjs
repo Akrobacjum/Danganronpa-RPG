@@ -39,7 +39,7 @@ import { drawItem } from "./tables.mjs";
 import { roomOfActor, othersInRoom, locateActor, sceneOfActor } from "./movement.mjs";
 import { projectsAvailableIn, addProgress, isIndirectMurder, isSecret, scaleFor, projectsListedIn, buildsOwnMurder } from "./projects.mjs";
 import { callGm, promptAndCallGm } from "./gm-bridge.mjs";
-import { announce, resolveThreshold, whisperToOwner, dialogContent, forcedDeletion, isPrimaryGm, log, warn, error, plural, cardHead, esc, easedBy, gmIds, activeGmIds, ownerOf, MESSAGE_FLAG } from "./utils.mjs";
+import { announce, resolveThreshold, whisperToOwner, dialogContent, forcedDeletion, isPrimaryGm, log, warn, error, plural, cardHead, esc, easedBy, gmIds, activeGmIds, ownerIdsOf, MESSAGE_FLAG } from "./utils.mjs";
 // Static, and safe to be: nothing private-rolls.mjs imports leads back here.
 import { supersedingRoll, reportRollSubject, isClaimedRoll, ROLL_NONCE } from "./private-rolls.mjs";
 import { rerollBookmarkStore } from "./gm-stores.mjs";
@@ -4473,13 +4473,12 @@ async function chooseStolenItem(victim, pool) {
  * Who hears what happened in a room: the GMs, the actor's own player, and the
  * players of everyone standing in the same room. "You hear only your room"
  * is the module's rule for voice and dice; a sabotage caught in the act is a
- * scene in one room too (D6).
+ * scene in one room too (D6). Every player who owns one of them (`ownerIdsOf`, E18 fix e1-G7).
  */
 function roomAudience(actor) {
     const ids = new Set(gmIds());
     for (const a of [actor, ...othersInRoom(actor)]) {
-        const owner = ownerOf(a);
-        if (owner) ids.add(owner.id);
+        for (const id of ownerIdsOf(a)) ids.add(id);
     }
     return [...ids];
 }

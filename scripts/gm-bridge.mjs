@@ -3108,7 +3108,8 @@ async function askHopeCallByCard(payload, ctx) {
         ],
         onPosted,
         rid: askMark(ctx, "call", held),
-        expires
+        expires,
+        thread: ctx.asker
     });
     // A card that could not be posted is a ruling nobody can give: said now,
     // rather than after the player's clock (map-gmSide 3, E31).
@@ -3137,7 +3138,8 @@ async function askDynamicByCard(payload, ctx) {
         ],
         onPosted,
         rid: askMark(ctx, "dynamic", held),
-        expires
+        expires,
+        thread: ctx.asker
     });
     return posted === false ? { refused: "the ruling card could not be posted" } : { later: true };
 }
@@ -3181,7 +3183,8 @@ async function askTraitByCard(payload, ctx) {
         veiled: true,
         onPosted,
         rid: askMark(ctx, "trait", held),
-        expires
+        expires,
+        thread: ctx.asker
     });
     return posted === false ? { refused: "the ruling card could not be posted" } : { later: true };
 }
@@ -3251,7 +3254,8 @@ export async function askObserveByCard({ actor, room, request = "", userId = nul
         ],
         onPosted,
         rid: askMark(ctx, "observe", held),
-        expires
+        expires,
+        thread: ctx.asker
     });
     if (posted !== false) return { later: true };
     observeAsks.delete(ctx.requestId);
@@ -4172,7 +4176,12 @@ export async function callGm(actor, {
      */
     rid = null,
     /** When the ask's clock runs out, on the server's clock (`serverNow`): shown on the card, and the card ends then. */
-    expires = null
+    expires = null,
+    /**
+     * The user whose thread the card goes to, when that user is a player who owns the character (E18 fix e1-G7): the
+     * asker of a question the primary holds for them. Otherwise the character's first owner's (`ownerOf`).
+     */
+    thread = null
 } = {}) {
     /*
      * NO GM, NO CARD (E18 C0, 19.10.2026; audit S10-26). With no GM connected this posted
@@ -4187,7 +4196,7 @@ export async function callGm(actor, {
         return false;
     }
     const content = callCardHtml(actor, { title, body, roll, request, room, gmBody, actions, expires });
-    const owner = gmOnly ? null : ownerOf(actor);
+    const owner = gmOnly ? null : threadOf(actor, thread);
 
     if (!owner) {
         /*
@@ -4240,6 +4249,21 @@ export async function callGm(actor, {
         error("Could not reach the GM", err);
         return false;
     }
+}
+
+/*
+ * A QUESTION GOES TO THE THREAD OF THE PLAYER WHO ASKED IT (E18 fix e1-G7, 24.10.2026; the end review's E18-END-4 and
+ * F6, STATUS's C5 gap 2). A card lives in one player's messenger thread, and `callGm` put every card about a character
+ * in its first owner's (`ownerOf`): when two players own Aiko and the second buys her Experience, the card - its "Open
+ * until", its ruling - went to the first, who had asked nothing, and the asker had none. A question the primary holds
+ * for its asker (a Call, a Dynamic action, a statistic, an Observe's gaze) names that asker (`thread`), and the card goes
+ * to the asker's thread when the asker owns the character. Tier 2's "a co-owner's question lands in the co-owner's
+ * thread" reads it.
+ */
+function threadOf(actor, userId) {
+    const user = userId ? game.users.get(userId) : null;
+    if (user && !user.isGM && actor?.testUserPermission?.(user, "OWNER")) return user;
+    return ownerOf(actor);
 }
 
 /* ==========================================================================
