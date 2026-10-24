@@ -21689,7 +21689,7 @@ const INVARIANTS = [
         equal(stableJson([door(stashing) === keyText, V.mayEnterBedroom(stashing, BEDROOM, scene)]), stableJson([true, false]),
             "a key in a stash opened its bedroom: [the door refuses with the key's words, game.drpg keeps the holder out]");
     }, expectedRed("E14", "S08-31: a stashed key still opens its bedroom (movement.mjs bedroomShut, vault.mjs keysHeldBy count it); E14 part 1 filters it", { failing: "a key in a stash opened its bedroom" })],
-    ["R951 - an item that changes owner goes one road, on a GM: inventory.mjs `transferItem` opens with a GM's gate and answers null on a player's browser, refuses a mode TRANSFER_POLICY does not name, chains each giver's transfers, reads the item and the taker's hands as the GMs hold them, and writes only through `grantItem`, `trustedWrite` and `trustedDelete`, each naming \"gmRuling\"; TRANSFER_POLICY is frozen, a give and a Plant refused into full hands and a loot, a rifle and a steal sent to the stash (D42); every mode has its line to the GMs; and handover.mjs `giveItem` hands its move to it, with no pair of its own (E35-T1)", async () => {
+    ["R951 - an item that changes owner goes one road, on a GM: inventory.mjs `transferItem` opens with a GM's gate and answers null on a player's browser, refuses a mode TRANSFER_POLICY does not name, chains each transfer on both sheets, reads the item and the taker's hands as the GMs hold them, and writes only through `grantItem`, `trustedWrite` and `trustedDelete`, each naming \"gmRuling\"; TRANSFER_POLICY is frozen, a give and a Plant refused into full hands and a loot, a rifle and a steal sent to the stash (D42); every mode has its line to the GMs; and handover.mjs `giveItem` hands its move to it, with no pair of its own (E35-T1)", async () => {
         /*
          * E35 C1, 24.10.2026; audit S17-16, E35-04, E35-08 (the table), E35-22's half. At f2cfc2d the move was written
          * five times, a bare `delete()` each (handover.mjs `giveItem`, `lootBody`; vault.mjs `stealFromVault`,
@@ -21723,12 +21723,16 @@ const INVARIANTS = [
         const sources = new Map(await moduleSources());
         const fn = fnSource(stripComments(sources.get("inventory.mjs") ?? ""), "transferItem");
         ok(/^export async function transferItem\([^)]*\)\s*\{\s*if \(!game\.user\.isGM\) return null;/.test(fn), "transferItem does not open with a GM's gate (R220's rule b)");
-        ok(/serialWrite\(`transfer\/\$\{from\.id\}`/.test(fn), "a second transfer from the same sheet does not wait for the first");
-        ok(/await judgedFor\(from\.id, to\.id\)/.test(fn) && /itemAsHeld\(from, id\)/.test(fn) && /actorAsHeld\(to\)/.test(fn) && /held\.system\?\.quantity/.test(fn),
-            "transferItem does not read the item, its count and the taker's hands as the GMs hold them");
-        const roads = [...fn.matchAll(/\b(grantItem|trustedWrite|trustedDelete)\s*\(/g)].map(m => m[1]).sort();
-        equal(stableJson(roads), stableJson(["grantItem", "trustedDelete", "trustedWrite"]), "transferItem writes by another road, or by one of them twice");
-        equal(stableJson([...fn.matchAll(/\breason\s*:\s*"([^"]*)"/g)].map(m => m[1])), stableJson(["gmRuling", "gmRuling", "gmRuling"]),
+        // Both sheets' chains, in one order (E35 fix e1-G1, the review's E35-R5): a transfer into a sheet waits too.
+        ok(/const \[first, second\] = \[from\.id, to\.id\]\.sort\(\);/.test(fn) && /serialWrite\(`transfer\/\$\{first\}`, \(\) => serialWrite\(`transfer\/\$\{second\}`/.test(fn),
+            "a second transfer from the same sheet, or into it, does not wait for the first");
+        // The count written off the giver is read again after the copy (E35 fix e1-G1, the review's SEC-1): `now`, not the first read.
+        ok(/await judgedFor\(from\.id, to\.id\)/.test(fn) && /itemAsHeld\(from, id\)/.test(fn) && /actorAsHeld\(to\)/.test(fn) && /piecesOf\(held\)/.test(fn)
+            && /const now = await itemAsHeld\(from, id\);[^]*?const count = piecesOf\(now\);[^]*?"system\.quantity": count - 1/.test(fn),
+            "transferItem does not read the item, its count and the taker's hands as the GMs hold them, or writes the giver's count off its first read");
+        const roads = [...fn.matchAll(/\b(grantItem|trustedWrite|trustedDelete)\s*\(/g)].map(m => m[1]);
+        equal(stableJson([...new Set(roads)].sort()), stableJson(["grantItem", "trustedDelete", "trustedWrite"]), "transferItem writes by another road");
+        equal(stableJson([...fn.matchAll(/\breason\s*:\s*"([^"]*)"/g)].map(m => m[1])), stableJson(roads.map(() => "gmRuling")),
             "a write of transferItem names a reason other than \"gmRuling\", or none");
         ok(!/\.\s*(?:delete|update|setFlag|unsetFlag|createEmbeddedDocuments|deleteEmbeddedDocuments|updateEmbeddedDocuments)\s*\(/.test(fn),
             "transferItem writes a document past the trusted roads");

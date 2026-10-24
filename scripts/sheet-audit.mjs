@@ -706,8 +706,9 @@ export async function armedCallsHeld(actor) {
 
 /*
  * A STUDENT'S ITEMS AS THE GMS HOLD THEM (E29 fix r2-H17, 06.10.2026; found by fix r2-H16). A GM's road that makes
- * a copy of a student's item on another sheet - handover.mjs `giveItem` and `lootBody`, vault.mjs `stealFromVault`,
- * `stealFromPerson` and `plantOnPerson` - reads the item here: once every write queued on the student has been
+ * a copy of a student's item on another sheet - since E35 one road, inventory.mjs `transferItem`, which handover.mjs
+ * `giveItem` and `lootBody`, vault.mjs `stealFromVault`, `stealFromPerson` and `plantOnPerson` call after reading
+ * here for their own gates - reads the item here: once every write queued on the student has been
  * judged (`judgedFor`), the fields this file judges (`ITEM_JUDGED`, a class's hit points) as the mark holds them,
  * whether their put-back landed or failed, as `armedCallsHeld` reads a Call; every other field as the document
  * holds it, and every field where the GMs keep no mark of their own here - on a GM who is not the primary (its copy
@@ -715,11 +716,16 @@ export async function armedCallsHeld(actor) {
  * read without a category or a key (`ITEM_UNHELD`), as its judgement reads one (`itemFindings`' `before`): the GMs
  * hold no module item there.
  * Each item is plain data read as an item is read (`itemLike`, with its `img`), taken in one step as the wait ends;
- * a write heard after it is judged on its own and moves nothing read here. A wait alone is enough for these roads,
- * unlike a GM's write of a student's means (`gmMeansWrite`): none writes a field of the item a put-back writes - each
- * makes a new item elsewhere and deletes this one, whose put-back then finds nothing to write (fix r2-H16) - and, by
- * reading, no judgement waits for anything they do (an item used waits for its consumption, a Call taken for a roll's
- * card, a Search's find for its roll's record), so the wait holds up nothing that holds it up. Until this fix the
+ * a write heard after it is judged on its own and moves nothing read here. Where the item moves whole a wait alone is
+ * enough, unlike a GM's write of a student's means (`gmMeansWrite`): the copy is made elsewhere and this one
+ * deleted, whose put-back then finds nothing to write (fix r2-H16). NOT FOR A STACK (E35 fix e1-G1; the
+ * review's E35-END-2): since E35 C1 one piece of a stack moves, and `transferItem` writes the giver's count, the
+ * first field of ITEM_JUDGED - so it reads the item here again after the copy, the wait judging every write heard
+ * until then, and writes that count less one. A write of the count heard after that read and before the GM's write
+ * lands is judged after it, against a mark that may not yet hold the GM's write; a raise's put-back would then write
+ * the old count over it. Not measured: no test lands a write in that window (one write's round trip). And, by
+ * reading, no judgement waits for anything these roads do (an item used waits for its consumption, a Call taken for
+ * a roll's card, a Search's find for its roll's record), so the wait holds up nothing that holds it up. Until this fix the
  * roads read the document as it stood: at ebdf1ba (e29run/r2h17red, 06.10.2026) a Tool given roles and tier 3 where
  * the mark did not see them (the mark: no roles, tier 1) was copied with both by a hand-over, a loot, a plant and
  * both thefts, and in scenario 30 a hand-over and a plant p2 asked for at once after writing a Tool's roles, or its
@@ -818,8 +824,8 @@ export function flagsHeldNow(actor) {
  * readers stay synchronous, and the player's browser's own reads stay on its document (its sheet and its quotes: the
  * GM decides). Nothing is written through it - a road writes to the documents. The roads: the crisis on the GM
  * (murder-rules.mjs `applyCrisisAction`), a tool's relief on a project's roll (action-rolls.mjs `reliefHeld`), and the
- * receiver's hands on the copy roads (handover.mjs `giveItem`, `lootBody`; vault.mjs `stealFromVault`,
- * `stealFromPerson`, `plantOnPerson`). The wait is `itemsAsHeld`'s, and on these roads, as on H17's, it holds up
+ * receiver's hands on the one road an item changes owner by since E35 C1-C3, inventory.mjs `transferItem` (its
+ * callers: handover.mjs `giveItem`, `lootBody`; vault.mjs `stealFromVault`, `stealFromPerson`, `plantOnPerson`). The wait is `itemsAsHeld`'s, and on these roads, as on H17's, it holds up
  * nothing that holds it up, by reading: a crisis action, a project's packet and a copy each come after the roll and
  * the use they follow, and none writes what a judgement waits for (a use's consumption, a roll's card).
  * And since fix r2-H20, each saying the same of its own wait: a clean-up's and Stage 6's gloves (cleanup.mjs

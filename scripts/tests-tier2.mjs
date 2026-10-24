@@ -61387,7 +61387,7 @@ const SCENARIOS = [
             "a loot did not carry what the GMs hold of the item, did not move one piece of the body's stack, or raised a row of the GMs' audit (the Tool's copy's [category, tier, broken, wear, roles, kind, identity]; [the body holds the Tool, the kits it keeps]; the kits that arrived; the rows)");
     }],
 
-    ["a hand-over of a stack moves one piece: three leave two by one write of the count, then one, then the last piece moves whole; a count raised where the GMs do not see it, or put back, moves as they hold it; two asks for one piece move it once (E35-T3)", async () => {
+    ["a hand-over of a stack moves one piece: three leave two by one write of the count, then one, then the last piece moves whole; a count raised where the GMs do not see it, or put back, moves as they hold it; two asks for one piece move it once; a use landing while the copy is made is counted, a piece broken on the way does not move, and pieces pile on one document of the taker's (E35-T3)", async () => {
         /*
          * E35 C1, 24.10.2026; audit S08-37, E35-06, E35-07, E35-25's headless half. The harm: a stack handed over
          * arrived as one piece and the giver's whole stack was deleted - three bandages given, one received, two
@@ -61432,7 +61432,7 @@ const SCENARIOS = [
             await sheetAuditIdle();
             return item;
         };
-        const read = {};
+        const read = {}, stowedAway = [];
         Hooks.on("updateItem", onUpdate);
         Hooks.on("deleteItem", onDelete);
         try {
@@ -61465,17 +61465,84 @@ const SCENARIOS = [
             const one = await kit(1);
             await Promise.all([give(one.id), give(one.id)]);
             read.twice = [left(one), await arrived()];
+
+            // E35 fix e1-G1 (SEC-1): while the copy is being made - inside the taker's create, after the transfer read
+            // the giver's three - the giver's player uses a kit, a lowering to two the GMs judge and let stand.
+            const midway = async (before, run) => {
+                Object.defineProperty(taker, "createEmbeddedDocuments", { configurable: true, writable: true,
+                    value: async (...args) => { delete taker.createEmbeddedDocuments; await before(); return taker.createEmbeddedDocuments(...args); } });
+                try {
+                    return await run();
+                } finally {
+                    delete taker.createEmbeddedDocuments;
+                }
+            };
+            const lowered = await kit(3);
+            let used = null;
+            await midway(async () => {
+                await lowered.update({ [COUNT]: 2 }, { [AUDIT_ASIDE]: true });
+                used = (await judgeWrite("updateItem", lowered, foundry.utils.expandObject({ [COUNT]: 2 }), player.id, {}))?.verdict ?? null;
+                await sheetAuditIdle();
+            }, () => give(lowered.id));
+            read.lowered = [used, left(lowered), marked(lowered), await arrived()];
+
+            // And the last piece broken on the way (a use of the last kit breaks it): nothing moves, the GMs told.
+            const last = await kit(1);
+            const { contentOf } = await import("./secret.mjs");
+            const esc = foundry.utils.escapeHTML;
+            const changed = game.i18n.format("DRPG.Handover.changedMidway", { name: esc(NAME), from: esc(giver.name), to: esc(taker.name) });
+            const messages = [], hook = Hooks.on("createChatMessage", message => messages.push(message));
+            try {
+                await midway(async () => {
+                    await last.update({ [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.broken}`]: { at: Date.now() } });
+                    await sheetAuditIdle();
+                }, () => give(last.id));
+            } finally {
+                Hooks.off("createChatMessage", hook);
+            }
+            // The GM's own copy of a whisper keeps its words on this browser (secret.mjs `contentOf`), as E35-T5 reads it.
+            read.broke = [left(last), INV.isBroken(giver.items.get(last.id)), await arrived(),
+                messages.filter(m => (m.whisper ?? []).includes(game.user.id) && String(contentOf(m) ?? "").includes(changed)).length];
+
+            // E35 fix e1-G1 (E35-R3): the pieces arriving one at a time on a taker with one Usable hand free pile up
+            // on one document, as the three took one slot on the giver.
+            const FILL = "SUITE E35-T3 a full hand", place = `flags.${MODULE_ID}.${INV.ITEM_FLAGS.location}`;
+            const { ITEM_CATEGORIES } = await import("./config.mjs");
+            const ugroup = ITEM_CATEGORIES.usable?.limitGroup ?? null;
+            const uslot = i => { const c = i.getFlag(MODULE_ID, INV.ITEM_FLAGS.category); return c === "usable" || (ugroup !== null && ITEM_CATEGORIES[c]?.limitGroup === ugroup); };
+            for (const i of taker.items.filter(i => uslot(i) && !INV.isStashed(i) && i.name !== FILL)) {
+                stowedAway.push([i, i.getFlag(MODULE_ID, INV.ITEM_FLAGS.location)]);
+                await i.update({ [place]: INV.LOCATIONS.vault });
+            }
+            const { limit: ulimit } = INV.canCarry(taker, "usable");
+            must(Number.isInteger(ulimit) && ulimit > 1, `a Usable's hands have no limit above one (${ulimit}) - the pile would measure nothing`);
+            for (let n = 1; n < ulimit; n++) await INV.grantItem(taker, { name: FILL, category: "usable", tier: 1, goal: "healing", override: true, quiet: true });
+            await sheetAuditIdle();
+            must(INV.canCarry(taker, "usable").held === ulimit - 1, "the taker's Usable hands are not full but one - the pile would measure nothing");
+            const pile = await kit(3);
+            const piled = [];
+            for (let i = 0; i < 3; i++) {
+                await give(pile.id);
+                await settle();
+                await sheetAuditIdle();
+                const got = taker.items.filter(x => x.name === NAME);
+                piled.push([left(pile), got.length, got.reduce((sum, x) => sum + Number(x.system?.quantity ?? 0), 0)]);
+            }
+            read.piled = piled;
         } finally {
             Hooks.off("updateItem", onUpdate);
             Hooks.off("deleteItem", onDelete);
-            for (const a of [giver, taker]) for (const i of a.items.filter(i => i.name === NAME)) await i.delete();
+            delete taker.createEmbeddedDocuments;
+            for (const a of [giver, taker]) for (const i of a.items.filter(i => i.name === NAME || i.name === "SUITE E35-T3 a full hand")) await i.delete();
+            for (const [i, was] of stowedAway.reverse()) if (taker.items.has(i.id)) await i.update({ [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.location}`]: was ?? forcedDeletion() });
             if (back) await back();
             await fixture.back();
             await sheetAuditIdle();
         }
         equal(stableJson(read), stableJson({ stack: { steps: [[2, 1], [1, 1], [null, 1]], writes: 2, deletes: 1 }, aside: [null, 1],
-            judged: ["putBack", null, 1], twice: [null, 1] }),
-            "a stack handed over did not move one piece at a time, or a count moved as a console wrote it, or one piece asked for twice moved twice ([the giver's count, the pieces that arrived] per give; the count's writes and the deletes; the raise's verdict)");
+            judged: ["putBack", null, 1], twice: [null, 1], lowered: ["stands", 1, 1, 1], broke: [1, true, 0, 1],
+            piled: [[2, 1, 1], [1, 1, 2], [null, 1, 3]] }),
+            "a stack handed over did not move one piece at a time, or a count moved as a console wrote it, or one piece asked for twice moved twice, or a use landing while the copy was made was written over, or a piece broken on the way moved, or the pieces did not pile on one document of the taker's ([the giver's count, the pieces that arrived] per give; the count's writes and the deletes; the raise's verdict; [the use's verdict, the giver's count, the mark's, arrived]; [the giver's count, broken, arrived, the GMs' lines]; [the giver's count, the taker's documents, their pieces] per give)");
     }],
 
     ["a key to a room the taker already holds leaves the giver and is not copied, the taker told once and not at all when unseen; a key to a room they do not hold moves and still opens it; a key handed over stays a copy (E35-T4)", async () => {
@@ -61736,7 +61803,7 @@ const SCENARIOS = [
             "a steal, a rifle or a Plant did not carry what the GMs hold of the item, did not move one piece of a stack, copied a key the thief held, or raised a row of the GMs' audit (per road: the Tool's copy's [category, tier, broken, wear, roles, kind, identity] and the first still holds it; the kits left and arrived, a concealed stash's too; the thief's keys to the room and the first's; the rows)");
     }],
 
-    ["a Plant into full pockets is refused, seen or unseen, with a stash or none: the item stays with the planter, who reads that it does, and nothing reaches the victim - no card, no packet, no redraw (E35-T6, D42)", async () => {
+    ["a Plant into full pockets is refused, seen or unseen, with a stash or none: the item stays with the planter, who reads that it does, and nothing reaches the victim - no card, no packet, no redraw; two Plants at once into one free hand, one goes in (E35-T6, D42)", async () => {
         /*
          * E35 C3, 24.10.2026; decision D42 (the owner's option 1), E35-08, E35-14, E35-15, S17-15, S08-41. The harm: a
          * Plant into full pockets went into the victim's stash and whispered them that their hands were full, so an
@@ -61798,15 +61865,29 @@ const SCENARIOS = [
             await sheetAuditIdle();
             read.none = { seen: await plant(true), unseen: await plant(false) };
             read.stash = await withStashIn(fixture.room, victim, async () => ({ seen: await plant(true), unseen: await plant(false) }));
+
+            // E35 fix e1-G1 (E35-R5): one hand free, and two planters on two chains at the same moment - one goes in.
+            const other = trio.find(a => a.id !== victim.id && a.id !== planter.id);
+            await victim.items.find(i => i.name === FULL)?.delete();
+            const knives = [await INV.grantItem(planter, { name: NAME, category: "tool", tier: 1, override: true, quiet: true }),
+                await INV.grantItem(other, { name: NAME, category: "tool", tier: 1, override: true, quiet: true })];
+            await sheetAuditIdle();
+            must(knives.every(Boolean) && INV.canCarry(victim, "tool").held === limit - 1, "the two knives were not made, or the victim's hands are not full but one - this would measure nothing");
+            const both = await Promise.all([INV.transferItem(planter, victim, knives[0], { mode: "plant" }), INV.transferItem(other, victim, knives[1], { mode: "plant" })]);
+            await settle();
+            await sheetAuditIdle();
+            read.atOnce = [both.map(r => r?.ok ? "ok" : r?.handsFull ? "handsFull" : stableJson(r)).sort(), victim.items.filter(i => i.name === NAME).length,
+                INV.canCarry(victim, "tool").held - limit];
         } finally {
-            for (const a of [planter, victim]) for (const i of a.items.filter(i => i.name === NAME || i.name === FULL)) await i.delete();
+            for (const a of trio) for (const i of a.items.filter(i => i.name === NAME || i.name === FULL)) await i.delete();
             for (const [i, was] of stowed) if (victim.items.has(i.id)) await i.update({ [flag("location")]: was ?? forcedDeletion() });
             await fixture.back();
             await sheetAuditIdle();
         }
         const refused = [false, true, true, 0, 1, [0, 0, 0]];
-        equal(stableJson(read), stableJson({ none: { seen: refused, unseen: refused }, stash: { seen: refused, unseen: refused } }),
-            "a Plant into full pockets landed, left the planter's item, was not told to the planter as staying with them, or reached the victim (per Plant: [done, handsFull, the planter holds it, the victim's copies, the planter's lines, [packets, cards, redraws] at the victim's player])");
+        equal(stableJson(read), stableJson({ none: { seen: refused, unseen: refused }, stash: { seen: refused, unseen: refused },
+            atOnce: [["handsFull", "ok"], 1, 0] }),
+            "a Plant into full pockets landed, left the planter's item, was not told to the planter as staying with them, or reached the victim, or two Plants at once into one free hand both went in (per Plant: [done, handsFull, the planter holds it, the victim's copies, the planter's lines, [packets, cards, redraws] at the victim's player]; at once: [the results, the victim's copies, over the limit])");
     }],
 
     ["an unseen Plant of a Gear into pockets that hold one stowed tells the victim nothing and does not put it in their hand, and an item given quietly to full hands goes to their stash with no word (E35-T7, S08-02)", async () => {

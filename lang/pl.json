@@ -2307,6 +2307,8 @@
         "plant": "Podrzucenie „{name}” (podrzuca: {from}, komu: {to}) się udało, ale nie dało się tego zdjąć z karty: {from}. Jest teraz o jedną sztukę za dużo - usuń ją z karty: {from}."
       },
       "keyAlreadyHeld": "Masz już klucz do: {room}. Nadal masz tylko jeden.",
+      "changedMidway": "Przedmiot „{name}” zmienił się na karcie: {from} w drodze do: {to} - został zużyty, zepsuty albo zniknął. Nic nie zmieniło właściciela.",
+      "changedMidwayKept": "Przedmiot „{name}” zmienił się na karcie: {from} w drodze do: {to} - został zużyty, zepsuty albo zniknął - a kopii nie dało się cofnąć. Jest teraz o jedną sztukę za dużo - usuń ją z karty: {to}.",
       "alreadyHasIt": "Nic nie zmieniło właściciela.",
       "shared": "{who} ma teraz kopię: {name}.",
       "gave": "{name} należy teraz do: {who}.",

@@ -2225,6 +2225,8 @@
         "plant": "{from} planted “{name}” on {to}, but it could not be taken off {from}'s sheet. There is one too many now - remove it from {from}'s sheet."
       },
       "keyAlreadyHeld": "You already have a key to {room}. You still hold just the one.",
+      "changedMidway": "“{name}” changed on {from}'s sheet while it was on its way to {to} - used, broken or gone. Nothing changed hands.",
+      "changedMidwayKept": "“{name}” changed on {from}'s sheet while it was on its way to {to} - used, broken or gone - and the copy could not be taken back. There is one too many now - remove it from {to}'s sheet.",
       "alreadyHasIt": "Nothing changed hands.",
       "shared": "{who} now has a copy of {name}.",
       "gave": "{name} is now {who}'s.",

@@ -827,8 +827,9 @@ export async function keepGearShape(actor, item, { quiet = false } = {}) {
  * `judgedFor`), never the document a player's browser may just have written: the count, the flags `preservedFlags`
  * carries and the taker's hands. So a count a console raised and the GMs put back moves as the GMs hold it.
  *
- * ONE CHAIN PER GIVER (utils.mjs `serialWrite`, E80 C0's; E36 takes it over): a second transfer from the same sheet
- * waits for the first, then reads the item gone (`missing`). Two GMs on two browsers are not chained (E36, E38).
+ * ONE CHAIN PER SHEET, BOTH TAKEN (utils.mjs `serialWrite`, E80 C0's; E36 takes it over): a second transfer from the
+ * same sheet waits for the first, then reads the item gone (`missing`), and one into the same sheet waits too, then
+ * counts the hands the first filled (E35 fix e1-G1). Two GMs on two browsers are not chained (E36, E38).
  *
  * The callers keep their gates and their words (who may ask, a body, a roll, a room); this function decides nothing
  * a gate decides, and adds no reason of WRITE_REASONS: every write here names "gmRuling".
@@ -861,13 +862,16 @@ export const TRANSFER_STUCK = Object.freeze({
  * count of one (action-rolls.mjs, reroll.mjs `settleSearch`).
  *
  * Answers one of:
- *   `{ ok: true, copy, left, keyHeld, stuck }` - `copy` the taker's new item (null under the key rule), `left` the
- *     pieces the giver still holds, `keyHeld` the room of a key the taker already held, `stuck` true when the
- *     giver's piece could not be taken off (the GMs are told);
+ *   `{ ok: true, copy, left, keyHeld, stuck }` - `copy` the taker's new item, or the stack of theirs the piece joined
+ *     (null under the key rule), `left` the pieces the giver still holds (null where unknown), `keyHeld` the room of
+ *     a key the taker already held, `stuck` true when the giver's piece could not be taken off, or a copy of a piece
+ *     that changed on the way could not be taken back (the GMs are told either way);
  *   `{ handsFull: { held, limit, category } }` - refused by the policy, or no stash to overflow into; nothing written;
  *   `{ missing: true }` - the item is not on the giver, or not where this mode takes it from (a stash for a rifle,
- *     the hands for the rest): a second ask after the first moved it;
- *   `{ failed: true }` - the copy or the key's removal was not made; nothing changed hands;
+ *     the hands for the rest): a second ask after the first moved it, or gone while the copy was made (the copy
+ *     taken back, the GMs told);
+ *   `{ failed: true }` - the copy or the key's removal was not made, or the piece no longer carried what its copy
+ *     carried by the time it was taken off (the copy taken back, the GMs told); nothing changed hands;
  *   `{ refused }` - asked of no mode, or of one sheet to itself;
  *   null on a player's browser.
  */
@@ -878,8 +882,12 @@ export async function transferItem(from, to, item, { mode, quiet = false } = {})
     if (!policy || !from?.id || !to?.id || from.id === to.id || !id) {
         return { refused: `no transfer of that kind (${String(mode)}) between those two` };
     }
-    return serialWrite(`transfer/${from.id}`, async () => {
-        const { itemAsHeld, actorAsHeld, judgedFor } = await import("./sheet-audit.mjs");
+    // BOTH SHEETS CHAINED, in one order (E35 fix e1-G1; the review's E35-R5): on the giver's chain alone two Plants
+    // from two planters into one free hand each read it free, and both went in (E35-T6's "at once": [ok, ok], one over
+    // the limit). The ids sorted, so a transfer each way between two sheets takes the two chains in the same order.
+    const [first, second] = [from.id, to.id].sort();
+    return serialWrite(`transfer/${first}`, () => serialWrite(`transfer/${second}`, async () => {
+        const { itemAsHeld, actorAsHeld, judgedFor, creationRefusal } = await import("./sheet-audit.mjs");
         // One wait for both students, then each read finds its queue empty: what moves and the hands it lands in are
         // read in the same moment (E29 fix r2-H17, r2-H18).
         await judgedFor(from.id, to.id);
@@ -890,24 +898,43 @@ export async function transferItem(from, to, item, { mode, quiet = false } = {})
         const category = held.getFlag(MODULE_ID, ITEM_FLAGS.category);
         if (!category) return { missing: true };
         const name = held.name;
-        // The count as the GMs hold it; a document with none, or less than one, is one piece.
-        const pieces = Math.max(1, Math.floor(Number(held.system?.quantity)) || 1);
+        const pieces = piecesOf(held);
         const hushFrom = quiet && mode !== "plant", hushTo = quiet && mode === "plant";
+        const esc = foundry.utils.escapeHTML;
 
-        // One piece off the giver: the count lowered by one where there are more, else the item deleted. Read back,
-        // because a refused write (a pre-hook's false) resolves as quietly as one that landed.
-        const takeOne = async () => {
+        /*
+         * ONE PIECE OFF THE GIVER, COUNTED AGAIN AS THE GMS HOLD IT NOW (E35 fix e1-G1; the review's SEC-1). The count
+         * was read once, before the copy, and `pieces - 1` written after it: a use of the giver's (use-items.mjs
+         * `consume`, a lowering the GMs let stand) landing while the copy was made was written over - at 924a58d
+         * (E35-T3 "lowered") three kits, one used and one given, left the giver two and the taker one, four from three.
+         * So the item is read again once every write queued on the giver has been judged (`itemAsHeld`), and the count
+         * written is that one less one, or the item deleted at one. Where the piece has gone meanwhile, or no longer
+         * carries what the copy carries (`carriedAs`: the last kit used is broken, a swing wore it), nothing is taken
+         * and the caller rolls the copy back: at 924a58d (E35-T3 "broke") a kit broken on its way arrived whole and the
+         * broken one was deleted. Read back after the write, because a refused write (a pre-hook's false) resolves as
+         * quietly as one that landed.
+         * WHAT THIS DOES NOT CLOSE: a write of the giver's heard after this read and before this write lands is judged
+         * after it, against a mark that may not hold this write yet - a raise's put-back would then write the old count
+         * over it. The window is this one write's round trip, no longer the copy's; not measured (no test lands a
+         * write inside it).
+         */
+        const takeOne = async ({ copied }) => {
             const render = hushFrom ? { render: false } : {};
             try {
-                if (pieces > 1) {
-                    await trustedWrite(doc, { "system.quantity": pieces - 1 }, { reason: "gmRuling", ...render });
-                    return Number(from.items?.get(id)?.system?.quantity) === pieces - 1;
+                const now = await itemAsHeld(from, id);
+                const live = from.items?.get(id) ?? null;
+                if (!now || !live || isStashed(now) !== (mode === "rifle")) return { gone: true };
+                if (copied && carriedAs(now) !== carriedAs(held)) return { changed: true };
+                const count = piecesOf(now);
+                if (count > 1) {
+                    await trustedWrite(live, { "system.quantity": count - 1 }, { reason: "gmRuling", ...render });
+                    return Number(from.items?.get(id)?.system?.quantity) === count - 1 ? { left: count - 1 } : { stuck: true, left: count };
                 }
-                await trustedDelete(doc, { reason: "gmRuling", ...render });
-                return !from.items?.has(id);
+                await trustedDelete(live, { reason: "gmRuling", ...render });
+                return from.items?.has(id) ? { stuck: true, left: 1 } : { left: 0 };
             } catch (err) {
                 error(`Could not take "${name}" off ${from.name}`, err);
-                return false;
+                return { stuck: true };
             }
         };
 
@@ -918,46 +945,105 @@ export async function transferItem(from, to, item, { mode, quiet = false } = {})
         if (keyRoom) {
             const { keysHeldBy } = await import("./vault.mjs");
             if (keysHeldBy(to).has(keyRoom)) {
-                if (!await takeOne()) return { failed: true };
+                const taken = await takeOne({ copied: false });
+                if (taken.gone) return { missing: true };
+                if (!("left" in taken)) return { failed: true };
                 if (!hushTo) {
-                    await whisperToOwner(to, `<p>${game.i18n.format("DRPG.Handover.keyAlreadyHeld", {
-                        room: foundry.utils.escapeHTML(keyRoom)
-                    })}</p>`);
+                    await whisperToOwner(to, `<p>${game.i18n.format("DRPG.Handover.keyAlreadyHeld", { room: esc(keyRoom) })}</p>`);
                 }
                 log(`${to.name} already held a key to ${keyRoom}; the one from ${from.name} was not copied.`);
-                return { ok: true, copy: null, left: pieces - 1, keyHeld: keyRoom, stuck: false };
+                return { ok: true, copy: null, left: taken.left, keyHeld: keyRoom, stuck: false };
             }
         }
 
-        const room = canCarry(counted, category);
-        const full = { handsFull: { held: room.held, limit: room.limit, category } };
-        if (!room.ok && policy === "refuse") return full;
-
-        const copy = await grantItem(to, {
-            reason: "gmRuling",
-            name,
-            category,
-            tier: held.getFlag(MODULE_ID, ITEM_FLAGS.tier) ?? null,
-            description: held.system?.description ?? "",
-            img: held.img,
-            // Broken, wear, roles, identity, kind and a key's room, as the GMs hold them.
-            extraFlags: preservedFlags(held),
-            counted,
-            quiet: hushTo
-        });
-        if (!copy) return room.ok ? { failed: true } : full;
-
-        const removed = await takeOne();
-        if (!removed) {
-            await whisperToGms(`<p class="drpg-warning">${game.i18n.format(TRANSFER_STUCK[mode], {
-                name: foundry.utils.escapeHTML(name),
-                from: foundry.utils.escapeHTML(from.name),
-                to: foundry.utils.escapeHTML(to.name)
-            })}</p>`);
+        /*
+         * A PIECE JOINS ITS STACK (E35 fix e1-G1; the review's E35-R3). Each piece became a document of its own on the
+         * taker, and a slot of its own: three kits that took one Usable slot on the giver took three on the taker, and
+         * the third was refused into hands that held one other (E35-T3 "piled", at 924a58d: [2,1,1] three times). So a
+         * piece goes onto a document of the taker's the GMs hold carried with the same name and the same carried
+         * identity - the stack's `drpgItemId`, which every piece keeps (`preservedFlags`), its category, tier, broken,
+         * wear, roles, kind and key - its count raised by one as the GMs hold it, and takes no slot; one a player made
+         * that no GM has decided on (`creationRefusal`) is no stack to join. In a stash it is not: a piece arriving in
+         * hands joins hands.
+         */
+        const identity = held.getFlag(MODULE_ID, ITEM_FLAGS.identity);
+        const twin = identity ? counted.items.find(i => i.name === name && !isStashed(i) && i.id !== id
+            && i.getFlag(MODULE_ID, ITEM_FLAGS.identity) === identity && carriedAs(i) === carriedAs(held) && !creationRefusal(to, i.id)) ?? null : null;
+        const toRender = hushTo ? { render: false } : {};
+        let copy = null, joined = null;
+        if (twin && to.items?.get(twin.id)) {
+            const into = to.items.get(twin.id);
+            const had = piecesOf(await itemAsHeld(to, twin.id) ?? twin);
+            try {
+                await trustedWrite(into, { "system.quantity": had + 1 }, { reason: "gmRuling", ...toRender });
+            } catch (err) {
+                error(`Could not add "${name}" to ${to.name}'s stack`, err);
+            }
+            if (Number(to.items?.get(twin.id)?.system?.quantity) !== had + 1) return { failed: true };
+            copy = into;
+            joined = had + 1;
+        } else {
+            const room = canCarry(counted, category);
+            const full = { handsFull: { held: room.held, limit: room.limit, category } };
+            if (!room.ok && policy === "refuse") return full;
+            copy = await grantItem(to, {
+                reason: "gmRuling",
+                name,
+                category,
+                tier: held.getFlag(MODULE_ID, ITEM_FLAGS.tier) ?? null,
+                description: held.system?.description ?? "",
+                img: held.img,
+                // Broken, wear, roles, identity, kind and a key's room, as the GMs hold them.
+                extraFlags: preservedFlags(held),
+                counted,
+                quiet: hushTo
+            });
+            if (!copy) return room.ok ? { failed: true } : full;
         }
-        return { ok: true, copy, left: removed ? pieces - 1 : pieces, keyHeld: null, stuck: !removed };
-    });
+
+        const taken = await takeOne({ copied: true });
+        if (taken.gone || taken.changed) {
+            // The copy goes back: the piece it was made of is gone or is no longer what it carries.
+            let undone = false;
+            try {
+                if (joined !== null) {
+                    const now = await itemAsHeld(to, copy.id);
+                    await trustedWrite(copy, { "system.quantity": piecesOf(now) - 1 }, { reason: "gmRuling", ...toRender });
+                    undone = Number(to.items?.get(copy.id)?.system?.quantity) === piecesOf(now) - 1;
+                } else {
+                    await trustedDelete(copy, { reason: "gmRuling", ...toRender });
+                    undone = !to.items?.has(copy.id);
+                }
+            } catch (err) {
+                error(`Could not take back the copy of "${name}" from ${to.name}`, err);
+            }
+            await whisperToGms(`<p class="drpg-warning">${game.i18n.format(undone ? "DRPG.Handover.changedMidway" : "DRPG.Handover.changedMidwayKept", {
+                name: esc(name), from: esc(from.name), to: esc(to.name)
+            })}</p>`);
+            log(`"${name}" changed on ${from.name}'s sheet while it went to ${to.name}; ${undone ? "nothing moved" : "the copy could not be taken back"}.`);
+            if (!undone) return { ok: true, copy, left: null, keyHeld: null, stuck: true };
+            return taken.gone ? { missing: true } : { failed: true };
+        }
+        if (taken.stuck) {
+            await whisperToGms(`<p class="drpg-warning">${game.i18n.format(TRANSFER_STUCK[mode], {
+                name: esc(name), from: esc(from.name), to: esc(to.name)
+            })}</p>`);
+            return { ok: true, copy, left: taken.left ?? pieces, keyHeld: null, stuck: true };
+        }
+        return { ok: true, copy, left: taken.left, keyHeld: null, stuck: false };
+    }));
 }
+
+/** A count as the GMs hold it; a document with none, or less than one, is one piece. */
+function piecesOf(held) {
+    return Math.max(1, Math.floor(Number(held?.system?.quantity)) || 1);
+}
+
+/** What a copy carries of an item, as one string: its category and tier and what `preservedFlags` keeps. */
+function carriedAs(held) {
+    return JSON.stringify([held?.getFlag(MODULE_ID, ITEM_FLAGS.category) ?? null, held?.getFlag(MODULE_ID, ITEM_FLAGS.tier) ?? null, preservedFlags(held)]);
+}
+
 
 /**
  * Enforce the carry limits when items arrive by any other route - dragged from
