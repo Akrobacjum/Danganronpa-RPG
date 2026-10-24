@@ -692,6 +692,23 @@ export const USABLE_KINDS = {
 };
 
 /**
+ * THE WORDS AN ITEM TABLE'S NAME IS BUILT FROM, IN ENGLISH, COPIED HERE BEFORE ANY LANGUAGE IS APPLIED (E14 part 2 C1).
+ *
+ * i18n.mjs `localizeConfig` rewrites `ITEM_CATEGORIES.*.plural` and `USABLE_KINDS.*.label` in place on a client whose
+ * module language is Polish, at `i18nInit` - after this file is evaluated. tables.mjs built every table name out of the
+ * plural as it read at the call, so one world's tables had two names, one per language: a player in Polish searched for
+ * "DRPG Narzędzia zbrodni - Tier 2" beside the GM's "DRPG Murder Weapons - Tier 2" and drew from the built-in pools, and
+ * a GM in Polish installed a second set (audit S01-05, S02-05, S08-03, S13-01). A name is a display; this copy is the
+ * one it is built from, and it is frozen, so nothing rewrites it. The owner's ruling (E14's risk, "wbudowane pule
+ * zostają angielskie") keeps the built-in names English. A world built in Polish before this is found through the
+ * Polish plurals in tables.mjs `LEGACY_PLURALS`.
+ */
+export const TABLE_NAME_WORDS = Object.freeze({
+    plural: Object.freeze(Object.fromEntries(Object.entries(ITEM_CATEGORIES).map(([key, c]) => [key, c.plural]))),
+    kind: Object.freeze(Object.fromEntries(Object.entries(USABLE_KINDS).map(([key, k]) => [key, k.label])))
+});
+
+/**
  * What each kind restores per tier, in words. The item descriptions, the GM's
  * give-item receipt and the goal tables' own descriptions all read this, so an
  * item says what IT does rather than what usables in general can do.

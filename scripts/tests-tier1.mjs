@@ -21859,6 +21859,78 @@ const INVARIANTS = [
             "a tier 3 usable is not 3 of what it restores with no choice and no Hope: [USABLE_EFFECTS[3]; per sentence (tier 3, "
             + "healing, sanity relief, the Usables hint), in this world and in lang/pl.json: names the 3, the words that must be gone]");
     }],
+
+    ["R972 - an item table's name is built in English whatever the module's language, a table a client in Polish built is found by its Polish name, and a tier pool is found by the flags the installer writes (E14-T11, S01-05, S02-05, S08-03, S13-01)", async () => {
+        /*
+         * E14 part 2 C1, 24.10.2026; E14-31, E14-33, E14-35 (T14's condition, E65's test). The harm: i18n.mjs `localizeConfig`
+         * rewrites `ITEM_CATEGORIES.*.plural` in place on a client set to Polish, and tables.mjs built every table name out of
+         * it, so a player in Polish searched for "DRPG Narzędzia zbrodni - Tier 2" beside the GM's "DRPG Murder Weapons - Tier 2"
+         * and drew from the built-in pools, and a table a Polish GM installed was lost to every English client. Here lang/pl.json,
+         * fetched as served, is put over config.mjs the way `localizeConfig` puts it (`walkConfigProse`, each field it would set),
+         * the names read, and everything put back - with no await between, so nothing else on this client reads the Polish.
+         * Read: (1) whether `tableName` and the first of `tableNameCandidates` are the English names under Polish, for every
+         * category, tier and goal the installer builds; (2) of the names a Polish client built (pl.json's plural, the goal's
+         * English label, as `USABLE_GOALS` froze it), how many are candidates and are read back by `classifyTableName`;
+         * (3) whether the older English wordings are still candidates (they only grow, N5); (4) `flaggedTables` over tables made
+         * here as plain objects, never in the world: a renamed one by its flags, a goal kept apart, a table with no flags, and two
+         * with one set of flags, today's name first.
+         */
+        const t = await import("./tables.mjs");
+        const C = await import("./config.mjs");
+        const { walkConfigProse } = await import("./i18n-config.mjs");
+        const words = await (await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" })).json();
+        const plPlural = category => foundry.utils.getProperty(words, `DRPG.Config.ITEM_CATEGORIES.${category}.plural`);
+        const shapes = [
+            ...Object.keys(t.ITEM_POOLS).filter(c => c !== "usable").flatMap(category => C.ITEM_TIERS.map(tier => ({ category, tier, goal: null }))),
+            ...Object.keys(t.USABLE_GOALS).flatMap(goal => C.ITEM_TIERS.map(tier => ({ category: "usable", tier, goal }))),
+            ...C.ITEM_TIERS.map(tier => ({ category: "usable", tier, goal: null }))
+        ];
+        must(shapes.every(s => typeof plPlural(s.category) === "string" && plPlural(s.category) !== C.ITEM_CATEGORIES[s.category].plural),
+            "lang/pl.json carries no Polish plural for a tier pool's category - this reads nothing");
+        const names = () => shapes.map(s => [t.tableName(s.category, s.tier, s.goal), t.tableNameCandidates(s.category, s.tier, s.goal)[0]]);
+        const english = stableJson(names());
+        const undo = [];
+        let polish = null, swappedPlurals = 0;
+        try {
+            walkConfigProse(C, (key, value, set) => {
+                const next = foundry.utils.getProperty(words, key);
+                if (typeof next !== "string" || !next || next === value) return;
+                undo.push(() => set(value));
+                set(next);
+                if (/^DRPG\.Config\.ITEM_CATEGORIES\.\w+\.plural$/.test(key)) swappedPlurals += 1;
+            });
+            polish = stableJson(names());
+        } finally {
+            for (const put of undo.reverse()) put();
+        }
+        must(swappedPlurals >= 4 && stableJson(names()) === english, "Polish was not put over the plurals, or not put back - this measured nothing");
+
+        const builtInPolish = shapes.map(s => ({ ...s,
+            name: `DRPG ${plPlural(s.category)}${s.goal ? ` (${t.USABLE_GOALS[s.goal].label})` : ""} - Tier ${s.tier}` }));
+        const found = builtInPolish.filter(s => t.tableNameCandidates(s.category, s.tier, s.goal).includes(s.name)).length;
+        const readBack = builtInPolish.filter(s =>
+            stableJson(t.classifyTableName(s.name)) === stableJson({ category: s.category, tier: s.tier, goal: s.goal })).length;
+        const older = [["usable", 1, null, "DRPG Usable Items - Tier 1"], ["crimeTool", 2, null, "DRPG Crime Tools - Tier 2"],
+            ["usable", 1, "stress", "DRPG Usables (Stress Relief) - Tier 1"]].map(([c, tier, goal, name]) => t.tableNameCandidates(c, tier, goal).includes(name));
+
+        const table = (name, flags) => ({ name, getFlag: (scope, key) => (scope === MODULE_ID ? flags?.[key] : undefined) });
+        const fake = [
+            table("Kitchen knives the GM renamed", { category: "crimeTool", tier: 2, goal: null }),
+            table("DRPG Usables (Healing) - Tier 1", { category: "usable", tier: 1, goal: "healing" }),
+            table("DRPG Użytkowe (Healing) - Tier 1", { category: "usable", tier: 1, goal: "healing" }),
+            table("DRPG Usables (Sanity Relief) - Tier 1", { category: "usable", tier: 1, goal: "stress" }),
+            table("DRPG Murder Weapons - Tier 3", null)
+        ];
+        const by = (...args) => typeof t.flaggedTables === "function" ? t.flaggedTables(...args, fake).map(x => x.name) : "no flaggedTables";
+        const flags = [by("crimeTool", 2, null), by("usable", 1, "healing"), by("usable", 1, null), by("crimeTool", 3, null)];
+
+        equal(stableJson([polish === english, found, readBack, older, flags]), stableJson([true, shapes.length,
+            shapes.length, [true, true, true],
+            [["Kitchen knives the GM renamed"], ["DRPG Usables (Healing) - Tier 1", "DRPG Użytkowe (Healing) - Tier 1"], [], []]]),
+            "an item table's name follows the module's language, or a world built in Polish is lost, or the flags are not asked "
+            + "[names under Polish are the English ones; Polish-built names that are candidates; read back by classifyTableName; "
+            + "the older English wordings; by flags: renamed, two of one set today's first, a usable with no goal, no flags]");
+    }],
 ];
 
 /**

@@ -63827,6 +63827,103 @@ const SCENARIOS = [
             "an improvised weapon was readied twice over a stowed Gear (stood, Crime Tools handed, the new one readied, Gear stowed, the shape's warning shown)");
     }],
 
+    ["a Search draws from the GM's item table whatever language each client is in, a renamed table is found by its flags, and the GM's ready renames no table to a translated name (E14-T12, S01-05, S02-05, S08-03, S13-01)", async () => {
+        /*
+         * E14 part 2 C1, 24.10.2026; E14-32 (E14's verify: "klient PL losuje z tabeli nazwanej po angielsku i odwrotnie"),
+         * E14-34 (the risk: "refreshTableCopy nie może przemianować tabel GM-a"). The harm: a table name was built from the
+         * plural `localizeConfig` rewrites, so a client in the other language than the table's drew from the built-in pools,
+         * and the GM's ready (`refreshTableCopy`) on a client in Polish renamed an old English table to a Polish name. Every
+         * table of the world that could answer the shapes used here is first set aside (named apart, its tier flag -1) and put
+         * back as it was, name, description and flag; then the tables below are made, each with one entry of its own. lang/pl.json
+         * is put over config.mjs the way `localizeConfig` puts it, for the "pl" half only. Read, per language: what `drawItem`
+         * drew (the entry, or "pool" for a draw from the built-in pools, "other" for anything else) from an English-named
+         * table, a Polish-built one, a table the GM renamed (flags only), a GM's table named like a pool (no flags), two tables
+         * of one set of flags (today's English name answers, three draws), and a Sanity Relief draw beside two Healing tables;
+         * then each made table's name after `refreshTableCopy` (pl first, then en).
+         */
+        const T = await import("./tables.mjs");
+        const C = await import("./config.mjs");
+        const { walkConfigProse } = await import("./i18n-config.mjs");
+        const words = await (await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" })).json();
+        const TAG = "SUITE E14-T12";
+        const MADE = [
+            ["en", "DRPG Murder Weapons - Tier 2", { category: "crimeTool", tier: 2, goal: null }],
+            ["pl", "DRPG Narzędzia do sprzątania - Tier 1", { category: "cleaningTool", tier: 1, goal: null }],
+            ["renamed", `${TAG} the GM's own tools`, { category: "tool", tier: 3, goal: null }],
+            ["unflagged", "DRPG Tools - Tier 0", null],
+            ["twinEn", "DRPG Usables (Healing) - Tier 1", { category: "usable", tier: 1, goal: "healing" }],
+            ["twinPl", "DRPG Użytkowe (Healing) - Tier 1", { category: "usable", tier: 1, goal: "healing" }],
+            ["legacy", "DRPG Crime Tools - Tier 3", { category: "crimeTool", tier: 3, goal: null }]
+        ];
+        const SHAPES = [["crimeTool", 2], ["cleaningTool", 1], ["tool", 3], ["tool", 0], ["usable", 1], ["crimeTool", 3]];
+        const answers = table => {
+            const category = table.getFlag(MODULE_ID, "category"), tier = Number(table.getFlag(MODULE_ID, "tier"));
+            return SHAPES.some(([c, n]) => (category === c && tier === n) || table.name.endsWith(` - Tier ${n}`));
+        };
+        const aside = [], made = new Map(), undo = [];
+        const polish = () => walkConfigProse(C, (key, value, set) => {
+            const next = foundry.utils.getProperty(words, key);
+            if (typeof next !== "string" || !next || next === value) return;
+            undo.push(() => set(value));
+            set(next);
+        });
+        const english = () => { for (const put of undo.splice(0).reverse()) put(); };
+        const entry = role => `${TAG} ${role}`;
+        const what = drawn => (!drawn ? null : !drawn.fromTable ? "pool"
+            : MADE.some(([role]) => entry(role) === drawn.name) ? drawn.name.slice(TAG.length + 1) : "other");
+        let read = null;
+        try {
+            for (const table of Array.from(game.tables).filter(answers)) {
+                const tier = table.getFlag(MODULE_ID, "tier");
+                aside.push([table, { name: table.name, description: table.description ?? "", tier }]);
+                await table.update({ name: `${TAG} aside ${table.id}`, ...(tier !== undefined && tier !== null ? { [`flags.${MODULE_ID}.tier`]: -1 } : {}) });
+            }
+            for (const [role, name, flags] of MADE) {
+                const table = await RollTable.create({
+                    name, description: TAG, formula: "1d1", replacement: true, displayRoll: false,
+                    ...(flags ? { flags: { [MODULE_ID]: flags } } : {}),
+                    results: [{ type: CONST.TABLE_RESULT_TYPES?.TEXT ?? "text", text: entry(role), name: entry(role), description: entry(role), range: [1, 1], weight: 1 }]
+                });
+                made.set(role, table);
+            }
+            must(made.size === MADE.length && MADE.every(([, name]) => game.tables.getName(name)), "the tables were not made - this would measure nothing");
+            const draws = async () => {
+                const one = async (c, n, goal = null) => what(await T.drawItem(c, n, { goal }));
+                const twins = [];
+                for (let i = 0; i < 3; i++) twins.push(await one("usable", 1, "healing"));
+                const calm = await one("usable", 1, "stress");
+                return [await one("crimeTool", 2), await one("cleaningTool", 1), await one("tool", 3), await one("tool", 0), twins,
+                    ["twinEn", "twinPl"].includes(calm)];
+            };
+            const named = () => MADE.map(([role]) => made.get(role)?.name ?? null);
+            polish();
+            must(undo.length > 0 && C.ITEM_CATEGORIES.crimeTool.plural === words.DRPG.Config.ITEM_CATEGORIES.crimeTool.plural,
+                "Polish was not put over config.mjs - this would measure nothing");
+            const pl = await draws();
+            await T.refreshTableCopy();
+            const plNames = named();
+            english();
+            const en = await draws();
+            await T.refreshTableCopy();
+            read = { pl, en, plNames, enNames: named() };
+        } finally {
+            english();
+            for (const table of made.values()) {
+                try { await table.delete(); } catch { /* already gone */ }
+            }
+            for (const [table, was] of aside) {
+                await table.update({ name: was.name, description: was.description,
+                    ...(was.tier !== undefined && was.tier !== null ? { [`flags.${MODULE_ID}.tier`]: was.tier } : {}) });
+            }
+        }
+        const drew = ["en", "pl", "renamed", "unflagged", ["twinEn", "twinEn", "twinEn"], false];
+        const kept = MADE.map(([role, name]) => (role === "legacy" ? "DRPG Murder Weapons - Tier 3" : name));
+        equal(stableJson(read), stableJson({ pl: drew, en: drew, plNames: kept, enNames: kept }),
+            "a client drew past the GM's table for the language it is named in, or the GM's ready renamed a table to a translated "
+            + "name [per language: English-named, Polish-built, renamed, unflagged, two of one set x3, a Sanity Relief draw took a "
+            + "Healing table; then the made tables' names after refreshTableCopy, the old 'Crime Tools' one brought to today's English]");
+    }],
+
     ...GRID
 ];
 

@@ -13,7 +13,7 @@
  */
 
 import { MODULE_ID, ITEM_CATEGORIES, EQUIPPABLE, ITEM_TIERS, TIER_EFFECTS, USABLE_KINDS, itemIcon,
-    USABLE_KIND_EFFECTS }
+    USABLE_KIND_EFFECTS, TABLE_NAME_WORDS }
     from "./config.mjs";
 import { dialogContent, wirePortraitPickers, panelTabs, wirePanelTabs, whisperToGms, log, error, plural, esc}
     from "./utils.mjs";
@@ -22,11 +22,18 @@ import { alreadyOpen, reopen } from "./live.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
-/** Table name pattern: "DRPG Usables - Tier 2", or "… (Healing) - Tier 2". */
+/**
+ * A category's plural and a goal's label as a NAME reads them: the English copy config.mjs froze before any language
+ * was applied (`TABLE_NAME_WORDS`, E14 part 2 C1), never `ITEM_CATEGORIES.*.plural`, which a client in Polish has
+ * rewritten by the time anything asks. Every name this file still builds reads these two.
+ */
+const pluralOf = category => TABLE_NAME_WORDS.plural[category] ?? category;
+const goalWordOf = goal => (USABLE_GOALS[goal] ? TABLE_NAME_WORDS.kind[goal] ?? USABLE_GOALS[goal].label : null);
+
+/** Table name pattern: "DRPG Usables - Tier 2", or "… (Healing) - Tier 2". The same English in every language. */
 export function tableName(category, tier, goal = null) {
-    const base = ITEM_CATEGORIES[category]?.plural ?? category;
-    const suffix = USABLE_GOALS[goal] ? ` (${USABLE_GOALS[goal].label})` : "";
-    return `DRPG ${base}${suffix} - Tier ${tier}`;
+    const word = goalWordOf(goal);
+    return `DRPG ${pluralOf(category)}${word ? ` (${word})` : ""} - Tier ${tier}`;
 }
 
 /**
@@ -53,23 +60,40 @@ export function tableName(category, tier, goal = null) {
  * not edit it - whenever a label above changes.
  */
 const LEGACY_PLURALS = {
-    usable: ["Usable Items"],
-    crimeTool: ["Crime Tools"]
+    usable: ["Usable Items", "Użytkowe"],
+    crimeTool: ["Crime Tools", "Narzędzia zbrodni"],
+    cleaningTool: ["Narzędzia do sprzątania"],
+    tool: ["Narzędzia"]
 };
+
+/*
+ * THE POLISH ONES ARE NOT OLDER WORDINGS, and that is why they are named apart (E14 part 2 C1, 24.10.2026).
+ *
+ * Until E14 a client whose module language was Polish built every table name out of the plural `localizeConfig` had
+ * rewritten, so a world a GM in Polish installed holds "DRPG Narzędzia zbrodni - Tier 2" and "DRPG Użytkowe (Healing) -
+ * Tier 1" (the goal stayed English: `USABLE_GOALS` copied its label at evaluation). Those are pl.json's plurals of
+ * 272db28, the same in each of 13 revisions of pl.json read on 24.10 across its history, and they are in the lists
+ * above so such a world is found. They are the GM's tables under the names that GM's client gave them, not this module's English
+ * renamed: `refreshTableCopy` brings only an English wording up to date, and a table found through one of these keeps
+ * its name (the owner's risk on E14: "refreshTableCopy nie może przemianować tabel GM-a").
+ */
+const LOCALIZED_PLURALS = new Set(["Użytkowe", "Narzędzia zbrodni", "Narzędzia do sprzątania", "Narzędzia"]);
 
 const LEGACY_GOAL_LABELS = {
     stress: ["Stress Relief"]
 };
 
 /**
- * Every name this table could be sitting under, current one first.
+ * Every name this table could be sitting under, current one first. `{ localized: false }` leaves out the names a
+ * client in Polish built (`LOCALIZED_PLURALS`): the module's own English wordings only, which `refreshTableCopy` reads.
  *
  * @returns {string[]}
  */
-export function tableNameCandidates(category, tier, goal = null) {
-    const bases = [ITEM_CATEGORIES[category]?.plural ?? category, ...(LEGACY_PLURALS[category] ?? [])];
+export function tableNameCandidates(category, tier, goal = null, { localized = true } = {}) {
+    const bases = [pluralOf(category), ...(LEGACY_PLURALS[category] ?? [])]
+        .filter(base => localized || !LOCALIZED_PLURALS.has(base));
     const suffixes = USABLE_GOALS[goal]
-        ? [USABLE_GOALS[goal].label, ...(LEGACY_GOAL_LABELS[goal] ?? [])].map(l => ` (${l})`)
+        ? [goalWordOf(goal), ...(LEGACY_GOAL_LABELS[goal] ?? [])].map(l => ` (${l})`)
         : [""];
 
     const names = [];
@@ -124,10 +148,49 @@ export function classifyTableName(name) {
     return null;
 }
 
+/**
+ * THE TIER POOLS OF ONE CATEGORY, TIER AND GOAL, FOUND BY THE FLAGS THE INSTALLER WRITES (E14 part 2 C1, 24.10.2026).
+ *
+ * A name is a display: a GM renames a pool in the sidebar, a client in Polish built another name for the same pool
+ * until E14, and the editor warns that the lookup may miss a renamed one. What `installTables` and the Tier pools tab
+ * write on the table - `category`, `tier` and `goal` - says which pool it is in every language and under any name, and
+ * `refreshTableCopy` has walked the tables by those flags since 26.08. A goal is matched exactly, a missing one as
+ * none: a Sanity Relief pool never answers a Healing draw, and "a usable with no goal" is the old mixed pool only.
+ *
+ * Two tables with one set of flags (a pool duplicated in the sidebar, or the two sets one world got from a GM in each
+ * language) are both returned, in a fixed order so a draw is not a coin toss between them: under today's English
+ * name, then under an older or a Polish one (`tableNameCandidates`' order), then by name.
+ *
+ * @param {Iterable} [tables]  The tables to read; the world's by default.
+ * @returns {object[]}
+ */
+export function flaggedTables(category, tier, goal = null, tables = game.tables ?? []) {
+    const names = tableNameCandidates(category, tier, goal);
+    const rank = table => { const at = names.indexOf(table.name); return at < 0 ? names.length : at; };
+    return Array.from(tables)
+        .filter(table => table.getFlag?.(MODULE_ID, "category") === category
+            && Number(table.getFlag(MODULE_ID, "tier")) === Number(tier)
+            && (table.getFlag(MODULE_ID, "goal") ?? null) === (goal ?? null))
+        .sort((a, b) => (rank(a) - rank(b)) || String(a.name).localeCompare(String(b.name)));
+}
+
+/**
+ * Every table that answers for this category, tier and goal: by its flags first, then by a name it could be sitting
+ * under (`tableNameCandidates`) - a table the GM made in the sidebar under a pool's name carries no flags, and has
+ * answered by its name since before the flags existed. Each table once.
+ */
+export function tierTablesFor(category, tier, goal = null) {
+    const found = flaggedTables(category, tier, goal);
+    for (const name of tableNameCandidates(category, tier, goal)) {
+        const table = game.tables?.getName?.(name);
+        if (table && !found.includes(table)) found.push(table);
+    }
+    return found;
+}
+
 /** The one that actually exists in this world, if any - else today's name. */
 export function existingTableName(category, tier, goal = null) {
-    const names = tableNameCandidates(category, tier, goal);
-    return names.find(n => game.tables?.getName?.(n)) ?? names[0];
+    return tierTablesFor(category, tier, goal)[0]?.name ?? tableNameCandidates(category, tier, goal)[0];
 }
 
 /** The description `installTables` writes for one table. One reader, two callers. */
@@ -186,12 +249,17 @@ export async function refreshTableCopy() {
         if (!category || tier === undefined || tier === null) continue;
 
         const update = {};
+        // Today's English name in every language (E14 part 2 C1): until then a GM in Polish was "brought up to date"
+        // to the Polish plural, so an old "DRPG Crime Tools - Tier 3" became "DRPG Narzędzia zbrodni - Tier 3" and was
+        // lost to every English client (measured by E14-T12 at 8307cb7b).
         const wanted = tableName(category, tier, goal);
-        // Only a name this module itself gave the table under an older wording
-        // is brought up to date (ITEM-15). A GM who renamed a pool in the
+        // Only a name this module itself gave the table under an older ENGLISH
+        // wording is brought up to date (ITEM-15). A GM who renamed a pool in the
         // editor - warned there that the lookup may miss it - keeps their name
-        // rather than finding it silently reverted on the next load.
-        const ours = tableNameCandidates(category, tier, goal).includes(table.name);
+        // rather than finding it silently reverted on the next load, and so does a
+        // table a client in Polish built: it is found by its flags or through its
+        // Polish alias, and it is the GM's (`LOCALIZED_PLURALS`).
+        const ours = tableNameCandidates(category, tier, goal, { localized: false }).includes(table.name);
         if (ours && table.name !== wanted && !game.tables.getName(wanted)) update.name = wanted;
 
         const description = tableDescription(category, tier, goal);
@@ -466,7 +534,7 @@ export function rolesOfResult(result) {
 export function tierTableIdFor(categoryValue, tier) {
     const [category, goal = null] = String(categoryValue ?? "").split(":");
     if (!category || !Number.isFinite(tier)) return null;
-    return game.tables?.getName?.(existingTableName(category, tier, goal))?.id ?? null;
+    return tierTablesFor(category, tier, goal)[0]?.id ?? null;
 }
 
 /** One random item name for a category and tier. */
@@ -505,26 +573,26 @@ export async function drawItem(category, tier, { goal = null, room = null, scene
     // does. A GM who does not want that precision keeps one flat table and the
     // lookup falls straight through - same bargain as the category split.
     const roomBase = room ? await tableForRoom(room, scene) : null;
+    // The category's English plural (`pluralOf`), never the one a client in Polish rewrote (E14 part 2 C1).
     const roomNames = roomBase
         ? [
             `${roomBase} - Tier ${tier}`,
-            `${roomBase} - ${ITEM_CATEGORIES[category]?.plural ?? category}`,
+            `${roomBase} - ${pluralOf(category)}`,
             roomBase
         ]
         : [];
 
-    const names = [
-        ...roomNames,
-        // Every name these have ever been called - see LEGACY_PLURALS. A world
-        // whose tables were built before a label was reworded is still the
-        // world whose tables answer.
-        ...tableNameCandidates(category, tier, goal),
-        ...tableNameCandidates(category, tier)
-    ].filter(Boolean);
+    const tables = [
+        ...roomNames.map(name => game.tables?.getName?.(name)),
+        // The tier pools by their flags, then by every name these have ever been
+        // called - see `tierTablesFor` and LEGACY_PLURALS. A world whose tables
+        // were built before a label was reworded, or by a client in another
+        // language, or renamed by its GM, is still the world whose tables answer.
+        ...tierTablesFor(category, tier, goal),
+        ...(goal ? tierTablesFor(category, tier) : [])
+    ].filter((table, at, all) => table && all.indexOf(table) === at);
 
-    for (const name of names) {
-        const table = game.tables?.getName?.(name);
-        if (!table) continue;
+    for (const table of tables) {
         try {
             const draw = await table.draw({ displayChat: false });
             const result = draw?.results?.[0];
@@ -1416,15 +1484,17 @@ async function promptForTableName(currentName) {
 async function presetTargetsFor(tables, preset) {
     const presetTargets = new Set();
     if (preset?.category) {
-        const wanted = tableNameCandidates(preset.category, preset.tier ?? 0);
+        // The pools this category and tier draw from, by their flags first, as `drawItem` finds them (E14 part 2 C1).
+        const pools = new Set(tierTablesFor(preset.category, preset.tier ?? 0, preset.goal ?? null).map(t => t.id));
+        const wanted = [];
         if (preset.room) {
             const { sceneOfRoom } = await import("./rooms.mjs");
             const base = await tableForRoom(preset.room, sceneOfRoom(preset.room));
             if (base) {
-                wanted.push(base, `${base} - ${ITEM_CATEGORIES[preset.category]?.plural ?? ""}`);
+                wanted.push(base, `${base} - ${pluralOf(preset.category)}`);
             }
         }
-        for (const t of tables) if (wanted.includes(t.name)) presetTargets.add(t.id);
+        for (const t of tables) if (pools.has(t.id) || wanted.includes(t.name)) presetTargets.add(t.id);
     }
     return presetTargets;
 }
