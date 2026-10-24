@@ -14401,7 +14401,126 @@ const REGRESSIONS = [
         equal(JSON.stringify([helpers, [...found.keys()].sort(), Object.values(REASONS).every(r => r.length > 20)]),
             JSON.stringify([[["whisperToOwner", true, false], ["whisperToOwnerOnly", true, false]], Object.keys(REASONS).sort(), true]),
             `[each helper: reads ownerIdsOf, still reads ownerOf], the callers that name their own readers (${JSON.stringify([...found])}), each listed one has a reason - a co-owner is left out, or a reader list of its own is not listed here`);
+    }],
+
+    ["R952 - an item that changes owner has one road: no function of the module creates an Item and deletes one outside inventory.mjs `transferItem` but the ones listed with their reason, each one sheet; the five owner changes (give, a body's loot, a stash rifled, a Palm's steal, a Plant) each hand their move to `transferItem` with their mode; reroll.mjs `settleSearch` takes the plant off before it gives it again and gives it with its identity (E35-T9; S17-16, E08)", async () => {
+        /*
+         * E35 C4, 24.10.2026; audit S17-16, E35-18, E35-19, E35-22. Until E35 C1-C3 the create-then-delete pair that
+         * moves an item between two characters was written five times - handover.mjs `giveItem`, `lootBody`, vault.mjs
+         * `stealFromVault`, `stealFromPerson`, `plantOnPerson` - each with its own overflow, flags and messages, none
+         * with `system.quantity`. They meet in `transferItem` now, and a sixth copy is what this keeps out. Read in the
+         * module's files with comments and literals blanked, each top-level declaration (a function, a const, a class)
+         * on its own: an Item created - `grantItem`, `trustedCreate` (of "Item", its default), `createEmbeddedDocuments`
+         * of "Item", `Item.create`, `Item.implementation.create`, `Item.createDocuments` - and a document deleted -
+         * `.delete()` or `.delete({...})`, `trustedDelete`, `deleteEmbeddedDocuments` of "Item", `deleteDocuments` -
+         * in the same one is a pair. Whose sheet each side is on is not readable here, so every pair outside
+         * `transferItem` is listed with its reason, a new one fails until it is listed and a listed one that is gone
+         * fails until it leaves. What it cannot see: a pair split across two functions (a create here, a helper's
+         * delete there) - the five above each wrote theirs in one. The reader is shown planted pairs first, so a scan
+         * that reads nothing, or reads a Map's `delete(key)`, a Token's copy or an effect's as an item's, fails.
+         * Red at f2cfc2d (1.2.83, before C1): the five owner changes are pairs of their own and `transferItem` is
+         * absent.
+         */
+        const ALLOWED = {
+            "reroll.mjs#settleSearch": "one sheet: a Reroll of a Search takes back what the Search gave and gives the new draw to the same student; the plant is taken off first so its slot counts for the second draw, and is given again with its identity (E08, E29 fix r2-H22)",
+            "sheet-audit.mjs#decideNow": "one sheet: the GM's Undo on a flagged change puts back an item the student's own write created or deleted, on the actor the row names (E29 C7)"
+        };
+        const ROADS = {
+            "handover.mjs#giveItem": "give", "handover.mjs#lootBody": "loot", "vault.mjs#stealFromVault": "rifle",
+            "vault.mjs#stealFromPerson": "steal", "vault.mjs#plantOnPerson": "plant"
+        };
+        const DECL = /^(?:export\s+)?(?:async\s+)?(?:function\s*\*?\s*([\w$]+)|(?:const|let|var|class)\s+([\w$]+))/gm;
+        const CREATE = /\b(grantItem|trustedCreate)\s*\(|\.(createEmbeddedDocuments)\s*\(|\bItem(?:\.implementation)?\.(?:create|createDocuments)\s*\(/g;
+        const DELETE = /\.delete\s*\(\s*[{)]|\btrustedDelete\s*\(|\.(deleteEmbeddedDocuments)\s*\(|\.deleteDocuments\s*\(/g;
+        const isItem = (code, blank, m, embedded) => {
+            const open = m.index + m[0].length - 1;
+            const { args } = callArgs(blank, open);
+            const text = arg => (args[arg] ? code.slice(args[arg].start, args[arg].end) : "").trim();
+            if (embedded) return /^["'`]Item["'`]$/.test(text(0));
+            if (m[1] === "trustedCreate") return !/\bdocumentName\s*:/.test(text(2)) || /\bdocumentName\s*:\s*["'`]Item["'`]/.test(text(2));
+            return true;
+        };
+        let read = { creates: 0, deletes: 0 };
+        const pairsIn = files => {
+            const out = [];
+            for (const [file, raw] of files) {
+                const code = blankComments(raw), blank = blankLiterals(code);
+                const decls = [...blank.matchAll(DECL)].map(m => ({ name: m[1] ?? m[2], at: m.index }));
+                decls.forEach((decl, i) => {
+                    const end = decls[i + 1]?.at ?? blank.length;
+                    const part = blank.slice(decl.at, end);
+                    const within = m => ({ ...m, index: m.index + decl.at, 0: m[0], 1: m[1] });
+                    const creates = [...part.matchAll(CREATE)].map(within).filter(m => isItem(code, blank, m, m[0].includes("createEmbeddedDocuments")));
+                    const deletes = [...part.matchAll(DELETE)].map(within).filter(m => !m[0].includes("deleteEmbeddedDocuments") || isItem(code, blank, m, true));
+                    read.creates += creates.length;
+                    read.deletes += deletes.length;
+                    if (creates.length && deletes.length) out.push(`${file}#${decl.name}`);
+                });
+            }
+            return out.sort();
+        };
+
+        const planted = new Map([
+            ["a.mjs", [
+                "export async function give(from, to, item) { await grantItem(to, { name: item.name }); await item.delete(); }",
+                "async function loot(body, taker, item) {",
+                "    await taker.createEmbeddedDocuments(\"Item\", [item.toObject()]);",
+                "    await body.deleteEmbeddedDocuments(\"Item\", [item.id]);",
+                "}",
+                "function moveToken(scene, other, token) { other.createEmbeddedDocuments(\"Token\", [token]); scene.deleteEmbeddedDocuments(\"Token\", [token.id]); }",
+                "function forget(actor, asks, id) { grantItem(actor, {}); asks.delete(id); }"
+            ].join("\n")],
+            ["b.mjs", [
+                "export const steal = async (victim, thief, item) => {",
+                "    await trustedCreate(thief, [item.toObject()], { reason: \"gmRuling\" });",
+                "    await trustedDelete(item, { reason: \"gmRuling\" });",
+                "};",
+                "function effect(actor, old) { trustedCreate(actor, [old.toObject()], { reason: \"x\", documentName: \"ActiveEffect\" }); old.delete(); }",
+                "function quiet(actor, item) {",
+                "    // grantItem(actor, {}); item.delete();",
+                "    const words = \"grantItem( and item.delete()\";",
+                "}",
+                "async function lone(actor) { await grantItem(actor, {}); }",
+                "async function alone(item) { await item.delete({ render: false }); }"
+            ].join("\n")],
+            ["c.mjs", [
+                "class Mover {",
+                "    async run(from, to, item) { await Item.implementation.create(item.toObject(), { parent: to }); await item.delete(); }",
+                "}",
+                "export async function settle(actor, first) { await first.delete(); await grantItem(actor, { name: first.name }); }"
+            ].join("\n")]
+        ]);
+        equal(JSON.stringify(pairsIn(planted)), JSON.stringify(["a.mjs#give", "a.mjs#loot", "b.mjs#steal", "c.mjs#Mover", "c.mjs#settle"]),
+            "the pair reader does not find exactly the five pairs planted for it, or reads a Token's, an effect's, a Map's or a comment's as an item's - it would read the module wrong too");
+
+        read = { creates: 0, deletes: 0 };
+        const sources = new Map((await otherSources()).filter(([file]) => file.endsWith(".mjs")));
+        must(sources.has("inventory.mjs") && sources.has("handover.mjs") && sources.has("vault.mjs") && sources.has("reroll.mjs"),
+            "inventory.mjs, handover.mjs, vault.mjs or reroll.mjs is not served - this test reads nothing until they are");
+        const found = pairsIn(sources);
+        ok(read.creates >= 10 && read.deletes >= 10, `${read.creates} item creates and ${read.deletes} deletes read in the module - this would measure nothing`);
+        const outside = found.filter(at => at !== "inventory.mjs#transferItem");
+        equal(JSON.stringify([found.includes("inventory.mjs#transferItem"), outside, Object.values(ALLOWED).every(why => why.length > 40)]),
+            JSON.stringify([true, Object.keys(ALLOWED).sort(), true]),
+            `[transferItem is the road, the pairs outside it, each listed one has its reason]: ${JSON.stringify(found)} - a pair not listed is a sixth copy of the move, or wants its reason here; a listed one that is gone leaves the list`);
+
+        const calls = Object.entries(ROADS).map(([at, mode]) => {
+            const [file, name] = at.split("#");
+            const body = blankComments(fnSource(sources.get(file), name));
+            return [at, new RegExp(`\\btransferItem\\(\\s*\\w+,\\s*\\w+,\\s*\\w+,\\s*\\{\\s*mode:\\s*"${mode}"`).test(body)];
+        });
+        equal(JSON.stringify(calls.filter(([, call]) => !call).map(([at]) => at)), "[]",
+            `these owner changes do not hand their move to transferItem with their own mode: ${JSON.stringify(calls)}`);
+
+        const settle = blankComments(fnSource(sources.get("reroll.mjs"), "settleSearch"));
+        const firstDelete = settle.search(/\.delete\s*\(/), firstGrant = settle.search(/\bgrantItem\s*\(/);
+        const grants = [...settle.matchAll(/\bgrantItem\s*\(/g)].map(m => bodyOf(settle.slice(m.index), "grantItem(", { length: 400 }));
+        equal(JSON.stringify([firstDelete >= 0 && firstGrant > firstDelete, grants.some(g => /extraFlags:\s*\{\s*\[ITEM_FLAGS\.identity\]:\s*plant\.identity\s*\}/.test(g))]),
+            JSON.stringify([true, true]),
+            "[settleSearch takes the plant off before its first grant, a grant gives the plant its identity again] - a Reroll's plant would count against its own slot, or come back as a new item with no drpgItemId (E08)");
+        log(`R952: ${sources.size} files, ${read.creates} item creates and ${read.deletes} deletes read; pairs ${found.join(", ")}`);
     }]
 ];
+
 
 export { REGRESSIONS };
