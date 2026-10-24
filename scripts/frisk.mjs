@@ -394,7 +394,7 @@ function timeOfDayKey() {
 /** A line of the design's for a card, every name in it as text. */
 const say = (key, data = {}) => `<p>${game.i18n.format(key, Object.fromEntries(Object.entries(data).map(([k, v]) => [k, esc(v ?? "")])))}</p>`;
 
-/** A veiled card to `actor`'s owner and the GMs (utils.mjs `whisperToOwner`); a failure is logged, never thrown. */
+/** A veiled card to `actor`'s owners - every player who owns it, since E18 C5 - and the GMs (utils.mjs `whisperToOwner`); a failure is logged, never thrown. */
 async function cardTo(actor, html, extra = {}) {
     try {
         return await whisperToOwner(actor, html, { veiled: true, ...extra });

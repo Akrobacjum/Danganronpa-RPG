@@ -13472,9 +13472,11 @@ const SCENARIOS = [
             keptAway: { row: ["noAnswer", [], false, "kept"], ...none, cards: [["noAnswer", ["searcher"]]], done: ["noAnswer"], toasts: ["gmKeptNow"] },
             incident: { row: ["asking", [], false, "incident"], ended: 1, ...none, cards: [["noAnswer", ["searcher"]]], done: ["noAnswer"], toasts: ["gmIncident"] },
             incidentAway: { row: ["noAnswer", [], false, "incident"], ...none, cards: [["noAnswer", ["searcher"]]], done: ["noAnswer"], toasts: ["gmIncidentNow"] },
-            // The target's own card goes to its owner as every whispered card does (utils.mjs `whisperToOwner`).
+            // The target's own card goes to its owners as every whispered card does (utils.mjs `whisperToOwner`): since E18 C5
+            // (b520974b, merged into line A by 2ec9f48) that is every player who owns it, so the second owner, who did not
+            // answer, reads it too; before the merge it was `ownerOf`'s one player, the one who answered.
             twoOwners: { row: ["asking", ["target", "third"], false, null], yes: ["shown"], ...none, asks: ["target", "third"], cancels: ["third"],
-                cards: [["shownEmpty", ["searcher"]], ["toTarget shown", ["target"]], ["toRoom shown", ["third"]]], done: ["shown"] },
+                cards: [["shownEmpty", ["searcher"]], ["toTarget shown", ["target", "third"]], ["toRoom shown", ["third"]]], done: ["shown"] },
             // This GM's window closed by the second GM's answer, told withdrawn: not the clock's.
             secondGm: { row: ["asking", ["gm", "gm2"], true, null], yes: ["shown"], ...none, asks: ["gm2"],
                 cards: [["shownEmpty", ["searcher"]], ["toTarget shown", []], ["toRoom shown", ["third"]]], done: ["shown"], toasts: ["withdrawn"] },
