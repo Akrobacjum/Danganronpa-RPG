@@ -234,7 +234,7 @@
     "Settings": {
       "forceDiceLook": {
         "name": "Jeden wygląd kości przy stole",
-        "hint": "Każdy gracz i asystent GM-a rzuca kośćmi i efektami Dice So Nice w wyglądzie jednego pełnego Gamemastera, ustalonym, gdy gra pierwszy raz działa z tym ustawieniem, a własna zmiana wraca do niego. Własny wygląd innego pełnego Gamemastera zostaje jego i niczego przy stole nie zmienia. Każdy zachowuje własne ustawienia wyświetlania i wydajności. Wyłączenie nikomu nie przywraca dawnego wyglądu."
+        "hint": "Każdy gracz i asystent GM-a rzuca kośćmi Dice So Nice w wyglądzie jednego pełnego Gamemastera, ustalonym, gdy gra pierwszy raz działa z tym ustawieniem, bez efektów specjalnych poza tymi, które któryś Gamemaster oznaczy jako globalne, a własna zmiana wraca do niego. Własny wygląd innego pełnego Gamemastera zostaje jego i niczego przy stole nie zmienia poza efektami, które oznaczy jako globalne. Każdy zachowuje własne ustawienia wyświetlania i wydajności. Wyłączenie nikomu nie przywraca dawnego wyglądu."
       },
       "forcePrivateRolls": {
         "name": "Wymuszaj prywatne rzuty graczy",

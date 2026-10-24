@@ -3156,12 +3156,13 @@ async function canonicalDiceLook() {
 /** Whether a user's flags hold this look, read as the module's own comparison would not be: key order aside, nothing else. */
 const holdsLook = (user, look) => Boolean(look) && stableJson(diceScopeOf(user)?.appearance ?? null) === stableJson(look.appearance)
     && stableJson(diceScopeOf(user)?.sfxList ?? null) === stableJson(look.sfxList);
-/** What the GM's look must come out as on a player: its colours, the library die owned by the GM, no macro. */
-const isGmsLook = (look, gm) => {
-    const sfx = Object.values(look?.sfxList ?? {});
-    return look?.appearance?.global?.colorset === "fire" && look?.appearance?.d20?.libraryDieOwner === gm.id
-        && sfx.some(e => e?.specialEffect === "PlayAnimationBright") && !sfx.some(e => e?.specialEffect === "PlayMacro");
-};
+/**
+ * What the GM's look must come out as on a player: its colours, the library die owned by the GM, and no effect at all - since
+ * H82-01 (23.10.2026) the GM's effects stay the GM's, and those it marks for everyone reach a player's throw through Dice So
+ * Nice itself. Until then: the GM's effects but the macro.
+ */
+const isGmsLook = (look, gm) => look?.appearance?.global?.colorset === "fire" && look?.appearance?.d20?.libraryDieOwner === gm.id
+    && Object.values(look?.sfxList ?? {}).length === 0;
 function diceFlagsFound() {
     return new Map(game.users.map(u => [u.id, diceScopeOf(u)]));
 }
@@ -9925,8 +9926,8 @@ const SCENARIOS = [
          * has the GM for its author, so Dice So Nice's own decision would throw it in the GM's
          * colours wherever it is readable - on every GM at least. It is off for a drawn roll on
          * every browser (private-rolls.mjs `keepDiceToReaders`), and the primary shows the dice as
-         * the roller's: on its own screen, and by `dice.show { id, by }` to the rest of the roll's
-         * audience, the roller left out, who plays the draw's answer - 12-social reads that on p1
+         * the roller's: on its own screen (at its throw since H82 C6, roll-draw.mjs `throwOnThisScreen`, once), and by `dice.show { id, by }` to the rest of the roll's
+         * audience, the roller left out, who plays the message's rolls as it arrives (H82 C5) - 12-social reads that on p1
          * (`relayDrawnDice`). Two draws of `drawnForPlayer`'s packet, with rolls forced private and
          * not: where they are not, the audience is every connected user, whose Dice So Nice threw
          * each public roll until C13. Read: Dice So Nice's decision as it asks it of this GM, each
@@ -9966,6 +9967,57 @@ const SCENARIOS = [
         }
         equal(stableJson(readings), stableJson(expected),
             "a drawn roll is animated by Dice So Nice's own decision, thrown here as another's dice or synchronised, or sent to somebody outside its audience, to its roller, or not as the roller's (per draw: forced, decision, throws, packets)");
+    }],
+
+    ["a roll the GM drew whose message is not written was thrown once on the GM's screen as its roller's, and the Debug log says no card stands for it", async () => {
+        /*
+         * H82 C6 (24.10.2026; H82-07, the look back's option 2). The primary GM's own screen starts a drawn roll's dice
+         * as it throws them (roll-draw.mjs `throwDrawn`, `throwOnThisScreen`), before it writes the roll's message, and
+         * not at its message's echo (scenario 33 A17, 80 ms each way: within one hop of the request, a hop before the
+         * echo). So a write that then fails leaves dice on this screen with no card: the draw still fails as before
+         * (the roller is told, nothing is recorded), and the Debug log says what this screen showed. `drawnForPlayer`'s
+         * packet, with Daggerheart's `toMessage` failing while the GM judges it. Read: each throw here (as whose dice,
+         * synchronised or not), what the roller was sent, the message and the record, and this browser's Debug lines
+         * that name the roll. Until C6 nothing was thrown here and nothing logged.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        needs(world.moduleActive("dice-so-nice"), "the dice of a drawn roll are thrown through Dice So Nice");
+        const { player, theirs } = playerAndCharacters();
+        const cls = game.system.api.dice.DualityRoll;
+        const dice3d = game.dice3d, show = dice3d.showForRoll;
+        const own = Object.getOwnPropertyDescriptor(cls, "toMessage");
+        const debugWas = game.settings.get(MODULE_ID, SETTINGS.debug), consoleDebug = console.debug;
+        const thrown = [], lines = [];
+        if (!debugWas) await game.settings.set(MODULE_ID, SETTINGS.debug, true);
+        let F = null;
+        try {
+            const watch = () => {
+                dice3d.showForRoll = async (...args) => { thrown.push([args[1]?.id ?? args[1] ?? null, args[2] === true]); return true; };
+                Object.defineProperty(cls, "toMessage", { configurable: true, writable: true, value: async () => { throw new Error("H82 C6 planted: the message's write failed"); } });
+                console.debug = function (...args) {
+                    const line = args.map(String).join(" ");
+                    if (line.includes("no card")) lines.push(line);
+                    return consoleDebug.apply(this, args);
+                };
+                return () => {
+                    dice3d.showForRoll = show;
+                    if (own) Object.defineProperty(cls, "toMessage", own); else delete cls.toMessage;
+                    console.debug = consoleDebug;
+                };
+            };
+            F = await drawnForPlayer(player, theirs, { watch });
+            const answered = F.sent.map(r => [r.action, r.reason]);
+            equal(stableJson([thrown, answered.some(([action]) => action === "bridge.done"), answered.some(([, reason]) => reason === "failed"),
+                F.message ? F.message.id : null, F.record ? "record" : null, lines.length, lines.some(line => line.includes(player.name))]),
+            stableJson([[[player.id, false]], false, true, null, null, 1, true]),
+                "a drawn roll whose message was not written was not thrown here once as its roller's, was answered as made, kept a record, or the Debug log did not say no card stands for it (throws, answered done, told failed, message, record, Debug lines, naming the roller)");
+        } finally {
+            dice3d.showForRoll = show;
+            if (own) Object.defineProperty(cls, "toMessage", own); else delete cls.toMessage;
+            console.debug = consoleDebug;
+            if (game.settings.get(MODULE_ID, SETTINGS.debug) !== debugWas) await game.settings.set(MODULE_ID, SETTINGS.debug, debugWas);
+            await F?.putBack();
+        }
     }],
 
     ["a statistic from the sheet drawn by the GM keeps Daggerheart's card and names nobody", async () => {
@@ -58055,8 +58107,8 @@ const SCENARIOS = [
          * past the player's client, through the server, as a console's would arrive at the primary GM (the
          * put-back reads the state after the write, not who wrote it), with a die scope the GM's look has not
          * and a display setting. Read: the player's flags against the module's canonical look after each step,
-         * that look against the GM's (its colours, the library die owned by the GM, the macro effect gone),
-         * the stray scope, and the `settings` flag (Q2: not forced). At 01c6739: the canonical look null and
+         * that look against the GM's (its colours, the library die owned by the GM, and since H82-01 no effect:
+         * `isGmsLook`), the stray scope, and the `settings` flag (Q2: not forced). At 01c6739: the canonical look null and
          * the player's flags the player's own.
          */
         needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
@@ -58149,6 +58201,49 @@ const SCENARIOS = [
         }
         equal(stableJson([mark, kept]), stableJson([0, true]),
             "with the switch off the player's look was written over ([updates of the player after its write, its own look kept])");
+    }],
+
+    ["a player who holds the GM's dice effects as 1.2.80 wrote them has them taken off at the next sweep and keeps the GM's appearance while the GM keeps its own (H82-01)", async () => {
+        /*
+         * H82-01, 23.10.2026 (the owner, 21.10: "Jest tez delay przy rzucaniu koscmi czego nie bylo"). 1.2.80 and 1.2.81 wrote the
+         * GM's special effects, all but a macro's, on every player and Assistant GM, and Dice So Nice holds a throw's finish until
+         * each effect matched on its dice has started (R940's comment has the reading); now a forced user holds none. The players
+         * of a table that ran those versions still hold the GM's list as this one loads, and a sweep that compares and finds the
+         * look as it builds it writes nothing. Here, with the switch off, the GM gets a look with effects and a connected player
+         * the look 1.2.80 built from it (the GM's appearance, its library die owned by the GM, the effects but the macro); then the
+         * switch goes on, which sweeps as the primary's load does. Read: whether the player held that list first, whether it went
+         * within 3 s, then 1.2 s on (three times the put-back's wait) the player's effects and appearance, and the GM's own flags
+         * against what the GM's write left. Red at 9d6e675: the player keeps the GM's effects.
+         */
+        needs(world.moduleActive("dice-so-nice"), "the dice look is Dice So Nice's");
+        needs(env.primaryGm());
+        needs(world.atLeast("connectedPlayersWithCharacter"));
+        const gm = game.user;
+        const player = game.users.find(u => !u.isGM && u.active);
+        const found = diceFlagsFound();
+        const was = game.settings.get(MODULE_ID, SETTINGS.forceDiceLook);
+        const appearance = foundry.utils.deepClone(GM_DICE_LOOK);
+        appearance.d20.libraryDieOwner = gm.id;
+        const asWritten = GM_DICE_SFX.filter(effect => effect.specialEffect !== "PlayMacro");
+        const effectsOf = user => stableJson(diceScopeOf(user)?.sfxList ?? null);
+        const read = {};
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.forceDiceLook, false);
+            await gm.update(diceLookWrite(GM_DICE_LOOK, GM_DICE_SFX));
+            const gms = stableJson(diceScopeOf(gm));
+            await player.update(diceLookWrite(appearance, asWritten));
+            read.before = effectsOf(player) === stableJson(asWritten);
+            await game.settings.set(MODULE_ID, SETTINGS.forceDiceLook, true);
+            read.cleared = await until(() => effectsOf(player) === "[]", 3000);
+            await wait(1200);
+            read.after = [effectsOf(player), stableJson(diceScopeOf(player)?.appearance ?? null) === stableJson(appearance)];
+            read.gm = [stableJson(diceScopeOf(gm)) === gms, effectsOf(gm) === stableJson(GM_DICE_SFX)];
+        } finally {
+            if (game.settings.get(MODULE_ID, SETTINGS.forceDiceLook) !== was) await game.settings.set(MODULE_ID, SETTINGS.forceDiceLook, was);
+            await putBackDiceFlags(found);
+        }
+        equal(stableJson(read), stableJson({ after: ["[]", true], before: true, cleared: true, gm: [true, true] }),
+            "a player holding the GM's effects as 1.2.80 wrote them kept them at the sweep, lost the GM's appearance, or the GM's own look was written (before: the player held them; cleared: gone within 3 s; after: [the player's effects, its appearance the GM's]; gm: [the GM's flags as its write left them, its effects all of them])");
     }],
 
     ["a user's dice look written back again and again is put back five times in a minute, then left and the GM told once (S16-02)", async () => {
@@ -58550,7 +58645,8 @@ const SCENARIOS = [
                 flags: { [DSN_SCOPE]: OWN } }]);
             made.push(other);
             await game.settings.set(MODULE_ID, SETTINGS.diceLookSource, other.id);
-            read.other = await until(() => holdsLook(player, OWN), 3000);
+            // A forced user holds no effect since H82-01: the named source's appearance alone (its look has no library die).
+            read.other = await until(() => holdsLook(player, { appearance: OWN_DICE_LOOK, sfxList: [] }), 3000);
             await wait(800);
             await other.delete();
             read.after = await until(() => isGmsLook(diceScopeOf(player), gm), 3000);

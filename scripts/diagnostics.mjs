@@ -1602,7 +1602,8 @@ export async function perfReport({ frames = 60 } = {}) {
        once per roll, while the roller waits, and LIVE-E28-03 asked for it with nothing to read.
        Nothing is thrown here: the two lines read what this browser kept of the last fifty draws
        it took part in - as the drawing GM (packet in to answer out, the message written on the
-       way) and as a roller (asked to dice shown, the answer in on the way) - and say so when it
+       way) and as a roller (asked to dice shown, the answer in on the way; since H82 C5 also asked
+       to dice started, which comes before the answer) - and say so when it
        kept none. The median and the slowest rather than a mean: one draw that waited for the GMs'
        marks to open (roll-draw.mjs `marksOpen`) would carry a mean on its own. The numbers a
        headless harness prints here are its own (audit/perf-baseline.json `headless.verdict`);
@@ -1624,6 +1625,8 @@ export async function perfReport({ frames = 60 } = {}) {
         };
         lines.push(tripLine("drawn here, packet in to answer out", drew, "answered", "written", "the message written"));
         lines.push(tripLine("drawn for this browser, asked to dice shown", drawn, "shown", "answered", "the answer in"));
+        // Since H82 C5 the dice start at the GM's message, before its answer (roll-draw.mjs `startOnMessage`): the start the roller waits for.
+        lines.push(tripLine("drawn for this browser, asked to dice started", drawn, "started", "answered", "the answer in"));
     } catch (err) {
         lines.push(`  (could not read them: ${err?.message ?? err})`);
     }

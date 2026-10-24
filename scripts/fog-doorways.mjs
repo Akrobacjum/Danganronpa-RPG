@@ -28,14 +28,16 @@
  * `cutSegment`) and movement.mjs (`passageOpenFor`), for the secret passages a viewer's
  * character may take; neither reaches a fog file back (R161). Since E80 C1 (18.10.2026) the marks of
  * the tunnel ends a viewer's character knows in its room (`tunnelMarks`, `addTunnelMarks`), read
- * from the same copy (passages.mjs `tunnelEndsFor`). `ADRIFT_WARN_RUN` is read only by
+ * from the same copy (passages.mjs `tunnelEndsFor`). Since H82 C4 (23.10.2026) the cut a GM's frame gets where every
+ * secret passage of its floor runs in a wall (`gmPassageGaps`, `withPassageGhosts`, `traceGhostStretches`), read from
+ * the GMs' rows (passages.mjs `secretSegmentsOn`). `ADRIFT_WARN_RUN` is read only by
  * fog-diagnostics.mjs's `adriftCheck`; it stays among the doorway constants it
  * was written beside.
  */
 
 import { debug } from "./utils.mjs";
 import { roomPieces, onLevel } from "./rooms.mjs";
-import { openSegmentsFor, cutSegment, tunnelEndsFor } from "./passages.mjs";
+import { openSegmentsFor, cutSegment, tunnelEndsFor, secretSegmentsOn } from "./passages.mjs";
 import { passageOpenFor, tunnelEndRooms, roomsKnownToMe } from "./movement.mjs";
 import {
     regionShapes, polylineLength, inPolygons, resamplePolyline, smoothPolyline, trimPolyline, innerStretches
@@ -516,7 +518,8 @@ export function neighbourBeyond(mx, my, nx, ny, others, reach) {
  * passages it may take out of this room now (`viewerPassages`) are cut out of the walls this reads
  * and handed to the collision test, so its outline opens where the veto would let it through and
  * nowhere else. No actor, a character that knows no passage here, or a GM's browser: the walls and
- * the test as they were, so the outline is the map's (R557 compares the two). `elevation` is the height of the
+ * the test as they were, so the outline is the map's (R557 compares the two); a GM's frame is cut by every passage
+ * outside this, on these edges (`withPassageGhosts`, H82-05), so the map's checks still read the map. `elevation` is the height of the
  * token the outline is drawn for, at which a passage's sides are read (`viewerPassages`; H81 fix r1).
  */
 export function doorwayEdges(region, level = null, { actor = null, elevation = null } = {}) {
@@ -809,6 +812,108 @@ export function passageWalls(walls, open) {
         for (const piece of pieces) cut.push({ c: [piece.x1, piece.y1, piece.x2, piece.y2], move: wall.move, door: wall.door, ds: wall.ds });
     }
     return cut;
+}
+
+/**
+ * The stretches of wall a GM's frame is cut by on this scene and floor, `[{ id, wallId, x1, y1, x2, y2 }]`: every
+ * secret passage in a wall there, whoever knows it (passages.mjs `secretSegmentsOn`, the GMs' open rows on a GM's
+ * browser), and none on any other browser (H82-05, 23.10.2026; the owner's 21.10 "dopiszmy gma widzacego przerwy", the
+ * stage's default: every passage, dimmed, on a GM's browser alone, Assistant GMs too). THE GATE IS THE ROLE, never what
+ * the rows hold: a Mastermind player's copy names every passage, and its frame must still be a knower's. `gm` and
+ * `known` are the suite's (R944).
+ */
+export function gmPassageGaps(scene, level = null, { gm = Boolean(game.user?.isGM), known } = {}) {
+    if (!gm || typeof scene?.id !== "string") return [];
+    return secretSegmentsOn(scene.id, level, { known });
+}
+
+/**
+ * What of `gmPassageGaps`' answer a frame's cut is made of, as one string (H82 fix r1, 23.10.2026; finding H82-05-R1): each
+ * stretch's passage, wall and ends. fog-reveal.mjs `flashOutline` keeps it on the standing frame, and fog.mjs
+ * `redrawFrameSoon` draws the frame again only when the GMs' rows now give another: a tunnel's way, Make public, a
+ * student's start access or a passage on another scene cut nothing, and until this fix each of them replayed the frame's
+ * hop and room name on every GM's browser.
+ */
+export function passageCutKey(segments) {
+    return JSON.stringify((segments ?? []).map(s => [s?.id ?? null, s?.wallId ?? null, s?.x1, s?.y1, s?.x2, s?.y2]));
+}
+
+/** The walls of a scene on a floor, as `doorwayEdges` reads them before it cuts any passage out (`withPassageGhosts`' `walls`). */
+export function floorWalls(scene, level = null) {
+    return Array.from(scene?.walls ?? []).filter(wall => onLevel(wall, level));
+}
+
+/**
+ * `edges` (`doorwayEdges`' answer) with each edge a passage of `segments` runs along given `ghost: [[from, to]]`, the
+ * runs of it, as fractions of the edge, where a knower's frame is cut (H82-05). A GM's frame (fog-reveal.mjs
+ * `flashOutline`) is traced around a ghost as around a doorway and draws it again dimmed, with no glow
+ * (`traceOutlineGapped`, `traceGhostStretches`); `doorwayEdges` itself, `doorwayReport`, the map's checks and R557 read
+ * the map as they did. The same array when `segments` is empty, so a frame with no passage is the one it was.
+ *
+ * ON `doorwayEdges`' OWN SAMPLING, so the cut is the knower's to the sample: a step of `max(8, grid * 0.25)`, as many
+ * samples as round(length / step), a sample in a passage when a stretch runs along its middle as `wallAlongEdge` asks it
+ * of a wall (alongside the stretch's span, within `DOORWAY_WALL_NEAR` squares, within 20 degrees of the edge or of its
+ * trend), none on an inner stretch, a run under `grid * 0.35` dropped, and what is already open taken off. For a knower
+ * the sample is open where the cut wall no longer runs alongside it; worked by hand on scenario 76's Cafeteria
+ * (passage 1234.5-1334.5 at y 800, grid 100) the rule gives 1225-1325, the gap the investigation of 23.10 measured on a
+ * knower's browser there, and R943 holds the number. A knower's gap also needs a room beyond and a clear move ray
+ * (`neighbourBeyond`, `nothingInTheWay`); a ghost does not, since it marks where the passage is, not where this viewer may
+ * go. Pure but for `canvas.grid` when `grid` is not handed in.
+ *
+ * ON THE KNOWER'S WALL TEST (H82 fix r1, finding H82-05-R3). A knower's walls are the floor's with each passage cut out of
+ * the wall it names (`passageWalls`, by `wallId`), so where a second wall runs along the same border - a map walled room by
+ * room - the knower's frame stays solid there, and its move is stopped too. Until this fix a ghost was read off the
+ * passage's stretch alone and drew that cut as open. Now a sample is a ghost's where a wall of `walls` runs along it and
+ * none does once every passage is cut out of `walls` (`floorWalls`, as `doorwayEdges` reads them; fog-reveal.mjs hands
+ * them in). With no `walls` handed in, each stretch stands as its own wall, the wall it names, which is the reading of a
+ * floor where nothing else runs along it.
+ */
+export function withPassageGhosts(edges, segments, { grid = canvas?.grid?.size ?? 100, walls = null } = {}) {
+    if (!Array.isArray(edges) || !edges.length || !segments?.length) return edges;
+    try {
+        const step = Math.max(8, grid * 0.25), shortest = grid * 0.35, near = grid * DOORWAY_WALL_NEAR;
+        // As walls, so `wallAlongEdge`'s own reading answers whether one runs along a sample: a wall that stops movement.
+        const stretches = segments.map(s => ({ id: s.wallId, c: [s.x1, s.y1, s.x2, s.y2], move: 1, door: 0 }))
+            .filter(w => w.c.every(Number.isFinite));
+        if (!stretches.length) return edges;
+        const whole = Array.isArray(walls) ? walls : stretches;
+        const cut = passageWalls(whole, segments);
+        return edges.map(edge => {
+            const { ax, ay, dx, dy, length } = edge;
+            if (!(length >= shortest)) return edge;
+            const inner = edge.inner ?? [];
+            const samples = Math.max(1, Math.round(length / step));
+            const runs = [];
+            let from = null;
+            for (let k = 0; k <= samples; k++) {
+                const t = k / samples, mid = (k + 0.5) / samples;
+                const mx = ax + dx * mid, my = ay + dy * mid, ex = dx / length, ey = dy / length;
+                const along = k < samples && !inner.some(([a, b]) => mid >= a && mid <= b)
+                    && wallAlongEdgeUnguarded(mx, my, ex, ey, whole, near, edge.trend ?? null)
+                    && !wallAlongEdgeUnguarded(mx, my, ex, ey, cut, near, edge.trend ?? null);
+                if (along && from === null) from = t;
+                if (!along && from !== null) {
+                    if ((t - from) * length >= shortest) runs.push([from, t]);
+                    from = null;
+                }
+            }
+            const ghost = [];
+            for (const [a, b] of runs) {
+                let cursor = a;
+                for (const [oa, ob] of [...(edge.open ?? [])].sort((p, q) => p[0] - q[0])) {
+                    if (ob <= cursor || oa >= b) continue;
+                    if (oa > cursor) ghost.push([cursor, oa]);
+                    cursor = Math.max(cursor, ob);
+                }
+                if (cursor < b) ghost.push([cursor, b]);
+            }
+            const kept = ghost.filter(([a, b]) => (b - a) * length >= shortest);
+            return kept.length ? { ...edge, ghost: kept } : edge;
+        });
+    } catch (err) {
+        debug("Fog: could not work out where the GM's frame meets a secret passage", err);
+        return edges;
+    }
 }
 
 /** The middle of the longest stretch of an edge outside its inner ones, as a fraction of the edge. */
@@ -1382,7 +1487,8 @@ export function traceOutlineGapped(graphics, edges, rect, pad = null, minRun = n
             const margin = edge.length ? pad / edge.length : 0;
             // An inner stretch (`doorwayEdges`) is no border at all: left out to the point,
             // with no margin, so the line meets the other piece's border where it starts.
-            const gaps = [...(edge.open ?? []).map(([a, b]) => [Math.max(0, a - margin), Math.min(1, b + margin)]),
+            // A GM's ghost (`withPassageGhosts`, H82-05) is cut as a doorway is, to the same margin.
+            const gaps = [...[...(edge.open ?? []), ...(edge.ghost ?? [])].map(([a, b]) => [Math.max(0, a - margin), Math.min(1, b + margin)]),
                 ...(edge.inner ?? [])]
                 .sort((p, q) => p[0] - q[0]);
 
@@ -1438,6 +1544,44 @@ export function traceOutlineGapped(graphics, edges, rect, pad = null, minRun = n
             for (let i = 1; i < points.length; i++) graphics.lineTo(points[i].x, points[i].y);
         }
     }
+}
+
+/**
+ * The cuts a GM's frame leaves for its ghosts (`withPassageGhosts`, H82-05), each stroked as one line on `graphics` in
+ * whatever line style it holds: from `pad` before the run to `pad` after it, the margin `traceOutlineGapped` cut it to,
+ * so the dimmed stroke fills the cut and no more. Answers how many it drew; none, and no call, for edges with no ghost.
+ *
+ * NOT INTO AN OPENING OR THE ROOM (H82 fix r1, finding H82-05-R2). A ghost ends where an opening of the edge (`open`)
+ * begins, or a sample short of the room's own inner stretch (`inner`), and the margin past such an end is no wall's: it
+ * stroked a dimmed stub `pad` long into the real doorway (R943's edge, 10.5 px into each side of its 200-250), and along a
+ * line the frame never draws inside a room of two pieces. So the widened stroke is clipped against both, to their own
+ * ends, and is widened only where the edge is walled past the ghost.
+ */
+export function traceGhostStretches(graphics, edges, rect, pad = 0) {
+    let drawn = 0;
+    for (const edge of edges ?? []) {
+        if (!edge?.ghost?.length || !edge.length) continue;
+        const margin = pad / edge.length;
+        const blocked = [...(edge.open ?? []), ...(edge.inner ?? [])].sort((p, q) => p[0] - q[0]);
+        for (const [a, b] of edge.ghost) {
+            let from = Math.max(0, a - margin);
+            const to = Math.min(1, b + margin);
+            const pieces = [];
+            for (const [oa, ob] of blocked) {
+                if (ob <= from || oa >= to) continue;
+                if (oa > from) pieces.push([from, oa]);
+                from = Math.max(from, ob);
+            }
+            if (from < to) pieces.push([from, to]);
+            for (const [p, q] of pieces) {
+                if (!((q - p) * edge.length > 0.5)) continue;
+                graphics.moveTo(edge.ax + edge.dx * p - rect.x, edge.ay + edge.dy * p - rect.y);
+                graphics.lineTo(edge.ax + edge.dx * q - rect.x, edge.ay + edge.dy * q - rect.y);
+                drawn += 1;
+            }
+        }
+    }
+    return drawn;
 }
 
 /**

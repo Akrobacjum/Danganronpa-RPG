@@ -40,7 +40,8 @@ import { debug, error } from "./utils.mjs";
 import { BEAT, glassOn, SEAM_GLOW } from "./motion.mjs";
 import { traceRegionPathsAt, regionShapes, clamp01, largestPiece } from "./fog-geometry.mjs";
 import {
-    colourOf, GLOW_NAME, doorwayEdges, addDoorwayGlow, traceOutlineGapped, outlineColour, tunnelMarks, addTunnelMarks, recolourTunnelMarks
+    colourOf, GLOW_NAME, doorwayEdges, addDoorwayGlow, traceOutlineGapped, outlineColour, tunnelMarks, addTunnelMarks, recolourTunnelMarks,
+    gmPassageGaps, withPassageGhosts, traceGhostStretches, passageCutKey, floorWalls
 } from "./fog-doorways.mjs";
 
 const CanvasAnimation = foundry.canvas.animation.CanvasAnimation;
@@ -735,6 +736,17 @@ function outlineWidths(glass, grid) {
     return { boneWidth, inkWidth, stubFloor, gapPad };
 }
 
+/**
+ * How a GM's frame draws a secret passage's cut again (H82-05, 23.10.2026): `{ width, alpha }` of one stroke in the
+ * frame's own colour across the cut, butt-capped, with no ink keyline and no seam light - the bone line's own width
+ * under Monokuma Legacy (`max(7, grid * 0.11)`) at 0.35, the seam's hairline (`seamWidth`) at 0.6 under Stained Glass.
+ * The two alphas are the investigation's of 23.10, chosen so the cut reads as not the players' way out and the line as
+ * still the room's border; chosen, not measured - how either reads on a real floor at a table's zoom is LIVE-H82-04.
+ */
+export function ghostStyle(glass, grid) {
+    return glass ? { width: seamWidth(), alpha: 0.6 } : { width: Math.max(7, Math.round(grid * 0.11)), alpha: 0.35 };
+}
+
 // Sized from the grid rather than fixed. A flat 28px in scene units is
 // eleven pixels on screen at a zoom of 0.4, which is where this label spent
 // its life being unreadable.
@@ -914,8 +926,15 @@ export function flashOutline(fx, region, rect, level = null, { actor = null, ele
     group.name = OUTLINE_NAME;
     group.eventMode = "none";
 
-    // Measured once; the outline skips these and the glow marks them.
-    const edges = doorwayEdges(region, level, { actor, elevation });
+    // Measured once; the outline skips these and the glow marks them. On a GM's browser the secret passages of the
+    // floor's walls are cut too, as a knower's are, and drawn again dimmed (`ghostPass`; H82-05) - no glow, which reads
+    // `open` alone; on any other browser `gmPassageGaps` is [] and these are `doorwayEdges`' own. The region's own scene,
+    // never the one on screen (rooms.mjs CAMERA_READERS, R382): a room's shape keeps its scene (fog-geometry `piecesAsOne`).
+    // The floor's walls go with them, so a ghost is cut where a knower's wall test cuts (H82 fix r1, H82-05-R3), and the
+    // stretches' key is kept on the frame for fog.mjs `redrawFrameSoon` (H82-05-R1).
+    const gaps = gmPassageGaps(region?.parent, level);
+    const edges = withPassageGhosts(doorwayEdges(region, level, { actor, elevation }), gaps,
+        { grid, walls: gaps.length ? floorWalls(region?.parent, level) : null });
 
     const { boneWidth, inkWidth, stubFloor, gapPad } = outlineWidths(glass, grid);
 
@@ -954,7 +973,18 @@ export function flashOutline(fx, region, rect, level = null, { actor = null, ele
         if (edges.length) traceOutlineGapped(outline, edges, rect, gapPad, stubFloor);
         else if (regionShapes(region, { x: 0, y: 0 }).length === 1) traceRegionPathsAt(outline, region, rect);
     };
+    /* A GM'S CUT, DRAWN FIRST (H82-05). Under the ink and the line, so where their square caps reach into the cut they
+       close over its ends; nothing at all when no edge has a ghost, so every other frame is stroked call for call as
+       before. Walked again by `recolour` and `rewidth`, in the colour and the seam width they stroke with. */
+    const ghosted = edges.some(edge => edge.ghost?.length);
+    const ghostPass = colour => {
+        if (!ghosted) return;
+        const { width, alpha } = ghostStyle(glass, grid);
+        outline.lineStyle({ width, color: colour, alpha, cap: "butt", join: "miter", miterLimit: 2 });
+        traceGhostStretches(outline, edges, rect, gapPad);
+    };
 
+    ghostPass(bone);
     if (inkWidth) { stroke(inkWidth, colourOf("--drpg-ink", 0x1a1620)); trace(); }
     stroke(boneWidth, bone);
     trace();
@@ -974,7 +1004,7 @@ export function flashOutline(fx, region, rect, level = null, { actor = null, ele
     fx.addChild(group);
 
     roomOutline = {
-        group, outline, room: region.name, colour: bone,
+        group, outline, room: region.name, colour: bone, cut: passageCutKey(gaps),
         /* WHICH THEME DREW IT, AND WHAT FROM.
            Switching theme recoloured the standing outline and nothing else, so the line kept
            the WIDTH of the theme it was drawn under until the player walked into another
@@ -996,6 +1026,7 @@ export function flashOutline(fx, region, rect, level = null, { actor = null, ele
         recolour: colour => {
             if (outline.destroyed) return;
             outline.clear();
+            ghostPass(colour);
             if (inkWidth) { stroke(inkWidth, colourOf("--drpg-ink", 0x1a1620)); trace(); }
             stroke(glass ? seamWidth() : boneWidth, colour);
             trace();
@@ -1006,6 +1037,7 @@ export function flashOutline(fx, region, rect, level = null, { actor = null, ele
             if (outline.destroyed) return;
             const w = seamWidth();
             outline.clear();
+            ghostPass(roomOutline?.colour ?? bone);
             stroke(w, roomOutline?.colour ?? bone);
             trace();
             const halo = group.children.find(c => c?.name === SEAM_GLOW_NAME);

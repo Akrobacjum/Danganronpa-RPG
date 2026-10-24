@@ -50,6 +50,10 @@
  * and the GMs' audit alike (passages.mjs `secretRowsFrom`) - and the row's `public` is all that is written: no
  * cell, no card, no sound, no world data, no lock lifted; the reset keeps it. A new row carries its `origin`,
  * "gm" or, for a converted secret door, "door", which the tab names.
+ *
+ * Since H82 C3 (23.10.2026; H82-04) the overlay says, under each secret tunnel or stairs end's ring, where that end
+ * leads - the room beyond by its own name, in a knower's mark's words - and a one-way tunnel's link points to its way
+ * out (`endWords`, `wayArrow`), drawn from the GMs' rows on a GM's own board alone.
  */
 
 import { MODULE_ID, ACTIONS } from "./config.mjs";
@@ -2024,27 +2028,51 @@ export async function startPassagePick(scene, { dialog = null, passageId = null,
     });
 }
 
-/** A GM: the stretches of a scene's passages on a floor (or every floor, `level` null), `[{ id, state, x1, y1, x2, y2 }]`; [] elsewhere. */
-export function passageStretches(sceneId, level = null, { stores = PASSAGE_STORES } = {}) {
-    if (!game.user?.isGM) return [];
+/**
+ * A GM: the stretches of a scene's passages on a floor (or every floor, `level` null), `[{ id, state, x1, y1, x2, y2 }]`; [] elsewhere.
+ * `gm` is the suite's (R941): the user's role, never what the rows hold.
+ */
+export function passageStretches(sceneId, level = null, { stores = PASSAGE_STORES, gm = Boolean(game.user?.isGM) } = {}) {
+    if (!gm) return [];
     return Object.entries(stores.map.entries())
         .filter(([, row]) => row?.sceneId === sceneId && row.passageSeg && (!level || !row.level || row.level === level))
         .map(([id, row]) => ({ id, state: row.state, ...row.passageSeg }));
 }
 
 /**
- * A GM: the tunnels of a scene with an end on a floor (or every floor, `level` null), `[{ id, state, ends }]`,
- * `ends` only those on that floor - both for one floor's tunnel, one for stairs (E80 C1); [] elsewhere.
+ * A GM: the tunnels of a scene with an end on a floor (or every floor, `level` null), `[{ id, state, oneWay, ends }]`,
+ * `ends` only those on that floor - both for one floor's tunnel, one for stairs (E80 C1); [] elsewhere. Since H82 C3
+ * (H82-04) each end is `{ x, y, level, index, far }`, `index` its place in the row's two and `far` the end at the other
+ * side, wherever it is, and `oneWay` the end the tunnel is entered from (passages.mjs `oneWayOf`, null both ways): what
+ * the overlay's words and arrow read. `gm` is the suite's (R941): the user's role, never what the rows hold - a
+ * Mastermind player's copy names every passage.
  */
-export function passageTunnels(sceneId, level = null, { stores = PASSAGE_STORES } = {}) {
-    if (!game.user?.isGM) return [];
+export function passageTunnels(sceneId, level = null, { stores = PASSAGE_STORES, gm = Boolean(game.user?.isGM) } = {}) {
+    if (!gm) return [];
     const out = [];
     for (const [id, row] of Object.entries(stores.map.entries())) {
         const ends = row?.sceneId === sceneId ? endsOf(row) : null;
-        const here = (ends ?? []).filter(end => !level || !end.level || end.level === level);
-        if (here.length) out.push({ id, state: row.state, ends: here });
+        const here = (ends ?? []).map((end, index) => ({ ...end, index, far: { ...ends[1 - index] } }))
+            .filter(end => !level || !end.level || end.level === level);
+        if (here.length) out.push({ id, state: row.state, oneWay: oneWayOf(row), ends: here });
     }
     return out;
+}
+
+/*
+ * THE ROOM BEYOND, AS A KNOWER'S MARK READS IT (H82-04, 23.10.2026). The overlay's words name the room at a tunnel end's
+ * other side with movement.mjs `passageRooms`, the reading a knower's mark ends in (fog-doorways.mjs `tunnelMarks` through
+ * movement.mjs `tunnelEndRooms`, each end at its floor's bottom when no token is asked) - the map as it is now, as a
+ * knower's mark reads it, and not the row's `rooms`, which the tab shows. movement.mjs imports this file, so a static import back
+ * would close a cycle (R161): it is loaded once with `import()`, as `passageRoomsOnMap` loads it, at a GM's ready, and the
+ * overlay is drawn again when it has come (`registerPassagesGm`). Until then the rings are drawn with no words.
+ */
+let tunnelRooms = null, tunnelRoomsAsked = null;
+
+/** movement.mjs `passageRooms`, loaded once; answers it (R941 awaits it before it draws). */
+export function loadTunnelRooms() {
+    tunnelRoomsAsked ??= import("./movement.mjs").then(({ passageRooms }) => (tunnelRooms = passageRooms));
+    return tunnelRoomsAsked;
 }
 
 /* Each state's look: a secret one dashed in the passage colour, a closed one dashed grey, a broken one dotted red. */
@@ -2060,13 +2088,17 @@ const LOOK = {
  * browser only - `overlayLayer` is null anywhere else - and nothing is drawn under the fog.
  * `scene` and `level` are the camera's unless given (R573 hands a floor of its own; the overlay
  * never does). A floor switched is a new canvas, and the overlay is drawn again on it (gm-overlay.mjs
- * `registerGmOverlay`, LIVE-E12-02).
+ * `registerGmOverlay`, LIVE-E12-02). Since H82 C3 a secret tunnel's Graphics also holds the words under each
+ * of its ends' rings (`endWords`) and, one way with both ends here, an arrowhead on its link (`wayArrow`): still
+ * one Graphics a passage (R573, R594). `gm` and `rooms` are the suite's (R941): the user's role, and the
+ * reading of the room beyond (`loadTunnelRooms`; none yet, no words).
  */
-export function drawPassagesLayer(layer = overlayLayer("passages"), { stores = PASSAGE_STORES, scene = viewedScene(), level = viewedLevel()?.id ?? null } = {}) {
+export function drawPassagesLayer(layer = overlayLayer("passages"), { stores = PASSAGE_STORES, scene = viewedScene(), level = viewedLevel()?.id ?? null,
+    gm = Boolean(game.user?.isGM), rooms = tunnelRooms } = {}) {
     if (!layer) return 0;
     clearLayer(layer);
-    if (!scene) return 0;
-    const stretches = passageStretches(scene.id, level, { stores });
+    if (!scene || !gm) return 0;
+    const stretches = passageStretches(scene.id, level, { stores, gm });
     for (const s of stretches) {
         const look = LOOK[s.state] ?? LOOK.secret;
         const g = new PIXI.Graphics();
@@ -2077,19 +2109,102 @@ export function drawPassagesLayer(layer = overlayLayer("passages"), { stores = P
         layer.addChild(g);
     }
     // A tunnel's ends on this floor, a ring each, joined by the dashed line when both are here (E80 C1).
-    const tunnels = passageTunnels(scene.id, level, { stores });
-    const ring = (Number(scene.grid?.size) || 100) * 0.3;
+    const tunnels = passageTunnels(scene.id, level, { stores, gm });
+    const grid = Number(scene.grid?.size) || 100, ring = grid * 0.3;
     for (const t of tunnels) {
         const look = LOOK[t.state] ?? LOOK.secret;
+        const colour = overlayColour(look.token, look.fallback);
         const g = new PIXI.Graphics();
         g.name = t.id;
         g.drpgState = t.state;
-        g.lineStyle(look.width, overlayColour(look.token, look.fallback), 0.95);
+        g.lineStyle(look.width, colour, 0.95);
         for (const end of t.ends) g.drawCircle(end.x, end.y, ring);
         if (t.ends.length === 2) dashedLine(g, t.ends[0].x, t.ends[0].y, t.ends[1].x, t.ends[1].y, look.dash, look.gap);
+        // Closed and broken keep 1.2.81's look, no words and no arrow: no knower's screen marks them either (H82-04).
+        if (t.state === "secret") {
+            wayArrow(g, t, grid, colour);
+            for (const end of t.ends) endWords(g, scene, t, end, { grid, colour, rooms });
+        }
         layer.addChild(g);
     }
     return stretches.length + tunnels.length;
+}
+
+/*
+ * A one-way tunnel with both ends on this floor (H82-04): a filled arrowhead at the middle of its link pointing from the end
+ * it is entered from to its way out, in the passage's colour, on the tunnel's own Graphics (the line style the dashes set
+ * edges it). Stairs, and a tunnel with one end here, have no link to put it on: their words say which way. grid x 0.3 long
+ * and grid x 0.24 wide, against the ring's grid x 0.3 radius: chosen, as the investigation chose them, not read at a table
+ * (LIVE-H82-03). The points are kept on the Graphics as `drpgArrow` (H82 fix r1, finding H82-C3-R1): R941 reads them on a
+ * real canvas, where PIXI keeps every dash of the link as a polygon of its own in `geometry.graphicsData` beside this one.
+ */
+function wayArrow(g, tunnel, grid, colour) {
+    const into = tunnel.ends.find(end => end.index === tunnel.oneWay), out = tunnel.ends.find(end => end.index !== tunnel.oneWay);
+    if (tunnel.oneWay === null || !into || !out) return false;
+    const length = Math.hypot(out.x - into.x, out.y - into.y);
+    if (!length) return false;
+    const ux = (out.x - into.x) / length, uy = (out.y - into.y) / length;
+    const mx = (into.x + out.x) / 2, my = (into.y + out.y) / 2, half = grid * 0.15, wide = grid * 0.12;
+    const points = [mx + ux * half, my + uy * half, mx - ux * half - uy * wide, my - uy * half + ux * wide, mx - ux * half + uy * wide, my - uy * half - ux * wide];
+    g.beginFill(colour, 0.95);
+    g.drawPolygon(points);
+    g.endFill();
+    g.drpgArrow = [...points];
+    return true;
+}
+
+/** The name the overlay's words carry on their tunnel's Graphics. */
+const PASSAGE_WORDS = "drpgPassageWords";
+
+/*
+ * The words under a tunnel end's ring on the overlay (H82-04): 'Secret passage to {room}', 'Secret passage from {room}' at a
+ * one-way tunnel's way out, as a knower's mark says them (fog-doorways.mjs `addTunnelMarks`), but with the room beyond by
+ * its own name - a GM is told no 'Unexplored room' - and none where the map names no room there. A knower's size (H81-06:
+ * max(20, grid x 0.36) over a keyline of max(4, grid x 0.07), grid x 0.38 under the end; R903 reads the knower's, R941
+ * these), in the passage's colour, at alpha 0.7 so that it reads as the GMs' and not as a knower's mark: 0.7 chosen, as
+ * the investigation chose it, not read at a table (LIVE-H82-03); resolution 2 as a knower's, whose texture memory for many
+ * ends is not measured (the investigation's estimate, not a reading: about 0.47 MB a caption at grid 100). Written here and
+ * not taken from fog-doorways.mjs, which imports movement.mjs, which imports this file (R161). A child of the tunnel's
+ * Graphics, destroyed with it (gm-overlay.mjs `clearLayer`).
+ */
+function endWords(g, scene, tunnel, end, { grid, colour, rooms }) {
+    const far = typeof rooms === "function" ? rooms(scene, { ends: [end, end.far] })?.[1] ?? null : null;
+    if (!far) return false;
+    const exit = tunnel.oneWay !== null && tunnel.oneWay !== end.index;
+    const text = new PIXI.Text(game.i18n.format(exit ? "DRPG.Passage.mark.from" : "DRPG.Passage.mark.to", { room: far }), {
+        fontFamily: '"Special Elite", "Courier New", monospace',
+        fontSize: Math.max(20, Math.round(grid * 0.36)),
+        fill: colour,
+        stroke: overlayColour("--drpg-ink", 0x1a1620),
+        strokeThickness: Math.max(4, Math.round(grid * 0.07)),
+        align: "center"
+    });
+    text.resolution = 2;
+    text.anchor.set(0.5, 0);
+    text.position.set(end.x, end.y + grid * 0.38);
+    text.alpha = 0.7;
+    text.name = PASSAGE_WORDS;
+    g.addChild(text);
+    return true;
+}
+
+/*
+ * A region made, changed or deleted, on a GM's browser (H82-04): the words read the room beyond off the map, so the
+ * overlay is drawn again - a quarter second after the last of a burst, as H82-04 asks of a redraw on a signal the overlay
+ * did not listen to before. A rename reaches the rows as well (`carryRename`, on the primary), and their change draws it
+ * again at once. Since H82 fix r1 (finding H82-C3-R2) also a behaviour made or deleted on a region - a Teleport Token or
+ * Change Level unmakes a room and taking it off makes one (rooms.mjs `canBeRoom`), and neither is a Region event - and a
+ * scene's own update that changes its regions (`changes.regions`, which fires no `updateRegion`), the three fog.mjs
+ * `registerFog` repaints every browser on. A player region (settings.mjs `playerRegions`) is no room either, and its
+ * change is not heard here: the overlay reads it at the next redraw.
+ */
+let wordsTimer = null;
+function redrawPassagesSoon() {
+    clearTimeout(wordsTimer);
+    wordsTimer = setTimeout(() => {
+        wordsTimer = null;
+        redrawGmOverlay("passages");
+    }, 250);
 }
 
 /* A change the primary merged, or a student given to another player: the copies are told, once, a moment later. */
@@ -2213,8 +2328,15 @@ export function registerPassagesGm() {
         Hooks.on("updateUser", onDoorsRoleChanged);
         Hooks.on("createScene", onSceneCreated);
         Hooks.on("drpgRouteSettled", onRouteSettled);
+        Hooks.on("createRegion", () => redrawPassagesSoon());
+        Hooks.on("updateRegion", () => redrawPassagesSoon());
+        Hooks.on("deleteRegion", () => redrawPassagesSoon());
+        Hooks.on("createRegionBehavior", () => redrawPassagesSoon());
+        Hooks.on("deleteRegionBehavior", () => redrawPassagesSoon());
+        Hooks.on("updateScene", (scene, changes) => { if (changes?.regions) redrawPassagesSoon(); });
         redrawGmOverlay("passages");
         passageMapStore.whenHydrated().then(() => redrawGmOverlay("passages")).catch(() => {});
+        loadTunnelRooms().then(() => redrawGmOverlay("passages")).catch(err => error("Could not read the rooms of the tunnels' ends for the GMs' overlay", err));
         if (!gmStoresQuiet()) settleSecretDoors().catch(err => error("Could not put the secret doors back at the ready", err));
     });
 }

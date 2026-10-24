@@ -50,11 +50,12 @@
 
 import { MODULE_ID, TIMING, ACTIONS, TRAITS, TRAIT_BY_DH, MURDER_OPENING, CRITICAL, CRISIS_ACTIONS, PRICE_CHAINS, CLEANUP, LEGAL_ROLL_MODIFIERS } from "./config.mjs";
 import { SETTINGS, getClock } from "./settings.mjs";
-import { primaryGmId, isPrimaryGm, announce, whisperToGms, warn, error, esc } from "./utils.mjs";
+import { primaryGmId, isPrimaryGm, announce, whisperToGms, debug, warn, error, esc } from "./utils.mjs";
 import { bridgeRequest, ownsActor } from "./bridge-guards.mjs";
 import { readDuality, awardRollDespair } from "./despair-award.mjs";
 import { answerKeysOpen, rollStore, sheetMarkStore } from "./gm-stores.mjs";
-import { ROLL_NONCE, supersedingRoll, rollClaimOf, keepSubject, neutralRollOf, readHere, awaitDrawn, isDrawnRoll, forgedFlagsOf } from "./private-rolls.mjs";
+import { ROLL_NONCE, supersedingRoll, rollClaimOf, keepSubject, neutralRollOf, readHere, awaitDrawn, isDrawnRoll, forgedFlagsOf, isReadableHere,
+    rollNonceOf } from "./private-rolls.mjs";
 import { LOADED_DIE, loadDie, standAsideFor } from "./forced-roll.mjs";
 import { DRPG_ACTION_ROLL, DRAWN_ROLL, searchOdds, stashStepFor } from "./action-rolls.mjs";
 import { actionsLeft, freeActionsLeft } from "./actions.mjs";
@@ -171,6 +172,8 @@ export function registerRollDraw() {
     cls.build = drawnBuild;
     seam = { state: "ok", why: "" };
     standAsideFor(drawnByGm);
+    // The roller's dice start at the GM's message of its roll (H82 C5, `startOnMessage`); a GM's browser waits on none.
+    Hooks.on("createChatMessage", startOnMessage);
 }
 
 /**
@@ -256,7 +259,8 @@ async function drawOrThrow(cls, original, config, message) {
 /**
  * Configure the roll here, ask the GM to draw it, play its answer back. While the GM draws, this
  * browser reads the message the GM writes for this roll's nonce (private-rolls.mjs `awaitDrawn`),
- * and after it by the message's id (`playBack`).
+ * and after it by the message's id (`playBack`); and the dice start as that message arrives
+ * (`awaitStart`, `startOnMessage`, H82 C5), not at the answer.
  */
 async function drawAndPlay(cls, config, message) {
     const roll = await cls.buildConfigure(config, message);
@@ -269,18 +273,103 @@ async function drawAndPlay(cls, config, message) {
     }
     const claim = rollClaimOf(config[ROLL_NONCE]);
     const drawn = awaitDrawn(config[ROLL_NONCE]);
+    const start = awaitStart(config[ROLL_NONCE], primaryGmId());
     const asked = performance.now();
     try {
         const answer = await bridgeRequest("roll.draw", drawPacketOf(roll, config, claim), { settle: "reply", timeoutMs: DRAW_ANSWER_MS });
         const answered = performance.now() - asked;
-        // Refused, or no answer: the waiter has said so once (`sayNotDone`); the roll is not made.
+        // Refused, or no answer: the waiter has said so once (`sayNotDone`); the roll is not made. A draw the GM wrote
+        // the message of and then failed has had its dice start here at that message (`startOnMessage`): said in the log.
+        // The return stays one line: R303 reads it as the draw's end before `playBack`.
+        if (start.started && !(answer?.ok && typeof answer.value?.messageId === "string")) {
+            debug(`The dice of a roll the GM drew started at its message ${start.messageId}, and the GM's answer says the roll was not made.`);
+        }
         if (!answer?.ok || typeof answer.value?.messageId !== "string") return;
-        await playBack(cls, roll, config, message, answer.value, claim.subject);
-        keepTrip("drawn", { at: Date.now(), answered, shown: performance.now() - asked });
+        await playBack(cls, roll, config, message, answer.value, claim.subject, start);
+        keepTrip("drawn", { at: Date.now(), answered, started: start.at - asked, atMessage: start.atMessage, shown: performance.now() - asked });
     } finally {
         drawn();
+        start.stop();
     }
     return config;
+}
+
+/*
+ * THE ROLLER'S DICE START AT THE GM'S MESSAGE (H82 C5, 23.10.2026; H82-06; the owner's 21.10 and 23.10: a delay
+ * before the dice start that was not there before). From E08+E28 (1.2.67: ba6f366c for an action's roll, 22f947c9
+ * for a statistic from the sheet) the dice of a roll the GM drew started here on the GM's answer (`playBack`): six
+ * one-way hops after the roll was asked - to the server and the GM, the GM's message through the server and its echo,
+ * the answer to the server and here - and behind all the GM does between its message and its answer (Daggerheart's
+ * Hope and Fear step, the resource writes and their echo, the record, the reports). The GM's message is here at the
+ * fourth hop. H82's look back measured it on the harness booting every tag, 80 ms added each way on every client:
+ * 162-166 ms from Roll to dice for 1.2.50-1.2.66, 490-500 ms from 1.2.67, 580-650 ms for an action's roll whose GM
+ * writes a resource first; its probe at 952a2d9 read 495.1 ms for a statistic from the sheet and 545.8 ms for an
+ * action's roll, the message in at 327.1 and 327.7 (medians of 10). So the dice start as the message arrives, on that
+ * message's rolls - what the roll's audience throws (private-rolls.mjs `relayDrawnDice`, `showRelayedDice`); the
+ * primary's own screen throws its evaluated roll at its throw, before any message, since H82 C6 (`throwOnThisScreen`;
+ * whether the two look the same is LIVE-H82-05 (b) and LIVE-H82-06 (b)) - and the answer, when it comes, settles the
+ * rest as before: the roller's copy of the roll the config carries (`rollerCopyOf`), the record's id, what is readable
+ * here, the subject; a draw refused or failed before its message throws nothing, as before. The same probe with this change (23.10.2026, medians of 10 at 80 ms
+ * each way): 327.8 ms for a statistic from the sheet (324.7-330.7) and 326.9 ms for an action's roll (325.6-329.3), the
+ * message's own time; with no delay added 12.2 -> 6.6 ms and 65.5 -> 5.9 ms, the GM's work after its message off the
+ * path. Scenario 33's A17 holds the order (the dice before the answer) and the hop (within one of the message), not
+ * the milliseconds. What a real network and a real Dice So Nice add is LIVE-H82-05.
+ *
+ * WHO MAY START THEM. A message starts the dice of a roll this browser waits on (`startsAwaited`, set as the draw is
+ * asked, cleared as it ends) only when it is that draw's: drawn (`isDrawnRoll`: the flag under a GM's authorship - on
+ * a player's message it is a forgery and starts nothing), written by the primary GM the roll was asked of, carrying
+ * the roll's nonce, readable here by `isReadableHere`'s rule (no roll is thrown where its roller could not read it),
+ * holding rolls, and the first for that nonce. Nothing is sent, written or judged: the faces are the GM's own
+ * message's, drawn on this screen alone, as this user's and not synchronised, or the dice sound with no Dice So Nice
+ * (`playDice`). A GM's own rolls are not drawn (`drawsHere`), so a GM's browser waits on none. Where the primary
+ * changed while the roll was out, or no message came before the answer, the answer throws them as before, and once:
+ * `playBack` marks the wait started before it throws.
+ *
+ * THE LOOK. The roller's screen throws the message's roll now, not its own rebuilt copy. Daggerheart 2.10 colours
+ * the Hope and Fear dice through Dice So Nice roles keyed on the dice's modifiers, which survive `clone()`, not with a
+ * preset the throwing browser picks (audit/probe-daggerheart-2.10.5.md, E28-1, read in 2.10.5, not run; the harness's
+ * copy of its dice holds no preset code), so by that reading the roller's dice look as the GM's and the audience's
+ * do. Not seen at a table: LIVE-H82-05.
+ */
+const startsAwaited = new Map();
+
+/**
+ * This browser waits on the primary GM `primary` to draw the roll carrying `nonce`: answers the wait - `started`, the
+ * promise of its dice once they start; `at`, when (`performance.now()`); `messageId`, the message they started at;
+ * `atMessage`, whether they started at the message (else at the answer, `playBack`); `stop()`, which ends the wait.
+ */
+function awaitStart(nonce, primary) {
+    const wait = { primary, started: null, at: null, messageId: null, atMessage: false, stop: () => {} };
+    if (typeof nonce !== "string" || !nonce) return wait;
+    startsAwaited.set(nonce, wait);
+    wait.stop = () => { if (startsAwaited.get(nonce) === wait) startsAwaited.delete(nonce); };
+    return wait;
+}
+
+/**
+ * The wait whose dice this message starts (`startsAwaited`), or null: "WHO MAY START THEM" above. `waits`, `user` and
+ * `readable` are this browser's, stood in for by R947.
+ */
+export function startWaitOf(message, { waits = startsAwaited, user = game.user, readable = isReadableHere } = {}) {
+    if (!waits.size || user?.isGM || !((message?.rolls?.length ?? 0) > 0)) return null;
+    if (!isDrawnRoll(message) || !readable(message)) return null;
+    const wait = waits.get(rollNonceOf(message) ?? "") ?? null;
+    if (!wait || wait.started || typeof wait.primary !== "string" || message.author?.id !== wait.primary) return null;
+    return wait;
+}
+
+/** `createChatMessage`: the GM's message of a roll this browser waits on starts its dice, here alone. */
+function startOnMessage(message) {
+    try {
+        const wait = startWaitOf(message);
+        if (!wait) return;
+        wait.at = performance.now();
+        wait.messageId = message.id;
+        wait.atMessage = true;
+        wait.started = playDice(message.rolls);
+    } catch (err) {
+        error("Could not start the dice of a roll the GM drew at its message", err);
+    }
 }
 
 /*
@@ -368,7 +457,7 @@ export function drawPacketOf(roll, config, claim) {
  * the hidden stash's step it drew (`stash`, action-rolls.mjs `stashStepOf`) and whether
  * it loaded the die (`loaded`).
  */
-async function playBack(cls, roll, config, message, answer, subject) {
+async function playBack(cls, roll, config, message, answer, subject, start = awaitStart(null, null)) {
     const { rollId, messageId, total, stash = null, loaded = false } = answer;
     config[DRAWN_ROLL] = { rollId, messageId, stash: stash && typeof stash === "object" ? stash : null, loaded: loaded === true };
     const played = await rollerCopyOf(cls, roll, config, message, answer);
@@ -384,7 +473,16 @@ async function playBack(cls, roll, config, message, answer, subject) {
     // reload too (`keep`, fix r2-H7).
     if (subject?.id) keepSubject(messageId, subject.id, game.user?.id ?? null);
     readHere(messageId, { keep: true });
-    await playDice(played);
+    // Started at the GM's message (H82 C5, `startOnMessage`): not thrown again. Else thrown now, as before, and the
+    // wait marked started first, so a message that comes after the answer starts nothing.
+    if (!start.started) {
+        start.at = performance.now();
+        start.messageId = messageId;
+        start.started = playDice(played);
+    } else if (start.messageId !== messageId) {
+        warn(`The dice of roll ${rollId} started at message ${start.messageId}, and the GM's answer names ${messageId}; they are not thrown again.`);
+    }
+    await start.started;
 }
 
 /*
@@ -462,19 +560,22 @@ function rollFromLegal(cls, json, data = null) {
 
 /*
  * THE ROLLER'S DICE, ON THE ROLLER'S SCREEN (the plan's 3.4, its first line). Played from
- * this copy of the roll, as this user's, not synchronised: nobody else's screen throws
+ * the GM's message's rolls as it arrives (H82 C5, `startOnMessage`), or from this copy of the
+ * roll at the answer where no message came first, as this user's, not synchronised: nobody else's screen throws
  * them (the GMs' and the incident's audience are the relay's, private-rolls.mjs
- * `relayDrawnDice`, in this user's colours too, C13; Dice So Nice's own decision is off for the
+ * `relayDrawnDice`, in this user's colours too, C13 - the primary's own screen its throw's since
+ * H82 C6, `throwOnThisScreen`; Dice So Nice's own decision is off for the
  * GM's message on every browser, `keepDiceToReaders`). With no
  * Dice So Nice, the dice sound. Waited for as Daggerheart's `toMessage` waits for the
  * animation, so the module's card does not land while the dice still fall - bounded as
  * `diceSettled` is (action-rolls.mjs), for a tab in the background.
  */
-async function playDice(roll) {
+async function playDice(rolls) {
+    const list = (Array.isArray(rolls) ? rolls : [rolls]).filter(Boolean);
     try {
         if (typeof game.dice3d?.showForRoll !== "function") return void foundry.audio.AudioHelper.play({ src: CONFIG.sounds.dice });
         await Promise.race([
-            game.dice3d.showForRoll(roll, game.user, false),
+            (async () => { for (const roll of list) await game.dice3d.showForRoll(roll, game.user, false); })(),
             new Promise(resolve => setTimeout(resolve, TIMING.diceSettleMs))
         ]);
     } catch (err) {
@@ -710,7 +811,9 @@ const drawing = new Set();
  * points of the last `TRIPS_KEPT` draws it took part in, passively - no synthetic roll, nothing
  * sent, nothing stored - as milliseconds from the trip's start by `performance.now()`: on the
  * roller, asked (the request sent, `drawAndPlay`) -> answered (the GM's answer in) -> shown (the
- * GM's faces played back and the dice shown, `playBack` returned); on the drawing GM, the packet
+ * GM's faces played back and the dice shown, `playBack` returned), and since H82 C5 started (the
+ * dice's start, at the GM's message - `atMessage` - before the answer, or at the answer where no
+ * message came first, so after it); on the drawing GM, the packet
  * in (`drawOnGm` entered) -> the message written (`throwDrawn`, `writeDrawnMessage` resolved) ->
  * the answer out (`drawOnGm` returns; the bridge sends it next). A refused or unanswered draw is
  * no round trip and is not kept. `game.drpg.perf()` reads them (diagnostics.mjs `perfReport`,
@@ -1363,8 +1466,16 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
     const loads = expected.read.loadedDie;
     if (loads) loadDie(roll, loaded);
     await cls.buildEvaluate(roll, config, {});
+    // The dice on this screen as the roller's, now, at the throw (H82 C6, `throwOnThisScreen`); the relay sends them on.
+    const shown = throwOnThisScreen(roll, sender);
     const rollId = foundry.utils.randomID();
-    const message = await writeDrawnMessage(cls, roll, config, { actor, nonce, rollId, sender, keepCard: claimed === false });
+    let message;
+    try {
+        message = await writeDrawnMessage(cls, roll, config, { actor, nonce, rollId, sender, keepCard: claimed === false, shown });
+    } catch (err) {
+        if (shown) debug(`The dice of ${sender?.name ?? "a player"}'s roll were thrown on this screen, and its message was not written: no card stands for them.`);
+        throw err;
+    }
     written?.();
     await cls.dualityUpdate(config);
     if (typeof cls.handleTriggers === "function") await cls.handleTriggers(roll, config);
@@ -2013,24 +2124,60 @@ function facesOf(roll) {
 }
 
 /*
+ * THE GM'S OWN SCREEN THROWS AT THE GM'S THROW (H82 C6, 24.10.2026; H82-07, the look back's option 2). Until C6 the
+ * primary threw a drawn roll's dice on its own screen as the roll's message was created there (private-rolls.mjs
+ * `relayDrawnDice`, from the claim's createChatMessage): the echo of its own write, two hops after the write left -
+ * four after the player's press, where 1.2.66's GM saw a player's roll at two, the player's own message reaching it.
+ * Scenario 33's A17 measured it at dbda7aa with 80 ms added each way on every client (medians of 4): the GM's dice
+ * 164.1 ms after the request reached it, its message's echo at 164.5, 325 ms after the roller's roll.draw left. So
+ * they start here as soon as the roll is evaluated, before its message is written; the same part with this change:
+ * 1.7 ms after the request, the echo at 164.3, 163 ms after roll.draw left (a probe from the player's Roll click on the
+ * shared wall clock, medians of 10, 24.10.2026: a statistic from the sheet 328 -> 165.5 ms, an action's roll 327 -> 165;
+ * with no delay added 6 -> 4.5 and 5 -> 4; the player's own dice unchanged at 327-328). The GM's own evaluated roll, as
+ * the roller's (`user`) and not synchronised - the owner's 27.09 rule that nobody is shown "the GM rolled" holds -
+ * and not awaited: the draw does not wait for an animation. The dice sound where Dice So Nice is not, as the relay
+ * played it. Every refusal comes before this (`marksOpen`, `drawRefusal`, `expectedFor`, `legalRollOf`), so a refused
+ * draw still throws nothing. The relay still sends `dice.show` to the rest of the roll's audience as the message is
+ * created, and no longer throws it here a second time (`shown` on the claim). A write that then fails leaves dice here
+ * with no card: the draw fails as before, and the Debug log says so. Answers whether the dice started here; a Dice So
+ * Nice that throws as it is called answers false, and the relay throws them as before. What a real browser shows,
+ * and how the GM's own work after its message (a Fear result's Despair, the HUD) sits beside falling dice, is
+ * LIVE-H82-06.
+ */
+function throwOnThisScreen(roll, user) {
+    try {
+        if (typeof game.dice3d?.showForRoll !== "function") {
+            foundry.audio.AudioHelper.play({ src: CONFIG.sounds.dice });
+            return true;
+        }
+        void Promise.resolve(game.dice3d.showForRoll(roll, user, false)).catch(err => error("Could not show the dice of a roll the GM drew", err));
+        return true;
+    } catch (err) {
+        error("Could not show the dice of a roll the GM drew", err);
+        return false;
+    }
+}
+
+/*
  * THE MESSAGE, AS DAGGERHEART'S `toMessage` SHAPES IT, WRITTEN BY THE GM. Inside a claim of
  * the roller's nonce (private-rolls.mjs `supersedingRoll`), so the module's rule for a roll it
  * threw applies as it is created: claimed, emptied of its character, whispered to the GMs where
  * rolls are private, the record's id and `drawn` beside the claim's flag. The claim's subject
  * is kept as the message is created - before the Despair award, which listens later in the same
  * hook, asks for it - and its dice are shown as the roller's (`by`) to the GMs and the roll's
- * audience, the roller left out: their dice are played from the answer (private-rolls.mjs
- * `relayDrawnDice`, C13). A statistic from the sheet keeps Daggerheart's card (`keepCard`): no
+ * audience, the roller left out: their dice start as this message reaches them (`startOnMessage`,
+ * H82 C5; from the answer until then; private-rolls.mjs `relayDrawnDice`, C13), and on this screen
+ * at the throw before it (`shown`, `throwOnThisScreen`, H82 C6). A statistic from the sheet keeps Daggerheart's card (`keepCard`): no
  * `supersededRoll` flag, and each browser that reads it heads it with the roll's character, not
  * with this GM (private-rolls.mjs `signAsRoller`, fix r2-H4). `toMessage` then waits for Dice So
  * Nice, which does not animate this message and so answers at once (`keepDiceToReaders`); the
  * draw does not wait for it either (the plan's 3.3): it goes on as soon as the message exists.
  */
-async function writeDrawnMessage(cls, roll, config, { actor, nonce, rollId, sender, keepCard = false }) {
+async function writeDrawnMessage(cls, roll, config, { actor, nonce, rollId, sender, keepCard = false, shown = false }) {
     let heard = null;
     const created = new Promise(resolve => { heard = resolve; });
     const writing = supersedingRoll(() => cls.toMessage(roll, config),
-        { subject: actor, nonce, stamp: { rollId, drawn: true }, by: sender.id, keepCard, onCreated: heard });
+        { subject: actor, nonce, stamp: { rollId, drawn: true }, by: sender.id, shown, keepCard, onCreated: heard });
     const message = await Promise.race([created, writing]);
     writing.catch(err => error("The message of a roll the GM drew failed after it was written", err));
     if (!message?.id) throw new Error("the drawn roll's message was not written");

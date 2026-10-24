@@ -42,8 +42,9 @@ export async function run({ gm, p1, p2, check, phase, settle, repoUrl }) {
        owner's note of 27.09). Aiko's roll is p1's statistic from her sheet, which the GM draws and
        writes (roll-draw.mjs): Dice So Nice's own decision is off for the GM's message on every
        browser - it would throw it in the GM's colours - and the dice are played as p1's: on p1
-       from the draw's answer, on the GM by the relay (private-rolls.mjs `relayDrawnDice`), on p2
-       not at all. Each model keeps every `showForRoll` with the user whose dice it throws
+       as the GM's message arrives (roll-draw.mjs `startOnMessage`, H82 C5), and at the draw's answer
+       only where no message came first (`playBack`), on the GM at its throw (roll-draw.mjs `throwOnThisScreen`, H82 C6; by the relay,
+       private-rolls.mjs `relayDrawnDice`, until then), on p2 not at all. Each model keeps every `showForRoll` with the user whose dice it throws
        (`__dsnShown`), and what it would animate itself (`__dsnAnimated`). */
     const DSN_OFF = `globalThis.__dsnHideSecret = false; globalThis.__dsnAnimated = []; globalThis.__dsnShown = []; return true;`;
     for (const c of [gm, p1, p2]) await c.eval(DSN_OFF);
@@ -193,11 +194,18 @@ export async function run({ gm, p1, p2, check, phase, settle, repoUrl }) {
         Boolean(rollRes.id) && asAiko(dice.p1) && asAiko(dice.gm) && dice.p2.shown.length === 0 && [dice.gm, dice.p1, dice.p2].every(r => r.animated === false),
         JSON.stringify(dice));
 
-    /* WITHOUT DICE SO NICE (E08+E28 C13; LIVE-E28-02 is the table's reading). p1 and p2 lose
-       `game.dice3d` (put back after) and Aiko throws a second statistic. The GM's message is muted
-       (dhRoll.mjs:151, as the harness's `toMessage` writes it), so the roller hears the dice from
-       the draw's answer (roll-draw.mjs `playDice`) and reads the result on her own copy; p2 hears
-       nothing and reads nothing. Every sound a browser plays is kept for the window (`__sounds`). */
+    /* WITHOUT DICE SO NICE (E08+E28 C13; LIVE-E28-02 is the table's reading). The GM, p1 and p2
+       lose `game.dice3d` (put back after) and Aiko throws a second statistic. The GM's message is
+       muted (dhRoll.mjs:151, as the harness's `toMessage` writes it), so the roller hears the dice
+       its draw plays at the GM's message (roll-draw.mjs `playDice`, since H82 C5; at the answer
+       only where no message came first) and reads the result on her own copy; p2 hears nothing and
+       reads nothing. The GM hears them once, at its throw (roll-draw.mjs `throwOnThisScreen`, H82
+       C6), and the relay plays nothing more as the message echoes there (private-rolls.mjs
+       `relayDrawnDice` throws only where the claim's `shown` is not true) - H82 fix r2, H82-07-R1:
+       until then nothing drove the GM without Dice So Nice, and a sound branch answering anything
+       but true (the `return void AudioHelper.play(...)` shape playRolls uses) would have played the
+       dice twice there with every check green. Every sound a browser plays is kept for the window
+       (`__sounds`). */
     const NO_DSN = `globalThis.__dice3dAway = game.dice3d; delete game.dice3d; globalThis.__sounds = [];
         if (!globalThis.__soundsOn) {
             globalThis.__soundsOn = true;
@@ -205,7 +213,7 @@ export async function run({ gm, p1, p2, check, phase, settle, repoUrl }) {
             H.play = function (data, ...rest) { globalThis.__sounds?.push(String(data?.src ?? "")); return play.call(this, data, ...rest); };
         }
         return true;`;
-    for (const c of [p1, p2]) await c.eval(NO_DSN);
+    for (const c of [gm, p1, p2]) await c.eval(NO_DSN);
     const quiet = await p1.eval(`const cfg = await game.actors.get("${ids.aiko}").rollTrait("instinct", {});
         return { id: cfg?.message?.id ?? null, total: cfg?.message?.rolls?.[0]?.total ?? null };`, { timeout: 60000 });
     await settle(400);
@@ -213,9 +221,9 @@ export async function run({ gm, p1, p2, check, phase, settle, repoUrl }) {
         const out = { heard: globalThis.__sounds.filter(s => s === CONFIG.sounds.dice).length, readable: Boolean(m?.isContentVisible), total: m?.rolls?.[0]?.total ?? null };
         game.dice3d = globalThis.__dice3dAway; delete globalThis.__dice3dAway; globalThis.__sounds = null;
         return out;`;
-    const heard = { p1: await p1.eval(QUIET_READ), p2: await p2.eval(QUIET_READ) };
-    check("DICE: without Dice So Nice Aiko hears the dice of her drawn roll once and reads its result; p2 hears nothing and reads nothing",
-        Boolean(quiet.id) && heard.p1.heard === 1 && heard.p1.readable && heard.p1.total === quiet.total && heard.p2.heard === 0 && !heard.p2.readable,
+    const heard = { gm: await gm.eval(QUIET_READ), p1: await p1.eval(QUIET_READ), p2: await p2.eval(QUIET_READ) };
+    check("DICE: without Dice So Nice Aiko hears the dice of her drawn roll once and reads its result, the GM hears them once; p2 hears nothing and reads nothing",
+        Boolean(quiet.id) && heard.p1.heard === 1 && heard.p1.readable && heard.p1.total === quiet.total && heard.gm.heard === 1 && heard.p2.heard === 0 && !heard.p2.readable,
         JSON.stringify({ quiet, heard }));
 
     /* A ROLL'S CLAIM IS ITS OWN (E08+E28 C11, 04.10.2026; audit S02-45). The module claims the

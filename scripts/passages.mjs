@@ -179,6 +179,17 @@ export function openSegmentsFor(actor, sceneId, level = null, { mastermind = fal
 }
 
 /**
+ * Every stretch of wall among the known passages on this scene and floor, whoever knows it, `[{ id, wallId, x1, y1, x2,
+ * y2 }]` (H82-05, 23.10.2026): what a GM's frame is cut by (fog-doorways.mjs `gmPassageGaps`, which asks for a GM first).
+ * On a GM's browser `known` is the GMs' open rows (`knownPassages`, `secretRowsFrom`: no closed or broken passage and none
+ * of a deleted scene); a tunnel has no stretch and is left out. `known` is the suite's (R944).
+ */
+export function secretSegmentsOn(sceneId, level = null, { known = knownPassages() } = {}) {
+    if (typeof sceneId !== "string") return [];
+    return secretRowsOn(sceneId, level, { known }).map(row => (row.shape === "tunnel" ? null : segmentOf(row.id, row))).filter(Boolean);
+}
+
+/**
  * Every secret passage this character knows, on every scene, `[{ id, sceneId, level, x1, y1, x2, y2 }]`: the
  * sheet's 'Known passages' (E79 C7, sheet.mjs `knownPassageRows`). The rows that name it, or every row for the
  * Mastermind (`mastermind`, as `openSegmentsFor` takes it). The stretch is handed out so the list can ask which

@@ -81,6 +81,17 @@
  *   while somebody spoke). The word's title and the live text say the sentence of each. p1 is put back in the main
  *   room with the room voice-client.mjs wanted before. What a real LiveKit Room says, in both themes, full and
  *   compact, is LIVE-E79-21; how late the first portrait comes at a table, LIVE-E79-20.
+ * I (H82 C2, a letter after line B's H, E19 C2's, for the day the two lines meet; the owner's 21.10.2026 "Delay przy
+ *   laczeniu z nowym pokojem"): the voice switch on entering a room, with voice switched on and the GM moving Aiko. A
+ *   settled crossing has p1's room sent within 200 ms of the GM's update and p1 standing there, once; so it is while
+ *   Botan steps inside the Cafeteria every second; a move inside a room and a drag's step with waypoints pending send
+ *   nothing, the drag's last step sends at once; the trailing pass sends nothing more. Another student's settled step
+ *   during a drag's pending step sends the dragger nothing before the drag ends (H82 fix r1, H82-C2-R1), and p1's own
+ *   route through two rooms on one crossing's budget, its last step refused and put back, sends p1 only the room it paid
+ *   for, once (H82-C2-R2). Each of these two is a step stood in with waypoints pending on the GM's copy by the scenario,
+ *   not by v14: "no reconnect mid-drag" holds as far as v14 marks a drag's steps so (LIVE-H82-02 (c)). With p1's connect held 2000 ms,
+ *   two rooms 1700 ms apart end in the second after two reconnects, and p1's Debug log says how long each connect took
+ *   (H82-03). The real reconnect's time is LIVE-H82-02.
  *
  * What the shim cannot settle - real audio, how late LiveKit says who speaks, the dock hidden at a
  * table, audio after F5 - is LIVE-E78-01, LIVE-E78-02 and the owner's T1, LIVE-E78-10 (lib/livekit.mjs's header).
@@ -97,8 +108,13 @@ export const layers = ["ci"];
    the harness lock): 23 checks, 1 of them the expected red, in 8.0 s - it stands. With D's cut signature (E78 fix r2-H2, one
    green run on 14.10.2026, under the harness lock): 24 checks, 1 of them the expected red, in 8.5 s, 14 s of wall time - it stands.
    With phase G (E79 C15, one green run on 17.10.2026, under the harness lock): 26 checks, 1 of them the expected red, in 7.9 s,
-   13 s of wall time - it stands. */
-export const timeoutMs = 60000;
+   13 s of wall time - it stands. With phase I (H82 C2, two green runs on 23.10.2026, under the harness lock): 31 checks, 1 of
+   them the expected red, in 31.1 s and 30.2 s, 36.6 s and 36.0 s of wall time; I waits 21.4 s on its own clock by design
+   (the trailing pass three times, Botan's four steps, the drag's 600 ms, the held connects), so the bound goes to 90 s,
+   a margin chosen for a loaded runner, not measured on one. With H82 fix r1's two checks (Botan's step during a drag, p1's
+   refused route; one green run on 23.10.2026, the quick gate, under the harness lock): 33 checks, 1 of them the expected
+   red, in 36.4 s, 41.8 s of wall time - the bound stands. */
+export const timeoutMs = 90000;
 
 const J = value => JSON.stringify(value);
 
@@ -833,4 +849,192 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
             && said(st.home, "connected") && st.speaking?.shown === true && st.speaking.word === "connected" && st.speaking.face === true
             && J([st.speaking.run, st.speaking.title]) === J(st.texts.speaking) && st.speaking.live === st.texts.connected[1],
         J({ result: st.result, moved: st.moved, reconnecting: st.reconnecting, back: st.back, dropped: st.dropped, home: st.home, speaking: st.speaking }));
+
+    phase("I: a settled crossing moves p1's voice at once - the primary GM sends p1's room within 200 ms of the move, not 1500 ms after, and another student walking postpones nothing; a move inside a room and a drag's pending step send nothing; the trailing pass sends nothing more; p1's debug log says how long each connect took");
+    /* H82-02 and H82-03 (the owner's 21.10.2026 "Delay przy laczeniu z nowym pokojem"; STAGE H82 C2). Until H82 the
+       primary GM's updateToken hook only re-armed one module-wide timer (voice.mjs RECONCILE_DEBOUNCE_MS, 1500 ms), so a
+       settled crossing waited 1500 ms before anybody's room was decided, and each other character token's move started
+       that wait again. Here the GM moves Aiko (p1's) with voice switched on and p1 on the shim, whose connect is instant:
+       what is timed is the module's part - the hook, the pass, the assignment's hop and the apply - from the GM's update.
+       A real LiveKit reconnect is not here (LIVE-H82-02). Then p1's connect is held 2000 ms for two rooms 1700 ms apart:
+       p1 ends in the second room after two reconnects and no third, and the debug line H82-03 adds reads each connect's
+       2000 ms. Voice is switched off again, both tokens go back and p1's recorders, debug setting and `game.webrtc.connect`
+       are put back. Red first at 896f6bf (this phase, voice.mjs and voice-client.mjs as 1.2.81 shipped them), 23.10.2026:
+       p1's room sent +1507 ms after the GM's update (p1 there at +1518), +5518 ms with Botan walking, the drag's +1504 ms
+       after its last step, and no Debug line of a connect's time. Green with H82 C2, two runs: +8/+8, +5/+3 and +5/+6 ms
+       (p1 there at +32/+19, +16/+10 and +15/+17), the held connects read 2010/2008 and 2008/2007 ms, the instant ones
+       6-11 ms. */
+    const MOD = "danganronpa-rpg", MOVE = `{ teleport: true, movementAction: "displace", animate: false }`;
+    const GMJS = `const academy = game.scenes.get("${IDS.scene}"), M = await import("${repoUrl}/scripts/movement.mjs"),
+        V = await import("${repoUrl}/scripts/voice.mjs"), H = globalThis.__h75, sleep = ms => new Promise(r => setTimeout(r, ms));
+        const aiko = academy.tokens.get("TOKAIKO000000000"), botan = academy.tokens.get("TOKBOTAN00000000");
+        const room = name => V.liveKitRoomFor(academy.id, name);`;
+    const hOn = await p1.eval(`
+        if (globalThis.__liveKit?.installed !== true) return { installed: false };
+        const H = globalThis.__h75 = { ev: [], logs: [], debugWas: game.settings.get("${MOD}", "debug"), log: console.debug };
+        H.fn = value => H.ev.push({ at: Date.now(), k: value ? "applying" : "applied", room: game.webrtc.client.room ?? null });
+        Hooks.on("drpgVoiceApplying", H.fn);
+        console.debug = (...args) => { H.logs.push(args.map(String).join(" ")); };
+        await game.settings.set("${MOD}", "debug", true);
+        return { installed: true, debugWas: H.debugWas };`);
+    const gmOn = await gm.eval(`globalThis.__h75 = { ev: [], emit: game.socket.emit };
+        ${GMJS}
+        H.hook = (doc, changes) => { if ((doc.id === aiko.id || doc.id === botan.id) && ("x" in changes || "y" in changes)) H.ev.push({ at: Date.now(), k: "hook", id: doc.id }); };
+        Hooks.on("updateToken", H.hook);
+        game.socket.emit = function (channel, payload, ...rest) {
+            if (payload?.action === "voice.assign") H.ev.push({ at: Date.now(), k: "sent", to: payload.target, room: payload.room ?? null });
+            return H.emit.call(this, channel, payload, ...rest);
+        };
+        await game.settings.set("${MOD}", "voiceEnabled", true);
+        const want = room(M.roomOfToken(aiko));
+        const plan = (await V.voiceTargets()).byUser.get("${IDS.p1}")?.target ?? null;
+        return { want, plan, aiko: M.roomOfToken(aiko), botan: M.roomOfToken(botan) };`, { timeout: 30000 });
+    const landed = await p1.eval(`const sleep = ms => new Promise(r => setTimeout(r, ms)), end = Date.now() + 5000;
+        while (Date.now() < end && game.webrtc.client.room !== ${J(gmOn.want)}) await sleep(20);
+        await sleep(300);
+        globalThis.__h75?.ev.splice(0); globalThis.__h75?.logs.splice(0);
+        return game.webrtc.client.room ?? null;`, { timeout: 10000 });
+    await gm.eval(`globalThis.__h75.ev.splice(0); return true;`);
+    // One move, read on both: the GM's records with their ms after `t0` (the GM's update), p1's applies and debug lines.
+    const reading = async (gmJs, timeout = 30000) => {
+        const g = await gm.eval(`${GMJS} ${gmJs}`, { timeout });
+        const p = await p1.eval(`const H = globalThis.__h75; return { ev: H.ev.splice(0), logs: H.logs.splice(0).filter(line => line.includes("Voice:")) };`);
+        const ms = list => list.map(e => ({ ...e, ms: e.at - g.t0, at: undefined }));
+        return { ...g, ev: undefined, gm: ms(g.ev), p1: ms(p.ev), logs: p.logs,
+            toP1: ms(g.ev.filter(e => e.k === "sent" && e.to === IDS.p1)), applied: ms(p.ev.filter(e => e.k === "applied")) };
+    };
+    // 1800 ms after the last move: past the trailing pass (1500 ms), which must send nothing more.
+    const cross = await reading(`const t0 = Date.now(); await aiko.update(M.positionIn("Dorm B", aiko), ${MOVE}); await sleep(1800);
+        return { t0, want: room("Dorm B"), ev: H.ev.splice(0) };`);
+    const inside = await reading(`const t0 = Date.now(); await aiko.update({ x: aiko.x + 200, y: aiko.y + 100 }, ${MOVE}); await sleep(1800);
+        return { t0, here: M.roomOfToken(aiko), ev: H.ev.splice(0) };`);
+    // The investigation's starving walk: Botan steps inside the Cafeteria every 1000 ms, four times, after Aiko's crossing.
+    const walk = await reading(`const t0 = Date.now(); await aiko.update(M.positionIn("Dorm A", aiko), ${MOVE});
+        for (let k = 0; k < 4; k++) { await sleep(1000); await botan.update({ x: k % 2 ? 1300 : 1400, y: 300 }, ${MOVE}); }
+        await sleep(1800);
+        return { t0, want: room("Dorm A"), botan: M.roomOfToken(botan), ev: H.ev.splice(0) };`);
+    // A drag's step still in flight (\`movement.pending.waypoints\` stood in on the GM's document, as 74 B stands it on p1's)
+    // passes through Dorm B; its last step, 600 ms later, ends in the Gym.
+    const drag = await reading(`Object.defineProperty(aiko, "movement", { value: { pending: { waypoints: [{ x: 1300, y: 1300 }] } }, configurable: true });
+        let t0 = 0;
+        try { t0 = Date.now(); await aiko.update(M.positionIn("Dorm B", aiko), ${MOVE}); await sleep(600); } finally { delete aiko.movement; }
+        const last = Date.now() - t0; await aiko.update(M.positionIn("Gym", aiko), ${MOVE}); await sleep(1800);
+        return { t0, last, via: room("Dorm B"), want: room("Gym"), ev: H.ev.splice(0) };`);
+    // H82 fix r1 (finding H82-C2-R1): the drag again, from the Gym through Dorm A into Dorm B, with Botan's settled step inside
+    // the Cafeteria 200 ms into Aiko's 600 ms pending step. At 4e20bf6b Botan's step took the immediate pass, which read Aiko on
+    // her pending step and sent p1 Dorm A mid-drag; Dorm B's reconnect, at the drag's end, then queued behind it (red with
+    // voice.mjs as 4e20bf6b left it, once, 23.10.2026: Botan's step at +209 ms, p1 sent Dorm A at +211, the drag's last step
+    // at +613, Dorm B sent at +616).
+    const dragWalk = await reading(`Object.defineProperty(aiko, "movement", { value: { pending: { waypoints: [{ x: 300, y: 1300 }] } }, configurable: true });
+        let t0 = 0, stepped = 0;
+        try {
+            t0 = Date.now(); await aiko.update(M.positionIn("Dorm A", aiko), ${MOVE}); await sleep(200);
+            stepped = Date.now() - t0; await botan.update({ x: 1400, y: 300 }, ${MOVE}); await sleep(400);
+        } finally { delete aiko.movement; }
+        const last = Date.now() - t0; await aiko.update(M.positionIn("Dorm B", aiko), ${MOVE}); await sleep(1800);
+        return { t0, stepped, last, via: room("Dorm A"), want: room("Dorm B"), botan: M.roomOfToken(botan), ev: H.ev.splice(0) };`);
+    await p1.eval(`const H = globalThis.__h75, webrtc = game.webrtc;
+        H.own = Object.getOwnPropertyDescriptor(webrtc, "connect"); H.real = webrtc.connect;
+        webrtc.connect = async function (...args) { await new Promise(r => setTimeout(r, 2000)); return H.real.apply(this, args); };
+        return true;`);
+    const chained = await reading(`const t0 = Date.now(); await aiko.update(M.positionIn("Dorm A", aiko), ${MOVE}); await sleep(1700);
+        const second = Date.now() - t0; await aiko.update(M.positionIn("Dorm B", aiko), ${MOVE});
+        await sleep(7000);
+        return { t0, second, first: room("Dorm A"), want: room("Dorm B"), ev: H.ev.splice(0) };`, 40000);
+    const after = await p1.eval(`const H = globalThis.__h75, webrtc = game.webrtc;
+        if (H.own) Object.defineProperty(webrtc, "connect", H.own); else delete webrtc.connect;
+        return { room: game.webrtc.client.room ?? null };`);
+    /* H82 fix r1 (finding H82-C2-R2): p1 itself drags Aiko from Dorm B through the Gym (a step with waypoints pending, stood in
+       on p1's copy and the GM's, as 66 W4 and 74 C3 stand it) into the Cafeteria, on one crossing's budget (one action, the
+       free Move spent, the charge switched on), as 66 W4's route. Both vetoes pass (MAP-11); p1 charges the Gym and refuses
+       the Cafeteria and puts Aiko back on her spot in the Gym. At 4e20bf6b the last step took the immediate pass and sent p1
+       the Cafeteria, and the put-back the Gym after it: two reconnects, the first into a room never paid for (red with voice.mjs
+       as 4e20bf6b left it, once, 23.10.2026: the Cafeteria sent +5 ms after p1's last step and applied at +15, the Gym sent at
+       +208 after the put-back). The GM's records are timed from p1's last step (`t0`, p1's clock; the clients share one
+       machine's). */
+    const budget = await gm.eval(`${GMJS} const actor = game.actors.get("${IDS.aiko}");
+        H.budget = { actions: game.drpg.actionsLeft(actor), free: actor.getFlag("${MOD}", "freeMoveUsed") ?? null, charge: game.settings.get("${MOD}", "chargeMovement") };
+        await game.settings.set("${MOD}", "chargeMovement", true);
+        await game.drpg.setActions(actor, 1); await actor.setFlag("${MOD}", "freeMoveUsed", true);
+        await sleep(600); H.ev.splice(0);
+        Object.defineProperty(aiko, "movement", { value: { pending: { waypoints: [{ x: 1300, y: 300 }] } }, configurable: true });
+        return { room: M.roomOfToken(aiko), actions: game.drpg.actionsLeft(actor), charge: game.settings.get("${MOD}", "chargeMovement"), was: H.budget };`, { timeout: 30000 });
+    await p1.eval(`globalThis.__h75.ev.splice(0); globalThis.__h75.logs.splice(0); return true;`);
+    const P1JS = `const academy = game.scenes.get("${IDS.scene}"), M = await import("${repoUrl}/scripts/movement.mjs"), t = academy.tokens.get("TOKAIKO000000000"),
+        sleep = ms => new Promise(r => setTimeout(r, ms));`;
+    const paidStep = await p1.eval(`${P1JS}
+        Object.defineProperty(t, "movement", { value: { pending: { waypoints: [{ x: 1300, y: 300 }] } }, configurable: true });
+        try { await t.update(M.positionIn("Gym", t)); await sleep(600); } finally { delete t.movement; }
+        return { room: M.roomOfToken(t) };`, { timeout: 30000 });
+    await gm.eval(`${GMJS} delete aiko.movement; return true;`);
+    const lastStep = await p1.eval(`${P1JS} const t0 = Date.now();
+        t.update(M.positionIn("Cafeteria", t)).catch(() => null);
+        await sleep(2500);
+        return { t0, room: M.roomOfToken(t) };`, { timeout: 30000 });
+    const refusedRoute = await (async () => {
+        const g = await gm.eval(`${GMJS} return { ev: H.ev.splice(0), paid: room("Gym"), refused: room("Cafeteria"), aiko: M.roomOfToken(aiko),
+            actions: game.drpg.actionsLeft(game.actors.get("${IDS.aiko}")) };`, { timeout: 30000 });
+        const p = await p1.eval(`const H = globalThis.__h75; return { ev: H.ev.splice(0), logs: H.logs.splice(0).filter(line => line.includes("Voice:")) };`);
+        const ms = list => list.map(e => ({ ...e, ms: e.at - lastStep.t0, at: undefined }));
+        return { ...g, ev: undefined, paidStep, lastStep, toP1: ms(g.ev.filter(e => e.k === "sent" && e.to === IDS.p1)), applied: ms(p.ev.filter(e => e.k === "applied")),
+            took: p.logs.length };
+    })();
+    const budgetBack = await gm.eval(`${GMJS} const actor = game.actors.get("${IDS.aiko}"), was = H.budget;
+        await game.drpg.setActions(actor, was.actions);
+        if (was.free === null) await actor.unsetFlag("${MOD}", "freeMoveUsed"); else await actor.setFlag("${MOD}", "freeMoveUsed", was.free);
+        await game.settings.set("${MOD}", "chargeMovement", was.charge);
+        return { actions: game.drpg.actionsLeft(actor), free: actor.getFlag("${MOD}", "freeMoveUsed") ?? null, charge: game.settings.get("${MOD}", "chargeMovement"), was };`,
+    { timeout: 30000 });
+    const gmOff = await gm.eval(`${GMJS}
+        await game.settings.set("${MOD}", "voiceEnabled", false);
+        await sleep(600);
+        Hooks.off("updateToken", H.hook);
+        game.socket.emit = H.emit;
+        await aiko.update({ x: 300, y: 300 }, ${MOVE}); await botan.update({ x: 1300, y: 300 }, ${MOVE});
+        delete globalThis.__h75;
+        return { voice: game.settings.get("${MOD}", "voiceEnabled"), aiko: [aiko.x, aiko.y], botan: [botan.x, botan.y] };`, { timeout: 30000 });
+    const hOff = await p1.eval(`const H = globalThis.__h75, VC = await import("${repoUrl}/scripts/voice-client.mjs");
+        const sleep = ms => new Promise(r => setTimeout(r, ms)), end = Date.now() + 3000;
+        while (Date.now() < end && game.webrtc.client.room !== __liveKit.MAIN_ROOM) await sleep(20);
+        Hooks.off("drpgVoiceApplying", H.fn);
+        console.debug = H.log;
+        await game.settings.set("${MOD}", "debug", H.debugWas);
+        VC.forgetDesiredRoom();
+        delete globalThis.__h75;
+        return { room: game.webrtc.client.room ?? null, main: __liveKit.MAIN_ROOM, debug: game.settings.get("${MOD}", "debug") };`, { timeout: 10000 });
+    const once = (r, room, within, from = 0) => r.toP1.length === 1 && r.toP1[0].room === room && r.toP1[0].ms >= from && r.toP1[0].ms - from < within
+        && r.applied.length === 1 && r.applied[0].room === room;
+    check("I: a settled crossing - the GM moving Aiko from Dorm A into Dorm B - sends p1 Dorm B's room within 200 ms of the GM's update, once, and p1 stands there; the trailing pass 1500 ms later sends nothing more, and a move inside Dorm B sends nothing",
+        hOn.installed === true && gmOn.plan === gmOn.want && landed === gmOn.want && once(cross, cross.want, 200)
+            && inside.here === "Dorm B" && inside.toP1.length === 0 && inside.applied.length === 0,
+        J({ gmOn, landed, cross, inside }));
+    check("I: another student walking postpones nothing - Botan stepping inside the Cafeteria every second, four times, after Aiko crosses back into Dorm A: p1's room is still sent within 200 ms, once, and Botan's steps send p1 nothing",
+        walk.botan === "Cafeteria" && walk.gm.filter(e => e.k === "hook" && e.id === "TOKBOTAN00000000").length === 4 && once(walk, walk.want, 200),
+        J(walk));
+    check("I: a drag's step still in flight sends nothing - Aiko's pending step through Dorm B sends p1 no room; the drag's last step into the Gym sends the Gym's room within 200 ms of it, once, and the trailing pass nothing more",
+        drag.toP1.every(e => e.ms >= drag.last) && once(drag, drag.want, 200, drag.last),
+        J(drag));
+    check("I: another student's settled step during a drag sends the dragger nothing mid-drag - Botan's step inside the Cafeteria 200 ms into Aiko's pending step through Dorm A sends p1 no room before the drag's last step, which sends Dorm B within 200 ms of it, once (H82 fix r1, H82-C2-R1)",
+        dragWalk.botan === "Cafeteria" && dragWalk.stepped < dragWalk.last
+            && dragWalk.gm.some(e => e.k === "hook" && e.id === "TOKBOTAN00000000" && e.ms < dragWalk.last)
+            && dragWalk.toP1.every(e => e.ms >= dragWalk.last) && once(dragWalk, dragWalk.want, 200, dragWalk.last),
+        J(dragWalk));
+    check("I: p1's own route through two rooms on one crossing's budget - the Gym paid, the Cafeteria refused and put back - sends p1 only the Gym, once, and never the Cafeteria; the budget and the charge switch are put back (H82 fix r1, H82-C2-R2)",
+        budget.room === "Dorm B" && budget.actions === 1 && budget.charge === true && paidStep.room === "Gym"
+            && refusedRoute.aiko === "Gym" && refusedRoute.lastStep.room === "Gym" && refusedRoute.actions === 0
+            && refusedRoute.toP1.length === 1 && refusedRoute.toP1[0].room === refusedRoute.paid
+            && refusedRoute.applied.length === 1 && refusedRoute.applied[0].room === refusedRoute.paid
+            && !J(refusedRoute.toP1).includes(J(refusedRoute.refused))
+            && budgetBack.actions === budgetBack.was.actions && budgetBack.free === budgetBack.was.free && budgetBack.charge === budgetBack.was.charge,
+        J({ budget, refusedRoute, budgetBack }));
+    const took = r => r.logs.map(line => /took (\d+) ms/.exec(line)).filter(Boolean).map(m => Number(m[1]));
+    check("I: two rooms 1700 ms apart with p1's connect held 2000 ms - p1 ends in the second room after two reconnects and no third; p1's debug log says each connect took its 2000 ms, and each quicker one before took under 200 ms",
+        chained.p1.filter(e => e.k === "applying").length === 2 && chained.applied.length === 2 && chained.applied[1].room === chained.want
+            && after.room === chained.want
+            && took(chained).length === 2 && took(chained).every(n => n >= 1990 && n < 3000)
+            && [cross, walk, drag].every(r => took(r).length === 1 && took(r)[0] < 200),
+        J({ chained, after, took: [cross, walk, drag, chained].map(took) }));
+    check("I: put back - voice off, Aiko and Botan where the seed stands them, p1 in the main room with its debug setting as it was",
+        gmOff.voice === false && J(gmOff.aiko) === J([300, 300]) && J(gmOff.botan) === J([1300, 300]) && hOff.room === hOff.main && hOff.debug === hOn.debugWas,
+        J({ gmOff, hOff }));
 }

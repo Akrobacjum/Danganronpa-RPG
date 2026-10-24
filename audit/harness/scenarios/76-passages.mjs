@@ -458,6 +458,58 @@ const outline = (client, repoUrl, sceneId, actorId = null) => client.eval(`
         proto.contains = was;
     }`);
 
+/* H82-05 (23.10.2026): the Cafeteria's frame as fog-reveal.mjs `flashOutline` draws it on one browser for `actorId`'s
+   character, into a container of the scenario's own (never the canvas's), with `outline`'s even-odd inside test for the
+   one call: what the frame's line (the outline Graphics, no name) and the seam's light (`drpgRoomOutlineGlow`) draw along
+   y 800, the Cafeteria's border with the Kitchen, as [from x, to x, alpha] in the order drawn (lib/shim.mjs records each
+   Graphics' calls), and the colour each line style named. `read` alone reads the frame standing now (`roomOutline`), as
+   drawn again by the browser itself. The frame is taken down after unless `keep`. */
+const frameAlong = `const along = g => {
+        const out = [], colours = new Set();
+        let style = null, at = null;
+        for (const [k, a] of g?._calls ?? []) {
+            if (k === "lineStyle") { style = a[0] ?? {}; colours.add(style.color); }
+            else if (k === "moveTo") at = [a[0], a[1]];
+            else if (k === "lineTo") {
+                if (at && Math.abs(at[1] - 800) < 0.01 && Math.abs(a[1] - 800) < 0.01) {
+                    out.push([Math.round(Math.min(at[0], a[0]) * 10) / 10, Math.round(Math.max(at[0], a[0]) * 10) / 10, style?.alpha ?? null]);
+                }
+                at = [a[0], a[1]];
+            }
+        }
+        return { out, colours: [...colours] };
+    };
+    const readFrame = standing => {
+        const kids = standing?.group?.children ?? [];
+        const line = kids.find(c => c instanceof PIXI.Graphics && !c.name) ?? null, halo = kids.find(c => c?.name === "drpgRoomOutlineGlow") ?? null;
+        return { room: standing?.room ?? null, colour: standing?.colour ?? null, line: along(line), halo: along(halo).out,
+            glow: kids.some(c => c?.name === "drpgDoorwayGlow") };
+    };`;
+const frame = (client, repoUrl, sceneId, actorId, { keep = false, read = false } = {}) => client.eval(`
+    const FR = await import("${repoUrl}/scripts/fog-reveal.mjs");
+    const F = await import("${repoUrl}/scripts/fog.mjs");
+    ${frameAlong}
+    if (${read}) return readFrame(FR.roomOutline);
+    const scene = game.scenes.get(${J(sceneId)});
+    const proto = PIXI.Polygon.prototype, was = proto.contains;
+    proto.contains = function (x, y) {
+        const p = this.points;
+        let inside = false;
+        for (let i = 0, j = p.length - 2; i < p.length; j = i, i += 2) {
+            if ((p[i + 1] > y) !== (p[j + 1] > y) && x < ((p[j] - p[i]) * (y - p[i + 1])) / (p[j + 1] - p[i + 1]) + p[i]) inside = !inside;
+        }
+        return inside;
+    };
+    const fx = new PIXI.Container();
+    try {
+        FR.flashOutline(fx, F.roomShapeOn(scene, "Cafeteria", null), { x: 0, y: 0 }, null, { actor: game.actors.get(${J(actorId)}) });
+    } finally {
+        proto.contains = was;
+    }
+    const drawn = readFrame(FR.roomOutline);
+    if (!${keep}) FR.fadeRoomOutline();
+    return drawn;`);
+
 async function phaseC({ gm, p1, p2, p3, check, phase, settle, IDS, repoUrl }) {
     phase(PHASE_C, { flow: "secret-passages" });
     const MOD = "danganronpa-rpg", PLACE = { teleport: true, movementAction: "displace", animate: false };
@@ -557,6 +609,44 @@ async function phaseC({ gm, p1, p2, p3, check, phase, settle, IDS, repoUrl }) {
         J({ texts, locked, sealed, chained, lockedFrame }));
     check("C: Botan's bedroom is open to Aiko through her passage and shut without it - the key is the one rule the passage skips",
         owned.through === true && owned.plain === texts.key, J({ owned, key: texts.key }));
+
+    /* H82-05 (23.10.2026): the GM's frame. The Monokuma's frame of the Cafeteria on the GM's browser is cut where Aiko's
+       is on p1 - the passage's 1225-1325 with the glass margin of 10.5 either side - and the cut drawn again in the
+       frame's colour at the Stained Glass alpha (the harness's theme; fog-reveal.mjs `ghostStyle`), drawn first, with
+       no light across it; Aiko's frame on p1 is cut and has no dimmed stroke. Then the GM closes the passage and opens it
+       again: the frame standing on the GM's browser is drawn again whole, then cut again, by itself (fog.mjs
+       `redrawFrameSoon`, 250 ms after the GMs' rows change). The doorway glow is drawn on neither (no renderer headless);
+       Monokuma Legacy is R943's numbers, not drawn here. Red at dc78ffe: the GM's frame runs solid along y 800. */
+    const GHOST = 0.6, solid = [[1200, 1214.5, 1], [1335.5, 2000, 1]], ghost = [[1214.5, 1335.5, GHOST]];
+    // The seam's light: its three passes (fog-reveal.mjs `seamHalo`) on each side of the cut, none across it.
+    const halo = [[1200, 1214.5, 0.46], [1200, 1214.5, 0.5], [1200, 1214.5, 0.58], [1335.5, 2000, 0.46], [1335.5, 2000, 0.5], [1335.5, 2000, 0.58]];
+    const byX = list => [...list].sort((p, q) => p[0] - q[0] || p[2] - q[2]);
+    const gmFrame = await frame(gm, repoUrl, IDS.scene, "ACTORMONOKUMA000", { keep: true });
+    const p1Frame = await frame(p1, repoUrl, IDS.scene, IDS.aiko);
+    check("C (H82-05): the GM's frame of the Cafeteria is cut where Aiko's is, the cut drawn again first in the frame's colour, dimmed, with no light; Aiko's frame on p1 is cut with no dimmed stroke",
+        J(gmFrame.line.out) === J([...ghost, ...solid]) && J(gmFrame.line.colours) === J([gmFrame.colour]) && J(byX(gmFrame.halo)) === J(halo)
+            && J(p1Frame.line.out) === J(solid) && J(byX(p1Frame.halo)) === J(halo) && gmFrame.room === "Cafeteria",
+        J({ gmFrame, p1Frame }));
+    const redrawn = async (write, cut) => {
+        await gm.eval(`await game.drpg.passages.${write}(${J(set.id)}); return true;`);
+        const end = Date.now() + 4000;
+        let read = null;
+        while (Date.now() < end) {
+            read = await frame(gm, repoUrl, IDS.scene, null, { read: true });
+            if (J(read.line.out) === J(cut)) break;
+            await settle(200);
+        }
+        return read;
+    };
+    const closed = await redrawn("close", [[1200, 2000, 1]]);
+    const reopened = await redrawn("open", [...ghost, ...solid]);
+    await gm.eval(`(await import("${repoUrl}/scripts/fog-reveal.mjs")).fadeRoomOutline(); return true;`);
+    await p1.eval(`const L = await import("${repoUrl}/scripts/passages.mjs"), end = Date.now() + 8000;
+        while (!Object.hasOwn(L.knownPassages(), ${J(set.id)}) && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        return true;`, { timeout: 15000 });
+    check("C (H82-05): the GM closes the passage and the frame standing on the GM's browser is drawn again whole; opened again, it is cut again",
+        closed?.room === "Cafeteria" && J(closed.line.out) === J([[1200, 2000, 1]]) && reopened?.room === "Cafeteria" && J(reopened.line.out) === J([...ghost, ...solid]),
+        J({ closed, reopened }));
 
     /* Put back: Aiko's token, actions and free Move; the passage, the wall and the Kitchen. */
     const back = await gm.eval(`
@@ -1735,6 +1825,29 @@ async function phaseT({ gm, p1, p2, p3, check, phase, settle, dump, socketTraffi
             && rows.length > 0 && rows.every(t => Array.isArray(t.to) && t.to.length === 1 && t.from === "gm") && rows.some(t => J(t.to) === J([IDS.p1]))
             && worldPrint(d3) === found && worldScan(d3).length === 0,
         J({ on2, on3, others, rows: rows.map(t => ({ to: t.to, from: t.from })), diff: printDiff(found, worldPrint(d3)) }));
+
+    /* H82-04 (23.10.2026): the GMs' overlay says where each end leads - the room beyond by its own name, which no knower's
+       mark gives a GM - and, made one way, where the way out comes from, with an arrowhead on the link. Read off the GM's
+       own overlay as the store's change drew it again, nothing asked of it; the arrow as the polygons the tunnel's
+       Graphics drew (lib/shim.mjs records the calls). How it reads on a real canvas is LIVE-H82-03. Not run at 4e20bf6:
+       R941 is this commit's red first. Measured with it: 98 checks, 97 passed and 1 expected red, in 189.9 s by run-all's
+       line, one run alone under the harness lock (23.10.2026) - the bound of 250 s stands. */
+    const overlayOf = () => gm.eval(`const box = canvas.interface.children.find(c => c.name === "drpgGmOverlay");
+        const g = (box?.children.find(c => c.name === "passages")?.children ?? []).find(c => c.name === ${J(id)});
+        return g ? { words: g.children.filter(c => c instanceof PIXI.Text).map(c => [c.text, c.alpha, c.position.x, c.position.y]),
+            arrows: (g._calls ?? []).filter(([k]) => k === "drawPolygon").length } : null;`);
+    const both = await overlayOf();
+    const oneWay = await gm.eval(`const G = await import("${repoUrl}/scripts/passages-gm.mjs"); return await G.setPassageWay(${J(id)}, 0);`, { timeout: 30000 });
+    let one = await overlayOf();
+    for (const t0 = Date.now(); one?.arrows !== 1 && Date.now() - t0 < 4000;) {
+        await settle(200);
+        one = await overlayOf();
+    }
+    const say = await gm.eval(`return [["to", "Gym"], ["to", "Dorm A"], ["from", "Dorm A"]].map(([k, room]) => game.i18n.format("DRPG.Passage.mark." + k, { room }));`);
+    check("T (H82-04): the GM's overlay names under each ring the room that end leads to, dimmed - the Gym at Dorm A's end, Dorm A at the Gym's - with no arrow; made one way from Dorm A, the Gym's end says where it comes from and the link carries one arrowhead",
+        J(both) === J({ words: [[say[0], 0.7, 750, 788], [say[1], 0.7, 1950, 1788]], arrows: 0 })
+            && oneWay === true && J(one) === J({ words: [[say[0], 0.7, 750, 788], [say[2], 0.7, 1950, 1788]], arrows: 1 }),
+        J({ both, oneWay, one, say }));
 
     const closed = await gm.eval(`return await game.drpg.passages.close(${J(id)});`);
     const shut = await until(p1, held => !held?.[id]);

@@ -10,9 +10,25 @@
  * anyone drew, and the socket road is gone with it.
  *
  * WHAT IS FORCED. With `forceDiceLook` on (world, default on: the owner's Q1), every User below full
- * Gamemaster - players, trusted players and Assistant GMs (Q3: "Tak") - holds the look of the full Gamemaster
- * `diceLookSource` names. A full Gamemaster's own look is never written. Off, nothing is written and nothing
- * restored (Q4).
+ * Gamemaster - players, trusted players and Assistant GMs (Q3: "Tak") - holds the appearance of the full Gamemaster
+ * `diceLookSource` names, and no special effects of its own (H82 C1, below). A full Gamemaster's own look is never
+ * written. Off, nothing is written and nothing restored (Q4).
+ *
+ * NO EFFECTS OF THEIR OWN (H82 C1, 23.10.2026; H82-01, the owner's 21.10 "Jest tez delay przy rzucaniu koscmi czego nie
+ * bylo", run on the stage's default (a)). From E16 C3 (1.2.80) every forced user held the GM's whole `sfxList` but the
+ * macros, and Dice So Nice 6.2.9 does not mark a throw finished until each effect matched on its dice by die type and
+ * result has started, 100 ms plus 0-750 ms at random each (DiceSFXManager.js `playDelayBase` 100, `playDelayJitter` 750;
+ * DiceBox.js runs `handleSpecialEffectsInit` before the callback that resolves `showForRoll`; read in DSN's 6.2.9 source by
+ * the H82 investigation, not measured at a table). roll-draw.mjs `playDice` and Daggerheart's own roll wait for that finish:
+ * in the investigation's harness probe, Dice So Nice held 600 ms moved a player's drawn roll from 13.7 to 614.5 ms. So a
+ * forced user's `sfxList` is written empty (`lookFrom`), and a player's own effects go back to none as a colour of its own
+ * does. An effect the GM marks for everyone (`options.isGlobal`) still reaches a forced user's throw as it did in 1.2.79:
+ * Dice So Nice adds every other GM's global effects to a throw itself (Dice3D.js `ALL_CUSTOMIZATION`, 6.2.9: every user with
+ * `isGM` but the thrower, so a second full Gamemaster's, and an Assistant's in the minute its fuse leaves its own list
+ * standing, as well as the source's; it reads that user's list through `SFX`, which answers it only where the browser
+ * showing the throw is that GM's own, or has DSN's `showOthersSFX` on - Dice3D.js:140, read, not tried). The source's own list is never touched: the GMs' copy (`sourceLookOf`) and its
+ * put-back (`holdSource`) keep it whole. Whether this was the owner's delay, and what a drawn roll costs at the table
+ * before and after, is LIVE-H82-01.
  *
  * WHO WRITES, AND ON WHAT. The primary GM alone (utils.mjs `isPrimaryGm`): at Dice So Nice's ready (or at the
  * module's when DSN was there first) one sweep of every such User, offline ones too; at a user's connect; and
@@ -549,7 +565,7 @@ function colourOf(user) {
 }
 
 /** What of the source's makes the table's look: its two flags as they are (null for none) and its colour. */
-function sourceLookOf(user) {
+export function sourceLookOf(user) {
     return { appearance: plain(user?.getFlag(DSN, "appearance")), sfxList: plain(user?.getFlag(DSN, "sfxList")), color: colourOf(user) };
 }
 
@@ -600,8 +616,8 @@ const plain = value => (value && typeof value === "object" ? foundry.utils.deepC
  * the source (`Dice3D.ALL_CUSTOMIZATION`, read in the 26.09 design: a GM with no flag of their own still has a
  * look, from their colour), or the raw flag where DSN is not built (no canvas; the harness, whose `game.dice3d`
  * has no such method). A library die's owner is written in where it is missing, since DSN looks the die up in
- * its owner's library and a player's own would not hold it. Effects that run a macro are left out: the GM's
- * macro would run on every browser at a player's throw.
+ * its owner's library and a player's own would not hold it. No special effect is part of it (H82 C1, the header): until
+ * then the GM's effects were, all but those that run a macro, which would have run on every browser at a player's throw.
  */
 export function canonicalLook(source = lookSource()) {
     if (!source) return null;
@@ -611,20 +627,19 @@ export function canonicalLook(source = lookSource()) {
         try { appearance = plain(all.call(game.dice3d.constructor, source, game.dice3d.DiceFactory)?.appearance); }
         catch (err) { error("Could not read the GM's dice look from Dice So Nice", err); }
     }
-    return lookFrom(source, appearance ?? source.getFlag(DSN, "appearance"), source.getFlag(DSN, "sfxList"));
+    return lookFrom(source, { appearance: appearance ?? source.getFlag(DSN, "appearance") });
 }
 
-/** A look as forced users hold it, from an appearance and effects: library dice owned by the source, no macro. */
-function lookFrom(source, rawAppearance, rawSfx) {
-    const appearance = plain(rawAppearance) ?? {};
+/**
+ * A look as forced users hold it, from the source's (`{ appearance }`, its effects aside): the appearance, library dice
+ * owned by the source, and no special effect at all (H82 C1, the header). The source's effects stay the source's.
+ */
+export function lookFrom(source, held) {
+    const appearance = plain(held?.appearance) ?? {};
     for (const scope of Object.values(appearance)) {
         if (scope && typeof scope === "object" && scope.libraryDieId && !scope.libraryDieOwner) scope.libraryDieOwner = source.id;
     }
-    const raw = plain(rawSfx);
-    const keep = effect => effect?.specialEffect !== "PlayMacro";
-    const sfxList = Array.isArray(raw) ? raw.filter(keep)
-        : raw ? Object.fromEntries(Object.entries(raw).filter(([, effect]) => keep(effect))) : [];
-    return { appearance, sfxList };
+    return { appearance, sfxList: [] };
 }
 
 /**
@@ -640,7 +655,7 @@ function tableLook(source) {
         return look;
     }
     if (heldTableLook?.id === source.id) return foundry.utils.deepClone(heldTableLook.look);
-    return sourceCopy?.id === source.id ? lookFrom(source, sourceCopy.look.appearance, sourceCopy.look.sfxList) : null;
+    return sourceCopy?.id === source.id ? lookFrom(source, sourceCopy.look) : null;
 }
 
 /** A user's look as its flags hold it; a missing flag reads as an empty one, as DSN's own default does. */
@@ -651,6 +666,11 @@ function lookOf(user) {
 /** Equal whatever the order of the keys (the harness's `foundry.utils` has no `objectsEqual`). */
 function sameLook(a, b) {
     return stableJson(a) === stableJson(b);
+}
+
+/** Whether a user's flags hold the table's look, so that a sweep or a put-back writes nothing on it. */
+export function holdsTableLook(user, look) {
+    return sameLook(lookOf(user), look);
 }
 
 function schedule(key) {
@@ -715,7 +735,7 @@ async function sweep() {
     const look = tableLook(source);
     if (!look) return;
     const behind = game.users.filter(u => isForced(u))
-        .filter(u => !stopped(u.id) && !sameLook(lookOf(u), look));
+        .filter(u => !stopped(u.id) && !holdsTableLook(u, look));
     await writeLooks(behind, look);
 }
 
@@ -732,7 +752,7 @@ async function putBack(userId, { count = true } = {}) {
     if (source && !sourceHeld(source) && !stopped(SOURCE + source.id)) return schedule(SWEEP);
     const look = tableLook(source);
     if (!look) return;
-    if (sameLook(lookOf(user), look)) return;
+    if (holdsTableLook(user, look)) return;
     if (count && !fuseHolds(user.id, user.name)) return;
     await writeLooks([user], look);
 }

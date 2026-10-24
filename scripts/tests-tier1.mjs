@@ -13912,7 +13912,8 @@ const INVARIANTS = [
          * browser (`gm: false`); nothing of this world is read but the module's own listener table and its source. What
          * the outline then looks like is a look at a table (LIVE-E79-05): the harness's polygons contain no point, so `doorwayEdges` opens no
          * doorway headless (E12 C2b) and its two outlines are compared as measured, not as drawn; scenario 76 C reads the
-         * same comparison on the players' browsers.
+         * same comparison on the players' browsers. Since H82 C4 (23.10.2026) a GM's frame is cut where every passage is
+         * (fog-doorways.mjs `withPassageGhosts`, R943), outside `doorwayEdges`: what this reads of `doorwayEdges` is unchanged.
          */
         const D = await import("./fog-doorways.mjs");
         const M = await import("./movement.mjs");
@@ -17323,8 +17324,11 @@ const INVARIANTS = [
             const lineOf = g => (g?._calls ?? []).filter(([k]) => k === "lineStyle").map(([, a]) => a?.[0]?.color).pop() ?? g?.line?.color ?? null;
             const ring = group.children.find(c => c instanceof PIXI.Graphics) ?? null;
             const words = group.children.find(c => c instanceof PIXI.Text) ?? null;
+            // The words' fill as a colour (H82 fix r1, finding H82-C3-R1): PIXI's own TextStyle keeps a number as a "#rrggbb"
+            // string, so the number compared as it was read only on the harness's stub. Not run on a real canvas since.
+            const fill = words?.style?.fill ?? null, fillColour = fill === null ? null : Number(foundry.utils.Color.from(fill));
             // A tint multiplies the drawn colour: a white ring tinted is the tint, so the ring is drawn white.
-            equal(J([restroked, lineOf(ring), ring?.tint ?? null, words?.style?.fill ?? null]), J([[now], 0xffffff, now, now]),
+            equal(J([restroked, lineOf(ring), ring?.tint ?? null, fillColour]), J([[now], 0xffffff, now, now]),
                 "[the line restroked in, the ring's drawn colour, its tint, the words' fill] after the seam colour turned - a mark kept the colour it was drawn in");
         } finally {
             group.destroy();
@@ -18472,6 +18476,412 @@ const INVARIANTS = [
         const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/passages-gm.mjs`).then(lfText));
         ok(/\[M\.TUNNEL_CROSSING\]:\s*true/.test(fnSource(src, "crossTunnel")),
             "passages-gm.mjs crossTunnel's landing write does not carry movement.mjs TUNNEL_CROSSING: on the primary GM, a GM's own crossing onto the far end's square would be taken for a move onto it");
+    }],
+    ["R940 - a player's and an Assistant GM's dice look is the GM's appearance with no special effects (H82-01): from a GM who holds effects - one marked for everyone, one not, one that runs a macro - the look a forced user is held to has the GM's appearance, its library die owned by the GM, and no effect; a player or an Assistant who holds that appearance with the GM's effects, as 1.2.80 wrote them, or with effects of its own, is put back to none, and one with none is left; the look every sweep, put-back and connect holds them to (`canonicalLook`) carries none, whether Dice So Nice's own reading answers the GM's effects or the GM's flags are read; the GM's own copy keeps every effect, and nothing else in dice-sync.mjs reads an effects list off a user or off Dice So Nice", async () => {
+        /*
+         * H82-01 (23.10.2026; the owner, 21.10: "Jest tez delay przy rzucaniu koscmi czego nie bylo"). E16 C3 (1.2.80) wrote the
+         * GM's whole special-effects list on every player and Assistant GM, and Dice So Nice 6.2.9 does not mark a throw finished
+         * until each effect matched on its dice has started, 100 ms plus 0-750 ms at random each (DiceSFXManager.js
+         * `playDelayBase`, `playDelayJitter`, read in DSN's 6.2.9 source by the H82 investigation, not measured at a table). The
+         * module's drawn roll and Daggerheart's own roll wait for that finish (in the investigation's harness probe, holding Dice So
+         * Nice 600 ms moved a player's drawn roll from 13.7 to 614.5 ms). Now a forced user holds the GM's appearance and no effect
+         * at all; an effect the GM marks for everyone reaches a throw through Dice So Nice's own merge (Dice3D.js
+         * `ALL_CUSTOMIZATION`: every other GM's effects with `options.isGlobal`, only where the browser showing the throw is that
+         * GM's own, or has DSN's `showOthersSFX` on - Dice3D.js:140, read, not tried), as in 1.2.79. Read on stubs, pure (dice-sync.mjs
+         * `sourceLookOf`, `lookFrom`, `canonicalLook`, `holdsTableLook`, `isForced`): no user is written. `canonicalLook` is the road
+         * every caller takes while the source holds the copy (`tableLook`: the sweep, the put-back, the connect, a message), and
+         * at a table it reads the look off Dice So Nice's own `ALL_CUSTOMIZATION`, which the harness's `game.dice3d` lacks: so it
+         * is read twice, once with `game.dice3d` stood in by one whose `ALL_CUSTOMIZATION` answers the GM's appearance and its
+         * three effects as `specialEffects` (DSN 6.2.9's name), once with one that has none - each stand-in for one synchronous
+         * call, put back in a `finally` before anything else can run (H82 fix r1, finding H82-C1-R3: a `canonicalLook` that took
+         * `specialEffects` from DSN's answer passed this test, which read `lookFrom` alone). The source check reads every
+         * `getFlag(DSN, "sfxList")` outside the copy (`sourceLookOf`) and a user's own (`lookOf`), and every `specialEffects`
+         * anywhere, so that no other road builds a forced user's look from the GM's effects. Red at 9d6e675 (with only the exports
+         * and `lookFrom`'s one argument for the source's look, which change nothing): the look carries the GM's two effects with no
+         * macro, a player holding them is left, and `canonicalLook` reads the GM's list. The `canonicalLook` reads, written in H82
+         * fix r1, red against that commit's planted `specialEffects` road (the finding's own mutant), green without it.
+         */
+        const S = await import("./dice-sync.mjs");
+        const J = v => stableJson(v);
+        const parts = ["sourceLookOf", "lookFrom", "holdsTableLook", "isForced"];
+        ok(parts.every(name => typeof S[name] === "function"),
+            "dice-sync.mjs has no copy of the source's look, look builder, comparison or forced test to read - nothing below would be read");
+        if (!parts.every(name => typeof S[name] === "function")) return;
+        const DSN = "dice-so-nice", GM = "R940GM";
+        const appearance = { global: { colorset: "fire", material: "metal" }, d20: { colorset: "ice", libraryDieId: "r940-d20" } };
+        const owned = { global: { colorset: "fire", material: "metal" }, d20: { colorset: "ice", libraryDieId: "r940-d20", libraryDieOwner: GM } };
+        const effects = [
+            { diceType: "d12", onResult: ["12"], specialEffect: "PlayAnimationBright", options: {} },
+            { diceType: "d20", onResult: ["20"], specialEffect: "PlaySoundEpicWin", options: { isGlobal: true } },
+            { diceType: "d20", onResult: ["1"], specialEffect: "PlayMacro", options: { macroId: "r940-macro" } }];
+        // What 1.2.80 wrote on every forced user: the GM's effects but the macro.
+        const asWritten = effects.filter(effect => effect.specialEffect !== "PlayMacro");
+        const own = [{ diceType: "d6", onResult: ["6"], specialEffect: "PlayAnimationDark", options: {} }];
+        const stub = (id, role, flags, color = null) => ({ id, name: id, role, color,
+            getFlag: (scope, key) => (scope === DSN ? flags[key] : undefined) });
+        const gmFlags = { appearance: foundry.utils.deepClone(appearance), sfxList: foundry.utils.deepClone(effects) };
+        const gm = stub(GM, CONST.USER_ROLES.GAMEMASTER, gmFlags, "#aa0000");
+        const copy = S.sourceLookOf(gm);
+        const look = S.lookFrom(gm, copy);
+        const holding = (id, role, sfxList) => stub(id, role, sfxList === undefined ? { appearance: owned } : { appearance: owned, sfxList });
+        const users = [holding("R940P1", CONST.USER_ROLES.PLAYER, asWritten), holding("R940P2", CONST.USER_ROLES.PLAYER),
+            holding("R940P3", CONST.USER_ROLES.TRUSTED, own), holding("R940A1", CONST.USER_ROLES.ASSISTANT, asWritten)];
+        equal(J({ look, copy: [J(copy.appearance) === J(appearance), J(copy.sfxList) === J(effects), copy.color], gm: J(gmFlags) === J({ appearance, sfxList: effects }) }),
+            J({ look: { appearance: owned, sfxList: [] }, copy: [true, true, "#aa0000"], gm: true }),
+            "the look a forced user is held to is not the GM's appearance with no effect, or the GM's own copy lost an effect or its appearance, or building the look changed the GM's flags (look: { appearance, sfxList }; copy: [its appearance the GM's, its effects all three, its colour]; gm: the GM's flags as found)");
+        equal(J(users.map(user => [S.isForced(user), S.holdsTableLook(user, look)])), J([[true, false], [true, true], [true, false], [true, false]]),
+            "a player or an Assistant holding the GM's effects or its own is not put back to none, or one holding none is written again ([forced, holds the table's look] for: a player with the GM's effects as 1.2.80 wrote them, a player with none, a trusted player with its own, an Assistant with the GM's)");
+        ok(!S.isForced(gm), "the GM the look comes from is taken for a forced user: its own look would be written over");
+        // The road every caller takes (`tableLook`), with Dice So Nice's own reading stood in for one synchronous call each.
+        const viaDsn = all => {
+            const had = Object.getOwnPropertyDescriptor(game, "dice3d");
+            const stand = { constructor: all === null ? {} : { ALL_CUSTOMIZATION: all }, DiceFactory: {} };
+            Object.defineProperty(game, "dice3d", { value: stand, configurable: true, writable: true });
+            try { return S.canonicalLook(gm); } finally { if (had) Object.defineProperty(game, "dice3d", had); else delete game.dice3d; }
+        };
+        const asked = [];
+        const dsnLook = viaDsn(function (user, factory) {
+            asked.push([user?.id ?? null, Boolean(factory)]);
+            return { appearance: foundry.utils.deepClone(appearance), specialEffects: foundry.utils.deepClone(effects) };
+        });
+        const flagLook = viaDsn(null);
+        equal(J({ dsnLook, flagLook, asked, gm: J(gmFlags) === J({ appearance, sfxList: effects }) }),
+            J({ dsnLook: { appearance: owned, sfxList: [] }, flagLook: { appearance: owned, sfxList: [] }, asked: [[GM, true]], gm: true }),
+            "`canonicalLook`, the look every sweep, put-back, connect and message holds a forced user to while the source holds the copy, is not the GM's appearance with no effect: with Dice So Nice's own `ALL_CUSTOMIZATION` answering the GM's three effects (dsnLook), or with none, from the GM's flags (flagLook); or it did not ask Dice So Nice for the GM's look once, or changed the GM's flags ([the look from Dice So Nice, the look from the flags, [whose look it asked, with a DiceFactory], the GM's flags as found])");
+        const src = stripComments(new Map(await otherSources()).get("dice-sync.mjs") ?? "");
+        const reads = text => (text.match(/getFlag\(\s*DSN\s*,\s*"sfxList"\s*\)/g) ?? []).length;
+        const rest = src.replace(fnSource(src, "sourceLookOf"), "").replace(fnSource(src, "lookOf"), "");
+        equal(J([reads(src) >= 2, reads(rest), (src.match(/\bspecialEffects\b/g) ?? []).length]), J([true, 0, 0]),
+            "dice-sync.mjs reads a user's effects list somewhere other than the source's copy (`sourceLookOf`) and a user's own look (`lookOf`), or reads Dice So Nice's `specialEffects` anywhere: a forced user's look may be built from the GM's effects there ([the copy and a user's own read, `getFlag` reads elsewhere, `specialEffects` read])");
+    }],
+    ["R941 - the GMs' overlay says where each secret tunnel and stairs end leads (H82-04): under each end's ring on a GM's board, 'Secret passage to {room}' with the room beyond as the map names it, 'Secret passage from {room}' at a one-way tunnel's way out, at a knower's mark's size (max(20, grid x 0.36), keyline max(4, grid x 0.07), grid x 0.38 under the end) and dimmed to 0.7; a one-way tunnel's link carries an arrowhead pointing to its way out, a two-way tunnel and stairs none; a closed tunnel and a stretch in a wall keep their dashes alone, one Graphics a passage as before; and drawn as a player, whose copy may name every passage as the Mastermind's does, nothing", async () => {
+        /*
+         * H82-04 (23.10.2026; the owner's 21.10 "dopiszmy gma widzacego przerwy", the stage's defaults: every passage,
+         * dimmed, on a GM's browser alone, Assistant GMs too). The harm: a GM looking at the board sees two rings joined by a
+         * dashed line and cannot tell where a stairs end comes out, which room a knower's mark names, or which way a
+         * one-way tunnel goes, without opening the Passages tab. Read on a layer of the test's own with a store of an
+         * engine of its own on R594's scene (the Kitchen and the Hall on the first floor, the Attic on the second): each
+         * tunnel's Graphics, the words it holds (text, size, keyline, alpha, place, and its fill as a colour: PIXI's own TextStyle
+         * turns a number into a "#rrggbb" string) and the filled polygons it draws - the harness's stub records each
+         * `drawPolygon` call, and on PIXI's own canvas the shapes of `geometry.graphicsData` with a fill, since PIXI keeps each
+         * dash of a link there as an unfilled polygon of its own; and the points `wayArrow` tags its Graphics with
+         * (`drpgArrow`), read on both (H82 fix r1, finding H82-C3-R1: until then the real branch read every dash, 23 on the
+         * one-way tunnel, and the words' fill was compared as a number; neither branch had run on a real canvas, and the
+         * real one still has not, LIVE-H82-03). The room beyond is read by the knower's
+         * own reading, movement.mjs `passageRooms`, loaded through `loadTunnelRooms`. A player's browser is `gm: false`:
+         * the gate is the role, never what the rows hold. How the words and the arrow read on a real canvas, at a table's
+         * zoom and in both themes, is not seen here (LIVE-H82-03). Red at 4e20bf6 on its first assertion, no words drawn
+         * under any ring; the later ones were not reached there.
+         */
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const P = await import("./passages-gm.mjs");
+        const O = await import("./gm-overlay.mjs");
+        const J = stableJson;
+        let now = 9_941_000;
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R941GM", isGM: () => true, isPrimary: () => true, worldId: () => "R941WORLD",
+            activeGmIds: () => [], primaryGmId: () => "R941GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => now++,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const map = eng.define({ ...S.passageMapStore.spec, name: "r941Map", key: "r941Map", afterRestore: undefined, exists: undefined });
+        const [L1, L2] = ["R941L1", "R941L2"];
+        const region = (id, name, x, y, width, height, levels) => ({ id, name, behaviors: [], getFlag: () => true, shapes: [{ x, y, width, height }],
+            levels: new Set(levels) });
+        const site = { id: "R941SCENE", name: "R941", grid: { size: 100 }, levels: [{ id: L1, elevation: 0 }, { id: L2, elevation: 10 }],
+            regions: [region("R941RK", "R941 Kitchen", 1200, 800, 800, 300, [L1]), region("R941RH", "R941 Hall", 1200, 200, 800, 600, [L1]),
+                region("R941RA", "R941 Attic", 2000, 200, 600, 600, [L2])],
+            walls: Object.assign([], { get: () => undefined }) };
+        const end = (x, y, level) => ({ x, y, level });
+        const tunnel = (ends, rooms, more = {}) => ({ sceneId: site.id, level: null, shape: "tunnel", ends, rooms, state: "secret", startAccess: [], ...more });
+        const [TWO, ONE, STAIRS, SHUT, WALL] = ["two", "one", "stairs", "shut", "wall"].map(k => `${site.id}.r941${k}`);
+        await map.patchMany({
+            [TWO]: tunnel([end(1250, 950, L1), end(1350, 350, L1)], ["R941 Kitchen", "R941 Hall"]),
+            [ONE]: tunnel([end(1550, 1050, L1), end(1650, 450, L1)], ["R941 Kitchen", "R941 Hall"], { oneWay: 0 }),
+            [STAIRS]: tunnel([end(1850, 950, L1), end(2150, 350, L2)], ["R941 Kitchen", "R941 Attic"], { oneWay: 1 }),
+            [SHUT]: tunnel([end(1450, 950, L1), end(1450, 350, L1)], ["R941 Kitchen", "R941 Hall"], { oneWay: 0, state: "closed" }),
+            [WALL]: { sceneId: site.id, level: L1, shape: "wall", passageWallId: "R941W", passageSeg: { x1: 1700, y1: 800, x2: 1800, y2: 800 },
+                rooms: ["R941 Hall", "R941 Kitchen"], state: "secret", startAccess: [] }
+        });
+        if (typeof P.loadTunnelRooms === "function") await P.loadTunnelRooms();
+        const polygonsOf = g => (g?._calls
+            ? g._calls.filter(([k]) => k === "drawPolygon").map(([, a]) => [...(Array.isArray(a[0]) ? a[0] : a)])
+            : (g?.geometry?.graphicsData ?? []).filter(d => d?.fillStyle?.visible && d?.shape instanceof PIXI.Polygon).map(d => [...d.shape.points]));
+        const colourOf = value => (value === null || value === undefined ? null : Number(foundry.utils.Color.from(value)));
+        const secret = colourOf(O.overlayColour("--drpg-passage-secret", 0xff3d8b));
+        const layer = new PIXI.Container();
+        const drawn = (level, o = {}) => {
+            const count = P.drawPassagesLayer(layer, { stores: { map }, scene: site, level, ...o });
+            const out = {};
+            for (const g of layer.children) {
+                out[String(g.name).replace(`${site.id}.r941`, "")] = {
+                    words: (g.children ?? []).filter(c => c instanceof PIXI.Text)
+                        .map(c => [c.text, c.style?.fontSize, c.style?.strokeThickness, c.alpha, c.position?.x, c.position?.y, colourOf(c.style?.fill) === secret]),
+                    polygons: polygonsOf(g),
+                    tagged: g.drpgArrow ?? null
+                };
+            }
+            return [count, layer.children.length, out];
+        };
+        let first, second, player, tunnels;
+        try {
+            first = drawn(L1);
+            second = drawn(L2);
+            tunnels = P.passageTunnels(site.id, L1, { stores: { map } }).filter(t => t.id === STAIRS || t.id === ONE).sort((a, b) => (a.id < b.id ? -1 : 1));
+            player = [drawn(L1, { gm: false }), P.passageTunnels(site.id, L1, { stores: { map }, gm: false }), P.passageStretches(site.id, L1, { stores: { map }, gm: false })];
+        } finally {
+            layer.destroy({ children: true });
+        }
+        const to = room => game.i18n.format("DRPG.Passage.mark.to", { room }), from = room => game.i18n.format("DRPG.Passage.mark.from", { room });
+        const size = [36, 7, 0.7];
+        const at = (text, x, y) => [text, ...size, x, y + 38, true];
+        const arrow = first?.[2]?.one?.polygons ?? [];
+        equal(J([first?.[0], first?.[1], Object.fromEntries(Object.entries(first?.[2] ?? {}).map(([k, v]) => [k, v.words])), second?.[2]?.stairs?.words ?? null]),
+            J([5, 5, { one: [at(to("R941 Hall"), 1550, 1050), at(from("R941 Kitchen"), 1650, 450)], shut: [], stairs: [at(from("R941 Attic"), 1850, 950)],
+                two: [at(to("R941 Hall"), 1250, 950), at(to("R941 Kitchen"), 1350, 350)], wall: [] }, [at(to("R941 Kitchen"), 2150, 350)]]),
+            "[drawn on the first floor: passages, Graphics, each passage's words as [text, size, keyline, alpha, x, y, in the passage colour]; the stairs' words on the second floor] - each end must say where it leads, the way out where it comes from");
+        // The arrowhead: three points, read along the link from the way in (1550, 1050) to the way out (1650, 450).
+        const ux = 100 / Math.hypot(100, 600), uy = -600 / Math.hypot(100, 600), round = v => Math.round(v * 100) / 100;
+        const along = (arrow[0] ?? []).length === 6 ? [0, 1, 2].map(i => round((arrow[0][2 * i] - 1600) * ux + (arrow[0][2 * i + 1] - 750) * uy)).sort((a, b) => a - b) : null;
+        const tip = (arrow[0] ?? []).length === 6 ? [0, 1, 2].map(i => [arrow[0][2 * i], arrow[0][2 * i + 1]])
+            .reduce((best, p) => ((p[0] - 1600) * ux + (p[1] - 750) * uy > (best[0] - 1600) * ux + (best[1] - 750) * uy ? p : best)) : null;
+        const nearer = tip ? Math.hypot(tip[0] - 1650, tip[1] - 450) < Math.hypot(tip[0] - 1550, tip[1] - 1050) : null;
+        equal(J([arrow.length, along, nearer, ["two", "stairs", "shut", "wall"].map(k => first?.[2]?.[k]?.polygons?.length ?? null), second?.[2]?.stairs?.polygons?.length ?? null,
+            J(first?.[2]?.one?.tagged) === J(arrow[0] ?? "none"), ["two", "stairs", "shut", "wall"].map(k => first?.[2]?.[k]?.tagged ?? null)]),
+            J([1, [-15, -15, 15], true, [0, 0, 0, 0], 0, true, [null, null, null, null]]),
+            "[the one-way tunnel's filled polygons, its three points along the link from its middle, its tip nearer the way out; filled polygons of the two-way tunnel, the stairs, the closed tunnel and the wall stretch; the stairs' upstairs; the arrow's tagged points the polygon drawn; the others' tags] - only a one-way tunnel's link may carry an arrow, and it must point to the way out");
+        equal(J(tunnels.map(t => [t.id === ONE ? "one" : "stairs", t.state, t.oneWay, t.ends])),
+            J([["one", "secret", 0, [{ x: 1550, y: 1050, level: L1, index: 0, far: end(1650, 450, L1) }, { x: 1650, y: 450, level: L1, index: 1, far: end(1550, 1050, L1) }]],
+                ["stairs", "secret", 1, [{ x: 1850, y: 950, level: L1, index: 0, far: end(2150, 350, L2) }]]]),
+            "[each tunnel the overlay draws: its state, the end it is entered from, and each end on the floor with its index and the end beyond]");
+        equal(J([player?.[0], player?.[1], player?.[2]]), J([[0, 0, {}], [], []]),
+            "[drawn as a player: passages, Graphics, words; the tunnels and stretches a player's browser is given] - the GMs' overlay drew on a player's browser because the rows were there");
+    }],
+    ["R943 - a GM's frame is cut where a secret passage runs in its wall, where a knower's is (H82-05): on R557's Lab the cut is the passage's 100-200, on a Cafeteria like scenario 76's 1225-1325 for a passage at 1234.5-1334.5, the knower's gap there; a stretch 0.7 squares off the border, one across it, one a single sample long and one on the room's own inner stretch cut nothing, and an opening already there is not cut twice; the frame's line stops a margin either side of the cut and the dimmed stroke fills exactly that margin to margin; with no passage the edges and the line are the ones they were; a border a second wall runs along is not cut, as a knower's wall test leaves it solid, and the dimmed stroke stops at an opening's or an inner stretch's own end; the dimmed stroke is the bone line's width at 0.35 under Monokuma Legacy and the seam's hairline at 0.6 under Stained Glass", async () => {
+        /*
+         * H82-05 (23.10.2026; the owner's 21.10 "dopiszmy gma widzacego przerwy", the stage's defaults: every passage,
+         * dimmed, on a GM's browser alone). The harm: a GM looking at the frame of the room their Monokuma stands in sees
+         * a solid line across a secret passage, where the student who knows it sees the way out, and cannot tell from the
+         * board where the knower's frame opens. Read on the edges fog-doorways.mjs `doorwayEdges` measures for two scenes
+         * of plain objects (R557's Lab over a Vault, wall y 400, passage 100-200; scenario 76's Cafeteria over a Kitchen,
+         * wall y 800, passage 1234.5-1334.5) and on edges written by hand for an inner stretch and an opening, each cut at
+         * grid 100 by `withPassageGhosts`; the line traced on a recorder of the test's own (`traceOutlineGapped`,
+         * `traceGhostStretches` call moveTo and lineTo and read `line.width`). The knower's gap is not measured here: with
+         * the harness's polygons `doorwayEdges` opens no doorway (E12 C2b), and on a real canvas its ray asks the scene on
+         * screen, not these; scenario 76 C reads both frames on one map, the GM's and Aiko's. How the dimmed cut reads on a
+         * real floor is LIVE-H82-04.
+         */
+        const D = await import("./fog-doorways.mjs");
+        const FR = await import("./fog-reveal.mjs");
+        const R = await import("./rooms.mjs");
+        const J = v => JSON.stringify(v);
+        const region = (tag, name, x, y, w, h) => ({ id: `${tag}R${name}`, name: `${tag} ${name}`, levels: new Set(), behaviors: [],
+            bounds: { x, y, width: w, height: h }, shapes: [{ type: "rectangle", x, y, width: w, height: h }],
+            testPoint: p => p.x >= x && p.x <= x + w && p.y >= y && p.y <= y + h,
+            getFlag: (scope, key) => (scope === MODULE_ID && key === R.ROOM_FLAG ? true : undefined) });
+        const edgesOf = (tag, rooms, wall) => {
+            const scene = { id: `${tag}S`, name: `${tag} scene`, grid: { size: 100 }, levels: [], walls: [{ id: `${tag}W`, c: wall, move: 20, door: 0, ds: 0 }] };
+            for (const r of rooms) r.parent = scene;
+            scene.regions = new Set(rooms);
+            return D.doorwayEdges(rooms[0], null);
+        };
+        equal(J([typeof D.withPassageGhosts, typeof D.traceGhostStretches, typeof FR.ghostStyle]), J(["function", "function", "function"]),
+            "[the cut of a GM's frame, its dimmed stroke, the stroke's style] - not there: a GM's frame runs solid across every passage");
+        const lab = edgesOf("R943L", [region("R943L", "Lab", 0, 0, 400, 400), region("R943L", "Vault", 0, 400, 400, 200)], [0, 400, 400, 400]);
+        const cafe = edgesOf("R943C", [region("R943C", "Cafeteria", 1200, 200, 800, 600), region("R943C", "Kitchen", 1200, 800, 800, 300)], [1200, 800, 2000, 800]);
+        ok(lab.length === 4 && cafe.length === 4, `doorwayEdges measured ${lab.length} and ${cafe.length} edges, not a rectangle's four - this would measure nothing`);
+        const seg = (x1, y1, x2, y2) => ({ id: "R943P", wallId: "R943W", x1, y1, x2, y2 });
+        const round = v => Math.round(v * 10) / 10;
+        // Each cut as [from x, y, to x, y], read off the edge it is on.
+        const cuts = (edges, segments, o = {}) => D.withPassageGhosts(edges, segments, { grid: 100, ...o }).flatMap(e => (e.ghost ?? []).map(([a, b]) => {
+            const [x1, y1, x2, y2] = [e.ax + e.dx * a, e.ay + e.dy * a, e.ax + e.dx * b, e.ay + e.dy * b].map(round);
+            return x1 <= x2 && y1 <= y2 ? [x1, y1, x2, y2] : [x2, y2, x1, y1];
+        })).sort((p, q) => p[0] - q[0] || p[1] - q[1]);
+        const passage = seg(1234.5, 800, 1334.5, 800);
+        equal(J([cuts(lab, [seg(100, 400, 200, 400)]), cuts(cafe, [passage]), cuts(cafe, [seg(1234.5, 870, 1334.5, 870)]), cuts(cafe, [seg(1600, 760, 1600, 840)]),
+            cuts(cafe, [seg(1236, 800, 1250, 800)])]),
+        J([[[100, 400, 200, 400]], [[1225, 800, 1325, 800]], [], [], []]),
+            "[R557's Lab, the Cafeteria's passage, a stretch 70 px off its border, one across it, one 14 px long] - where a GM's frame is cut");
+        const edge = (over = {}) => ({ ax: 0, ay: 0, dx: 400, dy: 0, length: 400, nx: 0, ny: -1, ring: 0, open: [], inner: [], trend: null, ...over });
+        equal(J([cuts([edge({ inner: [[0, 0.5]] })], [seg(50, 0, 350, 0)]), cuts([edge({ open: [[0.5, 0.625]] })], [seg(50, 0, 350, 0)]), cuts([edge()], [seg(50, 0, 350, 0)])]),
+            J([[[200, 0, 350, 0]], [[50, 0, 200, 0], [250, 0, 350, 0]], [[50, 0, 350, 0]]]),
+            "[a passage half on the room's own inner stretch, one across an opening at 200-250, the same with neither] - a cut where no border is, or an opening cut twice");
+        /* The knower's wall test (H82 fix r1, finding H82-05-R3): the Cafeteria's border walled twice, W1 and W2 over each other
+           as on a map walled room by room, and the passage on W1. A knower's walls are W1 cut and W2 whole (`passageWalls`),
+           so its frame runs solid there; until this fix the GM's was cut 1225-1325 all the same. With W1 alone, the cut. */
+        const W1 = { id: "R943W", c: [1200, 800, 2000, 800], move: 20, door: 0, ds: 0 }, W2 = { id: "R943W2", c: [1200, 800, 2000, 800], move: 20, door: 0, ds: 0 };
+        equal(J([cuts(cafe, [passage], { walls: [W1, W2] }), cuts(cafe, [passage], { walls: [W1] }), cuts(cafe, [passage], { walls: [W2] }),
+            cuts(cafe, [passage], { walls: [] })]),
+        J([[], [[1225, 800, 1325, 800]], [], []]),
+            "[the passage on W1 with W2 along it too, W1 alone, the passage naming a wall the floor does not have, no wall at all] - a GM's frame cut where a knower's wall test leaves the frame solid");
+        const none = D.withPassageGhosts(cafe, [], { grid: 100 }), far = D.withPassageGhosts(cafe, [seg(1234.5, 870, 1334.5, 870)], { grid: 100 });
+        equal(J([none === cafe, J(far) === J(cafe), far.every((e, i) => e === cafe[i])]), J([true, true, true]),
+            "[no passage: the same edges; a passage nowhere on the border: edges equal to them, each the same object] - a frame with no passage cut is not the one it was");
+
+        // The line: a recorder of moveTo and lineTo, and the stretches it draws along y 800 (the Cafeteria's border with the Kitchen).
+        const recorder = () => ({ calls: [], line: { width: 0 }, moveTo(x, y) { this.calls.push(["moveTo", round(x), round(y)]); return this; },
+            lineTo(x, y) { this.calls.push(["lineTo", round(x), round(y)]); return this; } });
+        // Every line a recorder drew, [x1, y1, x2, y2] with the smaller end first, and those along y 800 as [from x, to x];
+        // a line of no length (a closed ring's seam, `traceOutlineGapped`'s wrap) is no line of the frame.
+        const lines = calls => {
+            const out = [];
+            let at = null;
+            for (const [k, x, y] of calls) {
+                if (k === "lineTo" && at && (at[0] !== x || at[1] !== y)) out.push(at[0] < x || (at[0] === x && at[1] <= y) ? [...at, x, y] : [x, y, ...at]);
+                at = [x, y];
+            }
+            return out.sort((p, q) => p[0] - q[0] || p[1] - q[1] || p[2] - q[2] || p[3] - q[3]);
+        };
+        const along = calls => lines(calls).filter(l => l[1] === 800 && l[3] === 800).map(l => [l[0], l[2]]);
+        const rest = calls => lines(calls).filter(l => !(l[1] === 800 && l[3] === 800));
+        const ghosted = D.withPassageGhosts(cafe, [passage], { grid: 100 });
+        const [plain, cut, dim] = [recorder(), recorder(), recorder()];
+        D.traceOutlineGapped(plain, cafe, { x: 0, y: 0 }, 10.5, 16);
+        D.traceOutlineGapped(cut, ghosted, { x: 0, y: 0 }, 10.5, 16);
+        const drew = [D.traceGhostStretches(dim, ghosted, { x: 0, y: 0 }, 10.5), D.traceGhostStretches(recorder(), cafe, { x: 0, y: 0 }, 10.5)];
+        equal(J([plain.calls.filter(([k]) => k === "moveTo").length, plain.calls.filter(([k]) => k === "lineTo").length, along(plain.calls), along(cut.calls),
+            J(rest(cut.calls)) === J(rest(plain.calls)), rest(plain.calls).length, drew, along(dim.calls), dim.calls.map(([k]) => k)]),
+        J([1, 5, [[1200, 2000]], [[1200, 1214.5], [1335.5, 2000]], true, 3, [1, 0], [[1214.5, 1335.5]], ["moveTo", "lineTo"]]),
+            "[the frame with no passage: paths, lines, along y 800; cut for the passage, along y 800; the other three sides the same, how many; dimmed strokes drawn for the cut and for no cut; the dimmed stroke along y 800, its calls] - the frame must stop 10.5 px either side of 1225-1325 and the dimmed line fill that and no more");
+
+        /* The dimmed stroke beside an opening and beside the room's own inner stretch (H82 fix r1, finding H82-05-R2), on the
+           hand-written edge along y 0: a passage 50-350 across an opening at 200-250 leaves ghosts 50-200 and 250-350, and the
+           stroke stops at the opening's own ends, widened 10.5 px only at 50 and 350, where the edge is walled past it; on an
+           inner stretch 0-200 the ghost 200-350 is stroked from 200. Until this fix 39.5-210.5 and 239.5-360.5 (10.5 px into
+           each side of the opening) and 189.5-360.5 (a stub inside the room). */
+        const along0 = calls => lines(calls).filter(l => l[1] === 0 && l[3] === 0).map(l => [l[0], l[2]]);
+        const [byOpening, byInner] = [recorder(), recorder()];
+        D.traceGhostStretches(byOpening, D.withPassageGhosts([edge({ open: [[0.5, 0.625]] })], [seg(50, 0, 350, 0)], { grid: 100 }), { x: 0, y: 0 }, 10.5);
+        D.traceGhostStretches(byInner, D.withPassageGhosts([edge({ inner: [[0, 0.5]] })], [seg(50, 0, 350, 0)], { grid: 100 }), { x: 0, y: 0 }, 10.5);
+        equal(J([along0(byOpening.calls), along0(byInner.calls)]), J([[[39.5, 200], [250, 360.5]], [[200, 360.5]]]),
+            "[the dimmed strokes beside the opening at 200-250, beside the inner stretch 0-200] - the dimmed line runs into a real doorway or inside the room");
+
+        const grid = 100;
+        equal(J([FR.ghostStyle(false, grid), FR.ghostStyle(false, 40), FR.ghostStyle(true, grid)]),
+            J([{ width: 11, alpha: 0.35 }, { width: 7, alpha: 0.35 }, { width: FR.seamWidth(), alpha: 0.6 }]),
+            "[Monokuma Legacy at grid 100 and 40, Stained Glass] - the dimmed cut's width and alpha");
+    }],
+    ["R944 - a GM's frame is cut by every secret passage in a wall of its floor, and a player's by none (H82-05): `gmPassageGaps` answers a GM's browser the wall stretches of this scene and this floor, whoever knows them, and no tunnel, another floor's or another scene's; a player's browser, the Mastermind's player's whose copy names every passage, nothing, so its frame is a knower's; the default asks this browser's role", async () => {
+        /*
+         * H82-05 (23.10.2026). A secret passage is the GMs' and its knowers' (D2, D38): a frame cut by every passage on a
+         * player's browser would draw the whole map of them, and a Mastermind player's copy names every passage, so the
+         * gate is the user's role, never what the rows hold. Read with rows of the test's own in the copy's shape
+         * (`known`), on scenes of no world; the floor is read as passages.mjs `secretRowsOn` reads it (a row on no floor
+         * in particular is on each). On a GM's browser the rows are the GMs' open ones (`knownPassages`, `secretRowsFrom`,
+         * R554), so a closed or broken passage cuts nothing: that reading is R554's, and scenario 76 C closes the
+         * Cafeteria's passage and reads the GM's frame drawn again whole.
+         */
+        const D = await import("./fog-doorways.mjs");
+        const L = await import("./passages.mjs");
+        const J = v => JSON.stringify(v);
+        const [SC, L1, L2] = ["R944SCENE", "R944L1", "R944L2"];
+        const wall = (sceneId, level, x, actorIds = []) => ({ sceneId, shape: "wall", level, passageWallId: `R944W${x}`,
+            passageSeg: { x1: x, y1: 800, x2: x + 100, y2: 800 }, actorIds });
+        const known = {
+            R944A: wall(SC, L1, 100, ["R944MASTERMIND"]), R944B: wall(SC, null, 300), R944C: wall(SC, L2, 500, ["R944MASTERMIND"]),
+            R944D: wall("R944OTHER", L1, 700, ["R944MASTERMIND"]),
+            R944T: { sceneId: SC, shape: "tunnel", level: null, ends: [{ x: 150, y: 150, level: L1 }, { x: 650, y: 150, level: L1 }], actorIds: ["R944MASTERMIND"] }
+        };
+        equal(J([typeof D.gmPassageGaps, typeof L.secretSegmentsOn]), J(["function", "function"]),
+            "[the stretches a GM's frame is cut by, the floor's stretches whoever knows them] - not there: a GM's frame is cut by no passage");
+        const ids = list => list.map(s => s.id).sort();
+        const scene = { id: SC };
+        equal(J([ids(D.gmPassageGaps(scene, L1, { gm: true, known })), ids(D.gmPassageGaps(scene, L2, { gm: true, known })), ids(D.gmPassageGaps(scene, null, { gm: true, known })),
+            ids(D.gmPassageGaps({ id: "R944OTHER" }, L1, { gm: true, known })), ids(D.gmPassageGaps(null, L1, { gm: true, known }))]),
+        J([["R944A", "R944B"], ["R944B", "R944C"], ["R944A", "R944B", "R944C"], ["R944D"], []]),
+            "[a GM on the first floor, on the second, on every floor, on another scene, with no scene] - the stretches a GM's frame is cut by");
+        equal(J([D.gmPassageGaps(scene, L1, { gm: true, known }).find(s => s.id === "R944A") ?? null, L.secretSegmentsOn(SC, L1, { known }).length]),
+            J([{ id: "R944A", wallId: "R944W100", x1: 100, y1: 800, x2: 200, y2: 800 }, 2]),
+            "[the stretch as the cut reads it, the floor's stretches as passages.mjs reads them]");
+        const edges = [{ ax: 0, ay: 800, dx: 400, dy: 0, length: 400, nx: 0, ny: -1, ring: 0, open: [], inner: [], trend: null }];
+        equal(J([D.gmPassageGaps(scene, L1, { gm: false, known }), D.gmPassageGaps(scene, null, { gm: false, known }),
+            D.withPassageGhosts(edges, D.gmPassageGaps(scene, L1, { gm: false, known }), { grid: 100 }) === edges,
+            (D.withPassageGhosts(edges, D.gmPassageGaps(scene, L1, { gm: true, known }), { grid: 100 })[0].ghost ?? []).length]),
+        J([[], [], true, 2]),
+            "[a player's browser, the Mastermind's player's copy naming every passage, on the floor and on every floor; its frame's edges; a GM's frame's cuts on the same edges] - a player's frame cut by passages its character does not know");
+        must(game.user.isGM, "the suite runs on a GM's browser - the default would read a player's role");
+        equal(J(ids(D.gmPassageGaps(scene, L1, { known }))), J(["R944A", "R944B"]), "the default, on this GM's browser - the role was not read");
+    }],
+    ["R946 - a GM's frame is drawn again only when what cuts it changed (H82 fix r1, finding H82-05-R1): the key of a floor's stretches (fog-doorways.mjs `passageCutKey` of `gmPassageGaps`) is the same after a tunnel's way, Make public, a student's start access, a grant or another scene's passage changes, and another after a passage is closed (its row gone from the GMs' open ones), made or moved; fog.mjs `redrawFrameSoon` compares that key with the standing frame's before it draws, and fog-reveal.mjs `flashOutline` keeps the key of the stretches it cut", async () => {
+        /*
+         * H82 fix r1 (23.10.2026; the review's H82-05-R1). Every change of the GMs' passage rows fires one
+         * `clientSettingChanged` on a GM's browser (gmPassageMap), and until this fix each redrew the standing frame -
+         * its fade, landOutline's hop and the room's name - on every GM's browser, whatever changed: a tunnel's way
+         * (passages-gm.mjs `map.patch(id, { oneWay })`), Make public, a start access, a passage on another scene. Read with
+         * rows of the test's own in the copy's shape (`known`), as R944 reads the stretches; a close is read as the GMs'
+         * open rows read it (R554): the row is gone. The redraw's own gate is read off the source (comments blanked); the
+         * replay itself is not timed here, scenario 76 C reads a close and an open drawn again.
+         */
+        const D = await import("./fog-doorways.mjs");
+        const J = v => JSON.stringify(v);
+        ok(typeof D.passageCutKey === "function", "fog-doorways.mjs has no key of a frame's cut - every change of the GMs' rows redraws the frame");
+        if (typeof D.passageCutKey !== "function") return;
+        const [SC, L1] = ["R946SCENE", "R946L1"];
+        const wall = (sceneId, x, more = {}) => ({ sceneId, shape: "wall", level: L1, passageWallId: `R946W${x}`,
+            passageSeg: { x1: x, y1: 800, x2: x + 100, y2: 800 }, actorIds: [], state: "secret", startAccess: [], ...more });
+        const tunnel = (more = {}) => ({ sceneId: SC, shape: "tunnel", level: null, ends: [{ x: 150, y: 150, level: L1 }, { x: 650, y: 150, level: L1 }],
+            actorIds: [], state: "secret", startAccess: [], ...more });
+        const base = { R946A: wall(SC, 100), R946B: wall(SC, 300), R946T: tunnel(), R946O: wall("R946OTHER", 500) };
+        const keyOf = known => D.passageCutKey(D.gmPassageGaps({ id: SC }, L1, { gm: true, known }));
+        const was = keyOf(base);
+        const changed = known => keyOf(known) !== was;
+        const same = [
+            { ...base, R946T: tunnel({ oneWay: 0 }) },
+            { ...base, R946A: wall(SC, 100, { public: true }) },
+            { ...base, R946A: wall(SC, 100, { startAccess: ["R946ACTOR"] }) },
+            { ...base, R946B: wall(SC, 300, { actorIds: ["R946ACTOR"] }) },
+            { ...base, R946O: wall("R946OTHER", 600) }];
+        const other = [
+            (({ R946A, ...rest }) => rest)(base),
+            { ...base, R946C: wall(SC, 700) },
+            { ...base, R946B: wall(SC, 320) }];
+        equal(J([JSON.parse(was).length, same.map(changed), other.map(changed)]), J([2, [false, false, false, false, false], [true, true, true]]),
+            "[the stretches the key holds; changed by a tunnel's way, Make public, a start access, a grant, another scene's passage moved; changed by a close, a passage made, one moved] - the GM's frame is replayed for what does not cut it, or not drawn again for what does");
+        const sources = new Map(await otherSources());
+        const fog = stripComments(sources.get("fog.mjs") ?? ""), reveal = stripComments(sources.get("fog-reveal.mjs") ?? "");
+        ok(fog.length > 0 && reveal.length > 0, "fog.mjs or fog-reveal.mjs was not read - this test measured nothing");
+        const soon = fnSource(fog, "redrawFrameSoon"), flash = fnSource(reveal, "flashOutline");
+        const GATE = /if\s*\(\s*standing\s*&&\s*passageCutKey\(\s*gmPassageGaps\(\s*standing\.region\?\.parent\s*,\s*standing\.level\s*\)\s*\)\s*===\s*standing\.cut\s*\)\s*return;[\s\S]*\bredrawOutline\(\)/;
+        const KEPT = /\bcut:\s*passageCutKey\(\s*gaps\s*\)/;
+        equal(J([GATE.test("const standing = roomOutline;\n            redrawOutline();"), GATE.test(soon), KEPT.test(flash)]), J([false, true, true]),
+            "[a redraw with no gate (planted), `redrawFrameSoon` compares the key before it redraws, `flashOutline` keeps the key of the stretches it cut on the frame] - the GM's frame is replayed on every change of the GMs' rows");
+    }],
+    ["R947 - a drawn roll's dice start at the GM's message on its roller's browser, and only at the draw's own (H82-06): roll-draw.mjs `startWaitOf` answers the wait for a drawn message by a GM, the primary the roll was asked of, carrying a nonce this player's browser waits on, readable here, with rolls and not started yet - and nothing for a GM's browser, a player's message with the flag, another GM's, another nonce, no flag, a start already made, a message this browser may not read, one with no rolls or no wait at all", async () => {
+        /*
+         * H82 C5 (23.10.2026; H82-06; the H82 look back's option 1). The roller's dice started on the GM's answer, six
+         * one-way hops after the ask, where the GM's message is on this browser at four (scenario 33 A17 reads the hops
+         * with 80 ms added each way). They start at the message now, and a message that may start them is a claim like
+         * any other the wire brings: a player's console can write one with the drawn flag and the nonce of a roll its
+         * browser waits on (`isDrawnRoll` reads it as no draw: the author is not a GM), and another GM's is not the
+         * draw the roll was asked of. Read with stand-in messages, waits and users (`startWaitOf`'s own parameters):
+         * the suite is a GM's browser, whose own rolls are never drawn, so it waits on none of its own. That only one
+         * throw follows, and that a refused draw throws nothing, is scenario 33 A17's, on p1.
+         */
+        const D = await import("./roll-draw.mjs");
+        const { ROLL_NONCE } = await import("./private-rolls.mjs");
+        const J = v => JSON.stringify(v);
+        ok(typeof D.startWaitOf === "function", "roll-draw.mjs has no startWaitOf - a drawn roll's dice wait for the GM's answer");
+        if (typeof D.startWaitOf !== "function") return;
+        const [GM, GM2, P1] = ["R947GM0000000000", "R947GM2000000000", "R947P10000000000"];
+        const message = ({ author = GM, isGM = true, drawn = true, nonce = "R947NONCE1", rolls = 1 } = {}) => ({
+            id: "R947MESSAGE00000", author: { id: author, isGM },
+            rolls: Array.from({ length: rolls }, () => ({ options: { [ROLL_NONCE]: nonce } })),
+            getFlag: (scope, key) => (scope === MODULE_ID && key === "drawn" ? drawn : undefined)
+        });
+        const waits = (started = null) => new Map([["R947NONCE1", { primary: GM, started }]]);
+        const player = { id: P1, isGM: false }, gm = { id: GM, isGM: true };
+        const starts = (m, { held = waits(), user = player, readable = () => true } = {}) => D.startWaitOf(m, { waits: held, user, readable }) !== null;
+        equal(J([starts(message()), starts(message(), { user: gm }), starts(message({ author: P1, isGM: false })), starts(message({ author: GM2 })),
+            starts(message({ nonce: "R947NONCE2" })), starts(message({ drawn: false })), starts(message(), { held: waits(Promise.resolve()) }),
+            starts(message(), { readable: () => false }), starts(message({ rolls: 0 })), starts(message(), { held: new Map() })]),
+        J([true, false, false, false, false, false, false, false, false, false]),
+            "[the draw's message on the roller's; on a GM's browser; a player's with the drawn flag and the nonce; another GM's; another nonce; "
+                + "no drawn flag; a start already made; not readable here; no rolls; no wait] - a drawn roll's dice start where they must not, or not where they must");
+        const held = waits();
+        ok(D.startWaitOf(message(), { waits: held, user: player, readable: () => true }) === held.get("R947NONCE1"),
+            "startWaitOf answers another wait than the one held for the message's nonce - the start is not kept where the GM's answer reads it");
     }],
 ];
 
