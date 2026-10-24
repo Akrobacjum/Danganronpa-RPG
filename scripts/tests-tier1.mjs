@@ -21737,6 +21737,49 @@ const INVARIANTS = [
         ok(/transferItem\(from, to, held, \{ mode: "give" \}\)/.test(give), "handover.mjs giveItem does not hand its move to transferItem");
         ok(!/\bgrantItem\s*\(|\.\s*delete\s*\(|DRPG\.Handover\.stuck"/.test(give), "handover.mjs giveItem still makes its own copy, deletes its own original or tells its own stuck line");
     }],
+
+    ["R953 - the player's handbook says what a full pair of hands does to each road an item takes, as inventory.mjs TRANSFER_POLICY does it (D42), in English and in Polish: something slipped into full pockets stays with whoever tried and its victim is told nothing; what a Palm takes into full hands goes to the taker's stash, else stays; one piece of a stack moves; the stash's list no longer names a Plant (E35-T11)", async () => {
+        /*
+         * E35 C6, 24.10.2026; E35-24, D42 (the owner's option 1). Until C6 the handbook's stash list said that
+         * something "slipped into your pocket" while your hands were full goes into your stash, and the Palm's section
+         * that what does not fit in a full pocket goes into "their stash" - both what Base did, both what D42 ended
+         * (vault.mjs `plantOnPerson`, E35 C3). Read: TRANSFER_POLICY as the code holds it, the planter's line in both
+         * languages' files, and in each language's player handbook the stash list's full-hands line and the Palm's
+         * paragraph on outcomes, cut by their first words. Red at 7fd0772 (C5): both books said the stash took the
+         * Plant.
+         */
+        const { TRANSFER_POLICY } = await import("./inventory.mjs");
+        equal(stableJson(TRANSFER_POLICY), stableJson({ give: "refuse", loot: "overflow", rifle: "overflow", steal: "overflow", plant: "refuse" }),
+            "TRANSFER_POLICY is not what the handbook says a full pair of hands does to each road - one of the two moved without the other");
+        const BOOK = {
+            en: { full: "- Your hands were full when something reached you", palm: "Four outcomes, and the interesting ones",
+                plant: ["slipped into full pockets", "stays with whoever tried", "you are told nothing"], taken: ["goes into your stash", "it stays with them"],
+                piece: "one piece", gone: ["slipped into your pocket?", "goes into their stash"] },
+            pl: { full: "- Miałeś pełne ręce, gdy coś do ciebie trafiło", palm: "Cztery wyniki, a ciekawe są te niedopasowane",
+                plant: ["do pełnych kieszeni", "zostaje u tego, kto próbował", "nie dowiadujesz się niczego"], taken: ["trafia do twojej skrytki", "zostaje u nich"],
+                piece: "jedną sztukę", gone: ["podrzucone ci do kieszeni?", "trafia do ich skrytki"] }
+        };
+        const read = {};
+        for (const [lang, W] of Object.entries(BOOK)) {
+            const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/player-handbook.${lang}.md`);
+            ok(res.ok, `docs/handbooks/player-handbook.${lang}.md did not load`);
+            const lines = (await lfText(res)).split("\n");
+            const line = start => lines.find(l => l.startsWith(start)) ?? null;
+            const full = line(W.full), palm = line(W.palm);
+            must(full && palm, `player-handbook.${lang}.md has no line starting "${full ? W.palm : W.full}" - this test reads nothing until it is pointed at the book again`);
+            const words = await (await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`)).json();
+            read[lang] = {
+                line: Boolean(foundry.utils.getProperty(words, "DRPG.Steal.cardTheirHandsFull")),
+                plant: W.plant.filter(w => !full.includes(w)),
+                taken: W.taken.filter(w => !palm.includes(w)),
+                piece: [full, palm].map(text => text.includes(W.piece)),
+                gone: W.gone.filter(w => full.includes(w) || palm.includes(w))
+            };
+        }
+        const want = { line: true, plant: [], taken: [], piece: [true, true], gone: [] };
+        equal(stableJson(read), stableJson({ en: want, pl: want }),
+            "a player's handbook does not say what TRANSFER_POLICY does with full hands (per language: the planter's line exists; the stash list's words for a refused Plant it lacks; the Palm paragraph's words for a taker's full hands it lacks; [the stash list, the Palm paragraph] say one piece moves; the old words still there)");
+    }],
 ];
 
 /**

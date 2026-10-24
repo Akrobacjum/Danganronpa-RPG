@@ -303,7 +303,7 @@ Ręka w czyjejś kieszeni, w jedną albo w drugą stronę, albo tylko spojrzenie
 | Udaje się (Hand) | 10+ | 8+ | 10+ |
 | Niezauważony (Shadow) | 15+ | 13+ | 15+ |
 
-Cztery wyniki, a ciekawe są te niedopasowane: przyłapany z niczym albo okradziony przez kogoś, kogo nie zauważyłeś. Bierzesz, co wyjdzie; krytyk pozwala wybrać. Ich limit noszenia wciąż obowiązuje - to, co nie mieści się w pełnej kieszeni, trafia do ich skrytki, a gdy skrytki nie mają, zostaje u ciebie. Palm nigdy nie sięga do wnętrza skrytki.
+Cztery wyniki, a ciekawe są te niedopasowane: przyłapany z niczym albo okradziony przez kogoś, kogo nie zauważyłeś. Bierzesz, co wyjdzie; krytyk pozwala wybrać. Limity noszenia wciąż obowiązują, a jedna akcja przenosi jedną sztukę ze stosu. Coś, co zostawiasz komuś z pełnymi kieszeniami, zostaje u ciebie - dostajesz o tym wiadomość, a oni nie dowiadują się niczego, czy cię zauważyli, czy nie. Coś, co bierzesz, mając pełne ręce, trafia do twojej skrytki, a gdy jej nie masz, zostaje u nich. Palm nigdy nie sięga do wnętrza skrytki.
 
 **Zobacz, co nosi** (Frisk) niczego nie zabiera. **Jawnie** prosisz, żeby pokazali kieszenie. Jeśli pozwolą, widzisz to, co mieli przy sobie w chwili prośby: przekazanie czegoś dalej w czasie namysłu tego nie ukryje. Jeśli odmówią albo nie odpowiedzą w ciągu minuty, możesz ich zmusić, chyba że GM to wyłączył: **Body 12+**, a pokój i tak to widzi. Jeśli ich gracza nie ma, nikt nie odpowiada; za postać bez gracza odpowiada GM. **Ukradkiem** to dwa rzuty kradzieży bez kradzieży: najpierw Shadow, 15+, żeby nikt nie zauważył, potem Hand, 10+, żeby dobrze się przyjrzeć; jeśli to zauważą, wiedzą, że to ty. Kosztuje **1 akcję**; jeśli prośba w ogóle nie może do nich trafić, akcja wraca. Widzisz to, co jest w kieszeniach: nigdy Truth Bullet, nigdy skrytkę. Ciała nie przeszukuje się przez Frisk: przejrzyj je z jego arkusza.
 
@@ -455,7 +455,7 @@ Przedmiot może służyć też jako inna kategoria (śrubokręt w narzędziach, 
 - **Ukrytą** skrytkę trzeba najpierw znaleźć: Search w pokoju, z jednym stopniem utrudnienia więcej (karta powie ci o tym po rzucie), albo Analyze *Znajdź ukrytą skrytkę* na 16+, co otwiera ją przed tobą na dobre. Jeśli GM usunie skrytkę, ci, którzy ją znaleźli, zapominają o niej.
 - To, że ktoś częstuje się z twojej skrytki, nie jest ogłaszane. Tylko złodziej, którego Search wypadło z Despair, zostawia ją na tyle naruszoną, że da się to zauważyć: dowiadujesz się, że ktoś w niej był - nigdy kto.
 - GM może dać ci skrytkę w innym pokoju. Nie daje ona klucza do tego pokoju.
-- Miałeś pełne ręce, gdy coś do ciebie trafiło - znalezione, ukradzione, zabrane z ciała albo podrzucone ci do kieszeni? Trafia do twojej skrytki - tej z sypialni, jeśli ją masz - gdziekolwiek stoisz i jakkolwiek pełna już jest, a ty dostajesz o tym wiadomość. Gdy nie masz żadnej skrytki, rzecz w ogóle do ciebie nie dociera. Coś, co ktoś ci podaje ponad limit, zostaje po prostu odrzucone.
+- Miałeś pełne ręce, gdy coś do ciebie trafiło - znalezione, ukradzione, wyjęte ze skrytki albo zabrane z ciała? Trafia do twojej skrytki - tej z sypialni, jeśli ją masz - gdziekolwiek stoisz i jakkolwiek pełna już jest, a ty dostajesz o tym wiadomość. Gdy nie masz żadnej skrytki, rzecz w ogóle do ciebie nie dociera. Coś, co ktoś ci podaje ponad limit, zostaje po prostu odrzucone, tak samo jak coś, co ktoś próbuje wsunąć ci do pełnych kieszeni: zostaje u tego, kto próbował, a ty nie dowiadujesz się niczego. Jedna akcja przenosi ze stosu tylko jedną sztukę.
 
 ---
 

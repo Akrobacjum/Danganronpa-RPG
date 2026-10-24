@@ -303,7 +303,7 @@ A hand in somebody's pocket, going either way, or just a look inside. Two indepe
 | It works (Hand) | 10+ | 8+ | 10+ |
 | Unseen (Shadow) | 15+ | 13+ | 15+ |
 
-Four outcomes, and the interesting ones are the mismatches: caught with nothing to show for it, or robbed by somebody you never noticed. What you take is whatever comes out; a critical lets you choose. Their carry limit still applies - what does not fit in a full pocket goes into their stash, and with no stash it stays with you. Palm never reaches into a stash.
+Four outcomes, and the interesting ones are the mismatches: caught with nothing to show for it, or robbed by somebody you never noticed. What you take is whatever comes out; a critical lets you choose. Carry limits still apply, and one action moves one piece of a stack. Something you leave on somebody whose pockets are full stays with you - you are told so, and they are told nothing, whether they noticed you or not. Something you take with your own hands full goes into your stash, and with no stash it stays with them. Palm never reaches into a stash.
 
 **See what they carry** (a Frisk) takes nothing. **Openly**, you ask them to turn out their pockets. If they let you, you see what they had on them when you asked: handing something on while they think it over does not hide it. If they refuse, or do not answer within a minute, you can make them, unless your GM has switched that off: **Body 12+**, and the room sees it either way. If their player is not here, nobody answers; the GM answers for a character without a player. **Unseen**, it is a theft's two rolls without the theft: Shadow first, 15+ so they do not notice, then Hand, 10+ to get a proper look; if they notice, they know it was you. It costs **1 action**; if the request cannot be put to them at all, you get it back. You see what is in their pockets: never a Truth Bullet, never a stash. A body is not frisked: look through it from its sheet.
 
@@ -455,7 +455,7 @@ An item can also serve as another category (a screwdriver under Tools that is al
 - A **hidden** stash has to be found first: a Search in the room, with one more step of disadvantage (your card tells you after the roll), or Analyze's *Locate a hidden stash* at 16+, which opens it to you for good. If the GM removes a stash, whoever had found it forgets it.
 - Somebody helping themselves from a stash of yours is not announced. Only a thief whose Search came up with Despair leaves it disturbed enough to notice: you are told somebody has been in it - never who.
 - The GM may give you a stash in another room. It does not come with a key to that room.
-- Your hands were full when something reached you - found, stolen, taken off a body, or slipped into your pocket? It goes into your stash - your bedroom's, if you have one - wherever you are standing and however full that stash already is, and you are told. With no stash at all, it does not reach you. Something handed to you over the limit is simply refused.
+- Your hands were full when something reached you - found, stolen, lifted out of a stash or taken off a body? It goes into your stash - your bedroom's, if you have one - wherever you are standing and however full that stash already is, and you are told. With no stash at all, it does not reach you. Something handed to you over the limit is simply refused, and so is something slipped into full pockets: it stays with whoever tried, and you are told nothing. From a stack, one piece moves at a time.
 
 ---
 
