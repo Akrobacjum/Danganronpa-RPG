@@ -2230,6 +2230,10 @@
       "alreadyHasIt": "Nothing changed hands.",
       "shared": "{who} now has a copy of {name}.",
       "gave": "{name} is now {who}'s.",
+      "gaveOne": {
+        "one": "You hand {who} one {name}. You still have one.",
+        "other": "You hand {who} one {name}. You still have {left}."
+      },
       "receivedBullet": "Evidence shared with you",
       "receivedBulletFrom": "{who} showed you {name}, and you have written down a copy.",
       "receivedItem": "You have been handed something",
@@ -3491,6 +3495,7 @@
       "cardHandsFull": "You had {item} in your hand and nowhere to put it. It stays with {who}.",
       "cardSeen": "They noticed.",
       "cardUnseen": "Nobody saw you do it.",
+      "cardUnfelt": "They felt nothing.",
       "caughtTaking": "{who} took {item} from you, and you saw them do it.",
       "caughtTrying": "You catch {who} going through your pockets. They come away with nothing."
     },

@@ -61440,13 +61440,22 @@ const SCENARIOS = [
             const stack = await kit(3);
             must(left(stack) === 3 && marked(stack) === 3, "the GMs' mark does not hold the stack's three - this would measure nothing");
             watched = stack.id;
-            const steps = [];
+            const steps = [], said = [];
+            // The giver's line after each give (E35 fix e1-G3, the review's E35-END-1): one piece and the count kept while pieces stay.
+            const { ownerIdsOf, plural } = await import("./utils.mjs");
+            const givers = ownerIdsOf(giver), takers = ownerIdsOf(taker);
+            must(givers.length && !givers.some(id => takers.includes(id)), "the giver and the taker are not each another player's - the giver's line would measure nothing");
+            const strip = html => String(html ?? "").replace(/<[^>]+>/g, "").trim();
             for (let i = 0; i < 3; i++) {
-                await give(stack.id);
+                const sent = await sentDuring(() => give(stack.id));
+                said.push(sent.packets.filter(p => p.to?.some(id => givers.includes(id)) && strip(p.html).includes(NAME)).map(p => strip(p.html)));
                 steps.push([left(stack), await arrived()]);
             }
             watched = null;
             read.stack = { steps, ...counts };
+            const words = { name: NAME, who: taker.name };
+            read.said = stableJson(said) === stableJson([[plural("DRPG.Handover.gaveOne", { ...words, left: 2 }, "left")],
+                [plural("DRPG.Handover.gaveOne", { ...words, left: 1 }, "left")], [game.i18n.format("DRPG.Handover.gave", words)]]) ? "per piece" : said;
 
             const aside = await kit(1);
             await aside.update({ [COUNT]: 3 }, { [AUDIT_ASIDE]: true });
@@ -61540,9 +61549,9 @@ const SCENARIOS = [
             await sheetAuditIdle();
         }
         equal(stableJson(read), stableJson({ stack: { steps: [[2, 1], [1, 1], [null, 1]], writes: 2, deletes: 1 }, aside: [null, 1],
-            judged: ["putBack", null, 1], twice: [null, 1], lowered: ["stands", 1, 1, 1], broke: [1, true, 0, 1],
+            judged: ["putBack", null, 1], twice: [null, 1], lowered: ["stands", 1, 1, 1], broke: [1, true, 0, 1], said: "per piece",
             piled: [[2, 1, 1], [1, 1, 2], [null, 1, 3]] }),
-            "a stack handed over did not move one piece at a time, or a count moved as a console wrote it, or one piece asked for twice moved twice, or a use landing while the copy was made was written over, or a piece broken on the way moved, or the pieces did not pile on one document of the taker's ([the giver's count, the pieces that arrived] per give; the count's writes and the deletes; the raise's verdict; [the use's verdict, the giver's count, the mark's, arrived]; [the giver's count, broken, arrived, the GMs' lines]; [the giver's count, the taker's documents, their pieces] per give)");
+            "a stack handed over did not move one piece at a time, or a count moved as a console wrote it, or one piece asked for twice moved twice, or a use landing while the copy was made was written over, or a piece broken on the way moved, or the pieces did not pile on one document of the taker's ([the giver's count, the pieces that arrived] per give; the giver's lines; the count's writes and the deletes; the raise's verdict; [the use's verdict, the giver's count, the mark's, arrived]; [the giver's count, broken, arrived, the GMs' lines]; [the giver's count, the taker's documents, their pieces] per give)");
     }],
 
     ["a key to a room the taker already holds leaves the giver and is not copied, the taker told once and not at all when unseen; a key to a room they do not hold moves and still opens it; a key handed over stays a copy (E35-T4)", async () => {
@@ -61848,7 +61857,8 @@ const SCENARIOS = [
                     ...(seen ? { unseenTotal: 0, unseenCritical: false } : { unseenTotal: 30, unseenCritical: true }) });
                 await settle();
             });
-            const told = sent.packets.filter(p => p.to?.some(id => players[0].includes(id)) && text(p.html).includes(stays)).length;
+            // The planter's whole card (E35 fix e1-G3, the review's E35-R1): no "They noticed." beside "It stays with you."
+            const told = sent.packets.filter(p => p.to?.some(id => players[0].includes(id)) && text(p.html).includes(stays)).map(p => text(p.html));
             const row = [out?.done ?? null, out?.handsFull ?? null, planter.items.has(item.id), victim.items.filter(i => i.name === NAME).length, told,
                 await reachedPlayersOf(victim, sent)];
             for (const a of [planter, victim]) for (const i of a.items.filter(i => i.name === NAME)) await i.delete();
@@ -61884,10 +61894,10 @@ const SCENARIOS = [
             await fixture.back();
             await sheetAuditIdle();
         }
-        const refused = [false, true, true, 0, 1, [0, 0, 0]];
+        const refused = [false, true, true, 0, [stays + text(game.i18n.localize("DRPG.Steal.cardUnfelt"))], [0, 0, 0]];
         equal(stableJson(read), stableJson({ none: { seen: refused, unseen: refused }, stash: { seen: refused, unseen: refused },
             atOnce: [["handsFull", "ok"], 1, 0] }),
-            "a Plant into full pockets landed, left the planter's item, was not told to the planter as staying with them, or reached the victim, or two Plants at once into one free hand both went in (per Plant: [done, handsFull, the planter holds it, the victim's copies, the planter's lines, [packets, cards, redraws] at the victim's player]; at once: [the results, the victim's copies, over the limit])");
+            "a Plant into full pockets landed, left the planter's item, was not told to the planter as staying with them, or reached the victim, or two Plants at once into one free hand both went in (per Plant: [done, handsFull, the planter holds it, the victim's copies, the planter's cards, whole, [packets, cards, redraws] at the victim's player]; at once: [the results, the victim's copies, over the limit])");
     }],
 
     ["an unseen Plant of a Gear into pockets that hold one stowed tells the victim nothing and does not put it in their hand, and an item given quietly to full hands goes to their stash with no word (E35-T7, S08-02)", async () => {

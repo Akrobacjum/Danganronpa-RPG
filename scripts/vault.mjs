@@ -2013,8 +2013,12 @@ export async function plantOnPerson({
             : handsFull ? "DRPG.Steal.cardTheirHandsFull"
             : "DRPG.Steal.cardPlantMissed",
         { item: esc(item.name), who: esc(victim.name) }
-    )}</p><p><small>${game.i18n.localize(seen
-        ? "DRPG.Steal.cardSeen" : "DRPG.Steal.cardUnseen")}</small></p>`);
+    )}</p><p><small>${game.i18n.localize(handsFull ? "DRPG.Steal.cardUnfelt"
+        : seen ? "DRPG.Steal.cardSeen" : "DRPG.Steal.cardUnseen")}</small></p>`);
+    // FULL POCKETS: NO "THEY NOTICED" (E35 fix e1-G3; the review's E35-R1). A missed Shadow roll into full pockets told
+    // the planter "They noticed." while D42 tells the victim nothing - the planter played a scene of being caught that
+    // the victim's player knew nothing of (E35-T6's seen rows, at 78457d7: the card read "... It stays with you.They
+    // noticed."). The pocket was never reached, so the line says the victim felt nothing, seen or not.
 
     /*
      * AND THE VICTIM, ONLY WHEN THEY NOTICED - with the item named.

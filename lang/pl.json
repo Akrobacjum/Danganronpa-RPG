@@ -2312,6 +2312,12 @@
       "alreadyHasIt": "Nic nie zmieniło właściciela.",
       "shared": "{who} ma teraz kopię: {name}.",
       "gave": "{name} należy teraz do: {who}.",
+      "gaveOne": {
+        "one": "Jedna sztuka: {name} trafia do: {who}. Zostaje ci jeszcze jedna.",
+        "few": "Jedna sztuka: {name} trafia do: {who}. Zostają ci jeszcze {left}.",
+        "many": "Jedna sztuka: {name} trafia do: {who}. Zostaje ci jeszcze {left}.",
+        "other": "Jedna sztuka: {name} trafia do: {who}. Zostaje ci jeszcze {left}."
+      },
       "receivedBullet": "Podzielono się z tobą dowodem",
       "receivedBulletFrom": "{who} pokazuje ci {name}, a ty zapisujesz kopię.",
       "receivedItem": "Ktoś ci coś przekazał",
@@ -3641,6 +3647,7 @@
       "cardHandsFull": "Masz {item} w ręku i nie ma gdzie tego schować. Zostaje u: {who}.",
       "cardSeen": "Zauważyli.",
       "cardUnseen": "Nikt nie widział.",
+      "cardUnfelt": "Niczego nie poczuli.",
       "caughtTaking": "Widzisz to: {who} zabiera ci {item}.",
       "caughtTrying": "Łapiesz {who} na grzebaniu w twoich kieszeniach. Odchodzą z niczym."
     },

@@ -23,7 +23,7 @@
 import { MODULE_ID, FLAGS, BEDROOM_KEY_FLAG } from "./config.mjs";
 import { capacityLabel, isStashed, transferItem } from "./inventory.mjs";
 import { createTruthBullet, truthBulletData, secretOf, isTruthBullet, bulletAsHeld } from "./truth-bullets.mjs";
-import { dialogContent, whisperToOwner, log, warn, error, isPrimaryGm, forcedDeletion } from "./utils.mjs";
+import { dialogContent, whisperToOwner, log, warn, error, isPrimaryGm, forcedDeletion, plural } from "./utils.mjs";
 import { answerKeysRefusal, lootTraceStore, deathStore } from "./gm-stores.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -833,10 +833,13 @@ export async function giveItem({ fromId, toId, itemId } = {}) {
             name: foundry.utils.escapeHTML(name)
         })}</p>`);
 
-    await whisperToOwner(from, `<p>${game.i18n.format("DRPG.Handover.gave", {
-        name: foundry.utils.escapeHTML(name),
-        who: foundry.utils.escapeHTML(to.name)
-    })}</p>`);
+    // ONE PIECE OF A STACK SAYS SO (E35 fix e1-G3; the review's E35-END-1): since E35 C1 one piece moves, and the
+    // giver read "{name} is now {who}'s." with two still on their sheet (E35-T3's giver lines, at 78457d7: the same
+    // line after each of three gives). Where pieces stay (`left`), the line says one went and how many are kept.
+    const words = { name: foundry.utils.escapeHTML(name), who: foundry.utils.escapeHTML(to.name) };
+    await whisperToOwner(from, `<p>${Number.isInteger(moved.left) && moved.left > 0
+        ? plural("DRPG.Handover.gaveOne", { ...words, left: moved.left }, "left")
+        : game.i18n.format("DRPG.Handover.gave", words)}</p>`);
 
     log(`${from.name} gave "${name}" to ${to.name}.`);
     return moved.copy;

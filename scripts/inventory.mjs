@@ -788,6 +788,9 @@ export async function grantItem(actor, {
  * whisper would still be a hand the victim never moved, and what the incident reads; so the piece stays stowed, the
  * victim carrying two stowed until they ready one (read in use-items.mjs: `toggleEquipped` readies one and puts the
  * rest down, `mayStow` stops only a readied one being put away), and the GM's log says so.
+ * NOT SETTLED (E35 fix e1-G3; the review's E35-R2): that shape is the one D4 forbids, and S08-02 left two options
+ * open - ready it without a word, or leave it stowed. This is the second, chosen by the implementer, not the owner;
+ * it is the owner's question E35 Q5 (STAGE.md), and E35-T7 holds this answer until it is given.
  */
 export async function keepGearShape(actor, item, { quiet = false } = {}) {
     try {
