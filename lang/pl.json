@@ -2299,7 +2299,6 @@
       "recipientDead": "{name} nie żyje. Nic nie zmieniło właściciela.",
       "theirHandsFull": "{who} nosi już najwięcej, ile może ({category}: {limit}).",
       "failed": "To przekazanie nie doszło do skutku. Powiedz GM-owi.",
-      "stuck": "Przekazano „{name}” od: {who}, ale oryginalnej kopii nie dało się usunąć. Istnieją teraz dwie - skasuj jedną z karty tej osoby.",
       "stuckFor": {
         "give": "Przekazanie „{name}” (daje: {from}, dostaje: {to}) się udało, ale nie dało się tego zdjąć z karty: {from}. Jest teraz o jedną sztukę za dużo - usuń ją z karty: {from}.",
         "loot": "Zabranie „{name}” z ciała (zabiera: {to}, ciało: {from}) się udało, ale nie dało się tego zdjąć z ciała. Jest teraz o jedną sztukę za dużo - usuń ją z karty ciała.",

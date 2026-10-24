@@ -61104,12 +61104,14 @@ const SCENARIOS = [
 
     ["a key looted off a body by a taker who holds one to the same room leaves the taker one key and the body none (S08-38)", async () => {
         /*
-         * E35 C0, 24.10.2026; audit S08-38, S17-17: a skeleton of E14's that E35 C3 makes plain (the key rule, E35-09),
-         * red until then. The harm: a taker who holds the key to a room and takes a second one to the same room - off
-         * a body (handover.mjs `lootBody`), by a Palm (vault.mjs `stealFromPerson`) or out of a stash
-         * (`stealFromVault`) - has two identical rows under Room Keys. The loot is driven here, a GM's own (`local`),
+         * E35 C0, 24.10.2026; audit S08-38, S17-17: a skeleton of E14's, plain since E35 C2, which put the loot on
+         * inventory.mjs `transferItem` and its key rule (E35-09, C1); the spec had it plain at C3, but it drives the
+         * loot alone, and the Palm's and the rifle's roads to the same two keys are C3's to drive. The harm: a taker
+         * who holds the key to a room and takes a second one to the same room - off a body (handover.mjs `lootBody`),
+         * by a Palm (vault.mjs `stealFromPerson`) or out of a stash (`stealFromVault`) - has two identical rows under
+         * Room Keys. The loot is driven here, a GM's own (`local`),
          * as the H17 test above drives it, its trace and Truth Bullet put back as it puts them back. Read: the taker's
-         * keys to the room and the body's. Red at f2cfc2d: [2, 0].
+         * keys to the room and the body's. Red at f2cfc2d and at 58ea711 (C1): [2, 0]; [1, 0] at C2.
          */
         needs(world.atLeast("studentTokensOnScreen"), "a body with no token leaves no trace (trap 142), and the loot writes one");
         const { isPrimaryGm } = await import("./utils.mjs");
@@ -61155,7 +61157,7 @@ const SCENARIOS = [
             await settle();
         }
         equal(stableJson(read), stableJson([1, 0]), "a looted key to a room the taker holds left two: [the taker's keys to it, the body's]");
-    }, expectedRed("E14", "S08-38: a looted, Palmed or rifled key the taker already holds is copied; E35 C3's key rule (E35-09) leaves one")],
+    }],
 
     ["in Investigation a dead student's bedroom opens without its key, and shuts again outside it (S08-55)", async () => {
         /*
@@ -61265,6 +61267,78 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson({ flags: want, left: [false, false], rows: [] }),
             "a hand-over did not carry what the GMs hold of the item, left it with the giver, or raised a row of the GMs' audit (each copy's [category, tier, broken, wear, roles, kind, identity]; the giver's; the rows)");
+    }],
+
+    ["a body's loot on transferItem keeps what the GMs hold of the item and moves one piece of a stack: a broken, worn weapon Tool leaves the body as held, three kits leave two on the body and one with the taker, and the GMs' audit records nothing (E35-T2, loot)", async () => {
+        /*
+         * E35 C2, 24.10.2026; E35-05, E35-11, E35-12 (the loot's rows), S08-37. The harm: a body's stack of three
+         * taken by one hand arrived as one and left nothing on the body - two pieces gone from the game, and from the
+         * trial - and a loot off the trusted writes would raise a row of the GMs' audit. A student dead on a recorded
+         * death holds a broken Tool of tier 3, worn twice and a weapon besides, and a stack of three healing kits; a
+         * second student loots each by a GM's own click (`local`: the function the bridge's run calls). Read: the
+         * Tool's copy's category, tier, broken, wear, roles, kind and identity against the original's, whether the
+         * body still holds it, the kits the body keeps and the pieces that arrived, and the rows the GMs' audit kept
+         * of either student since. The trace and the Truth Bullets put back as the H17 test puts them back.
+         */
+        needs(world.atLeast("studentTokensOnScreen"), "a body with no token leaves no trace (trap 142), and the loot writes one");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the loot reads - this would measure nothing");
+        const [taker, body] = cast(2);
+        const { killCharacter, reviveCharacter } = await import("./chapter.mjs");
+        const { lootBody } = await import("./handover.mjs");
+        const { lootTraceStore, sheetWriteStore } = await import("./gm-stores.mjs");
+        const INV = await import("./inventory.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const remnants = await import("./remnants.mjs");
+        const F = INV.ITEM_FLAGS, NAME = "SUITE E35-T2 a crowbar off a body", KIT = "SUITE E35-T2 kits off a body", COUNT = "system.quantity";
+        const carried = item => item ? [item.getFlag(MODULE_ID, F.category), item.getFlag(MODULE_ID, F.tier), item.getFlag(MODULE_ID, F.broken) ?? null,
+            item.getFlag(MODULE_ID, F.wear) ?? null, INV.rolesOf(item), item.getFlag(MODULE_ID, F.kind) ?? null, item.getFlag(MODULE_ID, F.identity) ?? null] : null;
+        const pieces = actor => actor.items.filter(i => i.name === KIT).reduce((sum, i) => sum + Number(i.system?.quantity ?? 1), 0);
+        const had = new Set(taker.items.map(i => i.id));
+        const backs = [], read = {};
+        let want = null, dead = false;
+        const from = Date.now();
+        try {
+            backs.push(await handFreeFor(taker, "tool"), await handFreeFor(taker, "usable"));
+            dead = Boolean(await killCharacter(body, { secret: false, keepBullets: true }));
+            const tool = await INV.grantItem(body, { name: NAME, category: "tool", tier: 3, roles: ["crimeTool"], override: true, quiet: true,
+                extraFlags: { [F.wear]: 2, [F.broken]: { at: from } } });
+            const kits = await INV.grantItem(body, { name: KIT, category: "usable", tier: 1, goal: "healing", override: true, quiet: true });
+            if (kits) await kits.update({ [COUNT]: 3 });
+            await sheetAuditIdle();
+            want = carried(tool);
+            must(dead && INV.isBroken(tool) && want[3] === 2 && want[4].includes("crimeTool") && want[6] && pieces(body) === 3,
+                "the body is not dead on a recorded death, or its Tool not broken, worn, a weapon and identified, or its kits no stack of three - this would measure nothing");
+            ok(await lootBody({ takerId: taker.id, bodyId: body.id, itemId: tool.id }), "the Tool was not taken off the body");
+            ok(await lootBody({ takerId: taker.id, bodyId: body.id, itemId: kits.id }), "the kits were not taken off the body");
+            await settle();
+            await sheetAuditIdle();
+            read.flags = carried(taker.items.find(i => i.name === NAME));
+            read.left = [body.items.some(i => i.name === NAME), pieces(body)];
+            read.arrived = pieces(taker);
+            read.rows = Object.values(sheetWriteStore.entries() ?? {}).filter(row => [body.id, taker.id].includes(row?.actorId) && row.at >= from)
+                .map(row => `${row.verdict}:${Object.keys(row.change ?? {}).join(",")}`);
+        } finally {
+            for (const item of taker.items.filter(i => !had.has(i.id))) {
+                try { await item.delete(); } catch { /* already gone */ }
+            }
+            const row = lootTraceStore.get(body.id);
+            const trace = row?.tokenId ? game.scenes.get(row.sceneId)?.tokens?.get(row.tokenId) ?? null : null;
+            if (trace) {
+                try { await remnants.dropRemnantSecret(trace); } catch { /* nothing filed */ }
+                try { await trace.delete(); } catch { /* already gone */ }
+            }
+            if (lootTraceStore.has(body.id)) await lootTraceStore.drop(body.id);
+            for (const item of body.items.filter(i => i.name === NAME || i.name === KIT)) {
+                try { await item.delete(); } catch { /* already gone */ }
+            }
+            for (const back of backs.reverse()) await back();
+            if (dead) await reviveCharacter(body, { quiet: true });
+            await settle();
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson({ flags: want, left: [false, 2], arrived: 1, rows: [] }),
+            "a loot did not carry what the GMs hold of the item, did not move one piece of the body's stack, or raised a row of the GMs' audit (the Tool's copy's [category, tier, broken, wear, roles, kind, identity]; [the body holds the Tool, the kits it keeps]; the kits that arrived; the rows)");
     }],
 
     ["a hand-over of a stack moves one piece: three leave two by one write of the count, then one, then the last piece moves whole; a count raised where the GMs do not see it, or put back, moves as they hold it; two asks for one piece move it once (E35-T3)", async () => {
@@ -61470,8 +61544,9 @@ const SCENARIOS = [
         Hooks.on("createChatMessage", hook);
         try {
             back = await handFreeFor(taker, "usable");
-            must(line("give") !== line("loot") && !line("loot").includes(game.i18n.format("DRPG.Handover.stuck", { name: esc(NAME), who: esc(giver.name) })),
-                "the body's line is the hand-over's - this would measure nothing");
+            // The one line every road said, a body's "handed over" included, left the books at E35 C2 (lootBody on transferItem).
+            must(line("give") !== line("loot") && !game.i18n.has("DRPG.Handover.stuck"),
+                "the body's line is the hand-over's, or the one line of every road is still in the books - this would measure nothing");
             const given = await kit(1);
             await H.giveItem({ fromId: giver.id, toId: taker.id, itemId: given.id });
             read.give = [toGms("give"), giver.items.has(given.id), await arrived()];

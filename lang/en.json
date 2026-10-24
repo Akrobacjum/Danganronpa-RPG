@@ -2217,7 +2217,6 @@
       "recipientDead": "{name} is dead. Nothing changed hands.",
       "theirHandsFull": "{who} already carries the most {category} they can ({limit}).",
       "failed": "That handover did not go through. Tell the GM.",
-      "stuck": "{who} handed over “{name}”, but their own copy could not be removed. Two exist now - delete one from their sheet.",
       "stuckFor": {
         "give": "{from} handed “{name}” to {to}, but it could not be taken off {from}'s sheet. There is one too many now - remove it from {from}'s sheet.",
         "loot": "{to} took “{name}” off {from}'s body, but it could not be taken off the body. There is one too many now - remove it from the body's sheet.",

@@ -21,7 +21,7 @@
  */
 
 import { MODULE_ID, FLAGS, BEDROOM_KEY_FLAG } from "./config.mjs";
-import { grantItem, preservedFlags, capacityLabel, isStashed, transferItem } from "./inventory.mjs";
+import { capacityLabel, isStashed, transferItem } from "./inventory.mjs";
 import { createTruthBullet, truthBulletData, secretOf, isTruthBullet, bulletAsHeld } from "./truth-bullets.mjs";
 import { dialogContent, whisperToOwner, log, warn, error, isPrimaryGm, forcedDeletion } from "./utils.mjs";
 import { answerKeysRefusal, lootTraceStore, deathStore } from "./gm-stores.mjs";
@@ -420,12 +420,11 @@ export async function lootBody({ takerId, bodyId, itemId, askedBy = null } = {})
             return null;
         }
     }
-    // As the GMs hold it, from here to the grant (E29 fix r2-H17, `giveItem`): a body's owner can still write it.
-    // And the taker's hands as the GMs hold them, which `grantItem`'s cap counts (fix r2-H18, `giveItem`).
-    const { itemAsHeld, actorAsHeld, judgedFor, creationRefusal } = await import("./sheet-audit.mjs");
+    // As the GMs hold it, for the gates below (E29 fix r2-H17, `giveItem`): a body's owner can still write it. The
+    // move, and the taker's hands it is counted against (fix r2-H18), are read again by `transferItem` after its wait.
+    const { itemAsHeld, judgedFor, creationRefusal } = await import("./sheet-audit.mjs");
     await judgedFor(body.id, taker.id);
     const held = await itemAsHeld(body, item.id);
-    const counted = await actorAsHeld(taker);
     if (!held) return null;
     // An item a player made on the body's sheet that no GM has decided on yet is taken by nobody, and the taker told
     // (E29 fix r2-H21, sheet-audit.mjs `creationRefusal`).
@@ -449,33 +448,19 @@ export async function lootBody({ takerId, bodyId, itemId, askedBy = null } = {})
         return null;
     }
 
+    /* ON THE ONE ROAD (E35 C2; S17-16, S08-37, S08-38): the copy, the count, the flags it carries and the hands it
+       lands in are inventory.mjs `transferItem`'s, as a hand-over's are. Full hands put it in the taker's stash, as
+       `grantItem` put it at Base (TRANSFER_POLICY.loot), and only a taker with none is refused; one piece of a
+       body's stack moves; a key to a room the taker already holds leaves the body and is not copied, the taker
+       told; a piece the body keeps after the taker has its copy is told to the GMs in a body's words. */
     const name = held.name;
-    const taken = await grantItem(taker, {
-        reason: "gmRuling",
-        name,
-        category,
-        tier: held.getFlag(MODULE_ID, "tier") ?? null,
-        description: held.system?.description ?? "",
-        img: held.img,
-        // Roles included since E9 - see `preservedFlags`. A crowbar off a body
-        // is still a crowbar that can be swung.
-        extraFlags: preservedFlags(held),
-        counted
-    });
-    // `grantItem` puts it in the stash when the hands are full and says so, so
-    // "no room" is not a failure here - only a refusal is.
-    if (!taken) return null;
-
-    try {
-        await item.delete();
-    } catch (err) {
-        error("Could not take the item off the body", err);
-        const { whisperToGms } = await import("./utils.mjs");
-        await whisperToGms(`<p class="drpg-warning">${game.i18n.format("DRPG.Handover.stuck", {
-            name: foundry.utils.escapeHTML(name),
-            who: foundry.utils.escapeHTML(body.name)
-        })}</p>`);
-    }
+    const moved = await transferItem(body, taker, held, { mode: "loot" });
+    if (moved?.refused) return moved;
+    // Nothing changed hands: full hands and no stash (`grantItem` warns the GM, as at Base), gone by its turn, or not
+    // written.
+    if (!moved?.ok) return null;
+    // What the taker holds of it now: the copy, or under the key rule the key they already had.
+    const taken = moved.copy ?? taker.items.find(i => i.getFlag(MODULE_ID, BEDROOM_KEY_FLAG) === moved.keyHeld) ?? true;
 
     const trace = await markBodyDisturbed(body, name);
     /* THE BULLET WAITS FOR THE TABLE (E05 fix r2-F0b, 27.09.2026; the owner's Q1-Q3, the plan's
