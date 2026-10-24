@@ -62430,6 +62430,183 @@ const SCENARIOS = [
         }), "a move was not judged by the one gate as the GMs read the two (per case, give, steal, Plant: the code each refusal is told with, or moved; the roads across two rooms: the code each hands on, or what it answered)");
     }],
 
+    ["a give is refused across two scenes whose rooms share a name, and so is one by the Mastermind there: each told notThere (E14-T1, E14-01, S16-30)", async () => {
+        /*
+         * E14 fix e1-G6, 24.10.2026; the review's E14R-10 (correctness). E14-T1 stood the taker apart only in another room
+         * of the same scene, so the one gate's give (inventory.mjs `transferRefusal`, mode "give", movement.mjs
+         * `sameRoom`) could lose its scene comparison - a hand-over to somebody in a room of the same name one map over -
+         * with every test green, and the Mastermind, whom the C1 edge-case list names, stood on neither side. As the theft
+         * across two scenes is read ("a theft is refused across two scenes whose rooms share a name"): the taker's tokens on
+         * every place scene hidden and one of theirs shown on a scene of the suite's own, in a room named as the giver's,
+         * in a GM-store world of the suite's own; a Tool of the giver's moved by `transferItem` as a give, then again with
+         * the giver made the Mastermind. Read: where `locateActor` puts the taker, and each give's code or "moved". Red
+         * with sameRoom's scene comparison taken out (mutants-g6.py s1): both "moved".
+         */
+        const [giver, taker] = cast(2);
+        const Mv = await import("./movement.mjs");
+        const INV = await import("./inventory.mjs");
+        const R = await import("./rooms.mjs");
+        const G = await import("./gm-store.mjs");
+        const MM = await import("./mastermind.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { reasonOf } = await import("./bridge-guards.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const here = Mv.locateActor(giver);
+        must(here?.room, `${giver.name} stands in no room - the give would be refused before the rooms are compared`);
+        const NAME = "SUITE E14 fix e1-G6 a crowbar";
+        const shown = Array.from(game.scenes).filter(s => R.isPlaceScene(s))
+            .flatMap(s => Array.from(s.tokens).filter(t => t.actorId === taker.id && !t.hidden));
+        const verdict = out => out?.refused ? reasonOf(out.refused) : out?.ok ? "moved" : stableJson(out ?? null);
+        const clear = async () => { for (const a of [giver, taker]) for (const i of a.items.filter(i => i.name === NAME)) await i.delete(); };
+        const give = async () => {
+            const item = await INV.grantItem(giver, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
+            await sheetAuditIdle();
+            must(item, "the fixture's Tool was not made - this would measure nothing");
+            const out = verdict(await INV.transferItem(giver, taker, item, { mode: "give" }));
+            await settle();
+            await clear();
+            return out;
+        };
+        let read = null, back = null;
+        try {
+            back = await handFreeFor(taker, "tool");
+            await G.withGmStoreWorld(`suite-e14g6-give-${foundry.utils.randomID(8)}`, async () => {
+                let scene = null;
+                const pickBefore = S.mastermindStore.record()?.actorId ?? null;
+                try {
+                    for (const t of shown) await t.update({ hidden: true });
+                    scene = await Scene.create({ name: "SUITE E14 fix e1-G6 a room of the same name", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                    await scene.createEmbeddedDocuments("Region", [{ name: here.room, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                        flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+                    await scene.createEmbeddedDocuments("Token", [{ actorId: taker.id, actorLink: true, name: taker.name, x: 300, y: 300, width: 1, height: 1 }]);
+                    await settle();
+                    const there = Mv.locateActor(taker);
+                    read = { placed: [there?.scene?.id === scene.id, there?.room ?? null], give: await give() };
+                    must(await MM.setMastermind(giver), `${giver.name} was not made the Mastermind - this would measure nothing`);
+                    await settle();
+                    read.mastermind = await give();
+                } finally {
+                    if ((S.mastermindStore.record()?.actorId ?? null) !== pickBefore) await S.mastermindStore.patch("record", { actorId: pickBefore });
+                    await scene?.delete();
+                    for (const t of shown) if (t.parent?.tokens?.has(t.id)) await t.update({ hidden: false });
+                    await settle();
+                }
+            });
+        } finally {
+            await clear();
+            if (back) await back();
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson({ placed: [true, here.room], give: "notThere", mastermind: "notThere" }),
+            `a give to ${taker.name} on a scene of the suite's own, in a room named as ${giver.name}'s "${here.room}", was not refused as across rooms `
+            + "([placed there, the room]; the give's code; the give's code with the giver the Mastermind)");
+    }],
+
+    ["a finder standing in no room is told a hunt for a hidden stash found nothing, and a Reroll's replay of it is told nothing (E14-05, S08-20)", async () => {
+        /*
+         * E14 fix e1-G6, 24.10.2026; the review's E14R-02 (goal). C1 gave vault.mjs `resolveStashSearch` its whisper for a
+         * finder in no room (S08-20: they paid an Analyze and were told nothing), and nothing measured it: the line could go
+         * with every test green. A connected player's character, its token moved to a spot no room of its scene covers
+         * (`roomAt` over the grid), its hunt resolved on this GM with a total that finds anything there is, then again as a
+         * replay (`replay`, no place held). Read: what each answered, and how many private cards to the finder's player
+         * carry `DRPG.Analyze.stashNothing`'s words (`sentDuring`). Red with the whisper's line taken out (mutants-g6.py
+         * n1): [.., 0].
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the finder is a player's character standing in a room before it is moved out");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the finder's player is connected, as Foundry sends a card only to one");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which resolves the hunt - this would measure nothing");
+        const V = await import("./vault.mjs");
+        const { roomAt, locateActor } = await import("./movement.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const token = where.tokenDoc, step = where.scene.grid?.size || 100;
+        let spot = null;
+        for (let y = 0; !spot && y < where.scene.height; y += step) {
+            for (let x = 0; !spot && x < where.scene.width; x += step) if (!roomAt(x, y, token)) spot = { x, y };
+        }
+        must(spot, `every spot of ${where.scene.name} is in a room - the finder could not stand in none`);
+        const words = game.i18n.localize("DRPG.Analyze.stashNothing");
+        const was = { x: token.x, y: token.y }, PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const read = {};
+        try {
+            await token.update(spot, PLACE);
+            await settle();
+            must(!locateActor(actor)?.room, `${actor.name} still stands in a room - this would measure nothing`);
+            const hunt = async replay => {
+                let out = null;
+                const sent = await sentDuring(async () => { out = await V.resolveStashSearch({ actorId: actor.id, total: 30, isCritical: true, replay }); });
+                return [out, sent.packets.filter(p => (p.to === null || p.to.includes(player.id)) && p.html.includes(words)).length];
+            };
+            read.hunt = await hunt(false);
+            read.replay = await hunt(true);
+        } finally {
+            if (token.x !== was.x || token.y !== was.y) await token.update(was, PLACE);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ hunt: [{ found: false, reason: "noRoom" }, 1], replay: [{ found: false, reason: "noRoom" }, 0] }),
+            "a finder in no room was not told its hunt found nothing, or a replay was told again ([what it answered, the cards in stashNothing's words] "
+            + "for the hunt, then its replay)");
+    }],
+
+    ["the body's loot window opens and shuts its Take again as the taker walks out of and into the body's room and as the Class Trial begins and ends, with no new draw (E14-06, S11-06)", async () => {
+        /*
+         * E14 fix e1-G6, 24.10.2026; the review's E14R-07 (goal). C1 greyed a Take the one gate refuses when the sheet was
+         * drawn (anonymity.mjs `buildBodyLoot`), and read it never again: a viewer who walked into the body's room with
+         * the sheet open found the Take still shut "not where it needs to be", and one whose Class Trial began found it
+         * open, until the sheet was opened again. Two students alone together, the second dead on a published death (its
+         * things kept), a Tool on the body; its loot window drawn once for the first into the page; then the first's token
+         * moved to another room and back, and the clock set to the Class Trial and back. Read after each: the Take's
+         * [disabled, tooltip]. Red at aaad3efe+G5 (g6-red.log): the Take as drawn throughout.
+         */
+        needs(world.atLeast("namedRooms", 3), "a room for the two and another to walk the first to");
+        needs(world.atLeast("studentTokensOnScreen", 2), "the two are stood in one room by their tokens");
+        const A = await import("./anonymity.mjs");
+        const Mv = await import("./movement.mjs");
+        const INV = await import("./inventory.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const [taker, body] = cast(2);
+        const fixture = await aloneTogether(taker, body);
+        const scene = canvas.scene, PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const takerToken = scene.tokens.find(t => t.actorId === taker.id);
+        const elsewhere = Mv.allRooms(scene).find(r => r !== fixture.room);
+        must(takerToken && elsewhere, "the first has no token on the scene on screen, or there is no other room - this would measure nothing");
+        const NAME = "SUITE E14 fix e1-G6 a body's crowbar";
+        const clockWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.clock));
+        const read = {};
+        let root = null, back = null;
+        try {
+            back = await handFreeFor(taker, "tool");
+            await whileDead(body, async () => {
+                const item = await INV.grantItem(body, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
+                await sheetAuditIdle();
+                must(item, "the body's Tool was not made - this would measure nothing");
+                root = document.createElement("div");
+                root.innerHTML = `<a data-tab="inventory"></a><section class="tab" data-tab="inventory"></section>`;
+                document.body.append(root);
+                await A.buildBodyLoot(root, body, taker);
+                const take = () => { const b = root.querySelector(".drpg-loot-take"); return b ? [b.disabled, b.dataset.tooltip ?? ""] : null; };
+                const after = async change => { await change(); await settle(); await wait(200); return take(); };
+                read.drawn = take();
+                read.away = await after(() => takerToken.update(Mv.positionIn(elsewhere, takerToken), PLACE));
+                read.back = await after(() => takerToken.update(Mv.positionIn(fixture.room, takerToken), PLACE));
+                read.trial = await after(() => game.settings.set(MODULE_ID, SETTINGS.clock, { ...clockWas, eclipse: false, phase: "classTrial" }));
+                read.over = await after(() => game.settings.set(MODULE_ID, SETTINGS.clock, clockWas));
+                for (const i of body.items.filter(i => i.name === NAME)) await i.delete();
+            });
+        } finally {
+            root?.remove();
+            if (stableJson(game.settings.get(MODULE_ID, SETTINGS.clock)) !== stableJson(clockWas)) await game.settings.set(MODULE_ID, SETTINGS.clock, clockWas);
+            for (const a of [taker, body]) for (const i of a.items.filter(i => i.name === NAME)) await i.delete();
+            if (back) await back();
+            await fixture.back();
+            await sheetAuditIdle();
+        }
+        const open = [false, game.i18n.localize("DRPG.Loot.takeTooltip")], why = code => [true, game.i18n.localize(`DRPG.Bridge.why.${code}`)];
+        equal(stableJson(read), stableJson({ drawn: open, away: why("notThere"), back: open, trial: why("cannotNow"), over: open }),
+            "the body's open loot window did not read the gate again ([disabled, tooltip] of the Take: as drawn beside the body, after the taker walked "
+            + "to another room, back, the Class Trial begun, ended)");
+    }],
+
     ["a Palm the gate refuses before its rolls are read gives its action back, as it was paid, a steal and a Plant alike, and its card does not say it was sent; a Plant into full pockets, tried, does not (E14-T1, Q3)", async () => {
         /*
          * E14 part 1 C1, 24.10.2026; E14-07, the owner's Q3 of 18.10 ("a refusal before the rolls are read refunds; a

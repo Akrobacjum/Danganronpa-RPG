@@ -73,6 +73,12 @@ export function registerAnonymity() {
     // inheritance chain, so listening to both the concrete sheet and its base
     // class ran this twice and produced two identical errors.
     Hooks.on("renderActorSheetV2", onRenderSheet);
+    // An open body's loot window reads the gate again when the taker or the body moves, or the clock does (fix e1-G6).
+    Hooks.on("updateToken", token => {
+        const id = token?.actorId ?? token?.actor?.id;
+        if (id && document.querySelector(`.drpg-loot-list[data-drpg-taker="${CSS.escape(id)}"], .drpg-loot-list[data-drpg-body="${CSS.escape(id)}"]`)) regreyOpenLoot();
+    });
+    Hooks.on("updateSetting", setting => { if (setting?.key === `${MODULE_ID}.${SETTINGS.clock}`) regreyOpenLoot(); });
 }
 
 /**
@@ -197,9 +203,16 @@ function redactTabs(root) {
  * body this browser knows dead, wherever the viewer's character stood: from a bedroom across the school, in a Class
  * Trial, as a dead spectator. Each row's Take now asks the one gate the GMs judge the loot by (inventory.mjs
  * `transferRefusal`, mode "loot"), read on this browser, and one it refuses is shut with the sentence the player would
- * be told (`DRPG.Bridge.why.<code>`). A display: the GMs' gate judges the request again, and the window is not redrawn
- * when the character walks in - the sheet opened again is. `taker` is the viewer's character (`myCharacter`); a test
- * hands its own. Answers the greying's promise, or undefined where there is no Take.
+ * be told (`DRPG.Bridge.why.<code>`). A display: the GMs' gate judges the request again.
+ *
+ * READ AGAIN AS THE TABLE MOVES (E14 fix e1-G6, 24.10.2026; the review's E14R-07, goal): the greying was read once, when
+ * the sheet was drawn, so a viewer who walked into the body's room with the sheet open found every Take still shut "not
+ * where it needs to be" (and one who walked out, or whose Class Trial began, found them open) until the sheet was
+ * opened again, which nothing told them to do. The list carries the body and the taker (`data-drpg-body`,
+ * `data-drpg-taker`), and `regreyOpenLoot` reads the gate again for every list on the page when either one's token is
+ * written or the clock is (registerAnonymity's hooks), opening a Take it no longer refuses. A Take already pressed stays
+ * shut. `taker` is the viewer's character (`myCharacter`); a test hands its own. Answers the greying's promise, or
+ * undefined where there is no Take.
  */
 export function buildBodyLoot(root, actor, taker = myCharacter()) {
     // A body this browser knows of (E05 C10, the owner's Q2): the table's, or one nobody has
@@ -228,6 +241,8 @@ export function buildBodyLoot(root, actor, taker = myCharacter()) {
 
     const list = document.createElement("ul");
     list.className = "drpg-loot-list";
+    list.dataset.drpgBody = actor.id;
+    if (taker) list.dataset.drpgTaker = taker.id;
     for (const item of items) {
         const row = document.createElement("li");
         row.innerHTML = `<img src="${foundry.utils.escapeHTML(item.img ?? "")}" alt="" />
@@ -245,6 +260,7 @@ export function buildBodyLoot(root, actor, taker = myCharacter()) {
             // through the GM's client and a second click would take the same
             // object twice.
             take.disabled = true;
+            take.dataset.drpgTaken = "true";
             await takeFromBody(actor, item);
         });
         row.append(take);
@@ -256,17 +272,30 @@ export function buildBodyLoot(root, actor, taker = myCharacter()) {
     return taker ? greyRefused(list, actor, taker) : undefined;
 }
 
-/** Shut every Take in `list` the one gate refuses `taker` off `body` now, with the reason's sentence (`buildBodyLoot`). */
+/**
+ * Shut every Take in `list` the one gate refuses `taker` off `body` now, with the reason's sentence, and open again one
+ * it no longer refuses (`buildBodyLoot`, `regreyOpenLoot`); a Take already pressed stays shut.
+ */
 async function greyRefused(list, body, taker) {
     const { transferRefusal } = await import("./inventory.mjs");
     const why = await transferRefusal(body, taker, { mode: "loot", asker: game.user });
-    if (!why) return;
     const { reasonOf } = await import("./bridge-guards.mjs");
-    const said = game.i18n.localize(`DRPG.Bridge.why.${reasonOf(why)}`);
+    const said = why ? game.i18n.localize(`DRPG.Bridge.why.${reasonOf(why)}`) : game.i18n.localize("DRPG.Loot.takeTooltip");
     for (const take of list.querySelectorAll(".drpg-loot-take")) {
-        take.disabled = true;
-        take.setAttribute("aria-disabled", "true");
+        if (take.dataset.drpgTaken) continue;
+        take.disabled = Boolean(why);
+        if (why) take.setAttribute("aria-disabled", "true");
+        else take.removeAttribute("aria-disabled");
         take.dataset.tooltip = said;
+    }
+}
+
+/** Every body's loot window on this page, its Takes read against the one gate again (fix e1-G6; `buildBodyLoot`). */
+function regreyOpenLoot() {
+    for (const list of document.querySelectorAll(".drpg-loot-list[data-drpg-taker]")) {
+        const body = game.actors.get(list.dataset.drpgBody ?? ""), taker = game.actors.get(list.dataset.drpgTaker ?? "");
+        if (!body || !taker) continue;
+        greyRefused(list, body, taker).catch(err => error("Could not read again whether the body's Take is open", err));
     }
 }
 

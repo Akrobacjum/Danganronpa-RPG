@@ -601,9 +601,11 @@ function askForOffers() {
 async function handleShareBulletOrGiveItem(payload, sender, ctx) {
     const { shareBullet, giveItem } = await import("./handover.mjs");
     const args = { fromId: payload.fromId, toId: payload.toId, itemId: payload.itemId };
-    // A bullet whose answer keys this GM's stores could not open in time is refused
-    // through the bridge, with its reason (E04's fix round 10); every other refusal of a
-    // handover is the giver's whisper, as it was.
+    // A bullet whose answer keys this GM's stores could not open in time, the one gate's
+    // refusals (inventory.mjs `transferRefusal`, asked by handover.mjs `verify`: notThere,
+    // cannotNow, missing; E14 part 1 C1) and an item no GM has decided on come back with their
+    // reason and are told by its code; a hand-over into full hands with no stash is the
+    // giver's whisper (handover.mjs `giveItem`).
     const out = ctx.action === ACTION_SHARE_BULLET ? await shareBullet(args) : await giveItem(args);
     if (out?.refused) return { refused: out.refused };
 }
@@ -681,8 +683,11 @@ function palmRolls(actor) {
 
     // And into them. Same guards as the theft, mirrored - the sender has to own
     // the character whose pocket the item is leaving. An item no GM has decided on
-    // is refused out loud (E29 fix r2-H21); every other refusal of a plant, a theft
-    // or a stash theft is the GM's log, as it was.
+    // (E29 fix r2-H21), the one gate's refusals before the rolls (inventory.mjs
+    // `transferRefusal`; E14 part 1 C1) and a stash's own (vault.mjs `stealFromVault`;
+    // E14 fix e1-G1) come back as { refused } and are told by their code; the gate's
+    // second asking, after the rolls, is told as nothing carried out (fix e1-G4). What a
+    // run carries out - a missed hand, full pockets - is the asker's whisper.
 async function handlePlant(payload, sender, ctx) {
     const { plantOnPerson } = await import("./vault.mjs");
     // The sender: a body the GMs keep from them is planted on as a living victim is (E80 fix sec1-G1; the one gate,
@@ -1467,12 +1472,13 @@ async function handleSendback(payload, sender, ctx, prepared) {
 
 async function handleLoot(payload, sender, ctx) {
     const { lootBody } = await import("./handover.mjs");
-    // Everything else it needs to refuse - the body being alive, the item
-    // being a Truth Bullet - `lootBody` checks itself, because the GM's own
-    // button goes through the same door. It answers null when it took nothing,
-    // with its reason on the GM's console; the asker is told only that nothing
-    // was carried out, whichever reason it was (E31 review) - but for an item no
-    // GM has decided on, which it answers with its reason (E29 fix r2-H21).
+    // Everything else it needs to refuse `lootBody` checks itself, because the GM's own
+    // button goes through the same door. The one gate's refusals - the room, both lives,
+    // the death the taker knows, the phase, the Eclipse (inventory.mjs `transferRefusal`;
+    // E14 part 1 C1) - and an item no GM has decided on (E29 fix r2-H21) come back with
+    // their reason and are told by its code. It answers null when it took nothing for any
+    // other reason (a Truth Bullet, full hands with no stash), with its reason on the GM's
+    // console, and the asker is told only that nothing was carried out (E31 review).
     const taken = await lootBody({
         takerId: payload.takerId, bodyId: payload.bodyId, itemId: payload.itemId, askedBy: sender.isGM ? null : sender.id
     });
