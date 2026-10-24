@@ -242,8 +242,10 @@ export function isTierPool(name) {
  * the moment of use - `usableKindFor` below is how the Use action reads the
  * answer back off these tables.
  *
- * Tier 3 appears in both because it is the one tier where the kinds meet: it
- * restores 2 Health or 2 Sanity at the player's choice, plus 2 Hope.
+ * Tier 3's one name appears in both. It was the tier where the kinds met (2 Health or 2 Sanity at the player's
+ * choice, plus 2 Hope) until the owner's ruling of 15.10.2026 made it 3 of its kind and nothing else (E14 part 1
+ * C5): a Candy floss drawn from either table has that table's kind (the Search's goal), and one handed over with
+ * no kind is asked which at its use, as any item of no known kind is (`usableKindFor` answers "both").
  */
 export const USABLE_GOALS = {
     healing: {

@@ -23,9 +23,9 @@
  * put, to be found on the body.
  */
 
-import { MODULE_ID, ITEM_CATEGORIES, BEDROOM_KEY_FLAG, ACTIONS, VAULT_LIMIT, ROOMS_PER_PLAYER }
+import { MODULE_ID, ITEM_CATEGORIES, BEDROOM_KEY_FLAG, ACTIONS, VAULT_LIMIT, ROOMS_PER_PLAYER, LIMIT_GROUPS }
     from "./config.mjs";
-import { ITEM_FLAGS, LOCATIONS, isStashed, canCarry, pickableCategories, capacityLabel } from "./inventory.mjs";
+import { ITEM_FLAGS, LOCATIONS, isStashed, canCarry, pickableCategories, capacityLabel, readyForShape } from "./inventory.mjs";
 import { trustedWrite, trustedDelete } from "./resource-guard.mjs";
 // Static because `keysHeldBy` is synchronous; sheet-audit.mjs reaches nothing that imports this file (R161).
 import { itemsHeldNow, judgedFor } from "./sheet-audit.mjs";
@@ -1325,6 +1325,18 @@ export async function retrieve(actor, item) {
             limit: room.limit
         }));
         return false;
+    }
+    // ONE IN A HAND, ONE STOWED, NEVER TWO STOWED, ON THE WAY OUT TOO (E14 part 1 C5; audit S08-36, D4). A piece that
+    // would stand stowed past the group's limit with nothing of the group to hold ready - itself broken, every other
+    // stowed piece broken too - stays in the stash; with a working one beside it, `keepGearShape` readies that.
+    const group = ITEM_CATEGORIES[category]?.limitGroup;
+    const maxStowed = group ? LIMIT_GROUPS[group]?.maxStowed : null;
+    if (maxStowed !== null && maxStowed !== undefined) {
+        const { stowedInGroup } = await import("./use-items.mjs");
+        if (stowedInGroup(actor, group).length + 1 > maxStowed && !readyForShape(actor, item, group)) {
+            ui.notifications.warn(game.i18n.format("DRPG.Vault.handFirst", { item: item.name, group: LIMIT_GROUPS[group].label }));
+            return false;
+        }
     }
 
     try {

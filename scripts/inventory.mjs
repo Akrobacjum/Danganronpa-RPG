@@ -638,19 +638,19 @@ export async function grantItem(actor, {
     // leaving the flag off.
     let overflowRoom = null;
 
-    // Search hands its goal straight through ("healing", "stress" - but also
-    // "crimeTool", which is not a usable kind). A usable granted with no goal
-    // - the GM's console, a season's starting item - asks the item tables for
-    // its name instead, so an Apple says "Restores 1 Health" however it arrived.
-    // Only the two kinds are worth writing down, and only on a usable.
+    // THE TABLES FIRST, THE GOAL FOR A NAME THEY DO NOT KNOW (E14 part 1 C5, 24.10.2026; audit S08-14). The kind
+    // is what the item does, and the item tables are the authority on a name (tables.mjs `usableKindFor`): a name
+    // in tables of one kind takes that kind, whatever goal it arrived with. Until C5 the goal answered first -
+    // a Search's ("healing", "stress" - but also "crimeTool", which is not a usable kind) or the kind a GM picked
+    // in Give - so a First aid kit found "for the nerves" was written "Restores 2 Sanity" and Pills given as
+    // Healing said "Restores 2 Health", each then read by its flag (use-items.mjs `usableKindOf`), against the
+    // tables the GM edits. A name in both kinds' tables ("both", Candy floss) or in none takes the goal; with no
+    // goal either, the item is of no known kind. Only the two kinds are worth writing down, and only on a usable.
     let kind = null;
     if (category === "usable") {
-        kind = USABLE_KINDS[goal] ? goal : null;
-        if (!kind) {
-            const { usableKindFor } = await import("./tables.mjs");
-            const assigned = usableKindFor(name);
-            kind = USABLE_KINDS[assigned] ? assigned : null;
-        }
+        const { usableKindFor } = await import("./tables.mjs");
+        const assigned = usableKindFor(name);
+        kind = USABLE_KINDS[assigned] ? assigned : USABLE_KINDS[goal] ? goal : null;
     }
 
     const room = canCarry(counted ?? actor, category);
@@ -792,6 +792,18 @@ export async function grantItem(actor, {
  * open - ready it without a word, or leave it stowed. This is the second, chosen by the implementer, not the owner;
  * it is the owner's question E35 Q5 (STAGE.md), and E35-T7 holds this answer until it is given.
  */
+/**
+ * The piece of `group` that goes into the hand when `item` arrives and the shape needs one: `item` itself where it
+ * can be held ready (not broken), else the first working piece stowed beside it, else null (E14 part 1 C5; S08-36).
+ * Pure over the actor's items.
+ */
+export function readyForShape(actor, item, group) {
+    if (item && !isBroken(item)) return item;
+    return (actor?.items ?? []).find(other => other.id !== item?.id && !isBroken(other) && !isStashed(other)
+        && ITEM_CATEGORIES[other.getFlag(MODULE_ID, ITEM_FLAGS.category)]?.limitGroup === group
+        && !other.getFlag(MODULE_ID, "equipped")) ?? null;
+}
+
 export async function keepGearShape(actor, item, { quiet = false } = {}) {
     try {
         const category = item?.getFlag(MODULE_ID, ITEM_FLAGS.category);
@@ -805,9 +817,18 @@ export async function keepGearShape(actor, item, { quiet = false } = {}) {
             log(`${actor.name} now carries "${item.name}" stowed beside other ${LIMIT_GROUPS[group].label}, unseen: not put in a hand.`);
             return false;
         }
-        if (!await toggleEquipped(actor, item)) return false;
+        // A BROKEN ARRIVAL CANNOT BE HELD READY (E14 part 1 C5, 24.10.2026; audit S08-36, D4): `toggleEquipped`
+        // refuses it, and two Gear stood stowed - a broken knife taken out of the stash beside one stowed tool and an
+        // empty hand. The working piece stowed beside it goes into the hand instead (`readyForShape`); with none, the
+        // shape is left as it is and the GM's log says so (vault.mjs `retrieve` refuses that case before it moves).
+        const ready = readyForShape(actor, item, group);
+        if (!ready) {
+            log(`${actor.name} now carries "${item.name}" stowed beside other ${LIMIT_GROUPS[group].label}, and nothing of it can be held ready.`);
+            return false;
+        }
+        if (!await toggleEquipped(actor, ready)) return false;
         await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Items.autoReadied", {
-            item: foundry.utils.escapeHTML(item.name), group: LIMIT_GROUPS[group].label
+            item: foundry.utils.escapeHTML(ready.name), group: LIMIT_GROUPS[group].label
         })}</p>`);
         return true;
     } catch (err) {

@@ -18,13 +18,13 @@ import {
     TRUTH_BULLET_TYPES, REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS
 } from "./config.mjs";
 import { grantItem, itemsInCategory, countInCategory, countInGroup, inventorySummary,
-    pickableCategories, isStashed, isBroken }
+    pickableCategories, isStashed, isBroken, ITEM_FLAGS }
     from "./inventory.mjs";
 // `BULLET_CATEGORY` went with the hand-rolled category list: excluding Truth
 // Bullets is `pickableCategories`'s job now, not this file's.
 import { createTruthBullet, issueAutopsy, copiedRemnants }
     from "./truth-bullets.mjs";
-import { ITEM_POOLS, USABLE_GOALS, moduleTables, rolesOfResult, MULTI_ROLE_TIER }
+import { ITEM_POOLS, USABLE_GOALS, moduleTables, rolesOfResult, MULTI_ROLE_TIER, usableKindFor }
     from "./tables.mjs";
 import { studentActors } from "./monokuma.mjs";
 
@@ -457,6 +457,7 @@ function giveExistingPane(catalogue, categories, tiers) {
                 <select name="exItem">${giveItemOptionsFor(catalogue[0])}</select></label>
             <label>${game.i18n.localize("DRPG.Items.category")}
                 <select name="exCategory">${categories}</select></label>
+            <p class="notes drpg-warning" data-drpg-kind-note="exCategory" hidden></p>
             <label>${game.i18n.localize("DRPG.Items.tier")}
                 <select name="exTier">${tiers}</select></label>
             <p class="notes">${game.i18n.localize("DRPG.Items.existingNote")}</p>`
@@ -468,6 +469,7 @@ function giveCreatePane({ categories, tiers, suggestions }) {
     return `
             <label>${game.i18n.localize("DRPG.Items.category")}
                 <select name="category">${categories}</select></label>
+            <p class="notes drpg-warning" data-drpg-kind-note="category" hidden></p>
             <label>${game.i18n.localize("DRPG.Items.tier")}
                 <select name="tier">${tiers}</select></label>
             <label>${game.i18n.localize("DRPG.Items.name")}
@@ -582,6 +584,33 @@ function wireGiveForm(dialog) {
     paintRoles();
 }
 
+/** The give form's warnings of a usable's kind (`paintKinds`), wired whether or not the world has tables to give from. */
+function wireKindNotes(dialog) {
+    const form = dialog.element.querySelector("form");
+    if (!form) return;
+    /*
+     * THE TABLES' KIND UNDER THE PICK (E14 part 1 C5, 24.10.2026; audit S08-14). A usable's kind is the item tables'
+     * where they know its name (inventory.mjs `grantItem`), so Pills given as Healing are still Sanity Relief. Said
+     * under each category select when the name and the pick disagree, before Give, not found out at the first use.
+     */
+    const paintKinds = () => {
+        for (const note of form.querySelectorAll("[data-drpg-kind-note]")) {
+            const select = form.elements[note.dataset.drpgKindNote];
+            const [category, picked = null] = String(select?.value ?? "").split(":");
+            const name = note.dataset.drpgKindNote === "category"
+                ? form.elements.name?.value : form.elements.exItem?.selectedOptions?.[0]?.textContent;
+            const tables = category === "usable" ? usableKindFor(name) : null;
+            const differs = Boolean(USABLE_KINDS[tables]) && tables !== picked;
+            note.hidden = !differs;
+            note.textContent = differs ? game.i18n.format("DRPG.Items.kindFromTables", {
+                item: String(name ?? "").trim(), kind: USABLE_KINDS[tables].label }) : "";
+        }
+    };
+    for (const name of ["category", "exCategory", "exItem", "exTable", "recipient"]) form.elements[name]?.addEventListener("change", paintKinds);
+    form.elements.name?.addEventListener("input", paintKinds);
+    paintKinds();
+}
+
 /** What Give hands back: whichever pane is showing, read as one shape with a `mode`. */
 function readGiveForm(d) {
     const f = d.element.querySelector("form");
@@ -653,12 +682,17 @@ function giveFromResult(result) {
     return give;
 }
 
-/** The receipt the player sees: what it is, what it does. */
-async function tellGiven(actor, give) {
-    const effect = USABLE_KIND_EFFECTS[give.kind]?.[give.tier]
+/**
+ * The receipt the player sees: what it is, what it does - the kind the item was made with (`item`'s flag, the tables'
+ * where they know the name: inventory.mjs `grantItem`), not the GM's pick, so the receipt says what the use will do
+ * (E14 part 1 C5; audit S08-14: Pills given as Healing were told "Restores 2 Health" and restored Sanity).
+ */
+async function tellGiven(actor, give, item = null) {
+    const kind = item ? item.getFlag(MODULE_ID, ITEM_FLAGS.kind) ?? null : give.kind;
+    const effect = USABLE_KIND_EFFECTS[kind]?.[give.tier]
         ?? TIER_EFFECTS[give.category]?.[give.tier] ?? "";
-    const label = USABLE_KINDS[give.kind]
-        ? `${ITEM_CATEGORIES[give.category]?.label} - ${USABLE_KINDS[give.kind].label}`
+    const label = USABLE_KINDS[kind]
+        ? `${ITEM_CATEGORIES[give.category]?.label} - ${USABLE_KINDS[kind].label}`
         : ITEM_CATEGORIES[give.category]?.label ?? give.category;
     await whisperToOwner(actor, `
         <h3>${game.i18n.localize("DRPG.Items.received")}</h3>
@@ -721,7 +755,7 @@ export async function gmGiveItemDialog(actor) {
                 ${game.i18n.localize("DRPG.Items.tellPlayer")}</label>
             <p class="notes">${game.i18n.localize("DRPG.Items.overCapNote")}</p>
         </form>`),
-        render: (event, dialog) => wireGiveForm(dialog),
+        render: (event, dialog) => { wireGiveForm(dialog); wireKindNotes(dialog); },
         buttons: [
             {
                 action: "ok", label: game.i18n.localize("DRPG.Items.give"), default: true,
@@ -776,7 +810,7 @@ export async function gmGiveItemDialog(actor) {
         item: give.name, actor: actor.name
     }));
 
-    if (result.tell) await tellGiven(actor, give);
+    if (result.tell) await tellGiven(actor, give, item);
 
     return true;
 }

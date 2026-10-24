@@ -526,7 +526,7 @@ A GM give ignores the carry limit and marks the excess.
 | 0 | "a random, seemingly useless item, open to creative use"; comes to you to rule on | useless | **single use** |
 | 1 | restores 1 | meant for something else but usable | **1** point |
 | 2 | restores 2 | partly intended for the job | **2** points |
-| 3 | restores 2 Health or 2 Sanity, the player's choice, plus 2 Hope | made strictly for it | **3** points |
+| 3 | restores 3, by its kind - no choice, no Hope | made strictly for it | **3** points |
 
 A Murder Weapon's tier is its damage in an incident; a Cleaning Tool's tier comes off the clean-up DC and off Move the body; a **Tool held ready** gives advantage on project work and sabotage and takes its tier off the threshold (`TOOL_IN_HAND`).
 

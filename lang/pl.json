@@ -876,6 +876,10 @@
     },
     "Items": {
       "autoReadied": "{item} od razu trafia do ręki: schowany może być tylko jeden {group}.",
+      "useGone": "{item} nie jest już w twoich rękach. Niczego nie użyto.",
+      "rulingOpen": "Orzeczenie w sprawie: {item} już trwa. Odpowiedz na tę kartę, gdy się skończy.",
+      "rulingGone": "Zamknął: {name} - przedmiot jest zużyty albo nikt go już nie nosi. Niczego nie dano.",
+      "kindFromTables": "Rodzaj z tabel przedmiotów - {item}: {kind}. To on zdecyduje, co przedmiot przywróci.",
       "itemWorks": "Działa - zastosuj efekt",
       "itemNoEffect": "Działa, bez efektu - zużyj",
       "itemRefuse": "Nie działa",
@@ -1910,6 +1914,7 @@
       "stowTooltip": "Schowaj w skrytce (musisz być w pokoju)",
       "takeTooltip": "Wyjmij ze skrytki (musisz być w pokoju)",
       "notHere": "Musisz stać we własnym pokoju, by sięgnąć do skrytki.",
+      "handFirst": "Przedmiotu {item} nie da się wziąć do ręki, a schowany może być tylko jeden {group}. Najpierw weź do ręki sprawny.",
       "noBullets": "Truth Bullets to to, co wiesz, nie rzeczy w skrytce.",
       "full": "{room}: skrytka pełna. Mieści {limit} rzeczy - wyjmij coś, zanim coś włożysz.",
       "overflowed": "Masz pełne ręce, więc {item} trafia do skrytki. Twój limit ({category}) się nie zmienił.",
@@ -4621,7 +4626,7 @@
         "usable": {
           "label": "Użytkowy",
           "plural": "Użytkowe",
-          "hint": "Leczące przywracają Health, uspokajające oczyszczają Sanity. Tier 3 pozwala wybrać."
+          "hint": "Leczące przywracają Health, uspokajające oczyszczają Sanity."
         },
         "crimeTool": {
           "label": "Narzędzie zbrodni",
@@ -4654,7 +4659,7 @@
           "0": "Losowy, z pozoru bezużyteczny przedmiot. Otwarty na kreatywne użycie.",
           "1": "Przywraca 1 Health (leczący) albo 1 Sanity (uspokajający), zależnie od rodzaju.",
           "2": "Przywraca 2 Health (leczący) albo 2 Sanity (uspokajający), zależnie od rodzaju.",
-          "3": "Przywraca 2 Health albo 2 Sanity - do wyboru - plus 2 Hope."
+          "3": "Przywraca 3 Health (leczący) albo 3 Sanity (uspokajający), zależnie od rodzaju."
         },
         "crimeTool": {
           "0": "Losowy, z pozoru bezużyteczny przedmiot.",
@@ -4683,12 +4688,12 @@
         "healing": {
           "1": "Przywraca 1 Health.",
           "2": "Przywraca 2 Health.",
-          "3": "Przywraca 2 Health albo 2 Sanity - do wyboru - plus 2 Hope."
+          "3": "Przywraca 3 Health."
         },
         "stress": {
           "1": "Przywraca 1 Sanity.",
           "2": "Przywraca 2 Sanity.",
-          "3": "Przywraca 2 Health albo 2 Sanity - do wyboru - plus 2 Hope."
+          "3": "Przywraca 3 Sanity."
         }
       },
       "REMNANT_VISIBILITY_LABELS": {

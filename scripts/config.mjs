@@ -557,7 +557,7 @@ export const ITEM_CATEGORIES = {
          * this line changed.
          */
         limit: 3,
-        hint: "Healing items restore Health, sanity-relief items clear Sanity. Tier 3 lets you pick."
+        hint: "Healing items restore Health, sanity-relief items clear Sanity."
     },
     // "Murder Weapon" rather than "Crime Tool" - Dawid's wording, 2026-08-17.
     // Changed here rather than in the item window alone, because this table is
@@ -648,7 +648,7 @@ export const TIER_EFFECTS = {
         0: "A random, seemingly useless item. Open to creative use.",
         1: "Restores 1 Health (healing) or 1 Sanity (sanity relief), by its kind.",
         2: "Restores 2 Health (healing) or 2 Sanity (sanity relief), by its kind.",
-        3: "Restores 2 Health or 2 Sanity - your choice - plus 2 Hope."
+        3: "Restores 3 Health (healing) or 3 Sanity (sanity relief), by its kind."
     },
     crimeTool: {
         0: "A random, seemingly useless item.",
@@ -696,29 +696,34 @@ export const USABLE_KINDS = {
  * give-item receipt and the goal tables' own descriptions all read this, so an
  * item says what IT does rather than what usables in general can do.
  *
- * Tier 3 reads the same in both columns on purpose: the top-tier usable is
- * where the two kinds meet, and the only place the player still chooses.
+ * Tier 3 is a kind like the others since the owner's ruling of 15.10.2026 (E14 part 1 C5): "Od teraz daja +3
+ * statystyki ktora uzupelniaja i tyle - bez wyboru". Until then both columns read "2 Health or 2 Sanity - your
+ * choice - plus 2 Hope", the one tier where the player chose; its balance is E64's.
  */
 export const USABLE_KIND_EFFECTS = {
     healing: {
         1: "Restores 1 Health.",
         2: "Restores 2 Health.",
-        3: "Restores 2 Health or 2 Sanity - your choice - plus 2 Hope."
+        3: "Restores 3 Health."
     },
     stress: {
         1: "Restores 1 Sanity.",
         2: "Restores 2 Sanity.",
-        3: "Restores 2 Health or 2 Sanity - your choice - plus 2 Hope."
+        3: "Restores 3 Sanity."
     }
 };
 
 /**
  * What using a Usable Item actually restores, by tier.
  *
- * Tiers 1 and 2 are `byKind`: the amount lands on whichever resource the item's
+ * Tiers 1 to 3 are `byKind`: the amount lands on whichever resource the item's
  * kind names (USABLE_KINDS above), no question asked - the choice was made when
- * the item came off a Healing or a Sanity Relief table. Only tier 3 still asks,
- * and it restores 2 Hope on top whichever way the player answers. Tier 0 is "a
+ * the item came off a Healing or a Sanity Relief table; an item of no known kind
+ * is asked which, as at every tier. Tier 3 restores 3 and nothing else (the
+ * owner, 15.10.2026; E14 part 1 C5): until then it asked Health or Sanity and
+ * restored 2 of it plus 2 Hope. A row may still carry `choose` and `bonus`
+ * (use-items.mjs `useItem`, sheet-audit.mjs `itemCovers`, murder-rules.mjs
+ * `hopeTheUseGave` read them); none does since 15.10. Tier 0 is "a
  * random, seemingly useless object, open to creative use": there is no table
  * entry to apply, so it goes to the GM instead.
  *
@@ -728,7 +733,7 @@ export const USABLE_EFFECTS = {
     0: { creative: true },
     1: { amount: 1, byKind: true },
     2: { amount: 2, byKind: true },
-    3: { amount: 2, choose: ["hitPoints", "stress"], bonus: { hope: 2 } }
+    3: { amount: 3, byKind: true }
 };
 
 /**
@@ -1842,8 +1847,9 @@ export const BROKEN_ITEMS = {
      * It is not always, though, and that is why this is a pair rather than one
      * value: a lockpick that snaps while you are gathering tools is a Prep
      * trace and nothing else. `discardRemnantType()` in use-items.mjs draws
-     * the line at the only place the module can honestly draw it - whether an
-     * incident is running or a body has been found - so "before" stays Prep.
+     * the line - the Investigation or the Class Trial, a side of the running
+     * incident, a body found (E14 part 1 C5: the phase and the sides since
+     * 24.10.2026, read on the GM, who files the type) - so "before" stays Prep.
      */
     /** While no incident is running and no body has been found: still preparation. */
     remnantTypeBefore: "prep",

@@ -887,6 +887,10 @@
     },
     "Items": {
       "autoReadied": "{item} went straight into your hand: only one piece of {group} may be stowed.",
+      "useGone": "{item} is no longer in your hands. Nothing was used.",
+      "rulingOpen": "A ruling on {item} is already being made. Answer this card once it is done.",
+      "rulingGone": "Closed by {name}: the item is used up or no longer carried. Nothing was given.",
+      "kindFromTables": "By the item tables, {item} is {kind}: that decides what it will restore.",
       "itemWorks": "Works - apply an effect",
       "itemNoEffect": "Works, no effect - use it up",
       "itemRefuse": "It does not work",
@@ -1867,6 +1871,7 @@
       "stowTooltip": "Put this in your stash (you must be in the room)",
       "takeTooltip": "Take this back out (you must be in the room)",
       "notHere": "You have to be standing in your own room to reach your stash.",
+      "handFirst": "{item} cannot be held ready, and only one {group} may be stowed. Take a working one in hand first.",
       "noBullets": "Truth Bullets are what you know, not things in a stash.",
       "full": "{room} is full. A stash holds {limit} things - take something out before putting something in.",
       "overflowed": "Your hands were full, so {item} went into your stash. Your {category} limit is unchanged.",

@@ -350,7 +350,7 @@ Nie kafelek, po prostu przeciągasz token. Zobacz rozdział 3.
 
 ## 5. Hope i Hope Calls
 
-Hope jest twój. Masz najwyżej **6**. Wraca, gdy rzuty idą po twojej myśli (+1 z Hope, +2 na krytyku), z Oddechu przy Rest i z użytkowego Tier 3. Wydajesz go na **Hope Calls**, z arkusza:
+Hope jest twój. Masz najwyżej **6**. Wraca, gdy rzuty idą po twojej myśli (+1 z Hope, +2 na krytyku), i z Oddechu przy Rest. Wydajesz go na **Hope Calls**, z arkusza:
 
 | Call | Koszt | Co robi |
 |---|---|---|
@@ -424,7 +424,7 @@ Despair zdobyty ponad pełną pulę nie znika - zbiera się w jednym wspólnym l
 | 0 | losowy, z pozoru bezużyteczny przedmiot - otwarty na kreatywne użycie; GM orzeka | losowy, z pozoru bezużyteczny przedmiot | jednorazowy |
 | 1 | przywraca 1 Health (leczący) albo 1 Sanity (uspokajający) | przeznaczony do czegoś innego, ale się nada | 1 |
 | 2 | przywraca 2 Health albo 2 Sanity, zależnie od rodzaju | częściowo przeznaczony do tej roboty | 2 |
-| 3 | przywraca 2 Health **albo** 2 Sanity - do wyboru - plus 2 Hope | zrobiony wyłącznie do tej roboty | 3 |
+| 3 | przywraca 3 Health albo 3 Sanity, zależnie od rodzaju | zrobiony wyłącznie do tej roboty | 3 |
 
 **Wytrzymałość:** każdy rzut z Despair wykonany z użyciem narzędzia kosztuje je jeden punkt, niezależnie od tego, czy praca się udała. Na zerze jest **Zepsute**. Narzędzie albo broń **Tier 0** jest **jednorazowe**: psuje je pierwszy rzut, w którym go użyjesz, jakkolwiek by wypadł - z Hope, z Despair albo krytyk - a jego wiersz mówi "Jednorazowy" zamiast pokazywać kropki. Zużyty użytkowy też jest Zepsuty.
 

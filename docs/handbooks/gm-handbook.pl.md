@@ -526,7 +526,7 @@ Nadanie przez GMa ignoruje limit i oznacza nadmiar.
 | 0 | "losowa, pozornie bezużyteczna rzecz, otwarta na kreatywne użycie"; trafia do ciebie do rozstrzygnięcia | bezużyteczne | **jednorazowy** |
 | 1 | przywraca 1 | przeznaczone do czegoś innego, ale się nada | **1** punkt |
 | 2 | przywraca 2 | częściowo do tej roboty | **2** punkty |
-| 3 | przywraca 2 Health albo 2 Sanity do wyboru gracza plus 2 Hope | stworzone wyłącznie do niej | **3** punkty |
+| 3 | przywraca 3, zależnie od rodzaju - bez wyboru i bez Hope | stworzone wyłącznie do niej | **3** punkty |
 
 Tier Murder Weapon to obrażenia w incydencie; Tier Cleaning Tool schodzi z DC sprzątania i z Przenieś ciało; **Tool w ręku** daje przewagę na pracę nad projektem i sabotaż i zdejmuje swój Tier z progu (`TOOL_IN_HAND`).
 

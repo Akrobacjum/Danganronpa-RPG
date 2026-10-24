@@ -21820,6 +21820,35 @@ const INVARIANTS = [
             "the rifle's window does not say what a reach takes (per language: [both placeholders, once each time of day, the old words still there, "
             + "a hidden stash not found], and whether rifleStashDialog formats the line with the owners' list and the room)");
     }],
+    ["R971 - a tier 3 usable restores 3 of what it restores, with no choice and no Hope, and every text of it says so, in English and in Polish (E14-T8, the owner 15.10)", async () => {
+        /*
+         * E14 part 1 C5, 24.10.2026; E14-20, the owner of 15.10 ("Od teraz daja +3 statystyki ktora uzupelniaja i tyle -
+         * bez wyboru"). Until C5 a tier 3 usable restored 2 Health or 2 Sanity at the player's choice, plus 2 Hope
+         * (config.mjs `USABLE_EFFECTS[3]`), and its texts said so. Read: `USABLE_EFFECTS[3]` as the use and the GMs' judge of
+         * it read it (use-items.mjs `useItem`, sheet-audit.mjs `itemCovers`); the tier 3 sentences as this world's tables
+         * hold them (`TIER_EFFECTS.usable[3]`, `USABLE_KIND_EFFECTS.*[3]`, the Usables hint) and as lang/pl.json carries
+         * them, fetched as served - each names 3, none names Hope, a choice or a 2. Red at 38d4f7ba (c5-t8-red.log).
+         */
+        const C = await import("./config.mjs");
+        const row = C.USABLE_EFFECTS[3];
+        const words = await (await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" })).json();
+        const pl = path => foundry.utils.getProperty(words, `DRPG.Config.${path}`);
+        const PATHS = ["TIER_EFFECTS.usable.3", "USABLE_KIND_EFFECTS.healing.3", "USABLE_KIND_EFFECTS.stress.3", "ITEM_CATEGORIES.usable.hint"];
+        const here = PATHS.map(path => foundry.utils.getProperty(C, path));
+        const there = PATHS.map(pl);
+        must([...here, ...there].every(text => typeof text === "string" && text.length), "a tier 3 sentence is missing from config.mjs or lang/pl.json - this reads nothing");
+        // The hint names no number; the three effect sentences each name the 3.
+        const wrong = text => ["Hope", "choice", "pick", "wybor", "wybór", "wybrać", " 2 "].filter(word => text.includes(word));
+        const read = {
+            row: stableJson(row),
+            here: here.map((text, i) => [i === 3 || text.includes("3"), wrong(text)]),
+            there: there.map((text, i) => [i === 3 || text.includes("3"), wrong(text)])
+        };
+        const fine = PATHS.map(() => [true, []]);
+        equal(stableJson(read), stableJson({ row: stableJson({ amount: 3, byKind: true }), here: fine, there: fine }),
+            "a tier 3 usable is not 3 of what it restores with no choice and no Hope: [USABLE_EFFECTS[3]; per sentence (tier 3, "
+            + "healing, sanity relief, the Usables hint), in this world and in lang/pl.json: names the 3, the words that must be gone]");
+    }],
 ];
 
 /**

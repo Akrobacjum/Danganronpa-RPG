@@ -2011,6 +2011,25 @@ async function heldCopy(holder, copy) {
  * is made, as scenario 30 refuses one, and the hook taken off before the read, which then holds the
  * count the GMs' mark holds (`marked`). `qty`: the count the row's `before` names, the player's word.
  */
+/**
+ * TIER 3'S ROW OF BEFORE 15.10.2026, LENT TO A TEST (E14 part 1 C5, 24.10.2026). A usable's row may add Hope to what it
+ * restores (config.mjs `USABLE_EFFECTS`: `bonus`), and the rewind, the credit and the judge of a use still read it
+ * (murder-rules.mjs `hopeTheUseGave`, sheet-audit.mjs `itemCovers`); since the owner's ruling of 15.10 no row adds any -
+ * tier 3 restores 3 of its kind and nothing else. The tests written on tier 3's old row (2 Health or 2 Sanity, the
+ * player's choice, plus 2 Hope) measure that machinery, so they run with the old row lent for their length, and the
+ * row put back after, whatever they answer. What tier 3 does now is E14-T7's and R971's.
+ */
+async function withHopeRow(run) {
+    const { USABLE_EFFECTS } = await import("./config.mjs");
+    const row = USABLE_EFFECTS[3];
+    USABLE_EFFECTS[3] = { amount: 2, choose: ["hitPoints", "stress"], bonus: { hope: 2 } };
+    try {
+        return await run();
+    } finally {
+        USABLE_EFFECTS[3] = row;
+    }
+}
+
 async function useItemRerolled(next, { tier = 1, aside = null, consoleWrite = null, qty = 2 } = {}) {
     const { ITEM_FLAGS, isBroken } = await import("./inventory.mjs");
     const audit = aside || consoleWrite ? await import("./sheet-audit.mjs") : null;
@@ -17677,7 +17696,7 @@ const SCENARIOS = [
             "the undo of a Use an item did not take the heal and the pack's charge back (replayed, Health marks, quantity, broken, receipt's item, the reserve healed)");
     }],
 
-    ["a tier 3 Use an item's Reroll takes back the Hope the use gave, and its replay pays it again", async () => {
+    ["a tier 3 Use an item's Reroll takes back the Hope the use gave, and its replay pays it again", () => withHopeRow(async () => {
         /*
          * E08+E28 fix r1-G6, 04.10.2026; the round-1 review's m5. A tier 3 item restores 2 and adds
          * 2 Hope (config.mjs `USABLE_EFFECTS`). C6b's replay used it again without the Hope and its
@@ -17697,7 +17716,7 @@ const SCENARIOS = [
             { belowMax: 5, broken: false, hp: 3, qty: 2, replayGave: 0, replayed: true, scored: 2, usedAgain: false, usedFor: "hitPoints" },
             { belowMax: 3, broken: false, hp: 1, qty: 1, replayGave: 2, replayed: true, scored: 2, usedAgain: true, usedFor: "hitPoints" }]),
         "a tier 3 Use an item's Reroll kept the Hope of a use it took back, or its replay's use paid none (miss, hit)");
-    }],
+    })],
 
     ["a Reroll's replay of Use an item uses the item as the GMs hold it, not as a write of the player's their put-back has not undone", async () => {
         /*
@@ -45618,7 +45637,7 @@ const SCENARIOS = [
             "a refund gave back more than was paid, or its excess was not put back and recorded with the credit it took");
     }],
 
-    ["a Short Rest's Breath, an item's tier-3 Hope and a refused Call's refund raise no alarm", async () => {
+    ["a Short Rest's Breath, an item's tier-3 Hope and a refused Call's refund raise no alarm", () => withHopeRow(async () => {
         /* Three judges, each fed what a module road writes: an action spent, then the Rest's one write
            (Breath's Hope and the stamp) in a room the GM marked for a Short Rest; a tier-3 usable's
            Health and Hope, its consumption - the count lowered, as the player's browser writes it -
@@ -45674,7 +45693,7 @@ const SCENARIOS = [
             `covered:itemUse:${[HOPE, HP].sort().join(",")}:${stableJson(null)}`, `covered:refund:${HOPE}:${stableJson({ hope: 1 })}`,
             `covered:rest:${[HOPE, RESTS].sort().join(",")}:${stableJson(null)}`].sort()]),
             "a Rest, an item used or a Call's refund a module road wrote was put back, flagged or listed, or left no row saying what covered it");
-    }],
+    })],
 
     ["a rest outside a rest room is put back", async () => {
         /* The same Rest write, its action paid, in a room the GM has not marked for one: its Hope and its
@@ -47206,7 +47225,7 @@ const SCENARIOS = [
             "a crisis action's Health given back by its Reroll left the blow in the credit, or the victim's refund of the same stood on it (the credit left, the verdict)");
     }],
 
-    ["a Use an item's Hope a Reroll takes back is no credit, so the player's refund of the same is put back", async () => {
+    ["a Use an item's Hope a Reroll takes back is no credit, so the player's refund of the same is put back", () => withHopeRow(async () => {
         /* E29 fix r2-H8, 06.10.2026: fix r2-H6's open point, decided (a). The killer's Use an item with a tier-3
            pack scored on the GM - 2 Hope the use gave, as the player's browser writes it - then taken back by
            the Reroll's rewind (murder-rules.mjs `restoreResource`, a GM's fall carrying `GIVE_BACK`) and replayed
@@ -47256,7 +47275,7 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson([0, "putBack", 0]),
             "a Use an item's Hope taken back by its Reroll was left in the credit, or the player's refund of the same stood on it (the credit left, the verdict, the Hope it added)");
-    }],
+    })],
 
     ["an Observe a Reroll takes back takes the credit its miss left, so the observer's refund of the same is flagged", async () => {
         /* A trace where the player's character stands, the Observe aimed at it and missed on the GM - a mark of
@@ -47534,7 +47553,7 @@ const SCENARIOS = [
                 + "(after the missed attempt, after its Reroll into a success: the marks, the Sanity the GMs' credit holds)");
     }],
 
-    ["a Reroll's take-backs read the Hope and the maxima the GMs hold, not a player's write the audit has not put back", async () => {
+    ["a Reroll's take-backs read the Hope and the maxima the GMs hold, not a player's write the audit has not put back", () => withHopeRow(async () => {
         /*
          * E29 fix r2-H23, 06.10.2026; the siblings of a used item's charge (its test above, by Use an item's Reroll). A
          * take-back computed from a means or a maximum read off the sheet - where a player's write the audit puts back
@@ -47650,7 +47669,7 @@ const SCENARIOS = [
         equal(stableJson([crisis, cleanup]), stableJson([[1, 1, 4, 4], [3, 3]]),
             "a Reroll's take-back read a Hope or a maximum a player's console wrote that the GMs' audit had not put back "
             + "(the crisis's Hope and Health marks, the clean-up's Sanity marks; each on the sheet and in the GMs' mark)");
-    }],
+    })],
 
     ["a GM's give of an action reads the actions and the maxima the GMs hold, not a console's the audit has not put back", async () => {
         /*
@@ -52275,6 +52294,9 @@ const SCENARIOS = [
          * windows closed at once). Read, each time as [the card's line and pulse, the discard's
          * type]: in the first hold; in its Investigation; in Daily Life after its trial; in the
          * second Investigation before the second body is announced; after it is announced there.
+         * Since E14 part 1 C5 (S08-13) an Investigation is "after" by its phase alone, so the
+         * discard in the second Investigation before its announcement is Tamper too (it was
+         * preparation, no stamp of this chapter since the trial).
          */
         needs(env.primaryGm(), "a discovery runs on the primary GM alone (`discoverBody`)");
         const [victim, second] = cast(2);
@@ -52320,7 +52342,7 @@ const SCENARIOS = [
             const line = (actor, room) => game.i18n.format("DRPG.Events.bodySubRoom", { victim: actor.name, room });
             const [after, before] = [BROKEN_ITEMS.remnantTypeAfter, BROKEN_ITEMS.remnantTypeBefore];
             equal(stableJson([hold, investigation, afterTrial, secondOpen, secondFound]),
-                stableJson([[[line(victim, ROOM), true], after], [[line(victim, ROOM), false], after], [null, before], [null, before],
+                stableJson([[[line(victim, ROOM), true], after], [[line(victim, ROOM), false], after], [null, before], [null, after],
                     [[line(second, ROOM2), false], after]]),
                 "the card named the first trial's body in the chapter's second Investigation, or a discard in an Investigation was filed as "
                 + "preparation ([the card's line and pulse, the discard's type] in the first hold, its Investigation, Daily Life after its trial, "
@@ -61191,7 +61213,9 @@ const SCENARIOS = [
          * theirs, every Gear they hold put in the stash for the length of the test (their places put back after), one
          * working tool carried and stowed, a broken one in the stash; then `retrieve`. Read: its answer, how many Gear
          * stand stowed, whether the broken one is still in the stash. E14 may refuse the retrieve or ready the working
-         * tool - either leaves one stowed. Red at f2cfc2d: [true, 2, false].
+         * tool - either leaves one stowed. Red at f2cfc2d: [true, 2, false]. Plain since E14 part 1 C5 (24.10.2026): the
+         * shape readies the working tool when the arrival is broken (inventory.mjs `readyForShape`), and `retrieve` keeps a
+         * broken piece in the stash when nothing of the group could be held ready.
          */
         needs(world.atLeast("studentTokensOnScreen"), "the student stands in a room by its token");
         const V = await import("./vault.mjs");
@@ -61232,7 +61256,7 @@ const SCENARIOS = [
         });
         ok(read && read[1] <= max,
             `a broken Gear taken out of the stash left ${read?.[1]} Gear stowed, more than ${max} (D4): [retrieve's answer, Gear stowed, the broken one still stashed] ${stableJson(read)}`);
-    }, expectedRed("E14", "S08-36: keepGearShape cannot ready a broken Gear and retrieve lets it out anyway; E14 part 1 refuses it or readies the working one")],
+    }],
 
     ["a key looted off a body by a taker who holds one to the same room leaves the taker one key and the body none (S08-38)", async () => {
         /*
@@ -63010,6 +63034,349 @@ const SCENARIOS = [
             + "that stash, another stash, a Search claimed with no roll, a Search's find [still stashed, the stamps untouched], a new time of day, "
             + "the Mastermind at the concealed second stash; the store's [reset group, synced, the thief's rows]; the mark [the phase not in it, "
             + "then each of season, chapter, session, day, time of day in it])");
+    }],
+
+    ["a discard's trace is filed by the GM: Tamper in an Investigation, or for a side of the running incident, preparation for anyone else, whatever type the packet names (E14-T7, S08-13)", async () => {
+        /*
+         * E14 part 1 C5, 24.10.2026; E14-16, audit S08-13. The harm: the type of a broken thing's trace was the packet's
+         * (remnants.mjs `narrowPlayerRemnant` kept Preparation or Tamper as sent), chosen on the discarder's browser by
+         * `discardRemnantType`, which read a running incident as "after" for everyone - an innocent throwing a can away in
+         * the canteen left a Tamper trace that lasted to the trial - and an Investigation with no discovery stamp of this
+         * chapter as "before"; a console named either. Three students with connected players standing in rooms: a
+         * bystander's discard packet in a quiet Daily Life naming Tamper, in an Investigation naming Preparation; then in a
+         * fight (`swingFixture`) the killer's naming Preparation and the bystander's naming Tamper - each judged as the
+         * bridge judges that player's `remnant.place`. Read: the verdict and the type of the trace placed. Red at 38d4f7ba
+         * (c5-t7-red.log): every trace the packet's type.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and a bystander, each with a player");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which files a player's trace - this would measure nothing");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const R = await import("./remnants.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { bodyDiscovery, bodyFoundSinceTrial } = await import("./settings.mjs");
+        const playerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const phaseWas = getClock().phase;
+        const made = [];
+        const discard = async (actor, type) => {
+            const scene = locateActor(actor)?.scene ?? null;
+            const had = new Set(scene?.tokens?.map(t => t.id) ?? []);
+            const verdict = await G.judge(BRIDGE_ACTIONS, { action: "remnant.place", requestId: `suite-e14t7-discard-${made.length}-${actor.id}`,
+                data: { sourceActor: actor.id, action: "discard", type, visibility: "evident", sceneId: scene?.id ?? null } },
+            playerOf(actor).id, { send: () => {} });
+            await settle();
+            const placed = scene ? scene.tokens.filter(t => !had.has(t.id)) : [];
+            made.push(...placed);
+            return [verdict, placed.map(t => R.remnantData(t)?.type ?? null)];
+        };
+        const read = {};
+        let fight = null;
+        try {
+            if (phaseWas !== "dailyLife") await setClock({ phase: "dailyLife" });
+            const students = livingStudents().filter(a => playerOf(a) && locateActor(a)?.tokenDoc);
+            must(students.length >= 3 && !bodyDiscovery() && !bodyFoundSinceTrial() && !game.drpg?.murderState?.()?.active,
+                "fewer than three students with players stand in rooms, or a body or an incident is open - this would measure nothing");
+            const bystander = students[2];
+            read.quiet = await discard(bystander, "resolution");
+            await setClock({ phase: "investigation" });
+            read.investigation = await discard(bystander, "prep");
+            await setClock({ phase: "dailyLife" });
+            fight = await swingFixture();
+            must(![fight.killer.id, fight.victim.id].includes(bystander.id) && locateActor(fight.killer)?.tokenDoc,
+                "the bystander is a side of the fight, or the killer stands on no scene - this would measure nothing");
+            read.killer = await discard(fight.killer, "prep");
+            read.bystander = await discard(bystander, "resolution");
+        } finally {
+            for (const token of made) await dropTrace(token);
+            await fight?.putBack();
+            if (getClock().phase !== phaseWas) await setClock({ phase: phaseWas });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ quiet: [true, ["prep"]], investigation: [true, ["resolution"]], killer: [true, ["resolution"]],
+            bystander: [true, ["prep"]] }),
+        "a discard's trace was filed by the packet's type, not the GM's reading ([verdict, the types placed]: a bystander's in Daily Life naming "
+            + "Tamper, in an Investigation naming Preparation, the killer's in the fight naming Preparation, the bystander's in it naming Tamper)");
+    }],
+
+    ["a usable's kind is the item tables' where they know its name, and its description, the Give window's warning and the receipt say so; a tier 3 restores 3 of its kind with no window, no choice and no Hope, and the GMs judge a player's use by that 3 (E14-T7, S08-14, the owner 15.10)", async () => {
+        /*
+         * E14 part 1 C5, 24.10.2026; E14-17, E14-20, audit S08-14, the owner of 15.10. The harms: the kind came from the
+         * goal first (inventory.mjs `grantItem`), so a name of the Sanity Relief tables found "for healing" or given as
+         * Healing was written and told "Restores 2 Health" (the receipt, gm-items.mjs `tellGiven`, read the GM's pick);
+         * and a tier 3 asked Health or Sanity and gave 2 of it and 2 Hope. A student with a connected player: a tier 2
+         * usable granted under the other kind's goal, by a name the tables give one kind - its kind and description; the
+         * GM's Give of it under the other kind, its window drawn by the window's own render hook and answered here - the
+         * note under the category select and the receipt whispered; a tier 3 healing kit used by the GM's own click, its
+         * windows counted (the confirm answered yes, any other no); a player's use of a tier 3 and of a tier 1 kit healing
+         * 3 marks, each as the GMs judge it (lockPlayerResources on). Red at 38d4f7ba (c5-t7-red.log).
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer"), "a student whose write a player's id can stand for");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose judgement of a player's write this reads - this would measure nothing");
+        const INV = await import("./inventory.mjs");
+        const U = await import("./use-items.mjs");
+        const { gmGiveItemDialog } = await import("./gm-items.mjs");
+        const { USABLE_GOALS, usableKindFor } = await import("./tables.mjs");
+        const { USABLE_KINDS, USABLE_KIND_EFFECTS } = await import("./config.mjs");
+        const { judgeWrite, onItemWrite, sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const playerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [actor] = cast(1).filter(a => playerOf(a));
+        must(actor, "no student cast has a connected player - this would measure nothing");
+        const player = playerOf(actor);
+        must(Number(actor.system?.resources?.hitPoints?.max) >= 3, `${actor.name} cannot hold three Health marks - this would measure nothing`);
+        const named = Object.entries(USABLE_GOALS).flatMap(([goal, { pool }]) => (pool[2] ?? []).map(name => [goal, name]))
+            .find(([goal, name]) => usableKindFor(name) === goal);
+        must(named, "no tier 2 name of the built-in pools is one kind's alone in the tables - this would measure nothing");
+        const [kind, NAME] = named, other = Object.keys(USABLE_KINDS).find(k => k !== kind);
+        const HP = "system.resources.hitPoints.value", HOPE = "system.resources.hope.value";
+        const had = new Set(actor.items.map(i => i.id)), messages = new Set(game.messages.contents.map(m => m.id));
+        const [hpWas, hopeWas, lock] = [foundry.utils.getProperty(actor._source, HP), foundry.utils.getProperty(actor._source, HOPE),
+            getSetting(SETTINGS.lockPlayerResources)];
+        const D = foundry.applications.api.DialogV2;
+        const own = { confirm: Object.getOwnPropertyDescriptor(D, "confirm"), wait: Object.getOwnPropertyDescriptor(D, "wait") };
+        const answer = () => {
+            for (const [key, was] of Object.entries(own)) {
+                if (was) Object.defineProperty(D, key, was);
+                else delete D[key];
+            }
+        };
+        const read = {};
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.lockPlayerResources, true);
+            const found = await INV.grantItem(actor, { name: NAME, category: "usable", tier: 2, goal: other, override: true, quiet: true });
+            read.made = [found?.getFlag(MODULE_ID, INV.ITEM_FLAGS.kind) === kind,
+                String(found?.system?.description ?? "").includes(USABLE_KIND_EFFECTS[kind][2])];
+            let note = null;
+            D.wait = async config => {
+                // `dialogContent` hands the window a drawn element, not words.
+                const element = document.createElement("div");
+                if (typeof config?.content === "string") element.innerHTML = config.content;
+                else if (config?.content) element.append(config.content);
+                config?.render?.(null, { element });
+                const form = element.querySelector("form");
+                form.elements.category.value = `usable:${other}`;
+                form.elements.category.dispatchEvent(new Event("change"));
+                form.elements.name.value = NAME;
+                form.elements.name.dispatchEvent(new Event("input"));
+                const shown = element.querySelector('[data-drpg-kind-note="category"]');
+                note = shown ? [shown.hidden, shown.textContent] : null;
+                return { mode: "create", category: "usable", kind: other, tier: 2, name: NAME, description: "", roles: [], tell: true, recipient: actor.id };
+            };
+            const gave = await gmGiveItemDialog(actor);
+            answer();
+            await settle();
+            const given = actor.items.find(i => !had.has(i.id) && i.id !== found?.id && i.name === NAME);
+            const receipt = game.messages.contents.filter(m => !messages.has(m.id)).map(m => String(contentOf(m) ?? ""))
+                .find(text => text.includes(foundry.utils.escapeHTML(NAME))) ?? "";
+            read.give = [gave, given?.getFlag(MODULE_ID, INV.ITEM_FLAGS.kind) === kind,
+                note?.[0] === false && note?.[1] === game.i18n.format("DRPG.Items.kindFromTables", { item: NAME, kind: USABLE_KINDS[kind].label }),
+                receipt.includes(foundry.utils.escapeHTML(USABLE_KIND_EFFECTS[kind][2])), receipt.includes(foundry.utils.escapeHTML(USABLE_KINDS[kind].label))];
+            const kit = await INV.grantItem(actor, { name: "SUITE E14-T7 a tier 3 kit", category: "usable", tier: 3, goal: "healing", override: true, quiet: true });
+            await actor.update({ [HP]: 3, [HOPE]: 1 });
+            await sheetAuditIdle();
+            const asked = { wait: 0, confirm: 0 };
+            D.wait = async () => { asked.wait += 1; return null; };
+            D.confirm = async () => { asked.confirm += 1; return true; };
+            const restored = await U.useItem(actor, kit);
+            answer();
+            await sheetAuditIdle();
+            read.use = [restored, Number(foundry.utils.getProperty(actor._source, HP)), Number(foundry.utils.getProperty(actor._source, HOPE)), asked];
+            // A player's use of `item` healing 3 marks, as the GMs judge it (E14-T4's road): its verdict.
+            const playersUse = async item => {
+                await actor.update({ [HP]: 3 });
+                await sheetAuditIdle();
+                await auditFromScratch(actor);
+                await actor.update({ [HP]: 0 }, { [AUDIT_ASIDE]: true });
+                const use = judgeWrite("updateActor", actor, foundry.utils.expandObject({ [HP]: 0 }), player.id, { drpgWrite: { reason: "itemUse", ref: item.id } });
+                await item.update({ "system.quantity": 0 }, { [AUDIT_ASIDE]: true });
+                onItemWrite(item, { system: { quantity: 0 } }, {}, player.id, { primary: true });
+                const verdict = (await use)?.verdict ?? null;
+                await sheetAuditIdle();
+                return verdict;
+            };
+            const three = await INV.grantItem(actor, { name: "SUITE E14-T7 a player's tier 3 kit", category: "usable", tier: 3, goal: "healing", override: true, quiet: true });
+            const one = await INV.grantItem(actor, { name: "SUITE E14-T7 a player's tier 1 kit", category: "usable", tier: 1, goal: "healing", override: true, quiet: true });
+            read.judged = [await playersUse(three), await playersUse(one)];
+        } finally {
+            answer();
+            await sheetAuditIdle();
+            for (const item of actor.items.filter(i => !had.has(i.id))) {
+                try { await item.delete(); } catch { /* already gone */ }
+            }
+            for (const m of game.messages.contents.filter(m => !messages.has(m.id))) await m.delete().catch(() => {});
+            await actor.update({ [HP]: hpWas, [HOPE]: hopeWas });
+            await game.settings.set(MODULE_ID, SETTINGS.lockPlayerResources, lock);
+            await sheetAuditIdle();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ made: [true, true], give: [true, true, true, true, true],
+            use: [{ hitPoints: 3 }, 0, 1, { wait: 0, confirm: 1 }], judged: ["stands", "flagged"] }),
+        "a usable's kind or a tier 3's use is not the tables' and the owner's: made [kind, description]; Give [done, kind, the warning, the "
+            + "receipt's effect, its kind]; a tier 3 use [restored, Health marks, Hope, windows]; a player's use healing 3 [tier 3, tier 1]");
+    }],
+
+    ["one creative ruling at a time on an item, held on the GM: a second card's Works while the first's window is open is turned away, and a card whose thing was used up, or put away while its window was open, gives nothing (E14-T7, S08-35)", async () => {
+        /*
+         * E14 part 1 C5, 24.10.2026; E14-18, audit S08-35. The harm: two asks to use one Tier 0 thing were two cards, and
+         * "Works" on both gave its effect twice - the ruling (messenger-app.mjs, use-items.mjs `grantItemEffect`) asked
+         * nothing of the item; a thing stolen or put away while the GM's window was open was ruled on anyway. A student
+         * with a connected player and three Health marks; two Tier 0 things. The GM's own Use of the first, twice (two
+         * cards; the request window answered with words), and of the second once. Each card's Works pressed as a GM's
+         * messenger presses it (`wireCallActions`), the effect window answered "1 Health, used up" - the first card's held
+         * open while the second card is pressed, then let go, and the second pressed again; the third card's held open
+         * while the GM puts the second thing in a stash. Read: the second card at its first press [settled, the GM warned
+         * of the open ruling, effect windows opened]; both cards settled and how, the Health marks healed, the things'
+         * state. Red at 38d4f7ba (c5-t7-red.log).
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer"), "a student whose player owns the thread the cards are posted to");
+        needs(world.atLeast("studentTokensOnScreen"), "the student stands in a room by its token");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which claims a card before its ruling - this would measure nothing");
+        const INV = await import("./inventory.mjs");
+        const U = await import("./use-items.mjs");
+        const { contentOf, cardFlag } = await import("./secret.mjs");
+        const { wireCallActions } = await import("./messenger-app.mjs");
+        const { roomOfActor } = await import("./movement.mjs");
+        const playerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [actor] = cast(1).filter(a => playerOf(a) && roomOfActor(a));
+        must(actor, "no student cast has a connected player and stands in a room - this would measure nothing");
+        must(Number(actor.system?.resources?.hitPoints?.max) >= 3, `${actor.name} cannot hold three Health marks - this would measure nothing`);
+        const NAME = "SUITE E14-T7", HP = "system.resources.hitPoints.value", place = key => `flags.${MODULE_ID}.${INV.ITEM_FLAGS[key]}`;
+        const had = new Set(actor.items.map(i => i.id)), messages = new Set(game.messages.contents.map(m => m.id));
+        const hpWas = foundry.utils.getProperty(actor._source, HP);
+        const D = foundry.applications.api.DialogV2;
+        const ownWait = Object.getOwnPropertyDescriptor(D, "wait");
+        const warn = ui.notifications.warn, warned = [];
+        const effects = [];
+        let hold = null;
+        const cards = id => game.messages.contents.filter(m => !messages.has(m.id))
+            .filter(m => { const text = String(contentOf(m) ?? ""); return text.includes('data-drpg-call="itemWorks"') && text.includes(`data-item="${id}"`); });
+        const settled = message => Boolean(cardFlag(game.messages.get(message.id), "settled"));
+        const press = message => {
+            const body = document.createElement("div");
+            body.innerHTML = contentOf(message);
+            wireCallActions(body, message);
+            const button = body.querySelector('[data-drpg-call="itemWorks"]');
+            button?.click();
+            return button;
+        };
+        const gone = () => game.i18n.format("DRPG.Items.rulingGone", { name: game.user.name });
+        const read = {};
+        try {
+            D.wait = async config => {
+                const content = typeof config?.content === "string" ? config.content : config?.content?.outerHTML ?? "";
+                if (content.includes('name="request"')) return { text: `${NAME} I juggle it` };
+                if (!content.includes("drpg-item-effect")) return null;
+                effects.push(config?.window?.title ?? "");
+                const ruling = { amounts: { hitPoints: 1 }, consume: true };
+                if (!hold) return ruling;
+                const open = hold;
+                hold = null;
+                return new Promise(resolve => { open.release = () => resolve(ruling); });
+            };
+            ui.notifications.warn = (message, ...rest) => { warned.push(String(message)); return warn.call(ui.notifications, message, ...rest); };
+            await actor.update({ [HP]: 3 });
+            const odd = await INV.grantItem(actor, { name: `${NAME} an odd thing`, category: "usable", tier: 0, override: true, quiet: true });
+            const other = await INV.grantItem(actor, { name: `${NAME} another odd thing`, category: "usable", tier: 0, override: true, quiet: true });
+            await settle();
+            await U.useItem(actor, odd);
+            await U.useItem(actor, odd);
+            await U.useItem(actor, other);
+            await settle();
+            const [first, second] = cards(odd.id), [third] = cards(other.id);
+            must(first && second && third, `the three cards were not posted (${cards(odd.id).length} of the first thing's, ${cards(other.id).length} of the second's) - this would measure nothing`);
+            const firstHold = hold = {};
+            press(first);
+            await until(() => typeof firstHold.release === "function", 8000);
+            const button = press(second);
+            await until(() => button && (!button.disabled || settled(second)), 8000);
+            await settle();
+            read.busy = [settled(second), warned.filter(w => w === game.i18n.format("DRPG.Items.rulingOpen", { item: odd.name })).length, effects.length];
+            firstHold.release?.();
+            await until(() => settled(first), 8000);
+            const again = press(second);
+            await until(() => settled(second) || (again && !again.disabled), 8000);
+            await settle();
+            const thirdHold = hold = {};
+            press(third);
+            await until(() => typeof thirdHold.release === "function", 8000);
+            await other.update({ [place("location")]: INV.LOCATIONS.vault, [place("stashRoom")]: roomOfActor(actor) });
+            thirdHold.release?.();
+            await until(() => settled(third), 8000);
+            await settle();
+            const line = message => String(contentOf(game.messages.get(message.id)) ?? "");
+            read.after = [settled(first), line(second).includes(gone()), line(third).includes(gone()), effects.length,
+                3 - Number(foundry.utils.getProperty(actor._source, HP)), INV.isBroken(actor.items.get(odd.id)), INV.isBroken(actor.items.get(other.id))];
+        } finally {
+            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
+            ui.notifications.warn = warn;
+            for (const item of actor.items.filter(i => !had.has(i.id))) {
+                try { await item.delete(); } catch { /* already gone */ }
+            }
+            for (const m of game.messages.contents.filter(m => !messages.has(m.id))) await m.delete().catch(() => {});
+            await actor.update({ [HP]: hpWas });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ busy: [false, 1, 1], after: [true, true, true, 2, 1, true, false] }),
+            "a creative use was ruled twice, or on a thing gone: the second card at its first press [settled, the GM warned, effect windows]; "
+            + "then [the first card settled, the second closed as used up, the third closed as gone, effect windows, Health healed, "
+            + "the first thing used up, the second thing used up]");
+    }],
+
+    ["an improvised weapon goes into the killer's hand once: beside one stowed Gear the shape readies it, and nobody is told only one may be stowed (E14-T7, S08-36)", async () => {
+        /*
+         * E14 part 1 C5, 24.10.2026; E14-19, audit S08-36. The harm: an unarmed swing that lands hands the killer an
+         * improvised weapon (murder-rules.mjs `grantImprovisedWeapon`); beside one stowed Gear `grantItem`'s shape rule
+         * (inventory.mjs `keepGearShape`) put it in the hand, and the swing's own toggle then tried to put it down - refused
+         * by the shape, and the killer was told "Only one Gear may be stowed" over a weapon they had just picked up. At the
+         * killer's turn (`swingFixture`) every Gear they carry is put in a stash and one Tool is handed over stowed, the hand
+         * empty; the killer swings with no weapon, a hit with Hope. Read: whether the action stood, how many Crime Tools they
+         * were handed, whether the new one is readied, how many Gear stand stowed, and whether the shape's warning was shown.
+         * Red at 38d4f7ba (c5-t7-red.log): the warning was shown.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which resolves the swing - this would measure nothing");
+        const INV = await import("./inventory.mjs");
+        const U = await import("./use-items.mjs");
+        const { LIMIT_GROUPS, ITEM_CATEGORIES } = await import("./config.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { M, killer, knife, putBack } = await swingFixture();
+        const flag = key => `flags.${MODULE_ID}.${INV.ITEM_FLAGS[key]}`, EQUIPPED = `flags.${MODULE_ID}.equipped`, moved = [];
+        const had = new Set(killer.items.map(i => i.id));
+        const warn = ui.notifications.warn, warned = [];
+        let read = null;
+        try {
+            ui.notifications.warn = (message, ...rest) => { warned.push(String(message)); return warn.call(ui.notifications, message, ...rest); };
+            for (const i of killer.items.filter(i => ITEM_CATEGORIES[i.getFlag(MODULE_ID, INV.ITEM_FLAGS.category)]?.limitGroup === "gear" && !INV.isStashed(i))) {
+                moved.push([i, i.getFlag(MODULE_ID, INV.ITEM_FLAGS.location) ?? null, i.getFlag(MODULE_ID, "equipped") ?? null]);
+                await i.update({ [flag("location")]: INV.LOCATIONS.vault, [flag("stashRoom")]: "SUITE E14-T7 a drawer", [EQUIPPED]: false });
+            }
+            const tool = await INV.grantItem(killer, { name: "SUITE E14-T7 a stowed tool", category: "tool", tier: 1, override: true, quiet: true });
+            await sheetAuditIdle();
+            must(tool && knife && INV.isStashed(killer.items.get(knife.id)) && U.stowedInGroup(killer, "gear").length === 1 && !U.readiedItem(killer),
+                `${killer.name} does not hold one stowed Tool and an empty hand, the knife stashed - this would measure nothing`);
+            const done = await M.resolveCrisisAction({ actorId: killer.id, key: "weaponAttack", total: 99, isCritical: false, withHope: true });
+            await settle();
+            const handed = killer.items.filter(i => !had.has(i.id) && i.id !== tool.id && i.getFlag(MODULE_ID, INV.ITEM_FLAGS.category) === "crimeTool");
+            const shape = handed[0] ? game.i18n.format("DRPG.Items.stowShape", { item: handed[0].name, group: LIMIT_GROUPS.gear.label }) : null;
+            read = [Boolean(done?.success), handed.length, U.isEquipped(handed[0]), U.stowedInGroup(killer, "gear").length, warned.includes(shape)];
+        } finally {
+            ui.notifications.warn = warn;
+            for (const [i, location, equipped] of moved) {
+                if (killer.items.has(i.id)) await i.update({ [flag("location")]: location ?? forcedDeletion(), [flag("stashRoom")]: forcedDeletion(), [EQUIPPED]: equipped ?? forcedDeletion() });
+            }
+            for (const item of killer.items.filter(i => !had.has(i.id))) {
+                try { await item.delete(); } catch { /* already gone */ }
+            }
+            await putBack();
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([true, 1, true, 1, false]),
+            "an improvised weapon was readied twice over a stowed Gear (stood, Crime Tools handed, the new one readied, Gear stowed, the shape's warning shown)");
     }],
 
     ...GRID

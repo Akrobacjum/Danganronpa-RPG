@@ -1174,7 +1174,7 @@ async function afterCrisisRoll(actor, def, roll, itemId, again = null, held = ac
     /*
      * THE ITEM IS SPENT HERE, ON THE PLAYER'S OWN CLIENT.
      *
-     * `useItem` is a conversation - which resource a tier 3 restores, a confirm
+     * `useItem` is a conversation - which resource an item of no known kind restores, a confirm
      * before something is used up - and those questions belong to the person
      * whose character it is. Handing them to the GM's browser would ask a GM to
      * decide, for somebody else, which half of their sheet to heal.
@@ -1428,9 +1428,12 @@ async function grantImprovisedWeapon(actor, def, band, done) {
     // swing counts would be bookkeeping for a decision they have already made
     // with their hands. It also matters mechanically now that only an equipped
     // tool arms you at all - see `equippedWeapon`.
+    // ONCE (E14 part 1 C5, 24.10.2026; audit S08-36): `grantItem`'s shape rule (inventory.mjs `keepGearShape`) may
+    // have put it in the hand already, beside one stowed Gear, and the second toggle then tried to put it down: refused
+    // by the shape rule, and the killer told "Only one Gear may be stowed" over a weapon they had just picked up.
     try {
-        const { toggleEquipped } = await import("./use-items.mjs");
-        await toggleEquipped(actor, item);
+        const { toggleEquipped, isEquipped } = await import("./use-items.mjs");
+        if (!isEquipped(actor.items.get(item.id) ?? item)) await toggleEquipped(actor, item);
     } catch (err) {
         error("Could not ready the improvised weapon", err);
     }
@@ -1496,7 +1499,7 @@ let victimOwed = false;
  * character, so numbers or nothing (`resourcesBefore`).
  *
  * AND WHICH RESERVE THE USE HEALED (`usedFor`, E08+E28 C6b): the replay uses the item again
- * with no window (`afterCrisisRoll`), and a tier 3 or an item of no known kind restores what
+ * with no window (`afterCrisisRoll`), and an item of no known kind (a tier 3 too, until 15.10.2026) restores what
  * its user picked. Read here, on the GM, as `before` against the receipt's values, which are
  * taken after the use: Health or Sanity, whichever went down, or null.
  */
@@ -1517,7 +1520,8 @@ function resourcesBefore(raw) {
 
 /**
  * THE HOPE A FIRST USE GAVE, READ ON THE GM (E08+E28 fix r1-G6, 04.10.2026; the round-1 review's
- * m5). A tier 3 item adds Hope to what it restores (config.mjs `USABLE_EFFECTS`), and its Reroll
+ * m5). A tier 3 item added Hope to what it restored until the owner's ruling of 15.10.2026 (config.mjs
+ * `USABLE_EFFECTS`; E14 part 1 C5: no row carries a `bonus` since, and this reads 0), and its Reroll
  * took nothing of it back: a use rerolled into a miss kept the Hope. The use runs on the player's
  * browser before the action reaches the GM (`afterCrisisRoll`), so what it gave is read as
  * `usedFor` is - the Hope held now against the `before` the player read (their word about their

@@ -316,8 +316,10 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
     /* ------------------- L7. a Short Rest and a tier-3 item ------------------- */
 
     /* The GM makes Dorm B, where Chie stands, a room for a Short Rest, marks 3 of her Health, sets her Hope to 1 and
-       gives her a tier-3 Hope item (config.mjs USABLE_EFFECTS[3]: 2 Health or Sanity and 2 Hope). p3 rests -
-       Breath, 1 Hope - and uses the item on her Health, the two windows answered on p3's page. */
+       gives her a tier-3 item of no known kind (config.mjs USABLE_EFFECTS[3]: 3 of its kind and no Hope since the
+       owner's ruling of 15.10.2026, E14 part 1 C5; until then 2 Health or Sanity and 2 Hope). p3 rests - Breath,
+       1 Hope - and uses the item on her Health, the two windows answered on p3's page (the kind asked: no table
+       knows the name). */
     const restRoad = async label => {
         const set = await gm.eval(`const INV = await import("${SCRIPT("inventory")}"), M = await import("${SCRIPT("movement")}"), REST = await import("${SCRIPT("rest")}");
             const c = game.actors.get("${chie}"), room = M.roomOfActor(c), roomWas = room ? REST.restRooms("short", canvas?.scene).includes(room) : null;
@@ -347,12 +349,12 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
         await gm.eval(`const REST = await import("${SCRIPT("rest")}");
             if (${J(set.room)} && !${J(set.roomWas)}) await REST.setRestRoom(${J(set.room)}, { short: false, scene: canvas?.scene });
             await game.actors.get("${chie}").items.get("${set.kit}")?.delete(); return true;`, { timeout: 30000 });
-        road(label, "Chie's Short Rest takes its Breath (1 Hope) and her tier-3 item heals 2 Health and gives 2 Hope, each standing on its judge",
-            done.rested && after.hope - before.hope === 3 && before.hp - after.hp === 2 && Boolean(after.rests?.short)
+        road(label, "Chie's Short Rest takes its Breath (1 Hope) and her tier-3 item heals 3 Health and gives no Hope, each standing on its judge",
+            done.rested && after.hope - before.hope === 1 && before.hp - after.hp === 3 && Boolean(after.rests?.short)
                 && ["rest", "itemUse"].every(k => r.gm.covered.some(x => x.reason === k)),
             r, { set, done, before: { ...before, items: undefined }, after: { ...after, items: undefined } });
     };
-    phase("L7: p3's Short Rest (Breath) and a tier-3 Hope item", { flow: "sheet-audit" });
+    phase("L7: p3's Short Rest (Breath) and a tier-3 item", { flow: "sheet-audit" });
     await restRoad("L7");
 
     /* ------------------------ L11. a Level Up ------------------------ */
