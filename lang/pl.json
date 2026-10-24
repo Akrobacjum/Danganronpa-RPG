@@ -2300,6 +2300,14 @@
       "theirHandsFull": "{who} nosi już najwięcej, ile może ({category}: {limit}).",
       "failed": "To przekazanie nie doszło do skutku. Powiedz GM-owi.",
       "stuck": "Przekazano „{name}” od: {who}, ale oryginalnej kopii nie dało się usunąć. Istnieją teraz dwie - skasuj jedną z karty tej osoby.",
+      "stuckFor": {
+        "give": "Przekazanie „{name}” (daje: {from}, dostaje: {to}) się udało, ale nie dało się tego zdjąć z karty: {from}. Jest teraz o jedną sztukę za dużo - usuń ją z karty: {from}.",
+        "loot": "Zabranie „{name}” z ciała (zabiera: {to}, ciało: {from}) się udało, ale nie dało się tego zdjąć z ciała. Jest teraz o jedną sztukę za dużo - usuń ją z karty ciała.",
+        "rifle": "Zabranie „{name}” ze skrytki (zabiera: {to}, skrytka: {from}) się udało, ale nie dało się tego wyjąć ze skrytki. Jest teraz o jedną sztukę za dużo - usuń ją ze skrytki na karcie: {from}.",
+        "steal": "Kradzież „{name}” (kradnie: {to}, okradziony: {from}) się udała, ale nie dało się tego zdjąć z karty: {from}. Jest teraz o jedną sztukę za dużo - usuń ją z karty: {from}.",
+        "plant": "Podrzucenie „{name}” (podrzuca: {from}, komu: {to}) się udało, ale nie dało się tego zdjąć z karty: {from}. Jest teraz o jedną sztukę za dużo - usuń ją z karty: {from}."
+      },
+      "keyAlreadyHeld": "Masz już klucz do: {room}. Nadal masz tylko jeden.",
       "alreadyHasIt": "Nic nie zmieniło właściciela.",
       "shared": "{who} ma teraz kopię: {name}.",
       "gave": "{name} należy teraz do: {who}.",

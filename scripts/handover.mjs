@@ -21,7 +21,7 @@
  */
 
 import { MODULE_ID, FLAGS, BEDROOM_KEY_FLAG } from "./config.mjs";
-import { grantItem, canCarry, preservedFlags, capacityLabel, isStashed } from "./inventory.mjs";
+import { grantItem, preservedFlags, capacityLabel, isStashed, transferItem } from "./inventory.mjs";
 import { createTruthBullet, truthBulletData, secretOf, isTruthBullet, bulletAsHeld } from "./truth-bullets.mjs";
 import { dialogContent, whisperToOwner, log, warn, error, isPrimaryGm, forcedDeletion } from "./utils.mjs";
 import { answerKeysRefusal, lootTraceStore, deathStore } from "./gm-stores.mjs";
@@ -769,26 +769,19 @@ export async function giveItem({ fromId, toId, itemId } = {}) {
     const { from, to, item } = checked;
 
     /*
-     * THE ITEM AS THE GMS HOLD IT (E29 fix r2-H17, 06.10.2026). Everything below, down to the copy `grantItem` makes,
-     * reads `held`: the item once every write queued on the giver has been judged, with the fields the sheet audit
-     * judges - its place, category, tier, roles, kind, broken and wear among them - as its mark holds them
-     * (sheet-audit.mjs `itemsAsHeld`, which says why the wait is enough here). Read once, with no await between the
-     * read and the grant: roles, a tier or a mend a player's console wrote a moment before asking stay off the copy,
-     * which a GM makes and every client takes as the GMs'. The deletion is the document's.
-     *
-     * AND THE RECEIVER'S HANDS AS THE GMS HOLD THEM (E29 fix r2-H18, 06.10.2026): `counted`, the receiver's items
-     * as the mark holds them (sheet-audit.mjs `actorAsHeld`), is what the room below and `grantItem`'s cap count, so
-     * a slot the receiver's console emptied a moment before - a stash its put-back undoes - is no room. One wait
-     * for both students, then both reads, each of which finds its queue empty and so waits on nothing; the copy
-     * roads of vault.mjs and `lootBody` read their receiver the same way. At 0c75739 (e29run/r2h18red, 06.10.2026) a
-     * receiver whose slots for a Tool the mark held full, one of them stashed where the mark did not see it, took a
-     * carried copy on a hand-over, a plant and both thefts; and in scenario 30 a theft from a stash p1 asked for at once
-     * after stashing one of Aiko's two Tools left her carrying three on every client once the stash was put back.
+     * THE ITEM AS THE GMS HOLD IT (E29 fix r2-H17, 06.10.2026). The branches below - a stash, a bullet, a key, an item
+     * this module tracks - read `held`: the item once every write queued on the giver has been judged, with the
+     * fields the sheet audit judges - its place, category, tier, roles, kind, broken and wear among them - as its
+     * mark holds them (sheet-audit.mjs `itemsAsHeld`, which says why the wait is enough here). The move itself, and
+     * the receiver's hands it is counted against (fix r2-H18: `actorAsHeld`, so a slot the receiver's console
+     * emptied a moment before is no room), are read again as the GMs hold them by inventory.mjs `transferItem`
+     * (E35 C1), after its wait. At 0c75739 (e29run/r2h18red, 06.10.2026) a receiver whose slots for a Tool the mark
+     * held full, one of them stashed where the mark did not see it, took a carried copy on a hand-over, a plant and
+     * both thefts.
      */
-    const { itemAsHeld, actorAsHeld, judgedFor, creationRefusal } = await import("./sheet-audit.mjs");
+    const { itemAsHeld, judgedFor, creationRefusal } = await import("./sheet-audit.mjs");
     await judgedFor(from.id, to.id);
     const held = await itemAsHeld(from, item.id);
-    const counted = await actorAsHeld(to);
     if (!held) return null;
 
     // An item a player made on the giver's sheet that no GM has decided on yet changes no hands (E29 fix r2-H21,
@@ -826,47 +819,27 @@ export async function giveItem({ fromId, toId, itemId } = {}) {
         return null;
     }
 
-    const room = canCarry(counted, category);
-    if (!room.ok) {
+    /* ON THE ONE ROAD (E35 C1; S17-16, S08-37): the copy, the count, the flags it carries, the hands it lands in and
+       the GMs' line when the giver's piece stays are inventory.mjs `transferItem`'s, which reads the item and the
+       receiver's hands again as the GMs hold them once the giver's earlier transfers have run. A hand-over is
+       refused into full hands, as it was (TRANSFER_POLICY.give); one piece of a stack moves. */
+    const moved = await transferItem(from, to, held, { mode: "give" });
+    if (moved?.refused) return moved;
+    if (moved?.handsFull) {
         await whisperToOwner(from, `<p>${game.i18n.format("DRPG.Handover.theirHandsFull", {
             who: foundry.utils.escapeHTML(to.name),
             category: foundry.utils.escapeHTML(capacityLabel(category)),
-            limit: room.limit
+            limit: moved.handsFull.limit
         })}</p>`);
         return null;
     }
-
-    const name = held.name;
-    const copy = await grantItem(to, {
-        reason: "gmRuling",
-        name,
-        category,
-        tier: held.getFlag(MODULE_ID, "tier") ?? null,
-        description: held.system?.description ?? "",
-        img: held.img,
-        // A ruined thing stays ruined on the other side of the table. Without
-        // this, handing the murder weapon to an accomplice repaired it.
-        extraFlags: preservedFlags(held),
-        counted
-    });
-
-    if (!copy) {
+    // Gone by the time its turn came - a second ask for one item already handed over: nothing to say twice.
+    if (moved?.missing) return null;
+    if (!moved?.ok) {
         await whisperToOwner(from, `<p>${game.i18n.localize("DRPG.Handover.failed")}</p>`);
         return null;
     }
-
-    try {
-        await item.delete();
-    } catch (err) {
-        // The receiver has it and the giver still does. Say so loudly rather
-        // than leave the table to discover the duplicate at the trial.
-        error("Could not remove the handed-over item from the giver", err);
-        const { whisperToGms } = await import("./utils.mjs");
-        await whisperToGms(`<p class="drpg-warning">${game.i18n.format("DRPG.Handover.stuck", {
-            name: foundry.utils.escapeHTML(name),
-            who: foundry.utils.escapeHTML(from.name)
-        })}</p>`);
-    }
+    const name = held.name;
 
     await whisperToOwner(to, `
         <h3>${game.i18n.localize("DRPG.Handover.receivedItem")}</h3>
@@ -881,5 +854,5 @@ export async function giveItem({ fromId, toId, itemId } = {}) {
     })}</p>`);
 
     log(`${from.name} gave "${name}" to ${to.name}.`);
-    return copy;
+    return moved.copy;
 }

@@ -21688,7 +21688,55 @@ const INVARIANTS = [
             "the controls do not read as the door does: [the carried key's walk let through, the keyless walk refused with the key's words, game.drpg lets the carried key in, keeps the keyless out]");
         equal(stableJson([door(stashing) === keyText, V.mayEnterBedroom(stashing, BEDROOM, scene)]), stableJson([true, false]),
             "a key in a stash opened its bedroom: [the door refuses with the key's words, game.drpg keeps the holder out]");
-    }, expectedRed("E14", "S08-31: a stashed key still opens its bedroom (movement.mjs bedroomShut, vault.mjs keysHeldBy count it); E14 part 1 filters it", { failing: "a key in a stash opened its bedroom" })]
+    }, expectedRed("E14", "S08-31: a stashed key still opens its bedroom (movement.mjs bedroomShut, vault.mjs keysHeldBy count it); E14 part 1 filters it", { failing: "a key in a stash opened its bedroom" })],
+    ["R951 - an item that changes owner goes one road, on a GM: inventory.mjs `transferItem` opens with a GM's gate and answers null on a player's browser, refuses a mode TRANSFER_POLICY does not name, chains each giver's transfers, reads the item and the taker's hands as the GMs hold them, and writes only through `grantItem`, `trustedWrite` and `trustedDelete`, each naming \"gmRuling\"; TRANSFER_POLICY is frozen, a give and a Plant refused into full hands and a loot, a rifle and a steal sent to the stash (D42); every mode has its line to the GMs; and handover.mjs `giveItem` hands its move to it, with no pair of its own (E35-T1)", async () => {
+        /*
+         * E35 C1, 24.10.2026; audit S17-16, E35-04, E35-08 (the table), E35-22's half. At f2cfc2d the move was written
+         * five times, a bare `delete()` each (handover.mjs `giveItem`, `lootBody`; vault.mjs `stealFromVault`,
+         * `stealFromPerson`, `plantOnPerson`). The gate and the refusals are run - none writes - and the rest is read
+         * off the source, comments stripped: a write in the function outside the three roads, a reason other than the
+         * literal "gmRuling", or a give that still makes its own copy fails here. R220 holds WRITE_REASONS and its
+         * FORWARDERS unchanged, which a literal reason needs no row of. Red at f2cfc2d: inventory.mjs has no transferItem.
+         */
+        const INV = await import("./inventory.mjs");
+        ok(typeof INV.transferItem === "function", "inventory.mjs has no transferItem - an item that changes owner still takes five roads, each its own");
+        if (typeof INV.transferItem !== "function") return;
+        equal(stableJson(INV.TRANSFER_POLICY), stableJson({ give: "refuse", loot: "overflow", rifle: "overflow", steal: "overflow", plant: "refuse" }),
+            "TRANSFER_POLICY is not D42's: a give and a Plant refused into full hands, a loot, a rifle and a steal to the taker's stash");
+        ok(Object.isFrozen(INV.TRANSFER_POLICY) && Object.isFrozen(INV.TRANSFER_STUCK), "TRANSFER_POLICY or TRANSFER_STUCK can be changed at run time");
+        equal(stableJson(Object.keys(INV.TRANSFER_STUCK ?? {}).sort()), stableJson(Object.keys(INV.TRANSFER_POLICY).sort()), "a mode has no line to the GMs, or a line has no mode");
+        ok(Object.values(INV.TRANSFER_STUCK ?? {}).every(key => game.i18n.has(key)), "a mode's line to the GMs is not in this language");
+
+        const a = { id: "R951-a", name: "R951 a" }, b = { id: "R951-b", name: "R951 b" };
+        Object.defineProperty(game.user, "isGM", { value: false, configurable: true });
+        let asPlayer;
+        try {
+            asPlayer = await INV.transferItem(a, b, "R951-item", { mode: "give" });
+        } finally {
+            delete game.user.isGM;
+        }
+        equal(asPlayer, null, "transferItem ran on a player's browser");
+        const bad = [await INV.transferItem(a, b, "R951-item", { mode: "frisk" }), await INV.transferItem(a, a, "R951-item", { mode: "give" }),
+            await INV.transferItem(a, b, null, { mode: "loot" })];
+        ok(bad.every(out => typeof out?.refused === "string"), `a mode no row names, one sheet to itself or no item was not refused: ${stableJson(bad)}`);
+
+        const sources = new Map(await moduleSources());
+        const fn = fnSource(stripComments(sources.get("inventory.mjs") ?? ""), "transferItem");
+        ok(/^export async function transferItem\([^)]*\)\s*\{\s*if \(!game\.user\.isGM\) return null;/.test(fn), "transferItem does not open with a GM's gate (R220's rule b)");
+        ok(/serialWrite\(`transfer\/\$\{from\.id\}`/.test(fn), "a second transfer from the same sheet does not wait for the first");
+        ok(/await judgedFor\(from\.id, to\.id\)/.test(fn) && /itemAsHeld\(from, id\)/.test(fn) && /actorAsHeld\(to\)/.test(fn) && /held\.system\?\.quantity/.test(fn),
+            "transferItem does not read the item, its count and the taker's hands as the GMs hold them");
+        const roads = [...fn.matchAll(/\b(grantItem|trustedWrite|trustedDelete)\s*\(/g)].map(m => m[1]).sort();
+        equal(stableJson(roads), stableJson(["grantItem", "trustedDelete", "trustedWrite"]), "transferItem writes by another road, or by one of them twice");
+        equal(stableJson([...fn.matchAll(/\breason\s*:\s*"([^"]*)"/g)].map(m => m[1])), stableJson(["gmRuling", "gmRuling", "gmRuling"]),
+            "a write of transferItem names a reason other than \"gmRuling\", or none");
+        ok(!/\.\s*(?:delete|update|setFlag|unsetFlag|createEmbeddedDocuments|deleteEmbeddedDocuments|updateEmbeddedDocuments)\s*\(/.test(fn),
+            "transferItem writes a document past the trusted roads");
+
+        const give = fnSource(stripComments(sources.get("handover.mjs") ?? ""), "giveItem");
+        ok(/transferItem\(from, to, held, \{ mode: "give" \}\)/.test(give), "handover.mjs giveItem does not hand its move to transferItem");
+        ok(!/\bgrantItem\s*\(|\.\s*delete\s*\(|DRPG\.Handover\.stuck"/.test(give), "handover.mjs giveItem still makes its own copy, deletes its own original or tells its own stuck line");
+    }],
 ];
 
 /**

@@ -12,8 +12,8 @@
 import { MODULE_ID, ITEM_CATEGORIES, ITEM_DURABILITY, LIMIT_GROUPS, TIER_EFFECTS, USABLE_KINDS, USABLE_KIND_EFFECTS, itemIcon,
     BEDROOM_KEY_FLAG }
     from "./config.mjs";
-import { whisperToOwner, log, warn, error } from "./utils.mjs";
-import { trustedWrite, trustedCreate } from "./resource-guard.mjs";
+import { whisperToOwner, whisperToGms, log, warn, error, serialWrite } from "./utils.mjs";
+import { trustedWrite, trustedCreate, trustedDelete } from "./resource-guard.mjs";
 
 /** Flag keys stored on every item this module creates. */
 export const ITEM_FLAGS = {
@@ -793,6 +793,150 @@ export async function keepGearShape(actor, item) {
         error("Could not keep the Gear shape", err);
         return false;
     }
+}
+
+/* ==========================================================================
+ * ONE ROAD FOR AN ITEM THAT CHANGES OWNER (E35 C1, 24.10.2026; audit S17-16, S08-37, S08-38; D42 option 1)
+ * --------------------------------------------------------------------------
+ * A give, a body's loot, a stash rifled, a Palm's steal and a Plant each moved an item by a pair of its own -
+ * `grantItem` on the taker, then a bare `delete()` on the giver - five times over (handover.mjs `giveItem`,
+ * `lootBody`; vault.mjs `stealFromVault`, `stealFromPerson`, `plantOnPerson`), each with its own overflow, flags and
+ * messages, and none read `system.quantity`: a stack of three handed over arrived as one and left nothing behind
+ * (S08-37). They meet here, on a GM: one hands-full policy (`TRANSFER_POLICY`), one piece a move, one key rule, one
+ * whisper to the GMs when the giver's piece could not be taken off, one result.
+ *
+ * WHAT MOVES is the GMs' reading when the step runs (sheet-audit.mjs `itemAsHeld`, `actorAsHeld`, after
+ * `judgedFor`), never the document a player's browser may just have written: the count, the flags `preservedFlags`
+ * carries and the taker's hands. So a count a console raised and the GMs put back moves as the GMs hold it.
+ *
+ * ONE CHAIN PER GIVER (utils.mjs `serialWrite`, E80 C0's; E36 takes it over): a second transfer from the same sheet
+ * waits for the first, then reads the item gone (`missing`). Two GMs on two browsers are not chained (E36, E38).
+ *
+ * The callers keep their gates and their words (who may ask, a body, a roll, a room); this function decides nothing
+ * a gate decides, and adds no reason of WRITE_REASONS: every write here names "gmRuling".
+ * ========================================================================== */
+
+/**
+ * What a full pair of hands does to each mode (D42, the owner's option 1): a give and a Plant are refused - the item
+ * stays with the one giving it - and a loot, a stash rifled and a steal go to the taker's stash, as `grantItem` puts
+ * them, and are refused only where the taker has none. Frisk moves nothing and is no mode (the owner, 13.10).
+ */
+export const TRANSFER_POLICY = Object.freeze({ give: "refuse", loot: "overflow", rifle: "overflow", steal: "overflow", plant: "refuse" });
+
+/** The GMs' line, per mode, when the taker has the piece and the giver could not be relieved of theirs (S08-38: a body's said "handed over"). */
+export const TRANSFER_STUCK = Object.freeze({
+    give: "DRPG.Handover.stuckFor.give", loot: "DRPG.Handover.stuckFor.loot", rifle: "DRPG.Handover.stuckFor.rifle",
+    steal: "DRPG.Handover.stuckFor.steal", plant: "DRPG.Handover.stuckFor.plant"
+});
+
+/**
+ * Move one piece of `item` from `from` to `to`, on a GM, as `mode` (a key of TRANSFER_POLICY).
+ *
+ * `quiet` is an unseen Plant's or steal's: the victim's sheet - the taker's on a Plant, the giver's on a steal or a
+ * rifle - is not redrawn for this write (`render: false`, the mirror of what `grantItem`'s `quiet` does), and the key
+ * rule tells nobody. `grantItem`'s overflow whisper and `keepGearShape`'s still speak until C3 hands them `quiet`
+ * (S08-02): no road that passes `quiet` is on this function before C3.
+ *
+ * One piece of a stack carries the stack's identity (`preservedFlags`), so the piece moved and the pieces left share
+ * one `drpgItemId` - read in the code, not decided by a test: a trap's plant is found by `grantItem`, which writes a
+ * count of one (action-rolls.mjs, reroll.mjs `settleSearch`).
+ *
+ * Answers one of:
+ *   `{ ok: true, copy, left, keyHeld, stuck }` - `copy` the taker's new item (null under the key rule), `left` the
+ *     pieces the giver still holds, `keyHeld` the room of a key the taker already held, `stuck` true when the
+ *     giver's piece could not be taken off (the GMs are told);
+ *   `{ handsFull: { held, limit, category } }` - refused by the policy, or no stash to overflow into; nothing written;
+ *   `{ missing: true }` - the item is not on the giver, or not where this mode takes it from (a stash for a rifle,
+ *     the hands for the rest): a second ask after the first moved it;
+ *   `{ failed: true }` - the copy or the key's removal was not made; nothing changed hands;
+ *   `{ refused }` - asked of no mode, or of one sheet to itself;
+ *   null on a player's browser.
+ */
+export async function transferItem(from, to, item, { mode, quiet = false } = {}) {
+    if (!game.user.isGM) return null;
+    const policy = TRANSFER_POLICY[mode];
+    const id = typeof item === "string" ? item : item?.id;
+    if (!policy || !from?.id || !to?.id || from.id === to.id || !id) {
+        return { refused: `no transfer of that kind (${String(mode)}) between those two` };
+    }
+    return serialWrite(`transfer/${from.id}`, async () => {
+        const { itemAsHeld, actorAsHeld, judgedFor } = await import("./sheet-audit.mjs");
+        // One wait for both students, then each read finds its queue empty: what moves and the hands it lands in are
+        // read in the same moment (E29 fix r2-H17, r2-H18).
+        await judgedFor(from.id, to.id);
+        const held = await itemAsHeld(from, id);
+        const counted = await actorAsHeld(to);
+        const doc = from.items?.get(id) ?? null;
+        if (!held || !doc || isStashed(held) !== (mode === "rifle")) return { missing: true };
+        const category = held.getFlag(MODULE_ID, ITEM_FLAGS.category);
+        if (!category) return { missing: true };
+        const name = held.name;
+        // The count as the GMs hold it; a document with none, or less than one, is one piece.
+        const pieces = Math.max(1, Math.floor(Number(held.system?.quantity)) || 1);
+        const hushFrom = quiet && mode !== "plant", hushTo = quiet && mode === "plant";
+
+        // One piece off the giver: the count lowered by one where there are more, else the item deleted. Read back,
+        // because a refused write (a pre-hook's false) resolves as quietly as one that landed.
+        const takeOne = async () => {
+            const render = hushFrom ? { render: false } : {};
+            try {
+                if (pieces > 1) {
+                    await trustedWrite(doc, { "system.quantity": pieces - 1 }, { reason: "gmRuling", ...render });
+                    return Number(from.items?.get(id)?.system?.quantity) === pieces - 1;
+                }
+                await trustedDelete(doc, { reason: "gmRuling", ...render });
+                return !from.items?.has(id);
+            } catch (err) {
+                error(`Could not take "${name}" off ${from.name}`, err);
+                return false;
+            }
+        };
+
+        // THE KEY RULE (S08-38, E35-09): a key to a room the taker already holds is not copied - two rows under Room
+        // Keys open one door - and leaves the giver all the same; the taker is told once, unless this is unseen.
+        const keyRoom = held.getFlag(MODULE_ID, BEDROOM_KEY_FLAG);
+        if (keyRoom) {
+            const { keysHeldBy } = await import("./vault.mjs");
+            if (keysHeldBy(to).has(keyRoom)) {
+                if (!await takeOne()) return { failed: true };
+                if (!quiet) {
+                    await whisperToOwner(to, `<p>${game.i18n.format("DRPG.Handover.keyAlreadyHeld", {
+                        room: foundry.utils.escapeHTML(keyRoom)
+                    })}</p>`);
+                }
+                log(`${to.name} already held a key to ${keyRoom}; the one from ${from.name} was not copied.`);
+                return { ok: true, copy: null, left: pieces - 1, keyHeld: keyRoom, stuck: false };
+            }
+        }
+
+        const room = canCarry(counted, category);
+        const full = { handsFull: { held: room.held, limit: room.limit, category } };
+        if (!room.ok && policy === "refuse") return full;
+
+        const copy = await grantItem(to, {
+            reason: "gmRuling",
+            name,
+            category,
+            tier: held.getFlag(MODULE_ID, ITEM_FLAGS.tier) ?? null,
+            description: held.system?.description ?? "",
+            img: held.img,
+            // Broken, wear, roles, identity, kind and a key's room, as the GMs hold them.
+            extraFlags: preservedFlags(held),
+            counted,
+            quiet: hushTo
+        });
+        if (!copy) return room.ok ? { failed: true } : full;
+
+        const removed = await takeOne();
+        if (!removed) {
+            await whisperToGms(`<p class="drpg-warning">${game.i18n.format(TRANSFER_STUCK[mode], {
+                name: foundry.utils.escapeHTML(name),
+                from: foundry.utils.escapeHTML(from.name),
+                to: foundry.utils.escapeHTML(to.name)
+            })}</p>`);
+        }
+        return { ok: true, copy, left: removed ? pieces - 1 : pieces, keyHeld: null, stuck: !removed };
+    });
 }
 
 /**
