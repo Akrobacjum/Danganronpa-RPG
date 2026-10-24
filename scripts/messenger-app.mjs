@@ -32,7 +32,7 @@ import { noteFor, noteStatus, noteTemplate, saveNote, whenNotesHeld } from "./pr
 import { markOutcome, rollOutcomeOf } from "./private-rolls.mjs";
 import { playSfx } from "./sfx.mjs";
 
-import { contentOf, shownWordsOf, wordsOf, cardFlag, cardWriter } from "./secret.mjs";
+import { contentOf, shownWordsOf, wordsOf, cardFlag, cardWriter, readersLines } from "./secret.mjs";
 const LAUNCHER_ID = "drpg-messenger-launcher";
 
 export function registerMessengerUi() {
@@ -508,7 +508,7 @@ function cardPreview(html) {
     wrap.innerHTML = html ?? "";
     wrap.querySelectorAll(".drpg-call-actions").forEach(el => el.remove());
     if (!game.user.isGM) wrap.querySelectorAll(".drpg-gm-only").forEach(el => el.remove());
-    return wrap;
+    return readersLines(wrap);
 }
 
 function participantsLine(player, gms) {
@@ -558,6 +558,8 @@ function buildBubble(message) {
     // reads them through secret.mjs, which cleans anything a GM did not write.
     // A card whose words never came here says so rather than '-' (E18 C4, `shownWordsOf`).
     body.innerHTML = shownWordsOf(message);
+    // The ask's time and end in this reader's clock and language (secret.mjs `readersLines`, E18 fix e1-G3).
+    readersLines(body);
     // The GM's half of a ruling card - the reference table, the "score it
     // against" line - is not the player's to read (COMM-06). Removed, like
     // the buttons, rather than hidden. Since E06 C7b a player's words arrive

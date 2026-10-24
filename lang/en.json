@@ -3137,6 +3137,7 @@
     },
     "Clock": {
       "summary": "Chapter {chapter} · Day {day} · Session {session} · {time}",
+      "summaryUnder": "Chapter {chapter} · Day {day} · Session {session}",
       "summaryEclipse": "{summary} · ECLIPSE",
       "rewindDuringEclipse": "An Eclipse is running, so the clock has not moved yet and there is nothing to step back to. End the Eclipse from the GM panel - it can end without advancing.",
       "eclipseStillOn": "The clock moved, but the Eclipse is still running. End it from the clock's chevron when you are ready - until then tokens place freely and murders are refused.",

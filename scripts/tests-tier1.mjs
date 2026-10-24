@@ -19123,7 +19123,8 @@ const INVARIANTS = [
          * Reply on a ruling card (messenger-app.mjs `ruleReply`) compared its text with "cancel" the same way. From C0 the
          * window's Send answers `{ text }` (`askForRequest`), an empty request is asked again where the caller says it
          * needs words (`required`), and the body is a `div.drpg-call-body` (`callCardHtml`). Measured on this browser with
-         * DialogV2.wait answered here and the toasts caught, both put back; nothing is posted.
+         * DialogV2.wait answered here and the toasts caught, both put back; nothing is posted. Since E18 fix e1-G3 the empty
+         * request is said as a refusal card (gm-bridge.mjs `sayRefusedHere`), read here and taken down, and no toast.
          */
         const B = await import("./gm-bridge.mjs");
         ok(typeof B.askForRequest === "function" && typeof B.callCardHtml === "function",
@@ -19133,6 +19134,11 @@ const INVARIANTS = [
         const warn = ui.notifications.warn;
         let answers = [], windows = 0, warned = 0;
         const measured = [];
+        const EMPTY = game.i18n.localize("DRPG.Bridge.emptyRequest");
+        const cards = () => [...document.querySelectorAll(".drpg-popup")].filter(c => c.querySelector(".drpg-popup-body")?.textContent.trim() === EMPTY);
+        // The refusal cards go to no history (R473's hold): tier 1 writes nothing.
+        const NH = await import("./notice-history.mjs");
+        await NH.holdNoticeHistory(true);
         try {
             D.wait = async cfg => {
                 windows++;
@@ -19159,19 +19165,24 @@ const INVARIANTS = [
                 answers = [...list];
                 windows = 0;
                 warned = 0;
+                const before = new Set(cards());
                 const text = await B.askForRequest({ title: "R838", prompt: "R838 prompt", required });
-                measured.push([what, text, windows, warned]);
+                await new Promise(resolve => setTimeout(resolve, 50));
+                const fresh = cards().filter(c => !before.has(c));
+                for (const c of fresh) c.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+                measured.push([what, text, windows, warned, fresh.length]);
             }
         } finally {
             if (own) Object.defineProperty(D, "wait", own);
             else delete D.wait;
             ui.notifications.warn = warn;
+            NH.holdNoticeHistory(false);
         }
         equal(JSON.stringify(measured), JSON.stringify([
-            ["`cancel` typed", "cancel", 1, 0], ["Cancel pressed", null, 1, 0], ["the window closed", null, 1, 0],
-            ["nothing typed, words not needed", "", 1, 0], ["nothing typed, then words", "I climb the fence", 2, 1],
-            ["nothing typed, then Cancel", null, 2, 1]]),
-            "[case, what the window answered, windows opened, warnings said]");
+            ["`cancel` typed", "cancel", 1, 0, 0], ["Cancel pressed", null, 1, 0, 0], ["the window closed", null, 1, 0, 0],
+            ["nothing typed, words not needed", "", 1, 0, 0], ["nothing typed, then words", "I climb the fence", 2, 0, 1],
+            ["nothing typed, then Cancel", null, 2, 0, 1]]),
+            "[case, what the window answered, windows opened, toasts said, refusal cards said]");
 
         const card = document.createElement("template");
         card.innerHTML = B.callCardHtml({ name: "R838 Student" }, { title: "R838", request: "cancel", body: "<p>R838 one</p><p>R838 two</p>" });
@@ -19511,6 +19522,7 @@ const INVARIANTS = [
             draw("heading", "<h3>R848 Night</h3>\n<p>R848 Chapter 1</p>", { source: "public" });
             draw("plain", "<p>R848 plain</p>");
             draw("given", "<h3>R848 heading</h3><p>R848 kept</p>", { title: "R848 given" });
+            draw("same", "<h3>R848 same</h3><p>R848 under</p>", { title: "R848 same" });
             draw("refusal", "<p>R848 refused</p>", { kind: "error" });
             draw("late heading", "<p>R848 first</p><h3>R848 later</h3>");
             draw("empty heading", "<h3> </h3><p>R848 after</p>");
@@ -19523,10 +19535,22 @@ const INVARIANTS = [
             heading: ["R848 Night", "R848 Chapter 1", false, notice, true],
             plain: [notice, "R848 plain", false, notice, false],
             given: ["R848 given", "R848 heading R848 kept", true, "R848 given", true],
+            same: ["R848 same", "R848 under", false, "R848 same", true],
             refusal: [refused, "R848 refused", false, refused, false],
             "late heading": [notice, "R848 first R848 later", true, notice, true],
             "empty heading": [notice, "R848 after", true, notice, true]
         }), "[per card: the bar's words, the body's words, a heading left in the body, the kept title, a heading in the kept html]");
+        /* E18 fix e1-G3 (24.10.2026; the end review's E18-END-8 and F7): a card posted with its title and opening with the
+           same heading ("same") read it in the bar and again under it - a call on the GM with no thread to post into
+           (gm-bridge.mjs `callGm`); and the time of day's card, its heading lifted into the bar, said the time of day again
+           at the end of the clock line under it (clock.mjs `announceTimeOfDay`). */
+        const CL = await import("./clock.mjs");
+        const clock = getClock();
+        const announce = fnSource(stripComments(new Map(await moduleSources()).get("clock.mjs") ?? ""), "announceTimeOfDay");
+        ok(announce.length > 100, "clock.mjs has no announceTimeOfDay - the read below would measure nothing");
+        equal(stableJson([CL.clockSummary(clock, { time: false }).includes(CL.timeOfDayLabel(clock.timeOfDay)), CL.clockSummary(clock).includes(CL.timeOfDayLabel(clock.timeOfDay)),
+            /clockSummary\(clock,\s*\{\s*time:\s*false\s*\}\)/.test(announce)]), stableJson([false, true, true]),
+            "[the clock line under the time of day's heading names it, the clock line elsewhere names it, the time of day's card writes the line without it]");
 
         const C = await styleCascade();
         const bar = classes => {
@@ -19681,6 +19705,47 @@ const INVARIANTS = [
             ["R851 given", "R851 given", "error", "read", "R851 words of its own", true, "mine"],
             ["R851 stray", "R851 stray", "info", "open", "R851 drawn", true, "mine"]
         ]), "[per card: its bar, the kept title, kind, state, words, the kept html the drawn body's, the source]");
+    }],
+    ["R852 - an ask's card shows its time and its end in each reader's own clock and language: `data-expires` and an end's key are written again where the card is drawn, and a line with another key keeps its words (E18 fix e1-G3; the end review's E18-END-3 and F4)", async () => {
+        /*
+         * E18 fix e1-G3, 24.10.2026; the end review's E18-END-3, E18-END-5 and F4. "Open until 21:35." was written once,
+         * by the posting GM's browser, in its time zone and language, and an ask's end ("Approved by ...", "Nobody
+         * answered in time - ask again.") in the primary's language: a player an hour west of the GM read an hour more
+         * than they waited. The card carries the data now and each reader writes it (secret.mjs `readersLines`). Read on
+         * this page: words as a GM in another zone and language wrote them - a time reading 99:99, a Polish end - drawn
+         * through `readersLines`, with Foundry's language set to Polish and to English for the time and put back; what
+         * each line reads against what this browser writes for it; and, in the source, that the chat log's swap, the
+         * messenger's bubble and its notice draw through it, and that `settleCall` and the ask's ends write their keys.
+         */
+        const S = await import("./secret.mjs");
+        must(typeof S.readersLines === "function", "secret.mjs has no readersLines - a reader writes nothing of a card in its own clock");
+        const at = Date.UTC(2026, 9, 24, 19, 20);
+        const shape = lang => game.i18n.format("DRPG.Bridge.openUntil", { time: new Date(at).toLocaleTimeString(lang, { hour: "2-digit", minute: "2-digit" }) });
+        const words = `<p class="drpg-call-awaiting"><em>R852</em> <span class="drpg-call-expires" data-expires="${at}">Open until 99:99.</span></p>`
+            + '<p class="drpg-call-settled" data-drpg-line="DRPG.Bridge.settledApproved" data-drpg-name="R852 GM">Zatwierdził: R852 GM.</p>'
+            + '<div class="drpg-gm-only"><p class="drpg-call-settled" data-drpg-line="DRPG.Bridge.settledGone">Gracz już nie czekał.</p></div>'
+            + '<p class="drpg-call-settled" data-drpg-line="DRPG.Popup.kind.info">R852 kept words</p>';
+        const drawn = lang => {
+            const wrap = document.createElement("template");
+            wrap.innerHTML = words;
+            const was = game.i18n.lang;
+            try {
+                game.i18n.lang = lang;
+                S.readersLines(wrap.content);
+            } finally {
+                game.i18n.lang = was;
+            }
+            return [...wrap.content.querySelectorAll(".drpg-call-expires, .drpg-call-settled")].map(el => el.textContent);
+        };
+        const rest = [game.i18n.format("DRPG.Bridge.settledApproved", { name: "R852 GM" }), game.i18n.localize("DRPG.Bridge.settledGone"), "R852 kept words"];
+        const sources = new Map(await moduleSources());
+        const fn = (file, name) => fnSource(stripComments(sources.get(file) ?? ""), name);
+        equal(stableJson([drawn("pl"), drawn("en"),
+            /readersLines\(body\)/.test(fn("secret.mjs", "drawPrivateCard")), /readersLines\(body\)/.test(fn("messenger-app.mjs", "buildBubble")),
+            /readersLines\(wrap\)/.test(fn("messenger-app.mjs", "cardPreview")), /drpgLine/.test(fn("gm-bridge.mjs", "settleCall")),
+            /key:\s*"DRPG\.Bridge\.settledExpired"/.test(fn("gm-bridge.mjs", "endExpired"))
+        ]), stableJson([[shape("pl"), ...rest], [shape("en"), ...rest], true, true, true, true, true]),
+            "[the drawn lines with Foundry's language Polish, then English: the time, the end, the GMs' line, another key's line; the chat log, the bubble and its notice draw through readersLines; settleCall writes the key; the expired end is a key]");
     }]
 ];
 

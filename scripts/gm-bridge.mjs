@@ -3445,10 +3445,9 @@ function sendOnFromPrimary(requestId, held, value, { text, by, yes = null, rulin
     sent.timer = setTimeout(() => void unreceivedOnPrimary(requestId), TIMING.ackMs);
 }
 
-/** A card ends as its ask's player no longer waiting: the line for everyone, and the GMs' own. */
+/** A card ends as its ask's player no longer waiting: the line for everyone, and the GMs' own - by key, which each reader writes in its language. */
 function endExpired(messageId) {
-    return endAskCard(messageId, game.i18n.localize("DRPG.Bridge.settledExpired"),
-        { gmNote: game.i18n.localize("DRPG.Bridge.settledGone") });
+    return endAskCard(messageId, { key: "DRPG.Bridge.settledExpired" }, { gmNote: { key: "DRPG.Bridge.settledGone" } });
 }
 
 /**
@@ -3501,9 +3500,9 @@ async function rolledOnRuling(sent) {
 async function endSentOn(sent, { askerExpired = false } = {}) {
     const name = game.users.get(sent.by ?? "")?.name ?? "?";
     const fate = sent.yes ? forgetCallYes(sent.yes) : null;
-    if (fate === "taken" || (await rolledOnRuling(sent))) return endAskCard(sent.messageId, game.i18n.format(sent.text, { name }));
+    if (fate === "taken" || (await rolledOnRuling(sent))) return endAskCard(sent.messageId, { key: sent.text, name });
     if (fate === "forgotten" || askerExpired || (!sent.ruling && !sent.fromMark)) return endExpired(sent.messageId);
-    return endAskCard(sent.messageId, game.i18n.format("DRPG.Bridge.settledUnconfirmed", { name }));
+    return endAskCard(sent.messageId, { key: "DRPG.Bridge.settledUnconfirmed", name });
 }
 
 /** No receipt came for a ruling sent on (E18 C1): its card ends as what became of it (fix e1-G1), a Call's yes not used taken back. */
@@ -3550,7 +3549,7 @@ async function receivedOnPrimary(requestId, senderId) {
         clearTimeout(reached.timer);
         answeredAsks.delete(requestId);
         const name = game.users.get(reached.by ?? "")?.name ?? "?";
-        await endAskCard(reached.messageId, game.i18n.format(reached.text, { name }));
+        await endAskCard(reached.messageId, { key: reached.text, name });
         return true;
     }
     const answeredElsewhere = callAsks.get(requestId ?? "") ?? dynamicAsks.get(requestId ?? "");
@@ -4029,8 +4028,9 @@ export function callCardHtml(actor, { title, body = "", roll = null, request = "
 }
 
 /**
- * "Open until 21:35." on an ask's card (E18 C2): the time its asker stops waiting, in the posting GM's clock and
- * language, and `data-expires` (the server's milliseconds) for the primary that ends the card at it (`sweepAskCards`).
+ * "Open until 21:35." on an ask's card (E18 C2): the time its asker stops waiting, and `data-expires` (the server's
+ * milliseconds) for the primary that ends the card at it (`sweepAskCards`). Written here in the posting GM's clock and
+ * language, and by each reader's browser again in its own as it draws the card (secret.mjs `readersLines`, fix e1-G3).
  */
 function expiresHtml(expires) {
     if (!Number.isFinite(expires) || expires <= 0) return "";
@@ -4302,9 +4302,9 @@ export async function claimCard(message, work) {
     const taken = await askCardClaim(message.id, "take");
     if (!taken?.taken) {
         const gm = game.users.get(taken?.by ?? "")?.name ?? String(taken?.by ?? "");
-        if (taken?.why === "ruled") ui.notifications.warn(game.i18n.format("DRPG.Bridge.alreadyRuled", { gm }));
-        else if (taken?.why === "busy") ui.notifications.warn(game.i18n.format("DRPG.Bridge.claimBusy", { gm }));
-        else if (taken?.why === "settled") ui.notifications.warn(game.i18n.localize("DRPG.Bridge.alreadySettled"));
+        if (taken?.why === "ruled") sayRefusedHere(game.i18n.format("DRPG.Bridge.alreadyRuled", { gm }));
+        else if (taken?.why === "busy") sayRefusedHere(game.i18n.format("DRPG.Bridge.claimBusy", { gm }));
+        else if (taken?.why === "settled") sayRefusedHere(game.i18n.localize("DRPG.Bridge.alreadySettled"));
         return null;
     }
     let outcome = null;
@@ -4314,6 +4314,23 @@ export async function claimCard(message, work) {
         await askCardClaim(message.id, outcome?.settled || outcome?.held ? "done" : "drop");
     }
     return outcome;
+}
+
+/*
+ * SAID THROUGH THE ONE FUNNEL (E18 fix e1-G3, 24.10.2026; the end review's E18-END-4 and F11). Amend 1 sends the stage's
+ * new cards - a settlement, a timeout, a refusal - through `showPopup` or `sayNotDone`, and three were Foundry toasts:
+ * the claim's refusals (`claimCard`: "{gm} already ruled on this card.", "{gm} is ruling on this card right now.", "This
+ * card has already been answered.") and the empty request's (`askForRequest`). A toast fades in seconds and is kept
+ * nowhere, so a GM who looked away could not find why a click did nothing. Each is a refusal card now, kept in this
+ * browser's history as a request not carried out is (source `notDone`); R472 has its row, R838 and tier 2's C3 test read it.
+ */
+function sayRefusedHere(text) {
+    import("./popup.mjs")
+        .then(({ showPopup }) => showPopup(`<p>${esc(text)}</p>`, { kind: "error", source: "notDone" }))
+        .catch(err => {
+            debug("A refusal could not be shown as a card", err);
+            ui.notifications.warn(text);
+        });
 }
 
 /**
@@ -4329,7 +4346,9 @@ export async function claimCard(message, work) {
  * only one screen can see is the bug again with a smaller audience.
  *
  * @param {ChatMessage} message  The card.
- * @param {string} text          What settled it, in plain words.
+ * @param {string|{key: string, name?: string}} text  What settled it, in plain words - or an ask's end by its key and
+ *   the GM who ruled (E18 fix e1-G3), written here in this GM's language and by each reader again in its own
+ *   (secret.mjs `readersLines`). `gmNote` takes either as well.
  * @param {object} [ruling]      What was ruled, kept in a private card's meta beside
  *   `settled` (E32+E07 C11b): the statistic a GM picked, `{ type: "trait", actorId,
  *   kind, key, variant, trait }` - the record a check of the roll against the pick
@@ -4358,17 +4377,21 @@ export async function settleCall(message, text, ruling = null, gmNote = null) {
         if (p.textContent.trim() === awaiting) p.remove();
     }
 
-    const note = document.createElement("p");
-    note.className = "drpg-call-settled";
-    note.textContent = text;
-    wrap.content.append(note);
+    const lineOf = said => {
+        const line = document.createElement("p");
+        line.className = "drpg-call-settled";
+        if (said && typeof said === "object") {
+            line.textContent = game.i18n.format(said.key, { name: said.name ?? "?" });
+            line.dataset.drpgLine = said.key;
+            if (said.name) line.dataset.drpgName = said.name;
+        } else line.textContent = said;
+        return line;
+    };
+    wrap.content.append(lineOf(text));
     if (gmNote) {
         const gmOnlyNote = document.createElement("div");
         gmOnlyNote.className = "drpg-gm-only";
-        const line = document.createElement("p");
-        line.className = "drpg-call-settled";
-        line.textContent = gmNote;
-        gmOnlyNote.append(line);
+        gmOnlyNote.append(lineOf(gmNote));
         wrap.content.append(gmOnlyNote);
     }
 
@@ -4425,7 +4448,7 @@ export async function askForRequest({ title, prompt, placeholder = "", intro = "
         });
         if (typeof answer?.text !== "string") return null;
         if (answer.text || !required) return answer.text;
-        ui.notifications.warn(game.i18n.localize("DRPG.Bridge.emptyRequest"));
+        sayRefusedHere(game.i18n.localize("DRPG.Bridge.emptyRequest"));
     }
 }
 

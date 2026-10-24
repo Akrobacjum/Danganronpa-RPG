@@ -3261,6 +3261,7 @@
     },
     "Clock": {
       "summary": "Rozdział {chapter} · Dzień {day} · Sesja {session} · {time}",
+      "summaryUnder": "Rozdział {chapter} · Dzień {day} · Sesja {session}",
       "summaryEclipse": "{summary} · ECLIPSE",
       "eclipseStillOn": "Zegar się przesunął, ale Eclipse wciąż trwa. Zakończ go strzałką przy zegarze, gdy przyjdzie pora - do tej pory tokeny ustawiają się swobodnie, a morderstwa są odrzucane.",
       "campaignName": "Nazwa kampanii",

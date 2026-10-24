@@ -28715,9 +28715,10 @@ const SCENARIOS = [
         const seen = new Set(game.messages.map(m => m.id));
         const created = [];
         const hook = Hooks.on("createChatMessage", m => { if (!seen.has(m.id)) created.push(m); });
-        const warned = [];
-        const realWarn = ui.notifications.warn;
-        ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return realWarn.call(ui.notifications, text, ...rest); };
+        // What this GM is told: a refusal card each (gm-bridge.mjs `sayRefusedHere`, since E18 fix e1-G3), oldest first.
+        const shownBefore = new Set(document.querySelectorAll(".drpg-popup"));
+        const told = () => [...document.querySelectorAll(".drpg-popup.drpg-popup-error")].filter(c => !shownBefore.has(c))
+            .sort((a, b) => Number(a.dataset.drpgSeq) - Number(b.dataset.drpgSeq)).map(c => c.querySelector(".drpg-popup-body")?.textContent.trim() ?? "");
         let card = null;
         const read = [];
         const lines = () => created.filter(m => m.id !== card?.id).length;
@@ -28739,18 +28740,17 @@ const SCENARIOS = [
             two.click();
             await until(() => Boolean(cardFlag(game.messages.get(card.id), "settled")), 5000);
             await settle(800);
-            read.push([lines(), Boolean(cardFlag(game.messages.get(card.id), "settled")), [...warned]]);
+            read.push([lines(), Boolean(cardFlag(game.messages.get(card.id), "settled")), told()]);
             await game.messages.get(card.id).update({ content, [`flags.${MODULE_ID}.settled`]: false });
             const three = drawn();
             must(three, "the reopened card's drawing carries no button - this would measure nothing");
             three.click();
             await settle(1200);
-            read.push([lines(), [...warned], S.ruledCardStore?.get(card.id)?.by ?? null]);
+            read.push([lines(), told(), S.ruledCardStore?.get(card.id)?.by ?? null]);
             await game.messages.get(card.id).delete();
             await settle(300);
             read.push(S.ruledCardStore?.has(card.id) ?? null);
         } finally {
-            ui.notifications.warn = realWarn;
             Hooks.off("createChatMessage", hook);
             for (const node of [...document.querySelectorAll(".drpg-popup")]) node.dispatchEvent(new CustomEvent("drpg-dismiss"));
             for (const message of created) await message.delete().catch(() => {});

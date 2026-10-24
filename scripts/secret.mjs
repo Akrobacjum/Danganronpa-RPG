@@ -362,6 +362,37 @@ export function youOrThem(userIds, { you, them }) {
     return `<span ${YOU}="${ids.join(" ")}">${you}</span><span ${NOT_YOU}="${ids.join(" ")}">${them}</span>`;
 }
 
+/*
+ * EACH READER'S OWN CLOCK AND LANGUAGE (E18 fix e1-G3, 24.10.2026; the end review's E18-END-3 and F4). An ask's card
+ * said "Open until 21:35." as the posting GM's browser wrote it - its time zone and its language - and its end
+ * ("Approved by ...", "Nobody answered in time - ask again.") in the primary's language: a player in London read an
+ * hour more than they waited for a GM in Warsaw, and a Polish player read English endings at an English GM's table. The
+ * card carries what its lines say as data - `data-expires`, the server's milliseconds, and `data-drpg-line`, the key of
+ * an ask's end with `data-drpg-name`, the GM who ruled (gm-bridge.mjs `expiresHtml`, `settleCall`) - and each reader's
+ * browser writes them again in its own time zone and language as it draws the card: the chat log (`drawPrivateCard`),
+ * the messenger's bubble and its notice (messenger-app.mjs `buildBubble`, `cardPreview`). A line whose key is not one of
+ * an ask's ends keeps its words. R852 reads it.
+ */
+const CARD_LINES = Object.freeze(["settledApproved", "settledAnswered", "settledDeclined", "settledExpired", "settledGone", "settledUnconfirmed"]
+    .map(key => `DRPG.Bridge.${key}`));
+
+/** Write a drawn card's time and its ask's end in this reader's own clock and language (above). Answers `root`. */
+export function readersLines(root) {
+    if (!root?.querySelectorAll) return root;
+    for (const el of root.querySelectorAll(".drpg-call-expires[data-expires]")) {
+        const at = Number(el.getAttribute("data-expires"));
+        if (!Number.isFinite(at) || at <= 0) continue;
+        const time = new Date(at).toLocaleTimeString(game.i18n.lang, { hour: "2-digit", minute: "2-digit" });
+        el.textContent = game.i18n.format("DRPG.Bridge.openUntil", { time });
+    }
+    for (const el of root.querySelectorAll("[data-drpg-line]")) {
+        const key = el.getAttribute("data-drpg-line");
+        if (!CARD_LINES.includes(key)) continue;
+        el.textContent = game.i18n.format(key, { name: el.getAttribute("data-drpg-name") ?? "?" });
+    }
+    return root;
+}
+
 /**
  * A card's words as `userId` may hold them: a GM's as written, a player's without the
  * GMs' prose (`playerWords`), and either with only the lines of `youOrThem` meant for
@@ -885,6 +916,7 @@ export function drawPrivateCard(message, element) {
     element.classList.remove("drpg-veiled");
     element.style.display = "";
     body.innerHTML = html;
+    readersLines(body);
     trim();
 }
 

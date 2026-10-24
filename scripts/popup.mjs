@@ -828,14 +828,14 @@ export function showPopup(bodyHtml, {
     const kindWord = game.i18n.localize(`DRPG.Popup.kind.${KINDS.includes(kind) ? kind : "info"}`);
     const keptTitle = title || kindWord;
     let lifted = "";
-    if (!title) {
-        const first = [...body.childNodes].find(node => node.nodeType !== Node.TEXT_NODE || node.textContent.trim());
-        const heading = first?.nodeType === Node.ELEMENT_NODE && /^H[1-4]$/.test(first.tagName) ? first.textContent.trim() : "";
-        if (heading) {
-            title = heading;
-            lifted = first.outerHTML;
-            first.remove();
-        }
+    /* And a heading that only says the title given again goes from the words too (E18 fix e1-G3; the end review's
+       E18-END-8): a card posted with its title and opening with the same heading read it twice, bar and body. */
+    const first = [...body.childNodes].find(node => node.nodeType !== Node.TEXT_NODE || node.textContent.trim());
+    const heading = first?.nodeType === Node.ELEMENT_NODE && /^H[1-4]$/.test(first.tagName) ? first.textContent.trim() : "";
+    if (heading && (!title || heading === String(title).trim())) {
+        title = heading;
+        lifted = first.outerHTML;
+        first.remove();
     }
     if (!title) title = kindWord;
     const kept = () => lifted + body.innerHTML;
