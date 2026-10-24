@@ -64006,6 +64006,158 @@ const SCENARIOS = [
             + "the Healing usable in a same-named room elsewhere; each as (drawn, substitute)]");
     }],
 
+    ["a Search's find is what was drawn: drawItem answers its category, tier and goal, and the find takes them, never above the tier the roll earned, on a Search and on its Reroll (E14-T14, S08-09)", async () => {
+        /*
+         * E14 part 2 C3, 24.10.2026; E14-38, E14-39, E14's doneWhen ("drawItem zwraca kategorię i tier"). The harm (audit
+         * S08-09): `drawItem` answered a name, and `grantDrawn` made the item with the category, tier and goal the searcher
+         * ASKED for, so a mop out of "<room> - Murder Weapons" was a Tier 3 murder weapon, a Tier 0 snack from a room's
+         * Usables was a Tier 2 one, and whatever a room handed over in place of what was asked became what was asked. A named
+         * room of the scene the student stands on is pointed at "SUITE E14-T14 Workshop" (its flag put back after), every table
+         * that could answer the world's shapes asked here is set aside as E14-T13 does it, and these are made: two tier pools
+         * that file "mop" as a Tier 2 Cleaning Tool and "tea" as a Tier 0 Sanity Relief usable, the old mixed "DRPG Usables -
+         * Tier 2" with "bento", and the room's Murder Weapons ("mop"), Usables ("tea") and Tier 1 ("unknown", in no pool).
+         * Read, each draw as [entry, category, tier, goal, substitute]: a Tier 3 weapon, a Tier 1 Healing usable and a Tier 2
+         * Sanity Relief usable in the room; then, the room's weapons and usables gone, a Tier 3 Tool there (the Tier 1 table's
+         * substitute) and, out of the room, a Tier 2 Sanity Relief usable (the mixed pool) and a Tier 0 weapon (the built-in
+         * pool); `foundAs`, which reads a plant's name the same way, on "mop" and "unknown" asked as a Tier 1 weapon. Then what
+         * `grantDrawn` writes on the student's sheet ([category, tier] of the item) for the mop on a Tier 1 and a Tier 0 roll
+         * and the substitute on a Tier 3 one; the mop as the student's player would write it, judged by the GM's
+         * `searchFind` on a Search of 13 (a Tier 1 hit), and the same item at the drawn Tier 2 on another; and the Reroll of a
+         * Sanity Relief Search re-thrown to 18 (Tier 2) in the room (`settleSearch`), the item it gives.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student with a player, whose find is judged");
+        const T = await import("./tables.mjs");
+        const A = await import("./action-rolls.mjs");
+        const { settleSearch } = await import("./reroll.mjs");
+        const { sceneOfActor } = await import("./movement.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const student = livingStudents().find(owner);
+        const player = owner(student);
+        const scene = sceneOfActor(student);
+        const region = Array.from(scene?.regions ?? []).find(r => r.name?.trim());
+        must(region, `the scene ${student.name} stands on has no named room - this would measure nothing`);
+        const room = region.name;
+        const TAG = "SUITE E14-T14", BASE = `${TAG} Workshop`, FLAG = "drpgItemTable";
+        const MADE = [
+            ["poolMop", "DRPG Cleaning Tools - Tier 2", { category: "cleaningTool", tier: 2, goal: null }, "mop"],
+            ["poolTea", "DRPG Usables (Sanity Relief) - Tier 0", { category: "usable", tier: 0, goal: "stress" }, "tea"],
+            ["mixed", "DRPG Usables - Tier 2", { category: "usable", tier: 2 }, "bento"],
+            ["weapons", `${BASE} - Murder Weapons`, null, "mop"],
+            ["usables", `${BASE} - Usables`, null, "tea"],
+            ["tier1", `${BASE} - Tier 1`, null, "unknown"]
+        ];
+        const SHAPES = [["usable", 2], ["crimeTool", 0]];
+        const answers = table => {
+            const category = table.getFlag(MODULE_ID, "category"), tier = Number(table.getFlag(MODULE_ID, "tier"));
+            return SHAPES.some(([c, n]) => (category === c && tier === n) || table.name.endsWith(` - Tier ${n}`));
+        };
+        const entry = word => `${TAG} ${word}`;
+        const what = drawn => !drawn ? null : [!drawn.fromTable ? "pool" : drawn.name.startsWith(`${TAG} `) ? drawn.name.slice(TAG.length + 1) : "other",
+            drawn.category ?? "-", drawn.tier ?? "-", drawn.goal === undefined ? "-" : drawn.goal, Boolean(drawn.substitute)];
+        const flagsOf = item => item ? [item.getFlag(MODULE_ID, "category") ?? null, item.getFlag(MODULE_ID, "tier") ?? null] : null;
+        const hadFlag = region.getFlag(MODULE_ID, FLAG);
+        const aside = [], made = new Map(), items = [], records = [];
+        let read = null;
+        try {
+            for (const table of Array.from(game.tables).filter(answers)) {
+                const tier = table.getFlag(MODULE_ID, "tier");
+                aside.push([table, { name: table.name, description: table.description ?? "", tier }]);
+                await table.update({ name: `${TAG} aside ${table.id}`, ...(tier !== undefined && tier !== null ? { [`flags.${MODULE_ID}.tier`]: -1 } : {}) });
+            }
+            for (const [role, name, flags, word] of MADE) {
+                made.set(role, await RollTable.create({
+                    name, description: TAG, formula: "1d1", replacement: true, displayRoll: false,
+                    ...(flags ? { flags: { [MODULE_ID]: flags } } : {}),
+                    results: [{ type: CONST.TABLE_RESULT_TYPES?.TEXT ?? "text", text: entry(word), name: entry(word), description: entry(word), range: [1, 1], weight: 1 }]
+                }));
+            }
+            await region.setFlag(MODULE_ID, FLAG, BASE);
+            must(made.size === MADE.length && region.getFlag(MODULE_ID, FLAG) === BASE, "the tables were not made or the room not pointed at them - this would measure nothing");
+            const draw = async (category, tier, goal = null, inRoom = true) => T.drawItem(category, tier, { goal, room: inRoom ? room : null, scene });
+            const grant = async (drawn, asked) => {
+                if (typeof A.grantDrawn !== "function") return "no grantDrawn";
+                const item = await A.grantDrawn(student, drawn, asked);
+                if (item) items.push(item);
+                return flagsOf(item);
+            };
+            const mop = await draw("crimeTool", 3);
+            const inRoom = [what(mop), what(await draw("usable", 1, "healing")), what(await draw("usable", 2, "stress"))];
+            const grants = { mopTier1: await grant(mop, { category: "crimeTool", tier: 1, goalKey: null }),
+                mopTier0: await grant(mop, { category: "crimeTool", tier: 0, goalKey: null }) };
+
+            // The find as the student's player writes it: the item grantDrawn made, judged on two Searches of 13.
+            let judged = "no grantDrawn";
+            const mine = items.find(item => item.getFlag(MODULE_ID, "tier") === 1);
+            if (mine) {
+                const data = foundry.utils.deepClone(mine.toObject());
+                for (const key of ["_id", "_stats", "sort", "folder"]) delete data[key];
+                const above = foundry.utils.mergeObject(foundry.utils.deepClone(data), { [`flags.${MODULE_ID}.tier`]: 2 });
+                const first = await spentSearch(player, student, { total: 13 });
+                const second = await spentSearch(player, student, { total: 13 });
+                records.push(first, second);
+                must(first.spent && second.spent, "a spend did not mark the Search it followed - the finds below would be flagged for that alone");
+                const as = async (itemData, record) => {
+                    const out = await asPlayerItemWrite("createItem", student, itemData, player, { reason: "searchFind", ref: record.rollId });
+                    items.push(out.item);
+                    return out.verdict;
+                };
+                judged = [await as(data, first), await as(above, second)];
+                await sheetAuditIdle();
+            }
+
+            // A Reroll of a Sanity Relief Search, re-thrown to 18 (Tier 2): the room's Usables answer with tea.
+            const done = [];
+            const rerolled = await settleSearch(student, { actionKey: "search", room, category: "usable", goal: "stress", claimed: true, itemId: null },
+                { total: 18, isCritical: false }, done);
+            const again = rerolled?.itemId ? student.items.get(rerolled.itemId) ?? null : null;
+            if (again) items.push(again);
+
+            for (const role of ["weapons", "usables"]) {
+                await made.get(role).delete();
+                made.delete(role);
+            }
+            // The finds so far off the sheet first, so the carry limit has room for the next (two Gear at most).
+            await sheetAuditIdle();
+            for (const item of items.splice(0)) if (student.items.get(item.id)) await item.delete();
+            await sheetAuditIdle();
+            const substitute = await draw("tool", 3);
+            read = {
+                inRoom, grants: { ...grants, substitute: await grant(substitute, { category: "tool", tier: 3, goalKey: null }) },
+                substitute: what(substitute),
+                world: [what(await draw("usable", 2, "stress", false)), what(await draw("crimeTool", 0, null, false))],
+                plant: typeof T.foundAs === "function"
+                    ? ["mop", "unknown"].map(word => T.foundAs(entry(word), { category: "crimeTool", tier: 1, goal: null }))
+                    : "no foundAs",
+                judged, reroll: flagsOf(again)
+            };
+        } finally {
+            await sheetAuditIdle();
+            for (const item of items) if (student.items.get(item.id)) await item.delete();
+            await sheetAuditIdle();
+            for (const record of records) await record.putBack();
+            if (hadFlag === undefined || hadFlag === null) await region.unsetFlag(MODULE_ID, FLAG);
+            else await region.setFlag(MODULE_ID, FLAG, hadFlag);
+            for (const table of made.values()) {
+                try { await table.delete(); } catch { /* already gone */ }
+            }
+            for (const [table, was] of aside) {
+                await table.update({ name: was.name, description: was.description,
+                    ...(was.tier !== undefined && was.tier !== null ? { [`flags.${MODULE_ID}.tier`]: was.tier } : {}) });
+            }
+        }
+        equal(stableJson(read), stableJson({
+            inRoom: [["mop", "cleaningTool", 2, null, false], ["unknown", "usable", 1, "healing", false], ["tea", "usable", 0, "stress", false]],
+            grants: { mopTier1: ["cleaningTool", 1], mopTier0: ["cleaningTool", 0], substitute: ["tool", 1] },
+            substitute: ["unknown", "tool", 1, null, true],
+            world: [["bento", "usable", 2, "stress", false], ["pool", "crimeTool", 0, null, false]],
+            plant: [{ category: "cleaningTool", tier: 2, goal: null }, { category: "crimeTool", tier: 1, goal: null }],
+            judged: ["stands", "flagged"], reroll: ["usable", 0]
+        }), "a Search's find was not what was drawn, or was above the tier its roll earned "
+            + "[the room's draws, what grantDrawn wrote, the substitute, the world's draws, a plant's name read, the GM's verdicts on the find at its tier and above it, the Reroll's item; each draw as (entry, category, tier, goal, substitute)]");
+    }],
+
     ...GRID
 ];
 

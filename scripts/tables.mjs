@@ -603,13 +603,69 @@ function isRoomTableOf(base, name, tier) {
     return Object.keys(ITEM_CATEGORIES).some(category => roomPluralsOf(category).includes(suffix));
 }
 
+/*
+ * WHAT A DRAW IS, NOT WHAT WAS ASKED FOR (E14 part 2 C3, 24.10.2026; audit S08-09; E14's doneWhen: "drawItem zwraca
+ * kategorię i tier"). `drawItem` answered a name, and the find was made with the category, tier and goal the searcher
+ * asked for: a mop out of "<room> - Murder Weapons" became a Tier 3 murder weapon, a Tier 0 snack from a room's Usables
+ * a Tier 2 one, and whatever a room handed over in place of what was asked became what was asked (E14-T14 read all
+ * three at 4fb2cced). Each road of `drawItem` now says what it drew:
+ *   - a tier pool, its flags (by name, `classifyTableName`, for a table the GM made under a pool's name with none);
+ *     the old mixed usable pool, which has no goal, keeps the goal the draw asked for, as the find did at Base;
+ *   - a room's table, the entry as the tier pools file it (`foundAs`), else what the table's name says - "Tier N" its
+ *     tier, a plural its category - else the request;
+ *   - a built-in pool, the request, which is the pool it drew from.
+ * The tier is the item's, which can be above the roll's: "Kitchen - Tier 3" also answers a Tier 1 roll as a
+ * substitute. `grantDrawn` (action-rolls.mjs) gives it no higher than the tier the Search earned, and the GM still
+ * judges that tier (sheet-audit.mjs `searchFind`).
+ */
+
+/**
+ * The category, tier and goal an entry of this name is filed under in the tier pools (`classifyEntryName`), or
+ * `fallback` when no pool files it. An entry filed twice (an axe that is also a tool) answers as the pool asked for
+ * when it is one of them. Exported: a plant's name is read the same way (action-rolls.mjs `searchDraw`), so a planted
+ * item lands on the sheet as the same entry drawn from a table would (trap 166).
+ *
+ * @param {string} name
+ * @param {{category: string, tier: number, goal: string|null}} asked
+ * @returns {{category: string, tier: number, goal: string|null}}
+ */
+export function foundAs(name, asked, fallback = asked) {
+    const read = classifyEntryName(name);
+    if (!read) return { category: fallback.category, tier: fallback.tier, goal: fallback.goal ?? null };
+    const homes = [read, ...(read.others ?? [])];
+    const home = homes.find(h => h.category === asked.category && (h.goal ?? null) === (asked.goal ?? null))
+        ?? homes.find(h => h.category === asked.category) ?? read;
+    return { category: home.category, tier: home.tier, goal: home.goal ?? null };
+}
+
+/** What a room table's entry is: as the pools file it, else as the table's suffix says, else the request. */
+function roomEntryAs(base, table, name, asked) {
+    const suffix = table.name === base ? "" : String(table.name).slice(base.length + 3);
+    const tierOf = suffix.match(/^Tier (\d+)$/);
+    const category = tierOf ? null : Object.keys(ITEM_CATEGORIES).find(key => roomPluralsOf(key).includes(suffix));
+    const bySuffix = tierOf ? { ...asked, tier: Number(tierOf[1]) }
+        : category && category !== asked.category ? { category, tier: asked.tier, goal: null } : asked;
+    return foundAs(name, asked, bySuffix);
+}
+
+/** What a tier pool's entry is: the pool's flags, else its name, else the request; a goalless usable pool keeps the goal asked. */
+function poolEntryAs(table, asked) {
+    const category = table.getFlag?.(MODULE_ID, "category");
+    const tier = Number(table.getFlag?.(MODULE_ID, "tier"));
+    const read = category && ITEM_TIERS.includes(tier) ? { category, tier, goal: table.getFlag(MODULE_ID, "goal") ?? null }
+        : classifyTableName(table.name) ?? asked;
+    return read.category === "usable" && !read.goal && asked.category === "usable" ? { ...read, goal: asked.goal ?? null } : read;
+}
+
 /**
  * Roll on the world's table if one exists, otherwise fall back to the built-in
  * pool. The GM editing a table has to actually change what Search produces.
+ * What was drawn comes back with its own category, tier and goal (C3, above `foundAs`).
  *
- * @returns {Promise<{name: string, fromTable: boolean}|null>}
+ * @returns {Promise<{name: string, fromTable: boolean, category: string, tier: number, goal: string|null}|null>}
  */
 export async function drawItem(category, tier, { goal = null, room = null, scene = null } = {}) {
+    const asked = { category, tier: Number(tier), goal: goal ?? null };
     // The room's own table first, when it has one. A kitchen and a boiler room
     // should not be drawing from the same bag - the guide says outright that
     // what turns up can depend on where you are.
@@ -645,7 +701,7 @@ export async function drawItem(category, tier, { goal = null, room = null, scene
         for (const name of roomTableNames(roomBase, category, tier)) {
             const table = game.tables?.getName?.(name);
             const found = table ? await drawFrom(table) : null;
-            if (found) return found;
+            if (found) return { ...found, ...roomEntryAs(roomBase, table, found.name, asked) };
         }
 
         /*
@@ -672,7 +728,7 @@ export async function drawItem(category, tier, { goal = null, room = null, scene
         // category sorts earliest.
         for (const table of owned.sort(() => Math.random() - 0.5)) {
             const found = await drawFrom(table, { substitute: true });
-            if (found) return found;
+            if (found) return { ...found, ...roomEntryAs(roomBase, table, found.name, asked) };
         }
     }
 
@@ -684,11 +740,11 @@ export async function drawItem(category, tier, { goal = null, room = null, scene
         .filter((table, at, all) => all.indexOf(table) === at);
     for (const table of pools) {
         const found = await drawFrom(table);
-        if (found) return found;
+        if (found) return { ...found, ...poolEntryAs(table, asked) };
     }
 
     const picked = randomItem(category, tier, goal);
-    if (picked) return { name: picked, fromTable: false, roles: rolesForPoolItem(picked) };
+    if (picked) return { name: picked, fromTable: false, roles: rolesForPoolItem(picked), ...asked };
 
     // Nothing in the asked-for category anywhere, which is a world with a gap
     // in it rather than a room with a character. Any other category, at random,
@@ -697,8 +753,9 @@ export async function drawItem(category, tier, { goal = null, room = null, scene
         if (other === category || other === "truthBullet") continue;
         const spare = randomItem(other, tier, null);
         if (spare) {
+            // Its own category (C3): until then an apple from here was granted as the category nobody stocks.
             return { name: spare, fromTable: false, substitute: true,
-                     roles: rolesForPoolItem(spare) };
+                     roles: rolesForPoolItem(spare), category: other, tier: asked.tier, goal: null };
         }
     }
     return null;

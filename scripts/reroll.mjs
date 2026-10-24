@@ -44,7 +44,7 @@
 
 import { MODULE_ID, ACTIONS, DYNAMIC_THRESHOLDS, CRITICAL, TIMING, TRAITS, TRAIT_BY_DH, HOPE_CALLS, STARTING } from "./config.mjs";
 import { resolveThreshold, log, error, plural, esc, isPrimaryGm, gmIds, ownerIdsOf, whisperToOwner, whisperToOwnerOnly, whisperToGms } from "./utils.mjs";
-import { searchTier, stashStepFor, stashText, rollTone, listenLabels, projectProgress, sabotageHit, sabotageRepairScale, projectExtrasHeld,
+import { searchTier, findOf, stashStepFor, stashText, rollTone, listenLabels, projectProgress, sabotageHit, sabotageRepairScale, projectExtrasHeld,
     sabotageExtrasHeld } from "./action-rolls.mjs";
 import { leavesTraceFor, ITEM_FLAGS } from "./inventory.mjs";
 import { isClaimedRoll, neutralRollOf, REROLL_SHOWN, relayRerolledDice } from "./private-rolls.mjs";
@@ -1254,19 +1254,29 @@ export async function settleSearch(actor, bookmark, after, done, rerolled = null
     // back; nothing a judgement waits for comes from a replay's grant. Until this fix (4d1532c, e29run/r2h20red,
     // 06.10.2026) a replay's find went into the hands, in a slot a stash written outside the GMs' mark had emptied.
     const counted = async () => (await import("./sheet-audit.mjs")).actorAsHeld(actor);
+    // What a find is, as the Search itself reads it (action-rolls.mjs `findOf`, E14 part 2 C3): the category, tier and
+    // goal of what was drawn - a plant's off its name (tables.mjs `foundAs`), as `searchDraw` reads it - at most the
+    // tier these dice earn. The GM's own grant, so nothing judges it; it gives what the Search would have given.
+    const asked = { category: bookmark.category ?? null, tier, goalKey: bookmark.goal ?? null };
+    let find = { category: asked.category, tier, goal: asked.goalKey };
     if (held) {
         const { grantItem } = await import("./inventory.mjs");
+        const { foundAs } = await import("./tables.mjs");
         const roles = asHeld.getFlag(MODULE_ID, ITEM_FLAGS.roles) ?? [];
         drawn = found ? { name: plant.name ?? held.name, roles } : null;
+        if (drawn && asked.category) {
+            Object.assign(drawn, foundAs(drawn.name, { category: asked.category, tier, goal: asked.goalKey }));
+            find = findOf(drawn, asked);
+        }
         granted = drawn ? await grantItem(actor, {
             reason: "reroll",
-            name: drawn.name, category: bookmark.category ?? null, tier, goal: bookmark.goal ?? null, roles,
+            name: drawn.name, category: find.category, tier: find.tier, goal: find.goal, roles,
             extraFlags: { [ITEM_FLAGS.identity]: plant.identity }, counted: await counted()
         }) : null;
         if (granted) {
             itemId = granted.id;
             drawnName = drawn.name;
-            done.push(game.i18n.format("DRPG.Reroll.itemDrawn", { item: drawn.name, tier }));
+            done.push(game.i18n.format("DRPG.Reroll.itemDrawn", { item: drawn.name, tier: find.tier }));
         } else {
             // Found nothing, or found it with no room on the sheet for it: back where it waited.
             if (!(await putPlantBack(plant))) log(`A Reroll could not put the planted "${plant.name ?? "?"}" back in ${plant.room}.`);
@@ -1280,14 +1290,15 @@ export async function settleSearch(actor, bookmark, after, done, rerolled = null
         drawn = await drawItem(bookmark.category, tier, { goal: bookmark.goal ?? null, room: bookmark.room ?? null, scene: sceneOfActor(actor) });
         if (drawn?.name) {
             drawnName = drawn.name;
+            find = findOf(drawn, asked);
             const { grantItem } = await import("./inventory.mjs");
             granted = await grantItem(actor, {
                 reason: "reroll",
-                name: drawn.name, category: bookmark.category, tier, goal: bookmark.goal ?? null,
+                name: drawn.name, category: find.category, tier: find.tier, goal: find.goal,
                 roles: drawn.roles ?? [], counted: await counted()
             });
             if (granted) itemId = granted.id;
-            done.push(game.i18n.format("DRPG.Reroll.itemDrawn", { item: drawn.name, tier }));
+            done.push(game.i18n.format("DRPG.Reroll.itemDrawn", { item: drawn.name, tier: find.tier }));
         }
     } else {
         done.push(game.i18n.localize("DRPG.Reroll.searchNothing"));
@@ -1304,7 +1315,7 @@ export async function settleSearch(actor, bookmark, after, done, rerolled = null
     //    first time, which is what `found` is for; the trace is tied to the crime
     //    only by the object being used later, so `tieTraceForItem` comes back
     //    for the identity.
-    const leaves = found && leavesTraceFor(bookmark.category, drawn?.roles);
+    const leaves = found && leavesTraceFor(find.category, drawn?.roles);
     const visibility = found
         ? (after.isCritical ? def.critical?.remnant : hit?.remnant)
         : null;
@@ -1320,9 +1331,9 @@ export async function settleSearch(actor, bookmark, after, done, rerolled = null
         note: game.i18n.format("DRPG.Remnant.searchNote", {
             actor: actor.name,
             room: bookmark.room ?? "?",
-            category: ITEM_CATEGORIES[bookmark.category]?.label ?? bookmark.category ?? "?",
+            category: ITEM_CATEGORIES[find.category]?.label ?? find.category ?? "?",
             item: drawnName ?? "?",
-            tier,
+            tier: find.tier,
             total: after.total
         })
     }, after);

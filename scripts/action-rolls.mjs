@@ -35,7 +35,7 @@ import { quotePrice, payPrice, refundPrice, priceLine } from "./price.mjs";
 // cleanup.mjs reaches back into this file only through a dynamic import.
 import { tamperQuote, witnessesTo } from "./cleanup.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
-import { drawItem } from "./tables.mjs";
+import { drawItem, foundAs } from "./tables.mjs";
 import { roomOfActor, othersInRoom, locateActor, sceneOfActor } from "./movement.mjs";
 import { projectsAvailableIn, addProgress, isIndirectMurder, isSecret, scaleFor, projectsListedIn, buildsOwnMurder } from "./projects.mjs";
 import { callGm, promptAndCallGm } from "./gm-bridge.mjs";
@@ -2155,17 +2155,41 @@ async function searchDraw(room, scene, category, tier, goalKey, actor = null) {
             // The one thing that makes the card read like an ordinary
             // unexpected find rather than an announcement.
             substitute: true,
-            identity: plant.drpgItemId
+            identity: plant.drpgItemId,
+            // And what it is, read off its name as a room table's entry is (tables.mjs `foundAs`, E14 part 2 C3):
+            // "Cold tea" planted in an armoury is a Sanity Relief usable on the sheet, as the same tea drawn there.
+            ...foundAs(plant.name, { category, tier, goal: goalKey ?? null })
         }
         : await drawItem(category, tier, { goal: goalKey, room, scene });
+}
+
+/**
+ * WHAT THE FIND IS (E14 part 2 C3, 24.10.2026; audit S08-09): the category, tier and goal `drawItem` drew (a plant's
+ * read by `searchDraw`), the tier never above what the Search earned - the GM judges that tier (sheet-audit.mjs
+ * `searchFind`: a spent token, a hit, at most the record's tier), and a find above it was flagged; the category and
+ * the goal the GM does not judge (the review's). A draw that says nothing - a caller's own object - is the request,
+ * as every find was until C3. Exported for `settleSearch` (reroll.mjs) and the suite.
+ *
+ * @returns {{category: string, tier: number, goal: string|null}}
+ */
+export function findOf(drawn, { category, tier, goalKey = null }) {
+    const own = ITEM_CATEGORIES[drawn?.category] ? drawn.category : category;
+    const drawnTier = Number(drawn?.tier);
+    return {
+        category: own,
+        tier: Number.isInteger(drawnTier) && drawnTier >= 0 ? Math.min(drawnTier, tier) : tier,
+        goal: drawn?.goal !== undefined && own === drawn?.category ? drawn.goal ?? null : own === category ? goalKey ?? null : null
+    };
 }
 
     // The item actually goes into the inventory, subject to the carry limits.
     // Named after the GMs' record of the roll (`rollId`, E29 C6): the find stands on a GM as far as
     // that record's total reaches (sheet-audit.mjs `searchFind`). A roll the GM did not draw has none.
-async function grantDrawn(actor, drawn, { category, tier, goalKey, rollId = null }) {
+    // Made as what was drawn, at most at the earned tier (`findOf`, E14 part 2 C3). Exported for the suite.
+export async function grantDrawn(actor, drawn, { category, tier, goalKey, rollId = null }) {
     let granted = null;
     if (drawn?.name) {
+        const find = findOf(drawn, { category, tier, goalKey });
         const { grantItem, ITEM_FLAGS } = await import("./inventory.mjs");
         // The icon and the sentence the GM wrote on the table entry travel with
         // it - see `drawItem`. Both are `null` for a built-in pool, which is
@@ -2173,7 +2197,7 @@ async function grantDrawn(actor, drawn, { category, tier, goalKey, rollId = null
         // the tier line".
         granted = await grantItem(actor, {
             reason: "searchFind", ref: rollId,
-            name: drawn.name, category, tier, goal: goalKey,
+            name: drawn.name, category: find.category, tier: find.tier, goal: find.goal,
             img: drawn.img ?? null, description: drawn.description ?? "",
             // What else it can do, from the table entry it came out of.
             roles: drawn.roles ?? [],
@@ -2385,10 +2409,12 @@ async function performSearch(actor, def, options) {
 
     const drawn = await searchDraw(room, scene, category, tier, goalKey, actor);
     const granted = await grantDrawn(actor, drawn, { category, tier, goalKey, rollId: roll.raw?.[DRAWN_ROLL]?.rollId ?? null });
-    const { placed, leftTrace } = await leaveSearchTrace(actor, def, roll, { hit, category, drawn, granted, room, tier });
+    // The trace and the card follow what was found (C3): its category decides a trace, its tier is the card's.
+    const find = drawn?.name ? findOf(drawn, { category, tier, goalKey }) : { category, tier, goal: goalKey };
+    const { placed, leftTrace } = await leaveSearchTrace(actor, def, roll, { hit, category: find.category, drawn, granted, room, tier: find.tier });
 
     const outcome = {
-        success: true, tier, category,
+        success: true, tier: find.tier, category: find.category,
         item: drawn?.name ?? null,
         carried: Boolean(granted),
         // The room had nothing of what was asked for and answered with what it
