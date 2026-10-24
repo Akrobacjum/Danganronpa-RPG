@@ -2093,10 +2093,14 @@ async function itemFindings(kind, item, actor, mark, changes, user, options, see
     for (const path of moved) {
         const flag = itemFlagOf(path), was = foundry.utils.getProperty(before, path), is = foundry.utils.getProperty(now, path);
         if (ITEM_PLACE.includes(flag)) continue;
-        // The ways a use, a break and wear spend an item: broken (or broken again), worn further, fewer left.
-        if (flag === ITEM_FLAGS.broken && is) continue;
-        if (flag === ITEM_FLAGS.wear && Number(is ?? 0) > Number(was ?? 0)) continue;
-        if (path === "system.quantity" && Number(is) < Number(was)) continue;
+        /* The ways a use, a break and wear spend an item: broken (or broken again), worn further, fewer left - never on a
+           body (E14 fix e1-G3; the review's E14R-01): the dead use nothing (C3, `itemCovers`), so a count, a break or wear
+           their player's console writes on what the body holds is put back like any other flag, and the body is found
+           with what it died with (D15). A death the GMs hold, published or not, as `placeStands` reads it. */
+        const spends = !isDeadForGm(actor);
+        if (spends && flag === ITEM_FLAGS.broken && is) continue;
+        if (spends && flag === ITEM_FLAGS.wear && Number(is ?? 0) > Number(was ?? 0)) continue;
+        if (spends && path === "system.quantity" && Number(is) < Number(was)) continue;
         back.push({ path, kind: path === "system.quantity" ? "itemQuantity" : path === CLASS_HIT_POINTS ? "max" : "itemFlag" });
     }
     if (moved.some(path => ITEM_PLACE.includes(itemFlagOf(path))) && !await placeStands(actor, item, before, now)) {

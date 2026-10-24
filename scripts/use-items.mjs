@@ -317,9 +317,12 @@ function deadHands(actor) {
  * "this is the one I am using now", and making the player un-equip first would
  * be a second click for no decision.
  */
-export async function toggleEquipped(actor, item) {
+export async function toggleEquipped(actor, item, { shape = false } = {}) {
     if (!actor || !item || !isEquippable(item)) return false;
-    if (deadHands(actor)) return false;
+    // A player's click on the dead's own hands (C3). Not the Gear shape's readying (`shape`, inventory.mjs
+    // `keepGearShape`), which a GM's grant, give or Palm into a body asks on the GM: D4 holds on a body too, and the GM
+    // was warned "is dead" over a move it did not make with its hands (E14 fix e1-G3; the review's E14R-06).
+    if (!shape && deadHands(actor)) return false;
 
     if (isStashed(item)) {
         ui.notifications.warn(game.i18n.localize("DRPG.Items.equipStashed"));

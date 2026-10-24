@@ -826,7 +826,10 @@ export async function keepGearShape(actor, item, { quiet = false } = {}) {
             log(`${actor.name} now carries "${item.name}" stowed beside other ${LIMIT_GROUPS[group].label}, and nothing of it can be held ready.`);
             return false;
         }
-        if (!await toggleEquipped(actor, ready)) return false;
+        if (!await toggleEquipped(actor, ready, { shape: true })) return false;
+        // A body is told nothing: its hands did not move, the shape was kept for whoever finds it (E14 fix e1-G3).
+        const { isDeadForGm } = await import("./settings.mjs");
+        if (isDeadForGm(actor)) return true;
         await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Items.autoReadied", {
             item: foundry.utils.escapeHTML(ready.name), group: LIMIT_GROUPS[group].label
         })}</p>`);

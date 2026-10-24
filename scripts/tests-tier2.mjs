@@ -62863,7 +62863,7 @@ const SCENARIOS = [
             + "old], the third's own text kept; [the GM told the old owner's key was taken, told who still holds a copy])");
     }],
 
-    ["the dead keep their hands still: a dead student's sheet offers no Use, Ready, Discard, Put away or Take out, on a death the GMs keep too; useItem, toggleEquipped, discardBroken, stow and retrieve refuse before any question; the GMs do not count a dead one's use, nor let a retrieve stand (E14-T4, S08-12, S08-30)", async () => {
+    ["the dead keep their hands still: a dead student's sheet offers no Use, Ready, Discard, Put away or Take out, on a death the GMs keep too; useItem, toggleEquipped, discardBroken, stow and retrieve refuse before any question; the GMs do not count a dead one's use, nor let its count, a break or a retrieve stand (E14-T4, S08-12, S08-30)", async () => {
         /*
          * E14 part 1 C3, 24.10.2026; E14-12, E14-13, D15 ("the things on a Monocub's body are the body's"). The harm: a
          * dead student's player readies, uses, throws away, puts away or takes out what is on the body, and the body is
@@ -62878,6 +62878,15 @@ const SCENARIOS = [
          * thing as the GMs judge it. Red at f278a660 (c3-red-all.log): Ready, Put away and Take out drawn (Use and Discard
          * were gone already for a dead student not a Monocub); toggleEquipped readied the tool, stow and retrieve moved
          * their things, useItem and discardBroken each asked their question (2 windows); the use stood, the retrieve too.
+         *
+         * E14 fix e1-G3 (the review's E14R-01): the use's consumption was written aside above, so only its Health was
+         * judged, and sheet-audit.mjs `itemFindings` lets a count that falls, a break and wear stand as the ways a use
+         * spends a thing - on a body too. So a player's console that wrote a stack of three kits on the body down to 2
+         * left the body two (D15: what is on the body stays there). Read now as the GMs judge them, stamped as a use: a
+         * stack of three written to 2, and the tool written broken. Red at b355cb03 (g3-red.log): [2, true]. And a GM's
+         * grant of a second tool into the body (E14R-06): the Gear shape's readying (inventory.mjs `keepGearShape`) was
+         * refused by the dead's courtesy (use-items.mjs `deadHands`), the GM warned mid-grant and the body left two tools
+         * stowed (D4). Red at b355cb03: [0, true].
          */
         needs(world.atLeast("studentsWithConnectedPlayer"), "a student whose write a player's id can stand for");
         needs(world.atLeast("studentTokensOnScreen"), "the student stands in a room by its token");
@@ -62975,6 +62984,30 @@ const SCENARIOS = [
                     { [place("location")]: INV.LOCATIONS.carried, [place("stashRoom")]: null });
                 await sheetAuditIdle();
                 read.retrieve = INV.isStashed(now(taken.id));
+                // The use's own writes on the body, judged: a stack of three kits written to 2, the tool written broken.
+                const stack = await make("stack");
+                await stack.update({ "system.quantity": 3 });
+                await sheetAuditIdle();
+                await asPlayerItemWrite("updateItem", actor, now(stack.id), player, { reason: "itemUse", ref: stack.id }, { "system.quantity": 2 });
+                await asPlayerItemWrite("updateItem", actor, now(tool.id), player, { reason: "itemUse", ref: tool.id }, { [place("broken")]: true });
+                await sheetAuditIdle();
+                read.spent = [Number(now(stack.id)?.system?.quantity ?? 0), INV.isBroken(now(tool.id))];
+                // A GM's grant of a second tool into the body (the shape's road, inventory.mjs `keepGearShape`): one held
+                // ready and one stowed (D4), and no "is dead" warning over a grant the GM made (the review's E14R-06).
+                await now(broken.id)?.delete();
+                const warned = [], warn = ui.notifications.warn, warnOwn = Object.getOwnPropertyDescriptor(ui.notifications, "warn");
+                ui.notifications.warn = (message, ...rest) => { warned.push(String(message)); return warn.call(ui.notifications, message, ...rest); };
+                let second = null;
+                try {
+                    second = await INV.grantItem(actor, { name: `${NAME} second tool`, category: "tool", tier: 1, override: true });
+                } finally {
+                    if (warnOwn) Object.defineProperty(ui.notifications, "warn", warnOwn);
+                    else delete ui.notifications.warn;
+                }
+                must(second, "the GM's second tool was not made on the body - this would measure nothing");
+                await sheetAuditIdle();
+                read.shape = [[now(tool.id), now(second.id)].filter(i => U.isEquipped(i)).length,
+                    warned.includes(game.i18n.format("DRPG.Items.deadHands", { name: actor.name }))];
             } finally {
                 answer();
                 sheet?.remove();
@@ -62994,8 +63027,10 @@ const SCENARIOS = [
         equal(stableJson([read.calls, read.after]), stableJson([[null, false, null, false, false], [0, 1, false, true, false, true]]),
             "a dead student's hands moved: [useItem, toggleEquipped, discardBroken, stow, retrieve answered], "
             + "[the windows opened, the kit's count, the tool readied, the broken tool still there, the kit stashed, the kept thing still stashed]");
-        equal(stableJson([read.use, read.retrieve]), stableJson(["flagged", true]),
-            "the GMs let a dead student's write stand: [a player's use of a kit (its Health flagged, not covered), the stashed thing still in the stash after a player's retrieve]");
+        equal(stableJson([read.use, read.retrieve, read.spent, read.shape]), stableJson(["flagged", true, [3, false], [1, false]]),
+            "the GMs let a dead student's write stand: [a player's use of a kit (its Health flagged, not covered), the stashed thing still in the stash after a player's retrieve, "
+            + "[the count of a stack of three a player's use wrote to 2, the tool a player's use wrote broken], [the tools held ready after a GM's grant "
+            + "of a second, whether the GM was warned the body's hands are still]]");
     }],
     ["a stash is rifled once a time of day per thief, stash and owner: the second reach is told alreadyDone and takes nothing, another stash in the room or a new time of day opens again, a Search's find and its roll are not counted, a claimed Search with no roll is refused, the Mastermind is counted too, and the stamp is the GMs' (E14-T5, S08-06, D15)", async () => {
         /*
