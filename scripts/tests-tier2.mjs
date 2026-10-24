@@ -63924,6 +63924,88 @@ const SCENARIOS = [
             + "Healing table; then the made tables' names after refreshTableCopy, the old 'Crime Tools' one brought to today's English]");
     }],
 
+    ["a room's own tables answer a Search first, then the GM's pools, then the built-in ones, and a room table is one by a suffix the module reads: 'Kitchen' does not take 'Kitchen - Back room' (E14-T13, S08-05, S08-45, D15)", async () => {
+        /*
+         * E14 part 2 C2, 24.10.2026; E14-36, E14-37, D15 ("tabele pokoju mają pierwszeństwo przed pulami świata"). The harm:
+         * `drawItem`'s header promised that the room answers before the world, and the code asked the world's tier pools before
+         * a room's other tables, so an armoury the GM stocked with weapons handed over the world's bandage; and any table named
+         * "<room> - " anything was the room's, so a "Kitchen - Back room" table answered the Kitchen. A named room of the scene on
+         * screen is pointed at "SUITE E14-T13 Kitchen" (its own flag put back after), every table of the world that could answer
+         * the shapes asked here is set aside as E14-T12 does it, and these are made, one entry each: the room's flat table, its
+         * Tier 2 and Tier 3, its weapons under the Polish plural a client in Polish named it by, an empty Cleaning Tools, a
+         * "Back room", and the GM's pools for a Tier 2 weapon and a Tier 1 Healing usable. Read, as [what was drawn, substitute]:
+         * with the flat table - a Tier 2 weapon, a Tier 1 weapon; then with the flat table gone - a Tier 1 Healing usable four
+         * times, a Tool of Tier 3, a Tier 2 weapon again, and that Healing usable in the same-named room of another scene.
+         */
+        needs(world.atLeast("namedRooms", 1), "a named room on the scene on screen, to point at a table");
+        needs(world.atLeast("scenes", 2), "a second scene, where the room's name points at nothing");
+        const T = await import("./tables.mjs");
+        const scene = canvas.scene;
+        const region = Array.from(scene.regions).find(r => r.name?.trim());
+        const room = region.name;
+        const elsewhere = game.scenes.find(s => s.id !== scene.id && !Array.from(s.regions ?? []).some(r => r.name === room));
+        must(elsewhere, `every other scene has a room named ${room} - this would measure nothing`);
+        const TAG = "SUITE E14-T13", BASE = `${TAG} Kitchen`, FLAG = "drpgItemTable";
+        const MADE = [
+            ["flat", BASE, null, true], ["tier2", `${BASE} - Tier 2`, null, true], ["tier3", `${BASE} - Tier 3`, null, true],
+            ["plWeapons", `${BASE} - Narzędzia zbrodni`, null, true], ["emptyCleaning", `${BASE} - Cleaning Tools`, null, false],
+            ["backRoom", `${BASE} - Back room`, null, true],
+            ["worldWeapons", "DRPG Murder Weapons - Tier 2", { category: "crimeTool", tier: 2, goal: null }, true],
+            ["worldHealing", "DRPG Usables (Healing) - Tier 1", { category: "usable", tier: 1, goal: "healing" }, true]
+        ];
+        const SHAPES = [["crimeTool", 1], ["crimeTool", 2], ["usable", 1], ["tool", 3]];
+        const answers = table => {
+            const category = table.getFlag(MODULE_ID, "category"), tier = Number(table.getFlag(MODULE_ID, "tier"));
+            return SHAPES.some(([c, n]) => (category === c && tier === n) || table.name.endsWith(` - Tier ${n}`));
+        };
+        const entry = role => `${TAG} ${role}`;
+        const what = drawn => [!drawn ? null : !drawn.fromTable ? "pool"
+            : MADE.some(([role]) => entry(role) === drawn.name) ? drawn.name.slice(TAG.length + 1) : "other", Boolean(drawn?.substitute)];
+        const hadFlag = region.getFlag(MODULE_ID, FLAG);
+        const aside = [], made = new Map();
+        let read = null;
+        try {
+            for (const table of Array.from(game.tables).filter(answers)) {
+                const tier = table.getFlag(MODULE_ID, "tier");
+                aside.push([table, { name: table.name, description: table.description ?? "", tier }]);
+                await table.update({ name: `${TAG} aside ${table.id}`, ...(tier !== undefined && tier !== null ? { [`flags.${MODULE_ID}.tier`]: -1 } : {}) });
+            }
+            for (const [role, name, flags, filled] of MADE) {
+                made.set(role, await RollTable.create({
+                    name, description: TAG, formula: "1d1", replacement: true, displayRoll: false,
+                    ...(flags ? { flags: { [MODULE_ID]: flags } } : {}),
+                    results: filled ? [{ type: CONST.TABLE_RESULT_TYPES?.TEXT ?? "text", text: entry(role), name: entry(role), description: entry(role), range: [1, 1], weight: 1 }] : []
+                }));
+            }
+            await region.setFlag(MODULE_ID, FLAG, BASE);
+            must(made.size === MADE.length && region.getFlag(MODULE_ID, FLAG) === BASE, "the tables were not made or the room not pointed at them - this would measure nothing");
+            const draw = async (category, tier, goal = null, where = scene) => what(await T.drawItem(category, tier, { goal, room, scene: where }));
+            const withFlat = [await draw("crimeTool", 2), await draw("crimeTool", 1)];
+            await made.get("flat").delete();
+            made.delete("flat");
+            const healing = [];
+            for (let i = 0; i < 4; i++) healing.push(await draw("usable", 1, "healing"));
+            read = { withFlat, healing, tool: await draw("tool", 3), weapons: await draw("crimeTool", 2),
+                elsewhere: await draw("usable", 1, "healing", elsewhere) };
+        } finally {
+            if (hadFlag === undefined || hadFlag === null) await region.unsetFlag(MODULE_ID, FLAG);
+            else await region.setFlag(MODULE_ID, FLAG, hadFlag);
+            for (const table of made.values()) {
+                try { await table.delete(); } catch { /* already gone */ }
+            }
+            for (const [table, was] of aside) {
+                await table.update({ name: was.name, description: was.description,
+                    ...(was.tier !== undefined && was.tier !== null ? { [`flags.${MODULE_ID}.tier`]: was.tier } : {}) });
+            }
+        }
+        const sub = ["plWeapons", true];
+        equal(stableJson(read), stableJson({ withFlat: [["tier2", false], ["plWeapons", false]], healing: [sub, sub, sub, sub],
+            tool: ["tier3", false], weapons: ["tier2", false], elsewhere: ["worldHealing", false] }),
+            "a Search drew past the room's own tables, or a table named like the room but not one of its was the room's "
+            + "[with the flat table: Tier 2 weapon, Tier 1 weapon; without it: a Healing usable x4, a Tier 3 Tool, a Tier 2 weapon, "
+            + "the Healing usable in a same-named room elsewhere; each as (drawn, substitute)]");
+    }],
+
     ...GRID
 ];
 
