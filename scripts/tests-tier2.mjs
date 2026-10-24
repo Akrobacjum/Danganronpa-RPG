@@ -2378,6 +2378,32 @@ async function sentDuring(run) {
 }
 
 /**
+ * The writes of items on `actors` this browser heard while `run` ran, each `<hook>:module` or `<hook>:bare` (E35 fix
+ * e1-G4; the review's E35-R4): `module` one that left by resource-guard.mjs's trusted roads (`trustedWrite`,
+ * `trustedCreate`, `trustedDelete` stamp `drpgAutomated`), `bare` one that did not - a road outside them, which on a
+ * player's write is the false alarm of the GMs' audit the plan's risk names. A GM's own write is never judged, so the
+ * audit's rows cannot see that road on a GM's click; this can.
+ */
+async function itemWritesDuring(actors, run) {
+    const ids = new Set(actors.map(a => a.id)), seen = [];
+    const note = hook => (item, ...args) => {
+        if (!ids.has(item?.parent?.id)) return;
+        const options = hook === "updateItem" ? args[1] : args[0];
+        seen.push(`${hook}:${options?.drpgAutomated === true ? "module" : "bare"}`);
+    };
+    const hooks = ["createItem", "updateItem", "deleteItem"].map(name => [name, Hooks.on(name, note(name))]);
+    try {
+        await run();
+    } finally {
+        for (const [name, id] of hooks) Hooks.off(name, id);
+    }
+    return seen;
+}
+
+/** `itemWritesDuring`'s answer read as a test reads it: [whether any was heard, the bare ones]. */
+const roadsOf = writes => [writes.length > 0, writes.filter(w => w.endsWith(":bare"))];
+
+/**
  * What of `sent` (`sentDuring`) reached `actor`'s players: [the packets addressed to one of them or to every browser,
  * the card documents whispered to one of them or to every reader, the writes of the actor's items that redraw its
  * sheet]. The players are `ownerIdsOf`'s, the GMs left out; an actor with none would measure nothing.
@@ -61263,7 +61289,7 @@ const SCENARIOS = [
     }, expectedRed("E14", "S08-55: bedroomShut and mayEnterBedroom ask no death or phase; E14 part 1 opens a dead owner's bedroom in Investigation (D15)",
         { failing: "in Investigation a dead student's bedroom stayed shut" })],
 
-    ["a hand-over on transferItem keeps what the GMs hold of the item - broken, wear, roles, identity, kind, category and tier - and leaves the GMs' audit nothing to record (E35-T2, give)", async () => {
+    ["a hand-over on transferItem keeps what the GMs hold of the item - broken, wear, roles, identity, kind, category and tier - and leaves the GMs' audit nothing to record, every item write by the trusted roads (E35-T2, give)", async () => {
         /*
          * E35 C1, 24.10.2026; E35-05, E35-11, E35-12 (the give's rows; the loot's are C2's, the steal's, the rifle's
          * and the Plant's C3's, a player's packet scenario 83's at C5). The plan's risk: a road outside the trusted
@@ -61297,9 +61323,11 @@ const SCENARIOS = [
             want = { tool: carried(tool), kit: carried(kit) };
             must(INV.isBroken(tool) && want.tool[3] === 2 && want.tool[4].includes("crimeTool") && want.kit[5] === "healing" && want.tool[6] && want.kit[6],
                 "the fixture's Tool is not broken, worn and a weapon, or its kit no healing one, or either has no identity - this would measure nothing");
-            ok(await H.giveItem({ fromId: giver.id, toId: taker.id, itemId: tool.id }), "the Tool was not handed over");
-            ok(await H.giveItem({ fromId: giver.id, toId: taker.id, itemId: kit.id }), "the kit was not handed over");
-            await settle();
+            read.roads = roadsOf(await itemWritesDuring([giver, taker], async () => {
+                ok(await H.giveItem({ fromId: giver.id, toId: taker.id, itemId: tool.id }), "the Tool was not handed over");
+                ok(await H.giveItem({ fromId: giver.id, toId: taker.id, itemId: kit.id }), "the kit was not handed over");
+                await settle();
+            }));
             await sheetAuditIdle();
             read.flags = { tool: carried(taker.items.find(i => i.name === NAME)), kit: carried(taker.items.find(i => i.name === KIT)) };
             read.left = [giver.items.some(i => i.name === NAME), giver.items.some(i => i.name === KIT)];
@@ -61311,11 +61339,11 @@ const SCENARIOS = [
             await fixture.back();
             await sheetAuditIdle();
         }
-        equal(stableJson(read), stableJson({ flags: want, left: [false, false], rows: [] }),
-            "a hand-over did not carry what the GMs hold of the item, left it with the giver, or raised a row of the GMs' audit (each copy's [category, tier, broken, wear, roles, kind, identity]; the giver's; the rows)");
+        equal(stableJson(read), stableJson({ flags: want, left: [false, false], rows: [], roads: [true, []] }),
+            "a hand-over did not carry what the GMs hold of the item, left it with the giver, raised a row of the GMs' audit, or wrote an item past the trusted roads (each copy's [category, tier, broken, wear, roles, kind, identity]; the giver's; the rows; [an item write heard, the bare ones])");
     }],
 
-    ["a body's loot on transferItem keeps what the GMs hold of the item and moves one piece of a stack: a broken, worn weapon Tool leaves the body as held, three kits leave two on the body and one with the taker, and the GMs' audit records nothing (E35-T2, loot)", async () => {
+    ["a body's loot on transferItem keeps what the GMs hold of the item and moves one piece of a stack: a broken, worn weapon Tool leaves the body as held, three kits leave two on the body and one with the taker, and the GMs' audit records nothing, every item write by the trusted roads (E35-T2, loot)", async () => {
         /*
          * E35 C2, 24.10.2026; E35-05, E35-11, E35-12 (the loot's rows), S08-37. The harm: a body's stack of three
          * taken by one hand arrived as one and left nothing on the body - two pieces gone from the game, and from the
@@ -61355,9 +61383,11 @@ const SCENARIOS = [
             want = carried(tool);
             must(dead && INV.isBroken(tool) && want[3] === 2 && want[4].includes("crimeTool") && want[6] && pieces(body) === 3,
                 "the body is not dead on a recorded death, or its Tool not broken, worn, a weapon and identified, or its kits no stack of three - this would measure nothing");
-            ok(await lootBody({ takerId: taker.id, bodyId: body.id, itemId: tool.id }), "the Tool was not taken off the body");
-            ok(await lootBody({ takerId: taker.id, bodyId: body.id, itemId: kits.id }), "the kits were not taken off the body");
-            await settle();
+            read.roads = roadsOf(await itemWritesDuring([body, taker], async () => {
+                ok(await lootBody({ takerId: taker.id, bodyId: body.id, itemId: tool.id }), "the Tool was not taken off the body");
+                ok(await lootBody({ takerId: taker.id, bodyId: body.id, itemId: kits.id }), "the kits were not taken off the body");
+                await settle();
+            }));
             await sheetAuditIdle();
             read.flags = carried(taker.items.find(i => i.name === NAME));
             read.left = [body.items.some(i => i.name === NAME), pieces(body)];
@@ -61383,8 +61413,8 @@ const SCENARIOS = [
             await settle();
             await sheetAuditIdle();
         }
-        equal(stableJson(read), stableJson({ flags: want, left: [false, 2], arrived: 1, rows: [] }),
-            "a loot did not carry what the GMs hold of the item, did not move one piece of the body's stack, or raised a row of the GMs' audit (the Tool's copy's [category, tier, broken, wear, roles, kind, identity]; [the body holds the Tool, the kits it keeps]; the kits that arrived; the rows)");
+        equal(stableJson(read), stableJson({ flags: want, left: [false, 2], arrived: 1, rows: [], roads: [true, []] }),
+            "a loot did not carry what the GMs hold of the item, did not move one piece of the body's stack, raised a row of the GMs' audit, or wrote an item past the trusted roads (the Tool's copy's [category, tier, broken, wear, roles, kind, identity]; [the body holds the Tool, the kits it keeps]; the kits that arrived; the rows; [an item write heard, the bare ones])");
     }],
 
     ["a hand-over of a stack moves one piece: three leave two by one write of the count, then one, then the last piece moves whole; a count raised where the GMs do not see it, or put back, moves as they hold it; two asks for one piece move it once; a use landing while the copy is made is counted, a piece broken on the way does not move, and pieces pile on one document of the taker's (E35-T3)", async () => {
@@ -61695,7 +61725,7 @@ const SCENARIOS = [
             "a piece the giver kept after the taker had its copy was not told to the GMs once, in its mode's words ([the mode's lines, the give's (loot), whether the giver holds it or its count, the pieces that arrived, the result's stuck, its left])");
     }],
 
-    ["a Palm's steal, a stash rifled and a Plant on transferItem keep what the GMs hold of the item and move one piece of a stack; a key to a room the thief already holds, lifted or rifled, is not copied; the GMs' audit records nothing (E35-T2, steal, rifle, plant)", async () => {
+    ["a Palm's steal, a stash rifled and a Plant on transferItem keep what the GMs hold of the item and move one piece of a stack; a key to a room the thief already holds, lifted or rifled, is not copied; the GMs' audit records nothing, every item write by the trusted roads (E35-T2, steal, rifle, plant)", async () => {
         /*
          * E35 C3, 24.10.2026; E35-05, E35-09 (the Palm's and the rifle's roads, C0's S08-38 gap), E35-11, S08-37. The
          * harm: a stack of three kits lifted by one hand or taken out of a stash by one reach left nothing behind -
@@ -61745,7 +61775,9 @@ const SCENARIOS = [
             await settle();
             for (const a of [owner, thief]) for (const i of a.items.filter(i => names.includes(i.name))) await i.delete();
         };
-        const backs = [], read = {}, want = {};
+        const backs = [], read = {}, want = {}, writes = [];
+        // Only the roads' own writes: the fixture's raw count and clean-up are not theirs (E35 fix e1-G4).
+        const moving = async fn => { writes.push(...await itemWritesDuring([owner, thief], fn)); };
         try {
             await withStashIn(fixture.room, owner, async () => {
                 backs.push(await handFreeFor(thief, "tool"), await handFreeFor(thief, "usable"));
@@ -61755,9 +61787,11 @@ const SCENARIOS = [
                     want[road] = carried(item);
                     must(item && INV.isBroken(item) && want[road][3] === 2 && want[road][4].includes("crimeTool") && want[road][6] && INV.isStashed(item) === stashed,
                         "the fixture's Tool is not broken, worn, a weapon and identified, or not where it was put - this would measure nothing");
-                    if (run) await run(item);
-                    else await V.plantOnPerson({ plannerId: owner.id, victimId: thief.id, itemId: item.id, ...critical });
-                    await settle();
+                    await moving(async () => {
+                        if (run) await run(item);
+                        else await V.plantOnPerson({ plannerId: owner.id, victimId: thief.id, itemId: item.id, ...critical });
+                        await settle();
+                    });
                     await sheetAuditIdle();
                     read[road] = [carried(thief.items.find(i => i.name === TOOL)), owner.items.some(i => i.name === TOOL)];
                     await clear(TOOL);
@@ -61766,8 +61800,7 @@ const SCENARIOS = [
                     const item = await kits(stashed);
                     await sheetAuditIdle();
                     must(item && pieces(owner) === 3 && INV.isStashed(item) === stashed, "the fixture's kits are no stack of three where they were put - this would measure nothing");
-                    await run(item);
-                    await settle();
+                    await moving(async () => { await run(item); await settle(); });
                     read[road] = [pieces(owner), pieces(thief)];
                     await clear(KIT);
                 }
@@ -61790,8 +61823,7 @@ const SCENARIOS = [
                     const theirs = await key(owner, stashed);
                     await sheetAuditIdle();
                     must(mine && theirs && keys(thief) === 1 && keys(owner) === 1, "the two do not each hold one key to the room - this would measure nothing");
-                    await run(theirs);
-                    await settle();
+                    await moving(async () => { await run(theirs); await settle(); });
                     read[road] = [keys(thief), keys(owner)];
                     for (const i of owner.items.filter(i => i.name === KEY)) await i.delete();
                     for (const i of thief.items.filter(i => i.name === KEY && i.id !== mine.id)) await i.delete();
@@ -61799,6 +61831,7 @@ const SCENARIOS = [
                 await sheetAuditIdle();
                 read.rows = Object.values(sheetWriteStore.entries() ?? {}).filter(row => [owner.id, thief.id].includes(row?.actorId) && row.at >= from)
                     .map(row => `${row.verdict}:${Object.keys(row.change ?? {}).join(",")}`);
+                read.roads = roadsOf(writes);
             });
         } finally {
             await clear(TOOL, KIT, KEY);
@@ -61808,8 +61841,8 @@ const SCENARIOS = [
         }
         const moved = road => [want[road], false];
         equal(stableJson(read), stableJson({ steal: moved("steal"), rifle: moved("rifle"), plant: moved("plant"), stealStack: [2, 1], rifleStack: [2, 1], concealed: [3, 0],
-            stealKey: [1, 0], rifleKey: [1, 0], rows: [] }),
-            "a steal, a rifle or a Plant did not carry what the GMs hold of the item, did not move one piece of a stack, copied a key the thief held, or raised a row of the GMs' audit (per road: the Tool's copy's [category, tier, broken, wear, roles, kind, identity] and the first still holds it; the kits left and arrived, a concealed stash's too; the thief's keys to the room and the first's; the rows)");
+            stealKey: [1, 0], rifleKey: [1, 0], rows: [], roads: [true, []] }),
+            "a steal, a rifle or a Plant did not carry what the GMs hold of the item, did not move one piece of a stack, copied a key the thief held, raised a row of the GMs' audit, or wrote an item past the trusted roads (per road: the Tool's copy's [category, tier, broken, wear, roles, kind, identity] and the first still holds it; the kits left and arrived, a concealed stash's too; the thief's keys to the room and the first's; the rows; [an item write heard, the bare ones])");
     }],
 
     ["a Plant into full pockets is refused, seen or unseen, with a stash or none: the item stays with the planter, who reads that it does, and nothing reaches the victim - no card, no packet, no redraw; two Plants at once into one free hand, one goes in (E35-T6, D42)", async () => {
