@@ -1497,7 +1497,8 @@ export async function rifleStashDialog(actor) {
 
     const { requestVaultSteal } = await import("./gm-bridge.mjs");
     const res = await requestVaultSteal({ thiefId: actor.id, ownerId, itemId });
-    return res.ok;
+    // A GM's own click settles as done with the refusal as its value, told already (E14 fix e1-G1).
+    return res.ok && !res.value?.refused;
 }
 
 /**
@@ -1539,8 +1540,20 @@ export async function stealFromVault({
     const thief = game.actors.get(thiefId);
     const owner = game.actors.get(ownerId);
     const item = owner?.items?.get(itemId);
+    /*
+     * THE STASH'S OWN REFUSALS ARE TOLD TOO (E14 fix e1-G1, 24.10.2026; the review's E14R-3, E14R-03, E14R-06). Until this
+     * fix each of them below returned nothing and was the GM's log alone: a player whose pick was taken out of the
+     * stash, or hidden, or who walked out between opening the window and pressing Take, got no item and no word, as
+     * the bridge had answered the packet already (S08-20). Each now hands the bridge a reason of the closed list:
+     * `notThere` for a thief standing in no room, `missing` for everything about the stash and the thing - and a stash
+     * of nobody's here, a hidden one not found and a thing not in the stash read alike, so a forged packet learns no
+     * more of a hiding place than that nothing is there. The GM's log keeps which it was. A thief and an owner the
+     * bridge names are characters (`owns`); an owner gone meanwhile is the closed list's own "no such character".
+     * Measured: tier 2 "the rifle's own refusals are told".
+     */
+    if (!thief || !owner) return { refused: "no such character" };
     // Whether it is stashed, and where, is asked below of the item as the GMs hold it (fix r2-H17).
-    if (!thief || !owner || !item) return null;
+    if (!item) return { refused: "no such thing in that stash" };
 
     // The dead rob nobody, and nobody rifles a stash in an Eclipse or a Class Trial. A socket payload is a claim, and
     // this side is the one that decides: the one gate (inventory.mjs `transferRefusal`, mode "rifle"; E14 part 1 C1),
@@ -1574,7 +1587,10 @@ export async function stealFromVault({
         return null;
     };
 
-    if (!where?.room) return refuse("they are not standing in any room");
+    if (!where?.room) {
+        refuse("they are not standing in any room");
+        return { refused: "the character is not standing in any room" };
+    }
 
     /*
      * "IS THERE A STASH OF THEIRS HERE", not "is this their bedroom".
@@ -1586,7 +1602,8 @@ export async function stealFromVault({
      */
     const entry = stashIn(where.room, owner.id, where.scene);
     if (!entry) {
-        return refuse(`"${where.room}" holds no stash of ${owner.name}'s`);
+        refuse(`"${where.room}" holds no stash of ${owner.name}'s`);
+        return { refused: "no such stash where the character stands" };
     }
 
     /*
@@ -1623,7 +1640,9 @@ export async function stealFromVault({
         const { isMastermind } = await import("./mastermind.mjs");
         if (!isMastermind(thief)
             && !hasFoundStash(thief, where.room, owner.id, where.scene)) {
-            return refuse("that stash is concealed and has to be found first");
+            // Told as a stash nobody has here: the hiding place is not named to one who has not found it.
+            refuse("that stash is concealed and has to be found first");
+            return { refused: "no such stash where the character stands" };
         }
     }
 
@@ -1637,12 +1656,16 @@ export async function stealFromVault({
     const { itemAsHeld, judgedFor, creationRefusal } = await import("./sheet-audit.mjs");
     await judgedFor(owner.id, thief.id);
     const held = await itemAsHeld(owner, item.id);
-    if (!held || !isStashed(held)) return null;
+    if (!held || !isStashed(held)) {
+        refuse(`"${item.name}" is not in a stash of ${owner.name}'s`);
+        return { refused: "no such thing in that stash" };
+    }
 
     // And the thing has to be in THAT stash, not merely in one of theirs
     // somewhere on the map - the same distinction `retrieve` makes.
     if (stashRoomOfItem(held, owner, where.scene) !== where.room) {
-        return refuse(`"${held.name}" is not in the stash in "${where.room}"`);
+        refuse(`"${held.name}" is not in the stash in "${where.room}"`);
+        return { refused: "no such thing in that stash" };
     }
     // An item the owner's player made that no GM has decided on yet is taken by nobody, and the thief told (E29 fix
     // r2-H21, sheet-audit.mjs `creationRefusal`).
@@ -1669,6 +1692,10 @@ export async function stealFromVault({
         const mark = rifleMark();
         if (rifleStore.get(reach)?.at === mark) {
             refuse("that stash has been gone through already this time of day");
+            /* The code's words are the closed list's, "That has already been settled.", which say neither what nor when
+               (E14 fix e1-G1; the review's E14R-04): the thief's player is whispered both, beside the code. */
+            await whisperToOwner(thief, `<p>${game.i18n.format("DRPG.Vault.rifledAgain",
+                { who: foundry.utils.escapeHTML(owner.name) })}</p>`).catch(() => {});
             return { refused: "that stash has been gone through already this time of day" };
         }
         // The store's own copy takes the row as `patch` is called, before its save is awaited.
@@ -1691,8 +1718,8 @@ export async function stealFromVault({
     if (!moved?.ok) await unreach();
     // Refused by the one gate on its second asking (the lights went out meanwhile): told by its code, not as full hands.
     if (moved?.refused) return { refused: moved.refused };
-    // Gone by its turn - a second reach for the same piece: nothing to say that the first did not.
-    if (moved?.missing) return null;
+    // Gone by its turn - another reach for the same piece took it first: told as a thing no longer there (E14 fix e1-G1).
+    if (moved?.missing) return { refused: "no such thing in that stash" };
     if (!moved?.ok) {
         // Full hands and no stash of their own, or not written: the thief is told, or the Search card that follows
         // says "what comes out settles in a moment" and nothing ever does (ROLL-10).

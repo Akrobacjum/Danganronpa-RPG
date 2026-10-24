@@ -2088,8 +2088,9 @@ async function searchStash(actor, def, roll, { room, scene, category, goalKey, t
         // module uses: Despair, and a critical is never clumsy.
         clumsy: Boolean(roll.withFear) && !roll.isCritical
     });
-    // What came out, on a GM's own client; that the GM has it, on a player's; null when not carried out.
-    const got = res.ok ? (game.user.isGM ? res.value : { pending: true }) : null;
+    // What came out, on a GM's own client; that the GM has it, on a player's; null when not carried out - and on a GM's
+    // own client a refusal settles as done with `{ refused }` as its value, told already (E14 fix e1-G1).
+    const got = res.ok && !res.value?.refused ? (game.user.isGM ? res.value : { pending: true }) : null;
 
     await noteRollContext(actor, {
         actionKey: "search", room, category, goal: goalKey, tier, fromVault: true

@@ -63036,6 +63036,104 @@ const SCENARIOS = [
             + "then each of season, chapter, session, day, time of day in it])");
     }],
 
+    ["the rifle's own refusals are told: a thing its owner took out, one in a stash of another room, a stash of nobody's here and a hidden one not found each read 'missing', alike, and a thief standing in no room 'notThere'; a second reach in a time of day is told in its own words why (E14-T5, S08-20, S08-06)", async () => {
+        /*
+         * E14 fix e1-G1, 24.10.2026; the review's E14R-3, E14R-03, E14R-06 and E14R-04. C1 and C4 told the thief the one
+         * gate's refusals and the count's, and every refusal of the stash's own was the GM's log only: a player who opened
+         * Rifle, and whose pick was taken out by its owner, hidden or walked away from before Take, got nothing, no item
+         * and no word (S08-20). And the count's refusal read only the closed list's "That has already been settled.",
+         * which says neither what nor when. A connected player's character in a named room; another character's open
+         * stash there, and a third's, first with no stash in the room and then a concealed one. Judged as the bridge
+         * judges that player's `vault.steal` packets: a thing its owner took out of the stash; one in that owner's stash
+         * of another room; a thing of the third's in a room that holds no stash of theirs; the third's concealed stash,
+         * never found; a first reach that takes; a second; and with the thief's token moved to a spot no room covers.
+         * Read: each reach's code (null: no refusal) and whether the thing is still the owner's, and for the second reach
+         * how many of the private cards sent to the thief's player carry `DRPG.Vault.rifledAgain`'s words (`sentDuring`). A stash nobody
+         * has and a hidden one not found are told alike: a forged packet learns no more of a hiding place than nothing.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the stashes are in the room the player's character stands in");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which serves a player's packet - this would measure nothing");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const { roomAt } = await import("./movement.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { player, actor: thief, where } = await playerInRoom();
+        const [first, second] = game.actors.filter(a => a.type === "character" && a.id !== thief.id);
+        must(first && second, "the world has no two other characters to own the stashes");
+        const region = V.regionsByName(where.scene).get(where.room);
+        must(region, `the room ${where.room} has no region to keep a stash in`);
+        const token = where.tokenDoc, NAME = "SUITE E14 fix e1-G1", ELSEWHERE = "SUITE E14 fix e1-G1 another room";
+        const step = where.scene.grid?.size || 100;
+        let spot = null;
+        for (let y = 0; !spot && y < where.scene.height; y += step) {
+            for (let x = 0; !spot && x < where.scene.width; x += step) if (!roomAt(x, y, token)) spot = { x, y };
+        }
+        must(spot, `every spot of ${where.scene.name} is in a room - the thief could not stand in none`);
+        const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
+        const before = keys.map(k => foundry.utils.deepClone(region.getFlag(MODULE_ID, k)));
+        const stashes = list => region.update({ [`flags.${MODULE_ID}.${V.VAULT_FLAGS.stashes}`]: list,
+            [`flags.${MODULE_ID}.${V.VAULT_FLAGS.hinders}`]: [], [`flags.${MODULE_ID}.${V.VAULT_FLAGS.favours}`]: [] });
+        const stash = async (owner, n, room = where.room) => INV.grantItem(owner, { name: `${NAME} ${owner.id} ${n}`, category: "usable", tier: 1,
+            override: true, quiet: true, location: INV.LOCATIONS.vault, extraFlags: { [INV.ITEM_FLAGS.stashRoom]: room } });
+        const words = game.i18n.format("DRPG.Vault.rifledAgain", { who: foundry.utils.escapeHTML(first.name) });
+        const told = [];
+        const reach = async (owner, item) => {
+            const from = told.length;
+            await G.judge(BRIDGE_ACTIONS, { action: "vault.steal", requestId: `E14G1${foundry.utils.randomID(8)}`, thiefId: thief.id, ownerId: owner.id,
+                itemId: item.id }, player.id, { send: (to, reply) => { if (reply?.action === "bridge.refused") told.push(reply.reason); } });
+            await settle();
+            await sheetAuditIdle();
+            const out = [told.slice(from)[0] ?? null, owner.items.has(item.id)];
+            for (const i of thief.items.filter(i => i.name.startsWith(NAME))) await i.delete();
+            return out;
+        };
+        const was = { x: token.x, y: token.y };
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const read = {};
+        let back = null;
+        try {
+            await forgetRifles(thief);
+            await stashes([{ actorId: first.id, concealed: false }]);
+            back = await handFreeFor(thief, "usable");
+            const [a1, a2, a3, a4, b1] = [await stash(first, 1), await stash(first, 2, ELSEWHERE), await stash(first, 3), await stash(first, 4),
+                await stash(second, 1)];
+            must([a1, a2, a3, a4, b1].every(Boolean), "a thing of the fixture's was not made - this would measure nothing");
+            await sheetAuditIdle();
+            await a1.update({ [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.location}`]: INV.LOCATIONS.carried });
+            await sheetAuditIdle();
+            read.takenOut = await reach(first, a1);
+            read.elsewhere = await reach(first, a2);
+            read.nobodys = await reach(second, b1);
+            await stashes([{ actorId: first.id, concealed: false }, { actorId: second.id, concealed: true }]);
+            await settle();
+            read.hidden = await reach(second, b1);
+            read.first = await reach(first, a3);
+            let again = null;
+            const sent = await sentDuring(async () => { again = await reach(first, a4); });
+            read.again = [...again, sent.packets.filter(p => (p.to === null || p.to.includes(player.id)) && p.html.includes(words)).length];
+            await token.update(spot, PLACE);
+            await settle();
+            read.nowhere = await reach(first, a4);
+        } finally {
+            if (token.x !== was.x || token.y !== was.y) await token.update(was, PLACE);
+            await forgetRifles(thief);
+            for (const a of [first, second, thief]) for (const i of a.items.filter(i => i.name.startsWith(NAME))) await i.delete();
+            if (back) await back();
+            await region.update(Object.fromEntries(keys.map((k, i) => [`flags.${MODULE_ID}.${k}`, before[i] === undefined ? forcedDeletion() : before[i]])));
+            await sheetAuditIdle();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ takenOut: ["missing", true], elsewhere: ["missing", true], nobodys: ["missing", true],
+            hidden: ["missing", true], first: [null, false], again: ["alreadyDone", true, 1], nowhere: ["notThere", true] }),
+            "a stash's own refusal was not told to the thief, or told apart where it must not be ([code, still the owner's] per reach: a thing taken "
+            + "out of the stash, one in a stash of another room, a stash of nobody's here, a hidden one not found, a first reach, a second "
+            + "[and the whispers in rifledAgain's words], the thief in no room)");
+    }],
+
     ["a discard's trace is filed by the GM: Tamper in an Investigation, or for a side of the running incident, preparation for anyone else, whatever type the packet names (E14-T7, S08-13)", async () => {
         /*
          * E14 part 1 C5, 24.10.2026; E14-16, audit S08-13. The harm: the type of a broken thing's trace was the packet's

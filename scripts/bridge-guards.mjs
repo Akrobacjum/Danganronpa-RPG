@@ -305,10 +305,14 @@ export const REASON_PATTERNS = Object.freeze([
     ["alreadyDone", /^that Frisk ask has been answered already$/],
     // E14 part 1 C4: a stash's free reach, once a time of day per thief (vault.mjs `stealFromVault`).
     ["alreadyDone", /^that stash has been gone through already this time of day$/],
+    // E14 fix e1-G1: the stash's own refusals (vault.mjs `stealFromVault`); a hidden stash not found reads as none here.
+    ["missing", /^no such stash where the character stands$/],
+    ["missing", /^no such thing in that stash$/],
     ["cannotFrame", /^that student cannot be framed$/],
     ["notThere", /^the body is not in the killer's room$/],
     ["notThere", /^the character has no token on a scene$/],
     ["notThere", /^the character is not in that room$/],
+    ["notThere", /^the character is not standing in any room$/],
     // E32+E07 C11d: a statistic ruling for a project the sender cannot see, or the character cannot reach (guardTraitRuling).
     ["notThere", /^that project is not one the character can work on or break here$/],
     ["notThere", /^the character is not in ".*": .+$/],
