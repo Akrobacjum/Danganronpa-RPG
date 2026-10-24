@@ -7851,6 +7851,9 @@ const REGRESSIONS = [
          * `judgedFor` of the named victim and reads `flagsHeldNow` itself, so the reader sees it; the test
          * failed on it in the fast set of 11.10.2026 (e11run/r2j1: `unclassified` held exactly that one
          * place) and passed once the row was in.
+         * E14 part 1 C4 (24.10.2026) added one STORE, gm-stores.mjs `rifleStore` (the stashes rifled, D15),
+         * cut by the reset's `stashesFound` group: on the harness that day this test read 76 places (28 PACKET,
+         * 4 SOCKET, 1 CHAT, 34 SHEET, 9 STORE) against the 76 rows.
          * The reader is run first on a fixture with a packet of each family and of none, an inline
          * socket arrow, a judged reader, a reader whose flag is only in a comment, a chat reader
          * without a row, a declaration of a named file that is not named, a store and a stale row.
@@ -7930,7 +7933,8 @@ const REGRESSIONS = [
             ["STORE gm-stores.mjs#offerStore", "not a source: a GM store cut by `advancement` (E04); 65 R reads 0 offers after the reset. (E11 C0)"],
             ["STORE gm-stores.mjs#deferredOfferStore", "not a source: a GM store cut by `advancement` (E04) (E11 C0)"],
             ["STORE projects-secrecy.mjs#projectMeta", "not a source: a world setting only a GM writes; C8 adds `mapHidden` (set by the primary's `deleteToken` hook for a project token the module did not delete) and makes `onProjectTokenMoved` write it on the primary only, never for an orphan (E11 C8)"],
-            ["STORE settings.mjs#clock", "not a source: a world setting only a GM writes; `finalTrial`/`season`/`seasonStartedAt` per E10 C10 and `resetCutPatch`; C6's Edit campaign asks before the irreversible effects. (E11 C6)"]
+            ["STORE settings.mjs#clock", "not a source: a world setting only a GM writes; `finalTrial`/`season`/`seasonStartedAt` per E10 C10 and `resetCutPatch`; C6's Edit campaign asks before the irreversible effects. (E11 C6)"],
+            ["STORE gm-stores.mjs#rifleStore", "not a source: a GM store (E14 part 1 C4, D15), written and read by the GM that serves a stash's free reach (vault.mjs `stealFromVault`); cut by the reset's `stashesFound` group, and its time-of-day mark carries the season's epoch (`rifleMark`), so a kept row of last season counts nothing (tier 2 E14-T5)"]
         ];
         const ROADS = /^(?:advancement\.apply|call\.arm|token\.sendBack|project\.\w+|vault\.findStash)$/;
         const FILES = ["chapter.mjs", "character.mjs", "season-setup.mjs", "call-world.mjs", "projects.mjs", "projects-map.mjs", "projects-secrecy.mjs", "eclipse.mjs"];
@@ -7949,7 +7953,7 @@ const REGRESSIONS = [
         const CHAT = /\b(?:m|msg|message|chatMessage)\??\.getFlag\(\s*MODULE_ID\s*,|\b(?:m|msg|message)\??\.speaker\??\.actor\b/;
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
         const STORES = [["settings.mjs", "bodyFound"], ["settings.mjs", "bodiesFound"], ["gm-stores.mjs", "deathStore"], ["gm-stores.mjs", "blackenedStore"], ["gm-stores.mjs", "offerStore"],
-            ["gm-stores.mjs", "deferredOfferStore"], ["projects-secrecy.mjs", "projectMeta"], ["settings.mjs", "clock"]];
+            ["gm-stores.mjs", "deferredOfferStore"], ["projects-secrecy.mjs", "projectMeta"], ["settings.mjs", "clock"], ["gm-stores.mjs", "rifleStore"]];
         const censusOf = (bridge, sources) => {
             const found = [];
             for (const [action, decl] of Object.entries(bridge)) {

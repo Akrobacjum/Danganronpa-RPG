@@ -1489,6 +1489,25 @@ export async function rifleStashDialog(actor) {
 }
 
 /**
+ * ONE FREE REACH A TIME OF DAY (E14 part 1 C4, 24.10.2026; audit S08-06, the owner's D15: "jeden rifle na postac na
+ * skrytke na pore dnia"). Until 1.2.83 the window said "Take one thing" and nothing counted: a player at an open
+ * stash clicked Rifle again and again and carried it all off, free and unnoticed. `rifleKey` is a thief's row in the
+ * GMs' store of reaches (gm-stores.mjs `rifleStore`): per stash, so a second stash in the same room is a reach of its
+ * own, and by scene and room, so a same-named room on another map is another stash. `rifleMark` is the time of day
+ * a reach was made in: the season's epoch (`seasonStartedAt`, as `seasonEpoch` reads it), so a reset that keeps the
+ * rows does not carry the old season's first morning into the new one's, and the chapter, session, day and time of
+ * day - not the phase, so an Investigation that opens in the afternoon does not open a stash the afternoon's Daily
+ * Life already went through. Pure, but for `rifleMark`'s default: the clock as it stands.
+ */
+export function rifleKey(thiefId, ownerId, sceneId, room) {
+    return `${thiefId}:${ownerId}:${sceneId ?? ""}:${room}`;
+}
+
+export function rifleMark(clock = getClock()) {
+    return [clock?.seasonStartedAt ?? 0, clock?.chapter ?? 1, clock?.session ?? 0, clock?.day ?? 1, clock?.timeOfDay ?? ""].join(".");
+}
+
+/**
  * Take one thing out of a stash that is not yours. GM-side: it writes to the
  * owner's sheet and to the thief's.
  *
@@ -1622,6 +1641,30 @@ export async function stealFromVault({
     }
 
     /*
+     * ONCE A TIME OF DAY (E14 part 1 C4; D15). The drawer's free route only: a Search's find (`viaSearch`, which the
+     * bridge reads off the GMs' record of the Search's roll - gm-bridge.mjs `searchTheftOf`) paid an action for its
+     * reach, and neither asks the count nor writes it. The Mastermind is counted as anyone is: their exception is the
+     * hiding place, not the hand. Asked after every wait above and stamped with no wait between, so of two reaches
+     * served at once on one GM the second finds the first's stamp (read in the code; no test drives two at once); the
+     * stamp is taken off again when nothing came out, so a reach that moved nothing - full hands and no stash, a piece
+     * already gone - costs nothing (tier 2 E35-T10 rifles a stash into full hands, then again with a stash). The thief
+     * is told `alreadyDone` (tier 2 E14-T5).
+     */
+    const { rifleStore } = await import("./gm-stores.mjs");
+    const reach = viaSearch ? null : rifleKey(thief.id, owner.id, where.scene?.id, where.room);
+    if (reach) {
+        await rifleStore.whenHydrated();
+        const mark = rifleMark();
+        if (rifleStore.get(reach)?.at === mark) {
+            refuse("that stash has been gone through already this time of day");
+            return { refused: "that stash has been gone through already this time of day" };
+        }
+        // The store's own copy takes the row as `patch` is called, before its save is awaited.
+        await rifleStore.patch(reach, { at: mark });
+    }
+    const unreach = async () => { if (reach && rifleStore.get(reach)?.at === rifleMark()) await rifleStore.drop(reach); };
+
+    /*
      * ON THE ONE ROAD (E35 C3; S17-16, S08-37, S08-34, S08-38): the copy, the count, the flags it carries - a ruined
      * thing lifted out of a drawer stays ruined, or hiding one there and having it lifted would launder a broken
      * murder weapon - and the hands it lands in are inventory.mjs `transferItem`'s. Full hands put it in the thief's
@@ -1633,6 +1676,7 @@ export async function stealFromVault({
     const { transferItem } = await import("./inventory.mjs");
     const name = held.name;
     const moved = await transferItem(owner, thief, held, { mode: "rifle", quiet: !clumsy });
+    if (!moved?.ok) await unreach();
     // Refused by the one gate on its second asking (the lights went out meanwhile): told by its code, not as full hands.
     if (moved?.refused) return { refused: moved.refused };
     // Gone by its turn - a second reach for the same piece: nothing to say that the first did not.

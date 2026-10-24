@@ -2364,6 +2364,17 @@ async function withStashIn(room, owner, run) {
 }
 
 /**
+ * The GMs' memory of `thief`'s free reaches into stashes, forgotten (E14 part 1 C4): a stash is rifled once a time of
+ * day per thief (vault.mjs `stealFromVault`, gm-stores.mjs `rifleStore`; D15), so a test of a rifle's mechanics that
+ * reaches into one stash more than once in a time of day forgets the reach before the next. Tier 2's restore puts
+ * the store's setting back as it found it either way.
+ */
+async function forgetRifles(thief) {
+    const { rifleStore } = await import("./gm-stores.mjs");
+    for (const key of Object.keys(rifleStore.entries()).filter(k => k.startsWith(`${thief.id}:`))) await rifleStore.drop(key);
+}
+
+/**
  * What this client put out while `run` ran (E35 C3), to be read per student by `reachedPlayersOf`: each packet it
  * emitted - its action, its recipients (null: every browser) and a private card's words - each card document made, with
  * its whisper list (empty: every reader), and each write of an item, the actor it is on and whether it redraws a sheet
@@ -61826,7 +61837,8 @@ const SCENARIOS = [
             ...(stashed ? stash : {}), extraFlags: { [BEDROOM_KEY_FLAG]: ROOM, ...(stashed ? stash.extraFlags : {}) } });
         const critical = { total: 30, isCritical: true, unseenTotal: 30, unseenCritical: true };
         const steal = item => V.stealFromPerson({ thiefId: thief.id, victimId: owner.id, itemId: item.id, ...critical });
-        const rifle = item => V.stealFromVault({ thiefId: thief.id, ownerId: owner.id, itemId: item.id });
+        // A stash is rifled once a time of day per thief (E14 part 1 C4): each reach here is the first of its own.
+        const rifle = async item => { await forgetRifles(thief); return V.stealFromVault({ thiefId: thief.id, ownerId: owner.id, itemId: item.id }); };
         const clear = async (...names) => {
             await settle();
             for (const a of [owner, thief]) for (const i of a.items.filter(i => names.includes(i.name))) await i.delete();
@@ -62101,6 +62113,8 @@ const SCENARIOS = [
                     if (item && count !== 1) await item.update({ [COUNT]: count });
                     await sheetAuditIdle();
                     must(item && INV.isStashed(item), "the fixture's item is not in the stash - this would measure nothing");
+                    // A stash is rifled once a time of day per thief (E14 part 1 C4): each reach here is the first of its own.
+                    await forgetRifles(thief);
                     const sent = await sentDuring(async () => {
                         await V.stealFromVault({ thiefId: thief.id, ownerId: owner.id, itemId: item.id, clumsy });
                         await settle();
@@ -62893,6 +62907,109 @@ const SCENARIOS = [
             + "[the windows opened, the kit's count, the tool readied, the broken tool still there, the kit stashed, the kept thing still stashed]");
         equal(stableJson([read.use, read.retrieve]), stableJson(["flagged", true]),
             "the GMs let a dead student's write stand: [a player's use of a kit (its Health flagged, not covered), the stashed thing still in the stash after a player's retrieve]");
+    }],
+    ["a stash is rifled once a time of day per thief, stash and owner: the second reach is told alreadyDone and takes nothing, another stash in the room or a new time of day opens again, a Search's find and its roll are not counted, a claimed Search with no roll is refused, the Mastermind is counted too, and the stamp is the GMs' (E14-T5, S08-06, D15)", async () => {
+        /*
+         * E14 part 1 C4, 24.10.2026; E14-14, D15 ("jeden rifle na postac na skrytke na pore dnia"). The harm: a player
+         * standing at an open stash clicked Rifle three times and carried the whole stash off, free, and nobody was told
+         * (S08-06); the "Take one thing" on the window promised a limit nothing kept. A connected player's character in a
+         * named room, two other characters each with a stash there (the second's concealed later) and two or three things
+         * in each. Judged as the bridge judges that player's `vault.steal` packets: a first reach into the first stash; a
+         * second; a reach into the second stash; a packet saying a Search paid for it and naming no roll (the bridge's
+         * `rolled` row, mutant r1); a Search's find as the GM serves it (`viaSearch`, read off the GMs' record by
+         * `searchTheftOf` on the bridge); the first stash again once its stamp names another time of day; the second
+         * stash, concealed, with the thief made the Mastermind (who may open it unfound, and is counted all the same).
+         * Read: each reach's code (null: no refusal) and whether the thing is still in the stash, the stamps' store
+         * (its reset group, synced, the thief's rows) and the time-of-day mark of a clock against its neighbours. Red at
+         * 7a766612 (c4-red.log): the second reach took the second thing and nothing was stamped.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the stashes are in the room the player's character stands in");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which serves a player's packet - this would measure nothing");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const S = await import("./gm-stores.mjs");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const MM = await import("./mastermind.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { player, actor: thief, where } = await playerInRoom();
+        const [first, second] = game.actors.filter(a => a.type === "character" && a.id !== thief.id);
+        must(first && second, "the world has no two other characters to own the stashes");
+        const region = V.regionsByName(where.scene).get(where.room);
+        must(region, `the room ${where.room} has no region to keep a stash in`);
+        const NAME = "SUITE E14-T5", rifles = S.rifleStore ?? null;
+        const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
+        const before = keys.map(k => foundry.utils.deepClone(region.getFlag(MODULE_ID, k)));
+        const pickBefore = S.mastermindStore.record()?.actorId ?? null;
+        const stashes = concealed => region.update({ [`flags.${MODULE_ID}.${V.VAULT_FLAGS.stashes}`]: [{ actorId: first.id, concealed: false },
+            { actorId: second.id, concealed }], [`flags.${MODULE_ID}.${V.VAULT_FLAGS.hinders}`]: [], [`flags.${MODULE_ID}.${V.VAULT_FLAGS.favours}`]: [] });
+        const stash = async (owner, n) => {
+            const item = await INV.grantItem(owner, { name: `${NAME} ${owner.id} ${n}`, category: "usable", tier: 1, override: true, quiet: true,
+                location: INV.LOCATIONS.vault, extraFlags: { [INV.ITEM_FLAGS.stashRoom]: where.room } });
+            must(item && V.stashItemsIn(owner, where.room, where.scene).some(i => i.id === item.id), `${owner.name}'s thing is not in the stash - this would measure nothing`);
+            return item;
+        };
+        const mine = () => rifles ? Object.keys(rifles.entries()).filter(k => k.startsWith(`${thief.id}:`)) : [];
+        const told = [];
+        const reach = async (owner, item, extra = {}) => {
+            const from = told.length;
+            await G.judge(BRIDGE_ACTIONS, { action: "vault.steal", requestId: `E14T5${foundry.utils.randomID(8)}`, thiefId: thief.id, ownerId: owner.id,
+                itemId: item.id, ...extra }, player.id, { send: (to, reply) => { if (reply?.action === "bridge.refused") told.push(reply.reason); } });
+            await settle();
+            await sheetAuditIdle();
+            const out = [told.slice(from)[0] ?? null, owner.items.has(item.id)];
+            for (const i of thief.items.filter(i => i.name.startsWith(NAME))) await i.delete();
+            return out;
+        };
+        const read = {};
+        let back = null;
+        try {
+            await stashes(false);
+            back = await handFreeFor(thief, "usable");
+            const [a1, a2, b1, b2] = [await stash(first, 1), await stash(first, 2), await stash(second, 1), await stash(second, 2)];
+            await sheetAuditIdle();
+            read.first = await reach(first, a1);
+            read.again = await reach(first, a2);
+            read.other = await reach(second, b1);
+            read.claimed = await reach(first, a2, { viaSearch: true });
+            const stamps = () => mine().map(k => rifles.stampOf(k)).join(",");
+            const was = [mine().length, stamps()];
+            await V.stealFromVault({ thiefId: thief.id, ownerId: first.id, itemId: a2.id, viaSearch: true });
+            await settle();
+            await sheetAuditIdle();
+            read.search = [first.items.has(a2.id), mine().length === was[0] && stamps() === was[1]];
+            for (const i of thief.items.filter(i => i.name.startsWith(NAME))) await i.delete();
+            // The first stash's stamp of another time of day: the clock is not moved (its hooks are a day's, not this test's).
+            const key = mine().find(k => k.startsWith(`${thief.id}:${first.id}:`));
+            if (key) await rifles.patch(key, { at: V.rifleMark({ ...getClock(), timeOfDay: getClock().timeOfDay === "night" ? "morning" : "night" }) });
+            read.later = await reach(first, await stash(first, 3));
+            await stashes(true);
+            must(await MM.setMastermind(thief), `${thief.name} was not made the Mastermind - this would measure nothing`);
+            await settle();
+            read.mastermind = await reach(second, b2);
+            read.store = rifles ? [rifles.spec.resetGroup, rifles.spec.sync, mine().length] : null;
+            const clock = { ...getClock(), seasonStartedAt: 5, chapter: 2, session: 3, day: 4, timeOfDay: "afternoon", phase: "dailyLife" };
+            const mark = c => V.rifleMark?.(c) ?? null;
+            read.mark = [mark({ ...clock, phase: "investigation" }) === mark(clock),
+                ...[{ seasonStartedAt: 6 }, { chapter: 3 }, { session: 4 }, { day: 5 }, { timeOfDay: "night" }].map(d => mark({ ...clock, ...d }) !== mark(clock))];
+        } finally {
+            if ((S.mastermindStore.record()?.actorId ?? null) !== pickBefore) await S.mastermindStore.patch("record", { actorId: pickBefore });
+            for (const k of mine()) await rifles.drop(k);
+            for (const a of [first, second, thief]) for (const i of a.items.filter(i => i.name.startsWith(NAME))) await i.delete();
+            if (back) await back();
+            await region.update(Object.fromEntries(keys.map((k, i) => [`flags.${MODULE_ID}.${k}`, before[i] === undefined ? forcedDeletion() : before[i]])));
+            await sheetAuditIdle();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ first: [null, false], again: ["alreadyDone", true], other: [null, false], claimed: ["rollUnknown", true],
+            search: [false, true], later: [null, false], mastermind: ["alreadyDone", true], store: ["stashesFound", true, 2],
+            mark: [true, true, true, true, true, true] }),
+            "a stash was rifled more than once a time of day, or not again once that passed ([code, still stashed] per reach: the first, a second of "
+            + "that stash, another stash, a Search claimed with no roll, a Search's find [still stashed, the stamps untouched], a new time of day, "
+            + "the Mastermind at the concealed second stash; the store's [reset group, synced, the thief's rows]; the mark [the phase not in it, "
+            + "then each of season, chapter, session, day, time of day in it])");
     }],
 
     ...GRID

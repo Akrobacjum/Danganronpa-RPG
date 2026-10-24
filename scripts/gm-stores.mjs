@@ -813,6 +813,24 @@ export const usedToolStore = defineGmStore({
 });
 
 /**
+ * THE STASHES RIFLED (E14 part 1 C4, 24.10.2026; audit S08-06, the owner's D15: one rifle a character, a stash and a
+ * time of day). A row per thief and stash, keyed `<thief>:<owner>:<scene>:<room>` (vault.mjs `rifleKey`): `{ at }`, the
+ * time of day of the thief's last free reach into that stash (`rifleMark`: the season, chapter, session, day and time
+ * of day), which a second reach of the same mark is refused on (`stealFromVault`, as `alreadyDone`). A Search's find
+ * writes and reads none: it paid an action for its reach. The audit's fix named an actor flag (`FLAGS.rifled`) on
+ * the thief, which the thief's own console could clear - the GMs' memory instead (design note 14). Written and read
+ * by the GM that serves the reach, synced so that another GM serves the next one alike; not backed up: a row is worth
+ * one time of day, and a restore that lost one gives one reach back. Cut by the reset's "stashesFound" group with the
+ * hiding places found, and a row of another season reads as another time of day. No player copy - R182 has nothing to
+ * ask of it - and no old key.
+ */
+export const rifleStore = defineGmStore({
+    name: "rifles", key: SETTINGS.gmRifles,
+    kind: "ledger", resetGroup: "stashesFound", backup: false, sync: true,
+    exists: key => Boolean(game.actors?.has(String(key).split(":")[0]))
+});
+
+/**
  * THE OFFERS COPY'S RULE (the round-2 review's M2, 26.09.2026). An answer names every
  * character its owner owns now, each with the newest decision about it, and is the
  * owner's whole set: taken when it is at least as new in every character it names and

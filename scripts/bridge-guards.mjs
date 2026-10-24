@@ -303,6 +303,8 @@ export const REASON_PATTERNS = Object.freeze([
     // an ask this primary does not hold - ended, or held by a primary that reloaded - and an answer after the first.
     ["missing", /^no such Frisk ask$/],
     ["alreadyDone", /^that Frisk ask has been answered already$/],
+    // E14 part 1 C4: a stash's free reach, once a time of day per thief (vault.mjs `stealFromVault`).
+    ["alreadyDone", /^that stash has been gone through already this time of day$/],
     ["cannotFrame", /^that student cannot be framed$/],
     ["notThere", /^the body is not in the killer's room$/],
     ["notThere", /^the character has no token on a scene$/],

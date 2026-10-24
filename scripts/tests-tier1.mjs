@@ -21791,6 +21791,35 @@ const INVARIANTS = [
         equal(stableJson(read), stableJson({ en: want, pl: want }),
             "a player's handbook does not say what TRANSFER_POLICY does with full hands (per language: the planter's line exists; the stash list's words for a refused Plant it lacks; the Palm paragraph's words for a taker's full hands it lacks; [the stash list, the Palm paragraph] say one piece moves; the old words still there)");
     }],
+    ["R970 - the rifle's window says one thing from each stash once each time of day, names the stashes as a list, and does not call a found hidden stash 'not hidden', in English and in Polish (E14-T6, S08-06, S08-48)", async () => {
+        /*
+         * E14 part 1 C4, 24.10.2026; E14-15, D15 (one rifle a character, a stash and a time of day). Until C4 the
+         * window's line read "This is {who}'s stash, in {room}, and it is not hidden. Take one thing." - a limit the GM
+         * side never kept (S08-06), "not hidden" over a hidden stash its thief had found or the Mastermind's (S08-48), and
+         * "Kaede, Makoto's stash" over two. Read: `DRPG.Vault.rifleIntro` and `rifleNote` in lang/en.json and
+         * lang/pl.json, fetched as served - the placeholders, the time of day, the words that must be gone - and in
+         * vault.mjs `rifleStashDialog` that the line is formatted with the list of owners and the room. Red at 7a766612
+         * (c4-t6-red.log): both languages said "not hidden" and named no time of day.
+         */
+        const WORDS = {
+            en: { once: "once each time of day", gone: ["not hidden", "'s stash", "concealed stash needs"], found: "not found" },
+            pl: { once: "raz na porę dnia", gone: ["nie jest ukryta", "To skrytka", "Ukryta skrytka wymaga"], found: "nie znalazłeś" }
+        };
+        const read = {};
+        for (const [lang, W] of Object.entries(WORDS)) {
+            const words = await (await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`, { cache: "no-cache" })).json();
+            const intro = foundry.utils.getProperty(words, "DRPG.Vault.rifleIntro"), note = foundry.utils.getProperty(words, "DRPG.Vault.rifleNote");
+            must(typeof intro === "string" && typeof note === "string", `lang/${lang}.json has no DRPG.Vault.rifleIntro or rifleNote - this reads nothing`);
+            read[lang] = [intro.includes("{who}") && intro.includes("{room}"), intro.includes(W.once), W.gone.filter(w => intro.includes(w) || note.includes(w)),
+                note.includes(W.found)];
+        }
+        const dialog = fnSource(stripComments(new Map(await otherSources()).get("vault.mjs") ?? ""), "rifleStashDialog");
+        must(dialog, "vault.mjs has no rifleStashDialog - this reads nothing");
+        read.dialog = /DRPG\.Vault\.rifleIntro", \{\s*who: esc\(stocked\.map\(entry => entry\.owner\.name\)\.join\(", "\)\),\s*room: esc\(room\)/.test(dialog);
+        equal(stableJson(read), stableJson({ en: [true, true, [], true], pl: [true, true, [], true], dialog: true }),
+            "the rifle's window does not say what a reach takes (per language: [both placeholders, once each time of day, the old words still there, "
+            + "a hidden stash not found], and whether rifleStashDialog formats the line with the owners' list and the room)");
+    }],
 ];
 
 /**
