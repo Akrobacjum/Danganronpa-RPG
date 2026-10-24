@@ -5662,6 +5662,8 @@ const REGRESSIONS = [
             // E29 fix r2-H21: an item no GM has decided on, asked by the copy roads, whose runs pass their `{ refused }` on.
             creationRefusal: "returns", giveItem: "refused", lootBody: "refused", plantOnPerson: "refused",
             stealFromPerson: "refused", stealFromVault: "refused",
+            // E35 fix e1-G2 (the review's SEC-2): the one road an item changes owner by, whose `{ refused }` give and loot pass on.
+            transferItem: "refused",
             // E80 C2: an unseen Frisk, judged on the primary (frisk.mjs), whose run passes its `{ refused }` on.
             friskPerson: "refused",
             // E33 C10: a Monocub's ability by key, the row, the Monocub and the choice (guardCubAbility asks it).

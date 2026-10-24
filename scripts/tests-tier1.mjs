@@ -21719,6 +21719,10 @@ const INVARIANTS = [
         const bad = [await INV.transferItem(a, b, "R951-item", { mode: "frisk" }), await INV.transferItem(a, a, "R951-item", { mode: "give" }),
             await INV.transferItem(a, b, null, { mode: "loot" })];
         ok(bad.every(out => typeof out?.refused === "string"), `a mode no row names, one sheet to itself or no item was not refused: ${stableJson(bad)}`);
+        // Each in a form of the bridge's closed list (E35 fix e1-G2, the review's SEC-2: a player's own dead student looted by itself).
+        const { REASON_PATTERNS } = await import("./bridge-guards.mjs");
+        ok(bad.every(out => REASON_PATTERNS.some(([, pattern]) => pattern.test(String(out?.refused ?? "")))),
+            `a refusal of transferItem is taken by no reason of the bridge's closed list: ${stableJson(bad)}`);
 
         const sources = new Map(await moduleSources());
         const fn = fnSource(stripComments(sources.get("inventory.mjs") ?? ""), "transferItem");

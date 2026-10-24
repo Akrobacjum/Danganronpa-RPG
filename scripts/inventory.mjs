@@ -879,8 +879,11 @@ export async function transferItem(from, to, item, { mode, quiet = false } = {})
     if (!game.user.isGM) return null;
     const policy = TRANSFER_POLICY[mode];
     const id = typeof item === "string" ? item : item?.id;
+    // In the bridge's own form (E35 fix e1-G2; the review's SEC-2): a player's body.loot of their own dead student's
+    // item (takerId = bodyId) reaches here, and lootBody and giveItem pass the reason on to the runner, which says it
+    // by its code (bridge-guards.mjs `REASON_PATTERNS`: "refused"); R164 holds it to the closed list (`DELEGATES`).
     if (!policy || !from?.id || !to?.id || from.id === to.id || !id) {
-        return { refused: `no transfer of that kind (${String(mode)}) between those two` };
+        return { refused: `nothing was carried out: no transfer of that kind (${String(mode)}) between those two` };
     }
     // BOTH SHEETS CHAINED, in one order (E35 fix e1-G1; the review's E35-R5): on the giver's chain alone two Plants
     // from two planters into one free hand each read it free, and both went in (E35-T6's "at once": [ok, ok], one over
