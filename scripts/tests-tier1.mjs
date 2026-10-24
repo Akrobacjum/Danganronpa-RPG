@@ -21931,6 +21931,126 @@ const INVARIANTS = [
             + "[names under Polish are the English ones; Polish-built names that are candidates; read back by classifyTableName; "
             + "the older English wordings; by flags: renamed, two of one set today's first, a usable with no goal, no flags]");
     }],
+    ["R973 - the Tier pools tab and a rename take only a name the module reads as a tier pool, and say which names it reads; a room table takes any other name; the refusal stands at the field with the typed name kept, under a muted 'e.g.' placeholder (E14-T15, S08-45, S13-09)", async () => {
+        /*
+         * E14 part 2 C5, 24.10.2026; E14-42, E14-43. The harm (S08-45): the Tier pools tab took "DRPG Weapons - Tier 2" and
+         * "DRPG Tools - Tier 5", which no category and tier read, filed each as a room table and said "Room table created,
+         * point a room at it" - a table Room Setup does not offer and no draw reads; a rename skipped the name's check, so a
+         * room table could become "DRPG Tools - Tier 2" and a tier pool "Kitchen". And (S13-09) the placeholder read like a
+         * typed value, and the only word of a refusal was a toast over the window's tabs, with the typed name gone when the
+         * window came back. Read: (1) `poolNameRefusal` over each tab's names and a rename's, against tables made here as plain
+         * objects, never in the world; (2) what a refusal of a tier pool's name says - every form the module reads, each read
+         * back by `classifyTableName`; (3) `poolPaneHtml` with a refusal: the field keeps the name, is marked invalid and has
+         * the sentence under it; (4) the create and rename roads ask `poolNameRefusal` and the window comes back on the tab of
+         * the field; (5) the placeholder in both languages starts with "e.g."'s word, and the stylesheet dims it.
+         */
+        const t = await import("./tables.mjs");
+        const C = await import("./config.mjs");
+        const table = (name, flags) => ({ name, getFlag: (scope, key) => (scope === MODULE_ID ? flags?.[key] : undefined) });
+        const tierPool = table("DRPG Tools - Tier 2", { category: "tool", tier: 2, goal: null });
+        const roomPool = table("Kuchnia", { roomPool: true });
+        const renamedPool = table("Kitchen knives", { category: "tool", tier: 1, goal: null });
+        const tables = [tierPool, roomPool, renamedPool];
+        const has = typeof t.poolNameRefusal === "function";
+        const verdict = (name, family, opts = {}) => (has ? t.poolNameRefusal(name, family, { tables, ...opts })?.key ?? null : "no poolNameRefusal");
+        const created = [
+            verdict("DRPG Weapons - Tier 2", "tiers"), verdict("DRPG Tools - Tier 5", "tiers"), verdict("Kitchen", "tiers"),
+            verdict("DRPG Tools - Tier 1", "tiers"), verdict("DRPG Narzędzia - Tier 1", "tiers"), verdict("DRPG Tools - Tier 2", "tiers"),
+            verdict("", "tiers"),
+            verdict("Kuchnia - Zaplecze", "rooms"), verdict("DRPG Tools - Tier 1", "rooms"), verdict("Kuchnia", "rooms")
+        ];
+        const renamed = [
+            verdict("Kitchen tools", "tiers", { table: tierPool }), verdict("DRPG Tools - Tier 3", "tiers", { table: tierPool }),
+            verdict("DRPG Narzędzia - Tier 2", "tiers", { table: tierPool }), verdict("DRPG Tools - Tier 1", "rooms", { table: roomPool }),
+            verdict("Kuchnia", "rooms", { table: roomPool }), verdict("DRPG Tools - Tier 1", "rooms", { table: renamedPool }),
+            verdict("Kitchen pans", "rooms", { table: renamedPool })
+        ];
+        const forms = "DRPG.Tables.newTierPoolForms", taken = "DRPG.Tables.newPoolExists";
+        equal(stableJson([created, renamed]), stableJson([
+            [forms, forms, forms, null, null, taken, "DRPG.Tables.needsName", null, "DRPG.Tables.newPoolTierName", taken],
+            [forms, "DRPG.Tables.renameOtherPool", null, "DRPG.Tables.newPoolTierName", null, null, forms]]),
+            "a tab or a rename takes a name the module does not read as that family's, or refuses one it does "
+            + "[Tier pools: no such category, Tier 5, no tier, a new tier, a new one built in Polish, taken, empty; Room pools: "
+            + "a name with a suffix, a tier pool's, taken; renames: a tier pool to a free name, to another pool's, to its own in "
+            + "Polish, a room table to a tier pool's, a room table to its own name, a tier pool an earlier rename put on the Room pools "
+            + "tab back to its name, and to another free name]");
+
+        const said = has ? t.poolNameRefusal("DRPG Weapons - Tier 2", "tiers", { tables })?.text ?? "" : "";
+        const listed = [...said.matchAll(/DRPG [^,;:]+? - Tier N/g)].map(m => m[0]);
+        const readBack = listed.filter(form => C.ITEM_TIERS.every(tier => t.classifyTableName(form.replace(/N$/, String(tier))))).length;
+        const installer = [...Object.keys(t.ITEM_POOLS).filter(c => c !== "usable").map(c => t.tableName(c, "N")),
+            ...Object.keys(t.USABLE_GOALS).map(goal => t.tableName("usable", "N", goal))];
+        equal(stableJson([listed.length > 0 && readBack === listed.length, installer.filter(n => !listed.includes(n))]), stableJson([true, []]),
+            `a refused tier pool's name is not told which names are read, or is told one that is not ["${said}"]`);
+
+        const refusal = { name: "DRPG Weapons - Tier 2", text: "a refusal measured here" };
+        let pane = null;
+        try { pane = t.poolPaneHtml ? t.poolPaneHtml("tiers", [], null, refusal) : null; } catch (err) { pane = `threw ${err.message}`; }
+        const box = document.createElement("div");
+        box.innerHTML = pane ?? "";
+        const field = box.querySelector('input[name="newPool:tiers"]');
+        const errorEl = field?.closest("label, .drpg-field")?.parentElement?.querySelector(".drpg-field-error");
+        equal(stableJson([field?.value ?? null, field?.getAttribute("aria-invalid") ?? null, errorEl?.textContent.trim() ?? null,
+            errorEl?.id && field?.getAttribute("aria-describedby") === errorEl.id]),
+            stableJson([refusal.name, "true", refusal.text, true]),
+            `the Tier pools pane does not keep the refused name at its field with the sentence under it [${typeof pane === "string" ? pane.slice(0, 80) : "no poolPaneHtml"}]`);
+
+        /* The road itself, on this GM: the window opened, a refused name typed on each tab and Create table pressed, the
+           window that comes back read. A refusal writes nothing, so the world is as it was (tier 1's dump holds it). */
+        const tablesApp = () => [...foundry.applications.instances.values()]
+            .find(a => a.element?.classList?.contains("drpg-window-tables") && a.element.isConnected);
+        const tableCount = game.tables.size;
+        const press = async (family, name) => {
+            const first = tablesApp();
+            const el = first?.element;
+            if (!el) return "no window";
+            el.querySelector(`[data-drpg-gmt-tab="${family === "tiers" ? "editTiers" : "editRooms"}"]`)?.click();
+            const input = el.querySelector(`[name="newPool:${family}"]`);
+            if (input) input.value = name;
+            el.querySelector('footer button[data-action="newPool"]')?.click();
+            await until(() => tablesApp() && tablesApp() !== first);
+            await settle();
+            const now = tablesApp()?.element;
+            const back = now?.querySelector(`[name="newPool:${family}"]`);
+            const said = back?.getAttribute("aria-describedby") ? now.querySelector(`#${CSS.escape(back.getAttribute("aria-describedby"))}`) : null;
+            return [back?.value ?? null, back?.getAttribute("aria-invalid") ?? null,
+                Boolean(back?.closest(".drpg-gmt-section.active")), (said?.textContent.trim().length ?? 0) > 0];
+        };
+        const opening = t.openItemTables();   // held, not awaited - it resolves on close
+        let road = null;
+        try {
+            await until(() => tablesApp());
+            await settle();
+            road = [await press("tiers", "DRPG Weapons - Tier 2"), await press("rooms", "DRPG Tools - Tier 1")];
+        } finally {
+            try { await tablesApp()?.close(); } catch { /* already gone */ }
+            try { await Promise.race([opening, wait(2000)]); } catch { /* closed rather than answered */ }
+            await settle();
+        }
+        equal(stableJson([road, game.tables.size === tableCount]), stableJson([[["DRPG Weapons - Tier 2", "true", true, true],
+            ["DRPG Tools - Tier 1", "true", true, true]], true]),
+            "a refused name pressed through Create table does not come back in its field, marked, on its tab, with the sentence "
+            + "under it, or a table was made [Tier pools: value, aria-invalid, its tab open, a sentence; Room pools: the same; "
+            + "no table made]");
+
+        const tablesSrc = stripComments(new Map(await otherSources()).get("tables.mjs") ?? "");
+        const create = bodyOf(tablesSrc, "async function createPoolFrom(", { until: "\n}\n" });
+        const heading = bodyOf(tablesSrc, "function wirePaneHeading(", { until: "\n}\n" });
+        const opener = bodyOf(tablesSrc, "export async function openItemTables(", { until: "\n}\n" });
+        equal(stableJson([/poolNameRefusal\(/.test(create), /poolNameRefusal\(/.test(heading),
+            /poolError/.test(opener) && /active:/.test(opener)]), stableJson([true, true, true]),
+            "the create button or the rename does not ask the name's check, or the window does not come back on the field's tab "
+            + "[createPoolFrom, wirePaneHeading, openItemTables]");
+
+        const lang = async code => (await (await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" })).json());
+        const [en, pl] = [await lang("en"), await lang("pl")];
+        const placeholder = words => foundry.utils.getProperty(words, "DRPG.Tables.newTierPoolPlaceholder") ?? "";
+        const css = (await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`, { cache: "no-cache" }).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, "");
+        const dim = [...css.matchAll(/([^{}]*::placeholder[^{}]*)\{([^}]*)\}/g)]
+            .some(([, sel, body]) => /drpg-window-tables/.test(sel) && /color:\s*var\(--drpg-dim\)/.test(body));
+        equal(stableJson([placeholder(en).startsWith("e.g. "), placeholder(pl).startsWith("np. "), dim]), stableJson([true, true, true]),
+            `the tier pool's placeholder reads like a typed value [en "${placeholder(en)}", pl "${placeholder(pl)}", dimmed ${dim}]`);
+    }],
 ];
 
 /**

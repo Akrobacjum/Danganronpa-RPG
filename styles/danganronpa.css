@@ -13264,6 +13264,28 @@ body.drpg-theme-stained-glass .application.dialog:is(.drpg-window-murder, .drpg-
     margin-top: 12px;
 }
 
+/* A hint is not an answer (E14 part 2 C5, S13-09): the tier pool's "e.g. DRPG Tools - Tier 2" read like a typed value in
+   the field's own warm colour, so a GM took the field for filled in. Dim and slanted, as the Case window's hints. Not
+   measured here: the harness draws no CSS (E14-43's screenshot is a live check). */
+.drpg-window-tables input::placeholder {
+    color: var(--drpg-dim);
+    font-style: italic;
+    opacity: 1;
+}
+
+/* A refused name stays in its field, outlined, with the sentence under it - where the GM is looking, not only in a toast
+   over the window's tabs (`nameFieldHtml` in tables.mjs). */
+:is(.drpg-window-tables, .drpg-rename-table) input[aria-invalid="true"] {
+    border-color: var(--drpg-crimson-light);
+    box-shadow: 0 0 0 1px var(--drpg-crimson-light);
+}
+
+:is(.drpg-window-tables, .drpg-rename-table) .drpg-field-error {
+    margin: 2px 0 0;
+    color: var(--drpg-crimson-light);
+    font-size: var(--drpg-text-sm);
+}
+
 .drpg-tables-new-head {
     display: flex;
     align-items: center;

@@ -301,6 +301,61 @@ export function isTierPool(name) {
 }
 
 /**
+ * WHETHER A NAME MAY GO ON A TABLE OF THIS TAB, and if not, the sentence that says why (E14 part 2 C5, 24.10.2026; S08-45).
+ *
+ * Until E14 the Tier pools tab asked `isTierPool` only - "DRPG <anything> - Tier <digits>" - so "DRPG Weapons - Tier 2"
+ * and "DRPG Tools - Tier 5" went through, `classifyTableName` read neither, and `createPoolFrom` filed each as a room
+ * table with the sentence "Room table created, point a room at it": a table Room Setup does not offer (its list leaves
+ * out `isTierPool` names) and no draw reads. A rename asked nothing about the shape at all, so a room table could become
+ * "DRPG Tools - Tier 2" and a tier pool "Kitchen". One check for both roads now:
+ *   - the Tier pools tab takes a name `classifyTableName` reads, Polish aliases included, and a refusal lists the names
+ *     it reads (`tierPoolForms`); a rename of a table that carries a tier pool's flags must read as that same pool, since
+ *     the draw goes by the flags (C1) and a name saying another category or tier would only mislead the GM;
+ *   - the Room pools tab takes any name but a tier pool's, as at Base (`roomPool: true`, the TABLES-01 test in tier 0);
+ *   - either tab: a name, and one no other table has (`table`, the one renamed, does not count against itself).
+ *
+ * @param {string} name
+ * @param {"tiers"|"rooms"} family   the tab the name was typed on
+ * @param {object} [options]
+ * @param {object}   [options.table]   the table being renamed, if this is a rename
+ * @param {Iterable} [options.tables]  the tables a name is checked against; the world's by default
+ * @returns {{key: string, data: object, text: string}|null}  null when the name may be used
+ */
+export function poolNameRefusal(name, family, { table = null, tables = game.tables ?? [] } = {}) {
+    const say = (key, data = {}) => ({ key, data, text: game.i18n.format(key, data) });
+    const text = String(name ?? "").trim();
+    if (!text) return say("DRPG.Tables.needsName");
+    // A table that carries a tier pool's flags is one wherever its name has put it: a pool renamed before C5 sits on
+    // the Room pools tab (the window sorts by name), and the GM renaming it back must be let through.
+    const flag = key => table?.getFlag?.(MODULE_ID, key);
+    const flagged = Boolean(table && flag("category") && Number.isInteger(flag("tier")));
+    if (flagged || family === "tiers") {
+        const known = classifyTableName(text);
+        if (!known) return say("DRPG.Tables.newTierPoolForms", { name: text, forms: tierPoolForms().join(", "),
+            low: ITEM_TIERS[0], high: ITEM_TIERS[ITEM_TIERS.length - 1] });
+        if (flagged && (known.category !== flag("category") || known.tier !== flag("tier") || (known.goal ?? null) !== (flag("goal") ?? null))) {
+            return say("DRPG.Tables.renameOtherPool", { name: text, pool: tableName(flag("category"), flag("tier"), flag("goal") ?? null) });
+        }
+    } else if (isTierPool(text)) {
+        return say("DRPG.Tables.newPoolTierName");
+    }
+    if (Array.from(tables).some(other => other !== table && other?.name === text)) return say("DRPG.Tables.newPoolExists", { name: text });
+    return null;
+}
+
+/**
+ * The names a tier pool may carry, a tier written N: one a category, and for a usable one a goal. The same shapes
+ * `classifyTableName` walks, in today's English (the installer's names, C1), so a refusal never offers a name it
+ * would not read back.
+ */
+export function tierPoolForms() {
+    return [
+        ...Object.keys(ITEM_POOLS).map(category => tableName(category, "N")),
+        ...Object.keys(USABLE_GOALS).map(goal => tableName("usable", "N", goal))
+    ];
+}
+
+/**
  * Usable items, split by kind.
  *
  * This split used to be cosmetic - a courtesy so a Search for "something to
@@ -1525,22 +1580,47 @@ async function placeResultDialog(table, resultId) {
  *
  * @returns {Promise<string|null>} the trimmed name, or `null` if cancelled.
  */
-async function promptForTableName(currentName) {
-    const result = await foundry.applications.api.DialogV2.prompt({
-        window: { title: game.i18n.localize("DRPG.Tables.renameTable") },
-        content: `
-            <p class="notes">${game.i18n.localize("DRPG.Tables.renameNote")}</p>
-            <label>${game.i18n.localize("DRPG.Items.name")}
-                <input type="text" name="tableName" value="${esc(currentName)}" /></label>`,
-        ok: {
-            label: game.i18n.localize("DRPG.Tables.renameTable"),
-            callback: (event, button, dialog) =>
-                dialog.element.querySelector("[name=tableName]")?.value.trim() ?? ""
-        },
-        rejectClose: false,
-        modal: true
-    });
-    return typeof result === "string" ? result : null;
+async function promptForTableName(currentName, check = () => null) {
+    /* ASKED AGAIN WITH THE REFUSAL UNDER THE FIELD (E14 part 2 C5, S13-09). A refused name used to end in a toast and
+       the GM's typing gone; now the prompt comes back holding what they typed, the sentence under it, until a name
+       passes `check`, the name is left as it was, or the prompt is closed. */
+    let value = currentName, refusal = null;
+    for (;;) {
+        const result = await foundry.applications.api.DialogV2.prompt({
+            window: { title: game.i18n.localize("DRPG.Tables.renameTable") },
+            classes: ["drpg-panel", "drpg-rename-table"],
+            content: `
+                <p class="notes">${game.i18n.localize("DRPG.Tables.renameNote")}</p>
+                ${nameFieldHtml({ name: "tableName", value, error: refusal?.text })}`,
+            ok: {
+                label: game.i18n.localize("DRPG.Tables.renameTable"),
+                callback: (event, button, dialog) =>
+                    dialog.element.querySelector("[name=tableName]")?.value.trim() ?? ""
+            },
+            rejectClose: false,
+            modal: true
+        });
+        if (typeof result !== "string") return null;
+        if (result === currentName) return result;
+        refusal = check(result);
+        if (!refusal) return result;
+        value = result;
+    }
+}
+
+/**
+ * One name field, with its refusal under it when there is one (E14 part 2 C5, S13-09): the field keeps what was typed,
+ * says it is invalid to a screen reader and points at the sentence, which is where the GM is looking - a toast alone
+ * sat over the window's tabs and was gone in seconds.
+ */
+function nameFieldHtml({ name, value = "", placeholder = "", error = null }) {
+    const errorId = `drpg-name-error-${name.replace(/[^\w-]/g, "-")}`;
+    return `<label>${game.i18n.localize("DRPG.Items.name")}
+                <input type="text" name="${esc(name)}" value="${esc(value)}"${
+                    placeholder ? ` placeholder="${esc(placeholder)}"` : ""}${
+                    error ? ` aria-invalid="true" aria-describedby="${errorId}"` : ""} /></label>${
+                error ? `
+            <p class="drpg-field-error" id="${errorId}" role="alert">${esc(error)}</p>` : ""}`;
 }
 
 /**
@@ -1690,7 +1770,7 @@ function shortPoolName(name) {
  * rule about what a new pool may be called - see `wirePoolPane`, which is also
  * written once and run twice.
  */
-function poolPaneHtml(family, mine, selected) {
+export function poolPaneHtml(family, mine, selected, refusal = null) {
     const first = mine.find(t => t.id === selected?.id) ?? mine[0] ?? null;
     const list = mine.length
         ? `<ul class="drpg-tables-list">${mine.map(t =>
@@ -1723,11 +1803,10 @@ function poolPaneHtml(family, mine, selected) {
         <fieldset class="drpg-tables-new">
             <legend>${esc(game.i18n.localize(family === "tiers"
                 ? "DRPG.Tables.newTierPool" : "DRPG.Tables.newPool"))}</legend>
-            <label>${game.i18n.localize("DRPG.Items.name")}
-                <input type="text" name="newPool:${family}"
-                    placeholder="${esc(game.i18n.localize(family === "tiers"
-                        ? "DRPG.Tables.newTierPoolPlaceholder"
-                        : "DRPG.Tables.newPoolPlaceholder"))}" /></label>
+            ${nameFieldHtml({ name: `newPool:${family}`, value: refusal?.name ?? "",
+                placeholder: game.i18n.localize(family === "tiers"
+                    ? "DRPG.Tables.newTierPoolPlaceholder" : "DRPG.Tables.newPoolPlaceholder"),
+                error: refusal?.text })}
             <p class="notes">${game.i18n.localize(family === "tiers"
                 ? "DRPG.Tables.newTierPoolNote" : "DRPG.Tables.newPoolNote")}</p>
         </fieldset>
@@ -1847,14 +1926,16 @@ function wireNewItemForm(root) {
  * is only for what reaches across panes: the counts in the other list.
  */
 /*
- * RENAMING A TABLE CAN SILENTLY BREAK EVERY DRAW FROM IT.
+ * A RENAME IS CHECKED LIKE A NEW TABLE (E14 part 2 C5, S08-45).
  *
- * This module finds its tables BY NAME - built from the display
- * labels of a category and a tier (see `tableName`) - so a table
- * renamed to something the lookup does not build is a table the
- * game stops drawing from, with nothing on any screen to say so.
- * That is the whole reason this asks before it writes rather than
- * being an editable heading.
+ * Until E14 this module found its tier pools by name, so a pool renamed to
+ * something the lookup did not build stopped being drawn from, and this asked
+ * before it wrote for that reason alone - while taking any name at all. The
+ * draw goes by the flags since C1, but the tables window and Room Setup still
+ * sort a table into its family by its name, so a tier pool renamed "Kitchen"
+ * moved to the Room pools tab and a room table renamed "DRPG Tools - Tier 2"
+ * left Room Setup's list. `poolNameRefusal` is the one check, for the pane's
+ * family, and the prompt keeps the typed name with the refusal under it.
  */
 function wirePaneHeading(pane, root, { current, show, nameEl }) {
     /* ITS OWN TWO BUTTONS, LOOKED UP HERE (22.09). When this was split out of
@@ -1870,17 +1951,11 @@ function wirePaneHeading(pane, root, { current, show, nameEl }) {
         ev.preventDefault();
         if (!current()) return;
 
-        const name = await promptForTableName(current().name);
+        // The pane's family, unless the table's flags say it is a tier pool (see `poolNameRefusal`).
+        const family = pane.dataset.drpgPane === "tiers" ? "tiers" : "rooms";
+        const name = await promptForTableName(current().name,
+            typed => poolNameRefusal(typed, family, { table: current() }));
         if (name === null || name === current().name) return;
-
-        if (!name) {
-            ui.notifications.warn(game.i18n.localize("DRPG.Tables.needsName"));
-            return;
-        }
-        if (game.tables.getName(name)) {
-            ui.notifications.warn(game.i18n.format("DRPG.Tables.newPoolExists", { name }));
-            return;
-        }
 
         try {
             await current().update({ name });
@@ -2158,58 +2233,59 @@ function wirePoolPane(pane, root) {
     wirePaneRows(pane, root, show);
 }
 
-/** Make the pool the Create-table button asked for, or say why not. */
+/**
+ * Make the pool the Create-table button asked for, or say why not.
+ *
+ * @returns {Promise<object|null>}  the refusal, with the name typed and the tab it was typed on, for the window to
+ *   show at the field when it comes back; null when a table was made.
+ */
 async function createPoolFrom(action) {
     const name = action.newPool;
-    if (!name) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Tables.needsName"));
-    } else if (isTierPool(name) !== (action.family === "tiers")) {
-        /*
-         * THE NAME HAS TO MATCH THE TAB.
-         *
-         * A room pool named like a tier table would be picked up by the
-         * draw order's tier lookup and shadow the real one; a tier pool
-         * named like anything else would never be found by it. The shape of
-         * the name is what `drawItem` searches on, so it is not decoration.
-         */
-        ui.notifications.warn(game.i18n.localize(action.family === "tiers"
-            ? "DRPG.Tables.newTierPoolName"
-            : "DRPG.Tables.newPoolTierName"));
-    } else if (game.tables.getName(name)) {
-        ui.notifications.warn(game.i18n.format("DRPG.Tables.newPoolExists", { name }));
-    } else {
-        /*
-         * THE FLAGS SAY WHICH FAMILY IT IS IN (TABLES-01, 20.09).
-         *
-         * Both tabs came through here and both got `roomPool: true` with no
-         * category, tier or goal - so a tier pool a GM made was a table the
-         * module could not file: its items showed up unfiled in the index, and a
-         * usable drawn from it had no kind, which is what decides whether it
-         * restores Health or Sanity.
-         *
-         * READ BACK OFF THE NAME, because the name is what every lookup in this
-         * file searches on. A name this module does not recognise keeps
-         * `roomPool: true` and the room receipt - that is honest rather than a
-         * guess, and it is what the Room pools tab is for.
-         */
-        const known = classifyTableName(name);
-        await RollTable.create({
-            name,
-            formula: "1d1",
-            flags: {
-                [MODULE_ID]: known
-                    ? { category: known.category, tier: known.tier, goal: known.goal }
-                    : { roomPool: true }
-            }
-        });
-        ui.notifications.info(game.i18n.format(known
-            ? "DRPG.Tables.tierPoolCreated"
-            : "DRPG.Tables.poolCreated", { name }));
-        log(`Item tables: ${known
-            ? `tier pool "${name}" created (${known.category}, tier ${known.tier}${
-                known.goal ? `, ${known.goal}` : ""})`
-            : `room pool "${name}" created`}.`);
+    /*
+     * THE NAME HAS TO MATCH THE TAB, AND ON THE TIER POOLS TAB IT HAS TO BE ONE THE MODULE READS (E14 part 2 C5).
+     *
+     * A room table named like a tier pool leaves Room Setup's list, and a tier pool named like nothing the module reads
+     * was filed as a room table here until E14 (S08-45) - see `poolNameRefusal`. The toast stays for a GM looking
+     * elsewhere; the sentence that stays is the one at the field (S13-09).
+     */
+    const refusal = poolNameRefusal(name, action.family === "tiers" ? "tiers" : "rooms");
+    if (refusal) {
+        ui.notifications.warn(refusal.text);
+        return { ...refusal, name: name ?? "", family: action.family === "tiers" ? "tiers" : "rooms" };
     }
+    /*
+     * THE FLAGS SAY WHICH FAMILY IT IS IN (TABLES-01, 20.09).
+     *
+     * Both tabs came through here and both got `roomPool: true` with no
+     * category, tier or goal - so a tier pool a GM made was a table the
+     * module could not file: its items showed up unfiled in the index, and a
+     * usable drawn from it had no kind, which is what decides whether it
+     * restores Health or Sanity.
+     *
+     * READ BACK OFF THE NAME. A name this module does not recognise keeps
+     * `roomPool: true` and the room receipt - that is honest rather than a
+     * guess, and it is what the Room pools tab is for. Since E14 part 2 C5
+     * the Tier pools tab refuses such a name before this (`poolNameRefusal`),
+     * so only the Room pools tab reaches it.
+     */
+    const known = classifyTableName(name);
+    await RollTable.create({
+        name,
+        formula: "1d1",
+        flags: {
+            [MODULE_ID]: known
+                ? { category: known.category, tier: known.tier, goal: known.goal }
+                : { roomPool: true }
+        }
+    });
+    ui.notifications.info(game.i18n.format(known
+        ? "DRPG.Tables.tierPoolCreated"
+        : "DRPG.Tables.poolCreated", { name }));
+    log(`Item tables: ${known
+        ? `tier pool "${name}" created (${known.category}, tier ${known.tier}${
+            known.goal ? `, ${known.goal}` : ""})`
+        : `room pool "${name}" created`}.`);
+    return null;
 }
 
 /** Put the new entry into every table the form ticked. */
@@ -2230,7 +2306,7 @@ async function addItemFrom(action) {
     ui.notifications.info(plural("DRPG.Tables.itemAdded", { name: action.name, n: added }));
 }
 
-export async function openItemTables({ preset = null } = {}) {
+export async function openItemTables({ preset = null, poolError = null } = {}) {
     // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the
     // other, so the older one goes on looking authoritative while showing
@@ -2272,14 +2348,18 @@ export async function openItemTables({ preset = null } = {}) {
         // The footer buttons act across tabs - each reads its own pane's
         // inputs, which stay in the DOM whichever tab is showing (see
         // `panelTabs` in utils.mjs).
+        //
+        // A refused table name comes back on the tab it was typed on, kept in its field
+        // with the refusal under it (E14 part 2 C5, S13-09): the window used to reopen on
+        // the first tab with the field empty, so on the Room pools tab the GM saw neither.
         content: dialogContent(`<form>${panelTabs([
             { key: "editTiers", label: game.i18n.localize("DRPG.Tables.tabTierPools"),
-              html: poolPaneHtml("tiers", tierTables, selected) },
+              html: poolPaneHtml("tiers", tierTables, selected, poolError?.family === "tiers" ? poolError : null) },
             { key: "editRooms", label: game.i18n.localize("DRPG.Tables.tabRoomPools"),
-              html: poolPaneHtml("rooms", roomTablesList, selected) },
+              html: poolPaneHtml("rooms", roomTablesList, selected, poolError?.family === "rooms" ? poolError : null) },
             { key: "newItem", label: game.i18n.localize("DRPG.Tables.tabNewItem"),
               html: newItemPaneHtml(preset, presetTargets, roomTablesList) }
-        ])}</form>`),
+        ], { active: poolError ? (poolError.family === "rooms" ? "editRooms" : "editTiers") : null })}</form>`),
         buttons: [
             {
                 action: "add", label: game.i18n.localize("DRPG.Tables.addItem"), default: true,
@@ -2341,6 +2421,7 @@ export async function openItemTables({ preset = null } = {}) {
             wirePortraitPickers(root, { defaultImg: DEFAULT_RESULT_IMG });
 
             for (const pane of root.querySelectorAll("[data-drpg-pane]")) wirePoolPane(pane, root);
+            root.querySelector('[data-drpg-pane] input[aria-invalid="true"]')?.focus();
         },
         rejectClose: false
     });
@@ -2353,7 +2434,7 @@ export async function openItemTables({ preset = null } = {}) {
     }
 
     if (typeof action.newPool === "string") {
-        await createPoolFrom(action);
+        const refused = await createPoolFrom(action);
         /*
          * THROUGH `reopen`, BECAUSE THREE OF THE FOUR PATHS IN `createPoolFrom`
          * WAIT ON NOTHING (LIVE-REOPEN-01, 20.09).
@@ -2366,7 +2447,7 @@ export async function openItemTables({ preset = null } = {}) {
          * `reopen` closes the old copy first, so how many ticks have passed stops
          * mattering. See the note on `reopen` for the measurement.
          */
-        return reopen("drpg-window-tables", () => openItemTables({ preset }));
+        return reopen("drpg-window-tables", () => openItemTables({ preset, poolError: refused }));
     }
 
     if (!action.name) {

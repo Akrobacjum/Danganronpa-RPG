@@ -3596,7 +3596,7 @@ const REGRESSIONS = [
            site. This slice used to run from the call site to the end of the file,
            which after the merge held the call and none of the function - so the test
            reported the fix gone beside a fix that had been carried over intact. */
-        ok(/typeof action\.newPool === "string"\) \{\s*await createPoolFrom\(action\)/.test(tables),
+        ok(/typeof action\.newPool === "string"\) \{\s*(?:const \w+ = )?await createPoolFrom\(action\)/.test(tables),
             "the create button no longer reaches createPoolFrom");
         const create = bodyOf(tables, "async function createPoolFrom(", { until: "\n}\n" });
         ok(/const known = classifyTableName\(name\)/.test(create),
