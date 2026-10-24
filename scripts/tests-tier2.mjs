@@ -62798,6 +62798,71 @@ const SCENARIOS = [
             + "(the owner's second, stashed key made before the second)], the owner, whether the holder opens the door");
     }],
 
+    ["a bedroom given away from the console takes the old owner's keys as Room Setup does, and a copy the old owner gave stays with its holder, named to the GM and its text naming the new owner; a key text a GM wrote is left (E14 fix e1-G2, S08-11)", async () => {
+        /*
+         * E14 fix e1-G2, 24.10.2026; the review's E14R-1, E14R-2, E14R-09 and E14R-08. C2 took the old owner's keys only in
+         * Room Setup's Apply (vault.mjs `applyRoomRows`), so `game.drpg.setVaultRoom(room, { owner })`, the console road
+         * the GM handbook names, left the old owner a key that opened the new owner's door. And a copy the old owner had
+         * given somebody stayed, as C2 chose, with nothing telling the GM it exists and its text still "which belongs to"
+         * the old owner. Whether such copies go with the room is the owner's to say (STATUS Open); what holds either way
+         * is measured here. On a scene of the suite's own in a GM-store world of its own: the Dorm given to the first of
+         * three students by `setVaultRoom`, each of the three handed a key to it by the GMs' road (`grantBedroomKey`), the
+         * third's text rewritten as a GM might; then the Dorm given to the second by `setVaultRoom`. Read: each one's keys
+         * to the Dorm, whether the second's and the third's texts name the old owner or the new, and the GM's notices.
+         * Red at b355cb03 (g2-red.log): the old owner kept the key, no notice named a copy, the copy named the old owner.
+         */
+        const V = await import("./vault.mjs");
+        const R = await import("./rooms.mjs");
+        const G = await import("./gm-store.mjs");
+        const { judgedFor } = await import("./sheet-audit.mjs");
+        const { BEDROOM_KEY_FLAG } = await import("./config.mjs");
+        const [owner, heir, third] = cast(3);
+        const ROOM = "SUITE E14 fix e1-G2 Dorm", OWN_TEXT = "<p>SUITE E14 fix e1-G2 a GM's own words</p>";
+        const keysTo = actor => actor.items.filter(i => i.getFlag(MODULE_ID, BEDROOM_KEY_FLAG) === ROOM);
+        const read = {};
+        const said = [];
+        const own = Object.getOwnPropertyDescriptor(ui.notifications, "info"), info = ui.notifications.info;
+        await G.withGmStoreWorld(`suite-e14g2-${foundry.utils.randomID(8)}`, async () => {
+            let setup = null;
+            try {
+                setup = await Scene.create({ name: "SUITE E14 fix e1-G2 scene", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                await setup.createEmbeddedDocuments("Region", [{ name: ROOM, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                    flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+                await settle();
+                must(await V.setVaultRoom(ROOM, { owner: owner.id, scene: setup }), `${ROOM} was not given to ${owner.name} - this would measure nothing`);
+                for (const who of [owner, heir, third]) {
+                    must(await V.grantBedroomKey(who, ROOM, { silent: true, scene: setup }), `${who.name} was handed no key to ${ROOM} - this would measure nothing`);
+                    await judgedFor(who.id);
+                }
+                must(String(keysTo(heir)[0]?.system?.description ?? "").includes(owner.name), `the copy's text does not name ${owner.name} - this would measure nothing`);
+                await keysTo(third)[0].update({ "system.description": OWN_TEXT });
+                ui.notifications.info = (message, ...rest) => { said.push(String(message)); return info.call(ui.notifications, message, ...rest); };
+                await V.setVaultRoom(ROOM, { owner: heir.id, scene: setup });
+                await settle();
+                for (const who of [owner, heir, third]) await judgedFor(who.id);
+                const text = who => String(keysTo(who)[0]?.system?.description ?? "");
+                read.keys = [owner, heir, third].map(who => keysTo(who).length);
+                read.owner = V.vaultOwnerOf(ROOM, setup) === heir.id;
+                read.texts = [[text(heir).includes(heir.name), text(heir).includes(owner.name)], text(third) === OWN_TEXT];
+                read.told = [said.some(m => m === game.i18n.format("DRPG.Vault.keyTakenGm", { actor: owner.name, room: ROOM })),
+                    said.some(m => m === game.i18n.format("DRPG.Vault.keyCopiesGm", { room: ROOM, holders: third.name }))];
+            } finally {
+                if (own) Object.defineProperty(ui.notifications, "info", own);
+                else delete ui.notifications.info;
+                for (const who of [owner, heir, third]) {
+                    const keys = keysTo(who).map(i => i.id);
+                    if (keys.length) await who.deleteEmbeddedDocuments("Item", keys);
+                }
+                if (setup) await setup.delete();
+                await settle();
+            }
+        });
+        equal(stableJson(read), stableJson({ keys: [0, 1, 1], owner: true, texts: [[true, false], true], told: [true, true] }),
+            "a bedroom given away by setVaultRoom left the old owner a key, or a copy went unnamed or kept the old owner's name ([keys to the room of "
+            + "the old owner, the new, a third holding a copy]; the room's owner the new; [the new owner's key names the new owner, still names the "
+            + "old], the third's own text kept; [the GM told the old owner's key was taken, told who still holds a copy])");
+    }],
+
     ["the dead keep their hands still: a dead student's sheet offers no Use, Ready, Discard, Put away or Take out, on a death the GMs keep too; useItem, toggleEquipped, discardBroken, stow and retrieve refuse before any question; the GMs do not count a dead one's use, nor let a retrieve stand (E14-T4, S08-12, S08-30)", async () => {
         /*
          * E14 part 1 C3, 24.10.2026; E14-12, E14-13, D15 ("the things on a Monocub's body are the body's"). The harm: a

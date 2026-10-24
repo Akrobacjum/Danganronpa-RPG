@@ -343,16 +343,20 @@ export async function reconcileBedroomKeys({ silent = true, owners = null } = {}
  * "gmRuling"), the GM told who lost which key and the old owner that it was taken back. Read as the GMs hold the
  * student (`itemsHeldNow` after `judgedFor`), so an item a player's browser wrote a key's room on is not deleted for it.
  * Kept where the old owner still owns a room of that name on another scene: a key is a room's name, and the sweep
- * would only hand it back. Keys the old owner shared with others stay theirs: a copy given in the fiction is the
- * table's business, not the room's.
+ * would only hand it back. Keys the old owner shared with others stay theirs (`keyCopiesAfterOwnerLeft`, below).
  *
- * @param {{ room: string, from: string }[]} left
+ * ON EVERY ROAD THAT GIVES A ROOM AWAY (E14 fix e1-G2, 24.10.2026; the review's E14R-2). C2 called this from Room
+ * Setup's Apply alone, so `game.drpg.setVaultRoom(room, { owner })`, the console road the GM handbook names, left the
+ * old owner a key that opened the new owner's door. `setVaultRoom` calls it now, and Room Setup writes its rows through
+ * `setVaultRoom`. Tier 2 "a bedroom given away from the console takes the old owner's keys ...".
+ *
+ * @param {{ room: string, from: string, to?: string|null }[]} left  `to`: the new owner, or none
  * @returns {Promise<number>} how many keys were taken.
  */
 export async function takeOldOwnersKeys(left) {
     if (!game.user.isGM) return 0;
     let taken = 0;
-    for (const { room, from } of left ?? []) {
+    for (const { room, from, to = null } of left ?? []) {
         const old = game.actors.get(from ?? "");
         if (!old || !room || ownsBedroomNamed(old.id, room)) continue;
         await judgedFor(old.id);
@@ -367,13 +371,49 @@ export async function takeOldOwnersKeys(left) {
                 error(`Could not take ${old.name}'s key to ${room}`, err);
             }
         }
-        if (!gone) continue;
-        taken += gone;
-        ui.notifications.info(game.i18n.format("DRPG.Vault.keyTakenGm", { actor: old.name, room }));
-        await whisperToOwner(old, `<p>${game.i18n.format("DRPG.Vault.keyTakenBack", { room: esc(room) })}</p>`);
+        if (gone) {
+            taken += gone;
+            ui.notifications.info(game.i18n.format("DRPG.Vault.keyTakenGm", { actor: old.name, room }));
+            await whisperToOwner(old, `<p>${game.i18n.format("DRPG.Vault.keyTakenBack", { room: esc(room) })}</p>`);
+        }
+        await keyCopiesAfterOwnerLeft(room, old, game.actors.get(to ?? "") ?? null);
     }
     if (taken) log(`Took ${taken} bedroom key(s) from owners whose room was given away.`);
     return taken;
+}
+
+/**
+ * THE COPIES OF THE OLD OWNER'S KEY (E14 fix e1-G2, 24.10.2026; the review's E14R-1, E14R-09, E14R-08). A copy the old
+ * owner gave somebody stays with its holder - whether the copies should go with the room too is the owner's to rule
+ * (STATUS Open) - and a key is a room's name, so it opens the new owner's door. Two things were wrong with that whatever
+ * the ruling: nothing told the GM those keys exist, and each still read "which belongs to" the old owner. So each
+ * character but the new owner who holds a key to the room, carried or stashed, as the GMs hold it (`itemsHeldNow` after
+ * `judgedFor`), is named to the GM, and every key to the room whose text is the module's own for the old owner
+ * (`grantBedroomKey`'s, in this GM's language) is rewritten for the new one by a GM's ruling. A text a GM wrote, or one
+ * written in another language, is left as it is. Answers the holders named.
+ */
+async function keyCopiesAfterOwnerLeft(room, old, owner) {
+    const text = name => `<p>${game.i18n.format("DRPG.Vault.keyDescription", {
+        room: foundry.utils.escapeHTML(room), owner: foundry.utils.escapeHTML(name ?? "-") })}</p>`;
+    const before = text(old.name), after = text(owner?.name);
+    const holders = [];
+    for (const actor of game.actors ?? []) {
+        if (actor.id === old.id || !actor.items?.some(i => i.getFlag(MODULE_ID, BEDROOM_KEY_FLAG) === room)) continue;
+        await judgedFor(actor.id);
+        const keys = itemsHeldNow(actor).filter(item => keyRoomOf(item) === room).map(held => actor.items.get(held.id)).filter(Boolean);
+        if (!keys.length) continue;
+        if (actor.id !== owner?.id) holders.push(actor.name);
+        if (before === after) continue;
+        for (const key of keys.filter(key => key.system?.description === before)) {
+            try {
+                await trustedWrite(key, { "system.description": after }, { reason: "gmRuling" });
+            } catch (err) {
+                error(`Could not rewrite ${actor.name}'s key to ${room}`, err);
+            }
+        }
+    }
+    if (holders.length) ui.notifications.info(game.i18n.format("DRPG.Vault.keyCopiesGm", { room, holders: holders.join(", ") }));
+    return holders;
 }
 
 /** Does this character own a bedroom of this name on any scene? */
@@ -1078,8 +1118,11 @@ export async function setVaultRoom(room, {
     // The scene the caller names, with no default since E12 C6 (it was the camera's, moved up
     // here from `regionsByName` by E12 C2a). Every region of the name that can be a room is written (`updateRoom`),
     // marked or not: Room Setup lists the named regions so that a GM can make one a room.
-    const region = writablePieces(scene, room).at(-1);
+    const pieces = writablePieces(scene, room);
+    const region = pieces.at(-1);
     if (!region) return null;
+    // The owner before, for the old owner's keys (E14 fix e1-G2: every road that gives a room away takes them).
+    const ownerBefore = flagOver(pieces, VAULT_FLAGS.owner);
 
     const update = {};
     if (owner !== undefined) update[`flags.${MODULE_ID}.${VAULT_FLAGS.owner}`] = owner || null;
@@ -1105,6 +1148,9 @@ export async function setVaultRoom(room, {
     if (!Object.keys(update).length) return null;
 
     await updateRoom(scene, room, update);
+    if (owner !== undefined && ownerBefore && ownerBefore !== (owner || null)) {
+        await takeOldOwnersKeys([{ room, from: ownerBefore, to: owner || null }]);
+    }
     return region;
 }
 
@@ -3160,8 +3206,7 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
     // on inline because the seeding below has to run after the stash matrix has
     // been written, or it would seed into a list it is about to overwrite.
     const ownerMoved = [];
-    // And the owner each of them had (E14 part 1 C2, S08-11): `takeOldOwnersKeys` takes their keys once the rows stand.
-    const ownerLeft = [];
+    // The owner each of them had is `setVaultRoom`'s to read: it takes the old owner's keys (E14 part 1 C2, S08-11; fix e1-G2).
     const named = namedByName(scene);
     /* The rooms of this scene once this Apply is written, for the Neighbours names that are none
        (E12 fix r2-H2, 11.10.2026; early review EARLY-C14-2). The names were checked against the
@@ -3231,7 +3276,6 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
         if (before.owner !== (row.owner || null) && row.owner) {
             ownerMoved.push({ room: row.room, owner: row.owner });
         }
-        if (before.owner && before.owner !== (row.owner || null)) ownerLeft.push({ room: row.room, from: before.owner });
         if (same) continue;
 
         // "Stash hidden" is the Stashes tab's business (ITEM-02): the column
@@ -3305,7 +3349,6 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
 
         changed.add(row.room);
     }
-    await takeOldOwnersKeys(ownerLeft);
     return { changed, ownerMoved };
 }
 
