@@ -21656,7 +21656,10 @@ const INVARIANTS = [
          * with three plain movers who are neither a GM nor the Mastermind: one carrying the key, one whose key is in a
          * stash, one with no key - so the two controls hold the reading to the door and the key itself. Nothing of this
          * world is read but its seals and restrictions under names no world holds. Red at f2cfc2d: the stashed key let
-         * its holder in at the door and in the answer.
+         * its holder in at the door and in the answer. Plain since E14 part 1 C2 (24.10.2026): the door and the answer read
+         * one rule, bedroom-keys.mjs's, which counts a key in hand only. The carried key's control reads "not refused with
+         * the key's words", not a bare `true`: tiers 0-1 also run inside a Class Trial (01-runtests' part A2), where
+         * `crossingVerdict` refuses every walk as the courtroom's, below the bedroom's rule (CI at 7f00213, 24.10.2026).
          */
         const M = await import("./movement.mjs");
         const R = await import("./rooms.mjs");
@@ -21683,12 +21686,12 @@ const INVARIANTS = [
             "the stashed key does not read as stashed, or the carried one does - this would measure nothing");
         const keyText = game.i18n.format("DRPG.Vault.keyMissing", { room: BEDROOM });
         const door = who => M.crossingVerdict(who, HALL, BEDROOM, scene, null, { mover: { gm: false, mastermind: false }, pay: false, known: {} });
-        equal(stableJson([door(carrying), door(keyless) === keyText, V.mayEnterBedroom(carrying, BEDROOM, scene), V.mayEnterBedroom(keyless, BEDROOM, scene)]),
+        equal(stableJson([door(carrying) !== keyText, door(keyless) === keyText, V.mayEnterBedroom(carrying, BEDROOM, scene), V.mayEnterBedroom(keyless, BEDROOM, scene)]),
             stableJson([true, true, true, false]),
-            "the controls do not read as the door does: [the carried key's walk let through, the keyless walk refused with the key's words, game.drpg lets the carried key in, keeps the keyless out]");
+            "the controls do not read as the door does: [the carried key's walk not refused with the key's words, the keyless walk refused with them, game.drpg lets the carried key in, keeps the keyless out]");
         equal(stableJson([door(stashing) === keyText, V.mayEnterBedroom(stashing, BEDROOM, scene)]), stableJson([true, false]),
             "a key in a stash opened its bedroom: [the door refuses with the key's words, game.drpg keeps the holder out]");
-    }, expectedRed("E14", "S08-31: a stashed key still opens its bedroom (movement.mjs bedroomShut, vault.mjs keysHeldBy count it); E14 part 1 filters it", { failing: "a key in a stash opened its bedroom" })],
+    }],
     ["R951 - an item that changes owner goes one road, on a GM: inventory.mjs `transferItem` opens with a GM's gate and answers null on a player's browser, refuses a mode TRANSFER_POLICY does not name, chains each transfer on both sheets, reads the item and the taker's hands as the GMs hold them, and writes only through `grantItem`, `trustedWrite` and `trustedDelete`, each naming \"gmRuling\"; TRANSFER_POLICY is frozen, a give and a Plant refused into full hands and a loot, a rifle and a steal sent to the stash (D42); every mode has its line to the GMs; and handover.mjs `giveItem` hands its move to it, with no pair of its own (E35-T1)", async () => {
         /*
          * E35 C1, 24.10.2026; audit S17-16, E35-04, E35-08 (the table), E35-22's half. At f2cfc2d the move was written

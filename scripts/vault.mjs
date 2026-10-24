@@ -26,15 +26,17 @@
 import { MODULE_ID, ITEM_CATEGORIES, BEDROOM_KEY_FLAG, ACTIONS, VAULT_LIMIT, ROOMS_PER_PLAYER }
     from "./config.mjs";
 import { ITEM_FLAGS, LOCATIONS, isStashed, canCarry, pickableCategories, capacityLabel } from "./inventory.mjs";
-import { trustedWrite } from "./resource-guard.mjs";
+import { trustedWrite, trustedDelete } from "./resource-guard.mjs";
 // Static because `keysHeldBy` is synchronous; sheet-audit.mjs reaches nothing that imports this file (R161).
 import { itemsHeldNow, judgedFor } from "./sheet-audit.mjs";
 // The one room lookup. movement.mjs does not reach back into this file.
+// The key rule both this file and the door read (E14 part 1 C2; bedroom-keys.mjs's header).
+import { keyRooms, bedroomShutTo } from "./bedroom-keys.mjs";
 import { locateActor, sceneOfActor, neighbouringRooms, ROOM_FLAGS } from "./movement.mjs";
 // Static because the reader is synchronous. From settings.mjs, which is a leaf
 // - this is one client-scoped boolean, and the note above the function there
 // explains why it stopped living in mastermind.mjs.
-import { iAmTheMastermind, SETTINGS } from "./settings.mjs";
+import { iAmTheMastermind, SETTINGS, isDeceased, getClock } from "./settings.mjs";
 import { SEARCH_FLAGS } from "./search-tokens.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 // Static is safe: tables.mjs only reaches back into this file lazily.
@@ -208,30 +210,31 @@ export function keyRoomOf(item) {
  * marked). An item the mark does not hold yet reads with no room (sheet-audit.mjs `ITEM_UNHELD`),
  * so `grantBedroomKey` waits for the student's queued judgements first. A key deleted on the sheet is not on this list in either read: `itemsHeldNow`
  * walks the document's items. A player's browser reads its own document, as it did.
+ *
+ * IN HAND (E14 part 1 C2, 24.10.2026; audit S08-31): a key put away in a stash is not on this list - it opens no door,
+ * here as at the door (bedroom-keys.mjs `keyRooms`, the one rule). Its place is read as the key's room is, held on the
+ * GM (`ITEM_PLACE` is judged: sheet-audit.mjs `placeStands`). `stashed: true` lists the stash's keys too, for the
+ * questions that are not the door's: `grantBedroomKey`'s "already holds one" and the GMs' list of keys to give, so a
+ * student who put their key away is not handed a second one by the next sweep.
  */
-export function keysHeldBy(actor) {
-    const rooms = new Set();
-    for (const item of game.user?.isGM ? itemsHeldNow(actor) : actor?.items ?? []) {
-        const room = keyRoomOf(item);
-        if (room) rooms.add(room);
-    }
-    return rooms;
+export function keysHeldBy(actor, { stashed = false } = {}) {
+    return keyRooms(game.user?.isGM ? itemsHeldNow(actor) : actor?.items ?? [], { stashed });
 }
 
 /**
  * May this character open this room's door?
  *
- * A room nobody owns is not a bedroom and is not locked by this rule. The owner
- * never needs a key to their own room - losing your own key would otherwise
- * lock you out of the one place the guide says is yours.
+ * The door's own rule (bedroom-keys.mjs `bedroomShutTo`, which movement.mjs `bedroomShut` asks; E14 part 1 C2): a room
+ * nobody owns is no bedroom, the owner needs no key, a key in hand opens it and a stashed one does not, and in the
+ * Investigation a dead owner's room opens once the death is published (D15).
  */
 export function mayEnterBedroom(actor, room, scene = null) {
     if (!actor || !room) return true;
     // The scene the caller names, else the room wherever it is drawn (E12 C2a): a key is
     // a room's name, and the camera's scene answered "nobody's" for a bedroom one map over.
     const owner = scene ? vaultOwnerOf(room, scene) : bedroomOwnerAnywhere(room);
-    if (!owner || owner === actor.id) return true;
-    return keysHeldBy(actor).has(room);
+    return !bedroomShutTo({ actorId: actor.id, room, ownerId: owner, keys: keysHeldBy(actor),
+        phase: getClock().phase, ownerDead: Boolean(owner) && isDeceased(game.actors.get(owner)) });
 }
 
 /**
@@ -254,7 +257,8 @@ export async function grantBedroomKey(actor, room, { silent = false, scene } = {
        Room Setup, the ready sweep, the reset, the GMs' item manager and a key's handover (read in
        the code, 10.10.2026). */
     await judgedFor(actor.id);
-    if (keysHeldBy(actor).has(room)) return null;
+    // A key in the student's stash is still theirs (E14 part 1 C2): the sweep makes no second one beside it.
+    if (keysHeldBy(actor, { stashed: true }).has(room)) return null;
 
     const { grantItem } = await import("./inventory.mjs");
     // Named on the key, so it reads as "Kaede's room" rather than "Room 3".
@@ -328,6 +332,54 @@ export async function reconcileBedroomKeys({ silent = true, owners = null } = {}
 
     if (made) log(`Issued ${made} missing bedroom key(s).`);
     return made;
+}
+
+/**
+ * THE OLD OWNER'S KEYS GO WITH THE ROOM (E14 part 1 C2, 24.10.2026; audit S08-11). Room Setup and the sweep above only
+ * ever added keys: a GM who moved Kaede from Room 3 to Room 5 and gave Room 3 to Shuichi left Kaede the key to Room 3,
+ * and she walked into Shuichi's bedroom; nothing told the GM, who had to find the key by hand. `applyRoomRows` hands
+ * this every room whose owner changed in the Apply, with the owner before: each key of theirs to that room - carried or
+ * stashed, since a stashed one would open again once taken out - is taken by a GM's ruling (`trustedDelete`,
+ * "gmRuling"), the GM told who lost which key and the old owner that it was taken back. Read as the GMs hold the
+ * student (`itemsHeldNow` after `judgedFor`), so an item a player's browser wrote a key's room on is not deleted for it.
+ * Kept where the old owner still owns a room of that name on another scene: a key is a room's name, and the sweep
+ * would only hand it back. Keys the old owner shared with others stay theirs: a copy given in the fiction is the
+ * table's business, not the room's.
+ *
+ * @param {{ room: string, from: string }[]} left
+ * @returns {Promise<number>} how many keys were taken.
+ */
+export async function takeOldOwnersKeys(left) {
+    if (!game.user.isGM) return 0;
+    let taken = 0;
+    for (const { room, from } of left ?? []) {
+        const old = game.actors.get(from ?? "");
+        if (!old || !room || ownsBedroomNamed(old.id, room)) continue;
+        await judgedFor(old.id);
+        let gone = 0;
+        for (const held of itemsHeldNow(old).filter(item => keyRoomOf(item) === room)) {
+            const item = old.items.get(held.id);
+            if (!item) continue;
+            try {
+                await trustedDelete(item, { reason: "gmRuling" });
+                gone++;
+            } catch (err) {
+                error(`Could not take ${old.name}'s key to ${room}`, err);
+            }
+        }
+        if (!gone) continue;
+        taken += gone;
+        ui.notifications.info(game.i18n.format("DRPG.Vault.keyTakenGm", { actor: old.name, room }));
+        await whisperToOwner(old, `<p>${game.i18n.format("DRPG.Vault.keyTakenBack", { room: esc(room) })}</p>`);
+    }
+    if (taken) log(`Took ${taken} bedroom key(s) from owners whose room was given away.`);
+    return taken;
+}
+
+/** Does this character own a bedroom of this name on any scene? */
+function ownsBedroomNamed(actorId, room) {
+    return Array.from(game.scenes ?? []).some(scene => Array.from(scene.regions ?? [])
+        .some(region => region.name === room && region.getFlag(MODULE_ID, VAULT_FLAGS.owner) === actorId));
 }
 
 /** The RollTable this room draws from, or `null` for the global pool. */
@@ -3012,6 +3064,8 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
     // on inline because the seeding below has to run after the stash matrix has
     // been written, or it would seed into a list it is about to overwrite.
     const ownerMoved = [];
+    // And the owner each of them had (E14 part 1 C2, S08-11): `takeOldOwnersKeys` takes their keys once the rows stand.
+    const ownerLeft = [];
     const named = namedByName(scene);
     /* The rooms of this scene once this Apply is written, for the Neighbours names that are none
        (E12 fix r2-H2, 11.10.2026; early review EARLY-C14-2). The names were checked against the
@@ -3081,6 +3135,7 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
         if (before.owner !== (row.owner || null) && row.owner) {
             ownerMoved.push({ room: row.room, owner: row.owner });
         }
+        if (before.owner && before.owner !== (row.owner || null)) ownerLeft.push({ room: row.room, from: before.owner });
         if (same) continue;
 
         // "Stash hidden" is the Stashes tab's business (ITEM-02): the column
@@ -3154,6 +3209,7 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
 
         changed.add(row.room);
     }
+    await takeOldOwnersKeys(ownerLeft);
     return { changed, ownerMoved };
 }
 

@@ -61292,7 +61292,7 @@ const SCENARIOS = [
          * Bedroom the cast student owns, for a plain mover with no key who is neither a GM nor the Mastermind; the
          * owner dead with the table told, the clock in Investigation, then in Daily Life (the control: shut), then the
          * owner alive again in Investigation (the control: shut). Clock and death put back. Red at f2cfc2d: shut in
-         * Investigation too.
+         * Investigation too. Plain since E14 part 1 C2 (24.10.2026): the door and the answer read bedroom-keys.mjs's rule.
          */
         const M = await import("./movement.mjs");
         const R = await import("./rooms.mjs");
@@ -61337,8 +61337,7 @@ const SCENARIOS = [
             "the controls: a dead student's bedroom was not shut outside Investigation, or a living one's in it ([the door refuses with the key's words, game.drpg lets the mover in])");
         equal(stableJson(read.investigation), stableJson([false, true]),
             "in Investigation a dead student's bedroom stayed shut to a mover with no key: [the door refuses with the key's words, game.drpg lets the mover in]");
-    }, expectedRed("E14", "S08-55: bedroomShut and mayEnterBedroom ask no death or phase; E14 part 1 opens a dead owner's bedroom in Investigation (D15)",
-        { failing: "in Investigation a dead student's bedroom stayed shut" })],
+    }],
 
     ["a hand-over on transferItem keeps what the GMs hold of the item - broken, wear, roles, identity, kind, category and tier - and leaves the GMs' audit nothing to record, every item write by the trusted roads (E35-T2, give)", async () => {
         /*
@@ -62621,6 +62620,142 @@ const SCENARIOS = [
             apart: "notThere", hidden: "notThere", deadTaker: "cannotNow", eclipse: "cannotNow", classTrial: "cannotNow",
             monocubBody: "taken", incidentSide: "taken", unknown: "cannotNow", known: "taken", keptByGm: "taken"
         }), "a body's loot was not judged by the one gate as the GMs read the two and the asker's knowledge (per case: taken, or the code of the refusal; the loot window's Take in the room and from another: [greyed, its words])");
+    }],
+
+    ["one key rule: only a key in hand opens another's bedroom - a stashed one opens nothing and counts in no keysHeldBy, though it is still the holder's own; a tunnel and a GM's move ask no key; in Investigation a dead owner's bedroom opens once the death is published; a new owner set in Room Setup takes the old owner's keys, twice over (E14-T3, S08-11, S08-31, S08-55)", async () => {
+        /*
+         * E14 part 1 C2, 24.10.2026; E14-08 to E14-11, D15 ("the dead's bedroom opens in Investigation"), the owner's Q1 of
+         * 18.10 (a tunnel passes another's bedroom with no key). The harms: a key in a stash across the building opened its
+         * door (S08-31); the bedroom of a victim who died elsewhere stayed shut through the whole Investigation (S08-55); a
+         * room given to somebody else in Room Setup left the old owner a working key, so they walked into the new owner's
+         * bedroom (S08-11). Three students: the owner, a holder, a keyless third. The door is read as the veto and the
+         * primary read it (movement.mjs `crossingVerdict`, unpaid, a mover that is neither a GM nor the Mastermind) on a
+         * scene of plain objects whose Bedroom the owner owns, with game.drpg's answer (vault.mjs `mayEnterBedroom`) and
+         * `keysHeldBy` beside it; the holder's keys are real items, made by the GMs' own road (`grantItem`), the GMs'
+         * mark of them waited for. Then Room Setup, answered as a GM answers it (the R119 test's way), on a scene of the
+         * suite's own in a GM-store world of its own: the room to the owner, to the holder, to the third. Red at a36e1c30:
+         * the stashed key opened the door and the answer, the published death opened nothing, the old owners kept their keys.
+         */
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const G = await import("./gm-store.mjs");
+        const { judgedFor } = await import("./sheet-audit.mjs");
+        const { ROOM_OWNER_FLAG, BEDROOM_KEY_FLAG } = await import("./config.mjs");
+        const { killCharacter, publishDeath, reviveCharacter } = await import("./chapter.mjs");
+        const [owner, holder, third] = cast(3);
+        const HALL = "SUITE E14-T3 Hall", BEDROOM = "SUITE E14-T3 Bedroom", SETUP_ROOM = "SUITE E14-T3 Dorm";
+        const region = (name, x, flags = {}) => ({ id: `E14T3R${x}`, name, levels: new Set(), behaviors: [],
+            bounds: { x, y: 0, width: 400, height: 400 }, shapes: [{ type: "rectangle", x, y: 0, width: 400, height: 400 }],
+            testPoint: p => p.x >= x && p.x <= x + 400 && p.y >= 0 && p.y <= 400,
+            getFlag: (scope, key) => (scope !== MODULE_ID ? undefined : key === R.ROOM_FLAG ? true : flags[key]) });
+        const scene = { id: "E14T3S", name: "SUITE E14-T3 scene", grid: { size: 100 }, levels: [],
+            regions: new Set([region(HALL, 0, { [M.ROOM_FLAGS.neighbours]: BEDROOM }), region(BEDROOM, 500, { [ROOM_OWNER_FLAG]: owner.id })]) };
+        const shut = game.i18n.format("DRPG.Vault.keyMissing", { room: BEDROOM });
+        const plain = { gm: false, mastermind: false };
+        // Not "true": tiers 0-1 and 2 may run inside a Class Trial, where a walk is refused as the courtroom's (STATUS, 24.10).
+        const door = (who, { mover = plain, ...rest } = {}) => M.crossingVerdict(who, HALL, BEDROOM, scene, null, { mover, pay: false, known: {}, ...rest }) === shut;
+        const keysTo = (actor, room) => actor.items.filter(i => i.getFlag(MODULE_ID, BEDROOM_KEY_FLAG) === room);
+        const makeKey = (actor, room, location) => INV.grantItem(actor, { name: `SUITE E14-T3 key ${location}`, category: "bedroomKey", tier: null,
+            location, quiet: true, extraFlags: { [BEDROOM_KEY_FLAG]: room } });
+        const clock = foundry.utils.deepClone(getClock());
+        const read = {};
+        let died = false;
+        try {
+            const stashed = await makeKey(holder, BEDROOM, INV.LOCATIONS.vault);
+            await judgedFor(holder.id);
+            must(stashed && INV.isStashed(holder.items.get(stashed.id)), "the holder's key was not made in the stash - this would measure nothing");
+            await setClock({ ...clock, phase: "dailyLife" });
+            await settle();
+            read.stashedOnly = [door(holder), V.mayEnterBedroom(holder, BEDROOM, scene), V.keysHeldBy(holder).has(BEDROOM),
+                V.keysHeldBy(holder, { stashed: true }).has(BEDROOM), await V.grantBedroomKey(holder, BEDROOM, { silent: true, scene }) === null,
+                keysTo(holder, BEDROOM).length];
+            const carried = await makeKey(holder, BEDROOM, INV.LOCATIONS.carried);
+            await judgedFor(holder.id);
+            must(carried, "the holder's second key was not made");
+            read.twoKeys = [door(holder), V.mayEnterBedroom(holder, BEDROOM, scene), V.keysHeldBy(holder).has(BEDROOM)];
+            read.keyless = [door(third), V.mayEnterBedroom(third, BEDROOM, scene),
+                door(third, { joined: true, via: "passage" }), door(third, { mover: { gm: true, mastermind: false } })];
+            died = Boolean(await killCharacter(owner, { secret: true, keepBullets: true }));
+            must(died, `${owner.name}'s death was not kept by the GMs - this would measure nothing`);
+            await setClock({ ...clock, phase: "investigation" });
+            await settle();
+            read.unpublished = [door(third), V.mayEnterBedroom(third, BEDROOM, scene)];
+            must(await publishDeath(owner), `${owner.name}'s death was not published - this would measure nothing`);
+            await settle();
+            read.published = [door(third), V.mayEnterBedroom(third, BEDROOM, scene)];
+            await setClock({ ...clock, phase: "dailyLife" });
+            await settle();
+            read.afterwards = [door(third), V.mayEnterBedroom(third, BEDROOM, scene)];
+        } finally {
+            if (died) await reviveCharacter(owner, { quiet: true });
+            await setClock(clock);
+            for (const item of keysTo(holder, BEDROOM)) await item.delete();
+            await settle();
+        }
+
+        // Room Setup: the Dorm to the owner, then to the holder (the owner's two keys, one stashed, taken), then to the third.
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const home = canvas?.scene ?? null;
+        await G.withGmStoreWorld(`suite-e14t3-${foundry.utils.randomID(8)}`, async () => {
+            let setup = null;
+            try {
+                setup = await Scene.create({ name: "SUITE E14-T3 Room Setup", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+                await setup.createEmbeddedDocuments("Region", [{ name: SETUP_ROOM, shapes: [{ type: "rectangle", x: 0, y: 0, width: 800, height: 800 }],
+                    flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true } }, behaviors: [] }]);
+                await setup.view();
+                await settle();
+                const giveTo = async actor => {
+                    D.wait = async cfg => {
+                        const element = document.createElement("div"), form = document.createElement("form");
+                        if (typeof cfg?.content === "string") form.innerHTML = cfg.content;
+                        else if (cfg?.content) form.append(cfg.content.cloneNode(true));
+                        element.append(form);
+                        const bedroom = form.querySelector(`[name="${CSS.escape(`owner:${SETUP_ROOM}`)}"]`);
+                        must(bedroom, `Room Setup drew no owner for "${SETUP_ROOM}" - the answer would change nothing`);
+                        bedroom.value = actor.id;
+                        const apply = (cfg.buttons ?? []).find(b => b.action === "ok");
+                        return apply.callback(new Event("click"), apply, { element });
+                    };
+                    await V.openRoomSetupDialog();
+                    await settle();
+                    for (const who of [owner, holder, third]) await judgedFor(who.id);
+                    return [owner, holder, third].map(who => keysTo(who, SETUP_ROOM).length);
+                };
+                read.setup = [await giveTo(owner)];
+                await makeKey(owner, SETUP_ROOM, INV.LOCATIONS.vault);
+                read.setup.push([owner, holder, third].map(who => keysTo(who, SETUP_ROOM).length));
+                read.setup.push(await giveTo(holder), await giveTo(third));
+                read.setupOwner = V.vaultOwnerOf(SETUP_ROOM, setup);
+                read.setupDoor = V.mayEnterBedroom(holder, SETUP_ROOM, setup);
+            } finally {
+                if (own) Object.defineProperty(D, "wait", own);
+                else delete D.wait;
+                for (const who of [owner, holder, third]) {
+                    const keys = keysTo(who, SETUP_ROOM).map(i => i.id);
+                    if (keys.length) await who.deleteEmbeddedDocuments("Item", keys);
+                }
+                await home?.view();
+                if (setup) await setup.delete();
+                await settle();
+            }
+        });
+        equal(stableJson([read.twoKeys, read.keyless, read.unpublished, read.afterwards]),
+            stableJson([[false, true, true], [true, false, false, false], [true, false], [true, false]]),
+            "the controls: [two keys, one stashed: the door lets the holder in, game.drpg too, keysHeldBy counts it], [no key: the door refuses with the key's words, "
+            + "game.drpg keeps the third out; a tunnel's crossing and a GM's move are not refused for the key], [Investigation, the owner's death kept by the GMs: "
+            + "shut, kept out], [Daily Life after the publication: shut, kept out]");
+        equal(stableJson(read.stashedOnly), stableJson([true, false, false, true, true, 1]),
+            "a key in a stash opened its bedroom: [the door refuses with the key's words, game.drpg keeps the holder out, keysHeldBy does not count it, "
+            + "counted with the stash, no second key made for the holder, one key on the sheet]");
+        equal(stableJson(read.published), stableJson([false, true]),
+            "in Investigation a bedroom whose owner's death is published stayed shut: [the door refuses with the key's words, game.drpg lets the third in]");
+        equal(stableJson([read.setup, read.setupOwner, read.setupDoor]),
+            stableJson([[[1, 0, 0], [2, 0, 0], [0, 1, 0], [0, 0, 1]], third.id, false]),
+            "a new bedroom owner set in Room Setup left the old owner a key: [the keys to the room of the owner, the holder and the third after each Apply "
+            + "(the owner's second, stashed key made before the second)], the owner, whether the holder opens the door");
     }],
 
     ...GRID

@@ -300,7 +300,8 @@ async function giveKeyDialog(actor) {
      * the same rule as the carry counts in `gmGiveItemDialog`.
      */
     const optionsFor = who => {
-        const held = keysHeldBy(who);
+        // A key in their stash too (E14 part 1 C2): it is theirs to take out, and `grantBedroomKey` makes no second one.
+        const held = keysHeldBy(who, { stashed: true });
         const rooms = allBedrooms()
             .filter(v => v.owner && v.owner.id !== who.id && !held.has(v.room));
         if (!rooms.length) {

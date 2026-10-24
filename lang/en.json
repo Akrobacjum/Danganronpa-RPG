@@ -1955,6 +1955,8 @@
       "whichKey": "Whose room?",
       "giveKeyNote": "A copy - the owner keeps theirs. Only rooms that belong to somebody are listed: a room with no owner has no door to unlock.",
       "keyGivenGm": "{actor} now holds the key to {room}.",
+      "keyTakenGm": "{actor} no longer holds the key to {room}: the room is not theirs any more.",
+      "keyTakenBack": "Your key to {room} was taken back: the room is not yours any more.",
       "noKeysToGive": "No keys left to hand over - this character already holds one for every bedroom that has an owner.",
       "takeKey": "Take a room key away",
       "noKeysToTake": "{actor} holds no key to anybody else's room.",
