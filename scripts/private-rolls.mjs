@@ -677,13 +677,14 @@ export function rollNonceOf(message, data = null) {
  * message it writes with the roller's nonce, which the roll already carries (`nonce`), stamps
  * the record's flags beside the claim's (`stamp`), names the user whose roll it is (`by`, C13):
  * the primary shows its dice as theirs to everybody else who sees them (`relayDrawnDice`) -
- * the roller plays them as the message arrives (roll-draw.mjs `startOnMessage`, H82 C5) - and hears the message created before
+ * the roller plays them as the message arrives (roll-draw.mjs `startOnMessage`, H82 C5), and the primary's own screen
+ * at its throw, before the message (`shown`: the relay throws nothing here then; `throwOnThisScreen`, H82 C6) - and hears the message created before
  * Daggerheart's `toMessage` waits for Dice So Nice (`onCreated`). A statistic from the sheet
  * keeps Daggerheart's card (`keepCard`, C13): its message is claimed - whispered to the GMs and
  * emptied as it is created - but not hidden, since no card of the module's stands for it.
  */
-export async function supersedingRoll(fn, { subject = null, actionKey = null, facts = null, nonce = null, stamp = null, by = null, keepCard = false, onCreated = null } = {}) {
-    const claim = { spent: false, subject, actionKey, facts, reported: false, nonce: nonce ?? foundry.utils.randomID(), stamp, by, keepCard, onCreated };
+export async function supersedingRoll(fn, { subject = null, actionKey = null, facts = null, nonce = null, stamp = null, by = null, shown = false, keepCard = false, onCreated = null } = {}) {
+    const claim = { spent: false, subject, actionKey, facts, reported: false, nonce: nonce ?? foundry.utils.randomID(), stamp, by, shown: shown === true, keepCard, onCreated };
     rollClaims.push(claim);
     try {
         return await fn(claim.nonce);
@@ -750,7 +751,7 @@ function reportClaimedRoll(message, options, userId) {
     const claim = nonce ? rollClaims.find(c => c.spent && !c.reported && c.nonce === nonce) : null;
     if (!claim) return;
     claim.reported = true;
-    if (claim.subject) reportRollSubject(message, claim.subject, { by: claim.by });
+    if (claim.subject) reportRollSubject(message, claim.subject, { by: claim.by, shown: claim.shown });
     if (typeof claim.onCreated === "function") claim.onCreated(message);
 }
 
@@ -1269,13 +1270,13 @@ function keepRollSubject(payload, sender, ctx) {
  * dice audience reads it; the roller's own Reroll found its roll by it
  * (reroll.mjs `belongsTo`) until E08+E28 C4a. A primary GM's own roll is recorded
  * without a packet; one it drew for a player (`by`, the roller) has its dice shown
- * as theirs (`relayDrawnDice`, E08+E28 C13).
+ * as theirs (`relayDrawnDice`, E08+E28 C13) - on this screen already where `shown` (H82 C6).
  */
-export function reportRollSubject(message, actor, { by = null } = {}) {
+export function reportRollSubject(message, actor, { by = null, shown = false } = {}) {
     const messageId = message?.id ?? message?._id ?? null;
     if (!messageId || !actor?.id || keptRollSubject(message) === actor.id) return;
     keepSubject(messageId, actor.id, game.user?.id ?? null);
-    if (isPrimaryGm()) return by ? relayDrawnDice(message, by) : relayIncidentDice(message);
+    if (isPrimaryGm()) return by ? relayDrawnDice(message, by, { shown }) : relayIncidentDice(message);
     const decl = ROLL_ACTIONS["roll.subject"];
     void bridgeRequest("roll.subject", { messageId, actorId: actor.id }, { settle: decl.answer, quiet: decl.quiet });
 }
@@ -1498,7 +1499,8 @@ function subjectReported(messageId, ms) {
  *   private: Dice So Nice has animated it there already (E06 fix r1-G2).
  * - A roll the GM drew for a player (E08+E28 C13, roll-draw.mjs): Dice So Nice's own
  *   decision is off for it on every browser (`keepDiceToReaders`), and the primary GM shows
- *   it as the roller's dice to the rest of its audience (`relayDrawnDice`); the roller plays
+ *   it as the roller's dice to the rest of its audience (`relayDrawnDice`), on its own screen
+ *   at its throw (roll-draw.mjs `throwOnThisScreen`, H82 C6); the roller plays
  *   the message's rolls as it arrives (roll-draw.mjs `startOnMessage`, H82 C5; the draw's answer
  *   until then). Who may read it beside the GMs is each browser's own `readableHere`.
  *
@@ -1531,7 +1533,8 @@ export const REROLL_SHOWN = "drpgRerollShown";
  * Except for a roll the GM drew (E08+E28 C13; the owner's note of 27.09: nobody is ever
  * shown "the GM rolled"), off on every browser, forced private or not: its author is the
  * GM, so Dice So Nice would throw it in the GM's colours wherever it animates it. Its dice
- * are the relay's, in the roller's (`relayDrawnDice`). Dice So Nice's wait for the
+ * are the relay's, in the roller's (`relayDrawnDice`; on the primary's own screen its throw's,
+ * roll-draw.mjs `throwOnThisScreen`, H82 C6). Dice So Nice's wait for the
  * message's animation then answers at once (Dice3D.js `waitFor3DAnimationByMessageID`,
  * read in 6.3.1: a message not animating resolves), so the GM's `toMessage` holds nothing.
  */
@@ -1767,14 +1770,16 @@ export function drawnDiceAudienceIds(message, by = null, state = murderState()) 
  * roller sees the roll as their own, and nobody is shown "the GM rolled"). On the primary, as
  * it keeps the roll's subject (`reportRollSubject`): `dice.show { id, by }` to the rest of
  * `drawnDiceAudienceIds` - the roller left out, who plays the message's rolls as it arrives
- * (roll-draw.mjs `startOnMessage`, H82 C5) - and the dice on this screen as `by`'s. Each receiver plays its own copy's rolls
+ * (roll-draw.mjs `startOnMessage`, H82 C5) - and the dice on this screen as `by`'s, unless they started here at the
+ * GM's throw, before the message (`shown`, roll-draw.mjs `throwOnThisScreen`, H82 C6: a hop before this message's
+ * echo; scenario 33 A17 holds one throw a roll here). Each receiver plays its own copy's rolls
  * as `by`'s dice (`showRelayedDice`). Not awaited: the draw does not wait for an animation.
  * How it looks at a real table, with and without Dice So Nice, is LIVE-E28-01 and -02. A
  * statistic from the sheet, whose Daggerheart card its readers draw, sends its character too
  * (`subject`, fix r2-H4): each of them heads the card with it (`signAsRoller`). The packet
  * reaches only those the roll's dice reach.
  */
-function relayDrawnDice(message, byId) {
+function relayDrawnDice(message, byId, { shown = false } = {}) {
     if (!message?.id || !isPrimaryGm()) return;
     const by = game.users.get(byId ?? "") ?? null;
     const recipients = drawnDiceAudienceIds(message, by?.id ?? null).filter(id => id !== game.user?.id && id !== by?.id);
@@ -1784,7 +1789,7 @@ function relayDrawnDice(message, byId) {
     } catch (err) {
         error("Could not send the dice of a roll the GM drew", err);
     }
-    void playRolls(message, by ?? game.user);
+    if (!shown) void playRolls(message, by ?? game.user);
 }
 
 /**

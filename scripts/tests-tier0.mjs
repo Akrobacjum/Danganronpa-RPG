@@ -14091,6 +14091,43 @@ const REGRESSIONS = [
                 + "and throws the message's rolls; `drawAndPlay` names the primary at the ask, ends the wait in its finally; `playBack` throws only where nothing started, once; "
                 + "one createChatMessage listener] - the roller's dice start where the GM's message is not the draw's, or are thrown twice");
     }],
+
+    ["R949 - the GM's own screen throws a drawn roll's dice at its throw, once, sending and writing nothing (H82-07): roll-draw.mjs `throwOnThisScreen` emits, writes and asks nothing and throws as the roller's, not synchronised, not awaited; `throwDrawn` calls it after the roll is evaluated and before its message is written, hands the message's claim `shown` and says a failed write in the Debug log; private-rolls.mjs `relayDrawnDice` still sends dice.show and throws on this screen only where nothing was shown, which the claim carries to it", async () => {
+        /*
+         * H82 C6 (24.10.2026; H82-07). The primary GM's screen starts a drawn roll's dice as it throws them, not at its
+         * message's echo (scenario 33 A17, 80 ms each way: 164.1 ms after the request reached the GM before, 1.7 after;
+         * the tier-2 test "a roll the GM drew whose message is not written ..." drives the failed write). Held here: the
+         * throw is this screen's own drawing (no packet, no write, no request), after every refusal and the evaluation and
+         * before the write, so a refused or unevaluated roll throws nothing; and the relay's own throw stands aside for it,
+         * so one throw a roll. Read with comments blanked; each reader is shown a planted fault first.
+         */
+        const WRITES = /\bsocket\s*\.\s*emit\s*\(|\bbridgeRequest\s*\(|\.\s*(?:setFlag|unsetFlag|update|updateSource|createEmbeddedDocuments|updateEmbeddedDocuments|deleteEmbeddedDocuments)\s*\(|\bsettings\s*\.\s*set\s*\(|\bChatMessage\b|\breadHere\s*\(/;
+        const AS_ROLLER = /\bgame\.dice3d\.showForRoll\(\s*roll\s*,\s*user\s*,\s*false\s*\)/;
+        const AWAITED = /\bawait\s+(?:Promise\.resolve\(\s*)?game\.dice3d\.showForRoll\(/;
+        const FAILED = /\bcatch\s*\(\s*err\s*\)\s*\{\s*if\s*\(\s*shown\s*\)\s*debug\(/;
+        const GUARD = /\bif\s*\(\s*!shown\s*\)\s*void\s+playRolls\(\s*message\s*,/;
+        const SENT = /\bgame\.socket\.emit\(\s*SOCKET_EVENT\s*,\s*\{\s*action:\s*DICE_SHOW\b/;
+        equal(JSON.stringify([WRITES.test("game.socket.emit(EVENT, {});"), AWAITED.test("await game.dice3d.showForRoll(roll, user, false);"),
+            AS_ROLLER.test("game.dice3d.showForRoll(roll, game.user, false)"), GUARD.test("void playRolls(message, by ?? game.user);"),
+            FAILED.test("} catch (err) {\n        throw err;")]),
+        JSON.stringify([true, true, false, false, false]),
+            "the readers do not find the faults planted for them (an emit, an awaited throw, a throw as the GM's own, a relay that throws whatever was shown, a failed write said nowhere)");
+        const sources = await moduleSources();
+        const draw = stripComments(sources.get("roll-draw.mjs") ?? ""), rolls = stripComments(sources.get("private-rolls.mjs") ?? "");
+        ok(draw.length > 0 && rolls.length > 0, "roll-draw.mjs or private-rolls.mjs was not read - this test measured nothing");
+        const here = topLevelFunction(draw, "throwOnThisScreen") ?? "", thrown = fnSource(draw, "throwDrawn"), write = fnSource(draw, "writeDrawnMessage");
+        const relay = fnSource(rolls, "relayDrawnDice"), report = fnSource(rolls, "reportRollSubject"), claimed = fnSource(rolls, "reportClaimedRoll");
+        const at = re => thrown.search(re);
+        const [evaluated, shown, written] = [at(/\bawait\s+cls\.buildEvaluate\(/), at(/\bconst\s+shown\s*=\s*throwOnThisScreen\(\s*roll\s*,\s*sender\s*\)/), at(/\bwriteDrawnMessage\(/)];
+        equal(JSON.stringify([here.length > 0, WRITES.test(here), AS_ROLLER.test(here), AWAITED.test(here), evaluated >= 0 && evaluated < shown && shown < written,
+            /\bwriteDrawnMessage\([^;]*\bshown\b/.test(thrown), FAILED.test(thrown), /\bsupersedingRoll\([\s\S]*\bshown\b/.test(write),
+            /\bshown:\s*claim\.shown\b/.test(claimed), /\brelayDrawnDice\(\s*message\s*,\s*by\s*,\s*\{\s*shown\s*\}\s*\)/.test(report),
+            SENT.test(relay), GUARD.test(relay), (relay.match(/\bplayRolls\(/g) ?? []).length]),
+        JSON.stringify([true, false, true, false, true, true, true, true, true, true, true, true, 1]),
+            "[`throwOnThisScreen` declared, emits or writes, throws as the roller's not synchronised, awaits the throw; `throwDrawn` throws after the evaluation and before the write, "
+                + "hands `shown` to the write, says a failed write in the Debug log; the write hands it to the claim, the claim to the report, the report to the relay; "
+                + "the relay sends dice.show, throws only where nothing was shown, once] - the GM's early throw sends or writes, comes before a refusal could, or the GM throws twice");
+    }],
 ];
 
 export { REGRESSIONS };

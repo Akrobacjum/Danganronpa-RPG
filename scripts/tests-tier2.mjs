@@ -9926,7 +9926,7 @@ const SCENARIOS = [
          * has the GM for its author, so Dice So Nice's own decision would throw it in the GM's
          * colours wherever it is readable - on every GM at least. It is off for a drawn roll on
          * every browser (private-rolls.mjs `keepDiceToReaders`), and the primary shows the dice as
-         * the roller's: on its own screen, and by `dice.show { id, by }` to the rest of the roll's
+         * the roller's: on its own screen (at its throw since H82 C6, roll-draw.mjs `throwOnThisScreen`, once), and by `dice.show { id, by }` to the rest of the roll's
          * audience, the roller left out, who plays the message's rolls as it arrives (H82 C5) - 12-social reads that on p1
          * (`relayDrawnDice`). Two draws of `drawnForPlayer`'s packet, with rolls forced private and
          * not: where they are not, the audience is every connected user, whose Dice So Nice threw
@@ -9967,6 +9967,57 @@ const SCENARIOS = [
         }
         equal(stableJson(readings), stableJson(expected),
             "a drawn roll is animated by Dice So Nice's own decision, thrown here as another's dice or synchronised, or sent to somebody outside its audience, to its roller, or not as the roller's (per draw: forced, decision, throws, packets)");
+    }],
+
+    ["a roll the GM drew whose message is not written was thrown once on the GM's screen as its roller's, and the Debug log says no card stands for it", async () => {
+        /*
+         * H82 C6 (24.10.2026; H82-07, the look back's option 2). The primary GM's own screen starts a drawn roll's dice
+         * as it throws them (roll-draw.mjs `throwDrawn`, `throwOnThisScreen`), before it writes the roll's message, and
+         * not at its message's echo (scenario 33 A17, 80 ms each way: within one hop of the request, a hop before the
+         * echo). So a write that then fails leaves dice on this screen with no card: the draw still fails as before
+         * (the roller is told, nothing is recorded), and the Debug log says what this screen showed. `drawnForPlayer`'s
+         * packet, with Daggerheart's `toMessage` failing while the GM judges it. Read: each throw here (as whose dice,
+         * synchronised or not), what the roller was sent, the message and the record, and this browser's Debug lines
+         * that name the roll. Until C6 nothing was thrown here and nothing logged.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        needs(world.moduleActive("dice-so-nice"), "the dice of a drawn roll are thrown through Dice So Nice");
+        const { player, theirs } = playerAndCharacters();
+        const cls = game.system.api.dice.DualityRoll;
+        const dice3d = game.dice3d, show = dice3d.showForRoll;
+        const own = Object.getOwnPropertyDescriptor(cls, "toMessage");
+        const debugWas = game.settings.get(MODULE_ID, SETTINGS.debug), consoleDebug = console.debug;
+        const thrown = [], lines = [];
+        if (!debugWas) await game.settings.set(MODULE_ID, SETTINGS.debug, true);
+        let F = null;
+        try {
+            const watch = () => {
+                dice3d.showForRoll = async (...args) => { thrown.push([args[1]?.id ?? args[1] ?? null, args[2] === true]); return true; };
+                Object.defineProperty(cls, "toMessage", { configurable: true, writable: true, value: async () => { throw new Error("H82 C6 planted: the message's write failed"); } });
+                console.debug = function (...args) {
+                    const line = args.map(String).join(" ");
+                    if (line.includes("no card")) lines.push(line);
+                    return consoleDebug.apply(this, args);
+                };
+                return () => {
+                    dice3d.showForRoll = show;
+                    if (own) Object.defineProperty(cls, "toMessage", own); else delete cls.toMessage;
+                    console.debug = consoleDebug;
+                };
+            };
+            F = await drawnForPlayer(player, theirs, { watch });
+            const answered = F.sent.map(r => [r.action, r.reason]);
+            equal(stableJson([thrown, answered.some(([action]) => action === "bridge.done"), answered.some(([, reason]) => reason === "failed"),
+                F.message ? F.message.id : null, F.record ? "record" : null, lines.length, lines.some(line => line.includes(player.name))]),
+            stableJson([[[player.id, false]], false, true, null, null, 1, true]),
+                "a drawn roll whose message was not written was not thrown here once as its roller's, was answered as made, kept a record, or the Debug log did not say no card stands for it (throws, answered done, told failed, message, record, Debug lines, naming the roller)");
+        } finally {
+            dice3d.showForRoll = show;
+            if (own) Object.defineProperty(cls, "toMessage", own); else delete cls.toMessage;
+            console.debug = consoleDebug;
+            if (game.settings.get(MODULE_ID, SETTINGS.debug) !== debugWas) await game.settings.set(MODULE_ID, SETTINGS.debug, debugWas);
+            await F?.putBack();
+        }
     }],
 
     ["a statistic from the sheet drawn by the GM keeps Daggerheart's card and names nobody", async () => {

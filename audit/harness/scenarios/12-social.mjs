@@ -42,8 +42,9 @@ export async function run({ gm, p1, p2, check, phase, settle, repoUrl }) {
        owner's note of 27.09). Aiko's roll is p1's statistic from her sheet, which the GM draws and
        writes (roll-draw.mjs): Dice So Nice's own decision is off for the GM's message on every
        browser - it would throw it in the GM's colours - and the dice are played as p1's: on p1
-       from the draw's answer, on the GM by the relay (private-rolls.mjs `relayDrawnDice`), on p2
-       not at all. Each model keeps every `showForRoll` with the user whose dice it throws
+       as the GM's message arrives (roll-draw.mjs `startOnMessage`, H82 C5; from the draw's answer
+       until then), on the GM at its throw (roll-draw.mjs `throwOnThisScreen`, H82 C6; by the relay,
+       private-rolls.mjs `relayDrawnDice`, until then), on p2 not at all. Each model keeps every `showForRoll` with the user whose dice it throws
        (`__dsnShown`), and what it would animate itself (`__dsnAnimated`). */
     const DSN_OFF = `globalThis.__dsnHideSecret = false; globalThis.__dsnAnimated = []; globalThis.__dsnShown = []; return true;`;
     for (const c of [gm, p1, p2]) await c.eval(DSN_OFF);

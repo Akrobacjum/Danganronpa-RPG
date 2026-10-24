@@ -562,7 +562,8 @@ function rollFromLegal(cls, json, data = null) {
  * the GM's message's rolls as it arrives (H82 C5, `startOnMessage`), or from this copy of the
  * roll at the answer where no message came first, as this user's, not synchronised: nobody else's screen throws
  * them (the GMs' and the incident's audience are the relay's, private-rolls.mjs
- * `relayDrawnDice`, in this user's colours too, C13; Dice So Nice's own decision is off for the
+ * `relayDrawnDice`, in this user's colours too, C13 - the primary's own screen its throw's since
+ * H82 C6, `throwOnThisScreen`; Dice So Nice's own decision is off for the
  * GM's message on every browser, `keepDiceToReaders`). With no
  * Dice So Nice, the dice sound. Waited for as Daggerheart's `toMessage` waits for the
  * animation, so the module's card does not land while the dice still fall - bounded as
@@ -1464,8 +1465,16 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
     const loads = expected.read.loadedDie;
     if (loads) loadDie(roll, loaded);
     await cls.buildEvaluate(roll, config, {});
+    // The dice on this screen as the roller's, now, at the throw (H82 C6, `throwOnThisScreen`); the relay sends them on.
+    const shown = throwOnThisScreen(roll, sender);
     const rollId = foundry.utils.randomID();
-    const message = await writeDrawnMessage(cls, roll, config, { actor, nonce, rollId, sender, keepCard: claimed === false });
+    let message;
+    try {
+        message = await writeDrawnMessage(cls, roll, config, { actor, nonce, rollId, sender, keepCard: claimed === false, shown });
+    } catch (err) {
+        if (shown) debug(`The dice of ${sender?.name ?? "a player"}'s roll were thrown on this screen, and its message was not written: no card stands for them.`);
+        throw err;
+    }
     written?.();
     await cls.dualityUpdate(config);
     if (typeof cls.handleTriggers === "function") await cls.handleTriggers(roll, config);
@@ -2114,6 +2123,41 @@ function facesOf(roll) {
 }
 
 /*
+ * THE GM'S OWN SCREEN THROWS AT THE GM'S THROW (H82 C6, 24.10.2026; H82-07, the look back's option 2). Until C6 the
+ * primary threw a drawn roll's dice on its own screen as the roll's message was created there (private-rolls.mjs
+ * `relayDrawnDice`, from the claim's createChatMessage): the echo of its own write, two hops after the write left -
+ * four after the player's press, where 1.2.66's GM saw a player's roll at two, the player's own message reaching it.
+ * Scenario 33's A17 measured it at dbda7aa with 80 ms added each way on every client (medians of 4): the GM's dice
+ * 164.1 ms after the request reached it, its message's echo at 164.5, 325 ms after the roller's roll.draw left. So
+ * they start here as soon as the roll is evaluated, before its message is written; the same part with this change:
+ * 1.7 ms after the request, the echo at 164.3, 163 ms after roll.draw left (a probe from the player's Roll click on the
+ * shared wall clock, medians of 10, 24.10.2026: a statistic from the sheet 328 -> 165.5 ms, an action's roll 327 -> 165;
+ * with no delay added 6 -> 4.5 and 5 -> 4; the player's own dice unchanged at 327-328). The GM's own evaluated roll, as
+ * the roller's (`user`) and not synchronised - the owner's 27.09 rule that nobody is shown "the GM rolled" holds -
+ * and not awaited: the draw does not wait for an animation. The dice sound where Dice So Nice is not, as the relay
+ * played it. Every refusal comes before this (`marksOpen`, `drawRefusal`, `expectedFor`, `legalRollOf`), so a refused
+ * draw still throws nothing. The relay still sends `dice.show` to the rest of the roll's audience as the message is
+ * created, and no longer throws it here a second time (`shown` on the claim). A write that then fails leaves dice here
+ * with no card: the draw fails as before, and the Debug log says so. Answers whether the dice started here; a Dice So
+ * Nice that throws as it is called answers false, and the relay throws them as before. What a real browser shows,
+ * and how the GM's own work after its message (a Fear result's Despair, the HUD) sits beside falling dice, is
+ * LIVE-H82-06.
+ */
+function throwOnThisScreen(roll, user) {
+    try {
+        if (typeof game.dice3d?.showForRoll !== "function") {
+            foundry.audio.AudioHelper.play({ src: CONFIG.sounds.dice });
+            return true;
+        }
+        void Promise.resolve(game.dice3d.showForRoll(roll, user, false)).catch(err => error("Could not show the dice of a roll the GM drew", err));
+        return true;
+    } catch (err) {
+        error("Could not show the dice of a roll the GM drew", err);
+        return false;
+    }
+}
+
+/*
  * THE MESSAGE, AS DAGGERHEART'S `toMessage` SHAPES IT, WRITTEN BY THE GM. Inside a claim of
  * the roller's nonce (private-rolls.mjs `supersedingRoll`), so the module's rule for a roll it
  * threw applies as it is created: claimed, emptied of its character, whispered to the GMs where
@@ -2121,17 +2165,18 @@ function facesOf(roll) {
  * is kept as the message is created - before the Despair award, which listens later in the same
  * hook, asks for it - and its dice are shown as the roller's (`by`) to the GMs and the roll's
  * audience, the roller left out: their dice start as this message reaches them (`startOnMessage`,
- * H82 C5; from the answer until then; private-rolls.mjs `relayDrawnDice`, C13). A statistic from the sheet keeps Daggerheart's card (`keepCard`): no
+ * H82 C5; from the answer until then; private-rolls.mjs `relayDrawnDice`, C13), and on this screen
+ * at the throw before it (`shown`, `throwOnThisScreen`, H82 C6). A statistic from the sheet keeps Daggerheart's card (`keepCard`): no
  * `supersededRoll` flag, and each browser that reads it heads it with the roll's character, not
  * with this GM (private-rolls.mjs `signAsRoller`, fix r2-H4). `toMessage` then waits for Dice So
  * Nice, which does not animate this message and so answers at once (`keepDiceToReaders`); the
  * draw does not wait for it either (the plan's 3.3): it goes on as soon as the message exists.
  */
-async function writeDrawnMessage(cls, roll, config, { actor, nonce, rollId, sender, keepCard = false }) {
+async function writeDrawnMessage(cls, roll, config, { actor, nonce, rollId, sender, keepCard = false, shown = false }) {
     let heard = null;
     const created = new Promise(resolve => { heard = resolve; });
     const writing = supersedingRoll(() => cls.toMessage(roll, config),
-        { subject: actor, nonce, stamp: { rollId, drawn: true }, by: sender.id, keepCard, onCreated: heard });
+        { subject: actor, nonce, stamp: { rollId, drawn: true }, by: sender.id, shown, keepCard, onCreated: heard });
     const message = await Promise.race([created, writing]);
     writing.catch(err => error("The message of a roll the GM drew failed after it was written", err));
     if (!message?.id) throw new Error("the drawn roll's message was not written");
