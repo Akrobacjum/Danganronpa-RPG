@@ -377,10 +377,17 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
             const body = globalThis.__s62card; delete globalThis.__s62card;
             const button = body?.querySelector('[data-drpg-call="approveReshape"]') ?? null;
             const had = globalThis.__notifications.length;
+            const shownBefore = new Set(document.querySelectorAll(".drpg-popup"));
             button?.click();
             await until(() => button && !button.disabled, 10000);
-            const ruled = game.i18n.format("DRPG.Cleanup.alreadyRuled", { name: game.users.get("USERGM2000000000")?.name ?? "" });
-            return { pressed: Boolean(button), told: globalThis.__notifications.slice(had).filter(n => n.level === "warn" && n.msg === ruled).length };`,
+            await new Promise(r => setTimeout(r, 300));
+            // E18 C3: the card's claim on the primary refuses the click before the reshape's own ledger does, and names gm2 -
+            // as a refusal card since E18 fix e1-G3 (gm-bridge.mjs \`sayRefusedHere\`), a toast only where no card could be shown.
+            const ruled = game.i18n.format("DRPG.Bridge.alreadyRuled", { gm: game.users.get("USERGM2000000000")?.name ?? "" });
+            const cards = [...document.querySelectorAll(".drpg-popup.drpg-popup-error")].filter(c => !shownBefore.has(c))
+                .map(c => c.querySelector(".drpg-popup-body")?.textContent.trim() ?? "");
+            const warned = [...cards, ...globalThis.__notifications.slice(had).filter(n => n.level === "warn").map(n => n.msg)];
+            return { pressed: Boolean(button), told: warned.filter(msg => msg === ruled).length, warned };`,
         { timeout: 30000 });
         await settle(800);
         const toldAfter = await toldP2();

@@ -296,6 +296,10 @@
         "name": "Bez przeglądarki plików dla graczy",
         "hint": "Gracze i zaufani gracze nie mogą przeglądać ani wysyłać plików, a kliknięcie portretu nic im nie otwiera. Obrazy, które już są w świecie, nadal się wyświetlają. Wyłączone: oba uprawnienia możesz znów nadać w uprawnieniach Foundry."
       },
+      "liveKitInFoundry": {
+        "name": "Głos w oknie Foundry u wszystkich",
+        "hint": "Włączone: każda przeglądarka łączy się z głosem w oknie Foundry i nigdy nie otwiera osobnego okna ani karty LiveKit, a przełącznik LiveKit od tego znika z ustawień wszystkich, także GM-a. Zmiana zaczyna działać po przeładowaniu strony. Ma znaczenie tylko z włączonym LiveKit AV Client."
+      },
       "pixelFont": {
         "name": "Czcionka pikselowa",
         "hint": "Tylko Monokuma Legacy, tam domyślnie włączona: Press Start 2P na elementach interfejsu - HUD, Despair, imię postaci, etykiety statystyk, zakładki. Dzienniki, czat i pola edycji zachowują zwykły krój, by długi tekst dało się czytać. Motyw Stained Glass ma własne dwa kroje i to ignoruje."
@@ -362,7 +366,7 @@
       },
       "voiceTile": {
         "name": "Kafel głosu zamiast doku kamer",
-        "hint": "Włączone zdejmuje dok kamer z każdego ekranu, a liczba na głośniku kafla głosu pokazuje, ile innych osób jest w twoim kanale, mówiących czy nie. Wyłączone przywraca wszystkim dok kamer Foundry."
+        "hint": "Włączone zdejmuje dok kamer z każdego ekranu, a liczba na głośniku kafla głosu pokazuje, ile innych osób jest w twoim kanale, mówiących czy nie. Dok Foundry jest przy tym zwinięty, a żadna kamera nie otwiera się w osobnym oknie. Wyłączone przywraca wszystkim dok kamer Foundry, zwinięty albo otwarty tak, jak każda przeglądarka miała go przed ukryciem przez kafel."
       },
       "highContrast": {
         "name": "Wysoki kontrast",
@@ -1248,7 +1252,12 @@
       "varyHint": "Zmienia tempo najczęstszych efektów o kilka procent przy każdym odtworzeniu, by czterdzieste kliknięcie nie brzmiało jak pierwsze. Wszystko inne - i safeword - zostaje dokładnie tak, jak przypisano.",
       "choose": "Wybierz",
       "test": "Test",
-      "clear": "Wyczyść"
+      "clear": "Wyczyść",
+      "chooseHint": "Wybierz plik. W wierszu, który już go ma, trafia obok, a za każdym razem losowany jest jeden z nich.",
+      "testHint": "Odtwórz tutaj, teraz.",
+      "clearHint": "Opróżnij ten wiersz: zdarzenie ucichnie.",
+      "groupAssigned": "przypisano {n} z {total}",
+      "autosave": "Zmiany zapisują się od razu: ta karta nie ma przycisku Zastosuj."
     },
     "Vote": {
       "openTitle": "Głosowanie",
@@ -1393,7 +1402,7 @@
       "orderNote": "Wygrywa pierwszy pasujący stan, w podanej kolejności. Class Trial nocą używa playlist Class Trial; Eclipse w jego trakcie - playlist Eclipse.",
       "trialNote": "Objection ma pierwszeństwo przed otwartą debatą, a debata przed samym trwaniem Class Trial. Rebuttal nie ma własnego wiersza: przez cały Rebuttal gra dalej muzyka Objection. Każdy losuje utwór, gdy przejmuje grę, nigdy ten sam co ostatnio. Objection trwa minutę, więc daj tej playliście krótkie wyciszenie.",
       "incidentNote": "Wiersz morderstwa gra tylko w przeglądarkach osób, które są w incydencie, i GM-ów, więc nikt inny nie dowie się z muzyki, że trwa morderstwo. Zostaw go pustym, a to, co gra, będzie grać dalej.",
-      "fadeNote": "Wyciszenia należą do playlisty - ustaw Fade Duration na playliście albo na utworze, a użyją go oba kierunki. Włącz utwór, a wszystko inne zatrzymuje się w miejscu i stamtąd wraca.",
+      "fadeNote": "Wyciszenia należą do playlisty - ustaw Fade Duration na playliście albo na utworze, a użyją go oba kierunki. Włącz utwór, a wszystko inne zatrzymuje się w miejscu i stamtąd wraca. Po znalezieniu ciała, gdy nic nie jest do niego przypisane, cisza zatrzymuje też twój własny utwór.",
       "when": "Kiedy",
       "playlist": "Gra",
       "saved": {
@@ -2059,6 +2068,7 @@
       "bodyNoteTraces": "Potem zobaczysz pytanie, które ślady zostawione, gdy ktoś zbierał narzędzia, należą do tego morderstwa.",
       "announce": "Ogłoś",
       "bodyBanner": "ZNALEZIONO CIAŁO",
+      "bodyTitle": "Znaleziono ciało",
       "bodyFound": "Znaleziono ciało w: {room}.",
       "bodyFoundNamed": "{name} znaleziony martwy w: {room}.",
       "bodyCalled": "Wszyscy wezwani na miejsce. Investigation jeszcze nie trwa.",
@@ -3041,7 +3051,8 @@
         "advancement": {
           "apply": "Level Up",
           "offer": "Oferta Level Up",
-          "ask": "Twoje oferty Level Up"
+          "ask": "Twoje oferty Level Up",
+          "offers": "Oferty Level Up do wyboru"
         },
         "call.arm": "Call kupiony na rzut",
         "daggerheart": "Zmiana w Daggerheart",
@@ -3053,6 +3064,9 @@
         "call.approve": "Zgoda na Hope Call",
         "call.yes": "Zgoda GM-a na Hope Call",
         "dynamic.difficulty": "Trudność akcji Dynamic",
+        "dynamic.answer": "Decyzja GM-a o akcji Dynamic",
+        "ruling.expired": "Decyzja, na którą już nie czekasz",
+        "ruling.received": "Decyzja, która do ciebie dotarła",
         "trait.ruling": "Wybór statystyki przez GM-a",
         "trap.event": "Zgłoszenie dla pułapek",
         "roll.subject": "Zgłoszenie, czyj to był rzut",
@@ -3063,6 +3077,7 @@
         "keys.charge": "Opłata za Key Remnants pobierana przy otwarciu Class Trial",
         "reroll.ask": "Reroll",
         "card.post": "Karta do wystawienia przez GM-a",
+        "card.claim": "Decyzja GM-a na karcie wysłanej do GM-ów",
         "searchTokens.spend": "Wydanie Search Tokena",
         "searchTokens.takePlant": "Szukanie podłożonego przedmiotu",
         "searchTokens.returnPlant": "Zwrot podłożonego przedmiotu",
@@ -3073,10 +3088,18 @@
         "trial.object": "Wniesienie Objection",
         "trial.evidence": "Twój Truth Bullet do Objection",
         "trial.withdraw": "Wycofanie Twojego Objection",
-        "floor.repoint": "Przekierowanie Objection"
+        "floor.repoint": "Przekierowanie Objection",
+        "murder.openingAsk": "Twój rzut otwarcia",
+        "murder.openingCancel": "Odwołanie rzutu otwarcia",
+        "bridge.done": "Odpowiedź GM-a na twoją prośbę",
+        "bridge.gmReady": "Powrót GM-a do stołu",
+        "gm.call": "Pytanie do GM-a",
+        "bridge.refused": "Odmowa GM-a na twoją prośbę",
+        "bridge.ack": "Potwierdzenie GM-a, że prośba dotarła"
       },
       "notDone": "Prośba „{what}” nie została wykonana. {why}",
       "nothingSpent": "Nic nie wydano.",
+      "emptyRequest": "Nic nie wysłano - najpierw wpisz swoją prośbę.",
       "why": {
         "unknownSender": "Klient GM-a nie widzi cię jako połączonego. Przeładuj stronę i spróbuj ponownie.",
         "notYours": "Dotyczy postaci, którą nie grasz.",
@@ -3156,12 +3179,19 @@
       "criticalHint": "Krytyk - temu graczowi należy się solidna podpowiedź.",
       "send": "Wyślij do GM-a",
       "awaitingRuling": "Czeka na decyzję.",
+      "openUntil": "Otwarta do {time}.",
       "declined": "{name} - próba odrzucona. Twoja akcja wraca.",
       "declinedGm": "Odrzucono. {name} odzyskuje akcję.",
       "settledAnswered": "Odpowiedział: {name}.",
       "settledDeclined": "Odrzucił: {name}.",
       "settledApproved": "Zatwierdził: {name}.",
       "settledHandled": "Załatwił: {name}.",
+      "settledExpired": "Nikt nie odpowiedział na czas - zapytaj jeszcze raz.",
+      "settledGone": "Gracz już nie czekał.",
+      "settledUnconfirmed": "Odpowiedział: {name} - odbiór niepotwierdzony.",
+      "alreadyRuled": "Tę kartę już rozstrzygnięto (przez: {gm}).",
+      "claimBusy": "Tę kartę rozstrzyga właśnie: {gm}.",
+      "alreadySettled": "Ta karta ma już odpowiedź.",
       "replyTitle": "Odpowiedz: {name}",
       "replyPrompt": "Twoja decyzja, własnymi słowami. Trafi do wątku tej osoby.",
       "rulingBy": "{name} orzeka:",
@@ -3250,6 +3280,7 @@
     },
     "Clock": {
       "summary": "Rozdział {chapter} · Dzień {day} · Sesja {session} · {time}",
+      "summaryUnder": "Rozdział {chapter} · Dzień {day} · Sesja {session}",
       "summaryEclipse": "{summary} · ECLIPSE",
       "eclipseStillOn": "Zegar się przesunął, ale Eclipse wciąż trwa. Zakończ go strzałką przy zegarze, gdy przyjdzie pora - do tej pory tokeny ustawiają się swobodnie, a morderstwa są odrzucane.",
       "campaignName": "Nazwa kampanii",
@@ -3346,7 +3377,7 @@
         "many": "Wyczyszczono {n} Faint Remnants.",
         "other": "Wyczyszczono {n} Faint Remnants."
       },
-      "voiceReset": "Zresetuj wszystkie pokoje głosowe",
+      "voiceReset": "Wyślij wszystkim ponownie ich pokój głosowy",
       "publicRoll": {
         "label": "Rzut publiczny",
         "formula": "Formuła",
@@ -3828,17 +3859,25 @@
     "Voice": {
       "contested": "Głos: {name} ma postacie w więcej niż jednym miejscu ({places}). Klient głosowy może być tylko w jednym pokoju, więc {name} trafia do „{room}”, a reszta jest pomijana. Oddaj zapasowe postacie innemu kontu albo zdejmij ich tokeny z mapy.",
       "mainRoom": "główny pokój",
+      "deadRoom": "kanał zmarłych",
       "claimTrial": "Class Trial - wszyscy w jednym pokoju",
-      "notActive": "LiveKit AVClient nie jest zainstalowany, włączony ani połączony.",
       "needsAvclient": "Głos per pokój jest włączony, ale LiveKit AVClient nie jest aktywny.",
       "avDisabled": "Głos per pokój jest włączony, ale Audio/Wideo jest wyłączone dla tego świata. Włącz je w Konfiguracji ustawień.",
       "resetDone": {
-        "one": "{n} gracz odesłany do głównego pokoju głosowego.",
-        "few": "{n} graczy odesłanych do głównego pokoju głosowego.",
-        "many": "{n} graczy odesłanych do głównego pokoju głosowego.",
-        "other": "{n} graczy odesłanych do głównego pokoju głosowego."
+        "one": "Wysłano ponownie pokój głosowy {n} osobie.",
+        "few": "Wysłano ponownie pokoje głosowe {n} osobom.",
+        "many": "Wysłano ponownie pokoje głosowe {n} osobom.",
+        "other": "Wysłano ponownie pokoje głosowe {n} osoby."
       },
-      "resetRefused": "Nie ma czego resetować: głos per pokój jest wyłączony, LiveKit nieaktywny albo prowadzi go klient innego GM-a.",
+      "drop": {
+        "title": "Głos rozłączony",
+        "retry": "Nie masz połączenia głosowego. Łączymy cię ponownie; jeśli za minutę nadal nikogo nie słyszysz, odśwież stronę (F5).",
+        "closed": "Połączenie głosowe zamknął serwer głosu albo inne okno zalogowane na twoje konto. Odśwież tę stronę (F5), żeby dołączyć ponownie."
+      },
+      "resetRefused": {
+        "primary": "Pokoje głosowe wysyła ponownie tylko główny GM, {name}. Poproś o to GM-a {name}.",
+        "livekit": "Nic nie wysłano: LiveKit AVClient nie jest aktywny. Włącz go w Zarządzaj modułami i przeładuj świat."
+      },
       "tile": {
         "label": "Głos",
         "speaking": "Mówi",
@@ -3869,6 +3908,7 @@
       "held": {
         "eclipse": "Eclipse: do powrotu światła żaden gracz nie jest w kanale głosowym.",
         "eclipseHeard": "Eclipse: do powrotu światła nikt cię nie słyszy.",
+        "deadAlone": "Twoja postać nie żyje: żywi cię nie słyszą, a ty nie słyszysz ich.",
         "gmBlock": "GM zablokował twój mikrofon.",
         "external": "Głos jest w osobnym oknie - użyj jego przycisków.",
         "offline": "Brak połączenia z głosem.",
@@ -3967,7 +4007,8 @@
     "Secret": {
       "speaker": "Monokuma",
       "storeFull": "Ta przeglądarka nie zdołała zapisać prywatnej karty - jej pamięć jest pewnie pełna. Od teraz prywatne karty przychodzą tu puste, a klucze odpowiedzi Truth Bulletów i Remnantów przestają się zapisywać w tej przeglądarce. Usunięcie starych wiadomości czatu zwalnia miejsce. Nie czyść danych gry w tej przeglądarce: klucze odpowiedzi też tam są.",
-      "tooLong": "Ta wiadomość jest za długa, żeby wysłać ją prywatnie - ponad {kb} KB. Podziel ją na krótsze."
+      "tooLong": "Ta wiadomość jest za długa, żeby wysłać ją prywatnie - ponad {kb} KB. Podziel ją na krótsze.",
+      "wordsElsewhere": "Prywatna karta - jej treść trafiła do innej przeglądarki i nie jest przechowywana na serwerze."
     },
     "Legacy": {
       "safeword": "MISIUBOMBO"
@@ -5326,7 +5367,7 @@
       "SFX_CATEGORIES": {
         "safety": {
           "label": "Bezpieczeństwo",
-          "hint": "Safeword. Ignoruje suwak Dźwięk - patrz notatka przy zdarzeniu."
+          "hint": "Dźwięk zatrzymania sceny."
         },
         "ui": {
           "label": "Interfejs",
@@ -5358,7 +5399,7 @@
       "SFX_EVENTS": {
         "safeword": {
           "label": "Safeword",
-          "hint": "Ktoś zatrzymał scenę. Słyszą wszyscy, na pełnej głośności niezależnie od suwaka Dźwięk, i powinno brzmieć jak nic innego w grze."
+          "hint": "Ktoś zatrzymał scenę. Słyszą wszyscy niezależnie od suwaka Dźwięk, przy głośności interfejsu Foundry, od pierwszego kliknięcia w stronę po jej wczytaniu; kartę i tak widać na każdym ekranie. Niech brzmi jak nic innego w grze."
         },
         "windowOpen": {
           "label": "Okno się otwiera",
@@ -5746,7 +5787,8 @@
         "sheetWrites": "Zapisy na kartach postaci cofnięte, zgłoszone lub odnotowane przez GM-ów, trzymane przez dobę",
         "diceLooks": "Wygląd kości każdej postaci ustalony przez GM-ów, do którego wraca zmiana gracza",
         "ballots": "Karty głosowania w Class Trial, przechowywane u GM-ów",
-        "verdict": "Blackened, z którymi wydano ostatni werdykt, przechowywani u GM-ów na jego dokończenie"
+        "verdict": "Blackened, z którymi wydano ostatni werdykt, przechowywani u GM-ów na jego dokończenie",
+        "ruledCards": "Kto rozstrzygnął każdą kartę wysłaną do GM-ów, by każdą rozstrzygnąć raz"
       },
       "row": {
         "traces": {

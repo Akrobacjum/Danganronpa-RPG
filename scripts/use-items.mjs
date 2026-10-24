@@ -550,6 +550,8 @@ async function useCreatively(actor, item) {
             item: foundry.utils.escapeHTML(item.name)
         }),
         placeholder: game.i18n.localize("DRPG.Items.creativePlaceholder"),
+        // An empty use is nothing for the GM to rule on (E18 C0, S10-52): asked again.
+        required: true,
         room: (await import("./movement.mjs")).roomOfActor(actor),
         actions: [
             { action: "itemWorks", label: game.i18n.localize("DRPG.Items.itemWorks"), data },

@@ -863,6 +863,22 @@ function announcedAlready(actor, held, { clock = getClock(), epoch = seasonEpoch
     return announcedIn(clock.chapter, epoch)(actor.id, deathRecordFor(held(actor)));
 }
 
+/**
+ * Whether this chapter's discoveries announced `actor`'s present death (E19 C3; the owner's A9 of 11.10): the dead
+ * channel's trigger "the body found" (voice.mjs `deathVoiceGone`). A9's thin wrapper over `announcedAlready`, read
+ * with the primary's mark (`flagsHeldNow`), as the GM's list of bodies reads it. Not settings.mjs `bodyAnnounced`,
+ * which reads any discovery of the season by id: a student revived and killed again would read as found at once.
+ * Async because sheet-audit.mjs is imported where it is needed, as everywhere in this file.
+ *
+ * @param {Actor} actor
+ * @returns {Promise<boolean>}
+ */
+export async function deathAnnounced(actor) {
+    if (!actor?.id) return false;
+    const { flagsHeldNow } = await import("./sheet-audit.mjs");
+    return announcedAlready(actor, flagsHeldNow);
+}
+
 async function runDiscovery({ room, victim = null, scene = null, by = "gm" } = {}) {
     if (!game.user.isGM || !room) return null;
     // The chapter and season the discovery happens in, read before anything is awaited: the
@@ -968,8 +984,16 @@ async function runDiscovery({ room, victim = null, scene = null, by = "gm" } = {
 
     // The moment the chapter changes genre, on every screen at once. The card
     // is already public, so the flag needs nothing else from anybody.
+    // Posted as the assemblies are (call-world.mjs): its own title in the bar, not
+    // 'Notice', and an objection's weight, which keeps the notices over the windows
+    // (E18 C6; audit S11-17, S11-23). As a plain public card it would have been the
+    // one notice of a murder to stand under an open sheet.
     await announce({
-        flags: { [MODULE_ID]: { sfx: { key: "bodyFound", gm: true } } },
+        flags: { [MODULE_ID]: {
+            sfx: { key: "bodyFound", gm: true },
+            popupKind: "objection",
+            popupTitle: game.i18n.localize("DRPG.Chapter.bodyTitle")
+        } },
         content: `<div class="drpg-evidence-card">
             <div class="drpg-objection-banner">${
                 game.i18n.localize("DRPG.Chapter.bodyBanner")}</div>

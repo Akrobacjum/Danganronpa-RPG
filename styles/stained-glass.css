@@ -1872,7 +1872,12 @@ body.drpg-theme-stained-glass .drpg-messenger-tabs button.active::before { opaci
 body.drpg-theme-stained-glass .drpg-messenger-bubble {
     border-radius: 0;
     clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+    /* The theme's floor, stated here (E18 C6; audit S12-28): it reached the bubble only through
+       messenger.css's `--font-size-13`, which this theme raises to the floor; with that rule gone the
+       shared one's `--drpg-text-sm` drew 13 px (Chromium, the sheets alone, 20.10.2026: 21 px before). */
+    font-size: var(--drpg-sg-floor);
 }
+body.drpg-theme-stained-glass .drpg-messenger-bubble.action h3 { font-size: var(--drpg-sg-floor); }
 body.drpg-theme-stained-glass .drpg-messenger-bubble.gm { border-color: color-mix(in srgb, var(--drpg-sg-gm-light) 55%, transparent); }
 body.drpg-theme-stained-glass .drpg-messenger-bubble.mine { border-color: color-mix(in srgb, var(--drpg-glass-accent) 55%, transparent); }
 body.drpg-theme-stained-glass .drpg-messenger-author { font-family: var(--drpg-font-title); text-transform: none; letter-spacing: 0; font-size: max(var(--drpg-sg-floor), calc(15px * var(--drpg-sg-scale))); }
@@ -1903,7 +1908,10 @@ body.drpg-theme-stained-glass .drpg-popup-title {
     font-family: var(--drpg-font-chrome);
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    font-size: max(var(--drpg-sg-floor), calc(14px * var(--drpg-sg-scale)));
+    /* `!important` against the shared bar rule's (danganronpa.css, the sheet's section headers), which
+       won at `--drpg-text-xs`: VT323 at 11 px, the audit read its letters at about 8-9 px (E18 C6;
+       S11-23). Read from the cascade (R848); what VT323 draws is not measured here (LIVE-E18-03). */
+    font-size: max(var(--drpg-sg-floor), calc(14px * var(--drpg-sg-scale))) !important;
     background: var(--acc);
     color: var(--drpg-sg-ink);
     clip-path: polygon(0 0, 100% 0, calc(100% - 12px) 100%, 0 100%);
@@ -3357,6 +3365,14 @@ body.drpg-theme-stained-glass .drpg-messenger button:not(.drpg-mini-button):not(
     line-height: 1.35;
     overflow: visible;
     text-overflow: clip;
+}
+/* A ruling card's buttons in the messenger keep 28 px as their floor (E18 C6; audit S11-24): the type
+   factor above carries the screen's term and the slider, under 1 at 1080p (settings.mjs `typeScale`),
+   and these are the buttons a GM answers a request with. Their words at the theme's floor and never
+   under the shared rule's small text: VT323 at 13 px draws small. Read from the cascade (R849). */
+body.drpg-theme-stained-glass .drpg-messenger .drpg-messenger-bubble button.drpg-call-action {
+    min-height: max(28px, calc(28px * var(--drpg-sg-scale)));
+    font-size: max(var(--drpg-text-sm), var(--drpg-sg-floor));
 }
 body.drpg-theme-stained-glass .drpg-panel button:not(.drpg-action-button):not(.drpg-call-button):not(.drpg-mini-button):not(.header-control):not(.drpg-gmp-button),
 body.drpg-theme-stained-glass .drpg-gmt-tabs button,

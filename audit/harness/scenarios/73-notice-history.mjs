@@ -64,7 +64,10 @@ export const layers = ["ci"];
    0 failed in 29940ms", 35 s by the wall clock with the cluster's start - the Eclipse started and ended and two windows
    opened, not timed apart by phase. Still inside 60 s, so it stays.
    E77 fix r2-H7's H4 (13.10.2026, alone, once): "28/28 checks passed, 0 failed in 31530ms"; in a2.sh's fast set beside
-   two other lanes 36157ms. Still inside 60 s. */
+   two other lanes 36157ms. Still inside 60 s.
+   E18 C4's phase R (20.10.2026, in the local gate, once): run-all read "43 s  32/32 passed", the results file 39058 ms -
+   p4 leaves, two cards are posted, p4 comes back and waits for the words and for the 4 s give-up on the card no GM holds,
+   not timed apart by phase. Still inside 60 s, so it stays. */
 export const timeoutMs = 60000;
 
 export const accounts = [{ who: "p4", id: "USERP4000000000A", name: "Player Four", role: 1, character: null, color: "#2a7f62", late: true }];
@@ -593,6 +596,60 @@ export async function run({ gm, p1, p2, p4, check, phase, settle, connect, disco
     check("H5: no group heading of the history can start a line with its separator - each \"·\" follows a no-break space and is followed by a space - on the GM and on a player",
         ["gm", "p1"].every(who => nSeen[who] && nSeen[who].headings.length >= 2 && nSeen[who].headings.every(keepsSeparators)),
         J({ gm: nSeen.gm?.headings, p1: nSeen.p1?.headings }));
+
+    phase("R: a player away when private cards were posted is given their words on return, each card shown once with its messageId; a card no GM holds says so; another player who asks is given nothing");
+    /* E18 C4 (20.10.2026; audits S11-12, S15-01, S01-33; the owner's amend 1). The words of a private card travel once, to
+       the browsers connected as it is posted: p4's page is closed while the GM posts two cards to it - one to p4 and the
+       GMs with a line for the GMs, one to p4 alone, whose words no GM's browser holds - and opened again with the storage
+       it left. At its ready p4 asks the GMs for the cards it holds no words of (secret.mjs `askForWords`); the GM answers
+       from its own store to a reader it holds (`answerWordsRequest`). R1: p4 holds the first card's words without the
+       GMs' line, the card is on p4's screen once and kept once in its history under the card's id. R2: the second card,
+       past the wait a card's words get (4 s), is drawn with DRPG.Secret.wordsElsewhere, not '-'. R3: p2, not a reader,
+       sends the same ask from its console and holds nothing of the first card. */
+    const R = { held: "S73 R held words", prose: "S73 R GM prose", nobody: "S73 R nobody's words" };
+    await settle(800);
+    await disconnect("p4");
+    const awayStorage = await storageOf("p4");
+    const rPosted = await gm.eval(`const U = await import("${repoUrl}/scripts/utils.mjs");
+        const held = await U.announce({ content: '<p>${R.held}</p><div class="drpg-gm-only">${R.prose}</div>', whisper: ["${P4}", game.user.id] });
+        const nobody = await U.announce({ content: "<p>${R.nobody}</p>", whisper: ["${P4}"] });
+        return { held: held?.id ?? null, nobody: nobody?.id ?? null };`);
+    try {
+        await connect("p4", { storage: awayStorage });
+        const rBack = await p4.eval(`${UNTIL}
+            const S = await import("${repoUrl}/scripts/secret.mjs");
+            const NH = await import("${repoUrl}/scripts/notice-history.mjs");
+            const card = game.messages.get("${rPosted.held}");
+            const words = await until(() => String(S.secretHtml(card) ?? "").includes(${J(R.held)}));
+            const shown = () => [...document.querySelectorAll(".drpg-popup .drpg-popup-body")].filter(b => b.textContent.includes(${J(R.held)})).length;
+            await until(() => shown() > 0, 3000);
+            await new Promise(r => setTimeout(r, 4500));
+            const nobody = game.messages.get("${rPosted.nobody}");
+            const li = document.createElement("li");
+            const body = document.createElement("div");
+            body.className = "message-content";
+            body.innerHTML = nobody?.content ?? "";
+            li.append(body);
+            if (nobody && typeof S.drawPrivateCard === "function") S.drawPrivateCard(nobody, li);
+            return { words, prose: JSON.stringify(game.settings.get("${MOD}", "secretCards") ?? {}).includes(${J(R.prose)}), shown: shown(),
+                kept: NH.noticeEntries().filter(e => e.messageId === "${rPosted.held}").length,
+                nobody: body.textContent.trim(), line: game.i18n.localize("DRPG.Secret.wordsElsewhere") };`, { timeout: 30000 });
+        check("R1: back on the page, the player holds the card's words without the GMs' line, shown once and kept once under the card's id",
+            Boolean(rPosted.held && rPosted.nobody) && rBack.words === true && rBack.prose === false && rBack.shown === 1 && rBack.kept === 1,
+            J({ rPosted, rBack }));
+        check("R2: a card whose words no GM holds reads that they were sent to another browser, not '-'",
+            rBack.nobody === rBack.line && rBack.line !== "DRPG.Secret.wordsElsewhere", J(rBack));
+        const asked = await p2.eval(`const S = await import("${repoUrl}/scripts/secret.mjs");
+            const gms = game.users.filter(u => u.isGM && u.active).map(u => u.id);
+            game.socket.emit("module.${MOD}", { action: "secret.request", ids: ["${rPosted.held}"] }, { recipients: gms });
+            await new Promise(r => setTimeout(r, 1500));
+            return { gms: gms.length, held: S.secretHtml(game.messages.get("${rPosted.held}")),
+                stored: JSON.stringify(game.settings.get("${MOD}", "secretCards") ?? {}).includes("${rPosted.held}") };`);
+        check("R3: another player who asks the GMs for the card holds nothing of it", asked.gms > 0 && asked.held === null && asked.stored === false, J(asked));
+    } finally {
+        await gm.eval(`for (const id of ${J(Object.values(rPosted))}) await game.messages.get(id)?.delete(); return true;`);
+        await p4.eval(`for (const card of document.querySelectorAll(".drpg-popup")) card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } })); return true;`);
+    }
 
     phase("S3: the safeword with no GM connected - the caller's own card names nobody in another player's history window");
     /* E81 fix r2-H1 (13.10.2026; review round 2's C2-1, which the correctness review measured in the harness at eefa79f:

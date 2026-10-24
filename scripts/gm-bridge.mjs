@@ -16,19 +16,19 @@ import {
     MODULE_ID, TRAITS, HOPE_CALLS, DESPAIR_CALLS, STARTING, PROJECT_SCALE, TIMING,
     LEVEL_UP, LEVEL_UP_OPTIONS, ACTIONS, DYNAMIC_THRESHOLDS
 } from "./config.mjs";
-import { announce, whisperToGms, whisperToOwner, ownerOf, isPrimaryGm, primaryGmId, dialogContent, debug, warn, error, cardHead, esc } from "./utils.mjs";
+import { announce, whisperToGms, whisperToOwner, ownerOf, isPrimaryGm, primaryGmId, dialogContent, debug, warn, error, cardHead, esc, serverNow } from "./utils.mjs";
 import {
     firstRefusal, guardUndoIsTheGms, guardCrisisAction, guardCrisisRoll, guardShareSecret,
     guardShareGuest, guardTieTraceHolder, guardSendbackPlace, armBuyerId, guardArmCharacter, guardArmPlayerCall, guardCubAbility,
     guardArmCallGrants, guardArmLiving, guardArmNotHeld, guardArmBuyer, guardArmOtherCharacter, guardArmHopeCallAllowed,
-    guardArmBuyerHope, guardArmGmYes, noteCallYes, guardDespairDelta, guardDespairPool, guardTraitRuling, guardRollAuthor, guardCallProgress, guardProjectFrozen,
+    guardArmBuyerHope, guardArmGmYes, noteCallYes, forgetCallYes, guardDespairDelta, guardDespairPool, guardTraitRuling, guardRollAuthor, guardCallProgress, guardProjectFrozen,
     guardProjectRoom, guardSabotageRoom, guardCardSpeaker, guardCardReaders, table, tokenActorOf, remnantSourceOf, knownSender, owns, ownsActorAt, gmOnly,
-    playersOnly, canSeeProject, inRange, as, pick, judge, replyForMe, bridgeRequest, resendOnGmReady, sayNotDone, reasonOf
+    playersOnly, canSeeProject, inRange, as, pick, judge, replyForMe, bridgeRequest, resendOnGmReady, sayNotDone, reasonOf, gmOnline
 } from "./bridge-guards.mjs";
 // R148 and anything else that asked gm-bridge.mjs for it keep finding it here (E31).
 export { removalRefusal } from "./bridge-guards.mjs";
 
-import { contentOf, cardFlag, cardWriter } from "./secret.mjs";
+import { contentOf, cardFlag, cardMeta, cardWriter } from "./secret.mjs";
 import { gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 const ACTION_PROGRESS = "project.progress";
@@ -73,6 +73,12 @@ const ACTION_TRAIT_RULING = "trait.ruling";
 const ACTION_HOPE_CALL = "call.approve";
 /** GM -> primary GM: a GM's yes on that card, kept for the arm it allows (E29 fix r2-H4; `answerHopeCall`). */
 const ACTION_CALL_YES = "call.yes";
+/** player -> primary GM: the clock of a ruling asked from a card ran out on the asker's browser (E18 C1; `expiredOnPrimary`). */
+const ACTION_RULING_EXPIRED = "ruling.expired";
+/** player -> primary GM: the ruling sent on from the primary reached the asker (E18 C1; `receivedOnPrimary`). */
+const ACTION_RULING_RECEIVED = "ruling.received";
+/** GM -> primary GM: a GM's difficulty or refusal on a Dynamic action's card, sent on by the primary (E18 C1; `answerDynamic`). */
+const ACTION_DYNAMIC_ANSWER = "dynamic.answer";
 const ACTION_OBSERVE_TARGET = "observe.target";
 const ACTION_OBSERVE_RESOLVE = "observe.resolve";
 /** GM -> primary GM: a GM's pick or refusal on an Observe card (E09 C12; observe.mjs `pickFromCard`, `askObservePick`). */
@@ -129,6 +135,8 @@ const ACTION_ROLL_BOOKMARK = "roll.bookmark";
 const ACTION_REROLL = "reroll.ask";
 /** player -> GM: post the private card my browser would post while an incident runs (E08+E28 fix r2-H5) - see secret.mjs `askGm`. */
 const ACTION_CARD = "card.post";
+/** GM -> primary GM: a GM's click on a card to the GMs, claimed before it rules and marked ruled after (E18 C3; `claimCard`). */
+const ACTION_CARD_CLAIM = "card.claim";
 
 /**
  * A primary GM has finished loading and can answer questions again.
@@ -182,6 +190,23 @@ export function registerGmBridge() {
     // After the secret swap: the import is a microtask, and the swap ran in
     // this same hook dispatch.
     if (game.user.isGM) {
+        // The asks' cards left open by an asker who left or a primary that reloaded end at their time (E18 C2):
+        // swept once this world is up, and again by the GM who becomes the primary when the primary leaves.
+        sweepAskCards().catch(err => debug("Could not sweep the asks' cards", err));
+        Hooks.on("userConnected", (user, connected) => {
+            // A GM who left in the middle of a ruling holds no card any more (E18 C3).
+            if (!connected && user?.id) releaseClaimsOf(user.id);
+            if (connected || !user?.isGM || !isPrimaryGm({ leaving: user.id })) return;
+            sweepAskCards({ leaving: user.id }).catch(err => debug("Could not sweep the asks' cards", err));
+        });
+        // A card deleted takes the GMs' row of who ruled it with it (E18 C3): the primary writes the rows, and drops them.
+        Hooks.on("deleteChatMessage", message => {
+            if (!isPrimaryGm() || !message?.id) return;
+            claimsInProgress.delete(message.id);
+            import("./gm-stores.mjs")
+                .then(({ ruledCardStore }) => (ruledCardStore.has(message.id) ? ruledCardStore.drop(message.id) : null))
+                .catch(err => debug("Could not drop a deleted card's ruling row", err));
+        });
         Hooks.on("renderChatMessageHTML", (message, element) => {
             // From the words' meta (E06 C7a): the card is drawn again when they land.
             if (!cardFlag(message, "callCard")) return;
@@ -1037,8 +1062,25 @@ async function handleHopeCall(payload, sender, ctx) {
 
 /** The run of `call.yes` (E29 fix r2-H4): another GM's yes on a Call's card, kept and sent on by this primary. */
 async function handleCallYes(payload, sender) {
-    return yesOnPrimary(payload.rid, payload.asker)
+    return (await yesOnPrimary(payload.rid, payload.asker, sender.id, payload.messageId))
         ? { reply: true } : { refused: "nothing was carried out: the primary GM holds no ask of that Call under that request" };
+}
+
+/** The run of `dynamic.answer` (E18 C1): another GM's difficulty or refusal on a Dynamic action's card, sent on by this primary. */
+async function handleDynamicAnswer(payload, sender) {
+    const ruling = payload.refuse ? false : { tier: payload.tier, trait: payload.trait };
+    return (await dynamicOnPrimary(payload.rid, payload.asker, ruling, sender.id, payload.messageId))
+        ? { reply: true } : { refused: "nothing was carried out: the primary GM holds no Dynamic ask under that request" };
+}
+
+/** The run of `ruling.expired` (E18 C1): the asker's clock ran out, so its card ends here. */
+async function handleRulingExpired(payload, sender) {
+    if (!(await expiredOnPrimary(payload.rid, sender.id))) return { refused: "nothing was carried out: the primary GM holds no ask of the sender under that id" };
+}
+
+/** The run of `ruling.received` (E18 C1): the ruling reached its asker, so its card is written as ruled here. */
+async function handleRulingReceived(payload, sender) {
+    if (!(await receivedOnPrimary(payload.rid, sender.id))) return { refused: "nothing was carried out: the primary GM sent the sender no ruling under that id" };
 }
 
 async function handleDifficulty(payload, sender, ctx) {
@@ -1254,7 +1296,7 @@ async function traceBandOf(record) {
 
 /**
  * The difficulty a GM set on a Dynamic action's card for this roll's character: the newest ruling
- * kept in a card's meta (messenger-app.mjs `ruleSetDifficulty`, `settleCall`) within a Reroll's
+ * kept in a card's meta (`keepRuling`, as the primary sends it on) within a Reroll's
  * reach of the roll, as a GM's pick of a statistic is found (roll-draw.mjs `gmPickOf`), or null.
  * `record` needs `actorId` and `at`; the Reroll's replay reads it too (reroll.mjs `settleDynamic`).
  * A card counts only where a GM wrote it (secret.mjs `cardWriter`; E29 fix r2-H2, 05.10.2026, the
@@ -1690,6 +1732,12 @@ async function handleObservePick(payload, sender) {
         refuse: payload.refuse }, sender.id) };
 }
 
+/** The run of `card.claim` (E18 C3): a GM's claim of a card, decided on this primary (`claimOnPrimary`). */
+async function handleCardClaim(payload, sender) {
+    if (!payload.step) return { refused: "nothing was carried out: a claim names no step it knows" };
+    return { reply: await claimOnPrimary(payload.messageId, payload.step, sender.id) };
+}
+
 /** The run of `card.post` (E08+E28 fix r2-H5): the sender's card, posted by this GM (secret.mjs `postAsked`), or why not. */
 async function handleCardPost(payload, sender) {
     const { postAsked, cardTooLong } = await import("./secret.mjs");
@@ -2037,7 +2085,9 @@ export const BRIDGE_ACTIONS = table({
         // yes is kept for (E29 fix r2-H4; `yesOnPrimary`).
         sanitize: pick({ actorId: as.id, key: as.text, callLabel: as.text, effect: as.text, note: as.text, nonce: as.text }),
         run: handleHopeCall,
-        answer: "reply", patient: true, resend: true, timeoutMs: TIMING.hopeCallRulingMs
+        // Not patient (E18 C2, S10-51): the primary's "got it" comes as the card goes up, so none within
+        // TIMING.ackMs is an ask no GM's listener took, said at once rather than after the ruling's clock (R840).
+        answer: "reply", resend: true, timeoutMs: TIMING.hopeCallRulingMs
     },
     /*
      * A GM'S YES IS KEPT ON THE PRIMARY (E29 fix r2-H4, 05.10.2026; the round-2 reviews' sec M4
@@ -2050,17 +2100,61 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_CALL_YES]: {
         label: "DRPG.Bridge.what.call.yes",
         guards: [gmOnly("only a GM says yes to a Call")],
-        sanitize: pick({ rid: as.text, asker: as.id }),
+        // `messageId` is the card pressed (E18 fix early-C2-G2): the yes is kept only for the ask held on it.
+        sanitize: pick({ rid: as.text, asker: as.id, messageId: as.id }),
         run: handleCallYes,
         answer: "reply",
-        claims: { asker: "yesOnPrimary (gm-bridge.mjs) keeps a yes only for an ask this primary holds under that request, made by that user" }
+        claims: {
+            asker: "yesOnPrimary (gm-bridge.mjs) keeps a yes only for an ask this primary holds under that request, made by that user",
+            messageId: "yesOnPrimary (gm-bridge.mjs) keeps a yes only when the card pressed is the card the ask is held on"
+        }
     },
     [ACTION_DIFFICULTY]: {
         label: "DRPG.Bridge.what.dynamic.difficulty",
         guards: [knownSender, owns("actorId", "sender does not own that character")],
         sanitize: pick({ actorId: as.id, description: as.text, actorName: as.text, room: as.maybeText }),
         run: handleDifficulty,
-        answer: "reply", patient: true, resend: true
+        // Not patient, as the Hope Call's (E18 C2, R840).
+        answer: "reply", resend: true
+    },
+    /*
+     * AN ASK FROM A CARD ENDS ONCE, ON THE PRIMARY (E18 C1, 19.10.2026; audits S10-25, S11-13). A Hope
+     * Call's card and a Dynamic action's stayed open after the player's clock had run out, and a GM's yes
+     * given then was kept and sent to a browser that no longer waited; the GM who pressed wrote "Approved"
+     * whether the player had the ruling or not. A Dynamic answer goes by the primary now, as a Call's yes
+     * has since E29 fix r2-H4, and the primary writes the card: as ruled on its asker's `ruling.received`,
+     * as expired on its asker's `ruling.expired` or when no receipt came within `TIMING.ackMs` - and then
+     * takes a Call's yes back. A Dynamic difficulty is in the card's meta before it is sent on, whatever
+     * the asker's browser reports after (`keepRuling`, fix early-C1-G1). A player's two reports name only
+     * the ask's id; the primary acts only for the asker it holds under it (`expiredOnPrimary`, `receivedOnPrimary`).
+     */
+    [ACTION_DYNAMIC_ANSWER]: {
+        label: "DRPG.Bridge.what.dynamic.answer",
+        guards: [gmOnly("only a GM rules on a Dynamic action")],
+        // `messageId` is the card pressed (E18 fix early-C2-G2): the ruling goes only to the ask held on it.
+        sanitize: pick({ rid: as.text, asker: as.id, tier: as.num, trait: as.maybeText, refuse: as.bool, messageId: as.id }),
+        run: handleDynamicAnswer,
+        answer: "reply",
+        claims: {
+            asker: "dynamicOnPrimary (gm-bridge.mjs) keeps a ruling on its card and sends it on only for a Dynamic ask this primary holds under that request, made by that user",
+            messageId: "dynamicOnPrimary (gm-bridge.mjs) keeps and sends on a ruling only when the card pressed is the card the ask is held on"
+        }
+    },
+    [ACTION_RULING_EXPIRED]: {
+        label: "DRPG.Bridge.what.ruling.expired",
+        guards: [knownSender],
+        sanitize: pick({ rid: as.text }),
+        run: handleRulingExpired,
+        answer: "none", quiet: true,
+        claims: { rid: "expiredOnPrimary (gm-bridge.mjs) ends only an ask this primary holds or answered under that id, asked by the sender" }
+    },
+    [ACTION_RULING_RECEIVED]: {
+        label: "DRPG.Bridge.what.ruling.received",
+        guards: [knownSender],
+        sanitize: pick({ rid: as.text }),
+        run: handleRulingReceived,
+        answer: "none", quiet: true,
+        claims: { rid: "receivedOnPrimary (gm-bridge.mjs) writes only a ruling this primary sent under that id to the sender" }
     },
     /*
      * THE GM PICKS THE STATISTIC (E32+E07 C11b, 02.10.2026; audit S04-23). Judged on
@@ -2598,6 +2692,23 @@ export const BRIDGE_ACTIONS = table({
             flags: "the card's own module flags, judged by postAsked (secret.mjs): none of GM_META, a thread only the sender's own, who asked written by this GM",
             summary: "the card's facts, judged by postAsked (secret.mjs) as secret.card judges a player's: plain fields, and none about a character the sender does not own"
         }
+    },
+    /*
+     * ONE RULING PER CARD (E18 C3, 19.10.2026; audits S11-14, S17-22). Every GM's click on a card's
+     * button is claimed here first, and the primary decides in one step whether that card is free
+     * (`claimOnPrimary`). A GM's alone: the buttons are drawn for GMs, and a player's claim would
+     * hold a card away from them.
+     */
+    [ACTION_CARD_CLAIM]: {
+        label: "DRPG.Bridge.what.card.claim",
+        guards: [gmOnly("only a GM rules on a card sent to the GMs")],
+        sanitize: pick({ messageId: as.id, step: as.oneOf("take", "done", "drop") }),
+        run: handleCardClaim,
+        answer: "reply",
+        claims: {
+            messageId: "read on the primary by claimOnPrimary: a card that exists, with no row in the GMs' ruledCardStore, not settled and not held by another click",
+            step: "\"take\" before the ruling runs, \"done\" once it was made (the row is written), \"drop\" when it was not; done and drop end only the sender's own claim"
+        }
     }
 });
 
@@ -2970,13 +3081,165 @@ const askedByCard = new Set();
 const callAsks = new Map();
 const CALL_ASKS_KEPT = 100;
 
-async function askHopeCallByCard(payload, ctx) {
-    if (!ctx.requestId || askedByCard.has(ctx.requestId)) return { later: true };
+/**
+ * The Dynamic actions' asks this primary put on a card, by request (E18 C1): who asked, for which
+ * character, and the card - what a GM's ruling is sent on for (`dynamicOnPrimary`). The oldest go first.
+ */
+const dynamicAsks = new Map();
+
+/**
+ * Keep an ask, and the card it was put on once it is posted (`messageId`, E18 C1); the oldest go first. With
+ * `expires`, the card ends at that time if nothing ended it before (`endAtExpiry`, E18 C2).
+ */
+function holdAsk(asks, requestId, held, expires = null, extra = {}) {
+    asks.set(requestId, { ...held, ...extra, messageId: null, expires: Number.isFinite(expires) ? expires : null });
+    while (asks.size > CALL_ASKS_KEPT) asks.delete(asks.keys().next().value);
+    return message => {
+        const kept = asks.get(requestId);
+        if (kept && message?.id) kept.messageId = message.id;
+        if (message?.id && expires) endAtExpiry(message.id, expires);
+    };
+}
+
+/*
+ * AN ASK ASKED AGAIN FINDS ITS CARD (E18 C2, 19.10.2026; audit S10-24). `askedByCard` is in memory, so a primary
+ * that reloaded mid-question, or a GM that became the primary, was asked again by the waiting player (bridge-guards.mjs
+ * `resendOnGmReady`) and posted a second card for the same ask. The card a GM posts for an ask carries its mark,
+ * `rid` - the ask's id and its asker - in the meta its words travel with (`callGm`), and before posting the primary
+ * looks for it: found, the ask is held again on that card, and nothing is posted; found and settled, the ask is
+ * refused, since its card is ruled or ended. Only a GM's card counts: a player's own message can carry any flag on
+ * its document, and a card a GM posted at a player's asking has the GM for its author, so a player's meta may not
+ * carry the mark (secret.mjs `GM_META`). Tier 2's "a resent ask finds the card a GM posted for it" reads each road;
+ * scenario 61's phase Y drives the primary's reload and a handover.
+ *
+ * WHAT THE CARD WAS POSTED FOR IS THE MARK'S, NOT THE RESENT PACKET'S (E18 fix early-C2-G2, 20.10.2026; the early
+ * review's C2-F1). The ask was held again with the resent packet's own character, Call and purchase, while the card
+ * kept showing the first packet's: a player's console resent its Experience's id naming an Ultimate and another
+ * purchase, the card still read "Experience", and a GM's yes on it was kept for the Ultimate - as a Dynamic card's
+ * difficulty was kept for another of the player's characters. The mark holds what the card was posted for now - its
+ * kind, the character, and a Call's key and purchase (`askMark`) - and a resend that differs from it in any of them is
+ * refused (`sameAsk`): an honest browser resends the packet it sent (bridge-guards.mjs `resendOnGmReady`), so the ask
+ * held again is the mark's, field for field. A primary that cannot read the old card's mark posts a second card for
+ * the resend, and a GM's press then goes to the ask held on the card pressed and no other (`yesOnPrimary`,
+ * `dynamicOnPrimary`). Tier 2's "a resent ask is held again only as its card's mark says" and "a GM's yes or ruling
+ * goes to the ask held on the card it was pressed on" read both; at a3ee6f8 each yes and ruling went to the resend.
+ */
+
+/** An ask's mark on its card: its id and asker, and what it was asked for - the held ask's own fields, by kind. */
+function askMark(ctx, kind, held) {
+    const { userId, messageId, ...asked } = held;
+    return { id: ctx.requestId, asker: ctx.asker, kind, ...asked };
+}
+
+/** Is this ask, asked again, the one its card's mark says the card was posted for - same kind, every field the same? */
+function sameAsk(mark, kind, held) {
+    if (!mark || typeof mark !== "object" || mark.kind !== kind || mark.asker !== held.userId) return false;
+    const { userId, messageId, ...asked } = held;
+    return Object.entries(asked).every(([field, value]) => mark[field] === value);
+}
+
+/** The card a GM posted for this ask, by its mark, the newest first; null when there is none. */
+function cardOfAsk(requestId, asker) {
+    const messages = game.messages?.contents ?? [];
+    for (let i = messages.length - 1; i >= 0; i--) {
+        const message = messages[i];
+        if (!(message.author ?? message.user)?.isGM) continue;
+        const mark = cardFlag(message, "rid");
+        if (mark?.id === requestId && mark.asker === asker) return message;
+    }
+    return null;
+}
+
+/** The time an ask's card is open until, as its words say (`data-expires`), or null. */
+function askCardExpiry(message) {
+    const wrap = document.createElement("template");
+    wrap.innerHTML = contentOf(message);
+    const at = Number(wrap.content.querySelector("[data-expires]")?.getAttribute("data-expires"));
+    return Number.isFinite(at) && at > 0 ? at : null;
+}
+
+/**
+ * An ask arriving that this primary may have seen before: `{ later }` for one it holds or is posting, or whose
+ * card it found and holds again; `{ refused }` for one whose card is settled, or whose card's mark says it was posted
+ * for another ask (fix early-C2-G2); null for a new ask, to be posted.
+ */
+async function askAgain(asks, ctx, kind, held, extra = {}) {
+    if (!ctx.requestId) return { later: true };
+    const card = cardOfAsk(ctx.requestId, ctx.asker);
+    if (card) {
+        const { MESSENGER_FLAGS } = await import("./messenger.mjs");
+        if (cardFlag(card, MESSENGER_FLAGS.settled)) return { refused: "that ask's card has already been settled" };
+        if (!sameAsk(cardFlag(card, "rid"), kind, held)) return { refused: "that ask's card was posted for another ask" };
+    }
+    if (askedByCard.has(ctx.requestId)) return { later: true };
+    if (!card) return null;
     askedByCard.add(ctx.requestId);
-    callAsks.set(ctx.requestId, {
-        userId: ctx.asker, actorId: payload.actorId ?? "", key: payload.key ?? "", nonce: payload.nonce ?? ""
-    });
-    while (callAsks.size > CALL_ASKS_KEPT) callAsks.delete(callAsks.keys().next().value);
+    holdAsk(asks, ctx.requestId, held, askCardExpiry(card), extra)(card);
+    return { later: true };
+}
+
+/*
+ * AN ASK'S CARD ENDS AT THE TIME IT SHOWS (E18 C2, 19.10.2026; the stage's doneWhen "in a time the card shows"). The
+ * card says until when it is open ("Open until 21:35.", `data-expires`, on the server's clock), the time its asker's
+ * clock runs out. A player whose browser closed sends no expiry (E18 C1's `ruling.expired`), and a primary that
+ * reloaded holds no ask, so such a card stayed open: the primary now ends each card at its time and `TIMING.ackMs`
+ * after, the asker's own expiry having come first when there was one (`endAtExpiry`), and at its ready, or when it
+ * becomes the primary, ends a GM's open marked card whose time has passed and sets the rest (`sweepAskCards`).
+ */
+const expiryTimers = new Map();
+
+function endAtExpiry(messageId, expires) {
+    if (!messageId || !Number.isFinite(expires)) return;
+    clearTimeout(expiryTimers.get(messageId));
+    const left = expires - serverNow();
+    expiryTimers.set(messageId, setTimeout(() => void expireAskCard(messageId), left > 0 ? left + TIMING.ackMs : 0));
+}
+
+/**
+ * A card's time ran out: what this primary holds for it is dropped, and it ends - as expired, unless a ruling went
+ * to its asker before (`endSentOn`): one this primary holds, or one its mark says went before a reload (`sentOnMark`).
+ */
+async function expireAskCard(messageId, leaving = null) {
+    expiryTimers.delete(messageId);
+    if (!isPrimaryGm({ leaving })) return;
+    for (const asks of heldAskMaps()) {
+        for (const [rid, held] of asks) if (held.messageId === messageId) asks.delete(rid);
+    }
+    let sentOn = null;
+    for (const [rid, sent] of answeredAsks) {
+        if (sent.messageId !== messageId) continue;
+        clearTimeout(sent.timer);
+        answeredAsks.delete(rid);
+        sentOn = sent;
+    }
+    sentOn ??= sentOnMark(game.messages.get(messageId ?? ""));
+    await (sentOn ? endSentOn(sentOn) : endExpired(messageId));
+}
+
+/**
+ * The primary's pass over the GMs' open marked cards: past their time ended now, the rest ended at it. `leaving`
+ * names the GM whose leaving made this client the primary, as `isPrimaryGm` takes it.
+ */
+export async function sweepAskCards({ leaving = null } = {}) {
+    if (!isPrimaryGm({ leaving })) return;
+    const { MESSENGER_FLAGS } = await import("./messenger.mjs");
+    const now = serverNow();
+    for (const message of game.messages?.contents ?? []) {
+        if (!(message.author ?? message.user)?.isGM || !cardFlag(message, "rid") || cardFlag(message, MESSENGER_FLAGS.settled)) continue;
+        const expires = askCardExpiry(message);
+        if (expires === null) continue;
+        if (expires <= now) await expireAskCard(message.id, leaving);
+        else endAtExpiry(message.id, expires);
+    }
+}
+
+async function askHopeCallByCard(payload, ctx) {
+    const held = { userId: ctx.asker, actorId: payload.actorId ?? "", key: payload.key ?? "", nonce: payload.nonce ?? "" };
+    const again = await askAgain(callAsks, ctx, "call", held);
+    if (again) return again;
+    askedByCard.add(ctx.requestId);
+    const expires = serverNow() + TIMING.hopeCallRulingMs;
+    const onPosted = holdAsk(callAsks, ctx.requestId, held, expires);
     const actor = game.actors.get(payload.actorId ?? "");
     const data = { rid: ctx.requestId, asker: ctx.asker, by: payload.actorId ?? "" };
     /*
@@ -2998,7 +3261,11 @@ async function askHopeCallByCard(payload, ctx) {
         actions: [
             { action: "approveCall", label: game.i18n.localize("DRPG.Calls.approveYes"), data },
             { action: "refuseCall", label: game.i18n.localize("DRPG.Calls.approveNo"), data }
-        ]
+        ],
+        onPosted,
+        rid: askMark(ctx, "call", held),
+        expires,
+        thread: ctx.asker
     });
     // A card that could not be posted is a ruling nobody can give: said now,
     // rather than after the player's clock (map-gmSide 3, E31).
@@ -3006,8 +3273,12 @@ async function askHopeCallByCard(payload, ctx) {
 }
 
 async function askDynamicByCard(payload, ctx) {
-    if (!ctx.requestId || askedByCard.has(ctx.requestId)) return { later: true };
+    const held = { userId: ctx.asker, actorId: payload.actorId ?? "" };
+    const again = await askAgain(dynamicAsks, ctx, "dynamic", held);
+    if (again) return again;
     askedByCard.add(ctx.requestId);
+    const expires = serverNow() + TIMING.rulingMs;
+    const onPosted = holdAsk(dynamicAsks, ctx.requestId, held, expires);
     const actor = game.actors.get(payload.actorId ?? "");
     const data = {
         rid: ctx.requestId, asker: ctx.asker, by: payload.actorId ?? "",
@@ -3020,7 +3291,11 @@ async function askDynamicByCard(payload, ctx) {
         actions: [
             { action: "setDifficulty", label: game.i18n.localize("DRPG.Action.dynamicSet"), data },
             { action: "refuseDynamic", label: game.i18n.localize("DRPG.Action.dynamicRefuse"), data }
-        ]
+        ],
+        onPosted,
+        rid: askMark(ctx, "dynamic", held),
+        expires,
+        thread: ctx.asker
     });
     return posted === false ? { refused: "the ruling card could not be posted" } : { later: true };
 }
@@ -3034,12 +3309,19 @@ async function askDynamicByCard(payload, ctx) {
  * GM's config for the definition the guard checked, never from the packet.
  */
 async function askTraitByCard(payload, ctx) {
-    if (!ctx.requestId || askedByCard.has(ctx.requestId)) return { later: true };
+    if (!ctx.requestId) return { later: true };
     const { listedTraits, rulingLabel, traitWithValue } = await import("./trait-ruling.mjs");
     const spec = { kind: payload.kind, key: payload.key, variant: payload.variant ?? null };
     const listed = listedTraits(spec);
     if (listed.length < 2) return { refused: "nothing was carried out: the roll lists one statistic or none" };
+    // On the one road since E18 fix e1-G4: held, marked, timed and ended as a Call's and a Dynamic action's are.
+    // The roll's kind as `rollKind`: the mark's own `kind` is the ask's ("trait", `askMark`).
+    const held = { userId: ctx.asker, actorId: payload.actorId ?? "", rollKind: spec.kind ?? "", key: spec.key ?? "", variant: spec.variant ?? "" };
+    const again = await askAgain(traitAsks, ctx, "trait", held);
+    if (again) return again;
     askedByCard.add(ctx.requestId);
+    const expires = serverNow() + TIMING.rulingMs;
+    const onPosted = holdAsk(traitAsks, ctx.requestId, held, expires);
     const actor = game.actors.get(payload.actorId ?? "");
     const data = trait => ({
         rid: ctx.requestId, asker: ctx.asker, by: payload.actorId ?? "", kind: spec.kind, key: spec.key,
@@ -3054,20 +3336,52 @@ async function askTraitByCard(payload, ctx) {
             ...listed.map(trait => ({ action: "pickTrait", label: traitWithValue(actor, trait), data: data(trait) })),
             { action: "refuseTrait", label: game.i18n.localize("DRPG.Action.dynamicRefuse"), data: data(null) }
         ],
-        veiled: true
+        veiled: true,
+        onPosted,
+        rid: askMark(ctx, "trait", held),
+        expires,
+        thread: ctx.asker
     });
     return posted === false ? { refused: "the ruling card could not be posted" } : { later: true };
 }
 
 /**
  * The Observes this primary put on a card, by request (E09 C12): who asked, for which
- * character, in which room, with what words and when - what a GM's pick is held to
+ * character, in which room, with what words and until when - what a GM's pick is held to
  * (`observePickOnPrimary`), read from the ask as it arrived and never from the card. The
- * oldest go first. Kept in memory: a primary that reloads keeps none, so a pick on a card it
- * put up before is refused and told, and the player's browser asks again (`resend`).
+ * oldest go first. Kept in memory: a primary that reloads keeps none, and the player's browser
+ * asks again (`resend`), which finds the card by its mark (`askAgain`, E18 fix e1-G4).
  */
 const observeAsks = new Map();
-const OBSERVE_ASKS_KEPT = 100;
+
+/*
+ * THE STATISTIC'S ASK AND THE OBSERVE'S ON THE ONE ROAD (E18 fix e1-G4, 24.10.2026; the end review's F1 and E18-END-5;
+ * STATUS's C1 and C2 gaps). The stage's goal is that every question to the GM ends one way within a time its card shows,
+ * and only a Hope Call's and a Dynamic action's asks were on that road: a statistic's card (`trait.ruling`) and an
+ * Observe aimed at a point of interest (`observe.target`) showed no time, carried no mark and were ended by nothing, so
+ * a GM's pick minutes after the player's browser had given up was written as ruled, and a resend to a primary that had
+ * reloaded put up a second card. Both are held now as the other two are (`traitAsks`, `observeAsks`, `holdAsk`), their
+ * cards carry the ask's mark and its time (`askMark`, `expires`), a resend finds its card (`askAgain`), the asker's
+ * expiry and receipt end or close them (`expiredOnPrimary`, `receivedOnPrimary`) and the primary ends each at its time
+ * (`endAtExpiry`, `sweepAskCards`). A pick on a statistic's card is still sent to its asker by the GM who pressed it
+ * (`answerTraitRuling`); a pick on an Observe's card was the primary's already (`observePickOnPrimary`). Tier 2's "a
+ * statistic's ask and an Observe's end as the other asks do" reads it.
+ */
+const traitAsks = new Map();
+
+/** Every map of asks this primary holds on a card: what an asker's expiry and receipt, and a card's end, are read against. */
+function heldAskMaps() {
+    return [callAsks, dynamicAsks, traitAsks, observeAsks];
+}
+
+/** The ask this primary holds under `requestId` for `userId`, with its map, or null. */
+function heldAskOf(requestId, userId) {
+    for (const asks of heldAskMaps()) {
+        const held = asks.get(requestId ?? "");
+        if (held && held.userId === userId) return { asks, held };
+    }
+    return null;
+}
 
 /**
  * A player's focused gaze, put to every GM as a card in the player's thread (E09 C12; shaped
@@ -3076,10 +3390,14 @@ const OBSERVE_ASKS_KEPT = 100;
  * who presses "Pick a trace" (observe.mjs `pickFromCard`).
  */
 export async function askObserveByCard({ actor, room, request = "", userId = null }, ctx) {
-    if (!ctx?.requestId || askedByCard.has(ctx.requestId)) return { later: true };
+    if (!ctx?.requestId) return { later: true };
+    // `userId` is the account the key is minted for (null for a GM's); the asker is who is answered.
+    const held = { userId: ctx.asker, actorId: actor.id, room: room ?? "", request: request ?? "" };
+    const again = await askAgain(observeAsks, ctx, "observe", held, { observer: userId, at: Date.now() });
+    if (again) return again;
     askedByCard.add(ctx.requestId);
-    observeAsks.set(ctx.requestId, { asker: ctx.asker, userId, actorId: actor.id, room, request, at: Date.now() });
-    while (observeAsks.size > OBSERVE_ASKS_KEPT) observeAsks.delete(observeAsks.keys().next().value);
+    const expires = serverNow() + TIMING.rulingMs;
+    const onPosted = holdAsk(observeAsks, ctx.requestId, held, expires, { observer: userId, at: Date.now() });
     const data = { rid: ctx.requestId, by: actor.id, desc: request };
     const posted = await callGm(actor, {
         title: game.i18n.localize("DRPG.Observe.cardTitle"),
@@ -3089,7 +3407,11 @@ export async function askObserveByCard({ actor, room, request = "", userId = nul
         actions: [
             { action: "pickObserveTrace", label: game.i18n.localize("DRPG.Observe.cardPick"), data },
             { action: "refuseObserveTrace", label: game.i18n.localize("DRPG.Observe.pickRefuse"), data }
-        ]
+        ],
+        onPosted,
+        rid: askMark(ctx, "observe", held),
+        expires,
+        thread: ctx.asker
     });
     if (posted !== false) return { later: true };
     observeAsks.delete(ctx.requestId);
@@ -3098,9 +3420,9 @@ export async function askObserveByCard({ actor, room, request = "", userId = nul
 
 /**
  * A GM's pick (`tokenId`) or Refuse (`refuse`) on an Observe card, on the primary (E09 C12).
- * Held to the ask kept under `rid`: none kept, another character's, or one past the asker's
- * clock (`TIMING.rulingMs` from its arrival here, a little later than the asker's own) is
- * "gone". The ask is marked as being answered before anything waits, so of two GMs' picks at
+ * Held to the ask kept under `rid`: none kept, another character's, one answered already, or one
+ * past the time its card shows (`expires`, E18 fix e1-G4; `TIMING.rulingMs` from its arrival here)
+ * is "gone". An answered ask stays held until its asker's receipt (`receivedOnPrimary`) or its card's end. The ask is marked as being answered before anything waits, so of two GMs' picks at
  * once the second is "gone" too. A pick the primary does not find among the traces the
  * character could be shown now is "notThere", and the card stays open. Answers `{ value, told }`:
  * value "picked", "refused", "gone" or "notThere"; told, the notice for the GM who pressed.
@@ -3110,28 +3432,28 @@ export async function askObserveByCard({ actor, room, request = "", userId = nul
 async function observePickOnPrimary({ rid, actorId, tokenId = null, refuse = false }, by) {
     const asked = observeAsks.get(rid ?? "");
     const who = game.users.get(by ?? "")?.name ?? by;
-    if (!asked || asked.answering || asked.actorId !== actorId || Date.now() - asked.at > TIMING.rulingMs) {
+    const late = (asked?.expires != null && serverNow() > asked.expires) || Date.now() - (asked?.at ?? 0) > TIMING.rulingMs;
+    if (!asked || asked.answering || asked.answered || asked.actorId !== actorId || late) {
         warn(`An Observe card's ${refuse ? "refusal" : "pick"} by ${who} was not taken: this primary GM keeps no Observe waiting under that request for that character.`);
-        if (asked && !asked.answering && asked.actorId === actorId) observeAsks.delete(rid);
+        if (asked && !asked.answering && !asked.answered && asked.actorId === actorId) observeAsks.delete(rid);
         return { value: "gone", told: "DRPG.Observe.pickGone" };
     }
     asked.answering = true;
-    const answer = value => game.socket.emit(SOCKET_EVENT, {
-        action: ACTION_DONE, requestId: rid, userId: asked.asker, value
-    }, { recipients: [asked.asker] });
+    const answer = value => {
+        asked.answered = true;
+        game.socket.emit(SOCKET_EVENT, { action: ACTION_DONE, requestId: rid, userId: asked.userId, value }, { recipients: [asked.userId] });
+    };
     try {
         if (refuse) {
-            observeAsks.delete(rid);
             answer({ ok: false, reason: "refused" });
             return { value: "refused", told: null };
         }
         const { pickObserveTarget } = await import("./observe.mjs");
-        const picked = await pickObserveTarget({ actorId, room: asked.room, tokenId, userId: asked.userId, request: asked.request });
+        const picked = await pickObserveTarget({ actorId, room: asked.room, tokenId, userId: asked.observer ?? null, request: asked.request });
         if (!picked.ok) {
             warn(`An Observe card's pick by ${who} was not taken: that trace is not one ${game.actors.get(actorId)?.name ?? actorId} could be shown in ${asked.room} now (${picked.reason}).`);
             return { value: "notThere", told: "DRPG.Observe.pickNotThere" };
         }
-        observeAsks.delete(rid);
         answer({ ok: true, key: picked.key });
         return { value: "picked", told: null };
     } finally {
@@ -3173,13 +3495,14 @@ export function answerTraitRuling(requestId, asker, trait) {
  * `true` to allow and `false` to refuse. A no is sent from here; a yes goes by the primary
  * (`call.yes`), which keeps it for the arm it allows and sends it on (E29 fix r2-H4). Answers
  * true once sent (40-flow and 33-bridge-paths read it), false when the primary kept no yes -
- * the card stays open.
+ * the card stays open. `messageId` is the card pressed: a yes is kept only for the ask held on it
+ * (fix early-C2-G2); a GM's call that names no card is judged by the request alone.
  */
-export async function answerHopeCall(requestId, asker, verdict) {
+export async function answerHopeCall(requestId, asker, verdict, messageId = null) {
     if (!game.user.isGM || !requestId || !asker) return false;
     if (verdict) {
-        const res = await ask(ACTION_CALL_YES, { rid: requestId, asker }, {
-            onPrimary: true, local: () => yesOnPrimary(requestId, asker) });
+        const res = await ask(ACTION_CALL_YES, { rid: requestId, asker, messageId }, {
+            onPrimary: true, local: () => yesOnPrimary(requestId, asker, game.user.id, messageId) });
         return res.ok && res.value === true;
     }
     game.socket.emit(SOCKET_EVENT, {
@@ -3212,38 +3535,242 @@ export async function askReshapeRuling(verdict, { by, trace, attempt } = {}) {
  * A GM's yes to a Call's ask, on the primary (E29 fix r2-H4): kept for the ask this primary holds
  * under that request (bridge-guards.mjs `noteCallYes`), then sent to the player who asked, once.
  * False for an ask it does not hold - one already answered yes, or one a primary that has gone put
- * up (the player's browser gives up on it at its clock and nothing is spent; it asks again).
+ * up (the player's browser gives up on it at its clock and nothing is spent; it asks again) - and
+ * for a yes pressed on another card than the one the ask is held on (fix early-C2-G2).
  */
-function yesOnPrimary(requestId, asker) {
+async function yesOnPrimary(requestId, asker, by = game.user.id, messageId = null) {
     const asked = callAsks.get(requestId ?? "");
     if (!asked || asked.userId !== asker) {
         warn(`A GM's yes to a Call was not kept: this primary GM holds no ask of ${game.users.get(asker ?? "")?.name ?? asker} under that request.`);
         return false;
     }
+    if (messageId && asked.messageId !== messageId) {
+        warn(`A GM's yes to a Call was not kept: the card pressed is not the one this primary GM holds ${game.users.get(asker)?.name ?? asker}'s ask on under that request.`);
+        return false;
+    }
     callAsks.delete(requestId);
     noteCallYes(asked);
-    game.socket.emit(SOCKET_EVENT, {
-        action: ACTION_DONE, requestId, userId: asker, value: true
-    }, { recipients: [asker] });
+    const sentOn = { by, text: "DRPG.Bridge.settledApproved", at: Date.now() };
+    // The card's buttons go and its mark says a yes went (fix e1-G1); a card that is gone keeps nothing, and the yes still goes.
+    if (asked.messageId) await keepRuling(asked.messageId, null, sentOn, { quiet: true });
+    sendOnFromPrimary(requestId, asked, true, { ...sentOn, yes: asked });
     return true;
 }
 
-/** A GM's answer to a Dynamic action card: `{ tier, trait }`, or `false` to refuse. */
-export function answerDynamic(requestId, asker, ruling) {
+/**
+ * A GM's answer to a Dynamic action card: `{ tier, trait }`, or `false` to refuse. Sent on by the primary
+ * (`dynamic.answer`, E18 C1), which keeps the difficulty on the card as it sends it on and writes the card's line
+ * once the player has it (`keepRuling`). True once sent; false when the primary holds no such ask - one its player
+ * stopped waiting for - and the card is left as it is. `messageId` is the card pressed, as `answerHopeCall` takes it.
+ */
+export async function answerDynamic(requestId, asker, ruling, messageId = null) {
     if (!game.user.isGM || !requestId || !asker) return false;
-    game.socket.emit(SOCKET_EVENT, {
-        action: ACTION_DONE, requestId, userId: asker, value: ruling ?? false
-    }, { recipients: [asker] });
+    const refuse = !ruling;
+    const res = await ask(ACTION_DYNAMIC_ANSWER, {
+        rid: requestId, asker, tier: refuse ? 0 : Number(ruling.tier), trait: refuse ? null : ruling.trait ?? null, refuse, messageId
+    }, { onPrimary: true, local: () => dynamicOnPrimary(requestId, asker, refuse ? false : ruling, game.user.id, messageId) });
+    return res.ok && res.value === true;
+}
+
+/**
+ * A GM's ruling on a Dynamic action's card, on the primary (E18 C1): sent on for the ask it holds under that request,
+ * by that user, pressed on the card that ask is held on (fix early-C2-G2) - a difficulty only once it is kept on the
+ * card (`keepRuling`).
+ */
+async function dynamicOnPrimary(requestId, asker, ruling, by, messageId = null) {
+    const held = dynamicAsks.get(requestId ?? "");
+    if (held?.userId !== asker) {
+        warn(`A GM's ruling on a Dynamic action was not sent on: this primary GM holds no ask of ${game.users.get(asker ?? "")?.name ?? asker} under that request.`);
+        return false;
+    }
+    if (messageId && held.messageId !== messageId) {
+        warn(`A GM's ruling on a Dynamic action was not sent on: the card pressed is not the one this primary GM holds ${game.users.get(asker)?.name ?? asker}'s ask on under that request.`);
+        return false;
+    }
+    dynamicAsks.delete(requestId);
+    if (!ruling) {
+        sendOnFromPrimary(requestId, held, false, { text: "DRPG.Bridge.settledDeclined", by });
+        return true;
+    }
+    const tier = Number(ruling.tier);
+    const kept = { type: "dynamic", actorId: held.actorId, tier };
+    const sentOn = { by, text: "DRPG.Bridge.settledAnswered", at: Date.now() };
+    if (!(await keepRuling(held.messageId, kept, sentOn))) return false;
+    sendOnFromPrimary(requestId, held, { tier, trait: ruling.trait ?? null }, { ...sentOn, ruling: kept });
     return true;
+}
+
+/*
+ * THE DIFFICULTY IS THE GMS' RECORD AS IT LEAVES, NOT WHEN ITS ASKER SAYS IT ARRIVED (E18 fix early-C1-G1,
+ * 20.10.2026; the early review's E18-C1-1). C1 wrote a Dynamic ruling into its card's meta on its asker's
+ * `ruling.received` alone, while the asker's browser rolled on the `bridge.done` whether its receipt went or not. A
+ * card that ended with none - no receipt within `TIMING.ackMs`, or the asker's expiry after the ruling went - kept no
+ * ruling, and the record a trace's band and a Reroll's replay read (`dynamicRulingOf`: the character's newest ruling
+ * within a Reroll's reach) was an older card's: by withholding one packet the roller's browser chose which of the
+ * GMs' rulings counted. The primary keeps the ruling in the card's meta now before it sends it on, so nothing that
+ * browser sends after it is judged against another, and either end keeps it, since a card's new meta is added to
+ * what it holds (secret.mjs `remember`); only the card's line waits for the receipt. The card's buttons go with it,
+ * as `settleCall` takes them off: the words travel again with the meta, the card is drawn again, and no ask is left
+ * to rule on. A card that is gone keeps nothing, and its ruling is not sent on. Tier 2's "a Dynamic ruling is the
+ * GMs' record from the moment the primary sends it on" reads it before any receipt and after each end; at f547a92
+ * each read was the older card's.
+ */
+async function keepRuling(messageId, ruling, sentOn = null, { quiet = false } = {}) {
+    const message = game.messages.get(messageId ?? "");
+    if (!message?.getFlag(MODULE_ID, "secret")) {
+        if (!quiet) warn("A GM's ruling on a Dynamic action was not sent on: its card is gone, so the GMs would keep no record of the difficulty.");
+        return false;
+    }
+    const wrap = document.createElement("template");
+    wrap.innerHTML = contentOf(message);
+    wrap.content.querySelectorAll(".drpg-call-actions").forEach(el => el.remove());
+    const { updateSecret } = await import("./secret.mjs");
+    await updateSecret(message, wrap.innerHTML, null, { ...(ruling ? { ruling } : {}), ...(sentOn ? { sentOn } : {}) });
+    return true;
+}
+
+/*
+ * THE RULINGS THIS PRIMARY SENT ON AND WAITS TO HEAR ARRIVED, by request (E18 C1, 19.10.2026; audit
+ * S11-13): the asker, the card, the line it is to carry and who ruled, a Call's yes to take back. The
+ * card says "Approved" only once its asker's browser has the yes (`ruling.received`); a browser that
+ * stopped waiting sends none, and after `TIMING.ackMs` the card ends as expired with the GMs' own line,
+ * and the yes is taken back (`unreceivedOnPrimary`). A Dynamic difficulty is not held here: it is in the
+ * card's meta before it leaves (`keepRuling`, fix early-C1-G1). In memory, as the asks are: a primary
+ * that reloads between the answer and the receipt holds neither.
+ */
+const answeredAsks = new Map();
+
+function sendOnFromPrimary(requestId, held, value, { text, by, yes = null, ruling = null, at = Date.now() }) {
+    game.socket.emit(SOCKET_EVENT, {
+        action: ACTION_DONE, requestId, userId: held.userId, value
+    }, { recipients: [held.userId] });
+    const sent = { userId: held.userId, actorId: held.actorId ?? null, messageId: held.messageId ?? null, text, by, yes, ruling, at, timer: null };
+    answeredAsks.set(requestId, sent);
+    while (answeredAsks.size > CALL_ASKS_KEPT) answeredAsks.delete(answeredAsks.keys().next().value);
+    sent.timer = setTimeout(() => void unreceivedOnPrimary(requestId), TIMING.ackMs);
+}
+
+/** A card ends as its ask's player no longer waiting: the line for everyone, and the GMs' own - by key, which each reader writes in its language. */
+function endExpired(messageId) {
+    return endAskCard(messageId, { key: "DRPG.Bridge.settledExpired" }, { gmNote: { key: "DRPG.Bridge.settledGone" } });
+}
+
+/**
+ * Write an ask's card as ended - unless a GM ended it meanwhile (a Call's no, written by the GM who pressed it). A
+ * Dynamic difficulty kept on it as it was sent on stays in its meta (`keepRuling`).
+ */
+async function endAskCard(messageId, text, { gmNote = null } = {}) {
+    const message = game.messages.get(messageId ?? "");
+    if (!message) return null;
+    const { MESSENGER_FLAGS } = await import("./messenger.mjs");
+    if (cardFlag(message, MESSENGER_FLAGS.settled)) return null;
+    return settleCall(message, text, null, gmNote);
+}
+
+/*
+ * A RULING THAT WENT IS NOT "NOBODY ANSWERED" (E18 fix e1-G1, 24.10.2026; the end review's E18-END-1 and F3). With no
+ * receipt within `TIMING.ackMs`, or the asker's expiry after the ruling went, the card ended "Nobody answered in time -
+ * ask again." - also when the asker had used it: a console armed the Call on the GM's yes and sent the expiry after, a
+ * Dynamic roll was drawn on the difficulty kept on the card, a slow link brought the receipt late, or the primary
+ * reloaded before it. The asker's own packet decided what the GMs' card said about a ruling that was used. What the
+ * GMs hold decides now: a yes an arm took (bridge-guards.mjs `forgetCallYes`), or a Dynamic roll the primary drew for
+ * that character and player since the ruling went (the store `rolls`), writes the ruled line as a receipt would; a yes
+ * still kept is taken back and the card ends as expired; a Dynamic difficulty, which is the GMs' record from the
+ * moment it went (`keepRuling`), and a ruling a reloaded primary finds only in the card's mark (`sentOnMark`), end
+ * "Answered by {name}; not confirmed as received." - unless its asker said its clock had run out first, which ends
+ * the card as expired. Tier 2's "a ruling that went ends its card as what became of it" reads each.
+ */
+
+/** The ruling a card's mark says went to its asker before this primary held it (`keepRuling`'s `sentOn`), or null. */
+function sentOnMark(message) {
+    const mark = message ? cardFlag(message, "sentOn") : null;
+    if (!mark || typeof mark !== "object" || !(message.author ?? message.user)?.isGM) return null;
+    const ruling = cardFlag(message, "ruling");
+    return {
+        messageId: message.id, userId: cardFlag(message, "rid")?.asker ?? null, actorId: ruling?.actorId ?? null,
+        by: mark.by ?? null, text: typeof mark.text === "string" ? mark.text : "DRPG.Bridge.settledAnswered",
+        at: Number(mark.at) || 0, yes: null, ruling: ruling?.type === "dynamic" ? ruling : null, fromMark: true
+    };
+}
+
+/** Did the primary draw a Dynamic action's roll for the ruling's character and asker since it went? */
+async function rolledOnRuling(sent) {
+    if (!sent.ruling || !sent.actorId) return false;
+    const { rollStore } = await import("./gm-stores.mjs");
+    return Object.values(rollStore.entries() ?? {}).some(row => row?.actorId === sent.actorId
+        && row.userId === sent.userId && row.actionKey === "dynamic" && Number(row.at) >= sent.at);
+}
+
+/** A card whose ruling went to its asker ends as what became of the ruling (above). */
+async function endSentOn(sent, { askerExpired = false } = {}) {
+    const name = game.users.get(sent.by ?? "")?.name ?? "?";
+    const fate = sent.yes ? forgetCallYes(sent.yes) : null;
+    if (fate === "taken" || (await rolledOnRuling(sent))) return endAskCard(sent.messageId, { key: sent.text, name });
+    if (fate === "forgotten" || askerExpired || (!sent.ruling && !sent.fromMark)) return endExpired(sent.messageId);
+    return endAskCard(sent.messageId, { key: "DRPG.Bridge.settledUnconfirmed", name });
+}
+
+/** No receipt came for a ruling sent on (E18 C1): its card ends as what became of it (fix e1-G1), a Call's yes not used taken back. */
+async function unreceivedOnPrimary(requestId) {
+    const sent = answeredAsks.get(requestId);
+    if (!sent) return;
+    answeredAsks.delete(requestId);
+    await endSentOn(sent);
+}
+
+/**
+ * The asker's clock ran out (`ruling.expired`, E18 C1). An ask this primary still holds under that id,
+ * asked by that user, is dropped, so a GM's yes after it is not kept; a ruling sent on that its receipt
+ * did not follow is taken back. Either card ends as expired. False for anything else: nothing is done.
+ */
+async function expiredOnPrimary(requestId, senderId) {
+    const stillAsked = heldAskOf(requestId, senderId);
+    if (stillAsked) {
+        stillAsked.asks.delete(requestId);
+        await endExpired(stillAsked.held.messageId);
+        return true;
+    }
+    const sentOn = answeredAsks.get(requestId ?? "");
+    if (sentOn && sentOn.userId === senderId) {
+        clearTimeout(sentOn.timer);
+        answeredAsks.delete(requestId);
+        await endSentOn(sentOn, { askerExpired: true });
+        return true;
+    }
+    return false;
+}
+
+/**
+ * The ruling reached its asker (`ruling.received`, E18 C1): its card is written as ruled - a Dynamic
+ * difficulty is in its meta since it was sent on (`keepRuling`). A receipt for an ask this primary still
+ * holds is a ruling another GM sent straight to its asker (a Call's no, `answerHopeCall`): that ask is
+ * over, and a yes after it is not kept. False for anything else - another user's receipt, or one for
+ * nothing sent: nothing is done.
+ */
+async function receivedOnPrimary(requestId, senderId) {
+    const reached = answeredAsks.get(requestId ?? "");
+    if (reached && reached.userId === senderId) {
+        clearTimeout(reached.timer);
+        answeredAsks.delete(requestId);
+        const name = game.users.get(reached.by ?? "")?.name ?? "?";
+        await endAskCard(reached.messageId, { key: reached.text, name });
+        return true;
+    }
+    const answeredElsewhere = heldAskOf(requestId, senderId);
+    if (answeredElsewhere) {
+        answeredElsewhere.asks.delete(requestId);
+        return true;
+    }
+    return false;
 }
 
 /**
  * "May I spend this, and here is what for." Waits for a human (Dawid, 29.08).
  *
  * The same shape as `requestDynamicDifficulty` below, and for the same reason:
- * a question only a person can answer, so the clock is generous, there is no
- * clock for the "got it" (`patient`), and the question is asked again when a
- * GM's world has loaded. Nothing is charged on this side - see `spendHopeCall`,
+ * a question only a person can answer, so the clock is generous, the "got it"
+ * comes as the card goes up (not `patient`, E18 C2), and the question is asked
+ * again when a GM's world has loaded or the primary has left. Nothing is charged on this side - see `spendHopeCall`,
  * which pays only against a yes - so a failure says "Nothing was spent." `nonce`
  * names the purchase: the primary keeps a GM's yes for it, and the arm that follows
  * names it again (E29 fix r2-H4; bridge-guards.mjs `guardArmGmYes`).
@@ -3252,7 +3779,8 @@ export function answerDynamic(requestId, asker, ruling) {
  */
 export function requestHopeCallApproval(
     { actorId, actorName, key, callLabel, effect, cost, note, nonce }, timeoutMs = TIMING.hopeCallRulingMs) {
-    return ask(ACTION_HOPE_CALL, { actorId, actorName, key, callLabel, effect, cost, note, nonce }, { timeoutMs, nothingSpent: true });
+    return ask(ACTION_HOPE_CALL, { actorId, actorName, key, callLabel, effect, cost, note, nonce }, { timeoutMs, nothingSpent: true,
+        expired: ACTION_RULING_EXPIRED, received: ACTION_RULING_RECEIVED });
 }
 
 /**
@@ -3270,7 +3798,8 @@ export function requestHopeCallApproval(
  * @returns {Promise<object>} the bridge's result; `value` `{tier, trait}`, or false when the GM refused.
  */
 export function requestDynamicDifficulty({ description, actorName, room, actorId = null }, timeoutMs = TIMING.rulingMs) {
-    return ask(ACTION_DIFFICULTY, { description, actorName, room, actorId }, { timeoutMs, nothingSpent: true });
+    return ask(ACTION_DIFFICULTY, { description, actorName, room, actorId }, { timeoutMs, nothingSpent: true,
+        expired: ACTION_RULING_EXPIRED, received: ACTION_RULING_RECEIVED });
 }
 
 /**
@@ -3283,7 +3812,8 @@ export function requestDynamicDifficulty({ description, actorName, room, actorId
  * @returns {Promise<object>} the bridge's result; `value` the trait, or false when the GM refused.
  */
 export function requestTraitRuling({ actorId, kind, key, variant = null }) {
-    return ask(ACTION_TRAIT_RULING, { actorId, kind, key, variant }, { nothingSpent: true });
+    return ask(ACTION_TRAIT_RULING, { actorId, kind, key, variant }, { nothingSpent: true,
+        expired: ACTION_RULING_EXPIRED, received: ACTION_RULING_RECEIVED });
 }
 
 /**
@@ -3307,8 +3837,11 @@ export function requestTraitRuling({ actorId, kind, key, variant = null }) {
  * @returns {Promise<{ok: boolean, key?: string, reason?: string}|null>}
  */
 export async function requestObserveTarget({ actorId, declaration, request = "" }, timeoutMs = TIMING.rulingMs) {
+    // Only a focused gaze is put on a card (`askObserveByCard`), so only its wait reports how it ended (E18 fix e1-G4).
+    const { DECLARATIONS } = await import("./observe.mjs");
+    const onCard = declaration === DECLARATIONS.specific ? { expired: ACTION_RULING_EXPIRED, received: ACTION_RULING_RECEIVED } : {};
     const res = await ask(ACTION_OBSERVE_TARGET, { actorId, declaration, request }, {
-        timeoutMs, nothingSpent: true,
+        timeoutMs, nothingSpent: true, ...onCard,
         local: () => import("./observe.mjs").then(m => m.chooseObserveTarget({ actorId, declaration, request }))
     });
     return res.ok ? res.value ?? null : null;
@@ -3702,6 +4235,76 @@ export function requestProjectShare(countdownId, userId) {
  * CALLING THE GM
  * ========================================================================== */
 
+/** The request a call on the GM names when its caller names none (`DRPG.Bridge.what.gm.call`). */
+export const CALL_GM_WHAT = "gm.call";
+
+/**
+ * The ruling card's words, as `callGm` posts them: the title, who and where, the roll, the
+ * player's own words quoted, the caller's body, the GM's reference, "awaiting a ruling"
+ * and the GM's buttons. Its own function so the card is read without posting one (R838).
+ */
+export function callCardHtml(actor, { title, body = "", roll = null, request = "", room = null, gmBody = "", actions = [], expires = null } = {}) {
+    const parts = [];
+    parts.push(`<h3>${esc(title)}</h3>`);
+    parts.push(`<p><strong>${esc(actor?.name ?? "?")}</strong>${room ? ` · ${esc(room)}` : ""}</p>`);
+
+    if (roll) {
+        const traitLabel = TRAITS[roll.trait]?.label ?? roll.trait ?? "";
+        parts.push(`<p>${traitLabel} · <strong>${roll.total}</strong>${
+            roll.isCritical ? ` · <em>${game.i18n.localize("DRPG.Action.critical")}</em>`
+            : roll.withHope ? ` · ${game.i18n.localize("DRPG.Explain.status.hopeTitle")}`
+            : roll.withFear ? ` · ${game.i18n.localize("DRPG.Despair.label")}` : ""
+        }</p>`);
+
+        // The guide owes the player a substantial hint on a critical Observe or
+        // Analyze. Say so loudly rather than leaving the GM to remember it.
+        if (roll.isCritical) {
+            parts.push(`<div class="drpg-gm-only"><p class="drpg-warning"><strong>${
+                game.i18n.localize("DRPG.Bridge.criticalHint")
+            }</strong></p></div>`);
+        }
+    }
+
+    // ORDER: what happened, then what they said, then the reference.
+    //
+    // It used to run name → roll → their words → the GM's reference table →
+    // "awaiting a ruling", which put the player's own sentence between two
+    // blocks of numbers. The GM reads this top to bottom while deciding: the
+    // roll is the fact, the quote is the request being ruled on, and the
+    // threshold table is the thing you look at last, to price the answer.
+    if (request) parts.push(`<blockquote>${esc(request)}</blockquote>`);
+    // One block for the caller's own HTML (E18 C0, S10-52): a body of paragraphs wrapped in
+    // a <p> was two empty paragraphs and the body's own, once the browser had parsed it.
+    if (body) parts.push(`<div class="drpg-call-body">${body}</div>`);
+    if (gmBody) parts.push(`<div class="drpg-gm-only">${gmBody}</div>`);
+    // Classed so `settleCall` can take it off again once the card is answered - its time with it (E18 C2).
+    parts.push(`<p class="drpg-call-awaiting"><em>${
+        game.i18n.localize("DRPG.Bridge.awaitingRuling")}</em>${expiresHtml(expires)}</p>`);
+
+    if (actions.length) {
+        parts.push(`<div class="drpg-call-actions">${actions.map(a => {
+            const attrs = Object.entries(a.data ?? {})
+                .map(([k, v]) => ` data-${esc(k)}="${esc(v)}"`).join("");
+            return `<button type="button" class="drpg-call-action" data-drpg-call="${
+                esc(a.action)}"${attrs}>${esc(a.label)}</button>`;
+        }).join("")}</div>`);
+    }
+
+    return parts.join("");
+}
+
+/**
+ * "Open until 21:35." on an ask's card (E18 C2): the time its asker stops waiting, and `data-expires` (the server's
+ * milliseconds) for the primary that ends the card at it (`sweepAskCards`). Written here in the posting GM's clock and
+ * language, and by each reader's browser again in its own as it draws the card (secret.mjs `readersLines`, fix e1-G3).
+ */
+function expiresHtml(expires) {
+    if (!Number.isFinite(expires) || expires <= 0) return "";
+    const time = new Date(expires).toLocaleTimeString(game.i18n.lang, { hour: "2-digit", minute: "2-digit" });
+    return ` <span class="drpg-call-expires" data-expires="${Math.round(expires)}">${
+        esc(game.i18n.format("DRPG.Bridge.openUntil", { time }))}</span>`;
+}
+
 /**
  * Post a ruling request into the actor owner's messenger thread - one message,
  * visible to the player and every GM at once. An actor with no player owner
@@ -3769,56 +4372,47 @@ export async function callGm(actor, {
      * Posted veiled (messenger.mjs `postToThread`), the document names nobody and the
      * card's placement travels with its words. Ignored with no thread to post into.
      */
-    veiled = false
+    veiled = false,
+    /**
+     * What the refusal names when no GM is connected (`DRPG.Bridge.what.<what>`), and whether
+     * it may add "Nothing was spent.": a caller that took a price says true only once it hands
+     * the price back on a false answer.
+     */
+    what = CALL_GM_WHAT,
+    nothingSpent = false,
+    /** Handed the card once it is posted (E18 C1): the primary keeps which card an ask it holds is on. */
+    onPosted = null,
+    /**
+     * The ask the card is posted for (E18 C2): its id and asker, its kind, and what it was asked for - the
+     * character, and a Call's key and purchase (`askMark`, fix early-C2-G2). Kept in the meta its words travel
+     * with, where the primary looks for it when the player asks again (`askAgain`), and holds the ask again only
+     * as the mark says (`sameAsk`). A player's meta may not carry it (secret.mjs `GM_META`), and a card a player
+     * wrote is never taken for it (`cardOfAsk`).
+     */
+    rid = null,
+    /** When the ask's clock runs out, on the server's clock (`serverNow`): shown on the card, and the card ends then. */
+    expires = null,
+    /**
+     * The user whose thread the card goes to, when that user is a player who owns the character (E18 fix e1-G7): the
+     * asker of a question the primary holds for them. Otherwise the character's first owner's (`ownerOf`).
+     */
+    thread = null
 } = {}) {
-    const parts = [];
-
-    parts.push(`<h3>${esc(title)}</h3>`);
-    parts.push(`<p><strong>${esc(actor?.name ?? "?")}</strong>${room ? ` · ${esc(room)}` : ""}</p>`);
-
-    if (roll) {
-        const traitLabel = TRAITS[roll.trait]?.label ?? roll.trait ?? "";
-        parts.push(`<p>${traitLabel} · <strong>${roll.total}</strong>${
-            roll.isCritical ? ` · <em>${game.i18n.localize("DRPG.Action.critical")}</em>`
-            : roll.withHope ? ` · ${game.i18n.localize("DRPG.Explain.status.hopeTitle")}`
-            : roll.withFear ? ` · ${game.i18n.localize("DRPG.Despair.label")}` : ""
-        }</p>`);
-
-        // The guide owes the player a substantial hint on a critical Observe or
-        // Analyze. Say so loudly rather than leaving the GM to remember it.
-        if (roll.isCritical) {
-            parts.push(`<div class="drpg-gm-only"><p class="drpg-warning"><strong>${
-                game.i18n.localize("DRPG.Bridge.criticalHint")
-            }</strong></p></div>`);
-        }
+    /*
+     * NO GM, NO CARD (E18 C0, 19.10.2026; audit S10-26). With no GM connected this posted
+     * anyway and answered true: the player's caller said the request went and kept what it
+     * cost, and no GM was there to read it. False now, with nothing posted and the refusal
+     * said once, here, so a caller only hands back what it took. Asked before the first
+     * await, on the client that calls: a GM who connects later finds nothing waiting and
+     * the player asks again. Measured in tier 2's E18 C0 test and scenario 33's phase C.
+     */
+    if (!gmOnline()) {
+        sayNotDone(what, "noGm", { nothingSpent });
+        return false;
     }
+    const content = callCardHtml(actor, { title, body, roll, request, room, gmBody, actions, expires });
+    const owner = gmOnly ? null : threadOf(actor, thread);
 
-    // ORDER: what happened, then what they said, then the reference.
-    //
-    // It used to run name → roll → their words → the GM's reference table →
-    // "awaiting a ruling", which put the player's own sentence between two
-    // blocks of numbers. The GM reads this top to bottom while deciding: the
-    // roll is the fact, the quote is the request being ruled on, and the
-    // threshold table is the thing you look at last, to price the answer.
-    if (request) parts.push(`<blockquote>${esc(request)}</blockquote>`);
-    if (body) parts.push(`<p>${body}</p>`);
-    if (gmBody) parts.push(`<div class="drpg-gm-only">${gmBody}</div>`);
-    // Classed so `settleCall` can take it off again once the card is answered.
-    parts.push(`<p class="drpg-call-awaiting"><em>${
-        game.i18n.localize("DRPG.Bridge.awaitingRuling")}</em></p>`);
-
-    if (actions.length) {
-        parts.push(`<div class="drpg-call-actions">${actions.map(a => {
-            const attrs = Object.entries(a.data ?? {})
-                .map(([k, v]) => ` data-${esc(k)}="${esc(v)}"`).join("");
-            return `<button type="button" class="drpg-call-action" data-drpg-call="${
-                esc(a.action)}"${attrs}>${esc(a.label)}</button>`;
-        }).join("")}</div>`);
-    }
-
-    const content = parts.join("");
-
-    const owner = gmOnly ? null : ownerOf(actor);
     if (!owner) {
         /*
          * NO THREAD TO LIVE IN, so the chat log - and the log has to behave
@@ -3842,13 +4436,15 @@ export async function callGm(actor, {
          * flags is on the document at all: `postSecret` sends them with the words.
          */
         try {
-            await whisperToGms(content, {
+            const whispered = await whisperToGms(content, {
                 flags: { [MODULE_ID]: {
                     callCard: true, gmPopup: true,
                     popupTitle: gmOnly ? game.i18n.localize("DRPG.Action.murderRulingTitle") : title,
-                    sfx: { key: "gmAsk", gm: true }
+                    sfx: { key: "gmAsk", gm: true },
+                    ...(rid ? { rid } : {})
                 } }
             });
+            if (whispered) onPosted?.(whispered);
             return true;
         } catch (err) {
             error("Could not reach the GM", err);
@@ -3861,11 +4457,166 @@ export async function callGm(actor, {
         // Every callGm card is, by definition, a call ON the GM - the flag is
         // what tells the messenger's notifier to interrupt them for it. See
         // MESSENGER_FLAGS.gmAsk for why this cannot be derived from the author.
-        return Boolean(await postToThread(owner.id, content, { gmAsk: true, veiled }));
+        const posted = await postToThread(owner.id, content, { gmAsk: true, veiled, rid });
+        if (posted) onPosted?.(posted);
+        return Boolean(posted);
     } catch (err) {
         error("Could not reach the GM", err);
         return false;
     }
+}
+
+/*
+ * A QUESTION GOES TO THE THREAD OF THE PLAYER WHO ASKED IT (E18 fix e1-G7, 24.10.2026; the end review's E18-END-4 and
+ * F6, STATUS's C5 gap 2). A card lives in one player's messenger thread, and `callGm` put every card about a character
+ * in its first owner's (`ownerOf`): when two players own Aiko and the second buys her Experience, the card - its "Open
+ * until", its ruling - went to the first, who had asked nothing, and the asker had none. A question the primary holds
+ * for its asker (a Call, a Dynamic action, a statistic, an Observe's gaze) names that asker (`thread`), and the card goes
+ * to the asker's thread when the asker owns the character. Tier 2's "a co-owner's question lands in the co-owner's
+ * thread" reads it.
+ */
+function threadOf(actor, userId) {
+    const user = userId ? game.users.get(userId) : null;
+    if (user && !user.isGM && actor?.testUserPermission?.(user, "OWNER")) return user;
+    return ownerOf(actor);
+}
+
+/* ==========================================================================
+ * ONE RULING PER CARD (E18 C3, 19.10.2026; audits S11-14, S17-22)
+ * --------------------------------------------------------------------------
+ * A card sent to the GMs is drawn for every GM, in the chat log and in the
+ * messenger, and each drawing's buttons ruled on the browser that clicked them,
+ * held only against a second click on that same drawing. Measured on the code
+ * before this commit (tier 2, "two clicks on one card to the GMs rule it once"):
+ * two drawings of one Decline clicked at once posted two lines to the player's
+ * thread, and the card reopened by its author - a player's card is that
+ * player's document, `settled` included - posted a third. Every click is claimed
+ * on the primary GM now: the primary holds which cards a click is ruling on, and
+ * a row per card a ruling was made on in the GMs' store (`ruledCardStore`),
+ * which no player's browser holds; a card with either is not taken, and the GM
+ * who clicked is told who has it.
+ * ========================================================================== */
+
+/** On the primary: the cards a GM's click is ruling on now, messageId -> that GM's user id. */
+const claimsInProgress = new Map();
+
+/**
+ * A GM who left holds nothing: their claims end as a backed-out ruling's do - in memory, and, on the primary, the
+ * rows that say a claim is under way (fix e1-G1).
+ */
+function releaseClaimsOf(userId) {
+    for (const [messageId, by] of claimsInProgress) if (by === userId) claimsInProgress.delete(messageId);
+    if (!isPrimaryGm({ leaving: userId })) return;
+    import("./gm-stores.mjs").then(({ ruledCardStore }) => {
+        const held = Object.entries(ruledCardStore.entries() ?? {}).filter(([, row]) => row?.pending && row.by === userId).map(([id]) => id);
+        return held.length ? ruledCardStore.dropMany(held) : null;
+    }).catch(err => debug("Could not drop a leaving GM's claims", err));
+}
+
+/**
+ * The primary's half of a claim (`card.claim`, or this GM's own click). `step` "take" before a
+ * ruling runs: the card must exist, have no row in `ruledCardStore`, not be settled in its document
+ * or in the GMs' meta, and not be held by another click; then it is held for `by`. "done" once the
+ * ruling was made: the row `{ by, at }` is written unless one is there, and the claim ends. "drop"
+ * when it was not: `by`'s claim ends. Answers `{ taken, why?, by }` - `why` "ruled", "busy",
+ * "settled" or "gone", `by` the GM who has the card.
+ *
+ * READ AFTER THE LAST AWAIT. The store's hydration is the only wait, and everything from the
+ * card's lookup to holding it runs in one synchronous step, so of two takes of one card that
+ * arrive together exactly one finds it free.
+ *
+ * A CLAIM UNDER WAY IS THE GMS' ROW TOO (E18 fix e1-G1, 24.10.2026; the end review's F2). The row was written only at
+ * "done", and a claim in progress lived only in this primary's memory: GM B's review window open on a project's
+ * proposal, the primary GM A pressed F5 and then the same card, and both rulings ran. "take" writes the row
+ * `{ by, at, pending: true }` now, after the card is held here, and "drop" takes it off; a pending row of a GM who is
+ * here holds the card as busy for whichever GM is the primary, and one of a GM who left holds nothing (the primary
+ * drops it when that GM leaves, `releaseClaimsOf`). Tier 2's "a claim under way is the GMs' row" reads it.
+ */
+export async function claimOnPrimary(messageId, step, by) {
+    if (!game.user?.isGM) return { taken: false, why: "gone", by: null };
+    const { ruledCardStore } = await import("./gm-stores.mjs");
+    await ruledCardStore.whenHydrated();
+    const message = game.messages.get(messageId ?? "") ?? null;
+    const holder = claimsInProgress.get(messageId) ?? null;
+    const row = ruledCardStore.get(messageId);
+    if (step !== "take") {
+        if (holder === by) claimsInProgress.delete(messageId);
+        const own = row?.pending && row.by === by;
+        if (step !== "done" || !message) {
+            if (own) await ruledCardStore.drop(messageId);
+            return { taken: false, why: message ? "dropped" : "gone", by };
+        }
+        if (!row || own) await ruledCardStore.patch(messageId, { by, at: serverNow(), pending: false });
+        return { taken: true, by: ruledCardStore.get(messageId)?.by ?? by };
+    }
+    if (!message) return { taken: false, why: "gone", by: null };
+    if (row && !row.pending) return { taken: false, why: "ruled", by: row.by ?? null };
+    if (holder) return { taken: false, why: "busy", by: holder };
+    if (row?.pending && game.users.get(row.by ?? "")?.active) return { taken: false, why: "busy", by: row.by };
+    if (cardFlag(message, "settled") || cardMeta(message, "settled")) return { taken: false, why: "settled", by: null };
+    claimsInProgress.set(messageId, by);
+    await ruledCardStore.patch(messageId, { by, at: serverNow(), pending: true });
+    return { taken: true, by };
+}
+
+/** One step of a claim, asked of the primary - or run here when this GM is the primary. The answer of `claimOnPrimary`, or null. */
+async function askCardClaim(messageId, step) {
+    const res = await ask(ACTION_CARD_CLAIM, { messageId, step }, {
+        onPrimary: true,
+        local: () => claimOnPrimary(messageId, step, game.user.id)
+    });
+    return res.ok ? res.value ?? null : null;
+}
+
+/**
+ * A GM's ruling on a card sent to the GMs, made once (E18 C3). The card is claimed on the primary
+ * GM (`card.claim`), `work` runs while it is held, and the primary is told how it ended: a work
+ * that answers `{ settled }` or `{ held }` made a ruling, and the card's row is written before this
+ * answers; anything else, or a throw, lets the card go for the next click. A card another GM has,
+ * or had, is not ruled: this GM is told who, and null is answered without `work` running.
+ *
+ * The one road for every ruling on a card: the card's buttons (messenger-app.mjs `wireCallActions`)
+ * today, and the cards E67 (the gmAsk card's 'Give 1/2'), E68 (the trait card) and E72 (Accept and
+ * Refuse) put on it. Overrule and the Closing's approve are not claimed (E18 amend 3).
+ *
+ * @param {ChatMessage} message  The card.
+ * @param {() => Promise<object|null>} work  The ruling, run on this GM's browser.
+ * @returns {Promise<object|null>} What `work` answered, or null when the card was not this GM's to rule.
+ */
+export async function claimCard(message, work) {
+    if (!message?.id || !game.user?.isGM) return null;
+    const taken = await askCardClaim(message.id, "take");
+    if (!taken?.taken) {
+        const gm = game.users.get(taken?.by ?? "")?.name ?? String(taken?.by ?? "");
+        if (taken?.why === "ruled") sayRefusedHere(game.i18n.format("DRPG.Bridge.alreadyRuled", { gm }));
+        else if (taken?.why === "busy") sayRefusedHere(game.i18n.format("DRPG.Bridge.claimBusy", { gm }));
+        else if (taken?.why === "settled") sayRefusedHere(game.i18n.localize("DRPG.Bridge.alreadySettled"));
+        return null;
+    }
+    let outcome = null;
+    try {
+        outcome = await work();
+    } finally {
+        await askCardClaim(message.id, outcome?.settled || outcome?.held ? "done" : "drop");
+    }
+    return outcome;
+}
+
+/*
+ * SAID THROUGH THE ONE FUNNEL (E18 fix e1-G3, 24.10.2026; the end review's E18-END-4 and F11). Amend 1 sends the stage's
+ * new cards - a settlement, a timeout, a refusal - through `showPopup` or `sayNotDone`, and three were Foundry toasts:
+ * the claim's refusals (`claimCard`: "{gm} already ruled on this card.", "{gm} is ruling on this card right now.", "This
+ * card has already been answered.") and the empty request's (`askForRequest`). A toast fades in seconds and is kept
+ * nowhere, so a GM who looked away could not find why a click did nothing. Each is a refusal card now, kept in this
+ * browser's history as a request not carried out is (source `notDone`); R472 has its row, R838 and tier 2's C3 test read it.
+ */
+function sayRefusedHere(text) {
+    import("./popup.mjs")
+        .then(({ showPopup }) => showPopup(`<p>${esc(text)}</p>`, { kind: "error", source: "notDone" }))
+        .catch(err => {
+            debug("A refusal could not be shown as a card", err);
+            ui.notifications.warn(text);
+        });
 }
 
 /**
@@ -3881,7 +4632,9 @@ export async function callGm(actor, {
  * only one screen can see is the bug again with a smaller audience.
  *
  * @param {ChatMessage} message  The card.
- * @param {string} text          What settled it, in plain words.
+ * @param {string|{key: string, name?: string}} text  What settled it, in plain words - or an ask's end by its key and
+ *   the GM who ruled (E18 fix e1-G3), written here in this GM's language and by each reader again in its own
+ *   (secret.mjs `readersLines`). `gmNote` takes either as well.
  * @param {object} [ruling]      What was ruled, kept in a private card's meta beside
  *   `settled` (E32+E07 C11b): the statistic a GM picked, `{ type: "trait", actorId,
  *   kind, key, variant, trait }` - the record a check of the roll against the pick
@@ -3890,8 +4643,10 @@ export async function callGm(actor, {
  *   (`dynamicRulingOf`, E08+E28 C15). Its readers are the card's: on a veiled thread card the
  *   thread's player and the GMs. A player's own meta may not carry it (secret.mjs
  *   `GM_META`). Never written on a document.
+ * @param {string} [gmNote]      A line for the GMs alone, under it (E18 C1: "The player was no
+ *   longer waiting."), in `.drpg-gm-only`, which a player's copy of the words never holds.
  */
-export async function settleCall(message, text, ruling = null) {
+export async function settleCall(message, text, ruling = null, gmNote = null) {
     if (!message || !game.user.isGM) return null;
 
     // A `<template>`, not a `<div>` (E02 review): markup parsed into a
@@ -3908,10 +4663,23 @@ export async function settleCall(message, text, ruling = null) {
         if (p.textContent.trim() === awaiting) p.remove();
     }
 
-    const note = document.createElement("p");
-    note.className = "drpg-call-settled";
-    note.textContent = text;
-    wrap.content.append(note);
+    const lineOf = said => {
+        const line = document.createElement("p");
+        line.className = "drpg-call-settled";
+        if (said && typeof said === "object") {
+            line.textContent = game.i18n.format(said.key, { name: said.name ?? "?" });
+            line.dataset.drpgLine = said.key;
+            if (said.name) line.dataset.drpgName = said.name;
+        } else line.textContent = said;
+        return line;
+    };
+    wrap.content.append(lineOf(text));
+    if (gmNote) {
+        const gmOnlyNote = document.createElement("div");
+        gmOnlyNote.className = "drpg-gm-only";
+        gmOnlyNote.append(lineOf(gmNote));
+        wrap.content.append(gmOnlyNote);
+    }
 
     try {
         const { MESSENGER_FLAGS } = await import("./messenger.mjs");
@@ -3933,8 +4701,46 @@ export async function settleCall(message, text, ruling = null) {
 }
 
 /**
+ * The window a request to the GM is typed in. Answers the words typed, trimmed (empty when
+ * nothing was), or null when the player pressed Cancel or closed the window.
+ *
+ * `{ text }`, NOT THE WORDS BARE (E18 C0, 19.10.2026; audit S10-52). Send answered the words
+ * and Cancel answered its action, "cancel" - so a request reading "cancel" was taken for the
+ * Cancel button and never sent. R838 types it.
+ *
+ * `required`: the caller has nothing to send without words (Dynamic, a Tier 0 item's use), so
+ * an empty request is not sent - the player is told so and the window opens again.
+ */
+export async function askForRequest({ title, prompt, placeholder = "", intro = "", required = false } = {}) {
+    const DialogV2 = foundry.applications.api.DialogV2;
+    for (;;) {
+        const answer = await DialogV2.wait({
+            classes: ["drpg-panel"],
+            window: { title },
+            content: dialogContent(`${intro}<form>
+                    <p>${prompt}</p>
+                    <textarea name="request" rows="3" placeholder="${foundry.utils.escapeHTML(placeholder)}"></textarea>
+                  </form>`),
+            buttons: [
+                {
+                    action: "send",
+                    label: game.i18n.localize("DRPG.Bridge.send"),
+                    default: true,
+                    callback: (event, button, dialog) => ({ text: dialog.element.querySelector("[name=request]").value.trim() })
+                },
+                { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
+            ],
+            rejectClose: false
+        });
+        if (typeof answer?.text !== "string") return null;
+        if (answer.text || !required) return answer.text;
+        sayRefusedHere(game.i18n.localize("DRPG.Bridge.emptyRequest"));
+    }
+}
+
+/**
  * Ask the player what they want, then send it to the GM. Returns the text, or
- * null if they backed out.
+ * null if nothing was sent.
  */
 export async function promptAndCallGm(actor, {
     title, prompt, placeholder = "", roll = null, room = null,
@@ -3946,30 +4752,24 @@ export async function promptAndCallGm(actor, {
     // `intro` is what the player sees; this is what the GM sees.
     body = "",
     // Buttons for the GM on the card this produces. See `callGm`.
-    actions = []
+    actions = [],
+    // The caller sends nothing without words: an empty request is asked again. See `askForRequest`.
+    required = false,
+    // What a refusal names. See `callGm`.
+    what = CALL_GM_WHAT
 }) {
-    const DialogV2 = foundry.applications.api.DialogV2;
+    /*
+     * NO GM, NO WINDOW (E18 C0). The player would type a request only to be told it could
+     * not go. Every caller of this spends nothing before it, which is why the refusal may
+     * say so.
+     */
+    if (!gmOnline()) {
+        sayNotDone(what, "noGm", { nothingSpent: true });
+        return null;
+    }
 
-    const text = await DialogV2.wait({
-        classes: ["drpg-panel"],
-        window: { title },
-        content: dialogContent(`${intro}<form>
-                    <p>${prompt}</p>
-                    <textarea name="request" rows="3" placeholder="${foundry.utils.escapeHTML(placeholder)}"></textarea>
-                  </form>`),
-        buttons: [
-            {
-                action: "send",
-                label: game.i18n.localize("DRPG.Bridge.send"),
-                default: true,
-                callback: (event, button, dialog) => dialog.element.querySelector("[name=request]").value.trim()
-            },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
-        rejectClose: false
-    });
-
-    if (text === "cancel" || text === null || text === undefined) return null;
+    const text = await askForRequest({ title, prompt, placeholder, intro, required });
+    if (text === null) return null;
 
     /*
      * NULL MEANS NOTHING WAS SENT, AND IT HAS TO MEAN IT IN BOTH CASES (ACT-15,
@@ -3977,12 +4777,11 @@ export async function promptAndCallGm(actor, {
      *
      * This returned the text whatever `callGm` answered, so every caller had two
      * roads to "the request never went" and could only see one of them: the player
-     * closed the second window, or there was no GM connected to take it. Both left
-     * the caller going on to whisper "your proposal has been sent". `callGm` already
-     * answers false without throwing for the second - one caller in action-rolls.mjs
-     * checks it by hand, which is what made this worth fixing here rather than at
-     * three call sites.
+     * closed the second window, or the call was not posted. Both left the caller
+     * going on to whisper "your proposal has been sent". Since E18 C0 `callGm` also
+     * answers false when no GM is connected - the GM may have left while the window
+     * was open - and says so itself.
      */
-    const sent = await callGm(actor, { title, roll, request: text, room, body, actions });
+    const sent = await callGm(actor, { title, roll, request: text, room, body, actions, what, nothingSpent: true });
     return sent === false ? null : text;
 }

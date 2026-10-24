@@ -506,7 +506,11 @@ const env = Object.freeze({
         return probe("env.fonts", face && !/depends on user agent/i.test(face), "no font family resolves here");
     },
     webAnimations: () => probe("env.webAnimations", typeof HTMLElement.prototype.getAnimations === "function"
-        && typeof globalThis.CSSTransition === "function", "no Web Animations API here")
+        && typeof globalThis.CSSTransition === "function", "no Web Animations API here"),
+    /* The headless harness's stand-in for avclient-livekit (audit/harness/lib/livekit.mjs, E19 C0), there and not
+       installed: client-entry.mjs's stub. A real Foundry has none, and its A/V client is not a test's to break. */
+    liveKitShim: () => probe("env.liveKitShim", globalThis.__liveKit?.installed === false
+        && typeof globalThis.__liveKit?.install === "function", "no LiveKit stand-in here, only the browser's own A/V client")
 });
 
 const viewed = () => canvas?.scene ?? null;
@@ -744,6 +748,127 @@ async function moduleStyles() {
         parts.push(await fetch(`/modules/${MODULE_ID}/${href}`).then(lfText));
     }
     return parts.join("\n").replace(/\/\*[\s\S]*?\*\//g, " ");
+}
+
+/**
+ * The module's stylesheets as a cascade read without a layout (E18 C6, 20.10.2026): which declaration
+ * wins a property on an element, and from which file. Every sheet of module.json in its order, comments
+ * removed, its top-level style rules read from the TEXT - rules under @media, @supports, @container or
+ * @layer are not read: the cascade of a desk with a mouse, and of `body.drpg-stacked`, which is a class.
+ * The text and not the CSSOM because jsdom drops `!important` from a value that holds `var()`: on the
+ * harness's jsdom (20.10.2026) `font-size: var(--x) !important` read back priority "" while
+ * `font-size: 13px !important` read "important", and the module's shared bar rule is the first kind. The winner: `!important`, then specificity (`:is`, `:not` and
+ * `:has` count their most specific argument, `:where` nothing), then order. `winner(el, names)` takes a
+ * property or a list read as one (a shorthand and its longhand) and answers `{ value, important, file,
+ * selector }` or null; an element is matched by its own `matches`, so it may be built on a body of its own,
+ * connected to nothing on the page.
+ */
+async function styleCascade() {
+    const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
+    const rules = [];
+    for (const file of manifest.styles ?? []) {
+        const text = (await fetch(`/modules/${MODULE_ID}/${file}`).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, " ");
+        rules.push(...topLevelStyleRules(text, file));
+    }
+    const winner = (el, names) => {
+        const wanted = [names].flat();
+        let best = null;
+        rules.forEach((rule, order) => {
+            const hits = rule.decls.filter(d => wanted.includes(d.property));
+            if (!hits.length) return;
+            const decl = hits[hits.length - 1];
+            for (const selector of splitTopLevel(rule.selector, ",")) {
+                let hit = false;
+                try { hit = el.matches(selector); } catch { continue; }
+                if (!hit) continue;
+                const rank = [decl.important ? 1 : 0, ...selectorSpecificity(selector), order];
+                if (!best || rankAbove(rank, best.rank)) best = { rank, value: decl.value, important: decl.important, file: rule.file, selector };
+            }
+        });
+        return best ? { value: best.value, important: best.important, file: best.file, selector: best.selector } : null;
+    };
+    return { rules, winner };
+}
+
+function splitTopLevel(text, by) {
+    const out = [];
+    let depth = 0, part = "", quote = null;
+    for (const ch of text) {
+        if (quote) { if (ch === quote) quote = null; part += ch; continue; }
+        if (ch === "\"" || ch === "'") quote = ch;
+        if (ch === "(" || ch === "[") depth++;
+        if (ch === ")" || ch === "]") depth--;
+        if (ch === by && !depth) { out.push(part); part = ""; } else part += ch;
+    }
+    return [...out, part].map(each => each.trim()).filter(Boolean);
+}
+
+function topLevelStyleRules(text, file) {
+    const rules = [];
+    let at = 0;
+    while (at < text.length) {
+        const open = text.indexOf("{", at);
+        if (open < 0) break;
+        let depth = 0, end = open, quote = null;
+        for (; end < text.length; end++) {
+            const ch = text[end];
+            if (quote) { if (ch === quote) quote = null; continue; }
+            if (ch === "\"" || ch === "'") quote = ch;
+            else if (ch === "{") depth++;
+            else if (ch === "}" && --depth === 0) break;
+        }
+        const head = text.slice(at, open), block = text.slice(open + 1, end);
+        at = end + 1;
+        const selector = head.slice(head.lastIndexOf(";") + 1).replace(/\}/g, " ").trim();
+        if (!selector || selector.startsWith("@")) continue;
+        const flat = block.replace(/\{[^{}]*\}/g, ";");
+        const decls = splitTopLevel(flat, ";").map(line => {
+            const colon = line.indexOf(":");
+            if (colon <= 0) return null;
+            const raw = line.slice(colon + 1).trim();
+            const important = /!\s*important\s*$/i.test(raw);
+            return { property: line.slice(0, colon).trim().toLowerCase(), value: raw.replace(/!\s*important\s*$/i, "").trim(), important };
+        }).filter(Boolean);
+        rules.push({ file, selector, decls });
+    }
+    return rules;
+}
+
+function rankAbove(x, y) {
+    const at = x.findIndex((v, i) => v !== y[i]);
+    return at >= 0 && x[at] > y[at];
+}
+
+function selectorSpecificity(selector) {
+    const sum = [0, 0, 0];
+    const add = part => part.forEach((v, i) => { sum[i] += v; });
+    let i = 0;
+    const word = () => { while (i < selector.length && /[\w-]/.test(selector[i])) i++; };
+    while (i < selector.length) {
+        const ch = selector[i];
+        if (ch === "#") { sum[0]++; i++; word(); } else if (ch === ".") { sum[1]++; i++; word(); } else if (ch === "[") {
+            sum[1]++;
+            while (i < selector.length && selector[i] !== "]") i++;
+            i++;
+        } else if (ch === ":") {
+            const element = selector[i + 1] === ":";
+            i += element ? 2 : 1;
+            const start = i;
+            word();
+            const name = selector.slice(start, i);
+            let args = null;
+            if (selector[i] === "(") {
+                let depth = 0;
+                const open = i;
+                do { depth += selector[i] === "(" ? 1 : selector[i] === ")" ? -1 : 0; i++; } while (depth && i < selector.length);
+                args = selector.slice(open + 1, i - 1);
+            }
+            if (element) sum[2]++;
+            else if (["is", "not", "has"].includes(name)) add(splitTopLevel(args ?? "", ",").map(selectorSpecificity).reduce((top, s) => rankAbove(s, top) ? s : top, [0, 0, 0]));
+            else if (name !== "where") sum[1]++;
+        } else if (/[a-z*]/i.test(ch)) { if (ch !== "*") sum[2]++; i++; word(); } else i++;
+    }
+    return sum;
 }
 
 /**
@@ -1436,7 +1561,10 @@ function moduleSettingValues() {
  */
 
 /* Other namespaces' settings the module writes (R159 holds this list to the source). */
-const DUMP_FOREIGN_SETTINGS = ["core.globalPlaylistVolume", "core.permissions", "isometric-perspective.showWelcome"];
+/* E19 C1: the two voice rows of enforced.mjs (avclient-livekit's separate window, Foundry's own A/V
+   client settings); the harness registers neither at boot, so its dump reads them only where a shim did. */
+const DUMP_FOREIGN_SETTINGS = ["core.globalPlaylistVolume", "core.permissions", "isometric-perspective.showWelcome",
+    "avclient-livekit.useExternalAV", "core.rtcClientSettings"];
 
 /*
  * WHAT THE DUMP LEAVES OUT OR READS NARROWLY, each with why and until when. The
@@ -1791,7 +1919,7 @@ export {
     runOne, registerSuite, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE, UNTIL_FIXTURE, untilProblem, env, world, worldCensus,
     wait, settle, until,
     layoutAvailable, cascadeAvailable, LIVE_PROBE, glassTheme, canvasAvailable, systemSheetsAvailable, dialogsDrawn,
-    lf, lfText, moduleSources, otherSources, suiteSources, scanSuite, stripComments, moduleStyles, bodyOf, topLevelFunction, fnSource, lineAround,
+    lf, lfText, moduleSources, otherSources, suiteSources, scanSuite, stripComments, moduleStyles, styleCascade, bodyOf, topLevelFunction, fnSource, lineAround,
     withGuards, staticImports, importCycles, bridgeTables, bridgeTableProblems, payloadReads, refusalProblems, lineAt, stripStrings, blankComments, blankLiterals, callArgs, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
     LINT_FIXTURES, FLOWS, FLOW_EXEMPT, storeKeyAccess, GM_STORE_PENDING,
     stringLiterals, STANDING, stableJson, moduleSettingValues, clientStored, putBackStored, watchWrites, watchLog, cast,

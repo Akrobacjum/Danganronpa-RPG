@@ -1255,8 +1255,15 @@ class HarnessChatLog {
     }
     // Foundry's `ChatLog#updateMessage`, which draws a card in the log again: kept, not drawn, as
     // this log draws nothing (`postOne`). A test draws the card itself (`renderHTML` below).
+    // A card whose li the log does not hold is not passed over by Foundry: it is posted anew, before the next
+    // visible message (v12/v13 source, as the E18 review read it; v14's is LIVE-E18-04), so for an old card under
+    // the newest one. Kept apart (`__chatPostedAnew`), for a test that draws an li of its own (E18 fix early-C4-G3).
     updateMessage(message) {
-        (globalThis.__chatRedrawn ??= []).push(message?.id ?? null);
+        const id = message?.id ?? null;
+        (globalThis.__chatRedrawn ??= []).push(id);
+        const drawn = typeof id === "string" && /^[A-Za-z0-9]+$/.test(id)
+            && Boolean(this.element?.querySelector?.(`[data-message-id="${id}"]`));
+        if (!drawn) (globalThis.__chatPostedAnew ??= []).push(id);
     }
 }
 globalThis.ui = {

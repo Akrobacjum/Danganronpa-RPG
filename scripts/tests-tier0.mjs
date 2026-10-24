@@ -1465,20 +1465,32 @@ const REGRESSIONS = [
          * Only listeners that NAME a setting are asked. A listener filtering on
          * the module prefix is a redraw-on-anything, and it is right about every
          * world setting it sees.
+         *
+         * EVERY KEY A LISTENER BUILDS, not only the first name in it (E19 C5,
+         * 19.10.2026; audit S11-16). music.mjs's `updateSetting` listener named
+         * `murderState` first and the client-scoped cast further down, and this
+         * test read the first and passed while the second branch could never run.
+         * A listener runs to the next `Hooks.on`/`Hooks.once` or the end of its
+         * top-level function, and each `${SETTINGS.x}` in it - the key it compares
+         * the hook's argument with - is held to the hook as the first name is.
          */
         const wrong = [];
         for (const [file, raw] of await otherSources()) {
             const text = stripComments(raw);
             for (const m of text.matchAll(
-                /Hooks\.on\("(updateSetting|clientSettingChanged)"[\s\S]{0,400}?SETTINGS\.(\w+)/g)) {
-                const [, hook, name] = m;
-                const full = `${MODULE_ID}.${SETTINGS[name]}`;
-                const scope = game.settings.settings.get(full)?.scope;
-                if (!scope) continue;                    // R4 owns that failure
-                const wants = scope === "world" ? "updateSetting" : "clientSettingChanged";
-                if (hook !== wants) {
-                    wrong.push(`${file}:${lineAt(text, m.index)} - ${name} is ${scope}-scoped, `
-                        + `so ${hook} never fires for it (use ${wants})`);
+                /Hooks\.on\("(updateSetting|clientSettingChanged)"([\s\S]*?)(?=Hooks\.(?:on|once)\(|^\}|(?![\s\S]))/gm)) {
+                const [, hook, body] = m;
+                const names = new Set([body.match(/SETTINGS\.(\w+)/)?.[1],
+                    ...[...body.matchAll(/\$\{SETTINGS\.(\w+)\}/g)].map(k => k[1])].filter(Boolean));
+                for (const name of names) {
+                    const full = `${MODULE_ID}.${SETTINGS[name]}`;
+                    const scope = game.settings.settings.get(full)?.scope;
+                    if (!scope) continue;                    // R4 owns that failure
+                    const wants = scope === "world" ? "updateSetting" : "clientSettingChanged";
+                    if (hook !== wants) {
+                        wrong.push(`${file}:${lineAt(text, m.index)} - ${name} is ${scope}-scoped, `
+                            + `so ${hook} never fires for it (use ${wants})`);
+                    }
                 }
             }
         }
@@ -6182,7 +6194,7 @@ const REGRESSIONS = [
          * only by settings.mjs's `deathRecord` and `isDeceased`, named only where config.mjs
          * defines it, written only by chapter.mjs's `markDeceased` and `reviveCharacter`
          * (the "dead" status likewise), and read as a change's key only by voice.mjs's
-         * updateActor hook, which reconciles on the change and asks the predicates after.
+         * updateActor hook (its `reconcileTrigger` since E19 C2), which reconciles on the change and asks the predicates after.
          * Attribution is by the top-level function or constant the mention sits in. A
          * planted read of each kind is found first.
          */
@@ -6198,7 +6210,8 @@ const REGRESSIONS = [
             "chapter.mjs markDeceased status": "the token's marker, written with the flag",
             "chapter.mjs reviveCharacter flag": "the one unwrite",
             "chapter.mjs reviveCharacter status": "the marker, taken off with it",
-            "voice.mjs registerVoice flag": "the updateActor hook reads the change's key, not the actor",
+            // E19 C2: the updateActor hook's test moved into `reconcileTrigger`, which the hook asks.
+            "voice.mjs reconcileTrigger flag": "the updateActor hook's trigger reads the change's key, not the actor",
             // E29 C3: the GMs' audit holds the GM-only flags in a student's mark and puts a player's write of one back;
             // it names the flag among the others and never asks whether a student is dead.
             "sheet-audit.mjs GM_FLAGS flag": "a GM-only flag, held in the GMs' mark and put back"
@@ -8398,7 +8411,7 @@ const REGRESSIONS = [
             ["SHEET call-world.mjs#gatherEveryone", "held where its caller asks (E13 C3b): the filter reads each token's actor through an optional `held` reader, once, in one synchronous pass (H3); the return from the trial (trial-scene.mjs `returnTheLiving`) hands `flagsHeldNow` after `judgedFor`, so a `monokuma` or `monocub` flag a player wrote in the window moves nobody, and since E81 fix r1-D3 `only`, the hall's cast (`castActorIds`), so a student the GMs left unticked is not moved; every other caller - the body's gather, a Call's assembly - hands none and reads the documents, as before (the owner's item 6 of 10.10); `isDeadForGm` reads the GM's record either way. R346's SEASON_CENSUS row holds the same key and points here [1b.2]; R436"],
             ["SHEET trial-scene.mjs#leftBehind", "held: whom the return from the trial tries to carry over and, after, names to the GMs as not moved - the living on any scene but the chosen one and the hall, or played with no token outside the hall (E13 fix r1-F1), since E81 fix r1-D3 of the hall's cast alone when the return hands it (`only`) - `flagsHeldNow(actor)` once per student in one synchronous pass, after `returnTheLiving`'s `judgedFor`; it writes nothing, and the carry it chooses for is call-world.mjs `carryAcross`'s, outside this file (D7's line) [1b.2]; R436, scenario 41 i"],
             ["SHEET trial-scene.mjs#standingTwice", "held: whom the return from the trial names to the GMs, after its gather, as left with a token on another scene - apart when every token of theirs in the room is hidden (E13 fix r2-H1, review r2 cor A), since E81 fix r1-D3 of the hall's cast alone (`only`) - `flagsHeldNow(actor)` once per student in one synchronous pass, after `returnTheLiving`'s `judgedFor`; it writes nothing [1b.2]; tier 2 End the trial never leaves a living student without a token"],
-            ["SHEET voice.mjs#voiceTargets", "out of scope as a judgement: each client answers its own voice room (a claim, 1b.1); `isMonokuma` read from the document picks Monokuma's own room. C4 adds the trial branch (target `null` for every row) before the dead branch (R117) (E13 C4)"],
+            ["SHEET voice.mjs#placeVoices", "out of scope as a judgement: each client answers its own voice room (a claim, 1b.1); `isMonokuma` read from the document picks Monokuma's own room. C4 adds the trial branch (target `null` for every row) before the dead branch (R117) (E13 C4); E19 C3 moved the rows from `voiceTargets` here, and in the trial asks no death (R816)"],
             ["SHEET voice.mjs#silencedByDeath", "out of scope: each client's own mute; the dead listen and do not speak in the trial (D8): C4 keeps it (E13 C4)"],
             ["SHEET voice.mjs#micHold", "out of scope as a judgement: the viewer's own microphone state on its own client, from its own facts - `isDeceased` and the Monocub flag on its own voice character, read from the document in its own Eclipse room; it moves nothing and judges nobody (E78 C2)"],
             ["SHEET voice.mjs#moduleHoldsMic", "out of scope as a judgement: on a GM only (`null` elsewhere) - the GMs' own death record (`isDeadForGm`) beside the sheet's `isDeceased`, so that the GM's block of a microphone is not offered for a death kept secret; it moves nothing (E78 C2; C5 asks it)"],
@@ -8669,10 +8682,16 @@ const REGRESSIONS = [
          * `updateNotice` in one declaration, both deletions and a
          * `messages.get` that deletes nothing, a catch-all's flags beside another declaration's, a chat hook of the catch-all
          * beside another event's and one in a file that is neither, the store and the window, and a stale row.
+         * E18 C0 (19.10.2026): `callGm` and `promptAndCallGm` say a call's refusal with no GM connected themselves, and
+         * `askForHint` leaves its own to `callGm` - two NOTDONE rows more and one struck, none either side on the
+         * harness (this test by name, once).
+         * E18 C4 (20.10.2026): a card a returning reader is given its words for is raised through the catch-all
+         * (secret.mjs `cardOnReturn` calls `onCreateChatMessage`, no `showPopup` of its own): no road more, its row says so.
          */
         const NOTICE_CENSUS = [
-            ["SURFACE popup.mjs#onCreateChatMessage", "the catch-all: a card is drawn where the whisper list, a veiled card's words and the GM's diet allow it (`gmPopup`, `popupForce` from a GM writer only), and kept exactly there by `showPopup`'s recorder - public from a GM's document, a player's from its document's author, never `cardWriter` (R297, 73-notice-history); the body cleaned at save (R294); the tile's corner button counts it among the unread and shows none of its words (R298)"],
+            ["SURFACE popup.mjs#onCreateChatMessage", "the catch-all: a card is drawn where the whisper list, a veiled card's words and the GM's diet allow it (`gmPopup`, `popupForce` from a GM writer only), and kept exactly there by `showPopup`'s recorder - public from a GM's document, a player's from its document's author, never `cardWriter` (R297, 73-notice-history); the body cleaned at save (R294); the tile's corner button counts it among the unread and shows none of its words (R298); since E18 C4 also raised for a card whose words a GM gave back to a reader who was away (secret.mjs `cardOnReturn`, the newest 8 of an ask), once a card and under its messageId, so one entry however many GMs answer (R845, 73-notice-history R1)"],
             ["SURFACE popup.mjs#showWaiting", "the sticky waiting card, the caller's own i18n; never kept - it passes `record: false` (R293)"],
+            ["SURFACE gm-bridge.mjs#sayRefusedHere", "a refusal said to this browser's own user since E18 fix e1-G3: a card claim's (`claimCard`: already ruled, ruling now, already answered - a GM's name from the users list) and an empty request's (`askForRequest`), the module's own i18n escaped into one paragraph; kind error, source notDone, kept in this browser's history as a request not carried out is (R838, tier 2's E18 C3 test)"],
             ["SURFACE action-rolls.mjs#performDynamic#showWaiting", "a waiting card of the module's own i18n and the action's label; never kept, as `showWaiting` keeps nothing (R293)"],
             ["SURFACE calls.mjs#showWaitingCard#showWaiting", "a waiting card of the module's own i18n and the Call's label; never kept, as `showWaiting` keeps nothing (R293)"],
             ["SURFACE trait-ruling.mjs#askGms#showWaiting", "a waiting card of the module's own i18n; never kept, as `showWaiting` keeps nothing (R293)"],
@@ -8682,6 +8701,7 @@ const REGRESSIONS = [
             ["SURFACE safeword.mjs#showGmDetail", "the GM's safeword card, who and the room escaped into an i18n sentence; kept in the GM's browser like every other notice - within the history's budgets, and in memory only when the history stops saving (`crowdedOut`, a failed write) - as a safeword entry (the owner's Q7, 07.10.2026; R297, 73-notice-history S1), and cleaned at save (R294); the tile's corner button counts it among the unread and shows none of its words (R298)"],
             ["SURFACE safeword.mjs#raiseCard", "frozen i18n text set with textContent; kept as first drawn and not followed (`observe: false`), so the same safeword entry on every browser whatever the caller's card adds, kept within the history's budgets and in memory only when it stops saving; nobody else's words (R297, 73-notice-history S2)"],
             ["SURFACE trial.mjs#registerTrial", "the evidence card, drawn only when authorised (a GM, or the speaker's owner holding the item); kept as evidence, one entry for its message, and cleaned at save (R297, R294); the tile's corner button counts it among the unread and shows none of its words (R298)"],
+            ["SURFACE voice-client.mjs#dropCard", "this browser's own dropped voice (E19 C2): frozen i18n text, nothing of anybody else's; kept as this client's own (`source` \"mine\"), and taken off the screen, not out of the history, once voice is back (R812, scenario 75's phase H)"],
             ["RECORD bridge-guards.mjs#sayNotDone", "after `notify(text)`, whoever `notify` is: kind error, source notDone, state read, the text this client composed from closed lists - a GM's reason chooses none of its words; a history error never stops the toast (R297)"],
             ["RECORD frisk.mjs#toast", "an open Frisk's line beside its toast (E80 part 2 C3): kind info, source mine, state unread, the row's label as its title and text this client composed from its language file with names as text - the ask it waits on, a withdrawn window, or for a GM the notice that nobody was asked; no markup, and a history error never stops the toast"],
             ["RECORD popup.mjs#showPopup", "the recorder: `recordNotice` in try/catch after the body is filled and before a host takes the card; the snapshot followed while the card is on screen and its state set by the close's reason; a history error never stops the card (R293); an entry the history cannot save is kept in memory until this page closes, the window's footer saying so (`status`, R292)"],
@@ -8689,8 +8709,9 @@ const REGRESSIONS = [
             ["RECORD popup.mjs#watchCard#updateNotice", "the body of a card on screen followed after a change (`watchCard`, 250 ms), into its own entry only, in try/catch; the html cleaned as at `record` and the entry weighed again against its author's bound (R293, R294, R297)"],
             ["NOTDONE action-rolls.mjs#performAnalyze", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE action-rolls.mjs#performAnalyze (2)", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
+            ["NOTDONE action-rolls.mjs#performSearch", "composed on this client from closed lists (`sayNotDone`: the action a literal here, `gm.call`, the reason the literal noGm); a Search for something specific with no GM connected, before the price (E18 fix e1-G5); kept as a notDone entry: read, these words and no others (R297)"],
+            ["NOTDONE action-rolls.mjs#performSearch (2)", "composed on this client from closed lists (`sayNotDone`: the action a literal here, `gm.call`, the reason the literal noGm); the same after the dice, before the room's search token is taken (E18 fix e1-G5); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE action-rolls.mjs#analyseBullet", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
-            ["NOTDONE action-rolls.mjs#askForHint", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE action-rolls.mjs#locateStash", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE action-rolls.mjs#locatePassage", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE action-rolls.mjs#performBetrayal", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); a murder refusal kept like the rest (the owner's Q4), within the history's budgets, as a notDone entry (R297)"],
@@ -8712,6 +8733,8 @@ const REGRESSIONS = [
             ["NOTDONE gm-bridge.mjs#requestObject", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the primary GM's refusal checked against `REASONS`); a refusal of an Objection kept like the rest, as a notDone entry (R297; E79 C16)"],
             ["NOTDONE gm-bridge.mjs#requestEvidence", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the primary GM's refusal checked against `REASONS`); a refusal of an Objection's Truth Bullet kept like the rest, as a notDone entry (R297; E79 C16)"],
             ["NOTDONE gm-bridge.mjs#requestRepoint", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the primary GM's refusal checked against `REASONS`); a GM's re-point refused kept like the rest, as a notDone entry (R297; E79 C16)"],
+            ["NOTDONE gm-bridge.mjs#callGm", "composed on this client from closed lists (`sayNotDone`: the action the caller names, `CALL_GM_WHAT` by default, read through `requestLabel`, the reason the literal noGm); a call on the GM with no GM connected, kept as a notDone entry: read, these words and no others (R297; E18 C0)"],
+            ["NOTDONE gm-bridge.mjs#promptAndCallGm", "composed on this client from closed lists (`sayNotDone`: the action the caller names, `CALL_GM_WHAT` by default, read through `requestLabel`, the reason the literal noGm); a call on the GM with no GM connected, kept as a notDone entry: read, these words and no others (R297; E18 C0)"],
             ["NOTDONE monocub.mjs#performCubAbility", "composed on this client from closed lists (`sayNotDone`: the action a literal here, the reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE trial-floor.mjs#advanceFloorNow", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
             ["NOTDONE vote.mjs#sendBallot", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's reason checked against `REASONS`); kept as a notDone entry: read, these words and no others (R297)"],
@@ -9219,6 +9242,8 @@ const REGRESSIONS = [
          * census (S/e78-design/census.mjs) does not read it, so the key-by-key comparison holds for the other fourteen.
          * E79 C15 (16.10.2026, 1.2.79) added one HOLD row: the state word's hold, keyed `voiceWatch`, whose default asks
          * `micHold` as if connected - the word reads the connection off the Room the watch follows (R588).
+         * E19 C1 (19.10.2026) added one CLIENT row: enforced.mjs's camera dock hold (`holdRtcDock`, the `rtcDock` row
+         * of the held settings), which writes this browser's own `hideDock` and cameras' `popout` and nothing else (R809).
          * It reads names and text, not data flow, as the parse-only census does: a name handed to a helper the kinds
          * do not list is judged at the call, and which participant avclient-livekit maps to which user is no reading
          * of this module's source at all (only a table settles it: the owner's T1). One place where it reads more than the census: a template's
@@ -9269,6 +9294,8 @@ const REGRESSIONS = [
             ["LISTEN voice-tile.mjs#paintControls -> listeners", "the speaker button's number: every remote participant of the own Room, silent or speaking, mapped to a user of this world or not, the one who has just left not counted; on the button without a click, on the tile and in the stacked row, after every connect and disconnect (R550; scenario 75 F)"],
             ["LISTEN voice-tile.mjs#paintSpeaker -> listeners", "the same count, written only as the tile's `data-in-channel` (no text, nothing a stylesheet draws); what the table sees is the button's (R550)"],
             ["LISTEN voice-tile.mjs#paintList -> listeners", "'Nobody else is in your channel' is drawn only when the count is 0: a participant mapped to no user has no row and is still there (R550)"],
+            // ---- E19 C1: the camera dock folded with the voice tile on (enforced.mjs)
+            ["CLIENT enforced.mjs#holdRtcDock -> *", "this browser's own A/V client settings: `hideDock` true and `users.<id>.popout` false, one field at a time through `AVSettings#set`, and nothing else (`rtcDockWrites`: no device, volume, `muted`, `blocked`, voice mode or dock position); only where the voice tile hides the dock and `voiceTile` is on; off writes back once the same two kinds of field as this browser had them before the first hold, kept in its own client setting `rtcDockBefore`, and then nothing (R809; E19 fix r1-G2)"],
             ["WORLD settings.mjs#voiceTile#gm -> dock", "world scope, the GM's switch, on by default; off brings the dock back; the dock is hidden by a body class and `display: none`, never removed - its `<audio>` carries the sound (R541); this row judges the sound only: who is listening, which the dock's camera views showed, is the LISTEN rows' (E78 fix r1-G1)"]
         ];
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
@@ -9992,7 +10019,7 @@ const REGRESSIONS = [
         equal(JSON.stringify(missing), JSON.stringify({ en: [], pl: [] }), "section 9.6 of the GM's handbook does not say who acts as the Mastermind for a passage, what a GM's move of a Monokuma passes, or what a repeated show does");
     }],
 
-    ["R544 - nothing reads the table-wide speaking signal or moves a microphone on its own: no file of scripts/ reads `settings.activity` or names `setUserIsSpeaking`, `toggleAudio(` is called and a client `muted` key written only in `toggleOwnMic`, and there only the viewer's own, `micHold` and `moduleHoldsMic` are declared once each, exported, in voice.mjs, and an account's characters are ranked only in `voiceRowFor`, which `voiceTargets` asks", async () => {
+    ["R544 - nothing reads the table-wide speaking signal or moves a microphone on its own: no file of scripts/ reads `settings.activity` or names `setUserIsSpeaking`, `toggleAudio(` is called and a client `muted` key written only in `toggleOwnMic`, and there only the viewer's own, `micHold` and `moduleHoldsMic` are declared once each, exported, in voice.mjs, and an account's characters are ranked only in `voiceRowFor`, which `voiceTargets` asks, itself or through `placeVoices`", async () => {
         /*
          * E78 C2, 13.10.2026; the A9 design's R397 (T9; the E78 plan's D2 gave it this number), S16-10: "the module
          * never moves a microphone". Until C2 it did once: on a GM's own Monokuma walking into a room, reconcileNow called
@@ -10011,9 +10038,10 @@ const REGRESSIONS = [
          *     call inside `toggleOwnMic`, and scenario 75's B reads the shim's record of calls, which stays empty;
          *   - the declarations of `micHold` and `moduleHoldsMic` - one each, exported, in voice.mjs: the button (C4) and
          *     the GM's block (C5) ask the one answer, not a copy (R537 holds what it answers);
-         *   - every `.claim > <x>.claim` - only `voice.mjs#voiceRowFor`, and `voiceTargets` calls it: the account's voice
-         *     character is ranked in one place, so `micHold` and `moduleHoldsMic` ask of the character the reconcile
-         *     places.
+         *   - every `.claim > <x>.claim` - only `voice.mjs#voiceRowFor`, and `voiceTargets` calls it, itself or (since
+         *     E19 C3, which moved the ranking with the dead channel's witness pass) through `placeVoices`: the account's
+         *     voice character is ranked in one place, so `micHold` and `moduleHoldsMic` ask of the character the
+         *     reconcile places.
          * Red at the parent, measured: the toggle in `voice.mjs#reconcileNow` (voice.mjs:783 there), no `micHold` or
          * `moduleHoldsMic`, and the ranking inline in `voice.mjs#voiceTargets`; green on C2's working tree (a Node run of
          * this test's body on both trees, 13.10.2026). E78 C3 and C4 extend it (the prep's R544 row).
@@ -10025,6 +10053,7 @@ const REGRESSIONS = [
         const ALLOWED = "toggleOwnMic";
         const scan = sources => {
             const out = { activity: [], speaking: [], toggles: [], muted: [], own: [], holds: [], ranks: [], asks: false };
+            const calls = {};
             for (const [file, raw] of sources) {
                 if (!file.endsWith(".mjs")) continue;
                 const code = blankComments(raw), blank = blankLiterals(code);
@@ -10046,10 +10075,12 @@ const REGRESSIONS = [
                 }
                 for (const [i, top] of tops.entries()) {
                     if (top.name === "micHold" || top.name === "moduleHoldsMic") out.holds.push(`${file}#${top.name}#${top.exported ? "export" : "local"}`);
-                    if (file === "voice.mjs" && top.name === "voiceTargets") {
-                        out.asks = /(?<![\w$])voiceRowFor\s*\(/.test(blank.slice(top.at, tops[i + 1]?.at ?? blank.length));
+                    if (file === "voice.mjs" && (top.name === "voiceTargets" || top.name === "placeVoices")) {
+                        const body = blank.slice(top.at, tops[i + 1]?.at ?? blank.length);
+                        calls[top.name] = { rank: /(?<![\w$])voiceRowFor\s*\(/.test(body), place: /(?<![\w$])placeVoices\s*\(/.test(body) };
                     }
                 }
+                out.asks = Boolean(calls.voiceTargets?.rank || (calls.voiceTargets?.place && calls.placeVoices?.rank));
                 for (const m of blank.matchAll(/\.\s*claim\s*>\s*[\w$.]+\.\s*claim\b/g)) out.ranks.push(place(m.index));
             }
             return out;
@@ -10057,7 +10088,8 @@ const REGRESSIONS = [
         const planted = scan([
             ["voice.mjs", "export function micHold() {\n    return null;\n}\nfunction moduleHoldsMic() {\n    return null;\n}\n"
                 + "export function voiceRowFor(rows) {\n    let held = null;\n    for (const row of rows) if (!held || row.claim > held.claim) held = row;\n    return held;\n}\n"
-                + "export async function voiceTargets() {\n    return voiceRowFor([], \"id\");\n}\n"
+                + "export async function placeVoices() {\n    return voiceRowFor([], \"id\");\n}\n"
+                + "export async function voiceTargets() {\n    return placeVoices();\n}\n"
                 + "// game.webrtc.client.toggleAudio(true) in a comment moves nothing\nasync function reconcileNow() {\n    const said = \"toggleAudio(true)\";\n"
                 + "    await game.webrtc.client.toggleAudio(true);\n}\n"],
             ["voice-tile.mjs", "export async function toggleOwnMic(on) {\n    game.webrtc.settings.set(\"client\", `users.${game.user.id}.muted`, !on);\n"
@@ -10086,7 +10118,7 @@ const REGRESSIONS = [
             holds: ["voice.mjs#micHold#export", "voice.mjs#moduleHoldsMic#export"], ranks: ["voice.mjs#voiceRowFor"], asks: true }),
             "[a read of Foundry's table-wide speaking signal; a `toggleAudio(` call, or a client `muted` write, outside `toggleOwnMic` - the module moving "
             + "a microphone; a write there of a key that is not the viewer's own, or no write there at all; `micHold` and `moduleHoldsMic` not one export each in voice.mjs; an account's characters ranked anywhere but `voiceRowFor`; "
-            + "`voiceTargets` not asking it]");
+            + "`voiceTargets` not asking it, itself or through `placeVoices`]");
     }],
 
     ["R507 - Room Setup writes the picture: it draws and reads a picture field by the room's name, Apply compares it before writing and hands it on, setVaultRoom alone writes it and only through safeRoomImage, a renamed piece carries it, and roomImage checks it again", async () => {
@@ -14128,6 +14160,248 @@ const REGRESSIONS = [
                 + "hands `shown` to the write, says a failed write in the Debug log; the write hands it to the claim, the claim to the report, the report to the relay; "
                 + "the relay sends dice.show, throws only where nothing was shown, once] - the GM's early throw sends or writes, comes before a refusal could, or the GM throws twice");
     }],
+
+    ["R836 - every request the module names has its label in en and pl: each packet gm-bridge.mjs and bridge-guards.mjs name, and the call on the GM a player is told was not carried out (E18; S10-68)", async () => {
+        /*
+         * E18 C0, 19.10.2026; audit S10-68. `requestLabel` (bridge-guards.mjs) names a request by its
+         * `DRPG.Bridge.what.<action>`, and one the language files lack is said as an unnamed request. R1b holds the rows of
+         * the bridge's tables to their labels; the packets outside the tables were held by nothing, and at c02bdd5 five had
+         * no label in either language (advancement.offers, bridge.done, bridge.gmReady, murder.openingAsk,
+         * murder.openingCancel). From C0 `callGm` and `promptAndCallGm` refuse with no GM connected and name what was not
+         * carried out by the caller's `what`, by default the one `CALL_GM_WHAT` holds. Read: every
+         * `const ACTION_<name> = "<action>"` of the two files, and callGm's default `what`, against both language files
+         * flattened as Foundry merges them (pl nests `advancement.apply`).
+         */
+        const language = async lang => {
+            const res = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`);
+            ok(res.ok, `${lang}.json: HTTP ${res.status}`);
+            const flat = (o, p = "") => Object.entries(o ?? {}).flatMap(([k, v]) =>
+                typeof v === "object" && v !== null ? flat(v, p ? `${p}.${k}` : k) : [p ? `${p}.${k}` : k]);
+            return new Set(flat(foundry.utils.expandObject(await res.json())));
+        };
+        const keys = { en: await language("en"), pl: await language("pl") };
+        const sources = new Map(await otherSources());
+        const actions = [], problems = [];
+        for (const file of ["gm-bridge.mjs", "bridge-guards.mjs"]) {
+            const text = stripComments(sources.get(file) ?? "");
+            ok(text.length > 10000, `${file} did not load - this would measure nothing`);
+            for (const m of text.matchAll(/\bconst ACTION_\w+ = "([\w.]+)";/g)) actions.push(`${file} ${m[1]}`);
+        }
+        ok(actions.length >= 40, `the reader found ${actions.length} packet name(s) in the two files - it reads the wrong thing`);
+        const bridge = stripComments(sources.get("gm-bridge.mjs") ?? "");
+        const fallback = /\bwhat = ([A-Z_]+|"[\w.]+")/.exec(fnSource(bridge, "callGm"))?.[1] ?? null;
+        const named = fallback?.startsWith('"') ? fallback.slice(1, -1)
+            : fallback ? new RegExp(`\\bconst ${fallback} = "([\\w.]+)";`).exec(bridge)?.[1] ?? null : null;
+        if (named) actions.push(`gm-bridge.mjs callGm ${named}`);
+        else problems.push("callGm names no request by default for a call it does not carry out");
+        for (const entry of actions) {
+            const action = entry.split(" ").pop();
+            for (const lang of ["en", "pl"]) if (!keys[lang].has(`DRPG.Bridge.what.${action}`)) problems.push(`${entry}: DRPG.Bridge.what.${action} is missing in ${lang}.json`);
+        }
+        equal(JSON.stringify(problems), JSON.stringify([]), "a request the module names has no label, so a player is told of an unnamed request");
+    }],
+
+    ["R837 - every call on the GM has a census row: a player's reads its answer and, where it took a price, hands it back; a GM's runs where a GM is connected (E18; S10-26)", async () => {
+        /*
+         * E18 C0, 19.10.2026; audit S10-26. Until C0 `callGm` posted with no GM connected and answered true: a player's
+         * Search for something specific, an Observe the GM rules or a proposal said "sent", and the card waited for a GM
+         * who, back, found its words were never sent to them. From C0 `callGm` answers false with no GM connected and
+         * says so once (`sayNotDone`, "noGm"), and `promptAndCallGm` before its window opens. A false is the caller's to
+         * read: this census holds every call of the two, keyed by the top-level declaration it stands in ("(2)" for a
+         * second call there), to a row. A "player" row's call is assigned to a name, the declaration tests that name for
+         * false or null, and where the row names a refund that call stands within 400 characters after the test. A "gm"
+         * row says where it runs: on a GM's browser `gmOnline` counts that GM, so the call is never refused for want of
+         * one. Read on every module file with comments and literals blanked; a planted source is read first.
+         */
+        const CALL_CENSUS = [
+            ["action-rolls.mjs#searchSpecific", "player", "abort(", "a Search for something specific, after the dice: the action's price comes back (`abort`), and the roll is noted as no search made"],
+            ["action-rolls.mjs#startProject", "player", null, "a project proposal: nothing is spent before it, and null is no proposal - no 'sent' line follows"],
+            ["action-rolls.mjs#ruleObserve", "player", "abort(", "an Observe the GM rules, after the dice: the action's price comes back (`abort`)"],
+            ["action-rolls.mjs#askForHint", "player", "refundPrice(", "an Analyze hint, after the dice: the step that paid comes back (`refundPrice`)"],
+            ["action-rolls.mjs#performDynamic", "player", null, "a Dynamic action's description: nothing is spent before the GM sets the difficulty, and null ends the action"],
+            ["use-items.mjs#useCreatively", "player", null, "a Tier 0 item's creative use: the item is spent only on the GM's ruling, and null ends the use"],
+            ["gm-bridge.mjs#promptAndCallGm", "player", null, "the window's words handed to `callGm`: its false is answered as null, which each caller above reads"],
+            ["analyze.mjs#identify", "gm", null, "`resolveAnalyze` runs on a GM: the run of `analyze.resolve`, or a GM's own (`local`)"],
+            ["cleanup.mjs#proposeReshape", "gm", null, "`resolveCleanup` runs on a GM: the run of `murder.cleanup`, or a GM's own (`local`); its false is read"],
+            ["eclipse.mjs#askGmToAllow", "gm", null, "`writeParkedMurder` runs on a GM: the run of `murder.park`, or a GM's own (`local`)"],
+            ["projects.mjs#announceTrapReady", "gm", null, "`addProgress` asks a GM on a player's browser and runs this on a GM's"],
+            ["projects.mjs#announceTrapReady (2)", "gm", null, "the same, the manual trap's card"],
+            ["reroll.mjs#settleGmRuling", "gm", null, "a Reroll is replayed on a GM (`rerollOnGm`)"],
+            ["traps.mjs#alert", "gm", null, "the trap relay's alert, on a GM"],
+            ["gm-bridge.mjs#askHopeCallByCard", "gm", null, "the run of `call.approve`, on the primary GM"],
+            ["gm-bridge.mjs#askDynamicByCard", "gm", null, "the run of `dynamic.difficulty`, on the primary GM"],
+            ["gm-bridge.mjs#askTraitByCard", "gm", null, "the run of `trait.ruling`, on the primary GM"],
+            ["gm-bridge.mjs#askObserveByCard", "gm", null, "observe.mjs `chooseObserveTarget`, on a GM"]
+        ];
+        const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(?:const|let|var)\s+([\w$]+))?/gm;
+        const readCalls = sources => {
+            const found = [];
+            const sites = new Map();
+            for (const [file, raw] of sources) {
+                if (!file.endsWith(".mjs")) continue;
+                const code = blankComments(raw), blank = blankLiterals(code);
+                const tops = [...blank.matchAll(TOP)].map(m => ({ at: m.index, name: m[1] ?? m[2] ?? m[3] ?? null }));
+                for (const m of blank.matchAll(/\b(?:callGm|promptAndCallGm)\s*\(/g)) {
+                    if (/\bfunction\s*$/.test(blank.slice(Math.max(0, m.index - 24), m.index))) continue;
+                    const i = tops.findLastIndex(t => t.at <= m.index);
+                    const top = tops[i], end = tops[i + 1]?.at ?? blank.length;
+                    const key = `${file}#${top?.name ?? "(top level)"}`;
+                    const n = (sites.get(key) ?? 0) + 1;
+                    sites.set(key, n);
+                    const { close } = callArgs(blank, m.index + m[0].length - 1);
+                    const name = /(?:const|let)\s+(\w+)\s*=\s*await\s+(?:callGm|promptAndCallGm)\s*\(/.exec(lineAround(blank, m.index))?.[1] ?? null;
+                    const after = blank.slice(close, end);
+                    const test = name ? new RegExp(`!\\s*\\(?\\s*${name}\\b|\\b${name}\\s*===?\\s*(?:null|false)\\b`).exec(after) : null;
+                    found.push({ key: n === 1 ? key : `${key} (${n})`, name, read: Boolean(test), branch: test ? after.slice(test.index, test.index + 400) : "" });
+                }
+            }
+            return found;
+        };
+        const PLANT = "export async function callGm(actor) {\n    return true;\n}\nasync function asks(actor) {\n    const sent = await callGm(actor, { title: \"callGm(\" });\n"
+            + "    if (!sent) return abort(actor, paid);\n    await callGm(actor, {});\n}\n// callGm(a comment);\nasync function relays(actor) {\n"
+            + "    const text = await promptAndCallGm(actor, {});\n    if (text === null) return null;\n}\n";
+        const planted = readCalls([["planted.mjs", PLANT]]).map(({ key, name, read, branch }) => [key, name, read, branch.includes("abort(")]);
+        equal(JSON.stringify(planted), JSON.stringify([["planted.mjs#asks", "sent", true, true], ["planted.mjs#asks (2)", null, false, false],
+            ["planted.mjs#relays", "text", true, false]]),
+            "the census reader does not read the planted calls as planted - the live census below would measure the wrong calls");
+
+        const found = readCalls(await otherSources());
+        log(`R837: ${found.length} call(s) of callGm and promptAndCallGm against ${CALL_CENSUS.length} row(s)`);
+        const rows = new Map(CALL_CENSUS.map(([key, side, back]) => [key, { side, back }]));
+        const seen = new Set(found.map(f => f.key));
+        const problems = [
+            ...found.filter(f => !rows.has(f.key)).map(f => `${f.key}: a call with no census row`),
+            ...CALL_CENSUS.filter(([key]) => !seen.has(key)).map(([key]) => `${key}: a row whose call is gone`)
+        ];
+        for (const f of found) {
+            const row = rows.get(f.key);
+            if (row?.side !== "player") continue;
+            if (!f.read) problems.push(`${f.key}: a player's call whose answer is never tested for false or null`);
+            else if (row.back && !f.branch.includes(row.back)) problems.push(`${f.key}: a player's refused call does not hand back what it took (${row.back.slice(0, -1)})`);
+        }
+        equal(JSON.stringify(problems), JSON.stringify([]),
+            "a call on the GM with no census row, a row whose call is gone, or a player's call that does not read its answer or hand back its price");
+    }],
+
+    ["R842 - a click on a card to the GMs is claimed on the primary: `card.claim` is a GM's alone and names only the card, `claimCard` is its one export, and only the card's buttons ask it (E18 C3; amend 3)", async () => {
+        /*
+         * E18 C3, 19.10.2026; audits S11-14, S17-22 (E18-15, E18-16). The packet a non-primary GM's click sends the
+         * primary rules a card, so its row asks `gmOnly` first and takes the card's id and the step, nothing else; a
+         * `claims` line says who judges the id (the claim reads the card and the GMs' row of it on the primary).
+         * `claimCard` is the one export later stages call for their own cards (E67, E68, E72): its doc comment names
+         * them. Amend 3: the claim does not take over Overrule or the Closing's approve - neither stands on this line at
+         * 19.10.2026 (no `Overrule` and no Closing button in scripts/ or lang/), so what is read is that the card's
+         * buttons (messenger-app.mjs `wireCallActions`) are the claim's only caller, and that they claim before the
+         * ruling runs. Read in the module's files with comments and literals blanked.
+         */
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const row = BRIDGE_ACTIONS["card.claim"] ?? null;
+        const read = [];
+        read.push(row ? [row.guards?.[0]?.factory ?? null, row.sanitize?.fields ?? null, Object.keys(row.claims ?? {}), row.answer] : null);
+        const sources = new Map(await otherSources());
+        const raw = sources.get("gm-bridge.mjs") ?? "";
+        ok(raw.length > 10000, "gm-bridge.mjs did not load - this would measure nothing");
+        const doc = /\/\*\*((?:(?!\*\/)[\s\S])*)\*\/\s*export async function claimCard\(/.exec(raw)?.[1] ?? "";
+        read.push(["E67", "E68", "E72"].filter(stage => doc.includes(stage)));
+        const callers = [];
+        for (const [file, text] of sources) {
+            if (!file.endsWith(".mjs")) continue;
+            const blank = blankLiterals(blankComments(text));
+            for (const m of blank.matchAll(/\bclaimCard\s*\(/g)) {
+                if (/\bfunction\s*$/.test(blank.slice(Math.max(0, m.index - 24), m.index))) continue;
+                const top = [...blank.slice(0, m.index).matchAll(/^(?:export\s+)?(?:async\s+)?function\s+([\w$]+)/gm)].at(-1)?.[1] ?? "(top level)";
+                callers.push(`${file}#${top}`);
+            }
+        }
+        read.push(callers);
+        const wire = blankLiterals(blankComments(fnSource(sources.get("messenger-app.mjs") ?? "", "wireCallActions")));
+        const claimAt = wire.search(/\bclaimCard\s*\(/), runAt = wire.search(/\brunCallAction\s*\(/);
+        read.push(claimAt >= 0 && runAt > claimAt);
+        equal(JSON.stringify(read), JSON.stringify([
+            ["gmOnly", { messageId: "id", step: "oneOf" }, ["messageId", "step"], "reply"],
+            ["E67", "E68", "E72"],
+            ["messenger-app.mjs#wireCallActions"],
+            true
+        ]), "[the row's first guard, its fields, its claims, its answer], the stages claimCard's doc names, who calls claimCard, whether the card's buttons claim before the ruling runs");
+    }],
+
+    ["R843 - the GMs' row of who ruled each card is a GM store of its own: a ledger, synced, not backed up, cut with the actions, its key registered and named in en and pl (E18 C3)", async () => {
+        /*
+         * E18 C3, 19.10.2026 (E18-14). A card a player posted is that player's document: its `settled` flag is theirs to
+         * write, so the claim reads the GMs' row (gm-stores.mjs `ruledCardStore`), which no player's browser holds. Read:
+         * the store's spec as defined, whether its key is a SETTINGS key registered on this client in the client scope,
+         * and its line for the case window in both language files.
+         */
+        const S = await import("./gm-stores.mjs");
+        const store = S.ruledCardStore ?? null;
+        const spec = store?.spec ?? {};
+        const def = spec.key ? game.settings.settings.get(`${MODULE_ID}.${spec.key}`) : null;
+        const label = async lang => {
+            const res = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`);
+            ok(res.ok, `${lang}.json: HTTP ${res.status}`);
+            return typeof foundry.utils.getProperty(foundry.utils.expandObject(await res.json()), `DRPG.Case.store.${spec.name}`) === "string";
+        };
+        equal(JSON.stringify([spec.name ?? null, spec.kind ?? null, spec.resetGroup ?? null, spec.backup ?? null, spec.sync ?? null,
+            Boolean(spec.legacyKey || spec.claim || spec.migrate), Object.values(SETTINGS).includes(spec.key), def?.scope ?? null,
+            await label("en"), await label("pl")]),
+        JSON.stringify(["ruledCards", "ledger", "actions", false, true, false, true, "client", true, true]),
+        "[name, kind, reset group, backed up, synced, an old key or a migration, a SETTINGS key, its scope, the en label, the pl label]");
+    }],
+
+    ["R846 - a private card to a student's owners goes to every player who owns it: whisperToOwner and whisperToOwnerOnly read ownerIdsOf, and every caller that names its own readers is listed with its reason (E18 C5; S01-33, amend 2)", async () => {
+        /*
+         * E18 C5, 20.10.2026; audit S01-33, the owner's amend 2 (E18-22, E18-23). The two helpers addressed the card to
+         * `ownerOf`'s one player, so a co-owner read none of its student's private cards; they read `ownerIdsOf` now (tier
+         * 2's "a private card to a student's owners ..." drives them). A caller's own `whisper` in the helpers' `extra`
+         * wins over that list, so each such caller is a reader list of its own, kept here with its reason: a new one
+         * fails until it is listed, a listed one that is gone fails until it leaves. Read in the module's files with
+         * comments and literals blanked: every call of the two helpers, of a name they are imported as, and of a
+         * parameter that defaults to one of them (passages-gm.mjs hands its `whisper` in for the suite); a call's third
+         * argument names its own readers when it carries a `whisper` key, or is a name or a call whose own source in
+         * that file does. Red at the parent (0fac8a1): the helpers read `ownerOf`.
+         */
+        const REASONS = {
+            "passages-gm.mjs#sharePassage": "the one shown it's card, one to each of its owners alone, naming the rooms as that owner may know them (E79 fix r2-G4); the giver's card to the asker alone, so a first show and a repeat reach the same people (SEC m1)",
+            "passages-gm.mjs#resolvePassageSearch": "the asker, a player, and the GMs - not another owner, who did not search; a GM's search every owner (E18 C5)"
+        };
+        const sources = new Map(await otherSources());
+        const utils = stripComments(sources.get("utils.mjs") ?? "");
+        ok(utils.length > 10000, "utils.mjs did not load - this would measure nothing");
+        const helpers = ["whisperToOwner", "whisperToOwnerOnly"].map(name => {
+            const body = fnSource(utils, name) ?? "";
+            return [name, /\bownerIdsOf\(actor\)/.test(body), /\bownerOf\(/.test(body)];
+        });
+        const found = new Map();
+        let calls = 0;
+        for (const [file, raw] of sources) {
+            if (!file.endsWith(".mjs") || file.startsWith("tests")) continue;
+            const code = blankComments(raw), blank = blankLiterals(code);
+            const names = new Set(["whisperToOwner", "whisperToOwnerOnly"]);
+            for (const m of blank.matchAll(/\bwhisperToOwner(?:Only)?\s+as\s+([\w$]+)/g)) names.add(m[1]);
+            for (const m of blank.matchAll(/([\w$]+)\s*=\s*whisperToOwner(?:Only)?\b(?!\s*\()/g)) names.add(m[1]);
+            const own = text => {
+                const expr = text.trim();
+                if (/\bwhisper\s*:/.test(expr)) return true;
+                const bare = /^([\w$]+)$/.exec(expr)?.[1];
+                const callee = /^([\w$]+)\s*\(/.exec(expr)?.[1];
+                if (bare) return new RegExp(`\\b(?:const|let)\\s+${bare}\\s*=[^;]*\\bwhisper\\s*:`).test(blank);
+                if (callee) return /\bwhisper\s*:/.test(topLevelFunction(blank, callee) ?? "");
+                return false;
+            };
+            for (const m of blank.matchAll(new RegExp(`\\b(${[...names].join("|")})\\s*\\(`, "g"))) {
+                if (/\bfunction\s*$/.test(blank.slice(Math.max(0, m.index - 24), m.index))) continue;
+                calls += 1;
+                const { args } = callArgs(blank, m.index + m[0].length - 1);
+                if (!args[2] || !own(blank.slice(args[2].start, args[2].end))) continue;
+                const top = [...blank.slice(0, m.index).matchAll(/^(?:export\s+)?(?:async\s+)?function\s+([\w$]+)/gm)].at(-1)?.[1] ?? "(top level)";
+                found.set(`${file}#${top}`, (found.get(`${file}#${top}`) ?? 0) + 1);
+            }
+        }
+        ok(calls > 50, `${calls} calls of the two helpers read in the module - this would measure nothing`);
+        equal(JSON.stringify([helpers, [...found.keys()].sort(), Object.values(REASONS).every(r => r.length > 20)]),
+            JSON.stringify([[["whisperToOwner", true, false], ["whisperToOwnerOnly", true, false]], Object.keys(REASONS).sort(), true]),
+            `[each helper: reads ownerIdsOf, still reads ownerOf], the callers that name their own readers (${JSON.stringify([...found])}), each listed one has a reason - a co-owner is left out, or a reader list of its own is not listed here`);
+    }]
 ];
 
 export { REGRESSIONS };

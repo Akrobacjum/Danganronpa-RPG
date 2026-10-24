@@ -30,7 +30,7 @@
  */
 
 import { MODULE_ID, HOPE_CALLS, DESPAIR_CALLS, STARTING, TIMING, CRISIS_ACTIONS } from "./config.mjs";
-import { activeGmIds, isPrimaryGm, debug, warn, error, pause } from "./utils.mjs";
+import { activeGmIds, isPrimaryGm, primaryGmId, debug, warn, error, pause } from "./utils.mjs";
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 /** GM -> player: "your request arrived and was refused" - see `refuse`. */
@@ -271,6 +271,11 @@ export const REASON_PATTERNS = Object.freeze([
     ["notWhereItStood", /^the token did not stand there a moment ago$/],
     ["alreadyDone", /^that Observe has already been resolved$/],
     ["alreadyDone", /^that betrayal is already declared$/],
+    // E18 C2: an ask asked again whose card a GM has ruled or ended meanwhile (gm-bridge.mjs `askAgain`).
+    ["alreadyDone", /^that ask's card has already been settled$/],
+    // E18 fix early-C2-G2: an ask asked again whose card's mark names another Call, purchase, character or kind
+    // (gm-bridge.mjs `askAgain`, `sameAsk`).
+    ["badRequest", /^that ask's card was posted for another ask$/],
     ["nothingToUndo", /^that Observe has no result to take back$/],
     // E08+E28 fix r1-G2: a crisis row whose fact never reached it (reroll.mjs `replayRefusal`).
     ["nothingToUndo", /^that crisis action has no result to take back$/],
@@ -989,13 +994,36 @@ export function noteCallYes({ userId, actorId, key, nonce }) {
     while (callYeses.size > CALL_YES_KEPT) callYeses.delete(callYeses.keys().next().value);
 }
 
+/**
+ * A yes that did not reach its asker is taken back (E18 C1, 19.10.2026; audit S11-13): the primary sent it
+ * on and no receipt came within `TIMING.ackMs` (gm-bridge.mjs `unreceivedOnPrimary`), so no arm takes it.
+ *
+ * AND SAYS WHAT BECAME OF IT (E18 fix e1-G1, 24.10.2026; the end review's E18-END-1). The asker's own browser
+ * decides whether its receipt goes, and an arm can take the yes before the receipt is due: p1's console armed
+ * the Call on the yes and then sent `ruling.expired`, and the card told p1 and the GMs that nobody had answered
+ * while the Call stood armed on the GM's yes. Answers "forgotten" when the yes was still kept and is taken back
+ * now, "taken" when an arm took it (`takenYeses`), null when neither.
+ */
+export function forgetCallYes({ userId, actorId, key, nonce }) {
+    const yes = callYesKey(userId, actorId, key, nonce);
+    if (callYeses.delete(yes)) return "forgotten";
+    return takenYeses.has(yes) ? "taken" : null;
+}
+
+/** The yeses an arm took, as `callYeses` keeps them (fix e1-G1): what `forgetCallYes` reads a used yes by. */
+const takenYeses = new Map();
+
 /** A player's Call that waits for the GM's yes takes the one kept for this purchase, or is refused. */
 export function guardArmGmYes(sender, payload, ctx) {
     if (sender.isGM || !HOPE_CALLS[payload.call?.key]?.needsGm) return null;
     const yes = callYesKey(sender.id, armBuyerId(payload), payload.call.key, payload.call.nonce);
     const given = callYeses.get(yes);
     callYeses.delete(yes);
-    return given !== undefined && Date.now() - given <= CALL_YES_MS ? null : "no GM's yes stands for that Call";
+    if (given === undefined || Date.now() - given > CALL_YES_MS) return "no GM's yes stands for that Call";
+    takenYeses.delete(yes);
+    takenYeses.set(yes, Date.now());
+    while (takenYeses.size > CALL_YES_KEPT) takenYeses.delete(takenYeses.keys().next().value);
+    return null;
 }
 
 /**
@@ -1709,7 +1737,8 @@ export const WINDOW_CLOCK = Object.freeze({ set: (fn, ms) => setTimeout(fn, ms),
 
 /**
  * A waiter: `request` asks, `onReply` takes the GM's answers, `resendOnGmReady`
- * asks once more for what is still waiting when a GM's world has loaded.
+ * asks once more for what is still waiting when a new primary can answer (three
+ * times at most, `RESENDS`).
  *
  * @param {object} deps
  * @param {(packet: object, recipients: string[]) => void} deps.emit  may throw
@@ -1751,10 +1780,10 @@ export function createWaiter({ emit, gmIds, me, notify, fromGm, clock = WINDOW_C
 
     function request(action, payload = {}, { settle: kind = "ack", patient = false, resend = false, ackMs = TIMING.ackMs,
         timeoutMs = TIMING.rulingMs, local = null, onPrimary = false, quiet = false, nothingSpent = false, late = null, lateRefused = null,
-        lateMs = 0 } = {}) {
+        lateMs = 0, expired = null, received = null } = {}) {
         return new Promise(resolve => {
-            const entry = { id: null, action, kind, patient, resend, resent: false, quiet, nothingSpent, late, lateRefused, lateMs, timeoutMs,
-                resolve, settled: false, ackTimer: null, answerTimer: null, packet: null };
+            const entry = { id: null, action, kind, patient, resend, resent: 0, quiet, nothingSpent, late, lateRefused, lateMs, timeoutMs,
+                expired, received, resolve, settled: false, ackTimer: null, answerTimer: null, packet: null };
             try {
                 const self = me();
                 // 1. The GM's own client does it here; a GM does not talk to itself down a socket. What
@@ -1791,13 +1820,16 @@ export function createWaiter({ emit, gmIds, me, notify, fromGm, clock = WINDOW_C
                         entry.ackTimer = null;
                         close(entry);
                         fail(entry, "noAnswer");
+                        tellGms(entry, entry.expired);
                     }, ackMs);
                 }
                 entry.answerTimer = clock.set(() => {
                     entry.answerTimer = null;
                     close(entry);
                     // An acknowledged "ack" request has had its answer; its clock only ends the wait for a late refusal.
-                    if (!entry.settled) fail(entry, "noAnswer");
+                    if (entry.settled) return;
+                    fail(entry, "noAnswer");
+                    tellGms(entry, entry.expired);
                 }, timeoutMs);
                 emit(entry.packet, to);
             } catch (err) {
@@ -1842,6 +1874,7 @@ export function createWaiter({ emit, gmIds, me, notify, fromGm, clock = WINDOW_C
         close(entry);
         if (action === ACTION_DONE) {
             settle(entry, { ok: true, value: packet.value ?? null });
+            tellGms(entry, entry.received);
             return true;
         }
         const reason = REASONS.includes(packet.reason) ? packet.reason : "refused";
@@ -1851,11 +1884,11 @@ export function createWaiter({ emit, gmIds, me, notify, fromGm, clock = WINDOW_C
         return true;
     }
 
-    /** 8. Ask once more, with the same id, for every request still waiting that asked for it. */
+    /** 8. Ask once more, with the same id, for every request still waiting that asked for it, `RESENDS` times at most. */
     function resendOnGmReady() {
         for (const entry of pending.values()) {
-            if (!entry.resend || entry.resent || entry.settled) continue;
-            entry.resent = true;
+            if (!entry.resend || entry.resent >= RESENDS || entry.settled) continue;
+            entry.resent += 1;
             try {
                 const to = gmIds();
                 if (to.length) emit(entry.packet, to);
@@ -1865,7 +1898,49 @@ export function createWaiter({ emit, gmIds, me, notify, fromGm, clock = WINDOW_C
         }
     }
 
+    /*
+     * AN ASK ENDS ON BOTH SIDES (E18 C1, 19.10.2026; audits S10-25, S11-13). A ruling a person gives from
+     * a card (a Hope Call's, a Dynamic action's) names the two reports the primary GM ends its card by:
+     * `expired`, sent when a clock runs out on a request nothing answered, so the card stops asking and a
+     * later yes is not kept; and `received`, sent when the answer reaches this waiter, so the card is
+     * written as ruled only once the player has the ruling. Each goes to the GMs with the ask's id as
+     * `rid`; the primary acts only for the asker it holds (gm-bridge.mjs `expiredOnPrimary`,
+     * `receivedOnPrimary`). An answer after the clock gets no receipt: its card ends as expired. R839.
+     */
+    function tellGms(entry, action) {
+        if (!action) return;
+        try {
+            const to = gmIds();
+            if (to.length) emit({ action, rid: entry.id, userId: me().id }, to);
+        } catch (err) {
+            report(`Could not tell the GM about "${entry.action}"`, err);
+        }
+    }
+
     return { request, onReply, resendOnGmReady, waiting: () => pending.size };
+}
+
+/*
+ * ASKED AGAIN OF EVERY NEW PRIMARY, THREE TIMES AT MOST (E18 C2, 19.10.2026; audit S10-43 part 1). A request
+ * still waiting was asked again once, and only when a primary's world had loaded (`bridge.gmReady`). A GM
+ * who becomes the primary because the primary closed its browser has its world loaded already and sends
+ * no such packet, so the ask went to a GM who had left and waited out its clock. Now the waiter asks
+ * again on either, with the same id, and counts: three times covers a primary's reload, a handover to
+ * another GM and a second reload within one ruling's clock, and bounds a GM whose world keeps reloading.
+ * The primary finds the card it posted for an ask by its mark (gm-bridge.mjs `askAgain`). R841.
+ */
+const RESENDS = 3;
+
+/**
+ * Was the GM who just left the primary, with another GM here to take it (`userConnected(user, false)`)?
+ * Counted both ways whatever `user.active` says yet: as here before it left, as gone after. Pure over
+ * `users` (R841 hands its own list).
+ */
+export function primaryLeft(user, users = game.users) {
+    if (!user?.isGM) return false;
+    const before = primaryGmId({ arriving: user.id, users });
+    const after = primaryGmId({ leaving: user.id, users });
+    return before === user.id && after !== null && after !== user.id;
 }
 
 /* The module's one waiter. Addressed to the GMs connected and to nobody else - no
@@ -1886,6 +1961,7 @@ const waiter = createWaiter({
  * @param {string} action   the declaration's name, e.g. "project.sabotage"
  * @param {object} payload  the fields its whitelist reads
  * @param {object} [opts]   settle ("none" | "ack" | "reply"), patient, resend, ackMs, timeoutMs,
+ *                          expired, received (the reports that end a ruling's card, E18 C1),
  *                          local (the GM's own client does it), onPrimary (only the primary GM's
  *                          does; another GM asks the primary), quiet, nothingSpent, late
  *                          (`late(value, requestId)`, for an answer that arrives after the clock),
@@ -1901,6 +1977,8 @@ export function bridgeRequest(action, payload = {}, opts = {}) {
 /** The GMs' answers to this client's requests, on every client: one listener, registered once (module.mjs). */
 export function registerBridgeReplies() {
     game.socket.on(SOCKET_EVENT, (packet, senderId) => { waiter.onReply(packet, senderId); });
+    // A new primary whose world is loaded already says nothing: what still waits is asked again of it here (E18 C2).
+    Hooks.on("userConnected", (user, connected) => { if (!connected && primaryLeft(user)) waiter.resendOnGmReady(); });
 }
 
 /** A primary GM's world has loaded: ask again what is still waiting (gm-bridge.mjs's `onGmReady`). */

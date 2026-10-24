@@ -31,9 +31,10 @@
  *   `users.<p1>.muted` client setting and no other row (p2's 0.5 kept), and a second click opens it again;
  *   push-to-talk wears its small label and its line, Foundry's mute-all strikes the speaker button; a
  *   GM's block (`canBroadcastAudio` false on p1's row, put back) is struck with the lock, not grey, and a
- *   click writes nothing and tells p1 why. The primary GM's own `voice.assign` puts p1 alone in p1's
- *   Eclipse room: the button is grey and struck with the reason, a click writes nothing and says why;
- *   back in the main room it is open. The shim's record of `toggleAudio` stays empty throughout.
+ *   click writes nothing and tells p1 why. The primary GM's own `voice.assign` of p1's Eclipse room takes
+ *   p1 out of voice (E19 C4: the Room disconnected, avclient-livekit's `breakoutRoom` naming it; before C4 p1 joined it alone): the
+ *   button is grey and struck with the reason, a click writes nothing and says why; back in the main
+ *   room it is open. The shim's record of `toggleAudio` stays empty throughout.
  * C (C5): who p1 hears. p1's speaker opens the list 'Who you hear' - the GM and p2, no GM's block for a
  *   player. p2's slider writes p1's own `users.<p2>.volume` and p2's element, nothing else; 'Mute for me' on
  *   the GM is p1's volume for the GM at 0 with the volume before in p1's `voicePeerMutes`, and a new Room
@@ -59,12 +60,18 @@
  *   under the tray and `voice-left` open, the same after a speaker and the list, and none of it without the voice
  *   block. So the ci set carries the signature twice, here and in R545 (tier 1, in 01's suite); what neither can
  *   read without a layout - no recut on the screen - is the sweep's.
- * E (C7): a known leak, A9-K3 in known-leaks.json, until E19. p2's character, standing in the Cafeteria's room,
- *   killed in secret (`killCharacter`, revived quietly after): `voiceTargets` sends p2 to the main room at once,
- *   and p1, there with the roster's next Room, hears p2 in the list 'Who you hear' and its count, and (E78 fix r2-H3,
- *   review round 2's O7) sees p2's name and face on the voice tile, with no click, while p2 speaks. The check asks
- *   for what E19 will make true - the room kept, nobody in the main room hearing or seeing p2 - and stays an expected
- *   red while it measured the kill, the room before, the secret, p1's open list in the main room and p1's tile.
+ * E (C7; since E19 C3 the dead channel, A9): p2's character, standing in the Cafeteria's room, killed in secret
+ *   (`killCharacter`, revived quietly after) with no incident running: `voiceTargets` sends p2 to the dead channel
+ *   (`drpg-dead`) at once, not to the main room; p1, there with the roster's next Room, has no p2 in the list 'Who
+ *   you hear' or its count, and (E78 fix r2-H3, review round 2's O7) no p2 on the voice tile while p2 speaks. Then the
+ *   in-incident variant: p2's character the victim and p3's the killer of an incident opened for the phase
+ *   (incident-store.mjs `restoreState`, closed with `restoreState({})` and the setting put back), killed in secret
+ *   again: the room p2 stood in is kept while the incident runs, and the dead channel follows its close. Until E19
+ *   C3 this was A9-K3 of known-leaks.json, an expected red: the kill sent p2 to the main room, where p1 heard them.
+ *   Then a packet from p3, a player, naming the dead channel for p1: p1 stays meant for the main room and in it.
+ *   Last (E19 fix r1-G1, the review's sec-3), p1's page put back to the moment it loads - its told room forgotten,
+ *   voice-client.mjs `landAloneFirst` asked as the hook asks it before ready - and connected: p1 joins its room of
+ *   one, not the main room, and the primary GM's packet brings it back.
  * F (E78 fix r1-G1; the review's SEC-R1-1 and the goal's S16-10 (d)): with the dock hidden. p1 in the main room with
  *   the GM and p2, nobody speaking: the number on the speaker, in the tiles' row and drawn without a click, says 2; a
  *   participant avclient-livekit maps to no user (put in p1's Room by hand) makes it 3, and their leaving 2. Then the
@@ -81,6 +88,11 @@
  *   while somebody spoke). The word's title and the live text say the sentence of each. p1 is put back in the main
  *   room with the room voice-client.mjs wanted before. What a real LiveKit Room says, in both themes, full and
  *   compact, is LIVE-E79-21; how late the first portrait comes at a table, LIVE-E79-20.
+ * H (E19 C2; S11-09, the owner's A7): a drop on p1. The Room dropped while every connect is refused: one card in
+ *   p1's notice history (an error of p1's own, the title and the reconnect text, on screen) and no toast; p1's own
+ *   reconnects start at voice-client.mjs RECONNECT_MS's steps - the times read here are written beside them - and
+ *   stop after the third; p1 brought back (`applyBreakout`), the card goes and its entry stays. A drop at a real
+ *   table is LIVE-E19-01.
  * I (H82 C2, a letter after line B's H, E19 C2's, for the day the two lines meet; the owner's 21.10.2026 "Delay przy
  *   laczeniu z nowym pokojem"): the voice switch on entering a room, with voice switched on and the GM moving Aiko. A
  *   settled crossing has p1's room sent within 200 ms of the GM's update and p1 standing there, once; so it is while
@@ -108,13 +120,19 @@ export const layers = ["ci"];
    the harness lock): 23 checks, 1 of them the expected red, in 8.0 s - it stands. With D's cut signature (E78 fix r2-H2, one
    green run on 14.10.2026, under the harness lock): 24 checks, 1 of them the expected red, in 8.5 s, 14 s of wall time - it stands.
    With phase G (E79 C15, one green run on 17.10.2026, under the harness lock): 26 checks, 1 of them the expected red, in 7.9 s,
-   13 s of wall time - it stands. With phase I (H82 C2, two green runs on 23.10.2026, under the harness lock): 31 checks, 1 of
-   them the expected red, in 31.1 s and 30.2 s, 36.6 s and 36.0 s of wall time; I waits 21.4 s on its own clock by design
-   (the trailing pass three times, Botan's four steps, the drag's 600 ms, the held connects), so the bound goes to 90 s,
-   a margin chosen for a loaded runner, not measured on one. With H82 fix r1's two checks (Botan's step during a drag, p1's
-   refused route; one green run on 23.10.2026, the quick gate, under the harness lock): 33 checks, 1 of them the expected
-   red, in 36.4 s, 41.8 s of wall time - the bound stands. */
-export const timeoutMs = 90000;
+   13 s of wall time - it stands. On line B: with phase H (E19 C2, one green run on 19.10.2026, under the harness lock): 28
+   checks, 1 of them the expected red, in 25.5 s, 30.4 s of wall time - H waits out the reconnect's three steps, 15 s - it stands.
+   With E's dead channel and a player's packet (E19 C3, one green run on 19.10.2026, under the harness lock): 29 checks, none of
+   them an expected red since A9-K3 closed, in 27.3 s, 32.4 s of wall time - it stands. On line A: with phase I (H82 C2, two green
+   runs on 23.10.2026, under the harness lock): 31 checks, 1 of them the expected red, in 31.1 s and 30.2 s, 36.6 s and 36.0 s of
+   wall time; I waits 21.4 s on its own clock by design (the trailing pass three times, Botan's four steps, the drag's 600 ms, the
+   held connects), so the bound went to 90 s, a margin chosen for a loaded runner, not measured on one. With H82 fix r1's two
+   checks (Botan's step during a drag, p1's refused route; one green run on 23.10.2026, the quick gate, under the harness lock):
+   33 checks, 1 of them the expected red, in 36.4 s, 41.8 s of wall time - the bound stood. The two lines merged (24.10.2026,
+   line A's I after line B's H; two green runs, under the harness lock, 4 cores): 37 checks, none of them an expected red, in
+   54.7 s and 54.5 s, 58.7 s and 59 s of wall time - H's 15 s and I's 21.4 s of waiting by design add up, so 90 s was a margin
+   of 1.5 over the wall time; the bound goes to 120 s, about twice it, a margin chosen for a loaded runner, not measured on one. */
+export const timeoutMs = 120000;
 
 const J = value => JSON.stringify(value);
 
@@ -344,15 +362,16 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
             && b.unblocked?.cls === "" && b.unblocked.disabled === null,
         J({ blocked: b.blocked, unblocked: b.unblocked }));
 
-    // The Eclipse: the primary GM's own packet puts p1 alone in p1's Eclipse room (voice-client.mjs `onVoiceSocket`), which
+    // The Eclipse: the primary GM's own packet of p1's Eclipse room (voice-client.mjs `onVoiceSocket`) takes p1 out of voice
+    // (E19 C4: `applyBreakout` disconnects on it, leaving `breakoutRoom` named, while the shim's `client.room` reads null), which
     // `micHold` holds; then the main room again.
     const eclipseRoom = `drpg-eclipse-${IDS.p1}`;
     const assign = room => gm.eval(`game.socket.emit("module.danganronpa-rpg", { action: "voice.assign", target: "${IDS.p1}", room: ${J(room)} }); return true;`);
     await p1.eval(`__liveKit.setRoster({ [__liveKit.MAIN_ROOM]: ${J([IDS.gm, IDS.p1, IDS.p2])}, "drpg-elsewhere": ${J([IDS.p1, IDS.p3])}, ${J(eclipseRoom)}: ${J([IDS.p1])} }); return true;`);
     await assign(eclipseRoom);
     const held = await p1.eval(`${micJs}
-        await until(() => mic()?.cls === "is-held", 5000);
-        const seen = notices(), kept = JSON.stringify(rows()), out = { mic: mic(), room: __liveKit.read().name, speaker: speaker(), eclipse: text("DRPG.Voice.held.eclipse") };
+        await until(() => mic()?.cls === "is-held" && __liveKit.read().state === "disconnected", 5000);
+        const seen = notices(), kept = JSON.stringify(rows()), out = { mic: mic(), state: __liveKit.read().state, room: game.webrtc.client._liveKitClient?.breakoutRoom ?? null, speaker: speaker(), eclipse: text("DRPG.Voice.held.eclipse") };
         el()?.click();
         await until(() => notices() > seen);
         return { ...out, told: globalThis.__notifications.slice(seen).map(n => n.msg), unchanged: JSON.stringify(rows()) === kept };`, { timeout: 10000 });
@@ -360,8 +379,8 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
     const freed = await p1.eval(`${micJs}
         await until(() => mic()?.cls === "" && __liveKit.read().name === __liveKit.MAIN_ROOM, 5000);
         return { mic: mic(), room: __liveKit.read().name, main: __liveKit.MAIN_ROOM, toggles: __liveKit.toggles };`, { timeout: 10000 });
-    check("B: alone in p1's Eclipse room the microphone is grey and struck with the reason in its note and tooltip; p1's click writes nothing and tells p1 why; back in the main room it is open",
-        held.room === eclipseRoom
+    check("B: out of voice in an Eclipse (p1's Eclipse room named, the Room disconnected) the microphone is grey and struck with the reason in its note and tooltip; p1's click writes nothing and tells p1 why; back in the main room it is open",
+        held.state === "disconnected" && held.room === eclipseRoom
             && J(held.mic) === J({ cls: "is-held", pressed: "false", disabled: "true", tip: held.eclipse, note: held.eclipse, lock: "none" })
             && J(held.speaker) === J({ count: "", struck: false })
             && J(held.told) === J([held.eclipse]) && held.unchanged === true
@@ -610,32 +629,52 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
     check("D: the GM's voiceTile off takes the tile out of p1's row; on builds it in the row again, not on the body",
         gone.tile === null && gone.room === "drpg-tile-row" && J(back) === J(want), J({ gone, back }));
 
-    phase("E: a known leak until E19 - a character killed in secret leaves the room they stood in for the main room at once, where p1 hears them in the list 'Who you hear' and its count, and sees them speak on the voice tile");
-    // The primary GM's own reading of where p2's voice goes, before and after a secret death (`voiceTargets`, the one
-    // the reconcile sends); the death is put back quietly at the end, as in C.
+    phase("E: the dead channel - a character killed in secret talks in the dead channel at once, never in the main room, where p1 neither hears nor sees them; in an incident they keep the room they stood in until it closes");
+    // The primary GM's own reading of where p2's voice goes (`voiceTargets`, the one the reconcile sends): before the
+    // kill, after it with no incident, and in the variant during an incident and after its close. Everything is put
+    // back at the end: the death quietly, the incident's setting as it was before the phase.
     const victim = await gm.eval(`
         const C = await import("${repoUrl}/scripts/chapter.mjs");
+        const I = await import("${repoUrl}/scripts/incident-store.mjs");
         const { voiceTargets } = await import("${repoUrl}/scripts/voice.mjs");
-        const { isDeadForGm, isDeceased } = await import("${repoUrl}/scripts/settings.mjs");
-        const p2 = game.users.get("${IDS.p2}");
-        const actor = p2.character ?? game.actors.find(x => x.type === "character" && x.testUserPermission(p2, "OWNER")) ?? null;
+        const { isDeadForGm, isDeceased, SETTINGS } = await import("${repoUrl}/scripts/settings.mjs");
+        const ownerOf = id => {
+            const user = game.users.get(id);
+            return user.character ?? game.actors.find(x => x.type === "character" && x.testUserPermission(user, "OWNER")) ?? null;
+        };
+        const actor = ownerOf("${IDS.p2}"), killer = ownerOf("${IDS.p3}");
         const targets = async () => {
             const { byUser } = await voiceTargets();
-            const row = byUser.get(p2.id);
+            const row = byUser.get("${IDS.p2}");
             return { p2: row ? { target: row.target ?? null, why: row.why } : null,
                 main: [...byUser].filter(([, r]) => (r.target ?? null) === null).map(([id]) => id).sort() };
         };
-        const out = { actor: Boolean(actor), before: await targets() };
-        if (!actor) return out;
+        const out = { actor: Boolean(actor), killer: Boolean(killer) && killer !== actor, idle: I.murderState() === null, before: await targets() };
+        if (!out.actor || !out.killer) return out;
         await C.killCharacter(actor, { secret: true, keepBullets: true });
         out.secret = isDeadForGm(actor) && !isDeceased(actor);
         out.after = await targets();
-        return out;`, { timeout: 15000 });
-    let heard = null;
+        await C.reviveCharacter(actor, { quiet: true });
+        if (!out.idle) return out;
+        const stored = foundry.utils.deepClone(game.settings.get("danganronpa-rpg", SETTINGS.murderState) ?? {});
+        await I.restoreState({ active: true, stage: "incident", killerId: killer.id, victimId: actor.id });
+        try {
+            await C.killCharacter(actor, { secret: true, keepBullets: true });
+            out.during = await targets();
+        } finally {
+            await I.restoreState({});
+            if (JSON.stringify(game.settings.get("danganronpa-rpg", SETTINGS.murderState) ?? {}) !== JSON.stringify(stored)) {
+                await game.settings.set("danganronpa-rpg", SETTINGS.murderState, stored);
+            }
+        }
+        out.closed = await targets();
+        out.idleAgain = I.murderState() === null;
+        return out;`, { timeout: 20000 });
+    let heard = null, forged = null, landed = null;
     try {
         // p1 stands in the main room (the primary GM's packet, as in B), and the main room holds whom the GM's reading
         // sends there: p2 is in p1's Room only if the module put p2 in the main room.
-        const main = [...new Set([...(victim.after?.main ?? []), IDS.p1])];
+        const main = [...new Set([...(victim.closed?.main ?? []), IDS.p1])];
         await p1.eval(`__liveKit.setRoster({ [__liveKit.MAIN_ROOM]: ${J(main)} }); return true;`);
         await gm.eval(`game.socket.emit("module.danganronpa-rpg", { action: "voice.assign", target: "${IDS.p1}", room: null }); return true;`);
         heard = await p1.eval(`${micJs}
@@ -665,6 +704,38 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
             out.tile = t && { state: t.state, name: t.name, face: t.face, theirs: who !== null && t.name === who };
             __liveKit.speak([]);
             return out;`, { timeout: 15000 });
+        // A packet naming the dead channel for p1 from p3, a player: p1's client takes a room from the primary GM
+        // alone (voice-client.mjs `onVoiceSocket`), so p1 is still meant for the main room and in its Room. Read for
+        // 1000 ms, against the GM's own packet above, which p1 followed within `until`'s 3000.
+        await p3.eval(`game.socket.emit("module.danganronpa-rpg", { action: "voice.assign", target: "${IDS.p1}", room: "drpg-dead" }); return true;`);
+        forged = await p1.eval(`${micJs}
+            const VC = await import("${repoUrl}/scripts/voice-client.mjs");
+            const moved = await until(() => VC.desiredRoom() !== null || __liveKit.read().name !== __liveKit.MAIN_ROOM, 1000);
+            return { moved, desired: VC.desiredRoom() ?? null, room: __liveKit.read().name === __liveKit.MAIN_ROOM };`, { timeout: 15000 });
+        // E19 fix r1-G1 (the review's sec-3): a page that loads is told nothing yet, and Foundry's own connect at setup
+        // comes right after `liveKitClientInitialized`. A seeded client cannot reload, so p1's page is put back to
+        // that moment by hand - its told room forgotten, `landAloneFirst` asked as the hook asks it before ready - and
+        // connected as Foundry connects: p1 joins its room of one, where nobody is heard, never the main room. The
+        // primary GM's packet then brings p1 back to the main room for F.
+        landed = await p1.eval(`${micJs}
+            if (globalThis.__liveKit?.installed !== true) return { installed: false };
+            const VC = await import("${repoUrl}/scripts/voice-client.mjs");
+            const own = VC.silentRoomFor(game.user.id);
+            __liveKit.setRoster({ [__liveKit.MAIN_ROOM]: ${J(main)}, [own]: [game.user.id] });
+            VC.forgetDesiredRoom();
+            const out = { installed: true, pointed: VC.landAloneFirst({ ready: false, voiceOn: true }) };
+            const serial = __liveKit.read().serial;
+            await game.webrtc.connect();
+            await until(() => __liveKit.read().serial !== serial);
+            const read = __liveKit.read();
+            out.alone = read.name === own;
+            out.main = read.name === __liveKit.MAIN_ROOM;
+            out.heard = read.remote;
+            return out;`, { timeout: 15000 });
+        await gm.eval(`game.socket.emit("module.danganronpa-rpg", { action: "voice.assign", target: "${IDS.p1}", room: null }); return true;`);
+        landed.back = await p1.eval(`${micJs}
+            const VC = await import("${repoUrl}/scripts/voice-client.mjs");
+            return await until(() => __liveKit.read().name === __liveKit.MAIN_ROOM && VC.desiredRoom() === null);`, { timeout: 15000 });
     } finally {
         await gm.eval(`
             const C = await import("${repoUrl}/scripts/chapter.mjs");
@@ -673,13 +744,20 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
             if (actor) await C.reviveCharacter(actor, { quiet: true });
             return true;`, { timeout: 15000 });
     }
-    const stoodInRoom = victim.before?.p2?.target !== null && victim.before?.p2?.target !== undefined;
-    check("E: a character killed in secret keeps the voice room they stood in, and nobody in the main room hears them in the list 'Who you hear' or its count, or sees them speak on the voice tile",
-        J(victim.after?.p2?.target) === J(victim.before?.p2?.target) && heard?.rows?.includes(IDS.p2) === false && heard?.count === String(heard?.rows?.length || "")
-            && heard?.tile?.theirs === false,
-        J({ victim, heard }),
-        { knownLeak: "A9-K3", measured: victim.actor === true && stoodInRoom && victim.secret === true && heard?.room === true && heard?.open === true
-            && typeof heard?.tile?.theirs === "boolean" });
+    const DEAD = "drpg-dead";
+    const stoodInRoom = typeof victim.before?.p2?.target === "string" && victim.before.p2.target !== DEAD;
+    check("E: a character killed in secret talks in the dead channel at once, never in the main room, where nobody hears them in the list 'Who you hear' or its count or sees them speak on the voice tile; in an incident the room they stood in is kept until it closes",
+        victim.actor === true && victim.killer === true && victim.idle === true && victim.secret === true && stoodInRoom
+            && victim.after?.p2?.target === DEAD && victim.after?.main?.includes(IDS.p2) === false
+            && J(victim.during?.p2?.target) === J(victim.before?.p2?.target) && victim.closed?.p2?.target === DEAD && victim.idleAgain === true
+            && heard?.room === true && heard?.open === true && heard?.rows?.includes(IDS.p2) === false
+            && heard?.count === String(heard?.rows?.length || "") && heard?.tile?.theirs === false,
+        J({ victim, heard }));
+    check("E: a player's packet naming the dead channel for p1 moves p1 nowhere - p1 is still meant for the main room and in its Room",
+        forged?.moved === false && forged?.desired === null && forged?.room === true, J(forged));
+    check("E: a page that loads is in a room of its own until the primary GM says which - Foundry's connect before ready, untold, joins p1's room of one, where nobody is heard, never the main room; the GM's packet then brings p1 to the main room",
+        landed?.installed === true && landed.pointed === true && landed.alone === true && landed.main === false
+            && J(landed.heard) === J([]) && landed.back === true, J(landed));
 
     phase("F: with the dock hidden, p1 sees who is in p1's Room without a click, and reaches p1's microphone, a volume, the microphone device and the mode from the tile and the gear");
     // E78 fix r1-G1 (the review's SEC-R1-1 and the goal's S16-10 (d)). p1 back in the main room with the GM and p2,
@@ -850,6 +928,57 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
             && J([st.speaking.run, st.speaking.title]) === J(st.texts.speaking) && st.speaking.live === st.texts.connected[1],
         J({ result: st.result, moved: st.moved, reconnecting: st.reconnecting, back: st.back, dropped: st.dropped, home: st.home, speaking: st.speaking }));
 
+    phase("H: a voice drop on p1 - one card in p1's notice history and no toast, p1's own reconnect at its steps while the server refuses, the card gone once p1 is back and its entry kept");
+    // E19 C2 (S11-09, A7). p1's Room dropped while every connect is refused: the times at which p1's reconnects
+    // start (each builds a new Room) are voice-client.mjs RECONNECT_MS as this harness runs them, written there.
+    const dr = await p1.eval(`${tileJs}
+        if (globalThis.__liveKit?.installed !== true) return { installed: false };
+        const VC = await import("${repoUrl}/scripts/voice-client.mjs");
+        const NH = await import("${repoUrl}/scripts/notice-history.mjs");
+        const before = VC.desiredRoom(), had = new Set(NH.noticeEntries().map(entry => entry.id));
+        const fresh = () => NH.noticeEntries().filter(entry => !had.has(entry.id));
+        const toasts = globalThis.__notifications.length;
+        const out = { installed: true, title: game.i18n.localize("DRPG.Voice.drop.title"), text: game.i18n.localize("DRPG.Voice.drop.retry") };
+        await NH.holdNoticeHistory(true);
+        try {
+            await until(() => __liveKit.read().state === "connected", 1000);
+            __liveKit.fail("refuse");
+            const rooms = __liveKit.rooms, at = Date.now();
+            __liveKit.drop();
+            out.steps = [];
+            while (out.steps.length < 3 && Date.now() - at < 20000) {
+                if (__liveKit.rooms > rooms + out.steps.length) out.steps.push(Date.now() - at);
+                await sleep(20);
+            }
+            await until(() => VC.voiceDrop()?.waiting === false, 2000);
+            out.lost = VC.voiceDrop();
+            out.cards = fresh().map(entry => ({ kind: entry.kind, source: entry.source, title: entry.title, text: entry.text,
+                shown: Boolean(document.querySelector('.drpg-popup[data-drpg-notice="' + entry.id + '"]')) }));
+            await sleep(1500);
+            out.after = __liveKit.rooms - rooms;
+            __liveKit.fail(null);
+            out.back = await VC.applyBreakout(before ?? null);
+            const id = fresh()[0]?.id ?? "none";
+            await until(() => !document.querySelector('.drpg-popup[data-drpg-notice="' + id + '"]'), 2000);
+            out.home = { lost: VC.voiceDrop(), room: __liveKit.read().state, shown: Boolean(document.querySelector('.drpg-popup[data-drpg-notice="' + id + '"]')),
+                kept: NH.noticeEntries().some(entry => entry.id === id), cards: fresh().length };
+            out.toasts = globalThis.__notifications.length - toasts;
+        } finally {
+            __liveKit.fail(null);
+            NH.holdNoticeHistory(false);
+            if (before === undefined) VC.forgetDesiredRoom();
+        }
+        return out;`, { timeout: 30000 });
+    check("H: p1's dropped voice is one card in p1's notice history - an error of p1's own with the title and the reconnect text, on screen - and no toast",
+        dr.installed === true && dr.cards?.length === 1 && dr.cards[0].kind === "error" && dr.cards[0].source === "mine"
+            && dr.cards[0].title === dr.title && dr.cards[0].text === dr.text && dr.cards[0].shown === true && dr.toasts === 0,
+        J({ cards: dr.cards, toasts: dr.toasts }));
+    check("H: p1 reconnects on its own while the server refuses, at 1, 5 and 15 s after the drop (RECONNECT_MS 1000, 4000, 10000), then waits; back in voice the card goes and its entry stays",
+        dr.installed === true && dr.steps?.length === 3 && dr.steps[0] >= 990 && dr.steps[0] < 1500 && dr.steps[1] >= 4990 && dr.steps[1] < 5800
+            && dr.steps[2] >= 14990 && dr.steps[2] < 16000 && J(dr.lost) === J({ retry: true, step: 3, waiting: false }) && dr.after === 3
+            && dr.back === "applied" && dr.home?.lost === null && dr.home.room === "connected" && dr.home.shown === false && dr.home.kept === true && dr.home.cards === 1,
+        J({ steps: dr.steps, lost: dr.lost, after: dr.after, back: dr.back, home: dr.home }));
+
     phase("I: a settled crossing moves p1's voice at once - the primary GM sends p1's room within 200 ms of the move, not 1500 ms after, and another student walking postpones nothing; a move inside a room and a drag's pending step send nothing; the trailing pass sends nothing more; p1's debug log says how long each connect took");
     /* H82-02 and H82-03 (the owner's 21.10.2026 "Delay przy laczeniu z nowym pokojem"; STAGE H82 C2). Until H82 the
        primary GM's updateToken hook only re-armed one module-wide timer (voice.mjs RECONCILE_DEBOUNCE_MS, 1500 ms), so a
@@ -889,7 +1018,7 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
         const want = room(M.roomOfToken(aiko));
         const plan = (await V.voiceTargets()).byUser.get("${IDS.p1}")?.target ?? null;
         return { want, plan, aiko: M.roomOfToken(aiko), botan: M.roomOfToken(botan) };`, { timeout: 30000 });
-    const landed = await p1.eval(`const sleep = ms => new Promise(r => setTimeout(r, ms)), end = Date.now() + 5000;
+    const crossLanded = await p1.eval(`const sleep = ms => new Promise(r => setTimeout(r, ms)), end = Date.now() + 5000;
         while (Date.now() < end && game.webrtc.client.room !== ${J(gmOn.want)}) await sleep(20);
         await sleep(300);
         globalThis.__h75?.ev.splice(0); globalThis.__h75?.logs.splice(0);
@@ -1005,9 +1134,9 @@ export async function run({ gm, p1, p2, p3, check, phase, IDS, repoUrl }) {
     const once = (r, room, within, from = 0) => r.toP1.length === 1 && r.toP1[0].room === room && r.toP1[0].ms >= from && r.toP1[0].ms - from < within
         && r.applied.length === 1 && r.applied[0].room === room;
     check("I: a settled crossing - the GM moving Aiko from Dorm A into Dorm B - sends p1 Dorm B's room within 200 ms of the GM's update, once, and p1 stands there; the trailing pass 1500 ms later sends nothing more, and a move inside Dorm B sends nothing",
-        hOn.installed === true && gmOn.plan === gmOn.want && landed === gmOn.want && once(cross, cross.want, 200)
+        hOn.installed === true && gmOn.plan === gmOn.want && crossLanded === gmOn.want && once(cross, cross.want, 200)
             && inside.here === "Dorm B" && inside.toP1.length === 0 && inside.applied.length === 0,
-        J({ gmOn, landed, cross, inside }));
+        J({ gmOn, landed: crossLanded, cross, inside }));
     check("I: another student walking postpones nothing - Botan stepping inside the Cafeteria every second, four times, after Aiko crosses back into Dorm A: p1's room is still sent within 200 ms, once, and Botan's steps send p1 nothing",
         walk.botan === "Cafeteria" && walk.gm.filter(e => e.k === "hook" && e.id === "TOKBOTAN00000000").length === 4 && once(walk, walk.want, 200),
         J(walk));

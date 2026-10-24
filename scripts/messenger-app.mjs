@@ -32,7 +32,7 @@ import { noteFor, noteStatus, noteTemplate, saveNote, whenNotesHeld } from "./pr
 import { markOutcome, rollOutcomeOf } from "./private-rolls.mjs";
 import { playSfx } from "./sfx.mjs";
 
-import { contentOf, wordsOf, cardFlag, cardWriter } from "./secret.mjs";
+import { contentOf, shownWordsOf, wordsOf, cardFlag, cardWriter, readersLines } from "./secret.mjs";
 const LAUNCHER_ID = "drpg-messenger-launcher";
 
 export function registerMessengerUi() {
@@ -508,7 +508,7 @@ function cardPreview(html) {
     wrap.innerHTML = html ?? "";
     wrap.querySelectorAll(".drpg-call-actions").forEach(el => el.remove());
     if (!game.user.isGM) wrap.querySelectorAll(".drpg-gm-only").forEach(el => el.remove());
-    return wrap;
+    return readersLines(wrap);
 }
 
 function participantsLine(player, gms) {
@@ -521,6 +521,14 @@ function emptyNotice() {
     p.className = "drpg-messenger-empty";
     p.textContent = game.i18n.localize("DRPG.Messenger.noMessagesYet");
     return p;
+}
+
+/**
+ * A bubble's time in the table's language (E18 C6; audit S11-61). It was `toLocaleTimeString([], ...)`, the
+ * browser's locale: a Polish table on an English system read "02:15 PM" in a Polish window (R850).
+ */
+export function bubbleTime(at) {
+    return new Date(at).toLocaleTimeString(game.i18n.lang, { hour: "2-digit", minute: "2-digit" });
 }
 
 function buildBubble(message) {
@@ -548,7 +556,10 @@ function buildBubble(message) {
     // GM-bridge's own escaped ruling cards - and that was the whole defence until
     // the audit sent the words by hand from a console (S11-01). `contentOf` now
     // reads them through secret.mjs, which cleans anything a GM did not write.
-    body.innerHTML = contentOf(message);
+    // A card whose words never came here says so rather than '-' (E18 C4, `shownWordsOf`).
+    body.innerHTML = shownWordsOf(message);
+    // The ask's time and end in this reader's clock and language (secret.mjs `readersLines`, E18 fix e1-G3).
+    readersLines(body);
     // The GM's half of a ruling card - the reference table, the "score it
     // against" line - is not the player's to read (COMM-06). Removed, like
     // the buttons, rather than hidden. Since E06 C7b a player's words arrive
@@ -577,7 +588,7 @@ function buildBubble(message) {
 
     const time = document.createElement("div");
     time.className = "drpg-messenger-time";
-    time.textContent = new Date(message.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    time.textContent = bubbleTime(message.timestamp);
     bubble.append(time);
 
     return bubble;
@@ -635,9 +646,13 @@ export function wireCallActions(body, message = null) {
             busy = true;
             hold(true);
             try {
-                const outcome = await runCallAction(button.dataset.drpgCall, { ...button.dataset });
-                if (message && outcome?.settled) {
-                    const { settleCall } = await import("./gm-bridge.mjs");
+                // Claimed on the primary GM first (E18 C3, gm-bridge.mjs `claimCard`): a card another GM has, or
+                // ruled, is not ruled again here, and this GM is told who has it. No card, no claim and no ruling.
+                const { claimCard, settleCall } = await import("./gm-bridge.mjs");
+                const outcome = await claimCard(message, () => runCallAction(button.dataset.drpgCall, { ...button.dataset }, message));
+                // Sent on by the primary, which writes the card's line once the player has it (E18 C1): held till it redraws.
+                if (outcome?.held) return;
+                if (outcome?.settled) {
                     await settleCall(message, outcome.settled, outcome.ruling ?? null);
                     return; // The card redraws itself; these buttons are gone.
                 }
@@ -703,33 +718,38 @@ async function askItemEffect(item) {
     // to the asking client over the packet the old dialog used; the player's
     // own `spendHopeCall` asks the GM to arm it on a yes, and the GM charges the
     // Hope then. A yes goes by the primary, which keeps it for that arm (E29 fix
-    // r2-H4): one it could not keep leaves the card open.
-async function ruleApproveCallOrRefuseCall(action, data) {
+    // r2-H4): one it could not keep leaves the card open. The primary writes
+    // "Approved" on the card once the player's browser has the yes (E18 C1). The
+    // card pressed goes with it: the primary keeps a yes only for the ask held on
+    // that card (gm-bridge.mjs `yesOnPrimary`, fix early-C2-G2).
+async function ruleApproveCallOrRefuseCall(action, data, message = null) {
     const { answerHopeCall } = await import("./gm-bridge.mjs");
     const yes = action === "approveCall";
-    if (!(await answerHopeCall(data.rid, data.asker, yes))) return null;
-    return settled(yes ? "DRPG.Bridge.settledApproved" : "DRPG.Bridge.settledDeclined");
+    if (!(await answerHopeCall(data.rid, data.asker, yes, message?.id ?? null))) return null;
+    return yes ? { held: true } : settled("DRPG.Bridge.settledDeclined");
 }
 
     // A Dynamic action: the difficulty editor is the old dialog, opened from
     // the card by whichever GM picks it up; "Refuse" tells the player so. The
     // difficulty is kept in the card's meta, where the GM who places the action's
-    // trace reads its band (gm-bridge.mjs `dynamicRulingOf`, E08+E28 C15).
-async function ruleSetDifficulty(action, data) {
+    // trace reads its band (gm-bridge.mjs `dynamicRulingOf`, E08+E28 C15). The
+    // ruling goes by the primary, which keeps it in the meta and takes the card's
+    // buttons off as it sends it on, and writes the card's line once the player's
+    // browser has it (E18 C1; gm-bridge.mjs `keepRuling`, fix early-C1-G1) - for
+    // the ask held on the card pressed alone (`dynamicOnPrimary`, fix early-C2-G2).
+async function ruleSetDifficulty(action, data, message = null) {
     const { askDynamicDifficulty } = await import("./action-rolls.mjs");
     const ruling = await askDynamicDifficulty({
         description: data.desc ?? "", actorName: data.name ?? "?", room: data.room || null
     });
     if (!ruling) return null;   // The editor was closed; the card stays open.
     const { answerDynamic } = await import("./gm-bridge.mjs");
-    if (!answerDynamic(data.rid, data.asker, ruling)) return null;
-    return { ...settled("DRPG.Bridge.settledAnswered"), ruling: { type: "dynamic", actorId: data.by, tier: ruling.tier } };
+    return (await answerDynamic(data.rid, data.asker, ruling, message?.id ?? null)) ? { held: true } : null;
 }
 
-async function ruleRefuseDynamic(action, data) {
+async function ruleRefuseDynamic(action, data, message = null) {
     const { answerDynamic } = await import("./gm-bridge.mjs");
-    if (!answerDynamic(data.rid, data.asker, false)) return null;
-    return settled("DRPG.Bridge.settledDeclined");
+    return (await answerDynamic(data.rid, data.asker, false, message?.id ?? null)) ? { held: true } : null;
 }
 
     // The statistic of a roll that lists several (E32+E07 C11b; trait-ruling.mjs). The
@@ -940,7 +960,7 @@ async function ruleReply(action, data) {
     if (!actor) return null;
 
     const DialogV2 = foundry.applications.api.DialogV2;
-    const text = await DialogV2.wait({
+    const answer = await DialogV2.wait({
         classes: ["drpg-panel"],
         window: { title: game.i18n.format("DRPG.Bridge.replyTitle",
             { name: actor.name }) },
@@ -952,14 +972,17 @@ async function ruleReply(action, data) {
                 // which is the right label on the PLAYER's window and the
                 // wrong one here, where the GM is answering the player.
                 action: "send", label: game.i18n.localize("DRPG.Bridge.sendRuling"), default: true,
-                callback: (e, b, d) => d.element.querySelector("[name=reply]").value.trim()
+                callback: (e, b, d) => ({ text: d.element.querySelector("[name=reply]").value.trim() })
             },
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
         ],
         rejectClose: false
     });
 
-    if (!text || text === "cancel") return null;
+    // `{ text }`, so a ruling reading "cancel" is a ruling (E18 C0, S11-60): Cancel answers
+    // its action's name, and the words bare could not be told from it.
+    const text = typeof answer?.text === "string" ? answer.text : "";
+    if (!text) return null;
 
     const { postToThread } = await import("./messenger.mjs");
     const owner = ownerOf(actor);
@@ -1197,10 +1220,11 @@ const CARD_ACTIONS = {
     declineMurder: ruleDeclineMurder,
 };
 
-async function runCallAction(action, data) {
+/** The rule of the button pressed, handed the card it is on (`message`, fix early-C2-G2), or null for none. */
+async function runCallAction(action, data, message = null) {
     const rule = CARD_ACTIONS[action];
     if (!rule) return null;
-    return rule(action, data);
+    return rule(action, data, message);
 }
 
 /* ==========================================================================

@@ -21,7 +21,7 @@ import { voiceTargets, liveKitRoomFor } from "./voice.mjs";
 import { MUSIC_STATES, musicMap } from "./music.mjs";
 import {
     ok, needs, env, world, equal, must, wait, settle, until, cascadeAvailable, LIVE_PROBE,
-    moduleSources, otherSources, stripComments, moduleStyles, bodyOf, fnSource, topLevelFunction, lineAround, STANDING, watchLog, stableJson,
+    moduleSources, otherSources, stripComments, moduleStyles, styleCascade, bodyOf, fnSource, topLevelFunction, lineAround, STANDING, watchLog, stableJson,
     worldDump, dumpDiff, lfText
 } from "./tests-kit.mjs";
 
@@ -3013,12 +3013,14 @@ const INVARIANTS = [
             FW.FOUNDRY_WINDOWS.forEach((r, i) => FW.setFoundryWindow(r.key, open0[i]));
         }
         const body = document.body;
-        const CLASSES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"], classWas = CLASSES.map(name => body.classList.contains(name));
+        /* `drpg-dock-hidden` off for the readings (E19 C7), as in R474: with it on the lift computes 0px (R830). */
+        const CLASSES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy", "drpg-dock-hidden"], classWas = CLASSES.map(name => body.classList.contains(name));
         const INLINE = ["--drpg-av-lift", "--drpg-launch-clear"], inlineWas = INLINE.map(name => body.style.getPropertyValue(name));
         const putBack = () => INLINE.forEach((name, i) => inlineWas[i] ? body.style.setProperty(name, inlineWas[i]) : body.style.removeProperty(name));
         const round = value => Number.isFinite(value) ? value.toFixed(2) : String(value);
         const seen = {}, want = {};
         try {
+            body.classList.remove(CLASSES[2]);
             for (const glass of [true, false]) {
                 body.classList.toggle(CLASSES[0], glass);
                 body.classList.toggle(CLASSES[1], !glass);
@@ -4326,7 +4328,7 @@ const INVARIANTS = [
          * it", and a refusal after it is still said, once; a "reply" request
          * settles on its answer; a refusal settles it, with the code; no "got it"
          * in time is `noAnswer`; a patient request has no clock for the "got it"
-         * and is asked again once, with the same id, when a GM's world has loaded;
+         * and is asked again, with the same id, when a GM's world has loaded;
          * an answer after the clock goes to `late` for as long as the request's
          * `lateMs` says, and says nothing, and is dropped after it; an emit that
          * throws is `failed`; a GM's own client does the work itself; and the
@@ -4411,8 +4413,8 @@ const INVARIANTS = [
         await wait(60);
         equal(settled, null, "a patient request gave up on the clock for the acknowledgement");
         w.waiter.resendOnGmReady();
-        w.waiter.resendOnGmReady();
-        equal(w.sent.length, 2, "a patient request was not asked again exactly once when a GM's world loaded");
+        // How many times it is asked again is R841's (E18 C2: three at most).
+        equal(w.sent.length, 2, "a patient request was not asked again when a GM's world loaded");
         equal(w.sent[1]?.packet.requestId, w.sent[0]?.packet.requestId, "the request was asked again under another id");
         w.reply("bridge.done", { value: true });
         equal(JSON.stringify(await asked), JSON.stringify({ ok: true, value: true }), "a patient request did not settle with its answer");
@@ -6216,8 +6218,8 @@ const INVARIANTS = [
             .test(bodyOf(season, "function steps(", { until: "\n}\n" })),
             "the season checklist does not ask the rule, or its row does not carry the warning's sentence");
         ok(/game\.user\.isGM \? liveKitSecretWarning\(liveKitConnectionSettings\(\)\) : null/
-            .test(bodyOf(diagnostics, "export function diagnoseVoice(", { until: "\n}\n" })),
-            "the voice diagnosis does not ask the rule, or asks it on a player's browser as well");
+            .test(bodyOf(diagnostics, "export function voiceDiagnosis(", { until: "\n}\n" })),
+            "the voice diagnosis does not ask the rule, or asks it on a player's browser as well (its lines are voiceDiagnosis's since E19 C2)");
         for (const lang of ["en", "pl"]) {
             const text = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
             const flat = foundry.utils.flattenObject(foundry.utils.expandObject(text));
@@ -7766,8 +7768,9 @@ const INVARIANTS = [
          * get the main room (target null) with one claim of their own, and neither where anybody stands nor who is dead
          * is asked - so no token, and no linked school or hall, can change the answer. Outside the trial the same six keep
          * the answers they had (the two living and the Monocub their rooms, Monokuma the Hall, the dead the main room).
-         * In the source with comments blanked: `voiceTargets` reads the trial from the clock and asks the accounts with
-         * no character only in an Eclipse or the trial, and a browser that asks for its own room (`targetForUser`, the
+         * In the source with comments blanked: `voiceTargets` reads the trial from the clock and hands every connected
+         * account to the decision, one with no character included (E19 C4; until C4 only in an Eclipse or the trial, R818),
+         * and a browser that asks for its own room (`targetForUser`, the
          * answer to a client that connects mid-trial) is answered from that one decision, not from its token. Scenario 41 h reads it on four browsers in a real trial, and the
          * tier-2 test "the Class Trial takes every connected voice ..." on this world. Red before C4: no `voiceClaim`.
          */
@@ -7798,7 +7801,7 @@ const INVARIANTS = [
             inTrial.map(r => r.target), new Set(inTrial.map(r => r.claim)).size, inTrial.some(r => outside.some(o => o.claim === r.claim)),
             inTrial.every(r => r.why === game.i18n.localize("DRPG.Voice.claimTrial")), askedInTrial,
             outside.map(r => r.target),
-            /const trial = getClock\(\)\.phase === "classTrial"/.test(decide), /if \(eclipse \|\| trial\)/.test(decide),
+            /const trial = getClock\(\)\.phase === "classTrial"/.test(decide), /users: game\.users\.filter\(u => u\.active\)/.test(decide),
             /return byUser\.get\(userId\)\?\.target \?\? null;/.test(answer) && !/locateActor/.test(answer)]),
             JSON.stringify([
                 [null, null, null, null, null, null], 1, false, true, 0,
@@ -7807,7 +7810,7 @@ const INVARIANTS = [
                 true, true, true]),
             "[in the trial: the targets of two living students in two rooms, a dead student, a Monocub, Monokuma, an account with no "
             + "character; one claim for all, a claim of the trial's own; the trial's reason; nobody's place or death asked; outside the "
-            + "trial the same six; voiceTargets reads the trial from the clock and places accounts with no character only in an Eclipse or the trial; "
+            + "trial the same six; voiceTargets reads the trial from the clock and places every connected account, one with no character included; "
             + "a browser's own question is answered from voiceTargets, not from its token]");
     }],
 
@@ -10462,7 +10465,7 @@ const INVARIANTS = [
         "[the window takes a road that shows, plays, sends or writes markup; draws a snapshot through the history's road; calls openMessenger once; "
             + "the keybinding noticeHistory, with no default key, opens it; game.drpg.openNotices opens it]");
     }],
-    ["R299 - the notice history window fits the screen it opens on: within the screen less 8 px a side, its foot in view with a full history, and no text under 11 px; and the tile's button is square, its focus ring round it, both within the Stained Glass tile, and the bottom card's text clear of it; under Monokuma Legacy on a desk the button stands alone under the clock, below the windows, and on a stacked screen only with a card; the corner's three buttons on their grid as drawn in both themes, the unread badge on the screen and clear of the book; and the GM's roster opened from its button 8 px over the upper row with the button's right edge, its top on the screen with the camera dock up, and over the notice cards on a stacked screen; and there the notice stack, in both themes, 8 px over the corner's buttons or beside them on a short screen, at narrow.mjs's insets, under the blocks' stack, and what does not fit parked", async () => {
+    ["R299 - the notice history window fits the screen it opens on: within the screen less 8 px a side, its foot in view with a full history, and no text under 11 px; and the tile's button is square, its focus ring round it, both within the Stained Glass tile, and the bottom card's text clear of it; under Monokuma Legacy on a desk the button stands alone under the clock, below the windows, and on a stacked screen only with a card; the corner's three buttons on their grid as drawn in both themes, the unread badge on the screen and clear of the book; and the GM's roster opened from its button 8 px over the upper row with the button's right edge, its top on the screen with the camera dock up, and over the notice cards on a stacked screen; and there the notice stack, in both themes, 8 px over the corner's buttons or beside them on a short screen, at narrow.mjs's insets, under the blocks' stack, and what does not fit parked; and with a camera dock at the bottom, in both themes, the corner's buttons clear of it while it is shown and standing where they stand with no dock while the voice tile hides it, the lift 0px then whatever is written", async () => {
         /*
          * E81 C7, 12.10.2026: clause (e) of the A7 design's A7-8; the corner button's clauses (a-d) come with C8-C13.
          * A window as long as its history would carry its foot - Clear, and what is kept where - off the bottom of the
@@ -10525,6 +10528,15 @@ const INVARIANTS = [
          * a table it is LIVE-E81-02. The same harms are measured in Chromium on the module's own sheets and popup.mjs
          * by the glass harness's `drpgNoticeCheck`, which audit/glass-sweep.mjs runs at every size in both themes -
          * red on the stylesheets before this fix, green on them after (the commit's numbers).
+         * (f), E19 C7, 19.10.2026 (the owner's 14.10: R299 with the dock hidden and shown, `--drpg-av-lift` only with it
+         * shown): a dock of the test's own, first in the document, fixed at the bottom across the screen, 200 px or half
+         * the screen, in both themes (the classes turned as in (a) and back). With the voice tile's class off,
+         * `measureCameraDock` writes its height and every corner button and the GM's upper row stand over its top; with
+         * the class on the dock computes `display: none`, the lift reads 0px - and still 0px with 300 px written inline -
+         * and the buttons stand where they stand with the lift written 0px and no dock. (c)'s lifted reading takes the
+         * class off for itself, since with it on the dock's lift computes 0px (R830, headless). The dock, the class and
+         * the inline lift are put back; nothing is measured again. NEVER RUN in a browser either: the same readings on
+         * the module's sheets in Chromium are glass-sweep.mjs's dock check, on the glass harness (the commit's numbers).
          */
         needs(env.layout(), "where a window stands and how large its text is drawn need a browser");
         const NH = await import("./notice-history.mjs");
@@ -10618,7 +10630,8 @@ const INVARIANTS = [
             const filler = document.createElement("ul");
             filler.innerHTML = "<li>R299 roster</li>".repeat(120);
             panel.append(filler);
-            const roster = {}, liftWas = document.body.style.getPropertyValue("--drpg-av-lift");
+            const roster = {}, liftWas = document.body.style.getPropertyValue("--drpg-av-lift"), dockHiddenWas = document.body.classList.contains("drpg-dock-hidden");
+            document.body.classList.remove("drpg-dock-hidden");
             try {
                 for (const [label, lift] of [["as it is", null], ["lifted", `${Math.min(300, Math.floor(innerHeight / 2))}px`]]) {
                     if (lift) document.body.style.setProperty("--drpg-av-lift", lift);
@@ -10634,6 +10647,7 @@ const INVARIANTS = [
                 }
                 roster.overCards = !document.body.classList.contains("drpg-stacked") || Number(getComputedStyle(panel).zIndex) > 99990;
             } finally {
+                document.body.classList.toggle("drpg-dock-hidden", dockHiddenWas);
                 filler.remove();
                 launchers[0].click();
                 await until(() => !document.getElementById("drpg-messenger-roster"), 2000);
@@ -10835,6 +10849,55 @@ const INVARIANTS = [
                 + "corner's highest button, or on the bottom line on a short screen; beside the buttons there, 24 px past the widest; its sides at narrow.mjs's insets; "
                 + "its top 8 px under the blocks' stack at least; the cards shown fitting in it; none of them a sliver; a card of 400 words inside it, scrolling]");
         }
+        /* (f) The camera dock shown and hidden (E19 C7), in both themes. */
+        {
+            const VT = await import("./voice-tile.mjs"), CV = await import("./camera-view.mjs");
+            const body = document.body, height = Math.min(200, Math.floor(innerHeight / 2));
+            const dockHiddenWas = body.classList.contains(VT.DOCK_HIDDEN_CLASS), liftWas = body.style.getPropertyValue("--drpg-av-lift");
+            const themeWas = CORNER_THEMES.map(name => body.classList.contains(name));
+            const row = ["drpg-messenger-launcher", "drpg-sound-launcher", "drpg-book-launcher", "drpg-gm-launcher", "drpg-foundry-tools"]
+                .map(id => document.getElementById(id)).filter(el => el && el.offsetWidth > 0);
+            const boxes = () => row.map(el => el.getBoundingClientRect());
+            const lift = () => getComputedStyle(body).getPropertyValue("--drpg-av-lift").trim();
+            const dock = document.createElement("section");
+            dock.id = "camera-views";
+            dock.style.cssText = `position: fixed !important; left: 0 !important; right: 0 !important; bottom: 0 !important; top: auto !important; width: auto !important; height: ${height}px !important; visibility: visible !important`;
+            const docked = {}, dockedWant = {};
+            try {
+                for (const toGlass of [true, false]) {
+                    body.classList.toggle(CORNER_THEMES[0], toGlass);
+                    body.classList.toggle(CORNER_THEMES[1], !toGlass);
+                    Hooks.callAll("drpgThemeApplied");
+                    const label = toGlass ? "Stained Glass" : "Monokuma Legacy";
+                    body.classList.remove(VT.DOCK_HIDDEN_CLASS);
+                    body.style.setProperty("--drpg-av-lift", "0px");
+                    const bare = boxes();
+                    body.prepend(dock);
+                    CV.measureCameraDock();
+                    const top = dock.getBoundingClientRect().top, shownLift = lift(), shown = boxes();
+                    body.classList.add(VT.DOCK_HIDDEN_CLASS);
+                    CV.measureCameraDock();
+                    const hiddenLift = lift(), hidden = boxes(), display = getComputedStyle(dock).display;
+                    body.style.setProperty("--drpg-av-lift", "300px");
+                    const written = lift();
+                    dock.remove();
+                    const same = (a, b) => a.every((box, i) => Math.abs(box.top - b[i].top) <= 0.5 && Math.abs(box.left - b[i].left) <= 0.5);
+                    docked[label] = { shown: shownLift, clear: shown.every(box => box.bottom <= top + 0.5), hidden: hiddenLift, display, written, unlifted: same(hidden, bare) };
+                    dockedWant[label] = { shown: `${height}px`, clear: true, hidden: "0px", display: "none", written: "0px", unlifted: true };
+                }
+            } finally {
+                dock.remove();
+                CORNER_THEMES.forEach((name, i) => body.classList.toggle(name, themeWas[i]));
+                body.classList.toggle(VT.DOCK_HIDDEN_CLASS, dockHiddenWas);
+                if (liftWas) body.style.setProperty("--drpg-av-lift", liftWas);
+                else body.style.removeProperty("--drpg-av-lift");
+                Hooks.callAll("drpgThemeApplied");
+            }
+            equal(stableJson(docked), stableJson(dockedWant),
+                `the corner with a ${innerWidth}x${height} camera dock at the bottom at ${innerWidth}x${innerHeight}, ${row.length} buttons [per theme: the lift with the dock shown; `
+                + "every button over its top; the lift with the voice tile's class on; the dock's display then; the lift with 300 px written then; the buttons where they stand "
+                + "with no dock]");
+        }
         /* (b) Under Monokuma Legacy on a desk the button stands alone under the clock (E81 C10). Not on a stacked screen,
            whose width this test cannot change: there the button hidden on the empty tile is the reading, above. */
         if (stacked) return;
@@ -10912,7 +10975,9 @@ const INVARIANTS = [
         const ids = ["drpg-messenger-launcher", "drpg-sound-launcher", "drpg-book-launcher"];
         must(ids.every(id => document.getElementById(id)), "a corner button is not on the page - there is nothing to read");
         const body = document.body;
-        const CLASSES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy", "drpg-stacked"], classWas = CLASSES.map(name => body.classList.contains(name));
+        /* `drpg-dock-hidden` off for the readings (E19 C7): with it on the lift computes 0px whatever is written (R830), and
+           the lifted reading would lift nothing. */
+        const CLASSES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy", "drpg-stacked", "drpg-dock-hidden"], classWas = CLASSES.map(name => body.classList.contains(name));
         const INLINE = ["--drpg-av-lift", "--drpg-launch-clear"], inlineWas = INLINE.map(name => body.style.getPropertyValue(name));
         const putBack = () => INLINE.forEach((name, i) => inlineWas[i] ? body.style.setProperty(name, inlineWas[i]) : body.style.removeProperty(name));
         let roster = document.getElementById("drpg-messenger-roster");
@@ -10927,6 +10992,7 @@ const INVARIANTS = [
         const seen = {}, want = {};
         let overCards = null;
         try {
+            body.classList.remove(CLASSES[3]);
             for (const glass of [true, false]) {
                 body.classList.toggle(CLASSES[0], glass);
                 body.classList.toggle(CLASSES[1], !glass);
@@ -10990,7 +11056,8 @@ const INVARIANTS = [
         const ids = ["drpg-messenger-launcher", "drpg-sound-launcher", "drpg-book-launcher"];
         must(host && ids.every(id => document.getElementById(id)), "the notice tile or a corner button is not on the page - there is nothing to read");
         const body = document.body;
-        const CLASSES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy", "drpg-stacked", "drpg-short"], classWas = CLASSES.map(name => body.classList.contains(name));
+        /* `drpg-dock-hidden` off for the readings (E19 C7), as in R474: with it on the 100 px lift computes 0px (R830). */
+        const CLASSES = ["drpg-theme-stained-glass", "drpg-theme-monokuma-legacy", "drpg-stacked", "drpg-short", "drpg-dock-hidden"], classWas = CLASSES.map(name => body.classList.contains(name));
         const BODY = ["--drpg-av-lift", "--drpg-launch-clear"], bodyWas = BODY.map(name => body.style.getPropertyValue(name));
         const HOST = ["--drpg-notices-left", "--drpg-notices-right", "top"], hostWas = HOST.map(name => [host.style.getPropertyValue(name), host.style.getPropertyPriority(name)]);
         const putBack = () => {
@@ -11013,6 +11080,7 @@ const INVARIANTS = [
         const round = value => Number.isFinite(value) ? value.toFixed(2) : String(value);
         const seen = {}, want = {};
         try {
+            body.classList.remove(CLASSES[4]);
             host.prepend(card);
             host.style.setProperty("top", "123px");
             for (const glass of [true, false]) {
@@ -12061,7 +12129,8 @@ const INVARIANTS = [
          *   - `micHold`'s table: a player in their own Eclipse room, alone or with no character - held; a GM in the GMs'
          *     Eclipse room, a player in another's, in a room, or told nothing - null; a Monocub in its Eclipse room -
          *     "eclipseHeard", not held; a GM's block on a plain player and on a Monocub there - "gmBlock", not held, but
-         *     the Eclipse's own hold named first when both stand; `useExternalAV` and no connection - not held, and first;
+         *     the Eclipse's own hold named first when both stand; `useExternalAV`, and no connection in a room - not held, and
+         *     first (in the own Eclipse room no connection is the Eclipse's since E19 C4, held: R817);
          *     a dead student in a room - null (Q2); an account with a living character and a Monocub - the lower actor id
          *     decides, either way round, as `voiceRowFor` ranks every claim of an Eclipse alike;
          *   - `moduleHoldsMic`'s table on this GM's client, the GMs' record of deaths handed in: a death kept secret -
@@ -12118,7 +12187,7 @@ const INVARIANTS = [
             hold({ room: `${ROOM_PREFIX}eclipse-R537OTHER0000000` }), hold({ room: `${ROOM_PREFIX}dorm-a` }), hold({ room: undefined }),
             hold({ actors: [monocub] }), hold({ actors: [monocub], canBroadcastAudio: false }),
             hold({ room: null, canBroadcastAudio: false }), hold({ canBroadcastAudio: false }),
-            hold({ external: true }), hold({ connected: false, canBroadcastAudio: false }),
+            hold({ external: true }), hold({ room: `${ROOM_PREFIX}dorm-a`, connected: false, canBroadcastAudio: false }),
             hold({ room: `${ROOM_PREFIX}dorm-a`, actors: [dead] }),
             hold({ actors: [living, monocub] }), hold({ actors: [actor("R537ACTOR0000000"), monocub] })
         ].map(reason);
@@ -12200,7 +12269,7 @@ const INVARIANTS = [
             [["R537A2", "R537B2", null, "R537M1", null], true, ["R537A1", "R537B1", null, "R537M1", null], true, ["R537A1", "R537B1", null, "R537M1", null], true],
             true, true, false, true, [], true]),
         "[micHold: own Eclipse room, with no character; a GM in the GMs' room; another's Eclipse room; a room; told nothing; a Monocub there; blocked there; "
-            + "blocked in the main room; blocked and in the Eclipse; avclient-livekit's window; no connection; a dead student in a room; a living character and "
+            + "blocked in the main room; blocked and in the Eclipse; avclient-livekit's window; no connection in a room; a dead student in a room; a living character and "
             + "a Monocub, each with the lower id | moduleHoldsMic: a secret death; one on the sheet; living; living beside a secret death; Monokuma | voiceRowFor "
             + "per account outside, in the trial and in an Eclipse, and the same rows as the old loop | the spy sees a read; micHold answers the Eclipse for a "
             + "player; it read no murderState | micHold reaches accountRow, voiceRowFor and voiceClaim; GmStore readers in what it reaches | moduleHoldsMic is null "
@@ -13234,6 +13303,11 @@ const INVARIANTS = [
          * it with the tile on, and in the source its two facts read from `avMode()` and `avclientActive()` and
          * `refreshVoiceTile` asking it. Red at 90a9ebc: `voiceAvailable` took no facts, so each world read alike.
          * Red before C3: there was no voice-tile.mjs (the first assertion).
+         * E19 C1, 19.10.2026 (S16-04, A9): the dock's second hider, enforced.mjs's `rtcDock` row (Foundry's own
+         * `hideDock` and the cameras' popouts, R809), decides on the same two facts as the body class:
+         * `rtcDockOn` asks `dockHiddenFor(voiceAvailable(), ...)` with the row's switch, `voiceTile`, so the
+         * dock is folded only where the tile carries the voice and never where it is the only voice surface.
+         * Red at C0 (a5b75e8): there was no such row (the last reading).
          */
         const V = await import("./voice-tile.mjs").catch(() => null);
         ok(V, "there is no voice-tile.mjs - nothing shows who is speaking, and Foundry's dock is the only voice surface");
@@ -13283,18 +13357,69 @@ const INVARIANTS = [
             const available = V.voiceAvailable({ mode, livekit });
             return [available, V.dockHiddenFor(available, true)];
         });
+        const enforced = stripComments((await moduleSources()).get("enforced.mjs") ?? "");
+        const { ENFORCED } = await import("./enforced.mjs");
+        const rtcDock = [/\bdockHiddenFor\(\s*\w+\.voiceAvailable\(\),\s*wanted\(row\)\s*\)/.test(topLevelFunction(enforced, "rtcDockOn") ?? ""),
+            ENFORCED.find(r => r.id === "rtcDock")?.toggle ?? null];
         const facts = /function voiceAvailable\(\s*\{\s*mode\s*=\s*avMode\(\),\s*livekit\s*=\s*avclientActive\(\)\s*\}\s*=\s*\{\}\s*\)/.test(source)
             && /\bavailable\s*=\s*voiceAvailable\(\)/.test(fnSource(source, "refreshVoiceTile"));
         equal(JSON.stringify([seen, [[true, true], [true, false], [false, true], [false, false]].map(([a, b]) => V.dockHiddenFor(a, b)),
             setting(SETTINGS.voiceTile), setting(SETTINGS.voicePeerMutes),
             /applyDockHidden\(\s*dockHiddenFor\(\s*available,\s*on\s*\)\s*\)/.test(fnSource(source, "refreshVoiceTile"))
-                && /getSetting\(\s*SETTINGS\.voiceTile\s*\)/.test(fnSource(source, "refreshVoiceTile")), worlds, facts]),
+                && /getSetting\(\s*SETTINGS\.voiceTile\s*\)/.test(fnSource(source, "refreshVoiceTile")), worlds, facts, rtcDock]),
         JSON.stringify([[[false, false], [true, "none", "none", true, true, true, true], [false, false]], [true, false, false, false],
             ["world", true, "true", true], ["client", false, "{}", true], true,
-            [[false, false], [true, true], [false, false], [true, true], [false, false]], true]),
+            [[false, false], [true, true], [false, false], [true, true], [false, false]], true, [true, SETTINGS.voiceTile]]),
         "[the dock and a popout without the class; with it: the class, their display, the dock, the popout and their <audio> in the document; without "
             + "it again], dockHiddenFor over (available, on), the voiceTile and voicePeerMutes registrations, refreshVoiceTile deciding with the setting, "
-            + "[voiceAvailable and the dock hidden: DISABLED, AUDIO, VIDEO, AUDIO_VIDEO with avclient-livekit, AUDIO without], its facts read and asked");
+            + "[voiceAvailable and the dock hidden: DISABLED, AUDIO, VIDEO, AUDIO_VIDEO with avclient-livekit, AUDIO without], its facts read and asked, "
+            + "[enforced.mjs rtcDockOn deciding with dockHiddenFor(voiceAvailable(), the row's switch), the rtcDock row's switch]");
+    }],
+    ["R830 - the camera dock lifts the corner only while it is shown: with `drpg-dock-hidden` on the body `--drpg-av-lift` computes 0px whatever is written inline, and `measureCameraDock` writes 0px for a dock the class hides however its box reads; with the class off the dock's height under the corner is written and an inline lift stands", async () => {
+        /*
+         * E19 C7, 19.10.2026: the owner's 14.10 rewrite of E19 ("`--drpg-av-lift` only with the dock shown"). Since E78 the
+         * voice tile hides the dock by a body class (voice-tile.mjs `applyDockHidden`), and the corner, the roster, the
+         * notice tile and the stack stood clear of a hidden dock only because `applyDockHidden` measured again right
+         * after the class and a `display: none` box reads 0 x 0 in a browser. Nothing tied the lift to the class: a lift
+         * left inline - `measureCameraDock`'s catch keeps "whatever offset they had" - floated every one of them over a
+         * dock nobody sees. Headless there is no layout, so the dock's box is laid out by hand here (its own
+         * `getBoundingClientRect`, the bottom of the screen, the screen's width, 200 px or half the screen) - the same
+         * box with the class off is the control that the measure reads it. The dock is put first in the document, as
+         * `measureCameraDock` takes the first; the class, the inline lift and the measured value are put back.
+         */
+        const V = await import("./voice-tile.mjs").catch(() => null);
+        const C = await import("./camera-view.mjs").catch(() => null);
+        ok(V && C, "voice-tile.mjs or camera-view.mjs did not load - nothing hides the dock or lifts the corner");
+        if (!V || !C) return;
+        const body = document.body, had = body.classList.contains(V.DOCK_HIDDEN_CLASS), liftWas = body.style.getPropertyValue("--drpg-av-lift");
+        const height = Math.min(200, Math.round(innerHeight / 2));
+        const dock = document.createElement("section");
+        dock.id = "camera-views";
+        dock.getBoundingClientRect = () => ({ left: 0, right: innerWidth, top: innerHeight - height, bottom: innerHeight, width: innerWidth, height, x: 0, y: innerHeight - height });
+        const lift = () => [body.style.getPropertyValue("--drpg-av-lift").trim(), getComputedStyle(body).getPropertyValue("--drpg-av-lift").trim()];
+        const seen = {};
+        body.prepend(dock);
+        try {
+            for (const [label, hidden] of [["shown", false], ["hidden", true], ["shown again", false]]) {
+                body.classList.toggle(V.DOCK_HIDDEN_CLASS, hidden);
+                C.measureCameraDock();
+                seen[label] = lift();
+            }
+            for (const [label, hidden] of [["300 px inline, shown", false], ["300 px inline, hidden", true]]) {
+                body.classList.toggle(V.DOCK_HIDDEN_CLASS, hidden);
+                body.style.setProperty("--drpg-av-lift", "300px");
+                seen[label] = lift()[1];
+            }
+        } finally {
+            dock.remove();
+            body.classList.toggle(V.DOCK_HIDDEN_CLASS, had);
+            if (liftWas) body.style.setProperty("--drpg-av-lift", liftWas);
+            else body.style.removeProperty("--drpg-av-lift");
+        }
+        equal(stableJson(seen), stableJson({ shown: [`${height}px`, `${height}px`], hidden: ["0px", "0px"], "shown again": [`${height}px`, `${height}px`],
+            "300 px inline, shown": "300px", "300 px inline, hidden": "0px" }),
+            `the lift with a ${innerWidth}x${height} dock at the bottom [written inline and computed on the body: shown, hidden by the class, shown again; `
+            + "300 px written inline, computed with the dock shown and hidden]");
     }],
     ["R554 - the passages' records: a row holds the map's fields with its shape and a stretch on its wall, two GMs' cells are merged cell by cell, a browser keeps a cell's first `how` and each GM's grant is added to `by`, the log keeps its newest 200, and the reset's passages group cuts who knows them and never the map, and gives each passage's start access back with every knower's copy stamped again", async () => {
         /*
@@ -18883,6 +19008,2644 @@ const INVARIANTS = [
         ok(D.startWaitOf(message(), { waits: held, user: player, readable: () => true }) === held.get("R947NONCE1"),
             "startWaitOf answers another wait than the one held for the message's nonce - the start is not kept where the GM's answer reads it");
     }],
+
+    ["R807 - a voice room is applied on the harness's LiveKit as at a table: unavailable with no LiveKit, with avclient-livekit off and with its client under another name; parked until the client is up and applied when it is; applied, then unchanged; failed when the connect is refused, throws or lands in the main room; and a dropped connection keeps the room's name with no live Room under it (S11-56)", async () => {
+        /*
+         * E19 C0, 19.10.2026; audit S11-56. Every voice fix E19 makes (a card on a drop, a retry, the dead
+         * channel, the Eclipse's silence) is measured on the harness's stand-in for avclient-livekit
+         * (audit/harness/lib/livekit.mjs), and until C0 that stand-in could not fail: every connect landed,
+         * `useExternalAV` was not registered, and nothing put the browser back once it was installed. So a test
+         * of "the connection dropped" or "the server refused" had nothing to stand on, and a fix could be green
+         * on a transport that never breaks. Read here, through voice-client.mjs `applyBreakout` and
+         * `applyLocally` (the GM's own apply, which waits for the parked one): no stand-in; the stand-in with
+         * avclient-livekit switched off; before its client is up (parked) and once it is (the parked room applied
+         * by the hook); a room, the same room, another; a connect refused, one that throws, one that lands in the
+         * main room; the room again; the Room dropped (what `client.room`, the Room and the client say); the
+         * main room twice; `useExternalAV` read by voice.mjs `micHold`; then a later avclient-livekit with its
+         * client and its setting under other names (unavailable, not external); and what the uninstall leaves.
+         * The answer after a drop is not asked here: it is S11-09's, and C2 changes it. Red at C0's parent:
+         * the stand-in registered no setting, and with no `fail` and no `uninstall` every failed connect
+         * applied and the uninstall left its client on this browser (the rows "setting", "refuse" to "again",
+         * "gone" and "renamed"). How avclient-livekit 0.6.8 really fails is not read on this machine
+         * (lib/livekit.mjs's header), and a drop at a real table is not measured here.
+         */
+        needs(env.liveKitShim(), "the harness's LiveKit stand-in, to fail a connect on purpose");
+        needs(world.moduleActive("avclient-livekit"), "avclient-livekit enabled, so the module reads LiveKit at all");
+        const VC = await import("./voice-client.mjs");
+        const { micHold } = await import("./voice.mjs");
+        const { refreshVoiceTile } = await import("./voice-tile.mjs");
+        const stub = globalThis.__liveKit, avModule = game.modules.get("avclient-livekit"), wasActive = avModule.active;
+        const before = VC.desiredRoom(), dockBefore = document.getElementById("camera-views");
+        const A = `${VC.ROOM_PREFIX}r807-a`, B = `${VC.ROOM_PREFIX}r807-b`;
+        const host = game.webrtc.client;
+        const where = () => [host.room ?? null, host._liveKitClient?.liveKitRoom?.state ?? null];
+        const external = () => micHold({ user: game.user, room: null, connected: true, canBroadcastAudio: true })?.reason ?? null;
+        let lk = null;
+        const install = async options => {
+            await stub.install(options);
+            lk = globalThis.__liveKit;
+            return lk;
+        };
+        const uninstall = () => {
+            const done = typeof lk?.uninstall === "function" ? lk.uninstall() : false;
+            lk = null;
+            globalThis.__liveKit = stub;
+            return done;
+        };
+        const fail = mode => (typeof lk?.fail === "function" ? lk.fail(mode) : false);
+        const seen = [];
+        try {
+            seen.push(["none", await VC.applyBreakout(A), VC.desiredRoom() === before]);
+            const ctl = await install({ external: true });
+            seen.push(["setting", game.settings.settings.has("avclient-livekit.useExternalAV"), external()]);
+            avModule.active = false;
+            seen.push(["off", await VC.applyBreakout(A)]);
+            avModule.active = wasActive;
+            seen.push(["parked", await VC.applyBreakout(A), VC.desiredRoom(), ...where()]);
+            await host.initialize();
+            seen.push(["up", await VC.applyLocally(A), ...where()]);
+            seen.push(["same", await VC.applyBreakout(A)]);
+            seen.push(["other", await VC.applyBreakout(B), ...where()]);
+            // Each to a room the client is not named in, so the name alone cannot answer "unchanged".
+            for (const [mode, room] of [["refuse", A], ["throw", B], ["main", A]]) {
+                fail(mode);
+                seen.push([mode, await VC.applyBreakout(room), VC.desiredRoom(), ...where()]);
+            }
+            fail(null);
+            seen.push(["again", await VC.applyBreakout(A), ...where()]);
+            ctl.drop();
+            seen.push(["drop", ...where(), host._liveKitClient?.connectionState ?? null, host._liveKitClient?.breakoutRoom ?? null]);
+            seen.push(["main", await VC.applyBreakout(null), await VC.applyBreakout(null), host.room === ctl.MAIN_ROOM]);
+            seen.push(["gone", uninstall(), "_liveKitClient" in host, game.settings.settings.has("avclient-livekit.useExternalAV")]);
+            await install({ external: true, names: { client: "_liveKitClientNext", external: "useExternalAVNext" } });
+            seen.push(["renamed", await VC.applyBreakout(A), external()]);
+            seen.push(["gone", uninstall(), "_liveKitClientNext" in host, game.settings.settings.has("avclient-livekit.useExternalAVNext"),
+                document.getElementById("camera-views") === dockBefore]);
+        } finally {
+            if (lk) uninstall();
+            avModule.active = wasActive;
+            // `desired` put back as found: forgotten, or parked again on a stand-in that is never brought up.
+            if (before === undefined) VC.forgetDesiredRoom();
+            else {
+                await install();
+                await VC.applyBreakout(before);
+                uninstall();
+            }
+            Hooks.callAll("drpgVoiceApplying", false);
+            refreshVoiceTile();
+        }
+        equal(stableJson(seen), stableJson([
+            ["none", "unavailable", true],
+            ["setting", true, "external"],
+            ["off", "unavailable"],
+            ["parked", "deferred", A, null, null],
+            ["up", "unchanged", A, "connected"],
+            ["same", "unchanged"],
+            ["other", "applied", B, "connected"],
+            ["refuse", "failed", A, A, "disconnected"],
+            ["throw", "failed", B, B, "disconnected"],
+            ["main", "failed", A, "harness-main-room", "connected"],
+            ["again", "applied", A, "connected"],
+            ["drop", A, "disconnected", "disconnected", A],
+            ["main", "applied", "unchanged", true],
+            ["gone", true, false, false],
+            ["renamed", "unavailable", null],
+            ["gone", true, false, false, true]]),
+        "[no stand-in], [useExternalAV registered and read], [avclient-livekit off], [parked: the answer, desired, client.room, the Room], "
+            + "[the client up: the parked room applied], [the same room], [another], [a connect refused, thrown, landed in the main room: "
+            + "the answer, desired, client.room, the Room], [the room again], [the drop: client.room, the Room, the client, breakoutRoom], "
+            + "[the main room twice], [uninstalled: done, the client's field, the setting], [a renamed client and setting], [uninstalled again, the dock as found]");
+    }],
+    ["R808 - LiveKit runs inside the Foundry window: avclient-livekit's `useExternalAV` is held false on every browser by the `liveKitInFoundry` row (its world switch on by default and asking for a reload), its box leaves the settings, a true set from the console goes back to false, voice.mjs reads it as at Base, and with avclient-livekit off nothing is written", async () => {
+        /*
+         * E19 C1, 19.10.2026; S16-04, the A9 note of 11.10 (the plan's liveKitInFoundry). A player who once
+         * ticked LiveKit's "separate window" joined voice from a page of its own, outside the Foundry window,
+         * and the module's rooms and the voice tile never saw that browser. On the harness's LiveKit stand-in
+         * (lib/livekit.mjs, C0), installed with `useExternalAV` true as that player's browser holds it: the
+         * row in ENFORCED, the switch's registration, `entryOf` finding avclient-livekit's entry, the hold
+         * (`applyEnforced` with that row alone), the box's `config`, voice.mjs `micHold` before and after, a
+         * console's `game.settings.set(..., true)` and what the `clientSettingChanged` put-back leaves 50 ms
+         * later, and avclient-livekit switched off (nothing held, nothing written). The value the hold writes
+         * lands in this browser's client store and is taken out again, as found. avclient-livekit's real
+         * registration of the setting and its Join window are not read here: LIVE-E19-06 at a table.
+         */
+        needs(env.liveKitShim(), "the harness's LiveKit stand-in, to register useExternalAV");
+        needs(world.moduleActive("avclient-livekit"), "avclient-livekit enabled, so the module reads LiveKit at all");
+        const E = await import("./enforced.mjs");
+        const { micHold } = await import("./voice.mjs");
+        const AV = "avclient-livekit", KEY = "useExternalAV", FULL = `${AV}.${KEY}`;
+        const found = E.ENFORCED.find(r => r.id === "liveKitInFoundry") ?? null;
+        ok(found, "no row of enforced.mjs holds avclient-livekit's separate window, so a browser that once ticked it joins voice outside Foundry");
+        const row = found ?? { id: "liveKitInFoundry", module: AV, key: KEY, value: false, toggle: "liveKitInFoundry" };
+        const reg = game.settings.settings.get(`${MODULE_ID}.${SETTINGS.liveKitInFoundry ?? "liveKitInFoundry"}`);
+        const store = game.settings.storage.get("client");
+        const had = store.getItem(FULL);
+        const stub = globalThis.__liveKit, avModule = game.modules.get(AV), wasActive = avModule.active;
+        const value = () => game.settings.get(AV, KEY);
+        const entry = () => game.settings.settings.get(FULL);
+        const external = () => micHold({ user: game.user, room: null, connected: true, canBroadcastAudio: true })?.reason ?? null;
+        const seen = [[row.module, row.key, row.value, row.kind ?? null, row.toggle, reg?.scope ?? null, reg?.config ?? null,
+            reg?.default ?? null, reg?.requiresReload ?? null]];
+        let lk = null;
+        try {
+            await stub.install({ external: true });
+            lk = globalThis.__liveKit;
+            seen.push(["before", value(), entry()?.config, external(), typeof E.entryOf === "function" ? E.entryOf(row) === entry() : null]);
+            seen.push(["held", await E.applyEnforced([row]), value(), entry()?.config, external()]);
+            await game.settings.set(AV, KEY, true);
+            await wait(50);
+            seen.push(["console", value(), entry()?.config]);
+            avModule.active = false;
+            store.removeItem(FULL);
+            seen.push(["absent", await E.applyEnforced([row]), store.getItem(FULL)]);
+        } finally {
+            avModule.active = wasActive;
+            if (typeof lk?.uninstall === "function") lk.uninstall();
+            globalThis.__liveKit = stub;
+            if (had === null) store.removeItem(FULL);
+            else store.setItem(FULL, had);
+        }
+        equal(stableJson(seen), stableJson([
+            [AV, KEY, false, null, "liveKitInFoundry", "world", true, true, true],
+            ["before", true, true, "external", true],
+            ["held", ["liveKitInFoundry"], false, false, null],
+            ["console", false, false],
+            ["absent", [], null]]),
+        "[the row: module, key, value, kind, switch; the switch: scope, shown, default, reload], [before: the value, the box shown, "
+            + "micHold's reason, entryOf], [held: the rows, the value, the box, micHold's reason], [a console's true, 50 ms on: the value, "
+            + "the box], [avclient-livekit off: the rows held, what the client store holds]");
+    }],
+
+    ["R809 - the camera dock's row writes field by field: `rtcDock` sets `hideDock` and each user's `popout` through `game.webrtc.settings.set`, never the whole `core.rtcClientSettings` and never the dock's position; an expanded dock and a popout are put back with devices, volumes, `muted`, `blocked` and push-to-talk untouched, an `audioSrc` change 50 ms before the put-back kept, a user added mid-session held, and with `voiceTile` off each held field given back once as this browser had it before the first hold, kept in a client setting of the module (E19 fix r1-G2)", async () => {
+        /*
+         * E19 C1, 19.10.2026; S16-04, the A9 note of 11.10. `core.rtcClientSettings` holds a player's own
+         * microphone, speakers, volumes and push-to-talk as well as the dock: a hold that wrote the whole object
+         * from a copy would put back a microphone the player had just chosen. A stand-in for Foundry's AVSettings
+         * as A9 reads it (not Foundry's own: its source is not on this machine): `set(scope, key, value)` writes
+         * one field into the copy in memory and saves the whole copy 100 ms after the last write. Over it,
+         * enforced.mjs `holdRtcDock` with the row: the keys it writes and how many; again (nothing); the player
+         * expanding the dock and popping out a camera, then changing the microphone 50 ms before the put-back;
+         * a user row added mid-session with its camera popped out; `voiceTile` off (`on` false) and no
+         * AVSettings (a browser before `ready`); each saved copy read 150 ms after the writes. In the source:
+         * nothing in the module writes `core.rtcClientSettings` through `game.settings.set`, `holdRtcDock`
+         * writes through `.set("client", ...)`, nothing in enforced.mjs names `dockPosition`, and
+         * `onClientSettingChanged` puts the dock back on `core.rtcClientSettings`. Whether Foundry v14's
+         * AVSettings debounces as read here is LIVE-E19-07's.
+         * E19 fix r1-G2 (19.10.2026; the review's E19-COR-6, E19-04's "voiceTile off: the dock back"): until the fix
+         * the switch off wrote nothing and kept nothing, so every dock the row had folded stayed folded with no camera
+         * on any screen. Now the first hold keeps each held field as this browser had it (`rtcDockBefore`, a client
+         * setting of the module, handed in here as a record in memory so nothing of this browser's is written), a
+         * user's row first seen later is kept as it stood then, and the switch off writes each field back once where
+         * it differs, then forgets: the record after the first hold and after the added user, the writes off, the
+         * record then, off again, and the setting's registration. Red at the parent: off wrote nothing.
+         */
+        const E = await import("./enforced.mjs");
+        ok(typeof E.holdRtcDock === "function" && typeof E.rtcDockWrites === "function",
+            "enforced.mjs has no row for the camera dock, so a player can expand it or pop a camera out and the voice tile is not the only voice surface");
+        if (typeof E.holdRtcDock !== "function") return;
+        const row = E.ENFORCED.find(r => r.id === "rtcDock") ?? null;
+        const start = { audioSrc: "mic-1", videoSrc: "cam-1", audioSink: "out-1", dockPosition: "left", hideDock: false,
+            muteAll: false, disableVideo: true, voice: { mode: "ptt", pttName: "`", pttDelay: 100, activityThreshold: -45 },
+            users: { R809A000000000000: { popout: true, volume: 0.4, muted: true, blocked: false, hidden: false, left: 10, top: 20 },
+                R809B000000000000: { popout: false, volume: 1, muted: false, blocked: true, hidden: false, left: 100, top: 100 } } };
+        const av = { client: foundry.utils.deepClone(start), saved: foundry.utils.deepClone(start), calls: [], timer: null };
+        av.set = (scope, key, value) => {
+            av.calls.push(`${scope}:${key}=${JSON.stringify(value)}`);
+            foundry.utils.setProperty(av[scope], key, value);
+            clearTimeout(av.timer);
+            av.timer = setTimeout(() => { av.saved = foundry.utils.deepClone(av[scope]); }, 100);
+        };
+        const calls = () => av.calls.splice(0);
+        const others = saved => {
+            const copy = foundry.utils.deepClone(saved);
+            delete copy.hideDock;
+            for (const user of Object.values(copy.users ?? {})) delete user.popout;
+            return copy;
+        };
+        let stored = {};
+        const before = { get: () => stored, set: async value => { stored = foundry.utils.deepClone(value); } };
+        const seen = [[row?.kind ?? null, row?.module ?? null, row?.key ?? null, row?.toggle ?? null]];
+        seen.push(["held", await E.holdRtcDock(row, { av, on: true, before }), calls(), foundry.utils.deepClone(stored)]);
+        await wait(150);
+        seen.push(["saved", av.saved.hideDock, av.saved.users.R809A000000000000.popout, stableJson(others(av.saved)) === stableJson(others(start))]);
+        seen.push(["again", await E.holdRtcDock(row, { av, on: true, before }), calls()]);
+        av.set("client", "hideDock", false);
+        av.set("client", "users.R809B000000000000.popout", true);
+        calls();
+        await wait(150);
+        av.set("client", "audioSrc", "mic-2");
+        calls();
+        await wait(50);
+        seen.push(["put back", await E.holdRtcDock(row, { av, on: true, before }), calls()]);
+        await wait(150);
+        seen.push(["saved", av.saved.audioSrc, av.saved.hideDock, av.saved.users.R809B000000000000.popout, av.saved.users.R809B000000000000.blocked,
+            av.saved.users.R809A000000000000.volume, av.saved.users.R809A000000000000.muted, av.saved.voice.mode, av.saved.dockPosition]);
+        av.client.users.R809C000000000000 = { popout: true, volume: 0.7, muted: false, blocked: false, hidden: false };
+        seen.push(["added", await E.holdRtcDock(row, { av, on: true, before }), calls(), stored.users?.R809C000000000000 ?? null]);
+        seen.push(["off", await E.holdRtcDock(row, { av, on: false, before }), calls(), av.client.hideDock, stableJson(stored)]);
+        seen.push(["off again", await E.holdRtcDock(row, { av, on: false, before }), calls()]);
+        seen.push(["no AVSettings", await E.holdRtcDock(row, { av: null, on: true, before })]);
+        const kept = game.settings.settings.get(`${MODULE_ID}.${SETTINGS.rtcDockBefore}`);
+        seen.push(["kept in", kept?.scope ?? null, kept?.config ?? null]);
+        await wait(150);
+        const sources = await moduleSources();
+        const enforced = stripComments(sources.get("enforced.mjs") ?? "");
+        const whole = [...sources].filter(([, text]) => /game\.settings\.set\(\s*["']core["']\s*,\s*["']rtcClientSettings["']/.test(stripComments(text))).map(([file]) => file);
+        seen.push(["source", whole, /\.set\(\s*"client"\s*,/.test(fnSource(enforced, "holdRtcDock")), /dockPosition/.test(enforced),
+            /"core\.rtcClientSettings"[\s\S]{0,200}?scheduleRtcDockPutBack\(/.test(fnSource(enforced, "onClientSettingChanged"))]);
+        equal(stableJson(seen), stableJson([
+            ["rtc", "core", "rtcClientSettings", SETTINGS.voiceTile],
+            ["held", true, ["client:hideDock=true", "client:users.R809A000000000000.popout=false"],
+                { fields: { hideDock: false }, users: { R809A000000000000: { popout: true }, R809B000000000000: { popout: false } } }],
+            ["saved", true, false, true],
+            ["again", true, []],
+            ["put back", true, ["client:hideDock=true", "client:users.R809B000000000000.popout=false"]],
+            ["saved", "mic-2", true, false, true, 0.4, true, "ptt", "left"],
+            ["added", true, ["client:users.R809C000000000000.popout=false"], { popout: true }],
+            ["off", false, ["client:hideDock=false", "client:users.R809A000000000000.popout=true", "client:users.R809C000000000000.popout=true"], false, "{}"],
+            ["off again", false, []],
+            ["no AVSettings", false],
+            ["kept in", "client", false],
+            ["source", [], true, false, true]]),
+        "[the row: kind, module, key, switch], [held over a player's settings: the answer, the writes], [the saved copy: hideDock, the "
+            + "popout, everything else as it was], [again], [the dock expanded and a camera popped out, the microphone changed 50 ms before: "
+            + "the put-back's writes], [the saved copy: microphone, hideDock, popout, blocked, a volume, muted, push-to-talk, dock position], "
+            + "[a user added mid-session: the writes, its record], [voiceTile off: the answer, the writes back, hideDock, the record], [off again], "
+            + "[no AVSettings], [the record's setting: scope, config], [source: files writing the whole "
+            + "object, holdRtcDock's road, dockPosition named in enforced.mjs, the put-back on core.rtcClientSettings]");
+    }],
+
+    ["R810 - the player sees no imposed setting: both E19 rows stand in ENFORCED with their switches, the A/V window's dock and camera-popout fields are disabled while the dock is held and left alone otherwise, and the hook that disables them is registered", async () => {
+        /*
+         * E19 C1, 19.10.2026; S16-04, D19 ("the players have no say in these"), the plan's E19 risk note: a box
+         * that springs back after every change reads as a bug. `useExternalAV`'s box leaves Configure Settings
+         * by the table's generic road (R808 reads it); the dock's fold and the cameras' popouts are fields of
+         * Foundry's A/V Config window. A stand-in of that window's form, with the names a form of AVSettings'
+         * client schema gives its fields (Foundry v14's own template is not read here: LIVE-E19-06), read
+         * through enforced.mjs `disableHeldAvFields` held and not held. Then both rows of the table (E27's)
+         * as they stand, and in the source `registerEnforced` hooking `renderAVConfig` to it.
+         */
+        const E = await import("./enforced.mjs");
+        ok(typeof E.disableHeldAvFields === "function", "enforced.mjs leaves the A/V window's dock fields open, so a player changes what springs back");
+        const form = document.createElement("form");
+        for (const name of ["client.hideDock", "client.dockPosition", "client.audioSrc", "client.voice.mode",
+            "client.users.R810A000000000000.popout", "client.users.R810A000000000000.volume", "client.muteAll"]) {
+            const input = document.createElement("input");
+            input.name = name;
+            form.append(input);
+        }
+        const disabled = () => [...form.querySelectorAll("[name]")].filter(el => el.disabled).map(el => el.name);
+        const seen = [];
+        if (typeof E.disableHeldAvFields === "function") {
+            seen.push(["off", E.disableHeldAvFields(form, { on: false }), disabled()]);
+            seen.push(["on", E.disableHeldAvFields(form, { on: true }), disabled()]);
+        }
+        const rows = ["liveKitInFoundry", "rtcDock"].map(id => {
+            const row = E.ENFORCED.find(r => r.id === id);
+            return row ? [id, row.kind ?? null, row.module, row.key, row.value ?? null, row.fields ?? null, row.userFields ?? null, row.toggle] : [id];
+        });
+        const source = stripComments((await moduleSources()).get("enforced.mjs") ?? "");
+        const hooked = /Hooks\.on\(\s*"renderAVConfig"[\s\S]{0,200}?disableHeldAvFields/.test(fnSource(source, "registerEnforced"));
+        equal(stableJson([seen, rows, hooked]), stableJson([
+            [["off", 0, []], ["on", 2, ["client.hideDock", "client.users.R810A000000000000.popout"]]],
+            [["liveKitInFoundry", null, "avclient-livekit", "useExternalAV", false, null, null, SETTINGS.liveKitInFoundry ?? "liveKitInFoundry"],
+                ["rtcDock", "rtc", "core", "rtcClientSettings", null, { hideDock: true }, { popout: false }, SETTINGS.voiceTile]],
+            true]),
+        "[the A/V form: not held (count, disabled), held], [the two rows: id, kind, module, key, value, fields, user fields, switch], "
+            + "[renderAVConfig hooked]");
+    }],
+
+    ["R811 - a dropped voice is not \"in the right room\": after a drop the same room is applied again, not answered unchanged; a browser that joins in LiveKit's own page is not asked for a live Room; a room parked before `ready` is applied at `ready` (S11-09, S11-33)", async () => {
+        /*
+         * E19 C2, 19.10.2026; audit S11-09, S11-33 (c). A drop keeps the room's name (avclient-livekit's
+         * `onDisconnected` clears neither `client.room` nor `breakoutRoom`, as the harness's stand-in reads it), and
+         * voice-client.mjs `landedCorrectly` read only the name: the GM's next assignment, the client's self-check and
+         * its own retry all answered "unchanged" to a browser that heard nobody, so it stayed dead until a reload.
+         * And a room parked before `ready` (the primary GM's own, parked on `canvasReady`) was not applied at `ready`:
+         * the hook may fire before `ready` and returns there, and the GM's own `whoAmI` is never answered, so it
+         * waited for the heartbeat. Read here on the harness's LiveKit (lib/livekit.mjs), through `applyBreakout`,
+         * `applyLocally` and `catchUpVoice` (what the `ready` handler runs): a room parked and brought up; the Room
+         * dropped and the same room asked again (the answer, client.room, the Room, the drop told); the same with
+         * `useExternalAV` on, where Foundry's Room never connects and a connect would open another Join window; a
+         * room parked, the client brought up while `game.ready` is false (the hook returns), then `ready`'s catch-up.
+         * Red at C2's parent: the drop answered "unchanged" with the Room disconnected, and there was no catch-up
+         * (the rows "drop" and "ready"). A drop at a real table is not measured here (LIVE-E19-01).
+         */
+        needs(env.liveKitShim(), "the harness's LiveKit stand-in, to drop a connection on purpose");
+        needs(world.moduleActive("avclient-livekit"), "avclient-livekit enabled, so the module reads LiveKit at all");
+        const VC = await import("./voice-client.mjs");
+        const { refreshVoiceTile } = await import("./voice-tile.mjs");
+        const stub = globalThis.__liveKit, before = VC.desiredRoom(), host = game.webrtc.client, wasReady = game.ready;
+        const A = `${VC.ROOM_PREFIX}r811-a`, B = `${VC.ROOM_PREFIX}r811-b`;
+        const where = () => [host.room ?? null, host._liveKitClient?.liveKitRoom?.state ?? null];
+        const told = () => VC.voiceDrop?.() ?? null;
+        let lk = null;
+        const install = async options => {
+            await stub.install(options);
+            lk = globalThis.__liveKit;
+            return lk;
+        };
+        const uninstall = () => {
+            const done = typeof lk?.uninstall === "function" ? lk.uninstall() : false;
+            lk = null;
+            globalThis.__liveKit = stub;
+            return done;
+        };
+        const seen = [];
+        try {
+            let ctl = await install({});
+            seen.push(["parked", await VC.applyBreakout(A)]);
+            await host.initialize();
+            seen.push(["up", await VC.applyLocally(A), ...where()]);
+            ctl.drop();
+            seen.push(["drop", await VC.applyBreakout(A), ...where()]);
+            await wait(50);
+            seen.push(["told", told()]);
+            uninstall();
+            ctl = await install({ external: true });
+            const parked = await VC.applyBreakout(A);
+            await host.initialize();
+            const up = await VC.applyLocally(A);
+            ctl.drop();
+            seen.push(["external", parked, up, await VC.applyBreakout(A), ...where()]);
+            await wait(50);
+            seen.push(["told", told()]);
+            uninstall();
+            await install({});
+            seen.push(["before ready", await VC.applyBreakout(B)]);
+            game.ready = false;
+            try {
+                await host.initialize();
+            } finally {
+                game.ready = wasReady;
+            }
+            seen.push(["hook", game.ready, ...where()]);
+            const caught = typeof VC.catchUpVoice === "function" ? await VC.catchUpVoice() : "no catch-up";
+            seen.push(["ready", caught, ...where(), told()]);
+        } finally {
+            game.ready = wasReady;
+            if (lk) uninstall();
+            if (before === undefined) VC.forgetDesiredRoom();
+            else {
+                await install();
+                await VC.applyBreakout(before);
+                uninstall();
+            }
+            Hooks.callAll("drpgVoiceApplying", false);
+            refreshVoiceTile();
+        }
+        equal(stableJson(seen), stableJson([
+            ["parked", "deferred"],
+            ["up", "unchanged", A, "connected"],
+            ["drop", "applied", A, "connected"],
+            ["told", null],
+            ["external", "deferred", "unchanged", "unchanged", A, "disconnected"],
+            ["told", null],
+            ["before ready", "deferred"],
+            ["hook", true, null, "disconnected"],
+            ["ready", "applied", B, "connected", null]]),
+        "[parked], [brought up: the answer, client.room, the Room], [dropped, the same room asked again: the answer, client.room, the Room], "
+            + "[the drop told], [useExternalAV on: parked, up, after a drop, client.room, the Room], [the drop told], [parked before ready], "
+            + "[brought up while not ready: ready again, client.room, the Room], [ready's catch-up: the answer, client.room, the Room, the drop told]");
+    }],
+
+    ["R812 - a voice disconnect is a card kept in the notice history, never a toast: a switch of rooms and a leave this browser asked for are none; a drop retries on its own, the card goes once voice is back and its entry stays; a drop the server or another window closed says to reload and is not fought (E19-08, A7)", async () => {
+        /*
+         * E19 C2, 19.10.2026; acceptance E19-08, the owner's A7 (11.10: the cards E19 adds go into the notice
+         * history; toasts stay out of it). Until C2 a drop was silent twice: nothing in the module listened for it,
+         * and voice.mjs `suppressBreakoutToasts` filtered avclient-livekit's own "Disconnected from LiveKit" warning by
+         * its prefix, every reason of it, so the player heard nobody and was told nothing. Read here on the harness's
+         * LiveKit with the history held (nothing reaches the setting): a switch of rooms (a disconnect of the old
+         * Room) and a leave with livekit-client's CLIENT_INITIATED (no card, nothing told); a drop while every
+         * connect is refused (one card: kind, source, title, text; this browser's reconnect at its first step), the
+         * first reconnect refused (the second step, at least RECONNECT_MS[0] = 1000 ms after the drop); the GM's
+         * apply bringing it back (the card goes, its entry stays); a drop that comes back by itself at the first
+         * step (one card; back between 1 and 2 s); a drop with DUPLICATE_IDENTITY (the "reload" card, no reconnect
+         * for 1.2 s); whether `breakoutToastMuted` keeps the disconnect warning and other text off the screen, and
+         * whether avclient-livekit's warning raised through the filtered `ui.notifications.warn` shows a toast (the
+         * harness counts them; a real Foundry reads 0 there); and how many toasts the drops raised. Red at C2's
+         * parent: no card, no reconnect, nothing told (the rows "refused" to "closed"), no `breakoutToastMuted`, and
+         * the disconnect warning shown as a toast (regional voice is off in the harness's world). A drop at a real
+         * table is not measured here (LIVE-E19-01); DisconnectReason's numbers are livekit-client's as
+         * voice-client.mjs reads them, not read off its source here.
+         */
+        needs(env.liveKitShim(), "the harness's LiveKit stand-in, to drop a connection on purpose");
+        needs(world.moduleActive("avclient-livekit"), "avclient-livekit enabled, so the module reads LiveKit at all");
+        const VC = await import("./voice-client.mjs");
+        const V = await import("./voice.mjs");
+        const NH = await import("./notice-history.mjs");
+        const { refreshVoiceTile } = await import("./voice-tile.mjs");
+        const stub = globalThis.__liveKit, before = VC.desiredRoom(), host = game.webrtc.client;
+        const A = `${VC.ROOM_PREFIX}r812-a`, B = `${VC.ROOM_PREFIX}r812-b`;
+        const t = key => game.i18n.localize(key);
+        const told = () => VC.voiceDrop?.() ?? null;
+        const ids = () => new Set(NH.noticeEntries().map(entry => entry.id));
+        const since = had => NH.noticeEntries().filter(entry => !had.has(entry.id));
+        const card = (entry, text) => [entry.kind, entry.source, entry.title === t("DRPG.Voice.drop.title"), entry.text === t(text)];
+        const toasts = () => globalThis.__notifications?.length ?? 0;
+        // voice-client.mjs RECONNECT_MS[0]: the first reconnect after a drop's card.
+        const RECONNECT_FIRST = 1000;
+        const found = ids(), toastsBefore = toasts();
+        let lk = null;
+        const install = async options => {
+            await stub.install(options);
+            lk = globalThis.__liveKit;
+            return lk;
+        };
+        const uninstall = () => {
+            const done = typeof lk?.uninstall === "function" ? lk.uninstall() : false;
+            lk = null;
+            globalThis.__liveKit = stub;
+            return done;
+        };
+        const seen = [];
+        await NH.holdNoticeHistory(true);
+        try {
+            const ctl = await install({});
+            await VC.applyBreakout(A);
+            await host.initialize();
+            seen.push(["up", await VC.applyLocally(A)]);
+            let had = ids();
+            const switched = await VC.applyBreakout(B);
+            await wait(50);
+            seen.push(["switch", switched, since(had).length, told()]);
+            ctl.drop(1);
+            await wait(50);
+            seen.push(["own leave", since(had).length, told(), await VC.applyBreakout(A)]);
+
+            ctl.fail("refuse");
+            had = ids();
+            let at = Date.now();
+            ctl.drop();
+            await until(() => since(had).length > 0, 1000);
+            const refused = since(had);
+            seen.push(["refused", refused.map(entry => card(entry, "DRPG.Voice.drop.retry")), told()]);
+            await until(() => told()?.step === 2, 3000);
+            seen.push(["step 2", Date.now() - at >= RECONNECT_FIRST - 10, told()]);
+            ctl.fail(null);
+            const back = await VC.applyBreakout(A);
+            const id = refused[0]?.id ?? "none";
+            const gone = await until(() => !document.querySelector(`.drpg-popup[data-drpg-notice="${id}"]`), 2000);
+            seen.push(["back", back, told(), gone, NH.noticeEntries().some(entry => entry.id === id)]);
+
+            had = ids();
+            at = Date.now();
+            ctl.drop();
+            await until(() => since(had).length > 0, 1000);
+            await until(() => told() === null && lk.read().state === "connected", 3000);
+            const took = Date.now() - at;
+            seen.push(["blip", since(had).length, took >= RECONNECT_FIRST - 10 && took < 2000, ...[host.room ?? null, lk.read().state]]);
+
+            had = ids();
+            ctl.drop(2);
+            await until(() => since(had).length > 0, 1000);
+            const rooms = lk.rooms;
+            await wait(1200);
+            seen.push(["closed", since(had).map(entry => card(entry, "DRPG.Voice.drop.closed")), told(), lk.rooms - rooms,
+                await VC.applyBreakout(A), told()]);
+        } finally {
+            for (const el of document.querySelectorAll(".drpg-popup")) {
+                if (el.dataset.drpgNotice && !found.has(el.dataset.drpgNotice)) el.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+            }
+            NH.holdNoticeHistory(false);
+            if (lk) uninstall();
+            if (before === undefined) VC.forgetDesiredRoom();
+            else {
+                await install();
+                await VC.applyBreakout(before);
+                uninstall();
+            }
+            Hooks.callAll("drpgVoiceApplying", false);
+            refreshVoiceTile();
+        }
+        const muted = typeof V.breakoutToastMuted === "function"
+            ? [V.breakoutToastMuted(`${t("LIVEKITAVCLIENT.onDisconnected")}: R812 a reason`), V.breakoutToastMuted("R812 a toast of somebody else's")]
+            : "no breakoutToastMuted";
+        const raised = toasts();
+        ui.notifications.warn(`${t("LIVEKITAVCLIENT.onDisconnected")}: R812 a reason`);
+        seen.push(["toasts", muted, ui.notifications.warn.__drpgVoicePatched === true, toasts() - raised, raised - toastsBefore]);
+        const retry = { retry: true, step: 1, waiting: true };
+        equal(stableJson(seen), stableJson([
+            ["up", "unchanged"],
+            ["switch", "applied", 0, null],
+            ["own leave", 0, null, "applied"],
+            ["refused", [["error", "mine", true, true]], retry],
+            ["step 2", true, { ...retry, step: 2 }],
+            ["back", "applied", null, true, true],
+            ["blip", 1, true, A, "connected"],
+            ["closed", [["error", "mine", true, true]], { retry: false, step: 0, waiting: false }, 0, "applied", null],
+            ["toasts", [true, false], true, 0, 0]]),
+        "[up], [a switch of rooms: the answer, cards, told], [a leave this browser asked for: cards, told, the room again], "
+            + "[a drop, connects refused: the card (kind, source, title, text), told], [the first reconnect refused: after the first step, told], "
+            + "[the GM's apply: the answer, told, the card gone, its entry kept], [a drop that comes back: cards, back between 1 and 2 s, "
+            + "client.room, the Room], [closed by another window: the card, told, reconnects in 1.2 s, the room again, told], "
+            + "[the disconnect warning and another toast muted, the toasts filtered, avclient-livekit's warning raised: toasts shown, toasts raised before]");
+    }],
+
+    ["R813 - the GM asks a failed voice again: a failed answer is asked again after 2 and then 6 seconds, and a third failure is left to the heartbeat; any failed answer unsettles its client; the GM's own room is applied last; ownership, a user's character, regions and the Monokuma pools re-run the rooms (S11-33)", async () => {
+        /*
+         * E19 C2, 19.10.2026; audit S11-33 (a, b, d). Until C2 the primary GM's ledger closed a conversation on a
+         * "failed" answer: its no-answer retry was cancelled and nothing was sent again, and `settled` kept the room,
+         * so a client whose reconnect failed waited for the heartbeat, a minute, or was skipped by it. The reconcile
+         * applied the GM's own room in the order the actors came, a full LiveKit reconnect awaited in the loop
+         * before every player after it; and only a death or a Monocub re-ran the rooms without a token move. Read
+         * here: voice.mjs `createVoiceLedger` with a socket and timers of the test's own (nothing leaves this
+         * browser), through an assignment failed three times, a fresh one applied, a failed answer nobody asked
+         * for, a stale one, an applied answer during a backoff, and answers that are none (each: what the answer
+         * did, the waits pending in ms, settled); `applyOrder` on a table, and the reconcile's loop asking it; the
+         * trigger `reconcileTrigger` answers for each document change, and the hooks `registerVoice` gives it. Red
+         * at C2's parent: none of the three existed (the ledger was module state with no seam).
+         */
+        const V = await import("./voice.mjs");
+        ok(typeof V.createVoiceLedger === "function" && typeof V.applyOrder === "function" && typeof V.reconcileTrigger === "function",
+            "voice.mjs has no ledger, order or trigger to read, so a failed voice answer is not asked again and the GM's own reconnect holds every player's room");
+        if (typeof V.createVoiceLedger !== "function") return;
+        const sent = [], timers = new Map();
+        let serial = 0;
+        const L = V.createVoiceLedger({
+            emit: (event, packet, options) => sent.push({ event, packet, to: options?.recipients ?? null }),
+            later: (fn, ms) => { timers.set(++serial, { fn, ms }); return serial; },
+            cancel: id => timers.delete(id)
+        });
+        const user = "R813U00000000000", room = `drpg-r813-room`;
+        const pending = () => [...timers.values()].map(timer => timer.ms);
+        const fire = () => {
+            const [[id, timer]] = [...timers];
+            timers.delete(id);
+            timer.fn();
+        };
+        const last = () => sent.at(-1)?.packet.requestId ?? null;
+        const say = (state, requestId = last(), to = room) => [state, L.answer(user, { room: to, state, requestId }), pending(), L.settled.get(user) ?? "none"];
+        const seen = [];
+        seen.push(["assign", L.assignUser(user, room), pending()]);
+        seen.push(say("failed"));
+        fire();
+        seen.push(["sent", sent.length, pending()]);
+        seen.push(say("failed"));
+        fire();
+        seen.push(["sent", sent.length, pending()]);
+        seen.push(say("failed"));
+        seen.push(["after", L.inFlight.has(user), sent.length]);
+        L.assignUser(user, room);
+        seen.push(say("applied"));
+        seen.push(["unasked", ...say("failed", null).slice(1)]);
+        L.assignUser(user, room);
+        const stale = sent.at(-2).packet.requestId;
+        seen.push(["stale", ...say("failed", stale).slice(1)]);
+        seen.push(say("failed"));
+        seen.push(["back by itself", ...say("applied", null).slice(1)]);
+        seen.push(say("deferred"), say("R813 not a state"));
+        seen.push(["packets", sent.every(s => s.to?.length === 1 && s.to[0] === user && s.packet.target === user && s.packet.room === room), sent.length]);
+
+        const gm = "R813G00000000000", p1 = "R813P00000000001", p2 = "R813P00000000002";
+        const byUser = new Map([[gm, { target: "g" }], [p1, { target: "a" }], [p2, { target: "b" }]]);
+        const voice = stripComments((await moduleSources()).get("voice.mjs") ?? "");
+        seen.push(["order", V.applyOrder(byUser, gm).map(([id]) => id), V.applyOrder(byUser, "R813 nobody").map(([id]) => id),
+            /\bapplyOrder\(\s*byUser\s*,\s*game\.user\.id\s*\)/.test(fnSource(voice, "reconcileNow"))]);
+
+        const key = name => ({ key: `${MODULE_ID}.${name}` });
+        const asks = [
+            ["updateActor", {}, { flags: { [MODULE_ID]: { [FLAGS.deceased]: true } } }],
+            ["updateActor", {}, { flags: { [MODULE_ID]: { [FLAGS.monocub]: true } } }],
+            ["updateActor", {}, { ownership: { [p1]: 3 } }],
+            ["updateActor", {}, { name: "R813 a new name" }],
+            ["updateUser", {}, { character: "R813A0000000000" }],
+            ["updateUser", {}, { role: 4 }],
+            ["updateUser", {}, { color: "#ff0000" }],
+            ["createRegion", {}, {}],
+            ["updateRegion", {}, { name: "R813 a room" }],
+            ["deleteRegion", {}, {}],
+            ["updateSetting", key(SETTINGS.monokumaPools), {}],
+            ["createSetting", key(SETTINGS.despairPools), {}],
+            ["updateSetting", key(SETTINGS.voiceEnabled), {}],
+            ["updateToken", {}, { x: 100 }]];
+        seen.push(["triggers", asks.map(([hook, doc, changes]) => V.reconcileTrigger(hook, doc, changes))]);
+        const hooks = bodyOf(voice, "const RECONCILE_HOOKS = [", { until: "];" });
+        const register = fnSource(voice, "registerVoice");
+        seen.push(["hooked", [...hooks.matchAll(/"(\w+)"/g)].map(m => m[1]),
+            /for \(const hook of RECONCILE_HOOKS\)[\s\S]{0,200}?reconcileTrigger\(hook, doc, changes\)/.test(register)]);
+        equal(stableJson(seen), stableJson([
+            ["assign", true, [2000]],
+            ["failed", "retry", [2000], "none"],
+            ["sent", 2, [6000]],
+            ["failed", "retry", [6000], "none"],
+            ["sent", 3, [12000]],
+            ["failed", "gaveUp", [], "none"],
+            ["after", false, 3],
+            ["applied", "settled", [], room],
+            ["unasked", "unsettled", [], "none"],
+            ["stale", "unsettled", [2000], "none"],
+            ["failed", "retry", [2000], "none"],
+            ["back by itself", "settled", [], room],
+            ["deferred", "waiting", [], room],
+            ["R813 not a state", "ignored", [], room],
+            ["packets", true, 5],
+            ["order", [p1, p2, gm], [gm, p1, p2], true],
+            ["triggers", [{ immediate: true }, { immediate: true }, {}, null, {}, {}, null, {}, {}, {}, {}, {}, null, null]],
+            ["hooked", ["updateActor", "updateUser", "createRegion", "updateRegion", "deleteRegion", "createSetting", "updateSetting"], true]]),
+        "[assigned: sent, the waits pending], [an answer: the state, what it did, the waits pending, settled] x3 with the resend between, "
+            + "[after the last: in flight, sent], [applied], [failed, unasked], [failed, stale], [failed], [applied during the backoff], "
+            + "[deferred], [not a state], [every packet to its user alone, sent], [the order: the GM's own last, a GM with no row, reconcileNow asks it], "
+            + "[the trigger for each document change], [the hooks and their wiring]");
+    }],
+
+    ["R814 - the voice diagnosis and the voice plan name Proximity Voice Chat first, before any room, also with LiveKit off (E19-11)", async () => {
+        /*
+         * E19 C2, 19.10.2026; acceptance E19-11, the plan's risk note: proximity-voice-chat sets every voice's
+         * volume from token distance and, unconfigured, mutes everyone while every room here is right. Until C2 the
+         * plan named it after every room line, and the console's voice diagnosis did not reach it at all with
+         * avclient-livekit off. Read here with Proximity Voice Chat active (the world's own module switched on, or a
+         * stand-in row in `game.modules` when it is not installed; put back as found): the first line of
+         * diagnostics.mjs `voiceDiagnosis` (what `diagnoseVoice` reports), with avclient-livekit as found and switched
+         * off, and of voice.mjs `voicePlan`; then the same three with it off. Red at C2's parent: no
+         * `voiceDiagnosis`, and the plan threw on the harness's `game.modules` (the competing-module lines, which it
+         * reached after every room line, read it with `filter`).
+         */
+        needs(env.primaryGm(), "the voice plan answers a GM only");
+        const D = await import("./diagnostics.mjs");
+        const V = await import("./voice.mjs");
+        const ID = "proximity-voice-chat", av = game.modules.get("avclient-livekit"), avWas = av?.active;
+        const had = game.modules.get(ID), wasActive = had?.active;
+        const first = lines => (Array.isArray(lines) ? lines : String(lines ?? "").split("\n")).find(line => line.trim()) ?? null;
+        // A throw is an answer here: the harness's `game.modules` is a Map with no `filter`, and until C2 the plan threw on it.
+        const said = run => {
+            try {
+                return first(run());
+            } catch (err) {
+                return `threw: ${err?.message ?? err}`;
+            }
+        };
+        const diagnosis = () => (typeof D.voiceDiagnosis === "function" ? said(() => D.voiceDiagnosis()) : "no voiceDiagnosis");
+        const read = async () => {
+            const rows = [diagnosis()];
+            if (av) av.active = false;
+            try {
+                rows.push(diagnosis());
+            } finally {
+                if (av) av.active = avWas;
+            }
+            rows.push(await V.voicePlan().then(first, err => `threw: ${err?.message ?? err}`));
+            return rows;
+        };
+        const seen = [];
+        try {
+            if (had) had.active = true;
+            else game.modules.set(ID, { id: ID, title: "Proximity Voice Chat", active: true });
+            seen.push(["on", await read()]);
+        } finally {
+            if (had) had.active = wasActive;
+            else game.modules.delete(ID);
+        }
+        seen.push(["off", (await read()).map(line => /proximity/i.test(line ?? ""))]);
+        const named = "Proximity Voice Chat is also active.";
+        equal(stableJson(seen), stableJson([["on", [named, named, named]], ["off", [false, false, false]]]),
+            "[on: the first line of the diagnosis, the same with avclient-livekit off, the plan], [off: whether those lines name it]");
+    }],
+
+    ["R815 - the dead channel: a dead student keeps the voice of the room they lie in until the incident ends, the body is found, a GM silences them or a living witness from outside the cast is there; then a secret death talks in the dead channel and a public one in the main room, each room to its account alone, a witness's after the victim's (E19-12 to E19-16)", async () => {
+        /*
+         * E19 C3, 19.10.2026; S11-26, D8, the owner's A9 of 11.10. Until C3 a death the GMs held sent its account to
+         * the main room at the kill (`CLAIM.dead`, "the main room"): every player there heard the victim of a murder
+         * nobody had found, and the voice tile named them (known-leaks A9-K3, measured by 75 E at E78 C7). Read here
+         * on plain objects, nothing written and nothing sent: voice.mjs `placeVoices` - the decision `voiceTargets`
+         * makes - for each case of A9's list, with the incident's facts handed in (`participantIds` of the state, the
+         * cast held or not, the discoveries, E67's `silencedDead`); `sendInPasses` over a ledger of the test's own
+         * (`createVoiceLedger`, its socket and timers the test's), where the witness's room waits for the victim's own
+         * `voice.applied` (`onVoiceSocket` handed that ledger): one from the witness's account naming the victim
+         * releases nothing, the victim's does, and with no answer the wait ends after 1500 ms; the same pass on a
+         * fresh ledger (a reload of the primary); every packet's recipients; `micHold`'s "deadAlone"; the triggers.
+         * Red at C3's parent: `voiceClaim` gave a silenced secret death the main room, and none of the seams existed.
+         */
+        needs(env.primaryGm(), "a client's voice answer is heard on the primary GM alone (`onVoiceSocket`)");
+        needs(world.atLeast("playerAccounts", 2), "the victim's answer and another account's are two players' packets");
+        const V = await import("./voice.mjs");
+        const VC = await import("./voice-client.mjs");
+        const { participantIds } = await import("./incident-store.mjs");
+        const school = { id: "R815SCHOOL000000", name: "R815 School" };
+        const account = (id, isGM = false) => ({ id, name: id, active: true, isGM });
+        const silencedNow = V.voiceClaim({ user: account("R815ANYONE000000"), silenced: () => true, secret: () => true });
+        ok(silencedNow.target === `${VC.ROOM_PREFIX}dead`,
+            `a death kept secret, once its voice is silenced, goes to ${silencedNow.target ?? "the main room"}, where every player hears it (A9-K3)`);
+        const NAMES = ["placeVoices", "deathVoiceGone", "sendInPasses", "onVoiceSocket", "createVoiceLedger"];
+        ok(NAMES.every(name => typeof V[name] === "function"),
+            `voice.mjs has no ${NAMES.filter(name => typeof V[name] !== "function").join(", ")}: nothing keeps a victim in the room until the trigger, or holds a witness's room for the victim's`);
+        if (!NAMES.every(name => typeof V[name] === "function")) return;
+        const DEAD = VC.DEAD_ROOM;
+
+        const [one, two] = game.users.filter(u => !u.isGM);
+        const gm = account("R815GM0000000000", true);
+        const users = { victim: account(one.id), killer: account("R815PK0000000000"), witness: account(two.id), bystander: account("R815PB0000000000"),
+            third: account("R815PT0000000000"), cub: account("R815PC0000000000") };
+        const actor = (id, flags = {}) => ({ id, name: id, type: "character", getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined) });
+        const A = {
+            victim: actor("R815AVICTIM00000"), killer: actor("R815AKILLER00000"), witness: actor("R815AWITNESS0000"),
+            bystander: actor("R815ABYSTANDER00"), third: actor("R815ATHIRD000000"), spare: actor("R815ASPARE000000"), late: actor("R815AZLATE000000"),
+            cub: actor("R815ACUB00000000", { [FLAGS.deceased]: { chapter: 1 }, [FLAGS.monocub]: true }),
+            monokuma: actor("R815AMONOKUMA000", { [FLAGS.monokuma]: true })
+        };
+        const owner = { victim: "victim", killer: "killer", witness: "witness", bystander: "bystander", third: "third", spare: "victim", late: "victim", cub: "cub" };
+        const userOf = a => (a === A.monokuma ? gm : users[owner[Object.keys(A).find(k => A[k] === a)]] ?? null);
+        const label = target => (target === null ? "main" : target === DEAD ? "dead"
+            : ["Kitchen", "Hall", "Dorm"].find(room => V.liveKitRoomFor(school.id, room) === target) ?? `?${target}`);
+        const running = { active: true, stage: "incident", killerId: A.killer.id, victimId: A.victim.id };
+        let asked = 0;
+        /* One case: who is dead (`dead`), whose death is public (`deceased`), where each stands, the incident, its cast held
+           or not, the bodies found, E67's silenced; the answer each account gets, and the witnesses' waits. */
+        const place = async ({ cast = ["victim", "killer", "witness", "bystander"], dead = ["victim"], deceased = [], where = {},
+            state = running, hydrated = true, found = [], silenced = null, reverse = false } = {}) => {
+            const flagged = name => (deceased.includes(name) ? { ...A[name], getFlag: (s, k) => (s === MODULE_ID && k === FLAGS.deceased ? { chapter: 1 } : A[name].getFlag(s, k)) } : A[name]);
+            const actors = cast.map(flagged);
+            const stands = { victim: "Kitchen", killer: "Kitchen", witness: "Hall", bystander: "Dorm", third: "Kitchen", spare: "Dorm", late: "Dorm", cub: "Kitchen", monokuma: "Hall", ...where };
+            const nameOf = a => Object.keys(A).find(k => A[k].id === a.id);
+            const withSilenced = state && silenced ? { ...state, silencedDead: Object.fromEntries(silenced.map(n => [A[n].id, Date.now()])) } : state;
+            const placed = await V.placeVoices({
+                actors: reverse ? [...actors].reverse() : actors, eclipse: false, trial: false,
+                death: { state: withSilenced, hydrated, cast: participantIds(withSilenced), announced: async a => { asked += 1; return found.includes(nameOf(a)); } },
+                locate: a => (stands[nameOf(a)] ? { scene: school, room: stands[nameOf(a)] } : null),
+                userOf: a => userOf(A[nameOf(a)]), dead: a => dead.includes(nameOf(a)) || nameOf(a) === "cub",
+                monokumaOf: a => a.id === A.monokuma.id
+            });
+            const { rows, byUser, waits } = placed;
+            const who = id => Object.keys(users).find(k => users[k].id === id) ?? (id === gm.id ? "gm" : id);
+            return {
+                rooms: Object.fromEntries([...byUser].map(([id, row]) => [who(id), row.keep ? "kept" : label(row.target ?? null)])),
+                waits: Object.fromEntries([...waits].map(([id, list]) => [who(id), list.map(who)])),
+                byUser, rows, waitMap: waits, held: placed.held
+            };
+        };
+        const rooms = async options => (await place(options)).rooms;
+        const seen = [];
+        seen.push(["in the incident", await rooms()]);
+        seen.push(["after closeIncident", await rooms({ state: null })]);
+        seen.push(["cast not here", await rooms({ hydrated: false })]);
+        seen.push(["cast arrived", await rooms({ hydrated: true })]);
+        seen.push(["killer dead in public, in the incident", await rooms({ dead: ["killer"], deceased: ["killer"] })]);
+        seen.push(["killer dead in public, after", await rooms({ dead: ["killer"], deceased: ["killer"], state: null })]);
+        seen.push(["outside the cast, secret", await rooms({ dead: ["bystander"] })]);
+        seen.push(["outside the cast, public", await rooms({ dead: ["bystander"], deceased: ["bystander"] })]);
+        seen.push(["no incident, secret", await rooms({ dead: ["bystander"], state: null })]);
+        seen.push(["the body found", await rooms({ found: ["victim"] })]);
+        seen.push(["silenced by a GM", await rooms({ silenced: ["victim"] })]);
+        const witnessed = await place({ where: { witness: "Kitchen" } });
+        const witnessedBack = await place({ where: { witness: "Kitchen" }, reverse: true });
+        seen.push(["a witness", witnessed.rooms, witnessed.waits]);
+        seen.push(["a witness, the actors reversed", witnessedBack.rooms, witnessedBack.waits]);
+        seen.push(["Monokuma and a Monocub there", await rooms({ cast: ["victim", "killer", "witness", "cub", "monokuma"], where: { monokuma: "Kitchen" } })]);
+        seen.push(["two victims", await rooms({ cast: ["victim", "killer", "third"], dead: ["victim", "third"], state: { ...running, thirdId: A.third.id } })]);
+        seen.push(["two victims, after", await rooms({ cast: ["victim", "killer", "third"], dead: ["victim", "third"], state: null })]);
+        seen.push(["a second character, after", await rooms({ cast: ["victim", "spare", "killer"], state: null })]);
+        // E19 fix r1-G2 (the review's E19-COR-2): in the incident the victim's row and its player's living spare were two
+        // rooms of one claim, and the lowest actor id chose; the spare's id sorts before the victim's, `late`'s after.
+        seen.push(["a second character, in the incident", await rooms({ cast: ["victim", "spare", "killer"] }),
+            await rooms({ cast: ["victim", "late", "killer"] }), await rooms({ cast: ["victim", "spare", "killer"], reverse: true })]);
+        seen.push(["a second character, cast not here", await rooms({ cast: ["victim", "spare", "killer"], hydrated: false }),
+            await rooms({ cast: ["victim", "late", "killer"], hydrated: false })]);
+        seen.push(["a second character sorting after, after", await rooms({ cast: ["victim", "late", "killer"], state: null })]);
+
+        /* The passes, on a ledger of the test's own: the witness case above, the GM's Monokuma in the Hall. */
+        const passes = async ({ answer, forged }) => {
+            const sent = [], timers = new Map();
+            let serial = 0;
+            const L = V.createVoiceLedger({
+                emit: (event, packet, options) => sent.push({ to: options?.recipients ?? null, target: packet.target, room: packet.room ?? null, requestId: packet.requestId }),
+                later: (fn, ms) => { timers.set(++serial, { fn, ms }); return serial; },
+                cancel: id => timers.delete(id)
+            });
+            const { byUser, waitMap: waits } = await place({ cast: ["victim", "killer", "witness", "bystander", "monokuma"], where: { witness: "Kitchen" } });
+            const who = id => Object.keys(users).find(k => users[k].id === id) ?? (id === gm.id ? "gm" : id);
+            const log = () => sent.map(s => `${who(s.target)}:${label(s.room)}`);
+            const tick = () => new Promise(resolve => setTimeout(resolve, 0));
+            const out = {};
+            const pass = V.sendInPasses(V.applyOrder(byUser, gm.id), waits, {
+                ownId: gm.id, assign: (userId, row) => L.assignUser(userId, row.target), waitFor: (userId, room) => L.waitApplied(userId, room)
+            });
+            await tick();
+            out.first = log();
+            out.waiting = [...timers.values()].map(t => t.ms).sort((a, b) => a - b);
+            const victimPacket = sent.find(s => s.target === users.victim.id);
+            if (forged) {
+                V.onVoiceSocket({ action: VC.VOICE.applied, room: DEAD, state: "applied", requestId: victimPacket?.requestId, userId: users.victim.id }, users.witness.id, L);
+                await tick();
+                out.forged = log().length;
+            }
+            if (answer) V.onVoiceSocket({ action: VC.VOICE.applied, room: DEAD, state: "applied", requestId: victimPacket?.requestId }, users.victim.id, L);
+            else {
+                const [id, timer] = [...timers].find(([, t]) => t.ms === 1500) ?? [];
+                timers.delete(id);
+                timer?.fn();
+            }
+            out.changed = await pass;
+            out.all = log();
+            out.alone = sent.every(s => s.to?.length === 1 && s.to[0] === s.target);
+            return out;
+        };
+        const answered = await passes({ answer: true, forged: true });
+        const reload = await passes({ answer: true, forged: false });
+        const silent = await passes({ answer: false, forged: false });
+        seen.push(["the passes", answered, stableJson(reload.all) === stableJson(answered.all), silent.all]);
+
+        // The kept row sends nothing: the cast not here, a pass over it. Since E19 fix r1-G1 nor does the killer's
+        // account, which stands in the kept victim's room while the cast is unknown (`held`; R832 has the witness).
+        const kept = await place({ hydrated: false });
+        const keptSent = [];
+        await V.sendInPasses(V.applyOrder(kept.byUser, gm.id), kept.waitMap, { ownId: gm.id, held: kept.held, assign: userId => { keptSent.push(userId); return true; }, waitFor: async () => "applied" });
+        seen.push(["kept, sent", keptSent.includes(users.victim.id), keptSent.includes(users.killer.id), keptSent.length]);
+
+        const hold = room => V.micHold({ user: account(one.id), room, external: false, connected: true, canBroadcastAudio: true, actors: [] });
+        seen.push(["micHold", hold(DEAD), hold(null), V.micHold({ user: gm, room: DEAD, external: false, connected: true, canBroadcastAudio: true, actors: [] }),
+            game.i18n.has("DRPG.Voice.held.deadAlone")]);
+
+        const key = name => ({ key: `${MODULE_ID}.${name}` });
+        const voice = stripComments((await moduleSources()).get("voice.mjs") ?? "");
+        const register = fnSource(voice, "registerVoice");
+        seen.push(["triggers", V.reconcileTrigger("updateSetting", key(SETTINGS.murderState), {}), V.reconcileTrigger("updateSetting", key(SETTINGS.bodiesFound), {}),
+            /Hooks\.on\("drpgCastChanged",[\s\S]{0,80}?isPrimaryGm\(\)\)\s*scheduleReconcile\(/.test(register),
+            /castStore\.whenHydrated\(\)\)[\s\S]{0,40}?scheduleReconcile\(\{ immediate: true \}\)/.test(register),
+            /reconcileNow\(\)/.test(fnSource(voice, "startHeartbeat")),
+            /if \(row\?\.keep\) \{\s*await assign\(userId, row\.standIn \?\? null, true\);/.test(fnSource(voice, "answerWhoAmI"))
+                && /await answerWhoAmI\(userId, await voiceTargets\(\),/.test(fnSource(voice, "onWhoAmI"))]);
+
+        const kitchen = { victim: "Kitchen", killer: "Kitchen", witness: "Hall", bystander: "Dorm" };
+        const out = { victim: "dead", killer: "Kitchen", witness: "Hall", bystander: "Dorm" };
+        equal(stableJson(seen), stableJson([
+            ["in the incident", kitchen],
+            ["after closeIncident", out],
+            ["cast not here", { ...kitchen, victim: "kept" }],
+            ["cast arrived", kitchen],
+            ["killer dead in public, in the incident", kitchen],
+            ["killer dead in public, after", { ...kitchen, killer: "main" }],
+            ["outside the cast, secret", { ...kitchen, bystander: "dead" }],
+            ["outside the cast, public", { ...kitchen, bystander: "main" }],
+            ["no incident, secret", { ...kitchen, bystander: "dead" }],
+            ["the body found", out],
+            ["silenced by a GM", out],
+            ["a witness", { ...out, witness: "Kitchen" }, { witness: ["victim"] }],
+            ["a witness, the actors reversed", { ...out, witness: "Kitchen" }, { witness: ["victim"] }],
+            ["Monokuma and a Monocub there", { victim: "Kitchen", killer: "Kitchen", witness: "Hall", cub: "Kitchen", gm: "Kitchen" }],
+            ["two victims", { victim: "Kitchen", killer: "Kitchen", third: "Kitchen" }],
+            ["two victims, after", { victim: "dead", killer: "Kitchen", third: "dead" }],
+            ["a second character, after", { victim: "Dorm", killer: "Kitchen" }],
+            ["a second character, in the incident", { victim: "Kitchen", killer: "Kitchen" }, { victim: "Kitchen", killer: "Kitchen" }, { killer: "Kitchen", victim: "Kitchen" }],
+            ["a second character, cast not here", { victim: "kept", killer: "Kitchen" }, { victim: "kept", killer: "Kitchen" }],
+            ["a second character sorting after, after", { victim: "Dorm", killer: "Kitchen" }],
+            ["the passes", { first: ["victim:dead", "killer:Kitchen", "bystander:Dorm"], waiting: [1500, 2000, 2000, 2000], forged: 3,
+                changed: 5, all: ["victim:dead", "killer:Kitchen", "bystander:Dorm", "witness:Kitchen", "gm:Hall"], alone: true }, true,
+            ["victim:dead", "killer:Kitchen", "bystander:Dorm", "witness:Kitchen", "gm:Hall"]],
+            ["kept, sent", false, false, 2],
+            ["micHold", { reason: "deadAlone", held: false }, null, null, true],
+            ["triggers", { immediate: true }, { immediate: true }, true, true, true, true]]),
+            "[each case of A9's list: the room each account gets ('kept': nothing sent), and for a witness whom its room waits for], "
+            + "[the passes: sent before the victim answers, the timers then, sent after another account's packet naming the victim, how many went, all in order, "
+            + "each to its account alone; the same on a fresh ledger; with no answer, after the 1500 ms], [a kept room: sent to the victim, how many], "
+            + "[micHold: a player in the dead channel, in the main room, a GM in the dead channel, the line], "
+            + "[the triggers: murderState, bodiesFound, the cast's change on the primary, the cast's arrival, the heartbeat, a kept room asked for]");
+        ok(asked > 0, "no case asked whether a body was found - the discovery's trigger was never read");
+    }],
+
+    ["R831 - in the dead channel the microphone stays its owner's: the reason is a line beside an open or muted button, a click mutes and unmutes, and a GM's block is named over it (E19-16; E19 fix r1-G1)", async () => {
+        /*
+         * E19 fix r1-G1, 19.10.2026; the review's E19-C3-1. The dead channel is one room for every death kept secret
+         * until E67's channel per account, so with two victims each hears the other (R815's "two victims, after").
+         * Until the fix voice.mjs `micHold` answered { reason: "deadAlone", held: true } there, `micState` made that
+         * "held", and in "held" `toggleOwnMic` writes nothing: a victim who had muted could not speak to the other, one
+         * who had not could not mute, and the tile drew the microphone grey and struck. Asked here on plain facts, as
+         * R537 asks the table: `micHold` for a player in the dead channel, `micState` over it with this browser's own
+         * `muted` false and true, `toggleOwnMic` from each (a settings object of the test's own, nothing written to
+         * Foundry's), `paintMic` on a tile of the test's own, and a GM's block in the dead channel.
+         * Red at the fix's parent: held, "held", no write, the button grey.
+         */
+        const V = await import("./voice.mjs");
+        const T = await import("./voice-tile.mjs");
+        const VC = await import("./voice-client.mjs");
+        const me = { id: game.user.id, name: "R831", active: true, isGM: false };
+        const hold = (extra = {}) => V.micHold({ user: me, room: VC.DEAD_ROOM, external: false, connected: true, canBroadcastAudio: true, actors: [], ...extra });
+        const writes = [], told = [];
+        const settings = muted => ({
+            get: (scope, key) => (scope === "client" && key === `users.${game.user.id}.muted` ? muted : undefined),
+            client: { voice: { mode: "activity" } },
+            set: async (scope, key, value) => { writes.push([scope, key === `users.${game.user.id}.muted` ? "users.<self>.muted" : key, value]); }
+        });
+        const open = T.micState({ hold: hold(), settings: settings(false) });
+        const muted = T.micState({ hold: hold(), settings: settings(true) });
+        const mutedNow = await T.toggleOwnMic({ mic: open, settings: settings(false), notify: text => told.push(text) });
+        const openedNow = await T.toggleOwnMic({ mic: muted, settings: settings(true), notify: text => told.push(text) });
+        const tile = document.createElement("div");
+        const button = document.createElement("button"), note = document.createElement("span");
+        button.className = "drpg-voice-mic";
+        note.className = "drpg-voice-tile-note";
+        note.id = "r831-note";
+        tile.append(button, note);
+        T.paintMic(tile, open, { key: null });
+        const drawn = { held: button.classList.contains("is-held"), disabled: button.getAttribute("aria-disabled"), shown: note.hidden === false,
+            line: note.textContent === game.i18n.localize("DRPG.Voice.held.deadAlone") };
+        equal(stableJson([hold(), open, muted, mutedNow, openedNow, writes, told.length, drawn, hold({ canBroadcastAudio: false })]), stableJson([
+            { reason: "deadAlone", held: false }, { state: "on", reason: null, info: "deadAlone" }, { state: "muted", reason: null, info: "deadAlone" },
+            true, true, [["client", "users.<self>.muted", true], ["client", "users.<self>.muted", false]], 0,
+            { held: false, disabled: null, shown: true, line: true }, { reason: "gmBlock", held: false }]),
+            "[micHold in the dead channel, micState open and muted, the click from each, the writes, refusals told, the button and its note "
+            + "as painted, a GM's block there]");
+    }],
+
+    ["R832 - a browser asking where its voice belongs is answered in the reconcile's order: while the GMs' cast is not here a kept dead account gets the dead channel (a public death the main room) and a player arriving in its room nothing, in the asking and in the pass; a witness asking inside the witness's wait is sent its room only after the victim's own answer or 1500 ms (E19-13, E19-14; E19 fix r1-G1)", async () => {
+        /*
+         * E19 fix r1-G1, 19.10.2026; the review's E19-C3-2, E19-C3-3 and sec-1. Until the fix voice.mjs `onWhoAmI`
+         * answered a kept row (an incident running, the cast not here: `deathVoiceGone`'s null) with nothing, so a
+         * victim's new page stayed in the main room, where the living heard it; it answered every other asker at once
+         * with `force`, reading neither the witnesses' `waits` nor whether the victim had left; and the pass while the
+         * cast is not here sent a living player who walked into the kept victim's room that room at once - the scene
+         * the witness's wait exists to keep from them. Read here on plain objects, nothing written and nothing sent
+         * to a browser, as R815 reads: voice.mjs `placeVoices` with the incident's facts handed in; `sendInPasses` over
+         * the pass; `answerWhoAmI` - the answer `onWhoAmI` gives - over a ledger of the test's own (`createVoiceLedger`,
+         * its socket and timers the test's), the victim's own `voice.applied` handed to `onVoiceSocket` with that ledger;
+         * and in the source, `onWhoAmI` answering through `answerWhoAmI` on the module's ledger.
+         * Red at the fix's parent: no `answerWhoAmI`, no `held`, and the pass sent the witness the kept room.
+         * E19 fix r1-G4 (the review's sec-2): `voice.whoAmI` is a road to a user's voice room of its own (STAGE.md's
+         * Write roads), and nothing held that it asks about its sender alone - `onWhoAmI(payload?.userId ?? senderId)`
+         * left this test green (mut.sh, g4-w1-before). Now read in the source: `onVoiceSocket` hands `onWhoAmI`
+         * Foundry's `senderId`, and `onWhoAmI` takes that id alone and reads no packet.
+         */
+        needs(env.primaryGm(), "a client's voice answer is heard on the primary GM alone (`onVoiceSocket`)");
+        needs(world.atLeast("playerAccounts", 2), "the victim's answer is a player's packet, the witness another player");
+        const V = await import("./voice.mjs");
+        const VC = await import("./voice-client.mjs");
+        const { participantIds } = await import("./incident-store.mjs");
+        const DEAD = VC.DEAD_ROOM;
+        const school = { id: "R832SCHOOL000000", name: "R832 School" };
+        const account = (id, isGM = false) => ({ id, name: id, active: true, isGM });
+        const [one, two] = game.users.filter(u => !u.isGM);
+        const gm = account("R832GM0000000000", true);
+        const users = { victim: account(one.id), witness: account(two.id), killer: account("R832PK0000000000"), bystander: account("R832PB0000000000"),
+            pub: account("R832PP0000000000") };
+        const actor = (id, flags = {}) => ({ id, name: id, type: "character", getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined) });
+        const A = { victim: actor("R832AVICTIM00000"), witness: actor("R832AWITNESS0000"), killer: actor("R832AKILLER00000"),
+            bystander: actor("R832ABYSTANDER00"), pub: actor("R832APUBLIC00000", { [FLAGS.deceased]: { chapter: 1 } }),
+            monokuma: actor("R832AMONOKUMA000", { [FLAGS.monokuma]: true }) };
+        const nameOf = a => Object.keys(A).find(k => A[k].id === a.id);
+        const who = id => Object.keys(users).find(k => users[k].id === id) ?? (id === gm.id ? "gm" : id);
+        const label = target => (target === null ? "main" : target === DEAD ? "dead"
+            : ["Kitchen", "Hall", "Dorm"].find(room => V.liveKitRoomFor(school.id, room) === target) ?? `?${target}`);
+        const running = { active: true, stage: "incident", killerId: A.killer.id, victimId: A.victim.id, thirdId: A.pub.id };
+        const place = ({ hydrated, where = {} }) => V.placeVoices({
+            actors: Object.values(A), eclipse: false, trial: false,
+            death: { state: running, hydrated, cast: participantIds(running), announced: async () => false },
+            locate: a => ({ scene: school, room: { victim: "Kitchen", killer: "Kitchen", witness: "Hall", bystander: "Dorm", pub: "Hall", monokuma: "Kitchen", ...where }[nameOf(a)] }),
+            userOf: a => (nameOf(a) === "monokuma" ? gm : users[nameOf(a)]),
+            dead: a => ["victim", "pub"].includes(nameOf(a)), monokumaOf: a => nameOf(a) === "monokuma"
+        });
+        const ledger = () => {
+            const sent = [], timers = new Map();
+            let serial = 0;
+            const L = V.createVoiceLedger({
+                emit: (event, packet, options) => sent.push({ to: options?.recipients ?? null, target: packet.target, room: packet.room ?? null, requestId: packet.requestId }),
+                later: (fn, ms) => { timers.set(++serial, { fn, ms }); return serial; },
+                cancel: id => timers.delete(id)
+            });
+            const io = { assign: (id, room, force) => L.assignUser(id, room, { force }), waitFor: (id, room) => L.waitApplied(id, room) };
+            return { L, sent, timers, io, log: () => sent.map(s => `${who(s.target)}:${label(s.room)}`), alone: () => sent.every(s => s.to?.length === 1 && s.to[0] === s.target) };
+        };
+        const tick = () => new Promise(resolve => setTimeout(resolve, 0));
+        const seen = [];
+
+        // The cast not here; the witness, from outside the cast, has walked into the Kitchen, where the victim lies kept;
+        // the GM's Monokuma is there too (a GM is never held), the public death in the Hall, the bystander alone in the Dorm.
+        const cold = await place({ hydrated: false, where: { witness: "Kitchen" } });
+        const passSent = [];
+        await V.sendInPasses(V.applyOrder(cold.byUser, gm.id), cold.waits, { ownId: gm.id, held: cold.held,
+            assign: userId => { passSent.push(who(userId)); return true; }, waitFor: async () => "applied" });
+        seen.push(["the pass, the cast not here", passSent]);
+        const asked = {};
+        const coldLedger = ledger();
+        for (const name of ["victim", "pub", "witness", "killer", "bystander"]) asked[name] = await V.answerWhoAmI(users[name].id, cold, coldLedger.io);
+        seen.push(["asked, the cast not here", asked, coldLedger.log(), coldLedger.alone()]);
+
+        // The cast here: the witness's walking in sends the victim to the dead channel and the witness waits for it.
+        const warm = await place({ hydrated: true, where: { witness: "Kitchen" } });
+        seen.push(["the waits", Object.fromEntries([...warm.waits].map(([id, list]) => [who(id), list.map(who)]))]);
+        const waited = async answer => {
+            const { L, sent, timers, io, log, alone } = ledger();
+            const out = {};
+            const asking = V.answerWhoAmI(users.witness.id, warm, io);
+            await tick();
+            out.first = log();
+            out.timers = [...timers.values()].map(t => t.ms).sort((a, b) => a - b);
+            const victimPacket = sent.find(s => s.target === users.victim.id);
+            if (answer) V.onVoiceSocket({ action: VC.VOICE.applied, room: DEAD, state: "applied", requestId: victimPacket?.requestId }, users.victim.id, L);
+            else {
+                const [id, timer] = [...timers].find(([, t]) => t.ms === 1500) ?? [];
+                timers.delete(id);
+                timer?.fn();
+            }
+            out.said = await asking;
+            out.all = log();
+            out.alone = alone();
+            return out;
+        };
+        seen.push(["asked inside the wait, the victim answers", await waited(true)]);
+        seen.push(["asked inside the wait, no answer", await waited(false)]);
+        // The victim already settled in the dead channel: the witness is answered at once.
+        const settledLedger = ledger();
+        settledLedger.L.answer(users.victim.id, { room: DEAD, state: "applied" });
+        seen.push(["asked, the victim settled", await V.answerWhoAmI(users.witness.id, warm, settledLedger.io), settledLedger.log()]);
+
+        const voice = stripComments((await moduleSources()).get("voice.mjs") ?? "");
+        seen.push(["onWhoAmI", /await answerWhoAmI\(userId, await voiceTargets\(\), \{\s*assign: \(id, room, force\) => assignUser\(id, room, \{ force \}\),\s*waitFor: \(id, room\) => waitApplied\(id, room\)/.test(fnSource(voice, "onWhoAmI")),
+            /ownId: game\.user\.id, held,/.test(fnSource(voice, "reconcileNow")),
+            /payload\?\.action === VOICE\.whoAmI\)\s*\{[^}]*?\bonWhoAmI\(senderId\)\.catch\(/.test(fnSource(voice, "onVoiceSocket")),
+            /^async function onWhoAmI\(userId\)/.test(fnSource(voice, "onWhoAmI")) && !/payload/.test(fnSource(voice, "onWhoAmI"))]);
+
+        equal(stableJson(seen), stableJson([
+            ["the pass, the cast not here", ["bystander", "gm"]],
+            ["asked, the cast not here", { victim: "kept", pub: "kept", witness: "held", killer: "held", bystander: "sent" },
+                ["victim:dead", "pub:main", "bystander:Dorm"], true],
+            ["the waits", { witness: ["victim"] }],
+            ["asked inside the wait, the victim answers", { first: ["victim:dead"], timers: [1500, 2000], said: "waited",
+                all: ["victim:dead", "witness:Kitchen"], alone: true }],
+            ["asked inside the wait, no answer", { first: ["victim:dead"], timers: [1500, 2000], said: "waited",
+                all: ["victim:dead", "witness:Kitchen"], alone: true }],
+            ["asked, the victim settled", "waited", ["witness:Kitchen"]],
+            ["onWhoAmI", true, true, true, true]]),
+            "[the pass while the cast is not here: whom it sent], [each account asking then: what the answer did, the packets, each to its account alone], "
+            + "[the witness's wait once the cast is here], [the witness asking inside the wait: sent before the victim answers, the timers, the answer, "
+            + "all sent, each to its account alone - with the victim's answer and with none], [the victim already settled: the answer and the packets], "
+            + "[onWhoAmI answers through answerWhoAmI on the module's ledger; the reconcile hands its pass the held accounts; "
+            + "voice.whoAmI asks about Foundry's sender alone, never a packet's userId (E19 fix r1-G4, sec-2)]");
+    }],
+
+    ["R833 - the GM's voice plan and the contested warning name the dead channel where a death kept secret is sent, never the main room (E19-12; E19 fix r1-G1)", async () => {
+        /*
+         * E19 fix r1-G1, 19.10.2026; the review's E19-C3-5. voice.mjs `voiceClaim`'s dead branch sends a death kept
+         * secret to the dead channel with no room of its own (`row.room` null), and until the fix `voicePlan` grouped
+         * rows by `row.room ?? "(main room)"` and `reportContested` named `r.room ?? "the main room"`: the GM's display
+         * of the assignment put a secret victim in the main room - the leak C3 closed - while the reconcile sent them to
+         * the dead channel. Read here: `voicePlan` handed a table of rows (`targets`, the answer `voiceTargets` gives,
+         * built by `placeVoices` on plain objects: the victim after the incident's close, its player's spare character
+         * in the Dorm, a living student in the Kitchen), its text read back; and `contestedWarning`, the words of the
+         * warning `reportContested` writes, for that player. Nothing is written and nothing sent.
+         * Red at the fix's parent: `voicePlan` read the world's own rows, and no `contestedWarning`.
+         */
+        needs(env.primaryGm(), "the voice plan is a GM's, and the harness's GM is the primary");
+        const V = await import("./voice.mjs");
+        const school = { id: "R833SCHOOL000000", name: "R833 School" };
+        const account = id => ({ id, name: id, active: true, isGM: false });
+        const victimUser = account("R833PV0000000000"), livingUser = account("R833PL0000000000");
+        const actor = id => ({ id, name: id, type: "character", getFlag: () => undefined });
+        const victim = actor("R833AVICTIM00000"), spare = actor("R833ASPARE000000"), living = actor("R833ALIVING00000");
+        const where = { [victim.id]: "Kitchen", [spare.id]: "Dorm", [living.id]: "Kitchen" };
+        const { rows, byUser, claims, waits, held } = await V.placeVoices({
+            actors: [victim, spare, living], eclipse: false, trial: false,
+            death: { state: null, hydrated: true, cast: new Set(), announced: async () => false },
+            locate: a => ({ scene: school, room: where[a.id] }),
+            userOf: a => (a === living ? livingUser : victimUser), dead: a => a === victim, monokumaOf: () => false
+        });
+        const contested = new Map([...claims].filter(([, list]) => new Set(list.map(r => r.target ?? null)).size > 1));
+        const text = await V.voicePlan({ targets: { rows, byUser, contested, eclipse: false, trial: false, waits, held } });
+        const lines = String(text ?? "").split("\n");
+        const groupOf = name => {
+            const at = lines.findIndex(line => line.includes(name) && line.includes(" · "));
+            return at < 0 ? null : lines.slice(0, at).reverse().find(line => /^\S.*\(\d+\)$/.test(line))?.replace(/\s+\(\d+\)$/, "") ?? null;
+        };
+        const conflict = lines.find(line => line.includes(victim.name) && !line.includes(" - ")) ?? null;
+        const typeOf = typeof V.contestedWarning;
+        const warning = typeOf === "function" ? V.contestedWarning(victimUser.id, contested.get(victimUser.id) ?? [], byUser.get(victimUser.id)) : null;
+        const words = { main: game.i18n.localize("DRPG.Voice.mainRoom"), dead: game.i18n.localize("DRPG.Voice.deadRoom") };
+        equal(stableJson([groupOf(victim.name), groupOf(spare.name), groupOf(living.name), conflict?.trim() ?? null, warning,
+            game.i18n.has("DRPG.Voice.deadRoom")]), stableJson([
+            "(dead channel)", "Dorm", "Kitchen", `${victim.name} · the dead channel`,
+            game.i18n.format("DRPG.Voice.contested", { name: victimUser.id, places: `${victim.name} → ${words.dead}; ${spare.name} → Dorm`, room: "Dorm" }),
+            true]),
+            "[the voice plan's group of the secret victim, of its player's spare, of a living student; the victim's line under CONFLICTS; "
+            + "the contested warning for its player; the dead channel's word]");
+    }],
+
+    ["R834 - a page that loads is in no channel until the primary GM says which: Foundry's first connect, before ready, is pointed at the account's own room of one while regional voice is on, never the main room; once told, ready, or with voice off nothing is pointed; with no GM to answer at ready it joins the main room (E19-18, E19-19; E19 fix r1-G1)", async () => {
+        /*
+         * E19 fix r1-G1, 19.10.2026; the review's sec-3. Foundry connects A/V during setup, before `ready`, and
+         * avclient-livekit joins the world's own room - the main room - when nothing has set `breakoutRoom`; the room
+         * this page was told lives in its memory only, so after a reload a dead student sat in the main room from that
+         * connect until the primary's answer, heard by every player there. voice-client.mjs `landAloneFirst` - which
+         * the `liveKitClientInitialized` hook calls, right before that connect - is asked here with its facts handed
+         * in, on a client of the test's own: before ready, untold, voice on; and each of ready, told, voice off, no
+         * client. In the source: the hook calls it before its `ready` check, and `catchUpVoice` joins the main room
+         * when it landed and no GM is connected. Scenario 75 E points a page's connect so on the harness's LiveKit.
+         * Red at the fix's parent: no `landAloneFirst`.
+         */
+        const VC = await import("./voice-client.mjs");
+        const userId = "R834USER00000000";
+        const typeOf = typeof VC.landAloneFirst;
+        const land = facts => {
+            const client = { breakoutRoom: undefined };
+            const did = typeOf === "function" ? VC.landAloneFirst({ ready: false, told: false, voiceOn: true, client, userId, ...facts }) : null;
+            return [did, client.breakoutRoom ?? null];
+        };
+        const source = stripComments((await moduleSources()).get("voice-client.mjs") ?? "");
+        const hook = fnSource(source, "registerVoiceClient");
+        const catchUp = fnSource(source, "catchUpVoice");
+        equal(stableJson([land({}), land({ ready: true }), land({ told: true }), land({ voiceOn: false }), land({ client: null }),
+            /landAloneFirst\(\);\s*if \(!game\.ready\) return;/.test(hook),
+            /if \(landedAlone && !activeGmIds\(\)\.length\) return enqueue\(\(\) => applyBreakout\(null, \{ remember: false \}\)\);/.test(catchUp)]),
+        stableJson([[true, VC.silentRoomFor(userId)], [false, null], [false, null], [false, null], [false, null], true, true]),
+            "[before ready, untold, voice on: pointed, and where; ready; told; voice off; no client; the hook calls it before its ready check; "
+            + "catchUpVoice joins the main room with no GM to answer]");
+    }],
+
+    ["R835 - while the GMs' cast is not here, a student dead since an earlier chapter is placed as after its trigger at once: never kept, never ranked over its player's living character, and nobody walking into its room is held; the running incident's own dead stay kept (E19-13, E19-15; E19 fix r2-G1)", async () => {
+        /*
+         * E19 fix r2-G1, 19.10.2026; the review's E19-FIX1-1. While an incident ran and the primary's castStore was not
+         * hydrated, voice.mjs `deathVoiceGone` answered null for every dead character, before anything was read, so a
+         * student dead since chapter 1 was `keep` too: `voiceRowFor`'s tie-break (`stillThere`) ranked that kept row
+         * over the same player's living character in another room, `answerWhoAmI` sent the account the dead row's
+         * `standIn`, the pass sent it nothing, and `held` held back every living player walking into that body's room.
+         * Without the cast, a death whose record is of another chapter or season than the clock's is no death of the
+         * running incident, and is read as gone (`olderDeath`; `deathFacts` hands the clock and `deathRecordFor`).
+         * Read here on plain objects, nothing written and nothing sent, as R815 and R832 read: `placeVoices` with the
+         * facts handed in, `sendInPasses` over the pass, `answerWhoAmI` over a recorder; then the real `deathFacts`.
+         * Red at the fix's parent: P's account was kept (the main room on asking, nothing in the pass), Carol was held,
+         * and `deathFacts` named no chapter.
+         */
+        needs(env.primaryGm(), "the dead channel is decided on the primary GM alone (`voiceTargets`)");
+        const V = await import("./voice.mjs");
+        const VC = await import("./voice-client.mjs");
+        const { participantIds } = await import("./incident-store.mjs");
+        const DEAD = VC.DEAD_ROOM;
+        const school = { id: "R835SCHOOL000000", name: "R835 School" };
+        const account = (id, isGM = false) => ({ id, name: id, active: true, isGM });
+        const gm = account("R835GM0000000000", true);
+        const users = { p: account("R835PP0000000000"), carol: account("R835PC0000000000"), killer: account("R835PK0000000000"),
+            victim: account("R835PV0000000000") };
+        const actor = (id, flags = {}) => ({ id, name: id, type: "character", getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined) });
+        // Alice's id sorts after Bob's, so the lowest id alone (b99d9e8's tie-break) would pick Bob.
+        const A = { bob: actor("R835ABOB00000000"), alice: actor("R835AZALICE00000"), carol: actor("R835ACAROL000000"),
+            killer: actor("R835AKILLER00000"), victim: actor("R835AVICTIM00000") };
+        const owner = { bob: "p", alice: "p", carol: "carol", killer: "killer", victim: "victim" };
+        const nameOf = a => Object.keys(A).find(k => A[k].id === a.id);
+        const who = id => Object.keys(users).find(k => users[k].id === id) ?? (id === gm.id ? "gm" : id);
+        const label = target => (target === null ? "main" : target === DEAD ? "dead"
+            : ["Gym", "Library", "Hall", "Kitchen", "Dining"].find(room => V.liveKitRoomFor(school.id, room) === target) ?? `?${target}`);
+        const running = { active: true, stage: "incident", killerId: A.killer.id, victimId: A.victim.id };
+        const records = { alice: { chapter: 1, day: 3 }, victim: { chapter: 2, day: 1 } };
+        /* Chapter 2. Alice died in chapter 1 (public: the flag; secret: the GMs' row alone), her token in the Gym; Bob
+           alive in the Library; Carol alive, in the Hall or walked into the Gym; the incident's victim kept in the Kitchen. */
+        const place = ({ hydrated = false, secret = false, where = {}, chapter = 2, epoch = 7, recordOf } = {}) => V.placeVoices({
+            actors: Object.values(A).map(a => (nameOf(a) === "alice" && !secret ? actor(a.id, { [FLAGS.deceased]: records.alice }) : a)),
+            eclipse: false, trial: false,
+            death: { state: running, hydrated, cast: participantIds(running), announced: async () => false, chapter, epoch,
+                recordOf: recordOf ?? (a => records[nameOf(a)] ?? null) },
+            locate: a => ({ scene: school, room: { bob: "Library", alice: "Gym", carol: "Hall", killer: "Kitchen", victim: "Kitchen", ...where }[nameOf(a)] }),
+            userOf: a => users[owner[nameOf(a)]], dead: a => ["alice", "victim"].includes(nameOf(a)), monokumaOf: () => false
+        });
+        const rooms = placed => Object.fromEntries([...placed.byUser].map(([id, row]) => [who(id),
+            row.keep ? "kept" : placed.held.has(id) ? "held" : label(row.target ?? null)]));
+        const asked = async placed => {
+            const sent = [];
+            const io = { assign: (id, room) => { sent.push(`${who(id)}:${label(room)}`); return true; }, waitFor: async () => "applied" };
+            const said = {};
+            for (const name of ["p", "carol", "victim", "killer"]) said[name] = await V.answerWhoAmI(users[name].id, placed, io);
+            return [said, sent];
+        };
+        const pass = async placed => {
+            const sent = [];
+            await V.sendInPasses(V.applyOrder(placed.byUser, gm.id), placed.waits, { ownId: gm.id, held: placed.held,
+                assign: (userId, row) => { sent.push(`${who(userId)}:${label(row?.target ?? null)}`); return true; }, waitFor: async () => "applied" });
+            return sent;
+        };
+        const seen = [];
+        const cold = await place();
+        seen.push(["cold, P's two characters", rooms(cold), await asked(cold), await pass(cold)]);
+        const bobMoved = await place({ where: { bob: "Dining" } });
+        seen.push(["cold, Bob walks to the Dining Hall", rooms(bobMoved), await pass(bobMoved)]);
+        const carolIn = await place({ where: { carol: "Gym" } });
+        seen.push(["cold, Carol walks into the Gym", rooms(carolIn), await asked(carolIn), await pass(carolIn)]);
+        seen.push(["cold, Alice's death secret", rooms(await place({ secret: true, where: { carol: "Gym" } }))]);
+        seen.push(["cold, Alice of an earlier season", rooms(await place({ recordOf: a => (nameOf(a) === "alice" ? { chapter: 2, epoch: 3 } : null), where: { carol: "Gym" } }))]);
+        seen.push(["cold, a death of this chapter stays kept", rooms(await place({ recordOf: a => (nameOf(a) === "alice" ? { chapter: 2 } : null), where: { carol: "Gym" } }))]);
+        seen.push(["the cast here", rooms(await place({ hydrated: true, where: { carol: "Gym" } }))]);
+        const real = await V.deathFacts();
+        const { getClock } = await import("./settings.mjs");
+        seen.push(["deathFacts", real.chapter === getClock().chapter, typeof real.recordOf, typeof real.epoch]);
+
+        equal(stableJson(seen), stableJson([
+            ["cold, P's two characters", { p: "Library", carol: "Hall", killer: "held", victim: "kept" },
+                [{ p: "sent", carol: "sent", victim: "kept", killer: "held" }, ["p:Library", "carol:Hall", "victim:dead"]], ["p:Library", "carol:Hall"]],
+            ["cold, Bob walks to the Dining Hall", { p: "Dining", carol: "Hall", killer: "held", victim: "kept" }, ["p:Dining", "carol:Hall"]],
+            ["cold, Carol walks into the Gym", { p: "Library", carol: "Gym", killer: "held", victim: "kept" },
+                [{ p: "sent", carol: "sent", victim: "kept", killer: "held" }, ["p:Library", "carol:Gym", "victim:dead"]], ["p:Library", "carol:Gym"]],
+            ["cold, Alice's death secret", { p: "Library", carol: "Gym", killer: "held", victim: "kept" }],
+            ["cold, Alice of an earlier season", { p: "Library", carol: "Gym", killer: "held", victim: "kept" }],
+            ["cold, a death of this chapter stays kept", { p: "kept", carol: "held", killer: "held", victim: "kept" }],
+            ["the cast here", { p: "Library", carol: "Gym", killer: "Kitchen", victim: "Kitchen" }],
+            ["deathFacts", true, "function", "number"]]),
+            "[each case, the cast not here unless named: the room each account gets ('kept', 'held': nothing sent), what each account asking is answered "
+            + "and sent, what the pass sends], [the real deathFacts: the clock's chapter, the record's reader, the season]");
+    }],
+
+    ["R816 - faza classTrial bez zmian: in the Class Trial every account is in the one room the trial has, the dead before discovery too, and nobody's death or place is asked (E19-17)", async () => {
+        /*
+         * E19 C3, 19.10.2026; the owner's session 0 (11.10): "wraca zdanie dopisku A9 'Gałąź Eclipse i faza classTrial
+         * (D8, S11-26) bez zmian' razem z testem 'faza classTrial bez zmian'". The dead channel (R815) must not take a
+         * dead student out of the trial: E13's one room for everybody (`CLAIM.trial`, D8, R117) stands, and the order of
+         * the trial's branches is E70's. Read on plain objects: `placeVoices` in the trial for the living, a death kept
+         * secret whose every trigger holds (outside any incident), a public one, a Monocub and Monokuma - each account's
+         * room, how many rooms, whether anybody is in the dead channel, and how often a death or a place was asked; then
+         * `voiceClaim` in the trial for a silenced secret death; and `voiceTargets` handing the trial no death's facts.
+         * Red at C3's parent: no `placeVoices` (the claim's answer was already the main room there).
+         */
+        const V = await import("./voice.mjs");
+        ok(typeof V.placeVoices === "function", "voice.mjs has no `placeVoices`: the trial's room is not asked of the decision the dead channel changes");
+        if (typeof V.placeVoices !== "function") return;
+        const { DEAD_ROOM } = await import("./voice-client.mjs");
+        const school = { id: "R816SCHOOL000000", name: "R816 School" };
+        const account = (id, isGM = false) => ({ id, name: id, active: true, isGM });
+        const actor = (id, flags = {}) => ({ id, name: id, type: "character", getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined) });
+        const people = [
+            [actor("R816ALIVE0000000"), account("R816P10000000000")],
+            [actor("R816SECRET000000"), account("R816P20000000000")],
+            [actor("R816PUBLIC000000", { [FLAGS.deceased]: { chapter: 1 } }), account("R816P30000000000")],
+            [actor("R816CUB000000000", { [FLAGS.deceased]: { chapter: 1 }, [FLAGS.monocub]: true }), account("R816P40000000000")],
+            [actor("R816MONOKUMA0000", { [FLAGS.monokuma]: true }), account("R816GM0000000000", true)]
+        ];
+        let asked = 0;
+        const facts = { get state() { asked += 1; return null; }, hydrated: true, cast: new Set(), announced: async () => { asked += 1; return true; } };
+        const { byUser, rows, waits } = await V.placeVoices({
+            actors: people.map(([a]) => a), trial: true, death: facts,
+            locate: () => { asked += 1; return { scene: school, room: "Kitchen" }; },
+            userOf: a => people.find(([b]) => b === a)[1],
+            dead: a => { asked += 1; return a.id !== "R816ALIVE0000000" && a.id !== "R816MONOKUMA0000"; },
+            monokumaOf: a => a.id === "R816MONOKUMA0000"
+        });
+        const targets = [...byUser.values()].map(row => row.target ?? null);
+        const claim = V.voiceClaim({ user: account("R816P20000000000"), trial: true, silenced: () => true, secret: () => true });
+        const voice = stripComments((await moduleSources()).get("voice.mjs") ?? "");
+        equal(stableJson([targets, new Set(targets).size, rows.some(r => r.target === DEAD_ROOM), waits.size, asked,
+            claim.target ?? null, claim.why === game.i18n.localize("DRPG.Voice.claimTrial"),
+            /death: eclipse \|\| trial \? null : await deathFacts\(\)/.test(fnSource(voice, "voiceTargets"))]),
+        stableJson([[null, null, null, null, null], 1, false, 0, 0, null, true, true]),
+            "[in the trial: each account's room, how many rooms, anybody in the dead channel, witnesses waited for, deaths and places asked; "
+            + "a silenced secret death's room in the trial and its reason; voiceTargets asking no death in the trial]");
+    }],
+    ["R817 - in an Eclipse a player is in no voice channel: the room the primary GM sends a player then is one the player's browser leaves voice on, never joins, and no drop card or self-check brings it back; each player's differs from every other's and from the GMs' one shared room; the microphone is held with the Eclipse's reason while nothing is connected; the room after it is joined again (E19-20)", async () => {
+        /*
+         * E19 C4, 19.10.2026; the owner's answer of 25.09 ("in an Eclipse a player is joined to no voice channel - today
+         * they land in a room of their own, alone, hearing nobody; the GMs keep a shared channel, and after the Eclipse
+         * everybody returns to the right room"). Until C4 the primary GM sent each player `drpg-eclipse-<id>` and the
+         * player's browser joined it: a LiveKit room of one, connected all through the placement window. Now that name
+         * is the sentinel the browser leaves voice on (voice-client.mjs `applyBreakout`); it is still named for that one
+         * account, so a connect nobody here asked for (Foundry's own after an A/V settings change) lands alone, as
+         * before. Read on the harness's LiveKit (lib/livekit.mjs) through `applyLocally` (the apply every assignment
+         * reaches): a Room connected, the sentinel this account gets in an Eclipse (`voiceClaim`, what `voiceTargets`
+         * sends), the same again, the self-check (45 s at the table, called here once), `micHold` while nothing is
+         * connected, and a room after it. Red at C4's parent: the browser joined the sentinel ("connected"), the
+         * self-check was not callable, and `micHold` said "offline" while the Eclipse held the account.
+         */
+        needs(env.liveKitShim(), "the harness's LiveKit stand-in, to read whether the Room is connected");
+        needs(world.moduleActive("avclient-livekit"), "avclient-livekit enabled, so the module reads LiveKit at all");
+        const V = await import("./voice.mjs");
+        const VC = await import("./voice-client.mjs");
+        const { refreshVoiceTile } = await import("./voice-tile.mjs");
+        const stub = globalThis.__liveKit, before = VC.desiredRoom(), host = game.webrtc.client;
+        const person = (id, isGM = false) => ({ id, name: id, active: true, isGM });
+        const me = person(game.user.id);
+        const silent = V.voiceClaim({ user: me, eclipse: true }).target;
+        const other = V.voiceClaim({ user: person("R817OTHER0000000"), eclipse: true }).target;
+        const gms = [person("R817GMA000000000", true), person("R817GMB000000000", true)].map(user => V.voiceClaim({ user, eclipse: true }).target);
+        const A = `${VC.ROOM_PREFIX}r817-a`;
+        const where = () => [host.room ?? null, host._liveKitClient?.liveKitRoom?.state ?? null];
+        let lk = null, main = null;
+        const install = async options => {
+            await stub.install(options);
+            lk = globalThis.__liveKit;
+            return lk;
+        };
+        const uninstall = () => {
+            const done = typeof lk?.uninstall === "function" ? lk.uninstall() : false;
+            lk = null;
+            globalThis.__liveKit = stub;
+            return done;
+        };
+        const seen = [["rooms", typeof silent === "string" && silent !== other, gms[0] === gms[1] && typeof gms[0] === "string",
+            gms.includes(silent) || gms.includes(other)]];
+        try {
+            main = (await install({})).MAIN_ROOM;
+            await host.initialize();
+            seen.push(["in a room", await VC.applyLocally(A), ...where()]);
+            seen.push(["the Eclipse", await VC.applyLocally(silent), where()[1]]);
+            await wait(50);
+            seen.push(["told", VC.voiceDrop?.() ?? null]);
+            seen.push(["again", await VC.applyLocally(silent), where()[1]]);
+            seen.push(["self-check", typeof VC.selfCheck === "function" ? await VC.selfCheck() : "no self-check", where()[1], VC.voiceDrop?.() ?? null]);
+            const held = V.micHold({ user: me, room: silent, external: false, connected: false, canBroadcastAudio: true, actors: [] });
+            seen.push(["held", held ? `${held.reason}:${held.held}` : null]);
+            seen.push(["after", await VC.applyLocally(null), ...where()]);
+        } finally {
+            if (lk) uninstall();
+            if (before === undefined) VC.forgetDesiredRoom();
+            else {
+                await install();
+                await VC.applyBreakout(before);
+                uninstall();
+            }
+            Hooks.callAll("drpgVoiceApplying", false);
+            refreshVoiceTile();
+        }
+        equal(stableJson(seen), stableJson([
+            ["rooms", true, true, false],
+            ["in a room", "applied", A, "connected"],
+            ["the Eclipse", "applied", "disconnected"],
+            ["told", null],
+            ["again", "unchanged", "disconnected"],
+            ["self-check", null, "disconnected", null],
+            ["held", "eclipse:true"],
+            ["after", "applied", main, "connected"]]),
+        "[a player's Eclipse room differs from another player's, the two GMs share one, neither player's is the GMs'], [in a room: the answer, "
+            + "client.room, the Room], [the Eclipse's room: the answer, the Room], [a drop told], [the same again], [the self-check: its answer, "
+            + "the Room, a drop told], [micHold with nothing connected], [the main room after it: the answer, client.room, the Room]");
+    }],
+
+    ["R818 - every connected account has a voice row, in and out of an Eclipse: a spectator, a GM holding no Monokuma and a Monocub's player each get one - no channel for a player and the GMs' shared room in the Eclipse, the main room or the character's own room after it - and an account not connected none; any write of the clock places the voices again at once (E19-21)", async () => {
+        /*
+         * E19 C4, 19.10.2026; audit S11-11. Until C4 `voiceTargets` added a row for an account with no character only in
+         * an Eclipse or the trial, so after an Eclipse a spectator and a GM holding no Monokuma pool were never sent
+         * anywhere again: they stayed in the Eclipse's room until a reload. Read on plain objects, nothing written and
+         * nothing sent: voice.mjs `placeVoices` - the decision `voiceTargets` makes, handed the connected accounts
+         * (`users`) - in an Eclipse and outside it, for a player with a character in a room, a spectator, a Monocub's
+         * player, a player not connected, a GM holding Monokuma and a GM holding none. A player's Eclipse room is read
+         * as "alone" when it names that account and nobody else's row has it; the GMs' as "gms" when both GMs have it.
+         * And the trigger: an Eclipse that ends by a write of the clock no other road announces (a hand edit, a restore)
+         * still places everybody (`reconcileTrigger`). Red at C4's parent: `placeVoices` left the spectator and the GM
+         * with no pool out in both, and the clock was no trigger.
+         */
+        const V = await import("./voice.mjs");
+        const school = { id: "R818SCHOOL000000", name: "R818 School" };
+        const person = (id, isGM = false, active = true) => ({ id, name: id, active, isGM });
+        const P = {
+            student: person("R818PSTUDENT0000"), spectator: person("R818PSPECTATOR00"), cub: person("R818PCUB00000000"),
+            away: person("R818PAWAY0000000", false, false), gm: person("R818GMMONOKUMA00", true), bare: person("R818GMBARE000000", true)
+        };
+        const actor = (id, flags = {}) => ({ id, name: id, type: "character", getFlag: (scope, key) => (scope === MODULE_ID ? flags[key] : undefined) });
+        const A = {
+            student: actor("R818ASTUDENT0000"), cub: actor("R818ACUB00000000", { [FLAGS.deceased]: { chapter: 1 }, [FLAGS.monocub]: true }),
+            monokuma: actor("R818AMONOKUMA000", { [FLAGS.monokuma]: true }), away: actor("R818AAWAY0000000")
+        };
+        const owner = new Map([[A.student, P.student], [A.cub, P.cub], [A.monokuma, P.gm], [A.away, P.away]]);
+        const stands = new Map([[A.student, "Kitchen"], [A.cub, "Dorm"], [A.monokuma, "Hall"], [A.away, "Kitchen"]]);
+        const place = async eclipse => {
+            const { byUser } = await V.placeVoices({
+                actors: Object.values(A), users: Object.values(P), eclipse, trial: false,
+                death: { state: null, hydrated: true, cast: new Set(), announced: async () => false },
+                locate: a => ({ scene: school, room: stands.get(a) }), userOf: a => owner.get(a) ?? null,
+                dead: a => a === A.cub, monokumaOf: a => a === A.monokuma
+            });
+            const targets = [...byUser].map(([id, row]) => [id, row.target ?? null]);
+            const label = (id, target) => {
+                if (target === null) return "main";
+                const room = ["Kitchen", "Dorm", "Hall"].find(name => V.liveKitRoomFor(school.id, name) === target);
+                if (room) return room;
+                const shared = targets.filter(([, t]) => t === target).map(([other]) => other);
+                if (shared.length === 1 && target.includes(id)) return "alone";
+                if (shared.length === 2 && shared.every(other => other === P.gm.id || other === P.bare.id)) return "gms";
+                return `?${target}`;
+            };
+            const name = id => Object.keys(P).find(key => P[key].id === id) ?? id;
+            return Object.fromEntries(targets.map(([id, target]) => [name(id), label(id, target)]).sort(([a], [b]) => (a < b ? -1 : 1)));
+        };
+        const voice = stripComments((await moduleSources()).get("voice.mjs") ?? "");
+        must(voice.length, "voice.mjs is not among the module's sources - this would measure nothing");
+        const decide = fnSource(voice, "voiceTargets");
+        const clock = V.reconcileTrigger("updateSetting", { key: `${MODULE_ID}.${SETTINGS.clock}` }, {});
+        equal(stableJson([await place(true), await place(false), clock,
+            /users: game\.users\.filter\(u => u\.active\)/.test(decide), /if \(eclipse \|\| trial\)/.test(decide)]),
+        stableJson([
+            { bare: "gms", cub: "alone", gm: "gms", spectator: "alone", student: "alone" },
+            { bare: "main", cub: "Dorm", gm: "Hall", spectator: "main", student: "Kitchen" },
+            { immediate: true }, true, false]),
+        "[in an Eclipse, each connected account's room], [outside it], [a write of the clock], "
+            + "[voiceTargets hands every connected account to placeVoices, and no longer only in an Eclipse or the trial]");
+    }],
+
+    ["R819 - Reset all voice rooms re-sends everybody's voice room: it forgets what every client confirmed and runs one forced pass at once, sending nobody to the main room by itself; its label says so, its result is said in both languages (Polish with few and many) and a refusal names what to do; the unused LiveKit line is gone; the console's reconcileVoice skips the debounce as it says; the contested warning names the main room in the reader's language (E19-22, E19-23)", async () => {
+        /*
+         * E19 C4, 19.10.2026; audit S11-25, S11-51. Until C4 the reset sent every connected account to the main room
+         * and the next pass, or the heartbeat a minute later, sent each back to its room: at the table one minute of
+         * the whole cast in one room, the crime scene's included, and a label promising a reset. Now it is a resync:
+         * voice.mjs `resetAllVoice` forgets the ledger (`forgetEveryone`) and runs `scheduleReconcile({ immediate,
+         * force })`, whose count it answers. Read on a ledger of the test's own (`createVoiceLedger`, its socket a
+         * list) with the pass handed in, so nothing is sent; then the texts from lang/en.json and lang/pl.json, and in
+         * the source with comments blanked: api.mjs `reconcileVoice` (documented "skipping the debounce", which a bare
+         * `scheduleReconcile` did not) and voice.mjs `reportContested` (an English "the main room" in a localized
+         * line). Red at C4's parent: the reset ran no pass and answered the accounts it sent to the main room, the
+         * label read "Reset all voice rooms", `notActive` was in both files, `reconcileVoice` was the debounced call.
+         */
+        needs(env.primaryGm(), "the reset runs on the primary GM alone");
+        needs(world.moduleActive("avclient-livekit"), "avclient-livekit enabled, or the reset answers that it cannot");
+        const V = await import("./voice.mjs");
+        const sent = [], asked = [];
+        const ledger = V.createVoiceLedger({ emit: (event, packet, { recipients }) => sent.push({ ...packet, recipients }), later: () => null, cancel: () => {} });
+        ledger.assignUser("R819PA0000000000", `drpg-r819-a`);
+        ledger.answer("R819PA0000000000", { room: `drpg-r819-a`, state: "applied", requestId: sent[0]?.requestId ?? null });
+        ledger.assignUser("R819PB0000000000", `drpg-r819-b`);
+        const held = [ledger.settled.size, ledger.inFlight.size];
+        sent.length = 0;
+        const n = await V.resetAllVoice({ ledger, reconcile: async options => { asked.push(options); return 2; }, enabled: true });
+        const after = [n, asked, ledger.settled.size, ledger.inFlight.size, sent.length];
+
+        const [en, pl] = await Promise.all(["en", "pl"].map(lang => fetch(`/modules/${MODULE_ID}/lang/${lang}.json`, { cache: "no-cache" }).then(r => r.json())));
+        const keys = value => (value && typeof value === "object" ? Object.keys(value).sort() : typeof value);
+        const texts = [en, pl].map(file => {
+            const voice = file.DRPG?.Voice ?? {};
+            return [keys(voice.resetDone), "notActive" in voice, keys(voice.resetRefused), String(voice.resetRefused?.primary ?? "").includes("{name}"),
+                /main voice room|głównego pokoju/.test(JSON.stringify(voice.resetDone ?? {}))];
+        });
+        const label = [en.DRPG?.Panel?.voiceReset, pl.DRPG?.Panel?.voiceReset !== "Zresetuj wszystkie pokoje głosowe"];
+        const sources = await moduleSources();
+        const api = stripComments(sources.get("api.mjs") ?? ""), voice = stripComments(sources.get("voice.mjs") ?? "");
+        must(api.length && voice.length, "api.mjs or voice.mjs is not among the module's sources - this would measure nothing");
+        const code = [/reconcileVoice: \(\) => scheduleReconcile\(\{ immediate: true \}\)/.test(api),
+            /"the main room"/.test(fnSource(voice, "reportContested"))];
+        equal(stableJson([held, after, texts, label, code]), stableJson([
+            [1, 1], [2, [{ force: true, immediate: true }], 0, 0, 0],
+            [[["one", "other"], false, ["livekit", "primary"], true, false], [["few", "many", "one", "other"], false, ["livekit", "primary"], true, false]],
+            ["Re-send everybody's voice room", true],
+            [true, false]]),
+        "[the ledger before: settled, in flight], [the reset: its answer, the passes it ran, settled and in flight after, packets it sent itself], "
+            + "[EN, PL: resetDone's forms, notActive kept, resetRefused's two, the refusal naming the primary GM, a result saying the main room], "
+            + "[the label EN, PL rewritten], [reconcileVoice immediate, reportContested's English main room]");
+    }],
+
+    ["R820 - the voice follows a move through a tunnel (`passage.cross`, a teleport and a displace) into a room where another player stands: the crosser alone is sent, into that player's room; and at an Eclipse's end a spectator and a GM holding no Monokuma are sent back to the main room (E19-24, A10)", async () => {
+        /*
+         * E19 C4, 19.10.2026; the owner's A10 (the voice follows a `passage.cross` move with a second player in the
+         * target room), and the Eclipse's end for a GM with no Monokuma pool and a spectator. The tunnel's move is
+         * passages-gm.mjs `crossTunnel`'s token write, read in the source with comments blanked: its fields are a move
+         * to rooms.mjs `isMoveChange`, which `registerVoice`'s `updateToken` hook asks before it places the voices.
+         * Then the passes on plain objects through a ledger of the test's own (`createVoiceLedger`, its socket a list):
+         * `placeVoices` and `sendInPasses` before the crossing (both players answer), after it (what is sent); an
+         * Eclipse (everybody answers) and the pass after it (what is sent). The A10 half is green at C4's parent too: a
+         * guard on what the tunnel's move already did. Red at C4's parent: after the Eclipse nothing was sent to the
+         * spectator or the GM with no pool, who stayed in the Eclipse's room.
+         */
+        const V = await import("./voice.mjs");
+        const { isMoveChange } = await import("./rooms.mjs");
+        const sources = await moduleSources();
+        const passages = stripComments(sources.get("passages-gm.mjs") ?? ""), voice = stripComments(sources.get("voice.mjs") ?? "");
+        must(passages.length && voice.length, "passages-gm.mjs or voice.mjs is not among the module's sources - this would measure nothing");
+        // Merged with line A (24.10.2026): line A's H81 adds the elevation of a rising end and movement.mjs's
+        // TUNNEL_CROSSING mark to the tunnel's write, and H82's hook returns on a change that is no move and then asks
+        // its passes, ending in the same `scheduleReconcile()`; both read in their merged shape, the same fields.
+        const write = /await write\(token, \{ x: spot\.x, y: spot\.y, \.\.\.\(spot\.level \? \{ level: spot\.level \} : \{\}\)[^\n]{0,80}?\},\s*\{ teleport: true, movementAction: "displace", animate: false\b/
+            .test(fnSource(passages, "crossTunnel"));
+        const hook = /Hooks\.on\("updateToken", \(doc, changes\) => \{[\s\S]{0,200}?if \(!isMoveChange\(changes\)\) return;[\s\S]{0,3000}?\n {8}scheduleReconcile\(\);\n {4}\}\);/
+            .test(fnSource(voice, "registerVoice"));
+
+        const school = { id: "R820SCHOOL000000", name: "R820 School" };
+        const person = (id, isGM = false) => ({ id, name: id, active: true, isGM });
+        const P = { crosser: person("R820PCROSSER0000"), there: person("R820PTHERE000000"), spectator: person("R820PSPECTATOR00"), bare: person("R820GMBARE000000", true) };
+        const actor = id => ({ id, name: id, type: "character", getFlag: () => undefined });
+        const A = { crosser: actor("R820ACROSSER0000"), there: actor("R820ATHERE000000") };
+        const owner = new Map([[A.crosser, P.crosser], [A.there, P.there]]);
+        const stands = new Map([[A.crosser, "Kitchen"], [A.there, "Storage"]]);
+        const sent = [];
+        const ledger = V.createVoiceLedger({ emit: (event, packet, { recipients }) => sent.push({ ...packet, recipients }), later: () => null, cancel: () => {} });
+        const name = id => Object.keys(P).find(key => P[key].id === id) ?? id;
+        const label = target => (target === null ? "main" : ["Kitchen", "Storage"].find(room => V.liveKitRoomFor(school.id, room) === target) ?? "other");
+        const pass = async ({ eclipse = false, users = [P.crosser, P.there] } = {}) => {
+            sent.length = 0;
+            const { byUser, waits } = await V.placeVoices({
+                actors: Object.values(A), users, eclipse, trial: false,
+                death: { state: null, hydrated: true, cast: new Set(), announced: async () => false },
+                locate: a => ({ scene: school, room: stands.get(a) }), userOf: a => owner.get(a) ?? null,
+                dead: () => false, monokumaOf: () => false
+            });
+            await V.sendInPasses(V.applyOrder(byUser, "R820NOBODY000000"), waits, {
+                ownId: "R820NOBODY000000",
+                assign: (userId, row) => ledger.assignUser(userId, row.target ?? null),
+                waitFor: (userId, room) => ledger.waitApplied(userId, room)
+            });
+            const out = sent.map(p => [name(p.target), eclipse ? (p.room === null ? "main" : "eclipse") : label(p.room), p.recipients.length === 1 && p.recipients[0] === p.target]);
+            for (const p of [...sent]) ledger.answer(p.target, { room: p.room, state: "applied", requestId: p.requestId });
+            return out;
+        };
+        const seen = [["the tunnel's move", write, isMoveChange({ x: 1, y: 2 }), isMoveChange({ x: 1, y: 2, level: "R820LEVEL" }), hook]];
+        seen.push(["before", await pass()]);
+        stands.set(A.crosser, "Storage");
+        seen.push(["crossed", await pass()]);
+        const everybody = Object.values(P);
+        seen.push(["the Eclipse", (await pass({ eclipse: true, users: everybody })).map(([who]) => who).sort()]);
+        seen.push(["after it", (await pass({ users: everybody })).sort()]);
+        equal(stableJson(seen), stableJson([
+            ["the tunnel's move", true, true, true, true],
+            ["before", [["crosser", "Kitchen", true], ["there", "Storage", true]]],
+            ["crossed", [["crosser", "Storage", true]]],
+            ["the Eclipse", ["bare", "crosser", "spectator", "there"]],
+            ["after it", [["bare", "main", true], ["crosser", "Storage", true], ["spectator", "main", true], ["there", "Storage", true]]]]),
+        "[crossTunnel's token write, a move with and without a floor, the voice's updateToken hook], [before the crossing: who is sent where, "
+            + "to them alone], [after it], [in the Eclipse: who is sent], [after the Eclipse: who is sent where, to them alone]");
+    }],
+    ["R821 - the murder music's overlay: the room is held only once a track really plays, a track that arrives after the incident (a click that came late) or after a newer start is stopped, a file that will not load leaves the room alone and is not asked for again in that incident but is in the next, and nothing mapped plays nothing (E19-25)", async () => {
+        /*
+         * E19 C5, 19.10.2026; audit S11-07. At Base `startMurderMusic` turned the room's music down before it asked for
+         * the track, so a 404 (`AudioHelper.play` answers a sound with `failed`, it does not throw) left a participant
+         * in silence, and a browser not clicked yet kept the room down while the track waited on the first click - and
+         * started it, looped, after the incident had ended, with nothing left to stop it. The overlay is now a small
+         * machine (music.mjs `createMurderOverlay`) driven here with its effects as lists: `play` answers a promise the
+         * test settles, so each case says when the track "starts".
+         * E19 fix r1-G3 (the review's E19-COR-5): a file that failed was skipped until another one played, so with a
+         * murder playlist of one track a 404 in one incident (a late upload, a fetch that hiccuped) meant no murder
+         * music and the room not held in every later incident on that browser until F5. `pick` answers one file for
+         * every key that starts with "e" here: one track, several incidents.
+         */
+        const M = await import("./music.mjs");
+        ok(typeof M.createMurderOverlay === "function", "music.mjs has no overlay machine (`createMurderOverlay`), so none of S11-07's three cases can be driven");
+        const log = [];
+        let pending = [];
+        const sound = (src, failed = false) => ({ src, failed, stop() { log.push(["stop", src]); } });
+        const overlay = M.createMurderOverlay({
+            pick: key => (key === "none" ? null : { src: `R821-${String(key)[0]}.ogg`, volume: 0.6, name: `R821 ${key}`, playlist: "R821" }),
+            play: next => {
+                log.push(["play", next.src]);
+                return new Promise(resolve => pending.push(resolve));
+            },
+            holdRoom: () => log.push(["hold"]),
+            releaseRoom: () => log.push(["release"]),
+            unplayable: next => log.push(["unplayable", next.src])
+        });
+        const settle = async (i, s) => { pending[i]?.(s); await new Promise(r => setTimeout(r, 0)); };
+        const take = () => log.splice(0, log.length);
+        const seen = [];
+
+        // A real start: nothing is held while the track is on its way; then it plays and the room is held.
+        let asked = overlay.want(true, "a");
+        seen.push(["asked", take(), overlay.state().playing]);
+        await settle(0, sound("R821-a.ogg")); await asked;
+        seen.push(["started", take(), overlay.state().playing, overlay.state().track]);
+        await overlay.want(true, "a");
+        seen.push(["asked again", take()]);
+        await overlay.want(false);
+        seen.push(["ended", take(), overlay.state().playing]);
+
+        // The click that never came: the incident ends while the track waits; the track arrives afterwards.
+        pending = [];
+        asked = overlay.want(true, "b");
+        await overlay.want(false);
+        await settle(0, sound("R821-b.ogg")); await asked;
+        seen.push(["late", take(), overlay.state().playing]);
+
+        // A file that will not load: nothing held, the GMs warned, the same file not asked for again.
+        pending = [];
+        asked = overlay.want(true, "c");
+        await settle(0, sound("R821-c.ogg", true)); await asked;
+        seen.push(["404", take(), overlay.state().playing]);
+        await overlay.want(true, "c");
+        seen.push(["404 again", take()]);
+        await overlay.want(false);
+        take();
+
+        // Two starts in flight: the older one, arriving last, is stopped; the newer one is held once.
+        pending = [];
+        const first = overlay.want(true, "d");
+        await overlay.want(false);
+        const second = overlay.want(true, "d");
+        await settle(1, sound("R821-d.ogg")); await second;
+        await settle(0, sound("R821-d.ogg")); await first;
+        seen.push(["two in flight", take(), overlay.state().playing]);
+        await overlay.want(false);
+        take();
+
+        // One track, two incidents: the file that failed in the first is asked for once in the next - after the end
+        // was seen, and when a new incident's key comes with no end seen between.
+        pending = [];
+        asked = overlay.want(true, "e1");
+        await settle(0, sound("R821-e.ogg", true)); await asked;
+        await overlay.want(true, "e1");
+        seen.push(["one track, a 404 in the first incident, asked again in it", take(), overlay.state().failed]);
+        await overlay.want(false);
+        pending = [];
+        asked = overlay.want(true, "e2");
+        await settle(0, sound("R821-e.ogg")); await asked;
+        seen.push(["the same file in the next incident", take(), overlay.state().playing]);
+        await overlay.want(false);
+        take();
+        pending = [];
+        asked = overlay.want(true, "e3");
+        await settle(0, sound("R821-e.ogg", true)); await asked;
+        asked = overlay.want(true, "e4");
+        await settle(1, sound("R821-e.ogg")); await asked;
+        seen.push(["a new incident with no end seen between", take(), overlay.state().playing]);
+        await overlay.want(false);
+        take();
+
+        // Nothing mapped: no track, the room left as it is.
+        await overlay.want(true, "none");
+        seen.push(["nothing mapped", take(), overlay.state().playing]);
+
+        equal(stableJson(seen), stableJson([
+            ["asked", [["play", "R821-a.ogg"]], false],
+            ["started", [["hold"]], true, "R821 a"],
+            ["asked again", []],
+            ["ended", [["stop", "R821-a.ogg"], ["release"]], false],
+            ["late", [["play", "R821-b.ogg"], ["release"], ["stop", "R821-b.ogg"]], false],
+            ["404", [["play", "R821-c.ogg"], ["unplayable", "R821-c.ogg"]], false],
+            ["404 again", []],
+            ["two in flight", [["play", "R821-d.ogg"], ["release"], ["play", "R821-d.ogg"], ["hold"], ["stop", "R821-d.ogg"]], true],
+            ["one track, a 404 in the first incident, asked again in it", [["play", "R821-e.ogg"], ["unplayable", "R821-e.ogg"]], "R821-e.ogg"],
+            ["the same file in the next incident", [["play", "R821-e.ogg"], ["hold"]], true],
+            ["a new incident with no end seen between", [["play", "R821-e.ogg"], ["unplayable", "R821-e.ogg"], ["play", "R821-e.ogg"], ["hold"]], true],
+            ["nothing mapped", [], false]]),
+        "[the overlay's effects and whether it plays] for: a start asked, the track started, asked again, the incident over; a track "
+            + "that arrives after the incident; a file that fails, asked again; two starts in flight; one track over two incidents, "
+            + "a 404 in the first (and the failed file named), after the end and with no end seen between; nothing mapped");
+    }],
+
+    ["R822 - after a reload mid-incident the room's music comes back at the volume it had before the incident: a volume an earlier version parked is put back at ready whether or not an incident runs, and nothing in the murder music writes the Music volume any more (E19-26)", async () => {
+        /*
+         * E19 C5, 19.10.2026; audit S11-07 (1). At Base a witness's F5 (a GM is always one) read the volume it had
+         * parked itself, 0, as "the volume before" and parked that over the real one: after the incident the room's
+         * music stayed at 0 on that browser for good. The overlay no longer moves the Music volume at all (the 04.10
+         * answer: the Music channel, the room's playlists held), so the parked number is only what an earlier version
+         * left: `restoreDuckedMusic` gives it back at ready, in an incident too, with its two writes as lists here.
+         * The writes are read in music.mjs with comments blanked: the one write of the Music volume
+         * (`core.globalPlaylistVolume`) and the one of the parked volume (`musicDuckedFrom`) are `restoreDuckedMusic`'s.
+         */
+        const M = await import("./music.mjs");
+        ok(typeof M.restoreDuckedMusic === "function", "music.mjs exports no `restoreDuckedMusic` that takes its reads and writes, so the reload cannot be driven");
+        const run = async parked => {
+            const writes = [];
+            await M.restoreDuckedMusic({ parked: () => parked, setVolume: v => writes.push(["volume", v]), park: v => writes.push(["park", v]) });
+            return writes;
+        };
+        const music = stripComments((await moduleSources()).get("music.mjs") ?? "");
+        must(music.length, "music.mjs is not among the module's sources - this would measure nothing");
+        const writes = pattern => [...music.matchAll(pattern)].map(m => lineAround(music, m.index).trim());
+        const restore = fnSource(music, "restoreDuckedMusic");
+        const volumeWrites = writes(/game\.settings\.set\("core", "globalPlaylistVolume"/g);
+        const parkWrites = writes(/game\.settings\.set\(MODULE_ID, SETTINGS\.musicDuckedFrom\b/g);
+        const seen = [
+            ["parked 0.8", await run(0.8)],
+            ["parked 0", await run(0)],
+            ["nothing parked", await run(-1)],
+            ["the restore asks no incident", /incidentWitness\(/.test(restore)],
+            ["the Music volume written", volumeWrites.length, volumeWrites.every(line => restore.includes(line))],
+            ["the volume parked", parkWrites.length, parkWrites.every(line => restore.includes(line))]
+        ];
+        equal(stableJson(seen), stableJson([
+            ["parked 0.8", [["volume", 0.8], ["park", -1]]],
+            ["parked 0", [["volume", 0], ["park", -1]]],
+            ["nothing parked", []],
+            ["the restore asks no incident", false],
+            ["the Music volume written", 1, true],
+            ["the volume parked", 1, true]]),
+        "[the restore's writes] for a parked 0.8, a parked 0 and nothing parked; [whether the restore waits for the incident to end]; "
+            + "[how many writes of the Music volume and of the parked volume music.mjs holds, and whether each is the restore's]");
+    }],
+
+    ["R823 - the murder music plays on the Music channel at its track's own volume, the same track for everybody in one incident (by the incident's opening time), pauses the room's music on a player's browser and holds it in place on a GM's, without touching a soundboard; a change of the murder playlist mid-incident is followed (E19-27)", async () => {
+        /*
+         * E19 C5, 19.10.2026; audit S11-42 and the owner's answer of 04.10 ("kanał music zamiast interface, playlisty
+         * pokoju pauzowane na czas incydentu"). At Base the track played on the Interface channel at the volume the
+         * room's music had (a player who had turned the clicks down heard no murder music), each browser drew its own
+         * track at random (killer and victim heard different ones), and the room's music was ducked by setting the
+         * Music volume to 0 - which on the Music channel would silence the murder track too. The room's sounds are now
+         * held on that browser alone (music.mjs `createRoomHold`): each playing sound's own volume to 0 and back,
+         * a sound that starts later held as it starts. Held in place rather than paused: a GM's browser is always in
+         * the incident, and a playlist moves to its next track when a GM's browser hears the last one end. Fakes here,
+         * no audio: the sandbox's audio is locked.
+         * E19 fix r1-G3 (the review's F2): the owner's 04.10 says "pauzowane" - paused - and held in place everywhere
+         * gave a player back the room minutes on from where the incident took it. A player's browser drives no
+         * playlist, so there the room's sounds are paused (`Sound#pause`) and resumed where they stood (`Sound#play`
+         * with no offset resumes from `pausedTime`, fvtt-types 14.366); a track that starts while paused (the GM's
+         * browser moved on, a sync started it again) is paused as it starts; a track the playlist no longer plays is
+         * stopped on release, so its pause point does not come back with it later. A GM's browser still holds in place.
+         */
+        const M = await import("./music.mjs");
+        for (const name of ["murderTrackFor", "murderPlayData", "createRoomHold"]) {
+            ok(typeof M[name] === "function", `music.mjs exports no \`${name}\`, so this part of S11-42 cannot be measured`);
+        }
+        const tracks = ["R823C", "R823A", "R823B"].map((id, i) => ({ id, path: `R823-${i}.ogg`, name: id, volume: 0.25 * (i + 1) }));
+        const reversed = [...tracks].reverse();
+        const keys = Array.from({ length: 24 }, (_, i) => 1760000000000 + i * 7919);
+        const picks = keys.map(key => M.murderTrackFor(tracks, key)?.id ?? null);
+        const same = keys.every((key, i) => M.murderTrackFor(reversed, key)?.id === picks[i] && M.murderTrackFor(tracks, key)?.id === picks[i]);
+        const pick = M.murderTrackFor(tracks, keys[0]);
+        const data = M.murderPlayData({ src: pick.path, volume: pick.volume });
+
+        const listeners = new Map();
+        const local = (playing, volume) => {
+            const s = { playing, volume, addEventListener(type, fn) { if (!listeners.has(s)) listeners.set(s, []); listeners.get(s).push([type, fn]); } };
+            return s;
+        };
+        const fire = s => { for (const [type, fn] of listeners.get(s) ?? []) if (type === "play") fn(); };
+        const room = { mode: 0, sounds: [{ name: "now", volume: 0.5, playing: true, sound: local(true, 0.5) }, { name: "next", volume: 0.7, playing: true, sound: local(false, undefined) }] };
+        const board = { mode: -1, sounds: [{ name: "sting", volume: 1, playing: true, sound: local(true, 1) }] };
+        const [now, next] = room.sounds.map(s => s.sound), sting = board.sounds[0].sound;
+        const hold = M.createRoomHold({ pauses: () => false });
+        hold.hold([room, board]);
+        const held = [now.volume, next.volume, sting.volume];
+        next.playing = true; next.volume = 0.7; fire(next);
+        const startedLater = next.volume;
+        hold.release();
+        const released = [now.volume, next.volume, sting.volume];
+        now.volume = 0.5; fire(now);
+        const afterRelease = now.volume;
+
+        // A player's browser: paused and resumed, the soundboard left alone.
+        const calls = new Map();
+        const pausing = (playing, volume) => {
+            const s = local(playing, volume);
+            calls.set(s, []);
+            s.pause = () => { calls.get(s).push("pause"); s.playing = false; };
+            s.play = (...args) => { calls.get(s).push(args.length ? ["play", ...args] : "play"); s.playing = true; return Promise.resolve(s); };
+            s.stop = () => { calls.get(s).push("stop"); s.playing = false; return Promise.resolve(s); };
+            return s;
+        };
+        const room2 = { mode: 0, sounds: [
+            { name: "now", volume: 0.5, playing: true, sound: pausing(true, 0.5) },
+            { name: "next", volume: 0.7, playing: true, sound: pausing(false, undefined) },
+            { name: "moved on", volume: 0.4, playing: true, sound: pausing(true, 0.4) }] };
+        const board2 = { mode: -1, sounds: [{ name: "sting", volume: 1, playing: true, sound: pausing(true, 1) }] };
+        const [now2, next2, gone2] = room2.sounds.map(s => s.sound), sting2 = board2.sounds[0].sound;
+        const read = () => [now2, next2, gone2, sting2].map(s => [...calls.get(s)]);
+        const hold2 = M.createRoomHold({ pauses: () => true });
+        hold2.hold([room2, board2]);
+        const paused = [read(), [now2.volume, gone2.volume, sting2.volume]];
+        next2.playing = true; fire(next2);
+        room2.sounds[2].playing = false;
+        now2.playing = true; fire(now2);
+        const whilePaused = read();
+        hold2.release();
+        const resumed = read();
+        now2.playing = true; fire(now2);
+        const afterRelease2 = read()[0].length;
+
+        const music = stripComments((await moduleSources()).get("music.mjs") ?? "");
+        must(music.length, "music.mjs is not among the module's sources - this would measure nothing");
+        const mapFollowed = /SETTINGS\.musicMap\}`\)[\s\S]{0,120}?applyMurderMusic\(/.test(fnSource(music, "registerMusic"));
+        equal(stableJson([
+            ["one track per incident on every browser", same, new Set(picks).size > 1, M.murderTrackFor([], keys[0]), M.murderTrackFor([{ id: "R823X", name: "no file" }], keys[0])],
+            ["played as", data],
+            ["held", held, startedLater],
+            ["given back", released, afterRelease],
+            ["a player's browser: paused", paused],
+            ["a player's browser: started while paused", whilePaused],
+            ["a player's browser: given back", resumed, afterRelease2],
+            ["the murder playlist's change followed", mapFollowed]]), stableJson([
+            ["one track per incident on every browser", true, true, null, null],
+            ["played as", { autoplay: true, channel: "music", loop: true, src: pick.path, volume: pick.volume }],
+            ["held", [0, null, 1], 0],
+            ["given back", [0.5, 0.7, 1], 0.5],
+            ["a player's browser: paused", [[["pause"], [], ["pause"], []], [0.5, 0.4, 1]]],
+            ["a player's browser: started while paused", [["pause", "pause"], ["pause"], ["pause"], []]],
+            ["a player's browser: given back", [["pause", "pause", "play"], ["pause", "play"], ["pause", "stop"], []], 3],
+            ["the murder playlist's change followed", true]]),
+        "[the same pick in either order for 24 incidents, more than one track used, an empty playlist, a track with no file], "
+            + "[what AudioHelper.play is handed], [the room held: playing, not started yet (no volume of its own yet), a soundboard; the later one as it starts], "
+            + "[given back; a start after the release], [a player's browser: each sound's calls and the volumes, paused; a later start and a "
+            + "sync's restart paused again while the playlist moved off the third; resumed, the third stopped; a start after the release], "
+            + "[registerMusic follows a musicMap write with the murder music]");
+    }],
+
+    ["R824 - the band under the clock names what this browser hears: the murder track while it plays, never a room track held at 0 or a Music volume at 0, and never a soundboard's one-shot (E19-28)", async () => {
+        /*
+         * E19 C5, 19.10.2026; audit S11-40. At Base `nowPlayingHere` skipped only the sounds not playing here: a room
+         * track ducked to 0 for the incident was named while the participant heard the murder track (not a playlist
+         * sound, so never named), and a soundboard's sting replaced the ambient's name for its two seconds. The reader
+         * takes what it reads as an argument (the live world when none is given); fakes here.
+         */
+        const M = await import("./music.mjs");
+        const local = (playing, volume) => ({ playing, volume });
+        const list = (id, name, mode, sounds) => ({ id, name, mode, sounds });
+        const board = list("R824BOARD", "R824 Stings", -1, [{ name: "R824 Gunshot", volume: 1, sound: local(true, 1) }]);
+        const held = list("R824HELD", "R824 Held", 0, [{ name: "R824 Held at 0", volume: 0.8, sound: local(true, 0) }]);
+        const room = list("R824ROOM", "R824 Afternoon", 0, [{ name: "R824 Ambient", volume: 0.5, sound: local(true, 0.5) }]);
+        const murder = { track: "R824 Killing", playlist: "R824 Murder", volume: 0.6 };
+        const read = seen => M.nowPlayingHere({ cueId: null, mine: [], channel: 1, murder: null, ...seen })?.track ?? null;
+        equal(stableJson([
+            ["a soundboard beside the room", read({ playlists: [board, room] })],
+            ["a track held at 0 beside the room", read({ playlists: [held, room] })],
+            ["the Music volume at 0", read({ playlists: [room], channel: 0 })],
+            ["the murder track over the room", read({ playlists: [held, room], murder })],
+            ["the murder track at a Music volume of 0", read({ playlists: [held], murder, channel: 0 })],
+            ["nothing", read({ playlists: [] })]]), stableJson([
+            ["a soundboard beside the room", "R824 Ambient"],
+            ["a track held at 0 beside the room", "R824 Ambient"],
+            ["the Music volume at 0", null],
+            ["the murder track over the room", "R824 Killing"],
+            ["the murder track at a Music volume of 0", null],
+            ["nothing", null]]),
+        "the track the band names for each case");
+    }],
+
+    ["R825 - the music's hand-offs leave nothing on hold: a GM's track cut off by a new state lets go of what it held, a mapped state taking over lets go of its own playlist, a mapped state after the body's silence takes the music without resuming what the silence held, and the body's silence stops a GM's track too (E19-29)", async () => {
+        /*
+         * E19 C5, 19.10.2026; audit S11-32 and S11-58 (the owner's D8: the silence after a body is found stops a GM's
+         * own track too). At Base a takeover stopped the GM's track and left what it held flagged `held` with its
+         * paused time, so a Reset in a later silence brought back music from hours before; leaving the body's silence
+         * for a mapped Investigation resumed the afternoon (a fade in) and then stopped it; and the silent state, having
+         * no playlist, was "nothing to take over with", so a GM's track played on through the announcement. Who gives
+         * way is `cueGivesWay`, driven here; the hand-offs are read in music.mjs with comments blanked; the Sound
+         * window's note says it in both languages.
+         */
+        const M = await import("./music.mjs");
+        ok(typeof M.cueGivesWay === "function", "music.mjs exports no `cueGivesWay`, so who a GM's track gives way to cannot be driven");
+        const gives = [
+            ["the same state", M.cueGivesWay("time.afternoon", "time.afternoon", { mapped: true, silent: false })],
+            ["a mapped state", M.cueGivesWay("trial.discussion", "time.afternoon", { mapped: true, silent: false })],
+            ["an unmapped state", M.cueGivesWay("time.evening", "time.afternoon", { mapped: false, silent: false })],
+            ["the body's silence", M.cueGivesWay("bodyFound", "time.afternoon", { mapped: false, silent: true })]];
+        const music = stripComments((await moduleSources()).get("music.mjs") ?? "");
+        must(music.length, "music.mjs is not among the module's sources - this would measure nothing");
+        const apply = fnSource(music, "apply"), crossfade = fnSource(music, "crossfade");
+        const takeover = /await stopInterruption\(\);[\s\S]{0,900}?clearHeld\(/.test(apply);
+        const asks = /cueGivesWay\(/.test(apply);
+        const ownLetGo = /next\.playAll\(\);[\s\S]{0,200}?clearHeld\(next\)/.test(crossfade);
+        const silenceOut = /if \(silenced\) \{[\s\S]{0,900}?if \(next\)[\s\S]{0,200}?clearHeld\([\s\S]{0,200}?else await resumeHeld\(held\)/.test(apply);
+        const en = await fetch(`/modules/${MODULE_ID}/lang/en.json`, { cache: "no-cache" }).then(r => r.json());
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
+        const note = [/body is found[^.]*your own track/i.test(en.DRPG.Music.fadeNote), /znalezieni[ue] ciała[^.]*twój własny utwór/i.test(pl.DRPG.Music.fadeNote)];
+        equal(stableJson([gives, ["apply asks it", asks], ["the takeover lets go", takeover], ["the crossfade lets go of its own", ownLetGo],
+            ["out of the silence", silenceOut], ["the Sound window says so (en, pl)", note]]), stableJson([
+            [["the same state", false], ["a mapped state", true], ["an unmapped state", false], ["the body's silence", true]],
+            ["apply asks it", true], ["the takeover lets go", true], ["the crossfade lets go of its own", true],
+            ["out of the silence", true], ["the Sound window says so (en, pl)", [true, true]]]),
+        "[whether a GM's track gives way] per case; [apply asks cueGivesWay], [a takeover clears the hold], [crossfade clears its own hold], "
+            + "[out of the silence: a mapped state clears, an unmapped one resumes], [fadeNote in en and pl]");
+    }],
+    ["R826 - Breakdown and Wounded are heard as the state arrives by every GM and by the student's own players (a co-owner too), each on their own browser: not by another player, not again while the state is held, not for a Monokuma, not on a write to the other track; the primary's pass plays nothing on its own screen", async () => {
+        /*
+         * E19 C6, 19.10.2026; audit S03-08. At Base the primary GM's `syncOnce` called `playSfx`, which plays on the
+         * browser that calls it: the player whose student broke down, and every other GM, heard nothing, while the
+         * Sound panel says "Heard by that student's player and by the GMs". Each browser now asks `stateSoundsFor`
+         * from its own `updateActor` hook, as sfx.mjs does for a Monocub; it is driven here on plain objects (the
+         * running browser is a GM, so a GM is online), and the two hooks are read in states.mjs with comments blanked.
+         */
+        const S = await import("./states.mjs");
+        const { STATES } = await import("./config.mjs");
+        ok(typeof S.stateSoundsFor === "function", "states.mjs exports no `stateSoundsFor`, so who hears a state arrive cannot be driven");
+        const user = (id, isGM = false) => ({ id, isGM });
+        const gm = user("R826GM0000000000", true), owner = user("R826OWNER0000000"), co = user("R826COOWNER00000"), other = user("R826OTHER0000000");
+        const actor = ({ stress = 6, hp = 0, held = [], monokuma = false, type = "character" } = {}) => ({
+            id: "R826ACTOR0000000", type,
+            system: { resources: { stress: { value: stress, max: 6 }, hitPoints: { value: hp, max: 6 } } },
+            statuses: new Set(held),
+            getFlag: (scope, key) => (scope === MODULE_ID && key === FLAGS.monokuma && monokuma ? true : undefined),
+            testUserPermission: (u, level) => level === "OWNER" && (u.isGM || u.id === owner.id || u.id === co.id)
+        });
+        const write = (stress, hp) => ({ system: { resources: {
+            ...(stress === undefined ? {} : { stress: { value: stress } }), ...(hp === undefined ? {} : { hitPoints: { value: hp } }) } } });
+        const heard = [
+            ["Sanity full: a GM", S.stateSoundsFor(actor(), write(6), gm)],
+            ["Sanity full: the owner", S.stateSoundsFor(actor(), write(6), owner)],
+            ["Sanity full: a co-owner", S.stateSoundsFor(actor(), write(6), co)],
+            ["Sanity full: another player", S.stateSoundsFor(actor(), write(6), other)],
+            ["Sanity full, Breakdown already held", S.stateSoundsFor(actor({ held: [STATES.breakdown.id] }), write(6), owner)],
+            ["Sanity one short", S.stateSoundsFor(actor({ stress: 5 }), write(5), owner)],
+            ["Health written, Sanity full and not held yet", S.stateSoundsFor(actor({ hp: 2 }), write(undefined, 2), owner)],
+            ["both full in one write", S.stateSoundsFor(actor({ hp: 6 }), write(6, 6), gm)],
+            ["Health full: the owner", S.stateSoundsFor(actor({ stress: 0, hp: 6 }), write(undefined, 6), owner)],
+            ["a Monokuma", S.stateSoundsFor(actor({ monokuma: true, hp: 6 }), write(6, 6), gm)],
+            ["not a character", S.stateSoundsFor(actor({ type: "npc" }), write(6), gm)],
+            ["a write with no track", S.stateSoundsFor(actor(), { name: "R826" }, gm)]];
+        const states = stripComments((await moduleSources()).get("states.mjs") ?? "");
+        must(states.length, "states.mjs is not among the module's sources - this would measure nothing");
+        const register = fnSource(states, "registerStates");
+        const hook = register.match(/Hooks\.on\("updateActor",([\s\S]{0,300}?)stateSoundsFor\([\s\S]{0,160}?playSfx\(/);
+        const everyBrowser = Boolean(hook) && !/isPrimaryGm/.test(hook[1]);
+        const primaryPlays = /playSfx\(/.test(fnSource(states, "syncOnce"));
+        equal(stableJson([heard, ["each browser's own hook plays it", everyBrowser], ["the primary's pass plays it", primaryPlays]]), stableJson([[
+            ["Sanity full: a GM", ["breakdown"]], ["Sanity full: the owner", ["breakdown"]], ["Sanity full: a co-owner", ["breakdown"]],
+            ["Sanity full: another player", []], ["Sanity full, Breakdown already held", []], ["Sanity one short", []],
+            ["Health written, Sanity full and not held yet", []], ["both full in one write", ["breakdown", "wounded"]],
+            ["Health full: the owner", ["wounded"]], ["a Monokuma", []], ["not a character", []], ["a write with no track", []]],
+            ["each browser's own hook plays it", true], ["the primary's pass plays it", false]]),
+        "[the sounds `stateSoundsFor` gives] per case; [an `updateActor` hook not gated on the primary plays them]; [`syncOnce` calls no `playSfx`]");
+    }],
+
+    ["R827 - the sound layer reads the world for its \"what changed\" baseline at ready, not at init, and plays no turn, debate or objection sound before it has one (no false \"your turn\" after a reload mid-incident)", async () => {
+        /*
+         * E19 C6, 19.10.2026; audit S11-31. `registerSfx` runs at init (module.mjs), and its baseline read
+         * `game.actors`, which Foundry builds after init: the TypeError was swallowed, the baseline said "not my
+         * turn", and the next incident write played "your turn" to a player whose turn had not changed. Read in
+         * sfx.mjs with comments blanked: every call of the two readers inside `registerSfx` is on a hook's line, the
+         * baseline is `snapshotWorld` at ready, and both readers stay quiet until it has run.
+         */
+        const sources = await moduleSources();
+        const sfx = stripComments(sources.get("sfx.mjs") ?? "");
+        const boot = stripComments(sources.get("module.mjs") ?? "");
+        must(sfx.length && boot.length, "sfx.mjs or module.mjs is not among the module's sources - this would measure nothing");
+        const register = fnSource(sfx, "registerSfx");
+        const calls = [...register.matchAll(/on(?:Incident|Floor)Changed\(/g)].map(m => lineAround(register, m.index));
+        const atReady = /Hooks\.once\("ready",[^\n]{0,80}?snapshotWorld\(/.test(register);
+        const snapshot = topLevelFunction(sfx, "snapshotWorld") ?? "";
+        const reads = /onFloorChanged\(/.test(snapshot) && /onIncidentChanged\(/.test(snapshot) && /worldWas\.known = true/.test(snapshot);
+        const quiet = ["onFloorChanged", "onIncidentChanged"].map(name => {
+            const body = topLevelFunction(sfx, name) ?? "";
+            const plays = [...body.matchAll(/playSfx\(/g)].map(m => lineAround(body, m.index));
+            return [name, plays.length > 0 && plays.every(line => /worldWas\.known &&/.test(line))];
+        });
+        const initRegisters = /\bregisterSfx\b/.test(bodyOf(boot, 'Hooks.once("init"', { until: "\nHooks." }));
+        equal(stableJson([["registerSfx runs at init", initRegisters], ["every reader call is on a hook's line", calls.length > 0 && calls.every(line => /Hooks\.on(?:ce)?\(/.test(line))],
+            ["the baseline is taken at ready", atReady], ["the baseline reads both and marks itself", reads], ["quiet before the baseline", quiet]]),
+        stableJson([["registerSfx runs at init", true], ["every reader call is on a hook's line", true], ["the baseline is taken at ready", true],
+            ["the baseline reads both and marks itself", true], ["quiet before the baseline", [["onFloorChanged", true], ["onIncidentChanged", true]]]]),
+        "[module.mjs registers the sounds at init]; [no bare reader call in registerSfx]; [snapshotWorld at ready]; [it reads the floor and the incident and sets worldWas.known]; [each play waits on worldWas.known]");
+    }],
+
+    ["R828 - the safeword's promise is the one Foundry keeps (owner Q1, 19.10): heard by everyone whatever the module's Sound slider says, under Foundry's Interface volume and after the page's first click, in both languages; the Safety group does not repeat it", async () => {
+        /*
+         * E19 C6, 19.10.2026; audit S11-43, the owner's answer to Q1 ("poprawka"): keep Foundry's Interface slider and
+         * correct the promise. The sound still bypasses the Sound slider (`fire`), still plays on the "interface"
+         * channel, and a browser not yet clicked drops it: the Sound panel said "at full volume whatever the Sound
+         * slider says" (EN) and "na pełnej głośności" (PL). The EN text is config.mjs's literal, the PL text
+         * lang/pl.json's DRPG.Config row; the Safety group's own note repeated the row under it (S11-21).
+         */
+        const raw = (await moduleSources()).get("config.mjs") ?? "";
+        const sfx = stripComments((await moduleSources()).get("sfx.mjs") ?? "");
+        must(raw.length && sfx.length, "config.mjs or sfx.mjs is not among the module's sources - this would measure nothing");
+        const hintOf = block => (block.match(/hint: "([^"]*)"/) ?? [])[1] ?? "";
+        const enEvent = hintOf(bodyOf(raw, "    safeword: {", { until: "}," }));
+        const enGroup = hintOf(bodyOf(raw, "    safety: ", { until: "}," }));
+        const pl = await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" }).then(r => r.json());
+        const plEvent = pl.DRPG.Config.SFX_EVENTS.safeword.hint, plGroup = pl.DRPG.Config.SFX_CATEGORIES.safety.hint;
+        const fire = fnSource(sfx, "fire");
+        equal(stableJson([
+            ["en", !/full volume/i.test(enEvent), /Interface volume/i.test(enEvent), /first click/i.test(enEvent), /slider/i.test(enGroup)],
+            ["pl", !/pełnej głośności/i.test(plEvent), /głośności interfejsu/i.test(plEvent), /pierwsz\w* klikni/i.test(plEvent), /suwak/i.test(plGroup)],
+            ["fire", /ignoresVolume \? 1 : sfxVolume\("sound"\)/.test(fire), /channel: "interface"/.test(fire)]]),
+        stableJson([["en", true, true, true, false], ["pl", true, true, true, false], ["fire", true, true]]),
+        "[no full-volume promise, names the Interface volume, names the first click, the group repeats the slider] per language; [fire bypasses the Sound slider, on the interface channel]");
+    }],
+
+    ["R829 - the Sound window's Effects tab: each row's Choose, Test and Clear are icons with a tooltip and a name beside the file box, each group says how many of its events have a file, a legend says what \"varies\" means, and a sentence says the tab saves as you go", async () => {
+        /*
+         * E19 C6, 19.10.2026; audit S11-21 (the GM's screenshot gm3/03-sound-effects.png): 47 rows of three word
+         * buttons of the same weight in a column with no heading, VARIES explained only in a hover, and no Apply on
+         * this tab with nothing saying why - a GM closed it believing nothing was saved. Drawn here from
+         * `soundEffectsHtml` into a template (the world's own mapping, read), each group's count measured against
+         * `soundFor`.
+         */
+        const { soundEffectsHtml, soundFor } = await import("./sfx.mjs");
+        const tpl = document.createElement("template");
+        tpl.innerHTML = soundEffectsHtml();
+        const root = tpl.content;
+        const rows = [...root.querySelectorAll("tr[data-drpg-sfx]")];
+        must(rows.length === Object.keys(SFX_EVENTS).length, `the table drew ${rows.length} rows for ${Object.keys(SFX_EVENTS).length} events`);
+        const iconRows = rows.filter(row => {
+            const buttons = [...row.querySelectorAll("button")];
+            const cell = row.querySelector('input[type="text"]')?.closest("td");
+            return buttons.length === 3 && buttons.every(b => b.querySelector("i[class*='fa-']") && b.dataset.tooltip?.trim()
+                && b.getAttribute("aria-label")?.trim() && !b.textContent.trim() && b.closest("td") === cell);
+        }).length;
+        const heads = [...root.querySelectorAll("thead th")].map(th => th.textContent.trim().length > 0);
+        const groups = Object.entries(SFX_CATEGORIES).map(([category]) => {
+            const keys = Object.keys(SFX_EVENTS).filter(key => SFX_EVENTS[key].category === category);
+            const shown = root.querySelector(`[data-drpg-sfx-group-count="${category}"]`)?.textContent.trim() ?? null;
+            return [category, shown === game.i18n.format("DRPG.Sound.groupAssigned", { n: keys.filter(key => soundFor(key)).length, total: keys.length })];
+        });
+        const table = root.querySelector("table");
+        const before = node => Boolean(node && table && (node.compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING));
+        const legend = root.querySelector("[data-drpg-sfx-legend]");
+        const legendSays = Boolean(legend?.querySelector(".drpg-sfx-badge")) && legend.textContent.includes(game.i18n.localize("DRPG.Sound.variesHint"));
+        const autosave = [...root.querySelectorAll("p")].find(p => p.textContent.trim() === game.i18n.localize("DRPG.Sound.autosave"));
+        const varies = Object.values(SFX_EVENTS).some(event => event.vary);
+        const sfx = stripComments((await moduleSources()).get("sfx.mjs") ?? "");
+        const recounts = /data-drpg-sfx-group-count/.test(fnSource(sfx, "wireSoundPanel"));
+        equal(stableJson([["icon rows", iconRows], ["every heading has a name", heads], ["group counts", groups],
+            ["the legend above the table", varies && before(legend) && legendSays], ["the autosave sentence above it", before(autosave)], ["a change recounts the groups", recounts]]),
+        stableJson([["icon rows", rows.length], ["every heading has a name", heads.map(() => true)], ["group counts", groups.map(([c]) => [c, true])],
+            ["the legend above the table", true], ["the autosave sentence above it", true], ["a change recounts the groups", true]]),
+        "[rows whose three buttons are icons with a tooltip and an aria-label, in the file's cell]; [no empty heading]; [each group's count]; "
+            + "[the varies legend before the table]; [DRPG.Sound.autosave before the table]; [wireSoundPanel updates the group counts]");
+    }],
+    ["R838 - a request to the GM is the words typed: `cancel` typed is sent, Cancel and a closed window send nothing, an empty one is asked again where the caller needs words (Dynamic, a Tier 0 item), and the card's body is one div.drpg-call-body; the GM's Reply takes `cancel` as words too (E18; S10-52, S11-60)", async () => {
+        /*
+         * E18 C0, 19.10.2026; audits S10-52 and S11-60. The window `promptAndCallGm` opened answered the typed text, and
+         * the text was then compared with the Cancel button's action, so a player who typed only "cancel" sent nothing and
+         * was told nothing; Enter on an empty box sent a Dynamic action with no words to price; and `callGm` wrapped the
+         * caller's `body` in a `<p>`, so a body of paragraphs (Hope Call's) parsed into empty ones around them. The GM's
+         * Reply on a ruling card (messenger-app.mjs `ruleReply`) compared its text with "cancel" the same way. From C0 the
+         * window's Send answers `{ text }` (`askForRequest`), an empty request is asked again where the caller says it
+         * needs words (`required`), and the body is a `div.drpg-call-body` (`callCardHtml`). Measured on this browser with
+         * DialogV2.wait answered here and the toasts caught, both put back; nothing is posted. Since E18 fix e1-G3 the empty
+         * request is said as a refusal card (gm-bridge.mjs `sayRefusedHere`), read here and taken down, and no toast.
+         */
+        const B = await import("./gm-bridge.mjs");
+        ok(typeof B.askForRequest === "function" && typeof B.callCardHtml === "function",
+            "gm-bridge.mjs gives no window for a request's words (`askForRequest`) or no builder of a ruling card (`callCardHtml`)");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const warn = ui.notifications.warn;
+        let answers = [], windows = 0, warned = 0;
+        const measured = [];
+        const EMPTY = game.i18n.localize("DRPG.Bridge.emptyRequest");
+        const cards = () => [...document.querySelectorAll(".drpg-popup")].filter(c => c.querySelector(".drpg-popup-body")?.textContent.trim() === EMPTY);
+        // The refusal cards go to no history (R473's hold): tier 1 writes nothing.
+        const NH = await import("./notice-history.mjs");
+        await NH.holdNoticeHistory(true);
+        try {
+            D.wait = async cfg => {
+                windows++;
+                // `dialogContent` hands the window an element, a caller's own markup a string.
+                const root = cfg?.content instanceof HTMLElement ? cfg.content : document.createElement("div");
+                if (!(cfg?.content instanceof HTMLElement)) root.innerHTML = String(cfg?.content ?? "");
+                const next = answers.shift() ?? { close: true };
+                if (next.close) return null;
+                const field = root.querySelector("[name=request]");
+                if (field) field.value = next.text ?? "";
+                const button = (cfg?.buttons ?? []).find(b => b.action === next.press);
+                return button?.callback ? button.callback(null, null, { element: root }) : button?.action ?? null;
+            };
+            ui.notifications.warn = () => { warned++; };
+            const CASES = [
+                ["`cancel` typed", false, [{ press: "send", text: "cancel" }]],
+                ["Cancel pressed", false, [{ press: "cancel" }]],
+                ["the window closed", false, [{ close: true }]],
+                ["nothing typed, words not needed", false, [{ press: "send", text: "  " }]],
+                ["nothing typed, then words", true, [{ press: "send", text: "" }, { press: "send", text: "I climb the fence" }]],
+                ["nothing typed, then Cancel", true, [{ press: "send", text: " " }, { press: "cancel" }]]
+            ];
+            for (const [what, required, list] of CASES) {
+                answers = [...list];
+                windows = 0;
+                warned = 0;
+                const before = new Set(cards());
+                const text = await B.askForRequest({ title: "R838", prompt: "R838 prompt", required });
+                await new Promise(resolve => setTimeout(resolve, 50));
+                const fresh = cards().filter(c => !before.has(c));
+                for (const c of fresh) c.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+                measured.push([what, text, windows, warned, fresh.length]);
+            }
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own);
+            else delete D.wait;
+            ui.notifications.warn = warn;
+            NH.holdNoticeHistory(false);
+        }
+        equal(JSON.stringify(measured), JSON.stringify([
+            ["`cancel` typed", "cancel", 1, 0, 0], ["Cancel pressed", null, 1, 0, 0], ["the window closed", null, 1, 0, 0],
+            ["nothing typed, words not needed", "", 1, 0, 0], ["nothing typed, then words", "I climb the fence", 2, 0, 1],
+            ["nothing typed, then Cancel", null, 2, 0, 1]]),
+            "[case, what the window answered, windows opened, toasts said, refusal cards said]");
+
+        const card = document.createElement("template");
+        card.innerHTML = B.callCardHtml({ name: "R838 Student" }, { title: "R838", request: "cancel", body: "<p>R838 one</p><p>R838 two</p>" });
+        const bodies = card.content.querySelectorAll("div.drpg-call-body");
+        equal(JSON.stringify([bodies.length, bodies[0]?.querySelectorAll(":scope > p").length ?? 0, card.content.querySelectorAll("p:empty").length,
+            card.content.querySelector("blockquote")?.textContent ?? null]),
+            JSON.stringify([1, 2, 0, "cancel"]), "[div.drpg-call-body on the card, its paragraphs, empty paragraphs, the quoted request]");
+
+        const sources = await moduleSources();
+        const needsWords = {};
+        for (const [file, fn] of [["action-rolls.mjs", "performDynamic"], ["use-items.mjs", "useCreatively"]]) {
+            const call = bodyOf(fnSource(stripComments(sources.get(file) ?? ""), fn), "promptAndCallGm(", { until: "\n    });" });
+            needsWords[fn] = /\brequired: true\b/.test(call);
+        }
+        const reply = fnSource(stripComments(sources.get("messenger-app.mjs") ?? ""), "ruleReply");
+        equal(JSON.stringify([needsWords, /===\s*"cancel"/.test(reply), /callback: [^\n]*=> \(\{ text: /.test(reply)]),
+            JSON.stringify([{ performDynamic: true, useCreatively: true }, false, true]),
+            "[Dynamic and a Tier 0 item's use ask for words (`required: true`); the GM's Reply compares its text with \"cancel\"; its Send answers { text }]");
+    }],
+    ["R839 - an ask's waiter tells the GMs when its clock runs out, and says when the answer reached it, once, with the ask's id; an answer after the clock gets no receipt (E18 C1; S10-25, S11-13)", async () => {
+        /*
+         * E18 C1, 19.10.2026; audits S10-25 and S11-13 (E18-05, E18-06). A Hope Call's and a Dynamic action's card
+         * stayed open after the player's clock had run out, and a GM's yes then was kept and sent to a browser that no
+         * longer waited. The waiter (bridge-guards.mjs `createWaiter`) now sends, for a request that names them, its
+         * `expired` action when a clock runs out and its `received` action when the answer reaches it, each to the GMs
+         * with the ask's id as `rid`; the primary acts on them (gm-bridge.mjs). Driven with fakes as R165 drives it - an
+         * emit that records, a clock of tens of milliseconds - so nothing leaves this client. Read: what was sent after
+         * the ask, for (1) a clock that runs out and an answer after it, (2) an answer in time and the same answer
+         * again, (3) the same two without the options.
+         */
+        const { createWaiter } = await import("./bridge-guards.mjs");
+        const make = () => {
+            const sent = [];
+            const waiter = createWaiter({
+                emit: (packet, to) => sent.push({ packet, to }),
+                gmIds: () => ["R839GM"],
+                me: () => ({ id: "R839ME", isGM: false, isPrimary: false }),
+                notify: () => {},
+                fromGm: id => id === "R839GM",
+                report: () => {}
+            });
+            return { waiter, sent };
+        };
+        const ends = { settle: "reply", patient: true, timeoutMs: 60, expired: "r839.expired", received: "r839.received" };
+        const after = (w, id) => w.sent.slice(1).map(({ packet, to }) => [packet.action, packet.rid === id, packet.userId, to.join()]);
+        const done = (w, id) => w.waiter.onReply({ action: "bridge.done", userId: "R839ME", requestId: id, value: true }, "R839GM");
+        const read = [];
+        for (const opts of [ends, { settle: "reply", patient: true, timeoutMs: 60 }]) {
+            let w = make();
+            const lost = await w.waiter.request("r839.ask", {}, opts);
+            const lostId = w.sent[0]?.packet.requestId;
+            done(w, lostId);
+            read.push([lost.reason ?? null, after(w, lostId)]);
+            w = make();
+            const asked = w.waiter.request("r839.ask", {}, opts);
+            const id = w.sent[0]?.packet.requestId;
+            done(w, id);
+            done(w, id);
+            read.push([(await asked).value ?? null, after(w, id)]);
+        }
+        equal(stableJson(read), stableJson([
+            ["noAnswer", [["r839.expired", true, "R839ME", "R839GM"]]],
+            [true, [["r839.received", true, "R839ME", "R839GM"]]],
+            ["noAnswer", []],
+            [true, []]
+        ]), "per request: its result and what was sent after it ([action, the ask's id, the asker, to]) - with the two options: an expiry once its clock ran out and nothing for the answer after it, one receipt for an answer in time; without them, nothing");
+    }],
+    ["R840 - a Hope Call's and a Dynamic action's ask waits for the GM's 'got it': with none in time it is noAnswer, said once, and its card is told it expired", async () => {
+        /*
+         * E18 C2, 19.10.2026; audit S10-51 (E18-10). The two rows were `patient`: no clock for the "got it", so a
+         * player whose ask reached no GM's listener (the primary mid-reload, a socket that dropped it) looked at
+         * "Awaiting a ruling." until the ruling's own clock - five minutes for a Hope Call. Now each waits
+         * `TIMING.ackMs` for the "got it", as every request that is not a ballot does. Driven as R165 drives the
+         * waiter - fakes, nothing leaves this client - with each row's own policy as `ask` (gm-bridge.mjs) reads it,
+         * a "got it" clock of 40 ms for TIMING.ackMs and a ruling clock of 3000 ms. Read per row: whether it is patient,
+         * the result, whether it came before half the ruling's clock, what was said, and what was sent after the ask.
+         */
+        const { createWaiter } = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const read = [];
+        for (const action of ["call.approve", "dynamic.difficulty"]) {
+            const decl = BRIDGE_ACTIONS[action];
+            ok(decl, `the bridge has no ${action} row - this would measure nothing`);
+            const sent = [], said = [];
+            const waiter = createWaiter({
+                emit: (packet, to) => sent.push({ packet, to }),
+                gmIds: () => ["R840GM"],
+                me: () => ({ id: "R840ME", isGM: false, isPrimary: false }),
+                notify: (what, reason) => said.push(`${what} ${reason}`),
+                fromGm: id => id === "R840GM",
+                report: () => {}
+            });
+            const t0 = Date.now();
+            const res = await waiter.request(action, {}, {
+                settle: decl.answer, patient: Boolean(decl.patient), resend: Boolean(decl.resend),
+                ackMs: 40, timeoutMs: 3000, expired: "ruling.expired"
+            });
+            read.push([action, Boolean(decl.patient), res.reason ?? null, Date.now() - t0 < 1500, said, sent.slice(1).map(({ packet }) => packet.action)]);
+        }
+        equal(stableJson(read), stableJson([
+            ["call.approve", false, "noAnswer", true, ["call.approve noAnswer"], ["ruling.expired"]],
+            ["dynamic.difficulty", false, "noAnswer", true, ["dynamic.difficulty noAnswer"], ["ruling.expired"]]
+        ]), "per row: [the action, patient, the result, before half the ruling's clock, what was said, what was sent after the ask] - an ask with no 'got it' waited for the ruling's clock, was said other than once, or did not tell the GMs it expired");
+    }],
+
+    ["R841 - a request still waiting is asked again of a new primary GM, three times at most: when a primary's world loads, and when the primary leaves for another GM who is here", async () => {
+        /*
+         * E18 C2, 19.10.2026; audit S10-43 part 1 (E18-09). The waiter asked again once, and only when a primary's
+         * world had loaded (`bridge.gmReady`). An Assistant who became the primary because the primary closed its
+         * browser has a loaded world and sends no such packet, so a player's ask to the GM who left waited out its
+         * clock. Now the waiter counts its asks again up to three, and `registerBridgeReplies` asks again when the GM
+         * who leaves was the primary and another GM is here (`primaryLeft`). Read: (1) a request that asks to be resent,
+         * after five loads - how many times it was sent and under how many ids - and one that does not; (2)
+         * `primaryLeft` over a list of users built here (full GMs A and B, an Assistant C, a player P): the primary A
+         * leaving with B here, its `active` still true and already false; B leaving while A is the primary; the
+         * Assistant leaving; A leaving with only the Assistant here; A leaving alone; P leaving; (3) in the source,
+         * that the replies' listener asks again on that hook.
+         */
+        const G = await import("./bridge-guards.mjs");
+        const make = () => {
+            const sent = [];
+            const waiter = G.createWaiter({
+                emit: (packet, to) => sent.push({ packet, to }),
+                gmIds: () => ["R841GM"],
+                me: () => ({ id: "R841ME", isGM: false, isPrimary: false }),
+                notify: () => {},
+                fromGm: id => id === "R841GM",
+                report: () => {}
+            });
+            return { waiter, sent };
+        };
+        const read = [];
+        for (const resend of [true, false]) {
+            const w = make();
+            const asked = w.waiter.request("r841.ask", {}, { settle: "reply", patient: true, resend, timeoutMs: 400 });
+            for (let i = 0; i < 5; i++) w.waiter.resendOnGmReady();
+            read.push([resend, w.sent.length, new Set(w.sent.map(({ packet }) => packet.requestId)).size]);
+            await asked;
+        }
+        const ROLE = CONST.USER_ROLES;
+        const user = (id, role, active = true) => ({ id, role, isGM: role >= ROLE.ASSISTANT, active });
+        // The two calls `primaryGmId` makes of `game.users`: `get` and an Array-answering `filter`.
+        const users = list => Object.assign(new Map(list.map(u => [u.id, u])), { filter: fn => list.filter(fn) });
+        const left = typeof G.primaryLeft === "function" ? G.primaryLeft : () => "no primaryLeft";
+        const A = user("R841A0000000000A", ROLE.GAMEMASTER), B = user("R841B0000000000B", ROLE.GAMEMASTER);
+        const C = user("R841C0000000000C", ROLE.ASSISTANT), P = user("R841P0000000000P", ROLE.PLAYER);
+        const gone = u => ({ ...u, active: false });
+        read.push([
+            left(A, users([A, B, C, P])), left(gone(A), users([gone(A), B, C, P])),
+            left(B, users([A, B, C, P])), left(C, users([A, B, C, P])),
+            left(gone(A), users([gone(A), C, P])), left(gone(A), users([gone(A), P])), left(P, users([A, B, P]))
+        ]);
+        const leaf = stripComments(new Map(await otherSources()).get("bridge-guards.mjs") ?? "");
+        const listener = fnSource(leaf, "registerBridgeReplies");
+        ok(listener.length > 50, "registerBridgeReplies is gone - the read below would measure nothing");
+        read.push(/Hooks\.on\("userConnected"[\s\S]*primaryLeft\([\s\S]*resendOnGmReady\(\)/.test(listener));
+        equal(stableJson(read), stableJson([[true, 4, 1], [false, 1, 1], [true, true, false, false, true, false, false], true]),
+            "[resent: sends, ids] per request, then primaryLeft for A with B here (active, gone), B, the Assistant, A with only the Assistant, A alone, a player, then whether the listener asks again on that hook - a request was not asked again three times at most under its one id, one that did not ask for it was, a new primary was not told apart from a GM who was not the primary, or the listener does not ask again when the primary leaves");
+    }],
+
+    ["R844 - a private card whose words never came says so instead of a bare '-': in the chat log once its wait is over, and in a notice that waited for them; the stub's comment says it (E18 C4; S15-01)", async () => {
+        /*
+         * E18 C4, 20.10.2026; audit S15-01 (E18-19). A private card's document holds a stub, '-', and the chat log
+         * drew it for every reader whose browser never got the words - a GM who was away, a player on another device:
+         * a card of the module's that looks broken. The stub's comment said it never reaches a reader's screen. Now
+         * the log draws a card whose words did not come by the end of the wait a card's words get (`wordsOf`'s 4 s)
+         * with DRPG.Secret.wordsElsewhere (secret.mjs `drawPrivateCard`, the render hook's body), and a notice that
+         * waited for them gets the same line. Read on a card object of this test's own, no document of the world: its
+         * drawing at once and after 4.4 s, what a 50 ms wait for its words answers and whether that is still marked as
+         * no words (`isStub`), the line in both language files, and the stub's comment.
+         */
+        const S = await import("./secret.mjs");
+        // An id of this run's own: the suite runs tier 1 three times in one page (01-runtests' A1-A3), and the second run
+        // found the first's card in `unfilled` and drew the line at once (CI on 3e02fa7: red in A2 and A3, green in A1).
+        const card = { id: foundry.utils.randomID(16), flags: { [MODULE_ID]: { secret: true } }, content: S.STUB, whisper: [game.user.id] };
+        const drawn = () => {
+            if (typeof S.drawPrivateCard !== "function") return null;
+            const li = document.createElement("li");
+            const body = document.createElement("div");
+            body.className = "message-content";
+            body.innerHTML = S.STUB;
+            li.append(body);
+            S.drawPrivateCard(card, li);
+            return body.textContent.trim();
+        };
+        const lang = async code => {
+            const res = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`);
+            ok(res.ok, `${code}.json: HTTP ${res.status}`);
+            const text = foundry.utils.getProperty(foundry.utils.expandObject(await res.json()), "DRPG.Secret.wordsElsewhere");
+            return typeof text === "string" && text.length > 0;
+        };
+        const line = game.i18n.localize("DRPG.Secret.wordsElsewhere");
+        const read = [drawn()];
+        const waited = await S.wordsOf(card, 50);
+        const box = document.createElement("div");
+        box.innerHTML = waited;
+        read.push(box.textContent.trim() === line, S.isStub(waited));
+        await wait(4400);
+        read.push(drawn() === line, await lang("en"), await lang("pl"));
+        const comment = bodyOf(new Map(await otherSources()).get("secret.mjs") ?? "", "export const STUB", { back: 900 });
+        read.push(/wordsElsewhere/.test(comment) && !/never reaches a recipient/.test(comment));
+        equal(stableJson(read), stableJson(["-", true, true, true, true, true, true]),
+            "[the drawing at once, a notice's 50 ms wait answers the line, still marked as no words, the drawing after the wait, the line in en, in pl, the stub's comment names it]");
+    }],
+
+    ["R845 - the card a returning reader is given its words for is shown as the chat card it is, once, with its messageId: one history entry however many GMs answer (E18 C4; A7)", async () => {
+        /*
+         * E18 C4, 20.10.2026; the owner's amend 1 (A7): "secret.request wystawia karte po powrocie gracza z messageId
+         * (upsert w historii)" (E18-20). A reader away when a card was posted never had its notice: the popup is raised
+         * as the document arrives (popup.mjs `onCreateChatMessage`), and the document had arrived before the page was
+         * there. Now the words a GM gives back for a card this browser asked for (`cardOnReturn`) raise the card through
+         * the same function, so it is shown by the same rules and carries `messageId`, which the history keeps one
+         * entry per card by; only the first answer of each card asked raises it, so a second GM's answer shows nothing
+         * more, and only the newest of an ask do (`RETURN_NOTICES`, not read here). Read in the source, since showing a card writes this browser's history, which tier 1 may not: that
+         * `cardOnReturn` takes the card off what was asked before it raises anything and raises it through
+         * `onCreateChatMessage`; that the socket listener hands it a GM's answer marked as asked for; and that
+         * `onCreateChatMessage`'s card carries the message's id. Scenario 73's phase R drives it on a player's reload.
+         */
+        const sources = new Map(await otherSources());
+        const secret = stripComments(sources.get("secret.mjs") ?? "");
+        const popup = stripComments(sources.get("popup.mjs") ?? "");
+        const back = topLevelFunction(secret, "cardOnReturn");
+        const read = [back !== null];
+        const off = back?.search(/\basked\.delete\(/) ?? -1, raise = back?.search(/\bonCreateChatMessage\(/) ?? -1;
+        read.push(off >= 0 && raise > off);
+        const listener = topLevelFunction(secret, "onSecretPacket") ?? "";
+        read.push(/payload\.requested\s*===\s*true[\s\S]{0,200}cardOnReturn\(/.test(listener));
+        read.push(/showPopup\([\s\S]*messageId:\s*message\.id/.test(fnSource(popup, "onCreateChatMessage")));
+        equal(stableJson(read), stableJson([true, true, true, true]),
+            "[cardOnReturn exists, it takes the card off what was asked before it raises it through onCreateChatMessage, the listener hands it a GM's answer asked for, onCreateChatMessage's card carries the message's id]");
+    }],
+    ["R847 - the notice tile stands under the windows while every card it shows is a notice to the whole table, and over them with any other card shown: a card for this reader alone, a refusal or an objection keeps it at 99990, a parked card does not count, and the empty tile with its history button stands under them, in both themes and on a stacked screen (E18 C6; S11-17)", async () => {
+        /*
+         * E18 C6, 20.10.2026; audit S11-17 (a) as the owner's amend of 11.10 words it (E18-24): one host, its z-index
+         * worked out from what it shows, no second container. A restock or a new time of day landed at 99990 over the
+         * sheet's header and the GM's panel, and under Stained Glass over the Investigation dashboard's SAVE, until
+         * somebody closed it. Two halves. What a card is: the suite's own cards drawn by `showPopup` (not kept), each
+         * read for the `data-kind` the host's rule reads - "info" for a notice drawn from a card to the whole table
+         * (the history's sources "public" and "player"), "mine" for one to this reader alone (a whisper, a veiled card,
+         * a card of no document, the messenger's, the day summary), and the kind itself for a refusal or an objection.
+         * Where the host stands: the module's sheets as a cascade read from their text (`styleCascade`: jsdom has no
+         * layout and drops `!important` from a `var()` value), on a tile built on a body of its own for each theme and
+         * layout, holding those kinds as cards: the winning `z-index`, "under" for one below Foundry's `--z-index-app`.
+         * Not read here: the windows themselves over the tile in a browser (LIVE-E18-03).
+         */
+        const P = await import("./popup.mjs");
+        const tile = document.getElementById("drpg-popups");
+        must(tile, "the notice tile is not on this page - it is made at ready");
+        const drawn = [], kinds = {};
+        const newest = () => [...tile.querySelectorAll(".drpg-popup")].sort((a, b) => Number(b.dataset.drpgSeq) - Number(a.dataset.drpgSeq))[0] ?? null;
+        try {
+            for (const [name, options] of [
+                ["table", { source: "public" }], ["player", { source: "player" }], ["mine", {}], ["messenger", { source: "messenger" }],
+                ["summary", { source: "summary" }], ["unknown card", { messageId: "R847NoSuchCard01" }],
+                ["refusal", { kind: "error", source: "public" }], ["objection", { kind: "objection", source: "public" }]
+            ]) {
+                P.showPopup(`<p>R847 ${name}</p>`, { title: `R847 ${name}`, record: false, ...options });
+                const card = newest();
+                if (card?.textContent.includes(`R847 ${name}`)) drawn.push(card);
+                kinds[name] = card?.textContent.includes(`R847 ${name}`) ? card.dataset.kind ?? null : "not drawn";
+            }
+        } finally {
+            for (const card of drawn) card.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+        }
+        equal(stableJson(kinds), stableJson({
+            table: "info", player: "info", mine: "mine", messenger: "mine", summary: "mine", "unknown card": "mine", refusal: "error", objection: "objection"
+        }), "[the data-kind of a card from a public card, from a player's public card, of no card, the messenger's, the day summary, of a card id this world lacks, a refusal, an objection]");
+
+        const C = await styleCascade();
+        const UNDER = "calc(var(--z-index-app, 30) - 1)";
+        const STACKS = [
+            ["empty", []], ["info", [[kinds.table]]], ["two info", [[kinds.table], [kinds.player]]], ["mine", [[kinds.mine]]],
+            ["info and mine", [[kinds.table], [kinds.mine]]], ["info, mine parked", [[kinds.table], [kinds.mine, true]]],
+            ["info and refusal", [[kinds.table], [kinds.refusal]]], ["objection", [[kinds.objection]]]
+        ];
+        const read = classes => STACKS.map(([name, cards]) => {
+            const html = document.createElement("html"), body = document.createElement("body"), host = document.createElement("section");
+            body.className = classes;
+            host.id = "drpg-popups";
+            html.append(body);
+            body.append(host);
+            for (const [kind, parked] of cards) {
+                const card = document.createElement("div");
+                card.className = `drpg-popup drpg-popup-info visible${parked ? " drpg-popup-parked" : ""}`;
+                card.dataset.kind = String(kind);
+                host.append(card);
+            }
+            const corner = document.createElement("button");
+            corner.id = "drpg-notices-corner";
+            host.append(corner);
+            const z = C.winner(host, "z-index")?.value ?? null;
+            return [name, z === UNDER ? "under" : z];
+        });
+        const LAYOUTS = ["drpg-theme-monokuma-legacy", "drpg-theme-stained-glass", "drpg-theme-monokuma-legacy drpg-stacked", "drpg-theme-stained-glass drpg-stacked"];
+        const want = [["empty", "under"], ["info", "under"], ["two info", "under"], ["mine", "99990"], ["info and mine", "99990"],
+            ["info, mine parked", "under"], ["info and refusal", "99990"], ["objection", "99990"]];
+        equal(stableJson(LAYOUTS.map(read)), stableJson(LAYOUTS.map(() => want)),
+            "[for Monokuma Legacy, Stained Glass and each stacked: the tile's winning z-index with no card, one and two notices to the table, a card for this reader, "
+            + "both, a notice with a card for this reader parked, a notice and a refusal, an objection]");
+    }],
+    ["R848 - a notice has one anatomy: its bar carries the event's title - the poster's, or the heading the words open with, taken out of them - and 'Notice' only with neither; the bar's type is each theme's floor, and the body's discovery is posted with its own title (E18 C6; S11-23)", async () => {
+        /*
+         * E18 C6, 20.10.2026; audit S11-23 (E18-25). One tile read three ways: a bar saying NOTICE over a red banner,
+         * NOTICE over a heading "Night Eclipse", NOTICE over "Night" and a line ending in Night, at about 8-9 px. Now a
+         * card with no title of its own whose words open with a heading (h1-h4, the time of day's and the Eclipse's
+         * cards) carries that heading in its bar and not again under it; a heading that does not open the words, or
+         * holds none, stays where it is. The history keeps such a card as it was posted, under its kind's word with
+         * the heading first, which is what its window titles a row by (notice-history-app.mjs `rowWords`, read by
+         * scenario 73 H2; a kept title of its own would turn that off, as `rowWords` reads such an entry as kept).
+         * Drawn by `showPopup` on this page with the history held (R473's hold: nothing reaches the setting), each
+         * card taken down at once. The
+         * bar's type by the sheets' cascade (`styleCascade`): Stained Glass's own rule at its text floor won only
+         * without the shared bar rule's `!important` (`var(--drpg-text-xs)`, 11 px in VT323, which draws small);
+         * Monokuma Legacy keeps the module's 11 px floor. What VT323 draws at 1366x768 is not measured here
+         * (LIVE-E18-03). The body's discovery (chapter.mjs `runDiscovery`) is posted as the assemblies are, its
+         * title in the bar and the banner kept, and loud: an objection's accent, over the windows (R847).
+         */
+        const NH = await import("./notice-history.mjs");
+        const P = await import("./popup.mjs");
+        const tile = document.getElementById("drpg-popups");
+        must(tile, "the notice tile is not on this page - it is made at ready");
+        const newest = () => [...document.querySelectorAll(".drpg-popup")].sort((a, b) => Number(b.dataset.drpgSeq) - Number(a.dataset.drpgSeq))[0] ?? null;
+        const drawn = [], read = {};
+        const squeeze = text => (text ?? "").replace(/\s+/g, " ").trim();
+        await NH.holdNoticeHistory(true);
+        try {
+            const draw = (name, html, options = {}) => {
+                const before = new Set(NH.noticeEntries().map(entry => entry.id));
+                P.showPopup(html, options);
+                const card = newest();
+                drawn.push(card);
+                const entry = NH.noticeEntries().find(each => !before.has(each.id)) ?? null;
+                const body = card?.querySelector(".drpg-popup-body");
+                read[name] = [squeeze(card?.querySelector(".drpg-popup-title")?.firstChild?.textContent), squeeze([...body?.childNodes ?? []].map(node => node.textContent).join(" ")),
+                    Boolean(body?.querySelector("h1, h2, h3, h4")), entry?.title ?? null, entry ? /<h[1-4]/.test(entry.html) : null];
+            };
+            draw("heading", "<h3>R848 Night</h3>\n<p>R848 Chapter 1</p>", { source: "public" });
+            draw("plain", "<p>R848 plain</p>");
+            draw("given", "<h3>R848 heading</h3><p>R848 kept</p>", { title: "R848 given" });
+            draw("same", "<h3>R848 same</h3><p>R848 under</p>", { title: "R848 same" });
+            draw("refusal", "<p>R848 refused</p>", { kind: "error" });
+            draw("late heading", "<p>R848 first</p><h3>R848 later</h3>");
+            draw("empty heading", "<h3> </h3><p>R848 after</p>");
+        } finally {
+            for (const card of drawn) card?.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+            NH.holdNoticeHistory(false);
+        }
+        const notice = game.i18n.localize("DRPG.Popup.kind.info"), refused = game.i18n.localize("DRPG.Popup.kind.error");
+        equal(stableJson(read), stableJson({
+            heading: ["R848 Night", "R848 Chapter 1", false, notice, true],
+            plain: [notice, "R848 plain", false, notice, false],
+            given: ["R848 given", "R848 heading R848 kept", true, "R848 given", true],
+            same: ["R848 same", "R848 under", false, "R848 same", true],
+            refusal: [refused, "R848 refused", false, refused, false],
+            "late heading": [notice, "R848 first R848 later", true, notice, true],
+            "empty heading": [notice, "R848 after", true, notice, true]
+        }), "[per card: the bar's words, the body's words, a heading left in the body, the kept title, a heading in the kept html]");
+        /* E18 fix e1-G3 (24.10.2026; the end review's E18-END-8 and F7): a card posted with its title and opening with the
+           same heading ("same") read it in the bar and again under it - a call on the GM with no thread to post into
+           (gm-bridge.mjs `callGm`); and the time of day's card, its heading lifted into the bar, said the time of day again
+           at the end of the clock line under it (clock.mjs `announceTimeOfDay`). */
+        const CL = await import("./clock.mjs");
+        const clock = getClock();
+        const announce = fnSource(stripComments(new Map(await moduleSources()).get("clock.mjs") ?? ""), "announceTimeOfDay");
+        ok(announce.length > 100, "clock.mjs has no announceTimeOfDay - the read below would measure nothing");
+        equal(stableJson([CL.clockSummary(clock, { time: false }).includes(CL.timeOfDayLabel(clock.timeOfDay)), CL.clockSummary(clock).includes(CL.timeOfDayLabel(clock.timeOfDay)),
+            /clockSummary\(clock,\s*\{\s*time:\s*false\s*\}\)/.test(announce)]), stableJson([false, true, true]),
+            "[the clock line under the time of day's heading names it, the clock line elsewhere names it, the time of day's card writes the line without it]");
+
+        const C = await styleCascade();
+        const bar = classes => {
+            const html = document.createElement("html"), body = document.createElement("body"), host = document.createElement("section");
+            const card = document.createElement("div"), title = document.createElement("div");
+            body.className = classes;
+            host.id = "drpg-popups";
+            card.className = "drpg-popup drpg-popup-info visible";
+            title.className = "drpg-popup-title";
+            html.append(body);
+            body.append(host);
+            host.append(card);
+            card.append(title);
+            const won = C.winner(title, "font-size");
+            return [classes, won?.value ?? null, won?.file ?? null];
+        };
+        const token = name => C.rules.filter(rule => rule.selector === ":root").flatMap(rule => rule.decls).filter(d => d.property === name).map(d => d.value).pop() ?? null;
+        const sources = new Map(await moduleSources());
+        const discovery = fnSource(stripComments(sources.get("chapter.mjs") ?? ""), "runDiscovery");
+        equal(stableJson([
+            bar("drpg-theme-monokuma-legacy"), bar("drpg-theme-monokuma-legacy drpg-pixel-font"), bar("drpg-theme-stained-glass"),
+            token("--drpg-text-xs"),
+            /popupKind:\s*"objection",\s*popupTitle:\s*game\.i18n\.localize\("DRPG\.Chapter\.bodyTitle"\)[\s\S]{0,400}DRPG\.Chapter\.bodyBanner/.test(discovery),
+            [game.i18n.has("DRPG.Chapter.bodyTitle"), game.i18n.localize("DRPG.Chapter.bodyTitle")]
+        ]), stableJson([
+            ["drpg-theme-monokuma-legacy", "var(--drpg-text-xs)", "styles/danganronpa.css"],
+            ["drpg-theme-monokuma-legacy drpg-pixel-font", "var(--drpg-text-xs)", "styles/danganronpa.css"],
+            ["drpg-theme-stained-glass", "max(var(--drpg-sg-floor), calc(14px * var(--drpg-sg-scale)))", "styles/stained-glass.css"],
+            "max(min(10px, 0.6875rem), calc(0.6875rem * var(--drpg-legacy-scale, 1)))",
+            true, [true, "Body found"]
+        ]), "[the bar's winning font-size and its sheet under Legacy, Legacy with the pixel face and Stained Glass; the module's floor token; "
+            + "the body's discovery posted as an objection with its title before the banner; the title's key]");
+    }],
+    ["R849 - in the messenger the bubbles take their ground, rule, corners and type from the theme's sheets and none from messenger.css, a card's buttons are at least the small text and 28 px tall, and E81's messenger button and roster keep their places from messenger.css, in both themes (E18 C6; S12-28, S11-24)", async () => {
+        /*
+         * E18 C6, 20.10.2026; audit S12-28 and S11-24 (E18-26, E18-27). messenger.css loads after danganronpa.css and
+         * stated the bubbles' ground, rule, corners and type at the same weight, so the later file won: the GM's bubbles
+         * gold, yours violet, a ruling card crimson, and under Stained Glass a gold ground in a red rule. And the GM's
+         * buttons on a card ('Reply', 'Allow it', 'Refuse') were drawn at 11 px in a 13 px bubble under Monokuma Legacy
+         * and a 21 px one under Stained Glass (Chromium on the sheets alone, 20.10.2026). Read by the sheets' cascade
+         * (`styleCascade`) on a messenger window built on a body of its own per theme: for each bubble - yours, a
+         * player's, a GM's, a ruling card - the sheet the winning ground, rule, corners and type come from, the author
+         * line's, the time's and a ruling card's heading's type; a card button's type and height; and the sheet the
+         * button's `bottom` and the roster's `bottom`, `right` and `max-height` come from - E81's places, which the
+         * owner's amend of 11.10 keeps in messenger.css (R474, R299 (a), (c) read where they put them). Under Stained
+         * Glass a window's buttons are as tall as `calc(28px * var(--drpg-sg-scale))`, and that factor carries the
+         * screen's term and the slider (settings.mjs `typeScale`: under 1 at 1080p), so a card button keeps 28 px as its
+         * floor. And that theme states its bubbles' type and a ruling card's heading's at its floor: they had it through
+         * messenger.css's `--font-size-13`, which the theme raises to the floor, and without that rule the shared ones
+         * drew them at 13 and 11 px (Chromium on the sheets alone, 20.10.2026; 21 px before); a card button's words, 11 px
+         * before, are at the floor too.
+         */
+        const C = await styleCascade();
+        const el = (tag, className, parent) => {
+            const node = document.createElement(tag);
+            if (className) node.className = className;
+            parent?.append(node);
+            return node;
+        };
+        const from = (node, names) => C.winner(node, names)?.file?.replace(/^styles\//, "") ?? null;
+        const read = theme => {
+            const html = document.createElement("html"), body = el("body", theme);
+            html.append(body);
+            const log = el("div", "drpg-messenger-log", el("div", "drpg-messenger-body", el("div", "window-content", el("div", "application drpg-messenger", body))));
+            const bubbles = {};
+            for (const kind of ["mine", "player", "gm", "action"]) {
+                const bubble = el("div", `drpg-messenger-bubble ${kind}`, log);
+                const author = kind === "action" ? null : el("div", "drpg-messenger-author", bubble);
+                const text = el("div", "drpg-messenger-text", bubble);
+                const heading = kind === "action" ? el("h3", null, text) : null;
+                const time = el("div", "drpg-messenger-time", bubble);
+                bubbles[kind] = [from(bubble, ["background", "background-color"]), from(bubble, ["border", "border-color"]), from(bubble, "border-radius"),
+                    from(bubble, "font-size"), author ? from(author, "font-size") : null, from(time, "font-size"), heading ? from(heading, "font-size") : null];
+                if (kind === "action") {
+                    const button = el("button", "drpg-call-action", el("div", "drpg-call-actions", text));
+                    bubbles.button = [C.winner(button, "font-size")?.value ?? null, C.winner(button, "min-height")?.value ?? null];
+                }
+            }
+            const launcher = el("button", null, body), roster = el("div", null, body);
+            launcher.id = "drpg-messenger-launcher";
+            roster.id = "drpg-messenger-roster";
+            bubbles.places = [from(launcher, "bottom"), from(roster, "bottom"), from(roster, "right"), from(roster, "max-height")];
+            return bubbles;
+        };
+        const D = "danganronpa.css", SG = "stained-glass.css", M = "messenger.css";
+        equal(stableJson([read("drpg-theme-monokuma-legacy"), read("drpg-theme-stained-glass")]), stableJson([{
+            mine: [D, D, D, D, D, D, null], player: [D, D, D, D, D, D, null], gm: [D, D, D, D, D, D, null], action: [D, D, D, D, null, D, D],
+            button: ["var(--drpg-text-sm)", "28px"], places: [M, M, M, M]
+        }, {
+            mine: [D, SG, SG, SG, SG, D, null], player: [D, D, SG, SG, SG, D, null], gm: [D, SG, SG, SG, SG, D, null], action: [D, D, SG, SG, null, D, SG],
+            button: ["max(var(--drpg-text-sm), var(--drpg-sg-floor))", "max(28px, calc(28px * var(--drpg-sg-scale)))"], places: [M, M, SG, M]
+        }]), "[Legacy, then Stained Glass: per bubble the sheet of its ground, rule, corners, type, author line, time and heading; a card button's "
+            + "font-size and min-height; the sheet of the messenger button's bottom and the roster's bottom, right and max-height]");
+    }],
+    ["R850 - the time on a messenger bubble is written in the table's language, not the browser's (E18 C6; S11-61)", async () => {
+        /*
+         * E18 C6, 20.10.2026; audit S11-61 (E18-28). The bubble's time was `toLocaleTimeString([], ...)`: the
+         * browser's locale, so a Polish table on an English system read "02:15 PM" in a Polish window. One hour, read
+         * by `bubbleTime` (messenger-app.mjs, `buildBubble`'s line) with Foundry's language set to Polish and to English
+         * for the reading and put back, against what that language writes for it. The two must differ in this
+         * browser, or the test could not see the fault.
+         */
+        const M = await import("./messenger-app.mjs");
+        const at = Date.UTC(2026, 9, 20, 14, 15);
+        const shape = lang => new Date(at).toLocaleTimeString(lang, { hour: "2-digit", minute: "2-digit" });
+        must(shape("pl") !== shape([]) || shape("en") !== shape([]), "this browser writes an hour in its own locale as it does in Polish and in English - nothing to tell apart");
+        must(typeof M.bubbleTime === "function", "messenger-app.mjs has no bubbleTime to read the bubble's time with");
+        const was = game.i18n.lang, read = {};
+        try {
+            for (const lang of ["pl", "en"]) {
+                game.i18n.lang = lang;
+                read[lang] = M.bubbleTime(at);
+            }
+        } finally {
+            game.i18n.lang = was;
+        }
+        equal(stableJson(read), stableJson({ pl: shape("pl"), en: shape("en") }), "[the bubble's time with Foundry's language Polish, then English]");
+    }],
+    ["R851 - showPopup hands the options it does not name on to the history: a card drawn with a state and words of its own is kept so, what showPopup names wins over a stray one, and an option nobody reads still draws the card (E18 C6; amend 4)", async () => {
+        /*
+         * E18 C6, 20.10.2026; the owner's amend of 11.10 for E70: "E18 zostawia w showPopup tylko przekazywanie
+         * nieznanych opcji dalej, zeby E70 nie przebudowywal lejka" (E18-29). Options `showPopup` did not name were
+         * dropped by its destructuring, so a later stage that needed one more had to rebuild the funnel. Now they
+         * go on to `recordNotice` beside the ones it names, which win. Drawn here with the history held (R473),
+         * each card taken down at once: `state` and `text` reach the entry, a stray `html` and `source` do not
+         * replace what was drawn and worked out, and an option no one reads draws the card.
+         */
+        const NH = await import("./notice-history.mjs");
+        const P = await import("./popup.mjs");
+        must(document.getElementById("drpg-popups"), "the notice tile is not on this page - it is made at ready");
+        const newest = () => [...document.querySelectorAll(".drpg-popup")].sort((a, b) => Number(b.dataset.drpgSeq) - Number(a.dataset.drpgSeq))[0] ?? null;
+        const drawn = [], read = [];
+        await NH.holdNoticeHistory(true);
+        try {
+            for (const options of [
+                { title: "R851 given", kind: "error", state: "read", text: "R851 words of its own" },
+                { title: "R851 stray", html: "<p>R851 not drawn</p>", r851NobodyReads: true }
+            ]) {
+                const before = new Set(NH.noticeEntries().map(entry => entry.id));
+                P.showPopup("<p>R851 drawn</p>", options);
+                const card = newest();
+                drawn.push(card);
+                const entry = NH.noticeEntries().find(each => !before.has(each.id)) ?? null;
+                read.push([card?.querySelector(".drpg-popup-title")?.firstChild?.textContent ?? null, entry?.title ?? null, entry?.kind ?? null,
+                    entry?.state ?? null, entry?.text ?? null, entry ? entry.html.includes("R851 drawn") && !entry.html.includes("not drawn") : null, entry?.source ?? null]);
+            }
+        } finally {
+            for (const card of drawn) card?.dispatchEvent(new CustomEvent("drpg-dismiss", { detail: { instant: true } }));
+            NH.holdNoticeHistory(false);
+        }
+        equal(stableJson(read), stableJson([
+            ["R851 given", "R851 given", "error", "read", "R851 words of its own", true, "mine"],
+            ["R851 stray", "R851 stray", "info", "open", "R851 drawn", true, "mine"]
+        ]), "[per card: its bar, the kept title, kind, state, words, the kept html the drawn body's, the source]");
+    }],
+    ["R852 - an ask's card shows its time and its end in each reader's own clock and language: `data-expires` and an end's key are written again where the card is drawn, and a line with another key keeps its words (E18 fix e1-G3; the end review's E18-END-3 and F4)", async () => {
+        /*
+         * E18 fix e1-G3, 24.10.2026; the end review's E18-END-3, E18-END-5 and F4. "Open until 21:35." was written once,
+         * by the posting GM's browser, in its time zone and language, and an ask's end ("Approved by ...", "Nobody
+         * answered in time - ask again.") in the primary's language: a player an hour west of the GM read an hour more
+         * than they waited. The card carries the data now and each reader writes it (secret.mjs `readersLines`). Read on
+         * this page: words as a GM in another zone and language wrote them - a time reading 99:99, a Polish end - drawn
+         * through `readersLines`, with Foundry's language set to Polish and to English for the time and put back; what
+         * each line reads against what this browser writes for it; and, in the source, that the chat log's swap, the
+         * messenger's bubble and its notice draw through it, and that `settleCall` and the ask's ends write their keys.
+         */
+        const S = await import("./secret.mjs");
+        must(typeof S.readersLines === "function", "secret.mjs has no readersLines - a reader writes nothing of a card in its own clock");
+        const at = Date.UTC(2026, 9, 24, 19, 20);
+        const shape = lang => game.i18n.format("DRPG.Bridge.openUntil", { time: new Date(at).toLocaleTimeString(lang, { hour: "2-digit", minute: "2-digit" }) });
+        const words = `<p class="drpg-call-awaiting"><em>R852</em> <span class="drpg-call-expires" data-expires="${at}">Open until 99:99.</span></p>`
+            + '<p class="drpg-call-settled" data-drpg-line="DRPG.Bridge.settledApproved" data-drpg-name="R852 GM">Zatwierdził: R852 GM.</p>'
+            + '<div class="drpg-gm-only"><p class="drpg-call-settled" data-drpg-line="DRPG.Bridge.settledGone">Gracz już nie czekał.</p></div>'
+            + '<p class="drpg-call-settled" data-drpg-line="DRPG.Popup.kind.info">R852 kept words</p>';
+        const drawn = lang => {
+            const wrap = document.createElement("template");
+            wrap.innerHTML = words;
+            const was = game.i18n.lang;
+            try {
+                game.i18n.lang = lang;
+                S.readersLines(wrap.content);
+            } finally {
+                game.i18n.lang = was;
+            }
+            return [...wrap.content.querySelectorAll(".drpg-call-expires, .drpg-call-settled")].map(el => el.textContent);
+        };
+        const rest = [game.i18n.format("DRPG.Bridge.settledApproved", { name: "R852 GM" }), game.i18n.localize("DRPG.Bridge.settledGone"), "R852 kept words"];
+        const sources = new Map(await moduleSources());
+        const fn = (file, name) => fnSource(stripComments(sources.get(file) ?? ""), name);
+        equal(stableJson([drawn("pl"), drawn("en"),
+            /readersLines\(body\)/.test(fn("secret.mjs", "drawPrivateCard")), /readersLines\(body\)/.test(fn("messenger-app.mjs", "buildBubble")),
+            /readersLines\(wrap\)/.test(fn("messenger-app.mjs", "cardPreview")), /drpgLine/.test(fn("gm-bridge.mjs", "settleCall")),
+            /key:\s*"DRPG\.Bridge\.settledExpired"/.test(fn("gm-bridge.mjs", "endExpired"))
+        ]), stableJson([[shape("pl"), ...rest], [shape("en"), ...rest], true, true, true, true, true]),
+            "[the drawn lines with Foundry's language Polish, then English: the time, the end, the GMs' line, another key's line; the chat log, the bubble and its notice draw through readersLines; settleCall writes the key; the expired end is a key]");
+    }]
 ];
 
 /**
@@ -18935,8 +21698,9 @@ const LITERAL_KEYS = [
     ...["reveal", "sweep", "faint", "keys", "tools", "clock", "trial", "morning", "hold"].map(key => `DRPG.Chapter.step.${key}`),
     // season-setup.mjs `wipeSeason` writes the report of a reset that did not finish `DRPG.Season.reportCard.<line>` (E11 C9).
     ...["failed", "done", "kept"].map(line => `DRPG.Season.reportCard.${line}`),
-    // voice-tile.mjs names the microphone's line `DRPG.Voice.held.<reason>` (E78 C4): `micHold`'s five reasons.
-    ...["eclipse", "eclipseHeard", "gmBlock", "external", "offline"].map(reason => `DRPG.Voice.held.${reason}`),
+    // voice-tile.mjs names the microphone's line `DRPG.Voice.held.<reason>` (E78 C4): `micHold`'s five reasons, and
+    // the dead channel's (E19 C3).
+    ...["eclipse", "eclipseHeard", "gmBlock", "external", "offline", "deadAlone"].map(reason => `DRPG.Voice.held.${reason}`),
     // voice-panel.mjs names the gear's Voice section's lines `DRPG.Voice.panel.<name>` (E78 C5): all but the key's, which is literal.
     ...["legend", "mic", "micNote", "output", "mode", "modeAlways", "modePtt", "pttChange"].map(name => `DRPG.Voice.panel.${name}`),
     // trial-scene.mjs names the Scenes tab's fields for the hall on the room tile `DRPG.TrialScene.hallRoom.<key>` (E79 C11).

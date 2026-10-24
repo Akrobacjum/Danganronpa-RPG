@@ -251,6 +251,99 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
             && yesRoad.after.logged.some(([m, n]) => /"call\.yes".*: only a GM says yes to a Call/.test(m) && n === 1),
         JSON.stringify(yesRoad), { flow: "hope-call" });
 
+    /* 4b2e. ANOTHER PLAYER'S CONSOLE ENDS, RULES AND READS NOTHING OF P1'S ASK (E18 fix e1-G2, 24.10.2026; the end review's
+       E18-END-2 and F10). E18 added three bridge rows a player's packet names an ask or a card by - `ruling.expired`,
+       `ruling.received` (an ask's id), `card.claim` (a card's id, a GM's alone) - and `secret.request`, which asks each GM
+       for a card's words; until this fix only tier 2 and scenarios 61 and 73 forged them, and the flows table named this
+       scenario for the first two. p1 asks for an Experience Call on Aiko as an honest browser does (`call.approve`, its
+       card up in p1's thread); from p2's console, as Foundry names p2: `ruling.expired` and `ruling.received` naming p1's
+       ask, `card.claim` take and done naming p1's card, and `secret.request` naming it. Read on the GM: whether the card
+       ended or a row of who ruled it was written, the refusals logged; on p2, what it was told and whether any words of
+       the card came. Then the controls: p1's own `secret.request` is given the words, and p1's own expiry ends the card
+       as expired. The card is deleted after, and Aiko's Hope and Calls put back. */
+    phase("an ask's end, a card's claim and its words, forged by another player", { flow: "hope-call" });
+    const askWas = await gm.eval(`const a = game.actors.get("${ids.aiko}");
+        const was = { hope: a.system.resources.hope.value, calls: a.getFlag("${MOD}", "pendingCall") ?? null };
+        await a.unsetFlag("${MOD}", "pendingCall");
+        await a.update({ "system.resources.hope.value": 3 });
+        await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+        (await import("${repoUrl}/scripts/utils.mjs")).clearSessionFailures();
+        return was;`);
+    let askRoad = null, askCard = null;
+    try {
+        await p1.eval(`game.socket.emit("${SOCKET}", { action: "call.approve", userId: game.user.id, requestId: "SECE18ASKOFP1000",
+                actorId: "${ids.aiko}", key: "experience", note: "SEC E18 fix e1-G2", nonce: "SECE18NONCE00001" },
+            { recipients: game.users.filter(u => u.isGM && u.active).map(u => u.id) });
+            return true;`);
+        await settle(1500);
+        const cardRead = `const { cardFlag } = await import("${repoUrl}/scripts/secret.mjs");
+            const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+            const card = game.messages.contents.find(m => cardFlag(m, "rid")?.id === "SECE18ASKOFP1000") ?? null;
+            return card ? { id: card.id, settled: Boolean(cardFlag(card, "settled")), row: S.ruledCardStore.get(card.id) ?? null } : null;`;
+        askCard = await gm.eval(cardRead);
+        const forged = askCard ? await p2.eval(`
+            const got = [], words = [];
+            const on = payload => {
+                if (payload?.action === "secret.card" && payload.id === "${askCard.id}") words.push(String(payload.html ?? "").length);
+                if (payload?.userId === game.user.id && /^SECE18P2/.test(payload?.requestId ?? "") && payload.action === "bridge.refused") got.push([payload.requestId, payload.reason ?? null]);
+            };
+            game.socket.on("${SOCKET}", on);
+            const toGms = { recipients: game.users.filter(u => u.isGM && u.active).map(u => u.id) };
+            for (const [requestId, packet] of [
+                ["SECE18P2EXPIRED0", { action: "ruling.expired", rid: "SECE18ASKOFP1000" }],
+                ["SECE18P2RECEIVED", { action: "ruling.received", rid: "SECE18ASKOFP1000" }],
+                ["SECE18P2CLAIMTAK", { action: "card.claim", messageId: "${askCard.id}", step: "take" }],
+                ["SECE18P2CLAIMDON", { action: "card.claim", messageId: "${askCard.id}", step: "done" }],
+                [null, { action: "secret.request", ids: ["${askCard.id}"] }]
+            ]) {
+                game.socket.emit("${SOCKET}", { ...packet, userId: game.user.id, ...(requestId ? { requestId } : {}) }, toGms);
+                await new Promise(r => setTimeout(r, 900));
+            }
+            game.socket.off?.("${SOCKET}", on);
+            return { got, words };`, { timeout: 30000 }) : null;
+        await settle(600);
+        const afterForged = askCard ? { ...(await gm.eval(cardRead)), logged: await gm.eval(`return (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures()
+            .filter(e => /Refused a "(ruling\\.(expired|received)|card\\.claim)"/.test(e.message)).map(e => [e.message, e.count]);`) } : null;
+        const ownWords = askCard ? await p1.eval(`
+            const words = [];
+            const on = payload => { if (payload?.action === "secret.card" && payload.id === "${askCard.id}" && payload.requested === true) words.push(String(payload.html ?? "").includes("SEC E18 fix e1-G2")); };
+            game.socket.on("${SOCKET}", on);
+            game.socket.emit("${SOCKET}", { action: "secret.request", ids: ["${askCard.id}"] }, { recipients: game.users.filter(u => u.isGM && u.active).map(u => u.id) });
+            await new Promise(r => setTimeout(r, 1200));
+            game.socket.emit("${SOCKET}", { action: "ruling.expired", userId: game.user.id, requestId: "SECE18P1EXPIRED0", rid: "SECE18ASKOFP1000" },
+                { recipients: game.users.filter(u => u.isGM && u.active).map(u => u.id) });
+            await new Promise(r => setTimeout(r, 1200));
+            game.socket.off?.("${SOCKET}", on);
+            return words;`, { timeout: 30000 }) : null;
+        await settle(600);
+        const afterOwn = askCard ? await gm.eval(`const { cardFlag, contentOf } = await import("${repoUrl}/scripts/secret.mjs");
+            const card = game.messages.get("${askCard.id}");
+            return { settled: Boolean(card && cardFlag(card, "settled")),
+                expired: Boolean(card && contentOf(card).includes(game.i18n.localize("DRPG.Bridge.settledExpired"))) };`) : null;
+        askRoad = { askCard, forged, afterForged, ownWords, afterOwn };
+    } finally {
+        await gm.eval(`const a = game.actors.get("${ids.aiko}"), was = ${JSON.stringify(askWas)};
+            ${askCard ? `await game.messages.get("${askCard.id}")?.delete();` : ""}
+            await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+            await a.update({ "system.resources.hope.value": was.hope });
+            if (was.calls) await a.setFlag("${MOD}", "pendingCall", was.calls); else await a.unsetFlag("${MOD}", "pendingCall");
+            return true;`);
+    }
+    check("SECURITY: p2's console's ruling.expired and ruling.received naming p1's ask end nothing and write no ruling - each refused in the GM's log",
+        Boolean(askRoad?.askCard) && askRoad.afterForged?.settled === false && askRoad.afterForged.row === null
+            && ["ruling\\.expired", "ruling\\.received"].every(a => askRoad.afterForged.logged.some(([m]) => new RegExp(`"${a}".*holds no ask of the sender|"${a}".*sent the sender no ruling`).test(m))),
+        JSON.stringify(askRoad), { flow: "hope-call" });
+    check("SECURITY: p2's console's card.claim of p1's card takes and rules nothing - refused as a GM's alone, logged and told to p2",
+        Boolean(askRoad?.askCard) && askRoad.afterForged?.row === null && askRoad.afterForged.settled === false
+            && JSON.stringify(askRoad.forged?.got) === JSON.stringify([["SECE18P2CLAIMTAK", "gmOnly"], ["SECE18P2CLAIMDON", "gmOnly"]])
+            && askRoad.afterForged.logged.filter(([m]) => /"card\.claim".*only a GM rules on a card/.test(m)).reduce((n, [, c]) => n + c, 0) === 2,
+        JSON.stringify(askRoad), { flow: "card-claim" });
+    check("SECURITY: p2's console's secret.request naming p1's card is given none of its words",
+        Boolean(askRoad?.askCard) && Array.isArray(askRoad.forged?.words) && askRoad.forged.words.length === 0, JSON.stringify(askRoad), { flow: "messenger" });
+    check("control: p1's own secret.request is given its card's words, and p1's own expiry ends the card as expired",
+        JSON.stringify(askRoad?.ownWords) === JSON.stringify([true]) && askRoad.afterOwn?.settled === true && askRoad.afterOwn.expired === true,
+        JSON.stringify(askRoad), { flow: "hope-call" });
+
     /* 4b3. A GM'S CALL IS NOT THE PLAYER'S TO DROP (E29 fix r2-H7, 06.10.2026; the round-2 reviews' sec M3 and cor M4,
        the owner's Q3 (a) and the orchestrator's decision (b) of the same day). The GM arms an Obstacle on Aiko by its
        own road (call-effects.mjs `armCall` on its browser), and p1's console writes her armed list without it, with no

@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json - the suite fails if it does not. */
-    --drpg-css-version: "1.2.82";
+    --drpg-css-version: "1.2.83";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -6264,6 +6264,20 @@ body.drpg-player.drpg-resources-locked .character-header-sheet .character-traits
     pointer-events: none;
 }
 
+/* BUT A NOTICE TO THE WHOLE TABLE STANDS UNDER THE WINDOWS (E18 C6; audit S11-17 (a), the owner's
+   amend of 11.10: one host, its height worked out from what it shows). A restock, a new time of day,
+   a room opened: at 99990 such a card stood over the sheet's header, the GM's panel and, under
+   Stained Glass, the Investigation dashboard's SAVE until somebody closed it. While every card shown
+   is one of those (`data-kind="info"`, popup.mjs `showPopup`) the tile goes one under Foundry's
+   `--z-index-app`, as the evidence stage does; a card for this reader alone, a refusal or an
+   objection takes the whole tile back to 99990, the rule above, and a parked card counts for
+   nothing. The tile with no card shown matches too: the lone history button never stands over a
+   window. Read headless from the sheets' text (R847); over real windows only in a browser
+   (LIVE-E18-03). */
+#drpg-popups:not(:has(> .drpg-popup:not(.drpg-popup-parked):not([data-kind="info"]))) {
+    z-index: calc(var(--z-index-app, 30) - 1);
+}
+
 /* ---- the evidence stage ---------------------------------------------------
    Where a Class Trial's evidence stands, which is NOT the corner with the
    receipts. The corner tile is 430 x 220 and cannot grow - it shares that
@@ -6556,6 +6570,16 @@ body.drpg-pixel-font .drpg-camera-dock .camera-view .name {
 body.drpg-dock-hidden #camera-views,
 body.drpg-dock-hidden .application[id^="camera-view-"] {
     display: none !important;
+}
+
+/* A HIDDEN DOCK LIFTS NOTHING (E19 C7, 19.10.2026; the owner's 14.10: `--drpg-av-lift` only with the dock
+   shown). camera-view.mjs writes the lift inline on `body` and keeps the last one when a measurement
+   throws, so with the class on a lift left there floated the corner, the roster, the notice tile and the
+   stack over a dock nobody sees; an important rule beats a plain inline value. R830 reads 300 px written
+   inline computing 0px with the class on and 300px with it off (jsdom); R299 (f) the same as drawn, in a
+   browser, and glass-sweep.mjs's dock check with a dock laid out on the glass harness (Chromium). */
+body.drpg-dock-hidden {
+    --drpg-av-lift: 0px !important;
 }
 
 /* ---- the voice tile ----------------------------------------------------- */
@@ -14585,13 +14609,13 @@ body:not(.drpg-theme-stained-glass) .drpg-handbook-toc {
        that, rather than the window being cut to the columns. */
 }
 
-/* Measured, not guessed. The three buttons come to 213px in this module's
-   pixel face - wider than the same words in a proportional font, which is what
-   made the first two attempts wrap "Clear" onto its own line. The actions
-   column is cut to hold them and the other two share what is left. */
-.drpg-sfx-table th:nth-child(1), .drpg-sfx-table td:nth-child(1) { width: 38%; }
-.drpg-sfx-table th:nth-child(2), .drpg-sfx-table td:nth-child(2) { width: 26%; }
-.drpg-sfx-table th:nth-child(3), .drpg-sfx-table td:nth-child(3) { width: 36%; }
+/* Two columns since E19 C6 (audit S11-21): the three word buttons, 213px in
+   this module's pixel face, had a column of their own with no heading and left
+   the event's hint about 250px, six lines for the safeword. They are icons now,
+   inside the file's cell, and the event takes the larger share. Not measured in
+   a browser here. */
+.drpg-sfx-table th:nth-child(1), .drpg-sfx-table td:nth-child(1) { width: 55%; }
+.drpg-sfx-table th:nth-child(2), .drpg-sfx-table td:nth-child(2) { width: 45%; }
 
 /* Wrapping, not scrolling. A fixed layout with `nowrap` still inherited from
    somewhere is how a table looks unchanged after being "fixed" - the cell is
@@ -14640,19 +14664,37 @@ body:not(.drpg-theme-stained-glass) .drpg-handbook-toc {
     margin: 2px 0 0;
 }
 
-/* Three small buttons in a row, inside the cell rather than instead of it: a
-   `<td>` given `display: flex` stops being a table cell, and a fixed layout
-   that has lost one of its cells is a layout with a hole in it. */
+/* The file box and its three icons in a row, inside the cell rather than
+   instead of it: a `<td>` given `display: flex` stops being a table cell, and a
+   fixed layout that has lost one of its cells is a layout with a hole in it. */
+.drpg-sfx-file {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.drpg-sfx-file input[type="text"] {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
 .drpg-sfx-actions {
     display: flex;
-    flex-wrap: wrap;
-    gap: 3px;
+    flex: 0 0 auto;
+    gap: 2px;
 }
 
 .drpg-sfx-actions .drpg-mini-button {
     flex: 0 0 auto;
-    padding: 2px 6px !important;
+    padding: 2px 5px !important;
     font-size: var(--drpg-text-xs, 0.72rem) !important;
+}
+
+/* "3 of 11 assigned" beside a group's name. */
+.drpg-sfx-group-count {
+    margin-left: 8px;
+    font-size: var(--drpg-text-xs, 0.72rem);
+    opacity: 0.75;
 }
 
 .drpg-messenger-bubble {
@@ -14723,7 +14765,12 @@ body:not(.drpg-theme-stained-glass) .drpg-handbook-toc {
 
 .drpg-messenger-bubble .drpg-call-action {
     padding: 2px 8px;
-    font-size: var(--drpg-text-xs);
+    /* The bubble's own type and a finger's height (E18 C6; audit S11-24): 'Reply', 'Allow it' and
+       'Refuse' were drawn at 11 px in a 13 px bubble (Chromium on the sheets alone, 20.10.2026), the
+       smallest thing on a card that asks for a decision. Read from the cascade (R849); in a Foundry
+       window, not measured. Stained Glass states its own (stained-glass.css). */
+    font-size: var(--drpg-text-sm);
+    min-height: 28px;
     border-radius: 2px;
     border: 1px solid var(--drpg-crimson);
     background: rgba(var(--drpg-crimson-rgb), 0.12);

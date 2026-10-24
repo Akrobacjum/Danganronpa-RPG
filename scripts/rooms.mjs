@@ -547,7 +547,7 @@ export const CAMERA_READERS = Object.freeze({
     "season-setup.mjs#steps": "window",
     "vault.mjs#openRoomSetupDialog": "window",
 
-    "diagnostics.mjs#diagnoseVoice": "diagnose",
+    "diagnostics.mjs#voiceDiagnosis": "diagnose",
     "fog-diagnostics.mjs#whatIsHere": "diagnose",
     "fog-diagnostics.mjs#checkRegions": "diagnose",
     "fog-diagnostics.mjs#sceneUncoveredPercent": "diagnose",

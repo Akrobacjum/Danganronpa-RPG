@@ -1,6 +1,6 @@
 # Danganronpa RPG - Ulotka ucznia
 
-*Jedna strona. Moduł 1.2.82 na Daggerheart. Nazwy zostają po angielsku: Hope, Despair, Sanity, Truth Bullet, Remnant, Blackened, Class Trial, Daily Life, Eclipse, Monokuma.*
+*Jedna strona. Moduł 1.2.83 na Daggerheart. Nazwy zostają po angielsku: Hope, Despair, Sanity, Truth Bullet, Remnant, Blackened, Class Trial, Daily Life, Eclipse, Monokuma.*
 
 **Jesteś:** Ultimate. Leg, Body, Hand, Eye, Shadow, Head. **Health 4, Sanity 6, Hope 2 (maks. 6)**. Sanity na zerze = **Breakdown** (utrudnienie na każdym rzucie). Health na zerze = **Wounded** (o jedną akcję mniej). Rzut z Hope daje ci 1 Hope; rzut z Despair zasila Monokumę; krytyk daje 2 Hope.
 
@@ -8,7 +8,7 @@
 
 - **2 akcje** i **1 Free Move**. Odnawiają się, gdy zaczyna się Eclipse przed następną porą dnia.
 - Ruch wewnątrz pokoju jest darmowy. Pierwsze przejście do połączonego pokoju to Free Move; każde kolejne kosztuje 1 akcję. Przeciągnij token - koszt nalicza się, gdy dotrzesz. Zamknięte drzwi, zapieczętowane pokoje, cudze sypialnie (bez klucza) i Chained zawracają cię.
-- Przed każdą porą dnia jest **Eclipse**: gasną światła, nikt nikogo nie widzi, ustawiasz token do 2 połączonych pokoi dalej (dowolny pokój przed Nocą).
+- Przed każdą porą dnia jest **Eclipse**: gasną światła, nikt nikogo nie widzi ani nie słyszy, ustawiasz token do 2 połączonych pokoi dalej (dowolny pokój przed Nocą).
 - Widzisz tylko swój pokój i ludzi w nim; odwiedzone pokoje są za zasłoną, reszta we mgle. Gdy głos per pokój jest włączony, twój głos idzie za tokenem - słyszysz tylko swój pokój. Każdy pokój ma **Search Tokens** (zwykle 3) wspólne dla wszystkich.
 
 > [!IMPORTANT]
@@ -69,7 +69,7 @@ W lewym dolnym rogu arkusza: słowo twojego stołu, wypisane na przycisku (**Saf
 - **Morderstwo.** Pułapka prosi cię o rzut (Eye przeciw 20) - sama prośba jest ostrzeżeniem. Bezpośredni atak zaczyna się twoją turą: Zostaw trop (12), Zabezpiecz ślad (15), Self-defence (18, odblokowuje Survive i Role reversal), użyj przedmiotu (15). Każda tura po pierwszej kosztuje Sanity, potem Health. Wejście na incydent daje jeden darmowy wybór: uciec razem, stanąć po stronie albo odwrócić wzrok.
 - **Investigation.** Każdy dostaje Autopsy Truth Bullet. Observe, Analyze, dziel się. Istnieje od trzech do pięciu Key Remnants; razem zawężają podejrzanych do 2-4 osób. To, co ciało ma przy sobie, zabierasz z jego arkusza: dostajesz też Truth Bullet o tym, co wziąłeś, a na ciele zostaje jeden ślad przeszukania. Czego nie znajdziesz, tego nie będziesz mieć.
 - **Class Trial.** Zaczyna się ze świeżym kompletem akcji i nikt nie wychodzi z pokoju; z akcji zostaje tylko Analyze, do tego Hope Calle i przedmioty. Otwarta dyskusja; Przedstawiaj Truth Bullets z ekwipunku, za darmo. Gdy GM otworzy Nonstop Debate, **OBJECTION!** na HUD przerywa temu, kto mówi (albo mówił ostatni); potem masz 30 s na wybór Truth Bulleta, inaczej Objection zostaje wycofane, a cena nie wraca. Potem 60 s tylko ty, potem 120 s rebuttalu z osobą, w którą trafiło. Objection, tak jak Analyze na procesie, kosztuje 1 akcję, a bez niej 1 Hope, a bez tego 1 Sanity. Potem tajne głosowanie - <ins>więcej niż połowa kart</ins> skazuje, remis liczy się jak pomyłka. Trafnie: Blackened stracony, ocalali dostają Level Up. Błędnie: ginie oskarżony, Blackened zostaje z Reinforced Level Up, który czeka na następny Level Up klasy.
-- **Śmierć.** Twoje Truth Bullets giną z tobą, gdy twoja śmierć wyjdzie na jaw; reszta zostaje przy ciele. Dopóki nikt cię nie znajdzie, wiedzą tylko GMowie i ci, którzy tam byli. Po swoim Class Trialu możesz dołączyć do GMów jako Monocub: Move i Confusion.
+- **Śmierć.** Twoje Truth Bullets giną z tobą, gdy twoja śmierć wyjdzie na jaw; reszta zostaje przy ciele. Dopóki nikt cię nie znajdzie, wiedzą tylko GMowie i ci, którzy tam byli, a po incydencie rozmawiasz tylko z innymi zmarłymi. Po swoim Class Trialu możesz dołączyć do GMów jako Monocub: Move i Confusion.
 
 **Zębatka ustawień**, prawy dolny róg: Język (English / Polski, tylko ta przeglądarka), motyw, skala, dźwięki, ograniczone animacje, wysoki kontrast.
 

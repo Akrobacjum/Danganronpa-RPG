@@ -109,6 +109,9 @@
  * W (E80 C6): Make public. A tunnel granted to Aiko, made public: each player's copy names that player's own students
  *   alone, every copy sent to one player, no chat message on any client; made secret, Aiko's player alone holds it again;
  *   p3's world the phase's own. Put back, as the phase found it.
+ * CO (E18 C5): a private card to a student's owners. A student of the scenario's own, owned by p1 and p2 and observed by
+ *   p3, is sent a card through `whisperToOwner`: p1 and p2 read its words, p3 holds nothing of it on any surface and no
+ *   packet of its words is addressed to p3. Put back, as the phase found it.
  *
  * What the harness cannot settle - a real canvas's move backend, the ruler and the keyboard, a GM on
  * another scene at a real table - is LIVE-E79-01 to LIVE-E79-08 (AUDIT 9.2, since C8).
@@ -133,7 +136,8 @@ export const layers = ["ci"];
    (the commit's quick gate) - 210 s, near one and a half times it, stands. E80 C3 (18.10.2026) adds phase V: 88 checks
    in 166.2 s by run-all's line, one run alone under the harness lock - so 250 s, near one and a half times it. E80 C6
    (18.10.2026) adds phase W: 91 checks in 166.3 s by run-all's line, one run alone under the harness lock (the commit's
-   quick gate) - 250 s stands. */
+   quick gate) - 250 s stands. E18 C5 (20.10.2026) adds phase CO: 93 checks in 165.5 s by run-all's line, one run alone
+   under the harness lock (the commit's quick gate) - 250 s stands. */
 export const timeoutMs = 250000;
 
 /* A second GM and a fifth player, seeded inactive and connected in phase G alone (E79 fix r2-G3), declared as 61 and 62
@@ -287,6 +291,7 @@ export async function run({ gm, gm2, p1, p2, p3, p4, check, phase, settle, dump,
     await phaseU({ gm, p1, p2, p3, check, phase, settle, dump, socketTraffic, IDS, repoUrl });
     await phaseV({ gm, p1, p2, p3, check, phase, settle, dump, IDS, repoUrl });
     await phaseW({ gm, p1, p2, p3, check, phase, settle, dump, socketTraffic, IDS, repoUrl });
+    await phaseCO({ gm, p1, p2, p3, check, phase, settle, dump, socketTraffic, IDS, repoUrl });
 }
 
 const PHASE_A = "A: the GM creates a passage and grants Aiko - p1's copy holds that row alone, p2 and p3 nothing of it, p3's world as found";
@@ -2342,4 +2347,56 @@ async function phaseW({ gm, p1, p2, p3, check, phase, settle, dump, socketTraffi
     const after = await dump("p3");
     check("W: put back - the tunnel deleted, p3's world as this phase found it",
         gone !== false && worldPrint(after) === found && worldScan(after).length === 0, J({ gone, diff: printDiff(found, worldPrint(after)) }));
+}
+
+const PHASE_CO = "CO: a private card to a student's owners - the owner and a co-owner read its words, an observer holds nothing of it on any surface";
+
+/* E18 C5 (20.10.2026; audit S01-33, E18-22). `whisperToOwner` addressed a student's private card to `ownerOf`'s one
+   player, so a second account that owns the student read none of them. Here the GM makes a student of the scenario's
+   own, owned by p1 and p2 and observed by p3, and posts it a card through `whisperToOwner`. Read: whom the document is
+   whispered to; on p1 and p2 the card's words, waited for up to 8 s; on p3 its words (the harness hands p3 the
+   document, the stub, as it hands every browser a whispered one); every `secret.card`
+   the GM sends meanwhile, by its recipients; and p3's whole browser (the `dump` the passage phases read), for the
+   card's words. Red at the parent (0fac8a1): p2 never had the words. Put back: the card and the student deleted, p3's
+   world as the phase found it. */
+async function phaseCO({ gm, p1, p2, p3, check, phase, settle, dump, socketTraffic, IDS, repoUrl }) {
+    phase(PHASE_CO, { flow: "secret-passages" });
+    const found = worldPrint(await dump("p3"));
+    const WORDS = "E18C5 the co-owners' card";
+    const from = socketTraffic.length;
+    const made = await gm.eval(`const U = await import("${repoUrl}/scripts/utils.mjs");
+        const L = CONST.DOCUMENT_OWNERSHIP_LEVELS;
+        const actor = await Actor.create({ name: "E18 C5 co-owned", type: "character",
+            ownership: { default: 0, ${J(IDS.p1)}: L.OWNER, ${J(IDS.p2)}: L.OWNER, ${J(IDS.p3)}: L.OBSERVER } });
+        const card = actor ? await U.whisperToOwner(actor, "<p>${WORDS}</p>") : null;
+        return { actorId: actor?.id ?? null, id: card?.id ?? null, whisper: [...(card?.whisper ?? [])] };`, { timeout: 30000 });
+    const held = client => client.eval(`const S = await import("${repoUrl}/scripts/secret.mjs");
+        const m = game.messages.get(${J(made.id)});
+        return { doc: Boolean(m), words: String(S.secretHtml(m) ?? "").includes(${J(WORDS)}) };`);
+    const waited = async client => {
+        const t0 = Date.now();
+        let h = await held(client);
+        while (!h.words && Date.now() - t0 < 8000) {
+            await settle(200);
+            h = await held(client);
+        }
+        return h;
+    };
+    const onP1 = await waited(p1), onP2 = await waited(p2);
+    await settle(600);
+    const onP3 = await held(p3);
+    const sent = socketTraffic.slice(from).filter(t => t.action === "secret.card" && t.from === "gm").map(t => t.to);
+    const leaks = JSON.stringify(await dump("p3")).split(WORDS).length - 1;
+    check("CO: a card to a student owned by p1 and p2 and observed by p3 is whispered to both owners and not p3; p1 and p2 read its words, p3 holds none (its document is the stub, as every browser's), no packet of its words is addressed to p3 or to everybody, and nothing in p3's browser holds them",
+        typeof made.id === "string" && made.whisper.includes(IDS.p1) && made.whisper.includes(IDS.p2) && !made.whisper.includes(IDS.p3)
+            && onP1.words && onP2.words && !onP3.words
+            && sent.length > 0 && sent.every(to => Array.isArray(to) && !to.includes(IDS.p3)) && sent.some(to => to.includes(IDS.p2)) && leaks === 0,
+        J({ made, onP1, onP2, onP3, sent, leaks }));
+
+    const gone = await gm.eval(`await game.messages.get(${J(made.id)})?.delete(); await game.actors.get(${J(made.actorId)})?.delete();
+        return !game.messages.get(${J(made.id)}) && !game.actors.get(${J(made.actorId)});`, { timeout: 30000 });
+    await settle(600);
+    const after = await dump("p3");
+    check("CO: put back - the card and the student deleted, p3's world as this phase found it",
+        gone === true && worldPrint(after) === found && worldScan(after).length === 0, J({ gone, diff: printDiff(found, worldPrint(after)) }));
 }

@@ -2026,8 +2026,9 @@ async function concealFromWitnesses(actor) {
             room: foundry.utils.escapeHTML(locateActor(actor)?.room ?? "-")
         })}</em></p>`;
 
-        const { ownerOf, gmIds, whisperToGms } = await import("./utils.mjs");
-        const witnesses = othersInRoom(actor).map(a => ownerOf(a)?.id).filter(Boolean);
+        const { ownerIdsOf, gmIds, whisperToGms } = await import("./utils.mjs");
+        // Every player who owns a witness (E18 fix e1-G7), not the first owner alone.
+        const witnesses = othersInRoom(actor).flatMap(a => ownerIdsOf(a));
         const recipients = Array.from(new Set([...witnesses, ...gmIds()]));
 
         if (recipients.length) {
