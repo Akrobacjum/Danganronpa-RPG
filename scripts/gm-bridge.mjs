@@ -971,7 +971,7 @@ async function handleHopeCall(payload, sender, ctx) {
 
 /** The run of `call.yes` (E29 fix r2-H4): another GM's yes on a Call's card, kept and sent on by this primary. */
 async function handleCallYes(payload, sender) {
-    return yesOnPrimary(payload.rid, payload.asker, sender.id, payload.messageId)
+    return (await yesOnPrimary(payload.rid, payload.asker, sender.id, payload.messageId))
         ? { reply: true } : { refused: "nothing was carried out: the primary GM holds no ask of that Call under that request" };
 }
 
@@ -3039,20 +3039,25 @@ function endAtExpiry(messageId, expires) {
     expiryTimers.set(messageId, setTimeout(() => void expireAskCard(messageId), left > 0 ? left + TIMING.ackMs : 0));
 }
 
-/** A card's time ran out: what this primary holds for it is dropped, a yes not yet received taken back, and it ends as expired. */
+/**
+ * A card's time ran out: what this primary holds for it is dropped, and it ends - as expired, unless a ruling went
+ * to its asker before (`endSentOn`): one this primary holds, or one its mark says went before a reload (`sentOnMark`).
+ */
 async function expireAskCard(messageId, leaving = null) {
     expiryTimers.delete(messageId);
     if (!isPrimaryGm({ leaving })) return;
     for (const asks of [callAsks, dynamicAsks]) {
         for (const [rid, held] of asks) if (held.messageId === messageId) asks.delete(rid);
     }
+    let sentOn = null;
     for (const [rid, sent] of answeredAsks) {
         if (sent.messageId !== messageId) continue;
         clearTimeout(sent.timer);
         answeredAsks.delete(rid);
-        if (sent.yes) forgetCallYes(sent.yes);
+        sentOn = sent;
     }
-    await endExpired(messageId);
+    sentOn ??= sentOnMark(game.messages.get(messageId ?? ""));
+    await (sentOn ? endSentOn(sentOn) : endExpired(messageId));
 }
 
 /**
@@ -3328,7 +3333,7 @@ export async function askReshapeRuling(verdict, { by, trace, attempt } = {}) {
  * up (the player's browser gives up on it at its clock and nothing is spent; it asks again) - and
  * for a yes pressed on another card than the one the ask is held on (fix early-C2-G2).
  */
-function yesOnPrimary(requestId, asker, by = game.user.id, messageId = null) {
+async function yesOnPrimary(requestId, asker, by = game.user.id, messageId = null) {
     const asked = callAsks.get(requestId ?? "");
     if (!asked || asked.userId !== asker) {
         warn(`A GM's yes to a Call was not kept: this primary GM holds no ask of ${game.users.get(asker ?? "")?.name ?? asker} under that request.`);
@@ -3340,7 +3345,10 @@ function yesOnPrimary(requestId, asker, by = game.user.id, messageId = null) {
     }
     callAsks.delete(requestId);
     noteCallYes(asked);
-    sendOnFromPrimary(requestId, asked, true, { text: "DRPG.Bridge.settledApproved", by, yes: asked });
+    const sentOn = { by, text: "DRPG.Bridge.settledApproved", at: Date.now() };
+    // The card's buttons go and its mark says a yes went (fix e1-G1); a card that is gone keeps nothing, and the yes still goes.
+    if (asked.messageId) await keepRuling(asked.messageId, null, sentOn, { quiet: true });
+    sendOnFromPrimary(requestId, asked, true, { ...sentOn, yes: asked });
     return true;
 }
 
@@ -3380,8 +3388,10 @@ async function dynamicOnPrimary(requestId, asker, ruling, by, messageId = null) 
         return true;
     }
     const tier = Number(ruling.tier);
-    if (!(await keepRuling(held.messageId, { type: "dynamic", actorId: held.actorId, tier }))) return false;
-    sendOnFromPrimary(requestId, held, { tier, trait: ruling.trait ?? null }, { text: "DRPG.Bridge.settledAnswered", by });
+    const kept = { type: "dynamic", actorId: held.actorId, tier };
+    const sentOn = { by, text: "DRPG.Bridge.settledAnswered", at: Date.now() };
+    if (!(await keepRuling(held.messageId, kept, sentOn))) return false;
+    sendOnFromPrimary(requestId, held, { tier, trait: ruling.trait ?? null }, { ...sentOn, ruling: kept });
     return true;
 }
 
@@ -3400,17 +3410,17 @@ async function dynamicOnPrimary(requestId, asker, ruling, by, messageId = null) 
  * GMs' record from the moment the primary sends it on" reads it before any receipt and after each end; at f547a92
  * each read was the older card's.
  */
-async function keepRuling(messageId, ruling) {
+async function keepRuling(messageId, ruling, sentOn = null, { quiet = false } = {}) {
     const message = game.messages.get(messageId ?? "");
     if (!message?.getFlag(MODULE_ID, "secret")) {
-        warn("A GM's ruling on a Dynamic action was not sent on: its card is gone, so the GMs would keep no record of the difficulty.");
+        if (!quiet) warn("A GM's ruling on a Dynamic action was not sent on: its card is gone, so the GMs would keep no record of the difficulty.");
         return false;
     }
     const wrap = document.createElement("template");
     wrap.innerHTML = contentOf(message);
     wrap.content.querySelectorAll(".drpg-call-actions").forEach(el => el.remove());
     const { updateSecret } = await import("./secret.mjs");
-    await updateSecret(message, wrap.innerHTML, null, { ruling });
+    await updateSecret(message, wrap.innerHTML, null, { ...(ruling ? { ruling } : {}), ...(sentOn ? { sentOn } : {}) });
     return true;
 }
 
@@ -3425,11 +3435,11 @@ async function keepRuling(messageId, ruling) {
  */
 const answeredAsks = new Map();
 
-function sendOnFromPrimary(requestId, held, value, { text, by, yes = null }) {
+function sendOnFromPrimary(requestId, held, value, { text, by, yes = null, ruling = null, at = Date.now() }) {
     game.socket.emit(SOCKET_EVENT, {
         action: ACTION_DONE, requestId, userId: held.userId, value
     }, { recipients: [held.userId] });
-    const sent = { userId: held.userId, messageId: held.messageId ?? null, text, by, yes, timer: null };
+    const sent = { userId: held.userId, actorId: held.actorId ?? null, messageId: held.messageId ?? null, text, by, yes, ruling, at, timer: null };
     answeredAsks.set(requestId, sent);
     while (answeredAsks.size > CALL_ASKS_KEPT) answeredAsks.delete(answeredAsks.keys().next().value);
     sent.timer = setTimeout(() => void unreceivedOnPrimary(requestId), TIMING.ackMs);
@@ -3453,13 +3463,55 @@ async function endAskCard(messageId, text, { gmNote = null } = {}) {
     return settleCall(message, text, null, gmNote);
 }
 
-/** No receipt came for a ruling sent on (E18 C1): its card ends as expired, and a Call's yes is taken back. */
+/*
+ * A RULING THAT WENT IS NOT "NOBODY ANSWERED" (E18 fix e1-G1, 24.10.2026; the end review's E18-END-1 and F3). With no
+ * receipt within `TIMING.ackMs`, or the asker's expiry after the ruling went, the card ended "Nobody answered in time -
+ * ask again." - also when the asker had used it: a console armed the Call on the GM's yes and sent the expiry after, a
+ * Dynamic roll was drawn on the difficulty kept on the card, a slow link brought the receipt late, or the primary
+ * reloaded before it. The asker's own packet decided what the GMs' card said about a ruling that was used. What the
+ * GMs hold decides now: a yes an arm took (bridge-guards.mjs `forgetCallYes`), or a Dynamic roll the primary drew for
+ * that character and player since the ruling went (the store `rolls`), writes the ruled line as a receipt would; a yes
+ * still kept is taken back and the card ends as expired; a Dynamic difficulty, which is the GMs' record from the
+ * moment it went (`keepRuling`), and a ruling a reloaded primary finds only in the card's mark (`sentOnMark`), end
+ * "Answered by {name}; not confirmed as received." - unless its asker said its clock had run out first, which ends
+ * the card as expired. Tier 2's "a ruling that went ends its card as what became of it" reads each.
+ */
+
+/** The ruling a card's mark says went to its asker before this primary held it (`keepRuling`'s `sentOn`), or null. */
+function sentOnMark(message) {
+    const mark = message ? cardFlag(message, "sentOn") : null;
+    if (!mark || typeof mark !== "object" || !(message.author ?? message.user)?.isGM) return null;
+    const ruling = cardFlag(message, "ruling");
+    return {
+        messageId: message.id, userId: cardFlag(message, "rid")?.asker ?? null, actorId: ruling?.actorId ?? null,
+        by: mark.by ?? null, text: typeof mark.text === "string" ? mark.text : "DRPG.Bridge.settledAnswered",
+        at: Number(mark.at) || 0, yes: null, ruling: ruling?.type === "dynamic" ? ruling : null, fromMark: true
+    };
+}
+
+/** Did the primary draw a Dynamic action's roll for the ruling's character and asker since it went? */
+async function rolledOnRuling(sent) {
+    if (!sent.ruling || !sent.actorId) return false;
+    const { rollStore } = await import("./gm-stores.mjs");
+    return Object.values(rollStore.entries() ?? {}).some(row => row?.actorId === sent.actorId
+        && row.userId === sent.userId && row.actionKey === "dynamic" && Number(row.at) >= sent.at);
+}
+
+/** A card whose ruling went to its asker ends as what became of the ruling (above). */
+async function endSentOn(sent, { askerExpired = false } = {}) {
+    const name = game.users.get(sent.by ?? "")?.name ?? "?";
+    const fate = sent.yes ? forgetCallYes(sent.yes) : null;
+    if (fate === "taken" || (await rolledOnRuling(sent))) return endAskCard(sent.messageId, game.i18n.format(sent.text, { name }));
+    if (fate === "forgotten" || askerExpired || (!sent.ruling && !sent.fromMark)) return endExpired(sent.messageId);
+    return endAskCard(sent.messageId, game.i18n.format("DRPG.Bridge.settledUnconfirmed", { name }));
+}
+
+/** No receipt came for a ruling sent on (E18 C1): its card ends as what became of it (fix e1-G1), a Call's yes not used taken back. */
 async function unreceivedOnPrimary(requestId) {
     const sent = answeredAsks.get(requestId);
     if (!sent) return;
     answeredAsks.delete(requestId);
-    if (sent.yes) forgetCallYes(sent.yes);
-    await endExpired(sent.messageId);
+    await endSentOn(sent);
 }
 
 /**
@@ -3479,8 +3531,7 @@ async function expiredOnPrimary(requestId, senderId) {
     if (sentOn && sentOn.userId === senderId) {
         clearTimeout(sentOn.timer);
         answeredAsks.delete(requestId);
-        if (sentOn.yes) forgetCallYes(sentOn.yes);
-        await endExpired(sentOn.messageId);
+        await endSentOn(sentOn, { askerExpired: true });
         return true;
     }
     return false;
@@ -4163,9 +4214,17 @@ export async function callGm(actor, {
 /** On the primary: the cards a GM's click is ruling on now, messageId -> that GM's user id. */
 const claimsInProgress = new Map();
 
-/** A GM who left holds nothing: their claims end as a backed-out ruling's do. */
+/**
+ * A GM who left holds nothing: their claims end as a backed-out ruling's do - in memory, and, on the primary, the
+ * rows that say a claim is under way (fix e1-G1).
+ */
 function releaseClaimsOf(userId) {
     for (const [messageId, by] of claimsInProgress) if (by === userId) claimsInProgress.delete(messageId);
+    if (!isPrimaryGm({ leaving: userId })) return;
+    import("./gm-stores.mjs").then(({ ruledCardStore }) => {
+        const held = Object.entries(ruledCardStore.entries() ?? {}).filter(([, row]) => row?.pending && row.by === userId).map(([id]) => id);
+        return held.length ? ruledCardStore.dropMany(held) : null;
+    }).catch(err => debug("Could not drop a leaving GM's claims", err));
 }
 
 /**
@@ -4179,6 +4238,13 @@ function releaseClaimsOf(userId) {
  * READ AFTER THE LAST AWAIT. The store's hydration is the only wait, and everything from the
  * card's lookup to holding it runs in one synchronous step, so of two takes of one card that
  * arrive together exactly one finds it free.
+ *
+ * A CLAIM UNDER WAY IS THE GMS' ROW TOO (E18 fix e1-G1, 24.10.2026; the end review's F2). The row was written only at
+ * "done", and a claim in progress lived only in this primary's memory: GM B's review window open on a project's
+ * proposal, the primary GM A pressed F5 and then the same card, and both rulings ran. "take" writes the row
+ * `{ by, at, pending: true }` now, after the card is held here, and "drop" takes it off; a pending row of a GM who is
+ * here holds the card as busy for whichever GM is the primary, and one of a GM who left holds nothing (the primary
+ * drops it when that GM leaves, `releaseClaimsOf`). Tier 2's "a claim under way is the GMs' row" reads it.
  */
 export async function claimOnPrimary(messageId, step, by) {
     if (!game.user?.isGM) return { taken: false, why: "gone", by: null };
@@ -4186,18 +4252,24 @@ export async function claimOnPrimary(messageId, step, by) {
     await ruledCardStore.whenHydrated();
     const message = game.messages.get(messageId ?? "") ?? null;
     const holder = claimsInProgress.get(messageId) ?? null;
+    const row = ruledCardStore.get(messageId);
     if (step !== "take") {
         if (holder === by) claimsInProgress.delete(messageId);
-        if (step !== "done" || !message) return { taken: false, why: message ? "dropped" : "gone", by };
-        if (!ruledCardStore.has(messageId)) await ruledCardStore.patch(messageId, { by, at: serverNow() });
+        const own = row?.pending && row.by === by;
+        if (step !== "done" || !message) {
+            if (own) await ruledCardStore.drop(messageId);
+            return { taken: false, why: message ? "dropped" : "gone", by };
+        }
+        if (!row || own) await ruledCardStore.patch(messageId, { by, at: serverNow(), pending: false });
         return { taken: true, by: ruledCardStore.get(messageId)?.by ?? by };
     }
     if (!message) return { taken: false, why: "gone", by: null };
-    const row = ruledCardStore.get(messageId);
-    if (row) return { taken: false, why: "ruled", by: row.by ?? null };
+    if (row && !row.pending) return { taken: false, why: "ruled", by: row.by ?? null };
     if (holder) return { taken: false, why: "busy", by: holder };
+    if (row?.pending && game.users.get(row.by ?? "")?.active) return { taken: false, why: "busy", by: row.by };
     if (cardFlag(message, "settled") || cardMeta(message, "settled")) return { taken: false, why: "settled", by: null };
     claimsInProgress.set(messageId, by);
+    await ruledCardStore.patch(messageId, { by, at: serverNow(), pending: true });
     return { taken: true, by };
 }
 

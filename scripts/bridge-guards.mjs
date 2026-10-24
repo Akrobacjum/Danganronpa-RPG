@@ -978,10 +978,21 @@ export function noteCallYes({ userId, actorId, key, nonce }) {
 /**
  * A yes that did not reach its asker is taken back (E18 C1, 19.10.2026; audit S11-13): the primary sent it
  * on and no receipt came within `TIMING.ackMs` (gm-bridge.mjs `unreceivedOnPrimary`), so no arm takes it.
+ *
+ * AND SAYS WHAT BECAME OF IT (E18 fix e1-G1, 24.10.2026; the end review's E18-END-1). The asker's own browser
+ * decides whether its receipt goes, and an arm can take the yes before the receipt is due: p1's console armed
+ * the Call on the yes and then sent `ruling.expired`, and the card told p1 and the GMs that nobody had answered
+ * while the Call stood armed on the GM's yes. Answers "forgotten" when the yes was still kept and is taken back
+ * now, "taken" when an arm took it (`takenYeses`), null when neither.
  */
 export function forgetCallYes({ userId, actorId, key, nonce }) {
-    callYeses.delete(callYesKey(userId, actorId, key, nonce));
+    const yes = callYesKey(userId, actorId, key, nonce);
+    if (callYeses.delete(yes)) return "forgotten";
+    return takenYeses.has(yes) ? "taken" : null;
 }
+
+/** The yeses an arm took, as `callYeses` keeps them (fix e1-G1): what `forgetCallYes` reads a used yes by. */
+const takenYeses = new Map();
 
 /** A player's Call that waits for the GM's yes takes the one kept for this purchase, or is refused. */
 export function guardArmGmYes(sender, payload, ctx) {
@@ -989,7 +1000,11 @@ export function guardArmGmYes(sender, payload, ctx) {
     const yes = callYesKey(sender.id, armBuyerId(payload), payload.call.key, payload.call.nonce);
     const given = callYeses.get(yes);
     callYeses.delete(yes);
-    return given !== undefined && Date.now() - given <= CALL_YES_MS ? null : "no GM's yes stands for that Call";
+    if (given === undefined || Date.now() - given > CALL_YES_MS) return "no GM's yes stands for that Call";
+    takenYeses.delete(yes);
+    takenYeses.set(yes, Date.now());
+    while (takenYeses.size > CALL_YES_KEPT) takenYeses.delete(takenYeses.keys().next().value);
+    return null;
 }
 
 /**

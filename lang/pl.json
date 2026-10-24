@@ -3169,6 +3169,7 @@
       "settledHandled": "Załatwił: {name}.",
       "settledExpired": "Nikt nie odpowiedział na czas - zapytaj jeszcze raz.",
       "settledGone": "Gracz już nie czekał.",
+      "settledUnconfirmed": "Odpowiedział: {name} - odbiór niepotwierdzony.",
       "alreadyRuled": "Tę kartę już rozstrzygnięto (przez: {gm}).",
       "claimBusy": "Tę kartę rozstrzyga właśnie: {gm}.",
       "alreadySettled": "Ta karta ma już odpowiedź.",

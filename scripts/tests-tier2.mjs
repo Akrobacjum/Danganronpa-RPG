@@ -28071,7 +28071,8 @@ const SCENARIOS = [
          * left to rule on), then B's lines and the record once it ended; card C - the asker's own `dynamic.answer`
          * of 0 (a GM's packet), this GM's 2, the asker's expiry - C's lines and the record; card D deleted before
          * this GM's 1 - whether it was sent on with no card to keep it, and the record. Cards are deleted and popups
-         * dismissed after.
+         * dismissed after. Since E18 fix e1-G1 card B, ruled with no receipt and no roll drawn on it, ends "Answered by
+         * ... - not confirmed as received." rather than as expired: the difficulty went, and it is the GMs' record.
          */
         needs(world.atLeast("connectedPlayersWithCharacter", 1), "the ask is a player's, and Foundry names only a connected one");
         const { isPrimaryGm } = await import("./utils.mjs");
@@ -28142,10 +28143,130 @@ const SCENARIOS = [
         const EXPIRED = game.i18n.localize("DRPG.Bridge.settledExpired"), GONE = game.i18n.localize("DRPG.Bridge.settledGone");
         equal(stableJson(read), stableJson([
             true, 0,
-            true, false, 3, [null, null], 0, [EXPIRED, GONE], 3,
+            true, false, 3, [null, null], 0, [game.i18n.format("DRPG.Bridge.settledUnconfirmed", { name: game.user.name }), null], 3,
             true, [EXPIRED, GONE], 2,
             false, 2
         ]), "the record a Dynamic trace's band and its Reroll read is not the ruling the primary sent on, its card's line did not wait for the receipt, or a ruling went with no card to keep it (in order: A sent, the record after A's receipt; B sent, B ended before the clock, the record before any receipt, B's lines and buttons then, B's lines after none came, the record then; C sent by this GM after the asker's own, C's lines after the asker's expiry, the record then; D sent after its card was deleted, the record then)");
+    }],
+
+    ["a ruling that went ends its card as what became of it: a yes an arm took and a Dynamic roll drawn on the difficulty read as ruled whatever the asker reports after, and a ruling a reloaded primary finds only in the card's mark as not confirmed (E18 fix e1-G1)", async () => {
+        /*
+         * E18 fix e1-G1, 24.10.2026; the end review's E18-END-1 and F3. Until this fix a ruling sent on whose receipt
+         * did not come within `TIMING.ackMs`, or whose asker sent `ruling.expired` after it, ended its card "Nobody
+         * answered in time - ask again." with the GMs' "The player was no longer waiting." - also when the asker had used
+         * it: p1's console took the GM's yes with the arm and sent the expiry after, and the card said nobody had answered
+         * while the Call stood armed on that yes. Read on this primary, each packet handed to the bridge's runner with the
+         * user Foundry would name: (1) a Call's ask, this GM's yes, the arm's guard taking it (as `call.arm` asks it,
+         * nothing paid), then the asker's expiry - the card's lines; (2) a Dynamic ask, this GM's difficulty, a drawn
+         * Dynamic roll of that character and player in the GMs' store `rolls` (a row as roll-draw.mjs keeps one, dropped
+         * after), then the asker's expiry - the lines; (3) a card past its time whose mark says a yes went before a reload
+         * (`sentOn`, as `keepRuling` writes it, with no ask held for it), swept as a primary does at its ready - the lines.
+         * Cards are deleted, the row dropped and popups dismissed after.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the ask is a player's, and Foundry names only a connected one");
+        const { isPrimaryGm, serverNow } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which holds the asks - this would measure nothing");
+        const { player, theirs } = playerAndCharacters();
+        const G = await import("./bridge-guards.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { contentOf, cardFlag, updateSecret } = await import("./secret.mjs");
+        const judged = (action, fields, from, requestId = null) =>
+            G.judge(B.BRIDGE_ACTIONS, { action, ...(requestId ? { requestId } : {}), ...fields }, from, { send: () => {} });
+        const lines = html => {
+            const wrap = document.createElement("template");
+            wrap.innerHTML = html;
+            const all = [...wrap.content.querySelectorAll(".drpg-call-settled")];
+            return [all.filter(el => !el.closest(".drpg-gm-only")).map(el => el.textContent).join(" | ") || null,
+                all.filter(el => el.closest(".drpg-gm-only")).map(el => el.textContent).join(" | ") || null];
+        };
+        const seen = new Set(game.messages.map(m => m.id));
+        const created = [];
+        const hook = Hooks.on("createChatMessage", m => { if (!seen.has(m.id)) created.push(m); });
+        const cardOf = async n => {
+            must(await until(() => created.length > n, 5000), `ask ${n + 1} put no card up - this would measure nothing`);
+            return game.messages.get(created[n].id);
+        };
+        const ended = n => () => Boolean(cardFlag(game.messages.get(created[n]?.id ?? ""), "settled"));
+        const rollId = foundry.utils.randomID(16);
+        const read = [];
+        try {
+            const [rid1, rid2, nonce] = [1, 2, 3].map(() => foundry.utils.randomID(16));
+            await judged("call.approve", { actorId: theirs.id, key: "experience", note: "E18 fix e1-G1 arm", nonce }, player.id, rid1);
+            await cardOf(0);
+            must(await B.answerHopeCall(rid1, player.id, true), "the yes was not sent on - this would measure nothing");
+            must(G.guardArmGmYes(player, { actorId: theirs.id, call: { key: "experience", nonce } }, {}) === null,
+                "the arm's guard did not take the yes - this would measure nothing");
+            await judged("ruling.expired", { rid: rid1 }, player.id);
+            await until(ended(0), 3000);
+            read.push(lines(contentOf(game.messages.get(created[0].id))));
+
+            await judged("dynamic.difficulty", { actorId: theirs.id, description: "E18 fix e1-G1 roll", actorName: theirs.name, room: null }, player.id, rid2);
+            await cardOf(1);
+            must(await B.answerDynamic(rid2, player.id, { tier: 2, trait: "agility" }), "the difficulty was not sent on - this would measure nothing");
+            await S.rollStore.patch(rollId, { rollId, actorId: theirs.id, userId: player.id, actionKey: "dynamic", at: Date.now() + 1 });
+            await judged("ruling.expired", { rid: rid2 }, player.id);
+            await until(ended(1), 3000);
+            read.push(lines(contentOf(game.messages.get(created[1].id))));
+
+            const mark = { id: foundry.utils.randomID(16), asker: player.id, kind: "call", actorId: theirs.id, key: "experience", nonce: "e1g1" };
+            await B.callGm(theirs, { title: "E18 fix e1-G1 a yes before a reload", rid: mark, expires: Math.round(serverNow()) - 1000 });
+            const third = await cardOf(2);
+            await updateSecret(third, contentOf(third), null, { sentOn: { by: game.user.id, text: "DRPG.Bridge.settledApproved", at: Date.now() - 2000 } });
+            await settle(200);
+            await B.sweepAskCards();
+            await until(ended(2), 3000);
+            read.push(lines(contentOf(game.messages.get(created[2].id))));
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            if (S.rollStore.has(rollId)) await S.rollStore.drop(rollId);
+            for (const node of [...document.querySelectorAll(".drpg-popup")]) node.dispatchEvent(new CustomEvent("drpg-dismiss"));
+            for (const message of created) await message.delete().catch(() => {});
+            await settle();
+        }
+        const by = key => game.i18n.format(key, { name: game.user.name });
+        equal(stableJson(read), stableJson([[by("DRPG.Bridge.settledApproved"), null], [by("DRPG.Bridge.settledAnswered"), null],
+            [by("DRPG.Bridge.settledUnconfirmed"), null]]),
+            "the lines of [a Call's card whose yes an arm took before its asker's expiry, a Dynamic card a roll was drawn on before its asker's expiry, a card whose mark says a yes went before a reload] - a used ruling was written as nobody answering, or a ruling the primary cannot place was written as either");
+    }],
+
+    ["a claim under way is the GMs' row: 'take' writes it pending and 'drop' takes it off, a pending row of a GM who is here holds the card busy with no claim in this primary's memory, and one of a GM who is not here holds nothing (E18 fix e1-G1)", async () => {
+        /*
+         * E18 fix e1-G1, 24.10.2026; the end review's F2. Until this fix the row in `ruledCardStore` was written only at a
+         * claim's "done", and a claim in progress lived in the primary's memory alone: a primary that pressed F5, or a new
+         * primary, let a second click take a card GM B was still ruling on. Read on this primary, `claimOnPrimary` called as
+         * the bridge's runner calls it: this GM's take - the row; its drop - the row; then a pending row as a reloaded
+         * primary finds it (written into the store, nothing held in memory) of this GM, who is here, and another GM's take;
+         * a pending row of a GM who is not here, and this GM's take, then its drop. The card is deleted after, its row with it.
+         */
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which holds the claims - this would measure nothing");
+        const B = await import("./gm-bridge.mjs");
+        const S = await import("./gm-stores.mjs");
+        const away = foundry.utils.randomID(16);
+        const row = id => { const r = S.ruledCardStore.get(id); return r ? [r.by === game.user.id ? "me" : r.by === away ? "away" : r.by, Boolean(r.pending)] : null; };
+        const read = [];
+        let card = null;
+        try {
+            card = await ChatMessage.create({ content: "<p>E18 fix e1-G1 claim</p>", whisper: [game.user.id] });
+            must(card, "the card was not posted - this would measure nothing");
+            read.push((await B.claimOnPrimary(card.id, "take", game.user.id))?.taken ?? null, row(card.id));
+            await B.claimOnPrimary(card.id, "drop", game.user.id);
+            read.push(row(card.id));
+            await S.ruledCardStore.patch(card.id, { by: game.user.id, at: Date.now(), pending: true });
+            const other = await B.claimOnPrimary(card.id, "take", away);
+            read.push([other?.taken ?? null, other?.why ?? null, other?.by === game.user.id]);
+            await S.ruledCardStore.patch(card.id, { by: away, at: Date.now(), pending: true });
+            read.push((await B.claimOnPrimary(card.id, "take", game.user.id))?.taken ?? null, row(card.id));
+            await B.claimOnPrimary(card.id, "drop", game.user.id);
+            read.push(row(card.id));
+        } finally {
+            if (card) await card.delete().catch(() => {});
+            await settle(300);
+            if (card && S.ruledCardStore.has(card.id)) await S.ruledCardStore.drop(card.id);
+        }
+        equal(stableJson(read), stableJson([true, ["me", true], null, [false, "busy", true], true, ["me", true], null]),
+            "[this GM's take, the row], the row after its drop, [another GM's take of a card this GM's pending row holds: taken, why, by this GM], [this GM's take of a card a GM not here holds, the row], the row after the drop - a claim under way was not the GMs' row, or a pending row of a GM not here held the card");
     }],
 
     ["a resent ask finds the card a GM posted for it by its mark and no other: one card for one ask, a player's card, a card posted at a player's asking or another player's mark stop nothing, and a ruled card refuses (E18 C2)", async () => {

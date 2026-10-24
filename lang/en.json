@@ -3049,6 +3049,7 @@
       "settledHandled": "Handled by {name}.",
       "settledExpired": "Nobody answered in time - ask again.",
       "settledGone": "The player was no longer waiting.",
+      "settledUnconfirmed": "Answered by {name} - not confirmed as received.",
       "alreadyRuled": "{gm} already ruled on this card.",
       "claimBusy": "{gm} is ruling on this card right now.",
       "alreadySettled": "This card has already been answered.",

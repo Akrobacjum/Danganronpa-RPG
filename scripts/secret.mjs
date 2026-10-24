@@ -237,9 +237,10 @@ const ASKED_BY = "askedBy";
  * Nor an ask's mark (`rid`, gm-bridge.mjs `callGm`, E18 C2): the primary takes a card carrying it for the card
  * it posted for that ask, and posts none when the player asks again, so a player's card carrying it would
  * stand in for the GMs' (tier 2's "a resent ask finds the card a GM posted for it") - and since fix early-C2-G2
- * it says what that ask was for, which the ask held again is (gm-bridge.mjs `sameAsk`).
+ * it says what that ask was for, which the ask held again is (gm-bridge.mjs `sameAsk`). Nor the mark that a ruling
+ * went to its asker (`sentOn`, gm-bridge.mjs `keepRuling`, E18 fix e1-G1): a primary that reloaded ends the card by it.
  */
-const GM_META = Object.freeze(["gmPopup", "popupForce", "callCard", "safeword", "ruling", ASKED_BY, "settled", "rerolled", "rid"]);
+const GM_META = Object.freeze(["gmPopup", "popupForce", "callCard", "safeword", "ruling", ASKED_BY, "settled", "rerolled", "rid", "sentOn"]);
 
 /** A card's meta as a plain object without the document's own flags, or null. Pure. */
 function plainMeta(raw) {
