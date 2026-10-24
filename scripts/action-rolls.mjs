@@ -39,7 +39,7 @@ import { drawItem } from "./tables.mjs";
 import { roomOfActor, othersInRoom, locateActor, sceneOfActor } from "./movement.mjs";
 import { projectsAvailableIn, addProgress, isIndirectMurder, isSecret, scaleFor, projectsListedIn, buildsOwnMurder } from "./projects.mjs";
 import { callGm, promptAndCallGm } from "./gm-bridge.mjs";
-import { announce, resolveThreshold, whisperToOwner, dialogContent, forcedDeletion, isPrimaryGm, log, warn, error, plural, cardHead, esc, easedBy, gmIds, activeGmIds, ownerOf, MESSAGE_FLAG } from "./utils.mjs";
+import { announce, resolveThreshold, whisperToOwner, dialogContent, forcedDeletion, isPrimaryGm, log, warn, error, plural, cardHead, esc, easedBy, gmIds, activeGmIds, ownerIdsOf, MESSAGE_FLAG } from "./utils.mjs";
 // Static, and safe to be: nothing private-rolls.mjs imports leads back here.
 import { supersedingRoll, reportRollSubject, isClaimedRoll, ROLL_NONCE } from "./private-rolls.mjs";
 import { rerollBookmarkStore } from "./gm-stores.mjs";
@@ -1957,8 +1957,10 @@ async function searchUnclaimed(actor, def, roll, { room, scene, category, goalKe
 // to decide what was really there - so the result goes to them with the
 // player's own description attached.
 async function searchSpecific(actor, def, roll, { room, scene, category, request, tier, hit, paid, extra = "", stash = null }) {
-    await callGm(actor, {
+    const sent = await callGm(actor, {
         title: def.label,
+        // The action is handed back below when this is not posted, so the refusal may say so.
+        nothingSpent: true,
         request,
         roll,
         room,
@@ -1999,6 +2001,20 @@ async function searchSpecific(actor, def, roll, { room, scene, category, request
             declineAction(actor, paid)
         ]
     });
+
+    /*
+     * NOT POSTED, NOT PAID FOR (E18 C0, 19.10.2026; audit S10-26). No GM to rule - the
+     * last one left after the action started - so the player gets the action back, as
+     * with a window closed before the dice. A GM gone before the dice or during them is
+     * found before the room's search token is taken (`performSearch`, E18 fix e1-G5); one
+     * who left during the token's own write leaves it taken: no road gives one back from a
+     * player's client. Reroll is offered nothing to re-ask (`claimed: false`, as
+     * `searchUnclaimed` notes it).
+     */
+    if (!sent) {
+        await noteRollContext(actor, { actionKey: "search", room, category, goal: "specific", tier: null, claimed: false });
+        return abort(actor, paid);
+    }
 
     // Ruled by a human, so Reroll can only re-ask - see reroll.mjs.
     await noteRollContext(actor, {
@@ -2279,6 +2295,23 @@ async function performSearch(actor, def, options) {
 
     const { situational, stashDie, stashOwner, stashLoot } = searchOdds(actor, room, category, await import("./vault.mjs"));
 
+    /*
+     * SOMETHING SPECIFIC ENDS WITH A HUMAN, SO NO GM, NO TOKEN (E18 fix e1-G5, 24.10.2026; the end review's E18-END-7
+     * and F8, STATUS's C0 gap 1). The room's search token was taken after the dice and before the call on the GM
+     * (`searchSpecific`); with the last GM gone by then the call posted nothing and the action came back, but the token
+     * did not - no road gives one back from a player's client - so the room read "exhausted" for a search that never
+     * happened. Such a Search is refused now before the price and the dice when no GM is connected, as an Analyze is
+     * (`performAnalyze`), and again after the dice, before the token is spent, for a GM who left during the roll: the
+     * action comes back (`abort`) and the room keeps its token. What is left is a GM leaving between the spend and the
+     * post, the length of the spend's own write. Tier 2's "a Search for something specific and an Observe of anything
+     * whose last GM left during the roll" reads it; at 42c0e0d9 the token was taken.
+     */
+    const { gmOnline, sayNotDone } = await import("./bridge-guards.mjs");
+    if (goalKey === "specific" && !gmOnline()) {
+        sayNotDone("gm.call", "noGm", { nothingSpent: true });
+        return null;
+    }
+
     const paid = cost > 0 ? await spendAction(actor, cost) : null;
     if (cost > 0 && !paid) return null;
 
@@ -2307,6 +2340,13 @@ async function performSearch(actor, def, options) {
         calls.clearSituational();
     }
     if (!roll) return abort(actor, paid);
+
+    // A GM who left during the roll (above): the action back, the room's token not taken, nothing noted for Reroll to re-ask.
+    if (goalKey === "specific" && !gmOnline()) {
+        sayNotDone("gm.call", "noGm", { nothingSpent: true });
+        await noteRollContext(actor, { actionKey: "search", room, category, goal: "specific", tier: null, claimed: false });
+        return abort(actor, paid);
+    }
 
     // The token is claimed only once the dice are actually on the table.
     // Spending it up front meant backing out of the trait picker or the roll
@@ -4484,13 +4524,12 @@ async function chooseStolenItem(victim, pool) {
  * Who hears what happened in a room: the GMs, the actor's own player, and the
  * players of everyone standing in the same room. "You hear only your room"
  * is the module's rule for voice and dice; a sabotage caught in the act is a
- * scene in one room too (D6).
+ * scene in one room too (D6). Every player who owns one of them (`ownerIdsOf`, E18 fix e1-G7).
  */
 function roomAudience(actor) {
     const ids = new Set(gmIds());
     for (const a of [actor, ...othersInRoom(actor)]) {
-        const owner = ownerOf(a);
-        if (owner) ids.add(owner.id);
+        for (const id of ownerIdsOf(a)) ids.add(id);
     }
     return [...ids];
 }
@@ -4645,7 +4684,7 @@ async function observeRanked(actor, def, cost, options, declaration) {
     // Nothing here to find, or the character is not standing in a room: the
     // GM rules on the roll just thrown, as `observeSpecific` does. This used
     // to open a SECOND declaration window (ROLL-11).
-    if (!target.ok) return ruleObserve(actor, def, roll, "");
+    if (!target.ok) return ruleObserve(actor, def, roll, "", null, paid);
 
     return settleObserveRoll(actor, def, roll, target.key, declaration);
 }
@@ -4695,7 +4734,7 @@ async function observeSpecific(actor, def, cost, request = "") {
     // Refused, empty room, no room at all: the GM rules on the roll that has
     // already been thrown. Opening a second declaration window would roll a second
     // time for the same action.
-    if (!target.ok) return ruleObserve(actor, def, roll, request);
+    if (!target.ok) return ruleObserve(actor, def, roll, request, null, paid);
 
     return settleObserveRoll(actor, def, roll, target.key, declaration);
 }
@@ -4760,7 +4799,7 @@ async function observeAnything(actor, def, cost, request = "") {
     // pressing and meaningless as the title of the window it arrives in. The GM
     // gets a title that says which action this was.
     return ruleObserve(actor, def, roll, request,
-        game.i18n.localize("DRPG.Observe.anythingTitle"));
+        game.i18n.localize("DRPG.Observe.anythingTitle"), paid);
 }
 
 /**
@@ -4768,9 +4807,10 @@ async function observeAnything(actor, def, cost, request = "") {
  *
  * Nothing about the price travels on this card. The action was paid before the
  * dice and stays paid on every answer, "nothing was there" included - that one
- * is the Observe's own result and charges its miss (see `missAction`).
+ * is the Observe's own result and charges its miss (see `missAction`). A card
+ * never posted is no answer: `paid` comes back (E18 C0).
  */
-async function ruleObserve(actor, def, roll, request, title = null) {
+async function ruleObserve(actor, def, roll, request, title = null, paid = null) {
     const { callGm } = await import("./gm-bridge.mjs");
     const label = title ?? def.label;
     // Both halves from one lookup: `locateActor` answers without the canvas, so
@@ -4782,8 +4822,10 @@ async function ruleObserve(actor, def, roll, request, title = null) {
     const room = where?.room ?? roomOfActor(actor);
     const sceneId = where?.scene?.id ?? null;
 
-    await callGm(actor, {
+    const sent = await callGm(actor, {
         title: label,
+        what: "observe.resolve",
+        nothingSpent: true,
         gmBody: `<p><small>${game.i18n.format("DRPG.Action.observeGm", { total: roll.total, n: OBSERVE_FAIL_STRESS })}</small></p>`,
         roll,
         request,
@@ -4809,6 +4851,10 @@ async function ruleObserve(actor, def, roll, request, title = null) {
             missAction(actor)
         ]
     });
+
+    // Not posted - the last GM left after the action started (E18 C0, S10-26): the action
+    // comes back, as with a window closed before the dice, and no ruling is noted for Reroll.
+    if (!sent) return abort(actor, paid);
 
     await noteRollContext(actor, {
         actionKey: "observe", gmRuled: true, request, label, room
@@ -5065,15 +5111,16 @@ async function askForHint(actor, def, roll, request = "", charge = null) {
         // came up. The price has already been paid by the time this runs, so the
         // refusal hands back the STEP that paid - see `decline` in
         // `runCallAction`.
-        actions: gmRulingActions(actor, charge)
+        actions: gmRulingActions(actor, charge),
+        // `callGm` says the refusal itself since E18 C0; the price comes back just below.
+        what: "analyze.resolve",
+        nothingSpent: true
     });
 
     // Nobody to ask. `callGm` answers false for that, which is a real refusal
     // rather than a ruling, so the price comes back (T-1).
     if (!sent) {
         if (charge) await refundPrice(actor, charge);
-        const { sayNotDone } = await import("./bridge-guards.mjs");
-        sayNotDone("analyze.resolve", "noGm", { nothingSpent: true });
         return null;
     }
 
@@ -5700,6 +5747,8 @@ async function performDynamic(actor, options) {
         intro: briefingBlock(actor, "dynamic", dynDef),
         prompt: game.i18n.localize("DRPG.Action.dynamicDescribe"),
         placeholder: game.i18n.localize("DRPG.Action.dynamicPlaceholder"),
+        // An empty description is no action for the GM to price (E18 C0, S10-52): asked again.
+        required: true,
         room: roomOfActor(actor),
         // Only "reply" here, and no refusal: nothing has been spent yet at this
         // point - the difficulty window that follows is where this action is

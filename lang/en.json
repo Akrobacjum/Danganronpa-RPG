@@ -296,6 +296,10 @@
         "name": "Keep players out of the file browser",
         "hint": "Players and Trusted Players can neither browse nor upload files, and clicking a portrait opens nothing for them. Pictures already in the world still show. Off, you can give both back in Foundry's permissions."
       },
+      "liveKitInFoundry": {
+        "name": "Voice inside the Foundry window for everyone",
+        "hint": "On, every browser joins voice inside the Foundry window and never opens LiveKit's separate window or tab, and LiveKit's box for that disappears from everyone's settings, the GM's included. A change takes effect after a reload. Only does anything with LiveKit AV Client enabled."
+      },
       "pixelFont": {
         "name": "Pixel font",
         "hint": "Monokuma Legacy only, and on by default there: Press Start 2P on interface chrome - HUD, Despair, character name, statistic labels, tabs. Journals, chat and editable fields keep the normal face so long text stays readable. The Stained Glass theme has its own two faces and ignores this."
@@ -366,7 +370,7 @@
       },
       "voiceTile": {
         "name": "Voice tile instead of the camera dock",
-        "hint": "On, the camera dock leaves every screen and the number on the voice tile's speaker shows how many others are in your channel, speaking or not. Off brings Foundry's camera dock back for everyone."
+        "hint": "On, the camera dock leaves every screen and the number on the voice tile's speaker shows how many others are in your channel, speaking or not. Foundry's dock is also kept folded, and no camera opens in a window of its own. Off brings Foundry's camera dock back for everyone, folded or open as each browser had it before the tile hid it."
       }
     },
     "SearchTokens": {
@@ -1253,7 +1257,12 @@
       "varyHint": "Bends the speed of the busiest effects by a few per cent on each play, so the fortieth button press is not identical to the first. Leaves everything else - and the safeword - exactly as you mapped it.",
       "choose": "Choose",
       "test": "Test",
-      "clear": "Clear"
+      "clear": "Clear",
+      "chooseHint": "Choose a file. In a row that has one already, it goes beside it, and one of them is picked each time.",
+      "testHint": "Play it here, now.",
+      "clearHint": "Empty this row: the event goes silent.",
+      "groupAssigned": "{n} of {total} assigned",
+      "autosave": "Changes here save as you make them: this tab has no Apply button."
     },
     "Vote": {
       "openTitle": "The vote",
@@ -1380,7 +1389,7 @@
       "orderNote": "The first state that applies wins, in the order listed. A Class Trial at night uses the trial's playlists; an Eclipse during one uses the Eclipse's.",
       "trialNote": "Objection beats the open debate, and the debate beats the trial merely being in session. A rebuttal has no row of its own: the Objection's music keeps playing through it. Each picks a random track when it takes over, never the one it played last. An Objection runs one minute, so give that playlist a short fade.",
       "incidentNote": "The murder row plays only in the browsers of the people in the incident and of the GMs, so nobody else learns from the music that a murder is happening. Leave it empty and whatever is playing keeps playing.",
-      "fadeNote": "Fades are the playlist's own - set Fade Duration on the playlist or on a track, and both directions use it. Put a track on and everything else pauses where it stands, then resumes from there.",
+      "fadeNote": "Fades are the playlist's own - set Fade Duration on the playlist or on a track, and both directions use it. Put a track on and everything else pauses where it stands, then resumes from there. When a body is found and nothing is mapped to it, the silence stops your own track too.",
       "when": "When",
       "playlist": "Plays",
       "saved": {
@@ -2008,6 +2017,7 @@
       "bodyNoteTraces": "Then you are asked which traces left while somebody gathered tools belong to this murder.",
       "announce": "Announce it",
       "bodyBanner": "A BODY HAS BEEN DISCOVERED",
+      "bodyTitle": "Body found",
       "bodyFound": "A body has been found in {room}.",
       "bodyFoundNamed": "{name} has been found dead in {room}.",
       "bodyCalled": "Everyone is called to the scene. The Investigation has not started yet.",
@@ -2933,6 +2943,9 @@
         "call.approve": "Hope Call approval",
         "call.yes": "A GM's yes to a Hope Call",
         "dynamic.difficulty": "Dynamic action difficulty",
+        "dynamic.answer": "A GM's ruling on a Dynamic action",
+        "ruling.expired": "A ruling you stopped waiting for",
+        "ruling.received": "A ruling that reached you",
         "trait.ruling": "The GM's pick of a statistic",
         "trap.event": "A report for the traps",
         "roll.subject": "A report of whose roll it was",
@@ -2943,6 +2956,7 @@
         "keys.charge": "The Key fee charged as a Class Trial opens",
         "reroll.ask": "Reroll",
         "card.post": "A card for the GM to post",
+        "card.claim": "A GM's ruling on a card sent to the GMs",
         "searchTokens.spend": "Spend a search token",
         "searchTokens.takePlant": "Look for a planted item",
         "searchTokens.returnPlant": "Put a planted item back",
@@ -2953,10 +2967,19 @@
         "trial.object": "Raise an Objection",
         "trial.evidence": "Put your Truth Bullet on the Objection",
         "trial.withdraw": "Withdraw your Objection",
-        "floor.repoint": "Re-point the Objection"
+        "floor.repoint": "Re-point the Objection",
+        "advancement.offers": "Level Up offers to choose from",
+        "murder.openingAsk": "Your opening roll",
+        "murder.openingCancel": "The opening roll called off",
+        "bridge.done": "A GM's answer to your request",
+        "bridge.gmReady": "A GM back at the table",
+        "gm.call": "A question to the GM",
+        "bridge.refused": "A GM's refusal of your request",
+        "bridge.ack": "A GM's word that your request arrived"
       },
       "notDone": "“{what}” was not carried out. {why}",
       "nothingSpent": "Nothing was spent.",
+      "emptyRequest": "Nothing was sent - write your request first.",
       "why": {
         "unknownSender": "The GM's client does not see you as connected. Reload and try again.",
         "notYours": "It names a character you do not play.",
@@ -3036,12 +3059,19 @@
       "criticalHint": "Critical - this player is owed a substantial hint.",
       "send": "Send to GM",
       "awaitingRuling": "Awaiting a ruling.",
+      "openUntil": "Open until {time}.",
       "declined": "{name} turned the attempt down. Your action is back.",
       "declinedGm": "Turned down. {name} has the action back.",
       "settledAnswered": "Answered by {name}.",
       "settledDeclined": "Turned down by {name}.",
       "settledApproved": "Approved by {name}.",
       "settledHandled": "Handled by {name}.",
+      "settledExpired": "Nobody answered in time - ask again.",
+      "settledGone": "The player was no longer waiting.",
+      "settledUnconfirmed": "Answered by {name} - not confirmed as received.",
+      "alreadyRuled": "{gm} already ruled on this card.",
+      "claimBusy": "{gm} is ruling on this card right now.",
+      "alreadySettled": "This card has already been answered.",
       "replyTitle": "Reply to {name}",
       "replyPrompt": "Your ruling, in your own words. It goes into their thread.",
       "rulingBy": "{name} rules:",
@@ -3126,6 +3156,7 @@
     },
     "Clock": {
       "summary": "Chapter {chapter} · Day {day} · Session {session} · {time}",
+      "summaryUnder": "Chapter {chapter} · Day {day} · Session {session}",
       "summaryEclipse": "{summary} · ECLIPSE",
       "rewindDuringEclipse": "An Eclipse is running, so the clock has not moved yet and there is nothing to step back to. End the Eclipse from the GM panel - it can end without advancing.",
       "eclipseStillOn": "The clock moved, but the Eclipse is still running. End it from the clock's chevron when you are ready - until then tokens place freely and murders are refused.",
@@ -3211,7 +3242,7 @@
         "one": "{n} Faint Remnant cleared.",
         "other": "{n} Faint Remnants cleared."
       },
-      "voiceReset": "Reset all voice rooms",
+      "voiceReset": "Re-send everybody's voice room",
       "publicRoll": {
         "label": "Public roll",
         "formula": "Formula",
@@ -3678,15 +3709,23 @@
     "Voice": {
       "contested": "Voice: {name} owns characters in more than one place ({places}). A voice client can only be in one room, so {name} is being sent to \"{room}\" and the rest are ignored. Give the spare characters to another account, or leave their tokens off the map.",
       "mainRoom": "the main room",
+      "deadRoom": "the dead channel",
       "claimTrial": "the Class Trial - everybody in one room",
-      "notActive": "LiveKit AVClient is not installed, not active, or not connected.",
       "needsAvclient": "Regional voice is on, but LiveKit AVClient is not active.",
       "avDisabled": "Regional voice is on, but Audio/Video is off for this world. Turn it on in Configure Settings.",
       "resetDone": {
-        "one": "{n} player sent back to the main voice room.",
-        "other": "{n} players sent back to the main voice room."
+        "one": "Sent {n} person their voice room again.",
+        "other": "Sent {n} people their voice rooms again."
       },
-      "resetRefused": "Nothing to reset: regional voice is off, LiveKit is inactive, or another GM's client is running it.",
+      "drop": {
+        "title": "Voice disconnected",
+        "retry": "You are not connected to voice. Reconnecting you now; if you still hear nobody in a minute, reload the page (F5).",
+        "closed": "Your voice connection was closed by the voice server or by another window signed in as you. Reload this page (F5) to join again."
+      },
+      "resetRefused": {
+        "primary": "Only the primary GM, {name}, can re-send the voice rooms. Ask {name}.",
+        "livekit": "Nothing was sent: LiveKit AVClient is not active. Turn it on in Manage Modules, then reload the world."
+      },
       "tile": {
         "label": "Voice",
         "speaking": "Speaking",
@@ -3715,6 +3754,7 @@
       "held": {
         "eclipse": "Eclipse: no player is in a voice channel until the lights come back.",
         "eclipseHeard": "Eclipse: nobody hears you until the lights come back.",
+        "deadAlone": "Your character is dead: the living do not hear you, and you do not hear them.",
         "gmBlock": "The GM blocked your microphone.",
         "external": "Voice is in its own window - use the controls there.",
         "offline": "You are not connected to voice.",
@@ -3805,7 +3845,8 @@
     "Secret": {
       "speaker": "Monokuma",
       "storeFull": "This browser could not keep a private card - its storage is probably full. From now on private cards arrive blank here, and the Truth Bullet and Remnant answer keys stop saving in this browser. Deleting old chat messages frees room. Do not clear this browser's stored data for the game: the answer keys live there too.",
-      "tooLong": "That message is too long to send privately - over {kb} KB. Split it into shorter ones."
+      "tooLong": "That message is too long to send privately - over {kb} KB. Split it into shorter ones.",
+      "wordsElsewhere": "A private card - its words were sent to another browser and are not kept on the server."
     },
     "Legacy": {
       "safeword": "MISIUBOMBO"
@@ -4427,7 +4468,8 @@
         "sheetWrites": "The writes on a student's sheet the GMs put back, flagged or listed, kept a day",
         "diceLooks": "Each character's dice look as the GMs set it, which a player's change of it goes back to",
         "ballots": "The ballots of the Class Trial's vote, kept by the GMs",
-        "verdict": "The Blackened the last verdict was given with, kept by the GMs for its Finish"
+        "verdict": "The Blackened the last verdict was given with, kept by the GMs for its Finish",
+        "ruledCards": "Who ruled each card sent to the GMs, so a card is ruled once"
       },
       "row": {
         "traces": {

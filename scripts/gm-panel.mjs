@@ -12,7 +12,7 @@ import { getClock, setClock, advanceTimeOfDay, clockSummary, phaseLabel, campaig
 import { actionsLeft, actionsMax, hasFreeMove, resetAllActions } from "./actions.mjs";
 import { isEclipse } from "./eclipse.mjs";
 import { studentActors, actingStudents } from "./monokuma.mjs";
-import { dialogContent, error, plural, tableDialog, esc} from "./utils.mjs";
+import { dialogContent, error, plural, tableDialog, esc, primaryGmId } from "./utils.mjs";
 import { keepLive, alreadyOpen, handOff } from "./live.mjs";
 import { bodyDiscovery, bodyFoundSinceTrial, seasonEpoch, sameSeason } from "./settings.mjs";
 import { bodiesToDiscover, announcedIn } from "./chapter.mjs";
@@ -277,15 +277,19 @@ const PANEL_SECTIONS = [
             // first minute is editing.
             { key: "tables", icon: "fa-table-list", labelKey: "DRPG.Tables.editorTitle",
               run: () => import("./tables.mjs").then(m => m.openItemTables()) },
-            // "Send everybody's voice back to the main room" - the one button the
-            // removed eavesdrop window also carried, kept as its own tile.
+            // "Re-send everybody's voice room" - the one button the removed eavesdrop
+            // window also carried, kept as its own tile. A resync since E19 C4
+            // (voice.mjs `resetAllVoice`), no longer everybody to the main room.
             { key: "voiceReset", icon: "fa-microphone-lines", labelKey: "DRPG.Panel.voiceReset",
               run: async () => {
                   const { resetAllVoice } = await import("./voice.mjs");
+                  const { avclientActive } = await import("./voice-client.mjs");
                   const n = await resetAllVoice();
-                  ui.notifications[n === null ? "warn" : "info"](n === null
-                      ? game.i18n.localize("DRPG.Voice.resetRefused")
-                      : plural("DRPG.Voice.resetDone", { n }));
+                  if (n !== null) return ui.notifications.info(plural("DRPG.Voice.resetDone", { n }));
+                  const name = game.users.get(primaryGmId())?.name ?? "";
+                  ui.notifications.warn(avclientActive()
+                      ? game.i18n.format("DRPG.Voice.resetRefused.primary", { name })
+                      : game.i18n.localize("DRPG.Voice.resetRefused.livekit"));
               } },
             // Beside the checks it answers: the season checklist carries the
             // pre-session diagnostics as a button now, because "what is missing"

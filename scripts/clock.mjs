@@ -92,8 +92,9 @@ export async function setPhase(key, { confirmNewTrial = false } = {}) {
  * worth more than a guard anywhere else: it reaches the HUD, the panel and every
  * card that prints the clock, so whatever route left the flag on, the GM sees it.
  */
-export function clockSummary(clock = getClock()) {
-    const summary = game.i18n.format("DRPG.Clock.summary", {
+export function clockSummary(clock = getClock(), { time = true } = {}) {
+    // `time: false` under a heading that already names the time of day (`announceTimeOfDay`, E18 fix e1-G3).
+    const summary = game.i18n.format(time ? "DRPG.Clock.summary" : "DRPG.Clock.summaryUnder", {
         chapter: clock.chapter,
         day: clock.day ?? 1,
         session: clock.session,
@@ -464,8 +465,10 @@ async function announceTimeOfDay(clock, summary, { sfx = null } = {}) {
     }
 
     const body = notes.length ? `<p><em>${notes.join(" · ")}</em></p>` : "";
+    /* The time of day once (E18 fix e1-G3; the end review's F7, STATUS's C6 gap): the heading names it, and the notice
+       lifts the heading into its bar (popup.mjs `showPopup`), so the clock line under it leaves it out. */
     const content = `<h3>${timeOfDayLabel(clock.timeOfDay)}</h3>
-                  <p>${clockSummary(clock)}</p>${body}`;
+                  <p>${clockSummary(clock, { time: false })}</p>${body}`;
 
     /* WHILE A MURDER RUNS, THE CLOCK MOVES IN PRIVATE (Dawid, 26.08).
      *

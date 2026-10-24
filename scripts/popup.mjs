@@ -733,12 +733,12 @@ const withoutCorner = value => (value ?? "").replace(CORNER_CLASSES, " ").split(
 const cornerOnly = record => record.type === "attributes" && record.attributeName === "class"
     && withoutCorner(record.oldValue) === withoutCorner(record.target.getAttribute("class"));
 
-function watchCard(card, body, id) {
+function watchCard(card, body, id, kept = () => body.innerHTML) {
     let timer = null;
     const keep = () => {
         timer = null;
         try {
-            updateNotice(id, { html: body.innerHTML });
+            updateNotice(id, { html: kept() });
         } catch (err) {
             debug("A notice's snapshot could not be kept", err);
         }
@@ -789,12 +789,20 @@ function noticeSource(source, messageId, author) {
 
 export function showPopup(bodyHtml, {
     title = null, kind = "info", onClick = null, sticky = false, tone = null, messageId = null,
-    record = true, source = null, link = null, observe = true, persist = "browser", author = null, fromMessage = null
+    record = true, source = null, link = null, observe = true, persist = "browser", author = null, fromMessage = null, ...more
 } = {}) {
     const card = document.createElement("div");
     card.className = `drpg-popup drpg-popup-${KINDS.includes(kind) ? kind : "info"}${
         sticky ? " drpg-popup-sticky" : ""}${
         TONES.includes(tone) ? ` drpg-popup-tone-${tone}` : ""}`;
+    const from = noticeSource(source, messageId ?? fromMessage, author);
+    /* WHAT THE TILE STANDS BY (E18 C6; audit S11-17 (a), the owner's amend of 11.10). A notice to the whole
+       table - drawn from a public card, a GM's or a player's - is "info", and a tile showing only those stands
+       under the windows (danganronpa.css, `#drpg-popups`): a restock or a new time of day stood at 99990 over
+       the sheet's header, the GM's panel and the dashboard's SAVE until somebody closed it. Anything else keeps
+       the tile over them: a card for this reader alone ("mine" - a whisper, a card of no document, the
+       messenger's, the day summary), a refusal, an objection. Worked out whether or not the card is kept. */
+    card.dataset.kind = kind !== "info" ? String(kind) : from.source === "public" || from.source === "player" ? "info" : "mine";
 
     // EVERY CARD HAS A TITLE BAR.
     //
@@ -805,7 +813,32 @@ export function showPopup(bodyHtml, {
     // and a card with no title of its own can still say what kind of thing it
     // is. It also carries the close button, which a card without a bar simply
     // did not have.
-    if (!title) title = game.i18n.localize(`DRPG.Popup.kind.${KINDS.includes(kind) ? kind : "info"}`);
+    const body = document.createElement("div");
+    body.className = "drpg-popup-body";
+    if (bodyHtml instanceof Element) body.append(bodyHtml);
+    else body.innerHTML = bodyHtml ?? "";
+
+    /* THE EVENT'S TITLE IN THE BAR (E18 C6; audit S11-23). Many of the module's cards are a bare heading and
+       a paragraph, and they were drawn as NOTICE over "Night Eclipse", or NOTICE over "Night" over a line ending
+       in Night: one tile read three ways. A card with no title of its own whose words open with a heading
+       carries that heading in its bar, and the words go on without it. A heading further down, or one with no
+       words, stays where it is. The history keeps the card as it was posted, heading first under its kind's word:
+       its window titles such a row by that heading and leaves the clock line out (notice-history-app.mjs
+       `rowWords`, E77 fix r2-H4), which a kept title of its own would turn off (scenario 73 H2). */
+    const kindWord = game.i18n.localize(`DRPG.Popup.kind.${KINDS.includes(kind) ? kind : "info"}`);
+    const keptTitle = title || kindWord;
+    let lifted = "";
+    /* And a heading that only says the title given again goes from the words too (E18 fix e1-G3; the end review's
+       E18-END-8): a card posted with its title and opening with the same heading read it twice, bar and body. */
+    const first = [...body.childNodes].find(node => node.nodeType !== Node.TEXT_NODE || node.textContent.trim());
+    const heading = first?.nodeType === Node.ELEMENT_NODE && /^H[1-4]$/.test(first.tagName) ? first.textContent.trim() : "";
+    if (heading && (!title || heading === String(title).trim())) {
+        title = heading;
+        lifted = first.outerHTML;
+        first.remove();
+    }
+    if (!title) title = kindWord;
+    const kept = () => lifted + body.innerHTML;
 
     {
         const head = document.createElement("div");
@@ -826,11 +859,6 @@ export function showPopup(bodyHtml, {
 
         card.append(head);
     }
-
-    const body = document.createElement("div");
-    body.className = "drpg-popup-body";
-    if (bodyHtml instanceof Element) body.append(bodyHtml);
-    else body.innerHTML = bodyHtml ?? "";
     card.append(body);
 
     /* KEPT AS DRAWN (E81 C3; the A7 design's P3-0): after the body is filled and before any host
@@ -839,9 +867,13 @@ export function showPopup(bodyHtml, {
     let notice = null, unwatch = null;
     if (record) {
         try {
+            /* The options this function does not name go on to the history, under the ones it does (E18 C6; the
+               owner's amend 4 of 11.10): a later stage that keeps one more field passes it here without rebuilding
+               the funnel. The history reads only the fields it knows (notice-history.mjs `record`). */
             notice = recordNotice({
+                ...more,
                 kind: KINDS.includes(kind) ? kind : "info", tone: TONES.includes(tone) ? tone : null,
-                title, html: body.innerHTML, messageId: messageId ?? fromMessage, link, persist, ...noticeSource(source, messageId ?? fromMessage, author)
+                title: keptTitle, html: kept(), messageId: messageId ?? fromMessage, link, persist, ...from
             });
             if (notice) card.dataset.drpgNotice = notice;
         } catch (err) {
@@ -851,7 +883,7 @@ export function showPopup(bodyHtml, {
 
     const host = hostFor(kind, sticky);
     const followed = notice && observe ? notice : null;
-    if (followed !== null || host.id === CONTAINER_ID) unwatch = watchCard(card, body, followed);
+    if (followed !== null || host.id === CONTAINER_ID) unwatch = watchCard(card, body, followed, kept);
     card.dataset.drpgSeq = String(++arrivals);
     // The card it was drawn from, so the notice goes when that card is deleted (`registerPopups`).
     if (messageId) card.dataset.drpgMessage = messageId;

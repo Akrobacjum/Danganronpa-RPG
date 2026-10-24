@@ -3446,17 +3446,18 @@ async function closeIncident(state, { reason, followUp, conclude = true }) {
 async function tellIncidentClosed(state) {
     const audience = incidentAudienceIds(state);
     if (!audience.length) return null;
-    const victim = leftABody(state) ? null : ownerOf(game.actors.get(state.victimId ?? ""))?.id ?? null;
-    const freed = audience.includes(victim) ? victim : null;
-    const others = audience.filter(id => id !== freed);
+    // Every player who owns a living victim (`ownerIdsOf`, E18 fix e1-G7), not the first owner alone.
+    const victims = leftABody(state) ? [] : ownerIdsOf(game.actors.get(state.victimId ?? ""));
+    const freed = audience.filter(id => victims.includes(id));
+    const others = audience.filter(id => !freed.includes(id));
     const words = key => `<p>${game.i18n.localize(key)}</p>`;
     const message = await announce({
         content: words(others.length ? "DRPG.Murder.closedYou" : "DRPG.Murder.closedVictimYou"),
-        whisper: others.length ? others : [freed]
+        whisper: others.length ? others : freed
     });
-    if (message && freed && others.length) {
+    if (message && freed.length && others.length) {
         const { updateSecret } = await import("./secret.mjs");
-        await updateSecret(message, words("DRPG.Murder.closedVictimYou"), [freed]);
+        await updateSecret(message, words("DRPG.Murder.closedVictimYou"), freed);
     }
     return message;
 }

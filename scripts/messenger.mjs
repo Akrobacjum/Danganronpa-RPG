@@ -202,14 +202,17 @@ export async function sendMessage(playerUserId, text, { kind = THREAD_KIND.dm } 
 /**
  * Post pre-built HTML - the callGm() ruling cards - into a player's thread.
  * The caller is responsible for escaping anything it interpolated. `veiled`: a
- * card whose place in this thread is itself the secret (see the header).
+ * card whose place in this thread is itself the secret (see the header). `rid`:
+ * the mark of the ask the card was posted for - its id and asker, its kind and
+ * what it was asked for (gm-bridge.mjs `callGm`, E18 C2; `askMark`, fix
+ * early-C2-G2) - in the meta its words travel with, never on the document.
  */
-export async function postToThread(playerUserId, html, { kind = THREAD_KIND.action, gmAsk = false, veiled = false } = {}) {
+export async function postToThread(playerUserId, html, { kind = THREAD_KIND.action, gmAsk = false, veiled = false, rid = null } = {}) {
     if (!isThreadUser(playerUserId)) return null;
-    return createThreadMessage(playerUserId, html, kind, gmAsk, veiled);
+    return createThreadMessage(playerUserId, html, kind, gmAsk, veiled, rid);
 }
 
-async function createThreadMessage(playerUserId, content, kind, gmAsk = false, veiled = false) {
+async function createThreadMessage(playerUserId, content, kind, gmAsk = false, veiled = false, rid = null) {
     const whisper = Array.from(new Set([playerUserId, ...gmIds()]));
 
     // The SENDER's sound, and it is deliberately not carried on the message:
@@ -240,7 +243,8 @@ async function createThreadMessage(playerUserId, content, kind, gmAsk = false, v
                 [MODULE_ID]: {
                     [MESSENGER_FLAGS.thread]: playerUserId,
                     [MESSENGER_FLAGS.kind]: kind,
-                    ...(gmAsk ? { [MESSENGER_FLAGS.gmAsk]: true } : {})
+                    ...(gmAsk ? { [MESSENGER_FLAGS.gmAsk]: true } : {}),
+                    ...(rid ? { rid } : {})
                 }
             }
         });

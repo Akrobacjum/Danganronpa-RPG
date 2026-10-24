@@ -62,8 +62,9 @@
  */
 
 export const FLOWS = Object.freeze([
+    // E18 C1 (19.10.2026): a Dynamic answer goes by the primary (`dynamic.answer`), which 40 drives from the card's button.
     { id: "action-roll", what: "A player's action roll: the tile, the roll window, and the difficulty a GM rules for a Dynamic action",
-        entry: { bridge: ["dynamic.difficulty"], api: ["performAction"] }, scenarios: ["40-flow"], status: "partial", stage: "E39" },
+        entry: { bridge: ["dynamic.difficulty", "dynamic.answer"], api: ["performAction"] }, scenarios: ["40-flow"], status: "partial", stage: "E39" },
     // E08+E28 C14 (04.10.2026): partial - 30 sends a console's Analyze and 40 throws a player's and rerolls it; what the
     // price does when the GM's side refuses is driven by 61 (keysNotOpen) and not tagged here.
     { id: "analyze", what: "Analyze: the price paid on the player's client, the analysis read on the GM's",
@@ -148,9 +149,12 @@ export const FLOWS = Object.freeze([
     { id: "gm-rolls-total", what: "The GM checks a roll's total against the roll message it can see",
         entry: { bridge: ["roll.draw", "roll.grant"] }, scenarios: ["40-flow", "30-security", "15-held", "13-murder-signals", "83-roll-integrity", "20-crit-hope"], status: "covered", stage: "1.2.67" },
     // E29 fix r2-H4 (05.10.2026): a GM's yes is kept on the primary for the arm it allows (`call.yes`) - 40 says it on
-    // the primary, 33 from an Assistant GM, 30 arms with none and says yes from p1's console.
+    // the primary, 33 from an Assistant GM, 30 arms with none and says yes from p1's console. E18 C1 (19.10.2026): the
+    // asker's reports that end the card (`ruling.expired`, `ruling.received`, a Dynamic action's too) - 33's A13 reads
+    // the card written on p1's receipt and A17 the card p1's clock ended; 30-security's 4b2e (E18 fix e1-G2) forges both from
+    // p2's console against p1's open ask, and p1's own expiry ends it.
     { id: "hope-call", what: "A Hope Call that waits for the GM: the card, the ruling, the Hope charged",
-        entry: { bridge: ["call.approve", "call.yes"] }, scenarios: ["40-flow", "30-security", "33-bridge-paths"], status: "covered", stage: "<=1.2.50" },
+        entry: { bridge: ["call.approve", "call.yes", "ruling.expired", "ruling.received"] }, scenarios: ["40-flow", "30-security", "33-bridge-paths"], status: "covered", stage: "<=1.2.50" },
     // E12 C0 (11.10.2026): 66-rooms drives the shim's floors (S) and a scene of two floors (G). E12 C9 (11.10.2026): G
     // judges a level-only move - a lock on the floor above refused, the stairs charged as a door, a stairwell's floors
     // free - on the mover's browser; partial until the GM judges the arrival (C12) and the fog is drawn by floor (C10).
@@ -168,6 +172,11 @@ export const FLOWS = Object.freeze([
     // it (`card.post`, secret.mjs `askGm`): 13-murder-signals' fight sends the players' cards and a word in the messenger.
     { id: "messenger", what: "The messenger and every private card: the words travel only to the people on the card",
         entry: { bridge: ["card.post"], sockets: ["secret.mjs"] }, scenarios: ["40-flow", "30-security", "13-murder-signals"], status: "covered", stage: "<=1.2.50" },
+    // E18 C3 (19.10.2026): a GM's click on a card sent to the GMs is claimed on the primary (`card.claim`, gm-bridge.mjs
+    // `claimCard`) - 61's CL clicks one card on two GMs at once, reopens it, and forges p1's claim; 30-security's 4b2e forges
+    // p2's take and done of p1's card (E18 fix e1-G2).
+    { id: "card-claim", what: "A GM's ruling on a card sent to the GMs, made once whichever GM clicks",
+        entry: { bridge: ["card.claim"] }, scenarios: ["61-gmstore-case", "30-security"], status: "covered", stage: "1.2.84" },
     // E06 fix r2-G4 (28.09.2026): a Confusion's armed Call is the GMs' store and its owner's copy, whose socket
     // is call-effects.mjs's; 40-flow drives the arming on the GM, the copy and a spend on the owner's browser,
     // not the Monocub's own ask. E08+E28 C17 (04.10.2026): the GM throws the Meddle's dice; tier 2 judges a Monocub's

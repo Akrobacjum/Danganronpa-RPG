@@ -4102,7 +4102,7 @@ export const GAME_WINDOWS =
  * After that, ordered by how often a player hears them.
  */
 export const SFX_CATEGORIES = {
-    safety:   { label: "Safety",    hint: "The safeword. Ignores the Sound slider - see the event's own note." },
+    safety:   { label: "Safety",    hint: "The sound of a scene being stopped." },
     ui:       { label: "Interface", hint: "Windows, buttons and the chat in the corner." },
     chat:     { label: "Chat",      hint: "Messages, cards, announcements and Calls." },
     world:    { label: "World",     hint: "Rooms, the clock, and the everyday business of a Daily Life." },
@@ -4226,8 +4226,10 @@ export const SFX_VOLUME_KEYS = Object.entries(SFX_SLIDERS)
  *                 acts. The window winning both ways is what makes the footer's
  *                 Close and the frame's X sound alike, which they should,
  *                 because they do the same thing.
- *   ignoresVolume optional. Plays at full whatever the Sound slider says. The
- *                 safeword has it and nothing else ever should.
+ *   ignoresVolume optional. Plays at full whatever the Sound slider says - still
+ *                 under Foundry's Interface volume and after the page's first
+ *                 click (owner Q1, E19). The safeword has it and nothing else
+ *                 ever should.
  *   vary          optional. Bend the rate a little on every play, so the same
  *                 file stops being the same event. OPT-IN, and the opting is
  *                 not a matter of taste: repetition fatigue is a function of
@@ -4261,7 +4263,7 @@ export const SFX_EVENTS = {
      * One event, and the only one in the file with a rule of its own. */
     safeword: {
         label: "The safeword",
-        hint: "Somebody stopped the scene. Heard by everyone, at full volume whatever the Sound slider says, and it should sound like nothing else in the game.",
+        hint: "Somebody stopped the scene. Heard by everyone whatever the Sound slider says, at Foundry's Interface volume, from their first click on the page after it loads; the card shows on every screen either way. Make it sound like nothing else in the game.",
         category: "safety",
         ignoresVolume: true
     },

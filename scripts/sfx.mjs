@@ -604,6 +604,10 @@ function fire(key, force) {
 
     // The safeword, and only the safeword. A safety tool that a player can
     // silence by leaving a slider at zero months ago is not a safety tool.
+    // It still plays on the interface channel below, so Foundry's Interface
+    // volume and the page's first click (rule 4) still decide it: the owner's
+    // answer to Q1 (E19, 19.10.2026; audit S11-43) keeps both and corrects the
+    // promise - the card is what everybody is sure to get.
     const volume = SFX_EVENTS[key].ignoresVolume ? 1 : sfxVolume("sound");
     if (volume <= 0) return false;
 
@@ -842,8 +846,24 @@ function onDocumentClick(event) {
  * watched. Levels would replay the sound every time the GM extended the clock.
  */
 
-/** What the last look at the world said, so only changes speak. */
-const worldWas = { floorOpen: false, floorMode: null, myTurn: false };
+/**
+ * What the last look at the world said, so only changes speak. `known` is false until
+ * `snapshotWorld` has read the world at ready: before it, a change has nothing to be a change from.
+ */
+const worldWas = { known: false, floorOpen: false, floorMode: null, myTurn: false };
+
+/**
+ * The baseline, read at ready (E19 C6, audit S11-31). It was read from `registerSfx` at init, where
+ * `game.actors` does not exist yet: the TypeError was swallowed, the baseline said "not my turn",
+ * and a player who reloaded during their own turn heard "your turn" at the next incident write.
+ * Both readers stay quiet while `known` is false, and it turns true even if a reader throws, so a
+ * failed read costs one transition's sound rather than every sound after it.
+ */
+function snapshotWorld() {
+    return Promise.all([onFloorChanged(), onIncidentChanged()])
+        .catch(err => error("Could not read the world state for the sounds", err))
+        .finally(() => { worldWas.known = true; });
+}
 
 async function onWorldSettingChanged(setting) {
     const prefix = `${MODULE_ID}.`;
@@ -881,13 +901,10 @@ async function onFloorChanged() {
     const open = Boolean(floor);
     const mode = floor?.mode ?? null;
 
-    if (open && !worldWas.floorOpen) playSfx("debateOpen");
-    if (mode === FLOOR_MODES.objection && worldWas.floorMode !== FLOOR_MODES.objection) {
-        playSfx("objection");
-    }
-    if (mode === FLOOR_MODES.rebuttal && worldWas.floorMode !== FLOOR_MODES.rebuttal) {
-        playSfx("rebuttal");
-    }
+    if (worldWas.known && open && !worldWas.floorOpen) playSfx("debateOpen");
+    const into = target => mode === target && worldWas.floorMode !== target;
+    if (worldWas.known && into(FLOOR_MODES.objection)) playSfx("objection");
+    if (worldWas.known && into(FLOOR_MODES.rebuttal)) playSfx("rebuttal");
 
     worldWas.floorOpen = open;
     worldWas.floorMode = mode;
@@ -910,7 +927,7 @@ async function onIncidentChanged() {
         && ownerOf(actor)?.id === game.user.id
         && isTheirTurn(actor));
 
-    if (mine && !worldWas.myTurn) playSfx("yourTurn");
+    if (worldWas.known && mine && !worldWas.myTurn) playSfx("yourTurn");
     worldWas.myTurn = mine;
 }
 
@@ -955,8 +972,9 @@ export function registerSfx() {
 
     // What the world looked like before anybody changed anything, so the first
     // change is measured against the truth and not against zero: a client that
-    // joins mid-trial must not be told the debate just opened.
-    Promise.all([onFloorChanged(), onIncidentChanged()]).catch(() => {});
+    // joins mid-trial must not be told the debate just opened. At ready, when
+    // the actors exist - see `snapshotWorld`.
+    Hooks.once("ready", () => snapshotWorld());
 
     // Not used to gate anything - the drop rule above does that. This exists so
     // `diagnoseSfx()` can answer "has this browser been clicked yet", which is
@@ -1249,6 +1267,16 @@ export function soundSlidersHtml() {
     </fieldset>`;
 }
 
+/**
+ * One icon button of a row (E19 C6, audit S11-21): the GM's screenshot showed 47 rows of three word
+ * buttons of the same weight in a column with no heading. The word is the button's name for a screen
+ * reader and the tooltip says what it does.
+ */
+function sfxIconButton(data, icon, label, tip) {
+    return `<button type="button" class="drpg-mini-button drpg-sfx-icon" ${data}
+        aria-label="${esc(game.i18n.localize(label))}" data-tooltip="${esc(game.i18n.localize(tip))}"><i class="fa-solid ${icon}" inert></i></button>`;
+}
+
 /** The mapping table: one row per event, grouped by category. GM only. */
 export function soundEffectsHtml() {
     const keys = Object.keys(SFX_EVENTS);
@@ -1266,7 +1294,7 @@ export function soundEffectsHtml() {
                         "DRPG.Sound.fileCount", { n: many })}</span>`
                     : "",
                 event.vary
-                    ? `<span class="drpg-sfx-badge" title="${esc(game.i18n.localize(
+                    ? `<span class="drpg-sfx-badge" data-tooltip="${esc(game.i18n.localize(
                         "DRPG.Sound.variesHint"))}">${esc(game.i18n.localize(
                         "DRPG.Sound.varies"))}</span>`
                     : ""
@@ -1276,34 +1304,52 @@ export function soundEffectsHtml() {
                     <strong>${esc(event.label)}</strong>${badges}<br>
                     <small class="notes">${esc(event.hint)}</small>
                 </td>
-                <td><input type="text" name="sfx:${key}" value="${esc(src)}"
+                <td><div class="drpg-sfx-file">
+                    <input type="text" name="sfx:${key}" value="${esc(src)}"
                         title="${esc(game.i18n.localize("DRPG.Sound.severalHint"))}"
-                        placeholder="${esc(game.i18n.localize("DRPG.Sound.notAssigned"))}" /></td>
-                <td><div class="drpg-sfx-actions">
-                    <button type="button" class="drpg-mini-button" data-drpg-sfx-pick>${
-                        esc(game.i18n.localize("DRPG.Sound.choose"))}</button>
-                    <button type="button" class="drpg-mini-button" data-drpg-sfx-test>${
-                        esc(game.i18n.localize("DRPG.Sound.test"))}</button>
-                    <button type="button" class="drpg-mini-button" data-drpg-sfx-clear>${
-                        esc(game.i18n.localize("DRPG.Sound.clear"))}</button>
+                        placeholder="${esc(game.i18n.localize("DRPG.Sound.notAssigned"))}" />
+                    <span class="drpg-sfx-actions">
+                        ${sfxIconButton("data-drpg-sfx-pick", "fa-folder-open", "DRPG.Sound.choose", "DRPG.Sound.chooseHint")}
+                        ${sfxIconButton("data-drpg-sfx-test", "fa-play", "DRPG.Sound.test", "DRPG.Sound.testHint")}
+                        ${sfxIconButton("data-drpg-sfx-clear", "fa-xmark", "DRPG.Sound.clear", "DRPG.Sound.clearHint")}
+                    </span>
                 </div></td>
             </tr>`;
         }).join("");
 
-        return `<tr class="drpg-sfx-group"><td colspan="3">
+        return `<tr class="drpg-sfx-group"><td colspan="2">
             <strong>${esc(meta.label)}</strong>
+            <span class="drpg-sfx-group-count" data-drpg-sfx-group-count="${category}">${esc(groupCountLine(category))}</span>
             <small class="notes">${esc(meta.hint)}</small>
         </td></tr>${rows}`;
     }).join("");
 
+    // What the "varies" badge means, said once above the table rather than in a hover on each badge.
+    const legend = Object.values(SFX_EVENTS).some(event => event.vary)
+        ? `<p class="notes" data-drpg-sfx-legend><span class="drpg-sfx-badge">${esc(game.i18n.localize(
+            "DRPG.Sound.varies"))}</span> ${esc(game.i18n.localize("DRPG.Sound.variesHint"))}</p>`
+        : "";
+
+    // This tab has no Apply (see `wireSoundPanel`), and a GM who typed paths into it closed the
+    // window believing nothing was saved: the sentence says so before the table.
     return `
         <p class="notes">${game.i18n.localize("DRPG.Sound.effectsIntro")}</p>
+        <p class="notes">${game.i18n.localize("DRPG.Sound.autosave")}</p>
         <p class="notes" data-drpg-sfx-count>${countLine()}</p>
+        ${legend}
         <table class="drpg-vault-table drpg-sfx-table"><thead><tr>
             <th>${game.i18n.localize("DRPG.Sound.event")}</th>
             <th>${game.i18n.localize("DRPG.Sound.file")}</th>
-            <th></th>
         </tr></thead><tbody>${body}</tbody></table>`;
+}
+
+/** "3 of 11 assigned" - one group's empty state, beside its name. */
+function groupCountLine(category) {
+    const keys = Object.keys(SFX_EVENTS).filter(key => SFX_EVENTS[key].category === category);
+    return game.i18n.format("DRPG.Sound.groupAssigned", {
+        n: keys.filter(key => soundFor(key)).length,
+        total: keys.length
+    });
 }
 
 /** "12 of 35 events have a file." - the empty state, said as a number. */
@@ -1360,7 +1406,12 @@ export function wireSoundPanel(root) {
 
     /* ---- the mapping table ------------------------------------------ */
     const counter = root.querySelector("[data-drpg-sfx-count]");
-    const recount = () => { if (counter) counter.textContent = countLine(); };
+    const recount = () => {
+        if (counter) counter.textContent = countLine();
+        for (const group of root.querySelectorAll("[data-drpg-sfx-group-count]")) {
+            group.textContent = groupCountLine(group.dataset.drpgSfxGroupCount);
+        }
+    };
 
     for (const row of root.querySelectorAll("[data-drpg-sfx]")) {
         const key = row.dataset.drpgSfx;

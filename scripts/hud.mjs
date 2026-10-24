@@ -63,7 +63,9 @@ const HUD_ID = "drpg-hud";
  *
  * READ FROM THE LOCAL AUDIO STATE - see `nowPlayingHere` in music.mjs for why that
  * is the only safe reading: what the GM hears while they set a scene up is not what
- * the table hears, and a murder is exactly when that difference matters.
+ * the table hears, and a murder is exactly when that difference matters. In one,
+ * the band names the murder track, never the room's track held at 0 under it, nor
+ * a soundboard's one-shot (E19 C5; audit S11-40).
  *
  * TWO COPIES OF THE TEXT, like the ticker, because a marquee that scrolls one copy
  * shows a gap. Under reduced motion the animation is off in the stylesheet and the
@@ -126,6 +128,9 @@ export function registerHud() {
         "createPlaylistSound", "deletePlaylistSound"]) {
         Hooks.on(hook, () => paintTrackLine());
     }
+    /* The murder track is no playlist document, so none of the four fires for it: music.mjs says when it starts or
+       stops on this browser (E19 C5). */
+    Hooks.on("drpgMurderMusicChanged", () => paintTrackLine());
     Hooks.once("ready", () => setInterval(() => {
         try { paintTrackLine(); } catch (err) { debug("Could not repaint the track band", err); }
     }, 3000));

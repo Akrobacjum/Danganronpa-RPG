@@ -22,6 +22,8 @@ export const SETTINGS = {
     enforceDhWelcome: "enforceDhWelcome",
     /** Players and Trusted Players browse and upload no files (E79 C9, N4 - see enforced.mjs). */
     enforcePlayerFiles: "enforcePlayerFiles",
+    /** Every browser joins voice inside the Foundry window, never in LiveKit's own (E19 C1, S16-04 - see enforced.mjs). */
+    liveKitInFoundry: "liveKitInFoundry",
     forcePrivateRolls: "forcePrivateRolls",
     /** Every user below full Gamemaster throws in one GM's Dice So Nice look (E16 p1 C3, D19a - see dice-sync.mjs). */
     forceDiceLook: "forceDiceLook",
@@ -165,6 +167,7 @@ export const SETTINGS = {
      * writes it raw, so whatever reads it clamps: ids that are users, volumes 0..1.
      */
     voicePeerMutes: "voicePeerMutes",
+    rtcDockBefore: "rtcDockBefore",
     /** The playlist follows the game state - off by default, needs playlists. */
     musicEnabled: "musicEnabled",
     /** Which playlist each state uses: `{ stateKey: playlistId }`. */
@@ -411,6 +414,12 @@ export const SETTINGS = {
      * resolving GM's memory until then.
      */
     gmCleanupAttempts: "gmCleanupAttempts",
+    /**
+     * WHO RULED EACH CARD TO THE GMS (E18 C3, 1.2.84; audits S11-14, S17-22): a GM store (gm-stores.mjs
+     * `ruledCardStore`), a row per card a GM ruled on - the GM and when. Synced, not backed up; no
+     * player copy.
+     */
+    gmRuledCards: "gmRuledCards",
     /**
      * THE ROLLS THE GM DREW (E08+E28 C12a, 1.2.67; audit S16-05): a GM store (gm-stores.mjs
      * `rollStore`), a row per roll a player threw and the primary GM drew - its dice, its
@@ -1057,6 +1066,22 @@ export function registerSettings() {
             .catch(err => console.error("danganronpa-rpg | Could not re-apply the held settings", err))
     });
 
+    /* E19 C1 (S16-04): avclient-livekit's separate window held off on every browser, on by default
+       (D19b as changed on 25.09.2026). avclient-livekit reads its setting as its client starts, so a
+       change takes a reload; each client re-applies on change as above, which gives the box back. */
+    game.settings.register(MODULE_ID, SETTINGS.liveKitInFoundry, {
+        name: "DRPG.Settings.liveKitInFoundry.name",
+        hint: "DRPG.Settings.liveKitInFoundry.hint",
+        scope: "world",
+        config: true,
+        type: Boolean,
+        default: true,
+        requiresReload: true,
+        onChange: () => import("./enforced.mjs")
+            .then(m => m.applyEnforced())
+            .catch(err => console.error("danganronpa-rpg | Could not re-apply the held settings", err))
+    });
+
     game.settings.register(MODULE_ID, SETTINGS.hideSystemFear, {
         name: "DRPG.Settings.hideSystemFear.name",
         hint: "DRPG.Settings.hideSystemFear.hint",
@@ -1304,13 +1329,26 @@ export function registerSettings() {
         config: true,
         type: Boolean,
         default: true,
-        // On every client that receives the change: the tile drawn or taken away, the dock hidden or given back.
+        // On every client that receives the change: the tile drawn or taken away, the dock hidden or given back,
+        // and Foundry's own dock folded with its cameras in it (enforced.mjs `rtcDock`, E19 C1; off gives each browser's
+        // dock and camera windows back as they were before the first hold, E19 fix r1-G2).
         onChange: () => {
             import("./voice-tile.mjs").then(m => m.refreshVoiceTile()).catch(() => {});
+            import("./enforced.mjs").then(m => m.holdRtcDock())
+                .catch(err => console.error("danganronpa-rpg | Could not hold the camera dock", err));
         }
     });
 
     game.settings.register(MODULE_ID, SETTINGS.voicePeerMutes, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+
+    // What this browser had in the camera dock's fields before the `rtcDock` row first held them, given back once when
+    // the voice tile is switched off (enforced.mjs `holdRtcDock`; E19 fix r1-G2). This browser's own; `{}` when none.
+    game.settings.register(MODULE_ID, SETTINGS.rtcDockBefore, {
         scope: "client",
         config: false,
         type: Object,
@@ -1603,6 +1641,14 @@ export function registerSettings() {
     // A clean-up's receipt on the GMs (E08+E28 C3): no `onChange` - shown nowhere, read by
     // the Reroll's replay of a clean-up (cleanup.mjs `undoLastCleanup`).
     game.settings.register(MODULE_ID, SETTINGS.gmCleanupAttempts, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // Who ruled each card to the GMs (E18 C3): no `onChange` - shown nowhere, read by the claim on a
+    // card (gm-bridge.mjs `claimOnPrimary`).
+    game.settings.register(MODULE_ID, SETTINGS.gmRuledCards, {
         scope: "client",
         config: false,
         type: Object,
