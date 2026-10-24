@@ -61929,6 +61929,130 @@ const SCENARIOS = [
             "an unseen rifle redrew its owner's sheet, a clumsy one did not, or nothing arrived (per rifle: each write of the owner's items and whether it redraws; the thief's pieces)");
     }],
 
+    ["each owner change's refusal and result reach its asker in its own words: into full hands and no stash a hand-over, a body's loot, a stash rifled, a Palm's steal and a Plant each leave the item where it was, and the asker reads its mode's line; with a stash of the taker's the loot, the rifle and the steal land in it, the taker reading where it went, and the hand-over and the Plant are refused as before (E35-T10, D42)", async () => {
+        /*
+         * E35 C5, 24.10.2026; E35-08, E35-21, D42. The harm: one hands-full table (inventory.mjs TRANSFER_POLICY) under
+         * five roads, each of which keeps its own words - a road that read the policy's answer wrong would tell its
+         * asker it took what stayed, or nothing at all of what happened. Two students alone together, the taker's every
+         * Tool slot filled with the suite's, the giver with a stash of their own in the room for the rifle; a Tool of
+         * the giver's moved by each road by a GM's own call (the functions the bridge's runs call), on a critical
+         * where it is rolled, with no stash of the taker's and then with one in the room; the loot last, the giver
+         * dead on a recorded death for it and alive again after. Read, per road: the taker's copies of the Tool, how
+         * many in a stash, whether the giver still holds it, and which of the roads' lines reached the asker's
+         * players and the other student's (`sentDuring`: the packets to each one's players, by each line's words).
+         * Red on a copy of this tree with handover.mjs, vault.mjs, inventory.mjs and sheet.mjs from f2cfc2d (1.2.83,
+         * before C1): with the taker's stash the Plant went into it, the planter read DRPG.Steal.cardPlanted and the
+         * victim DRPG.Vault.overflowed; the other nine rows read as they do here, which is the policy table keeping
+         * Base's answer for them (D42 changed the Plant's only).
+         */
+        const { isPrimaryGm, ownerIdsOf } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the roads read - this would measure nothing");
+        const V = await import("./vault.mjs");
+        const H = await import("./handover.mjs");
+        const INV = await import("./inventory.mjs");
+        const { ITEM_CATEGORIES } = await import("./config.mjs");
+        const { killCharacter, reviveCharacter } = await import("./chapter.mjs");
+        const { lootTraceStore } = await import("./gm-stores.mjs");
+        const remnants = await import("./remnants.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const trio = cast(3);
+        const taker = trio.find(a => !V.primaryStashRoom(a, canvas?.scene)) ?? null;
+        must(taker, "every student of the cast keeps a stash on the scene on screen - the roads with none would measure nothing");
+        const giver = trio.find(a => a.id !== taker.id);
+        const players = [ownerIdsOf(giver), ownerIdsOf(taker)];
+        must(players[0].length && players[1].length && !players[0].some(id => players[1].includes(id)),
+            "the giver and the taker are not each another player's - what reaches whom would measure nothing");
+        const fixture = await aloneTogether(giver, taker);
+        const NAME = "SUITE E35-T10 a crowbar", FULL = "SUITE E35-T10 a full hand", flag = key => `flags.${MODULE_ID}.${INV.ITEM_FLAGS[key]}`;
+        const LINES = ["DRPG.Handover.theirHandsFull", "DRPG.Handover.gave", "DRPG.Handover.receivedItemFrom", "DRPG.Vault.handsFull",
+            "DRPG.Vault.overflowed", "DRPG.Vault.stole", "DRPG.Steal.cardHandsFull", "DRPG.Steal.cardTook", "DRPG.Steal.cardTheirHandsFull",
+            "DRPG.Steal.cardPlanted", "DRPG.Steal.caughtTaking", "DRPG.Steal.caughtTrying", "DRPG.Steal.caughtPlanting", "DRPG.Steal.caughtTryingPlant"];
+        const words = key => new RegExp(game.i18n.localize(key).split(/\{[^}]+\}/).map(s => s.replace(/[.*+?^$()|[\]\\{}]/g, "\\$&")).join("[\\s\\S]*"));
+        must(LINES.every(key => game.i18n.has(key)), `a line read here is not in the module's words: ${LINES.filter(key => !game.i18n.has(key)).join(", ")}`);
+        const text = html => String(html ?? "").replace(/<[^>]+>/g, "").replace(/\s+/g, " ");
+        const heard = (sent, ids) => LINES.filter(key => sent.packets.some(p => p.to?.some(id => ids.includes(id)) && words(key).test(text(p.html))));
+        const group = ITEM_CATEGORIES.tool?.limitGroup ?? null;
+        const slot = i => [i.getFlag(MODULE_ID, INV.ITEM_FLAGS.category)].some(c => c === "tool" || (group !== null && ITEM_CATEGORIES[c]?.limitGroup === group));
+        const critical = { total: 30, isCritical: true, unseenTotal: 30, unseenCritical: true };
+        const stashed = { location: INV.LOCATIONS.vault, extraFlags: { [INV.ITEM_FLAGS.stashRoom]: fixture.room } };
+        const ROADS = {
+            give: item => H.giveItem({ fromId: giver.id, toId: taker.id, itemId: item.id }),
+            rifle: item => V.stealFromVault({ thiefId: taker.id, ownerId: giver.id, itemId: item.id }),
+            steal: item => V.stealFromPerson({ thiefId: taker.id, victimId: giver.id, itemId: item.id, ...critical }),
+            plant: item => V.plantOnPerson({ plannerId: giver.id, victimId: taker.id, itemId: item.id, ...critical }),
+            loot: item => H.lootBody({ takerId: taker.id, bodyId: giver.id, itemId: item.id })
+        };
+        // Whose players asked, per road: the giver's for a hand-over and a Plant, the taker's for the rest.
+        const asker = road => road === "give" || road === "plant" ? 0 : 1;
+        const had = new Set(taker.items.map(i => i.id));
+        const run = async road => {
+            const item = await INV.grantItem(giver, { name: NAME, category: "tool", tier: 1, override: true, quiet: true, ...(road === "rifle" ? stashed : {}) });
+            await sheetAuditIdle();
+            must(item && INV.isStashed(item) === (road === "rifle") && !INV.canCarry(taker, "tool").ok,
+                "the giver holds no Tool where the road takes it from, or the taker's hands are not full - this would measure nothing");
+            const sent = await sentDuring(async () => { await ROADS[road](item); await settle(); });
+            await sheetAuditIdle();
+            const copies = taker.items.filter(i => i.name === NAME);
+            const row = [copies.length, copies.filter(i => INV.isStashed(i)).length, giver.items.has(item.id),
+                heard(sent, players[asker(road)]), heard(sent, players[1 - asker(road)])];
+            for (const a of [giver, taker]) for (const i of a.items.filter(i => i.name === NAME)) await i.delete();
+            return row;
+        };
+        const roads = async () => {
+            const out = {};
+            for (const road of ["give", "rifle", "steal", "plant"]) out[road] = await run(road);
+            let dead = false;
+            try {
+                dead = Boolean(await killCharacter(giver, { secret: false, keepBullets: true }));
+                must(dead, "the giver could not be stood dead on a recorded death for the loot - this would measure nothing");
+                out.loot = await run("loot");
+            } finally {
+                const row = lootTraceStore.get(giver.id);
+                const trace = row?.tokenId ? game.scenes.get(row.sceneId)?.tokens?.get(row.tokenId) ?? null : null;
+                if (trace) {
+                    try { await remnants.dropRemnantSecret(trace); } catch { /* nothing filed */ }
+                    try { await trace.delete(); } catch { /* already gone */ }
+                }
+                if (lootTraceStore.has(giver.id)) await lootTraceStore.drop(giver.id);
+                for (const item of taker.items.filter(i => !had.has(i.id) && i.name !== FULL)) {
+                    try { await item.delete(); } catch { /* already gone */ }
+                }
+                if (dead) await reviveCharacter(giver, { quiet: true });
+                await settle();
+            }
+            return out;
+        };
+        const stowed = [], read = {};
+        try {
+            for (const i of taker.items.filter(i => slot(i) && !INV.isStashed(i))) {
+                stowed.push([i, i.getFlag(MODULE_ID, INV.ITEM_FLAGS.location)]);
+                await i.update({ [flag("location")]: INV.LOCATIONS.vault });
+            }
+            const { limit } = INV.canCarry(taker, "tool");
+            must(Number.isInteger(limit) && limit > 0, `a Tool's slots have no limit to fill (${limit}) - this would measure nothing`);
+            for (let n = 0; n < limit; n++) await INV.grantItem(taker, { name: FULL, category: "tool", tier: 1, override: true, quiet: true });
+            await sheetAuditIdle();
+            await withStashIn(fixture.room, giver, async () => {
+                must(!V.primaryStashRoom(taker, canvas?.scene), "the taker keeps a stash on the scene on screen - the roads with none would measure nothing");
+                read.none = await roads();
+                read.stash = await withStashIn(fixture.room, taker, roads);
+            });
+        } finally {
+            for (const a of [giver, taker]) for (const i of a.items.filter(i => i.name === NAME || i.name === FULL)) await i.delete();
+            for (const [i, was] of stowed) if (taker.items.has(i.id)) await i.update({ [flag("location")]: was ?? forcedDeletion() });
+            await fixture.back();
+            await sheetAuditIdle();
+        }
+        const stays = (said, other = []) => [0, 0, true, said, other];
+        const lands = said => [1, 1, false, said, []];
+        equal(stableJson(read), stableJson({
+            none: { give: stays(["DRPG.Handover.theirHandsFull"]), rifle: stays(["DRPG.Vault.handsFull"]), steal: stays(["DRPG.Steal.cardHandsFull"]),
+                plant: stays(["DRPG.Steal.cardTheirHandsFull"]), loot: stays([]) },
+            stash: { give: stays(["DRPG.Handover.theirHandsFull"]), rifle: lands(["DRPG.Vault.overflowed", "DRPG.Vault.stole"]),
+                steal: lands(["DRPG.Vault.overflowed", "DRPG.Steal.cardTook"]), plant: stays(["DRPG.Steal.cardTheirHandsFull"]), loot: lands(["DRPG.Vault.overflowed"]) }
+        }), "a road into full hands moved what its policy keeps, kept what it moves, or told its asker another road's line, or none (per road, with no stash of the taker's and with one: [the taker's copies, of them in a stash, the giver still holds it, the lines the asker's players read, the lines the other student's read])");
+    }],
+
     ...GRID
 ];
 

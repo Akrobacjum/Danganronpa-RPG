@@ -1347,6 +1347,40 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     const c3 = await offline("action.plant", `${bridge}.requestPlant({ plannerId: "${IDS.aiko}", victimId: "${IDS.botan}", itemId: "${gift}", total: 12 })`);
     check("C: with no GM connected, p1's Palm settles at once, sends nothing, and says so once", settledAtOnce(c3), JSON.stringify(c3),
         { flow: "give-take-stash" });
+    /* E35 C5 (24.10.2026; E35-21): every road an item takes between two characters asks the one GM function
+       inventory.mjs `transferItem` runs in, and with no GM connected each request settles in p1's browser before
+       anything is sent - a hand-over, a body's loot, a stash rifled and a Palm's steal beside the Plant above, each
+       in the sentence the sabotage says. Then the Palm itself, a Steal of Botan's and a Plant of the gift, its window's
+       answer queued as a player gives it: refused before its window and its price, as the Frisk below is. */
+    const moves = [c3];
+    for (const [what, call] of [
+        ["handover.item", `${bridge}.requestGiveItem({ fromId: "${IDS.aiko}", toId: "${IDS.botan}", itemId: "${gift}" })`],
+        ["body.loot", `${bridge}.requestBodyLoot({ takerId: "${IDS.aiko}", bodyId: "${IDS.botan}", itemId: "${gift}" })`],
+        ["vault.steal", `${bridge}.requestVaultSteal({ thiefId: "${IDS.aiko}", ownerId: "${IDS.botan}", itemId: "${gift}" })`],
+        ["action.steal", `${bridge}.requestSteal({ thiefId: "${IDS.aiko}", victimId: "${IDS.botan}", itemId: "${gift}", total: 12 })`]
+    ]) moves.push(await offline(what, call));
+    const moveSentence = c => (c.said[0] ?? "").split(c.label).join("{what}");
+    check("C: with no GM connected, each road an item takes between two characters - a hand-over, a body's loot, a stash rifled, a Palm's steal and a Plant - settles at once, sends nothing, and says so once, in the sabotage's sentence",
+        moves.length === 5 && moves.every(c => settledAtOnce(c) && !c.label.startsWith("DRPG.") && moveSentence(c) === moveSentence(c1)),
+        JSON.stringify(moves), { flow: "give-take-stash" });
+    const palmOffline = [];
+    for (const way of ["steal", "plant"]) {
+        const c = await offline("action.steal", `(async () => {
+            const a = game.actors.get("${IDS.aiko}"), before = game.drpg.actionsLeft(a), opened = globalThis.__dialogLog.length;
+            globalThis.__dialogAnswers.push(() => ({ value: "${way}", form: { querySelector: sel => sel.includes("who") ? { value: "${IDS.botan}" }
+                : sel.includes("what") ? { value: "${gift}" } : null } }));
+            const r = await game.drpg.performAction(a, "palm", {});
+            const unread = globalThis.__dialogAnswers.length;
+            globalThis.__dialogAnswers.length = 0;
+            return { r: r ?? null, actions: [before, game.drpg.actionsLeft(a)], windows: globalThis.__dialogLog.length - opened, unread };
+        })()`);
+        palmOffline.push({ way, ...c });
+    }
+    const palmWaits = await p1.eval(`return game.i18n.localize("DRPG.Rolls.waitsForGm");`);
+    check("C: with no GM connected, p1's Palm, a Steal and a Plant, is refused before its window and its price - the actions unchanged, nothing sent, one line: an action roll waits for a GM",
+        palmOffline.length === 2 && palmOffline.every(c => c.answer && c.answer.r === null && c.answer.actions[0] === c.answer.actions[1]
+            && c.answer.windows === 0 && c.answer.unread === 1 && c.ms < 1000 && c.sent === 0 && JSON.stringify(c.said) === JSON.stringify([palmWaits])),
+        JSON.stringify({ palmOffline, palmWaits }), { flow: "give-take-stash" });
     /* E05 C6: a pre-session note saved with no GM connected is kept in p1's browser, unsent, and the
        Note tab says so; it goes to the next primary GM whose world loads (61-gmstore-case, Z6). */
     const c4 = await offline("note.save", `(await import("${repoUrl}/scripts/pre-session-note.mjs")).saveNote(game.user.id, "E05 33 C kept note")`);

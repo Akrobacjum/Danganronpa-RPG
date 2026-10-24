@@ -3,8 +3,9 @@
  * at a table to change a roll or their own sheet - a Search and its find, a Work and a Sabotage with a
  * tool, a statistic off the sheet, an Experience, a Support beside an Obstacle, a Reroll, a Rest and a
  * Hope item, a Monocub's Confusion, the killer's three incident rolls, Daggerheart's own roll's Hope
- * through the relay and a Level Up - is driven from that player's own page, as a console would call the
- * module, and the GMs' audit must say nothing of it: no roll flagged, no write put back or flagged, no
+ * through the relay, a Level Up and, since E35 C5, the five roads an item takes between two characters (a
+ * hand-over, a stash rifled, a Plant, a steal and a body's loot) - is driven from that player's own page,
+ * as a console would call the module, and the GMs' audit must say nothing of it: no roll flagged, no write put back or flagged, no
  * whisper to the GMs, no refusal, no "not counted" line to the roller. C5b appends the forgeries
  * (F1-F7) below, read the same way; a forgery must say something, a legal road nothing.
  *
@@ -578,7 +579,152 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
         l8Set.made && l8Meddle !== null && l8Rows.length === 1 && l8Rows[0].calls === l8Armed.length,
         r8, { l8Set, l8Meddle, armed: l8Armed, l8Roll, rows: l8Rows });
 
-    const roads = ["L1", "L2", "L3", "L4", "L5", "L6", "L7", "L8", "L9", "L10", "L11", "L4, unlocked", "L7, unlocked"];
+    /* ------------ L12-L16. an item that changes owner, each road from a player's page ------------ */
+
+    /* E35 C5 (24.10.2026; E35-11, E35-20, the plan's risk: "a road outside trustedWrite gives E29's audit a false
+       alarm at an ordinary give"). Every owner change runs through inventory.mjs `transferItem` on the GM since E35
+       C1-C3, a copy made and a piece taken off by the GM's trusted writes; each is asked here from the page of the
+       player whose character takes or gives, as the module's own controls ask it. Aiko, Botan and Chie are stood where
+       Aiko stands, with what they carry put in their stashes by the GM for the length of the five and put back after,
+       so a Palm's hand finds one thing; Aiko's Hand and Shadow and Chie's are raised to 13 for the two Palms (a Steal's
+       hand needs 10 and its unseen 15, a Plant's 8 and 13: config.mjs ACTIONS.palm), so neither roll can miss, and put
+       back after. The window of each Palm is answered on the player's page as a player answers it - the way, the
+       person and the item. L12 p1 hands Botan one of two kits (requestGiveItem); L13 p2 takes a Tool out of Chie's
+       stash in the room, not concealed (requestVaultSteal); L14 p1's Palm plants a note on Botan; L15 p3's Palm lifts
+       Aiko's last kit, all her pockets hold by then; L16 p3 takes a lockpick off Daichi, dead on a recorded death for
+       it and alive again after (requestBodyLoot). */
+    const E35 = "83 E35";
+    phase("L12-L16: the five owner changes, set up", { flow: "give-take-stash" });
+    const e35Set = await gm.eval(`const INV = await import("${SCRIPT("inventory")}"), M = await import("${SCRIPT("movement")}");
+        const V = await import("${SCRIPT("vault")}"), A = await import("${SCRIPT("sheet-audit")}"), Ch = await import("${SCRIPT("chapter")}");
+        const [aiko, botan, chie, daichi] = ${J([aiko, botan, chie, ids.daichi])}.map(id => game.actors.get(id));
+        const scene = canvas.scene, PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const tok = a => scene.tokens.find(t => t.actorId === a.id);
+        const g = globalThis.drpg83e35 = { at: {}, stowed: [], traits: {}, actions: {}, items: {}, region: null, stashes: undefined, dead: false };
+        const at = tok(aiko);
+        for (const a of [botan, chie]) { const t = tok(a); if (!t || !at) continue; g.at[a.id] = { x: t.x, y: t.y }; await t.update({ x: at.x, y: at.y }, PLACE); }
+        await new Promise(r => setTimeout(r, 300));
+        const room = M.locateActor(aiko)?.room ?? null;
+        for (const a of [aiko, botan, chie, daichi]) {
+            g.items[a.id] = a.items.map(i => i.id);
+            g.actions[a.id] = game.drpg.actionsLeft(a);
+            for (const i of V.pocketsFrom(a.items.contents)) { g.stowed.push([a.id, i.id, i.getFlag("${MOD}", "location") ?? null]); await i.update({ "flags.${MOD}.location": INV.LOCATIONS.vault }); }
+        }
+        for (const a of [aiko, chie]) {
+            g.traits[a.id] = [a.system.traits.finesse.value, a.system.traits.presence.value];
+            await a.update({ "system.traits.finesse.value": 13, "system.traits.presence.value": 13 });
+            await game.drpg.setActions(a, game.drpg.actionsMax(a));
+        }
+        const region = room ? V.regionsByName(scene).get(room) : null;
+        g.region = region?.id ?? null;
+        g.stashes = region ? foundry.utils.deepClone(region.getFlag("${MOD}", V.VAULT_FLAGS.stashes)) : undefined;
+        if (room) await V.setStash(room, chie.id, { present: true, concealed: false, scene });
+        const kits = await INV.grantItem(aiko, { name: "${E35} kits", category: "usable", tier: 1, goal: "healing", override: true, quiet: true });
+        if (kits) await kits.update({ "system.quantity": 2 });
+        const tool = await INV.grantItem(chie, { name: "${E35} crowbar", category: "tool", tier: 1, override: true, quiet: true,
+            location: INV.LOCATIONS.vault, extraFlags: { [INV.ITEM_FLAGS.stashRoom]: room } });
+        const note = await INV.grantItem(aiko, { name: "${E35} note", category: "usable", tier: 1, override: true, quiet: true });
+        const pick = await INV.grantItem(daichi, { name: "${E35} lockpick", category: "tool", tier: 1, override: true, quiet: true });
+        await A.sheetAuditIdle();
+        return { room, together: [botan, chie].every(a => M.sameRoom(aiko, a)), kits: kits?.id ?? null, tool: tool?.id ?? null, note: note?.id ?? null,
+            pick: pick?.id ?? null, stash: Boolean(room && V.stashIn(room, chie.id, scene)), traits: [aiko, chie].map(a => [a.system.traits.finesse.value, a.system.traits.presence.value]),
+            stowed: g.stowed.length, room3: ["usable", "tool"].map(c => [botan, chie].map(a => INV.canCarry(a, c).ok)) };`, { timeout: 60000 });
+    check("L12-L16 set up: the three stand in one room, the kits, the stashed Tool, the note and the lockpick are made, Chie's stash is in the room, the Palms' traits are 13",
+        Boolean(e35Set.room) && e35Set.together && [e35Set.kits, e35Set.tool, e35Set.note, e35Set.pick].every(Boolean) && e35Set.stash
+        && J(e35Set.traits) === J([[13, 13], [13, 13]]) && e35Set.room3.flat().every(Boolean), J(e35Set));
+    const heldOf = (id, name) => `game.actors.get("${id}").items.filter(i => i.name === "${E35} ${name}").map(i => [Number(i.system?.quantity ?? 1), INV.isStashed(i)])`;
+    const holds = code => gm.eval(`const INV = await import("${SCRIPT("inventory")}"); await (await import("${SCRIPT("sheet-audit")}")).sheetAuditIdle(); return ${code};`, { timeout: 30000 });
+    /* A Palm from the player's page, its window answered as the player answers it: the way, the person and, for a Plant, the item. */
+    const palm = (c, actorId, way, who, what = null) => c.eval(`const D = foundry.applications.api.DialogV2, own = Object.getOwnPropertyDescriptor(D, "wait");
+        D.wait = async () => {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+            return { value: "${way}", form: { querySelector: sel => sel.includes("who") ? { value: "${who}" } : sel.includes("what") ? { value: ${J(what)} } : null } };
+        };
+        let r = null, err = null;
+        try { r = await game.drpg.performAction(game.actors.get("${actorId}"), "palm", {}); } catch (e) { err = String(e?.message ?? e).slice(0, 200); }
+        finally { if (own && D.wait !== own.value) Object.defineProperty(D, "wait", own); }
+        await new Promise(res => setTimeout(res, 800));
+        return { err, success: r?.success ?? null, seen: r?.seen ?? null };`, { timeout: 90000 });
+    let e35Ran = false;
+    try {
+        phase("L12: p1 hands Botan one of two kits", { flow: "give-take-stash" });
+        mark = await readings();
+        const l12 = await p1.eval(`const B = await import("${SCRIPT("gm-bridge")}");
+            const r = await B.requestGiveItem({ fromId: "${aiko}", toId: "${botan}", itemId: "${e35Set.kits}" }); return { ok: r?.ok ?? null };`, { timeout: 60000 });
+        const r12 = await mark.since();
+        const l12Held = await holds(`({ aiko: ${heldOf(aiko, "kits")}, botan: ${heldOf(botan, "kits")} })`);
+        road("L12", "Aiko's hand-over moves one of her two kits to Botan and leaves her the other", l12.ok !== false && J(l12Held) === J({ aiko: [[1, false]], botan: [[1, false]] }),
+            r12, { l12, held: l12Held });
+
+        phase("L13: p2 takes a Tool out of Chie's stash", { flow: "give-take-stash" });
+        mark = await readings();
+        const l13 = await p2.eval(`const B = await import("${SCRIPT("gm-bridge")}");
+            const r = await B.requestVaultSteal({ thiefId: "${botan}", ownerId: "${chie}", itemId: "${e35Set.tool}" }); return { ok: r?.ok ?? null };`, { timeout: 60000 });
+        const r13 = await mark.since();
+        const l13Held = await holds(`({ chie: ${heldOf(chie, "crowbar")}, botan: ${heldOf(botan, "crowbar")} })`);
+        road("L13", "Botan's reach into Chie's stash takes her Tool into his hands", l13.ok !== false && J(l13Held) === J({ chie: [], botan: [[1, false]] }),
+            r13, { l13, held: l13Held });
+
+        phase("L14: p1's Palm plants a note on Botan", { flow: "give-take-stash" });
+        mark = await readings();
+        const l14 = await palm(p1, aiko, "plant", botan, e35Set.note);
+        const r14 = await mark.since();
+        const l14Held = await holds(`({ aiko: ${heldOf(aiko, "note")}, botan: ${heldOf(botan, "note")} })`);
+        road("L14", "Aiko's Palm leaves her note in Botan's pocket", !l14.err && l14.success === true && J(l14Held) === J({ aiko: [], botan: [[1, false]] }),
+            r14, { l14, held: l14Held });
+
+        phase("L15: p3's Palm lifts Aiko's last kit", { flow: "give-take-stash" });
+        mark = await readings();
+        const l15 = await palm(p3, chie, "steal", aiko);
+        const r15 = await mark.since();
+        const l15Held = await holds(`({ aiko: ${heldOf(aiko, "kits")}, chie: ${heldOf(chie, "kits")} })`);
+        road("L15", "Chie's Palm takes Aiko's last kit", !l15.err && l15.success === true && J(l15Held) === J({ aiko: [], chie: [[1, false]] }),
+            r15, { l15, held: l15Held });
+
+        phase("L16: p3 takes a lockpick off Daichi's body", { flow: "give-take-stash" });
+        const dead = await gm.eval(`const Ch = await import("${SCRIPT("chapter")}");
+            globalThis.drpg83e35.dead = Boolean(await Ch.killCharacter(game.actors.get("${ids.daichi}"), { secret: false, keepBullets: true }));
+            await (await import("${SCRIPT("sheet-audit")}")).sheetAuditIdle(); return globalThis.drpg83e35.dead;`, { timeout: 30000 });
+        await settle(500);
+        mark = await readings();
+        const l16 = await p3.eval(`const B = await import("${SCRIPT("gm-bridge")}");
+            const r = await B.requestBodyLoot({ takerId: "${chie}", bodyId: "${ids.daichi}", itemId: "${e35Set.pick}" }); return { ok: r?.ok ?? null };`, { timeout: 60000 });
+        const r16 = await mark.since();
+        const l16Held = await holds(`({ daichi: ${heldOf(ids.daichi, "lockpick")}, chie: ${heldOf(chie, "lockpick")} })`);
+        road("L16", "Chie takes the lockpick off Daichi's body", dead && l16.ok !== false && J(l16Held) === J({ daichi: [], chie: [[1, false]] }),
+            r16, { dead, l16, held: l16Held });
+        e35Ran = true;
+    } finally {
+        const back = await gm.eval(`const g = globalThis.drpg83e35, Ch = await import("${SCRIPT("chapter")}"), S = await import("${SCRIPT("gm-stores")}");
+            const R = await import("${SCRIPT("remnants")}"), B = await import("${SCRIPT("truth-bullets")}"), V = await import("${SCRIPT("vault")}");
+            const scene = canvas.scene, PLACE = { teleport: true, movementAction: "displace", animate: false };
+            const row = S.lootTraceStore.get("${ids.daichi}");
+            const trace = row?.tokenId ? game.scenes.get(row.sceneId)?.tokens?.get(row.tokenId) ?? null : null;
+            if (trace) { try { await R.dropRemnantSecret(trace); } catch { } try { await trace.delete(); } catch { } }
+            if (S.lootTraceStore.has("${ids.daichi}")) await S.lootTraceStore.drop("${ids.daichi}");
+            for (const [actorId, had] of Object.entries(g.items)) {
+                const a = game.actors.get(actorId);
+                for (const i of a.items.filter(i => !had.includes(i.id))) { const uuid = i.uuid, bullet = i.getFlag("${MOD}", "isTruthBullet"); try { await i.delete(); if (bullet) await B.dropSecret?.(uuid); } catch { } }
+            }
+            if (g.dead) await Ch.reviveCharacter(game.actors.get("${ids.daichi}"), { quiet: true });
+            for (const [actorId, itemId, was] of g.stowed) {
+                const i = game.actors.get(actorId)?.items.get(itemId);
+                if (i) await i.update({ "flags.${MOD}.location": was ?? foundry.data.operators.ForcedDeletion.create() });
+            }
+            for (const [actorId, [finesse, presence]] of Object.entries(g.traits)) await game.actors.get(actorId).update({ "system.traits.finesse.value": finesse, "system.traits.presence.value": presence });
+            for (const [actorId, n] of Object.entries(g.actions)) { const a = game.actors.get(actorId); if (game.drpg.actionsLeft(a) !== n) await game.drpg.setActions(a, n); }
+            const region = g.region ? scene.regions.get(g.region) : null;
+            if (region) await region.update({ ["flags.${MOD}." + V.VAULT_FLAGS.stashes]: g.stashes === undefined ? foundry.data.operators.ForcedDeletion.create() : g.stashes });
+            for (const [actorId, xy] of Object.entries(g.at)) await scene.tokens.find(t => t.actorId === actorId)?.update(xy, PLACE);
+            await (await import("${SCRIPT("sheet-audit")}")).sheetAuditIdle();
+            delete globalThis.drpg83e35;
+            return { items: Object.fromEntries(Object.entries(g.items).map(([id, had]) => [id, game.actors.get(id).items.size === had.length])),
+                alive: !Ch.isDeadForGm(game.actors.get("${ids.daichi}")) };`, { timeout: 60000 });
+        check("L12-L16 put back: every sheet holds what it held, Daichi is alive", Object.values(back.items).every(Boolean) && back.alive, J(back));
+        if (!e35Ran) note("L12-L16 stopped before the last road", "see the checks above");
+    }
+
+    const roads = ["L1", "L2", "L3", "L4", "L5", "L6", "L7", "L8", "L9", "L10", "L11", "L12", "L13", "L14", "L15", "L16", "L4, unlocked", "L7, unlocked"];
     note("the legal roads that ran", J(roads.map(k => `${k}: ${ran[k] ? "ran" : "DID NOT RUN"}`)));
 
     /* ======================================================================================================
