@@ -994,7 +994,7 @@ Wynik to licznik "passed, failed, skipped" - z dopiskiem ", red until a later st
 | `diagnoseWindows()` i `diagnoseStyles()` | ucięte okno albo źle wyglądający arkusz |
 | `traceClicks()` | kliknięcie, które nic nie robi |
 | `fileSizes()` | hostowany świat, który zdaje się serwować stare pliki |
-| `perf()` | motyw, który się przycina; od 1.2.69 także to, ile kosztował w drodze rzut, który losowała twoja przeglądarka - ostatnie pięćdziesiąt losowań, w których ta przeglądarka brała udział, od pakietu do odpowiedzi tutaj, od prośby do pokazania kości u gracza |
+| `perf()` | motyw, który się przycina; od 1.2.69 także to, ile kosztował w drodze rzut, który losowała twoja przeglądarka - ostatnie pięćdziesiąt losowań, w których ta przeglądarka brała udział, od pakietu do odpowiedzi tutaj, od prośby do pokazania kości u gracza, a od 1.2.82 także od prośby do startu kości, który przychodzi przed odpowiedzią |
 | `a11y()` | kontrolki, których czytnik ekranu nie umie nazwać |
 | `relayGuard()` | czy strażnik przekaźnika GM-a w Daggerheart stoi (`state: "ok"`) i czego odmówił w tej sesji |
 | `rollFlags()` | rzuty graczy wylosowane w ostatniej półgodzinie (tak daleko, jak sięga Reroll), w których okno rzutu podało statystykę, doświadczenie, premię albo kości, jakich nie dała lista przeglądarki GMa, która je wylosowała, albo pominęło premię, kość przewagi albo kość ukrytej skrytki, które ta lista dała, albo które czekały na statystykę, której żaden GM nie wybrał; o każdym GMowie dostali szept, gdy go wylosowano, każdy policzono tak, jak daje lista, a linia może kończyć się tym, co GM policzył |

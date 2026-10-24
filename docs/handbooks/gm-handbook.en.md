@@ -994,7 +994,7 @@ The result is a "passed, failed, skipped" count - with ", red until a later stag
 | `diagnoseWindows()` and `diagnoseStyles()` | a window cut off or a sheet that looks wrong |
 | `traceClicks()` | a click that does nothing |
 | `fileSizes()` | a hosted world that seems to serve the old files |
-| `perf()` | a theme that stutters; since 1.2.69 also what a roll your browser drew cost on its way - the last fifty draws this browser took part in, packet in to answer out here, asked to dice shown on a player's |
+| `perf()` | a theme that stutters; since 1.2.69 also what a roll your browser drew cost on its way - the last fifty draws this browser took part in, packet in to answer out here, asked to dice shown on a player's, and since 1.2.82 asked to dice started, which comes before the answer |
 | `a11y()` | controls a screen reader cannot name |
 | `relayGuard()` | whether the guard on Daggerheart's GM relay is standing (`state: "ok"`), and what it has refused this session |
 | `rollFlags()` | the players' rolls drawn in the last half hour (as long as a Reroll can reach) whose roll window claimed a statistic, an experience, a bonus or dice the list of the GM's browser that drew them did not give, or left out a bonus, an advantage die or a hidden stash's die the list gave, or that waited for a statistic no GM picked; each was whispered to the GMs as it was drawn and counted as the list gives, and a line may end with what the GM counted |

@@ -14054,6 +14054,43 @@ const REGRESSIONS = [
         JSON.stringify([true, true, true, false, true, 1, true, true]),
             "[`gmPassageGaps` takes `gm` from `game.user?.isGM`, asks it first; `flashOutline` cuts doorwayEdges' edges by it; doorwayEdges names the cut; the frame's trace leaves the cut out; fog.mjs's clientSettingChanged listeners; the one in registerFog behind a GM's gate, on the GMs' passage rows, redrawing soon; that redraw a quarter second after the last change]");
     }],
+    ["R948 - a drawn roll's dice start at the GM's message on the roller's own screen, sending and writing nothing (H82-06): roll-draw.mjs `awaitStart`, `startWaitOf` and `startOnMessage` emit, write and ask nothing; `startWaitOf` stands aside on a GM's browser and asks the drawn flag, the readable rule and the primary the roll was asked of; `drawAndPlay` names that primary at the ask and ends the wait in its finally; `playBack` throws only where nothing started; `registerRollDraw` adds the one listener", async () => {
+        /*
+         * H82 C5 (23.10.2026; H82-06). The roller's dice start as the GM's message of its roll arrives, not at the GM's
+         * answer (scenario 33 A17: 80 ms each way, the dice within one hop of the message and before the answer). D2 holds
+         * only while that start is the roller's own drawing: no packet, no write, no new request, and nothing a player's
+         * console writes can start it (R947 runs the gate on stand-ins). Read off roll-draw.mjs with comments blanked;
+         * each reader is shown a planted fault first.
+         */
+        const WRITES = /\bsocket\s*\.\s*emit\s*\(|\bbridgeRequest\s*\(|\.\s*(?:setFlag|unsetFlag|update|updateSource|createEmbeddedDocuments|updateEmbeddedDocuments|deleteEmbeddedDocuments)\s*\(|\bsettings\s*\.\s*set\s*\(|\bChatMessage\b|\breadHere\s*\(/;
+        const GATE = /\buser\s*\?\.\s*isGM\b[\s\S]*\bisDrawnRoll\(\s*message\s*\)[\s\S]*\breadable\(\s*message\s*\)[\s\S]*\bmessage\.author\?\.id\s*!==\s*wait\.primary\b/;
+        const DEFAULTS = /\buser\s*=\s*game\.user\b[\s\S]*\breadable\s*=\s*isReadableHere\b/;
+        const ASKED = /\bconst\s+start\s*=\s*awaitStart\(\s*config\[ROLL_NONCE\]\s*,\s*primaryGmId\(\)\s*\)/;
+        const ENDED = /\bfinally\s*\{[^}]*\bstart\.stop\(\)/;
+        const ONCE = /\bif\s*\(\s*!start\.started\s*\)\s*\{[^}]*\bstart\.started\s*=\s*playDice\(\s*played\s*\)/;
+        const LISTEN = /Hooks\.on\(\s*"createChatMessage"\s*,\s*startOnMessage\s*\)/g;
+        equal(JSON.stringify([WRITES.test("const w = 1;\n    game.socket.emit(EVENT, {});"), WRITES.test("startsAwaited.delete(nonce);"),
+            GATE.test("if (user?.isGM) return null;\n    if (!isDrawnRoll(message) || !readable(message)) return null;\n    return wait;"),
+            ONCE.test("readHere(messageId);\n    start.started = playDice(played);"),
+            ENDED.test("} finally {\n        drawn();\n    }")]),
+        JSON.stringify([true, false, false, false, false]),
+            "the readers do not find the faults planted for them (an emit, a Map's delete that is no write, a gate that never compares the primary, a throw with no ask whether one started, a finally that ends no wait)");
+        const sources = await moduleSources();
+        const draw = stripComments(sources.get("roll-draw.mjs") ?? "");
+        ok(draw.length > 0, "roll-draw.mjs was not read - this test measured nothing");
+        const names = ["awaitStart", "startWaitOf", "startOnMessage"];
+        equal(JSON.stringify(names.map(name => { const body = topLevelFunction(draw, name) ?? ""; return [name, body.length > 0, WRITES.test(body)]; })),
+            JSON.stringify(names.map(name => [name, true, false])),
+            "[each function of the early start: declared, emits or writes] - a drawn roll's early start sends or writes something");
+        const wait = fnSource(draw, "startWaitOf"), start = fnSource(draw, "startOnMessage"), ask = fnSource(draw, "drawAndPlay"),
+            back = fnSource(draw, "playBack");
+        equal(JSON.stringify([GATE.test(wait), DEFAULTS.test(wait), /\bstartWaitOf\(\s*message\s*\)/.test(start), /\bplayDice\(\s*message\.rolls\s*\)/.test(start),
+            ASKED.test(ask), ENDED.test(ask), ONCE.test(back), (back.match(/\bplayDice\(/g) ?? []).length, (draw.match(LISTEN) ?? []).length]),
+        JSON.stringify([true, true, true, true, true, true, true, 1, 1]),
+            "[`startWaitOf` stands aside on a GM's and asks the flag, the readable rule and the primary; its defaults are this browser's; `startOnMessage` asks it of the message "
+                + "and throws the message's rolls; `drawAndPlay` names the primary at the ask, ends the wait in its finally; `playBack` throws only where nothing started, once; "
+                + "one createChatMessage listener] - the roller's dice start where the GM's message is not the draw's, or are thrown twice");
+    }],
 ];
 
 export { REGRESSIONS };

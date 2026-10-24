@@ -639,8 +639,11 @@ let rollClaims = [];
  */
 export const ROLL_NONCE = "drpgRollNonce";
 
-/** The nonce a roll message's first roll carries (`ROLL_NONCE`), or null. `data` is the creation data, read where the document has no rolls. */
-function rollNonceOf(message, data = null) {
+/**
+ * The nonce a roll message's first roll carries (`ROLL_NONCE`), or null. `data` is the creation data, read where the document has no rolls.
+ * Exported for roll-draw.mjs `startWaitOf` (H82 C5), which starts a roller's dice at the GM's message of its roll.
+ */
+export function rollNonceOf(message, data = null) {
     let roll = message?.rolls?.[0] ?? data?.rolls?.[0] ?? null;
     if (typeof roll === "string") {
         try { roll = JSON.parse(roll); } catch { return null; }
@@ -674,7 +677,7 @@ function rollNonceOf(message, data = null) {
  * message it writes with the roller's nonce, which the roll already carries (`nonce`), stamps
  * the record's flags beside the claim's (`stamp`), names the user whose roll it is (`by`, C13):
  * the primary shows its dice as theirs to everybody else who sees them (`relayDrawnDice`) -
- * the roller plays them from the draw's answer - and hears the message created before
+ * the roller plays them as the message arrives (roll-draw.mjs `startOnMessage`, H82 C5) - and hears the message created before
  * Daggerheart's `toMessage` waits for Dice So Nice (`onCreated`). A statistic from the sheet
  * keeps Daggerheart's card (`keepCard`, C13): its message is claimed - whispered to the GMs and
  * emptied as it is created - but not hidden, since no card of the module's stands for it.
@@ -1496,7 +1499,8 @@ function subjectReported(messageId, ms) {
  * - A roll the GM drew for a player (E08+E28 C13, roll-draw.mjs): Dice So Nice's own
  *   decision is off for it on every browser (`keepDiceToReaders`), and the primary GM shows
  *   it as the roller's dice to the rest of its audience (`relayDrawnDice`); the roller plays
- *   the draw's answer. Who may read it beside the GMs is each browser's own `readableHere`.
+ *   the message's rolls as it arrives (roll-draw.mjs `startOnMessage`, H82 C5; the draw's answer
+ *   until then). Who may read it beside the GMs is each browser's own `readableHere`.
  *
  * At the stage the roll is reported at, `openingRoll` or `incident` (E06 fix r1-G3,
  * 28.09.2026; review M4, the owner's rule read as written: each incident roll). At the
@@ -1762,8 +1766,8 @@ export function drawnDiceAudienceIds(message, by = null, state = murderState()) 
  * A ROLL THE GM DREW, SHOWN AS ITS ROLLER'S (E08+E28 C13; the owner's note of 27.09: the
  * roller sees the roll as their own, and nobody is shown "the GM rolled"). On the primary, as
  * it keeps the roll's subject (`reportRollSubject`): `dice.show { id, by }` to the rest of
- * `drawnDiceAudienceIds` - the roller left out, who plays the draw's answer (roll-draw.mjs
- * `playDice`) - and the dice on this screen as `by`'s. Each receiver plays its own copy's rolls
+ * `drawnDiceAudienceIds` - the roller left out, who plays the message's rolls as it arrives
+ * (roll-draw.mjs `startOnMessage`, H82 C5) - and the dice on this screen as `by`'s. Each receiver plays its own copy's rolls
  * as `by`'s dice (`showRelayedDice`). Not awaited: the draw does not wait for an animation.
  * How it looks at a real table, with and without Dice So Nice, is LIVE-E28-01 and -02. A
  * statistic from the sheet, whose Daggerheart card its readers draw, sends its character too

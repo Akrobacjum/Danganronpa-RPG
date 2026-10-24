@@ -17,7 +17,8 @@
  *      Reroll, kept on the GMs from its roller's report (A12). Since E09 C5 also a Sabotage's trace, tied to the
  *      crime when the saboteur's character is the trap's killer (A14). Since E79 C16 also an Objection aimed by the GM's
  *      voice Room and its Truth Bullet, chosen after it (A15). Since E80 C2 also a tunnel gone through, and the
- *      way back refused in the Class Trial with its reason (A16).
+ *      way back refused in the Class Trial with its reason (A16). Since H82 C5 also a drawn roll's dice on its
+ *      roller's browser, with 80 ms added each way: started at the GM's message, before its answer, once (A17).
  *   B  what E31 adds, each written red (`expectedRed`, with what it measured) until the commit that
  *      made it so, and a plain check since: a refusal carries its reason, in the player's own
  *      language; a refused request is not acknowledged; an exception on the GM's side ends as one
@@ -1025,6 +1026,139 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     check("A16: put back - the tunnel deleted, the clock, Aiko where she stood with her actions",
         restored16?.gone === true && JSON.stringify(restored16.at) === JSON.stringify(restored16.was) && restored16.actions === restored16.wasActions,
         JSON.stringify(restored16));
+
+    /* A17. A DRAWN ROLL'S DICE START AT THE GM'S MESSAGE (H82 C5, 23.10.2026; H82-06; the owner's 21.10: "delay przy
+       rzucaniu koscmi czego nie bylo", and 23.10: before the dice start). Since 1.2.67 (ba6f366c for an action's roll,
+       22f947c9 for a statistic from the sheet) a player's roll is drawn on the primary GM, and until H82 C5 its roller's
+       dice started only on the GM's answer (roll-draw.mjs `playBack`): six one-way hops after the press, where the GM's
+       message arrives at four, and behind every write the GM makes before it answers. H82's look back measured it with
+       the harness booting each tag and the same delay added each way on every client (its probe wraps the harness's
+       IPC, as `LAG` below does): 162-166 ms from Roll to dice for 1.2.50-1.2.66, 490-500 ms from 1.2.67. The same
+       probe at 952a2d9 (23.10.2026, 80 ms each way, medians of 10): a statistic from the sheet 495.1 ms to the dice
+       and 327.1 ms to the card, an action's roll 545.8 ms and 327.7 ms. Here, with 80 ms added on every message each
+       client sends and receives (held inside this part alone), p1 throws Aiko's statistic from the sheet and her Eye
+       through the module, one of each to warm up and then two of each, and reads from its roll.draw going out: the
+       GM's message in, each `showForRoll`, and the GM's answer (`bridge.done`) in. The dice must start before the
+       answer, within one hop of the message - they start at it - once a roll, as p1's and not synchronised, on the
+       message's total; the trips p1 keeps (`drawTimings`) start before their answer; and a draw the GM refuses (an
+       Observe nobody paid for, `drawRefusal`'s 1.5 s wait) throws nothing on p1 and is told once. A check reads a
+       hop (the delay) or an order, never a millisecond; the numbers are in the details. At 952a2d9 the dice started
+       on the answer, after it, and the trips kept no start: red. */
+    phase("a drawn roll's dice, with the network's time", { flow: "gm-rolls-total" });
+    const A17_LAG = 80;
+    const lagged = [gm, ag, p1, p2, p3];
+    /* The look back's wrapping (hist-lat/lat-probe.mjs, 23.10.2026): out, process.send of op/setting/socket (client to
+       server); in, the process 'message' event of apply/ack/settingApplied/socketMsg/userActivity (server to client);
+       the harness's own control channel never held. Equal delays keep each direction's order. Put back at the end. */
+    const LAG = `if (!globalThis.__s33lag) {
+            const OUT = new Set(["op", "setting", "socket"]), IN = new Set(["apply", "ack", "settingApplied", "socketMsg", "userActivity"]);
+            const L = globalThis.__s33lag = { delay: 0, send: process.send, emit: process.emit, done: [] };
+            const realSend = process.send.bind(process), realEmit = process.emit;
+            process.send = (m, ...rest) => {
+                if (L.delay > 0 && m && OUT.has(m.t)) { setTimeout(() => realSend(m, ...rest), L.delay); return true; }
+                return realSend(m, ...rest);
+            };
+            /* The GM's answer to this client, stamped as it reaches the process and before any listener: the
+               socket's listeners run in turn, and the module's playBack ran ahead of one added after it. */
+            const answer = m => { if (m.t === "socketMsg" && m.args?.[0]?.action === "bridge.done") L.done.push({ at: performance.now(), id: m.args[0].requestId ?? null }); };
+            process.emit = function (ev, m, ...rest) {
+                if (ev === "message" && m && IN.has(m.t)) {
+                    const go = () => { answer(m); return realEmit.call(process, ev, m, ...rest); };
+                    if (L.delay > 0) { setTimeout(go, L.delay); return true; }
+                    return go();
+                }
+                return realEmit.call(process, ev, m, ...rest);
+            };
+        }
+        return true;`;
+    for (const c of lagged) await c.eval(LAG);
+    const setLag = ms => Promise.all(lagged.map(c => c.eval(`globalThis.__s33lag.delay = ${ms}; return true;`)));
+    const hope17 = await gm.eval(`return game.actors.get("${IDS.aiko}").system.resources.hope.value;`);
+    const had17 = await gm.eval(`return game.messages.contents.map(m => m.id);`);
+    await p1.eval(`const T = globalThis.__s33a17 = { shows: [], msgs: [], sent: [] };
+        const d3 = game.dice3d;
+        T.show = d3.showForRoll;
+        d3.showForRoll = function (roll, user, sync, ...rest) {
+            T.shows.push({ at: performance.now(), user: user?.id ?? user ?? null, sync: Boolean(sync), total: roll?.total ?? null });
+            return T.show.call(this, roll, user, sync, ...rest);
+        };
+        T.hook = Hooks.on("createChatMessage", m => {
+            if ((m.rolls ?? []).length) T.msgs.push({ at: performance.now(), id: m.id, gm: m.author?.isGM === true, total: m.rolls[0]?.total ?? null });
+        });
+        T.emit = game.socket.emit;
+        game.socket.emit = function (event, packet, ...rest) {
+            if (packet?.action === "roll.draw") T.sent.push({ at: performance.now(), id: packet.requestId ?? null });
+            return T.emit.call(this, event, packet, ...rest);
+        };
+        return true;`);
+    const throw17 = kind => p1.eval(`const A = await import("${repoUrl}/scripts/action-rolls.mjs");
+        const T = globalThis.__s33a17, c = game.actors.get("${IDS.aiko}");
+        const s0 = T.shows.length, m0 = T.msgs.length, q0 = T.sent.length;
+        globalThis.__forceRoll = { hope: 9, fear: 4 };
+        let total = null, err = null;
+        try {
+            if (${JSON.stringify(kind)} === "sheet") { const r = await c.rollTrait("strength", {}); total = r?.roll?.total ?? r?.total ?? null; }
+            else { const r = await A.rollTrait(c, "eye", { remember: false }); total = r?.total ?? r?.roll?.total ?? null; }
+        } catch (e) { err = String(e?.message ?? e).slice(0, 200); } finally { delete globalThis.__forceRoll; }
+        await new Promise(r => setTimeout(r, 400));
+        const sent = T.sent.slice(q0), t0 = sent[0]?.at ?? null;
+        const rel = x => t0 === null || typeof x !== "number" ? null : +(x - t0).toFixed(1);
+        const shows = T.shows.slice(s0), msg = T.msgs.slice(m0).find(m => m.gm) ?? null;
+        const done = globalThis.__s33lag.done.find(d => d.id !== null && d.id === sent[0]?.id) ?? null;
+        return { kind: ${JSON.stringify(kind)}, total, err, sent: sent.length, message: rel(msg?.at), started: rel(shows[0]?.at), answer: rel(done?.at),
+            messageTotal: msg?.total ?? null, shows: shows.map(s => ({ at: rel(s.at), user: s.user, sync: s.sync, total: s.total })) };`, { timeout: 60000 });
+    let rows17 = [], refused17 = null, trips17 = null;
+    try {
+        await setLag(A17_LAG);
+        await settle(400);
+        await throw17("sheet");
+        await throw17("action");
+        await settle(600);
+        for (const kind of ["sheet", "action", "sheet", "action"]) {
+            rows17.push(await throw17(kind));
+            await settle(600);
+        }
+        trips17 = await p1.eval(`const D = await import("${repoUrl}/scripts/roll-draw.mjs");
+            return D.drawTimings().drawn.slice(-${rows17.length}).map(t => ({ started: t.started ?? null, answered: t.answered ?? null, shown: t.shown ?? null }));`);
+        mark = await refusedCount(p1);
+        refused17 = await p1.eval(`const A = await import("${repoUrl}/scripts/action-rolls.mjs");
+            const T = globalThis.__s33a17, c = game.actors.get("${IDS.aiko}");
+            const s0 = T.shows.length, m0 = T.msgs.length, q0 = T.sent.length;
+            let out = null, err = null;
+            try { out = await A.rollTrait(c, "eye", { actionKey: "observe", remember: false }); } catch (e) { err = String(e?.message ?? e).slice(0, 200); }
+            await new Promise(r => setTimeout(r, 800));
+            return { made: out ? true : false, err, sent: T.sent.length - q0, shows: T.shows.length - s0, msgs: T.msgs.length - m0 };`, { timeout: 60000 });
+        refused17.told = (await refusedSince(p1, mark)).map(r => `${r.what}:${r.reason}`);
+    } finally {
+        await setLag(0);
+        for (const c of lagged) await c.eval(`const L = globalThis.__s33lag; if (L) { process.send = L.send; process.emit = L.emit; delete globalThis.__s33lag; } return true;`);
+        await p1.eval(`const T = globalThis.__s33a17;
+            if (T) { game.dice3d.showForRoll = T.show; game.socket.emit = T.emit; Hooks.off("createChatMessage", T.hook); }
+            delete globalThis.__s33a17; return true;`);
+        await settle(400);
+        await gm.eval(`const had = new Set(${JSON.stringify(had17)});
+            for (const m of game.messages.contents.filter(x => !had.has(x.id))) await m.delete();
+            await game.actors.get("${IDS.aiko}").update({ "system.resources.hope.value": ${JSON.stringify(hope17)} });
+            return true;`, { timeout: 60000 });
+        await settle(600);
+    }
+    const lagHeld = rows17.length === 4 && rows17.every(r => typeof r.message === "number" && r.message >= 3 * A17_LAG);
+    const median = xs => { const v = xs.filter(x => typeof x === "number").sort((a, b) => a - b); return v.length ? v[v.length >> 1] : null; };
+    const said17 = JSON.stringify({ lag: A17_LAG, started: median(rows17.map(r => r.started)), message: median(rows17.map(r => r.message)),
+        answer: median(rows17.map(r => r.answer)), rows: rows17 });
+    check("A17: with 80 ms each way, every drawn roll was asked once and its message came at least three hops after (the delay held)",
+        lagHeld && rows17.every(r => r.err === null && r.sent === 1 && typeof r.answer === "number"), said17, { flow: "gm-rolls-total" });
+    check("A17: p1's dice start at the GM's message - before the GM's answer, within one hop of the message - for a statistic from the sheet and an action's roll",
+        lagHeld && rows17.every(r => typeof r.started === "number" && r.started < r.answer && r.started - r.message < A17_LAG), said17, { flow: "gm-rolls-total" });
+    check("A17: each drawn roll is thrown once on p1, as p1's dice, not synchronised, on its message's total",
+        lagHeld && rows17.every(r => r.shows.length === 1 && r.shows[0].user === IDS.p1 && r.shows[0].sync === false
+            && typeof r.messageTotal === "number" && r.shows[0].total === r.messageTotal), said17, { flow: "gm-rolls-total" });
+    check("A17: the trips p1 keeps (drawTimings) say when its dice started, before the GM's answer came in",
+        Array.isArray(trips17) && trips17.length === 4 && trips17.every(t => typeof t.started === "number" && typeof t.answered === "number" && t.started < t.answered),
+        JSON.stringify(trips17), { flow: "gm-rolls-total" });
+    check("A17: a draw the GM refuses (an Observe nobody paid for) throws nothing on p1, writes no message, and is told to p1 once",
+        refused17?.sent === 1 && refused17.made === false && refused17.shows === 0 && refused17.msgs === 0 && refused17.told.length === 1,
+        JSON.stringify(refused17), { flow: "gm-rolls-total" });
 
     /* ------------------------------------------- A. the Assistant as the primary */
 

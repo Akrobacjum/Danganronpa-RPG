@@ -434,7 +434,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
        E08+E28 C13 (04.10.2026; the plan's 3.4): the GM draws each player's roll and writes its
        message, which no Dice So Nice animates on its own (it would in the GM's colours), so the
        relay plays it as the roller's dice - forced private or not - and the roller plays its
-       own from the draw's answer; each browser keeps the dice sounds it plays (`__sounds`). */
+       own from the draw's answer (since H82 C5 as the GM's message arrives, roll-draw.mjs
+       `startOnMessage`); each browser keeps the dice sounds it plays (`__sounds`). */
     phase("dice", { flow: "murder-incident" });
     const DICE_NET = `globalThis.__diceNet = { show: [], words: [], showAt: {} }; globalThis.__dsnShown = []; globalThis.__dsnAnimated = [];
         globalThis.__dsnHideSecret = false; globalThis.__chatNotified = []; globalThis.__chatRung = []; globalThis.__dsnFell = {}; globalThis.__sounds = [];
@@ -487,7 +488,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     for (const c of [p1, p2, p3]) await c.eval(DICE_NET);
     /* The victim's Dice So Nice holds her own throw 1.5 s: since E08+E28 C12a that throw is the
        draw's answer played on her screen (roll-draw.mjs `playDice`, `showForRoll` as her own, not
-       synchronised), so the hold is put on that call here and stamped with the drawn message's id. */
+       synchronised; since H82 C5 started as the GM's message arrives, `startOnMessage`, when the message is
+       in `game.messages` already - client-entry.mjs `applyRemote` adds it before the hook), so the hold is put on that call here and stamped with the drawn message's id. */
     await p1.eval(`globalThis.__dsnAnimation = async id => { await new Promise(r => setTimeout(r, 1500)); globalThis.__dsnFell[id] ??= Date.now(); };
         const show = game.dice3d.showForRoll;
         globalThis.__showAway = show;
@@ -533,7 +535,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     /* THE VICTIM'S OWN DICE (E08+E28 C12a, 04.10.2026). The victim's crisis roll is drawn by the GM
        now (roll-draw.mjs), whose message the victim's Dice So Nice does not animate: the victim's
        browser plays the GM's faces as its own throw, from the draw's answer (`played`, not
-       synchronised) - the plan's 3.4, its first line. Either is the victim seeing its own dice. */
+       synchronised; since H82 C5 from the message's roll as it arrives) - the plan's 3.4, its first line. Either is the victim seeing its own dice. */
     const ownDice = (r, total) => r.animated || r.played.includes(total);
     check("dice: the victim's crisis roll is played on the killer's screen by the GM's relay, and its card tells the killer the action and the total",
         Boolean(clue.id) && clue.stage === "incident" && withDsn.killer.relayed && withDsn.killer.played.includes(clue.total)
@@ -564,7 +566,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         && !noDsn.bystander.card && !noDsn.bystander.relayed,
         JSON.stringify({ strike, noDsn }), { flow: "private-rolls" });
     /* The roll's sound (E08+E28 C13): the GM writes a drawn roll's message muted, so where it is read
-       without Dice So Nice the roller hears the dice the draw's answer plays (`heard`), not the chat's
+       without Dice So Nice the roller hears the dice its draw plays (`heard`; at the GM's message since H82 C5), not the chat's
        ring of the message (`rung`) - one or the other, once. Red from C12a to C13: the roller's browser
        could not read the GM's message (`readableHere`), so it lit no pip there. */
     const pip = r => ({ notified: r.notified, rung: r.rung, heard: r.heard });

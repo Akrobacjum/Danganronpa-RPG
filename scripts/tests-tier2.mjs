@@ -9927,7 +9927,7 @@ const SCENARIOS = [
          * colours wherever it is readable - on every GM at least. It is off for a drawn roll on
          * every browser (private-rolls.mjs `keepDiceToReaders`), and the primary shows the dice as
          * the roller's: on its own screen, and by `dice.show { id, by }` to the rest of the roll's
-         * audience, the roller left out, who plays the draw's answer - 12-social reads that on p1
+         * audience, the roller left out, who plays the message's rolls as it arrives (H82 C5) - 12-social reads that on p1
          * (`relayDrawnDice`). Two draws of `drawnForPlayer`'s packet, with rolls forced private and
          * not: where they are not, the audience is every connected user, whose Dice So Nice threw
          * each public roll until C13. Read: Dice So Nice's decision as it asks it of this GM, each

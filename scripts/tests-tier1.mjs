@@ -18848,6 +18848,41 @@ const INVARIANTS = [
         equal(J([GATE.test("const standing = roomOutline;\n            redrawOutline();"), GATE.test(soon), KEPT.test(flash)]), J([false, true, true]),
             "[a redraw with no gate (planted), `redrawFrameSoon` compares the key before it redraws, `flashOutline` keeps the key of the stretches it cut on the frame] - the GM's frame is replayed on every change of the GMs' rows");
     }],
+    ["R947 - a drawn roll's dice start at the GM's message on its roller's browser, and only at the draw's own (H82-06): roll-draw.mjs `startWaitOf` answers the wait for a drawn message by a GM, the primary the roll was asked of, carrying a nonce this player's browser waits on, readable here, with rolls and not started yet - and nothing for a GM's browser, a player's message with the flag, another GM's, another nonce, no flag, a start already made, a message this browser may not read, one with no rolls or no wait at all", async () => {
+        /*
+         * H82 C5 (23.10.2026; H82-06; the H82 look back's option 1). The roller's dice started on the GM's answer, six
+         * one-way hops after the ask, where the GM's message is on this browser at four (scenario 33 A17 reads the hops
+         * with 80 ms added each way). They start at the message now, and a message that may start them is a claim like
+         * any other the wire brings: a player's console can write one with the drawn flag and the nonce of a roll its
+         * browser waits on (`isDrawnRoll` reads it as no draw: the author is not a GM), and another GM's is not the
+         * draw the roll was asked of. Read with stand-in messages, waits and users (`startWaitOf`'s own parameters):
+         * the suite is a GM's browser, whose own rolls are never drawn, so it waits on none of its own. That only one
+         * throw follows, and that a refused draw throws nothing, is scenario 33 A17's, on p1.
+         */
+        const D = await import("./roll-draw.mjs");
+        const { ROLL_NONCE } = await import("./private-rolls.mjs");
+        const J = v => JSON.stringify(v);
+        ok(typeof D.startWaitOf === "function", "roll-draw.mjs has no startWaitOf - a drawn roll's dice wait for the GM's answer");
+        if (typeof D.startWaitOf !== "function") return;
+        const [GM, GM2, P1] = ["R947GM0000000000", "R947GM2000000000", "R947P10000000000"];
+        const message = ({ author = GM, isGM = true, drawn = true, nonce = "R947NONCE1", rolls = 1 } = {}) => ({
+            id: "R947MESSAGE00000", author: { id: author, isGM },
+            rolls: Array.from({ length: rolls }, () => ({ options: { [ROLL_NONCE]: nonce } })),
+            getFlag: (scope, key) => (scope === MODULE_ID && key === "drawn" ? drawn : undefined)
+        });
+        const waits = (started = null) => new Map([["R947NONCE1", { primary: GM, started }]]);
+        const player = { id: P1, isGM: false }, gm = { id: GM, isGM: true };
+        const starts = (m, { held = waits(), user = player, readable = () => true } = {}) => D.startWaitOf(m, { waits: held, user, readable }) !== null;
+        equal(J([starts(message()), starts(message(), { user: gm }), starts(message({ author: P1, isGM: false })), starts(message({ author: GM2 })),
+            starts(message({ nonce: "R947NONCE2" })), starts(message({ drawn: false })), starts(message(), { held: waits(Promise.resolve()) }),
+            starts(message(), { readable: () => false }), starts(message({ rolls: 0 })), starts(message(), { held: new Map() })]),
+        J([true, false, false, false, false, false, false, false, false, false]),
+            "[the draw's message on the roller's; on a GM's browser; a player's with the drawn flag and the nonce; another GM's; another nonce; "
+                + "no drawn flag; a start already made; not readable here; no rolls; no wait] - a drawn roll's dice start where they must not, or not where they must");
+        const held = waits();
+        ok(D.startWaitOf(message(), { waits: held, user: player, readable: () => true }) === held.get("R947NONCE1"),
+            "startWaitOf answers another wait than the one held for the message's nonce - the start is not kept where the GM's answer reads it");
+    }],
 ];
 
 /**
