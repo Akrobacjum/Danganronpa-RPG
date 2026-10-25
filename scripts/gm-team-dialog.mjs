@@ -481,6 +481,9 @@ function buildContent(actors, gms, roster, candidates, removable) {
     return dialogContent(`<form>${body}</form>`);
 }
 
+/** A never-assigned student's "(fallback)" option: Save writes no row for it (`readAssignmentForm` skips ""). */
+const FALLBACK_PICK = "";
+
 function buildAssignRows(roster, gms) {
     const current = assignments();
 
@@ -498,10 +501,18 @@ function buildAssignRows(roster, gms) {
         /* THE FALLBACK SAYS SO IN THE SELECT (E15 C6, 25.10.2026; audit S10-62). A red "*" after the
            name read as "required", and the select showed the first pool as if the GM had chosen it.
            Now the pool a student falls back to is named "(fallback)" in its own option, the select dim
-           and in italics until the GM picks something, the hint on it. */
+           and in italics until the GM picks something, the hint on it.
+           THE FALLBACK IS AN OPTION OF ITS OWN (E15 part 1 fix e1-G4, 25.10.2026; findings
+           E15p1-END-4, R3). The "(fallback)" option carried the pool's own id, so it was the only way to pick
+           that pool: choosing it wrote nothing (its value was the one drawn), and a student could not be pinned
+           to the first pool in one Save - a later full GM sorting first by name would move them (tier 2 E15-T8
+           at c93be060: the pool picked, saved, no row). Now "(fallback)" is `FALLBACK_PICK` (""), which Save
+           skips, beside every pool by its plain name, which Save writes. */
+        const fallbackTo = gms.find(u => u.id === assigned) ?? gms.find(u => u.id === monokumaFor(actor)?.id) ?? gms[0];
         const shown = explicit ? options : [
-            ...gms.map(u => `<option value="${u.id}"${u.id === assigned ? " selected" : ""}>${foundry.utils.escapeHTML(u.id === assigned
-                ? game.i18n.format("DRPG.Assign.fallbackOption", { name: poolLabel(u) }) : poolLabel(u))}</option>`),
+            `<option value="${FALLBACK_PICK}" selected>${foundry.utils.escapeHTML(
+                game.i18n.format("DRPG.Assign.fallbackOption", { name: poolLabel(fallbackTo) }))}</option>`,
+            ...gms.map(u => `<option value="${u.id}">${foundry.utils.escapeHTML(poolLabel(u))}</option>`),
             `<option value="${NO_MONOKUMA}">${game.i18n.localize("DRPG.Assign.nobody")}</option>`
         ].join("");
 
@@ -509,7 +520,8 @@ function buildAssignRows(roster, gms) {
         // already held, and leaves a fallback a fallback (`readAssignmentForm`).
         return `<tr${excluded ? ' class="drpg-assign-excluded"' : ""}>
                     <td>${foundry.utils.escapeHTML(actor.name)}</td>
-                    <td><select name="assign.${actor.id}" data-drpg-assign data-drpg-was="${assigned}" data-drpg-explicit="${explicit ? 1 : 0}"
+                    <td><select name="assign.${actor.id}" data-drpg-assign data-drpg-was="${explicit ? assigned : FALLBACK_PICK}"
+                        data-drpg-fallback="${fallbackTo.id}" data-drpg-explicit="${explicit ? 1 : 0}"
                         ${explicit ? "" : `class="drpg-assign-fallback" data-tooltip="${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Assign.implicitHint"))}"`}
                         aria-label="${foundry.utils.escapeHTML(`${game.i18n.localize("DRPG.Assign.monokuma")}: ${actor.name}`)}">${shown}</select></td>
                 </tr>`;
@@ -578,8 +590,9 @@ function wireAssignmentLive(dialog, gms) {
         let excluded = 0;
 
         for (const select of root.querySelectorAll("[data-drpg-assign]")) {
-            if (select.value === NO_MONOKUMA) excluded++;
-            else if (select.value in tally) tally[select.value]++;
+            const pool = select.value === FALLBACK_PICK ? select.dataset.drpgFallback : select.value;
+            if (pool === NO_MONOKUMA) excluded++;
+            else if (pool in tally) tally[pool]++;
             select.closest("tr")?.classList.toggle("drpg-assign-excluded", select.value === NO_MONOKUMA);
             // Dim only while it is still the fallback nobody chose.
             select.classList.toggle("drpg-assign-fallback", select.dataset.drpgExplicit !== "1" && select.value === select.dataset.drpgWas);
@@ -636,7 +649,7 @@ function readAssignmentForm(dialog, roster) {
     const map = {};
     for (const actor of roster) {
         const select = root.querySelector(`[name="assign.${CSS.escape(actor.id)}"]`);
-        if (!select?.value) continue;
+        if (!select?.value) continue;   // "(fallback)" (`FALLBACK_PICK`): a fallback stays one
         if (root.querySelector(`[name="mk.${CSS.escape(actor.id)}"]`)?.checked) continue;
         if (select.dataset.drpgExplicit === "1" || select.value !== select.dataset.drpgWas) map[actor.id] = select.value;
     }

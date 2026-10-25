@@ -67111,6 +67111,7 @@ const SCENARIOS = [
         must(roster.length >= 4, "fewer than four students to divide - this would measure nothing");
         const [explicit, nobody, implicit, ticked] = roster;
         const gm = gms[0];
+        const label = poolLabel(gm);
         const keys = [SETTINGS.gmAssignments, SETTINGS.poolNames, SETTINGS.monokumaPools, SETTINGS.overflowRules];
         const was = Object.fromEntries(keys.map(k => [k, foundry.utils.deepClone(game.settings.get(MODULE_ID, k) ?? {})]));
         const R = "system.resources";
@@ -67156,6 +67157,25 @@ const SCENARIOS = [
             await answer;
             await settle();
             read.saved = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.gmAssignments) ?? {});
+
+            // The never-assigned student pinned to the fallback's own pool in one Save (E15 part 1 fix e1-G4, findings
+            // E15p1-END-4, R3). At c93be060 the pool's one option was "(fallback)": picked, it wrote nothing.
+            answer = Promise.resolve().then(() => T.openGmTeamDialog()).catch(() => null);
+            await until(() => open()[0]?.element, 6000);
+            const again = open()[0]?.element;
+            must(again, "Despair Flow did not open again - this would measure nothing");
+            again.querySelector('[data-drpg-gmt-tab="students"]')?.click();
+            const pin = again.querySelector(`[name="assign.${CSS.escape(implicit.id)}"]`);
+            must(pin, "the never-assigned student's select is not drawn - this would measure nothing");
+            pin.value = gm.id;
+            pin.dispatchEvent(new Event("change", { bubbles: true }));
+            const now = poolLabel(gm);   // renamed by the Save above
+            read.pin = [pin.selectedOptions?.[0]?.textContent?.trim() === now, pin.classList.contains("drpg-assign-fallback"),
+                again.querySelector(".drpg-assign-counts")?.textContent?.includes(`${now}: `) ?? null];
+            again.querySelector('footer.form-footer button[data-action="save"]')?.click();
+            await answer;
+            await settle();
+            read.pinned = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.gmAssignments) ?? {})[implicit.id] === gm.id;
         } finally {
             for (const app of open()) await app.close();
             await answer;
@@ -67167,7 +67187,6 @@ const SCENARIOS = [
             if (tracks.length) await ticked.update(Object.fromEntries(tracks.map(k => [`${R}.${k}`, tracksWas[k]])));
             await settle();
         }
-        const label = poolLabel(gm);
         equal(stableJson(read), stableJson({
             footer: { pools: ["save", "cancel"], students: ["save", "auto", "cancel"] },
             account: game.i18n.localize("DRPG.Despair.account"),
@@ -67175,10 +67194,13 @@ const SCENARIOS = [
             rows: [[false, label], [false, game.i18n.localize("DRPG.Assign.nobody")], [true, game.i18n.format("DRPG.Assign.fallbackOption", { name: label })]],
             asterisks: 0,
             outside: true,
-            saved: { [explicit.id]: gm.id, [nobody.id]: NO_MONOKUMA }
+            saved: { [explicit.id]: gm.id, [nobody.id]: NO_MONOKUMA },
+            pin: [true, false, true],
+            pinned: true
         }), "Despair Flow wrote a row the GM did not change, or its marks are not the rule's [the footer on the pools' and the students' tab; "
             + "the pools' first header; a student not ticked: its \"-\" hidden, its select hidden; per student (assigned, nobody, never): the "
-            + "fallback's class, the option shown; asterisks; \"Outside every pool: 1\"; the assignments after a rename and a student ticked]");
+            + "fallback's class, the option shown; asterisks; \"Outside every pool: 1\"; the assignments after a rename and a student ticked; "
+            + "the never-assigned student's pool picked: the option shown is its plain name, still dim, the pool counted; saved: their row names the pool]");
     }],
 
     ["the Monocubs window and the silence say the rule the GM ticks (E15-T8): short headers, the note on the Silenced column, a locked box until the row is a Monocub; the badge says what the tick posts", async () => {
