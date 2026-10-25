@@ -35,7 +35,7 @@ import { quotePrice, payPrice, refundPrice, priceLine } from "./price.mjs";
 // cleanup.mjs reaches back into this file only through a dynamic import.
 import { tamperQuote, witnessesTo } from "./cleanup.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
-import { drawItem, foundAs } from "./tables.mjs";
+import { drawItem, foundAs, ITEM_POOLS } from "./tables.mjs";
 import { roomOfActor, othersInRoom, locateActor, sceneOfActor } from "./movement.mjs";
 import { projectsAvailableIn, addProgress, isIndirectMurder, isSecret, scaleFor, projectsListedIn, buildsOwnMurder } from "./projects.mjs";
 import { callGm, promptAndCallGm } from "./gm-bridge.mjs";
@@ -2176,7 +2176,9 @@ export async function searchDraw(room, scene, category, tier, goalKey, actor = n
  * @returns {{category: string, tier: number, goal: string|null}}
  */
 export function findOf(drawn, { category, tier, goalKey = null }) {
-    const own = ITEM_CATEGORIES[drawn?.category] ? drawn.category : category;
+    // A category a Search draws (`ITEM_POOLS`, E14 fix e1-G4; the review's E14p2-END-02, R5): a Truth Bullet or a room key
+    // a caller's draw named is the request, never a bullet with no trace or a key with no room.
+    const own = Object.hasOwn(ITEM_POOLS, drawn?.category ?? "") ? drawn.category : category;
     const drawnTier = Number(drawn?.tier);
     return {
         category: own,

@@ -695,7 +695,15 @@ function roomTableNames(base, category, tier) {
 
 /**
  * Is this table one of the room's? The flat table, or the room's name and a suffix this module reads: " - Tier N" for
- * a tier the roll reaches (no higher), or " - " and any category's plural, an alias included (S08-45's draw part).
+ * a tier the roll reaches (no higher), or " - " and the plural of a category a Search draws, an alias included (S08-45's
+ * draw part).
+ *
+ * A SEARCH DRAWS ONLY WHAT A SEARCH ASKS FOR (E14 fix e1-G4, 25.10.2026; the review's E14p2-END-02, R5).
+ * Every key of `ITEM_CATEGORIES` was a suffix here, and since C3 the suffix is the find's category (`roomEntryAs`): a
+ * "Library - Truth Bullets" table handed a Search for a weapon a Truth Bullet with no trace behind it, ready for the
+ * trial, and "Dorm - Room Keys" a key with no room on it - against the module's own rulings (vault.mjs Room Setup, A24:
+ * "Truth Bullets are not searched for, and neither are bedroom keys"; `pickableCategories`; `drawItem`'s spare, which
+ * skips the Truth Bullet). Only the categories the pools hold (`ITEM_POOLS`) are a room table's suffix now.
  */
 function isRoomTableOf(base, name, tier) {
     if (name === base) return true;
@@ -703,7 +711,7 @@ function isRoomTableOf(base, name, tier) {
     const suffix = name.slice(base.length + 3);
     const tierOf = suffix.match(/^Tier (\d+)$/);
     if (tierOf) return ITEM_TIERS.includes(Number(tierOf[1])) && Number(tierOf[1]) <= Number(tier);
-    return Object.keys(ITEM_CATEGORIES).some(category => roomPluralsOf(category).includes(suffix));
+    return Object.keys(ITEM_POOLS).some(category => roomPluralsOf(category).includes(suffix));
 }
 
 /*
@@ -745,7 +753,8 @@ export function foundAs(name, asked, fallback = asked) {
 function roomEntryAs(base, table, name, asked) {
     const suffix = table.name === base ? "" : String(table.name).slice(base.length + 3);
     const tierOf = suffix.match(/^Tier (\d+)$/);
-    const category = tierOf ? null : Object.keys(ITEM_CATEGORIES).find(key => roomPluralsOf(key).includes(suffix));
+    // A category a Search draws only (`isRoomTableOf`, E14 fix e1-G4): any other suffix leaves the request standing.
+    const category = tierOf ? null : Object.keys(ITEM_POOLS).find(key => roomPluralsOf(key).includes(suffix));
     const bySuffix = tierOf ? { ...asked, tier: Number(tierOf[1]) }
         : category && category !== asked.category ? { category, tier: asked.tier, goal: null } : asked;
     return foundAs(name, asked, bySuffix);

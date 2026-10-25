@@ -64158,6 +64158,62 @@ const SCENARIOS = [
             + "[the room's draws, what grantDrawn wrote, the substitute, the world's draws, a plant's name read, the GM's verdicts on the find at its tier and above it, the Reroll's item; each draw as (entry, category, tier, goal, substitute)]");
     }],
 
+    ["a room table's suffix is a category a Search draws: 'Library - Truth Bullets' and 'Library - Room Keys' are no table of the Library's, and a draw that names a Truth Bullet or a room key is granted as what was asked (E14 fix e1-G4: END-02, R5)", async () => {
+        /*
+         * E14 fix e1-G4, 25.10.2026; the review's E14p2-END-02 and R5. tables.mjs `isRoomTableOf` and `roomEntryAs` read
+         * the plural of every key of `ITEM_CATEGORIES` as a room table's suffix, and since C3 that suffix is the find's
+         * category, which action-rolls.mjs `findOf` kept for any key: a Search for a weapon in a Library whose only tables
+         * were "Library - Truth Bullets" and "Library - Room Keys" was handed a Truth Bullet with no trace or a key with no
+         * room. A room of the scene on screen is pointed at "SUITE e1-G4 Library" (its region's `drpgItemTable`, put back
+         * after), which does not exist, and the two suffixed tables are made, one entry each. Read: three Tier 2 weapon
+         * draws in that room (each [the entry is one of the two, the category]) and `findOf` for a draw that says
+         * truthBullet and one that says bedroomKey, asked as a Tier 2 weapon. Red at the parent: the draws were the
+         * diary and the key as truthBullet and bedroomKey, and findOf kept both.
+         */
+        const t = await import("./tables.mjs");
+        const A = await import("./action-rolls.mjs");
+        const V = await import("./vault.mjs");
+        const C = await import("./config.mjs");
+        const scene = canvas?.scene ?? null;
+        must(scene, "no scene on screen to hold the room");
+        const room = [...new Set(Array.from(scene.regions ?? []).map(r => r.name).filter(Boolean))]
+            .find(name => !V.roomTable(name, scene)) ?? null;
+        must(room, `no room of "${scene.name}" draws from the world's pools - pointing one at a table would measure nothing`);
+        const BASE = "SUITE e1-G4 Library", DIARY = "SUITE e1-G4 Torn diary", KEY = "SUITE e1-G4 Dorm key";
+        must(!game.tables.getName(BASE), `a table "${BASE}" exists - the Library's flat table would answer first`);
+        const regions = Array.from(scene.regions ?? []).filter(r => r.name === room);
+        const before = regions.map(r => r.getFlag(MODULE_ID, V.VAULT_FLAGS.table));
+        const made = [];
+        const read = {};
+        try {
+            for (const [name, entry] of [[`${BASE} - ${C.TABLE_NAME_WORDS.plural.truthBullet}`, DIARY], [`${BASE} - ${C.TABLE_NAME_WORDS.plural.bedroomKey}`, KEY]]) {
+                made.push(await RollTable.create({ name, formula: "1d1", flags: { [MODULE_ID]: { roomPool: true } },
+                    results: [{ type: CONST.TABLE_RESULT_TYPES?.TEXT ?? "text", name: entry, text: entry, description: entry, range: [1, 1], weight: 1 }] }));
+            }
+            for (const region of regions) await region.update({ [`flags.${MODULE_ID}.${V.VAULT_FLAGS.table}`]: BASE });
+            await settle();
+            must(V.roomTable(room, scene) === BASE, `${room} does not draw from ${BASE} - this would measure nothing`);
+            read.draws = [];
+            for (let i = 0; i < 3; i++) {
+                const drawn = await t.drawItem("crimeTool", 2, { room, scene });
+                read.draws.push([[DIARY, KEY].includes(drawn?.name), drawn?.category ?? null]);
+            }
+        } finally {
+            for (const [i, region] of regions.entries()) {
+                await region.update({ [`flags.${MODULE_ID}.${V.VAULT_FLAGS.table}`]: before[i] === undefined ? forcedDeletion() : before[i] });
+            }
+            for (const table of made) if (game.tables.get(table.id)) await table.delete();
+            await settle();
+        }
+        const asked = { category: "crimeTool", tier: 2, goalKey: null };
+        read.findOf = ["truthBullet", "bedroomKey"].map(category => A.findOf({ name: "x", category, tier: 1, goal: null }, asked));
+        equal(stableJson(read), stableJson({
+            draws: [[false, "crimeTool"], [false, "crimeTool"], [false, "crimeTool"]],
+            findOf: [{ category: "crimeTool", goal: null, tier: 1 }, { category: "crimeTool", goal: null, tier: 1 }]
+        }), "a room table named for a Truth Bullet or a room key answered a Search, or a draw naming either was granted as one "
+            + "[three Tier 2 weapon draws in the Library: whether the entry is the diary or the key, its category; findOf of a truthBullet and a bedroomKey draw asked as a Tier 2 weapon]");
+    }],
+
     ["a tier pool renamed in the sidebar is one by its flags everywhere: the Item tables window lists it on the Tier pools tab, Room Setup does not offer it, its entries are filed, a room pointed at it does not draw from it, and a table under a pool's name whose flags say another pool answers no draw for that name (E14 fix e1-G2: END-04, R3, R4)", async () => {
         /*
          * E14 fix e1-G2, 25.10.2026; the review's E14p2-END-04, R3 and R4. C1 made a tier pool answer its draw by its flags
