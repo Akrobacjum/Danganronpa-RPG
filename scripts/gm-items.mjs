@@ -434,7 +434,10 @@ function giveCategoryOptions(who) {
             ? (group ? countInGroup(who, group) : countInCategory(who, choice.key))
             : null;
         const limit = group ? LIMIT_GROUPS[group]?.limit : cat?.limit;
-        const cap = held === null ? "" : (limit ? ` - ${held}/${limit}` : ` - ${held}`);
+        // The group named with its count (E14 part 2 C8; audit S13-21): "Cleaning Tool - 0/2" read as two slots of the
+        // Cleaning Tool's own, where the summary above says "Gear: 0/2" of the same two.
+        const count = limit ? `${held}/${limit}` : `${held}`;
+        const cap = held === null ? "" : group ? ` (${LIMIT_GROUPS[group]?.label ?? group} ${count})` : ` - ${count}`;
         return `<option value="${choice.value}">${
             foundry.utils.escapeHTML(choice.label)}${cap}</option>`;
     }).join("");

@@ -22155,6 +22155,46 @@ const INVARIANTS = [
             "Give an item's fields are not in one grid, a closed tab is opened by it, or the hub's footer is not tiles with Close "
             + "under them [each field row, the open tab's columns, the closed tab's display, the hub footer, Close's columns]");
     }],
+    ["R975 - the item tables window's help names a button or a tab that is there, the gear group has one Polish word wherever it is read, and a stash out of reach says where it is (E14-49, S08-29, S08-48, S13-21)", async () => {
+        /*
+         * E14 part 2 C8, 25.10.2026; E14-49. The harm (S08-29): five lines of the tables window sent a new GM to "the last
+         * tab" for the pools, which is Create an item, and to a "Create item tables" button and a field "below" that are
+         * not there - the install is "Install / reinstall" in the footer of the first tab. (S13-21) `LIMIT_GROUPS` was not
+         * one of the tables `localizeConfig` translates, so a Polish player read "Gear" in a refusal under a sheet heading
+         * that said "Ekwipunek". (S08-48) A stash out of reach told the player to stand in their own room, though a stash
+         * may be in the library. Read: both language files as served; i18n-config.mjs `CONFIG_TABLES`.
+         */
+        const lang = async code => (await (await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" })).json());
+        const [en, pl] = [await lang("en"), await lang("pl")];
+        const get = (words, key) => String(foundry.utils.getProperty(words, key) ?? "");
+        const T = "DRPG.Tables.";
+        const points = words => {
+            const install = get(words, `${T}installAction`), tiers = get(words, `${T}tabTierPools`), rooms = get(words, `${T}tabRoomPools`);
+            must(install && tiers && rooms, "the window's button or tab names are missing - this would measure nothing");
+            return [["noTierPools", install], ["newTierPoolNote", install], ["installTabNote", install], ["tierTargetNone", tiers],
+                ["noRoomTables", rooms]].map(([key, name]) => get(words, T + key).includes(name));
+        };
+        const lastTab = words => ["noTierPools", "newTierPoolNote", "tierTargetNone"].filter(key => /last tab|ostatni(ej|a) zakład/i.test(get(words, T + key)));
+        equal(stableJson([points(en), points(pl), lastTab(en), lastTab(pl)]),
+            stableJson([[true, true, true, true, true], [true, true, true, true, true], [], []]),
+            "a line of the tables window does not name the button or the tab it sends the GM to, or still sends them to the last tab "
+            + "[EN noTierPools, newTierPoolNote, installTabNote -> Install / reinstall, tierTargetNone -> Tier pools, noRoomTables -> "
+            + "Room pools; PL the same; the keys that say last tab, EN, PL]");
+
+        const { CONFIG_TABLES } = await import("./i18n-config.mjs");
+        const gearPl = get(pl, "DRPG.Config.LIMIT_GROUPS.gear.label");
+        equal(stableJson([CONFIG_TABLES.includes("LIMIT_GROUPS"), gearPl.length > 0 && gearPl === get(pl, "DRPG.Sheet.groupGear"),
+            get(pl, "DRPG.Config.LIMIT_GROUPS.gear.hint"), get(pl, "DRPG.Config.CLEANUP.actions.eraseTrace.hint")]),
+            stableJson([true, true, "", ""]),
+            `the gear group's word is not translated where it is read, differs from the sheet's heading, or a hint nothing reads is `
+            + `still carried [LIMIT_GROUPS in CONFIG_TABLES; pl "${gearPl}" against "${get(pl, "DRPG.Sheet.groupGear")}"; the dead hints]`);
+
+        equal(stableJson([get(en, "DRPG.Vault.notHere").includes("{room}"), get(pl, "DRPG.Vault.notHere").includes("{room}"),
+            get(en, "DRPG.Vault.noStashOnScene").length > 0, get(pl, "DRPG.Vault.noStashOnScene").length > 0]),
+            stableJson([true, true, true, true]),
+            "a stash out of reach does not say which room it is in, or a character with no stash has no sentence of its own "
+            + "[notHere EN, PL with {room}; noStashOnScene EN, PL]");
+    }],
 ];
 
 /**

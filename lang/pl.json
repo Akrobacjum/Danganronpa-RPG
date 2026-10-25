@@ -395,7 +395,7 @@
       "ultimatePlaceholder": "to jedno, w czym ta postać jest najlepsza",
       "equipped": "W ręku",
       "groupUsables": "Użytkowe",
-      "groupGear": "Ekwipunek",
+      "groupGear": "Sprzęt",
       "sharedSlots": "Narzędzia zbrodni, narzędzia do sprzątania i narzędzia dzielą między sobą te {n} miejsca.",
       "groupTruthBullets": "Truth Bullets",
       "bulletSortLabel": "Grupuj wg",
@@ -880,7 +880,7 @@
       "stashSent": "Przeczesujesz pokój w poszukiwaniu czegoś, co tu nie pasuje."
     },
     "Items": {
-      "autoReadied": "{item} od razu trafia do ręki: schowany może być tylko jeden {group}.",
+      "autoReadied": "{item} od razu trafia do ręki: z grupy {group} schowana może być tylko jedna rzecz.",
       "useGone": "{item} nie jest już w twoich rękach. Niczego nie użyto.",
       "rulingOpen": "Orzeczenie w sprawie: {item} już trwa. Odpowiedz na tę kartę, gdy się skończy.",
       "rulingGone": "Zamknął: {name} - przedmiot jest zużyty albo nikt go już nie nosi. Niczego nie dano.",
@@ -937,7 +937,7 @@
       "used": "Użyto: {item}.",
       "usedNothing": "Nie ma czego przywracać. Nic ci nie brakowało.",
       "useStashed": "To leży w twojej skrytce. Najpierw to wyjmij.",
-      "stowShape": "Tylko jeden {group} może być schowany. Najpierw weź drugi do ręki albo go wyrzuć.",
+      "stowShape": "Z grupy {group} schowana może być tylko jedna rzecz. Najpierw weź drugą do ręki albo ją wyrzuć.",
       "deadHands": "{name} nie żyje. To, co jest przy ciele, zostaje tam, do znalezienia.",
       "equipStashed": "To leży w twojej skrytce. Wyjmij to, zanim weźmiesz do ręki.",
       "equipTooltip": "Weź do ręki.",
@@ -1918,7 +1918,8 @@
       "section": "Skrytka - {room}",
       "stowTooltip": "Schowaj w skrytce (musisz być w pokoju)",
       "takeTooltip": "Wyjmij ze skrytki (musisz być w pokoju)",
-      "notHere": "Musisz stać we własnym pokoju, by sięgnąć do skrytki.",
+      "notHere": "Twoja skrytka jest w: {room} - stań tam, żeby do niej sięgnąć.",
+      "noStashOnScene": "Nie masz skrytki na tej scenie.",
       "handFirst": "Przedmiotu {item} nie da się wziąć do ręki, a schowany może być tylko jeden {group}. Najpierw weź do ręki sprawny.",
       "noBullets": "Truth Bullets to to, co wiesz, nie rzeczy w skrytce.",
       "full": "{room}: skrytka pełna. Mieści {limit} rzeczy - wyjmij coś, zanim coś włożysz.",
@@ -1929,7 +1930,7 @@
       "noticed": "Ktoś ruszał twoją skrytkę i czegoś w niej brakuje. Nie masz pojęcia, czyje ręce w niej były.",
       "tabStashes": "Skrytki",
       "stashesIntro": "Kto ma skrytkę w którym pokoju i czy jest ukryta. Kliknij komórkę, by przełączać: brak, otwarta, ukryta. Sypialnia daje właścicielowi otwartą skrytkę automatycznie - jej komórka jest zacieniona - i tutaj możesz mu ją odebrać.",
-      "stashesNote": "Otwarta skrytka jest otwarta: każdy stojący w pokoju może ją przejrzeć za darmo i wziąć jedną rzecz, raz na porę dnia. Ukrytą trzeba najpierw znaleźć, przez Search z karą. Skrytka w cudzym pokoju nie daje klucza do niego.",
+      "stashesNote": "Otwarta skrytka jest otwarta: każdy stojący w pokoju może ją przejrzeć za darmo i wziąć jedną rzecz, raz na porę dnia. Ukrytą trzeba najpierw znaleźć: przez Search z karą albo przez Analyze za 16 lub więcej. Skrytka w cudzym pokoju nie daje klucza do niego.",
       "stashCycle": "Kliknij, by przełączać: brak / otwarta / ukryta",
       "stashNone": "Brak skrytki",
       "stashOpen": "Otwarta",
@@ -1945,7 +1946,7 @@
       "manageTitleOn": "Ustawienia pokoi - {scene}",
       "manageIntro": "Wszystko, czym jest pokój, jeden rodzaj faktów na zakładkę. Zastosuj zapisuje każdą zakładkę naraz, niezależnie od tego, która jest widoczna.",
       "manageNote": "Sprzyjająca kategoria daje przewagę każdemu, kto jej tu szuka; zła daje utrudnienie, a kategoria nigdy nie jest jednym i drugim. Pokój bez własnej tabeli spada do puli globalnej, więc niedokończona konfiguracja jest w porządku.",
-      "bedroomsIntro": "Czyja jest każda sypialnia i czy skrytka w niej jest ukryta. Jeden uczeń, jedna sypialnia.",
+      "bedroomsIntro": "Czyja jest każda sypialnia. Jeden uczeń, jedna sypialnia. Czy skrytka jest ukryta, ustawiasz na zakładce Skrytki.",
       "doorsIntro": "Które drzwi są teraz zamknięte i które zaczynają sezon zamknięte. Reset sezonu przywraca każde drzwi do kolumny startowej.",
       "roomRatio": "{open} wspólnych pokoi otwartych na {living} żyjących uczniów: {per} na głowę, wobec {target}, na których zbudowano ten sezon. To {want} pokoi.",
       "searchIntro": "Z czego losuje przeszukanie każdego pokoju, ile ma Search Tokenów i czego sensownie w nim szukać.",
@@ -1989,7 +1990,7 @@
       "tabScenes": "Sceny",
       "fogIntro": "Które pokoje każda postać już odkryła na tej scenie. Pokój, w którym postać stoi, jest zawsze czysty; to dotyczy tylko pokoi, w których już była - pokazywanych jako przyciemniona zasłona zamiast pełnej mgły.",
       "fogUncovered": "{pct}% powierzchni tej sceny nie należy do żadnego regionu pokoju - będzie widoczne jako stała mgła, nie jako luka w ścianie, co zwykle znaczy, że jakiś pokój trzeba jeszcze narysować.",
-      "fogNote": "Odkryj wszystko / Ukryj wszystko zastępują każde pole powyżej dla każdej postaci naraz. Pojedyncze pola to jeden pokój, jedna postać.",
+      "fogNote": "Odkryj wszystko / Ukryj wszystko zaznaczają albo czyszczą każde pole powyżej dla każdej postaci naraz. Nic się nie zmienia, dopóki nie klikniesz Zastosuj. Pojedyncze pola to jeden pokój, jedna postać.",
       "discoverAll": "Odkryj wszystko",
       "hideAll": "Ukryj wszystko",
       "unlockedAnnounce": "Drzwi do: {room} są otwarte.",
@@ -3248,19 +3249,19 @@
         "many": "Nie udało się utworzyć {n} tabel przedmiotów. Zajrzyj do konsoli.",
         "other": "Nie udało się utworzyć {n} tabel przedmiotów. Zajrzyj do konsoli."
       },
-      "whereNote": "Tabele mieszkają w panelu Tabele losowe, w folderze „Danganronpa RPG”. Search czyta je, zanim sięgnie do wbudowanych list modułu.",
+      "whereNote": "Tabele mieszkają w panelu Tabele losowe, w folderze „Danganronpa RPG”. Search w pokoju losuje najpierw z własnych tabel tego pokoju, potem z pul Tier, a na końcu z wbudowanych list modułu.",
       "editorTitle": "Tabele przedmiotów",
       "tabTierPools": "Pule Tier",
       "tabRoomPools": "Pule pokoi",
-      "noTierPools": "Nie ma jeszcze pul Tier. Zainstaluj je na ostatniej zakładce.",
+      "noTierPools": "Nie ma jeszcze pul Tier. Zainstaluj je przyciskiem „Zainstaluj / przeinstaluj” poniżej.",
       "noRoomPools": "Nie ma jeszcze pul pokoi. Nazwij jedną poniżej.",
       "newTierPool": "Nowa pula Tier",
       "newTierPoolPlaceholder": "np. DRPG Tools - Tier 2",
-      "newTierPoolNote": "Pulę Tier znajduje się po nazwie, więc musi być nazwana jak jedna z nich: kategoria, potem Tier. Zwykle buduje je za ciebie ostatnia zakładka.",
+      "newTierPoolNote": "Pulę Tier nazywa się jej kategorią i jej Tier, tak jak „DRPG Tools - Tier 2”. Zwykle nie tworzy się jej ręcznie: „Zainstaluj / przeinstaluj” poniżej buduje wszystkie.",
       "newTierPoolForms": "„{name}” to nie pula Tier. Nazwij ją kategorią i Tierem, jedną z nazw: {forms} - gdzie N to Tier od {low} do {high}.",
       "renameOtherPool": "„{name}” to nazwa innej puli. Ta trzyma przedmioty z „{pool}”: zostaw w nazwie jej kategorię i Tier.",
       "tabNewItem": "Utwórz przedmiot",
-      "installTabNote": "„Utwórz tabele przedmiotów” poniżej buduje domyślny zestaw - jedną tabelę Tier na kategorię. Jeśli już istnieją, wybierasz między zachowaniem swoich a przebudową.",
+      "installTabNote": "„Zainstaluj / przeinstaluj” poniżej buduje domyślny zestaw - jedną tabelę na kategorię i Tier. Jeśli już istnieją, wybierasz między zachowaniem swoich a przebudową.",
       "editorIntro": "Wszystko, co może się trafić przy Search. Wybierz tabelę po lewej, by zobaczyć jej zawartość; formularz poniżej dodaje jeden przedmiot do tylu tabel, ile zaznaczysz.",
       "tableEmpty": "W tej tabeli nie ma jeszcze nic.",
       "removeItem": "Usuń z tej tabeli",
@@ -3279,9 +3280,9 @@
       "noneYet": "Nie ma jeszcze tabel przedmiotów - utwórz domyślny zestaw poniżej.",
       "addItem": "Dodaj przedmiot",
       "tierTargetIs": "Trafia do: {table}. Wyliczone z kategorii i Tier powyżej.",
-      "tierTargetNone": "Nie ma puli Tier dla tej kategorii i Tier - będzie mieszkać tylko w pokojach zaznaczonych poniżej. Zainstaluj pule na ostatniej zakładce.",
+      "tierTargetNone": "Nie ma puli Tier dla tej kategorii i Tier - będzie mieszkać tylko w pokojach zaznaczonych poniżej. Zainstaluj pule na zakładce Pule Tier.",
       "roomTargets": "Tabele pokoi, w których też się pojawia:",
-      "noRoomTables": "Nie ma jeszcze tabel pokoi - utwórz jedną poniżej.",
+      "noRoomTables": "Nie ma jeszcze tabel pokoi - utwórz jedną na zakładce Pule pokoi.",
       "rolesTierOnly": "Dwie role zaczynają się od Tier {tier} - tak tani przedmiot robi jedną rzecz.",
       "rolesNote": "Służy też jako - zaznacz wszystko, co ten wpis potrafi poza własną kategorią. Śrubokręt w Narzędziach, który jest też narzędziem zbrodni, daje przewagę przy ataku i przy pracy nad projektem, a wciąż zajmuje jedno miejsce.",
       "addNote": "Ikona i opis idą razem z nim: kto znajdzie ten przedmiot, dostanie oba na karcie.",
@@ -3296,7 +3297,7 @@
       "changeIcon": "Zmień ikonę tego przedmiotu",
       "newPool": "Nowa tabela pokoju",
       "newPoolPlaceholder": "np. Kuchnia",
-      "newPoolNote": "Tabela pokoju to to, co pokój ma na stanie - wskaż ją pokojowi w Ustawieniach pokoi, kolumna „Losuje z”. Tabele Tier odpowiadają na rzuty i nie da się ich przypisać do pokoi. Tabela o nazwie „«Pokój» - Tier N” odpowiada na ten rzut w tym pokoju jako pierwsza.",
+      "newPoolNote": "Tabela pokoju to to, co pokój ma na stanie - wskaż ją pokojowi w Ustawieniach pokoi, kolumna „Losuje z”. Tabele Tier odpowiadają na rzuty i nie da się ich przypisać do pokoi. Własne tabele pokoju odpowiadają na Search w nim przed pulami Tier, a tabela o nazwie „«Pokój» - Tier N” odpowiada na ten rzut jako pierwsza.",
       "newPoolTierName": "Ta nazwa pasuje do wzorca tabeli Tier („DRPG … - Tier N”) - tabela pokoju potrzebuje własnej nazwy.",
       "newPoolExists": "Tabela o nazwie „{name}” już istnieje.",
       "presetRoomNoTable": "{room} nie losuje z własnej tabeli. Wskaż mu tabelę w Ustawieniach pokoi, żeby takie znaleziska zostały tam.",
@@ -5376,19 +5377,21 @@
           "effect": "Trzecia osoba opuszcza pokój i nie interweniuje. Może pójść po pozostałych, choć koszt ruchu pewnie ją powstrzyma."
         }
       },
+      "LIMIT_GROUPS": {
+        "gear": {
+          "label": "Sprzęt"
+        }
+      },
       "CLEANUP": {
         "actions": {
           "eraseTrace": {
-            "label": "Usuń ślad",
-            "hint": "Wymaż jeden ślad, który po tobie został. Im trudniej go zobaczyć, tym łatwiej usunąć."
+            "label": "Usuń ślad"
           },
           "misleadingTrail": {
-            "label": "Mylny trop",
-            "hint": "Podłóż Prep Remnant wskazujący na kogoś innego."
+            "label": "Mylny trop"
           },
           "moveBody": {
-            "label": "Przenieś ciało",
-            "hint": "Zanieś ciało gdzie indziej. Zawsze zostawia Evident ślad."
+            "label": "Przenieś ciało"
           }
         },
         "conceal": {

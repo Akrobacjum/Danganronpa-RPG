@@ -1296,7 +1296,7 @@ export async function stow(actor, item) {
     // over - stamped onto the item so nothing has to work it out again.
     const room = await myStashHere(actor);
     if (!room) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Vault.notHere"));
+        tellNotHere(actor);
         return false;
     }
 
@@ -1342,6 +1342,17 @@ export async function stow(actor, item) {
     return true;
 }
 
+/* WHERE THE STASH IS, NOT "YOUR OWN ROOM" (E14 part 2 C8; audit S08-48): a stash may be in the library as well as in a
+   bedroom, and the line sent the player to their bedroom whatever. `room` is the stash the thing lies in (`retrieve`);
+   with none, every room of this scene where the character keeps one (`stow`), and a sentence of its own when there is
+   no such room. The character's own stashes: nothing here is anybody else's. */
+function tellNotHere(actor, room = null) {
+    const rooms = room ? [room] : stashRoomsFor(actor, sceneOfActor(actor)).map(entry => entry.room);
+    ui.notifications.warn(rooms.length
+        ? game.i18n.format("DRPG.Vault.notHere", { room: rooms.join(", ") })
+        : game.i18n.localize("DRPG.Vault.noStashOnScene"));
+}
+
 /** True, and the player told, when `actor` is dead as this browser may know it (`stow`, `retrieve`). */
 function refuseTheDead(actor) {
     if (!isDeadForGm(actor)) return false;
@@ -1358,8 +1369,9 @@ export async function retrieve(actor, item) {
     // Two stashes and a shared "am I at a stash" test would let a player pull
     // something out of a drawer on the other side of the building.
     const here = await myStashHere(actor);
-    if (!here || stashRoomOfItem(item, actor, sceneOfActor(actor)) !== here) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Vault.notHere"));
+    const at = stashRoomOfItem(item, actor, sceneOfActor(actor));
+    if (!here || at !== here) {
+        tellNotHere(actor, at);
         return false;
     }
 

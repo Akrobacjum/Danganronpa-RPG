@@ -845,9 +845,7 @@ export const LIMIT_GROUPS = {
          * everything else down, so at most one thing is ever in a hand. This is
          * the other half.
          */
-        maxStowed: 1,
-        hint: "Murder Weapons, Cleaning Tools and Tools share two slots, and only one of "
-            + "them may be stowed - carrying two means one is in your hand."
+        maxStowed: 1
     }
 };
 
@@ -3933,8 +3931,7 @@ export const CLEANUP = {
             label: "Erase a trace", icon: "fa-eraser",
             /** DC comes from the trace itself - see `dc` above. */
             dcFromVisibility: true,
-            targets: "remnant",
-            hint: "Wipe out one trace you left. The harder it is to see, the easier it is to erase."
+            targets: "remnant"
         },
 
         /**
@@ -3966,7 +3963,6 @@ export const CLEANUP = {
             label: "Misleading trail", icon: "fa-signs-post",
             threshold: 15,
             targets: "player",
-            hint: "Plant a Prep Remnant pointing at somebody else.",
             remnant: { hope: "evident", despair: "subtle", critical: "obvious" },
             failureRemnant: { hope: "hidden" },
             failureFaint: true,
@@ -3988,7 +3984,6 @@ export const CLEANUP = {
             threshold: 16,
             traits: ["body"],
             targets: "body",
-            hint: "Carry the body somewhere else. Always leaves an Evident trace.",
             rooms: { hope: 1, despair: 1, critical: 2 },
             remnant: { hope: "evident", despair: "evident", critical: "evident" },
             remnantType: "resolution",

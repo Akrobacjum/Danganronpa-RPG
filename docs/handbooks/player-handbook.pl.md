@@ -191,6 +191,8 @@ O co możesz prosić:
 | *coś do pracy* | narzędzie |
 | *coś konkretnego* | opisz to, a GM orzeknie, co naprawdę tu było |
 
+Znajdujesz to, co ma pokój: pokój, który GM zaopatrzył, odpowiada pierwszy, więc znalezisko może być czymś innym, niż prosisz, albo mieć niższy Tier - nigdy wyższy, niż wywalczył twój rzut.
+
 Niektóre pokoje to dobre miejsca, by szukać danej kategorii, a niektóre złe; okno rzutu mówi, gdy pokój sprzyja temu, o co prosisz, albo w tym przeszkadza. Jeśli ktoś inny trzyma w tym pokoju skrytkę, w której coś jest, udane Search bierze zamiast tego z tej skrytki - najpierw z otwartej, a z ukrytej z jednym stopniem utrudnienia więcej (jedna z twoich kości premii odłożona albo jeszcze jedna kość kary). Okno rzutu tego stopnia nie pokazuje, bo powiedziałoby ci, że jest tu ukryta skrytka, zanim cokolwiek wydasz: dokłada się go, gdy kości już upadną, a twoja karta mówi, co zrobił.
 
 > [!WARNING]
@@ -436,14 +438,14 @@ Despair zdobyty ponad pełną pulę nie znika - zbiera się w jednym wspólnym l
 | Kategoria | Limit | Uwagi |
 |---|---|---|
 | **Użytkowe** | 3 | Leczące przywracają Health, uspokajające oczyszczają Sanity. Używasz z wiersza w ekwipunku. |
-| **Ekwipunek**: narzędzia zbrodni, narzędzia do sprzątania, narzędzia | 2 wspólne miejsca | Tylko **jedno** może być schowane - noszenie dwóch znaczy, że jedno jest w ręku. |
+| **Sprzęt**: narzędzia zbrodni, narzędzia do sprzątania, narzędzia | 2 wspólne miejsca | Tylko **jedno** może być schowane - noszenie dwóch znaczy, że jedno jest w ręku. |
 | **Truth Bullets** | brak | Dowody. To, co wiesz, nie rzecz w szufladzie. |
 | **Klucze do pokoi** | brak | Otwiera jedną sypialnię. |
 
 Przedmiot może służyć też jako inna kategoria (śrubokręt w narzędziach, który jest też narzędziem zbrodni) i wciąż zajmuje jedno miejsce.
 
 > [!IMPORTANT]
-> **W ręku.** Ekwipunek liczy się tylko wzięty do ręki: w incydencie, przy sprzątaniu i przy pracy nad projektem liczy się tylko to, co trzymasz. W ręku jest zawsze najwyżej jedna rzecz; wzięcie jednej odkłada pozostałe. Narzędzie w ręku daje przewagę przy pracy nad projektem i sabotażu i zdejmuje swój Tier z progu. Narzędzie do sprzątania w ręku robi to samo przy sprzątaniu. Tier narzędzia zbrodni to jego obrażenia.
+> **W ręku.** Sprzęt liczy się tylko wzięty do ręki: w incydencie, przy sprzątaniu i przy pracy nad projektem liczy się tylko to, co trzymasz. W ręku jest zawsze najwyżej jedna rzecz; wzięcie jednej odkłada pozostałe. Narzędzie w ręku daje przewagę przy pracy nad projektem i sabotażu i zdejmuje swój Tier z progu. Narzędzie do sprzątania w ręku robi to samo przy sprzątaniu. Tier narzędzia zbrodni to jego obrażenia.
 
 **Przekazywanie.** Każdemu w tym samym pokoju: **Przekaż** (opuszcza cię na dobre; obowiązuje jego limit) albo, przy Truth Bullecie, **Podziel się kopią** (macie oboje, a jego kopii nie wiąże żadna twoja nieudana analiza). Bez akcji i nie podczas Eclipse.
 
@@ -788,7 +790,7 @@ W lewym dolnym rogu karty postaci jest przycisk ze słowem - **Safe Word**, chyb
 
 **Twój arkusz:**
 - *Akcje* - dziesięć kafelków, Hope Calle poniżej; podczas incydentu kafelek Direct Murder staje się **Broń się** dla ofiary i **Akcje kryzysowe** dla pozostałych i je otwiera; tutaj Move i Confusion jako Monocub.
-- *Ekwipunek* - użytkowe, ekwipunek (z *weź do ręki*), Truth Bullets (Analyze, Przedstaw, Podziel się kopią; grupujesz je wg Rozdziału albo Lokacji), klucze do pokoi i twoja skrytka, gdy stoisz w tym pokoju.
+- *Ekwipunek* - użytkowe, sprzęt (z *weź do ręki*), Truth Bullets (Analyze, Przedstaw, Podziel się kopią; grupujesz je wg Rozdziału albo Lokacji), klucze do pokoi i twoja skrytka, gdy stoisz w tym pokoju.
 - *Zasady* - stałe zasady Monokumy, dla wszystkich, cały czas.
 - Safeword, w lewym dolnym rogu. Level Up, gdy go zdobyłeś.
 

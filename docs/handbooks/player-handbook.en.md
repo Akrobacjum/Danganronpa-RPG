@@ -191,6 +191,8 @@ What you can ask for:
 | *something to work with* | a Tool |
 | *something specific* | describe it and the GM rules on what was really there |
 
+What turns up is what the room holds: a room the GM has stocked answers first, so what you find can be another kind of thing than you asked for, or of a lower tier - never of a higher one than your roll earned.
+
 Some rooms are good places to look for a category and some are bad; the roll window tells you when the room favours or hinders what you ask for. If somebody else keeps a stash with something in it in this room, a successful Search takes from that stash instead - an open one first, a hidden one with one more step of disadvantage on your roll (one of your bonus dice set aside, or one more penalty die). The window does not show that step, because it would tell you a hidden stash is here before you had spent anything: it is taken once the dice have fallen, and your card says what it did.
 
 > [!WARNING]
