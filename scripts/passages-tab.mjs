@@ -329,6 +329,6 @@ export function wirePassagesTab(root, scene, { dialog = null, stores = PASSAGE_S
             .catch(err => error("The pick of a new tunnel failed", err))
             .then(draw);
     });
-    if (dialog) keepFresh(dialog, { run: draw, watch: { stores: [stores.map, stores.access, stores.mastermind], hooks: ["userConnected", "drpgPassagesTold"] } });
+    if (dialog) keepFresh(dialog, { run: draw, watch: { stores: [stores.map, ...(stores.season ? [stores.season] : []), stores.access, stores.mastermind], hooks: ["userConnected", "drpgPassagesTold"] } });
     return { draw, settled: () => busy };
 }

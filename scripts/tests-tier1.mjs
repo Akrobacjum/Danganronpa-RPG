@@ -18389,7 +18389,8 @@ const INVARIANTS = [
         const sources = await moduleSources();
         must(sources.get("passages-gm.mjs")?.length && sources.get("gm-bridge.mjs")?.length, "passages-gm.mjs or gm-bridge.mjs is not among the module's sources - this would measure nothing");
         const cross = fnSource(stripComments(sources.get("passages-gm.mjs")), "crossTunnel");
-        ok(/const known = secretRowsFrom\(\{ map: stores\.map, access: stores\.access \}\);/.test(cross) && /M\.tunnelVerdict\(actor, passage, token, \{ mover, known, pay: false \}\)/.test(cross),
+        // Since E15 part 2 C1 the records are both stores, the map's and the season's (passages.mjs `passageBook`).
+        ok(/const known = secretRowsFrom\(\{ map: stores\.map, season: stores\.season \?\? null, access: stores\.access \}\);/.test(cross) && /M\.tunnelVerdict\(actor, passage, token, \{ mover, known, pay: false \}\)/.test(cross),
             "the primary GM's 'Go through' judges the way from something other than the GMs' records");
 
         // The copies: the knower's player's carries the way, the other's holds nothing; the knower's browser keeps it.

@@ -59,11 +59,11 @@
 import { MODULE_ID, ACTIONS } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { isPrimaryGm, serverNow, whisperToOwner, whisperToGms, ownerOf, warn, error, debug, serialWrite, plural, forcedDeletion } from "./utils.mjs";
-import { passageMapStore, passageAccessStore, passageLogStore, mastermindStore, mastermindUndecided } from "./gm-stores.mjs";
+import { passageMapStore, passageSeasonStore, passageAccessStore, passageLogStore, mastermindStore, mastermindUndecided } from "./gm-stores.mjs";
 import { RECORD, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible } from "./gm-store.mjs";
 import { senderOf } from "./bridge-guards.mjs";
 import { isMonokuma } from "./monokuma.mjs";
-import { secretRowsFrom, studentIdsOf, sceneGone, endsOf, oneWayOf, PASSAGE_TOLERANCE, DOOR_PART, isSecretDoor, secretDoorsOn, passageSpot } from "./passages.mjs";
+import { secretRowsFrom, passageBook, studentIdsOf, sceneGone, endsOf, oneWayOf, PASSAGE_TOLERANCE, DOOR_PART, isSecretDoor, secretDoorsOn, passageSpot } from "./passages.mjs";
 import { roomPieces, onLevel, floorsOf, isTrialScene, viewedScene, viewedLevel } from "./rooms.mjs";
 import { regionShapes, inFlatPolygons, distanceToSegment } from "./fog-geometry.mjs";
 import { overlayLayer, clearLayer, overlayColour, dashedLine, overlayDrawer, redrawGmOverlay } from "./gm-overlay.mjs";
@@ -73,8 +73,25 @@ const SOCKET_EVENT = `module.${MODULE_ID}`;
 /** The GMs' log keeps this many rows, the newest (the E79 plan's 1b.1). */
 export const PASSAGE_LOG_ROWS = 200;
 
-/** The three records, as every function here reads them by default; the suite hands its own (R554, R555). */
-export const PASSAGE_STORES = Object.freeze({ map: passageMapStore, access: passageAccessStore, log: passageLogStore, mastermind: mastermindStore });
+/**
+ * The records, as every function here reads them by default; the suite hands its own (R554, R555). `season` since E15
+ * part 2 C1: the passages a project made (gm-stores.mjs `passageSeasonStore`, D3), read with the map's as one
+ * (`rowsOf`); a suite's stores without one read their own map alone.
+ */
+export const PASSAGE_STORES = Object.freeze({ map: passageMapStore, season: passageSeasonStore, access: passageAccessStore, log: passageLogStore,
+    mastermind: mastermindStore });
+
+const BOOKS = new WeakMap();
+/**
+ * The passages of `stores`, both stores read as one and each write sent to the store that holds its row (passages.mjs
+ * `passageBook`; E15 part 2 C1): what every road here reads where it read `stores.map` until then. One per stores
+ * object, kept: the handles it holds do not change.
+ */
+export function rowsOf(stores = PASSAGE_STORES) {
+    let book = BOOKS.get(stores);
+    if (!book) BOOKS.set(stores, book = passageBook({ map: stores.map, season: stores.season ?? null }));
+    return book;
+}
 
 const STATES = new Set(["secret", "closed", "broken"]);
 const touchKey = actorId => `touch/${actorId}`;
@@ -173,7 +190,7 @@ export function passageCopyFor(user, { stores = PASSAGE_STORES, actors = game.ac
        player's only student, by `offersCombine` (no part newer) where they own another - while TOLD read it delivered
        (E80 fix r1-G3, the review's E80-C6-1). So each part is at least the newest Make public of a passage public now. */
     let shared = 0;
-    for (const [id, row] of Object.entries(stores.map.entries())) if (row?.public === true) shared = Math.max(shared, stores.map.stampOf(id, "public"));
+    for (const [id, row] of Object.entries(rowsOf(stores).entries())) if (row?.public === true) shared = Math.max(shared, rowsOf(stores).stampOf(id, "public"));
     const stamps = ids.size ? Object.fromEntries([...ids].map(a => [a, Math.max(stores.access.newest(touchKey(a)), shared)]))
         : { "": stores.access.cleared() + 1 };
     /* The copy that takes the every-passage rows away from an owner the door named before carries the part as well, at
@@ -329,7 +346,7 @@ export async function onPassageRequest(payload, senderId) {
     const sender = senderOf(senderId);
     if (!sender || sender.isGM) return false;
     await whenGmStoresAudible();
-    await Promise.all([passageMapStore.whenHydrated(), passageAccessStore.whenHydrated(), mastermindStore.whenHydrated()]);
+    await Promise.all([passageMapStore.whenHydrated(), passageSeasonStore.whenHydrated(), passageAccessStore.whenHydrated(), mastermindStore.whenHydrated()]);
     if (!isPrimaryGm()) return false;
     return pushPassageCopies([sender.id], { force: true }) > 0;
 }
@@ -366,17 +383,22 @@ export async function retellPassages({ primary = isPrimaryGm, ...ctx } = {}) {
  * `touch` of every knower and of the Mastermind here, in C8's first draft, changed nothing of R554 or
  * 65-season X. The suite's own stores tell nobody: only the module's send the copies.
  *
+ * Since E15 part 2 C1 the season's store (`passageSeasonStore`, the projects' passages, D3) is cleared with the access
+ * record and the log - its group's cut has already taken it on every GM -, so only the map's rows give start access
+ * back; a project's passage and whoever knew it are gone with the season.
+ *
  * The minimal form of the reset entry (A10-9, E79 fix r4-G7): E42 takes this function over and
  * extends it rather than writing a second reset step for the passages. R560 holds it to one
  * declaration, exported, here; season-setup.mjs `wipeSeason` is its one caller.
  */
 export async function passagesAfterReset({ stores = PASSAGE_STORES } = {}) {
-    for (const store of [stores.access, stores.log]) {
+    // The season's passages, a project's, go with who knows them (E15 part 2 C1, D3); the map's stay.
+    for (const store of [stores.access, stores.log, ...(stores.season ? [stores.season] : [])]) {
         if (isPrimaryGm()) await store.clear();
         else await store.dropMany(Object.keys(store.entries()));
     }
     const at = serverNow(), who = game.user?.id ?? null, cells = {};
-    for (const [id, row] of Object.entries(stores.map.entries())) {
+    for (const [id, row] of Object.entries(rowsOf(stores).entries())) {
         for (const actorId of Array.isArray(row?.startAccess) ? row.startAccess : []) {
             if (!studentOf(actorId)) continue;
             cells[`${id}/${actorId}`] = { how: "start", at, by: { [who]: at } };
@@ -411,7 +433,7 @@ function onWall(x, y, [x1, y1, x2, y2]) {
  * besides (E80 C6): a Close, an Open or a Delete of one changes every student's owners' copies.
  */
 function knowersOf(passageId, stores) {
-    const out = new Set(stores.map.get(passageId)?.public === true ? studentIdsOf() : []);
+    const out = new Set(rowsOf(stores).get(passageId)?.public === true ? studentIdsOf() : []);
     for (const key of Object.keys(stores.access.entries())) {
         const [pid, actorId] = key.split("/");
         if (pid === passageId && actorId) out.add(actorId);
@@ -526,7 +548,7 @@ export async function createPassage({ sceneId, wallId, seg = null, rooms = [], l
  */
 async function writeNewPassage(scene, row, stores, { tell = true, origin = "gm" } = {}) {
     const id = `${scene.id}.${foundry.utils.randomID()}`;
-    await stores.map.patch(id, { ...row, origin });
+    await rowsOf(stores).patch(id, { ...row, origin });
     const at = serverNow(), who = game.user.id;
     if (row.startAccess.length) {
         await stores.access.patchMany(Object.fromEntries(row.startAccess.map(a => [`${id}/${a}`, { how: "start", at, by: { [who]: at } }])), { fillOnly: true });
@@ -886,7 +908,7 @@ export function onDoorsRoleChanged(user, change, options, userId, { settle = set
  */
 export async function grantPassage(passageId, actorId, { how = "gm", by = game.user?.id, stores = PASSAGE_STORES } = {}) {
     if (!game.user?.isGM) return refuse("only a GM grants one.", false);
-    if (!stores.map.get(passageId)) return refuse(`no passage "${passageId}".`, false);
+    if (!rowsOf(stores).get(passageId)) return refuse(`no passage "${passageId}".`, false);
     if (!studentOf(actorId)) return refuse(`no student "${actorId}".`, false);
     const at = serverNow();
     await stores.access.patch(`${passageId}/${actorId}`, { how: String(how), at, by: { [by]: at } }, { fillOnly: true });
@@ -910,10 +932,10 @@ export async function revokePassage(passageId, actorId, { stores = PASSAGE_STORE
 /** A GM: the passage's state - closed (who knows it is kept; the copies leave it out) or secret again. */
 async function setState(passageId, state, from, stores) {
     if (!game.user?.isGM) return refuse("only a GM changes one.", false);
-    const row = stores.map.get(passageId);
+    const row = rowsOf(stores).get(passageId);
     if (!row) return refuse(`no passage "${passageId}".`, false);
     if (!STATES.has(state) || !from.includes(row.state)) return refuse(`"${passageId}" is ${row.state}.`, false);
-    await stores.map.patch(passageId, { state });
+    await rowsOf(stores).patch(passageId, { state });
     await touch(knowersOf(passageId, stores), stores, { door: true });
     await logRow(state === "secret" ? "open" : "close", passageId, null, stores);
     tellAfter(stores);
@@ -932,11 +954,11 @@ export const openPassage = (passageId, { stores = PASSAGE_STORES } = {}) => setS
  */
 async function setPublic(passageId, on, stores) {
     if (!game.user?.isGM) return refuse("only a GM changes one.", false);
-    const row = stores.map.get(passageId);
+    const row = rowsOf(stores).get(passageId);
     if (!row) return refuse(`no passage "${passageId}".`, false);
     if ((row.public === true) === on) return true;
     const before = knowersOf(passageId, stores);
-    await stores.map.patch(passageId, { public: on });
+    await rowsOf(stores).patch(passageId, { public: on });
     await touch(new Set([...before, ...knowersOf(passageId, stores)]), stores);
     await logRow(on ? "public" : "secret", passageId, null, stores);
     tellAfter(stores);
@@ -949,10 +971,10 @@ export const makePassageSecret = (passageId, { stores = PASSAGE_STORES } = {}) =
 /** A GM: the passage is gone, and every cell of it. */
 export async function deletePassage(passageId, { stores = PASSAGE_STORES } = {}) {
     if (!game.user?.isGM) return refuse("only a GM deletes one.", false);
-    if (!stores.map.get(passageId)) return refuse(`no passage "${passageId}".`, false);
+    if (!rowsOf(stores).get(passageId)) return refuse(`no passage "${passageId}".`, false);
     const knowers = knowersOf(passageId, stores);
     const cells = Object.keys(stores.access.entries()).filter(k => k.startsWith(`${passageId}/`));
-    await stores.map.drop(passageId);
+    await rowsOf(stores).drop(passageId);
     if (cells.length) await stores.access.dropMany(cells);
     await touch(knowers, stores, { door: true });
     await logRow("delete", passageId, null, stores);
@@ -968,12 +990,12 @@ export async function deletePassage(passageId, { stores = PASSAGE_STORES } = {})
  */
 export async function setStartAccess(passageId, actorId, on, { stores = PASSAGE_STORES } = {}) {
     if (!game.user?.isGM) return refuse("only a GM changes one.", false);
-    const row = stores.map.get(passageId);
+    const row = rowsOf(stores).get(passageId);
     if (!row) return refuse(`no passage "${passageId}".`, false);
     if (on && !studentOf(actorId)) return refuse(`no student "${actorId}".`, false);
     const was = Array.isArray(row.startAccess) ? row.startAccess : [];
     if (was.includes(actorId) === Boolean(on)) return true;
-    await stores.map.patch(passageId, { startAccess: on ? [...was, actorId] : was.filter(a => a !== actorId) });
+    await rowsOf(stores).patch(passageId, { startAccess: on ? [...was, actorId] : was.filter(a => a !== actorId) });
     await logRow(on ? "start" : "unstart", passageId, actorId, stores);
     return true;
 }
@@ -990,12 +1012,12 @@ export async function setStartAccess(passageId, actorId, on, { stores = PASSAGE_
  */
 export async function setPassageWay(passageId, from, { stores = PASSAGE_STORES } = {}) {
     if (!game.user?.isGM) return refuse("only a GM changes one.", false);
-    const row = stores.map.get(passageId);
+    const row = rowsOf(stores).get(passageId);
     if (!row) return refuse(`no passage "${passageId}".`, false);
     if (!endsOf(row)) return refuse(`"${passageId}" is no tunnel: a passage in a wall goes both ways.`, false);
     if (from !== null && from !== 0 && from !== 1) return refuse("a tunnel is entered from end 0, end 1 or both (null).", false);
     if (oneWayOf(row) === from) return true;
-    await stores.map.patch(passageId, { oneWay: from });
+    await rowsOf(stores).patch(passageId, { oneWay: from });
     await touch(knowersOf(passageId, stores), stores, { door: true });
     await logRow(from === null ? "bothWays" : "oneWay", passageId, null, stores);
     tellAfter(stores);
@@ -1030,7 +1052,7 @@ export async function revokeLeavers(tokenDoc, { stores = PASSAGE_STORES, roomOf 
     if (!game.user?.isGM || !actorId || !sceneId) return [];
     const due = Object.entries(stores.access.entries()).filter(([key, cell]) => !key.startsWith("touch/")
         && key.endsWith(`/${actorId}`) && typeof cell?.leave === "string"
-        && stores.map.get(key.slice(0, -(actorId.length + 1)))?.sceneId === sceneId);
+        && rowsOf(stores).get(key.slice(0, -(actorId.length + 1)))?.sceneId === sceneId);
     if (!due.length) return [];
     const where = roomOf ? roomOf(tokenDoc) : (await import("./movement.mjs")).roomOfToken(tokenDoc);
     const gone = [];
@@ -1052,7 +1074,7 @@ export async function revokeLeavers(tokenDoc, { stores = PASSAGE_STORES, roomOf 
  * names no room, on another scene, or on a browser that is not a GM's.
  */
 export async function passageRoomsOnMap(passageId, { stores = PASSAGE_STORES, scene = null } = {}) {
-    const row = game.user?.isGM ? stores.map.get(passageId) : null;
+    const row = game.user?.isGM ? rowsOf(stores).get(passageId) : null;
     const on = scene ?? game.scenes?.get(row?.sceneId);
     const ends = endsOf(row);
     if ((!row?.passageSeg && !ends) || !on || on.id !== row.sceneId) return [];
@@ -1070,9 +1092,9 @@ export async function passageRoomsOnMap(passageId, { stores = PASSAGE_STORES, sc
  */
 export async function carryPassageRooms(sceneId, from, to, { stores = PASSAGE_STORES } = {}) {
     if (!game.user?.isGM || !sceneId || !from || !to || from === to) return 0;
-    await Promise.all([stores.map.whenHydrated?.(), stores.access.whenHydrated?.()]);
+    await Promise.all([rowsOf(stores).whenHydrated?.(), stores.access.whenHydrated?.()]);
     const here = new Set(), rows = {}, cells = {};
-    for (const [id, row] of Object.entries(stores.map.entries())) {
+    for (const [id, row] of Object.entries(rowsOf(stores).entries())) {
         if (row?.sceneId !== sceneId) continue;
         here.add(id);
         if (Array.isArray(row.rooms) && row.rooms.includes(from)) rows[id] = { rooms: row.rooms.map(room => (room === from ? to : room)) };
@@ -1080,7 +1102,7 @@ export async function carryPassageRooms(sceneId, from, to, { stores = PASSAGE_ST
     for (const [key, cell] of Object.entries(stores.access.entries())) {
         if (!key.startsWith("touch/") && cell?.leave === from && here.has(key.slice(0, key.lastIndexOf("/")))) cells[key] = { leave: to };
     }
-    if (Object.keys(rows).length) await stores.map.patchMany(rows);
+    if (Object.keys(rows).length) await rowsOf(stores).patchMany(rows);
     if (Object.keys(cells).length) await stores.access.patchMany(cells);
     return Object.keys(rows).length + Object.keys(cells).length;
 }
@@ -1099,11 +1121,11 @@ export async function wallChanged(wall, { gone = false, stores = PASSAGE_STORES 
     const c = (wall.c ?? []).slice(0, 4).map(Number);
     const whole = c.length === 4 && c.every(Number.isFinite);
     const off = ({ x1, y1, x2, y2 } = {}) => gone || !whole || !onWall(x1, y1, c) || !onWall(x2, y2, c);
-    const marked = Object.entries(stores.map.entries())
+    const marked = Object.entries(rowsOf(stores).entries())
         .filter(([, row]) => row?.passageWallId === wall.id && row.sceneId === sceneId && row.state !== "broken" && off(row.passageSeg))
         .map(([id]) => id);
     for (const id of marked) {
-        await stores.map.patch(id, { state: "broken" });
+        await rowsOf(stores).patch(id, { state: "broken" });
         await touch(knowersOf(id, stores), stores, { door: true });
         await logRow("broken", id, null, stores);
     }
@@ -1117,7 +1139,7 @@ export async function wallChanged(wall, { gone = false, stores = PASSAGE_STORES 
  * screen since E80 fix r1-G2, passages.mjs `passageSpot`); null for none.
  */
 export function passageMiddle(passageId, { stores = PASSAGE_STORES, level = null } = {}) {
-    const row = game.user?.isGM ? stores.map.get(passageId) : null;
+    const row = game.user?.isGM ? rowsOf(stores).get(passageId) : null;
     if (!row) return null;
     const ends = endsOf(row);
     if (ends) return passageSpot({ sceneId: row.sceneId, shape: "tunnel", ends }, level);
@@ -1136,7 +1158,7 @@ export function passageMiddle(passageId, { stores = PASSAGE_STORES, level = null
 export function undeliveredOf(passageId, { stores = PASSAGE_STORES, actors = game.actors, users = game.users, told = TOLD,
     primary = isPrimaryGm() } = {}) {
     if (!primary) return null;
-    if (stores.map.get(passageId)?.state !== "secret") return [];
+    if (rowsOf(stores).get(passageId)?.state !== "secret") return [];
     const sent = user => {
         try {
             return JSON.parse(told.get(user.id) ?? "null")?.value?.[passageId]?.actorIds ?? [];
@@ -1162,7 +1184,7 @@ export function undeliveredOf(passageId, { stores = PASSAGE_STORES, actors = gam
 export function listPassages({ stores = PASSAGE_STORES } = {}) {
     if (!game.user?.isGM) return [];
     const access = Object.entries(stores.access.entries());
-    return Object.entries(stores.map.entries()).map(([id, row]) => ({
+    return Object.entries(rowsOf(stores).entries()).map(([id, row]) => ({
         id, ...foundry.utils.deepClone(row), ...(sceneGone(row, stores) ? { sceneGone: true } : {}),
         access: Object.fromEntries(access.filter(([k]) => k.startsWith(`${id}/`)).map(([k, cell]) => [k.slice(id.length + 1), foundry.utils.deepClone(cell)]))
     }));
@@ -1239,7 +1261,7 @@ export function shareRefusal({ actorId, targetId, passageId } = {}, world, store
     if (!giver) return "no such character";
     if (world.dead(giver) || world.inIncident(giver)) return "that cannot be done now";
     if (world.monocub(giver)) return "that action is not open to that character now";
-    const row = typeof passageId === "string" ? stores.map.get(passageId) : null;
+    const row = typeof passageId === "string" ? rowsOf(stores).get(passageId) : null;
     const knows = row?.state === "secret" && (row.public === true
         || Boolean(stores.access.get(`${passageId}/${giver.id}`)) || actsAsMastermind(giver, asker, { mastermind: stores.mastermind, users }));
     if (!knows) return "the character does not know that passage";
@@ -1306,7 +1328,7 @@ export async function sharePassage({ actorId, targetId, passageId } = {}, { stor
     const why = shareRefusal({ actorId, targetId, passageId }, facts, stores, { asker, users });
     if (why) return { refused: why };
     const giver = facts.actor(actorId), target = facts.actor(targetId);
-    const row = stores.map.get(passageId);
+    const row = rowsOf(stores).get(passageId);
     const cellKey = `${passageId}/${target.id}`;
     const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
     // A public passage is known to the one shown it already (E80 C6): no cell, which would outlast a Make secret.
@@ -1391,12 +1413,12 @@ export async function crossTunnel({ actorId, passageId } = {}, { asker = null, s
         // The bridge runs it on the primary GM alone, and the local road only there.
         if (!isPrimaryGm()) return { refused: "nothing was carried out: the token is moved on the primary GM's browser" };
         const actor = typeof actorId === "string" ? game.actors?.get(actorId) ?? null : null;
-        const row = typeof passageId === "string" ? stores.map.get(passageId) : null;
+        const row = typeof passageId === "string" ? rowsOf(stores).get(passageId) : null;
         const scene = row ? game.scenes?.get(row.sceneId) ?? null : null;
         if (!actor || row?.state !== "secret" || !endsOf(row) || !scene) return { refused: crossingWhy("notKnown") };
         const M = await import("./movement.mjs");
         const mover = { gm: Boolean(asker?.isGM), mastermind: actsAsMastermind(actor, asker, { mastermind: stores.mastermind, users }) };
-        const known = secretRowsFrom({ map: stores.map, access: stores.access });
+        const known = secretRowsFrom({ map: stores.map, season: stores.season ?? null, access: stores.access });
         const passage = { id: passageId, sceneId: row.sceneId };
         // A character with two tokens on the scene goes through with the one at an end. Where a token stands is the
         // GMs' reading (movement.mjs `gmSpotOf`, E80 fix early-C2-G1): one they are putting back, or hold as standing
@@ -1474,7 +1496,7 @@ async function liveFindWorld() {
  */
 function passagesToFind(actor, place, facts, stores) {
     const floor = floorKey(place.level), out = [];
-    for (const [id, row] of Object.entries(secretRowsFrom({ map: stores.map, access: stores.access }))) {
+    for (const [id, row] of Object.entries(secretRowsFrom({ map: stores.map, season: stores.season ?? null, access: stores.access }))) {
         if (row.sceneId !== place.scene.id || row.actorIds.includes(actor.id)) continue;
         if (row.shape === "tunnel") {
             const sides = facts.sides(row, { ends: row.ends }) ?? [];
@@ -1487,7 +1509,7 @@ function passagesToFind(actor, place, facts, stores) {
         const here = (facts.sides(row, { x1: seg.x1, y1: seg.y1, x2: seg.x2, y2: seg.y2 }) ?? []).indexOf(place.room);
         if (here >= 0) out.push({ id, row, here });
     }
-    const first = id => stores.map.stampOf(id, "sceneId");
+    const first = id => rowsOf(stores).stampOf(id, "sceneId");
     return out.sort((a, b) => first(a.id) - first(b.id) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
@@ -1573,7 +1595,7 @@ export async function resolvePassageSearch({ actorId, total = 0, isCritical = fa
             await touch([actor.id], stores);
             await logRow("found", pick.id, actor.id, stores);
             tellAfter(stores);
-            const named = roomsAsKnown(stores.map.get(pick.id), facts, facts.knownRooms(actor, pick.row.sceneId));
+            const named = roomsAsKnown(rowsOf(stores).get(pick.id), facts, facts.knownRooms(actor, pick.row.sceneId));
             to = pick.here === 0 ? named.to : named.from;
         }
         if (undo) return pick ? { found: true, to } : { nothing: true };
@@ -1589,7 +1611,7 @@ export async function resolvePassageSearch({ actorId, total = 0, isCritical = fa
             flags: { [MODULE_ID]: { sfx: { key: pick ? "passageFound" : "searchNothing", gm: Boolean(pick) } } }
         });
         if (pick) {
-            const all = roomsAsKnown(stores.map.get(pick.id), facts, null);
+            const all = roomsAsKnown(rowsOf(stores).get(pick.id), facts, null);
             toast(game.i18n.format("DRPG.Passage.gm.found", { actor: actor.name, from: all.from, to: all.to }));
         } else toast(game.i18n.format("DRPG.Passage.gm.searched", { actor: actor.name, room: place.room }));
         await note({ actorId: actor.id, rollId: roll, by: asker?.id ?? null,
@@ -1733,7 +1755,7 @@ const MAP_REFUSALS = Object.freeze({
 
 /** The stretches of a scene's passages, `{ wallId, x1, y1, x2, y2 }`, but the passage `except`: what a pick may not land on. */
 function takenOn(sceneId, except, stores) {
-    return Object.entries(stores.map.entries())
+    return Object.entries(rowsOf(stores).entries())
         .filter(([id, row]) => id !== except && row?.sceneId === sceneId && row.passageSeg)
         .map(([, row]) => ({ wallId: row.passageWallId, ...row.passageSeg }));
 }
@@ -1799,7 +1821,7 @@ export function tunnelRowFor(scene, ends, { rooms = [], startAccess = [], taken 
 
 /** The ends of a scene's tunnels, `[{ x, y, level }]`, but the passage `except`'s, whatever their state: what a new end may not land on. */
 function endsTakenOn(sceneId, except, stores) {
-    return Object.entries(stores.map.entries())
+    return Object.entries(rowsOf(stores).entries())
         .filter(([id, row]) => id !== except && row?.sceneId === sceneId)
         .flatMap(([, row]) => endsOf(row) ?? []);
 }
@@ -1816,7 +1838,7 @@ function sceneWalls(scene) {
  */
 export async function repickPassage(passageId, { wallId, seg, rooms = [] } = {}, { stores = PASSAGE_STORES, scene: given = null } = {}) {
     if (!game.user?.isGM) return refuse("only a GM picks one again.", false);
-    const old = stores.map.get(passageId);
+    const old = rowsOf(stores).get(passageId);
     if (!old) return refuse(`no passage "${passageId}".`, false);
     if (old.state !== "broken") return refuse(`"${passageId}" is ${old.state}.`, false);
     const scene = given ?? game.scenes?.get(old.sceneId);
@@ -1825,7 +1847,7 @@ export async function repickPassage(passageId, { wallId, seg, rooms = [] } = {},
     const { row, refused } = passageRowFor(scene, wall, { seg, rooms, level: old.level ?? null, startAccess: old.startAccess ?? [],
         taken: takenOn(scene.id, passageId, stores) });
     if (!row) return refuse(refused, false);
-    await stores.map.patch(passageId, { passageWallId: row.passageWallId, passageSeg: row.passageSeg, rooms: row.rooms, state: "secret" });
+    await rowsOf(stores).patch(passageId, { passageWallId: row.passageWallId, passageSeg: row.passageSeg, rooms: row.rooms, state: "secret" });
     await touch(knowersOf(passageId, stores), stores, { door: true });
     await logRow("repick", passageId, null, stores);
     tellAfter(stores);
@@ -1953,7 +1975,7 @@ export async function startPassagePick(scene, { dialog = null, passageId = null,
     if (isTrialScene(scene)) return warnWhy("trial");
     const tunnel = shape === "tunnel";
     if (tunnel && passageId) return refuse("a tunnel is never picked again.");
-    const again = passageId ? stores.map.get(passageId) : null;
+    const again = passageId ? rowsOf(stores).get(passageId) : null;
     if (passageId && (again?.state !== "broken" || again.sceneId !== scene.id)) return refuse(`"${passageId}" is not a broken passage of this scene.`);
     if (viewedScene()?.id !== scene.id) await scene.view();
     const floors = floorsOf(scene);
@@ -2036,7 +2058,7 @@ export async function startPassagePick(scene, { dialog = null, passageId = null,
  */
 export function passageStretches(sceneId, level = null, { stores = PASSAGE_STORES, gm = Boolean(game.user?.isGM) } = {}) {
     if (!gm) return [];
-    return Object.entries(stores.map.entries())
+    return Object.entries(rowsOf(stores).entries())
         .filter(([, row]) => row?.sceneId === sceneId && row.passageSeg && (!level || !row.level || row.level === level))
         .map(([id, row]) => ({ id, state: row.state, ...row.passageSeg }));
 }
@@ -2052,7 +2074,7 @@ export function passageStretches(sceneId, level = null, { stores = PASSAGE_STORE
 export function passageTunnels(sceneId, level = null, { stores = PASSAGE_STORES, gm = Boolean(game.user?.isGM) } = {}) {
     if (!gm) return [];
     const out = [];
-    for (const [id, row] of Object.entries(stores.map.entries())) {
+    for (const [id, row] of Object.entries(rowsOf(stores).entries())) {
         const ends = row?.sceneId === sceneId ? endsOf(row) : null;
         const here = (ends ?? []).map((end, index) => ({ ...end, index, far: { ...ends[1 - index] } }))
             .filter(end => !level || !end.level || end.level === level);
@@ -2309,10 +2331,12 @@ export function registerPassagesGm() {
         game.socket.on(SOCKET_EVENT, (payload, senderId) => {
             onPassageRequest(payload, senderId).catch(err => error("Could not answer a player's secret passages", err));
         });
+        // The season's passages (E15 part 2 C1) as the map's: the overlay drawn again, the copies told again.
         Hooks.on("clientSettingChanged", key => {
-            if (key === `${MODULE_ID}.${SETTINGS.gmPassageMap}`) redrawGmOverlay("passages");
+            const rows = key === `${MODULE_ID}.${SETTINGS.gmPassageMap}` || key === `${MODULE_ID}.${SETTINGS.gmPassageSeason}`;
+            if (rows) redrawGmOverlay("passages");
             if (gmStoresQuiet()) return;
-            if (key === `${MODULE_ID}.${SETTINGS.gmPassageMap}` || key === `${MODULE_ID}.${SETTINGS.gmPassageAccess}`
+            if (rows || key === `${MODULE_ID}.${SETTINGS.gmPassageAccess}`
                 || key === `${MODULE_ID}.${SETTINGS.mastermind}`) retellSoon();
         });
         Hooks.on("updateActor", onActorUpdated);
@@ -2337,7 +2361,7 @@ export function registerPassagesGm() {
         Hooks.on("deleteRegionBehavior", () => redrawPassagesSoon());
         Hooks.on("updateScene", (scene, changes) => { if (changes?.regions) redrawPassagesSoon(); });
         redrawGmOverlay("passages");
-        passageMapStore.whenHydrated().then(() => redrawGmOverlay("passages")).catch(() => {});
+        rowsOf().whenHydrated().then(() => redrawGmOverlay("passages")).catch(() => {});
         loadTunnelRooms().then(() => redrawGmOverlay("passages")).catch(err => error("Could not read the rooms of the tunnels' ends for the GMs' overlay", err));
         if (!gmStoresQuiet()) settleSecretDoors().catch(err => error("Could not put the secret doors back at the ready", err));
     });

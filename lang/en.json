@@ -4496,6 +4496,7 @@
         "passageMap": "The secret passages: where each one is and whether it is open",
         "passageAccess": "Who knows each secret passage, and how they learnt it",
         "passageLog": "What was done with the secret passages",
+        "passageSeason": "The secret passages a project made this season",
         "cast": "The incident's cast",
         "blackened": "The Blackened register",
         "trapLedger": "The traps' planted objects",

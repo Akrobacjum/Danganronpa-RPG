@@ -362,10 +362,12 @@ export function registerFog() {
        go, its hop and name replayed as a player's are on a change of the copy - and only when the stretches that cut this
        frame are not the ones it was drawn with (H82 fix r1, finding H82-05-R1: a tunnel's way, Make public, a start
        access or another scene's passage replayed it on every GM's browser). Whether v14 fires `clientSettingChanged` for
-       a store merged from another GM is the harness's model only (LIVE-H82-03 (c)). */
+       a store merged from another GM is the harness's model only (LIVE-H82-03 (c)). Since E15 part 2 C1 the season's
+       passages (a project's, gm-stores.mjs `passageSeasonStore`) are the GMs' passage rows too, and redraw it as the map's. */
     Hooks.once("ready", () => {
         if (!game.user?.isGM) return;
-        Hooks.on("clientSettingChanged", key => { if (key === `${MODULE_ID}.${SETTINGS.gmPassageMap}`) redrawFrameSoon(); });
+        Hooks.on("clientSettingChanged", key => { if (key === `${MODULE_ID}.${SETTINGS.gmPassageMap}`) redrawFrameSoon();
+            else if (key === `${MODULE_ID}.${SETTINGS.gmPassageSeason}`) redrawFrameSoon(); });
     });
 
     /*

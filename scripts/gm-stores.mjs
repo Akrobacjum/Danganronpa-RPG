@@ -192,6 +192,22 @@ export const passageMapStore = defineGmStore({
 });
 
 /**
+ * THE SEASON'S PASSAGES (E15 part 2 C1, 25.10.2026; A10's D3, the owner's "Domyslne jest ok" of 18.10): a row per
+ * passage a project made - C2's Secret Passage -, keyed and shaped as the map's rows, with `origin` `{ by: "project",
+ * projectId, builderId }` in place of the map's "gm" or "door". Kept apart from the map because the season's reset
+ * takes a project's passage and never a GM's: this store is cut by the reset's "passages" group, the map by none.
+ * Only the project rows make a row here (projects.mjs `COMPLETION_EFFECTS`, through passages-gm.mjs); every reader of
+ * a passage reads both stores as one (passages.mjs `passageBook`), and the GMs' buttons write a row back to the store
+ * that holds it. An id is never in both: a write to one that is is refused (`passageBook`'s `patch`).
+ */
+export const passageSeasonStore = defineGmStore({
+    name: "passageSeason", key: SETTINGS.gmPassageSeason,
+    kind: "ledger", resetGroup: "passages", backup: true, sync: true,
+    afterRestore: () => import("./passages-gm.mjs").then(m => m.retellPassages()),
+    exists: key => Boolean(game.scenes?.has(String(key).split(".")[0]))
+});
+
+/**
  * WHO KNOWS A PASSAGE: a cell per `<passageId>/<actorId>`, `{ how, by, at }` - how the character
  * learnt it first ("gm" or "start"; "shown" is C7's, "built" and "found" E80's) and when, both
  * written fill-only, so learning it again keeps them; and `by`, a split field `{ <who>: at }` to

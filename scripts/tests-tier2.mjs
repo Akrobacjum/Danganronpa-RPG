@@ -59494,6 +59494,104 @@ const SCENARIOS = [
         equal(rest(game.settings.get("core", "permissions")) + J(game.settings.get("core", "permissions")?.SHOW_RULER ?? null),
             rest(before) + J(before.SHOW_RULER ?? null), "the world's permissions after the test are not the ones it found");
     }],
+    ["E15-T10 - a passage of the season's store (the projects', D3) is read where one of the GMs' map is: a knower's copy, Find Passage, a show, the Passages tab and 'Go through'; the GMs' Close writes it back to that store, an id in both stores is refused at the write, and the reset takes it and leaves the map's", async () => {
+        /*
+         * E15 part 2 C1 (25.10.2026; A10's D3, the owner's "Domyslne jest ok" of 18.10: `passageSeasonStore`, "piszą go
+         * tylko projekty"). A passage a project makes (C2's Secret Passage) lives in a GM store of its own, cut by the
+         * season's reset, while the GMs' own passages stay in the map store, which no reset cuts. The harms: a row of the
+         * season store that a copy, a search, a show, the tab or a crossing does not read - a passage its builder knows
+         * and cannot use -, a GM's button written to the wrong store (the map's gaining a copy the reset never takes), an
+         * id held by both stores answered by either, and a reset that takes the GMs' passages or leaves the projects'.
+         * No writer of the season store exists in C1: the row is planted (the GMs' own passage, moved there whole) in a
+         * GM-store world of the suite's own (`withGmStoreWorld`), on a scene, two actors and two tokens of its own, and
+         * every road is the module's own function on this GM, the primary. Red at c05f0952: gm-stores.mjs has no
+         * season store.
+         */
+        const P = await import("./passages-gm.mjs");
+        const S = await import("./gm-stores.mjs");
+        const E = await import("./gm-store.mjs");
+        const R = await import("./rooms.mjs");
+        const T = await import("./passages-tab.mjs");
+        const B = await import("./bridge-guards.mjs");
+        const ACT = await import("./actions.mjs");
+        const { ownerOf } = await import("./utils.mjs");
+        const J = v => JSON.stringify(v);
+        equal(typeof S.passageSeasonStore?.patch, "function", "gm-stores.mjs keeps no store of the season's passages (D3) - a project's passage has nowhere to live");
+        if (typeof S.passageSeasonStore?.patch !== "function") return;
+        const [student] = cast(1);
+        needs(world.ownedByPlayer(student), "the knower's copy is a player's, and the student's player is the one the suite has");
+        const asker = ownerOf(student);
+        const clock = foundry.utils.deepClone(getClock() ?? {});
+        const DORM = "SUITE E15 T10 Dorm", GYM = "SUITE E15 T10 Gym", mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
+        const room = (name, x) => ({ name, shapes: [{ type: "rectangle", x, y: 0, width: 600, height: 600 }], flags: mark, behaviors: [] });
+        let scene = null, hana = null, botan = null, read = null;
+        try {
+            if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+            scene = await Scene.create({ name: "SUITE E15 T10 a season's tunnel", width: 2000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [room(DORM, 0), room(GYM, 1200)]);
+            read = await E.withGmStoreWorld(`suite-e15-t10-${foundry.utils.randomID(8)}`, async () => {
+                hana = await Actor.create({ name: "SUITE E15 T10 Hana", type: "character", ownership: { default: 0, [asker.id]: CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER } });
+                botan = await Actor.create({ name: "SUITE E15 T10 Botan", type: "character" });
+                const [token] = await scene.createEmbeddedDocuments("Token", [{ actorId: hana.id, actorLink: true, name: hana.name, x: 200, y: 200, width: 1, height: 1 },
+                    { actorId: botan.id, actorLink: true, name: botan.name, x: 400, y: 400, width: 1, height: 1 }]);
+                await ACT.setActions(hana, 2);
+                await settle();
+                // The GMs' tunnel, made as the tab makes one, then moved whole into the season's store with a project's origin.
+                const id = await P.createPassage({ sceneId: scene.id, shape: "tunnel", ends: [{ x: 250, y: 250, level: null }, { x: 1450, y: 250, level: null }] }, { scene });
+                must(typeof id === "string" && S.passageMapStore.has(id), "the tunnel was not made - this would measure nothing");
+                const row = foundry.utils.deepClone(S.passageMapStore.get(id));
+                await S.passageSeasonStore.patch(id, { ...row, origin: { by: "project", projectId: "SUITEE15T10PROJ", builderId: hana.id } });
+                await S.passageMapStore.drop(id);
+                must(S.passageSeasonStore.has(id) && !S.passageMapStore.has(id), "the row was not moved into the season's store - this would measure nothing");
+                const where = () => [S.passageMapStore.get(id)?.state ?? null, S.passageSeasonStore.get(id)?.state ?? null];
+                const cell = actor => S.passageAccessStore.get(`${id}/${actor.id}`)?.how ?? null;
+                const steps = [];
+                steps.push(["grant", Boolean(await P.grantPassage(id, hana.id)), cell(hana)]);
+                const copy = P.passageCopyFor(asker).value?.[id] ?? null;
+                steps.push(["copy", copy ? [copy.shape, copy.actorIds] : null]);
+                const found = await P.resolvePassageSearch({ actorId: botan.id, total: 16, rollId: "SUITEE15T10ROLL1" },
+                    { asker: game.user, whisper: async () => {}, toast: () => {}, note: () => {} });
+                steps.push(["find", found?.refused ? B.reasonOf(found.refused) : found, cell(botan)]);
+                if (cell(botan)) await P.revokePassage(id, botan.id);
+                const shown = await P.sharePassage({ actorId: hana.id, targetId: botan.id, passageId: id }, { asker, users: game.users,
+                    whisper: async () => {}, gms: async () => {} });
+                steps.push(["show", shown?.refused ? B.reasonOf(shown.refused) : Boolean(shown), cell(botan)]);
+                steps.push(["tab", T.passagesTabBody(scene, { students: [hana, botan] }).includes(`data-drpg-passage="${id}"`)]);
+                const crossed = await P.crossTunnel({ actorId: hana.id, passageId: id }, { asker });
+                await settle();
+                steps.push(["cross", crossed?.refused ? B.reasonOf(crossed.refused) : Boolean(crossed?.crossed), token.x > 1000]);
+                // The GMs' Close and Open: written to the row's own store, none made in the map's.
+                await P.closePassage(id);
+                steps.push(["close", ...where()]);
+                await P.openPassage(id);
+                steps.push(["open", ...where()]);
+                // One id in both stores (a backup's restore could make one): read as the map's, and a write to it refused.
+                await S.passageMapStore.patch(id, { ...row, state: "secret" });
+                await P.closePassage(id);
+                steps.push(["both", ...where(), P.listPassages().filter(p => p.id === id).length]);
+                await S.passageMapStore.drop(id);
+                // The reset: the projects' passage goes, the GMs' stays (`passagesAfterReset` on this world of the suite's own).
+                const gms = await P.createPassage({ sceneId: scene.id, shape: "tunnel", ends: [{ x: 350, y: 350, level: null }, { x: 1550, y: 350, level: null }] }, { scene });
+                await P.passagesAfterReset();
+                steps.push(["reset", S.passageSeasonStore.has(id), S.passageMapStore.has(gms), cell(hana)]);
+                await P.deletePassage(gms);
+                const hanaId = hana.id;
+                await hana.delete();
+                await botan.delete();
+                hana = botan = null;
+                return { steps, hanaId };
+            });
+        } finally {
+            for (const actor of [hana, botan]) if (actor) await actor.delete().catch(() => {});
+            await scene?.delete();
+            await setClock(clock);
+            await settle();
+        }
+        equal(J(read?.steps), J([["grant", true, "gm"], ["copy", ["tunnel", [read?.hanaId]]], ["find", { searched: true, found: true }, "found"],
+            ["show", true, "shown"], ["tab", true], ["cross", true, true], ["close", null, "closed"], ["open", null, "secret"],
+            ["both", "secret", "secret", 1], ["reset", false, true, null]]),
+            "[each road as what, its answer, what it left] on a passage of the season's store - a road reads the GMs' map alone, a button writes the wrong store, an id in both is written, or the reset takes the wrong passages");
+    }],
     ["a player at 0 Hope who bought an Experience Call clicks the experience: Roll stays on and it costs nothing, the lock on or off; with the lock off and no Call the free experience leaves no cost row for the next change to break (S02-04)", async () => {
         /*
          * E16 p1 C1, 18.10.2026; audit S02-04 (E16-01, E16-02). The Experience Call is paid before the roll, so

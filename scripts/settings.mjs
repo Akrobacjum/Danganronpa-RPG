@@ -104,6 +104,12 @@ export const SETTINGS = {
     gmPassageAccess: "gmPassageAccess",
     gmPassageLog: "gmPassageLog",
     /**
+     * THE SEASON'S PASSAGES (E15 part 2 C1, 25.10.2026; A10's D3): a fourth GM store, the passages
+     * a project made (`passageSeasonStore`), rows of the map's shape, cut by the season's reset as
+     * the map is not.
+     */
+    gmPassageSeason: "gmPassageSeason",
+    /**
      * The live Despair Overflow: `{ active }` (Z10), the stamp of the ONE time of
      * day a darkening covers, or null - public, since the card that fires it is.
      *
@@ -2339,6 +2345,12 @@ export function registerSettings() {
         default: {}
     });
     game.settings.register(MODULE_ID, SETTINGS.gmPassageLog, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    game.settings.register(MODULE_ID, SETTINGS.gmPassageSeason, {
         scope: "client",
         config: false,
         type: Object,

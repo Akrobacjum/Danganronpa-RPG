@@ -7856,6 +7856,8 @@ const REGRESSIONS = [
          * E14 part 1 C4 (24.10.2026) added one STORE, gm-stores.mjs `rifleStore` (the stashes rifled, D15),
          * cut by the reset's `stashesFound` group: on the harness that day this test read 76 places (28 PACKET,
          * 4 SOCKET, 1 CHAT, 34 SHEET, 9 STORE) against the 76 rows.
+         * E15 part 2 C1 (25.10.2026) added one STORE, gm-stores.mjs `passageSeasonStore` (the projects' passages, D3),
+         * cut by the reset's `passages` group: 77 places (10 STORE) against 77 rows, by arithmetic from the 76 above.
          * The reader is run first on a fixture with a packet of each family and of none, an inline
          * socket arrow, a judged reader, a reader whose flag is only in a comment, a chat reader
          * without a row, a declaration of a named file that is not named, a store and a stale row.
@@ -7939,7 +7941,8 @@ const REGRESSIONS = [
             ["STORE gm-stores.mjs#deferredOfferStore", "not a source: a GM store cut by `advancement` (E04) (E11 C0)"],
             ["STORE projects-secrecy.mjs#projectMeta", "not a source: a world setting only a GM writes; C8 adds `mapHidden` (set by the primary's `deleteToken` hook for a project token the module did not delete) and makes `onProjectTokenMoved` write it on the primary only, never for an orphan (E11 C8)"],
             ["STORE settings.mjs#clock", "not a source: a world setting only a GM writes; `finalTrial`/`season`/`seasonStartedAt` per E10 C10 and `resetCutPatch`; C6's Edit campaign asks before the irreversible effects. (E11 C6)"],
-            ["STORE gm-stores.mjs#rifleStore", "not a source: a GM store (E14 part 1 C4, D15), written and read by the GM that serves a stash's free reach (vault.mjs `stealFromVault`); cut by the reset's `stashesFound` group, and its time-of-day mark carries the season's epoch (`rifleMark`), so a kept row of last season counts nothing (tier 2 E14-T5)"]
+            ["STORE gm-stores.mjs#rifleStore", "not a source: a GM store (E14 part 1 C4, D15), written and read by the GM that serves a stash's free reach (vault.mjs `stealFromVault`); cut by the reset's `stashesFound` group, and its time-of-day mark carries the season's epoch (`rifleMark`), so a kept row of last season counts nothing (tier 2 E14-T5)"],
+            ["STORE gm-stores.mjs#passageSeasonStore", "not a source: a GM store (E15 part 2 C1, D3), the passages a project made, written on the primary and by the GMs' buttons on the row's own store (passages-gm.mjs `rowsOf`); cut by the reset's `passages` group, whose step (`passagesAfterReset`) clears it on the primary with the access record and the log (E15-T10)"],
         ];
         const ROADS = /^(?:advancement\.apply|call\.arm|token\.sendBack|project\.\w+|vault\.findStash)$/;
         const FILES = ["chapter.mjs", "character.mjs", "season-setup.mjs", "call-world.mjs", "projects.mjs", "projects-map.mjs", "projects-secrecy.mjs", "eclipse.mjs"];
@@ -7958,7 +7961,8 @@ const REGRESSIONS = [
         const CHAT = /\b(?:m|msg|message|chatMessage)\??\.getFlag\(\s*MODULE_ID\s*,|\b(?:m|msg|message)\??\.speaker\??\.actor\b/;
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
         const STORES = [["settings.mjs", "bodyFound"], ["settings.mjs", "bodiesFound"], ["gm-stores.mjs", "deathStore"], ["gm-stores.mjs", "blackenedStore"], ["gm-stores.mjs", "offerStore"],
-            ["gm-stores.mjs", "deferredOfferStore"], ["projects-secrecy.mjs", "projectMeta"], ["settings.mjs", "clock"], ["gm-stores.mjs", "rifleStore"]];
+            ["gm-stores.mjs", "deferredOfferStore"], ["projects-secrecy.mjs", "projectMeta"], ["settings.mjs", "clock"], ["gm-stores.mjs", "rifleStore"],
+            ["gm-stores.mjs", "passageSeasonStore"]];
         const censusOf = (bridge, sources) => {
             const found = [];
             for (const [action, decl] of Object.entries(bridge)) {
@@ -9531,6 +9535,9 @@ const REGRESSIONS = [
          * deleteRegionBehavior and updateScene, the same redraw (`redrawPassagesSoon`; screen). Red without the rows: the
          * three unclassified (the harness, R553 alone with the rows taken out, once); with them 90 roads and 86 rows by
          * arithmetic, none either side - the test prints no count when it passes.
+         * E15 part 2 C1 (25.10.2026) adds 1 STORE, gm-stores.mjs `passageSeasonStore` (the passages a project made, D3):
+         * red without its row, the store read "unclassified" (R553 alone on the harness, once); with it 91 roads and 87
+         * rows by arithmetic, none either side.
          * It reads names and text, not a syntax tree, as R534 does. Two places where it keys otherwise than the parse-only
          * census: a road inside a named inner function or a method (the census keys it by that name, this reader by the
          * top-level declaration), and a top-level declaration of several names (the census joins them, this reader takes
@@ -9591,6 +9598,7 @@ const REGRESSIONS = [
             ["STORE gm-stores.mjs#passageMapStore#passageMap -> record", "GM only: written by passages-gm.mjs on a GM's browser, refused by the engine on a player's; no reset group (a cut never wipes the map, R177 says why); `exists` refuses a row whose scene is gone (R554)"],
             ["STORE gm-stores.mjs#passageAccessStore#passageAccess -> record", "GM only; cells `passageId/actorId` with `how` and `at` kept from the first grant and `by` a split field each GM adds to, `touch/actorId` stamps, the reset's \"passages\" group; two GMs' cells merged cell by cell (R554)"],
             ["STORE gm-stores.mjs#passageLogStore#passageLog -> record", "GM only; the newest 200 rows (`PASSAGE_LOG_ROWS`); the reset's \"passages\" group (R554)"],
+            ["STORE gm-stores.mjs#passageSeasonStore#passageSeason -> record", "GM only (E15 part 2 C1, D3): the passages a project made, rows of the map's shape with a project's `origin`, read with the map's as one (passages.mjs `passageBook`) by every road that reads a passage and written back to by the GMs' buttons; the reset's \"passages\" group cuts it, so a season takes its projects' passages and never the GMs' (E15-T10)"],
             ["STORE gm-stores.mjs#passageCopy#passages -> copy", "the addressed copy: only rows `secret` a character this user owns knows (the Mastermind's owner: every one), `actorIds` only the user's own, a Monokuma nothing; sent with `recipients` (R555, R560)"],
             ["SET settings.mjs#minePassages#primary -> screen", "taken only from the primary GM and addressed to this user (`onPassageRows`, `replyForMe`'s rule and the primary's), cut to this world's scenes and the characters the packet stamps (R555; 76 A)"],
             ["SET settings.mjs#minePassages#console -> screen", "CLAIM: a console's own copy changes only what that browser cuts, draws and lists; the GMs' audit (movement-audit.mjs) judges every landed move on the walls from the GMs' records, never from a copy"],
@@ -13519,7 +13527,8 @@ const REGRESSIONS = [
             landing: /for \(let ring = 0; ring <= 3; ring\+\+\)/.test(landing) && /=== room;/.test(landing) && /inside && free\(spot\)/.test(landing),
             findPassage: ACTIONS.analyze?.passageThreshold === 16,
             findWhat: /row\.actorIds\.includes\(actor\.id\)\) continue;/.test(find) && /first\(a\.id\) - first\(b\.id\)/.test(find)
-                && /stores\.map\.stampOf\(id, "sceneId"\)/.test(find),
+                // Both stores' rows read as one since E15 part 2 C1 (passages-gm.mjs `rowsOf`).
+                && /rowsOf\(stores\)\.stampOf\(id, "sceneId"\)/.test(find),
             reroll: /if \(bookmark\.findStash && !bookmark\.bulletId\) return settleStashFind\(actor, bookmark, after, done\);/.test(analyze)
                 && /resolvePassageSearch\(/.test(code("reroll.mjs"))
                 && /undo: true, at: bookmark\.findPlace \?\? null \}/.test(fnSource(code("reroll.mjs"), "settlePassageFind"))

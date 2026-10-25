@@ -22,7 +22,7 @@
 
 import { MODULE_ID, FLAGS } from "./config.mjs";
 import { primaryGmId, warn, error } from "./utils.mjs";
-import { passageCopy, passageMapStore, passageAccessStore } from "./gm-stores.mjs";
+import { passageCopy, passageMapStore, passageSeasonStore, passageAccessStore } from "./gm-stores.mjs";
 import { levelOf, viewedScene, viewedLevel } from "./rooms.mjs";
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
@@ -87,11 +87,56 @@ function onLevelOf(row, level) {
 
 /**
  * Whether a row's scene is gone: looked up in `scenes` when one is handed (the suite's, R555), else in
- * this world's for the module's own records; an engine of the suite's own is of no world, and reads none.
+ * this world's for the module's own records (the map, or both stores read as one, `passageBook`); an
+ * engine of the suite's own is of no world, and reads none.
  */
 export function sceneGone(row, { map = passageMapStore, scenes } = {}) {
-    const where = scenes ?? (map === passageMapStore ? game.scenes : null);
+    const where = scenes ?? (map === passageMapStore || map?.ofWorld === true ? game.scenes : null);
     return Boolean(where) && !where.has(row?.sceneId);
+}
+
+/**
+ * THE PASSAGES OF BOTH STORES, READ AS ONE (E15 part 2 C1, 25.10.2026; A10's D3). The GMs' passages are the map's
+ * (gm-stores.mjs `passageMapStore`), a project's the season's (`passageSeasonStore`), and every road that reads a
+ * passage by its id or scans them all reads this: a handle of the map's shape - `get`, `has`, `entries`, `stampOf`,
+ * `whenHydrated` - over both, and its writes - `patch`, `patchMany`, `drop` - go to the store that holds the row,
+ * a row in neither to the map (a GM's new passage). An id in both, which only a restore of two backups could make,
+ * is read as the map's and refused at every write, said once in the console: either store's row written would be
+ * the other's twin answered by the other. `season` is the module's own store beside the module's own map and none
+ * beside a map of the suite's (R554, R555), so a suite's engine reads its own rows alone, as before.
+ * Measured 25.10.2026 at c05f0952: passages-gm.mjs read `stores.map` in 41 places - 39 calls (18 get, 9 entries,
+ * 7 patch, 2 stampOf, 1 each patchMany, drop, whenHydrated) and 2 handed to `secretRowsFrom` -; each reads both since.
+ */
+export function passageBook({ map = passageMapStore, season = map === passageMapStore ? passageSeasonStore : null } = {}) {
+    const stores = season ? [map, season] : [map];
+    const holders = id => stores.filter(store => store.has(id));
+    const twin = id => {
+        if (holders(id).length < 2) return false;
+        warn(`The secret passage ${id} is in both the GMs' map and the season's passages; nothing of it was written.`);
+        return true;
+    };
+    return {
+        ofWorld: map === passageMapStore,
+        map, season,
+        get: id => (map.has(id) ? map.get(id) : season?.get(id) ?? null),
+        has: id => holders(id).length > 0,
+        entries: () => ({ ...(season?.entries() ?? {}), ...map.entries() }),
+        stampOf: (id, field) => (holders(id)[0] ?? map).stampOf(id, field),
+        /** The store a row is in, or null. */
+        storeOf: id => holders(id)[0] ?? null,
+        whenHydrated: () => Promise.all(stores.map(store => store.whenHydrated?.())),
+        patch: (id, fields, opts) => (twin(id) ? Promise.resolve(false) : (holders(id)[0] ?? map).patch(id, fields, opts)),
+        patchMany: (rows, opts) => {
+            const by = new Map();
+            for (const [id, fields] of Object.entries(rows ?? {})) {
+                if (twin(id)) continue;
+                const store = holders(id)[0] ?? map;
+                by.set(store, { ...(by.get(store) ?? {}), [id]: fields });
+            }
+            return Promise.all([...by].map(([store, part]) => store.patchMany(part, opts)));
+        },
+        drop: id => (twin(id) ? Promise.resolve(false) : (holders(id)[0] ?? map).drop(id))
+    };
 }
 
 /**
@@ -113,11 +158,15 @@ export function sceneGone(row, { map = passageMapStore, scenes } = {}) {
  * students (passages-gm.mjs `passageCopyFor`), the client's cut and the GMs' audit - and nothing is
  * written for it but the row's `public`: Make secret leaves the cells as they were, and their knowers
  * alone know it again.
+ *
+ * Since E15 part 2 C1 the rows are both stores' (`passageBook`): `season` beside `map`, the module's own season store
+ * when `map` is the module's own map and none is named (D3).
  */
-export function secretRowsFrom({ map = passageMapStore, access = passageAccessStore, scenes, actors } = {}) {
+export function secretRowsFrom({ map = passageMapStore, season, access = passageAccessStore, scenes, actors } = {}) {
     const rows = {}, open = [];
-    for (const [id, row] of Object.entries(map.entries())) {
-        if (row?.state !== "secret" || sceneGone(row, { map, scenes })) continue;
+    const book = passageBook({ map, season });
+    for (const [id, row] of Object.entries(book.entries())) {
+        if (row?.state !== "secret" || sceneGone(row, { map: book, scenes })) continue;
         if (row.public === true) open.push(id);
         const ends = endsOf(row);
         if (ends) {
