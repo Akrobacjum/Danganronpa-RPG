@@ -66519,6 +66519,21 @@ const SCENARIOS = [
             await game.settings.set(MODULE_ID, SETTINGS.overflowRules, old);
             seen.old = { floor: o.overflowRules().effects.panic.floor === OVERFLOW.effects.panic.floor, fog: o.overflowRules().effects.fog.on };
             seen.trim = [stableJson(await o.trimOverflowRules?.() ?? null), stored(), stableJson(await o.trimOverflowRules?.() ?? null)];
+            // (2b) The same old copy of 1.2.84's defaults met by a later build whose defaults moved (E15 part 1 fix e1-G2,
+            // finding E15p1-END-2): config's X and Earthquake's size changed for the read, put back. The GM's Panic size 3
+            // and Fog unticked are kept; the old Apply's X 20 and Earthquake 1 follow the new defaults. At c93be060 both were kept.
+            const moved = { threshold: OVERFLOW.threshold, quake: OVERFLOW.effects.earthquake.by };
+            const snapshot = { threshold: 20, effects: Object.fromEntries(Object.entries(OVERFLOW.effects).map(([key, base]) =>
+                [key, { ...base, ...(base.by === undefined ? {} : { by: 1 }), on: key !== "fog", ...(key === "panic" ? { by: 3 } : {}) }])) };
+            try {
+                OVERFLOW.threshold = 16;
+                OVERFLOW.effects.earthquake.by = 2;
+                await game.settings.set(MODULE_ID, SETTINGS.overflowRules, snapshot);
+                seen.rebalanced = [stableJson(await o.trimOverflowRules() ?? null), stored(), o.overflowThreshold(), o.overflowRules().effects.earthquake.by];
+            } finally {
+                OVERFLOW.threshold = moved.threshold;
+                OVERFLOW.effects.earthquake.by = moved.quake;
+            }
 
             // (3) An emptied field, and a size past the box.
             await game.settings.set(MODULE_ID, SETTINGS.overflowRules, {});
@@ -66592,6 +66607,7 @@ const SCENARIOS = [
             again: { held: { threshold: OVERFLOW.threshold + 1, effects: { darkness: { by: 2 }, fog: { on: false } } }, cards: 0 },
             old: { floor: true, fog: false },
             trim: [stableJson({ trimmed: true }), { effects: { fog: { on: false } } }, stableJson(null)],
+            rebalanced: [stableJson({ trimmed: true }), { effects: { fog: { on: false }, panic: { by: 3 } } }, 16, 2],
             empty: { read: [null, null], threshold: OVERFLOW.threshold, darkness: OVERFLOW.effects.darkness.by, held: {}, cards: 0 },
             held: [5, 0],
             trial: { next: true, says: true, now: null },
@@ -66602,7 +66618,7 @@ const SCENARIOS = [
             season: null
         }), "the overflow does not keep the GM's overrides alone, or a darkening announced in a trial does not wait [Save: what the world "
             + "holds, cards; Save unchanged: the same; an older full copy: Panic's floor is config's, Fog's tick; trimmed: the report, what "
-            + "the world holds, the second trim; an emptied threshold and size: as read, X, Darkness's size, what the world holds, cards; "
+            + "the world holds, the second trim; 1.2.84's copy under moved defaults: the report, what the world holds, X, the Earthquake's size; an emptied threshold and size: as read, X, Darkness's size, what the world holds, cards; "
             + "sizes 20 and -3 as held; armed in the trial: for the next day's first time of day, the card's words, running now; the verdict: "
             + "the count, running, waiting; a later boundary: the check's answer, running, the count, cards, a second check; an Eclipse ahead: "
             + "running, cards; a darkening running now through the verdict: before, after; a waiting one through the season reset]");

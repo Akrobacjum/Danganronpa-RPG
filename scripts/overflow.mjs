@@ -173,21 +173,67 @@ function sortedKeys(value) {
 /**
  * THE OVERRIDES ONLY, ONCE (E15 C3, 1.2.85; audit S09-27). The clause `trimOverflowRules`
  * (migrate.mjs) runs this on the primary GM: a world whose rules were saved before 1.2.85 holds the
- * whole catalogue as it stood then, and keeps of it only what differs from config.mjs now - the
- * threshold, and each effect's `on` and `by`. A value equal to today's default is dropped, so it
- * follows the default from here on: a GM who once saved it on purpose and the Apply that saved
- * everything cannot be told apart, and the default is the side D21 asks for. Idempotent.
+ * whole catalogue as it stood then, and keeps of it only what the GM changed - the threshold, and
+ * each effect's `on` and `by`.
+ *
+ * AGAINST THE DEFAULTS THE COPY WAS WRITTEN UNDER (E15 part 1 fix e1-G2, 25.10.2026; finding
+ * E15p1-END-2). Compared with config.mjs as it stands when the clause runs, a world that skips
+ * 1.2.85 for a build whose defaults moved (E64's rebalance: X 20 -> 16, say) would read its old
+ * Apply's 20 as the GM's override and keep it - the very loss D21 keeps S09-27 for (tier 2 E15-T4
+ * at c93be060, config's threshold and Earthquake moved for the test: both kept). An old copy is
+ * told by its shape - each effect saved whole, `kind` with it, which no build since 1.2.85 writes
+ * (`overridesOf` writes `on` and `by` alone) - and read against `OVERFLOW_1_2_84`, the last
+ * defaults any such copy was written under: a value equal to them is the old Apply's and follows
+ * today's default; one that differs is the GM's and is kept where it still differs from today's.
+ * A GM who saved the old default on purpose cannot be told from the Apply that saved everything;
+ * the default is the side D21 asks for. A copy of overrides only is trimmed against today's
+ * defaults. Idempotent.
  *
  * @returns {Promise<null|{notPrimary: true}|{trimmed: true}>}
  */
 export async function trimOverflowRules() {
     if (!isPrimaryGm()) return { notPrimary: true };
     const stored = game.settings.get(MODULE_ID, SETTINGS.overflowRules) ?? {};
-    const overrides = overridesOf(overflowRules());
+    const overrides = overridesOf(isFullCopy(stored) ? choicesIn(stored) : overflowRules());
     if (JSON.stringify(sortedKeys(overrides)) === JSON.stringify(sortedKeys(stored))) return null;
     await game.settings.set(MODULE_ID, SETTINGS.overflowRules, overrides);
     log("Despair overflow rules: kept the GM's overrides only (S09-27).");
     return { trimmed: true };
+}
+
+/*
+ * THE DEFAULTS OF 1.2.84, FROZEN (fix e1-G2): config.mjs's `OVERFLOW.threshold` and each effect's `on` and
+ * `by` at d90687dc (1.2.84 with E36), the same in every build that saved the whole catalogue (1.2.58 on).
+ * Read by `trimOverflowRules` only, so a later change of config.mjs does not move them.
+ */
+const OVERFLOW_1_2_84 = Object.freeze({
+    threshold: 20,
+    effects: Object.freeze({
+        darkness: { on: true, by: 1 }, shift: { on: true, by: 1 }, panic: { on: true, by: 1 },
+        despair: { on: true }, silence: { on: true }, fog: { on: true },
+        rot: { on: true, by: 1 }, earthquake: { on: true, by: 1 }
+    })
+});
+
+/** A copy saved before 1.2.85: an effect saved whole, its `kind` with it. */
+function isFullCopy(stored) {
+    return Object.values(stored?.effects ?? {}).some(rule => rule && typeof rule === "object" && "kind" in rule);
+}
+
+/** The rules a full copy names: today's defaults, with each value that differs from 1.2.84's - the GM's. */
+function choicesIn(stored) {
+    const rules = overflowRules();
+    const threshold = Number(stored.threshold);
+    if (Number.isFinite(threshold) && threshold > 0 && Math.round(threshold) !== OVERFLOW_1_2_84.threshold) rules.threshold = Math.round(threshold);
+    else rules.threshold = OVERFLOW.threshold;
+    for (const [key, base] of Object.entries(OVERFLOW.effects)) {
+        const edit = stored.effects?.[key] ?? {}, old = OVERFLOW_1_2_84.effects[key] ?? {};
+        const rule = rules.effects[key];
+        rule.on = edit.on !== undefined && edit.on !== null && Boolean(edit.on) !== Boolean(old.on ?? base.on) ? Boolean(edit.on) : base.on;
+        const by = numberIn(edit.by);
+        if (base.by !== undefined) rule.by = Number.isFinite(by) && heldBy(by) !== (old.by ?? base.by) ? heldBy(by) : base.by;
+    }
+    return rules;
 }
 
 /* ==========================================================================
