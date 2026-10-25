@@ -64318,6 +64318,74 @@ const SCENARIOS = [
             + "handed the cleaver over; tierTablesFor of the impostor's name's pool, whether each is the impostor]");
     }],
 
+    ["a Search's trace follows what was found, not what was asked for, and a plant is granted as its name is filed: a weapon a room handed over for a Healing ask leaves a trace, an apple handed over for a weapon none, and a planted mop is a Cleaning Tool (E14 fix e1-G7: R7)", async () => {
+        /*
+         * E14 fix e1-G7, 25.10.2026; the review's E14p2-R7 and R9 (the C3 Open lines). C3 made the trace and the card follow
+         * the find (action-rolls.mjs `traceTheFind`, out of `performSearch` here) and read a plant's name as a table's entry
+         * is read (`searchDraw`'s `foundAs`), and no test drove either: passing the asked category to the trace, or dropping
+         * the plant's `foundAs`, left every test green. Read on a student standing in a room, as a critical hit (the Search's
+         * critical trace, "obvious"): `traceTheFind` for a weapon drawn on a Healing ask and for an apple drawn on a weapon
+         * ask, each [the find's category, whether a trace was placed]; then a Tier 1 Cleaning Tool pool of the suite's that
+         * files "SUITE e1-G7 mop", that name planted in a room of the suite's on the student's scene, and `searchDraw` there
+         * asked for a Tier 2 weapon, as [the plant drawn, its category, tier]. Every trace, plant, ledger row, table and
+         * message made here is taken away after. Red at the parent: no traceTheFind (the trace road is not reachable
+         * alone); with the plant's foundAs dropped, the mop came as nothing (the asked weapon at the grant).
+         */
+        needs(world.atLeast("studentsInRooms"), "a student standing in a room, where a trace is placed");
+        const A = await import("./action-rolls.mjs");
+        const T = await import("./traps.mjs");
+        const S = await import("./gm-stores.mjs");
+        const R = await import("./remnants.mjs");
+        const C = await import("./config.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const student = studentActors().find(a => locateActor(a)?.room && locateActor(a)?.tokenDoc) ?? null;
+        must(student, "no student stands in a room with a token - a trace would have nowhere to go");
+        const where = locateActor(student);
+        const TAG = "SUITE e1-G7", MOP = `${TAG} mop`, ROOM = `${TAG} cupboard`, PROJECT = `${TAG}-project`;
+        const roll = { isCritical: true, total: 20, withHope: true };
+        const made = [], tokens = [], identities = [], plants = [];
+        const hear = Hooks.on("createChatMessage", message => made.push(message));
+        const read = {};
+        let pool = null;
+        try {
+            const trace = async (drawn, asked) => {
+                if (typeof A.traceTheFind !== "function") return "no traceTheFind";
+                const out = await A.traceTheFind(student, C.ACTIONS.search, roll, { hit: null, ...asked, drawn, granted: null, room: where.room });
+                if (out?.placed?.id) tokens.push(out.placed.id);
+                return [out?.find?.category ?? null, Boolean(out?.placed?.id)];
+            };
+            read.traces = [
+                await trace({ name: `${TAG} axe`, category: "crimeTool", tier: 1, goal: null, substitute: true }, { category: "usable", tier: 1, goalKey: "healing" }),
+                await trace({ name: `${TAG} apple`, category: "usable", tier: 1, goal: "healing", substitute: true }, { category: "crimeTool", tier: 1, goalKey: null })
+            ];
+            await settle();
+            pool = await RollTable.create({ name: `${TAG} Cleaning Tools`, formula: "1d1", flags: { [MODULE_ID]: { category: "cleaningTool", tier: 1, goal: null } },
+                results: [{ type: CONST.TABLE_RESULT_TYPES?.TEXT ?? "text", name: MOP, text: MOP, description: MOP, range: [1, 1], weight: 1 }] });
+            plants.push(`${where.scene.id}::${ROOM}`);
+            identities.push(await T.plantItem(PROJECT, ROOM, { sceneId: where.scene.id, name: MOP }));
+            must(identities[0], "nothing was planted");
+            const drawn = await A.searchDraw(ROOM, where.scene, "crimeTool", 2, null, student);
+            read.plant = [drawn?.identity === identities[0], drawn?.category ?? null, drawn?.tier ?? null];
+        } finally {
+            Hooks.off("createChatMessage", hear);
+            for (const id of tokens) {
+                const scene = game.scenes.find(s => s.tokens.get(id));
+                const token = scene?.tokens.get(id);
+                if (token) { await R.dropRemnantSecret(token); await token.delete(); }
+            }
+            for (const key of plants) if (S.trapPlantStore.get(key)) await S.trapPlantStore.drop(key);
+            for (const id of identities.filter(Boolean)) if (S.trapLedgerStore.get(id)) await S.trapLedgerStore.drop(id);
+            try { await pool?.delete(); } catch { /* already gone */ }
+            for (const m of made) if (game.messages.get(m.id)) await m.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ traces: [["crimeTool", true], ["usable", false]], plant: [true, "cleaningTool", 1] }),
+            "a Search's trace followed what was asked, or a plant was not granted as its name is filed [traceTheFind: a weapon on a Healing ask, "
+            + "an apple on a weapon ask, each the find's category and a trace placed; searchDraw of a planted mop asked as a Tier 2 weapon: "
+            + "the plant, its category, its tier]");
+    }],
+
     ["a Search's plant it could not hand over goes back to its room, the GMs told who found it and that it waits again, on a GM's own Search and on a player's as the GM judges it (E14-T9, S08-10)", async () => {
         /*
          * E14 part 2 C4, 24.10.2026; E14-40. The harm (audit S08-10): traps.mjs `takePlant` takes the plant out of the
@@ -64576,8 +64644,14 @@ const SCENARIOS = [
          * highlights, and the line for a room with no table; then Give a room key for a character made here who holds a key to
          * every bedroom (one bedroom made here, on a scene made here), as [its button's words, whether the button is off, the
          * line under the field]; then Give a Truth Bullet, the tab it opens on beside whether a trace lies on any scene.
+         * E14 fix e1-G7 (25.10.2026; the review's E14p2-END-08, R6): the two branches the world could not reach are driven
+         * with the list each dialog reads handed in (gm-items.mjs `giveKeyDialog`'s `bedrooms`, `giveTruthBulletDialog`'s
+         * `scenes`): one bedroom with an owner, the keyholder's own, and no scene at all; the expected tabs are constants,
+         * no longer read off the world. Red at the parent: the key's line said "every bedroom" for the only own bedroom,
+         * and Give a Truth Bullet opened on From a Remnant with nothing to give.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student standing in a named room");
+        needs(world.atLeast("remnantTokens"), "a trace on a scene, so Give a Truth Bullet has one to open on");
         const T = await import("./tables.mjs");
         const G = await import("./gm-items.mjs");
         const V = await import("./vault.mjs");
@@ -64595,7 +64669,7 @@ const SCENARIOS = [
         const closeAll = async test => { for (let n = 0; n < 4; n += 1) { const app = appWith(test); if (!app) break; try { await app.close(); } catch { /* gone */ } await settle(); } };
         const hadFlag = region.getFlag(MODULE_ID, FLAG);
         const made = [];
-        let tables = null, keys = null, bullets = null, keyScene = null, loner = null;
+        let tables = null, keys = null, bullets = null, keyScene = null, loner = null, ownOnly = null, noTrace = null;
         try {
             for (const [name, flags] of [[`${TAG} Aaa first`, { roomPool: true }], [BASE, { roomPool: true }], [`${BASE} - Tier 2`, null], [`${BASE} - Tier 3`, null]]) {
                 made.push(await RollTable.create({ name, formula: "1d1", ...(flags ? { flags: { [MODULE_ID]: flags } } : {}) }));
@@ -64659,9 +64733,18 @@ const SCENARIOS = [
             const kel = keyApp()?.element;
             const okButton = kel?.querySelector('footer button[data-action="ok"]');
             keys = [okButton?.textContent.trim() ?? null, okButton?.disabled ?? null,
-                kel?.querySelector("[data-drpg-key-empty]:not([hidden])")?.textContent.trim().length > 0];
+                kel?.querySelector("[data-drpg-key-empty]:not([hidden])")?.textContent.trim() ?? null];
             await closeAll(e => e.querySelector('select[name="room"]') && e.querySelector('select[name="recipient"]'));
             try { await Promise.race([keyOpening, wait(2000)]); } catch { /* closed rather than answered */ }
+            // The only bedroom with an owner is the keyholder's own (the list handed in).
+            const ownOpening = G.giveKeyDialog(loner, { bedrooms: () => [{ room: `${TAG} Own bedroom`, owner: loner }] });
+            await until(() => keyApp());
+            await settle();
+            const oel = keyApp()?.element;
+            ownOnly = [oel?.querySelector('footer button[data-action="ok"]')?.disabled ?? null,
+                oel?.querySelector("[data-drpg-key-empty]:not([hidden])")?.textContent.trim() ?? null];
+            await closeAll(e => e.querySelector('select[name="room"]') && e.querySelector('select[name="recipient"]'));
+            try { await Promise.race([ownOpening, wait(2000)]); } catch { /* closed rather than answered */ }
 
             const traces = Array.from(game.scenes).flatMap(s => remnantsOn(s)).filter(token => remnantData(token)).length;
             const bulletOpening = typeof G.giveTruthBulletDialog === "function" ? G.giveTruthBulletDialog(student) : null;
@@ -64671,6 +64754,13 @@ const SCENARIOS = [
             bullets = [traces > 0, bulletApp()?.element.querySelector(".drpg-gmt-section.active")?.dataset.drpgGmtSection ?? null];
             await closeAll(e => e.querySelector('[data-drpg-gmt-section="create"]') && e.querySelector('[data-drpg-gmt-section="existing"]'));
             try { await Promise.race([bulletOpening, wait(2000)]); } catch { /* closed rather than answered */ }
+            // No trace on any scene (no scene handed in).
+            const emptyOpening = G.giveTruthBulletDialog(student, { scenes: [] });
+            await until(() => bulletApp());
+            await settle();
+            noTrace = bulletApp()?.element.querySelector(".drpg-gmt-section.active")?.dataset.drpgGmtSection ?? null;
+            await closeAll(e => e.querySelector('[data-drpg-gmt-section="create"]') && e.querySelector('[data-drpg-gmt-section="existing"]'));
+            try { await Promise.race([emptyOpening, wait(2000)]); } catch { /* closed rather than answered */ }
         } finally {
             if (hadFlag === undefined || hadFlag === null) await region.unsetFlag(MODULE_ID, FLAG);
             else await region.setFlag(MODULE_ID, FLAG, hadFlag);
@@ -64679,13 +64769,15 @@ const SCENARIOS = [
             try { await keyScene?.delete(); } catch { /* already gone */ }
             await settle();
         }
-        equal(stableJson([tables, keys, bullets]), stableJson([
+        equal(stableJson([tables, keys, ownOnly, bullets, noTrace]), stableJson([
             ["newItem", [BASE, `${BASE} - Tier 2`], `${TAG} found thing`, ["add", "close"], true, true],
-            [game.i18n.localize("DRPG.Vault.giveKey"), true, true],
-            [bullets?.[0] ?? null, bullets?.[0] ? "existing" : "create"]]),
+            [game.i18n.localize("DRPG.Vault.giveKey"), true, game.i18n.format("DRPG.Vault.hasEveryKey", { name: `${TAG} keyholder` })],
+            [true, game.i18n.format("DRPG.Vault.onlyOwnBedroom", { name: `${TAG} keyholder` })],
+            [true, "existing"], "create"]),
             "a GM's window opens out of sight of what it was asked for, or offers what it cannot do [Create an item: the tab, the "
             + "room's tables ticked, the name, the footer, Rename on the highlighted table, the line for a room with no table; Give "
-            + "a room key with none left: the button's words, off, the line why; Give a Truth Bullet: a trace anywhere, the tab]");
+            + "a room key with none left: the button's words, off, the line why; the only bedroom the keyholder's own: off, the line; "
+            + "Give a Truth Bullet: a trace anywhere, the tab; with no trace on any scene, the tab]");
     }],
 
     ...GRID

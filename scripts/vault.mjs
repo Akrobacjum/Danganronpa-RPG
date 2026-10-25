@@ -1345,8 +1345,8 @@ export async function stow(actor, item) {
 /* WHERE THE STASH IS, NOT "YOUR OWN ROOM" (E14 part 2 C8; audit S08-48): a stash may be in the library as well as in a
    bedroom, and the line sent the player to their bedroom whatever. `room` is the stash the thing lies in (`retrieve`);
    with none, every room of this scene where the character keeps one (`stow`), and a sentence of its own when there is
-   no such room. The character's own stashes: nothing here is anybody else's. */
-function tellNotHere(actor, room = null) {
+   no such room. The character's own stashes: nothing here is anybody else's. Exported for the suite (E14 fix e1-G7). */
+export function tellNotHere(actor, room = null) {
     const rooms = room ? [room] : stashRoomsFor(actor, sceneOfActor(actor)).map(entry => entry.room);
     ui.notifications.warn(rooms.length
         ? game.i18n.format("DRPG.Vault.notHere", { room: rooms.join(", ") })

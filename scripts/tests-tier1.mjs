@@ -21874,6 +21874,12 @@ const INVARIANTS = [
          * (3) whether the older English wordings are still candidates (they only grow, N5); (4) `flaggedTables` over tables made
          * here as plain objects, never in the world: a renamed one by its flags, a goal kept apart, a table with no flags, and two
          * with one set of flags, today's name first.
+         * E14 fix e1-G7 (25.10.2026; the review's E14p2-END-03, R8): on a GM whose module language is Polish `localizeConfig`
+         * has already put pl.json's words over config.mjs, so the first precondition (pl.json's plural is not the live
+         * one) and the walk's count (a value already pl.json's is not set) both failed there, on the client this test is
+         * about. The English side is the copy config.mjs froze before any language (`TABLE_NAME_WORDS`), put over the
+         * names' words first and pl.json's after it, both walked and both put back, so the test reads the same in either
+         * language. Red at the parent on a client in Polish (pl.json put over config.mjs before the test, as at i18nInit).
          */
         const t = await import("./tables.mjs");
         const C = await import("./config.mjs");
@@ -21885,25 +21891,35 @@ const INVARIANTS = [
             ...Object.keys(t.USABLE_GOALS).flatMap(goal => C.ITEM_TIERS.map(tier => ({ category: "usable", tier, goal }))),
             ...C.ITEM_TIERS.map(tier => ({ category: "usable", tier, goal: null }))
         ];
-        must(shapes.every(s => typeof plPlural(s.category) === "string" && plPlural(s.category) !== C.ITEM_CATEGORIES[s.category].plural),
+        // The English the names are built from, whatever this client's language: the frozen copy (config.mjs `TABLE_NAME_WORDS`).
+        const englishWord = key => {
+            const plural = key.match(/^DRPG\.Config\.ITEM_CATEGORIES\.(\w+)\.plural$/);
+            if (plural) return C.TABLE_NAME_WORDS.plural[plural[1]];
+            const kind = key.match(/^DRPG\.Config\.USABLE_KINDS\.(\w+)\.label$/);
+            return kind ? C.TABLE_NAME_WORDS.kind[kind[1]] : undefined;
+        };
+        must(shapes.every(s => typeof plPlural(s.category) === "string" && plPlural(s.category) !== C.TABLE_NAME_WORDS.plural[s.category]),
             "lang/pl.json carries no Polish plural for a tier pool's category - this reads nothing");
         const names = () => shapes.map(s => [t.tableName(s.category, s.tier, s.goal), t.tableNameCandidates(s.category, s.tier, s.goal)[0]]);
-        const english = stableJson(names());
+        const asFound = stableJson(names());
         const undo = [];
-        let polish = null, swappedPlurals = 0;
+        let english = null, polish = null, swappedPlurals = 0;
+        const put = (wordFor, counted) => walkConfigProse(C, (key, value, set) => {
+            const next = wordFor(key);
+            if (typeof next !== "string" || !next || next === value) return;
+            undo.push(() => set(value));
+            set(next);
+            if (counted && /^DRPG\.Config\.ITEM_CATEGORIES\.\w+\.plural$/.test(key)) swappedPlurals += 1;
+        });
         try {
-            walkConfigProse(C, (key, value, set) => {
-                const next = foundry.utils.getProperty(words, key);
-                if (typeof next !== "string" || !next || next === value) return;
-                undo.push(() => set(value));
-                set(next);
-                if (/^DRPG\.Config\.ITEM_CATEGORIES\.\w+\.plural$/.test(key)) swappedPlurals += 1;
-            });
+            put(englishWord, false);
+            english = stableJson(names());
+            put(key => foundry.utils.getProperty(words, key), true);
             polish = stableJson(names());
         } finally {
-            for (const put of undo.reverse()) put();
+            for (const back of undo.reverse()) back();
         }
-        must(swappedPlurals >= 4 && stableJson(names()) === english, "Polish was not put over the plurals, or not put back - this measured nothing");
+        must(swappedPlurals >= 4 && stableJson(names()) === asFound, "Polish was not put over the plurals, or not put back - this measured nothing");
 
         const builtInPolish = shapes.map(s => ({ ...s,
             name: `DRPG ${plPlural(s.category)}${s.goal ? ` (${t.USABLE_GOALS[s.goal].label})` : ""} - Tier ${s.tier}` }));
@@ -22013,7 +22029,10 @@ const INVARIANTS = [
             `the Tier pools pane does not keep the refused name at its field with the sentence under it [${typeof pane === "string" ? pane.slice(0, 80) : "no poolPaneHtml"}]`);
 
         /* The road itself, on this GM: the window opened, a refused name typed on each tab and Create table pressed, the
-           window that comes back read. A refusal writes nothing, so the world is as it was (tier 1's dump holds it). */
+           window that comes back read. A refusal writes nothing, so the world is as it was (tier 1's dump holds it).
+           And it cannot write (E14 fix e1-G7; the review's E14p2-END-07): `RollTable.create` is replaced for the presses
+           and put back, so a regression of the check is a table this test names, never one left in a GM's world by the
+           read-only tier. */
         const tablesApp = () => [...foundry.applications.instances.values()]
             .find(a => a.element?.classList?.contains("drpg-window-tables") && a.element.isConnected);
         const tableCount = game.tables.size;
@@ -22033,6 +22052,9 @@ const INVARIANTS = [
             return [back?.value ?? null, back?.getAttribute("aria-invalid") ?? null,
                 Boolean(back?.closest(".drpg-gmt-section.active")), (said?.textContent.trim().length ?? 0) > 0];
         };
+        const hadCreate = Object.hasOwn(RollTable, "create"), realCreate = RollTable.create;
+        const attempted = [];
+        RollTable.create = async data => { attempted.push(data?.name ?? null); return null; };
         const opening = t.openItemTables();   // held, not awaited - it resolves on close
         let road = null;
         try {
@@ -22040,15 +22062,16 @@ const INVARIANTS = [
             await settle();
             road = [await press("tiers", "DRPG Weapons - Tier 2"), await press("rooms", "DRPG Tools - Tier 1")];
         } finally {
+            if (hadCreate) RollTable.create = realCreate; else delete RollTable.create;
             try { await tablesApp()?.close(); } catch { /* already gone */ }
             try { await Promise.race([opening, wait(2000)]); } catch { /* closed rather than answered */ }
             await settle();
         }
-        equal(stableJson([road, game.tables.size === tableCount]), stableJson([[["DRPG Weapons - Tier 2", "true", true, true],
-            ["DRPG Tools - Tier 1", "true", true, true]], true]),
+        equal(stableJson([road, attempted, game.tables.size === tableCount]), stableJson([[["DRPG Weapons - Tier 2", "true", true, true],
+            ["DRPG Tools - Tier 1", "true", true, true]], [], true]),
             "a refused name pressed through Create table does not come back in its field, marked, on its tab, with the sentence "
             + "under it, or a table was made [Tier pools: value, aria-invalid, its tab open, a sentence; Room pools: the same; "
-            + "no table made]");
+            + "the tables a create was asked for; no table made]");
 
         const tablesSrc = stripComments(new Map(await otherSources()).get("tables.mjs") ?? "");
         const create = bodyOf(tablesSrc, "async function createPoolFrom(", { until: "\n}\n" });
@@ -22211,6 +22234,66 @@ const INVARIANTS = [
             stableJson([true, true, true, true]),
             "a stash out of reach does not say which room it is in, or a character with no stash has no sentence of its own "
             + "[notHere EN, PL with {room}; noStashOnScene EN, PL]");
+    }],
+    ["R976 - a rename asked again keeps what was typed, with the refusal under the field, until a name passes, is left as it was or the prompt is closed; and a stow or a retrieve out of reach names the stash's room, or says there is none (E14 fix e1-G7: R7, R9)", async () => {
+        /*
+         * E14 fix e1-G7, 25.10.2026; the review's E14p2-R7 and R9 (and the C5 and C8 Open lines): tables.mjs
+         * `promptForTableName`'s ask-again loop (C5) and vault.mjs `tellNotHere` (C8) were driven by no test - R973 read
+         * that the rename calls the check, R975 the words - so a loop that handed back a refused name on its second try, or
+         * a line that always said "no stash on this scene", passed the suite. Both are read here with Foundry's prompt and
+         * this browser's warning replaced for the test and put back, nothing of the world written: the prompt answers
+         * from a list and keeps what each prompt held; a check refuses one name. Read: what each road answers, how many
+         * prompts it asked, and the second prompt's field (its value, marked invalid, the sentence under it); then the
+         * warning for a stash in a room this test names and for a character of the world as found - the rooms of their
+         * stashes on their scene, or the line for none (`stashRoomsFor`).
+         */
+        const t = await import("./tables.mjs");
+        const V = await import("./vault.mjs");
+        const { sceneOfActor } = await import("./movement.mjs");
+        const api = foundry.applications.api.DialogV2;
+        const hadPrompt = Object.hasOwn(api, "prompt"), prompt = api.prompt;
+        const notices = ui.notifications, hadWarn = Object.hasOwn(notices, "warn"), warn = notices.warn;
+        const REFUSED = "R976 Kitchen - Tier 9", GOOD = "R976 Kitchen";
+        const check = name => (name === REFUSED ? { text: "R976 refused it" } : null);
+        const field = html => {
+            const box = document.createElement("div");
+            box.innerHTML = html ?? "";
+            const input = box.querySelector('input[name="tableName"]');
+            return [input?.value ?? null, input?.getAttribute("aria-invalid") ?? null, box.querySelector(".drpg-field-error")?.textContent.trim() ?? null];
+        };
+        const roads = [], warned = [];
+        const student = studentActors()[0] ?? null;
+        must(student, "the world has no student to tell where a stash is");
+        try {
+            let answers = [], asked = [];
+            api.prompt = async config => { asked.push(String(config?.content ?? "")); return answers.length ? answers.shift() : null; };
+            const ask = async (current, list) => {
+                answers = [...list];
+                asked = [];
+                const got = typeof t.promptForTableName === "function" ? await t.promptForTableName(current, check) : "no promptForTableName";
+                return [got, asked.length, asked[1] ? field(asked[1]) : null];
+            };
+            roads.push(await ask("R976 Old name", [REFUSED, GOOD]));
+            roads.push(await ask("R976 Old name", [REFUSED, null]));
+            roads.push(await ask("R976 Old name", ["R976 Old name"]));
+            notices.warn = message => { warned.push(String(message)); };
+            if (typeof V.tellNotHere === "function") {
+                V.tellNotHere(student, "R976 Library");
+                V.tellNotHere(student);
+            }
+        } finally {
+            if (hadPrompt) api.prompt = prompt; else delete api.prompt;
+            if (hadWarn) notices.warn = warn; else delete notices.warn;
+        }
+        const rooms = V.stashRoomsFor(student, sceneOfActor(student)).map(entry => entry.room);
+        const say = (key, data) => game.i18n.format(key, data);
+        equal(stableJson([roads, warned]), stableJson([
+            [[GOOD, 2, [REFUSED, "true", "R976 refused it"]], [null, 2, [REFUSED, "true", "R976 refused it"]], ["R976 Old name", 1, null]],
+            [say("DRPG.Vault.notHere", { room: "R976 Library" }),
+                rooms.length ? say("DRPG.Vault.notHere", { room: rooms.join(", ") }) : game.i18n.localize("DRPG.Vault.noStashOnScene")]
+        ]), "a rename handed back a refused name, asked again without the typed name and its refusal, or asked when nothing changed; or a stash "
+            + "out of reach was not named [the rename: refused then good, refused then closed, unchanged - each its answer, the prompts asked, "
+            + "the second prompt's field: value, aria-invalid, the sentence; the warnings: a stash in R976 Library, the student's own as found]");
     }],
 ];
 

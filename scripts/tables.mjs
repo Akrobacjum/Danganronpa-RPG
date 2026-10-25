@@ -1679,10 +1679,10 @@ async function placeResultDialog(table, resultId) {
  *
  * @returns {Promise<string|null>} the trimmed name, or `null` if cancelled.
  */
-async function promptForTableName(currentName, check = () => null) {
+export async function promptForTableName(currentName, check = () => null) {
     /* ASKED AGAIN WITH THE REFUSAL UNDER THE FIELD (E14 part 2 C5, S13-09). A refused name used to end in a toast and
        the GM's typing gone; now the prompt comes back holding what they typed, the sentence under it, until a name
-       passes `check`, the name is left as it was, or the prompt is closed. */
+       passes `check`, the name is left as it was, or the prompt is closed. Exported for the suite (E14 fix e1-G7). */
     let value = currentName, refusal = null;
     for (;;) {
         const result = await foundry.applications.api.DialogV2.prompt({

@@ -2246,6 +2246,18 @@ export async function grantDrawn(actor, drawn, { category, tier, goalKey, rollId
      * off the granted Item: the carry limit can refuse to grant it, and picking
      * something up and finding you cannot hold it still means you touched it.
      */
+/**
+ * What a Search's hit found and the trace it leaves: the trace and the card follow what was found (C3) - its category
+ * decides a trace, its tier is the card's - so a weapon a room handed over for a Healing ask leaves one and an apple
+ * handed over for a weapon none. Out of `performSearch` and exported for the suite (E14 fix e1-G7, 25.10.2026; the
+ * review's E14p2-R7: passing the asked category here instead turned no test red).
+ */
+export async function traceTheFind(actor, def, roll, { hit, category, tier, goalKey, drawn, granted, room }) {
+    const find = drawn?.name ? findOf(drawn, { category, tier, goalKey }) : { category, tier, goal: goalKey };
+    const { placed, leftTrace } = await leaveSearchTrace(actor, def, roll, { hit, category: find.category, drawn, granted, room, tier: find.tier });
+    return { find, placed, leftTrace };
+}
+
 async function leaveSearchTrace(actor, def, roll, { hit, category, drawn, granted, room, tier }) {
     const leaves = leavesTraceFor(category, drawn?.roles);
     const visibility = roll.isCritical ? def.critical?.remnant : hit?.remnant;
@@ -2421,9 +2433,7 @@ async function performSearch(actor, def, options) {
 
     const drawn = await searchDraw(room, scene, category, tier, goalKey, actor);
     const granted = await grantDrawn(actor, drawn, { category, tier, goalKey, rollId: roll.raw?.[DRAWN_ROLL]?.rollId ?? null });
-    // The trace and the card follow what was found (C3): its category decides a trace, its tier is the card's.
-    const find = drawn?.name ? findOf(drawn, { category, tier, goalKey }) : { category, tier, goal: goalKey };
-    const { placed, leftTrace } = await leaveSearchTrace(actor, def, roll, { hit, category: find.category, drawn, granted, room, tier: find.tier });
+    const { find, placed, leftTrace } = await traceTheFind(actor, def, roll, { hit, category, tier, goalKey, drawn, granted, room });
 
     const outcome = {
         success: true, tier: find.tier, category: find.category,

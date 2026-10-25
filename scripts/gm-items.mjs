@@ -272,11 +272,14 @@ export async function openItemManager(actor = null) {
  * open nothing. Each option says whose room it is, because "Room 3" is not how
  * anybody at the table refers to it.
  */
-export async function giveKeyDialog(actor) {
+export async function giveKeyDialog(actor, { bedrooms = null } = {}) {
     // Bedrooms, not stashes - a stash in somebody else's room must never
     // produce a key to it. See `allBedrooms` and trap 79.
     // Across every scene (ITEM-16): the dorms are usually not the scene the GM is looking at.
-    const { allBedroomsAnywhere: allBedrooms, grantBedroomKey, keysHeldBy } = await import("./vault.mjs");
+    // `bedrooms`, the list read in their place, is the suite's (E14 fix e1-G7: a world of one bedroom, the student's own,
+    // which no test could make of a live world - the review's E14p2-END-08, R6).
+    const { allBedroomsAnywhere, grantBedroomKey, keysHeldBy } = await import("./vault.mjs");
+    const allBedrooms = typeof bedrooms === "function" ? bedrooms : allBedroomsAnywhere;
 
     const students = studentActors();
     const initial = actor ?? students[0] ?? null;
@@ -1141,7 +1144,7 @@ async function tellBulletGiven(who, payload) {
         <p><small>${game.i18n.localize("DRPG.TruthBullet.whereToFind")}</small></p>`);
 }
 
-export async function giveTruthBulletDialog(actor) {
+export async function giveTruthBulletDialog(actor, { scenes: only = null } = {}) {
 
     const students = studentActors();
     const initial = actor ?? students[0] ?? null;
@@ -1164,7 +1167,10 @@ export async function giveTruthBulletDialog(actor) {
        player's client holds these tokens but has never held what they mean - and this whole
        window is GM-only, so there is nothing to gate here. */
     const home = homeScene();
-    const scenes = [...(home ? [home] : []), ...Array.from(game.scenes ?? []).filter(scene => scene !== home)];
+    // `only`, the scenes read in their place, is the suite's (E14 fix e1-G7): a world with no trace on any scene, which
+    // the suite's world never is (the review's E14p2-END-08, R6).
+    const scenes = Array.isArray(only) ? only
+        : [...(home ? [home] : []), ...Array.from(game.scenes ?? []).filter(scene => scene !== home)];
     const traces = scenes.flatMap(scene => remnantsOn(scene))
         .map(token => ({ token, data: remnantData(token) }))
         .filter(entry => entry.data);
