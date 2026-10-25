@@ -9611,7 +9611,8 @@ const REGRESSIONS = [
             // ---- the way through (E79 C2)
             ["WALLS passages.mjs#clipPassages -> screen", "this browser's move polygon only (`type` \"move\"; sight, light and sound stay whole), cut where the moving token's own character knows a passage on its scene and floor, by the wall's id; fails closed (R556; 76 B). CLAIM: a console's own copy cuts only its own walls; the GMs' audit (movement-audit.mjs) judges the landed move"],
             // ---- the pick on the board (E79 C6)
-            ["WALLS passages-gm.mjs#sceneWalls -> screen", "a GM's pick only (`startPassagePick` and `repickPassage` ask `game.user.isGM` first): the walls of the scene Room Setup was opened on, read to snap a click to one and to hold the stretch to it through `passageRowFor`; nothing is written to a wall and nothing of it reaches a player but through the copy (R561; 76 F)"],
+            ["WALLS passages-gm.mjs#sceneWalls -> screen", "a GM's pick only (`startPassagePick` and `repickPassage` ask `game.user.isGM` first): the walls of the scene Room Setup was opened on, read to snap a click to one and to hold the stretch to it through `passageRowFor`; nothing is written to a wall and nothing of it reaches a player but through the copy (R561; 76 F). Since E15 part 2 C2 also Secret Passage's offer (`wallNeighbours`), on the proposer's browser: the rooms beyond the walls of the room it stands in, from the walls and regions every browser holds, named as Listen names them and sent as an index; the GM's approval reads them again where the GMs read the builder (E15-T12)"],
+            ["WALLS passages-gm.mjs#builtPassageRow -> screen", "a GM's only (E15 part 2 C2): a Secret Passage's stretch judged as a new passage's (`passageRowFor`) at the approval and again on the primary at the completion (`opensPassageDone`), so the wall must still stand between its two rooms on no other passage's stretch; nothing is written to a wall (E15-T12)"],
             // ---- showing a passage (E79 C7)
             ["ACT gm-bridge.mjs#ACTION_PASSAGE_SHARE#passage.share -> *", "judged on the primary GM: `knownSender` and `owns(\"actorId\")`, then passages-gm.mjs `shareRefusal` - the phase, the giver alive, in no incident and no Monocub, the giver's own cell of a secret passage (a closed, unknown or made-up one refused alike), both in one room, scene and floor now, the one shown it alive; `sharePassage` writes the records and pushes the copies (R562; 76 G)"],
             ["ACT gm-bridge.mjs#ACTION_PASSAGE_CROSS#passage.cross -> write", "E80 C2's 'Go through', judged on the primary GM: `knownSender` and `owns(\"actorId\")`, then passages-gm.mjs `crossTunnel` in its serial write - a secret tunnel of the GMs' records the character knows (the Mastermind's through `actsAsMastermind`), the token at an end where the GMs read it (movement.mjs `gmSpotOf`), the doors' rules (`tunnelVerdict`), the price taken first and given back on a failed write (`settleCrossingOnGm`); the packet names no end, room, floor or spot (R597, A10-18; 76 U)"],
@@ -13489,6 +13490,33 @@ const REGRESSIONS = [
         const sheet = code("sheet.mjs");
         ok(/isPlacing\(tokenDoc\)/.test(fnSource(sheet, "noteStepStart")) && /isPlacing\(tokenDoc\)/.test(fnSource(sheet, "onTunnelStep")),
             "sheet.mjs reads no placing mark before its step onto a tunnel's end");
+    }],
+    ["R981 - one table of the projects that make a passage (A10-9, E15-T11): passages-gm.mjs `PASSAGE_PRESETS` holds Secret Passage as Hand, Complex, always secret, opening a passage; each preset's statistic, size and completion row exist; and no other file of the module declares the table or a preset of its own", async () => {
+        /*
+         * E15 part 2 C2 (25.10.2026; the stage's E15-41, the owner's answer of 11.10: "E68 przyjmie `PASSAGE_PRESETS`, bez
+         * drugich kopii"). The harms: a preset whose numbers drift from what the stage was given (a cheaper passage, a
+         * public one), a preset naming a statistic, a size or a completion row the module does not have - finished, it
+         * would do nothing -, and a second copy of the table that E68 would have to find. Read off the module's own
+         * values and its sources with comments blanked; nothing is written. Red at the parent: no table.
+         * C4 adds the one reader of a broken room (`roomBroken`) to this test, as the stage's E15-T11 says.
+         */
+        const P = await import("./passages-gm.mjs");
+        const { TRAITS, PROJECT_SCALE } = await import("./config.mjs");
+        const { COMPLETION_EFFECTS } = await import("./projects.mjs");
+        const presets = P.PASSAGE_PRESETS ?? null;
+        equal(JSON.stringify(presets?.secretPassage ?? null), JSON.stringify({ trait: "hand", scale: "complex", secret: "always", effect: "opensPassage" }),
+            "Secret Passage is not Hand, Complex, always secret, opening a passage (A10-9)");
+        const rows = Object.entries(presets ?? {});
+        ok(rows.length > 0 && rows.every(([, p]) => Object.hasOwn(TRAITS, p.trait) && Object.hasOwn(PROJECT_SCALE, p.scale)
+            && COMPLETION_EFFECTS.some(row => row.key === p.effect)),
+            "a preset names a statistic, a size or a completion row the module does not have - finished, it would do nothing");
+        const sources = await moduleSources();
+        const files = [...sources].filter(([file]) => !/^tests/.test(file));
+        must(files.length > 50, "the module's sources were not read - this would measure nothing");
+        const declaring = re => files.filter(([, text]) => re.test(stripComments(text))).map(([file]) => file).sort();
+        equal(JSON.stringify([declaring(/\bPASSAGE_PRESETS\s*=/), declaring(/\bsecretPassage\s*:\s*(?:Object\.freeze\(\s*)?\{/)]),
+            JSON.stringify([["passages-gm.mjs"], ["passages-gm.mjs"]]),
+            "[the files that declare the table, the files that declare a Secret Passage preset] - a second copy of the presets");
     }],
     ["R603 - the handbooks say what E80 built - tunnels and stairs, 'Go through', Find Passage and its Reroll, a Find Stash's Reroll, Make public, the Passages tab's columns, Foundry's secret doors and the players' rulers - as the code does, with the texts the stage names, in English and in Polish", async () => {
         /*

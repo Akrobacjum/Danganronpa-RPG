@@ -579,6 +579,9 @@
     "Passage": {
       "engineOff": "Secret passages cannot open here: every token stops at their walls. Check for an update of Danganronpa RPG, or turn off the modules that change how tokens move.",
       "tab": {
+        "originProject": "Project",
+        "howShared": "shared",
+        "howBuilt": "built",
         "intro": "A secret passage is one stretch of wall between two rooms that only the students who know it can walk through, at a door's price. To everybody else it is a wall. Each button here takes effect at once; Apply and Cancel do not change it.",
         "rooms": "Rooms",
         "kind": "Kind",
@@ -648,6 +651,9 @@
         "note": "They can walk through it from now on, as you can. Costs no action; the GMs are told."
       },
       "card": {
+        "notBuilt": "{name} is finished, but its secret passage could not be opened: {why}",
+        "passageBuiltShared": "A secret passage opens to you: {from} - {to}.",
+        "passageBuilt": "Your secret passage is finished: {from} - {to}. You can walk through it.",
         "shown": "{giver} shows you a secret passage: {from} - {to}.",
         "done": "You show {target} the secret passage."
       },
@@ -675,6 +681,7 @@
         "tunnelSecond": "Click the square where it comes out, inside another room, on this floor or another. Esc cancels.",
         "tunnelMade": "Tunnel {passage} made. Give it to a student in the Passages tab.",
         "why": {
+          "notThese": "Click on the wall between the project's two rooms.",
           "noWall": "No wall there. Click on a wall between two rooms.",
           "door": "That is a door. A secret passage goes on a plain wall.",
           "noMove": "That wall stops nobody, so a secret passage there would change nothing.",
@@ -2267,6 +2274,7 @@
       "answerKeyMissing": "{name} cannot be handed over now: what it really is is not on the GM's browser. The GM can bring it back from a backup (Restore the case)."
     },
     "Observe": {
+      "projectFoundDone": "The secret project you found is finished: {name}.",
       "declarePrompt": "How are you looking?",
       "general": "Sweep the room",
       "specific": "Focus your gaze",
@@ -2724,6 +2732,21 @@
       "dead": "They are dead. The body stays where it fell."
     },
     "Project": {
+      "passageRefused": "That stretch does not stand between the builder's room and the room beyond: pick it again.",
+      "passageNoWall": "The builder's room shares no wall with another room on this floor: a secret passage has nowhere to go.",
+      "passageNeedsPick": "Pick the stretch of wall the secret passage goes through first.",
+      "passageNone": "No stretch picked yet.",
+      "passagePicked": "Picked: {passage}",
+      "passagePick": "Pick the stretch on the wall",
+      "passageFrom": "From the {room}, where the builder stands.",
+      "passageSummary": "Secret Passage to {to}",
+      "passageNote": "A secret passage through a wall of the room you are in: Hand, Complex (6), always secret. Only you, and whoever the project is shared with before it is finished, will know it.",
+      "passageTo": "Through the wall to",
+      "preset": {
+        "secretPassage": "Secret Passage"
+      },
+      "kindOwn": "A project of your own",
+      "kind": "Kind",
       "needsKiller": "An indirect murder needs a killer: pick who it is visible to, or approve it from the proposal card.",
       "needsKillerNamed": "“{name}” cannot become an indirect murder from here - open it and name who the trap belongs to.",
       "title": "Project",

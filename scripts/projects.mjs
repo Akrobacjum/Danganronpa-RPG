@@ -551,6 +551,49 @@ export const COMPLETION_EFFECTS = [
         onUncrossed: ({ id, meta }) => (meta.trigger?.armed
             ? { apply: async () => (await import("./traps.mjs")).disarmTrap(id) }
             : {})
+    },
+    {
+        /*
+         * A FINISHED SECRET PASSAGE OPENS ITS PASSAGE; ONE TAKEN BACK CLOSES IT (E15 part 2 C2, 25.10.2026; A10's
+         * S16-16, step 14; D40). Read for a project whose secret half names the preset and the stretch the approval
+         * picked. Crossed: the passage is made on the primary in the step (passages-gm.mjs `opensPassageDone`, which
+         * judges the stretch again: the wall still shared, on no other passage) - known to its builder and to the
+         * students of the players the secret project was shared with before now, not to those who found it by
+         * Observe (`foundBy`), who are told it is finished and nothing more (`DRPG.Observe.projectFoundDone`). The
+         * project then goes, but is kept until the completing character's Reroll bookmark names another roll
+         * (`keep`), so a Reroll can take the passage back. Uncrossed: the passage and who knew it go
+         * (`undoOpensPassage`). A stretch refused at the completion makes nothing, and the GMs are told why.
+         */
+        key: "opensPassage",
+        has: meta => meta.target?.preset === "secretPassage" && Boolean(meta.passage),
+        onCrossed: ({ id, name, meta }) => {
+            const finders = new Set(Object.keys(meta.foundBy ?? {}));
+            const builders = new Set(ownerIdsOfId(meta.by));
+            const users = viewersOf(id).filter(u => !finders.has(u.id) && !builders.has(u.id));
+            const sharedIds = (game.actors?.contents ?? [...(game.actors ?? [])])
+                .filter(a => a?.type === "character" && users.some(u => a.testUserPermission?.(u, "OWNER"))).map(a => a.id);
+            let made = null;
+            return {
+                apply: async () => {
+                    made = await (await import("./passages-gm.mjs")).opensPassageDone(id, { passage: meta.passage, builderId: meta.by ?? null, sharedIds });
+                },
+                remove: true,
+                keep: true,
+                after: async () => {
+                    if (made?.refused) {
+                        await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Passage.card.notBuilt", { name, why: made.refused }))}</p>`);
+                        return;
+                    }
+                    await (await import("./passages-gm.mjs")).tellPassageBuilt(made);
+                    const told = [...finders].filter(userId => game.users.get(userId) && !game.users.get(userId).isGM);
+                    if (told.length) {
+                        await announce({ content: `<p>${game.i18n.format("DRPG.Observe.projectFoundDone", { name: esc(name) })}</p>`,
+                            whisper: Array.from(new Set([...gmIds(), ...told])) });
+                    }
+                }
+            };
+        },
+        onUncrossed: ({ id }) => ({ apply: async () => (await import("./passages-gm.mjs")).undoOpensPassage(id) })
     }
 ];
 
@@ -966,6 +1009,13 @@ export async function createProject({
      * asked, the GMs'. Not named `repairs`: that is this file's function (R21 reads a shadowed name as a value).
      */
     repairFor = null, saboteur = null,
+    /*
+     * A PROJECT THAT MAKES A PASSAGE (E15 part 2 C2): `presetTarget` is `{ preset, room }` - a key of passages-gm.mjs
+     * `PASSAGE_PRESETS` and the neighbour the proposal named - and `passage` the stretch the approval picked. Both are
+     * the GMs' (projects-secrecy.mjs `PROJECT_SECRET_FIELDS`); a preset that is always secret seals the project
+     * whatever `secret` says. Not named `target`: that is the bar's.
+     */
+    presetTarget = null, passage = null,
     // WHO PROPOSED IT, as an actor id.
     //
     // The proposal card has carried this since the bridge was written - the
@@ -991,7 +1041,9 @@ export async function createProject({
     // list it draws, and Daggerheart's own Projects tray showed it to the whole
     // table. Measured: a murder project sitting in a player's tray while its
     // own owner could not see it anywhere.
-    const hidden = secret || indirectMurder;
+    const always = presetTarget?.preset
+        ? (await import("./passages-gm.mjs")).PASSAGE_PRESETS[presetTarget.preset]?.secret === "always" : false;
+    const hidden = secret || indirectMurder || always;
 
     // The killer sees their own trap without anybody remembering to share it.
     //
@@ -1037,7 +1089,9 @@ export async function createProject({
             // owner is still building it.
             trigger: indirectMurder && trigger?.kind ? { ...trigger, armed: false, firedAt: null } : null,
             ...(repairFor ? { repairs: repairFor } : {}),
-            ...(saboteur ? { saboteur } : {})
+            ...(saboteur ? { saboteur } : {}),
+            ...(presetTarget?.preset ? { target: { preset: String(presetTarget.preset), room: presetTarget.room ?? null } } : {}),
+            ...(passage ? { passage } : {})
         }
     }, { by: { kind: "gm" } });
     if (!made?.created) return null;
@@ -1047,6 +1101,19 @@ export async function createProject({
        token here, on the browser of whichever GM made the project. */
     log(`Created project "${name}" (${target} progress)${room ? ` in ${room}` : ""}${trait ? `, ${trait}` : ""}.`);
     return { id, name, target, trait };
+}
+
+/**
+ * Who found a secret project by Observe (E15 part 2 C2): the players of `userIds` added to its `foundBy`, through the
+ * entry, so a Secret Passage's completion tells them it is finished and gives them nothing of what it made (its row in
+ * `COMPLETION_EFFECTS`). observe.mjs `shareFoundProject` calls it after its share. GM only; answers the entry's result.
+ */
+export async function noteProjectFound(countdownId, userIds = []) {
+    if (!game.user?.isGM) return null;
+    const at = Date.now();
+    const found = { ...(secretsOf(countdownId).foundBy ?? {}) };
+    for (const userId of userIds ?? []) if (typeof userId === "string" && game.users.get(userId)) found[userId] = found[userId] ?? at;
+    return applyProjectChange(countdownId, { meta: { foundBy: found } }, { by: { kind: "gm" } });
 }
 
 /* ==========================================================================

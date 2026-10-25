@@ -59592,6 +59592,171 @@ const SCENARIOS = [
             ["both", "secret", "secret", 1], ["reset", false, true, null]]),
             "[each road as what, its answer, what it left] on a passage of the season's store - a road reads the GMs' map alone, a button writes the wrong store, an id in both is written, or the reset takes the wrong passages");
     }],
+    ["E15-T12 - Secret Passage, proposal to completion and back: offered only beside a wall shared with another room on that floor, the approval's pick held to that wall, the target in the GMs' half alone; the completion on the primary gives the passage to its builder ('built') and to the students of those it was shared with before ('shared'), never to its Observe finder (a card only) or anyone else; the project is kept for the Reroll, whose undo takes the passage back, and goes once the bookmark is replaced, the passage staying", async () => {
+        /*
+         * E15 part 2 C2 (25.10.2026; A10's S16-16, step 14; the stage's E15-41 to E15-45 and its write roads "who knows
+         * a passage: the opensPassage row" and "a project's preset and target"). The harms: a preset offered where no
+         * wall is shared, or a pick on another wall; where the passage will be in world data (projectMeta reaches every
+         * browser); a passage given to a student nobody shared the project with, to the one who only found it by
+         * Observe, or a copy naming another player's knower; a Reroll that takes the completion back and leaves the
+         * passage; and a kept project that never goes. On a scene of the suite's own - a Dorm with a Gym beyond one wall
+         * and a Bath beyond another, an Attic alone - with four students of its own in the Dorm, three of them played by
+         * the suite's three players: Hana the builder (the first player's), Botan (the second's, the project shared with
+         * that player at the approval), Kenta (the third's, who finds it by Observe) and Ume, nobody's. The GM stores
+         * are a world of the suite's own (`withGmStoreWorld`); the project is the world's Countdowns setting and
+         * projectMeta, made and removed here. The pick is the module's own on a board of the suite's own (R561's
+         * stand-in), the approval's write `createProject` as the window calls it, the completion `applyProjectChange`
+         * with the builder's change, on this GM, the primary. Red at the parent: passages-gm.mjs has no Secret Passage.
+         */
+        const P = await import("./passages-gm.mjs");
+        const PR = await import("./projects.mjs");
+        const S = await import("./gm-stores.mjs");
+        const E = await import("./gm-store.mjs");
+        const R = await import("./rooms.mjs");
+        const B = await import("./bridge-guards.mjs");
+        const { ownerOf } = await import("./utils.mjs");
+        const J = v => JSON.stringify(v);
+        equal(typeof P.secretPassageOffer, "function", "passages-gm.mjs offers no Secret Passage - the project has no road");
+        if (typeof P.secretPassageOffer !== "function") return;
+        const cast3 = cast(3);
+        needs(world.atLeast("livingStudents", 3), "three players of the suite's own play the builder, the one it is shared with and the finder");
+        for (const s of cast3) needs(world.ownedByPlayer(s), "each of the three is a player's, and the suite's players own the cast");
+        const [builderUser, friend, finder] = cast3.map(s => ownerOf(s));
+        must(new Set([builderUser?.id, friend?.id, finder?.id]).size === 3, "the three students are not three players' - a share and a find would be one person's");
+        const clock = foundry.utils.deepClone(getClock() ?? {});
+        const DORM = "SUITE E15 T12 Dorm", GYM = "SUITE E15 T12 Gym", BATH = "SUITE E15 T12 Bath", ATTIC = "SUITE E15 T12 Attic";
+        const mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
+        const room = (name, x, y) => ({ name, shapes: [{ type: "rectangle", x, y, width: 600, height: 600 }], flags: mark, behaviors: [] });
+        const OWNER = CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
+        let scene = null, read = null, projectId = null;
+        const actors = [], posted = [];
+        const heard = Hooks.on("createChatMessage", message => { posted.push(message); });
+        try {
+            if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+            scene = await Scene.create({ name: "SUITE E15 T12 a secret passage", width: 3000, height: 1400, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [room(DORM, 0, 0), room(GYM, 600, 0), room(BATH, 0, 600), room(ATTIC, 2000, 0)]);
+            await scene.createEmbeddedDocuments("Wall", [{ c: [600, 0, 600, 600] }, { c: [0, 600, 600, 600] }]);
+            const site = new Proxy(scene, { get: (target, key) => (key === "view" ? async () => true : Reflect.get(target, key, target)) });
+            read = await E.withGmStoreWorld(`suite-e15-t12-${foundry.utils.randomID(8)}`, async () => {
+                const make = async (name, user) => {
+                    const actor = await Actor.create({ name: `SUITE E15 T12 ${name}`, type: "character", ownership: { default: 0, ...(user ? { [user.id]: OWNER } : {}) } });
+                    actors.push(actor);
+                    return actor;
+                };
+                const hana = await make("Hana", builderUser), botan = await make("Botan", friend), kenta = await make("Kenta", finder), ume = await make("Ume", null);
+                await scene.createEmbeddedDocuments("Token", [hana, botan, kenta, ume].map((a, i) => ({ actorId: a.id, actorLink: true, name: a.name,
+                    x: 100 + 100 * i, y: 200, width: 1, height: 1 })));
+                await settle();
+                const out = {};
+                // The proposal's offer: the Dorm's two neighbours, the Attic none.
+                out.offer = [P.secretPassageOffer({ scene, room: DORM, level: null })?.neighbours ?? null, P.secretPassageOffer({ scene, room: ATTIC, level: null })];
+                // The approval's pick, narrowed to the Dorm and the Gym: a click on the Bath's wall is refused, two on the Gym's make the stretch.
+                let board = null;
+                const said = [];
+                const picking = P.startPassagePick(site, { between: { rooms: [DORM, GYM], level: null }, preview: () => {}, notify: kind => said.push(kind),
+                    board: handlers => { board = handlers; return () => { board = null; }; },
+                    prompt: () => ({ step: n => said.push(`step ${n}`), refuse: code => said.push(code), close: () => said.push("closed") }) });
+                for (let i = 0; i < 100 && !board; i++) await new Promise(r => setTimeout(r, 5));
+                must(board, "the pick put nothing on the board - this would measure nothing");
+                await board.click({ x: 300, y: 603 });
+                await board.click({ x: 602, y: 150 });
+                await board.click({ x: 598, y: 400 });
+                const picked = await picking;
+                out.pick = [picked ? [picked.wallId === scene.walls.find(w => w.c[0] === 600 && w.c[2] === 600)?.id, picked.rooms, picked.seg] : null, said,
+                    Object.keys(S.passageMapStore.entries()).length + Object.keys(S.passageSeasonStore.entries()).length];
+                // The approval's write, as the window makes it: the project shared with Botan's player, the preset and the stretch the GMs'.
+                const made = await PR.createProject({ name: "SUITE E15 T12 Secret Passage", target: 6, room: DORM, trait: "hand", secret: false, by: hana.id,
+                    viewers: [friend.id], presetTarget: { preset: "secretPassage", room: GYM }, passage: picked });
+                projectId = made?.id ?? null;
+                must(projectId, "the project was not made - this would measure nothing");
+                const secrets = PR.secretsOf(projectId);
+                out.made = [PR.isSecret(projectId), Object.hasOwn(PR.metaFor(projectId), "passage") || Object.hasOwn(PR.metaFor(projectId), "target"),
+                    secrets.target, Boolean(secrets.passage?.wallId)];
+                // Kenta's player finds it by Observe (observe.mjs's share, then its note).
+                await PR.shareWith(projectId, finder.id);
+                await PR.noteProjectFound(projectId, [finder.id]);
+                // Finished by Hana, whose Reroll bookmark names the roll: the passage, kept for the Reroll.
+                const by = { kind: "player", userId: builderUser.id, actorId: hana.id };
+                await S.rerollBookmarkStore.patch(hana.id, { messageId: "SUITEE15T12MSG1" });
+                const cell = (id, actor) => (id ? S.passageAccessStore.get(`${id}/${actor.id}`)?.how ?? null : null);
+                const built = () => Object.entries(S.passageSeasonStore.entries()).filter(([, row]) => row?.origin?.projectId === projectId).map(([id]) => id);
+                const look = () => {
+                    const [id = null] = built();
+                    return [built().length, ...[hana, botan, kenta, ume].map(a => cell(id, a)), Boolean(PR.allProjects().find(p => p.id === projectId)),
+                        S.projectSecretStore.get(projectId)?.keptFor?.messageId ?? null];
+                };
+                const before = posted.length;
+                const done = await PR.applyProjectChange(projectId, { delta: 6 }, { by });
+                await settle();
+                out.done = [done?.crossed ?? null, ...look()];
+                const [pid] = built();
+                const row = pid ? S.passageSeasonStore.get(pid) : null;
+                out.row = row ? [row.shape, row.rooms, row.state, row.origin, S.passageMapStore.has(pid)] : null;
+                // Hana's player's copy names Hana alone; Botan's player's names Botan.
+                // Botan's player's names Botan, and no student of another player (that player's own cast student is theirs too).
+                const theirs = P.passageCopyFor(friend).value?.[pid]?.actorIds ?? [];
+                out.copies = [J(P.passageCopyFor(builderUser).value?.[pid]?.actorIds ?? null) === J([hana.id]),
+                    theirs.includes(botan.id) && theirs.every(a => game.actors.get(a)?.testUserPermission(friend, "OWNER")), P.passageCopyFor(finder).value?.[pid] ?? null];
+                const { contentOf } = await import("./secret.mjs");
+                const cards = posted.slice(before).map(m => [m.whisper ?? [], String(contentOf(m) ?? "")]);
+                const toUser = (user, key, data) => cards.some(([to, html]) => to.includes(user.id) && html.includes(game.i18n.format(key, data).split("{")[0].slice(0, 24)));
+                out.cards = [toUser(builderUser, "DRPG.Passage.card.passageBuilt", {}), toUser(friend, "DRPG.Passage.card.passageBuiltShared", {}),
+                    toUser(finder, "DRPG.Observe.projectFoundDone", { name: "" }), cards.some(([to, html]) => to.includes(finder.id) && /passage|przej/i.test(html.replace(/SUITE E15 T12 Secret Passage/g, "")))];
+                // A show: Kenta, who does not know it, is refused; Hana shows it to Ume.
+                const share = async (giver, target) => {
+                    const res = await P.sharePassage({ actorId: giver.id, targetId: target.id, passageId: pid }, { asker: ownerOf(giver) ?? game.user, users: game.users,
+                        whisper: async () => {}, gms: async () => {} });
+                    return res?.refused ? B.reasonOf(res.refused) : Boolean(res);
+                };
+                out.shares = [await share(kenta, ume), cell(pid, ume), await share(hana, ume), cell(pid, ume)];
+                // The Reroll's lower dice: the passage and who knew it go, the project stays at 5 of 6.
+                const undone = await PR.applyProjectChange(projectId, { delta: -1 }, { by: { kind: "reroll", actorId: hana.id } });
+                await settle();
+                out.undone = [undone?.uncrossed ?? null, ...look(), S.passageAccessStore.has(`${pid}/${ume.id}`), S.passageSeasonStore.has(pid)];
+                // Finished again, then the bookmark replaced by the next roll: the project goes, its passage stays.
+                await PR.applyProjectChange(projectId, { delta: 1 }, { by });
+                await settle();
+                out.again = look();
+                await S.rerollBookmarkStore.patch(hana.id, { messageId: "SUITEE15T12MSG2" });
+                await PR.releaseKeptProjects();
+                await settle();
+                out.released = look();
+                if (!out.released[5]) projectId = null;
+                for (const id of built()) await P.deletePassage(id);
+                if (projectId) await PR.deleteProject(projectId);
+                projectId = null;
+                return out;
+            });
+        } finally {
+            Hooks.off("createChatMessage", heard);
+            if (projectId) await PR.deleteProject(projectId).catch(() => {});
+            for (const actor of actors) await actor.delete().catch(() => {});
+            for (const message of posted) await game.messages.get(message.id)?.delete().catch(() => {});
+            await scene?.delete();
+            await setClock(clock);
+            await settle();
+        }
+        equal(J(read?.offer), J([[BATH, GYM], null]), "[the Dorm's neighbours on its floor, the Attic's offer] - the preset is offered where no wall is shared, or names a room beyond no wall");
+        equal(J(read?.pick), J([[true, [DORM, GYM], { x1: 600, y1: 150, x2: 600, y2: 400 }], ["notThese", "step 2", "closed"], 0]),
+            "[the stretch picked (on the Dorm-Gym wall, its rooms, its ends), what the pick said, passages written by the pick] - the approval's pick takes another wall, or writes a passage before the project is finished");
+        equal(J(read?.made), J([true, false, { preset: "secretPassage", room: GYM }, true]),
+            "[the project secret, the preset or the stretch in projectMeta (every browser's), the GMs' target, the GMs' stretch] - a Secret Passage is public, or where it will open is world data");
+        equal(J(read?.done), J([true, 1, "built", "shared", null, null, true, "SUITEE15T12MSG1"]),
+            "[crossed; the passages made; Hana's, Botan's, Kenta's, Ume's ways of knowing it; the project kept; kept for] - the passage is given to someone nobody shared it with, to its Observe finder, or the project is not kept for the Reroll");
+        equal(J(read?.row), J(["wall", [DORM, GYM], "secret", { by: "project", projectId: read?.row?.[3]?.projectId ?? "?", builderId: read?.row?.[3]?.builderId ?? "?" }, false]),
+            "[the passage's shape, rooms, state, origin, held in the GMs' map too] - the project's passage is not the season's");
+        equal(J(read?.copies), J([true, true, null]),
+            "[Hana's player's copy names Hana alone, Botan's player's names Botan and only that player's students, the finder's player's holds the passage] - a copy names another player's student, or reaches the finder");
+        equal(J(read?.cards), J([true, true, true, false]),
+            "[Hana's player told her passage is finished, Botan's that one opens to him, Kenta's that the project is finished, Kenta's told of a passage] - the cards go to the wrong people");
+        equal(J(read?.shares), J(["notKnown", null, true, "shown"]),
+            "[a show by the finder, who does not know it; Ume's way after; Hana's show to Ume; Ume's way after] - a student who does not know the passage shows it");
+        equal(J(read?.undone), J([true, 0, null, null, null, null, true, null, false, false]),
+            "[uncrossed; the passages; the four ways of knowing it; the project; kept for; Ume's cell; the row] - the Reroll's undo leaves the passage or who knew it");
+        equal(J(read?.again?.slice(0, 3)), J([1, "built", "shared"]), "finished again, the passage is not made again for Hana and Botan");
+        equal(J(read?.released?.slice(0, 1).concat(read?.released?.slice(5))), J([1, false, null]),
+            "[the passages, the project, kept for] once the bookmark names another roll - the kept project stays, or its passage goes with it");
+    }],
     ["a player at 0 Hope who bought an Experience Call clicks the experience: Roll stays on and it costs nothing, the lock on or off; with the lock off and no Call the free experience leaves no cost row for the next change to break (S02-04)", async () => {
         /*
          * E16 p1 C1, 18.10.2026; audit S02-04 (E16-01, E16-02). The Experience Call is paid before the roll, so

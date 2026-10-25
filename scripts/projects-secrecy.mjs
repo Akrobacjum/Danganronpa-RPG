@@ -82,8 +82,14 @@ export function metaFor(countdownId) {
  * until the repair was finished (the review's scratch scenario, 26.09: p1 read p2's user id there).
  * The secrecy is what a saboteur buys with their Shadow roll. Its one reader, `unsabotageRefusal`,
  * runs on a GM, so it is the fifth field here, and `liftProjectSecrets` takes it out of an older world.
+ *
+ * Three more since E15 part 2 C2 (25.10.2026; the stage's E15-43): a Secret Passage's `target`, `{ preset, room }`, the
+ * preset (passages-gm.mjs `PASSAGE_PRESETS`) and the neighbour the proposal named, and its `passage`, the stretch the
+ * approval picked (`{ sceneId, level, wallId, seg, rooms }`) - where a secret passage will be is what the project
+ * keeps secret -, and `foundBy`, `{ userId: at }`, the players who found the secret project by Observe (observe.mjs),
+ * whom its completion tells it is finished and gives nothing of what it made.
  */
-export const PROJECT_SECRET_FIELDS = Object.freeze(["killerId", "by", "condition", "trigger", "saboteur"]);
+export const PROJECT_SECRET_FIELDS = Object.freeze(["killerId", "by", "condition", "trigger", "saboteur", "passage", "target", "foundBy"]);
 
 /**
  * The secret fields of one project: the store's row on a GM, `{}` on anybody else. A player's browser

@@ -209,7 +209,8 @@ export const passageSeasonStore = defineGmStore({
 
 /**
  * WHO KNOWS A PASSAGE: a cell per `<passageId>/<actorId>`, `{ how, by, at }` - how the character
- * learnt it first ("gm" or "start"; "shown" is C7's, "built" and "found" E80's) and when, both
+ * learnt it first ("gm" or "start"; "shown" is C7's, "found" E80's, and "built" and "shared" E15 part 2 C2's, a Secret
+ * Passage's builder and those its secret project was shared with before it was finished - not E80's, as this said) and when, both
  * written fill-only, so learning it again keeps them; and `by`, a split field `{ <who>: at }` to
  * which a second grant, on this GM's browser or another's, adds its own key. Since C5 a cell may
  * hold `leave`, the room the character keeps the passage until leaving (the tab's 'Revoke when

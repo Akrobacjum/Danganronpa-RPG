@@ -560,6 +560,9 @@
     "Passage": {
       "engineOff": "Tajne przejścia nie mogą się tu otworzyć: każdy token zatrzyma się na ich ścianach. Sprawdź, czy jest aktualizacja Danganronpa RPG, albo wyłącz moduły, które zmieniają ruch tokenów.",
       "tab": {
+        "originProject": "Projekt",
+        "howShared": "udostępnione",
+        "howBuilt": "zbudowane",
         "intro": "Tajne przejście to odcinek ściany między dwoma pokojami, przez który przejdą tylko uczniowie, którzy je znają, za cenę drzwi. Dla wszystkich innych to ściana. Każdy przycisk tej zakładki działa od razu; Zastosuj i Anuluj go nie zmieniają.",
         "rooms": "Pokoje",
         "kind": "Rodzaj",
@@ -629,6 +632,9 @@
         "note": "Od teraz ta osoba może przez nie przechodzić, tak jak ty. Nie kosztuje akcji; GM-owie się o tym dowiedzą."
       },
       "card": {
+        "notBuilt": "Projekt {name} jest ukończony, ale jego tajnego przejścia nie udało się otworzyć: {why}",
+        "passageBuiltShared": "Poznajesz tajne przejście: {from} - {to}.",
+        "passageBuilt": "Twoje tajne przejście jest gotowe: {from} - {to}. Możesz przez nie przechodzić.",
         "shown": "{giver} pokazuje ci tajne przejście: {from} - {to}.",
         "done": "Pokazujesz postaci {target} tajne przejście."
       },
@@ -656,6 +662,7 @@
         "tunnelSecond": "Kliknij pole, na którym tunel wychodzi, wewnątrz innego pokoju, na tym piętrze lub innym. Esc anuluje.",
         "tunnelMade": "Tunel {passage} gotowy. Daj go uczniowi w zakładce Przejścia.",
         "why": {
+          "notThese": "Kliknij ścianę między dwoma pokojami projektu.",
           "noWall": "Tu nie ma ściany. Kliknij na ścianie między dwoma pokojami.",
           "door": "To są drzwi. Tajne przejście idzie w zwykłej ścianie.",
           "noMove": "Ta ściana nikogo nie zatrzymuje, więc tajne przejście nic by w niej nie zmieniło.",
@@ -2351,6 +2358,7 @@
       "answerKeyMissing": "Nie można teraz przekazać: {name}. Tego, czym jest naprawdę, nie ma w przeglądarce GM-a. GM może to przywrócić z kopii (Przywróć sprawę)."
     },
     "Observe": {
+      "projectFoundDone": "Tajny projekt, który odkryto, jest ukończony: {name}.",
       "declarePrompt": "Jak patrzysz?",
       "general": "Rozejrzyj się za czymkolwiek",
       "specific": "Skup wzrok",
@@ -2834,6 +2842,21 @@
       "dead": "Nie żyją. Ciało zostaje tam, gdzie upadło."
     },
     "Project": {
+      "passageRefused": "Ten odcinek nie stoi między pokojem budującego a pokojem za ścianą: wskaż go jeszcze raz.",
+      "passageNoWall": "Pokój budującego nie dzieli ściany z żadnym innym pokojem na tym piętrze: tajne przejście nie ma dokąd prowadzić.",
+      "passageNeedsPick": "Najpierw wskaż odcinek ściany, przez który prowadzi tajne przejście.",
+      "passageNone": "Nie wskazano jeszcze odcinka.",
+      "passagePicked": "Wskazano: {passage}",
+      "passagePick": "Wskaż odcinek na ścianie",
+      "passageFrom": "Z pokoju {room}, w którym stoi budujący.",
+      "passageSummary": "Secret Passage do: {to}",
+      "passageNote": "Tajne przejście przez ścianę pokoju, w którym stoisz: Hand, Complex (6), zawsze tajne. Poznasz je tylko ty i ci, którym udostępnisz projekt, zanim zostanie ukończony.",
+      "passageTo": "Przez ścianę do",
+      "preset": {
+        "secretPassage": "Secret Passage"
+      },
+      "kindOwn": "Własny projekt",
+      "kind": "Rodzaj",
       "needsKiller": "Pośrednie morderstwo potrzebuje zabójcy: wybierz, komu ma być widoczne, albo zatwierdź je z karty propozycji.",
       "needsKillerNamed": "„{name}” nie może stać się pośrednim morderstwem stąd - otwórz je i wskaż, do kogo należy pułapka.",
       "title": "Projekt",

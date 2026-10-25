@@ -436,6 +436,9 @@ async function shareFoundProject(actor, projectId) {
     if (!project) return false;
 
     for (const userId of ids) await shareWith(projectId, userId);
+    // Noted as found, not shared (E15 part 2 C2): a Secret Passage's completion gives a finder no passage, only its card.
+    const { noteProjectFound } = await import("./projects.mjs");
+    await noteProjectFound(projectId, ids);
 
     /* `shareWith` writes the countdown's OWNERSHIP, which is Daggerheart's own
        setting - so none of this module's `onChange` refreshes fire and the

@@ -52,7 +52,9 @@ import { viewPassage, oneWayOf } from "./passages.mjs";
 const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
 const t = key => game.i18n.localize(key);
 const tf = (key, data) => game.i18n.format(key, data);
-const HOW = { gm: "DRPG.Passage.tab.howGm", start: "DRPG.Passage.tab.howStart", shown: "DRPG.Passage.tab.howShown", found: "DRPG.Passage.tab.howFound" };
+const HOW = { gm: "DRPG.Passage.tab.howGm", start: "DRPG.Passage.tab.howStart", shown: "DRPG.Passage.tab.howShown", found: "DRPG.Passage.tab.howFound",
+    // A Secret Passage's (E15 part 2 C2): its builder, and whoever the secret project was shared with before it was finished.
+    built: "DRPG.Passage.tab.howBuilt", shared: "DRPG.Passage.tab.howShared" };
 
 /** A passage's rooms as the tab and its windows name it: "Kitchen - Dining Hall", or that none is named. */
 export function passageTitle(passage) {
@@ -135,7 +137,7 @@ function rowHtml(passage, { stores, students, actors, users, told }) {
     const toggle = state === "closed" ? "open" : "close";
     const kind = passage.public === true ? "public" : "secret";
     const shape = passage.shape === "tunnel" ? "shapeTunnel" : "shapeWall";
-    const origin = passage.origin === "door" ? "originDoor" : "originGm";
+    const origin = passage.origin === "door" ? "originDoor" : passage.origin?.by === "project" ? "originProject" : "originGm";
     const reveal = kind === "public" ? "secret" : "public";
 
     return `<tr data-drpg-passage="${esc(passage.id)}">

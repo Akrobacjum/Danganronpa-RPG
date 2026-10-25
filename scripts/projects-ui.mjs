@@ -592,6 +592,8 @@ export function projectTraitOptions(current = "") {
 export async function openProjectDialog({ project = null, preset = null, rooms = placeRoomNames() } = {}) {
     const editing = Boolean(project);
     const start = project ?? preset ?? null;
+    // A Secret Passage's approval (E15 part 2 C2): the builder's room as the GMs read it, and its neighbours.
+    const passageOf = !editing && start?.preset === "secretPassage" ? await passageApproval(start) : null;
     const defaultImg = "icons/magic/time/hourglass-yellow-green.webp";
     const img = start?.img || defaultImg;
     const currentTarget = start?.start ?? start?.target ?? PROJECT_SCALE.everyday.progress;
@@ -704,9 +706,10 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
                        placeholder="${game.i18n.localize("DRPG.Project.conditionPlaceholder")}" />
                 <small class="notes">${game.i18n.localize("DRPG.Project.conditionNote")}</small></label>
             </div>
+            ${passageOf ? passageFieldset(passageOf) : ""}
             <label class="drpg-checkbox">
                 <input type="checkbox" name="secret"${
-                    editing && isSecret(project.id) ? " checked" : ""} /> ${
+                    (editing && isSecret(project.id)) || passageOf ? " checked" : ""}${passageOf ? " disabled" : ""} /> ${
                     game.i18n.localize("DRPG.Project.secret")}</label>
             ${players.length ? `<fieldset class="drpg-viewer-list" data-drpg-when-secret>
                 <legend>${game.i18n.localize("DRPG.Project.visibleTo")}</legend>
@@ -754,7 +757,10 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
                     // default cell's value is "" - so an untouched grid reads
                     // as "no choice" and the tray's own fallback names the
                     // hourglass, in one place.
-                    glyph: f.glyph?.value || null
+                    glyph: f.glyph?.value || null,
+                    // A Secret Passage's neighbour and the stretch its pick made (E15 part 2 C2).
+                    passageTo: f.passageTo?.value || null,
+                    passage: f.passage?.value || null
                 };
             }
         }
@@ -775,6 +781,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
         render: (event, dialog) => {
             wirePortraitPickers(dialog.element, { defaultImg });
             if (editing && !isSecret(project.id)) wireViewerLock(dialog.element);
+            if (passageOf?.offer) wirePassagePick(dialog, passageOf.offer);
         },
         rejectClose: false
     });
@@ -863,7 +870,30 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
         return null;
     }
 
+    /*
+     * A SECRET PASSAGE IS JUDGED AT ITS APPROVAL (E15 part 2 C2; the stage's D2). The builder's room is the GMs'
+     * reading, the room beyond is one of its neighbours on that floor, and the stretch is the pick's, between those two
+     * (passages-gm.mjs `builtPassageRow`, which the completion asks again on the primary). Anything else leaves the card
+     * open and says why.
+     */
+    let passageFields = null;
+    if (passageOf) {
+        let picked = null;
+        try { picked = JSON.parse(result.passage ?? "null"); } catch { picked = null; }
+        const why = !passageOf.offer ? "DRPG.Project.passageNoWall"
+            : !picked?.wallId ? "DRPG.Project.passageNeedsPick"
+            : !passageOf.offer.neighbours.includes(result.passageTo) || !picked.rooms?.includes(passageOf.offer.from) || !picked.rooms?.includes(result.passageTo)
+                ? "DRPG.Project.passageRefused" : null;
+        const { builtPassageRow } = await import("./passages-gm.mjs");
+        if (why || !builtPassageRow(picked).row) {
+            ui.notifications.warn(game.i18n.localize(why ?? "DRPG.Project.passageRefused"));
+            return null;
+        }
+        passageFields = { presetTarget: { preset: "secretPassage", room: result.passageTo }, passage: picked };
+    }
+
     const created = await createProject({
+        ...(passageFields ?? {}),
         name: result.name,
         target: result.target,
         // Whose idea it was, straight off the proposal card. `start` is the
@@ -911,6 +941,60 @@ function wireViewerLock(root) {
     form.secret.addEventListener("change", sync);
     form.murder.addEventListener("change", sync);
     sync();
+}
+
+/**
+ * A Secret Passage's approval, read on the GM's browser (E15 part 2 C2): `{ offer, to }` - the builder's offer as the
+ * GMs read where the builder stands (movement.mjs `gmPlaceOf`, passages-gm.mjs `secretPassageOffer`), null when its
+ * room shares no wall on its floor, and the neighbour the card's index names there, else the first.
+ */
+async function passageApproval(start) {
+    const builder = game.actors.get(start?.by ?? "");
+    const { gmPlaceOf } = await import("./movement.mjs");
+    const { secretPassageOffer } = await import("./passages-gm.mjs");
+    const offer = builder ? secretPassageOffer(gmPlaceOf(builder)) : null;
+    const index = Number(start?.to);
+    return { offer, to: offer ? (offer.neighbours[Number.isInteger(index) ? index : 0] ?? offer.neighbours[0]) : null };
+}
+
+/** The approval window's Secret Passage box: the builder's room, the room beyond, the pick and what it picked. */
+function passageFieldset({ offer, to }) {
+    const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
+    const t = key => game.i18n.localize(key);
+    if (!offer) return `<fieldset class="drpg-passage-preset"><legend>${esc(t("DRPG.Project.preset.secretPassage"))}</legend>
+        <p class="drpg-warning">${esc(t("DRPG.Project.passageNoWall"))}</p></fieldset>`;
+    return `<fieldset class="drpg-passage-preset" data-drpg-passage-preset><legend>${esc(t("DRPG.Project.preset.secretPassage"))}</legend>
+        <p class="notes">${esc(game.i18n.format("DRPG.Project.passageFrom", { room: offer.from }))}</p>
+        <label>${esc(t("DRPG.Project.passageTo"))}
+            <select name="passageTo">${offer.neighbours.map(r => `<option value="${esc(r)}"${r === to ? " selected" : ""}>${esc(r)}</option>`).join("")}</select></label>
+        <button type="button" class="drpg-mini-button" data-drpg-passage-pick>${esc(t("DRPG.Project.passagePick"))}</button>
+        <input type="hidden" name="passage" value="" />
+        <small class="notes" data-drpg-passage-picked>${esc(t("DRPG.Project.passageNone"))}</small></fieldset>`;
+}
+
+/**
+ * The approval's pick (E15 part 2 C2): two clicks on the wall between the builder's room and the room beyond, on the
+ * builder's floor (passages-gm.mjs `startPassagePick` with `between`), kept in the window until Create. Another room
+ * picked forgets the stretch.
+ */
+function wirePassagePick(dialog, offer) {
+    const root = dialog?.element, form = root?.querySelector("form");
+    const button = root?.querySelector("[data-drpg-passage-pick]"), said = root?.querySelector("[data-drpg-passage-picked]");
+    if (!form?.passage || !button) return;
+    const forget = () => {
+        form.passage.value = "";
+        if (said) said.textContent = game.i18n.localize("DRPG.Project.passageNone");
+    };
+    form.passageTo?.addEventListener("change", forget);
+    button.addEventListener("click", async () => {
+        const scene = game.scenes.get(offer.sceneId);
+        if (!scene) return;
+        const { startPassagePick } = await import("./passages-gm.mjs");
+        const stretch = await startPassagePick(scene, { dialog, between: { rooms: [offer.from, form.passageTo?.value], level: offer.level } });
+        if (!stretch?.wallId) return;
+        form.passage.value = JSON.stringify(stretch);
+        if (said) said.textContent = game.i18n.format("DRPG.Project.passagePicked", { passage: stretch.rooms.join(" - ") });
+    });
 }
 
 /**

@@ -2856,11 +2856,33 @@ async function startProject(actor) {
         ...rooms.map(r => `<option value="${foundry.utils.escapeHTML(r)}"${r === room ? " selected" : ""}>${foundry.utils.escapeHTML(r)}</option>`)
     ].join("");
 
+    /*
+     * A SECRET PASSAGE, WHERE THIS ROOM SHARES A WALL (E15 part 2 C2, 25.10.2026; A10 step 14). Offered only when the
+     * room the character stands in shares a wall with another room on its floor (passages-gm.mjs `secretPassageOffer`,
+     * read here from the walls and rooms every browser holds); the rooms beyond are named as Listen names them - a room
+     * this player has not been in is "Unexplored room n" (`listenLabels`) - and the options carry an index, so the
+     * page names no room the fog hides. What the card asks is a claim: the GM's approval reads the builder's room
+     * where the GMs read the character and picks the stretch on that wall (projects-ui.mjs `openProjectDialog`).
+     */
+    const { secretPassageOffer, PASSAGE_PRESETS } = await import("./passages-gm.mjs");
+    const { levelOf } = await import("./rooms.mjs");
+    const { roomsKnownToMe } = await import("./movement.mjs");
+    const here = locateActor(actor);
+    const offer = here?.room ? secretPassageOffer({ scene: here.scene, room: here.room, level: levelOf(here.tokenDoc) }) : null;
+    const beyond = offer ? listenLabels(offer.neighbours, roomsKnownToMe(here.scene)) : new Map();
+    const presetFields = offer ? `<label>${game.i18n.localize("DRPG.Project.kind")}
+                <select name="preset"><option value="">${game.i18n.localize("DRPG.Project.kindOwn")}</option>
+                    <option value="secretPassage">${game.i18n.localize("DRPG.Project.preset.secretPassage")}</option></select></label>
+            <label>${game.i18n.localize("DRPG.Project.passageTo")}
+                <select name="to">${offer.neighbours.map((r, i) => `<option value="${i}">${foundry.utils.escapeHTML(beyond.get(r) ?? r)}</option>`).join("")}</select>
+                <small class="notes">${game.i18n.localize("DRPG.Project.passageNote")}</small></label>` : "";
+
     const result = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Project.startNew") },
         classes: ["drpg-panel"],
         content: dialogContent(`<form>
             <p class="drpg-warning">${game.i18n.localize("DRPG.Project.agreedWarning")}</p>
+            ${presetFields}
             <label>${game.i18n.localize("DRPG.Project.name")}
                 <input type="text" name="name" placeholder="${game.i18n.localize("DRPG.Project.namePlaceholder")}" autofocus /></label>
             <label>${game.i18n.localize("DRPG.Project.scale")}
@@ -2895,7 +2917,9 @@ async function startProject(actor) {
                         room: f.room.value || null,
                         trait: f.trait.value || null,
                         murder: f.murder.checked,
-                        condition: f.condition.value.trim()
+                        condition: f.condition.value.trim(),
+                        preset: f.preset?.value || null,
+                        to: f.to?.value ?? null
                     };
                 }
             },
@@ -2905,6 +2929,14 @@ async function startProject(actor) {
     });
 
     if (!result || result === "cancel") return null;
+    // A preset's own answers (PASSAGE_PRESETS): its statistic, its size, never a murder, from the room the character is in.
+    const preset = offer && result.preset === "secretPassage" ? PASSAGE_PRESETS.secretPassage : null;
+    const toIndex = preset ? Number(result.to) : NaN;
+    if (preset) {
+        if (!Number.isInteger(toIndex) || !offer.neighbours[toIndex]) return null;
+        Object.assign(result, { name: result.name || game.i18n.localize("DRPG.Project.preset.secretPassage"), target: PROJECT_SCALE[preset.scale].progress,
+            trait: preset.trait, room: offer.from, murder: false, condition: "" });
+    }
     if (!result.name) {
         ui.notifications.warn(game.i18n.localize("DRPG.Project.needsName"));
         return null;
@@ -2935,7 +2967,8 @@ async function startProject(actor) {
         `<strong>${esc(result.name)}</strong>`,
         `${esc(scaleLabel)} · ${result.target} progress`,
         result.room ? esc(result.room) : game.i18n.localize("DRPG.Project.anyRoom"),
-        TRAITS[result.trait].label
+        TRAITS[result.trait].label,
+        ...(preset ? [game.i18n.format("DRPG.Project.passageSummary", { to: esc(beyond.get(offer.neighbours[toIndex]) ?? "-") })] : [])
     ].join(" · ");
 
     /*
@@ -2970,7 +3003,9 @@ async function startProject(actor) {
                     room: result.room ?? "",
                     trait: result.trait ?? "",
                     murder: result.murder ? "1" : "",
-                    condition: result.condition ?? ""
+                    condition: result.condition ?? "",
+                    // A Secret Passage (E15 part 2 C2): the preset and the neighbour's index, never its name.
+                    ...(preset ? { preset: "secretPassage", to: String(toIndex) } : {})
                 }
             },
             {

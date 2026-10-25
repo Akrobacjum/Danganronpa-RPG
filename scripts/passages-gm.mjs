@@ -409,6 +409,159 @@ export async function passagesAfterReset({ stores = PASSAGE_STORES } = {}) {
 }
 
 /* ----------------------------------------------------------------------------------------- *
+ * The projects' passages (E15 part 2 C2, 25.10.2026; A10's S16-16, the owner's answer of 11.10).
+ * ----------------------------------------------------------------------------------------- */
+
+/**
+ * WHAT A PROJECT THAT MAKES A PASSAGE ASKS FOR, ONE TABLE (A10-9; the owner, 11.10: "E68 przyjmie `PASSAGE_PRESETS`,
+ * bez drugich kopii"). A preset is `{ trait, scale, secret?, effect }`: the statistic its rolls take (config.mjs
+ * `TRAITS`), its size (`PROJECT_SCALE`), "always" when it is secret whatever the form says, and the key of the row of
+ * projects.mjs `COMPLETION_EFFECTS` its completion asks. Breach the Wall is C3's, the owner's three of 15.10 C5's.
+ */
+export const PASSAGE_PRESETS = Object.freeze({
+    secretPassage: Object.freeze({ trait: "hand", scale: "complex", secret: "always", effect: "opensPassage" })
+});
+
+/**
+ * The rooms that share a wall with `room` on `scene` and `level` (A10 step 14: "Start New pokazuje preset tylko przy
+ * sąsiedzie ze wspólną ścianą na tym poziomie"), `[{ room, walls }]` sorted by name, each with the ids of the walls
+ * between the two. A wall is read as the pick reads a click on it (`snapToWall`, at the scene's grid), at points
+ * spread evenly along it - one more than its length in grid squares, 64 at most, none on its ends -, so a long wall that
+ * runs past several rooms names each of them. A door, a wall that stops nobody, a wall of another floor and the courtroom name none. Pure but for
+ * `scene`; read on a player's browser for the proposal (walls and regions are world data) and on the GM's for the
+ * approval and the completion.
+ */
+export function wallNeighbours(scene, room, level = null) {
+    if (!scene?.id || typeof room !== "string" || !room || isTrialScene(scene)) return [];
+    const rooms = pickRooms(scene, level);
+    const cell = Number(scene.grid?.size) || 100;
+    const reach = { radius: PICK_RADIUS * cell / 100, reach: PICK_REACH * cell / 100 };
+    const out = new Map();
+    for (const wall of sceneWalls(scene).filter(w => onLevel(w, level))) {
+        const c = (wall?.c ?? []).slice(0, 4).map(Number);
+        if (c.length < 4 || !c.every(Number.isFinite)) continue;
+        const len = Math.hypot(c[2] - c[0], c[3] - c[1]);
+        const steps = Math.max(2, Math.min(64, Math.ceil(len / cell) + 1));
+        for (let i = 0; i < steps; i++) {
+            const f = (i + 0.5) / steps;
+            const at = snapToWall({ x: c[0] + f * (c[2] - c[0]), y: c[1] + f * (c[3] - c[1]) }, [wall], rooms, { ...reach, only: wall.id });
+            if (at.refused || !at.rooms.includes(room)) continue;
+            const other = at.rooms.find(r => r !== room);
+            if (!other) continue;
+            const walls = out.get(other) ?? [];
+            if (!walls.includes(wall.id)) walls.push(wall.id);
+            out.set(other, walls);
+        }
+    }
+    return [...out].map(([name, walls]) => ({ room: name, walls })).sort((a, b) => a.room.localeCompare(b.room));
+}
+
+/**
+ * What Start New offers a character for a Secret Passage (A10 step 14): `{ sceneId, level, from, neighbours }`, the
+ * room it stands in and the rooms beyond its walls on that floor (`wallNeighbours`), or null where there is none - no
+ * place, no room, the courtroom, no shared wall. `place` is `{ scene, room, level }`, the caller's reading of where
+ * the character stands: the player's own browser for the form, the GMs' (movement.mjs `gmPlaceOf`) for the approval.
+ */
+export function secretPassageOffer(place) {
+    const scene = place?.scene ?? null, from = place?.room ?? null;
+    const level = place?.level?.id ?? place?.level ?? null;
+    const neighbours = wallNeighbours(scene, from, level).map(n => n.room);
+    return neighbours.length ? { sceneId: scene.id, level, from, neighbours } : null;
+}
+
+/**
+ * A Secret Passage's stretch judged as a new passage's would be (`passageRowFor`): `{ row }` or `{ refused }`. `passage`
+ * is what the approval's pick made, `{ sceneId, level, wallId, seg, rooms }`, and the wall must still stand between its
+ * two rooms, on its floor, on no other passage's stretch. Asked at the approval and again on the primary at the
+ * completion (the stage's D2: "the wall still shared").
+ */
+export function builtPassageRow(passage, { stores = PASSAGE_STORES } = {}) {
+    const scene = game.scenes?.get(typeof passage?.sceneId === "string" ? passage.sceneId : "");
+    if (!scene) return { refused: "no such scene." };
+    const rooms = Array.isArray(passage.rooms) ? passage.rooms.filter(r => typeof r === "string") : [];
+    if (rooms.length !== 2) return { refused: "a secret passage joins two rooms." };
+    return passageRowFor(scene, scene.walls?.get(passage.wallId ?? ""), { seg: passage.seg ?? null, rooms, level: passage.level ?? null,
+        taken: takenOn(scene.id, null, stores) });
+}
+
+/**
+ * A COMPLETED SECRET PASSAGE MAKES ITS PASSAGE (E15 part 2 C2; A10 step 14), on the primary GM, as projects.mjs
+ * `COMPLETION_EFFECTS`' row "opensPassage" asks once the bar has filled. The stretch is judged again (`builtPassageRow`)
+ * and the passage written in the season's store (gm-stores.mjs `passageSeasonStore`, D3) with its project as its
+ * `origin`: who knows it is the builder ("built") and the students `sharedIds` names, those the secret project was
+ * shared with before it was finished ("shared") - each a student of this world, no Monokuma, nobody else (the caller
+ * leaves out the ones who found the project by Observe, who get only its card). The knowers' copies are sent, the
+ * Mastermind's door copy with them (the passage did not exist until now), and the GMs' log has a row "built". A
+ * passage this project made already is answered again, not made twice. Answers `{ id, rooms, builderId, sharedIds }`,
+ * or `{ refused }` with nothing written.
+ */
+export async function opensPassageDone(projectId, { passage = null, builderId = null, sharedIds = [] } = {}, { stores = PASSAGE_STORES } = {}) {
+    if (!game.user?.isGM) return { refused: "only a GM makes one." };
+    if (!stores.season) return { refused: "no store for the season's passages." };
+    const made = Object.entries(stores.season.entries()).find(([, row]) => row?.origin?.projectId === projectId);
+    if (made) return { id: made[0], rooms: made[1].rooms ?? [], builderId: made[1].origin.builderId ?? null, sharedIds: [], again: true };
+    if (!studentOf(builderId)) return { refused: "the builder is no student of this world." };
+    const { row, refused } = builtPassageRow(passage, { stores });
+    if (!row) return { refused };
+    const id = `${row.sceneId}.${foundry.utils.randomID()}`;
+    if (rowsOf(stores).has(id)) return { refused: "that passage id is taken." };
+    await stores.season.patch(id, { ...row, origin: { by: "project", projectId, builderId } });
+    const shared = [...new Set(sharedIds ?? [])].filter(a => a !== builderId && studentOf(a));
+    const at = serverNow(), who = game.user.id;
+    await stores.access.patchMany({
+        [`${id}/${builderId}`]: { how: "built", at, by: { [who]: at } },
+        ...Object.fromEntries(shared.map(a => [`${id}/${a}`, { how: "shared", at, by: { [who]: at } }]))
+    }, { fillOnly: true });
+    await touch(knowersOf(id, stores), stores, { door: true });
+    await logRow("built", id, builderId, stores);
+    tellAfter(stores);
+    return { id, rooms: row.rooms, builderId, sharedIds: shared };
+}
+
+/**
+ * A Secret Passage's completion taken back (the row's `onUncrossed`: a Reroll, a GM's -1, while the project is kept
+ * for the Reroll, A10 step 14 and D40): every passage this project made goes, and who knew it (`deletePassage`, which
+ * sends the copies). Answers how many went.
+ */
+export async function undoOpensPassage(projectId, { stores = PASSAGE_STORES } = {}) {
+    const ids = Object.entries(stores.season?.entries() ?? {}).filter(([, row]) => row?.origin?.projectId === projectId).map(([id]) => id);
+    for (const id of ids) await deletePassage(id, { stores });
+    return ids.length;
+}
+
+/**
+ * The cards of a Secret Passage made (`opensPassageDone`'s answer): the builder's `passageBuilt` - the done card of
+ * the project is projects.mjs `announceProjectDone`'s, with its sound - and each student it was shared with
+ * `passageBuiltShared`, with the passage's sound; the rooms as each may name them ("Unexplored room n" for a room that
+ * student has not been in, fog.mjs `discoveredFor`). No builder's name on the shared card, and nobody else told.
+ */
+export async function tellPassageBuilt(made) {
+    if (!made?.id || made.again) return 0;
+    const { discoveredFor } = await import("./fog.mjs");
+    const sceneId = String(made.id).split(".")[0];
+    const named = actor => {
+        const known = new Set(discoveredFor(sceneId, actor.id));
+        let unexplored = 0;
+        const [from, to] = (made.rooms ?? []).map(room => (known.has(room) ? room : game.i18n.format("DRPG.Listen.unknownRoom", { n: ++unexplored })));
+        return { from: foundry.utils.escapeHTML(from ?? "-"), to: foundry.utils.escapeHTML(to ?? "-") };
+    };
+    let told = 0;
+    const builder = studentOf(made.builderId);
+    if (builder) {
+        await whisperToOwner(builder, `<p>${game.i18n.format("DRPG.Passage.card.passageBuilt", named(builder))}</p>`);
+        told++;
+    }
+    for (const actorId of made.sharedIds ?? []) {
+        const actor = studentOf(actorId);
+        if (!actor) continue;
+        await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Passage.card.passageBuiltShared", named(actor))}</p>`,
+            { flags: { [MODULE_ID]: { sfx: "passageFound" } } });
+        told++;
+    }
+    return told;
+}
+
+/* ----------------------------------------------------------------------------------------- *
  * The console API (game.drpg.passages): a GM's. Each refusal is a warning in the console and a
  * null or false answer; nothing is written before every check has passed.
  * ----------------------------------------------------------------------------------------- */
@@ -1968,13 +2121,20 @@ export function drawPickLayer({ first = null, at = null, ok = true } = {}) {
  */
 export async function startPassagePick(scene, { dialog = null, passageId = null, shape = "wall", stores = PASSAGE_STORES, board = canvasBoard,
     prompt = pickPrompt, preview = drawPickLayer, notify = (kind, text) => ui.notifications?.[kind]?.(text),
-    floorNow = () => viewedLevel()?.id ?? null } = {}) {
+    floorNow = () => viewedLevel()?.id ?? null, between = null } = {}) {
     if (!game.user?.isGM) return refuse("only a GM picks one.");
     if (!scene?.id) return null;
     const warnWhy = code => { notify("warn", tp(`why.${code}`)); return null; };
     if (isTrialScene(scene)) return warnWhy("trial");
     const tunnel = shape === "tunnel";
     if (tunnel && passageId) return refuse("a tunnel is never picked again.");
+    /* NARROWED TO A PROJECT'S TWO ROOMS (E15 part 2 C2; A10 step 14: "Przy zatwierdzaniu GM wskazuje odcinek trybem z
+       kroku 8 zawężonym do wspólnej ściany"). `between` is `{ rooms, level }`: a Secret Passage's builder's room and
+       the neighbour the proposal names, on the builder's floor. A click on any wall but one between those two is
+       refused ("notThese") and asked again, and the second click writes nothing: the pick answers the stretch,
+       `{ sceneId, level, wallId, seg, rooms }`, which the project keeps until its completion makes the passage. */
+    const narrowed = !tunnel && !passageId && Array.isArray(between?.rooms) && between.rooms.length === 2
+        ? [...between.rooms].map(String).sort((p, q) => p.localeCompare(q)) : null;
     const again = passageId ? rowsOf(stores).get(passageId) : null;
     if (passageId && (again?.state !== "broken" || again.sceneId !== scene.id)) return refuse(`"${passageId}" is not a broken passage of this scene.`);
     if (viewedScene()?.id !== scene.id) await scene.view();
@@ -1983,7 +2143,7 @@ export async function startPassagePick(scene, { dialog = null, passageId = null,
         const viewed = floorNow();
         return floors.length ? (floors.some(f => f.id === viewed) ? viewed : floors[0].id) : null;
     };
-    const level = again ? again.level ?? null : floorOf();
+    const level = again ? again.level ?? null : narrowed ? (typeof between.level === "string" && between.level ? between.level : null) : floorOf();
     const walls = sceneWalls(scene).filter(w => onLevel(w, level));
     const rooms = pickRooms(scene, level);
     const cell = Number(scene.grid?.size) || 100;
@@ -2007,7 +2167,10 @@ export async function startPassagePick(scene, { dialog = null, passageId = null,
             const at = tunnelEndAt(scene, point, floorOf(), { taken: endsTaken });
             return !at.refused && first && at.room === first.room ? { refused: "oneRoom" } : at;
         };
-        const snap = tunnel ? endAt : point => snapToWall(point, walls, rooms, { ...reachOf, only: first?.wallId ?? null });
+        const snap = tunnel ? endAt : point => {
+            const at = snapToWall(point, walls, rooms, { ...reachOf, only: first?.wallId ?? null });
+            return !at.refused && narrowed && at.rooms.join("\n") !== narrowed.join("\n") ? { refused: "notThese" } : at;
+        };
         const move = point => {
             if (done) return;
             const at = snap(point);
@@ -2026,6 +2189,7 @@ export async function startPassagePick(scene, { dialog = null, passageId = null,
             }
             const stretch = tunnel ? { rooms: [first.room, at.room] } : stretchBetween(first, at, { taken: reachOf.taken });
             if (stretch.refused) return ask.refuse(stretch.refused);
+            if (narrowed) return end({ sceneId: scene.id, level, wallId: stretch.wallId, seg: stretch.seg, rooms: stretch.rooms });
             writing = true;
             let made = null;
             try {

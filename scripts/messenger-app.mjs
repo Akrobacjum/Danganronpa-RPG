@@ -872,6 +872,9 @@ async function ruleApproveProject(action, data) {
             trait: data.trait || null,
             indirectMurder: Boolean(data.murder),
             condition: data.condition ?? "",
+            // A Secret Passage's preset and the neighbour's index (E15 part 2 C2), read again in the GM's window.
+            preset: data.preset || null,
+            to: data.to ?? null,
             // The proposer, carried since the card was built and dropped
             // here until E10 - which is why no project has ever known whose
             // idea it was. `declineProject` below has always read the same
