@@ -66757,6 +66757,50 @@ const SCENARIOS = [
             + "conditions; Hope 2 then made again and unticked: Hope, writes, still a Monocub]");
     }],
 
+    ["a death and a revive reach the conditions by themselves (E15 part 1 fix e1-G3): a student with every point of Health and Sanity marked carries Wounded and Breakdown, none once their death is published, and both again once revived, with no other write", async () => {
+        /*
+         * E15 part 1 fix e1-G3, 25.10.2026; finding E15p1-END-3 (C4's gap: the hook's trigger on a published death was
+         * not driven by itself, and no test drove a revive). On the primary: a living student given full Health and
+         * Sanity marks and synced (the control), killed in public (chapter.mjs `killCharacter`), then revived
+         * (`reviveCharacter`); after each, only `settle()` - no `syncStates` of the test's - and the two conditions
+         * read. The harness's `unsetFlag` writes a ForcedDeletion under the flag's name; the `-=` spelling v14 may
+         * hand the hook instead is R980's.
+         */
+        const { killCharacter, reviveCharacter } = await import("./chapter.mjs");
+        const { syncStates } = await import("./states.mjs");
+        const { STATES } = await import("./config.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this GM is not the primary, whose hook syncs the conditions - run the suite on the primary GM");
+        const [who] = cast(1);
+        const R = "system.resources";
+        const hpMax = Number(who.system?.resources?.hitPoints?.max) || 0, stressMax = Number(who.system?.resources?.stress?.max) || 0;
+        must(hpMax >= 1 && stressMax >= 1, `${who.name} has no Health or Sanity to mark - this would measure nothing`);
+        const was = Object.fromEntries(["hitPoints", "stress"].map(k => [k, foundry.utils.deepClone(foundry.utils.getProperty(who._source, `${R}.${k}`))]));
+        const states = () => [STATES.wounded.id, STATES.breakdown.id].map(id => Boolean(who.statuses?.has?.(id)));
+        const read = {};
+        let dead = false;
+        try {
+            await who.update({ [`${R}.hitPoints.value`]: hpMax, [`${R}.stress.value`]: stressMax });
+            await syncStates(who);
+            await settle();
+            read.alive = states();
+            dead = Boolean(await killCharacter(who, { secret: false, keepBullets: true }));
+            must(dead, `${who.name}'s death could not be published - this would measure nothing`);
+            await settle();
+            read.dead = states();
+            dead = !(await reviveCharacter(who, { quiet: true }));
+            await settle();
+            read.revived = states();
+        } finally {
+            if (dead) await reviveCharacter(who, { quiet: true });
+            await who.update(Object.fromEntries(Object.entries(was).map(([k, v]) => [`${R}.${k}`, v])));
+            await syncStates(who);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ alive: [true, true], dead: [false, false], revived: [true, true] }),
+            "a death or a revive did not reach the conditions by itself [Wounded and Breakdown: alive with every mark, dead, revived]");
+    }],
+
     ["Confusion's lines tell the truth once (E15-T6): a critical Help on a target with every action left says nothing came back, a critical Hinder on a target with none says nothing was lost, a critical Help on one short gives the action back as it says, and a +1 Hinder sends its target one card", async () => {
         /*
          * E15 part 1 C4, 25.10.2026; E15-22, audit S09-30. A Monocub (the flag, as "a Monocub marked a crime

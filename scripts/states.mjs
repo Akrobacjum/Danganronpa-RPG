@@ -99,11 +99,31 @@ export function registerStates() {
 /**
  * Health and Sanity writes, and since E15 C4 the two flags that take both states away: a death
  * published (`deceased`) and a Monocub made (`monocub`), see `heldNone`.
+ *
+ * A FLAG TAKEN AWAY IS A CHANGE TOO (E15 part 1 fix e1-G3, 25.10.2026; finding E15p1-END-3). A
+ * revive (chapter.mjs `reviveCharacter`, the season reset's revive-all) unsets `deceased`, and the
+ * key a deletion arrives under is the flag's own (a ForcedDeletion, as the harness writes it) or
+ * `-=deceased` (a `-=` spelling; which one v14's `unsetFlag` hands this hook is LIVE-E30-03's, not
+ * measured): read only by its own name, a revived student showed no Wounded or Breakdown until the
+ * next Health or Sanity write while the budget and the dice read the tracks (tier 1 R980 at
+ * c93be060: the `-=` spellings read as no change). Every spelling, and the module's whole flags
+ * deleted at once, now count; voice.mjs `reconcileTrigger` reads the same. Exported for R980.
  */
-function touchesTracks(changes) {
+export function touchesTracks(changes) {
     const r = changes?.system?.resources;
-    const f = changes?.flags?.[MODULE_ID] ?? {};
-    return Boolean(r?.hitPoints || r?.stress || FLAGS.deceased in f || FLAGS.monocub in f);
+    return Boolean(r?.hitPoints || r?.stress || namesFlag(changes, FLAGS.deceased) || namesFlag(changes, FLAGS.monocub));
+}
+
+/**
+ * Whether an update's `changes` set or delete the module's flag `key`: by its name, by `-=key`, or by the module's
+ * whole flags deleted (`-=<module>`). Pure.
+ */
+export function namesFlag(changes, key) {
+    const flags = changes?.flags;
+    if (!flags || typeof flags !== "object") return false;
+    if (`-=${MODULE_ID}` in flags) return true;
+    const f = flags[MODULE_ID];
+    return Boolean(f && typeof f === "object" && (key in f || `-=${key}` in f));
 }
 
 /* ==========================================================================

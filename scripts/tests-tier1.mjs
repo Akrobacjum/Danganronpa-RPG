@@ -21254,6 +21254,37 @@ const INVARIANTS = [
         equal(JSON.stringify([sums, text.includes(`${sums[0]}-${sums[1]}`), /\{(low|high)\}/.test(text)]), JSON.stringify([[7, 10], true, false]),
             `the trap's budget is not its parts' sums, 7-10 (the parts' sums, the text holds them, a placeholder left): ${text}`);
     }],
+    ["R980 - a revive reaches the conditions and the voice: a deletion of the deceased or the Monocub flag, in each spelling, is a change of the two flags that take both conditions away (E15 part 1 fix e1-G3)", async () => {
+        /*
+         * E15 part 1 fix e1-G3, 25.10.2026; finding E15p1-END-3. states.mjs's hook on `updateActor` syncs Wounded
+         * and Breakdown on the primary when `touchesTracks(changes)` says the update moved Health, Sanity, or one of
+         * the two flags that take both away (`deceased`, `monocub`); voice.mjs `reconcileTrigger` asks the same two
+         * flags. A revive unsets `deceased`, and whether v14's `unsetFlag` hands the hook the flag's own key (a
+         * ForcedDeletion) or `-=deceased` is LIVE-E30-03's, not measured; read here: each flag set, deleted under its
+         * name, deleted as `-=key`, the module's flags deleted whole, and two controls (another flag of the module's,
+         * another module's flag). Red at c93be060: `touchesTracks` was not exported, and `reconcileTrigger` read
+         * neither `-=` spelling nor the module's flags deleted (with states.mjs's fix alone: "1 passed, 1 failed").
+         */
+        const S = await import("./states.mjs");
+        const { reconcileTrigger } = await import("./voice.mjs");
+        must(typeof S.touchesTracks === "function", "states.mjs exports no touchesTracks - the hook's reading cannot be asked");
+        const flags = f => ({ flags: f });
+        // The old spelling put together at run time, as R152 asks: these are an update's changes as a hook reads them.
+        const DEL = "-" + "=";
+        const cases = [
+            ["deceased set", flags({ [MODULE_ID]: { [FLAGS.deceased]: { at: 1 } } })],
+            ["deceased deleted", flags({ [MODULE_ID]: { [FLAGS.deceased]: null } })],
+            ["deceased deleted the old way", flags({ [MODULE_ID]: { [DEL + FLAGS.deceased]: null } })],
+            ["monocub deleted the old way", flags({ [MODULE_ID]: { [DEL + FLAGS.monocub]: null } })],
+            ["monocub false", flags({ [MODULE_ID]: { [FLAGS.monocub]: false } })],
+            ["the module's flags deleted", flags({ [DEL + MODULE_ID]: null })],
+            ["another flag", flags({ [MODULE_ID]: { [FLAGS.monokuma]: true } })],
+            ["another module", flags({ core: { [DEL + FLAGS.deceased]: null } })]
+        ];
+        const read = cases.map(([name, changes]) => [name, S.touchesTracks(changes), Boolean(reconcileTrigger("updateActor", {}, changes)?.immediate)]);
+        equal(JSON.stringify(read), JSON.stringify(cases.map(([name], i) => [name, i < 6, i < 6])),
+            "per update [what it changes, the conditions' hook syncs, the voice reconciles at once]: a deleted flag was not read as a change, or another flag was");
+    }],
     ["R841 - a request still waiting is asked again of a new primary GM, three times at most: when a primary's world loads, and when the primary leaves for another GM who is here", async () => {
         /*
          * E18 C2, 19.10.2026; audit S10-43 part 1 (E18-09). The waiter asked again once, and only when a primary's

@@ -249,8 +249,12 @@ const RECONCILE_HOOKS = ["updateActor", "updateUser", "createRegion", "updateReg
 export function reconcileTrigger(hook, doc, changes) {
     switch (hook) {
         case "updateActor": {
-            const flags = changes?.flags?.[MODULE_ID];
-            if (flags && (FLAGS.deceased in flags || FLAGS.monocub in flags)) return { immediate: true };
+            // A flag deleted counts as one set (E15 part 1 fix e1-G3): a revive's `unsetFlag` may arrive as
+            // `-=deceased` (LIVE-E30-03), and states.mjs `namesFlag` reads the same spellings; R980 asks both.
+            const all = changes?.flags;
+            const flags = all?.[MODULE_ID];
+            const named = key => Boolean(flags && typeof flags === "object" && (key in flags || `-=${key}` in flags));
+            if ((all && typeof all === "object" && `-=${MODULE_ID}` in all) || named(FLAGS.deceased) || named(FLAGS.monocub)) return { immediate: true };
             return changes && typeof changes === "object" && "ownership" in changes ? {} : null;
         }
         case "updateUser":
