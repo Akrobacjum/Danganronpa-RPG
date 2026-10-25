@@ -25,7 +25,7 @@
 
 import { MODULE_ID, PROJECT_SCALE, TRAP_TRIGGERS, isProjectGlyph } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { announce, log, error, whisperToOwner, gmIds, esc, isPrimaryGm, serialWrite } from "./utils.mjs";
+import { announce, log, error, whisperToOwner, gmIds, esc, isPrimaryGm, primaryGmId, serialWrite } from "./utils.mjs";
 // Statically: gm-stores.mjs reaches this file only by dynamic import, so the edge closes no cycle (R161).
 import { projectSecretStore, rerollBookmarkStore } from "./gm-stores.mjs";
 /* `discoveredFor` is the per-character record of which rooms somebody has
@@ -1467,46 +1467,52 @@ export async function deleteProject(countdownId) {
  */
 export async function clearAllProjects() {
     if (!game.user.isGM) return null;
-
-    const data = game.settings.get(DH, COUNTDOWNS);
-    const gone = Object.keys(data?.countdowns ?? {}).length;
-
-    /* THE TOKENS FIRST (E11 C7, 1.2.73; audit S06-23, S07-27; the ask A2). This cleared the
-       countdowns and the metadata and left every project token standing: scenario 65 counted the
-       four of a played season - two projects, a duplicate, an orphan - still on their scenes after
-       the reset at 4aad1fd (10.10.2026). `live: []`: after a reset no project exists, so every
-       project token on every scene is an orphan, the base actor's copies without an id included.
-       First, as `deleteProject` takes its token before its row, so no moment holds a token whose
-       project is gone; the sweep reads the tokens' own flags, so the order changes nothing it finds. */
-    try {
-        const { sweepProjectTokens } = await import("./projects-map.mjs");
-        await sweepProjectTokens({ live: [] });
-    } catch (err) {
-        error("Could not take the season's project tokens off the maps", err);
+    /* THE PRIMARY'S ALONE (E36 fix e1-G3, 25.10.2026; findings E36-R3, F5). Another GM's reset (a console: the
+       reset window asks for the primary before it writes, season-setup.mjs) queued its step on its own browser,
+       which orders nothing the primary's queue does, and dropped only the secrets that browser held. Refused here
+       with the window's own words, nothing cleared (E36-T8). */
+    if (!isPrimaryGm()) {
+        const name = game.users.get(primaryGmId())?.name ?? "?";
+        ui.notifications?.warn(game.i18n.format("DRPG.GmStore.resetPrimaryOnly", { name }));
+        log("The projects were not cleared: the season reset is the primary GM's.");
+        return null;
     }
 
-    /* IN THE QUEUE (E36 C2, 25.10.2026; audit S17-18): one step of `COUNTDOWNS_KEY`, so a change already queued
-       lands before the reset and none lands half-way through it. The setting is read again in the step: a change
-       that landed since `gone` was counted is cleared with the rest. Not through `applyProjectChange` one project
-       at a time, for the reason above. The reset window is the primary's; another GM's reset (a console) queues
-       on its own browser, which orders nothing the primary does (the stage's gap). Daggerheart's own setting is
-       spread back - `countdowns` is one key inside it, not all of it. */
-    await serialWrite(COUNTDOWNS_KEY, async () => {
-        await writeAllCountdowns({ ...game.settings.get(DH, COUNTDOWNS), countdowns: {} });
+    /* ONE STEP OF THE QUEUE (E36 C2; E36 fix e1-G3, 25.10.2026; findings E36-END-S4, E36-R3, F5). The countdowns,
+       projectMeta, every project's secrets (E05) and the traps' two stores (ITEM-08) go in one step of
+       `COUNTDOWNS_KEY`, joined before anything here awaits: a change queued before the reset lands before it, one
+       queued after it lands after it, whole. The secrets and the traps were cleared after the step, outside the
+       queue, so a trap made by a change queued behind the reset lost its killer and its trigger to the clear that
+       followed (E36-T8 at cc6a57dd). Not through `applyProjectChange` one project at a time, for the reason above;
+       the setting is read in the step, so a change that landed before it is cleared with the rest. Daggerheart's
+       own setting is spread back - `countdowns` is one key inside it, not all of it. */
+    const gone = await serialWrite(COUNTDOWNS_KEY, async () => {
+        const data = game.settings.get(DH, COUNTDOWNS);
+        const count = Object.keys(data?.countdowns ?? {}).length;
+        await writeAllCountdowns({ ...data, countdowns: {} });
         await game.settings.set(MODULE_ID, SETTINGS.projectMeta, {});
+        await projectSecretStore.clear();
+        try {
+            const { pruneTrapsFor } = await import("./traps.mjs");
+            await pruneTrapsFor(null);
+        } catch (err) {
+            error("Could not prune the season's traps", err);
+        }
+        return count;
     });
-    /* Every project's secrets with them (E05): the primary's clear is a cut every GM takes, as the
-       traps' two stores below; another GM's reset (a console - the window is the primary's) drops
-       the rows it holds. */
-    if (isPrimaryGm()) await projectSecretStore.clear();
-    else await projectSecretStore.dropMany(Object.keys(projectSecretStore.entries()));
 
-    // Nothing planted for a project that no longer exists (ITEM-08).
+    /* THE TOKENS AFTER IT (E11 C7, 1.2.73; audit S06-23, S07-27; the ask A2; after the step since E36 fix e1-G3).
+       This cleared the countdowns and the metadata and left every project token standing: scenario 65 counted the
+       four of a played season - two projects, a duplicate, an orphan - still on their scenes after the reset at
+       4aad1fd (10.10.2026). Swept before the step, a project made behind the reset kept a token the sweep never
+       saw, and one made before it was cleared beside the token its change had placed (E36-T8). After the step,
+       every project token whose project is not standing now goes - the base actor's copies without an id
+       included - and a project made since keeps its own. */
     try {
-        const { pruneTrapsFor } = await import("./traps.mjs");
-        await pruneTrapsFor(null);
+        const { sweepProjectTokens } = await import("./projects-map.mjs");
+        await sweepProjectTokens();
     } catch (err) {
-        error("Could not prune the season's traps", err);
+        error("Could not take the season's project tokens off the maps", err);
     }
 
     log(`Season reset: cleared ${gone} project(s).`);

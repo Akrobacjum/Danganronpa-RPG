@@ -65483,6 +65483,97 @@ const SCENARIOS = [
         }), "who sees a project is worked out before the step, not in it [the viewers before; a revoke of A and a share with C held "
             + "together: what each answered, the viewers after; two shares; a share and a window's seal]");
     }],
+    ["the season's projects go in one step of the queue (E36-T8): a reset on a browser that is no longer the primary clears nothing, and on the primary a trap made while the reset waits in the queue lands after it whole - its killer and its trigger kept, its token on the map - while every project before it and its token are gone", async () => {
+        /*
+         * E36 fix e1-G3, 25.10.2026; findings E36-END-S4, E36-R3, F5, audit S17-18. projects.mjs `clearAllProjects`
+         * swept the project tokens before its step, cleared the Countdowns setting and projectMeta in a step of
+         * `COUNTDOWNS_KEY`, and cleared the project secrets' store and the traps' stores after it, outside the queue:
+         * a project made by a change queued behind the reset landed after its step and lost its killer and trigger
+         * to the clear that followed, and another GM's reset (a console) queued on its own browser. Now the stores'
+         * clears are in the step, the tokens are swept after it of every project not standing then, and off the
+         * primary nothing is cleared. Read on this primary's browser: (1) a full GM planted in the user list with an
+         * id sorting first (as E36-T2 plants a GM), so this browser is no longer the primary: the reset's answer and
+         * the old project; (2) the GM planted out, a step held on `COUNTDOWNS_KEY`, the reset asked and a watched
+         * trap made in a room behind it, then let go: the old project (a trap too), its tokens and its secrets, the trap, its killer and
+         * trigger in the GMs' store, and its tokens. The world's countdowns, projectMeta and the three stores are
+         * put back as they were found. At cc6a57dd: (1) the reset ran on the planted non-primary's word, (2) the
+         * trap's killer and trigger were cleared.
+         */
+        needs(world.atLeast("sceneOnScreen"), "a scene on screen with a named region for the projects' tokens");
+        needs(world.atLeast("playerCharactersInRooms"), "a character whose trap it is");
+        const P = await import("./projects.mjs");
+        const S = await import("./projects-secrecy.mjs");
+        const M = await import("./projects-map.mjs");
+        const { projectSecretStore, trapPlantStore, trapLedgerStore } = await import("./gm-stores.mjs");
+        const { TRAP_TRIGGERS } = await import("./config.mjs");
+        const { serialWrite, isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this GM is not the primary, whose queue the reset waits in - run the suite on the primary GM");
+        const watched = Object.keys(TRAP_TRIGGERS).find(kind => TRAP_TRIGGERS[kind]?.watch);
+        must(watched, "no watched trap trigger - the trap would keep nothing to measure");
+        const { actor } = await playerInRoom();
+        const room = [...new Set((canvas.scene.regions?.contents ?? []).map(region => region.name).filter(Boolean))][0];
+        must(room, "the scene on screen has no named region - this would measure nothing");
+        const plain = () => { const data = game.settings.get("daggerheart", "Countdowns"); return foundry.utils.deepClone(data?.toObject?.() ?? data ?? {}); };
+        const countdownsWas = plain();
+        const metaWas = foundry.utils.deepClone(P.projectMeta());
+        const stores = [projectSecretStore, trapPlantStore, trapLedgerStore];
+        const storesWas = stores.map(store => foundry.utils.deepClone(store.entries() ?? {}));
+        const tokensOf = id => M.projectTokensOn(game.scenes).filter(t => t.projectId === id).length;
+        const FIRST = { id: "0E36T8firstGM000", name: "E36 T8 first GM", role: CONST.USER_ROLES.GAMEMASTER, isGM: true, active: true };
+        const seen = {};
+        let release = () => {};
+        try {
+            const old = (await P.createProject({ name: "SUITE E36 T8 old", target: 3, room, indirectMurder: true, killerId: actor.id, condition: "SUITE E36 T8 old" }))?.id ?? null;
+            must(old, "could not create the project the reset clears - this would measure nothing");
+            await settle();
+            seen.oldTokens = tokensOf(old);
+            seen.oldSecrets = Boolean(S.secretsOf(old).killerId);
+            game.users.set(FIRST.id, FIRST);
+            let answer;
+            try {
+                answer = await P.clearAllProjects();
+            } finally {
+                game.users.delete(FIRST.id);
+            }
+            seen.notPrimary = { answer: answer ?? null, old: Boolean(S.rawCountdown(old)) };
+
+            const gate = new Promise(resolve => { release = resolve; });
+            const hold = serialWrite(S.COUNTDOWNS_KEY, () => gate);
+            const reset = P.clearAllProjects();
+            const trap = P.createProject({ name: "SUITE E36 T8 trap", target: 2, room, indirectMurder: true, killerId: actor.id,
+                condition: "SUITE E36 T8", trigger: { kind: watched } });
+            await settle();
+            release();
+            await hold;
+            const [cleared, made] = await Promise.all([reset, trap]);
+            await settle();
+            const id = made?.id ?? null;
+            const secrets = id ? S.secretsOf(id) : {};
+            seen.reset = { cleared: typeof cleared === "number", old: Boolean(S.rawCountdown(old)), oldTokens: tokensOf(old), oldSecrets: Object.keys(S.secretsOf(old)).length,
+                trap: Boolean(id && S.rawCountdown(id)), killer: secrets.killerId === actor.id, trigger: secrets.trigger?.kind ?? null,
+                trapTokens: id ? tokensOf(id) : null };
+        } finally {
+            release();
+            game.users.delete(FIRST.id);
+            await game.settings.set("daggerheart", "Countdowns", countdownsWas);
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, metaWas);
+            for (const [i, store] of stores.entries()) {
+                const now = Object.keys(store.entries() ?? {});
+                if (now.length) await store.dropMany(now);
+                if (Object.keys(storesWas[i]).length) await store.patchMany(storesWas[i]);
+            }
+            await M.sweepProjectTokens();
+            await settle();
+        }
+        equal(stableJson(seen), stableJson({
+            oldTokens: 1,
+            oldSecrets: true,
+            notPrimary: { answer: null, old: true },
+            reset: { cleared: true, old: false, oldTokens: 0, oldSecrets: 0, trap: true, killer: true, trigger: watched, trapTokens: 1 }
+        }), "the season's reset of the projects is not one step of the queue on the primary [the old project's token and its killer in the GMs' store; off the primary: "
+            + "the answer, the old project; with a trap made behind it: cleared, the old project, its tokens and its secrets, the trap, its killer, "
+            + "its trigger, its tokens]");
+    }],
     ["a project's token follows its project (E36-T6): after each change of a project one function puts its token right - made in a room it stands there once, its room changed it moves there once, finished it changes colour and back, shared or taken back the visibility pass runs over it, with no room or no project it is gone, a dragged token is not moved back, and a second GM's project and a second scene draw make one token", async () => {
         /*
          * E36 C4, 25.10.2026; E36-14 and E36-15, audit S09-19, S09-20. A project's token was put right by the sync
