@@ -590,12 +590,23 @@ async function rotEverything(amount) {
     return { worn, spared };
 }
 
-/** Every project loses progress. */
+/**
+ * Every project at work loses progress.
+ *
+ * NOT A FINISHED OR A FROZEN ONE (E15 part 1 C1, 25.10.2026; audit S09-18, CALL-10). A finished
+ * trap shaken from 6/6 to 5/6 left the murder window's armed traps, and filled again said "trap
+ * ready" and "project done" a second time; a frozen project waits for its repair, and taking
+ * from it moved a bar nobody may work on. CALL-10 keeps both out of the Calls for that reason,
+ * and the Earthquake now keeps them out the same way (tier 2 E15-T1 at d90687dc: a finished
+ * project of 2 went to 1 and a frozen one lost 1; after, both kept their bars and one at 1 went
+ * to 0).
+ */
 async function shakeProjects(amount) {
-    const { allProjects, addProgress } = await import("./projects.mjs");
+    const { allProjects, addProgress, isComplete, isFrozen } = await import("./projects.mjs");
     let moved = 0;
     for (const project of allProjects()) {
         if (!project.current) continue;          // nothing to take
+        if (isComplete(project) || isFrozen(project.id)) continue;
         const took = Math.min(amount, project.current);
         // The entry's change by "system" (E36 C3), one a project, each in the queue: no card of its own.
         if (await addProgress(project.id, -took, { kind: "system" })) moved++;

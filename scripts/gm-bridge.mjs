@@ -4329,7 +4329,7 @@ export const CALL_GM_WHAT = "gm.call";
  * player's own words quoted, the caller's body, the GM's reference, "awaiting a ruling"
  * and the GM's buttons. Its own function so the card is read without posting one (R838).
  */
-export function callCardHtml(actor, { title, body = "", roll = null, request = "", room = null, gmBody = "", actions = [], expires = null } = {}) {
+export function callCardHtml(actor, { title, body = "", roll = null, request = "", room = null, gmBody = "", actions = [], expires = null, receipt = false } = {}) {
     const parts = [];
     parts.push(`<h3>${esc(title)}</h3>`);
     parts.push(`<p><strong>${esc(actor?.name ?? "?")}</strong>${room ? ` · ${esc(room)}` : ""}</p>`);
@@ -4364,8 +4364,11 @@ export function callCardHtml(actor, { title, body = "", roll = null, request = "
     if (body) parts.push(`<div class="drpg-call-body">${body}</div>`);
     if (gmBody) parts.push(`<div class="drpg-gm-only">${gmBody}</div>`);
     // Classed so `settleCall` can take it off again once the card is answered - its time with it (E18 C2).
-    parts.push(`<p class="drpg-call-awaiting"><em>${
-        game.i18n.localize("DRPG.Bridge.awaitingRuling")}</em>${expiresHtml(expires)}</p>`);
+    // A receipt awaits nothing (`callGm`'s `receipt`), so it says nothing is awaited.
+    if (!receipt) {
+        parts.push(`<p class="drpg-call-awaiting"><em>${
+            game.i18n.localize("DRPG.Bridge.awaitingRuling")}</em>${expiresHtml(expires)}</p>`);
+    }
 
     if (actions.length) {
         parts.push(`<div class="drpg-call-actions">${actions.map(a => {
@@ -4482,7 +4485,17 @@ export async function callGm(actor, {
      * The user whose thread the card goes to, when that user is a player who owns the character (E18 fix e1-G7): the
      * asker of a question the primary holds for them. Otherwise the character's first owner's (`ownerOf`).
      */
-    thread = null
+    thread = null,
+    /**
+     * A RECEIPT, NOT A QUESTION (E15 part 1 C1, 25.10.2026; audit S09-34). A card that tells what the
+     * module did and asks nobody anything - a watched trap armed, its Plant button aside - said
+     * "Awaiting a ruling." and rang the GMs as a question (`gmAsk`, its sound, the popup): the killer
+     * waited on a ruling that was never coming and the GMs were interrupted for a receipt. True: no
+     * "awaiting" line, no `gmAsk`, no sound or popup of a question. Every other card at d90687dc
+     * carries buttons or is answered by a reply (`askGm`: Think, Listen and the rest), so is a
+     * question; the watched trap's receipt is the one caller (projects.mjs `announceTrapReady`).
+     */
+    receipt = false
 } = {}) {
     /*
      * NO GM, NO CARD (E18 C0, 19.10.2026; audit S10-26). With no GM connected this posted
@@ -4496,7 +4509,7 @@ export async function callGm(actor, {
         sayNotDone(what, "noGm", { nothingSpent });
         return false;
     }
-    const content = callCardHtml(actor, { title, body, roll, request, room, gmBody, actions, expires });
+    const content = callCardHtml(actor, { title, body, roll, request, room, gmBody, actions, expires, receipt });
     const owner = gmOnly ? null : threadOf(actor, thread);
 
     if (!owner) {
@@ -4524,9 +4537,12 @@ export async function callGm(actor, {
         try {
             const whispered = await whisperToGms(content, {
                 flags: { [MODULE_ID]: {
-                    callCard: true, gmPopup: true,
-                    popupTitle: gmOnly ? game.i18n.localize("DRPG.Action.murderRulingTitle") : title,
-                    sfx: { key: "gmAsk", gm: true },
+                    callCard: true,
+                    ...(receipt ? {} : {
+                        gmPopup: true,
+                        popupTitle: gmOnly ? game.i18n.localize("DRPG.Action.murderRulingTitle") : title,
+                        sfx: { key: "gmAsk", gm: true }
+                    }),
                     ...(rid ? { rid } : {})
                 } }
             });
@@ -4543,7 +4559,7 @@ export async function callGm(actor, {
         // Every callGm card is, by definition, a call ON the GM - the flag is
         // what tells the messenger's notifier to interrupt them for it. See
         // MESSENGER_FLAGS.gmAsk for why this cannot be derived from the author.
-        const posted = await postToThread(owner.id, content, { gmAsk: true, veiled, rid });
+        const posted = await postToThread(owner.id, content, { gmAsk: !receipt, veiled, rid });
         if (posted) onPosted?.(posted);
         return Boolean(posted);
     } catch (err) {

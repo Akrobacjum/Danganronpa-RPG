@@ -2637,7 +2637,7 @@
         "silence": "No Hope Calls. Not one, by anybody.",
         "fog": "You cannot find your way for free: no Free Move. Crossings still cost actions as usual.",
         "rot": "Everything the school owns gets worse at once: {n} durability off every item with more than one point left. Nothing breaks.",
-        "earthquake": "The building shakes and work is undone: every project loses {n} progress."
+        "earthquake": "The building shakes and work is undone: every project still under way loses {n} progress."
       },
       "rulesChanged": "The overflow has been retuned. It now fires at {n}.",
       "explainTitle": "What is despair overflow",

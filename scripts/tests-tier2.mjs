@@ -65192,7 +65192,7 @@ const SCENARIOS = [
          * player's, ticking a countdown the player owns and a project the player was given OWNER of (the one a
          * project row's `isProject` alone keeps from landing): the bars while held and after; (2) the Earthquake
          * alone in the hat, drawn by `checkOverflow` as the Rot's test draws the Rot, on a full project of 2: its
-         * card count and the bar; (3) the player's Work and Sabotage drawn as the GM draws that player's rolls
+         * card count and the bar (taken back to 1, "system", until E15 part 1 C1 kept a finished project out of it); (3) the player's Work and Sabotage drawn as the GM draws that player's rolls
          * (`drawnForPlayer`) and judged as the listener judges the packets, a share of a secret project with
          * another player, and the GM's undo of the Sabotage (`project.unsabotage`): each while held and after; the
          * same three rows forged at a secret project in that room the player cannot see, the rolls drawn naming it:
@@ -65401,7 +65401,8 @@ const SCENARIOS = [
         seen.kinds = kinds.filter(([id]) => label[id]).map(([id, way, kind, actorId]) => [label[id], way, kind, actorId === actor.id ? "the character" : actorId]);
         equal(stableJson(seen), stableJson({
             relay: { held: [0, 0], after: [1, 0] },
-            quake: { effect: "earthquake", cards: 1, bar: 1 },
+            // A finished project is the Earthquake's no more (E15 part 1 C1, audit S09-18): its bar stays, nothing uncrosses.
+            quake: { effect: "earthquake", cards: 1, bar: 2 },
             work: { held: 0, after: 1, told: null },
             sabotage: { held: false, after: true, told: null },
             share: { held: false, after: true, told: null },
@@ -65410,7 +65411,7 @@ const SCENARIOS = [
             twice: { answered: [true, false], repairs: 1, pair: true },
             call: { failed: false, bar: 1 },
             reroll: { filled: { stood: true, bar: 1, done: 1 }, trap: { armedBefore: true, stood: true, bar: 0, done: 0, armed: false } },
-            kinds: [["quake", "crossed", "gm", null], ["quake", "uncrossed", "system", null], ["work", "crossed", "player", "the character"],
+            kinds: [["quake", "crossed", "gm", null], ["work", "crossed", "player", "the character"],
                 ["call", "crossed", "call", "the character"], ["rerolled", "crossed", "reroll", "the character"], ["trap", "crossed", "gm", null],
                 ["trap", "uncrossed", "reroll", "the character"]]
         }), "a player's road, a Call, the Reroll, the Earthquake or the relay does not end in the one entry [the relay's tick and the owned project "
@@ -66017,6 +66018,219 @@ const SCENARIOS = [
             + "where the token stands, its moves, tokens; the tint working, finished, taken back; its room cleared: tokens; a share and a revoke: "
             + "the visibility pass ran, the player knows it; deleted: tokens; dragged into the other room: the room, its moves, whether it stays "
             + "where it was dropped; a second GM's project: made, its tokens, and after a second scene draw]");
+    }],
+
+    ["projects keep what the GM chose in the GMs' windows and on the map (E15-T1): a token dropped by its room's east wall moves its project into that room, not past it, and one dropped between rooms moves it nowhere the token is not; a proposal's scale and an off-scale target are the ones the window opens on; the edit names an indirect murder's killer or refuses it; the trap's fields show only with Indirect murder and the viewers only with Secret or Indirect murder; an Earthquake takes nothing from a finished or a frozen project; a watched trap's receipt says nothing is awaited and rings no question, once an arming", async () => {
+        /*
+         * E15 part 1 C1, 25.10.2026; E15-01, E15-05 to E15-10, audit S09-12, S09-13, S09-16, S09-18, S09-23,
+         * S09-34, S09-14's receipt. Read on this primary's browser: (1) a project in one room whose token is dropped
+         * (as E36-T6 drops one) with its centre a quarter square inside the east wall of another room on the scene
+         * on screen, then with its centre half a square past that wall: the project's room against movement.mjs
+         * `roomOfToken` (the room every other rule reads for the token); (2) the project window
+         * (`openProjectDialog`, DialogV2.wait answered here) opened on a player's proposal of 6, of 5 (no scale's)
+         * and of none: the selected scale; (3) the edit of a project nobody proposed, Indirect murder ticked with no
+         * player ticked and then with one: what the window said, the flag and the killer; (4) the window's trap
+         * fields and viewers against the module's own stylesheet rules that hide them (`moduleStyles`, each rule's
+         * selector asked of the form with `matches`; what a browser then paints is not measured headless), on a plain
+         * project, Indirect murder ticked, Secret ticked; (5) the Earthquake alone in the hat (as E36-T5 draws it)
+         * over a finished project, a frozen one and one at 1: their bars; (6) a watched trap's crossing, its
+         * receipt's words (secret.mjs `contentOf`) and its `gmAsk` flag, then fired, taken back and filled again:
+         * the receipts posted. And the three proposal defaults read off the source (projects-ui.mjs, messenger-app.mjs,
+         * action-rolls.mjs): Standard by its table row, not a literal 4. At d90687dc: the dropped token's project
+         * stays in its old room, the proposal's window opens on Standard, the edit saves a murder with no killer, no
+         * rule hides the fields, the Earthquake takes 1 from the finished and the frozen project, the receipt says
+         * "Awaiting a ruling." with the flag set, and the three defaults are a literal 4.
+         */
+        needs(world.atLeast("sceneOnScreen"), "a scene on screen with two named regions for a project's token");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "a player whose character an edited murder names");
+        const P = await import("./projects.mjs");
+        const M = await import("./projects-map.mjs");
+        const UI = await import("./projects-ui.mjs");
+        const o = await import("./overflow.mjs");
+        const { overflowStore } = await import("./gm-stores.mjs");
+        const { positionIn, roomOfToken, boundsOf } = await import("./movement.mjs");
+        const { roomRegions } = await import("./rooms.mjs");
+        const { contentOf, cardFlag } = await import("./secret.mjs");
+        const { PROJECT_SCALE, TRAITS } = await import("./config.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this GM is not the primary, whose browser keeps the project tokens - run the suite on the primary GM");
+        const scene = canvas.scene;
+        const [room, elsewhere] = [...new Set((scene.regions?.contents ?? []).map(region => region.name).filter(Boolean))];
+        must(room && elsewhere, "the scene on screen has no two named regions - this would measure nothing");
+        const player = game.users.find(u => !u.isGM && u.active && game.actors.some(a => a.type === "character" && a.testUserPermission(u, "OWNER")));
+        const character = game.actors.find(a => a.type === "character" && a.testUserPermission(player, "OWNER"));
+        const [killer] = cast(1);
+        const meta = foundry.utils.deepClone(P.projectMeta());
+        const overflowWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.overflow) ?? {});
+        const rulesWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.overflowRules) ?? {});
+        const countWas = o.overflowCount();
+        const before = new Set(game.messages.map(m => m.id));
+        const fresh = () => { const had = new Set(game.messages.map(m => m.id)); return () => game.messages.filter(m => !had.has(m.id)); };
+        const bar = id => P.allProjects().find(p => p.id === id)?.current ?? null;
+        const made = [], seen = {};
+        const make = async (name, extra = {}) => {
+            const id = (await P.createProject({ name: `SUITE E15 T1 ${name}`, target: 4, ...extra }))?.id ?? null;
+            must(id, `could not create "${name}" - this would measure nothing`);
+            made.push(id);
+            await settle();
+            return id;
+        };
+        const D = foundry.applications.api.DialogV2;
+        const ownWait = Object.getOwnPropertyDescriptor(D, "wait");
+        const warn = ui.notifications.warn;
+        const warned = [];
+        let answer = null;
+        D.wait = async cfg => {
+            const root = document.createElement("div");
+            root.innerHTML = typeof cfg?.content === "string" ? cfg.content : (cfg?.content?.outerHTML ?? "");
+            return answer ? answer(cfg, root) : "cancel";
+        };
+        ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+        try {
+            // (1) The drag.
+            const dragged = await make("dragged", { room: elsewhere });
+            const token = M.projectTokenOf(dragged);
+            const box = boundsOf(roomRegions(scene, room)[0]);
+            must(token && box, "the project's token was not placed, or the room has no box - this would measure nothing");
+            const grid = scene.grid?.size ?? 100;
+            const [w, h] = [token.width * grid, token.height * grid];
+            const drop = async centreX => {
+                const at = { x: Math.round(centreX - w / 2), y: Math.round(box.y + box.h / 2 - h / 2) };
+                await M.projectTokenOf(dragged).update(at, { teleport: true, movementAction: "displace", animate: false });
+                await settle();
+                const now = M.projectTokenOf(dragged);
+                return { room: P.roomOf(dragged), stands: now ? roomOfToken(now) : "no token", stays: now?.x === at.x && now?.y === at.y };
+            };
+            const inside = await drop(box.x + box.w - grid / 4);
+            const between = await drop(box.x + box.w + grid / 2);
+            seen.drag = { inside, between: { room: between.room === (between.stands ?? room), stays: between.stays } };
+
+            // (2) The proposal's scale.
+            const scaleOf = async preset => {
+                let picked = null;
+                answer = (cfg, root) => {
+                    const select = root.querySelector('select[name="target"]');
+                    picked = [...(select?.options ?? [])].filter(opt => opt.selected).map(opt => Number(opt.value));
+                    return "cancel";
+                };
+                await UI.openProjectDialog({ preset: { name: "SUITE E15 T1 proposal", room: null, trait: null, indirectMurder: false, condition: "", by: null, ...preset } });
+                answer = null;
+                return picked;
+            };
+            seen.scale = { complex: await scaleOf({ target: PROJECT_SCALE.complex.progress }), off: await scaleOf({ target: 5 }), none: await scaleOf({}) };
+
+            // (3) The edit's killer, (4) the window's fields.
+            const rules = [...(await moduleStyles()).replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+                .map(m => ({ selector: m[1].trim(), body: m[2] }))
+                .filter(rule => /display:\s*none/.test(rule.body) && /data-drpg-when-(murder|secret)/.test(rule.selector));
+            const matched = el => rules.some(rule => rule.selector.split(",").some(one => { try { return el.matches(one.trim()); } catch { return false; } }));
+            const hidden = el => { for (let n = el; n; n = n.parentElement) if (matched(n)) return true; return false; };
+            // A Secret project nobody was let in on: its boxes are the GM's to tick (an edited public one shows them locked).
+            const plain = await make("edited", { secret: true, viewers: [] });
+            const edit = tick => async (cfg, root) => {
+                const form = root.querySelector("form");
+                form.trait.value = form.trait.value || Object.keys(TRAITS)[0];
+                const fields = () => [hidden(form.querySelector('[name="trigger"]')), hidden(form.querySelector('[name="condition"]')),
+                    hidden(form.querySelector('[name="viewers"]'))];
+                form.secret.checked = false;
+                form.murder.checked = false;
+                const shown = { plain: fields() };
+                form.secret.checked = true;
+                shown.secret = fields();
+                form.secret.checked = false;
+                form.murder.checked = true;
+                shown.murder = fields();
+                seen.fields ??= shown;
+                form.secret.checked = true;
+                for (const box of form.querySelectorAll('[name="viewers"]')) box.checked = tick && box.value === player.id;
+                const save = (cfg.buttons ?? []).find(b => b.action === "save");
+                return save.callback(new Event("click"), save, { element: root });
+            };
+            const project = () => P.allProjects().find(p => p.id === plain);
+            answer = edit(false);
+            const refused = await UI.openProjectDialog({ project: project() });
+            await settle();
+            const first = { returned: refused === null, told: warned.includes(game.i18n.localize("DRPG.Project.needsKiller")),
+                murder: P.isIndirectMurder(plain), killer: P.secretsOf(plain).killerId ?? null };
+            answer = edit(true);
+            await UI.openProjectDialog({ project: project() });
+            answer = null;
+            await settle();
+            seen.edit = { refused: first, named: { murder: P.isIndirectMurder(plain), killer: P.secretsOf(plain).killerId === character.id } };
+
+            // (5) The Earthquake.
+            const full = await make("full", { target: 2 });
+            await P.applyProjectChange(full, { delta: 2 });
+            const broken = await make("broken", { target: 4 });
+            await P.applyProjectChange(broken, { delta: 2 });
+            const repair = (await P.sabotageProject(broken, 3))?.repair?.id ?? null;
+            if (repair) made.push(repair);
+            must(P.isFrozen(broken), "the sabotage froze nothing - this would measure nothing");
+            const frozenAt = bar(broken);
+            const working = await make("working", { target: 4 });
+            await P.applyProjectChange(working, { delta: 1 });
+            const effects = Object.fromEntries(Object.keys(o.overflowRules().effects).map(key => [key, key === "earthquake" ? { on: true, by: 1 } : { on: false }]));
+            await game.settings.set(MODULE_ID, SETTINGS.overflowRules, { ...rulesWas, effects });
+            await game.settings.set(MODULE_ID, SETTINGS.overflow, { active: null });
+            await overflowStore.patch("record", { count: o.overflowThreshold() });
+            const fired = await o.checkOverflow();
+            await settle();
+            seen.quake = { effect: fired?.effect ?? null, full: bar(full), frozen: bar(broken) === frozenAt, working: bar(working) };
+
+            // (6) The receipt.
+            const trap = await make("trap", { target: 1, indirectMurder: true, killerId: killer.id, by: killer.id, condition: "SUITE E15 T1",
+                trigger: { kind: "alone", afterDark: false, notBuilder: true } });
+            const title = game.i18n.localize("DRPG.Trap.armedTitle");
+            const receipts = news => news().filter(m => String(contentOf(m) ?? "").includes(title));
+            let news = fresh();
+            await P.applyProjectChange(trap, { delta: 1 });
+            await settle();
+            const posted = receipts(news);
+            const awaiting = game.i18n.localize("DRPG.Bridge.awaitingRuling");
+            const firstReceipt = { count: posted.length, awaiting: posted.some(m => String(contentOf(m)).includes(awaiting)),
+                asks: posted.some(m => Boolean(cardFlag(m, "gmAsk"))) };
+            await P.patchTrigger(trap, { firedAt: 4242 });
+            news = fresh();
+            await P.applyProjectChange(trap, { delta: -1 });
+            await P.applyProjectChange(trap, { delta: 1 });
+            await settle();
+            seen.receipt = { first: firstReceipt, refilled: receipts(news).length };
+
+            // The defaults, off the source.
+            const sources = await moduleSources();
+            const standard = [["projects-ui.mjs", "openProjectDialog"], ["messenger-app.mjs", "ruleApproveProject"], ["action-rolls.mjs", "startProject"]]
+                .map(([file, fn]) => {
+                    const body = stripComments(fnSource(sources.get(file), fn));
+                    return [fn, /(\|\||\?\?)\s*4\b/.test(body), body.includes("PROJECT_SCALE.everyday.progress")];
+                });
+            seen.defaults = standard;
+        } finally {
+            if (ownWait) Object.defineProperty(D, "wait", ownWait);
+            else delete D.wait;
+            ui.notifications.warn = warn;
+            for (const id of made) if (P.allProjects().some(p => p.id === id)) await P.deleteProject(id).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.overflowRules, rulesWas);
+            await game.settings.set(MODULE_ID, SETTINGS.overflow, overflowWas);
+            await overflowStore.patch("record", { count: countWas });
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, meta);
+            for (const m of game.messages.contents.filter(m => !before.has(m.id))) await m.delete();
+            (await import("./traps.mjs")).forgetArmedTraps();
+            await settle();
+        }
+        equal(stableJson(seen), stableJson({
+            drag: { inside: { room, stands: room, stays: true }, between: { room: true, stays: true } },
+            scale: { complex: [PROJECT_SCALE.complex.progress], off: [5], none: [PROJECT_SCALE.everyday.progress] },
+            fields: { plain: [true, true, true], secret: [true, true, false], murder: [false, false, false] },
+            edit: { refused: { returned: true, told: true, murder: false, killer: null }, named: { murder: true, killer: true } },
+            quake: { effect: "earthquake", full: 2, frozen: true, working: 0 },
+            receipt: { first: { count: 1, awaiting: false, asks: false }, refilled: 0 },
+            defaults: [["openProjectDialog", false, true], ["ruleApproveProject", false, true], ["startProject", false, true]]
+        }), "a project does not keep what the GM chose [a token dropped by the east wall: its project's room, where the token stands, "
+            + "whether it stays; dropped between rooms: the project's room is the token's (or its last), whether it stays; the scale selected "
+            + "for a proposal of 6, of 5, of none; the window's trap trigger, condition and viewers hidden on a plain project, with Secret, "
+            + "with Indirect murder; the edit to a murder with nobody ticked: refused, told, the flag, the killer; with a player ticked: the "
+            + "flag, the killer is theirs; the Earthquake: drawn, a finished project's bar, a frozen one's unchanged, one at 1; the receipt: posted, "
+            + "awaiting, asks; filled again after firing: receipts; the three proposal defaults: a literal 4, the Standard row]");
     }],
 
     ...GRID

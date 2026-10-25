@@ -77,7 +77,7 @@ const MODULE_REMOVAL = "drpgProjectRemoval";
 /* The option the module's own move of a project token passes (E36 C4), as `MODULE_REMOVAL` is
    its deletion's: `syncProjectToken` taking a token to its project's room is no GM's drag, and
    `onProjectTokenMoved` reading it as one would move the project to wherever the token was read
-   to land - a room read wrong at a small room's centre (S09-12) would then carry the project off. */
+   to land - a room read wrong (S09-12, until E15 part 1 C1) would then carry the project off. */
 const MODULE_MOVE = "drpgProjectMove";
 
 /** Is this token document one of ours, and which project is it? */
@@ -180,22 +180,20 @@ function centreOfRoom(scene, room) {
 
 /**
  * THE ROOM A PROJECT TOKEN STANDS IN, read one way for the drag and the sync (E36 C4). `at` is
- * where its top-left corner is, the token's own place unless a move names another. Kept as
- * `onProjectTokenMoved` read it before E36: the centre is computed here and `roomAt` adds half a
- * token again (audit S09-12, E15 part 1 C1's fix, made here once for both). The two readers must
- * agree: with the sync asking where the token really is and the drag asking this, a token dropped
- * by an east or south wall had its project moved by the drag to the room beyond, and the sync then
- * carried the token into that room after it.
+ * where its top-left corner is, the token's own place unless a move names another.
+ *
+ * ONE CENTRING (E15 part 1 C1, 25.10.2026; audit S09-12). `roomAt` takes a token's corner and
+ * tests its centre itself (movement.mjs `regionsAt`, with the token's own scene's grid). This
+ * added half the token first, so the point tested was the token's lower right corner: a
+ * two-square token dropped with its centre inside a room's east or south wall read the room
+ * beyond, or no room, and its project was moved there or left where it was. Tier 2 E15-T1 at
+ * d90687dc: a token dropped with its centre a quarter square inside the east wall of Dorm A
+ * left its project in the Cafeteria it came from; the room every other rule reads for the token
+ * (`roomOfToken`, the same `roomAt` from the corner) was Dorm A. The drag and the sync ask this
+ * one reader, so the two still agree.
  */
 function roomUnder(tokenDoc, at = tokenDoc) {
-    const grid = tokenDoc.parent?.grid?.size ?? canvas?.grid?.size ?? 100;
-    // The token's centre decides, not its corner - a two-square token straddling
-    // a boundary belongs to the room most of it is in.
-    const centre = {
-        x: (at.x ?? tokenDoc.x) + (tokenDoc.width * grid) / 2,
-        y: (at.y ?? tokenDoc.y) + (tokenDoc.height * grid) / 2
-    };
-    return roomAt(centre.x, centre.y, tokenDoc);
+    return roomAt(at.x ?? tokenDoc.x, at.y ?? tokenDoc.y, tokenDoc);
 }
 
 /**

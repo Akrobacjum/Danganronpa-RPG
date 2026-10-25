@@ -672,7 +672,13 @@ export async function applyProjectChange(countdownId, change, { by = null } = {}
  * CROSSING. Crossed when the bar was under its target and is at it now, uncrossed the other way, the
  * target read after the change: `before < start <= after` for a change of progress, as addProgress
  * held it, and a target lowered under the progress crosses (S09-15). A target of 0 is never reached.
- * A Reroll takes progress back and puts it on again, so a bar already full does not cross twice.
+ * A +1 on a full bar cannot move it and is answered above (alreadyFull) with no crossing. THE RISK IS A BAR
+ * TAKEN BACK AND FILLED AGAIN (audit S09-14; E15 part 1 C1 rewrote this, which read a Reroll's
+ * undo as the reason and the risk as handled): a GM's -1, a Reroll's undo or an Earthquake before
+ * E15 part 1 C1 took a finished bar under its target, and filling it again crossed a second time,
+ * so its completion rows ran twice - a trap armed again after it had fired, a second receipt. The
+ * rows answer it (D40): an uncrossing disarms a trap, a crossing does not arm one that has fired
+ * (`firedAt`); tier 2 E36-T3 and E15-T1 count one receipt per arming.
  */
 async function changeStep(countdownId, change, by) {
     // Asked again here, where the step reads (E36 fix e1-G4): off the primary now, `applyProjectChange` asks the primary.
@@ -1373,7 +1379,10 @@ async function announceTrapReady(countdownId, name, { watched = false, armed = f
                     data: { project: countdownId }
                 }] : [],
                 // The killer's receipt, and the killer's thread nobody else may see it in (E06 C8).
-                veiled: true
+                veiled: true,
+                // Nothing to rule on, so nothing awaited and no question rung (audit S09-34): the
+                // plant trigger's card keeps both, since the GM has a Plant to do.
+                receipt: def.needs !== "plant"
             });
             log(`Trap "${name}" is watching for "${kind}" (${killer.name}).`);
             return { armed: kind };

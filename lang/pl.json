@@ -2735,7 +2735,7 @@
         "silence": "Żadnych Hope Calls. Ani jednego, u nikogo.",
         "fog": "Nie znajdujesz drogi za darmo: brak Free Move. Przejścia wciąż kosztują akcje jak zwykle.",
         "rot": "Wszystko, co ma szkoła, psuje się naraz: o {n} wytrzymałości mniej na każdym przedmiocie, który jakąś ma; nic nie łamie się do końca.",
-        "earthquake": "Budynek się trzęsie i praca idzie na marne: każdy projekt traci {n} postępu."
+        "earthquake": "Budynek się trzęsie i praca idzie na marne: każdy projekt w toku traci {n} postępu."
       },
       "rulesChanged": "Overflow przestrojony. Odpala teraz przy {n}.",
       "explainTitle": "Czym jest Despair overflow",

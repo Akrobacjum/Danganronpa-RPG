@@ -18,7 +18,7 @@
  * reason - one way of building markup, not two.
  */
 
-import { MODULE_ID, PRICE_CHAINS } from "./config.mjs";
+import { MODULE_ID, PRICE_CHAINS, PROJECT_SCALE } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { gmIds, ownerOf, whisperToGms, error, debug, warn } from "./utils.mjs";
 import { showPopup } from "./popup.mjs";
@@ -866,7 +866,8 @@ async function ruleApproveProject(action, data) {
     const made = await openProjectDialog({
         preset: {
             name: data.pname ?? "",
-            target: Number(data.target) || 4,
+            // A card that names no target is Standard, read off the scale (audit S09-13).
+            target: Number(data.target) || PROJECT_SCALE.everyday.progress,
             room: data.room || null,
             trait: data.trait || null,
             indirectMurder: Boolean(data.murder),

@@ -594,20 +594,29 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
     const start = project ?? preset ?? null;
     const defaultImg = "icons/magic/time/hourglass-yellow-green.webp";
     const img = start?.img || defaultImg;
-    const currentTarget = start?.start ?? start?.target ?? 4;
+    const currentTarget = start?.start ?? start?.target ?? PROJECT_SCALE.everyday.progress;
     const currentTrait = start?.trait ?? "";
     const currentRoom = start?.room ?? "";
 
+    /*
+     * THE WINDOW OPENS ON THE TARGET IT WAS GIVEN (E15 part 1 C1, 25.10.2026; audit S09-13). A
+     * proposal's preset is the player's answer, and only the edit read it: approving a player's
+     * Complex or Desperate opened on Standard, so a GM who trusted the form made the cheaper
+     * project (tier 2 E15-T1 at d90687dc: a proposal of 6 and one of 5 both opened on 4). A window
+     * with neither, the panel's own Create, is Standard.
+     */
+    const given = editing || Number(preset?.target) > 0;
     const scaleOptions = Object.entries(PROJECT_SCALE)
         .map(([key, s]) => {
-            const selected = editing ? s.progress === currentTarget : key === "everyday";
+            const selected = given ? s.progress === currentTarget : key === "everyday";
             return `<option value="${s.progress}"${selected ? " selected" : ""}>${
                 s.label} - ${s.progress} progress</option>`;
         }).join("");
 
     // An edited project may sit on a target no scale names - a repair inherits
-    // whatever the sabotage rolled. Offer it rather than silently re-scaling it.
-    const offScale = editing && !Object.values(PROJECT_SCALE).some(s => s.progress === currentTarget)
+    // whatever the sabotage rolled - and so may a proposal (a card from an older
+    // form, a player's console). Offer it rather than silently re-scaling it.
+    const offScale = given && !Object.values(PROJECT_SCALE).some(s => s.progress === currentTarget)
         ? `<option value="${currentTarget}" selected>${
             game.i18n.format("DRPG.Project.customScale", { n: currentTarget })}</option>`
         : "";
@@ -673,6 +682,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
                 <input type="checkbox" name="murder"${
                     start?.indirectMurder ? " checked" : ""} /> ${
                     game.i18n.localize("DRPG.Project.indirect")}</label>
+            <div class="drpg-trap-fields" data-drpg-when-murder>
             <label>${game.i18n.localize("DRPG.Trap.watchFor")}
                 <select name="trigger">${triggerOptions}</select>
                 <small class="notes">${game.i18n.localize("DRPG.Trap.watchNote")}</small></label>
@@ -693,11 +703,12 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
                        value="${foundry.utils.escapeHTML(start?.condition ?? "")}"
                        placeholder="${game.i18n.localize("DRPG.Project.conditionPlaceholder")}" />
                 <small class="notes">${game.i18n.localize("DRPG.Project.conditionNote")}</small></label>
+            </div>
             <label class="drpg-checkbox">
                 <input type="checkbox" name="secret"${
                     editing && isSecret(project.id) ? " checked" : ""} /> ${
                     game.i18n.localize("DRPG.Project.secret")}</label>
-            ${players.length ? `<fieldset class="drpg-viewer-list">
+            ${players.length ? `<fieldset class="drpg-viewer-list" data-drpg-when-secret>
                 <legend>${game.i18n.localize("DRPG.Project.visibleTo")}</legend>
                 ${viewerBoxes(players, editing ? knownBy(project.id) : [], null, { locked: editing && !isSecret(project.id) })}
                 <small class="notes">${game.i18n.localize(editing && !isSecret(project.id)
@@ -792,8 +803,24 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
     }
 
     if (editing) {
+        /*
+         * A MURDER NAMED IN THE EDIT NAMES ITS KILLER, OR IS REFUSED (E15 part 1 C1, 25.10.2026;
+         * audit S09-16). Create and the manager refuse an indirect murder with nobody behind it
+         * (ITEM-14), and the manager's refusal sends the GM here - which saved the flag with no
+         * killer, so the finished trap armed nothing and told nobody but the log (tier 2 E15-T1 at
+         * d90687dc: a Secret project ticked Indirect murder with nobody ticked was saved a murder,
+         * and with a player ticked saved no killer). The killer as Create picks one: the proposer,
+         * else the first player ticked; one the project has already is kept.
+         */
+        const known = secretsOf(project.id);
+        const killerId = result.murder && !known.killerId ? killerIdFor(result.viewers?.[0], known.by ?? null) : null;
+        if (result.murder && !known.killerId && !killerId) {
+            ui.notifications.warn(game.i18n.localize("DRPG.Project.needsKiller"));
+            return null;
+        }
         // One change of the entry (E36 C2): the edit and the secrecy in one step.
         const change = combineChanges(projectEditChange({
+            ...(killerId ? { killerId } : {}),
             name: result.name,
             target: result.target,
             img: result.img,
