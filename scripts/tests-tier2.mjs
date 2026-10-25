@@ -64989,6 +64989,197 @@ const SCENARIOS = [
             + "frozen, gone, cards; the lowered target: crossed, cards; the kept project: there after its crossing, gone once the bookmark moved on]");
     }],
 
+    ["the GMs' roads change a project through the one entry (E36-T4): each of create, edit, portrait, secrecy, share, revoke, reveal, reseal, a Rearm, a dragged token, the manager's Save and Delete waits for the queue and writes once; the manager's unchanged row writes nothing; the tray's -/+ on a project row is one change of 1 or -1 and its Delete deleteProject, with no Reveal or Hide on it", async () => {
+        /*
+         * E36 C2, 25.10.2026; E36-09 to E36-11, audit S17-18, S09-36. Each GM's road read the Countdowns setting and wrote
+         * it whole outside any queue, and a manager row wrote the image, the meta and the secrecy as three writes, so a
+         * change landing between them was lost or half-made; Daggerheart's tray's -/+ and Delete wrote the setting itself.
+         * Read on this primary's browser, each road run while a step of utils.mjs `serialWrite` holds projects-secrecy.mjs
+         * `COUNTDOWNS_KEY` open: what it changed while held (nothing, if it waits in the queue), what it changed once let
+         * go, and how many times it wrote the Countdowns setting and projectMeta (a counter on `game.settings.set`, this
+         * browser's own writes). The manager is driven through DialogV2.wait as E12 C5's test drives it: one row given a
+         * portrait and sealed, every other row left as it was. The tray is a planted root in Daggerheart 2.10.5's markup
+         * (`.countdown-container[data-countdown]`, `[data-action="increaseCountdown"]`), with a bubbling listener standing
+         * in for its ApplicationV2 action handler, and its menu entries in 2.10.5's shape (`label`, `visible`, `onClick`);
+         * whether v14 draws them so is a real table's (the stage's E36-17), not this test's. At d0ede27a every road but the Rearm writes while the
+         * queue is held, a manager row writes twice and every unchanged row once, and projects-ui.mjs exports neither
+         * `guardTrayRows` nor `projectRowMenu`.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter"), "a player to share a secret project with");
+        needs(world.atLeast("sceneOnScreen"), "a project's token placed on the scene on screen, to drag");
+        const P = await import("./projects.mjs");
+        const S = await import("./projects-secrecy.mjs");
+        const UI = await import("./projects-ui.mjs");
+        const T = await import("./traps.mjs");
+        const { TRAP_TRIGGERS } = await import("./config.mjs");
+        const { positionIn } = await import("./movement.mjs");
+        const { serialWrite, isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this GM is not the primary, whose queue every change waits in - run the suite on the primary GM");
+        const player = game.users.find(u => !u.isGM && u.active);
+        const killer = game.actors.find(a => a.type === "character" && a.testUserPermission(player, "OWNER"));
+        const watched = Object.keys(TRAP_TRIGGERS).find(kind => TRAP_TRIGGERS[kind]?.watch);
+        must(killer && watched, "no player's character or no watched trap trigger - this would measure nothing");
+        const scene = canvas.scene;
+        const [room, elsewhere] = (scene.regions?.contents ?? []).map(region => region.name).filter(Boolean);
+        must(room && elsewhere && room !== elsewhere, "the scene on screen has no two named regions to drag between - this would measure nothing");
+        const D = foundry.applications.api.DialogV2;
+        const ownWait = Object.getOwnPropertyDescriptor(D, "wait");
+        const ownSet = Object.getOwnPropertyDescriptor(game.settings, "set");
+        const realSet = game.settings.set;
+        const meta = foundry.utils.deepClone(P.projectMeta());
+        const counts = { cd: 0, meta: 0 };
+        const made = [], seen = {};
+        const project = id => P.allProjects().find(p => p.id === id) ?? null;
+        const writes = () => counts.cd + counts.meta;
+        let root = null, release = () => {};
+        // A road run while the queue is held: `read` while held and once let go, and its writes of each setting.
+        const road = async (run, read) => {
+            const gate = new Promise(resolve => { release = resolve; });
+            const hold = serialWrite(S.COUNTDOWNS_KEY ?? "daggerheart.Countdowns", () => gate);
+            const start = { ...counts };
+            const going = Promise.resolve().then(run);
+            await settle();
+            const held = { read: read(), wrote: writes() - start.cd - start.meta };
+            release();
+            await hold;
+            const value = await going;
+            await settle();
+            return { held, after: read(), cd: counts.cd - start.cd, meta: counts.meta - start.meta, value };
+        };
+        game.settings.set = function (namespace, key, ...rest) {
+            if (namespace === "daggerheart" && key === "Countdowns") counts.cd++;
+            if (namespace === MODULE_ID && key === SETTINGS.projectMeta) counts.meta++;
+            return realSet.call(this, namespace, key, ...rest);
+        };
+        try {
+            let id = null;
+            const create = await road(async () => { id = (await P.createProject({ name: "SUITE E36 T4 made", target: 6 }))?.id ?? null; },
+                () => P.allProjects().filter(p => p.name === "SUITE E36 T4 made").length);
+            must(id, "createProject made nothing - this would measure nothing");
+            made.push(id);
+            seen.create = { held: create.held, after: create.after, cd: create.cd, meta: create.meta };
+            const edit = await road(() => P.updateProject(id, { name: "SUITE E36 T4 renamed", target: 4, room: "SUITE E36 T4 a room" }),
+                () => [project(id)?.name, project(id)?.start, P.roomOf(id)]);
+            seen.edit = { held: edit.held.wrote, after: edit.after, cd: edit.cd, meta: edit.meta };
+            const img = await road(() => P.setProjectImage(id, "icons/svg/d20.svg"), () => project(id)?.img);
+            seen.img = { held: img.held.wrote, after: img.after, cd: img.cd, meta: img.meta };
+            const seal = await road(() => P.makeSecret(id, [player.id]), () => [P.isSecret(id), P.canSee(id, player)]);
+            const revoke = await road(() => P.unshareWith(id, player.id), () => P.canSee(id, player));
+            const share = await road(() => P.shareWith(id, player.id), () => P.canSee(id, player));
+            const reveal = await road(() => P.revealProject(id), () => P.isSecret(id));
+            seen.secrecy = [seal, revoke, share, reveal].map(r => ({ held: r.held.wrote, after: r.after, cd: r.cd, meta: r.meta }));
+
+            // A sealed project whose ownership a world before the ownership fix left open: resealed once, through the queue.
+            await P.makeSecret(id, [player.id]);
+            const data = game.settings.get("daggerheart", "Countdowns");
+            const stale = foundry.utils.duplicate(data.countdowns ?? {});
+            stale[id] = { ...stale[id], ownership: { default: 0, [player.id]: 2 } };
+            await realSet.call(game.settings, "daggerheart", "Countdowns", { ...data, countdowns: stale });
+            const reseal = await road(() => P.resealSecretProjects(), () => Object.keys(S.rawCountdown(id)?.ownership ?? {}).length);
+            seen.reseal = { held: reseal.held.wrote, resealed: reseal.after > 2, cd: reseal.cd, meta: reseal.meta };
+
+            // A trap that has fired, put back on watch by the GM's Rearm: its trigger written in the queue.
+            const trap = (await P.createProject({ name: "SUITE E36 T4 trap", target: 1, indirectMurder: true, killerId: killer.id,
+                trigger: { kind: watched } }))?.id ?? null;
+            must(trap, "could not create an indirect murder - this would measure nothing");
+            made.push(trap);
+            await S.patchTrigger(trap, { armed: false, firedAt: 1 });
+            const rearm = await road(() => T.rearmTrap(trap), () => P.secretsOf(trap).trigger?.armed ?? null);
+            seen.rearm = { held: rearm.held.read, after: rearm.after };
+
+            // The project's own token dragged into another room: its room changes in the queue, once.
+            const placed = (await P.createProject({ name: "SUITE E36 T4 dragged", target: 4, room }))?.id ?? null;
+            must(placed, "could not create a project in a room - this would measure nothing");
+            made.push(placed);
+            await settle();
+            const { projectTokenOf } = await import("./projects-map.mjs");
+            const token = projectTokenOf(placed);
+            must(token && positionIn(elsewhere, token), "the project's token was not placed, or the second room has no place - this would measure nothing");
+            const drag = await road(() => token.update(positionIn(elsewhere, token), { teleport: true, movementAction: "displace", animate: false }),
+                () => P.roomOf(placed));
+            seen.drag = { held: drag.held.read, after: drag.after, meta: drag.meta };
+
+            // The manager's Save: one row given a portrait and sealed, every other row as the window drew it.
+            const rows = P.allProjects().length;
+            D.wait = async cfg => {
+                const element = document.createElement("div"), form = document.createElement("form");
+                if (typeof cfg?.content === "string") form.innerHTML = cfg.content;
+                else if (cfg?.content) form.append(cfg.content.cloneNode(true));
+                element.append(form);
+                const field = name => form.querySelector(`[name="${name}.${CSS.escape(placed)}"]`);
+                must(field("img") && field("secret"), "the manager drew no portrait or Secret for this test's row - the answer would change nothing");
+                field("img").value = "icons/svg/d20.svg";
+                field("secret").checked = true;
+                const save = (cfg.buttons ?? []).find(b => b.action === "save");
+                return save.callback(new Event("click"), save, { element });
+            };
+            const manager = await road(() => UI.openProjectManager(), () => [project(placed)?.img, P.isSecret(placed)]);
+            if (ownWait) Object.defineProperty(D, "wait", ownWait);
+            else delete D.wait;
+            seen.manager = { rows: rows > 1, held: manager.held.wrote, after: manager.after, cd: manager.cd, meta: manager.meta };
+
+            // The tray: -/+ on a project row and on a row that is no project, and its menu.
+            root = document.createElement("div");
+            root.innerHTML = [placed, "suiteE36T4NoProject"].map(row => `<div class="countdown-container" data-countdown="${row}">`
+                + `<button type="button" data-action="decreaseCountdown"></button><button type="button" data-action="increaseCountdown"></button></div>`).join("");
+            document.body.append(root);
+            const reached = [];
+            root.addEventListener("click", event => {
+                const action = event.target.closest?.("[data-action]");
+                if (action) reached.push([action.closest("[data-countdown]")?.dataset.countdown, action.dataset.action]);
+            });
+            const tray = typeof UI.guardTrayRows === "function";
+            if (tray) { UI.guardTrayRows(root); UI.guardTrayRows(root); }
+            const button = (row, action) => root.querySelector(`[data-countdown="${row}"] [data-action="${action}"]`);
+            const plus = await road(() => button(placed, "increaseCountdown").click(), () => project(placed)?.current);
+            const minus = await road(() => button(placed, "decreaseCountdown").click(), () => project(placed)?.current);
+            button("suiteE36T4NoProject", "increaseCountdown").click();
+            seen.tray = { tray, plus: [plus.held.read, plus.after, plus.cd], minus: [minus.held.read, minus.after, minus.cd], reached };
+
+            const clicked = [];
+            const entries = [["DAGGERHEART.UI.Countdowns.reveal", "fa-solid fa-eye"], ["DAGGERHEART.UI.Countdowns.hide", "fa-solid fa-eye-slash"],
+                ["CONTROLS.CommonDelete", "fa-solid fa-trash"]].map(([label, icon]) => ({ label, icon, visible: () => true, onClick: () => clicked.push(label) }));
+            const menu = typeof UI.projectRowMenu === "function";
+            if (menu) UI.projectRowMenu(entries);
+            const rowOf = row => root.querySelector(`[data-countdown="${row}"]`);
+            const shown = entries.map(entry => [Boolean(entry.visible(rowOf(placed))), Boolean(entry.visible(rowOf("suiteE36T4NoProject")))]);
+            entries[2].onClick(new Event("click"), rowOf("suiteE36T4NoProject"));
+            const gone = await road(() => entries[2].onClick(new Event("click"), rowOf(placed)), () => Boolean(project(placed)));
+            seen.menu = { menu, shown, clicked, held: gone.held.read, after: gone.after };
+
+            const removed = await road(() => P.deleteProject(id), () => Boolean(project(id)));
+            seen.remove = { held: removed.held.read, after: removed.after, cd: removed.cd, meta: removed.meta };
+        } finally {
+            release();
+            if (ownSet) Object.defineProperty(game.settings, "set", ownSet);
+            else delete game.settings.set;
+            if (ownWait) Object.defineProperty(D, "wait", ownWait);
+            else delete D.wait;
+            root?.remove();
+            for (const id of made) if (project(id)) await P.deleteProject(id).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, meta);
+            await settle();
+        }
+        equal(stableJson(seen), stableJson({
+            create: { held: { read: 0, wrote: 0 }, after: 1, cd: 1, meta: 1 },
+            edit: { held: 0, after: ["SUITE E36 T4 renamed", 4, "SUITE E36 T4 a room"], cd: 1, meta: 1 },
+            img: { held: 0, after: "icons/svg/d20.svg", cd: 1, meta: 0 },
+            secrecy: [{ held: 0, after: [true, true], cd: 1, meta: 1 }, { held: 0, after: false, cd: 1, meta: 0 },
+                { held: 0, after: true, cd: 1, meta: 0 }, { held: 0, after: false, cd: 1, meta: 1 }],
+            reseal: { held: 0, resealed: true, cd: 1, meta: 0 },
+            rearm: { held: false, after: true },
+            drag: { held: room, after: elsewhere, meta: 1 },
+            manager: { rows: true, held: 0, after: ["icons/svg/d20.svg", true], cd: 1, meta: 1 },
+            tray: { tray: true, plus: [0, 1, 1], minus: [1, 0, 1], reached: [["suiteE36T4NoProject", "increaseCountdown"]] },
+            menu: { menu: true, shown: [[false, true], [false, true], [true, true]], clicked: ["CONTROLS.CommonDelete"], held: true, after: false },
+            remove: { held: true, after: false, cd: 1, meta: 1 }
+        }), "a GM's road does not change a project through the one entry [each road: what it changed while the queue was held, after, "
+            + "its Countdowns and projectMeta writes; the reseal; the Rearm's armed while held and after; the dragged token's room; the manager's "
+            + "Save (more than one row, the sealed row's portrait and secrecy); the tray's + and - (the bar while held, after, its writes) and what "
+            + "reached the system's handler; the menu (Reveal, Hide, Delete shown on the project row and on the other), what the system's "
+            + "Delete did, the project's Delete; deleteProject]");
+    }],
+
     ...GRID
 ];
 

@@ -38,12 +38,12 @@ import { discoveredFor } from "./fog.mjs";
 import { placeScenes, roomRegions, sceneOfRoom } from "./rooms.mjs";
 import {
     DH, COUNTDOWNS, COUNTDOWNS_KEY, projectMeta, metaFor, secretsOf, setProjectMeta, canSee, OBSERVER, ownerIdsOfId, ownershipMap,
-    insidersOf, viewersOf, makeSecret, isSecret, rawCountdown, writeCountdown, writeAllCountdowns
+    insidersOf, viewersOf, isSecret, rawCountdown, writeAllCountdowns, builderIds,
+    secretChange, shareChange, unshareChange, revealChange
 } from "./projects-secrecy.mjs";
 export {
     projectMeta, metaFor, PROJECT_SECRET_FIELDS, secretsOf, patchTrigger, setProjectMeta, canSee,
-    liftProjectSecrets, viewersOf, makeSecret, shareWith, unshareWith, revealProject, builderIds, sealAudience,
-    withoutLeak, isSecret
+    liftProjectSecrets, viewersOf, builderIds, sealAudience, withoutLeak, isSecret, secretChange, revealChange
 } from "./projects-secrecy.mjs";
 
 /** Which room a project belongs to, if any. */
@@ -569,6 +569,22 @@ export function cleanProjectChange(change) {
             .filter(([key, level]) => key && Number.isInteger(level) && level >= 0 && level <= 3));
     }
     if (change.remove === true) out.remove = true;
+    if (change.create === true) out.create = true;
+    return Object.keys(out).length ? out : null;
+}
+
+/**
+ * Two or more changes of one project as one (E36 C2): a window's row that edits, re-images and seals is one
+ * change of the entry, not three. Later parts win a key; `meta` is merged. Null when none is left.
+ */
+export function combineChanges(...parts) {
+    const out = {};
+    for (const part of parts) {
+        if (!part) continue;
+        const { meta, ...rest } = part;
+        Object.assign(out, rest);
+        if (meta && Object.keys(meta).length) out.meta = { ...out.meta, ...meta };
+    }
     return Object.keys(out).length ? out : null;
 }
 
@@ -582,8 +598,9 @@ function cleanBy(by) {
 
 /**
  * Change a project, the one way (E36 C1): `change` is `{ delta }`, `{ target, name, img }`, `{ meta }`,
- * `{ ownership }` or `{ remove: true }`, combined as a caller combines them (`{ create }` is E36 C2's,
- * with createProject); `by` is `{ kind, userId, actorId }`. On the primary GM the change is a step of
+ * `{ ownership }` or `{ remove: true }`, combined as a caller combines them, or `{ create: true }` with the
+ * new project's name, target, img, ownership and meta under the id its caller drew (createProject, E36 C2);
+ * `by` is `{ kind, userId, actorId }`. On the primary GM the change is a step of
  * `serialWrite(COUNTDOWNS_KEY, ...)`; another GM's goes there by `project.change` (gm-bridge.mjs
  * `requestProjectChange`), and a player's browser never runs it: off a GM this answers null and logs.
  * Answers `{ id, name, from, to, target, changed, reason?, crossed, uncrossed, removed }` once the step
@@ -628,6 +645,7 @@ async function changeStep(countdownId, change, by) {
     const data = game.settings.get(DH, COUNTDOWNS);
     const countdowns = foundry.utils.duplicate(data?.countdowns ?? {});
     const project = countdowns[countdownId];
+    if (change.create) return createInStep(countdownId, change, project, data, countdowns);
     if (!project) return { result: null, after: [] };
     const after = [];
     // Both halves, before anything below can delete them: a repair's row goes with it in this step.
@@ -731,10 +749,41 @@ async function changeStep(countdownId, change, by) {
 }
 
 /**
+ * Make a project, inside a step (E36 C2): the countdown under the id createProject drew, then its meta, both
+ * halves (`setProjectMeta` splits the GMs' fields off). An id already taken makes nothing: the id is drawn at
+ * random, so a second create of it is a packet sent twice, not a second project. A new bar is empty, so nothing
+ * crosses. Its token is createProject's, once this answers.
+ */
+async function createInStep(countdownId, change, existing, data, countdowns) {
+    if (existing) {
+        log(`A project ${countdownId} already exists; nothing was made.`);
+        return { result: null, after: [] };
+    }
+    const target = change.target ?? PROJECT_SCALE.everyday.progress;
+    countdowns[countdownId] = {
+        type: "narrative",
+        name: change.name ?? "?",
+        img: change.img || "icons/magic/time/hourglass-yellow-green.webp",
+        ownership: change.ownership ?? { default: OBSERVER },
+        progress: {
+            current: 0,
+            start: target,
+            looping: "noLooping",
+            // Only advanced by the Work on Project action.
+            type: "custom"
+        }
+    };
+    await writeAllCountdowns({ ...data, countdowns });
+    if (change.meta) await setProjectMeta(countdownId, change.meta);
+    return { result: { id: countdownId, name: countdowns[countdownId].name, from: 0, to: 0, target, changed: true,
+        crossed: false, uncrossed: false, removed: false, created: true }, after: [] };
+}
+
+/**
  * Take a project out, inside a step: its countdown, its row in projectMeta (and the thaw of what it
  * repaired), its secrets. What is not the setting's goes in `after`: its tokens, found by their own flags
  * (projects-map.mjs `sweepProjectTokens`), its trap's ledger, and its own repair, a change of its own.
- * deleteProject does the same outside the queue until E36 C2 moves it here.
+ * deleteProject comes here since E36 C2.
  */
 async function removeInStep(countdownId, data, countdowns, after) {
     const own = metaFor(countdownId);
@@ -831,8 +880,6 @@ export async function createProject({
     if (!game.user.isGM) return null;
     if (!name) return null;
 
-    const data = game.settings.get(DH, COUNTDOWNS);
-    const countdowns = foundry.utils.duplicate(data?.countdowns ?? {});
     const id = foundry.utils.randomID();
 
     // ONE answer to "is this hidden", used for the ownership map AND for the
@@ -866,40 +913,33 @@ export async function createProject({
         ? Array.from(new Set([...viewers, ...ownerIdsOfId(killerId ?? by)]))
         : [];
 
-    countdowns[id] = {
-        type: "narrative",
-        name,
-        img: img || "icons/magic/time/hourglass-yellow-green.webp",
+    /* ONE CHANGE OF THE ENTRY (E36 C2, 25.10.2026; audit S17-18): the countdown and its meta are written in one
+       step of `applyProjectChange`, on the primary, so no other change lands between them; another GM's
+       creation goes there by `project.change`. The countdown is the step's (`createInStep`). */
+    const made = await applyProjectChange(id, {
+        create: true, name, target, img: img || "icons/magic/time/hourglass-yellow-green.webp",
         ownership: hidden ? ownershipMap(audience) : { default: OBSERVER },
-        progress: {
-            current: 0,
-            start: target,
-            looping: "noLooping",
-            // Only advanced by the Work on Project action.
-            type: "custom"
+        // `trait` is set by the GM at creation - the guide lets a project demand a
+        // specific kind of work, so the player does not get to pick the easy stat.
+        // `countsUp` is stamped rather than left to the default so the direction
+        // stays explicit in the data, not just in this file's assumptions.
+        meta: {
+            room, indirectMurder, secret: hidden, trait, countsUp: true,
+            // Gated on the way IN, not on the way out: a name the sprite set does
+            // not have would reach the tray as `var(--drpg-px-nonsense)`, which is
+            // an invalid mask and therefore NO glyph at all - not the hourglass.
+            glyph: isProjectGlyph(glyph) ? glyph : null,
+            by: by ?? null,
+            // The builder is the killer unless somebody said otherwise (F3).
+            killerId: indirectMurder ? (killerId ?? by ?? null) : null,
+            condition: indirectMurder ? condition : "",
+            // Not armed here - armed when the bar fills. A trap that watched from
+            // the moment it was proposed would be a trap you can set off while its
+            // owner is still building it.
+            trigger: indirectMurder && trigger?.kind ? { ...trigger, armed: false, firedAt: null } : null
         }
-    };
-
-    await game.settings.set(DH, COUNTDOWNS, { ...data, countdowns });
-    // `trait` is set by the GM at creation - the guide lets a project demand a
-    // specific kind of work, so the player does not get to pick the easy stat.
-    // `countsUp` is stamped rather than left to the default so the direction
-    // stays explicit in the data, not just in this file's assumptions.
-    await setProjectMeta(id, {
-        room, indirectMurder, secret: hidden, trait, countsUp: true,
-        // Gated on the way IN, not on the way out: a name the sprite set does
-        // not have would reach the tray as `var(--drpg-px-nonsense)`, which is
-        // an invalid mask and therefore NO glyph at all - not the hourglass.
-        glyph: isProjectGlyph(glyph) ? glyph : null,
-        by: by ?? null,
-        // The builder is the killer unless somebody said otherwise (F3).
-        killerId: indirectMurder ? (killerId ?? by ?? null) : null,
-        condition: indirectMurder ? condition : "",
-        // Not armed here - armed when the bar fills. A trap that watched from
-        // the moment it was proposed would be a trap you can set off while its
-        // owner is still building it.
-        trigger: indirectMurder && trigger?.kind ? { ...trigger, armed: false, firedAt: null } : null
-    });
+    }, { by: { kind: "gm" } });
+    if (!made?.created) return null;
 
     log(`Created project "${name}" (${target} progress)${room ? ` in ${room}` : ""}${trait ? `, ${trait}` : ""}.`);
 
@@ -1269,10 +1309,10 @@ async function announceTrapReady(countdownId, name, { watched = false, armed = f
     return true;
 }
 
-/** Change a project's portrait/icon. GM only. */
+/** Change a project's portrait/icon. GM only; one change of the entry (E36 C2). */
 export async function setProjectImage(countdownId, img) {
     if (!game.user.isGM || !img) return null;
-    return writeCountdown(countdownId, { img });
+    return applyProjectChange(countdownId, { img }, { by: { kind: "gm" } });
 }
 
 /**
@@ -1293,40 +1333,27 @@ export async function setProjectImage(countdownId, img) {
  */
 export async function updateProject(countdownId, patch = {}) {
     if (!game.user.isGM) return null;
+    if (!rawCountdown(countdownId)) return null;
+    const change = projectEditChange(patch);
+    // One change of the entry (E36 C2): the countdown and the meta in one step, on the primary.
+    if (change) await applyProjectChange(countdownId, change, { by: { kind: "gm" } });
+    log(`Project ${countdownId} updated: ${Object.keys({ ...change, ...change?.meta }).filter(key => key !== "meta").join(", ")}`);
+    return allProjects().find(p => p.id === countdownId) ?? null;
+}
 
-    const raw = rawCountdown(countdownId);
-    if (!raw) return null;
-
-    const countdownPatch = {};
-    if (patch.name !== undefined && patch.name !== null) countdownPatch.name = String(patch.name);
-    if (patch.img) countdownPatch.img = patch.img;
-
-    if (patch.target !== undefined && patch.target !== null) {
-        const target = Math.max(1, Math.trunc(Number(patch.target) || 1));
-        const current = raw.progress?.current ?? 0;
-        countdownPatch.progress = {
-            ...raw.progress,
-            start: target,
-            /*
-             * ONE CLAMP FOR BOTH DIRECTIONS, AND THAT IS THE POINT (A15).
-             *
-             * This used to be a ternary on `countsUp` whose two branches were
-             * character-for-character identical - which reads as a bug and is
-             * not one. Ours count UP, so `current` is progress earned and is
-             * clamped to the new ceiling. Daggerheart's count DOWN, where
-             * `current` is what is LEFT, and that cannot exceed the start
-             * either. Two different reasons, the same arithmetic; writing the
-             * branch out only hid that they agree, and called `countsUp` for
-             * an answer nothing then used.
-             */
-            current: Math.min(current, target)
-        };
-    }
-
-    if (Object.keys(countdownPatch).length) {
-        await writeCountdown(countdownId, countdownPatch,
-            { replace: countdownPatch.progress ? ["progress"] : [] });
-    }
+/**
+ * What `updateProject` changes, as a change of the entry, writing nothing (E36 C2): the project window's Save
+ * combines it with the secrecy (`combineChanges`), so an edit is one change. Null when the patch names nothing.
+ *
+ * `target` is the countdown's `progress.start`; the step clamps `current` with it (`changeStep`), for both
+ * directions: ours count UP, so `current` is progress earned and cannot pass the new ceiling, and Daggerheart's
+ * count DOWN, where `current` is what is LEFT, which cannot exceed the start either (A15).
+ */
+export function projectEditChange(patch = {}) {
+    const change = {};
+    if (patch.name !== undefined && patch.name !== null) change.name = String(patch.name);
+    if (patch.img) change.img = patch.img;
+    if (patch.target !== undefined && patch.target !== null) change.target = Math.max(1, Math.trunc(Number(patch.target) || 1));
 
     const meta = {};
     if (patch.room !== undefined) meta.room = patch.room || null;
@@ -1341,74 +1368,26 @@ export async function updateProject(countdownId, patch = {}) {
     if (patch.trigger !== undefined) meta.trigger = patch.trigger;
     if (patch.condition !== undefined) meta.condition = String(patch.condition ?? "");
     if (patch.killerId !== undefined) meta.killerId = patch.killerId || null;
-    if (Object.keys(meta).length) await setProjectMeta(countdownId, meta);
-
-    log(`Project ${countdownId} updated: ${Object.keys({ ...countdownPatch, ...meta }).join(", ")}`);
-    return allProjects().find(p => p.id === countdownId) ?? null;
+    if (Object.keys(meta).length) change.meta = meta;
+    return Object.keys(change).length ? change : null;
 }
 
-/** Delete a project and its metadata. GM only. */
+/**
+ * Delete a project and its metadata. GM only; one change of the entry, `{ remove: true }` (E36 C2): the step
+ * (`removeInStep`) takes the countdown, its row and its secrets, and thaws what it repaired, in one step on
+ * the primary; after it, outside the queue, its tokens (found by their own flags, every copy - E11 C7's orphan
+ * test), its trap's ledger (ITEM-08) and its own repair, if it was broken.
+ *
+ * A SABOTAGE PAIR GOES WITH EITHER HALF (F5, 17.09). The Project Manager lists "Repair: X" like any other bar,
+ * and deleting it left X frozen by a project that no longer existed: gone from every player's Work on Project
+ * list, out of reach of another sabotage, skipped by the trap watcher, and nothing on any GM screen could thaw
+ * it. Deleting a repair thaws what it was repairing; deleting the broken project takes its repair with it,
+ * because nobody should spend an action mending nothing.
+ */
 export async function deleteProject(countdownId) {
-    if (!game.user.isGM) return null;
-
-    const data = game.settings.get(DH, COUNTDOWNS);
-    const countdowns = foundry.utils.duplicate(data?.countdowns ?? {});
-    if (!countdowns[countdownId]) return null;
-
-    /* THE TOKEN GOES FIRST, while the metadata still says where it is. Deleting
-       the project's row and then looking for its token would leave a two-square
-       marker standing in a room for a project that no longer exists, and
-       nothing left pointing at it to clean it up. */
-    try {
-        const { removeProjectToken, sweepProjectTokens } = await import("./projects-map.mjs");
-        await removeProjectToken(countdownId);
-        /* And every other token of it (E11 C7): any token of this project but the one its metadata
-           names stood on after the deletion, an orphan every player knew (the suite's orphan test). */
-        await sweepProjectTokens({ live: [], only: [countdownId] });
-    } catch (err) {
-        error("Could not take the deleted project off the map", err);
-    }
-
-    delete countdowns[countdownId];
-    await game.settings.set(DH, COUNTDOWNS, { ...data, countdowns });
-
-    /*
-     * A SABOTAGE PAIR GOES WITH EITHER HALF (F5, 17.09).
-     *
-     * The Project Manager lists "Repair: X" like any other bar, and deleting it
-     * left X frozen by a project that no longer existed: gone from every
-     * player's Work on Project list, out of reach of another sabotage, skipped by
-     * the trap watcher, and nothing on any GM screen could thaw it. Deleting a
-     * repair thaws what it was repairing; deleting the broken project takes its
-     * repair with it, because nobody should spend an action mending nothing.
-     */
-    const own = metaFor(countdownId);
-    const meta = { ...projectMeta() };
-    delete meta[countdownId];
-    const target = own.repairs ?? null;
-    if (target && countdowns[target] && meta[target]?.frozenBy === countdownId) {
-        meta[target] = { ...meta[target], frozenBy: null };
-    }
-    await game.settings.set(MODULE_ID, SETTINGS.projectMeta, meta);
-    // And its killer, builder, condition and trigger, on every GM (E05): a stamped drop, which a GM
-    // who was away takes at its next exchange.
-    await projectSecretStore.drop(countdownId);
-
-    // Its plant and its ledger row go with it (ITEM-08).
-    try {
-        const { pruneTrapsFor } = await import("./traps.mjs");
-        await pruneTrapsFor(new Set(Object.keys(meta)));
-    } catch (err) {
-        error("Could not prune the deleted project's trap", err);
-    }
-
-    // And its repair, if it was broken (F5, above). Last, so the recursion finds
-    // this project already gone and the pair's metadata already written.
-    const repair = own.frozenBy ?? null;
-    if (repair && countdowns[repair] && metaFor(repair).repairs === countdownId) {
-        await deleteProject(repair);
-    }
-    return true;
+    if (!game.user.isGM || !countdownId) return null;
+    const result = await applyProjectChange(countdownId, { remove: true }, { by: { kind: "gm" } });
+    return result?.removed ? true : null;
 }
 
 /**
@@ -1445,10 +1424,16 @@ export async function clearAllProjects() {
         error("Could not take the season's project tokens off the maps", err);
     }
 
-    // Spread the rest of Daggerheart's own setting back, exactly as
-    // `deleteProject` does - `countdowns` is one key inside it, not all of it.
-    await game.settings.set(DH, COUNTDOWNS, { ...data, countdowns: {} });
-    await game.settings.set(MODULE_ID, SETTINGS.projectMeta, {});
+    /* IN THE QUEUE (E36 C2, 25.10.2026; audit S17-18): one step of `COUNTDOWNS_KEY`, so a change already queued
+       lands before the reset and none lands half-way through it. The setting is read again in the step: a change
+       that landed since `gone` was counted is cleared with the rest. Not through `applyProjectChange` one project
+       at a time, for the reason above. The reset window is the primary's; another GM's reset (a console) queues
+       on its own browser, which orders nothing the primary does (the stage's gap). Daggerheart's own setting is
+       spread back - `countdowns` is one key inside it, not all of it. */
+    await serialWrite(COUNTDOWNS_KEY, async () => {
+        await writeAllCountdowns({ ...game.settings.get(DH, COUNTDOWNS), countdowns: {} });
+        await game.settings.set(MODULE_ID, SETTINGS.projectMeta, {});
+    });
     /* Every project's secrets with them (E05): the primary's clear is a cut every GM takes, as the
        traps' two stores below; another GM's reset (a console - the window is the primary's) drops
        the rows it holds. */
@@ -1550,10 +1535,75 @@ export async function resealSecretProjects() {
             ?? false;
         if (same) continue;
 
-        await writeCountdown(project.id, { ownership: wanted }, { replace: ["ownership"] });
-        fixed += 1;
+        // One change of the entry (E36 C2), the map replaced whole by the step.
+        if ((await applyProjectChange(project.id, { ownership: wanted }, { by: { kind: "system" } }))?.changed) fixed += 1;
     }
 
     if (fixed) log(`Re-sealed ${fixed} secret project(s) that were visible to players.`);
     return fixed;
+}
+
+/* ==========================================================================
+ * WHO SEES A PROJECT, THROUGH THE ENTRY (E36 C2)
+ * --------------------------------------------------------------------------
+ * 25.10.2026; audit S17-18. These four wrote the countdown's ownership in
+ * projects-secrecy.mjs, read and written whole outside any queue. They are a
+ * change of `applyProjectChange` each now, on the primary; the arithmetic is
+ * still projects-secrecy.mjs's (`secretChange`, `shareChange`, `unshareChange`,
+ * `revealChange`), read on the GM that asks: two shares asked at once on two
+ * GMs each read the viewers before either landed (the stage's gap).
+ * ========================================================================== */
+
+/**
+ * Make a project secret, visible only to the given users.
+ *
+ * @param {string} countdownId
+ * @param {string[]} viewerIds  Users allowed to see it - normally just the killer.
+ */
+export async function makeSecret(countdownId, viewerIds = []) {
+    if (!game.user.isGM) return null;
+    const change = secretChange(countdownId, viewerIds);
+    if (!await applyProjectChange(countdownId, change, { by: { kind: "gm" } })) return null;
+    log(`Project ${countdownId} is now secret; ${viewerIds.length} viewer(s).`);
+    return change.ownership;
+}
+
+/** Let one more player in on a secret project. A player's ask goes to a GM (`project.share`). */
+export async function shareWith(countdownId, userId) {
+    if (!game.user.isGM) {
+        const { requestProjectShare } = await import("./gm-bridge.mjs");
+        const res = await requestProjectShare(countdownId, userId);
+        return res.ok ? { pending: true } : null;
+    }
+    const change = shareChange(countdownId, userId);
+    if (!change) return null;
+    if (!await applyProjectChange(countdownId, change, { by: { kind: "gm" } })) return null;
+    log(`Project ${countdownId} shared with ${game.users.get(userId)?.name ?? userId}.`);
+    return true;
+}
+
+/** Take a player back off a secret project. */
+export async function unshareWith(countdownId, userId) {
+    if (!game.user.isGM) return null;
+    if (!isSecret(countdownId)) return null;
+    /* NEVER THE BUILDER (E05 C1; audit S09-09). The manager and the project window add the builder
+       whatever is ticked (F3), and Revoke in the Share window took them off their own trap: the
+       student who built it could no longer see it or work on it. Refused, and the GM told why. */
+    if (builderIds(countdownId).includes(userId)) {
+        ui.notifications?.warn(game.i18n.format("DRPG.Project.builderStays", {
+            name: game.users.get(userId)?.name ?? userId, project: rawCountdown(countdownId)?.name ?? countdownId
+        }));
+        return null;
+    }
+    const change = unshareChange(countdownId, userId);
+    if (!change || !await applyProjectChange(countdownId, change, { by: { kind: "gm" } })) return null;
+    return true;
+}
+
+/** Drop secrecy entirely - the plan is out (`revealChange` says why the map is replaced whole). */
+export async function revealProject(countdownId) {
+    if (!game.user.isGM) return null;
+    if (!await applyProjectChange(countdownId, revealChange(countdownId), { by: { kind: "gm" } })) return null;
+    log(`Project ${countdownId} revealed to everyone.`);
+    return true;
 }

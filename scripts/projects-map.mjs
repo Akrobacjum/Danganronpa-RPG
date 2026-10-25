@@ -31,7 +31,7 @@
  */
 
 import { MODULE_ID, PROJECT_TOKEN } from "./config.mjs";
-import { roomOf, setProjectMeta, tokenRefOf, allProjects, isComplete, knowsProject, isSecret }
+import { roomOf, setProjectMeta, tokenRefOf, allProjects, isComplete, knowsProject, isSecret, applyProjectChange }
     from "./projects.mjs";
 import { metaFor, rawCountdown } from "./projects-secrecy.mjs";
 import { boundsOf } from "./movement.mjs";
@@ -474,7 +474,8 @@ async function onProjectTokenMoved(tokenDoc, changes) {
     const was = roomOf(id);
     if (!landedIn || landedIn === was) return;
 
-    await setProjectMeta(id, { room: landedIn });
+    // One change of the entry (E36 C2; audit S17-18): a GM's edit or a room's rename queued meanwhile is not lost to it.
+    await applyProjectChange(id, { meta: { room: landedIn } }, { by: { kind: "gm" } });
     const name = allProjects().find(p => p.id === id)?.name ?? id;
     await whisperToGms(`<p>${game.i18n.format("DRPG.Project.tokenMoved", {
         project: esc(name), from: esc(was ?? "-"), to: esc(landedIn)

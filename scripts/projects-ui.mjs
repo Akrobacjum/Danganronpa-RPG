@@ -17,9 +17,9 @@
 
 import { PROJECT_SCALE, PROJECT_GLYPHS, isProjectGlyph, TRAITS, TRAP_TRIGGERS, TRAP_MODIFIERS } from "./config.mjs";
 import {
-    allProjects, setProjectMeta, metaFor, roomOf, isIndirectMurder, isSecret, makeSecret, shareWith, unshareWith,
-    revealProject, viewersOf, sealAudience, builderIds, secretsOf, withoutLeak, createProject, deleteProject,
-    setProjectImage, updateProject
+    allProjects, metaFor, roomOf, isIndirectMurder, isSecret, shareWith, unshareWith,
+    viewersOf, sealAudience, builderIds, secretsOf, withoutLeak, createProject, deleteProject,
+    applyProjectChange, combineChanges, projectEditChange, secretChange, revealChange, projectMeta, addProgress
 } from "./projects.mjs";
 import { placeRoomNames } from "./rooms.mjs";
 import { dialogContent, error, tableDialog, wirePortraitPickers } from "./utils.mjs";
@@ -34,6 +34,9 @@ const DialogV2 = foundry.applications.api.DialogV2;
 export function registerProjectsUi() {
     // The countdown tray is its own ApplicationV2; label it on every render.
     Hooks.on("renderDhCountdowns", onRenderCountdowns);
+    // Its row menu, before the tray's first render builds it (E36 C2), and once more at ready for a class set late.
+    wrapCountdownMenu();
+    Hooks.once("ready", wrapCountdownMenu);
 }
 
 /**
@@ -86,6 +89,7 @@ function onRenderCountdowns(app, element) {
         if (!game.user.isGM) return;
 
         root.querySelector('[data-action="editCountdowns"]')?.remove();
+        guardTrayRows(root);
 
         if (root.querySelector(".drpg-projects-gear")) return;
 
@@ -108,6 +112,101 @@ function onRenderCountdowns(app, element) {
     } catch (err) {
         error("Could not add the project manager button", err);
     }
+}
+
+/* ==========================================================================
+ * THE TRAY'S OWN CONTROLS ON A PROJECT ROW (E36 C2)
+ * --------------------------------------------------------------------------
+ * 25.10.2026; audit S17-18, S09-36. Daggerheart 2.10.5's tray writes the
+ * Countdowns setting itself: its -/+ (`editCountdown`, read from the row's
+ * `data-countdown`) and its menu's Delete (`countdown.delete()`) whole, outside
+ * the module's queue, and its Reveal and Hide (`toggleVisibility`) flip a
+ * `hidden` the module's secrecy does not read. On a GM's tray a project row's
+ * -/+ is one change of the entry, by addProgress, and its Delete is
+ * deleteProject; Reveal and Hide are not offered on it - who sees a project is
+ * the manager's Secret and Share. A row that is no project (no projectMeta row,
+ * as relay-guard.mjs's `isProject` reads it) keeps the system's controls. A
+ * player's click still goes the system's way, to the GM's relay, which lands
+ * nothing on a project (relay-guard.mjs `judgeCountdowns`). Read in 2.10.5's
+ * source, not on v14 at a table (the stage's E36-17, a live check at the train).
+ * ========================================================================== */
+
+/** Is this tray row's countdown one of the module's projects? */
+function isProjectRow(countdownId) {
+    return Boolean(countdownId) && Object.hasOwn(projectMeta(), countdownId);
+}
+
+const guardedTrays = new WeakSet();
+
+/**
+ * The -/+ of a project row, caught before the system's action handler (a listener in the capture phase, once
+ * per root: the tray keeps its element across renders), stopped there, and made one change of 1 or -1 by "gm"
+ * through addProgress, which says why when nothing moved (full, empty, frozen). Exported for the suite, which
+ * plants a root; the render hook is its one caller. Answers whether it wired this root now.
+ */
+export function guardTrayRows(root) {
+    if (!game.user?.isGM || !root?.addEventListener || guardedTrays.has(root)) return false;
+    guardedTrays.add(root);
+    root.addEventListener("click", event => {
+        const button = event.target?.closest?.('[data-action="increaseCountdown"], [data-action="decreaseCountdown"]');
+        if (!button || !root.contains(button)) return;
+        const id = button.closest("[data-countdown]")?.dataset.countdown ?? null;
+        if (!isProjectRow(id)) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        addProgress(id, button.dataset.action === "increaseCountdown" ? 1 : -1)
+            .catch(err => error("Could not change the project from the tray", err));
+    }, { capture: true });
+    return true;
+}
+
+const MENU_DONE = Symbol("drpgProjectRowMenu");
+
+/**
+ * The tray's row menu, entries in 2.10.5's shape (`label`, `visible`, `onClick(event, target)`; v13's `name`,
+ * `condition`, `callback(target)` read as well), changed in place: Reveal and Hide hidden on a project row,
+ * Delete on one deleteProject. Every other row and entry is the system's. Exported for the suite.
+ */
+export function projectRowMenu(entries) {
+    if (!Array.isArray(entries)) return entries;
+    const projectOf = element => {
+        const id = element?.closest?.("[data-countdown]")?.dataset.countdown ?? null;
+        return isProjectRow(id) ? id : null;
+    };
+    for (const entry of entries) {
+        if (!entry || entry[MENU_DONE]) continue;
+        const label = String(entry.label ?? entry.name ?? "");
+        const showKey = "visible" in entry || !("condition" in entry) ? "visible" : "condition";
+        const clickKey = "onClick" in entry || !("callback" in entry) ? "onClick" : "callback";
+        const show = entry[showKey];
+        const click = entry[clickKey];
+        if (/\.Countdowns\.(?:reveal|hide)$/.test(label)) {
+            entry[showKey] = element => !projectOf(element) && (typeof show === "function" ? show(element) : show ?? true);
+        } else if (label === "CONTROLS.CommonDelete") {
+            entry[clickKey] = (event, target) => {
+                const element = target ?? (event instanceof HTMLElement ? event : null);
+                const id = projectOf(element);
+                if (id) return deleteProject(id);
+                return typeof click === "function" ? click(event, target) : undefined;
+            };
+        }
+        entry[MENU_DONE] = true;
+    }
+    return entries;
+}
+
+/** The tray class's menu builder, wrapped once: at init when the system has set its class, else at ready. */
+function wrapCountdownMenu() {
+    const Tray = game.system?.api?.applications?.ui?.DhCountdowns ?? CONFIG.ui?.countdowns ?? null;
+    const proto = typeof Tray === "function" ? Tray.prototype : null;
+    const own = proto?._getCountdownContextOptions;
+    if (typeof own !== "function" || own[MENU_DONE]) return false;
+    const wrapped = function (...args) {
+        return projectRowMenu(own.apply(this, args));
+    };
+    wrapped[MENU_DONE] = true;
+    proto._getCountdownContextOptions = wrapped;
+    return true;
 }
 
 /* ==========================================================================
@@ -262,7 +361,7 @@ async function applyProjectManager(result, projects) {
         if (!exists(entry.id)) continue;
 
         const before = projects.find(p => p.id === entry.id);
-        if (entry.img && entry.img !== before?.img) await setProjectImage(entry.id, entry.img);
+        const img = entry.img && entry.img !== before?.img ? { img: entry.img } : null;
         /* THE ROOM ONLY WHEN THIS ROW CHANGED IT (E12 C5, 1.2.74; audit S09-03). Every row's room was
            written back on every Save, so a room the project gained while the window was open - its
            token dragged into another room (`onProjectTokenMoved`), another GM's edit - was put back
@@ -280,11 +379,13 @@ async function applyProjectManager(result, projects) {
             const meta = secretsOf(entry.id);
             if (!meta.killerId && !meta.by) {
                 ui.notifications.warn(game.i18n.format("DRPG.Project.needsKillerNamed", { name: before?.name ?? "?" }));
-                if (room) await setProjectMeta(entry.id, room);
+                const kept = combineChanges(img, room ? { meta: room } : null);
+                if (kept) await applyProjectChange(entry.id, kept, { by: { kind: "gm" } });
                 continue;
             }
         }
-        await setProjectMeta(entry.id, { ...room, indirectMurder: entry.murder });
+        // The flag only when this row changed it, as the room (E36 C2): an unchanged row writes nothing.
+        const murder = Boolean(entry.murder) !== isIndirectMurder(entry.id) ? { indirectMurder: Boolean(entry.murder) } : null;
 
         // After that first moment the checkbox is simply the answer.
         //
@@ -293,10 +394,15 @@ async function applyProjectManager(result, projects) {
         // came out as `secret || murder`, and an indirect murder flipped between
         // sealed and revealed on every other save.
         const shouldBeSecret = entry.secret || newlyMurder;
-        // Through applySecrecy, which knows about the row's own ticked list of
+        // Through secrecyChange, which knows about the row's own ticked list of
         // viewers (P-1) and about the builder; `entry.viewers` is null when this
         // window had no list to read, and then the seal keeps whoever already knew.
-        await applySecrecy(entry.id, shouldBeSecret, entry.viewers);
+        // ONE CHANGE A ROW (E36 C2, 25.10.2026; audit S17-18): the portrait, the room, the flag and the
+        // secrecy were three or four writes, each read and written whole, so another change landing
+        // between them was lost or half-made; one step of the entry now, and none for a row left as it was.
+        const change = combineChanges(img, room || murder ? { meta: { ...room, ...murder } } : null,
+            secrecyChange(entry.id, shouldBeSecret, entry.viewers));
+        if (change) await applyProjectChange(entry.id, change, { by: { kind: "gm" } });
     }
     return deleted;
 }
@@ -683,7 +789,8 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
     }
 
     if (editing) {
-        await updateProject(project.id, {
+        // One change of the entry (E36 C2): the edit and the secrecy in one step.
+        const change = combineChanges(projectEditChange({
             name: result.name,
             target: result.target,
             img: result.img,
@@ -701,8 +808,8 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
                     firedAt: startTrigger?.firedAt ?? null,
                     condition: result.condition }
                 : null
-        });
-        await applySecrecy(project.id, result.secret || result.murder, result.viewers);
+        }), secrecyChange(project.id, result.secret || result.murder, result.viewers));
+        if (change) await applyProjectChange(project.id, change, { by: { kind: "gm" } });
         ui.notifications.info(game.i18n.localize("DRPG.Project.saved"));
         return { id: project.id, name: result.name };
     }
@@ -772,8 +879,8 @@ export function killerIdFor(viewerUserId, byActorId) {
     return null;
 }
 
-/** Keep the ownership map in step with one boolean. */
-async function applySecrecy(id, wanted, viewers = null) {
+/** The change that keeps the ownership map in step with one boolean, or null when it already is (E36 C2: written by the caller's one change). */
+function secrecyChange(id, wanted, viewers = null) {
     /*
      * A TICKED LIST IS AN ANSWER, NOT AN ADDITION (P-1, Dawid 18.09).
      *
@@ -793,10 +900,9 @@ async function applySecrecy(id, wanted, viewers = null) {
         const now = new Set(viewersOf(id).map(u => u.id));
         const same = isSecret(id) && now.size === audience.length
             && audience.every(userId => now.has(userId));
-        if (!same) await makeSecret(id, audience);
-        return;
+        return same ? null : secretChange(id, audience);
     }
-    if (isSecret(id)) await revealProject(id);
+    return isSecret(id) ? revealChange(id) : null;
 }
 
 /** Kept as its own name - the manager and the empty state both call it. */

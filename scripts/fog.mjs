@@ -66,7 +66,7 @@ import { roomPieces, roomRegions, roomNames, sceneHoldsRooms, scenesWithRooms, n
     regionPatches } from "./rooms.mjs";
 import { isMastermind, mastermindActor, mastermindLair, setMastermindLair } from "./mastermind.mjs";
 import { isMonokuma } from "./monokuma.mjs";
-import { isPrimaryGm, primaryGmId, debug, log, warn, error, plural, whisperToGms, esc } from "./utils.mjs";
+import { isPrimaryGm, primaryGmId, debug, log, warn, error, plural, whisperToGms, esc, serialWrite } from "./utils.mjs";
 import { ENTER, reducedMotion, glassOn } from "./motion.mjs";
 import { playSfx } from "./sfx.mjs";
 import { discoveryStore, fogCopy, fogSectionFor } from "./gm-stores.mjs";
@@ -727,15 +727,19 @@ async function carryRename(scene, from, to, pieces) {
  * `sceneOfRoom`), so it stood here when no place scene before this one holds the old name.
  */
 async function carryRoomInWorld(scene, from, to) {
-    const [{ projectMeta, setProjectMeta }, { carryPlant }, { carryGatherRoom, carrySealedRoom }, { carryBodyRooms }] = await Promise.all([
-        import("./projects-secrecy.mjs"), import("./traps.mjs"), import("./call-world.mjs"), import("./settings.mjs")]);
+    const [{ applyProjectChange }, { projectMeta, setProjectMeta, rawCountdown, COUNTDOWNS_KEY }, { carryPlant }, { carryGatherRoom, carrySealedRoom },
+        { carryBodyRooms }] = await Promise.all([import("./projects.mjs"), import("./projects-secrecy.mjs"), import("./traps.mjs"),
+        import("./call-world.mjs"), import("./settings.mjs")]);
     const places = placeScenes(), at = places.indexOf(scene);
     const firstHere = at >= 0 && !places.slice(0, at).some(s => roomRegions(s, from).length);
     let projects = 0;
     for (const [id, meta] of Object.entries(projectMeta())) {
         if (meta?.room !== from) continue;
         if (meta.tokenId && meta.tokenScene ? meta.tokenScene !== scene.id : !firstHere) continue;
-        await setProjectMeta(id, { room: to });
+        // A project's room is a change of the one entry (E36 C2; audit S17-18), queued with every other change of it.
+        // A row whose countdown is gone is no project the entry knows: carried as before, in a step of the same queue.
+        if (rawCountdown(id)) await applyProjectChange(id, { meta: { room: to } }, { by: { kind: "system" } });
+        else await serialWrite(COUNTDOWNS_KEY, () => setProjectMeta(id, { room: to }));
         projects++;
     }
     const lists = await carryNeighbourLists(scene, from, to);

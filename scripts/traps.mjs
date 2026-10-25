@@ -61,7 +61,7 @@
 import { MODULE_ID, TRAP_TRIGGERS, TRAP_MODIFIERS, AFTER_DARK,
     TIME_OF_DAY_LABELS } from "./config.mjs";
 import { SETTINGS, getSetting, isDeadForGm } from "./settings.mjs";
-import { isPrimaryGm, debug, log, warn, error, esc, pause, placeRoomOptions } from "./utils.mjs";
+import { isPrimaryGm, debug, log, warn, error, esc, pause, placeRoomOptions, serialWrite } from "./utils.mjs";
 import { trapLedgerStore, trapPlantStore } from "./gm-stores.mjs";
 // Statically: the leaf imports config.mjs and utils.mjs only, so this edge closes no cycle (E31).
 import { ownsActor, guardRelayOwner, guardRelayActor, guardRelayRoom, guardRelayTeller, judge, table, pick, as, knownSender, bridgeRequest } from "./bridge-guards.mjs";
@@ -69,6 +69,8 @@ import { ownsActor, guardRelayOwner, guardRelayActor, guardRelayRoom, guardRelay
 // dependency only goes this way at load time - projects.mjs reaches back
 // into this file through dynamic imports, which is not a cycle.
 import { allProjects, secretsOf, patchTrigger, standsAtProject, projectScene } from "./projects.mjs";
+// The projects' queue (E36 C2): a trap's fire and Rearm write its trigger in it, as every change of a project is made.
+import { COUNTDOWNS_KEY } from "./projects-secrecy.mjs";
 import { newItemIdentity } from "./inventory.mjs";
 import { cardFlag, cardWriter, wordsOf, SECRET_FLAG } from "./secret.mjs";
 
@@ -353,7 +355,8 @@ async function alert(trap, actor, why, onScene = null) {
  */
 async function stampFired(projectId) {
     try {
-        const trigger = await patchTrigger(projectId, { firedAt: Date.now() });
+        // In the projects' queue (E36 C2): a change whose step arms or disarms this trap lands before or after it, never across it.
+        const trigger = await serialWrite(COUNTDOWNS_KEY, () => patchTrigger(projectId, { firedAt: Date.now() }));
         if (!trigger?.firedAt) {
             error(`Could not disarm trap "${projectId}" - no alert sent`);
             return false;
@@ -369,7 +372,8 @@ async function stampFired(projectId) {
 /** Put a trap that has spoken back on watch. The GM's "not this one". */
 export async function rearmTrap(projectId) {
     if (!game.user.isGM) return null;
-    await patchTrigger(projectId, { armed: true, firedAt: null });
+    // In the projects' queue, as `stampFired` (E36 C2). `armTrap` and `disarmTrap` are not: a step calls them.
+    await serialWrite(COUNTDOWNS_KEY, () => patchTrigger(projectId, { armed: true, firedAt: null }));
     forgetArmedTraps();
     log(`Trap "${projectId}" is watching again.`);
     return true;

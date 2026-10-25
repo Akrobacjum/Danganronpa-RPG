@@ -5,11 +5,13 @@
  * read through `secretsOf`, written through `patchTrigger` and `setProjectMeta`,
  * and lifted out of world data once by `liftProjectSecrets`; who may see a
  * project (`canSee`, `viewersOf`, `insidersOf`, `builderIds`, `sealAudience`,
- * `withoutLeak`, `isSecret`) and the countdown's ownership map that enforces it
- * (`makeSecret`, `shareWith`, `unshareWith`, `revealProject`); and the accessors
- * all of that writes through - `projectMeta`, `metaFor` and `setProjectMeta` for
- * the module's own row, `rawCountdown` and `writeCountdown` for Daggerheart's
- * countdown. What it does not hold: making, progressing, sabotaging, announcing,
+ * `withoutLeak`, `isSecret`) and the countdown's ownership map that enforces it,
+ * as the change that makes it (`secretChange`, `shareChange`, `unshareChange`,
+ * `revealChange`: projects.mjs's `makeSecret`, `shareWith`, `unshareWith` and
+ * `revealProject` hand them to its one entry since E36 C2); and the accessors -
+ * `projectMeta`, `metaFor` and `setProjectMeta` for the module's own row,
+ * `rawCountdown` for Daggerheart's countdown and `writeAllCountdowns`, the one
+ * whole write of it, from a step. What it does not hold: making, progressing, sabotaging, announcing,
  * editing or deleting a project, and resealing the secret ones after a load
  * (projects.mjs: `resealSecretProjects` and `knowsProject` read `allProjects`
  * and `roomOf`), nor any window or the tray (projects-ui.mjs, projects-tray.mjs).
@@ -21,13 +23,15 @@
  * back: R161 counts an `export ... from` as an edge, and the import would close a
  * cycle. Below it are config.mjs, settings.mjs, utils.mjs and gm-stores.mjs,
  * statically (gm-stores.mjs reaches this family only by `import()`), and
- * gm-bridge.mjs and traps.mjs by `import()`, as they were. The accessors came
+ * traps.mjs by `import()` (gm-bridge.mjs too until E36 C2). The accessors came
  * down with the secrecy because the secrecy writes through them: left above, they
  * would have made this file import its facade. Eight names are exported that were
  * not (`DH`, `COUNTDOWNS`, `OBSERVER`, `ownerIdsOfId`, `ownershipMap`,
  * `insidersOf`, `rawCountdown`, `writeCountdown`), because projects.mjs reads
  * them; it does not re-export them, so the module's API is the one it was. E36 C1
- * added two more for it, `COUNTDOWNS_KEY` and `writeAllCountdowns`.
+ * added two more for it, `COUNTDOWNS_KEY` and `writeAllCountdowns`; E36 C2 took
+ * `writeCountdown` out (no write of Countdowns is left outside a step) and the four
+ * ownership writers up into projects.mjs, which re-exports them no longer.
  * `liftProjectSecrets` stands last on purpose: R172 reads it by name, a
  * function's cut (`fnSource`) runs on to the next function, and last keeps the
  * cut the text it was before the move. No module state.
@@ -192,99 +196,61 @@ export function viewersOf(countdownId) {
         .filter(u => u && !u.isGM);
 }
 
-/**
- * Make a project secret, visible only to the given users.
- *
- * @param {string} countdownId
- * @param {string[]} viewerIds  Users allowed to see it - normally just the killer.
+/*
+ * WHO SEES A PROJECT, AS CHANGES (E36 C2, 25.10.2026; audit S17-18). `makeSecret`, `shareWith`, `unshareWith` and
+ * `revealProject` wrote the countdown's ownership here, each read and written whole outside any queue. They are
+ * projects.mjs functions now, over its one entry (`applyProjectChange`); what stays here is the arithmetic: each
+ * of these answers the change the entry makes (`{ ownership, meta }`), or null when there is none to make, and
+ * writes nothing. The ownership map is a whole map in the change, and the entry replaces the countdown's with it.
  */
-export async function makeSecret(countdownId, viewerIds = []) {
-    if (!game.user.isGM) return null;
 
-    const ownership = ownershipMap(viewerIds);
-
-    await writeCountdown(countdownId, { ownership }, { replace: ["ownership"] });
-    await setProjectMeta(countdownId, { secret: true });
-    log(`Project ${countdownId} is now secret; ${viewerIds.length} viewer(s).`);
-    return ownership;
+/** Sealed to these users alone - normally just the killer. */
+export function secretChange(countdownId, viewerIds = []) {
+    return { ownership: ownershipMap(viewerIds), meta: { secret: true } };
 }
 
-/** Let one more player in on a secret project. */
-export async function shareWith(countdownId, userId) {
-    if (!game.user.isGM) {
-        const { requestProjectShare } = await import("./gm-bridge.mjs");
-        const res = await requestProjectShare(countdownId, userId);
-        return res.ok ? { pending: true } : null;
-    }
-
-    // Only a SECRET project has a guest list (E03; audit S09-02). Sharing a
-    // public one wrote an ownership map that hid it from everybody but the one
-    // player, while its metadata still called it public - so the tray and the
-    // pickers disagreed about who could see it, and nothing ever resealed it.
-    if (!isSecret(countdownId)) return null;
-
-    const current = rawCountdown(countdownId)?.ownership ?? {};
-    const viewers = Object.entries(current)
+/** The users who see a secret project now, read from its ownership map. */
+function sharedIds(countdownId) {
+    return Object.entries(rawCountdown(countdownId)?.ownership ?? {})
         .filter(([key, level]) => key !== "default" && level >= OBSERVER)
         .map(([id]) => id);
-    await writeCountdown(countdownId, { ownership: ownershipMap([...viewers, userId]) }, { replace: ["ownership"] });
-
-    const user = game.users.get(userId);
-    log(`Project ${countdownId} shared with ${user?.name ?? userId}.`);
-    return true;
-}
-
-/** Take a player back off a secret project. */
-export async function unshareWith(countdownId, userId) {
-    if (!game.user.isGM) return null;
-    // The same map, written the same way, for the same reason as `shareWith`.
-    if (!isSecret(countdownId)) return null;
-    /* NEVER THE BUILDER (E05 C1; audit S09-09). The manager and the project window add the builder
-       whatever is ticked (F3), and Revoke in the Share window took them off their own trap: the
-       student who built it could no longer see it or work on it. Refused, and the GM told why. */
-    if (builderIds(countdownId).includes(userId)) {
-        ui.notifications?.warn(game.i18n.format("DRPG.Project.builderStays", {
-            name: game.users.get(userId)?.name ?? userId, project: rawCountdown(countdownId)?.name ?? countdownId
-        }));
-        return null;
-    }
-
-    const current = rawCountdown(countdownId)?.ownership ?? {};
-    const viewers = Object.entries(current)
-        .filter(([key, level]) => key !== "default" && level >= OBSERVER && key !== userId)
-        .map(([id]) => id);
-    await writeCountdown(countdownId, { ownership: ownershipMap(viewers) }, { replace: ["ownership"] });
-    return true;
 }
 
 /**
- * Drop secrecy entirely - the plan is out.
- *
- * The ownership map is *replaced*, not merged. `writeCountdown` uses
- * `mergeObject`, so writing `{ default: OBSERVER }` left every explicit
- * `{ playerId: NONE }` from `ownershipMap` exactly where it was - and since
- * Daggerheart reads `ownership[user.id]` and ignores `default`, revealing a
- * project changed nothing for the players it had been hidden from.
+ * One more player in on a secret project. Only a SECRET project has a guest list (E03; audit S09-02): sharing a
+ * public one wrote an ownership map that hid it from everybody but the one player, while its metadata still
+ * called it public - so the tray and the pickers disagreed about who could see it, and nothing ever resealed it.
  */
-export async function revealProject(countdownId) {
-    if (!game.user.isGM) return null;
+export function shareChange(countdownId, userId) {
+    if (!isSecret(countdownId)) return null;
+    return { ownership: ownershipMap([...sharedIds(countdownId), userId]) };
+}
 
+/** A player taken back off a secret project: the same map, written the same way, for the same reason. */
+export function unshareChange(countdownId, userId) {
+    if (!isSecret(countdownId)) return null;
+    return { ownership: ownershipMap(sharedIds(countdownId).filter(id => id !== userId)) };
+}
+
+/**
+ * Secrecy dropped entirely - the plan is out.
+ *
+ * The ownership map is *replaced*, not merged: writing `{ default: OBSERVER }` over a merge left every explicit
+ * `{ playerId: NONE }` from `ownershipMap` exactly where it was - and since Daggerheart reads `ownership[user.id]`
+ * and ignores `default`, revealing a project changed nothing for the players it had been hidden from.
+ */
+export function revealChange(countdownId) {
     // Who was in on it, kept for the day it is sealed again - see `sealAudience`.
-    // Read before the write below makes the answer "everybody".
+    // Read before the change makes the answer "everybody".
     const insiders = isSecret(countdownId)
         ? withoutLeak(countdownId, viewersOf(countdownId).map(u => u.id))
         : (metaFor(countdownId).sealedViewers ?? []);
-
     const cleared = { default: OBSERVER };
     for (const user of game.users) {
         if (user.isGM) continue;
         cleared[user.id] = OBSERVER;
     }
-
-    await writeCountdown(countdownId, { ownership: cleared }, { replace: ["ownership"] });
-    await setProjectMeta(countdownId, { secret: false, sealedViewers: insiders });
-    log(`Project ${countdownId} revealed to everyone.`);
-    return true;
+    return { ownership: cleared, meta: { secret: false, sealedViewers: insiders } };
 }
 
 /**
@@ -354,32 +320,9 @@ export function rawCountdown(countdownId) {
 }
 
 /**
- * Merge fields into one countdown. GM only.
- *
- * `replace` names top-level keys that must be overwritten wholesale rather than
- * merged. An ownership map is the obvious case: merging can only ever *add*
- * entries, so a stale `{ playerId: NONE }` survives every attempt to grant
- * access and the write silently does the opposite of what it says.
- */
-export async function writeCountdown(countdownId, patch, { replace = [] } = {}) {
-    const data = game.settings.get(DH, COUNTDOWNS);
-    const countdowns = foundry.utils.duplicate(data?.countdowns ?? {});
-    if (!countdowns[countdownId]) return null;
-
-    const merged = foundry.utils.mergeObject(countdowns[countdownId], patch, { inplace: false });
-    for (const key of replace) {
-        if (key in patch) merged[key] = patch[key];
-    }
-
-    countdowns[countdownId] = merged;
-    await game.settings.set(DH, COUNTDOWNS, { ...data, countdowns });
-    return merged;
-}
-
-/**
  * Write the Countdowns setting whole, as a step of `COUNTDOWNS_KEY` built it (E36 C1): `data` is the setting
  * read in that step with its changes. Called from a step alone (projects.mjs `applyProjectChange`'s); a step
- * that wrote through `writeCountdown` would read the setting a second time, and R977 counts the writers by name.
+ * that read the setting again to merge one countdown would read it a second time, and R977 counts the writers by name.
  */
 export async function writeAllCountdowns(data) {
     await game.settings.set(DH, COUNTDOWNS, data);
