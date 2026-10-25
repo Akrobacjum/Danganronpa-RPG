@@ -112,6 +112,20 @@
  * CO (E18 C5): a private card to a student's owners. A student of the scenario's own, owned by p1 and p2 and observed by
  *   p3, is sent a card through `whisperToOwner`: p1 and p2 read its words, p3 holds nothing of it on any surface and no
  *   packet of its words is addressed to p3. Put back, as the phase found it.
+ * SP (E15 part 2 C6): Secret Passage, on the clients that do each part. Phase F's Kitchen and its wall again, Aiko and
+ *   Botan in the Cafeteria, Chie in Dorm B. p1's Start New offers it to the Kitchen alone and sends the proposal; the
+ *   GM presses Approve on its card with the windows drawn: Secret ticked and held, Create refused before a pick, then
+ *   the window's own pick (two clicks on the Kitchen's wall, the first at the marker) and Create - the stretch and the
+ *   Kitchen in the GMs' half alone. Shared with p2, finished by Aiko's Work on p1 (the GM's manager first puts it one
+ *   short): the season's row, Aiko built and Botan shared, each told on their own browser, p3 holding no copy, no card
+ *   of it, its id nowhere and the marker nowhere more, every copy sent to one player; the Reroll's undo (the primary's
+ *   change, not a thrown Reroll) takes it from both copies. Put back, as the phase found it.
+ * BR (E15 part 2 C6): Breach the Wall, the same way, Botan in the Kitchen beyond: every browser holds the one hole,
+ *   stopping nothing, and the Kitchen forced; Botan is told by Aiko's name (she stands at the hole), Aiko and Chie get
+ *   no breach card; the GMs' Close the breach gives p3 the walls and regions it held before the cut. Put back.
+ *   In both, p3's chat is read (lib/canary.mjs `chatScan`) for the project's name outside the cards' words. Who spoke a
+ *   private card and whom it went to are on every browser by design (secret.mjs, "WHAT STILL LEAKS"): p3 holds the
+ *   stubs of Aiko's and Botan's cards, which the scan's actor and player reading names, so the scan reads titles alone.
  *
  * What the harness cannot settle - a real canvas's move backend, the ruler and the keyboard, a GM on
  * another scene at a real table - is LIVE-E79-01 to LIVE-E79-08 (AUDIT 9.2, since C8).
@@ -137,8 +151,10 @@ export const layers = ["ci"];
    in 166.2 s by run-all's line, one run alone under the harness lock - so 250 s, near one and a half times it. E80 C6
    (18.10.2026) adds phase W: 91 checks in 166.3 s by run-all's line, one run alone under the harness lock (the commit's
    quick gate) - 250 s stands. E18 C5 (20.10.2026) adds phase CO: 93 checks in 165.5 s by run-all's line, one run alone
-   under the harness lock (the commit's quick gate) - 250 s stands. */
-export const timeoutMs = 250000;
+   under the harness lock (the commit's quick gate) - 250 s stands. E15 part 2 C6 (25.10.2026) adds phases SP and BR:
+   114 checks in 197.2 s by run-all's line (113 passed, the one expected red), one run alone under the harness lock - so
+   300 s, near one and a half times it. */
+export const timeoutMs = 300000;
 
 /* A second GM and a fifth player, seeded inactive and connected in phase G alone (E79 fix r2-G3), declared as 61 and 62
    declare theirs. */
@@ -203,7 +219,7 @@ const worldPrint = (dump, { without = null } = {}) => J({
     settings: Object.fromEntries(Object.entries(dump?.settings?.world ?? {}).filter(([key]) => key.startsWith("danganronpa-rpg.")))
 });
 
-export async function run({ gm, gm2, p1, p2, p3, p4, check, phase, settle, dump, socketTraffic, opLog, connect, disconnect, storageOf, IDS, repoUrl }) {
+export async function run({ gm, gm2, p1, p2, p3, p4, check, phase, settle, dump, socketTraffic, opLog, connect, disconnect, storageOf, canary, IDS, repoUrl }) {
     phase(PHASE0);
     /* The GM's load migration is waited for before anything is read (E79 C1, 14.10.2026). Its writes - the unstamped
        harness world opens the students' sheets - reach p3 as world changes. In a2.sh's first queue (three lanes) one
@@ -292,6 +308,8 @@ export async function run({ gm, gm2, p1, p2, p3, p4, check, phase, settle, dump,
     await phaseV({ gm, p1, p2, p3, check, phase, settle, dump, IDS, repoUrl });
     await phaseW({ gm, p1, p2, p3, check, phase, settle, dump, socketTraffic, IDS, repoUrl });
     await phaseCO({ gm, p1, p2, p3, check, phase, settle, dump, socketTraffic, IDS, repoUrl });
+    await phaseSP({ gm, p1, p2, p3, check, phase, settle, dump, socketTraffic, canary, IDS, repoUrl });
+    await phaseBR({ gm, p1, p2, p3, check, phase, settle, dump, canary, IDS, repoUrl });
 }
 
 const PHASE_A = "A: the GM creates a passage and grants Aiko - p1's copy holds that row alone, p2 and p3 nothing of it, p3's world as found";
@@ -2399,4 +2417,309 @@ async function phaseCO({ gm, p1, p2, p3, check, phase, settle, dump, socketTraff
     const after = await dump("p3");
     check("CO: put back - the card and the student deleted, p3's world as this phase found it",
         gone === true && worldPrint(after) === found && worldScan(after).length === 0, J({ gone, diff: printDiff(found, worldPrint(after)) }));
+}
+
+/*
+ * THE PROJECTS THAT MAKE A PASSAGE, ON THE CLIENTS THAT DO EACH PART (E15 part 2 C6, 25.10.2026; the stage's E15-58).
+ * E15-T12 to E15-T15 (tier 2) drive the judges and the completions on the GM alone; what they cannot read is the road
+ * between the browsers: Start New on the proposer's, the approval window and its pick on the GM's, the Work on the
+ * proposer's again, and what each player's browser holds and is told after the primary's completion. Both parts stand
+ * on phase F's Kitchen under the Cafeteria and its wall at y 800 (a solid one here: the breach is judged on a wall that
+ * stops a move), with Aiko (p1's) the builder in the Cafeteria. `standE15` draws them and keeps where the cast stood,
+ * their actions and Aiko's Hope for `sitE15`, which puts them back and takes the Kitchen and its wall away.
+ * The Reroll is not thrown: the harness's roll message has no `Roll#reroll` (20-crit-hope rigs one on the GM), so the
+ * undo is the primary's change a Reroll's lower dice write (projects.mjs `applyProjectChange`, `by: { kind: "reroll" }`),
+ * as E15-T12 drives it; a Reroll at a table is LIVE-E15-03.
+ */
+const E15_UNTIL = `const until = async (test, ms = 8000) => { const end = Date.now() + ms; let v; while (!(v = await test()) && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return v; };`;
+
+const standE15 = (gm, IDS, repoUrl, { botanIn }) => gm.eval(`
+    const Mv = await import("${repoUrl}/scripts/movement.mjs");
+    const scene = game.scenes.get(${J(IDS.scene)});
+    const solid = { move: 20, sight: 20, light: 20, sound: 20, dir: 0, door: 0, ds: 0 };
+    const [kitchen] = await scene.createEmbeddedDocuments("Region", [{ name: "Kitchen", behaviors: [],
+        shapes: [{ type: "rectangle", x: 1200, y: 800, width: 800, height: 300 }], flags: { "danganronpa-rpg": { room: true } } }]);
+    const [wall] = await scene.createEmbeddedDocuments("Wall", [{ c: [1200, 800, 2000, 800], ...solid }]);
+    const cast = { aiko: "Cafeteria", botan: ${J(botanIn)}, chie: "Dorm B" };
+    const ids = { aiko: ${J(IDS.aiko)}, botan: ${J(IDS.botan)}, chie: ${J(IDS.chie)} };
+    const was = {};
+    for (const [who, room] of Object.entries(cast)) {
+        const token = scene.tokens.find(t => t.actorId === ids[who]);
+        was[who] = token ? { id: token.id, x: token.x, y: token.y } : null;
+        if (token && Mv.roomOfActor(game.actors.get(ids[who])) !== room) await token.update(Mv.positionIn(room, token), { teleport: true, movementAction: "displace", animate: false });
+    }
+    const aiko = game.actors.get(ids.aiko);
+    globalThis.__s76e15 = { kitchen: kitchen?.id ?? null, wall: wall?.id ?? null, was, actions: game.drpg.actionsLeft(aiko), hope: aiko.system.resources.hope.value,
+        had: new Set(game.messages.contents.map(m => m.id)), projects: new Set((await import("${repoUrl}/scripts/projects.mjs")).allProjects().map(p => p.id)) };
+    await game.drpg.setActions(aiko, game.drpg.actionsMax(aiko));
+    await new Promise(r => setTimeout(r, 500));
+    return { kitchen: Boolean(kitchen), wall: Boolean(wall), rooms: Object.fromEntries(Object.keys(cast).map(who => [who, Mv.roomOfActor(game.actors.get(ids[who]))])) };`, { timeout: 60000 });
+
+const sitE15 = (gm, IDS, repoUrl) => gm.eval(`
+    const PR = await import("${repoUrl}/scripts/projects.mjs");
+    const scene = game.scenes.get(${J(IDS.scene)});
+    const s = globalThis.__s76e15 ?? {};
+    for (const p of PR.allProjects()) if (!s.projects?.has(p.id)) await PR.deleteProject(p.id);
+    for (const m of game.messages.contents) if (!s.had?.has(m.id)) await m.delete();
+    for (const [, at] of Object.entries(s.was ?? {})) if (at) await scene.tokens.get(at.id)?.update({ x: at.x, y: at.y }, { teleport: true, movementAction: "displace", animate: false });
+    const aiko = game.actors.get(${J(IDS.aiko)});
+    await game.drpg.setActions(aiko, s.actions);
+    await aiko.update({ "system.resources.hope.value": s.hope });
+    if (s.wall && scene.walls.get(s.wall)) await scene.deleteEmbeddedDocuments("Wall", [s.wall]);
+    if (s.kitchen && scene.regions.get(s.kitchen)) await scene.deleteEmbeddedDocuments("Region", [s.kitchen]);
+    delete globalThis.__s76e15;
+    await new Promise(r => setTimeout(r, 500));
+    return { projects: PR.allProjects().filter(p => !s.projects?.has(p.id)).length, wall: Boolean(s.wall && scene.walls.get(s.wall)) };`, { timeout: 60000 });
+
+/* Start New on p1: Aiko's Kind is the preset, its "Through the wall to" the first room the offer names (the form's
+   index, as a player picks it), every other field left as the window gives it. */
+const proposeE15 = (p1, IDS, repoUrl, preset) => p1.eval(`
+    const aiko = game.actors.get(${J(IDS.aiko)});
+    globalThis.__dialogLog.length = 0;
+    globalThis.__dialogAnswers.push({ value: "start", form: null },
+        { name: "", target: 4, room: null, trait: "body", murder: false, condition: "", preset: ${J(preset)}, to: "0", seal: null, unbreach: null, mend: null });
+    let out = null, err = null;
+    try { out = await game.drpg.performAction(aiko, "project", {}); } catch (e) { err = String(e?.message ?? e).slice(0, 200); }
+    globalThis.__dialogAnswers.length = 0;
+    const P = await import("${repoUrl}/scripts/passages-gm.mjs");
+    const L = await import("${repoUrl}/scripts/movement.mjs");
+    return { out, err, dialogs: globalThis.__dialogLog.map(d => d.title), offer: typeof P.secretPassageOffer === "function" ? P.secretPassageOffer({ scene: canvas.scene, room: L.roomOfActor(aiko), level: null }) : null };`, { timeout: 60000 });
+
+/* The GM presses Approve on the proposal's card (messenger-app.mjs `wireCallActions`, as the chat log wires it) with
+   the windows drawn (`__dialogWindows`), so the approval's own render wires its pick; Create first with nothing picked,
+   then Approve again, the pick's button and two clicks on the Kitchen's wall through the board's listeners (phase F's
+   way), and Create. Read: the window's Secret box, its rooms, the refusal, what the pick said, and the project made. */
+const approveE15 = (gm, IDS, repoUrl, clicks) => gm.eval(`${E15_UNTIL}
+    const PR = await import("${repoUrl}/scripts/projects.mjs");
+    const { contentOf } = await import("${repoUrl}/scripts/secret.mjs");
+    const { wireCallActions } = await import("${repoUrl}/scripts/messenger-app.mjs");
+    const s = globalThis.__s76e15;
+    const find = () => game.messages.contents.find(m => !s.had.has(m.id) && String(contentOf(m) ?? "").includes('data-drpg-call="approveProject"'));
+    const card = await until(() => find());
+    const hands = {}, stage = canvas.stage, kept = { on: stage.on, off: stage.off };
+    stage.on = (event, fn) => { hands[event] = fn; return stage; };
+    stage.off = (event, fn) => { if (hands[event] === fn) delete hands[event]; return stage; };
+    const was = globalThis.__dialogWindows;
+    globalThis.__dialogWindows = true;
+    const at = (x, y) => ({ button: 0, getLocalPosition: () => ({ x, y }) });
+    const windowOf = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.element?.querySelector?.("[data-drpg-passage-preset]")) ?? null;
+    const press = () => { const body = document.createElement("div"); body.innerHTML = contentOf(card); wireCallActions(body, card); body.querySelector('[data-drpg-call="approveProject"]')?.click(); };
+    const made = () => PR.allProjects().find(p => !s.projects.has(p.id)) ?? null;
+    const out = { card: Boolean(card) };
+    try {
+        if (!card) return out;
+        const noted = globalThis.__notifications.length;
+        press();
+        let app = await until(() => windowOf());
+        const form = app?.element?.querySelector("form");
+        const box = form?.querySelector('[name="secret"]');
+        out.window = { secret: box ? [box.checked, box.disabled] : null, to: form?.passageTo ? [...form.passageTo.options].map(o => o.value) : null,
+            from: app?.element?.querySelector("[data-drpg-passage-preset] .notes")?.textContent ?? null };
+        app?.element?.querySelector("footer.form-footer button.default")?.click();
+        await until(() => !windowOf());
+        await new Promise(r => setTimeout(r, 300));
+        out.unpicked = { made: Boolean(made()), told: globalThis.__notifications.slice(noted).map(n => n.msg) };
+        press();
+        app = await until(() => windowOf());
+        app?.element?.querySelector("[data-drpg-passage-pick]")?.click();
+        await until(() => hands.pointerdown);
+        for (const [x, y] of ${J(clicks)}) { hands.pointerdown?.(at(x, y)); await new Promise(r => setTimeout(r, 150)); }
+        const picked = await until(() => app?.element?.querySelector('[name="passage"]')?.value);
+        out.picked = { seg: picked ? JSON.parse(picked).seg ?? null : null, said: app?.element?.querySelector("[data-drpg-passage-picked]")?.textContent ?? null, board: Object.keys(hands).sort() };
+        app?.element?.querySelector("footer.form-footer button.default")?.click();
+        const project = await until(() => made());
+        out.made = project ? { id: project.id, name: project.name, secret: PR.isSecret(project.id), target: PR.secretsOf(project.id).target ?? null,
+            stretch: PR.secretsOf(project.id).passage?.seg ?? null, meta: Object.keys(PR.metaFor(project.id) ?? {}).filter(k => ["passage", "target"].includes(k)) } : null;
+        return out;
+    } finally {
+        globalThis.__dialogWindows = was;
+        stage.on = kept.on;
+        stage.off = kept.off;
+    }`, { timeout: 90000 });
+
+/* Aiko's Work on p1, the roll thrown 9 and 5 on both browsers (13's way, a hit of +1), after the GM's manager has put
+   the bar one short (`applyProjectChange` with the GM's own change): the completion is the primary's, on the player's
+   change. */
+const finishE15 = async (gm, p1, IDS, repoUrl, projectId) => {
+    const short = await gm.eval(`const PR = await import("${repoUrl}/scripts/projects.mjs");
+        const p = PR.allProjects().find(x => x.id === ${J(projectId)});
+        const need = Number(p?.max ?? p?.target ?? 6) - Number(p?.current ?? 0) - 1;
+        await PR.applyProjectChange(${J(projectId)}, { delta: need }, { by: { kind: "gm" } });
+        await new Promise(r => setTimeout(r, 400));
+        const q = PR.allProjects().find(x => x.id === ${J(projectId)});
+        return { current: q?.current ?? null, max: q?.max ?? q?.target ?? null };`, { timeout: 30000 });
+    for (const c of [gm, p1]) await c.eval(`globalThis.__forceRoll = { hope: 9, fear: 5 }; return true;`);
+    const worked = await p1.eval(`const aiko = game.actors.get(${J(IDS.aiko)});
+        globalThis.__dialogLog.length = 0;
+        globalThis.__dialogAnswers.push({ value: "work", form: null });
+        let out = null, err = null;
+        try { out = await game.drpg.performAction(aiko, "project", {}); } catch (e) { err = String(e?.message ?? e).slice(0, 200); }
+        finally { globalThis.__dialogAnswers.length = 0; }
+        await new Promise(r => setTimeout(r, 900));
+        return { out: out ? { success: out.success, progress: out.progress } : null, err, dialogs: globalThis.__dialogLog.map(d => d.title) };`, { timeout: 90000 });
+    for (const c of [gm, p1]) await c.eval(`delete globalThis.__forceRoll; return true;`);
+    const done = await gm.eval(`${E15_UNTIL}
+        const PR = await import("${repoUrl}/scripts/projects.mjs");
+        const p = await until(() => PR.allProjects().find(x => x.id === ${J(projectId)} && x.complete));
+        return { complete: Boolean(p), current: p?.current ?? null };`, { timeout: 30000 });
+    return { short, worked, done };
+};
+
+/* What a player's browser holds of the cards that arrived since the phase began: each one's words, as its reader sees them. */
+const wordsOn = (client, repoUrl) => client.eval(`const S = await import("${repoUrl}/scripts/secret.mjs");
+    return game.messages.contents.map(m => String(S.secretHtml(m) ?? "")).filter(Boolean);`);
+/* p3's world as a phase found it. The one difference allowed: the module's project record, never written before the
+   first project of the run (measured 25.10.2026: "danganronpa-rpg.projectMeta: undefined -> {}"), is an empty record
+   once that project is deleted. */
+const sameButMeta = (a, b) => a === b || printDiff(a, b).every(d => d === "danganronpa-rpg.projectMeta: undefined -> {}");
+const opener = key => `return game.i18n.localize(${J(key)}).split("{")[0];`;
+
+const PHASE_SP = "SP: Secret Passage - Aiko's player proposes it from the Cafeteria, the GM approves it in its window with the pick held to the Kitchen's wall, her Work finishes it on the primary: Aiko, and Botan it was shared with, hold it and are told, Chie's player nothing; the Reroll's undo takes it back";
+
+async function phaseSP({ gm, p1, p2, p3, check, phase, settle, dump, socketTraffic, canary, IDS, repoUrl }) {
+    phase(PHASE_SP, { flow: "secret-passages" });
+    const found = worldPrint(await dump("p3"));
+    const marks0 = total(probe(await dump("p3")));
+    const words0 = await Promise.all([p1, p2, p3].map(c => wordsOn(c, repoUrl)));
+    await canary.chatMark({ who: ["p3"] });
+    const stood = await standE15(gm, IDS, repoUrl, { botanIn: "Cafeteria" });
+    const proposed = await proposeE15(p1, IDS, repoUrl, "secretPassage");
+    const approved = await approveE15(gm, IDS, repoUrl, [[MARK, 803], [MARK + 200, 797]]);
+    const texts = await gm.eval(`return { needs: game.i18n.localize("DRPG.Project.passageNeedsPick"), picked: game.i18n.format("DRPG.Project.passagePicked", { passage: "Cafeteria - Kitchen" }),
+        from: game.i18n.format("DRPG.Project.passageFrom", { room: "Cafeteria" }), name: game.i18n.localize("DRPG.Project.preset.secretPassage") };`);
+    check("SP: Start New on p1 offers Secret Passage from the Cafeteria to the Kitchen and sends the proposal; the GM's approval window has Secret ticked and held, the Cafeteria and the Kitchen alone, refuses Create before a pick, and the pick on the Kitchen's wall makes the project with the stretch and the room in the GMs' half alone",
+        stood.kitchen && stood.wall && J(stood.rooms) === J({ aiko: "Cafeteria", botan: "Cafeteria", chie: "Dorm B" })
+            && proposed.out?.proposed === true && !proposed.err && J(proposed.offer?.neighbours) === J(["Kitchen"]) && proposed.offer?.from === "Cafeteria"
+            && approved.card && J(approved.window) === J({ secret: [true, true], to: ["Kitchen"], from: texts.from })
+            && approved.unpicked?.made === false && approved.unpicked.told.includes(texts.needs)
+            && J(approved.picked) === J({ seg: { x1: MARK, y1: 800, x2: MARK + 200, y2: 800 }, said: texts.picked, board: [] })
+            && approved.made?.name === texts.name && approved.made.secret === true && J(approved.made.target) === J({ preset: "secretPassage", room: "Kitchen" })
+            && J(approved.made.stretch) === J({ x1: MARK, y1: 800, x2: MARK + 200, y2: 800 }) && J(approved.made.meta) === "[]",
+        J({ stood, proposed, approved, texts }));
+    const projectId = approved.made?.id ?? null;
+    if (!projectId) {
+        await sitE15(gm, IDS, repoUrl);
+        return;
+    }
+
+    /* Shared with Botan's player from the GM's manager (`shareWith`), then finished by Aiko's Work. */
+    const from = socketTraffic.length;
+    await gm.eval(`await (await import("${repoUrl}/scripts/projects.mjs")).shareWith(${J(projectId)}, ${J(IDS.p2)}); return true;`, { timeout: 30000 });
+    await settle(600);
+    const finished = await finishE15(gm, p1, IDS, repoUrl, projectId);
+    const built = await gm.eval(`${E15_UNTIL}
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const row = await until(() => Object.entries(S.passageSeasonStore.entries()).find(([, r]) => r?.origin?.projectId === ${J(projectId)}));
+        const [id = null, r = null] = row ?? [];
+        return { id, rooms: r?.rooms ?? null, seg: r?.passageSeg ?? null, cells: id ? [${J(IDS.aiko)}, ${J(IDS.botan)}, ${J(IDS.chie)}].map(a => S.passageAccessStore.get(id + "/" + a)?.how ?? null) : null };`, { timeout: 30000 });
+    const pid = built.id;
+    const hold = async (client, test) => {
+        const t0 = Date.now();
+        let held = await known(client, repoUrl);
+        while (!test(held) && Date.now() - t0 < 8000) { await settle(200); held = await known(client, repoUrl); }
+        return held;
+    };
+    const on1 = await hold(p1, h => Boolean(h?.[pid])), on2 = await hold(p2, h => Boolean(h?.[pid]));
+    await settle(800);
+    const on3 = await known(p3, repoUrl);
+    const words = await Promise.all([p1, p2, p3].map(c => wordsOn(c, repoUrl)));
+    const fresh = words.map((list, i) => list.filter(w => !words0[i].includes(w)));
+    const say = { built: await gm.eval(opener("DRPG.Passage.card.passageBuilt")), shared: await gm.eval(opener("DRPG.Passage.card.passageBuiltShared")) };
+    const d3 = await dump("p3");
+    const rows = socketTraffic.slice(from).filter(t => t.action === "passage.rows");
+    check("SP: Aiko's Work on p1 finishes it on the primary: the season's passage on the stretch, Aiko 'built' and Botan 'shared', Chie nothing; p1's copy names Aiko and p2's Botan, each told by its own card; p3 holds no copy, no card of it, the passage's id on no surface and the marker nowhere more; every copy sent names one player and none is p3",
+        finished.worked.out?.success === true && finished.done.complete && typeof pid === "string" && J(built.rooms) === J(["Cafeteria", "Kitchen"])
+            && J(built.cells) === J(["built", "shared", null])
+            && J(on1?.[pid]?.actorIds) === J([IDS.aiko]) && (on2?.[pid]?.actorIds ?? []).includes(IDS.botan) && !(on2?.[pid]?.actorIds ?? []).includes(IDS.aiko) && !on3?.[pid]
+            && fresh[0].some(w => w.includes(say.built)) && fresh[1].some(w => w.includes(say.shared)) && !fresh[1].some(w => w.includes(say.built))
+            && !fresh[2].some(w => w.includes(say.built) || w.includes(say.shared))
+            && !J(d3).includes(pid) && total(probe(d3)) === marks0
+            && rows.length > 0 && rows.every(t => Array.isArray(t.to) && t.to.length === 1 && !t.to.includes(IDS.p3)),
+        J({ finished, built, on1: on1?.[pid] ?? null, on2: on2?.[pid] ?? null, on3: on3?.[pid] ?? null, fresh: fresh.map(f => f.map(w => w.slice(0, 120))), say,
+            leak: J(d3).includes(pid ?? "?"), marks: [marks0, total(probe(d3))], rows: rows.map(t => t.to) }));
+    await canary.chatScan({ who: ["p3"], titles: [approved.made?.name ?? texts.name] });
+
+    /* The Reroll's lower dice on the primary: the passage and who knew it go from the GMs and from both copies. */
+    const undone = await gm.eval(`const PR = await import("${repoUrl}/scripts/projects.mjs");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const r = await PR.applyProjectChange(${J(projectId)}, { delta: -1 }, { by: { kind: "reroll", actorId: ${J(IDS.aiko)} } });
+        await new Promise(r => setTimeout(r, 600));
+        return { uncrossed: r?.uncrossed ?? null, row: S.passageSeasonStore.has(${J(pid)}), cells: [${J(IDS.aiko)}, ${J(IDS.botan)}].map(a => S.passageAccessStore.has(${J(pid)} + "/" + a)) };`, { timeout: 30000 });
+    const off1 = await hold(p1, h => !h?.[pid]), off2 = await hold(p2, h => !h?.[pid]);
+    check("SP: the Reroll's undo on the primary takes the passage and both knowers back, and p1's and p2's copies lose it",
+        undone.uncrossed === true && undone.row === false && J(undone.cells) === J([false, false]) && !off1?.[pid] && !off2?.[pid],
+        J({ undone, off1: off1?.[pid] ?? null, off2: off2?.[pid] ?? null }));
+
+    const sat = await sitE15(gm, IDS, repoUrl);
+    await settle(600);
+    const after = await dump("p3");
+    check("SP: put back - the project, its cards, the Kitchen and its wall gone, the cast where they stood; p3's world as this phase found it",
+        sat.projects === 0 && sat.wall === false && sameButMeta(found, worldPrint(after)) && worldScan(after).length === 0, J({ sat, diff: printDiff(found, worldPrint(after)) }));
+}
+
+const PHASE_BR = "BR: Breach the Wall - Aiko's player proposes it, the GM approves it with the pick, her Work finishes it: the wall is cut on every browser, Botan beyond is told by name, Chie's player nothing; the GMs' Close the breach gives the wall back as it was";
+
+async function phaseBR({ gm, p1, p2, p3, check, phase, settle, dump, canary, IDS, repoUrl }) {
+    phase(PHASE_BR, { flow: "secret-passages" });
+    const found = worldPrint(await dump("p3"));
+    const words0 = await Promise.all([p1, p2, p3].map(c => wordsOn(c, repoUrl)));
+    await canary.chatMark({ who: ["p3"] });
+    const stood = await standE15(gm, IDS, repoUrl, { botanIn: "Kitchen" });
+    const drawn = worldPrint(await dump("p3"));
+    const proposed = await proposeE15(p1, IDS, repoUrl, "breach");
+    const approved = await approveE15(gm, IDS, repoUrl, [[1400, 803], [1600, 797]]);
+    const name = await gm.eval(`return game.i18n.localize("DRPG.Project.preset.breach");`);
+    check("BR: Start New on p1 offers Breach the Wall to the Kitchen and the GM's approval, Secret free to choose, makes it with the stretch the pick took on the Kitchen's wall",
+        stood.kitchen && stood.wall && J(stood.rooms) === J({ aiko: "Cafeteria", botan: "Kitchen", chie: "Dorm B" })
+            && proposed.out?.proposed === true && !proposed.err && approved.card && J(approved.window?.secret) === J([false, false])
+            && approved.made?.name === name && approved.made.secret === false && J(approved.made.target) === J({ preset: "breach", room: "Kitchen" })
+            && J(approved.made.stretch) === J({ x1: 1400, y1: 800, x2: 1600, y2: 800 }),
+        J({ stood, proposed, approved, name }));
+    const projectId = approved.made?.id ?? null;
+    if (!projectId) {
+        await sitE15(gm, IDS, repoUrl);
+        return;
+    }
+    const finished = await finishE15(gm, p1, IDS, repoUrl, projectId);
+    const cutOn = client => client.eval(`${E15_UNTIL}
+        const P = await import("${repoUrl}/scripts/passages-gm.mjs");
+        const M = await import("${repoUrl}/scripts/movement.mjs");
+        const scene = game.scenes.get(${J(IDS.scene)});
+        const holes = await until(() => P.breachesOn(scene).length ? P.breachesOn(scene) : null, 6000) ?? [];
+        return { holes: holes.map(({ wall, breach }) => ({ c: wall.c, move: wall.move, flag: Object.keys(breach).sort() })), broken: M.roomBroken(scene, "Kitchen") };`, { timeout: 30000 });
+    const cuts = await Promise.all([gm, p1, p2, p3].map(cutOn));
+    await settle(800);
+    const words = await Promise.all([p1, p2, p3].map(c => wordsOn(c, repoUrl)));
+    const fresh = words.map((list, i) => list.filter(w => !words0[i].includes(w)));
+    const say = await gm.eval(`return { there: game.i18n.format("DRPG.Passage.card.breachDoneThereNamed", { name: "Aiko Hoshino" }),
+        keys: ["breachDoneHere", "breachDoneHereNamed", "breachDoneThere", "breachDoneThereNamed", "breachHeard", "breachBedroom"]
+            .map(k => game.i18n.localize("DRPG.Passage.card." + k).split(/\\{[^}]*\\}/).sort((a, b) => b.length - a.length)[0].trim()) };`);
+    const told = list => say.keys.filter(k => list.some(w => w.includes(k)));
+    const hole = cuts[0].holes[0] ?? null;
+    check("BR: Aiko's Work finishes it on the primary: every browser holds one hole in the Kitchen's wall on the stretch, stopping nothing, its flag the breach's four fields alone, and the Kitchen forced; Botan beyond is told by name, Aiko and Chie get no breach card",
+        finished.worked.out?.success === true && finished.done.complete && cuts.every(c => c.holes.length === 1 && J(c.holes[0]) === J(hole) && c.broken === true)
+            && J(hole?.c) === J([1400, 800, 1600, 800]) && hole?.move === 0 && J(hole?.flag) === J(["breachId", "original", "originalWallId", "pieceIds"])
+            && say.keys.every(k => k.length >= 20) && fresh[1].some(w => w.includes(say.there)) && told(fresh[0]).length === 0 && told(fresh[2]).length === 0,
+        J({ finished, cuts, told: fresh.map(told), say }));
+    await canary.chatScan({ who: ["p3"], titles: [approved.made?.name ?? name] });
+
+    /* The GMs' Close the breach (the Passages tab's button, `restoreBreach`): the wall as the cut found it, on p3's browser too. */
+    const closed = await gm.eval(`const P = await import("${repoUrl}/scripts/passages-gm.mjs");
+        const M = await import("${repoUrl}/scripts/movement.mjs");
+        const scene = game.scenes.get(${J(IDS.scene)});
+        const [found] = P.breachesOn(scene);
+        const r = found ? await P.restoreBreach(scene.id, found.breach.breachId) : null;
+        await new Promise(r => setTimeout(r, 600));
+        return { closed: r?.closed ?? null, holes: P.breachesOn(scene).length, broken: M.roomBroken(scene, "Kitchen") };`, { timeout: 30000 });
+    await settle(800);
+    const back = await dump("p3");
+    check("BR: the GMs' Close the breach gives the wall back - no hole, the Kitchen no longer forced, and p3 holds the walls and regions it held before the cut",
+        typeof closed.closed === "string" && closed.holes === 0 && closed.broken === false && J(JSON.parse(worldPrint(back)).scenes) === J(JSON.parse(drawn).scenes),
+        J({ closed, diff: printDiff(drawn, worldPrint(back)) }));
+
+    const sat = await sitE15(gm, IDS, repoUrl);
+    await settle(600);
+    const after = await dump("p3");
+    check("BR: put back - the project, its cards, the Kitchen and its wall gone, the cast where they stood; p3's world as this phase found it",
+        sat.projects === 0 && sat.wall === false && sameButMeta(found, worldPrint(after)) && worldScan(after).length === 0, J({ sat, diff: printDiff(found, worldPrint(after)) }));
 }
