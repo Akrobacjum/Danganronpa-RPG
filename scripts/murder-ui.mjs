@@ -27,7 +27,7 @@
  * `DialogV2` line is its own copy of the alias, not an import.
  */
 
-import { CRISIS_ACTIONS, RESOLUTION_STRESS_COST, TIMING } from "./config.mjs";
+import { CRISIS_ACTIONS, RESOLUTION_STRESS_COST, TIMING, INDIRECT_MURDER } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { resourceValue, resourceMax, marksOf, reserveNote } from "./character.mjs";
 import { keepLive } from "./live.mjs";
@@ -224,7 +224,7 @@ export async function openMurderDialog({ killerId = null, victimId = null, indir
                     indirect || armed.has(defaultKiller) ? " checked" : ""} />
                 ${game.i18n.localize("DRPG.Murder.indirect")}</label>
             <p class="notes" data-drpg-trap-note${trapFirst ? "" : " hidden"}>${
-                game.i18n.localize("DRPG.Murder.indirectCost")}</p>
+                indirectCostText()}</p>
             <label>${game.i18n.localize("DRPG.Murder.openingStatistic")}
                 <select name="openingTrait">${trapFirst
                     ? statisticOptions("victim", defaultVictim) : statisticOptions("killer", defaultKiller)}</select></label>
@@ -723,4 +723,17 @@ function killerCleanup(killer, cleanup, named) {
             <th>${game.i18n.localize("DRPG.Cleanup.gmNote")}</th>
             <th>${game.i18n.localize("DRPG.Cleanup.gmThreshold")}</th>
         </tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+/**
+ * THE TRAP'S BUDGET, READ OFF ITS PARTS (E15 C2, 25.10.2026; audit S12-74). The card said "about 6
+ * progress" while the parts the guide lists (config.mjs `INDIRECT_MURDER.subProjects`) come to 7 at
+ * their smallest scales and 10 at their largest, so a GM who approved the two smallest saw 6 could
+ * not be met, and the table was read by nothing. The range is the parts' sums now: 7-10 with
+ * config.mjs as it stands (D21: no number changes). R979 reads it.
+ */
+export function indirectCostText() {
+    const parts = INDIRECT_MURDER.subProjects ?? [];
+    const sum = pick => parts.reduce((n, part) => n + (Number(pick(part.progress ?? [])) || 0), 0);
+    return game.i18n.format("DRPG.Murder.indirectCost", { low: sum(p => Math.min(...p)), high: sum(p => Math.max(...p)) });
 }

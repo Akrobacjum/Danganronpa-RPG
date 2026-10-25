@@ -1598,7 +1598,7 @@
       "killer": "Zabójca",
       "victim": "Ofiara",
       "indirect": "Morderstwo pośrednie - ofiara jest sama, a drenaż jest podwojony",
-      "indirectCost": "Pułapkę buduje się jako projekty. Zaplanuj około 6 postępu łącznie, mniej więcej cztery do sześciu akcji, inaczej kosztuje więcej, niż jest warta.",
+      "indirectCost": "Pułapkę buduje się jako projekty. Zaplanuj około {low}-{high} postępu łącznie, mniej więcej cztery do sześciu akcji, inaczej kosztuje więcej, niż jest warta.",
       "openConfirm": "Otwórz",
       "needOne": "Musi być co najmniej jeden żywy uczeń.",
       "openSelfNote": "Jedno nazwisko w obu polach: to otwiera się jako śmierć z własnej ręki. Nie ma Stage 5 - rzut otwarcia decyduje, czy się na to zdecydują, a incydent idzie prosto do Stage 6.",

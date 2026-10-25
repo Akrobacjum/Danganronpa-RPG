@@ -21220,6 +21220,38 @@ const INVARIANTS = [
             other: { ok: true, value: { other: true } }
         }), "a wait marked untilPrimaryLeaves does not end once when the primary leaves, its late answer is lost, or an unmarked wait ends with it");
     }],
+
+    ["R979 - an indirect murder's concealment bonus is paid on any outcome: a lone miss pays +1, a hit and a critical their band plus it, a plain project's miss nothing; the trap's budget is read off its two parts, 7-10 (E15 C2)", async () => {
+        /*
+         * E15 C2, 25.10.2026; audit S02-08 (the owner's D13) and S12-74; E15-T2. `projectProgress` is the one
+         * reading of a Work's roll the roller's browser, the GM (gm-bridge.mjs `progressOf`) and the Reroll
+         * (reroll.mjs `settleProgress`) share; the bonus rode only on a band reached, so a lone killer's miss paid 0
+         * beside a card that said the project gains +1. Read with ACTIONS.project's bands (12 and 18) and its
+         * critical: a miss at 8, a 13, an 18 and a critical at 4, each with the alone bonus of INDIRECT_MURDER and
+         * with none, and an 11 with a tool's relief of 1 and the bonus. Then the budget the murder window shows
+         * (murder-ui.mjs `indirectCostText`): the sums of the parts' smallest and largest progress
+         * (`INDIRECT_MURDER.subProjects`), which the card said was "about 6". Red at d90687dc: the miss with the
+         * bonus paid 0, and the window's text came from `localize`, no function to read.
+         */
+        const { projectProgress } = await import("./action-rolls.mjs");
+        const { ACTIONS, INDIRECT_MURDER } = await import("./config.mjs");
+        const alone = INDIRECT_MURDER.concealIntent.aloneBonus;
+        must(alone === 1 && ACTIONS.project.thresholds.map(t => t.min).join() === "12,18", `the bands or the alone bonus moved (${alone}; ${ACTIONS.project.thresholds.map(t => t.min)}) - this reads other numbers`);
+        const read = [[8, false], [13, false], [18, false], [4, true]].flatMap(([total, isCritical]) => [alone, 0].map(bonus => {
+            const out = projectProgress({ total, isCritical }, { bonus }, ACTIONS.project);
+            return [total, bonus, out.progress, out.bonus];
+        }));
+        read.push([11, "relief 1", projectProgress({ total: 11, isCritical: false }, { relief: 1, bonus: alone }, ACTIONS.project).progress]);
+        equal(JSON.stringify(read), JSON.stringify([[8, 1, 1, 1], [8, 0, 0, 0], [13, 1, 2, 1], [13, 0, 1, 0], [18, 1, 3, 1], [18, 0, 2, 0],
+            [4, 1, 3, 1], [4, 0, 2, 0], [11, "relief 1", 2]]),
+            "per roll [total, bonus, progress, bonus answered]: the concealment's bonus was not paid on every outcome, or paid where none was claimed");
+        const M = await import("./murder-ui.mjs");
+        must(typeof M.indirectCostText === "function", "murder-ui.mjs has no indirectCostText - the trap's budget is not read off its parts");
+        const sums = ["min", "max"].map(f => INDIRECT_MURDER.subProjects.reduce((n, part) => n + Math[f](...part.progress), 0));
+        const text = M.indirectCostText();
+        equal(JSON.stringify([sums, text.includes(`${sums[0]}-${sums[1]}`), /\{(low|high)\}/.test(text)]), JSON.stringify([[7, 10], true, false]),
+            `the trap's budget is not its parts' sums, 7-10 (the parts' sums, the text holds them, a placeholder left): ${text}`);
+    }],
     ["R841 - a request still waiting is asked again of a new primary GM, three times at most: when a primary's world loads, and when the primary leaves for another GM who is here", async () => {
         /*
          * E18 C2, 19.10.2026; audit S10-43 part 1 (E18-09). The waiter asked again once, and only when a primary's

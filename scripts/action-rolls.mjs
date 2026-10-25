@@ -3093,7 +3093,7 @@ async function workOnProject(actor, def, options, chosen = null) {
 
     await breakOnDespair(actor, tool, roll);
 
-    const { hit, progress, bonus: earnedBonus } = projectProgress(roll, { relief, bonus }, def);
+    const { hit, progress } = projectProgress(roll, { relief, bonus }, def);
 
     let applied = null;
     /* Named for this roll (E08+E28 C2): the GMs' bookmark keeps what it added, and a Call's progress names none.
@@ -3111,7 +3111,7 @@ async function workOnProject(actor, def, options, chosen = null) {
     // combined figure made it subtract a bonus it could never recompute - an
     // indirect murder quietly lost its alone/Despair progress on every reroll.
     await noteRollContext(actor, {
-        actionKey: "project", projectId: project.id, progress, bonus: earnedBonus,
+        actionKey: "project", projectId: project.id, progress, bonus,
         // What the readied tool took off the bands, so a Reroll scores the new
         // dice against the same bands (ROLL-04). From here, never from the
         // inventory at reroll time: the tool may have broken on this roll.
@@ -3156,14 +3156,21 @@ async function workOnProject(actor, def, options, chosen = null) {
 
 /**
  * What a Work on a Project's roll earns: the band its total reaches with the readied tool's
- * `relief` off the bands (a critical reads none), and an indirect murder's concealment `bonus`
- * on top of progress actually earned - `bonus` in the answer is the part that rode. The one
- * reading `workOnProject` and the GM's (gm-bridge.mjs `progressOf`, E08+E28 C16) share.
+ * `relief` off the bands (a critical reads none), plus an indirect murder's concealment `bonus`
+ * whatever the band - `bonus` in the answer is the whole of it. The one reading `workOnProject`,
+ * the GM's (gm-bridge.mjs `progressOf`, E08+E28 C16) and the Reroll's (reroll.mjs
+ * `settleProgress`) share.
+ *
+ * THE BONUS ON ANY OUTCOME (E15 C2, 25.10.2026; audit S02-08, the owner's D13: "bonus +1 za
+ * samotną pracę bezwarunkowy i przeżywa Reroll"). It rode only on progress the bands had earned,
+ * so a killer working alone read "the project gains +1 progress" beside "No progress." on one
+ * card, and the GMs' bookmark kept the bonus at 0 for that miss: a Reroll of it to 18 paid 2
+ * where the card's rule pays 3. Measured on d90687dc by E15-T2 (a lone miss at 8 paid 0) and
+ * E15-T3 (that miss rerolled to 18 left the bar at 2).
  */
 export function projectProgress(roll, { relief = 0, bonus = 0 } = {}, def = ACTIONS.project) {
     const hit = roll?.isCritical ? def.critical : resolveThreshold(Number(roll?.total) || 0, easedBy(def.thresholds, relief));
-    const earned = hit?.progress ?? 0;
-    return { hit, progress: earned ? earned + bonus : 0, bonus: earned ? bonus : 0 };
+    return { hit, progress: (hit?.progress ?? 0) + bonus, bonus };
 }
 
 /** A concealment of intent made with Despair adds this much (the guide); working alone adds `aloneBonus`. */
@@ -3252,8 +3259,13 @@ async function concealProjectIntent(actor, { indirect, witnesses, paid, lines })
     return { bonus, rolledAlready };
 }
 
-    // Guide: every project action also rolls to hide the traces it leaves.
-async function hideProjectTraces(actor, project, progress, lines) {
+/**
+ * Guide: every project action also rolls to hide the traces it leaves - a Work on an indirect
+ * murder (`workOnProject`) and, since E15 C2 (audit S09-06, the owner's D13: "Contribution do
+ * pułapki woła ten sam rzut ukrycia"), a Contribution to one (call-effects.mjs `progressEffect`).
+ * `lines` takes the card's HTML lines; answers whether the roller is told a trace was left.
+ */
+export async function hideProjectTraces(actor, project, progress, lines) {
     let traceLeftTrace = false;
     const trace = await rollTrait(actor, INDIRECT_MURDER.hideTraces.trait, {
         remember: false, title: game.i18n.localize("DRPG.Roll.hideTraces"),

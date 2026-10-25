@@ -1040,8 +1040,8 @@ async function damageEffect(actor, call, choice, done) {
 // note above the project Calls in config.mjs. The branch went too rather
 // than being left standing for nothing: an unreachable handler is how a
 // deleted rule comes back by accident.
-async function progressEffect(actor, call, choice, done, { key }) {
-    const { addProgress, allProjects } = await import("./projects.mjs");
+async function progressEffect(actor, call, choice, done, { key, kind }) {
+    const { addProgress, allProjects, isIndirectMurder } = await import("./projects.mjs");
     const project = allProjects().find(p => p.id === choice.project);
 
     if (!project) {
@@ -1068,7 +1068,33 @@ async function progressEffect(actor, call, choice, done, { key }) {
                 name: project.name, n: call.progress > 0 ? `+${call.progress}` : call.progress
             }));
         }
+
+        /*
+         * A CONTRIBUTION TO A MURDER PLAN ROLLS TO HIDE ITS TRACES, AS WORKING ON IT DOES (E15 C2,
+         * 25.10.2026; audit S09-06, the owner's D13: "Contribution do pułapki woła ten sam rzut
+         * ukrycia"). It added its progress and nothing else, so a killer with witnesses in the room
+         * finished the trap with Hope Calls, no Shadow rolled and no trace left. The same roll and
+         * trace as a Work's (action-rolls.mjs `hideProjectTraces`), after the progress and only when
+         * the bar was not refused outright, on the roller's browser as a Work's is - its lines into
+         * the Call's receipt, which is plain text. A Hope Call only: a Despair Call (Patronage) is a
+         * Monokuma's, bought on a GM's client, and builds nothing in the room. The picker stays
+         * unfiltered (call-pickers.mjs `pickProject`).
+         */
+        if (kind === "hope" && actor && call.progress > 0 && applied.changed !== false && isIndirectMurder(project.id)) {
+            const { hideProjectTraces } = await import("./action-rolls.mjs");
+            const lines = [];
+            const leftTrace = await hideProjectTraces(actor, project, call.progress, lines);
+            for (const line of lines) done.push(textOf(line));
+            if (leftTrace) done.push(game.i18n.localize("DRPG.Action.leavesRemnant"));
+        }
     }
+}
+
+/** A card's HTML line as the plain text a Call's receipt escapes and lists. */
+function textOf(html) {
+    const box = document.createElement("template");
+    box.innerHTML = html;
+    return box.content.textContent.replace(/\s+/g, " ").trim();
 }
 
 /*
@@ -1266,7 +1292,7 @@ export async function applyCall(actor, key, kind, choice = {}, { nonce = null } 
         if (call.grantsHope && choice.target) await hopeFromDespairEffect(actor, call, choice, done);
         if (call.feedsOverflow) await feedOverflowEffect(actor, call, choice, done);
         if (call.damage && choice.target) await damageEffect(actor, call, choice, done);
-        if (call.progress && choice.project) await progressEffect(actor, call, choice, done, { key });
+        if (call.progress && choice.project) await progressEffect(actor, call, choice, done, { key, kind });
         if (call.freeMoves) await freeMovesEffect(actor, call, choice, done);
         if (call.freeActions) await freeActionsEffect(actor, call, choice, done);
         if (call.freeRest) await freeRestEffect(actor, call, choice, done);

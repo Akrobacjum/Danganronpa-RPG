@@ -1115,6 +1115,11 @@ async function settleProgress(actor, bookmark, after, done) {
     // Both are the roller's claims, held as the first throw's were and scored by
     // the first throw's table (fix r2-H3; the round-2 review's M1: read raw, a
     // bonus of 40 rerolled into 13 moved a project 0 -> 41).
+    //
+    // Now is the new band's progress plus the held bonus, whatever the band (E15 C2; the owner's
+    // D13): the bonus survives a Reroll into a miss, and a miss that paid only the bonus, rerolled
+    // to 18, ends at 3. The bookmark kept 0 for such a miss until C2 (action-rolls.mjs
+    // `workOnProject`), and its Reroll to 18 left the bar at 2 (E15-T3 on d90687dc).
     const held = await projectExtrasHeld(await claimedOn(actor, bookmark), bookmark, bookmark.projectId);
     const { hit, progress: now } = projectProgress(after, held);
     const bonus = held.bonus;

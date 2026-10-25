@@ -1344,8 +1344,14 @@ export function dynamicRulingOf(record) {
  * a Sabotage's concealment takes off at most what one thrown with Despair takes; the readied
  * tool's relief is at most the GM's reading of the sheet. Read off the packet, not the GMs'
  * bookmark of the roll, because the packet can arrive first (fix r1-G1 measured it so). A Work
- * whose roll earned nothing is refused; a Sabotage's miss is a repair of 0, which freezes nothing
- * (`handleSabotage`).
+ * whose roll earned nothing and claims no held bonus is refused; a Sabotage's miss is a repair of
+ * 0, which freezes nothing (`handleSabotage`).
+ *
+ * A MISS ON A MURDER PLAN PAYS ITS HELD BONUS (E15 C2, 25.10.2026; audit S02-08, the owner's D13).
+ * The concealment's bonus rides on any outcome now (action-rolls.mjs `projectProgress`), so a miss
+ * that was refused here adds the bonus its packet claims, held as a hit's is: at most
+ * `PROJECT_BONUS_MOST` on an indirect murder, nothing on any other project, whose miss is refused
+ * as before. E15-T3 sends a miss claiming 40 to each: 1 and refused.
  */
 async function progressOf(record, payload) {
     const { projectProgress, projectExtrasHeld } = await import("./action-rolls.mjs");
@@ -2245,7 +2251,7 @@ export const BRIDGE_ACTIONS = table({
         rolled: { field: "rollId", actor: "actorId", kind: "project", when: "rollId", named: { project: "countdownId" }, derive: progressOf },
         claims: { rollId: "the roll whose record the amount is read from (progressOf), and compared by noteProgressFact with the sender's own kept project roll; any other names no roll and writes no fact",
             relief: "the roller's word for its readied tool, held by progressOf to the tools the GM sees on the character (action-rolls.mjs projectExtrasHeld)",
-            bonus: "the roller's word for an indirect murder's concealment, held by progressOf to [0, PROJECT_BONUS_MOST] and to an indirect murder's progress (projectExtrasHeld)" }
+            bonus: "the roller's word for an indirect murder's concealment, held by progressOf to [0, PROJECT_BONUS_MOST] on an indirect murder, on any outcome, and to 0 on any other project (projectExtrasHeld)" }
     },
     [ACTION_SHARE]: {
         label: "DRPG.Bridge.what.project.share",

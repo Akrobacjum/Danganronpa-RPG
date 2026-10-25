@@ -66020,6 +66020,191 @@ const SCENARIOS = [
             + "where it was dropped; a second GM's project: made, its tokens, and after a second scene draw]");
     }],
 
+    ["an indirect murder's bonus on a player's road (E15-T3): a miss on a murder plan claiming a bonus of 40 adds the 1 it is held to, on a plain project nothing; a hit claiming it adds its band and 1; a Contribution's packet with no Call paid adds nothing; a Reroll of a row claiming 40 into a miss keeps the 1", async () => {
+        /*
+         * E15 C2, 25.10.2026; E15-11, audit S02-08 (the owner's D13), MARKED: a miss now pays a held claimed bonus on
+         * the GM. gm-bridge.mjs `progressOf` paid what action-rolls.mjs `projectProgress` read off the GMs' record
+         * and refused 0, and the bonus rode only on a band reached, so a lone killer's miss was refused. A connected
+         * player's character in a room; there, an indirect murder of 12 that player sees, its killer and proposer
+         * the character, and a public project of 12. Judged as the bridge judges that player's packets: on the plan
+         * a miss (the GMs' record of its roll at 8) claiming a bonus of 40; the same on the plain project; on the
+         * plan a Contribution's packet (no roll, the Call named) with no Call paid; on the plan a 13 claiming 40.
+         * Then a row of theirs on the plan claiming 40, its progress 1 as a miss's on the plan leaves it, rerolled on
+         * this GM as theirs into 2 and 1 (`playerRollBookmark`, `rerollableRoll`). Read: each code (or null) and the
+         * bar after it. Red at d90687dc: the plan's miss refused (rollMissed, 0), its bar after the hit 2, and the
+         * Reroll into a miss took its 1 back.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the projects stand in the room the player's character stands in");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the rolls and packets are a connected player's, as Foundry names only those");
+        const R = await import("./reroll.mjs");
+        const { rerollBookmarkStore } = await import("./gm-stores.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { toolRelief, PROJECT_BONUS_MOST } = await import("./action-rolls.mjs");
+        const { equippedFor, tierOf } = await import("./use-items.mjs");
+        const { player, actor, where } = await playerInRoom();
+        must(PROJECT_BONUS_MOST === 1, `PROJECT_BONUS_MOST is ${PROJECT_BONUS_MOST} - this reads another number`);
+        must(toolRelief(equippedFor(actor, "tool"), tierOf) < 4, `${actor.name}'s readied tool would lift an 8 to 12 - this would measure another band`);
+        const F = await projectPackets(player, actor);
+        const hope = actor.system.resources.hope.value;
+        const plans = [];
+        try {
+            const plan = (await F.P.createProject({ name: "SUITE E15 C2 a murder plan", target: 12, room: where.room, indirectMurder: true,
+                viewers: [player.id], killerId: actor.id, by: actor.id }))?.id ?? null;
+            plans.push(plan);
+            must(plan && F.P.isIndirectMurder(plan), "could not make an indirect murder - this would measure nothing");
+            const plain = await F.project(where.room);
+            const read = [];
+            read.push([await F.ask("project.progress", { countdownId: plan, amount: 1, rollId: (await F.rolled(8)).id, bonus: 40 }), F.progress(plan)]);
+            read.push([await F.ask("project.progress", { countdownId: plain, amount: 1, rollId: (await F.rolled(8)).id, bonus: 40 }), F.progress(plain)]);
+            read.push([await F.ask("project.progress", { countdownId: plan, amount: 1, call: "contribution" }), F.progress(plan)]);
+            read.push([await F.ask("project.progress", { countdownId: plan, amount: 1, rollId: (await F.rolled(13)).id, bonus: 40 }), F.progress(plan)]);
+            const reroll = await F.P.createProject({ name: "SUITE E15 C2 a murder plan rerolled", target: 12, room: where.room, indirectMurder: true,
+                viewers: [player.id], killerId: actor.id, by: actor.id });
+            plans.push(reroll?.id ?? null);
+            must(reroll?.id && F.P.isIndirectMurder(reroll.id), "could not make the second indirect murder - this would measure nothing");
+            await F.P.addProgress(reroll.id, 1);
+            const B = await playerRollBookmark(player, actor, "project", { bonus: 40 });
+            const stand = rerollableRoll(B.message, { first: { hope: 5, fear: 3 }, next: { hope: 2, fear: 1 } });
+            try {
+                await rerollBookmarkStore.patch(actor.id, { facts: { ...(B.row()?.facts ?? {}), projectId: reroll.id, progress: 1 } });
+                await trustedWrite(actor, { "system.resources.hope.value": Math.max(4, hope) }, { reason: "gmRuling" });
+                const out = await R.rerollOnGm(actor, player);
+                await settle();
+                read.push([Array.isArray(out?.lines), F.progress(reroll.id)]);
+            } finally {
+                stand.putBack();
+                await B.putBack();
+            }
+            equal(stableJson(read), stableJson([[null, 1], ["rollMissed", 0], ["callNotPaid", 1], [null, 3], [true, 1]]),
+                "an indirect murder's held bonus was not paid on a miss, was paid past PROJECT_BONUS_MOST or on a plain project, a Contribution's packet with no Call paid moved a bar, or a Reroll into a miss lost the bonus (code and bar after each: the plan's miss claiming 40, the plain project's, a Contribution unpaid, the plan's 13 claiming 40; the Reroll stood, its bar)");
+        } finally {
+            if (actor.system.resources.hope.value !== hope) await trustedWrite(actor, { "system.resources.hope.value": hope }, { reason: "gmRuling" });
+            for (const id of plans.filter(Boolean)) await F.P.deleteProject(id).catch(() => {});
+            await F.putBack();
+        }
+    }],
+
+    ["a GM's own lone Work on an indirect murder that misses pays its +1, and a Reroll of it to 18 ends the bar at 3 (E15-T3)", async () => {
+        /*
+         * E15 C2, 25.10.2026; E15-11, audit S02-08 (the owner's D13: the bonus on any outcome, kept by a Reroll). The
+         * card of a killer working alone said "the project gains +1 progress" beside "No progress.", and the GMs'
+         * bookmark kept the bonus at 0 for that miss (action-rolls.mjs `workOnProject`'s `noteRollContext`), so its
+         * Reroll to 18 paid the band's 2 and not 3. A student stood alone in a room; there, an indirect murder of 12
+         * of theirs with a statistic; this GM Works on it for them, free, the dice forced to 3 and 2 (a miss with the
+         * statistic's value, read here; the cover roll on the same dice), and rerolls it as its own into 10 and 8.
+         * Read: the bar after the Work, the bonus its row keeps, and whether the Reroll stood and the bar after it.
+         * Red at d90687dc: 0, 0, then 2.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the worker alone");
+        const [actor] = cast(1);
+        const R = await import("./reroll.mjs");
+        const { performAction } = await import("./action-rolls.mjs");
+        const { rerollBookmarkStore } = await import("./gm-stores.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { remnantsOn, remnantData } = await import("./remnants.mjs");
+        const { TRAITS } = await import("./config.mjs");
+        const P = await import("./projects.mjs");
+        const value = Number(actor.system.traits?.[TRAITS.hand.dh]?.value) || 0;
+        must(5 + value < 12, `${actor.name}'s Hand of ${value} lifts 3 and 2 to a band - this would measure a hit`);
+        const stood = await standAlone(actor);
+        const name = `SUITE E15 C2 a lone miss ${foundry.utils.randomID(4)}`;
+        let made = null, stand = null;
+        const windows = answerWindows((cfg, root) => {
+            const select = root.querySelector('select[name="project"]');
+            if (select) select.value = made;
+            return press(cfg, root);
+        });
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        const forceBack = () => { if (hadForce) globalThis.__forceRoll = force; else delete globalThis.__forceRoll; };
+        const seen = new Set(game.messages.map(m => m.id));
+        const hope = actor.system.resources.hope.value;
+        try {
+            made = (await P.createProject({ name, target: 12, room: stood.room, trait: "hand", indirectMurder: true, killerId: actor.id, by: actor.id }))?.id ?? null;
+            must(made && P.isIndirectMurder(made), "the indirect murder could not be made - this would measure nothing");
+            const bar = () => P.allProjects().find(p => p.id === made)?.current ?? null;
+            globalThis.__forceRoll = { hope: 3, fear: 2 };
+            try { await performAction(actor, "project", { free: true }); } finally { forceBack(); }
+            await settle();
+            const row = rerollBookmarkStore.get(actor.id);
+            const message = game.messages.get(row?.messageId ?? "");
+            must(row?.actionKey === "project" && row?.by === game.user.id && message,
+                `the GM's own Work was not kept on its row - this would measure nothing: ${stableJson(row)}`);
+            const first = [bar(), row?.claims?.bonus ?? null];
+            stand = rerollableRoll(message, { first: { hope: 3, fear: 2 }, next: { hope: 10, fear: 8 } });
+            await trustedWrite(actor, { "system.resources.hope.value": Math.max(4, hope) }, { reason: "gmRuling" });
+            const out = await R.rerollOnGm(actor, game.user);
+            await settle();
+            equal(stableJson([...first, Array.isArray(out?.lines), bar()]), stableJson([1, 1, true, 3]),
+                `a lone Work's miss on its murder plan paid nothing, its row lost the bonus, or its Reroll to 18 did not end at 3 (the bar, the row's bonus, stood, the bar): ${stableJson(out)}`);
+        } finally {
+            windows.restore();
+            forceBack();
+            stand?.putBack();
+            if (actor.system.resources.hope.value !== hope) await trustedWrite(actor, { "system.resources.hope.value": hope }, { reason: "gmRuling" });
+            for (const t of game.scenes.contents.flatMap(s => remnantsOn(s)).filter(t => remnantData(t)?.subject === name)) {
+                try { await t.delete(); } catch { /* already gone */ }
+            }
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete();
+            if (rerollBookmarkStore.has(actor.id)) await rerollBookmarkStore.drop(actor.id);
+            if (made) await P.deleteProject(made).catch(() => {});
+            await stood.back();
+        }
+    }],
+
+    ["a Contribution to an indirect murder rolls to hide its traces and leaves one, as a Work does; to a plain project it rolls nothing (E15-T3)", async () => {
+        /*
+         * E15 C2, 25.10.2026; E15-12, audit S09-06 (the owner's D13: "Contribution do pułapki woła ten sam rzut
+         * ukrycia"). A Contribution added its progress and nothing else, so a killer with witnesses in the room
+         * finished the trap with Hope Calls, no Shadow rolled and no trace left (call-effects.mjs `progressEffect`).
+         * A student stood alone in a room; there, an indirect murder of 12 of theirs and a public project of 12;
+         * the Call applied for them on this GM to each (`applyCall`, as the purchase applies it once paid), the dice
+         * forced to 9 and 5. Read for each: the bar, whether the Call's receipt holds the cover roll's line, and the
+         * traces left there by the project's name and whether each is tied to the crime. Red at d90687dc: the plan's
+         * bar at 1 with no line and no trace.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the contributor alone");
+        const [actor] = cast(1);
+        const { applyCall } = await import("./call-effects.mjs");
+        const { remnantsOn, remnantData } = await import("./remnants.mjs");
+        const { INDIRECT_MURDER } = await import("./config.mjs");
+        const P = await import("./projects.mjs");
+        const stood = await standAlone(actor);
+        const names = ["plan", "plain"].map(kind => `SUITE E15 C2 a Contribution to a ${kind} ${foundry.utils.randomID(4)}`);
+        const made = [];
+        const left = name => game.scenes.contents.flatMap(s => remnantsOn(s)).filter(t => remnantData(t)?.subject === name);
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        const seen = new Set(game.messages.map(m => m.id));
+        try {
+            for (const [i, name] of names.entries()) {
+                const id = (await P.createProject({ name, target: 12, room: stood.room, trait: "hand",
+                    ...(i === 0 ? { indirectMurder: true, killerId: actor.id, by: actor.id } : {}) }))?.id ?? null;
+                must(id && P.isIndirectMurder(id) === (i === 0), `the ${i === 0 ? "murder plan" : "plain project"} could not be made - this would measure nothing`);
+                made.push(id);
+            }
+            globalThis.__forceRoll = { hope: 9, fear: 5 };
+            const read = [];
+            for (const [i, id] of made.entries()) {
+                const out = await applyCall(actor, "contribution", "hope", { project: id });
+                await settle();
+                read.push([out?.failed ?? null, P.allProjects().find(p => p.id === id)?.current ?? null,
+                    (out?.lines ?? []).some(line => line.startsWith(`${INDIRECT_MURDER.hideTraces.label} - `)),
+                    left(names[i]).map(t => [remnantData(t)?.action ?? null, remnantData(t)?.tiedToCrime === true])]);
+            }
+            equal(stableJson(read), stableJson([[false, 1, true, [["project", true]]], [false, 1, false, []]]),
+                "a Contribution to a murder plan rolled no cover or left no trace tied to the crime, or one to a plain project did (failed, bar, the cover's line, the traces)");
+        } finally {
+            if (hadForce) globalThis.__forceRoll = force; else delete globalThis.__forceRoll;
+            for (const name of names) for (const t of left(name)) {
+                try { await t.delete(); } catch { /* already gone */ }
+            }
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete();
+            for (const id of made) await P.deleteProject(id).catch(() => {});
+            await stood.back();
+        }
+    }],
+
     ["projects keep what the GM chose in the GMs' windows and on the map (E15-T1): a token dropped by its room's east wall moves its project into that room, not past it, and one dropped between rooms moves it nowhere the token is not; a proposal's scale and an off-scale target are the ones the window opens on; the edit names an indirect murder's killer or refuses it; the trap's fields show only with Indirect murder and the viewers only with Secret or Indirect murder; an Earthquake takes nothing from a finished or a frozen project; a watched trap's receipt says nothing is awaited and rings no question, once an arming", async () => {
         /*
          * E15 part 1 C1, 25.10.2026; E15-01, E15-05 to E15-10, audit S09-12, S09-13, S09-16, S09-18, S09-23,
