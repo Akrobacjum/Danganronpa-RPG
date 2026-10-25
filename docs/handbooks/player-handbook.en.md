@@ -413,7 +413,7 @@ Despair earned past a full pool does not vanish - it collects in one shared coun
 | Rot | every item with more than one durability point loses one (one-off, nothing breaks) |
 | Earthquake | every project loses 1 progress (one-off) |
 
-None of these ever takes you below one action or one search token. You see "?" for the counter; a trial verdict empties it.
+None of these ever takes you below one action or one search token. You see "?" for the counter; a trial verdict empties it, but a darkening announced during the trial still comes, at the next time of day.
 
 ---
 

@@ -37,16 +37,25 @@ import { RECORD } from "./gm-store.mjs";
 /**
  * The GM's dial, with config.mjs supplying everything they did not set.
  *
- * MERGED RATHER THAN REPLACED, so a rule added to `OVERFLOW` later appears at
- * every table that has already saved a partial edit. A stored object that
- * simply overwrote the defaults would freeze a world on the shape it happened
- * to be saved with.
+ * ONLY `threshold`, `on` AND `by` ARE READ FROM THE WORLD (E15 C3, 25.10.2026; audit S09-27). Until
+ * 1.2.85 every Apply of Despair Flow wrote the whole catalogue - `kind`, `floor`, `freeBecomes`,
+ * `reader` and every `on` and `by` as they stood - and this merge gave the stored copy the last
+ * word, so a default changed in config.mjs never reached a world where somebody had once pressed
+ * Apply, whatever they had changed there (tier 2 E15-T4 at d78b6dbe: a stored snapshot's floor
+ * of 3 read 3 against config's 1). Now the world holds the GM's overrides alone
+ * (`setOverflowRules`), the three fields the window edits, and an older snapshot's other fields
+ * are not read even before the clause `trimOverflowRules` drops them.
  */
 export function overflowRules() {
     const stored = game.settings.get(MODULE_ID, SETTINGS.overflowRules) ?? {};
     const effects = {};
     for (const [key, base] of Object.entries(OVERFLOW.effects)) {
-        effects[key] = { ...base, ...(stored.effects?.[key] ?? {}) };
+        const edit = stored.effects?.[key] ?? {};
+        const rule = { ...base };
+        if (edit.on !== undefined && edit.on !== null) rule.on = Boolean(edit.on);
+        const by = numberIn(edit.by);
+        if (base.by !== undefined && Number.isFinite(by)) rule.by = heldBy(by);
+        effects[key] = rule;
     }
     const threshold = Number(stored.threshold);
     return {
@@ -57,7 +66,43 @@ export function overflowRules() {
     };
 }
 
-/** Save an edit. GM only; anything out of range is clamped rather than refused. */
+/*
+ * THE SIZE OF ONE DARKENING, 0 TO 5 (E15 C3; audit S09-37). The window's spin box has always said
+ * `max="5"`, and nothing behind it did: a 20 typed past the arrows was saved as 20 (tier 2 E15-T4 at
+ * d78b6dbe), an Earthquake that takes up to 20 progress from every project. Held on the write
+ * and on the read, so a size an older build saved past 5 reads 5.
+ */
+const BY_MAX = 5;
+const heldBy = n => Math.min(BY_MAX, Math.max(0, Math.round(n)));
+
+/** A number the GM typed, or NaN for an empty field: `Number("")` is 0, and 0 was saved as X = 6 (S09-37). */
+function numberIn(value) {
+    if (value === undefined || value === null || String(value).trim() === "") return NaN;
+    return Number(value);
+}
+
+/** What `rules` changes against config.mjs: `{ threshold?, effects?: { key: { on?, by? } } }`, `{}` for none. */
+function overridesOf(rules) {
+    const out = {};
+    if (rules.threshold !== OVERFLOW.threshold) out.threshold = rules.threshold;
+    const effects = {};
+    for (const [key, base] of Object.entries(OVERFLOW.effects)) {
+        const rule = rules.effects?.[key] ?? base;
+        const edit = {};
+        if (Boolean(rule.on) !== Boolean(base.on)) edit.on = Boolean(rule.on);
+        if (base.by !== undefined && rule.by !== base.by) edit.by = rule.by;
+        if (Object.keys(edit).length) effects[key] = edit;
+    }
+    if (Object.keys(effects).length) out.effects = effects;
+    return out;
+}
+
+/**
+ * Save an edit. GM only; anything out of range is clamped rather than refused, and a field left
+ * empty (`undefined`, `null`, `""`) changes nothing (S09-37). Writes the GM's overrides only, and
+ * nothing when they are the ones already stored: Despair Flow's Save calls this whatever tab
+ * was edited (S09-27).
+ */
 export async function setOverflowRules({ threshold, effects } = {}) {
     if (!game.user.isGM) return null;
 
@@ -66,23 +111,27 @@ export async function setOverflowRules({ threshold, effects } = {}) {
     const before = current;
     const next = { threshold: current.threshold, effects: {} };
 
-    const wanted = Number(threshold);
+    const wanted = numberIn(threshold);
     if (Number.isFinite(wanted)) next.threshold = Math.min(max, Math.max(min, Math.round(wanted)));
 
     for (const [key, base] of Object.entries(OVERFLOW.effects)) {
         const edit = effects?.[key] ?? {};
-        const by = Number(edit.by);
+        const by = numberIn(edit.by);
         next.effects[key] = {
             ...base,
             on: edit.on === undefined ? current.effects[key].on : Boolean(edit.on),
             // Some of the eight have no size at all - Despair, Silence and Fog
             // are on or off - so an edit that carries no number leaves `by`
             // exactly as the catalogue had it rather than writing NaN.
-            by: Number.isFinite(by) && by >= 0 ? Math.round(by) : current.effects[key].by
+            by: base.by === undefined ? undefined : Number.isFinite(by) ? heldBy(by) : current.effects[key].by
         };
     }
 
-    await game.settings.set(MODULE_ID, SETTINGS.overflowRules, next);
+    const overrides = overridesOf(next);
+    const stored = game.settings.get(MODULE_ID, SETTINGS.overflowRules) ?? {};
+    if (JSON.stringify(sortedKeys(overrides)) !== JSON.stringify(sortedKeys(stored))) {
+        await game.settings.set(MODULE_ID, SETTINGS.overflowRules, overrides);
+    }
 
     /*
      * AN EDIT IS ANNOUNCED, NOT JUST SAVED (Dawid, 28.08: "upewnijmy sie, ze
@@ -113,6 +162,32 @@ export async function setOverflowRules({ threshold, effects } = {}) {
 
     log(`Despair Overflow rules saved: X = ${next.threshold}.`);
     return next;
+}
+
+/** A copy of `value` with every object's keys in order, for a comparison that ignores key order. */
+function sortedKeys(value) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return value;
+    return Object.fromEntries(Object.keys(value).sort().map(key => [key, sortedKeys(value[key])]));
+}
+
+/**
+ * THE OVERRIDES ONLY, ONCE (E15 C3, 1.2.85; audit S09-27). The clause `trimOverflowRules`
+ * (migrate.mjs) runs this on the primary GM: a world whose rules were saved before 1.2.85 holds the
+ * whole catalogue as it stood then, and keeps of it only what differs from config.mjs now - the
+ * threshold, and each effect's `on` and `by`. A value equal to today's default is dropped, so it
+ * follows the default from here on: a GM who once saved it on purpose and the Apply that saved
+ * everything cannot be told apart, and the default is the side D21 asks for. Idempotent.
+ *
+ * @returns {Promise<null|{notPrimary: true}|{trimmed: true}>}
+ */
+export async function trimOverflowRules() {
+    if (!isPrimaryGm()) return { notPrimary: true };
+    const stored = game.settings.get(MODULE_ID, SETTINGS.overflowRules) ?? {};
+    const overrides = overridesOf(overflowRules());
+    if (JSON.stringify(sortedKeys(overrides)) === JSON.stringify(sortedKeys(stored))) return null;
+    await game.settings.set(MODULE_ID, SETTINGS.overflowRules, overrides);
+    log("Despair overflow rules: kept the GM's overrides only (S09-27).");
+    return { trimmed: true };
 }
 
 /* ==========================================================================
@@ -209,7 +284,7 @@ export async function addOverflow(amount, { reason = "spill" } = {}) {
     // does not hold the counter back.
     const clock = getClock();
     const kind = overflowRules().effects[before.active?.effect]?.kind;
-    if (!clock.eclipse && kind === "state" && same(before.active, stampOf(clock))) return after;
+    if (!clock.eclipse && kind === "state" && !before.active?.pending && same(before.active, stampOf(clock))) return after;
     await armAhead();
     return after;
 }
@@ -261,6 +336,9 @@ async function armAhead() {
     }
 }
 
+/** The reason `resetOverflow` is given by the verdict (vote.mjs `verdictOverflow` passes none). */
+const VERDICT = "the verdict";
+
 /**
  * Empty it. The guide refills every pool when a verdict lands, and this rides
  * the same moment: a chapter opens on clean air.
@@ -269,16 +347,37 @@ async function armAhead() {
  * chapters; the season reset clears it between seasons. A line that always
  * blamed the verdict was wrong half the time in the one place a GM looks when
  * asking why a counter they were watching went to zero.
+ *
+ * A DARKENING ANNOUNCED IN THE TRIAL WAITS (E15 C3, 25.10.2026; D16, audit S09-07). A spill in a
+ * Class Trial arms the time of day after it and its card is posted then; the verdict cleared the
+ * stamp with the count, so a Panic, Shift or Darkness the table had been told of never came (tier 2
+ * E15-T4 at d78b6dbe: after the verdict nothing was waiting and the next boundary drew nothing).
+ * The verdict now zeroes the count and keeps such a darkening - a state whose time of day has not
+ * begun - marked `pending`; `overflowEffect` reads no pending one, and the next `checkOverflow`
+ * points it at its own target with no payment and no card. One running now, an event (it has
+ * happened) and anything at the season reset are cleared as before.
  */
-export async function resetOverflow({ reason = "the verdict" } = {}) {
+export async function resetOverflow({ reason = VERDICT } = {}) {
     if (!game.user.isGM) return null;
     // Both halves, in their two places since E05 C12: the GMs' count and the world's stamp. The
     // zero after the other GMs' copies (fix r2-G2): the store's clock has then seen their stamps.
     await overflowStore.whenHydrated();
+    const atVerdict = reason === VERDICT;
+    const kept = atVerdict ? waitingDarkening() : null;
     await overflowStore.patch(RECORD, { count: 0 });
-    await game.settings.set(MODULE_ID, SETTINGS.overflow, { active: null });
-    log(`Despair overflow cleared by ${reason}.`);
+    await game.settings.set(MODULE_ID, SETTINGS.overflow, { active: atVerdict ? kept : null });
+    log(`Despair overflow cleared by ${reason}${kept ? `; ${kept.effect} waits for the next time of day` : ""}.`);
     return true;
+}
+
+/** The armed darkening a verdict keeps, marked `pending`, or null: a state whose time of day has not begun. */
+function waitingDarkening() {
+    const { active } = state();
+    if (!active?.effect || OVERFLOW.effects[active.effect]?.kind !== "state") return null;
+    if (active.pending) return active;
+    const clock = getClock();
+    const now = clock.eclipse ? upcoming(clock) : stampOf(clock);
+    return now && later(active, now) ? { ...active, pending: true } : null;
 }
 
 /**
@@ -378,6 +477,14 @@ function same(a, b) {
         && a.timeOfDay === b.timeOfDay);
 }
 
+/** Whether stamp `a` is a time of day after stamp `b`: by session, then day, then the time of day. */
+function later(a, b) {
+    const key = stamp => [Number(stamp.session) || 0, Number(stamp.day ?? 1) || 0, TIMES_OF_DAY.indexOf(stamp.timeOfDay)];
+    const [x, y] = [key(a), key(b)];
+    for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return x[i] > y[i];
+    return false;
+}
+
 /**
  * Which debuff is running right now, or null.
  *
@@ -388,7 +495,8 @@ function same(a, b) {
 export function overflowEffect() {
     try {
         const { active } = state();
-        if (!active?.effect) return null;
+        // A darkening the verdict kept (S09-07) runs once `checkOverflow` has pointed it at its time of day.
+        if (!active?.effect || active.pending) return null;
         const clock = getClock();
         // During an Eclipse the clock has not moved yet, so the only stamp that
         // counts is the time of day this Eclipse is about to open.
@@ -443,6 +551,15 @@ export async function checkOverflow({ ahead = false } = {}) {
 
         await overflowStore.whenHydrated();
         const now = state();
+
+        // The darkening a verdict kept waiting (S09-07): this boundary is the next time of day, and
+        // this Eclipse ahead opens it. Paid for and announced in the trial: no count, no card.
+        if (now.active?.pending) {
+            const armed = { ...target, effect: now.active.effect };
+            await game.settings.set(MODULE_ID, SETTINGS.overflow, { active: armed });
+            log(`Despair overflow: the ${armed.effect} announced in the trial now covers ${target.timeOfDay}.`);
+            return armed;
+        }
 
         // Already armed for exactly this time of day: the Eclipse got there
         // first. Not a failure and not worth a log line - it is the normal path
@@ -620,11 +737,15 @@ async function announceOverflow(drawn, left, paid) {
     const rule = overflowRules().effects[drawn];
     const name = game.i18n.localize(`DRPG.Overflow.name.${drawn}`);
     const what = game.i18n.format(`DRPG.Overflow.what.${drawn}`, { n: rule?.by ?? 1 });
+    // In a Class Trial a darkening waits for the time of day after it (S09-07, D16): the card says
+    // so. Rot and Earthquake happen now, in the trial as anywhere.
+    const body = getClock().phase === "classTrial" && rule?.kind === "state"
+        ? "DRPG.Overflow.cardBodyTrial" : "DRPG.Overflow.cardBody";
 
     await announce({
         flags: { [MODULE_ID]: { sfx: { key: "despairOverflow", gm: true } } },
         content: `<h3>${game.i18n.localize("DRPG.Overflow.cardTitle")}</h3>
-            <p>${game.i18n.format("DRPG.Overflow.cardBody", { n: paid })}</p>
+            <p>${game.i18n.format(body, { n: paid })}</p>
             <p><strong>${foundry.utils.escapeHTML(name)}</strong> - ${what}</p>
             <p class="notes">${game.i18n.format("DRPG.Overflow.cardLeft", { n: left })}</p>`
     });
@@ -724,6 +845,11 @@ export function overflowCrossings(allowance) {
  */
 export function overflowNowLine() {
     const status = overflowStatus();
+    if (!status.active && status.waiting) {
+        return game.i18n.format("DRPG.Overflow.currentWaiting", {
+            count: status.count, max: status.threshold, what: game.i18n.localize(`DRPG.Overflow.name.${status.waiting}`)
+        });
+    }
     return status.active
         ? game.i18n.format("DRPG.Overflow.currentDrawn",
             { count: status.count, max: status.threshold, what: status.effectName })
@@ -744,7 +870,7 @@ export function overflowSection() {
         const size = rule.by === undefined ? "" : `
             <label class="drpg-overflow-by">
                 <span>${esc(game.i18n.localize("DRPG.Overflow.amount"))}</span>
-                <input type="number" name="ovf-${key}-by" value="${rule.by}" min="0" max="5">
+                <input type="number" name="ovf-${key}-by" value="${rule.by}" min="0" max="${BY_MAX}">
             </label>`;
 
         return `<li class="drpg-overflow-rule${status.effect === key ? " is-drawn" : ""}">
@@ -806,19 +932,21 @@ export function readOverflowForm(root) {
         // A pane that never rendered returns nothing rather than a form full of
         // undefined, which `setOverflowRules` would read as "untick everything".
         if (!on) return null;
-        effects[key] = { on: on.checked, ...(by ? { by: Number(by.value) } : {}) };
+        // An emptied field is no edit (S09-37): `Number("")` is 0, saved as a size of 0 and as X = 6.
+        effects[key] = { on: on.checked, ...(by && Number.isFinite(numberIn(by.value)) ? { by: Number(by.value) } : {}) };
     }
-    return {
-        threshold: Number(root.querySelector('[name="ovf-threshold"]')?.value),
-        effects
-    };
+    const threshold = numberIn(root.querySelector('[name="ovf-threshold"]')?.value);
+    return { threshold: Number.isFinite(threshold) ? threshold : undefined, effects };
 }
 
 /** Everything a caption, a tooltip or the editor's preview needs, in one read. */
 export function overflowStatus() {
     const drawn = overflowEffect();
+    const { count, active } = state();
     return {
-        count: state().count,
+        count,
+        // The darkening a verdict kept for the next time of day (S09-07), or null.
+        waiting: active?.pending ? active.effect ?? null : null,
         threshold: overflowThreshold(),
         active: drawn !== null,
         effect: drawn,

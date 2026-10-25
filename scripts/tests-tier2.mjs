@@ -66418,6 +66418,205 @@ const SCENARIOS = [
             + "awaiting, asks; filled again after firing: receipts; the three proposal defaults: a literal 4, the Standard row]");
     }],
 
+    ["the overflow keeps the GM's overrides only, and a darkening announced in a trial waits for the next time of day (E15-T4): Save writes what differs from the defaults and nothing when nothing does; an older full copy reads the defaults for what the window does not edit, and the migration keeps the overrides alone; an emptied field sets nothing and a size is held to 0-5; the trial's card says from the next time of day; the verdict keeps it waiting, and the next boundary and an Eclipse ahead point it there with no charge or card; the season reset clears it", async () => {
+        /*
+         * E15 part 1 C3, 25.10.2026; E15-15 to E15-17, audit S09-27, S09-37, S09-07 (D16, D21). Read on a GM's
+         * browser, the world's overflow rules, stamp, count and clock written straight to the settings and the
+         * GMs' record, each put back: (1) Save (`setOverflowRules`) of the whole form, as Despair Flow sends it,
+         * with the threshold one past config's, Fog unticked and Darkness at 2, then again unchanged: what the world
+         * holds, and the cards; (2) a copy as builds before 1.2.85 saved it - the whole catalogue, Panic's floor 2
+         * past config's and Fog unticked - read, then trimmed twice (`trimOverflowRules`, the clause's work); (3) the
+         * window's form (`overflowSection`, read by `readOverflowForm`) with the threshold and Darkness's size
+         * emptied, then saved, and sizes of 20 and -3 saved; (4) Panic alone in the hat, the clock in a Class Trial
+         * at the day's last time of day and the count at X, armed ahead (`checkOverflow`): the card; the verdict's
+         * `resetOverflow`; the clock moved to a later time of day than the one armed, outside the trial, and the
+         * boundary's check; the same waiting darkening with an Eclipse running and its check ahead; a darkening
+         * running now and then a waiting one through the verdict and the season reset. At d78b6dbe: the world holds
+         * the whole catalogue after each Save, the older copy's floor reads as saved, an emptied threshold is saved
+         * as X = 6 with a card, a size of 20 stands, and the verdict leaves nothing waiting.
+         */
+        const o = await import("./overflow.mjs");
+        const { overflowStore } = await import("./gm-stores.mjs");
+        const { OVERFLOW, TIMES_OF_DAY } = await import("./config.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose migration clause trims the rules - this would measure nothing");
+        const rulesWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.overflowRules) ?? {});
+        const overflowWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.overflow) ?? {});
+        const countWas = o.overflowCount();
+        const clockWas = foundry.utils.deepClone(getClock());
+        const before = new Set(game.messages.contents.map(m => m.id));
+        const cardsSince = seen => game.messages.contents.filter(m => !before.has(m.id) && !seen.has(m.id));
+        const mark = () => new Set(game.messages.contents.map(m => m.id));
+        const stored = () => foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.overflowRules) ?? {});
+        const formOf = rules => ({ threshold: rules.threshold, effects: Object.fromEntries(Object.entries(rules.effects)
+            .map(([key, rule]) => [key, { on: rule.on, ...(rule.by === undefined ? {} : { by: rule.by }) }])) });
+        const sized = Object.keys(OVERFLOW.effects).filter(key => OVERFLOW.effects[key].by !== undefined);
+        must(OVERFLOW.effects.darkness?.by === 1 && OVERFLOW.effects.panic?.kind === "state" && OVERFLOW.effects.fog?.on === true
+            && sized.includes("panic"), "config.mjs's Darkness, Panic and Fog are not the ones this reads - this would measure nothing");
+        const seen = {};
+        try {
+            // (1) Save, then Save unchanged.
+            await game.settings.set(MODULE_ID, SETTINGS.overflowRules, {});
+            let at = mark();
+            const form = formOf(o.overflowRules());
+            form.threshold = OVERFLOW.threshold + 1;
+            form.effects.fog.on = false;
+            form.effects.darkness.by = 2;
+            await o.setOverflowRules(form);
+            seen.save = { held: stored(), cards: cardsSince(at).length };
+            at = mark();
+            await o.setOverflowRules(formOf(o.overflowRules()));
+            seen.again = { held: stored(), cards: cardsSince(at).length };
+
+            // (2) An older full copy, read and trimmed.
+            const old = { threshold: OVERFLOW.threshold, effects: Object.fromEntries(Object.entries(OVERFLOW.effects).map(([key, base]) =>
+                [key, { ...base, ...(key === "panic" ? { floor: (base.floor ?? 1) + 2 } : {}), ...(key === "fog" ? { on: false } : {}) }])) };
+            await game.settings.set(MODULE_ID, SETTINGS.overflowRules, old);
+            seen.old = { floor: o.overflowRules().effects.panic.floor === OVERFLOW.effects.panic.floor, fog: o.overflowRules().effects.fog.on };
+            seen.trim = [stableJson(await o.trimOverflowRules?.() ?? null), stored(), stableJson(await o.trimOverflowRules?.() ?? null)];
+
+            // (3) An emptied field, and a size past the box.
+            await game.settings.set(MODULE_ID, SETTINGS.overflowRules, {});
+            const root = document.createElement("div");
+            root.innerHTML = o.overflowSection();
+            const field = root.querySelector('[name="ovf-threshold"]'), size = root.querySelector('[name="ovf-darkness-by"]');
+            must(field && size, "the overflow's form has no threshold or Darkness size - this would measure nothing");
+            field.value = "";
+            size.value = "";
+            const read = o.readOverflowForm(root);
+            at = mark();
+            await o.setOverflowRules(read);
+            seen.empty = { read: [read?.threshold ?? null, read?.effects?.darkness?.by ?? null], threshold: o.overflowThreshold(),
+                darkness: o.overflowRules().effects.darkness.by, held: stored(), cards: cardsSince(at).length };
+            await o.setOverflowRules({ effects: { darkness: { on: true, by: 20 }, panic: { on: true, by: -3 } } });
+            seen.held = [o.overflowRules().effects.darkness.by, o.overflowRules().effects.panic.by];
+
+            // (4) A darkening armed in a Class Trial at the day's last time of day.
+            await game.settings.set(MODULE_ID, SETTINGS.overflowRules,
+                { effects: Object.fromEntries(Object.keys(OVERFLOW.effects).map(key => [key, { on: key === "panic" }])) });
+            const trial = { ...clockWas, phase: "classTrial", eclipse: false, timeOfDay: TIMES_OF_DAY.at(-1) };
+            await game.settings.set(MODULE_ID, SETTINGS.clock, trial);
+            await game.settings.set(MODULE_ID, SETTINGS.overflow, { active: null });
+            await overflowStore.patch("record", { count: o.overflowThreshold() });
+            await settle();
+            at = mark();
+            const armed = await o.checkOverflow({ ahead: true });
+            must(armed?.effect === "panic", `the overflow drew ${armed?.effect ?? "nothing"}, not Panic - this would measure nothing`);
+            const card = cardsSince(at).map(m => m.content ?? "").join("");
+            seen.trial = { next: armed.session === trial.session + 1 && armed.timeOfDay === TIMES_OF_DAY[0],
+                says: card.includes(game.i18n.format("DRPG.Overflow.cardBodyTrial", { n: o.overflowThreshold() })), now: o.overflowEffect() };
+            await o.resetOverflow();
+            const kept = game.settings.get(MODULE_ID, SETTINGS.overflow)?.active ?? null;
+            seen.verdict = { count: o.overflowCount(), effect: o.overflowEffect(), waiting: kept?.pending === true && kept?.effect === "panic" };
+            // The next time of day is not the one armed: the chapter after a trial may open anywhere.
+            const later = { ...trial, phase: "dailyLife", session: armed.session + 1, day: armed.day + 1, timeOfDay: TIMES_OF_DAY[1] };
+            await game.settings.set(MODULE_ID, SETTINGS.clock, later);
+            await settle();
+            at = mark();
+            const pointed = await o.checkOverflow();
+            seen.boundary = { returned: pointed?.effect ?? null, effect: o.overflowEffect(), count: o.overflowCount(), cards: cardsSince(at).length,
+                again: await o.checkOverflow() };
+            // An Eclipse ahead of the boundary.
+            await game.settings.set(MODULE_ID, SETTINGS.overflow, { active: { ...kept, pending: true } });
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...later, eclipse: true });
+            await settle();
+            at = mark();
+            await o.checkOverflow({ ahead: true });
+            seen.eclipse = { effect: o.overflowEffect(), cards: cardsSince(at).length };
+            // Running now, then waiting: the verdict clears the first; the season reset the second.
+            await game.settings.set(MODULE_ID, SETTINGS.clock, later);
+            await game.settings.set(MODULE_ID, SETTINGS.overflow,
+                { active: { session: later.session, day: later.day, timeOfDay: later.timeOfDay, effect: "panic" } });
+            await settle();
+            const running = o.overflowEffect();
+            await o.resetOverflow();
+            seen.running = [running, game.settings.get(MODULE_ID, SETTINGS.overflow)?.active ?? null];
+            await game.settings.set(MODULE_ID, SETTINGS.overflow, { active: { ...kept, pending: true } });
+            await o.resetOverflow({ reason: "the season reset" });
+            seen.season = game.settings.get(MODULE_ID, SETTINGS.overflow)?.active ?? null;
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clockWas);
+            await game.settings.set(MODULE_ID, SETTINGS.overflowRules, rulesWas);
+            await game.settings.set(MODULE_ID, SETTINGS.overflow, overflowWas);
+            await overflowStore.patch("record", { count: countWas });
+            for (const m of game.messages.contents.filter(m => !before.has(m.id))) await m.delete();
+            await settle();
+        }
+        equal(stableJson(seen), stableJson({
+            save: { held: { threshold: OVERFLOW.threshold + 1, effects: { darkness: { by: 2 }, fog: { on: false } } }, cards: 1 },
+            again: { held: { threshold: OVERFLOW.threshold + 1, effects: { darkness: { by: 2 }, fog: { on: false } } }, cards: 0 },
+            old: { floor: true, fog: false },
+            trim: [stableJson({ trimmed: true }), { effects: { fog: { on: false } } }, stableJson(null)],
+            empty: { read: [null, null], threshold: OVERFLOW.threshold, darkness: OVERFLOW.effects.darkness.by, held: {}, cards: 0 },
+            held: [5, 0],
+            trial: { next: true, says: true, now: null },
+            verdict: { count: 0, effect: null, waiting: true },
+            boundary: { returned: "panic", effect: "panic", count: 0, cards: 0, again: null },
+            eclipse: { effect: "panic", cards: 0 },
+            running: ["panic", null],
+            season: null
+        }), "the overflow does not keep the GM's overrides alone, or a darkening announced in a trial does not wait [Save: what the world "
+            + "holds, cards; Save unchanged: the same; an older full copy: Panic's floor is config's, Fog's tick; trimmed: the report, what "
+            + "the world holds, the second trim; an emptied threshold and size: as read, X, Darkness's size, what the world holds, cards; "
+            + "sizes 20 and -3 as held; armed in the trial: for the next day's first time of day, the card's words, running now; the verdict: "
+            + "the count, running, waiting; a later boundary: the check's answer, running, the count, cards, a second check; an Eclipse ahead: "
+            + "running, cards; a darkening running now through the verdict: before, after; a waiting one through the season reset]");
+    }],
+
+    ["the explainers say the rules (E15-T5): the Despair window shows every pool held / max to a player as to a GM, and a player the sentence that only the overflow is hidden; the overflow's section counts what is in the hat, and says the hat is empty at none; the Eclipse names the Direct Murder, and the actions name both Rests", async () => {
+        /*
+         * E15 part 1 C3, 25.10.2026; E15-18, E15-19, audit S01-24, S13-16. Read on a GM's browser: the Despair
+         * window's body (explain.mjs `despairExplainerBody`, the body `openDespairExplainer` shows) as a player
+         * reads it and as a GM does, with three effects in the hat and then none (the world's rules written
+         * straight to the setting, put back); and the Eclipse's and the actions' explanations against the names
+         * the game gives the Direct Murder and the two Rests in the language in use. At d78b6dbe the body is not a
+         * function of its own, a player read no pool's count but the sentence that it is the GM's, the overflow
+         * counted eight whatever was ticked, the Eclipse said nothing else happens, and the actions said a rest is one.
+         */
+        const E = await import("./explain.mjs");
+        const D = await import("./despair.mjs");
+        const { esc, plural } = await import("./utils.mjs");
+        const { OVERFLOW } = await import("./config.mjs");
+        const pools = D.monokumas();
+        must(pools.length >= 1, "no account holds a Despair pool - this would measure nothing");
+        const t = key => game.i18n.localize(key);
+        const rulesWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.overflowRules) ?? {});
+        const seen = { body: typeof E.despairExplainerBody === "function" };
+        try {
+            if (seen.body) {
+                const three = ["darkness", "panic", "fog"];
+                await game.settings.set(MODULE_ID, SETTINGS.overflowRules,
+                    { effects: Object.fromEntries(Object.keys(OVERFLOW.effects).map(key => [key, { on: three.includes(key) }])) });
+                const player = await E.despairExplainerBody({ gm: false });
+                const gm = await E.despairExplainerBody({ gm: true });
+                const rows = pools.map(user => esc(`${D.poolLabel(user)}: ${D.getDespair(user.id)} / ${D.despairMax()}`));
+                const hat = esc(plural("DRPG.Overflow.explainHat", { n: three.length }));
+                seen.player = { rows: rows.every(row => player.includes(row)), masked: player.includes(esc(t("DRPG.Explain.despair.masked"))),
+                    hat: player.includes(hat) };
+                seen.gm = { rows: rows.every(row => gm.includes(row)), masked: gm.includes(esc(t("DRPG.Explain.despair.masked"))), hat: gm.includes(hat) };
+                await game.settings.set(MODULE_ID, SETTINGS.overflowRules,
+                    { effects: Object.fromEntries(Object.keys(OVERFLOW.effects).map(key => [key, { on: false }])) });
+                seen.none = { player: (await E.despairExplainerBody({ gm: false })).includes(esc(t("DRPG.Overflow.explainEmpty"))),
+                    gm: (await E.despairExplainerBody({ gm: true })).includes(esc(t("DRPG.Overflow.emptyPool"))) };
+            }
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.overflowRules, rulesWas);
+            await settle();
+        }
+        seen.eclipse = t("DRPG.Explain.phase.eclipse").includes(t("DRPG.Action.directMurder"));
+        seen.rests = [t("DRPG.Rest.short"), t("DRPG.Rest.long")].every(name => t("DRPG.Explain.status.actionsWhat").includes(name));
+        equal(stableJson(seen), stableJson({
+            body: true,
+            player: { rows: true, masked: true, hat: true },
+            gm: { rows: true, masked: false, hat: true },
+            none: { player: true, gm: true },
+            eclipse: true,
+            rests: true
+        }), "the explainers do not say the rules [the body is its own function; as a player: every pool's row, the sentence that only the "
+            + "overflow is hidden, the hat's count; as a GM: the same rows, no such sentence, the hat's count; none ticked: a player's and "
+            + "a GM's empty-hat sentence; the Eclipse names the Direct Murder; the actions name the Short and the Long Rest]");
+    }],
+
     ...GRID
 ];
 

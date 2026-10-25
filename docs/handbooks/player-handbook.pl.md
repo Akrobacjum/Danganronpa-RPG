@@ -413,7 +413,7 @@ Despair zdobyty ponad pełną pulę nie znika - zbiera się w jednym wspólnym l
 | Rot | każdy przedmiot z więcej niż jednym punktem wytrzymałości traci jeden (jednorazowo, nic się nie łamie) |
 | Earthquake | każdy projekt traci 1 postępu (jednorazowo) |
 
-Żadne z nich nie zejdzie ci poniżej jednej akcji ani jednego Search Tokena. Zamiast licznika widzisz "?"; werdykt Class Trialu go opróżnia.
+Żadne z nich nie zejdzie ci poniżej jednej akcji ani jednego Search Tokena. Zamiast licznika widzisz "?"; werdykt Class Trialu go opróżnia, ale zaciemnienie ogłoszone w trakcie procesu i tak przychodzi, w następnej porze dnia.
 
 ---
 

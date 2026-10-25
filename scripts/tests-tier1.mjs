@@ -353,10 +353,12 @@ const INVARIANTS = [
         ok(/resetOverflow\(/.test(wipe),
             "a season reset empties the Despair pools and leaves their overflow standing");
 
-        // Both halves, or a new season inherits an armed darkening.
-        const reset = bodyOf(overflow, "export async function resetOverflow", { length: 600 });
-        ok(/count:\s*0/.test(reset) && /active:\s*null/.test(reset),
-            "resetOverflow no longer clears both the counter and the armed stamp");
+        // Both halves, or a new season inherits an armed darkening. Only the verdict keeps one, a
+        // darkening announced in the trial whose time of day has not begun (E15 C3; D16, S09-07):
+        // the season reset's stamp is null whatever was armed.
+        const reset = bodyOf(overflow, "export async function resetOverflow", { until: "function waitingDarkening" });
+        ok(/count:\s*0/.test(reset) && /active:\s*atVerdict \? kept : null/.test(reset) && /atVerdict = reason === VERDICT/.test(reset),
+            "resetOverflow no longer clears both the counter and the armed stamp, or keeps a darkening past a season reset");
     }],
 
     ["a table row keeps every edit, and an emptied description stays empty", async () => {

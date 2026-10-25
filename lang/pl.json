@@ -2698,6 +2698,7 @@
       "caption": "Despair overflow",
       "cardTitle": "Despair się przelewa",
       "cardBody": "{n} punktów rozlanego Despair znalazło zastosowanie. Przez jedną porę dnia szkoła staje się tym:",
+      "cardBodyTrial": "{n} punktów rozlanego Despair znalazło zastosowanie. Od następnej pory dnia po procesie, przez jedną porę dnia, szkoła staje się tym:",
       "cardLeft": "Overflow zatrzymuje to, czego nie wydał.",
       "activeNow": "Zaciemnione · ta pora dnia",
       "hiddenValue": "?",
@@ -2711,6 +2712,7 @@
       "floorNote": "Żadne z nich nigdy nie schodzi poniżej jednego. Pora dnia bez akcji albo pokój bez Search Tokenów to nie trudniejsza gra - to gracz, który nie ma co robić, dopóki zegar się nie przesunie.",
       "current": "Teraz: {count} z {max}.",
       "currentDrawn": "Teraz: {count} z {max}. Ta pora dnia jest pod: {what}.",
+      "currentWaiting": "Teraz: {count} z {max}. {what} ogłoszono w procesie i czeka na następną porę dnia.",
       "pool": "Co może zostać wylosowane",
       "poolHint": "Jedno z nich losowane jest za każdym razem, gdy overflow odpala - nigdy więcej niż jedno. Odznacz to, czego nie chcesz w kapeluszu.",
       "oneOff": "Jednorazowe",
@@ -2739,8 +2741,15 @@
       },
       "rulesChanged": "Overflow przestrojony. Odpala teraz przy {n}.",
       "explainTitle": "Czym jest Despair overflow",
-      "explainBody": "Pula Monokumy mieści {max}. Despair zdobyty ponad to zbiera się tutaj, w jednym liczniku wspólnym dla wszystkich Monokum. Przy progu płaci tyle, zachowuje resztę i losuje jeden efekt z {effects} w kapeluszu GM-a, na jedną porę dnia. Feed the Overflow wlewa Despair celowo. Werdykt Class Trial go opróżnia.",
-      "explainVeil": "Gracze widzą „?” zamiast liczby. Uprzejmość, nie tajemnica: licznik to ustawienie świata, więc zdeterminowany gracz odczyta go z konsoli. Nic ze śledztwa w nim nie mieszka.",
+      "explainEmpty": "Kapelusz GM-a jest teraz pusty, więc overflow nie odpali, dopóki czegoś do niego nie włoży.",
+      "explainBody": "Pula Monokumy mieści {max}. Despair zdobyty ponad to zbiera się tutaj, w jednym liczniku wspólnym dla wszystkich Monokum. Przy progu płaci tyle, zachowuje resztę i losuje jeden efekt z kapelusza GM-a, na jedną porę dnia. Feed the Overflow wlewa Despair celowo. Werdykt Class Trial go opróżnia; zaciemnienie ogłoszone w trakcie procesu i tak przychodzi, w następnej porze dnia.",
+      "explainHat": {
+        "one": "W kapeluszu jest teraz jeden efekt.",
+        "few": "W kapeluszu są teraz {n} efekty.",
+        "many": "W kapeluszu jest teraz {n} efektów.",
+        "other": "W kapeluszu jest teraz {n} efektu."
+      },
+      "explainVeil": "Gracze widzą „?” zamiast liczby: kiedy odpali, wie Monokuma. Nic ze śledztwa w nim nie mieszka.",
       "gmHintActiveFull": "Ta pora dnia jest zaciemniona. Czeka {count} z {max} rozlanego Despair i odpali, gdy ta pora dnia się skończy.",
       "noHopeNow": "Despair. Nikt nie zdobywa Hope o tej porze dnia."
     },
@@ -4401,7 +4410,7 @@
       },
       "phase": {
         "eclipseTitle": "Eclipse",
-        "eclipse": "Światła zgaszone. Każdy ustawia swój token - do dwóch połączonych pokoi albo gdziekolwiek nocą - i nikt nie widzi, kto dokąd poszedł. Nic innego się nie dzieje, dopóki się nie skończy - to jedyny moment pełnej osłony w grze i zwykle tu zaczyna się morderstwo.",
+        "eclipse": "Światła zgaszone. Każdy ustawia swój token - do dwóch połączonych pokoi albo gdziekolwiek nocą - i nikt nie widzi, kto dokąd poszedł. Akcje są już odnowione, ale nic ich nie wydaje poza Direct Murder i nikt nie rzuca Calla, dopóki światła nie wrócą. To jedyny moment pełnej osłony w grze i zwykle tu zaczyna się morderstwo.",
         "dailyLife": "Zwykłe dni w szkole. Masz dwie akcje na każdą porę dnia, by przeszukiwać pokoje, pracować nad projektami, odpoczywać, rozmawiać i przygotowywać się. Nikt jeszcze nie zginął w tym rozdziale - to ta część, w której decydujesz, komu ufasz.",
         "investigation": "Znaleziono ciało. Używaj Observe na śladach na mapie, Analyze na tym, co zbierzesz, a każdy Truth Bullet, który zbudujesz, możesz przedstawić w Class Trial. Czego nie znajdziesz, tego nie będziesz mieć.",
         "classTrial": "Wszyscy są w sali i jedno z was to zrobiło. Zeznania, Objections i wreszcie głosowanie. Trafcie, a zabójca zostanie ukarany; pomylcie się, a ukarani zostaną wszyscy pozostali."
@@ -4421,13 +4430,13 @@
         "title": "Czym jest Despair",
         "what": "Despair to waluta strony GM-a. Rośnie, gdy rzuty przy stole wypadają z Despair zamiast z Hope - czyli karmi go wasz pech i wasze ryzyko.",
         "spent": "Wydawany jest na Despair Calls: ruchy, które utrudniają życie - pchnięcie sceny, zamknięcie pokoju, dokręcenie śruby. Im więcej go jest, tym więcej szkoła może wam zrobić.",
-        "masked": "Ile jest w puli, wie tylko GM. Wiersze na ekranie pokazują, że istnieje, nie ile.",
+        "masked": "Stan każdej puli jest jawny - wiersze pokazują, jak pełna jest każda z nich. Ukryty przed tobą jest tylko licznik overflow.",
         "noPools": "Żaden Monokuma nie ma jeszcze puli."
       },
       "status": {
         "window": "Akcje, Move i Hope",
         "actionsTitle": "Akcje",
-        "actionsWhat": "Dwie na każdą porę dnia. Przeszukanie pokoju, praca nad projektem, odpoczynek, Observe na śladzie, Analyze na Truth Bullecie - każde z tych to jedna.",
+        "actionsWhat": "Dwie na każdą porę dnia. Przeszukanie pokoju, praca nad projektem, Observe na śladzie, Analyze na Truth Bullecie - każde z tych to jedna. Short Rest kosztuje jedną, Long Rest obie.",
         "actionsWounded": "Z całym Health zaznaczonym dostajesz jedną zamiast dwóch, dopóki ktoś cię nie poskłada.",
         "actionsNow": "Masz {left} z {max} o tej porze dnia.",
         "moveTitle": "Free Move",

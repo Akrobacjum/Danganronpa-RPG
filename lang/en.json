@@ -2598,6 +2598,7 @@
       "caption": "Despair overflow",
       "cardTitle": "The Despair overflows",
       "cardBody": "{n} points of spilled Despair have found a use. For one time of day, this is what the school becomes:",
+      "cardBodyTrial": "{n} points of spilled Despair have found a use. From the next time of day after the trial, for one time of day, this is what the school becomes:",
       "cardLeft": "The overflow keeps what it did not spend.",
       "activeNow": "Darkened · this time of day",
       "hiddenValue": "?",
@@ -2612,6 +2613,7 @@
       "floorNote": "None of these ever goes below one. A time of day with no actions, or a room with no search tokens, is not a harder game - it is a player with nothing to do until the clock moves.",
       "current": "Right now: {count} of {max}.",
       "currentDrawn": "Right now: {count} of {max}. This time of day is under {what}.",
+      "currentWaiting": "Right now: {count} of {max}. {what} was announced in the trial and waits for the next time of day.",
       "pool": "What can be drawn",
       "poolHint": "One of these is drawn at random each time the overflow fires - never more than one. Untick anything you do not want in the hat.",
       "oneOff": "One-off",
@@ -2641,8 +2643,13 @@
       },
       "rulesChanged": "The overflow has been retuned. It now fires at {n}.",
       "explainTitle": "What is despair overflow",
-      "explainBody": "A Monokuma's pool holds {max}. Despair earned past that collects here, in one counter shared by every Monokuma. At the threshold it pays that much, keeps the rest, and draws ONE effect at random from the {effects} in the GM's hat, for one time of day. Feed the Overflow pours Despair in on purpose. A Class Trial verdict empties it.",
-      "explainVeil": "Players see “?” rather than the number. A courtesy, not a secret: the counter is a world setting, so a determined player can read it from their console. Nothing about the investigation lives in it."
+      "explainEmpty": "Nothing is in the GM's hat right now, so the overflow will not fire until they put something in it.",
+      "explainBody": "A Monokuma's pool holds {max}. Despair earned past that collects here, in one counter shared by every Monokuma. At the threshold it pays that much, keeps the rest, and draws ONE effect at random from the GM's hat, for one time of day. Feed the Overflow pours Despair in on purpose. A Class Trial verdict empties it; a darkening announced during the trial still comes, at the next time of day.",
+      "explainHat": {
+        "one": "One effect is in the hat now.",
+        "other": "{n} effects are in the hat now."
+      },
+      "explainVeil": "Players see “?” rather than the number: when it fires is Monokuma's to know. Nothing about the investigation lives in it."
     },
     "Eclipse": {
       "already": "An Eclipse is already running.",
@@ -4191,7 +4198,7 @@
       },
       "phase": {
         "eclipseTitle": "Eclipse",
-        "eclipse": "The lights are out. Everyone places their token - up to two connected rooms, or anywhere at night - and nobody can see who went where. Nothing else happens until it ends - it is the game's one moment of total cover, and it is where a murder usually starts.",
+        "eclipse": "The lights are out. Everyone places their token - up to two connected rooms, or anywhere at night - and nobody can see who went where. Your actions are already refilled, but nothing spends them except a Direct Murder, and nobody makes a Call until the lights come up. It is the game's one moment of total cover, and it is where a murder usually starts.",
         "dailyLife": "Ordinary days inside the school. You have two actions each time of day to search rooms, work on projects, rest, talk, and prepare. Nobody has died yet this chapter - this is the part where you decide who you trust.",
         "investigation": "A body has been found. Observe traces on the map, Analyze what you collect, and every Truth Bullet you build is one you can present at the trial. What you fail to find, you will not have.",
         "classTrial": "Everyone is in the room and one of you did it. Testimony, Objections, and finally the vote. Get it right and the killer is punished; get it wrong and everybody else is."
@@ -4211,13 +4218,13 @@
         "title": "What Despair is",
         "what": "Despair is the GM side's currency. It fills when rolls at the table come up with Despair rather than Hope - which is to say, it is fed by your bad luck and your risks.",
         "spent": "It is spent on Despair Calls: the moves that make life harder - pushing a scene, hardening a room, turning a screw. The more of it there is, the more the school can do to you.",
-        "masked": "How much is held is the GM's to see. The rows on screen show that it exists, not how much.",
+        "masked": "Every pool's count is public - the rows show how full each one is. Only the overflow's count is hidden from you.",
         "noPools": "No Monokuma has a pool yet."
       },
       "status": {
         "window": "Actions, Move and Hope",
         "actionsTitle": "Actions",
-        "actionsWhat": "Two each time of day. Searching a room, working on a project, resting, observing a trace, analyzing a Truth Bullet - each of those is one.",
+        "actionsWhat": "Two each time of day. Searching a room, working on a project, observing a trace, analyzing a Truth Bullet - each of those is one. A Short Rest costs one, a Long Rest both.",
         "actionsWounded": "With all your Health marked you get one instead of two, until somebody patches you up.",
         "actionsNow": "You have {left} of {max} left this time of day.",
         "moveTitle": "Free Move",
