@@ -66993,6 +66993,160 @@ const SCENARIOS = [
             + "(the draws that broke the rule as [named, Hope, Fear]; the pool's move after a plain 2d12, a duality roll's JSON, one with its dice getters)");
     }],
 
+    ["Despair Flow writes only the rows the GM changed and marks what it shows (E15-T8): a pool renamed and a student ticked a Monokuma leave two fallbacks fallbacks and give the new Monokuma no row; the fallback is named in its select, Split evenly sits on the students' tab alone", async () => {
+        /*
+         * E15 C6, 25.10.2026; E15-27 to E15-29, audit S10-47, S10-62, S13-11. Despair Flow opened as a GM
+         * opens it (`openGmTeamDialog`, the harness's drawn DialogV2), over four students: one assigned to
+         * the GM's pool, one to "- nobody -", two never assigned. Read as drawn: the footer's buttons on
+         * the pools' tab and on the students' tab; the pools' first header; on the Monokumas' tab, a row
+         * not ticked (its "-" and its select); on the students' tab, each row's select (the fallback's
+         * class, its option's words, no "*") and the count of students outside every pool. Then the pool
+         * renamed, the last student ticked a Monokuma with its assignment changed, and Save. Read: the
+         * assignments the world holds after. Every setting the Save writes and the student's flag and
+         * tracks are put back. At the C5 commit Save wrote all four students and the marks were the old ones.
+         */
+        needs(world.atLeast("livingStudents", 4), "the division is read over four students");
+        const T = await import("./gm-team-dialog.mjs");
+        const { students, NO_MONOKUMA } = await import("./assignments.mjs");
+        const { monokumas, poolLabel } = await import("./despair.mjs");
+        const { isMonokuma } = await import("./monokuma.mjs");
+        const gms = monokumas();
+        must(gms.length >= 1, "nobody holds a Despair pool here - the window would not open");
+        const roster = students().filter(a => !isMonokuma(a));
+        must(roster.length >= 4, "fewer than four students to divide - this would measure nothing");
+        const [explicit, nobody, implicit, ticked] = roster;
+        const gm = gms[0];
+        const keys = [SETTINGS.gmAssignments, SETTINGS.poolNames, SETTINGS.monokumaPools, SETTINGS.overflowRules];
+        const was = Object.fromEntries(keys.map(k => [k, foundry.utils.deepClone(game.settings.get(MODULE_ID, k) ?? {})]));
+        const R = "system.resources";
+        const tracks = ["hope", "actions"].filter(k => foundry.utils.getProperty(ticked._source, `${R}.${k}`) !== undefined);
+        const tracksWas = Object.fromEntries(tracks.map(k => [k, foundry.utils.deepClone(foundry.utils.getProperty(ticked._source, `${R}.${k}`))]));
+        const flagWas = ticked._source.flags?.[MODULE_ID]?.[FLAGS.monokuma];
+        const open = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-gmteam"));
+        const read = {};
+        let answer = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.gmAssignments, { [explicit.id]: gm.id, [nobody.id]: NO_MONOKUMA });
+            answer = Promise.resolve().then(() => T.openGmTeamDialog()).catch(() => null);
+            await until(() => open()[0]?.element, 6000);
+            const root = open()[0]?.element;
+            must(root, "Despair Flow did not open - this would measure nothing");
+            const shown = () => [...root.querySelectorAll("footer.form-footer button[data-action]")].filter(b => !b.hidden).map(b => b.dataset.action);
+            const tab = key => root.querySelector(`[data-drpg-gmt-tab="${key}"]`)?.click();
+            tab("pools");
+            read.footer = { pools: shown() };
+            tab("students");
+            read.footer.students = shown();
+            read.account = root.querySelector('[data-drpg-gmt-section="pools"] thead th')?.textContent?.trim() ?? null;
+            const mkRow = root.querySelector(`[name="mk.${CSS.escape(ticked.id)}"]`)?.closest("tr");
+            read.notMonokuma = [mkRow?.querySelector("[data-drpg-pool-none]")?.hidden ?? null, mkRow?.querySelector("[data-drpg-pool]")?.hidden ?? null];
+            const select = actor => root.querySelector(`[name="assign.${CSS.escape(actor.id)}"]`);
+            read.rows = [explicit, nobody, implicit].map(actor => {
+                const s = select(actor);
+                return [s?.classList.contains("drpg-assign-fallback") ?? null, s?.selectedOptions?.[0]?.textContent?.trim() ?? null];
+            });
+            read.asterisks = root.querySelectorAll(".drpg-assign-implicit").length;
+            read.outside = root.querySelector(".drpg-assign-counts")?.textContent?.includes(`${game.i18n.localize("DRPG.Assign.outside")}: 1`) ?? null;
+
+            const name = root.querySelector(`[name="poolName.${CSS.escape(gm.id)}"]`);
+            must(name, "the pool's name field is not drawn - this would measure nothing");
+            name.value = "SUITE E15 C6 pool";
+            const mk = root.querySelector(`[name="mk.${CSS.escape(ticked.id)}"]`);
+            mk.checked = true;
+            mk.dispatchEvent(new Event("change", { bubbles: true }));
+            const moved = select(ticked);
+            moved.value = NO_MONOKUMA;
+            moved.dispatchEvent(new Event("change", { bubbles: true }));
+            root.querySelector('footer.form-footer button[data-action="save"]')?.click();
+            await answer;
+            await settle();
+            read.saved = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.gmAssignments) ?? {});
+        } finally {
+            for (const app of open()) await app.close();
+            await answer;
+            for (const k of keys) {
+                if (stableJson(game.settings.get(MODULE_ID, k) ?? {}) !== stableJson(was[k])) await game.settings.set(MODULE_ID, k, was[k]);
+            }
+            if (flagWas === undefined) { if (ticked._source.flags?.[MODULE_ID]?.[FLAGS.monokuma] !== undefined) await ticked.unsetFlag(MODULE_ID, FLAGS.monokuma); }
+            else await ticked.setFlag(MODULE_ID, FLAGS.monokuma, flagWas);
+            if (tracks.length) await ticked.update(Object.fromEntries(tracks.map(k => [`${R}.${k}`, tracksWas[k]])));
+            await settle();
+        }
+        const label = poolLabel(gm);
+        equal(stableJson(read), stableJson({
+            footer: { pools: ["save", "cancel"], students: ["save", "auto", "cancel"] },
+            account: game.i18n.localize("DRPG.Despair.account"),
+            notMonokuma: [false, true],
+            rows: [[false, label], [false, game.i18n.localize("DRPG.Assign.nobody")], [true, game.i18n.format("DRPG.Assign.fallbackOption", { name: label })]],
+            asterisks: 0,
+            outside: true,
+            saved: { [explicit.id]: gm.id, [nobody.id]: NO_MONOKUMA }
+        }), "Despair Flow wrote a row the GM did not change, or its marks are not the rule's [the footer on the pools' and the students' tab; "
+            + "the pools' first header; a student not ticked: its \"-\" hidden, its select hidden; per student (assigned, nobody, never): the "
+            + "fallback's class, the option shown; asterisks; \"Outside every pool: 1\"; the assignments after a rename and a student ticked]");
+    }],
+
+    ["the Monocubs window and the silence say the rule the GM ticks (E15-T8): short headers, the note on the Silenced column, a locked box until the row is a Monocub; the badge says what the tick posts", async () => {
+        /*
+         * E15 C6, 25.10.2026; E15-31, E15-32, audit S13-10, S13-17. A student killed in public
+         * (`killCharacter`) so the window has a row, then the Monocubs window opened (`openMonocubDialog`,
+         * drawn). Read: the headers' words; the Silenced header's tooltip; whether the note still stands
+         * under the table; the dead student's Silenced box (locked, its tooltip) before and after its
+         * Monocub box is ticked; then Cancel. And the words, EN as this browser reads them: the sheet's
+         * badge against the title of the card the tick posts, and whether its tooltip says Confusion still
+         * works. The student is revived and its tracks put back. At the C5 commit the headers were
+         * sentences, the box a "-" and the badge "Cannot speak". The pool sentences (S13-12) are words a
+         * test would read in one language only: parity holds their Polish twins, the review their sense.
+         */
+        const M = await import("./monocub.mjs");
+        const { killCharacter, reviveCharacter } = await import("./chapter.mjs");
+        const [who] = cast(1);
+        const R = "system.resources";
+        const keys = ["hope", "hitPoints", "stress", "actions"];
+        const tracksWas = Object.fromEntries(keys.map(k => [k, foundry.utils.deepClone(foundry.utils.getProperty(who._source, `${R}.${k}`) ?? null)]));
+        const open = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-monocubs"));
+        const t = key => game.i18n.localize(key);
+        const read = {};
+        let dead = false, answer = null;
+        try {
+            dead = Boolean(await killCharacter(who, { secret: false, keepBullets: true }));
+            must(dead, `${who.name}'s death could not be published - this would measure nothing`);
+            await settle();
+            answer = Promise.resolve().then(() => M.openMonocubDialog()).catch(() => null);
+            await until(() => open()[0]?.element, 6000);
+            const root = open()[0]?.element;
+            must(root, "the Monocubs window did not open - this would measure nothing");
+            const heads = [...root.querySelectorAll("thead th")];
+            read.headers = heads.map(th => th.textContent.trim());
+            read.tooltip = heads[4]?.dataset?.tooltip ?? null;
+            read.noteBelow = [...root.querySelectorAll("p.notes")].some(p => p.textContent.includes(t("DRPG.Monocub.silencedNote")));
+            const box = root.querySelector(`[name="silenced:${CSS.escape(who.id)}"]`);
+            read.locked = [box?.disabled ?? null, box?.dataset?.tooltip ?? null];
+            const cub = root.querySelector(`[name="cub:${CSS.escape(who.id)}"]`);
+            cub.checked = true;
+            cub.dispatchEvent(new Event("change", { bubbles: true }));
+            read.unlocked = box?.disabled ?? null;
+            root.querySelector('footer.form-footer button[data-action="cancel"]')?.click();
+            await answer;
+        } finally {
+            for (const app of open()) await app.close();
+            await answer;
+            if (dead) await reviveCharacter(who, { quiet: true });
+            await who.update(Object.fromEntries(keys.filter(k => tracksWas[k] !== null).map(k => [`${R}.${k}`, tracksWas[k]])));
+            await settle();
+        }
+        read.badge = [t("DRPG.Monocub.silencedBadge") === t("DRPG.Monocub.silenceTitle"), t("DRPG.Monocub.silencedTooltip").includes("Confusion")];
+        equal(stableJson(read), stableJson({
+            headers: ["DRPG.Monocub.student", "DRPG.Monocub.isOne", "DRPG.Monocub.hope", "DRPG.Monocub.giveHopeColumn", "DRPG.Monocub.silenced"].map(t),
+            tooltip: t("DRPG.Monocub.silencedNote"),
+            noteBelow: false,
+            locked: [true, t("DRPG.Monocub.tickFirst")],
+            unlocked: false,
+            badge: [true, true]
+        }), "the Monocubs window or the silence does not say the rule [the headers; the Silenced header's tooltip; the note under the table; "
+            + "a dead student's Silenced box: locked, its tooltip; once Monocub is ticked: locked; the badge: the tick's title, Confusion named]");
+    }],
+
     ...GRID
 ];
 

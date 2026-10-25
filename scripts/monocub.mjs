@@ -689,7 +689,11 @@ export async function openMonocubDialog() {
                 <button type="button" class="drpg-mini-button" data-drpg-give="${a.id}">
                     ${game.i18n.localize("DRPG.Monocub.give")}</button>` : "-"}</td>
             <td style="text-align:center">${cub ? `
-                <input type="checkbox" name="silenced:${a.id}" ${silenced ? "checked" : ""} />` : "-"}</td>
+                <input type="checkbox" name="silenced:${a.id}" ${silenced ? "checked" : ""}
+                       aria-label="${foundry.utils.escapeHTML(`${game.i18n.localize("DRPG.Monocub.silenced")}: ${a.name}`)}" />` : `
+                <input type="checkbox" name="silenced:${a.id}" disabled data-drpg-tick-first
+                       data-tooltip="${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Monocub.tickFirst"))}"
+                       aria-label="${foundry.utils.escapeHTML(`${game.i18n.localize("DRPG.Monocub.silenced")}: ${a.name} - ${game.i18n.localize("DRPG.Monocub.tickFirst")}`)}" />`}</td>
         </tr>`;
     }).join("");
 
@@ -699,13 +703,13 @@ export async function openMonocubDialog() {
         content: dialogContent(`<div>
             <p class="notes">${game.i18n.localize("DRPG.Monocub.dialogIntro")}</p>
             <table class="drpg-vault-table"><thead><tr>
-                <th>${game.i18n.localize("DRPG.Chapter.whoDied")}</th>
+                <th>${game.i18n.localize("DRPG.Monocub.student")}</th>
                 <th>${game.i18n.localize("DRPG.Monocub.isOne")}</th>
                 <th>${game.i18n.localize("DRPG.Monocub.hope")}</th>
-                <th>${game.i18n.localize("DRPG.Monocub.giveHope")}</th>
-                <th>${game.i18n.localize("DRPG.Monocub.silenced")}</th>
+                <th>${game.i18n.localize("DRPG.Monocub.giveHopeColumn")}</th>
+                <th data-tooltip="${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Monocub.silencedNote"))}">${
+                    game.i18n.localize("DRPG.Monocub.silenced")}</th>
             </tr></thead><tbody class="drpg-cub-live">${buildRows()}</tbody></table>
-            <p class="notes">${game.i18n.localize("DRPG.Monocub.silencedNote")}</p>
         </div>`),
         buttons: [
             {
@@ -728,6 +732,21 @@ export async function openMonocubDialog() {
              * every listener on it goes with the nodes. A live table whose
              * buttons stopped working would be worse than a stale one.
              */
+            /* SHORT HEADERS AND A LOCKED BOX (E15 C6, 25.10.2026; audit S13-10). The headers were
+               sentences ("Who died?", "Turn a Monokuma's Despair into Hope") and the note under the
+               table pointed at a box that was a "-" until the student was a Monocub. Now the Silenced
+               box is drawn locked with "Tick Monocub first" on it, unlocked while the row's Monocub box
+               is ticked (Apply makes the Monocub, then the silence), and the note is the column's tooltip. */
+            const wireTickFirst = () => {
+                for (const box of dialog.element.querySelectorAll("[data-drpg-tick-first]")) {
+                    const id = box.name.slice("silenced:".length);
+                    const cub = dialog.element.querySelector(`[name="cub:${CSS.escape(id)}"]`);
+                    cub?.addEventListener("change", () => {
+                        box.disabled = !cub.checked;
+                        if (!cub.checked) box.checked = false;
+                    });
+                }
+            };
             const wireGive = () => {
                 for (const btn of dialog.element.querySelectorAll("[data-drpg-give]")) {
                     btn.addEventListener("click", async () => {
@@ -747,13 +766,14 @@ export async function openMonocubDialog() {
                 }
             };
             wireGive();
+            wireTickFirst();
 
             keepLive(dialog, {
                 region: ".drpg-cub-live",
                 build: buildRows,
                 // A pool's debt changes with no actor's write (E05 C12): its store's hook.
                 watch: { actors: true, hooks: ["drpgDespairOwedChanged"] },
-                after: wireGive
+                after: () => { wireGive(); wireTickFirst(); }
             });
         },
         rejectClose: false

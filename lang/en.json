@@ -496,19 +496,22 @@
     },
     "Assign": {
       "title": "Despair Flow",
+      "outside": "Outside every pool",
+      "fallbackOption": "{name} (fallback)",
       "intro": "A roll that lands with Despair feeds that student's Monokuma.",
       "monokuma": "Monokuma",
       "save": "Save",
       "splitEvenly": "Split evenly",
       "splitDone": "Students split evenly between Monokumas.",
       "failed": "The division could not be saved. See the console.",
-      "noMonokumas": "Assistant GMs do not get a Despair pool.",
+      "noMonokumas": "Nobody holds a Despair pool yet: every full GM account holds one, and this world has none. Give an account the Gamemaster role, then open Despair Flow again; Assistant GMs can be granted a pool there.",
       "nobody": "- nobody -",
-      "implicitHint": "Never assigned - falling back to the first Monokuma.",
-      "footnote": "* = unassigned, using the fallback. “- nobody -” keeps a student out of every pool - an NPC, a template - and every player's browser can read who is set to it."
+      "implicitHint": "Never assigned: this student feeds the first pool until you pick one.",
+      "footnote": "“(fallback)” = never assigned, so the student feeds the first pool. “- nobody -” keeps a student out of every pool - an NPC, a template - and every player's browser can read who is set to it."
     },
     "Despair": {
       "label": "Despair",
+      "account": "Account",
       "callTitle": "Despair Call",
       "pipTooltip": "Set {name}'s Despair to {n}. Click the last filled one to spend it.",
       "spent": "{name} spent {cost} Despair",
@@ -522,11 +525,11 @@
         "other": "{n} owed"
       },
       "poolsTitle": "Despair Pools",
-      "poolsIntro": "Name each pool. It need not match the account.",
+      "poolsIntro": "Name each pool - it does not have to match the account name. Every full GM holds a pool; an Assistant GM holds one once you grant it below.",
       "poolName": "Pool name",
       "addPool": "Add pool",
       "grantTo": "Grant a pool to",
-      "noCandidates": "No Assistant GM to grant a pool to. Full Gamemasters have one already.",
+      "noCandidates": "No Assistant GM to grant a pool to. Every full GM holds one already.",
       "removePoolAsk": "Revoke \"{name}\"? The {n} Despair in that pool goes with it, and so does the name. The account keeps every other right it has.",
       "poolGone": "That pool is not an opted-in extra any more - somebody else has already changed it. Nothing was revoked.",
       "removePool": "Remove pool",
@@ -1000,6 +1003,8 @@
     },
     "Monocub": {
       "panelTitle": "Monocub",
+      "tickFirst": "Tick Monocub first",
+      "student": "Student",
       "meddleCost": "{hope} Hope, {actions} action.",
       "cannotMeddle": "Not enough action, or not enough Hope.",
       "mustBeDead": "Only a character who has already died becomes a Monocub.",
@@ -1015,7 +1020,7 @@
       "giveAtLeast": "Type how much Despair to turn into Hope - at least {n}.",
       "giveHopeColumn": "Despair → Hope",
       "give": "Give",
-      "silenced": "Silenced this chapter",
+      "silenced": "Silenced",
       "silencedNote": "Tick if this Monocub stumbled onto the crime scene. They cannot discuss it until the chapter ends, but Confusion still works.",
       "needHope": "Confusion costs Hope and you have none. Ask a GM to convert some Despair.",
       "nobodyHere": "Nobody in this room to use Confusion on.",
@@ -1038,8 +1043,8 @@
       "silenceOn": "You stumbled onto the crime. You may not discuss it until this chapter ends.",
       "silenceOff": "The silence is lifted. You may discuss the crime again.",
       "meddleCostShort": "{hope} Hope, {actions} action",
-      "silencedBadge": "Cannot speak",
-      "silencedTooltip": "A Monokuma took your voice this chapter. You may act, not speak.",
+      "silencedBadge": "Sworn to silence",
+      "silencedTooltip": "You stumbled onto the crime. You may not discuss it until this chapter ends; Confusion still works.",
       "invite": "Invite as a Monocub"
     },
     "Mastermind": {

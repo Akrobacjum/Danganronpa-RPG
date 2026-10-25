@@ -784,11 +784,9 @@ function aliveTableHtml({ roster, stateOf, donors, isCrimeSilenced, resourceValu
             ${cubs ? `
             <th>${game.i18n.localize("DRPG.Monocub.hope")}</th>
             <th>${game.i18n.localize("DRPG.Monocub.giveHopeColumn")}</th>
-            <th>${game.i18n.localize("DRPG.Monocub.silenced")}</th>` : ""}
+            <th data-tooltip="${esc(game.i18n.localize("DRPG.Monocub.silencedNote"))}">${game.i18n.localize("DRPG.Monocub.silenced")}</th>` : ""}
             <th>${game.i18n.localize("DRPG.Panel.doColumn")}</th>
         </tr></thead><tbody>${buildRows()}</tbody></table>
-        ${cubs ? `<p class="notes">${
-            game.i18n.localize("DRPG.Monocub.silencedNote")}</p>` : ""}
     </div>`;
 }
 

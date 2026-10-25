@@ -1441,9 +1441,11 @@ body:not(.drpg-theme-stained-glass) > #drpg-room-tile[data-place="notes"] {
     border-radius: 4px;
 }
 
-.drpg-assign .drpg-assign-implicit {
-    color: var(--drpg-eye);
-    cursor: help;
+/* A student never assigned: the pool it falls back to, named "(fallback)" in its select, dim
+   and in italics until the GM picks something (E15 C6; audit S10-62). It was a red "*". */
+.drpg-assign select.drpg-assign-fallback {
+    color: var(--drpg-dim);
+    font-style: italic;
 }
 
 /* Students deliberately kept out of every pool. */
