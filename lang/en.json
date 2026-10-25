@@ -658,6 +658,7 @@
         "notBreached": "{name} is finished, but its wall could not be breached: {why}",
         "notSealed": "{name} is finished, but its passage could not be sealed: {why}",
         "notClosed": "{name} is finished, but its breach could not be closed: {why}",
+        "notReopened": "A Reroll took back {name}, but its breach could not be cut again: {why}",
         "breachDoneHere": "A wall of this room gives way: there is a breach in it now.",
         "breachDoneHereNamed": "{name} breaks through a wall of this room: there is a breach in it now.",
         "breachDoneThere": "A wall of this room bursts open from the other side: there is a breach in it now.",

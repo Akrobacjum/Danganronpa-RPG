@@ -181,8 +181,11 @@ export function passageCopyFor(user, { stores = PASSAGE_STORES, actors = game.ac
     // `actors` beside the stores: a public passage's knowers are the students the caller holds (E80 C6).
     for (const [id, row] of Object.entries(secretRowsFrom({ ...stores, actors }))) {
         const actorIds = row.actorIds.filter(a => ids.has(a));
-        if (mastermind && !actorIds.includes(mastermind)) actorIds.push(mastermind);
-        if (actorIds.length) value[id] = { ...row, actorIds };
+        // Named by the door alone (E15 part 2 fix e1-G3; finding E15p2-END-03): `byDoor` says so, for the offers that
+        // ask a knowing of the character's own - Seal the passage, which a completion judges with no asker.
+        const byDoor = mastermind && !actorIds.includes(mastermind) ? mastermind : null;
+        if (byDoor) actorIds.push(byDoor);
+        if (actorIds.length) value[id] = { ...row, actorIds, ...(byDoor ? { byDoor } : {}) };
     }
     /* A public passage is known to every student (E80 C6), one who first appears after Make public as well, and that one
        has no `touch` row: nothing wrote one, so its part was 0 in a world no reset has cut (gm-store.mjs `newest`), and the
@@ -973,17 +976,51 @@ export function sealRefusal({ passageId = null, builderId = null } = {}, stores 
 }
 
 /**
+ * Whether the passage or the breach a Seal the passage or a Close the breach names has a side in `room`, the project's
+ * room (E15 part 2 fix e1-G3; finding SEC-3): null, or the reason. Start New offers only the passages and breaches with
+ * a side in the room the character stands in (`passageProjectOffer`), and the card is a claim (D2): the approval read
+ * only that the builder knew the passage, so a console's card sealed a passage on another floor or scene, or closed any
+ * breach of the world, by Working from a bedroom. Read here as the offer reads it (movement.mjs `passageRooms`), at the
+ * approval with the room where the GMs read the builder and the scene it stands on (`sceneId`), and again at the
+ * completion with the room the approval kept in the GMs' half. Pure but for the stores and the scenes.
+ */
+export async function presetSideRefusal({ passageId = null, breachId = null, sceneId = null, room = null } = {}, stores = PASSAGE_STORES) {
+    if (typeof room !== "string" || !room) return SIDE_REFUSED;
+    const { passageRooms } = await import("./movement.mjs");
+    let scene = null, shape = null, level = null;
+    if (typeof passageId === "string" && passageId) {
+        const row = rowsOf(stores).get(passageId);
+        scene = game.scenes?.get(row?.sceneId ?? "") ?? null;
+        shape = Array.isArray(row?.ends) ? { ends: row.ends } : row?.passageSeg ? { ...row.passageSeg } : null;
+        level = row?.level ?? null;
+    } else if (typeof breachId === "string" && breachId) {
+        const found = (game.scenes?.contents ?? [...(game.scenes ?? [])]).flatMap(s => breachesOn(s).map(b => ({ ...b, scene: s })))
+            .find(b => b.breach.breachId === breachId) ?? null;
+        scene = found?.scene ?? null;
+        const [x1, y1, x2, y2] = (found?.wall?.c ?? []).slice(0, 4).map(Number);
+        shape = found ? { x1, y1, x2, y2 } : null;
+        level = Object.values(stores.season?.entries() ?? {}).find(row => row?.breach?.breachId === breachId)?.level ?? null;
+    }
+    if (!scene || !shape || (sceneId && scene.id !== sceneId)) return SIDE_REFUSED;
+    return (passageRooms(scene, shape, level) ?? []).includes(room) ? null : SIDE_REFUSED;
+}
+
+/** The one answer of `presetSideRefusal`: which of the checks failed is not said. */
+const SIDE_REFUSED = "it has no side in the project's room.";
+
+/**
  * A FINISHED SEAL THE PASSAGE CLOSES IT (E15 part 2 C5; the owner, 15.10: "działa jak Zamknij w zakładce E79, znający
  * zostają, a GM może je otworzyć ponownie"), on the primary GM, as projects.mjs `COMPLETION_EFFECTS`' row "sealsPassage"
  * asks: judged again (`sealRefusal`), then closed as the tab's Close closes one (`setState`: the knowers' cells kept, the
  * copies sent without it, a log row "close" naming the builder), with the project as its `sealedBy`. Answers
  * `{ id, sealed: true }` or `{ refused }` with nothing written; a passage this project sealed already is answered again.
  */
-export async function sealPassageDone(projectId, { passageId = null, builderId = null } = {}, { stores = PASSAGE_STORES } = {}) {
+export async function sealPassageDone(projectId, { passageId = null, builderId = null, room = null } = {}, { stores = PASSAGE_STORES } = {}) {
     if (!game.user?.isGM) return { refused: "only a GM seals one." };
     const row = typeof passageId === "string" ? rowsOf(stores).get(passageId) : null;
     if (row?.state === "closed" && row.sealedBy === projectId) return { id: passageId, sealed: true, again: true };
-    const refused = sealRefusal({ passageId, builderId }, stores);
+    // The side in the project's room, judged again (fix e1-G3, SEC-3).
+    const refused = sealRefusal({ passageId, builderId }, stores) ?? await presetSideRefusal({ passageId, room }, stores);
     if (refused) return { refused };
     const done = await setState(passageId, "closed", ["secret"], stores, { sealedBy: projectId, actorId: builderId });
     return done ? { id: passageId, sealed: true } : { refused: "the passage could not be closed." };
@@ -1019,11 +1056,31 @@ export function closeBreachRefusal({ sceneId = null, breachId = null } = {}) {
  * byte for byte, the room beyond given back and resealed within the same time of day). Answers `restoreBreach`'s answer,
  * or `{ refused }` with nothing written.
  */
-export async function closeBreachDone(projectId, { sceneId = null, breachId = null } = {}, { stores = PASSAGE_STORES } = {}) {
+export async function closeBreachDone(projectId, { sceneId = null, breachId = null, room = null } = {}, { stores = PASSAGE_STORES } = {}) {
     if (!game.user?.isGM) return { refused: "only a GM closes one." };
-    const refused = closeBreachRefusal({ sceneId, breachId });
+    const refused = closeBreachRefusal({ sceneId, breachId }) ?? await presetSideRefusal({ breachId, sceneId, room }, stores);
     if (refused) return { refused };
-    return restoreBreach(sceneId, breachId, { stores });
+    /* WHAT A REROLL WOULD CUT AGAIN (fix e1-G3; findings BEH-1, E15p2-END-05): the breach as its row holds it - the
+       stretch on the wall it was cut from, its rooms, the room it forced, its project and builder -, read before the
+       restore takes the row; the row "closesBreach" keeps it in the GMs' half for its `onUncrossed`. */
+    const row = Object.values(stores.season?.entries() ?? {}).find(r => r?.breach?.breachId === breachId) ?? null;
+    const reopen = row?.passageSeg && row.breach?.originalWallId ? { projectId: row.origin?.projectId ?? projectId, builderId: row.origin?.builderId ?? null,
+        beyond: row.breach.forced?.room ?? null,
+        passage: { sceneId: row.sceneId, level: row.level ?? null, wallId: row.breach.originalWallId, seg: { ...row.passageSeg }, rooms: [...(row.rooms ?? [])] } } : null;
+    const closed = await restoreBreach(sceneId, breachId, { stores });
+    return closed?.closed ? { ...closed, reopen } : closed;
+}
+
+/**
+ * A Close the breach's completion taken back (the row "closesBreach"'s `onUncrossed`, fix e1-G3; D40): the breach it
+ * closed is cut again as its row held it (`cutBreach`, which judges the stretch again - the wall still there and whole,
+ * no door, not breached meanwhile - and forces the room beyond again), with no card: the Reroll says the hole was never
+ * closed. Answers `cutBreach`'s answer, or `{ refused }`.
+ */
+export async function reopenBreach(reopen, { stores = PASSAGE_STORES } = {}) {
+    if (!game.user?.isGM) return { refused: "only a GM cuts one." };
+    if (!reopen?.passage || typeof reopen.projectId !== "string") return { refused: "nothing to cut again." };
+    return cutBreach(reopen.projectId, { passage: reopen.passage, builderId: reopen.builderId ?? null, beyond: reopen.beyond ?? null }, { stores });
 }
 
 /**
@@ -1040,6 +1097,9 @@ export function passageProjectOffer(place, { known = {}, actorId = null, sides }
     const seal = [];
     for (const [id, row] of Object.entries(known ?? {})) {
         if (row?.sceneId !== scene.id || !(Array.isArray(row.actorIds) && row.actorIds.includes(actorId))) continue;
+        // A passage the character knows by the Mastermind's door alone is not offered: the approval and the completion
+        // judge a cell of its own or a public row (`sealRefusal`), and would refuse it (fix e1-G3, E15p2-END-03).
+        if (row.byDoor === actorId && row.public !== true) continue;
         if (row.passageWallId && breachOf(scene.walls?.get(row.passageWallId))) continue;
         const shape = Array.isArray(row.ends) ? { ends: row.ends } : row.passageSeg ? { ...row.passageSeg } : null;
         const rooms = shape ? sides(scene, shape, row.level ?? level) ?? [] : [];

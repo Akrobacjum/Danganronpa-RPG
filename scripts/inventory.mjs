@@ -336,11 +336,33 @@ export async function repairItem(actor, itemId, { ref = null } = {}) {
     const held = item ? itemsHeldNow(actor).find(each => each.id === item.id) ?? item : null;
     const refused = repairRefusal(actor, item, { held });
     if (refused) return { refused };
-    const was = { broken: isBroken(held), wear: wearOf(held) };
+    const was = { broken: isBroken(held), wear: wearOf(held), flag: held.getFlag?.(MODULE_ID, ITEM_FLAGS.broken) ?? null };
     await trustedWrite(item, { [`flags.${MODULE_ID}.${ITEM_FLAGS.broken}`]: false, [`flags.${MODULE_ID}.${ITEM_FLAGS.wear}`]: 0 },
         { reason: "gmRuling", ref });
     log(`"${item.name}" is mended on ${actor.name}'s sheet.`);
     return { id: item.id, name: item.name, was };
+}
+
+/**
+ * A Repair an item's completion taken back (the row "repairsItem"'s `onUncrossed`, E15 part 2 fix e1-G3; findings BEH-1,
+ * E15p2-END-05; D40): the item as `repairItem` found it - broken (its flag as it was, put down) and its wear - in the
+ * GMs' write, when it is still on the builder's sheet and still whole as the GMs hold it (one broken or worn again
+ * since is left as it is). Answers `{ id, name }`, or `{ refused }` with nothing written.
+ */
+export async function unrepairItem(actor, itemId, was = null, { ref = null } = {}) {
+    if (!game.user?.isGM) return { refused: "only a GM breaks one." };
+    const item = actor?.items?.get?.(typeof itemId === "string" ? itemId : "") ?? null;
+    if (!item || !was || !(was.broken || Number(was.wear) > 0)) return { refused: "nothing to put back." };
+    const { itemsHeldNow } = await import("./sheet-audit.mjs");
+    const held = itemsHeldNow(actor).find(each => each.id === item.id) ?? item;
+    if (isBroken(held) || wearOf(held) > 0) return { refused: "the item was broken or worn again since." };
+    await trustedWrite(item, {
+        [`flags.${MODULE_ID}.${ITEM_FLAGS.broken}`]: was.broken ? (was.flag || { at: Date.now() }) : false,
+        [`flags.${MODULE_ID}.${ITEM_FLAGS.wear}`]: Math.max(0, Number(was.wear) || 0),
+        ...(was.broken ? { [`flags.${MODULE_ID}.equipped`]: false } : {})
+    }, { reason: "gmRuling", ref });
+    log(`"${item.name}" is as it was before its repair on ${actor.name}'s sheet.`);
+    return { id: item.id, name: item.name };
 }
 
 /** The two places an item can be. Anything unmarked is carried. */

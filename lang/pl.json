@@ -639,6 +639,7 @@
         "notBreached": "Projekt {name} jest ukończony, ale wyłomu w ścianie nie udało się zrobić: {why}",
         "notSealed": "Projekt {name} jest ukończony, ale jego przejścia nie udało się zasypać: {why}",
         "notClosed": "Projekt {name} jest ukończony, ale jego wyłomu nie udało się zamknąć: {why}",
+        "notReopened": "Przerzut cofnął projekt {name}, ale jego wyłomu nie udało się zrobić ponownie: {why}",
         "breachDoneHere": "Ściana tego pokoju ustępuje: jest w niej teraz wyłom.",
         "breachDoneHereNamed": "{name} przebija ścianę tego pokoju: jest w niej teraz wyłom.",
         "breachDoneThere": "Ściana tego pokoju pęka od drugiej strony: jest w niej teraz wyłom.",

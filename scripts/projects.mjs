@@ -642,7 +642,8 @@ export const COMPLETION_EFFECTS = [
             let made = null;
             return {
                 apply: async () => {
-                    made = await (await import("./passages-gm.mjs")).sealPassageDone(id, { passageId: meta.target.passageId, builderId: meta.by ?? null });
+                    made = await (await import("./passages-gm.mjs")).sealPassageDone(id, { passageId: meta.target.passageId, builderId: meta.by ?? null,
+                        room: meta.target.room ?? null });
                 },
                 remove: true,
                 keep: true,
@@ -658,9 +659,11 @@ export const COMPLETION_EFFECTS = [
          * A FINISHED CLOSE THE BREACH GIVES THE WALL BACK (E15 part 2 C5; the owner's (2) of 15.10: "cofnięcie wyłomu jako
          * projekt gracza; przycisk GM-a zostaje"). Read for a project whose secret half names the preset and the breach.
          * Crossed: restored on the primary in the step (passages-gm.mjs `closeBreachDone`: the breach judged again as
-         * standing, then `restoreBreach`, as the GMs' Close the breach), and the project goes - no Reroll gives a hole back,
-         * as none gives back a repair's thaw (the row "repairs"). A breach gone before the completion restores nothing,
-         * and the GMs are told why.
+         * standing and with a side in the project's room, then `restoreBreach`, as the GMs' Close the breach), and the
+         * project kept for the Reroll as a seal's (`keep`; fix e1-G3, findings BEH-1, E15p2-END-05: one Reroll took back a
+         * seal and left a close). Uncrossed: the breach cut again as its row held it (`reopenBreach`, from what the
+         * completion kept in the GMs' half, `target.reopen`), the GMs told when the wall no longer allows it. A breach gone
+         * before the completion restores nothing, and the GMs are told why.
          */
         key: "closesBreach",
         has: meta => meta.target?.preset === "closeBreach" && typeof meta.target.breachId === "string",
@@ -668,11 +671,27 @@ export const COMPLETION_EFFECTS = [
             let made = null;
             return {
                 apply: async () => {
-                    made = await (await import("./passages-gm.mjs")).closeBreachDone(id, { sceneId: meta.target.sceneId ?? null, breachId: meta.target.breachId });
+                    made = await (await import("./passages-gm.mjs")).closeBreachDone(id, { sceneId: meta.target.sceneId ?? null, breachId: meta.target.breachId,
+                        room: meta.target.room ?? null });
+                    if (made?.reopen) await setProjectMeta(id, { target: { ...meta.target, reopen: made.reopen } });
                 },
                 remove: true,
+                keep: true,
                 after: async () => {
                     if (made?.refused) await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Passage.card.notClosed", { name, why: made.refused }))}</p>`);
+                }
+            };
+        },
+        onUncrossed: ({ id, name, meta }) => {
+            if (!meta.target?.reopen) return {};
+            let made = null;
+            return {
+                apply: async () => {
+                    made = await (await import("./passages-gm.mjs")).reopenBreach(meta.target.reopen);
+                    await setProjectMeta(id, { target: { ...meta.target, reopen: null } });
+                },
+                after: async () => {
+                    if (made?.refused) await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Passage.card.notReopened", { name, why: made.refused }))}</p>`);
                 }
             };
         }
@@ -682,8 +701,10 @@ export const COMPLETION_EFFECTS = [
          * A FINISHED REPAIR AN ITEM MENDS ITS ITEM (E15 part 2 C5; the owner's (3) of 15.10, Q1 of 19.10). Read for a
          * project whose secret half names the preset and the item. Crossed: mended on the primary in the step
          * (inventory.mjs `repairItem`, which judges again that the item is still on the builder's own sheet, a usable or
-         * a tool, and broken or worn as the GMs hold it), and the project goes, as a repair of a project does; the
-         * builder is told the item is whole. A refusal mends nothing, and the GMs are told why.
+         * a tool, and broken or worn as the GMs hold it), and the project kept for the Reroll as a seal's (`keep`; fix
+         * e1-G3, findings BEH-1, E15p2-END-05), what it mended kept in the GMs' half (`target.was`); the builder is told
+         * the item is whole. Uncrossed: the item as it was (`unrepairItem`), unless broken or worn again since. A refusal
+         * mends nothing, and the GMs are told why.
          */
         key: "repairsItem",
         has: meta => meta.target?.preset === "repairItem" && typeof meta.target.itemId === "string",
@@ -693,11 +714,23 @@ export const COMPLETION_EFFECTS = [
             return {
                 apply: async () => {
                     made = await (await import("./inventory.mjs")).repairItem(builder, meta.target.itemId, { ref: id });
+                    if (made?.was) await setProjectMeta(id, { target: { ...meta.target, was: made.was } });
                 },
                 remove: true,
+                keep: true,
                 after: async () => {
                     if (made?.refused) await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Project.notRepaired", { name, why: made.refused }))}</p>`);
                     else if (made?.id && builder) await whisperToOwner(builder, `<p>${game.i18n.format("DRPG.Project.itemRepaired", { item: esc(made.name) })}</p>`);
+                }
+            };
+        },
+        onUncrossed: ({ id, meta }) => {
+            if (!meta.target?.was) return {};
+            const builder = game.actors.get(meta.by ?? "") ?? null;
+            return {
+                apply: async () => {
+                    await (await import("./inventory.mjs")).unrepairItem(builder, meta.target.itemId, meta.target.was, { ref: id });
+                    await setProjectMeta(id, { target: { ...meta.target, was: null } });
                 }
             };
         }

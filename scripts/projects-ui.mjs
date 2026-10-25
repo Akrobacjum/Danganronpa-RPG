@@ -601,7 +601,11 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
     const ownedOf = !editing && OWNED_PRESETS.includes(start?.preset) ? await presetApproval(start) : null;
     const defaultImg = "icons/magic/time/hourglass-yellow-green.webp";
     const img = start?.img || defaultImg;
-    const currentTarget = start?.start ?? start?.target ?? PROJECT_SCALE.everyday.progress;
+    /* A PRESET'S SIZE IS THE GMS' (E15 part 2 fix e1-G3; finding E15P2-R4): its table's (passages-gm.mjs `PASSAGE_PRESETS`),
+       a Repair an item's by the item's tier as the GMs hold it (`presetApproval`'s `scale`) - never the card's claim, which
+       a console sets to Trivial for a tier 3 tool. The GM may still pick another size in the window. */
+    const presetSize = !editing && start?.preset ? await presetSizeOf(start.preset, ownedOf) : null;
+    const currentTarget = presetSize ?? start?.start ?? start?.target ?? PROJECT_SCALE.everyday.progress;
     const currentTrait = start?.trait ?? "";
     const currentRoom = start?.room ?? "";
 
@@ -612,7 +616,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
      * project (tier 2 E15-T1 at d90687dc: a proposal of 6 and one of 5 both opened on 4). A window
      * with neither, the panel's own Create, is Standard.
      */
-    const given = editing || Number(preset?.target) > 0;
+    const given = editing || Boolean(presetSize) || Number(preset?.target) > 0;
     const scaleOptions = Object.entries(PROJECT_SCALE)
         .map(([key, s]) => {
             const selected = given ? s.progress === currentTarget : key === "everyday";
@@ -988,7 +992,11 @@ const OWNED_PRESETS = Object.freeze(["sealPassage", "closeBreach", "repairItem"]
  */
 async function presetApproval(start) {
     const preset = start?.preset, id = typeof start?.to === "string" ? start.to : "", builderId = start?.by ?? null;
-    const room = start?.room || null;
+    /* THE ROOM AND THE SCENE WHERE THE GMS READ THE BUILDER (fix e1-G3; finding SEC-3), not the card's: a Seal the passage
+       or a Close the breach names a passage or a breach with a side in that room on that scene (`presetSideRefusal`, which
+       the completion asks again with the room kept here). A Repair an item keeps the card's room, the form's. */
+    const place = preset === "repairItem" ? null : (await import("./movement.mjs")).gmPlaceOf(game.actors.get(builderId ?? "") ?? null);
+    const room = preset === "repairItem" ? start?.room || null : place?.room ?? null;
     if (preset === "repairItem") {
         const { repairRefusal, wearOf, isBroken } = await import("./inventory.mjs");
         const { tierOf } = await import("./use-items.mjs");
@@ -997,18 +1005,28 @@ async function presetApproval(start) {
         const held = item ? itemsHeldNow(builder).find(each => each.id === item.id) ?? item : null;
         const label = item ? game.i18n.format("DRPG.Project.repairLabel", { item: item.name, tier: tierOf(held),
             state: game.i18n.localize(isBroken(held) ? "DRPG.Project.repairBroken" : wearOf(held) ? "DRPG.Project.repairWorn" : "DRPG.Project.repairWhole") }) : "-";
-        return { preset, label, target: { preset, room, itemId: id }, refused: repairRefusal(builder, item, { held }) };
+        return { preset, label, target: { preset, room, itemId: id }, refused: repairRefusal(builder, item, { held }),
+            scale: (await import("./passages-gm.mjs")).presetScale(preset, { tier: held ? tierOf(held) : 0 }) };
     }
     const P = await import("./passages-gm.mjs");
     if (preset === "sealPassage") {
         const row = P.rowsOf().get(id);
         return { preset, label: (row?.rooms ?? []).join(" - ") || "-", target: { preset, room, passageId: id },
-            refused: P.sealRefusal({ passageId: id, builderId }) };
+            refused: P.sealRefusal({ passageId: id, builderId }) ?? await P.presetSideRefusal({ passageId: id, sceneId: place?.scene?.id ?? "", room }) };
     }
     const scene = (game.scenes?.contents ?? [...(game.scenes ?? [])]).find(s => P.breachesOn(s).some(found => found.breach.breachId === id)) ?? null;
     const row = Object.values(P.rowsOf().entries()).find(r => r?.breach?.breachId === id) ?? null;
     return { preset, label: (row?.rooms ?? []).join(" - ") || scene?.name || "-", target: { preset, room, sceneId: scene?.id ?? null, breachId: id },
-        refused: P.closeBreachRefusal({ sceneId: scene?.id ?? null, breachId: id }) };
+        refused: P.closeBreachRefusal({ sceneId: scene?.id ?? null, breachId: id })
+            ?? await P.presetSideRefusal({ breachId: id, sceneId: place?.scene?.id ?? "", room }) };
+}
+
+/** A preset's size in progress, as the GMs hold it (fix e1-G3): a Repair an item's by its tier (`presetApproval`), the rest the table's. */
+async function presetSizeOf(preset, ownedOf = null) {
+    const { PASSAGE_PRESETS } = await import("./passages-gm.mjs");
+    if (!PASSAGE_PRESETS[preset]) return null;
+    const scale = preset === "repairItem" ? ownedOf?.scale : PASSAGE_PRESETS[preset].scale;
+    return PROJECT_SCALE[scale]?.progress ?? null;
 }
 
 /** The approval window's box for the owner's three: what the card names, and why it may not be done. */
