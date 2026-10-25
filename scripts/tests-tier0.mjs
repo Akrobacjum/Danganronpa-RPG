@@ -9613,6 +9613,7 @@ const REGRESSIONS = [
             // ---- the pick on the board (E79 C6)
             ["WALLS passages-gm.mjs#sceneWalls -> screen", "a GM's pick only (`startPassagePick` and `repickPassage` ask `game.user.isGM` first): the walls of the scene Room Setup was opened on, read to snap a click to one and to hold the stretch to it through `passageRowFor`; nothing is written to a wall and nothing of it reaches a player but through the copy (R561; 76 F). Since E15 part 2 C2 also Secret Passage's offer (`wallNeighbours`), on the proposer's browser: the rooms beyond the walls of the room it stands in, from the walls and regions every browser holds, named as Listen names them and sent as an index; the GM's approval reads them again where the GMs read the builder (E15-T12)"],
             ["WALLS passages-gm.mjs#builtPassageRow -> screen", "a GM's only (E15 part 2 C2): a Secret Passage's stretch judged as a new passage's (`passageRowFor`) at the approval and again on the primary at the completion (`opensPassageDone`), so the wall must still stand between its two rooms on no other passage's stretch; nothing is written to a wall (E15-T12)"],
+            ["WALLS passages-gm.mjs#passageProjectOffer -> screen", "a display on the proposer's browser (E15 part 2 C5): Start New's Seal the passage and Close the breach, from the copy this player holds and the breaches' holes, walls every browser holds; each option an index, the card a claim the GM's approval and the primary's completion judge again (`sealRefusal`, `closeBreachRefusal`); nothing is written (E15-T15)"],
             ["WALLS passages-gm.mjs#breachStretchRow -> screen", "a GM's only (E15 part 2 C3): a Breach the Wall's stretch judged as a new passage's (`passageRowFor`, another passage's stretch allowed) at the approval and again on the primary at the completion, and a wall a standing breach was cut from or made refused; reads the walls, writes nothing (E15-T13)"],
             ["WALLS passages-gm.mjs#cutBreach -> screen", "a GM's only, the primary's in the completion's step (`game.user.isGM` first; projects.mjs `COMPLETION_EFFECTS` breachesWall): the wall the stretch is on is read to cut it - the module's one Wall create (R560) - and the passages on it moved to the piece that holds them; the hole's flag names no passage, actor, user or project (E15-T13)"],
             ["WALLS passages-gm.mjs#restoreBreach -> screen", "a GM's only (`game.user.isGM` first; the project's undo, the tab's Close the breach, the season's reset): the hole's flag and the wall it was cut from are read to give the wall back byte for byte and delete the pieces; a wall gone meanwhile is reported and nothing written (E15-T13)"],
@@ -13510,7 +13511,7 @@ const REGRESSIONS = [
         ok(/isPlacing\(tokenDoc\)/.test(fnSource(sheet, "noteStepStart")) && /isPlacing\(tokenDoc\)/.test(fnSource(sheet, "onTunnelStep")),
             "sheet.mjs reads no placing mark before its step onto a tunnel's end");
     }],
-    ["R981 - one table of the projects that make a passage (A10-9, E15-T11): passages-gm.mjs `PASSAGE_PRESETS` holds Secret Passage as Hand, Complex, always secret, opening a passage, and Breach the Wall as Body, Complex, cutting a wall; each preset's statistic, size and completion row exist; and no other file of the module declares the table or a preset of its own; and a broken room's flag has one reader and one writer, which the lock, the bedroom's door and the GMs' key count ask", async () => {
+    ["R981 - one table of the projects that make a passage (A10-9, E15-T11): passages-gm.mjs `PASSAGE_PRESETS` holds Secret Passage as Hand, Complex, always secret, opening a passage, and Breach the Wall as Body, Complex, cutting a wall, and the owner's three of 15.10 - Seal the passage Hand, Close the breach Body, both Complex, Repair an item Hand, Trivial at tier 0-1 and Complex at 2-3; each preset's statistic, size and completion row exist; and no other file of the module declares the table or a preset of its own; and a broken room's flag has one reader and one writer, which the lock, the bedroom's door and the GMs' key count ask", async () => {
         /*
          * E15 part 2 C2 (25.10.2026; the stage's E15-41, the owner's answer of 11.10: "E68 przyjmie `PASSAGE_PRESETS`, bez
          * drugich kopii"). The harms: a preset whose numbers drift from what the stage was given (a cheaper passage, a
@@ -13528,9 +13529,18 @@ const REGRESSIONS = [
         // E15 part 2 C3: Breach the Wall, Body, Complex, public or secret as the GM approves it (D37), cutting the wall.
         equal(JSON.stringify(presets?.breach ?? null), JSON.stringify({ trait: "body", scale: "complex", effect: "breachesWall" }),
             "Breach the Wall is not Body, Complex, cutting a wall (A10-9, step 15)");
+        /* E15 part 2 C5 (25.10.2026; the owner's three of 15.10, Q2 of 19.10: their counterparts' statistics): Seal the
+           passage Hand and Close the breach Body, both Complex; Repair an item Hand, Trivial for tier 0-1 and Complex for
+           2-3 (`byTier`, read by `presetScale`); none always secret. */
+        equal(JSON.stringify([presets?.sealPassage ?? null, presets?.closeBreach ?? null, presets?.repairItem ?? null,
+            [0, 1, 2, 3, 7, -1].map(tier => P.presetScale?.("repairItem", { tier }) ?? null)]),
+        JSON.stringify([{ trait: "hand", scale: "complex", effect: "sealsPassage" }, { trait: "body", scale: "complex", effect: "closesBreach" },
+            { trait: "hand", scale: "trivial", byTier: ["trivial", "trivial", "complex", "complex"], effect: "repairsItem" },
+            ["trivial", "trivial", "complex", "complex", "complex", "trivial"]]),
+        "[Seal the passage, Close the breach, Repair an item, the repair's size at tier 0, 1, 2, 3, 7, -1] - the owner's three of 15.10 are not as given");
         const rows = Object.entries(presets ?? {});
         ok(rows.length > 0 && rows.every(([, p]) => Object.hasOwn(TRAITS, p.trait) && Object.hasOwn(PROJECT_SCALE, p.scale)
-            && COMPLETION_EFFECTS.some(row => row.key === p.effect)),
+            && (p.byTier ?? []).every(scale => Object.hasOwn(PROJECT_SCALE, scale)) && COMPLETION_EFFECTS.some(row => row.key === p.effect)),
             "a preset names a statistic, a size or a completion row the module does not have - finished, it would do nothing");
         const sources = await moduleSources();
         const files = [...sources].filter(([file]) => !/^tests/.test(file));

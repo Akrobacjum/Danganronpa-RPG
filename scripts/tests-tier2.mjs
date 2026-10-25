@@ -60152,6 +60152,268 @@ const SCENARIOS = [
         equal(J(read?.nextUndone), J({ ...shut, sealed: false, move: "doorLocked" }), "[the Lab after the undo in the next time of day] - a seal put back into a time of day it was not lifted in");
         equal(J(read?.reset), J([true, false, [null, null]]), "[the Lab forced again, after the reset, its pieces] - the reset leaves a room forced");
     }],
+    ["E15-T15 - the owner's three of 15.10: a finished Seal the passage closes a passage its builder knows, a GM's too, as the tab's Close (the knowers kept, a GM opens it again, the Reroll's undo opens it), and refuses one the builder no longer knows or a GM closed first; a finished Close the breach gives the wall back byte for byte and the room beyond, and restores nothing once a GM closed it first; a finished Repair an item takes broken and wear off one usable or tool of the builder's own sheet, its size by its tier, and refuses another's item, a party actor's, a whole one and one gone before the end; a player's own mend is still put back", async () => {
+        /*
+         * E15 part 2 C5 (25.10.2026; the owner's (1)-(3) of 15.10 and Q1-Q2 of 19.10; the stage's E15-55 to E15-57 and its
+         * write roads "a passage's row and state: sealsPassage", "a wall: closesBreach" and "an item's broken, wear: the
+         * repairsItem row"). The harms: a seal that closes a passage its builder never knew (a player closes the GMs' way
+         * shut by naming its id), that forgets who knew it, that a GM cannot open again, or that the Reroll leaves closed;
+         * a close of a breach that leaves a piece or the room forced, or that rebuilds a wall a GM already gave back; a
+         * repair that mends another's item, a party sheet's (Q1: "Raczej nie dodawaj zadnej karty wspolnej"), an item that
+         * is not a usable or a tool, or one the builder gave away before the end; and a player's console that mends its own
+         * item on the sheet. The passages part on a scene of the suite's own - a Hall with a Lab beyond one wall - and three
+         * students of its own played by the suite's three players (Hana, Botan, Kenta), in a GM store world of the suite's
+         * own (`withGmStoreWorld`) as E15-T13; the items part on the suite's own students, whose sheets the GMs' mark
+         * holds, outside it. Each completion `applyProjectChange` with the builder's change on this GM, the primary. The
+         * projects, the items, the scene, the actors and the clock are put back. Red at the parent: no seal, no close, no
+         * repair (passages-gm.mjs `sealRefusal` absent).
+         */
+        const P = await import("./passages-gm.mjs");
+        const PR = await import("./projects.mjs");
+        const S = await import("./gm-stores.mjs");
+        const E = await import("./gm-store.mjs");
+        const R = await import("./rooms.mjs");
+        const L = await import("./passages.mjs");
+        const M = await import("./movement.mjs");
+        const INV = await import("./inventory.mjs");
+        const { judgeWrite, sheetAuditIdle, itemsHeldNow, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { ownerOf } = await import("./utils.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const J = v => JSON.stringify(v);
+        equal(typeof P.sealRefusal, "function", "passages-gm.mjs judges no Seal the passage - the owner's three have no road");
+        if (typeof P.sealRefusal !== "function") return;
+        const cast3 = cast(3);
+        needs(world.atLeast("livingStudents", 3), "three players of the suite's own play the builder and two others");
+        for (const s of cast3) needs(world.ownedByPlayer(s), "each of the three is a player's, and the suite's players own the cast");
+        const [builderUser, friend, other] = cast3.map(s => ownerOf(s));
+        must(new Set([builderUser?.id, friend?.id, other?.id]).size === 3, "the three students are not three players' - this would measure one person");
+        const clock = foundry.utils.deepClone(getClock() ?? {});
+        const HALL = "SUITE E15 T15 Hall", LAB = "SUITE E15 T15 Lab";
+        const mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
+        const room = (name, x, y) => ({ name, shapes: [{ type: "rectangle", x, y, width: 600, height: 600 }], flags: mark, behaviors: [] });
+        const OWNER = CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
+        const projects = [], actors = [], posted = [], items = [];
+        const heard = Hooks.on("createChatMessage", message => { posted.push(message); });
+        // A card to the GMs alone whose text is `key`'s, up to its reason, for the project `name`.
+        const toldGms = (key, name) => posted.filter(m => String(contentOf(m) ?? "").includes(game.i18n.format(key, { name, why: "" }).trim())
+            && (m.whisper ?? []).length > 0 && m.whisper.every(id => game.users.get(id)?.isGM)).length;
+        const make = async (args, list = projects) => {
+            const made = await PR.createProject(args);
+            must(made?.id, `the project "${args.name}" was not made - this would measure nothing`);
+            list.push(made.id);
+            return made.id;
+        };
+        const live = id => Boolean(PR.allProjects().find(p => p.id === id));
+        let scene = null, read = null;
+        try {
+            if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+            scene = await Scene.create({ name: "SUITE E15 T15 a seal and a breach", width: 1400, height: 800, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [room(HALL, 0, 0), room(LAB, 600, 0)]);
+            await scene.createEmbeddedDocuments("Wall", [{ c: [600, 0, 600, 600], move: 20, sight: 20, light: 20, sound: 20, dir: 0, door: 0, ds: 0 }]);
+            const wallW = scene.walls.find(w => w.c[0] === 600 && w.c[2] === 600);
+            must(wallW, "the scene's wall was not made - this would measure nothing");
+            const W = wallW.id, before = J(wallW.toObject());
+            read = await E.withGmStoreWorld(`suite-e15-t15-${foundry.utils.randomID(8)}`, async () => {
+                const actor = async (name, user) => {
+                    const made = await Actor.create({ name: `SUITE E15 T15 ${name}`, type: "character", ownership: { default: 0, ...(user ? { [user.id]: OWNER } : {}) } });
+                    actors.push(made);
+                    return made;
+                };
+                const hana = await actor("Hana", builderUser), botan = await actor("Botan", friend), kenta = await actor("Kenta", other);
+                const known = await P.createPassage({ sceneId: scene.id, wallId: W, seg: { x1: 600, y1: 100, x2: 600, y2: 200 }, rooms: [HALL, LAB] }, { scene });
+                const hidden = await P.createPassage({ sceneId: scene.id, wallId: W, seg: { x1: 600, y1: 450, x2: 600, y2: 550 }, rooms: [HALL, LAB] }, { scene });
+                must(known && hidden, "the GMs' two passages were not made - this would measure nothing");
+                await P.grantPassage(known, hana.id);
+                await P.grantPassage(known, botan.id);
+                await P.grantPassage(hidden, botan.id);
+                await settle();
+                const out = {};
+                const rowOf = id => S.passageMapStore.get(id) ?? S.passageSeasonStore.get(id) ?? null;
+                const state = id => [rowOf(id)?.state ?? null, rowOf(id)?.sealedBy ?? null];
+                const by = (actorDoc, user) => ({ kind: "player", userId: user.id, actorId: actorDoc.id });
+                // SEAL THE PASSAGE. Judged: one Hana does not know, one that does not exist, the one she knows.
+                out.sealJudged = [P.sealRefusal({ passageId: hidden, builderId: hana.id }), P.sealRefusal({ passageId: "SUITEE15T15NONE", builderId: hana.id }),
+                    P.sealRefusal({ passageId: known, builderId: hana.id })];
+                const seal = await make({ name: "SUITE E15 T15 Seal the passage", target: 6, room: HALL, trait: "hand", by: hana.id,
+                    presetTarget: { preset: "sealPassage", room: HALL, passageId: known } });
+                out.sealMade = [PR.secretsOf(seal).target ?? null, Object.hasOwn(PR.metaFor(seal), "target")];
+                await S.rerollBookmarkStore.patch(hana.id, { messageId: "SUITEE15T15MSG1" });
+                const sealed = await PR.applyProjectChange(seal, { delta: 6 }, { by: by(hana, builderUser) });
+                await settle();
+                const copies = L.secretRowsFrom();
+                out.sealed = [sealed?.crossed ?? null, state(known)[0], state(known)[1] === seal, S.passageAccessStore.has(`${known}/${hana.id}`),
+                    S.passageAccessStore.has(`${known}/${botan.id}`), Object.hasOwn(copies, known), Object.hasOwn(copies, hidden), live(seal)];
+                // The Reroll's lower dice: open again. Finished again: closed; a GM's Open: open, the mark gone.
+                const unsealed = await PR.applyProjectChange(seal, { delta: -1 }, { by: { kind: "reroll", actorId: hana.id } });
+                await settle();
+                out.unsealed = [unsealed?.uncrossed ?? null, ...state(known)];
+                await PR.applyProjectChange(seal, { delta: 1 }, { by: by(hana, builderUser) });
+                await settle();
+                const resealed = state(known)[0];
+                await P.openPassage(known);
+                await settle();
+                out.gmOpened = [resealed, ...state(known), (await P.unsealPassagesOf(seal))];
+                // Refused at the completion: Hana forgets the passage before the end; another, closed by a GM first.
+                const sealForgot = await make({ name: "SUITE E15 T15 Seal forgotten", target: 6, room: HALL, trait: "hand", by: hana.id,
+                    presetTarget: { preset: "sealPassage", room: HALL, passageId: known } });
+                await P.revokePassage(known, hana.id);
+                await PR.applyProjectChange(sealForgot, { delta: 6 }, { by: by(hana, builderUser) });
+                await settle();
+                out.sealForgot = [...state(known), toldGms("DRPG.Passage.card.notSealed", "SUITE E15 T15 Seal forgotten")];
+                await P.grantPassage(known, hana.id);
+                const sealShut = await make({ name: "SUITE E15 T15 Seal shut", target: 6, room: HALL, trait: "hand", by: hana.id,
+                    presetTarget: { preset: "sealPassage", room: HALL, passageId: known } });
+                await P.closePassage(known);
+                await PR.applyProjectChange(sealShut, { delta: 6 }, { by: by(hana, builderUser) });
+                await settle();
+                out.sealShut = [...state(known), toldGms("DRPG.Passage.card.notSealed", "SUITE E15 T15 Seal shut")];
+                await P.openPassage(known);
+                // CLOSE THE BREACH. Hana's breach of the Lab, cut; Kenta's close of it.
+                const passage = { sceneId: scene.id, level: null, wallId: W, seg: { x1: 600, y1: 250, x2: 600, y2: 350 }, rooms: [HALL, LAB] };
+                const breach = await make({ name: "SUITE E15 T15 Breach the Wall", target: 6, room: HALL, trait: "body", by: hana.id,
+                    presetTarget: { preset: "breach", room: LAB }, passage });
+                await PR.applyProjectChange(breach, { delta: 6 }, { by: by(hana, builderUser) });
+                await settle();
+                const breachId = () => P.breachesOn(scene)[0]?.breach?.breachId ?? null;
+                const first = breachId();
+                must(first && M.roomBroken(scene, LAB), "the breach was not cut - this would measure nothing");
+                out.closeJudged = [P.closeBreachRefusal({ sceneId: scene.id, breachId: "SUITEE15T15NONE" }), P.closeBreachRefusal({ sceneId: scene.id, breachId: first })];
+                const close = await make({ name: "SUITE E15 T15 Close the breach", target: 6, room: HALL, trait: "body", by: kenta.id,
+                    presetTarget: { preset: "closeBreach", room: HALL, sceneId: scene.id, breachId: first } });
+                out.closeMade = [PR.secretsOf(close).target ?? null, Object.hasOwn(PR.metaFor(close), "target")];
+                const closed = await PR.applyProjectChange(close, { delta: 6 }, { by: by(kenta, other) });
+                for (let i = 0; i < 200 && scene.walls.size > 1; i++) await new Promise(r => setTimeout(r, 10));
+                await settle();
+                out.closed = [closed?.crossed ?? null, scene.walls.size, J(scene.walls.get(W)?.toObject()) === before, M.roomBroken(scene, LAB),
+                    Object.values(S.passageSeasonStore.entries()).filter(row => row?.breach).length, live(close)];
+                // Cut again (the breach's Reroll and its finish); a GM's Close the breach before Kenta's second ends.
+                await PR.applyProjectChange(breach, { delta: -1 }, { by: { kind: "reroll", actorId: hana.id } });
+                await PR.applyProjectChange(breach, { delta: 1 }, { by: by(hana, builderUser) });
+                await settle();
+                const second = breachId();
+                must(second && second !== first, "the breach was not cut again - this would measure nothing");
+                const closeLate = await make({ name: "SUITE E15 T15 Close too late", target: 6, room: HALL, trait: "body", by: kenta.id,
+                    presetTarget: { preset: "closeBreach", room: HALL, sceneId: scene.id, breachId: second } });
+                await P.restoreBreach(scene.id, second);
+                await settle();
+                const wallsThen = J(Array.from(scene.walls).map(w => w.toObject()));
+                await PR.applyProjectChange(closeLate, { delta: 6 }, { by: by(kenta, other) });
+                await settle();
+                out.closeLate = [scene.walls.size, J(Array.from(scene.walls).map(w => w.toObject())) === wallsThen, toldGms("DRPG.Passage.card.notClosed", "SUITE E15 T15 Close too late")];
+                for (const id of [known, hidden]) await P.deletePassage(id);
+                for (const id of projects.splice(0)) await PR.deleteProject(id);
+                return out;
+            });
+        } finally {
+            for (const id of projects.splice(0)) await PR.deleteProject(id).catch(() => {});
+            for (const doc of actors) await doc.delete().catch(() => {});
+            await scene?.delete();
+            await setClock(clock);
+            await settle();
+        }
+        // REPAIR AN ITEM, on the suite's own students (the GMs' mark holds their sheets).
+        const [mine, theirs] = cast3;
+        const player = builderUser;
+        const flag = key => `flags.${MODULE_ID}.${INV.ITEM_FLAGS[key]}`;
+        const owned = [];
+        let party = null, mended = null;
+        try {
+            const give = async (actorDoc, args) => {
+                const item = await INV.grantItem(actorDoc, { override: true, quiet: true, ...args });
+                must(item, `"${args.name}" was not given - this would measure nothing`);
+                owned.push(item);
+                return item;
+            };
+            const crowbar = await give(mine, { name: "SUITE E15 T15 crowbar", category: "tool", tier: 3 });
+            await crowbar.update({ [flag("wear")]: 2 });
+            await INV.breakItem(crowbar);
+            const kit = await give(mine, { name: "SUITE E15 T15 kit", category: "usable", tier: 0, goal: "healing" });
+            await INV.breakItem(kit);
+            const whole = await give(mine, { name: "SUITE E15 T15 whole tool", category: "tool", tier: 1 });
+            const bullet = await give(mine, { name: "SUITE E15 T15 note", category: "truthBullet", tier: 0 });
+            await bullet.update({ [flag("broken")]: { at: Date.now() } });
+            const others = await give(theirs, { name: "SUITE E15 T15 their tool", category: "tool", tier: 1 });
+            await INV.breakItem(others);
+            party = await Actor.create({ name: "SUITE E15 T15 party", type: "party" }).catch(() => null);
+            const [shared] = party ? await party.createEmbeddedDocuments("Item", [{ name: "SUITE E15 T15 shared tool", type: "loot",
+                flags: { [MODULE_ID]: { [INV.ITEM_FLAGS.category]: "tool", [INV.ITEM_FLAGS.tier]: 1, [INV.ITEM_FLAGS.broken]: { at: Date.now() } } } }]) : [];
+            must(shared, "no party actor's item - the shared sheet the owner refused would not be measured");
+            await sheetAuditIdle();
+            const refusal = item => INV.repairRefusal(mine, item);
+            const sizes = [0, 1, 2, 3].map(tier => P.presetScale("repairItem", { tier }));
+            const judged = [refusal(crowbar), refusal(kit), refusal(whole) !== null, refusal(bullet) !== null, refusal(others) !== null, refusal(shared) !== null,
+                INV.repairRefusal(party, shared) !== null];
+            const repair = await PR.createProject({ name: "SUITE E15 T15 Repair an item", target: 6, trait: "hand", by: mine.id,
+                presetTarget: { preset: "repairItem", itemId: crowbar.id } });
+            must(repair?.id, "the repair was not made - this would measure nothing");
+            mended = repair.id;
+            const target = PR.secretsOf(repair.id).target ?? null, inMeta = Object.hasOwn(PR.metaFor(repair.id), "target");
+            const done = await PR.applyProjectChange(repair.id, { delta: 6 }, { by: { kind: "player", userId: player.id, actorId: mine.id } });
+            await settle();
+            await sheetAuditIdle();
+            const held = itemsHeldNow(mine).find(each => each.id === crowbar.id);
+            const repaired = [done?.crossed ?? null, done?.removed ?? null, INV.isBroken(crowbar), INV.wearOf(crowbar), held ? [INV.isBroken(held), INV.wearOf(held)] : null,
+                posted.filter(m => String(contentOf(m) ?? "").includes(game.i18n.format("DRPG.Project.itemRepaired", { item: "SUITE E15 T15 crowbar" }))).length];
+            mended = live(repair.id) ? repair.id : null;
+            // The party's item and the kit given away before the end: refused at the completion, nothing mended.
+            const partyRepair = await PR.createProject({ name: "SUITE E15 T15 Repair the shared tool", target: 3, trait: "hand", by: mine.id,
+                presetTarget: { preset: "repairItem", itemId: shared.id } });
+            await PR.applyProjectChange(partyRepair.id, { delta: 3 }, { by: { kind: "player", userId: player.id, actorId: mine.id } });
+            const kitRepair = await PR.createProject({ name: "SUITE E15 T15 Repair the kit", target: 3, trait: "hand", by: mine.id,
+                presetTarget: { preset: "repairItem", itemId: kit.id } });
+            const kitData = kit.toObject();
+            await kit.delete();
+            await PR.applyProjectChange(kitRepair.id, { delta: 3 }, { by: { kind: "player", userId: player.id, actorId: mine.id } });
+            await settle();
+            const refusedLate = [INV.isBroken(shared), toldGms("DRPG.Project.notRepaired", "SUITE E15 T15 Repair the shared tool"),
+                toldGms("DRPG.Project.notRepaired", "SUITE E15 T15 Repair the kit"), Boolean(mine.items.find(i => i.name === kitData.name))];
+            for (const id of [partyRepair.id, kitRepair.id]) if (live(id)) await PR.deleteProject(id);
+            // A player's own mend on the sheet: put back, the crowbar broken again.
+            await INV.breakItem(crowbar);
+            await sheetAuditIdle();
+            const write = { [flag("broken")]: false, [flag("wear")]: 0 };
+            await crowbar.update(write, { [AUDIT_ASIDE]: true });
+            const verdict = (await judgeWrite("updateItem", crowbar, foundry.utils.expandObject(write), player.id))?.verdict ?? null;
+            await sheetAuditIdle();
+            read = { ...read, repair: [sizes, judged, target, inMeta, repaired, refusedLate, [verdict, INV.isBroken(crowbar)]] };
+        } finally {
+            Hooks.off("createChatMessage", heard);
+            if (mended) await PR.deleteProject(mended).catch(() => {});
+            await sheetAuditIdle();
+            for (const item of owned) if (item.parent?.items?.has(item.id)) await item.parent.deleteEmbeddedDocuments("Item", [item.id]).catch(() => {});
+            await party?.delete().catch(() => {});
+            for (const message of posted) await game.messages.get(message.id)?.delete().catch(() => {});
+            await sheetAuditIdle();
+            await settle();
+        }
+        const unknown = "the character does not know that passage";
+        equal(J(read?.sealJudged), J([unknown, unknown, null]), "[a passage Hana does not know, one that does not exist, hers] - a seal names a passage its builder does not know");
+        equal(J(read?.sealMade), J([{ preset: "sealPassage", room: HALL, passageId: read?.sealMade?.[0]?.passageId ?? "?" }, false]),
+            "[the GMs' target, a target in projectMeta (every browser's)] - the passage a seal names is world data");
+        equal(read?.sealMade?.[0]?.passageId ? "named" : "none", "named", "the seal's target names no passage");
+        equal(J(read?.sealed), J([true, "closed", true, true, true, false, true, true]),
+            "[crossed; the passage closed, by this project, Hana and Botan still knowing it, in the copies, the other one in them, the project kept for the Reroll] - the seal");
+        equal(J(read?.unsealed), J([true, "secret", null]), "[uncrossed, the passage, its seal] - the Reroll's undo leaves the passage closed");
+        equal(J(read?.gmOpened), J(["closed", "secret", null, 0]), "[sealed again, a GM's Open, the seal's mark, an undo after it] - a GM cannot open a sealed passage, or an undo closes what a GM opened");
+        equal(J(read?.sealForgot), J(["secret", null, 1]), "[the passage after a seal by a builder who forgot it, its mark, the GMs' card] - a seal closes a passage its builder no longer knows");
+        equal(J(read?.sealShut), J(["closed", null, 1]), "[a passage a GM closed first, its mark, the GMs' card] - a seal writes over a GM's Close");
+        equal(J(read?.closeJudged), J(["no such breach on that scene.", null]), "[a breach that does not exist, the one standing] - a close names a breach that is not there");
+        equal(J(read?.closeMade?.[0]), J({ preset: "closeBreach", room: HALL, sceneId: read?.closeMade?.[0]?.sceneId ?? "?", breachId: read?.closeMade?.[0]?.breachId ?? "?" }),
+            "the close's target is not the GMs' preset, scene and breach");
+        equal(read?.closeMade?.[1], false, "the breach a close names is in projectMeta (every browser's)");
+        equal(J(read?.closed), J([true, 1, true, false, 0, false]),
+            "[crossed; the scene's walls, the wall byte for byte, the Lab forced, the breach's rows, the project kept] - Close the breach leaves a piece, the wall another length, the room forced, or the project");
+        equal(J(read?.closeLate), J([1, true, 1]), "[the walls after a close of a breach a GM closed first, the walls unchanged, the GMs' card] - a close rebuilds or deletes a wall");
+        const [sizes, judged, target, inMeta, repaired, refusedLate, mend] = read?.repair ?? [];
+        equal(J(sizes), J(["trivial", "trivial", "complex", "complex"]), "[the repair's size at tier 0, 1, 2, 3] - the owner's tier 0-1 Trivial, 2-3 Complex");
+        equal(J(judged), J([null, null, true, true, true, true, true]),
+            "[a broken worn tool, a broken usable, a whole tool, a broken Truth Bullet, another's tool, the party's tool, the party as builder] - a repair mends what is not a broken or worn usable or tool of the builder's own sheet");
+        equal(J([target, inMeta]), J([{ preset: "repairItem", room: null, itemId: target?.itemId ?? "?" }, false]), "[the GMs' target, a target in projectMeta] - the item a repair names is world data");
+        equal(J(repaired), J([true, true, false, 0, [false, 0], 1]),
+            "[crossed, removed, the crowbar broken, its wear, as the GMs' mark holds it, the builder's card] - Repair an item leaves the item broken or worn, or the mark behind it");
+        equal(J(refusedLate), J([true, 1, 1, false]), "[the party's tool after its repair, the GMs' cards for it and the kit given away] - a repair mends a shared sheet's item or one no longer the builder's");
+        equal(J(mend), J(["putBack", true]), "[a player's own mend: the verdict, the crowbar broken after it] - a player's console mends its own item");
+    }],
     ["a player at 0 Hope who bought an Experience Call clicks the experience: Roll stays on and it costs nothing, the lock on or off; with the lock off and no Call the free experience leaves no cost row for the next change to break (S02-04)", async () => {
         /*
          * E16 p1 C1, 18.10.2026; audit S02-04 (E16-01, E16-02). The Experience Call is paid before the roll, so

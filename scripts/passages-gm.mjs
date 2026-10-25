@@ -417,12 +417,28 @@ export async function passagesAfterReset({ stores = PASSAGE_STORES } = {}) {
  * bez drugich kopii"). A preset is `{ trait, scale, secret?, effect }`: the statistic its rolls take (config.mjs
  * `TRAITS`), its size (`PROJECT_SCALE`), "always" when it is secret whatever the form says, and the key of the row of
  * projects.mjs `COMPLETION_EFFECTS` its completion asks. Breach the Wall since C3 (A10 step 15: Body, Complex, built in
- * the open or in secret as any project, D37); the owner's three of 15.10 are C5's.
+ * the open or in secret as any project, D37). The owner's three of 15.10 since C5 (the owner, 15.10; the stage's Q2 of
+ * 19.10: "Tak"): Seal the passage, Hand, and Close the breach, Body - the statistics of their counterparts, which the GM
+ * may change at the approval - both Complex; Repair an item, Hand, whose size is the item's tier's (`byTier`: tier 0-1
+ * Trivial, 2-3 Complex, read by `presetScale`), `scale` its smallest. "Craft", the owner's word for its kind, is E68's
+ * `PROJECT_KINDS`, which this table goes into.
  */
 export const PASSAGE_PRESETS = Object.freeze({
     secretPassage: Object.freeze({ trait: "hand", scale: "complex", secret: "always", effect: "opensPassage" }),
-    breach: Object.freeze({ trait: "body", scale: "complex", effect: "breachesWall" })
+    breach: Object.freeze({ trait: "body", scale: "complex", effect: "breachesWall" }),
+    sealPassage: Object.freeze({ trait: "hand", scale: "complex", effect: "sealsPassage" }),
+    closeBreach: Object.freeze({ trait: "body", scale: "complex", effect: "closesBreach" }),
+    repairItem: Object.freeze({ trait: "hand", scale: "trivial", byTier: Object.freeze(["trivial", "trivial", "complex", "complex"]), effect: "repairsItem" })
 });
+
+/** A preset's size (a key of config.mjs `PROJECT_SCALE`): its `byTier` at the item's tier (0-3, clamped) where it has one, else its `scale`. */
+export function presetScale(key, { tier = 0 } = {}) {
+    const preset = PASSAGE_PRESETS[key];
+    if (!preset) return null;
+    if (!preset.byTier) return preset.scale;
+    const at = Math.max(0, Math.min(preset.byTier.length - 1, Math.trunc(Number(tier) || 0)));
+    return preset.byTier[at];
+}
 
 /**
  * The rooms that share a wall with `room` on `scene` and `level` (A10 step 14: "Start New pokazuje preset tylko przy
@@ -856,6 +872,111 @@ export async function closeEveryBreach({ stores = PASSAGE_STORES } = {}) {
         for (const room of roomNames(scene)) if (M.roomBroken(scene, room)) await M.setRoomBroken(scene, room, false);
     }
     return closed;
+}
+
+/* ----------------------------------------------------------------------------------------- *
+ * Seal the passage and Close the breach (E15 part 2 C5, 25.10.2026; the owner's (1) and (2) of
+ * 15.10). A player's projects: the proposal names the target, the approval judges it, and the
+ * primary judges it again at the completion before it closes or restores.
+ * ----------------------------------------------------------------------------------------- */
+
+/**
+ * Whether a student may seal a passage (the owner, 15.10: "zamyka tajne przejście, które budujący zna, także narysowane
+ * przez GM-a w E79"): null, or the reason. The passage is any row of either store - the GMs' map or a project's -, open
+ * (`secret`), not a breach (a hole is given back by Close the breach); the builder knows it by a cell of the builder's
+ * or a public row. Not by the Mastermind's door: who acts as the Mastermind is a user acting through the character
+ * (`actsAsMastermind`), and a project's completion has no asker - never read off the character alone (R560). A
+ * passage that does not exist, one that is
+ * closed or broken and one the builder does not know get one answer, so the reason says nothing of which. Asked at the
+ * approval and again on the primary at the completion (`sealPassageDone`).
+ */
+export function sealRefusal({ passageId = null, builderId = null } = {}, stores = PASSAGE_STORES) {
+    const builder = studentOf(builderId);
+    if (!builder) return "the builder is no student of this world.";
+    const row = typeof passageId === "string" ? rowsOf(stores).get(passageId) : null;
+    if (row?.breach?.breachId) return "that is a breach: Close the breach gives the wall back.";
+    const knows = row?.state === "secret" && (row.public === true || Boolean(stores.access.get(`${passageId}/${builder.id}`)));
+    return knows ? null : "the character does not know that passage";
+}
+
+/**
+ * A FINISHED SEAL THE PASSAGE CLOSES IT (E15 part 2 C5; the owner, 15.10: "działa jak Zamknij w zakładce E79, znający
+ * zostają, a GM może je otworzyć ponownie"), on the primary GM, as projects.mjs `COMPLETION_EFFECTS`' row "sealsPassage"
+ * asks: judged again (`sealRefusal`), then closed as the tab's Close closes one (`setState`: the knowers' cells kept, the
+ * copies sent without it, a log row "close" naming the builder), with the project as its `sealedBy`. Answers
+ * `{ id, sealed: true }` or `{ refused }` with nothing written; a passage this project sealed already is answered again.
+ */
+export async function sealPassageDone(projectId, { passageId = null, builderId = null } = {}, { stores = PASSAGE_STORES } = {}) {
+    if (!game.user?.isGM) return { refused: "only a GM seals one." };
+    const row = typeof passageId === "string" ? rowsOf(stores).get(passageId) : null;
+    if (row?.state === "closed" && row.sealedBy === projectId) return { id: passageId, sealed: true, again: true };
+    const refused = sealRefusal({ passageId, builderId }, stores);
+    if (refused) return { refused };
+    const done = await setState(passageId, "closed", ["secret"], stores, { sealedBy: projectId, actorId: builderId });
+    return done ? { id: passageId, sealed: true } : { refused: "the passage could not be closed." };
+}
+
+/**
+ * A Seal the passage's completion taken back (the row's `onUncrossed`, D40; kept for the Reroll as a Secret Passage's):
+ * each passage this project closed and nobody opened or closed again since (`sealedBy`) is open again. Answers how many.
+ */
+export async function unsealPassagesOf(projectId, { stores = PASSAGE_STORES } = {}) {
+    let opened = 0;
+    for (const [id, row] of Object.entries(rowsOf(stores).entries())) {
+        if (row?.state !== "closed" || row.sealedBy !== projectId) continue;
+        if (await setState(id, "secret", ["closed"], stores, { actorId: null })) opened++;
+    }
+    return opened;
+}
+
+/**
+ * Whether a breach may be closed by a project (the owner, 15.10: "cofnięcie wyłomu jako projekt gracza; przycisk GM-a
+ * zostaje"): null, or the reason. The breach must still stand on its scene - its hole is a wall every browser holds, so
+ * every student knows it is there. Asked at the approval and on the primary at the completion (`closeBreachDone`).
+ */
+export function closeBreachRefusal({ sceneId = null, breachId = null } = {}) {
+    const scene = game.scenes?.get(typeof sceneId === "string" ? sceneId : "");
+    if (!scene) return "no such scene.";
+    return breachesOn(scene).some(found => found.breach.breachId === breachId) ? null : "no such breach on that scene.";
+}
+
+/**
+ * A FINISHED CLOSE THE BREACH GIVES THE WALL BACK (E15 part 2 C5), on the primary GM, as the row "closesBreach" asks:
+ * judged again (`closeBreachRefusal`), then closed as the GMs' Close the breach closes one (`restoreBreach`: the wall
+ * byte for byte, the room beyond given back and resealed within the same time of day). Answers `restoreBreach`'s answer,
+ * or `{ refused }` with nothing written.
+ */
+export async function closeBreachDone(projectId, { sceneId = null, breachId = null } = {}, { stores = PASSAGE_STORES } = {}) {
+    if (!game.user?.isGM) return { refused: "only a GM closes one." };
+    const refused = closeBreachRefusal({ sceneId, breachId });
+    if (refused) return { refused };
+    return restoreBreach(sceneId, breachId, { stores });
+}
+
+/**
+ * What Start New offers a character for the owner's two passage projects (E15 part 2 C5), read on the proposer's
+ * browser from what it holds: `seal`, the passages it knows on the scene it stands on with a side in the room it stands
+ * in (`known`, its copy; a breach's hole left out), and `breaches`, the standing breaches of that scene with a side in
+ * that room (the holes are walls every browser holds), each `{ id, rooms }`, its two rooms read by `sides`
+ * (movement.mjs `passageRooms`, given by the caller). What the card asks is a claim, judged at the approval.
+ */
+export function passageProjectOffer(place, { known = {}, actorId = null, sides } = {}) {
+    const scene = place?.scene ?? null, room = place?.room ?? null;
+    if (!scene?.id || !room || isTrialScene(scene) || typeof sides !== "function") return { seal: [], breaches: [] };
+    const level = place.level?.id ?? place.level ?? null;
+    const seal = [];
+    for (const [id, row] of Object.entries(known ?? {})) {
+        if (row?.sceneId !== scene.id || !(Array.isArray(row.actorIds) && row.actorIds.includes(actorId))) continue;
+        if (row.passageWallId && breachOf(scene.walls?.get(row.passageWallId))) continue;
+        const shape = Array.isArray(row.ends) ? { ends: row.ends } : row.passageSeg ? { ...row.passageSeg } : null;
+        const rooms = shape ? sides(scene, shape, row.level ?? level) ?? [] : [];
+        if (rooms.includes(room)) seal.push({ id, rooms });
+    }
+    const breaches = breachesOn(scene).map(({ wall, breach }) => {
+        const [x1, y1, x2, y2] = (wall.c ?? []).slice(0, 4).map(Number);
+        return { id: breach.breachId, rooms: sides(scene, { x1, y1, x2, y2 }, level) ?? [] };
+    }).filter(found => found.rooms.includes(room));
+    return { seal, breaches };
 }
 
 /* ----------------------------------------------------------------------------------------- *
@@ -1379,15 +1500,19 @@ export async function revokePassage(passageId, actorId, { stores = PASSAGE_STORE
     return true;
 }
 
-/** A GM: the passage's state - closed (who knows it is kept; the copies leave it out) or secret again. */
-async function setState(passageId, state, from, stores) {
+/**
+ * A GM: the passage's state - closed (who knows it is kept; the copies leave it out) or secret again. `sealedBy` is a
+ * Seal the passage's (E15 part 2 C5): the project that closed it, kept on the row so that its own undo opens only what
+ * it closed (`unsealPassagesOf`), and its builder named in the log; any other change of the state takes it off.
+ */
+async function setState(passageId, state, from, stores, { sealedBy = null, actorId = null } = {}) {
     if (!game.user?.isGM) return refuse("only a GM changes one.", false);
     const row = rowsOf(stores).get(passageId);
     if (!row) return refuse(`no passage "${passageId}".`, false);
     if (!STATES.has(state) || !from.includes(row.state)) return refuse(`"${passageId}" is ${row.state}.`, false);
-    await rowsOf(stores).patch(passageId, { state });
+    await rowsOf(stores).patch(passageId, { state, ...(sealedBy || row.sealedBy ? { sealedBy } : {}) });
     await touch(knowersOf(passageId, stores), stores, { door: true });
-    await logRow(state === "secret" ? "open" : "close", passageId, null, stores);
+    await logRow(state === "secret" ? "open" : "close", passageId, actorId, stores);
     tellAfter(stores);
     return true;
 }

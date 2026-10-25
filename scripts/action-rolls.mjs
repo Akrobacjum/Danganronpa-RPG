@@ -21,7 +21,7 @@ import {
     PRICE_CHAINS, MONOCUB
 } from "./config.mjs";
 import { actionsLeft, spendAction, refundAction, hasFreeMove, canPayFor } from "./actions.mjs";
-import { leavesTraceFor, carriedFor, TRANSFER_REFUSED } from "./inventory.mjs";
+import { leavesTraceFor, carriedFor, TRANSFER_REFUSED, repairable } from "./inventory.mjs";
 import { isEclipse } from "./eclipse.mjs";
 // The phase, from the file that owns the clock setting and imports nothing but
 // config.mjs. trial.mjs has `inClassTrial()`, and importing it here would drag
@@ -2864,20 +2864,42 @@ async function startProject(actor) {
      * page names no room the fog hides. What the card asks is a claim: the GM's approval reads the builder's room
      * where the GMs read the character and picks the stretch on that wall (projects-ui.mjs `openProjectDialog`).
      */
-    const { secretPassageOffer, PASSAGE_PRESETS } = await import("./passages-gm.mjs");
+    const { secretPassageOffer, passageProjectOffer, presetScale, PASSAGE_PRESETS } = await import("./passages-gm.mjs");
     const { levelOf } = await import("./rooms.mjs");
-    const { roomsKnownToMe } = await import("./movement.mjs");
+    const { roomsKnownToMe, passageRooms } = await import("./movement.mjs");
     const here = locateActor(actor);
     const offer = here?.room ? secretPassageOffer({ scene: here.scene, room: here.room, level: levelOf(here.tokenDoc) }) : null;
     const beyond = offer ? listenLabels(offer.neighbours, roomsKnownToMe(here.scene)) : new Map();
-    const presetFields = offer ? `<label>${game.i18n.localize("DRPG.Project.kind")}
-                <select name="preset"><option value="">${game.i18n.localize("DRPG.Project.kindOwn")}</option>
-                    <option value="secretPassage">${game.i18n.localize("DRPG.Project.preset.secretPassage")}</option>
-                    <option value="breach">${game.i18n.localize("DRPG.Project.preset.breach")}</option></select></label>
-            <label>${game.i18n.localize("DRPG.Project.passageTo")}
-                <select name="to">${offer.neighbours.map((r, i) => `<option value="${i}">${foundry.utils.escapeHTML(beyond.get(r) ?? r)}</option>`).join("")}</select>
-                <small class="notes">${game.i18n.localize("DRPG.Project.passageNote")}</small>
-                <small class="notes">${game.i18n.localize("DRPG.Project.breachNote")}</small></label>` : "";
+    /*
+     * THE OWNER'S THREE OF 15.10 (E15 part 2 C5): Seal the passage, offered with the passages this character knows that
+     * have a side in the room it stands in (this browser's copy, passages.mjs `knownPassages`); Close the breach, with
+     * the standing breaches of that room (their holes are walls every browser holds); Repair an item, with the usables
+     * and tools of its own sheet that are broken or worn (inventory.mjs `repairable`). The rooms are named as Listen names
+     * them and each option is an index: the card carries the passage's, the breach's or the item's id, which this
+     * player's browser holds already, and the GM's approval judges it again (projects-ui.mjs `openProjectDialog`).
+     */
+    const { knownPassages } = await import("./passages.mjs");
+    const owned = here?.room ? passageProjectOffer({ scene: here.scene, room: here.room, level: levelOf(here.tokenDoc) },
+        { known: knownPassages(), actorId: actor.id, sides: passageRooms }) : { seal: [], breaches: [] };
+    const named = rooms => {
+        const labels = listenLabels(rooms.filter(Boolean), roomsKnownToMe(here?.scene));
+        return rooms.map(r => (r ? labels.get(r) ?? r : "-")).join(" - ");
+    };
+    const mendable = (actor.items?.contents ?? [...(actor.items ?? [])]).filter(repairable);
+    const kinds = [...(offer ? ["secretPassage", "breach"] : []), ...(owned.seal.length ? ["sealPassage"] : []),
+        ...(owned.breaches.length ? ["closeBreach"] : []), ...(mendable.length ? ["repairItem"] : [])];
+    const esc1 = text => foundry.utils.escapeHTML(String(text ?? ""));
+    const choose = (name, label, options, note) => `<label>${game.i18n.localize(label)}
+                <select name="${name}">${options.map((text, i) => `<option value="${i}">${esc1(text)}</option>`).join("")}</select>
+                ${note.map(key => `<small class="notes">${game.i18n.localize(key)}</small>`).join("")}</label>`;
+    const presetFields = kinds.length ? `<label>${game.i18n.localize("DRPG.Project.kind")}
+                <select name="preset"><option value="">${game.i18n.localize("DRPG.Project.kindOwn")}</option>${
+                    kinds.map(key => `<option value="${key}">${game.i18n.localize(`DRPG.Project.preset.${key}`)}</option>`).join("")}</select></label>
+            ${offer ? choose("to", "DRPG.Project.passageTo", offer.neighbours.map(r => beyond.get(r) ?? r), ["DRPG.Project.passageNote", "DRPG.Project.breachNote"]) : ""}
+            ${owned.seal.length ? choose("seal", "DRPG.Project.sealWhich", owned.seal.map(p => named(p.rooms)), ["DRPG.Project.sealNote"]) : ""}
+            ${owned.breaches.length ? choose("unbreach", "DRPG.Project.unbreachWhich", owned.breaches.map(b => named(b.rooms)), ["DRPG.Project.unbreachNote"]) : ""}
+            ${mendable.length ? choose("mend", "DRPG.Project.repairWhich", mendable.map(i => game.i18n.format("DRPG.Project.repairOption", { item: i.name, tier: tierOf(i) })),
+                ["DRPG.Project.repairNote"]) : ""}` : "";
 
     const result = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Project.startNew") },
@@ -2921,7 +2943,10 @@ async function startProject(actor) {
                         murder: f.murder.checked,
                         condition: f.condition.value.trim(),
                         preset: f.preset?.value || null,
-                        to: f.to?.value ?? null
+                        to: f.to?.value ?? null,
+                        seal: f.seal?.value ?? null,
+                        unbreach: f.unbreach?.value ?? null,
+                        mend: f.mend?.value ?? null
                     };
                 }
             },
@@ -2933,13 +2958,21 @@ async function startProject(actor) {
     if (!result || result === "cancel") return null;
     // A preset's own answers (PASSAGE_PRESETS): its statistic, its size, never a murder, from the room the character is in.
     // Breach the Wall since E15 part 2 C3: the same offer (a wall shared with a room beyond), its own statistic and summary.
-    const presetKey = offer && ["secretPassage", "breach"].includes(result.preset) ? result.preset : null;
+    // The owner's three since C5: the target an index into what was offered, its id on the card; the room the one it stands in
+    // (Repair an item: the room the form names), the item's tier its size.
+    const presetKey = kinds.includes(result.preset) ? result.preset : null;
     const preset = presetKey ? PASSAGE_PRESETS[presetKey] : null;
-    const toIndex = preset ? Number(result.to) : NaN;
+    const walled = presetKey === "secretPassage" || presetKey === "breach";
+    const field = { secretPassage: "to", breach: "to", sealPassage: "seal", closeBreach: "unbreach", repairItem: "mend" }[presetKey];
+    const toIndex = preset ? Number(result[field]) : NaN;
+    const chosen = !preset || !Number.isInteger(toIndex) ? null
+        : walled ? offer.neighbours[toIndex] : presetKey === "sealPassage" ? owned.seal[toIndex] : presetKey === "closeBreach" ? owned.breaches[toIndex] : mendable[toIndex];
     if (preset) {
-        if (!Number.isInteger(toIndex) || !offer.neighbours[toIndex]) return null;
-        Object.assign(result, { name: result.name || game.i18n.localize(`DRPG.Project.preset.${presetKey}`), target: PROJECT_SCALE[preset.scale].progress,
-            trait: preset.trait, room: offer.from, murder: false, condition: "" });
+        if (!chosen) return null;
+        const scale = presetKey === "repairItem" ? presetScale(presetKey, { tier: tierOf(chosen) }) : preset.scale;
+        Object.assign(result, { name: result.name || (presetKey === "repairItem" ? game.i18n.format("DRPG.Project.repairItemName", { item: chosen.name })
+            : game.i18n.localize(`DRPG.Project.preset.${presetKey}`)), target: PROJECT_SCALE[scale].progress,
+            trait: preset.trait, room: walled ? offer.from : presetKey === "repairItem" ? result.room : here.room, murder: false, condition: "" });
     }
     if (!result.name) {
         ui.notifications.warn(game.i18n.localize("DRPG.Project.needsName"));
@@ -2972,8 +3005,10 @@ async function startProject(actor) {
         `${esc(scaleLabel)} · ${result.target} progress`,
         result.room ? esc(result.room) : game.i18n.localize("DRPG.Project.anyRoom"),
         TRAITS[result.trait].label,
-        ...(preset ? [game.i18n.format(presetKey === "breach" ? "DRPG.Project.breachSummary" : "DRPG.Project.passageSummary",
-            { to: esc(beyond.get(offer.neighbours[toIndex]) ?? "-") })] : [])
+        ...(walled ? [game.i18n.format(presetKey === "breach" ? "DRPG.Project.breachSummary" : "DRPG.Project.passageSummary",
+            { to: esc(beyond.get(offer.neighbours[toIndex]) ?? "-") })] : []),
+        ...(preset && !walled ? [game.i18n.format(`DRPG.Project.${presetKey}Summary`,
+            { target: esc(presetKey === "repairItem" ? chosen.name : named(chosen.rooms)) })] : [])
     ].join(" · ");
 
     /*
@@ -3010,7 +3045,8 @@ async function startProject(actor) {
                     murder: result.murder ? "1" : "",
                     condition: result.condition ?? "",
                     // A Secret Passage (E15 part 2 C2) or a breach (C3): the preset and the neighbour's index, never its name.
-                    ...(preset ? { preset: presetKey, to: String(toIndex) } : {})
+                    // The owner's three (C5): the passage's, the breach's or the item's id, held by this browser already.
+                    ...(preset ? { preset: presetKey, to: walled ? String(toIndex) : String(chosen.id) } : {})
                 }
             },
             {

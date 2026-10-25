@@ -595,6 +595,8 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
     // A Secret Passage's approval (E15 part 2 C2), or a breach's (C3): the builder's room as the GMs read it, and its neighbours.
     const passageOf = !editing && ["secretPassage", "breach"].includes(start?.preset) ? await passageApproval(start) : null;
     const alwaysSecret = passageOf?.preset === "secretPassage";
+    // The owner's three of 15.10 (E15 part 2 C5): the passage, breach or item the card names, judged here as the GMs read it.
+    const ownedOf = !editing && OWNED_PRESETS.includes(start?.preset) ? await presetApproval(start) : null;
     const defaultImg = "icons/magic/time/hourglass-yellow-green.webp";
     const img = start?.img || defaultImg;
     const currentTarget = start?.start ?? start?.target ?? PROJECT_SCALE.everyday.progress;
@@ -708,6 +710,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
                 <small class="notes">${game.i18n.localize("DRPG.Project.conditionNote")}</small></label>
             </div>
             ${passageOf ? passageFieldset(passageOf) : ""}
+            ${ownedOf ? ownedFieldset(ownedOf) : ""}
             <label class="drpg-checkbox">
                 <input type="checkbox" name="secret"${
                     (editing && isSecret(project.id)) || alwaysSecret ? " checked" : ""}${alwaysSecret ? " disabled" : ""} /> ${
@@ -894,6 +897,17 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
         passageFields = { presetTarget: { preset: passageOf.preset, room: result.passageTo }, passage: picked };
     }
 
+    // The owner's three (C5): judged again on Create - the passage still known, the breach still standing, the item still
+    // the builder's own and broken or worn -, and the completion judges it once more on the primary.
+    if (ownedOf) {
+        const again = await presetApproval(start);
+        if (again.refused) {
+            ui.notifications.warn(game.i18n.format("DRPG.Project.presetRefused", { why: again.refused }));
+            return null;
+        }
+        passageFields = { presetTarget: again.target, passage: null };
+    }
+
     const created = await createProject({
         ...(passageFields ?? {}),
         name: result.name,
@@ -957,6 +971,50 @@ async function passageApproval(start) {
     const offer = builder ? secretPassageOffer(gmPlaceOf(builder)) : null;
     const index = Number(start?.to);
     return { offer, preset: start.preset, to: offer ? (offer.neighbours[Number.isInteger(index) ? index : 0] ?? offer.neighbours[0]) : null };
+}
+
+/** The owner's three presets of 15.10 (E15 part 2 C5), whose card names its target by id. */
+const OWNED_PRESETS = Object.freeze(["sealPassage", "closeBreach", "repairItem"]);
+
+/**
+ * The approval of Seal the passage, Close the breach or Repair an item, read on the GM's browser (E15 part 2 C5; the
+ * stage's D2): `{ preset, label, target, refused }` - the card's id read where the GMs hold it (a passage of either store,
+ * a breach standing on a scene, an item of the builder's own sheet as the GMs' mark holds it), the label the window
+ * shows, the target `createProject` keeps in the GMs' half, and the reason it may not be done, or null. The same
+ * judges the completion asks again on the primary (passages-gm.mjs `sealRefusal`, `closeBreachRefusal`; inventory.mjs
+ * `repairRefusal`).
+ */
+async function presetApproval(start) {
+    const preset = start?.preset, id = typeof start?.to === "string" ? start.to : "", builderId = start?.by ?? null;
+    const room = start?.room || null;
+    if (preset === "repairItem") {
+        const { repairRefusal, wearOf, isBroken } = await import("./inventory.mjs");
+        const { tierOf } = await import("./use-items.mjs");
+        const { itemsHeldNow } = await import("./sheet-audit.mjs");
+        const builder = game.actors.get(builderId ?? "") ?? null, item = builder?.items?.get(id) ?? null;
+        const held = item ? itemsHeldNow(builder).find(each => each.id === item.id) ?? item : null;
+        const label = item ? game.i18n.format("DRPG.Project.repairLabel", { item: item.name, tier: tierOf(held),
+            state: game.i18n.localize(isBroken(held) ? "DRPG.Project.repairBroken" : wearOf(held) ? "DRPG.Project.repairWorn" : "DRPG.Project.repairWhole") }) : "-";
+        return { preset, label, target: { preset, room, itemId: id }, refused: repairRefusal(builder, item, { held }) };
+    }
+    const P = await import("./passages-gm.mjs");
+    if (preset === "sealPassage") {
+        const row = P.rowsOf().get(id);
+        return { preset, label: (row?.rooms ?? []).join(" - ") || "-", target: { preset, room, passageId: id },
+            refused: P.sealRefusal({ passageId: id, builderId }) };
+    }
+    const scene = (game.scenes?.contents ?? [...(game.scenes ?? [])]).find(s => P.breachesOn(s).some(found => found.breach.breachId === id)) ?? null;
+    const row = Object.values(P.rowsOf().entries()).find(r => r?.breach?.breachId === id) ?? null;
+    return { preset, label: (row?.rooms ?? []).join(" - ") || scene?.name || "-", target: { preset, room, sceneId: scene?.id ?? null, breachId: id },
+        refused: P.closeBreachRefusal({ sceneId: scene?.id ?? null, breachId: id }) };
+}
+
+/** The approval window's box for the owner's three: what the card names, and why it may not be done. */
+function ownedFieldset({ preset, label, refused }) {
+    const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
+    return `<fieldset class="drpg-passage-preset" data-drpg-owned-preset="${esc(preset)}"><legend>${esc(game.i18n.localize(`DRPG.Project.preset.${preset}`))}</legend>
+        <p class="notes">${esc(label)}</p>${refused ? `
+        <p class="drpg-warning">${esc(game.i18n.format("DRPG.Project.presetRefused", { why: refused }))}</p>` : ""}</fieldset>`;
 }
 
 /** The approval window's Secret Passage box: the builder's room, the room beyond, the pick and what it picked. */

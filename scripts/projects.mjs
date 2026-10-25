@@ -625,6 +625,81 @@ export const COMPLETION_EFFECTS = [
             };
         },
         onUncrossed: ({ id }) => ({ apply: async () => (await import("./passages-gm.mjs")).undoBreachesOf(id) })
+    },
+    {
+        /*
+         * A FINISHED SEAL THE PASSAGE CLOSES ITS PASSAGE; ONE TAKEN BACK OPENS IT (E15 part 2 C5, 25.10.2026; the owner's
+         * (1) of 15.10). Read for a project whose secret half names the preset and the passage. Crossed: closed on the
+         * primary in the step (passages-gm.mjs `sealPassageDone`, which judges again that the builder still knows it and
+         * it is open), as the tab's Close closes one - who knew it still knows it, a GM may open it again -, and the
+         * project kept for the Reroll as a Secret Passage's (`keep`). Uncrossed: open again, unless a GM opened or closed
+         * it since (`unsealPassagesOf`). A refusal closes nothing, and the GMs are told why.
+         */
+        key: "sealsPassage",
+        has: meta => meta.target?.preset === "sealPassage" && typeof meta.target.passageId === "string",
+        onCrossed: ({ id, name, meta }) => {
+            let made = null;
+            return {
+                apply: async () => {
+                    made = await (await import("./passages-gm.mjs")).sealPassageDone(id, { passageId: meta.target.passageId, builderId: meta.by ?? null });
+                },
+                remove: true,
+                keep: true,
+                after: async () => {
+                    if (made?.refused) await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Passage.card.notSealed", { name, why: made.refused }))}</p>`);
+                }
+            };
+        },
+        onUncrossed: ({ id }) => ({ apply: async () => (await import("./passages-gm.mjs")).unsealPassagesOf(id) })
+    },
+    {
+        /*
+         * A FINISHED CLOSE THE BREACH GIVES THE WALL BACK (E15 part 2 C5; the owner's (2) of 15.10: "cofnięcie wyłomu jako
+         * projekt gracza; przycisk GM-a zostaje"). Read for a project whose secret half names the preset and the breach.
+         * Crossed: restored on the primary in the step (passages-gm.mjs `closeBreachDone`: the breach judged again as
+         * standing, then `restoreBreach`, as the GMs' Close the breach), and the project goes - no Reroll gives a hole back,
+         * as none gives back a repair's thaw (the row "repairs"). A breach gone before the completion restores nothing,
+         * and the GMs are told why.
+         */
+        key: "closesBreach",
+        has: meta => meta.target?.preset === "closeBreach" && typeof meta.target.breachId === "string",
+        onCrossed: ({ id, name, meta }) => {
+            let made = null;
+            return {
+                apply: async () => {
+                    made = await (await import("./passages-gm.mjs")).closeBreachDone(id, { sceneId: meta.target.sceneId ?? null, breachId: meta.target.breachId });
+                },
+                remove: true,
+                after: async () => {
+                    if (made?.refused) await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Passage.card.notClosed", { name, why: made.refused }))}</p>`);
+                }
+            };
+        }
+    },
+    {
+        /*
+         * A FINISHED REPAIR AN ITEM MENDS ITS ITEM (E15 part 2 C5; the owner's (3) of 15.10, Q1 of 19.10). Read for a
+         * project whose secret half names the preset and the item. Crossed: mended on the primary in the step
+         * (inventory.mjs `repairItem`, which judges again that the item is still on the builder's own sheet, a usable or
+         * a tool, and broken or worn as the GMs hold it), and the project goes, as a repair of a project does; the
+         * builder is told the item is whole. A refusal mends nothing, and the GMs are told why.
+         */
+        key: "repairsItem",
+        has: meta => meta.target?.preset === "repairItem" && typeof meta.target.itemId === "string",
+        onCrossed: ({ id, name, meta }) => {
+            let made = null;
+            const builder = game.actors.get(meta.by ?? "") ?? null;
+            return {
+                apply: async () => {
+                    made = await (await import("./inventory.mjs")).repairItem(builder, meta.target.itemId, { ref: id });
+                },
+                remove: true,
+                after: async () => {
+                    if (made?.refused) await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Project.notRepaired", { name, why: made.refused }))}</p>`);
+                    else if (made?.id && builder) await whisperToOwner(builder, `<p>${game.i18n.format("DRPG.Project.itemRepaired", { item: esc(made.name) })}</p>`);
+                }
+            };
+        }
     }
 ];
 
@@ -1121,7 +1196,7 @@ export async function createProject({
             trigger: indirectMurder && trigger?.kind ? { ...trigger, armed: false, firedAt: null } : null,
             ...(repairFor ? { repairs: repairFor } : {}),
             ...(saboteur ? { saboteur } : {}),
-            ...(presetTarget?.preset ? { target: { preset: String(presetTarget.preset), room: presetTarget.room ?? null } } : {}),
+            ...(presetTarget?.preset ? { target: presetTargetOf(presetTarget) } : {}),
             ...(passage ? { passage } : {})
         }
     }, { by: { kind: "gm" } });
@@ -1132,6 +1207,17 @@ export async function createProject({
        token here, on the browser of whichever GM made the project. */
     log(`Created project "${name}" (${target} progress)${room ? ` in ${room}` : ""}${trait ? `, ${trait}` : ""}.`);
     return { id, name, target, trait };
+}
+
+/**
+ * A preset's target as the GMs keep it (E15 part 2 C2, C5): `{ preset, room }`, and for the owner's three of 15.10 what
+ * the approval named - a passage (`passageId`), a breach (`sceneId`, `breachId`), an item of the builder's (`itemId`) -,
+ * strings alone.
+ */
+function presetTargetOf(presetTarget) {
+    const ids = Object.fromEntries(["passageId", "sceneId", "breachId", "itemId"]
+        .filter(key => typeof presetTarget[key] === "string" && presetTarget[key]).map(key => [key, presetTarget[key]]));
+    return { preset: String(presetTarget.preset), room: presetTarget.room ?? null, ...ids };
 }
 
 /**
