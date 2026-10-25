@@ -65179,6 +65179,245 @@ const SCENARIOS = [
             + "reached the system's handler; the menu (Reveal, Hide, Delete shown on the project row and on the other), what the system's "
             + "Delete did, the project's Delete; deleteProject]");
     }],
+    ["the players' roads, a Call, the Reroll, the Earthquake and the relay end in the one entry (E36-T5): a player's Work, Sabotage and share and a GM's undo wait in the queue and land once let go, two Sabotages at once make one repair, each change is its road's (player, call, reroll, system) for its character, a Reroll that fills a bar is announced once and one that takes it back is not and disarms its trap, an Earthquake is one card, and the relay's tick waits in the queue and moves no project", async () => {
+        /*
+         * E36 C3, 25.10.2026; E36-05, E36-12, E36-13, audit S17-18, S09-02. The player rows' handlers and the
+         * relay's op were the last roads that wrote outside projects.mjs `applyProjectChange`: `sabotageProject`
+         * asked whether its target was frozen, made the repair and wrote the pair as three moments, `undoSabotage`
+         * thawed outside the queue before the repair's removal waited in it, relay-guard.mjs `applyOps` wrote the
+         * whole Countdowns setting outside the queue, and the Call, the Reroll and the Earthquake reached the
+         * entry as the GM's own change, a player's Work as no character's. Read on this primary's browser, a step
+         * of utils.mjs `serialWrite` holding projects-secrecy.mjs `COUNTDOWNS_KEY` open where a road is said to
+         * wait: (1) the relay's packet of a connected player, given to the guard on Daggerheart's channel as that
+         * player's, ticking a countdown the player owns and a project the player was given OWNER of (the one a
+         * project row's `isProject` alone keeps from landing): the bars while held and after; (2) the Earthquake
+         * alone in the hat, drawn by `checkOverflow` as the Rot's test draws the Rot, on a full project of 2: its
+         * card count and the bar; (3) the player's Work and Sabotage drawn as the GM draws that player's rolls
+         * (`drawnForPlayer`) and judged as the listener judges the packets, a share of a secret project with
+         * another player, and the GM's undo of the Sabotage (`project.unsabotage`): each while held and after; the
+         * same three rows forged at a secret project in that room the player cannot see, the rolls drawn naming it:
+         * the code told and the bar, the freeze or the sight after (the stage's mutants p2 to p4 take each row's
+         * sight guard away, and scenario 30 forges none of these three at a secret project);
+         * (4) two Sabotages of one project at once on this GM: what each answered and the repairs made; (5) a
+         * Hope Call's progress (`applyCall`, Contribution) on a project of 1; (6) a Reroll on this GM of the
+         * player's Work (`rerollOnGm`, the row as the r2-H3 test plants it) onto a project of 1 from 0 into 9 and
+         * 4, and of one that filled a watched trap of 1 into 2 and 1: whether it stood, the bar, the project's
+         * done cards, the trap's arming. A completion row planted for the test (`has` every project) keeps the
+         * kind and the character of every crossing and every fall back. At 042f3482: the relay's tick lands while
+         * held, the undo thaws while held, two Sabotages make two repairs, and the Call, the Reroll and the
+         * Earthquake are "gm" and the Work no character's.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the Work and the Sabotage are made standing at their projects");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
+        needs(world.atLeast("playerAccounts", 2), "a second player to share a secret project with");
+        const P = await import("./projects.mjs");
+        const S = await import("./projects-secrecy.mjs");
+        const T = await import("./traps.mjs");
+        const R = await import("./reroll.mjs");
+        const o = await import("./overflow.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { applyCall } = await import("./call-effects.mjs");
+        const { overflowStore, rerollBookmarkStore } = await import("./gm-stores.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { TRAP_TRIGGERS } = await import("./config.mjs");
+        const { serialWrite, isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this GM is not the primary, whose queue every change waits in - run the suite on the primary GM");
+        const guard = (game.socket?.listeners?.(`system.${game.system.id}`) ?? []).find(fn => fn.__drpgRelayGuard);
+        must(guard, "the relay guard stands on no listener of Daggerheart's channel here - the packet would reach nothing");
+        const watched = Object.keys(TRAP_TRIGGERS).find(kind => TRAP_TRIGGERS[kind]?.watch);
+        must(watched, "no watched trap trigger - the trap's arming would measure nothing");
+        const { player, actor, where } = await playerInRoom();
+        const guest = game.users.find(u => !u.isGM && u.id !== player.id);
+        const F = await projectPackets(player, actor);
+        const DH = "daggerheart", TICK = "suiteE36T5tick00";
+        const KEY = S.COUNTDOWNS_KEY ?? "daggerheart.Countdowns";
+        // A project's done card (projects.mjs `announceProjectDone`), by its title in the words the GMs hold (secret.mjs `contentOf`).
+        const { contentOf } = await import("./secret.mjs");
+        const DONE = `<h3>${game.i18n.localize("DRPG.Project.doneTitle")}</h3>`;
+        const isDone = m => String(contentOf(m)).includes(DONE);
+        const HOPE = "system.resources.hope.value";
+        const rows = Array.isArray(P.COMPLETION_EFFECTS) ? P.COMPLETION_EFFECTS : [];
+        const plain = () => { const data = game.settings.get(DH, "Countdowns"); return data?.toObject?.() ?? foundry.utils.deepClone(data ?? {}); };
+        const countdownsWas = plain().countdowns ?? {};
+        const before = new Set(game.messages.map(m => m.id));
+        const hopeWas = foundry.utils.getProperty(actor._source, HOPE);
+        const bookmarkWas = foundry.utils.deepClone(rerollBookmarkStore.get(actor.id) ?? null);
+        const overflowWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.overflow) ?? {});
+        const rulesWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.overflowRules) ?? {});
+        const countWas = o.overflowCount();
+        const made = [], draws = [], label = {}, kinds = [], seen = {};
+        const project = id => P.allProjects().find(p => p.id === id) ?? null;
+        const bar = id => project(id)?.current ?? null;
+        const make = async (name, fields) => {
+            const id = (await P.createProject({ name: `SUITE E36 T5 ${name}`, ...fields }))?.id ?? null;
+            must(id, `could not create the project "${name}" - this would measure nothing`);
+            made.push(id);
+            label[id] = name;
+            return id;
+        };
+        const fresh = () => { const had = new Set(game.messages.map(m => m.id)); return () => game.messages.filter(m => !had.has(m.id)); };
+        const KIND = { key: "suiteE36T5Kind", has: () => true,
+            onCrossed: ctx => { kinds.push([ctx.id, "crossed", ctx.by?.kind ?? null, ctx.by?.actorId ?? null]); return {}; },
+            onUncrossed: ctx => { kinds.push([ctx.id, "uncrossed", ctx.by?.kind ?? null, ctx.by?.actorId ?? null]); return {}; } };
+        let release = () => {};
+        // A road run while a step holds the key: what `read` gives while held and once let go, and what the road answered.
+        const held = async (run, read) => {
+            const gate = new Promise(resolve => { release = resolve; });
+            const hold = serialWrite(KEY, () => gate);
+            const going = Promise.resolve().then(run);
+            await settle();
+            const whileHeld = read();
+            release();
+            await hold;
+            const value = await going;
+            await settle();
+            return { held: whileHeld, after: read(), value };
+        };
+        const draw = async (actionKey, context) => {
+            const drawn = await drawnForPlayer(player, actor, { actionKey, edit: p => ({ ...p, context: { ...(p.context ?? {}), ...context } }) });
+            draws.push(drawn);
+            must(drawn.message, `the GM drew no ${actionKey} roll (${drawn.verdict}) - this would measure nothing`);
+            return drawn.message.id;
+        };
+        const reroll = async (projectId, progress, next) => {
+            const B = await playerRollBookmark(player, actor, "project", {});
+            const stand = rerollableRoll(B.message, { first: { hope: 9, fear: 4 }, next });
+            try {
+                await rerollBookmarkStore.patch(actor.id, { facts: { ...(B.row()?.facts ?? {}), projectId, progress } });
+                await trustedWrite(actor, { [HOPE]: Math.max(4, actor.system.resources.hope.value) }, { reason: "gmRuling" });
+                const news = fresh();
+                const out = await R.rerollOnGm(actor, player);
+                await settle();
+                return { stood: Array.isArray(out?.lines), bar: bar(projectId), done: news().filter(isDone).length };
+            } finally {
+                stand.putBack();
+                await B.putBack();
+            }
+        };
+        rows.push(KIND);
+        try {
+            // (1) The relay's tick of a countdown the player owns, and of a project the player was given OWNER of.
+            const owned = await make("owned", { target: 5 });
+            await P.applyProjectChange(owned, { ownership: { default: 0, [player.id]: 3 } });
+            await game.settings.set(DH, "Countdowns", { ...plain(), countdowns: { ...plain().countdowns, [TICK]: { name: "SUITE E36 T5 tick", type: "narrative",
+                img: "icons/svg/d20.svg", ownership: { default: 0, [player.id]: 3 }, progress: { current: 0, start: 5, looping: "noLooping", type: "custom" } } } });
+            await settle();
+            const packet = () => {
+                const whole = plain();
+                for (const id of [TICK, owned]) whole.countdowns[id].progress.current += 1;
+                return { action: "DhGMUpdate", data: { action: "DhGMUpdateCountdowns", data: whole } };
+            };
+            const relay = await held(() => guard(packet(), player.id), () => [plain().countdowns?.[TICK]?.progress?.current ?? null, bar(owned)]);
+            seen.relay = { held: relay.held, after: relay.after };
+
+            // (2) The Earthquake alone in the hat, on a full project of 2.
+            const quake = await make("quake", { target: 2 });
+            await P.applyProjectChange(quake, { delta: 2 });
+            const effects = Object.fromEntries(Object.keys(o.overflowRules().effects).map(key => [key, key === "earthquake" ? { on: true, by: 1 } : { on: false }]));
+            await game.settings.set(MODULE_ID, SETTINGS.overflowRules, { ...rulesWas, effects });
+            await game.settings.set(MODULE_ID, SETTINGS.overflow, { active: null });
+            await overflowStore.patch("record", { count: o.overflowThreshold() });
+            const shook = fresh();
+            const fired = await o.checkOverflow();
+            await settle();
+            seen.quake = { effect: fired?.effect ?? null, cards: shook().length, bar: bar(quake) };
+
+            // (3) The four player rows: a Work, a Sabotage, a share and the GM's undo of the Sabotage, each while held.
+            const work = await make("work", { target: 1, room: where.room });
+            const workRoll = await draw("project", { projectId: work });
+            const worked = await held(() => F.ask("project.progress", { countdownId: work, amount: 1, rollId: workRoll }), () => bar(work));
+            seen.work = { held: worked.held, after: worked.after, told: worked.value };
+            const broken = await make("sabotaged", { target: 6, room: where.room });
+            const sabotageRoll = await draw("sabotage", { targetProjectId: broken });
+            const sabotaged = await held(() => F.ask("project.sabotage", { targetId: broken, difficulty: 3, rollId: sabotageRoll, penalty: 0, relief: 0 }),
+                () => P.isFrozen(broken));
+            seen.sabotage = { held: sabotaged.held, after: sabotaged.after, told: sabotaged.value };
+            const repair = P.metaFor(broken).frozenBy ?? null;
+            if (repair) made.push(repair);
+            const secret = await make("secret", { target: 4, secret: true, viewers: [player.id] });
+            const shared = await held(() => F.ask("project.share", { countdownId: secret, targetUserId: guest.id }), () => P.canSee(secret, guest));
+            seen.share = { held: shared.held, after: shared.after, told: shared.value };
+            // A console's packet on each of those rows, at a secret project in the same room the player cannot see,
+            // its rolls drawn naming it: refused, and nothing changed (each row's sight guard alone keeps it out).
+            const hidden = await make("hidden", { target: 4, secret: true, viewers: [guest.id], room: where.room });
+            must(!P.canSee(hidden, player), "the player sees the secret project - the forged packets would measure nothing");
+            const hiddenWork = await draw("project", { projectId: hidden });
+            const hiddenSabotage = await draw("sabotage", { targetProjectId: hidden });
+            seen.forged = {
+                progress: [await F.ask("project.progress", { countdownId: hidden, amount: 1, rollId: hiddenWork }), bar(hidden)],
+                sabotage: [await F.ask("project.sabotage", { targetId: hidden, difficulty: 3, rollId: hiddenSabotage, penalty: 0, relief: 0 }), P.isFrozen(hidden)],
+                share: [await F.ask("project.share", { countdownId: hidden, targetUserId: player.id }), P.canSee(hidden, player)]
+            };
+            const told = [];
+            const undone = await held(() => G.judge(BRIDGE_ACTIONS, { action: "project.unsabotage", requestId: `E36T5${foundry.utils.randomID(8)}`, targetId: broken,
+                repairId: repair }, game.user.id, { send: (to, reply) => told.push(reply?.action ?? null) }), () => [P.isFrozen(broken), Boolean(project(repair))]);
+            seen.undo = { held: undone.held, after: undone.after, told };
+
+            // (4) Two Sabotages of one project at once.
+            const twin = await make("twice", { target: 6 });
+            const answers = await Promise.all([P.sabotageProject(twin, 3), P.sabotageProject(twin, 3)]);
+            const repairs = P.allProjects().filter(p => P.repairs(p.id) === twin).map(p => p.id);
+            made.push(...repairs);
+            seen.twice = { answered: answers.map(a => Boolean(a?.repair?.id)), repairs: repairs.length,
+                pair: repairs.length === 1 && P.metaFor(twin).frozenBy === repairs[0] };
+
+            // (5) A Hope Call's progress.
+            const called = await make("call", { target: 1 });
+            const call = await applyCall(actor, "contribution", "hope", { project: called });
+            seen.call = { failed: call?.failed ?? null, bar: bar(called) };
+
+            // (6) The Reroll: a Work's bar filled by its second throw, and a trap's taken back by it.
+            const filled = await make("rerolled", { target: 1 });
+            seen.reroll = { filled: await reroll(filled, 0, { hope: 9, fear: 4 }) };
+            const trap = await make("trap", { target: 1, indirectMurder: true, killerId: actor.id, condition: "SUITE E36 T5", trigger: { kind: watched } });
+            await P.applyProjectChange(trap, { delta: 1 });
+            await settle();
+            const armed = () => Boolean(P.secretsOf(trap).trigger?.armed);
+            const armedBefore = armed();
+            seen.reroll.trap = { armedBefore, ...await reroll(trap, 1, { hope: 2, fear: 1 }), armed: armed() };
+        } finally {
+            release();
+            for (const row of [KIND]) if (rows.includes(row)) rows.splice(rows.indexOf(row), 1);
+            for (const drawn of draws.reverse()) await drawn.putBack();
+            made.push(...P.allProjects().filter(p => made.includes(P.repairs(p.id))).map(p => p.id));
+            for (const id of made) if (project(id)) await P.deleteProject(id).catch(() => {});
+            await F.putBack();
+            // The tick goes, and every project the Earthquake found (none but these, where the world holds no other) is as it was.
+            const now = plain();
+            const countdowns = Object.fromEntries(Object.entries(now.countdowns ?? {}).filter(([id]) => id !== TICK)
+                .map(([id, cd]) => [id, countdownsWas[id] ? { ...cd, progress: countdownsWas[id].progress } : cd]));
+            await game.settings.set(DH, "Countdowns", { ...now, countdowns });
+            await game.settings.set(MODULE_ID, SETTINGS.overflowRules, rulesWas);
+            await game.settings.set(MODULE_ID, SETTINGS.overflow, overflowWas);
+            await overflowStore.patch("record", { count: countWas });
+            if (rerollBookmarkStore.has(actor.id)) await rerollBookmarkStore.drop(actor.id);
+            if (bookmarkWas) await rerollBookmarkStore.patch(actor.id, bookmarkWas);
+            if (foundry.utils.getProperty(actor._source, HOPE) !== hopeWas) await trustedWrite(actor, { [HOPE]: hopeWas }, { reason: "gmRuling" });
+            for (const m of game.messages.contents.filter(m => !before.has(m.id))) await m.delete();
+            T.forgetArmedTraps();
+            await settle();
+        }
+        seen.kinds = kinds.filter(([id]) => label[id]).map(([id, way, kind, actorId]) => [label[id], way, kind, actorId === actor.id ? "the character" : actorId]);
+        equal(stableJson(seen), stableJson({
+            relay: { held: [0, 0], after: [1, 0] },
+            quake: { effect: "earthquake", cards: 1, bar: 1 },
+            work: { held: 0, after: 1, told: null },
+            sabotage: { held: false, after: true, told: null },
+            share: { held: false, after: true, told: null },
+            forged: { progress: ["cannotSee", 0], sabotage: ["cannotSee", false], share: ["cannotSee", false] },
+            undo: { held: [true, true], after: [false, false], told: ["bridge.ack", "bridge.done"] },
+            twice: { answered: [true, false], repairs: 1, pair: true },
+            call: { failed: false, bar: 1 },
+            reroll: { filled: { stood: true, bar: 1, done: 1 }, trap: { armedBefore: true, stood: true, bar: 0, done: 0, armed: false } },
+            kinds: [["quake", "crossed", "gm", null], ["quake", "uncrossed", "system", null], ["work", "crossed", "player", "the character"],
+                ["call", "crossed", "call", "the character"], ["rerolled", "crossed", "reroll", "the character"], ["trap", "crossed", "gm", null],
+                ["trap", "uncrossed", "reroll", "the character"]]
+        }), "a player's road, a Call, the Reroll, the Earthquake or the relay does not end in the one entry [the relay's tick and the owned project "
+            + "while held and after; the Earthquake: drawn, cards, bar; the Work's bar, the Sabotage's freeze and the share while held, after and "
+            + "what was told; a console's packet on each at a project the player cannot see: the code and the bar, freeze or sight; the undo's freeze and repair while held and after; two Sabotages: answered, repairs, the pair; the Call; the Reroll: "
+            + "stood, bar, done cards, the trap's arming; every crossing: project, way, kind, character]");
+    }],
 
     ["a project's token follows its project (E36-T6): after each change of a project one function puts its token right - made in a room it stands there once, its room changed it moves there once, finished it changes colour and back, shared or taken back the visibility pass runs over it, with no room or no project it is gone, a dragged token is not moved back, and a second GM's project and a second scene draw make one token", async () => {
         /*

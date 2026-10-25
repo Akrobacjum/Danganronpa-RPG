@@ -1112,8 +1112,9 @@ async function handleProgress(payload, sender, ctx) {
     const kept = amount > 0 && payload.rollId ? await rolls.rollOfSenderNaming(sender.id, "project", payload.rollId) : null;
     const roll = kept?.messageId === payload.rollId ? kept : null;
     // Who asked, so a finished project can fall back to them when nobody
-    // recorded who proposed it.
-    const result = await addProgress(payload.countdownId, amount, { by: asker });
+    // recorded who proposed it; and whose character's roll it was (`owns`), so the change is that
+    // character's in the entry (E36 C3): a completion row that keeps a project for a Reroll reads it.
+    const result = await addProgress(payload.countdownId, amount, { by: asker, actorId: payload.actorId ?? null, kind: sender.isGM ? "gm" : "player" });
     debug(`Applied ${amount} progress to ${payload.countdownId} on behalf of a player.`, result);
     // Null: the project is not there any more - nothing was added, and the asker
     // is told so once, by the refusal (E31 review). A project that did not move

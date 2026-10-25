@@ -68,7 +68,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { isPrimaryGm, whisperToGms, debug, warn, error } from "./utils.mjs";
+import { isPrimaryGm, whisperToGms, debug, warn, error, serialWrite } from "./utils.mjs";
 import { senderOf, tellRefused } from "./bridge-guards.mjs";
 
 const GM_UPDATE = "DhGMUpdate";
@@ -996,16 +996,28 @@ async function applyOps(ops) {
                 const next = Math.max(0, Math.min(maxFear(), fresh + op.step));
                 if (next !== fresh) await game.settings.set(dhId(), fearKey(), next);
             } else if (op.kind === "countdowns") {
-                const fresh = readCountdowns();
-                for (const delta of op.deltas) {
-                    const countdown = fresh.countdowns?.[delta.id];
-                    if (!countdown?.progress) continue;
-                    const start = Math.max(0, Number(countdown.progress.start ?? 0) + delta.start);
-                    countdown.progress.start = start;
-                    const current = Number(countdown.progress.current ?? 0) + delta.current;
-                    countdown.progress.current = Math.max(0, start > 0 ? Math.min(start, current) : current);
-                }
-                await game.settings.set(dhId(), countdownsKey(), fresh);
+                /*
+                 * IN THE PROJECTS' QUEUE (E36 C3, 25.10.2026; audit S17-18). The relay's tick is a whole write of the
+                 * Countdowns setting, which holds every project too: read and written outside any queue, it landed
+                 * while a project's change waited in projects.mjs `applyProjectChange`'s step and was written over
+                 * by it, or wrote over it (E36-T5 measured the tick landing while a step held the key, at 042f3482).
+                 * A step of the same key now (utils.mjs `serialWrite`, projects-secrecy.mjs `COUNTDOWNS_KEY`), read
+                 * inside it. Its project rows are `judgeCountdowns`', which hands none on. The key through import(),
+                 * as sheet-audit.mjs above: projects-secrecy.mjs imports the GM stores, which import this file.
+                 */
+                const { COUNTDOWNS_KEY } = await import("./projects-secrecy.mjs");
+                await serialWrite(COUNTDOWNS_KEY, async () => {
+                    const fresh = readCountdowns();
+                    for (const delta of op.deltas) {
+                        const countdown = fresh.countdowns?.[delta.id];
+                        if (!countdown?.progress) continue;
+                        const start = Math.max(0, Number(countdown.progress.start ?? 0) + delta.start);
+                        countdown.progress.start = start;
+                        const current = Number(countdown.progress.current ?? 0) + delta.current;
+                        countdown.progress.current = Math.max(0, start > 0 ? Math.min(start, current) : current);
+                    }
+                    await game.settings.set(dhId(), countdownsKey(), fresh);
+                });
                 // What Daggerheart's own handler does after this write (socket.mjs).
                 const refresh = { refreshType: "DhCoundownRefresh" };
                 game.socket.emit(channelName(), { action: "DhRefresh", data: refresh });

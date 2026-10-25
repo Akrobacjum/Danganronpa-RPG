@@ -14550,7 +14550,7 @@ const REGRESSIONS = [
         log(`R952: ${sources.size} files, ${read.creates} item creates and ${read.deletes} deletes read; pairs ${found.join(", ")}`);
     }],
 
-    ["R977 - a project changes in one place (E36-T1): the Countdowns setting is written whole only by projects-secrecy.mjs `writeCountdown`, its whole writer `writeAllCountdowns` and relay-guard.mjs `applyOps`, each inside a step of `serialWrite(COUNTDOWNS_KEY, ...)`; a project's room, freeze and repair are given to `setProjectMeta` only in a step; a project's Token is made, updated or deleted only from projects-map.mjs `syncProjectToken` and `sweepProjectTokens`; and no module file but projects-map.mjs names placeProjectToken, removeProjectToken or refreshProjectToken", async () => {
+    ["R977 - a project changes in one place (E36-T1): the Countdowns setting is written whole only by projects-secrecy.mjs `writeAllCountdowns` and relay-guard.mjs `applyOps`, each inside a step of `serialWrite(COUNTDOWNS_KEY, ...)`; a project's room, freeze and repair are given to `setProjectMeta` only in a step; a project's Token is made, updated or deleted only from projects-map.mjs `syncProjectToken` and `sweepProjectTokens`; and no module file but projects-map.mjs names placeProjectToken, removeProjectToken or refreshProjectToken", async () => {
         /*
          * E36 C0, 25.10.2026; the stage's E36-02 and E36-15, audit S17-18. A project is changed today by a dozen roads
          * that each read the Countdowns setting, change it and write it whole, outside any queue: two GMs' changes, or a
@@ -14560,8 +14560,10 @@ const REGRESSIONS = [
          * keeps a road outside it from coming back. Read in the module's files without the suite's own (tests.mjs,
          * tests-*.mjs), comments blanked, each top-level statement (a function, a class, a const, an import) on its own:
          *   (a) `game.settings.set(` whose key is COUNTDOWNS, "Countdowns" or relay-guard.mjs's `countdownsKey()` stands
-         *       only in projects-secrecy.mjs `writeCountdown`, `writeAllCountdowns` (C1's whole writer, by this name) or
-         *       relay-guard.mjs `applyOps`, and in a step ("a writer", "a step"; in relay-guard.mjs "e ...", rule (e));
+         *       only in projects-secrecy.mjs `writeAllCountdowns` (C1's whole writer, by this name) or relay-guard.mjs
+         *       `applyOps`, and in a step ("a writer", "a step"; in relay-guard.mjs "e ...", rule (e)). C2 took
+         *       `writeCountdown` out of the module (042f3482), and out of this list in E36's fix round: a writer of
+         *       that name brought back is a writer outside the list, as any other name is;
          *   (b) a `setProjectMeta(` whose data names `room`, `frozenBy` or `repairs` (a key, a shorthand, a spread or a
          *       variable of that name) stands in a step;
          *   (c) a Token made, updated or deleted (`createEmbeddedDocuments`, `updateEmbeddedDocuments` or
@@ -14583,18 +14585,20 @@ const REGRESSIONS = [
          * is shown planted source first: a clean twin that must read clean, then one fault of each rule alone - a
          * migration's write, a writer reached outside a step, a step of another key, a room written outside one, a
          * project token made from outside the roots and from another file, a token step named elsewhere, the relay's
-         * write outside the key - and a suite file and a computed key in the twin, which are not read.
+         * write outside the key, and a writer of a name the list does not hold (the old `writeCountdown`) - and a suite
+         * file and a computed key in the twin, which are not read.
          *
          * Red at 7d123c97 (1.2.84, E36's base) until C4, by expectedRed("E36"): Base writes Countdowns whole in
          * addProgress, createProject, deleteProject and clearAllProjects as well, nothing is queued on the key, and
          * projects.mjs places and removes tokens itself (the stage's census, Base's writers). At C4 (on 042f3482, C3
          * not landed) three rows are left, all C3's: sabotageProject's and undoSabotage's freeze outside a step (b)
-         * and relay-guard.mjs's write outside the key (e); C4 took the token rows (c, d). The marker goes with them.
+         * and relay-guard.mjs's write outside the key (e); C4 took the token rows (c, d). C3 (E36 fix e1-G1, on
+         * 8443d03f) moved the three into the queue and took the marker off: none left.
          */
         const SUITE = /^tests(?:-[\w-]+)?\.mjs$/;
         const QUEUE_KEY = /^(?:[\w$]+\s*\.\s*)?COUNTDOWNS_KEY$/;
         const SETTING = /^(?:COUNTDOWNS|(["'`])Countdowns\1|countdownsKey\s*\(\s*\))$/;
-        const WRITERS = new Set(["projects-secrecy.mjs#writeCountdown", "projects-secrecy.mjs#writeAllCountdowns", "relay-guard.mjs#applyOps"]);
+        const WRITERS = new Set(["projects-secrecy.mjs#writeAllCountdowns", "relay-guard.mjs#applyOps"]);
         const GUARDED = /(?<![\w$.])(?:room|frozenBy|repairs)(?![\w$])/;
         const MAP = "projects-map.mjs", ROOTS = new Set(["syncProjectToken", "sweepProjectTokens"]);
         const STEPS = /(?<![\w$])(?:placeProjectToken|removeProjectToken|refreshProjectToken)(?![\w$])/g;
@@ -14690,20 +14694,16 @@ const REGRESSIONS = [
         const clean = {
             "projects-secrecy.mjs": [
                 "export const COUNTDOWNS_KEY = \"daggerheart.Countdowns\";",
-                "export async function writeCountdown(id, patch) {",
-                "    const data = game.settings.get(DH, COUNTDOWNS);",
-                "    await game.settings.set(DH, COUNTDOWNS, { ...data, [id]: patch });",
-                "}",
                 "export async function writeAllCountdowns(data) { await game.settings.set(\"daggerheart\", \"Countdowns\", data); }",
                 "export async function setProjectMeta(id, data) { return { id, data }; }",
                 "async function saveKeyed(key, value) { await game.settings.set(DH, key, value); }",
                 "export { saveKeyed };"
             ],
             "projects.mjs": [
-                "import { COUNTDOWNS_KEY, writeCountdown, writeAllCountdowns, setProjectMeta } from \"./projects-secrecy.mjs\";",
+                "import { COUNTDOWNS_KEY, writeAllCountdowns, setProjectMeta } from \"./projects-secrecy.mjs\";",
                 "import { serialWrite } from \"./utils.mjs\";",
                 "async function step(id, change) {",
-                "    await writeCountdown(id, change);",
+                "    await writeAllCountdowns({ [id]: change });",
                 "    await setProjectMeta(id, { room: change.room });",
                 "    await thaw(id);",
                 "}",
@@ -14783,12 +14783,18 @@ const REGRESSIONS = [
                 "}"
             ] }, ["a step migrate.mjs#sealOldRepairs", "a writer migrate.mjs#sealOldRepairs"]],
             "a writer reached outside a step": [{ "observe.mjs": [
-                "import { writeCountdown } from \"./projects-secrecy.mjs\";",
-                "export async function shareFound(id) { await writeCountdown(id, {}); }"
-            ] }, ["a step projects-secrecy.mjs#writeCountdown"]],
+                "import { writeAllCountdowns } from \"./projects-secrecy.mjs\";",
+                "export async function shareFound(id) { await writeAllCountdowns({ [id]: {} }); }"
+            ] }, ["a step projects-secrecy.mjs#writeAllCountdowns"]],
             "a step of another key": [{ "projects.mjs": [...clean["projects.mjs"],
-                "export function retitle(id) { return serialWrite(`transfer/${id}`, () => writeCountdown(id, {})); }"
-            ] }, ["a step projects-secrecy.mjs#writeCountdown"]],
+                "export function retitle(id) { return serialWrite(`transfer/${id}`, () => writeAllCountdowns({ [id]: {} })); }"
+            ] }, ["a step projects-secrecy.mjs#writeAllCountdowns"]],
+            "a writer the list does not hold": [{ "projects-secrecy.mjs": [...clean["projects-secrecy.mjs"].slice(0, 2),
+                "export async function writeCountdown(id, patch) { await game.settings.set(DH, COUNTDOWNS, { [id]: patch }); }",
+                ...clean["projects-secrecy.mjs"].slice(2)
+            ], "projects.mjs": [...clean["projects.mjs"].slice(0, 2), "async function step(id, change) {",
+                "    await writeCountdown(id, change);", ...clean["projects.mjs"].slice(3)].map(line => line.replace("writeAllCountdowns, ", "writeAllCountdowns, writeCountdown, "))
+            }, ["a writer projects-secrecy.mjs#writeCountdown"]],
             "a room outside a step": [{ "fog.mjs": [
                 "import { setProjectMeta } from \"./projects-secrecy.mjs\";",
                 "async function carryRoomInWorld(id, to) { await setProjectMeta(id, { room: to }); }"
@@ -14813,8 +14819,8 @@ const REGRESSIONS = [
         };
         const planted = files => new Map(Object.entries(files).map(([file, lines]) => [file, lines.join("\n")]));
         const twin = censusOf(planted(clean));
-        equal(JSON.stringify([twin.broken, twin.read]), JSON.stringify([[], { files: 8, sets: 3, metas: 3, tokens: 4 }]),
-            "the census reader does not read the clean twin clean, or not all of it (8 files, 3 Countdowns writes, 3 setProjectMeta calls, 4 project token writes) - it would read the module wrong too");
+        equal(JSON.stringify([twin.broken, twin.read]), JSON.stringify([[], { files: 8, sets: 2, metas: 3, tokens: 4 }]),
+            "the census reader does not read the clean twin clean, or not all of it (8 files, 2 Countdowns writes, 3 setProjectMeta calls, 4 project token writes) - it would read the module wrong too");
         const misread = Object.entries(faults).map(([name, [files, want]]) => [name, censusOf(planted({ ...clean, ...files })).broken, want])
             .filter(([, got, want]) => JSON.stringify(got) !== JSON.stringify(want));
         equal(JSON.stringify(misread), "[]", "the census reader misses a planted fault, or reads one more than it was given ([fault, read, planted])");
@@ -14828,7 +14834,7 @@ const REGRESSIONS = [
         log(`R977: ${read.files} files, ${read.sets} Countdowns writes, ${read.metas} setProjectMeta calls, ${read.tokens} project token writes; outside one place: ${broken.join(", ") || "none"}`);
         equal(JSON.stringify(broken), "[]",
             "the census of project writes: each of these changes a project outside applyProjectChange's queue or its token outside syncProjectToken (rule, what, where)");
-    }, expectedRed("E36", "sabotageProject and undoSabotage still freeze and thaw outside a step of COUNTDOWNS_KEY and relay-guard.mjs applyOps writes Countdowns outside it; C3 moves the three into the queue and takes this marker off (C1, C2 and C4 moved every other road, the tokens into syncProjectToken)", { failing: "the census of project writes" })]
+    }]
 ];
 
 

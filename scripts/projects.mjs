@@ -770,6 +770,23 @@ async function createInStep(countdownId, change, existing, data, countdowns) {
         log(`A project ${countdownId} already exists; nothing was made.`);
         return { result: null, after: [] };
     }
+    /*
+     * A REPAIR FREEZES WHAT IT REPAIRS, IN THE SAME STEP (E36 C3, 25.10.2026; audit S17-18, S09-02). `sabotageProject`
+     * asked "is it frozen, is it a repair" on its own, then made the repair, then wrote the pair - three moments a
+     * second Sabotage of the same project passed the same question in: two at once made two repairs, and the
+     * second's `frozenBy` left the first a repair of nothing (E36-T5 counted two at 042f3482). Read here, in the
+     * step, nothing lands between the question and the freeze: a project gone, already frozen or itself a repair
+     * makes no repair at all.
+     */
+    const repaired = change.meta?.repairs ?? null;
+    if (repaired) {
+        const why = !countdowns[repaired] ? "it is gone" : metaFor(repaired).frozenBy ? "it is frozen already"
+            : metaFor(repaired).repairs ? "it is a repair" : null;
+        if (why) {
+            log(`No repair of ${repaired} was made: ${why}.`);
+            return { result: null, after: [] };
+        }
+    }
     const target = change.target ?? PROJECT_SCALE.everyday.progress;
     countdowns[countdownId] = {
         type: "narrative",
@@ -786,6 +803,7 @@ async function createInStep(countdownId, change, existing, data, countdowns) {
     };
     await writeAllCountdowns({ ...data, countdowns });
     if (change.meta) await setProjectMeta(countdownId, change.meta);
+    if (repaired) await setProjectMeta(repaired, { frozenBy: countdownId });
     return { result: { id: countdownId, name: countdowns[countdownId].name, from: 0, to: 0, target, changed: true,
         crossed: false, uncrossed: false, removed: false, created: true }, after: [] };
 }
@@ -875,6 +893,13 @@ export async function createProject({
      * GM chose to watch themselves rather than one the module forgot about.
      */
     trigger = null,
+    /*
+     * A REPAIR, AND WHAT IT REPAIRS (E36 C3): `sabotageProject`'s. With `repairFor` the new project is the repair
+     * of that project (its meta's `repairs`), which the step freezes in the same step it makes the repair, after
+     * reading there that it is still a project, not frozen and no repair itself; `saboteur` is the player who
+     * asked, the GMs'. Not named `repairs`: that is this file's function (R21 reads a shadowed name as a value).
+     */
+    repairFor = null, saboteur = null,
     // WHO PROPOSED IT, as an actor id.
     //
     // The proposal card has carried this since the bridge was written - the
@@ -944,7 +969,9 @@ export async function createProject({
             // Not armed here - armed when the bar fills. A trap that watched from
             // the moment it was proposed would be a trap you can set off while its
             // owner is still building it.
-            trigger: indirectMurder && trigger?.kind ? { ...trigger, armed: false, firedAt: null } : null
+            trigger: indirectMurder && trigger?.kind ? { ...trigger, armed: false, firedAt: null } : null,
+            ...(repairFor ? { repairs: repairFor } : {}),
+            ...(saboteur ? { saboteur } : {})
         }
     }, { by: { kind: "gm" } });
     if (!made?.created) return null;
@@ -1038,14 +1065,17 @@ export async function sabotageProject(targetId, difficulty = 3, { saboteur = nul
         viewers: secret ? insidersOf(targetId) : [],
         // A repair is not the thing it repairs, and the tray is where a player
         // has to see that at a glance.
-        glyph: "tamper"
+        glyph: "tamper",
+        // The pair, written by the step that makes the repair (`createInStep`), and who asked, when it was a
+        // player (the bridge passes Foundry's sender): a Reroll may take back its own sabotage and nobody else's.
+        repairFor: targetId,
+        saboteur
     });
-    if (!repair) return null;
-
-    // Who asked, when it was a player (the bridge passes Foundry's sender): a
-    // Reroll may take back its own sabotage and nobody else's.
-    await setProjectMeta(repair.id, { repairs: targetId, ...(saboteur ? { saboteur } : {}) });
-    await setProjectMeta(targetId, { frozenBy: repair.id });
+    if (!repair) {
+        // Frozen by another Sabotage that reached the step first (E36 C3): told as the check above tells it.
+        if (isFrozen(targetId)) ui.notifications.warn(game.i18n.format("DRPG.Project.alreadyFrozen", { name: target.name }));
+        return null;
+    }
 
     log(`Project "${target.name}" frozen; repair "${repair.name}" created (${difficulty} progress).`);
     return { repair, target: target.name };
@@ -1116,10 +1146,13 @@ export async function undoSabotage(targetId = null, repairId = null, { actorId =
         return null;
     }
 
-    // Thaw first: if the delete below fails the worst case is a stray repair bar,
-    // not a project left permanently unworkable.
-    await setProjectMeta(targetId, { frozenBy: null });
-    await deleteProject(repairId);
+    /* ONE CHANGE (E36 C3, 25.10.2026; audit S17-18): the repair's removal thaws what it froze in the same step
+       (`removeInStep`), so no moment holds a thawed project beside its repair, or a repair gone and its project
+       frozen. The thaw was written first and outside the queue: it landed while a change of the project waited
+       there (E36-T5 at 042f3482). A Reroll's undo is by "reroll", a GM's by "gm". */
+    const undone = await applyProjectChange(repairId, { remove: true },
+        { by: { kind: actorId ? "reroll" : "gm", userId: senderId ?? game.user.id, actorId } });
+    if (!undone?.removed) return null;
 
     log(`Sabotage undone: "${targetId}" thawed, repair "${repairId}" removed.`);
     return true;

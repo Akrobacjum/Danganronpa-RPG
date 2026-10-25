@@ -597,7 +597,8 @@ async function shakeProjects(amount) {
     for (const project of allProjects()) {
         if (!project.current) continue;          // nothing to take
         const took = Math.min(amount, project.current);
-        if (await addProgress(project.id, -took)) moved++;
+        // The entry's change by "system" (E36 C3), one a project, each in the queue: no card of its own.
+        if (await addProgress(project.id, -took, { kind: "system" })) moved++;
     }
     log(`Earthquake: ${moved} project(s) set back.`);
     return { moved };

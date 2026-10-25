@@ -1050,7 +1050,8 @@ async function progressEffect(actor, call, choice, done, { key }) {
     } else {
         // Who pays, as the bridge asks it of a player's (E08+E28 C16: gm-bridge.mjs `project.progress`), and
         // for which Call (fix r2-H2): a player's is held to that Call's progress and to its price paid.
-        const applied = await addProgress(choice.project, call.progress, { actorId: actor?.id ?? null, call: key });
+        // On a GM the change is the entry's by "call" (E36 C3): the kind a completion row reads.
+        const applied = await addProgress(choice.project, call.progress, { actorId: actor?.id ?? null, call: key, kind: "call" });
         if (!applied) throw new Error(`addProgress refused ${choice.project}`);
 
         // A GM's write says outright whether the bar moved. A player's

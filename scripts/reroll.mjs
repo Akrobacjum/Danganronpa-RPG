@@ -1123,7 +1123,9 @@ async function settleProgress(actor, bookmark, after, done) {
 
     // Said only when the GM's client carried it out (E31 review): a refusal, or no
     // answer, has been said once already.
-    const applied = delta ? await addProgress(bookmark.projectId, delta, { actorId: actor.id }) : true;
+    // The entry's change by "reroll", for this character (E36 C3): one that crosses is announced once, one that
+    // falls back under the target is not, and a trap it takes back is disarmed (the completion rows, D40).
+    const applied = delta ? await addProgress(bookmark.projectId, delta, { actorId: actor.id, kind: "reroll" }) : true;
     if (applied) {
         done.push(game.i18n.format("DRPG.Reroll.progressAdjusted", {
             name: project.name, was, now
