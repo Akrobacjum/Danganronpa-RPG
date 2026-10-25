@@ -711,7 +711,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
             ${players.length ? `<fieldset class="drpg-viewer-list" data-drpg-when-secret>
                 <legend>${game.i18n.localize("DRPG.Project.visibleTo")}</legend>
                 ${viewerBoxes(players, editing ? knownBy(project.id) : [], null, { locked: editing && !isSecret(project.id) })}
-                <small class="notes">${game.i18n.localize(editing && !isSecret(project.id)
+                <small class="notes" data-drpg-viewer-note>${game.i18n.localize(editing && !isSecret(project.id)
                     ? "DRPG.Project.everyone" : "DRPG.Project.visibleToNote")}</small>
             </fieldset>` : ""}
             ${editing ? `<p class="notes">${game.i18n.format("DRPG.Project.editProgressNote", {
@@ -772,7 +772,10 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
         // See wirePortraitPickers() - DialogV2 discards `content` and rebuilds
         // it from a string, so the picker has to be wired against the dialog's
         // real element once it exists, not against the div built above.
-        render: (event, dialog) => wirePortraitPickers(dialog.element, { defaultImg }),
+        render: (event, dialog) => {
+            wirePortraitPickers(dialog.element, { defaultImg });
+            if (editing && !isSecret(project.id)) wireViewerLock(dialog.element);
+        },
         rejectClose: false
     });
 
@@ -883,6 +886,31 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
 
     if (created) ui.notifications.info(game.i18n.format("DRPG.Project.created", { name: created.name }));
     return created;
+}
+
+/**
+ * A PUBLIC PROJECT'S BOXES OPEN WHEN ITS EDIT SEALS IT (E15 part 1 fix e1-G1, 25.10.2026; findings E15p1-SEC-R1,
+ * END-1, R2). An edited public project's "Visible to" is drawn locked - its ticks are who knew before it was revealed
+ * (`knownBy`), not a list the GM is choosing - and the fieldset shows once Secret or Indirect murder is ticked. With
+ * the boxes still locked, a GM's own public project (no proposer) ticked Indirect murder could name no killer: Save
+ * was refused with needsKiller ("pick who it is visible to"), which the window did not allow, and one revealed after
+ * a seal silently made the first of its old viewers the killer (tier 2 E15-T1 at c93be060: the boxes disabled after
+ * the tick, the save refused). Ticking either box now unlocks them, with the Secret project's note; unticking both
+ * locks them again, as drawn, and then the Save reads no viewers (`secrecyChange` takes none for a public project).
+ */
+function wireViewerLock(root) {
+    const form = root.querySelector("form");
+    if (!form?.secret || !form.murder) return;
+    const boxes = [...form.querySelectorAll('[name="viewers"]')];
+    const note = form.querySelector("[data-drpg-viewer-note]");
+    const sync = () => {
+        const open = form.secret.checked || form.murder.checked;
+        for (const box of boxes) box.disabled = !open;
+        if (note) note.textContent = game.i18n.localize(open ? "DRPG.Project.visibleToNote" : "DRPG.Project.everyone");
+    };
+    form.secret.addEventListener("change", sync);
+    form.murder.addEventListener("change", sync);
+    sync();
 }
 
 /**

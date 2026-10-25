@@ -66352,6 +66352,39 @@ const SCENARIOS = [
             answer = null;
             await settle();
             seen.edit = { refused: first, named: { murder: P.isIndirectMurder(plain), killer: P.secretsOf(plain).killerId === character.id } };
+            // A public project the GM made from the panel (no proposer, nobody ever let in), its window's own render
+            // hook run (E15 part 1 fix e1-G1, findings E15p1-SEC-R1, END-1, R2): its boxes drawn locked, opened by
+            // Indirect murder, locked again with both unticked, then a player ticked and saved. At c93be060 they
+            // stayed locked and the save was refused with needsKiller.
+            const open = await make("public");
+            const { isSecret } = await import("./projects-secrecy.mjs");
+            const lock = {};
+            const warnedAt = warned.length;
+            answer = async (cfg, root) => {
+                cfg.render?.(new Event("render"), { element: root });
+                const form = root.querySelector("form");
+                form.trait.value = form.trait.value || Object.keys(TRAITS)[0];
+                const disabled = () => [...form.querySelectorAll('[name="viewers"]')].map(box => box.disabled);
+                const flip = (box, on) => { box.checked = on; box.dispatchEvent(new Event("change")); };
+                lock.drawn = disabled().length > 0 && disabled().every(Boolean);
+                flip(form.murder, true);
+                lock.byMurder = disabled().some(Boolean);
+                flip(form.murder, false);
+                lock.relocked = disabled().every(Boolean);
+                flip(form.secret, true);
+                lock.bySecret = disabled().some(Boolean);
+                flip(form.secret, false);
+                flip(form.murder, true);
+                // As a click: a disabled box does not change.
+                for (const box of form.querySelectorAll('[name="viewers"]')) if (!box.disabled) box.checked = box.value === player.id;
+                const save = (cfg.buttons ?? []).find(b => b.action === "save");
+                return save.callback(new Event("click"), save, { element: root });
+            };
+            await UI.openProjectDialog({ project: P.allProjects().find(p => p.id === open) });
+            answer = null;
+            await settle();
+            seen.publicEdit = { ...lock, told: warned.slice(warnedAt).includes(game.i18n.localize("DRPG.Project.needsKiller")),
+                murder: P.isIndirectMurder(open), killer: P.secretsOf(open).killerId === character.id, secret: isSecret(open) };
 
             // (5) The Earthquake.
             const full = await make("full", { target: 2 });
@@ -66417,6 +66450,7 @@ const SCENARIOS = [
             scale: { complex: [PROJECT_SCALE.complex.progress], off: [5], none: [PROJECT_SCALE.everyday.progress] },
             fields: { plain: [true, true, true], secret: [true, true, false], murder: [false, false, false] },
             edit: { refused: { returned: true, told: true, murder: false, killer: null }, named: { murder: true, killer: true } },
+            publicEdit: { drawn: true, byMurder: false, relocked: true, bySecret: false, told: false, murder: true, killer: true, secret: true },
             quake: { effect: "earthquake", full: 2, frozen: true, working: 0 },
             receipt: { first: { count: 1, awaiting: false, asks: false }, refilled: 0 },
             defaults: [["openProjectDialog", false, true], ["ruleApproveProject", false, true], ["startProject", false, true]]
@@ -66424,7 +66458,8 @@ const SCENARIOS = [
             + "whether it stays; dropped between rooms: the project's room is the token's (or its last), whether it stays; the scale selected "
             + "for a proposal of 6, of 5, of none; the window's trap trigger, condition and viewers hidden on a plain project, with Secret, "
             + "with Indirect murder; the edit to a murder with nobody ticked: refused, told, the flag, the killer; with a player ticked: the "
-            + "flag, the killer is theirs; the Earthquake: drawn, a finished project's bar, a frozen one's unchanged, one at 1; the receipt: posted, "
+            + "flag, the killer is theirs; a public project's edit: its boxes locked as drawn, still locked after Indirect murder, locked again, still "
+            + "locked after Secret, told needsKiller, the flag, the killer is the ticked player's, sealed; the Earthquake: drawn, a finished project's bar, a frozen one's unchanged, one at 1; the receipt: posted, "
             + "awaiting, asks; filled again after firing: receipts; the three proposal defaults: a literal 4, the Standard row]");
     }],
 
