@@ -599,6 +599,8 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
     const alwaysSecret = passageOf?.preset === "secretPassage" || (editing && (await alwaysSecretIds([project])).has(project.id));
     // The owner's three of 15.10 (E15 part 2 C5): the passage, breach or item the card names, judged here as the GMs read it.
     const ownedOf = !editing && OWNED_PRESETS.includes(start?.preset) ? await presetApproval(start) : null;
+    // Said in the table's language (fix e1-G4): the judges answer English, kept for the log.
+    if (ownedOf?.refused) ownedOf.why = (await import("./passages-gm.mjs")).whyText(ownedOf.refused);
     const defaultImg = "icons/magic/time/hourglass-yellow-green.webp";
     const img = start?.img || defaultImg;
     /* A PRESET'S SIZE IS THE GMS' (E15 part 2 fix e1-G3; finding E15P2-R4): its table's (passages-gm.mjs `PASSAGE_PRESETS`),
@@ -895,9 +897,11 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
             : !passageOf.offer.neighbours.includes(result.passageTo) || !picked.rooms?.includes(passageOf.offer.from) || !picked.rooms?.includes(result.passageTo)
                 ? "DRPG.Project.passageRefused" : null;
         // A breach's stretch is judged as its completion judges it (C3: it may stand over a passage, never on a wall breached already).
-        const { builtPassageRow, breachStretchRow } = await import("./passages-gm.mjs");
-        if (why || !(passageOf.preset === "breach" ? breachStretchRow(picked) : builtPassageRow(picked)).row) {
-            ui.notifications.warn(game.i18n.localize(why ?? "DRPG.Project.passageRefused"));
+        const { builtPassageRow, breachStretchRow, whyText } = await import("./passages-gm.mjs");
+        const judged = why ? null : (passageOf.preset === "breach" ? breachStretchRow(picked) : builtPassageRow(picked));
+        if (why || !judged?.row) {
+            // The stretch's own reason, in the table's language (fix e1-G4): a whole wall, a door, a breached wall.
+            ui.notifications.warn(why ? game.i18n.localize(why) : game.i18n.format("DRPG.Project.presetRefused", { why: whyText(judged?.refused) }));
             return null;
         }
         passageFields = { presetTarget: { preset: passageOf.preset, room: result.passageTo }, passage: picked };
@@ -908,7 +912,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
     if (ownedOf) {
         const again = await presetApproval(start);
         if (again.refused) {
-            ui.notifications.warn(game.i18n.format("DRPG.Project.presetRefused", { why: again.refused }));
+            ui.notifications.warn(game.i18n.format("DRPG.Project.presetRefused", { why: (await import("./passages-gm.mjs")).whyText(again.refused) }));
             return null;
         }
         passageFields = { presetTarget: again.target, passage: null };
@@ -1030,11 +1034,11 @@ async function presetSizeOf(preset, ownedOf = null) {
 }
 
 /** The approval window's box for the owner's three: what the card names, and why it may not be done. */
-function ownedFieldset({ preset, label, refused }) {
+function ownedFieldset({ preset, label, refused, why = null }) {
     const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
     return `<fieldset class="drpg-passage-preset" data-drpg-owned-preset="${esc(preset)}"><legend>${esc(game.i18n.localize(`DRPG.Project.preset.${preset}`))}</legend>
         <p class="notes">${esc(label)}</p>${refused ? `
-        <p class="drpg-warning">${esc(game.i18n.format("DRPG.Project.presetRefused", { why: refused }))}</p>` : ""}</fieldset>`;
+        <p class="drpg-warning">${esc(game.i18n.format("DRPG.Project.presetRefused", { why: why ?? "" }))}</p>` : ""}</fieldset>`;
 }
 
 /** The approval window's Secret Passage box: the builder's room, the room beyond, the pick and what it picked. */

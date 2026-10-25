@@ -13562,6 +13562,57 @@ const REGRESSIONS = [
         JSON.stringify(["drpgBroken", ["movement.mjs"], true, 1, true, true, true]),
         "[the key, the files that name it, every naming in the reader and the writer, the key spelt, the lock, the bedroom's door and the key count asking the reader] - a second reader or writer of a broken room");
     }],
+    ["R983 - a refusal of the projects' passages and repairs is said in the table's language: every reason their judges can answer has a code of passages-gm.mjs's closed list, each code has words of its own in both language files, a reason the list does not know is said as 'unknown', and no card or window of theirs fills {why} with the judge's English", async () => {
+        /*
+         * E15 part 2 fix e1-G4 (25.10.2026; findings TEXT-1, E15P2-R8). The harm: at a Polish table the GMs' approval
+         * window and the cards of a refused completion read "Tego nie da się teraz zrobić: the item is not on the builder's
+         * own sheet." - a Polish sentence ending in the judge's English, some of it about the module's insides. Read off
+         * the judges' sources with comments blanked (`fnSource`, which fails on a renamed judge), each literal reason they
+         * answer held to the list (`whyCode`), the list's codes to both language files, and the callers' `{why}` to the
+         * list's reader; nothing is written. Red at the parent: no list.
+         */
+        const P = await import("./passages-gm.mjs");
+        equal(typeof P.whyCode, "function", "passages-gm.mjs has no list of the refusals' codes - every refusal is said in English");
+        if (typeof P.whyCode !== "function") return;
+        const sources = await moduleSources();
+        const gm = stripComments(sources.get("passages-gm.mjs") ?? ""), inv = stripComments(sources.get("inventory.mjs") ?? "");
+        must(gm.length > 1000 && inv.length > 1000, "passages-gm.mjs or inventory.mjs was not read - this would measure nothing");
+        const literals = (text, names) => names.flatMap(name => {
+            const body = fnSource(text, name);
+            return [...body.matchAll(/refused:\s*"([^"]+)"/g), ...body.matchAll(/return\s+"([^"]+)";/g), ...body.matchAll(/\?\s*null\s*:\s*"([^"]+)"/g)].map(m => m[1]);
+        });
+        const reasons = [...literals(gm, ["builtPassageRow", "opensPassageDone", "breachStretchRow", "cutBreach", "restoreBreach", "sealRefusal",
+            "sealPassageDone", "closeBreachRefusal", "closeBreachDone", "reopenBreach", "passageRowFor"]),
+        ...literals(inv, ["repairRefusal", "repairItem", "unrepairItem"])];
+        // The constants they answer by name: the map's refusals (one a template of `PICK_SHORTEST`), the whole wall, the side.
+        const map = gm.match(/const MAP_REFUSALS = Object\.freeze\(\{([\s\S]*?)\}\);/)?.[1] ?? "";
+        const named = [...map.matchAll(/"([^"]+)"/g)].map(m => m[1]).concat([...map.matchAll(/`([^`]+)`/g)].map(m => m[1].replace("${PICK_SHORTEST}", String(P.PICK_SHORTEST))));
+        const consts = ["WHOLE_WALL", "SIDE_REFUSED"].map(name => gm.match(new RegExp(`const ${name} = "([^"]+)";`))?.[1] ?? null);
+        must(reasons.length >= 25 && named.length === 6 && consts.every(Boolean), `the judges' reasons were not all read (${reasons.length}, ${named.length}, ${consts}) - this would measure nothing`);
+        const unknown = [...new Set([...reasons, ...named, ...consts])].filter(reason => !P.whyCode(reason));
+        equal(JSON.stringify(unknown), "[]", "a reason a judge answers has no code - it would be said as 'unknown' at every table");
+        // The list's codes, in both files (fetched and flattened as Foundry merges them); the planted reason is 'other'.
+        const language = async lang => {
+            const res = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`);
+            must(res.ok, `${lang}.json: HTTP ${res.status}`);
+            const flat = (o, p = "") => Object.entries(o ?? {}).flatMap(([k, v]) => (typeof v === "object" && v !== null ? flat(v, p ? `${p}.${k}` : k) : [p ? `${p}.${k}` : k]));
+            return new Set(flat(foundry.utils.expandObject(await res.json())));
+        };
+        const [en, pl] = [await language("en"), await language("pl")];
+        const codes = P.WHY_CODES ?? [];
+        const missing = codes.flatMap(code => [["en", en], ["pl", pl]].filter(([, keys]) => !keys.has(`DRPG.Passage.why.${code}`)).map(([lang]) => `${lang} ${code}`));
+        equal(JSON.stringify([codes.includes("unknown"), missing, [...new Set([...reasons, ...named, ...consts].map(P.whyCode))].every(code => codes.includes(code)),
+            P.whyCode("SUITE R983 no such reason"), P.whyText("SUITE R983 no such reason") === game.i18n.localize("DRPG.Passage.why.unknown")]),
+        JSON.stringify([true, [], true, null, true]),
+        "[an 'unknown' code, the codes missing from a language file, every code the judges reach in the list, a planted reason's code, its words 'unknown'] - a refusal with no words in one language");
+        // The callers fill `{why}` through the list's reader, never with the judge's English.
+        const callers = ["projects.mjs", "projects-ui.mjs", "passages-tab.mjs"].map(file => stripComments(sources.get(file) ?? ""));
+        must(callers.every(text => text.length > 1000), "a caller's source was not read - this would measure nothing");
+        equal(JSON.stringify(callers.map(text => (text.match(/\bwhy:\s*(?:made|again|done|refused|judged)\b/g) ?? []).length)), JSON.stringify([0, 0, 0]),
+            "[projects.mjs, projects-ui.mjs, passages-tab.mjs] fill {why} with a judge's English reason");
+        ok(callers[0].includes("whyOf(made.refused)") && callers[1].includes("whyText(again.refused)") && callers[2].includes("whyText(done.refused)"),
+            "a caller of the refusals no longer says them through the list's reader");
+    }],
     ["R603 - the handbooks say what E80 built - tunnels and stairs, 'Go through', Find Passage and its Reroll, a Find Stash's Reroll, Make public, the Passages tab's columns, Foundry's secret doors and the players' rulers - as the code does, with the texts the stage names, in English and in Polish", async () => {
         /*
          * E80 C7, 18.10.2026 (P1-23). E80 C1-C6 gave a GM tunnels and stairs, a student 'Go through' and Find Passage, a

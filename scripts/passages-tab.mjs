@@ -45,7 +45,7 @@ import { keepFresh } from "./live.mjs";
 import {
     PASSAGE_STORES, listPassages, grantPassage, revokePassage, revokeWhenLeaving, setStartAccess, setPassageWay,
     closePassage, openPassage, deletePassage, isMastermindActor, undeliveredOf, passageMiddle, startPassagePick, passageRoomsOnMap,
-    makePassagePublic, makePassageSecret, restoreBreach
+    makePassagePublic, makePassageSecret, restoreBreach, whyText
 } from "./passages-gm.mjs";
 import { viewPassage, oneWayOf } from "./passages.mjs";
 
@@ -276,7 +276,7 @@ export function wirePassagesTab(root, scene, { dialog = null, stores = PASSAGE_S
             case "secret": return makePassageSecret(passageId, { stores });
             case "closeBreach": {
                 const done = passage.breach?.breachId ? await restoreBreach(passage.sceneId, passage.breach.breachId, { stores }) : null;
-                if (done?.refused) ui.notifications?.warn?.(game.i18n.format("DRPG.Passage.tab.closeBreachRefused", { why: done.refused }));
+                if (done?.refused) ui.notifications?.warn?.(game.i18n.format("DRPG.Passage.tab.closeBreachRefused", { why: whyText(done.refused) }));
                 return Boolean(done?.closed);
             }
             case "show": return show(passageId);

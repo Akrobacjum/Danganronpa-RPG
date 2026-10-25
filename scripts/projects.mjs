@@ -582,7 +582,7 @@ export const COMPLETION_EFFECTS = [
                 keep: true,
                 after: async () => {
                     if (made?.refused) {
-                        await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Passage.card.notBuilt", { name, why: made.refused }))}</p>`);
+                        await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Passage.card.notBuilt", { name, why: await whyOf(made.refused) }))}</p>`);
                         return;
                     }
                     await (await import("./passages-gm.mjs")).tellPassageBuilt(made);
@@ -620,7 +620,7 @@ export const COMPLETION_EFFECTS = [
                 remove: true,
                 keep: true,
                 after: async () => {
-                    if (made?.refused) await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Passage.card.notBreached", { name, why: made.refused }))}</p>`);
+                    if (made?.refused) await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Passage.card.notBreached", { name, why: await whyOf(made.refused) }))}</p>`);
                     else await (await import("./passages-gm.mjs")).tellBreach(made);
                 }
             };
@@ -648,7 +648,7 @@ export const COMPLETION_EFFECTS = [
                 remove: true,
                 keep: true,
                 after: async () => {
-                    if (made?.refused) await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Passage.card.notSealed", { name, why: made.refused }))}</p>`);
+                    if (made?.refused) await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Passage.card.notSealed", { name, why: await whyOf(made.refused) }))}</p>`);
                 }
             };
         },
@@ -678,7 +678,7 @@ export const COMPLETION_EFFECTS = [
                 remove: true,
                 keep: true,
                 after: async () => {
-                    if (made?.refused) await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Passage.card.notClosed", { name, why: made.refused }))}</p>`);
+                    if (made?.refused) await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Passage.card.notClosed", { name, why: await whyOf(made.refused) }))}</p>`);
                 }
             };
         },
@@ -691,7 +691,7 @@ export const COMPLETION_EFFECTS = [
                     await setProjectMeta(id, { target: { ...meta.target, reopen: null } });
                 },
                 after: async () => {
-                    if (made?.refused) await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Passage.card.notReopened", { name, why: made.refused }))}</p>`);
+                    if (made?.refused) await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Passage.card.notReopened", { name, why: await whyOf(made.refused) }))}</p>`);
                 }
             };
         }
@@ -719,7 +719,7 @@ export const COMPLETION_EFFECTS = [
                 remove: true,
                 keep: true,
                 after: async () => {
-                    if (made?.refused) await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Project.notRepaired", { name, why: made.refused }))}</p>`);
+                    if (made?.refused) await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Project.notRepaired", { name, why: await whyOf(made.refused) }))}</p>`);
                     else if (made?.id && builder) await whisperToOwner(builder, `<p>${game.i18n.format("DRPG.Project.itemRepaired", { item: esc(made.name) })}</p>`);
                 }
             };
@@ -736,6 +736,11 @@ export const COMPLETION_EFFECTS = [
         }
     }
 ];
+
+/** A completion's refusal in the table's language (passages-gm.mjs `whyText`, E15 part 2 fix e1-G4): the English stays in the log. */
+async function whyOf(reason) {
+    return (await import("./passages-gm.mjs")).whyText(reason);
+}
 
 /** A change, whatever asked for it, cut to the keys the step knows (and a packet's to the same): null when none is left. */
 export function cleanProjectChange(change) {

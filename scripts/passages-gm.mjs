@@ -1113,6 +1113,77 @@ export function passageProjectOffer(place, { known = {}, actorId = null, sides }
 }
 
 /* ----------------------------------------------------------------------------------------- *
+ * What a refusal says to the table (E15 part 2 fix e1-G4, 25.10.2026; findings TEXT-1, E15P2-R8).
+ * ----------------------------------------------------------------------------------------- */
+
+/**
+ * THE REFUSALS OF THE PROJECTS' PASSAGES AND REPAIRS, IN THE TABLE'S LANGUAGE. The judges answer an English reason,
+ * which the console's log keeps, and the GMs' cards and windows filled `{why}` with it: at a Polish table a sentence
+ * half in English, some of it about the module's insides ("no store for the season's passages."). Each reason of
+ * `opensPassageDone`, `cutBreach`, `breachStretchRow`, `builtPassageRow` and `passageRowFor`, `restoreBreach`,
+ * `sealRefusal`, `sealPassageDone`, `closeBreachRefusal`, `closeBreachDone`, `reopenBreach`, `presetSideRefusal` and
+ * inventory.mjs `repairRefusal`, `repairItem`, `unrepairItem` has a code here, said by `DRPG.Passage.why.<code>` - what
+ * happened and what a GM can do -, and one the table does not know is "unknown" and logged (R983 reads every literal of
+ * those judges against this table). Built when first asked: the constants it names are declared further up.
+ */
+let whyCodes = null;
+const whyTable = () => new Map([
+        ["no such scene.", "noScene"],
+        ["a secret passage joins two rooms.", "twoRooms"],
+        ["a breach joins two rooms.", "twoRooms"],
+        ["only a GM makes one.", "gmOnly"],
+        ["only a GM cuts one.", "gmOnly"],
+        ["only a GM closes one.", "gmOnly"],
+        ["only a GM seals one.", "gmOnly"],
+        ["only a GM mends one.", "gmOnly"],
+        ["only a GM breaks one.", "gmOnly"],
+        ["no store for the season's passages.", "noStore"],
+        ["the builder is no student of this world.", "noBuilder"],
+        ["that passage id is taken.", "idTaken"],
+        ["that wall is breached already.", "breached"],
+        [WHOLE_WALL, "wholeWall"],
+        ["no such breach on that scene.", "noBreach"],
+        ["the wall it was cut from is gone: the room beyond is given back, and the hole is left for a GM to delete.", "wallGone"],
+        ["the passage could not be closed.", "cannotClose"],
+        ["the character does not know that passage", "notKnown"],
+        ["that is a breach: Close the breach gives the wall back.", "isBreach"],
+        [SIDE_REFUSED, "noSide"],
+        [MAP_REFUSALS.noWall, "noWall"],
+        [MAP_REFUSALS.taken, "taken"],
+        [MAP_REFUSALS.levels, "levels"],
+        [MAP_REFUSALS.notBetween, "notBetween"],
+        [MAP_REFUSALS.otherRooms, "otherRooms"],
+        [MAP_REFUSALS.short, "short"],
+        ["that wall is a door.", "door"],
+        ["that wall does not block movement.", "noMove"],
+        ["the stretch needs two different ends.", "sameEnds"],
+        ["the stretch is not on that wall.", "offWall"],
+        ["that wall is not on that floor.", "floor"],
+        ["the item is not on the builder's own sheet.", "notOwn"],
+        ["the item is neither a usable nor a tool that is broken or worn.", "notRepairable"],
+        ["nothing to cut again.", "nothingBack"],
+        ["nothing to put back.", "itemBack"],
+        ["the item was broken or worn again since.", "brokenSince"]
+]);
+
+/** The closed list of the codes `whyText` can say, each `DRPG.Passage.why.<code>` in both language files (R983). */
+export const WHY_CODES = Object.freeze(["noScene", "twoRooms", "gmOnly", "noStore", "noBuilder", "idTaken", "breached", "wholeWall", "noBreach", "wallGone", "cannotClose", "notKnown", "isBreach", "noSide", "noWall", "taken", "levels", "notBetween", "otherRooms", "short", "door", "noMove", "sameEnds", "offWall", "floor", "notOwn", "notRepairable", "nothingBack", "itemBack", "brokenSince", "unknown"]);
+
+/** A judge's English reason's code, or null for one the table does not know. */
+export function whyCode(reason) {
+    whyCodes ??= whyTable();
+    return whyCodes.get(String(reason ?? "")) ?? null;
+}
+
+/** A judge's reason as the table reads it (`DRPG.Passage.why.<code>`), the English kept for the console. */
+export function whyText(reason) {
+    const code = whyCode(reason);
+    if (code) debug(`Secret passages: refused - ${reason}`);
+    else warn(`Secret passages: a refusal with no words of its own - ${reason}`);
+    return game.i18n.localize(`DRPG.Passage.why.${code ?? "unknown"}`);
+}
+
+/* ----------------------------------------------------------------------------------------- *
  * The console API (game.drpg.passages): a GM's. Each refusal is a warning in the console and a
  * null or false answer; nothing is written before every check has passed.
  * ----------------------------------------------------------------------------------------- */
