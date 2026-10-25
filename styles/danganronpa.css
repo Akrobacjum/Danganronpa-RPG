@@ -5183,6 +5183,10 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    else. Headings keep their centring - they are one line and they mark the
    middle of the window.
 
+   The item tables window joined it in E14 part 2 C7 (audit S08-24): its help under
+   the form and Create an item's captions came out centred in the stand-in of
+   that commit's comment below, the captions beside their own boxes.
+
    `.drpg-room-guide` rides along because it carries the same kind of text -
    the how-to-draw-rooms block, which now lives in Season setup - and that
    window is `drpg-wide`, where the same measure would squeeze it just as badly.
@@ -5195,6 +5199,7 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    block. Measured: without it the paragraph computed to 672px, centred. */
 .application.dialog.drpg-room-setup :is(p, .notes):not(td):not(th):not(table *),
 .application.dialog.drpg-sound :is(p, .notes):not(td):not(th):not(table *),
+.application.dialog.drpg-window-tables :is(p, .notes):not(td):not(th):not(table *),
 .drpg-room-guide :is(p, .notes) {
     max-width: none !important;
     margin-inline: 0 !important;
@@ -16133,6 +16138,262 @@ body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-gm-route:ho
 
 .drpg-table-item-icon {
     cursor: pointer;
+}
+
+/* ==========================================================================
+   THE ITEM TABLES WINDOW, LAID OUT (E14 part 2 C7; audit S08-24, S08-25)
+   --------------------------------------------------------------------------
+   Read in Chromium at 1366x768 before this block, both themes, the window as the harness's GM draws it (its markup
+   dumped from the jsdom client, set in a stand-in of Foundry's frame with the module's sheets and no core CSS - so
+   Foundry's own inputs, checkboxes and fonts are not in it; 25.10.2026, scratchpad stages/E14p2/c78):
+     - the list of 20 room tables cut its last visible row 3 px into a 35 px row (Stained Glass) and 10 px into a
+       25 px row (Monokuma Legacy); the rows were 35 and 37 px tall under the glass, so no height could hold whole rows;
+     - every entry row wrapped: the remove button fell under the name, a row 65-82 px tall, and in Polish one row's
+       content ran past its own box;
+     - the help under the form, the Also works as caption and the Room tables caption were centred (the `drpg-wide`
+       measure above), the caption beside its boxes, the boxes on two to five lines;
+     - Delete table and the remove button wore the same ink as Rename; the selected table's count was the dim
+       grey on the selected row's fill.
+   What a real Foundry adds on top (its root size, its checkbox, Daggerheart's accent) is the owner's live check. */
+
+/* A row is one line and one height, so the list holds whole rows: eight of them, then a scrollbar that shows. The
+   height is in `em` of the list, and the button takes the list's size (`1em` of its row, which inherits the list's),
+   so the two cannot disagree; the glass's 28 px
+   floor for a panel button is lifted here, where the row's own height is the floor. */
+.drpg-window-tables .drpg-tables-list {
+    --drpg-pick-h: calc(1.35em + 10px);
+    max-height: calc(8 * var(--drpg-pick-h));
+}
+
+.drpg-window-tables .drpg-tables-list > li {
+    margin: 0;
+    padding: 0;
+}
+
+.drpg-window-tables .drpg-tables-list .drpg-table-pick {
+    box-sizing: border-box;
+    height: var(--drpg-pick-h) !important;
+    min-height: 0 !important;
+    padding-block: 0 !important;
+    align-items: center;
+    font-size: 1em !important;
+    line-height: 1.35 !important;
+}
+
+.drpg-window-tables :is(.drpg-tables-list, .drpg-table-items, .drpg-room-groups) {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(var(--drpg-bone-rgb), 0.6) transparent;
+    scrollbar-gutter: stable;
+}
+
+/* The selected row's count in the row's own ink, not the dim grey of a note: under the glass the selected row is
+   the full brush, and grey on it read as nothing. */
+.drpg-window-tables .drpg-table-pick.active > .notes {
+    color: inherit !important;
+    opacity: 0.85;
+    font-weight: 700;
+}
+
+/* AN ENTRY IS ONE GRID ROW: the icon, the name, the description, the "also in" badge, then the two buttons in columns
+   of their own at the right edge, so they never wrap under the name and they line up from row to row. The roles go
+   on a second line under the name and the description, and only when the entry has them. */
+.drpg-window-tables .drpg-table-items > li {
+    display: grid;
+    grid-template-columns: 22px minmax(6rem, 1fr) minmax(8rem, 2fr) auto auto auto;
+    grid-template-areas:
+        "icon name  note  also  place drop"
+        ".    roles roles roles place drop";
+    column-gap: 6px;
+    row-gap: 0;
+    align-items: center;
+}
+
+.drpg-window-tables .drpg-table-items > li > .drpg-table-item-icon { grid-area: icon; }
+.drpg-window-tables .drpg-table-items > li > .drpg-table-item-also { grid-area: also; }
+.drpg-window-tables .drpg-table-items > li > [data-drpg-place] { grid-area: place; align-self: start; }
+.drpg-window-tables .drpg-table-items > li > [data-drpg-drop] { grid-area: drop; align-self: start; }
+
+.drpg-window-tables .drpg-table-items > li > :is(.drpg-table-item-name, .drpg-table-item-note) {
+    box-sizing: border-box;
+    width: 100% !important;
+    min-width: 0 !important;
+}
+
+.drpg-window-tables .drpg-table-items > li > .drpg-table-item-name { grid-area: name; }
+
+/* The description at 12 px or more: at the shared extra-small size it was the smallest text in the window. */
+.drpg-window-tables .drpg-table-items > li > .drpg-table-item-note {
+    grid-area: note;
+    font-size: max(12px, var(--drpg-text-sm)) !important;
+    opacity: 0.85;
+}
+
+.drpg-window-tables .drpg-table-items > li > .drpg-table-item-roles {
+    grid-area: roles;
+    margin: 4px 0 0 !important;
+    justify-content: flex-start;
+}
+
+/* The roles as chips: an outline when free, filled when ticked, so a role reads as a state and not as grey text. */
+.drpg-window-tables .drpg-table-item-roles > .drpg-check {
+    padding: 0 6px;
+    border: 1px solid var(--drpg-line);
+    border-radius: 2px;
+    font-size: max(11px, var(--drpg-text-xs));
+}
+
+.drpg-window-tables .drpg-table-item-roles > .drpg-check:has(> input:checked) {
+    border-color: rgba(var(--drpg-bone-rgb), 0.7);
+    background: rgba(var(--drpg-bone-rgb), 0.16);
+    color: var(--drpg-bone);
+}
+
+/* Nothing in the window under 11 px: the room view's chips, tier headings and counts had a 10 px floor, and the
+   badge the shared extra-small size, which is under 11 px wherever the root size is under 16 px. */
+.drpg-window-tables :is(.drpg-room-chip, .drpg-room-tier > h6, .drpg-room-group > h5 .notes, .drpg-room-tier > h6 .notes,
+    .drpg-table-item-also) {
+    font-size: max(11px, calc(0.72rem * var(--drpg-legacy-scale, 1)));
+}
+
+/* The small buttons and the tabs take the same 11 px floor: at a 13 px root (set by hand in the stand-in; what root
+   size Foundry gives a table was not read) they came out at 10.1 and 10.6 px. The rest of the window's text is the
+   module's rem scale, 10.6 px at that root too (the notes, the legends, the heading): one floor for every window,
+   not this one's to set. */
+.drpg-window-tables :is(.drpg-mini-button, .drpg-gmt-tabs button) {
+    font-size: max(11px, calc(0.78rem * var(--drpg-legacy-scale, 1)));
+}
+
+.drpg-window-tables .drpg-gmt-tabs button {
+    font-size: max(11px, var(--drpg-text-sm));
+}
+
+/* The heading is the name as the list shows it (`showPoolName` in tables.mjs), in its own case. */
+.drpg-window-tables .drpg-table-heading h4 {
+    text-transform: none !important;
+}
+
+/* Removing is in Blood, and Delete table stands apart from Rename. Under the glass, the theme's destructive brush. */
+.drpg-window-tables :is([data-drpg-delete-table], .drpg-table-items [data-drpg-drop]) {
+    color: var(--drpg-blood);
+    border-color: rgba(var(--drpg-blood-rgb), 0.6);
+}
+
+.drpg-window-tables [data-drpg-delete-table] {
+    margin-inline-start: 1rem;
+}
+
+body.drpg-theme-stained-glass .drpg-window-tables :is([data-drpg-delete-table], .drpg-table-items [data-drpg-drop]) {
+    --brush: var(--drpg-sg-gm);
+    --brush-edge: var(--drpg-sg-gm);
+    --brush-ink: var(--drpg-sg-gm-light);
+}
+
+/* CREATE AN ITEM: each group's caption on its own line, the boxes in one left-aligned row under it (S08-25). The
+   caption sat centred beside its boxes, and the flex wrap tore single boxes off onto lines of their own. */
+.drpg-window-tables :is(.drpg-tables-roles, .drpg-tables-targets) {
+    justify-content: flex-start;
+    align-items: baseline;
+}
+
+.drpg-window-tables :is(.drpg-tables-roles, .drpg-tables-targets) > .notes:first-child {
+    flex: 0 0 100%;
+}
+
+/* ==========================================================================
+   THE GIVE AND TAKE FORMS, ONE LABEL GRID (E14 part 2 C7; audit S08-27)
+   --------------------------------------------------------------------------
+   The murder window's recipe above (two columns, each field row a subgrid), for the windows the Give / take hub
+   opens and the hub itself. Read in the same stand-in before this block: Give an item's fields started at four or
+   five different edges, 65 to 372 px wide. A tabbed window's rows sit in its open tab (`.drpg-gmt-section.active`),
+   which is matched by name so a closed tab stays closed. */
+.application.dialog:is(.drpg-window-give, .drpg-window-take, .drpg-window-bullet, .drpg-window-autopsy, .drpg-give-key,
+    .drpg-window-items) .dialog-form
+    :is(form, div, section.drpg-gmt-section.active):has(> label :is(select, textarea, input:not([type="checkbox"]))),
+.drpg-window-tables fieldset.drpg-tables-new {
+    display: grid;
+    grid-template-columns: 11rem minmax(0, 1fr);
+    column-gap: 0.75rem;
+    align-items: center;
+}
+
+.application.dialog:is(.drpg-window-give, .drpg-window-take, .drpg-window-bullet, .drpg-window-autopsy, .drpg-give-key,
+    .drpg-window-items) .dialog-form
+    :is(form, div, section.drpg-gmt-section.active):has(> label :is(select, textarea, input:not([type="checkbox"]))) > *,
+.drpg-window-tables fieldset.drpg-tables-new > * {
+    grid-column: 1 / -1;
+}
+
+.application.dialog:is(.drpg-window-give, .drpg-window-take, .drpg-window-bullet, .drpg-window-autopsy, .drpg-give-key,
+    .drpg-window-items) .dialog-form
+    :is(form, div, section) > label:not(.drpg-checkbox):has(:is(select, textarea, input:not([type="checkbox"]))),
+.drpg-window-tables fieldset.drpg-tables-new > label:has(:is(select, textarea, input:not([type="checkbox"]))) {
+    display: grid;
+    grid-template-columns: subgrid;
+    align-items: center;
+}
+
+.application.dialog:is(.drpg-window-give, .drpg-window-take, .drpg-window-bullet, .drpg-window-autopsy, .drpg-give-key,
+    .drpg-window-items) .dialog-form
+    :is(form, div, section) > label:not(.drpg-checkbox):has(:is(select, textarea, input:not([type="checkbox"]))) > *,
+.drpg-window-tables fieldset.drpg-tables-new > label:has(:is(select, textarea, input:not([type="checkbox"]))) > * {
+    grid-column: 2;
+}
+
+/* The fields the whole width of their column, so they end at one edge as well as start at one: in the same stand-in
+   Give an item's five fields were 65 to 396 px wide under Monokuma Legacy. The label column is 11rem, so a
+   window's rows outside its tabs (Give to, under Give an item's tabs) line up with the rows in them. */
+.application.dialog:is(.drpg-window-give, .drpg-window-take, .drpg-window-bullet, .drpg-window-autopsy, .drpg-give-key,
+    .drpg-window-items) .dialog-form
+    :is(form, div, section) > label:not(.drpg-checkbox) > :is(select, textarea, input:not([type="checkbox"])),
+.drpg-window-tables fieldset.drpg-tables-new > label > :is(select, textarea, input:not([type="checkbox"])) {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* The glass's select wrapper stays a flex box: its arrow is centred by `align-items`, and as a block it fell under
+   the field (measured in the stand-in, Stained Glass, the hub's Which student). */
+.application.dialog:is(.drpg-window-give, .drpg-window-take, .drpg-window-bullet, .drpg-window-autopsy, .drpg-give-key,
+    .drpg-window-items) .dialog-form
+    :is(form, div, section) > label:not(.drpg-checkbox) > .drpg-select,
+.drpg-window-tables fieldset.drpg-tables-new > label > .drpg-select {
+    display: flex;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.application.dialog:is(.drpg-window-give, .drpg-window-take, .drpg-window-bullet, .drpg-window-autopsy, .drpg-give-key,
+    .drpg-window-items) .dialog-form
+    :is(form, div, section) > label:not(.drpg-checkbox) > .drpg-select > select,
+.drpg-window-tables fieldset.drpg-tables-new > label > .drpg-select > select {
+    width: 100%;
+}
+
+/* The tick in the module's ink, not the system's orange. `--checkbox-checked-color` is the name Foundry's own drawn
+   checkbox is recalled to read, not read in this repository: whether it is v14's is the owner's live check. */
+.application.dialog:is(.drpg-window-give, .drpg-window-take, .drpg-window-bullet, .drpg-window-autopsy, .drpg-give-key,
+    .drpg-window-items, .drpg-window-tables) input[type="checkbox"] {
+    accent-color: var(--drpg-bone);
+    --checkbox-checked-color: var(--drpg-bone);
+}
+
+/* THE HUB: the three ways of the open tab as three tiles of one width, Close on its own line under them. Its buttons
+   kept to one line each (the glass's `nowrap`), so the footer's width followed the open tab's words and Close fell to
+   a second row only on one of the tabs. `!important` on the display: the glass's footer rule outranks this one and
+   lays the footer out as a row (measured: the grid did not take without it). */
+.application.dialog.drpg-window-items footer.form-footer {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.application.dialog.drpg-window-items footer.form-footer > button {
+    white-space: normal !important;
+    min-width: 0;
+}
+
+.application.dialog.drpg-window-items footer.form-footer > button[data-action="cancel"] {
+    grid-column: 1 / -1;
 }
 
 /* The key group wears Bone like every other inventory group. It had an antique

@@ -22051,6 +22051,110 @@ const INVARIANTS = [
         equal(stableJson([placeholder(en).startsWith("e.g. "), placeholder(pl).startsWith("np. "), dim]), stableJson([true, true, true]),
             `the tier pool's placeholder reads like a typed value [en "${placeholder(en)}", pl "${placeholder(pl)}", dimmed ${dim}]`);
     }],
+    ["R974 - the item tables window, Create an item and the Give and take forms are laid out by their rules: an entry one grid row with its buttons in columns of their own, the list in whole rows, each group's caption above its boxes, the help to the left, every labelled field in one grid (E14-48, S08-24, S08-25, S08-27)", async () => {
+        /*
+         * E14 part 2 C7, 25.10.2026; E14-48. The harm, read in Chromium at 1366x768 in both themes before this commit (the
+         * windows' markup dumped from the harness's GM and set in a stand-in of Foundry's frame, styles/danganronpa.css's
+         * comment): a pool's entry wrapped onto two or three lines with its remove button under the name, the list cut its
+         * last row in half, Create an item's captions were centred beside their boxes, the help under the form centred, and
+         * Give an item's fields started at four or five edges. Headless there is no layout, so this reads which rule of the
+         * module's sheets wins each property on the windows' own markup (`styleCascade`): the windows as they are asked for
+         * (DialogV2.wait answered at once with nothing, so nothing is given or written), set in the frame the shim draws
+         * (a `.dialog-content` in the dialog's form), and one tier pool's entry as `poolPaneHtml` draws it for a table made
+         * here as a plain object, never in the world. The widths themselves are the stand-in's, not this test's.
+         */
+        needs(world.atLeast("studentsInRooms", 1), "Give an item and the hub open on a student");
+        const T = await import("./tables.mjs");
+        const G = await import("./gm-items.mjs");
+        const C = await styleCascade();
+        const [student] = studentActors();
+        must(student, "no student - this would measure nothing");
+        must(!document.querySelector(".drpg-window-tables, .drpg-window-items"),
+            "the item tables or the Give / take window is open here, and would be raised rather than asked for");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const asked = [];
+        try {
+            D.wait = async config => { asked.push(config); return null; };
+            await T.openItemTables();
+            await G.gmGiveItemDialog(student);
+            await G.openItemManager(student);
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+        }
+        const frameOf = (config, markup = null) => {
+            const frame = document.createElement("div");
+            frame.className = ["application", "dialog", ...(config?.classes ?? [])].join(" ");
+            const form = document.createElement("form");
+            form.className = "dialog-form";
+            const c = config?.content;
+            const html = markup ?? (typeof c === "string" ? c : (c?.hasAttributes?.() ? c.outerHTML : c?.innerHTML ?? ""));
+            form.innerHTML = `<div class="dialog-content">${html}</div>`;
+            const footer = document.createElement("footer");
+            footer.className = "form-footer";
+            for (const b of config?.buttons ?? []) {
+                const button = document.createElement("button");
+                button.dataset.action = b.action;
+                footer.append(button);
+            }
+            form.append(footer);
+            frame.append(form);
+            return frame;
+        };
+        const tablesAsk = asked.find(config => config?.classes?.includes("drpg-window-tables"));
+        const giveAsk = asked.find(config => config?.window?.title === game.i18n.localize("DRPG.Items.give"));
+        const hubAsk = asked.find(config => config?.classes?.includes("drpg-window-items"));
+        must(tablesAsk && giveAsk && hubAsk, `a window was not asked for [tables ${!!tablesAsk}, give ${!!giveAsk}, hub ${!!hubAsk}] - this would measure nothing`);
+        const won = (el, property) => (el ? C.winner(el, property)?.value ?? null : "no element");
+
+        // One entry of a tier pool, as the pane draws it.
+        const entry = { id: "r974entry", name: "Screwdriver", description: "A long description of a screwdriver left on the bench", img: "",
+            getFlag: () => [] };
+        const pool = { id: "r974pool", name: "DRPG Tools - Tier 2", results: new Set([entry]),
+            getFlag: (scope, key) => (scope === MODULE_ID ? { category: "tool", tier: 2 }[key] : undefined) };
+        const paneFrame = frameOf(tablesAsk, T.poolPaneHtml("tiers", [pool], pool));
+        const row = paneFrame.querySelector(".drpg-table-items > li");
+        must(row, "the pane drew no entry row - this would measure nothing");
+        const cells = [".drpg-table-item-icon", ".drpg-table-item-name", ".drpg-table-item-note", ".drpg-table-item-roles", "[data-drpg-place]", "[data-drpg-drop]"]
+            .map(sel => won(row.querySelector(`:scope > ${sel}`), "grid-area"));
+        const list = paneFrame.querySelector(".drpg-tables-list");
+        const pick = list?.querySelector(".drpg-table-pick");
+        equal(stableJson([won(row, "display"), cells, /var\(--drpg-pick-h\)/.test(won(list, "max-height") ?? ""), won(pick, "height"),
+            won(paneFrame.querySelector("p.notes"), "text-align")]),
+            stableJson(["grid", ["icon", "name", "note", "roles", "place", "drop"], true, "var(--drpg-pick-h)", "left"]),
+            "the tables window's entry row is not one grid row with its buttons in their own columns, its list is not in whole rows, "
+            + "or its help is centred [row display, grid areas of icon, name, description, roles, place, remove; list height in rows; "
+            + "row height; the help's alignment]");
+
+        const tablesFrame = frameOf(tablesAsk);
+        const caption = sel => tablesFrame.querySelector(`[data-drpg-gmt-section="newItem"] ${sel} > .notes:first-child`);
+        const newForm = tablesFrame.querySelector('[data-drpg-gmt-section="newItem"] fieldset.drpg-tables-new');
+        const fieldRows = [...(newForm?.querySelectorAll(":scope > label") ?? [])];
+        equal(stableJson([won(caption(".drpg-tables-roles"), "flex"), won(caption(".drpg-tables-targets"), "flex"),
+            won(newForm, "grid-template-columns"), fieldRows.length > 0 && fieldRows.map(l => won(l, "grid-template-columns"))]),
+            stableJson(["0 0 100%", "0 0 100%", "11rem minmax(0, 1fr)", fieldRows.map(() => "subgrid")]),
+            "Create an item's captions are not each on a line above their boxes, or its fields are not in one grid "
+            + "[Also works as, Room tables, the form's columns, each field row]");
+
+        /* Give an item: the rows of Create new, opened as its tab's button opens it (`panelTabs` moves `active`; Give existing
+           holds only a line while the world has no item table), the row outside the tabs, and the other tab staying closed.
+           The hub: its footer as tiles with Close under them. */
+        const giveFrame = frameOf(giveAsk);
+        const open = giveFrame.querySelector('.drpg-gmt-section[data-drpg-gmt-section="create"]');
+        must(open, "Give an item has no Create new tab - this would measure nothing");
+        for (const section of giveFrame.querySelectorAll(".drpg-gmt-section")) section.classList.toggle("active", section === open);
+        const closed = giveFrame.querySelector(".drpg-gmt-section:not(.active)");
+        const rowsOf = parent => [...(parent?.querySelectorAll(":scope > label:not(.drpg-checkbox)") ?? [])]
+            .filter(l => l.querySelector("select, textarea, input:not([type=checkbox])"));
+        const giveRows = [...rowsOf(open), ...rowsOf(giveFrame.querySelector(".dialog-content"))];
+        const hubFrame = frameOf(hubAsk);
+        equal(stableJson([giveRows.length > 1 && giveRows.map(l => won(l, "grid-template-columns")),
+            won(open, "grid-template-columns"), won(closed, "display"),
+            won(hubFrame.querySelector("footer.form-footer"), "display"), won(hubFrame.querySelector('footer [data-action="cancel"]'), "grid-column")]),
+            stableJson([giveRows.map(() => "subgrid"), "11rem minmax(0, 1fr)", "none", "grid", "1 / -1"]),
+            "Give an item's fields are not in one grid, a closed tab is opened by it, or the hub's footer is not tiles with Close "
+            + "under them [each field row, the open tab's columns, the closed tab's display, the hub footer, Close's columns]");
+    }],
 ];
 
 /**

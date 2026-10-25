@@ -757,7 +757,9 @@ export async function gmGiveItemDialog(actor) {
 
     const result = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Items.give") },
-        classes: ["drpg-panel"],
+        // A class of its own (E14 part 2 C7, S08-27): the form rules of styles/danganronpa.css lay its labels out as one
+        // grid, and they find the window by it.
+        classes: ["drpg-panel", "drpg-window-give"],
         // Two tabs, one verb (Dawid, 2026-08-26). The footer's Give reads
         // whichever pane is showing; the tell-player switch and the cap note
         // sit below the tabs because they are true of both.
@@ -1168,7 +1170,7 @@ export async function giveTruthBulletDialog(actor) {
 
     const result = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.TruthBullet.give") },
-        classes: ["drpg-panel"],
+        classes: ["drpg-panel", "drpg-window-bullet"],
         // On Write a new one when no trace lies on any scene (E14 part 2 C6, S08-22): From a Remnant then holds only
         // the line saying so, and the window opened there with Give a Truth Bullet live under it.
         content: dialogContent(`<form>${panelTabs([
@@ -1258,7 +1260,7 @@ export async function issueAutopsyDialog() {
 
     const result = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.TruthBullet.autopsyTitle") },
-        classes: ["drpg-panel"],
+        classes: ["drpg-panel", "drpg-window-autopsy"],
         content: dialogContent(`<form>
             <p class="notes">${game.i18n.localize("DRPG.TruthBullet.autopsyHint")}</p>
             <label>${game.i18n.localize("DRPG.TruthBullet.name")}
@@ -1392,7 +1394,7 @@ async function takeItemDialog(actor, { only = null } = {}) {
             : actor
                 ? game.i18n.format("DRPG.Items.takeFrom", { actor: actor.name })
                 : game.i18n.localize("DRPG.Items.take") },
-        classes: ["drpg-panel"],
+        classes: ["drpg-panel", "drpg-window-take"],
         content: `<form>
             <label>${game.i18n.localize("DRPG.Items.takeFromWhom")}
                 <select name="recipient">${recipients}</select></label>

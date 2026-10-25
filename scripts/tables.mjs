@@ -1770,6 +1770,15 @@ function shortPoolName(name) {
     return String(name ?? "").replace(/^DRPG\s+/, "");
 }
 
+/* ONE FORM OF THE NAME (E14 part 2 C7, S08-24): the heading over a pool's entries read "DRPG CLEANING TOOLS - TIER 0"
+   above a list that says "Cleaning Tools - Tier 0". The heading drops the prefix now, as the list does, and the whole
+   name - what Rename shows and what the draw reads - is the tooltip of both. */
+function showPoolName(el, name) {
+    if (!el) return;
+    el.textContent = shortPoolName(name);
+    el.title = name ?? "";
+}
+
 /*
  * ONE PANE, BUILT TWICE (Dawid, 31.08).
  *
@@ -1787,7 +1796,7 @@ export function poolPaneHtml(family, mine, selected, refusal = null) {
     const list = mine.length
         ? `<ul class="drpg-tables-list">${mine.map(t =>
             `<li><button type="button" class="drpg-table-pick${
-                t.id === first?.id ? " active" : ""}" data-drpg-table="${t.id}">
+                t.id === first?.id ? " active" : ""}" data-drpg-table="${t.id}" title="${esc(t.name)}">
                 <span>${esc(shortPoolName(t.name))}</span>
                 <span class="notes">${t.results.size}</span>
             </button></li>`).join("")}</ul>`
@@ -1800,7 +1809,7 @@ export function poolPaneHtml(family, mine, selected, refusal = null) {
             <div class="drpg-tables-left">${list}</div>
             <div class="drpg-tables-right">
                 <div class="drpg-table-heading">
-                    <h4 data-drpg-table-name>${esc(first?.name ?? "")}</h4>
+                    <h4 data-drpg-table-name title="${esc(first?.name ?? "")}">${esc(shortPoolName(first?.name))}</h4>
                     <button type="button" class="drpg-mini-button" data-drpg-rename-table>${
                         esc(game.i18n.localize("DRPG.Tables.renameTable"))}</button>
                     <button type="button" class="drpg-mini-button" data-drpg-delete-table>${
@@ -1823,8 +1832,8 @@ export function poolPaneHtml(family, mine, selected, refusal = null) {
                 ? "DRPG.Tables.newTierPoolNote" : "DRPG.Tables.newPoolNote")}</p>
         </fieldset>
         ${family === "tiers" ? `
-        <p class="notes">${game.i18n.localize("DRPG.Tables.whereNote")}</p>
-        <p class="notes">${game.i18n.localize("DRPG.Tables.installTabNote")}</p>` : ""}
+        <p class="notes">${game.i18n.localize("DRPG.Tables.whereNote")} ${
+            game.i18n.localize("DRPG.Tables.installTabNote")}</p>` : ""}
     </div>`;
 }
 
@@ -1971,10 +1980,11 @@ function wirePaneHeading(pane, root, { current, show, nameEl }) {
 
         try {
             await current().update({ name });
-            nameEl.textContent = name;
-            const entry = root.querySelector(
-                `[data-drpg-table="${CSS.escape(current().id)}"] span`);
-            if (entry) entry.textContent = name;
+            showPoolName(nameEl, name);
+            const button = root.querySelector(`[data-drpg-table="${CSS.escape(current().id)}"]`);
+            const entry = button?.querySelector("span");
+            if (entry) entry.textContent = shortPoolName(name);
+            if (button) button.title = name;
             ui.notifications.info(game.i18n.format("DRPG.Tables.renamed", { name }));
         } catch (err) {
             error("Could not rename an item table", err);
@@ -2224,7 +2234,7 @@ function wirePoolPane(pane, root) {
     const show = async table => {
         await flush();
         current = table ?? null;
-        nameEl.textContent = table?.name ?? "";
+        showPoolName(nameEl, table?.name ?? "");
         bodyEl.innerHTML = table ? tableItemsHtml(table) : "";
         // Nothing selected is a real state - an empty world has no
         // tables at all - and a live button over nothing is a trap.
