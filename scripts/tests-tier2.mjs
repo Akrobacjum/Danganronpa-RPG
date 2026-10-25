@@ -59692,6 +59692,7 @@ const SCENARIOS = [
                 const [pid] = built();
                 const row = pid ? S.passageSeasonStore.get(pid) : null;
                 out.row = row ? [row.shape, row.rooms, row.state, row.origin, S.passageMapStore.has(pid)] : null;
+                out.ids = [projectId, hana.id];
                 // Hana's player's copy names Hana alone; Botan's player's names Botan.
                 // Botan's player's names Botan, and no student of another player (that player's own cast student is theirs too).
                 const theirs = P.passageCopyFor(friend).value?.[pid]?.actorIds ?? [];
@@ -59743,7 +59744,8 @@ const SCENARIOS = [
             "[the project secret, the preset or the stretch in projectMeta (every browser's), the GMs' target, the GMs' stretch] - a Secret Passage is public, or where it will open is world data");
         equal(J(read?.done), J([true, 1, "built", "shared", null, null, true, "SUITEE15T12MSG1"]),
             "[crossed; the passages made; Hana's, Botan's, Kenta's, Ume's ways of knowing it; the project kept; kept for] - the passage is given to someone nobody shared it with, to its Observe finder, or the project is not kept for the Reroll");
-        equal(J(read?.row), J(["wall", [DORM, GYM], "secret", { by: "project", projectId: read?.row?.[3]?.projectId ?? "?", builderId: read?.row?.[3]?.builderId ?? "?" }, false]),
+        must(read?.ids?.[0] && read.ids[1], "the project's or the builder's id was not read - the origin would be compared with nothing");
+        equal(J(read?.row), J(["wall", [DORM, GYM], "secret", { by: "project", projectId: read.ids[0], builderId: read.ids[1] }, false]),
             "[the passage's shape, rooms, state, origin, held in the GMs' map too] - the project's passage is not the season's");
         equal(J(read?.copies), J([true, true, null]),
             "[Hana's player's copy names Hana alone, Botan's player's names Botan and only that player's students, the finder's player's holds the passage] - a copy names another player's student, or reaches the finder");
@@ -59864,9 +59866,16 @@ const SCENARIOS = [
                 out.made = [PR.isSecret(projectId), Object.hasOwn(PR.metaFor(projectId), "passage"), PR.secretsOf(projectId).target];
                 const by = { kind: "player", userId: builderUser.id, actorId: hana.id };
                 await S.rerollBookmarkStore.patch(hana.id, { messageId: "SUITEE15T13MSG1" });
+                const cardsFrom = posted.length;
                 const done = await PR.applyProjectChange(projectId, { delta: 6 }, { by });
                 await settle();
                 out.cut = [done?.crossed ?? null, look()];
+                /* The Lab is nobody's bedroom: its card goes to the GMs alone (fix e1-G5; E15P2-R7, E15-53 "or the GMs'"). */
+                const { contentOf } = await import("./secret.mjs");
+                const forcedText = game.i18n.format("DRPG.Passage.card.breachForced", { room: foundry.utils.escapeHTML(LAB) });
+                const forcedCards = posted.slice(cardsFrom).filter(m => String(contentOf(m) ?? "").includes(forcedText));
+                out.forcedCard = [forcedCards.filter(m => (m.whisper ?? []).length && m.whisper.every(id => game.users.get(id)?.isGM)).length,
+                    forcedCards.filter(m => (m.whisper ?? []).some(id => !game.users.get(id)?.isGM)).length];
                 out.moves = [audit(botan, 200), audit(kenta, 200), audit(kenta, 500), audit(botan, 500), audit(botan, 50), audit(kenta, 350)];
                 out.again = [P.breachStretchRow({ ...passage, seg: { x1: 600, y1: 20, x2: 600, y2: 80 } }).refused ?? null,
                     P.breachStretchRow({ ...passage, wallId: P.breachOf(Array.from(scene.walls).find(w => P.breachOf(w)))?.pieceIds?.[1] ?? "?",
@@ -59952,6 +59961,7 @@ const SCENARIOS = [
             + "the hole is still a wall, the rest of the wall is open, or the passage the cut moved is lost");
         equal(J(read?.again), J(["that wall is breached already.", "that wall is breached already."]),
             "[a second breach on the wall, one on the copy] - a second breach on a wall a restore of the first would undo");
+        equal(J(read?.forcedCard), J([1, 0]), "[the GMs' cards that the Lab, nobody's, is forced; a player's] - a breach into a room nobody owns tells no GM its lock is lifted, or tells a player");
         equal(J(read?.makePublic), J([true, 0, true]), "[the walls as they were, the messages posted, the passage public] - a GM's Make public writes the world or tells the table");
         equal(J(read?.undone), J([true, true, back(false, true)]),
             "[uncrossed, the wall byte for byte, the scene] - the Reroll's undo leaves a piece, a key or the wall another length, or loses a passage the cut moved");
@@ -60254,6 +60264,7 @@ const SCENARIOS = [
                 const seal = await make({ name: "SUITE E15 T15 Seal the passage", target: 6, room: HALL, trait: "hand", by: hana.id,
                     presetTarget: { preset: "sealPassage", room: HALL, passageId: known } });
                 out.sealMade = [PR.secretsOf(seal).target ?? null, Object.hasOwn(PR.metaFor(seal), "target")];
+                out.ids = { known, scene: scene.id };
                 await S.rerollBookmarkStore.patch(hana.id, { messageId: "SUITEE15T15MSG1" });
                 const sealed = await PR.applyProjectChange(seal, { delta: 6 }, { by: by(hana, builderUser) });
                 await settle();
@@ -60298,6 +60309,7 @@ const SCENARIOS = [
                 const close = await make({ name: "SUITE E15 T15 Close the breach", target: 6, room: HALL, trait: "body", by: kenta.id,
                     presetTarget: { preset: "closeBreach", room: HALL, sceneId: scene.id, breachId: first } });
                 out.closeMade = [PR.secretsOf(close).target ?? null, Object.hasOwn(PR.metaFor(close), "target")];
+                out.ids.breach = first;
                 const closed = await PR.applyProjectChange(close, { delta: 6 }, { by: by(kenta, other) });
                 for (let i = 0; i < 200 && scene.walls.size > 1; i++) await new Promise(r => setTimeout(r, 10));
                 await settle();
@@ -60424,9 +60436,9 @@ const SCENARIOS = [
         }
         const unknown = "the character does not know that passage";
         equal(J(read?.sealJudged), J([unknown, unknown, null]), "[a passage Hana does not know, one that does not exist, hers] - a seal names a passage its builder does not know");
-        equal(J(read?.sealMade), J([{ preset: "sealPassage", room: HALL, passageId: read?.sealMade?.[0]?.passageId ?? "?" }, false]),
-            "[the GMs' target, a target in projectMeta (every browser's)] - the passage a seal names is world data");
-        equal(read?.sealMade?.[0]?.passageId ? "named" : "none", "named", "the seal's target names no passage");
+        must(read?.ids?.known && read.ids.scene && read.ids.breach, "the passage's, the scene's or the breach's id was not read - the targets would be compared with nothing");
+        equal(J(read?.sealMade), J([{ preset: "sealPassage", room: HALL, passageId: read.ids.known }, false]),
+            "[the GMs' target, a target in projectMeta (every browser's)] - the passage a seal names is world data, or another passage");
         equal(J(read?.sealed), J([true, "closed", true, true, true, false, true, true]),
             "[crossed; the passage closed, by this project, Hana and Botan still knowing it, in the copies, the other one in them, the project kept for the Reroll] - the seal");
         equal(J(read?.unsealed), J([true, "secret", null]), "[uncrossed, the passage, its seal] - the Reroll's undo leaves the passage closed");
@@ -60434,7 +60446,7 @@ const SCENARIOS = [
         equal(J(read?.sealForgot), J(["secret", null, 1]), "[the passage after a seal by a builder who forgot it, its mark, the GMs' card] - a seal closes a passage its builder no longer knows");
         equal(J(read?.sealShut), J(["closed", null, 1]), "[a passage a GM closed first, its mark, the GMs' card] - a seal writes over a GM's Close");
         equal(J(read?.closeJudged), J(["no such breach on that scene.", null]), "[a breach that does not exist, the one standing] - a close names a breach that is not there");
-        equal(J(read?.closeMade?.[0]), J({ preset: "closeBreach", room: HALL, sceneId: read?.closeMade?.[0]?.sceneId ?? "?", breachId: read?.closeMade?.[0]?.breachId ?? "?" }),
+        equal(J(read?.closeMade?.[0]), J({ preset: "closeBreach", room: HALL, sceneId: read.ids.scene, breachId: read.ids.breach }),
             "the close's target is not the GMs' preset, scene and breach");
         equal(read?.closeMade?.[1], false, "the breach a close names is in projectMeta (every browser's)");
         equal(J(read?.closed), J([true, 1, true, false, 0, false]),
@@ -60506,6 +60518,11 @@ const SCENARIOS = [
                     return actor;
                 };
                 const hana = await make("Hana", builderUser), botan = await make("Botan", friend), kenta = await make("Kenta", finder);
+                // Ume, the builder's player's second student, is the Mastermind (fix e1-G5; E15P2-R6, E15p2-END-06): knows by the door alone.
+                const ume = await make("Ume", builderUser);
+                await S.mastermindStore.patch("record", { actorId: ume.id });
+                const { DOOR_PART } = await import("./passages.mjs");
+                const door = () => P.passageCopyFor(builderUser).stamps?.[DOOR_PART] ?? 0;
                 const out = {};
                 const passage = (y1, y2) => ({ sceneId: scene.id, level: null, wallId: W, seg: { x1: 600, y1, x2: 600, y2 }, rooms: [DORM, GYM] });
                 const create = async (name, y1, y2) => {
@@ -60528,15 +60545,24 @@ const SCENARIOS = [
                 await settle();
                 out.share = [told.length, PR.canSee(found, friend), Object.keys(PR.secretsOf(found).foundBy ?? {}).sort()];
                 await S.rerollBookmarkStore.patch(hana.id, { messageId: "SUITEE15T16MSG1" });
-                const before = posted.length;
+                const before = posted.length, doorBefore = door();
+                await new Promise(r => setTimeout(r, 5));
                 await PR.applyProjectChange(found, { delta: 6 }, { by });
                 await settle();
                 const pid = builtBy(found);
+                const doorBuilt = door();
+                const mastermindCopy = (P.passageCopyFor(builderUser).value?.[pid]?.actorIds ?? []).includes(ume.id);
                 const cards = posted.slice(before).map(m => [m.whisper ?? [], String(contentOf(m) ?? "")]);
                 const toUser = (user, key, data) => cards.some(([to, html]) => to.includes(user.id) && html.includes(game.i18n.format(key, data).split("{")[0].slice(0, 24)));
                 out.found = [Boolean(pid), cell(pid, hana), cell(pid, botan), cell(pid, kenta), P.passageCopyFor(friend).value?.[pid] ?? null,
                     toUser(friend, "DRPG.Observe.projectFoundDone", { name: "" }), toUser(friend, "DRPG.Passage.card.passageBuiltShared", {})];
-                if (pid) await P.deletePassage(pid);
+                await new Promise(r => setTimeout(r, 5));
+                const undone = await PR.applyProjectChange(found, { delta: -1 }, { by: { kind: "reroll", actorId: hana.id } });
+                await settle();
+                out.mastermind = [mastermindCopy, doorBuilt > doorBefore, undone?.uncrossed ?? null, door() > doorBuilt,
+                    Object.hasOwn(P.passageCopyFor(builderUser).value ?? {}, pid ?? "?")];
+                await S.mastermindStore.patch("record", { actorId: null });
+                if (pid && S.passageSeasonStore.has(pid)) await P.deletePassage(pid);
                 // (2) NEVER REVEALED. A reveal by the console's road and by the entry itself; the edit window unticked.
                 const kept = await create("SUITE E15 T16 kept", 300, 450);
                 await PR.shareWith(kept, friend.id);
@@ -60592,6 +60618,8 @@ const SCENARIOS = [
             "[refusals told the finder, Botan's player let in, the project's finders] - the player a finder lets in is no finder");
         equal(J(read?.found), J([true, "built", null, null, null, true, false]),
             "[the passage made; Hana's, Botan's, Kenta's ways of knowing it; Botan's player's copy; that player told the project is finished, told of a passage] - a finder's share gives the passage away");
+        equal(J(read?.mastermind), J([true, true, true, true, false]),
+            "[the Mastermind's player's copy names Ume under the built passage, its door part moved by the completion; the Reroll's undo, the door part moved again, the passage in that copy] - the Mastermind's copy is not pushed with the passage, or keeps it after the undo");
         equal(J(read?.reveal), J([null, "it is always secret", true, true]),
             "[revealProject, the entry's reveal refused, the project secret, its viewers unchanged] - a Secret Passage is revealed");
         equal(J(read?.edit), J([[[true, true]], true, true]),
