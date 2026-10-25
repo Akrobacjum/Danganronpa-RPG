@@ -1786,10 +1786,10 @@ export function createWaiter({ emit, gmIds, me, notify, fromGm, clock = WINDOW_C
 
     function request(action, payload = {}, { settle: kind = "ack", patient = false, resend = false, ackMs = TIMING.ackMs,
         timeoutMs = TIMING.rulingMs, local = null, onPrimary = false, quiet = false, nothingSpent = false, late = null, lateRefused = null,
-        lateMs = 0, expired = null, received = null } = {}) {
+        lateMs = 0, expired = null, received = null, untilPrimaryLeaves = false } = {}) {
         return new Promise(resolve => {
             const entry = { id: null, action, kind, patient, resend, resent: 0, quiet, nothingSpent, late, lateRefused, lateMs, timeoutMs,
-                expired, received, resolve, settled: false, ackTimer: null, answerTimer: null, packet: null };
+                expired, received, untilPrimaryLeaves, resolve, settled: false, ackTimer: null, answerTimer: null, packet: null };
             try {
                 const self = me();
                 // 1. The GM's own client does it here; a GM does not talk to itself down a socket. What
@@ -1905,6 +1905,21 @@ export function createWaiter({ emit, gmIds, me, notify, fromGm, clock = WINDOW_C
     }
 
     /*
+     * 9. A WAIT THAT ENDS WITH THE PRIMARY (E36 fix e1-G4, 25.10.2026; finding E36-R5). A change asked of the primary
+     * (gm-bridge.mjs `project.change`) is not asked again - a second +1 is not the first one's resend - so a primary
+     * that reloaded or left after its "got it" left the asker waiting out the whole clock (180 s by default), even
+     * when the step had landed. A wait made with `untilPrimaryLeaves` is told `noAnswer` here at once, once, and
+     * closed: an answer that still comes goes to its `late`, as one after the clock does. R978.
+     */
+    function primaryGone() {
+        for (const entry of [...pending.values()]) {
+            if (!entry.untilPrimaryLeaves || entry.settled) continue;
+            close(entry);
+            fail(entry, "noAnswer");
+        }
+    }
+
+    /*
      * AN ASK ENDS ON BOTH SIDES (E18 C1, 19.10.2026; audits S10-25, S11-13). A ruling a person gives from
      * a card (a Hope Call's, a Dynamic action's) names the two reports the primary GM ends its card by:
      * `expired`, sent when a clock runs out on a request nothing answered, so the card stops asking and a
@@ -1923,7 +1938,7 @@ export function createWaiter({ emit, gmIds, me, notify, fromGm, clock = WINDOW_C
         }
     }
 
-    return { request, onReply, resendOnGmReady, waiting: () => pending.size };
+    return { request, onReply, resendOnGmReady, primaryGone, waiting: () => pending.size };
 }
 
 /*
@@ -1973,7 +1988,8 @@ const waiter = createWaiter({
  *                          (`late(value, requestId)`, for an answer that arrives after the clock),
  *                          lateRefused (`lateRefused(reason, requestId)`, for a refusal that does),
  *                          lateMs (how long after the wait ends `late` is still handed one;
- *                          the clock's own length when shorter)
+ *                          the clock's own length when shorter), untilPrimaryLeaves (the wait
+ *                          ends as noAnswer when the primary GM leaves, E36 fix e1-G4)
  * @returns {Promise<{ok: boolean, pending?: true, value?: *, refused?: true, reason?: string}>}
  */
 export function bridgeRequest(action, payload = {}, opts = {}) {
@@ -1984,7 +2000,12 @@ export function bridgeRequest(action, payload = {}, opts = {}) {
 export function registerBridgeReplies() {
     game.socket.on(SOCKET_EVENT, (packet, senderId) => { waiter.onReply(packet, senderId); });
     // A new primary whose world is loaded already says nothing: what still waits is asked again of it here (E18 C2).
-    Hooks.on("userConnected", (user, connected) => { if (!connected && primaryLeft(user)) waiter.resendOnGmReady(); });
+    // A wait that ends with the primary is told so first (E36 fix e1-G4), and is not asked again.
+    Hooks.on("userConnected", (user, connected) => {
+        if (connected || !primaryLeft(user)) return;
+        waiter.primaryGone();
+        waiter.resendOnGmReady();
+    });
 }
 
 /** A primary GM's world has loaded: ask again what is still waiting (gm-bridge.mjs's `onGmReady`). */

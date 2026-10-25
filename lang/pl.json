@@ -2612,7 +2612,7 @@
         "other": "{n} postaci przeniesionych do: {room}."
       },
       "destroyed": "{item} zniszczony.",
-      "effectFailed": "{call} opłacony, ale nie dało się zastosować efektu. Powiedz GM-owi.",
+      "effectFailed": "{name}: części tego, co robi ukończenie projektu (albo cofnięcie go poniżej celu), nie udało się zrobić ({error}). Pasek zostaje, jak jest; szczegóły są w konsoli.",
       "refunded": "{call} nic nie dał, więc koszt ({cost}) wraca.",
       "silenced": "{name} nie może wydawać Hope Calls, dopóki zegar się nie przesunie.",
       "silencedNotice": "Monokuma cię uciszył. Żadnych Hope Calls do końca tej pory dnia.",
@@ -2981,6 +2981,7 @@
       "cardShared": "Każdy żeton projektu jest kopią tego aktora. Otwórz projekt z jego żetonu na mapie.",
       "cardUnknown": "Nie wiesz, czym to jest.",
       "frozenNoProgress": "{name} jest sabotowany i nie ruszy do przodu, dopóki nie skończy się naprawa.",
+      "effectFailed": "{name}: części tego, co robi ukończenie projektu (albo cofnięcie go poniżej celu), nie udało się zrobić ({error}). Pasek zostaje, jak jest; szczegóły są w konsoli.",
       "everyone": "Jawny: widzą go wszyscy. Zaznaczeni to ci, którzy wiedzieli przed ujawnieniem - oni i budujący będą wiedzieć, jeśli projekt znów zostanie utajniony.",
       "builderStays": "{name} buduje „{project}”: budującego nie można odsunąć od jego własnego projektu."
     },

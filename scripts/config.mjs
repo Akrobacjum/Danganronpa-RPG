@@ -327,6 +327,13 @@ export const TIMING = {
     ackMs: 8000,
     /** A GM's ruling on a request (a Dynamic threshold, an Observe target, a sabotage's result). */
     rulingMs: 180000,
+    /**
+     * The primary GM's answer to another GM's change of a project (E36 fix e1-G4; gm-bridge.mjs `project.change`):
+     * one step of the queue and its after-steps, no person deciding, so far under a ruling's clock. A burst of
+     * changes queued ahead of it is what this waits for; a primary that left ends the wait at once instead
+     * (bridge-guards.mjs `primaryGone`). Not measured at a table: chosen, with two GMs' rehearsal to read it.
+     */
+    projectChangeMs: 30000,
     /** A GM's ruling on a Hope Call - a longer read, so a longer wait. */
     hopeCallRulingMs: 300000,
     /** The primary GM's answer to a search-token spend. */

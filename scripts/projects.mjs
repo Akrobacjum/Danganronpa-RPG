@@ -25,7 +25,7 @@
 
 import { MODULE_ID, PROJECT_SCALE, TRAP_TRIGGERS, isProjectGlyph } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { announce, log, error, whisperToOwner, gmIds, esc, isPrimaryGm, primaryGmId, serialWrite } from "./utils.mjs";
+import { announce, log, error, whisperToOwner, whisperToGms, gmIds, esc, isPrimaryGm, primaryGmId, serialWrite } from "./utils.mjs";
 // Statically: gm-stores.mjs reaches this file only by dynamic import, so the edge closes no cycle (R161).
 import { projectSecretStore, rerollBookmarkStore } from "./gm-stores.mjs";
 /* `discoveredFor` is the per-character record of which rooms somebody has
@@ -481,8 +481,10 @@ const CHANGE_KINDS = Object.freeze(["gm", "player", "call", "reroll", "system"])
  *   `remove`  the project goes in the step; with `keep` it stays until the Reroll's bookmark of
  *             the character whose change completed it (gm-stores.mjs `rerollBookmarkStore`) names
  *             another roll or is gone, so a Reroll can still take the completion back (A10).
- * Every row answers before anything is written, so a row that throws fails its caller's change
- * alone, with nothing of it written, and the queue goes on (E36-04). E15 part 2 adds rows here
+ * Every row answers before anything is written, so a row whose answer throws fails its caller's
+ * change alone, with nothing of it written, and the queue goes on (E36-04). An `apply` runs after the
+ * write: one that throws leaves the change written, is logged and told to the GMs, and the rest of the
+ * step and its `after` list still run (E36 fix e1-G4; E36-T9). E15 part 2 adds rows here
  * (opensPassage, breachesWall, ...), E74 repairsLock; none adds code to the entry.
  */
 export const COMPLETION_EFFECTS = [
@@ -628,7 +630,19 @@ export async function applyProjectChange(countdownId, change, { by = null } = {}
         const res = await requestProjectChange(countdownId, clean, who);
         return res.ok ? (res.value ?? null) : null;
     }
-    const { result, after } = await serialWrite(COUNTDOWNS_KEY, () => changeStep(countdownId, clean, who));
+    const step = await serialWrite(COUNTDOWNS_KEY, () => changeStep(countdownId, clean, who));
+    /* NO LONGER THE PRIMARY WHEN ITS STEP CAME (E36 fix e1-G4, 25.10.2026; finding E36-R4). The question above is
+       asked as the change joins the queue; a GM whose user id sorts first connecting while it waited made another
+       browser the primary, and the steps queued here ran on, beside that browser's queue. The step asks again
+       (`changeStep`) and writes nothing then: the change is asked of the primary as another GM's is, outside this
+       queue (a step never awaits a reply). E36-T9. */
+    if (step.forward) {
+        log(`This browser is no longer the primary GM's; the change of ${countdownId} is asked of the primary.`);
+        const { requestProjectChange } = await import("./gm-bridge.mjs");
+        const res = await requestProjectChange(countdownId, clean, who);
+        return res.ok ? (res.value ?? null) : null;
+    }
+    const { result, after } = step;
     // Outside the queue: the next change is under way while these post (no step awaits a window or a reply).
     for (const run of after) {
         try {
@@ -661,6 +675,8 @@ export async function applyProjectChange(countdownId, change, { by = null } = {}
  * A Reroll takes progress back and puts it on again, so a bar already full does not cross twice.
  */
 async function changeStep(countdownId, change, by) {
+    // Asked again here, where the step reads (E36 fix e1-G4): off the primary now, `applyProjectChange` asks the primary.
+    if (!isPrimaryGm()) return { result: null, after: [], forward: true };
     const data = game.settings.get(DH, COUNTDOWNS);
     const countdowns = foundry.utils.duplicate(data?.countdowns ?? {});
     const project = countdowns[countdownId];
@@ -745,7 +761,7 @@ async function changeStep(countdownId, change, by) {
     const isDone = start > 0 && afterProgress >= start;
     const crossed = !wasDone && isDone, uncrossed = wasDone && !isDone;
 
-    // Every row answers before anything is written: a row that throws leaves the project as it was.
+    // Every row answers before anything is written: a row whose answer throws leaves the project as it was.
     const ctx = { id: countdownId, name: next.name, before, after: afterProgress, target: start, meta, by, countdowns };
     const answers = [];
     if (crossed || uncrossed) {
@@ -765,7 +781,22 @@ async function changeStep(countdownId, change, by) {
     for (const answer of answers) {
         for (const [id, patch] of Object.entries(answer.meta ?? {})) await setProjectMeta(id, patch);
     }
-    for (const answer of answers) if (typeof answer.apply === "function") await answer.apply();
+    /* A ROW'S OWN WRITE THAT THROWS (E36 fix e1-G4, 25.10.2026; findings E36-R6, F6). An `apply` runs after the
+       setting's write - the trap row's armTrap needs the bar full - so its throw rejected a change already written:
+       the bar read full, no receipt, no done card, no token sync, and a retry answered alreadyFull, so nothing ever
+       ran it again (E36-T9 at 4082fa98). Caught now, each on its own: logged, told to the GMs after the step, and the
+       rest of the step and what follows it run (the trap row's receipt falls back to the card with Fire when it
+       could not arm). */
+    for (const answer of answers) {
+        if (typeof answer.apply !== "function") continue;
+        try {
+            await answer.apply();
+        } catch (err) {
+            error(`What the completion of the project "${next.name}" does could not all be done`, err);
+            const why = String(err?.message ?? err);
+            after.push(() => whisperToGms(`<p>${esc(game.i18n.format("DRPG.Project.effectFailed", { name: next.name, error: why }))}</p>`));
+        }
+    }
     // A completion kept for a Reroll is let go when the bar is taken back under its target.
     if (uncrossed && secretsOf(countdownId).keptFor) await projectSecretStore.patch(countdownId, { keptFor: null });
 

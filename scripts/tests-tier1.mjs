@@ -21187,6 +21187,39 @@ const INVARIANTS = [
         ]), "per row: [the action, patient, the result, before half the ruling's clock, what was said, what was sent after the ask] - an ask with no 'got it' waited for the ruling's clock, was said other than once, or did not tell the GMs it expired");
     }],
 
+    ["R978 - a change asked of the primary GM ends when the primary leaves: a wait marked so (`untilPrimaryLeaves`) is told noAnswer at once, once, and its late answer still goes to `late`; a wait not marked keeps its clock (E36 fix e1-G4)", async () => {
+        /*
+         * E36 fix e1-G4, 25.10.2026; finding E36-R5. Another GM's change of a project goes to the primary by
+         * gm-bridge.mjs `project.change`, a "reply" with no resend: a primary that reloaded or left after its "got
+         * it" left the asking GM's await waiting out the bridge's 180 s clock, even when the step had landed, and a
+         * Save or a create then tried again. The waiter (bridge-guards.mjs `createWaiter`) now fails at once every
+         * wait that asked for it when the primary leaves (`primaryGone`, which registerBridgeReplies calls on
+         * `userConnected` with `primaryLeft`), says so once, and hands an answer that comes after to `late`, as an
+         * answer after the clock is. Driven with fakes, as R165 drives the waiter: nothing leaves this client.
+         */
+        const { createWaiter } = await import("./bridge-guards.mjs");
+        const sent = [], said = [], late = [];
+        const who = { id: "R978ME", isGM: true, isPrimary: false };
+        const waiter = createWaiter({
+            emit: packet => sent.push(packet), gmIds: () => ["R978GM"], me: () => who,
+            notify: (action, reason) => said.push(`${action} ${reason}`), fromGm: id => id === "R978GM", report: () => {}
+        });
+        must(typeof waiter.primaryGone === "function", "the waiter has no primaryGone - nothing ends a wait when the primary leaves");
+        const marked = waiter.request("r978.change", {}, { settle: "reply", ackMs: 1000, timeoutMs: 1000, untilPrimaryLeaves: true, late: value => late.push(value) });
+        const kept = waiter.request("r978.other", {}, { settle: "reply", ackMs: 1000, timeoutMs: 1000 });
+        const [markedId, keptId] = sent.map(p => p.requestId);
+        for (const requestId of [markedId, keptId]) waiter.onReply({ action: "bridge.ack", userId: who.id, requestId }, "R978GM");
+        waiter.primaryGone();
+        waiter.primaryGone();
+        const first = await Promise.race([marked, new Promise(resolve => setTimeout(() => resolve("still waiting"), 50))]);
+        waiter.onReply({ action: "bridge.done", userId: who.id, requestId: markedId, value: { changed: true } }, "R978GM");
+        const waiting = waiter.waiting();
+        waiter.onReply({ action: "bridge.done", userId: who.id, requestId: keptId, value: { other: true } }, "R978GM");
+        equal(JSON.stringify({ first, said, late, waiting, other: await kept }), JSON.stringify({
+            first: { ok: false, reason: "noAnswer" }, said: ["r978.change noAnswer"], late: [{ changed: true }], waiting: 1,
+            other: { ok: true, value: { other: true } }
+        }), "a wait marked untilPrimaryLeaves does not end once when the primary leaves, its late answer is lost, or an unmarked wait ends with it");
+    }],
     ["R841 - a request still waiting is asked again of a new primary GM, three times at most: when a primary's world loads, and when the primary leaves for another GM who is here", async () => {
         /*
          * E18 C2, 19.10.2026; audit S10-43 part 1 (E18-09). The waiter asked again once, and only when a primary's

@@ -2366,7 +2366,8 @@ export const BRIDGE_ACTIONS = table({
         guards: [gmOnly("only a GM changes a project")],
         sanitize: pick({ countdownId: as.id, change: as.raw, by: as.raw }),
         run: handleProjectChange,
-        answer: "reply",
+        // A step, no person deciding: a clock of its own, and the wait ends when the primary leaves (E36 fix e1-G4).
+        answer: "reply", timeoutMs: TIMING.projectChangeMs,
         claims: {
             countdownId: "a GM's: the primary changes the project it names, or none when it is gone (projects.mjs `applyProjectChange`)",
             change: "a GM's: cut to the keys the step knows (projects.mjs `cleanProjectChange`), the frozen project's refusal read again in the step",
@@ -3037,6 +3038,12 @@ export function requestUndoSabotage(targetId, repairId, actorId = null) {
 export function requestProjectChange(countdownId, change, by = null) {
     return ask(ACTION_PROJECT_CHANGE, { countdownId, change, by }, {
         onPrimary: true,
+        /* NOT ASKED AGAIN, AND NOT WAITED OUT (E36 fix e1-G4, 25.10.2026; finding E36-R5). A change is not resent - a
+           second +1 is not the first one's echo - so a primary that reloads or leaves after its "got it" ends this wait
+           at once, as noAnswer (bridge-guards.mjs `primaryGone`), instead of after the row's clock; an answer that still
+           comes says on this console that the change landed, so a GM about to make it again can read that it did. */
+        untilPrimaryLeaves: true,
+        late: value => debug(`A change of the project ${countdownId} asked of the primary landed after its wait ended.`, value),
         local: () => import("./projects.mjs").then(m => m.applyProjectChange(countdownId, change, { by }))
     });
 }

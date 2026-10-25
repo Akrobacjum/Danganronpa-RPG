@@ -2520,7 +2520,7 @@
         "other": "{n} characters moved to {room}."
       },
       "destroyed": "{item} is destroyed.",
-      "effectFailed": "{call} was paid for, but its effect could not be applied. Tell the GM.",
+      "effectFailed": "{name}: part of what finishing it (or taking it back under its target) does could not be done ({error}). The bar stands as it is; the console has the details.",
       "refunded": "{call} did nothing, so the {cost} it cost has been returned.",
       "silenced": "{name} cannot spend Hope Calls until this time of day ends.",
       "silencedNotice": "Monokuma has silenced you. No Hope Calls until this time of day ends.",
@@ -2865,6 +2865,7 @@
       "alreadyComplete": "{name} is finished. There is no work left in it.",
       "allComplete": "Every project in {room} is already finished.",
       "frozenNoProgress": "{name} has been sabotaged and cannot move forward until its repair is finished.",
+      "effectFailed": "{name}: part of what finishing it (or taking it back under its target) does could not be done ({error}). The bar stands as it is; the console has the details.",
       "everyone": "Public: everyone can see it. Ticked: who knew before it was revealed - they and whoever builds it are who will know if it is sealed again.",
       "builderStays": "{name} is building “{project}”: a builder cannot be taken off their own project."
     },

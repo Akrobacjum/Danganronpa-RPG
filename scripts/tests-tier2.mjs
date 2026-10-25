@@ -65574,6 +65574,99 @@ const SCENARIOS = [
             + "the answer, the old project; with a trap made behind it: cleared, the old project, its tokens and its secrets, the trap, its killer, "
             + "its trigger, its tokens]");
     }],
+    ["a change outlives what can go wrong around its step (E36-T9): a completion row whose write throws after the bar is written leaves the change made, its after-steps run and the GMs told, and a change queued on a browser that is no longer the primary when its step comes is asked of the primary instead, and lands there once", async () => {
+        /*
+         * E36 fix e1-G4, 25.10.2026; findings E36-R4, E36-R6, F6, audit S17-18. (1) A row of projects.mjs
+         * `COMPLETION_EFFECTS` answers before anything is written, but its `apply` (the trap row's armTrap) runs
+         * after the setting's write: one that threw rejected the whole change after the bar was written full, so
+         * no receipt, no done card and no token sync followed, and a retry answered alreadyFull. Planted here, a
+         * row whose `apply` throws on a project of 1: what the caller got, the bar, whether the row's `after` ran,
+         * and a whisper to the GMs naming the error. (2) The entry asked "the primary?" once, as a change joined
+         * the queue: a GM whose user id sorts first connecting meanwhile left the queued steps running here, on a
+         * browser whose writes the new primary's queue knows nothing of. A step held on `COUNTDOWNS_KEY`, a +1
+         * queued behind it, then a full GM planted in the user list sorting first (as E36-T2 plants a GM) and the
+         * hold let go: the bar while that GM is the primary, the `project.change` packet this browser sent instead
+         * (caught before the socket), and - that GM gone again, this browser the primary - the packet judged here as
+         * the primary judges this browser's packet, its answer handed back to this browser's waiter as that GM's:
+         * what the forwarded call answered and the bar.
+         * At 4082fa98: (1) the caller's promise rejected and the after never ran, (2) the step ran here.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter"), "a world whose GM answers the bridge");
+        const P = await import("./projects.mjs");
+        const S = await import("./projects-secrecy.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { serialWrite, isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this GM is not the primary - run the suite on the primary GM");
+        const rows = Array.isArray(P.COMPLETION_EFFECTS) ? P.COMPLETION_EFFECTS : [];
+        const FIRST = { id: "0E36T9firstGM000", name: "E36 T9 first GM", role: CONST.USER_ROLES.GAMEMASTER, isGM: true, active: true };
+        const meta = foundry.utils.deepClone(P.projectMeta());
+        const before = new Set(game.messages.map(m => m.id));
+        const current = id => P.allProjects().find(p => p.id === id)?.current ?? null;
+        const made = [], caught = [], replies = [];
+        const make = async (name, target, extra = null) => {
+            const id = (await P.createProject({ name, target }))?.id ?? null;
+            must(id, `could not create "${name}" - this would measure nothing`);
+            made.push(id);
+            if (extra) await P.setProjectMeta(id, extra);
+            return id;
+        };
+        let afterRan = false, release = () => {};
+        const THROW = { key: "suiteE36T9Apply", onCrossed: () => ({
+            apply: async () => { throw new Error("SUITE E36 T9 apply"); },
+            after: () => { afterRan = true; } }) };
+        const socket = game.socket;
+        const emit = socket.emit;
+        const seen = {};
+        try {
+            const thrower = await make("SUITE E36 T9 row", 1, { suiteE36T9Apply: true });
+            rows.push(THROW);
+            const outcome = await P.applyProjectChange(thrower, { delta: 1 }).then(r => ({ changed: r?.changed ?? null, crossed: r?.crossed ?? null }),
+                err => ({ threw: String(err?.message ?? err) }));
+            await settle();
+            const told = game.messages.filter(m => !before.has(m.id) && String(contentOf(m)).includes("(SUITE E36 T9 apply)"));
+            seen.apply = { outcome, bar: current(thrower), afterRan, told: told.length, toGms: told.every(m => (m.whisper ?? []).length > 0) };
+
+            const moved = await make("SUITE E36 T9 handed over", 5);
+            socket.emit = (event, packet, options) => {
+                if (packet?.action === "project.change") { caught.push(packet); return undefined; }
+                return emit.call(socket, event, packet, options);
+            };
+            const gate = new Promise(resolve => { release = resolve; });
+            const hold = serialWrite(S.COUNTDOWNS_KEY, () => gate);
+            const forwarded = P.applyProjectChange(moved, { delta: 1 });
+            await settle();
+            game.users.set(FIRST.id, FIRST);
+            release();
+            await hold;
+            await settle();
+            seen.handover = { primaryHere: isPrimaryGm(), bar: current(moved), sent: caught.map(p => [p.countdownId === moved, p.change?.delta ?? null]) };
+            FIRST.active = false;
+            if (caught[0]) {
+                await G.judge(B.BRIDGE_ACTIONS, caught[0], game.user.id, { send: (to, reply) => replies.push(reply) });
+                for (const listener of socket.listeners?.(`module.${MODULE_ID}`) ?? []) for (const reply of replies) listener(reply, FIRST.id);
+            }
+            const answer = await Promise.race([forwarded, new Promise(resolve => setTimeout(() => resolve("still waiting"), 2000))]);
+            seen.handover.answer = answer?.changed ?? answer;
+            seen.handover.after = current(moved);
+        } finally {
+            release();
+            socket.emit = emit;
+            game.users.delete(FIRST.id);
+            if (rows.includes(THROW)) rows.splice(rows.indexOf(THROW), 1);
+            for (const id of made) await P.deleteProject(id).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, meta);
+            for (const m of game.messages.contents.filter(m => !before.has(m.id))) await m.delete();
+            await settle();
+        }
+        equal(stableJson(seen), stableJson({
+            apply: { outcome: { changed: true, crossed: true }, bar: 1, afterRan: true, told: 1, toGms: true },
+            handover: { primaryHere: false, bar: 0, sent: [[true, 1]], answer: true, after: 1 }
+        }), "a change does not outlive a row's failed write or a change of primary [a row whose apply throws: what the caller got, the bar, "
+            + "the row's after, the GMs' whisper; a change queued before the primary changed: here the primary?, the bar, the packet sent, "
+            + "the forwarded answer, the bar after]");
+    }],
     ["a project's token follows its project (E36-T6): after each change of a project one function puts its token right - made in a room it stands there once, its room changed it moves there once, finished it changes colour and back, shared or taken back the visibility pass runs over it, with no room or no project it is gone, a dragged token is not moved back, and a second GM's project and a second scene draw make one token", async () => {
         /*
          * E36 C4, 25.10.2026; E36-14 and E36-15, audit S09-19, S09-20. A project's token was put right by the sync
