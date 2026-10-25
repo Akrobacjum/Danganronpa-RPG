@@ -40,7 +40,7 @@ import { iAmTheMastermind, SETTINGS, isDeceased, isDeadForGm, getClock } from ".
 import { SEARCH_FLAGS } from "./search-tokens.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 // Static is safe: tables.mjs only reaches back into this file lazily.
-import { isTierPool } from "./tables.mjs";
+import { roomStockTables } from "./tables.mjs";
 import { dialogContent, tableDialog, whisperToOwner, whisperToGms, announce, log, error, plural,
     workingScene, pinFooterAcrossScroll, wireDashboardTabs, esc, isPrimaryGm, forcedDeletion, wirePortraitPickers, forgeAsset } from "./utils.mjs";
 import { alreadyOpen, keepFresh } from "./live.mjs";
@@ -3483,11 +3483,10 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
     const { isDeceased } = await import("./chapter.mjs");
     const living = students.filter(a => !isDeceased(a)).length;
     // Room pools only. The tier pools (`tableName()`'s family) answer dice
-    // rolls and are never a room's stock - see `isTierPool` in tables.mjs.
-    const tables = Array.from(game.tables ?? [])
-        .map(t => t.name)
-        .filter(n => !isTierPool(n))
-        .sort();
+    // rolls and are never a room's stock - see `roomStockTables` in tables.mjs:
+    // by their flags since E14 fix e1-G2, so one the GM renamed in the sidebar
+    // is not offered here as "Kitchen knives".
+    const tables = roomStockTables();
     /*
      * WHAT A ROOM CAN BE GOOD OR BAD FOR (audit A24).
      *

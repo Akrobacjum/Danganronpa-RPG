@@ -64158,6 +64158,94 @@ const SCENARIOS = [
             + "[the room's draws, what grantDrawn wrote, the substitute, the world's draws, a plant's name read, the GM's verdicts on the find at its tier and above it, the Reroll's item; each draw as (entry, category, tier, goal, substitute)]");
     }],
 
+    ["a tier pool renamed in the sidebar is one by its flags everywhere: the Item tables window lists it on the Tier pools tab, Room Setup does not offer it, its entries are filed, a room pointed at it does not draw from it, and a table under a pool's name whose flags say another pool answers no draw for that name (E14 fix e1-G2: END-04, R3, R4)", async () => {
+        /*
+         * E14 fix e1-G2, 25.10.2026; the review's E14p2-END-04, R3 and R4. C1 made a tier pool answer its draw by its flags
+         * (category, tier, goal) whatever its name, and everything else that sorts a table into its family still read the
+         * name (`isTierPool`), so a pool the GM renamed in the sidebar was missing from the Item tables window, offered by
+         * Room Setup as a room's stock, and its entries filed by nothing; and `tierTablesFor`'s by-name step took a table
+         * named like the pool asked whatever its flags said. Three tables of the suite's: "Kitchen knives" with a Tier 2
+         * Murder Weapon pool's flags and one entry, "Calm" with a Tier 1 Sanity Relief pool's, and one under a tier pool's
+         * name no table of the world answers to, flagged as another category's pool; and a room of the scene on screen
+         * pointed at "Kitchen knives" (its region's `drpgItemTable`, put back after). Read: the window's two lists, Room
+         * Setup's (tables.mjs `roomStockTables`, which vault.mjs's Room Setup reads), how the knives' entry and the calm
+         * one are filed (`foundAs`, `usableKindFor`), what a Healing usable's draw in the room hands over, and whether the
+         * impostor answers the draw its name says. Red at f33c0150: listed on the Room pools tab, offered, unfiled, the
+         * room drew the cleaver, the impostor answered.
+         */
+        const t = await import("./tables.mjs");
+        const V = await import("./vault.mjs");
+        const C = await import("./config.mjs");
+        const scene = canvas?.scene ?? null;
+        must(scene, "no scene on screen to hold the room this would point at the renamed pool");
+        const room = [...new Set(Array.from(scene.regions ?? []).map(r => r.name).filter(Boolean))]
+            .find(name => !V.roomTable(name, scene)) ?? null;
+        must(room, `no room of "${scene.name}" draws from the world's pools - pointing one at a table would measure nothing`);
+        const TAG = "SUITE e1-G2";
+        // A tier pool's name no table answers to, for the impostor: the shape and the name it is found under.
+        const shapes = Object.keys(t.ITEM_POOLS).filter(c => c !== "usable").flatMap(category => C.ITEM_TIERS.map(tier => ({ category, tier })));
+        let free = null;
+        for (const shape of shapes) {
+            const name = t.tableNameCandidates(shape.category, shape.tier).find(n => !game.tables.getName(n)) ?? null;
+            if (name && !t.flaggedTables(shape.category, shape.tier).length) { free = { ...shape, name }; break; }
+        }
+        must(free, "every tier pool's every name is a table of the world's - the impostor would not be the one found by name");
+        const other = free.category === "crimeTool" ? "cleaningTool" : "crimeTool";
+        const made = [], regions = Array.from(scene.regions ?? []).filter(r => r.name === room);
+        const before = regions.map(r => r.getFlag(MODULE_ID, V.VAULT_FLAGS.table));
+        const tablesApp = () => [...foundry.applications.instances.values()]
+            .find(a => a.element?.classList?.contains("drpg-window-tables") && a.element.isConnected);
+        const read = {};
+        try {
+            const mk = async (name, flags, entry) => {
+                const table = await RollTable.create({ name, formula: "1d1", flags: { [MODULE_ID]: flags },
+                    results: [{ type: CONST.TABLE_RESULT_TYPES?.TEXT ?? "text", name: entry, text: entry, description: entry, range: [1, 1], weight: 1 }] });
+                made.push(table);
+                return table;
+            };
+            const knives = await mk(`${TAG} Kitchen knives`, { category: "crimeTool", tier: 2, goal: null }, `${TAG} cleaver`);
+            const calm = await mk(`${TAG} Calm`, { category: "usable", tier: 1, goal: "stress" }, `${TAG} lavender`);
+            const impostor = await mk(free.name, { category: other, tier: free.tier, goal: null }, `${TAG} axe`);
+            await settle();
+
+            const opening = t.openItemTables();   // held, not awaited - it resolves on close
+            try {
+                await until(() => tablesApp());
+                await settle();
+                const el = tablesApp()?.element;
+                const on = (family, table) => Boolean(el?.querySelector(`[data-drpg-pane="${family}"] [data-drpg-table="${table.id}"]`));
+                read.window = [knives, calm].map(table => [on("tiers", table), on("rooms", table)]);
+            } finally {
+                try { await tablesApp()?.close(); } catch { /* already gone */ }
+                try { await Promise.race([opening, wait(2000)]); } catch { /* closed rather than answered */ }
+                await settle();
+            }
+            read.moduleTables = [knives, calm].map(table => t.moduleTables().includes(table));
+            read.roomSetup = typeof t.roomStockTables === "function"
+                ? [knives, calm, impostor].map(table => t.roomStockTables().includes(table.name)) : "no roomStockTables";
+            read.filed = [t.foundAs(`${TAG} cleaver`, { category: "usable", tier: 2, goal: "healing" }), t.usableKindFor(`${TAG} lavender`)];
+
+            for (const region of regions) await region.update({ [`flags.${MODULE_ID}.${V.VAULT_FLAGS.table}`]: knives.name });
+            await settle();
+            const drawn = await t.drawItem("usable", 2, { goal: "healing", room, scene });
+            read.room = [V.roomTable(room, scene) === knives.name, drawn?.name === `${TAG} cleaver`];
+            read.byName = t.tierTablesFor(free.category, free.tier).map(table => table.id === impostor.id);
+        } finally {
+            for (const [i, region] of regions.entries()) {
+                await region.update({ [`flags.${MODULE_ID}.${V.VAULT_FLAGS.table}`]: before[i] === undefined ? forcedDeletion() : before[i] });
+            }
+            for (const table of made) if (game.tables.get(table.id)) await table.delete();
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            window: [[true, false], [true, false]], moduleTables: [true, true], roomSetup: [false, false, false],
+            filed: [{ category: "crimeTool", tier: 2, goal: null }, "stress"], room: [true, false], byName: []
+        }), "a tier pool renamed in the sidebar is still sorted by its name, or a table under a pool's name answers for it whatever its flags "
+            + "[the window's Tier pools and Room pools lists for the knives and the calm; moduleTables; Room Setup's offer of the knives, the calm "
+            + "and the impostor; the cleaver as foundAs files it, the lavender's kind; the room pointed at the knives and whether its Healing draw "
+            + "handed the cleaver over; tierTablesFor of the impostor's name's pool, whether each is the impostor]");
+    }],
+
     ["a Search's plant it could not hand over goes back to its room, the GMs told who found it and that it waits again, on a GM's own Search and on a player's as the GM judges it (E14-T9, S08-10)", async () => {
         /*
          * E14 part 2 C4, 24.10.2026; E14-40. The harm (audit S08-10): traps.mjs `takePlant` takes the plant out of the

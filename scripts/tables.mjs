@@ -181,9 +181,16 @@ export function flaggedTables(category, tier, goal = null, tables = game.tables 
  */
 export function tierTablesFor(category, tier, goal = null) {
     const found = flaggedTables(category, tier, goal);
+    // Not a table whose flags name another pool (E14 fix e1-G2, 25.10.2026; the review's E14p2-R4): a Tier 2 weapons
+    // pool renamed "DRPG Tools - Tier 1" in the sidebar answered a Tier 1 Tool's draw by that name, and the find was
+    // a Tier 1 Murder Weapon. The module's own rename refuses that name (`renameOtherPool`); the sidebar does not.
+    const another = table => {
+        const own = tierPoolOf(table);
+        return Boolean(own) && (own.category !== category || own.tier !== Number(tier) || (own.goal ?? null) !== (goal ?? null));
+    };
     for (const name of tableNameCandidates(category, tier, goal)) {
         const table = game.tables?.getName?.(name);
-        if (table && !found.includes(table)) found.push(table);
+        if (table && !found.includes(table) && !another(table)) found.push(table);
     }
     return found;
 }
@@ -298,6 +305,47 @@ const TIER_POOL_PATTERN = /^DRPG .+ - Tier \d+$/;
 
 export function isTierPool(name) {
     return TIER_POOL_PATTERN.test(String(name ?? ""));
+}
+
+/**
+ * WHICH FAMILY A TABLE IS IN, BY ITS FLAGS (E14 fix e1-G2, 25.10.2026; the review's E14p2-END-04 and R3).
+ *
+ * C1 made a tier pool answer a draw by the flags the installer writes, whatever its name, and left everything that
+ * sorts tables into the two families reading the name (`isTierPool`). So a pool the GM renamed in the sidebar -
+ * "DRPG Murder Weapons - Tier 2" to "Kitchen knives", flags crimeTool and 2 - still answered a Tier 2 weapon's draw,
+ * and was missing from the Item tables window (`moduleTables` keeps a "DRPG " name), offered by Room Setup as a
+ * room's stock (where it answered every Search of that room from a Tier 2 pool), listed on neither tab's side it
+ * belongs to, and its entries filed by nothing (`tableIndex`): a cleaver it alone holds, handed over by a room's own
+ * table to a Search for a Healing usable, was granted as a Healing usable, and `usableKindFor` read no kind for a
+ * name a renamed Healing pool alone holds. Now:
+ *   - `tierPoolOf`: the pool a table's flags name - a category the pools hold and a tier of `ITEM_TIERS` - or null;
+ *   - `isTierPoolTable`: a table with such flags is a tier pool under any name; one marked `roomPool` is a room's;
+ *     one with neither is read by its name, as every table was before the flags existed.
+ */
+export function tierPoolOf(table) {
+    const category = table?.getFlag?.(MODULE_ID, "category");
+    const tier = Number(table?.getFlag?.(MODULE_ID, "tier"));
+    if (!category || !Object.hasOwn(ITEM_POOLS, category) || !ITEM_TIERS.includes(tier)) return null;
+    return { category, tier, goal: table.getFlag(MODULE_ID, "goal") ?? null };
+}
+
+export function isTierPoolTable(table) {
+    if (tierPoolOf(table)) return true;
+    if (table?.getFlag?.(MODULE_ID, "roomPool")) return false;
+    return isTierPool(table?.name);
+}
+
+/** The names Room Setup's "Draws from" offers: every table but a tier pool (`isTierPoolTable`), sorted (vault.mjs). */
+export function roomStockTables(tables = game.tables ?? []) {
+    return Array.from(tables).filter(t => !isTierPoolTable(t)).map(t => t.name).sort();
+}
+
+/** The pool a tier pool table is, by its flags, else, for a table with none, by its name (`classifyTableName`). */
+function poolShapeOf(table) {
+    const flagged = tierPoolOf(table);
+    if (flagged) return flagged;
+    if (table?.getFlag?.(MODULE_ID, "category") || table?.getFlag?.(MODULE_ID, "roomPool")) return null;
+    return classifyTableName(table?.name);
 }
 
 /**
@@ -755,7 +803,9 @@ export async function drawItem(category, tier, { goal = null, room = null, scene
     if (roomBase) {
         for (const name of roomTableNames(roomBase, category, tier)) {
             const table = game.tables?.getName?.(name);
-            const found = table ? await drawFrom(table) : null;
+            // A tier pool is never a room's stock, whatever its name (E14 fix e1-G2): a room pointed at one before
+            // Room Setup read the flags answered every Search there from that pool, at any roll.
+            const found = table && !tierPoolOf(table) ? await drawFrom(table) : null;
             if (found) return { ...found, ...roomEntryAs(roomBase, table, found.name, asked) };
         }
 
@@ -777,7 +827,7 @@ export async function drawItem(category, tier, { goal = null, room = null, scene
          * the roll was made and beaten, an action and a search token are spent, and
          * something real came out. It is simply not what was asked for.
          */
-        const owned = (game.tables?.contents ?? []).filter(t => isRoomTableOf(roomBase, t.name, tier));
+        const owned = (game.tables?.contents ?? []).filter(t => isRoomTableOf(roomBase, t.name, tier) && !tierPoolOf(t));
         // Shuffled rather than "the first one": the room's tables are named by
         // category and taking the first would silently favour whichever
         // category sorts earliest.
@@ -1037,6 +1087,8 @@ export function moduleTables() {
 
     return Array.from(game.tables ?? [])
         .filter(t => t.name.startsWith("DRPG ")
+            // A tier pool under the name its GM gave it in the sidebar (E14 fix e1-G2): it is one by its flags.
+            || Boolean(tierPoolOf(t))
             || roomTables.has(t.name)
             || Array.from(roomTables).some(base => t.name.startsWith(`${base} - `))
             // A room pool the GM created here but has not pointed a room at
@@ -1177,15 +1229,14 @@ function tableIndex() {
 
     for (const table of game.tables ?? []) {
         const goal = table.getFlag(MODULE_ID, "goal") ?? null;
-        const category = table.getFlag(MODULE_ID, "category");
-        const tier = Number(table.getFlag(MODULE_ID, "tier"));
-        // The row `classifyEntryName` files an entry under: a tier pool with a
-        // category and a tier, minus the goalless usable pool ruled out above.
-        const pool = isTierPool(table.name) && category && Number.isFinite(tier)
-            && !(category === "usable" && !goal)
-            ? { category, tier, goal, table: table.name }
+        // The row `classifyEntryName` files an entry under: a tier pool, by its flags under any name (E14 fix e1-G2;
+        // `isTierPool` on the name until then, so a renamed pool's entries were filed by nothing) or, with none, by
+        // its name; minus the goalless usable pool ruled out above.
+        const shape = isTierPoolTable(table) ? poolShapeOf(table) : null;
+        const pool = shape && !(shape.category === "usable" && !shape.goal)
+            ? { category: shape.category, tier: shape.tier, goal: shape.goal ?? null, table: table.name }
             : null;
-        for (const r of table.results ?? []) add(r.name ?? r.text ?? "", goal, pool);
+        for (const r of table.results ?? []) add(r.name ?? r.text ?? "", shape?.goal ?? goal, pool);
     }
 
     nameIndex = index;
@@ -1199,9 +1250,10 @@ function tableItemsHtml(table) {
     }
 
 
-    if (isTierPool(table.name)) {
-        const tier = Number(table.getFlag(MODULE_ID, "tier"));
-        const home = table.getFlag(MODULE_ID, "category");
+    if (isTierPoolTable(table)) {
+        const shape = poolShapeOf(table);
+        const tier = shape?.tier ?? Number(table.getFlag(MODULE_ID, "tier"));
+        const home = shape?.category ?? table.getFlag(MODULE_ID, "category");
         return `<ul class="drpg-table-items">${
             results.map(r => tableRowHtml(table, r, { home, tier })).join("")}</ul>`;
     }
@@ -1492,8 +1544,8 @@ async function placeResultDialog(table, resultId) {
     const holds = t => Array.from(t.results ?? []).some(sameName);
 
     const all = moduleTables();
-    const tierList = all.filter(t => isTierPool(t.name));
-    const roomList = all.filter(t => !isTierPool(t.name));
+    const tierList = all.filter(t => isTierPoolTable(t));
+    const roomList = all.filter(t => !isTierPoolTable(t));
 
     const group = (list, label) => list.length
         ? `<fieldset><legend>${esc(label)}</legend>
@@ -2355,8 +2407,9 @@ export async function openItemTables({ preset = null, poolError = null } = {}) {
     // the tier family is a dropdown with a single choice ("-" for an item that
     // only ever appears in rooms). Room tables keep the checkboxes: a knife can
     // sit in the Kitchen and the Workshop at once.
-    const tierTables = tables.filter(t => isTierPool(t.name));
-    const roomTablesList = tables.filter(t => !isTierPool(t.name));
+    // By the flags (E14 fix e1-G2): a tier pool the GM renamed in the sidebar is still on the Tier pools tab.
+    const tierTables = tables.filter(t => isTierPoolTable(t));
+    const roomTablesList = tables.filter(t => !isTierPoolTable(t));
 
     // Not `tableDialog()`: there is no table in here to measure. Its two panes
     // are a list and a form, and a window sized by `fitWindowToTable` with
