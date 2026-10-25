@@ -112,10 +112,16 @@ export function roomBroken(scene, room) {
  * The one writer of `ROOM_FLAGS.broken` (R981); the flag is taken off with `unsetFlag`, never a `-=` key. Answers
  * how many pieces were written; none on the trial hall, which holds no room.
  */
-export async function setRoomBroken(scene, room, broken = true) {
+export async function setRoomBroken(scene, room, broken = true, { also = [] } = {}) {
     if (!game.user?.isGM || !scene || !room) return 0;
     let wrote = 0;
-    for (const piece of roomRegions(scene, room)) {
+    // Taken off, also the pieces `also` names by id (E15 part 2 fix e1-G2): a breach's, renamed off the room while it stood.
+    const pieces = [...roomRegions(scene, room)];
+    if (!broken) for (const id of also ?? []) {
+        const piece = scene.regions?.get?.(id);
+        if (piece && !pieces.includes(piece)) pieces.push(piece);
+    }
+    for (const piece of pieces) {
         const is = Boolean(piece.getFlag(MODULE_ID, ROOM_FLAGS.broken));
         if (is === Boolean(broken)) continue;
         if (broken) await piece.setFlag(MODULE_ID, ROOM_FLAGS.broken, true);

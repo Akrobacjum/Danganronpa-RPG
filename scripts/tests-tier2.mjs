@@ -59855,7 +59855,7 @@ const SCENARIOS = [
                 };
                 const passage = { sceneId: scene.id, level: null, wallId: W, seg: { x1: 600, y1: 100, x2: 600, y2: 300 }, rooms: [HALL, LAB] };
                 out.judged = [P.breachStretchRow({ ...passage, wallId: door.id, seg: { x1: 100, y1: 600, x2: 300, y2: 600 }, rooms: [HALL, BATH] }).refused ?? null,
-                    Boolean(P.breachStretchRow(passage).row)];
+                    Boolean(P.breachStretchRow(passage).row), P.breachStretchRow({ ...passage, seg: { x1: 600, y1: 0.5, x2: 600, y2: 599.5 } }).refused ?? null];
                 // The approval's write, as the window makes it: in the open, the preset and the stretch the GMs'.
                 const made = await PR.createProject({ name: "SUITE E15 T13 Breach the Wall", target: 6, room: HALL, trait: "body", secret: false, by: hana.id,
                     presetTarget: { preset: "breach", room: LAB }, passage });
@@ -59896,15 +59896,19 @@ const SCENARIOS = [
                 for (let i = 0; i < 200 && walls().length > 2; i++) await new Promise(r => setTimeout(r, 10));
                 await settle();
                 out.closed = [J(scene.walls.get(W)?.toObject()) === before, look()];
-                // Cut once more, then the season's reset (its passages step: every breach closed, then the cut of the season's store).
+                /* Cut once more, the passage below secret again first (the GMs' close left it public: the hole was seen), then
+                   the season's reset as it runs: the cut of the season's store first (season-setup.mjs `wipeSeason`, "THE CUT
+                   FIRST"), so the breach's row is gone when its passages step closes every breach (fix e1-G2; E15p2-END-02). */
+                await P.makePassageSecret(low);
                 await PR.applyProjectChange(projectId, { delta: -1 }, { by });
                 await PR.applyProjectChange(projectId, { delta: 1 }, { by });
                 await settle();
                 const cutAgain = look().walls;
+                await S.passageSeasonStore.clear();
                 await P.closeEveryBreach();
                 await P.passagesAfterReset();
                 await settle();
-                out.reset = [cutAgain, J(scene.walls.get(W)?.toObject()) === before, look(), Object.keys(S.passageSeasonStore.entries()).length];
+                out.reset = [cutAgain, J(scene.walls.get(W)?.toObject()) === before, look(), Object.keys(S.passageSeasonStore.entries()).length, M.roomBroken(scene, LAB)];
                 // Cut once more, and a GM deletes the wall it was cut from: the close says so and writes nothing.
                 await PR.applyProjectChange(projectId, { delta: -1 }, { by });
                 await PR.applyProjectChange(projectId, { delta: 1 }, { by });
@@ -59915,7 +59919,7 @@ const SCENARIOS = [
                 const left = walls().length;
                 const refused = await P.restoreBreach(scene.id, last?.breach?.breachId);
                 await settle();
-                out.gone = [left, typeof refused?.refused, walls().length, breachRows().length];
+                out.gone = [left, typeof refused?.refused, walls().length, breachRows().length, M.roomBroken(scene, LAB)];
                 for (const id of [mid, low]) await P.deletePassage(id);
                 for (const row of breachRows()) await P.deletePassage(row.id);
                 if (projectId) await PR.deleteProject(projectId);
@@ -59933,7 +59937,8 @@ const SCENARIOS = [
         }
         const shut = { walls: 2, wall: [600, 0, 600, 600], hole: null, flag: null, named: null, copy: null };
         const back = (publicLow, project) => ({ ...shut, mid: [true, "secret", false], low: [true, publicLow], row: null, project });
-        equal(J(read?.judged), J(["that wall is a door.", true]), "[a breach on a door, a breach on the Hall's wall] - a door is breached, or the wall is refused");
+        equal(J(read?.judged), J(["that wall is a door.", true, "the stretch is the whole wall: nothing of it would stand."]),
+            "[a breach on a door, a breach on the Hall's wall, one over the whole wall] - a door is breached, the wall is refused, or a stretch the cut must refuse is approved");
         equal(J(read?.made), J([false, false, { preset: "breach", room: LAB }]),
             "[the project secret, the stretch in projectMeta (every browser's), the GMs' target] - a breach approved in the open is sealed, or its stretch is world data");
         equal(J(read?.cut), J([true, { walls: 4, wall: [600, 0, 600, 100], hole: [[600, 100, 600, 300], [0, 0, 0, 0]],
@@ -59948,15 +59953,15 @@ const SCENARIOS = [
         equal(J(read?.again), J(["that wall is breached already.", "that wall is breached already."]),
             "[a second breach on the wall, one on the copy] - a second breach on a wall a restore of the first would undo");
         equal(J(read?.makePublic), J([true, 0, true]), "[the walls as they were, the messages posted, the passage public] - a GM's Make public writes the world or tells the table");
-        equal(J(read?.undone), J([true, true, back(true, true)]),
+        equal(J(read?.undone), J([true, true, back(false, true)]),
             "[uncrossed, the wall byte for byte, the scene] - the Reroll's undo leaves a piece, a key or the wall another length, or loses a passage the cut moved");
         equal(J(read?.tab), J([4, true, true, false, false]),
             "[the walls cut again; the breach's row a breach, with Close the breach, without Delete or Make secret] - the Passages tab cannot close a breach, or deletes its row and leaves the hole");
         equal(J(read?.closed), J([true, back(true, true)]), "[the wall byte for byte, the scene] - the GMs' Close the breach does not give the wall back");
-        equal(J(read?.reset), J([4, true, back(true, true), 0]),
-            "[the walls cut again, the wall byte for byte after the reset, the scene, the season's rows] - the reset leaves a breach standing, or its row");
-        equal(J(read?.gone), J([3, "string", 3, 1]),
-            "[the walls with the wall deleted, the close's refusal, the walls after it, the breach's rows] - a close with its wall gone rebuilds or deletes something");
+        equal(J(read?.reset), J([4, true, back(false, true), 0, false]),
+            "[the walls cut again, the wall byte for byte after the reset, the scene (the passage the hole showed secret again), the season's rows, the Lab forced] - the reset leaves a breach standing, its row, a passage it showed public, or the room forced");
+        equal(J(read?.gone), J([3, "string", 3, 0, false]),
+            "[the walls with the wall deleted, the close's refusal, the walls after it, the breach's rows, the Lab forced] - a close with its wall gone rebuilds or deletes something, or leaves the room beyond forced");
     }],
     ["E15-T14 - Breach the Wall, the room beyond: a finished breach forces it for everyone - its GM's lock and its bedroom's key lifted, read as one on every piece of it, its seal lifted to the end of the time of day with no Despair back -, never a chained student nor the courtroom, and a seal set after it holds; a built passage into a bedroom passes it with no key; the students in either room are told, the builder named only when the builder stands at the hole, the rooms beside hear a crash, the bedroom's owner gets the room's card, nobody gets the builder's name of a secret breach made from elsewhere; the Reroll's undo gives the room back, sealed again in the same time of day and not in the next; the reset leaves no room forced", async () => {
         /*
@@ -60103,6 +60108,12 @@ const SCENARIOS = [
                 await W.sealRoom(LAB);
                 out.sealedAgain = [M.roomBroken(scene, LAB), v(kenta, HALL, LAB)];
                 await W.liftSeal(LAB);
+                // A piece of the Lab renamed while the breach stands (fix e1-G2; SEC-4, E15P2-R5): the undo gives it back too.
+                const STORE = "SUITE E15 T14 Storage";
+                const renamed = R.roomRegions(scene, LAB)[1];
+                await renamed.update({ name: STORE });
+                await settle();
+                const storeForced = M.roomBroken(scene, STORE);
                 // The time of day ends while the breach stands: its undo puts no seal back into the next one.
                 const { TIMES_OF_DAY } = await import("./config.mjs");
                 const now = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.clock) ?? {});
@@ -60110,12 +60121,17 @@ const SCENARIOS = [
                     timeOfDayStartedAt: Date.now() + 1 });
                 await PR.applyProjectChange(second, { delta: -1 }, { by: undo });
                 await settle();
+                out.renamed = [storeForced, M.roomBroken(scene, STORE), renamed.getFlag(MODULE_ID, M.ROOM_FLAGS.broken) ?? null];
+                await renamed.update({ name: LAB });
+                await settle();
                 out.nextUndone = state();
 
                 // 3. Finished again, then the season's reset (its passages step): no room left forced.
                 await PR.applyProjectChange(second, { delta: 1 }, { by });
                 await settle();
                 const forcedAgain = M.roomBroken(scene, LAB);
+                // The reset as it runs: the season's store cut first, so the breach's row is gone when its step runs (E15p2-END-02).
+                await S.passageSeasonStore.clear();
                 await P.closeEveryBreach();
                 await P.passagesAfterReset();
                 await settle();
@@ -60151,6 +60167,7 @@ const SCENARIOS = [
         equal(J(read?.sealedAgain), J([true, "roomSealed"]), "[the Lab still forced, Kenta into it after a new seal] - a breach unseals a seal set after it");
         equal(J(read?.nextUndone), J({ ...shut, sealed: false, move: "doorLocked" }), "[the Lab after the undo in the next time of day] - a seal put back into a time of day it was not lifted in");
         equal(J(read?.reset), J([true, false, [null, null]]), "[the Lab forced again, after the reset, its pieces] - the reset leaves a room forced");
+        equal(J(read?.renamed), J([true, false, null]), "[a piece renamed off the forced Lab, forced; after the undo; its flag] - a renamed piece stays forced after the breach is closed");
     }],
     ["E15-T15 - the owner's three of 15.10: a finished Seal the passage closes a passage its builder knows, a GM's too, as the tab's Close (the knowers kept, a GM opens it again, the Reroll's undo opens it), and refuses one the builder no longer knows or a GM closed first; a finished Close the breach gives the wall back byte for byte and the room beyond, and restores nothing once a GM closed it first; a finished Repair an item takes broken and wear off one usable or tool of the builder's own sheet, its size by its tier, and refuses another's item, a party actor's, a whole one and one gone before the end; a player's own mend is still put back", async () => {
         /*

@@ -64,7 +64,7 @@ import { RECORD, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible } from ".
 import { senderOf } from "./bridge-guards.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { secretRowsFrom, passageBook, studentIdsOf, sceneGone, endsOf, oneWayOf, PASSAGE_TOLERANCE, DOOR_PART, isSecretDoor, secretDoorsOn, passageSpot } from "./passages.mjs";
-import { roomPieces, onLevel, floorsOf, isTrialScene, viewedScene, viewedLevel } from "./rooms.mjs";
+import { roomPieces, roomRegions, onLevel, floorsOf, isTrialScene, viewedScene, viewedLevel } from "./rooms.mjs";
 import { regionShapes, inFlatPolygons, distanceToSegment } from "./fog-geometry.mjs";
 import { overlayLayer, clearLayer, overlayColour, dashedLine, overlayDrawer, redrawGmOverlay } from "./gm-overlay.mjs";
 
@@ -619,8 +619,20 @@ export function breachStretchRow(passage) {
     if (rooms.length !== 2) return { refused: "a breach joins two rooms." };
     const wall = scene.walls?.get(passage.wallId ?? "") ?? null;
     if (wall && inBreach(scene, wall.id)) return { refused: "that wall is breached already." };
-    return passageRowFor(scene, wall, { seg: passage.seg ?? null, rooms, level: passage.level ?? null, taken: [] });
+    const judged = passageRowFor(scene, wall, { seg: passage.seg ?? null, rooms, level: passage.level ?? null, taken: [] });
+    /* THE WHOLE WALL IS REFUSED HERE, NOT AT THE END (E15 part 2 fix e1-G2, 25.10.2026; finding E15P2-R1). A room's side
+       drawn as one segment and picked past both its ends is the whole wall (the pick clamps to the wall), which the cut
+       refuses - nothing of the wall would stand to give back -, and the approval took it: the players worked the bar to
+       full for a completion certain to cut nothing. The cut's own test (`breachPieces`), asked at the approval too. */
+    if (judged.row) {
+        const { before, after } = breachPieces((wall?.c ?? []).slice(0, 4).map(Number), judged.row.passageSeg);
+        if (!(before ?? after)) return { refused: WHOLE_WALL };
+    }
+    return judged;
 }
+
+/** The refusal of a stretch that is the whole wall, at the approval and at the cut. */
+const WHOLE_WALL = "the stretch is the whole wall: nothing of it would stand.";
 
 /**
  * The three pieces a stretch makes of a wall `c` = `[x1, y1, x2, y2]`: `before` (from the wall's first end to the
@@ -675,7 +687,7 @@ export async function cutBreach(projectId, { passage = null, builderId = null, b
         const c = wall.c.slice(0, 4).map(Number);
         const { before, gap, after } = breachPieces(c, row.passageSeg);
         const keep = before ?? after;
-        if (!keep) return { refused: "the stretch is the whole wall: nothing of it would stand." };
+        if (!keep) return { refused: WHOLE_WALL };
         const gapId = foundry.utils.randomID(16), copyId = before && after ? foundry.utils.randomID(16) : null;
         const breachId = foundry.utils.randomID(16);
         const pieceIds = [gapId, ...(copyId ? [copyId] : [])];
@@ -704,6 +716,11 @@ export async function cutBreach(projectId, { passage = null, builderId = null, b
         await stores.season.patch(id, { ...row, passageWallId: gapId, passageSeg: { x1: gap[0], y1: gap[1], x2: gap[2], y2: gap[3] }, public: true,
             origin: { by: "project", projectId, builderId }, breach: { breachId, originalWallId: wall.id, pieceIds, ...(forced ? { forced } : {}) } });
         for (const other of madePublic) await setPublic(other, true, stores);
+        /* WHAT THE CUT MADE PUBLIC IS MARKED ON THE ROW (E15 part 2 fix e1-G2; finding E15p2-END-01): the passages the
+           hole showed, so that an undo the dice took back and the season's reset make them secret again
+           (`restoreBreach`'s `unpublish`). On the passage's own row - the map's store, which the reset does not cut -,
+           never on the hole's flag (every browser's); a GM's Make public or Make secret since takes the mark off. */
+        if (madePublic.length) await rowsOf(stores).patchMany(Object.fromEntries(madePublic.map(other => [other, { publicByBreach: breachId }])));
         await touch(knowersOf(id, stores), stores, { door: true });
         await logRow("breach", id, builderId, stores);
         tellAfter(stores);
@@ -725,9 +742,11 @@ async function forceRoom(scene, room, from, stores) {
     const M = await import("./movement.mjs");
     const W = await import("./call-world.mjs");
     const already = M.roomBroken(scene, room) && !forcingRows(stores, scene.id, room).length;
+    // The pieces forced, by id (fix e1-G2; findings SEC-4, E15P2-R5): a piece renamed while the breach stands is still given back.
+    const pieceIds = roomRegions(scene, room).map(piece => piece.id).filter(Boolean);
     await M.setRoomBroken(scene, room, true);
     const unsealed = (await W.liftSeal(room)) ? W.sealPeriod() : null;
-    return { room, from, already, unsealed };
+    return { room, from, already, unsealed, pieceIds };
 }
 
 /**
@@ -747,7 +766,7 @@ async function unforceRoom(scene, forced, breachId, stores, { reseal = true } = 
         if (forced.unsealed && !row.breach.forced.unsealed) await stores.season.patch(id, { breach: { ...row.breach, forced: { ...row.breach.forced, unsealed: forced.unsealed } } });
         return { unbroken: false, resealed: false };
     }
-    const unbroken = !forced.already && (await M.setRoomBroken(scene, forced.room, false)) > 0;
+    const unbroken = !forced.already && (await M.setRoomBroken(scene, forced.room, false, { also: forced.pieceIds ?? [] })) > 0;
     const resealed = Boolean(reseal && forced.unsealed && forced.unsealed === W.sealPeriod() && !W.isSealed(forced.room) && (await W.sealRoom(forced.room)));
     return { unbroken, resealed };
 }
@@ -811,11 +830,13 @@ export async function tellBreach(made) {
  * A breach closed (E15 part 2 C3): the wall it was cut from given back as the cut found it - its `c` from the hole's
  * flag, the only field the cut wrote on it -, the hole and the copy deleted, the passages the cut moved moved back,
  * and the breach's row gone from the season's store. The GMs' Close the breach, the project's undo
- * (`undoBreachesOf`) and the season's reset (`closeEveryBreach`) all ask this. A passage made public by the cut stays
- * public: the hole was seen. Where the wall it was cut from is gone (a GM deleted it meanwhile), nothing is written and
- * the answer says so, `{ refused }`: the pieces stand, for a GM to see to. Answers `{ closed: breachId }`.
+ * (`undoBreachesOf`) and the season's reset (`closeEveryBreach`) all ask this. A passage made public by the cut is
+ * secret again after the undo and the reset (`unpublish`, fix e1-G2), and stays public after a GM's or a project's
+ * close: the hole was seen (`settleMadePublic`). Where the wall it was cut from is gone (a GM deleted it meanwhile), no
+ * wall is written and the answer says so, `{ refused }`: the room beyond is given back and the row goes, the pieces
+ * stand for a GM to delete. Answers `{ closed: breachId }`.
  */
-export async function restoreBreach(sceneId, breachId, { stores = PASSAGE_STORES, reseal = true } = {}) {
+export async function restoreBreach(sceneId, breachId, { stores = PASSAGE_STORES, reseal = true, unpublish = false } = {}) {
     if (!game.user?.isGM) return { refused: "only a GM closes one." };
     return serialWrite(`passage.breach/${sceneId ?? ""}`, async () => {
         const scene = game.scenes?.get(sceneId ?? "");
@@ -826,12 +847,24 @@ export async function restoreBreach(sceneId, breachId, { stores = PASSAGE_STORES
         if (!found) {
             for (const id of rows) await deletePassage(id, { stores });
             if (forced) await unforceRoom(scene, forced, breachId, stores, { reseal });
+            await settleMadePublic(breachId, unpublish, stores);
             return { refused: "no such breach on that scene." };
         }
         const { wall: hole, breach } = found;
         const original = scene.walls.get(breach.originalWallId);
         const c = Array.isArray(breach.original?.c) ? breach.original.c : null;
-        if (!original || !c) return { refused: "the wall it was cut from is gone; its pieces are left as they stand." };
+        /* THE WALL GONE, THE ROOM GIVEN BACK ALL THE SAME (E15 part 2 fix e1-G2; finding E15P2-R3). A GM who deleted the
+           wall the breach was cut from left the close nothing to rebuild, and it wrote nothing: the room beyond stayed
+           forced - its lock and its bedroom's key lifted for every student - until the season's reset, and the tab's
+           row offered no other way. The room is given back and the breach's row goes; the hole and the pieces stand,
+           for a GM to delete by hand, and the answer says so. */
+        if (!original || !c) {
+            for (const id of rows) await deletePassage(id, { stores });
+            if (forced) await unforceRoom(scene, forced, breachId, stores, { reseal });
+            await settleMadePublic(breachId, unpublish, stores);
+            tellAfter(stores);
+            return { refused: "the wall it was cut from is gone: the room beyond is given back, and the hole is left for a GM to delete." };
+        }
         const pieces = [...new Set([hole.id, ...(breach.pieceIds ?? [])])].filter(id => scene.walls.has(id));
         const back = Object.fromEntries(Object.entries(rowsOf(stores).entries())
             .filter(([id, row]) => !rows.includes(id) && row?.sceneId === scene.id && pieces.includes(row.passageWallId))
@@ -841,16 +874,34 @@ export async function restoreBreach(sceneId, breachId, { stores = PASSAGE_STORES
         await original.update({ c: [...c] });
         if (pieces.length) await scene.deleteEmbeddedDocuments("Wall", pieces);
         if (forced) await unforceRoom(scene, forced, breachId, stores, { reseal });
+        await settleMadePublic(breachId, unpublish, stores);
         tellAfter(stores);
         return { closed: breachId };
     });
+}
+
+/**
+ * The passages a breach's cut made public (`publicByBreach`, fix e1-G2), once the breach is closed: secret again with
+ * `unpublish` - the Reroll's undo, which says the hole was never made, and the season's reset, whose new season opens
+ * with only start access known - each owner's copy stamped as a GM's Make secret stamps them; else public still (the
+ * GMs' Close the breach and a Close the breach project: the hole was seen), the mark taken off.
+ */
+async function settleMadePublic(breachId, unpublish, stores) {
+    for (const [id, row] of Object.entries(rowsOf(stores).entries())) {
+        if (!breachId || row?.publicByBreach !== breachId) continue;
+        const before = knowersOf(id, stores);
+        await rowsOf(stores).patch(id, unpublish ? { public: false, publicByBreach: null } : { publicByBreach: null });
+        if (!unpublish) continue;
+        await touch(new Set([...before, ...knowersOf(id, stores)]), stores);
+        await logRow("secret", id, null, stores);
+    }
 }
 
 /** A breach project's completion taken back (the row's `onUncrossed`, D40): each breach it cut is closed. Answers how many. */
 export async function undoBreachesOf(projectId, { stores = PASSAGE_STORES } = {}) {
     const rows = Object.values(stores.season?.entries() ?? {}).filter(row => row?.origin?.projectId === projectId && row.breach?.breachId);
     let closed = 0;
-    for (const row of rows) if ((await restoreBreach(row.sceneId, row.breach.breachId, { stores }))?.closed) closed++;
+    for (const row of rows) if ((await restoreBreach(row.sceneId, row.breach.breachId, { stores, unpublish: true }))?.closed) closed++;
     return closed;
 }
 
@@ -866,7 +917,7 @@ export async function closeEveryBreach({ stores = PASSAGE_STORES } = {}) {
     let closed = 0;
     for (const scene of game.scenes ?? []) {
         // No seal put back: the reset clears every seal (`clearSeals`), and one put back here would outlive it.
-        for (const { breach } of breachesOn(scene)) if ((await restoreBreach(scene.id, breach.breachId, { stores, reseal: false }))?.closed) closed++;
+        for (const { breach } of breachesOn(scene)) if ((await restoreBreach(scene.id, breach.breachId, { stores, reseal: false, unpublish: true }))?.closed) closed++;
         // Every room still forced is whole again (C4; A10 step 17: "zdejmuje ich `broken`"), its breach's row taken
         // by the group's cut already or not: a new season's rooms stand as Room Setup left them.
         for (const room of roomNames(scene)) if (M.roomBroken(scene, room)) await M.setRoomBroken(scene, room, false);
@@ -1553,9 +1604,13 @@ async function setPublic(passageId, on, stores) {
     if (!game.user?.isGM) return refuse("only a GM changes one.", false);
     const row = rowsOf(stores).get(passageId);
     if (!row) return refuse(`no passage "${passageId}".`, false);
-    if ((row.public === true) === on) return true;
+    // A GM's answer takes off the mark of a breach's cut (fix e1-G2): what a GM made public or secret stays so.
+    if ((row.public === true) === on) {
+        if (row.publicByBreach) await rowsOf(stores).patch(passageId, { publicByBreach: null });
+        return true;
+    }
     const before = knowersOf(passageId, stores);
-    await rowsOf(stores).patch(passageId, { public: on });
+    await rowsOf(stores).patch(passageId, { public: on, ...(row.publicByBreach ? { publicByBreach: null } : {}) });
     await touch(new Set([...before, ...knowersOf(passageId, stores)]), stores);
     await logRow(on ? "public" : "secret", passageId, null, stores);
     tellAfter(stores);
