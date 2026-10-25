@@ -407,6 +407,11 @@
       "bulletsHereRoom": "The room you are standing in.",
       "groupEmpty": "- empty -",
       "groupKeys": "Room Keys",
+      "groupOther": "Other",
+      "otherHintGm": "Not under any heading: it has no category the game knows. Remove it here and give it again from Give / take items as what it is.",
+      "otherRemove": "Remove this item",
+      "otherRemoveAsk": "Remove {item} from {actor}? It is gone from the sheet for good.",
+      "otherHint": "Not under any heading yet. Ask the GM to file it.",
       "biographyPlaceholder": "Who they were before the killing game."
     },
     "Guard": {
@@ -1966,6 +1971,8 @@
       "keyTakenBack": "Your key to {room} was taken back: the room is not yours any more.",
       "keyCopiesGm": "Copies of the key to {room} are still held by {holders}. They open its door for its new owner too; take them away by hand if they should go with the room.",
       "noKeysToGive": "No keys left to hand over - this character already holds one for every bedroom that has an owner.",
+      "hasEveryKey": "{name} already holds a key to every bedroom that has an owner.",
+      "onlyOwnBedroom": "The only bedroom with an owner is {name}'s own. There is no key to give.",
       "takeKey": "Take a room key away",
       "noKeysToTake": "{actor} holds no key to anybody else's room.",
       "lockedAtStartColumn": "Locked at start",
@@ -2223,6 +2230,7 @@
       "shareNote": "They get their own copy, you keep yours, and their copy is not bound by any failed analysis of yours. Costs no action.",
       "giveNote": "This leaves your inventory for good. Their carry limit still applies. No action.",
       "nobodyHere": "Nobody else in {room} to hand anything to.",
+      "notInRoom": "{name} is not standing in any room. Move their token into one first.",
       "theirHandsFull": "{who} already carries the most {category} they can ({limit}).",
       "failed": "That handover did not go through. Tell the GM.",
       "stuckFor": {
@@ -3165,6 +3173,8 @@
       "newPoolNote": "A room table is what a room stocks - point a room at it in Room Setup's “Draws from”. Tier tables answer dice rolls and cannot be assigned to rooms. A table named “«Room» - Tier N” answers that roll in that room first.",
       "newPoolTierName": "That name matches the tier-table pattern (“DRPG … - Tier N”) - a room table needs its own name.",
       "newPoolExists": "A table called “{name}” already exists.",
+      "presetRoomNoTable": "{room} draws from no table of its own. Point it at one in Room Setup to keep finds like this there.",
+      "presetRoomTier": "{room} has no table for this tier yet: make “{name}” on the Room pools tab to keep finds of this tier there.",
       "tierPoolCreated": "\"{name}\" is ready, and the module recognised it: items in it are filed by its category and tier, so a usable drawn from it knows what it does.",
       "poolCreated": "Room table “{name}” created. Point a room at it in Room Setup.",
       "renameTable": "Rename table",

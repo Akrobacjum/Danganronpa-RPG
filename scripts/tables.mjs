@@ -1641,19 +1641,30 @@ function nameFieldHtml({ name, value = "", placeholder = "", error = null }) {
  */
 async function presetTargetsFor(tables, preset) {
     const presetTargets = new Set();
-    if (preset?.category) {
-        // The pools this category and tier draw from, by their flags first, as `drawItem` finds them (E14 part 2 C1).
-        const pools = new Set(tierTablesFor(preset.category, preset.tier ?? 0, preset.goal ?? null).map(t => t.id));
-        const wanted = [];
-        if (preset.room) {
-            const { sceneOfRoom } = await import("./rooms.mjs");
-            const base = await tableForRoom(preset.room, sceneOfRoom(preset.room));
-            if (base) {
-                wanted.push(base, ...roomPluralsOf(preset.category).map(plural => `${base} - ${plural}`));
-            }
+    presetTargets.roomNote = null;
+    // The pools this category and tier draw from, by their flags first, as `drawItem` finds them (E14 part 2 C1).
+    const pools = new Set(preset?.category
+        ? tierTablesFor(preset.category, preset.tier ?? 0, preset.goal ?? null).map(t => t.id) : []);
+    /*
+     * THE ROOM WITHOUT A CATEGORY (E14 part 2 C6, S08-21). This read the room inside the category's branch, and the
+     * one card that sends a preset - a Search for "something specific" (messenger-app.mjs `ruleCreateItem`) - sends no
+     * category, so the room the player searched was never ticked. Now the room's tables are the names `drawItem` reads
+     * for it (`roomTableNames`: "<room> - Tier N", a plural when there is a category, the flat table), and the window
+     * says when the room has none, or when the tier's own is not made yet - "<room> - Tier N", the name offered.
+     */
+    if (preset?.room) {
+        const { sceneOfRoom } = await import("./rooms.mjs");
+        const base = await tableForRoom(preset.room, sceneOfRoom(preset.room));
+        const tier = preset.tier ?? 0;
+        const wanted = base ? (preset.category ? roomTableNames(base, preset.category, tier) : [`${base} - Tier ${tier}`, base]) : [];
+        for (const t of tables) if (wanted.includes(t.name)) presetTargets.add(t.id);
+        if (!base) {
+            presetTargets.roomNote = game.i18n.format("DRPG.Tables.presetRoomNoTable", { room: preset.room });
+        } else if (!tables.some(t => t.name === `${base} - Tier ${tier}`)) {
+            presetTargets.roomNote = game.i18n.format("DRPG.Tables.presetRoomTier", { room: preset.room, name: `${base} - Tier ${tier}` });
         }
-        for (const t of tables) if (pools.has(t.id) || wanted.includes(t.name)) presetTargets.add(t.id);
     }
+    for (const t of tables) if (pools.has(t.id)) presetTargets.add(t.id);
     return presetTargets;
 }
 
@@ -1741,7 +1752,8 @@ function newItemPaneHtml(preset, presetTargets, roomTablesList) {
                 <div class="drpg-tables-targets">
                     <span class="notes">${game.i18n.localize("DRPG.Tables.roomTargets")}</span>
                     ${roomChecks || `<span class="notes">${game.i18n.localize("DRPG.Tables.noRoomTables")}</span>`}
-                </div>
+                </div>${presetTargets.roomNote ? `
+                <p class="notes" data-drpg-room-note>${esc(presetTargets.roomNote)}</p>` : ""}
                 <p class="notes">${game.i18n.localize("DRPG.Tables.addNote")}</p>
             </fieldset>`;
 }
@@ -2178,7 +2190,9 @@ function wirePoolPane(pane, root) {
     const renameButton = pane.querySelector("[data-drpg-rename-table]");
     const deleteButton = pane.querySelector("[data-drpg-delete-table]");
 
-    const firstButton = pane.querySelector("[data-drpg-table]");
+    /* THE HIGHLIGHTED ONE, NOT THE FIRST (E14 part 2 C6, S08-21). `poolPaneHtml` highlights the table a preset ticked,
+       and this took the first button of the list, so Rename and Delete acted on a table the pane was not showing. */
+    const firstButton = pane.querySelector("[data-drpg-table].active") ?? pane.querySelector("[data-drpg-table]");
     let current = game.tables.get(firstButton?.dataset.drpgTable) ?? null;
 
     /*
@@ -2352,6 +2366,8 @@ export async function openItemTables({ preset = null, poolError = null } = {}) {
         // A refused table name comes back on the tab it was typed on, kept in its field
         // with the refusal under it (E14 part 2 C5, S13-09): the window used to reopen on
         // the first tab with the field empty, so on the Room pools tab the GM saw neither.
+        // A preset opens on Add an item, where its name and tier are (C6, S08-21): it
+        // opened on Tier pools, with Create table and Install in the footer.
         content: dialogContent(`<form>${panelTabs([
             { key: "editTiers", label: game.i18n.localize("DRPG.Tables.tabTierPools"),
               html: poolPaneHtml("tiers", tierTables, selected, poolError?.family === "tiers" ? poolError : null) },
@@ -2359,7 +2375,7 @@ export async function openItemTables({ preset = null, poolError = null } = {}) {
               html: poolPaneHtml("rooms", roomTablesList, selected, poolError?.family === "rooms" ? poolError : null) },
             { key: "newItem", label: game.i18n.localize("DRPG.Tables.tabNewItem"),
               html: newItemPaneHtml(preset, presetTargets, roomTablesList) }
-        ], { active: poolError ? (poolError.family === "rooms" ? "editRooms" : "editTiers") : null })}</form>`),
+        ], { active: poolError ? (poolError.family === "rooms" ? "editRooms" : "editTiers") : preset ? "newItem" : null })}</form>`),
         buttons: [
             {
                 action: "add", label: game.i18n.localize("DRPG.Tables.addItem"), default: true,

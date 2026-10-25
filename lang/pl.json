@@ -407,6 +407,11 @@
       "bulletsHereRoom": "Pomieszczenie, w którym stoisz.",
       "groupEmpty": "- pusto -",
       "groupKeys": "Klucze do pokoi",
+      "groupOther": "Inne",
+      "otherHintGm": "Nie ma go pod żadnym nagłówkiem: gra nie zna jego kategorii. Usuń go tutaj i daj jeszcze raz w Daj / zabierz przedmioty jako to, czym jest.",
+      "otherRemove": "Usuń ten przedmiot",
+      "otherRemoveAsk": "Usunąć: {item} z karty postaci {actor}? Zniknie z karty na dobre.",
+      "otherHint": "Jeszcze nie ma go pod żadnym nagłówkiem. Poproś GM-a, żeby go przypisał.",
       "biographyPlaceholder": "Kim byli, zanim zaczęła się killing game."
     },
     "Guard": {
@@ -2013,6 +2018,8 @@
       "keyTakenBack": "Twój klucz do: {room} został zabrany. Ten pokój nie jest już twój.",
       "keyCopiesGm": "Kopie klucza do: {room} wciąż mają: {holders}. Otwierają też drzwi nowego właściciela; zabierz je ręcznie, jeśli mają odejść razem z pokojem.",
       "noKeysToGive": "Nie ma kluczy do wydania - ta postać ma już klucz do każdej sypialni, która ma właściciela.",
+      "hasEveryKey": "{name} ma już klucz do każdej sypialni, która ma właściciela.",
+      "onlyOwnBedroom": "Jedyna sypialnia z właścicielem należy do: {name}. Nie ma klucza do wydania.",
       "takeKey": "Zabierz klucz do pokoju",
       "noKeysToTake": "{actor} nie ma klucza do niczyjego pokoju.",
       "lockedAtStartColumn": "Zamknięte na start",
@@ -2305,6 +2312,7 @@
       "shareNote": "Druga osoba dostaje własną kopię, ty zachowujesz swoją, a tamtej kopii nie wiąże żadna twoja nieudana analiza. Nie kosztuje akcji.",
       "giveNote": "To opuszcza twój ekwipunek na dobre. Limit noszenia odbiorcy wciąż obowiązuje. Bez akcji.",
       "nobodyHere": "Nie ma nikogo innego w: {room}, komu dałoby się cokolwiek przekazać.",
+      "notInRoom": "{name} nie stoi w żadnym pokoju. Najpierw przenieś token do pokoju.",
       "theirHandsFull": "{who} nosi już najwięcej, ile może ({category}: {limit}).",
       "failed": "To przekazanie nie doszło do skutku. Powiedz GM-owi.",
       "stuckFor": {
@@ -3291,6 +3299,8 @@
       "newPoolNote": "Tabela pokoju to to, co pokój ma na stanie - wskaż ją pokojowi w Ustawieniach pokoi, kolumna „Losuje z”. Tabele Tier odpowiadają na rzuty i nie da się ich przypisać do pokoi. Tabela o nazwie „«Pokój» - Tier N” odpowiada na ten rzut w tym pokoju jako pierwsza.",
       "newPoolTierName": "Ta nazwa pasuje do wzorca tabeli Tier („DRPG … - Tier N”) - tabela pokoju potrzebuje własnej nazwy.",
       "newPoolExists": "Tabela o nazwie „{name}” już istnieje.",
+      "presetRoomNoTable": "{room} nie losuje z własnej tabeli. Wskaż mu tabelę w Ustawieniach pokoi, żeby takie znaleziska zostały tam.",
+      "presetRoomTier": "{room} nie ma jeszcze tabeli dla tego Tieru: utwórz „{name}” w zakładce Pule pokoi, żeby znaleziska tego Tieru zostały tam.",
       "poolCreated": "Tabela pokoju „{name}” utworzona. Wskaż ją pokojowi w Ustawieniach pokoi.",
       "renameTable": "Zmień nazwę tabeli",
       "deleteTable": "Usuń tabelę",

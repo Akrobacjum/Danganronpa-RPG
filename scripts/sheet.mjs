@@ -2699,9 +2699,82 @@ function groupInventory(app, element) {
         box.append(section);
     }
 
+    buildOtherSection(box, actor, app);
     buildStashSection(box, actor, app);
     buildOpenStashSection(box, actor, app);
     tab.prepend(box);
+}
+
+/*
+ * WHAT NO HEADING FILES (E14 part 2 C6, 24.10.2026; audit S03-18).
+ *
+ * The groups above are drawn by category, and the stylesheet hides Daggerheart's own inventory lists, so an item with
+ * no category flag - dragged on from the sidebar or a compendium - or with one this module does not have was on the
+ * actor and on no screen: nothing to use, hand over or remove, and a GM took the drop for failed. They are drawn here,
+ * carried ones only, each row opening the item's sheet, with a line saying what to do. Give / take items lists by
+ * category and cannot take such an item (gm-items.mjs `holdingsHtml`, `takeItemDialog`), so a GM's row has its own Remove,
+ * asked first, and the line says to give it again as what it is; a player is told to ask the GM. The item types are the ones that sit in an inventory - the two this module makes
+ * (inventory.mjs `grantItem`: "consumable" and "loot") and Daggerheart's "weapon" and "armor" (its type names as the
+ * system declares them; not read in this repository) - so a feature, a domain card or a class is never listed.
+ */
+const CARRIED_TYPES = new Set(["consumable", "loot", "weapon", "armor"]);
+
+function buildOtherSection(box, actor, app) {
+    const items = actor.items.filter(item => CARRIED_TYPES.has(item.type) && !isStashed(item)
+        && !ITEM_CATEGORIES[item.getFlag(MODULE_ID, "category")]);
+    if (!items.length) return;
+
+    const section = document.createElement("div");
+    section.className = "drpg-inventory-group drpg-other-group";
+    section.dataset.category = "other";
+    const head = document.createElement("h4");
+    head.innerHTML = `<span>${game.i18n.localize("DRPG.Sheet.groupOther")}</span>
+                      <span class="drpg-group-count">${items.length}</span>`;
+    section.append(head);
+
+    const hint = document.createElement("p");
+    hint.className = "notes";
+    hint.textContent = game.i18n.localize(game.user.isGM ? "DRPG.Sheet.otherHintGm" : "DRPG.Sheet.otherHint");
+    section.append(hint);
+
+    const list = document.createElement("ul");
+    list.className = "drpg-inventory-list";
+    for (const item of items) {
+        const li = document.createElement("li");
+        li.dataset.itemUuid = item.uuid;
+        li.innerHTML = `<img src="${foundry.utils.escapeHTML(item.img ?? "")}" alt="" />
+                        <span class="drpg-item-name">${foundry.utils.escapeHTML(item.name)}</span>`;
+        if (game.user.isGM && app.isEditable) {
+            const tip = game.i18n.localize("DRPG.Sheet.otherRemove");
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "drpg-row-button drpg-row-discard";
+            button.dataset.drpgRowAction = "remove";
+            button.dataset.tooltip = tip;
+            button.setAttribute("aria-label", tip);
+            button.innerHTML = `<i class="fa-solid fa-trash" inert></i>`;
+            button.addEventListener("click", async () => {
+                const sure = await foundry.applications.api.DialogV2.confirm({
+                    window: { title: tip },
+                    content: `<p>${game.i18n.format("DRPG.Sheet.otherRemoveAsk", {
+                        item: foundry.utils.escapeHTML(item.name), actor: foundry.utils.escapeHTML(actor.name) })}</p>`,
+                    rejectClose: false, modal: true
+                });
+                if (!sure) return;
+                await item.delete();
+                app.render(false);
+            });
+            li.append(button);
+        }
+        guardRow(li, item, app);
+        li.addEventListener("click", event => {
+            if (event.target.closest("[data-drpg-row-action]")) return;
+            item.sheet?.render(true);
+        });
+        list.append(li);
+    }
+    section.append(list);
+    box.append(section);
 }
 
 /**

@@ -64158,6 +64158,187 @@ const SCENARIOS = [
             + "[the room's draws, what grantDrawn wrote, the substitute, the world's draws, a plant's name read, the GM's verdicts on the find at its tier and above it, the Reroll's item; each draw as (entry, category, tier, goal, substitute)]");
     }],
 
+    ["an item with no category, or one the module does not know, is drawn on the sheet under Other with how to file it, and a handover from a character in no room names the character (E14-T16, S03-18, S08-23)", async () => {
+        /*
+         * E14 part 2 C6, 24.10.2026; E14-44, E14-47. The harms: (S03-18) `groupInventory` drew only the groups of a known
+         * category, so an item a GM dragged on from the sidebar or a compendium was on the actor and on no heading - nothing
+         * to use, hand over or remove, and the GM took the drop for failed; (S08-23) `askWhoIsHere` put "-" for the room of a
+         * character in no room ("Nobody else in - to hand anything to."). Read: the student's sheet as the module draws it
+         * (`drawnSheet`) before and after two items are put on it - one with no flags at all, as a dragged item arrives, and
+         * one filed under a category the module does not have - as [the Other group's names, whether a line under it says
+         * what to do, the GM's Remove on each row (Give / take items lists by category and cannot take one), the module's own
+         * items still under their headings]; then the warning a character with no token in any
+         * room is given when a handover asks who is here, on a character made here and deleted after.
+         */
+        const { askWhoIsHere } = await import("./handover.mjs");
+        const [student] = cast(1);
+        const TAG = "SUITE E14-T16";
+        const otherOf = element => element.querySelector('.drpg-inventory-group[data-category="other"]');
+        const namesIn = group => [...(group?.querySelectorAll("li .drpg-item-name") ?? [])].map(n => n.textContent.trim());
+        const filed = element => [...element.querySelectorAll('.drpg-inventory-group:not([data-category="other"]) li .drpg-item-name')]
+            .map(n => n.textContent.trim());
+        let before = null, after = null, warned = null, made = [], loner = null;
+        const warn = ui.notifications.warn;
+        try {
+            let sheet = drawnSheet(student);
+            before = [Boolean(otherOf(sheet.element)), filed(sheet.element).length];
+            sheet.remove();
+            made = await student.createEmbeddedDocuments("Item", [
+                { name: `${TAG} dragged lamp`, type: "loot", system: { description: "", quantity: 1 } },
+                { name: `${TAG} relic`, type: "loot", system: { description: "", quantity: 1 }, flags: { [MODULE_ID]: { category: "suiteRelic", tier: 1 } } }
+            ]);
+            await settle();
+            sheet = drawnSheet(student);
+            const other = otherOf(sheet.element);
+            after = [namesIn(other).sort(), (other?.querySelector(".notes")?.textContent.trim().length ?? 0) > 0,
+                other?.querySelectorAll('li [data-drpg-row-action="remove"]').length ?? 0,
+                filed(sheet.element).length === before[1], filed(sheet.element).some(n => n.startsWith(TAG))];
+            sheet.remove();
+
+            loner = await Actor.create({ name: `${TAG} nowhere`, type: "character" });
+            const said = [];
+            ui.notifications.warn = (text, ...rest) => { said.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+            const picked = await askWhoIsHere(loner, { title: TAG, intro: room => room, note: "", okLabel: TAG });
+            warned = [picked, said.length === 1 && said[0].includes(loner.name) && !/\s-\s|\s-$|\s-\./.test(said[0])];
+        } finally {
+            ui.notifications.warn = warn;
+            for (const item of made) { try { await student.items.get(item.id)?.delete(); } catch { /* already gone */ } }
+            try { await loner?.delete(); } catch { /* already gone */ }
+            await settle();
+        }
+        equal(stableJson([before?.[0], after, warned]), stableJson([false,
+            [[`${TAG} dragged lamp`, `${TAG} relic`], true, 2, true, false], [null, true]]),
+            "an item no heading files is not on the sheet, or not with a line saying what to do, or a character in no room is told "
+            + "about a room called \"-\" [an Other group before any such item; after: its names, a line under it, the GM's Remove "
+            + "on each row, the filed rows unchanged, none of these filed; the handover's answer and whether its one warning names the character]");
+    }],
+
+    ["the GM's windows: Create an item from a Search opens on its tab with the room's tables ticked, the Give a room key window says so on its button and tells why no key is left, and Give a Truth Bullet opens where there is something to give (E14-T16, S08-21, S08-22)", async () => {
+        /*
+         * E14 part 2 C6, 24.10.2026; E14-45, E14-46. The harms: (S08-21) the Search card's Create an item opened the Item
+         * tables window on Tier pools, the preset's name and tier on a tab out of sight, and `presetTargetsFor` read the room
+         * only with a category, which that card never sends - so the room's tables were never ticked; and the Room pools
+         * pane's Rename and Delete acted on the first table of the list while another was highlighted. (S08-22) Give a room
+         * key's button read "Give an item", and with no key left the select held one option saying so, cut off, with the
+         * button live; Give a Truth Bullet opened on From a Remnant whatever lay on the map. Read: a room of the scene the
+         * student stands on pointed at "SUITE E14-T16 Workshop" (its flag put back after), with that table, its "- Tier 2" and
+         * "- Tier 3", and a room table that sorts first; the window opened as the card opens it (a Tier 2 find, no category)
+         * as [the tab open, the room's tables ticked, the name, the footer], what Rename offers to rename beside what the pane
+         * highlights, and the line for a room with no table; then Give a room key for a character made here who holds a key to
+         * every bedroom (one bedroom made here, on a scene made here), as [its button's words, whether the button is off, the
+         * line under the field]; then Give a Truth Bullet, the tab it opens on beside whether a trace lies on any scene.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student standing in a named room");
+        const T = await import("./tables.mjs");
+        const G = await import("./gm-items.mjs");
+        const V = await import("./vault.mjs");
+        const R = await import("./rooms.mjs");
+        const { sceneOfActor } = await import("./movement.mjs");
+        const { remnantsOn, remnantData } = await import("./remnants.mjs");
+        const [student] = cast(1);
+        const scene = sceneOfActor(student);
+        const region = Array.from(scene?.regions ?? []).find(r => r.name?.trim());
+        must(region, `the scene ${student.name} stands on has no named room - this would measure nothing`);
+        const room = region.name;
+        const TAG = "SUITE E14-T16", BASE = `${TAG} Workshop`, FLAG = "drpgItemTable";
+        const appWith = test => [...foundry.applications.instances.values()].find(a => a.element?.isConnected && test(a.element));
+        const tablesApp = () => appWith(el => el.classList.contains("drpg-window-tables"));
+        const closeAll = async test => { for (let n = 0; n < 4; n += 1) { const app = appWith(test); if (!app) break; try { await app.close(); } catch { /* gone */ } await settle(); } };
+        const hadFlag = region.getFlag(MODULE_ID, FLAG);
+        const made = [];
+        let tables = null, keys = null, bullets = null, keyScene = null, loner = null;
+        try {
+            for (const [name, flags] of [[`${TAG} Aaa first`, { roomPool: true }], [BASE, { roomPool: true }], [`${BASE} - Tier 2`, null], [`${BASE} - Tier 3`, null]]) {
+                made.push(await RollTable.create({ name, formula: "1d1", ...(flags ? { flags: { [MODULE_ID]: flags } } : {}) }));
+            }
+            await region.setFlag(MODULE_ID, FLAG, BASE);
+            await settle();
+
+            const opening = T.openItemTables({ preset: { category: null, tier: 2, room, name: `${TAG} found thing` } });
+            await until(() => tablesApp());
+            await settle();
+            let el = tablesApp()?.element;
+            const ticked = [...(el?.querySelectorAll('[data-drpg-gmt-section="newItem"] input[type="checkbox"][name^="target:"]:checked') ?? [])]
+                .map(box => game.tables.get(box.name.slice("target:".length))?.name).filter(name => name?.startsWith(TAG)).sort();
+            const shown = [el?.querySelector(".drpg-gmt-section.active")?.dataset.drpgGmtSection ?? null, ticked,
+                el?.querySelector('[name="newName"]')?.value ?? null,
+                [...(el?.querySelectorAll("footer button[data-action]") ?? [])].filter(b => !b.hidden).map(b => b.dataset.action)];
+            /* What Rename offers: the harness answers a prompt from its queue without drawing it, so the prompt's content is
+               read there; a real Foundry draws the window, and its field is read. */
+            let renaming = null;
+            const queue = Array.isArray(globalThis.__dialogAnswers) ? globalThis.__dialogAnswers : null;
+            const answer = config => {
+                const box = document.createElement("div");
+                box.innerHTML = String(config?.content ?? "");
+                renaming = box.querySelector('input[name="tableName"]')?.value ?? "";
+                return null;
+            };
+            queue?.push(answer);
+            el?.querySelector('[data-drpg-pane="rooms"] [data-drpg-rename-table]')?.click();
+            await until(() => renaming !== null || appWith(e => e.querySelector('input[name="tableName"]')));
+            if (queue?.includes(answer)) queue.splice(queue.indexOf(answer), 1);
+            renaming ??= appWith(e => e.querySelector('input[name="tableName"]'))?.element.querySelector('input[name="tableName"]')?.value ?? null;
+            const highlighted = el?.querySelector('[data-drpg-pane="rooms"] .drpg-table-pick.active span')?.textContent.trim() ?? null;
+            await closeAll(e => e.querySelector('input[name="tableName"]'));
+            await closeAll(e => e.classList.contains("drpg-window-tables"));
+            try { await Promise.race([opening, wait(2000)]); } catch { /* closed rather than answered */ }
+
+            const NOWHERE = `${TAG} nowhere`;
+            const second = T.openItemTables({ preset: { category: null, tier: 1, room: NOWHERE, name: "" } });
+            await until(() => tablesApp());
+            await settle();
+            el = tablesApp()?.element;
+            const noTable = el?.querySelector('[data-drpg-gmt-section="newItem"] [data-drpg-room-note]')?.textContent ?? "";
+            await closeAll(e => e.classList.contains("drpg-window-tables"));
+            try { await Promise.race([second, wait(2000)]); } catch { /* closed rather than answered */ }
+            tables = [...shown, renaming === highlighted && renaming === BASE, noTable.includes(NOWHERE)];
+
+            keyScene = await Scene.create({ name: `${TAG} a bedroom`, width: 1000, height: 1000, grid: { size: 100 }, active: false, navigation: false });
+            loner = await Actor.create({ name: `${TAG} keyholder`, type: "character" });
+            const owner = student;
+            await keyScene.createEmbeddedDocuments("Region", [{ name: `${TAG} Bedroom`, shapes: [{ type: "rectangle", x: 100, y: 100, width: 400, height: 400 }],
+                flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true, [V.VAULT_FLAGS.owner]: owner.id } }, behaviors: [] }]);
+            await settle();
+            for (const bedroom of V.allBedroomsAnywhere().filter(v => v.owner && v.owner.id !== loner.id)) {
+                await V.grantBedroomKey(loner, bedroom.room, { silent: true });
+            }
+            await settle();
+            const keyOpening = typeof G.giveKeyDialog === "function" ? G.giveKeyDialog(loner) : null;
+            const keyApp = () => appWith(e => e.querySelector('select[name="room"]') && e.querySelector('select[name="recipient"]'));
+            await until(() => keyApp());
+            await settle();
+            const kel = keyApp()?.element;
+            const okButton = kel?.querySelector('footer button[data-action="ok"]');
+            keys = [okButton?.textContent.trim() ?? null, okButton?.disabled ?? null,
+                kel?.querySelector("[data-drpg-key-empty]:not([hidden])")?.textContent.trim().length > 0];
+            await closeAll(e => e.querySelector('select[name="room"]') && e.querySelector('select[name="recipient"]'));
+            try { await Promise.race([keyOpening, wait(2000)]); } catch { /* closed rather than answered */ }
+
+            const traces = Array.from(game.scenes).flatMap(s => remnantsOn(s)).filter(token => remnantData(token)).length;
+            const bulletOpening = typeof G.giveTruthBulletDialog === "function" ? G.giveTruthBulletDialog(student) : null;
+            const bulletApp = () => appWith(e => e.querySelector('[data-drpg-gmt-section="create"]') && e.querySelector('[data-drpg-gmt-section="existing"]'));
+            await until(() => bulletApp());
+            await settle();
+            bullets = [traces > 0, bulletApp()?.element.querySelector(".drpg-gmt-section.active")?.dataset.drpgGmtSection ?? null];
+            await closeAll(e => e.querySelector('[data-drpg-gmt-section="create"]') && e.querySelector('[data-drpg-gmt-section="existing"]'));
+            try { await Promise.race([bulletOpening, wait(2000)]); } catch { /* closed rather than answered */ }
+        } finally {
+            if (hadFlag === undefined || hadFlag === null) await region.unsetFlag(MODULE_ID, FLAG);
+            else await region.setFlag(MODULE_ID, FLAG, hadFlag);
+            for (const table of made) { try { await table.delete(); } catch { /* already gone */ } }
+            try { await loner?.delete(); } catch { /* already gone */ }
+            try { await keyScene?.delete(); } catch { /* already gone */ }
+            await settle();
+        }
+        equal(stableJson([tables, keys, bullets]), stableJson([
+            ["newItem", [BASE, `${BASE} - Tier 2`], `${TAG} found thing`, ["add", "close"], true, true],
+            [game.i18n.localize("DRPG.Vault.giveKey"), true, true],
+            [bullets?.[0] ?? null, bullets?.[0] ? "existing" : "create"]]),
+            "a GM's window opens out of sight of what it was asked for, or offers what it cannot do [Create an item: the tab, the "
+            + "room's tables ticked, the name, the footer, Rename on the highlighted table, the line for a room with no table; Give "
+            + "a room key with none left: the button's words, off, the line why; Give a Truth Bullet: a trace anywhere, the tab]");
+    }],
+
     ...GRID
 ];
 

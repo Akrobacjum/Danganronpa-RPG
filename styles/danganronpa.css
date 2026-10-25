@@ -13286,6 +13286,14 @@ body.drpg-theme-stained-glass .application.dialog:is(.drpg-window-murder, .drpg-
     font-size: var(--drpg-text-sm);
 }
 
+/* Give a room key with no key left for the person picked (E14 part 2 C6, S08-22): the line under the field says why, and
+   the button is off - drawn dashed, so it reads as nothing to press rather than as a button that failed. */
+.drpg-give-key footer button:disabled {
+    border-style: dashed;
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
 .drpg-tables-new-head {
     display: flex;
     align-items: center;

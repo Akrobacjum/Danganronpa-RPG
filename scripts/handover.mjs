@@ -48,12 +48,17 @@ export async function askWhoIsHere(actor, { title, intro, note, okLabel, listBox
         return null;
     }
 
-    const { othersInRoom, roomOfActor } = await import("./movement.mjs");
-    const here = othersInRoom(actor);
+    /* A CHARACTER IN NO ROOM IS TOLD SO (E14 part 2 C6, 24.10.2026; audit S08-23). The room went into the sentence as
+       "-" ("Nobody else in - to hand anything to."), which a GM acting for a character whose token is in no room - or on
+       no scene - could not act on. `locateActor` is the one reading of where the character is (`roomOfActor` is its
+       room, and has not asked the camera since E12 C3, the other half of S08-23). */
+    const { othersInRoom, locateActor } = await import("./movement.mjs");
+    const room = locateActor(actor)?.room ?? null;
+    const here = room ? othersInRoom(actor) : [];
     if (!here.length) {
-        ui.notifications.warn(game.i18n.format("DRPG.Handover.nobodyHere", {
-            room: roomOfActor(actor) ?? "-"
-        }));
+        ui.notifications.warn(room
+            ? game.i18n.format("DRPG.Handover.nobodyHere", { room })
+            : game.i18n.format("DRPG.Handover.notInRoom", { name: actor.name }));
         return null;
     }
 
@@ -65,7 +70,7 @@ export async function askWhoIsHere(actor, { title, intro, note, okLabel, listBox
         window: { title },
         classes: ["drpg-panel"],
         content: dialogContent(`<form>
-            <p>${intro(foundry.utils.escapeHTML(roomOfActor(actor) ?? "-"))}</p>
+            <p>${intro(foundry.utils.escapeHTML(room))}</p>
             <label>${game.i18n.localize("DRPG.Handover.who")}
                 <select name="target"${size}>${options}</select></label>
             <p class="notes">${note}</p>
