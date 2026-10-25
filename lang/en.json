@@ -2922,7 +2922,7 @@
       },
       "reactionLocked": "A statistic rolled on its own is a reaction: it costs nothing and earns nothing. Hope and Despair come from actions.",
       "unlockedByCall": "Unlocked by a Call you paid for.",
-      "freeCritArmed": "Loaded Die is armed. One die is set to 12 and the other is thrown - a very high total, and a critical only if that one comes up 12 as well.",
+      "freeCritArmed": "Loaded Die is armed. One of the two dice, at random, is set to 12 and the other is thrown - a very high total, and a critical only if that one comes up 12 as well.",
       "forcedByCall": "Set by a Call you paid for. It cannot be turned off.",
       "forcedBySituation": "Set by where you are and what you are looking for. It cannot be turned off.",
       "forcedByState": "You are in Breakdown - every roll is at disadvantage until some Sanity comes back. It cannot be turned off.",

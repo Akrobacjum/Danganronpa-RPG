@@ -9475,7 +9475,7 @@ const SCENARIOS = [
     }],
 
 
-    ["a Loaded Die bought and armed forces the first face on the GM and is spent there; one not armed does not", async () => {
+    ["a Loaded Die bought and armed forces one die's top face on the GM and is spent there; one not armed does not", async () => {
         /*
          * E08+E28 C12b, 04.10.2026; the plan's 3.3. The Loaded Die's 12 is the GM's to put on the
          * roll it draws, while the character's armed Calls hold the mark and the roll applied it;
@@ -9484,7 +9484,9 @@ const SCENARIOS = [
          * draws of a player's character, the harness's faces 3 and 5: one marked with a Loaded Die
          * armed on the character and named among the roll's Calls, one with a mark nothing armed.
          * Read: the faces, the record's `used.loaded`, and whether the Call is still armed. C12a
-         * loaded the die already; until C12b the GM left the Call armed.
+         * loaded the die already; until C12b the GM left the Call armed. Since E15 C5 (D16) the die
+         * loaded is Hope or Fear at random and the record names it (`used.at`): the faces are read
+         * loaded die first, so a loaded draw reads 12 and the script's first face whichever it was.
          */
         needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
         const { player, theirs } = playerAndCharacters();
@@ -9498,8 +9500,8 @@ const SCENARIOS = [
             for (const mark of [nonce, "C12BNOTARMEDDIE"]) {
                 const F = await drawnForPlayer(player, theirs, { faces: { hope: 3, fear: 5 }, edit: p => ({ ...p, loaded: mark, calls: [mark] }) });
                 try {
-                    read.push([F.record?.hope ?? null, F.record?.fear ?? null, F.record?.used?.loaded ?? null,
-                        E.armedCallsShown(theirs).some(c => c.nonce === nonce)]);
+                    const faces = F.record?.used?.at === "fear" ? [F.record.fear, F.record.hope] : [F.record?.hope ?? null, F.record?.fear ?? null];
+                    read.push([...faces, F.record?.used?.loaded ?? null, E.armedCallsShown(theirs).some(c => c.nonce === nonce)]);
                 } finally {
                     await F.putBack();
                 }
@@ -9508,7 +9510,7 @@ const SCENARIOS = [
             if (E.armedCallsShown(theirs).some(c => c.nonce === nonce)) await E.consumeCallsByNonce(theirs, [nonce]);
         }
         equal(stableJson(read), stableJson([[12, 3, true, false], [3, 5, false, false]]),
-            "the GM did not load an armed Loaded Die, loaded one nothing armed, or left the one it loaded armed (per draw: Hope, Fear, loaded, still armed)");
+            "the GM did not load an armed Loaded Die, loaded one nothing armed, or left the one it loaded armed (per draw: the loaded die or Hope, the other, loaded, still armed)");
     }],
 
     ["a Call bought with too little Hope is refused before anything is paid, and one paid for is armed by the GM on the buyer's own character", async () => {
@@ -41274,7 +41276,7 @@ const SCENARIOS = [
         "the hooks did not fire in Daggerheart's order, the configuration hook was not handed the roll before its throw, the dice were not the ones its shadowed evaluate threw, or its JSON does not rebuild it (hooks, the roll as handed, shadow calls, the roll after, the result, the message, the rebuilt roll)");
     }],
 
-    ["a Loaded Die loads the first die of the roll it was bought for, through Daggerheart's configuration hook", async () => {
+    ["a Loaded Die loads one die of the roll it was bought for, through Daggerheart's configuration hook", async () => {
         /*
          * E08+E28 C10, 04.10.2026. forced-roll.mjs loads the die where Daggerheart hands the roll
          * over (`daggerheart.postDualityRollConfiguration`): it shadows that roll's `evaluate` so
@@ -41285,7 +41287,9 @@ const SCENARIOS = [
          * a 5 and a 3 for each (`__forceRoll`). Read: each roll's faces and its Free Critical. The
          * loaded roll's Hope die shows 12 and its Fear die the script's first face, 5 - the
          * loaded die drew nothing from the script, as at a table; the second roll is honest, 5
-         * and 3, as the Call was spent on the first.
+         * and 3, as the Call was spent on the first. Since E15 C5 (D16) the loaded die is Hope or
+         * Fear at random, named on the roll's options (`LOADED_AT`): the faces are read loaded die
+         * first, so the loaded roll reads 12 and 5 whichever it was (E15-T7 holds both to come up).
          */
         const [who] = cast(1);
         const { appendArmedCall } = await import("./call-effects.mjs");
@@ -41300,9 +41304,13 @@ const SCENARIOS = [
         } finally {
             for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
         }
-        const read = r => [r?.outcome?.raw?.roll?.hope?.value ?? null, r?.outcome?.raw?.roll?.fear?.value ?? null, r?.outcome?.freeCritical ?? null];
+        const { LOADED_AT } = await import("./forced-roll.mjs");
+        const read = r => {
+            const hope = r?.outcome?.raw?.roll?.hope?.value ?? null, fear = r?.outcome?.raw?.roll?.fear?.value ?? null;
+            return [...(r?.message?.rolls?.[0]?.options?.[LOADED_AT] === "fear" ? [fear, hope] : [hope, fear]), r?.outcome?.freeCritical ?? null];
+        };
         equal(stableJson([read(loaded), read(honest)]), stableJson([[12, 5, true], [5, 3, false]]),
-            "the Loaded Die did not load the first die of its roll through the configuration hook, or loaded the next roll too (Hope, Fear, Free Critical of each)");
+            "the Loaded Die did not load one die of its roll through the configuration hook, or loaded the next roll too (the loaded die or Hope, the other, Free Critical of each)");
     }],
 
     ["the day summary reads the words' store, and the card's document carries no facts", async () => {
@@ -66869,6 +66877,120 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({ silenced: true, second: [0, true], newRule: [null, [true, true, false]] }),
             "a Call was not refused before its confirm [callBarred under the Silence; the second Loaded Die: windows opened, the warning "
             + "that it is held; New Rule: the picker's answer, the confirm shut on an empty, a blank and a written text]");
+    }],
+
+    ["a Loaded Die sets one of the two dice to 12 at random (E15-T7): twenty loaded rolls through Daggerheart's configuration hook each force the die their roll names, and both a Hope and a Fear 12 come up", async () => {
+        /*
+         * E15 C5, 25.10.2026; audit S09-08, the owner's D16 (option 1: a random die). Until C5
+         * forced-roll.mjs `loadDie` gave the top face to the first draw of the randomiser, which
+         * Daggerheart's Hope die takes (dualityRoll.mjs `createBaseDice`), so every loaded roll came
+         * out with Hope and none fed a Monokuma. Twenty Free Criticals armed one at a time, each
+         * spent by an action roll with the randomiser scripted to a 5 and a 3. Read, per roll: the
+         * die its options name (`LOADED_AT`), its Hope and Fear faces and its Free Critical. The
+         * named die must show 12 and the other the script's first face, 5 - the loaded die draws
+         * nothing from the script - and the twenty must name both dice. Twenty coins all alike is
+         * 2 in 2^20, about one run in 520,000: a red here twice is the code, not the coin.
+         */
+        const [who] = cast(1);
+        const { appendArmedCall } = await import("./call-effects.mjs");
+        const { LOADED_AT } = await import("./forced-roll.mjs");
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const read = [];
+        try {
+            for (let i = 0; i < 20; i++) {
+                must(await appendArmedCall(who, { key: "freeCrit", kind: "hope", grants: "critical", nonce: foundry.utils.randomID() }),
+                    "the Free Critical was not armed");
+                const r = await neutralRoll(who, { remember: true, faces: { hope: 5, fear: 3 } });
+                read.push([r?.message?.rolls?.[0]?.options?.[LOADED_AT] ?? null, r?.outcome?.raw?.roll?.hope?.value ?? null,
+                    r?.outcome?.raw?.roll?.fear?.value ?? null, r?.outcome?.freeCritical ?? null]);
+            }
+        } finally {
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
+        }
+        const wrong = read.filter(([at, hope, fear, free]) => !(free === true
+            && ((at === "hope" && hope === 12 && fear === 5) || (at === "fear" && fear === 12 && hope === 5))));
+        const named = [...new Set(read.map(([at]) => at))].sort();
+        equal(stableJson({ wrong, named }), stableJson({ wrong: [], named: ["fear", "hope"] }),
+            "a Loaded Die forced a die its roll does not name, forced neither, or forced the same die twenty times in twenty "
+            + "(the rolls that broke the rule as [named, Hope, Fear, Free Critical]; the dice named)");
+    }],
+
+    ["a Loaded Die on a roll the GM draws forces the die the record names, and a manual 2d12 feeds no pool while a duality roll does (E15-T7)", async () => {
+        /*
+         * E15 C5, 25.10.2026; audit S09-08 and S09-29. (1) The GM's road: a player's roll drawn on the
+         * primary with a Loaded Die armed and named (roll-draw.mjs `throwDrawn` loads it, C12b), four
+         * draws at the harness's faces 3 and 5. Read, per draw: the die the record names
+         * (`used.at`), its Hope and Fear. (2) despair-award.mjs `findDualityDice` scanned the dice of
+         * any roll with two d12s, so a player's `/r 1d12+1d12` read as a duality roll and a higher
+         * second die put a point in their Monokuma's pool. Three messages a connected player wrote
+         * about their student, each a Despair result (4 and 9): a plain Roll, as Foundry keeps a
+         * chat command's (`class: "Roll"`, the two d12s and nothing of Daggerheart's); Daggerheart's
+         * duality roll as its JSON keeps it, with no Hope or Fear die getter (the raw scan's own
+         * road); and one with them. Read: the pool after each. At a table a v14 message holds Roll
+         * instances, not this JSON - the shape is written from Foundry's `Roll#dice` and
+         * Daggerheart's `toJSON`, not measured on v14.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the rolls are a connected player's, about their own student");
+        const { player, theirs } = playerAndCharacters();
+        const E = await import("./call-effects.mjs");
+        const draws = [];
+        for (let i = 0; i < 4; i++) {
+            const before = new Set(E.armedCallsShown(theirs).map(c => c.nonce));
+            await E.armCall(theirs, { key: "freeCrit", kind: "hope", grants: "critical" });
+            const nonce = E.armedCallsShown(theirs).find(c => c.grants === "critical" && !before.has(c.nonce))?.nonce ?? null;
+            must(nonce, "the Loaded Die was not armed - this would measure nothing");
+            try {
+                const F = await drawnForPlayer(player, theirs, { faces: { hope: 3, fear: 5 }, edit: p => ({ ...p, loaded: nonce, calls: [nonce] }) });
+                try {
+                    draws.push([F.record?.used?.at ?? null, F.record?.hope ?? null, F.record?.fear ?? null]);
+                } finally {
+                    await F.putBack();
+                }
+            } finally {
+                if (E.armedCallsShown(theirs).some(c => c.nonce === nonce)) await E.consumeCallsByNonce(theirs, [nonce]);
+            }
+        }
+        const wrongDraws = draws.filter(([at, hope, fear]) => !((at === "hope" && hope === 12 && fear === 3) || (at === "fear" && fear === 12 && hope === 3)));
+
+        const writer = game.users.find(u => !u.isGM && u.active && u.character?.type === "character");
+        must(writer, "no connected player has a student as their character - nobody's pool would be fed");
+        const student = writer.character;
+        const { D, mono } = await despairOf(student);
+        const hadAward = game.settings.get(MODULE_ID, SETTINGS.despairFromRolls), pool = D.getDespair(mono.id);
+        const made = [];
+        const dice = [{ faces: 12, total: 4, results: [{ result: 4, active: true }] }, { faces: 12, total: 9, results: [{ result: 9, active: true }] }];
+        const post = async roll => {
+            const message = await ChatMessage.create({ author: writer.id, speaker: ChatMessage.getSpeaker({ actor: student }),
+                content: "<div class=\"dice-roll\">13</div>", rolls: [roll], ...(roll.class === "DualityRoll" ? { system: { roll } } : {}) });
+            made.push(message.id);
+            // An award waits up to 4 s for its subject (private-rolls.mjs `rollSubject`), so this waits 6.
+            await until(() => D.getDespair(mono.id) !== was, 6000);
+            await settle();
+            const now = D.getDespair(mono.id);
+            const moved = now - was;
+            was = now;
+            return moved;
+        };
+        let was = 0;
+        let pools = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.despairFromRolls, true);
+            await D.setDespair(mono.id, 0);
+            must(D.owedOf(mono.id) === 0, "the pool owes Despair - a point would pay the debt, not move the pool");
+            was = D.getDespair(mono.id);
+            pools = [
+                await post({ class: "Roll", formula: "1d12 + 1d12", total: 13, evaluated: true, dice, options: {} }),
+                await post({ class: "DualityRoll", formula: "1d12 + 1d12", total: 13, evaluated: true, dice, options: { actionType: "action" } }),
+                await post({ class: "DualityRoll", formula: "1d12 + 1d12", total: 13, evaluated: true, dHope: { total: 4 }, dFear: { total: 9 }, dice, options: { actionType: "action" } })
+            ];
+        } finally {
+            for (const id of made) await game.messages.get(id)?.delete();
+            await D.setDespair(mono.id, pool);
+            await game.settings.set(MODULE_ID, SETTINGS.despairFromRolls, hadAward);
+        }
+        equal(stableJson({ wrongDraws, pools }), stableJson({ wrongDraws: [], pools: [0, 1, 1] }),
+            "a drawn Loaded Die forced a die its record does not name, or a manual 2d12 fed the pool, or a duality roll did not "
+            + "(the draws that broke the rule as [named, Hope, Fear]; the pool's move after a plain 2d12, a duality roll's JSON, one with its dice getters)");
     }],
 
     ...GRID

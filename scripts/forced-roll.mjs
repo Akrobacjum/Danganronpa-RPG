@@ -13,6 +13,17 @@
  * nothing more; the other one is thrown, and a critical happens only when it
  * lands on 12 by itself.
  *
+ * AND WHICH ONE AT RANDOM (D16, the owner's option 1: the Loaded Die sets a random die;
+ * audit S09-08, E15 C5, 25.10.2026). Until C5 it was always the first die the
+ * randomiser served, and Daggerheart throws the Hope die first (dualityRoll.mjs
+ * `createBaseDice`: terms[0] Hope, terms[2] Fear) - so every loaded roll was
+ * "with Hope" (measured at 3e5d1f6d by tier 2's E15-T7: twenty loaded rolls,
+ * twenty Hope 12s): the audit's reading is that it gave a Hope back (the Call
+ * cost 5, not 6) and never fed a Monokuma's pool. Now a coin is tossed before the throw, Hope or Fear, and
+ * the die it names is the one set to 12; the roll says which on its options
+ * (`LOADED_AT`), so a reader after it (E16 part 2's S02-44) knows which face
+ * was forced without guessing from the totals.
+ *
  * Rather than editing the roll after the fact - which would fight the system's
  * message pipeline, Dice So Nice, and the reroll feature all at once - the die
  * randomiser is swapped for a constant while the roll evaluates. Foundry maps a
@@ -49,6 +60,20 @@ import { debug, error } from "./utils.mjs";
 export const LOADED_DIE = "drpgLoadedDie";
 
 /*
+ * Which die the Loaded Die set to 12, on the roll's options: "hope" or "fear", written as the
+ * die is loaded and before the throw (`loadDie`). It names no character - it is one of two
+ * words - so the neutral roll a message keeps (private-rolls.mjs `neutralRollOf`) leaves it,
+ * where the mark above, a nonce the character's flag holds, is dropped.
+ */
+export const LOADED_AT = "drpgLoadedAt";
+
+/** The die `roll` was loaded on, "hope" or "fear", or null for a roll nothing loaded. */
+export function loadedAtOf(roll) {
+    const at = roll?.options?.[LOADED_AT];
+    return at === "hope" || at === "fear" ? at : null;
+}
+
+/*
  * AND ONCE PER PURCHASE (review, 17.09). The mark is the Call's own nonce, and a
  * nonce that has loaded a die is remembered here: two action windows opened while
  * one Loaded Die was held both carry it, and without this both came up 12 for
@@ -56,6 +81,13 @@ export const LOADED_DIE = "drpgLoadedDie";
  * purchase has a new nonce, so the set never has to be cleared.
  */
 const spent = new Set();
+
+/*
+ * The draw each die takes from the randomiser, in the order Daggerheart builds them: the Hope
+ * die first, the Fear die second, an advantage die after both (dualityRoll.mjs `createBaseDice`,
+ * 2.10.5 as copied in audit/harness/lib/dh-dice). Read in the source, not on a real v14 table.
+ */
+const DRAW_OF = Object.freeze({ hope: 0, fear: 1 });
 
 /*
  * HOW MANY DICE GET THEIR TOP FACE.
@@ -106,7 +138,7 @@ export function standAsideFor(predicate) {
 }
 
 /**
- * Load the first die `roll` throws, once per `mark`. The configuration hook's on this
+ * Load one of the two dice `roll` throws, Hope or Fear at random, once per `mark`. The configuration hook's on this
  * client; and the primary GM's for a player's roll it draws (roll-draw.mjs `drawOnGm`,
  * E08+E28 C12a), where the roll the GM throws is not the one the roller's hook saw - which,
  * since C12b, loads nothing (`onConfigured`).
@@ -133,19 +165,25 @@ export function loadDie(roll, mark) {
             }
             spent.add(mark);
             const real = CONFIG.Dice.randomUniform;
-            let left = LOADED;
-            // Counted down rather than flagged: `randomUniform` is called once
-            // per die and knows nothing about which die it is serving, so "the
-            // first one" is the only handle there is. Everything after it
-            // rolls for real.
+            // The coin is tossed here, before the throw, and from Math.random rather than
+            // the dice's own randomiser: a draw taken from `randomUniform` would be one the
+            // dice never see, and a scripted randomiser (the harness's faces) would hand its
+            // first face to the coin instead of a die.
+            const at = Math.random() < 0.5 ? "hope" : "fear";
+            if (this.options && typeof this.options === "object") this.options[LOADED_AT] = at;
+            let draw = 0, left = LOADED;
+            // Counted rather than flagged: `randomUniform` is called once per die and
+            // knows nothing about which die it is serving, so the draw's place in the
+            // order is the only handle there is. Every other draw rolls for real.
             CONFIG.Dice.randomUniform = () => {
-                if (left > 0) {
+                const here = draw++;
+                if (left > 0 && here === DRAW_OF[at]) {
                     left -= 1;
                     return 0;
                 }
                 return real();
             };
-            debug("Free Critical: one die forced to its maximum face.");
+            debug(`Free Critical: the ${at === "hope" ? "Hope" : "Fear"} die forced to its maximum face.`);
             try {
                 return await evaluate.apply(this, args);
             } finally {

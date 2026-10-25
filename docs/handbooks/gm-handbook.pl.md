@@ -265,7 +265,7 @@ Wydawane z arkusza postaci, szeptem do gracza. Call, który zmienia rzut - Suppo
 | Resolve | 3 | Na jeden rzut sam wybierz statystykę | nie |
 | Burst | 4 | Następna akcja nic nie kosztuje, ile by nie kosztowała | nie |
 | Relief | 4 | Weź Short Rest teraz: bez akcji, bez pokoju odpoczynku, nie zużywa tego z tej pory dnia | nie |
-| Loaded Die | 6 | Przy następnym rzucie jedna kość ustawiona na 12, druga rzucona; krytyk tylko, jeśli i ona wypadnie 12 | nie |
+| Loaded Die | 6 | Przy następnym rzucie jedna z dwóch kości, losowo, ustawiona na 12, druga rzucona; krytyk tylko, jeśli i ona wypadnie 12, a rzut z ustawioną kością Despair wychodzi z Despair | nie |
 
 **Zatwierdzanie Experience i Ultimate.** Gracz musi napisać, do czego chce tego użyć - puste pole anuluje, bo decyzja dotyczy zdania, nie Calla. Prośba ląduje jako karta w wątku komunikatora gracza, widoczna dla gracza i każdego GMa, z przyciskami **Stosuje się** i **Nie tym razem**. Odpowiedzieć może każdy GM. Zgodę zachowuje przeglądarka głównego GMa, która tylko z nią uzbraja Call; od 1.2.83 karta wystawiona przez głównego GMa, który już wyszedł, znów przyjmuje zgodę, gdy przeglądarka gracza zapyta nowego głównego (sekcja 6.3). Nic nie jest pobierane przed zgodą; odmowa albo milczenie nic gracza nie kosztuje (karta mówi, do kiedy jest otwarta: **pięć minut**). Jeśli twoja przeglądarka przeładuje się z otwartym pytaniem, klient gracza zapyta ponownie, gdy wrócisz, a pytanie zostaje przy swojej karcie. Po naciśnięciu przycisku karta zmienia się w pokwitowanie w wątku, więc nikt nie orzeka dwa razy; pod nią można jeszcze dopisać coś słowami.
 

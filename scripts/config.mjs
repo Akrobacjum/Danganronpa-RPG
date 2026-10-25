@@ -2171,7 +2171,7 @@ export const HOPE_CALLS = {
         // the action pipeline recognise THIS Call by; what changes is what it
         // does to the dice.
         label: "Loaded Die", icon: "fa-burst", cost: 6, target: "none", grants: "critical",
-        effect: "One die is set to 12, the other is thrown. A critical only if that one is a 12 too."
+        effect: "One of the two dice, at random, is set to 12, the other is thrown. A critical only if that one is a 12 too."
     }
 };
 

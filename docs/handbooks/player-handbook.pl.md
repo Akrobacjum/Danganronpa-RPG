@@ -365,7 +365,7 @@ Hope jest twój. Masz najwyżej **6**. Wraca, gdy rzuty idą po twojej myśli (+
 | **Resolve** | 3 | Na jeden rzut sam wybierz, którą statystykę dodać. |
 | **Burst** | 4 | Twoja następna akcja nic nie kosztuje - cała akcja, ile by nie kosztowała. |
 | **Relief** | 4 | Weź Short Rest od razu: bez akcji, bez oznaczonego pokoju i nie zużywa tego z tej pory dnia. |
-| **Loaded Die** | 6 | Przy następnym rzucie jedna kość jest ustawiona na 12, a druga rzucana. Bardzo wysoki wynik, a krytyk tylko, jeśli i ta druga wypadnie 12. |
+| **Loaded Die** | 6 | Przy następnym rzucie jedna z dwóch kości, losowo, jest ustawiona na 12, a druga rzucana. Bardzo wysoki wynik, a krytyk tylko, jeśli i ta druga wypadnie 12. Gdy ustawiona jest kość Despair, rzut wychodzi z Despair. |
 
 Call wpływający na rzut - Support, Experience, Ultimate, Resolve, Loaded Die - kupuje się w przeglądarce GMa, która pobiera Hope: bez połączonego GMa nie da się go kupić i nic nie zostaje wydane (odczytane z kodu, niezmierzone dla Calla). Czeka na twój następny rzut i jest zużyty w chwili rzutu. Call nałożony na ciebie po otwarciu okna rzutu nie wchodzi do tego rzutu: okno to mówi, a Call czeka na twój następny - chyba że ci utrudnia (utrudnienie albo ujemna premia) i nałożono go ponad minutę przed rzutem, który rzuca przeglądarka GMa: taki rzut go liczy, czy okno go pokazuje, czy nie. Sprint i Burst idą do zapasu i trwają do końca pory dnia.
 

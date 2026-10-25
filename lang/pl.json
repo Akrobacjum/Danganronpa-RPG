@@ -3044,7 +3044,7 @@
       },
       "reactionLocked": "Statystyka rzucona sama w sobie to reakcja: nic nie kosztuje i nic nie daje. Hope i Despair biorą się z akcji.",
       "unlockedByCall": "Odblokowane przez opłacony Call.",
-      "freeCritArmed": "Loaded Die uzbrojony. Jedna kość ustawiona na 12, druga rzucana - bardzo wysoki wynik, a krytyk tylko, jeśli i ta wypadnie 12.",
+      "freeCritArmed": "Loaded Die uzbrojony. Jedna z dwóch kości, losowo, ustawiona na 12, druga rzucana - bardzo wysoki wynik, a krytyk tylko, jeśli i ta wypadnie 12.",
       "forcedByCall": "Ustawione przez opłacony Call. Nie da się tego wyłączyć.",
       "forcedBySituation": "Ustawione przez to, gdzie jesteś i czego szukasz. Nie da się tego wyłączyć.",
       "forcedByState": "Jesteś w Breakdown - każdy rzut z utrudnieniem, dopóki nie wróci trochę Sanity. Nie da się tego wyłączyć.",
@@ -5023,7 +5023,7 @@
         },
         "freeCrit": {
           "label": "Loaded Die",
-          "effect": "Jedna kość ustawiona na 12, druga rzucana. Krytyk tylko, jeśli i ta wypadnie 12."
+          "effect": "Jedna z dwóch kości, losowo, ustawiona na 12, druga rzucana. Krytyk tylko, jeśli i ta wypadnie 12."
         }
       },
       "DESPAIR_CALLS": {

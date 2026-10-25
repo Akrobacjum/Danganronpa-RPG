@@ -265,7 +265,7 @@ Spent from the character sheet, whispered to the player. A Call that changes a r
 | Resolve | 3 | For one roll, choose the statistic yourself | no |
 | Burst | 4 | The next action costs nothing, however much it would have cost | no |
 | Relief | 4 | Take a Short Rest now: no action, no rest room, does not use up this time of day's | no |
-| Loaded Die | 6 | On the next roll one die is set to 12 and the other is thrown; a critical only if that die is 12 too | no |
+| Loaded Die | 6 | On the next roll one of the two dice, at random, is set to 12 and the other is thrown; a critical only if that die is 12 too, and a roll whose Despair die was set comes out with Despair | no |
 
 **Approving Experience and Ultimate.** The player must write what they mean to do with it - an empty box cancels, because the ruling is about the sentence, not the Call. The request lands as a card in the player's messenger thread, visible to the player and every GM, with **Applies** and **Not this time**. Any GM may answer. The yes is kept by the primary GM's browser, which arms the Call only with it; since 1.2.83 a card put up by a primary GM who has since left takes a yes again once the player's browser has asked the new primary (section 6.3). Nothing is charged until a yes; a refusal or a silence costs the player nothing (the card says until when it is open: **five minutes**). If your browser reloads with the question open, the player's client asks again when you reconnect, and the question keeps its card. Once answered, the card becomes a receipt in the thread.
 
