@@ -60375,7 +60375,25 @@ const SCENARIOS = [
             await crowbar.update(write, { [AUDIT_ASIDE]: true });
             const verdict = (await judgeWrite("updateItem", crowbar, foundry.utils.expandObject(write), player.id))?.verdict ?? null;
             await sheetAuditIdle();
-            read = { ...read, repair: [sizes, judged, target, inMeta, repaired, refusedLate, [verdict, INV.isBroken(crowbar)]] };
+            // And its wear alone, on a worn tool that is not broken: put back, the wear as the GM left it.
+            const worn = await give(mine, { name: "SUITE E15 T15 worn tool", category: "tool", tier: 3 });
+            await worn.update({ [flag("wear")]: 2 });
+            await sheetAuditIdle();
+            await worn.update({ [flag("wear")]: 0 }, { [AUDIT_ASIDE]: true });
+            const wearVerdict = (await judgeWrite("updateItem", worn, foundry.utils.expandObject({ [flag("wear")]: 0 }), player.id))?.verdict ?? null;
+            await sheetAuditIdle();
+            /* The other road to a mend (the stage's r3): a hand-over is a create on the other sheet, and a broken thing must
+               arrive broken (inventory.mjs `preservedFlags`). A broken tool in Hana's stash, rifled by the other student. */
+            if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+            const stashed = await give(mine, { name: "SUITE E15 T15 stashed tool", category: "tool", tier: 1, location: INV.LOCATIONS.vault });
+            await INV.breakItem(stashed);
+            await sheetAuditIdle();
+            const moved = await INV.transferItem(mine, theirs, stashed, { mode: "rifle", quiet: true });
+            await sheetAuditIdle();
+            const arrived = theirs.items.find(i => i.name === "SUITE E15 T15 stashed tool") ?? null;
+            if (arrived) owned.push(arrived);
+            read = { ...read, repair: [sizes, judged, target, inMeta, repaired, refusedLate, [verdict, INV.isBroken(crowbar), wearVerdict, INV.wearOf(worn)],
+                [Boolean(moved && !moved.refused && !moved.missing), arrived ? INV.isBroken(arrived) : null]] };
         } finally {
             Hooks.off("createChatMessage", heard);
             if (mended) await PR.deleteProject(mended).catch(() => {});
@@ -60383,6 +60401,7 @@ const SCENARIOS = [
             for (const item of owned) if (item.parent?.items?.has(item.id)) await item.parent.deleteEmbeddedDocuments("Item", [item.id]).catch(() => {});
             await party?.delete().catch(() => {});
             for (const message of posted) await game.messages.get(message.id)?.delete().catch(() => {});
+            await setClock(clock);
             await sheetAuditIdle();
             await settle();
         }
@@ -60404,7 +60423,7 @@ const SCENARIOS = [
         equal(J(read?.closed), J([true, 1, true, false, 0, false]),
             "[crossed; the scene's walls, the wall byte for byte, the Lab forced, the breach's rows, the project kept] - Close the breach leaves a piece, the wall another length, the room forced, or the project");
         equal(J(read?.closeLate), J([1, true, 1]), "[the walls after a close of a breach a GM closed first, the walls unchanged, the GMs' card] - a close rebuilds or deletes a wall");
-        const [sizes, judged, target, inMeta, repaired, refusedLate, mend] = read?.repair ?? [];
+        const [sizes, judged, target, inMeta, repaired, refusedLate, mend, handed] = read?.repair ?? [];
         equal(J(sizes), J(["trivial", "trivial", "complex", "complex"]), "[the repair's size at tier 0, 1, 2, 3] - the owner's tier 0-1 Trivial, 2-3 Complex");
         equal(J(judged), J([null, null, true, true, true, true, true]),
             "[a broken worn tool, a broken usable, a whole tool, a broken Truth Bullet, another's tool, the party's tool, the party as builder] - a repair mends what is not a broken or worn usable or tool of the builder's own sheet");
@@ -60412,7 +60431,9 @@ const SCENARIOS = [
         equal(J(repaired), J([true, true, false, 0, [false, 0], 1]),
             "[crossed, removed, the crowbar broken, its wear, as the GMs' mark holds it, the builder's card] - Repair an item leaves the item broken or worn, or the mark behind it");
         equal(J(refusedLate), J([true, 1, 1, false]), "[the party's tool after its repair, the GMs' cards for it and the kit given away] - a repair mends a shared sheet's item or one no longer the builder's");
-        equal(J(mend), J(["putBack", true]), "[a player's own mend: the verdict, the crowbar broken after it] - a player's console mends its own item");
+        equal(J(mend), J(["putBack", true, "putBack", 2]),
+            "[a player's own mend: the verdict, the crowbar broken after it; a mend of wear alone: the verdict, the wear after it] - a player's console mends its own item");
+        equal(J(handed), J([true, true]), "[the broken tool rifled from Hana's stash, broken on the other sheet] - a hand-over mends an item");
     }],
     ["a player at 0 Hope who bought an Experience Call clicks the experience: Roll stays on and it costs nothing, the lock on or off; with the lock off and no Call the free experience leaves no cost row for the next change to break (S02-04)", async () => {
         /*
