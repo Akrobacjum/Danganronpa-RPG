@@ -60435,6 +60435,153 @@ const SCENARIOS = [
             "[a player's own mend: the verdict, the crowbar broken after it; a mend of wear alone: the verdict, the wear after it] - a player's console mends its own item");
         equal(J(handed), J([true, true]), "[the broken tool rifled from Hana's stash, broken on the other sheet] - a hand-over mends an item");
     }],
+    ["E15-T16 - a Secret Passage stays the builder's side's secret: a player its Observe finder lets in is a finder too, told it is finished and given no passage; it is never made public - not by the edit window, whose Secret box is held ticked, nor by a reveal of any road - and a project made public some other way gives the passage to no viewer", async () => {
+        /*
+         * E15 part 2 fix e1-G1 (25.10.2026; findings SEC-1, SEC-2, END-04, R2; the stage's E15-41 "always secret" and
+         * E15-44 "Observe's finders get only projectFoundDone"). The harms: the finder's console asks `project.share` for
+         * another player, who became a plain viewer, whose student the completion gave the passage ('shared') - and who
+         * could show it to the finder; a GM's edit unticks Secret (the box was held at the create only) or a console's
+         * `revealProject`, and the reveal makes every player a viewer, so the completion gives every player's students
+         * the passage. On a scene of the suite's own - a Dorm with a Gym beyond one wall - with three students of its own,
+         * played by the suite's three players: Hana the builder, Botan (the second's, let in by the finder) and Kenta (the
+         * third's, the finder), in a GM store world of the suite's own (`withGmStoreWorld`) as E15-T12. The finder's share
+         * is the bridge's own judgement of a packet sent by the finder's player (`judge`, as C16's packets are); the edit
+         * window is the module's, `DialogV2.wait` answered here from the window's own boxes. Red at the parent: the
+         * finder's share makes Botan a plain viewer, and the reveal and the edit's untick make the project public.
+         */
+        const P = await import("./passages-gm.mjs");
+        const PR = await import("./projects.mjs");
+        const S = await import("./gm-stores.mjs");
+        const E = await import("./gm-store.mjs");
+        const R = await import("./rooms.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const UI = await import("./projects-ui.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { ownerOf } = await import("./utils.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const J = v => JSON.stringify(v);
+        const cast3 = cast(3);
+        needs(world.atLeast("livingStudents", 3), "three players of the suite's own play the builder, the one let in and the finder");
+        for (const s of cast3) needs(world.ownedByPlayer(s), "each of the three is a player's, and the suite's players own the cast");
+        const [builderUser, friend, finder] = cast3.map(s => ownerOf(s));
+        must(new Set([builderUser?.id, friend?.id, finder?.id]).size === 3, "the three students are not three players' - a share and a find would be one person's");
+        const clock = foundry.utils.deepClone(getClock() ?? {});
+        const DORM = "SUITE E15 T16 Dorm", GYM = "SUITE E15 T16 Gym";
+        const mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
+        const room = (name, x, y) => ({ name, shapes: [{ type: "rectangle", x, y, width: 600, height: 600 }], flags: mark, behaviors: [] });
+        const OWNER = CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
+        const editTitle = game.i18n.localize("DRPG.Project.editTitle");
+        let scene = null, read = null;
+        const projects = [], actors = [], posted = [];
+        const heard = Hooks.on("createChatMessage", message => { posted.push(message); });
+        let windows = null;
+        try {
+            if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+            scene = await Scene.create({ name: "SUITE E15 T16 a secret kept", width: 1400, height: 800, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [room(DORM, 0, 0), room(GYM, 600, 0)]);
+            await scene.createEmbeddedDocuments("Wall", [{ c: [600, 0, 600, 600] }]);
+            const W = scene.walls.contents[0]?.id;
+            must(W, "the scene's wall was not made - this would measure nothing");
+            read = await E.withGmStoreWorld(`suite-e15-t16-${foundry.utils.randomID(8)}`, async () => {
+                const make = async (name, user) => {
+                    const actor = await Actor.create({ name: `SUITE E15 T16 ${name}`, type: "character", ownership: { default: 0, ...(user ? { [user.id]: OWNER } : {}) } });
+                    actors.push(actor);
+                    return actor;
+                };
+                const hana = await make("Hana", builderUser), botan = await make("Botan", friend), kenta = await make("Kenta", finder);
+                const out = {};
+                const passage = (y1, y2) => ({ sceneId: scene.id, level: null, wallId: W, seg: { x1: 600, y1, x2: 600, y2 }, rooms: [DORM, GYM] });
+                const create = async (name, y1, y2) => {
+                    const made = await PR.createProject({ name, target: 6, room: DORM, trait: "hand", secret: false, by: hana.id,
+                        presetTarget: { preset: "secretPassage", room: GYM }, passage: passage(y1, y2) });
+                    must(made?.id, `the project "${name}" was not made - this would measure nothing`);
+                    projects.push(made.id);
+                    return made.id;
+                };
+                const cell = (id, actor) => (id ? S.passageAccessStore.get(`${id}/${actor.id}`)?.how ?? null : null);
+                const builtBy = projectId => Object.entries(S.passageSeasonStore.entries()).find(([, row]) => row?.origin?.projectId === projectId)?.[0] ?? null;
+                const by = { kind: "player", userId: builderUser.id, actorId: hana.id };
+                // (1) THE FINDER'S SHARE. Kenta's player finds it by Observe, then that player's console lets Botan's player in.
+                const found = await create("SUITE E15 T16 found", 100, 250);
+                await PR.shareWith(found, finder.id);
+                await PR.noteProjectFound(found, [finder.id]);
+                const told = [];
+                await G.judge(BRIDGE_ACTIONS, { action: "project.share", requestId: `E15T16${foundry.utils.randomID(8)}`, countdownId: found, targetUserId: friend.id },
+                    finder.id, { send: (to, reply) => { if (reply?.action === "bridge.refused") told.push(reply.reason); } });
+                await settle();
+                out.share = [told.length, PR.canSee(found, friend), Object.keys(PR.secretsOf(found).foundBy ?? {}).sort()];
+                await S.rerollBookmarkStore.patch(hana.id, { messageId: "SUITEE15T16MSG1" });
+                const before = posted.length;
+                await PR.applyProjectChange(found, { delta: 6 }, { by });
+                await settle();
+                const pid = builtBy(found);
+                const cards = posted.slice(before).map(m => [m.whisper ?? [], String(contentOf(m) ?? "")]);
+                const toUser = (user, key, data) => cards.some(([to, html]) => to.includes(user.id) && html.includes(game.i18n.format(key, data).split("{")[0].slice(0, 24)));
+                out.found = [Boolean(pid), cell(pid, hana), cell(pid, botan), cell(pid, kenta), P.passageCopyFor(friend).value?.[pid] ?? null,
+                    toUser(friend, "DRPG.Observe.projectFoundDone", { name: "" }), toUser(friend, "DRPG.Passage.card.passageBuiltShared", {})];
+                if (pid) await P.deletePassage(pid);
+                // (2) NEVER REVEALED. A reveal by the console's road and by the entry itself; the edit window unticked.
+                const kept = await create("SUITE E15 T16 kept", 300, 450);
+                await PR.shareWith(kept, friend.id);
+                const viewers = () => PR.viewersOf(kept).map(u => u.id).sort();
+                const was = viewers();
+                const revealed = await PR.revealProject(kept);
+                const entry = await PR.applyProjectChange(kept, { reveal: true }, { by: { kind: "gm" } });
+                out.reveal = [revealed ?? null, entry?.refused ?? null, PR.isSecret(kept), J(viewers()) === J(was)];
+                const drawn = [];
+                windows = answerWindows((cfg, root) => {
+                    if ((cfg?.window?.title ?? "") !== editTitle) return null;
+                    const box = root.querySelector('input[name="secret"]');
+                    drawn.push([Boolean(box?.checked), Boolean(box?.disabled)]);
+                    // What a GM's hand can do: untick a box that is not held.
+                    if (box && !box.disabled) box.checked = false;
+                    const boxes = [...root.querySelectorAll('[name="viewers"]')];
+                    return { name: "SUITE E15 T16 kept", target: 6, room: DORM, trait: "hand", murder: false, condition: "", img: null, glyph: null,
+                        secret: Boolean(box?.checked), viewers: boxes.filter(b => b.checked).map(b => b.value), was: boxes.filter(b => b.defaultChecked).map(b => b.value),
+                        trigger: { kind: "manual", targetId: null, afterDark: false, notBuilder: false } };
+                });
+                await UI.openProjectDialog({ project: PR.allProjects().find(p => p.id === kept) });
+                windows.restore();
+                windows = null;
+                out.edit = [drawn, PR.isSecret(kept), J(viewers()) === J(was)];
+                // (3) A PROJECT MADE PUBLIC SOME OTHER WAY (its ownership written by hand): the completion gives no viewer the passage.
+                const open = await create("SUITE E15 T16 opened by hand", 470, 590);
+                const countdowns = foundry.utils.deepClone(game.settings.get("daggerheart", "Countdowns"));
+                const everyone = { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER };
+                for (const user of game.users) if (!user.isGM) everyone[user.id] = CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER;
+                countdowns.countdowns[open].ownership = everyone;
+                await game.settings.set("daggerheart", "Countdowns", countdowns);
+                await PR.setProjectMeta(open, { secret: false });
+                await settle();
+                await PR.applyProjectChange(open, { delta: 6 }, { by });
+                await settle();
+                const opened = builtBy(open);
+                out.open = [PR.isSecret(open), Boolean(opened), cell(opened, hana), cell(opened, botan), cell(opened, kenta)];
+                for (const id of [builtBy(kept), opened]) if (id) await P.deletePassage(id);
+                for (const id of projects.splice(0)) await PR.deleteProject(id);
+                return out;
+            });
+        } finally {
+            windows?.restore();
+            Hooks.off("createChatMessage", heard);
+            for (const id of projects.splice(0)) await PR.deleteProject(id).catch(() => {});
+            for (const actor of actors) await actor.delete().catch(() => {});
+            for (const message of posted) await game.messages.get(message.id)?.delete().catch(() => {});
+            await scene?.delete();
+            await setClock(clock);
+            await settle();
+        }
+        equal(J(read?.share), J([0, true, [finder.id, friend.id].sort()]),
+            "[refusals told the finder, Botan's player let in, the project's finders] - the player a finder lets in is no finder");
+        equal(J(read?.found), J([true, "built", null, null, null, true, false]),
+            "[the passage made; Hana's, Botan's, Kenta's ways of knowing it; Botan's player's copy; that player told the project is finished, told of a passage] - a finder's share gives the passage away");
+        equal(J(read?.reveal), J([null, "it is always secret", true, true]),
+            "[revealProject, the entry's reveal refused, the project secret, its viewers unchanged] - a Secret Passage is revealed");
+        equal(J(read?.edit), J([[[true, true]], true, true]),
+            "[the edit window's Secret box (ticked, held), the project secret after the Save, its viewers unchanged] - the edit window makes a Secret Passage public");
+        equal(J(read?.open), J([false, true, "built", null, null]),
+            "[the project secret, the passage made, Hana's, Botan's, Kenta's ways of knowing it] - a public project's completion gives every viewer's students the passage");
+    }],
     ["a player at 0 Hope who bought an Experience Call clicks the experience: Roll stays on and it costs nothing, the lock on or off; with the lock off and no Call the free experience leaves no cost row for the next change to break (S02-04)", async () => {
         /*
          * E16 p1 C1, 18.10.2026; audit S02-04 (E16-01, E16-02). The Experience Call is paid before the roll, so

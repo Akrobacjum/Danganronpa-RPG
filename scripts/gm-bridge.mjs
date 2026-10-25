@@ -1168,7 +1168,8 @@ async function handleShare(payload, sender, ctx, prepared) {
     if (!canSee(payload.countdownId, sender)) return { refused: "sender cannot see that project" };
 
     // Null: the project is not secret any more, and nothing was shared (E31 review).
-    if (!await shareWith(payload.countdownId, payload.targetUserId)) {
+    // The sender named: a share a finder of the project asked makes the one let in a finder too (E15 part 2 fix e1-G1).
+    if (!await shareWith(payload.countdownId, payload.targetUserId, { senderId: sender.id })) {
         return { refused: "nothing was carried out: shareWith shared nothing" };
     }
     debug(`Shared project ${payload.countdownId} with ${payload.targetUserId} on behalf of a player.`);

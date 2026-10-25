@@ -242,7 +242,7 @@ function roomSelectOptions(rooms, current) {
 }
 
 /** One editable row per project: portrait, name and progress, room, the two flags, edit, delete. */
-function projectManagerRows(projects, rooms) {
+function projectManagerRows(projects, rooms, { always = new Set() } = {}) {
     const roomOptions = id => roomSelectOptions(rooms, roomOf(id) ?? "");
 
     const players = playerList();
@@ -265,7 +265,7 @@ function projectManagerRows(projects, rooms) {
             </td>
             <td style="text-align:center">
                 <input type="checkbox" name="secret.${p.id}" aria-label="${rowName("DRPG.Project.secret", p)}"
-                       ${secret ? "checked" : ""} />
+                       ${secret ? "checked" : ""}${always.has(p.id) ? " disabled" : ""} />
             </td>
             ${players.length
                 ? viewerTicks(players, knows, p, { locked: !secret })
@@ -393,7 +393,8 @@ async function applyProjectManager(result, projects) {
         // never returned - so it was permanently `undefined`, "is it secret"
         // came out as `secret || murder`, and an indirect murder flipped between
         // sealed and revealed on every other save.
-        const shouldBeSecret = entry.secret || newlyMurder;
+        // A preset that is always secret stays so, whatever the box read (fix e1-G1; the step refuses its reveal too).
+        const shouldBeSecret = entry.secret || newlyMurder || (await alwaysSecretIds([entry])).has(entry.id);
         // Through secrecyChange, which knows about the row's own ticked list of
         // viewers (P-1) and about the builder; `entry.viewers` is null when this
         // window had no list to read, and then the seal keeps whoever already knew.
@@ -434,7 +435,7 @@ export async function openProjectManager() {
         const made = await openCreateDialog(rooms);
         return made ? openProjectManager() : undefined;
     }
-    const rows = projectManagerRows(projects, rooms);
+    const rows = projectManagerRows(projects, rooms, { always: await alwaysSecretIds(projects) });
     /* WHO KNOWS WHAT, AS A MATRIX (Dawid, 22.09: "gracze z dostepem do projects ... sa brzydko
        ulozeni - liczylem bardziej na cos przypominajacego tabele"). One column per player,
        named once in the header, and a tick in each row: a GM reads down a column to see what
@@ -594,7 +595,8 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
     const start = project ?? preset ?? null;
     // A Secret Passage's approval (E15 part 2 C2), or a breach's (C3): the builder's room as the GMs read it, and its neighbours.
     const passageOf = !editing && ["secretPassage", "breach"].includes(start?.preset) ? await passageApproval(start) : null;
-    const alwaysSecret = passageOf?.preset === "secretPassage";
+    // Held at the edit too (E15 part 2 fix e1-G1; findings SEC-2, END-04, R2): the project's preset, read in the GMs' half.
+    const alwaysSecret = passageOf?.preset === "secretPassage" || (editing && (await alwaysSecretIds([project])).has(project.id));
     // The owner's three of 15.10 (E15 part 2 C5): the passage, breach or item the card names, judged here as the GMs read it.
     const ownedOf = !editing && OWNED_PRESETS.includes(start?.preset) ? await presetApproval(start) : null;
     const defaultImg = "icons/magic/time/hourglass-yellow-green.webp";
@@ -852,7 +854,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
                     firedAt: startTrigger?.firedAt ?? null,
                     condition: result.condition }
                 : null
-        }), secrecyChange(project.id, result.secret || result.murder, result.viewers, result.was));
+        }), secrecyChange(project.id, result.secret || result.murder || alwaysSecret, result.viewers, result.was));
         if (change) await applyProjectChange(project.id, change, { by: { kind: "gm" } });
         ui.notifications.info(game.i18n.localize("DRPG.Project.saved"));
         return { id: project.id, name: result.name };
@@ -1107,6 +1109,16 @@ function secrecyChange(id, wanted, viewers = null, was = null) {
      */
     const op = wanted ? { seal: { viewers, was } } : (isSecret(id) ? { reveal: true } : null);
     return op && sightChange(id, op) ? op : null;
+}
+
+/**
+ * The projects of `projects` whose preset is always secret (passages-gm.mjs `PASSAGE_PRESETS`, `secret: "always"`; E15
+ * part 2 fix e1-G1), read in the GMs' half (`target.preset`): their Secret box is drawn ticked and locked, and a Save
+ * never reveals them - nor does the step, which refuses the reveal whichever road asks.
+ */
+async function alwaysSecretIds(projects) {
+    const { PASSAGE_PRESETS } = await import("./passages-gm.mjs");
+    return new Set((projects ?? []).filter(p => p?.id && PASSAGE_PRESETS[secretsOf(p.id).target?.preset]?.secret === "always").map(p => p.id));
 }
 
 /** Kept as its own name - the manager and the empty state both call it. */

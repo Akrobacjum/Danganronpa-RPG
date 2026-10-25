@@ -569,7 +569,8 @@ export const COMPLETION_EFFECTS = [
         onCrossed: ({ id, name, meta }) => {
             const finders = new Set(Object.keys(meta.foundBy ?? {}));
             const builders = new Set(ownerIdsOfId(meta.by));
-            const users = viewersOf(id).filter(u => !finders.has(u.id) && !builders.has(u.id));
+            // Only while it is secret (fix e1-G1, SEC-2): a project made public some other way has every player a viewer.
+            const users = isSecret(id) ? viewersOf(id).filter(u => !finders.has(u.id) && !builders.has(u.id)) : [];
             const sharedIds = (game.actors?.contents ?? [...(game.actors ?? [])])
                 .filter(a => a?.type === "character" && users.some(u => a.testUserPermission?.(u, "OWNER"))).map(a => a.id);
             let made = null;
@@ -874,7 +875,14 @@ async function changeStep(countdownId, change, by) {
      * that is no longer secret makes nothing and says so (`refused`); one that changes nobody makes nothing.
      */
     if (SIGHT_KEYS.some(key => change[key] !== undefined)) {
-        const sight = sightChange(countdownId, change);
+        /* A PRESET THAT IS ALWAYS SECRET IS NEVER REVEALED (E15 part 2 fix e1-G1, 25.10.2026; findings SEC-2, END-04,
+           R2). A Secret Passage is sealed at its create whatever the form says (`createProject`), and the edit window,
+           the manager's row or a console's `revealProject` then made it public: every player was a viewer
+           (`revealChange`), its name and room in every tray, and its completion gave every player's students the
+           passage. Refused here, in the step, whichever road asked. */
+        const always = change.reveal && meta.target?.preset
+            ? (await import("./passages-gm.mjs")).PASSAGE_PRESETS[meta.target.preset]?.secret === "always" : false;
+        const sight = always ? { refused: "it is always secret" } : sightChange(countdownId, change);
         const unchanged = { id: countdownId, name: project.name, from: before, to: before, target: oldStart, changed: false,
             crossed: false, uncrossed: false, removed: false };
         if (sight?.refused) {
@@ -885,6 +893,14 @@ async function changeStep(countdownId, change, by) {
         if (!sight && !rest.length) return { result: unchanged, after };
         if (sight?.ownership) change = { ...change, ownership: sight.ownership };
         if (sight?.meta) change = { ...change, meta: { ...change.meta, ...sight.meta } };
+        /* WHOEVER A FINDER LETS IN IS A FINDER TOO (E15 part 2 fix e1-G1; finding SEC-1). A player who found a secret
+           project by Observe (`foundBy`) is told it is finished and given nothing of what it made; a share that player
+           asked (`project.share`, the sender as `by.userId`) let another player in as a plain viewer, whose students the
+           completion then gave the passage - and who could show it to the finder. The one let in is written beside the
+           finder, in the same step as the share. */
+        if (sight && change.share && meta.foundBy?.[by.userId] && !meta.foundBy[change.share]) {
+            change = { ...change, meta: { ...change.meta, foundBy: { ...meta.foundBy, ...change.meta?.foundBy, [change.share]: Date.now() } } };
+        }
     }
 
     const next = foundry.utils.duplicate(project);
@@ -1851,14 +1867,18 @@ export async function makeSecret(countdownId, viewerIds = []) {
     return change.ownership;
 }
 
-/** Let one more player in on a secret project. A player's ask goes to a GM (`project.share`). */
-export async function shareWith(countdownId, userId) {
+/**
+ * Let one more player in on a secret project. A player's ask goes to a GM (`project.share`), which names its sender as
+ * `senderId`: a share a finder asked makes a finder (the step's note, E15 part 2 fix e1-G1).
+ */
+export async function shareWith(countdownId, userId, { senderId = null } = {}) {
     if (!game.user.isGM) {
         const { requestProjectShare } = await import("./gm-bridge.mjs");
         const res = await requestProjectShare(countdownId, userId);
         return res.ok ? { pending: true } : null;
     }
-    const done = await applyProjectChange(countdownId, { share: userId }, { by: { kind: "gm" } });
+    const done = await applyProjectChange(countdownId, { share: userId },
+        { by: senderId ? { kind: "player", userId: senderId } : { kind: "gm" } });
     if (!done || done.refused) return null;
     log(`Project ${countdownId} shared with ${game.users.get(userId)?.name ?? userId}.`);
     return true;
@@ -1884,7 +1904,9 @@ export async function unshareWith(countdownId, userId) {
 /** Drop secrecy entirely - the plan is out (`revealChange` says why the map is replaced whole; worked out in the step). */
 export async function revealProject(countdownId) {
     if (!game.user.isGM) return null;
-    if (!await applyProjectChange(countdownId, { reveal: true }, { by: { kind: "gm" } })) return null;
+    // A refusal is no reveal (fix e1-G1: a preset that is always secret is refused in the step).
+    const done = await applyProjectChange(countdownId, { reveal: true }, { by: { kind: "gm" } });
+    if (!done || done.refused) return null;
     log(`Project ${countdownId} revealed to everyone.`);
     return true;
 }
