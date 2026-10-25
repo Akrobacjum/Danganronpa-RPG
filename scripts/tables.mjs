@@ -365,11 +365,20 @@ function poolShapeOf(table) {
  * @param {string} name
  * @param {"tiers"|"rooms"} family   the tab the name was typed on
  * @param {object} [options]
+ * A ROOM'S OWN "- Tier N" UNDER A "DRPG " NAME (E14 fix e1-G5, 25.10.2026; the review's E14p2-END-05, R4). The Room pools
+ * tab took "DRPG Kitchen" (no tier pool's shape) and a room could be pointed at it; then Create an item's note
+ * (`presetTargetsFor`, `DRPG.Tables.presetRoomTier`) said to make "DRPG Kitchen - Tier 2" on the Room pools tab, which
+ * refused it as a tier pool's name (`isTierPool`), and the Tier pools tab refused it as no name it reads: the window's own
+ * advice could not be followed, and that room could never get the tier split `drawItem` reads. A "<base> - Tier N" whose
+ * base is a room's table (`roomTableBases`) is a room table now, on the Room pools tab and in a rename there; it is
+ * created as one (`roomPool: true`) and filed as one by its flag (`isTierPoolTable`).
+ *
  * @param {object}   [options.table]   the table being renamed, if this is a rename
  * @param {Iterable} [options.tables]  the tables a name is checked against; the world's by default
+ * @param {Set<string>} [options.bases]  the names of the rooms' tables (`roomTableBases`); the world's by default
  * @returns {{key: string, data: object, text: string}|null}  null when the name may be used
  */
-export function poolNameRefusal(name, family, { table = null, tables = game.tables ?? [] } = {}) {
+export function poolNameRefusal(name, family, { table = null, tables = game.tables ?? [], bases = null } = {}) {
     const say = (key, data = {}) => ({ key, data, text: game.i18n.format(key, data) });
     const text = String(name ?? "").trim();
     if (!text) return say("DRPG.Tables.needsName");
@@ -384,11 +393,44 @@ export function poolNameRefusal(name, family, { table = null, tables = game.tabl
         if (flagged && (known.category !== flag("category") || known.tier !== flag("tier") || (known.goal ?? null) !== (flag("goal") ?? null))) {
             return say("DRPG.Tables.renameOtherPool", { name: text, pool: tableName(flag("category"), flag("tier"), flag("goal") ?? null) });
         }
-    } else if (isTierPool(text)) {
+    } else if (isTierPool(text) && !roomTierName(text, bases ?? roomTableBases(tables))) {
         return say("DRPG.Tables.newPoolTierName");
     }
     if (Array.from(tables).some(other => other !== table && other?.name === text)) return say("DRPG.Tables.newPoolExists", { name: text });
     return null;
+}
+
+/** Is this "<base> - Tier N", its base a room's table and N a tier (`poolNameRefusal`, E14 fix e1-G5)? */
+function roomTierName(text, bases) {
+    const parts = String(text ?? "").match(/^(.+) - Tier (\d+)$/);
+    return Boolean(parts) && ITEM_TIERS.includes(Number(parts[2])) && bases.has(parts[1]);
+}
+
+/** The tables a room of any scene is pointed at (its region's `drpgItemTable`), by name (`moduleTables`, `roomTableBases`). */
+function roomsPointedAt() {
+    const names = new Set();
+    try {
+        for (const scene of game.scenes ?? []) {
+            for (const region of scene.regions ?? []) {
+                const name = region.getFlag?.(MODULE_ID, "drpgItemTable");
+                if (name) names.add(name);
+            }
+        }
+    } catch (err) {
+        // A room pointing at a table is a convenience here, not the subject.
+        error("Could not read the rooms' item tables", err);
+    }
+    return names;
+}
+
+/**
+ * THE NAMES OF THE ROOMS' TABLES: what a room is pointed at (`roomsPointedAt`), and every table marked a room's
+ * (`roomPool`). `poolNameRefusal` lets a "<base> - Tier N" of one through on the Room pools tab (E14 fix e1-G5).
+ */
+export function roomTableBases(tables = game.tables ?? []) {
+    const bases = roomsPointedAt();
+    for (const table of tables) if (table?.getFlag?.(MODULE_ID, "roomPool") && table.name) bases.add(table.name);
+    return bases;
 }
 
 /**
@@ -1081,18 +1123,7 @@ const DEFAULT_RESULT_IMG = "icons/svg/item-bag.svg";
  * but "what is there to hand over".
  */
 export function moduleTables() {
-    const roomTables = new Set();
-    try {
-        for (const scene of game.scenes) {
-            for (const region of scene.regions ?? []) {
-                const name = region.getFlag(MODULE_ID, "drpgItemTable");
-                if (name) roomTables.add(name);
-            }
-        }
-    } catch (err) {
-        // A room pointing at a table is a convenience here, not the subject.
-        error("Could not read the rooms' item tables", err);
-    }
+    const roomTables = roomsPointedAt();
 
     return Array.from(game.tables ?? [])
         .filter(t => t.name.startsWith("DRPG ")

@@ -21975,6 +21975,23 @@ const INVARIANTS = [
             + "Polish, a room table to a tier pool's, a room table to its own name, a tier pool an earlier rename put on the Room pools "
             + "tab back to its name, and to another free name]");
 
+        /* E14 fix e1-G5 (25.10.2026; the review's E14p2-END-05, R4): a room's table named "DRPG Kitchen" (the Room pools tab
+           took it) gets its "- Tier N" there, by a rename too, as Create an item's note says (`DRPG.Tables.presetRoomTier`);
+           one whose base is no room's table, or whose tier is none, is still refused, and so is the name when no room's
+           table is its base. The bases as `roomTableBases` reads them off the tables. Red at the parent: refused, and no
+           roomTableBases. */
+        const drpgRoom = table("DRPG Kitchen", { roomPool: true });
+        const withRoom = [...tables, drpgRoom];
+        const roomTier = (name, opts = {}) => (has ? t.poolNameRefusal(name, "rooms", { tables: withRoom, ...opts })?.key ?? null : "no poolNameRefusal");
+        const bases = typeof t.roomTableBases === "function" ? t.roomTableBases(withRoom) : null;
+        equal(stableJson([roomTier("DRPG Kitchen - Tier 2"), roomTier("DRPG Kitchen - Tier 2", { table: roomPool }),
+            roomTier("DRPG Kitchen - Tier 9"), roomTier("DRPG Pantry - Tier 2"), roomTier("DRPG Kitchen - Tier 2", { bases: new Set() }),
+            bases ? [bases.has("DRPG Kitchen"), bases.has("Kuchnia"), bases.has("DRPG Tools - Tier 2")] : "no roomTableBases"]),
+            stableJson([null, null, "DRPG.Tables.newPoolTierName", "DRPG.Tables.newPoolTierName", "DRPG.Tables.newPoolTierName", [true, true, false]]),
+            "the Room pools tab refuses the '- Tier N' of a room's table named 'DRPG ...' that Create an item's note offers, or takes one that "
+            + "is no room's [DRPG Kitchen - Tier 2 new, by a rename, Tier 9, DRPG Pantry - Tier 2, with no room's table; the bases read: "
+            + "DRPG Kitchen, Kuchnia, a tier pool]");
+
         const said = has ? t.poolNameRefusal("DRPG Weapons - Tier 2", "tiers", { tables })?.text ?? "" : "";
         const listed = [...said.matchAll(/DRPG [^,;:]+? - Tier N/g)].map(m => m[0]);
         const readBack = listed.filter(form => C.ITEM_TIERS.every(tier => t.classifyTableName(form.replace(/N$/, String(tier))))).length;
