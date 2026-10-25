@@ -637,6 +637,14 @@
       "card": {
         "notBuilt": "Projekt {name} jest ukończony, ale jego tajnego przejścia nie udało się otworzyć: {why}",
         "notBreached": "Projekt {name} jest ukończony, ale wyłomu w ścianie nie udało się zrobić: {why}",
+        "breachDoneHere": "Ściana tego pokoju ustępuje: jest w niej teraz wyłom.",
+        "breachDoneHereNamed": "{name} przebija ścianę tego pokoju: jest w niej teraz wyłom.",
+        "breachDoneThere": "Ściana tego pokoju pęka od drugiej strony: jest w niej teraz wyłom.",
+        "breachDoneThereNamed": "{name} przebija się od drugiej strony przez ścianę do tego pokoju: jest w niej teraz wyłom.",
+        "breachHeard": "Słyszysz zza ściany potężny łomot od strony: {room}.",
+        "breachBedroom": "Ktoś przebił ścianę do twojej sypialni ({room}). Dopóki ściana nie zostanie naprawiona, jej drzwi nikogo nie zatrzymują.",
+        "breachForced": "Wyłom wyłamuje pokój {room}. Dopóki ściana nie zostanie naprawiona, ani zamek, ani drzwi sypialni nikogo nie zatrzymują.",
+        "breachUnsealed": "Pieczęć na nim jest zerwana do końca tej pory dnia.",
         "passageBuiltShared": "Poznajesz tajne przejście: {from} - {to}.",
         "passageBuilt": "Twoje tajne przejście jest gotowe: {from} - {to}. Możesz przez nie przechodzić.",
         "shown": "{giver} pokazuje ci tajne przejście: {from} - {to}.",
@@ -5560,6 +5568,10 @@
         "passageFound": {
           "label": "Poznajesz tajne przejście",
           "hint": "Uczeń znajduje tajne przejście albo ktoś mu je pokazał. Słyszy go on, a przy znalezieniu także GM-owie."
+        },
+        "wallBreached": {
+          "label": "Ktoś przebija ścianę",
+          "hint": "Ktoś kończy Breach the Wall. Słyszą go uczniowie w obu pokojach, które łączy wyłom, i w pokojach obok."
         },
         "actionSpent": {
           "label": "Wydano akcję",

@@ -511,7 +511,7 @@ Next free: R982. Reserved and unused: R121 for A4 (E22); R122 for A1 (E23); R123
 | R978 | 1 | E36 | a change asked of the primary GM ends when the primary leaves: a wait marked so (`untilPrimaryLeaves`) is told noAnswer at once, once, and its late answer still goes to `late`; a wait not marked keeps its clock (E36 fix e1-G4) |
 | R979 | 1 | E15 | an indirect murder's concealment bonus is paid on any outcome: a lone miss pays +1, a hit and a critical their band plus it, a plain project's miss nothing; the trap's budget is read off its two parts, 7-10 (E15 C2) |
 | R980 | 1 | E36 | a revive reaches the conditions and the voice: a deletion of the deceased or the Monocub flag, in each spelling, is a change of the two flags that take both conditions away (E15 part 1 fix e1-G3) |
-| R981 | 0 | E15 | one table of the projects that make a passage (A10-9, E15-T11): passages-gm.mjs `PASSAGE_PRESETS` holds Secret Passage as Hand, Complex, always secret, opening a passage, and Breach the Wall as Body, Complex, cutting a wall; each preset's statistic, size and completion row exist; and no other file of the module declares the table or a preset of its own |
+| R981 | 0 | E15 | one table of the projects that make a passage (A10-9, E15-T11): passages-gm.mjs `PASSAGE_PRESETS` holds Secret Passage as Hand, Complex, always secret, opening a passage, and Breach the Wall as Body, Complex, cutting a wall; each preset's statistic, size and completion row exist; and no other file of the module declares the table or a preset of its own; and a broken room's flag has one reader and one writer, which the lock, the bedroom's door and the GMs' key count ask |
 
 Tier-1 tests older than 1.2.61 with no number (70, names kept):
 

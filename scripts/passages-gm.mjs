@@ -632,16 +632,24 @@ function breachPieces(c, seg) {
  * the cut breaks none of them (`wallChanged`), and one whose stretch the hole touches is moved to the hole and made
  * public (`makePassagePublic`: the hole is there for everyone to see). The breach is a public row of the season's
  * store, keyed to its project (`origin`) and its `breach`: the GMs' Passages tab lists it with its Close the breach, the
- * reset and the project's undo find it there. Answers `{ id, breachId, rooms, sceneId, builderId, madePublic }`, or
- * `{ refused }` with nothing written. A breach this project made already is answered again (`again`), not cut twice.
+ * reset and the project's undo find it there. Answers `{ id, breachId, rooms, sceneId, builderId, madePublic, forced }`,
+ * or `{ refused }` with nothing written. A breach this project made already is answered again (`again`), not cut twice.
+ *
+ * THE ROOM BEYOND FORCED (E15 part 2 C4, 25.10.2026; A10 step 15, "działa jak udany Force the Door"): `beyond`, the
+ * room the approval named (the project's target), one of the stretch's two rooms - the other is the builder's side.
+ * After the cut it is broken (movement.mjs `setRoomBroken`: its GM's lock and its bedroom's key lifted for everyone
+ * until the wall is given back) and its seal lifted to the end of the time of day (call-world.mjs `liftSeal`, no
+ * Despair back). The row's `breach.forced` keeps `{ room, from, already, unsealed }` for the undo - whether the room
+ * was broken before by anything but a standing breach, and the time of day of a lift (`sealPeriod`) -: the GMs' store,
+ * never the hole's flag. A `beyond` that is not one of the two rooms forces nothing.
  */
-export async function cutBreach(projectId, { passage = null, builderId = null } = {}, { stores = PASSAGE_STORES } = {}) {
+export async function cutBreach(projectId, { passage = null, builderId = null, beyond = null } = {}, { stores = PASSAGE_STORES } = {}) {
     if (!game.user?.isGM) return { refused: "only a GM cuts one." };
     if (!stores.season) return { refused: "no store for the season's passages." };
     const made = Object.entries(stores.season.entries()).find(([, row]) => row?.origin?.projectId === projectId && row.breach);
     if (made) {
         return { id: made[0], breachId: made[1].breach.breachId, rooms: made[1].rooms ?? [], sceneId: made[1].sceneId, builderId: made[1].origin.builderId ?? null,
-            madePublic: [], again: true };
+            madePublic: [], forced: made[1].breach.forced ?? null, again: true };
     }
     if (!studentOf(builderId)) return { refused: "the builder is no student of this world." };
     return serialWrite(`passage.breach/${passage?.sceneId ?? ""}`, async () => {
@@ -675,15 +683,112 @@ export async function cutBreach(projectId, { passage = null, builderId = null } 
         }
         if (Object.keys(moved).length) await rowsOf(stores).patchMany(moved);
         await wall.update({ c: keep });
+        const forced = row.rooms.includes(beyond) ? await forceRoom(scene, beyond, row.rooms.find(r => r !== beyond) ?? null, stores) : null;
         const id = `${scene.id}.${foundry.utils.randomID()}`;
         await stores.season.patch(id, { ...row, passageWallId: gapId, passageSeg: { x1: gap[0], y1: gap[1], x2: gap[2], y2: gap[3] }, public: true,
-            origin: { by: "project", projectId, builderId }, breach: { breachId, originalWallId: wall.id, pieceIds } });
+            origin: { by: "project", projectId, builderId }, breach: { breachId, originalWallId: wall.id, pieceIds, ...(forced ? { forced } : {}) } });
         for (const other of madePublic) await setPublic(other, true, stores);
         await touch(knowersOf(id, stores), stores, { door: true });
         await logRow("breach", id, builderId, stores);
         tellAfter(stores);
-        return { id, breachId, rooms: row.rooms, sceneId: scene.id, builderId, madePublic };
+        return { id, breachId, rooms: row.rooms, sceneId: scene.id, builderId, madePublic, forced };
     });
+}
+
+/* The standing breaches' rows of the season's store that force `room` on this scene, but the one `breachId` names. */
+const forcingRows = (stores, sceneId, room, breachId = null) => Object.entries(stores.season?.entries() ?? {})
+    .filter(([, row]) => row?.sceneId === sceneId && row.breach?.forced?.room === room && row.breach.breachId !== breachId);
+
+/**
+ * The room beyond a breach forced (E15 part 2 C4; `cutBreach`'s note): broken, and its seal lifted. Answers the row's
+ * `forced`, `{ room, from, already, unsealed }`: `already` when the room was broken before by something other than a
+ * standing breach (a GM's hand; E74's Force the Door), so that no undo of a breach takes off what it did not put on;
+ * `unsealed` the time of day the seal was lifted in, or null when it was not sealed.
+ */
+async function forceRoom(scene, room, from, stores) {
+    const M = await import("./movement.mjs");
+    const W = await import("./call-world.mjs");
+    const already = M.roomBroken(scene, room) && !forcingRows(stores, scene.id, room).length;
+    await M.setRoomBroken(scene, room, true);
+    const unsealed = (await W.liftSeal(room)) ? W.sealPeriod() : null;
+    return { room, from, already, unsealed };
+}
+
+/**
+ * A breach's room given back (E15 part 2 C4), as its wall is: unbroken unless another standing breach still forces it
+ * or it was broken before (`already`), and sealed again when this breach lifted the seal in the time of day that still
+ * runs (`sealPeriod`, DA52) and no other breach holds the room open - `reseal` false for the season's reset, which
+ * clears every seal. A lift another standing breach of the room still holds is handed to it, so the last one closed
+ * puts the seal back. Answers what it did, `{ unbroken, resealed }`.
+ */
+async function unforceRoom(scene, forced, breachId, stores, { reseal = true } = {}) {
+    if (!scene || typeof forced?.room !== "string") return { unbroken: false, resealed: false };
+    const M = await import("./movement.mjs");
+    const W = await import("./call-world.mjs");
+    const others = forcingRows(stores, scene.id, forced.room, breachId);
+    if (others.length) {
+        const [id, row] = others[0];
+        if (forced.unsealed && !row.breach.forced.unsealed) await stores.season.patch(id, { breach: { ...row.breach, forced: { ...row.breach.forced, unsealed: forced.unsealed } } });
+        return { unbroken: false, resealed: false };
+    }
+    const unbroken = !forced.already && (await M.setRoomBroken(scene, forced.room, false)) > 0;
+    const resealed = Boolean(reseal && forced.unsealed && forced.unsealed === W.sealPeriod() && !W.isSealed(forced.room) && (await W.sealRoom(forced.room)));
+    return { unbroken, resealed };
+}
+
+/**
+ * WHO IS TOLD OF A BREACH (E15 part 2 C4, 25.10.2026; A10 step 15 and 18; the stage's E15-53): the result is public,
+ * the builder's name is not part of it. Asked by the completion's `after`, on the primary, with `cutBreach`'s answer;
+ * a breach answered again tells nobody. Each student standing on the scene, where `locateActor` puts them:
+ *   - in the builder's room (`breachDoneHere`) or the room beyond (`breachDoneThere`) - named with the builder only when
+ *     the builder stands in one of the two rooms too (what the hole shows them), never to the builder;
+ *   - in a room beside either (`neighbouringRooms`, the map's doors), `breachHeard`: a crash, never a name, from the
+ *     breached room beside them as Listen names a room ("Unexplored room 1" for one they have not been in);
+ * each to its owners and the GMs with the sound `wallBreached` (the players' only, the string form). Then the room's
+ * card, as for a forced door: to the bedroom's owner (and the GMs) when the room beyond is somebody's bedroom, with no
+ * builder's name, else to the GMs; a lifted seal is said on it. Answers how many cards were written.
+ */
+export async function tellBreach(made) {
+    const scene = game.scenes?.get(made?.sceneId ?? "");
+    if (!made?.id || made.again || !made.forced?.room || !scene) return 0;
+    const M = await import("./movement.mjs");
+    const { discoveredFor } = await import("./fog.mjs");
+    const { ROOM_OWNER_FLAG } = await import("./config.mjs");
+    const { room: beyond, from } = made.forced;
+    const esc = foundry.utils.escapeHTML;
+    const where = actor => {
+        const place = M.locateActor(actor, { sceneId: scene.id });
+        return place?.scene?.id === scene.id ? place.room ?? null : null;
+    };
+    const builder = studentOf(made.builderId);
+    const present = Boolean(builder) && [from, beyond].includes(where(builder));
+    const near = new Set([...M.neighbouringRooms(scene, from), ...M.neighbouringRooms(scene, beyond)].filter(r => r && r !== from && r !== beyond));
+    const sound = { flags: { [MODULE_ID]: { sfx: "wallBreached" } } };
+    let told = 0;
+    for (const actor of game.actors?.contents ?? [...(game.actors ?? [])]) {
+        if (!studentOf(actor?.id) || actor.id === builder?.id) continue;
+        const room = where(actor);
+        let text = null;
+        if (room && room === from) text = present ? game.i18n.format("DRPG.Passage.card.breachDoneHereNamed", { name: esc(builder.name) })
+            : game.i18n.localize("DRPG.Passage.card.breachDoneHere");
+        else if (room && room === beyond) text = present ? game.i18n.format("DRPG.Passage.card.breachDoneThereNamed", { name: esc(builder.name) })
+            : game.i18n.localize("DRPG.Passage.card.breachDoneThere");
+        else if (room && near.has(room)) {
+            const side = M.neighbouringRooms(scene, room).find(r => r === from || r === beyond) ?? from;
+            const known = new Set(discoveredFor(scene.id, actor.id));
+            text = game.i18n.format("DRPG.Passage.card.breachHeard",
+                { room: esc(known.has(side) ? side : game.i18n.format("DRPG.Listen.unknownRoom", { n: 1 })) });
+        }
+        if (!text) continue;
+        await whisperToOwner(actor, `<p>${text}</p>`, sound);
+        told++;
+    }
+    const seal = made.forced.unsealed ? ` ${game.i18n.localize("DRPG.Passage.card.breachUnsealed")}` : "";
+    const { roomFlag } = await import("./rooms.mjs");
+    const owner = studentOf(roomFlag(scene, beyond, ROOM_OWNER_FLAG));
+    if (owner && owner.id !== builder?.id) await whisperToOwner(owner, `<p>${game.i18n.format("DRPG.Passage.card.breachBedroom", { room: esc(beyond) })}${seal}</p>`);
+    else await whisperToGms(`<p>${game.i18n.format("DRPG.Passage.card.breachForced", { room: esc(beyond) })}${seal}</p>`);
+    return told + 1;
 }
 
 /**
@@ -694,14 +799,17 @@ export async function cutBreach(projectId, { passage = null, builderId = null } 
  * public: the hole was seen. Where the wall it was cut from is gone (a GM deleted it meanwhile), nothing is written and
  * the answer says so, `{ refused }`: the pieces stand, for a GM to see to. Answers `{ closed: breachId }`.
  */
-export async function restoreBreach(sceneId, breachId, { stores = PASSAGE_STORES } = {}) {
+export async function restoreBreach(sceneId, breachId, { stores = PASSAGE_STORES, reseal = true } = {}) {
     if (!game.user?.isGM) return { refused: "only a GM closes one." };
     return serialWrite(`passage.breach/${sceneId ?? ""}`, async () => {
         const scene = game.scenes?.get(sceneId ?? "");
         const found = scene ? breachesOn(scene).find(b => b.breach.breachId === breachId) : null;
         const rows = Object.entries(rowsOf(stores).entries()).filter(([, row]) => row?.breach?.breachId === breachId).map(([id]) => id);
+        // The room the breach forced (C4), read before its row goes: given back with the wall, or with the row alone.
+        const forced = rows.map(id => rowsOf(stores).get(id)?.breach?.forced).find(f => f?.room) ?? null;
         if (!found) {
             for (const id of rows) await deletePassage(id, { stores });
+            if (forced) await unforceRoom(scene, forced, breachId, stores, { reseal });
             return { refused: "no such breach on that scene." };
         }
         const { wall: hole, breach } = found;
@@ -716,6 +824,7 @@ export async function restoreBreach(sceneId, breachId, { stores = PASSAGE_STORES
         if (Object.keys(back).length) await rowsOf(stores).patchMany(back);
         await original.update({ c: [...c] });
         if (pieces.length) await scene.deleteEmbeddedDocuments("Wall", pieces);
+        if (forced) await unforceRoom(scene, forced, breachId, stores, { reseal });
         tellAfter(stores);
         return { closed: breachId };
     });
@@ -736,9 +845,15 @@ export async function undoBreachesOf(projectId, { stores = PASSAGE_STORES } = {}
  */
 export async function closeEveryBreach({ stores = PASSAGE_STORES } = {}) {
     if (!game.user?.isGM) return 0;
+    const { roomNames } = await import("./rooms.mjs");
+    const M = await import("./movement.mjs");
     let closed = 0;
     for (const scene of game.scenes ?? []) {
-        for (const { breach } of breachesOn(scene)) if ((await restoreBreach(scene.id, breach.breachId, { stores }))?.closed) closed++;
+        // No seal put back: the reset clears every seal (`clearSeals`), and one put back here would outlive it.
+        for (const { breach } of breachesOn(scene)) if ((await restoreBreach(scene.id, breach.breachId, { stores, reseal: false }))?.closed) closed++;
+        // Every room still forced is whole again (C4; A10 step 17: "zdejmuje ich `broken`"), its breach's row taken
+        // by the group's cut already or not: a new season's rooms stand as Room Setup left them.
+        for (const room of roomNames(scene)) if (M.roomBroken(scene, room)) await M.setRoomBroken(scene, room, false);
     }
     return closed;
 }

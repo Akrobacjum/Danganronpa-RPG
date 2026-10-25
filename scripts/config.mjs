@@ -4412,6 +4412,11 @@ export const SFX_EVENTS = {
         hint: "A student finds a secret passage, or another student showed it to them. Heard by them, and by the GMs at a find.",
         category: "world"
     },
+    wallBreached: {
+        label: "A wall is breached",
+        hint: "A Breach the Wall is finished. Heard by the students in the two rooms it joins and in the rooms beside them.",
+        category: "world"
+    },
     actionSpent: {
         label: "Action spent",
         hint: "Heard by the player who spent it.",

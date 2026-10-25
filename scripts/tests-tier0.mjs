@@ -13510,7 +13510,7 @@ const REGRESSIONS = [
         ok(/isPlacing\(tokenDoc\)/.test(fnSource(sheet, "noteStepStart")) && /isPlacing\(tokenDoc\)/.test(fnSource(sheet, "onTunnelStep")),
             "sheet.mjs reads no placing mark before its step onto a tunnel's end");
     }],
-    ["R981 - one table of the projects that make a passage (A10-9, E15-T11): passages-gm.mjs `PASSAGE_PRESETS` holds Secret Passage as Hand, Complex, always secret, opening a passage, and Breach the Wall as Body, Complex, cutting a wall; each preset's statistic, size and completion row exist; and no other file of the module declares the table or a preset of its own", async () => {
+    ["R981 - one table of the projects that make a passage (A10-9, E15-T11): passages-gm.mjs `PASSAGE_PRESETS` holds Secret Passage as Hand, Complex, always secret, opening a passage, and Breach the Wall as Body, Complex, cutting a wall; each preset's statistic, size and completion row exist; and no other file of the module declares the table or a preset of its own; and a broken room's flag has one reader and one writer, which the lock, the bedroom's door and the GMs' key count ask", async () => {
         /*
          * E15 part 2 C2 (25.10.2026; the stage's E15-41, the owner's answer of 11.10: "E68 przyjmie `PASSAGE_PRESETS`, bez
          * drugich kopii"). The harms: a preset whose numbers drift from what the stage was given (a cheaper passage, a
@@ -13539,6 +13539,18 @@ const REGRESSIONS = [
         equal(JSON.stringify([declaring(/\bPASSAGE_PRESETS\s*=/), declaring(/\bsecretPassage\s*:\s*(?:Object\.freeze\(\s*)?\{/)]),
             JSON.stringify([["passages-gm.mjs"], ["passages-gm.mjs"]]),
             "[the files that declare the table, the files that declare a Secret Passage preset] - a second copy of the presets");
+        /* E15 part 2 C4 (25.10.2026; the stage's E15-50, A10-9: "jednego czytelnika `roomBroken`", which E74 takes over as
+           its "wyłamany"): the flag `ROOM_FLAGS.broken` named in movement.mjs alone, inside `roomBroken` (the read) and
+           `setRoomBroken` (the write) alone, its key spelt once; and the three rules a forced room lifts ask the reader. */
+        const { ROOM_FLAGS } = await import("./movement.mjs");
+        const mv = stripComments(sources.get("movement.mjs") ?? ""), vault = stripComments(sources.get("vault.mjs") ?? "");
+        const count = (text, re) => (text.match(re) ?? []).length;
+        const inFns = count(fnSource(mv, "roomBroken"), /ROOM_FLAGS\.broken/g) + count(fnSource(mv, "setRoomBroken"), /ROOM_FLAGS\.broken/g);
+        equal(JSON.stringify([ROOM_FLAGS?.broken ?? null, declaring(/ROOM_FLAGS\.broken|drpgBroken/), count(mv, /ROOM_FLAGS\.broken/g) === inFns && inFns > 0,
+            count(mv, /"drpgBroken"/g), /roomBroken\(scene, room\)/.test(fnSource(mv, "isLocked")), /roomBroken\(scene, to\)/.test(fnSource(mv, "bedroomShut")),
+            /roomBroken\(scene, room\)/.test(fnSource(vault, "mayEnterBedroom"))]),
+        JSON.stringify(["drpgBroken", ["movement.mjs"], true, 1, true, true, true]),
+        "[the key, the files that name it, every naming in the reader and the writer, the key spelt, the lock, the bedroom's door and the key count asking the reader] - a second reader or writer of a broken room");
     }],
     ["R603 - the handbooks say what E80 built - tunnels and stairs, 'Go through', Find Passage and its Reroll, a Find Stash's Reroll, Make public, the Passages tab's columns, Foundry's secret doors and the players' rulers - as the code does, with the texts the stage names, in English and in Polish", async () => {
         /*

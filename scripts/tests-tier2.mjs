@@ -59958,6 +59958,200 @@ const SCENARIOS = [
         equal(J(read?.gone), J([3, "string", 3, 1]),
             "[the walls with the wall deleted, the close's refusal, the walls after it, the breach's rows] - a close with its wall gone rebuilds or deletes something");
     }],
+    ["E15-T14 - Breach the Wall, the room beyond: a finished breach forces it for everyone - its GM's lock and its bedroom's key lifted, read as one on every piece of it, its seal lifted to the end of the time of day with no Despair back -, never a chained student nor the courtroom, and a seal set after it holds; a built passage into a bedroom passes it with no key; the students in either room are told, the builder named only when the builder stands at the hole, the rooms beside hear a crash, the bedroom's owner gets the room's card, nobody gets the builder's name of a secret breach made from elsewhere; the Reroll's undo gives the room back, sealed again in the same time of day and not in the next; the reset leaves no room forced", async () => {
+        /*
+         * E15 part 2 C4 (25.10.2026; A10's S16-17, step 15; the stage's E15-50 to E15-54, its write roads "a room's lock,
+         * bedroom" and "a room's seal", and E14's Q1 of 18.10: "bez klucza tunelem i breach"). The harms: a breach that
+         * opens a wall into a room still shut to the one who broke in (a lock, a key, a seal the hole does not lift); a
+         * breach that frees a chained student or opens the courtroom, or a later seal that it unseals; a lock, key or
+         * seal that stays lifted after the wall is given back, or a seal put back into a time of day it was not lifted in;
+         * a card that names the builder to people who never saw them, or tells nobody; and a built passage into a bedroom
+         * that asks a key (18.10). On a scene of the suite's own - a Hall; beyond its east wall the Lab, Botan's bedroom,
+         * GM-locked and drawn in two pieces; beyond the Lab's east wall the Den, Kenta's bedroom; a Bath beyond the Hall's
+         * door; a Yard apart -, three students of its own played by the suite's three players (Hana the builder, Botan,
+         * Kenta), the Lab sealed by name. The GM stores a world of the suite's own (`withGmStoreWorld`); the projects the
+         * world's Countdowns setting, made and removed here; each completion `applyProjectChange` with the builder's
+         * change on this GM, the primary; the verdicts movement.mjs `crossingVerdict` as the primary asks it of a
+         * player's move (`mover` a player, `pay: false`). The seals, the chains and the clock are put back. Red at the
+         * parent: no room is forced (`ROOM_FLAGS.broken` absent), so the Lab stays locked, keyed and sealed.
+         */
+        const P = await import("./passages-gm.mjs");
+        const PR = await import("./projects.mjs");
+        const S = await import("./gm-stores.mjs");
+        const E = await import("./gm-store.mjs");
+        const R = await import("./rooms.mjs");
+        const L = await import("./passages.mjs");
+        const M = await import("./movement.mjs");
+        const W = await import("./call-world.mjs");
+        const V = await import("./vault.mjs");
+        const F = await import("./fog.mjs");
+        const { ROOM_OWNER_FLAG } = await import("./config.mjs");
+        const { contentOf, cardFlag } = await import("./secret.mjs");
+        const { ownerOf } = await import("./utils.mjs");
+        const J = v => JSON.stringify(v);
+        equal(typeof M.ROOM_FLAGS.broken, "string", "movement.mjs has no broken room - a breach forces nothing open");
+        const cast3 = cast(3);
+        needs(world.atLeast("livingStudents", 3), "three players of the suite's own play the builder and two others");
+        for (const s of cast3) needs(world.ownedByPlayer(s), "each of the three is a player's, and the suite's players own the cast");
+        const [builderUser, friend, other] = cast3.map(s => ownerOf(s));
+        must(new Set([builderUser?.id, friend?.id, other?.id]).size === 3, "the three students are not three players' - a card would be read for one person");
+        const clock = foundry.utils.deepClone(getClock() ?? {});
+        const sealsWere = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.sealedRooms) ?? []);
+        const chainsWere = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.restrictions) ?? {});
+        const HALL = "SUITE E15 T14 Hall", LAB = "SUITE E15 T14 Lab", DEN = "SUITE E15 T14 Den", BATH = "SUITE E15 T14 Bath", YARD = "SUITE E15 T14 Yard";
+        const OWNER = CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
+        let scene = null, read = null;
+        const projects = [], actors = [], posted = [];
+        const heard = Hooks.on("createChatMessage", message => { posted.push(message); });
+        try {
+            if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+            await game.settings.set(MODULE_ID, SETTINGS.sealedRooms, []);
+            scene = await Scene.create({ name: "SUITE E15 T14 a forced room", width: 3200, height: 1400, grid: { size: 100 }, active: false, navigation: false });
+            read = await E.withGmStoreWorld(`suite-e15-t14-${foundry.utils.randomID(8)}`, async () => {
+                const make = async (name, user) => {
+                    const actor = await Actor.create({ name: `SUITE E15 T14 ${name}`, type: "character", ownership: { default: 0, ...(user ? { [user.id]: OWNER } : {}) } });
+                    actors.push(actor);
+                    return actor;
+                };
+                const hana = await make("Hana", builderUser), botan = await make("Botan", friend), kenta = await make("Kenta", other);
+                const room = (name, x, y, width, height, flags = {}) => ({ name, shapes: [{ type: "rectangle", x, y, width, height }],
+                    flags: { [MODULE_ID]: { [R.ROOM_FLAG]: true, ...flags } }, behaviors: [] });
+                const lab = { [ROOM_OWNER_FLAG]: botan.id, [M.ROOM_FLAGS.locked]: true };
+                await scene.createEmbeddedDocuments("Region", [room(HALL, 0, 0, 600, 600), room(LAB, 600, 0, 600, 400, lab), room(LAB, 600, 400, 600, 100, lab),
+                    room(DEN, 1200, 0, 600, 500, { [ROOM_OWNER_FLAG]: kenta.id }), room(BATH, 0, 600, 600, 600), room(YARD, 2400, 0, 600, 500)]);
+                const solid = { move: 20, sight: 20, light: 20, sound: 20, dir: 0, door: 0, ds: 0 };
+                await scene.createEmbeddedDocuments("Wall", [{ c: [600, 0, 600, 500], ...solid }, { c: [1200, 0, 1200, 500], ...solid }, { c: [0, 600, 600, 600], door: 1, ds: 0 }]);
+                const W1 = scene.walls.find(w => w.c[0] === 600 && w.c[2] === 600)?.id, W2 = scene.walls.find(w => w.c[0] === 1200)?.id;
+                must(W1 && W2 && R.roomRegions(scene, LAB).length === 2, "the scene's walls and the Lab's two pieces were not made - this would measure nothing");
+                const at = { [HALL]: [200, 200], [LAB]: [800, 200], [DEN]: [1400, 200], [BATH]: [200, 800], [YARD]: [2600, 200] };
+                await scene.createEmbeddedDocuments("Token", [[hana, HALL], [botan, LAB], [kenta, BATH]].map(([a, r]) => ({ actorId: a.id, actorLink: true, name: a.name,
+                    x: at[r][0], y: at[r][1], width: 1, height: 1 })));
+                const place = async (actor, r) => { await scene.tokens.find(t => t.actorId === actor.id)?.update({ x: at[r][0], y: at[r][1] }); };
+                await W.sealRoom(LAB);
+                await settle();
+                const out = {};
+                const mover = { gm: false, mastermind: false };
+                const v = (actor, from, to, via = null) => {
+                    const r = M.crossingVerdict(actor, from, to, scene, null, { mover, pay: false, via, known: L.secretRowsFrom(), keyed: true });
+                    return r === true ? true : r?.code ?? r;
+                };
+                const pieces = () => R.roomRegions(scene, LAB).map(r => r.getFlag(MODULE_ID, M.ROOM_FLAGS.broken) ?? null);
+                const state = () => ({ broken: [M.roomBroken(scene, LAB), pieces(), M.roomBroken(scene, HALL)], sealed: W.isSealed(LAB), locked: M.isLocked(scene, LAB),
+                    move: v(kenta, HALL, LAB), enter: [V.mayEnterBedroom(kenta, LAB, scene), V.mayEnterBedroom(kenta, LAB), V.mayEnterBedroom(hana, DEN, scene), V.mayEnterBedroom(botan, LAB, scene)] });
+                out.before = state();
+                // A Secret Passage of Botan's (built: the season's store, "built"), from his Lab into Kenta's Den.
+                const built = await P.opensPassageDone("SUITEE15T14PASSAGE", { passage: { sceneId: scene.id, level: null, wallId: W2, seg: { x1: 1200, y1: 100, x2: 1200, y2: 200 },
+                    rooms: [DEN, LAB] }, builderId: botan.id, sharedIds: [] });
+                must(built?.id, `the built passage was not made (${built?.refused}) - this would measure nothing`);
+                const way = { id: built.id, x1: 1200, y1: 100, x2: 1200, y2: 200 };
+                out.passage = [M.passageOpenFor(botan, way, scene, { from: LAB, mover, known: L.secretRowsFrom() }), M.passageOpenFor(hana, way, scene, { from: LAB, mover, known: L.secretRowsFrom() }),
+                    v(botan, LAB, DEN, "passage"), v(botan, LAB, DEN)];
+                await P.undoOpensPassage("SUITEE15T14PASSAGE");
+                const passage = { sceneId: scene.id, level: null, wallId: W1, seg: { x1: 600, y1: 100, x2: 600, y2: 300 }, rooms: [HALL, LAB] };
+                const project = async (secret) => {
+                    const made = await PR.createProject({ name: `SUITE E15 T14 Breach the Wall ${projects.length + 1}`, target: 6, room: HALL, trait: "body", secret, by: hana.id,
+                        presetTarget: { preset: "breach", room: LAB }, passage });
+                    must(made?.id, "the project was not made - this would measure nothing");
+                    projects.push(made.id);
+                    return made.id;
+                };
+                const by = { kind: "player", userId: builderUser.id, actorId: hana.id };
+                const undo = { kind: "reroll", actorId: hana.id };
+                const keys = { hereNamed: "breachDoneHereNamed", here: "breachDoneHere", thereNamed: "breachDoneThereNamed", there: "breachDoneThere", heard: "breachHeard", bedroom: "breachBedroom", forced: "breachForced" };
+                const cardsSince = (mark, data) => [builderUser, friend, other].map(user => posted.slice(mark).filter(m => (m.whisper ?? []).includes(user.id)).flatMap(m => {
+                    const html = String(contentOf(m) ?? "");
+                    return Object.entries(keys).filter(([, key]) => html.includes(game.i18n.format(`DRPG.Passage.card.${key}`, data))).map(([kind]) =>
+                        `${kind}${cardFlag(m, "sfx") ? ` ${J(cardFlag(m, "sfx")).replace(/"/g, "")}` : ""}${html.includes(game.i18n.localize("DRPG.Passage.card.breachUnsealed")) ? " unsealed" : ""}`);
+                }).sort());
+                const named = mark => posted.slice(mark).filter(m => (m.whisper ?? []).some(id => id === friend.id || id === other.id)).some(m => String(contentOf(m) ?? "").includes(hana.name));
+                const waitCards = async (mark, n) => { for (let i = 0; i < 200 && posted.length - mark < n; i++) await new Promise(r => setTimeout(r, 10)); await settle(); };
+                const despair = () => J(game.settings.get(MODULE_ID, SETTINGS.despairPools) ?? null);
+
+                // 1. In the open, Hana at the hole in the Hall, Botan in his Lab, Kenta in the Bath beside the Hall.
+                const first = await project(false);
+                await S.rerollBookmarkStore.patch(hana.id, { messageId: "SUITEE15T14MSG1" });
+                const despairBefore = despair(), mark1 = posted.length;
+                const done = await PR.applyProjectChange(first, { delta: 6 }, { by });
+                await waitCards(mark1, 3);
+                const heardFrom = new Set(F.discoveredFor(scene.id, kenta.id)).has(HALL) ? HALL : game.i18n.format("DRPG.Listen.unknownRoom", { n: 1 });
+                out.cut = [done?.crossed ?? null, state(), despair() === despairBefore];
+                out.cards1 = [cardsSince(mark1, { name: foundry.utils.escapeHTML(hana.name), room: heardFrom }), cardsSince(mark1, { room: LAB })];
+                // A chained student stays chained, and the courtroom stays shut.
+                await W.restrict(kenta, { chained: true });
+                out.chained = v(kenta, HALL, LAB);
+                await game.settings.set(MODULE_ID, SETTINGS.restrictions, chainsWere);
+                // The clock written as it stands (no phase change's settlement): the verdict reads the setting.
+                const raw = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.clock) ?? {});
+                await game.settings.set(MODULE_ID, SETTINGS.clock, { ...raw, phase: "classTrial" });
+                out.trial = v(kenta, HALL, LAB);
+                await game.settings.set(MODULE_ID, SETTINGS.clock, raw);
+                // The Reroll's lower dice, in the same time of day: the Lab locked, keyed and sealed again.
+                await PR.applyProjectChange(first, { delta: -1 }, { by: undo });
+                await settle();
+                out.undone = state();
+
+                // 2. A secret breach, Hana away in the Yard, Kenta in the Hall, Botan in his Lab.
+                await place(hana, YARD);
+                await place(kenta, HALL);
+                const second = await project(true);
+                await S.rerollBookmarkStore.patch(hana.id, { messageId: "SUITEE15T14MSG2" });
+                const mark2 = posted.length;
+                await PR.applyProjectChange(second, { delta: 6 }, { by });
+                await waitCards(mark2, 3);
+                out.cards2 = [cardsSince(mark2, { name: foundry.utils.escapeHTML(hana.name), room: LAB }), named(mark2)];
+                // A seal set after the breach holds: the breach lifted the one it found, not the next Call's.
+                await W.sealRoom(LAB);
+                out.sealedAgain = [M.roomBroken(scene, LAB), v(kenta, HALL, LAB)];
+                await W.liftSeal(LAB);
+                // The time of day ends while the breach stands: its undo puts no seal back into the next one.
+                const { TIMES_OF_DAY } = await import("./config.mjs");
+                const now = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.clock) ?? {});
+                await game.settings.set(MODULE_ID, SETTINGS.clock, { ...now, timeOfDay: TIMES_OF_DAY[(TIMES_OF_DAY.indexOf(getClock().timeOfDay) + 1) % TIMES_OF_DAY.length],
+                    timeOfDayStartedAt: Date.now() + 1 });
+                await PR.applyProjectChange(second, { delta: -1 }, { by: undo });
+                await settle();
+                out.nextUndone = state();
+
+                // 3. Finished again, then the season's reset (its passages step): no room left forced.
+                await PR.applyProjectChange(second, { delta: 1 }, { by });
+                await settle();
+                const forcedAgain = M.roomBroken(scene, LAB);
+                await P.closeEveryBreach();
+                await P.passagesAfterReset();
+                await settle();
+                out.reset = [forcedAgain, M.roomBroken(scene, LAB), pieces()];
+                for (const id of projects) await PR.deleteProject(id);
+                projects.length = 0;
+                return out;
+            });
+        } finally {
+            Hooks.off("createChatMessage", heard);
+            for (const id of projects) await PR.deleteProject(id).catch(() => {});
+            for (const actor of actors) await actor.delete().catch(() => {});
+            for (const message of posted) await game.messages.get(message.id)?.delete().catch(() => {});
+            await scene?.delete();
+            await game.settings.set(MODULE_ID, SETTINGS.sealedRooms, sealsWere);
+            await game.settings.set(MODULE_ID, SETTINGS.restrictions, chainsWere);
+            await setClock(clock);
+            await settle();
+        }
+        const shut = { broken: [false, [null, null], false], sealed: true, locked: true, move: "doorLocked", enter: [false, false, false, true] };
+        const open = { broken: [true, [true, true], false], sealed: false, locked: false, move: true, enter: [true, true, false, true] };
+        equal(J(read?.before), J(shut), "[the Lab forced, on each piece, the Hall; sealed; locked; Kenta's walk in; Kenta into the Lab here and anywhere, Hana into Kenta's Den, Botan into his own] - the Lab before any breach");
+        equal(J(read?.passage), J([true, false, true, "cannotNow"]),
+            "[Botan's built passage open to him, to Hana; Botan through it into Kenta's Den, Botan into the Den by the door] - a built passage into a bedroom asks a key, or another's bedroom opens with none");
+        equal(J(read?.cut), J([true, open, true]),
+            "[crossed; the Lab forced on both pieces, its seal lifted, its lock lifted, Kenta walks in, the bedroom open to him here and anywhere, the Den still shut; the Despair as before] - the breach does not force the room beyond, or pays Despair back");
+        equal(J(read?.cards1), J([[[], ["thereNamed wallBreached"], ["heard wallBreached"]], [[], ["bedroom unsealed"], []]]),
+            "[the cards to Hana's, Botan's and Kenta's players: the builder's own none, Botan in the Lab named, Kenta in the Bath a crash; the room's card to its owner, with the lifted seal] - the wrong people told of a breach");
+        equal(J([read?.chained, read?.trial]), J(["chained", "trialLocked"]), "[a chained Kenta into the forced Lab, anyone into it in a Class Trial] - a breach frees a chained student or opens the courtroom");
+        equal(J(read?.undone), J(shut), "[the Lab after the Reroll's undo in the same time of day] - the undo leaves the room forced, unlocked or unsealed");
+        equal(J(read?.cards2), J([[[], ["bedroom unsealed", "there wallBreached"], ["here wallBreached"]], false]),
+            "[the cards of a secret breach finished with Hana in the Yard: hers none, Botan in the Lab nameless with his room's card (the seal the undo put back, lifted again), Kenta in the Hall nameless; Hana's name in any card to them] - a builder who was not there is named");
+        equal(J(read?.sealedAgain), J([true, "roomSealed"]), "[the Lab still forced, Kenta into it after a new seal] - a breach unseals a seal set after it");
+        equal(J(read?.nextUndone), J({ ...shut, sealed: false, move: "doorLocked" }), "[the Lab after the undo in the next time of day] - a seal put back into a time of day it was not lifted in");
+        equal(J(read?.reset), J([true, false, [null, null]]), "[the Lab forced again, after the reset, its pieces] - the reset leaves a room forced");
+    }],
     ["a player at 0 Hope who bought an Experience Call clicks the experience: Roll stays on and it costs nothing, the lock on or off; with the lock off and no Call the free experience leaves no cost row for the next change to break (S02-04)", async () => {
         /*
          * E16 p1 C1, 18.10.2026; audit S02-04 (E16-01, E16-02). The Experience Call is paid before the roll, so

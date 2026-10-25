@@ -603,7 +603,9 @@ export const COMPLETION_EFFECTS = [
          * again: the wall still between the two rooms, no door, not breached already), and the project goes, kept until
          * the completing character's Reroll bookmark names another roll (`keep`), as a Secret Passage's. Uncrossed: the
          * wall is given back (`undoBreachesOf`). A stretch refused at the completion cuts nothing, and the GMs are told
-         * why. What the breach opens and who is told of it is C4's.
+         * why. Since C4 the cut forces the room beyond - the target the approval named -: broken, its seal lifted
+         * (`cutBreach`'s note), and the table is told after the step (`tellBreach`), the builder named only to those who
+         * see the builder at the hole; the undo gives the room back with the wall.
          */
         key: "breachesWall",
         has: meta => meta.target?.preset === "breach" && Boolean(meta.passage),
@@ -611,12 +613,14 @@ export const COMPLETION_EFFECTS = [
             let made = null;
             return {
                 apply: async () => {
-                    made = await (await import("./passages-gm.mjs")).cutBreach(id, { passage: meta.passage, builderId: meta.by ?? null });
+                    made = await (await import("./passages-gm.mjs")).cutBreach(id, { passage: meta.passage, builderId: meta.by ?? null,
+                        beyond: meta.target?.room ?? null });
                 },
                 remove: true,
                 keep: true,
                 after: async () => {
                     if (made?.refused) await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Passage.card.notBreached", { name, why: made.refused }))}</p>`);
+                    else await (await import("./passages-gm.mjs")).tellBreach(made);
                 }
             };
         },

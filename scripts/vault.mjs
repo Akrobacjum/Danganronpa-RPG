@@ -32,7 +32,7 @@ import { itemsHeldNow, judgedFor } from "./sheet-audit.mjs";
 // The one room lookup. movement.mjs does not reach back into this file.
 // The key rule both this file and the door read (E14 part 1 C2; bedroom-keys.mjs's header).
 import { keyRooms, bedroomShutTo } from "./bedroom-keys.mjs";
-import { locateActor, sceneOfActor, neighbouringRooms, ROOM_FLAGS } from "./movement.mjs";
+import { locateActor, sceneOfActor, neighbouringRooms, ROOM_FLAGS, roomBroken } from "./movement.mjs";
 // Static because the reader is synchronous. From settings.mjs, which is a leaf
 // - this is one client-scoped boolean, and the note above the function there
 // explains why it stopped living in mastermind.mjs.
@@ -230,6 +230,9 @@ export function keysHeldBy(actor, { stashed = false } = {}) {
  */
 export function mayEnterBedroom(actor, room, scene = null) {
     if (!actor || !room) return true;
+    // A bedroom a breach forced (movement.mjs `roomBroken`, E15 part 2 C4) opens to everyone: on the scene named, else
+    // wherever the room is drawn, as its owner is read below.
+    if (scene ? roomBroken(scene, room) : (game.scenes?.contents ?? [...(game.scenes ?? [])]).some(s => roomBroken(s, room))) return true;
     // The scene the caller names, else the room wherever it is drawn (E12 C2a): a key is
     // a room's name, and the camera's scene answered "nobody's" for a bedroom one map over.
     const owner = scene ? vaultOwnerOf(room, scene) : bedroomOwnerAnywhere(room);
