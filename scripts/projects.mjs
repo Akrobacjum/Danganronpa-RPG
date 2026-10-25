@@ -674,9 +674,9 @@ export async function applyProjectChange(countdownId, change, { by = null } = {}
  * held it, and a target lowered under the progress crosses (S09-15). A target of 0 is never reached.
  * A +1 on a full bar cannot move it and is answered above (alreadyFull) with no crossing. THE RISK IS A BAR
  * TAKEN BACK AND FILLED AGAIN (audit S09-14; E15 part 1 C1 rewrote this, which read a Reroll's
- * undo as the reason and the risk as handled): a GM's -1, a Reroll's undo or an Earthquake before
- * E15 part 1 C1 took a finished bar under its target, and filling it again crossed a second time,
- * so its completion rows ran twice - a trap armed again after it had fired, a second receipt. The
+ * undo as the reason and the risk as handled): a GM's -1, a Reroll's undo or (until E15 part 1 C1)
+ * an Earthquake takes a finished bar under its target, and filling it again crosses a second time,
+ * so its completion rows run twice - a trap armed again after it had fired, a second receipt. The
  * rows answer it (D40): an uncrossing disarms a trap, a crossing does not arm one that has fired
  * (`firedAt`); tier 2 E36-T3 and E15-T1 count one receipt per arming.
  */
