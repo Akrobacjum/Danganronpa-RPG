@@ -4298,6 +4298,24 @@
         "many": "{n} tokenów projektów na mapach",
         "other": "{n} tokenów projektów na mapach"
       },
+      "resetPassageKnowers": {
+        "one": "{n} uczeń, który zna tajne przejście",
+        "few": "{n} uczniowie, którzy znają tajne przejście",
+        "many": "{n} uczniów, którzy znają tajne przejście",
+        "other": "{n} uczniów, którzy znają tajne przejście"
+      },
+      "resetPassagesBuilt": {
+        "one": "{n} tajne przejście zbudowane w projekcie",
+        "few": "{n} tajne przejścia zbudowane w projektach",
+        "many": "{n} tajnych przejść zbudowanych w projektach",
+        "other": "{n} tajnych przejść zbudowanych w projektach"
+      },
+      "resetBreaches": {
+        "one": "{n} wyłom, a jego ściana znów cała",
+        "few": "{n} wyłomy, a ich ściany znów całe",
+        "many": "{n} wyłomów, a ich ściany znów całe",
+        "other": "{n} wyłomów, a ich ściany znów całe"
+      },
       "resetRemnants": {
         "one": "{n} Remnant na mapach",
         "few": "{n} Remnants na mapach",
@@ -4459,7 +4477,7 @@
         "stashesFound": "Skrytki, które każdy uczeń już znalazł, a każda ukryta skrytka znów otwarta",
         "projects": "Projekty, naprawy i ich Countdowny",
         "mastermind": "Mastermind",
-        "passages": "Kto zna które tajne przejście (przejścia zostają, a kto znał je na start sezonu, zna je znowu)",
+        "passages": "Kto zna które tajne przejście, przejścia zbudowane w projektach i ich wyłomy (przejścia GM-ów zostają, a kto znał je na start sezonu, zna je znowu)",
         "seals": "Wciąż obowiązujące Despair Calls i każdy Call uzbrojony na rzut",
         "motive": "Motive",
         "rules": "Stałe zasady Monokumy",

@@ -4143,6 +4143,18 @@
         "one": "{n} project token on the maps",
         "other": "{n} project tokens on the maps"
       },
+      "resetPassageKnowers": {
+        "one": "{n} student who knows a secret passage",
+        "other": "{n} students who know a secret passage"
+      },
+      "resetPassagesBuilt": {
+        "one": "{n} secret passage a project made",
+        "other": "{n} secret passages projects made"
+      },
+      "resetBreaches": {
+        "one": "{n} breach, its wall made whole",
+        "other": "{n} breaches, their walls made whole"
+      },
       "resetRemnants": {
         "one": "{n} Remnant on the maps",
         "other": "{n} Remnants on the maps"
@@ -4234,7 +4246,7 @@
         "stashesFound": "The stashes each student has already found, and every hidden stash open again",
         "projects": "Projects, repairs and their countdowns",
         "mastermind": "The Mastermind",
-        "passages": "Who knows each secret passage (the passages stay, and whoever knew one at season start knows it again)",
+        "passages": "Who knows each secret passage, the passages projects made and their breaches (the GMs' passages stay, and whoever knew one at season start knows it again)",
         "seals": "Despair Calls still in force, and every Call armed for a roll",
         "motive": "The motive",
         "rules": "Monokuma's standing rules",

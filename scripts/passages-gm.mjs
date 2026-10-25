@@ -874,6 +874,28 @@ export async function closeEveryBreach({ stores = PASSAGE_STORES } = {}) {
     return closed;
 }
 
+/**
+ * What the season's reset takes of the passages, counted for its window's "This goes" list (season-setup.mjs
+ * `resetTally`, E15 part 2 C6; the stage's E15-49 and C3's gap of the tally): `{ built, breaches, knowers }` - the
+ * passages a project made that are no breach (the season store's rows, which `passagesAfterReset` clears), the breaches
+ * standing on the walls of `scenes` (each a hole `closeEveryBreach` gives back, read off the walls as that step reads
+ * them, so one whose row is gone is counted too), and the students who know a passage now, each once however many
+ * passages they know (the access record's cells by the student they name; its touch and door rows are no cell, and an
+ * id that is no student of this world is not counted). Whoever knows a passage at the season's start knows it again
+ * after: the group's label says so, and the count is of who knows one now. Reads, writes nothing; a GM's window.
+ */
+export function passageResetTally({ stores = PASSAGE_STORES, scenes = game.scenes } = {}) {
+    const built = Object.values(stores.season?.entries() ?? {}).filter(row => row && !row.breach?.breachId).length;
+    const breaches = Array.from(scenes ?? []).reduce((n, scene) => n + breachesOn(scene).length, 0);
+    const knowers = new Set();
+    for (const [key, row] of Object.entries(stores.access?.entries() ?? {})) {
+        if (key.startsWith(touchKey("")) || key.startsWith(doorKey("")) || typeof row?.how !== "string") continue;
+        const actorId = key.slice(key.lastIndexOf("/") + 1);
+        if (studentOf(actorId)) knowers.add(actorId);
+    }
+    return { built, breaches, knowers: knowers.size };
+}
+
 /* ----------------------------------------------------------------------------------------- *
  * Seal the passage and Close the breach (E15 part 2 C5, 25.10.2026; the owner's (1) and (2) of
  * 15.10). A player's projects: the proposal names the target, the approval judges it, and the

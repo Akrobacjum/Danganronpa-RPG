@@ -56,7 +56,7 @@ import { projectTokensOn } from "./projects-map.mjs";
 // Foundry's secret doors and the players' rulers (E80 C5): the doors as the map holds them, their
 // conversion, and the permissions in force where `core.permissions` names none.
 import { secretDoorsOn } from "./passages.mjs";
-import { convertSecretDoors } from "./passages-gm.mjs";
+import { convertSecretDoors, passageResetTally } from "./passages-gm.mjs";
 import { permissionsInForce } from "./enforced.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -959,7 +959,11 @@ function resetTally() {
         despair = 0;
     }
 
-    return { projects, projectTokens, remnants, bullets, dead, items, advances, preNotes, cards, chat, despair };
+    // What the passages group takes (E15 part 2 C6): the passages projects made, the breaches given back, who knows one.
+    const passages = passageResetTally();
+
+    return { projects, projectTokens, remnants, bullets, dead, items, advances, preNotes, cards, chat, despair,
+        passagesBuilt: passages.built, breaches: passages.breaches, passageKnowers: passages.knowers };
 }
 
 /** The counts `resetTally` has for a group, as the lines under its row. */
@@ -967,6 +971,11 @@ const GOES_DETAIL = {
     projects: tally => [
         plural("DRPG.Season.resetProjects", { n: tally.projects }),
         plural("DRPG.Season.resetProjectTokens", { n: tally.projectTokens })
+    ],
+    passages: tally => [
+        plural("DRPG.Season.resetPassageKnowers", { n: tally.passageKnowers ?? 0 }),
+        plural("DRPG.Season.resetPassagesBuilt", { n: tally.passagesBuilt ?? 0 }),
+        plural("DRPG.Season.resetBreaches", { n: tally.breaches ?? 0 })
     ],
     remnants: tally => [plural("DRPG.Season.resetRemnants", { n: tally.remnants })],
     bullets: tally => [plural("DRPG.Season.resetBullets", { n: tally.bullets })],

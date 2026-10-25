@@ -4173,6 +4173,47 @@ const INVARIANTS = [
         equal(host.querySelectorAll("li[data-group] s, li[aria-disabled]").length, 0, "with everything ticked a row reads as kept");
     }],
 
+    ["R982 - the reset window counts what its passages group takes: the passages projects made, the breaches given back and the students who know a passage", async () => {
+        /*
+         * E15 part 2 C6, 25.10.2026 (the stage's E15-49, C3's gap "the reset's tally sentence"). Since C1 the "passages"
+         * group takes the passages a project made (the season's store) and since C3 gives back every breach's wall, but its
+         * row in "This goes" counted nothing and its label still said the passages stay: a GM read a reset as keeping the
+         * tunnel a student dug. The harm: a count that reads the wrong rows (a breach's row counted as a passage, a touch
+         * or door row of the access record as a knower, one student twice, an id that is no student), and a row that does
+         * not say it. Pure: stores and a scene of the test's own, plain records, in; counts and markup out. The knowers are
+         * two students of this world, read by id; nothing is read off the world's stores or written.
+         */
+        const P = await import("./passages-gm.mjs");
+        const S = await import("./season-setup.mjs");
+        const { RESET_GROUPS, planFrom } = await import("./season-exceptions.mjs");
+        const { plural } = await import("./utils.mjs");
+        equal(typeof P.passageResetTally, "function", "passages-gm.mjs counts nothing of what the reset takes of the passages (passageResetTally)");
+        if (typeof P.passageResetTally !== "function") return;
+        needs(world.atLeast("livingStudents", 2), "two students of this world are the knowers the count reads by id");
+        const [a, b] = studentActors().slice(0, 2).map(actor => actor.id);
+        const store = rows => ({ entries: () => rows });
+        const stores = {
+            season: store({ built1: { shape: "wall", rooms: ["X", "Y"] }, hole1: { shape: "wall", breach: { breachId: "SUITER982BREACH1" } } }),
+            access: store({ [`built1/${a}`]: { how: "built" }, [`map1/${a}`]: { how: "gm" }, [`map1/${b}`]: { how: "start" },
+                [`touch/${b}`]: { at: 1 }, [`door/${a}`]: { at: 1 }, "map1/SUITER982NOBODY0": { how: "gm" } })
+        };
+        const hole = { id: "SUITER982WALL001", c: [0, 0, 100, 0], flags: { [MODULE_ID]: { breach: { breachId: "SUITER982BREACH1", originalWallId: "SUITER982WALL000" } } } };
+        const scenes = [{ id: "SUITER982SCENE01", walls: [hole, { id: "SUITER982WALL000", c: [0, 0, 300, 0] }] }, { id: "SUITER982SCENE02", walls: [] }];
+        const counted = P.passageResetTally({ stores, scenes });
+        equal(JSON.stringify(counted), JSON.stringify({ built: 1, breaches: 1, knowers: 2 }),
+            "[the passages projects made, the breaches standing, the students who know a passage] - a breach's row read as a passage, a touch or door row or a stranger as a knower, or a student counted twice");
+        // The window's row: the three counts under the passages group, in the reset's own words.
+        const keys = RESET_GROUPS.map(group => group.key);
+        const host = document.createElement("div");
+        host.innerHTML = S.resetGoesHtml(planFrom(keys), { passagesBuilt: 3, breaches: 1, passageKnowers: 4 });
+        const row = host.querySelector('li[data-group="passages"]')?.textContent ?? "";
+        const lines = [plural("DRPG.Season.resetPassagesBuilt", { n: 3 }), plural("DRPG.Season.resetBreaches", { n: 1 }), plural("DRPG.Season.resetPassageKnowers", { n: 4 })];
+        equal(JSON.stringify(lines.map(line => row.includes(line))), "[true,true,true]", `the passages row does not count what it takes: "${row.trim()}"`);
+        // The window's tally reads this count: the source of season-setup.mjs's `resetTally`, comments blanked.
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/season-setup.mjs`).then(lfText));
+        ok(/\bpassageResetTally\(/.test(fnSource(src, "resetTally")), "season-setup.mjs `resetTally` does not ask passageResetTally - the window counts nothing of the passages");
+    }],
+
     ["R162 - the runner judges before it answers, answers once, and tells an exception as failed", async () => {
         /*
          * E31, 25.09.2026; audit S17-08. `judge` (bridge-guards.mjs) carries out every
