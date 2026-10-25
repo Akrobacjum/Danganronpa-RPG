@@ -31,8 +31,9 @@
  *              action - the guide's rule was in force before it had an icon.
  */
 
-import { STATES } from "./config.mjs";
+import { MODULE_ID, FLAGS, STATES } from "./config.mjs";
 import { isMonokuma } from "./monokuma.mjs";
+import { isDeceased } from "./settings.mjs";
 import { remaining } from "./character.mjs";
 import { isPrimaryGm, primaryGmId, log, debug, error } from "./utils.mjs";
 import { playSfx } from "./sfx.mjs";
@@ -95,10 +96,14 @@ export function registerStates() {
     });
 }
 
-/** Only Health and Sanity writes can change either state. */
+/**
+ * Health and Sanity writes, and since E15 C4 the two flags that take both states away: a death
+ * published (`deceased`) and a Monocub made (`monocub`), see `heldNone`.
+ */
 function touchesTracks(changes) {
     const r = changes?.system?.resources;
-    return Boolean(r?.hitPoints || r?.stress);
+    const f = changes?.flags?.[MODULE_ID] ?? {};
+    return Boolean(r?.hitPoints || r?.stress || FLAGS.deceased in f || FLAGS.monocub in f);
 }
 
 /* ==========================================================================
@@ -178,7 +183,19 @@ async function clearSystemConditions(actor) {
 
 /** Should this character be showing this state right now? */
 function shouldHave(actor, state) {
-    return remaining(actor, state.resource) <= 0;
+    return !heldNone(actor) && remaining(actor, state.resource) <= 0;
+}
+
+/*
+ * THE DEAD CARRY NO STATES, AND A MONOCUB NEITHER (E15 C4, 25.10.2026; audit S03-10). A body beside
+ * the "dead" overlay wore Wounded or Breakdown, and a Monocub made from a victim who bled out was
+ * Wounded on the token. Dead as the table knows it (`isDeceased`, the published flag): the statuses
+ * are on a token every browser sees, so a death nobody has found keeps its states until it is
+ * published, and the hook above runs again on that flag. A Monocub is dead by definition; asked
+ * by its flag as well, which is the one a GM can set by hand.
+ */
+function heldNone(actor) {
+    return isDeceased(actor) || Boolean(actor?.getFlag?.(MODULE_ID, FLAGS.monocub));
 }
 
 /**

@@ -123,6 +123,18 @@ async function pickText(call) {
                 placeholder="${game.i18n.localize("DRPG.Calls.newRulePlaceholder")}"></textarea>
             <p class="notes">${game.i18n.format("DRPG.Calls.newRuleNote", { cost: DESPAIR_CALLS.newRule.cost })}</p>
         </form>`),
+        // The confirm stays shut until there is a rule to announce (E15 C4, 25.10.2026; audit S09-39), as
+        // `pickMotive`'s: an empty text closed the window and did nothing, which read as a Call for nine
+        // Despair that hung.
+        render: (event, dialog) => {
+            const root = dialog?.element;
+            const field = root?.querySelector("[name=text]");
+            const confirm = root?.querySelector('button[data-action="ok"]');
+            if (!field || !confirm) return;
+            const sync = () => { confirm.disabled = !field.value.trim(); };
+            field.addEventListener("input", sync);
+            sync();
+        },
         buttons: [
             {
                 action: "ok", label: game.i18n.localize("DRPG.Action.proceed"), default: true,

@@ -48,7 +48,7 @@
  * There is no world switch: the owner's Q2 (a), 03.10.2026.
  */
 
-import { MODULE_ID, TIMING, ACTIONS, TRAITS, TRAIT_BY_DH, MURDER_OPENING, CRITICAL, CRISIS_ACTIONS, PRICE_CHAINS, CLEANUP, LEGAL_ROLL_MODIFIERS } from "./config.mjs";
+import { MODULE_ID, FLAGS, TIMING, ACTIONS, TRAITS, TRAIT_BY_DH, MURDER_OPENING, CRITICAL, CRISIS_ACTIONS, PRICE_CHAINS, CLEANUP, LEGAL_ROLL_MODIFIERS } from "./config.mjs";
 import { SETTINGS, getClock } from "./settings.mjs";
 import { primaryGmId, isPrimaryGm, announce, whisperToGms, debug, warn, error, esc } from "./utils.mjs";
 import { bridgeRequest, ownsActor } from "./bridge-guards.mjs";
@@ -1923,7 +1923,8 @@ const LEGAL_READERS = Object.freeze({
     effects: actor => effectRange(actor),
     calls: (actor, draw) => diceOf(draw.applied),
     hostile: (actor, draw) => ({ dice: diceOf(draw.hostile), bonus: bonusOf(draw.hostile) }),
-    breakdown: (actor, draw, row) => (isBrokenDown(actor) ? row.bound : 0),
+    // None for a Monocub, as roll-dialog.mjs `stateGrant` (E15 C4; audit S03-10).
+    breakdown: (actor, draw, row) => (isBrokenDown(actor) && !actor?.getFlag?.(MODULE_ID, FLAGS.monocub) ? row.bound : 0),
     situation: (actor, draw) => situationReading(actor, draw),
     loadedDie: (actor, draw) => typeof draw.loaded === "string" && draw.applied.some(call => call?.grants === "critical" && call.nonce === draw.loaded),
     stashStep: (actor, { key, context, ready }) => key === "search"

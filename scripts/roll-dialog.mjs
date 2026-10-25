@@ -1036,6 +1036,8 @@ function situationalGrant() {
  */
 function stateGrant(actor) {
     try {
+        // A Monocub carries no Breakdown (E15 C4; audit S03-10): states.mjs puts none on the dead.
+        if (actor?.getFlag?.(MODULE_ID, FLAGS.monocub)) return 0;
         return isBrokenDown(actor) ? -1 : 0;
     } catch (err) {
         failed("reading a Breakdown", err);

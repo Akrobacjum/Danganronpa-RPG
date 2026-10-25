@@ -49,7 +49,7 @@ import { trustedWrite } from "./resource-guard.mjs";
 import { actionsLeft, spendAction, refundAction } from "./actions.mjs";
 import { getClock } from "./clock.mjs";
 import { seasonEpoch, sameSeason } from "./settings.mjs";
-import { resolveThreshold, dialogContent, whisperToOwner, log, warn, plural, tableDialog } from "./utils.mjs";
+import { resolveThreshold, dialogContent, whisperToOwner, log, warn, plural, tableDialog, isPrimaryGm } from "./utils.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -90,6 +90,25 @@ export async function setMonocub(actor, value = true) {
     }
 
     const was = isMonocub(actor);
+
+    /*
+     * A MONOCUB STARTS CLEAN (E15 C4, 25.10.2026; audit S09-17, S10-18). The guide gives a Monocub
+     * Hope only from a Monokuma's conversion of Despair, and the same budget as a living student;
+     * this kept what the student died with. A student who died holding 4 Hope had four Confusions
+     * before any Monokuma gave them anything, and a victim who bled out in an incident - every
+     * point of Health marked - came back with one action, Wounded, while an executed Blackened
+     * (tracks untouched) came back with two. So on the way in, false to true only, Hope and both
+     * tracks are emptied in one write with `setMonokuma`'s reason. Who is dead is the deceased
+     * flag (`isDeceased`), not the tracks, so clearing the marks changes nobody's death. Made a
+     * second time it writes nothing: a Hope a Monokuma has since converted is kept.
+     */
+    if (value && !was) {
+        await trustedWrite(actor, {
+            "system.resources.hope.value": 0,
+            "system.resources.hitPoints.value": 0,
+            "system.resources.stress.value": 0
+        }, { reason: "setup" });
+    }
     await actor.setFlag(MODULE_ID, FLAGS.monocub, Boolean(value));
     // Unconditional on purpose: clearing the flag is also the repair for a
     // silence left behind by a cub who is no longer one.
@@ -112,6 +131,14 @@ export async function setMonocub(actor, value = true) {
     log(`${actor.name} is ${value ? "now" : "no longer"} a Monocub.`);
     ui.notifications.info(game.i18n.format(
         value ? "DRPG.Monocub.opted" : "DRPG.Monocub.unopted", { name: actor.name }));
+
+    // The two conditions, put in line now on the primary (a Monocub carries neither: states.mjs
+    // `syncOnce`); on another GM the primary's own hook does it for the flag just written, so two
+    // GMs do not toggle one status at once.
+    if (isPrimaryGm()) {
+        const { syncStates } = await import("./states.mjs");
+        await syncStates(actor);
+    }
 
     actor.sheet?.render(false);
     return actor;
@@ -508,22 +535,35 @@ async function scoreMeddle(actor, target, choice, total, isCritical, row) {
         return { success: false };
     }
 
-    const text = help ? hit.help : hit.hinder;
+    let text = help ? hit.help : hit.hinder;
     // The target's own sentence (DESP-06), never the Monocub's receipt.
-    const targetText = (help ? hit.helpTarget : hit.hinderTarget) ?? text;
+    let targetText = (help ? hit.helpTarget : hit.hinderTarget) ?? text;
 
+    /*
+     * THE CRITICAL SAYS WHAT IT DID (E15 C4, 25.10.2026; audit S09-30). "You get the action back"
+     * was said whatever happened: `refundAction` stops at the budget's maximum, so a target who had
+     * spent nothing got nothing, and a Hinder on a target with no action left wasted none. Each now
+     * reads the actions after its write and says the other sentence when nothing moved. The
+     * numbers are the rules' (D21): no free action in place of the refund.
+     */
     if (isCritical) {
-        if (help) await refundAction(target, 1);
-        else await wasteAction(target);
+        const moved = help ? await refundedAction(target) : await wasteAction(target);
+        if (!moved) {
+            const key = help ? "critHelpNothing" : "critHinderNothing";
+            text = game.i18n.localize(`DRPG.Monocub.${key}`);
+            targetText = game.i18n.localize(`DRPG.Monocub.${key}Target`);
+        }
     } else {
+        // Quiet: the target's card below is the one sentence they are sent; `armCall`'s own notice
+        // was a second card for the same Confusion (S09-30).
         const { armCall } = await import("./call-effects.mjs");
         if (hit.grants === "bonus") {
             await armCall(target, {
-                key: "meddle", grants: "bonus", amount: help ? 1 : -1, from: actor.id
+                key: "meddle", grants: "bonus", amount: help ? 1 : -1, from: actor.id, quiet: true
             });
         } else {
             await armCall(target, {
-                key: "meddle", grants: help ? "advantage" : "disadvantage", from: actor.id
+                key: "meddle", grants: help ? "advantage" : "disadvantage", from: actor.id, quiet: true
             });
         }
     }
@@ -574,10 +614,19 @@ async function scoreMeddle(actor, target, choice, total, isCritical, row) {
 export const CUB_RESOLVERS = Object.freeze({ meddle: scoreMeddle });
 
 /** "Wastes an action" - unconditional, unlike `spendAction`, which can refuse. */
+/** A critical Hinder's write. Answers whether an action was there to waste. */
 async function wasteAction(actor) {
     const left = actionsLeft(actor);
-    if (left <= 0) return;
+    if (left <= 0) return false;
     await trustedWrite(actor, { [`system.resources.${ACTIONS_RESOURCE}.value`]: left - 1 }, { reason: "meddle" });
+    return true;
+}
+
+/** A critical Help's refund. Answers whether the actions went up: at the maximum they do not. */
+async function refundedAction(actor) {
+    const before = actionsLeft(actor);
+    await refundAction(actor, 1);
+    return actionsLeft(actor) > before;
 }
 
 /* ==========================================================================

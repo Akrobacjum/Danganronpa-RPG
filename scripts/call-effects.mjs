@@ -243,7 +243,7 @@ export function alreadyArmed(actor, call) {
  * With no GM connected the bridge says so (`noGm`), and nothing is armed or paid. A GM - a
  * Monokuma, a Monocub's Meddle resolved on the GM - writes it directly.
  */
-export async function armCall(actor, { key, kind, grants, amount = null, from = null, nonce = null }) {
+export async function armCall(actor, { key, kind, grants, amount = null, from = null, nonce = null, quiet = false }) {
     if (!actor || !grants) return null;
 
     // `amount` only means something for `grants: "bonus"` - Monocub's Meddle is
@@ -275,7 +275,9 @@ export async function armCall(actor, { key, kind, grants, amount = null, from = 
     // this branch and set the flag in silence - the player then met a roll
     // window with disadvantage already switched on and locked, and no reason
     // given. The socket path told them; the path that actually matters did not.
-    if (from && from !== actor.id) {
+    // `quiet` for a caller that sends the beneficiary its own sentence: a Monocub's Confusion
+    // (monocub.mjs `scoreMeddle`, E15 C4; audit S09-30), whose target was sent two cards for one Call.
+    if (from && from !== actor.id && !quiet) {
         // "Another student spent Hope on you" was said for Monokuma's Obstacle
         // too, and for a Monocub's Meddle - whose author must stay unnamed.
         const voice = kind === "despair" ? "DRPG.Calls.armedByMonokuma"
@@ -919,7 +921,8 @@ async function grantEffect(actor, call, choice, done, { key, kind, nonce = null 
     if (alreadyArmed(beneficiary, call)) {
         ui.notifications.warn(game.i18n.format("DRPG.Calls.alreadyArmed",
             { name: beneficiary.name, call: call.label }));
-        throw new NothingToDo(`${beneficiary.name} already holds ${call.key}`);
+        // The Call's key as `applyCall` hands it: a row of HOPE_CALLS carries none (audit S09-35).
+        throw new NothingToDo(`${beneficiary.name} already holds ${key}`);
     }
 
     const armed = await armCall(beneficiary, { key, kind, grants: call.grants, from: actor.id, nonce });

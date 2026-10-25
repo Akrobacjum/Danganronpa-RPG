@@ -34930,7 +34930,9 @@ const SCENARIOS = [
         const told = words.filter(w => w.to.includes(player(cub).id) || w.to.includes(player(target).id));
         const plain = told.map(w => cards.find(m => m.id === w.id))
             .filter(m => !m?.getFlag(MODULE_ID, "veiled") || stableJson([...(m?.whisper ?? [])].sort()) !== everybody || m?.speaker?.actor);
-        equal(stableJson([Boolean(armed), armed ? Object.hasOwn(armed, "from") : null, told.length >= 3, plain.length,
+        // Two cards since E15 C4 (audit S09-30): the Monocub's receipt and the target's sentence; the Call's own notice,
+        // a second card to the target for the same Confusion, is no longer sent (`armCall`'s `quiet`).
+        equal(stableJson([Boolean(armed), armed ? Object.hasOwn(armed, "from") : null, told.length >= 2, plain.length,
             words.some(w => w.to.includes(player(target).id) && w.html.includes(cub.name)), onFlag, inStore]),
             stableJson([true, false, true, 0, false, 0, true]),
             `Confusion stored its Monocub on the target, or a card to either player named them, or named the Monocub to the target, or its Call sits on the target's flag and not in the GMs' store: ${
@@ -66615,6 +66617,258 @@ const SCENARIOS = [
         }), "the explainers do not say the rules [the body is its own function; as a player: every pool's row, the sentence that only the "
             + "overflow is hidden, the hat's count; as a GM: the same rows, no such sentence, the hat's count; none ticked: a player's and "
             + "a GM's empty-hat sentence; the Eclipse names the Direct Murder; the actions name the Short and the Long Rest]");
+    }],
+
+    ["a Monocub starts clean (E15-T6): made from a student who died with 4 Hope and every point of Health and Sanity marked, it holds 0 Hope and no marks after one write, carries neither condition, and loses no action to a wound; made again or unticked it writes nothing; the dead carry no conditions", async () => {
+        /*
+         * E15 part 1 C4, 25.10.2026; E15-20, E15-21, audit S09-17, S10-18, S03-10. A living student is
+         * given 4 Hope and full Health and Sanity marks (the control: both conditions on), then killed in
+         * public (`killCharacter`, the deceased flag), then made a Monocub by `setMonocub` on this GM.
+         * Read: the two conditions on the body; Hope, Health and Sanity marks after; how many writes to
+         * the three moved them; the conditions on the Monocub; `actionBudget` for the Monocub with
+         * every point of Health marked again (a GM's later write) against an unwounded one, and the
+         * refill `resetActionsFor` gives; then Hope 2 (a conversion), `setMonocub` again and unticked:
+         * Hope stays 2 and nothing is written. At 0edb82de the body kept both conditions, the Monocub
+         * kept 4 Hope and every mark, Wounded and a budget one short.
+         */
+        const A = await import("./actions.mjs");
+        const M = await import("./monocub.mjs");
+        const { killCharacter, reviveCharacter } = await import("./chapter.mjs");
+        const { syncStates } = await import("./states.mjs");
+        const { STATES } = await import("./config.mjs");
+        const [who] = cast(1);
+        const R = "system.resources";
+        const hpMax = Number(who.system?.resources?.hitPoints?.max) || 0, stressMax = Number(who.system?.resources?.stress?.max) || 0;
+        must(hpMax >= 1 && stressMax >= 1 && (Number(who.system?.resources?.hope?.max) || STARTING.hopeMax) >= 4,
+            `${who.name} has no Health or Sanity to mark, or cannot hold 4 Hope - this would measure nothing`);
+        const keys = ["hope", "hitPoints", "stress", "actions"];
+        const was = Object.fromEntries(keys.map(k => [k, foundry.utils.deepClone(foundry.utils.getProperty(who._source, `${R}.${k}`) ?? null)]));
+        const monoWas = who._source.flags?.[MODULE_ID]?.[FLAGS.monocub];
+        const states = () => [STATES.wounded.id, STATES.breakdown.id].map(id => Boolean(who.statuses?.has?.(id)));
+        const writes = [];
+        const hook = Hooks.on("updateActor", (actor, changes) => {
+            const r = changes?.system?.resources ?? {};
+            if (actor.id === who.id && ("hope" in r || "hitPoints" in r || "stress" in r)) writes.push(Object.keys(r).sort().join(","));
+        });
+        const read = {};
+        let dead = false;
+        try {
+            await who.update({ [`${R}.hope.value`]: 4, [`${R}.hitPoints.value`]: hpMax, [`${R}.stress.value`]: stressMax });
+            await syncStates(who);
+            await settle();
+            must(stableJson(states()) === stableJson([true, true]),
+                `alive with every mark, ${who.name} did not carry Wounded and Breakdown (${stableJson(states())}) - this would measure nothing`);
+            dead = Boolean(await killCharacter(who, { secret: false, keepBullets: true }));
+            must(dead, `${who.name}'s death could not be published - this would measure nothing`);
+            await syncStates(who);
+            await settle();
+            read.body = states();
+            writes.length = 0;
+            await M.setMonocub(who, true);
+            await settle();
+            const res = who.system.resources;
+            read.made = [M.isMonocub(who), res.hope.value, res.hitPoints.value, res.stress.value, writes.length, states()];
+            await who.update({ [`${R}.hitPoints.value`]: hpMax });
+            await settle();
+            const hurt = A.actionBudget(who), whole = A.actionBudget(who, { wounded: false });
+            read.budget = [hurt.wounded, hurt.total === whole.total, (await A.resetActionsFor(who))?.total === whole.total, states()];
+            await who.update({ [`${R}.hope.value`]: 2 });
+            await settle();
+            writes.length = 0;
+            await M.setMonocub(who, true);
+            await M.setMonocub(who, false);
+            await settle();
+            read.again = [who.system.resources.hope.value, writes.length, M.isMonocub(who)];
+        } finally {
+            Hooks.off("updateActor", hook);
+            if (monoWas === undefined) await who.unsetFlag(MODULE_ID, FLAGS.monocub);
+            else await who.setFlag(MODULE_ID, FLAGS.monocub, monoWas);
+            if (dead) await reviveCharacter(who, { quiet: true });
+            await who.update(Object.fromEntries(keys.filter(k => was[k] !== null).map(k => [`${R}.${k}`, was[k]])));
+            await syncStates(who);
+            await settle();
+        }
+        equal(stableJson(read), stableJson({
+            body: [false, false],
+            made: [true, 0, 0, 0, 1, [false, false]],
+            budget: [false, true, true, [false, false]],
+            again: [2, 0, false]
+        }), "a Monocub did not start clean [the body's Wounded and Breakdown; made: a Monocub, Hope, Health marks, Sanity marks, writes "
+            + "that moved them, the two conditions; every Health mark again: wounded, the budget an unwounded one's, the refill the same, the "
+            + "conditions; Hope 2 then made again and unticked: Hope, writes, still a Monocub]");
+    }],
+
+    ["Confusion's lines tell the truth once (E15-T6): a critical Help on a target with every action left says nothing came back, a critical Hinder on a target with none says nothing was lost, a critical Help on one short gives the action back as it says, and a +1 Hinder sends its target one card", async () => {
+        /*
+         * E15 part 1 C4, 25.10.2026; E15-22, audit S09-30. A Monocub (the flag, as "a Monocub marked a crime
+         * witness" makes one) and its target, each with a player, alone in a room; the GM's own run
+         * (`cubAbilityOnGm`) with its dice scripted: 5 and 5 (a critical) as a Help on a target at its maximum,
+         * as a Hinder on a target at 0, as a Help on a target one short (the control: the action comes back
+         * and the old sentence is said), then 6 and 7 (13, the +1/-1 tier) as a Hinder. Read: the target's
+         * actions after each, whether the cards to the target's player carry the sentence for what happened,
+         * and how many cards the 13 sent that player. At 0edb82de the first two said the action came back
+         * or was wasted, and the 13 sent two cards (the Call's own notice and Confusion's).
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a Monocub and its target, each with a player to be sent the words");
+        const { cubAbilityOnGm } = await import("./monocub.mjs");
+        const { actionsLeft, actionsMax } = await import("./actions.mjs");
+        const { MONOCUB, ACTIONS_RESOURCE } = await import("./config.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { confusionStore } = await import("./gm-stores.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [cub, target] = livingStudents().filter(player);
+        const max = actionsMax(target);
+        must(max >= 1, `${target.name} has no action to spend - this would measure nothing`);
+        const crit = MONOCUB.abilities.meddle.critical;
+        const t = key => game.i18n.localize(key);
+        const { back } = await aloneTogether(cub, target);
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const rowBefore = foundry.utils.deepClone(confusionStore?.get(target.id) ?? null);
+        const actionsWas = foundry.utils.getProperty(target._source, `system.resources.${ACTIONS_RESOURCE}.value`);
+        const monoWas = cub._source.flags?.[MODULE_ID]?.[FLAGS.monocub];
+        const real = CONFIG.Dice.randomUniform;
+        const read = {};
+        const run = async (faces, choice, actions) => {
+            await target.update({ [`system.resources.${ACTIONS_RESOURCE}.value`]: actions });
+            await settle();
+            const script = faces.map(face => 1 - (face - 0.5) / 12);
+            let out = null;
+            const words = await wordsSent(async () => {
+                CONFIG.Dice.randomUniform = () => (script.length ? script.shift() : real());
+                try { out = await cubAbilityOnGm({ actorId: cub.id, key: "meddle", targetId: target.id, choice }); }
+                finally { CONFIG.Dice.randomUniform = real; }
+                await settle();
+            });
+            must(out, `the ${choice} was refused - this would measure nothing`);
+            return { out, after: actionsLeft(target), told: words.filter(w => w.to.includes(player(target).id)).map(w => w.html) };
+        };
+        try {
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await settle();
+            const full = await run([5, 5], "help", max);
+            read.full = [full.out.isCritical, full.after, full.told.some(h => h.includes(foundry.utils.escapeHTML(t("DRPG.Monocub.critHelpNothingTarget")))),
+                full.told.some(h => h.includes(foundry.utils.escapeHTML(crit.helpTarget)))];
+            const none = await run([5, 5], "hinder", 0);
+            read.none = [none.out.isCritical, none.after, none.told.some(h => h.includes(foundry.utils.escapeHTML(t("DRPG.Monocub.critHinderNothingTarget")))),
+                none.told.some(h => h.includes(foundry.utils.escapeHTML(crit.hinderTarget)))];
+            const short = await run([5, 5], "help", max - 1);
+            read.short = [short.after, short.told.some(h => h.includes(foundry.utils.escapeHTML(crit.helpTarget)))];
+            const plus = await run([6, 7], "hinder", max);
+            read.plus = [plus.out.total, plus.told.length];
+        } finally {
+            CONFIG.Dice.randomUniform = real;
+            if (confusionStore) {
+                if (rowBefore) await confusionStore.patch(target.id, { calls: rowBefore.calls ?? [] });
+                else if (confusionStore.has(target.id)) await confusionStore.drop(target.id);
+            }
+            if (monoWas === undefined) await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            else await cub.setFlag(MODULE_ID, FLAGS.monocub, monoWas);
+            if (actionsWas !== undefined) await target.update({ [`system.resources.${ACTIONS_RESOURCE}.value`]: actionsWas });
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
+            await back();
+        }
+        equal(stableJson(read), stableJson({
+            full: [true, max, true, false],
+            none: [true, 0, true, false],
+            short: [max, true],
+            plus: [13, 1]
+        }), "Confusion's lines do not tell the truth once [a critical Help at the maximum: critical, the actions after, the sentence that "
+            + "nothing came back, the old sentence; a critical Hinder at 0: the same; a critical Help one short: the actions after, the old "
+            + "sentence; a 13 Hinder: its total, the cards to the target's player]");
+    }],
+
+    ["a Call is refused before its confirm (E15-T6): a student under the Despair Call Silence is barred by callBarred itself, a second Loaded Die pressed on the sheet is refused with no window opened, and New Rule's confirm stays shut on an empty or blank text", async () => {
+        /*
+         * E15 part 1 C4, 25.10.2026; E15-23, E15-24, audit S09-35, S09-39. Read on a GM's browser, with the
+         * windows answered by stand-ins that count them and the warnings caught: calls.mjs `callBarred` for a
+         * student the Silence restricts (call-world.mjs `restrict`, the world's list put back); the sheet's
+         * Loaded Die tile pressed (the module's render hook on a stand-in sheet, the panel's own delegate)
+         * with a Loaded Die already armed and the Hope to pay for another; New Rule's text window
+         * (`pickTarget`), its confirm read empty, blank, then written. At 0edb82de `callBarred` said nothing,
+         * the tile opened the confirmation, and the confirm was never shut.
+         */
+        const { callBarred } = await import("./calls.mjs");
+        const { pickTarget } = await import("./call-effects.mjs");
+        const { restrict } = await import("./call-world.mjs");
+        const { HOPE_CALLS, DESPAIR_CALLS } = await import("./config.mjs");
+        const { isEclipse } = await import("./settings.mjs");
+        const t = key => game.i18n.localize(key);
+        const [who] = cast(1);
+        must(!isEclipse(), "an Eclipse is running, which bars every Call first - this would measure nothing");
+        const DialogV2 = foundry.applications.api.DialogV2;
+        const own = { confirm: Object.getOwnPropertyDescriptor(DialogV2, "confirm"), wait: Object.getOwnPropertyDescriptor(DialogV2, "wait") };
+        const putBack = () => {
+            for (const [key, was] of Object.entries(own)) {
+                if (was) Object.defineProperty(DialogV2, key, was);
+                else delete DialogV2[key];
+            }
+        };
+        const warn = ui.notifications.warn, warned = [];
+        const restrictionsWas = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.restrictions) ?? {});
+        const hopeWas = foundry.utils.getProperty(who._source, "system.resources.hope.value");
+        const cost = HOPE_CALLS.freeCrit.cost;
+        must((Number(who.system?.resources?.hope?.max) || STARTING.hopeMax) >= cost, `${who.name} cannot hold ${cost} Hope - this would measure nothing`);
+        const read = {};
+        let armed = null, sheet = null;
+        try {
+            must(await callBarred(who) === null, `a Call of ${who.name}'s is barred before the Silence (${await callBarred(who)}) - this would measure nothing`);
+            await restrict(who, { silenced: true });
+            await settle();
+            read.silenced = await callBarred(who) === t("DRPG.Calls.silencedNotice");
+            await game.settings.set(MODULE_ID, SETTINGS.restrictions, restrictionsWas);
+            await settle();
+
+            await who.update({ "system.resources.hope.value": cost });
+            armed = await c3Call(who, { key: "freeCrit", kind: "hope", grants: "critical" });
+            const element = document.createElement("div");
+            element.innerHTML = `<section data-application-part="features"></section>`;
+            document.body.append(element);
+            sheet = element;
+            Hooks.callAll("renderCharacterSheet", { document: who, isEditable: true, element, rendered: true }, element, {}, { isFirstRender: true });
+            const tile = element.querySelector('[data-drpg-call="freeCrit"]');
+            must(tile, "the sheet drew no Loaded Die tile - this would measure nothing");
+            const asked = { n: 0 };
+            DialogV2.confirm = async () => { asked.n += 1; return null; };
+            DialogV2.wait = async () => { asked.n += 1; return null; };
+            ui.notifications.warn = (message, ...rest) => { warned.push(String(message)); return warn.call(ui.notifications, message, ...rest); };
+            tile.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+            await until(() => asked.n > 0 || warned.length > 0);
+            await until(() => !tile.disabled);
+            read.second = [asked.n, warned.some(w => w === game.i18n.format("DRPG.Calls.alreadyArmed", { name: who.name, call: HOPE_CALLS.freeCrit.label }))];
+            ui.notifications.warn = warn;
+            putBack();
+
+            const states = [];
+            DialogV2.wait = async config => {
+                const root = document.createElement("div");
+                if (typeof config.content === "string") root.innerHTML = config.content;
+                else if (config.content) root.append(config.content.cloneNode(true));
+                root.insertAdjacentHTML("beforeend", '<button type="button" data-action="ok"></button>');
+                const field = root.querySelector("[name=text]"), confirm = root.querySelector('button[data-action="ok"]');
+                if (!field) return "no text field";
+                config.render?.(new Event("render"), { element: root });
+                for (const text of ["", "   ", "Nobody leaves the gym after dark."]) {
+                    field.value = text;
+                    field.dispatchEvent(new Event("input"));
+                    states.push(confirm.disabled);
+                }
+                return null;
+            };
+            read.newRule = [await pickTarget(who, DESPAIR_CALLS.newRule, "despair"), states];
+        } finally {
+            ui.notifications.warn = warn;
+            putBack();
+            sheet?.remove();
+            await armed?.off();
+            if (stableJson(game.settings.get(MODULE_ID, SETTINGS.restrictions) ?? {}) !== stableJson(restrictionsWas)) {
+                await game.settings.set(MODULE_ID, SETTINGS.restrictions, restrictionsWas);
+            }
+            if (hopeWas !== undefined) await who.update({ "system.resources.hope.value": hopeWas });
+            await settle();
+        }
+        equal(stableJson(read), stableJson({ silenced: true, second: [0, true], newRule: [null, [true, true, false]] }),
+            "a Call was not refused before its confirm [callBarred under the Silence; the second Loaded Die: windows opened, the warning "
+            + "that it is held; New Rule: the picker's answer, the confirm shut on an empty, a blank and a written text]");
     }],
 
     ...GRID

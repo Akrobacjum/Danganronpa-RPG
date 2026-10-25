@@ -6220,6 +6220,8 @@ const REGRESSIONS = [
             "chapter.mjs reviveCharacter status": "the marker, taken off with it",
             // E19 C2: the updateActor hook's test moved into `reconcileTrigger`, which the hook asks.
             "voice.mjs reconcileTrigger flag": "the updateActor hook's trigger reads the change's key, not the actor",
+            // E15 C4: the conditions' hook syncs again when a death is published; `syncStates` then asks `isDeceased`.
+            "states.mjs touchesTracks flag": "the updateActor hook's trigger reads the change's key, not the actor",
             // E29 C3: the GMs' audit holds the GM-only flags in a student's mark and puts a player's write of one back;
             // it names the flag among the others and never asks whether a student is dead.
             "sheet-audit.mjs GM_FLAGS flag": "a GM-only flag, held in the GMs' mark and put back"
