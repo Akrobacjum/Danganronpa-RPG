@@ -411,7 +411,7 @@ Despair earned past a full pool does not vanish - it collects in one shared coun
 | Silence | no Hope Calls, by anybody |
 | Fog | no Free Move - crossings cost actions as usual |
 | Rot | every item with more than one durability point loses one (one-off, nothing breaks) |
-| Earthquake | every project loses 1 progress (one-off) |
+| Earthquake | every project not yet finished and not frozen loses 1 progress (one-off) |
 
 None of these ever takes you below one action or one search token. You see "?" for the counter; a trial verdict empties it, but a darkening announced during the trial still comes, at the next time of day.
 
@@ -726,7 +726,7 @@ Somebody among you may have built this place. The **Final Truth Remnants** - one
 
 Once your own Class Trial has ended, you may join the GMs as a **Monocub**. Same actor, same sheet; the action panel becomes **Move** and **Confusion**.
 
-- You have the same action budget as a living student and see only your own room. Your rolls are shown to everyone standing in it.
+- You start with 0 Hope and no Health or Sanity marked, and have the same action budget as an unwounded living student - Wounded never takes one from a Monocub. You see only your own room. Your rolls are shown to everyone standing in it.
 - **Confusion** costs **1 action and 1 Hope**, and your Hope exists only because a Monokuma converted Despair into it (Fuel a Monocub). It is a flat 2d12 with no statistic. Pick somebody in your room and help or hinder their next roll (see the table below). They are told something steadied or rattled them, never who - but everyone in your room sees you roll, so they may work out it was you.
 - A Monocub who stumbles onto the crime scene is sworn to silence about it until the chapter ends. Confusion still works.
 
@@ -735,6 +735,8 @@ Once your own Class Trial has ended, you may join the GMs as a **Monocub**. Same
 | 12+ | +1 | -1 |
 | 16+ | advantage | disadvantage |
 | critical | returns their action | wastes their action |
+
+A critical with nothing to move - they had every action left, or none left to lose - says so.
 
 Monokumas themselves - the GM side - have no actions and no Hope, walk through walls and locked doors, and spend Despair where you spend Hope.
 

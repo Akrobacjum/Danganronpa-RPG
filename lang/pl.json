@@ -1008,7 +1008,7 @@
       "giveHope": "Zamień Despair Monokumy w Hope",
       "giveHopeColumn": "Despair → Hope",
       "give": "Daj",
-      "silenced": "Milczenie",
+      "silenced": "Uciszony",
       "silencedNote": "Zaznacz, jeśli ten Monocub natknął się na miejsce zbrodni. Nie może o nim mówić do końca rozdziału, ale Confusion wciąż działa.",
       "needHope": "Confusion kosztuje Hope, a nie masz żadnego. Poproś GM-a o zamianę Despair.",
       "nobodyHere": "Nie ma tu nikogo, na kim dałoby się użyć Confusion.",
@@ -1031,7 +1031,7 @@
       "silenceOff": "Milczenie zdjęte. Znów możesz mówić o zbrodni.",
       "meddleCostShort": "{hope} Hope, {actions} akcja",
       "silencedBadge": "Zobowiązany do milczenia",
-      "silencedTooltip": "Natknąłeś się na zbrodnię. Nie możesz o niej mówić do końca rozdziału; Confusion wciąż działa.",
+      "silencedTooltip": "Zbrodnia na twoich oczach. Nie możesz o niej mówić do końca tego rozdziału; Confusion wciąż działa.",
       "invite": "Zaproś jako Monocuba",
       "onlyTwoActions": "Monocub ma dwie rzeczy do zrobienia: przejście do innego pokoju i Confusion. Reszta panelu akcji należy do żywych.",
       "giveAtLeast": "Wpisz, ile Despair zamienić w Hope - co najmniej {n}."

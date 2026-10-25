@@ -411,7 +411,7 @@ Despair zdobyty ponad pełną pulę nie znika - zbiera się w jednym wspólnym l
 | Silence | żadnych Hope Calli, u nikogo |
 | Fog | brak Free Move - przejścia kosztują akcje jak zwykle |
 | Rot | każdy przedmiot z więcej niż jednym punktem wytrzymałości traci jeden (jednorazowo, nic się nie łamie) |
-| Earthquake | każdy projekt traci 1 postępu (jednorazowo) |
+| Earthquake | każdy projekt jeszcze nieukończony i niezamrożony traci 1 postępu (jednorazowo) |
 
 Żadne z nich nie zejdzie ci poniżej jednej akcji ani jednego Search Tokena. Zamiast licznika widzisz "?"; werdykt Class Trialu go opróżnia, ale zaciemnienie ogłoszone w trakcie procesu i tak przychodzi, w następnej porze dnia.
 
@@ -726,7 +726,7 @@ Ktoś wśród was mógł zbudować to miejsce. **Final Truth Remnants** - jeden 
 
 Gdy skończy się twój własny Class Trial, możesz dołączyć do GMów jako **Monocub**. Ten sam aktor, ten sam arkusz; panel akcji staje się **Move** i **Confusion**.
 
-- Masz tyle akcji co żyjący uczeń i widzisz tylko własny pokój. Twoje rzuty widzą wszyscy, którzy w nim stoją.
+- Zaczynasz z 0 Hope, bez oznaczonego Health i Sanity, i masz tyle akcji co żyjący, niezraniony uczeń - Wounded nigdy nie odbiera Monocubowi akcji. Widzisz tylko własny pokój. Twoje rzuty widzą wszyscy, którzy w nim stoją.
 - **Confusion** kosztuje **1 akcję i 1 Hope**, a twój Hope istnieje tylko dlatego, że Monokuma zamienił w niego Despair (Fuel a Monocub). To goły rzut 2d12, bez statystyki. Wybierz kogoś w swoim pokoju i pomóż albo przeszkódź przy jego następnym rzucie (zobacz tabelę poniżej). Dowiadują się, że coś uspokoiło ich rękę albo ich rozproszyło, nigdy kto - ale wszyscy w twoim pokoju widzą, że rzucasz, więc mogą się domyślić, że to ty.
 - Monocub, który natknie się na miejsce zbrodni, jest zobowiązany do milczenia o nim do końca rozdziału. Confusion wciąż działa.
 
@@ -735,6 +735,8 @@ Gdy skończy się twój własny Class Trial, możesz dołączyć do GMów jako *
 | 12+ | +1 | -1 |
 | 16+ | przewaga | utrudnienie |
 | krytyk | oddaje mu akcję | marnuje mu akcję |
+
+Krytyk, który nie ma czego ruszyć - cel ma wszystkie akcje albo nie ma już żadnej do stracenia - mówi to.
 
 Same Monokumy - strona GMa - nie mają akcji ani Hope, przechodzą przez ściany i zamknięte drzwi i wydają Despair tam, gdzie ty wydajesz Hope.
 
