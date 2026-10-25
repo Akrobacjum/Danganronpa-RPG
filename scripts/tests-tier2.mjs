@@ -44342,6 +44342,21 @@ const SCENARIOS = [
                 gone: (report, key) => !S.passageMapStore.has(key),
                 back: key => S.passageMapStore.get(key)?.passageWallId === "SUITEK1AWALL" && S.passageMapStore.get(key)?.state === "secret"
             },
+            // A passage a project made, through its store (E15 part 2 C1; 1.2.85 fix: backed up with no fixture here, and this
+            // test failed naming it). A row of the map's shape with a project's origin, under an id of its own (an id in both
+            // stores is refused), secret, known to nobody, on a wall that is not drawn: its retell reaches no player.
+            passageSeason: {
+                seed: async () => {
+                    const key = `${scene.id}.SUITE1285SEASONPASSAGE`;
+                    await S.passageSeasonStore.patch(key, { sceneId: scene.id, level: null, shape: "wall", passageWallId: "SUITE1285SEASONWALL",
+                        passageSeg: { x1: 0, y1: 10, x2: 10, y2: 10 }, rooms: [], state: "secret", startAccess: false,
+                        origin: { by: "project", projectId: "SUITE1285SEASONPJ", builderId: holder.id } });
+                    return key;
+                },
+                gone: (report, key) => !S.passageSeasonStore.has(key),
+                back: key => S.passageSeasonStore.get(key)?.passageWallId === "SUITE1285SEASONWALL"
+                    && S.passageSeasonStore.get(key)?.origin?.projectId === "SUITE1285SEASONPJ"
+            },
             passageAccess: {
                 seed: async () => {
                     const key = `${scene.id}.SUITEK1APASSAGE/${holder.id}`;
@@ -44541,7 +44556,7 @@ const SCENARIOS = [
             equal(stableJson(stored()), stableJson(onDisk), "forgetting wrote the emptied sections to this browser's storage, where a tab closed now would leave them");
             const report = await S.gmStoreHealth();
             for (const store of stores) ok(FIXTURES[store.name].gone(report, keys[store.name]), `${store.name}: after the store was emptied the report does not say so, or its row still reads`);
-            // The passages' two stores retell the players after a restore (`afterRestore`); while tier 2 holds the
+            // The passages' three stores retell the players after a restore (`afterRestore`); while tier 2 holds the
             // stores that retell sends nothing (R184; E79 fix r1-G2, K1-a): the packets the restore emits are counted.
             // It reads something only where the holder's owner is connected, as p1 is in the harness.
             const emit = game.socket.emit, retold = [];

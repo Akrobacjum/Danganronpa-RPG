@@ -2585,7 +2585,7 @@
         "other": "{n} characters moved to {room}."
       },
       "destroyed": "{item} is destroyed.",
-      "effectFailed": "{name}: part of what finishing it (or taking it back under its target) does could not be done ({error}). The bar stands as it is; the console has the details.",
+      "effectFailed": "{call} was paid for, but its effect could not be applied. Tell the GM.",
       "refunded": "{call} did nothing, so the {cost} it cost has been returned.",
       "silenced": "{name} cannot spend Hope Calls until this time of day ends.",
       "silencedNotice": "Monokuma has silenced you. No Hope Calls until this time of day ends.",

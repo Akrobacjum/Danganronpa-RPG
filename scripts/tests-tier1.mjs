@@ -22436,6 +22436,31 @@ const INVARIANTS = [
             + "out of reach was not named [the rename: refused then good, refused then closed, unchanged - each its answer, the prompts asked, "
             + "the second prompt's field: value, aria-invalid, the sentence; the warnings: a stash in R976 Library, the student's own as found]");
     }],
+    ["R984 - a Hope or Despair Call paid for whose effect failed is said in words its callers can fill: DRPG.Calls.effectFailed, given only { call } as calls.mjs and call-effects.mjs give it, names the call and leaves no placeholder unfilled, in English and in Polish (1.2.85 fix)", async () => {
+        /*
+         * 1.2.85, 25.10.2026. E36 fix e1-G4 (daf5600c) wrote the projects' sentence ("{name}: part of what finishing it
+         * ... ({error})") over DRPG.Calls.effectFailed in both language files, where DRPG.Project.effectFailed was meant;
+         * its two callers (calls.mjs, the toast of a call whose effect threw; call-effects.mjs, the line the refund
+         * follows) pass only { call }, so a player read "{name}: ... ({error})" as it stood. Both files are read as served
+         * and filled as game.i18n.format fills them (a key it is not given stays as written), and this browser's own
+         * format is read too. Nothing is written; no phase is asked.
+         */
+        const CALL = "R984 Hope Call";
+        const fill = (text, data) => String(text ?? "").replace(/{[^}]+}/g, k => data[k.slice(1, -1)] ?? k);
+        const said = [];
+        for (const lang of ["en", "pl"]) {
+            const words = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`, { cache: "no-cache" }).then(r => r.json());
+            const text = words?.DRPG?.Calls?.effectFailed;
+            must(typeof text === "string" && text.length, `lang/${lang}.json has no DRPG.Calls.effectFailed - this would read nothing`);
+            const out = fill(text, { call: CALL });
+            said.push([lang, out.includes(CALL), /{[^}]*}/.test(out)]);
+        }
+        const here = game.i18n.format("DRPG.Calls.effectFailed", { call: CALL });
+        said.push(["this browser", here.includes(CALL), /{[^}]*}/.test(here)]);
+        equal(stableJson(said), stableJson([["en", true, false], ["pl", true, false], ["this browser", true, false]]),
+            "DRPG.Calls.effectFailed, filled with { call } alone, does not name the call or leaves a placeholder unfilled "
+            + "[per language: names the call, a {placeholder} left]");
+    }],
 ];
 
 /**

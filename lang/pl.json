@@ -2677,7 +2677,7 @@
         "other": "{n} postaci przeniesionych do: {room}."
       },
       "destroyed": "{item} zniszczony.",
-      "effectFailed": "{name}: części tego, co robi ukończenie projektu (albo cofnięcie go poniżej celu), nie udało się zrobić ({error}). Pasek zostaje, jak jest; szczegóły są w konsoli.",
+      "effectFailed": "{call} opłacony, ale nie dało się zastosować efektu. Powiedz GM-owi.",
       "refunded": "{call} nic nie dał, więc koszt ({cost}) wraca.",
       "silenced": "{name} nie może wydawać Hope Calls, dopóki zegar się nie przesunie.",
       "silencedNotice": "Monokuma cię uciszył. Żadnych Hope Calls do końca tej pory dnia.",
