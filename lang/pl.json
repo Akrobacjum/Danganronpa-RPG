@@ -4584,6 +4584,10 @@
       "plantItem": "Co to jest",
       "plantRoom": "Gdzie czeka",
       "planted": "{item} czeka w: {room}.",
+      "plantFound": "{actor} - znalezione: {item}, przedmiot podłożony w: {room}.",
+      "plantTaken": "Znaleziono: {item}, przedmiot podłożony w: {room}.",
+      "plantBack": "{item} znów czeka w: {room} - znalazca nie mógł tego zabrać.",
+      "plantLost": "Nie dało się odłożyć: {item} - w: {room} czeka już inny podłożony przedmiot. Ten przepadł.",
       "plantUsableNote": "Przychodzi jako to, czego szukał znalazca - to właśnie czyni go zwyczajnym. Więc odpala tylko dla kogoś, kto szukał przedmiotu użytkowego: narzędzia ani broni nikt nie „użyje”.",
       "plantAction": "Podłóż przedmiot",
       "plantSettled": "{name} - przedmiot podłożony."

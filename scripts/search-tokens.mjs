@@ -99,22 +99,49 @@ export class SearchTokens {
      * in that room a moment ago - see `runTakePlant`. No answer is no plant:
      * the room keeps it for the next search, which is the safe way to be wrong.
      *
+     * The plant comes back with `back`, what `returnPlant` needs to put it in its room again: the
+     * plant check's request id on a player's client; on a GM's, the room, the scene and the store's
+     * row as it was taken (its trap's project, which the finder's copy never carries).
+     *
      * @returns {Promise<object|null>}
      */
     static async takePlant(roomName, sceneId, { actorId = null, rollId = null, by = null } = {}) {
         if (!roomName) return null;
         if (!game.user.isGM) {
             const res = await requestPlantCheck(roomName, sceneId, actorId, rollId);
-            return res.ok ? res.value?.plant ?? null : null;
+            const plant = res.ok ? res.value?.plant ?? null : null;
+            return plant ? { ...plant, back: { plantRequestId: res.value.plantRequestId ?? null } } : null;
         }
         try {
             const { takePlant } = await import("./traps.mjs");
-            return await takePlant(roomName, sceneId, { actorId, rollId, by });
+            const plant = await takePlant(roomName, sceneId, { actorId, rollId, by });
+            return plant ? { ...plant, back: { roomName, sceneId: sceneId ?? null, row: structuredClone(plant) } } : null;
         } catch (err) {
             // A search that cannot check for a plant is an ordinary search.
             error("Could not check a room for a planted item", err);
             return null;
         }
+    }
+
+    /**
+     * A PLANT THE SEARCH COULD NOT HAND OVER GOES BACK (E14 part 2 C4, 24.10.2026; audit S08-10).
+     * `takePlant` takes the plant out of the store before anybody knows whether it fits: a student
+     * with full hands and no stash found the plant, `grantItem` refused it, and the plant, its row
+     * in the trap's ledger and the killer's project went with it, the GMs told nothing until
+     * `diagnoseTraps`. action-rolls.mjs `grantDrawn` hands a refused plant here: on a GM it goes
+     * back at once (`putPlantBack`), on a player's client the GM is asked as a late plant is
+     * (`ACTION_RETURN_PLANT`, judged by `guardPlantReturn`: only the plant handed to that user, once,
+     * inside `PLANT_WINDOW_MS`). Answers whether it went back, or was asked to.
+     */
+    static async returnPlant(plant) {
+        const back = plant?.back ?? null;
+        if (!back) return false;
+        if (!game.user.isGM) {
+            if (!back.plantRequestId) return false;
+            const res = await askSearch(ACTION_RETURN_PLANT, { plantRequestId: back.plantRequestId });
+            return Boolean(res.ok);
+        }
+        return back.row ? putPlantBack(back.roomName, back.sceneId, back.row) : false;
     }
 
     /**
@@ -533,16 +560,20 @@ async function runTakePlant(payload, sender, ctx) {
     // plays; and the roll, written on only when it is the sender's Search of that character (fix
     // r1-G2, traps.mjs `takePlant`).
     const actorId = ownsActor(sender, payload.actorId) ? payload.actorId : null;
-    const plant = at && Date.now() - at < PLANT_WINDOW_MS
+    const taken = at && Date.now() - at < PLANT_WINDOW_MS
         ? await SearchTokens.takePlant(payload.roomName, sceneId, { actorId, rollId: payload.rollId ?? null, by: sender.id })
         : null;
+    // The store's row as it was taken, not the GM's own way back (`back`): this road's is the request id.
+    const plant = taken ? taken.back?.row ?? taken : null;
     if (plant) {
         for (const [id, entry] of handedOut) {
             if (Date.now() - entry.at > PLANT_WINDOW_MS) handedOut.delete(id);
         }
         handedOut.set(ctx.requestId, { userId: sender.id, roomName: payload.roomName, sceneId, plant, at: Date.now() });
     }
-    return { reply: { ok: Boolean(plant), plant: plantForFinder(plant), left: SearchTokens.left(payload.roomName, sceneId) } };
+    // The request's id goes back with the plant, for the return a refused grant asks (C4): the one `handedOut` keys.
+    return { reply: { ok: Boolean(plant), plant: plantForFinder(plant), plantRequestId: plant ? ctx.requestId ?? null : null,
+        left: SearchTokens.left(payload.roomName, sceneId) } };
 }
 
 /**
@@ -565,12 +596,42 @@ async function returnPlant(payload, sender, ctx) {
     // A late reply comes back within seconds; a return long after the fact is
     // not one, and would put an item back that has been in a pocket all along.
     if (Date.now() - entry.at > PLANT_WINDOW_MS) return;
+    await putPlantBack(entry.roomName, entry.sceneId, entry.plant);
+}
+
+/**
+ * The plant in its room again, and the GMs told (E14 part 2 C4; S08-10): a return asked by a
+ * player's client, a GM's own Search's refused grant (`SearchTokens.returnPlant`). A room planted
+ * again meanwhile keeps the newer plant (`restorePlant`), and the GMs are told this one is gone.
+ *
+ * NOT ONE ALREADY IN A POCKET (E14 fix e1-G1, 25.10.2026). A return is a player's claim that the
+ * plant never reached the sheet, and `guardPlantReturn` holds only who asks and how often: a console
+ * that let the grant through and then asked anyway had the item in its hands and the plant waiting
+ * again, two of one trap (the late road's hole since E31 as well). So an item that carries the
+ * plant's identity on any character keeps it out of the room. Measured by E14-T9's third take.
+ */
+async function putPlantBack(roomName, sceneId, plant) {
+    if (await plantHeld(plant?.drpgItemId)) {
+        debug(`A planted item was not put back in ${roomName}: a character holds it.`);
+        return false;
+    }
+    let back = false;
     try {
         const { restorePlant } = await import("./traps.mjs");
-        await restorePlant(entry.roomName, entry.sceneId, entry.plant);
+        back = await restorePlant(roomName, sceneId, plant);
     } catch (err) {
         error("Could not put a planted item back in its room", err);
     }
+    const words = { item: foundry.utils.escapeHTML(plant?.name ?? "?"), room: foundry.utils.escapeHTML(roomName ?? "?") };
+    await whisperToGms(`<p>${game.i18n.format(back ? "DRPG.Trap.plantBack" : "DRPG.Trap.plantLost", words)}</p>`);
+    return back;
+}
+
+/** Whether an item with this identity is on any character's sheet (`putPlantBack`). */
+async function plantHeld(identity) {
+    if (!identity) return false;
+    const { ITEM_FLAGS } = await import("./inventory.mjs");
+    return game.actors.some(actor => actor.items.some(item => item.getFlag(MODULE_ID, ITEM_FLAGS.identity) === identity));
 }
 
 /**

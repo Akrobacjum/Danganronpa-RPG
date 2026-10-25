@@ -64158,6 +64158,195 @@ const SCENARIOS = [
             + "[the room's draws, what grantDrawn wrote, the substitute, the world's draws, a plant's name read, the GM's verdicts on the find at its tier and above it, the Reroll's item; each draw as (entry, category, tier, goal, substitute)]");
     }],
 
+    ["a Search's plant it could not hand over goes back to its room, the GMs told who found it and that it waits again, on a GM's own Search and on a player's as the GM judges it (E14-T9, S08-10)", async () => {
+        /*
+         * E14 part 2 C4, 24.10.2026; E14-40. The harm (audit S08-10): traps.mjs `takePlant` takes the plant out of the
+         * store before anybody knows whether it fits, and a student with full hands and no stash who found it was refused
+         * by `grantItem` - the plant, its trap's ledger row and the killer's project were gone, and the GMs learnt of it
+         * only from `diagnoseTraps`. Two roads, each with a plant of the suite's in a room of the suite's: a GM's own
+         * Search, a stashless student's every Tool slot filled with the suite's, drawn by action-rolls.mjs `searchDraw`
+         * and given by `grantDrawn`; and a player's, as the primary GM judges its packets - the spend, the plant check
+         * under a request id of the suite's, and the return that player's client sends with the id the check answered
+         * (`SEARCH_ACTIONS`), once and then again. Read: whether the draw was the plant, the grant, the room's plant (its
+         * identity, project, name and no field of the take's), the sheet's copies of it, the id the check answered and
+         * the GMs' words. Red at f8fb321e (C3): the plant is gone, nobody is told, and the check answers no id.
+         * Since E14 fix e1-G1 (25.10.2026) two more: the return guard's verdict on another user asking with that id, and a
+         * third take whose plant is on the player's character before the return comes - a console's grant let through,
+         * then a return asked anyway - which keeps the room empty (search-tokens.mjs `putPlantBack`). Red at ee96346a.
+         */
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which takes a plant out and puts one back - this would measure nothing");
+        needs(world.atLeast("playerCharactersInRooms"), "the plant waits where the player's character stands");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
+        const T = await import("./traps.mjs");
+        const A = await import("./action-rolls.mjs");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const S = await import("./gm-stores.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const { SearchTokens, SEARCH_ACTIONS, guardPlantReturn } = await import("./search-tokens.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const { homeScene } = await import("./rooms.mjs");
+        const { ITEM_CATEGORIES } = await import("./config.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const TAG = "SUITE E14-T9", PROJECT = "SUITE-E14T9-project", FULL = `${TAG} a full hand`;
+        const sceneOf = a => locateActor(a)?.scene ?? homeScene();
+        const finder = cast(3).find(a => sceneOf(a) && !V.primaryStashRoom(a, sceneOf(a))) ?? null;
+        must(finder, "every student of the cast keeps a stash on their scene - a find into full hands would go to it and measure nothing");
+        const scene = sceneOf(finder), ROOM = `${TAG} room`, THING = `${TAG} a planted kit`;
+        const { player, actor: pActor, where } = await playerInRoom();
+        const P_THING = `${TAG} a planted note`, P_HELD = `${TAG} a planted pen`;
+        const flag = key => `flags.${MODULE_ID}.${INV.ITEM_FLAGS[key]}`;
+        const group = ITEM_CATEGORIES.tool?.limitGroup ?? null;
+        const slot = i => [i.getFlag(MODULE_ID, INV.ITEM_FLAGS.category)].some(c => c === "tool" || (group !== null && ITEM_CATEGORIES[c]?.limitGroup === group));
+        const text = html => String(html ?? "").replace(/<[^>]+>/g, "").trim();
+        const made = [], stowed = [], keys = [], identities = [];
+        const hear = Hooks.on("createChatMessage", message => made.push(message));
+        const told = async name => {
+            const lines = [];
+            for (const m of made) {
+                const words = text(await wordsOf(m, 2000));
+                if (words.includes(name)) lines.push(words);
+            }
+            return lines;
+        };
+        const roomRow = key => {
+            const row = S.trapPlantStore.get(key) ?? null;
+            return row ? [identities.includes(row.drpgItemId), row.projectId ?? null, row.name ?? null, Object.hasOwn(row, "back")] : null;
+        };
+        const spend = SearchTokens.spend;
+        const read = {};
+        try {
+            // A GM's own Search, into full hands.
+            for (const i of finder.items.filter(i => slot(i) && !INV.isStashed(i))) {
+                stowed.push([i, i.getFlag(MODULE_ID, INV.ITEM_FLAGS.location)]);
+                await i.update({ [flag("location")]: INV.LOCATIONS.vault });
+            }
+            const { limit } = INV.canCarry(finder, "tool");
+            must(Number.isInteger(limit) && limit > 0, `a Tool's slots have no limit to fill (${limit}) - this would measure nothing`);
+            for (let n = 0; n < limit; n++) await INV.grantItem(finder, { name: FULL, category: "tool", tier: 1, override: true, quiet: true });
+            await sheetAuditIdle();
+            must(!INV.canCarry(finder, "tool").ok, "the finder's Tool slots are not full - this would measure nothing");
+            const key = `${scene.id}::${ROOM}`;
+            keys.push(key);
+            identities.push(await T.plantItem(PROJECT, ROOM, { sceneId: scene.id, name: THING }));
+            must(identities[0], "nothing was planted");
+            const drawn = await A.searchDraw(ROOM, scene, "tool", 1, null, finder);
+            const granted = await A.grantDrawn(finder, drawn, { category: "tool", tier: 1, goalKey: null });
+            await settle();
+            read.gm = { drawn: drawn?.identity === identities[0], granted: granted ? granted.name : null, room: roomRow(key),
+                sheet: finder.items.filter(i => i.getFlag(MODULE_ID, INV.ITEM_FLAGS.identity) === identities[0]).length,
+                told: await told(THING) };
+
+            // A player's Search, as the primary GM judges its three packets.
+            SearchTokens.spend = async () => true;
+            const pKey = `${where.scene.id}::${where.room}`;
+            must(!S.trapPlantStore.get(pKey), "the player's room holds a plant already - a plant of the suite's there would not be taken");
+            keys.push(pKey);
+            identities.push(await T.plantItem(PROJECT, where.room, { sceneId: where.scene.id, name: P_THING }));
+            must(identities[1], "nothing was planted where the player's character stands");
+            const take = SEARCH_ACTIONS["searchTokens.takePlant"];
+            await SEARCH_ACTIONS["searchTokens.spend"].run({ roomName: where.room, sceneId: where.scene.id }, player, {});
+            const reply = (await take.run(take.sanitize({ roomName: where.room, sceneId: where.scene.id }), player, { requestId: "suite-e14t9-take" }))?.reply ?? null;
+            const taken = roomRow(pKey);
+            const back = { action: "searchTokens.returnPlant", plantRequestId: reply?.plantRequestId ?? null, userId: player.id };
+            const other = guardPlantReturn({ id: "suite-e14t9-other", isGM: false }, { plantRequestId: back.plantRequestId }, {});
+            await G.judge(SEARCH_ACTIONS, back, player.id, { send: () => {} });
+            await settle();
+            const first = roomRow(pKey);
+            if (S.trapPlantStore.get(pKey)) await S.trapPlantStore.drop(pKey);
+            await G.judge(SEARCH_ACTIONS, back, player.id, { send: () => {} });
+            await settle();
+            const again = roomRow(pKey);
+            // A third take, its plant on the player's character before the return comes.
+            identities.push(await T.plantItem(PROJECT, where.room, { sceneId: where.scene.id, name: P_HELD }));
+            must(identities[2], "nothing was planted for the third take");
+            await SEARCH_ACTIONS["searchTokens.spend"].run({ roomName: where.room, sceneId: where.scene.id }, player, {});
+            const third = (await take.run(take.sanitize({ roomName: where.room, sceneId: where.scene.id }), player, { requestId: "suite-e14t9-take3" }))?.reply ?? null;
+            await INV.grantItem(pActor, { name: P_HELD, category: "tool", tier: 1, override: true, quiet: true,
+                extraFlags: { [INV.ITEM_FLAGS.identity]: identities[2] } });
+            await sheetAuditIdle();
+            await G.judge(SEARCH_ACTIONS, { ...back, plantRequestId: third?.plantRequestId ?? null }, player.id, { send: () => {} });
+            await settle();
+            read.player = { handed: [reply?.ok ?? null, reply?.plant?.drpgItemId === identities[1], reply?.plantRequestId ?? null],
+                taken, other, back: first, again, told: await told(P_THING),
+                held: [third?.plantRequestId ?? null, roomRow(pKey), await told(P_HELD)] };
+        } finally {
+            Hooks.off("createChatMessage", hear);
+            SearchTokens.spend = spend;
+            for (const i of finder.items.filter(i => i.name === FULL || i.getFlag(MODULE_ID, INV.ITEM_FLAGS.identity) === identities[0])) await i.delete();
+            for (const i of pActor.items.filter(i => identities[2] && i.getFlag(MODULE_ID, INV.ITEM_FLAGS.identity) === identities[2])) await i.delete();
+            for (const [i, was] of stowed) if (finder.items.has(i.id)) await i.update({ [flag("location")]: was ?? forcedDeletion() });
+            for (const key of keys) if (S.trapPlantStore.get(key)) await S.trapPlantStore.drop(key);
+            for (const id of identities.filter(Boolean)) if (S.trapLedgerStore.get(id)) await S.trapLedgerStore.drop(id);
+            for (const m of made) if (game.messages.get(m.id)) await m.delete();
+        }
+        const say = (key, words) => game.i18n.format(key, words);
+        equal(stableJson(read), stableJson({
+            gm: { drawn: true, granted: null, room: [true, PROJECT, THING, false], sheet: 0,
+                told: [say("DRPG.Trap.plantFound", { actor: finder.name, item: THING, room: ROOM }), say("DRPG.Trap.plantBack", { item: THING, room: ROOM })] },
+            player: { handed: [true, true, "suite-e14t9-take"], taken: null, other: "that plant was handed to somebody else",
+                back: [true, PROJECT, P_THING, false], again: null,
+                told: [say("DRPG.Trap.plantFound", { actor: player.name, item: P_THING, room: where.room }), say("DRPG.Trap.plantBack", { item: P_THING, room: where.room })],
+                held: ["suite-e14t9-take3", null, [say("DRPG.Trap.plantFound", { actor: player.name, item: P_HELD, room: where.room })]] }
+        }), "a Search's plant it could not hand over did not go back to its room as itself, went back twice, or the GMs were not told who found it and that it waits again "
+            + "[a GM's own Search: drawn the plant, the grant, the room's plant (identity, project, name, a take's field), the sheet's copies, the GMs' words; "
+            + "a player's: the check's answer (handed, the plant, the id), the room after the take, the guard's verdict on another user, the room after the return "
+            + "and after a second, the GMs' words; a third take held on the sheet: its id, the room after its return, the GMs' words]");
+    }],
+
+    ["the stash hunt raised by the GM that judges the throw: a player's Find Stash naming no roll the GMs drew springs none, each throw that passed its roll guard springs one, a throw spent once springs no second, and a player's own stash or passage report is no report (E14-T10, E14-41)", async () => {
+        /*
+         * E14 fix e1-G1, 25.10.2026; E14-41. E80 fix r1-G1 (b2389294) moved the hunt off the roller's browser: vault.mjs
+         * `resolveStashSearch` raises `drpgStashHunted` on the GM that judges a Find Stash, after the runner's `rolled` guard
+         * (bridge-guards.mjs `rollsFor`), and traps.mjs's `trap.event` refuses a player's "stash" (`guardRelayTeller`) and
+         * reads no "passage". R600 holds the guard and the sanitize as functions and R604 the source; nothing drove the
+         * judged road: dropping the runner's record check (the stage's mutant t1: `if (!record) continue;`) left every test
+         * green (wt/mut/e14g1-t1-t01.log, e14g1-t1-s33.log, 25.10.2026). A connected player's character in a room with no
+         * armed trap, a roll of theirs with the GMs' record of it at 12 (`playerRollBookmark`), and four packets of theirs
+         * judged as the bridge judges them: a Find Stash naming a roll the GMs never drew, at 20; one naming the drawn roll;
+         * the same again; a `trap.event` of kind "stash" and one of kind "passage". Read: each verdict, what was sent back,
+         * and the hunts this browser's hook hears, as [the character, the room]. The Reroll's replay, which springs none, is
+         * "A10-7 stash"'s.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the hunt is in the room the player's character stands in");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
+        const T = await import("./traps.mjs");
+        const { player, actor, where } = await playerInRoom();
+        must(!T.diagnoseTraps().rooms.includes(where.room), `a trap is armed in ${where.room} - a hunt would spring it, and this test puts no trap back`);
+        let F = null;
+        const hunts = [], read = [];
+        const hear = Hooks.on("drpgStashHunted", event => { hunts.push([event?.actor?.id ?? null, event?.room ?? null]); });
+        try {
+            F = await playerRollBookmark(player, actor, "analyze", {}, { record: { total: 12 } });
+            const find = (rollId, total) => F.ask({ action: "vault.findStash", requestId: `E14T10${foundry.utils.randomID(8)}`, actorId: actor.id,
+                total, isCritical: false, rollId });
+            const step = async (label, run) => {
+                const sent = F.sent.length, heard = hunts.length;
+                const verdict = await run();
+                await settle();
+                read.push([label, Boolean(verdict), F.sent.slice(sent).map(([, reason]) => reason ?? null), hunts.length - heard]);
+            };
+            await step("no roll drawn", () => find(`E14T10none${foundry.utils.randomID(6)}`, 20));
+            await step("the drawn roll", () => find(F.message.id, 12));
+            await step("the drawn roll again", () => find(F.message.id, 12));
+            await step("a player's stash report", () => F.ask({ action: "trap.event", requestId: `E14T10${foundry.utils.randomID(8)}`, kind: "stash",
+                actorId: actor.id, room: where.room, sceneId: where.scene.id }, { table: T.TRAP_ACTIONS }));
+            await step("a player's passage report", () => F.ask({ action: "trap.event", requestId: `E14T10${foundry.utils.randomID(8)}`, kind: "passage",
+                actorId: actor.id, room: where.room, sceneId: where.scene.id }, { table: T.TRAP_ACTIONS }));
+        } finally {
+            Hooks.off("drpgStashHunted", hear);
+            await F?.putBack();
+        }
+        equal(stableJson(read), stableJson([["no roll drawn", false, ["rollUnknown"], 0], ["the drawn roll", true, [null], 1],
+            ["the drawn roll again", false, ["rollUsed"], 0], ["a player's stash report", false, [], 0], ["a player's passage report", true, [], 0]]),
+            "[the packet, its verdict, the reasons sent back, the hunts it raised] - a Find Stash naming no roll the GMs drew, or one already used, was "
+            + "judged, a drawn one was refused or sprang no hunt, or a player's own stash report was taken (a passage one runs as nothing: its kind is read as none)");
+        equal(stableJson(hunts), stableJson([[actor.id, where.room]]),
+            "[each stash hunt a trap was told of, as [the character, the room]] - a throw with no roll drawn, a second use of one, or a player's own report sprang a hunt");
+    }],
+
     ["an item with no category, or one the module does not know, is drawn on the sheet under Other with how to file it, and a handover from a character in no room names the character (E14-T16, S03-18, S08-23)", async () => {
         /*
          * E14 part 2 C6, 24.10.2026; E14-44, E14-47. The harms: (S03-18) `groupInventory` drew only the groups of a known

@@ -4360,6 +4360,10 @@
       "plantItem": "What it is",
       "plantRoom": "Where it waits",
       "planted": "{item} is waiting in {room}.",
+      "plantFound": "{actor} found {item}, the item planted in {room}.",
+      "plantTaken": "{item}, the item planted in {room}, was found.",
+      "plantBack": "{item} is waiting in {room} again: the finder could not take it.",
+      "plantLost": "{item} could not go back to {room}, where another planted item waits: it is gone.",
       "plantUsableNote": "It arrives as whatever the finder was searching for - that is what makes it look ordinary. So it only springs for somebody who searched for a usable: nobody can use a tool or a weapon.",
       "plantAction": "Plant the item",
       "plantSettled": "{name} planted the item."

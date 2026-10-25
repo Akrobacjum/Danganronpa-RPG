@@ -2140,8 +2140,9 @@ async function searchStash(actor, def, roll, { room, scene, category, goalKey, t
      * every way a Search can end without finding anything: `performSearch` comes
      * this far only once a failure, a request sent to a GM and a stash find have
      * all returned, and each of those leaves the plant in the room (ACT-03).
+     * Exported for the suite (E14 part 2 C4: a plant drawn into full hands).
      */
-async function searchDraw(room, scene, category, tier, goalKey, actor = null) {
+export async function searchDraw(room, scene, category, tier, goalKey, actor = null) {
     // The roll it is drawn for, so the GMs' fact of it goes on that roll's row (fix r1-G2).
     const plant = await SearchTokens.takePlant(room, scene?.id ?? null,
         { actorId: actor?.id ?? null, rollId: actor ? rollInHand(actor)?.messageId ?? null : null });
@@ -2156,6 +2157,8 @@ async function searchDraw(room, scene, category, tier, goalKey, actor = null) {
             // unexpected find rather than an announcement.
             substitute: true,
             identity: plant.drpgItemId,
+            // Its way back to the room when it cannot be handed over (`grantDrawn`, E14 part 2 C4).
+            back: plant.back ?? null,
             // And what it is, read off its name as a room table's entry is (tables.mjs `foundAs`, E14 part 2 C3):
             // "Cold tea" planted in an armoury is a Sanity Relief usable on the sheet, as the same tea drawn there.
             ...foundAs(plant.name, { category, tier, goal: goalKey ?? null })
@@ -2195,19 +2198,26 @@ export async function grantDrawn(actor, drawn, { category, tier, goalKey, rollId
         // it - see `drawItem`. Both are `null` for a built-in pool, which is
         // exactly what `grantItem` already treats as "use the category icon and
         // the tier line".
-        granted = await grantItem(actor, {
-            reason: "searchFind", ref: rollId,
-            name: drawn.name, category: find.category, tier: find.tier, goal: find.goal,
-            img: drawn.img ?? null, description: drawn.description ?? "",
-            // What else it can do, from the table entry it came out of.
-            roles: drawn.roles ?? [],
-            // A planted item arrives with its identity already minted by the
-            // GM, and it has to keep it: the GM's ledger was written against
-            // that name the moment the thing was planted, and an item that is
-            // renamed on the way into somebody's bag is an item the trap will
-            // never recognise again.
-            ...(drawn.identity ? { extraFlags: { [ITEM_FLAGS.identity]: drawn.identity } } : {})
-        });
+        try {
+            granted = await grantItem(actor, {
+                reason: "searchFind", ref: rollId,
+                name: drawn.name, category: find.category, tier: find.tier, goal: find.goal,
+                img: drawn.img ?? null, description: drawn.description ?? "",
+                // What else it can do, from the table entry it came out of.
+                roles: drawn.roles ?? [],
+                // A planted item arrives with its identity already minted by the
+                // GM, and it has to keep it: the GM's ledger was written against
+                // that name the moment the thing was planted, and an item that is
+                // renamed on the way into somebody's bag is an item the trap will
+                // never recognise again.
+                ...(drawn.identity ? { extraFlags: { [ITEM_FLAGS.identity]: drawn.identity } } : {})
+            });
+        } finally {
+            // A plant the hands could not take goes back to its room, the GMs told (E14 part 2 C4; S08-10):
+            // it was out of the store from the take on, and a refused grant - or one that threw - lost it
+            // and the killer's project.
+            if (!granted && drawn.back) await SearchTokens.returnPlant(drawn);
+        }
     }
     return granted;
 }
