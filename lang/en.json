@@ -593,6 +593,9 @@
         "state": "State",
         "kindSecret": "Secret",
         "kindPublic": "Public",
+        "kindBreach": "Breach",
+        "closeBreach": "Close the breach",
+        "closeBreachRefused": "The breach could not be closed: {why}",
         "shapeWall": "In a wall",
         "shapeTunnel": "Tunnel or stairs",
         "way": "Which way it goes",
@@ -652,6 +655,7 @@
       },
       "card": {
         "notBuilt": "{name} is finished, but its secret passage could not be opened: {why}",
+        "notBreached": "{name} is finished, but its wall could not be breached: {why}",
         "passageBuiltShared": "A secret passage opens to you: {from} - {to}.",
         "passageBuilt": "Your secret passage is finished: {from} - {to}. You can walk through it.",
         "shown": "{giver} shows you a secret passage: {from} - {to}.",
@@ -2742,8 +2746,11 @@
       "passageSummary": "Secret Passage to {to}",
       "passageNote": "A secret passage through a wall of the room you are in: Hand, Complex (6), always secret. Only you, and whoever the project is shared with before it is finished, will know it.",
       "passageTo": "Through the wall to",
+      "breachSummary": "Breach the Wall to {to}",
+      "breachNote": "A breach through a wall of the room you are in: Body, Complex (6). Once it is finished the hole is there for everyone to see.",
       "preset": {
-        "secretPassage": "Secret Passage"
+        "secretPassage": "Secret Passage",
+        "breach": "Breach the Wall"
       },
       "kindOwn": "A project of your own",
       "kind": "Kind",

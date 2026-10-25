@@ -594,6 +594,33 @@ export const COMPLETION_EFFECTS = [
             };
         },
         onUncrossed: ({ id }) => ({ apply: async () => (await import("./passages-gm.mjs")).undoOpensPassage(id) })
+    },
+    {
+        /*
+         * A FINISHED BREACH CUTS ITS WALL; ONE TAKEN BACK GIVES THE WALL BACK (E15 part 2 C3, 25.10.2026; A10's S16-17,
+         * step 15; D40). Read for a project whose secret half names the preset and the stretch the approval picked.
+         * Crossed: the wall is cut on the primary in the step (passages-gm.mjs `cutBreach`, which judges the stretch
+         * again: the wall still between the two rooms, no door, not breached already), and the project goes, kept until
+         * the completing character's Reroll bookmark names another roll (`keep`), as a Secret Passage's. Uncrossed: the
+         * wall is given back (`undoBreachesOf`). A stretch refused at the completion cuts nothing, and the GMs are told
+         * why. What the breach opens and who is told of it is C4's.
+         */
+        key: "breachesWall",
+        has: meta => meta.target?.preset === "breach" && Boolean(meta.passage),
+        onCrossed: ({ id, name, meta }) => {
+            let made = null;
+            return {
+                apply: async () => {
+                    made = await (await import("./passages-gm.mjs")).cutBreach(id, { passage: meta.passage, builderId: meta.by ?? null });
+                },
+                remove: true,
+                keep: true,
+                after: async () => {
+                    if (made?.refused) await whisperToGms(`<p>${esc(game.i18n.format("DRPG.Passage.card.notBreached", { name, why: made.refused }))}</p>`);
+                }
+            };
+        },
+        onUncrossed: ({ id }) => ({ apply: async () => (await import("./passages-gm.mjs")).undoBreachesOf(id) })
     }
 ];
 

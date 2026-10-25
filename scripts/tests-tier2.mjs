@@ -59757,6 +59757,207 @@ const SCENARIOS = [
         equal(J(read?.released?.slice(0, 1).concat(read?.released?.slice(5))), J([1, false, null]),
             "[the passages, the project, kept for] once the bookmark names another roll - the kept project stays, or its passage goes with it");
     }],
+    ["E15-T13 - Breach the Wall, the cut: a finished breach cuts the real wall in three - the wall itself before the stretch, a hole that stops nothing and alone holds the breach's flag (no actor, user or project id), a copy after it -, moves the passages on that wall to the piece that holds them and makes the one the hole touches public; a move through the hole is clear and through the rest is judged as before; one breach to a wall; the Reroll's undo, the GMs' Close the breach and the season's reset each give the wall back byte for byte; Make public writes no wall and tells nobody; a wall deleted meanwhile is reported, not rebuilt", async () => {
+        /*
+         * E15 part 2 C3 (25.10.2026; A10's S16-17, step 15; the stage's E15-46 to E15-49 and its write roads "a wall: the
+         * cut and its restore", "a move through a wall" and "who knows a passage: passagesAfterReset"). The harms: a
+         * breach that writes nothing (the project does nothing), or writes a wall every browser holds with a passage, a
+         * builder or a project in it; a cut that breaks the secret passages on the wall (they are keyed to its id) or
+         * leaves the one under the hole secret; a hole the GMs' audit still sends a move back through, or a cut that
+         * opens the rest of the wall; a second breach that a restore of the first would undo; an undo that leaves a
+         * piece, a key, or the wall another length; and a GM's Make public that writes the world or tells the table.
+         * On a scene of the suite's own - a Hall with a Lab beyond one wall and a Bath beyond a door -, two secret
+         * passages of the GMs' map on that wall (Mid, known to Botan, below the stretch; Low, known to nobody, inside
+         * it) and three students of its own played by the suite's three players: Hana the builder, Botan and Kenta. The
+         * GM stores are a world of the suite's own (`withGmStoreWorld`); the project is the world's Countdowns setting and
+         * projectMeta, made and removed here; the completion `applyProjectChange` with the builder's change on this GM,
+         * the primary; the moves the GMs' audit's own (movement-audit.mjs `auditMove`) on that scene's walls. Red at the
+         * parent: passages-gm.mjs has no cut.
+         */
+        const P = await import("./passages-gm.mjs");
+        const PR = await import("./projects.mjs");
+        const S = await import("./gm-stores.mjs");
+        const E = await import("./gm-store.mjs");
+        const R = await import("./rooms.mjs");
+        const L = await import("./passages.mjs");
+        const A = await import("./movement-audit.mjs");
+        const M = await import("./movement.mjs");
+        const T = await import("./passages-tab.mjs");
+        const { ownerOf } = await import("./utils.mjs");
+        const J = v => JSON.stringify(v);
+        equal(typeof P.cutBreach, "function", "passages-gm.mjs cuts no breach - Breach the Wall has no road");
+        if (typeof P.cutBreach !== "function") return;
+        const cast3 = cast(3);
+        needs(world.atLeast("livingStudents", 3), "three players of the suite's own play the builder and two others");
+        for (const s of cast3) needs(world.ownedByPlayer(s), "each of the three is a player's, and the suite's players own the cast");
+        const [builderUser, friend, other] = cast3.map(s => ownerOf(s));
+        must(new Set([builderUser?.id, friend?.id, other?.id]).size === 3, "the three students are not three players' - a move would be judged for one person");
+        const clock = foundry.utils.deepClone(getClock() ?? {});
+        const HALL = "SUITE E15 T13 Hall", LAB = "SUITE E15 T13 Lab", BATH = "SUITE E15 T13 Bath";
+        const mark = { [MODULE_ID]: { [R.ROOM_FLAG]: true } };
+        const room = (name, x, y) => ({ name, shapes: [{ type: "rectangle", x, y, width: 600, height: 600 }], flags: mark, behaviors: [] });
+        const OWNER = CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
+        let scene = null, read = null, projectId = null;
+        const actors = [], posted = [];
+        const heard = Hooks.on("createChatMessage", message => { posted.push(message); });
+        try {
+            if (clock.phase === "classTrial" || clock.eclipse) await setClock({ phase: "dailyLife", eclipse: false });
+            scene = await Scene.create({ name: "SUITE E15 T13 a breach", width: 2000, height: 1400, grid: { size: 100 }, active: false, navigation: false });
+            await scene.createEmbeddedDocuments("Region", [room(HALL, 0, 0), room(LAB, 600, 0), room(BATH, 0, 600)]);
+            await scene.createEmbeddedDocuments("Wall", [{ c: [600, 0, 600, 600], move: 20, sight: 20, light: 20, sound: 20, dir: 0, door: 0, ds: 0 },
+                { c: [0, 600, 600, 600], door: 1, ds: 0 }]);
+            const wallW = scene.walls.find(w => w.c[0] === 600 && w.c[2] === 600), door = scene.walls.find(w => Number(w.door) === 1);
+            must(wallW && door, "the scene's two walls were not made - this would measure nothing");
+            const W = wallW.id, before = J(wallW.toObject());
+            read = await E.withGmStoreWorld(`suite-e15-t13-${foundry.utils.randomID(8)}`, async () => {
+                const make = async (name, user) => {
+                    const actor = await Actor.create({ name: `SUITE E15 T13 ${name}`, type: "character", ownership: { default: 0, ...(user ? { [user.id]: OWNER } : {}) } });
+                    actors.push(actor);
+                    return actor;
+                };
+                const hana = await make("Hana", builderUser), botan = await make("Botan", friend), kenta = await make("Kenta", other);
+                const mid = await P.createPassage({ sceneId: scene.id, wallId: W, seg: { x1: 600, y1: 450, x2: 600, y2: 550 }, rooms: [HALL, LAB] }, { scene });
+                const low = await P.createPassage({ sceneId: scene.id, wallId: W, seg: { x1: 600, y1: 150, x2: 600, y2: 250 }, rooms: [HALL, LAB] }, { scene });
+                must(mid && low, "the GMs' two passages were not made - this would measure nothing");
+                await P.grantPassage(mid, botan.id);
+                await settle();
+                const out = {};
+                const walls = () => Array.from(scene.walls).map(w => w.id).sort();
+                const rowOf = id => S.passageMapStore.get(id) ?? S.passageSeasonStore.get(id) ?? null;
+                const breachRows = () => Object.entries(S.passageSeasonStore.entries()).filter(([, row]) => row?.breach).map(([id, row]) => ({ id, ...row }));
+                const owners = { [hana.id]: builderUser.id, [botan.id]: friend.id, [kenta.id]: other.id };
+                // A move from the Hall to the Lab across the wall with its centre at `y`, by the student's own player, judged as the primary judges it.
+                const audit = (actor, y) => {
+                    const token = { id: "SUITEE15T13TOK", name: "SUITE E15 T13 token", x: 700, y: y - 50, width: 1, height: 1, elevation: 0, level: undefined, parent: scene, actor };
+                    const res = A.auditMove(token, { x: token.x, y: token.y }, {}, owners[actor.id], { x: 400, y: y - 50, elevation: 0, level: undefined }, {
+                        REVERT: M.REVERT, SENT_BACK: M.SENT_BACK, sendBackRefusal: M.sendBackRefusal, roomAt: M.roomAt, stairLinks: () => [],
+                        history: [], held: a => a, users: game.users, known: L.secretRowsFrom(), mode: "log", mastermind: { get: () => null },
+                        book: { rows: [], told: new Map(), lines: new Map(), dropped: 0 }, now: Date.now(), warn: () => {}, sendBack: () => {},
+                        socket: { emit: () => {} }, whisper: () => Promise.resolve() });
+                    return res.verdict;
+                };
+                const look = () => {
+                    const hole = Array.from(scene.walls).find(w => P.breachOf(w));
+                    const flag = hole ? P.breachOf(hole) : null;
+                    const copy = flag ? scene.walls.get(flag.pieceIds.find(id => id !== hole.id)) : null;
+                    const strip = w => { const o = w.toObject(); delete o._id; delete o.c; return o; };
+                    const [row] = breachRows();
+                    return {
+                        walls: walls().length, wall: scene.walls.get(W)?.c ?? null, hole: hole ? [hole.c, ["move", "sight", "light", "sound"].map(k => Number(hole[k]))] : null,
+                        flag: flag ? [Object.keys(flag).sort(), flag.originalWallId === W, flag.original, J(flag.pieceIds) === J([hole.id, copy?.id])] : null,
+                        named: flag ? [hana.id, builderUser.id, projectId, mid, low, botan.id].filter(id => J(hole.flags).includes(id)) : null,
+                        copy: copy ? [copy.c, J(strip(copy)) === J(strip(wallW))] : null,
+                        mid: [rowOf(mid)?.passageWallId === (copy?.id ?? W), rowOf(mid)?.state, rowOf(mid)?.public === true],
+                        low: [rowOf(low)?.passageWallId === (hole?.id ?? W), rowOf(low)?.public === true],
+                        row: row ? [row.passageWallId === hole?.id, row.public, row.origin, row.breach?.breachId === flag?.breachId, S.passageMapStore.has(row.id)] : null,
+                        project: Boolean(PR.allProjects().find(p => p.id === projectId))
+                    };
+                };
+                const passage = { sceneId: scene.id, level: null, wallId: W, seg: { x1: 600, y1: 100, x2: 600, y2: 300 }, rooms: [HALL, LAB] };
+                out.judged = [P.breachStretchRow({ ...passage, wallId: door.id, seg: { x1: 100, y1: 600, x2: 300, y2: 600 }, rooms: [HALL, BATH] }).refused ?? null,
+                    Boolean(P.breachStretchRow(passage).row)];
+                // The approval's write, as the window makes it: in the open, the preset and the stretch the GMs'.
+                const made = await PR.createProject({ name: "SUITE E15 T13 Breach the Wall", target: 6, room: HALL, trait: "body", secret: false, by: hana.id,
+                    presetTarget: { preset: "breach", room: LAB }, passage });
+                projectId = made?.id ?? null;
+                must(projectId, "the project was not made - this would measure nothing");
+                out.made = [PR.isSecret(projectId), Object.hasOwn(PR.metaFor(projectId), "passage"), PR.secretsOf(projectId).target];
+                const by = { kind: "player", userId: builderUser.id, actorId: hana.id };
+                await S.rerollBookmarkStore.patch(hana.id, { messageId: "SUITEE15T13MSG1" });
+                const done = await PR.applyProjectChange(projectId, { delta: 6 }, { by });
+                await settle();
+                out.cut = [done?.crossed ?? null, look()];
+                out.moves = [audit(botan, 200), audit(kenta, 200), audit(kenta, 500), audit(botan, 500), audit(botan, 50), audit(kenta, 350)];
+                out.again = [P.breachStretchRow({ ...passage, seg: { x1: 600, y1: 20, x2: 600, y2: 80 } }).refused ?? null,
+                    P.breachStretchRow({ ...passage, wallId: P.breachOf(Array.from(scene.walls).find(w => P.breachOf(w)))?.pieceIds?.[1] ?? "?",
+                        seg: { x1: 600, y1: 350, x2: 600, y2: 420 } }).refused ?? null];
+                // A GM's Make public of the passage below: no wall written, nobody told.
+                const wallsBefore = J(Array.from(scene.walls).map(w => w.toObject())), postedBefore = posted.length;
+                await P.makePassagePublic(mid);
+                await settle();
+                out.makePublic = [J(Array.from(scene.walls).map(w => w.toObject())) === wallsBefore, posted.length - postedBefore, rowOf(mid)?.public === true];
+                await P.makePassageSecret(mid);
+                // The Reroll's lower dice: the wall back as it was, the passages back on it.
+                const undone = await PR.applyProjectChange(projectId, { delta: -1 }, { by: { kind: "reroll", actorId: hana.id } });
+                await settle();
+                out.undone = [undone?.uncrossed ?? null, J(scene.walls.get(W)?.toObject()) === before, look()];
+                // Finished again: cut again; then the GMs' Close the breach in the Passages tab.
+                await PR.applyProjectChange(projectId, { delta: 1 }, { by });
+                await settle();
+                const again = look();
+                const root = document.createElement("div");
+                root.innerHTML = T.passagesTabHtml(scene, { students: [hana, botan, kenta] });
+                T.wirePassagesTab(root, scene, { students: [hana, botan, kenta] });
+                const [brow] = breachRows();
+                const inRow = sel => root.querySelector(`[data-drpg-passage="${brow?.id}"] ${sel}`);
+                out.tab = [again.walls, inRow('[data-kind="breach"]') !== null, inRow('[data-drpg-passage-act="closeBreach"]') !== null,
+                    inRow('[data-drpg-passage-act="delete"]') !== null, inRow('[data-drpg-passage-act="secret"]') !== null];
+                inRow('[data-drpg-passage-act="closeBreach"]')?.click();
+                for (let i = 0; i < 200 && walls().length > 2; i++) await new Promise(r => setTimeout(r, 10));
+                await settle();
+                out.closed = [J(scene.walls.get(W)?.toObject()) === before, look()];
+                // Cut once more, then the season's reset (its passages step: every breach closed, then the cut of the season's store).
+                await PR.applyProjectChange(projectId, { delta: -1 }, { by });
+                await PR.applyProjectChange(projectId, { delta: 1 }, { by });
+                await settle();
+                const cutAgain = look().walls;
+                await P.closeEveryBreach();
+                await P.passagesAfterReset();
+                await settle();
+                out.reset = [cutAgain, J(scene.walls.get(W)?.toObject()) === before, look(), Object.keys(S.passageSeasonStore.entries()).length];
+                // Cut once more, and a GM deletes the wall it was cut from: the close says so and writes nothing.
+                await PR.applyProjectChange(projectId, { delta: -1 }, { by });
+                await PR.applyProjectChange(projectId, { delta: 1 }, { by });
+                await settle();
+                const [last] = breachRows();
+                await scene.walls.get(W)?.delete();
+                await settle();
+                const left = walls().length;
+                const refused = await P.restoreBreach(scene.id, last?.breach?.breachId);
+                await settle();
+                out.gone = [left, typeof refused?.refused, walls().length, breachRows().length];
+                for (const id of [mid, low]) await P.deletePassage(id);
+                for (const row of breachRows()) await P.deletePassage(row.id);
+                if (projectId) await PR.deleteProject(projectId);
+                projectId = null;
+                return out;
+            });
+        } finally {
+            Hooks.off("createChatMessage", heard);
+            if (projectId) await PR.deleteProject(projectId).catch(() => {});
+            for (const actor of actors) await actor.delete().catch(() => {});
+            for (const message of posted) await game.messages.get(message.id)?.delete().catch(() => {});
+            await scene?.delete();
+            await setClock(clock);
+            await settle();
+        }
+        const shut = { walls: 2, wall: [600, 0, 600, 600], hole: null, flag: null, named: null, copy: null };
+        const back = (publicLow, project) => ({ ...shut, mid: [true, "secret", false], low: [true, publicLow], row: null, project });
+        equal(J(read?.judged), J(["that wall is a door.", true]), "[a breach on a door, a breach on the Hall's wall] - a door is breached, or the wall is refused");
+        equal(J(read?.made), J([false, false, { preset: "breach", room: LAB }]),
+            "[the project secret, the stretch in projectMeta (every browser's), the GMs' target] - a breach approved in the open is sealed, or its stretch is world data");
+        equal(J(read?.cut), J([true, { walls: 4, wall: [600, 0, 600, 100], hole: [[600, 100, 600, 300], [0, 0, 0, 0]],
+            flag: [["breachId", "original", "originalWallId", "pieceIds"], true, { c: [600, 0, 600, 600] }, true], named: [],
+            copy: [[600, 300, 600, 600], true], mid: [true, "secret", false], low: [true, true],
+            row: [true, true, { by: "project", projectId: read?.cut?.[1]?.row?.[2]?.projectId ?? "?", builderId: read?.cut?.[1]?.row?.[2]?.builderId ?? "?" }, true, false], project: true }]),
+            "[crossed; the scene's walls, the wall's own ends, the hole's ends and what it stops, its flag (keys, the wall it was cut from, its old ends, its pieces), "
+            + "the ids it names, the copy's ends and fields, the passage below (on the copy, its state, public), the one inside (on the hole, public), the breach's row, the project kept] - the cut");
+        equal(J(read?.moves), J(["clear", "clear", "crossed", "clear", "crossed", "crossed"]),
+            "[Botan and Kenta through the hole, Kenta and Botan through the passage below (Botan knows it), Botan through the wall above, Kenta through the copy below the hole] - "
+            + "the hole is still a wall, the rest of the wall is open, or the passage the cut moved is lost");
+        equal(J(read?.again), J(["that wall is breached already.", "that wall is breached already."]),
+            "[a second breach on the wall, one on the copy] - a second breach on a wall a restore of the first would undo");
+        equal(J(read?.makePublic), J([true, 0, true]), "[the walls as they were, the messages posted, the passage public] - a GM's Make public writes the world or tells the table");
+        equal(J(read?.undone), J([true, true, back(true, true)]),
+            "[uncrossed, the wall byte for byte, the scene] - the Reroll's undo leaves a piece, a key or the wall another length, or loses a passage the cut moved");
+        equal(J(read?.tab), J([4, true, true, false, false]),
+            "[the walls cut again; the breach's row a breach, with Close the breach, without Delete or Make secret] - the Passages tab cannot close a breach, or deletes its row and leaves the hole");
+        equal(J(read?.closed), J([true, back(true, true)]), "[the wall byte for byte, the scene] - the GMs' Close the breach does not give the wall back");
+        equal(J(read?.reset), J([4, true, back(true, true), 0]),
+            "[the walls cut again, the wall byte for byte after the reset, the scene, the season's rows] - the reset leaves a breach standing, or its row");
+        equal(J(read?.gone), J([3, "string", 3, 1]),
+            "[the walls with the wall deleted, the close's refusal, the walls after it, the breach's rows] - a close with its wall gone rebuilds or deletes something");
+    }],
     ["a player at 0 Hope who bought an Experience Call clicks the experience: Roll stays on and it costs nothing, the lock on or off; with the lock off and no Call the free experience leaves no cost row for the next change to break (S02-04)", async () => {
         /*
          * E16 p1 C1, 18.10.2026; audit S02-04 (E16-01, E16-02). The Experience Call is paid before the roll, so

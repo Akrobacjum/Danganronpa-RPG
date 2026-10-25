@@ -9613,6 +9613,9 @@ const REGRESSIONS = [
             // ---- the pick on the board (E79 C6)
             ["WALLS passages-gm.mjs#sceneWalls -> screen", "a GM's pick only (`startPassagePick` and `repickPassage` ask `game.user.isGM` first): the walls of the scene Room Setup was opened on, read to snap a click to one and to hold the stretch to it through `passageRowFor`; nothing is written to a wall and nothing of it reaches a player but through the copy (R561; 76 F). Since E15 part 2 C2 also Secret Passage's offer (`wallNeighbours`), on the proposer's browser: the rooms beyond the walls of the room it stands in, from the walls and regions every browser holds, named as Listen names them and sent as an index; the GM's approval reads them again where the GMs read the builder (E15-T12)"],
             ["WALLS passages-gm.mjs#builtPassageRow -> screen", "a GM's only (E15 part 2 C2): a Secret Passage's stretch judged as a new passage's (`passageRowFor`) at the approval and again on the primary at the completion (`opensPassageDone`), so the wall must still stand between its two rooms on no other passage's stretch; nothing is written to a wall (E15-T12)"],
+            ["WALLS passages-gm.mjs#breachStretchRow -> screen", "a GM's only (E15 part 2 C3): a Breach the Wall's stretch judged as a new passage's (`passageRowFor`, another passage's stretch allowed) at the approval and again on the primary at the completion, and a wall a standing breach was cut from or made refused; reads the walls, writes nothing (E15-T13)"],
+            ["WALLS passages-gm.mjs#cutBreach -> screen", "a GM's only, the primary's in the completion's step (`game.user.isGM` first; projects.mjs `COMPLETION_EFFECTS` breachesWall): the wall the stretch is on is read to cut it - the module's one Wall create (R560) - and the passages on it moved to the piece that holds them; the hole's flag names no passage, actor, user or project (E15-T13)"],
+            ["WALLS passages-gm.mjs#restoreBreach -> screen", "a GM's only (`game.user.isGM` first; the project's undo, the tab's Close the breach, the season's reset): the hole's flag and the wall it was cut from are read to give the wall back byte for byte and delete the pieces; a wall gone meanwhile is reported and nothing written (E15-T13)"],
             // ---- showing a passage (E79 C7)
             ["ACT gm-bridge.mjs#ACTION_PASSAGE_SHARE#passage.share -> *", "judged on the primary GM: `knownSender` and `owns(\"actorId\")`, then passages-gm.mjs `shareRefusal` - the phase, the giver alive, in no incident and no Monocub, the giver's own cell of a secret passage (a closed, unknown or made-up one refused alike), both in one room, scene and floor now, the one shown it alive; `sharePassage` writes the records and pushes the copies (R562; 76 G)"],
             ["ACT gm-bridge.mjs#ACTION_PASSAGE_CROSS#passage.cross -> write", "E80 C2's 'Go through', judged on the primary GM: `knownSender` and `owns(\"actorId\")`, then passages-gm.mjs `crossTunnel` in its serial write - a secret tunnel of the GMs' records the character knows (the Mastermind's through `actsAsMastermind`), the token at an end where the GMs read it (movement.mjs `gmSpotOf`), the doors' rules (`tunnelVerdict`), the price taken first and given back on a failed write (`settleCrossingOnGm`); the packet names no end, room, floor or spot (R597, A10-18; 76 U)"],
@@ -9812,7 +9815,7 @@ const REGRESSIONS = [
             "a passage or movement road without a census row, or a row whose road is gone: give the new one a verdict (what judges it, or the E79 commit that will) and strike the gone one");
     }],
 
-    ["R560 - the passages' source rules: no wall is written a secret door or created, every passage packet names the list of its recipients, no flag holds a passage and no file but the records names a passage's geometry, passages.mjs imports only its leaf's files, room-tile.mjs does not import the passages, the frame's passage verdict, the outline's redraw and the GMs' wall audit are each declared once, exported, in their file, the audit called from one place, the primary GM's sighting of a move, and reading no scene on screen; and the GMs' overlay is made in one place, gm-overlay.mjs's exported `gmOverlay`, only after it asked for a GM, every layer of it through that, and its name is read nowhere else; and a passage is shown in one place, passages-gm.mjs's exported `sharePassage` judged by its exported `shareRefusal`, whose cards go out through `whisperToOwner` and the GMs' through `whisperToGms`, with no chat message made in either passages file any other way; and who acts as the Mastermind for a passage is read in one place, passages-gm.mjs's exported `actsAsMastermind`, and never off the character alone in the copy, a show's judgement, the GMs' audit or the witness judge; and who asked a GM's send-back is read in one place, movement-audit.mjs's exported `askerOf`, which the primary GM's sighting hands the witness judge and the judge reads; and the season reset's passages step is declared once, exported, in passages-gm.mjs", async () => {
+    ["R560 - the passages' source rules: no wall is written a secret door or created but a breach's hole, in passages-gm.mjs's `cutBreach`, every passage packet names the list of its recipients, no flag holds a passage and no file but the records names a passage's geometry, passages.mjs imports only its leaf's files, room-tile.mjs does not import the passages, the frame's passage verdict, the outline's redraw and the GMs' wall audit are each declared once, exported, in their file, the audit called from one place, the primary GM's sighting of a move, and reading no scene on screen; and the GMs' overlay is made in one place, gm-overlay.mjs's exported `gmOverlay`, only after it asked for a GM, every layer of it through that, and its name is read nowhere else; and a passage is shown in one place, passages-gm.mjs's exported `sharePassage` judged by its exported `shareRefusal`, whose cards go out through `whisperToOwner` and the GMs' through `whisperToGms`, with no chat message made in either passages file any other way; and who acts as the Mastermind for a passage is read in one place, passages-gm.mjs's exported `actsAsMastermind`, and never off the character alone in the copy, a show's judgement, the GMs' audit or the witness judge; and who asked a GM's send-back is read in one place, movement-audit.mjs's exported `askerOf`, which the primary GM's sighting hands the witness judge and the judge reads; and the season reset's passages step is declared once, exported, in passages-gm.mjs", async () => {
         /*
          * E79 C1, 14.10.2026; the E79 plan's A10-9, its first clauses (C4, C6 and C7 add theirs). A secret passage is
          * the GMs' and its knowers' (decisions D2 and D38): world data reaches every browser, so a passage written into
@@ -9884,6 +9887,13 @@ const REGRESSIONS = [
          * hands on, and it was held by nothing here. `passagesAfterReset` is declared once, exported, in passages-gm.mjs
          * (E42 takes it), read as the other names of ONE are; its one caller, season-setup.mjs's passages step, is a
          * dynamic import's property and is not read.
+         *
+         * E15 part 2 C3, 25.10.2026 (E15-47; A10 step 15: "Dopiero wyłom zapisuje dane świata"): a finished Breach the
+         * Wall cuts the real wall, and its hole is the one wall the module makes. A `createEmbeddedDocuments("Wall"` is
+         * let stand only inside the top-level declaration `cutBreach` of passages-gm.mjs, read as the role rule reads a
+         * declaration; the same call in a function of another name there, or in a `cutBreach` of another file, is
+         * broken as before (the planted fixture has one of each). What the hole holds - no passage, no actor, user or
+         * project id - is E15-T13's (tier 2), which reads its flag.
          */
         const LEAF = new Set(["rooms.mjs", "gm-stores.mjs", "gm-store.mjs", "settings.mjs", "utils.mjs", "config.mjs"]);
         const RECORDS = new Set(["gm-stores.mjs", "passages.mjs", "passages-gm.mjs"]);
@@ -9897,6 +9907,7 @@ const REGRESSIONS = [
         const ROLE = /(?<![\w$])isMastermind(?:Actor)?\s*\(/g;
         const OVERLAY_GATE = /!\s*game\s*\.\s*user\s*\??\.\s*isGM\s*\)\s*return\s+null\b/;
         const AUDIT_CALLER = "movement.mjs#noteGmPosition";
+        const BREACH_CUT = ["passages-gm.mjs", "cutBreach"];
         const ASKER_READ = /^asked\s*\?\?\s*mover$/, ASKER_PASSED = /(?<![\w$.])asker\s*:\s*askerOf\s*\(/;
         // A statement at column 0 and the name it declares, as R553's census reads a top-level declaration.
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(?:const|let|var)\s+([\w$]+))?/gm;
@@ -9912,7 +9923,6 @@ const REGRESSIONS = [
                     for (const m of blank.matchAll(DECL)) declared[name].push(`${file}:${lineAt(code, m.index)}${m[1] ? "" : "(not exported)"}`);
                 }
                 for (const m of blank.matchAll(/(?<![\w$.])door\s*:\s*(?:2(?![\w.])|CONST\s*\.\s*WALL_DOOR_TYPES\s*\.\s*SECRET\b)/g)) at("secretDoor", m.index);
-                for (const m of code.matchAll(/\bcreateEmbeddedDocuments\s*\(\s*(["'])Wall\1/g)) if (blank[m.index] !== " ") at("wallCreated", m.index);
                 for (const m of blank.matchAll(/\bsocket\s*\??\.\s*emit\s*\(/g)) {
                     const { args } = callArgs(blank, m.index + m[0].length - 1);
                     const packet = args[1] ? code.slice(args[1].start, args[1].end) : "";
@@ -9927,6 +9937,12 @@ const REGRESSIONS = [
                 if (file !== "gm-overlay.mjs") for (const m of code.matchAll(/(["'`])drpgGmOverlay\1/g)) at("overlayName", m.index);
                 if (SHARE_FILES.has(file)) for (const m of blank.matchAll(CHAT)) at("card", m.index);
                 const tops = [...blank.matchAll(TOP)].map(m => ({ at: m.index, name: m[1] ?? m[2] ?? m[3] ?? "(top level)" }));
+                // The one wall the module makes is a breach's hole, in passages-gm.mjs's `cutBreach` (E15 part 2 C3, E15-47).
+                for (const m of code.matchAll(/\bcreateEmbeddedDocuments\s*\(\s*(["'])Wall\1/g)) {
+                    if (blank[m.index] === " ") continue;
+                    if (file === BREACH_CUT[0] && tops.findLast(t => t.at <= m.index)?.name === BREACH_CUT[1]) continue;
+                    at("wallCreated", m.index);
+                }
                 if (ROLE_FILES.has(file)) for (const m of blank.matchAll(ROLE)) {
                     if (/\bfunction\s*\*?\s*$/.test(blank.slice(Math.max(0, m.index - 24), m.index))) continue;
                     at("role", m.index);
@@ -9974,7 +9990,8 @@ const REGRESSIONS = [
             ["walls.mjs", "export async function plant(scene, wall) {\n    // door: 2 and createEmbeddedDocuments(\"Wall\" in a comment write nothing\n"
                 + "    const said = 'createEmbeddedDocuments(\"Wall\", [{ door: 2 }])';\n"
                 + "    await scene.createEmbeddedDocuments(\"Wall\", [{ c: [0, 0, 1, 1], door: 2 }]);\n"
-                + "    await wall.update({ door: CONST.WALL_DOOR_TYPES.SECRET, ds: 2 });\n    await wall.update({ door: 1, door2: 2 });\n}\n"],
+                + "    await wall.update({ door: CONST.WALL_DOOR_TYPES.SECRET, ds: 2 });\n    await wall.update({ door: 1, door2: 2 });\n}\n"
+                + "export async function cutBreach(scene) {\n    return scene.createEmbeddedDocuments(\"Wall\", []);\n}\n"],
             ["send.mjs", "export function send(userId) {\n    game.socket.emit(EVENT, { action: \"passage.rows\", userId }, { recipients: [userId] });\n"
                 + "    game.socket.emit(EVENT, { action: \"passage.rows\", userId });\n    game.socket.emit(EVENT, { action: 'move.sentBack' }, { recipients: \"all\" });\n"
                 + "    game.socket.emit(EVENT, { action: \"fog.request\" });\n}\n"],
@@ -9989,7 +10006,9 @@ const REGRESSIONS = [
                 + "    return ChatMessage.create({ content: \"\", whisper: roomUsers(p.giver) });\n}\nfunction shareRefusal(giver) {\n"
                 + "    return isMastermindActor(giver) ? null : \"no\";\n}\nexport function isMastermindActor(actor) {\n    return Boolean(actor);\n}\n"
                 + "export function actsAsMastermind(actor, user) {\n    return Boolean(actor && user);\n}\n"
-                + "export async function passagesAfterReset() {\n    return 0;\n}\n"],
+                + "export async function passagesAfterReset() {\n    return 0;\n}\n"
+                + "export async function cutBreach(scene) {\n    return scene.createEmbeddedDocuments(\"Wall\", [{ c: [0, 0, 1, 1] }]);\n}\n"
+                + "export async function restoreBreach(scene) {\n    return scene.createEmbeddedDocuments(\"Wall\", []);\n}\n"],
             ["season-setup.mjs", "// export async function passagesAfterReset() in a comment declares nothing\nconst passagesAfterReset = () => 0;\n"],
             ["movement.mjs", "export function passageOpenFor(actor) {\n    return Boolean(actor);\n}\n"
                 + "function noteGmPosition(t) {\n    // auditMove(t) in a comment calls nothing\n    auditMove(t, {}, {}, null, null, {});\n"
@@ -10008,9 +10027,9 @@ const REGRESSIONS = [
                 + "    return gmOverlay()?.addChild(layer);\n}\nexport function layerOk(name) {\n    const box = gmOverlay();\n"
                 + "    return box && box.addChild(new PIXI.Container());\n}\nfunction inner() {\n    if (!game.user?.isGM) return null;\n    return new PIXI.Container();\n}\n"]
         ]);
-        equal(JSON.stringify(planted), JSON.stringify(["secretDoor walls.mjs:4", "secretDoor walls.mjs:5", "wallCreated walls.mjs:4",
+        equal(JSON.stringify(planted), JSON.stringify(["secretDoor walls.mjs:4", "secretDoor walls.mjs:5", "wallCreated walls.mjs:4", "wallCreated walls.mjs:9",
             "unaddressed send.mjs:3", "unaddressed send.mjs:4", "flag flags.mjs:3", "geometry flags.mjs:3", "card passages.mjs:5", "leaf:movement.mjs passages.mjs:2",
-            "tile:passages.mjs room-tile.mjs:2", "card passages-gm.mjs:7", "role passages-gm.mjs:5", "role passages-gm.mjs:10", "asker movement.mjs:15", "askerPassed movement.mjs:7", "overlayName fog.mjs:5",
+            "tile:passages.mjs room-tile.mjs:2", "card passages-gm.mjs:7", "wallCreated passages-gm.mjs:25", "role passages-gm.mjs:5", "role passages-gm.mjs:10", "asker movement.mjs:15", "askerPassed movement.mjs:7", "overlayName fog.mjs:5",
             "role movement-audit.mjs:5", "role movement-audit.mjs:6", "scene movement-audit.mjs:2", "scene movement-audit.mjs:3",
             "overlayGate gm-overlay.mjs:3", "overlayLayer gm-overlay.mjs:8", "overlayLayer gm-overlay.mjs:17", "one:redrawOutline fog.mjs:2(not exported),fog-reveal.mjs:2",
             "one:shareRefusal passages-gm.mjs:9(not exported)", "one:askerOf movement-audit.mjs:7(not exported)", "one:passagesAfterReset passages-gm.mjs:18,season-setup.mjs:2(not exported)",
@@ -13491,7 +13510,7 @@ const REGRESSIONS = [
         ok(/isPlacing\(tokenDoc\)/.test(fnSource(sheet, "noteStepStart")) && /isPlacing\(tokenDoc\)/.test(fnSource(sheet, "onTunnelStep")),
             "sheet.mjs reads no placing mark before its step onto a tunnel's end");
     }],
-    ["R981 - one table of the projects that make a passage (A10-9, E15-T11): passages-gm.mjs `PASSAGE_PRESETS` holds Secret Passage as Hand, Complex, always secret, opening a passage; each preset's statistic, size and completion row exist; and no other file of the module declares the table or a preset of its own", async () => {
+    ["R981 - one table of the projects that make a passage (A10-9, E15-T11): passages-gm.mjs `PASSAGE_PRESETS` holds Secret Passage as Hand, Complex, always secret, opening a passage, and Breach the Wall as Body, Complex, cutting a wall; each preset's statistic, size and completion row exist; and no other file of the module declares the table or a preset of its own", async () => {
         /*
          * E15 part 2 C2 (25.10.2026; the stage's E15-41, the owner's answer of 11.10: "E68 przyjmie `PASSAGE_PRESETS`, bez
          * drugich kopii"). The harms: a preset whose numbers drift from what the stage was given (a cheaper passage, a
@@ -13506,6 +13525,9 @@ const REGRESSIONS = [
         const presets = P.PASSAGE_PRESETS ?? null;
         equal(JSON.stringify(presets?.secretPassage ?? null), JSON.stringify({ trait: "hand", scale: "complex", secret: "always", effect: "opensPassage" }),
             "Secret Passage is not Hand, Complex, always secret, opening a passage (A10-9)");
+        // E15 part 2 C3: Breach the Wall, Body, Complex, public or secret as the GM approves it (D37), cutting the wall.
+        equal(JSON.stringify(presets?.breach ?? null), JSON.stringify({ trait: "body", scale: "complex", effect: "breachesWall" }),
+            "Breach the Wall is not Body, Complex, cutting a wall (A10-9, step 15)");
         const rows = Object.entries(presets ?? {});
         ok(rows.length > 0 && rows.every(([, p]) => Object.hasOwn(TRAITS, p.trait) && Object.hasOwn(PROJECT_SCALE, p.scale)
             && COMPLETION_EFFECTS.some(row => row.key === p.effect)),

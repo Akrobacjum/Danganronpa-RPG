@@ -45,7 +45,7 @@ import { keepFresh } from "./live.mjs";
 import {
     PASSAGE_STORES, listPassages, grantPassage, revokePassage, revokeWhenLeaving, setStartAccess, setPassageWay,
     closePassage, openPassage, deletePassage, isMastermindActor, undeliveredOf, passageMiddle, startPassagePick, passageRoomsOnMap,
-    makePassagePublic, makePassageSecret
+    makePassagePublic, makePassageSecret, restoreBreach
 } from "./passages-gm.mjs";
 import { viewPassage, oneWayOf } from "./passages.mjs";
 
@@ -135,26 +135,29 @@ function rowHtml(passage, { stores, students, actors, users, told }) {
     }
     const stateWord = { secret: "DRPG.Passage.tab.stateSecret", closed: "DRPG.Passage.tab.stateClosed", broken: "DRPG.Passage.tab.stateBroken" }[state];
     const toggle = state === "closed" ? "open" : "close";
-    const kind = passage.public === true ? "public" : "secret";
+    // A breach (E15 part 2 C3) is a hole in the world's wall: its row is public, and its one button gives the wall back.
+    const breach = Boolean(passage.breach?.breachId);
+    const kind = breach ? "breach" : passage.public === true ? "public" : "secret";
     const shape = passage.shape === "tunnel" ? "shapeTunnel" : "shapeWall";
     const origin = passage.origin === "door" ? "originDoor" : passage.origin?.by === "project" ? "originProject" : "originGm";
     const reveal = kind === "public" ? "secret" : "public";
 
     return `<tr data-drpg-passage="${esc(passage.id)}">
         <td>${esc(passageTitle(passage))}</td>
-        <td><span class="drpg-passage-kind" data-kind="${kind}">${esc(t(kind === "public" ? "DRPG.Passage.tab.kindPublic" : "DRPG.Passage.tab.kindSecret"))}</span></td>
+        <td><span class="drpg-passage-kind" data-kind="${kind}">${esc(t({ breach: "DRPG.Passage.tab.kindBreach", public: "DRPG.Passage.tab.kindPublic" }[kind] ?? "DRPG.Passage.tab.kindSecret"))}</span></td>
         <td>${esc(t(`DRPG.Passage.tab.${shape}`))}${wayPicker(passage)}</td>
         <td>${esc(t(`DRPG.Passage.tab.${origin}`))}</td>
         <td><span class="drpg-passage-chips">${knowsCell}</span></td>
         <td><span class="drpg-passage-chips">${startCell}</span></td>
         <td class="drpg-passage-state-cell"><span class="drpg-passage-state" data-state="${state}">${esc(t(stateWord))}</span>${notes.join("")}</td>
         <td class="act"><span class="drpg-passage-actions">
-            <button type="button" class="drpg-mini-button" data-drpg-passage-act="show">${esc(t("DRPG.Passage.tab.show"))}</button>${
+            <button type="button" class="drpg-mini-button" data-drpg-passage-act="show">${esc(t("DRPG.Passage.tab.show"))}</button>${breach ? `
+            <button type="button" class="drpg-mini-button" data-drpg-passage-act="closeBreach">${esc(t("DRPG.Passage.tab.closeBreach"))}</button>` : `${
                 state === "broken" ? `
             <button type="button" class="drpg-mini-button" data-drpg-passage-act="repick">${esc(t("DRPG.Passage.pick.repick"))}</button>` : ""}
             <button type="button" class="drpg-mini-button" data-drpg-passage-act="${toggle}"${state === "broken" ? " disabled" : ""}>${esc(t(toggle === "open" ? "DRPG.Passage.tab.open" : "DRPG.Passage.tab.close"))}</button>
             <button type="button" class="drpg-mini-button" data-drpg-passage-act="${reveal}">${esc(t(reveal === "public" ? "DRPG.Passage.tab.makePublic" : "DRPG.Passage.tab.makeSecret"))}</button>
-            <button type="button" class="drpg-mini-button" data-drpg-passage-act="delete">${esc(t("DRPG.Passage.tab.delete"))}</button>
+            <button type="button" class="drpg-mini-button" data-drpg-passage-act="delete">${esc(t("DRPG.Passage.tab.delete"))}</button>`}
         </span></td>
     </tr>`;
 }
@@ -271,6 +274,11 @@ export function wirePassagesTab(root, scene, { dialog = null, stores = PASSAGE_S
             case "open": return openPassage(passageId, { stores });
             case "public": return makePassagePublic(passageId, { stores });
             case "secret": return makePassageSecret(passageId, { stores });
+            case "closeBreach": {
+                const done = passage.breach?.breachId ? await restoreBreach(passage.sceneId, passage.breach.breachId, { stores }) : null;
+                if (done?.refused) ui.notifications?.warn?.(game.i18n.format("DRPG.Passage.tab.closeBreachRefused", { why: done.refused }));
+                return Boolean(done?.closed);
+            }
             case "show": return show(passageId);
             case "repick": return pick(scene, { dialog, passageId, stores });
             case "delete": return (await confirm({ title })) ? deletePassage(passageId, { stores }) : false;

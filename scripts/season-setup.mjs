@@ -1547,8 +1547,13 @@ async function wipeSeason(plan) {
         },
         // Who knows each secret passage and the GMs' log of them (E79 C1): the cut written first takes both on
         // every GM and every player's copy; this gives each passage's start access back (E79 C8) and tells the
-        // players their copies again. The passages stay.
-        passages: () => import("./passages-gm.mjs").then(m => m.passagesAfterReset()),
+        // players their copies again. The passages stay. A project's breach (E15 part 2 C3) is a hole in a world's wall,
+        // not a row the cut can take: every one is closed first, its wall given back, read off the walls themselves.
+        passages: async () => {
+            const P = await import("./passages-gm.mjs");
+            await P.closeEveryBreach();
+            return P.passagesAfterReset();
+        },
 
         deaths: async () => {
             await everyStudent("deaths");

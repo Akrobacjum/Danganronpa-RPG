@@ -416,10 +416,12 @@ export async function passagesAfterReset({ stores = PASSAGE_STORES } = {}) {
  * WHAT A PROJECT THAT MAKES A PASSAGE ASKS FOR, ONE TABLE (A10-9; the owner, 11.10: "E68 przyjmie `PASSAGE_PRESETS`,
  * bez drugich kopii"). A preset is `{ trait, scale, secret?, effect }`: the statistic its rolls take (config.mjs
  * `TRAITS`), its size (`PROJECT_SCALE`), "always" when it is secret whatever the form says, and the key of the row of
- * projects.mjs `COMPLETION_EFFECTS` its completion asks. Breach the Wall is C3's, the owner's three of 15.10 C5's.
+ * projects.mjs `COMPLETION_EFFECTS` its completion asks. Breach the Wall since C3 (A10 step 15: Body, Complex, built in
+ * the open or in secret as any project, D37); the owner's three of 15.10 are C5's.
  */
 export const PASSAGE_PRESETS = Object.freeze({
-    secretPassage: Object.freeze({ trait: "hand", scale: "complex", secret: "always", effect: "opensPassage" })
+    secretPassage: Object.freeze({ trait: "hand", scale: "complex", secret: "always", effect: "opensPassage" }),
+    breach: Object.freeze({ trait: "body", scale: "complex", effect: "breachesWall" })
 });
 
 /**
@@ -559,6 +561,186 @@ export async function tellPassageBuilt(made) {
         told++;
     }
     return told;
+}
+
+/* ----------------------------------------------------------------------------------------- *
+ * Breach the Wall: the cut (E15 part 2 C3, 25.10.2026; A10's S16-17, step 15). The one wall the
+ * module makes (R560): the GMs' passages stay in their stores, a breach is in the world.
+ * ----------------------------------------------------------------------------------------- */
+
+/** A wall that stops nothing - no move, no sight, no light, no sound: the hole a breach leaves, Foundry's NONE of each. */
+const BREACH_OPEN = () => ({ move: globalThis.CONST?.WALL_MOVEMENT_TYPES?.NONE ?? 0, sight: globalThis.CONST?.WALL_SENSE_TYPES?.NONE ?? 0,
+    light: globalThis.CONST?.WALL_SENSE_TYPES?.NONE ?? 0, sound: globalThis.CONST?.WALL_SENSE_TYPES?.NONE ?? 0 });
+
+/** The flag of a breach's hole, `{ breachId, originalWallId, original: { c }, pieceIds }`, or null for any other wall. */
+export function breachOf(wall) {
+    // Through `getFlag`: a read of `flags` itself adds an empty one to the harness's wall, and the restore is held byte for byte.
+    const flag = (typeof wall?.getFlag === "function" ? wall.getFlag(MODULE_ID, "breach") : wall?.flags?.[MODULE_ID]?.breach) ?? null;
+    return flag && typeof flag.breachId === "string" && typeof flag.originalWallId === "string" ? flag : null;
+}
+
+/** A scene's standing breaches, `[{ wall, breach }]`: each hole and its flag, as every browser's copy of the scene holds them. */
+export function breachesOn(scene) {
+    return sceneWalls(scene).map(wall => ({ wall, breach: breachOf(wall) })).filter(found => found.breach);
+}
+
+/** Whether a wall of `scene` is a standing breach's: its hole, a piece it made, or the wall it was cut from. */
+function inBreach(scene, wallId) {
+    return breachesOn(scene).some(({ wall, breach }) => wall.id === wallId || breach.originalWallId === wallId || (breach.pieceIds ?? []).includes(wallId));
+}
+
+/**
+ * A Breach the Wall's stretch judged (E15 part 2 C3): `{ row }`, as a passage's would be (`passageRowFor`: a wall that is
+ * no door and stops a move, between the two rooms named, on their floor), or `{ refused }`. Unlike a Secret Passage's, it
+ * may stand over another passage's stretch - that passage becomes public with the hole (`cutBreach`) -, and a wall a
+ * standing breach was cut from, or made, is refused: one breach to a wall until it is closed, so that each restore
+ * gives back the wall the cut found. Asked at the approval and again on the primary at the completion.
+ */
+export function breachStretchRow(passage) {
+    const scene = game.scenes?.get(typeof passage?.sceneId === "string" ? passage.sceneId : "");
+    if (!scene) return { refused: "no such scene." };
+    const rooms = Array.isArray(passage.rooms) ? passage.rooms.filter(r => typeof r === "string") : [];
+    if (rooms.length !== 2) return { refused: "a breach joins two rooms." };
+    const wall = scene.walls?.get(passage.wallId ?? "") ?? null;
+    if (wall && inBreach(scene, wall.id)) return { refused: "that wall is breached already." };
+    return passageRowFor(scene, wall, { seg: passage.seg ?? null, rooms, level: passage.level ?? null, taken: [] });
+}
+
+/**
+ * The three pieces a stretch makes of a wall `c` = `[x1, y1, x2, y2]`: `before` (from the wall's first end to the
+ * stretch), `gap` (the stretch, its ends put on the wall's line) and `after`; a piece shorter than `PASSAGE_TOLERANCE`
+ * is null.
+ */
+function breachPieces(c, seg) {
+    const [ax, ay, bx, by] = c, dx = bx - ax, dy = by - ay, len2 = dx * dx + dy * dy, len = Math.sqrt(len2);
+    const t = (x, y) => Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / (len2 || 1)));
+    const [t1, t2] = [t(seg.x1, seg.y1), t(seg.x2, seg.y2)].sort((p, q) => p - q);
+    const at = v => (v === 0 ? [ax, ay] : v === 1 ? [bx, by] : [ax + v * dx, ay + v * dy]);
+    return { before: t1 * len >= PASSAGE_TOLERANCE ? [ax, ay, ...at(t1)] : null, gap: [...at(t1), ...at(t2)],
+        after: (1 - t2) * len >= PASSAGE_TOLERANCE ? [...at(t2), bx, by] : null };
+}
+
+/**
+ * A COMPLETED BREACH CUTS THE REAL WALL (E15 part 2 C3; A10 step 15), on the primary GM, as projects.mjs
+ * `COMPLETION_EFFECTS`' row "breachesWall" asks once the bar has filled. The stretch is judged again
+ * (`breachStretchRow`), then the wall is cut in three, written so that a restore gives it back byte for byte with no
+ * key deleted: the wall itself keeps its id and every field but `c`, and becomes the piece before the stretch (or,
+ * where the stretch starts at its end, the piece after); the hole is a new wall over the stretch that stops nothing
+ * (`BREACH_OPEN`) and alone holds the flag `breach { breachId, originalWallId, original: { c }, pieceIds }` - a new id,
+ * never a passage's, and no actor, user or project id (every browser holds the scene's walls); the piece after, where
+ * there is one, is a copy of the wall. The passages on that wall are moved to the piece that holds their stretch, so
+ * the cut breaks none of them (`wallChanged`), and one whose stretch the hole touches is moved to the hole and made
+ * public (`makePassagePublic`: the hole is there for everyone to see). The breach is a public row of the season's
+ * store, keyed to its project (`origin`) and its `breach`: the GMs' Passages tab lists it with its Close the breach, the
+ * reset and the project's undo find it there. Answers `{ id, breachId, rooms, sceneId, builderId, madePublic }`, or
+ * `{ refused }` with nothing written. A breach this project made already is answered again (`again`), not cut twice.
+ */
+export async function cutBreach(projectId, { passage = null, builderId = null } = {}, { stores = PASSAGE_STORES } = {}) {
+    if (!game.user?.isGM) return { refused: "only a GM cuts one." };
+    if (!stores.season) return { refused: "no store for the season's passages." };
+    const made = Object.entries(stores.season.entries()).find(([, row]) => row?.origin?.projectId === projectId && row.breach);
+    if (made) {
+        return { id: made[0], breachId: made[1].breach.breachId, rooms: made[1].rooms ?? [], sceneId: made[1].sceneId, builderId: made[1].origin.builderId ?? null,
+            madePublic: [], again: true };
+    }
+    if (!studentOf(builderId)) return { refused: "the builder is no student of this world." };
+    return serialWrite(`passage.breach/${passage?.sceneId ?? ""}`, async () => {
+        const { row, refused } = breachStretchRow(passage);
+        if (!row) return { refused };
+        const scene = game.scenes.get(row.sceneId), wall = scene.walls.get(row.passageWallId);
+        const c = wall.c.slice(0, 4).map(Number);
+        const { before, gap, after } = breachPieces(c, row.passageSeg);
+        const keep = before ?? after;
+        if (!keep) return { refused: "the stretch is the whole wall: nothing of it would stand." };
+        const gapId = foundry.utils.randomID(16), copyId = before && after ? foundry.utils.randomID(16) : null;
+        const breachId = foundry.utils.randomID(16);
+        const pieceIds = [gapId, ...(copyId ? [copyId] : [])];
+        const base = wall.toObject();
+        delete base._id;
+        delete base._stats;
+        const breach = { breachId, originalWallId: wall.id, original: { c }, pieceIds };
+        await scene.createEmbeddedDocuments("Wall", [
+            { ...foundry.utils.deepClone(base), _id: gapId, c: gap, ...BREACH_OPEN(), flags: { ...(base.flags ?? {}), [MODULE_ID]: { breach } } },
+            ...(copyId ? [{ ...foundry.utils.deepClone(base), _id: copyId, c: after }] : [])
+        ], { keepId: true });
+        // The passages on the wall, to the piece that holds them: the wall's own (`keep`), the copy, or the hole.
+        const holds = (piece, seg) => Boolean(piece) && onWall(seg.x1, seg.y1, piece) && onWall(seg.x2, seg.y2, piece);
+        const moved = {}, madePublic = [];
+        for (const [id, other] of Object.entries(rowsOf(stores).entries())) {
+            if (other?.sceneId !== scene.id || other.passageWallId !== wall.id || !other.passageSeg) continue;
+            if (holds(keep, other.passageSeg)) continue;
+            const to = copyId && holds(after, other.passageSeg) ? copyId : gapId;
+            moved[id] = { passageWallId: to };
+            if (to === gapId && other.public !== true) madePublic.push(id);
+        }
+        if (Object.keys(moved).length) await rowsOf(stores).patchMany(moved);
+        await wall.update({ c: keep });
+        const id = `${scene.id}.${foundry.utils.randomID()}`;
+        await stores.season.patch(id, { ...row, passageWallId: gapId, passageSeg: { x1: gap[0], y1: gap[1], x2: gap[2], y2: gap[3] }, public: true,
+            origin: { by: "project", projectId, builderId }, breach: { breachId, originalWallId: wall.id, pieceIds } });
+        for (const other of madePublic) await setPublic(other, true, stores);
+        await touch(knowersOf(id, stores), stores, { door: true });
+        await logRow("breach", id, builderId, stores);
+        tellAfter(stores);
+        return { id, breachId, rooms: row.rooms, sceneId: scene.id, builderId, madePublic };
+    });
+}
+
+/**
+ * A breach closed (E15 part 2 C3): the wall it was cut from given back as the cut found it - its `c` from the hole's
+ * flag, the only field the cut wrote on it -, the hole and the copy deleted, the passages the cut moved moved back,
+ * and the breach's row gone from the season's store. The GMs' Close the breach, the project's undo
+ * (`undoBreachesOf`) and the season's reset (`closeEveryBreach`) all ask this. A passage made public by the cut stays
+ * public: the hole was seen. Where the wall it was cut from is gone (a GM deleted it meanwhile), nothing is written and
+ * the answer says so, `{ refused }`: the pieces stand, for a GM to see to. Answers `{ closed: breachId }`.
+ */
+export async function restoreBreach(sceneId, breachId, { stores = PASSAGE_STORES } = {}) {
+    if (!game.user?.isGM) return { refused: "only a GM closes one." };
+    return serialWrite(`passage.breach/${sceneId ?? ""}`, async () => {
+        const scene = game.scenes?.get(sceneId ?? "");
+        const found = scene ? breachesOn(scene).find(b => b.breach.breachId === breachId) : null;
+        const rows = Object.entries(rowsOf(stores).entries()).filter(([, row]) => row?.breach?.breachId === breachId).map(([id]) => id);
+        if (!found) {
+            for (const id of rows) await deletePassage(id, { stores });
+            return { refused: "no such breach on that scene." };
+        }
+        const { wall: hole, breach } = found;
+        const original = scene.walls.get(breach.originalWallId);
+        const c = Array.isArray(breach.original?.c) ? breach.original.c : null;
+        if (!original || !c) return { refused: "the wall it was cut from is gone; its pieces are left as they stand." };
+        const pieces = [...new Set([hole.id, ...(breach.pieceIds ?? [])])].filter(id => scene.walls.has(id));
+        const back = Object.fromEntries(Object.entries(rowsOf(stores).entries())
+            .filter(([id, row]) => !rows.includes(id) && row?.sceneId === scene.id && pieces.includes(row.passageWallId))
+            .map(([id]) => [id, { passageWallId: original.id }]));
+        for (const id of rows) await deletePassage(id, { stores });
+        if (Object.keys(back).length) await rowsOf(stores).patchMany(back);
+        await original.update({ c: [...c] });
+        if (pieces.length) await scene.deleteEmbeddedDocuments("Wall", pieces);
+        tellAfter(stores);
+        return { closed: breachId };
+    });
+}
+
+/** A breach project's completion taken back (the row's `onUncrossed`, D40): each breach it cut is closed. Answers how many. */
+export async function undoBreachesOf(projectId, { stores = PASSAGE_STORES } = {}) {
+    const rows = Object.values(stores.season?.entries() ?? {}).filter(row => row?.origin?.projectId === projectId && row.breach?.breachId);
+    let closed = 0;
+    for (const row of rows) if ((await restoreBreach(row.sceneId, row.breach.breachId, { stores }))?.closed) closed++;
+    return closed;
+}
+
+/**
+ * Every breach of every scene closed (the season's reset, before the cut takes the season's store; A10 step 17:
+ * "przed cięciem `clear` przywraca ściany wyłomów z projektów"). Read off the walls, which every breach's hole is,
+ * so a breach whose row the cut took already is found as well. Answers how many were closed.
+ */
+export async function closeEveryBreach({ stores = PASSAGE_STORES } = {}) {
+    if (!game.user?.isGM) return 0;
+    let closed = 0;
+    for (const scene of game.scenes ?? []) {
+        for (const { breach } of breachesOn(scene)) if ((await restoreBreach(scene.id, breach.breachId, { stores }))?.closed) closed++;
+    }
+    return closed;
 }
 
 /* ----------------------------------------------------------------------------------------- *
@@ -2132,7 +2314,8 @@ export async function startPassagePick(scene, { dialog = null, passageId = null,
        kroku 8 zawężonym do wspólnej ściany"). `between` is `{ rooms, level }`: a Secret Passage's builder's room and
        the neighbour the proposal names, on the builder's floor. A click on any wall but one between those two is
        refused ("notThese") and asked again, and the second click writes nothing: the pick answers the stretch,
-       `{ sceneId, level, wallId, seg, rooms }`, which the project keeps until its completion makes the passage. */
+       `{ sceneId, level, wallId, seg, rooms }`, which the project keeps until its completion makes the passage. With
+       `between.over` (a breach's, C3) the stretch may lie over another passage's: the breach makes that one public. */
     const narrowed = !tunnel && !passageId && Array.isArray(between?.rooms) && between.rooms.length === 2
         ? [...between.rooms].map(String).sort((p, q) => p.localeCompare(q)) : null;
     const again = passageId ? rowsOf(stores).get(passageId) : null;
@@ -2147,7 +2330,7 @@ export async function startPassagePick(scene, { dialog = null, passageId = null,
     const walls = sceneWalls(scene).filter(w => onLevel(w, level));
     const rooms = pickRooms(scene, level);
     const cell = Number(scene.grid?.size) || 100;
-    const reachOf = { radius: PICK_RADIUS * cell / 100, reach: PICK_REACH * cell / 100, taken: takenOn(scene.id, passageId, stores) };
+    const reachOf = { radius: PICK_RADIUS * cell / 100, reach: PICK_REACH * cell / 100, taken: narrowed && between.over === true ? [] : takenOn(scene.id, passageId, stores) };
     const endsTaken = tunnel ? endsTakenOn(scene.id, null, stores) : [];
 
     return new Promise(resolve => {

@@ -574,6 +574,9 @@
         "state": "Stan",
         "kindSecret": "Tajne",
         "kindPublic": "Jawne",
+        "kindBreach": "Wyłom",
+        "closeBreach": "Zamknij wyłom",
+        "closeBreachRefused": "Nie udało się zamknąć wyłomu: {why}",
         "shapeWall": "W ścianie",
         "shapeTunnel": "Tunel lub schody",
         "way": "W którą stronę prowadzi",
@@ -633,6 +636,7 @@
       },
       "card": {
         "notBuilt": "Projekt {name} jest ukończony, ale jego tajnego przejścia nie udało się otworzyć: {why}",
+        "notBreached": "Projekt {name} jest ukończony, ale wyłomu w ścianie nie udało się zrobić: {why}",
         "passageBuiltShared": "Poznajesz tajne przejście: {from} - {to}.",
         "passageBuilt": "Twoje tajne przejście jest gotowe: {from} - {to}. Możesz przez nie przechodzić.",
         "shown": "{giver} pokazuje ci tajne przejście: {from} - {to}.",
@@ -2852,8 +2856,11 @@
       "passageSummary": "Secret Passage do: {to}",
       "passageNote": "Tajne przejście przez ścianę pokoju, w którym stoisz: Hand, Complex (6), zawsze tajne. Poznasz je tylko ty i ci, którym udostępnisz projekt, zanim zostanie ukończony.",
       "passageTo": "Przez ścianę do",
+      "breachSummary": "Breach the Wall do: {to}",
+      "breachNote": "Wyłom w ścianie pokoju, w którym stoisz: Body, Complex (6). Gdy zostanie ukończony, dziurę zobaczą wszyscy.",
       "preset": {
-        "secretPassage": "Secret Passage"
+        "secretPassage": "Secret Passage",
+        "breach": "Breach the Wall"
       },
       "kindOwn": "Własny projekt",
       "kind": "Rodzaj",

@@ -592,8 +592,9 @@ export function projectTraitOptions(current = "") {
 export async function openProjectDialog({ project = null, preset = null, rooms = placeRoomNames() } = {}) {
     const editing = Boolean(project);
     const start = project ?? preset ?? null;
-    // A Secret Passage's approval (E15 part 2 C2): the builder's room as the GMs read it, and its neighbours.
-    const passageOf = !editing && start?.preset === "secretPassage" ? await passageApproval(start) : null;
+    // A Secret Passage's approval (E15 part 2 C2), or a breach's (C3): the builder's room as the GMs read it, and its neighbours.
+    const passageOf = !editing && ["secretPassage", "breach"].includes(start?.preset) ? await passageApproval(start) : null;
+    const alwaysSecret = passageOf?.preset === "secretPassage";
     const defaultImg = "icons/magic/time/hourglass-yellow-green.webp";
     const img = start?.img || defaultImg;
     const currentTarget = start?.start ?? start?.target ?? PROJECT_SCALE.everyday.progress;
@@ -709,7 +710,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
             ${passageOf ? passageFieldset(passageOf) : ""}
             <label class="drpg-checkbox">
                 <input type="checkbox" name="secret"${
-                    (editing && isSecret(project.id)) || passageOf ? " checked" : ""}${passageOf ? " disabled" : ""} /> ${
+                    (editing && isSecret(project.id)) || alwaysSecret ? " checked" : ""}${alwaysSecret ? " disabled" : ""} /> ${
                     game.i18n.localize("DRPG.Project.secret")}</label>
             ${players.length ? `<fieldset class="drpg-viewer-list" data-drpg-when-secret>
                 <legend>${game.i18n.localize("DRPG.Project.visibleTo")}</legend>
@@ -781,7 +782,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
         render: (event, dialog) => {
             wirePortraitPickers(dialog.element, { defaultImg });
             if (editing && !isSecret(project.id)) wireViewerLock(dialog.element);
-            if (passageOf?.offer) wirePassagePick(dialog, passageOf.offer);
+            if (passageOf?.offer) wirePassagePick(dialog, passageOf.offer, { over: passageOf.preset === "breach" });
         },
         rejectClose: false
     });
@@ -884,12 +885,13 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
             : !picked?.wallId ? "DRPG.Project.passageNeedsPick"
             : !passageOf.offer.neighbours.includes(result.passageTo) || !picked.rooms?.includes(passageOf.offer.from) || !picked.rooms?.includes(result.passageTo)
                 ? "DRPG.Project.passageRefused" : null;
-        const { builtPassageRow } = await import("./passages-gm.mjs");
-        if (why || !builtPassageRow(picked).row) {
+        // A breach's stretch is judged as its completion judges it (C3: it may stand over a passage, never on a wall breached already).
+        const { builtPassageRow, breachStretchRow } = await import("./passages-gm.mjs");
+        if (why || !(passageOf.preset === "breach" ? breachStretchRow(picked) : builtPassageRow(picked)).row) {
             ui.notifications.warn(game.i18n.localize(why ?? "DRPG.Project.passageRefused"));
             return null;
         }
-        passageFields = { presetTarget: { preset: "secretPassage", room: result.passageTo }, passage: picked };
+        passageFields = { presetTarget: { preset: passageOf.preset, room: result.passageTo }, passage: picked };
     }
 
     const created = await createProject({
@@ -954,16 +956,17 @@ async function passageApproval(start) {
     const { secretPassageOffer } = await import("./passages-gm.mjs");
     const offer = builder ? secretPassageOffer(gmPlaceOf(builder)) : null;
     const index = Number(start?.to);
-    return { offer, to: offer ? (offer.neighbours[Number.isInteger(index) ? index : 0] ?? offer.neighbours[0]) : null };
+    return { offer, preset: start.preset, to: offer ? (offer.neighbours[Number.isInteger(index) ? index : 0] ?? offer.neighbours[0]) : null };
 }
 
 /** The approval window's Secret Passage box: the builder's room, the room beyond, the pick and what it picked. */
-function passageFieldset({ offer, to }) {
+function passageFieldset({ offer, to, preset = "secretPassage" }) {
     const esc = text => foundry.utils.escapeHTML(String(text ?? ""));
     const t = key => game.i18n.localize(key);
-    if (!offer) return `<fieldset class="drpg-passage-preset"><legend>${esc(t("DRPG.Project.preset.secretPassage"))}</legend>
+    const legend = esc(t(`DRPG.Project.preset.${preset}`));
+    if (!offer) return `<fieldset class="drpg-passage-preset"><legend>${legend}</legend>
         <p class="drpg-warning">${esc(t("DRPG.Project.passageNoWall"))}</p></fieldset>`;
-    return `<fieldset class="drpg-passage-preset" data-drpg-passage-preset><legend>${esc(t("DRPG.Project.preset.secretPassage"))}</legend>
+    return `<fieldset class="drpg-passage-preset" data-drpg-passage-preset><legend>${legend}</legend>
         <p class="notes">${esc(game.i18n.format("DRPG.Project.passageFrom", { room: offer.from }))}</p>
         <label>${esc(t("DRPG.Project.passageTo"))}
             <select name="passageTo">${offer.neighbours.map(r => `<option value="${esc(r)}"${r === to ? " selected" : ""}>${esc(r)}</option>`).join("")}</select></label>
@@ -977,7 +980,7 @@ function passageFieldset({ offer, to }) {
  * builder's floor (passages-gm.mjs `startPassagePick` with `between`), kept in the window until Create. Another room
  * picked forgets the stretch.
  */
-function wirePassagePick(dialog, offer) {
+function wirePassagePick(dialog, offer, { over = false } = {}) {
     const root = dialog?.element, form = root?.querySelector("form");
     const button = root?.querySelector("[data-drpg-passage-pick]"), said = root?.querySelector("[data-drpg-passage-picked]");
     if (!form?.passage || !button) return;
@@ -990,7 +993,7 @@ function wirePassagePick(dialog, offer) {
         const scene = game.scenes.get(offer.sceneId);
         if (!scene) return;
         const { startPassagePick } = await import("./passages-gm.mjs");
-        const stretch = await startPassagePick(scene, { dialog, between: { rooms: [offer.from, form.passageTo?.value], level: offer.level } });
+        const stretch = await startPassagePick(scene, { dialog, between: { rooms: [offer.from, form.passageTo?.value], level: offer.level, over } });
         if (!stretch?.wallId) return;
         form.passage.value = JSON.stringify(stretch);
         if (said) said.textContent = game.i18n.format("DRPG.Project.passagePicked", { passage: stretch.rooms.join(" - ") });
