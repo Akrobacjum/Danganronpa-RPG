@@ -331,7 +331,7 @@ export const TIMING = {
      * The primary GM's answer to another GM's change of a project (E36 fix e1-G4; gm-bridge.mjs `project.change`):
      * one step of the queue and its after-steps, no person deciding, so far under a ruling's clock. A burst of
      * changes queued ahead of it is what this waits for; a primary that left ends the wait at once instead
-     * (bridge-guards.mjs `primaryGone`). Not measured at a table: chosen, with two GMs' rehearsal to read it.
+     * (bridge-guards.mjs `primaryGone`). Not measured at a table: chosen, LIVE-E36-01 reads it.
      */
     projectChangeMs: 30000,
     /** A GM's ruling on a Hope Call - a longer read, so a longer wait. */

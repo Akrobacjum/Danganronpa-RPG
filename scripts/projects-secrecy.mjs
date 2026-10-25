@@ -30,8 +30,12 @@
  * `insidersOf`, `rawCountdown`, `writeCountdown`), because projects.mjs reads
  * them; it does not re-export them, so the module's API is the one it was. E36 C1
  * added two more for it, `COUNTDOWNS_KEY` and `writeAllCountdowns`; E36 C2 took
- * `writeCountdown` out (no write of Countdowns is left outside a step) and the four
- * ownership writers up into projects.mjs, which re-exports them no longer.
+ * `writeCountdown` out and the four ownership writers up into projects.mjs, which
+ * re-exports them no longer. Since E36 C3 (fix e1-G1) no whole write of Countdowns
+ * is left outside a step of `COUNTDOWNS_KEY`: this file's `writeAllCountdowns`, from
+ * a step, and relay-guard.mjs `applyOps`' own write, in one (tests-tier0.mjs R977);
+ * E36 fix e1-G2 added `sightChange` and `SIGHT_KEYS`, the step's arithmetic of who
+ * sees a project.
  * `liftProjectSecrets` stands last on purpose: R172 reads it by name, a
  * function's cut (`fnSource`) runs on to the next function, and last keeps the
  * cut the text it was before the move. No module state.

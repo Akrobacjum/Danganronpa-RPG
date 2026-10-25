@@ -64795,7 +64795,7 @@ const SCENARIOS = [
          * a second GM planted in the user list (as E80 G4's test plants one), judged on this browser as the primary
          * judges another GM's, lands once and is answered; a connected player's is refused as gmOnly and lands
          * nothing. What the primary's browser does when another GM's browser sends the packet across a real socket
-         * is scenario 33's (A7, the Assistant's change) and a real table's (the stage's E36-16), not this test's. At 7d123c97 there is no entry: (1) ends under 10
+         * is scenario 33's (A7, the Assistant's change) and a real table's (LIVE-E36-01), not this test's. At 7d123c97 there is no entry: (1) ends under 10
          * (the writes race), (2) to (4) are addProgress's, unqueued, and (5) names no row.
          */
         needs(world.atLeast("connectedPlayersWithCharacter"), "a connected player whose packet the GM refuses");
@@ -65001,7 +65001,7 @@ const SCENARIOS = [
          * portrait and sealed, every other row left as it was. The tray is a planted root in Daggerheart 2.10.5's markup
          * (`.countdown-container[data-countdown]`, `[data-action="increaseCountdown"]`), with a bubbling listener standing
          * in for its ApplicationV2 action handler, and its menu entries in 2.10.5's shape (`label`, `visible`, `onClick`);
-         * whether v14 draws them so is a real table's (the stage's E36-17), not this test's. At d0ede27a every road but the Rearm writes while the
+         * whether v14 draws them so is a real table's (LIVE-E36-02), not this test's. At d0ede27a every road but the Rearm writes while the
          * queue is held, a manager row writes twice and every unchanged row once, and projects-ui.mjs exports neither
          * `guardTrayRows` nor `projectRowMenu`.
          */
@@ -65736,6 +65736,149 @@ const SCENARIOS = [
         equal(stableJson(seen), stableJson({ shown: { ref: true, tokens: 1, hidden: false, other: true }, twice: 1 }),
             "a project token's record is written outside the projects' queue, or one project's syncs place two tokens [shown again "
             + "while a step held projectMeta: its reference, its tokens, its mark, the step's own mark; two syncs at once: the tokens]");
+    }],
+    ["ten +1 by the table's own roads land in one queue, and the roads E36-T2 to T5 left undriven change a project once (E36-T11): the tray's +, a Hope Call, a player's Work and a GM's +1 asked together while a step holds the queue end at 10, a watched trap's crossing returns with its receipt posted and nobody's answer, the project window's Save is one change, and a secret project's old repair is sealed and renamed", async () => {
+        /*
+         * E36 fix e1-G6, 25.10.2026; findings E36-R7, F11, the stage's E36-05, E36-06, E36-10. E36-T2's ten +1 were
+         * addProgress and the entry called with planted kinds, so a road that wrote outside the entry would have kept
+         * it green; its slow `after` showed the next change landing, not the caller returning while a receipt waits;
+         * the project window's Save and sealOldRepairs were driven by no test. Read on this primary's browser: (1)
+         * ten +1 at a public project of 12 in the room a connected player's character stands in, asked together while
+         * a step of utils.mjs `serialWrite` holds projects-secrecy.mjs `COUNTDOWNS_KEY`: four presses of the tray's +
+         * (a planted root in Daggerheart 2.10.5's markup, guarded by projects-ui.mjs `guardTrayRows`, as E36-T4
+         * plants it), one Hope Call's Contribution (call-effects.mjs `applyCall` -> `progressEffect`), two of that
+         * player's Work packets each naming a roll the GMs' record holds at 13 (judged as the bridge judges them,
+         * `projectPackets`), and three GM `addProgress` +1: the bar while held and after; (2) a watched trap of 1
+         * filled by one change: whether the call returned before any GM answered, the trap armed, and the killer's
+         * receipt card posted (`DRPG.Trap.armedTitle`); (3) the project window (`openProjectDialog`, DialogV2.wait
+         * answered as E36-T4 answers the manager) on a secret project seen by one player, renamed and a second
+         * player ticked: its Countdowns writes, its name and its viewers; (4) a public repair named
+         * "Repair: <name>" of a secret project, as 1.2.64 made one (`sealOldRepairs`): what it answered, the
+         * repair's secrecy and name. The Reroll's road into the same bar (reroll.mjs `settleProgress`) is E36-T5's,
+         * alone, not here (a second throw on a held queue is a window, the Reroll's own).
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "a character standing in a project's room, whose Work it is");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's");
+        needs(world.atLeast("playerAccounts", 2), "two players: one who sees the secret project and one ticked in");
+        const P = await import("./projects.mjs");
+        const S = await import("./projects-secrecy.mjs");
+        const UI = await import("./projects-ui.mjs");
+        const { applyCall } = await import("./call-effects.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { TRAP_TRIGGERS } = await import("./config.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { serialWrite, isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this GM is not the primary, whose queue every change waits in - run the suite on the primary GM");
+        const watched = Object.keys(TRAP_TRIGGERS).find(kind => TRAP_TRIGGERS[kind]?.watch);
+        must(watched, "no watched trap trigger - the receipt would measure nothing");
+        const { player, actor, where } = await playerInRoom();
+        const guest = game.users.find(u => !u.isGM && u.id !== player.id);
+        const F = await projectPackets(player, actor);
+        const D = foundry.applications.api.DialogV2;
+        const ownWait = Object.getOwnPropertyDescriptor(D, "wait");
+        const ownSet = Object.getOwnPropertyDescriptor(game.settings, "set");
+        const realSet = game.settings.set;
+        const HOPE = "system.resources.hope.value";
+        const hopeWas = foundry.utils.getProperty(actor._source, HOPE);
+        const meta = foundry.utils.deepClone(P.projectMeta());
+        const before = new Set(game.messages.map(m => m.id));
+        const made = [], seen = {};
+        const bar = id => P.allProjects().find(p => p.id === id)?.current ?? null;
+        let root = null, release = () => {}, writes = 0;
+        try {
+            // (1) Ten +1 by four roads, asked together while the queue is held.
+            const ten = await F.project(where.room);
+            const rolls = [await F.rolled(13), await F.rolled(13)];
+            await trustedWrite(actor, { [HOPE]: Math.max(3, actor.system.resources.hope.value) }, { reason: "gmRuling" });
+            root = document.createElement("div");
+            root.innerHTML = `<div class="countdown-container" data-countdown="${ten}"><button type="button" data-action="increaseCountdown"></button></div>`;
+            document.body.append(root);
+            UI.guardTrayRows(root);
+            const plus = () => root.querySelector('[data-action="increaseCountdown"]').click();
+            const gate = new Promise(resolve => { release = resolve; });
+            const hold = serialWrite(S.COUNTDOWNS_KEY, () => gate);
+            const asked = [plus, plus, plus, plus,
+                () => applyCall(actor, "contribution", "hope", { project: ten }),
+                ...rolls.map(roll => () => F.ask("project.progress", { countdownId: ten, amount: 1, rollId: roll.id })),
+                () => P.addProgress(ten, 1), () => P.addProgress(ten, 1), () => P.addProgress(ten, 1)];
+            const going = asked.map(run => Promise.resolve().then(run));
+            await settle();
+            const whileHeld = bar(ten);
+            release();
+            await hold;
+            await Promise.all(going);
+            for (let i = 0; i < 3; i++) await settle();
+            seen.ten = { held: whileHeld, after: bar(ten) };
+
+            // (2) A watched trap's crossing returns with its receipt posted and unanswered.
+            const trap = (await P.createProject({ name: "SUITE E36 T11 trap", target: 1, indirectMurder: true, killerId: actor.id,
+                condition: "SUITE E36 T11", trigger: { kind: watched } }))?.id ?? null;
+            must(trap, "could not create the trap - this would measure nothing");
+            made.push(trap);
+            const news = new Set(game.messages.map(m => m.id));
+            const crossed = await P.applyProjectChange(trap, { delta: 1 });
+            const receipt = game.messages.filter(m => !news.has(m.id) && String(contentOf(m)).includes(game.i18n.localize("DRPG.Trap.armedTitle")));
+            seen.trap = { returned: Boolean(crossed?.crossed), armed: Boolean(S.secretsOf(trap).trigger?.armed), receipts: receipt.length };
+
+            // (3) The project window's Save on a secret project: renamed, a second player ticked.
+            const secret = (await P.createProject({ name: "SUITE E36 T11 window", target: 4, secret: true, viewers: [player.id] }))?.id ?? null;
+            must(secret, "could not create the secret project - this would measure nothing");
+            made.push(secret);
+            D.wait = async cfg => {
+                const element = document.createElement("div");
+                element.innerHTML = typeof cfg?.content === "string" ? cfg.content : (cfg?.content?.outerHTML ?? "");
+                const form = element.querySelector("form");
+                must(form?.name && form.querySelector(`[name="viewers"][value="${guest.id}"]`), "the project window drew no name or no box for the second player");
+                form.name.value = "SUITE E36 T11 window renamed";
+                form.querySelector(`[name="viewers"][value="${guest.id}"]`).checked = true;
+                if (!form.trait.value) form.trait.value = Object.keys((await import("./config.mjs")).TRAITS)[0];
+                const save = (cfg.buttons ?? []).find(b => b.action === "save");
+                return save.callback(new Event("click"), save, { element });
+            };
+            game.settings.set = function (namespace, key, ...rest) {
+                if (namespace === "daggerheart" && key === "Countdowns") writes++;
+                return realSet.call(this, namespace, key, ...rest);
+            };
+            const project = P.allProjects().find(p => p.id === secret);
+            await UI.openProjectDialog({ project });
+            if (ownSet) Object.defineProperty(game.settings, "set", ownSet);
+            else delete game.settings.set;
+            await settle();
+            seen.window = { writes, name: P.allProjects().find(p => p.id === secret)?.name ?? null,
+                viewers: S.viewersOf(secret).map(u => u.id === player.id ? "player" : u.id === guest.id ? "guest" : "?").sort() };
+
+            // (4) A public repair of a secret project, named as 1.2.64 named one: sealed and renamed.
+            const target = (await P.createProject({ name: "SUITE E36 T11 sealed", target: 4, secret: true, viewers: [player.id] }))?.id ?? null;
+            const repair = (await P.createProject({ name: game.i18n.format("DRPG.Project.repairName", { name: "SUITE E36 T11 sealed" }), target: 2 }))?.id ?? null;
+            must(target && repair, "could not create the secret project or its old repair - this would measure nothing");
+            made.push(target, repair);
+            await S.setProjectMeta(repair, { repairs: target });
+            const answered = await P.sealOldRepairs();
+            seen.seal = { answered: answered?.sealed ?? answered, secret: P.isSecret(repair),
+                name: P.allProjects().find(p => p.id === repair)?.name === game.i18n.localize("DRPG.Project.repairNameSecret") };
+        } finally {
+            release();
+            if (ownSet) Object.defineProperty(game.settings, "set", ownSet);
+            else delete game.settings.set;
+            if (ownWait) Object.defineProperty(D, "wait", ownWait);
+            else delete D.wait;
+            root?.remove();
+            for (const id of made) if (P.allProjects().some(p => p.id === id)) await P.deleteProject(id).catch(() => {});
+            await F.putBack();
+            if (foundry.utils.getProperty(actor._source, HOPE) !== hopeWas) await trustedWrite(actor, { [HOPE]: hopeWas }, { reason: "gmRuling" });
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, meta);
+            for (const m of game.messages.contents.filter(m => !before.has(m.id))) await m.delete();
+            (await import("./traps.mjs")).forgetArmedTraps();
+            await settle();
+        }
+        equal(stableJson(seen), stableJson({
+            ten: { held: 0, after: 10 },
+            trap: { returned: true, armed: true, receipts: 1 },
+            window: { writes: 1, name: "SUITE E36 T11 window renamed", viewers: ["guest", "player"] },
+            seal: { answered: 1, secret: true, name: true }
+        }), "a road of the table does not land once in the one queue [ten +1 by the tray, a Call, two Works and three GM +1: the bar "
+            + "while held and after; a watched trap's crossing: returned, armed, receipts; the project window's Save: Countdowns writes, "
+            + "name, viewers; an old repair: sealOldRepairs' answer, sealed, renamed]");
     }],
     ["a project's token follows its project (E36-T6): after each change of a project one function puts its token right - made in a room it stands there once, its room changed it moves there once, finished it changes colour and back, shared or taken back the visibility pass runs over it, with no room or no project it is gone, a dragged token is not moved back, and a second GM's project and a second scene draw make one token", async () => {
         /*

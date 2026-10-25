@@ -128,7 +128,7 @@ function onRenderCountdowns(app, element) {
  * as relay-guard.mjs's `isProject` reads it) keeps the system's controls. A
  * player's click still goes the system's way, to the GM's relay, which lands
  * nothing on a project (relay-guard.mjs `judgeCountdowns`). Read in 2.10.5's
- * source, not on v14 at a table (the stage's E36-17, a live check at the train).
+ * source, not on v14 at a table (LIVE-E36-02, AUDIT 9.2 item 300).
  * ========================================================================== */
 
 /** Is this tray row's countdown one of the module's projects? */

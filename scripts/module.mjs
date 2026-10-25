@@ -525,11 +525,15 @@ function sealProjects() {
      * ONE CLIENT DOES THE WRITING (audit A12), and the check is INSIDE the
      * closure rather than in front of the hook.
      *
-     * This is the worst of the four to run twice: `writeCountdown` reads the
-     * whole Countdowns setting, changes one entry and writes the whole thing
-     * back, so two GMs resealing together is a lost update - one of them
-     * overwrites the other's ownership map, on the one record whose whole
-     * purpose is hiding a murder plan.
+     * This was the worst of the four to run twice: `writeCountdown` read the
+     * whole Countdowns setting, changed one entry and wrote the whole thing
+     * back, so two GMs resealing together was a lost update - one of them
+     * overwrote the other's ownership map, on the one record whose whole
+     * purpose is hiding a murder plan. Since E36 the reseal is a change of
+     * projects.mjs `applyProjectChange` (`{ reseal: true }`, worked out in the
+     * step since E36 fix e1-G2), one step of the primary's queue a project, and
+     * another GM's change goes to that queue too; one client still asks, so
+     * the queue is not handed the same reseal by every GM.
      *
      * Gating the hook REGISTRATION instead would trade that for a worse hole:
      * a GM who was not primary at load would never listen for `createUser` at
