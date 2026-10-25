@@ -65180,6 +65180,145 @@ const SCENARIOS = [
             + "Delete did, the project's Delete; deleteProject]");
     }],
 
+    ["a project's token follows its project (E36-T6): after each change of a project one function puts its token right - made in a room it stands there once, its room changed it moves there once, finished it changes colour and back, shared or taken back the visibility pass runs over it, with no room or no project it is gone, a dragged token is not moved back, and a second GM's project and a second scene draw make one token", async () => {
+        /*
+         * E36 C4, 25.10.2026; E36-14 and E36-15, audit S09-19, S09-20. A project's token was put right by the sync
+         * that runs when the primary GM's map is drawn (projects-map.mjs `syncProjectTokens`), and by createProject
+         * and deleteProject themselves: a room changed in the manager left the token standing in the old room, a
+         * finished project kept its working colour, and a share or a revoke, which writes only Daggerheart's
+         * Countdowns setting, re-asked no browser whether to draw the token, all until the next scene draw or move.
+         * projects.mjs `applyProjectChange` now ends every change with projects-map.mjs `syncProjectToken(id)`, once,
+         * and each browser runs its visibility pass when the Countdowns setting changes. Read on this primary's
+         * browser, on the scene on screen with two named regions: where the token stands (movement.mjs
+         * `roomOfToken`) and how many times it was moved (this browser's `updateToken` with x or y); its tint against
+         * config.mjs PROJECT_TOKEN; the visibility pass over a secret project's token counted at its render flags
+         * (visibility.mjs `applyAll` asks each placeable's `renderFlags.set`, which the harness's token lacks and this
+         * test lends it), not what a player's canvas then draws, which no headless browser has; the tokens carrying
+         * the project's id on every scene; a `project.change` packet that creates a project, from a second GM planted
+         * in the user list as E36-T2 plants one. Two GMs' browsers drawing at once is the primary's alone at Base
+         * (`syncProjectTokens` returns off the primary), not driven here. Red at 042f3482, alone and with C3's
+         * uncommitted work beside it: the moved token stands in the old room, unmoved; the tint stays the working one; the share runs no pass;
+         * the token stays with its room cleared; the second GM's project has no token.
+         */
+        needs(world.atLeast("sceneOnScreen"), "a scene on screen with two named regions for a project's token");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "a player to share a secret project with");
+        const P = await import("./projects.mjs");
+        const M = await import("./projects-map.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const { PROJECT_TOKEN } = await import("./config.mjs");
+        const { positionIn, roomOfToken } = await import("./movement.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this GM is not the primary, whose browser keeps the project tokens - run the suite on the primary GM");
+        const player = game.users.find(u => !u.isGM && u.active);
+        const scene = canvas.scene;
+        const [room, elsewhere] = [...new Set((scene.regions?.contents ?? []).map(region => region.name).filter(Boolean))];
+        must(room && elsewhere, "the scene on screen has no two named regions - this would measure nothing");
+        const SECOND = { id: "zE36T6secondGM00", name: "E36 T6 second GM", role: CONST.USER_ROLES.ASSISTANT, isGM: true, active: true };
+        const meta = foundry.utils.deepClone(P.projectMeta());
+        const tokensOf = id => M.projectTokensOn(game.scenes).filter(t => t.projectId === id).length;
+        const standsIn = id => { const token = M.projectTokenOf(id); return token ? roomOfToken(token) : null; };
+        const tint = id => String(M.projectTokenOf(id)?.texture?.tint ?? "").toLowerCase();
+        const moves = new Map();
+        const movesOf = id => moves.get(M.projectTokenOf(id)?.id) ?? 0;
+        const hook = Hooks.on("updateToken", (doc, changes) => {
+            if ("x" in (changes ?? {}) || "y" in (changes ?? {})) moves.set(doc.id, (moves.get(doc.id) ?? 0) + 1);
+        });
+        const made = [], seen = {};
+        let lent = null;
+        const make = async (name, extra = {}) => {
+            const id = (await P.createProject({ name, target: 2, room, ...extra }))?.id ?? null;
+            must(id, `could not create "${name}" - this would measure nothing`);
+            made.push(id);
+            await settle();
+            return id;
+        };
+        game.users.set(SECOND.id, SECOND);
+        try {
+            const id = await make("SUITE E36 T6 moved");
+            seen.made = { tokens: tokensOf(id), stands: standsIn(id) };
+            await P.updateProject(id, { room: elsewhere });
+            await settle();
+            seen.moved = { room: P.roomOf(id), stands: standsIn(id), moves: movesOf(id), tokens: tokensOf(id) };
+            const working = tint(id) === PROJECT_TOKEN.workingTint.toLowerCase();
+            await P.applyProjectChange(id, { delta: 2 }, { by: { kind: "gm" } });
+            await settle();
+            const done = tint(id) === PROJECT_TOKEN.doneTint.toLowerCase();
+            await P.applyProjectChange(id, { delta: -1 }, { by: { kind: "gm" } });
+            await settle();
+            seen.tint = { working, done, back: tint(id) === PROJECT_TOKEN.workingTint.toLowerCase() };
+            await P.updateProject(id, { room: null });
+            await settle();
+            seen.roomless = tokensOf(id);
+
+            const secret = await make("SUITE E36 T6 secret", { secret: true, viewers: [] });
+            const placeable = canvas.tokens?.get?.(M.projectTokenOf(secret)?.id);
+            must(placeable, "the secret project's token is not drawn on the scene on screen - this would measure nothing");
+            const had = "renderFlags" in placeable;
+            const flags = placeable.renderFlags ?? (placeable.renderFlags = {});
+            const own = Object.getOwnPropertyDescriptor(flags, "set");
+            const real = flags.set;
+            let passes = 0;
+            flags.set = function (...args) { passes++; return typeof real === "function" ? real.apply(this, args) : undefined; };
+            lent = () => {
+                if (own) Object.defineProperty(flags, "set", own);
+                else delete flags.set;
+                if (!had) delete placeable.renderFlags;
+            };
+            await P.shareWith(secret, player.id);
+            await settle();
+            const shared = [passes > 0, P.knowsProject(secret, player)];
+            passes = 0;
+            await P.unshareWith(secret, player.id);
+            await settle();
+            seen.share = { shared, revoked: [passes > 0, P.knowsProject(secret, player)] };
+            lent();
+            lent = null;
+            await P.deleteProject(secret);
+            await settle();
+            seen.gone = tokensOf(secret);
+
+            const dragged = await make("SUITE E36 T6 dragged");
+            const token = M.projectTokenOf(dragged);
+            const drop = token ? positionIn(elsewhere, token) : null;
+            must(drop, "the project's token was not placed, or the second room has no place - this would measure nothing");
+            await token.update(drop, { teleport: true, movementAction: "displace", animate: false });
+            await settle();
+            const after = M.projectTokenOf(dragged);
+            seen.drag = { room: P.roomOf(dragged), moves: movesOf(dragged), stays: after?.x === drop.x && after?.y === drop.y };
+
+            const fresh = foundry.utils.randomID(16);
+            made.push(fresh);
+            await G.judge(B.BRIDGE_ACTIONS, { action: "project.change", requestId: `E36T6${foundry.utils.randomID(8)}`, countdownId: fresh,
+                change: { create: true, name: "SUITE E36 T6 second GM's", target: 2, meta: { room } }, by: { kind: "gm" } }, SECOND.id, { send: () => {} });
+            await settle();
+            const once = tokensOf(fresh);
+            await M.syncProjectTokens();
+            await settle();
+            seen.second = { made: Boolean(P.allProjects().find(p => p.id === fresh)), tokens: [once, tokensOf(fresh)] };
+        } finally {
+            lent?.();
+            Hooks.off("updateToken", hook);
+            game.users.delete(SECOND.id);
+            for (const id of made) if (P.allProjects().find(p => p.id === id)) await P.deleteProject(id).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, meta);
+            await settle();
+        }
+        equal(stableJson(seen), stableJson({
+            made: { tokens: 1, stands: room },
+            moved: { room: elsewhere, stands: elsewhere, moves: 1, tokens: 1 },
+            tint: { working: true, done: true, back: true },
+            roomless: 0,
+            share: { shared: [true, true], revoked: [true, false] },
+            gone: 0,
+            drag: { room: elsewhere, moves: 1, stays: true },
+            second: { made: true, tokens: [1, 1] }
+        }), "a project's token is not put right by its project's change [made in a room: tokens, where it stands; its room changed: the room, "
+            + "where the token stands, its moves, tokens; the tint working, finished, taken back; its room cleared: tokens; a share and a revoke: "
+            + "the visibility pass ran, the player knows it; deleted: tokens; dragged into the other room: the room, its moves, whether it stays "
+            + "where it was dropped; a second GM's project: made, its tokens, and after a second scene draw]");
+    }],
+
     ...GRID
 ];
 

@@ -9572,6 +9572,7 @@ const REGRESSIONS = [
             ["OPT movement.mjs#tunnelStepTarget#displace -> exempt", "this file's own: as `movementAction` above (H81-14)"],
             ["OPT movement.mjs#judgeMove#REVERT -> exempt", "this file's own: the mover's client charges nothing for its own revert; no judge takes it as an exemption"],
             ["OPT passages-gm.mjs#crossTunnel#displace -> exempt", "the primary GM's own write of a 'Go through' (E80 C2: `teleport`, `displace`, no animation): a GM's move is let through because a GM made it (the hook's user), not because of these options; the crossing was judged before it by the doors' rules (`tunnelVerdict`; A10-18)"],
+            ["OPT projects-map.mjs#moveProjectToken#displace -> exempt", "the primary GM's own write of a project token into its project's room (E36 C4: `teleport`, `displace`, no animation, and the module's own move option, which the project's drag handler skips): a GM's move is let through because a GM made it (the hook's user), not because of these options; a project token is no character and crosses nothing"],
             ["OPT call-world.mjs#fallbackGather#displace -> exempt", "a GM's own write (`updateEmbeddedDocuments` with REVERT, `teleport` and `displace`): a GM's move is let through because a GM made it (the hook's user), not because of these options"],
             // ---- the packets
             ["ACT gm-bridge.mjs#ACTION_SENDBACK#token.sendBack -> write", "the bridge row judges the sender's ownership and the place (`guardSendbackPlace`) against the GMs' record of the token, which holds no spot the audit put it back from (`sightingsAfter`, E79 fix r1-G1: 76 D asks for that spot and is refused, the token where it was put back, nothing written); `handleSendback` writes REVERT and SENT_BACK on the GM, with walls ignored (the IGN row below), SENT_BACK naming the player who asked, and the GMs' audit judges the landing as that player's move (E79 fix r2-G1: a room's centre across a wall is put back, or a row in log mode; R559, 76 D)"],
@@ -14586,7 +14587,9 @@ const REGRESSIONS = [
          *
          * Red at 7d123c97 (1.2.84, E36's base) until C4, by expectedRed("E36"): Base writes Countdowns whole in
          * addProgress, createProject, deleteProject and clearAllProjects as well, nothing is queued on the key, and
-         * projects.mjs places and removes tokens itself (the stage's census, Base's writers).
+         * projects.mjs places and removes tokens itself (the stage's census, Base's writers). At C4 (on 042f3482, C3
+         * not landed) three rows are left, all C3's: sabotageProject's and undoSabotage's freeze outside a step (b)
+         * and relay-guard.mjs's write outside the key (e); C4 took the token rows (c, d). The marker goes with them.
          */
         const SUITE = /^tests(?:-[\w-]+)?\.mjs$/;
         const QUEUE_KEY = /^(?:[\w$]+\s*\.\s*)?COUNTDOWNS_KEY$/;
@@ -14825,7 +14828,7 @@ const REGRESSIONS = [
         log(`R977: ${read.files} files, ${read.sets} Countdowns writes, ${read.metas} setProjectMeta calls, ${read.tokens} project token writes; outside one place: ${broken.join(", ") || "none"}`);
         equal(JSON.stringify(broken), "[]",
             "the census of project writes: each of these changes a project outside applyProjectChange's queue or its token outside syncProjectToken (rule, what, where)");
-    }, expectedRed("E36", "Base writes Countdowns whole in addProgress, createProject, deleteProject and clearAllProjects, queues nothing on COUNTDOWNS_KEY and places project tokens from projects.mjs; C1-C4 move each road into applyProjectChange and syncProjectToken, and C4 takes this marker off", { failing: "the census of project writes" })]
+    }, expectedRed("E36", "sabotageProject and undoSabotage still freeze and thaw outside a step of COUNTDOWNS_KEY and relay-guard.mjs applyOps writes Countdowns outside it; C3 moves the three into the queue and takes this marker off (C1, C2 and C4 moved every other road, the tokens into syncProjectToken)", { failing: "the census of project writes" })]
 ];
 
 

@@ -33,8 +33,8 @@
 import { MODULE_ID, PROJECT_TOKEN } from "./config.mjs";
 import { roomOf, setProjectMeta, tokenRefOf, allProjects, isComplete, knowsProject, isSecret, applyProjectChange }
     from "./projects.mjs";
-import { metaFor, rawCountdown } from "./projects-secrecy.mjs";
-import { boundsOf } from "./movement.mjs";
+import { metaFor, rawCountdown, COUNTDOWNS_KEY } from "./projects-secrecy.mjs";
+import { boundsOf, roomAt } from "./movement.mjs";
 import { sceneOfRoom, isMoveChange, roomRegions } from "./rooms.mjs";
 import { log, error, whisperToGms, esc, plural, isPrimaryGm } from "./utils.mjs";
 
@@ -58,6 +58,12 @@ export const PROJECT_TOKEN_FLAG = "projectId";
    `removeProjectToken`'s own `setProjectMeta`, read before the mark landed - a lost update
    that hid the harm, not a guarantee. */
 const MODULE_REMOVAL = "drpgProjectRemoval";
+
+/* The option the module's own move of a project token passes (E36 C4), as `MODULE_REMOVAL` is
+   its deletion's: `syncProjectToken` taking a token to its project's room is no GM's drag, and
+   `onProjectTokenMoved` reading it as one would move the project to wherever the token was read
+   to land - a room read wrong at a small room's centre (S09-12) would then carry the project off. */
+const MODULE_MOVE = "drpgProjectMove";
 
 /** Is this token document one of ours, and which project is it? */
 export function projectIdOf(tokenDoc) {
@@ -155,6 +161,26 @@ function centreOfRoom(scene, room) {
     const grid = scene.grid?.size ?? canvas?.grid?.size ?? 100;
     const half = (PROJECT_TOKEN.size * grid) / 2;
     return { x: Math.round(box.x + box.w / 2 - half), y: Math.round(box.y + box.h / 2 - half) };
+}
+
+/**
+ * THE ROOM A PROJECT TOKEN STANDS IN, read one way for the drag and the sync (E36 C4). `at` is
+ * where its top-left corner is, the token's own place unless a move names another. Kept as
+ * `onProjectTokenMoved` read it before E36: the centre is computed here and `roomAt` adds half a
+ * token again (audit S09-12, E15 part 1 C1's fix, made here once for both). The two readers must
+ * agree: with the sync asking where the token really is and the drag asking this, a token dropped
+ * by an east or south wall had its project moved by the drag to the room beyond, and the sync then
+ * carried the token into that room after it.
+ */
+function roomUnder(tokenDoc, at = tokenDoc) {
+    const grid = tokenDoc.parent?.grid?.size ?? canvas?.grid?.size ?? 100;
+    // The token's centre decides, not its corner - a two-square token straddling
+    // a boundary belongs to the room most of it is in.
+    const centre = {
+        x: (at.x ?? tokenDoc.x) + (tokenDoc.width * grid) / 2,
+        y: (at.y ?? tokenDoc.y) + (tokenDoc.height * grid) / 2
+    };
+    return roomAt(centre.x, centre.y, tokenDoc);
 }
 
 /**
@@ -404,12 +430,12 @@ export function warnProjectDuplicates(duplicates) {
 
 /**
  * The tint follows the bar. Cheap enough to call on every project change, and
- * it writes only when the colour would actually differ.
+ * it writes only when the colour would actually differ. Answers whether it wrote.
  */
 export async function refreshProjectToken(countdownId) {
-    if (!game.user.isGM) return;
+    if (!game.user.isGM) return false;
     const token = projectTokenOf(countdownId);
-    if (!token) return;
+    if (!token) return false;
     const want = tintFor(countdownId);
     const changes = {};
     /* THE TINT IS A Color ON THE DOCUMENT, and a Color is never `===` a string: this
@@ -425,12 +451,90 @@ export async function refreshProjectToken(countdownId) {
     if (isoOn() && token.getFlag?.(ISO_MODULE, "scale") !== PROJECT_TOKEN.isoScale) {
         changes[`flags.${ISO_MODULE}.scale`] = PROJECT_TOKEN.isoScale;
     }
-    if (!Object.keys(changes).length) return;
+    if (!Object.keys(changes).length) return false;
     try {
         await token.update(changes);
+        return true;
     } catch (err) {
         error(`Could not refresh the project token for ${countdownId}`, err);
+        return false;
     }
+}
+
+/**
+ * A project token standing in another room than its project's goes to its project's room (E36 C4;
+ * audit S09-19). Within its scene when that scene holds the room - to the room's centre, nudged as a
+ * new token is, and only when it stands in another ROOM: a token a GM put in a doorway or a corridor
+ * stands in no room, and stays where it was put, as the drag leaves it. Onto the room's scene when its
+ * own holds no piece of the room (taken off and placed again: a token does not change scenes). A room no
+ * scene holds leaves the token where it is, there being nowhere to take it. Answers whether it moved.
+ */
+async function moveProjectToken(countdownId, token, room) {
+    if (!game.user.isGM) return false;
+    const scene = token.parent ?? null;
+    if (!scene) return false;
+    if (!centreOfRoom(scene, room)) {
+        if (!sceneOfRoom(room)) return false;
+        await removeProjectToken(countdownId);
+        return Boolean(await placeProjectToken(countdownId));
+    }
+    const stands = roomUnder(token);
+    if (!stands || stands === room) return false;
+    const spot = centreOfRoom(scene, room);
+    const nudge = offsetFor(scene, room, countdownId);
+    const to = { x: spot.x + nudge.dx, y: spot.y + nudge.dy };
+    if (token.x === to.x && token.y === to.y) return false;
+    try {
+        await token.update(to, { [MODULE_MOVE]: true, teleport: true, movementAction: "displace", animate: false });
+        return true;
+    } catch (err) {
+        error(`Could not take the project ${countdownId}'s token to ${room}`, err);
+        return false;
+    }
+}
+
+/**
+ * ONE PROJECT'S TOKEN, PUT RIGHT (E36 C4, 25.10.2026; the stage's E36-14, audit S09-19). Its presence:
+ * a project with a room has one (placed when missing, unless a GM took it off the map by hand -
+ * `mapHidden`), one with no room has none, and the tokens of a project that no longer exists go,
+ * every copy, found by their own flag (`sweepProjectTokens`). Its place: moved into its project's room
+ * when it stands in another (`moveProjectToken`). Its colour: the bar's (`refreshProjectToken`).
+ * `applyProjectChange` (projects.mjs) calls this once after each change of a project, on the primary
+ * GM's browser where the change ran, and the scene draw's `syncProjectTokens` calls it for each
+ * project: until E36 a token was put right only at a scene draw, so a room changed in the manager left
+ * it in the old room, a finished project kept its working colour and createProject placed it on the
+ * browser of whichever GM made it. Every other road to a project's token is this one or the sweep (the
+ * census, R977). GM only; before the game is ready nothing is written (the scene draw's sync waits for
+ * ready and runs this then). Answers how many things it put right, as `syncProjectTokens` counts them.
+ */
+export async function syncProjectToken(countdownId) {
+    if (!game.user.isGM || !countdownId || !game.ready) return 0;
+    if (!rawCountdown(countdownId)) {
+        const { removed } = await sweepProjectTokens({ live: [], only: [countdownId] });
+        return removed;
+    }
+    if (metaFor(countdownId).mapHidden) return 0;
+    let touched = 0;
+    const ref = tokenRefOf(countdownId);
+    let live = projectTokenOf(countdownId);
+    // A reference pointing at a token that went without a `deleteToken` the primary heard
+    // (a scene deleted, if Foundry fires none for its tokens - not measured): forgotten,
+    // and placed again below.
+    if (ref && !live) {
+        await setProjectMeta(countdownId, { tokenId: null, tokenScene: null });
+        touched++;
+    }
+    const room = roomOf(countdownId);
+    if (!room) {
+        // It lost its room: it has no place, so it has no token.
+        if (live) { await removeProjectToken(countdownId); touched++; }
+        return touched;
+    }
+    if (!live) return touched + (await placeProjectToken(countdownId) ? 1 : 0);
+    if (await moveProjectToken(countdownId, live, room)) touched++;
+    live = projectTokenOf(countdownId);
+    if (live) await refreshProjectToken(countdownId);
+    return touched;
 }
 
 /**
@@ -455,22 +559,14 @@ export async function refreshProjectToken(countdownId) {
  * project to the Cafeteria and an orphan's drag wrote a metadata row for a countdown that
  * does not exist (the suite's "dragging a project's spare copy" test). `projectOwning` answers both.
  */
-async function onProjectTokenMoved(tokenDoc, changes) {
-    if (!isPrimaryGm()) return;
+async function onProjectTokenMoved(tokenDoc, changes, options = {}) {
+    if (!isPrimaryGm() || options?.[MODULE_MOVE]) return;
     // A change of floor is a move (rooms.mjs `isMoveChange`, E12 C9): x and y alone missed a climb.
     if (!isMoveChange(changes)) return;
     const id = projectOwning(tokenDoc);
     if (!id) return;
 
-    const { roomAt } = await import("./movement.mjs");
-    const grid = tokenDoc.parent?.grid?.size ?? canvas?.grid?.size ?? 100;
-    // The token's centre decides, not its corner - a two-square token straddling
-    // a boundary belongs to the room most of it is in.
-    const centre = {
-        x: (changes.x ?? tokenDoc.x) + (tokenDoc.width * grid) / 2,
-        y: (changes.y ?? tokenDoc.y) + (tokenDoc.height * grid) / 2
-    };
-    const landedIn = roomAt(centre.x, centre.y, tokenDoc);
+    const landedIn = roomUnder(tokenDoc, changes);
     const was = roomOf(id);
     if (!landedIn || landedIn === was) return;
 
@@ -530,8 +626,9 @@ function onProjectTokenDeleted(tokenDoc, options) {
 export async function showProjectOnMap(countdownId) {
     if (!game.user.isGM || !rawCountdown(countdownId)) return null;
     await setProjectMeta(countdownId, { mapHidden: false });
-    /* On the scene that holds its room, whatever this GM is looking at (E12 C5). */
-    return placeProjectToken(countdownId);
+    /* On the scene that holds its room, whatever this GM is looking at (E12 C5): the one road to a token (E36 C4). */
+    await syncProjectToken(countdownId);
+    return projectTokenOf(countdownId);
 }
 
 let syncWaitingForReady = false;
@@ -590,29 +687,8 @@ export async function syncProjectTokens() {
        Listing the tokens of every scene is a walk over documents the browser already holds. */
     const { removed } = await sweepProjectTokens();
     let touched = removed;
-    for (const project of allProjects() ?? []) {
-        if (metaFor(project.id).mapHidden) continue;
-        const ref = tokenRefOf(project.id);
-        const live = projectTokenOf(project.id);
-
-        // A reference pointing at a token that went without a `deleteToken` the primary heard
-        // (a scene deleted, if Foundry fires none for its tokens - not measured): forgotten,
-        // and placed again below.
-        if (ref && !live) {
-            await setProjectMeta(project.id, { tokenId: null, tokenScene: null });
-            touched++;
-        }
-        if (!roomOf(project.id)) {
-            // It lost its room: it has no place, so it has no token.
-            if (live) { await removeProjectToken(project.id); touched++; }
-            continue;
-        }
-        if (!projectTokenOf(project.id)) {
-            if (await placeProjectToken(project.id)) touched++;
-        } else {
-            await refreshProjectToken(project.id);
-        }
-    }
+    // Each project as a change of it leaves it (E36 C4): one function, so the draw and a change cannot disagree.
+    for (const project of allProjects() ?? []) touched += await syncProjectToken(project.id);
     if (touched) log(`Project tokens: ${touched} put right.`);
     return touched;
 }
@@ -731,9 +807,19 @@ export function registerProjectsMap() {
     Hooks.on("canvasReady", () => {
         syncProjectTokens().catch(err => error("Could not sync the project tokens", err));
     });
-    Hooks.on("updateToken", (tokenDoc, changes) => {
-        onProjectTokenMoved(tokenDoc, changes)
+    Hooks.on("updateToken", (tokenDoc, changes, options) => {
+        onProjectTokenMoved(tokenDoc, changes, options)
             .catch(err => error("Could not move a project with its token", err));
+    });
+    /* WHO SEES A PROJECT'S TOKEN, ASKED AGAIN WHEN THE COUNTDOWNS CHANGE (E36 C4; audit S09-19). A share,
+       a revoke, a seal and a reveal change the countdown's ownership, which `knowsProject` reads, and write
+       Daggerheart's setting alone: no token moved and no module setting changed, so no browser ran its
+       visibility pass, and a player let in on a secret project saw its token only at their next move. Every
+       browser hears its own copy of the setting change; the pass is each browser's (visibility.mjs). */
+    Hooks.on("updateSetting", setting => {
+        if (setting?.key !== COUNTDOWNS_KEY) return;
+        import("./visibility.mjs").then(m => m.applyAll?.())
+            .catch(err => error("Could not ask again who sees the project tokens", err));
     });
     Hooks.on("deleteToken", (tokenDoc, options) => onProjectTokenDeleted(tokenDoc, options));
     // One hook, as the trace's card has it: ApplicationV2 fires a render hook for

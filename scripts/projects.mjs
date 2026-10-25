@@ -629,6 +629,17 @@ export async function applyProjectChange(countdownId, change, { by = null } = {}
             error(`What follows a change of the project ${countdownId} failed`, err);
         }
     }
+    /* ITS TOKEN, ONCE, LAST (E36 C4; audit S09-19): its room, its colour, whether it stands at all, and a
+       removed project's tokens taken off every scene (projects-map.mjs `syncProjectToken`). A change that
+       changed nothing (a frozen bar's +1, a full bar's) moves no token. Dynamic, as projects-map.mjs reads
+       this file. A token that cannot be put right is not a change that failed: the tray still has it. */
+    if (result?.changed) {
+        try {
+            await (await import("./projects-map.mjs")).syncProjectToken(countdownId);
+        } catch (err) {
+            error(`Could not put the project ${countdownId}'s token right`, err);
+        }
+    }
     return result;
 }
 
@@ -752,7 +763,7 @@ async function changeStep(countdownId, change, by) {
  * Make a project, inside a step (E36 C2): the countdown under the id createProject drew, then its meta, both
  * halves (`setProjectMeta` splits the GMs' fields off). An id already taken makes nothing: the id is drawn at
  * random, so a second create of it is a packet sent twice, not a second project. A new bar is empty, so nothing
- * crosses. Its token is createProject's, once this answers.
+ * crosses. Its token is placed after the step, as every change's is (`applyProjectChange`, E36 C4).
  */
 async function createInStep(countdownId, change, existing, data, countdowns) {
     if (existing) {
@@ -781,9 +792,10 @@ async function createInStep(countdownId, change, existing, data, countdowns) {
 
 /**
  * Take a project out, inside a step: its countdown, its row in projectMeta (and the thaw of what it
- * repaired), its secrets. What is not the setting's goes in `after`: its tokens, found by their own flags
- * (projects-map.mjs `sweepProjectTokens`), its trap's ledger, and its own repair, a change of its own.
- * deleteProject comes here since E36 C2.
+ * repaired), its secrets. What is not the setting's goes in `after`: its trap's ledger, and its own repair,
+ * a change of its own; its tokens, found by their own flags, go with every change's token sync once the
+ * step has ended (projects-map.mjs `syncProjectToken` of a project gone, E36 C4). deleteProject comes here
+ * since E36 C2.
  */
 async function removeInStep(countdownId, data, countdowns, after) {
     const own = metaFor(countdownId);
@@ -796,10 +808,6 @@ async function removeInStep(countdownId, data, countdowns, after) {
     await game.settings.set(MODULE_ID, SETTINGS.projectMeta, rows);
     await projectSecretStore.drop(countdownId);
     log(`Project ${countdownId} removed.`);
-    after.push(async () => {
-        const { sweepProjectTokens } = await import("./projects-map.mjs");
-        await sweepProjectTokens({ live: [], only: [countdownId] });
-    });
     after.push(async () => (await import("./traps.mjs")).pruneTrapsFor(new Set(Object.keys(rows))));
     const repair = own.frozenBy ?? null;
     if (repair && countdowns[repair] && metaFor(repair).repairs === countdownId) {
@@ -941,19 +949,10 @@ export async function createProject({
     }, { by: { kind: "gm" } });
     if (!made?.created) return null;
 
+    /* ONTO THE MAP, if it has a room to stand in: by the change itself (`applyProjectChange` ends with the
+       token's sync, E36 C4), on the primary GM's browser where the change ran. Until E36 this placed the
+       token here, on the browser of whichever GM made the project. */
     log(`Created project "${name}" (${target} progress)${room ? ` in ${room}` : ""}${trait ? `, ${trait}` : ""}.`);
-
-    /* AND ONTO THE MAP, if it has a room to stand in. Dynamic, because
-       projects-map.mjs reads this file - this cycle is real, unlike the fog one
-       at the top. Failure here is not failure of the project: a project with no
-       token is a project the tray still runs perfectly well. */
-    try {
-        const { placeProjectToken } = await import("./projects-map.mjs");
-        await placeProjectToken(id);
-    } catch (err) {
-        error(`Could not put the new project "${name}" on the map`, err);
-    }
-
     return { id, name, target, trait };
 }
 
