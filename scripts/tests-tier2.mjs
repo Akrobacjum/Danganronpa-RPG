@@ -66568,6 +66568,10 @@ const SCENARIOS = [
             await o.resetOverflow();
             const kept = game.settings.get(MODULE_ID, SETTINGS.overflow)?.active ?? null;
             seen.verdict = { count: o.overflowCount(), effect: o.overflowEffect(), waiting: kept?.pending === true && kept?.effect === "panic" };
+            // A spill before the next boundary (E15 part 1 fix e1-G5, finding E15p1-R1): the waiting darkening stays waiting.
+            await o.addOverflow(1, { reason: "SUITE E15 fix e1-G5" });
+            await settle();
+            seen.spill = game.settings.get(MODULE_ID, SETTINGS.overflow)?.active?.pending === true;
             // The next time of day is not the one armed: the chapter after a trial may open anywhere.
             const later = { ...trial, phase: "dailyLife", session: armed.session + 1, day: armed.day + 1, timeOfDay: TIMES_OF_DAY[1] };
             await game.settings.set(MODULE_ID, SETTINGS.clock, later);
@@ -66612,7 +66616,8 @@ const SCENARIOS = [
             held: [5, 0],
             trial: { next: true, says: true, now: null },
             verdict: { count: 0, effect: null, waiting: true },
-            boundary: { returned: "panic", effect: "panic", count: 0, cards: 0, again: null },
+            spill: true,
+            boundary: { returned: "panic", effect: "panic", count: 1, cards: 0, again: null },
             eclipse: { effect: "panic", cards: 0 },
             running: ["panic", null],
             season: null
@@ -66620,7 +66625,7 @@ const SCENARIOS = [
             + "holds, cards; Save unchanged: the same; an older full copy: Panic's floor is config's, Fog's tick; trimmed: the report, what "
             + "the world holds, the second trim; 1.2.84's copy under moved defaults: the report, what the world holds, X, the Earthquake's size; an emptied threshold and size: as read, X, Darkness's size, what the world holds, cards; "
             + "sizes 20 and -3 as held; armed in the trial: for the next day's first time of day, the card's words, running now; the verdict: "
-            + "the count, running, waiting; a later boundary: the check's answer, running, the count, cards, a second check; an Eclipse ahead: "
+            + "the count, running, waiting; a spill of 1 after it: still waiting; a later boundary: the check's answer, running, the count, cards, a second check; an Eclipse ahead: "
             + "running, cards; a darkening running now through the verdict: before, after; a waiting one through the season reset]");
     }],
 

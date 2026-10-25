@@ -328,9 +328,18 @@ export async function addOverflow(amount, { reason = "spill" } = {}) {
     // A STATE, NOT AN EVENT (review of CALL-06). Rot and Earthquake happened the
     // moment they fired and have nothing running to protect, so a stamp of theirs
     // does not hold the counter back.
+    //
+    // NOT WHILE ONE WAITS FOR THE NEXT TIME OF DAY (E15 part 1 fix e1-G5, 25.10.2026; finding E15p1-R1).
+    // A darkening a verdict kept (`pending`, S09-07) is the one stamp, so a spill can arm nothing new -
+    // and `checkOverflow`'s pending branch, reached through `armAhead`, re-pointed it at the time of day
+    // after the trial's clock and dropped `pending`, so a chapter that opened at another time of day
+    // never met it (tier 2 E15-T4 at c93be060: a spill of 1 after the verdict, the clock moved on a day,
+    // the boundary's check answered nothing). Only a boundary or an Eclipse's opening points it now; the
+    // count stays where the spill left it for the check after that.
     const clock = getClock();
+    if (before.active?.pending) return after;
     const kind = overflowRules().effects[before.active?.effect]?.kind;
-    if (!clock.eclipse && kind === "state" && !before.active?.pending && same(before.active, stampOf(clock))) return after;
+    if (!clock.eclipse && kind === "state" && same(before.active, stampOf(clock))) return after;
     await armAhead();
     return after;
 }
