@@ -40,6 +40,8 @@ const ACTION_TIE_TRACE = "remnant.tieForItem";
 const ACTION_REMNANT_EDIT = "remnant.edit";
 const ACTION_SABOTAGE = "project.sabotage";
 const ACTION_UNSABOTAGE = "project.unsabotage";
+/** GM -> primary GM: one change of a project, made in the primary's queue (E36 C1; projects.mjs `applyProjectChange`). */
+const ACTION_PROJECT_CHANGE = "project.change";
 const ACTION_SENDBACK = "token.sendBack";
 const ACTION_ECLIPSE_MOVE = "eclipse.move";
 const ACTION_ARM = "call.arm";
@@ -1441,6 +1443,24 @@ async function handleSabotage(payload, sender, ctx) {
     return { reply: result };
 }
 
+/**
+ * Another GM's change of a project, on the primary (E36 C1): the change cut to the keys the step knows
+ * (projects.mjs `cleanProjectChange`), `by` that GM's claim of whose change it is, which a GM may make -
+ * the kind and the character as named, the user one of this world's or the sender. Answers the step's
+ * result; a change of nothing, or of a project that is gone, carried out nothing.
+ */
+async function handleProjectChange(payload, sender) {
+    const { applyProjectChange, cleanProjectChange } = await import("./projects.mjs");
+    const change = cleanProjectChange(payload.change);
+    if (!change) return { refused: "nothing was carried out: the change named nothing the step knows" };
+    const by = payload.by && typeof payload.by === "object" ? payload.by : {};
+    const result = await applyProjectChange(payload.countdownId, change, {
+        by: { kind: by.kind, userId: game.users.get(by.userId ?? "") ? by.userId : sender.id, actorId: by.actorId ?? null }
+    });
+    if (!result) return { refused: "nothing was carried out: applyProjectChange found no such project" };
+    return { reply: result };
+}
+
 async function handleUnsabotage(payload, sender, ctx) {
     // A GM's alone since E08+E28 C8 (`guardUndoIsTheGms`); the pair is still asked (`unsabotageRefusal`).
     const { undoSabotage } = await import("./projects.mjs");
@@ -2338,6 +2358,20 @@ export const BRIDGE_ACTIONS = table({
         answer: "reply", queue: "project",
         claims: { repairId: "a GM's: undoSabotage (projects.mjs) takes back only the pair the sabotage wrote (unsabotageRefusal)" }
     },
+    [ACTION_PROJECT_CHANGE]: {
+        label: "DRPG.Bridge.what.project.change",
+        // A GM's own change, made by the primary for another GM (E36 C1). No player's browser asks it: a player's
+        // change is one of the four rows above, each with its guards, and a console's packet naming this one is refused.
+        guards: [gmOnly("only a GM changes a project")],
+        sanitize: pick({ countdownId: as.id, change: as.raw, by: as.raw }),
+        run: handleProjectChange,
+        answer: "reply",
+        claims: {
+            countdownId: "a GM's: the primary changes the project it names, or none when it is gone (projects.mjs `applyProjectChange`)",
+            change: "a GM's: cut to the keys the step knows (projects.mjs `cleanProjectChange`), the frozen project's refusal read again in the step",
+            by: "a GM's: whose change it is, as that GM says - a kind of the closed list, a user of this world (else the sender), a character"
+        }
+    },
     [ACTION_SENDBACK]: {
         label: "DRPG.Bridge.what.token.sendBack",
         // `knownSender` is new here (E31): a sender Foundry does not know used to be
@@ -2992,6 +3026,18 @@ export function requestSabotage(targetId, difficulty, { rollId = null, actorId =
  */
 export function requestUndoSabotage(targetId, repairId, actorId = null) {
     return ask(ACTION_UNSABOTAGE, { targetId, repairId, actorId });
+}
+
+/**
+ * A change of a project, asked of the primary GM by another GM's browser (E36 C1; projects.mjs `applyProjectChange`,
+ * which asks it). The primary makes it in its queue and answers the step's result; on the primary itself it is made
+ * here (`local`). Its value is that result.
+ */
+export function requestProjectChange(countdownId, change, by = null) {
+    return ask(ACTION_PROJECT_CHANGE, { countdownId, change, by }, {
+        onPrimary: true,
+        local: () => import("./projects.mjs").then(m => m.applyProjectChange(countdownId, change, { by }))
+    });
 }
 
 /** A player whose token cannot be moved back asks the GM to do it. */

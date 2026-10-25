@@ -2934,6 +2934,7 @@
         "remnant.place": "Leave a trace",
         "remnant.edit": "Edit a trace",
         "project.unsabotage": "Repair",
+        "project.change": "Change a project",
         "token.sendBack": "Send back",
         "eclipse.move": "Eclipse move",
         "note.save": "Pre-session note",

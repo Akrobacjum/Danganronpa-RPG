@@ -26,7 +26,8 @@
  * would have made this file import its facade. Eight names are exported that were
  * not (`DH`, `COUNTDOWNS`, `OBSERVER`, `ownerIdsOfId`, `ownershipMap`,
  * `insidersOf`, `rawCountdown`, `writeCountdown`), because projects.mjs reads
- * them; it does not re-export them, so the module's API is the one it was.
+ * them; it does not re-export them, so the module's API is the one it was. E36 C1
+ * added two more for it, `COUNTDOWNS_KEY` and `writeAllCountdowns`.
  * `liftProjectSecrets` stands last on purpose: R172 reads it by name, a
  * function's cut (`fnSource`) runs on to the next function, and last keeps the
  * cut the text it was before the move. No module state.
@@ -39,6 +40,15 @@ import { projectSecretStore } from "./gm-stores.mjs";
 
 export const DH = "daggerheart";
 export const COUNTDOWNS = "Countdowns";
+/**
+ * THE QUEUE OF EVERY PROJECT CHANGE (E36 C1, 25.10.2026; audit S17-18). The setting's full key, and the key
+ * of the one queue (utils.mjs `serialWrite`) that projects.mjs `applyProjectChange` runs every change of a
+ * project in, on the primary GM: a step there reads the Countdowns setting, changes it and writes it whole
+ * (`writeAllCountdowns`), and the next step reads what it wrote. A writer of Countdowns outside a step queues
+ * on it too (tests-tier0.mjs R977 reads both). The key is a string the queue knows nothing about: E80 C0
+ * built `serialWrite` to know nothing of projects, and the owner kept it so (11.10).
+ */
+export const COUNTDOWNS_KEY = `${DH}.${COUNTDOWNS}`;
 
 /** Raw per-project metadata: { [countdownId]: { room, indirectMurder, scale, glyph } }. */
 export function projectMeta() {
@@ -364,6 +374,16 @@ export async function writeCountdown(countdownId, patch, { replace = [] } = {}) 
     countdowns[countdownId] = merged;
     await game.settings.set(DH, COUNTDOWNS, { ...data, countdowns });
     return merged;
+}
+
+/**
+ * Write the Countdowns setting whole, as a step of `COUNTDOWNS_KEY` built it (E36 C1): `data` is the setting
+ * read in that step with its changes. Called from a step alone (projects.mjs `applyProjectChange`'s); a step
+ * that wrote through `writeCountdown` would read the setting a second time, and R977 counts the writers by name.
+ */
+export async function writeAllCountdowns(data) {
+    await game.settings.set(DH, COUNTDOWNS, data);
+    return data;
 }
 
 /**

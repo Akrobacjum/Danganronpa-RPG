@@ -64780,6 +64780,215 @@ const SCENARIOS = [
             + "Give a Truth Bullet: a trace anywhere, the tab; with no trace on any scene, the tab]");
     }],
 
+    ["a project changes on the primary in one queue (E36-T2): ten +1 by four roads end at 10 in their order, a completion row that throws fails its own caller with nothing written and the next change lands, another key does not wait, what follows a change runs outside the queue, and a GM's project.change lands once while a player's is refused", async () => {
+        /*
+         * E36 C1, 25.10.2026; E36-03 to E36-06, audit S17-18. Every road read the Countdowns setting, changed it and
+         * wrote it whole, outside any queue, so changes landing together read the same bar and the last write won.
+         * projects.mjs `applyProjectChange` makes each change a step of utils.mjs `serialWrite` under
+         * projects-secrecy.mjs `COUNTDOWNS_KEY` on the primary GM. Read, on this primary's browser: (1) ten +1 started
+         * together by four roads (addProgress, and the entry by "call", "reroll" and "system") - each step sees the one
+         * before it, so the bars they report run 0 to 9 in the order they were asked, and it ends at 10; (2) a row of
+         * the completion table planted to throw: its caller's promise rejects with that error, the project is as it
+         * was, and the change queued behind it lands; (3) a step held open on the project's key: another key's step
+         * runs, the change behind the held one waits and lands once it is let go; (4) a planted row whose `after`
+         * never settles until this test lets it: the next change lands meanwhile; (5) a `project.change` packet from
+         * a second GM planted in the user list (as E80 G4's test plants one), judged on this browser as the primary
+         * judges another GM's, lands once and is answered; a connected player's is refused as gmOnly and lands
+         * nothing. What the primary's browser does when another GM's browser sends the packet across a real socket
+         * is scenario 33's (A7, the Assistant's change) and a real table's (the stage's E36-16), not this test's. At 7d123c97 there is no entry: (1) ends under 10
+         * (the writes race), (2) to (4) are addProgress's, unqueued, and (5) names no row.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter"), "a connected player whose packet the GM refuses");
+        const P = await import("./projects.mjs");
+        const S = await import("./projects-secrecy.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const { serialWrite } = await import("./utils.mjs");
+        const player = game.users.find(u => !u.isGM && u.active);
+        const entry = typeof P.applyProjectChange === "function";
+        const change = (id, delta, by = null) => (entry ? P.applyProjectChange(id, { delta }, by ? { by } : {}) : P.addProgress(id, delta));
+        const SECOND = { id: "zE36T2secondGM00", name: "E36 T2 second GM", role: CONST.USER_ROLES.ASSISTANT, isGM: true, active: true };
+        const meta = foundry.utils.deepClone(P.projectMeta());
+        const rows = Array.isArray(P.COMPLETION_EFFECTS) ? P.COMPLETION_EFFECTS : [];
+        const planted = [], made = [], sent = [];
+        const current = id => P.allProjects().find(p => p.id === id)?.current ?? null;
+        const make = async (name, target, extra = null) => {
+            const project = await P.createProject({ name, target });
+            must(project?.id, `could not create "${name}"`);
+            made.push(project.id);
+            if (extra) await P.setProjectMeta(project.id, extra);
+            return project.id;
+        };
+        const judgeAs = (from, packet) => G.judge(B.BRIDGE_ACTIONS, { action: "project.change", requestId: `E36T2${foundry.utils.randomID(8)}`, ...packet }, from,
+            { send: (to, reply) => sent.push({ from, action: reply?.action ?? null, reason: reply?.reason ?? null, changed: reply?.value?.changed ?? null }) });
+        let release = () => {}, open = () => {};
+        const seen = {};
+        game.users.set(SECOND.id, SECOND);
+        try {
+            const ten = await make("SUITE E36 T2 ten", 20);
+            const roads = [() => P.addProgress(ten, 1), () => change(ten, 1, { kind: "call" }),
+                () => change(ten, 1, { kind: "reroll", userId: player.id }), () => change(ten, 1, { kind: "system" })];
+            const results = await Promise.all(Array.from({ length: 10 }, (_, i) => roads[i % 4]()));
+            seen.ten = { froms: results.map(r => r?.from ?? null), end: current(ten) };
+
+            const THROW = { key: "suiteE36Throw", onCrossed: () => { throw new Error("SUITE E36 planted throw"); } };
+            const thrower = await make("SUITE E36 T2 throws", 1, { suiteE36Throw: true });
+            const next = await make("SUITE E36 T2 next", 20);
+            rows.push(THROW);
+            planted.push(THROW);
+            const first = change(thrower, 1).then(() => "returned", err => String(err?.message ?? err));
+            const behind = change(next, 1);
+            const [threw, landed] = await Promise.all([first, behind]);
+            seen.thrown = { threw, thrower: current(thrower), next: landed?.changed ?? null, nextAt: current(next) };
+
+            const gate = new Promise(resolve => { release = resolve; });
+            const held = serialWrite(S.COUNTDOWNS_KEY ?? "daggerheart.Countdowns", () => gate);
+            const waiting = change(next, 1);
+            const other = await serialWrite("suite/E36-T2/another key", () => "ran");
+            await settle();
+            seen.keys = { other, whileHeld: current(next) };
+            release();
+            await held;
+            await waiting;
+            seen.keys.afterRelease = current(next);
+
+            const hold = new Promise(resolve => { open = resolve; });
+            const AFTER = { key: "suiteE36After", onCrossed: () => ({ after: () => hold }) };
+            rows.push(AFTER);
+            planted.push(AFTER);
+            const slow = await make("SUITE E36 T2 slow after", 1, { suiteE36After: true });
+            let slowDone = false;
+            const slowCall = change(slow, 1).then(r => { slowDone = true; return r; });
+            const quick = await change(next, 1);
+            seen.after = { slowDone, quick: quick?.changed ?? null, slowAt: current(slow), nextAt: current(next) };
+            open();
+            await slowCall;
+            seen.after.slowDoneAfter = slowDone;
+
+            const was = current(next);
+            const judged = await judgeAs(SECOND.id, { countdownId: next, change: { delta: 1 }, by: { kind: "gm" } });
+            const gmAt = current(next);
+            await judgeAs(player.id, { countdownId: next, change: { delta: 5 }, by: { kind: "gm" } });
+            seen.packets = { judged: judged !== false, gm: gmAt - was, player: current(next) - gmAt,
+                asked: sent.filter(s => s.from === SECOND.id).map(s => [s.action, s.changed]),
+                refused: sent.filter(s => s.from === player.id).map(s => [s.action, s.reason]) };
+        } finally {
+            release();
+            open();
+            for (const row of planted) if (rows.includes(row)) rows.splice(rows.indexOf(row), 1);
+            game.users.delete(SECOND.id);
+            for (const id of made) await P.deleteProject(id).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, meta);
+            await settle();
+        }
+        equal(stableJson(seen), stableJson({
+            ten: { froms: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], end: 10 },
+            thrown: { threw: "SUITE E36 planted throw", thrower: 0, next: true, nextAt: 1 },
+            keys: { other: "ran", whileHeld: 1, afterRelease: 2 },
+            after: { slowDone: false, quick: true, slowAt: 1, nextAt: 3, slowDoneAfter: true },
+            packets: { judged: true, gm: 1, player: 0, asked: [["bridge.ack", null], ["bridge.done", true]], refused: [["bridge.refused", "gmOnly"]] }
+        }), "a project change is not one step of one queue on the primary [ten +1: the bars each saw, the end; a row's throw: "
+            + "its caller's error, the project, the change behind it; a held step: another key's step, the bar while held and after; "
+            + "an after that does not settle: whether its caller returned, the next change, the bars; the packets: judged, a GM's lands once, "
+            + "a player's lands nothing, the answers]");
+    }],
+
+    ["D40 and the table of what a completion does (E36-T3): a trap's bar taken back under its target disarms it and keeps firedAt, filled again it arms unless it has fired, one receipt per arming; a finished repair thaws its project once and goes; a lowered target crosses; a row's keep holds the project until the character's Reroll bookmark names another roll", async () => {
+        /*
+         * E36 C1, 25.10.2026; E36-07, E36-08, audit S09-14, S09-15; D40 ("Rozbraja (armed: false), a ponowne
+         * dopełnienie uzbraja znowu, chyba że pułapka już raz zadziałała (firedAt)"). traps.mjs `armTrap` wrote
+         * `armed: true, firedAt: null` at every crossing and nothing disarmed a bar taken back, so a trap that had
+         * spoken armed again and lost the record that it had. Read on this primary's browser, each change through
+         * the entry (addProgress and updateProject at 7d123c97, which has none): (1) a watched trap (alone) of
+         * target 2, its trigger and the messages each step posted - filled: armed, one receipt; taken back: not
+         * armed, firedAt null, none; filled again: armed, one; fired (`firedAt` stamped as `stampFired` stamps it)
+         * and taken back: not armed, firedAt kept, none; filled after firing: not armed, kept, none; (2) a project
+         * sabotaged and its repair filled: thawed, the repair gone, one card; (3) a project at 3 of 5 whose target is
+         * lowered to 3: crossed, its done card (S09-15); (4) a row planted with `keep`: filled by a character whose
+         * GMs' bookmark names a roll, the project stays; the bookmark names another, and the primary removes it.
+         */
+        const P = await import("./projects.mjs");
+        const T = await import("./traps.mjs");
+        const S = await import("./gm-stores.mjs");
+        const [killer] = cast(1);
+        const entry = typeof P.applyProjectChange === "function";
+        const change = (id, delta, by = null) => (entry ? P.applyProjectChange(id, { delta }, by ? { by } : {}) : P.addProgress(id, delta));
+        const trigger = id => { const t = P.secretsOf(id).trigger ?? {}; return [Boolean(t.armed), t.firedAt ?? null]; };
+        const exists = id => P.allProjects().some(p => p.id === id);
+        const meta = foundry.utils.deepClone(P.projectMeta());
+        const rows = Array.isArray(P.COMPLETION_EFFECTS) ? P.COMPLETION_EFFECTS : [];
+        const bookmarkWas = foundry.utils.deepClone(S.rerollBookmarkStore.get(killer.id) ?? null);
+        const planted = [], made = [];
+        const seen = {};
+        try {
+            const trap = await P.createProject({ name: "SUITE E36 T3 trap", target: 2, indirectMurder: true, killerId: killer.id, by: killer.id,
+                condition: "SUITE E36 T3", trigger: { kind: "alone", afterDark: false, notBuilder: true } });
+            must(trap?.id, "could not create the trap");
+            made.push(trap.id);
+            seen.trap = [];
+            for (const [label, delta, stamp] of [["filled", 2], ["taken back", -1], ["filled again", 1], ["fired, taken back", -1, { firedAt: 4242 }],
+                ["filled after firing", 1]]) {
+                if (stamp) await P.patchTrigger(trap.id, stamp);
+                const from = game.messages.size;
+                await change(trap.id, delta);
+                await settle();
+                seen.trap.push([label, ...trigger(trap.id), game.messages.size - from]);
+            }
+
+            const work = await P.createProject({ name: "SUITE E36 T3 work", target: 6 });
+            must(work?.id, "could not create a project to sabotage");
+            made.push(work.id);
+            const repairId = (await P.sabotageProject(work.id, 3))?.repair?.id ?? null;
+            must(repairId && P.isFrozen(work.id), "the sabotage made no repair, or froze nothing");
+            made.push(repairId);
+            let from = game.messages.size;
+            await change(repairId, 3);
+            await settle();
+            seen.repair = { frozen: P.isFrozen(work.id), repairGone: !exists(repairId), cards: game.messages.size - from };
+
+            const low = await P.createProject({ name: "SUITE E36 T3 lowered", target: 5, by: killer.id });
+            must(low?.id, "could not create the project whose target is lowered");
+            made.push(low.id);
+            await change(low.id, 3);
+            await settle();
+            from = game.messages.size;
+            const lowered = entry ? await P.applyProjectChange(low.id, { target: 3 }) : await P.updateProject(low.id, { target: 3 });
+            await settle();
+            seen.lowered = { crossed: lowered?.crossed ?? null, cards: game.messages.size - from };
+
+            const KEEP = { key: "suiteE36Keep", onCrossed: () => ({ remove: true, keep: true }) };
+            rows.push(KEEP);
+            planted.push(KEEP);
+            const kept = await P.createProject({ name: "SUITE E36 T3 kept", target: 1 });
+            must(kept?.id, "could not create the kept project");
+            made.push(kept.id);
+            await P.setProjectMeta(kept.id, { suiteE36Keep: true });
+            await S.rerollBookmarkStore.patch(killer.id, { messageId: "SUITEe36T3roll1" });
+            await change(kept.id, 1, { kind: "player", userId: game.user.id, actorId: killer.id });
+            await settle();
+            const stays = exists(kept.id);
+            await S.rerollBookmarkStore.patch(killer.id, { messageId: "SUITEe36T3roll2" });
+            await until(() => !exists(kept.id));
+            seen.keep = { stays, gone: !exists(kept.id) };
+        } finally {
+            for (const row of planted) if (rows.includes(row)) rows.splice(rows.indexOf(row), 1);
+            for (const id of made) await P.deleteProject(id).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, meta);
+            if (S.rerollBookmarkStore.has(killer.id)) await S.rerollBookmarkStore.drop(killer.id);
+            if (bookmarkWas) await S.rerollBookmarkStore.patch(killer.id, bookmarkWas);
+            T.forgetArmedTraps();
+            await settle();
+        }
+        equal(stableJson(seen), stableJson({
+            trap: [["filled", true, null, 1], ["taken back", false, null, 0], ["filled again", true, null, 1],
+                ["fired, taken back", false, 4242, 0], ["filled after firing", false, 4242, 0]],
+            repair: { frozen: false, repairGone: true, cards: 1 },
+            lowered: { crossed: true, cards: 1 },
+            keep: { stays: true, gone: true }
+        }), "a completion does not do what D40 and the table say [the trap at each step: armed, firedAt, messages posted; the repair: "
+            + "frozen, gone, cards; the lowered target: crossed, cards; the kept project: there after its crossing, gone once the bookmark moved on]");
+    }],
+
     ...GRID
 ];
 

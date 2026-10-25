@@ -612,7 +612,9 @@ export const trapPlantStore = defineGmStore({
  * (E05's fix round, S1-m1; projects-secrecy.mjs `PROJECT_SECRET_FIELDS`). `trigger` is split, a stamp per part, so the primary stamping a trap fired
  * and another GM re-arming it keep theirs (projects-secrecy.mjs `patchTrigger`). No old key: the first rows
  * come out of the world by the clause `liftProjectSecrets` (migrate.mjs). A row's subject is its
- * project - its row in projectMeta, or its countdown.
+ * project - its row in projectMeta, or its countdown. Since E36 C1 also `keptFor`, `{ actorId, messageId }`:
+ * a completed project a completion row keeps until that character's Reroll bookmark names another roll
+ * (projects.mjs `COMPLETION_EFFECTS`, `releaseKeptProjects`) - whose roll finished it is the GMs' to know.
  */
 export const projectSecretStore = defineGmStore({
     name: "projectSecrets", key: SETTINGS.projectSecrets,

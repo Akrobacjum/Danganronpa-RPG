@@ -273,6 +273,22 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         a7.after === pool1 + 2 && JSON.stringify(a7.writes) === JSON.stringify(["gm"]) && !a7.logged.length && notFailed(a7answer),
         JSON.stringify(a7));
 
+    /* E36 C1 (25.10.2026; E36-03): a project changes in the primary's queue alone (projects.mjs `applyProjectChange`), and
+       another GM's change goes there by `project.change`. The Assistant asks +1 on the second project: answered with the
+       step's result, the bar one up on the GM, and the Countdowns setting written once, by the GM. */
+    phase("an Assistant GM's project change", { flow: "projects" });
+    const bar7 = await gm.eval(progressOf(proj.two));
+    await clearFailures(gm);
+    written = settingLog.length;
+    const a7p = await ag.eval(`const P = ${projects}; return { primary: ${utils}.isPrimaryGm(),
+        answer: await P.applyProjectChange("${proj.two}", { delta: 1 }, { by: { kind: "gm" } }) };`, { timeout: 30000 });
+    await settle(1500);
+    const a7c = { before: bar7, after: await gm.eval(progressOf(proj.two)), ...a7p, logged: await refusalsLogged(gm, "project.change"),
+        writes: settingLog.slice(written).filter(w => /\.Countdowns$/.test(w.key)).map(w => w.who) };
+    check("A7: an Assistant GM's project change goes to the primary, is made there once, and is answered with what it did",
+        a7c.primary === false && a7c.after.current === bar7.current + 1 && a7c.answer?.changed === true && a7c.answer?.to === bar7.current + 1
+        && JSON.stringify(a7c.writes) === JSON.stringify(["gm"]) && !a7c.logged.length, JSON.stringify(a7c), { flow: "projects" });
+
     phase("an Assistant GM's Level Up offer", { flow: "class-trial" });
     const offerOf = `const L = await import("${repoUrl}/scripts/level-up.mjs"); return L.pendingAdvance(game.actors.get("${IDS.aiko}"))?.kind ?? null;`;
     await clearFailures(gm);

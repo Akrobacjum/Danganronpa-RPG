@@ -214,8 +214,9 @@ export const FLOWS = Object.freeze([
         scenarios: ["12-social", "13-murder-signals", "20-crit-hope", "33-bridge-paths"], status: "covered", stage: "<=1.2.50" },
     // E12 C5 (11.10.2026): 66-rooms's phases A and E (the manager's room, what a player knows of a project) are tagged
     // with this flow and now named.
+    // E36 C1 (25.10.2026): another GM's change of a project, made by the primary (`project.change`): 33's A7, 30's forgery.
     { id: "projects", what: "Projects: progress, sharing, sabotage and its undoing",
-        entry: { bridge: ["project.progress", "project.share", "project.sabotage", "project.unsabotage"] },
+        entry: { bridge: ["project.progress", "project.share", "project.sabotage", "project.unsabotage", "project.change"] },
         scenarios: ["30-security", "33-bridge-paths", "40-flow", "66-rooms"], status: "partial", stage: "E39" },
     // E08+E28 C2 (03.10.2026): the GMs keep each character's last roll and what they did for it; the roller's browser
     // reports what only it saw (`roll.bookmark`). 30 sends forged reports, 33 a legal one. C4a: the Reroll is asked of

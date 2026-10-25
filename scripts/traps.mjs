@@ -375,13 +375,37 @@ export async function rearmTrap(projectId) {
     return true;
 }
 
-/** Start watching. Called when an indirect murder's bar fills. */
+/**
+ * Start watching. Called when an indirect murder's bar fills: projects.mjs's completion row "trigger", in the
+ * step of `applyProjectChange` (E36 C1).
+ *
+ * `firedAt` IS KEPT (D40, E36 C1, 25.10.2026; audit S09-14). This wrote `firedAt: null` with `armed: true`, so a
+ * bar taken back under its target and filled again armed a trap that had already spoken, and erased the one
+ * record that said it had: D40 - "a ponowne dopełnienie uzbraja znowu, chyba że pułapka już raz zadziałała
+ * (firedAt)". A trap that has fired is not armed here (false); only the GM's Rearm (`rearmTrap`) clears it.
+ */
 export async function armTrap(projectId, { condition = "" } = {}) {
     if (!game.user.isGM) return null;
     const trigger = secretsOf(projectId).trigger ?? {};
     if (!trigger.kind) return null;
-    await patchTrigger(projectId, { armed: true, firedAt: null, condition: condition || trigger.condition });
+    if (trigger.firedAt) return false;
+    await patchTrigger(projectId, { armed: true, condition: condition || trigger.condition });
     forgetArmedTraps();
+    return true;
+}
+
+/**
+ * Stop watching, and keep everything else (D40, E36 C1): a finished trap's bar taken back under its target
+ * (a Reroll, the GM's minus) disarms it, `firedAt` kept, so filling it again arms it unless it has spoken.
+ * The completion row "trigger" calls it in the step of `applyProjectChange`. Answers whether it was armed.
+ */
+export async function disarmTrap(projectId) {
+    if (!game.user.isGM) return null;
+    const trigger = secretsOf(projectId).trigger ?? {};
+    if (!trigger.armed) return false;
+    await patchTrigger(projectId, { armed: false });
+    forgetArmedTraps();
+    log(`Trap "${projectId}" stopped watching: its bar is under its target again.`);
     return true;
 }
 
