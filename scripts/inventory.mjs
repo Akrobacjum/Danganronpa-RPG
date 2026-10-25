@@ -12,8 +12,8 @@
 import { MODULE_ID, ITEM_CATEGORIES, ITEM_DURABILITY, LIMIT_GROUPS, TIER_EFFECTS, USABLE_KINDS, USABLE_KIND_EFFECTS, itemIcon,
     BEDROOM_KEY_FLAG }
     from "./config.mjs";
-import { whisperToOwner, log, warn, error } from "./utils.mjs";
-import { trustedWrite, trustedCreate } from "./resource-guard.mjs";
+import { whisperToOwner, whisperToGms, log, warn, error, serialWrite } from "./utils.mjs";
+import { trustedWrite, trustedCreate, trustedDelete } from "./resource-guard.mjs";
 
 /** Flag keys stored on every item this module creates. */
 export const ITEM_FLAGS = {
@@ -625,6 +625,41 @@ export function carriedFor(actor, role) {
  *   still created on `actor`.
  * @returns {Promise<Item|null>}
  */
+/**
+ * THE OLD TIER 3 WORDING ON ITEMS ALREADY MADE (E14 fix e1-G5, 24.10.2026; the review's E14R-08). C5 changed what a tier
+ * 3 usable does (3 of its kind, no choice and no Hope: the owner of 15.10), and `grantItem` writes the effect into an
+ * item's description once, when it is made - so a world upgraded with tier 3 usables made before C5 kept "Restores 2
+ * Health or 2 Sanity - your choice - plus 2 Hope." over a use that restores 3 of the item's kind. Run once at the
+ * primary GM's ready (module.mjs, beside the tables' `refreshTableCopy`): every tier 3 usable, on a sheet or in the sidebar, whose description is the module's own old sentence as `grantItem` wrote
+ * it, in English or in Polish (`OLD_TIER_THREE`), is given today's for its kind (`USABLE_KIND_EFFECTS`, else
+ * `TIER_EFFECTS`), by a GM's ruling. Any other text - a GM's, a table's - is left. Answers how many were rewritten.
+ */
+export const OLD_TIER_THREE = Object.freeze([
+    "Restores 2 Health or 2 Sanity - your choice - plus 2 Hope.",
+    "Przywraca 2 Health albo 2 Sanity - do wyboru - plus 2 Hope."
+]);
+
+export async function refreshTierThreeWording() {
+    if (!game.user?.isGM) return 0;
+    const stale = new Set(OLD_TIER_THREE.map(text => `<p>Tier 3. ${text}</p>`));
+    let rewritten = 0;
+    for (const items of [game.items, ...Array.from(game.actors ?? [], actor => actor.items)]) {
+        for (const item of items ?? []) {
+            if (item.getFlag(MODULE_ID, ITEM_FLAGS.category) !== "usable" || Number(item.getFlag(MODULE_ID, ITEM_FLAGS.tier)) !== 3) continue;
+            if (!stale.has(item.system?.description)) continue;
+            const effect = USABLE_KIND_EFFECTS[item.getFlag(MODULE_ID, ITEM_FLAGS.kind)]?.[3] ?? TIER_EFFECTS.usable?.[3] ?? "";
+            try {
+                await trustedWrite(item, { "system.description": `<p>Tier 3. ${effect}</p>` }, { reason: "gmRuling" });
+                rewritten++;
+            } catch (err) {
+                error(`Could not bring "${item.name}"'s tier 3 wording up to date`, err);
+            }
+        }
+    }
+    if (rewritten) log(`Brought ${rewritten} tier 3 usable(s) up to today's wording.`);
+    return rewritten;
+}
+
 export async function grantItem(actor, {
     name, category, tier, goal = null, description = "", override = false, img = null,
     roles = null, extraFlags = {}, location = LOCATIONS.carried, quiet = false, reason = "gmRuling", ref = null,
@@ -638,19 +673,19 @@ export async function grantItem(actor, {
     // leaving the flag off.
     let overflowRoom = null;
 
-    // Search hands its goal straight through ("healing", "stress" - but also
-    // "crimeTool", which is not a usable kind). A usable granted with no goal
-    // - the GM's console, a season's starting item - asks the item tables for
-    // its name instead, so an Apple says "Restores 1 Health" however it arrived.
-    // Only the two kinds are worth writing down, and only on a usable.
+    // THE TABLES FIRST, THE GOAL FOR A NAME THEY DO NOT KNOW (E14 part 1 C5, 24.10.2026; audit S08-14). The kind
+    // is what the item does, and the item tables are the authority on a name (tables.mjs `usableKindFor`): a name
+    // in tables of one kind takes that kind, whatever goal it arrived with. Until C5 the goal answered first -
+    // a Search's ("healing", "stress" - but also "crimeTool", which is not a usable kind) or the kind a GM picked
+    // in Give - so a First aid kit found "for the nerves" was written "Restores 2 Sanity" and Pills given as
+    // Healing said "Restores 2 Health", each then read by its flag (use-items.mjs `usableKindOf`), against the
+    // tables the GM edits. A name in both kinds' tables ("both", Candy floss) or in none takes the goal; with no
+    // goal either, the item is of no known kind. Only the two kinds are worth writing down, and only on a usable.
     let kind = null;
     if (category === "usable") {
-        kind = USABLE_KINDS[goal] ? goal : null;
-        if (!kind) {
-            const { usableKindFor } = await import("./tables.mjs");
-            const assigned = usableKindFor(name);
-            kind = USABLE_KINDS[assigned] ? assigned : null;
-        }
+        const { usableKindFor } = await import("./tables.mjs");
+        const assigned = usableKindFor(name);
+        kind = USABLE_KINDS[assigned] ? assigned : USABLE_KINDS[goal] ? goal : null;
     }
 
     const room = canCarry(counted ?? actor, category);
@@ -681,11 +716,16 @@ export async function grantItem(actor, {
             overflowRoom = primaryStashRoom(actor, locateActor(actor)?.scene ?? homeScene());
             if (overflowRoom) {
                 location = LOCATIONS.vault;
-                await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Vault.overflowed", {
-                    item: foundry.utils.escapeHTML(name),
-                    category: foundry.utils.escapeHTML(
-                        ITEM_CATEGORIES[category]?.plural ?? category)
-                })}</p>`);
+                // Not to a receiver who must not know (`quiet`, E35 C3; audit S17-15): the whisper went out whatever
+                // `quiet` said, so an unseen Plant into full pockets named itself to its victim. No road passes
+                // `quiet` here since D42 refuses that Plant (inventory.mjs `transferItem`), and the rule holds for any.
+                if (!quiet) {
+                    await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Vault.overflowed", {
+                        item: foundry.utils.escapeHTML(name),
+                        category: foundry.utils.escapeHTML(
+                            ITEM_CATEGORIES[category]?.plural ?? category)
+                    })}</p>`);
+                }
             } else {
                 ui.notifications.warn(game.i18n.format("DRPG.Inventory.full", {
                     category: capacityLabel(category),
@@ -740,7 +780,9 @@ export async function grantItem(actor, {
             [CAP_OVERRIDE]: override,
             /*
              * `quiet` SUPPRESSES THE RECEIVER'S RE-RENDER, and it exists for
-             * exactly one caller: a Plant nobody noticed (`plantOnPerson`).
+             * exactly one caller: a Plant nobody noticed (`plantOnPerson`, by
+             * `transferItem` since E35 C3, which also keeps the overflow's
+             * whisper above and `keepGearShape` below from telling them).
              * Foundry carries this option over its own socket, so the sheet on
              * the victim's screen does not redraw FOR THIS CHANGE - the item is
              * really there, and what is suppressed is the refresh.
@@ -753,7 +795,7 @@ export async function grantItem(actor, {
         });
 
         log(`${actor.name} gained ${name} (${category}${hasTier ? `, Tier ${tier}` : ""}).`);
-        if (item && location === LOCATIONS.carried) await keepGearShape(actor, item);
+        if (item && location === LOCATIONS.carried) await keepGearShape(actor, item, { quiet });
         return item ?? null;
     } catch (err) {
         warn("Could not create the item", err);
@@ -774,8 +816,30 @@ export async function grantItem(actor, {
  * So the arriving item goes into the hand when the shape needs it, and the
  * owner is told which - it changes what the incident engine reads as "the
  * weapon in hand" (`equippedFor`), and that is not a thing to change quietly.
+ *
+ * AND SO NOT AT ALL WHEN IT ARRIVED UNSEEN (`quiet`, E35 C3; audit S08-02). An unseen Plant of a knife into pockets
+ * holding one stowed Gear and an empty hand put the knife in the victim's hand, redrew their sheet and whispered its
+ * name - the Plant told on itself, and the incident read the knife as the weapon they hold. Readying it without the
+ * whisper would still be a hand the victim never moved, and what the incident reads; so the piece stays stowed, the
+ * victim carrying two stowed until they ready one (read in use-items.mjs: `toggleEquipped` readies one and puts the
+ * rest down, `mayStow` stops only a readied one being put away), and the GM's log says so.
+ * NOT SETTLED (E35 fix e1-G3; the review's E35-R2): that shape is the one D4 forbids, and S08-02 left two options
+ * open - ready it without a word, or leave it stowed. This is the second, chosen by the implementer, not the owner;
+ * it is the owner's question E35 Q5 (STAGE.md), and E35-T7 holds this answer until it is given.
  */
-export async function keepGearShape(actor, item) {
+/**
+ * The piece of `group` that goes into the hand when `item` arrives and the shape needs one: `item` itself where it
+ * can be held ready (not broken), else the first working piece stowed beside it, else null (E14 part 1 C5; S08-36).
+ * Pure over the actor's items.
+ */
+export function readyForShape(actor, item, group) {
+    if (item && !isBroken(item)) return item;
+    return (actor?.items ?? []).find(other => other.id !== item?.id && !isBroken(other) && !isStashed(other)
+        && ITEM_CATEGORIES[other.getFlag(MODULE_ID, ITEM_FLAGS.category)]?.limitGroup === group
+        && !other.getFlag(MODULE_ID, "equipped")) ?? null;
+}
+
+export async function keepGearShape(actor, item, { quiet = false } = {}) {
     try {
         const category = item?.getFlag(MODULE_ID, ITEM_FLAGS.category);
         const group = ITEM_CATEGORIES[category]?.limitGroup;
@@ -784,9 +848,25 @@ export async function keepGearShape(actor, item) {
         const { stowedInGroup, isEquipped, toggleEquipped } = await import("./use-items.mjs");
         if (isEquipped(item)) return false;
         if (stowedInGroup(actor, group).length <= max) return false;
-        if (!await toggleEquipped(actor, item)) return false;
+        if (quiet) {
+            log(`${actor.name} now carries "${item.name}" stowed beside other ${LIMIT_GROUPS[group].label}, unseen: not put in a hand.`);
+            return false;
+        }
+        // A BROKEN ARRIVAL CANNOT BE HELD READY (E14 part 1 C5, 24.10.2026; audit S08-36, D4): `toggleEquipped`
+        // refuses it, and two Gear stood stowed - a broken knife taken out of the stash beside one stowed tool and an
+        // empty hand. The working piece stowed beside it goes into the hand instead (`readyForShape`); with none, the
+        // shape is left as it is and the GM's log says so (vault.mjs `retrieve` refuses that case before it moves).
+        const ready = readyForShape(actor, item, group);
+        if (!ready) {
+            log(`${actor.name} now carries "${item.name}" stowed beside other ${LIMIT_GROUPS[group].label}, and nothing of it can be held ready.`);
+            return false;
+        }
+        if (!await toggleEquipped(actor, ready, { shape: true })) return false;
+        // A body is told nothing: its hands did not move, the shape was kept for whoever finds it (E14 fix e1-G3).
+        const { isDeadForGm } = await import("./settings.mjs");
+        if (isDeadForGm(actor)) return true;
         await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Items.autoReadied", {
-            item: foundry.utils.escapeHTML(item.name), group: LIMIT_GROUPS[group].label
+            item: foundry.utils.escapeHTML(ready.name), group: LIMIT_GROUPS[group].label
         })}</p>`);
         return true;
     } catch (err) {
@@ -794,6 +874,306 @@ export async function keepGearShape(actor, item) {
         return false;
     }
 }
+
+/* ==========================================================================
+ * ONE ROAD FOR AN ITEM THAT CHANGES OWNER (E35 C1, 24.10.2026; audit S17-16, S08-37, S08-38; D42 option 1)
+ * --------------------------------------------------------------------------
+ * A give, a body's loot, a stash rifled, a Palm's steal and a Plant each moved an item by a pair of its own -
+ * `grantItem` on the taker, then a bare `delete()` on the giver - five times over (handover.mjs `giveItem`,
+ * `lootBody`; vault.mjs `stealFromVault`, `stealFromPerson`, `plantOnPerson`), each with its own overflow, flags and
+ * messages, and none read `system.quantity`: a stack of three handed over arrived as one and left nothing behind
+ * (S08-37). They meet here, on a GM: one hands-full policy (`TRANSFER_POLICY`), one piece a move, one key rule, one
+ * whisper to the GMs when the giver's piece could not be taken off, one result.
+ *
+ * WHAT MOVES is the GMs' reading when the step runs (sheet-audit.mjs `itemAsHeld`, `actorAsHeld`, after
+ * `judgedFor`), never the document a player's browser may just have written: the count, the flags `preservedFlags`
+ * carries and the taker's hands. So a count a console raised and the GMs put back moves as the GMs hold it.
+ *
+ * ONE CHAIN PER SHEET, BOTH TAKEN (utils.mjs `serialWrite`, E80 C0's; E36 takes it over): a second transfer from the
+ * same sheet waits for the first, then reads the item gone (`missing`), and one into the same sheet waits too, then
+ * counts the hands the first filled (E35 fix e1-G1). Two GMs on two browsers are not chained (E36, E38).
+ *
+ * The callers keep their words and what only they can judge (who may ask, a roll, a stash, an item a player made); the
+ * room, both lives, the phase, the Eclipse and the person are the one gate's since E14 part 1 C1 (`transferRefusal`,
+ * asked first). It adds no reason of WRITE_REASONS: every write here names "gmRuling".
+ * ========================================================================== */
+
+/**
+ * What a full pair of hands does to each mode (D42, the owner's option 1): a give and a Plant are refused - the item
+ * stays with the one giving it - and a loot, a stash rifled and a steal go to the taker's stash, as `grantItem` puts
+ * them, and are refused only where the taker has none. Frisk moves nothing and is no mode (the owner, 13.10).
+ */
+export const TRANSFER_POLICY = Object.freeze({ give: "refuse", loot: "overflow", rifle: "overflow", steal: "overflow", plant: "refuse" });
+
+/** The GMs' line, per mode, when the taker has the piece and the giver could not be relieved of theirs (S08-38: a body's said "handed over"). */
+export const TRANSFER_STUCK = Object.freeze({
+    give: "DRPG.Handover.stuckFor.give", loot: "DRPG.Handover.stuckFor.loot", rifle: "DRPG.Handover.stuckFor.rifle",
+    steal: "DRPG.Handover.stuckFor.steal", plant: "DRPG.Handover.stuckFor.plant"
+});
+
+/**
+ * The codes of the closed list the one gate's refusals are told with (`transferRefusal`'s reasons, R164): a Palm's
+ * browser gives back the action it paid on one of them (action-rolls.mjs `performPalm`; the owner's Q3), since the gate
+ * is asked before the rolls are read. A roll's own refusal, an item no GM decided on and a Plant into full pockets are
+ * none of them.
+ */
+export const TRANSFER_REFUSED = Object.freeze(["cannotNow", "notThere", "missing"]);
+
+/*
+ * THE ONE GATE (E14 part 1 C1, 24.10.2026; audit S08-01, S11-06, S16-30, S08-20; the owner's p10change and 13.10).
+ * Each road kept its own gates until here, and the roads differed: a hand-over asked the room, the Eclipse and both
+ * lives (handover.mjs `verify`), a Palm the room and both lives (vault.mjs), and a body's loot only that the body was
+ * dead (handover.mjs `lootBody`) - a player in their bedroom took the knife off a body across the school, in a Class
+ * Trial or as a dead spectator. Now every move asks this, first in `transferItem` and again where a road must answer
+ * before its own work (a Palm before its rolls are read, Q3; a hand-over's copies, `verify`; a loot before its
+ * trace); the display that greys a body's Take asks it too (anonymity.mjs `buildBodyLoot`). It changes nothing.
+ *
+ * Who acts: the giver of a give and a Plant, the taker of the rest. In every mode, the Eclipse and the Class Trial
+ * refuse, and so does an actor dead for the GMs (settings.mjs `isDeadForGm`, as `stealFromPerson` and `verify` read at
+ * Base). Then per mode:
+ *   give   both in one room (movement.mjs `sameRoom`) and a living receiver - one the GMs alone hold dead refused in
+ *          the words of anything else that cannot be done now (rule D, E05 C10);
+ *   steal, plant  the person gate (frisk.mjs `personActionRefusal`: a Monocub, a Monokuma, a hidden token, oneself,
+ *          a room of the same name on another scene, the asker a side of the running incident), and a target whose
+ *          death `asker` knows refused, a body's road being the loot: one the GMs keep from that player is robbed and
+ *          planted on as a living one (E80 fix sec1-G1; frisk.mjs `knownDeath`);
+ *   loot   the person gate's `{ body: true }`: a dead target, its death known to `asker`, the taker not the body;
+ *   rifle  the stash's own gates are `stealFromVault`'s (the thief stands where the stash is; its owner need not).
+ * `asker` is the user whose request it is (Foundry's sender on the primary), the GM's own when none is named.
+ * Answers an English reason of the bridge's closed list (bridge-guards.mjs `REASON_PATTERNS`, R164), or null; every
+ * one maps to cannotNow, notThere or missing, and none names a death the asker may not know.
+ */
+export async function transferRefusal(from, to, { mode, asker = null } = {}) {
+    if (!TRANSFER_POLICY[mode] || !from?.id || !to?.id) return "no such character";
+    const user = asker ?? game.user;
+    const actor = mode === "give" || mode === "plant" ? from : to;
+    const other = actor === from ? to : from;
+    const { personActionRefusal, knownDeath } = await import("./frisk.mjs");
+    if (mode === "loot") return personActionRefusal(actor, other, { body: true, user });
+    if (mode === "steal" || mode === "plant") {
+        const why = personActionRefusal(actor, other);
+        if (why) return why;
+        return knownDeath(user, other) ? "that cannot be done now" : null;
+    }
+    const { isEclipse, isDeadForGm } = await import("./settings.mjs");
+    const { inClassTrial } = await import("./trial.mjs");
+    if (isEclipse()) return "an Eclipse is running";
+    if (inClassTrial()) return "that waits until the Class Trial is over";
+    if (isDeadForGm(actor)) return "that cannot be done now";
+    if (mode === "give") {
+        const { sameRoom } = await import("./movement.mjs");
+        if (!sameRoom(from, to)) return "the character is not in that room";
+        if (isDeadForGm(to)) return "that cannot be done now";
+    }
+    return null;
+}
+
+/**
+ * Move one piece of `item` from `from` to `to`, on a GM, as `mode` (a key of TRANSFER_POLICY).
+ *
+ * `quiet` is an unseen Plant's, steal's or rifle's: the victim's sheet - the taker's on a Plant, the giver's on a
+ * steal or a rifle - is not redrawn for this write (`render: false`, the mirror of what `grantItem`'s `quiet` does).
+ * On a Plant the victim is the taker, so `grantItem` has it too, which since E35 C3 keeps its overflow whisper and
+ * `keepGearShape` from telling them (S08-02, S17-15), and the key rule tells them nothing; a thief or a rifler is told
+ * of the key they already hold, unseen or not.
+ *
+ * One piece of a stack carries the stack's identity (`preservedFlags`), so the piece moved and the pieces left share
+ * one `drpgItemId` - read in the code, not decided by a test: a trap's plant is found by `grantItem`, which writes a
+ * count of one (action-rolls.mjs, reroll.mjs `settleSearch`).
+ *
+ * Answers one of:
+ *   `{ ok: true, copy, left, keyHeld, stuck }` - `copy` the taker's new item, or the stack of theirs the piece joined
+ *     (null under the key rule), `left` the pieces the giver still holds (null where unknown), `keyHeld` the room of
+ *     a key the taker already held, `stuck` true when the giver's piece could not be taken off, or a copy of a piece
+ *     that changed on the way could not be taken back (the GMs are told either way);
+ *   `{ handsFull: { held, limit, category } }` - refused by the policy, or no stash to overflow into; nothing written;
+ *   `{ missing: true }` - the item is not on the giver, or not where this mode takes it from (a stash for a rifle,
+ *     the hands for the rest): a second ask after the first moved it, or gone while the copy was made (the copy
+ *     taken back, the GMs told);
+ *   `{ failed: true }` - the copy or the key's removal was not made, or the piece no longer carried what its copy
+ *     carried by the time it was taken off (the copy taken back, the GMs told); nothing changed hands;
+ *   `{ refused }` - asked of no mode, or of one sheet to itself, or refused by the one gate (`transferRefusal`, `asker`
+ *     the user whose request it is);
+ *   null on a player's browser.
+ */
+export async function transferItem(from, to, item, { mode, quiet = false, asker = null } = {}) {
+    if (!game.user.isGM) return null;
+    const policy = TRANSFER_POLICY[mode];
+    const id = typeof item === "string" ? item : item?.id;
+    // In the bridge's own form (E35 fix e1-G2; the review's SEC-2): a player's body.loot of their own dead student's
+    // item (takerId = bodyId) reaches here, and lootBody and giveItem pass the reason on to the runner, which says it
+    // by its code (bridge-guards.mjs `REASON_PATTERNS`: "refused"); R164 holds it to the closed list (`DELEGATES`).
+    if (!policy || !from?.id || !to?.id || from.id === to.id || !id) {
+        return { refused: `nothing was carried out: no transfer of that kind (${String(mode)}) between those two` };
+    }
+    // The one gate, before anything is read or written (E14 part 1 C1): whichever road asked, and however it asked.
+    const why = await transferRefusal(from, to, { mode, asker });
+    if (why) {
+        warn(`Refused to move an item from ${from.name} to ${to.name} (${mode}): ${why}.`);
+        return { refused: why };
+    }
+    // BOTH SHEETS CHAINED, in one order (E35 fix e1-G1; the review's E35-R5): on the giver's chain alone two Plants
+    // from two planters into one free hand each read it free, and both went in (E35-T6's "at once": [ok, ok], one over
+    // the limit). The ids sorted, so a transfer each way between two sheets takes the two chains in the same order.
+    const [first, second] = [from.id, to.id].sort();
+    return serialWrite(`transfer/${first}`, () => serialWrite(`transfer/${second}`, async () => {
+        const { itemAsHeld, actorAsHeld, judgedFor, creationRefusal } = await import("./sheet-audit.mjs");
+        // One wait for both students, then each read finds its queue empty: what moves and the hands it lands in are
+        // read in the same moment (E29 fix r2-H17, r2-H18).
+        await judgedFor(from.id, to.id);
+        const held = await itemAsHeld(from, id);
+        const counted = await actorAsHeld(to);
+        const doc = from.items?.get(id) ?? null;
+        if (!held || !doc || isStashed(held) !== (mode === "rifle")) return { missing: true };
+        const category = held.getFlag(MODULE_ID, ITEM_FLAGS.category);
+        if (!category) return { missing: true };
+        const name = held.name;
+        const pieces = piecesOf(held);
+        const hushFrom = quiet && mode !== "plant", hushTo = quiet && mode === "plant";
+        const esc = foundry.utils.escapeHTML;
+
+        /*
+         * ONE PIECE OFF THE GIVER, COUNTED AGAIN AS THE GMS HOLD IT NOW (E35 fix e1-G1; the review's SEC-1). The count
+         * was read once, before the copy, and `pieces - 1` written after it: a use of the giver's (use-items.mjs
+         * `consume`, a lowering the GMs let stand) landing while the copy was made was written over - at 924a58d
+         * (E35-T3 "lowered") three kits, one used and one given, left the giver two and the taker one, four from three.
+         * So the item is read again once every write queued on the giver has been judged (`itemAsHeld`), and the count
+         * written is that one less one, or the item deleted at one. Where the piece has gone meanwhile, or no longer
+         * carries what the copy carries (`carriedAs`: the last kit used is broken, a swing wore it), nothing is taken
+         * and the caller rolls the copy back: at 924a58d (E35-T3 "broke") a kit broken on its way arrived whole and the
+         * broken one was deleted. Read back after the write, because a refused write (a pre-hook's false) resolves as
+         * quietly as one that landed.
+         * WHAT THIS DOES NOT CLOSE: a write of the giver's heard after this read and before this write lands is judged
+         * after it, against a mark that may not hold this write yet - a raise's put-back would then write the old count
+         * over it. The window is this one write's round trip, no longer the copy's; not measured (no test lands a
+         * write inside it).
+         */
+        const takeOne = async ({ copied }) => {
+            const render = hushFrom ? { render: false } : {};
+            try {
+                const now = await itemAsHeld(from, id);
+                const live = from.items?.get(id) ?? null;
+                if (!now || !live || isStashed(now) !== (mode === "rifle")) return { gone: true };
+                if (copied && carriedAs(now) !== carriedAs(held)) return { changed: true };
+                const count = piecesOf(now);
+                if (count > 1) {
+                    await trustedWrite(live, { "system.quantity": count - 1 }, { reason: "gmRuling", ...render });
+                    return Number(from.items?.get(id)?.system?.quantity) === count - 1 ? { left: count - 1 } : { stuck: true, left: count };
+                }
+                await trustedDelete(live, { reason: "gmRuling", ...render });
+                return from.items?.has(id) ? { stuck: true, left: 1 } : { left: 0 };
+            } catch (err) {
+                error(`Could not take "${name}" off ${from.name}`, err);
+                return { stuck: true };
+            }
+        };
+
+        // THE KEY RULE (S08-38, E35-09): a key to a room the taker already holds is not copied - two rows under Room
+        // Keys open one door - and leaves the giver all the same; the taker is told once, unless they are the one who
+        // must not know (an unseen Plant's victim).
+        const keyRoom = held.getFlag(MODULE_ID, BEDROOM_KEY_FLAG);
+        if (keyRoom) {
+            const { keysHeldBy } = await import("./vault.mjs");
+            if (keysHeldBy(to).has(keyRoom)) {
+                const taken = await takeOne({ copied: false });
+                if (taken.gone) return { missing: true };
+                if (!("left" in taken)) return { failed: true };
+                if (!hushTo) {
+                    await whisperToOwner(to, `<p>${game.i18n.format("DRPG.Handover.keyAlreadyHeld", { room: esc(keyRoom) })}</p>`);
+                }
+                log(`${to.name} already held a key to ${keyRoom}; the one from ${from.name} was not copied.`);
+                return { ok: true, copy: null, left: taken.left, keyHeld: keyRoom, stuck: false };
+            }
+        }
+
+        /*
+         * A PIECE JOINS ITS STACK (E35 fix e1-G1; the review's E35-R3). Each piece became a document of its own on the
+         * taker, and a slot of its own: three kits that took one Usable slot on the giver took three on the taker, and
+         * the third was refused into hands that held one other (E35-T3 "piled", at 924a58d: [2,1,1] three times). So a
+         * piece goes onto a document of the taker's the GMs hold carried with the same name and the same carried
+         * identity - the stack's `drpgItemId`, which every piece keeps (`preservedFlags`), its category, tier, broken,
+         * wear, roles, kind and key - its count raised by one as the GMs hold it, and takes no slot; one a player made
+         * that no GM has decided on (`creationRefusal`) is no stack to join. In a stash it is not: a piece arriving in
+         * hands joins hands.
+         */
+        const identity = held.getFlag(MODULE_ID, ITEM_FLAGS.identity);
+        const twin = identity ? counted.items.find(i => i.name === name && !isStashed(i) && i.id !== id
+            && i.getFlag(MODULE_ID, ITEM_FLAGS.identity) === identity && carriedAs(i) === carriedAs(held) && !creationRefusal(to, i.id)) ?? null : null;
+        const toRender = hushTo ? { render: false } : {};
+        let copy = null, joined = null;
+        if (twin && to.items?.get(twin.id)) {
+            const into = to.items.get(twin.id);
+            const had = piecesOf(await itemAsHeld(to, twin.id) ?? twin);
+            try {
+                await trustedWrite(into, { "system.quantity": had + 1 }, { reason: "gmRuling", ...toRender });
+            } catch (err) {
+                error(`Could not add "${name}" to ${to.name}'s stack`, err);
+            }
+            if (Number(to.items?.get(twin.id)?.system?.quantity) !== had + 1) return { failed: true };
+            copy = into;
+            joined = had + 1;
+        } else {
+            const room = canCarry(counted, category);
+            const full = { handsFull: { held: room.held, limit: room.limit, category } };
+            if (!room.ok && policy === "refuse") return full;
+            copy = await grantItem(to, {
+                reason: "gmRuling",
+                name,
+                category,
+                tier: held.getFlag(MODULE_ID, ITEM_FLAGS.tier) ?? null,
+                description: held.system?.description ?? "",
+                img: held.img,
+                // Broken, wear, roles, identity, kind and a key's room, as the GMs hold them.
+                extraFlags: preservedFlags(held),
+                counted,
+                quiet: hushTo
+            });
+            if (!copy) return room.ok ? { failed: true } : full;
+        }
+
+        const taken = await takeOne({ copied: true });
+        if (taken.gone || taken.changed) {
+            // The copy goes back: the piece it was made of is gone or is no longer what it carries.
+            let undone = false;
+            try {
+                if (joined !== null) {
+                    const now = await itemAsHeld(to, copy.id);
+                    await trustedWrite(copy, { "system.quantity": piecesOf(now) - 1 }, { reason: "gmRuling", ...toRender });
+                    undone = Number(to.items?.get(copy.id)?.system?.quantity) === piecesOf(now) - 1;
+                } else {
+                    await trustedDelete(copy, { reason: "gmRuling", ...toRender });
+                    undone = !to.items?.has(copy.id);
+                }
+            } catch (err) {
+                error(`Could not take back the copy of "${name}" from ${to.name}`, err);
+            }
+            await whisperToGms(`<p class="drpg-warning">${game.i18n.format(undone ? "DRPG.Handover.changedMidway" : "DRPG.Handover.changedMidwayKept", {
+                name: esc(name), from: esc(from.name), to: esc(to.name)
+            })}</p>`);
+            log(`"${name}" changed on ${from.name}'s sheet while it went to ${to.name}; ${undone ? "nothing moved" : "the copy could not be taken back"}.`);
+            if (!undone) return { ok: true, copy, left: null, keyHeld: null, stuck: true };
+            return taken.gone ? { missing: true } : { failed: true };
+        }
+        if (taken.stuck) {
+            await whisperToGms(`<p class="drpg-warning">${game.i18n.format(TRANSFER_STUCK[mode], {
+                name: esc(name), from: esc(from.name), to: esc(to.name)
+            })}</p>`);
+            return { ok: true, copy, left: taken.left ?? pieces, keyHeld: null, stuck: true };
+        }
+        return { ok: true, copy, left: taken.left, keyHeld: null, stuck: false };
+    }));
+}
+
+/** A count as the GMs hold it; a document with none, or less than one, is one piece. */
+function piecesOf(held) {
+    return Math.max(1, Math.floor(Number(held?.system?.quantity)) || 1);
+}
+
+/** What a copy carries of an item, as one string: its category and tier and what `preservedFlags` keeps. */
+function carriedAs(held) {
+    return JSON.stringify([held?.getFlag(MODULE_ID, ITEM_FLAGS.category) ?? null, held?.getFlag(MODULE_ID, ITEM_FLAGS.tier) ?? null, preservedFlags(held)]);
+}
+
 
 /**
  * Enforce the carry limits when items arrive by any other route - dragged from

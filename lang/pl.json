@@ -395,7 +395,7 @@
       "ultimatePlaceholder": "to jedno, w czym ta postać jest najlepsza",
       "equipped": "W ręku",
       "groupUsables": "Użytkowe",
-      "groupGear": "Ekwipunek",
+      "groupGear": "Sprzęt",
       "sharedSlots": "Narzędzia zbrodni, narzędzia do sprzątania i narzędzia dzielą między sobą te {n} miejsca.",
       "groupTruthBullets": "Truth Bullets",
       "bulletSortLabel": "Grupuj wg",
@@ -407,6 +407,11 @@
       "bulletsHereRoom": "Pomieszczenie, w którym stoisz.",
       "groupEmpty": "- pusto -",
       "groupKeys": "Klucze do pokoi",
+      "groupOther": "Inne",
+      "otherHintGm": "Nie ma go pod żadnym nagłówkiem: gra nie zna jego kategorii. Usuń go tutaj i daj jeszcze raz w Daj / zabierz przedmioty jako to, czym jest.",
+      "otherRemove": "Usuń ten przedmiot",
+      "otherRemoveAsk": "Usunąć: {item} z karty postaci {actor}? Zniknie z karty na dobre.",
+      "otherHint": "Jeszcze nie ma go pod żadnym nagłówkiem. Poproś GM-a, żeby go przypisał.",
       "biographyPlaceholder": "Kim byli, zanim zaczęła się killing game."
     },
     "Guard": {
@@ -875,7 +880,11 @@
       "stashSent": "Przeczesujesz pokój w poszukiwaniu czegoś, co tu nie pasuje."
     },
     "Items": {
-      "autoReadied": "{item} od razu trafia do ręki: schowany może być tylko jeden {group}.",
+      "autoReadied": "{item} od razu trafia do ręki: z grupy {group} schowana może być tylko jedna rzecz.",
+      "useGone": "{item} nie jest już w twoich rękach. Niczego nie użyto.",
+      "rulingOpen": "Orzeczenie w sprawie: {item} już trwa. Odpowiedz na tę kartę, gdy się skończy.",
+      "rulingGone": "Zamknął: {name} - przedmiot jest zużyty albo nikt go już nie nosi. Niczego nie dano.",
+      "kindFromTables": "Rodzaj z tabel przedmiotów - {item}: {kind}. To on zdecyduje, co przedmiot przywróci.",
       "itemWorks": "Działa - zastosuj efekt",
       "itemNoEffect": "Działa, bez efektu - zużyj",
       "itemRefuse": "Nie działa",
@@ -928,7 +937,8 @@
       "used": "Użyto: {item}.",
       "usedNothing": "Nie ma czego przywracać. Nic ci nie brakowało.",
       "useStashed": "To leży w twojej skrytce. Najpierw to wyjmij.",
-      "stowShape": "Tylko jeden {group} może być schowany. Najpierw weź drugi do ręki albo go wyrzuć.",
+      "stowShape": "Z grupy {group} schowana może być tylko jedna rzecz. Najpierw weź drugą do ręki albo ją wyrzuć.",
+      "deadHands": "{name} nie żyje. To, co jest przy ciele, zostaje tam, do znalezienia.",
       "equipStashed": "To leży w twojej skrytce. Wyjmij to, zanim weźmiesz do ręki.",
       "equipTooltip": "Weź do ręki.",
       "unequipTooltip": "Odłóż.",
@@ -1908,16 +1918,19 @@
       "section": "Skrytka - {room}",
       "stowTooltip": "Schowaj w skrytce (musisz być w pokoju)",
       "takeTooltip": "Wyjmij ze skrytki (musisz być w pokoju)",
-      "notHere": "Musisz stać we własnym pokoju, by sięgnąć do skrytki.",
+      "notHere": "Twoja skrytka jest w: {room} - stań tam, żeby do niej sięgnąć.",
+      "noStashOnScene": "Nie masz skrytki na tej scenie.",
+      "handFirst": "Przedmiotu {item} nie da się wziąć do ręki, a schowany może być tylko jeden {group}. Najpierw weź do ręki sprawny.",
       "noBullets": "Truth Bullets to to, co wiesz, nie rzeczy w skrytce.",
       "full": "{room}: skrytka pełna. Mieści {limit} rzeczy - wyjmij coś, zanim coś włożysz.",
       "overflowed": "Masz pełne ręce, więc {item} trafia do skrytki. Twój limit ({category}) się nie zmienił.",
       "foundInStash": "Ukryte w tym pokoju znajdujesz: {item}.",
       "stole": "Wyjmujesz {item} ze skrytki ({who}).",
+      "rifledAgain": "O tej porze dnia już przeszukałeś skrytkę ({who}). Spróbuj znowu o następnej porze dnia.",
       "noticed": "Ktoś ruszał twoją skrytkę i czegoś w niej brakuje. Nie masz pojęcia, czyje ręce w niej były.",
       "tabStashes": "Skrytki",
       "stashesIntro": "Kto ma skrytkę w którym pokoju i czy jest ukryta. Kliknij komórkę, by przełączać: brak, otwarta, ukryta. Sypialnia daje właścicielowi otwartą skrytkę automatycznie - jej komórka jest zacieniona - i tutaj możesz mu ją odebrać.",
-      "stashesNote": "Otwarta skrytka jest otwarta: każdy stojący w pokoju może ją przejrzeć za darmo. Ukrytą trzeba najpierw znaleźć, przez Search z karą. Skrytka w cudzym pokoju nie daje klucza do niego.",
+      "stashesNote": "Otwarta skrytka jest otwarta: każdy stojący w pokoju może ją przejrzeć za darmo i wziąć jedną rzecz, raz na porę dnia. Ukrytą trzeba najpierw znaleźć: przez Search z karą albo przez Analyze za 16 lub więcej. Skrytka w cudzym pokoju nie daje klucza do niego.",
       "stashCycle": "Kliknij, by przełączać: brak / otwarta / ukryta",
       "stashNone": "Brak skrytki",
       "stashOpen": "Otwarta",
@@ -1933,7 +1946,7 @@
       "manageTitleOn": "Ustawienia pokoi - {scene}",
       "manageIntro": "Wszystko, czym jest pokój, jeden rodzaj faktów na zakładkę. Zastosuj zapisuje każdą zakładkę naraz, niezależnie od tego, która jest widoczna.",
       "manageNote": "Sprzyjająca kategoria daje przewagę każdemu, kto jej tu szuka; zła daje utrudnienie, a kategoria nigdy nie jest jednym i drugim. Pokój bez własnej tabeli spada do puli globalnej, więc niedokończona konfiguracja jest w porządku.",
-      "bedroomsIntro": "Czyja jest każda sypialnia i czy skrytka w niej jest ukryta. Jeden uczeń, jedna sypialnia.",
+      "bedroomsIntro": "Czyja jest każda sypialnia. Jeden uczeń, jedna sypialnia. Czy skrytka jest ukryta, ustawiasz na zakładce Skrytki.",
       "doorsIntro": "Które drzwi są teraz zamknięte i które zaczynają sezon zamknięte. Reset sezonu przywraca każde drzwi do kolumny startowej.",
       "roomRatio": "{open} wspólnych pokoi otwartych na {living} żyjących uczniów: {per} na głowę, wobec {target}, na których zbudowano ten sezon. To {want} pokoi.",
       "searchIntro": "Z czego losuje przeszukanie każdego pokoju, ile ma Search Tokenów i czego sensownie w nim szukać.",
@@ -1977,7 +1990,7 @@
       "tabScenes": "Sceny",
       "fogIntro": "Które pokoje każda postać już odkryła na tej scenie. Pokój, w którym postać stoi, jest zawsze czysty; to dotyczy tylko pokoi, w których już była - pokazywanych jako przyciemniona zasłona zamiast pełnej mgły.",
       "fogUncovered": "{pct}% powierzchni tej sceny nie należy do żadnego regionu pokoju - będzie widoczne jako stała mgła, nie jako luka w ścianie, co zwykle znaczy, że jakiś pokój trzeba jeszcze narysować.",
-      "fogNote": "Odkryj wszystko / Ukryj wszystko zastępują każde pole powyżej dla każdej postaci naraz. Pojedyncze pola to jeden pokój, jedna postać.",
+      "fogNote": "Odkryj wszystko / Ukryj wszystko zaznaczają albo czyszczą każde pole powyżej dla każdej postaci naraz. Nic się nie zmienia, dopóki nie klikniesz Zastosuj. Pojedyncze pola to jeden pokój, jedna postać.",
       "discoverAll": "Odkryj wszystko",
       "hideAll": "Ukryj wszystko",
       "unlockedAnnounce": "Drzwi do: {room} są otwarte.",
@@ -1985,12 +1998,12 @@
       "inspectNote": "Rzeczy wyjmiesz przez Daj / zabierz przedmioty - schowany przedmiot to zwykły przedmiot na karcie właściciela.",
       "rifle": "Przejrzyj skrytkę",
       "rifleTitle": "Skrytka w: {room}",
-      "rifleIntro": "To skrytka <strong>{who}</strong> w: {room}, i nie jest ukryta. Weź jedną rzecz.",
-      "rifleNote": "Za darmo. Ukryta skrytka wymaga Search.",
+      "rifleIntro": "Skrytki, do których tu sięgasz ({room}): <strong>{who}</strong>. Z każdej weź jedną rzecz, raz na porę dnia.",
+      "rifleNote": "Za darmo. Ukryta skrytka, której jeszcze nie znalazłeś, wymaga Search.",
       "noOpenStashHere": "W tym pokoju nie ma otwartej skrytki.",
       "stashEmpty": "Skrytka ({who}) jest pusta.",
       "openStashSection": "Skrytka ({who}) - {room}",
-      "openStashNote": "Nieukryta. Każdy, kto tu stoi, może ją przejrzeć.",
+      "openStashNote": "Z każdej skrytki z tej listy możesz wziąć jedną rzecz, raz na porę dnia.",
       "take": "Weź",
       "keyName": "Klucz - {room}",
       "keyDescription": "Otwiera drzwi do: {room}, należącego do: {owner}. Podziel się kopią, by wpuścić kogoś innego.",
@@ -2002,7 +2015,12 @@
       "whichKey": "Czyj pokój?",
       "giveKeyNote": "Kopia - właściciel zachowuje swój. Wymienione są tylko pokoje, które do kogoś należą: pokój bez właściciela nie ma drzwi do otwarcia.",
       "keyGivenGm": "{actor} ma teraz klucz do: {room}.",
+      "keyTakenGm": "{actor} nie ma już klucza do: {room}. Ten pokój nie należy już do tej postaci.",
+      "keyTakenBack": "Twój klucz do: {room} został zabrany. Ten pokój nie jest już twój.",
+      "keyCopiesGm": "Kopie klucza do: {room} wciąż mają: {holders}. Otwierają też drzwi nowego właściciela; zabierz je ręcznie, jeśli mają odejść razem z pokojem.",
       "noKeysToGive": "Nie ma kluczy do wydania - ta postać ma już klucz do każdej sypialni, która ma właściciela.",
+      "hasEveryKey": "{name} ma już klucz do każdej sypialni, która ma właściciela.",
+      "onlyOwnBedroom": "Jedyna sypialnia z właścicielem należy do: {name}. Nie ma klucza do wydania.",
       "takeKey": "Zabierz klucz do pokoju",
       "noKeysToTake": "{actor} nie ma klucza do niczyjego pokoju.",
       "lockedAtStartColumn": "Zamknięte na start",
@@ -2021,7 +2039,7 @@
       "deathTitle": "Postać umiera",
       "whoDied": "Kto zginął?",
       "keepBullets": "Zachowaj ich Truth Bullets (śmierć spoza killing game)",
-      "deathNote": "Ich Truth Bullets zostają zniszczone, noszone i schowane jednakowo, i tego nie da się cofnąć. Wszystko inne zostaje przy ciele do znalezienia. Zmarli przestają liczyć się jako obecni w pokoju: nie są świadkami, nie przekazują, nie blokują morderstwa.",
+      "deathNote": "Ich Truth Bullets zostają zniszczone, noszone i schowane jednakowo, i tego nie da się cofnąć. Wszystko inne zostaje przy ciele do znalezienia, a zmarli niczego z tego nie ruszają. Zmarli przestają liczyć się jako obecni w pokoju: nie są świadkami, nie przekazują, nie blokują morderstwa.",
       "confirmDeath": "Nie żyją",
       "died": "{name} nie żyje od rozdziału {chapter}.",
       "bulletsGone": {
@@ -2295,14 +2313,28 @@
       "shareNote": "Druga osoba dostaje własną kopię, ty zachowujesz swoją, a tamtej kopii nie wiąże żadna twoja nieudana analiza. Nie kosztuje akcji.",
       "giveNote": "To opuszcza twój ekwipunek na dobre. Limit noszenia odbiorcy wciąż obowiązuje. Bez akcji.",
       "nobodyHere": "Nie ma nikogo innego w: {room}, komu dałoby się cokolwiek przekazać.",
-      "tooFar": "{name} nie jest już z tobą w pokoju. Nic nie zmieniło właściciela.",
-      "recipientDead": "{name} nie żyje. Nic nie zmieniło właściciela.",
+      "notInRoom": "{name} nie stoi w żadnym pokoju. Najpierw przenieś token do pokoju.",
       "theirHandsFull": "{who} nosi już najwięcej, ile może ({category}: {limit}).",
       "failed": "To przekazanie nie doszło do skutku. Powiedz GM-owi.",
-      "stuck": "Przekazano „{name}” od: {who}, ale oryginalnej kopii nie dało się usunąć. Istnieją teraz dwie - skasuj jedną z karty tej osoby.",
+      "stuckFor": {
+        "give": "Przekazanie „{name}” (daje: {from}, dostaje: {to}) się udało, ale nie dało się tego zdjąć z karty: {from}. Jest teraz o jedną sztukę za dużo - usuń ją z karty: {from}.",
+        "loot": "Zabranie „{name}” z ciała (zabiera: {to}, ciało: {from}) się udało, ale nie dało się tego zdjąć z ciała. Jest teraz o jedną sztukę za dużo - usuń ją z karty ciała.",
+        "rifle": "Zabranie „{name}” ze skrytki (zabiera: {to}, skrytka: {from}) się udało, ale nie dało się tego wyjąć ze skrytki. Jest teraz o jedną sztukę za dużo - usuń ją ze skrytki na karcie: {from}.",
+        "steal": "Kradzież „{name}” (kradnie: {to}, okradziony: {from}) się udała, ale nie dało się tego zdjąć z karty: {from}. Jest teraz o jedną sztukę za dużo - usuń ją z karty: {from}.",
+        "plant": "Podrzucenie „{name}” (podrzuca: {from}, komu: {to}) się udało, ale nie dało się tego zdjąć z karty: {from}. Jest teraz o jedną sztukę za dużo - usuń ją z karty: {from}."
+      },
+      "keyAlreadyHeld": "Masz już klucz do: {room}. Nadal masz tylko jeden.",
+      "changedMidway": "Przedmiot „{name}” zmienił się na karcie: {from} w drodze do: {to} - został zużyty, zepsuty albo zniknął. Nic nie zmieniło właściciela.",
+      "changedMidwayKept": "Przedmiot „{name}” zmienił się na karcie: {from} w drodze do: {to} - został zużyty, zepsuty albo zniknął - a kopii nie dało się cofnąć. Jest teraz o jedną sztukę za dużo - usuń ją z karty: {to}.",
       "alreadyHasIt": "Nic nie zmieniło właściciela.",
       "shared": "{who} ma teraz kopię: {name}.",
       "gave": "{name} należy teraz do: {who}.",
+      "gaveOne": {
+        "one": "Jedna sztuka: {name} trafia do: {who}. Zostaje ci jeszcze jedna.",
+        "few": "Jedna sztuka: {name} trafia do: {who}. Zostają ci jeszcze {left}.",
+        "many": "Jedna sztuka: {name} trafia do: {who}. Zostaje ci jeszcze {left}.",
+        "other": "Jedna sztuka: {name} trafia do: {who}. Zostaje ci jeszcze {left}."
+      },
       "receivedBullet": "Podzielono się z tobą dowodem",
       "receivedBulletFrom": "{who} pokazuje ci {name}, a ty zapisujesz kopię.",
       "receivedItem": "Ktoś ci coś przekazał",
@@ -3217,18 +3249,19 @@
         "many": "Nie udało się utworzyć {n} tabel przedmiotów. Zajrzyj do konsoli.",
         "other": "Nie udało się utworzyć {n} tabel przedmiotów. Zajrzyj do konsoli."
       },
-      "whereNote": "Tabele mieszkają w panelu Tabele losowe, w folderze „Danganronpa RPG”. Search czyta je, zanim sięgnie do wbudowanych list modułu.",
+      "whereNote": "Tabele mieszkają w panelu Tabele losowe, w folderze „Danganronpa RPG”. Search w pokoju losuje najpierw z własnych tabel tego pokoju, potem z pul Tier, a na końcu z wbudowanych list modułu.",
       "editorTitle": "Tabele przedmiotów",
       "tabTierPools": "Pule Tier",
       "tabRoomPools": "Pule pokoi",
-      "noTierPools": "Nie ma jeszcze pul Tier. Zainstaluj je na ostatniej zakładce.",
+      "noTierPools": "Nie ma jeszcze pul Tier. Zainstaluj je przyciskiem „Zainstaluj / przeinstaluj” poniżej.",
       "noRoomPools": "Nie ma jeszcze pul pokoi. Nazwij jedną poniżej.",
       "newTierPool": "Nowa pula Tier",
-      "newTierPoolPlaceholder": "DRPG Tools - Tier 2",
-      "newTierPoolNote": "Pulę Tier znajduje się po nazwie, więc musi być nazwana jak jedna z nich: kategoria, potem Tier. Zwykle buduje je za ciebie ostatnia zakładka.",
-      "newTierPoolName": "To nie jest nazwa puli Tier. Pulę Tier znajduje się po nazwie, więc musi zawierać kategorię i Tier.",
+      "newTierPoolPlaceholder": "np. DRPG Tools - Tier 2",
+      "newTierPoolNote": "Pulę Tier nazywa się jej kategorią i jej Tier, tak jak „DRPG Tools - Tier 2”. Zwykle nie tworzy się jej ręcznie: „Zainstaluj / przeinstaluj” poniżej buduje wszystkie.",
+      "newTierPoolForms": "„{name}” to nie pula Tier. Nazwij ją kategorią i Tierem, jedną z nazw: {forms} - gdzie N to Tier od {low} do {high}.",
+      "renameOtherPool": "„{name}” to nazwa innej puli. Ta trzyma przedmioty z „{pool}”: zostaw w nazwie jej kategorię i Tier.",
       "tabNewItem": "Utwórz przedmiot",
-      "installTabNote": "„Utwórz tabele przedmiotów” poniżej buduje domyślny zestaw - jedną tabelę Tier na kategorię. Jeśli już istnieją, wybierasz między zachowaniem swoich a przebudową.",
+      "installTabNote": "„Zainstaluj / przeinstaluj” poniżej buduje domyślny zestaw - jedną tabelę na kategorię i Tier. Jeśli już istnieją, wybierasz między zachowaniem swoich a przebudową.",
       "editorIntro": "Wszystko, co może się trafić przy Search. Wybierz tabelę po lewej, by zobaczyć jej zawartość; formularz poniżej dodaje jeden przedmiot do tylu tabel, ile zaznaczysz.",
       "tableEmpty": "W tej tabeli nie ma jeszcze nic.",
       "removeItem": "Usuń z tej tabeli",
@@ -3247,9 +3280,9 @@
       "noneYet": "Nie ma jeszcze tabel przedmiotów - utwórz domyślny zestaw poniżej.",
       "addItem": "Dodaj przedmiot",
       "tierTargetIs": "Trafia do: {table}. Wyliczone z kategorii i Tier powyżej.",
-      "tierTargetNone": "Nie ma puli Tier dla tej kategorii i Tier - będzie mieszkać tylko w pokojach zaznaczonych poniżej. Zainstaluj pule na ostatniej zakładce.",
+      "tierTargetNone": "Nie ma puli Tier dla tej kategorii i Tier - będzie mieszkać tylko w pokojach zaznaczonych poniżej. Zainstaluj pule na zakładce Pule Tier.",
       "roomTargets": "Tabele pokoi, w których też się pojawia:",
-      "noRoomTables": "Nie ma jeszcze tabel pokoi - utwórz jedną poniżej.",
+      "noRoomTables": "Nie ma jeszcze tabel pokoi - utwórz jedną na zakładce Pule pokoi.",
       "rolesTierOnly": "Dwie role zaczynają się od Tier {tier} - tak tani przedmiot robi jedną rzecz.",
       "rolesNote": "Służy też jako - zaznacz wszystko, co ten wpis potrafi poza własną kategorią. Śrubokręt w Narzędziach, który jest też narzędziem zbrodni, daje przewagę przy ataku i przy pracy nad projektem, a wciąż zajmuje jedno miejsce.",
       "addNote": "Ikona i opis idą razem z nim: kto znajdzie ten przedmiot, dostanie oba na karcie.",
@@ -3264,15 +3297,17 @@
       "changeIcon": "Zmień ikonę tego przedmiotu",
       "newPool": "Nowa tabela pokoju",
       "newPoolPlaceholder": "np. Kuchnia",
-      "newPoolNote": "Tabela pokoju to to, co pokój ma na stanie - wskaż ją pokojowi w Ustawieniach pokoi, kolumna „Losuje z”. Tabele Tier odpowiadają na rzuty i nie da się ich przypisać do pokoi. Tabela o nazwie „«Pokój» - Tier N” odpowiada na ten rzut w tym pokoju jako pierwsza.",
+      "newPoolNote": "Tabela pokoju to to, co pokój ma na stanie - wskaż ją pokojowi w Ustawieniach pokoi, kolumna „Losuje z”. Tabele Tier odpowiadają na rzuty i nie da się ich przypisać do pokoi. Własne tabele pokoju odpowiadają na Search w nim przed pulami Tier, a tabela o nazwie „«Pokój» - Tier N” odpowiada na ten rzut jako pierwsza.",
       "newPoolTierName": "Ta nazwa pasuje do wzorca tabeli Tier („DRPG … - Tier N”) - tabela pokoju potrzebuje własnej nazwy.",
       "newPoolExists": "Tabela o nazwie „{name}” już istnieje.",
+      "presetRoomNoTable": "{room} nie losuje z własnej tabeli. Wskaż mu tabelę w Ustawieniach pokoi, żeby takie znaleziska zostały tam.",
+      "presetRoomTier": "{room} nie ma jeszcze tabeli dla tego Tieru: utwórz „{name}” w zakładce Pule pokoi, żeby znaleziska tego Tieru zostały tam.",
       "poolCreated": "Tabela pokoju „{name}” utworzona. Wskaż ją pokojowi w Ustawieniach pokoi.",
       "renameTable": "Zmień nazwę tabeli",
       "deleteTable": "Usuń tabelę",
       "createTable": "Utwórz tabelę",
       "installAction": "Zainstaluj / przeinstaluj",
-      "renameNote": "Ten moduł znajduje swoje tabele po nazwie. Jeśli to jedna z tabel, z których losuje gra, nierozpoznana nazwa oznacza, że losowania po cichu przestaną ją znajdować.",
+      "renameNote": "Pula Tier nosi nazwę swojej kategorii i Tieru. Tabela pokoju może mieć każdą inną nazwę.",
       "renamed": "Zmieniono nazwę na „{name}”.",
       "deleteConfirm": "Usunąć „{name}” i {n} wpisów w niej? Tego nie da się cofnąć.",
       "deleted": "Usunięto „{name}”.",
@@ -3632,6 +3667,7 @@
       "cardHandsFull": "Masz {item} w ręku i nie ma gdzie tego schować. Zostaje u: {who}.",
       "cardSeen": "Zauważyli.",
       "cardUnseen": "Nikt nie widział.",
+      "cardUnfelt": "Niczego nie poczuli.",
       "caughtTaking": "Widzisz to: {who} zabiera ci {item}.",
       "caughtTrying": "Łapiesz {who} na grzebaniu w twoich kieszeniach. Odchodzą z niczym."
     },
@@ -4548,6 +4584,10 @@
       "plantItem": "Co to jest",
       "plantRoom": "Gdzie czeka",
       "planted": "{item} czeka w: {room}.",
+      "plantFound": "{actor} - znalezione: {item}, przedmiot podłożony w: {room}.",
+      "plantTaken": "Znaleziono: {item}, przedmiot podłożony w: {room}.",
+      "plantBack": "{item} znów czeka w: {room} - znalazca nie mógł tego zabrać.",
+      "plantLost": "Nie dało się odłożyć: {item} - w: {room} czeka już inny podłożony przedmiot. Ten przepadł.",
       "plantUsableNote": "Przychodzi jako to, czego szukał znalazca - to właśnie czyni go zwyczajnym. Więc odpala tylko dla kogoś, kto szukał przedmiotu użytkowego: narzędzia ani broni nikt nie „użyje”.",
       "plantAction": "Podłóż przedmiot",
       "plantSettled": "{name} - przedmiot podłożony."
@@ -4604,7 +4644,7 @@
         "usable": {
           "label": "Użytkowy",
           "plural": "Użytkowe",
-          "hint": "Leczące przywracają Health, uspokajające oczyszczają Sanity. Tier 3 pozwala wybrać."
+          "hint": "Leczące przywracają Health, uspokajające oczyszczają Sanity."
         },
         "crimeTool": {
           "label": "Narzędzie zbrodni",
@@ -4637,7 +4677,7 @@
           "0": "Losowy, z pozoru bezużyteczny przedmiot. Otwarty na kreatywne użycie.",
           "1": "Przywraca 1 Health (leczący) albo 1 Sanity (uspokajający), zależnie od rodzaju.",
           "2": "Przywraca 2 Health (leczący) albo 2 Sanity (uspokajający), zależnie od rodzaju.",
-          "3": "Przywraca 2 Health albo 2 Sanity - do wyboru - plus 2 Hope."
+          "3": "Przywraca 3 Health (leczący) albo 3 Sanity (uspokajający), zależnie od rodzaju."
         },
         "crimeTool": {
           "0": "Losowy, z pozoru bezużyteczny przedmiot.",
@@ -4666,12 +4706,12 @@
         "healing": {
           "1": "Przywraca 1 Health.",
           "2": "Przywraca 2 Health.",
-          "3": "Przywraca 2 Health albo 2 Sanity - do wyboru - plus 2 Hope."
+          "3": "Przywraca 3 Health."
         },
         "stress": {
           "1": "Przywraca 1 Sanity.",
           "2": "Przywraca 2 Sanity.",
-          "3": "Przywraca 2 Health albo 2 Sanity - do wyboru - plus 2 Hope."
+          "3": "Przywraca 3 Sanity."
         }
       },
       "REMNANT_VISIBILITY_LABELS": {
@@ -5341,19 +5381,21 @@
           "effect": "Trzecia osoba opuszcza pokój i nie interweniuje. Może pójść po pozostałych, choć koszt ruchu pewnie ją powstrzyma."
         }
       },
+      "LIMIT_GROUPS": {
+        "gear": {
+          "label": "Sprzęt"
+        }
+      },
       "CLEANUP": {
         "actions": {
           "eraseTrace": {
-            "label": "Usuń ślad",
-            "hint": "Wymaż jeden ślad, który po tobie został. Im trudniej go zobaczyć, tym łatwiej usunąć."
+            "label": "Usuń ślad"
           },
           "misleadingTrail": {
-            "label": "Mylny trop",
-            "hint": "Podłóż Prep Remnant wskazujący na kogoś innego."
+            "label": "Mylny trop"
           },
           "moveBody": {
-            "label": "Przenieś ciało",
-            "hint": "Zanieś ciało gdzie indziej. Zawsze zostawia Evident ślad."
+            "label": "Przenieś ciało"
           }
         },
         "conceal": {
@@ -5777,6 +5819,7 @@
         "overflow": "Licznik Despair overflow",
         "despairOwed": "Despair, który każda pula jest winna za zamiany na Hope",
         "lootTraces": "Co zabrano z każdego ciała, i jego ślad",
+        "rifles": "Którą skrytkę każda postać przetrząsnęła, i o jakiej porze dnia",
         "confusions": "Confusion uzbrojone na postaci, a jeszcze nierzucone",
         "rerollBookmarks": "Ostatni rzut każdej postaci, który cofnąłby Reroll, i to, co zrobili dla niego GM-owie",
         "cleanupAttempts": "Ostatnie sprzątanie każdej postaci, zachowane, by Reroll mógł je cofnąć",

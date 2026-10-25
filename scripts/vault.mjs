@@ -23,22 +23,24 @@
  * put, to be found on the body.
  */
 
-import { MODULE_ID, ITEM_CATEGORIES, BEDROOM_KEY_FLAG, ACTIONS, VAULT_LIMIT, ROOMS_PER_PLAYER }
+import { MODULE_ID, ITEM_CATEGORIES, BEDROOM_KEY_FLAG, ACTIONS, VAULT_LIMIT, ROOMS_PER_PLAYER, LIMIT_GROUPS }
     from "./config.mjs";
-import { ITEM_FLAGS, LOCATIONS, isStashed, canCarry, pickableCategories, capacityLabel } from "./inventory.mjs";
-import { trustedWrite } from "./resource-guard.mjs";
+import { ITEM_FLAGS, LOCATIONS, isStashed, canCarry, pickableCategories, capacityLabel, readyForShape } from "./inventory.mjs";
+import { trustedWrite, trustedDelete } from "./resource-guard.mjs";
 // Static because `keysHeldBy` is synchronous; sheet-audit.mjs reaches nothing that imports this file (R161).
 import { itemsHeldNow, judgedFor } from "./sheet-audit.mjs";
 // The one room lookup. movement.mjs does not reach back into this file.
+// The key rule both this file and the door read (E14 part 1 C2; bedroom-keys.mjs's header).
+import { keyRooms, bedroomShutTo } from "./bedroom-keys.mjs";
 import { locateActor, sceneOfActor, neighbouringRooms, ROOM_FLAGS } from "./movement.mjs";
 // Static because the reader is synchronous. From settings.mjs, which is a leaf
 // - this is one client-scoped boolean, and the note above the function there
 // explains why it stopped living in mastermind.mjs.
-import { iAmTheMastermind, SETTINGS } from "./settings.mjs";
+import { iAmTheMastermind, SETTINGS, isDeceased, isDeadForGm, getClock } from "./settings.mjs";
 import { SEARCH_FLAGS } from "./search-tokens.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 // Static is safe: tables.mjs only reaches back into this file lazily.
-import { isTierPool } from "./tables.mjs";
+import { roomStockTables } from "./tables.mjs";
 import { dialogContent, tableDialog, whisperToOwner, whisperToGms, announce, log, error, plural,
     workingScene, pinFooterAcrossScroll, wireDashboardTabs, esc, isPrimaryGm, forcedDeletion, wirePortraitPickers, forgeAsset } from "./utils.mjs";
 import { alreadyOpen, keepFresh } from "./live.mjs";
@@ -208,30 +210,31 @@ export function keyRoomOf(item) {
  * marked). An item the mark does not hold yet reads with no room (sheet-audit.mjs `ITEM_UNHELD`),
  * so `grantBedroomKey` waits for the student's queued judgements first. A key deleted on the sheet is not on this list in either read: `itemsHeldNow`
  * walks the document's items. A player's browser reads its own document, as it did.
+ *
+ * IN HAND (E14 part 1 C2, 24.10.2026; audit S08-31): a key put away in a stash is not on this list - it opens no door,
+ * here as at the door (bedroom-keys.mjs `keyRooms`, the one rule). Its place is read as the key's room is, held on the
+ * GM (`ITEM_PLACE` is judged: sheet-audit.mjs `placeStands`). `stashed: true` lists the stash's keys too, for the
+ * questions that are not the door's: `grantBedroomKey`'s "already holds one" and the GMs' list of keys to give, so a
+ * student who put their key away is not handed a second one by the next sweep.
  */
-export function keysHeldBy(actor) {
-    const rooms = new Set();
-    for (const item of game.user?.isGM ? itemsHeldNow(actor) : actor?.items ?? []) {
-        const room = keyRoomOf(item);
-        if (room) rooms.add(room);
-    }
-    return rooms;
+export function keysHeldBy(actor, { stashed = false } = {}) {
+    return keyRooms(game.user?.isGM ? itemsHeldNow(actor) : actor?.items ?? [], { stashed });
 }
 
 /**
  * May this character open this room's door?
  *
- * A room nobody owns is not a bedroom and is not locked by this rule. The owner
- * never needs a key to their own room - losing your own key would otherwise
- * lock you out of the one place the guide says is yours.
+ * The door's own rule (bedroom-keys.mjs `bedroomShutTo`, which movement.mjs `bedroomShut` asks; E14 part 1 C2): a room
+ * nobody owns is no bedroom, the owner needs no key, a key in hand opens it and a stashed one does not, and in the
+ * Investigation a dead owner's room opens once the death is published (D15).
  */
 export function mayEnterBedroom(actor, room, scene = null) {
     if (!actor || !room) return true;
     // The scene the caller names, else the room wherever it is drawn (E12 C2a): a key is
     // a room's name, and the camera's scene answered "nobody's" for a bedroom one map over.
     const owner = scene ? vaultOwnerOf(room, scene) : bedroomOwnerAnywhere(room);
-    if (!owner || owner === actor.id) return true;
-    return keysHeldBy(actor).has(room);
+    return !bedroomShutTo({ actorId: actor.id, room, ownerId: owner, keys: keysHeldBy(actor),
+        phase: getClock().phase, ownerDead: Boolean(owner) && isDeceased(game.actors.get(owner)) });
 }
 
 /**
@@ -254,7 +257,8 @@ export async function grantBedroomKey(actor, room, { silent = false, scene } = {
        Room Setup, the ready sweep, the reset, the GMs' item manager and a key's handover (read in
        the code, 10.10.2026). */
     await judgedFor(actor.id);
-    if (keysHeldBy(actor).has(room)) return null;
+    // A key in the student's stash is still theirs (E14 part 1 C2): the sweep makes no second one beside it.
+    if (keysHeldBy(actor, { stashed: true }).has(room)) return null;
 
     const { grantItem } = await import("./inventory.mjs");
     // Named on the key, so it reads as "Kaede's room" rather than "Room 3".
@@ -328,6 +332,94 @@ export async function reconcileBedroomKeys({ silent = true, owners = null } = {}
 
     if (made) log(`Issued ${made} missing bedroom key(s).`);
     return made;
+}
+
+/**
+ * THE OLD OWNER'S KEYS GO WITH THE ROOM (E14 part 1 C2, 24.10.2026; audit S08-11). Room Setup and the sweep above only
+ * ever added keys: a GM who moved Kaede from Room 3 to Room 5 and gave Room 3 to Shuichi left Kaede the key to Room 3,
+ * and she walked into Shuichi's bedroom; nothing told the GM, who had to find the key by hand. `applyRoomRows` hands
+ * this every room whose owner changed in the Apply, with the owner before: each key of theirs to that room - carried or
+ * stashed, since a stashed one would open again once taken out - is taken by a GM's ruling (`trustedDelete`,
+ * "gmRuling"), the GM told who lost which key and the old owner that it was taken back. Read as the GMs hold the
+ * student (`itemsHeldNow` after `judgedFor`), so an item a player's browser wrote a key's room on is not deleted for it.
+ * Kept where the old owner still owns a room of that name on another scene: a key is a room's name, and the sweep
+ * would only hand it back. Keys the old owner shared with others stay theirs (`keyCopiesAfterOwnerLeft`, below).
+ *
+ * ON EVERY ROAD THAT GIVES A ROOM AWAY (E14 fix e1-G2, 24.10.2026; the review's E14R-2). C2 called this from Room
+ * Setup's Apply alone, so `game.drpg.setVaultRoom(room, { owner })`, the console road the GM handbook names, left the
+ * old owner a key that opened the new owner's door. `setVaultRoom` calls it now, and Room Setup writes its rows through
+ * `setVaultRoom`. Tier 2 "a bedroom given away from the console takes the old owner's keys ...".
+ *
+ * @param {{ room: string, from: string, to?: string|null }[]} left  `to`: the new owner, or none
+ * @returns {Promise<number>} how many keys were taken.
+ */
+export async function takeOldOwnersKeys(left) {
+    if (!game.user.isGM) return 0;
+    let taken = 0;
+    for (const { room, from, to = null } of left ?? []) {
+        const old = game.actors.get(from ?? "");
+        if (!old || !room || ownsBedroomNamed(old.id, room)) continue;
+        await judgedFor(old.id);
+        let gone = 0;
+        for (const held of itemsHeldNow(old).filter(item => keyRoomOf(item) === room)) {
+            const item = old.items.get(held.id);
+            if (!item) continue;
+            try {
+                await trustedDelete(item, { reason: "gmRuling" });
+                gone++;
+            } catch (err) {
+                error(`Could not take ${old.name}'s key to ${room}`, err);
+            }
+        }
+        if (gone) {
+            taken += gone;
+            ui.notifications.info(game.i18n.format("DRPG.Vault.keyTakenGm", { actor: old.name, room }));
+            await whisperToOwner(old, `<p>${game.i18n.format("DRPG.Vault.keyTakenBack", { room: esc(room) })}</p>`);
+        }
+        await keyCopiesAfterOwnerLeft(room, old, game.actors.get(to ?? "") ?? null);
+    }
+    if (taken) log(`Took ${taken} bedroom key(s) from owners whose room was given away.`);
+    return taken;
+}
+
+/**
+ * THE COPIES OF THE OLD OWNER'S KEY (E14 fix e1-G2, 24.10.2026; the review's E14R-1, E14R-09, E14R-08). A copy the old
+ * owner gave somebody stays with its holder - whether the copies should go with the room too is the owner's to rule
+ * (STATUS Open) - and a key is a room's name, so it opens the new owner's door. Two things were wrong with that whatever
+ * the ruling: nothing told the GM those keys exist, and each still read "which belongs to" the old owner. So each
+ * character but the new owner who holds a key to the room, carried or stashed, as the GMs hold it (`itemsHeldNow` after
+ * `judgedFor`), is named to the GM, and every key to the room whose text is the module's own for the old owner
+ * (`grantBedroomKey`'s, in this GM's language) is rewritten for the new one by a GM's ruling. A text a GM wrote, or one
+ * written in another language, is left as it is. Answers the holders named.
+ */
+async function keyCopiesAfterOwnerLeft(room, old, owner) {
+    const text = name => `<p>${game.i18n.format("DRPG.Vault.keyDescription", {
+        room: foundry.utils.escapeHTML(room), owner: foundry.utils.escapeHTML(name ?? "-") })}</p>`;
+    const before = text(old.name), after = text(owner?.name);
+    const holders = [];
+    for (const actor of game.actors ?? []) {
+        if (actor.id === old.id || !actor.items?.some(i => i.getFlag(MODULE_ID, BEDROOM_KEY_FLAG) === room)) continue;
+        await judgedFor(actor.id);
+        const keys = itemsHeldNow(actor).filter(item => keyRoomOf(item) === room).map(held => actor.items.get(held.id)).filter(Boolean);
+        if (!keys.length) continue;
+        if (actor.id !== owner?.id) holders.push(actor.name);
+        if (before === after) continue;
+        for (const key of keys.filter(key => key.system?.description === before)) {
+            try {
+                await trustedWrite(key, { "system.description": after }, { reason: "gmRuling" });
+            } catch (err) {
+                error(`Could not rewrite ${actor.name}'s key to ${room}`, err);
+            }
+        }
+    }
+    if (holders.length) ui.notifications.info(game.i18n.format("DRPG.Vault.keyCopiesGm", { room, holders: holders.join(", ") }));
+    return holders;
+}
+
+/** Does this character own a bedroom of this name on any scene? */
+function ownsBedroomNamed(actorId, room) {
+    return Array.from(game.scenes ?? []).some(scene => Array.from(scene.regions ?? [])
+        .some(region => region.name === room && region.getFlag(MODULE_ID, VAULT_FLAGS.owner) === actorId));
 }
 
 /** The RollTable this room draws from, or `null` for the global pool. */
@@ -1026,8 +1118,11 @@ export async function setVaultRoom(room, {
     // The scene the caller names, with no default since E12 C6 (it was the camera's, moved up
     // here from `regionsByName` by E12 C2a). Every region of the name that can be a room is written (`updateRoom`),
     // marked or not: Room Setup lists the named regions so that a GM can make one a room.
-    const region = writablePieces(scene, room).at(-1);
+    const pieces = writablePieces(scene, room);
+    const region = pieces.at(-1);
     if (!region) return null;
+    // The owner before, for the old owner's keys (E14 fix e1-G2: every road that gives a room away takes them).
+    const ownerBefore = flagOver(pieces, VAULT_FLAGS.owner);
 
     const update = {};
     if (owner !== undefined) update[`flags.${MODULE_ID}.${VAULT_FLAGS.owner}`] = owner || null;
@@ -1053,6 +1148,9 @@ export async function setVaultRoom(room, {
     if (!Object.keys(update).length) return null;
 
     await updateRoom(scene, room, update);
+    if (owner !== undefined && ownerBefore && ownerBefore !== (owner || null)) {
+        await takeOldOwnersKeys([{ room, from: ownerBefore, to: owner || null }]);
+    }
     return region;
 }
 
@@ -1181,6 +1279,11 @@ export async function atOwnVault(actor) {
  */
 export async function stow(actor, item) {
     if (!actor || !item) return false;
+    // The dead keep their hands still (E14 part 1 C3; audit S08-12, D15): what is on
+    // the body stays there to be found, a Monocub's too. A death this browser may know
+    // (`isDeadForGm`: the victim's own player knows it before the table); the GMs judge
+    // a write past this as they judge any (sheet-audit.mjs `placeStands`).
+    if (refuseTheDead(actor)) return false;
 
     if (item.getFlag(MODULE_ID, ITEM_FLAGS.category) === "truthBullet") {
         ui.notifications.warn(game.i18n.localize("DRPG.Vault.noBullets"));
@@ -1193,7 +1296,7 @@ export async function stow(actor, item) {
     // over - stamped onto the item so nothing has to work it out again.
     const room = await myStashHere(actor);
     if (!room) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Vault.notHere"));
+        tellNotHere(actor);
         return false;
     }
 
@@ -1239,16 +1342,36 @@ export async function stow(actor, item) {
     return true;
 }
 
+/* WHERE THE STASH IS, NOT "YOUR OWN ROOM" (E14 part 2 C8; audit S08-48): a stash may be in the library as well as in a
+   bedroom, and the line sent the player to their bedroom whatever. `room` is the stash the thing lies in (`retrieve`);
+   with none, every room of this scene where the character keeps one (`stow`), and a sentence of its own when there is
+   no such room. The character's own stashes: nothing here is anybody else's. Exported for the suite (E14 fix e1-G7). */
+export function tellNotHere(actor, room = null) {
+    const rooms = room ? [room] : stashRoomsFor(actor, sceneOfActor(actor)).map(entry => entry.room);
+    ui.notifications.warn(rooms.length
+        ? game.i18n.format("DRPG.Vault.notHere", { room: rooms.join(", ") })
+        : game.i18n.localize("DRPG.Vault.noStashOnScene"));
+}
+
+/** True, and the player told, when `actor` is dead as this browser may know it (`stow`, `retrieve`). */
+function refuseTheDead(actor) {
+    if (!isDeadForGm(actor)) return false;
+    ui.notifications.warn(game.i18n.format("DRPG.Items.deadHands", { name: actor.name }));
+    return true;
+}
+
 /** Take something back out. The carry limit has a say on the way out. */
 export async function retrieve(actor, item) {
     if (!actor || !item || !isStashed(item)) return false;
+    if (refuseTheDead(actor)) return false;
 
     // In the room this particular thing is in - not merely in one of yours.
     // Two stashes and a shared "am I at a stash" test would let a player pull
     // something out of a drawer on the other side of the building.
     const here = await myStashHere(actor);
-    if (!here || stashRoomOfItem(item, actor, sceneOfActor(actor)) !== here) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Vault.notHere"));
+    const at = stashRoomOfItem(item, actor, sceneOfActor(actor));
+    if (!here || at !== here) {
+        tellNotHere(actor, at);
         return false;
     }
 
@@ -1260,6 +1383,18 @@ export async function retrieve(actor, item) {
             limit: room.limit
         }));
         return false;
+    }
+    // ONE IN A HAND, ONE STOWED, NEVER TWO STOWED, ON THE WAY OUT TOO (E14 part 1 C5; audit S08-36, D4). A piece that
+    // would stand stowed past the group's limit with nothing of the group to hold ready - itself broken, every other
+    // stowed piece broken too - stays in the stash; with a working one beside it, `keepGearShape` readies that.
+    const group = ITEM_CATEGORIES[category]?.limitGroup;
+    const maxStowed = group ? LIMIT_GROUPS[group]?.maxStowed : null;
+    if (maxStowed !== null && maxStowed !== undefined) {
+        const { stowedInGroup } = await import("./use-items.mjs");
+        if (stowedInGroup(actor, group).length + 1 > maxStowed && !readyForShape(actor, item, group)) {
+            ui.notifications.warn(game.i18n.format("DRPG.Vault.handFirst", { item: item.name, group: LIMIT_GROUPS[group].label }));
+            return false;
+        }
     }
 
     try {
@@ -1420,7 +1555,27 @@ export async function rifleStashDialog(actor) {
 
     const { requestVaultSteal } = await import("./gm-bridge.mjs");
     const res = await requestVaultSteal({ thiefId: actor.id, ownerId, itemId });
-    return res.ok;
+    // A GM's own click settles as done with the refusal as its value, told already (E14 fix e1-G1).
+    return res.ok && !res.value?.refused;
+}
+
+/**
+ * ONE FREE REACH A TIME OF DAY (E14 part 1 C4, 24.10.2026; audit S08-06, the owner's D15: "jeden rifle na postac na
+ * skrytke na pore dnia"). Until 1.2.83 the window said "Take one thing" and nothing counted: a player at an open
+ * stash clicked Rifle again and again and carried it all off, free and unnoticed. `rifleKey` is a thief's row in the
+ * GMs' store of reaches (gm-stores.mjs `rifleStore`): per stash, so a second stash in the same room is a reach of its
+ * own, and by scene and room, so a same-named room on another map is another stash. `rifleMark` is the time of day
+ * a reach was made in: the season's epoch (`seasonStartedAt`, as `seasonEpoch` reads it), so a reset that keeps the
+ * rows does not carry the old season's first morning into the new one's, and the chapter, session, day and time of
+ * day - not the phase, so an Investigation that opens in the afternoon does not open a stash the afternoon's Daily
+ * Life already went through. Pure, but for `rifleMark`'s default: the clock as it stands.
+ */
+export function rifleKey(thiefId, ownerId, sceneId, room) {
+    return `${thiefId}:${ownerId}:${sceneId ?? ""}:${room}`;
+}
+
+export function rifleMark(clock = getClock()) {
+    return [clock?.seasonStartedAt ?? 0, clock?.chapter ?? 1, clock?.session ?? 0, clock?.day ?? 1, clock?.timeOfDay ?? ""].join(".");
 }
 
 /**
@@ -1443,15 +1598,29 @@ export async function stealFromVault({
     const thief = game.actors.get(thiefId);
     const owner = game.actors.get(ownerId);
     const item = owner?.items?.get(itemId);
+    /*
+     * THE STASH'S OWN REFUSALS ARE TOLD TOO (E14 fix e1-G1, 24.10.2026; the review's E14R-3, E14R-03, E14R-06). Until this
+     * fix each of them below returned nothing and was the GM's log alone: a player whose pick was taken out of the
+     * stash, or hidden, or who walked out between opening the window and pressing Take, got no item and no word, as
+     * the bridge had answered the packet already (S08-20). Each now hands the bridge a reason of the closed list:
+     * `notThere` for a thief standing in no room, `missing` for everything about the stash and the thing - and a stash
+     * of nobody's here, a hidden one not found and a thing not in the stash read alike, so a forged packet learns no
+     * more of a hiding place than that nothing is there. The GM's log keeps which it was. A thief and an owner the
+     * bridge names are characters (`owns`); an owner gone meanwhile is the closed list's own "no such character".
+     * Measured: tier 2 "the rifle's own refusals are told".
+     */
+    if (!thief || !owner) return { refused: "no such character" };
     // Whether it is stashed, and where, is asked below of the item as the GMs hold it (fix r2-H17).
-    if (!thief || !owner || !item) return null;
+    if (!item) return { refused: "no such thing in that stash" };
 
-    // The dead rob nobody. A socket payload is a claim, and this side is the
-    // one that decides - the same reasoning `handover.mjs` applies to a gift.
-    const { isDeadForGm } = await import("./chapter.mjs");
-    if (isDeadForGm(thief)) {
-        error(`Refused a stash theft: ${thief.name} is dead.`);
-        return null;
+    // The dead rob nobody, and nobody rifles a stash in an Eclipse or a Class Trial. A socket payload is a claim, and
+    // this side is the one that decides: the one gate (inventory.mjs `transferRefusal`, mode "rifle"; E14 part 1 C1),
+    // its refusal told to the thief by its code. The stash's own conditions are below.
+    const { transferRefusal } = await import("./inventory.mjs");
+    const barred = await transferRefusal(owner, thief, { mode: "rifle" });
+    if (barred) {
+        error(`Refused a stash theft by ${thief.name}: ${barred}.`);
+        return { refused: barred };
     }
 
     /*
@@ -1476,7 +1645,10 @@ export async function stealFromVault({
         return null;
     };
 
-    if (!where?.room) return refuse("they are not standing in any room");
+    if (!where?.room) {
+        refuse("they are not standing in any room");
+        return { refused: "the character is not standing in any room" };
+    }
 
     /*
      * "IS THERE A STASH OF THEIRS HERE", not "is this their bedroom".
@@ -1488,7 +1660,8 @@ export async function stealFromVault({
      */
     const entry = stashIn(where.room, owner.id, where.scene);
     if (!entry) {
-        return refuse(`"${where.room}" holds no stash of ${owner.name}'s`);
+        refuse(`"${where.room}" holds no stash of ${owner.name}'s`);
+        return { refused: "no such stash where the character stands" };
     }
 
     /*
@@ -1525,31 +1698,32 @@ export async function stealFromVault({
         const { isMastermind } = await import("./mastermind.mjs");
         if (!isMastermind(thief)
             && !hasFoundStash(thief, where.room, owner.id, where.scene)) {
-            return refuse("that stash is concealed and has to be found first");
+            // Told as a stash nobody has here: the hiding place is not named to one who has not found it.
+            refuse("that stash is concealed and has to be found first");
+            return { refused: "no such stash where the character stands" };
         }
     }
-
-    const { grantItem, preservedFlags } = await import("./inventory.mjs");
 
     /*
      * THE ITEM AS THE GMS HOLD IT (E29 fix r2-H17, 06.10.2026): once every write queued on the owner has been judged,
      * its place, category, tier, roles, kind, broken and wear as the sheet audit's mark holds them (sheet-audit.mjs
      * `itemsAsHeld`, which says why the wait is enough here) - so neither a place nor roles, a tier or a mend the
-     * owner's console wrote a moment before decide the theft or ride on the thief's copy. Read once, last, with no
-     * await between the read and the grant: the two checks of where it lies moved down to it. The deletion is the
-     * document's. The thief's hands are counted as the GMs hold them too, read with it after one wait for both
-     * (fix r2-H18, handover.mjs `giveItem`).
+     * owner's console wrote a moment before decide the theft. The gates below read it so; what moves, and the thief's
+     * hands it is counted against (fix r2-H18), are read again by inventory.mjs `transferItem` after its own wait.
      */
-    const { itemAsHeld, actorAsHeld, judgedFor, creationRefusal } = await import("./sheet-audit.mjs");
+    const { itemAsHeld, judgedFor, creationRefusal } = await import("./sheet-audit.mjs");
     await judgedFor(owner.id, thief.id);
     const held = await itemAsHeld(owner, item.id);
-    const counted = await actorAsHeld(thief);
-    if (!held || !isStashed(held)) return null;
+    if (!held || !isStashed(held)) {
+        refuse(`"${item.name}" is not in a stash of ${owner.name}'s`);
+        return { refused: "no such thing in that stash" };
+    }
 
     // And the thing has to be in THAT stash, not merely in one of theirs
     // somewhere on the map - the same distinction `retrieve` makes.
     if (stashRoomOfItem(held, owner, where.scene) !== where.room) {
-        return refuse(`"${held.name}" is not in the stash in "${where.room}"`);
+        refuse(`"${held.name}" is not in the stash in "${where.room}"`);
+        return { refused: "no such thing in that stash" };
     }
     // An item the owner's player made that no GM has decided on yet is taken by nobody, and the thief told (E29 fix
     // r2-H21, sheet-audit.mjs `creationRefusal`).
@@ -1559,34 +1733,62 @@ export async function stealFromVault({
         return { refused: undecided };
     }
 
-    const copy = await grantItem(thief, {
-        reason: "gmRuling",
-        name: held.name,
-        category: held.getFlag(MODULE_ID, ITEM_FLAGS.category),
-        tier: held.getFlag(MODULE_ID, ITEM_FLAGS.tier) ?? null,
-        description: held.system?.description ?? "",
-        img: held.img,
-        // Stealing a ruined thing out of somebody's drawer does not mend it -
-        // and hiding one there and having it lifted was the obvious way to
-        // launder a broken murder weapon back into a working one.
-        extraFlags: preservedFlags(held),
-        counted
-    });
-    if (!copy) {
-        // The thief is told, or the Search card that follows says "what comes
-        // out settles in a moment" and nothing ever does (ROLL-10).
+    /*
+     * ONCE A TIME OF DAY (E14 part 1 C4; D15). The drawer's free route only: a Search's find (`viaSearch`, which the
+     * bridge reads off the GMs' record of the Search's roll - gm-bridge.mjs `searchTheftOf`) paid an action for its
+     * reach, and neither asks the count nor writes it. The Mastermind is counted as anyone is: their exception is the
+     * hiding place, not the hand. Asked after every wait above and stamped with no wait between, so of two reaches
+     * served at once on one GM the second finds the first's stamp (read in the code; no test drives two at once); the
+     * stamp is taken off again when nothing came out, so a reach that moved nothing - full hands and no stash, a piece
+     * already gone - costs nothing (tier 2 E35-T10 rifles a stash into full hands, then again with a stash). The thief
+     * is told `alreadyDone` (tier 2 E14-T5).
+     */
+    const { rifleStore } = await import("./gm-stores.mjs");
+    const reach = viaSearch ? null : rifleKey(thief.id, owner.id, where.scene?.id, where.room);
+    if (reach) {
+        await rifleStore.whenHydrated();
+        const mark = rifleMark();
+        if (rifleStore.get(reach)?.at === mark) {
+            refuse("that stash has been gone through already this time of day");
+            /* The code's words are the closed list's, "That has already been settled.", which say neither what nor when
+               (E14 fix e1-G1; the review's E14R-04): the thief's player is whispered both, beside the code. */
+            await whisperToOwner(thief, `<p>${game.i18n.format("DRPG.Vault.rifledAgain",
+                { who: foundry.utils.escapeHTML(owner.name) })}</p>`).catch(() => {});
+            return { refused: "that stash has been gone through already this time of day" };
+        }
+        // The store's own copy takes the row as `patch` is called, before its save is awaited.
+        await rifleStore.patch(reach, { at: mark });
+    }
+    const unreach = async () => { if (reach && rifleStore.get(reach)?.at === rifleMark()) await rifleStore.drop(reach); };
+
+    /*
+     * ON THE ONE ROAD (E35 C3; S17-16, S08-37, S08-34, S08-38): the copy, the count, the flags it carries - a ruined
+     * thing lifted out of a drawer stays ruined, or hiding one there and having it lifted would launder a broken
+     * murder weapon - and the hands it lands in are inventory.mjs `transferItem`'s. Full hands put it in the thief's
+     * own stash (TRANSFER_POLICY.rifle), and only a thief with none is refused; one piece of a stack leaves the
+     * stash; a key to a room the thief already holds leaves it and is not copied, the thief told; a piece the stash
+     * keeps after the thief has its copy is told to the GMs. Unseen unless clumsy (`quiet`): the owner's open sheet
+     * does not redraw for the piece leaving, as a Palm's unseen steal's does not (S08-34).
+     */
+    const { transferItem } = await import("./inventory.mjs");
+    const name = held.name;
+    const moved = await transferItem(owner, thief, held, { mode: "rifle", quiet: !clumsy });
+    if (!moved?.ok) await unreach();
+    // Refused by the one gate on its second asking (the lights went out meanwhile): told by its code, not as full hands.
+    if (moved?.refused) return { refused: moved.refused };
+    // Gone by its turn - another reach for the same piece took it first: told as a thing no longer there (E14 fix e1-G1).
+    if (moved?.missing) return { refused: "no such thing in that stash" };
+    if (!moved?.ok) {
+        // Full hands and no stash of their own, or not written: the thief is told, or the Search card that follows
+        // says "what comes out settles in a moment" and nothing ever does (ROLL-10).
         await whisperToOwner(thief, `<p>${game.i18n.localize("DRPG.Vault.handsFull")}</p>`).catch(() => {});
         return null;
     }
-
-    try {
-        await item.delete();
-    } catch (err) {
-        error("Could not remove the stolen item from the stash", err);
-    }
+    // What the thief holds of it now: the copy, or under the key rule the key they already had.
+    const copy = moved.copy ?? thief.items.find(i => i.getFlag(MODULE_ID, BEDROOM_KEY_FLAG) === moved.keyHeld) ?? null;
 
     await whisperToOwner(thief, `<p>${game.i18n.format("DRPG.Vault.stole", {
-        item: foundry.utils.escapeHTML(item.name),
+        item: foundry.utils.escapeHTML(name),
         who: foundry.utils.escapeHTML(owner.name)
     })}</p>`);
 
@@ -1620,9 +1822,9 @@ export async function stealFromVault({
         }
     }
 
-    log(`${thief.name} took "${item.name}" from ${owner.name}'s stash`
+    log(`${thief.name} took "${name}" from ${owner.name}'s stash`
         + `${clumsy ? " and was clumsy enough to leave it showing" : ""}.`);
-    return copy;
+    return copy ?? true;
 }
 
 
@@ -1670,27 +1872,18 @@ export function pocketsFrom(items, { undecided = null } = {}) {
 }
 
 /**
- * Whether `victim` of a Palm is a body the GMs keep from `asker` (E80 fix sec1-G1, the review's sec-1, the same class on
- * Base's Palm roads; the owner's Q8, option A, 20.10.2026): dead for the GMs (`isDeadForGm`), not published
- * (`isDeceased`), and a death `asker` may not know (incident-store.mjs `knowsOfDeath`: not a GM, not in the row's
- * `known`, not the body's owner). Such a victim is taken from and planted on as a living one is, on the same dice, so the
- * thief's or planter's side reads as at a living victim; only the victim's card changes, its words to the GMs alone
- * (`tellPalmVictim`). With no asker (a GM's own Palm, a test calling here directly) nobody is kept from it: a body is
- * refused as before.
- */
-async function bodyKeptFrom(asker, victim) {
-    if (!asker || asker.isGM) return false;
-    const { isDeceased } = await import("./chapter.mjs");
-    if (isDeceased(victim)) return false;
-    const { knowsOfDeath } = await import("./incident-store.mjs");
-    return !knowsOfDeath(asker, victim.id);
-}
-
-/**
  * The card a Palm's victim reads when it noticed (`seen`): veiled (utils.mjs `whisperToOwner(..., { veiled: true })`),
  * so its document is addressed to every browser in nobody's voice, with the `stolen` sound for its reader. At a body the
- * GMs keep (`bodyKeptFrom`) the same document is posted, its words to the GMs alone (`whisperToGms`): the body feels
+ * GMs keep from the asker the same document is posted, its words to the GMs alone (`whisperToGms`): the body feels
  * nothing and no player reads it, and every browser gets the documents a living victim's Palm posts (E80 fix sec1-G1).
+ *
+ * A BODY THE GMS KEEP FROM THE ASKER (E80 fix sec1-G1, the review's sec-1; the owner's Q8, option A, 20.10.2026): dead
+ * for the GMs, not published, and a death the asking user may not know (incident-store.mjs `knowsOfDeath`: not a GM,
+ * not in the row's `known`, not the body's owner). Such a victim is taken from and planted on as a living one is, on
+ * the same dice, so the thief's or planter's side reads as at a living victim; only the victim's card changes. Since
+ * E14 part 1 C1 that is the one gate's reading (inventory.mjs `transferRefusal`, frisk.mjs `knownDeath`): a dead victim
+ * it lets through is one kept from the asker, and one the asker knows dead - a GM's own Palm, with no asker, knows
+ * every death - is refused, its road being the loot.
  */
 async function tellPalmVictim(victim, html, { body = false } = {}) {
     const card = { veiled: true, flags: { [MODULE_ID]: { sfx: "stolen" } } };
@@ -1717,7 +1910,7 @@ async function tellPalmVictim(victim, html, { body = false } = {}) {
  * @param {boolean} [options.unseenCritical]
  * @param {object} [context]
  * @param {User|null} [context.asker]     The user whose packet asked (gm-bridge.mjs `handleSteal`): a body the GMs keep
- *   from that user is robbed as a living victim is (`bodyKeptFrom`).
+ *   from that user is robbed as a living victim is (inventory.mjs `transferRefusal`).
  */
 export async function stealFromPerson({
     thiefId, victimId, itemId = null,
@@ -1734,32 +1927,24 @@ export async function stealFromPerson({
         return null;
     };
 
-    // The dead neither rob nor are robbed. Looting a body is a different action
-    // with different rules - see `requestBodyLoot` - and routing it through here
-    // would let a corpse be picked over from the far side of a Shadow roll.
-    // Save a body the GMs keep from the asker (E80 fix sec1-G1; the owner's Q8,
-    // option A): its thief reads what a living victim's reads, as anything else
-    // would tell that player the body is one (`bodyKeptFrom`).
-    const { isDeadForGm } = await import("./chapter.mjs");
-    if (isDeadForGm(thief)) return refuse("they are dead");
-    const body = isDeadForGm(victim);
-    if (body && !(await bodyKeptFrom(asker, victim))) return refuse(`${victim.name} is dead; that is looting, not theft`);
-
     /*
-     * AND YOU HAVE TO BE STANDING NEXT TO THEM.
-     *
-     * Both placed by `locateActor`, never by the camera: this runs on a GM's
-     * client, which is usually looking at a different scene from the theft.
-     * `sameRoom` since E12 C3 (11.10.2026; audit S08-39): the names alone were
-     * compared, so a victim in another scene's room of the same name could be
-     * robbed from here.
+     * THE ONE GATE, BEFORE THE ROLLS ARE READ (E14 part 1 C1; audit S16-30, S08-20; the owner's Q3). The dead neither
+     * rob nor are robbed - looting a body is a different action with different rules, see `requestBodyLoot` - save a
+     * body the GMs keep from the asker, whose thief reads what a living victim's reads (`tellPalmVictim`); and you
+     * have to be standing next to them, as the GMs read both (scene, floor and room: E12 C3, audit S08-39), neither a
+     * Monocub nor a Monokuma, the victim on a token the GMs have not hidden, no Eclipse, no Class Trial, the thief no
+     * side of the running incident: inventory.mjs `transferRefusal`, mode "steal", which `transferItem` asks again. Its
+     * refusal is handed back to be told by its code, and the thief's browser gives back the action it paid (action-rolls
+     * `performPalm`): nothing was read of the rolls. Until C1 each refusal here was the GM's log alone.
      */
-    const { locateActor, sameRoom } = await import("./movement.mjs");
-    const here = locateActor(thief);
-    if (!here?.room) return refuse("they are not standing in any room");
-    if (!sameRoom(thief, victim)) {
-        return refuse(`${victim.name} is not in "${here.room}"`);
+    const { isDeadForGm } = await import("./chapter.mjs");
+    const { transferRefusal } = await import("./inventory.mjs");
+    const why = await transferRefusal(victim, thief, { mode: "steal", asker });
+    if (why) {
+        refuse(why);
+        return { refused: why };
     }
+    const body = isDeadForGm(victim);
 
     const def = ACTIONS.palm;
     const success = Boolean(isCritical) || Number(total) >= def.threshold;
@@ -1782,17 +1967,15 @@ export async function stealFromPerson({
      * victim's items once every write queued on them has been judged, each with
      * its place, category, tier, roles, kind, broken and wear as the sheet
      * audit's mark holds them (sheet-audit.mjs `itemsAsHeld`, which says why the
-     * wait is enough here), in the order `carriedInCategory` gave. Read once,
-     * with no await between the read and the grant; the deletion is the
-     * document's. The thief's hands are counted as the GMs hold them too,
-     * read with them after one wait for both (fix r2-H18, handover.mjs
-     * `giveItem`). The pool is `pocketsAsHeld`'s since E80 part 2 C1, the one a
-     * Frisk lists.
+     * wait is enough here), in the order `carriedInCategory` gave. The pool is
+     * `pocketsAsHeld`'s since E80 part 2 C1, the one a Frisk lists, and the
+     * only one a theft reads: what moves and the thief's hands it is counted
+     * against (fix r2-H18) are read again, by id, by inventory.mjs
+     * `transferItem` after its own wait (E35 C3; the owner, 13.10: no further
+     * copy of the pool).
      */
-    const { preservedFlags, grantItem } = await import("./inventory.mjs");
-    const { actorAsHeld, creationRefusal } = await import("./sheet-audit.mjs");
+    const { creationRefusal } = await import("./sheet-audit.mjs");
     const pool = await pocketsAsHeld(victim, thief);
-    const counted = await actorAsHeld(thief);
 
     let item = null;
     if (success && pool.length) {
@@ -1815,57 +1998,45 @@ export async function stealFromPerson({
     // it was noticed is still a live question. The two whispers below say so.
     const empty = success && !pool.length;
 
-    let copy = null;
-    let handsFull = false;
+    /*
+     * ON THE ONE ROAD (E35 C3; S17-16, S08-37, S08-38): the copy, the count, the
+     * flags it carries - a stolen broken thing stays broken, a stolen crowbar
+     * is still a weapon - and the hands it lands in are inventory.mjs
+     * `transferItem`'s. Full hands put it in the thief's own stash
+     * (TRANSFER_POLICY.steal), and only a thief with none comes away with
+     * nothing, the item staying where it is; one piece of a stack moves; a key
+     * to a room the thief already holds leaves the victim and is not copied.
+     *
+     * THE QUIET HALF IS STILL ONE OPTION (`quiet`, unseen): the piece leaves
+     * the victim with `render: false`, which travels with the write over
+     * Foundry's own socket, so their open sheet does not redraw for THIS
+     * change. The item has really gone - they cannot use it, give it away or
+     * find it again - and what is suppressed is the redraw, not the fact. A
+     * sheet redraws for a great many other reasons (a resource moving,
+     * Despair, an incident starting), so the row can come off the screen a
+     * moment later: not "they will never see", but "they will not see because
+     * of this" - trap 90. Clicking the stale row is handled where the rows are
+     * drawn (trap 91). When they ARE told, the render goes ahead: a suppressed
+     * refresh next to a whisper naming the thief is a way of losing one of the
+     * two messages.
+     */
+    let moved = null;
     if (item) {
-        copy = await grantItem(thief, {
-            reason: "gmRuling",
-            name: item.name,
-            category: item.getFlag(MODULE_ID, ITEM_FLAGS.category),
-            tier: item.getFlag(MODULE_ID, ITEM_FLAGS.tier) ?? null,
-            description: item.system?.description ?? "",
-            img: item.img,
-            // A stolen broken thing stays broken, and a stolen crowbar is still
-            // a weapon. Same reasoning as the stash theft directly above.
-            extraFlags: preservedFlags(item),
-            counted
-        });
-
-        if (copy) {
-            try {
-                /*
-                 * THE QUIET HALF, AND IT IS ONE OPTION ON ONE CALL.
-                 *
-                 * `render: false` travels with the deletion over Foundry's own
-                 * socket, so the victim's open sheet does not redraw for THIS
-                 * change. The item has really gone - they cannot use it, give
-                 * it away or find it again - and what is suppressed is the
-                 * redraw, not the fact.
-                 *
-                 * A sheet redraws for a great many other reasons (a resource
-                 * moving, Despair, an incident starting), so the row can come
-                 * off the screen a moment later. That is the promise being made
-                 * and it is the honest one: not "they will never see", but
-                 * "they will not see because of this" - trap 90. Clicking the
-                 * stale row is handled where the rows are drawn (trap 91).
-                 *
-                 * When they ARE told, there is nothing to hide and the render
-                 * goes ahead: a suppressed refresh next to a whisper naming the
-                 * thief is just a way of losing one of the two messages.
-                 */
-                await victim.items.get(item.id).delete({ render: seen });
-            } catch (err) {
-                error("Could not take the stolen item off its owner", err);
-            }
-        } else {
-            // The carry limit refused it. The item stays where it is - the
-            // alternative is deleting somebody's property to make room for a
-            // copy that was never created.
-            handsFull = true;
-        }
+        const { transferItem } = await import("./inventory.mjs");
+        moved = await transferItem(victim, thief, item, { mode: "steal", quiet: !seen, asker });
+        /* The one gate asked again by the move refused it: the two parted, or the phase moved on, while the dice were
+           read. Nothing moved and nobody is told of a hand. AFTER THE ROLLS (E14 fix e1-G4; the review's E14R-07): the
+           owner's Q3 gives the action back for a refusal before the rolls are read, and this one comes after - the dice
+           were read and paid out. Told as nothing carried out (the closed list's `refused`), not by the gate's code, so
+           the thief's browser, which refunds on the gate's codes (action-rolls.mjs `TRANSFER_REFUSED`), keeps it spent;
+           the GM's log keeps why. Read in the code: no test parts the two between the two askings. */
+        if (moved?.refused) return { refused: `nothing was carried out: ${moved.refused}` };
     }
+    // Not written (`failed`) is read as full hands, as a refused copy was before: the item stays where it is. Gone by
+    // its turn (`missing`, a second hand after the same piece) comes away empty.
+    const handsFull = Boolean(moved?.handsFull || moved?.failed);
 
-    const took = Boolean(copy);
+    const took = Boolean(moved?.ok);
 
     // The thief always learns what happened to them, including whether they
     // were noticed - that is what the Shadow roll was for.
@@ -1934,7 +2105,7 @@ export async function stealFromPerson({
  * @param {number} options.unseenTotal  The Shadow roll.
  * @param {object} [context]
  * @param {User|null} [context.asker]   The user whose packet asked (gm-bridge.mjs `handlePlant`): a body the GMs keep
- *   from that user is planted on as a living victim is (`bodyKeptFrom`).
+ *   from that user is planted on as a living victim is (inventory.mjs `transferRefusal`).
  */
 export async function plantOnPerson({
     plannerId, victimId, itemId = null,
@@ -1952,22 +2123,18 @@ export async function plantOnPerson({
         return null;
     };
 
+    // Planting evidence on a corpse is a real thing somebody will want to do, and it is not this action: a body is not
+    // carrying anything any more, and the crime scene has its own rules - save a body the GMs keep from the asker, whose
+    // planter reads what a living victim's reads. That, the room and the person are the one gate's, mode "plant", as a
+    // theft's (E14 part 1 C1: inventory.mjs `transferRefusal`), asked before the rolls are read and told by its code.
     const { isDeadForGm } = await import("./chapter.mjs");
-    if (isDeadForGm(planter)) return refuse("they are dead");
-    // Planting evidence on a corpse is a real thing somebody will want to do,
-    // and it is not this action: a body is not carrying anything any more, and
-    // the crime scene has its own rules. Refused here rather than silently
-    // allowed, so the reason exists in one place - save a body the GMs keep
-    // from the asker (E80 fix sec1-G1; the owner's Q8, option A): its planter
-    // reads what a living victim's reads (`bodyKeptFrom`).
+    const { transferRefusal } = await import("./inventory.mjs");
+    const why = await transferRefusal(planter, victim, { mode: "plant", asker });
+    if (why) {
+        refuse(why);
+        return { refused: why };
+    }
     const body = isDeadForGm(victim);
-    if (body && !(await bodyKeptFrom(asker, victim))) return refuse(`${victim.name} is dead`);
-
-    // `sameRoom`, as a theft's (E12 C3): the same scene and floor as well as the room's name.
-    const { locateActor, sameRoom } = await import("./movement.mjs");
-    const here = locateActor(planter);
-    if (!here?.room) return refuse("they are not standing in any room");
-    if (!sameRoom(planter, victim)) return refuse(`${victim.name} is not in "${here.room}"`);
 
     /*
      * THE POOL IS REBUILT HERE, exactly as it is for a theft (trap 92) - and
@@ -1976,18 +2143,13 @@ export async function plantOnPerson({
      * and something in a stash cannot be planted because it is not in a hand.
      * Out of the pockets as the GMs hold them, as a theft's (E29 fix r2-H17):
      * what lands on the victim is never roles, a tier or a mend the planter's
-     * console wrote a moment before asking - and into the victim's as the GMs
-     * hold them, read with them after one wait for both (fix r2-H18,
-     * handover.mjs `giveItem`).
+     * console wrote a moment before asking. The pool is `pocketsAsHeld`'s, a
+     * theft's read the other way (E35 C3; the copy of it written here went, the
+     * owner's 13.10: no further copy); the victim's hands, as the GMs hold them
+     * (fix r2-H18), are inventory.mjs `transferItem`'s to count.
      */
-    const { preservedFlags, grantItem } = await import("./inventory.mjs");
-    const { itemsAsHeld, actorAsHeld, judgedFor, creationRefusal } = await import("./sheet-audit.mjs");
-    await judgedFor(planter.id, victim.id);
-    const pockets = await itemsAsHeld(planter);
-    const counted = await actorAsHeld(victim);
-    const pool = Object.keys(ITEM_CATEGORIES)
-        .filter(c => c !== "truthBullet")
-        .flatMap(c => pockets.filter(i => i.getFlag(MODULE_ID, ITEM_FLAGS.category) === c && !isStashed(i)));
+    const { creationRefusal } = await import("./sheet-audit.mjs");
+    const pool = await pocketsAsHeld(planter, victim);
     const held = pool.find(i => i.id === item.id);
     if (!held) {
         return refuse(`"${item.name}" is not something they are carrying`);
@@ -2011,50 +2173,50 @@ export async function plantOnPerson({
     const success = Boolean(isCritical) || Number(total) >= bar;
     const seen = !(Boolean(unseenCritical) || Number(unseenTotal) >= unseenBar);
 
-    let landed = null;
-    let handsFull = false;
+    /*
+     * ON THE ONE ROAD (E35 C3; S17-16, S08-37): the copy, the count and the flags
+     * it carries are inventory.mjs `transferItem`'s - a planted broken thing
+     * stays broken, which is most of the point: the best use of this action is
+     * getting a ruined murder weapon out of your own pocket and into somebody
+     * else's, worth nothing if the transfer mended it. One piece of a stack.
+     *
+     * FULL POCKETS REFUSE IT (D42, the owner's option 1; S17-15, S08-41). It went
+     * into the victim's stash and whispered them that their hands were full, so
+     * an unseen Plant told its victim what it was, and the planter read that it
+     * was in their pocket. Now the item stays with the planter, who is told so,
+     * and the victim is told nothing - seen or not, stash or none: no card, no
+     * write, nothing to redraw (TRANSFER_POLICY.plant).
+     *
+     * The quiet half, and the mirror of the silent Steal (`quiet`, unseen): the
+     * victim's sheet does not redraw FOR THIS, and nothing on the way in speaks
+     * to them - not a key they hold already, not the Gear shape (inventory.mjs
+     * `keepGearShape`, S08-02).
+     */
+    let moved = null;
     if (success) {
-        landed = await grantItem(victim, {
-            reason: "gmRuling",
-            name: held.name,
-            category: held.getFlag(MODULE_ID, ITEM_FLAGS.category),
-            tier: held.getFlag(MODULE_ID, ITEM_FLAGS.tier) ?? null,
-            description: held.system?.description ?? "",
-            img: held.img,
-            // A planted broken thing stays broken - which is most of the point.
-            // The best use of this action is getting a ruined murder weapon out
-            // of your own pocket and into somebody else's, and it would be
-            // worth nothing if the transfer mended it.
-            extraFlags: preservedFlags(held),
-            counted,
-            // The quiet half, and the mirror of the silent Steal: the victim's
-            // sheet does not redraw FOR THIS. See `grantItem`.
-            quiet: !seen
-        });
-
-        if (landed) {
-            try {
-                await item.delete();
-            } catch (err) {
-                error("Could not take the planted item off the person planting it", err);
-            }
-        } else {
-            // Their pockets are full. The item stays where it was - the
-            // alternative is deleting somebody's property into a copy that was
-            // never created.
-            handsFull = true;
-        }
+        const { transferItem } = await import("./inventory.mjs");
+        moved = await transferItem(planter, victim, held, { mode: "plant", quiet: !seen, asker });
+        // As a theft's: the gate asked again by the move, after the rolls, nothing moved, the action kept spent (Q3; fix e1-G4).
+        if (moved?.refused) return { refused: `nothing was carried out: ${moved.refused}` };
     }
+    // Not written (`failed`) is read as full pockets, as a refused copy was before: the item stays with the planter.
+    // Gone by its turn (`missing`, a second Plant of the same piece) did not go in.
+    const handsFull = Boolean(moved?.handsFull || moved?.failed);
+    const landed = Boolean(moved?.ok);
 
-    const done = Boolean(landed);
+    const done = landed;
 
     await whisperToOwner(planter, `<p>${game.i18n.format(
         done ? "DRPG.Steal.cardPlanted"
             : handsFull ? "DRPG.Steal.cardTheirHandsFull"
             : "DRPG.Steal.cardPlantMissed",
         { item: esc(item.name), who: esc(victim.name) }
-    )}</p><p><small>${game.i18n.localize(seen
-        ? "DRPG.Steal.cardSeen" : "DRPG.Steal.cardUnseen")}</small></p>`);
+    )}</p><p><small>${game.i18n.localize(handsFull ? "DRPG.Steal.cardUnfelt"
+        : seen ? "DRPG.Steal.cardSeen" : "DRPG.Steal.cardUnseen")}</small></p>`);
+    // FULL POCKETS: NO "THEY NOTICED" (E35 fix e1-G3; the review's E35-R1). A missed Shadow roll into full pockets told
+    // the planter "They noticed." while D42 tells the victim nothing - the planter played a scene of being caught that
+    // the victim's player knew nothing of (E35-T6's seen rows, at 78457d7: the card read "... It stays with you.They
+    // noticed."). The pocket was never reached, so the line says the victim felt nothing, seen or not.
 
     /*
      * AND THE VICTIM, ONLY WHEN THEY NOTICED - with the item named.
@@ -2064,8 +2226,10 @@ export async function plantOnPerson({
      * none - nobody audits their own pockets for things that should not be
      * there - which is exactly what makes the unnoticed plant worth an action,
      * and exactly why the noticed one has to be unambiguous.
+     *
+     * NOT WHEN THEIR POCKETS WERE FULL (D42): the owner's answer gives that victim no whisper, seen or not.
      */
-    if (seen) {
+    if (seen && !handsFull) {
         try {
             await tellPalmVictim(victim, `<p>${game.i18n.format(
                 done ? "DRPG.Steal.caughtPlanting" : "DRPG.Steal.caughtTryingPlant",
@@ -2176,7 +2340,12 @@ export async function resolveStashSearch({ actorId, total = 0, isCritical = fals
         if (!still) return { found: false, reason: "noRoom" };
         where = now;
     } else where = locateActor(actor);
-    if (!where?.room) return { found: false, reason: "noRoom" };
+    // A finder standing in no room paid an Analyze and was told nothing (S08-20; E14 part 1 C1): told what a search that
+    // finds nothing is told. A Reroll's replay of a search made elsewhere is given back whole by its caller instead.
+    if (!where?.room) {
+        if (!replay) await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Analyze.stashNothing")}</p>`);
+        return { found: false, reason: "noRoom" };
+    }
     const place = { sceneId: where.scene?.id ?? null, room: where.room, level: floor(where.level) };
 
     if (!replay) hunted({ actor, room: where.room });
@@ -3053,6 +3222,7 @@ async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom, scene }) {
     // on inline because the seeding below has to run after the stash matrix has
     // been written, or it would seed into a list it is about to overwrite.
     const ownerMoved = [];
+    // The owner each of them had is `setVaultRoom`'s to read: it takes the old owner's keys (E14 part 1 C2, S08-11; fix e1-G2).
     const named = namedByName(scene);
     /* The rooms of this scene once this Apply is written, for the Neighbours names that are none
        (E12 fix r2-H2, 11.10.2026; early review EARLY-C14-2). The names were checked against the
@@ -3313,11 +3483,10 @@ export async function openRoomSetupDialog({ tab = null } = {}) {
     const { isDeceased } = await import("./chapter.mjs");
     const living = students.filter(a => !isDeceased(a)).length;
     // Room pools only. The tier pools (`tableName()`'s family) answer dice
-    // rolls and are never a room's stock - see `isTierPool` in tables.mjs.
-    const tables = Array.from(game.tables ?? [])
-        .map(t => t.name)
-        .filter(n => !isTierPool(n))
-        .sort();
+    // rolls and are never a room's stock - see `roomStockTables` in tables.mjs:
+    // by their flags since E14 fix e1-G2, so one the GM renamed in the sidebar
+    // is not offered here as "Kitchen knives".
+    const tables = roomStockTables();
     /*
      * WHAT A ROOM CAN BE GOOD OR BAD FOR (audit A24).
      *

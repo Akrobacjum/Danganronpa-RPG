@@ -18,13 +18,13 @@ import {
     TRUTH_BULLET_TYPES, REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS
 } from "./config.mjs";
 import { grantItem, itemsInCategory, countInCategory, countInGroup, inventorySummary,
-    pickableCategories, isStashed, isBroken }
+    pickableCategories, isStashed, isBroken, ITEM_FLAGS }
     from "./inventory.mjs";
 // `BULLET_CATEGORY` went with the hand-rolled category list: excluding Truth
 // Bullets is `pickableCategories`'s job now, not this file's.
 import { createTruthBullet, issueAutopsy, copiedRemnants }
     from "./truth-bullets.mjs";
-import { ITEM_POOLS, USABLE_GOALS, moduleTables, rolesOfResult, MULTI_ROLE_TIER }
+import { ITEM_POOLS, USABLE_GOALS, moduleTables, rolesOfResult, MULTI_ROLE_TIER, usableKindFor }
     from "./tables.mjs";
 import { studentActors } from "./monokuma.mjs";
 
@@ -272,11 +272,14 @@ export async function openItemManager(actor = null) {
  * open nothing. Each option says whose room it is, because "Room 3" is not how
  * anybody at the table refers to it.
  */
-async function giveKeyDialog(actor) {
+export async function giveKeyDialog(actor, { bedrooms = null } = {}) {
     // Bedrooms, not stashes - a stash in somebody else's room must never
     // produce a key to it. See `allBedrooms` and trap 79.
     // Across every scene (ITEM-16): the dorms are usually not the scene the GM is looking at.
-    const { allBedroomsAnywhere: allBedrooms, grantBedroomKey, keysHeldBy } = await import("./vault.mjs");
+    // `bedrooms`, the list read in their place, is the suite's (E14 fix e1-G7: a world of one bedroom, the student's own,
+    // which no test could make of a live world - the review's E14p2-END-08, R6).
+    const { allBedroomsAnywhere, grantBedroomKey, keysHeldBy } = await import("./vault.mjs");
+    const allBedrooms = typeof bedrooms === "function" ? bedrooms : allBedroomsAnywhere;
 
     const students = studentActors();
     const initial = actor ?? students[0] ?? null;
@@ -299,20 +302,35 @@ async function giveKeyDialog(actor) {
      * So the list is built for a person and rebuilt when the person changes -
      * the same rule as the carry counts in `gmGiveItemDialog`.
      */
-    const optionsFor = who => {
-        const held = keysHeldBy(who);
-        const rooms = allBedrooms()
-            .filter(v => v.owner && v.owner.id !== who.id && !held.has(v.room));
-        if (!rooms.length) {
-            // An empty select would read as a window that failed to load. This
-            // says what is true: there is no key this person is missing.
-            return `<option value="">${foundry.utils.escapeHTML(
-                game.i18n.localize("DRPG.Vault.noKeysToGive"))}</option>`;
-        }
-        return rooms.map(v =>
-            `<option value="${foundry.utils.escapeHTML(v.room)}">${
-                foundry.utils.escapeHTML(v.room)} - ${
-                foundry.utils.escapeHTML(v.owner.name)}</option>`).join("");
+    /*
+     * NO KEY LEFT IS A LINE UNDER THE FIELD, AND THE BUTTON OFF (E14 part 2 C6, 24.10.2026; audit S08-22). It was the
+     * select's one option, cut off at the select's width, with the button live and a toast for pressing it; and it said
+     * "already holds one for every bedroom" to a student whose only bedroom with an owner is their own. Two sentences
+     * now, each true of the person picked, and the button follows the person.
+     */
+    const choicesFor = who => {
+        // A key in their stash too (E14 part 1 C2): it is theirs to take out, and `grantBedroomKey` makes no second one.
+        const held = keysHeldBy(who, { stashed: true });
+        const others = allBedrooms().filter(v => v.owner && v.owner.id !== who.id);
+        const rooms = others.filter(v => !held.has(v.room));
+        return {
+            options: rooms.map(v =>
+                `<option value="${foundry.utils.escapeHTML(v.room)}">${
+                    foundry.utils.escapeHTML(v.room)} - ${
+                    foundry.utils.escapeHTML(v.owner.name)}</option>`).join(""),
+            empty: rooms.length ? null : game.i18n.format(others.length ? "DRPG.Vault.hasEveryKey" : "DRPG.Vault.onlyOwnBedroom",
+                { name: who.name })
+        };
+    };
+    const shown = choicesFor(initial);
+    const showChoices = (form, ok, who) => {
+        const { options, empty } = choicesFor(who);
+        form.elements.room.innerHTML = options;
+        form.elements.room.disabled = Boolean(empty);
+        const line = form.querySelector("[data-drpg-key-empty]");
+        line.textContent = empty ?? "";
+        line.hidden = !empty;
+        if (ok) ok.disabled = Boolean(empty);
     };
 
     const recipients = recipientOptions(students, initial.id);
@@ -321,24 +339,29 @@ async function giveKeyDialog(actor) {
         // Generic on purpose (ITEM-13): the form carries its own recipient
         // select, and a title naming the argument lied as soon as it changed.
         window: { title: game.i18n.localize("DRPG.Vault.giveKey") },
-        classes: ["drpg-panel"],
+        classes: ["drpg-panel", "drpg-give-key"],
         content: dialogContent(`<form>
             <label>${game.i18n.localize("DRPG.Items.recipient")}
                 <select name="recipient">${recipients}</select></label>
             <label>${game.i18n.localize("DRPG.Vault.whichKey")}
-                <select name="room">${optionsFor(initial)}</select></label>
+                <select name="room"${shown.empty ? " disabled" : ""}>${shown.options}</select></label>
+            <p class="notes" data-drpg-key-empty${shown.empty ? "" : " hidden"}>${
+                foundry.utils.escapeHTML(shown.empty ?? "")}</p>
             <p class="notes">${game.i18n.localize("DRPG.Vault.giveKeyNote")}</p>
         </form>`),
         render: (event, dialog) => {
             const form = dialog.element.querySelector("form");
+            const ok = dialog.element.querySelector('footer button[data-action="ok"]');
+            if (form) showChoices(form, ok, initial);
             form?.elements?.recipient?.addEventListener("change", () => {
                 const who = game.actors.get(form.elements.recipient.value);
-                if (who) form.elements.room.innerHTML = optionsFor(who);
+                if (who) showChoices(form, ok, who);
             });
         },
         buttons: [
             {
-                action: "ok", label: game.i18n.localize("DRPG.Items.give"), default: true,
+                // The window's own words (S08-22): it read "Give an item" on a window that gives a key.
+                action: "ok", label: game.i18n.localize("DRPG.Vault.giveKey"), default: true,
                 callback: (e, b, d) => {
                     const f = d.element.querySelector("form");
                     return {
@@ -414,7 +437,10 @@ function giveCategoryOptions(who) {
             ? (group ? countInGroup(who, group) : countInCategory(who, choice.key))
             : null;
         const limit = group ? LIMIT_GROUPS[group]?.limit : cat?.limit;
-        const cap = held === null ? "" : (limit ? ` - ${held}/${limit}` : ` - ${held}`);
+        // The group named with its count (E14 part 2 C8; audit S13-21): "Cleaning Tool - 0/2" read as two slots of the
+        // Cleaning Tool's own, where the summary above says "Gear: 0/2" of the same two.
+        const count = limit ? `${held}/${limit}` : `${held}`;
+        const cap = held === null ? "" : group ? ` (${LIMIT_GROUPS[group]?.label ?? group} ${count})` : ` - ${count}`;
         return `<option value="${choice.value}">${
             foundry.utils.escapeHTML(choice.label)}${cap}</option>`;
     }).join("");
@@ -456,6 +482,7 @@ function giveExistingPane(catalogue, categories, tiers) {
                 <select name="exItem">${giveItemOptionsFor(catalogue[0])}</select></label>
             <label>${game.i18n.localize("DRPG.Items.category")}
                 <select name="exCategory">${categories}</select></label>
+            <p class="notes drpg-warning" data-drpg-kind-note="exCategory" hidden></p>
             <label>${game.i18n.localize("DRPG.Items.tier")}
                 <select name="exTier">${tiers}</select></label>
             <p class="notes">${game.i18n.localize("DRPG.Items.existingNote")}</p>`
@@ -467,6 +494,7 @@ function giveCreatePane({ categories, tiers, suggestions }) {
     return `
             <label>${game.i18n.localize("DRPG.Items.category")}
                 <select name="category">${categories}</select></label>
+            <p class="notes drpg-warning" data-drpg-kind-note="category" hidden></p>
             <label>${game.i18n.localize("DRPG.Items.tier")}
                 <select name="tier">${tiers}</select></label>
             <label>${game.i18n.localize("DRPG.Items.name")}
@@ -581,6 +609,33 @@ function wireGiveForm(dialog) {
     paintRoles();
 }
 
+/** The give form's warnings of a usable's kind (`paintKinds`), wired whether or not the world has tables to give from. */
+function wireKindNotes(dialog) {
+    const form = dialog.element.querySelector("form");
+    if (!form) return;
+    /*
+     * THE TABLES' KIND UNDER THE PICK (E14 part 1 C5, 24.10.2026; audit S08-14). A usable's kind is the item tables'
+     * where they know its name (inventory.mjs `grantItem`), so Pills given as Healing are still Sanity Relief. Said
+     * under each category select when the name and the pick disagree, before Give, not found out at the first use.
+     */
+    const paintKinds = () => {
+        for (const note of form.querySelectorAll("[data-drpg-kind-note]")) {
+            const select = form.elements[note.dataset.drpgKindNote];
+            const [category, picked = null] = String(select?.value ?? "").split(":");
+            const name = note.dataset.drpgKindNote === "category"
+                ? form.elements.name?.value : form.elements.exItem?.selectedOptions?.[0]?.textContent;
+            const tables = category === "usable" ? usableKindFor(name) : null;
+            const differs = Boolean(USABLE_KINDS[tables]) && tables !== picked;
+            note.hidden = !differs;
+            note.textContent = differs ? game.i18n.format("DRPG.Items.kindFromTables", {
+                item: String(name ?? "").trim(), kind: USABLE_KINDS[tables].label }) : "";
+        }
+    };
+    for (const name of ["category", "exCategory", "exItem", "exTable", "recipient"]) form.elements[name]?.addEventListener("change", paintKinds);
+    form.elements.name?.addEventListener("input", paintKinds);
+    paintKinds();
+}
+
 /** What Give hands back: whichever pane is showing, read as one shape with a `mode`. */
 function readGiveForm(d) {
     const f = d.element.querySelector("form");
@@ -652,12 +707,17 @@ function giveFromResult(result) {
     return give;
 }
 
-/** The receipt the player sees: what it is, what it does. */
-async function tellGiven(actor, give) {
-    const effect = USABLE_KIND_EFFECTS[give.kind]?.[give.tier]
+/**
+ * The receipt the player sees: what it is, what it does - the kind the item was made with (`item`'s flag, the tables'
+ * where they know the name: inventory.mjs `grantItem`), not the GM's pick, so the receipt says what the use will do
+ * (E14 part 1 C5; audit S08-14: Pills given as Healing were told "Restores 2 Health" and restored Sanity).
+ */
+async function tellGiven(actor, give, item = null) {
+    const kind = item ? item.getFlag(MODULE_ID, ITEM_FLAGS.kind) ?? null : give.kind;
+    const effect = USABLE_KIND_EFFECTS[kind]?.[give.tier]
         ?? TIER_EFFECTS[give.category]?.[give.tier] ?? "";
-    const label = USABLE_KINDS[give.kind]
-        ? `${ITEM_CATEGORIES[give.category]?.label} - ${USABLE_KINDS[give.kind].label}`
+    const label = USABLE_KINDS[kind]
+        ? `${ITEM_CATEGORIES[give.category]?.label} - ${USABLE_KINDS[kind].label}`
         : ITEM_CATEGORIES[give.category]?.label ?? give.category;
     await whisperToOwner(actor, `
         <h3>${game.i18n.localize("DRPG.Items.received")}</h3>
@@ -703,7 +763,9 @@ export async function gmGiveItemDialog(actor) {
 
     const result = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Items.give") },
-        classes: ["drpg-panel"],
+        // A class of its own (E14 part 2 C7, S08-27): the form rules of styles/danganronpa.css lay its labels out as one
+        // grid, and they find the window by it.
+        classes: ["drpg-panel", "drpg-window-give"],
         // Two tabs, one verb (Dawid, 2026-08-26). The footer's Give reads
         // whichever pane is showing; the tell-player switch and the cap note
         // sit below the tabs because they are true of both.
@@ -720,7 +782,7 @@ export async function gmGiveItemDialog(actor) {
                 ${game.i18n.localize("DRPG.Items.tellPlayer")}</label>
             <p class="notes">${game.i18n.localize("DRPG.Items.overCapNote")}</p>
         </form>`),
-        render: (event, dialog) => wireGiveForm(dialog),
+        render: (event, dialog) => { wireGiveForm(dialog); wireKindNotes(dialog); },
         buttons: [
             {
                 action: "ok", label: game.i18n.localize("DRPG.Items.give"), default: true,
@@ -775,7 +837,7 @@ export async function gmGiveItemDialog(actor) {
         item: give.name, actor: actor.name
     }));
 
-    if (result.tell) await tellGiven(actor, give);
+    if (result.tell) await tellGiven(actor, give, item);
 
     return true;
 }
@@ -1082,7 +1144,7 @@ async function tellBulletGiven(who, payload) {
         <p><small>${game.i18n.localize("DRPG.TruthBullet.whereToFind")}</small></p>`);
 }
 
-async function giveTruthBulletDialog(actor) {
+export async function giveTruthBulletDialog(actor, { scenes: only = null } = {}) {
 
     const students = studentActors();
     const initial = actor ?? students[0] ?? null;
@@ -1105,7 +1167,10 @@ async function giveTruthBulletDialog(actor) {
        player's client holds these tokens but has never held what they mean - and this whole
        window is GM-only, so there is nothing to gate here. */
     const home = homeScene();
-    const scenes = [...(home ? [home] : []), ...Array.from(game.scenes ?? []).filter(scene => scene !== home)];
+    // `only`, the scenes read in their place, is the suite's (E14 fix e1-G7): a world with no trace on any scene, which
+    // the suite's world never is (the review's E14p2-END-08, R6).
+    const scenes = Array.isArray(only) ? only
+        : [...(home ? [home] : []), ...Array.from(game.scenes ?? []).filter(scene => scene !== home)];
     const traces = scenes.flatMap(scene => remnantsOn(scene))
         .map(token => ({ token, data: remnantData(token) }))
         .filter(entry => entry.data);
@@ -1114,13 +1179,15 @@ async function giveTruthBulletDialog(actor) {
 
     const result = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.TruthBullet.give") },
-        classes: ["drpg-panel"],
+        classes: ["drpg-panel", "drpg-window-bullet"],
+        // On Write a new one when no trace lies on any scene (E14 part 2 C6, S08-22): From a Remnant then holds only
+        // the line saying so, and the window opened there with Give a Truth Bullet live under it.
         content: dialogContent(`<form>${panelTabs([
             { key: "existing", label: game.i18n.localize("DRPG.TruthBullet.tabFromRemnant"),
               html: existingPane },
             { key: "create", label: game.i18n.localize("DRPG.TruthBullet.tabWriteNew"),
               html: bulletCreatePane() }
-        ])}
+        ], { active: traces.length ? "existing" : "create" })}
             <label>${game.i18n.localize("DRPG.Items.recipient")}
                 <select name="recipient">${recipients}</select></label>
             <label class="drpg-checkbox">
@@ -1202,7 +1269,7 @@ export async function issueAutopsyDialog() {
 
     const result = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.TruthBullet.autopsyTitle") },
-        classes: ["drpg-panel"],
+        classes: ["drpg-panel", "drpg-window-autopsy"],
         content: dialogContent(`<form>
             <p class="notes">${game.i18n.localize("DRPG.TruthBullet.autopsyHint")}</p>
             <label>${game.i18n.localize("DRPG.TruthBullet.name")}
@@ -1336,7 +1403,7 @@ async function takeItemDialog(actor, { only = null } = {}) {
             : actor
                 ? game.i18n.format("DRPG.Items.takeFrom", { actor: actor.name })
                 : game.i18n.localize("DRPG.Items.take") },
-        classes: ["drpg-panel"],
+        classes: ["drpg-panel", "drpg-window-take"],
         content: `<form>
             <label>${game.i18n.localize("DRPG.Items.takeFromWhom")}
                 <select name="recipient">${recipients}</select></label>

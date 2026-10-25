@@ -21,9 +21,9 @@
  */
 
 import { MODULE_ID, FLAGS, BEDROOM_KEY_FLAG } from "./config.mjs";
-import { grantItem, canCarry, preservedFlags, capacityLabel, isStashed } from "./inventory.mjs";
+import { capacityLabel, isStashed, transferItem, transferRefusal } from "./inventory.mjs";
 import { createTruthBullet, truthBulletData, secretOf, isTruthBullet, bulletAsHeld } from "./truth-bullets.mjs";
-import { dialogContent, whisperToOwner, log, warn, error, isPrimaryGm, forcedDeletion } from "./utils.mjs";
+import { dialogContent, whisperToOwner, log, warn, error, isPrimaryGm, forcedDeletion, plural } from "./utils.mjs";
 import { answerKeysRefusal, lootTraceStore, deathStore } from "./gm-stores.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -48,12 +48,17 @@ export async function askWhoIsHere(actor, { title, intro, note, okLabel, listBox
         return null;
     }
 
-    const { othersInRoom, roomOfActor } = await import("./movement.mjs");
-    const here = othersInRoom(actor);
+    /* A CHARACTER IN NO ROOM IS TOLD SO (E14 part 2 C6, 24.10.2026; audit S08-23). The room went into the sentence as
+       "-" ("Nobody else in - to hand anything to."), which a GM acting for a character whose token is in no room - or on
+       no scene - could not act on. `locateActor` is the one reading of where the character is (`roomOfActor` is its
+       room, and has not asked the camera since E12 C3, the other half of S08-23). */
+    const { othersInRoom, locateActor } = await import("./movement.mjs");
+    const room = locateActor(actor)?.room ?? null;
+    const here = room ? othersInRoom(actor) : [];
     if (!here.length) {
-        ui.notifications.warn(game.i18n.format("DRPG.Handover.nobodyHere", {
-            room: roomOfActor(actor) ?? "-"
-        }));
+        ui.notifications.warn(room
+            ? game.i18n.format("DRPG.Handover.nobodyHere", { room })
+            : game.i18n.format("DRPG.Handover.notInRoom", { name: actor.name }));
         return null;
     }
 
@@ -65,7 +70,7 @@ export async function askWhoIsHere(actor, { title, intro, note, okLabel, listBox
         window: { title },
         classes: ["drpg-panel"],
         content: dialogContent(`<form>
-            <p>${intro(foundry.utils.escapeHTML(roomOfActor(actor) ?? "-"))}</p>
+            <p>${intro(foundry.utils.escapeHTML(room))}</p>
             <label>${game.i18n.localize("DRPG.Handover.who")}
                 <select name="target"${size}>${options}</select></label>
             <p class="notes">${note}</p>
@@ -171,7 +176,17 @@ async function shareKey({ from, to, item }) {
  * GM SIDE - THE PART THAT ACTUALLY WRITES
  * ========================================================================== */
 
-/** Shared preflight: everyone exists, the item is real, and they are together. */
+/**
+ * Shared preflight: everyone exists, the item is real, and the one gate lets the two through (E14 part 1 C1).
+ *
+ * The gates this asked itself - the Eclipse (E03; audit S08-33: a dialog opened before the lights went out and
+ * confirmed after), the room, a dead receiver (a socket message naming a corpse, or the receiver dying between the
+ * pick and this; rule D, E05 C10: one nobody has found is not named) and a dead giver (a sheet left open, a death that
+ * kept its items) - are inventory.mjs `transferRefusal`'s, mode "give", asked here for the copies that take no road of
+ * `transferItem` (a Truth Bullet's, a key's) and again by `transferItem` for a move. Answers `{ from, to, item }`,
+ * `{ refused }` with the gate's reason, which the bridge's run hands on and tells the giver by its code (S08-20), or
+ * null where nothing names a real pair and item.
+ */
 async function verify(fromId, toId, itemId) {
     const from = game.actors.get(fromId);
     const to = game.actors.get(toId);
@@ -180,54 +195,11 @@ async function verify(fromId, toId, itemId) {
     const item = from.items.get(itemId);
     if (!item) return null;
 
-    // Not during an Eclipse, on this side too (E03; audit S08-33). The dialog
-    // checks it, and a dialog opened a moment before the lights went out and
-    // confirmed after still went through.
-    const { isEclipse } = await import("./eclipse.mjs");
-    if (isEclipse()) {
-        await whisperToOwner(from, `<p>${game.i18n.localize("DRPG.Eclipse.actionsLocked")}</p>`);
-        return null;
+    const why = await transferRefusal(from, to, { mode: "give" });
+    if (why) {
+        warn(`Handover refused: ${from.name} to ${to.name}: ${why}.`);
+        return { refused: why };
     }
-
-    const { sameRoom } = await import("./movement.mjs");
-    if (!sameRoom(from, to)) {
-        warn(`Handover refused: ${from.name} and ${to.name} are not in the same room.`);
-        await whisperToOwner(from, `<p>${game.i18n.format("DRPG.Handover.tooFar", {
-            name: foundry.utils.escapeHTML(to.name)
-        })}</p>`);
-        return null;
-    }
-
-    // The dead take nothing. `askRecipient` already leaves them out of the
-    // picker, because it builds the list from `othersInRoom` - but this side is
-    // the one that decides, and it was asking `sameRoom`, which counts a body
-    // as an occupant. Two ways past that: a socket message naming a corpse
-    // directly, and the ordinary race where the recipient dies between the
-    // giver choosing them and this running. Either way the item would land on
-    // an actor whose inventory has already been destroyed, and stay there.
-    const { isDeadForGm, isDeceased } = await import("./chapter.mjs");
-    if (isDeadForGm(to)) {
-        warn(`Handover refused: ${to.name} is dead${isDeceased(to) ? "" : " (nobody has found the body)"}.`);
-        /* Rule D (E05 C10): a body nobody has found is not named to the giver, who may not
-           know of it - they are told it cannot be done now, and the reason stays here. */
-        await whisperToOwner(from, `<p>${isDeceased(to)
-            ? game.i18n.format("DRPG.Handover.recipientDead", { name: foundry.utils.escapeHTML(to.name) })
-            : game.i18n.localize("DRPG.Bridge.why.cannotNow")}</p>`);
-        return null;
-    }
-
-    // And the dead give nothing either.
-    //
-    // Normally moot, because `killCharacter` destroys the inventory - but not
-    // when the GM ticked "keep their items" for a death that is not a
-    // killing-game murder, and not for the window between a sheet being left
-    // open and the body being found. A corpse quietly passing its Truth Bullets
-    // around the room is the same leak as one that can still be heard on voice.
-    if (isDeadForGm(from)) {
-        warn(`Handover refused: ${from.name} is dead.`);
-        return null;
-    }
-
     return { from, to, item };
 }
 
@@ -244,6 +216,7 @@ export async function shareBullet({ fromId, toId, itemId } = {}) {
     if (!game.user.isGM) return null;
 
     const checked = await verify(fromId, toId, itemId);
+    if (checked?.refused) return { refused: checked.refused };
     if (!checked) return null;
     const { from, to, item } = checked;
 
@@ -405,27 +378,27 @@ export async function lootBody({ takerId, bodyId, itemId, askedBy = null } = {})
     const item = body?.items?.get(itemId);
     if (!taker || !body || !item) return null;
 
-    /* BEFORE THE DISCOVERY, BY THOSE WHO KNOW (E05 C10; the owner's Q2, 26.09.2026). A body
-       nobody has found may be searched by whoever knows of the death - the incident's
-       players, the victim's own, a GM - asked of the GMs' record by the user who sent the
-       request (`askedBy`, Foundry's sender; a GM's own button sends none), never of the
-       public fact. The item moving between two sheets is world data every console reads,
-       which the owner chose knowing it. */
-    const { isDeceased, isDeadForGm } = await import("./chapter.mjs");
-    if (!isDeceased(body)) {
-        const { knowsOfDeath } = await import("./murder.mjs");
-        const asker = askedBy ? game.users.get(askedBy) : game.user;
-        if (!isDeadForGm(body) || !knowsOfDeath(asker, body.id)) {
-            warn(`Refused to loot ${body.name}: ${isDeadForGm(body) ? "the asker does not know of the death" : "they are not dead"}.`);
-            return null;
-        }
+    /* BEFORE THE DISCOVERY, BY THOSE WHO KNOW (E05 C10; the owner's Q2, 26.09.2026), AND ONLY FROM BESIDE IT (E14 part 1
+       C1; audit S08-01, S11-06). A body nobody has found may be searched by whoever knows of the death - the incident's
+       players, the victim's own, a student alone with it, a GM - asked of the GMs' record by the user who sent the
+       request (`askedBy`, Foundry's sender; a GM's own button sends none), never of the public fact. That rule and the
+       rest - the taker alive and standing in the body's room as the GMs read both, the body's token not hidden, no
+       Eclipse, no Class Trial, the taker not the body - are the one gate's (inventory.mjs `transferRefusal`, mode
+       "loot": frisk.mjs `personActionRefusal(taker, body, { body: true })`), asked here before the trace and again by
+       `transferItem`. An unknown death is refused in the words a living body is. The item moving between two sheets is
+       world data every console reads, which the owner chose knowing it. */
+    const { isDeceased } = await import("./chapter.mjs");
+    const asker = askedBy ? game.users.get(askedBy) ?? null : game.user;
+    const why = asker ? await transferRefusal(body, taker, { mode: "loot", asker }) : "no such character";
+    if (why) {
+        warn(`Refused to loot ${body.name} for ${taker.name}: ${why}.`);
+        return { refused: why };
     }
-    // As the GMs hold it, from here to the grant (E29 fix r2-H17, `giveItem`): a body's owner can still write it.
-    // And the taker's hands as the GMs hold them, which `grantItem`'s cap counts (fix r2-H18, `giveItem`).
-    const { itemAsHeld, actorAsHeld, judgedFor, creationRefusal } = await import("./sheet-audit.mjs");
+    // As the GMs hold it, for the gates below (E29 fix r2-H17, `giveItem`): a body's owner can still write it. The
+    // move, and the taker's hands it is counted against (fix r2-H18), are read again by `transferItem` after its wait.
+    const { itemAsHeld, judgedFor, creationRefusal } = await import("./sheet-audit.mjs");
     await judgedFor(body.id, taker.id);
     const held = await itemAsHeld(body, item.id);
-    const counted = await actorAsHeld(taker);
     if (!held) return null;
     // An item a player made on the body's sheet that no GM has decided on yet is taken by nobody, and the taker told
     // (E29 fix r2-H21, sheet-audit.mjs `creationRefusal`).
@@ -449,33 +422,19 @@ export async function lootBody({ takerId, bodyId, itemId, askedBy = null } = {})
         return null;
     }
 
+    /* ON THE ONE ROAD (E35 C2; S17-16, S08-37, S08-38): the copy, the count, the flags it carries and the hands it
+       lands in are inventory.mjs `transferItem`'s, as a hand-over's are. Full hands put it in the taker's stash, as
+       `grantItem` put it at Base (TRANSFER_POLICY.loot), and only a taker with none is refused; one piece of a
+       body's stack moves; a key to a room the taker already holds leaves the body and is not copied, the taker
+       told; a piece the body keeps after the taker has its copy is told to the GMs in a body's words. */
     const name = held.name;
-    const taken = await grantItem(taker, {
-        reason: "gmRuling",
-        name,
-        category,
-        tier: held.getFlag(MODULE_ID, "tier") ?? null,
-        description: held.system?.description ?? "",
-        img: held.img,
-        // Roles included since E9 - see `preservedFlags`. A crowbar off a body
-        // is still a crowbar that can be swung.
-        extraFlags: preservedFlags(held),
-        counted
-    });
-    // `grantItem` puts it in the stash when the hands are full and says so, so
-    // "no room" is not a failure here - only a refusal is.
-    if (!taken) return null;
-
-    try {
-        await item.delete();
-    } catch (err) {
-        error("Could not take the item off the body", err);
-        const { whisperToGms } = await import("./utils.mjs");
-        await whisperToGms(`<p class="drpg-warning">${game.i18n.format("DRPG.Handover.stuck", {
-            name: foundry.utils.escapeHTML(name),
-            who: foundry.utils.escapeHTML(body.name)
-        })}</p>`);
-    }
+    const moved = await transferItem(body, taker, held, { mode: "loot", asker });
+    if (moved?.refused) return moved;
+    // Nothing changed hands: full hands and no stash (`grantItem` warns the GM, as at Base), gone by its turn, or not
+    // written.
+    if (!moved?.ok) return null;
+    // What the taker holds of it now: the copy, or under the key rule the key they already had.
+    const taken = moved.copy ?? taker.items.find(i => i.getFlag(MODULE_ID, BEDROOM_KEY_FLAG) === moved.keyHeld) ?? true;
 
     const trace = await markBodyDisturbed(body, name);
     /* THE BULLET WAITS FOR THE TABLE (E05 fix r2-F0b, 27.09.2026; the owner's Q1-Q3, the plan's
@@ -765,30 +724,24 @@ export async function giveItem({ fromId, toId, itemId } = {}) {
     if (!game.user.isGM) return null;
 
     const checked = await verify(fromId, toId, itemId);
+    if (checked?.refused) return { refused: checked.refused };
     if (!checked) return null;
     const { from, to, item } = checked;
 
     /*
-     * THE ITEM AS THE GMS HOLD IT (E29 fix r2-H17, 06.10.2026). Everything below, down to the copy `grantItem` makes,
-     * reads `held`: the item once every write queued on the giver has been judged, with the fields the sheet audit
-     * judges - its place, category, tier, roles, kind, broken and wear among them - as its mark holds them
-     * (sheet-audit.mjs `itemsAsHeld`, which says why the wait is enough here). Read once, with no await between the
-     * read and the grant: roles, a tier or a mend a player's console wrote a moment before asking stay off the copy,
-     * which a GM makes and every client takes as the GMs'. The deletion is the document's.
-     *
-     * AND THE RECEIVER'S HANDS AS THE GMS HOLD THEM (E29 fix r2-H18, 06.10.2026): `counted`, the receiver's items
-     * as the mark holds them (sheet-audit.mjs `actorAsHeld`), is what the room below and `grantItem`'s cap count, so
-     * a slot the receiver's console emptied a moment before - a stash its put-back undoes - is no room. One wait
-     * for both students, then both reads, each of which finds its queue empty and so waits on nothing; the copy
-     * roads of vault.mjs and `lootBody` read their receiver the same way. At 0c75739 (e29run/r2h18red, 06.10.2026) a
-     * receiver whose slots for a Tool the mark held full, one of them stashed where the mark did not see it, took a
-     * carried copy on a hand-over, a plant and both thefts; and in scenario 30 a theft from a stash p1 asked for at once
-     * after stashing one of Aiko's two Tools left her carrying three on every client once the stash was put back.
+     * THE ITEM AS THE GMS HOLD IT (E29 fix r2-H17, 06.10.2026). The branches below - a stash, a bullet, a key, an item
+     * this module tracks - read `held`: the item once every write queued on the giver has been judged, with the
+     * fields the sheet audit judges - its place, category, tier, roles, kind, broken and wear among them - as its
+     * mark holds them (sheet-audit.mjs `itemsAsHeld`, which says why the wait is enough here). The move itself, and
+     * the receiver's hands it is counted against (fix r2-H18: `actorAsHeld`, so a slot the receiver's console
+     * emptied a moment before is no room), are read again as the GMs hold them by inventory.mjs `transferItem`
+     * (E35 C1), after its wait. At 0c75739 (e29run/r2h18red, 06.10.2026) a receiver whose slots for a Tool the mark
+     * held full, one of them stashed where the mark did not see it, took a carried copy on a hand-over, a plant and
+     * both thefts.
      */
-    const { itemAsHeld, actorAsHeld, judgedFor, creationRefusal } = await import("./sheet-audit.mjs");
+    const { itemAsHeld, judgedFor, creationRefusal } = await import("./sheet-audit.mjs");
     await judgedFor(from.id, to.id);
     const held = await itemAsHeld(from, item.id);
-    const counted = await actorAsHeld(to);
     if (!held) return null;
 
     // An item a player made on the giver's sheet that no GM has decided on yet changes no hands (E29 fix r2-H21,
@@ -826,47 +779,27 @@ export async function giveItem({ fromId, toId, itemId } = {}) {
         return null;
     }
 
-    const room = canCarry(counted, category);
-    if (!room.ok) {
+    /* ON THE ONE ROAD (E35 C1; S17-16, S08-37): the copy, the count, the flags it carries, the hands it lands in and
+       the GMs' line when the giver's piece stays are inventory.mjs `transferItem`'s, which reads the item and the
+       receiver's hands again as the GMs hold them once the giver's earlier transfers have run. A hand-over is
+       refused into full hands, as it was (TRANSFER_POLICY.give); one piece of a stack moves. */
+    const moved = await transferItem(from, to, held, { mode: "give" });
+    if (moved?.refused) return moved;
+    if (moved?.handsFull) {
         await whisperToOwner(from, `<p>${game.i18n.format("DRPG.Handover.theirHandsFull", {
             who: foundry.utils.escapeHTML(to.name),
             category: foundry.utils.escapeHTML(capacityLabel(category)),
-            limit: room.limit
+            limit: moved.handsFull.limit
         })}</p>`);
         return null;
     }
-
-    const name = held.name;
-    const copy = await grantItem(to, {
-        reason: "gmRuling",
-        name,
-        category,
-        tier: held.getFlag(MODULE_ID, "tier") ?? null,
-        description: held.system?.description ?? "",
-        img: held.img,
-        // A ruined thing stays ruined on the other side of the table. Without
-        // this, handing the murder weapon to an accomplice repaired it.
-        extraFlags: preservedFlags(held),
-        counted
-    });
-
-    if (!copy) {
+    // Gone by the time its turn came - a second ask for one item already handed over: nothing to say twice.
+    if (moved?.missing) return null;
+    if (!moved?.ok) {
         await whisperToOwner(from, `<p>${game.i18n.localize("DRPG.Handover.failed")}</p>`);
         return null;
     }
-
-    try {
-        await item.delete();
-    } catch (err) {
-        // The receiver has it and the giver still does. Say so loudly rather
-        // than leave the table to discover the duplicate at the trial.
-        error("Could not remove the handed-over item from the giver", err);
-        const { whisperToGms } = await import("./utils.mjs");
-        await whisperToGms(`<p class="drpg-warning">${game.i18n.format("DRPG.Handover.stuck", {
-            name: foundry.utils.escapeHTML(name),
-            who: foundry.utils.escapeHTML(from.name)
-        })}</p>`);
-    }
+    const name = held.name;
 
     await whisperToOwner(to, `
         <h3>${game.i18n.localize("DRPG.Handover.receivedItem")}</h3>
@@ -875,11 +808,14 @@ export async function giveItem({ fromId, toId, itemId } = {}) {
             name: foundry.utils.escapeHTML(name)
         })}</p>`);
 
-    await whisperToOwner(from, `<p>${game.i18n.format("DRPG.Handover.gave", {
-        name: foundry.utils.escapeHTML(name),
-        who: foundry.utils.escapeHTML(to.name)
-    })}</p>`);
+    // ONE PIECE OF A STACK SAYS SO (E35 fix e1-G3; the review's E35-END-1): since E35 C1 one piece moves, and the
+    // giver read "{name} is now {who}'s." with two still on their sheet (E35-T3's giver lines, at 78457d7: the same
+    // line after each of three gives). Where pieces stay (`left`), the line says one went and how many are kept.
+    const words = { name: foundry.utils.escapeHTML(name), who: foundry.utils.escapeHTML(to.name) };
+    await whisperToOwner(from, `<p>${Number.isInteger(moved.left) && moved.left > 0
+        ? plural("DRPG.Handover.gaveOne", { ...words, left: moved.left }, "left")
+        : game.i18n.format("DRPG.Handover.gave", words)}</p>`);
 
     log(`${from.name} gave "${name}" to ${to.name}.`);
-    return copy;
+    return moved.copy;
 }

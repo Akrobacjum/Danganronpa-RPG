@@ -22,10 +22,14 @@
  */
 
 import { MODULE_ID, ECLIPSE_MOVES, ECLIPSE_FREE_PLACEMENT, FLAGS,
-    ROOM_OWNER_FLAG, BEDROOM_KEY_FLAG } from "./config.mjs";
+    ROOM_OWNER_FLAG } from "./config.mjs";
 import {
-    SETTINGS, iAmTheMastermind, incidentParticipants, incomingTimeOfDay, discoveryLedger, eclipseMovesUsed, isDeadForGm, isEclipse
+    SETTINGS, iAmTheMastermind, incidentParticipants, incomingTimeOfDay, discoveryLedger, eclipseMovesUsed, isDeadForGm, isEclipse,
+    isDeceased, getClock
 } from "./settings.mjs";
+// The key rule (E14 part 1 C2), static for the veto's sake as the imports below: a leaf of config.mjs and inventory.mjs
+// that reaches neither this file nor vault.mjs (bedroom-keys.mjs's header).
+import { keyRooms, bedroomShutTo } from "./bedroom-keys.mjs";
 import { hasFreeMove, takeMove, giveMoveBack, actionsLeft, canPayFor, freeMovesLeft, freeActionsLeft } from "./actions.mjs";
 // Statically imported, not lazily: the crossing veto runs inside a synchronous
 // `preUpdateToken` hook, where there is no opportunity to await an import.
@@ -1467,21 +1471,18 @@ export function isLocked(scene, room) {
 /**
  * Is this somebody else's bedroom, and are they carrying no key to it?
  *
- * Read straight off the two documents rather than through vault.mjs - that file
- * already reaches into this one, and this veto runs inside a synchronous
- * `preUpdateToken` where a dynamic import is not an option. Both flag names
- * come from config.mjs so the two readers cannot drift apart.
- *
- * A room nobody owns is not a bedroom. The owner never needs a key to their own
- * door: losing it would otherwise lock them out of the one place the guide says
- * is theirs.
+ * The rule is bedroom-keys.mjs's, the one game.drpg's answer and the GMs' key count read (vault.mjs `mayEnterBedroom`,
+ * `keysHeldBy`; E14 part 1 C2): a key in a stash opens nothing (S08-31), and in the Investigation a dead owner's room
+ * opens once the death is published (S08-55, D15). This reads the world it is handed, synchronously, as the veto inside
+ * `preUpdateToken` must: the owner as the room's pieces carry it on the mover's scene (as `isLocked`), the clock, the
+ * owner's published death (`isDeceased`: a death the GMs keep opens no door), and the mover's items - the document on
+ * the mover's browser, and on the primary the student `judgeArrival` hands in, its items as the GMs' mark holds them
+ * (`itemsHeldNow`), so a key's room or place a player's browser wrote and the audit has not let stand opens nothing there.
  */
 function bedroomShut(actor, scene, to) {
-    // The owner as the room's pieces carry it, on the mover's scene - as `isLocked`.
     const owner = to ? roomFlag(scene, to, ROOM_OWNER_FLAG) : null;
-    if (!owner || owner === actor?.id) return false;
-    return !Array.from(actor?.items ?? [])
-        .some(item => item.getFlag(MODULE_ID, BEDROOM_KEY_FLAG) === to);
+    return bedroomShutTo({ actorId: actor?.id ?? null, room: to, ownerId: owner, keys: keyRooms(actor?.items),
+        phase: getClock().phase, ownerDead: Boolean(owner) && isDeceased(game.actors?.get(owner)) });
 }
 
 /* ------------------------------------------------------------------------------------------------------------

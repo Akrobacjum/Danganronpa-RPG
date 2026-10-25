@@ -21,7 +21,7 @@ import {
     PRICE_CHAINS, MONOCUB
 } from "./config.mjs";
 import { actionsLeft, spendAction, refundAction, hasFreeMove, canPayFor } from "./actions.mjs";
-import { leavesTraceFor, carriedFor } from "./inventory.mjs";
+import { leavesTraceFor, carriedFor, TRANSFER_REFUSED } from "./inventory.mjs";
 import { isEclipse } from "./eclipse.mjs";
 // The phase, from the file that owns the clock setting and imports nothing but
 // config.mjs. trial.mjs has `inClassTrial()`, and importing it here would drag
@@ -35,7 +35,7 @@ import { quotePrice, payPrice, refundPrice, priceLine } from "./price.mjs";
 // cleanup.mjs reaches back into this file only through a dynamic import.
 import { tamperQuote, witnessesTo } from "./cleanup.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
-import { drawItem } from "./tables.mjs";
+import { drawItem, foundAs, ITEM_POOLS } from "./tables.mjs";
 import { roomOfActor, othersInRoom, locateActor, sceneOfActor } from "./movement.mjs";
 import { projectsAvailableIn, addProgress, isIndirectMurder, isSecret, scaleFor, projectsListedIn, buildsOwnMurder } from "./projects.mjs";
 import { callGm, promptAndCallGm } from "./gm-bridge.mjs";
@@ -2088,8 +2088,9 @@ async function searchStash(actor, def, roll, { room, scene, category, goalKey, t
         // module uses: Despair, and a critical is never clumsy.
         clumsy: Boolean(roll.withFear) && !roll.isCritical
     });
-    // What came out, on a GM's own client; that the GM has it, on a player's; null when not carried out.
-    const got = res.ok ? (game.user.isGM ? res.value : { pending: true }) : null;
+    // What came out, on a GM's own client; that the GM has it, on a player's; null when not carried out - and on a GM's
+    // own client a refusal settles as done with `{ refused }` as its value, told already (E14 fix e1-G1).
+    const got = res.ok && !res.value?.refused ? (game.user.isGM ? res.value : { pending: true }) : null;
 
     await noteRollContext(actor, {
         actionKey: "search", room, category, goal: goalKey, tier, fromVault: true
@@ -2139,8 +2140,9 @@ async function searchStash(actor, def, roll, { room, scene, category, goalKey, t
      * every way a Search can end without finding anything: `performSearch` comes
      * this far only once a failure, a request sent to a GM and a stash find have
      * all returned, and each of those leaves the plant in the room (ACT-03).
+     * Exported for the suite (E14 part 2 C4: a plant drawn into full hands).
      */
-async function searchDraw(room, scene, category, tier, goalKey, actor = null) {
+export async function searchDraw(room, scene, category, tier, goalKey, actor = null) {
     // The roll it is drawn for, so the GMs' fact of it goes on that roll's row (fix r1-G2).
     const plant = await SearchTokens.takePlant(room, scene?.id ?? null,
         { actorId: actor?.id ?? null, rollId: actor ? rollInHand(actor)?.messageId ?? null : null });
@@ -2154,35 +2156,70 @@ async function searchDraw(room, scene, category, tier, goalKey, actor = null) {
             // The one thing that makes the card read like an ordinary
             // unexpected find rather than an announcement.
             substitute: true,
-            identity: plant.drpgItemId
+            identity: plant.drpgItemId,
+            // Its way back to the room when it cannot be handed over (`grantDrawn`, E14 part 2 C4).
+            back: plant.back ?? null,
+            // And what it is, read off its name as a room table's entry is (tables.mjs `foundAs`, E14 part 2 C3):
+            // "Cold tea" planted in an armoury is a Sanity Relief usable on the sheet, as the same tea drawn there.
+            ...foundAs(plant.name, { category, tier, goal: goalKey ?? null })
         }
         : await drawItem(category, tier, { goal: goalKey, room, scene });
+}
+
+/**
+ * WHAT THE FIND IS (E14 part 2 C3, 24.10.2026; audit S08-09): the category, tier and goal `drawItem` drew (a plant's
+ * read by `searchDraw`), the tier never above what the Search earned - the GM judges that tier (sheet-audit.mjs
+ * `searchFind`: a spent token, a hit, at most the record's tier), and a find above it was flagged; the category and
+ * the goal the GM does not judge (the review's). A draw that says nothing - a caller's own object - is the request,
+ * as every find was until C3. Exported for `settleSearch` (reroll.mjs) and the suite.
+ *
+ * @returns {{category: string, tier: number, goal: string|null}}
+ */
+export function findOf(drawn, { category, tier, goalKey = null }) {
+    // A category a Search draws (`ITEM_POOLS`, E14 fix e1-G4; the review's E14p2-END-02, R5): a Truth Bullet or a room key
+    // a caller's draw named is the request, never a bullet with no trace or a key with no room.
+    const own = Object.hasOwn(ITEM_POOLS, drawn?.category ?? "") ? drawn.category : category;
+    const drawnTier = Number(drawn?.tier);
+    return {
+        category: own,
+        tier: Number.isInteger(drawnTier) && drawnTier >= 0 ? Math.min(drawnTier, tier) : tier,
+        goal: drawn?.goal !== undefined && own === drawn?.category ? drawn.goal ?? null : own === category ? goalKey ?? null : null
+    };
 }
 
     // The item actually goes into the inventory, subject to the carry limits.
     // Named after the GMs' record of the roll (`rollId`, E29 C6): the find stands on a GM as far as
     // that record's total reaches (sheet-audit.mjs `searchFind`). A roll the GM did not draw has none.
-async function grantDrawn(actor, drawn, { category, tier, goalKey, rollId = null }) {
+    // Made as what was drawn, at most at the earned tier (`findOf`, E14 part 2 C3). Exported for the suite.
+export async function grantDrawn(actor, drawn, { category, tier, goalKey, rollId = null }) {
     let granted = null;
     if (drawn?.name) {
+        const find = findOf(drawn, { category, tier, goalKey });
         const { grantItem, ITEM_FLAGS } = await import("./inventory.mjs");
         // The icon and the sentence the GM wrote on the table entry travel with
         // it - see `drawItem`. Both are `null` for a built-in pool, which is
         // exactly what `grantItem` already treats as "use the category icon and
         // the tier line".
-        granted = await grantItem(actor, {
-            reason: "searchFind", ref: rollId,
-            name: drawn.name, category, tier, goal: goalKey,
-            img: drawn.img ?? null, description: drawn.description ?? "",
-            // What else it can do, from the table entry it came out of.
-            roles: drawn.roles ?? [],
-            // A planted item arrives with its identity already minted by the
-            // GM, and it has to keep it: the GM's ledger was written against
-            // that name the moment the thing was planted, and an item that is
-            // renamed on the way into somebody's bag is an item the trap will
-            // never recognise again.
-            ...(drawn.identity ? { extraFlags: { [ITEM_FLAGS.identity]: drawn.identity } } : {})
-        });
+        try {
+            granted = await grantItem(actor, {
+                reason: "searchFind", ref: rollId,
+                name: drawn.name, category: find.category, tier: find.tier, goal: find.goal,
+                img: drawn.img ?? null, description: drawn.description ?? "",
+                // What else it can do, from the table entry it came out of.
+                roles: drawn.roles ?? [],
+                // A planted item arrives with its identity already minted by the
+                // GM, and it has to keep it: the GM's ledger was written against
+                // that name the moment the thing was planted, and an item that is
+                // renamed on the way into somebody's bag is an item the trap will
+                // never recognise again.
+                ...(drawn.identity ? { extraFlags: { [ITEM_FLAGS.identity]: drawn.identity } } : {})
+            });
+        } finally {
+            // A plant the hands could not take goes back to its room, the GMs told (E14 part 2 C4; S08-10):
+            // it was out of the store from the take on, and a refused grant - or one that threw - lost it
+            // and the killer's project.
+            if (!granted && drawn.back) await SearchTokens.returnPlant(drawn);
+        }
     }
     return granted;
 }
@@ -2209,6 +2246,18 @@ async function grantDrawn(actor, drawn, { category, tier, goalKey, rollId = null
      * off the granted Item: the carry limit can refuse to grant it, and picking
      * something up and finding you cannot hold it still means you touched it.
      */
+/**
+ * What a Search's hit found and the trace it leaves: the trace and the card follow what was found (C3) - its category
+ * decides a trace, its tier is the card's - so a weapon a room handed over for a Healing ask leaves one and an apple
+ * handed over for a weapon none. Out of `performSearch` and exported for the suite (E14 fix e1-G7, 25.10.2026; the
+ * review's E14p2-R7: passing the asked category here instead turned no test red).
+ */
+export async function traceTheFind(actor, def, roll, { hit, category, tier, goalKey, drawn, granted, room }) {
+    const find = drawn?.name ? findOf(drawn, { category, tier, goalKey }) : { category, tier, goal: goalKey };
+    const { placed, leftTrace } = await leaveSearchTrace(actor, def, roll, { hit, category: find.category, drawn, granted, room, tier: find.tier });
+    return { find, placed, leftTrace };
+}
+
 async function leaveSearchTrace(actor, def, roll, { hit, category, drawn, granted, room, tier }) {
     const leaves = leavesTraceFor(category, drawn?.roles);
     const visibility = roll.isCritical ? def.critical?.remnant : hit?.remnant;
@@ -2384,10 +2433,10 @@ async function performSearch(actor, def, options) {
 
     const drawn = await searchDraw(room, scene, category, tier, goalKey, actor);
     const granted = await grantDrawn(actor, drawn, { category, tier, goalKey, rollId: roll.raw?.[DRAWN_ROLL]?.rollId ?? null });
-    const { placed, leftTrace } = await leaveSearchTrace(actor, def, roll, { hit, category, drawn, granted, room, tier });
+    const { find, placed, leftTrace } = await traceTheFind(actor, def, roll, { hit, category, tier, goalKey, drawn, granted, room });
 
     const outcome = {
-        success: true, tier, category,
+        success: true, tier: find.tier, category: find.category,
         item: drawn?.name ?? null,
         carried: Boolean(granted),
         // The room had nothing of what was asked for and answered with what it
@@ -4252,7 +4301,7 @@ function friskModeOf(root) {
  * branch below is "and what does a critical do here", and the answer is
  * "nothing, on purpose".
  */
-async function resolvePlant(actor, def, { victim, planted, hand, shadow, room, seen, success, rolls }) {
+async function resolvePlant(actor, def, { victim, planted, hand, shadow, room, seen, success, rolls, paid = null }) {
     const { requestPlant } = await import("./gm-bridge.mjs");
     const res = await requestPlant({
         plannerId: actor.id,
@@ -4264,6 +4313,11 @@ async function resolvePlant(actor, def, { victim, planted, hand, shadow, room, s
         unseenCritical: Boolean(shadow.isCritical),
         ...rolls
     });
+    // Refused by the one gate before the rolls were read: the action back (`palmBack`; Q3). A Plant into full pockets
+    // was tried, and is no refusal (D42): it stays paid; so does one the gate refused on its second asking, after the
+    // rolls (told as nothing carried out, vault.mjs `plantOnPerson`; fix e1-G4).
+    if (TRANSFER_REFUSED.includes(res.ok ? (res.value?.refused ? (await import("./bridge-guards.mjs")).reasonOf(res.value.refused) : null)
+        : (res.refused ? res.reason : null))) await palmBack(actor, paid);
 
     await noteRollContext(actor, {
         actionKey: "palm", planting: true, room, victimId: victim.id,
@@ -4273,11 +4327,18 @@ async function resolvePlant(actor, def, { victim, planted, hand, shadow, room, s
     // "Sent" only when it was (E31): a request not carried out has been said once already.
     const plantOutcome = {
         success, seen, target: victim.name,
-        text: res.ok ? game.i18n.format("DRPG.Steal.plantSent", { name: victim.name }) : ""
+        // On a GM's own Palm a refusal settles as done with `{ refused }` as its value, told already (fix e1-G4).
+        text: res.ok && !res.value?.refused ? game.i18n.format("DRPG.Steal.plantSent", { name: victim.name }) : ""
     };
     await report(actor, def, hand, plantOutcome);
     Hooks.callAll("drpgActionResolved", { actor, actionKey: "palm", roll: hand, outcome: plantOutcome });
     return plantOutcome;
+}
+
+/** The action a Palm paid, handed back by its receipt, and said where something was paid (E14 part 1 C1, Q3). */
+async function palmBack(actor, paid) {
+    await abort(actor, paid);
+    if (paid) ui.notifications.info(game.i18n.localize("DRPG.Frisk.actionBack"));
 }
 
 /*
@@ -4393,7 +4454,7 @@ async function performPalm(actor, def, options) {
 
     // The two rolls the GM scores, by their messages: the hand's is the one this browser keeps (`rollInHand`).
     const rolls = { rollId: rollInHand(actor)?.messageId ?? null, unseenRollId: shadow.raw?.message?.id ?? shadow.raw?.message?._id ?? null };
-    if (planting) return resolvePlant(actor, def, { victim, planted, hand, shadow, room, seen, success, rolls });
+    if (planting) return resolvePlant(actor, def, { victim, planted, hand, shadow, room, seen, success, rolls, paid });
 
     const chosenId = await chooseStolen(victim, hand, success);
 
@@ -4408,6 +4469,20 @@ async function performPalm(actor, def, options) {
         unseenCritical: Boolean(shadow.isCritical),
         ...rolls
     });
+    /*
+     * A PALM THE ONE GATE REFUSED GIVES ITS ACTION BACK (E14 part 1 C1; the owner's Q3 of 18.10.2026: "a refusal before
+     * the rolls are read refunds; a full-pockets Plant does not"). The primary asks inventory.mjs `transferRefusal` -
+     * the room, both lives, the person, the Eclipse, the Class Trial - before it reads either roll (vault.mjs
+     * `stealFromPerson`, `plantOnPerson`), and its refusal comes back with one of the gate's codes (`TRANSFER_REFUSED`;
+     * the bridge has said why already). Handed back here, by what was paid (`abort`, its receipt: a Burst as a Burst, a
+     * free Palm nothing), and not by the primary, which cannot tell a Burst from an action - as a Frisk's ask is (frisk.mjs
+     * `FRISK_HANDED_BACK`). A GM's own Palm reads the refusal off its own answer (gm-bridge.mjs `requestSteal`'s `local`).
+     * The dice were thrown and paid out their Hope and Despair all the same: that is what the owner's answer accepts.
+     * One the gate refused on its second asking, inside the move after the rolls were read, comes back as nothing carried
+     * out (`refused`, vault.mjs `stealFromPerson`) and stays paid, as Q3 reads (E14 fix e1-G4; the review's E14R-07).
+     */
+    if (TRANSFER_REFUSED.includes(res.ok ? (res.value?.refused ? (await import("./bridge-guards.mjs")).reasonOf(res.value.refused) : null)
+        : (res.refused ? res.reason : null))) await palmBack(actor, paid);
 
     // What Reroll would have to unpick, and the honest answer is that it cannot
     // - see `case "steal"` in reroll.mjs. Recorded anyway so the branch there
@@ -4436,8 +4511,8 @@ async function performPalm(actor, def, options) {
         success,
         seen,
         target: victim.name,
-        // "Sent" only when it was (E31), as for a plant.
-        text: res.ok ? game.i18n.format("DRPG.Steal.sent", { name: victim.name }) : ""
+        // "Sent" only when it was (E31), as for a plant - and a GM's own refused Palm settles as done with `{ refused }` (fix e1-G4).
+        text: res.ok && !res.value?.refused ? game.i18n.format("DRPG.Steal.sent", { name: victim.name }) : ""
     };
 
     await report(actor, def, hand, outcome);
@@ -5081,7 +5156,8 @@ async function analyseBullet(actor, def, roll, subject, charge = null) {
     // Silent on the outcome on purpose: this client does not know the number it
     // was measured against, and must not be told. "The GM is working it out" only
     // when the GM's client has done so (E31 review); a refusal has been said.
-    await whisperToOwner(actor, `${rollHead(def, roll)}${res.ok ? `<p><small>${
+    // A GM's own refused Analyze settles as done with `{ refused }` as its value, said already (E14 fix e1-G4, the class of E14R-05).
+    await whisperToOwner(actor, `${rollHead(def, roll)}${res.ok && !res.value?.refused ? `<p><small>${
         game.i18n.format("DRPG.Analyze.sent", {
             name: foundry.utils.escapeHTML(subject.name)
         })}</small></p>` : ""}`, rollCardFlags(def, roll));

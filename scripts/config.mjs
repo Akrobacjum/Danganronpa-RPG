@@ -557,7 +557,7 @@ export const ITEM_CATEGORIES = {
          * this line changed.
          */
         limit: 3,
-        hint: "Healing items restore Health, sanity-relief items clear Sanity. Tier 3 lets you pick."
+        hint: "Healing items restore Health, sanity-relief items clear Sanity."
     },
     // "Murder Weapon" rather than "Crime Tool" - Dawid's wording, 2026-08-17.
     // Changed here rather than in the item window alone, because this table is
@@ -648,7 +648,7 @@ export const TIER_EFFECTS = {
         0: "A random, seemingly useless item. Open to creative use.",
         1: "Restores 1 Health (healing) or 1 Sanity (sanity relief), by its kind.",
         2: "Restores 2 Health (healing) or 2 Sanity (sanity relief), by its kind.",
-        3: "Restores 2 Health or 2 Sanity - your choice - plus 2 Hope."
+        3: "Restores 3 Health (healing) or 3 Sanity (sanity relief), by its kind."
     },
     crimeTool: {
         0: "A random, seemingly useless item.",
@@ -692,33 +692,73 @@ export const USABLE_KINDS = {
 };
 
 /**
+ * THE WORDS AN ITEM TABLE'S NAME IS BUILT FROM, IN ENGLISH, COPIED HERE BEFORE ANY LANGUAGE IS APPLIED (E14 part 2 C1).
+ *
+ * i18n.mjs `localizeConfig` rewrites `ITEM_CATEGORIES.*.plural` and `USABLE_KINDS.*.label` in place on a client whose
+ * module language is Polish, at `i18nInit` - after this file is evaluated. tables.mjs built every table name out of the
+ * plural as it read at the call, so one world's tables had two names, one per language: a player in Polish searched for
+ * "DRPG Narzędzia zbrodni - Tier 2" beside the GM's "DRPG Murder Weapons - Tier 2" and drew from the built-in pools, and
+ * a GM in Polish installed a second set (audit S01-05, S02-05, S08-03, S13-01). A name is a display; this copy is the
+ * one it is built from, and it is frozen, so nothing rewrites it. The owner's ruling (E14's risk, "wbudowane pule
+ * zostają angielskie") keeps the built-in names English. A world built in Polish before this is found through the
+ * Polish plurals in tables.mjs `LEGACY_PLURALS`.
+ */
+export const TABLE_NAME_WORDS = Object.freeze({
+    plural: Object.freeze(Object.fromEntries(Object.entries(ITEM_CATEGORIES).map(([key, c]) => [key, c.plural]))),
+    kind: Object.freeze(Object.fromEntries(Object.entries(USABLE_KINDS).map(([key, k]) => [key, k.label])))
+});
+
+/**
  * What each kind restores per tier, in words. The item descriptions, the GM's
  * give-item receipt and the goal tables' own descriptions all read this, so an
  * item says what IT does rather than what usables in general can do.
  *
- * Tier 3 reads the same in both columns on purpose: the top-tier usable is
- * where the two kinds meet, and the only place the player still chooses.
+ * Tier 3 is a kind like the others since the owner's ruling of 15.10.2026 (E14 part 1 C5): "Od teraz daja +3
+ * statystyki ktora uzupelniaja i tyle - bez wyboru". Until then both columns read "2 Health or 2 Sanity - your
+ * choice - plus 2 Hope", the one tier where the player chose; its balance is E64's.
  */
 export const USABLE_KIND_EFFECTS = {
     healing: {
         1: "Restores 1 Health.",
         2: "Restores 2 Health.",
-        3: "Restores 2 Health or 2 Sanity - your choice - plus 2 Hope."
+        3: "Restores 3 Health."
     },
     stress: {
         1: "Restores 1 Sanity.",
         2: "Restores 2 Sanity.",
-        3: "Restores 2 Health or 2 Sanity - your choice - plus 2 Hope."
+        3: "Restores 3 Sanity."
     }
 };
 
 /**
+ * THE WORDS AN ITEM TABLE'S DESCRIPTION IS BUILT FROM, IN ENGLISH, COPIED BEFORE ANY LANGUAGE IS APPLIED (E14 fix e1-G6,
+ * 25.10.2026; the review's E14p2-END-06). tables.mjs `tableDescription` read `ITEM_CATEGORIES.*.label`, `USABLE_KINDS`,
+ * `TIER_EFFECTS` and `USABLE_KIND_EFFECTS` as they read at the call, which i18n.mjs `localizeConfig` rewrites on a client
+ * in Polish: a GM in Polish loading a world whose pools still carried an old boilerplate description had
+ * `refreshTableCopy` write it to the world in Polish, every English GM read it so from then on, and their own pattern of
+ * boilerplate (English labels) never matched it again. The class C1 closed for names (`TABLE_NAME_WORDS`): one GM's
+ * language written into shared world data. A description is built from this frozen copy, as a name is.
+ */
+const freezeDeep = node => (node && typeof node === "object"
+    ? Object.freeze(Object.fromEntries(Object.entries(node).map(([key, value]) => [key, freezeDeep(value)]))) : node);
+export const TABLE_COPY_WORDS = Object.freeze({
+    label: Object.freeze(Object.fromEntries(Object.entries(ITEM_CATEGORIES).map(([key, c]) => [key, c.label]))),
+    kind: Object.freeze(Object.fromEntries(Object.entries(USABLE_KINDS).map(([key, k]) => [key, k.label]))),
+    tierEffect: freezeDeep(TIER_EFFECTS),
+    kindEffect: freezeDeep(USABLE_KIND_EFFECTS)
+});
+
+/**
  * What using a Usable Item actually restores, by tier.
  *
- * Tiers 1 and 2 are `byKind`: the amount lands on whichever resource the item's
+ * Tiers 1 to 3 are `byKind`: the amount lands on whichever resource the item's
  * kind names (USABLE_KINDS above), no question asked - the choice was made when
- * the item came off a Healing or a Sanity Relief table. Only tier 3 still asks,
- * and it restores 2 Hope on top whichever way the player answers. Tier 0 is "a
+ * the item came off a Healing or a Sanity Relief table; an item of no known kind
+ * is asked which, as at every tier. Tier 3 restores 3 and nothing else (the
+ * owner, 15.10.2026; E14 part 1 C5): until then it asked Health or Sanity and
+ * restored 2 of it plus 2 Hope. A row may still carry `choose` and `bonus`
+ * (use-items.mjs `useItem`, sheet-audit.mjs `itemCovers`, murder-rules.mjs
+ * `hopeTheUseGave` read them); none does since 15.10. Tier 0 is "a
  * random, seemingly useless object, open to creative use": there is no table
  * entry to apply, so it goes to the GM instead.
  *
@@ -728,7 +768,7 @@ export const USABLE_EFFECTS = {
     0: { creative: true },
     1: { amount: 1, byKind: true },
     2: { amount: 2, byKind: true },
-    3: { amount: 2, choose: ["hitPoints", "stress"], bonus: { hope: 2 } }
+    3: { amount: 3, byKind: true }
 };
 
 /**
@@ -823,9 +863,7 @@ export const LIMIT_GROUPS = {
          * everything else down, so at most one thing is ever in a hand. This is
          * the other half.
          */
-        maxStowed: 1,
-        hint: "Murder Weapons, Cleaning Tools and Tools share two slots, and only one of "
-            + "them may be stowed - carrying two means one is in your hand."
+        maxStowed: 1
     }
 };
 
@@ -1842,8 +1880,9 @@ export const BROKEN_ITEMS = {
      * It is not always, though, and that is why this is a pair rather than one
      * value: a lockpick that snaps while you are gathering tools is a Prep
      * trace and nothing else. `discardRemnantType()` in use-items.mjs draws
-     * the line at the only place the module can honestly draw it - whether an
-     * incident is running or a body has been found - so "before" stays Prep.
+     * the line - the Investigation or the Class Trial, a side of the running
+     * incident, a body found (E14 part 1 C5: the phase and the sides since
+     * 24.10.2026, read on the GM, who files the type) - so "before" stays Prep.
      */
     /** While no incident is running and no body has been found: still preparation. */
     remnantTypeBefore: "prep",
@@ -3910,8 +3949,7 @@ export const CLEANUP = {
             label: "Erase a trace", icon: "fa-eraser",
             /** DC comes from the trace itself - see `dc` above. */
             dcFromVisibility: true,
-            targets: "remnant",
-            hint: "Wipe out one trace you left. The harder it is to see, the easier it is to erase."
+            targets: "remnant"
         },
 
         /**
@@ -3943,7 +3981,6 @@ export const CLEANUP = {
             label: "Misleading trail", icon: "fa-signs-post",
             threshold: 15,
             targets: "player",
-            hint: "Plant a Prep Remnant pointing at somebody else.",
             remnant: { hope: "evident", despair: "subtle", critical: "obvious" },
             failureRemnant: { hope: "hidden" },
             failureFaint: true,
@@ -3965,7 +4002,6 @@ export const CLEANUP = {
             threshold: 16,
             traits: ["body"],
             targets: "body",
-            hint: "Carry the body somewhere else. Always leaves an Evident trace.",
             rooms: { hope: 1, despair: 1, critical: 2 },
             remnant: { hope: "evident", despair: "evident", critical: "evident" },
             remnantType: "resolution",

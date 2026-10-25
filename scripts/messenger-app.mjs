@@ -786,7 +786,7 @@ async function ruleItemWorksOrItemNoEffectOrItemRefuse(action, data) {
     const actor = game.actors.get(data.by);
     const item = actor?.items?.get(data.item);
     if (!actor || !item) return null;   // Handed over meanwhile; nothing to rule on.
-    const { grantItemEffect } = await import("./use-items.mjs");
+    const { grantItemEffect, ruleCreativeUse } = await import("./use-items.mjs");
     if (action === "itemRefuse") {
         const { postToThread } = await import("./messenger.mjs");
         const owner = ownerOf(actor);
@@ -795,14 +795,17 @@ async function ruleItemWorksOrItemNoEffectOrItemRefuse(action, data) {
         if (owner) await postToThread(owner.id, note);
         return settled("DRPG.Bridge.settledDeclined");
     }
-    if (action === "itemNoEffect") {
-        await grantItemEffect(actor, item, {}, { consumeItem: true });
-        return settled("DRPG.Bridge.settledHandled");
+    // One ruling at a time on an item, and none on one gone or used up meanwhile (E14 part 1 C5; audit S08-35):
+    // held on this GM by `ruleCreativeUse`, which reads the item before the window and again after it.
+    const ask = action === "itemNoEffect" ? async () => ({ amounts: {}, consume: true }) : () => askItemEffect(item);
+    const done = await ruleCreativeUse(actor, item.id, ask,
+        ruling => grantItemEffect(actor, actor.items.get(item.id) ?? item, ruling.amounts, { consumeItem: ruling.consume }));
+    if (done?.busy) {
+        ui.notifications.warn(game.i18n.format("DRPG.Items.rulingOpen", { item: item.name }));
+        return null;
     }
-    const ruling = await askItemEffect(item);
-    if (!ruling) return null;
-    await grantItemEffect(actor, item, ruling.amounts, { consumeItem: ruling.consume });
-    return settled("DRPG.Bridge.settledHandled");
+    if (done?.gone) return settled("DRPG.Items.rulingGone");
+    return done ? settled("DRPG.Bridge.settledHandled") : null;
 }
 
 async function ruleOpenMurder(action, data) {

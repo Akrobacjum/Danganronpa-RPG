@@ -1,6 +1,6 @@
 # Danganronpa RPG - Player Handbook
 
-*For students of the killing game. Module version 1.2.83, built on Daggerheart for Foundry VTT v14.*
+*For students of the killing game. Module version 1.2.84, built on Daggerheart for Foundry VTT v14.*
 
 This is the whole game from your chair: what the numbers on your sheet mean, what an action costs, what Hope buys, what happens when somebody dies, and what to press. Every number in here is the module's own; where a decision belongs to a human, it says "the GM decides".
 
@@ -191,6 +191,8 @@ What you can ask for:
 | *something to work with* | a Tool |
 | *something specific* | describe it and the GM rules on what was really there |
 
+What turns up is what the room holds: a room the GM has stocked answers first, so what you find can be another kind of thing than you asked for, or of a lower tier - never of a higher one than your roll earned.
+
 Some rooms are good places to look for a category and some are bad; the roll window tells you when the room favours or hinders what you ask for. If somebody else keeps a stash with something in it in this room, a successful Search takes from that stash instead - an open one first, a hidden one with one more step of disadvantage on your roll (one of your bonus dice set aside, or one more penalty die). The window does not show that step, because it would tell you a hidden stash is here before you had spent anything: it is taken once the dice have fallen, and your card says what it did.
 
 > [!WARNING]
@@ -303,7 +305,7 @@ A hand in somebody's pocket, going either way, or just a look inside. Two indepe
 | It works (Hand) | 10+ | 8+ | 10+ |
 | Unseen (Shadow) | 15+ | 13+ | 15+ |
 
-Four outcomes, and the interesting ones are the mismatches: caught with nothing to show for it, or robbed by somebody you never noticed. What you take is whatever comes out; a critical lets you choose. Their carry limit still applies - what does not fit in a full pocket goes into their stash, and with no stash it stays with you. Palm never reaches into a stash.
+Four outcomes, and the interesting ones are the mismatches: caught with nothing to show for it, or robbed by somebody you never noticed. What you take is whatever comes out; a critical lets you choose. Carry limits still apply, and one action moves one piece of a stack. Something you leave on somebody whose pockets are full stays with you - you are told so, and they are told nothing, whether they noticed you or not. Something you take with your own hands full goes into your stash, and with no stash it stays with them. Palm never reaches into a stash. A Palm refused before its dice are read - the target walked out, a Class Trial began - gives you its action back; leaving something in full pockets was a try, and its action is spent.
 
 **See what they carry** (a Frisk) takes nothing. **Openly**, you ask them to turn out their pockets. If they let you, you see what they had on them when you asked: handing something on while they think it over does not hide it. If they refuse, or do not answer within a minute, you can make them, unless your GM has switched that off: **Body 12+**, and the room sees it either way. If their player is not here, nobody answers; the GM answers for a character without a player. **Unseen**, it is a theft's two rolls without the theft: Shadow first, 15+ so they do not notice, then Hand, 10+ to get a proper look; if they notice, they know it was you. It costs **1 action**; if the request cannot be put to them at all, you get it back. You see what is in their pockets: never a Truth Bullet, never a stash. A body is not frisked: look through it from its sheet.
 
@@ -350,7 +352,7 @@ Not a tile, just drag your token. See chapter 3.
 
 ## 5. Hope and the Hope Calls
 
-Hope is yours. You hold at most **6**. It comes back when rolls go your way (+1 with Hope, +2 on a critical), from a Breath on a Rest, and from a Tier 3 usable. You spend it on **Hope Calls**, from the sheet:
+Hope is yours. You hold at most **6**. It comes back when rolls go your way (+1 with Hope, +2 on a critical), and from a Breath on a Rest. You spend it on **Hope Calls**, from the sheet:
 
 | Call | Cost | What it does |
 |---|---|---|
@@ -424,7 +426,7 @@ None of these ever takes you below one action or one search token. You see "?" f
 | 0 | a random, seemingly useless item - open to creative use; the GM rules | a random, seemingly useless item | single use |
 | 1 | restores 1 Health (Healing) or 1 Sanity (Sanity Relief) | meant for something else, but usable | 1 |
 | 2 | restores 2 Health or 2 Sanity, by its kind | partly intended for the job | 2 |
-| 3 | restores 2 Health **or** 2 Sanity - your choice - plus 2 Hope | made strictly for the job | 3 |
+| 3 | restores 3 Health or 3 Sanity, by its kind | made strictly for the job | 3 |
 
 **Durability:** every roll with Despair made using a tool costs it one point, whether or not the work succeeded. At zero it is **Broken**. A **Tier 0** tool or weapon is **single use**: the first roll it is used in breaks it, whatever the roll - Hope, Despair or a critical - and its row says "Single use" instead of showing pips. A used usable is Broken too.
 
@@ -449,13 +451,13 @@ An item can also serve as another category (a screwdriver under Tools that is al
 
 ### Bedrooms, keys, stashes
 
-- One student, one bedroom. The **door is locked** to everyone but the owner; anybody else needs a **key**. You hold your own key and can give a copy to somebody - the owner keeps theirs. A key opens its door whoever holds it: one Palmed off somebody, lifted from a stash or taken from a body works like one that was given.
+- One student, one bedroom. The **door is locked** to everyone but the owner; anybody else needs a **key**. You hold your own key and can give a copy to somebody - the owner keeps theirs. A key opens its door whoever holds it: one Palmed off somebody, lifted from a stash or taken from a body works like one that was given. Only a key in your hand opens the door: one in your stash opens nothing. When the GM gives a bedroom to somebody else, its old owner's keys go; a copy somebody else was given stays, and opens the new owner's door. In an Investigation the bedroom of someone whose death is known stands open.
 - Your bedroom comes with a **stash**. A stash holds **3** things, and you have to be standing in the room to put things in or take them out. Truth Bullets cannot be stashed.
-- An **open** stash is a drawer: anyone standing in the room can go through it for free and take one thing. Your bedroom's stash is open unless a hiding place has been built for it (a project the GM approves).
+- An **open** stash is a drawer: anyone standing in the room can go through it for free and take one thing from it, once each time of day. Your bedroom's stash is open unless a hiding place has been built for it (a project the GM approves).
 - A **hidden** stash has to be found first: a Search in the room, with one more step of disadvantage (your card tells you after the roll), or Analyze's *Locate a hidden stash* at 16+, which opens it to you for good. If the GM removes a stash, whoever had found it forgets it.
 - Somebody helping themselves from a stash of yours is not announced. Only a thief whose Search came up with Despair leaves it disturbed enough to notice: you are told somebody has been in it - never who.
 - The GM may give you a stash in another room. It does not come with a key to that room.
-- Your hands were full when something reached you - found, stolen, taken off a body, or slipped into your pocket? It goes into your stash - your bedroom's, if you have one - wherever you are standing and however full that stash already is, and you are told. With no stash at all, it does not reach you. Something handed to you over the limit is simply refused.
+- Your hands were full when something reached you - found, stolen, lifted out of a stash or taken off a body? It goes into your stash - your bedroom's, if you have one - wherever you are standing and however full that stash already is, and you are told. With no stash at all, it does not reach you. Something handed to you over the limit is simply refused, and so is something slipped into full pockets: it stays with whoever tried, and you are told nothing. From a stack, one piece moves at a time.
 
 ---
 
@@ -714,7 +716,8 @@ Somebody among you may have built this place. The **Final Truth Remnants** - one
 
 - The dead take no actions and spend no Hope. You keep your sheet and your voice at the table.
 - Your voice after you die in an incident: while that incident runs you stay in the room you died in. Once it ends, or your body is found, or a living student from outside the incident walks in, you are moved: to the channel of the dead while nobody has been told of your death - the living do not hear you there and you do not hear them, only the other dead - and to the main room once your death is known. Outside an incident this happens at once. As a Monocub you talk as a Monocub.
-- Your **Truth Bullets die with you**, carried and stashed alike, unless the GM keeps them - once your death is known. Everything else stays on the body to be found.
+- Your **Truth Bullets die with you**, carried and stashed alike, unless the GM keeps them - once your death is known. Everything else stays on the body to be found, as it was: the dead do not use, ready, throw away, put away or take out anything, and a Monocub's things are its body's too.
+- Going through a body's pockets: open its sheet while you stand in its room, alive, outside a Class Trial and an Eclipse, and press **Take** on a thing. Until the body is found, only those who know of the death can. A Take you cannot make is greyed, with the reason beside it.
 - If you die in an incident, nobody else is told until your body is found or a GM makes it known: your sheet shows you dead, with "Nobody has found your body yet.", and your Truth Bullets stay on it until then. Until then the trial counts you among the living: you are sent a ballot, and a correct verdict's Level Up is yours too.
 - The body stays where it fell and can be moved by the killer. The dead do not count as being in a room: no witnessing, no handovers.
 - The GM can end a chapter by revealing what every Truth Bullet really was, collecting them (Faint and Final Truth stay), and clearing the Faint traces.

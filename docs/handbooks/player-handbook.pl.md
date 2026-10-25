@@ -1,6 +1,6 @@
 # Danganronpa RPG - Podręcznik gracza
 
-*Dla uczniów killing game. Moduł w wersji 1.2.83, zbudowany na Daggerheart dla Foundry VTT v14.*
+*Dla uczniów killing game. Moduł w wersji 1.2.84, zbudowany na Daggerheart dla Foundry VTT v14.*
 
 To cała gra widziana z twojego krzesła: co znaczą liczby na arkuszu, ile kosztuje akcja, co kupuje Hope, co się dzieje, gdy ktoś ginie, i co kliknąć. Każda liczba tutaj jest liczbą modułu; tam, gdzie decyzja należy do człowieka, napisano "GM decyduje".
 
@@ -191,6 +191,8 @@ O co możesz prosić:
 | *coś do pracy* | narzędzie |
 | *coś konkretnego* | opisz to, a GM orzeknie, co naprawdę tu było |
 
+Znajdujesz to, co ma pokój: pokój, który GM zaopatrzył, odpowiada pierwszy, więc znalezisko może być czymś innym, niż prosisz, albo mieć niższy Tier - nigdy wyższy, niż wywalczył twój rzut.
+
 Niektóre pokoje to dobre miejsca, by szukać danej kategorii, a niektóre złe; okno rzutu mówi, gdy pokój sprzyja temu, o co prosisz, albo w tym przeszkadza. Jeśli ktoś inny trzyma w tym pokoju skrytkę, w której coś jest, udane Search bierze zamiast tego z tej skrytki - najpierw z otwartej, a z ukrytej z jednym stopniem utrudnienia więcej (jedna z twoich kości premii odłożona albo jeszcze jedna kość kary). Okno rzutu tego stopnia nie pokazuje, bo powiedziałoby ci, że jest tu ukryta skrytka, zanim cokolwiek wydasz: dokłada się go, gdy kości już upadną, a twoja karta mówi, co zrobił.
 
 > [!WARNING]
@@ -303,7 +305,7 @@ Ręka w czyjejś kieszeni, w jedną albo w drugą stronę, albo tylko spojrzenie
 | Udaje się (Hand) | 10+ | 8+ | 10+ |
 | Niezauważony (Shadow) | 15+ | 13+ | 15+ |
 
-Cztery wyniki, a ciekawe są te niedopasowane: przyłapany z niczym albo okradziony przez kogoś, kogo nie zauważyłeś. Bierzesz, co wyjdzie; krytyk pozwala wybrać. Ich limit noszenia wciąż obowiązuje - to, co nie mieści się w pełnej kieszeni, trafia do ich skrytki, a gdy skrytki nie mają, zostaje u ciebie. Palm nigdy nie sięga do wnętrza skrytki.
+Cztery wyniki, a ciekawe są te niedopasowane: przyłapany z niczym albo okradziony przez kogoś, kogo nie zauważyłeś. Bierzesz, co wyjdzie; krytyk pozwala wybrać. Limity noszenia wciąż obowiązują, a jedna akcja przenosi jedną sztukę ze stosu. Coś, co zostawiasz komuś z pełnymi kieszeniami, zostaje u ciebie - dostajesz o tym wiadomość, a oni nie dowiadują się niczego, czy cię zauważyli, czy nie. Coś, co bierzesz, mając pełne ręce, trafia do twojej skrytki, a gdy jej nie masz, zostaje u nich. Palm nigdy nie sięga do wnętrza skrytki. Palm odrzucony, zanim kości zostaną odczytane - cel wyszedł, zaczął się Class Trial - oddaje ci akcję; zostawienie czegoś w pełnych kieszeniach było próbą i akcja przepada.
 
 **Zobacz, co nosi** (Frisk) niczego nie zabiera. **Jawnie** prosisz, żeby pokazali kieszenie. Jeśli pozwolą, widzisz to, co mieli przy sobie w chwili prośby: przekazanie czegoś dalej w czasie namysłu tego nie ukryje. Jeśli odmówią albo nie odpowiedzą w ciągu minuty, możesz ich zmusić, chyba że GM to wyłączył: **Body 12+**, a pokój i tak to widzi. Jeśli ich gracza nie ma, nikt nie odpowiada; za postać bez gracza odpowiada GM. **Ukradkiem** to dwa rzuty kradzieży bez kradzieży: najpierw Shadow, 15+, żeby nikt nie zauważył, potem Hand, 10+, żeby dobrze się przyjrzeć; jeśli to zauważą, wiedzą, że to ty. Kosztuje **1 akcję**; jeśli prośba w ogóle nie może do nich trafić, akcja wraca. Widzisz to, co jest w kieszeniach: nigdy Truth Bullet, nigdy skrytkę. Ciała nie przeszukuje się przez Frisk: przejrzyj je z jego arkusza.
 
@@ -350,7 +352,7 @@ Nie kafelek, po prostu przeciągasz token. Zobacz rozdział 3.
 
 ## 5. Hope i Hope Calls
 
-Hope jest twój. Masz najwyżej **6**. Wraca, gdy rzuty idą po twojej myśli (+1 z Hope, +2 na krytyku), z Oddechu przy Rest i z użytkowego Tier 3. Wydajesz go na **Hope Calls**, z arkusza:
+Hope jest twój. Masz najwyżej **6**. Wraca, gdy rzuty idą po twojej myśli (+1 z Hope, +2 na krytyku), i z Oddechu przy Rest. Wydajesz go na **Hope Calls**, z arkusza:
 
 | Call | Koszt | Co robi |
 |---|---|---|
@@ -424,7 +426,7 @@ Despair zdobyty ponad pełną pulę nie znika - zbiera się w jednym wspólnym l
 | 0 | losowy, z pozoru bezużyteczny przedmiot - otwarty na kreatywne użycie; GM orzeka | losowy, z pozoru bezużyteczny przedmiot | jednorazowy |
 | 1 | przywraca 1 Health (leczący) albo 1 Sanity (uspokajający) | przeznaczony do czegoś innego, ale się nada | 1 |
 | 2 | przywraca 2 Health albo 2 Sanity, zależnie od rodzaju | częściowo przeznaczony do tej roboty | 2 |
-| 3 | przywraca 2 Health **albo** 2 Sanity - do wyboru - plus 2 Hope | zrobiony wyłącznie do tej roboty | 3 |
+| 3 | przywraca 3 Health albo 3 Sanity, zależnie od rodzaju | zrobiony wyłącznie do tej roboty | 3 |
 
 **Wytrzymałość:** każdy rzut z Despair wykonany z użyciem narzędzia kosztuje je jeden punkt, niezależnie od tego, czy praca się udała. Na zerze jest **Zepsute**. Narzędzie albo broń **Tier 0** jest **jednorazowe**: psuje je pierwszy rzut, w którym go użyjesz, jakkolwiek by wypadł - z Hope, z Despair albo krytyk - a jego wiersz mówi "Jednorazowy" zamiast pokazywać kropki. Zużyty użytkowy też jest Zepsuty.
 
@@ -436,26 +438,26 @@ Despair zdobyty ponad pełną pulę nie znika - zbiera się w jednym wspólnym l
 | Kategoria | Limit | Uwagi |
 |---|---|---|
 | **Użytkowe** | 3 | Leczące przywracają Health, uspokajające oczyszczają Sanity. Używasz z wiersza w ekwipunku. |
-| **Ekwipunek**: narzędzia zbrodni, narzędzia do sprzątania, narzędzia | 2 wspólne miejsca | Tylko **jedno** może być schowane - noszenie dwóch znaczy, że jedno jest w ręku. |
+| **Sprzęt**: narzędzia zbrodni, narzędzia do sprzątania, narzędzia | 2 wspólne miejsca | Tylko **jedno** może być schowane - noszenie dwóch znaczy, że jedno jest w ręku. |
 | **Truth Bullets** | brak | Dowody. To, co wiesz, nie rzecz w szufladzie. |
 | **Klucze do pokoi** | brak | Otwiera jedną sypialnię. |
 
 Przedmiot może służyć też jako inna kategoria (śrubokręt w narzędziach, który jest też narzędziem zbrodni) i wciąż zajmuje jedno miejsce.
 
 > [!IMPORTANT]
-> **W ręku.** Ekwipunek liczy się tylko wzięty do ręki: w incydencie, przy sprzątaniu i przy pracy nad projektem liczy się tylko to, co trzymasz. W ręku jest zawsze najwyżej jedna rzecz; wzięcie jednej odkłada pozostałe. Narzędzie w ręku daje przewagę przy pracy nad projektem i sabotażu i zdejmuje swój Tier z progu. Narzędzie do sprzątania w ręku robi to samo przy sprzątaniu. Tier narzędzia zbrodni to jego obrażenia.
+> **W ręku.** Sprzęt liczy się tylko wzięty do ręki: w incydencie, przy sprzątaniu i przy pracy nad projektem liczy się tylko to, co trzymasz. W ręku jest zawsze najwyżej jedna rzecz; wzięcie jednej odkłada pozostałe. Narzędzie w ręku daje przewagę przy pracy nad projektem i sabotażu i zdejmuje swój Tier z progu. Narzędzie do sprzątania w ręku robi to samo przy sprzątaniu. Tier narzędzia zbrodni to jego obrażenia.
 
 **Przekazywanie.** Każdemu w tym samym pokoju: **Przekaż** (opuszcza cię na dobre; obowiązuje jego limit) albo, przy Truth Bullecie, **Podziel się kopią** (macie oboje, a jego kopii nie wiąże żadna twoja nieudana analiza). Bez akcji i nie podczas Eclipse.
 
 ### Sypialnie, klucze, skrytki
 
-- Jeden uczeń, jedna sypialnia. **Drzwi są zamknięte** dla wszystkich poza właścicielem; każdy inny potrzebuje **klucza**. Masz własny klucz i możesz dać komuś kopię - właściciel zachowuje swój. Klucz otwiera swoje drzwi temu, kto go trzyma: zdjęty komuś przez Palm, wyjęty ze skrytki albo zabrany z ciała działa jak podarowany.
+- Jeden uczeń, jedna sypialnia. **Drzwi są zamknięte** dla wszystkich poza właścicielem; każdy inny potrzebuje **klucza**. Masz własny klucz i możesz dać komuś kopię - właściciel zachowuje swój. Klucz otwiera swoje drzwi temu, kto go trzyma: zdjęty komuś przez Palm, wyjęty ze skrytki albo zabrany z ciała działa jak podarowany. Drzwi otwiera tylko klucz w twoim ręku: ten w skrytce nie otwiera niczego. Gdy GM daje sypialnię komuś innemu, klucze jej starego właściciela przepadają; kopia, którą dostał ktoś inny, zostaje i otwiera drzwi nowego właściciela. W Investigation sypialnia kogoś, o czyjej śmierci wiadomo, stoi otworem.
 - Twoja sypialnia ma **skrytkę**. Skrytka mieści **3** rzeczy, a żeby coś włożyć albo wyjąć, musisz stać w pokoju. Truth Bulletów nie da się schować.
-- **Otwarta** skrytka to szuflada: każdy stojący w pokoju może ją przejrzeć za darmo i wziąć jedną rzecz. Skrytka w twojej sypialni jest otwarta, dopóki nie zbudowano do niej schowka (projekt, który zatwierdza GM).
+- **Otwarta** skrytka to szuflada: każdy stojący w pokoju może ją przejrzeć za darmo i wziąć z niej jedną rzecz, raz na porę dnia. Skrytka w twojej sypialni jest otwarta, dopóki nie zbudowano do niej schowka (projekt, który zatwierdza GM).
 - **Ukrytą** skrytkę trzeba najpierw znaleźć: Search w pokoju, z jednym stopniem utrudnienia więcej (karta powie ci o tym po rzucie), albo Analyze *Znajdź ukrytą skrytkę* na 16+, co otwiera ją przed tobą na dobre. Jeśli GM usunie skrytkę, ci, którzy ją znaleźli, zapominają o niej.
 - To, że ktoś częstuje się z twojej skrytki, nie jest ogłaszane. Tylko złodziej, którego Search wypadło z Despair, zostawia ją na tyle naruszoną, że da się to zauważyć: dowiadujesz się, że ktoś w niej był - nigdy kto.
 - GM może dać ci skrytkę w innym pokoju. Nie daje ona klucza do tego pokoju.
-- Miałeś pełne ręce, gdy coś do ciebie trafiło - znalezione, ukradzione, zabrane z ciała albo podrzucone ci do kieszeni? Trafia do twojej skrytki - tej z sypialni, jeśli ją masz - gdziekolwiek stoisz i jakkolwiek pełna już jest, a ty dostajesz o tym wiadomość. Gdy nie masz żadnej skrytki, rzecz w ogóle do ciebie nie dociera. Coś, co ktoś ci podaje ponad limit, zostaje po prostu odrzucone.
+- Miałeś pełne ręce, gdy coś do ciebie trafiło - znalezione, ukradzione, wyjęte ze skrytki albo zabrane z ciała? Trafia do twojej skrytki - tej z sypialni, jeśli ją masz - gdziekolwiek stoisz i jakkolwiek pełna już jest, a ty dostajesz o tym wiadomość. Gdy nie masz żadnej skrytki, rzecz w ogóle do ciebie nie dociera. Coś, co ktoś ci podaje ponad limit, zostaje po prostu odrzucone, tak samo jak coś, co ktoś próbuje wsunąć ci do pełnych kieszeni: zostaje u tego, kto próbował, a ty nie dowiadujesz się niczego. Jedna akcja przenosi ze stosu tylko jedną sztukę.
 
 ---
 
@@ -714,7 +716,8 @@ Ktoś wśród was mógł zbudować to miejsce. **Final Truth Remnants** - jeden 
 
 - Zmarli nie wykonują akcji i nie wydają Hope. Zachowujesz arkusz i głos przy stole.
 - Twój głos po śmierci w incydencie: dopóki ten incydent trwa, zostajesz w pokoju swojej śmierci. Gdy się skończy, gdy ktoś znajdzie twoje ciało albo gdy wejdzie tam żywy uczeń spoza incydentu, przechodzisz: do kanału zmarłych, dopóki nikomu nie powiedziano o twojej śmierci - żywi cię tam nie słyszą, a ty nie słyszysz ich, tylko innych zmarłych - a do pokoju głównego, gdy twoja śmierć jest znana. Poza incydentem dzieje się to od razu. Jako Monocub mówisz jak Monocub.
-- Twoje **Truth Bullets giną razem z tobą**, noszone i schowane jednakowo, chyba że GM je zachowa - gdy twoja śmierć wyjdzie na jaw. Wszystko inne zostaje przy ciele do znalezienia.
+- Twoje **Truth Bullets giną razem z tobą**, noszone i schowane jednakowo, chyba że GM je zachowa - gdy twoja śmierć wyjdzie na jaw. Wszystko inne zostaje przy ciele do znalezienia, tak jak było: zmarli niczego nie używają, nie biorą do ręki, nie wyrzucają, nie chowają ani nie wyjmują, a rzeczy Monocuba też należą do jego ciała.
+- Przeszukanie ciała: otwórz jego arkusz, gdy stoisz w jego pokoju, żywy, poza Class Trial i Eclipse, i naciśnij **Weź** przy rzeczy. Dopóki ciała nikt nie znalazł, mogą to zrobić tylko ci, którzy wiedzą o śmierci. Weź, którego nie możesz użyć, jest wyszarzone, z powodem obok.
 - Jeśli zginiesz w incydencie, nikt inny się nie dowie, dopóki ktoś nie znajdzie twojego ciała albo GM tego nie ujawni: twój arkusz pokazuje cię jako martwego, z "Nikt jeszcze nie znalazł twojego ciała.", a twoje Truth Bullets zostają na nim do tego czasu. Do tego czasu rozprawa liczy cię wśród żywych: dostajesz kartę do głosowania, a Level Up za trafny werdykt dostajesz i ty.
 - Ciało zostaje tam, gdzie upadło, i zabójca może je przenieść. Zmarli nie liczą się jako obecni w pokoju: nie są świadkami, nie przekazują.
 - GM może zakończyć rozdział, ujawniając, czym naprawdę był każdy Truth Bullet, zbierając je (Faint i Final Truth zostają) i czyszcząc Faint ślady.
@@ -787,7 +790,7 @@ W lewym dolnym rogu karty postaci jest przycisk ze słowem - **Safe Word**, chyb
 
 **Twój arkusz:**
 - *Akcje* - dziesięć kafelków, Hope Calle poniżej; podczas incydentu kafelek Direct Murder staje się **Broń się** dla ofiary i **Akcje kryzysowe** dla pozostałych i je otwiera; tutaj Move i Confusion jako Monocub.
-- *Ekwipunek* - użytkowe, ekwipunek (z *weź do ręki*), Truth Bullets (Analyze, Przedstaw, Podziel się kopią; grupujesz je wg Rozdziału albo Lokacji), klucze do pokoi i twoja skrytka, gdy stoisz w tym pokoju.
+- *Ekwipunek* - użytkowe, sprzęt (z *weź do ręki*), Truth Bullets (Analyze, Przedstaw, Podziel się kopią; grupujesz je wg Rozdziału albo Lokacji), klucze do pokoi i twoja skrytka, gdy stoisz w tym pokoju.
 - *Zasady* - stałe zasady Monokumy, dla wszystkich, cały czas.
 - Safeword, w lewym dolnym rogu. Level Up, gdy go zdobyłeś.
 

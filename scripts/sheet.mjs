@@ -1922,9 +1922,11 @@ function paintResourceBars(app, element) {
 /**
  * A row about something that has stopped existing (trap 91).
  *
- * A SILENT STEAL LEAVES ONE. `stealFromPerson` deletes the item with
- * `render: false` so the victim's open sheet does not redraw for it - the thing
- * has really gone, and what is suppressed is the refresh. Until something else
+ * A SILENT STEAL LEAVES ONE. An unseen steal or rifle (vault.mjs
+ * `stealFromPerson`, `stealFromVault`, through inventory.mjs `transferItem`
+ * since E35 C3) deletes the item with `render: false` so the victim's open
+ * sheet does not redraw for it - the thing has really gone, and what is
+ * suppressed is the refresh. Until something else
  * redraws the sheet the row is still on screen, and every control on it is
  * pointing at a document that is not there: readying it, using it, handing it
  * over, opening its sheet. An exception in the victim's console is a worse
@@ -2697,9 +2699,82 @@ function groupInventory(app, element) {
         box.append(section);
     }
 
+    buildOtherSection(box, actor, app);
     buildStashSection(box, actor, app);
     buildOpenStashSection(box, actor, app);
     tab.prepend(box);
+}
+
+/*
+ * WHAT NO HEADING FILES (E14 part 2 C6, 24.10.2026; audit S03-18).
+ *
+ * The groups above are drawn by category, and the stylesheet hides Daggerheart's own inventory lists, so an item with
+ * no category flag - dragged on from the sidebar or a compendium - or with one this module does not have was on the
+ * actor and on no screen: nothing to use, hand over or remove, and a GM took the drop for failed. They are drawn here,
+ * carried ones only, each row opening the item's sheet, with a line saying what to do. Give / take items lists by
+ * category and cannot take such an item (gm-items.mjs `holdingsHtml`, `takeItemDialog`), so a GM's row has its own Remove,
+ * asked first, and the line says to give it again as what it is; a player is told to ask the GM. The item types are the ones that sit in an inventory - the two this module makes
+ * (inventory.mjs `grantItem`: "consumable" and "loot") and Daggerheart's "weapon" and "armor" (its type names as the
+ * system declares them; not read in this repository) - so a feature, a domain card or a class is never listed.
+ */
+const CARRIED_TYPES = new Set(["consumable", "loot", "weapon", "armor"]);
+
+function buildOtherSection(box, actor, app) {
+    const items = actor.items.filter(item => CARRIED_TYPES.has(item.type) && !isStashed(item)
+        && !ITEM_CATEGORIES[item.getFlag(MODULE_ID, "category")]);
+    if (!items.length) return;
+
+    const section = document.createElement("div");
+    section.className = "drpg-inventory-group drpg-other-group";
+    section.dataset.category = "other";
+    const head = document.createElement("h4");
+    head.innerHTML = `<span>${game.i18n.localize("DRPG.Sheet.groupOther")}</span>
+                      <span class="drpg-group-count">${items.length}</span>`;
+    section.append(head);
+
+    const hint = document.createElement("p");
+    hint.className = "notes";
+    hint.textContent = game.i18n.localize(game.user.isGM ? "DRPG.Sheet.otherHintGm" : "DRPG.Sheet.otherHint");
+    section.append(hint);
+
+    const list = document.createElement("ul");
+    list.className = "drpg-inventory-list";
+    for (const item of items) {
+        const li = document.createElement("li");
+        li.dataset.itemUuid = item.uuid;
+        li.innerHTML = `<img src="${foundry.utils.escapeHTML(item.img ?? "")}" alt="" />
+                        <span class="drpg-item-name">${foundry.utils.escapeHTML(item.name)}</span>`;
+        if (game.user.isGM && app.isEditable) {
+            const tip = game.i18n.localize("DRPG.Sheet.otherRemove");
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "drpg-row-button drpg-row-discard";
+            button.dataset.drpgRowAction = "remove";
+            button.dataset.tooltip = tip;
+            button.setAttribute("aria-label", tip);
+            button.innerHTML = `<i class="fa-solid fa-trash" inert></i>`;
+            button.addEventListener("click", async () => {
+                const sure = await foundry.applications.api.DialogV2.confirm({
+                    window: { title: tip },
+                    content: `<p>${game.i18n.format("DRPG.Sheet.otherRemoveAsk", {
+                        item: foundry.utils.escapeHTML(item.name), actor: foundry.utils.escapeHTML(actor.name) })}</p>`,
+                    rejectClose: false, modal: true
+                });
+                if (!sure) return;
+                await item.delete();
+                app.render(false);
+            });
+            li.append(button);
+        }
+        guardRow(li, item, app);
+        li.addEventListener("click", event => {
+            if (event.target.closest("[data-drpg-row-action]")) return;
+            item.sheet?.render(true);
+        });
+        list.append(li);
+    }
+    section.append(list);
+    box.append(section);
 }
 
 /**
@@ -2712,7 +2787,9 @@ function groupInventory(app, element) {
  */
 function buildOpenStashSection(box, actor, app) {
     if (!app.isEditable || isMonokuma(actor)) return;
-    if (deadToViewer(actor) && !isMonocub(actor)) return;
+    // The dead rifle nothing, a Monocub included (D15, S08-30): it offered a
+    // Rifle the GM's side then refused (vault.mjs `stealFromVault`).
+    if (deadToViewer(actor)) return;
 
     /*
      * ONE HEADING PER STASH, ONE BUTTON FOR THE ROOM.
@@ -2842,7 +2919,9 @@ function buildOneStashSection(box, actor, app, room, scene) {
 function addUseButton(li, item, app) {
     if (!app.isEditable || isMonokuma(app.document)) return;
     if (!isUsable(item)) return;
-    if (deadToViewer(app.document) && !isMonocub(app.document)) return;
+    // A Monocub too (D15, S08-30): what they carried in life is on the body,
+    // the body's to be found - `useItem` refuses the dead as well.
+    if (deadToViewer(app.document)) return;
 
     // SHOWN, AND DEAD. An opened kit keeps its button so the row does not
     // quietly change shape when it is spent - the player looks at the same
@@ -2918,6 +2997,8 @@ function inCrisis(actor) {
 function addEquipButton(li, item, app) {
     if (!app.isEditable || isMonokuma(app.document)) return;
     if (!isEquippable(item)) return;
+    // The dead ready nothing (E14 part 1 C3, S08-12): `toggleEquipped` refuses them too.
+    if (deadToViewer(app.document)) return;
 
     const ready = isEquipped(item);
     const broken = isBroken(item);
@@ -2960,9 +3041,9 @@ function addEquipButton(li, item, app) {
 function addDiscardButton(li, item, app) {
     if (!app.isEditable || isMonokuma(app.document)) return;
     if (!isBroken(item)) return;
-    // A corpse throws nothing away. Same gate as the Use button, and a Monocub
-    // is on the other side of it for the same reason.
-    if (deadToViewer(app.document) && !isMonocub(app.document)) return;
+    // A corpse throws nothing away. Same gate as the Use button, a Monocub
+    // included: the trace was laid at the Monocub's token, not at the body (S08-30).
+    if (deadToViewer(app.document)) return;
     // The stash is the OTHER answer, not a place to act from: something already
     // put away has to be taken back out before it can be thrown away.
     if (isStashed(item)) return;
@@ -2992,6 +3073,9 @@ function addDiscardButton(li, item, app) {
  */
 function addStashButton(li, item, app, { stowing }) {
     if (!app.isEditable || isMonokuma(app.document)) return;
+    // The dead put nothing away and take nothing out, a Monocub included (S08-12,
+    // D15): a thing put away is off the body, and a body's loot takes none of those.
+    if (deadToViewer(app.document)) return;
 
     const tip = game.i18n.localize(stowing ? "DRPG.Vault.stowTooltip" : "DRPG.Vault.takeTooltip");
 

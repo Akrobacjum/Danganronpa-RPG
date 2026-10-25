@@ -13,10 +13,11 @@
  *   USE      a Usable Item, spent on the spot. What it restores comes from
  *            USABLE_EFFECTS plus the item's KIND: every usable is a healing
  *            item (Health) or a stress-relief item (Sanity), decided by which item
- *            table it came from - see `usableKindOf`. Tiers 1 and 2 apply
- *            that kind's resource without asking; tier 3 is the one tier that
- *            still offers the Health-or-Sanity choice, with 2 Hope on top either
- *            way; tier 0 is "open to creative use" and has no table entry, so
+ *            table it came from - see `usableKindOf`. Tiers 1 to 3 apply
+ *            that kind's resource without asking (tier 3 its 3, and no Hope,
+ *            since the owner's ruling of 15.10.2026; until then the one tier
+ *            that offered the Health-or-Sanity choice, with 2 Hope on top);
+ *            tier 0 is "open to creative use" and has no table entry, so
  *            it goes to the GM as a ruling.
  *
  *   EQUIP    a Crime Tool or a Cleaning Tool, held ready. One per category -
@@ -38,7 +39,7 @@ import { resourceValue, resourceMax } from "./character.mjs";
 // Only to answer "is there a murder to be tidying up after" - see
 // `discardRemnantType`. `murder.mjs` imports this file back, so it is reached
 // dynamically inside the function; `settings.mjs` does not and can be static.
-import { bodyDiscovery, bodyFoundSinceTrial } from "./settings.mjs";
+import { bodyDiscovery, bodyFoundSinceTrial, isDeadForGm, getClock } from "./settings.mjs";
 import { trustedWrite, trustedDelete } from "./resource-guard.mjs";
 import { overflowBlocksHope } from "./overflow.mjs";
 import { dialogContent, whisperToOwner, resolveThreshold, log, error } from "./utils.mjs";
@@ -284,6 +285,20 @@ export async function breakOnDespair(actor, tool, roll, held = tool) {
     return tool.name;
 }
 
+/*
+ * THE DEAD KEEP THEIR HANDS STILL (E14 part 1 C3; audit S08-12, S08-30, decision D15).
+ * A dead student readies, uses and throws away nothing, a Monocub included: what they
+ * carried is on the body, the body's to be found. A death this browser may know
+ * (`isDeadForGm`), so the victim's own player is stopped before the table learns of it;
+ * the sheet's buttons are gone by the same reading (sheet.mjs `deadToViewer`). True, and
+ * the clicker told, when `actor` is dead.
+ */
+function deadHands(actor) {
+    if (!isDeadForGm(actor)) return false;
+    ui.notifications.warn(game.i18n.format("DRPG.Items.deadHands", { name: actor.name }));
+    return true;
+}
+
 /**
  * Hold this one ready, putting away whatever was.
  *
@@ -302,8 +317,12 @@ export async function breakOnDespair(actor, tool, roll, held = tool) {
  * "this is the one I am using now", and making the player un-equip first would
  * be a second click for no decision.
  */
-export async function toggleEquipped(actor, item) {
+export async function toggleEquipped(actor, item, { shape = false } = {}) {
     if (!actor || !item || !isEquippable(item)) return false;
+    // A player's click on the dead's own hands (C3). Not the Gear shape's readying (`shape`, inventory.mjs
+    // `keepGearShape`), which a GM's grant, give or Palm into a body asks on the GM: D4 holds on a body too, and the GM
+    // was warned "is dead" over a move it did not make with its hands (E14 fix e1-G3; the review's E14R-06).
+    if (!shape && deadHands(actor)) return false;
 
     if (isStashed(item)) {
         ui.notifications.warn(game.i18n.localize("DRPG.Items.equipStashed"));
@@ -449,6 +468,11 @@ function usedStamp(actor, item) {
  */
 export async function useItem(actor, item, { again = null, held = item } = {}) {
     if (!actor || !isUsable(held)) return null;
+    // Not a replay's (`again`): that is the GMs' own road, re-applying a use a roll
+    // already made, and the judge of a use (sheet-audit.mjs `itemCovers`) asks the
+    // death for every write a player's browser sends either way. A creative use
+    // (`useCreatively`, reached only from here) is refused with the rest.
+    if (!again && deadHands(actor)) return null;
 
     // An opened kit is an empty box. It is still in the bag, and it still takes
     // up the slot - see `consume` below and BROKEN_ITEMS in config.mjs.
@@ -471,8 +495,9 @@ export async function useItem(actor, item, { again = null, held = item } = {}) {
     // there is no table row to apply, so a human decides what it is worth.
     if (!effect || effect.creative) return again ? {} : useCreatively(actor, item);
 
-    // What lands where. Tier 3 asks Health-or-Sanity and adds its Hope on top;
-    // tiers 1 and 2 read the item's kind and ask nothing - the only time the
+    // What lands where. A row with `choose` asks which and adds its `bonus` on top
+    // (none has since 15.10.2026: tier 3 was the one); tiers 1 to 3 read the
+    // item's kind and ask nothing - the only time the
     // dialog still appears there is when the kind is unknown (an item in no
     // table, with no flag), because guessing which half of somebody's sheet to
     // heal is worse than asking.
@@ -516,6 +541,21 @@ export async function useItem(actor, item, { again = null, held = item } = {}) {
     if (!again && (pointless || !asked)) {
         const go = await confirmUse(item, preview, pointless);
         if (!go) return null;
+    }
+
+    /*
+     * READ AGAIN AFTER THE WINDOWS (E14 part 1 C5, 24.10.2026; audit S08-35). The windows above wait on the player, and
+     * the item can go meanwhile - stolen, handed over, used up by a second click, put away. Restored then, the Health
+     * came out of a kit no longer in the bag; the GMs' judge refuses that write (sheet-audit.mjs `itemCovers` reads the
+     * item as they hold it), so this is the player's courtesy: nothing is written and they are told. A replay (`again`)
+     * opens no window.
+     */
+    if (!again) {
+        const now = actor.items.get(item.id);
+        if (!now || !isUsable(now) || isBroken(now) || isStashed(now)) {
+            ui.notifications.warn(game.i18n.format("DRPG.Items.useGone", { item: item.name }));
+            return null;
+        }
     }
 
     // Read BEFORE `consume`, which may clear the flags along with the item.
@@ -587,7 +627,7 @@ async function askWhichResource(item, effect) {
             <p>${game.i18n.localize("DRPG.Items.usePrompt")}</p>
             <div class="drpg-choice-list">${rows}</div>
             ${effect.bonus?.hope ? `<p class="notes">${overflowBlocksHope()
-                // The one preview a Tier 3 item gets: under the darkening it must
+                // The one preview a row with a Hope bonus gets (tier 3's until 15.10.2026): under the darkening it must
                 // not promise the Hope `restore` will skip (review of CALL-05).
                 ? game.i18n.localize("DRPG.Overflow.noHopeNow")
                 : game.i18n.format("DRPG.Items.choiceBonus", { n: effect.bonus.hope })}</p>` : ""}
@@ -784,6 +824,16 @@ async function consume(item, { reason, held = item }) {
  * refuses a discard in either phase (`discardBroken` reads no phase; read in the code). Tier 2
  * "a chapter's second Investigation reads its own body on the card and in a discard".
  *
+ * THE PHASE, AND THE INCIDENT'S OWN SIDES (E14 part 1 C5, 24.10.2026; audit S08-13). Two readings were still wrong:
+ * an Investigation or a Class Trial whose body was found with no stamp of this chapter (a GM's phase moved by hand, a
+ * world from before the stamps) filed a discard as preparation, and while an incident ran every discard in the school
+ * was Tamper - an innocent throwing a can away in the canteen left a trace that lasted to the trial. So: the phase
+ * first (Investigation, Class Trial: after), then a running incident for its sides alone (`sideOf`: the killer, the
+ * victim, a third party as cast), then the body as before. `actor` is the one throwing it away; with none, the
+ * incident counts for nobody. Read on the discarder's browser for what it sends, and on the GM, who files the type
+ * by this reading and not the packet's (gm-bridge.mjs `handleRemnant`): a side's browser holds its copy of the cast,
+ * the GMs the whole of it.
+ *
  * Both reads are wrapped: a world mid-migration, or a client that has not been
  * told the murder state yet, must leave a trace rather than throw.
  *
@@ -791,10 +841,14 @@ async function consume(item, { reason, held = item }) {
  * dynamic import rather than at the top - the same road `discardBroken` already
  * takes to `action-rolls` and `remnants`. It costs a microtask on a click.
  */
-export async function discardRemnantType() {
+export async function discardRemnantType(actor = null) {
     try {
-        const { murderState } = await import("./murder.mjs");
-        if (murderState()?.active) return BROKEN_ITEMS.remnantTypeAfter;
+        if (["investigation", "classTrial"].includes(getClock()?.phase)) return BROKEN_ITEMS.remnantTypeAfter;
+    } catch { /* no clock readable: fall through to the incident */ }
+    try {
+        const { murderState, sideOf } = await import("./murder.mjs");
+        const state = murderState();
+        if (state?.active && actor && sideOf(actor, state)) return BROKEN_ITEMS.remnantTypeAfter;
     } catch { /* no incident readable: fall through to the body */ }
     try {
         if (bodyDiscovery() || bodyFoundSinceTrial()) return BROKEN_ITEMS.remnantTypeAfter;
@@ -804,6 +858,7 @@ export async function discardRemnantType() {
 
 export async function discardBroken(actor, item) {
     if (!actor || !item) return null;
+    if (deadHands(actor)) return null;
 
     if (!isBroken(item)) {
         ui.notifications.warn(game.i18n.localize("DRPG.Items.discardOnlyBroken"));
@@ -848,7 +903,8 @@ export async function discardBroken(actor, item) {
     const { dropRemnant, traceFeedback } = await import("./remnants.mjs");
     const { roomOfActor } = await import("./movement.mjs");
     const placed = await dropRemnant(actor, {
-        type: await discardRemnantType(),
+        // The packet's type is a claim: the GM files a discard by this reading of its own (gm-bridge.mjs `handleRemnant`).
+        type: await discardRemnantType(actor),
         visibility,
         faint: BROKEN_ITEMS.faint,
         action: "discard",
@@ -907,6 +963,48 @@ export async function discardBroken(actor, item) {
 /* ==========================================================================
  * GM-SIDE
  * ========================================================================== */
+
+/*
+ * ONE CREATIVE RULING AT A TIME PER ITEM, HELD ON THE GM (E14 part 1 C5, 24.10.2026; audit S08-35). A player's two asks
+ * about one Tier 0 thing were two cards, and "Works" on both gave its effect twice: nothing on the ruling's road asked
+ * whether the item was still there, still whole, or already being ruled on. The wait is this GM's memory (`rulingsOpen`),
+ * never a flag on the item a console could clear (design note 23): a ruling being made on an item - its window open -
+ * turns a second away (`busy`, the card stays open for later), and the item as the GMs hold it is read before the window
+ * and again after it (`creativeUseGone`): gone, broken, stashed, no usable, or its holder dead, and nothing is given
+ * (`gone`). A stack of two is two legal rulings, one after the other. Two GMs pressing at once on two clients are each
+ * their own memory (not held; read in the code).
+ */
+const rulingsOpen = new Set();
+
+/** True when a creative use of `itemId` has nothing left to rule on, as the GMs hold the item now. */
+async function creativeUseGone(actor, itemId) {
+    const item = actor?.items?.get(itemId);
+    if (!item) return true;
+    const { itemAsHeld } = await import("./sheet-audit.mjs");
+    const held = await itemAsHeld(actor, itemId) ?? item;
+    return !isUsable(held) || isBroken(held) || isStashed(held) || isDeadForGm(actor);
+}
+
+/**
+ * A GM's ruling on a creative use: `ask()` is the GM's window (its answer, or null for closed), `apply(answer)` the
+ * effect. Answers `{ busy: true }` while another ruling on that item is being made here, `{ gone: true }` when there
+ * is nothing left to rule on before or after the window, null when the window was closed, else `{ ruled }`.
+ */
+export async function ruleCreativeUse(actor, itemId, ask, apply) {
+    if (!game.user.isGM || !actor || !itemId) return null;
+    const key = `${actor.id}.${itemId}`;
+    if (rulingsOpen.has(key)) return { busy: true };
+    rulingsOpen.add(key);
+    try {
+        if (await creativeUseGone(actor, itemId)) return { gone: true };
+        const answer = await ask();
+        if (answer === null || answer === undefined) return null;
+        if (await creativeUseGone(actor, itemId)) return { gone: true };
+        return { ruled: await apply(answer) };
+    } finally {
+        rulingsOpen.delete(key);
+    }
+}
 
 /**
  * Finish a Tier 0 "creative use" the GM has agreed to.

@@ -121,14 +121,24 @@ const floorKey = level => level?.id ?? level ?? null;
  * target the GMs alone know dead, or caught in an incident, passes here exactly as a living bystander does and its
  * caller treats it so (the design's step 8). Chained and Silenced block nothing: Chained pins a move, Silenced a Call.
  * Every reason maps to an existing code - cannotNow, notThere or missing - and none names who or why (R164).
+ *
+ * `{ body: true }` (E14 part 1 C1, the owner's Q4 of 18.10.2026; the 13.10 amend): the same gate for a body's loot
+ * (inventory.mjs `transferRefusal`, mode "loot"), which asks the two things the living road leaves out, the other way
+ * round. The target must be dead and its death known to `user`, the user who asked (`knownDeath`: a GM, a death
+ * published, or one the GMs' row lets that user know - before the discovery the incident's sides, a student alone with
+ * the body, the body's own player; the owner's 26.09); an unknown death is refused in the words a living target is
+ * ("that cannot be done now"), asked before the room, so the two read alike whatever else holds. And the incident is no
+ * bar: its sides are the very ones 26.09 lets search the body. The target's Monocub mark is no bar either: what lies on
+ * a Monocub's body is the body's (D15). A11's two-argument calls read as they did.
  */
-export function personActionRefusal(asker, target) {
+export function personActionRefusal(asker, target, { body = false, user = null } = {}) {
     if (!asker || !target || asker.type !== "character" || target.type !== "character") return "no such character";
     if (asker.id === target.id) return "a character cannot do that to itself";
     const [mine, theirs] = [flagsHeldNow(asker), flagsHeldNow(target)];
     if (mine.getFlag(MODULE_ID, FLAGS.monokuma)) return "a Monokuma takes no part in that";
-    if (mine.getFlag(MODULE_ID, FLAGS.monocub) || theirs.getFlag(MODULE_ID, FLAGS.monocub)) return "a Monocub takes no part in that";
+    if (mine.getFlag(MODULE_ID, FLAGS.monocub) || (!body && theirs.getFlag(MODULE_ID, FLAGS.monocub))) return "a Monocub takes no part in that";
     if (isDeadForGm(asker)) return "that cannot be done now";
+    if (body && !knownDeath(user ?? game.user, target)) return "that cannot be done now";
     const here = gmPlaceOf(asker);
     if (!here?.room) return "the character has no token on a scene";
     // A Monokuma on the map is the GM standing there, and a hidden token is nobody the room can see: neither is
@@ -138,8 +148,20 @@ export function personActionRefusal(asker, target) {
         || there.room !== here.room) return "the character is not in that room";
     if (isEclipse()) return "an Eclipse is running";
     if (inClassTrial()) return "that waits until the Class Trial is over";
-    if (incidentParticipants().includes(asker.id)) return "the character is a side of the running incident";
+    if (!body && incidentParticipants().includes(asker.id)) return "the character is a side of the running incident";
     return null;
+}
+
+/**
+ * Whether `user` may know that `target` is dead, on the browser that asks (E14 part 1 C1): a death published is the
+ * table's; one the GMs keep is known, on a GM, to the users its row names (`knownBody`, incident-store.mjs
+ * `knowsOfDeath`). A player's browser holds only the deaths its user may know (settings.mjs `isDeadForGm` reads that
+ * copy there), so there it is that copy's - the loot window's display (anonymity.mjs `buildBodyLoot`).
+ */
+export function knownDeath(user, target) {
+    if (!target) return false;
+    if (isDeceased(target)) return true;
+    return game.user?.isGM ? knownBody(user, target) : isDeadForGm(target);
 }
 
 /**

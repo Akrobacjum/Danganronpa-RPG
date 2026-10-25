@@ -3596,7 +3596,7 @@ const REGRESSIONS = [
            site. This slice used to run from the call site to the end of the file,
            which after the merge held the call and none of the function - so the test
            reported the fix gone beside a fix that had been carried over intact. */
-        ok(/typeof action\.newPool === "string"\) \{\s*await createPoolFrom\(action\)/.test(tables),
+        ok(/typeof action\.newPool === "string"\) \{\s*(?:const \w+ = )?await createPoolFrom\(action\)/.test(tables),
             "the create button no longer reaches createPoolFrom");
         const create = bodyOf(tables, "async function createPoolFrom(", { until: "\n}\n" });
         ok(/const known = classifyTableName\(name\)/.test(create),
@@ -5079,7 +5079,11 @@ const REGRESSIONS = [
         ok(/return Boolean\(await writeWorld\(/.test(fnSource(world, "sealRoom")),
             "sealRoom says it sealed whether or not it wrote");
         const handover = stripComments(sources.get("handover.mjs") ?? "");
-        ok(/isEclipse\(\)/.test(bodyOf(handover, "async function verify(", { until: "\n}\n" })), "a handover is not refused during an Eclipse on the GM's side");
+        // Since E14 part 1 C1 the Eclipse is the one gate's (inventory.mjs `transferRefusal`), which `verify` asks.
+        const inventory = stripComments(sources.get("inventory.mjs") ?? "");
+        ok(/transferRefusal\(from, to, \{ mode: "give" \}\)/.test(bodyOf(handover, "async function verify(", { until: "\n}\n" }))
+            && /if \(isEclipse\(\)\) return /.test(bodyOf(inventory, "export async function transferRefusal(", { until: "\n}\n" })),
+            "a handover is not refused during an Eclipse on the GM's side");
         const give = bodyOf(handover, "export async function giveItem(", { until: "\n}\n" });
         ok(give.indexOf("isStashed(held)") >= 0 && give.indexOf("isStashed(held)") < give.indexOf("BEDROOM_KEY_FLAG"),
             "a key lying in a stash can still be handed over");
@@ -5662,6 +5666,10 @@ const REGRESSIONS = [
             // E29 fix r2-H21: an item no GM has decided on, asked by the copy roads, whose runs pass their `{ refused }` on.
             creationRefusal: "returns", giveItem: "refused", lootBody: "refused", plantOnPerson: "refused",
             stealFromPerson: "refused", stealFromVault: "refused",
+            // E35 fix e1-G2 (the review's SEC-2): the one road an item changes owner by, whose `{ refused }` give and loot pass on.
+            transferItem: "refused",
+            // E14 part 1 C1: the one gate of every move (inventory.mjs), which verify, lootBody and the Palm's roads ask too.
+            transferRefusal: "returns",
             // E80 C2: an unseen Frisk, judged on the primary (frisk.mjs), whose run passes its `{ refused }` on.
             friskPerson: "refused",
             // E33 C10: a Monocub's ability by key, the row, the Monocub and the choice (guardCubAbility asks it).
@@ -7843,6 +7851,9 @@ const REGRESSIONS = [
          * `judgedFor` of the named victim and reads `flagsHeldNow` itself, so the reader sees it; the test
          * failed on it in the fast set of 11.10.2026 (e11run/r2j1: `unclassified` held exactly that one
          * place) and passed once the row was in.
+         * E14 part 1 C4 (24.10.2026) added one STORE, gm-stores.mjs `rifleStore` (the stashes rifled, D15),
+         * cut by the reset's `stashesFound` group: on the harness that day this test read 76 places (28 PACKET,
+         * 4 SOCKET, 1 CHAT, 34 SHEET, 9 STORE) against the 76 rows.
          * The reader is run first on a fixture with a packet of each family and of none, an inline
          * socket arrow, a judged reader, a reader whose flag is only in a comment, a chat reader
          * without a row, a declaration of a named file that is not named, a store and a stale row.
@@ -7910,7 +7921,7 @@ const REGRESSIONS = [
             ["SHEET eclipse.mjs#placingActors", "out of scope: the Eclipse's placement list (document flags); C3 adds a refusal in `startEclipse` before it runs; no E11 commit changes it"],
             ["SHEET gm-bridge.mjs#handleAdvancement", "judged (E10 C8): the picks on the held sheet (`numberHeld`), refused and told."],
             ["SHEET level-up.mjs#applyAdvancement", "held (E10 C8): one `meansWrite` from `numberHeld`. Since E11 C11 a new experience's id joins the GM flag `levelUpExperiences` (in GM_FLAGS, so a player's write of it is put back), read with `flagsHeldNow`, in the same write. R355 [1b.1, 1b.2] (E11 C11)"],
-            ["SHEET vault.mjs#keysHeldBy", "held (E11 C10): on a GM `itemsHeldNow(actor)` - a key's room as the primary's mark holds it, so a room a player's browser wrote on an item is no key there - and a player's browser its own document; `grantBedroomKey` waits for `judgedFor` before it asks [1b.2]"],
+            ["SHEET vault.mjs#keysHeldBy", "held (E11 C10): on a GM `itemsHeldNow(actor)` - a key's room as the primary's mark holds it, so a room a player's browser wrote on an item is no key there - and a player's browser its own document; `grantBedroomKey` waits for `judgedFor` before it asks; since E14 part 1 C2 a key in hand only (bedroom-keys.mjs `keyRooms`), the stash's too when `grantBedroomKey` asks whether one is held (`stashed: true`) [1b.2]"],
             ["SHEET vault.mjs#grantBedroomKey", "out of scope as a reader (through `keysHeldBy`, row above, after `judgedFor`: a key it made a moment ago is in the mark; one a player deleted is flagged, not put back, and made again); since E11 C10 the reset's `items` group calls it for each student through `reconcileBedroomKeys({ silent: true, owners })` (`grantItem`, `gmRuling`), no new road"],
             ["SHEET murder-rules.mjs#registerMurder", "judged where it acts: the `updateToken` hook runs on the primary (`maybeBodyFound` -> `checkBodyFound`); its `isDeadForGm`/resources reads are the incident's (E05). E11 C1 changed only the discovery it calls, whose walk-in tier 2 measures (\"a living convict the verdict executes after End the trial is no body to find\", \"a student revived and killed again in the chapter is found again - once\") and 65-season's B"],
             ["SHEET murder-rules.mjs#closeIncident", "out of scope as a reader (`isDeadForGm` of the victim, E05). C9 adds `conclude: false` for the reset only: the self-inflicted kill, ties, register, broken tool, case keys and the close's card are skipped [3.1] (E11 C9)"],
@@ -7922,7 +7933,8 @@ const REGRESSIONS = [
             ["STORE gm-stores.mjs#offerStore", "not a source: a GM store cut by `advancement` (E04); 65 R reads 0 offers after the reset. (E11 C0)"],
             ["STORE gm-stores.mjs#deferredOfferStore", "not a source: a GM store cut by `advancement` (E04) (E11 C0)"],
             ["STORE projects-secrecy.mjs#projectMeta", "not a source: a world setting only a GM writes; C8 adds `mapHidden` (set by the primary's `deleteToken` hook for a project token the module did not delete) and makes `onProjectTokenMoved` write it on the primary only, never for an orphan (E11 C8)"],
-            ["STORE settings.mjs#clock", "not a source: a world setting only a GM writes; `finalTrial`/`season`/`seasonStartedAt` per E10 C10 and `resetCutPatch`; C6's Edit campaign asks before the irreversible effects. (E11 C6)"]
+            ["STORE settings.mjs#clock", "not a source: a world setting only a GM writes; `finalTrial`/`season`/`seasonStartedAt` per E10 C10 and `resetCutPatch`; C6's Edit campaign asks before the irreversible effects. (E11 C6)"],
+            ["STORE gm-stores.mjs#rifleStore", "not a source: a GM store (E14 part 1 C4, D15), written and read by the GM that serves a stash's free reach (vault.mjs `stealFromVault`); cut by the reset's `stashesFound` group, and its time-of-day mark carries the season's epoch (`rifleMark`), so a kept row of last season counts nothing (tier 2 E14-T5)"]
         ];
         const ROADS = /^(?:advancement\.apply|call\.arm|token\.sendBack|project\.\w+|vault\.findStash)$/;
         const FILES = ["chapter.mjs", "character.mjs", "season-setup.mjs", "call-world.mjs", "projects.mjs", "projects-map.mjs", "projects-secrecy.mjs", "eclipse.mjs"];
@@ -7941,7 +7953,7 @@ const REGRESSIONS = [
         const CHAT = /\b(?:m|msg|message|chatMessage)\??\.getFlag\(\s*MODULE_ID\s*,|\b(?:m|msg|message)\??\.speaker\??\.actor\b/;
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
         const STORES = [["settings.mjs", "bodyFound"], ["settings.mjs", "bodiesFound"], ["gm-stores.mjs", "deathStore"], ["gm-stores.mjs", "blackenedStore"], ["gm-stores.mjs", "offerStore"],
-            ["gm-stores.mjs", "deferredOfferStore"], ["projects-secrecy.mjs", "projectMeta"], ["settings.mjs", "clock"]];
+            ["gm-stores.mjs", "deferredOfferStore"], ["projects-secrecy.mjs", "projectMeta"], ["settings.mjs", "clock"], ["gm-stores.mjs", "rifleStore"]];
         const censusOf = (bridge, sources) => {
             const found = [];
             for (const [action, decl] of Object.entries(bridge)) {
@@ -8205,6 +8217,7 @@ const REGRESSIONS = [
             ["HOOK movement.mjs#registerMovement#preUpdateToken:onPreUpdateToken", "a claim, judged again: the veto runs on the mover's browser (a GM returns early); since E12 C9 it sees a `level`-only move (`isMoveChange`), reads each end on its own floor (`roomAt` per level) and links floors by the stairs alone where a scene has them (`stairLinks`); since E12 C12 the primary judges every arrival again from the last lawful room (`judgeArrival`), and one it refuses is no witness and no third party until it stands somewhere lawful (Q3 a); scenario 66 I [1b.1 a token's room / floor] MARKED"],
             ["HOOK movement.mjs#registerMovement#updateToken:onUpdateToken", "the charge on one client (`settleRoute`: the owning player's, else the primary's) - a player's own budget; since E12 C9 it gates on `isMoveChange` and prices a step by `crossingCost`: the stairs a door, a stairwell's floors free (Q1 a) [1b.1 a token's floor]"],
             ["HOOK sheet.mjs#registerSheetTweaks#preUpdateToken:noteStepStart", "out of scope as a judge: notes where this browser's own move of a token starts, for the step onto a tunnel's end (H81-13); vetoes nothing and writes nothing"],
+            ["HOOK anonymity.mjs#registerAnonymity#updateToken:inline", "out of scope as a judge: a display - an open body's loot window reads the one gate again on this browser when its taker's or its body's token is written (`regreyOpenLoot`, E14 fix e1-G6); writes nothing, and the GMs judge the loot again"],
             ["HOOK sheet.mjs#registerSheetTweaks#updateToken:inline", "a claim, judged again: the mover's browser reads its own move at rest (movement.mjs `tunnelStepTarget`) and asks the primary as 'Go through' does (`passage.cross`, passages-gm.mjs `crossTunnel`, H81-13); writes nothing"],
             ["HOOK movement.mjs#registerMovement#updateToken:noteGmPosition", "judged: the record of positions `sendBackRefusal` compares against, `level` in it (`positionOf`), kept on every GM and primed by each at ready since E12 fix r2-H3 (before, the primary's alone); since E12 C12 the primary judges the arrival first (`judgeArrival`, the hook's `userId`), the last lawful room kept beside the record (`standings`, 3.4)"],
             ["HOOK movement.mjs#registerMovement#createRegion:inline", "judged on the primary: records a non-GM's region in `playerRegions` (`noteRegionCreated`); every GM remembers a GM's room flag"],
@@ -8239,11 +8252,12 @@ const REGRESSIONS = [
             ["SHEET movement.mjs#isCorpse", "out of scope: `isDeadForGm` (the GM's record) and the Monocub flag on the document (movement.mjs:264-265), on the mover's browser; E12 changes neither"],
             ["SHEET movement.mjs#crossingVerdict", "a claim on the mover's browser, judged again on the primary: exported since E12 C9 with the floor of each end (the stairs rule, `crossingRefused`); since E12 C12 `judgeArrival` asks it of the student as the GMs hold it (`flagsHeldNow`, `itemsHeldNow`, one synchronous step), with the mover it judges and no price (`pay: false`) [1b.2] MARKED"],
             ["SHEET movement.mjs#restrictedFrom", "the restriction flags and the bedroom keys of the student it is handed: the document on the mover's browser, as the GMs hold it from `judgeArrival` since E12 C12, which hands in the mover (a GM or not, the Mastermind or not) rather than this browser's user; since E79 C3 `via: \"passage\"` skips the bedroom key alone, never a GM's lock, a seal, the chain or the courtroom (R558) [1b.2]"],
+            ["SHEET movement.mjs#bedroomShut", "held on the primary: the bedroom rule of the student `restrictedFrom` is handed - the document on the mover's browser, the GMs' mark from `judgeArrival` (`itemsHeldNow`) on the primary - read through bedroom-keys.mjs, the one rule `mayEnterBedroom` and `keysHeldBy` read too: a key in hand only, never a stashed one (S08-31), and in the Investigation the room of an owner whose death is published (`isDeceased`, the table's flag) open (S08-55, D15) [1b.2] (E14 part 1 C2)"],
             ["SHEET movement.mjs#passageOpenFor", "out of scope as a judgement: on the viewer's own browser, whether its outline draws a secret passage as a gap (fog-doorways.mjs `doorwayEdges`, never on a GM's) - the passages its own copy names and `restrictedFrom` with `via: \"passage\"` on the document; it moves nothing, and the step itself is the veto's and the primary's (E79 C3, R557)"],
             ["SHEET movement.mjs#judgeArrival", "judged on the primary: every arrival of a student's token by a non-GM, from the last lawful room the primary recorded - after a change of primary, where `gmSeen` saw the token; a drop, from that student's newest standing on the scene, else from nowhere (E12 fix r2-H3) - by `crossingVerdict` with no price; the student read held (`flagsHeldNow`, `itemsHeldNow`) in one synchronous step; a REVERT is honoured only where `sendBackRefusal` passes it; GMs told once per turn to unlawful; nothing put back (Q3 a); scenario 66 I and two tier-2 tests [1b.2] MARKED"],
             ["SHEET movement.mjs#countsAsPresent", "out of scope as a reader: the Monokuma flag and `isDeadForGm` of tokens in a room; its callers count the located scene's token documents (`othersInNamedRoom`, since E12 C3; `occupantsOf` for Listen and a Monocub's dice, since E12 fix r1-G4)"],
             ["SHEET murder-rules.mjs#registerMurder", "judged where it acts: the `updateToken` hook runs on the primary; `isDeadForGm` is the GM's record; since E12 C12 `maybeThirdParty` counts a token only in its lawful room (`lawfulRoomOf`)"],
-            ["SHEET vault.mjs#keysHeldBy", "held on the GM's branch (`itemsHeldNow`, E11 C10), the document elsewhere; the bedroom rule of `judgeArrival` (E12 C12, `bedroomShut`) reads the items it was handed, `itemsHeldNow` in the same synchronous step [1b.2]"],
+            ["SHEET vault.mjs#keysHeldBy", "held on the GM's branch (`itemsHeldNow`, E11 C10), the document elsewhere; the bedroom rule of `judgeArrival` (E12 C12, `bedroomShut`) reads the items it was handed, `itemsHeldNow` in the same synchronous step; since E14 part 1 C2 the keys in hand only (bedroom-keys.mjs `keyRooms`: a stashed key opens nothing, its place judged as its room is, `placeStands`), the stash's too only with `stashed: true` (`grantBedroomKey`, the GMs' list of keys to give) [1b.2]"],
             ["STORE Region#name", "not a source: a GM document (whether a player can author a Region in v14 outside the relay: NOT MEASURED, LIVE-E12-04; the relay refuses one, relay-guard.mjs:502). Since C1 a room is a named region a GM marked (rooms.mjs `isRoom`, which refuses a region the primary recorded as a non-GM's); the readers that still take every named region move onto it in C2a and C2b; a non-GM's rename, reshape or added behaviour of a GM's region is not put back, only the mark is (`judgeRoomFlagChange`; E12 fix r1-G5) [1b.1 room flag] MARKED (E12 C2a, E12 C2b)"],
             ["STORE Region#roomFlag", "put back: a non-GM's change to the room flag is put back by the primary from its memory of what a GM left (`judgeRoomFlagChange`, the `updateRegion` hook's `userId`), logged and told, while a GM is connected (a change made with none is taken by the next GM's ready pass as a GM's, read in the code); a region whose mark the GM never saw is left as it is and told (E12 fix r1-G5); `isRoom` refuses a recorded player region; its tier-2 test and scenario 66 J [1b.1] MARKED"],
             ["STORE settings.mjs#playerRegions", "not a source: a world setting only the primary writes (`noteRegionCreated`: a non-GM's `createRegion`, by the hook's `userId`, while a GM is connected - a region a player draws with none is never recorded, read in the code, LIVE-E12-04) [1b.1]"],
@@ -8421,6 +8435,8 @@ const REGRESSIONS = [
             ["SHEET use-items.mjs#readiedItems", "out of scope: the roller's own client on its own items (class 1); C8 changes when a tier-0 item breaks, not who reads it [1b.1 broken flag]"],
             ["SHEET use-items.mjs#breakOnDespair", "judged where it runs on a GM: `wearSwing` (the incident, on the primary) passes the held item and the guard reads `isBroken(held)` (E29 r2-H18); on the roller's client it is the owner's own item (class 1). C8 makes a tier-0 item break on any roll, the tier read from `held` [1b.1 broken flag, 1b.2 tier] (E13 C8)"],
             ["SHEET use-items.mjs#toggleEquipped", "out of scope: the roller's own client on its own items (class 1); C8 changes when a tier-0 item breaks, not who reads it [1b.1 broken flag]"],
+            ["SHEET use-items.mjs#deadHands", "out of scope as a judgement: a courtesy on the clicker's own browser (class 1) - the death that browser may know (`isDeadForGm`: the victim's own player's copy, the GMs' row on a GM) stops a dead one's use, ready and discard and says so; the GMs judge a use written past it (sheet-audit.mjs `itemCovers` asks `isDeadForGm`), a ready is not judged (`ITEM_JUDGED`); it moves no token and seats nobody (E14 part 1 C3)"],
+            ["SHEET use-items.mjs#creativeUseGone", "judged where it runs, on a GM: a creative ruling's reading of the item as the GMs hold it (`itemAsHeld`) and of the holder's death the GMs keep (`isDeadForGm`), before the GM's window and after it (`ruleCreativeUse`, held in that GM's memory); it moves no token and seats nobody (E14 part 1 C5; S08-35)"],
             ["SHEET use-items.mjs#useItem", "out of scope: the roller's client on its own item; creative use is not a roll and the amend of 25.09 leaves it unchanged - `useItem` and `useCreatively` reach no roll's wear (R439) (E13 C8)"],
             ["SHEET use-items.mjs#rollSpends", "out of scope: a pure reader of the item and the roll it is handed, as `tierOf` is; `breakOnDespair` hands it `held`, so on a GM's road the swing's held weapon decides (R439) (E13 C8)"],
             ["SHEET use-items.mjs#discardBroken", "out of scope: the roller's own client on its own items (class 1); C8 changes when a tier-0 item breaks, not who reads it [1b.1 broken flag]"],
@@ -8437,6 +8453,7 @@ const REGRESSIONS = [
             ["HOOK despair.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK fog.mjs#canvasReady#arrow1", "out of scope: draws for this client only; the scene a client views decides no rule (E12 C6 `CAMERA_READERS`) [1b.1 which scene a client views]"],
             ["HOOK sheet.mjs#preUpdateToken#noteStepStart", "out of scope: notes where this browser's own move starts (H81-13); the courtroom holds no tunnel, and the crossing is the primary's (`crossTunnel`)"],
+            ["HOOK anonymity.mjs#updateToken#arrow1", "out of scope: a display - an open body's loot window reads the one gate again on a token write of its taker or its body (E14 fix e1-G6); writes nothing; in the hall the Class Trial refuses every loot (`cannotNow`)"],
             ["HOOK sheet.mjs#updateToken#arrow1", "out of scope: a move onto a tunnel's end asks the primary as 'Go through' does (H81-13); the courtroom holds no tunnel, and the Class Trial refuses one there (`trialLocked`)"],
             ["HOOK fog.mjs#updateToken#onUpdateToken", "judged on the primary: a move records discovery through rooms; the hall holds none after C1, so a hall move records nothing (41 b: 0 fog writes). E12 C2b/C10 change the readers"],
             ["HOOK fog.mjs#createToken#arrow1", "out of scope: recomputes this client's own draw on a token write; E13's reveal and hide, and since E81 DZ6 the stage's one create, trigger it on every client, as any GM's write does [1b.1 a hall token's hidden]"],
@@ -8727,6 +8744,10 @@ const REGRESSIONS = [
             ["NOTDONE gm-bridge.mjs#requestFriskAsk", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E80 part 2 C3)"],
             ["NOTDONE gm-bridge.mjs#requestFriskAnswer", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E80 part 2 C3)"],
             ["NOTDONE gm-bridge.mjs#requestFriskFollow", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E80 part 2 C3)"],
+            ["NOTDONE gm-bridge.mjs#requestShareBullet", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E14 part 1 C1)"],
+            ["NOTDONE gm-bridge.mjs#requestGiveItem", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E14 part 1 C1)"],
+            ["NOTDONE gm-bridge.mjs#requestSteal", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E14 part 1 C1)"],
+            ["NOTDONE gm-bridge.mjs#requestPlant", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E14 part 1 C1)"],
             ["NOTDONE gm-bridge.mjs#requestPassageShare", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E79 C7)"],
             ["NOTDONE gm-bridge.mjs#requestPassageCross", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter, or here from the waiter's quiet result where the drag's road hushes `cannotNow`, H81 fix C3); kept as a notDone entry: read, these words and no others (R297; E80 C2)"],
             ["NOTDONE gm-bridge.mjs#requestPassageFind", "composed on this client from closed lists (`sayNotDone`: the action a literal here, a GM's own refusal checked against `REASONS`; a player's refusal is told by the waiter); kept as a notDone entry: read, these words and no others (R297; E80 C3)"],
@@ -9615,6 +9636,7 @@ const REGRESSIONS = [
             ["HOOK fog.mjs#registerFog#drpgPassagesChanged/inline -> screen", "this browser's outline redrawn from its own copy when the copy changes, with no sound (`redrawOutline`, R557)"],
             ["HOOK sheet.mjs#registerSheetTweaks#drpgPassagesChanged/redrawPassageSheets -> screen", "the 'Known passages' page drawn again from this browser's own copy (R562)"],
             ["HOOK sheet.mjs#registerSheetTweaks#preUpdateToken/noteStepStart -> veto", "advisory, and no veto: notes where this browser's own move starts (H81-13), returns nothing, writes nothing"],
+            ["HOOK anonymity.mjs#registerAnonymity#updateToken/inline -> judge", "a display: an open body's loot window greys or opens its Take by the one gate read on this browser (`regreyOpenLoot`, E14 fix e1-G6); writes nothing, no road through a passage"],
             ["HOOK sheet.mjs#registerSheetTweaks#updateToken/inline -> judge", "a claim: the mover's browser reads its own move at rest (`tunnelStepTarget`) and asks `passage.cross` as 'Go through' does; the primary judges it (`crossTunnel`, every guard of the bridge's row) and writes the landing (H81-13)"]
         ];
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
@@ -14401,7 +14423,126 @@ const REGRESSIONS = [
         equal(JSON.stringify([helpers, [...found.keys()].sort(), Object.values(REASONS).every(r => r.length > 20)]),
             JSON.stringify([[["whisperToOwner", true, false], ["whisperToOwnerOnly", true, false]], Object.keys(REASONS).sort(), true]),
             `[each helper: reads ownerIdsOf, still reads ownerOf], the callers that name their own readers (${JSON.stringify([...found])}), each listed one has a reason - a co-owner is left out, or a reader list of its own is not listed here`);
+    }],
+
+    ["R952 - an item that changes owner has one road: no function of the module creates an Item and deletes one outside inventory.mjs `transferItem` but the ones listed with their reason, each one sheet; the five owner changes (give, a body's loot, a stash rifled, a Palm's steal, a Plant) each hand their move to `transferItem` with their mode; reroll.mjs `settleSearch` takes the plant off before it gives it again and gives it with its identity (E35-T9; S17-16, E08)", async () => {
+        /*
+         * E35 C4, 24.10.2026; audit S17-16, E35-18, E35-19, E35-22. Until E35 C1-C3 the create-then-delete pair that
+         * moves an item between two characters was written five times - handover.mjs `giveItem`, `lootBody`, vault.mjs
+         * `stealFromVault`, `stealFromPerson`, `plantOnPerson` - each with its own overflow, flags and messages, none
+         * with `system.quantity`. They meet in `transferItem` now, and a sixth copy is what this keeps out. Read in the
+         * module's files with comments and literals blanked, each top-level declaration (a function, a const, a class)
+         * on its own: an Item created - `grantItem`, `trustedCreate` (of "Item", its default), `createEmbeddedDocuments`
+         * of "Item", `Item.create`, `Item.implementation.create`, `Item.createDocuments` - and a document deleted -
+         * `.delete()` or `.delete({...})`, `trustedDelete`, `deleteEmbeddedDocuments` of "Item", `deleteDocuments` -
+         * in the same one is a pair. Whose sheet each side is on is not readable here, so every pair outside
+         * `transferItem` is listed with its reason, a new one fails until it is listed and a listed one that is gone
+         * fails until it leaves. What it cannot see: a pair split across two functions (a create here, a helper's
+         * delete there) - the five above each wrote theirs in one. The reader is shown planted pairs first, so a scan
+         * that reads nothing, or reads a Map's `delete(key)`, a Token's copy or an effect's as an item's, fails.
+         * Red at f2cfc2d (1.2.83, before C1): the five owner changes are pairs of their own and `transferItem` is
+         * absent.
+         */
+        const ALLOWED = {
+            "reroll.mjs#settleSearch": "one sheet: a Reroll of a Search takes back what the Search gave and gives the new draw to the same student; the plant is taken off first so its slot counts for the second draw, and is given again with its identity (E08, E29 fix r2-H22)",
+            "sheet-audit.mjs#decideNow": "one sheet: the GM's Undo on a flagged change puts back an item the student's own write created or deleted, on the actor the row names (E29 C7)"
+        };
+        const ROADS = {
+            "handover.mjs#giveItem": "give", "handover.mjs#lootBody": "loot", "vault.mjs#stealFromVault": "rifle",
+            "vault.mjs#stealFromPerson": "steal", "vault.mjs#plantOnPerson": "plant"
+        };
+        const DECL = /^(?:export\s+)?(?:async\s+)?(?:function\s*\*?\s*([\w$]+)|(?:const|let|var|class)\s+([\w$]+))/gm;
+        const CREATE = /\b(grantItem|trustedCreate)\s*\(|\.(createEmbeddedDocuments)\s*\(|\bItem(?:\.implementation)?\.(?:create|createDocuments)\s*\(/g;
+        const DELETE = /\.delete\s*\(\s*[{)]|\btrustedDelete\s*\(|\.(deleteEmbeddedDocuments)\s*\(|\.deleteDocuments\s*\(/g;
+        const isItem = (code, blank, m, embedded) => {
+            const open = m.index + m[0].length - 1;
+            const { args } = callArgs(blank, open);
+            const text = arg => (args[arg] ? code.slice(args[arg].start, args[arg].end) : "").trim();
+            if (embedded) return /^["'`]Item["'`]$/.test(text(0));
+            if (m[1] === "trustedCreate") return !/\bdocumentName\s*:/.test(text(2)) || /\bdocumentName\s*:\s*["'`]Item["'`]/.test(text(2));
+            return true;
+        };
+        let read = { creates: 0, deletes: 0 };
+        const pairsIn = files => {
+            const out = [];
+            for (const [file, raw] of files) {
+                const code = blankComments(raw), blank = blankLiterals(code);
+                const decls = [...blank.matchAll(DECL)].map(m => ({ name: m[1] ?? m[2], at: m.index }));
+                decls.forEach((decl, i) => {
+                    const end = decls[i + 1]?.at ?? blank.length;
+                    const part = blank.slice(decl.at, end);
+                    const within = m => ({ ...m, index: m.index + decl.at, 0: m[0], 1: m[1] });
+                    const creates = [...part.matchAll(CREATE)].map(within).filter(m => isItem(code, blank, m, m[0].includes("createEmbeddedDocuments")));
+                    const deletes = [...part.matchAll(DELETE)].map(within).filter(m => !m[0].includes("deleteEmbeddedDocuments") || isItem(code, blank, m, true));
+                    read.creates += creates.length;
+                    read.deletes += deletes.length;
+                    if (creates.length && deletes.length) out.push(`${file}#${decl.name}`);
+                });
+            }
+            return out.sort();
+        };
+
+        const planted = new Map([
+            ["a.mjs", [
+                "export async function give(from, to, item) { await grantItem(to, { name: item.name }); await item.delete(); }",
+                "async function loot(body, taker, item) {",
+                "    await taker.createEmbeddedDocuments(\"Item\", [item.toObject()]);",
+                "    await body.deleteEmbeddedDocuments(\"Item\", [item.id]);",
+                "}",
+                "function moveToken(scene, other, token) { other.createEmbeddedDocuments(\"Token\", [token]); scene.deleteEmbeddedDocuments(\"Token\", [token.id]); }",
+                "function forget(actor, asks, id) { grantItem(actor, {}); asks.delete(id); }"
+            ].join("\n")],
+            ["b.mjs", [
+                "export const steal = async (victim, thief, item) => {",
+                "    await trustedCreate(thief, [item.toObject()], { reason: \"gmRuling\" });",
+                "    await trustedDelete(item, { reason: \"gmRuling\" });",
+                "};",
+                "function effect(actor, old) { trustedCreate(actor, [old.toObject()], { reason: \"x\", documentName: \"ActiveEffect\" }); old.delete(); }",
+                "function quiet(actor, item) {",
+                "    // grantItem(actor, {}); item.delete();",
+                "    const words = \"grantItem( and item.delete()\";",
+                "}",
+                "async function lone(actor) { await grantItem(actor, {}); }",
+                "async function alone(item) { await item.delete({ render: false }); }"
+            ].join("\n")],
+            ["c.mjs", [
+                "class Mover {",
+                "    async run(from, to, item) { await Item.implementation.create(item.toObject(), { parent: to }); await item.delete(); }",
+                "}",
+                "export async function settle(actor, first) { await first.delete(); await grantItem(actor, { name: first.name }); }"
+            ].join("\n")]
+        ]);
+        equal(JSON.stringify(pairsIn(planted)), JSON.stringify(["a.mjs#give", "a.mjs#loot", "b.mjs#steal", "c.mjs#Mover", "c.mjs#settle"]),
+            "the pair reader does not find exactly the five pairs planted for it, or reads a Token's, an effect's, a Map's or a comment's as an item's - it would read the module wrong too");
+
+        read = { creates: 0, deletes: 0 };
+        const sources = new Map((await otherSources()).filter(([file]) => file.endsWith(".mjs")));
+        must(sources.has("inventory.mjs") && sources.has("handover.mjs") && sources.has("vault.mjs") && sources.has("reroll.mjs"),
+            "inventory.mjs, handover.mjs, vault.mjs or reroll.mjs is not served - this test reads nothing until they are");
+        const found = pairsIn(sources);
+        ok(read.creates >= 10 && read.deletes >= 10, `${read.creates} item creates and ${read.deletes} deletes read in the module - this would measure nothing`);
+        const outside = found.filter(at => at !== "inventory.mjs#transferItem");
+        equal(JSON.stringify([found.includes("inventory.mjs#transferItem"), outside, Object.values(ALLOWED).every(why => why.length > 40)]),
+            JSON.stringify([true, Object.keys(ALLOWED).sort(), true]),
+            `[transferItem is the road, the pairs outside it, each listed one has its reason]: ${JSON.stringify(found)} - a pair not listed is a sixth copy of the move, or wants its reason here; a listed one that is gone leaves the list`);
+
+        const calls = Object.entries(ROADS).map(([at, mode]) => {
+            const [file, name] = at.split("#");
+            const body = blankComments(fnSource(sources.get(file), name));
+            return [at, new RegExp(`\\btransferItem\\(\\s*\\w+,\\s*\\w+,\\s*\\w+,\\s*\\{\\s*mode:\\s*"${mode}"`).test(body)];
+        });
+        equal(JSON.stringify(calls.filter(([, call]) => !call).map(([at]) => at)), "[]",
+            `these owner changes do not hand their move to transferItem with their own mode: ${JSON.stringify(calls)}`);
+
+        const settle = blankComments(fnSource(sources.get("reroll.mjs"), "settleSearch"));
+        const firstDelete = settle.search(/\.delete\s*\(/), firstGrant = settle.search(/\bgrantItem\s*\(/);
+        const grants = [...settle.matchAll(/\bgrantItem\s*\(/g)].map(m => bodyOf(settle.slice(m.index), "grantItem(", { length: 400 }));
+        equal(JSON.stringify([firstDelete >= 0 && firstGrant > firstDelete, grants.some(g => /extraFlags:\s*\{\s*\[ITEM_FLAGS\.identity\]:\s*plant\.identity\s*\}/.test(g))]),
+            JSON.stringify([true, true]),
+            "[settleSearch takes the plant off before its first grant, a grant gives the plant its identity again] - a Reroll's plant would count against its own slot, or come back as a new item with no drpgItemId (E08)");
+        log(`R952: ${sources.size} files, ${read.creates} item creates and ${read.deletes} deletes read; pairs ${found.join(", ")}`);
     }]
 ];
+
 
 export { REGRESSIONS };

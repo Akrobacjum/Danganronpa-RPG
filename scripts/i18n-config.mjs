@@ -21,7 +21,9 @@ export const CONFIG_TABLES = [
     "SABOTAGE_CONCEAL", "DYNAMIC_THRESHOLDS", "REST", "HOPE_CALLS", "OVERFLOW", "DESPAIR_CALLS",
     "MOTIVE", "PROJECT_SCALE", "PROJECT_GLYPHS", "TRAP_TRIGGERS", "TRAP_MODIFIERS", "STATES",
     "LEVEL_UP_OPTIONS", "LEVEL_UP", "MONOCUB", "MURDER_OPENING", "INCIDENT", "CRISIS_ACTIONS",
-    "TRIAL", "CLEANUP", "SFX_CATEGORIES", "SFX_SLIDERS", "SFX_EVENTS"
+    "TRIAL", "CLEANUP", "SFX_CATEGORIES", "SFX_SLIDERS", "SFX_EVENTS",
+    // E14 part 2 C8 (audit S13-21): the shared group's word, "Gear", read in a Polish refusal and in the Give form.
+    "LIMIT_GROUPS"
 ];
 
 /** Field names whose string values are copy, not identifiers. Numeric keys cover TIER_EFFECTS. */

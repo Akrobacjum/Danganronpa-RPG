@@ -387,6 +387,12 @@ export const SETTINGS = {
      */
     gmLootTraces: "gmLootTraces",
     /**
+     * THE STASHES RIFLED (E14 part 1 C4, 24.10.2026; audit S08-06, D15): a GM store (gm-stores.mjs `rifleStore`),
+     * a row per thief, stash owner, scene and room `{ at }` - the time of day of that thief's last free reach into
+     * that stash (vault.mjs `rifleMark`). Synced, not backed up; no player copy.
+     */
+    gmRifles: "gmRifles",
+    /**
      * THE CLEANING TOOLS A CLEAN-UP USED (E32+E07 C12, 1.2.66; audit S05-38, D13): a GM store
      * (gm-stores.mjs `usedToolStore`), a row per killer `{ chapter, epoch, cleaning, victims }` -
      * the ids of every Cleaning Tool readied at a clean-up attempt they made, broken at the
@@ -1610,6 +1616,14 @@ export function registerSettings() {
     // What has been taken off each body (E05 C14): no `onChange`, as nothing on any screen
     // shows it - read by the next loot of the same body, on the GM that serves it.
     game.settings.register(MODULE_ID, SETTINGS.gmLootTraces, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The stashes rifled (E14 part 1 C4): no `onChange` - shown nowhere, read by the next free reach into a stash, on
+    // the GM that serves it (vault.mjs `stealFromVault`).
+    game.settings.register(MODULE_ID, SETTINGS.gmRifles, {
         scope: "client",
         config: false,
         type: Object,

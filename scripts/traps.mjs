@@ -531,7 +531,29 @@ export async function takePlant(room, sceneId = null, { actorId = null, rollId =
     // A plant no longer outlives its project (ITEM-08): `deleteProject` and
     // the season reset prune the store through `pruneTrapsFor` below.
     debug(`A planted item was taken out of ${room}.`);
+    await tellPlantTaken(found, room, { actorId, by });
     return found;
+}
+
+/*
+ * THE GMS TOLD WHO TOOK IT (E14 part 2 C4, 24.10.2026; audit S08-10). A plant leaves its room here, and
+ * whether it can still spring is decided by what the finder does with it: one that lands on the sheet
+ * as a tool or a weapon (nobody uses either, `useItem`), or in the killer's own hands, is spent for
+ * nothing, and the GMs learnt of it only from `diagnoseTraps`. Now they are told at the take, by the
+ * finder's name - the searcher's, else the name of the user who asked - so a burnt plant is not news
+ * at the trial; which of the three it became is read on the finder's sheet, not here, where the find's
+ * category is not known yet. A plant the Search then cannot hand over goes back and says so
+ * (search-tokens.mjs `putPlantBack`). Measured by the tier-2 E14-T9 (24.10.2026).
+ */
+async function tellPlantTaken(plant, room, { actorId = null, by = null } = {}) {
+    const who = (actorId ? game.actors?.get(actorId)?.name : null) ?? (by ? game.users?.get(by)?.name : null) ?? null;
+    const words = { item: esc(plant?.name ?? "?"), room: esc(room), actor: esc(who ?? "") };
+    try {
+        const { whisperToGms } = await import("./utils.mjs");
+        await whisperToGms(`<p>${game.i18n.format(who ? "DRPG.Trap.plantFound" : "DRPG.Trap.plantTaken", words)}</p>`);
+    } catch (err) {
+        error("Could not tell the GMs a planted item was found", err);
+    }
 }
 
 /**

@@ -73,6 +73,12 @@ export function registerAnonymity() {
     // inheritance chain, so listening to both the concrete sheet and its base
     // class ran this twice and produced two identical errors.
     Hooks.on("renderActorSheetV2", onRenderSheet);
+    // An open body's loot window reads the gate again when the taker or the body moves, or the clock does (fix e1-G6).
+    Hooks.on("updateToken", token => {
+        const id = token?.actorId ?? token?.actor?.id;
+        if (id && document.querySelector(`.drpg-loot-list[data-drpg-taker="${CSS.escape(id)}"], .drpg-loot-list[data-drpg-body="${CSS.escape(id)}"]`)) regreyOpenLoot();
+    });
+    Hooks.on("updateSetting", setting => { if (setting?.key === `${MODULE_ID}.${SETTINGS.clock}`) regreyOpenLoot(); });
 }
 
 /**
@@ -101,7 +107,8 @@ function onRenderSheet(app, element) {
         disarmSheet(root);
         redactTabs(root);
         redactValues(root);
-        buildBodyLoot(root, actor);
+        // The greying of a refused Take lands a moment after the draw (`greyRefused`): a sheet it finds gone is left be.
+        buildBodyLoot(root, actor)?.catch?.(err => error("Could not read whether the body's Take is open", err));
         root.classList.add("drpg-redacted-sheet");
     } catch (err) {
         error("Could not redact a character sheet - closing it instead", err);
@@ -191,8 +198,23 @@ function redactTabs(root) {
  * would be wrong, but because it holds the Truth Bullet rows, the stash, the
  * use buttons and the handover buttons, none of which belong to somebody
  * standing over a body.
+ *
+ * A TAKE THE GATE REFUSES IS GREYED, WITH ITS REASON (E14 part 1 C1; audit S11-06). The Take showed on every row of a
+ * body this browser knows dead, wherever the viewer's character stood: from a bedroom across the school, in a Class
+ * Trial, as a dead spectator. Each row's Take now asks the one gate the GMs judge the loot by (inventory.mjs
+ * `transferRefusal`, mode "loot"), read on this browser, and one it refuses is shut with the sentence the player would
+ * be told (`DRPG.Bridge.why.<code>`). A display: the GMs' gate judges the request again.
+ *
+ * READ AGAIN AS THE TABLE MOVES (E14 fix e1-G6, 24.10.2026; the review's E14R-07, goal): the greying was read once, when
+ * the sheet was drawn, so a viewer who walked into the body's room with the sheet open found every Take still shut "not
+ * where it needs to be" (and one who walked out, or whose Class Trial began, found them open) until the sheet was
+ * opened again, which nothing told them to do. The list carries the body and the taker (`data-drpg-body`,
+ * `data-drpg-taker`), and `regreyOpenLoot` reads the gate again for every list on the page when either one's token is
+ * written or the clock is (registerAnonymity's hooks), opening a Take it no longer refuses. A Take already pressed stays
+ * shut. `taker` is the viewer's character (`myCharacter`); a test hands its own. Answers the greying's promise, or
+ * undefined where there is no Take.
  */
-function buildBodyLoot(root, actor) {
+export function buildBodyLoot(root, actor, taker = myCharacter()) {
     // A body this browser knows of (E05 C10, the owner's Q2): the table's, or one nobody has
     // found that this player was in the incident of - the GMs judge the taking again.
     if (!isDeadForGm(actor)) return;
@@ -219,6 +241,8 @@ function buildBodyLoot(root, actor) {
 
     const list = document.createElement("ul");
     list.className = "drpg-loot-list";
+    list.dataset.drpgBody = actor.id;
+    if (taker) list.dataset.drpgTaker = taker.id;
     for (const item of items) {
         const row = document.createElement("li");
         row.innerHTML = `<img src="${foundry.utils.escapeHTML(item.img ?? "")}" alt="" />
@@ -236,6 +260,7 @@ function buildBodyLoot(root, actor) {
             // through the GM's client and a second click would take the same
             // object twice.
             take.disabled = true;
+            take.dataset.drpgTaken = "true";
             await takeFromBody(actor, item);
         });
         row.append(take);
@@ -244,6 +269,34 @@ function buildBodyLoot(root, actor) {
 
     box.append(list);
     pane.replaceChildren(box);
+    return taker ? greyRefused(list, actor, taker) : undefined;
+}
+
+/**
+ * Shut every Take in `list` the one gate refuses `taker` off `body` now, with the reason's sentence, and open again one
+ * it no longer refuses (`buildBodyLoot`, `regreyOpenLoot`); a Take already pressed stays shut.
+ */
+async function greyRefused(list, body, taker) {
+    const { transferRefusal } = await import("./inventory.mjs");
+    const why = await transferRefusal(body, taker, { mode: "loot", asker: game.user });
+    const { reasonOf } = await import("./bridge-guards.mjs");
+    const said = why ? game.i18n.localize(`DRPG.Bridge.why.${reasonOf(why)}`) : game.i18n.localize("DRPG.Loot.takeTooltip");
+    for (const take of list.querySelectorAll(".drpg-loot-take")) {
+        if (take.dataset.drpgTaken) continue;
+        take.disabled = Boolean(why);
+        if (why) take.setAttribute("aria-disabled", "true");
+        else take.removeAttribute("aria-disabled");
+        take.dataset.tooltip = said;
+    }
+}
+
+/** Every body's loot window on this page, its Takes read against the one gate again (fix e1-G6; `buildBodyLoot`). */
+function regreyOpenLoot() {
+    for (const list of document.querySelectorAll(".drpg-loot-list[data-drpg-taker]")) {
+        const body = game.actors.get(list.dataset.drpgBody ?? ""), taker = game.actors.get(list.dataset.drpgTaker ?? "");
+        if (!body || !taker) continue;
+        greyRefused(list, body, taker).catch(err => error("Could not read again whether the body's Take is open", err));
+    }
 }
 
 /**
@@ -264,7 +317,7 @@ async function takeFromBody(body, item) {
     const res = await requestBodyLoot({ takerId: taker.id, bodyId: body.id, itemId: item.id });
     // Only what the GM has: a refusal has been said, and "you took it" beside it would be two answers.
     // Off a body nobody has found, the Truth Bullet waits for the death to be known (E05 fix r2-F0b).
-    if (res.ok) ui.notifications.info(game.i18n.format(isDeceased(body) ? "DRPG.Loot.took" : "DRPG.Loot.tookUnfound", { item: item.name }));
+    if (res.ok && !res.value?.refused) ui.notifications.info(game.i18n.format(isDeceased(body) ? "DRPG.Loot.took" : "DRPG.Loot.tookUnfound", { item: item.name }));
 }
 
 /**

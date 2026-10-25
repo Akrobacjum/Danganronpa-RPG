@@ -459,6 +459,10 @@ function refreshTableCopyOnLoad() {
     import("./tables.mjs")
         .then(m => m.refreshTableCopy())
         .catch(err => error("Could not bring the item tables' wording up to date", err));
+    // And the tier 3 usables made before E14 part 1 C5 (fix e1-G5): inventory.mjs `refreshTierThreeWording`.
+    import("./inventory.mjs")
+        .then(m => m.refreshTierThreeWording())
+        .catch(err => error("Could not bring the tier 3 usables' wording up to date", err));
 }
 
 /**

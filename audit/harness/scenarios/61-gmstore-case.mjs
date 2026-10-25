@@ -2018,10 +2018,18 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
     const ITEMS = ["E05 61 S a lamp", "E05 61 S a cord"];
     await connect("gma", { storage: await storageOf("gma") });
     await settle(2500);
+    /* Aiko and Chie stood where Daichi stands, before he dies (E14 part 1 C1: a body is looted only from its room,
+       inventory.mjs `transferRefusal`; a walk-in on a body afterwards would be its discovery), and put back after S. */
     const s0 = await gma.eval(`${LOOT} const { grantItem } = await import("${repoUrl}/scripts/inventory.mjs");
+        const PLACE = { teleport: true, movementAction: "displace", animate: false }, tok = id => canvas.scene?.tokens?.find(t => t.actorId === id);
+        const at = tok(d.id), was = {};
+        for (const id of ["${IDS.aiko}", "${IDS.chie}"]) { const t = tok(id); if (!t || !at) continue; was[t.id] = { x: t.x, y: t.y }; await t.update({ x: at.x, y: at.y }, PLACE); }
+        await new Promise(r => setTimeout(r, 500));
+        const M = await import("${repoUrl}/scripts/movement.mjs");
+        const together = ["${IDS.aiko}", "${IDS.chie}"].every(id => M.sameRoom(game.actors.get(id), d));
         const kept = Boolean(await C.killCharacter(d, { secret: true, keepBullets: true }));
         for (const name of ${J(ITEMS)}) await grantItem(d, { name, category: "tool", tier: 1, override: true, quiet: true });
-        return { kept, items: d.items.filter(i => i.name.startsWith("E05 61 S")).map(i => i.name).sort() };`);
+        return { kept, together, was, items: d.items.filter(i => i.name.startsWith("E05 61 S")).map(i => i.name).sort() };`);
     await settle(1500);
     await disconnect("gmb");
     await settle(500);
@@ -2046,9 +2054,11 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
         if (trace) { try { await (await import("${repoUrl}/scripts/remnants.mjs")).dropRemnantSecret(trace); } catch {} await trace.delete(); }
         if (S.lootTraceStore.has(d.id)) await S.lootTraceStore.drop(d.id);
         await C.reviveCharacter(d, { quiet: true });
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        for (const [id, xy] of Object.entries(${J(s0.was ?? {})})) await canvas.scene?.tokens?.get(id)?.update(xy, PLACE);
         return out;`, { timeout: 30000 });
     check("S1: two GMs each serving a loot of one body nobody has found, neither having heard the other, both owe both",
-        s0.kept && s0.items.length === 2 && s1.took && s2.took && s2.heard.length === 0
+        s0.kept && s0.together && s0.items.length === 2 && s1.took && s2.took && s2.heard.length === 0
         && J(s3.gma) === J([...ITEMS].sort()) && J(s3.gmb) === J([...ITEMS].sort()), J({ s0, s1, s2, s3 }), { flow: "give-take-stash" });
     check("S2: the publication gives each taker the Truth Bullet of what they took",
         s4.published && s4.aiko.length === 1 && s4.aiko[0].includes(ITEMS[0]) && s4.chie.length === 1 && s4.chie[0].includes(ITEMS[1]),

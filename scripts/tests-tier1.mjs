@@ -22,7 +22,7 @@ import { MUSIC_STATES, musicMap } from "./music.mjs";
 import {
     ok, needs, env, world, equal, must, wait, settle, until, cascadeAvailable, LIVE_PROBE,
     moduleSources, otherSources, stripComments, moduleStyles, styleCascade, bodyOf, fnSource, topLevelFunction, lineAround, STANDING, watchLog, stableJson,
-    worldDump, dumpDiff, lfText
+    worldDump, dumpDiff, lfText, expectedRed
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -21645,7 +21645,656 @@ const INVARIANTS = [
             /key:\s*"DRPG\.Bridge\.settledExpired"/.test(fn("gm-bridge.mjs", "endExpired"))
         ]), stableJson([[shape("pl"), ...rest], [shape("en"), ...rest], true, true, true, true, true]),
             "[the drawn lines with Foundry's language Polish, then English: the time, the end, the GMs' line, another key's line; the chat log, the bubble and its notice draw through readersLines; settleCall writes the key; the expired end is a key]");
-    }]
+    }],
+    ["R950 - a key put away in a stash opens no door: another's bedroom stays shut to a character whose only key to it is stashed, at the door and in game.drpg's answer (S08-31)", async () => {
+        /*
+         * E35 C0, 24.10.2026; audit S08-31, S17-17: a skeleton of E14's, red until E14 lands. The harm: a key in a stash
+         * on the far side of the building opens its bedroom door, against the handbook's "A key opens its door whoever
+         * holds it". The door (movement.mjs `bedroomShut`, asked by `crossingVerdict` through `restrictedFrom`) counts
+         * every item with the key's flag, and so does vault.mjs `keysHeldBy`, which `mayEnterBedroom` asks for
+         * game.drpg. Read on a scene of plain objects, a Hall whose list names a Bedroom some other character owns,
+         * with three plain movers who are neither a GM nor the Mastermind: one carrying the key, one whose key is in a
+         * stash, one with no key - so the two controls hold the reading to the door and the key itself. Nothing of this
+         * world is read but its seals and restrictions under names no world holds. Red at f2cfc2d: the stashed key let
+         * its holder in at the door and in the answer. Plain since E14 part 1 C2 (24.10.2026): the door and the answer read
+         * one rule, bedroom-keys.mjs's, which counts a key in hand only. The carried key's control reads "not refused with
+         * the key's words", not a bare `true`: tiers 0-1 also run inside a Class Trial (01-runtests' part A2), where
+         * `crossingVerdict` refuses every walk as the courtroom's, below the bedroom's rule (CI at 7f00213, 24.10.2026).
+         */
+        const M = await import("./movement.mjs");
+        const R = await import("./rooms.mjs");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const { ROOM_OWNER_FLAG, BEDROOM_KEY_FLAG } = await import("./config.mjs");
+        const HALL = "R950 Hall", BEDROOM = "R950 Bedroom";
+        const region = (name, x, flags = {}) => ({ id: `R950R${name.slice(5)}`, name, levels: new Set(), behaviors: [],
+            bounds: { x, y: 0, width: 400, height: 400 }, shapes: [{ type: "rectangle", x, y: 0, width: 400, height: 400 }],
+            testPoint: p => p.x >= x && p.x <= x + 400 && p.y >= 0 && p.y <= 400,
+            getFlag: (scope, key) => (scope !== MODULE_ID ? undefined : key === R.ROOM_FLAG ? true : flags[key]) });
+        const scene = { id: "R950S", name: "R950 scene", grid: { size: 100 }, levels: [],
+            regions: new Set([region(HALL, 0, { [M.ROOM_FLAGS.neighbours]: BEDROOM }), region(BEDROOM, 500, { [ROOM_OWNER_FLAG]: "R950OWNER" })]) };
+        const key = location => {
+            const flags = { [MODULE_ID]: { [BEDROOM_KEY_FLAG]: BEDROOM, [INV.ITEM_FLAGS.category]: "bedroomKey", [INV.ITEM_FLAGS.location]: location } };
+            return { _id: `R950K${location}`, id: `R950K${location}`, name: "R950 a key", flags,
+                getFlag: (scope, flag) => flags[scope]?.[flag] };
+        };
+        const mover = (id, items) => ({ id, name: id, items: Object.assign(items, { contents: items }), getFlag: () => undefined });
+        const carrying = mover("R950CARRY", [key(INV.LOCATIONS.carried)]);
+        const stashing = mover("R950STASH", [key(INV.LOCATIONS.vault)]);
+        const keyless = mover("R950NONE", []);
+        must(INV.isStashed(stashing.items[0]) && !INV.isStashed(carrying.items[0]),
+            "the stashed key does not read as stashed, or the carried one does - this would measure nothing");
+        const keyText = game.i18n.format("DRPG.Vault.keyMissing", { room: BEDROOM });
+        const door = who => M.crossingVerdict(who, HALL, BEDROOM, scene, null, { mover: { gm: false, mastermind: false }, pay: false, known: {} });
+        equal(stableJson([door(carrying) !== keyText, door(keyless) === keyText, V.mayEnterBedroom(carrying, BEDROOM, scene), V.mayEnterBedroom(keyless, BEDROOM, scene)]),
+            stableJson([true, true, true, false]),
+            "the controls do not read as the door does: [the carried key's walk not refused with the key's words, the keyless walk refused with them, game.drpg lets the carried key in, keeps the keyless out]");
+        equal(stableJson([door(stashing) === keyText, V.mayEnterBedroom(stashing, BEDROOM, scene)]), stableJson([true, false]),
+            "a key in a stash opened its bedroom: [the door refuses with the key's words, game.drpg keeps the holder out]");
+    }],
+    ["R951 - an item that changes owner goes one road, on a GM: inventory.mjs `transferItem` opens with a GM's gate and answers null on a player's browser, refuses a mode TRANSFER_POLICY does not name, chains each transfer on both sheets, reads the item and the taker's hands as the GMs hold them, and writes only through `grantItem`, `trustedWrite` and `trustedDelete`, each naming \"gmRuling\"; TRANSFER_POLICY is frozen, a give and a Plant refused into full hands and a loot, a rifle and a steal sent to the stash (D42); every mode has its line to the GMs; and handover.mjs `giveItem` hands its move to it, with no pair of its own (E35-T1)", async () => {
+        /*
+         * E35 C1, 24.10.2026; audit S17-16, E35-04, E35-08 (the table), E35-22's half. At f2cfc2d the move was written
+         * five times, a bare `delete()` each (handover.mjs `giveItem`, `lootBody`; vault.mjs `stealFromVault`,
+         * `stealFromPerson`, `plantOnPerson`). The gate and the refusals are run - none writes - and the rest is read
+         * off the source, comments stripped: a write in the function outside the three roads, a reason other than the
+         * literal "gmRuling", or a give that still makes its own copy fails here. R220 holds WRITE_REASONS and its
+         * FORWARDERS unchanged, which a literal reason needs no row of. Red at f2cfc2d: inventory.mjs has no transferItem.
+         */
+        const INV = await import("./inventory.mjs");
+        ok(typeof INV.transferItem === "function", "inventory.mjs has no transferItem - an item that changes owner still takes five roads, each its own");
+        if (typeof INV.transferItem !== "function") return;
+        equal(stableJson(INV.TRANSFER_POLICY), stableJson({ give: "refuse", loot: "overflow", rifle: "overflow", steal: "overflow", plant: "refuse" }),
+            "TRANSFER_POLICY is not D42's: a give and a Plant refused into full hands, a loot, a rifle and a steal to the taker's stash");
+        ok(Object.isFrozen(INV.TRANSFER_POLICY) && Object.isFrozen(INV.TRANSFER_STUCK), "TRANSFER_POLICY or TRANSFER_STUCK can be changed at run time");
+        equal(stableJson(Object.keys(INV.TRANSFER_STUCK ?? {}).sort()), stableJson(Object.keys(INV.TRANSFER_POLICY).sort()), "a mode has no line to the GMs, or a line has no mode");
+        ok(Object.values(INV.TRANSFER_STUCK ?? {}).every(key => game.i18n.has(key)), "a mode's line to the GMs is not in this language");
+
+        const a = { id: "R951-a", name: "R951 a" }, b = { id: "R951-b", name: "R951 b" };
+        Object.defineProperty(game.user, "isGM", { value: false, configurable: true });
+        let asPlayer;
+        try {
+            asPlayer = await INV.transferItem(a, b, "R951-item", { mode: "give" });
+        } finally {
+            delete game.user.isGM;
+        }
+        equal(asPlayer, null, "transferItem ran on a player's browser");
+        const bad = [await INV.transferItem(a, b, "R951-item", { mode: "frisk" }), await INV.transferItem(a, a, "R951-item", { mode: "give" }),
+            await INV.transferItem(a, b, null, { mode: "loot" })];
+        ok(bad.every(out => typeof out?.refused === "string"), `a mode no row names, one sheet to itself or no item was not refused: ${stableJson(bad)}`);
+        // Each in a form of the bridge's closed list (E35 fix e1-G2, the review's SEC-2: a player's own dead student looted by itself).
+        const { REASON_PATTERNS } = await import("./bridge-guards.mjs");
+        ok(bad.every(out => REASON_PATTERNS.some(([, pattern]) => pattern.test(String(out?.refused ?? "")))),
+            `a refusal of transferItem is taken by no reason of the bridge's closed list: ${stableJson(bad)}`);
+
+        const sources = new Map(await moduleSources());
+        const fn = fnSource(stripComments(sources.get("inventory.mjs") ?? ""), "transferItem");
+        ok(/^export async function transferItem\([^)]*\)\s*\{\s*if \(!game\.user\.isGM\) return null;/.test(fn), "transferItem does not open with a GM's gate (R220's rule b)");
+        // Both sheets' chains, in one order (E35 fix e1-G1, the review's E35-R5): a transfer into a sheet waits too.
+        ok(/const \[first, second\] = \[from\.id, to\.id\]\.sort\(\);/.test(fn) && /serialWrite\(`transfer\/\$\{first\}`, \(\) => serialWrite\(`transfer\/\$\{second\}`/.test(fn),
+            "a second transfer from the same sheet, or into it, does not wait for the first");
+        // The count written off the giver is read again after the copy (E35 fix e1-G1, the review's SEC-1): `now`, not the first read.
+        ok(/await judgedFor\(from\.id, to\.id\)/.test(fn) && /itemAsHeld\(from, id\)/.test(fn) && /actorAsHeld\(to\)/.test(fn) && /piecesOf\(held\)/.test(fn)
+            && /const now = await itemAsHeld\(from, id\);[^]*?const count = piecesOf\(now\);[^]*?"system\.quantity": count - 1/.test(fn),
+            "transferItem does not read the item, its count and the taker's hands as the GMs hold them, or writes the giver's count off its first read");
+        const roads = [...fn.matchAll(/\b(grantItem|trustedWrite|trustedDelete)\s*\(/g)].map(m => m[1]);
+        equal(stableJson([...new Set(roads)].sort()), stableJson(["grantItem", "trustedDelete", "trustedWrite"]), "transferItem writes by another road");
+        equal(stableJson([...fn.matchAll(/\breason\s*:\s*"([^"]*)"/g)].map(m => m[1])), stableJson(roads.map(() => "gmRuling")),
+            "a write of transferItem names a reason other than \"gmRuling\", or none");
+        ok(!/\.\s*(?:delete|update|setFlag|unsetFlag|createEmbeddedDocuments|deleteEmbeddedDocuments|updateEmbeddedDocuments)\s*\(/.test(fn),
+            "transferItem writes a document past the trusted roads");
+
+        const give = fnSource(stripComments(sources.get("handover.mjs") ?? ""), "giveItem");
+        ok(/transferItem\(from, to, held, \{ mode: "give" \}\)/.test(give), "handover.mjs giveItem does not hand its move to transferItem");
+        ok(!/\bgrantItem\s*\(|\.\s*delete\s*\(|DRPG\.Handover\.stuck"/.test(give), "handover.mjs giveItem still makes its own copy, deletes its own original or tells its own stuck line");
+    }],
+
+    ["R953 - the player's handbook says what a full pair of hands does to each road an item takes, as inventory.mjs TRANSFER_POLICY does it (D42), in English and in Polish: something slipped into full pockets stays with whoever tried and its victim is told nothing; what a Palm takes into full hands goes to the taker's stash, else stays; one piece of a stack moves; the stash's list no longer names a Plant (E35-T11)", async () => {
+        /*
+         * E35 C6, 24.10.2026; E35-24, D42 (the owner's option 1). Until C6 the handbook's stash list said that
+         * something "slipped into your pocket" while your hands were full goes into your stash, and the Palm's section
+         * that what does not fit in a full pocket goes into "their stash" - both what Base did, both what D42 ended
+         * (vault.mjs `plantOnPerson`, E35 C3). Read: TRANSFER_POLICY as the code holds it, the planter's line in both
+         * languages' files, and in each language's player handbook the stash list's full-hands line and the Palm's
+         * paragraph on outcomes, cut by their first words. Red at 7fd0772 (C5): both books said the stash took the
+         * Plant.
+         */
+        const { TRANSFER_POLICY } = await import("./inventory.mjs");
+        equal(stableJson(TRANSFER_POLICY), stableJson({ give: "refuse", loot: "overflow", rifle: "overflow", steal: "overflow", plant: "refuse" }),
+            "TRANSFER_POLICY is not what the handbook says a full pair of hands does to each road - one of the two moved without the other");
+        const BOOK = {
+            en: { full: "- Your hands were full when something reached you", palm: "Four outcomes, and the interesting ones",
+                plant: ["slipped into full pockets", "stays with whoever tried", "you are told nothing"], taken: ["goes into your stash", "it stays with them"],
+                piece: "one piece", gone: ["slipped into your pocket?", "goes into their stash"] },
+            pl: { full: "- Miałeś pełne ręce, gdy coś do ciebie trafiło", palm: "Cztery wyniki, a ciekawe są te niedopasowane",
+                plant: ["do pełnych kieszeni", "zostaje u tego, kto próbował", "nie dowiadujesz się niczego"], taken: ["trafia do twojej skrytki", "zostaje u nich"],
+                piece: "jedną sztukę", gone: ["podrzucone ci do kieszeni?", "trafia do ich skrytki"] }
+        };
+        const read = {};
+        for (const [lang, W] of Object.entries(BOOK)) {
+            const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/player-handbook.${lang}.md`);
+            ok(res.ok, `docs/handbooks/player-handbook.${lang}.md did not load`);
+            const lines = (await lfText(res)).split("\n");
+            const line = start => lines.find(l => l.startsWith(start)) ?? null;
+            const full = line(W.full), palm = line(W.palm);
+            must(full && palm, `player-handbook.${lang}.md has no line starting "${full ? W.palm : W.full}" - this test reads nothing until it is pointed at the book again`);
+            const words = await (await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`)).json();
+            read[lang] = {
+                line: Boolean(foundry.utils.getProperty(words, "DRPG.Steal.cardTheirHandsFull")),
+                plant: W.plant.filter(w => !full.includes(w)),
+                taken: W.taken.filter(w => !palm.includes(w)),
+                piece: [full, palm].map(text => text.includes(W.piece)),
+                gone: W.gone.filter(w => full.includes(w) || palm.includes(w))
+            };
+        }
+        const want = { line: true, plant: [], taken: [], piece: [true, true], gone: [] };
+        equal(stableJson(read), stableJson({ en: want, pl: want }),
+            "a player's handbook does not say what TRANSFER_POLICY does with full hands (per language: the planter's line exists; the stash list's words for a refused Plant it lacks; the Palm paragraph's words for a taker's full hands it lacks; [the stash list, the Palm paragraph] say one piece moves; the old words still there)");
+    }],
+    ["R970 - the rifle's window and the sheet's open-stash note say one thing from each stash once each time of day, the window names the stashes as a list, and neither calls a found hidden stash 'not hidden', in English and in Polish (E14-T6, S08-06, S08-48)", async () => {
+        /*
+         * E14 part 1 C4, 24.10.2026; E14-15, D15 (one rifle a character, a stash and a time of day). Until C4 the
+         * window's line read "This is {who}'s stash, in {room}, and it is not hidden. Take one thing." - a limit the GM
+         * side never kept (S08-06), "not hidden" over a hidden stash its thief had found or the Mastermind's (S08-48), and
+         * "Kaede, Makoto's stash" over two. Read: `DRPG.Vault.rifleIntro` and `rifleNote` in lang/en.json and
+         * lang/pl.json, fetched as served - the placeholders, the time of day, the words that must be gone - and in
+         * vault.mjs `rifleStashDialog` that the line is formatted with the list of owners and the room. Red at 7a766612
+         * (c4-t6-red.log): both languages said "not hidden" and named no time of day.
+         *
+         * E14 fix e1-G1 (the review's E14R-02): the sheet's note under the open stashes it lists (sheet.mjs
+         * `buildOpenStashSection`, `DRPG.Vault.openStashNote`) lists a hidden stash its viewer found, or any for the
+         * Mastermind, and C6 rewrote it as "Not hidden. Anyone standing here can take one thing from it, once each time
+         * of day." - both halves false of such a stash. Read with the window's words: the time of day in it, the words
+         * that must be gone not. Red at b355cb03: [true, ["not hidden"]] and [true, ["Nieukryta"]].
+         */
+        const WORDS = {
+            en: { once: "once each time of day", gone: ["not hidden", "'s stash", "concealed stash needs", "Anyone standing here"], found: "not found" },
+            pl: { once: "raz na porę dnia", gone: ["nie jest ukryta", "To skrytka", "Ukryta skrytka wymaga", "Nieukryta", "Każdy, kto tu stoi"], found: "nie znalazłeś" }
+        };
+        const read = {};
+        for (const [lang, W] of Object.entries(WORDS)) {
+            const words = await (await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`, { cache: "no-cache" })).json();
+            const intro = foundry.utils.getProperty(words, "DRPG.Vault.rifleIntro"), note = foundry.utils.getProperty(words, "DRPG.Vault.rifleNote");
+            const sheetNote = foundry.utils.getProperty(words, "DRPG.Vault.openStashNote");
+            must(typeof intro === "string" && typeof note === "string" && typeof sheetNote === "string",
+                `lang/${lang}.json has no DRPG.Vault.rifleIntro, rifleNote or openStashNote - this reads nothing`);
+            read[lang] = [intro.includes("{who}") && intro.includes("{room}"), intro.includes(W.once), W.gone.filter(w => intro.includes(w) || note.includes(w)),
+                note.includes(W.found)];
+            read[`${lang}Sheet`] = [sheetNote.includes(W.once), W.gone.filter(w => sheetNote.includes(w))];
+        }
+        const dialog = fnSource(stripComments(new Map(await otherSources()).get("vault.mjs") ?? ""), "rifleStashDialog");
+        must(dialog, "vault.mjs has no rifleStashDialog - this reads nothing");
+        read.dialog = /DRPG\.Vault\.rifleIntro", \{\s*who: esc\(stocked\.map\(entry => entry\.owner\.name\)\.join\(", "\)\),\s*room: esc\(room\)/.test(dialog);
+        equal(stableJson(read), stableJson({ en: [true, true, [], true], pl: [true, true, [], true], enSheet: [true, []], plSheet: [true, []], dialog: true }),
+            "the rifle's window or the sheet's note does not say what a reach takes (per language: [both placeholders, once each time of day, the old "
+            + "words still there, a hidden stash not found]; per language, the sheet's note: [once each time of day, the old words still there]; and "
+            + "whether rifleStashDialog formats the line with the owners' list and the room)");
+    }],
+    ["R971 - a tier 3 usable restores 3 of what it restores, with no choice and no Hope, and every text of it says so, in English and in Polish (E14-T8, the owner 15.10)", async () => {
+        /*
+         * E14 part 1 C5, 24.10.2026; E14-20, the owner of 15.10 ("Od teraz daja +3 statystyki ktora uzupelniaja i tyle -
+         * bez wyboru"). Until C5 a tier 3 usable restored 2 Health or 2 Sanity at the player's choice, plus 2 Hope
+         * (config.mjs `USABLE_EFFECTS[3]`), and its texts said so. Read: `USABLE_EFFECTS[3]` as the use and the GMs' judge of
+         * it read it (use-items.mjs `useItem`, sheet-audit.mjs `itemCovers`); the tier 3 sentences as this world's tables
+         * hold them (`TIER_EFFECTS.usable[3]`, `USABLE_KIND_EFFECTS.*[3]`, the Usables hint) and as lang/pl.json carries
+         * them, fetched as served - each names 3, none names Hope, a choice or a 2. Red at 38d4f7ba (c5-t8-red.log).
+         */
+        const C = await import("./config.mjs");
+        const row = C.USABLE_EFFECTS[3];
+        const words = await (await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" })).json();
+        const pl = path => foundry.utils.getProperty(words, `DRPG.Config.${path}`);
+        const PATHS = ["TIER_EFFECTS.usable.3", "USABLE_KIND_EFFECTS.healing.3", "USABLE_KIND_EFFECTS.stress.3", "ITEM_CATEGORIES.usable.hint"];
+        const here = PATHS.map(path => foundry.utils.getProperty(C, path));
+        const there = PATHS.map(pl);
+        must([...here, ...there].every(text => typeof text === "string" && text.length), "a tier 3 sentence is missing from config.mjs or lang/pl.json - this reads nothing");
+        // The hint names no number; the three effect sentences each name the 3.
+        const wrong = text => ["Hope", "choice", "pick", "wybor", "wybór", "wybrać", " 2 "].filter(word => text.includes(word));
+        const read = {
+            row: stableJson(row),
+            here: here.map((text, i) => [i === 3 || text.includes("3"), wrong(text)]),
+            there: there.map((text, i) => [i === 3 || text.includes("3"), wrong(text)])
+        };
+        const fine = PATHS.map(() => [true, []]);
+        equal(stableJson(read), stableJson({ row: stableJson({ amount: 3, byKind: true }), here: fine, there: fine }),
+            "a tier 3 usable is not 3 of what it restores with no choice and no Hope: [USABLE_EFFECTS[3]; per sentence (tier 3, "
+            + "healing, sanity relief, the Usables hint), in this world and in lang/pl.json: names the 3, the words that must be gone]");
+    }],
+
+    ["R972 - an item table's name is built in English whatever the module's language, a table a client in Polish built is found by its Polish name, and a tier pool is found by the flags the installer writes (E14-T11, S01-05, S02-05, S08-03, S13-01)", async () => {
+        /*
+         * E14 part 2 C1, 24.10.2026; E14-31, E14-33, E14-35 (T14's condition, E65's test). The harm: i18n.mjs `localizeConfig`
+         * rewrites `ITEM_CATEGORIES.*.plural` in place on a client set to Polish, and tables.mjs built every table name out of
+         * it, so a player in Polish searched for "DRPG Narzędzia zbrodni - Tier 2" beside the GM's "DRPG Murder Weapons - Tier 2"
+         * and drew from the built-in pools, and a table a Polish GM installed was lost to every English client. Here lang/pl.json,
+         * fetched as served, is put over config.mjs the way `localizeConfig` puts it (`walkConfigProse`, each field it would set),
+         * the names read, and everything put back - with no await between, so nothing else on this client reads the Polish.
+         * Read: (1) whether `tableName` and the first of `tableNameCandidates` are the English names under Polish, for every
+         * category, tier and goal the installer builds; (2) of the names a Polish client built (pl.json's plural, the goal's
+         * English label, as `USABLE_GOALS` froze it), how many are candidates and are read back by `classifyTableName`;
+         * (3) whether the older English wordings are still candidates (they only grow, N5); (4) `flaggedTables` over tables made
+         * here as plain objects, never in the world: a renamed one by its flags, a goal kept apart, a table with no flags, and two
+         * with one set of flags, today's name first.
+         * E14 fix e1-G7 (25.10.2026; the review's E14p2-END-03, R8): on a GM whose module language is Polish `localizeConfig`
+         * has already put pl.json's words over config.mjs, so the first precondition (pl.json's plural is not the live
+         * one) and the walk's count (a value already pl.json's is not set) both failed there, on the client this test is
+         * about. The English side is the copy config.mjs froze before any language (`TABLE_NAME_WORDS`), put over the
+         * names' words first and pl.json's after it, both walked and both put back, so the test reads the same in either
+         * language. Red at the parent on a client in Polish (pl.json put over config.mjs before the test, as at i18nInit).
+         */
+        const t = await import("./tables.mjs");
+        const C = await import("./config.mjs");
+        const { walkConfigProse } = await import("./i18n-config.mjs");
+        const words = await (await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" })).json();
+        const plPlural = category => foundry.utils.getProperty(words, `DRPG.Config.ITEM_CATEGORIES.${category}.plural`);
+        const shapes = [
+            ...Object.keys(t.ITEM_POOLS).filter(c => c !== "usable").flatMap(category => C.ITEM_TIERS.map(tier => ({ category, tier, goal: null }))),
+            ...Object.keys(t.USABLE_GOALS).flatMap(goal => C.ITEM_TIERS.map(tier => ({ category: "usable", tier, goal }))),
+            ...C.ITEM_TIERS.map(tier => ({ category: "usable", tier, goal: null }))
+        ];
+        // The English the names are built from, whatever this client's language: the frozen copy (config.mjs `TABLE_NAME_WORDS`).
+        const englishWord = key => {
+            const plural = key.match(/^DRPG\.Config\.ITEM_CATEGORIES\.(\w+)\.plural$/);
+            if (plural) return C.TABLE_NAME_WORDS.plural[plural[1]];
+            const kind = key.match(/^DRPG\.Config\.USABLE_KINDS\.(\w+)\.label$/);
+            return kind ? C.TABLE_NAME_WORDS.kind[kind[1]] : undefined;
+        };
+        must(shapes.every(s => typeof plPlural(s.category) === "string" && plPlural(s.category) !== C.TABLE_NAME_WORDS.plural[s.category]),
+            "lang/pl.json carries no Polish plural for a tier pool's category - this reads nothing");
+        const names = () => shapes.map(s => [t.tableName(s.category, s.tier, s.goal), t.tableNameCandidates(s.category, s.tier, s.goal)[0]]);
+        const asFound = stableJson(names());
+        const undo = [];
+        let english = null, polish = null, swappedPlurals = 0;
+        const put = (wordFor, counted) => walkConfigProse(C, (key, value, set) => {
+            const next = wordFor(key);
+            if (typeof next !== "string" || !next || next === value) return;
+            undo.push(() => set(value));
+            set(next);
+            if (counted && /^DRPG\.Config\.ITEM_CATEGORIES\.\w+\.plural$/.test(key)) swappedPlurals += 1;
+        });
+        try {
+            put(englishWord, false);
+            english = stableJson(names());
+            put(key => foundry.utils.getProperty(words, key), true);
+            polish = stableJson(names());
+        } finally {
+            for (const back of undo.reverse()) back();
+        }
+        must(swappedPlurals >= 4 && stableJson(names()) === asFound, "Polish was not put over the plurals, or not put back - this measured nothing");
+
+        const builtInPolish = shapes.map(s => ({ ...s,
+            name: `DRPG ${plPlural(s.category)}${s.goal ? ` (${t.USABLE_GOALS[s.goal].label})` : ""} - Tier ${s.tier}` }));
+        const found = builtInPolish.filter(s => t.tableNameCandidates(s.category, s.tier, s.goal).includes(s.name)).length;
+        const readBack = builtInPolish.filter(s =>
+            stableJson(t.classifyTableName(s.name)) === stableJson({ category: s.category, tier: s.tier, goal: s.goal })).length;
+        const older = [["usable", 1, null, "DRPG Usable Items - Tier 1"], ["crimeTool", 2, null, "DRPG Crime Tools - Tier 2"],
+            ["usable", 1, "stress", "DRPG Usables (Stress Relief) - Tier 1"]].map(([c, tier, goal, name]) => t.tableNameCandidates(c, tier, goal).includes(name));
+
+        const table = (name, flags) => ({ name, getFlag: (scope, key) => (scope === MODULE_ID ? flags?.[key] : undefined) });
+        const fake = [
+            table("Kitchen knives the GM renamed", { category: "crimeTool", tier: 2, goal: null }),
+            table("DRPG Usables (Healing) - Tier 1", { category: "usable", tier: 1, goal: "healing" }),
+            table("DRPG Użytkowe (Healing) - Tier 1", { category: "usable", tier: 1, goal: "healing" }),
+            table("DRPG Usables (Sanity Relief) - Tier 1", { category: "usable", tier: 1, goal: "stress" }),
+            table("DRPG Murder Weapons - Tier 3", null)
+        ];
+        const by = (...args) => typeof t.flaggedTables === "function" ? t.flaggedTables(...args, fake).map(x => x.name) : "no flaggedTables";
+        const flags = [by("crimeTool", 2, null), by("usable", 1, "healing"), by("usable", 1, null), by("crimeTool", 3, null)];
+
+        equal(stableJson([polish === english, found, readBack, older, flags]), stableJson([true, shapes.length,
+            shapes.length, [true, true, true],
+            [["Kitchen knives the GM renamed"], ["DRPG Usables (Healing) - Tier 1", "DRPG Użytkowe (Healing) - Tier 1"], [], []]]),
+            "an item table's name follows the module's language, or a world built in Polish is lost, or the flags are not asked "
+            + "[names under Polish are the English ones; Polish-built names that are candidates; read back by classifyTableName; "
+            + "the older English wordings; by flags: renamed, two of one set today's first, a usable with no goal, no flags]");
+    }],
+    ["R973 - the Tier pools tab and a rename take only a name the module reads as a tier pool, and say which names it reads; a room table takes any other name; the refusal stands at the field with the typed name kept, under a muted 'e.g.' placeholder (E14-T15, S08-45, S13-09)", async () => {
+        /*
+         * E14 part 2 C5, 24.10.2026; E14-42, E14-43. The harm (S08-45): the Tier pools tab took "DRPG Weapons - Tier 2" and
+         * "DRPG Tools - Tier 5", which no category and tier read, filed each as a room table and said "Room table created,
+         * point a room at it" - a table Room Setup does not offer and no draw reads; a rename skipped the name's check, so a
+         * room table could become "DRPG Tools - Tier 2" and a tier pool "Kitchen". And (S13-09) the placeholder read like a
+         * typed value, and the only word of a refusal was a toast over the window's tabs, with the typed name gone when the
+         * window came back. Read: (1) `poolNameRefusal` over each tab's names and a rename's, against tables made here as plain
+         * objects, never in the world; (2) what a refusal of a tier pool's name says - every form the module reads, each read
+         * back by `classifyTableName`; (3) `poolPaneHtml` with a refusal: the field keeps the name, is marked invalid and has
+         * the sentence under it; (4) the create and rename roads ask `poolNameRefusal` and the window comes back on the tab of
+         * the field; (5) the placeholder in both languages starts with "e.g."'s word, and the stylesheet dims it.
+         */
+        const t = await import("./tables.mjs");
+        const C = await import("./config.mjs");
+        const table = (name, flags) => ({ name, getFlag: (scope, key) => (scope === MODULE_ID ? flags?.[key] : undefined) });
+        const tierPool = table("DRPG Tools - Tier 2", { category: "tool", tier: 2, goal: null });
+        const roomPool = table("Kuchnia", { roomPool: true });
+        const renamedPool = table("Kitchen knives", { category: "tool", tier: 1, goal: null });
+        const tables = [tierPool, roomPool, renamedPool];
+        const has = typeof t.poolNameRefusal === "function";
+        const verdict = (name, family, opts = {}) => (has ? t.poolNameRefusal(name, family, { tables, ...opts })?.key ?? null : "no poolNameRefusal");
+        const created = [
+            verdict("DRPG Weapons - Tier 2", "tiers"), verdict("DRPG Tools - Tier 5", "tiers"), verdict("Kitchen", "tiers"),
+            verdict("DRPG Tools - Tier 1", "tiers"), verdict("DRPG Narzędzia - Tier 1", "tiers"), verdict("DRPG Tools - Tier 2", "tiers"),
+            verdict("", "tiers"),
+            verdict("Kuchnia - Zaplecze", "rooms"), verdict("DRPG Tools - Tier 1", "rooms"), verdict("Kuchnia", "rooms")
+        ];
+        const renamed = [
+            verdict("Kitchen tools", "tiers", { table: tierPool }), verdict("DRPG Tools - Tier 3", "tiers", { table: tierPool }),
+            verdict("DRPG Narzędzia - Tier 2", "tiers", { table: tierPool }), verdict("DRPG Tools - Tier 1", "rooms", { table: roomPool }),
+            verdict("Kuchnia", "rooms", { table: roomPool }), verdict("DRPG Tools - Tier 1", "rooms", { table: renamedPool }),
+            verdict("Kitchen pans", "rooms", { table: renamedPool })
+        ];
+        const forms = "DRPG.Tables.newTierPoolForms", taken = "DRPG.Tables.newPoolExists";
+        equal(stableJson([created, renamed]), stableJson([
+            [forms, forms, forms, null, null, taken, "DRPG.Tables.needsName", null, "DRPG.Tables.newPoolTierName", taken],
+            [forms, "DRPG.Tables.renameOtherPool", null, "DRPG.Tables.newPoolTierName", null, null, forms]]),
+            "a tab or a rename takes a name the module does not read as that family's, or refuses one it does "
+            + "[Tier pools: no such category, Tier 5, no tier, a new tier, a new one built in Polish, taken, empty; Room pools: "
+            + "a name with a suffix, a tier pool's, taken; renames: a tier pool to a free name, to another pool's, to its own in "
+            + "Polish, a room table to a tier pool's, a room table to its own name, a tier pool an earlier rename put on the Room pools "
+            + "tab back to its name, and to another free name]");
+
+        /* E14 fix e1-G5 (25.10.2026; the review's E14p2-END-05, R4): a room's table named "DRPG Kitchen" (the Room pools tab
+           took it) gets its "- Tier N" there, by a rename too, as Create an item's note says (`DRPG.Tables.presetRoomTier`);
+           one whose base is no room's table, or whose tier is none, is still refused, and so is the name when no room's
+           table is its base. The bases as `roomTableBases` reads them off the tables. Red at the parent: refused, and no
+           roomTableBases. */
+        const drpgRoom = table("DRPG Kitchen", { roomPool: true });
+        const withRoom = [...tables, drpgRoom];
+        const roomTier = (name, opts = {}) => (has ? t.poolNameRefusal(name, "rooms", { tables: withRoom, ...opts })?.key ?? null : "no poolNameRefusal");
+        const bases = typeof t.roomTableBases === "function" ? t.roomTableBases(withRoom) : null;
+        equal(stableJson([roomTier("DRPG Kitchen - Tier 2"), roomTier("DRPG Kitchen - Tier 2", { table: roomPool }),
+            roomTier("DRPG Kitchen - Tier 9"), roomTier("DRPG Pantry - Tier 2"), roomTier("DRPG Kitchen - Tier 2", { bases: new Set() }),
+            bases ? [bases.has("DRPG Kitchen"), bases.has("Kuchnia"), bases.has("DRPG Tools - Tier 2")] : "no roomTableBases"]),
+            stableJson([null, null, "DRPG.Tables.newPoolTierName", "DRPG.Tables.newPoolTierName", "DRPG.Tables.newPoolTierName", [true, true, false]]),
+            "the Room pools tab refuses the '- Tier N' of a room's table named 'DRPG ...' that Create an item's note offers, or takes one that "
+            + "is no room's [DRPG Kitchen - Tier 2 new, by a rename, Tier 9, DRPG Pantry - Tier 2, with no room's table; the bases read: "
+            + "DRPG Kitchen, Kuchnia, a tier pool]");
+
+        const said = has ? t.poolNameRefusal("DRPG Weapons - Tier 2", "tiers", { tables })?.text ?? "" : "";
+        const listed = [...said.matchAll(/DRPG [^,;:]+? - Tier N/g)].map(m => m[0]);
+        const readBack = listed.filter(form => C.ITEM_TIERS.every(tier => t.classifyTableName(form.replace(/N$/, String(tier))))).length;
+        const installer = [...Object.keys(t.ITEM_POOLS).filter(c => c !== "usable").map(c => t.tableName(c, "N")),
+            ...Object.keys(t.USABLE_GOALS).map(goal => t.tableName("usable", "N", goal))];
+        equal(stableJson([listed.length > 0 && readBack === listed.length, installer.filter(n => !listed.includes(n))]), stableJson([true, []]),
+            `a refused tier pool's name is not told which names are read, or is told one that is not ["${said}"]`);
+
+        const refusal = { name: "DRPG Weapons - Tier 2", text: "a refusal measured here" };
+        let pane = null;
+        try { pane = t.poolPaneHtml ? t.poolPaneHtml("tiers", [], null, refusal) : null; } catch (err) { pane = `threw ${err.message}`; }
+        const box = document.createElement("div");
+        box.innerHTML = pane ?? "";
+        const field = box.querySelector('input[name="newPool:tiers"]');
+        const errorEl = field?.closest("label, .drpg-field")?.parentElement?.querySelector(".drpg-field-error");
+        equal(stableJson([field?.value ?? null, field?.getAttribute("aria-invalid") ?? null, errorEl?.textContent.trim() ?? null,
+            errorEl?.id && field?.getAttribute("aria-describedby") === errorEl.id]),
+            stableJson([refusal.name, "true", refusal.text, true]),
+            `the Tier pools pane does not keep the refused name at its field with the sentence under it [${typeof pane === "string" ? pane.slice(0, 80) : "no poolPaneHtml"}]`);
+
+        /* The road itself, on this GM: the window opened, a refused name typed on each tab and Create table pressed, the
+           window that comes back read. A refusal writes nothing, so the world is as it was (tier 1's dump holds it).
+           And it cannot write (E14 fix e1-G7; the review's E14p2-END-07): `RollTable.create` is replaced for the presses
+           and put back, so a regression of the check is a table this test names, never one left in a GM's world by the
+           read-only tier. */
+        const tablesApp = () => [...foundry.applications.instances.values()]
+            .find(a => a.element?.classList?.contains("drpg-window-tables") && a.element.isConnected);
+        const tableCount = game.tables.size;
+        const press = async (family, name) => {
+            const first = tablesApp();
+            const el = first?.element;
+            if (!el) return "no window";
+            el.querySelector(`[data-drpg-gmt-tab="${family === "tiers" ? "editTiers" : "editRooms"}"]`)?.click();
+            const input = el.querySelector(`[name="newPool:${family}"]`);
+            if (input) input.value = name;
+            el.querySelector('footer button[data-action="newPool"]')?.click();
+            await until(() => tablesApp() && tablesApp() !== first);
+            await settle();
+            const now = tablesApp()?.element;
+            const back = now?.querySelector(`[name="newPool:${family}"]`);
+            const said = back?.getAttribute("aria-describedby") ? now.querySelector(`#${CSS.escape(back.getAttribute("aria-describedby"))}`) : null;
+            return [back?.value ?? null, back?.getAttribute("aria-invalid") ?? null,
+                Boolean(back?.closest(".drpg-gmt-section.active")), (said?.textContent.trim().length ?? 0) > 0];
+        };
+        const hadCreate = Object.hasOwn(RollTable, "create"), realCreate = RollTable.create;
+        const attempted = [];
+        RollTable.create = async data => { attempted.push(data?.name ?? null); return null; };
+        const opening = t.openItemTables();   // held, not awaited - it resolves on close
+        let road = null;
+        try {
+            await until(() => tablesApp());
+            await settle();
+            road = [await press("tiers", "DRPG Weapons - Tier 2"), await press("rooms", "DRPG Tools - Tier 1")];
+        } finally {
+            if (hadCreate) RollTable.create = realCreate; else delete RollTable.create;
+            try { await tablesApp()?.close(); } catch { /* already gone */ }
+            try { await Promise.race([opening, wait(2000)]); } catch { /* closed rather than answered */ }
+            await settle();
+        }
+        equal(stableJson([road, attempted, game.tables.size === tableCount]), stableJson([[["DRPG Weapons - Tier 2", "true", true, true],
+            ["DRPG Tools - Tier 1", "true", true, true]], [], true]),
+            "a refused name pressed through Create table does not come back in its field, marked, on its tab, with the sentence "
+            + "under it, or a table was made [Tier pools: value, aria-invalid, its tab open, a sentence; Room pools: the same; "
+            + "the tables a create was asked for; no table made]");
+
+        const tablesSrc = stripComments(new Map(await otherSources()).get("tables.mjs") ?? "");
+        const create = bodyOf(tablesSrc, "async function createPoolFrom(", { until: "\n}\n" });
+        const heading = bodyOf(tablesSrc, "function wirePaneHeading(", { until: "\n}\n" });
+        const opener = bodyOf(tablesSrc, "export async function openItemTables(", { until: "\n}\n" });
+        equal(stableJson([/poolNameRefusal\(/.test(create), /poolNameRefusal\(/.test(heading),
+            /poolError/.test(opener) && /active:/.test(opener)]), stableJson([true, true, true]),
+            "the create button or the rename does not ask the name's check, or the window does not come back on the field's tab "
+            + "[createPoolFrom, wirePaneHeading, openItemTables]");
+
+        const lang = async code => (await (await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" })).json());
+        const [en, pl] = [await lang("en"), await lang("pl")];
+        const placeholder = words => foundry.utils.getProperty(words, "DRPG.Tables.newTierPoolPlaceholder") ?? "";
+        const css = (await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`, { cache: "no-cache" }).then(lfText)).replace(/\/\*[\s\S]*?\*\//g, "");
+        const dim = [...css.matchAll(/([^{}]*::placeholder[^{}]*)\{([^}]*)\}/g)]
+            .some(([, sel, body]) => /drpg-window-tables/.test(sel) && /color:\s*var\(--drpg-dim\)/.test(body));
+        equal(stableJson([placeholder(en).startsWith("e.g. "), placeholder(pl).startsWith("np. "), dim]), stableJson([true, true, true]),
+            `the tier pool's placeholder reads like a typed value [en "${placeholder(en)}", pl "${placeholder(pl)}", dimmed ${dim}]`);
+    }],
+    ["R974 - the item tables window, Create an item and the Give and take forms are laid out by their rules: an entry one grid row with its buttons in columns of their own, the list in whole rows, each group's caption above its boxes, the help to the left, every labelled field in one grid (E14-48, S08-24, S08-25, S08-27)", async () => {
+        /*
+         * E14 part 2 C7, 25.10.2026; E14-48. The harm, read in Chromium at 1366x768 in both themes before this commit (the
+         * windows' markup dumped from the harness's GM and set in a stand-in of Foundry's frame, styles/danganronpa.css's
+         * comment): a pool's entry wrapped onto two or three lines with its remove button under the name, the list cut its
+         * last row in half, Create an item's captions were centred beside their boxes, the help under the form centred, and
+         * Give an item's fields started at four or five edges. Headless there is no layout, so this reads which rule of the
+         * module's sheets wins each property on the windows' own markup (`styleCascade`): the windows as they are asked for
+         * (DialogV2.wait answered at once with nothing, so nothing is given or written), set in the frame the shim draws
+         * (a `.dialog-content` in the dialog's form), and one tier pool's entry as `poolPaneHtml` draws it for a table made
+         * here as a plain object, never in the world. The widths themselves are the stand-in's, not this test's.
+         */
+        needs(world.atLeast("studentsInRooms", 1), "Give an item and the hub open on a student");
+        const T = await import("./tables.mjs");
+        const G = await import("./gm-items.mjs");
+        const C = await styleCascade();
+        const [student] = studentActors();
+        must(student, "no student - this would measure nothing");
+        must(!document.querySelector(".drpg-window-tables, .drpg-window-items"),
+            "the item tables or the Give / take window is open here, and would be raised rather than asked for");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const asked = [];
+        try {
+            D.wait = async config => { asked.push(config); return null; };
+            await T.openItemTables();
+            await G.gmGiveItemDialog(student);
+            await G.openItemManager(student);
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+        }
+        const frameOf = (config, markup = null) => {
+            const frame = document.createElement("div");
+            frame.className = ["application", "dialog", ...(config?.classes ?? [])].join(" ");
+            const form = document.createElement("form");
+            form.className = "dialog-form";
+            const c = config?.content;
+            const html = markup ?? (typeof c === "string" ? c : (c?.hasAttributes?.() ? c.outerHTML : c?.innerHTML ?? ""));
+            form.innerHTML = `<div class="dialog-content">${html}</div>`;
+            const footer = document.createElement("footer");
+            footer.className = "form-footer";
+            for (const b of config?.buttons ?? []) {
+                const button = document.createElement("button");
+                button.dataset.action = b.action;
+                footer.append(button);
+            }
+            form.append(footer);
+            frame.append(form);
+            return frame;
+        };
+        const tablesAsk = asked.find(config => config?.classes?.includes("drpg-window-tables"));
+        const giveAsk = asked.find(config => config?.window?.title === game.i18n.localize("DRPG.Items.give"));
+        const hubAsk = asked.find(config => config?.classes?.includes("drpg-window-items"));
+        must(tablesAsk && giveAsk && hubAsk, `a window was not asked for [tables ${!!tablesAsk}, give ${!!giveAsk}, hub ${!!hubAsk}] - this would measure nothing`);
+        const won = (el, property) => (el ? C.winner(el, property)?.value ?? null : "no element");
+
+        // One entry of a tier pool, as the pane draws it.
+        const entry = { id: "r974entry", name: "Screwdriver", description: "A long description of a screwdriver left on the bench", img: "",
+            getFlag: () => [] };
+        const pool = { id: "r974pool", name: "DRPG Tools - Tier 2", results: new Set([entry]),
+            getFlag: (scope, key) => (scope === MODULE_ID ? { category: "tool", tier: 2 }[key] : undefined) };
+        const paneFrame = frameOf(tablesAsk, T.poolPaneHtml("tiers", [pool], pool));
+        const row = paneFrame.querySelector(".drpg-table-items > li");
+        must(row, "the pane drew no entry row - this would measure nothing");
+        const cells = [".drpg-table-item-icon", ".drpg-table-item-name", ".drpg-table-item-note", ".drpg-table-item-roles", "[data-drpg-place]", "[data-drpg-drop]"]
+            .map(sel => won(row.querySelector(`:scope > ${sel}`), "grid-area"));
+        const list = paneFrame.querySelector(".drpg-tables-list");
+        const pick = list?.querySelector(".drpg-table-pick");
+        equal(stableJson([won(row, "display"), cells, /var\(--drpg-pick-h\)/.test(won(list, "max-height") ?? ""), won(pick, "height"),
+            won(paneFrame.querySelector("p.notes"), "text-align")]),
+            stableJson(["grid", ["icon", "name", "note", "roles", "place", "drop"], true, "var(--drpg-pick-h)", "left"]),
+            "the tables window's entry row is not one grid row with its buttons in their own columns, its list is not in whole rows, "
+            + "or its help is centred [row display, grid areas of icon, name, description, roles, place, remove; list height in rows; "
+            + "row height; the help's alignment]");
+
+        const tablesFrame = frameOf(tablesAsk);
+        const caption = sel => tablesFrame.querySelector(`[data-drpg-gmt-section="newItem"] ${sel} > .notes:first-child`);
+        const newForm = tablesFrame.querySelector('[data-drpg-gmt-section="newItem"] fieldset.drpg-tables-new');
+        const fieldRows = [...(newForm?.querySelectorAll(":scope > label") ?? [])];
+        equal(stableJson([won(caption(".drpg-tables-roles"), "flex"), won(caption(".drpg-tables-targets"), "flex"),
+            won(newForm, "grid-template-columns"), fieldRows.length > 0 && fieldRows.map(l => won(l, "grid-template-columns"))]),
+            stableJson(["0 0 100%", "0 0 100%", "11rem minmax(0, 1fr)", fieldRows.map(() => "subgrid")]),
+            "Create an item's captions are not each on a line above their boxes, or its fields are not in one grid "
+            + "[Also works as, Room tables, the form's columns, each field row]");
+
+        /* Give an item: the rows of Create new, opened as its tab's button opens it (`panelTabs` moves `active`; Give existing
+           holds only a line while the world has no item table), the row outside the tabs, and the other tab staying closed.
+           The hub: its footer as tiles with Close under them. */
+        const giveFrame = frameOf(giveAsk);
+        const open = giveFrame.querySelector('.drpg-gmt-section[data-drpg-gmt-section="create"]');
+        must(open, "Give an item has no Create new tab - this would measure nothing");
+        for (const section of giveFrame.querySelectorAll(".drpg-gmt-section")) section.classList.toggle("active", section === open);
+        const closed = giveFrame.querySelector(".drpg-gmt-section:not(.active)");
+        const rowsOf = parent => [...(parent?.querySelectorAll(":scope > label:not(.drpg-checkbox)") ?? [])]
+            .filter(l => l.querySelector("select, textarea, input:not([type=checkbox])"));
+        const giveRows = [...rowsOf(open), ...rowsOf(giveFrame.querySelector(".dialog-content"))];
+        const hubFrame = frameOf(hubAsk);
+        equal(stableJson([giveRows.length > 1 && giveRows.map(l => won(l, "grid-template-columns")),
+            won(open, "grid-template-columns"), won(closed, "display"),
+            won(hubFrame.querySelector("footer.form-footer"), "display"), won(hubFrame.querySelector('footer [data-action="cancel"]'), "grid-column")]),
+            stableJson([giveRows.map(() => "subgrid"), "11rem minmax(0, 1fr)", "none", "grid", "1 / -1"]),
+            "Give an item's fields are not in one grid, a closed tab is opened by it, or the hub's footer is not tiles with Close "
+            + "under them [each field row, the open tab's columns, the closed tab's display, the hub footer, Close's columns]");
+    }],
+    ["R975 - the item tables window's help names a button or a tab that is there, the gear group has one Polish word wherever it is read, and a stash out of reach says where it is (E14-49, S08-29, S08-48, S13-21)", async () => {
+        /*
+         * E14 part 2 C8, 25.10.2026; E14-49. The harm (S08-29): five lines of the tables window sent a new GM to "the last
+         * tab" for the pools, which is Create an item, and to a "Create item tables" button and a field "below" that are
+         * not there - the install is "Install / reinstall" in the footer of the first tab. (S13-21) `LIMIT_GROUPS` was not
+         * one of the tables `localizeConfig` translates, so a Polish player read "Gear" in a refusal under a sheet heading
+         * that said "Ekwipunek". (S08-48) A stash out of reach told the player to stand in their own room, though a stash
+         * may be in the library. Read: both language files as served; i18n-config.mjs `CONFIG_TABLES`.
+         */
+        const lang = async code => (await (await fetch(`/modules/${MODULE_ID}/lang/${code}.json`, { cache: "no-cache" })).json());
+        const [en, pl] = [await lang("en"), await lang("pl")];
+        const get = (words, key) => String(foundry.utils.getProperty(words, key) ?? "");
+        const T = "DRPG.Tables.";
+        const points = words => {
+            const install = get(words, `${T}installAction`), tiers = get(words, `${T}tabTierPools`), rooms = get(words, `${T}tabRoomPools`);
+            must(install && tiers && rooms, "the window's button or tab names are missing - this would measure nothing");
+            return [["noTierPools", install], ["newTierPoolNote", install], ["installTabNote", install], ["tierTargetNone", tiers],
+                ["noRoomTables", rooms]].map(([key, name]) => get(words, T + key).includes(name));
+        };
+        const lastTab = words => ["noTierPools", "newTierPoolNote", "tierTargetNone"].filter(key => /last tab|ostatni(ej|a) zakład/i.test(get(words, T + key)));
+        equal(stableJson([points(en), points(pl), lastTab(en), lastTab(pl)]),
+            stableJson([[true, true, true, true, true], [true, true, true, true, true], [], []]),
+            "a line of the tables window does not name the button or the tab it sends the GM to, or still sends them to the last tab "
+            + "[EN noTierPools, newTierPoolNote, installTabNote -> Install / reinstall, tierTargetNone -> Tier pools, noRoomTables -> "
+            + "Room pools; PL the same; the keys that say last tab, EN, PL]");
+
+        const { CONFIG_TABLES } = await import("./i18n-config.mjs");
+        const gearPl = get(pl, "DRPG.Config.LIMIT_GROUPS.gear.label");
+        equal(stableJson([CONFIG_TABLES.includes("LIMIT_GROUPS"), gearPl.length > 0 && gearPl === get(pl, "DRPG.Sheet.groupGear"),
+            get(pl, "DRPG.Config.LIMIT_GROUPS.gear.hint"), get(pl, "DRPG.Config.CLEANUP.actions.eraseTrace.hint")]),
+            stableJson([true, true, "", ""]),
+            `the gear group's word is not translated where it is read, differs from the sheet's heading, or a hint nothing reads is `
+            + `still carried [LIMIT_GROUPS in CONFIG_TABLES; pl "${gearPl}" against "${get(pl, "DRPG.Sheet.groupGear")}"; the dead hints]`);
+
+        equal(stableJson([get(en, "DRPG.Vault.notHere").includes("{room}"), get(pl, "DRPG.Vault.notHere").includes("{room}"),
+            get(en, "DRPG.Vault.noStashOnScene").length > 0, get(pl, "DRPG.Vault.noStashOnScene").length > 0]),
+            stableJson([true, true, true, true]),
+            "a stash out of reach does not say which room it is in, or a character with no stash has no sentence of its own "
+            + "[notHere EN, PL with {room}; noStashOnScene EN, PL]");
+    }],
+    ["R976 - a rename asked again keeps what was typed, with the refusal under the field, until a name passes, is left as it was or the prompt is closed; and a stow or a retrieve out of reach names the stash's room, or says there is none (E14 fix e1-G7: R7, R9)", async () => {
+        /*
+         * E14 fix e1-G7, 25.10.2026; the review's E14p2-R7 and R9 (and the C5 and C8 Open lines): tables.mjs
+         * `promptForTableName`'s ask-again loop (C5) and vault.mjs `tellNotHere` (C8) were driven by no test - R973 read
+         * that the rename calls the check, R975 the words - so a loop that handed back a refused name on its second try, or
+         * a line that always said "no stash on this scene", passed the suite. Both are read here with Foundry's prompt and
+         * this browser's warning replaced for the test and put back, nothing of the world written: the prompt answers
+         * from a list and keeps what each prompt held; a check refuses one name. Read: what each road answers, how many
+         * prompts it asked, and the second prompt's field (its value, marked invalid, the sentence under it); then the
+         * warning for a stash in a room this test names and for a character of the world as found - the rooms of their
+         * stashes on their scene, or the line for none (`stashRoomsFor`).
+         */
+        const t = await import("./tables.mjs");
+        const V = await import("./vault.mjs");
+        const { sceneOfActor } = await import("./movement.mjs");
+        const api = foundry.applications.api.DialogV2;
+        const hadPrompt = Object.hasOwn(api, "prompt"), prompt = api.prompt;
+        const notices = ui.notifications, hadWarn = Object.hasOwn(notices, "warn"), warn = notices.warn;
+        const REFUSED = "R976 Kitchen - Tier 9", GOOD = "R976 Kitchen";
+        const check = name => (name === REFUSED ? { text: "R976 refused it" } : null);
+        const field = html => {
+            const box = document.createElement("div");
+            box.innerHTML = html ?? "";
+            const input = box.querySelector('input[name="tableName"]');
+            return [input?.value ?? null, input?.getAttribute("aria-invalid") ?? null, box.querySelector(".drpg-field-error")?.textContent.trim() ?? null];
+        };
+        const roads = [], warned = [];
+        const student = studentActors()[0] ?? null;
+        must(student, "the world has no student to tell where a stash is");
+        try {
+            let answers = [], asked = [];
+            api.prompt = async config => { asked.push(String(config?.content ?? "")); return answers.length ? answers.shift() : null; };
+            const ask = async (current, list) => {
+                answers = [...list];
+                asked = [];
+                const got = typeof t.promptForTableName === "function" ? await t.promptForTableName(current, check) : "no promptForTableName";
+                return [got, asked.length, asked[1] ? field(asked[1]) : null];
+            };
+            roads.push(await ask("R976 Old name", [REFUSED, GOOD]));
+            roads.push(await ask("R976 Old name", [REFUSED, null]));
+            roads.push(await ask("R976 Old name", ["R976 Old name"]));
+            notices.warn = message => { warned.push(String(message)); };
+            if (typeof V.tellNotHere === "function") {
+                V.tellNotHere(student, "R976 Library");
+                V.tellNotHere(student);
+            }
+        } finally {
+            if (hadPrompt) api.prompt = prompt; else delete api.prompt;
+            if (hadWarn) notices.warn = warn; else delete notices.warn;
+        }
+        const rooms = V.stashRoomsFor(student, sceneOfActor(student)).map(entry => entry.room);
+        const say = (key, data) => game.i18n.format(key, data);
+        equal(stableJson([roads, warned]), stableJson([
+            [[GOOD, 2, [REFUSED, "true", "R976 refused it"]], [null, 2, [REFUSED, "true", "R976 refused it"]], ["R976 Old name", 1, null]],
+            [say("DRPG.Vault.notHere", { room: "R976 Library" }),
+                rooms.length ? say("DRPG.Vault.notHere", { room: rooms.join(", ") }) : game.i18n.localize("DRPG.Vault.noStashOnScene")]
+        ]), "a rename handed back a refused name, asked again without the typed name and its refusal, or asked when nothing changed; or a stash "
+            + "out of reach was not named [the rename: refused then good, refused then closed, unchanged - each its answer, the prompts asked, "
+            + "the second prompt's field: value, aria-invalid, the sentence; the warnings: a stash in R976 Library, the student's own as found]");
+    }],
 ];
 
 /**
