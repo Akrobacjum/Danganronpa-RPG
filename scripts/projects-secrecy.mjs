@@ -232,6 +232,63 @@ export function unshareChange(countdownId, userId) {
     return { ownership: ownershipMap(sharedIds(countdownId).filter(id => id !== userId)) };
 }
 
+/*
+ * WHO SEES A PROJECT, WORKED OUT IN THE STEP (E36 fix e1-G2, 25.10.2026; findings E36-END-S2, E36-R2, F4). The
+ * changes above were worked out on the caller, before the change joined the queue, and the step replaced the
+ * countdown's map with the one they made: a share worked out while a revoke waited in the queue put the revoked
+ * player back, and of two shares queued together the second wrote over the first (E36-T7 at 8443d03f: "ABC"
+ * where "BC" was asked, "AC" where "ABC" was). A change names the operation now - `share`, `unshare`, `seal`,
+ * `reveal`, `reseal` - and projects.mjs's step hands it here, with the countdown it read in the step to read:
+ * the same arithmetic, on held state. `makeSecret` alone keeps a whole map, `secretChange` of its own viewers,
+ * which reads nothing of the countdown.
+ */
+
+/** The keys of a change that name who sees a project, as operations `sightChange` works out (projects.mjs's step). */
+export const SIGHT_KEYS = Object.freeze(["share", "unshare", "seal", "reveal", "reseal"]);
+
+/**
+ * The change one of `SIGHT_KEYS` makes now: `{ ownership, meta }`, null when there is none to make, or
+ * `{ refused }` when it cannot be made (a share or a revoke of a project that is no longer secret).
+ *   `share: userId`, `unshare: userId`  `shareChange`, `unshareChange`;
+ *   `seal: { viewers, was }`            a window's ticks (P-1: a ticked list is an answer): `viewers` the boxes
+ *                                       ticked, `was` those the window drew ticked. With both, what the GM changed
+ *                                       is applied to who sees it now, so a player shared since the window drew
+ *                                       stays in; with `viewers` alone that list is the answer; with neither,
+ *                                       `sealAudience`. The builder is added and the F4 list replaced either way
+ *                                       (`withoutLeak`), and a seal that changes nobody is none;
+ *   `reveal: true`                      `revealChange`;
+ *   `reseal: true`                      a secret project's map written again from its own viewers (projects.mjs
+ *                                       `resealSecretProjects`), none when it is the map already.
+ */
+export function sightChange(countdownId, op = {}) {
+    if (op.share) return isSecret(countdownId) ? shareChange(countdownId, op.share) : { refused: "it is not secret" };
+    if (op.unshare) return isSecret(countdownId) ? unshareChange(countdownId, op.unshare) : { refused: "it is not secret" };
+    if (op.seal) {
+        const viewers = Array.isArray(op.seal.viewers) ? op.seal.viewers : null;
+        const was = Array.isArray(op.seal.was) ? op.seal.was : null;
+        let list = viewers;
+        if (viewers && was) {
+            const known = isSecret(countdownId) ? viewersOf(countdownId).map(u => u.id) : (metaFor(countdownId).sealedViewers ?? []);
+            const dropped = was.filter(id => !viewers.includes(id));
+            list = [...new Set([...known.filter(id => !dropped.includes(id)), ...viewers.filter(id => !was.includes(id))])];
+        }
+        const audience = list ? [...new Set([...withoutLeak(countdownId, list), ...builderIds(countdownId)])] : sealAudience(countdownId);
+        const now = new Set(viewersOf(countdownId).map(u => u.id));
+        const same = isSecret(countdownId) && now.size === audience.length && audience.every(id => now.has(id));
+        return same ? null : secretChange(countdownId, audience);
+    }
+    if (op.reveal) return revealChange(countdownId);
+    if (op.reseal) {
+        if (!isSecret(countdownId)) return null;
+        const current = rawCountdown(countdownId)?.ownership ?? {};
+        const wanted = ownershipMap(sharedIds(countdownId));
+        // `equals`, not the deprecated `objectsEqual`, and neither: a redundant write, never a missed reseal.
+        const same = foundry.utils.equals?.(current, wanted) ?? foundry.utils.objectsEqual?.(current, wanted) ?? false;
+        return same ? null : { ownership: wanted };
+    }
+    return null;
+}
+
 /**
  * Secrecy dropped entirely - the plan is out.
  *

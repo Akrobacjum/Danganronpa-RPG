@@ -39,11 +39,11 @@ import { placeScenes, roomRegions, sceneOfRoom } from "./rooms.mjs";
 import {
     DH, COUNTDOWNS, COUNTDOWNS_KEY, projectMeta, metaFor, secretsOf, setProjectMeta, canSee, OBSERVER, ownerIdsOfId, ownershipMap,
     insidersOf, viewersOf, isSecret, rawCountdown, writeAllCountdowns, builderIds,
-    secretChange, shareChange, unshareChange, revealChange
+    secretChange, sightChange, SIGHT_KEYS
 } from "./projects-secrecy.mjs";
 export {
     projectMeta, metaFor, PROJECT_SECRET_FIELDS, secretsOf, patchTrigger, setProjectMeta, canSee,
-    liftProjectSecrets, viewersOf, builderIds, sealAudience, withoutLeak, isSecret, secretChange, revealChange
+    liftProjectSecrets, viewersOf, builderIds, sealAudience, withoutLeak, isSecret, secretChange, revealChange, sightChange
 } from "./projects-secrecy.mjs";
 
 /** Which room a project belongs to, if any. */
@@ -570,6 +570,14 @@ export function cleanProjectChange(change) {
     }
     if (change.remove === true) out.remove = true;
     if (change.create === true) out.create = true;
+    // Who sees it, as operations the step works out on what it reads (E36 fix e1-G2; projects-secrecy.mjs `sightChange`).
+    const user = value => typeof value === "string" && Boolean(game.users.get(value));
+    const ids = value => (Array.isArray(value) ? value.filter(id => typeof id === "string" && id) : null);
+    if (user(change.share)) out.share = change.share;
+    if (user(change.unshare)) out.unshare = change.unshare;
+    if (plain(change.seal)) out.seal = { viewers: ids(change.seal.viewers), was: ids(change.seal.was) };
+    if (change.reveal === true) out.reveal = true;
+    if (change.reseal === true) out.reseal = true;
     return Object.keys(out).length ? out : null;
 }
 
@@ -685,6 +693,27 @@ async function changeStep(countdownId, change, by) {
         log(`Project "${project.name}" did not move: it is frozen by sabotage.`);
         return { result: { id: countdownId, name: project.name, from: before, to: before, target: oldStart, changed: false,
             reason: "DRPG.Project.frozenNoProgress", crossed: false, uncrossed: false, removed: false }, after };
+    }
+
+    /*
+     * WHO SEES IT, FROM WHAT THE STEP READ (E36 fix e1-G2; findings E36-END-S2, E36-R2, F4). A share, a revoke,
+     * a seal, a reveal or a reseal is worked out here, from the countdown read in this step, into the ownership
+     * map and the meta the rest of the step writes: worked out by its caller, it was a map of the moment before
+     * the queue, and a change queued between put back what it had taken away. A share or a revoke of a project
+     * that is no longer secret makes nothing and says so (`refused`); one that changes nobody makes nothing.
+     */
+    if (SIGHT_KEYS.some(key => change[key] !== undefined)) {
+        const sight = sightChange(countdownId, change);
+        const unchanged = { id: countdownId, name: project.name, from: before, to: before, target: oldStart, changed: false,
+            crossed: false, uncrossed: false, removed: false };
+        if (sight?.refused) {
+            log(`Who sees "${project.name}" was not changed: ${sight.refused}.`);
+            return { result: { ...unchanged, refused: sight.refused }, after };
+        }
+        const rest = Object.keys(change).filter(key => !SIGHT_KEYS.includes(key));
+        if (!sight && !rest.length) return { result: unchanged, after };
+        if (sight?.ownership) change = { ...change, ownership: sight.ownership };
+        if (sight?.meta) change = { ...change, meta: { ...change.meta, ...sight.meta } };
     }
 
     const next = foundry.utils.duplicate(project);
@@ -1546,29 +1575,18 @@ export async function resealSecretProjects() {
     for (const project of allProjects()) {
         if (!isSecret(project.id)) continue;
 
-        const current = rawCountdown(project.id)?.ownership ?? {};
-        const viewers = Object.entries(current)
-            .filter(([key, level]) => key !== "default" && level >= OBSERVER)
-            .map(([userId]) => userId);
-
-        const wanted = ownershipMap(viewers);
         /*
-         * `equals`, not `objectsEqual` - the second is deprecated in 14 and goes
-         * in 16, and it warned on every pass of this loop because this function
-         * runs on load and on every `createUser`. Optional call on both names so
-         * a Foundry that has one and not the other still gets an answer, and a
-         * Foundry with neither falls through to writing the ownership it already
-         * has: a redundant write, never a missed re-seal. That direction is the
-         * whole point of this function - a secret project visible to a player is
-         * the failure it exists to prevent.
+         * The map its own viewers make, compared with the one it has (projects-secrecy.mjs `sightChange`, `reseal`):
+         * `equals`, not `objectsEqual` - the second is deprecated in 14 and goes in 16, and it warned on every pass
+         * of this loop because this function runs on load and on every `createUser`. Optional call on both names so
+         * a Foundry that has one and not the other still gets an answer, and a Foundry with neither falls through to
+         * writing the ownership it already has: a redundant write, never a missed re-seal. That direction is the
+         * whole point of this function - a secret project visible to a player is the failure it exists to prevent.
+         * Read here only to leave a sealed project unqueued; the step works it out again on what it reads (E36 fix
+         * e1-G2: a share landing between the two is kept, not written over).
          */
-        const same = foundry.utils.equals?.(current, wanted)
-            ?? foundry.utils.objectsEqual?.(current, wanted)
-            ?? false;
-        if (same) continue;
-
-        // One change of the entry (E36 C2), the map replaced whole by the step.
-        if ((await applyProjectChange(project.id, { ownership: wanted }, { by: { kind: "system" } }))?.changed) fixed += 1;
+        if (!sightChange(project.id, { reseal: true })) continue;
+        if ((await applyProjectChange(project.id, { reseal: true }, { by: { kind: "system" } }))?.changed) fixed += 1;
     }
 
     if (fixed) log(`Re-sealed ${fixed} secret project(s) that were visible to players.`);
@@ -1582,8 +1600,10 @@ export async function resealSecretProjects() {
  * projects-secrecy.mjs, read and written whole outside any queue. They are a
  * change of `applyProjectChange` each now, on the primary; the arithmetic is
  * still projects-secrecy.mjs's (`secretChange`, `shareChange`, `unshareChange`,
- * `revealChange`), read on the GM that asks: two shares asked at once on two
- * GMs each read the viewers before either landed (the stage's gap).
+ * `revealChange`), worked out in the step since E36 fix e1-G2 from the
+ * operation the change names (`share`, `unshare`, `reveal`; `sightChange`), so
+ * two shares, or a share and a revoke, asked at once both land as asked
+ * (E36-T7). `makeSecret`'s map is of its own viewers and reads nothing.
  * ========================================================================== */
 
 /**
@@ -1594,6 +1614,7 @@ export async function resealSecretProjects() {
  */
 export async function makeSecret(countdownId, viewerIds = []) {
     if (!game.user.isGM) return null;
+    // A whole map, of the viewers named here alone: nothing of the countdown is read for it, so none is stale.
     const change = secretChange(countdownId, viewerIds);
     if (!await applyProjectChange(countdownId, change, { by: { kind: "gm" } })) return null;
     log(`Project ${countdownId} is now secret; ${viewerIds.length} viewer(s).`);
@@ -1607,9 +1628,8 @@ export async function shareWith(countdownId, userId) {
         const res = await requestProjectShare(countdownId, userId);
         return res.ok ? { pending: true } : null;
     }
-    const change = shareChange(countdownId, userId);
-    if (!change) return null;
-    if (!await applyProjectChange(countdownId, change, { by: { kind: "gm" } })) return null;
+    const done = await applyProjectChange(countdownId, { share: userId }, { by: { kind: "gm" } });
+    if (!done || done.refused) return null;
     log(`Project ${countdownId} shared with ${game.users.get(userId)?.name ?? userId}.`);
     return true;
 }
@@ -1627,15 +1647,14 @@ export async function unshareWith(countdownId, userId) {
         }));
         return null;
     }
-    const change = unshareChange(countdownId, userId);
-    if (!change || !await applyProjectChange(countdownId, change, { by: { kind: "gm" } })) return null;
-    return true;
+    const done = await applyProjectChange(countdownId, { unshare: userId }, { by: { kind: "gm" } });
+    return done && !done.refused ? true : null;
 }
 
-/** Drop secrecy entirely - the plan is out (`revealChange` says why the map is replaced whole). */
+/** Drop secrecy entirely - the plan is out (`revealChange` says why the map is replaced whole; worked out in the step). */
 export async function revealProject(countdownId) {
     if (!game.user.isGM) return null;
-    if (!await applyProjectChange(countdownId, revealChange(countdownId), { by: { kind: "gm" } })) return null;
+    if (!await applyProjectChange(countdownId, { reveal: true }, { by: { kind: "gm" } })) return null;
     log(`Project ${countdownId} revealed to everyone.`);
     return true;
 }

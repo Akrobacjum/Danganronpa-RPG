@@ -65419,6 +65419,70 @@ const SCENARIOS = [
             + "stood, bar, done cards, the trap's arming; every crossing: project, way, kind, character]");
     }],
 
+    ["who sees a project is judged in the step (E36-T7): a revoke held in the queue with a share behind it ends without the revoked player and with the shared one, two shares queued together both land, and a seal from a window that listed the viewers keeps a player shared since the window drew them", async () => {
+        /*
+         * E36 fix e1-G2, 25.10.2026; findings E36-END-S2, E36-R2, F4, audit S17-18. The four ownership writers of
+         * projects.mjs (`shareWith`, `unshareWith`, `makeSecret`, `revealProject`), the reseal and the manager's
+         * secrecy worked the countdown's whole ownership map out on the caller, before the change joined the queue,
+         * and the step replaced the map with it: a share computed while a revoke waited put the revoked player back,
+         * and of two shares queued together the second wrote over the first. Each is an operation now (`share`,
+         * `unshare`, `seal`, `reveal`, `reseal`), worked out in the step from the countdown read there
+         * (projects-secrecy.mjs `sightChange`). Read on this primary's browser, a step of utils.mjs `serialWrite`
+         * holding projects-secrecy.mjs `COUNTDOWNS_KEY` open while each pair is asked: (1) a secret project seen by
+         * players A and B, A revoked and C shared; (2) one seen by A, B and C shared; (3) one seen by A, B shared
+         * and then a seal from a window that drew A alone and had A ticked (`seal: { viewers, was }`). The viewers
+         * after each, by the players' letters. At 8443d03f: (1) A is back, (2) one share is lost, (3) the seal is no
+         * change the entry knows.
+         */
+        needs(world.atLeast("playerAccounts", 3), "three players: two who see the project and one it is shared with");
+        const P = await import("./projects.mjs");
+        const S = await import("./projects-secrecy.mjs");
+        const { serialWrite } = await import("./utils.mjs");
+        const [A, B, C] = game.users.filter(u => !u.isGM).slice(0, 3);
+        const letter = { [A.id]: "A", [B.id]: "B", [C.id]: "C" };
+        const made = [];
+        const make = async (name, viewers) => {
+            const id = (await P.createProject({ name: `SUITE E36 T7 ${name}`, target: 4, secret: true, viewers: viewers.map(u => u.id) }))?.id ?? null;
+            must(id, `could not create the secret project "${name}" - this would measure nothing`);
+            made.push(id);
+            return id;
+        };
+        const sight = id => S.viewersOf(id).map(u => letter[u.id] ?? "?").sort().join("");
+        let release = () => {};
+        const held = async (...runs) => {
+            const gate = new Promise(resolve => { release = resolve; });
+            const hold = serialWrite(S.COUNTDOWNS_KEY ?? "daggerheart.Countdowns", () => gate);
+            const going = runs.map(run => Promise.resolve().then(run));
+            await settle();
+            release();
+            await hold;
+            const answers = await Promise.all(going);
+            await settle();
+            return answers.map(a => Boolean(a));
+        };
+        const seen = {};
+        try {
+            const one = await make("revoke and share", [A, B]);
+            const two = await make("two shares", [A]);
+            const three = await make("a window's seal", [A]);
+            seen.before = [sight(one), sight(two), sight(three)];
+            seen.revoke = { told: await held(() => P.unshareWith(one, A.id), () => P.shareWith(one, C.id)), sight: sight(one) };
+            seen.twice = { told: await held(() => P.shareWith(two, B.id), () => P.shareWith(two, C.id)), sight: sight(two) };
+            seen.seal = { told: await held(() => P.shareWith(three, B.id),
+                () => P.applyProjectChange(three, { seal: { viewers: [A.id], was: [A.id] } }, { by: { kind: "gm" } })), sight: sight(three) };
+        } finally {
+            release();
+            for (const id of made) await P.deleteProject(id).catch(() => {});
+            await settle();
+        }
+        equal(stableJson(seen), stableJson({
+            before: ["AB", "A", "A"],
+            revoke: { told: [true, true], sight: "BC" },
+            twice: { told: [true, true], sight: "ABC" },
+            seal: { told: [true, true], sight: "AB" }
+        }), "who sees a project is worked out before the step, not in it [the viewers before; a revoke of A and a share with C held "
+            + "together: what each answered, the viewers after; two shares; a share and a window's seal]");
+    }],
     ["a project's token follows its project (E36-T6): after each change of a project one function puts its token right - made in a room it stands there once, its room changed it moves there once, finished it changes colour and back, shared or taken back the visibility pass runs over it, with no room or no project it is gone, a dragged token is not moved back, and a second GM's project and a second scene draw make one token", async () => {
         /*
          * E36 C4, 25.10.2026; E36-14 and E36-15, audit S09-19, S09-20. A project's token was put right by the sync

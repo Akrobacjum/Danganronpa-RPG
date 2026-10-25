@@ -18,8 +18,8 @@
 import { PROJECT_SCALE, PROJECT_GLYPHS, isProjectGlyph, TRAITS, TRAP_TRIGGERS, TRAP_MODIFIERS } from "./config.mjs";
 import {
     allProjects, metaFor, roomOf, isIndirectMurder, isSecret, shareWith, unshareWith,
-    viewersOf, sealAudience, builderIds, secretsOf, withoutLeak, createProject, deleteProject,
-    applyProjectChange, combineChanges, projectEditChange, secretChange, revealChange, projectMeta, addProgress
+    viewersOf, secretsOf, createProject, deleteProject,
+    applyProjectChange, combineChanges, projectEditChange, sightChange, projectMeta, addProgress
 } from "./projects.mjs";
 import { placeRoomNames } from "./rooms.mjs";
 import { dialogContent, error, tableDialog, wirePortraitPickers } from "./utils.mjs";
@@ -401,7 +401,7 @@ async function applyProjectManager(result, projects) {
         // secrecy were three or four writes, each read and written whole, so another change landing
         // between them was lost or half-made; one step of the entry now, and none for a row left as it was.
         const change = combineChanges(img, room || murder ? { meta: { ...room, ...murder } } : null,
-            secrecyChange(entry.id, shouldBeSecret, entry.viewers));
+            secrecyChange(entry.id, shouldBeSecret, entry.viewers, entry.was));
         if (change) await applyProjectChange(entry.id, change, { by: { kind: "gm" } });
     }
     return deleted;
@@ -735,6 +735,9 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
                     // many checkboxes read differently through that name.
                     viewers: [...d.element.querySelectorAll('[name="viewers"]:checked')]
                         .map(box => box.value),
+                    // As the window drew them (E36 fix e1-G2: `secrecyChange`).
+                    was: [...d.element.querySelectorAll('[name="viewers"]')].filter(box => box.defaultChecked)
+                        .map(box => box.value),
                     img: f.img.value || null,
                     // A RadioNodeList's `.value` is the checked one, and the
                     // default cell's value is "" - so an untouched grid reads
@@ -808,7 +811,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
                     firedAt: startTrigger?.firedAt ?? null,
                     condition: result.condition }
                 : null
-        }), secrecyChange(project.id, result.secret || result.murder, result.viewers));
+        }), secrecyChange(project.id, result.secret || result.murder, result.viewers, result.was));
         if (change) await applyProjectChange(project.id, change, { by: { kind: "gm" } });
         ui.notifications.info(game.i18n.localize("DRPG.Project.saved"));
         return { id: project.id, name: result.name };
@@ -879,8 +882,14 @@ export function killerIdFor(viewerUserId, byActorId) {
     return null;
 }
 
-/** The change that keeps the ownership map in step with one boolean, or null when it already is (E36 C2: written by the caller's one change). */
-function secrecyChange(id, wanted, viewers = null) {
+/**
+ * The change that keeps the ownership map in step with one boolean, or null when it already is (E36 C2: written by the
+ * caller's one change). An operation since E36 fix e1-G2 (findings E36-END-S2, F4): `seal` with the boxes ticked and
+ * the boxes the window drew ticked, or `reveal`, worked out in the step from who sees the project then
+ * (projects-secrecy.mjs `sightChange`), so a player shared while the window stood open is not taken off by a Save
+ * that did not untick them.
+ */
+function secrecyChange(id, wanted, viewers = null, was = null) {
     /*
      * A TICKED LIST IS AN ANSWER, NOT AN ADDITION (P-1, Dawid 18.09).
      *
@@ -888,21 +897,16 @@ function secrecyChange(id, wanted, viewers = null) {
      * players - secrecy follows `sealAudience`, which keeps whoever already knew
      * and the builder. With a list, that list IS who knows: unticking somebody
      * takes them off. The builder is added either way, because a seal that shuts
-     * the person building it out is F3 coming back.
+     * the person building it out is F3 coming back. A ticked list that is every
+     * player at once is the F4 leak (`withoutLeak`, E05; audit S09-09).
+     *
+     * Re-sealed when the list moved even if the checkbox did not - and not
+     * written when neither did: a Save that changes nothing must not rewrite
+     * the ownership of every secret project at the table. Read here only for
+     * that; the step reads it again.
      */
-    // Through `withoutLeak` as `sealAudience` is (E05; audit S09-09): a ticked list that is every
-    // player at once was the F4 leak again, re-sealed under the Secret box's name.
-    const audience = viewers ? [...new Set([...withoutLeak(id, viewers), ...builderIds(id)])] : sealAudience(id);
-    if (wanted) {
-        // Re-sealed when the list moved even if the checkbox did not - and not
-        // written when neither did: a Save that changes nothing must not rewrite
-        // the ownership of every secret project at the table.
-        const now = new Set(viewersOf(id).map(u => u.id));
-        const same = isSecret(id) && now.size === audience.length
-            && audience.every(userId => now.has(userId));
-        return same ? null : secretChange(id, audience);
-    }
-    return isSecret(id) ? revealChange(id) : null;
+    const op = wanted ? { seal: { viewers, was } } : (isSecret(id) ? { reveal: true } : null);
+    return op && sightChange(id, op) ? op : null;
 }
 
 /** Kept as its own name - the manager and the empty state both call it. */
@@ -923,6 +927,10 @@ function readManager(dialog, projects) {
         // mistake "no checkboxes here" for "nobody knows".
         viewers: form.querySelector(`[name="viewers.${p.id}"]`)
             ? [...form.querySelectorAll(`[name="viewers.${p.id}"]:checked`)].map(box => box.value)
+            : null,
+        // The boxes as the window drew them (E36 fix e1-G2): what the GM changed is what the Save changes.
+        was: form.querySelector(`[name="viewers.${p.id}"]`)
+            ? [...form.querySelectorAll(`[name="viewers.${p.id}"]`)].filter(box => box.defaultChecked).map(box => box.value)
             : null,
         delete: form.querySelector(`[name="delete.${p.id}"]`)?.checked ?? false
     }));
