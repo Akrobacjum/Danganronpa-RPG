@@ -503,9 +503,9 @@ Next free: R976. Reserved and unused: R121 for A4 (E22); R122 for A1 (E23); R123
 | R970 | 1 | E14 | the rifle's window and the sheet's open-stash note say one thing from each stash once each time of day, the window names the stashes as a list, and neither calls a found hidden stash 'not hidden', in English and in Polish (E14-T6, S08-06, S08-48) |
 | R971 | 1 | E14 | a tier 3 usable restores 3 of what it restores, with no choice and no Hope, and every text of it says so, in English and in Polish (E14-T8, the owner 15.10) |
 | R972 | 1 | E14 | an item table's name is built in English whatever the module's language, a table a client in Polish built is found by its Polish name, and a tier pool is found by the flags the installer writes (E14-T11, S01-05, S02-05, S08-03, S13-01) |
-| R973 | 1 | E35 | the Tier pools tab and a rename take only a name the module reads as a tier pool, and say which names it reads; a room table takes any other name; the refusal stands at the field with the typed name kept, under a muted 'e.g.' placeholder (E14-T15, S08-45, S13-09) |
-| R974 | 1 | E35 | the item tables window, Create an item and the Give and take forms are laid out by their rules: an entry one grid row with its buttons in columns of their own, the list in whole rows, each group's caption above its boxes, the help to the left, every labelled field in one grid (E14-48, S08-24, S08-25, S08-27) |
-| R975 | 1 | E35 | the item tables window's help names a button or a tab that is there, the gear group has one Polish word wherever it is read, and a stash out of reach says where it is (E14-49, S08-29, S08-48, S13-21) |
+| R973 | 1 | E14 | the Tier pools tab and a rename take only a name the module reads as a tier pool, and say which names it reads; a room table takes any other name; the refusal stands at the field with the typed name kept, under a muted 'e.g.' placeholder (E14-T15, S08-45, S13-09) |
+| R974 | 1 | E14 | the item tables window, Create an item and the Give and take forms are laid out by their rules: an entry one grid row with its buttons in columns of their own, the list in whole rows, each group's caption above its boxes, the help to the left, every labelled field in one grid (E14-48, S08-24, S08-25, S08-27) |
+| R975 | 1 | E14 | the item tables window's help names a button or a tab that is there, the gear group has one Polish word wherever it is read, and a stash out of reach says where it is (E14-49, S08-29, S08-48, S13-21) |
 
 Tier-1 tests older than 1.2.61 with no number (70, names kept):
 
