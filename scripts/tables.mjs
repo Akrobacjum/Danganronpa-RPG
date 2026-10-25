@@ -12,8 +12,8 @@
  * then edit freely - once they exist, these definitions are only a fallback.
  */
 
-import { MODULE_ID, ITEM_CATEGORIES, EQUIPPABLE, ITEM_TIERS, TIER_EFFECTS, USABLE_KINDS, itemIcon,
-    USABLE_KIND_EFFECTS, TABLE_NAME_WORDS }
+import { MODULE_ID, ITEM_CATEGORIES, EQUIPPABLE, ITEM_TIERS, USABLE_KINDS, itemIcon,
+    TABLE_NAME_WORDS, TABLE_COPY_WORDS }
     from "./config.mjs";
 import { dialogContent, wirePortraitPickers, panelTabs, wirePanelTabs, whisperToGms, log, error, plural, esc}
     from "./utils.mjs";
@@ -200,12 +200,17 @@ export function existingTableName(category, tier, goal = null) {
     return tierTablesFor(category, tier, goal)[0]?.name ?? tableNameCandidates(category, tier, goal)[0];
 }
 
-/** The description `installTables` writes for one table. One reader, two callers. */
+/**
+ * The description `installTables` writes for one table. One reader, two callers. In English on every client, from the
+ * copy frozen before `localizeConfig` (config.mjs `TABLE_COPY_WORDS`, E14 fix e1-G6): it is world data every GM reads,
+ * as the name is (`TABLE_NAME_WORDS`).
+ */
 function tableDescription(category, tier, goal = null) {
-    return `${ITEM_CATEGORIES[category]?.label ?? category}${
-        USABLE_KINDS[goal] ? ` (${USABLE_KINDS[goal].label})` : ""
+    const W = TABLE_COPY_WORDS;
+    return `${W.label[category] ?? category}${
+        W.kind[goal] ? ` (${W.kind[goal]})` : ""
     }, Tier ${tier}. ${
-        USABLE_KIND_EFFECTS[goal]?.[tier] ?? TIER_EFFECTS[category]?.[tier] ?? ""}`;
+        W.kindEffect[goal]?.[tier] ?? W.tierEffect[category]?.[tier] ?? ""}`;
 }
 
 /**
@@ -238,8 +243,10 @@ export async function refreshTableCopy() {
 
     // The shape installTables writes, under ANY label this module has used -
     // that is what marks a description as untouched boilerplate.
-    const labels = Object.values(ITEM_CATEGORIES).map(c => c.label)
-        .concat(["Usable Item", "Crime Tool"]);
+    // The English ones too (E14 fix e1-G6), so a GM in Polish recognises the English boilerplate it keeps, and the
+    // live ones, so on a GM in Polish a description an earlier one wrote in Polish this way is brought back to English.
+    const labels = [...new Set(Object.values(ITEM_CATEGORIES).map(c => c.label)
+        .concat(Object.values(TABLE_COPY_WORDS.label), ["Usable Item", "Crime Tool"]))];
     const generated = new RegExp(`^(${labels.map(l =>
         l.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})( \\([^)]*\\))?, Tier \\d+\\.`);
 

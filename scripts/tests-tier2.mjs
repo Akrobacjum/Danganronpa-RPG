@@ -63840,12 +63840,22 @@ const SCENARIOS = [
          * table, a Polish-built one, a table the GM renamed (flags only), a GM's table named like a pool (no flags), two tables
          * of one set of flags (today's English name answers, three draws), and a Sanity Relief draw beside two Healing tables;
          * then each made table's name after `refreshTableCopy` (pl first, then en).
+         * E14 fix e1-G6 (25.10.2026; the review's E14p2-END-06): the old "Crime Tools" table carries the boilerplate
+         * description of an old install ("Crime Tool, Tier 3. ..."), which `refreshTableCopy` rewrites; read after each
+         * pass, held to today's English one (the labels and the effect as config.mjs reads in English); and the Polish-built
+         * table carries the same boilerplate in Polish, as a GM in Polish wrote it before this fix, which the Polish pass
+         * brings back to English; and the English-named table today's English label over a stale effect, which the Polish
+         * pass brings up to date as an English GM's would. Red at the parent: the GM in Polish wrote the first in Polish, the
+         * English pass left it so, and the second stayed Polish.
          */
         const T = await import("./tables.mjs");
         const C = await import("./config.mjs");
         const { walkConfigProse } = await import("./i18n-config.mjs");
         const words = await (await fetch(`/modules/${MODULE_ID}/lang/pl.json`, { cache: "no-cache" })).json();
-        const TAG = "SUITE E14-T12";
+        const TAG = "SUITE E14-T12", OLD_COPY = "Crime Tool, Tier 3. An old install's words.";
+        const PL_COPY = `${foundry.utils.getProperty(words, "DRPG.Config.ITEM_CATEGORIES.cleaningTool.label")}, Tier 1. Stare słowa.`;
+        // In English whatever this client's language: the frozen copy (config.mjs `TABLE_COPY_WORDS`), the live label before it existed.
+        const EN_COPY = `${C.TABLE_COPY_WORDS?.label?.crimeTool ?? C.ITEM_CATEGORIES.crimeTool.label}, Tier 2. Stale words.`;
         const MADE = [
             ["en", "DRPG Murder Weapons - Tier 2", { category: "crimeTool", tier: 2, goal: null }],
             ["pl", "DRPG Narzędzia do sprzątania - Tier 1", { category: "cleaningTool", tier: 1, goal: null }],
@@ -63880,7 +63890,7 @@ const SCENARIOS = [
             }
             for (const [role, name, flags] of MADE) {
                 const table = await RollTable.create({
-                    name, description: TAG, formula: "1d1", replacement: true, displayRoll: false,
+                    name, description: role === "legacy" ? OLD_COPY : role === "pl" ? PL_COPY : role === "en" ? EN_COPY : TAG, formula: "1d1", replacement: true, displayRoll: false,
                     ...(flags ? { flags: { [MODULE_ID]: flags } } : {}),
                     results: [{ type: CONST.TABLE_RESULT_TYPES?.TEXT ?? "text", text: entry(role), name: entry(role), description: entry(role), range: [1, 1], weight: 1 }]
                 });
@@ -63901,11 +63911,15 @@ const SCENARIOS = [
                 "Polish was not put over config.mjs - this would measure nothing");
             const pl = await draws();
             await T.refreshTableCopy();
-            const plNames = named();
+            const plNames = named(), plCopy = made.get("legacy")?.description ?? null, plBuilt = made.get("pl")?.description ?? null,
+                plEnglish = made.get("en")?.description ?? null;
             english();
             const en = await draws();
             await T.refreshTableCopy();
-            read = { pl, en, plNames, enNames: named() };
+            const todays = `${C.ITEM_CATEGORIES.crimeTool.label}, Tier 3. ${C.TIER_EFFECTS.crimeTool?.[3] ?? ""}`;
+            const cleaning = `${C.ITEM_CATEGORIES.cleaningTool.label}, Tier 1. ${C.TIER_EFFECTS.cleaningTool?.[1] ?? ""}`;
+            const weapons = `${C.ITEM_CATEGORIES.crimeTool.label}, Tier 2. ${C.TIER_EFFECTS.crimeTool?.[2] ?? ""}`;
+            read = { pl, en, plNames, enNames: named(), copy: [plCopy === todays, made.get("legacy")?.description === todays, plBuilt === cleaning, plEnglish === weapons] };
         } finally {
             english();
             for (const table of made.values()) {
@@ -63918,10 +63932,12 @@ const SCENARIOS = [
         }
         const drew = ["en", "pl", "renamed", "unflagged", ["twinEn", "twinEn", "twinEn"], false];
         const kept = MADE.map(([role, name]) => (role === "legacy" ? "DRPG Murder Weapons - Tier 3" : name));
-        equal(stableJson(read), stableJson({ pl: drew, en: drew, plNames: kept, enNames: kept }),
+        equal(stableJson(read), stableJson({ pl: drew, en: drew, plNames: kept, enNames: kept, copy: [true, true, true, true] }),
             "a client drew past the GM's table for the language it is named in, or the GM's ready renamed a table to a translated "
             + "name [per language: English-named, Polish-built, renamed, unflagged, two of one set x3, a Sanity Relief draw took a "
-            + "Healing table; then the made tables' names after refreshTableCopy, the old 'Crime Tools' one brought to today's English]");
+            + "Healing table; then the made tables' names after refreshTableCopy, the old 'Crime Tools' one brought to today's English; "
+            + "its old boilerplate description after the Polish and the English pass, each today's English one; the Polish-built table's "
+            + "Polish boilerplate after the Polish pass, today's English one; the English-named table's stale English one after the Polish pass]");
     }],
 
     ["a room's own tables answer a Search first, then the GM's pools, then the built-in ones, and a room table is one by a suffix the module reads: 'Kitchen' does not take 'Kitchen - Back room' (E14-T13, S08-05, S08-45, D15)", async () => {

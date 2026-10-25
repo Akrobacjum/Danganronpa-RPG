@@ -731,6 +731,24 @@ export const USABLE_KIND_EFFECTS = {
 };
 
 /**
+ * THE WORDS AN ITEM TABLE'S DESCRIPTION IS BUILT FROM, IN ENGLISH, COPIED BEFORE ANY LANGUAGE IS APPLIED (E14 fix e1-G6,
+ * 25.10.2026; the review's E14p2-END-06). tables.mjs `tableDescription` read `ITEM_CATEGORIES.*.label`, `USABLE_KINDS`,
+ * `TIER_EFFECTS` and `USABLE_KIND_EFFECTS` as they read at the call, which i18n.mjs `localizeConfig` rewrites on a client
+ * in Polish: a GM in Polish loading a world whose pools still carried an old boilerplate description had
+ * `refreshTableCopy` write it to the world in Polish, every English GM read it so from then on, and their own pattern of
+ * boilerplate (English labels) never matched it again. The class C1 closed for names (`TABLE_NAME_WORDS`): one GM's
+ * language written into shared world data. A description is built from this frozen copy, as a name is.
+ */
+const freezeDeep = node => (node && typeof node === "object"
+    ? Object.freeze(Object.fromEntries(Object.entries(node).map(([key, value]) => [key, freezeDeep(value)]))) : node);
+export const TABLE_COPY_WORDS = Object.freeze({
+    label: Object.freeze(Object.fromEntries(Object.entries(ITEM_CATEGORIES).map(([key, c]) => [key, c.label]))),
+    kind: Object.freeze(Object.fromEntries(Object.entries(USABLE_KINDS).map(([key, k]) => [key, k.label]))),
+    tierEffect: freezeDeep(TIER_EFFECTS),
+    kindEffect: freezeDeep(USABLE_KIND_EFFECTS)
+});
+
+/**
  * What using a Usable Item actually restores, by tier.
  *
  * Tiers 1 to 3 are `byKind`: the amount lands on whichever resource the item's
