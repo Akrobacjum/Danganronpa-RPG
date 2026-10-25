@@ -16396,6 +16396,80 @@ body.drpg-theme-stained-glass .drpg-window-tables :is([data-drpg-delete-table], 
     grid-column: 1 / -1;
 }
 
+/* ==========================================================================
+   E14-48 AS PROMISED: AN 11 PX FLOOR, THE NAME ON THE GRID, THE SMALL BUTTONS WHOLE (E14 fix e1-G8; the review's
+   E14p2-R7 and R8, 25.10.2026)
+   --------------------------------------------------------------------------
+   Read in the C7 stand-in (Chromium, 1366x768, both themes, the module's sheets, no Foundry core CSS) at a 13 px root,
+   set by hand - Foundry's own root size at a table was not read: the tables window's notes, legends, labels and
+   heading came out at 10.56 px (the module's `--drpg-text-sm`, 0.8125rem) and Give an item's "Also serves as" at
+   8.98 px; and Create an item's Name field started 48 to 103 px left of Description, Category and Tier (it sat beside
+   the picture). The two text steps take an 11 px floor inside these windows only (the module's scale stays as it is
+   elsewhere, with the slider's own floor above), the four that size themselves otherwise below, and the picture takes
+   the label column's row above the Name. After: nothing under 11 px at a 13 or a 16 px root, one field edge.
+   NOT CHANGED: under Stained Glass an entry's Place and Remove report a scrollWidth 5 px over their box (35 in 30, C7's
+   reading). It is the glass's brush (`::before`, absolute, 5 px past each side), not the glyph: the glyph is 14.3 px
+   in a 32.3 px button with 8 px of padding a side, so nothing is cut. */
+:is(.drpg-window-tables, .application.dialog:is(.drpg-window-give, .drpg-window-take, .drpg-window-bullet,
+    .drpg-window-autopsy, .drpg-give-key, .drpg-window-items)) {
+    --drpg-text-xs: max(11px, calc(0.6875rem * var(--drpg-legacy-scale, 1)));
+    --drpg-text-sm: max(11px, calc(0.8125rem * var(--drpg-legacy-scale, 1)));
+}
+
+/* The four that set their size another way, read the same way after the two steps above: Create an item's and a new
+   pool's legend, a room's group heading, the list's rows (Monokuma Legacy) and Give an item's "Also serves as". The
+   first two take the step they read as at a 16 px root (13 px, `--drpg-text-sm`); the other two, under Monokuma Legacy
+   (the glass draws both at 11 px or more), the row's text the same step and the role label its 0.85 of it, floored.
+   The list itself keeps its size: its row height is in `em` of the list (`--drpg-pick-h`, above), and set to the step
+   it cut its last row under the glass (29 of 38 px at a 16 px root, measured). Every size here reads the scale (R60). */
+.drpg-window-tables :is(fieldset > legend, .drpg-room-group > h5) {
+    font-size: var(--drpg-text-sm) !important;
+}
+
+body.drpg-theme-monokuma-legacy .drpg-window-tables .drpg-tables-list .drpg-table-pick > span {
+    font-size: var(--drpg-text-sm);
+}
+
+body.drpg-theme-monokuma-legacy .application.dialog:is(.drpg-window-give, .drpg-window-take, .drpg-window-bullet,
+    .drpg-window-autopsy, .drpg-give-key, .drpg-window-items, .drpg-window-tables) .drpg-role-label {
+    font-size: max(11px, calc(0.690625rem * var(--drpg-legacy-scale, 1))) !important;
+}
+
+.drpg-window-tables fieldset.drpg-tables-new > .drpg-tables-new-head {
+    display: contents;
+}
+
+.drpg-window-tables fieldset.drpg-tables-new > .drpg-tables-new-head > img {
+    grid-column: 1;
+    justify-self: start;
+}
+
+.drpg-window-tables fieldset.drpg-tables-new > .drpg-tables-new-head > label {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: subgrid;
+    align-items: center;
+}
+
+.drpg-window-tables fieldset.drpg-tables-new > .drpg-tables-new-head > label > * {
+    grid-column: 2;
+}
+
+.drpg-window-tables fieldset.drpg-tables-new > .drpg-tables-new-head > label > input {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* E14-43's outline under the glass: the theme's field rule (`body.drpg-theme-stained-glass .drpg-panel :is(input...)`,
+   border and `box-shadow: none`) outranked the refused field's (above, `input[aria-invalid="true"]`), so under Stained
+   Glass a refused name sat in an ordinary field with the sentence under it - read in the stand-in, border and shadow
+   the theme's. The refused field's two lines win now in both themes. */
+:is(.drpg-window-tables, .drpg-rename-table) input[aria-invalid="true"] {
+    border-color: var(--drpg-crimson-light) !important;
+    box-shadow: 0 0 0 1px var(--drpg-crimson-light) !important;
+}
+
 /* The key group wears Bone like every other inventory group. It had an antique
    gold accent for one version, which put a door key in the colour this palette
    reserves for Hope and for evidence - it is neither. The group's own heading
