@@ -15,7 +15,7 @@ import {
     markerProblem, runOne, stageLedger, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE,
     scanSuite, bareCuts, vacuousAsserts, needsArgs, LINT_FIXTURES, UNTIL_FIXTURE, untilProblem, DUMP_RULES,
     DUMP_FOREIGN_SETTINGS, dumpOf, dumpDiff, dumpPathsOf, FLOWS, FLOW_EXEMPT, staticImports, importCycles,
-    bridgeTables, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs
+    bridgeTables, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs, expectedRed
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -14541,7 +14541,285 @@ const REGRESSIONS = [
             JSON.stringify([true, true]),
             "[settleSearch takes the plant off before its first grant, a grant gives the plant its identity again] - a Reroll's plant would count against its own slot, or come back as a new item with no drpgItemId (E08)");
         log(`R952: ${sources.size} files, ${read.creates} item creates and ${read.deletes} deletes read; pairs ${found.join(", ")}`);
-    }]
+    }],
+
+    ["R977 - a project changes in one place (E36-T1): the Countdowns setting is written whole only by projects-secrecy.mjs `writeCountdown`, its whole writer `writeAllCountdowns` and relay-guard.mjs `applyOps`, each inside a step of `serialWrite(COUNTDOWNS_KEY, ...)`; a project's room, freeze and repair are given to `setProjectMeta` only in a step; a project's Token is made, updated or deleted only from projects-map.mjs `syncProjectToken` and `sweepProjectTokens`; and no module file but projects-map.mjs names placeProjectToken, removeProjectToken or refreshProjectToken", async () => {
+        /*
+         * E36 C0, 25.10.2026; the stage's E36-02 and E36-15, audit S17-18. A project is changed today by a dozen roads
+         * that each read the Countdowns setting, change it and write it whole, outside any queue: two GMs' changes, or a
+         * GM's and a player's relayed tray click, landing together lose one of them, and each road announces, arms,
+         * thaws and moves the token in its own way. E36 puts every change through projects.mjs `applyProjectChange`, in
+         * one queue (utils.mjs `serialWrite` on projects-secrecy.mjs `COUNTDOWNS_KEY`), and this is the census that
+         * keeps a road outside it from coming back. Read in the module's files without the suite's own (tests.mjs,
+         * tests-*.mjs), comments blanked, each top-level statement (a function, a class, a const, an import) on its own:
+         *   (a) `game.settings.set(` whose key is COUNTDOWNS, "Countdowns" or relay-guard.mjs's `countdownsKey()` stands
+         *       only in projects-secrecy.mjs `writeCountdown`, `writeAllCountdowns` (C1's whole writer, by this name) or
+         *       relay-guard.mjs `applyOps`, and in a step ("a writer", "a step"; in relay-guard.mjs "e ...", rule (e));
+         *   (b) a `setProjectMeta(` whose data names `room`, `frozenBy` or `repairs` (a key, a shorthand, a spread or a
+         *       variable of that name) stands in a step;
+         *   (c) a Token made, updated or deleted (`createEmbeddedDocuments`, `updateEmbeddedDocuments` or
+         *       `deleteEmbeddedDocuments` of "Token", and in projects-map.mjs a document named *token* updated or
+         *       deleted) stands in projects-map.mjs reached only from `syncProjectToken` or `sweepProjectTokens`, and
+         *       outside projects-map.mjs in no statement that reads a project token (PROJECT_TOKEN_FLAG, projectIdOf,
+         *       projectOwning, projectTokenOf, projectTokensOn, tokenRefOf);
+         *   (d) placeProjectToken, removeProjectToken and refreshProjectToken are named in no module file but
+         *       projects-map.mjs (they stay exported for the suite: the stage's Rules);
+         *   (e) relay-guard.mjs's Countdowns write is in a step.
+         * "In a step" is read, not run: the position lies inside the arguments of a `serialWrite(` call whose first
+         * argument is COUNTDOWNS_KEY (or `x.COUNTDOWNS_KEY`), or in a top-level statement every use of whose name -
+         * in its own file and in the files that import it, statically or through `import(`, imports and export lists
+         * aside - lies in such a step or in another statement read so. "Reached only from" the two token roots is the
+         * same reading with those two declarations for the step. What it does not read: a key built in a variable
+         * (`game.settings.set(DH, key, ...)`, a `setProjectMeta(id, meta)` whose `meta` gets its room later), a queue key
+         * held in a variable, a name imported under another name, a Token held in a variable not named *token*, and a
+         * migration's or a reset's sweep of every token of a scene that holds project tokens among others. The reader
+         * is shown planted source first: a clean twin that must read clean, then one fault of each rule alone - a
+         * migration's write, a writer reached outside a step, a step of another key, a room written outside one, a
+         * project token made from outside the roots and from another file, a token step named elsewhere, the relay's
+         * write outside the key - and a suite file and a computed key in the twin, which are not read.
+         *
+         * Red at 7d123c97 (1.2.84, E36's base) until C4, by expectedRed("E36"): Base writes Countdowns whole in
+         * addProgress, createProject, deleteProject and clearAllProjects as well, nothing is queued on the key, and
+         * projects.mjs places and removes tokens itself (the stage's census, Base's writers).
+         */
+        const SUITE = /^tests(?:-[\w-]+)?\.mjs$/;
+        const QUEUE_KEY = /^(?:[\w$]+\s*\.\s*)?COUNTDOWNS_KEY$/;
+        const SETTING = /^(?:COUNTDOWNS|(["'`])Countdowns\1|countdownsKey\s*\(\s*\))$/;
+        const WRITERS = new Set(["projects-secrecy.mjs#writeCountdown", "projects-secrecy.mjs#writeAllCountdowns", "relay-guard.mjs#applyOps"]);
+        const GUARDED = /(?<![\w$.])(?:room|frozenBy|repairs)(?![\w$])/;
+        const MAP = "projects-map.mjs", ROOTS = new Set(["syncProjectToken", "sweepProjectTokens"]);
+        const STEPS = /(?<![\w$])(?:placeProjectToken|removeProjectToken|refreshProjectToken)(?![\w$])/g;
+        const READS_TOKEN = /(?<![\w$])(?:PROJECT_TOKEN_FLAG|projectIdOf|projectOwning|projectTokenOf|projectTokensOn|tokenRefOf)(?![\w$])/;
+        const EMBEDDED = /\.\s*(?:create|update|delete)EmbeddedDocuments\s*\(/g;
+        const TOKEN_DOC = /(?<![\w$])[\w$]*[tT]oken[\w$]*\s*\??\.\s*(?:update\s*\(|delete\s*\(\s*[{)])/g;
+        // A statement at column 0 and the name it declares, as R560 reads a top-level declaration.
+        const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(?:const|let|var)\s+([\w$]+))?/gm;
+        const blankOut = s => s.replace(/[^\n]/g, " ");
+
+        const censusOf = sources => {
+            const read = { files: 0, sets: 0, metas: 0, tokens: 0 };
+            const files = [...sources].filter(([file]) => file.endsWith(".mjs") && !SUITE.test(file)).map(([file, raw]) => {
+                const code = blankComments(raw), blank = blankLiterals(code);
+                const decls = [...blank.matchAll(TOP)].map(m => ({ name: m[1] ?? m[2] ?? m[3] ?? null, start: m.index }));
+                decls.forEach((d, i) => {
+                    d.end = decls[i + 1]?.start ?? blank.length;
+                    d.id = `${file}#${d.name ?? `L${lineAt(code, d.start)}`}`;
+                });
+                const declAt = i => decls.findLast(d => d.start <= i) ?? null;
+                // A name in an import or an export list is no use of it.
+                const uses = blank.replace(/^import\s[^;]*;|^export\s*\{[^}]*\}[^;\n]*;?/gm, blankOut);
+                const names = new Map();
+                for (const m of uses.matchAll(/[A-Za-z_$][\w$]*/g)) {
+                    if (!names.has(m[0])) names.set(m[0], []);
+                    names.get(m[0]).push(m.index);
+                }
+                const imports = new Set([...code.matchAll(/(?:\bfrom|\bimport\s*\()\s*(["'])\.\/([\w.-]+\.mjs)\1/g)].map(m => m[2]));
+                const steps = [];
+                for (const m of blank.matchAll(/(?<![\w$])serialWrite\s*\(/g)) {
+                    const { args, close } = callArgs(blank, m.index + m[0].length - 1);
+                    if (args[0] && QUEUE_KEY.test(code.slice(args[0].start, args[0].end).trim())) steps.push([m.index, close]);
+                }
+                read.files++;
+                return { file, code, blank, decls, declAt, names, imports, steps };
+            });
+            const named = files.flatMap(f => f.decls.filter(d => d.name).map(d => ({ f, d })));
+            const usesOf = ({ f: home, d }) => files.flatMap(f => f === home || f.imports.has(home.file)
+                ? (f.names.get(d.name) ?? []).filter(i => f !== home || i < d.start || i >= d.end).map(i => ({ f, i, at: f.declAt(i)?.id })) : []);
+            const usesBy = new Map(named.map(n => [n.d.id, usesOf(n)]));
+            const reachedOnly = (rootAt, held = new Set()) => {
+                const marked = [...usesBy].map(([id, uses]) => [id, uses.map(u => [rootAt(u.f, u.i), u.at])]);
+                for (let grew = true; grew;) {
+                    grew = false;
+                    for (const [id, uses] of marked) {
+                        if (held.has(id) || !uses.length || !uses.every(([root, at]) => root || held.has(at))) continue;
+                        held.add(id);
+                        grew = true;
+                    }
+                }
+                return (f, i) => rootAt(f, i) || held.has(f.declAt(i)?.id);
+            };
+            const inStep = reachedOnly((f, i) => f.steps.some(([a, b]) => i > a && i < b));
+            const roots = new Set(files.filter(f => f.file === MAP).flatMap(f => f.decls.filter(d => ROOTS.has(d.name)).map(d => d.id)));
+            const fromRoots = reachedOnly(() => false, roots);
+
+            const broken = new Set();
+            for (const f of files) {
+                const where = i => f.declAt(i)?.id ?? `${f.file}#L${lineAt(f.code, i)}`;
+                for (const m of f.blank.matchAll(/\bgame\s*\.\s*settings\s*\.\s*set\s*\(/g)) {
+                    const { args } = callArgs(f.blank, m.index + m[0].length - 1);
+                    if (!args[1] || !SETTING.test(f.code.slice(args[1].start, args[1].end).trim())) continue;
+                    read.sets++;
+                    const rule = f.file === "relay-guard.mjs" ? "e" : "a";
+                    if (!WRITERS.has(where(m.index))) broken.add(`${rule} writer ${where(m.index)}`);
+                    if (!inStep(f, m.index)) broken.add(`${rule} step ${where(m.index)}`);
+                }
+                for (const m of f.blank.matchAll(/(?<!function\s*)(?<![\w$.])setProjectMeta\s*\(/g)) {
+                    read.metas++;
+                    const { args } = callArgs(f.blank, m.index + m[0].length - 1);
+                    const data = args.slice(1).map(a => f.blank.slice(a.start, a.end)).join(",");
+                    if (GUARDED.test(data) && !inStep(f, m.index)) broken.add(`b ${where(m.index)}`);
+                }
+                const writes = [...f.blank.matchAll(EMBEDDED)].filter(m => {
+                    const { args } = callArgs(f.blank, m.index + m[0].length - 1);
+                    return args[0] && /^(["'`])Token\1$/.test(f.code.slice(args[0].start, args[0].end).trim());
+                });
+                if (f.file === MAP) writes.push(...f.blank.matchAll(TOKEN_DOC));
+                for (const m of writes) {
+                    if (f.file === MAP) {
+                        read.tokens++;
+                        if (!fromRoots(f, m.index)) broken.add(`c ${where(m.index)}`);
+                    } else {
+                        const d = f.declAt(m.index);
+                        if (d && READS_TOKEN.test(f.blank.slice(d.start, d.end))) broken.add(`c ${where(m.index)}`);
+                    }
+                }
+                if (f.file !== MAP) for (const m of f.blank.matchAll(STEPS)) broken.add(`d ${where(m.index)}`);
+            }
+            return { broken: [...broken].sort(), read };
+        };
+
+        const clean = {
+            "projects-secrecy.mjs": [
+                "export const COUNTDOWNS_KEY = \"daggerheart.Countdowns\";",
+                "export async function writeCountdown(id, patch) {",
+                "    const data = game.settings.get(DH, COUNTDOWNS);",
+                "    await game.settings.set(DH, COUNTDOWNS, { ...data, [id]: patch });",
+                "}",
+                "export async function writeAllCountdowns(data) { await game.settings.set(\"daggerheart\", \"Countdowns\", data); }",
+                "export async function setProjectMeta(id, data) { return { id, data }; }",
+                "async function saveKeyed(key, value) { await game.settings.set(DH, key, value); }",
+                "export { saveKeyed };"
+            ],
+            "projects.mjs": [
+                "import { COUNTDOWNS_KEY, writeCountdown, writeAllCountdowns, setProjectMeta } from \"./projects-secrecy.mjs\";",
+                "import { serialWrite } from \"./utils.mjs\";",
+                "async function step(id, change) {",
+                "    await writeCountdown(id, change);",
+                "    await setProjectMeta(id, { room: change.room });",
+                "    await thaw(id);",
+                "}",
+                "async function thaw(id) { await setProjectMeta(id, { frozenBy: null, repairs: null }); }",
+                "export function applyProjectChange(id, change) {",
+                "    return serialWrite(COUNTDOWNS_KEY, () => step(id, change));",
+                "}",
+                "export async function clearAllProjects() {",
+                "    await serialWrite(COUNTDOWNS_KEY, async () => { await writeAllCountdowns({ countdowns: {} }); });",
+                "}",
+                "export async function renameProject(id, name) {",
+                "    // await setProjectMeta(id, { room: name }); game.settings.set(DH, COUNTDOWNS, {});",
+                "    await setProjectMeta(id, { glyph: \"setProjectMeta(id, { repairs: 1 })\" });",
+                "    return applyProjectChange(id, { name });",
+                "}"
+            ],
+            "relay-guard.mjs": [
+                "async function applyOps(ops) {",
+                "    const { COUNTDOWNS_KEY } = await import(\"./projects-secrecy.mjs\");",
+                "    for (const op of ops) {",
+                "        if (op.kind === \"fear\") await game.settings.set(dhId(), fearKey(), op.step);",
+                "        else await serialWrite(COUNTDOWNS_KEY, async () => { await game.settings.set(dhId(), countdownsKey(), op.fresh); });",
+                "    }",
+                "}"
+            ],
+            "projects-map.mjs": [
+                "export const PROJECT_TOKEN_FLAG = \"projectId\";",
+                "export async function placeProjectToken(id, scene) {",
+                "    await scene.createEmbeddedDocuments(\"Token\", [{ flags: { drpg: { [PROJECT_TOKEN_FLAG]: id } } }]);",
+                "}",
+                "export async function removeProjectToken(id, scene, ref) { await scene.deleteEmbeddedDocuments(\"Token\", [ref.tokenId]); }",
+                "export async function refreshProjectToken(id, token) { await token.update({ \"texture.tint\": \"#ffffff\" }); }",
+                "export async function syncProjectToken(id, scene, token, ref) {",
+                "    if (!token) return placeProjectToken(id, scene);",
+                "    if (!ref) return removeProjectToken(id, scene, ref);",
+                "    return refreshProjectToken(id, token);",
+                "}",
+                "export async function sweepProjectTokens(scene, ids) { await scene.deleteEmbeddedDocuments(\"Token\", ids); }",
+                "export async function syncProjectTokens(ids) { for (const id of ids) await syncProjectToken(id); }",
+                "export async function showProjectOnMap(id) { return syncProjectToken(id); }",
+                "async function ensureProjectActor(actor, tokens) { await actor.update({ img: \"x\" }); tokens.delete(actor.id); }"
+            ],
+            "season-setup.mjs": [
+                "import { projectTokensOn } from \"./projects-map.mjs\";",
+                "import { clearAllProjects } from \"./projects.mjs\";",
+                "export async function resetSeason(scene) {",
+                "    const n = projectTokensOn([scene]).length;",
+                "    await clearAllProjects();",
+                "    await scene.deleteEmbeddedDocuments(\"Wall\", []);",
+                "    return n;",
+                "}"
+            ],
+            "migrate.mjs": [
+                "export async function sealOldRepairs(key) {",
+                "    const { applyProjectChange } = await import(\"./projects.mjs\");",
+                "    await applyProjectChange(\"x\", { ownership: {} });",
+                "    await game.settings.set(DH, key, {});",
+                "}"
+            ],
+            "observe.mjs": [
+                "import { applyProjectChange } from \"./projects.mjs\";",
+                "export async function shareFound(id) { await applyProjectChange(id, { ownership: {} }); }"
+            ],
+            "fog.mjs": [
+                "import { applyProjectChange } from \"./projects.mjs\";",
+                "async function carryRoomInWorld(id, to) { await applyProjectChange(id, { meta: { room: to } }); }"
+            ],
+            "tests-tier2.mjs": [
+                "export const T = async PM => { await PM.placeProjectToken(\"x\"); await game.settings.set(DH, COUNTDOWNS, {}); };"
+            ]
+        };
+        const faults = {
+            "a migration's write": [{ "migrate.mjs": [
+                "export async function sealOldRepairs() {",
+                "    const data = game.settings.get(DH, COUNTDOWNS);",
+                "    await game.settings.set(DH, COUNTDOWNS, data);",
+                "}"
+            ] }, ["a step migrate.mjs#sealOldRepairs", "a writer migrate.mjs#sealOldRepairs"]],
+            "a writer reached outside a step": [{ "observe.mjs": [
+                "import { writeCountdown } from \"./projects-secrecy.mjs\";",
+                "export async function shareFound(id) { await writeCountdown(id, {}); }"
+            ] }, ["a step projects-secrecy.mjs#writeCountdown"]],
+            "a step of another key": [{ "projects.mjs": [...clean["projects.mjs"],
+                "export function retitle(id) { return serialWrite(`transfer/${id}`, () => writeCountdown(id, {})); }"
+            ] }, ["a step projects-secrecy.mjs#writeCountdown"]],
+            "a room outside a step": [{ "fog.mjs": [
+                "import { setProjectMeta } from \"./projects-secrecy.mjs\";",
+                "async function carryRoomInWorld(id, to) { await setProjectMeta(id, { room: to }); }"
+            ] }, ["b fog.mjs#carryRoomInWorld"]],
+            "a token made outside the roots": [{ "projects-map.mjs": [
+                ...clean["projects-map.mjs"].slice(0, -2),
+                "export async function showProjectOnMap(id, scene) { return placeProjectToken(id, scene); }",
+                clean["projects-map.mjs"].at(-1)
+            ] }, ["c projects-map.mjs#placeProjectToken"]],
+            "a project token deleted in another file": [{ "season-setup.mjs": [
+                "import { projectTokensOn } from \"./projects-map.mjs\";",
+                "export async function wipe(scene) { await scene.deleteEmbeddedDocuments(\"Token\", projectTokensOn([scene]).map(t => t.tokenId)); }"
+            ] }, ["c season-setup.mjs#wipe"]],
+            "a token step named elsewhere": [{ "projects.mjs": [...clean["projects.mjs"],
+                "export async function retint(id) { const map = await import(\"./projects-map.mjs\"); return map.refreshProjectToken(id); }"
+            ] }, ["c projects-map.mjs#refreshProjectToken", "d projects.mjs#retint"]],
+            "the relay's write outside the key": [{ "relay-guard.mjs": [
+                "async function applyOps(ops) {",
+                "    for (const op of ops) await game.settings.set(dhId(), countdownsKey(), op.fresh);",
+                "}"
+            ] }, ["e step relay-guard.mjs#applyOps"]]
+        };
+        const planted = files => new Map(Object.entries(files).map(([file, lines]) => [file, lines.join("\n")]));
+        const twin = censusOf(planted(clean));
+        equal(JSON.stringify([twin.broken, twin.read]), JSON.stringify([[], { files: 8, sets: 3, metas: 3, tokens: 4 }]),
+            "the census reader does not read the clean twin clean, or not all of it (8 files, 3 Countdowns writes, 3 setProjectMeta calls, 4 project token writes) - it would read the module wrong too");
+        const misread = Object.entries(faults).map(([name, [files, want]]) => [name, censusOf(planted({ ...clean, ...files })).broken, want])
+            .filter(([, got, want]) => JSON.stringify(got) !== JSON.stringify(want));
+        equal(JSON.stringify(misread), "[]", "the census reader misses a planted fault, or reads one more than it was given ([fault, read, planted])");
+
+        const sources = new Map((await otherSources()).filter(([file]) => file.endsWith(".mjs")));
+        must(["projects.mjs", "projects-secrecy.mjs", "projects-map.mjs", "relay-guard.mjs"].every(file => sources.has(file)),
+            "projects.mjs, projects-secrecy.mjs, projects-map.mjs or relay-guard.mjs is not served - this test reads nothing until they are");
+        const { broken, read } = censusOf(sources);
+        ok(read.files > 100 && read.sets >= 2 && read.metas >= 3 && read.tokens >= 3,
+            `${JSON.stringify(read)} read in the module (files, Countdowns writes, setProjectMeta calls, project token writes) - this would measure nothing`);
+        log(`R977: ${read.files} files, ${read.sets} Countdowns writes, ${read.metas} setProjectMeta calls, ${read.tokens} project token writes; outside one place: ${broken.join(", ") || "none"}`);
+        equal(JSON.stringify(broken), "[]",
+            "the census of project writes: each of these changes a project outside applyProjectChange's queue or its token outside syncProjectToken (rule, what, where)");
+    }, expectedRed("E36", "Base writes Countdowns whole in addProgress, createProject, deleteProject and clearAllProjects, queues nothing on COUNTDOWNS_KEY and places project tokens from projects.mjs; C1-C4 move each road into applyProjectChange and syncProjectToken, and C4 takes this marker off", { failing: "the census of project writes" })]
 ];
 
 
