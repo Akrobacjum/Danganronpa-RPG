@@ -39,7 +39,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { log, ownerIdsOf, isPrimaryGm } from "./utils.mjs";
+import { log, ownerIdsOf, isPrimaryGm, serialWrite } from "./utils.mjs";
 import { projectSecretStore } from "./gm-stores.mjs";
 
 export const DH = "daggerheart";
@@ -417,18 +417,24 @@ export async function liftProjectSecrets() {
     if (!Object.keys(rows).length) return null;
     await projectSecretStore.patchMany(rows, { weak: true, fillOnly: true });
     await projectSecretStore.idle();
-    const next = foundry.utils.deepClone(projectMeta());
-    let lifted = 0, kept = 0;
-    for (const [id, fields] of Object.entries(rows)) {
-        const held = projectSecretStore.persisted(id) ?? {};
-        for (const field of Object.keys(fields)) {
-            if (Object.hasOwn(held, field)) {
-                if (next[id] && typeof next[id] === "object") delete next[id][field];
-                lifted++;
-            } else kept++;
+    /* IN THE PROJECTS' QUEUE (E36 fix e1-G5, 25.10.2026; finding F2): read and written whole in one step of
+       `COUNTDOWNS_KEY`, as every step of projects.mjs `applyProjectChange` writes projectMeta, so a change landing
+       during the load's lift is neither written over nor writes over it. */
+    const { lifted, kept } = await serialWrite(COUNTDOWNS_KEY, async () => {
+        const next = foundry.utils.deepClone(projectMeta());
+        let moved = 0, left = 0;
+        for (const [id, fields] of Object.entries(rows)) {
+            const held = projectSecretStore.persisted(id) ?? {};
+            for (const field of Object.keys(fields)) {
+                if (Object.hasOwn(held, field)) {
+                    if (next[id] && typeof next[id] === "object") delete next[id][field];
+                    moved++;
+                } else left++;
+            }
         }
-    }
-    if (lifted) await game.settings.set(MODULE_ID, SETTINGS.projectMeta, next);
+        if (moved) await game.settings.set(MODULE_ID, SETTINGS.projectMeta, next);
+        return { lifted: moved, kept: left };
+    });
     const left = Object.values(projectMeta())
         .reduce((n, row) => n + PROJECT_SECRET_FIELDS.filter(f => row && typeof row === "object" && Object.hasOwn(row, f)).length, 0);
     if (lifted) log(`Lifted ${lifted} project secret field(s) out of world data (D3); ${left} left.`);

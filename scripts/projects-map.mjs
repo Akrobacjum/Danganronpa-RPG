@@ -36,10 +36,25 @@ import { roomOf, setProjectMeta, tokenRefOf, allProjects, isComplete, knowsProje
 import { metaFor, rawCountdown, COUNTDOWNS_KEY } from "./projects-secrecy.mjs";
 import { boundsOf, roomAt } from "./movement.mjs";
 import { sceneOfRoom, isMoveChange, roomRegions } from "./rooms.mjs";
-import { log, error, whisperToGms, esc, plural, isPrimaryGm } from "./utils.mjs";
+import { log, error, whisperToGms, esc, plural, isPrimaryGm, serialWrite } from "./utils.mjs";
 
 /** The actor every project token is an unlinked copy of. */
 const PROJECT_ACTOR = "DRPG Project";
+
+/*
+ * A TOKEN'S RECORD IN THE PROJECTS' QUEUE (E36 fix e1-G5, 25.10.2026; findings F2, audit S17-18). A project's
+ * `tokenId`, `tokenScene` and `mapHidden` live in projectMeta, which projects-secrecy.mjs `setProjectMeta` reads
+ * and writes back whole - as every step of projects.mjs `applyProjectChange` does for its own rows. Since E36 C4
+ * every change ends with a token sync outside the queue, while the next step is already under way, so either
+ * write could put back the other's copy: a shown project kept off the map again and its reference lost, or a
+ * finished repair's row brought back (E36-T10 at daf5600c: "Show on the map" written while a step held
+ * projectMeta, its mark and reference gone once the step wrote). Each is a step of `COUNTDOWNS_KEY` of its own
+ * now, reading projectMeta where it writes it. Never called from inside a step (it would wait behind itself):
+ * this file's writers run after one, from the sync and the hooks.
+ */
+function writeTokenRecord(countdownId, patch) {
+    return serialWrite(COUNTDOWNS_KEY, () => setProjectMeta(countdownId, patch));
+}
 
 /* Isometric Perspective's scope and the flag it sizes a token's picture by. Written only
    while that module is on: its flags are its own, and a scope that is not active is not
@@ -279,7 +294,7 @@ export async function placeProjectToken(countdownId, { scene = null } = {}) {
             }
         }]);
         if (!created) return null;
-        await setProjectMeta(countdownId, { tokenId: created.id, tokenScene: target.id });
+        await writeTokenRecord(countdownId, { tokenId: created.id, tokenScene: target.id });
         return created;
     } catch (err) {
         error(`Could not put the project ${countdownId} on the map`, err);
@@ -304,7 +319,7 @@ export async function removeProjectToken(countdownId) {
     /* The reference is cleared whether or not the delete worked: a token that
        is already gone and a token that refused to go both leave this project
        without one, and a stale id would stop it ever being placed again. */
-    await setProjectMeta(countdownId, { tokenId: null, tokenScene: null });
+    await writeTokenRecord(countdownId, { tokenId: null, tokenScene: null });
     return true;
 }
 
@@ -509,6 +524,15 @@ async function moveProjectToken(countdownId, token, room) {
  */
 export async function syncProjectToken(countdownId) {
     if (!game.user.isGM || !countdownId || !game.ready) return 0;
+    /* ONE SYNC OF A PROJECT AT A TIME (E36 fix e1-G5, 25.10.2026; finding F3). A token is found through the
+       project's record alone (`projectTokenOf`), so a scene draw's sync and a change's sync of one project, both
+       reading "no token" before either had placed one, placed two (E36-T10 at daf5600c, two syncs at once). Queued
+       per project: the second reads what the first put right. Another project's sync does not wait. */
+    return serialWrite(`projectToken/${countdownId}`, () => syncOneProjectToken(countdownId));
+}
+
+/** `syncProjectToken`'s work, one project, in its own queue. */
+async function syncOneProjectToken(countdownId) {
     if (!rawCountdown(countdownId)) {
         const { removed } = await sweepProjectTokens({ live: [], only: [countdownId] });
         return removed;
@@ -521,7 +545,7 @@ export async function syncProjectToken(countdownId) {
     // (a scene deleted, if Foundry fires none for its tokens - not measured): forgotten,
     // and placed again below.
     if (ref && !live) {
-        await setProjectMeta(countdownId, { tokenId: null, tokenScene: null });
+        await writeTokenRecord(countdownId, { tokenId: null, tokenScene: null });
         touched++;
     }
     const room = roomOf(countdownId);
@@ -615,7 +639,7 @@ function onProjectTokenDeleted(tokenDoc, options) {
     const patch = other
         ? { tokenId: other.tokenId, tokenScene: other.sceneId }
         : { mapHidden: true, tokenId: null, tokenScene: null };
-    const done = setProjectMeta(id, patch)
+    const done = writeTokenRecord(id, patch)
         .then(() => log(other ? `Project ${id}: its other token stands for it now.` : `Project ${id} kept off the map: its token was deleted by hand.`))
         .catch(err => error(`Could not keep the project ${id} off the map`, err))
         .finally(() => { if (hiding.get(id) === done) hiding.delete(id); });
@@ -625,7 +649,7 @@ function onProjectTokenDeleted(tokenDoc, options) {
 /** The manager's "Show on the map": a project a GM deleted from the map goes back on it. GM only. */
 export async function showProjectOnMap(countdownId) {
     if (!game.user.isGM || !rawCountdown(countdownId)) return null;
-    await setProjectMeta(countdownId, { mapHidden: false });
+    await writeTokenRecord(countdownId, { mapHidden: false });
     /* On the scene that holds its room, whatever this GM is looking at (E12 C5): the one road to a token (E36 C4). */
     await syncProjectToken(countdownId);
     return projectTokenOf(countdownId);

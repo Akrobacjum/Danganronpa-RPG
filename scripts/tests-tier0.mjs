@@ -14550,7 +14550,7 @@ const REGRESSIONS = [
         log(`R952: ${sources.size} files, ${read.creates} item creates and ${read.deletes} deletes read; pairs ${found.join(", ")}`);
     }],
 
-    ["R977 - a project changes in one place (E36-T1): the Countdowns setting is written whole only by projects-secrecy.mjs `writeAllCountdowns` and relay-guard.mjs `applyOps`, each inside a step of `serialWrite(COUNTDOWNS_KEY, ...)`; a project's room, freeze and repair are given to `setProjectMeta` only in a step; a project's Token is made, updated or deleted only from projects-map.mjs `syncProjectToken` and `sweepProjectTokens`; and no module file but projects-map.mjs names placeProjectToken, removeProjectToken or refreshProjectToken", async () => {
+    ["R977 - a project changes in one place (E36-T1): the Countdowns setting is written whole only by projects-secrecy.mjs `writeAllCountdowns` and relay-guard.mjs `applyOps`, each inside a step of `serialWrite(COUNTDOWNS_KEY, ...)`; a project's room, freeze, repair and token record are given to `setProjectMeta` only in a step; a project's Token is made, updated or deleted only from projects-map.mjs `syncProjectToken` and `sweepProjectTokens`; and no module file but projects-map.mjs names placeProjectToken, removeProjectToken or refreshProjectToken", async () => {
         /*
          * E36 C0, 25.10.2026; the stage's E36-02 and E36-15, audit S17-18. A project is changed today by a dozen roads
          * that each read the Countdowns setting, change it and write it whole, outside any queue: two GMs' changes, or a
@@ -14565,7 +14565,9 @@ const REGRESSIONS = [
          *       `writeCountdown` out of the module (042f3482), and out of this list in E36's fix round: a writer of
          *       that name brought back is a writer outside the list, as any other name is;
          *   (b) a `setProjectMeta(` whose data names `room`, `frozenBy` or `repairs` (a key, a shorthand, a spread or a
-         *       variable of that name) stands in a step;
+         *       variable of that name) stands in a step; since E36 fix e1-G5 (finding F2) the token record too -
+         *       `tokenId`, `tokenScene`, `mapHidden` - which projects-map.mjs writes through its own step
+         *       (`writeTokenRecord`), read as any other: a step's arguments hold the call;
          *   (c) a Token made, updated or deleted (`createEmbeddedDocuments`, `updateEmbeddedDocuments` or
          *       `deleteEmbeddedDocuments` of "Token", and in projects-map.mjs a document named *token* updated or
          *       deleted) stands in projects-map.mjs reached only from `syncProjectToken` or `sweepProjectTokens`, and
@@ -14599,7 +14601,7 @@ const REGRESSIONS = [
         const QUEUE_KEY = /^(?:[\w$]+\s*\.\s*)?COUNTDOWNS_KEY$/;
         const SETTING = /^(?:COUNTDOWNS|(["'`])Countdowns\1|countdownsKey\s*\(\s*\))$/;
         const WRITERS = new Set(["projects-secrecy.mjs#writeAllCountdowns", "relay-guard.mjs#applyOps"]);
-        const GUARDED = /(?<![\w$.])(?:room|frozenBy|repairs)(?![\w$])/;
+        const GUARDED = /(?<![\w$.])(?:room|frozenBy|repairs|tokenId|tokenScene|mapHidden)(?![\w$])/;
         const MAP = "projects-map.mjs", ROOTS = new Set(["syncProjectToken", "sweepProjectTokens"]);
         const STEPS = /(?<![\w$])(?:placeProjectToken|removeProjectToken|refreshProjectToken)(?![\w$])/g;
         const READS_TOKEN = /(?<![\w$])(?:PROJECT_TOKEN_FLAG|projectIdOf|projectOwning|projectTokenOf|projectTokensOn|tokenRefOf)(?![\w$])/;

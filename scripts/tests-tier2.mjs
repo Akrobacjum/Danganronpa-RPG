@@ -65667,6 +65667,76 @@ const SCENARIOS = [
             + "the row's after, the GMs' whisper; a change queued before the primary changed: here the primary?, the bar, the packet sent, "
             + "the forwarded answer, the bar after]");
     }],
+    ["a project token's record waits in the projects' queue (E36-T10): a token put back on the map while a step of the queue holds projectMeta keeps its reference and its shown mark once the step has written, and two syncs of one project at once place one token", async () => {
+        /*
+         * E36 fix e1-G5, 25.10.2026; findings F2, F3, audit S17-18. projects-map.mjs wrote a project's token record
+         * (`tokenId`, `tokenScene`, `mapHidden`) through projects-secrecy.mjs `setProjectMeta`, which reads
+         * projectMeta and writes it back whole, outside the queue every step of projects.mjs `applyProjectChange`
+         * writes projectMeta in: since E36 C4 every change ends with a token sync, outside the queue, while the
+         * next step is already under way, so either write could put back the other's copy. And `syncProjectToken`
+         * finds a token through that record alone, so two syncs of one project at once each placed one. Read on
+         * this primary's browser: (1) a project with a room kept off the map (`mapHidden`, as a GM's Delete leaves
+         * it), a step of utils.mjs `serialWrite` holding projects-secrecy.mjs `COUNTDOWNS_KEY` that read projectMeta,
+         * waits, and writes it back with a mark on another project - as a step writes its own rows - and the
+         * manager's "Show on the map" (`showProjectOnMap`) asked meanwhile: once both are done, the project's token
+         * reference, its tokens, its mark and the other project's mark; (2) a project given a room with no token
+         * and `syncProjectToken` called twice at once: its tokens. At 4082fa98: (1) the step's write took the
+         * reference and the shown mark back, (2) two tokens.
+         */
+        needs(world.atLeast("sceneOnScreen"), "a scene on screen with a named region for a project's token");
+        const P = await import("./projects.mjs");
+        const S = await import("./projects-secrecy.mjs");
+        const M = await import("./projects-map.mjs");
+        const { serialWrite, isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this GM is not the primary, whose browser keeps the project tokens - run the suite on the primary GM");
+        const room = [...new Set((canvas.scene.regions?.contents ?? []).map(region => region.name).filter(Boolean))][0];
+        must(room, "the scene on screen has no named region - this would measure nothing");
+        const meta = foundry.utils.deepClone(P.projectMeta());
+        const tokensOf = id => M.projectTokensOn(game.scenes).filter(t => t.projectId === id).length;
+        const made = [], seen = {};
+        const make = async name => {
+            const id = (await P.createProject({ name, target: 3 }))?.id ?? null;
+            must(id, `could not create "${name}" - this would measure nothing`);
+            made.push(id);
+            await settle();
+            return id;
+        };
+        let release = () => {};
+        try {
+            const shown = await make("SUITE E36 T10 shown again");
+            const other = await make("SUITE E36 T10 other");
+            await S.setProjectMeta(shown, { room, mapHidden: true });
+            const gate = new Promise(resolve => { release = resolve; });
+            const hold = serialWrite(S.COUNTDOWNS_KEY, async () => {
+                const rows = foundry.utils.deepClone(P.projectMeta());
+                await gate;
+                await game.settings.set(MODULE_ID, SETTINGS.projectMeta, { ...rows, [other]: { ...rows[other], suiteE36T10: true } });
+            });
+            const showing = M.showProjectOnMap(shown);
+            for (let i = 0; i < 5; i++) await settle();
+            release();
+            await hold;
+            await showing;
+            await settle();
+            seen.shown = { ref: Boolean(P.tokenRefOf(shown)), tokens: tokensOf(shown), hidden: Boolean(P.metaFor(shown).mapHidden),
+                other: Boolean(P.metaFor(other).suiteE36T10) };
+
+            const twice = await make("SUITE E36 T10 synced twice");
+            await S.setProjectMeta(twice, { room });
+            await Promise.all([M.syncProjectToken(twice), M.syncProjectToken(twice)]);
+            await settle();
+            seen.twice = tokensOf(twice);
+        } finally {
+            release();
+            for (const id of made) await P.deleteProject(id).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, meta);
+            await M.sweepProjectTokens();
+            await settle();
+        }
+        equal(stableJson(seen), stableJson({ shown: { ref: true, tokens: 1, hidden: false, other: true }, twice: 1 }),
+            "a project token's record is written outside the projects' queue, or one project's syncs place two tokens [shown again "
+            + "while a step held projectMeta: its reference, its tokens, its mark, the step's own mark; two syncs at once: the tokens]");
+    }],
     ["a project's token follows its project (E36-T6): after each change of a project one function puts its token right - made in a room it stands there once, its room changed it moves there once, finished it changes colour and back, shared or taken back the visibility pass runs over it, with no room or no project it is gone, a dragged token is not moved back, and a second GM's project and a second scene draw make one token", async () => {
         /*
          * E36 C4, 25.10.2026; E36-14 and E36-15, audit S09-19, S09-20. A project's token was put right by the sync
