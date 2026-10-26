@@ -68626,6 +68626,174 @@ const SCENARIOS = [
             + "a dead student's Silenced box: locked, its tooltip; once Monocub is ticked: locked; the badge: the tick's title, Confusion named]");
     }],
 
+    ["E16-T21 - Dynamic says 'beat N' where a band's number is shown, and passes from that number (audit S13-30, the owner's D16)", async () => {
+        /*
+         * E16 part 2 C0, 26.10.2026. A Dynamic action's GM window offered "8-12 · Trivial" and its roll
+         * window read "beat 8-12", while the engine passes a band from its lower number
+         * (`roll.total >= band.range[0]`, the owner's D16 "pasmo zdaje się od dolnej liczby"): a GM who
+         * picked "Trivial" thinking of 11 saw a 9 succeed. This GM takes a Dynamic action for a
+         * player's character standing in a room, free; its windows answered here, the difficulty
+         * window's options kept and the second band picked; the character's own `rollTrait` notes the
+         * window's title and throws on forced dice (8 and 5). Read: the options, the title, and whether
+         * the outcome's success is the total reaching the band's lower number. Red before C0: the
+         * options and the title read the range.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the action's trace is placed where the character stands");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the character is a connected player's, as the other tests' are");
+        const { performAction, rollInHand } = await import("./action-rolls.mjs");
+        const { DYNAMIC_THRESHOLDS } = await import("./config.mjs");
+        const { rerollBookmarkStore } = await import("./gm-stores.mjs");
+        const { actor, where } = await playerInRoom();
+        const scene = where.scene, had = new Set(scene.tokens.map(t => t.id)), seen = new Set(game.messages.map(m => m.id));
+        const bookmark = rerollBookmarkStore.get(actor.id) ? foundry.utils.deepClone(rerollBookmarkStore.get(actor.id)) : null;
+        const options = [], titles = [];
+        const windows = answerWindows((cfg, root) => {
+            const request = root.querySelector("[name=request]"), tier = root.querySelector("select[name=tier]");
+            if (request) request.value = "E16-T21 the GM's own Dynamic action";
+            if (tier) {
+                options.push(...[...tier.querySelectorAll("option")].map(o => o.textContent.trim()));
+                tier.value = "1";
+            }
+            return press(cfg, root);
+        });
+        const own = actor.rollTrait;
+        actor.rollTrait = function (dh, config) { titles.push(config?.title ?? null); return own.call(this, dh, config); };
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        let outcome = null, total = null;
+        try {
+            globalThis.__forceRoll = { hope: 8, fear: 5 };
+            outcome = await performAction(actor, "dynamic", { free: true });
+            total = rollInHand(actor)?.total ?? null;
+            await settle();
+        } finally {
+            if (hadForce) globalThis.__forceRoll = force; else delete globalThis.__forceRoll;
+            delete actor.rollTrait;
+            windows.restore();
+            for (const t of scene.tokens.filter(t => !had.has(t.id))) await t.delete();
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete();
+            if (bookmark) await rerollBookmarkStore.patch(actor.id, bookmark);
+            else if (rerollBookmarkStore.has(actor.id)) await rerollBookmarkStore.drop(actor.id);
+        }
+        must(typeof total === "number" && outcome, `the Dynamic action threw no roll - this would measure nothing: ${stableJson(outcome)}`);
+        const beat = n => game.i18n.format("DRPG.Action.beat", { n });
+        const band = DYNAMIC_THRESHOLDS[1];
+        equal(stableJson({
+            options: options.map((o, i) => o.startsWith(beat(DYNAMIC_THRESHOLDS[i]?.range?.[0])) && !o.includes(String(DYNAMIC_THRESHOLDS[i]?.range?.[1]))),
+            title: titles.map(t => [String(t).includes(beat(band.range[0])), String(t).includes(`${band.range[0]}-${band.range[1]}`)]),
+            passes: outcome.success === (total >= band.range[0])
+        }), stableJson({ options: DYNAMIC_THRESHOLDS.map(() => true), title: [[true, false]], passes: true }),
+            `Dynamic shows a band as its range, or does not pass from its lower number [each option starts "beat N" without the upper number; `
+            + `the roll window's title: "beat N", the range; success = total >= N]: options ${stableJson(options)}, titles ${stableJson(titles)}, total ${total}`);
+    }],
+
+    ["E16-T22 - Tamper's window shows the chosen trace's number (audit S05-51, the owner's Q7)", async () => {
+        /*
+         * E16 part 2 C0, 26.10.2026. `attemptCleanup` read the number for the roll window off the
+         * ledger (`remnantData`), which a player's browser cannot read, so a player's Tamper window
+         * never said what it had to beat, while its briefing shows the ladder; the owner's Q7 (19.10):
+         * shown. A student stood alone in a room, a trace placed at their feet and copied onto their
+         * sheet: the row the GMs build for their Tamper list (`cleanableTracesForPlayer`) carries the
+         * number the GM will score it against (`cleanupDc`), and an attempt handed that number on a
+         * browser that reads no such trace - the token id is one no ledger holds, as a player's
+         * browser holds none - shows it on the window. The character's `rollTrait` notes the title and
+         * throws nothing, as a closed window does, so the price comes back (`releaseTamper`). Then the
+         * menu's road is read for passing the row's number on. Red before C0: no number on the row,
+         * none on the window.
+         */
+        needs(world.atLeast("studentTokensOnScreen"), "a student with a token has to stand in the trace's room");
+        const Cl = await import("./cleanup.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const remnants = await import("./remnants.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const scene = canvas.scene;
+        const student = studentActors().find(a => scene?.tokens?.some(t => t.actorId === a.id) && !Cl.isCleaner(a) && locateActor(a)?.room);
+        must(student, "no student with a token on the scene on screen stands in a room outside Stage 6 - this would measure nothing");
+        const stood = await standAlone(student);
+        const titles = [];
+        let trace = null, copy = null, row = null, back = null;
+        try {
+            const stand = scene.tokens.find(t => t.actorId === student.id);
+            trace = await remnants.placeRemnant({ type: "prep", visibility: "evident", x: stand.x, y: stand.y, scene,
+                room: locateActor(student).room, note: "E16-T22 a trace of one's own" });
+            must(trace, "could not place the fixture trace - this would measure nothing");
+            copy = await bullets.createTruthBullet(student, { name: "E16-T22 my copy", realType: "prep", visibility: "evident",
+                remnantId: trace.id, sceneId: scene.id });
+            must(copy, "could not copy the trace onto the student's sheet - this would measure nothing");
+            row = Cl.cleanableTracesForPlayer(student.id, { mine: true }).find(t => t.id === trace.id) ?? null;
+            must(row, "the student's Tamper list does not hold the trace they copied - this would measure nothing");
+            student.rollTrait = async (dh, config) => { titles.push(config?.title ?? null); return null; };
+            back = await Cl.attemptCleanup(student, "E16T22NOTRACE", { viaAction: true, dc: row.dc });
+        } finally {
+            delete student.rollTrait;
+            try { await copy?.delete(); } catch { /* already gone */ }
+            if (trace) {
+                try { await remnants.dropRemnantSecret(trace); } catch { /* nothing filed */ }
+                try { await trace.delete(); } catch { /* already gone */ }
+            }
+            await stood.back();
+        }
+        const dc = Cl.cleanupDc("evident", student);
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/action-rolls.mjs`).then(lfText));
+        const menu = fnSource(src, "runTamperChoice");
+        equal(stableJson({ row: row?.dc ?? null, window: titles.map(t => String(t).includes(game.i18n.format("DRPG.Action.beat", { n: dc }))),
+            back: back ?? null, menu: (menu.match(/dc:\s*row\?\.dc/g) ?? []).length }),
+            stableJson({ row: dc, window: [true], back: null, menu: 2 }),
+            `Tamper does not show the chosen trace's number [the list row's number; the window says "beat ${dc}"; the closed window's answer; `
+            + `the menu's two attempts (cover, reshape) hand the row's number on]: titles ${stableJson(titles)}`);
+    }],
+
+    ["E16-T23 - the Reroll's window names the roll it takes back, and Resolve's says the next roll asks the statistic (audit S02-27)", async () => {
+        /*
+         * E16 part 2 C0, 26.10.2026. The Call's window (calls.mjs `confirmCall`) read "Reroll the
+         * action. It reverts the previous outcome." and "For one roll, choose which statistic to add
+         * yourself.", and nothing else: three Hope paid without being told which roll goes, and for a
+         * choice the window does not offer (it is the next roll window's, roll-dialog.mjs `lockTrait`).
+         * A student throws a Search's roll here on forced dice (9 and 2, so with Hope), told to the GMs
+         * as every action's is; the Reroll's window and Resolve's are opened for them, answered Cancel
+         * here, and their words read. Red before C0: neither line.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "the roll is a student's, as an action's is");
+        const rolls = await import("./action-rolls.mjs");
+        const { confirmCall } = await import("./calls.mjs");
+        const { HOPE_CALLS, ACTIONS } = await import("./config.mjs");
+        const { rerollBookmarkStore } = await import("./gm-stores.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const who = livingStudents().find(a => game.users.some(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER")));
+        must(who, "no living student with a connected player - this would measure nothing");
+        const bookmark = rerollBookmarkStore.get(who.id) ? foundry.utils.deepClone(rerollBookmarkStore.get(who.id)) : null;
+        const seen = new Set(game.messages.map(m => m.id));
+        const said = [];
+        const windows = answerWindows((cfg, root) => { said.push(root.textContent.replace(/\s+/g, " ").trim()); return "cancel"; });
+        let total = null;
+        const { gameSettings } = CONFIG.DH.SETTINGS;
+        const fear = game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear);
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        try {
+            globalThis.__forceRoll = { hope: 9, fear: 2 };
+            const outcome = await rolls.rollTrait(who, "eye", { remember: true, actionKey: "search" });
+            if (hadForce) globalThis.__forceRoll = force; else delete globalThis.__forceRoll;
+            await settle();
+            total = outcome?.total ?? null;
+            must(typeof total === "number" && rolls.rollInHand(who)?.actionKey === "search", "no Search roll of the student is in hand - this would measure nothing");
+            await confirmCall(HOPE_CALLS.reroll, { kind: "hope", held: 9, actor: who });
+            await confirmCall(HOPE_CALLS.determination, { kind: "hope", held: 9, actor: who });
+        } finally {
+            if (hadForce) globalThis.__forceRoll = force; else delete globalThis.__forceRoll;
+            windows.restore();
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete();
+            if (bookmark) await rerollBookmarkStore.patch(who.id, bookmark);
+            else if (rerollBookmarkStore.has(who.id)) await rerollBookmarkStore.drop(who.id);
+            if (game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear) !== fear) await game.settings.set(CONFIG.DH.id, gameSettings.Resources.Fear, fear);
+            await settle();
+        }
+        const line = game.i18n.format("DRPG.Reroll.lastRoll", { action: ACTIONS.search.label, total,
+            duality: game.i18n.localize("DRPG.Action.duality.hope") });
+        equal(stableJson([said.length, said[0]?.includes(line) ?? false, said[1]?.includes(game.i18n.localize("DRPG.Calls.resolveNext")) ?? false]),
+            stableJson([2, true, true]),
+            `the Reroll's window does not name the roll ("${line}") or Resolve's does not say the next roll asks [windows, Reroll, Resolve]: ${stableJson(said)}`);
+    }],
+
     ...GRID
 ];
 

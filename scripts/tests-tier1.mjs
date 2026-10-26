@@ -22461,6 +22461,49 @@ const INVARIANTS = [
             "DRPG.Calls.effectFailed, filled with { call } alone, does not name the call or leaves a placeholder unfilled "
             + "[per language: names the call, a {placeholder} left]");
     }],
+
+    ["R985 - Sabotage's window shows the bar it judges (E16-T20; audit S02-14): for a concealment thrown with Despair (SABOTAGE_CONCEAL.despairPenalty) and none, with no tool, a tier-1 tool and a tier-2 tool, each number action-rolls.mjs `sabotageBar` gives is the least total `sabotageHit` puts in that band, and the window's numbers and the judge both read that one bar", async () => {
+        /*
+         * E16 part 2 C0, 26.10.2026. performSabotage wrote the roll window's numbers as
+         * `t.min - relief + penalty`, and the judge (`sabotageHit`) scores `total + penalty`
+         * against the bands eased by the relief: with the Despair concealment's -1 the window said
+         * "beat 11 / 17" while a total of 13 / 19 was needed, so a player who threw 11 or 12 read a
+         * success and got "Nothing happens.". Each total from 0 to 40 is judged as the GM judges a
+         * Sabotage (`sabotageHit`, also gm-bridge.mjs `traceBandOf`'s reading) and the least total
+         * reaching each band is held to the bar's number for it; then the two places that show and
+         * judge are read in the source for the one bar. Nothing is written; no phase is asked.
+         */
+        const A = await import("./action-rolls.mjs");
+        const { SABOTAGE_CONCEAL } = await import("./config.mjs");
+        const def = ACTIONS.sabotage;
+        must(Array.isArray(def?.thresholds) && def.thresholds.length >= 2 && typeof A.sabotageHit === "function",
+            "Sabotage has no table of two bands or no judge - this would measure nothing");
+        must(SABOTAGE_CONCEAL.despairPenalty < 0, "the Despair concealment costs nothing on the total - this would measure nothing");
+        ok(typeof A.sabotageBar === "function", "action-rolls.mjs exports no `sabotageBar`: the window and the judge read no one bar");
+        const bar = typeof A.sabotageBar === "function" ? A.sabotageBar : () => [];
+        const seen = [];
+        for (const penalty of [0, SABOTAGE_CONCEAL.despairPenalty]) {
+            for (const relief of [0, 1, 2]) {
+                const least = def.thresholds.map(band => {
+                    for (let total = 0; total <= 40; total++) {
+                        const hit = A.sabotageHit({ total, isCritical: false }, { penalty, relief }, def);
+                        const at = hit ? def.thresholds.findIndex(b => b.result === hit.result) : -1;
+                        if (at >= def.thresholds.indexOf(band)) return total;
+                    }
+                    return null;
+                });
+                const shown = bar(def, relief, penalty).map(b => b?.min ?? null);
+                seen.push([penalty, relief, stableJson(shown) === stableJson(least) ? "same" : `shown ${shown.join(" / ")}, judged ${least.join(" / ")}`]);
+            }
+        }
+        equal(stableJson(seen), stableJson([[0, 0, "same"], [0, 1, "same"], [0, 2, "same"],
+            [SABOTAGE_CONCEAL.despairPenalty, 0, "same"], [SABOTAGE_CONCEAL.despairPenalty, 1, "same"], [SABOTAGE_CONCEAL.despairPenalty, 2, "same"]]),
+            "a bar's number is not the least total the judge puts in its band [penalty, relief, verdict]");
+        const src = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/action-rolls.mjs`).then(lfText));
+        const perform = fnSource(src, "performSabotage"), judge = fnSource(src, "sabotageHit");
+        equal(stableJson([/dc:\s*sabotageBar\(def,\s*relief,\s*penalty\)/.test(perform), /sabotageBar\(/.test(judge)]), stableJson([true, true]),
+            "the window's numbers (performSabotage's `dc`) or the judge (`sabotageHit`) do not read `sabotageBar` [window, judge]");
+    }],
 ];
 
 /**

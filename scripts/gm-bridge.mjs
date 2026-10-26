@@ -341,7 +341,8 @@ async function handleObserveTarget(payload, sender, ctx) {
     // computed here for the same reason Observe is: the ledger - the answer
     // key `cleanableRemnants` reads to build the list - lives only on a GM
     // client, and `cleanableTracesForPlayer` (cleanup.mjs) is what strips it
-    // back down to id, label and the reinforced flag before it goes out.
+    // back down to id, label, the reinforced flag and the number the roll window
+    // shows (E16 part 2 C0, the owner's Q7) before it goes out.
 async function handleCleanupTraces(payload, sender, ctx) {
     const { cleanableTracesForPlayer } = await import("./cleanup.mjs");
     return { reply: cleanableTracesForPlayer(payload.actorId, { mine: payload.mine }) };
@@ -3938,9 +3939,9 @@ export async function requestObserveTarget({ actorId, declaration, request = "" 
  * 30-security read an array, and a null on a refusal used to crash one of them.
  * `quiet` for a sheet that asks in the background.
  *
- * @returns {Promise<Array<{id: string, label: string, reinforced: boolean}>>}
- *   Never DC, never `tiedToCrime` - see `cleanableTracesForPlayer` in
- *   cleanup.mjs, which is the only thing that ever builds this array.
+ * @returns {Promise<Array<{id: string, label: string, reinforced: boolean, dc: number|null}>>}
+ *   `dc` for the roll window alone (E16 part 2 C0, the owner's Q7), never `tiedToCrime` - see
+ *   `cleanableTracesForPlayer` in cleanup.mjs, which is the only thing that ever builds this array.
  */
 export async function requestCleanableTraces(actorId, { mine = false, quiet = false } = {}, timeoutMs = TIMING.rulingMs) {
     const res = await ask(ACTION_CLEANUP_TRACES, {

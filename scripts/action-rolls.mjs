@@ -3603,7 +3603,8 @@ async function performSabotage(actor, def, options, preset = null) {
         roll = await rollTrait(actor, trait, {
             actionKey: "sabotage",
             byGm,
-            dc: (def.thresholds ?? []).map(t => Math.max(0, t.min - relief + penalty)).join(" / "),
+            // The bar `sabotageHit` judges, so the window says what the total must reach (E16 C0).
+            dc: sabotageBar(def, relief, penalty).map(band => band.min).join(" / "),
             context: { room, targetProjectId: project.id, penalty, relief, witnesses: witnesses.length }
         });
     } finally {
@@ -3793,12 +3794,28 @@ export function sabotageWatchedLine(actor, room, project) {
 }
 
 /**
+ * The Sabotage table as the roll's own total has to reach it: each band's `min` eased by the readied
+ * tool's `relief` (never below 0), then moved by the concealment's `penalty` - a penalty of -1 (one
+ * thrown with Despair) takes one off the total, so the total must reach one more.
+ *
+ * ONE BAR FOR THE WINDOW AND THE JUDGE (E16 part 2 C0, 26.10.2026; audit S02-14). The window wrote
+ * `t.min - relief + penalty` while `sabotageHit` scored `total + penalty` against the eased bands:
+ * with the Despair concealment's -1 the window read "beat 11 / 17" and a total needed 13 / 19, so an
+ * 11 or a 12 read as a success and came back "Nothing happens.". Both read this now; tier 1's R985
+ * holds each number to the least total the judge puts in its band.
+ */
+export function sabotageBar(def = ACTIONS.sabotage, relief = 0, penalty = 0) {
+    return easedBy(def.thresholds, relief).map(band => ({ ...band, min: band.min - penalty }));
+}
+
+/**
  * The band of the Sabotage table a roll reaches, or null: `penalty` on its total (a concealment
- * thrown with Despair), the readied tool's `relief` off the bands. The one reading `performSabotage`
- * and the GM's band of the Sabotage's trace share (gm-bridge.mjs `traceBandOf`, E08+E28 C15).
+ * thrown with Despair), the readied tool's `relief` off the bands - read as `sabotageBar`, the
+ * numbers the roll window shows. The one reading `performSabotage` and the GM's band of the
+ * Sabotage's trace share (gm-bridge.mjs `traceBandOf`, E08+E28 C15).
  */
 export function sabotageHit(roll, { penalty = 0, relief = 0 } = {}, def = ACTIONS.sabotage) {
-    return roll?.isCritical ? def.critical : resolveThreshold((Number(roll?.total) || 0) + penalty, easedBy(def.thresholds, relief));
+    return roll?.isCritical ? def.critical : resolveThreshold(Number(roll?.total) || 0, sabotageBar(def, relief, penalty));
 }
 
     // Guide's Sabotage table, by the repair project it demands:
@@ -4024,8 +4041,9 @@ async function runTamperChoice(actor, picked, { cleanup, erasable, candidates, v
         if (!traceId) return null;
         // The price is charged inside - `chargeTamper` takes one step of the
         // chain on both routes, after the concealment roll, and charging here as
-        // well would take two (T-1).
-        return cleanup.attemptCleanup(actor, traceId, { viaAction });
+        // well would take two (T-1). The row's number goes to the window (E16 C0).
+        const row = erasable.find(t => t.id === traceId);
+        return cleanup.attemptCleanup(actor, traceId, { viaAction, dc: row?.dc ?? null });
     }
 
     if (picked.value === "reshape") {
@@ -4036,8 +4054,9 @@ async function runTamperChoice(actor, picked, { cleanup, erasable, candidates, v
         // out of the question costs nothing at all.
         const change = await cleanup.askTransformChange(actor);
         if (!change) return null;
+        const row = erasable.find(t => t.id === traceId);
         return cleanup.attemptCleanup(actor, traceId, {
-            viaAction, mode: "transform", change
+            viaAction, mode: "transform", change, dc: row?.dc ?? null
         });
     }
 
@@ -5967,12 +5986,13 @@ async function performDynamic(actor, options) {
     if (cost > 0 && !paid) return null;
     const roll = await rollTrait(actor, picked.trait, {
         actionKey: "dynamic",
-        dc: Array.isArray(band.range) ? `${band.range[0]}-${band.range[1]}` : null,
+        // The number the band passes from (`dynamicBar`), as "beat N" (E16 C0).
+        dc: dynamicBar(band),
         context: { bandIndex: picked.tier, description, room: roomOfActor(actor) }
     });
     if (!roll) return abort(actor, paid);
 
-    const success = roll.isCritical || roll.total >= band.range[0];
+    const success = roll.isCritical || roll.total >= dynamicBar(band);
     const visibility = success ? band.remnant : null;
     let placed = null;
 
@@ -6026,6 +6046,22 @@ async function performDynamic(actor, options) {
 }
 
 /**
+ * The number a Dynamic band passes from: its lower one, or its only one.
+ *
+ * "BEAT N", NOT A RANGE (E16 part 2 C0, 26.10.2026; audit S13-30, the owner's D16: "pasmo zdaje się
+ * od dolnej liczby"). The GM's window offered "8-12 · Trivial" and the roll window read "beat 8-12",
+ * while the engine passes a band from its lower number - here, in reroll.mjs `settleDynamic` and on
+ * the GM who places the trace (gm-bridge.mjs, `ruled.range[0]`) - so a GM who picked Trivial thinking
+ * of 11 saw a 9 succeed. The engine is unchanged; what is shown is its number. Tier 2's E16-T21
+ * reads the GM's window, the roll window and a pass at the number.
+ */
+export function dynamicBar(band) {
+    const range = Array.isArray(band?.range) ? band.range : [band?.range];
+    const n = Number(range[0]);
+    return Number.isFinite(n) ? n : null;
+}
+
+/**
  * The GM's side of a Dynamic action: read what the player described, then set
  * the band and the trait it is rolled against.
  *
@@ -6037,7 +6073,7 @@ async function performDynamic(actor, options) {
  */
 export async function askDynamicDifficulty({ description, actorName, room } = {}) {
     const rows = DYNAMIC_THRESHOLDS.map((t, i) =>
-        `<option value="${i}">${t.range[0]}–${t.range[1]} · ${t.difficulty}</option>`).join("");
+        `<option value="${i}">${game.i18n.format("DRPG.Action.beat", { n: dynamicBar(t) })} · ${t.difficulty}</option>`).join("");
 
     const picked = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Action.dynamicTitle") },

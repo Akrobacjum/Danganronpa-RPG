@@ -199,12 +199,19 @@ export function cleanableRemnants(actor, where = null) {
  * gm-bridge.mjs) actually calls, on behalf of a killer's client that cannot
  * run `cleanableRemnants` itself and get anything back from it.
  *
- * The DC (`cleanupDc`) and `tiedToCrime` never leave this function - that is
- * the answer key `openCleanupDialog` used to have no business rendering
- * client-side and now has no way to, because it never receives them. The label
- * is built from `visibilityLabel`/`typeLabel` for the killer at Stage 6, which
- * the guide already gives them - see the note on `openCleanupDialog` - and off
- * it from the character's own copy (E05 C14, below).
+ * `tiedToCrime` never leaves this function. The label is built from
+ * `visibilityLabel`/`typeLabel` for the killer at Stage 6, which the guide
+ * already gives them - see the note on `openCleanupDialog` - and off it from the
+ * character's own copy (E05 C14, below).
+ *
+ * THE NUMBER TO BEAT DOES LEAVE IT, FOR THE ROLL WINDOW (E16 part 2 C0, 26.10.2026; audit S05-51,
+ * the owner's Q7 of 19.10: "tak"). Each row carries `dc`, what the GM will score an erase of it
+ * against (`cleanupDc`, the tool and a fresh scene taken off), or null for a reinforced trace,
+ * which no number erases. It was kept back here as an answer key, while `attemptCleanup` read it
+ * off the ledger for the window - which a player's browser cannot read, so a player's Tamper
+ * window never said what it had to beat, and the briefing's ladder (`tamperThresholdFacts`) and
+ * the row's band said it anyway. The picker still shows no number; the roll window does, after
+ * the choice. Tier 2's E16-T22 reads the row and the window.
  */
 export function cleanableTracesForPlayer(actorId, { mine = false } = {}) {
     const actor = game.actors.get(actorId);
@@ -317,7 +324,8 @@ export function cleanableTracesForPlayer(actorId, { mine = false } = {}) {
                 copy !== undefined ? game.i18n.format("DRPG.Tamper.yourCopy", { name: copy }) : `${t.data.visibilityLabel} ${t.data.typeLabel}`,
                 t.data.reinforced ? game.i18n.localize("DRPG.Cleanup.reinforcedFlag") : null
             ].filter(Boolean).join(" · "),
-            reinforced: Boolean(t.data.reinforced)
+            reinforced: Boolean(t.data.reinforced),
+            dc: t.data.reinforced ? null : cleanupDc(t.data.visibility, actor)
         };
     });
 }
@@ -508,9 +516,10 @@ async function cleanupTrait(actor, key, viaAction) {
  * give simply cannot keep scrubbing. Refused before the dice when the chain
  * cannot be paid, so nobody rolls for something they cannot pay for.
  *
- * The threshold is not computed here and never travels to this client - see the
- * note at the top of the file. What goes over the socket is which token was
- * aimed at and what the dice said.
+ * The threshold is not scored here - see the note at the top of the file. What
+ * goes over the socket is which token was aimed at and what the dice said. `dc`
+ * is the number the GMs' list gave the chosen trace (`cleanableTracesForPlayer`),
+ * shown on the roll window and nothing else (E16 C0).
  */
 export async function attemptCleanup(actor, tokenId, {
     viaAction = false,
@@ -527,7 +536,9 @@ export async function attemptCleanup(actor, tokenId, {
      */
     mode = "erase",
     /** What the player is trying to turn it into. See `askTransformChange`. */
-    change = null
+    change = null,
+    /** The chosen trace's number off the GMs' list, for the window alone (E16 C0, Q7). */
+    dc = null
 } = {}) {
     if (!actor || !tokenId) return null;
 
@@ -596,13 +607,17 @@ export async function attemptCleanup(actor, tokenId, {
     if (CLEANUP.toolAdvantage && tool) calls.armSituational(1);
 
     // The number this roll will be scored against, on the window (D1): the
-    // same reading `settle` makes below, made once more before the dice.
+    // same reading `settle` makes below, made once more before the dice - from
+    // the GMs' list where the caller has it (a player's browser reads no ledger,
+    // so before E16 C0 its window never said it), else off the ledger here.
     const dcShown = (() => {
         try {
+            const relief = mode === "transform" ? (CLEANUP.transformAction?.dcRelief ?? 0) : 0;
+            const listed = Number.isFinite(Number(dc)) && dc !== null && dc !== "" ? Number(dc) : null;
+            if (listed !== null) return Math.max(0, listed - relief);
             const data = remnantData(findRemnantToken(tokenId));
             if (!data || data.reinforced) return null;
             const base = cleanupDc(data.visibility, actor);
-            const relief = mode === "transform" ? (CLEANUP.transformAction?.dcRelief ?? 0) : 0;
             return base === null ? null : Math.max(0, base - relief);
         } catch { return null; }
     })();
@@ -3150,6 +3165,8 @@ async function restoreStress(actor, amount = 1) {
  * The killer is told what happened to the scene. The GMs are told that plus the
  * threshold it was measured against, because that number is the answer key and
  * the killer must not learn how visible their own traces are by subtraction.
+ * Since E16 part 2 C0 the roll window shows the number to beat before the dice
+ * (the owner's Q7 of 19.10); this card still keeps the scored reading to the GMs.
  */
 async function report(actor, data, {
     band, success, total, dc, done, viaAction = false,
@@ -3202,10 +3219,11 @@ async function report(actor, data, {
  * Pick something to wipe.
  *
  * What the killer is shown is what their character can now see - Stage 6 is the
- * point at which the guide lets them look at their own traces - but NOT how hard
- * any of it is to erase. The threshold comes from a Remnant's visibility, and
- * showing it would hand them a reading of how much evidence they left, which is
- * the trial's whole question. Reinforced traces are the exception and are named
+ * point at which the guide lets them look at their own traces - and this list
+ * says nothing of how hard any of it is to erase. The threshold comes from a
+ * Remnant's visibility; the roll window shows it once a trace is picked, as every
+ * Tamper window does since E16 part 2 C0 (the owner's Q7 of 19.10: the row's
+ * band and the briefing's ladder say it anyway). Reinforced traces are named
  * outright: "this one is not going anywhere" is a decision they have to be able
  * to make.
  *
@@ -3216,7 +3234,8 @@ async function report(actor, data, {
  * client that actually holds the ledger has to compute this, which is exactly
  * what `requestCleanableTraces` asks for: a GM runs it locally, a player asks
  * over the bridge and gets back only what `cleanableTracesForPlayer` (in this
- * same file) is willing to say - no DC, no `tiedToCrime`.
+ * same file) is willing to say - no `tiedToCrime`, and the number to beat for
+ * the roll window alone.
  */
 export async function openCleanupDialog(actor) {
     if (!isCleaner(actor)) return refuseCleanup(actor);
@@ -3269,7 +3288,7 @@ export async function openCleanupDialog(actor) {
     });
 
     if (!picked || picked === "cancel") return null;
-    return attemptCleanup(actor, picked);
+    return attemptCleanup(actor, picked, { dc: traces.find(t => t.id === picked)?.dc ?? null });
 }
 
 /**

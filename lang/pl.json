@@ -2623,6 +2623,7 @@
       "noRegions": "Ta scena nie ma regionów pokoi. Najpierw narysuj je na warstwie regionów."
     },
     "Calls": {
+      "resolveNext": "Następny rzut zapyta, której statystyki użyć.",
       "waitingGm": "Czekamy na GM-a: {call}. Hope zostanie pobrane dopiero przy zgodzie.",
       "approveCost": "{cost} Hope, pobrane tylko przy zgodzie.",
       "hopeTitle": "Hope Calls",
@@ -3842,6 +3843,8 @@
       "gmIncidentNow": "{who} prosi o pokazanie kieszeni: {target}. Ta osoba jest w incydencie, a jej gracza nie ma, więc nikt nie dostaje pytania: {who} od razu słyszy, że nie ma odpowiedzi."
     },
     "Reroll": {
+      "lastRoll": "Twój rzut ({action}): {total} {duality}.",
+      "lastRollPlain": "Twój ostatni rzut: {total} {duality}.",
       "searchNeverRan": "Pokój nie został przeszukany - Search Token odmówiono - więc nie ma czego losować ponownie.",
       "searchStashStands": "Znalezisko ze skrytki zostaje: nowe kości nie otwierają skrytki drugi raz.",
       "passageFound": "Nowy wynik znajduje w tamtym pokoju tajne przejście do: {to}. Gdzie droga jest otwarta, mapa ci je pokazuje.",

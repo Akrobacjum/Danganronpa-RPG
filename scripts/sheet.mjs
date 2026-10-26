@@ -4257,7 +4257,7 @@ async function runCall(actor, key, kind) {
         }
     }
 
-    const note = await confirmCall(call, { kind: despair ? "despair" : "hope", held, choice });
+    const note = await confirmCall(call, { kind: despair ? "despair" : "hope", held, choice, actor });
     if (note === null) return;
 
     if (despair) await spendDespairCallFor(actor, key, { note, choice });

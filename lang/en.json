@@ -2531,6 +2531,7 @@
       "noRegions": "This scene has no room regions. Draw them on the Regions layer first."
     },
     "Calls": {
+      "resolveNext": "Your next roll will ask you which statistic to use.",
       "waitingGm": "Waiting on the GM: {call}. The Hope is charged only if they say yes.",
       "approveCost": "{cost} Hope, charged only on a yes.",
       "hopeTitle": "Hope Calls",
@@ -3688,6 +3689,8 @@
       "gmIncidentNow": "{who} asks {target} to turn out their pockets. {target} is in the incident, and their player is not here, so nobody is asked: {who} hears at once that there is no answer."
     },
     "Reroll": {
+      "lastRoll": "Your {action} roll: {total} {duality}.",
+      "lastRollPlain": "Your last roll: {total} {duality}.",
       "searchNeverRan": "The room was never searched - the search token was refused - so there is nothing to draw again.",
       "searchStashStands": "The stash find stands: new dice do not open the stash twice.",
       "passageFound": "The new result finds a secret passage in that room, to {to}. Where the way is open, your map shows it.",
