@@ -154,8 +154,13 @@ import { WARN_EVERY_MS, TRACE_PATHS } from "./relay-guard.mjs";
  * The module flags only a GM writes (the plan's 2.4), held in the mark and put back. `levelUpExperiences` since
  * E11 C11 (1.2.73): the Level Up's experiences the season reset deletes - a player who unset it would keep them.
  */
-const GM_FLAGS = ["deceased", "monocub", "silencedChapter", "advances", "sheetAtStart", "levelUpExperiences", "lootTrace",
-    "swungWeapon", "betrayalWindow", "monokuma"].map(key => FLAGS[key]);
+const GM_FLAGS = [...["deceased", "monocub", "silencedChapter", "advances", "sheetAtStart", "levelUpExperiences", "lootTrace",
+    "swungWeapon", "betrayalWindow", "monokuma"].map(key => FLAGS[key]),
+    /* The stashes a student has found (vault.mjs `VAULT_FLAGS.found`, written by the GMs' `resolveStashSearch`), since E16
+       part 2 C3 (design-notes D10): its owner could write it, no judgement read it (`kindOf` answered null), and
+       `stealFromVault` opened a concealed stash on it. Spelt here, not imported: this file reaches nothing that imports
+       vault.mjs (R161). E16-T29 holds the two names to one. */
+    "drpgStashesFound"];
 
 /**
  * What the GMs hold of a student's means (C4): each with the direction its price moves

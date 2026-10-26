@@ -1805,6 +1805,39 @@ async function playerInRoom() {
 }
 
 /**
+ * TWO HIDDEN STASHES WHERE A PLAYER'S CHARACTER STANDS (E16 part 2 C3), as "A10-7 stash" hides them: a connected
+ * player's character in a room with no armed trap (a hunt would spring it, and nothing here puts a trap back), the
+ * concealed stashes of two other characters on the room's region, in that order. Answers the player, the character,
+ * where it stands, the two owners, `opened()` - how many of the two it has found - `key(owner)` - the note a find of
+ * that owner's stash writes (vault.mjs `foundKey`) - and `putBack`, which puts the region's flags and the character's
+ * found list back as they were. Ask the world's rows first: it writes.
+ */
+async function hiddenStashesHere() {
+    const V = await import("./vault.mjs");
+    const T = await import("./traps.mjs");
+    const { player, actor, where } = await playerInRoom();
+    const owners = game.actors.filter(a => a.type === "character" && a.id !== actor.id).slice(0, 2);
+    must(owners.length === 2, "the world has no two other characters to own the stashes - this would measure nothing");
+    const region = V.regionsByName(where.scene).get(where.room);
+    must(region, `the room ${where.room} has no region to hide a stash in`);
+    must(!T.diagnoseTraps().rooms.includes(where.room), `a trap is armed in ${where.room} - a hunt would spring it, and this test puts no trap back`);
+    const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
+    const before = keys.map(k => foundry.utils.deepClone(region.getFlag(MODULE_ID, k)));
+    const foundBefore = foundry.utils.deepClone(actor.getFlag(MODULE_ID, V.VAULT_FLAGS.found) ?? null);
+    await region.update({ [`flags.${MODULE_ID}.${V.VAULT_FLAGS.stashes}`]: owners.map(o => ({ actorId: o.id, concealed: true })),
+        [`flags.${MODULE_ID}.${V.VAULT_FLAGS.hinders}`]: [], [`flags.${MODULE_ID}.${V.VAULT_FLAGS.favours}`]: [] });
+    const opened = () => owners.filter(o => V.hasFoundStash(actor, where.room, o.id, where.scene)).length;
+    return { V, player, actor, where, owners, opened, key: owner => `${where.scene.id}::${where.room}::${owner.id}`,
+        putBack: async () => {
+            await region.update(Object.fromEntries(keys.map((k, i) => [`flags.${MODULE_ID}.${k}`, before[i] === undefined ? forcedDeletion() : before[i]])));
+            if (JSON.stringify(actor.getFlag(MODULE_ID, V.VAULT_FLAGS.found) ?? null) !== JSON.stringify(foundBefore)) {
+                if (foundBefore === null) await actor.unsetFlag(MODULE_ID, V.VAULT_FLAGS.found);
+                else await actor.setFlag(MODULE_ID, V.VAULT_FLAGS.found, foundBefore);
+            }
+        } };
+}
+
+/**
  * A FOCUSED GAZE ASKED AS A PLAYER'S BROWSER ASKS IT (E09 C12; audit S05-27). Two traces where a
  * connected player's character stands (`near`, `far`) and one in another room (`away`), each with
  * its own subject; `ask()` judges that player's `observe.target` packet with a "specific"
@@ -69053,6 +69086,240 @@ const SCENARIOS = [
         }), "a Dynamic success gave the GM no card to make its item from, or one too many [a success: its line, its cards (tier, room, words, "
             + "Give, Reply); its Reroll into a success again: stood, new cards; a miss: success, cards; its Reroll into a success: stood, the "
             + "success line among its lines, its cards]");
+    }],
+
+    ["E16-T27 - in a Class Trial Analyze offers only what identifies Truth Bullets, from one list of conditions, and outside one no row is greyed (audit S02-70, the owner's D16)", async () => {
+        /*
+         * E16 part 2 C3, 26.10.2026; E16-47, E16-49. In a Class Trial Analyze's picker offered a GM's hint and a stash
+         * hunt, each paid with an action and then with Hope or Sanity, though in a trial Analyze only identifies Truth
+         * Bullets (the owner's D16: "Płatne opcje Analyze w procesie odfiltrować"); only the passage was taken off, by a
+         * phase test of its own (E80 C3). The GM gives a connected player's character a Truth Bullet it can analyse (a
+         * picker with no row it can press opens no window), then opens that character's Analyze, free, in a Class Trial
+         * and outside one. Read: the picker's rows each time, as [value, greyed]; then the filter as action-rolls.mjs
+         * exports it - its rows, each with a condition - and the rows it shuts in a trial and outside one (session 0:
+         * "jeden filtr ... jako listę warunków, do której E70 dopisze ten odczyt": no Key Remnant row here).
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the character is a connected player's, as the other tests' are");
+        const A = await import("./action-rolls.mjs");
+        const T = await import("./truth-bullets.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const player = game.users.find(u => !u.isGM && u.active && game.actors.some(a => a.type === "character" && a.testUserPermission(u, "OWNER")));
+        const actor = game.actors.find(a => a.type === "character" && a.testUserPermission(player, "OWNER"));
+        const phase = getClock()?.phase ?? "dailyLife";
+        const offered = [];
+        const windows = answerWindows((cfg, root) => {
+            const rows = [...root.querySelectorAll('input[name="variant"]')];
+            if (!rows.length) return press(cfg, root);
+            offered.push(rows.map(r => [r.value, r.disabled]));
+            return null;
+        });
+        let bullet = null;
+        const read = {};
+        try {
+            bullet = await T.createTruthBullet(actor, { name: "SUITE E16-T27 a torn note", playerText: "SUITE E16-T27" });
+            await sheetAuditIdle();
+            must(bullet && T.analysableBullets(actor).some(b => b.id === bullet.id), "the bullet was not made analysable - the trial's picker would open no window and this would measure nothing");
+            for (const at of ["classTrial", "investigation"]) {
+                await setClock({ phase: at });
+                const was = offered.length;
+                await A.performAction(actor, "analyze", { free: true });
+                await settle();
+                read[at] = offered.slice(was);
+            }
+        } finally {
+            windows.restore();
+            await setClock({ phase });
+            if (bullet) {
+                if (actor.items.has(bullet.id)) await actor.items.get(bullet.id).delete();
+                await T.dropSecret(bullet.uuid);
+            }
+            await sheetAuditIdle();
+        }
+        const list = A.ANALYZE_TRIAL_FILTER;
+        read.list = Array.isArray(list) ? list.map(entry => [entry?.row ?? null, typeof entry?.shut]) : null;
+        read.shut = typeof A.analyzeRowShut === "function" ? ["classTrial", "investigation", "dailyLife"].map(at =>
+            ["bullet", "hint", "stash", "passage"].filter(row => A.analyzeRowShut(row, { phase: at }))) : null;
+        const all = ["bullet", "hint", "stash", "passage"].map(v => [v, false]);
+        equal(stableJson(read), stableJson({
+            classTrial: [[["bullet", false]]],
+            investigation: [all],
+            list: [["hint", "function"], ["stash", "function"], ["passage", "function"]],
+            shut: [["hint", "stash", "passage"], [], []]
+        }), "in a Class Trial Analyze offered a row that identifies no Truth Bullet, outside one a row was missing or greyed, or the filter is not one "
+            + "list of conditions [the picker's rows in a trial and in an investigation as [value, greyed]; the exported filter's rows and their "
+            + "conditions' kind; the rows it shuts in a trial, an investigation and daily life]");
+    }],
+
+    ["E16-T28 - in a Class Trial the GMs refuse a stash hunt whoever asks, before its throw is read: a picker's choice, a player's packet, a GM's own search and a Reroll of a hunt thrown before the trial; the passage stays refused (audit S02-70, the owner's D16)", async () => {
+        /*
+         * E16 part 2 C3, 26.10.2026; E16-48. The harm: in a trial a stash hunt opened another student's hiding place,
+         * whoever asked - the picker offered it, and nothing on the GMs' side read the phase (vault.mjs
+         * `resolveStashSearch`; the passage's search did since E80 C3) - so a console's `vault.findStash`, a GM's own
+         * search and a Reroll of a hunt thrown before the trial each opened one ("także z pakietu"). A connected player's
+         * character in a room holding the concealed stashes of two other characters (`hiddenStashesHere`). In an
+         * investigation a roll of theirs kept on the GMs at 12 (`playerRollBookmark`) and its `vault.findStash` judged as
+         * the bridge judges that player's packet, a miss; then, in a Class Trial: that roll's Reroll made on this GM as
+         * theirs, 12 into 17 (`rerollAgain`); a second roll of theirs at 20 and its packet; this GM's own search at 30
+         * (gm-bridge.mjs `requestStashSearch`); the character's Analyze on this GM, paid, its picker answered "stash" and
+         * then "hint" though neither row is offered (a window that names one anyway); the passage's search on this GM.
+         * Read after each: what it answered, what was sent back or said here, how many of the two stashes the character
+         * has found, the hunts a trap was told of, and for the Reroll and the picker the Hope and actions as they were and
+         * the messages they posted. The price of a hunt refused after its throw (a trial opened while the dice were in the
+         * air) comes back by the owner's Q3 of 18.10, read in action-rolls.mjs `locateStash` and not driven here.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the stashes are in the room the player's character stands in");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
+        needs(world.atLeast("livingStudents", 3), "a finder and two other students whose stashes are hidden in that room");
+        const B = await import("./gm-bridge.mjs");
+        const P = await import("./passages-gm.mjs");
+        const T = await import("./truth-bullets.mjs");
+        const { performAction } = await import("./action-rolls.mjs");
+        const { ACTIONS, ACTIONS_RESOURCE } = await import("./config.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        must((ACTIONS.analyze?.stashThreshold ?? 16) === 16, "the stash's threshold is not 16 - 12 and 17 would not straddle it");
+        const phase = getClock()?.phase ?? "dailyLife";
+        const S = await hiddenStashesHere();
+        const { player, actor, opened } = S;
+        const hope = actor.system.resources.hope.value, actions = actor.system.resources[ACTIONS_RESOURCE].value;
+        const seen = new Set(game.messages.map(m => m.id));
+        const locked = game.i18n.localize("DRPG.Bridge.why.trialLocked");
+        const said = [], hunts = [], read = {};
+        const warn = ui.notifications.warn;
+        ui.notifications.warn = (text, ...rest) => { said.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+        const hear = Hooks.on("drpgStashHunted", event => { hunts.push(event?.actor?.id ?? null); });
+        let pick = null;
+        const windows = answerWindows((cfg, root) => root.querySelector('input[name="variant"]')
+            ? { value: pick, trait: null, form: root.querySelector("form") ?? root } : press(cfg, root));
+        let F = null, bullet = null;
+        const toldHere = () => said.splice(0).some(text => text.includes(locked));
+        try {
+            await setClock({ phase: "investigation" });
+            F = await playerRollBookmark(player, actor, "analyze", {}, { record: { total: 12 } });
+            const first = await F.ask({ action: "vault.findStash", requestId: `E16T28${foundry.utils.randomID(8)}`, actorId: actor.id,
+                total: 12, isCritical: false, rollId: F.message.id });
+            await settle();
+            must(first && opened() === 0 && hunts.length === 1, `the first search at 12 was refused, opened a stash or told no trap - this would measure nothing: ${stableJson([first, F.sent, hunts])}`);
+            await setClock({ phase: "classTrial" });
+            await trustedWrite(actor, { "system.resources.hope.value": Math.max(3, hope) }, { reason: "gmRuling" });
+            const held = actor.system.resources.hope.value;
+            const { out } = await rerollAgain(actor, F.message, { hope: 7, fear: 5 }, { hope: 10, fear: 7 });
+            read.reroll = [Array.isArray(out?.lines), out?.say ?? null, opened(), actor.system.resources.hope.value === held, hunts.length - 1];
+            await F.putBack();
+            F = await playerRollBookmark(player, actor, "analyze", {}, { record: { total: 20 } });
+            const sent = F.sent.length;
+            const packet = await F.ask({ action: "vault.findStash", requestId: `E16T28${foundry.utils.randomID(8)}`, actorId: actor.id,
+                total: 20, isCritical: false, rollId: F.message.id });
+            await settle();
+            read.packet = [Boolean(packet), F.sent.slice(sent).map(([action, reason]) => [action, reason ?? null]), opened(), hunts.length - 1];
+            said.length = 0;
+            const own = await B.requestStashSearch({ actorId: actor.id, total: 30, isCritical: true });
+            await settle();
+            read.gm = [Boolean(own.ok), Boolean(own.value?.refused), toldHere(), opened(), hunts.length - 1];
+            bullet = await T.createTruthBullet(actor, { name: "SUITE E16-T28 a torn note", playerText: "SUITE E16-T28" });
+            await trustedWrite(actor, { [`system.resources.${ACTIONS_RESOURCE}.value`]: Math.max(2, actions) }, { reason: "gmRuling" });
+            await sheetAuditIdle();
+            must(bullet && T.analysableBullets(actor).some(b => b.id === bullet.id), "the bullet was not made analysable - the trial's picker would open no window and this would measure nothing");
+            for (const choice of ["stash", "hint"]) {
+                pick = choice;
+                const before = actor.system.resources[ACTIONS_RESOURCE].value, posted = new Set(game.messages.map(m => m.id));
+                said.length = 0;
+                const outcome = await performAction(actor, "analyze", {});
+                await settle();
+                read[choice] = [outcome ?? null, actor.system.resources[ACTIONS_RESOURCE].value === before,
+                    game.messages.filter(m => !posted.has(m.id)).length, toldHere(), opened(), hunts.length - 1];
+            }
+            const passage = await P.resolvePassageSearch({ actorId: actor.id, total: 30, isCritical: true });
+            read.passage = passage?.refused ?? null;
+        } finally {
+            ui.notifications.warn = warn;
+            Hooks.off("drpgStashHunted", hear);
+            windows.restore();
+            await F?.putBack();
+            await setClock({ phase });
+            if (bullet) {
+                if (actor.items.has(bullet.id)) await actor.items.get(bullet.id).delete();
+                await T.dropSecret(bullet.uuid);
+            }
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete();
+            await S.putBack();
+            await trustedWrite(actor, { "system.resources.hope.value": hope, [`system.resources.${ACTIONS_RESOURCE}.value`]: actions }, { reason: "gmRuling" });
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson({
+            reroll: [false, "DRPG.Reroll.failed", 0, true, 0],
+            packet: [false, [["bridge.ack", null], ["bridge.refused", "trialLocked"]], 0, 0],
+            gm: [true, true, true, 0, 0],
+            stash: [null, true, 0, true, 0, 0],
+            hint: [null, true, 0, true, 0, 0],
+            passage: "the Class Trial is in session"
+        }), "in a Class Trial a stash hunt was carried out, a trap told of it, its price kept or its refusal not told, or the passage searched "
+            + "[a Reroll of a hunt thrown before the trial: stood, what it said, stashes found, the Hope given back, hunts; a player's packet: its verdict, "
+            + "what was sent back (its \"got it\" first: `vault.findStash` is answered \"ack\"), found, hunts; this GM's own search: answered, refused, told here, found, hunts; the picker naming the stash and the "
+            + "hint: what the Analyze answered, the actions untouched, messages posted, told here, found, hunts; the passage's search: its refusal]");
+    }],
+
+    ["E16-T29 - a student's own write of the stashes it has found is put back, and the GMs' search reads the list they hold (design-notes D10)", async () => {
+        /*
+         * E16 part 2 C3, 26.10.2026; E16-50, beyond the plan (design-notes D10). The list of stashes a student has found
+         * (vault.mjs `VAULT_FLAGS.found`) is written by the GMs' search alone, but it is a flag on the student, which its
+         * owner can write: no judgement read it (sheet-audit.mjs `kindOf` answered null), and `stealFromVault` opens a
+         * concealed stash to a thief whose list names it. A connected player's character in a room holding the concealed
+         * stashes of two other characters (`hiddenStashesHere`), outside a Class Trial. Its player's own write of the list
+         * naming the first stash, as tier 2 makes a player's write (`asPlayerWrite`): read the audit's verdict and the
+         * list after it. Then the same write with its put-back held off (a hook refusing it, the state before a put-back
+         * lands), and this GM's search for the character at 30: read whose stash it opened and the list on the sheet and
+         * in the GMs' mark after it. A search reading the sheet takes the first stash as found already, opens the second,
+         * and carries the player's note into the GMs' own write.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the stashes are in the room the player's character stands in");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the write is a connected player's, as Foundry names only those");
+        needs(world.atLeast("livingStudents", 3), "a finder and two other students whose stashes are hidden in that room");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const phase = getClock()?.phase ?? "dailyLife";
+        const S = await hiddenStashesHere();
+        const { V, player, actor, owners } = S;
+        const PATH = `flags.${MODULE_ID}.${V.VAULT_FLAGS.found}`;
+        const listNow = () => foundry.utils.deepClone(actor.getFlag(MODULE_ID, V.VAULT_FLAGS.found) ?? null);
+        const was = listNow();
+        const seen = new Set(game.messages.map(m => m.id));
+        const read = {};
+        try {
+            if (phase === "classTrial") await setClock({ phase: "investigation" });
+            const judged = await asPlayerWrite(actor, { [PATH]: [S.key(owners[0])] }, player);
+            await sheetAuditIdle();
+            await settle();
+            read.write = [judged?.verdict ?? null, stableJson(listNow()) === stableJson(was)];
+            equal(stableJson(read.write), stableJson(["putBack", true]),
+                "a player's own write of the stashes their character has found was not put back [the audit's verdict, the list as it was]");
+            // The put-back held off, as scenario 30 refuses one (`inConsoleWindow` compares one value a path, not a list).
+            let out = null;
+            const veto = Hooks.on("preUpdateActor", (doc, changes, options) =>
+                doc.id === actor.id && options?.drpgWrite?.reason === "auditPutBack" ? false : undefined);
+            try {
+                const forged = await asPlayerWrite(actor, { [PATH]: [S.key(owners[0])] }, player);
+                await sheetAuditIdle();
+                must(forged?.verdict === "putBack" && stableJson(listNow()) === stableJson([S.key(owners[0])]),
+                    `the player's note was not left on the sheet with its put-back held off - this would measure nothing: ${stableJson([forged?.verdict, listNow()])}`);
+                out = await V.resolveStashSearch({ actorId: actor.id, total: 30, isCritical: true });
+                await settle();
+                await sheetAuditIdle();
+            } finally {
+                Hooks.off("preUpdateActor", veto);
+                await sheetAuditIdle();
+            }
+            read.search = [Boolean(out?.found), out?.owner ?? null, listNow(), foundry.utils.deepClone(sheetMarkStore.get(actor.id)?.flags?.[V.VAULT_FLAGS.found] ?? null)];
+        } finally {
+            await setClock({ phase });
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete();
+            await S.putBack();
+            await sheetAuditIdle();
+        }
+        const mine = [S.key(owners[0])];
+        equal(stableJson(read.search), stableJson([true, owners[0].name, mine, mine]),
+            "the GMs' search read the player's own note of a stash: it skipped that stash, opened another, or carried the note into the GMs' write "
+            + "[found, whose stash, the list on the sheet and in the GMs' mark after it]");
     }],
 
     ...GRID

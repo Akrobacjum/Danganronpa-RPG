@@ -1754,7 +1754,8 @@ async function settleStashFind(actor, bookmark, after, done) {
     const { resolveStashSearch } = await import("./vault.mjs");
     const out = await resolveStashSearch({ actorId: actor.id, total: after.total, isCritical: after.isCritical, replay: true,
         at: bookmark.findPlace ?? null });
-    if (!out || out.reason === "noRoom") return null;
+    // Refused in a Class Trial (E16 part 2 C3): a hunt thrown before the trial opens nothing in it; the Reroll back whole.
+    if (!out || out.refused || out.reason === "noRoom") return null;
     done.push(game.i18n.localize(out.found ? "DRPG.Reroll.stashFound" : "DRPG.Reroll.searchNothing"));
     return out.found ? { stashFound: true } : {};
 }

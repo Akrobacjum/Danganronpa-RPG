@@ -5123,6 +5123,32 @@ async function askDeclaration(actor, def) {
     return { declaration: picked.value, request: readRequestField(picked.form) };
 }
 
+/*
+ * ONE CLASS TRIAL FILTER FOR ANALYZE (E16 part 2 C3, 26.10.2026; audit S02-70, the owner's D16: "Płatne opcje Analyze w
+ * procesie odfiltrować" ... "odmawia choice 'hint' i 'stash' w classTrial, także z pakietu"). In a trial Analyze only
+ * identifies Truth Bullets: its picker offered a GM's hint and a stash hunt there, each paid with an action and then with
+ * Hope or Sanity, and only the passage was taken off (E80 C3, by a phase test of its own). One list now, read by the
+ * picker (`askWhatToAnalyze`) and by `performAnalyze` before the price, whatever the picker returned: a row of the picker
+ * (`row`: "bullet", "hint", "stash", "passage") with the condition that shuts it in a Class Trial (`shut`, handed the
+ * row's context: for "bullet" the bullet). Outside a trial no row is shut, so none is greyed (the owner, 11.10 A10:
+ * "E16 zostawia jeden filtr, a wiersz poza rozprawą nigdy nie jest wyszarzony"). E70 appends its Key Remnant read here,
+ * with its test in 66-trial-modes (session 0, 11.10); Frisk is no row (13.10 A11: the GM-online check covers it). The
+ * GMs refuse the stash hunt in a trial on their side too (vault.mjs `resolveStashSearch`), and the passage
+ * (passages-gm.mjs `resolvePassageSearch`): this list is the player's window, not the protection.
+ */
+export const ANALYZE_TRIAL_FILTER = [
+    { row: "hint", shut: () => true },
+    { row: "stash", shut: () => true },
+    { row: "passage", shut: () => true }
+];
+
+/** Whether `row` of the Analyze picker is shut now (`ANALYZE_TRIAL_FILTER`): only in a Class Trial, by one of its conditions. */
+export function analyzeRowShut(row, { phase = getClock()?.phase, ...context } = {}) {
+    return phase === "classTrial" && ANALYZE_TRIAL_FILTER.some(entry => entry.row === row && entry.shut(context));
+}
+
+/* The request whose refusal a shut row is told as (bridge-guards.mjs `sayNotDone`). */
+const ANALYZE_ROW_REQUEST = Object.freeze({ bullet: "analyze.resolve", hint: "analyze.resolve", stash: "vault.findStash", passage: "passage.find" });
 
 /**
  * Analyze: one action, two uses, and they no longer end the same way.
@@ -5185,10 +5211,12 @@ async function performAnalyze(actor, def, options) {
      * paid for, the dice were thrown, and the packet was dropped on the way out.
      */
     const { gmOnline, sayNotDone } = await import("./bridge-guards.mjs");
-    // Find Passage is no road in a Class Trial (E80 C3): its row is not offered there, and an
-    // Analyze that names it anyway is refused here, before the price - the GM refuses it too.
-    if (choice === "passage" && getClock().phase === "classTrial") {
-        sayNotDone("passage.find", "trialLocked", { nothingSpent: true });
+    // A row the Class Trial filter shuts (`ANALYZE_TRIAL_FILTER`; E80 C3 for the passage, E16 part 2 C3 for the hint and
+    // the stash) is not offered there, and an Analyze that names it anyway is refused here, before the price - the GMs
+    // refuse the stash hunt and the passage too.
+    const row = ruled ? choice : "bullet";
+    if (analyzeRowShut(row, { bullet: subject })) {
+        sayNotDone(ANALYZE_ROW_REQUEST[row], "trialLocked", { nothingSpent: true });
         return null;
     }
     if (!gmOnline()) {
@@ -5386,6 +5414,15 @@ async function locateStash(actor, def, roll, request = "", charge = null) {
         sayNotDone("vault.findStash", "noGm", { nothingSpent: true });
         return null;
     }
+    /* A CLASS TRIAL OPENED WHILE THE DICE WERE IN THE AIR (E16 part 2 C3): the GMs refuse the hunt before its throw is
+       read (vault.mjs `resolveStashSearch`), so the price comes back - by analogy with E14 part 1's Q3 ("a refusal before
+       the rolls are read refunds", 18.10). Asked here, where the price is known; the GMs' refusal of a player's packet is
+       told by the bridge after its "got it" (`vault.findStash` is answered "ack"), when this function has returned. */
+    if (analyzeRowShut("stash")) {
+        if (charge) await refundPrice(actor, charge);
+        sayNotDone("vault.findStash", "trialLocked", { nothingSpent: true });
+        return null;
+    }
 
     const res = await requestStashSearch({
         actorId: actor.id,
@@ -5394,6 +5431,12 @@ async function locateStash(actor, def, roll, request = "", charge = null) {
         // The roll the GM scores the search on, from its own record of it (E08+E28 C14).
         rollId: rollInHand(actor)?.messageId ?? null
     });
+    // A GM's own search refused (in a Class Trial) settles as done with `{ refused }` as its value, said already by
+    // `requestStashSearch`: the price back, and no fact of a search on the roll.
+    if (res.ok && res.value?.refused) {
+        if (charge) await refundPrice(actor, charge);
+        return null;
+    }
 
     // NOT `gmRuled`. A Reroll replays this from a threshold (reroll.mjs `settleStashFind`, E80 C4), on the GMs'
     // facts that this roll was a Find Stash and whether it opened one: a player's written by gm-bridge.mjs
@@ -5505,13 +5548,14 @@ async function askWhatToAnalyze(actor, def, bullets) {
                     n: def.stashThreshold
                 })
             },
-            // Never disabled either (`locatePassage`), and in every room; not offered in a Class Trial (E80 C3).
-            ...(getClock().phase === "classTrial" ? [] : [{
+            // Never disabled either (`locatePassage`), and in every room.
+            {
                 value: "passage", icon: "fa-dungeon",
                 label: game.i18n.localize("DRPG.Analyze.findPassage"),
                 hint: game.i18n.format("DRPG.Analyze.findPassageHint", { n: def.passageThreshold })
-            }])
-        ],
+            }
+        // In a Class Trial the rows the filter shuts are not offered at all (`ANALYZE_TRIAL_FILTER`), never greyed.
+        ].filter(option => !analyzeRowShut(option.value)),
         extra: `${bullets.length
             ? `<label>${game.i18n.localize("DRPG.Analyze.whichBullet")}
                 <select name="bullet">${bullets

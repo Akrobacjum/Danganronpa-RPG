@@ -718,6 +718,8 @@ async function handleFindStash(payload, sender, ctx) {
         total: payload.total,
         isCritical: payload.isCritical
     });
+    // Refused in a Class Trial (E16 part 2 C3, S02-70) before the throw is read: told by its code, and no fact on the roll.
+    if (out?.refused) return { refused: out.refused };
     // The GMs' fact on the roll the packet names (E80 C4, S16-19): it was a Find Stash, and whether it opened one. Its
     // Reroll replays the search from these (reroll.mjs `settleStashFind`), never from the roller's word - in the place
     // this search was made (`findPlace`, E80 fix r1-G4; the review's E80-G-1), never where the student stands by then.
@@ -4303,7 +4305,12 @@ export function requestPlant({
  */
 export function requestStashSearch({ actorId, total = 0, isCritical = false, rollId = null }) {
     return ask(ACTION_FIND_STASH, { actorId, total, isCritical, rollId }, {
-        local: () => import("./vault.mjs").then(m => m.resolveStashSearch({ actorId, total, isCritical }))
+        // A GM's own search refused (in a Class Trial, E16 part 2 C3) is said as the bridge would say it to a player, and its
+        // answer keeps the refusal, which action-rolls.mjs `locateStash` reads to give the price back.
+        local: () => import("./vault.mjs").then(m => m.resolveStashSearch({ actorId, total, isCritical })).then(out => {
+            if (out?.refused) sayNotDone(ACTION_FIND_STASH, reasonOf(out.refused));
+            return out;
+        })
     });
 }
 
