@@ -22936,6 +22936,10 @@ const INVARIANTS = [
          * `paintElapsed` prints), `unpausePatch(clock, now)` (what `settleElapsedPause` writes), `readyPatch(clock,
          * { paused, beat, now })` (the primary's stamp at ready, `beat` the GMs' "clockBeat" record), `showsStopwatch`
          * (the HUD's line) and day-summary.mjs `summarySince`. Red at 3efafbd0: none of them exists.
+         * E17 fix p2-G1 (26.10.2026; the end review's E17p2-R1 and R5 of both lenses): the beat lives in one GM's browser,
+         * so it is read with the clock's own last write (`writtenAt`, stamped by clock.mjs `setClock`) - the moment of the
+         * last unpause at least, so a gap is never counted over a pause already in `pausedTotalMs`, and a GM's browser with
+         * no beat still knows when a GM was last here. Red at 91819dc1 on the five new cases and the beat before the start.
          */
         const J = stableJson;
         const H = await import("./hud.mjs");
@@ -22968,7 +22972,13 @@ const INVARIANTS = [
                 H.readyPatch(c(), { paused: false, beat: T + 10 * M, now: T + 70 * M }),
                 H.readyPatch(c(), { paused: false, beat: T + 70 * M - 30000, now: T + 70 * M }),
                 H.readyPatch(c({ pausedAt: T + 20 * M, pausedTotalMs: M }), { paused: false, beat: null, now: T + 70 * M }),
-                H.readyPatch(c({ timeOfDayStartedAt: null }), { paused: true, beat: null, now: T })
+                H.readyPatch(c({ timeOfDayStartedAt: null }), { paused: true, beat: null, now: T }),
+                // E17 fix p2-G1: the clock's own last write (`writtenAt`) is a moment a GM was here too
+                H.readyPatch(c({ writtenAt: T + 30 * M }), { paused: true, beat: T + 10 * M, now: T + 70 * M }),
+                H.readyPatch(c({ writtenAt: T + 30 * M }), { paused: true, beat: null, now: T + 70 * M }),
+                H.readyPatch(c({ pausedTotalMs: 10 * M, writtenAt: T + 70 * M - 30000 }), { paused: false, beat: T + 10 * M, now: T + 70 * M }),
+                H.readyPatch(c({ writtenAt: T + 20 * M }), { paused: false, beat: T + 10 * M, now: T + 70 * M }),
+                H.readyPatch(c({ pausedTotalMs: 5 * M, writtenAt: T + 15 * M }), { paused: true, beat: T - 10 * M, now: T + 70 * M })
             ] : null,
             shows: has("showsStopwatch") ? [c(), c({ eclipse: true }), c({ phase: "classTrial" })].map(x => H.showsStopwatch(x)) : null,
             since: typeof DS.summarySince === "function" ? [DS.summarySince(c()), DS.summarySince(c({ timeOfDayStartedAt: null })), DS.summarySince(null)] : null
@@ -22981,15 +22991,19 @@ const INVARIANTS = [
         equal(J(got), J({
             elapsed: [10, 10, 10, 0, 5, null, null],
             unpause: [{ pausedTotalMs: 31 * M, pausedAt: null }, null, { pausedTotalMs: 10 * M, pausedAt: null }, null],
-            ready: [{ pausedAt: T + 10 * M }, { pausedAt: T + 70 * M }, { pausedAt: T }, null, { pausedTotalMs: 60 * M }, null,
-                { pausedTotalMs: 51 * M, pausedAt: null }, null],
+            ready: [{ pausedAt: T + 10 * M }, { pausedAt: T + 70 * M }, { pausedAt: T + 70 * M }, null, { pausedTotalMs: 60 * M }, null,
+                { pausedTotalMs: 51 * M, pausedAt: null }, null,
+                { pausedAt: T + 30 * M }, { pausedAt: T + 30 * M }, null, { pausedTotalMs: 50 * M }, { pausedAt: T + 15 * M }],
             shows: [true, false, false],
             since: [T, null, null],
             source: [true, true, false, true, true]
         }), "{elapsed: minutes running 10, paused at 10 an hour later, after 30 paused, paused since before the stamp, a stale stamp while "
             + "running, an Eclipse, no stamp; unpause: the patch after 30 minutes paused, with no stamp, from before the start, no start; ready: "
             + "the patch of a world loaded paused with a beat, with none, with a beat before the start, paused with its stamp, running with a beat "
-            + "an hour old, half a minute old, running with a stale pause, no start; shows: the line in Daily Life, an Eclipse, a trial; since: "
+            + "an hour old, half a minute old, running with a stale pause, no start (E17 fix p2-G1: a beat from before the start is none, so the stamp is now - "
+            + "never the start, which would take the pauses already counted off again); with the clock last written after the beat, written with no beat "
+            + "in this browser, running just after an unpause with an old beat, running with the clock written after the beat, paused with a stale beat and "
+            + "a pause counted; shows: the line in Daily Life, an Eclipse, a trial; since: "
             + "the summary's start with a stamp, without, no clock; source: paintElapsed reads elapsedOf, settleElapsedPause writes unpausePatch and "
             + "writes no start, renderHud asks showsStopwatch, showDaySummary asks summarySince}");
     }],

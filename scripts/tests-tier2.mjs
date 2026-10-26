@@ -71617,6 +71617,9 @@ const SCENARIOS = [
          * R996). At 3efafbd0, which has neither the reading nor the ready stamp, the old line's own arithmetic is read
          * (the stamp less the start, frozen at `pausedAt`). The beat is the primary's `beatClock`. The clock, the pause
          * and the beat are put back.
+         * E17 fix p2-G1 (26.10.2026; the end review's E17p2-R1, R5): (d) a pause settled and a reload before the next
+         * beat - the pause was counted twice; (e) a GM's browser with no beat - the gap between sessions was counted. The
+         * clock's planted `writtenAt` (clock.mjs `setClock` stamps every write) is the moment its last write would have had.
          */
         needs(env.primaryGm());
         const J = stableJson;
@@ -71653,7 +71656,7 @@ const SCENARIOS = [
             const now1 = serverNow();
             await setClock({ timeOfDayStartedAt: now1 - 70 * M, pausedTotalMs: 0, pausedAt: null });
             await pause(true);
-            await setClock({ pausedAt: null });
+            await setClock({ pausedAt: null, writtenAt: now1 - 60 * M });
             if (beats) await beats.patch(RECORD, { at: now1 - 60 * M });
             await H.settleClockAtReady?.();
             const atReady = minutes();
@@ -71663,7 +71666,7 @@ const SCENARIOS = [
             // (c) the same gap, the world running at ready. The beat is written last: the primary's own beat runs
             // every 60 s while the world runs, and would write over it in between (in (b) the world is paused).
             const now2 = serverNow();
-            await setClock({ timeOfDayStartedAt: now2 - 70 * M, pausedTotalMs: 0, pausedAt: null });
+            await setClock({ timeOfDayStartedAt: now2 - 70 * M, pausedTotalMs: 0, pausedAt: null, writtenAt: now2 - 60 * M });
             if (beats) await beats.patch(RECORD, { at: now2 - 60 * M });
             await H.settleClockAtReady?.();
             read.running = minutes();
@@ -71672,6 +71675,29 @@ const SCENARIOS = [
                 ? Math.floor(H.elapsedOf({ ...getClock(), eclipse: false }, { now: serverNow() + 2 * M, paused: false }) / M) : null;
             await H.beatClock?.();
             read.beat = beats ? Math.abs(Number(beats.record().at) - serverNow()) < 5000 : false;
+            // (d) E17 fix p2-G1: a pause of thirty settled, then a reload before the next beat - the beat from before the
+            // pause is thirty-one minutes old, and the pause is in `pausedTotalMs` already.
+            const now3 = serverNow();
+            await setClock({ timeOfDayStartedAt: now3 - 40 * M, pausedTotalMs: 0, pausedAt: null });
+            if (beats) await beats.patch(RECORD, { at: now3 - 31 * M });
+            await pause(true);
+            await setClock({ pausedAt: now3 - 30 * M });
+            await pause(false);
+            const unpaused = minutes();
+            await H.settleClockAtReady?.();
+            read.unpauseReload = [unpaused, minutes(), Math.abs(Number(getClock().writtenAt) - serverNow()) < 5000];
+            // (e) E17 fix p2-G1: the world loads paused on a GM's browser that holds no beat (another computer, a cleared
+            // profile), the clock last written an hour ago, ten minutes into the time of day.
+            const now4 = serverNow();
+            await setClock({ timeOfDayStartedAt: now4 - 70 * M, pausedTotalMs: 0, pausedAt: null });
+            await pause(true);
+            await setClock({ pausedAt: null, writtenAt: now4 - 60 * M });
+            if (beats) await beats.patch(RECORD, { at: null });
+            await H.settleClockAtReady?.();
+            const noBeat = minutes();
+            await game.togglePause(false);
+            await until(() => !getClock().pausedAt, 3000);
+            read.noBeat = [noBeat, minutes()];
         } finally {
             if (game.paused !== wasPaused) {
                 await game.togglePause(wasPaused);
@@ -71681,10 +71707,12 @@ const SCENARIOS = [
             if (beats) await beats.patch(RECORD, { at: beatWas?.at ?? null });
             await settle();
         }
-        equal(J(read), J({ pause: [10, 10, 10, true], gap: [10, 10], running: 10, runsOn: 12, beat: true }),
+        equal(J(read), J({ pause: [10, 10, 10, true], gap: [10, 10], running: 10, runsOn: 12, beat: true, unpauseReload: [10, 10, true], noBeat: [10, 10] }),
             "{pause: [the minutes paused after ten played, after the reload, unpaused, the start where it was]; gap: [the minutes at the "
             + "reload of a world loaded paused with the last beat an hour old, unpaused]; running: the same gap with the world running; "
-            + "runsOn: the minutes two minutes later; beat: the primary's beat written now}");
+            + "runsOn: the minutes two minutes later; beat: the primary's beat written now; unpauseReload: [the minutes after a pause of thirty "
+            + "settled, after a reload at once with the beat from before the pause, the clock's write stamped now]; noBeat: [the minutes at the "
+            + "reload of a world loaded paused on a browser with no beat, the clock written an hour ago, unpaused]}");
     }],
 
     ["the Eclipse and the incident (E17-T10): no Eclipse starts while an incident's opening or fight runs and the HUD's chevron says why, a motive that comes due in it reaches the incident's table alone and comes due in public after it, and a bystander's reload shows the clock the incident opened at", async () => {

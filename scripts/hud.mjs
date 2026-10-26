@@ -292,19 +292,35 @@ export const CLOCK_BEAT_MS = 60_000;
 
 /**
  * The clock's patch for the primary's `ready`, or null (E17 C6, 26.10.2026; audit S10-16).
- * `beat` is the GMs' last beat (`clockBeatStore`), or null; read as the later of it and
- * the time of day's start - before the start, the start is the last moment a GM is known
- * to have been here. A world that loads paused with no stamp is stamped at that moment,
- * so the unpause takes the gap off with the pause; with no beat at all, at `now` (as
- * before E17: nothing says when the last session ended). A world running at ready whose
- * beat is older than two beats was left by its primary: the gap is added to the pauses.
- * A stamp standing while the world runs is a pause whose end nobody settled: settled
- * now, the whole of it a pause. Pure (R996).
+ * The last moment a GM is known to have been here is the later of the GMs' last beat
+ * (`beat`, `clockBeatStore`, or null) and the clock's own last write (`writtenAt`, clock.mjs
+ * `setClock`), each read only at or after the time of day's start. A world that loads paused
+ * with no stamp is stamped at that moment, so the unpause takes the gap off with the pause;
+ * with neither known, at `now` (as before E17: nothing says when the last session ended). A
+ * world running at ready whose last known moment is older than two beats was left by its
+ * primary: the gap is added to the pauses. A stamp standing while the world runs is a pause
+ * whose end nobody settled: settled now, the whole of it a pause. Pure (R996).
+ *
+ * THE CLOCK'S WRITE BESIDE THE BEAT (E17 fix p2-G1, 26.10.2026; the end review's E17p2-R1,
+ * R5). The beat is a client setting, in the browser of the GM who wrote it, and reaches only
+ * the GMs online then. (1) A reload within the minute after an unpause read the beat from
+ * before the pause, and the pause already in `pausedTotalMs` was added again (the HUD went
+ * from 20 to about 10 minutes). (2) A GM opening the world on another computer had no beat,
+ * and the week between sessions was counted; one with a beat from before this time of day
+ * read the start, and took the pauses already counted off again. Every unpause and every
+ * stamp of this function writes the clock, so `writtenAt` is at or after the end of every
+ * counted pause, and every GM's browser reads it. What it leaves: on a browser with no beat,
+ * the minutes played after the clock's last write are not counted (an undercount, at most
+ * that stretch of the last session's play), never the days between sessions (LIVE-E17-01 (4)).
+ * A beat from before the start is none: the start alone says nothing of the pauses after it.
  */
 export function readyPatch(clock, { paused, beat, now }) {
     if (!clock?.timeOfDayStartedAt) return null;
     const start = Number(clock.timeOfDayStartedAt);
-    const last = beat !== null && beat !== undefined && Number.isFinite(Number(beat)) ? Math.max(Number(beat), start) : null;
+    const seen = [beat, clock.writtenAt]
+        .filter(at => at !== null && at !== undefined && Number.isFinite(Number(at)) && Number(at) >= start)
+        .map(Number);
+    const last = seen.length ? Math.min(now, Math.max(...seen)) : null;
     if (paused) return clock.pausedAt ? null : { pausedAt: last ?? now };
     if (clock.pausedAt) return unpausePatch(clock, now);
     if (last === null || now - last <= 2 * CLOCK_BEAT_MS) return null;

@@ -981,6 +981,17 @@ export const DEFAULT_CLOCK = {
      */
     pausedTotalMs: 0,
     /**
+     * WHEN A GM LAST WROTE THE CLOCK, as `serverNow()` (E17 fix p2-G1, 26.10.2026; the end
+     * review's E17p2-R1 and R5): stamped by clock.mjs `setClock` on every write it makes, unless
+     * the patch names it (a restore keeps its own). The primary's `ready` reads it beside the
+     * GMs' beat (hud.mjs `readyPatch`): the beat is one GM's browser's (a client setting), so a
+     * GM who opens the world on another computer had none and the gap between two sessions was
+     * counted, and a reload in the minute after an unpause, before the next beat, counted the
+     * pause a second time. Every unpause writes the clock, so this is at or after the end of
+     * every pause in `pausedTotalMs`. No extra write: it rides on the writes already made.
+     */
+    writtenAt: null,
+    /**
      * THE BOUNDARY THAT REFILLED LAST (E17 C7, 26.10.2026; audit S10-42): clock.mjs
      * `boundaryStamp` of the time of day a refill was given for (the season, the
      * chapter, the session, the day and the time of day it leads into), or null. An

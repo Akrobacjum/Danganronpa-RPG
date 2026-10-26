@@ -154,6 +154,10 @@ export async function setClock(patch = {}) {
             if (patch.pausedTotalMs === undefined) next.pausedTotalMs = 0;
             if (next.pausedAt && patch.pausedAt === undefined) next.pausedAt = next.timeOfDayStartedAt;
         }
+        /* WHEN THE CLOCK WAS LAST WRITTEN (E17 fix p2-G1, 26.10.2026): a moment a GM was at the table, which every GM's
+           `ready` can read (settings.mjs `DEFAULT_CLOCK.writtenAt`, hud.mjs `readyPatch`); `patch` wins, so a restored
+           clock keeps its own. */
+        if (patch.writtenAt === undefined) next.writtenAt = serverNow();
         // The trial's end, for the discovery stamps read after it (settings.mjs `bodyFoundSinceTrial`,
         // E11 fix r1-G3). `patch` wins here too, so a restored clock keeps its own.
         if (trialEdge && before.phase === "classTrial" && patch.trialEndedAt === undefined) {

@@ -874,7 +874,9 @@ export const crossingStore = defineGmStore({
  * every `CLOCK_BEAT_MS` (60 s, a design number: the stopwatch's error bound across two sessions) while the world runs
  * (hud.mjs `beatClock`) - the last moment a primary is known to have been at the table. A world that loads paused fires
  * no `pauseGame`, so the week between two sessions was time of day; at `ready` the primary reads this and counts the gap
- * since it as a pause (`settleClockAtReady`). Synced, so the next session's primary may be another GM's browser; not
+ * since it as a pause (`settleClockAtReady`). Synced to the GMs online at the time it is written, so a GM who was not
+ * online, or who opens the world on another computer, holds none or an older one: `readyPatch` reads it beside the
+ * clock's own last write (`writtenAt`, E17 fix p2-G1), which every GM's browser holds. Not
  * backed up (a restore's old beat would only shorten what is subtracted, and a beat from before the time of day began
  * is not read); no reset group: a beat older than the clock's `timeOfDayStartedAt` reads as none. No player copy.
  */
